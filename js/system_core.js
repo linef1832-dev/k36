@@ -1,6 +1,6 @@
 let allowedViewMonth = ''; 
 let allowedStartDay = 0;   
-let allowedEndDay = 31;    
+let allowedEndDay = 31;   
 
 let SETTINGS = { 
     quota_total_เช้า: 50, quota_total_กลาง: 50, quota_total_ดึก: 50,
@@ -1589,8 +1589,9 @@ setInterval(() => {
         window.checkAndShowAnnouncementPopup(true); 
     }
 }, 60000);
+
 // =========================================================
-// ⚙️ ระบบดึงการตั้งค่า (โควตา, เวลาเปิดปิด, สิทธิ์เมนู)
+// ⚙️ ระบบดึงการตั้งค่า (คืนชีพดีไซน์เดิม 100%)
 // =========================================================
 
 window.loadSettings = async function() {
@@ -1599,173 +1600,224 @@ window.loadSettings = async function() {
             .not('key', 'like', 'duty_roster_%')
             .not('key', 'like', 'report_TRAINER_%');
             
-        if (data) {
-            data.forEach(row => {
-                SETTINGS[row.key] = row.value;
-            });
-        }
+        if (data) { data.forEach(row => { SETTINGS[row.key] = row.value; }); }
         
-        // อัปเดตช่อง Input ในหน้าตั้งค่าระบบ
         if (document.getElementById('dailyLimitInput')) document.getElementById('dailyLimitInput').value = SETTINGS.daily_limit || 2;
         if (document.getElementById('periodLimitInput')) document.getElementById('periodLimitInput').value = SETTINGS.period_limit || 1;
-        
         if (document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = SETTINGS.daily_limit || 2;
         if (document.getElementById('periodLimitDisplay')) document.getElementById('periodLimitDisplay').innerText = SETTINGS.period_limit || 1;
 
         if (typeof renderOperatingHours === 'function') renderOperatingHours();
         if (typeof renderQuotaSettings === 'function') renderQuotaSettings();
         if (typeof renderPermsTable === 'function') renderPermsTable();
-        
-    } catch (e) {
-        console.error("Load Settings Error:", e);
-    }
+    } catch (e) { console.error("Load Settings Error:", e); }
 };
 
+// 🟢 คืนชีพดีไซน์หน้า "โควตาการเข้างาน" ให้เหมือนรูปที่ 1
 window.renderQuotaSettings = function() {
     const container = document.getElementById('quotaSettingsContainer');
     if (!container) return;
     
-    let html = `
-        <div class="bg-slate-900 rounded-xl border border-slate-700 p-3 mb-4">
-            <h5 class="text-white font-bold text-xs mb-2 border-b border-slate-700 pb-2">รวมทั้งกะ (ภาพรวม)</h5>
-            
-            <div class="mb-3">
-                <div class="text-[10px] font-bold text-blue-400 mb-1">■ โควตา AM รวม:</div>
-                <div class="grid grid-cols-1 gap-2 pl-2">
-                    <div class="flex items-center justify-between quota-row-total"><input type="hidden" class="key-input" value="เช้า"><span class="text-xs text-gray-400">กะเช้า</span><input type="number" id="quota_total_เช้า" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_total_เช้า || 50}"></div>
-                    <div class="flex items-center justify-between quota-row-total"><input type="hidden" class="key-input" value="กลาง"><span class="text-xs text-gray-400">กะกลาง</span><input type="number" id="quota_total_กลาง" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_total_กลาง || 50}"></div>
-                    <div class="flex items-center justify-between quota-row-total"><input type="hidden" class="key-input" value="ดึก"><span class="text-xs text-gray-400">กะดึก</span><input type="number" id="quota_total_ดึก" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_total_ดึก || 50}"></div>
+    let amHtml = ''; let odHtml = '';
+    const amTeams = ['Jun88', 'K188', 'MK8', 'NM9', 'PG688', 'TH26', 'VV72'];
+    const odTeams = ['F168', 'JL69', 'Jun88', 'K188', 'MK8', 'NM9', 'PG688', 'TH26', 'VV72'];
+
+    amTeams.forEach(team => {
+        const qM = SETTINGS[`quota_team_${team}_AM_เช้า`] || 1; const qA = SETTINGS[`quota_team_${team}_AM_กลาง`] || 0; const qN = SETTINGS[`quota_team_${team}_AM_ดึก`] || 1;
+        amHtml += `
+        <div class="flex items-center gap-2 quota-row-team group">
+            <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="AM">
+            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 text-xs shadow-sm truncate">${team}</div>
+            <input type="number" id="quota_team_${team}_AM_เช้า" class="val-m flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
+            <input type="number" id="quota_team_${team}_AM_กลาง" class="val-a flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
+            <input type="number" id="quota_team_${team}_AM_ดึก" class="val-n flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
+            <button class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
+        </div>`;
+    });
+
+    odTeams.forEach(team => {
+        const qM = SETTINGS[`quota_team_${team}_OD_เช้า`] || 1; const qA = SETTINGS[`quota_team_${team}_OD_กลาง`] || 0; const qN = SETTINGS[`quota_team_${team}_OD_ดึก`] || 1;
+        odHtml += `
+        <div class="flex items-center gap-2 quota-row-team group">
+            <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="OD">
+            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 text-xs shadow-sm truncate">${team}</div>
+            <input type="number" id="quota_team_${team}_OD_เช้า" class="val-m flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
+            <input type="number" id="quota_team_${team}_OD_กลาง" class="val-a flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
+            <input type="number" id="quota_team_${team}_OD_ดึก" class="val-n flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
+            <button class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
+        </div>`;
+    });
+
+    container.innerHTML = `
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full mt-2">
+            <div class="flex flex-col gap-6">
+                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-5">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-700/50 pb-2">
+                        <h5 class="text-white font-bold text-sm tracking-wide">รวมทั้งกะ (ภาพรวม):</h5>
+                        <button class="text-[10px] text-emerald-400 border border-emerald-500/50 px-2 py-1 rounded hover:bg-emerald-900/30 transition flex items-center gap-1">+ เพิ่ม</button>
+                    </div>
+                    <div class="mb-4">
+                        <div class="text-xs font-bold text-blue-400 mb-2 flex items-center gap-1.5"><div class="w-3 h-3 bg-blue-500 rounded-sm shadow-sm"></div> โควตา AM รวม:</div>
+                        <div class="space-y-2 pl-4">
+                            <div class="flex items-center justify-between gap-4 quota-row-total"><input type="hidden" class="key-input" value="เช้า"><div class="w-1/2 bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-600 text-slate-700 dark:text-gray-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">กะเช้า</div><input type="number" id="quota_total_เช้า" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-blue-500" value="${SETTINGS.quota_total_เช้า || 12}"></div>
+                            <div class="flex items-center justify-between gap-4 quota-row-total"><input type="hidden" class="key-input" value="กลาง"><div class="w-1/2 bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-600 text-slate-700 dark:text-gray-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">กะกลาง</div><input type="number" id="quota_total_กลาง" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-blue-500" value="${SETTINGS.quota_total_กลาง || 0}"></div>
+                            <div class="flex items-center justify-between gap-4 quota-row-total"><input type="hidden" class="key-input" value="ดึก"><div class="w-1/2 bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-600 text-slate-700 dark:text-gray-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">กะดึก</div><input type="number" id="quota_total_ดึก" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-blue-500" value="${SETTINGS.quota_total_ดึก || 16}"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold text-pink-400 mb-2 flex items-center gap-1.5"><div class="w-3 h-3 bg-pink-500 rounded-sm shadow-sm"></div> โควตา OD รวม:</div>
+                        <div class="space-y-2 pl-4">
+                            <div class="flex items-center justify-between gap-4 quota-row-od"><input type="hidden" class="key-input" value="เช้า"><div class="w-1/2 bg-pink-50 dark:bg-[#2b1b2e] border border-pink-100 dark:border-pink-900/50 text-pink-700 dark:text-pink-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">OD กะเช้า</div><input type="number" id="quota_od_เช้า" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-pink-500" value="${SETTINGS.quota_od_เช้า || 9}"></div>
+                            <div class="flex items-center justify-between gap-4 quota-row-od"><input type="hidden" class="key-input" value="กลาง"><div class="w-1/2 bg-pink-50 dark:bg-[#2b1b2e] border border-pink-100 dark:border-pink-900/50 text-pink-700 dark:text-pink-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">OD กะกลาง</div><input type="number" id="quota_od_กลาง" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-pink-500" value="${SETTINGS.quota_od_กลาง || 0}"></div>
+                            <div class="flex items-center justify-between gap-4 quota-row-od"><input type="hidden" class="key-input" value="ดึก"><div class="w-1/2 bg-pink-50 dark:bg-[#2b1b2e] border border-pink-100 dark:border-pink-900/50 text-pink-700 dark:text-pink-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">OD กะดึก</div><input type="number" id="quota_od_ดึก" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-pink-500" value="${SETTINGS.quota_od_ดึก || 9}"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2">
+                        <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">domain</span> รายทีม (AM):</h5>
+                        <button class="text-[10px] text-blue-400 border border-blue-500/50 px-2 py-1 rounded hover:bg-blue-900/30 transition">+ เพิ่มทีม AM</button>
+                    </div>
+                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2"><div class="w-24">ชื่อทีม</div><div class="flex-1 text-center text-orange-400">เช้า</div><div class="flex-1 text-center text-blue-400">กลาง</div><div class="flex-1 text-center text-purple-400">ดึก</div><div class="w-6"></div></div>
+                    <div class="space-y-2 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar pr-1">${amHtml}</div>
                 </div>
             </div>
 
-            <div>
-                <div class="text-[10px] font-bold text-pink-400 mb-1">■ โควตา OD รวม:</div>
-                <div class="grid grid-cols-1 gap-2 pl-2">
-                    <div class="flex items-center justify-between quota-row-od"><input type="hidden" class="key-input" value="เช้า"><span class="text-xs text-gray-400">OD กะเช้า</span><input type="number" id="quota_od_เช้า" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_od_เช้า || 5}"></div>
-                    <div class="flex items-center justify-between quota-row-od"><input type="hidden" class="key-input" value="กลาง"><span class="text-xs text-gray-400">OD กะกลาง</span><input type="number" id="quota_od_กลาง" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_od_กลาง || 5}"></div>
-                    <div class="flex items-center justify-between quota-row-od"><input type="hidden" class="key-input" value="ดึก"><span class="text-xs text-gray-400">OD กะดึก</span><input type="number" id="quota_od_ดึก" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_od_ดึก || 5}"></div>
+            <div class="flex flex-col h-full">
+                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 h-full flex flex-col">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2">
+                        <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">groups</span> รายทีม (OD):</h5>
+                        <button class="text-[10px] text-pink-400 border border-pink-500/50 px-2 py-1 rounded hover:bg-pink-900/30 transition">+ เพิ่มทีม OD</button>
+                    </div>
+                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2"><div class="w-24">ชื่อทีม</div><div class="flex-1 text-center text-orange-400">เช้า</div><div class="flex-1 text-center text-blue-400">กลาง</div><div class="flex-1 text-center text-purple-400">ดึก</div><div class="w-6"></div></div>
+                    <div class="space-y-2 flex-1 overflow-y-auto max-h-[700px] custom-scrollbar pr-1">${odHtml}</div>
                 </div>
             </div>
         </div>
-        
-        <div class="bg-slate-900 rounded-xl border border-slate-700 p-3">
-            <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
-                <h5 class="text-white font-bold text-xs">รายทีม (AM & OD)</h5>
-            </div>
-            <div class="space-y-2">
     `;
-    
-    TEAM_LIST.forEach(team => {
-        const qM = SETTINGS[`quota_team_${team}_เช้า`] || 5;
-        const qA = SETTINGS[`quota_team_${team}_กลาง`] || 5;
-        const qN = SETTINGS[`quota_team_${team}_ดึก`] || 5;
-        
-        html += `
-            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600 quota-row-team">
-                <input type="hidden" class="key-input" value="${team}">
-                <input type="hidden" class="dept-input" value="AM"> 
-                <span class="text-xs font-bold text-white w-16 truncate">${team}</span>
-                <div class="flex gap-1">
-                    <div class="flex flex-col items-center"><span class="text-[8px] text-orange-400">เช้า</span><input type="number" id="quota_team_${team}_เช้า" class="val-m w-10 bg-slate-900 border border-slate-600 text-white text-center rounded p-1 text-xs" value="${qM}"></div>
-                    <div class="flex flex-col items-center"><span class="text-[8px] text-blue-400">กลาง</span><input type="number" id="quota_team_${team}_กลาง" class="val-a w-10 bg-slate-900 border border-slate-600 text-white text-center rounded p-1 text-xs" value="${qA}"></div>
-                    <div class="flex flex-col items-center"><span class="text-[8px] text-purple-400">ดึก</span><input type="number" id="quota_team_${team}_ดึก" class="val-n w-10 bg-slate-900 border border-slate-600 text-white text-center rounded p-1 text-xs" value="${qN}"></div>
-                </div>
-            </div>
-        `;
-    });
-    
-    html += `</div></div>`;
-    container.innerHTML = html;
 };
 
 window.saveQuotaSettings = async function() {
     Swal.fire({title: 'กำลังบันทึกโควตา...', didOpen: () => Swal.showLoading()});
     const updates = [];
-    
     ['เช้า', 'กลาง', 'ดึก'].forEach(shift => {
-        const val = document.getElementById(`quota_total_${shift}`).value;
-        updates.push({key: `quota_total_${shift}`, value: val});
-        SETTINGS[`quota_total_${shift}`] = val;
-        
-        const odVal = document.getElementById(`quota_od_${shift}`).value;
-        updates.push({key: `quota_od_${shift}`, value: odVal});
-        SETTINGS[`quota_od_${shift}`] = odVal;
+        let val = document.getElementById(`quota_total_${shift}`).value; updates.push({key: `quota_total_${shift}`, value: val}); SETTINGS[`quota_total_${shift}`] = val;
+        let odVal = document.getElementById(`quota_od_${shift}`).value; updates.push({key: `quota_od_${shift}`, value: odVal}); SETTINGS[`quota_od_${shift}`] = odVal;
     });
 
-    TEAM_LIST.forEach(team => {
-        ['เช้า', 'กลาง', 'ดึก'].forEach(shift => {
-            const el = document.getElementById(`quota_team_${team}_${shift}`);
-            if(el) {
-                updates.push({key: `quota_team_${team}_${shift}`, value: el.value});
-                SETTINGS[`quota_team_${team}_${shift}`] = el.value;
-            }
-        });
+    document.querySelectorAll('.quota-row-team').forEach(row => {
+        let team = row.querySelector('.key-input').value; let dept = row.querySelector('.dept-input').value;
+        let qM = row.querySelector('.val-m').value; let qA = row.querySelector('.val-a').value; let qN = row.querySelector('.val-n').value;
+        updates.push({key: `quota_team_${team}_${dept}_เช้า`, value: qM}); SETTINGS[`quota_team_${team}_${dept}_เช้า`] = qM;
+        updates.push({key: `quota_team_${team}_${dept}_กลาง`, value: qA}); SETTINGS[`quota_team_${team}_${dept}_กลาง`] = qA;
+        updates.push({key: `quota_team_${team}_${dept}_ดึก`, value: qN}); SETTINGS[`quota_team_${team}_${dept}_ดึก`] = qN;
     });
 
     await appDB.from('settings').upsert(updates);
     Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
 };
 
-const MENU_LIST = [
-    { id: 'dashboard', name: 'หน้าหลักลงเวลา' },
-    { id: 'leave', name: 'วันหยุด/ลางาน' },
-    { id: 'gallery', name: 'คลังรูปภาพ' },
-    { id: 'password', name: 'รหัสผ่าน' },
-    { id: 'sheet', name: 'ตารางงาน (Sheets)' },
-    { id: 'swap', name: 'สลับกะ' },
-    { id: 'duty', name: 'จัดหน้าที่/เวร' },
-    { id: 'duty_manage', name: '>> แอดมินจัดเวร' },
-    { id: 'telegram', name: 'กลุ่มงาน (Tele)' },
-    { id: 'files', name: 'คลังไฟล์' },
-    { id: 'files_manage', name: '>> แอดมินคลังไฟล์' },
-    { id: 'summary', name: 'สรุปยอดทำรายการ' },
-    { id: 'announcement', name: 'กระดานประกาศ' },
-    { id: 'discord', name: 'เครื่องมือ DISCORD' },
-    { id: 'ds_spy', name: '>> Spy Monitor' },
-    { id: 'ds_move', name: '>> ย้ายห้อง' },
-    { id: 'ds_checkin', name: '>> เช็คชื่อ' },
-    { id: 'ds_manage', name: '>> ฐานข้อมูล DS' },
-    { id: 'ds_log', name: '>> ดูประวัติ DS' },
-    { id: 'admin', name: 'เครื่องมือผู้จัดการ' }
-];
 
+// 🟢 คืนชีพดีไซน์หน้า "สิทธิ์เมนู" ให้เหมือนรูปที่ 2
 let MENU_PERMS = {};
+const PERM_GROUPS = [
+    {
+        id: 'group_main', name: 'ระบบหลัก (ลงเวลา/ลางาน/รูป)', 
+        items: [
+            {id: 'dashboard', name: 'หน้าหลักลงเวลา', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+            {id: 'leave', name: 'หน้าวันหยุด / ลางาน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+            {id: 'leave_manage', name: '└ [ย่อย] ตั้งค่าโควตา & โหลด Excel', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'gallery', name: 'หน้าคลังรูปภาพ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+            {id: 'gallery_upload', name: '└ [ย่อย] อัปโหลดรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'gallery_delete', name: '└ [ย่อย] ลบรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+        ]
+    },
+    {
+        id: 'group_table', name: 'ตารางงาน & กะ', 
+        items: [
+            {id: 'sheet', name: 'ตารางงาน (Sheets)', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+            {id: 'sheet_manage', name: '└ [ย่อย] เพิ่ม/แก้/ลบ ลิงก์ชีท', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'duty', name: 'จัดหน้าที่ / เวร', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+            {id: 'duty_manage', name: '└ [ย่อย] สุ่มเวร & ตั้งค่าหัวข้อ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'swap', name: 'สลับกะการทำงาน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'}
+        ]
+    },
+    {
+        id: 'group_stat', name: 'สรุปยอด & สถิติ', 
+        items: [ {id: 'summary', name: 'สรุปยอดทำรายการ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'} ]
+    },
+    {
+        id: 'group_other', name: 'ตั้งค่าอื่นๆ', 
+        items: [
+            {id: 'telegram', name: 'กลุ่มงาน (Telegram)', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+            {id: 'files', name: 'คลังไฟล์ / โปรแกรม', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+            {id: 'files_manage', name: '└ [ย่อย] แอดมินคลังไฟล์', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'password', name: 'รหัสผ่าน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'}
+        ]
+    }
+];
 
 window.renderPermsTable = function() {
     try {
-        if (typeof SETTINGS['menu_access_rules'] === 'string') {
-            MENU_PERMS = JSON.parse(SETTINGS['menu_access_rules']);
-        } else if (SETTINGS['menu_access_rules']) {
-            MENU_PERMS = SETTINGS['menu_access_rules'];
-        } else {
-            MENU_PERMS = {};
-        }
-    } catch(e) { MENU_PERMS = {}; }
+        if (typeof SETTINGS['dept_menu_rules'] === 'string') MENU_PERMS = JSON.parse(SETTINGS['dept_menu_rules']);
+        else if (SETTINGS['dept_menu_rules']) MENU_PERMS = SETTINGS['dept_menu_rules'];
+        else MENU_PERMS = { 'AM_STAFF': [], 'OD_STAFF': [], 'AMQL_TRAINER': [] };
+    } catch(e) { MENU_PERMS = { 'AM_STAFF': [], 'OD_STAFF': [], 'AMQL_TRAINER': [] }; }
 
-    const thead = document.getElementById('permTableHeader');
     const tbody = document.getElementById('permTableBody');
-    if(!thead || !tbody) return;
+    if(!tbody) return;
 
-    let headHtml = `<th class="p-3 border-r border-slate-700 w-48">ชื่อพนักงาน</th>`;
-    MENU_LIST.forEach(m => {
-        let textColor = m.name.includes('>>') ? 'text-amber-400' : 'text-gray-300';
-        headHtml += `<th class="p-3 border-r border-slate-700 text-center ${textColor}" title="${m.name}"><div class="writing-vertical-lr transform rotate-180 text-[10px] mx-auto">${m.name}</div></th>`;
-    });
-    thead.innerHTML = headHtml;
+    const rowsData = [
+        { dept: 'AM', role: 'STAFF', color: 'bg-purple-900/30 text-purple-400 border-purple-700' },
+        { dept: 'OD', role: 'STAFF', color: 'bg-purple-900/30 text-purple-400 border-purple-700' },
+        { dept: 'AMQL', role: 'TRAINER', color: 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' }
+    ];
 
-    const staffList = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'trainer').sort((a,b) => a.username.localeCompare(b.username));
-    
     let bodyHtml = '';
-    staffList.forEach(u => {
-        const userPerms = MENU_PERMS[u.id] || [];
-        bodyHtml += `<tr class="hover:bg-slate-800 transition">
-            <td class="p-3 border-r border-slate-700 font-bold text-white">${u.username} <span class="text-[9px] text-gray-500">(${u.department||'AM'})</span></td>`;
+    rowsData.forEach(r => {
+        const key = `${r.dept}_${r.role}`;
+        const activePerms = MENU_PERMS[key] || [];
         
-        MENU_LIST.forEach(m => {
-            const isChecked = userPerms.includes(m.id) ? 'checked' : '';
-            bodyHtml += `<td class="p-2 border-r border-slate-700 text-center"><input type="checkbox" class="perm-cb w-4 h-4 rounded bg-slate-900 border-slate-600 text-orange-500 focus:ring-orange-500 cursor-pointer" data-uid="${u.id}" data-menu="${m.id}" ${isChecked}></td>`;
+        let badgesHtml = '';
+        PERM_GROUPS.forEach(g => {
+            const hasAnyInGroup = g.items.some(i => activePerms.includes(i.id));
+            if(hasAnyInGroup) {
+                badgesHtml += `<div class="mb-2"><div class="text-[9px] text-gray-400 mb-1 flex items-center gap-1"><span class="material-icons text-[10px]">folder</span> ${g.name}</div><div class="flex flex-wrap gap-1.5 pl-2">`;
+                g.items.forEach(item => {
+                    if (activePerms.includes(item.id)) {
+                        badgesHtml += `<span class="text-[10px] ${item.color} border px-2 py-0.5 rounded shadow-sm">${item.name}</span>`;
+                    }
+                });
+                badgesHtml += `</div></div>`;
+            }
         });
-        bodyHtml += `</tr>`;
+        if(badgesHtml === '') badgesHtml = `<span class="text-xs text-gray-500 italic">ไม่ได้เลือกสิทธิ์ใดๆ</span>`;
+
+        let popupContentHtml = `<div class="absolute top-10 left-0 bg-[#0f172a] border border-slate-600 rounded-xl shadow-2xl p-4 w-[450px] z-50 hidden group-focus-within:block group-hover:block transition-all transform origin-top-left"><div class="grid grid-cols-2 gap-4">`;
+        PERM_GROUPS.forEach(g => {
+            popupContentHtml += `<div class="bg-slate-800/50 p-2 rounded-lg border border-slate-700"><div class="text-xs font-bold text-gray-300 mb-2 border-b border-slate-600 pb-1 flex items-center gap-1"><span class="material-icons text-sm text-orange-400">folder</span> ${g.name}</div><div class="space-y-1.5 pl-1">`;
+            g.items.forEach(item => {
+                const isChecked = activePerms.includes(item.id) ? 'checked' : '';
+                const marginLeft = item.isSub ? 'ml-4' : '';
+                popupContentHtml += `<label class="flex items-center gap-2 text-[10px] text-gray-300 cursor-pointer hover:text-white ${marginLeft}"><input type="checkbox" class="perm-cb w-3.5 h-3.5 rounded bg-slate-900 border-slate-600 text-blue-500 focus:ring-blue-500 cursor-pointer" data-key="${key}" data-menu="${item.id}" ${isChecked}> ${item.name}</label>`;
+            });
+            popupContentHtml += `</div></div>`;
+        });
+        popupContentHtml += `</div></div>`;
+
+        bodyHtml += `
+        <tr class="hover:bg-slate-800/50 transition">
+            <td class="px-6 py-4 border-r border-slate-700 align-top"><div class="bg-slate-900 border border-slate-600 px-3 py-2 rounded-lg font-black text-white shadow-inner text-sm w-32 text-center">${r.dept}</div></td>
+            <td class="px-6 py-4 border-r border-slate-700 align-top"><div class="${r.color} border px-3 py-2 rounded-lg font-black text-[11px] shadow-sm w-32 text-center flex items-center justify-between"><span>${r.role}</span> <span class="material-icons text-[14px] opacity-50">expand_more</span></div></td>
+            <td class="px-6 py-4 border-r border-slate-700 align-top relative group" tabindex="0">
+                <div class="bg-slate-900/50 border border-orange-500/30 p-3 rounded-xl min-h-[60px] cursor-pointer hover:border-orange-500/80 transition shadow-inner">
+                    ${badgesHtml}
+                </div>
+                ${popupContentHtml}
+            </td>
+            <td class="px-6 py-4 text-center align-middle bg-slate-900/30"><button onclick="saveMenuPerms()" class="bg-emerald-600/20 text-emerald-400 border border-emerald-600 hover:bg-emerald-600 hover:text-white w-14 h-14 rounded-xl flex flex-col items-center justify-center transition shadow mx-auto"><span class="material-icons text-lg">save</span><span class="text-[9px] font-bold mt-0.5">บันทึก</span></button></td>
+        </tr>`;
     });
     tbody.innerHTML = bodyHtml;
 };
@@ -1773,28 +1825,32 @@ window.renderPermsTable = function() {
 window.saveMenuPerms = async function() {
     Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
     
-    const newPerms = {};
+    const newPerms = { 'AM_STAFF': [], 'OD_STAFF': [], 'AMQL_TRAINER': [] };
     document.querySelectorAll('.perm-cb:checked').forEach(cb => {
-        const uid = cb.getAttribute('data-uid');
+        const key = cb.getAttribute('data-key');
         const menu = cb.getAttribute('data-menu');
-        if(!newPerms[uid]) newPerms[uid] = [];
-        newPerms[uid].push(menu);
+        if(newPerms[key]) newPerms[key].push(menu);
     });
 
     MENU_PERMS = newPerms;
-    SETTINGS['menu_access_rules'] = JSON.stringify(MENU_PERMS);
+    SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
     
-    await appDB.from('settings').upsert([{ key: 'menu_access_rules', value: JSON.stringify(MENU_PERMS) }]);
-    Swal.fire('สำเร็จ', 'บันทึกสิทธิ์การมองเห็นเมนูแล้ว', 'success');
+    await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
+    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์การมองเห็นเมนูเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false});
+    renderPermsTable(); 
 };
 
 window.hasUserPerm = function(menuId) {
     if (!currentUser) return false;
     if (currentUser.role === 'admin' || currentUser.role === 'manager') return true;
+    
     let perms = {};
-    try {
-        perms = typeof SETTINGS['menu_access_rules'] === 'string' ? JSON.parse(SETTINGS['menu_access_rules']) : (SETTINGS['menu_access_rules'] || {});
-    } catch(e) {}
-    const userPerms = perms[currentUser.id] || [];
+    try { perms = typeof SETTINGS['dept_menu_rules'] === 'string' ? JSON.parse(SETTINGS['dept_menu_rules']) : (SETTINGS['dept_menu_rules'] || {}); } catch(e) {}
+    
+    const uDept = currentUser.department || 'AM';
+    const uRole = currentUser.role === 'trainer' ? 'TRAINER' : 'STAFF';
+    const key = `${uDept}_${uRole}`;
+    
+    const userPerms = perms[key] || [];
     return userPerms.includes(menuId);
 };
