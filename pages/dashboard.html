@@ -31,21 +31,144 @@
     <div id="adminPanel" class="hidden flex-col gap-6 w-full mb-6 animate-fade-in bg-[#0f172a] p-4 md:p-6 rounded-3xl border border-slate-700 shadow-2xl">
         <div class="flex justify-between items-center bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-md">
             <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-yellow-500 to-orange-400 flex items-center justify-center">
-                    <span class="material-icons text-3xl text-white">tune</span>
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-yellow-500 to-orange-400 flex items-center justify-center shadow-inner">
+                    <span class="material-icons text-3xl text-white drop-shadow-md">tune</span>
                 </div>
                 <div>
-                    <h3 class="font-extrabold text-xl text-white">ตั้งค่าระบบ (System Settings)</h3>
-                    <p class="text-xs text-gray-400">จัดการเวลาทำงาน ขีดจำกัด และโควตาพนักงาน</p>
+                    <h3 class="font-extrabold text-xl text-white tracking-wide">ตั้งค่าระบบ (System Settings)</h3>
+                    <p class="text-xs text-gray-400">จัดการเวลาทำงาน ขีดจำกัด โควตาพนักงาน และรายชื่อ</p>
                 </div>
             </div>
-            <button onclick="document.getElementById('adminPanel').classList.add('hidden'); document.getElementById('mainContentArea').classList.remove('hidden');" class="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-sm">
+            <button onclick="document.getElementById('adminPanel').classList.add('hidden'); document.getElementById('mainContentArea').classList.remove('hidden');" class="bg-slate-700 hover:bg-slate-600 text-white border border-slate-500 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-md active:scale-95">
                 <span class="material-icons text-base">arrow_back</span> กลับหน้าหลัก
             </button>
         </div>
-        <div class="text-center text-gray-400 py-10 border border-dashed border-slate-600 rounded-xl">เมนูตั้งค่าสำหรับแอดมิน</div>
-    </div>
 
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg">
+                 <h4 class="text-white font-bold mb-4 flex items-center gap-2"><span class="material-icons text-amber-500">rule</span> ตั้งค่าโควตาการลงเวลา</h4>
+                 <div class="grid grid-cols-2 gap-4 mb-4">
+                     <div>
+                         <label class="block text-xs text-gray-400 mb-1">ลงได้กี่ครั้ง / 1 ช่วงเวลา</label>
+                         <input type="number" id="periodLimitInput" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg outline-none focus:border-amber-500 text-center font-bold">
+                     </div>
+                     <div>
+                         <label class="block text-xs text-gray-400 mb-1">ลงได้สูงสุดกี่ครั้ง / วัน</label>
+                         <input type="number" id="dailyLimitInput" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg outline-none focus:border-amber-500 text-center font-bold">
+                     </div>
+                 </div>
+                 <button onclick="saveDailyLimit()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded-lg transition shadow-md border border-amber-500">บันทึกโควตา</button>
+            </div>
+
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
+                 <div class="flex justify-between items-center mb-4">
+                     <h4 class="text-white font-bold flex items-center gap-2"><span class="material-icons text-emerald-500">schedule</span> เวลาเปิด-ปิดกะ</h4>
+                     <button onclick="addOperatingShift()" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded transition flex items-center gap-1 shadow"><span class="material-icons text-[14px]">add</span> เพิ่มกะ</button>
+                 </div>
+                 <div id="operatingTimeContainer" class="space-y-2 mb-4 flex-1 overflow-y-auto custom-scrollbar pr-1"></div>
+                 <button onclick="saveTimeSettings()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg transition shadow-md border border-emerald-500 mt-auto">บันทึกเวลา</button>
+            </div>
+        </div>
+
+        <div class="hidden flex-col gap-4 w-full mt-2" id="userManagerUIBlock">
+            <div class="flex items-center gap-2 mb-2 border-b border-slate-700 pb-2">
+                <span class="material-icons text-blue-400">group_add</span>
+                <h3 class="font-bold text-lg text-white">จัดการรายชื่อพนักงาน</h3>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-2xl border border-orange-500/30 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-orange-500">wb_sunny</span></div>
+                    <div class="text-orange-400 text-xs font-bold uppercase mb-1 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> กะเช้า</div>
+                    <div id="countShiftM" class="relative z-10 flex flex-col gap-1 mt-1">
+                        <div class="text-2xl font-black text-white leading-none stat-total">0</div>
+                        <div class="flex gap-2 text-[10px] font-bold">
+                            <span class="text-blue-400">AM: <span class="stat-am">0</span></span>
+                            <span class="text-pink-400">OD: <span class="stat-od">0</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-2xl border border-blue-500/30 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-blue-500">cloud</span></div>
+                    <div class="text-blue-400 text-xs font-bold uppercase mb-1 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> กะกลาง</div>
+                    <div id="countShiftA" class="relative z-10 flex flex-col gap-1 mt-1">
+                        <div class="text-2xl font-black text-white leading-none stat-total">0</div>
+                        <div class="flex gap-2 text-[10px] font-bold">
+                            <span class="text-blue-400">AM: <span class="stat-am">0</span></span>
+                            <span class="text-pink-400">OD: <span class="stat-od">0</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-2xl border border-purple-500/30 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-purple-500">dark_mode</span></div>
+                    <div class="text-purple-400 text-xs font-bold uppercase mb-1 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span> กะดึก</div>
+                    <div id="countShiftN" class="relative z-10 flex flex-col gap-1 mt-1">
+                        <div class="text-2xl font-black text-white leading-none stat-total">0</div>
+                        <div class="flex gap-2 text-[10px] font-bold">
+                            <span class="text-blue-400">AM: <span class="stat-am">0</span></span>
+                            <span class="text-pink-400">OD: <span class="stat-od">0</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-md p-4 flex flex-col xl:flex-row gap-4 items-center">
+                <div class="flex items-center gap-2 text-green-400 font-bold shrink-0 w-full xl:w-auto border-b xl:border-b-0 xl:border-r border-slate-700 pb-2 xl:pb-0 pr-4">
+                    <span class="material-icons bg-green-500/20 p-1.5 rounded-lg">person_add</span> 
+                    <span>เพิ่มรายชื่อ</span>
+                </div>
+                <textarea id="newUsersArea" rows="1" class="flex-1 w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white text-sm font-bold focus:border-green-500 outline-none transition custom-scrollbar" placeholder="พิมพ์ชื่อพนักงาน (ขึ้นบรรทัดใหม่เพื่อเพิ่มทีละหลายคน)"></textarea>
+                
+                <div class="flex flex-wrap gap-2 shrink-0 w-full xl:w-auto">
+                    <div class="flex flex-col gap-1 w-full sm:w-auto">
+                        <select id="newDept" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-blue-100 outline-none"><option value="AM">แผนก AM</option><option value="OD">แผนก OD</option></select>
+                        <select id="newTeam" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-indigo-100 outline-none"></select>
+                    </div>
+                    <div class="flex flex-col gap-1 w-full sm:w-auto">
+                        <select id="newAllowedShift" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-gray-100 outline-none"><option value="all">กะอิสระ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
+                        <select id="newCheckType" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-purple-100 outline-none"><option value="team">☑ เช็คทีม+กะ</option><option value="shift">☐ เช็คกะอย่างเดียว</option></select>
+                    </div>
+                    <button onclick="addUsersBulk()" class="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 rounded-xl font-bold shadow-lg transition active:scale-95 flex items-center justify-center h-14">
+                        <span class="material-icons text-base">add_task</span> เพิ่ม
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-3 rounded-2xl border border-slate-700 shadow-sm flex flex-col lg:flex-row justify-between items-center gap-3">
+                <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    <select id="filterUserDept" onchange="searchEmployee()" class="p-2 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">🌐 ทุกแผนก</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
+                    <select id="filterUserShift" onchange="searchEmployee()" class="p-2 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">⏱️ ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option></select>
+                    <div class="relative flex-1 min-w-[150px]">
+                        <span class="material-icons absolute left-3 top-2 text-gray-400 text-[18px]">search</span>
+                        <input type="text" id="searchUser" onkeyup="searchEmployee()" placeholder="ค้นหาชื่อ..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-600 text-white text-xs font-bold outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto bg-slate-900/50 p-1.5 rounded-xl border border-slate-700/50">
+                    <select id="moveTargetShift" class="p-1.5 rounded-lg text-slate-800 text-[10px] font-bold bg-orange-100 outline-none"><option value="">ย้ายกะไป...</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
+                    <button onclick="moveSelectedUsers()" class="bg-orange-500 text-white px-2 py-1.5 rounded-lg text-[10px] font-bold transition">ยืนยัน</button>
+                    <div class="w-px h-6 bg-slate-600"></div>
+                    <select id="moveTargetTeam" class="p-1.5 rounded-lg text-slate-800 text-[10px] font-bold bg-indigo-100 outline-none"><option value="">ย้ายทีมไป...</option></select>
+                    <button onclick="moveSelectedUsersTeam()" class="bg-indigo-500 text-white px-2 py-1.5 rounded-lg text-[10px] font-bold transition">ยืนยัน</button>
+                    <div class="w-px h-6 bg-slate-600"></div>
+                    <button onclick="deleteSelectedUsers()" class="bg-red-500/10 text-red-500 px-3 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1"><span class="material-icons text-[12px]">delete_sweep</span> ลบ</button>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
+                <div class="max-h-[350px] overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-sm text-left border-collapse whitespace-nowrap">
+                        <thead class="bg-slate-900 text-gray-400 sticky top-0 z-20 shadow-md">
+                            <tr>
+                                <th class="p-3 w-10 text-center"><input type="checkbox" onchange="toggleSelectAll(this)" class="w-4 h-4 rounded cursor-pointer"></th>
+                                <th class="p-3 font-bold">พนักงาน</th><th class="p-3 text-center">แผนก</th><th class="p-3 text-center">ทีม</th><th class="p-3 text-center">กะ</th><th class="p-3 text-center">รหัส PIN</th><th class="p-3 text-center">ระบบเช็ค</th><th class="p-3 text-center">สิทธิ์</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody" class="divide-y divide-slate-700/50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="mainContentArea" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         <div class="lg:col-span-4 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border-t-4 border-blue-600 sticky top-2 h-fit">
@@ -128,102 +251,7 @@
         </div>
 
         <div class="lg:col-span-8 flex flex-col gap-6">
-            
-            <div class="hidden flex-col gap-4 w-full" id="userManagerUIBlock">
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-2xl border border-orange-500/30 shadow-lg relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-orange-500">wb_sunny</span></div>
-                        <div class="text-orange-400 text-xs font-bold uppercase mb-1 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> กะเช้า</div>
-                        <div id="countShiftM" class="relative z-10 flex flex-col gap-1 mt-1">
-                            <div class="text-2xl font-black text-white leading-none stat-total">0</div>
-                            <div class="flex gap-2 text-[10px] font-bold">
-                                <span class="text-blue-400">AM: <span class="stat-am">0</span></span>
-                                <span class="text-pink-400">OD: <span class="stat-od">0</span></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-2xl border border-blue-500/30 shadow-lg relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-blue-500">cloud</span></div>
-                        <div class="text-blue-400 text-xs font-bold uppercase mb-1 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> กะกลาง</div>
-                        <div id="countShiftA" class="relative z-10 flex flex-col gap-1 mt-1">
-                            <div class="text-2xl font-black text-white leading-none stat-total">0</div>
-                            <div class="flex gap-2 text-[10px] font-bold">
-                                <span class="text-blue-400">AM: <span class="stat-am">0</span></span>
-                                <span class="text-pink-400">OD: <span class="stat-od">0</span></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-2xl border border-purple-500/30 shadow-lg relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-purple-500">dark_mode</span></div>
-                        <div class="text-purple-400 text-xs font-bold uppercase mb-1 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span> กะดึก</div>
-                        <div id="countShiftN" class="relative z-10 flex flex-col gap-1 mt-1">
-                            <div class="text-2xl font-black text-white leading-none stat-total">0</div>
-                            <div class="flex gap-2 text-[10px] font-bold">
-                                <span class="text-blue-400">AM: <span class="stat-am">0</span></span>
-                                <span class="text-pink-400">OD: <span class="stat-od">0</span></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-md p-4 flex flex-col xl:flex-row gap-4 items-center">
-                    <div class="flex items-center gap-2 text-green-400 font-bold shrink-0 w-full xl:w-auto border-b xl:border-b-0 xl:border-r border-slate-700 pb-2 xl:pb-0 pr-4">
-                        <span class="material-icons bg-green-500/20 p-1.5 rounded-lg">person_add</span> 
-                        <span>เพิ่มรายชื่อ</span>
-                    </div>
-                    <textarea id="newUsersArea" rows="1" class="flex-1 w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white text-sm font-bold focus:border-green-500 outline-none transition custom-scrollbar" placeholder="พิมพ์ชื่อพนักงาน (ขึ้นบรรทัดใหม่เพื่อเพิ่มทีละหลายคน)"></textarea>
-                    
-                    <div class="flex flex-wrap gap-2 shrink-0 w-full xl:w-auto">
-                        <div class="flex flex-col gap-1 w-full sm:w-auto">
-                            <select id="newDept" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-blue-100 outline-none"><option value="AM">แผนก AM</option><option value="OD">แผนก OD</option></select>
-                            <select id="newTeam" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-indigo-100 outline-none"></select>
-                        </div>
-                        <div class="flex flex-col gap-1 w-full sm:w-auto">
-                            <select id="newAllowedShift" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-gray-100 outline-none"><option value="all">กะอิสระ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
-                            <select id="newCheckType" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-purple-100 outline-none"><option value="team">☑ เช็คทีม+กะ</option><option value="shift">☐ เช็คกะอย่างเดียว</option></select>
-                        </div>
-                        <button onclick="addUsersBulk()" class="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 rounded-xl font-bold shadow-lg transition active:scale-95 flex items-center justify-center h-14">
-                            <span class="material-icons text-base">add_task</span> เพิ่ม
-                        </button>
-                    </div>
-                </div>
-
-                <div class="bg-slate-800 p-3 rounded-2xl border border-slate-700 shadow-sm flex flex-col lg:flex-row justify-between items-center gap-3">
-                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                        <select id="filterUserDept" onchange="searchEmployee()" class="p-2 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">🌐 ทุกแผนก</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
-                        <select id="filterUserShift" onchange="searchEmployee()" class="p-2 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">⏱️ ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option></select>
-                        <div class="relative flex-1 min-w-[150px]">
-                            <span class="material-icons absolute left-3 top-2 text-gray-400 text-[18px]">search</span>
-                            <input type="text" id="searchUser" onkeyup="searchEmployee()" placeholder="ค้นหาชื่อ..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-600 text-white text-xs font-bold outline-none focus:border-blue-500">
-                        </div>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto bg-slate-900/50 p-1.5 rounded-xl border border-slate-700/50">
-                        <select id="moveTargetShift" class="p-1.5 rounded-lg text-slate-800 text-[10px] font-bold bg-orange-100 outline-none"><option value="">ย้ายกะไป...</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
-                        <button onclick="moveSelectedUsers()" class="bg-orange-500 text-white px-2 py-1.5 rounded-lg text-[10px] font-bold transition">ยืนยัน</button>
-                        <div class="w-px h-6 bg-slate-600"></div>
-                        <select id="moveTargetTeam" class="p-1.5 rounded-lg text-slate-800 text-[10px] font-bold bg-indigo-100 outline-none"><option value="">ย้ายทีมไป...</option></select>
-                        <button onclick="moveSelectedUsersTeam()" class="bg-indigo-500 text-white px-2 py-1.5 rounded-lg text-[10px] font-bold transition">ยืนยัน</button>
-                        <div class="w-px h-6 bg-slate-600"></div>
-                        <button onclick="deleteSelectedUsers()" class="bg-red-500/10 text-red-500 px-3 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1"><span class="material-icons text-[12px]">delete_sweep</span> ลบ</button>
-                    </div>
-                </div>
-
-                <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
-                    <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
-                        <table class="w-full text-sm text-left border-collapse whitespace-nowrap">
-                            <thead class="bg-slate-900 text-gray-400 sticky top-0 z-20 shadow-md">
-                                <tr>
-                                    <th class="p-3 w-10 text-center"><input type="checkbox" onchange="toggleSelectAll(this)" class="w-4 h-4 rounded cursor-pointer"></th>
-                                    <th class="p-3 font-bold">พนักงาน</th><th class="p-3 text-center">แผนก</th><th class="p-3 text-center">ทีม</th><th class="p-3 text-center">กะ</th><th class="p-3 text-center">รหัส PIN</th><th class="p-3 text-center">ระบบเช็ค</th><th class="p-3 text-center">สิทธิ์</th>
-                                </tr>
-                            </thead>
-                            <tbody id="userTableBody" class="divide-y divide-slate-700/50"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full" id="timeTableSection">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full h-full" id="timeTableSection">
                 <div class="p-4 bg-slate-50 dark:bg-slate-800/50 border-b dark:border-slate-700">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                         <h3 class="font-bold text-lg text-slate-700 dark:text-white flex items-center gap-2 whitespace-nowrap">
@@ -256,7 +284,6 @@
                     </table>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
