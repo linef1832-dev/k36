@@ -7,13 +7,53 @@ window.availableSummaryDates = [];
 window.selectedSummaryDates = window.selectedSummaryDates || new Set();
 let summaryRenderTimer;
 
-function initSummaryDate() {
-    const dateInput = document.getElementById('summaryDateFilter');
-    if(dateInput && !dateInput.value) {
-        const today = new Date();
-        const offset = today.getTimezoneOffset() * 60000;
-        dateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
+// ฟังก์ชันเริ่มแรกตอนกดเข้าหน้า "สรุปยอด"
+window.initSummaryDate = async function() {
+    Swal.fire({title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    try {
+        const dateInput = document.getElementById('summaryDateFilter');
+        if(dateInput && !dateInput.value) {
+            const today = new Date();
+            const offset = today.getTimezoneOffset() * 60000;
+            dateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
+        }
+        
+        // 1. โหลดข้อมูลโลโก้ที่เคยตั้งไว้
+        await loadWebLogos();
+        
+        // 2. โหลดวันที่เคยมีคนอัปโหลดไว้ เพื่อทำปุ่มกดย้อนหลัง
+        if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
+        
+        // 3. โหลดข้อมูลของวันนี้มาโชว์ (ถ้ามี)
+        await window.fetchHistoricalSummary(true);
+        
+    } catch(e) { console.error(e); } 
+    finally { Swal.close(); }
+}
+
+// โหลดรูปโลโก้จาก Database
+window.loadWebLogos = async function() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'summary_web_logos').single();
+        if (data && data.value) {
+            window.summaryWebLogos = JSON.parse(data.value);
+            if (typeof SETTINGS !== 'undefined') SETTINGS['summary_web_logos'] = data.value;
+        } else {
+            window.summaryWebLogos = {};
+        }
+    } catch (e) {
+        window.summaryWebLogos = {};
     }
+}
+
+// ฟังก์ชันดึงวันที่ย้อนหลัง (สร้างปุ่มประวัติ)
+window.fetchAvailableDates = async function() {
+    try {
+        const { data } = await appDB.from('transaction_daily_summary').select('date');
+        if (data) {
+            window.availableSummaryDates = [...new Set(data.map(d => d.date))];
+        }
+    } catch (e) { console.error("Fetch dates error:", e); }
 }
 
 function getShiftFromName(name) {
@@ -373,8 +413,6 @@ window.debounceRenderSummary = function() {
     summaryRenderTimer = setTimeout(() => { window.renderSummaryDashboard(); }, 200);
 };
 
-// ... (ผมจะให้โค้ดการวาดหน้า UI แบบครบๆ ในช่องถัดไปเพื่อป้องกันการถูกตัดนะฮะ พิมพ์ "ต่อเลย" มาได้เลยครับ)
-
 window.renderSummaryDashboard = function() {
     if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
         try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
@@ -663,9 +701,7 @@ window.renderSummaryDashboard = function() {
                     htmlArr.push(`</div></div>`);
                 });
                 
-                // ถือเป็นการแสดงผลในโหมดประวัติ ใส่ปุ่มต่างๆ ต่อท้าย
                 if (viewMode === 'history' || viewMode === 'monthly_history') {
-                    // กำหนด datesHtml ที่หายไปกรณีมีข้อมูล
                     let datesHtml = '';
                     if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
                         const sortedDates = window.availableSummaryDates.sort((a,b) => new Date(b) - new Date(a));
@@ -1089,8 +1125,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
             if (!silent) {
                 Swal.fire({ icon: 'success', title: 'ดึงข้อมูลสำเร็จ', timer: 1000, showConfirmButton: false });
             } else {
-                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-                Toast.fire({ icon: 'info', title: '🔄 มีข้อมูลอัปเดตจากผู้ใช้อื่น' });
+                Swal.close(); 
             }
         } else {
             pendingSummaryData = []; 
@@ -1103,31 +1138,6 @@ window.fetchHistoricalSummary = async function(silent = false) {
         console.error("Fetch Summary Error:", e);
     }
 };
-
-let summarySubscription = null;
-window.subscribeSummaryChanges = function() {
-    if (!window.appDB) return;
-    if (summarySubscription) window.appDB.removeChannel(summarySubscription);
-
-    summarySubscription = window.appDB.channel('summary-updates')
-        .on('broadcast', { event: 'force_summary_reload' }, (payload) => {
-             const summaryApp = document.getElementById('summaryApp');
-             if (summaryApp && !summaryApp.classList.contains('hidden')) {
-                 const currentDateFilter = document.getElementById('summaryDateFilter');
-                 const currentDate = currentDateFilter ? currentDateFilter.value : '';
-                 if (payload.payload && payload.payload.date === currentDate) {
-                     if (viewMode !== 'preview') window.fetchHistoricalSummary(true);
-                 }
-             }
-        }).subscribe();
-};
-
-setTimeout(() => {
-    if (typeof subscribeSummaryChanges === 'function') {
-        subscribeSummaryChanges();
-        console.log("🟢 ระบบสรุปยอด Real-time เริ่มทำงานแล้ว!");
-    }
-}, 3000);
 
 window.exportSummaryToExcel = async function() {
     if (typeof ExcelJS === 'undefined') return Swal.fire('ระบบไม่พร้อม', 'กรุณารอโหลดสคริปต์ ExcelJS สักครู่', 'warning');
@@ -1447,9 +1457,7 @@ window.toggleSummaryDate = function(dateStr) {
     else window.selectedSummaryDates.add(dateStr);
     renderSummaryDashboard();
 };
-// ====================================================
-// 🖼️ ฟังก์ชันบันทึกโลโก้เว็บไซต์ (ที่ตกหล่นไป)
-// ====================================================
+
 window.saveWebLogo = async function() {
     const web = document.getElementById('webLogoKey').value;
     const urlInput = document.getElementById('webLogoUrlInput').value.trim();
