@@ -3,9 +3,11 @@
 // ==========================================
 let globalAppFiles = [];
 
-// เริ่มระบบคลังไฟล์
-async function initFilesApp() {
-    const isAdmin = window.hasUserPerm('files_manage') || (currentUser.role === 'manager' || currentUser.role === 'admin');
+// 1. เริ่มระบบคลังไฟล์
+window.initFilesApp = async function() {
+    // เช็คสิทธิ์แบบปลอดภัย (ถ้ามีฟังก์ชัน hasUserPerm ให้ใช้ ถ้าไม่มีให้ดูจาก role)
+    const hasPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('files_manage') : false;
+    const isAdmin = hasPerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
     const adminControls = document.getElementById('filesAdminControls');
     
     // โชว์ปุ่ม "เพิ่มไฟล์ใหม่" สำหรับแอดมิน
@@ -14,31 +16,33 @@ async function initFilesApp() {
         else adminControls.classList.add('hidden');
     }
     await fetchFilesData();
-}
+};
 
-// ดึงข้อมูลไฟล์ (ข้อมูลเก็บเป็น JSON ในตาราง Settings)
-async function fetchFilesData() {
+// 2. ดึงข้อมูลไฟล์
+window.fetchFilesData = async function() {
     const grid = document.getElementById('filesGrid');
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดไฟล์...</span></div>';
     
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'app_files_data').single();
+        const { data, error } = await appDB.from('settings').select('value').eq('key', 'app_files_data').single();
+        if (error) throw error;
         globalAppFiles = (data && data.value) ? JSON.parse(data.value) : [];
-        renderFilesGrid();
     } catch(e) { 
+        console.error("Fetch files error:", e);
         globalAppFiles = []; 
-        renderFilesGrid(); 
     }
-}
+    renderFilesGrid();
+};
 
-// วาดการ์ดแสดงไฟล์
+// 3. วาดตาราง
 window.renderFilesGrid = function() {
     const grid = document.getElementById('filesGrid');
     if(!grid) return;
     
     const term = document.getElementById('searchFilesInput') ? document.getElementById('searchFilesInput').value.toLowerCase() : '';
-    const isAdmin = window.hasUserPerm('files_manage') || (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const hasPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('files_manage') : false;
+    const isAdmin = hasPerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
 
     const filtered = globalAppFiles.filter(f => f.title.toLowerCase().includes(term) || (f.desc && f.desc.toLowerCase().includes(term)));
 
@@ -83,6 +87,7 @@ window.renderFilesGrid = function() {
                     <p class="text-[11px] font-bold text-gray-500 mt-1 line-clamp-2 leading-snug">${f.desc || 'ไม่มีคำอธิบาย'}</p>
                 </div>
             </div>
+            
             <div class="mt-auto pt-2">
                 <button onclick="forceDownloadFile('${f.id}')" class="w-full bg-slate-100 dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition group/btn">
                     <span class="material-icons text-[18px] group-hover/btn:translate-y-0.5 transition-transform">download</span> ดาวน์โหลด
@@ -92,7 +97,7 @@ window.renderFilesGrid = function() {
     }).join('');
 };
 
-// ป๊อปอัปเพิ่มไฟล์
+// 4. ป๊อปอัปเพิ่มไฟล์
 window.openAddFileModal = function() {
     document.getElementById('fileModal').classList.remove('hidden');
     ['fileEditId','fileTitle','fileDesc','fileExternalUrl','fileInput','fileCoverInput'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).value = ''; });
@@ -103,7 +108,7 @@ window.openAddFileModal = function() {
     document.getElementById('fileSubmitBtn').className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 rounded-xl shadow-lg transition transform active:scale-95 mt-4 text-base border border-emerald-400";
 };
 
-// ป๊อปอัปแก้ไขไฟล์
+// 5. ป๊อปอัปแก้ไขไฟล์
 window.editFileLink = function(id) {
     const f = globalAppFiles.find(x => String(x.id) === String(id));
     if(!f) return Swal.fire('Error', 'ไม่พบข้อมูลไฟล์', 'error');
@@ -113,26 +118,35 @@ window.editFileLink = function(id) {
     document.getElementById('fileTitle').value = f.title;
     document.getElementById('fileDesc').value = f.desc || '';
     
+    const extUrlInput = document.getElementById('fileExternalUrl');
+    
     let urls = Array.isArray(f.url) ? f.url : [f.url];
+    
     if(urls.length > 0 && urls[0] && !urls[0].includes('supabase.co')) {
-        document.getElementById('fileExternalUrl').value = urls[0];
+        extUrlInput.value = urls[0];
     } else {
-        document.getElementById('fileExternalUrl').value = '';
+        extUrlInput.value = '';
     }
     
-    if(document.getElementById('currentFileUrl')) {
-        if(urls.length > 0 && urls[0] && urls[0].includes('supabase.co')) {
-            document.getElementById('currentFileUrl').innerText = `มีไฟล์เดิมอยู่แล้ว: ${urls.length} ไฟล์`;
-            document.getElementById('currentFileUrl').classList.remove('hidden');
-        } else { document.getElementById('currentFileUrl').classList.add('hidden'); }
+    if(document.getElementById('fileInput')) document.getElementById('fileInput').value = ''; 
+    if(document.getElementById('fileCoverInput')) document.getElementById('fileCoverInput').value = ''; 
+    
+    const urlEl = document.getElementById('currentFileUrl');
+    if(urlEl && urls.length > 0 && urls[0] && urls[0].includes('supabase.co')) {
+        urlEl.innerText = `มีไฟล์เดิมอยู่แล้ว: ${urls.length} ไฟล์`;
+        urlEl.classList.remove('hidden');
+    } else {
+        if (urlEl) urlEl.classList.add('hidden');
     }
 
-    if(document.getElementById('currentCoverContainer') && document.getElementById('currentFileCover')) {
-        if(f.cover_url) { 
-            document.getElementById('currentFileCover').src = f.cover_url; 
-            document.getElementById('currentCoverContainer').classList.remove('hidden'); 
-        } else { 
-            document.getElementById('currentCoverContainer').classList.add('hidden'); 
+    const coverContainer = document.getElementById('currentCoverContainer');
+    const coverImg = document.getElementById('currentFileCover');
+    if(coverContainer && coverImg) {
+        if(f.cover_url) {
+            coverImg.src = f.cover_url;
+            coverContainer.classList.remove('hidden');
+        } else {
+            coverContainer.classList.add('hidden');
         }
     }
 
@@ -141,7 +155,7 @@ window.editFileLink = function(id) {
     document.getElementById('fileSubmitBtn').className = "w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-black py-3.5 rounded-xl shadow-lg transition transform active:scale-95 mt-4 text-base border border-amber-300";
 };
 
-// บันทึกไฟล์ขึ้น Supabase Storage
+// 6. บันทึกไฟล์ขึ้น Supabase Storage
 window.saveFileData = async function(e) {
     e.preventDefault();
     const id = document.getElementById('fileEditId').value;
@@ -152,30 +166,43 @@ window.saveFileData = async function(e) {
     const coverInput = document.getElementById('fileCoverInput');
     
     if(!title) return;
+    
     if (!id && !externalUrl && (!fileInput.files || fileInput.files.length === 0)) {
         return Swal.fire('เตือน', 'กรุณาวางลิงก์ดาวน์โหลด หรือ เลือกไฟล์อัปโหลดอย่างน้อย 1 รายการครับ', 'warning');
     }
 
-    Swal.fire({title: 'กำลังอัปโหลด...', text: 'ระบบกำลังส่งไฟล์ขึ้นเซิร์ฟเวอร์แบบรวดเร็ว...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    
+    Swal.fire({
+        title: 'กำลังอัปโหลด...', 
+        text: 'ระบบกำลังส่งไฟล์ขึ้นเซิร์ฟเวอร์แบบรวดเร็ว...',
+        allowOutsideClick: false, 
+        didOpen: () => Swal.showLoading()
+    });
+
     let finalFileUrls = []; 
     let finalCoverUrl = '';
 
     try {
-        if (externalUrl) { 
-            finalFileUrls = [externalUrl]; 
+        if (externalUrl) {
+            finalFileUrls = [externalUrl];
         } 
         else if (fileInput && fileInput.files && fileInput.files.length > 0) {
             Swal.update({ text: `กำลังส่งไฟล์ทั้ง ${fileInput.files.length} รายการขึ้นเซิร์ฟเวอร์...` });
             
             // อัปโหลดหลายๆ ไฟล์พร้อมกัน
             const uploadPromises = Array.from(fileInput.files).map(async (file, index) => {
-                const fileName = `app_${Date.now()}_${Math.floor(Math.random() * 1000)}_${index}.${file.name.split('.').pop()}`;
-                const { error: uploadError } = await appDB.storage.from('staff_images').upload(`files/${fileName}`, file, { cacheControl: '3600', upsert: false });
+                const fileExt = file.name.split('.').pop();
+                const fileName = `app_${Date.now()}_${Math.floor(Math.random() * 1000)}_${index}.${fileExt}`;
+
+                const { error: uploadError } = await appDB.storage
+                    .from('staff_images') 
+                    .upload(`files/${fileName}`, file, { cacheControl: '3600', upsert: false });
+
                 if (uploadError) throw new Error(`อัปโหลดไฟล์ ${file.name} ไม่สำเร็จ`);
                 const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`files/${fileName}`);
+                
                 return { url: publicUrlData.publicUrl, originalName: file.name };
             });
+
             finalFileUrls = await Promise.all(uploadPromises);
         } 
         else if (id && !externalUrl) {
@@ -188,8 +215,14 @@ window.saveFileData = async function(e) {
         // จัดการรูปหน้าปก
         if (coverInput && coverInput.files && coverInput.files.length > 0) {
             Swal.update({ text: 'กำลังอัปโหลดรูปปก...' });
-            const coverName = `cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${coverInput.files[0].name.split('.').pop()}`;
-            const { error: coverError } = await appDB.storage.from('staff_images').upload(`files/covers/${coverName}`, coverInput.files[0], { cacheControl: '3600', upsert: false });
+            const coverFile = coverInput.files[0];
+            const coverExt = coverFile.name.split('.').pop();
+            const coverName = `cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${coverExt}`;
+
+            const { error: coverError } = await appDB.storage
+                .from('staff_images') 
+                .upload(`files/covers/${coverName}`, coverFile, { cacheControl: '3600', upsert: false });
+
             if (coverError) throw new Error('อัปโหลดรูปปกไม่สำเร็จ: ' + coverError.message);
             const { data: coverUrlData } = appDB.storage.from('staff_images').getPublicUrl(`files/covers/${coverName}`);
             finalCoverUrl = coverUrlData.publicUrl;
@@ -212,26 +245,37 @@ window.saveFileData = async function(e) {
         renderFilesGrid();
         Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1500, showConfirmButton: false});
 
-    } catch (err) { 
-        Swal.fire('Error', err.message, 'error'); 
+    } catch (err) {
+        Swal.fire('Error', err.message, 'error');
     }
 };
 
-// ลบไฟล์
+// 7. ลบไฟล์
 window.deleteFileLink = async function(id) {
-    const result = await Swal.fire({ title: 'ลบไฟล์นี้?', text: "ลบแล้วจะไม่สามารถกู้คืนได้", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบทิ้งเลย' });
-    if (result.isConfirmed) {
-        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
-        try {
-            globalAppFiles = globalAppFiles.filter(f => String(f.id) !== String(id));
-            await appDB.from('settings').upsert([{ key: 'app_files_data', value: JSON.stringify(globalAppFiles) }]);
-            renderFilesGrid();
-            Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false});
-        } catch (e) { Swal.fire('Error', e.message, 'error'); }
-    }
+    Swal.fire({
+        title: 'ลบไฟล์นี้?',
+        text: "ลบแล้วจะไม่สามารถกู้คืนได้ (ไฟล์ผี 404 ให้ลบทิ้งตรงนี้เลยครับ)",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#475569',
+        confirmButtonText: 'ลบทิ้งเลย'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
+            try {
+                globalAppFiles = globalAppFiles.filter(f => String(f.id) !== String(id));
+                await appDB.from('settings').upsert([{ key: 'app_files_data', value: JSON.stringify(globalAppFiles) }]);
+                renderFilesGrid();
+                Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false});
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        }
+    });
 };
 
-// ฟังก์ชันสั่งโหลดไฟล์ (แก้ปัญหา Chrome บล็อกโหลดหลายๆ ไฟล์พร้อมกัน)
+// 8. ฟังก์ชันสั่งโหลดไฟล์ (แก้ปัญหา Chrome บล็อกโหลดหลายๆ ไฟล์พร้อมกัน)
 window.forceDownloadFile = async function(id) {
     const f = globalAppFiles.find(x => String(x.id) === String(id));
     if(!f || !f.url) return Swal.fire('Error', 'ไม่มีลิงก์สำหรับดาวน์โหลด', 'error');
@@ -239,16 +283,17 @@ window.forceDownloadFile = async function(id) {
     let urls = Array.isArray(f.url) ? f.url : [f.url];
     if (urls.length === 0 || !urls[0]) return Swal.fire('Error', 'ไม่มีข้อมูลไฟล์', 'error');
 
+    // กรณี 1: มีไฟล์เดียว หรือ เป็นลิงก์ Google Drive
     if (urls.length === 1) {
         let fileData = urls[0];
         let singleUrl = typeof fileData === 'string' ? fileData : fileData.url;
+        
         let defaultName = `${f.title}.${singleUrl.split('.').pop().split('?')[0] || 'file'}`;
         let originalName = typeof fileData === 'string' ? defaultName : (fileData.originalName || defaultName);
 
-        // ถ้าเป็น Google Drive ให้เด้งหน้าใหม่
-        if (singleUrl.includes('drive.google') || !singleUrl.includes('supabase.co')) { 
-            window.open(singleUrl, '_blank'); 
-            return; 
+        if (singleUrl.includes('drive.google') || !singleUrl.includes('supabase.co')) {
+            window.open(singleUrl, '_blank');
+            return;
         }
 
         Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true }).fire({ icon: 'success', title: 'เริ่มดาวน์โหลดแล้ว ดูที่มุมขวาบน' });
@@ -259,12 +304,17 @@ window.forceDownloadFile = async function(id) {
             finalUrl += (finalUrl.includes('?') ? '&' : '?') + `download=${encodedName}`;
         }
 
-        const a = document.createElement('a'); a.href = finalUrl; a.download = originalName;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        const a = document.createElement('a');
+        a.href = finalUrl;
+        a.download = originalName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     } 
+    // กรณี 2: มีหลายไฟล์
     else {
-        // ถ้ามีหลายไฟล์ จะสร้างป๊อปอัปให้กดโหลดทีละอัน
         let htmlButtons = '';
+        
         urls.forEach((fileData, i) => {
             let singleUrl = typeof fileData === 'string' ? fileData : fileData.url;
             let defaultName = `${f.title}_part${i+1}.${singleUrl.split('.').pop().split('?')[0] || 'file'}`;
@@ -296,9 +346,12 @@ window.forceDownloadFile = async function(id) {
                     ระบบป้องกันการดาวน์โหลดพร้อมกันของเบราว์เซอร์ทำงาน<br>
                     <span class="text-amber-400 font-bold">กรุณากดปุ่มด้านล่างเพื่อดาวน์โหลดทีละไฟล์ครับ 👇</span>
                 </p>
-                <div class="flex flex-col gap-2.5 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1 text-left">${htmlButtons}</div>
+                <div class="flex flex-col gap-2.5 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1 text-left">
+                    ${htmlButtons}
+                </div>
             `,
-            showConfirmButton: false, showCloseButton: true,
+            showConfirmButton: false,
+            showCloseButton: true,
             customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
         });
     }
