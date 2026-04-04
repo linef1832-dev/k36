@@ -479,20 +479,45 @@
             </div>
         </div>
 
-        <div id="adminView_info" class="hidden flex-col gap-6 w-full animate-fade-in">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg p-6 text-gray-300 space-y-4">
-                <h3 class="text-xl font-bold text-white border-b border-slate-700 pb-3 mb-4 flex items-center gap-2"><span class="material-icons text-sky-400">help_outline</span> คำอธิบายสิทธิ์การใช้งาน</h3>
-                <ul class="list-disc pl-5 space-y-3 text-sm">
-                    <li><b class="text-amber-400">สิทธิ์เมนูหลัก:</b> หากติ๊กถูก พนักงานจะเห็นปุ่มเมนูนั้นแถบด้านซ้ายมือ (เช่น หน้าสรุปยอด, คลังรูปภาพ)</li>
-                    <li><b class="text-amber-400">สิทธิ์ที่มี >> นำหน้า:</b> คือสิทธิ์ <span class="text-red-400 font-bold">"แอดมิน"</span> สำหรับเมนูนั้นๆ เช่น <br>
-                        - <b>>> แอดมินจัดเวร:</b> ทำให้พนักงานคนนั้นกดสุ่มจัดเวรหรือแก้ไขตารางได้<br>
-                        - <b>>> แอดมินคลังไฟล์:</b> ทำให้พนักงานคนนั้นเพิ่ม/ลบไฟล์ ในหน้าคลังไฟล์ได้<br>
-                        - <b>>> ย้ายห้อง / เช็คชื่อ:</b> เป็นสิทธิ์เฉพาะสำหรับเครื่องมือ Discord
-                    </li>
-                    <li><b class="text-emerald-400">หมายเหตุ:</b> ผู้จัดการ (Manager / Admin) จะมีสิทธิ์เห็นทุกเมนูและกดได้ทุกปุ่มอัตโนมัติ โดยไม่ต้องมาติ๊กในหน้านี้</li>
-                </ul>
+        <div id="adminView_perms" class="hidden flex-col gap-6 w-full animate-fade-in">
+            <div class="bg-[#151f32] rounded-2xl border border-slate-700 shadow-xl flex flex-col min-h-[600px]">
+                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center p-4 xl:p-5 border-b border-slate-700/80 bg-slate-800/30 rounded-t-2xl gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center border border-orange-500/30 shadow-inner">
+                            <span class="material-icons text-3xl">security</span>
+                        </div>
+                        <div>
+                            <h4 class="text-white font-extrabold text-lg flex items-center gap-2">ตั้งค่าสิทธิ์การเข้าถึง <span class="bg-orange-900/50 text-orange-400 border border-orange-700 px-2 py-0.5 rounded text-[10px] shadow-sm">ระดับแผนก</span></h4>
+                            <p class="text-[10px] text-gray-400 mt-0.5 tracking-wide">กำหนดสิทธิ์ Role และ หน้าเมนูย่อย ให้แต่ละแผนกอย่างละเอียด</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 items-center w-full xl:w-auto">
+                        <div class="relative flex-1 min-w-[150px]">
+                            <span class="material-icons absolute left-2 top-2 text-gray-400 text-sm">search</span>
+                            <input type="text" placeholder="ค้นหาแผนก..." class="w-full pl-7 pr-2 py-1.5 bg-slate-900 border border-slate-600 rounded-lg text-xs text-white outline-none focus:border-orange-500 transition">
+                        </div>
+                        <div class="w-px h-6 bg-slate-700 mx-1 hidden sm:block"></div>
+                        <input type="text" placeholder="ชื่อแผนกใหม่..." class="py-1.5 px-2 bg-slate-900 border border-slate-600 rounded-lg text-xs text-white w-24 outline-none focus:border-blue-500 transition">
+                        <button class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition"><span class="material-icons text-[12px]">add</span> เพิ่มแผนก</button>
+                        <input type="text" placeholder="ชื่อ Role ใหม่..." class="py-1.5 px-2 bg-slate-900 border border-slate-600 rounded-lg text-xs text-white w-24 outline-none focus:border-fuchsia-500 transition">
+                        <button class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-[10px] px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition"><span class="material-icons text-[12px]">add</span> เพิ่ม Role</button>
+                    </div>
+                </div>
+                
+                <div class="flex-1 overflow-x-auto pb-[300px]">
+                    <table class="w-full text-left text-sm whitespace-nowrap min-w-[900px]">
+                        <thead class="text-[10px] text-gray-400 uppercase bg-slate-900/50 border-b border-slate-700 tracking-wider">
+                            <tr>
+                                <th class="px-6 py-4 font-bold w-48">แผนก (DEPT)</th>
+                                <th class="px-6 py-4 font-bold w-48">สิทธิ์ที่มองเห็น (ROLE)</th>
+                                <th class="px-6 py-4 font-bold">หน้าเมนูที่เข้าถึงได้ (MENUS)</th>
+                                <th class="px-6 py-4 font-bold text-center w-32 border-l border-slate-700">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="permTableBody" class="divide-y divide-slate-700">
+                            </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-
-    </div>
-</div>
