@@ -20,6 +20,7 @@
         <div class="flex items-center gap-2 shrink-0">
             <button onclick="forceShowAnnouncementPopup()" class="relative bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 px-3 md:px-4 py-2 md:py-3 rounded-xl font-bold flex items-center gap-2 transition border border-yellow-200 dark:border-yellow-800/50 shadow-sm active:scale-95">
                 <span class="material-icons">campaign</span> <span class="hidden md:block">ประกาศ</span>
+                <span id="announceNotiBadge" class="hidden absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg border-2 border-white dark:border-slate-800 animate-bounce">1</span>
             </button>
             <button onclick="openChangePinModal()" class="bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50 px-3 md:px-4 py-2 md:py-3 rounded-xl font-bold flex items-center gap-2 transition border border-orange-200 dark:border-orange-800/50 shadow-sm active:scale-95">
                 <span class="material-icons">vpn_key</span> <span class="hidden md:block">เปลี่ยนรหัส</span>
@@ -48,22 +49,22 @@
     <div id="mainContentArea" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         <div class="lg:col-span-4 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border-t-4 border-blue-600 sticky top-2 h-fit">
-            <div class="bg-slate-900 border border-slate-700 rounded-xl p-5 mb-6 text-slate-300 shadow-md relative overflow-hidden">
+            <div class="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border border-amber-200 dark:border-amber-700/50 rounded-xl p-5 mb-6 text-slate-700 dark:text-amber-100 shadow-md relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-amber-500">gavel</span></div>
-                <h4 class="font-extrabold text-xl text-amber-400 mb-4 flex items-center gap-2 relative z-10">
+                <h4 class="font-extrabold text-xl text-amber-600 dark:text-amber-400 mb-4 flex items-center gap-2 relative z-10">
                     <span class="material-icons">info</span> กฎระเบียบ (สรุป)
                 </h4>
                 
-                <div class="bg-slate-800/80 p-4 rounded-lg border-l-4 border-purple-500 shadow-sm mb-4">
-                    <p class="font-extrabold text-base text-purple-300 leading-relaxed">
-                        <span class="material-icons text-sm align-middle mr-1">schedule</span> 1 ช่วงเวลา ลงได้ <span id="periodLimitDisplay" class="underline text-lg text-white">...</span> ครั้ง<br>
-                        <span class="material-icons text-sm align-middle mr-1">today</span> ลงได้สูงสุด <span id="limitDisplay" class="underline text-lg text-white">...</span> ครั้ง/วัน
+                <div class="bg-white/80 dark:bg-slate-800/80 p-4 rounded-lg border-l-4 border-purple-500 shadow-sm mb-4 backdrop-blur-sm">
+                    <p class="font-extrabold text-base text-purple-700 dark:text-purple-300 leading-relaxed">
+                        <span class="material-icons text-sm align-middle mr-1">schedule</span> 1 ช่วงเวลา ลงได้ <span id="periodLimitDisplay" class="underline text-lg text-purple-600 dark:text-purple-200">...</span> ครั้ง<br>
+                        <span class="material-icons text-sm align-middle mr-1">today</span> ลงได้สูงสุด <span id="limitDisplay" class="underline text-lg text-purple-600 dark:text-purple-200">...</span> ครั้ง/วัน
                     </p>
                 </div>
                 
-                <div class="bg-black/20 p-4 rounded-lg border border-slate-700/50">
-                    <p class="font-bold text-sm underline mb-3 text-amber-300 flex items-center gap-1"><span class="material-icons text-sm">groups</span> โควตาพักพร้อมกัน:</p>
-                    <ul class="text-sm space-y-2 list-none text-slate-300 font-medium">
+                <div class="bg-white/50 dark:bg-black/20 p-4 rounded-lg border border-amber-100 dark:border-slate-700/50">
+                    <p class="font-bold text-sm underline mb-3 text-amber-800 dark:text-amber-300 flex items-center gap-1"><span class="material-icons text-sm">groups</span> โควตาพักพร้อมกัน:</p>
+                    <ul class="text-sm space-y-2 list-none text-slate-700 dark:text-slate-300 font-medium">
                         <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold w-16">4 คน:</span> ห้ามพร้อม 2 (เว้น 15น.)</li>
                         <li class="grid grid-cols-2 gap-x-2">
                             <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">5-7 คน:</span> ≤ 2</span>
@@ -80,7 +81,7 @@
                         <li class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">31-35 คน:</span> ไม่เกิน 8 คน</li>
                     </ul>
                 </div>
-                <div class="mt-4 text-center font-bold text-red-400 bg-red-900/20 p-3 rounded-lg text-sm shadow-sm border border-red-900/50 flex flex-col gap-1">
+                <div class="mt-4 text-center font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg text-sm shadow-sm border border-red-200 dark:border-red-900/50 flex flex-col gap-1">
                     <span class="material-icons text-2xl">warning_amber</span>
                     <span>คนที่กดไปหลังสุดจะถือว่า<br>"ไม่ปฎิบัติตามกระบวนการทำงาน"</span>
                 </div>
@@ -88,39 +89,39 @@
 
             <form onsubmit="saveData(event)" class="space-y-6">
                 <div>
-                    <label class="block text-sm font-bold text-gray-400 uppercase mb-1">วันที่ทำงาน (Logical Date)</label>
-                    <input type="date" id="wDate" required class="w-full p-3 text-lg border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-blue-500" onchange="handleDateChange()">
+                    <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">วันที่ทำงาน (Logical Date)</label>
+                    <input type="date" id="wDate" required class="w-full p-3 text-lg border rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-blue-500" onchange="handleDateChange()">
                     <p class="text-[10px] text-gray-500 mt-1">* ระบบจะปรับวันที่ให้อัตโนมัติหากเข้างานช่วงดึก</p>
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-bold text-indigo-400 uppercase mb-1">เลือกทีมที่ทำวันนี้</label>
-                    <select id="dailyTeam" required onchange="handleTeamChange()" class="w-full p-3 text-lg border-2 border-indigo-900 rounded-lg dark:bg-slate-700 dark:text-white outline-none font-bold text-indigo-300 focus:ring-2 focus:ring-indigo-500">
+                    <label class="block text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-1">เลือกทีมที่ทำวันนี้</label>
+                    <select id="dailyTeam" required onchange="handleTeamChange()" class="w-full p-3 text-lg border-2 border-indigo-200 rounded-lg bg-white dark:bg-slate-700 dark:border-indigo-900 dark:text-white outline-none font-bold text-indigo-700 dark:text-indigo-300 focus:ring-2 focus:ring-indigo-500">
                     </select>
-                    <label class="flex items-center gap-2 mt-2 cursor-pointer text-sm text-gray-400 select-none hover:text-indigo-400 transition">
-                        <input type="checkbox" id="rememberTeam" class="w-4 h-4 rounded text-indigo-600 border-gray-600" onchange="toggleRememberTeam()"> 
+                    <label class="flex items-center gap-2 mt-2 cursor-pointer text-sm text-gray-500 dark:text-gray-400 select-none hover:text-indigo-500 transition">
+                        <input type="checkbox" id="rememberTeam" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300" onchange="toggleRememberTeam()"> 
                         <span>จำทีมนี้ไว้ตลอด (ไม่ต้องเลือกใหม่)</span>
                     </label>
                 </div>
 
                 <div id="shiftSection">
-                    <label class="block text-sm font-bold text-gray-400 uppercase mb-2">เลือกกะ</label>
+                    <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">เลือกกะ</label>
                     <div class="grid grid-cols-3 gap-2" id="shiftContainer"></div>
                 </div>
                 
                 <div>
                     <div class="flex justify-between items-end mb-1">
-                        <label class="block text-sm font-bold text-gray-400 uppercase">
+                        <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase">
                             รอบเวลา <span id="slotLoading" class="text-blue-500 hidden flex items-center gap-1 text-xs"><span class="animate-spin material-icons text-xs">sync</span> อัปเดต...</span>
                         </label>
-                        <button type="button" onclick="refreshTimeSlots()" class="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded hover:bg-blue-800 font-bold flex items-center gap-1 transition"><span class="material-icons text-xs">refresh</span> เช็คที่ว่าง</button>
+                        <button type="button" onclick="refreshTimeSlots()" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 font-bold flex items-center gap-1 transition"><span class="material-icons text-xs">refresh</span> เช็คที่ว่าง</button>
                     </div>
-                    <select id="tSlot" required class="w-full p-3 text-lg border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-blue-500">
+                    <select id="tSlot" required class="w-full p-3 text-lg border rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none cursor-pointer disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:text-gray-400 focus:ring-2 focus:ring-blue-500">
                         <option value="">-- กรุณาเลือกกะก่อน --</option>
                     </select>
                 </div>
                 
-                <button type="submit" id="btnSave" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95 flex justify-center items-center gap-2 text-lg">
+                <button type="submit" id="btnSave" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95 flex justify-center items-center gap-2 text-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
                     <span class="material-icons">save</span> บันทึกข้อมูล
                 </button>
             </form>
@@ -130,17 +131,38 @@
             
             <div class="hidden flex-col gap-4 w-full" id="userManagerUIBlock">
                 <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-slate-800 p-3 rounded-2xl border border-orange-500/30 shadow-lg relative overflow-hidden">
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-2xl border border-orange-500/30 shadow-lg relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-orange-500">wb_sunny</span></div>
                         <div class="text-orange-400 text-xs font-bold uppercase mb-1 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> กะเช้า</div>
-                        <div id="countShiftM"><span class="text-gray-500 text-sm">กำลังโหลด...</span></div>
+                        <div id="countShiftM" class="relative z-10 flex flex-col gap-1 mt-1">
+                            <div class="text-2xl font-black text-white leading-none stat-total">0</div>
+                            <div class="flex gap-2 text-[10px] font-bold">
+                                <span class="text-blue-400">AM: <span class="stat-am">0</span></span>
+                                <span class="text-pink-400">OD: <span class="stat-od">0</span></span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="bg-slate-800 p-3 rounded-2xl border border-blue-500/30 shadow-lg relative overflow-hidden">
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-2xl border border-blue-500/30 shadow-lg relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-blue-500">cloud</span></div>
                         <div class="text-blue-400 text-xs font-bold uppercase mb-1 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> กะกลาง</div>
-                        <div id="countShiftA"><span class="text-gray-500 text-sm">กำลังโหลด...</span></div>
+                        <div id="countShiftA" class="relative z-10 flex flex-col gap-1 mt-1">
+                            <div class="text-2xl font-black text-white leading-none stat-total">0</div>
+                            <div class="flex gap-2 text-[10px] font-bold">
+                                <span class="text-blue-400">AM: <span class="stat-am">0</span></span>
+                                <span class="text-pink-400">OD: <span class="stat-od">0</span></span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="bg-slate-800 p-3 rounded-2xl border border-purple-500/30 shadow-lg relative overflow-hidden">
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-2xl border border-purple-500/30 shadow-lg relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-purple-500">dark_mode</span></div>
                         <div class="text-purple-400 text-xs font-bold uppercase mb-1 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span> กะดึก</div>
-                        <div id="countShiftN"><span class="text-gray-500 text-sm">กำลังโหลด...</span></div>
+                        <div id="countShiftN" class="relative z-10 flex flex-col gap-1 mt-1">
+                            <div class="text-2xl font-black text-white leading-none stat-total">0</div>
+                            <div class="flex gap-2 text-[10px] font-bold">
+                                <span class="text-blue-400">AM: <span class="stat-am">0</span></span>
+                                <span class="text-pink-400">OD: <span class="stat-od">0</span></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -160,7 +182,9 @@
                             <select id="newAllowedShift" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-gray-100 outline-none"><option value="all">กะอิสระ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
                             <select id="newCheckType" class="p-1.5 rounded-lg text-slate-800 text-xs font-bold bg-purple-100 outline-none"><option value="team">☑ เช็คทีม+กะ</option><option value="shift">☐ เช็คกะอย่างเดียว</option></select>
                         </div>
-                        <button onclick="addUsersBulk()" class="w-full sm:w-auto bg-green-600 text-white px-4 rounded-xl font-bold shadow-lg transition active:scale-95 flex items-center justify-center h-14">เพิ่ม</button>
+                        <button onclick="addUsersBulk()" class="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 rounded-xl font-bold shadow-lg transition active:scale-95 flex items-center justify-center h-14">
+                            <span class="material-icons text-base">add_task</span> เพิ่ม
+                        </button>
                     </div>
                 </div>
 
