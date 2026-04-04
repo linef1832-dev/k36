@@ -108,7 +108,8 @@ async function showPage(pageName) {
             }
             else if (pageName === 'summary') {
                 if (typeof initSummaryDate === 'function') initSummaryDate();
-                if (typeof fetchHistoricalSummary === 'function') await fetchHistoricalSummary(); // แก้โหลดหมุนค้าง
+                if (typeof fetchAvailableDates === 'function') fetchAvailableDates(); // 👇 เพิ่มบรรทัดนี้ เพื่อดึงปุ่มวันที่ย้อนหลัง
+                if (typeof fetchHistoricalSummary === 'function') await fetchHistoricalSummary(true); // 👇 เติม (true) เพื่อไม่ให้ป๊อปอัปแจ้งเตือนเด้งกวนใจ
             }
             else if (pageName === 'telegram') {
                 if (typeof initTelegramApp === 'function') await initTelegramApp();
