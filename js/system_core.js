@@ -1613,7 +1613,7 @@ window.loadSettings = async function() {
     } catch (e) { console.error("Load Settings Error:", e); }
 };
 
-// 🟢 คืนชีพดีไซน์หน้า "โควตาการเข้างาน" ให้เหมือนรูปที่ 1
+// 🟢 คืนชีพดีไซน์หน้า "โควตาการเข้างาน" ให้เหมือนรูปที่ 1 และป้องกันชื่อทีมโดนตัด (ห้ามหด)
 window.renderQuotaSettings = function() {
     const container = document.getElementById('quotaSettingsContainer');
     if (!container) return;
@@ -1622,29 +1622,30 @@ window.renderQuotaSettings = function() {
     const amTeams = ['Jun88', 'K188', 'MK8', 'NM9', 'PG688', 'TH26', 'VV72'];
     const odTeams = ['F168', 'JL69', 'Jun88', 'K188', 'MK8', 'NM9', 'PG688', 'TH26', 'VV72'];
 
+    // ปรับให้ input กว้าง 16 (4rem) และเพิ่ม shrink-0 ไม่ให้โดนบีบ
     amTeams.forEach(team => {
         const qM = SETTINGS[`quota_team_${team}_AM_เช้า`] || 1; const qA = SETTINGS[`quota_team_${team}_AM_กลาง`] || 0; const qN = SETTINGS[`quota_team_${team}_AM_ดึก`] || 1;
         amHtml += `
-        <div class="flex items-center gap-2 quota-row-team group">
+        <div class="flex items-center gap-2 quota-row-team group min-w-max">
             <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="AM">
-            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 text-xs shadow-sm truncate">${team}</div>
-            <input type="number" id="quota_team_${team}_AM_เช้า" class="val-m flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
-            <input type="number" id="quota_team_${team}_AM_กลาง" class="val-a flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
-            <input type="number" id="quota_team_${team}_AM_ดึก" class="val-n flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
-            <button class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
+            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 shrink-0 text-xs shadow-sm truncate text-center">${team}</div>
+            <input type="number" id="quota_team_${team}_AM_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
+            <input type="number" id="quota_team_${team}_AM_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
+            <input type="number" id="quota_team_${team}_AM_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
+            <button class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
         </div>`;
     });
 
     odTeams.forEach(team => {
         const qM = SETTINGS[`quota_team_${team}_OD_เช้า`] || 1; const qA = SETTINGS[`quota_team_${team}_OD_กลาง`] || 0; const qN = SETTINGS[`quota_team_${team}_OD_ดึก`] || 1;
         odHtml += `
-        <div class="flex items-center gap-2 quota-row-team group">
+        <div class="flex items-center gap-2 quota-row-team group min-w-max">
             <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="OD">
-            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 text-xs shadow-sm truncate">${team}</div>
-            <input type="number" id="quota_team_${team}_OD_เช้า" class="val-m flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
-            <input type="number" id="quota_team_${team}_OD_กลาง" class="val-a flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
-            <input type="number" id="quota_team_${team}_OD_ดึก" class="val-n flex-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
-            <button class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
+            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 shrink-0 text-xs shadow-sm truncate text-center">${team}</div>
+            <input type="number" id="quota_team_${team}_OD_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
+            <input type="number" id="quota_team_${team}_OD_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
+            <input type="number" id="quota_team_${team}_OD_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
+            <button class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
         </div>`;
     });
 
@@ -1679,8 +1680,14 @@ window.renderQuotaSettings = function() {
                         <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">domain</span> รายทีม (AM):</h5>
                         <button class="text-[10px] text-blue-400 border border-blue-500/50 px-2 py-1 rounded hover:bg-blue-900/30 transition">+ เพิ่มทีม AM</button>
                     </div>
-                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2"><div class="w-24">ชื่อทีม</div><div class="flex-1 text-center text-orange-400">เช้า</div><div class="flex-1 text-center text-blue-400">กลาง</div><div class="flex-1 text-center text-purple-400">ดึก</div><div class="w-6"></div></div>
-                    <div class="space-y-2 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar pr-1">${amHtml}</div>
+                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max">
+                        <div class="w-24 shrink-0 text-center">ชื่อทีม</div>
+                        <div class="w-16 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
+                        <div class="w-16 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
+                        <div class="w-16 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
+                        <div class="w-6 shrink-0 ml-2"></div>
+                    </div>
+                    <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto max-h-[300px] custom-scrollbar pr-1">${amHtml}</div>
                 </div>
             </div>
 
@@ -1690,8 +1697,14 @@ window.renderQuotaSettings = function() {
                         <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">groups</span> รายทีม (OD):</h5>
                         <button class="text-[10px] text-pink-400 border border-pink-500/50 px-2 py-1 rounded hover:bg-pink-900/30 transition">+ เพิ่มทีม OD</button>
                     </div>
-                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2"><div class="w-24">ชื่อทีม</div><div class="flex-1 text-center text-orange-400">เช้า</div><div class="flex-1 text-center text-blue-400">กลาง</div><div class="flex-1 text-center text-purple-400">ดึก</div><div class="w-6"></div></div>
-                    <div class="space-y-2 flex-1 overflow-y-auto max-h-[700px] custom-scrollbar pr-1">${odHtml}</div>
+                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max">
+                        <div class="w-24 shrink-0 text-center">ชื่อทีม</div>
+                        <div class="w-16 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
+                        <div class="w-16 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
+                        <div class="w-16 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
+                        <div class="w-6 shrink-0 ml-2"></div>
+                    </div>
+                    <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto max-h-[700px] custom-scrollbar pr-1">${odHtml}</div>
                 </div>
             </div>
         </div>
