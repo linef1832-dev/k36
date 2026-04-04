@@ -55,17 +55,24 @@ window.clearAllTabs = function() {
 window.openSheet = function(sheet) {
     document.getElementById('sheetMenu').classList.add('hidden');
     document.getElementById('sheetViewer').classList.remove('hidden');
-    document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${sheet.group_name}</span> <span class="material-icons text-xs">arrow_forward_ios</span> ${sheet.name}`;
+    document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${sheet.group_name}</span> <span class="material-icons text-xs mx-1">arrow_forward_ios</span> <span class="text-white">${sheet.name}</span>`;
     document.getElementById('sheetLoading').classList.remove('hidden');
     
     addToRecentTabs(sheet);
 
     let url = '';
+    // จัดการแปลงลิงก์ให้ถูกต้อง
     if (sheet.sheet_id.startsWith('http') || sheet.sheet_id.startsWith('www')) {
-        url = sheet.sheet_id;
+        url = sheet.sheet_id.startsWith('www') ? 'https://' + sheet.sheet_id : sheet.sheet_id;
     } else {
         url = `${SHEET_BASE}/${sheet.sheet_id}/edit?rm=minimal&single=true&widget=true&headers=false`;
         if(sheet.gid) url += `&gid=${sheet.gid}`;
+    }
+    
+    // ผูกลิงก์กับปุ่ม "เปิดแท็บใหม่"
+    const btnNewTab = document.getElementById('btnOpenNewTab');
+    if (btnNewTab) {
+        btnNewTab.onclick = () => window.open(url, '_blank');
     }
     
     const frame = document.getElementById('sheetFrame');
