@@ -1720,7 +1720,7 @@ window.saveQuotaSettings = async function() {
 
 
 // =========================================================
-// 🟢 ระบบสิทธิ์เมนู (เปลี่ยนระบบเป็นคลิกเพื่อเปิดชัวร์ 100%)
+// 🟢 ระบบสิทธิ์เมนู (แก้ไขให้คลิกเปลี่ยน Role ได้ 100%)
 // =========================================================
 let MENU_PERMS = {};
 
@@ -1768,37 +1768,42 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ฟังก์ชันเปิด/ปิด ป๊อปอัป
+// ฟังก์ชันเปิด/ปิด ป๊อปอัปสิทธิ์เมนู
 window.togglePermPopup = function(key) {
     const popup = document.getElementById('popup_' + key);
     const isHidden = popup.classList.contains('hidden');
-    
-    // ปิดอันอื่นทั้งหมดก่อน
     document.querySelectorAll('.perm-popup').forEach(p => p.classList.add('hidden'));
-    
-    // ถ้ามันเคยปิดอยู่ ให้เปิดขึ้นมา
     if (isHidden) popup.classList.remove('hidden');
+};
+
+// ตัวแปรเก็บว่าแต่ละบรรทัดเลือก Role อะไรอยู่
+window.permRowSelections = window.permRowSelections || {
+    'AM': 'STAFF',
+    'OD': 'STAFF',
+    'AMQL': 'TRAINER'
+};
+
+window.changePermRowRole = function(dept, newRole) {
+    window.permRowSelections[dept] = newRole;
+    renderPermsTable();
 };
 
 window.renderPermsTable = function() {
     try {
         if (typeof SETTINGS['dept_menu_rules'] === 'string') MENU_PERMS = JSON.parse(SETTINGS['dept_menu_rules']);
         else if (SETTINGS['dept_menu_rules']) MENU_PERMS = SETTINGS['dept_menu_rules'];
-        else MENU_PERMS = { 'AM_STAFF': [], 'OD_STAFF': [], 'AMQL_TRAINER': [] };
-    } catch(e) { MENU_PERMS = { 'AM_STAFF': [], 'OD_STAFF': [], 'AMQL_TRAINER': [] }; }
+        else MENU_PERMS = {};
+    } catch(e) { MENU_PERMS = {}; }
 
     const tbody = document.getElementById('permTableBody');
     if(!tbody) return;
 
-    const rowsData = [
-        { dept: 'AM', role: 'STAFF', color: 'bg-purple-900/30 text-purple-400 border-purple-700' },
-        { dept: 'OD', role: 'STAFF', color: 'bg-purple-900/30 text-purple-400 border-purple-700' },
-        { dept: 'AMQL', role: 'TRAINER', color: 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' }
-    ];
-
+    const depts = ['AM', 'OD', 'AMQL'];
     let bodyHtml = '';
-    rowsData.forEach(r => {
-        const key = `${r.dept}_${r.role}`;
+
+    depts.forEach(dept => {
+        const role = window.permRowSelections[dept] || 'STAFF';
+        const key = `${dept}_${role}`;
         const activePerms = MENU_PERMS[key] || [];
         
         let badgesHtml = '';
@@ -1817,7 +1822,6 @@ window.renderPermsTable = function() {
         if(badgesHtml === '') badgesHtml = `<span class="text-sm text-gray-500 italic p-2 block">คลิกที่นี่เพื่อเพิ่มสิทธิ์ให้แผนกนี้...</span>`;
 
         let popupContentHtml = `<div id="popup_${key}" class="perm-popup absolute top-full left-6 mt-1 bg-[#0f172a] border border-slate-500 rounded-xl shadow-2xl p-5 w-[600px] z-[99] hidden cursor-default"><div class="grid grid-cols-2 gap-5">`;
-        
         PERM_GROUPS.forEach(g => {
             popupContentHtml += `<div class="bg-slate-800/80 p-3 rounded-lg border border-slate-600 shadow-inner"><div class="text-[11px] font-black text-orange-400 mb-3 border-b border-slate-600 pb-1.5 flex items-center gap-1.5"><span class="material-icons text-sm">folder</span> ${g.name}</div><div class="space-y-2 pl-1">`;
             g.items.forEach(item => {
@@ -1829,10 +1833,24 @@ window.renderPermsTable = function() {
         });
         popupContentHtml += `</div><div class="mt-4 text-center text-[10px] text-gray-500 italic">* กดยกเลิกการเลือก/ติ๊กถูก เพื่อกำหนดสิทธิ์ จากนั้นคลิกปุ่มบันทึกด้านขวามือ</div></div>`;
 
+        // สลับสีตาม Role
+        let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
+        let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
+
         bodyHtml += `
         <tr class="hover:bg-slate-800/50 transition border-b border-slate-700/50">
-            <td class="px-6 py-4 border-r border-slate-700 align-top"><div class="bg-slate-900 border border-slate-600 px-3 py-2 rounded-lg font-black text-white shadow-inner text-sm w-32 text-center">${r.dept}</div></td>
-            <td class="px-6 py-4 border-r border-slate-700 align-top"><div class="${r.color} border px-3 py-2 rounded-lg font-black text-[11px] shadow-sm w-32 text-center flex items-center justify-between"><span>${r.role}</span> <span class="material-icons text-[14px] opacity-50">expand_more</span></div></td>
+            <td class="px-6 py-4 border-r border-slate-700 align-top"><div class="bg-slate-900 border border-slate-600 px-3 py-2 rounded-lg font-black text-white shadow-inner text-sm w-32 text-center">${dept}</div></td>
+            
+            <td class="px-6 py-4 border-r border-slate-700 align-top">
+                <div class="relative w-32">
+                    <select onchange="changePermRowRole('${dept}', this.value)" class="${roleColor} border px-3 py-2 rounded-lg font-black text-[11px] shadow-sm w-full outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-purple-500 transition relative z-10">
+                        <option value="STAFF" ${role === 'STAFF' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">STAFF</option>
+                        <option value="TRAINER" ${role === 'TRAINER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">TRAINER</option>
+                        <option value="MANAGER" ${role === 'MANAGER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">MANAGER</option>
+                    </select>
+                    <span class="material-icons text-[14px] opacity-70 absolute right-2.5 top-2.5 pointer-events-none z-20 ${iconColor}">expand_more</span>
+                </div>
+            </td>
             
             <td class="px-6 py-4 border-r border-slate-700 align-top relative perm-cell" style="overflow: visible;">
                 <div onclick="togglePermPopup('${key}')" class="bg-slate-900/50 border border-orange-500/30 p-3 rounded-xl min-h-[60px] cursor-pointer hover:border-orange-500 transition shadow-inner">
@@ -1854,11 +1872,23 @@ window.renderPermsTable = function() {
 window.saveMenuPerms = async function() {
     Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
     
-    const newPerms = { 'AM_STAFF': [], 'OD_STAFF': [], 'AMQL_TRAINER': [] };
+    // คัดลอกสิทธิ์เดิมมาทั้งหมด เพื่อป้องกันการบันทึกทับข้อมูลของแผนกที่ไม่ได้โชว์อยู่
+    let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
+    
+    // หากุญแจ (key) ที่กำลังเปิดให้แก้อยู่ตอนนี้
+    const visibleKeys = new Set();
+    document.querySelectorAll('.perm-cb').forEach(cb => {
+        visibleKeys.add(cb.getAttribute('data-key'));
+    });
+    
+    // ล้างเฉพาะค่าของ key ที่กำลังแก้อยู่
+    visibleKeys.forEach(k => { newPerms[k] = []; });
+
+    // วนลูปอ่านค่าที่ติ๊กถูก แล้วเอามาใส่เข้าไปใหม่
     document.querySelectorAll('.perm-cb:checked').forEach(cb => {
         const key = cb.getAttribute('data-key');
         const menu = cb.getAttribute('data-menu');
-        if(newPerms[key]) newPerms[key].push(menu);
+        newPerms[key].push(menu);
     });
 
     MENU_PERMS = newPerms;
