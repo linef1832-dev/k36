@@ -97,6 +97,9 @@ async function showPage(pageName) {
             else if (pageName === 'leave') {
                 if (typeof initLeaveTable === 'function') await initLeaveTable();
             }
+            else if (pageName === 'gallery') {
+                if (typeof initGalleryApp === 'function') initGalleryApp();
+            }
             else if (pageName === 'duty') {
                 if (typeof initDutyApp === 'function') await initDutyApp();
             }
