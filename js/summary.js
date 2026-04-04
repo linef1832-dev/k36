@@ -1447,3 +1447,49 @@ window.toggleSummaryDate = function(dateStr) {
     else window.selectedSummaryDates.add(dateStr);
     renderSummaryDashboard();
 };
+// ====================================================
+// 🖼️ ฟังก์ชันบันทึกโลโก้เว็บไซต์ (ที่ตกหล่นไป)
+// ====================================================
+window.saveWebLogo = async function() {
+    const web = document.getElementById('webLogoKey').value;
+    const urlInput = document.getElementById('webLogoUrlInput').value.trim();
+    const fileInput = document.getElementById('webLogoFileInput');
+    
+    if (!urlInput && (!fileInput.files || fileInput.files.length === 0)) {
+        return Swal.fire('เตือน', 'กรุณาใส่ลิงก์ URL หรือ อัปโหลดรูปภาพ', 'warning');
+    }
+
+    Swal.fire({title: 'กำลังบันทึกโลโก้...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+    let finalUrl = urlInput;
+
+    try {
+        if (fileInput.files && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `logo_${web}_${Date.now()}.${fileExt}`;
+
+            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, file, { cacheControl: '3600', upsert: true });
+            if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ: ' + uploadError.message);
+            const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`logos/${fileName}`);
+            finalUrl = publicUrlData.publicUrl;
+        }
+
+        window.summaryWebLogos = window.summaryWebLogos || {};
+        window.summaryWebLogos[web] = finalUrl;
+        
+        if (typeof SETTINGS !== 'undefined') {
+            SETTINGS['summary_web_logos'] = JSON.stringify(window.summaryWebLogos);
+        }
+
+        await appDB.from('settings').upsert([{ key: 'summary_web_logos', value: JSON.stringify(window.summaryWebLogos) }]);
+
+        document.getElementById('webLogoModal').classList.add('hidden');
+        if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();
+        
+        Swal.fire({icon: 'success', title: 'บันทึกโลโก้สำเร็จ!', timer: 1500, showConfirmButton: false});
+
+    } catch (err) {
+        Swal.fire('Error', err.message, 'error');
+    }
+};
