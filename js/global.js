@@ -136,6 +136,11 @@ async function showPage(pageName) {
                     if(document.getElementById('adminAnnouncementControls')) document.getElementById('adminAnnouncementControls').classList.remove('hidden');
                 }
             }
+            // 👇👇👇 เพิ่มหน้า swap เข้ามาตรงนี้ครับ 👇👇👇
+            else if (pageName === 'swap') {
+                if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
+            }
+            // 👆👆👆 
         }, 150);
 
     } catch (err) {
