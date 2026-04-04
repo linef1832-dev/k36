@@ -1720,7 +1720,7 @@ window.saveQuotaSettings = async function() {
 
 
 // =========================================================
-// 🟢 ระบบสิทธิ์เมนู (แก้ไขให้คลิกเปลี่ยน Role ได้ 100%)
+// 🟢 ระบบสิทธิ์เมนู (อัปเดตเมนูให้ครบถ้วน 100%)
 // =========================================================
 let MENU_PERMS = {};
 
@@ -1733,7 +1733,8 @@ const PERM_GROUPS = [
             {id: 'leave_manage', name: '└ [ย่อย] ตั้งค่าโควตา & โหลด Excel', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'gallery', name: 'หน้าคลังรูปภาพ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
             {id: 'gallery_upload', name: '└ [ย่อย] อัปโหลดรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'gallery_delete', name: '└ [ย่อย] ลบรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+            {id: 'gallery_delete', name: '└ [ย่อย] ลบรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'announcement', name: 'กระดานประกาศ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'}
         ]
     },
     {
@@ -1741,22 +1742,32 @@ const PERM_GROUPS = [
         items: [
             {id: 'sheet', name: 'ตารางงาน (Sheets)', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
             {id: 'sheet_manage', name: '└ [ย่อย] เพิ่ม/แก้/ลบ ลิงก์ชีท', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'swap', name: 'สลับกะการทำงาน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
             {id: 'duty', name: 'จัดหน้าที่ / เวร', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'duty_manage', name: '└ [ย่อย] สุ่มเวร & ตั้งค่าหัวข้อ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'swap', name: 'สลับกะการทำงาน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'}
+            {id: 'duty_manage', name: '└ [ย่อย] สุ่มเวร & ตั้งค่าหัวข้อ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
         ]
     },
     {
-        id: 'group_stat', name: 'สรุปยอด & สถิติ', 
-        items: [ {id: 'summary', name: 'สรุปยอดทำรายการ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'} ]
+        id: 'group_discord', name: 'เครื่องมือ DISCORD', 
+        items: [
+            {id: 'discord', name: 'หน้าต่างระบบ DISCORD', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50'},
+            {id: 'ds_spy', name: '└ [ย่อย] Spy Monitor', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'ds_move', name: '└ [ย่อย] ย้ายห้อง', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'ds_checkin', name: '└ [ย่อย] เช็คชื่อ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'ds_manage', name: '└ [ย่อย] ฐานข้อมูล DS', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'ds_log', name: '└ [ย่อย] ดูประวัติ DS', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+        ]
     },
     {
-        id: 'group_other', name: 'ตั้งค่าอื่นๆ', 
+        id: 'group_other', name: 'สรุปยอด & เครื่องมืออื่นๆ', 
         items: [
-            {id: 'telegram', name: 'กลุ่มงาน (Telegram)', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'files', name: 'คลังไฟล์ / โปรแกรม', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+            {id: 'summary', name: 'สรุปยอดทำรายการ', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
+            {id: 'telegram', name: 'กลุ่มงาน (Telegram)', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
+            {id: 'files', name: 'คลังไฟล์ / โปรแกรม', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
             {id: 'files_manage', name: '└ [ย่อย] แอดมินคลังไฟล์', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'password', name: 'รหัสผ่าน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'}
+            {id: 'password', name: 'รหัสผ่าน', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
+            {id: 'kbiz', name: 'จัดการบอท K BIZ', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
+            {id: 'admin', name: 'เครื่องมือผู้จัดการ (Admin)', color: 'bg-red-500/20 text-red-400 border-red-500/50'}
         ]
     }
 ];
@@ -1821,7 +1832,8 @@ window.renderPermsTable = function() {
         });
         if(badgesHtml === '') badgesHtml = `<span class="text-sm text-gray-500 italic p-2 block">คลิกที่นี่เพื่อเพิ่มสิทธิ์ให้แผนกนี้...</span>`;
 
-        let popupContentHtml = `<div id="popup_${key}" class="perm-popup absolute top-full left-6 mt-1 bg-[#0f172a] border border-slate-500 rounded-xl shadow-2xl p-5 w-[600px] z-[99] hidden cursor-default"><div class="grid grid-cols-2 gap-5">`;
+        // ขยายป๊อปอัปเป็น 750px เพื่อให้จุหมวด Discord ได้สวยงาม
+        let popupContentHtml = `<div id="popup_${key}" class="perm-popup absolute top-full left-6 mt-1 bg-[#0f172a] border border-slate-500 rounded-xl shadow-2xl p-5 w-[750px] z-[99] hidden cursor-default"><div class="grid grid-cols-2 gap-5">`;
         PERM_GROUPS.forEach(g => {
             popupContentHtml += `<div class="bg-slate-800/80 p-3 rounded-lg border border-slate-600 shadow-inner"><div class="text-[11px] font-black text-orange-400 mb-3 border-b border-slate-600 pb-1.5 flex items-center gap-1.5"><span class="material-icons text-sm">folder</span> ${g.name}</div><div class="space-y-2 pl-1">`;
             g.items.forEach(item => {
