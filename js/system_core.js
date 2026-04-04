@@ -1589,3 +1589,212 @@ setInterval(() => {
         window.checkAndShowAnnouncementPopup(true); 
     }
 }, 60000);
+// =========================================================
+// ⚙️ ระบบดึงการตั้งค่า (โควตา, เวลาเปิดปิด, สิทธิ์เมนู)
+// =========================================================
+
+window.loadSettings = async function() {
+    try {
+        const { data } = await appDB.from('settings').select('*')
+            .not('key', 'like', 'duty_roster_%')
+            .not('key', 'like', 'report_TRAINER_%');
+            
+        if (data) {
+            data.forEach(row => {
+                SETTINGS[row.key] = row.value;
+            });
+        }
+        
+        // อัปเดตช่อง Input ในหน้าตั้งค่าระบบ
+        if (document.getElementById('dailyLimitInput')) document.getElementById('dailyLimitInput').value = SETTINGS.daily_limit || 2;
+        if (document.getElementById('periodLimitInput')) document.getElementById('periodLimitInput').value = SETTINGS.period_limit || 1;
+        
+        if (document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = SETTINGS.daily_limit || 2;
+        if (document.getElementById('periodLimitDisplay')) document.getElementById('periodLimitDisplay').innerText = SETTINGS.period_limit || 1;
+
+        if (typeof renderOperatingHours === 'function') renderOperatingHours();
+        if (typeof renderQuotaSettings === 'function') renderQuotaSettings();
+        if (typeof renderPermsTable === 'function') renderPermsTable();
+        
+    } catch (e) {
+        console.error("Load Settings Error:", e);
+    }
+};
+
+window.renderQuotaSettings = function() {
+    const container = document.getElementById('quotaSettingsContainer');
+    if (!container) return;
+    
+    let html = `
+        <div class="bg-slate-900 rounded-xl border border-slate-700 p-3 mb-4">
+            <h5 class="text-white font-bold text-xs mb-2 border-b border-slate-700 pb-2">รวมทั้งกะ (ภาพรวม)</h5>
+            
+            <div class="mb-3">
+                <div class="text-[10px] font-bold text-blue-400 mb-1">■ โควตา AM รวม:</div>
+                <div class="grid grid-cols-1 gap-2 pl-2">
+                    <div class="flex items-center justify-between quota-row-total"><input type="hidden" class="key-input" value="เช้า"><span class="text-xs text-gray-400">กะเช้า</span><input type="number" id="quota_total_เช้า" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_total_เช้า || 50}"></div>
+                    <div class="flex items-center justify-between quota-row-total"><input type="hidden" class="key-input" value="กลาง"><span class="text-xs text-gray-400">กะกลาง</span><input type="number" id="quota_total_กลาง" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_total_กลาง || 50}"></div>
+                    <div class="flex items-center justify-between quota-row-total"><input type="hidden" class="key-input" value="ดึก"><span class="text-xs text-gray-400">กะดึก</span><input type="number" id="quota_total_ดึก" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_total_ดึก || 50}"></div>
+                </div>
+            </div>
+
+            <div>
+                <div class="text-[10px] font-bold text-pink-400 mb-1">■ โควตา OD รวม:</div>
+                <div class="grid grid-cols-1 gap-2 pl-2">
+                    <div class="flex items-center justify-between quota-row-od"><input type="hidden" class="key-input" value="เช้า"><span class="text-xs text-gray-400">OD กะเช้า</span><input type="number" id="quota_od_เช้า" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_od_เช้า || 5}"></div>
+                    <div class="flex items-center justify-between quota-row-od"><input type="hidden" class="key-input" value="กลาง"><span class="text-xs text-gray-400">OD กะกลาง</span><input type="number" id="quota_od_กลาง" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_od_กลาง || 5}"></div>
+                    <div class="flex items-center justify-between quota-row-od"><input type="hidden" class="key-input" value="ดึก"><span class="text-xs text-gray-400">OD กะดึก</span><input type="number" id="quota_od_ดึก" class="val-input w-20 bg-slate-800 border border-slate-600 text-white text-center rounded p-1" value="${SETTINGS.quota_od_ดึก || 5}"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-slate-900 rounded-xl border border-slate-700 p-3">
+            <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
+                <h5 class="text-white font-bold text-xs">รายทีม (AM & OD)</h5>
+            </div>
+            <div class="space-y-2">
+    `;
+    
+    TEAM_LIST.forEach(team => {
+        const qM = SETTINGS[`quota_team_${team}_เช้า`] || 5;
+        const qA = SETTINGS[`quota_team_${team}_กลาง`] || 5;
+        const qN = SETTINGS[`quota_team_${team}_ดึก`] || 5;
+        
+        html += `
+            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600 quota-row-team">
+                <input type="hidden" class="key-input" value="${team}">
+                <input type="hidden" class="dept-input" value="AM"> 
+                <span class="text-xs font-bold text-white w-16 truncate">${team}</span>
+                <div class="flex gap-1">
+                    <div class="flex flex-col items-center"><span class="text-[8px] text-orange-400">เช้า</span><input type="number" id="quota_team_${team}_เช้า" class="val-m w-10 bg-slate-900 border border-slate-600 text-white text-center rounded p-1 text-xs" value="${qM}"></div>
+                    <div class="flex flex-col items-center"><span class="text-[8px] text-blue-400">กลาง</span><input type="number" id="quota_team_${team}_กลาง" class="val-a w-10 bg-slate-900 border border-slate-600 text-white text-center rounded p-1 text-xs" value="${qA}"></div>
+                    <div class="flex flex-col items-center"><span class="text-[8px] text-purple-400">ดึก</span><input type="number" id="quota_team_${team}_ดึก" class="val-n w-10 bg-slate-900 border border-slate-600 text-white text-center rounded p-1 text-xs" value="${qN}"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `</div></div>`;
+    container.innerHTML = html;
+};
+
+window.saveQuotaSettings = async function() {
+    Swal.fire({title: 'กำลังบันทึกโควตา...', didOpen: () => Swal.showLoading()});
+    const updates = [];
+    
+    ['เช้า', 'กลาง', 'ดึก'].forEach(shift => {
+        const val = document.getElementById(`quota_total_${shift}`).value;
+        updates.push({key: `quota_total_${shift}`, value: val});
+        SETTINGS[`quota_total_${shift}`] = val;
+        
+        const odVal = document.getElementById(`quota_od_${shift}`).value;
+        updates.push({key: `quota_od_${shift}`, value: odVal});
+        SETTINGS[`quota_od_${shift}`] = odVal;
+    });
+
+    TEAM_LIST.forEach(team => {
+        ['เช้า', 'กลาง', 'ดึก'].forEach(shift => {
+            const el = document.getElementById(`quota_team_${team}_${shift}`);
+            if(el) {
+                updates.push({key: `quota_team_${team}_${shift}`, value: el.value});
+                SETTINGS[`quota_team_${team}_${shift}`] = el.value;
+            }
+        });
+    });
+
+    await appDB.from('settings').upsert(updates);
+    Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
+};
+
+const MENU_LIST = [
+    { id: 'dashboard', name: 'หน้าหลักลงเวลา' },
+    { id: 'leave', name: 'วันหยุด/ลางาน' },
+    { id: 'gallery', name: 'คลังรูปภาพ' },
+    { id: 'password', name: 'รหัสผ่าน' },
+    { id: 'sheet', name: 'ตารางงาน (Sheets)' },
+    { id: 'swap', name: 'สลับกะ' },
+    { id: 'duty', name: 'จัดหน้าที่/เวร' },
+    { id: 'duty_manage', name: '>> แอดมินจัดเวร' },
+    { id: 'telegram', name: 'กลุ่มงาน (Tele)' },
+    { id: 'files', name: 'คลังไฟล์' },
+    { id: 'files_manage', name: '>> แอดมินคลังไฟล์' },
+    { id: 'summary', name: 'สรุปยอดทำรายการ' },
+    { id: 'announcement', name: 'กระดานประกาศ' },
+    { id: 'discord', name: 'เครื่องมือ DISCORD' },
+    { id: 'ds_spy', name: '>> Spy Monitor' },
+    { id: 'ds_move', name: '>> ย้ายห้อง' },
+    { id: 'ds_checkin', name: '>> เช็คชื่อ' },
+    { id: 'ds_manage', name: '>> ฐานข้อมูล DS' },
+    { id: 'ds_log', name: '>> ดูประวัติ DS' },
+    { id: 'admin', name: 'เครื่องมือผู้จัดการ' }
+];
+
+let MENU_PERMS = {};
+
+window.renderPermsTable = function() {
+    try {
+        if (typeof SETTINGS['menu_access_rules'] === 'string') {
+            MENU_PERMS = JSON.parse(SETTINGS['menu_access_rules']);
+        } else if (SETTINGS['menu_access_rules']) {
+            MENU_PERMS = SETTINGS['menu_access_rules'];
+        } else {
+            MENU_PERMS = {};
+        }
+    } catch(e) { MENU_PERMS = {}; }
+
+    const thead = document.getElementById('permTableHeader');
+    const tbody = document.getElementById('permTableBody');
+    if(!thead || !tbody) return;
+
+    let headHtml = `<th class="p-3 border-r border-slate-700 w-48">ชื่อพนักงาน</th>`;
+    MENU_LIST.forEach(m => {
+        let textColor = m.name.includes('>>') ? 'text-amber-400' : 'text-gray-300';
+        headHtml += `<th class="p-3 border-r border-slate-700 text-center ${textColor}" title="${m.name}"><div class="writing-vertical-lr transform rotate-180 text-[10px] mx-auto">${m.name}</div></th>`;
+    });
+    thead.innerHTML = headHtml;
+
+    const staffList = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'trainer').sort((a,b) => a.username.localeCompare(b.username));
+    
+    let bodyHtml = '';
+    staffList.forEach(u => {
+        const userPerms = MENU_PERMS[u.id] || [];
+        bodyHtml += `<tr class="hover:bg-slate-800 transition">
+            <td class="p-3 border-r border-slate-700 font-bold text-white">${u.username} <span class="text-[9px] text-gray-500">(${u.department||'AM'})</span></td>`;
+        
+        MENU_LIST.forEach(m => {
+            const isChecked = userPerms.includes(m.id) ? 'checked' : '';
+            bodyHtml += `<td class="p-2 border-r border-slate-700 text-center"><input type="checkbox" class="perm-cb w-4 h-4 rounded bg-slate-900 border-slate-600 text-orange-500 focus:ring-orange-500 cursor-pointer" data-uid="${u.id}" data-menu="${m.id}" ${isChecked}></td>`;
+        });
+        bodyHtml += `</tr>`;
+    });
+    tbody.innerHTML = bodyHtml;
+};
+
+window.saveMenuPerms = async function() {
+    Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
+    
+    const newPerms = {};
+    document.querySelectorAll('.perm-cb:checked').forEach(cb => {
+        const uid = cb.getAttribute('data-uid');
+        const menu = cb.getAttribute('data-menu');
+        if(!newPerms[uid]) newPerms[uid] = [];
+        newPerms[uid].push(menu);
+    });
+
+    MENU_PERMS = newPerms;
+    SETTINGS['menu_access_rules'] = JSON.stringify(MENU_PERMS);
+    
+    await appDB.from('settings').upsert([{ key: 'menu_access_rules', value: JSON.stringify(MENU_PERMS) }]);
+    Swal.fire('สำเร็จ', 'บันทึกสิทธิ์การมองเห็นเมนูแล้ว', 'success');
+};
+
+window.hasUserPerm = function(menuId) {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin' || currentUser.role === 'manager') return true;
+    let perms = {};
+    try {
+        perms = typeof SETTINGS['menu_access_rules'] === 'string' ? JSON.parse(SETTINGS['menu_access_rules']) : (SETTINGS['menu_access_rules'] || {});
+    } catch(e) {}
+    const userPerms = perms[currentUser.id] || [];
+    return userPerms.includes(menuId);
+};
