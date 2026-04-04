@@ -1,6 +1,26 @@
 // ==========================================
-// ควบคุมการสลับ Tab ในหน้า Admin
+// ควบคุมระบบหน้า Dashboard & Admin Panel
 // ==========================================
+window.openAdminPanel = async function() {
+    // ถ้าไม่ได้อยู่หน้า dashboard ให้โหลดหน้า dashboard ก่อน
+    if (!document.getElementById('adminPanel')) {
+        await showPage('dashboard');
+        // รอให้ระบบโหลดหน้าเสร็จแป๊บนึง ค่อยสลับกล่อง
+        setTimeout(() => {
+            document.getElementById('mainContentArea').classList.add('hidden');
+            document.getElementById('adminPanel').classList.remove('hidden');
+            document.getElementById('adminPanel').classList.add('flex');
+            switchAdminTab('settings'); // เปิดแท็บแรกเสมอ
+        }, 300);
+    } else {
+        // ถ้าอยู่หน้า dashboard อยู่แล้ว สลับกล่องได้เลย
+        document.getElementById('mainContentArea').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+        document.getElementById('adminPanel').classList.add('flex');
+        switchAdminTab('settings');
+    }
+};
+
 window.switchAdminTab = function(tab) {
     const tabs = ['settings', 'users', 'perms', 'info'];
     
@@ -17,7 +37,7 @@ window.switchAdminTab = function(tab) {
             }
         }
         
-        // สลับหน้าเนื้อหา
+        // สลับกล่องเนื้อหา
         if (view) {
             if (t === tab) {
                 view.classList.remove('hidden');
