@@ -1,0 +1,289 @@
+let currentGalleryData = [];
+let currentGalleryMode = 'general';
+
+window.initGalleryApp = function() {
+    switchGalleryMode('general');
+
+    const adminControls = document.getElementById('adminUploadControls');
+    const bulkDeleteBtn = document.getElementById('btnBulkDelete'); 
+    
+    if (bulkDeleteBtn) bulkDeleteBtn.classList.add('hidden');
+    document.querySelectorAll('.gallery-check').forEach(cb => cb.checked = false);
+
+    if (currentUser.role === 'manager' || currentUser.role === 'admin') {
+        if(adminControls) adminControls.classList.remove('hidden');
+    } else {
+        if(adminControls) adminControls.classList.add('hidden');
+    }
+
+    const filterSelect = document.getElementById('galleryFilter');
+    const uploadSelect = document.getElementById('uploadCategory');
+    
+    if (filterSelect && uploadSelect) {
+        let optionsHTML = TEAM_LIST.map(t => `<option value="${t}">${t}</option>`).join('');
+        
+        if(!filterSelect.innerHTML.includes(TEAM_LIST[0])) {
+             filterSelect.innerHTML = `<option value="all">-- ทุกเว็บ --</option><option value="ทั่วไป">ทั่วไป</option>` + optionsHTML;
+             uploadSelect.innerHTML = `<option value="ทั่วไป">ทั่วไป</option>` + optionsHTML;
+        }
+        
+        const currentTeam = document.getElementById('dailyTeam') ? document.getElementById('dailyTeam').value : 'ทั่วไป';
+        if(TEAM_LIST.includes(currentTeam)) {
+            filterSelect.value = currentTeam;
+            uploadSelect.value = currentTeam;
+        } else {
+            filterSelect.value = 'all';
+        }
+    }
+    
+    const searchInput = document.getElementById('gallerySearch');
+    if(searchInput) searchInput.value = '';
+}
+
+window.switchGalleryMode = function(mode) {
+    currentGalleryMode = mode;
+    const btnGen = document.getElementById('tabGeneral');
+    const btnBonus = document.getElementById('tabBonus');
+    
+    if (mode === 'general') {
+        if(btnGen) btnGen.className = "flex-1 py-2 rounded-lg font-bold text-sm transition bg-blue-600 text-white shadow-lg border border-blue-400 transform scale-105";
+        if(btnBonus) btnBonus.className = "flex-1 py-2 rounded-lg font-bold text-sm transition bg-slate-700 text-gray-400 hover:text-white border border-transparent";
+    } else {
+        if(btnGen) btnGen.className = "flex-1 py-2 rounded-lg font-bold text-sm transition bg-slate-700 text-gray-400 hover:text-white border border-transparent";
+        if(btnBonus) btnBonus.className = "flex-1 py-2 rounded-lg font-bold text-sm transition bg-gradient-to-r from-yellow-600 to-amber-500 text-white shadow-lg border border-yellow-400 transform scale-105";
+    }
+    fetchGalleryImages();
+}
+
+window.syncUploadCategory = function() {
+    const viewVal = document.getElementById('galleryFilter').value;
+    const uploadSelect = document.getElementById('uploadCategory');
+    if(viewVal !== 'all' && uploadSelect) {
+        uploadSelect.value = viewVal;
+    }
+}
+
+window.fetchGalleryImages = async function() {
+    const grid = document.getElementById('galleryGrid');
+    if(!grid) return;
+    const filterVal = document.getElementById('galleryFilter').value;
+    const searchVal = document.getElementById('gallerySearch').value.toLowerCase();
+    const countSpan = document.getElementById('galleryCount');
+    
+    grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-10 flex flex-col items-center"><span class="material-icons animate-spin text-4xl mb-2">sync</span>กำลังโหลด...</div>';
+
+    const { data, error } = await appDB.from('image_gallery').select('*').order('created_at', { ascending: false }).limit(1000);
+    
+    if (error || !data) {
+        grid.innerHTML = '<div class="col-span-full text-center text-red-400">โหลดไม่สำเร็จ</div>';
+        return;
+    }
+
+    let filteredData = data.filter(img => {
+        const cat = img.category || '';
+        const isBonusImg = cat.endsWith('_BONUS'); 
+        
+        if (currentGalleryMode === 'general') {
+            if (isBonusImg) return false;
+        } else {
+            if (!isBonusImg) return false;
+        }
+
+        if (filterVal !== 'all') {
+            const targetCat = currentGalleryMode === 'bonus' ? `${filterVal}_BONUS` : filterVal;
+            if (cat !== targetCat) return false;
+        }
+
+        if (searchVal && !img.name.toLowerCase().includes(searchVal)) return false;
+        return true;
+    });
+
+    currentGalleryData = filteredData;
+    if(countSpan) countSpan.innerText = filteredData.length;
+
+    if (filteredData.length === 0) {
+        const msg = currentGalleryMode === 'bonus' ? 'ยังไม่มีรูปโบนัสไทม์' : 'ไม่พบรูปภาพ';
+        grid.innerHTML = `<div class="col-span-full text-center text-gray-500 pt-20">${msg}</div>`;
+        return;
+    }
+
+    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const lastViewKey = `gallery_last_view_${currentUser.username}`;
+    const lastViewedTime = new Date(localStorage.getItem(lastViewKey) || '2000-01-01T00:00:00');
+
+    grid.innerHTML = filteredData.map(img => {
+        const imgDate = new Date(img.created_at);
+        const isNew = imgDate > lastViewedTime;
+        
+        const newBadge = isNew ? `<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded shadow-lg font-bold animate-pulse z-30 border border-white/50">NEW</span>` : '';
+        const adminCheckbox = isAdmin ? `<div class="absolute top-2 left-2 z-30" onclick="event.stopPropagation()"><input type="checkbox" class="gallery-check w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm bg-white" value="${img.id}" onchange="updateBulkDeleteButton()"></div>` : '';
+
+        let catColor = "bg-black/60 text-white border-white/20";
+        let showCatName = img.category;
+        
+        if (showCatName.endsWith('_BONUS')) {
+            showCatName = showCatName.replace('_BONUS', '');
+            catColor = "bg-yellow-600/90 text-white border-yellow-300 shadow-yellow-500/50";
+        }
+
+        const catBadge = `<span class="absolute bottom-2 left-2 ${catColor} text-[10px] px-2 py-0.5 rounded border z-20 backdrop-blur-sm font-bold shadow-sm">${showCatName}</span>`;
+
+        return `
+        <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 shadow-lg flex flex-col group relative hover:border-slate-500 transition-all h-full shrink-0">
+            <div class="h-56 w-full bg-black relative flex items-center justify-center cursor-pointer overflow-hidden shrink-0" onclick="viewImageFull('${img.url}')">
+                ${newBadge}
+                ${adminCheckbox}
+                ${catBadge}
+                <img src="${img.url}" class="w-full h-full object-contain transition duration-300 group-hover:scale-105" loading="lazy">
+            </div>
+            <div class="p-2 bg-slate-900 border-t border-slate-700 flex flex-col gap-2 mt-auto">
+                <div class="text-white font-bold text-xs truncate text-center" title="${img.name}">${img.name}</div>
+                <div class="mt-1">
+                    <button onclick="event.stopPropagation(); downloadGalleryUrl('${img.url}', '${img.name}')" class="w-full bg-green-600 hover:bg-green-500 text-white text-[10px] py-2 rounded-lg shadow font-bold flex items-center justify-center gap-1 transition active:scale-95">
+                        <span class="material-icons text-xs">download</span> โหลด
+                    </button>
+                </div>
+            </div>
+        </div>
+    `}).join('');
+    
+    updateBulkDeleteButton();
+}
+
+window.handleImageUpload = async function(input) {
+    const files = input.files;
+    let category = document.getElementById('galleryFilter').value;
+    if (category === 'all' || !category) category = 'ทั่วไป';
+    if (currentGalleryMode === 'bonus') category += '_BONUS'; 
+    
+    const displayCategory = category.replace('_BONUS', '');
+    const modeText = (category.endsWith('_BONUS')) ? '🎁 โบนัสไทม์ ' : '';
+    
+    if (!files || files.length === 0) return;
+
+    Swal.fire({
+        title: 'กำลังอัปโหลด...',
+        text: `กำลังนำรูปไปใส่ในหมวด: ${modeText}${displayCategory}`,
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    let successCount = 0; let failCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        Swal.update({ text: `กำลังอัปโหลดไฟล์: ${file.name} (${i + 1}/${files.length})` });
+
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.floor(Math.random() * 10000)}.${fileExt}`;
+
+            const { error: uploadError } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
+            if (uploadError) throw new Error(uploadError.message);
+
+            const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
+
+            const { error: dbError } = await appDB.from('image_gallery').insert([{
+                name: file.name, url: publicUrlData.publicUrl, uploader: currentUser.username || 'unknown', category: category
+            }]);
+
+            if (dbError) throw new Error(dbError.message);
+            successCount++;
+        } catch (err) { failCount++; }
+    }
+
+    input.value = ''; 
+    document.getElementById('galleryFilter').value = category.replace('_BONUS', '');
+    fetchGalleryImages();
+
+    if (failCount === 0) Swal.fire({ icon: 'success', title: 'เสร็จสิ้น', text: `อัปโหลด ${successCount} รูป เข้าหมวด ${modeText}${displayCategory} เรียบร้อย`, timer: 1500, showConfirmButton: false });
+    else Swal.fire('แจ้งเตือน', `สำเร็จ ${successCount}, ล้มเหลว ${failCount}`, 'warning');
+}
+
+window.updateBulkDeleteButton = function() {
+    const checkboxes = document.querySelectorAll('.gallery-check:checked');
+    const btn = document.getElementById('btnBulkDelete');
+    const countSpan = document.getElementById('selectedCount');
+    if (btn) {
+        if (checkboxes.length > 0) { btn.classList.remove('hidden'); countSpan.innerText = checkboxes.length; } 
+        else { btn.classList.add('hidden'); }
+    }
+}
+
+window.toggleSelectAllImages = function(source) {
+    document.querySelectorAll('.gallery-check').forEach(cb => cb.checked = source.checked);
+    updateBulkDeleteButton();
+}
+
+window.deleteSelectedImages = async function() {
+    const ids = Array.from(document.querySelectorAll('.gallery-check:checked')).map(cb => cb.value);
+    if (ids.length === 0) return;
+
+    const result = await Swal.fire({ title: `ลบ ${ids.length} รูป?`, text: "ลบแล้วกู้คืนไม่ได้นะครับ", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย!', cancelButtonText: 'ยกเลิก' });
+    if (result.isConfirmed) {
+        Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
+        const { error } = await appDB.from('image_gallery').delete().in('id', ids);
+        if (error) Swal.fire('Error', error.message, 'error');
+        else { fetchGalleryImages(); Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1500, showConfirmButton: false }); }
+    }
+}
+
+window.viewImageFull = function(url) { window.open(url, '_blank'); }
+
+window.downloadGalleryUrl = async function(url, fileName) {
+    try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = fileName || `img_${Date.now()}.jpg`; 
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(link.href);
+    } catch(e) { window.open(url, '_blank'); }
+}
+
+window.downloadAllInFilter = async function() {
+    if (!currentGalleryData || currentGalleryData.length === 0) return Swal.fire('ไม่มีรูป', '', 'warning');
+    if (typeof JSZip === 'undefined') return Swal.fire('Error', 'ไม่พบระบบสร้างโฟลเดอร์ กรุณาแจ้งผู้ดูแลระบบ', 'error');
+
+    let categoryName = document.getElementById('galleryFilter').value;
+    let folderName = categoryName === 'all' ? 'รวมรูปภาพทั้งหมด' : categoryName;
+    if (currentGalleryMode === 'bonus') folderName += '_BonusTime';
+
+    const confirm = await Swal.fire({ title: `โหลด ${currentGalleryData.length} รูป?`, text: `ระบบจะรวบรวมไฟล์ใส่โฟลเดอร์ชื่อ "${folderName}.zip"`, icon: 'question', showCancelButton: true, confirmButtonText: 'เริ่มดาวน์โหลด', confirmButtonColor: '#2563eb' });
+
+    if (confirm.isConfirmed) {
+        Swal.fire({ title: 'กำลังเตรียมไฟล์...', text: 'กรุณารอสักครู่ ห้ามปิดหน้าต่างนี้', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+        try {
+            const zip = new JSZip();
+            const imgFolder = zip.folder(folderName); 
+            let count = 0;
+            for (const img of currentGalleryData) {
+                try {
+                    const response = await fetch(img.url);
+                    const blob = await response.blob();
+                    const fileName = img.name || `image_${Date.now()}_${count}.jpg`;
+                    imgFolder.file(fileName, blob);
+                    count++;
+                    Swal.update({ text: `กำลังดึงรูป... (${count}/${currentGalleryData.length})` });
+                } catch (fetchErr) { console.error("ดึงรูปไม่สำเร็จ:", img.url, fetchErr); }
+            }
+
+            Swal.update({ text: `กำลังบีบอัดเป็นไฟล์ ZIP...` });
+            const content = await zip.generateAsync({ type: "blob" });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            link.download = `${folderName}.zip`; 
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+
+            Swal.fire({ icon: 'success', title: 'ดาวน์โหลดเสร็จสิ้น!', timer: 1500, showConfirmButton: false });
+        } catch (err) { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างไฟล์ ZIP ได้', 'error'); }
+    }
+};
