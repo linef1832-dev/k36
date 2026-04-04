@@ -1,0 +1,25 @@
+<div class="fade-in flex flex-col h-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
+    <div class="bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-4 shadow-lg shrink-0 flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-emerald-200">smart_toy</span></div>
+            <div>
+                <h1 class="font-black text-xl tracking-wide">จัดการระบบบอท (K BIZ Bots)</h1>
+                <p class="text-xs text-emerald-200 opacity-90">เพิ่มบัญชีและรหัสผ่านบอท เพื่อให้เซิร์ฟเวอร์ดึงไปใช้งาน</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 p-4 border-b dark:border-slate-700 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10 shrink-0">
+        <div class="relative flex-1 md:w-64 max-w-sm">
+            <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[18px]">search</span>
+            <input type="text" id="kbizSearchInput" onkeyup="renderKbizGrid()" placeholder="ค้นหาชื่อบอท, เครื่อง..." class="w-full pl-9 pr-3 py-2 bg-slate-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 transition">
+        </div>
+        <button onclick="openKbizModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-lg transition transform active:scale-95 border border-emerald-400">
+            <span class="material-icons text-sm">add_box</span> เพิ่มบอทตัวใหม่
+        </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
+        <div id="kbizGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1600px] mx-auto pb-10"></div>
+    </div>
+</div>

@@ -1,0 +1,110 @@
+<div id="leaveApp" class="fixed inset-0 z-50 bg-slate-100 dark:bg-slate-900 fade-in flex flex-col">
+    
+    <div class="bg-slate-800 text-white p-3 shadow-md shrink-0 flex flex-col xl:flex-row justify-between items-center gap-4 z-30 border-b border-rose-500/50">
+        <div class="flex items-center gap-4 w-full xl:w-auto">
+            <div class="dept-segment-container">
+                <button onclick="switchDept('AM')" id="btnAM" class="dept-segment-btn active"><span class="material-icons text-sm">business</span> AM</button>
+                <button onclick="switchDept('OD')" id="btnOD" class="dept-segment-btn"><span class="material-icons text-sm">groups</span> OD</button>
+                <button onclick="switchDept('NEW')" id="btnNEW" class="dept-segment-btn"><span class="material-icons text-sm">person_add</span> พนักงานใหม่</button>
+                <button onclick="switchDept('TRAINER')" id="btnTRAINER" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน</button>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
+                    ตารางวันหยุด <span id="currentDeptLabel" class="text-[10px] bg-rose-600 px-2 rounded shadow">AM</span>
+                </h1>
+                <p class="text-[10px] text-gray-400 flex items-center gap-2">
+                    <span id="bookingStatusText">โหลดข้อมูล...</span>
+                    <span id="rtStatus" class="realtime-dot" title="Realtime Status"></span>
+                </p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 items-center justify-center">
+            <select id="leaveShiftFilter" onchange="renderLeaveTable()" class="h-8 px-2 rounded-lg text-xs text-slate-800 font-bold outline-none shadow-sm bg-white border border-gray-200">
+                <option value="all">ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
+            </select>
+            <div class="relative">
+                <span class="material-icons absolute left-2 top-1.5 text-gray-400 text-sm">search</span>
+                <input type="text" id="leaveSearchInput" onkeyup="renderLeaveTable()" placeholder="ค้นหาชื่อ..." class="w-36 h-8 pl-8 pr-2 rounded-lg text-xs text-slate-800 font-bold outline-none bg-white shadow-sm border border-gray-200">
+            </div>
+        </div>
+
+        <div class="flex gap-2 items-center">
+            <div class="flex items-center bg-black/20 rounded-lg p-0.5 border border-white/10">
+                <button id="btnPrevMonth" onclick="changeMonth(-1)" class="relative z-10 p-1 hover:bg-white/10 rounded text-white"><span class="material-icons text-sm">chevron_left</span></button>
+                <div class="relative w-28 h-8 flex items-center justify-center">
+                    <span id="viewMonthDisplay" class="text-sm font-bold text-white pointer-events-none">เดือน ปี</span>
+                    <input type="month" id="viewMonthPicker" onchange="jumpToMonth()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+                </div>
+                <button id="btnNextMonth" onclick="changeMonth(1)" class="relative z-10 p-1 hover:bg-white/10 rounded text-white"><span class="material-icons text-sm">chevron_right</span></button>
+            </div>
+            <button id="btnExportExcel" onclick="exportLeaveToExcel()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold ml-2 shadow-lg flex items-center gap-1 transition text-[11px]">
+                <span class="material-icons text-[14px]">download</span> โหลด Excel
+            </button>
+            <button onclick="openHistoryModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg font-bold ml-2 shadow-lg flex items-center gap-1 transition text-[10px]">
+                <span class="material-icons text-xs">history</span> ประวัติการกด
+            </button>
+            <button onclick="showPage('dashboard')" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg font-bold text-xs h-8 border border-white/20 transition">
+                กลับ
+            </button>
+        </div>
+    </div>
+
+    <div id="leaveManagerControls" class="hidden bg-slate-900 p-3 border-b border-slate-700 flex flex-nowrap overflow-x-auto custom-scrollbar gap-3 items-center shadow-inner shrink-0 text-xs text-white z-20 transition-all">
+        <div class="flex items-center gap-2 text-yellow-400 font-bold border-r border-slate-700 pr-3 shrink-0">
+            <span class="material-icons text-base">settings_suggest</span> <span class="text-sm">ตั้งค่า <span id="settingTargetLabel" class="underline">AM</span></span>
+        </div>
+        <div class="flex items-center gap-2 bg-slate-800 p-1.5 rounded-lg border border-slate-600 shadow-sm shrink-0">
+            <span class="text-gray-300 font-bold ml-1">เปิดจอง:</span>
+            <div class="relative inline-block w-8 h-4 align-middle select-none transition duration-200 ease-in mr-1">
+                <input type="checkbox" name="toggle" id="setForceOpen" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                <label for="setForceOpen" class="toggle-label block overflow-hidden h-4 rounded-full bg-gray-600 cursor-pointer"></label>
+            </div>
+        </div>
+        <div id="timeSettingsGroup" class="flex gap-2 transition-opacity duration-300 shrink-0">
+            <div class="flex flex-col gap-1 bg-slate-800 p-1.5 rounded border border-orange-500/50 shadow-sm"><span class="text-[9px] text-orange-400 font-bold text-center">เวลาจอง (กะเช้า)</span><div class="flex items-center gap-1"><input type="datetime-local" id="setStartM" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"><span class="text-gray-400">-</span><input type="datetime-local" id="setEndM" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"></div></div>
+            <div class="flex flex-col gap-1 bg-slate-800 p-1.5 rounded border border-blue-500/50 shadow-sm"><span class="text-[9px] text-blue-400 font-bold text-center">เวลาจอง (กะกลาง)</span><div class="flex items-center gap-1"><input type="datetime-local" id="setStartA" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"><span class="text-gray-400">-</span><input type="datetime-local" id="setEndA" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"></div></div>
+            <div class="flex flex-col gap-1 bg-slate-800 p-1.5 rounded border border-purple-500/50 shadow-sm"><span class="text-[9px] text-purple-400 font-bold text-center">เวลาจอง (กะดึก)</span><div class="flex items-center gap-1"><input type="datetime-local" id="setStartN" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"><span class="text-gray-400">-</span><input type="datetime-local" id="setEndN" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"></div></div>
+        </div>
+        <div class="flex items-center gap-1 border-l border-slate-600 pl-3 shrink-0"><span class="text-gray-400">คนละ:</span><input type="number" id="setPersonLimit" class="w-10 bg-slate-800 border border-slate-600 text-center font-bold text-yellow-400 rounded p-1.5 outline-none shadow-inner"></div>
+        <div class="flex items-center gap-2 border-l border-slate-600 pl-3 shrink-0">
+            <span class="text-gray-400">👀 บังคับเดือน:</span>
+            <div class="flex items-center bg-slate-800 rounded-lg border border-slate-600 shadow-sm h-[30px]">
+                <button type="button" onclick="changeAdminMonth(-1)" class="px-2 h-full hover:bg-slate-700 text-white transition flex items-center justify-center border-r border-slate-600/50"><span class="material-icons text-[16px] leading-none">chevron_left</span></button>
+                <div class="relative w-24 h-full flex items-center justify-center hover:bg-slate-700 transition overflow-hidden">
+                    <span id="setMonthDisplay" class="text-[11px] text-white font-extrabold tracking-wide pointer-events-none select-none z-10">เลือกเดือน</span>
+                    <input type="month" id="setAllowedMonth" onchange="window.updateThaiMonthDisplay()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 month-full-click">
+                </div>
+                <button type="button" onclick="changeAdminMonth(1)" class="px-2 h-full hover:bg-slate-700 text-white transition flex items-center justify-center border-l border-slate-600/50"><span class="material-icons text-[16px] leading-none">chevron_right</span></button>
+            </div>
+        </div>
+        <div class="flex items-center gap-1 border-l border-slate-600 pl-3 shrink-0"><span class="text-gray-400">ล็อกวัน:</span><input type="number" id="setStartDay" placeholder="1" min="1" max="31" class="bg-slate-800 border border-slate-600 text-white text-[11px] p-1.5 rounded outline-none w-10 text-center font-bold shadow-inner"><span class="text-gray-500">-</span><input type="number" id="setEndDay" placeholder="31" min="1" max="31" class="bg-slate-800 border border-slate-600 text-white text-[11px] p-1.5 rounded outline-none w-10 text-center font-bold shadow-inner"></div>
+        <div class="flex items-center gap-2 border border-rose-500 rounded-lg p-1 bg-rose-950/40 ml-1 shadow-sm shrink-0">
+            <span class="text-rose-400 font-extrabold text-[11px] mr-1 flex items-center"><span class="material-icons text-[14px] mr-0.5">tune</span>โควตา:</span>
+            <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-1 rounded border border-orange-700/50"><span class="text-[10px] text-orange-400 font-bold">เช้า☀️</span><input type="number" id="setQuotaM" class="w-8 bg-slate-900 text-orange-400 border border-orange-500/50 text-xs text-center font-bold rounded outline-none h-6"></div>
+            <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-1 rounded border border-blue-700/50"><span class="text-[10px] text-blue-400 font-bold">กลาง🌤️</span><input type="number" id="setQuotaA" class="w-8 bg-slate-900 text-blue-400 border border-blue-500/50 text-xs text-center font-bold rounded outline-none h-6"></div>
+            <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-1 rounded border border-purple-700/50"><span class="text-[10px] text-purple-400 font-bold">ดึก🌙</span><input type="number" id="setQuotaN" class="w-8 bg-slate-900 text-purple-400 border border-purple-500/50 text-xs text-center font-bold rounded outline-none h-6"></div>
+        </div>
+        <button id="btnManageNewStaff" onclick="openManageNewStaffModal()" class="hidden bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg font-bold ml-1 shadow-lg flex items-center gap-1 transition shrink-0"><span class="material-icons text-sm">group_add</span></button>
+        <button onclick="executeSaveSettings()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-extrabold text-sm ml-auto shadow-lg flex items-center gap-1 transition transform hover:scale-105 border border-green-400 shrink-0"><span class="material-icons text-base">save</span> บันทึก <span id="saveBtnLabel">AM</span></button>
+    </div>
+
+    <div id="leaveTypeToolbar" class="hidden bg-slate-200 dark:bg-slate-900 p-2 flex flex-wrap justify-center items-center gap-2 border-b dark:border-slate-700 shadow-inner shrink-0 z-20 transition-all">
+        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 mr-2 flex items-center gap-1"><span class="material-icons text-[14px]">edit_calendar</span> รูปแบบที่จะใส่ในตาราง:</span>
+        <button id="ltBtn_X" onclick="setLeaveType('X')" class="leave-type-btn opacity-100 ring-2 ring-red-500 ring-offset-1 scale-105 dark:ring-offset-slate-900 bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">✕ (ปกติ)</button>
+        <button id="ltBtn_XX" onclick="setLeaveType('XX')" class="leave-type-btn opacity-50 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">XX (สลับกะ)</button>
+        <button id="ltBtn_X4" onclick="setLeaveType('X4')" class="leave-type-btn opacity-50 bg-pink-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">X4 (ลาครึ่งวัน)</button>
+        <button id="ltBtn_KL" onclick="setLeaveType('KL')" class="leave-type-btn opacity-50 bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">KL (ลากิจ+ป่วย)</button>
+        <button id="ltBtn_TX" onclick="setLeaveType('TX')" class="leave-type-btn opacity-50 bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">TX (สลับวันหยุด)</button>
+        <button id="ltBtn_PN" onclick="setLeaveType('PN')" class="leave-type-btn opacity-50 bg-amber-800 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">PN (พักร้อน)</button>
+    </div>
+
+    <div class="flex-1 overflow-auto bg-white dark:bg-slate-900 relative custom-scrollbar">
+        <table class="w-full border-collapse text-xs" id="leaveTableMain">
+            <thead class="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 shadow-sm text-slate-600 dark:text-gray-300">
+                <tr id="tableHeaderRow"></tr>
+            </thead>
+            <tbody id="tableBody" class="text-slate-700 dark:text-gray-200 divide-y divide-gray-100 dark:divide-slate-700"></tbody>
+        </table>
+    </div>
+</div>

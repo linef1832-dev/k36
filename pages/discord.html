@@ -1,0 +1,331 @@
+<div class="fade-in flex flex-col h-full bg-[#0b1120] rounded-2xl overflow-hidden shadow-2xl border border-indigo-500/30">
+    <div class="bg-slate-900 p-4 border-b border-indigo-500/30 flex justify-between items-center shrink-0 shadow-md">
+        <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
+            <div class="bg-indigo-600 p-2 rounded-lg text-white mr-2 shadow"><span class="material-icons">discord</span></div>
+            <button onclick="switchDiscordTab('spy')" id="tabDsSpy" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-sm flex items-center gap-1"><span class="material-icons text-sm">visibility</span> Spy Monitor</button>
+            <button onclick="switchDiscordTab('move')" id="tabDsMove" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">move_up</span> ย้ายห้อง (Mass Move)</button>
+            <button onclick="switchDiscordTab('checkin')" id="tabDsCheckin" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">fact_check</span> เช็คชื่อ</button>
+            <button onclick="switchDiscordTab('manage')" id="tabDsManage" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">manage_accounts</span> ฐานข้อมูล</button>
+            <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติเข้า/ออกดิส</button>
+            <button onclick="switchDiscordTab('actionlog')" id="tabDsActionlog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">list_alt</span> ประวัติกดคำสั่ง</button>
+        </div>
+        <button onclick="showPage('dashboard')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition flex items-center gap-1 text-sm shrink-0 border border-slate-600"><span class="material-icons text-sm">close</span> ปิดหน้าต่าง</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-[#0f172a] relative transform-gpu overscroll-contain" style="will-change: transform, scroll-position;">
+        
+        <div id="dsContent_spy" class="max-w-[1400px] mx-auto block fade-in pb-10">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden transform-gpu">
+                <div class="p-4 bg-slate-900 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4">
+                    <h2 class="text-white font-bold flex items-center gap-2 text-lg"><span class="material-icons text-red-500">policy</span> ระบบดักจับการทำงาน (Spy Monitor)</h2>
+                    <input type="text" id="spySearchInput" placeholder="🔍 ค้นหาชื่อพนักงาน..." onkeyup="ds_renderSpyTable()" class="bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-red-500 w-full sm:w-64">
+                </div>
+                <div class="p-3 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center gap-3">
+                    <span class="text-sky-400 font-bold text-sm flex items-center gap-1"><span class="material-icons text-[16px]">flight_takeoff</span> ย้ายคนที่เลือกไปที่:</span>
+                    <select id="bulkMoveTarget" class="bg-slate-900 text-white p-2 rounded-lg border border-slate-600 outline-none focus:border-sky-500 text-sm w-48">
+                        <option value="">-- เลือกห้องปลายทาง --</option>
+                    </select>
+                    <button onclick="spy_moveSelectedUsers()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition shadow-md">
+                        🚀 ย้ายทันที (<span id="spySelectedCount">0</span>)
+                    </button>
+                    <button onclick="spy_returnMove()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 px-4 py-2 rounded-lg font-bold text-sm transition border border-amber-600 flex items-center gap-1 shadow-md">
+                        <span class="material-icons text-[16px]">keyboard_return</span> ดึงพนักงานกลับห้องเดิม
+                    </button>
+                </div>
+                <div class="overflow-x-auto transform-gpu">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-900 text-gray-400 font-bold border-b border-slate-700">
+                            <tr>
+                                <th class="p-3 w-10 text-center"><input type="checkbox" id="spySelectAll" onchange="spy_toggleSelectAll()" class="w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600"></th>
+                                <th class="p-3">ชื่อพนักงาน</th>
+                                <th class="p-3">ห้องปัจจุบัน</th>
+                                <th class="p-3">อุปกรณ์ที่ใช้</th>
+                                <th class="p-3">สถานะขณะนี้</th>
+                                <th class="p-3 text-amber-400">ปิดไมค์</th>
+                                <th class="p-3 text-red-400">ปิดหูฟัง</th>
+                                <th class="p-3 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ds_spyBody" class="divide-y divide-slate-700 text-gray-200 bg-slate-800">
+                            <tr><td colspan="8" class="text-center p-10 text-gray-500 flex flex-col items-center"><span class="material-icons animate-spin text-4xl mb-2">sync</span>กำลังดึงข้อมูลจากดิสคอร์ด...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="dsContent_move" class="max-w-6xl mx-auto hidden fade-in pb-10">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg flex flex-col h-[600px] transform-gpu">
+                    <h3 class="text-red-400 font-black mb-3 flex items-center gap-2 text-lg"><span class="material-icons">group_remove</span> 1. เลือกห้องต้นทาง (ย้ายจาก)</h3>
+                    <div class="relative mb-3 shrink-0">
+                        <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-sm">search</span>
+                        <input type="text" id="searchSourceRoom" onkeyup="filterSourceRooms()" placeholder="ค้นหาชื่อห้อง..." class="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-600 text-white rounded-xl text-sm outline-none focus:border-red-500">
+                    </div>
+                    <div id="ds_sourceRooms" class="flex-1 overflow-y-auto custom-scrollbar bg-slate-900 rounded-xl p-2 border border-slate-700 space-y-1.5 content-start transform-gpu">
+                        <div class="text-center text-gray-500 py-10">กำลังโหลดรายชื่อห้อง...</div>
+                    </div>
+                </div>
+                <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg flex flex-col h-[600px] transform-gpu">
+                    <h3 class="text-green-400 font-black mb-4 flex items-center gap-2 text-lg"><span class="material-icons">login</span> 2. เลือกห้องปลายทาง (ย้ายไป)</h3>
+                    <select id="ds_targetRoom" class="w-full p-4 rounded-xl border border-slate-600 bg-slate-900 text-white font-bold mb-6 outline-none focus:border-green-500 transition text-base">
+                        <option value="">-- กำลังโหลดห้อง --</option>
+                    </select>
+                    <div class="mt-auto space-y-4 shrink-0">
+                        <button onclick="ds_startMove()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-extrabold shadow transition active:scale-95 flex items-center justify-center gap-2 text-lg">
+                            <span class="material-icons">flight_takeoff</span> 🚀 ดึงคนย้ายห้องทันที
+                        </button>
+                        <button onclick="ds_returnMove()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold shadow transition active:scale-95 flex items-center justify-center gap-2 border border-slate-600">
+                            <span class="material-icons">keyboard_return</span> ↩️ ย้ายทุกคนกลับห้องเดิม
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dsContent_checkin" class="max-w-6xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg transform-gpu">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-sky-400 font-black flex items-center gap-2 text-xl"><span class="material-icons">telegram</span> ระบบเช็คชื่อเข้างาน</h2>
+                    <button onclick="document.getElementById('tgSettingsBox').classList.toggle('hidden')" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 transition">
+                        <span class="material-icons text-sm">settings</span> ตั้งค่า Bot
+                    </button>
+                </div>
+                <div id="tgSettingsBox" class="hidden bg-slate-900 border border-slate-600 rounded-xl p-4 mb-6">
+                    <h4 class="text-white font-bold text-sm mb-3">⚙️ ตั้งค่า Token & Chat ID</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                        <div class="md:col-span-2">
+                            <label class="text-xs text-gray-400 font-bold mb-1 block">Bot Token</label>
+                            <input type="text" id="cfgToken" placeholder="8306266770:AAH..." class="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-white text-sm outline-none focus:border-sky-500">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-xs text-gray-400 font-bold mb-1 block">Chat ID</label>
+                            <input type="text" id="cfgChatId" placeholder="-100XXXXXXX" class="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-white text-sm outline-none focus:border-sky-500">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="saveTgConfigLocal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition h-[42px] flex items-center justify-center gap-1"><span class="material-icons text-sm">save</span> บันทึก</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div><label class="text-gray-400 text-xs font-bold mb-1 block">หัวข้อ</label><input type="text" id="tgTitle" value="เช็คชื่อเข้างาน" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-sky-500"></div>
+                    <div><label class="text-gray-400 text-xs font-bold mb-1 block">วันที่</label><input type="date" id="tgDate" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-sky-500" onchange="fetchTodaysLeaves().then(_doRenderCheckinTable)"></div>
+                </div>
+                <div class="mb-4">
+                    <label class="text-gray-400 text-xs font-bold mb-1 block">ผู้ทำรายการ</label>
+                    <input type="text" id="reporterName" placeholder="ชื่อผู้ทำรายการ" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-sky-500">
+                </div>
+                <div class="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center text-gray-400 mb-4 cursor-pointer hover:bg-slate-700 transition flex flex-col items-center justify-center gap-2 bg-slate-900" id="pasteArea" tabindex="0">
+                    <span class="material-icons text-3xl opacity-50">content_paste</span>
+                    <span>คลิกที่นี่ แล้วกด <b>Ctrl + V</b> เพื่อวางรูปภาพหลักฐาน</span>
+                </div>
+                <div id="imgGallery" class="flex gap-2 flex-wrap mb-4"></div>
+                <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-6 transform-gpu">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-white font-bold flex items-center gap-2"><span class="material-icons text-emerald-400 text-sm">checklist</span> รายชื่อพนักงาน</h3>
+                        <button onclick="clearCheckinStatus()" class="text-red-400 border border-red-500/50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/10 transition">ล้างสถานะทั้งหมด</button>
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <select id="groupFilter" onchange="renderCheckinTable()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-sky-500"><option value="ALL">-- ทุกกลุ่ม --</option></select>
+                        <select id="roundFilter" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-sky-500">
+                            <option value="">-- ไม่ระบุรอบ --</option><option value="รอบที่ 1">รอบที่ 1</option><option value="รอบที่ 2">รอบที่ 2</option>
+                        </select>
+                    </div>
+                    <input type="text" id="searchTable" placeholder="🔍 ค้นหาชื่อ..." onkeyup="renderCheckinTable()" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-sky-500 mb-4">
+                    <div id="statusSummary" class="flex gap-3 mb-4"></div>
+                    <div id="checkinTableContainer" class="max-h-80 overflow-y-auto custom-scrollbar border border-slate-700 rounded-xl p-2 bg-slate-800 text-sm transform-gpu overscroll-contain"></div>
+                </div>
+                <button onclick="sendToTelegram()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-black py-4 rounded-xl shadow transition active:scale-95 text-lg">
+                    <span class="material-icons">send</span> ส่งเข้ากลุ่ม Telegram
+                </button>
+            </div>
+        </div>
+
+        <div id="dsContent_manage" class="max-w-6xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg transform-gpu">
+                <h2 class="text-amber-500 font-black mb-6 flex items-center gap-2 text-xl"><span class="material-icons">manage_accounts</span> จัดการรายชื่อพนักงานและกลุ่ม</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col h-[650px] transform-gpu">
+                        <div class="flex justify-between items-center mb-4 shrink-0">
+                            <h3 class="text-sky-400 font-bold flex items-center gap-1.5"><span class="material-icons text-[18px]">person</span> พนักงานทั้งหมด (ดิสคอร์ด)</h3>
+                            <button onclick="syncDiscord()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-md">
+                                <span class="material-icons text-[14px]">sync</span> ดึงรายชื่อใหม่
+                            </button>
+                        </div>
+                        <div class="flex gap-2 mb-3 shrink-0">
+                            <input type="text" id="newStaffName" placeholder="พิมพ์ชื่อเพิ่มเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-sky-500">
+                            <button onclick="addStaff()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">เพิ่ม</button>
+                        </div>
+                        
+                        <div class="mb-3 flex flex-wrap gap-2 shrink-0">
+                            <select id="filterStaffGroup" onchange="renderManagerList()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-sky-500 font-bold text-sky-300">
+                                <option value="ALL">-- ดูทุกกลุ่ม --</option>
+                            </select>
+                            <select id="filterStaffDept" onchange="renderManagerList()" class="w-[85px] bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-xs outline-none focus:border-sky-500 font-bold">
+                                <option value="ALL">ทุกแผนก</option><option value="AM">AM</option><option value="OD">OD</option>
+                            </select>
+                            <select id="filterStaffShift" onchange="renderManagerList()" class="w-[85px] bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-xs outline-none focus:border-sky-500 font-bold">
+                                <option value="ALL">ทุกกะ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option>
+                            </select>
+                        </div>
+
+                        <div class="relative mb-3 shrink-0">
+                            <span class="material-icons absolute left-3 top-3 text-gray-400 text-[18px]">search</span>
+                            <input type="text" id="searchMgrStaff" placeholder="ค้นหาชื่อในดิสคอร์ด..." onkeyup="renderManagerList()" class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-800 border border-slate-600 text-white text-sm outline-none focus:border-sky-500">
+                        </div>
+                        <div id="manageStaffList" class="flex-1 overflow-y-auto custom-scrollbar border border-slate-700 rounded-xl bg-slate-800 p-2 transform-gpu overscroll-contain"></div>
+                    </div>
+
+                    <div class="flex flex-col gap-6 h-[650px] transform-gpu">
+                        <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col flex-1 min-h-0">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="material-icons text-[18px]">auto_awesome</span> จัดการกลุ่ม (กดดู/แก้ชื่อได้)</h3>
+                                <button onclick="autoBuildGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition flex items-center gap-1" title="ดึงข้อมูลจากเว็บมาจัดกลุ่มให้ใหม่">
+                                    <span class="material-icons text-[14px]">bolt</span> จัดกลุ่มออโต้
+                                </button>
+                            </div>
+                            
+                            <div class="flex gap-2 mb-3 pb-3 border-b border-slate-700 shrink-0 mt-2">
+                                <input type="text" id="newGroupName" placeholder="พิมพ์ชื่อกลุ่มใหม่เพื่อสร้างเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500">
+                                <button onclick="createGroup()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">สร้างกลุ่ม</button>
+                            </div>
+
+                            <div id="groupList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 p-6 rounded-2xl border border-indigo-500/30 shadow-lg transform-gpu mt-6">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4">
+                        <h3 class="text-indigo-400 font-bold flex items-center gap-2 text-lg"><span class="material-icons">sync</span> ตารางย้ายกะ/โอนย้าย (รวมจากเว็บหลัก)</h3>
+                    </div>
+                    
+                    <div id="transferSummaryBoard" class="flex flex-wrap gap-2 mb-4 bg-slate-800 p-3 rounded-xl border border-slate-700"></div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="flex flex-col h-[550px]">
+                            <label class="text-gray-400 text-sm font-bold mb-2 shrink-0">1. เลือกพนักงานที่จะย้าย (เลือกหลายคนได้)</label>
+                            
+                            <div class="flex flex-wrap gap-2 mb-2 shrink-0">
+                                <select id="filterTransferGroup" onchange="renderTransferUserList()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2 text-xs outline-none focus:border-emerald-500 font-bold">
+                                    <option value="ALL">ทุกกลุ่ม</option>
+                                </select>
+                                <select id="filterTransferDept" onchange="renderTransferUserList()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2 text-xs outline-none focus:border-emerald-500 font-bold">
+                                    <option value="ALL">แผนก</option><option value="AM">AM</option><option value="OD">OD</option>
+                                </select>
+                                <select id="filterTransferShift" onchange="renderTransferUserList()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2 text-xs outline-none focus:border-emerald-500 font-bold">
+                                    <option value="ALL">กะ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option>
+                                </select>
+                                <button onclick="selectAllVisibleTransfer()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-xl text-[10px] font-bold transition border border-slate-600 shadow-sm">เลือกทั้งหมด</button>
+                            </div>
+
+                            <input type="text" id="transferSearch" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหา..." onkeyup="renderTransferUserList()" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500 mb-2 shrink-0">
+                            
+                            <div id="transferSelectedTags" class="flex flex-wrap gap-1.5 mb-2 max-h-20 overflow-y-auto custom-scrollbar shrink-0"></div>
+                            <div id="transferUserList" class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1.5 bg-slate-800 p-2 rounded-xl border border-slate-700 content-start transform-gpu overscroll-contain"></div>
+                        </div>
+
+                        <div class="flex flex-col h-[550px]">
+                            <label class="text-gray-400 text-sm font-bold mb-2 shrink-0">2. ปลายทาง & เวลา</label>
+                            <select id="transferToGroup" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500 mb-4 shrink-0">
+                                <option value="">-- เลือกกลุ่มปลายทาง --</option>
+                            </select>
+                            <label class="text-gray-400 text-sm font-bold mb-2 shrink-0">เวลาที่ให้ระบบย้ายให้อัตโนมัติ</label>
+                            <input type="datetime-local" id="transferTime" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500 mb-4 shrink-0">
+                            <button onclick="scheduleTransfer()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow transition active:scale-95 mb-4 shrink-0 flex justify-center items-center gap-1"><span class="material-icons text-sm">schedule_send</span> บันทึกตารางย้ายกลุ่ม</button>
+                            
+                            <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 min-h-0">
+                                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 flex flex-col min-h-0">
+                                    <label class="text-amber-400 text-xs font-bold mb-2 block shrink-0 flex items-center justify-between">
+                                        <span class="flex items-center gap-1"><span class="material-icons text-sm">schedule</span> รอทำงาน</span>
+                                    </label>
+                                    <input type="text" id="searchPendingTransfer" onkeyup="renderTransferLists()" placeholder="🔍 ค้นหาชื่อ..." class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg p-1.5 text-xs outline-none focus:border-amber-500 mb-2 shrink-0">
+                                    <div id="transferList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 transform-gpu pr-1"></div>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 flex flex-col min-h-0">
+                                    <label class="text-emerald-400 text-xs font-bold mb-2 block shrink-0 flex items-center justify-between">
+                                        <span class="flex items-center gap-1"><span class="material-icons text-sm">check_circle</span> สำเร็จ</span>
+                                    </label>
+                                    <input type="text" id="searchHistoryTransfer" onkeyup="renderTransferLists()" placeholder="🔍 ค้นหาชื่อ..." class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg p-1.5 text-xs outline-none focus:border-emerald-500 mb-2 shrink-0">
+                                    <div id="transferHistoryList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 transform-gpu pr-1"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dsContent_voicelog" class="max-w-5xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-fuchsia-500 font-black flex items-center gap-2 text-xl"><span class="material-icons">history</span> ประวัติเข้า-ออกห้องดิสคอร์ด</h2>
+                    <button onclick="ds_fetchVoiceLogs()" class="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-full transition shadow"><span class="material-icons text-sm">refresh</span></button>
+                </div>
+                
+                <div class="flex flex-wrap gap-4 mb-6">
+                    <input type="date" id="voiceLogDate" onchange="ds_renderVoiceLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-fuchsia-500">
+                    
+                    <select id="voiceLogShiftFilter" onchange="ds_renderVoiceLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-fuchsia-500 font-bold">
+                        <option value="ALL">🌐 ทุกกะ</option>
+                        <option value="กะเช้า">☀️ กะเช้า</option>
+                        <option value="กะกลาง">🌤️ กะกลาง</option>
+                        <option value="กะดึก">🌙 กะดึก</option>
+                    </select>
+
+                    <select id="voiceLogLateFilter" onchange="ds_renderVoiceLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-fuchsia-500 font-bold">
+                        <option value="ALL">ดูทั้งหมด</option>
+                        <option value="late">🔴 กรองเฉพาะคนมาสาย</option>
+                        <option value="leave">🚪 กรองเฉพาะคนออกห้อง</option>
+                    </select>
+                    
+                    <div class="relative flex-1 min-w-[200px]">
+                        <span class="material-icons absolute left-3 top-3 text-gray-500 text-[18px]">search</span>
+                        <input type="text" id="searchVoiceLog" onkeyup="ds_renderVoiceLogs()" placeholder="ค้นหาชื่อพนักงาน..." class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:border-fuchsia-500">
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-inner">
+                    <div class="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-800 text-gray-400 text-[10px] uppercase tracking-wider sticky top-0 z-10 shadow-sm">
+                                <tr><th class="p-4 font-bold">เวลา</th><th class="p-4 font-bold">พนักงาน</th><th class="p-4 font-bold">สถานะ</th><th class="p-4 font-bold">ห้อง</th></tr>
+                            </thead>
+                            <tbody id="ds_voiceLogBody" class="text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dsContent_actionlog" class="max-w-5xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-orange-500 font-black flex items-center gap-2 text-xl"><span class="material-icons">manage_search</span> ประวัติการกดคำสั่ง (Admin Logs)</h2>
+                    <button onclick="ds_fetchActionLogs()" class="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-full transition shadow"><span class="material-icons text-sm">refresh</span></button>
+                </div>
+                
+                <div class="flex gap-4 mb-6">
+                    <input type="date" id="actionLogDate" onchange="ds_renderActionLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-orange-500">
+                    <div class="relative flex-1">
+                        <span class="material-icons absolute left-3 top-3 text-gray-500 text-[18px]">search</span>
+                        <input type="text" id="actionLogSearch" onkeyup="ds_renderActionLogs()" placeholder="ค้นหาชื่อแอดมิน หรือ คำสั่ง..." class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:border-orange-500">
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-inner">
+                    <div class="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-800 text-gray-400 text-[10px] uppercase tracking-wider sticky top-0 z-10 shadow-sm">
+                                <tr><th class="p-4 font-bold">เวลา</th><th class="p-4 font-bold">แอดมินผู้สั่งการ</th><th class="p-4 font-bold">คำสั่ง</th><th class="p-4 font-bold">รายละเอียด</th></tr>
+                            </thead>
+                            <tbody id="ds_actionLogBody" class="text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

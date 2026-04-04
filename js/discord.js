@@ -1,0 +1,1183 @@
+const DISCORD_API_URL = 'https://my-discord-production-9382.up.railway.app';
+let spyInterval;
+let logInterval; 
+let isDataLoaded = false;
+let globalSpyData = []; 
+let dsRoomList = [];
+
+let extStaffList = [];
+let extOnlineUsers = [];
+let extStaffGroups = {}; 
+let checkinStatusMap = {};
+let uploadFiles = [];
+let selectedAssign = new Set();
+let selectedRemove = new Set(); 
+let scheduledTransfers = [];
+let transferHistory = [];
+let selectedTransfer = new Set();
+let spySelectedUsers = new Set();
+let todaysLeaves = [];
+let dsTimers = {};
+window.customDiscordNames = window.customDiscordNames || {};
+window.isSpyDropdownFocused = false;
+
+function dsDebounce(key, func, delay = 200) {
+    clearTimeout(dsTimers[key]);
+    dsTimers[key] = setTimeout(func, delay);
+}
+
+function getDbUserFromDiscordName(discordName) {
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return null;
+    const dsNameClean = discordName.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
+    let matchedUser = window.GLOBAL_USER_LIST.find(u => {
+        const dbNameClean = u.username ? u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') : '';
+        return dbNameClean.length > 1 && (dsNameClean.includes(dbNameClean) || dbNameClean.includes(dsNameClean));
+    });
+    if (matchedUser) return matchedUser;
+    const parts = discordName.toLowerCase().split(/[-_\s|]+/).filter(p => p.length >= 2);
+    for (const part of parts) {
+        const pClean = part.replace(/[^a-z0-9ก-๙]/g, '');
+        if (pClean.length >= 2) {
+            matchedUser = window.GLOBAL_USER_LIST.find(u => {
+                const dbNameClean = u.username ? u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') : '';
+                return dbNameClean === pClean;
+            });
+            if (matchedUser) return matchedUser;
+        }
+    }
+    return null;
+}
+
+window.applyDiscordPermissions = function() {
+    const tabs = [
+        { btnId: 'tabDsSpy', viewId: 'spy', reqPerm: 'ds_spy' },
+        { btnId: 'tabDsMove', viewId: 'move', reqPerm: 'ds_move' },
+        { btnId: 'tabDsCheckin', viewId: 'checkin', reqPerm: 'ds_checkin' },
+        { btnId: 'tabDsManage', viewId: 'manage', reqPerm: 'ds_manage' },
+        { btnId: 'tabDsVoicelog', viewId: 'voicelog', reqPerm: 'ds_log' },
+        { btnId: 'tabDsActionlog', viewId: 'actionlog', reqPerm: 'ds_log' }
+    ];
+
+    let firstAllowedTab = null;
+
+    tabs.forEach(tab => {
+        const btn = document.getElementById(tab.btnId);
+        if (!btn) return;
+        if (window.hasUserPerm(tab.reqPerm)) {
+            btn.classList.remove('no-perm-hidden', 'hidden');
+            btn.style.display = ''; 
+            if (!firstAllowedTab) firstAllowedTab = tab.viewId;
+        } else {
+            btn.classList.add('no-perm-hidden');
+            btn.style.display = 'none';
+        }
+    });
+
+    if (firstAllowedTab) {
+        document.getElementById('discordNoAccessMessage')?.remove();
+        const activeTabs = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog'];
+        let isCurrentTabValid = false;
+        
+        activeTabs.forEach(t => {
+            const contentBox = document.getElementById('dsContent_' + t);
+            if(contentBox && !contentBox.classList.contains('hidden')) {
+                const reqPerm = tabs.find(x => x.viewId === t)?.reqPerm;
+                if(window.hasUserPerm(reqPerm)) isCurrentTabValid = true;
+            }
+        });
+
+        if (!isCurrentTabValid) switchDiscordTab(firstAllowedTab);
+
+    } else {
+        tabs.forEach(t => {
+            const contentBox = document.getElementById('dsContent_' + t.viewId);
+            if(contentBox) contentBox.classList.add('hidden');
+        });
+        
+        if(!document.getElementById('discordNoAccessMessage')) {
+            const msg = document.createElement('div');
+            msg.id = 'discordNoAccessMessage';
+            msg.className = 'text-center mt-[15vh] flex flex-col items-center justify-center fade-in';
+            msg.innerHTML = `
+                <span class="material-icons text-red-500 text-7xl mb-4 drop-shadow-md">lock</span>
+                <h2 class="text-2xl font-black text-white tracking-wider">คุณไม่มีสิทธิ์เข้าถึงเมนูใดๆ ในระบบดิสคอร์ด</h2>
+                <p class="text-gray-400 mt-2 text-sm">กรุณาติดต่อผู้จัดการเพื่อขอสิทธิ์การเข้าถึง</p>
+            `;
+            const appBox = document.querySelector('#discordApp .flex-1');
+            if(appBox) appBox.appendChild(msg);
+        }
+    }
+};
+
+window.switchDiscordTab = function(tabName) {
+    try {
+        const allViews = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog'];
+        allViews.forEach(view => {
+            const el = document.getElementById('dsContent_' + view);
+            if (el) el.classList.add('hidden');
+            const btn = document.getElementById('tabDs' + view.charAt(0).toUpperCase() + view.slice(1));
+            if (btn) btn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1";
+        });
+
+        const targetView = document.getElementById('dsContent_' + tabName);
+        if (targetView) targetView.classList.remove('hidden');
+
+        if(spyInterval) clearInterval(spyInterval);
+        if(logInterval) clearInterval(logInterval); 
+
+        const activeBtn = document.getElementById('tabDs' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+        if (activeBtn) {
+            if (tabName === 'spy') {
+                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.5)] flex items-center gap-1";
+                ds_fetchSpy(); 
+                ds_fetchChannelsSilently();
+                spyInterval = setInterval(ds_fetchSpy, 3000); 
+            } 
+            else if (tabName === 'move') {
+                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)] flex items-center gap-1";
+                ds_fetchChannels(); 
+            }
+            else if (tabName === 'checkin') {
+                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-sky-500 text-white shadow-[0_0_10px_rgba(14,165,233,0.5)] flex items-center gap-1";
+                const d = new Date();
+                const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0');
+                if(document.getElementById('tgDate')) document.getElementById('tgDate').value = `${y}-${m}-${day}`;
+                
+                ds_fetchSpy().then(() => {
+                    fetchTodaysLeaves().then(() => {
+                        if (!isDataLoaded) fetchSystemData(false).then(() => _doRenderCheckinTable()); 
+                        else _doRenderCheckinTable();
+                    });
+                });
+            }
+            else if (tabName === 'manage') {
+                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-amber-500 text-slate-900 shadow-[0_0_10px_rgba(245,158,11,0.5)] flex items-center gap-1";
+                if (!isDataLoaded) fetchSystemData(false); 
+                else {
+                    _doRenderManagerList(); renderGroupList(); renderTransferUserList(); fetchTransfers();
+                }
+            }
+            else if (tabName === 'voicelog') {
+                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-fuchsia-500 text-white shadow-[0_0_10px_rgba(217,70,239,0.5)] flex items-center gap-1";
+                const dateInput = document.getElementById('voiceLogDate');
+                if(dateInput && !dateInput.value) {
+                    const tzOffset = 7 * 60 * 60 * 1000;
+                    dateInput.value = new Date(Date.now() + tzOffset).toISOString().split('T')[0];
+                }
+                ds_fetchVoiceLogs();
+                logInterval = setInterval(ds_fetchVoiceLogs, 15000); 
+            }
+            else if (tabName === 'actionlog') {
+                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.5)] flex items-center gap-1";
+                ds_fetchActionLogs();
+            }
+        }
+    } catch(err) { console.error("Tab Switch Error:", err); }
+};
+
+window.fetchSystemData = async function(forceSync = false, silent = false) {
+    if (isDataLoaded && !forceSync && !silent) return; 
+    try {
+        if (forceSync && !silent) Swal.fire({title: 'กำลังเชื่อมต่อบอท...', text: 'เซิร์ฟเวอร์อาจกำลังตื่นนอน โปรดรอสักครู่...', didOpen: () => Swal.showLoading(), allowOutsideClick: false});
+        
+        if (typeof appDB !== 'undefined') {
+            const { data: dbUsers } = await appDB.from('users').select('*');
+            if (dbUsers && dbUsers.length > 0) window.GLOBAL_USER_LIST = dbUsers;
+
+            const { data: customNameData } = await appDB.from('settings').select('value').eq('key', 'discord_custom_names').single();
+            if (customNameData && customNameData.value) {
+                window.customDiscordNames = JSON.parse(customNameData.value);
+            }
+        }
+
+        const tStamp = Date.now();
+        const fetchOpts = { headers: { 'Cache-Control': 'no-cache', 'ngrok-skip-browser-warning': 'true' } };
+
+        const [sRes, oRes, gRes] = await Promise.all([
+            fetch(`${DISCORD_API_URL}/api/staff-list?t=${tStamp}`, fetchOpts).catch(e => { throw new Error('NET_BLOCK'); }),
+            fetch(`${DISCORD_API_URL}/api/online-status?t=${tStamp}`, fetchOpts).catch(e => { throw new Error('NET_BLOCK'); }),
+            fetch(`${DISCORD_API_URL}/api/staff-groups?t=${tStamp}`, fetchOpts).catch(e => { throw new Error('NET_BLOCK'); })
+        ]);
+        
+        if (!sRes.ok) throw new Error('BOT_SLEEP'); 
+
+        const sData = await sRes.json().catch(()=>[]);
+        const oData = await oRes.json().catch(()=>[]);
+        const gData = await gRes.json().catch(()=>({}));
+
+        let rawStaffList = Array.isArray(sData) ? sData : (sData.data || []);
+        
+        extStaffList = rawStaffList.map(s => {
+            if (window.customDiscordNames[s.id]) {
+                return { ...s, name: window.customDiscordNames[s.id] }; 
+            }
+            return s; 
+        });
+
+        let rawOnline = Array.isArray(oData) ? oData : (oData.data || oData.users || oData.online || []);
+        extOnlineUsers = rawOnline.map(item => typeof item === 'object' ? String(item.id || item.user_id) : String(item));
+        if (Object.keys(gData).length > 0) extStaffGroups = gData;
+
+        isDataLoaded = true;
+
+        updateAllFilters();
+        if (typeof renderGroupList === 'function') renderGroupList();
+        if (typeof _doRenderCheckinTable === 'function') _doRenderCheckinTable();
+        if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
+        if (typeof renderTransferUserList === 'function') renderTransferUserList();
+        if (typeof fetchTransfers === 'function') fetchTransfers();
+        
+        if (forceSync && !silent) {
+            Swal.fire({icon: 'success', title: 'เชื่อมต่อสำเร็จ', timer: 1000, showConfirmButton: false});
+        }
+    } catch(e) {
+        console.error("System Fetch Error:", e);
+        if (!silent) {
+            if (e.message === 'NET_BLOCK') Swal.fire('เครื่องนี้บล็อกบอท!', 'เน็ตเวิร์ค หรือ AdBlock บล็อกการเชื่อมต่อ', 'error');
+            else if (e.message === 'BOT_SLEEP') Swal.fire('บอทกำลังตื่นนอน', 'รอสัก 30 วินาทีแล้วลองกดรีเฟรชใหม่ครับ', 'warning');
+            else Swal.fire('Error', 'เกิดข้อผิดพลาด: ' + e.message, 'error');
+        }
+    }
+};
+
+window.syncDiscord = async function() { 
+    Swal.fire({title: 'กำลังสั่งบอทดึงรายชื่อ...', didOpen: () => Swal.showLoading()}); 
+    try {
+        const res = await fetch(DISCORD_API_URL + '/api/import-discord-members', { method:'POST', headers: { 'Cache-Control': 'no-cache' } }); 
+        if(!res.ok) throw new Error('API_FAIL');
+        await fetchSystemData(true, true); 
+        Swal.fire({icon: 'success', title: 'อัปเดตเรียบร้อย', timer: 1000, showConfirmButton: false}); 
+    } catch(e) {
+        Swal.fire({ icon: 'error', title: 'เชื่อมต่อล้มเหลว', text: 'บอทอาจจะหลับอยู่ หรือคอมเครื่องนี้มีระบบป้องกัน' });
+    }
+};
+
+window.spy_toggleSelectUser = function(uid) {
+    if(spySelectedUsers.has(uid)) spySelectedUsers.delete(uid);
+    else spySelectedUsers.add(uid);
+    document.getElementById('spySelectedCount').innerText = spySelectedUsers.size;
+};
+
+window.spy_toggleSelectAll = function() {
+    const isChecked = document.getElementById('spySelectAll').checked;
+    document.querySelectorAll('.spy-user-cb').forEach(cb => {
+        cb.checked = isChecked;
+        if(isChecked) spySelectedUsers.add(cb.value);
+        else spySelectedUsers.delete(cb.value);
+    });
+    document.getElementById('spySelectedCount').innerText = spySelectedUsers.size;
+};
+
+window.spy_moveSelectedUsers = async function() {
+    const targetId = document.getElementById('bulkMoveTarget').value;
+    const ids = Array.from(spySelectedUsers);
+    if(ids.length === 0) return Swal.fire('เตือน', 'กรุณาติ๊กเลือกคนที่จะย้ายก่อน', 'warning');
+    if(!targetId) return Swal.fire('เตือน', 'กรุณาเลือกห้องปลายทาง', 'warning');
+
+    Swal.fire({title: 'กำลังย้าย...', didOpen: () => Swal.showLoading()});
+    try {
+        const res = await fetch(`${DISCORD_API_URL}/api/move-users`, {
+            method: 'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ userIds: ids, targetChannelId: targetId })
+        });
+        const r = await res.json();
+        if(r.success) {
+            Swal.fire('สำเร็จ', `ย้ายพนักงาน ${r.movedCount} คนแล้ว`, 'success');
+            ds_logAction('Spy Move', `ดึงคนย้ายห้อง ${ids.length} คน ไปยังเป้าหมาย`);
+            spySelectedUsers.clear();
+            document.getElementById('spySelectAll').checked = false;
+            document.getElementById('spySelectedCount').innerText = 0;
+            ds_fetchSpy();
+        } else Swal.fire('Error', r.error, 'error');
+    } catch(e) { Swal.fire('Error', e.message, 'error'); }
+};
+
+window.spy_returnMove = async function() {
+    Swal.fire({title: 'กำลังย้ายกลับ...', didOpen: () => Swal.showLoading()});
+    try {
+        const res = await fetch(`${DISCORD_API_URL}/api/spy-return`, { method: 'POST' });
+        const r = await res.json();
+        if (r.success) {
+            Swal.fire('สำเร็จ', `ย้ายกลับ ${r.count} คนแล้ว`, 'success');
+            ds_logAction('Spy Return', `ดึงพนักงาน ${r.count} คนกลับห้องเดิม`);
+        } else Swal.fire('Error', r.error, 'error');
+    } catch(e) { Swal.fire('Error', 'เชื่อมต่อบอทไม่ได้', 'error'); }
+};
+
+window.spy_moveSingleUser = async function(uid, targetId) {
+    if(!targetId) return;
+    try {
+        await fetch(`${DISCORD_API_URL}/api/move-users`, {
+            method: 'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ userIds: [uid], targetChannelId: targetId })
+        });
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+        Toast.fire({ icon: 'success', title: 'ย้ายเรียบร้อย' });
+        ds_logAction('Spy Move Single', `ย้าย 1 คนไปห้องใหม่`);
+        ds_fetchSpy();
+    } catch(e) {}
+};
+
+window.ds_renderSpyTable = function() {
+    const term = document.getElementById('spySearchInput').value.toLowerCase();
+    const tbody = document.getElementById('ds_spyBody');
+    const now = Date.now();
+    let html = '';
+    
+    let roomOptionsHtml = '<option value="">⚡ ย้ายไป..</option>';
+    dsRoomList.forEach(c => { roomOptionsHtml += `<option value="${c.id}">${c.name}</option>`; });
+
+    const filtered = globalSpyData.filter(u => term === '' || u.name.toLowerCase().includes(term));
+    
+    filtered.forEach(u => {
+        let mute = u.totalMute + (u.startMute ? (now - u.startMute) : 0);
+        let deaf = u.totalDeaf + (u.startDeaf ? (now - u.startDeaf) : 0);
+        
+        let mStr = '-';
+        if (mute > 0) {
+            let mMins = Math.floor(mute / 60000);
+            mStr = mMins > 0 ? `${mMins} นาที` : `< 1 นาที`;
+        }
+        let dStr = '-';
+        if (deaf > 0) {
+            let dMins = Math.floor(deaf / 60000);
+            dStr = dMins > 0 ? `${dMins} นาที` : `< 1 นาที`;
+        }
+        
+        let statusBadges = '';
+        if(u.startMute) statusBadges += '<span class="bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-500/50 mr-1">ปิดไมค์</span>';
+        if(u.startDeaf) statusBadges += '<span class="bg-red-500/20 text-red-500 px-2 py-0.5 rounded text-[10px] font-bold border border-red-500/50 mr-1">ปิดหูฟัง</span>';
+        if(!statusBadges && u.currentRoom) statusBadges = '<span class="text-gray-500 text-xs">ปกติ</span>';
+
+        let devicesHTML = '';
+        let isDouble = false;
+        if (u.devices) {
+            if (u.devices.includes('desktop')) devicesHTML += '<span title="PC" class="text-lg">💻</span>';
+            if (u.devices.includes('web')) devicesHTML += '<span title="Web" class="text-lg">🌐</span>';
+            if (u.devices.includes('mobile')) devicesHTML += '<span title="Mobile" class="text-lg">📱</span>';
+            if (u.devices.includes('desktop') && u.devices.includes('web')) isDouble = true;
+        }
+        if(isDouble) devicesHTML += '<span class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold ml-2 animate-pulse">ซ้อน 2 จอ!</span>';
+
+        const roomBadge = u.currentRoom ? `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded border border-indigo-700/50 text-xs font-bold">${u.currentRoom}</span>` : '<span class="text-gray-600 text-xs">ออฟไลน์</span>';
+        const nameColor = u.currentRoom ? 'text-white' : 'text-gray-500';
+        const isChecked = spySelectedUsers.has(u.id) ? 'checked' : '';
+
+        html += `<tr class="hover:bg-slate-800 transition border-b border-slate-700/50">
+            <td class="p-3 text-center"><input type="checkbox" value="${u.id}" class="spy-user-cb w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600" onchange="spy_toggleSelectUser('${u.id}')" ${isChecked}></td>
+            <td class="p-3 font-bold ${nameColor}">${u.name}</td>
+            <td class="p-3">${roomBadge}</td>
+            <td class="p-3 flex items-center gap-1">${devicesHTML}</td>
+            <td class="p-3">${statusBadges}</td>
+            <td class="p-3 text-amber-400 font-mono font-bold">${mStr}</td>
+            <td class="p-3 text-red-400 font-mono font-bold">${dStr}</td>
+            <td class="p-3 text-center">
+                <select onfocus="window.isSpyDropdownFocused=true;" onblur="window.isSpyDropdownFocused=false;" onchange="window.isSpyDropdownFocused=false; spy_moveSingleUser('${u.id}', this.value)" class="bg-slate-900 text-white p-1.5 rounded border border-slate-600 outline-none text-xs w-28 cursor-pointer focus:ring-2 focus:ring-indigo-500 transition">
+                    ${roomOptionsHtml}
+                </select>
+            </td>
+        </tr>`;
+    });
+    tbody.innerHTML = html || '<tr><td colspan="8" class="text-center py-6 text-gray-500">ไม่พบรายชื่อพนักงาน</td></tr>';
+};
+
+window.ds_fetchSpy = async function() {
+    try {
+        const res = await fetch(DISCORD_API_URL + '/api/spy-data?t=' + Date.now());
+        if(res.ok) {
+            const data = await res.json();
+            globalSpyData = Object.keys(data).map(key => ({ id: key, ...data[key] })).sort((a,b) => (a.currentRoom ? -1 : 1));
+            if (!window.isSpyDropdownFocused) ds_renderSpyTable();
+        }
+    } catch(e) {}
+};
+
+window.ds_fetchChannelsSilently = async function() {
+    try {
+        if(typeof appDB !== 'undefined') {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').single();
+            if (data && data.value) {
+                dsRoomList = JSON.parse(data.value);
+                let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
+                dsRoomList.forEach(c => dropHtml += `<option value="${c.id}">${c.name}</option>`);
+                const targetSelect = document.getElementById('bulkMoveTarget');
+                if(targetSelect) targetSelect.innerHTML = dropHtml;
+            }
+        }
+    } catch(e) {}
+};
+
+window.filterSourceRooms = function() {
+    const term = document.getElementById('searchSourceRoom').value.toLowerCase();
+    document.querySelectorAll('.ds-room-item').forEach(el => {
+        const name = el.getAttribute('data-name').toLowerCase();
+        el.style.display = name.includes(term) ? 'flex' : 'none';
+    });
+};
+
+window.ds_fetchChannels = async function() {
+    try {
+        if(typeof appDB !== 'undefined') {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').single();
+            if (data && data.value) {
+                dsRoomList = JSON.parse(data.value);
+                let srcHtml = '';
+                let targetHtml = '<option value="">-- เลือกห้องที่ต้องการย้ายไป --</option>';
+                
+                dsRoomList.forEach(c => {
+                    srcHtml += `
+                    <label class="ds-room-item flex items-center gap-3 p-3 bg-slate-900 border border-slate-700 rounded-xl cursor-pointer hover:border-indigo-500 transition group" data-name="${c.name}">
+                        <input type="checkbox" name="ds_src" value="${c.id}" class="w-5 h-5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500">
+                        <span class="font-bold text-gray-300 group-hover:text-white transition">${c.name}</span>
+                    </label>`;
+                    targetHtml += `<option value="${c.id}">${c.name}</option>`;
+                });
+                document.getElementById('ds_sourceRooms').innerHTML = srcHtml;
+                document.getElementById('ds_targetRoom').innerHTML = targetHtml;
+            }
+        }
+    } catch (e) { 
+        document.getElementById('ds_sourceRooms').innerHTML = '<div class="text-center text-gray-500 py-10">รอโหลดข้อมูล...</div>';
+    }
+};
+
+window.ds_startMove = async function() {
+    const srcIds = Array.from(document.querySelectorAll('input[name="ds_src"]:checked')).map(cb => cb.value);
+    const target = document.getElementById('ds_targetRoom').value;
+    if (!target || srcIds.length === 0) return Swal.fire('เตือน', 'เลือกห้องต้นทางและปลายทางก่อน', 'warning');
+
+    Swal.fire({title: 'กำลังย้าย...', didOpen: () => Swal.showLoading()});
+    try {
+        const res = await fetch(`${DISCORD_API_URL}/api/mass-move-rooms`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceChannelIds: srcIds, targetChannelId: target })
+        });
+        const r = await res.json();
+        if (r.success) {
+            Swal.fire('สำเร็จ', `ย้ายพนักงาน ${r.count} คนแล้ว`, 'success');
+            ds_logAction('Mass Move', `ย้ายพนักงาน ${r.count} คนไปห้องเป้าหมาย`);
+        } else Swal.fire('Error', r.error, 'error');
+    } catch(e) { Swal.fire('Error', 'เชื่อมต่อบอทไม่ได้', 'error'); }
+};
+
+window.ds_returnMove = async function() {
+    Swal.fire({title: 'กำลังย้ายกลับ...', didOpen: () => Swal.showLoading()});
+    try {
+        const res = await fetch(`${DISCORD_API_URL}/api/mass-return`, { method: 'POST' });
+        const r = await res.json();
+        if (r.success) {
+            Swal.fire('สำเร็จ', `ย้ายกลับ ${r.count} คนแล้ว`, 'success');
+            ds_logAction('Return Move', `ดึงพนักงาน ${r.count} คนกลับห้องเดิม`);
+        } else Swal.fire('Error', r.error, 'error');
+    } catch(e) { Swal.fire('Error', 'เชื่อมต่อบอทไม่ได้', 'error'); }
+};
+
+window.loadTgConfigLocal = function() {
+    const savedToken = localStorage.getItem('tg_bot_token');
+    const savedChatId = localStorage.getItem('tg_chat_id');
+    if(savedToken && document.getElementById('cfgToken')) document.getElementById('cfgToken').value = savedToken;
+    if(savedChatId && document.getElementById('cfgChatId')) document.getElementById('cfgChatId').value = savedChatId;
+};
+
+window.saveTgConfigLocal = async function() {
+    const token = document.getElementById('cfgToken').value.trim();
+    const chatId = document.getElementById('cfgChatId').value.trim();
+    localStorage.setItem('tg_bot_token', token);
+    localStorage.setItem('tg_chat_id', chatId);
+    try { await fetch(DISCORD_API_URL + '/api/save-tg-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ botToken: token, chatId: chatId }) }); } catch(e) {}
+    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'ระบบจะจำการตั้งค่านี้ไว้ในเบราว์เซอร์ของคุณ', timer: 2000, showConfirmButton: false});
+    document.getElementById('tgSettingsBox').classList.add('hidden');
+};
+
+window.renderCheckinTable = function() { dsDebounce('checkin', _doRenderCheckinTable, 200); };
+
+window._doRenderCheckinTable = function() {
+    const container = document.getElementById('checkinTableContainer');
+    if(!container) return;
+    const group = document.getElementById('groupFilter').value;
+    const search = document.getElementById('searchTable').value.toLowerCase();
+    
+    let counts = { '✅':0, '🏖️':0, '🤒':0, '📝':0, '❌':0, 'TOTAL':0 };
+    
+    const filteredStaff = extStaffList.filter(s => {
+        const passGroup = group === 'ALL' || (extStaffGroups[group] && extStaffGroups[group].includes(s.id));
+        const passSearch = search === '' || s.name.toLowerCase().includes(search);
+        return passGroup && passSearch;
+    });
+
+    let html = filteredStaff.map(s => {
+        counts.TOTAL++;
+        const inVoiceRoom = globalSpyData.some(spy => (String(spy.id) === String(s.id) || spy.name === s.name) && spy.currentRoom);
+        const isOnline = extOnlineUsers.includes(String(s.id)) || inVoiceRoom;
+        
+        const dbUser = getDbUserFromDiscordName(s.name);
+        
+        let leaveReasonDb = null;
+        if (dbUser && todaysLeaves && todaysLeaves.length > 0) {
+            const foundLeave = todaysLeaves.find(l => {
+                const dbNameLeave = l.user_name ? l.user_name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') : '';
+                const dbNameClean = dbUser.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
+                return dbNameLeave === dbNameClean || dbNameClean.includes(dbNameLeave);
+            });
+            if (foundLeave) leaveReasonDb = foundLeave.reason;
+        }
+        
+        let st = checkinStatusMap[s.id];
+        if (!st) {
+            if (leaveReasonDb) {
+                if (leaveReasonDb === 'KL') st = '📝'; 
+                else st = '🏖️'; 
+            }
+            else if (isOnline) st = '✅';
+            else st = '❌';
+        }
+        
+        if(counts[st] !== undefined) counts[st]++;
+
+        let leaveBadgeHtml = '';
+        if (leaveReasonDb) {
+            let badgeText = 'ลาหยุดวันนี้';
+            let badgeColor = 'bg-amber-500 text-white';
+            if (leaveReasonDb === 'KL') { badgeText = 'ลากิจ (KL)'; badgeColor = 'bg-green-600 text-white'; }
+            else if (leaveReasonDb === 'X' || leaveReasonDb === 'Table-Booking') { badgeText = 'หยุดปกติ (X)'; badgeColor = 'bg-red-500 text-white'; }
+            else if (leaveReasonDb === 'XX') { badgeText = 'เปลี่ยนกะ (XX)'; badgeColor = 'bg-yellow-400 text-yellow-900'; }
+            else if (leaveReasonDb === 'X4') { badgeText = 'ลาครึ่งวัน (X4)'; badgeColor = 'bg-pink-500 text-white'; }
+            else if (leaveReasonDb === 'TL' || leaveReasonDb === 'TX') { badgeText = 'สลับวันหยุด (' + leaveReasonDb + ')'; badgeColor = 'bg-blue-500 text-white'; }
+            else if (leaveReasonDb === 'PN') { badgeText = 'พักร้อน (PN)'; badgeColor = 'bg-amber-800 text-white'; }
+            
+            leaveBadgeHtml = `<span class="text-[9px] ${badgeColor} px-1.5 py-0.5 rounded shadow-sm ml-1 font-bold border border-black/10">${badgeText}</span>`;
+        }
+        
+        return `
+        <div class="flex justify-between items-center p-2.5 border-b border-slate-700/50 hover:bg-slate-700/30 transition">
+            <div class="font-bold text-sm flex items-center gap-2 ${isOnline ? 'text-emerald-400' : 'text-gray-400'}">
+                <span class="w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-gray-600'}"></span>
+                ${s.name} ${leaveBadgeHtml}
+            </div>
+            <select class="bg-slate-900 border border-slate-600 text-white p-1.5 rounded-lg text-xs outline-none focus:border-sky-500 cursor-pointer" onchange="updateCheckinStatus('${s.id}', this.value)">
+                <option value="✅" ${st==='✅'?'selected':''}>✅ มา</option>
+                <option value="🏖️" ${st==='🏖️'?'selected':''}>🏖️ หยุด</option>
+                <option value="🤒" ${st==='🤒'?'selected':''}>🤒 ป่วย</option>
+                <option value="📝" ${st==='📝'?'selected':''}>📝 กิจ</option>
+                <option value="❌" ${st==='❌'?'selected':''}>❌ ขาด</option>
+            </select>
+        </div>`;
+    }).join('');
+    
+    container.innerHTML = html || '<div class="text-center text-gray-500 p-8 font-bold">ไม่พบข้อมูลรายชื่อ</div>';
+    document.getElementById('statusSummary').innerHTML = `
+        <div class="flex-1 bg-slate-900 border border-slate-700 p-3 rounded-xl text-center shadow-inner"><b class="text-white text-lg">${counts.TOTAL}</b><br><span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ทั้งหมด</span></div>
+        <div class="flex-1 bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl text-center shadow-inner"><b class="text-emerald-400 text-lg">${counts['✅']}</b><br><span class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">มาทำงาน</span></div>
+        <div class="flex-1 bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl text-center shadow-inner"><b class="text-amber-400 text-lg">${counts['🏖️']}</b><br><span class="text-[10px] font-bold text-amber-500 uppercase tracking-widest">ลาหยุด</span></div>
+        <div class="flex-1 bg-red-500/10 border border-red-500/30 p-3 rounded-xl text-center shadow-inner"><b class="text-red-400 text-lg">${counts['❌']}</b><br><span class="text-[10px] font-bold text-red-500 uppercase tracking-widest">ขาด</span></div>
+    `;
+};
+
+window.updateCheckinStatus = function(uid, val) { checkinStatusMap[uid] = val; _doRenderCheckinTable(); };
+window.clearCheckinStatus = function() { if(confirm('ล้างสถานะทั้งหมด?')) { checkinStatusMap={}; _doRenderCheckinTable(); } };
+
+document.addEventListener('paste', e => {
+    const dsContentCheckin = document.getElementById('dsContent_checkin');
+    if(!dsContentCheckin || dsContentCheckin.classList.contains('hidden')) return;
+    
+    const items = e.clipboardData.items;
+    for(let i=0; i<items.length; i++) if(items[i].type.indexOf('image')!==-1) uploadFiles.push(items[i].getAsFile());
+    
+    const g = document.getElementById('imgGallery'), pa = document.getElementById('pasteArea');
+    if(!g || !pa) return;
+
+    g.innerHTML = '';
+    if (uploadFiles.length > 0) pa.classList.add('hidden'); else pa.classList.remove('hidden');
+    uploadFiles.forEach((f, idx) => {
+        g.innerHTML += `<div class="relative group"><img src="${URL.createObjectURL(f)}" class="w-16 h-16 object-cover rounded-xl border border-slate-500 shadow-md"><button onclick="removeUploadImage(${idx})" class="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full text-[10px] font-bold opacity-0 group-hover:opacity-100 transition shadow-lg">X</button></div>`;
+    });
+});
+
+window.removeUploadImage = function(idx) { uploadFiles.splice(idx, 1); document.dispatchEvent(new Event('paste')); };
+
+window.sendToTelegram = async function() {
+    if(uploadFiles.length === 0) return Swal.fire('แจ้งเตือน', 'กรุณากด Ctrl+V เพื่อวางรูปภาพหลักฐานก่อนครับ', 'warning');
+    
+    const botToken = localStorage.getItem('tg_bot_token') || document.getElementById('cfgToken').value;
+    const chatId = localStorage.getItem('tg_chat_id') || document.getElementById('cfgChatId').value;
+    
+    if (!botToken || !chatId) {
+        document.getElementById('tgSettingsBox').classList.remove('hidden');
+        return Swal.fire('ตั้งค่าก่อน', 'กรุณาใส่ Token บอท และ Chat ID ที่ปุ่มตั้งค่าด้านบนให้เรียบร้อยก่อนส่งครับ', 'info');
+    }
+
+    const title = document.getElementById('tgTitle').value;
+    const group = document.getElementById('groupFilter').value;
+    const round = document.getElementById('roundFilter').value;
+    const reporter = document.getElementById('reporterName').value;
+    
+    let listText = `📋 <b>${title}</b>`;
+    if (group !== 'ALL') listText += ` (${group})`;
+    if (round) listText += ` - ${round}`;
+    
+    const dateVal = document.getElementById('tgDate').value;
+    if(dateVal) { 
+        const [y,m,d] = dateVal.split('-'); 
+        listText += `\n📅 ${d}/${m}/${parseInt(y)+543}\n\n`; 
+    } else { 
+        listText += `\n\n`; 
+    }
+    
+    let counts = { '✅':0, '🏖️':0, '🤒':0, '📝':0, '❌':0 }, namesText = "";
+    extStaffList.forEach(s => {
+        if(group !== 'ALL' && !extStaffGroups[group]?.includes(s.id)) return;
+        
+        const dbUser = getDbUserFromDiscordName(s.name);
+        
+        let leaveReasonDb = null;
+        if (dbUser && todaysLeaves && todaysLeaves.length > 0) {
+            const foundLeave = todaysLeaves.find(l => {
+                const dbNameLeave = l.user_name ? l.user_name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') : '';
+                const dbNameClean = dbUser.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
+                return dbNameLeave === dbNameClean || dbNameClean.includes(dbNameLeave);
+            });
+            if (foundLeave) leaveReasonDb = foundLeave.reason;
+        }
+        
+        let st = checkinStatusMap[s.id];
+        if (!st) {
+            if (leaveReasonDb) {
+                st = (leaveReasonDb === 'KL') ? '📝' : '🏖️';
+            } else {
+                const inVoiceRoom = globalSpyData.some(spy => (String(spy.id) === String(s.id) || spy.name === s.name) && spy.currentRoom);
+                const isOnline = extOnlineUsers.includes(String(s.id)) || inVoiceRoom;
+                st = isOnline ? '✅' : '❌';
+            }
+        }
+
+        counts[st]++;
+        let txt = '(ยังไม่เข้างาน❌)';
+        if(st==='✅') txt='(✅)'; else if(st==='🏖️') txt='(หยุด 🏖)'; else if(st==='🤒') txt='(ป่วย 🤒)'; else if(st==='📝') txt='(กิจ 📝)';
+        namesText += `${s.name} ${txt}\n`;
+    });
+    
+    let summaryParts = [];
+    if(counts['✅'] > 0) summaryParts.push(`มา ${counts['✅']}`);
+    if(counts['🏖️'] > 0) summaryParts.push(`หยุด ${counts['🏖️']}`);
+    if(counts['🤒'] > 0) summaryParts.push(`ลาป่วย ${counts['🤒']}`);
+    if(counts['📝'] > 0) summaryParts.push(`ลากิจ ${counts['📝']}`);
+    if(counts['❌'] > 0) summaryParts.push(`ขาด ${counts['❌']}`);
+    if(summaryParts.length > 0) listText += `📊 สรุป: ` + summaryParts.join(' | ') + '\n\n';
+    
+    listText += namesText;
+    if(reporter) listText += `\n👤 ผู้ทำรายการ: ${reporter}`;
+
+    Swal.fire({title: 'กำลังส่งข้อมูล...', text: 'กำลังยิงเข้ากลุ่ม Telegram...', didOpen: () => Swal.showLoading(), allowOutsideClick: false});
+    
+    try {
+        const tgApiUrl = `https://api.telegram.org/bot${botToken}`;
+
+        const textRes = await fetch(`${tgApiUrl}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: listText,
+                parse_mode: 'HTML'
+            })
+        });
+
+        if (!textRes.ok) {
+            const errData = await textRes.json();
+            throw new Error(`ส่งข้อความไม่ผ่าน: ${errData.description}`);
+        }
+
+        if (uploadFiles.length === 1) {
+            const fd = new FormData();
+            fd.append('chat_id', chatId);
+            fd.append('photo', uploadFiles[0]); 
+
+            const imgRes = await fetch(`${tgApiUrl}/sendPhoto`, { method: 'POST', body: fd });
+            if (!imgRes.ok) {
+                const errData = await imgRes.json();
+                throw new Error(`ส่งรูปไม่ผ่าน: ${errData.description}`);
+            }
+        } else {
+            const fd = new FormData();
+            fd.append('chat_id', chatId);
+            
+            let mediaArray = [];
+            uploadFiles.forEach((file, index) => {
+                mediaArray.push({ type: 'photo', media: `attach://img${index}` });
+                fd.append(`img${index}`, file);
+            });
+            
+            fd.append('media', JSON.stringify(mediaArray));
+            const imgRes = await fetch(`${tgApiUrl}/sendMediaGroup`, { method: 'POST', body: fd });
+            if (!imgRes.ok) {
+                const errData = await imgRes.json();
+                throw new Error(`ส่งรูปไม่ผ่าน: ${errData.description}`);
+            }
+        }
+
+        Swal.fire('สำเร็จ', 'ส่งข้อมูลเข้ากลุ่มเรียบร้อย', 'success'); 
+        if (typeof ds_logAction === 'function') ds_logAction('ส่งเช็คชื่อ (Telegram)', `ส่งรายงานเข้าหัวข้อ: ${title} (${group})`);
+        
+        uploadFiles = []; 
+        document.getElementById('imgGallery').innerHTML = ''; 
+        document.getElementById('pasteArea').classList.remove('hidden'); 
+
+    } catch(e) { 
+        console.error("Telegram Direct Send Error:", e);
+        Swal.fire('ส่งไม่ได้!', e.message || 'ตรวจสอบ Token และ Chat ID อีกครั้ง', 'error'); 
+    }
+};
+
+window.fetchTodaysLeaves = async function() {
+    try {
+        const todayStr = document.getElementById('tgDate').value;
+        if(typeof appDB !== 'undefined') {
+            const { data } = await appDB.from('leave_requests').select('user_name, reason').eq('leave_date', todayStr);
+            todaysLeaves = data || [];
+        }
+    } catch (e) { }
+};
+
+window.renderTransferSection = function() {
+    const gSelect = document.getElementById('transferToGroup');
+    if(gSelect) gSelect.innerHTML = '<option value="">-- เลือกกลุ่มปลายทาง --</option>' + Object.keys(extStaffGroups).map(g => `<option value="${g}">${g}</option>`).join('');
+    _doRenderTransferUserList();
+};
+
+window.toggleTransfer = function(id) { if(selectedTransfer.has(id)) selectedTransfer.delete(id); else selectedTransfer.add(id); _doRenderTransferUserList(); };
+window.renderTransferUserList = function() { dsDebounce('transfer', _doRenderTransferUserList, 200); };
+
+window._doRenderTransferUserList = function() {
+    const t = document.getElementById('transferSearch').value.toLowerCase();
+    const group = document.getElementById('filterTransferGroup').value;
+    const deptFilter = document.getElementById('filterTransferDept').value;
+    const shiftFilter = document.getElementById('filterTransferShift').value;
+    const c = document.getElementById('transferUserList');
+    if(!c) return;
+
+    document.getElementById('transferSelectedTags').innerHTML = Array.from(selectedTransfer).map(id => {
+        const s = extStaffList.find(x=>x.id===id);
+        return s ? `<span class="bg-emerald-600 text-white px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-sm">${s.name} <span class="material-icons text-[12px] cursor-pointer hover:text-black transition" onclick="toggleTransfer('${id}')">cancel</span></span>` : '';
+    }).join('');
+    
+    const filtered = extStaffList.filter(s => {
+        const nameMatch = s.name.toLowerCase().includes(t);
+        const groupMatch = group === 'ALL' || (extStaffGroups[group] && extStaffGroups[group].includes(s.id));
+        
+        let matchDept = true;
+        let matchShift = true;
+
+        if (deptFilter !== 'ALL' || shiftFilter !== 'ALL') {
+            const dbUser = getDbUserFromDiscordName(s.name);
+            if (!dbUser) return false;
+            if (deptFilter !== 'ALL' && (dbUser.department || 'AM') !== deptFilter) matchDept = false;
+            if (shiftFilter !== 'ALL' && dbUser.allowed_shift !== shiftFilter) matchShift = false;
+        }
+
+        return nameMatch && groupMatch && matchDept && matchShift;
+    });
+
+    c.innerHTML = filtered.map(s => {
+        const isSel = selectedTransfer.has(s.id);
+        const dbUser = getDbUserFromDiscordName(s.name);
+        let tagHtml = dbUser ? `<span class="text-[9px] text-gray-500 ml-2">(${dbUser.department||'AM'} | ${dbUser.allowed_shift.replace('กะ','')})</span>` : '';
+
+        return `<div onclick="toggleTransfer('${s.id}')" class="px-4 py-3 rounded-xl cursor-pointer text-left text-sm font-bold transition flex justify-between items-center ${isSel ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-400 shadow-inner ring-1 ring-emerald-500' : 'bg-slate-900 border border-slate-700 text-gray-300 hover:bg-slate-800'}"><span class="truncate">${s.name} ${tagHtml}</span>${isSel ? '<span class="material-icons text-emerald-500">check_circle</span>' : '<span class="material-icons text-gray-600 text-sm">radio_button_unchecked</span>'}</div>`;
+    }).join('') || '<div class="text-center text-gray-500 text-xs py-6">ไม่พบรายชื่อพนักงาน</div>';
+};
+
+window.selectAllVisibleTransfer = function() {
+    const t = document.getElementById('transferSearch').value.toLowerCase();
+    const group = document.getElementById('filterTransferGroup').value;
+    const deptFilter = document.getElementById('filterTransferDept').value;
+    const shiftFilter = document.getElementById('filterTransferShift').value;
+
+    extStaffList.filter(s => {
+        const nameMatch = s.name.toLowerCase().includes(t);
+        const groupMatch = group === 'ALL' || (extStaffGroups[group] && extStaffGroups[group].includes(s.id));
+        let matchDept = true; let matchShift = true;
+        if (deptFilter !== 'ALL' || shiftFilter !== 'ALL') {
+            const dbUser = getDbUserFromDiscordName(s.name);
+            if (!dbUser) return false;
+            if (deptFilter !== 'ALL' && (dbUser.department || 'AM') !== deptFilter) matchDept = false;
+            if (shiftFilter !== 'ALL' && dbUser.allowed_shift !== shiftFilter) matchShift = false;
+        }
+        return nameMatch && groupMatch && matchDept && matchShift;
+    }).forEach(s => selectedTransfer.add(s.id));
+    _doRenderTransferUserList();
+};
+
+window.scheduleTransfer = async function() {
+    const ids = Array.from(selectedTransfer);
+    const toGroup = document.getElementById('transferToGroup').value;
+    const time = document.getElementById('transferTime').value;
+
+    if(ids.length===0 || !toGroup || !time) return Swal.fire('ข้อมูลไม่ครบ', 'เลือกคน, กลุ่มปลายทาง, และเวลา', 'warning');
+
+    Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+    for(const staffId of ids) {
+        let fromGroup = '?';
+        for(let g in extStaffGroups) { if(extStaffGroups[g].includes(staffId)) { fromGroup = g; break; } }
+        
+        await fetch(DISCORD_API_URL + '/api/schedule-transfer', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ staffId, fromGroup, toGroup, executeAt: time })
+        });
+    }
+    Swal.fire('สำเร็จ', 'บันทึกการตั้งเวลาย้ายกลุ่มแล้ว', 'success');
+    selectedTransfer.clear();
+    fetchTransfers();
+    _doRenderTransferUserList();
+};
+
+window.fetchTransfers = async function() {
+    try {
+        const [dsRes, webRes] = await Promise.all([
+            fetch(DISCORD_API_URL + '/api/transfers').catch(() => ({json: () => ({pending:[], history:[]})})),
+            (typeof appDB !== 'undefined' ? appDB.from('scheduled_tasks').select('*').in('task_type', ['individual_shift_update', 'group_transfer']).order('created_at', {ascending: false}).limit(100) : Promise.resolve({data: []}))
+        ]);
+
+        const dsData = await dsRes.json();
+        const webData = webRes.data || [];
+
+        let allPending = [...(dsData.pending || [])];
+        let allHistory = [...(dsData.history || [])];
+
+        webData.forEach(t => {
+            if(t.task_type === 'individual_shift_update') {
+                const p = typeof t.payload === 'string' ? JSON.parse(t.payload) : t.payload;
+                const format = { id: t.id, staffId: p.user_name, fromGroup: 'ระบบกะ', toGroup: p.target_shift, executeAt: t.scheduled_for, completedAt: t.completed_at };
+                if(t.status === 'pending' || t.status === 'info_only') allPending.push(format);
+                else if(t.status === 'completed') allHistory.push(format);
+            }
+        });
+
+        allPending = allPending.filter(t => {
+            const existsInDs = extStaffList.some(s => s.id === t.staffId || s.name === t.staffId);
+            const existsInDb = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.some(u => u.username === t.staffId) : false;
+            return existsInDs || existsInDb;
+        });
+
+        allPending.sort((a,b) => new Date(a.executeAt) - new Date(b.executeAt));
+        allHistory.sort((a,b) => new Date(b.completedAt) - new Date(a.completedAt));
+
+        scheduledTransfers = allPending;
+        transferHistory = allHistory;
+        
+        renderTransferLists();
+        renderTransferSummary();
+    } catch(e) { console.error(e); }
+};
+
+window.renderTransferLists = function() {
+    const pSearch = document.getElementById('searchPendingTransfer') ? document.getElementById('searchPendingTransfer').value.toLowerCase() : '';
+    const hSearch = document.getElementById('searchHistoryTransfer') ? document.getElementById('searchHistoryTransfer').value.toLowerCase() : '';
+
+    const pBox = document.getElementById('transferList');
+    const hBox = document.getElementById('transferHistoryList');
+    if(!pBox || !hBox) return;
+
+    const filteredPending = scheduledTransfers.filter(t => {
+        const s = extStaffList.find(x=>x.id===t.staffId);
+        const name = s ? s.name.toLowerCase() : t.staffId.toLowerCase();
+        return name.includes(pSearch);
+    });
+
+    pBox.innerHTML = filteredPending.map(t => {
+        const s = extStaffList.find(x=>x.id===t.staffId);
+        const name = s ? s.name : t.staffId;
+        const dateStr = new Date(t.executeAt).toLocaleString('th-TH');
+        return `<div class="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs shadow-sm mb-1.5 hover:border-amber-500 transition">
+            <div class="flex-1 min-w-0 pr-2">
+                <div class="text-sky-400 font-bold truncate">${name}</div>
+                <div class="text-gray-400 text-[10px] truncate">${t.fromGroup} ➝ ${t.toGroup}</div>
+                <div class="text-amber-400 text-[10px] mt-0.5 flex items-center gap-1"><span class="material-icons text-[10px]">timer</span> ${dateStr}</div>
+            </div>
+            <button onclick="delTransfer('${t.id}')" class="text-red-400 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition shrink-0"><span class="material-icons text-sm">close</span></button>
+        </div>`;
+    }).join('') || '<div class="text-center text-gray-500 text-xs py-4">ไม่มีรายการ</div>';
+
+    const filteredHistory = transferHistory.slice().filter(t => {
+        const s = extStaffList.find(x=>x.id===t.staffId);
+        const name = s ? s.name.toLowerCase() : t.staffId.toLowerCase();
+        return name.includes(hSearch);
+    });
+
+    hBox.innerHTML = filteredHistory.map(t => {
+        const s = extStaffList.find(x=>x.id===t.staffId);
+        const name = s ? s.name : t.staffId;
+        const dateStr = new Date(t.completedAt).toLocaleString('th-TH');
+        return `<div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs shadow-sm mb-1.5">
+            <div class="text-gray-300 font-bold truncate">${name}</div>
+            <div class="text-gray-500 text-[10px] truncate">${t.fromGroup} ➝ ${t.toGroup}</div>
+            <div class="text-emerald-400 text-[10px] mt-0.5 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> ${dateStr}</div>
+        </div>`;
+    }).join('') || '<div class="text-center text-gray-500 text-xs py-4">ไม่มีประวัติ</div>';
+};
+
+window.renderTransferSummary = function() {
+    let summary = {};
+    scheduledTransfers.forEach(t => {
+        const key = `${t.fromGroup || '?'} ➝ ${t.toGroup}`;
+        if(!summary[key]) summary[key] = 0;
+        summary[key]++;
+    });
+    
+    const board = document.getElementById('transferSummaryBoard');
+    if(!board) return;
+    board.innerHTML = Object.keys(summary).map(k => `
+        <div onclick="showTransferSummaryDetail('${k}')" class="cursor-pointer hover:ring-2 hover:ring-emerald-500 bg-slate-900 border border-slate-600 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition shadow-sm" title="คลิกเพื่อดูรายชื่อพนักงาน">
+            <span class="text-gray-300 font-bold">${k}</span>
+            <span class="bg-emerald-500 text-slate-900 px-2 py-0.5 rounded-md font-black shadow-inner">${summary[k]}</span>
+        </div>
+    `).join('') || '<span class="text-gray-500 text-sm py-2 font-bold flex items-center gap-2"><span class="material-icons text-[18px]">verified</span> ไม่มีคิวโอนย้ายรอดำเนินการ</span>';
+};
+
+window.showTransferSummaryDetail = function(key) {
+    const filtered = scheduledTransfers.filter(t => `${t.fromGroup || '?'} ➝ ${t.toGroup}` === key);
+    
+    let listHtml = filtered.map((t, i) => {
+        const s = extStaffList.find(x=>x.id===t.staffId);
+        const name = s ? s.name : t.staffId;
+        const dateStr = new Date(t.executeAt).toLocaleString('th-TH');
+        return `
+        <div class="p-3 bg-slate-800 rounded-xl border border-slate-600 shadow-sm flex items-center justify-between mb-2 hover:bg-slate-700 transition">
+            <div class="flex items-center gap-3 w-full overflow-hidden">
+                <div class="w-6 h-6 shrink-0 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-gray-400 border border-slate-700 shadow-inner">${i+1}</div>
+                <div class="font-bold text-sm text-sky-300 truncate" data-search-name="${name.toLowerCase()}">${name}</div>
+            </div>
+            <div class="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md border border-amber-400/20 whitespace-nowrap shadow-sm font-bold flex items-center gap-1"><span class="material-icons text-[12px]">schedule</span> ${dateStr}</div>
+        </div>`;
+    }).join('');
+
+    Swal.fire({
+        title: `
+            <div class="flex flex-col gap-2 text-left w-full">
+                <div class="text-sm font-bold text-gray-400">รายการรอทำงาน:</div>
+                <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                    <div class="text-lg font-black text-emerald-400">${key}</div>
+                    <span class="text-xs text-white font-bold bg-slate-700 px-3 py-1 rounded-lg shadow-inner">${filtered.length} คน</span>
+                </div>
+            </div>
+        `,
+        html: `
+            <div class="relative mb-3 mt-4">
+                <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[18px]">search</span>
+                <input type="text" id="popupSummarySearch" onkeyup="filterSummaryPopup()" placeholder="ค้นหาชื่อพนักงานในคิวนี้..." class="w-full pl-10 pr-3 py-2.5 bg-slate-900 border border-slate-600 text-white rounded-xl text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition">
+            </div>
+            <div class="max-h-[45vh] overflow-y-auto custom-scrollbar pr-2 text-left" id="popupSummaryList">
+                ${listHtml || '<div class="text-center text-gray-500 py-4 text-sm font-bold">ไม่มีข้อมูล</div>'}
+            </div>
+        `,
+        showCloseButton: true,
+        showConfirmButton: false,
+        width: '500px',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-600 shadow-2xl' }
+    });
+};
+
+window.filterSummaryPopup = function() {
+    const term = document.getElementById('popupSummarySearch').value.toLowerCase();
+    const list = document.getElementById('popupSummaryList');
+    if(!list) return;
+    const items = list.children;
+    for(let i=0; i<items.length; i++) {
+        const nameEl = items[i].querySelector('[data-search-name]');
+        if(nameEl) {
+            const name = nameEl.getAttribute('data-search-name');
+            items[i].style.display = name.includes(term) ? '' : 'none';
+        }
+    }
+};
+
+window.delTransfer = async function(id) {
+    await fetch(DISCORD_API_URL + '/api/delete-transfer', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})});
+    fetchTransfers();
+};
+
+window.ds_fetchVoiceLogs = async function() {
+    try {
+        const res = await fetch(DISCORD_API_URL + '/api/voice-logs');
+        if(res.ok) {
+            dsGlobalVoiceLogs = await res.json();
+            ds_renderVoiceLogs();
+        }
+    } catch(e) { }
+};
+
+window.ds_renderVoiceLogs = function() {
+    const term = document.getElementById('searchVoiceLog').value.toLowerCase();
+    const dateFilter = document.getElementById('voiceLogDate').value;
+    const lateFilter = document.getElementById('voiceLogLateFilter').value;
+    const shiftFilter = document.getElementById('voiceLogShiftFilter') ? document.getElementById('voiceLogShiftFilter').value : 'ALL';
+    const tbody = document.getElementById('ds_voiceLogBody');
+    
+    let filtered = dsGlobalVoiceLogs.filter(log => log.name.toLowerCase().includes(term));
+    
+    if (dateFilter) {
+        filtered = filtered.filter(log => {
+            const logDateObj = new Date(log.time); 
+            const y = logDateObj.getFullYear();
+            const m = String(logDateObj.getMonth() + 1).padStart(2, '0');
+            const dStr = String(logDateObj.getDate()).padStart(2, '0');
+            const localDateStr = `${y}-${m}-${dStr}`; 
+            return localDateStr === dateFilter;
+        });
+    }
+
+    if (shiftFilter !== 'ALL') {
+        filtered = filtered.filter(log => {
+            const dbUser = getDbUserFromDiscordName(log.name);
+            if (dbUser && dbUser.allowed_shift === shiftFilter) return true;
+            if (log.name.includes(shiftFilter)) return true;
+            return false;
+        });
+    }
+
+    filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+    let finalHtml = '';
+    
+    filtered.forEach(log => {
+        const d = new Date(log.time);
+        const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
+        const dbUser = getDbUserFromDiscordName(log.name);
+
+        if(log.action === 'เข้าห้อง') {
+            badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
+            
+            let targetShift = dbUser ? dbUser.allowed_shift : null;
+            if (!targetShift) {
+                if (log.name.includes('กะเช้า')) targetShift = 'กะเช้า';
+                else if (log.name.includes('กะกลาง')) targetShift = 'กะกลาง';
+                else if (log.name.includes('กะดึก')) targetShift = 'กะดึก';
+            }
+            
+            if (targetShift && targetShift !== 'all') {
+                const shiftPrefix = targetShift.replace('กะ', '');
+                let expectedStart = null; 
+                if (shiftPrefix === 'เช้า') expectedStart = '08:00'; 
+                else if (shiftPrefix === 'กลาง') expectedStart = '11:00'; 
+                else if (shiftPrefix === 'ดึก') expectedStart = '20:00'; 
+
+                if (typeof SETTINGS !== 'undefined' && SETTINGS['open_time_' + shiftPrefix]) {
+                    expectedStart = SETTINGS['open_time_' + shiftPrefix];
+                }
+                
+                if (expectedStart) {
+                    const [h, m] = expectedStart.split(':').map(Number);
+                    let expectedTime = new Date(d); 
+                    expectedTime.setHours(h, m, 0, 0);
+
+                    if (h >= 18 && d.getHours() < 12) {
+                        expectedTime.setDate(expectedTime.getDate() - 1);
+                    }
+
+                    if (d > expectedTime && (d - expectedTime) > 60000) {
+                        const diffMins = Math.floor((d - expectedTime) / 60000);
+                        if (diffMins <= 720) { 
+                            lateBadge = `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
+                            isLate = true;
+                        }
+                    }
+                }
+            }
+        }
+        else if(log.action.includes('ออกดิส') || log.action.includes('ออกห้อง')) {
+            badge = '<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-red-500/50 whitespace-nowrap shadow-sm">ออกดิสคอร์ด</span>';
+            rowClass = 'bg-red-900/10 hover:bg-red-900/30'; 
+        }
+        else {
+            badge = '<span class="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-blue-500/50 whitespace-nowrap shadow-sm">ย้ายไป</span>';
+        }
+
+        if (lateFilter === 'late' && !isLate) return; 
+        if (lateFilter === 'leave' && !log.action.includes('ออกดิส') && !log.action.includes('ออกห้อง')) return;
+
+        let displayShift = dbUser ? dbUser.allowed_shift : '';
+        if (!displayShift) {
+             if (log.name.includes('กะเช้า')) displayShift = 'กะเช้า';
+             else if (log.name.includes('กะกลาง')) displayShift = 'กะกลาง';
+             else if (log.name.includes('กะดึก')) displayShift = 'กะดึก';
+        }
+        const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
+
+        finalHtml += `<tr class="${rowClass} transition border-b border-slate-700/50">
+            <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${timeStr}</td>
+            <td class="p-3 font-bold text-white flex items-center">${log.name} ${shiftTag} ${lateBadge}</td>
+            <td class="p-3 whitespace-nowrap">${badge}</td>
+            <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">${log.room}</td>
+        </tr>`;
+    });
+
+    if (finalHtml === '') {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในเงื่อนไขนี้</td></tr>';
+    } else {
+        tbody.innerHTML = finalHtml;
+    }
+};
+
+window.ds_fetchActionLogs = async function() {
+    try {
+        document.getElementById('ds_actionLogBody').innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500"><span class="material-icons animate-spin">sync</span></td></tr>';
+        const res = await fetch(DISCORD_API_URL + '/api/action-logs');
+        if(res.ok) {
+            let data = await res.json();
+            // Assign ข้อมูลเข้าตัวแปรส่วนกลางเพื่อใช้สำหรับ filter
+            window.dsGlobalActionLogs = data; 
+            ds_renderActionLogs();
+        }
+    } catch(e) {}
+};
+
+window.ds_renderActionLogs = function() {
+    const term = document.getElementById('actionLogSearch') ? document.getElementById('actionLogSearch').value.toLowerCase() : '';
+    const dateFilter = document.getElementById('actionLogDate') ? document.getElementById('actionLogDate').value : '';
+    const tbody = document.getElementById('ds_actionLogBody');
+    
+    // ตรวจสอบว่ามีข้อมูลถูกโหลดมาหรือยัง
+    if (!window.dsGlobalActionLogs || window.dsGlobalActionLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบประวัติการใช้งาน</td></tr>';
+        return;
+    }
+
+    let filtered = window.dsGlobalActionLogs.filter(log => 
+        log.user.toLowerCase().includes(term) || 
+        log.action.toLowerCase().includes(term) || 
+        log.detail.toLowerCase().includes(term)
+    );
+
+    if (dateFilter) {
+        filtered = filtered.filter(log => {
+            const d = new Date(log.time);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}` === dateFilter;
+        });
+    }
+
+    tbody.innerHTML = filtered.map(log => {
+        const d = new Date(log.time);
+        const timeStr = d.toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        return `<tr class="hover:bg-slate-700/50 transition border-b border-slate-700/50">
+            <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${timeStr}</td>
+            <td class="p-3 font-bold text-amber-400 whitespace-nowrap">${log.user}</td>
+            <td class="p-3 whitespace-nowrap"><span class="bg-slate-900 text-white px-2 py-1 rounded text-[11px] font-bold border border-slate-600">${log.action}</span></td>
+            <td class="p-3 text-gray-300 text-xs">${log.detail}</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบข้อมูลในเงื่อนไขที่ค้นหา</td></tr>';
+};
+
+window.ds_logAction = async function(actionName, detailStr) {
+    try {
+        const userName = (typeof currentUser !== 'undefined' && currentUser.username) ? currentUser.username : 'Unknown Admin';
+        await fetch(DISCORD_API_URL + '/api/action-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user: userName, action: actionName, detail: detailStr })
+        });
+    } catch(e) {}
+};
