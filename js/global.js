@@ -6,18 +6,18 @@ const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 let appDB;
 let currentUser = {};
-let TEAM_LIST = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188', 'สอนงาน', 'Telegram']; 
+let TEAM_LIST = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188', 'สอนงาน', 'Telegram'];
 let GLOBAL_USER_LIST = [];
 
 // ==========================================
 // 🚀 เริ่มทำงานเมื่อเปิดเว็บ
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    const savedTheme = localStorage.getItem('theme'); 
-    if(savedTheme === 'dark') { 
-        document.documentElement.classList.add('dark'); 
+    const savedTheme = localStorage.getItem('theme');
+    if(savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
         const themeIcon = document.getElementById('themeIcon');
-        if(themeIcon) themeIcon.innerText = 'light_mode'; 
+        if(themeIcon) themeIcon.innerText = 'light_mode';
         const cb = document.getElementById('themeToggleCb');
         if(cb) cb.checked = true;
     }
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentUser = JSON.parse(savedUser);
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('main-layout').classList.remove('hidden');
-        showPage('dashboard'); 
+        showPage('dashboard');
     } else {
         showLogin();
     }
@@ -147,17 +147,17 @@ async function showPage(pageName) {
 // ==========================================
 // 🎨 ระบบเปลี่ยนโหมดสี
 // ==========================================
-function toggleTheme() { 
+function toggleTheme() {
     const cb = document.getElementById('themeToggleCb');
-    if (document.documentElement.classList.contains('dark')) { 
-        document.documentElement.classList.remove('dark'); 
-        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'light_mode'; 
-        localStorage.setItem('theme', 'light'); 
+    if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'light_mode';
+        localStorage.setItem('theme', 'light');
         if(cb) cb.checked = false;
-    } else { 
-        document.documentElement.classList.add('dark'); 
-        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'dark_mode'; 
-        localStorage.setItem('theme', 'dark'); 
+    } else {
+        document.documentElement.classList.add('dark');
+        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'dark_mode';
+        localStorage.setItem('theme', 'dark');
         if(cb) cb.checked = true;
-    } 
+    }
 }
