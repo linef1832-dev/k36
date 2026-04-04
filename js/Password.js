@@ -72,48 +72,62 @@ window.fetchPasswords = async function() {
                     ${item.site_url ? `<a href="${item.site_url}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block">${item.site_url}</a>` : ''}
                 </div>
             </div>
+            
             <div class="space-y-2 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                 <div class="flex justify-between items-center text-xs">
                     <span class="text-gray-500">User:</span>
                     <div class="flex items-center gap-1">
-                        <span class="font-mono font-bold text-slate-700 dark:text-gray-300 select-all">${item.login_user || '-'}</span>
+                        <span class="font-mono font-bold text-slate-700 dark:text-gray-300 select-all" id="user_${item.id}">${item.login_user || '-'}</span>
                         <button onclick="copyText('${item.login_user}')" class="text-gray-400 hover:text-blue-500"><span class="material-icons text-xs">content_copy</span></button>
                     </div>
                 </div>
                 <div class="flex justify-between items-center text-xs">
                     <span class="text-gray-500">Pass:</span>
                     <div class="flex items-center gap-1">
-                        <span class="font-mono font-bold text-red-600 dark:text-red-400 blur-sm hover:blur-none transition cursor-pointer select-all" onclick="this.classList.toggle('blur-sm')">${item.login_pass}</span>
+                        <span class="font-mono font-bold text-red-600 dark:text-red-400 blur-sm hover:blur-none transition cursor-pointer select-all" title="คลิกเพื่อดู" onclick="this.classList.toggle('blur-sm')">${item.login_pass}</span>
                         <button onclick="copyText('${item.login_pass}')" class="text-gray-400 hover:text-blue-500"><span class="material-icons text-xs">content_copy</span></button>
                     </div>
                 </div>
             </div>
-            <div class="mt-3 flex justify-end gap-2 border-t pt-2 dark:border-slate-700">${delBtn}</div>
-        </div>`;
+
+            <div class="mt-3 flex justify-end gap-2 border-t pt-2 dark:border-slate-700">
+                ${delBtn}
+            </div>
+        </div>
+        `;
     }).join('');
 }
 
 // เปิดป๊อปอัปเพิ่มรหัสผ่าน
 window.openAddPwdModal = function() {
     document.getElementById('pwdModal').classList.remove('hidden');
-    ['pwdSite','pwdUrl','pwdUser','pwdPass'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('pwdSite').value = '';
+    document.getElementById('pwdUrl').value = '';
+    document.getElementById('pwdUser').value = '';
+    document.getElementById('pwdPass').value = '';
 }
 
 // บันทึกรหัสผ่านใหม่
 window.savePassword = async function(e) {
     e.preventDefault();
+    const site = document.getElementById('pwdSite').value;
+    const url = document.getElementById('pwdUrl').value;
+    const user = document.getElementById('pwdUser').value;
+    const pass = document.getElementById('pwdPass').value;
+
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
-    
+
     const { error } = await appDB.from('user_passwords').insert([{
         user_id: currentUser.id,
-        site_name: document.getElementById('pwdSite').value,
-        site_url: document.getElementById('pwdUrl').value,
-        login_user: document.getElementById('pwdUser').value,
-        login_pass: document.getElementById('pwdPass').value
+        site_name: site,
+        site_url: url,
+        login_user: user,
+        login_pass: pass
     }]);
 
-    if(error) Swal.fire('Error', error.message, 'error');
-    else {
+    if(error) {
+        Swal.fire('Error', error.message, 'error');
+    } else {
         document.getElementById('pwdModal').classList.add('hidden');
         fetchPasswords();
         Swal.fire({icon: 'success', title: 'บันทึกเรียบร้อย', timer: 1500, showConfirmButton: false});
@@ -122,12 +136,20 @@ window.savePassword = async function(e) {
 
 // ลบรหัสผ่าน
 window.deletePassword = async function(id) {
-    const result = await Swal.fire({ title: 'ลบรหัสผ่านนี้?', text: "ไม่สามารถกู้คืนได้", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย' });
-    if (result.isConfirmed) {
-        await appDB.from('user_passwords').delete().eq('id', id);
-        fetchPasswords();
-        Swal.fire('Deleted', '', 'success');
-    }
+    Swal.fire({
+        title: 'ลบรหัสผ่านนี้?',
+        text: "ไม่สามารถกู้คืนได้",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'ลบเลย'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            await appDB.from('user_passwords').delete().eq('id', id);
+            fetchPasswords();
+            Swal.fire('Deleted', '', 'success');
+        }
+    });
 }
 
 // ค้นหารหัสผ่าน
@@ -144,5 +166,6 @@ window.filterPwdCards = function() {
 window.copyText = function(txt) {
     if(!txt) return;
     navigator.clipboard.writeText(txt);
-    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 }).fire({ icon: 'success', title: 'คัดลอกแล้ว' });
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
+    Toast.fire({ icon: 'success', title: 'คัดลอกแล้ว' });
 }
