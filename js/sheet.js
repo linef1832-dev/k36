@@ -1,4 +1,18 @@
 // ==========================================
+// 🟢 ฟังก์ชันเช็คสิทธิ์ (โชว์ปุ่มแอดมิน) ตอนเปิดหน้า
+// ==========================================
+window.initSheetApp = async function() {
+    const btnManage = document.getElementById('btnManageSheet');
+    if (btnManage) {
+        if (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'manager')) {
+            btnManage.classList.remove('hidden'); // ถ้าเป็นแอดมินให้โชว์ปุ่มจัดการชีท
+        } else {
+            btnManage.classList.add('hidden'); // พนักงานทั่วไปซ่อนปุ่ม
+        }
+    }
+};
+
+// ==========================================
 // 📊 ตารางงานรวม (SHEETS MANAGER)
 // ==========================================
 let recentTabs = JSON.parse(localStorage.getItem('sheet_recent_tabs') || '[]');
