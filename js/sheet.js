@@ -393,41 +393,31 @@ window.deleteSheet = async function(id) {
 setTimeout(() => { renderRecentTabs(); }, 500);
 
 // ==========================================
-// 🟢 ระบบดักจับการสลับหน้า (ป้องกันจอดำ)
+// 🟢 ระบบเครื่องคิดเลข (จำค่าลง Browser)
 // ==========================================
-const showPage_Old_Sheet = window.showPage; 
-window.showPage = async function(page) {
-    if (typeof showPage_Old_Sheet === 'function') {
-        await showPage_Old_Sheet(page);
-    }
-    if (page === 'sheet') {
-        ['mainContentArea', 'adminPanel', 'logsPage', 'leaveApp'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
-        });
-        const sheetApp = document.getElementById('sheetApp');
-        if (sheetApp) {
-            sheetApp.classList.remove('hidden');
-            sheetApp.classList.add('flex'); // บังคับโชว์แบบ flex เต็มจอ
-        }
-        if (typeof window.initSheetApp === 'function') window.initSheetApp();
-    } else {
-        const sheetApp = document.getElementById('sheetApp');
-        if (sheetApp) {
-            sheetApp.classList.add('hidden');
-            sheetApp.classList.remove('flex');
-        }
-    }
+window.saveCalcSettings = function() {
+    const team = document.getElementById('calcTeam').value;
+    const deduct = document.getElementById('calcDeduct').value;
+    localStorage.setItem('calc_saved_team', team);
+    localStorage.setItem('calc_saved_deduct', deduct);
 };
-// ==========================================
-// 🟢 ระบบเครื่องคิดเลข (คำนวณยอด)
-// ==========================================
+
+window.loadCalcSettings = function() {
+    const team = localStorage.getItem('calc_saved_team') || 'VV72';
+    const deduct = localStorage.getItem('calc_saved_deduct') || '188';
+    if(document.getElementById('calcTeam')) document.getElementById('calcTeam').value = team;
+    if(document.getElementById('calcDeduct')) document.getElementById('calcDeduct').value = deduct;
+    if(typeof calculateNet === 'function') calculateNet();
+};
+
 window.calculateNet = function() {
     const base = parseFloat(document.getElementById('calcBase').value) || 0;
     const deduct = parseFloat(document.getElementById('calcDeduct').value) || 0;
     const result = base - deduct;
     
     const resEl = document.getElementById('calcResult');
+    if(!resEl) return;
+    
     resEl.innerText = result.toLocaleString();
     if (result < 0) { resEl.classList.remove('text-emerald-400', 'text-white'); resEl.classList.add('text-rose-400'); }
     else if (result > 0) { resEl.classList.remove('text-rose-400', 'text-white'); resEl.classList.add('text-emerald-400'); }
@@ -441,10 +431,19 @@ window.copyCalcResult = function() {
     });
 };
 
+// ดึงข้อมูลเดิมมาโชว์ตอนโหลดหน้า
+setTimeout(() => { loadCalcSettings(); }, 500);
+
 // ==========================================
-// 🟢 ควบคุมหน้าตาแท็บ (Browser-Like)
+// 🟢 ระบบแท็บด้านบนสุด (แก้บั๊กปิดแท็บไม่ได้)
 // ==========================================
-window.currentActiveTabId = null; // เก็บแท็บที่กำลังเปิดอยู่
+window.currentActiveTabId = null;
+
+// ฟังก์ชันเปิดโดยใช้ ID แทนการส่ง Object ป้องกัน HTML พัง
+window.openSheetById = function(id) {
+    const tab = recentTabs.find(t => String(t.id) === String(id)) || window.GLOBAL_SHEETS.find(s => String(s.id) === String(id));
+    if(tab) openSheet(tab);
+};
 
 window.renderRecentTabs = function() {
     const container = document.getElementById('recentTabsContainer');
@@ -458,14 +457,13 @@ window.renderRecentTabs = function() {
 
     let html = recentTabs.map(tab => {
         const isViewerVisible = !document.getElementById('sheetViewer').classList.contains('hidden');
-        // ใช้ currentActiveTabId เช็คเพื่อให้ไฮไลท์สีขาวแม่นยำ 100%
-        const isActive = (window.currentActiveTabId === tab.id) && isViewerVisible;
+        const isActive = (String(window.currentActiveTabId) === String(tab.id)) && isViewerVisible;
         const activeClass = isActive ? 'bg-white text-blue-700 font-black' : 'bg-gray-300 text-gray-600 hover:bg-gray-200 font-bold opacity-80';
-        const icon = (tab.sheet_id && (tab.sheet_id.startsWith('http') || tab.sheet_id.startsWith('www'))) ? 'link' : 'table_chart';
+        const icon = (tab.url && tab.url.startsWith('http')) || (tab.sheet_id && tab.sheet_id.startsWith('http')) ? 'link' : 'table_chart';
         const tName = tab.name || tab.title || 'ไม่มีชื่อ';
 
         return `
-        <div onclick='openSheet(${JSON.stringify(tab)})' class="${activeClass} px-3 py-2 min-w-[120px] max-w-[200px] flex items-center justify-between gap-2 cursor-pointer transition select-none rounded-t-xl shrink-0">
+        <div onclick="openSheetById('${tab.id}')" class="${activeClass} px-3 py-2 min-w-[120px] max-w-[200px] flex items-center justify-between gap-2 cursor-pointer transition select-none rounded-t-xl shrink-0">
             <div class="flex items-center gap-1.5 overflow-hidden">
                 <span class="material-icons text-[14px]">${icon}</span>
                 <span class="text-xs truncate">${tName}</span>
@@ -482,15 +480,31 @@ window.renderRecentTabs = function() {
     container.innerHTML = html;
 };
 
-// และในฟังก์ชัน openSheet (ไปอัปเดตบรรทัดนี้ด้วยเพื่อเก็บแท็บ)
-const oldOpenSheet = window.openSheet;
+// 🌟 แก้บั๊ก: ตอนปิดแท็บ ถ้าเป็นแท็บที่กำลังเปิดอยู่ ให้สลับไปเปิดแท็บอื่นแทน
+window.closeTab = function(e, id) {
+    e.stopPropagation(); // กันไม่ให้มันไปทริกเกอร์ปุ่มคลิกแท็บ
+    recentTabs = recentTabs.filter(t => String(t.id) !== String(id));
+    localStorage.setItem('sheet_recent_tabs', JSON.stringify(recentTabs));
+    
+    if (recentTabs.length === 0) {
+        closeSheet(); // ถ้าไม่เหลือแท็บแล้ว ก็ปิดหน้าต่างทิ้ง
+    } else {
+        if (String(window.currentActiveTabId) === String(id)) {
+            openSheet(recentTabs[0]); // ถ้าปิดแท็บที่ดูอยู่ ให้สลับไปดูแท็บแรกสุดแทน
+        } else {
+            renderRecentTabs(); // ถ้าปิดแท็บอื่นที่ไม่ได้ดูอยู่ ก็แค่วาดใหม่
+        }
+    }
+};
+
 window.openSheet = function(sheet) {
     window.currentActiveTabId = sheet.id; // เก็บแท็บที่เปิดล่าสุด
     
     document.getElementById('sheetMenu').classList.add('hidden');
-    document.getElementById('sheetViewer').classList.remove('hidden');
+    const viewer = document.getElementById('sheetViewer');
+    viewer.classList.remove('hidden');
+    viewer.classList.add('flex'); // 🌟 บังคับให้เป็น flex เสมอ จะได้กางเต็มจอ
     
-    // ตั้งชื่อให้เหมือนในรูป! (มี Breadcrumb)
     const gName = sheet.group_name || sheet.category || 'ทั่วไป';
     const sName = sheet.name || sheet.title || 'ไม่มีชื่อ';
     document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${gName}</span> <span class="material-icons text-[10px] mx-1 text-gray-600">arrow_forward_ios</span> <span class="text-white font-bold text-sm">${sName}</span>`;
