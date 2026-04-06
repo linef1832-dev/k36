@@ -813,3 +813,70 @@ window.fetchHistoryLogs = async function() {
     });
     tbody.innerHTML = rows;
 }
+// =========================================================
+// 🟢 ระบบเปิด-ปิด การจองวันหยุด (AM / OD)
+// =========================================================
+
+window.toggleLeaveStatus = async function(dept, isChecked) {
+    const statusValue = isChecked ? 'open' : 'closed';
+    
+    // แสดงกล่องโหลด
+    Swal.fire({
+        title: 'กำลังบันทึกสถานะ...', 
+        allowOutsideClick: false, 
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        // ตรวจสอบว่ามีฐานข้อมูลไหม
+        if (typeof window.appDB === 'undefined') throw new Error('ไม่พบฐานข้อมูล');
+
+        // บันทึกสถานะลงฐานข้อมูล Settings
+        const { error } = await window.appDB.from('settings').upsert([
+            { key: `leave_status_${dept}`, value: statusValue }
+        ]);
+
+        if (error) throw error;
+
+        // แจ้งเตือนเมื่อสำเร็จ
+        Swal.fire({
+            icon: 'success',
+            title: 'บันทึกสำเร็จ!',
+            text: `ระบบจองวันหยุดแผนก ${dept} ได้ถูก ${isChecked ? 'เปิด' : 'ปิด'} แล้ว`,
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+    } catch (error) {
+        console.error('Toggle Leave Error:', error);
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกสถานะได้: ' + error.message, 'error');
+        
+        // ถ้า error ให้ดีดสวิตช์กลับไปค่าเดิม
+        const toggleBtn = document.getElementById(`toggleLeave${dept}`);
+        if (toggleBtn) toggleBtn.checked = !isChecked;
+    }
+};
+
+// 🟢 ฟังก์ชันดึงค่าสถานะเดิมมาแสดงตอนโหลดหน้าเว็บ
+window.loadLeaveStatusConfig = async function() {
+    try {
+        const { data } = await window.appDB.from('settings').select('*').like('key', 'leave_status_%');
+        if (data) {
+            data.forEach(item => {
+                if (item.key === 'leave_status_AM') {
+                    const tAM = document.getElementById('toggleLeaveAM');
+                    if (tAM) tAM.checked = (item.value === 'open');
+                }
+                if (item.key === 'leave_status_OD') {
+                    const tOD = document.getElementById('toggleLeaveOD');
+                    if (tOD) tOD.checked = (item.value === 'open');
+                }
+            });
+        }
+    } catch(e) { console.error('Load Leave Status Error:', e); }
+};
+
+// สั่งให้ดึงค่ามาแสดงทันทีที่ไฟล์นี้ถูกโหลด
+setTimeout(() => {
+    if(typeof loadLeaveStatusConfig === 'function') loadLeaveStatusConfig();
+}, 500);
