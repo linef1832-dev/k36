@@ -339,32 +339,35 @@ window.renderSheetMenu = function() {
     }
 };
 // ==========================================
-// 🟢 ระบบดักจับการสลับหน้า เพื่อเปิดหน้า Sheet
+// 🟢 ระบบดักจับการสลับหน้า (อัปเดตใหม่ ป้องกันหน้าจอดำ)
 // ==========================================
-const showPage_Old_Sheet = window.showPage; // เก็บฟังก์ชันสลับหน้าของเดิมไว้
-window.showPage = function(page) {
-    const sheetApp = document.getElementById('sheetApp');
-    
-    // 1. ซ่อนหน้า Sheet ไว้ก่อนเสมอเวลากดเปลี่ยนหน้า
-    if (sheetApp) sheetApp.classList.add('hidden');
-
-    // 2. ถ้าไม่ได้กดเข้าหน้า sheet ให้ไปรันคำสั่งสลับหน้าของเดิม
-    if (page !== 'sheet' && typeof showPage_Old_Sheet === 'function') {
-        showPage_Old_Sheet(page);
+const showPage_Old_Sheet = window.showPage; 
+window.showPage = async function(page) {
+    // 1. ปล่อยให้ระบบเดิมโหลดไฟล์ HTML มาใส่หน้าจอก่อน
+    if (typeof showPage_Old_Sheet === 'function') {
+        await showPage_Old_Sheet(page);
     }
 
-    // 3. ถ้ากดเข้าหน้า "sheet" ให้ทำงานตรงนี้
+    // 2. ถ้ากดเข้าหน้า "sheet" ถึงจะสั่งให้โชว์และดึงข้อมูล
     if (page === 'sheet') {
-        // ซ่อนหน้าหลัก, หน้าแอดมิน, หน้าประวัติ (ถ้าเปิดอยู่)
+        // ซ่อนหน้าอื่นๆ ทิ้งไป
         ['mainContentArea', 'adminPanel', 'logsPage', 'leaveApp'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         });
 
-        // โชว์หน้าตาราง Sheet
-        if (sheetApp) sheetApp.classList.remove('hidden');
+        // โชว์หน้า Sheet
+        const sheetApp = document.getElementById('sheetApp');
+        if (sheetApp) {
+            sheetApp.classList.remove('hidden');
+            sheetApp.classList.add('flex');
+        }
         
-        // 🌟 สั่งให้ตรวจสอบสิทธิ์แอดมินและดึงข้อมูลตารางมาโชว์
+        // สั่งโหลดข้อมูลปุ่ม
         if (typeof window.initSheetApp === 'function') window.initSheetApp();
+    } else {
+        // ถ้าไปหน้าอื่น ก็ซ่อนหน้า Sheet
+        const sheetApp = document.getElementById('sheetApp');
+        if (sheetApp) sheetApp.classList.add('hidden');
     }
 };
