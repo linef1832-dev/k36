@@ -250,3 +250,74 @@ setTimeout(() => {
         window.initDashboard();
     }
 }, 500);
+// ========================================================================
+// 🟢 1. ฟังก์ชันดึงประวัติระบบ (Audit Logs)
+// ========================================================================
+window.fetchLogs = async function() {
+    const dateVal = document.getElementById('logDate') ? document.getElementById('logDate').value : '';
+    const actionVal = document.getElementById('logAction') ? document.getElementById('logAction').value : '';
+    const userVal = document.getElementById('logUser') ? document.getElementById('logUser').value.toLowerCase() : '';
+    
+    // ดึงตาราง system_logs จาก Supabase
+    let query = appDB.from('system_logs').select('*').order('log_date', {ascending: false});
+    
+    if(dateVal) {
+        query = query.gte('log_date', dateVal + 'T00:00:00').lte('log_date', dateVal + 'T23:59:59');
+    } else {
+        query = query.limit(100); // ถ้าไม่เลือกวัน ให้ดึงล่าสุด 100 รายการ
+    }
+
+    if(actionVal) query = query.eq('action_type', actionVal);
+    
+    const { data, error } = await query;
+    const box = document.getElementById('logTableBody'); 
+    if(!box) return;
+    box.innerHTML = '';
+    
+    if (error) {
+        box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-400">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>`;
+        return;
+    }
+
+    if(data && data.length > 0) {
+        const filtered = data.filter(log => { 
+            return (!userVal || log.performed_by.toLowerCase().includes(userVal)); 
+        });
+        
+        if(filtered.length === 0) { box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติที่ค้นหา</td></tr>`; return; }
+        
+        filtered.forEach(log => {
+            const time = new Date(log.log_date).toLocaleString('th-TH'); 
+            const badgeColor = log.action_type === 'ลงเวลา' ? 'bg-green-900/50 text-green-400 border-green-700' : (log.action_type.includes('ลบ') ? 'bg-red-900/50 text-red-400 border-red-700' : 'bg-blue-900/50 text-blue-400 border-blue-700');
+            box.innerHTML += `
+            <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition">
+                <td class="px-4 py-3 text-xs text-gray-400">${time}</td>
+                <td class="px-4 py-3 font-bold text-white">${log.performed_by}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 rounded text-[10px] font-bold border ${badgeColor}">${log.action_type}</span></td>
+                <td class="px-4 py-3 text-xs text-gray-300">${log.target_details}</td>
+            </tr>`;
+        });
+    } else {
+        box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติ</td></tr>`;
+    }
+};
+
+// ========================================================================
+// 🟢 2. ระบบช่วยโหลดตารางอัตโนมัติ เวลาสลับเมนูไปมา (กันตารางหาย)
+// ========================================================================
+const dashboardObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length) {
+            const wDate = document.getElementById('wDate');
+            // ถ้าตรวจพบว่าหน้า Dashboard เพิ่งถูกโหลดมาใหม่ และยังไม่ได้โหลดข้อมูล
+            if (wDate && !wDate.dataset.initialized) {
+                wDate.dataset.initialized = 'true';
+                if (typeof window.initDashboard === 'function') {
+                    window.initDashboard(); // สั่งให้ดึงตารางใหม่ทันที
+                }
+            }
+        }
+    });
+});
+// เริ่มดักจับการเปลี่ยนแปลงบนหน้าเว็บ
+dashboardObserver.observe(document.body, { childList: true, subtree: true });
