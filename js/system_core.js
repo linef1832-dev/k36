@@ -1979,26 +1979,48 @@ window.addTeamManual = function(dept) {
     });
 };
 // =========================================================
-// 🟢 ระบบเพิ่มรอบเวลาเอง (ดึงข้อมูลเก่าได้อัตโนมัติ)
+// 🟢 ระบบเพิ่มรอบเวลาเอง (ดึงข้อมูลเก่า + ค่าเริ่มต้น)
 // =========================================================
+
+window.applyCustomTimeSlots = function() {
+    try {
+        let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
+        
+        if (!rawData) {
+            // 💡 ถ้าในฐานข้อมูลไม่มี ให้ดึงเวลาตั้งต้น (Default) ของระบบเก่ามาใช้เลย
+            const defaultTimeSlots = {
+                'กะเช้า': {
+                    'ช่วงที่ 1': ['08:00-08:30', '08:30-09:00', '09:00-09:30', '09:30-10:00'],
+                    'ช่วงที่ 2': ['12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00'],
+                    'ช่วงที่ 3': ['16:00-16:30', '16:30-17:00']
+                },
+                'กะกลาง': {
+                    'ช่วงที่ 1': ['12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00'],
+                    'ช่วงที่ 2': ['16:00-16:30', '16:30-17:00', '17:00-17:30', '17:30-18:00'],
+                    'ช่วงที่ 3': ['20:00-20:30', '20:30-21:00', '21:00-21:30']
+                },
+                'กะดึก': {
+                    'ช่วงที่ 1': ['20:00-20:30', '20:30-21:00', '21:00-21:30', '21:30-22:00'],
+                    'ช่วงที่ 2': ['00:00-00:30', '00:30-01:00', '01:00-01:30', '01:30-02:00'],
+                    'ช่วงที่ 3': ['04:00-04:30', '04:30-05:00', '05:00-05:30', '05:30-06:00']
+                }
+            };
+            SHIFT_GROUPS = defaultTimeSlots;
+        } else {
+            SHIFT_GROUPS = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+        }
+    } catch(e) { console.error('Error applying custom time slots:', e); }
+};
 
 window.renderManualTimeSlots = function() {
     const container = document.getElementById('manualTimeSlotsContainer');
     if (!container) return;
 
-    let customSlots = {};
-    try {
-        // ระบบจะค้นหาจากคีย์ใหม่ และคีย์เก่าๆ เผื่อไว้ให้ครับ
-        let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
-        if (rawData) {
-            customSlots = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-        }
-    } catch(e) { customSlots = {}; }
-
     let html = '';
     let count = 0;
 
-    for (const [shift, periods] of Object.entries(customSlots)) {
+    // ดึงค่าจาก SHIFT_GROUPS มาวาดลงตาราง
+    for (const [shift, periods] of Object.entries(SHIFT_GROUPS)) {
         for (const [period, slots] of Object.entries(periods)) {
             slots.forEach(slot => {
                 let sName = shift.replace('กะ', '');
@@ -2038,28 +2060,21 @@ window.addManualTimeSlot = async function() {
 
     const timeSlot = `${start}-${end}`;
 
-    let customSlots = {};
-    try {
-        let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
-        if (rawData) customSlots = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-    } catch(e) { customSlots = {}; }
-
-    if (!customSlots[shiftSelect]) customSlots[shiftSelect] = {};
-    if (!customSlots[shiftSelect][periodSelect]) customSlots[shiftSelect][periodSelect] = [];
+    if (!SHIFT_GROUPS[shiftSelect]) SHIFT_GROUPS[shiftSelect] = {};
+    if (!SHIFT_GROUPS[shiftSelect][periodSelect]) SHIFT_GROUPS[shiftSelect][periodSelect] = [];
     
-    if (customSlots[shiftSelect][periodSelect].includes(timeSlot)) {
+    if (SHIFT_GROUPS[shiftSelect][periodSelect].includes(timeSlot)) {
         return Swal.fire('เตือน', 'มีรอบเวลานี้อยู่แล้ว', 'warning');
     }
 
-    customSlots[shiftSelect][periodSelect].push(timeSlot);
-    customSlots[shiftSelect][periodSelect].sort();
+    SHIFT_GROUPS[shiftSelect][periodSelect].push(timeSlot);
+    SHIFT_GROUPS[shiftSelect][periodSelect].sort();
 
-    SETTINGS['custom_time_slots'] = JSON.stringify(customSlots);
+    SETTINGS['custom_time_slots'] = JSON.stringify(SHIFT_GROUPS);
     
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(customSlots) }]);
+    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
     
-    applyCustomTimeSlots();
     renderManualTimeSlots();
     
     document.getElementById('newTimeStart').value = '';
@@ -2069,55 +2084,17 @@ window.addManualTimeSlot = async function() {
 };
 
 window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
-    let customSlots = {};
-    try {
-        let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
-        if (rawData) customSlots = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-    } catch(e) { customSlots = {}; }
-
-    if (customSlots[shift] && customSlots[shift][period]) {
-        customSlots[shift][period] = customSlots[shift][period].filter(t => t !== timeSlot);
-        if (customSlots[shift][period].length === 0) delete customSlots[shift][period];
-        if (Object.keys(customSlots[shift]).length === 0) delete customSlots[shift];
-    }
-
-    SETTINGS['custom_time_slots'] = JSON.stringify(customSlots);
-    
-    Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(customSlots) }]);
-    
     if (SHIFT_GROUPS[shift] && SHIFT_GROUPS[shift][period]) {
         SHIFT_GROUPS[shift][period] = SHIFT_GROUPS[shift][period].filter(t => t !== timeSlot);
+        if (SHIFT_GROUPS[shift][period].length === 0) delete SHIFT_GROUPS[shift][period];
+        if (Object.keys(SHIFT_GROUPS[shift]).length === 0) delete SHIFT_GROUPS[shift];
     }
 
+    SETTINGS['custom_time_slots'] = JSON.stringify(SHIFT_GROUPS);
+    
+    Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
+    
     renderManualTimeSlots();
     Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
-};
-
-window.applyCustomTimeSlots = function() {
-    try {
-        let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
-        if (rawData) {
-            const customSlots = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-            
-            // เตรียมพื้นที่ตัวแปรให้พร้อม
-            if(Object.keys(SHIFT_GROUPS).length === 0) {
-                 SHIFT_GROUPS = { 'กะเช้า': {}, 'กะกลาง': {}, 'กะดึก': {} };
-            }
-
-            for (const [shift, periods] of Object.entries(customSlots)) {
-                if (!SHIFT_GROUPS[shift]) SHIFT_GROUPS[shift] = {};
-                for (const [period, slots] of Object.entries(periods)) {
-                    if (!SHIFT_GROUPS[shift][period]) SHIFT_GROUPS[shift][period] = [];
-                    
-                    slots.forEach(slot => {
-                        if (!SHIFT_GROUPS[shift][period].includes(slot)) {
-                            SHIFT_GROUPS[shift][period].push(slot);
-                        }
-                    });
-                    SHIFT_GROUPS[shift][period].sort();
-                }
-            }
-        }
-    } catch(e) { console.error('Error applying custom time slots:', e); }
 };
