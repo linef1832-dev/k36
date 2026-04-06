@@ -1238,13 +1238,22 @@ window.updateUserDepartment = async function(id, newDept) {
     Toast.fire({ icon: 'success', title: `ย้ายไปแผนก ${newDept} แล้ว` });
 }
 
+// ==========================================
+// 🟢 ระบบจัดการรหัสผ่าน (เปลี่ยน PIN)
+// ==========================================
+
 window.openChangePinModal = function() {
+    // ล้างค่าในช่องกรอกให้ว่างเปล่าก่อนเปิด
     if(document.getElementById('newPin1')) document.getElementById('newPin1').value = '';
     if(document.getElementById('newPin2')) document.getElementById('newPin2').value = '';
+    
+    // สั่งเปิดกล่อง Modal
     const modal = document.getElementById('changePinModal');
     if(modal) {
         modal.classList.remove('hidden');
-        modal.classList.add('flex'); // สำคัญ: ต้องใส่ flex ให้มันอยู่ตรงกลางจอ
+        modal.classList.add('flex'); // บังคับแสดงแบบ flex ให้อยู่กึ่งกลาง
+    } else {
+        console.log("หาไอดี changePinModal ไม่เจอใน HTML");
     }
 };
 
@@ -1275,14 +1284,18 @@ window.submitChangePin = async function(e) {
         const { error } = await appDB.from('users').update({ password: pin1 }).eq('id', currentUser.id);
         if (error) throw error;
 
+        // อัปเดตข้อมูลใน Session
         currentUser.password = pin1;
         sessionStorage.setItem('user_platinum_plus', JSON.stringify(currentUser));
 
-        closeChangePinModal();
+        closeChangePinModal(); // ปิดกล่อง
+        
         Swal.fire({ 
-            icon: 'success', title: 'เปลี่ยนรหัสสำเร็จ!', 
+            icon: 'success', 
+            title: 'เปลี่ยนรหัสสำเร็จ!', 
             text: 'คราวหน้ากรุณาใช้รหัสผ่านใหม่นี้เข้าสู่ระบบครับ', 
-            timer: 2000, showConfirmButton: false 
+            timer: 2000, 
+            showConfirmButton: false 
         });
 
     } catch (err) {
