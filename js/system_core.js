@@ -2111,24 +2111,39 @@ window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
 // ==========================================
 // 🟢 ควบคุมการเปิด/ปิด หน้าประวัติระบบ (Logs)
 // ==========================================
-window.openLogsPage = function() {
-    // ซ่อนหน้าหลักและหน้าแอดมิน
+window.openLogsPage = async function() {
+    // 💡 ถ้าเรากดจากหน้าอื่น (ที่ไม่ได้อยู่ใน Dashboard) ให้สลับมาโหลดหน้า Dashboard ก่อน
+    if (!document.getElementById('logsPage')) {
+        if(typeof showPage === 'function') await showPage('dashboard');
+        
+        // รอโหลดกล่องสักครู่ แล้วค่อยสลับโชว์
+        setTimeout(() => {
+            toggleLogsVisibility();
+        }, 300);
+    } else {
+        toggleLogsVisibility();
+    }
+};
+
+function toggleLogsVisibility() {
+    // ซ่อนหน้าหลัก
     if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
+    // ซ่อนหน้าแอดมิน (ถ้าเปิดอยู่)
     if(document.getElementById('adminPanel')) {
         document.getElementById('adminPanel').classList.add('hidden');
         document.getElementById('adminPanel').classList.remove('flex');
     }
     
-    // โชว์หน้า Logs
+    // โชว์หน้าประวัติ
     const logsPage = document.getElementById('logsPage');
     if(logsPage) {
         logsPage.classList.remove('hidden');
         logsPage.classList.add('flex');
         
-        // สั่งดึงข้อมูลประวัติทันที
+        // โชว์เสร็จปุ๊บ สั่งดึงข้อมูลประวัติทันที!
         if(typeof fetchLogs === 'function') fetchLogs(); 
     }
-};
+}
 
 window.backToDashboard = function() {
     // ซ่อนหน้า Logs และหน้าแอดมิน
@@ -2142,7 +2157,9 @@ window.backToDashboard = function() {
     }
     
     // โชว์หน้าหลักกลับมา
-    if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.remove('hidden');
+    if(document.getElementById('mainContentArea')) {
+        document.getElementById('mainContentArea').classList.remove('hidden');
+        // รีเฟรชตารางเผื่อมีใครลงเวลาตอนที่เราแอบไปดูประวัติ
+        if(typeof fetchData === 'function') fetchData(); 
+    }
 };
-
-
