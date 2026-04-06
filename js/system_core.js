@@ -1243,6 +1243,8 @@ window.updateUserDepartment = async function(id, newDept) {
 // ==========================================
 
 window.openChangePinModal = function() {
+    console.log("กำลังเปิดหน้าต่างเปลี่ยนรหัส...");
+    
     // ล้างค่าในช่องกรอกให้ว่างเปล่าก่อนเปิด
     if(document.getElementById('newPin1')) document.getElementById('newPin1').value = '';
     if(document.getElementById('newPin2')) document.getElementById('newPin2').value = '';
@@ -1253,7 +1255,9 @@ window.openChangePinModal = function() {
         modal.classList.remove('hidden');
         modal.classList.add('flex'); // บังคับแสดงแบบ flex ให้อยู่กึ่งกลาง
     } else {
-        console.log("หาไอดี changePinModal ไม่เจอใน HTML");
+        console.error("❌ หาไอดี changePinModal ไม่เจอใน HTML!");
+        // แจ้งเตือนแอดมินให้รู้ว่าลืมใส่กล่อง HTML
+        Swal.fire('ข้อผิดพลาด', 'ไม่พบส่วนแสดงผลหน้าต่างเปลี่ยนรหัส (HTML ไม่สมบูรณ์)', 'error');
     }
 };
 
@@ -1278,17 +1282,21 @@ window.submitChangePin = async function(e) {
         return Swal.fire('ผิดพลาด', 'รหัสผ่านทั้งสองช่องไม่ตรงกัน!', 'error');
     }
 
+    if (!window.currentUser || !window.currentUser.id) {
+        return Swal.fire('ผิดพลาด', 'ไม่พบข้อมูลผู้ใช้งาน กรุณารีเฟรชหน้าเว็บ', 'error');
+    }
+
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
-        const { error } = await appDB.from('users').update({ password: pin1 }).eq('id', currentUser.id);
+        const { error } = await appDB.from('users').update({ password: pin1 }).eq('id', window.currentUser.id);
         if (error) throw error;
 
         // อัปเดตข้อมูลใน Session
-        currentUser.password = pin1;
-        sessionStorage.setItem('user_platinum_plus', JSON.stringify(currentUser));
+        window.currentUser.password = pin1;
+        sessionStorage.setItem('user_platinum_plus', JSON.stringify(window.currentUser));
 
-        closeChangePinModal(); // ปิดกล่อง
+        window.closeChangePinModal(); // ปิดกล่อง
         
         Swal.fire({ 
             icon: 'success', 
@@ -1300,7 +1308,7 @@ window.submitChangePin = async function(e) {
 
     } catch (err) {
         console.error(err);
-        Swal.fire('Error', 'เกิดข้อผิดพลาดในการเปลี่ยนรหัส', 'error');
+        Swal.fire('Error', 'เกิดข้อผิดพลาดในการเปลี่ยนรหัส: ' + err.message, 'error');
     }
 };
 
