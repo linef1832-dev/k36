@@ -96,31 +96,34 @@ window.switchDept = function(dept) {
 };
 
 function updateAdminInputs() {
-    const s = deptSettings[currentViewDept];
-    if(!s) return; 
-    if(document.getElementById('setPersonLimit')) document.getElementById('setPersonLimit').value = s.limit || 4;
-    if(document.getElementById('setStartM')) document.getElementById('setStartM').value = s.startM || '';
-    if(document.getElementById('setEndM')) document.getElementById('setEndM').value = s.endM || '';
-    if(document.getElementById('setStartA')) document.getElementById('setStartA').value = s.startA || '';
-    if(document.getElementById('setEndA')) document.getElementById('setEndA').value = s.endA || '';
-    if(document.getElementById('setStartN')) document.getElementById('setStartN').value = s.startN || '';
-    if(document.getElementById('setEndN')) document.getElementById('setEndN').value = s.endN || '';
-    if(document.getElementById('setForceOpen')) document.getElementById('setForceOpen').checked = s.isOpen || false;
-    if(document.getElementById('setQuotaM')) document.getElementById('setQuotaM').value = s.quotaM || 0;
-    if(document.getElementById('setQuotaA')) document.getElementById('setQuotaA').value = s.quotaA || 0;
-    if(document.getElementById('setQuotaN')) document.getElementById('setQuotaN').value = s.quotaN || 0;
-    if(document.getElementById('setAllowedMonth')) document.getElementById('setAllowedMonth').value = s.viewMonth || '';
-    if(document.getElementById('setStartDay')) document.getElementById('setStartDay').value = s.startDay || '';
-    if(document.getElementById('setEndDay')) document.getElementById('setEndDay').value = s.endDay || '';
-    toggleTimeInputs(s.isOpen);
-}
+        const s = deptSettings[currentViewDept];
+        if(!s) return; // ป้องกัน Error ถ้าหาค่าไม่เจอ
+        
+        if(document.getElementById('setPersonLimit')) document.getElementById('setPersonLimit').value = s.limit || 4;
+        
+        if(document.getElementById('setStartM')) document.getElementById('setStartM').value = s.startM || '';
+        if(document.getElementById('setEndM')) document.getElementById('setEndM').value = s.endM || '';
+        if(document.getElementById('setStartA')) document.getElementById('setStartA').value = s.startA || '';
+        if(document.getElementById('setEndA')) document.getElementById('setEndA').value = s.endA || '';
+        if(document.getElementById('setStartN')) document.getElementById('setStartN').value = s.startN || '';
+        if(document.getElementById('setEndN')) document.getElementById('setEndN').value = s.endN || '';
 
-function toggleTimeInputs(isForceOpen) {
-    const timeGroup = document.getElementById('timeSettingsGroup');
-    if(!timeGroup) return;
-    if(isForceOpen) timeGroup.classList.add('opacity-30', 'pointer-events-none');
-    else timeGroup.classList.remove('opacity-30', 'pointer-events-none');
-}
+        if(document.getElementById('setForceOpen')) document.getElementById('setForceOpen').checked = s.isOpen || false;
+        
+        if(document.getElementById('setQuotaM')) document.getElementById('setQuotaM').value = s.quotaM || 0;
+        if(document.getElementById('setQuotaA')) document.getElementById('setQuotaA').value = s.quotaA || 0;
+        if(document.getElementById('setQuotaN')) document.getElementById('setQuotaN').value = s.quotaN || 0;
+
+        if(document.getElementById('setAllowedMonth')) document.getElementById('setAllowedMonth').value = s.viewMonth || '';
+        if(document.getElementById('setStartDay')) document.getElementById('setStartDay').value = s.startDay || '';
+        if(document.getElementById('setEndDay')) document.getElementById('setEndDay').value = s.endDay || '';
+        
+        // 🟢 ปลดล็อกช่องเวลา ให้สว่างและพิมพ์ได้ 100% ตลอดเวลา
+        const timeGroup = document.getElementById('timeSettingsGroup');
+        if(timeGroup) {
+            timeGroup.classList.remove('opacity-30', 'pointer-events-none');
+        }
+    }
 
 const forceOpenCb = document.getElementById('setForceOpen');
 if(forceOpenCb) forceOpenCb.addEventListener('change', (e) => { toggleTimeInputs(e.target.checked); });
