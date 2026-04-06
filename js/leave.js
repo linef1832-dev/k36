@@ -829,37 +829,32 @@ window.fetchHistoryLogs = async function() {
     });
     tbody.innerHTML = rows;
 }
-// =========================================================
-// 🟢 ระบบเปิด-ปิด การจองวันหยุด (ปุ่มเดียวสลับตามแผนก)
-// =========================================================
-
-// ตัวแปรเก็บสถานะเปิด/ปิดจองของแต่ละแผนก
-window.leaveStatusConfig = { 'AM': 'open', 'OD': 'open', 'NEW': 'open', 'TRAINER': 'open' };
-
+// =================================================================
+// 🟢 ระบบสวิตช์เปิด-ปิดจอง (ใช้ชื่อคีย์แบบดั้งเดิม)
+// =================================================================
 window.toggleLeaveStatus = async function(isChecked) {
-    // 1. ดึงชื่อแผนกที่กำลังเปิดอยู่ตอนนี้
-    const currentDept = window.currentDept || document.getElementById('settingTargetLabel').innerText || 'AM';
-    const statusValue = isChecked ? 'open' : 'closed';
+    const statusValue = isChecked ? 'true' : 'false'; 
     
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
-        // 💡 แก้ไขตรงนี้: ใช้ appDB ตรงๆ เหมือนไฟล์อื่น
         if (typeof appDB === 'undefined') throw new Error('ไม่พบตัวแปรเชื่อมต่อฐานข้อมูล');
 
-        // 2. บันทึกลงฐานข้อมูลเฉพาะแผนกนั้นๆ
+        // 🌟 บันทึกโดยใช้ชื่อคีย์แบบเดิม เช่น AM_is_open, OD_is_open
         const { error } = await appDB.from('settings').upsert([
-            { key: `leave_status_${currentDept}`, value: statusValue }
+            { key: `${currentViewDept}_is_open`, value: statusValue } 
         ]);
 
         if (error) throw error;
 
-        // 3. เก็บค่าไว้ในตัวแปร
-        window.leaveStatusConfig[currentDept] = statusValue;
+        // อัปเดตค่าในตัวแปรทันที
+        if(deptSettings[currentViewDept]) {
+            deptSettings[currentViewDept].isOpen = isChecked;
+        }
 
         Swal.fire({ 
             icon: 'success', title: 'บันทึกสำเร็จ!', 
-            text: `ระบบจองวันหยุดแผนก ${currentDept} ถูก ${isChecked ? 'เปิด' : 'ปิด'} แล้ว`, 
+            text: `ระบบจองวันหยุดแผนก ${currentViewDept} ถูก ${isChecked ? 'เปิด' : 'ปิด'} แล้ว`, 
             timer: 1500, showConfirmButton: false 
         });
 
