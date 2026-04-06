@@ -12,30 +12,34 @@ window.initDashboard = async function() {
     // ดึงรายชื่อทีมเข้า Dropdown
     populateTeamSelects();
     
-    // สร้างปุ่มเลือกกะ (เช้า/กลาง/ดึก) ตามสิทธิ์ของพนักงาน
+    // 🟢 บังคับเซ็ตวันที่ให้เป็น "วันนี้" เสมอทันทีที่โหลด
+    const dInput = document.getElementById('wDate');
+    if (dInput) {
+        const today = new Date();
+        const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        dInput.value = localDate;
+        const displayDate = document.getElementById('displayDate');
+        if (displayDate) displayDate.innerText = new Date(localDate).toLocaleDateString('th-TH');
+    }
+
+    // 🟢 สร้างปุ่มและ "บังคับเลือกกะให้อัตโนมัติ" ตามสิทธิ์
     renderShiftButtons(currentUser.allowed_shift);
     
-    // เซ็ตวันที่เริ่มต้นให้เป็น "วันนี้"
-    const dInput = document.getElementById('wDate');
-    if (dInput && !dInput.value) {
-        const tzOffset = (new Date()).getTimezoneOffset() * 60000;
-        dInput.value = (new Date(Date.now() - tzOffset)).toISOString().split('T')[0];
-        document.getElementById('displayDate').innerText = new Date(dInput.value).toLocaleDateString('th-TH');
-    }
-
     // เช็คระบบ "จำทีมนี้ไว้ตลอด"
     const savedTeam = localStorage.getItem(`last_team_${currentUser.username}`);
-    if (savedTeam) {
-        const teamSelect = document.getElementById('dailyTeam');
-        if(teamSelect) teamSelect.value = savedTeam;
-        const rememberCb = document.getElementById('rememberTeam');
-        if(rememberCb) rememberCb.checked = true;
-    } else if (currentUser.team) {
-        const teamSelect = document.getElementById('dailyTeam');
-        if(teamSelect) teamSelect.value = currentUser.team;
+    const teamSelect = document.getElementById('dailyTeam');
+    if (teamSelect) {
+        if (savedTeam) {
+            teamSelect.value = savedTeam;
+            const rememberCb = document.getElementById('rememberTeam');
+            if(rememberCb) rememberCb.checked = true;
+        } else if (currentUser.team) {
+            teamSelect.value = currentUser.team;
+        }
     }
 
-    // โหลดข้อมูลตารางลงเวลา
+    // โหลดข้อมูลรอบเวลาและตารางลงเวลาทันที
+    if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
     if (typeof fetchData === 'function') fetchData();
 };
 
@@ -79,21 +83,22 @@ window.populateTeamSelects = function() {
     if(dt && currentUser && currentUser.team) dt.value = currentUser.team;
 };
 
-// 4. สร้างปุ่มเลือกกะ (ถ้าพนักงานไม่มีสิทธิ์ ปุ่มจะโดนล็อก)
+// 4. สร้างปุ่มเลือกกะ (และติ๊กให้อัตโนมัติ)
 window.renderShiftButtons = function(allowedShift) {
     const container = document.getElementById('shiftContainer');
     if (!container) return;
     container.innerHTML = '';
     
     const shifts = ['กะเช้า', 'กะกลาง', 'กะดึก'];
+    let hasChecked = false; // ตัวแปรเช็คว่าติ๊กเลือกไปหรือยัง
     
-    shifts.forEach(s => {
+    shifts.forEach((s, index) => {
         let isDisabled = false;
         let bgClass = 'bg-white dark:bg-slate-800';
         let textClass = 'text-gray-700 dark:text-gray-300';
         let borderClass = 'border-gray-200 dark:border-slate-600';
         
-        // ล็อกปุ่มถ้าไม่ใช่แอดมิน และกะไม่ตรงกับสิทธิ์
+        // ล็อกปุ่มถ้าไม่มีสิทธิ์
         if (allowedShift !== 'all' && allowedShift !== s && !['manager', 'admin'].includes(currentUser.role)) {
             isDisabled = true;
             bgClass = 'bg-gray-100 dark:bg-slate-900 opacity-50 cursor-not-allowed';
@@ -101,12 +106,22 @@ window.renderShiftButtons = function(allowedShift) {
             bgClass = 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer';
         }
         
+        // 🟢 ระบบ Auto-Select: เลือกกะให้อัตโนมัติตามสิทธิ์
+        let isChecked = false;
+        if (!isDisabled && !hasChecked) {
+            if (allowedShift === 'all' || ['manager', 'admin'].includes(currentUser.role)) {
+                if (index === 0) { isChecked = true; hasChecked = true; } // แอดมิน เลือกเช้าไว้ก่อน
+            } else if (allowedShift === s) {
+                isChecked = true; hasChecked = true; // พนักงาน เลือกกะตัวเอง
+            }
+        }
+        
         let icon = s === 'กะเช้า' ? 'wb_sunny' : (s === 'กะกลาง' ? 'cloud' : 'dark_mode');
         let color = s === 'กะเช้า' ? 'text-orange-500' : (s === 'กะกลาง' ? 'text-blue-500' : 'text-purple-500');
 
         container.innerHTML += `
             <label class="relative flex flex-col items-center p-3 rounded-xl border-2 ${borderClass} ${bgClass} transition shadow-sm">
-                <input type="radio" name="shift" value="${s}" class="peer hidden" onchange="refreshTimeSlots()" ${isDisabled ? 'disabled' : ''}>
+                <input type="radio" name="shift" value="${s}" class="peer hidden" onchange="refreshTimeSlots()" ${isDisabled ? 'disabled' : ''} ${isChecked ? 'checked' : ''}>
                 <span class="material-icons ${color} mb-1 peer-checked:scale-125 transition-transform">${icon}</span>
                 <span class="font-bold ${textClass} text-sm">${s}</span>
                 <div class="absolute inset-0 border-2 border-transparent peer-checked:border-blue-500 rounded-xl pointer-events-none transition-colors"></div>
