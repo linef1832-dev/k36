@@ -58,7 +58,7 @@
                 </div>
 
                 <div class="flex flex-col py-2" id="menu-list">
-                    <button onclick="showPage('dashboard')" class="nm-menu-title active border-b border-[#1a273a]">
+                    <button onclick="showPage('dashboard'); setTimeout(() => { if(typeof initDashboard === 'function') initDashboard(); }, 200);" class="nm-menu-title active border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-blue-400">home</span> หน้าหลักลงเวลา</div>
                     </button>
                     <button onclick="showPage('leave')" class="nm-menu-title border-b border-[#1a273a]">
