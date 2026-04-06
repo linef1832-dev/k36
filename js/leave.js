@@ -341,9 +341,13 @@ window.renderLeaveTable = function() {
     const s = deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 }; 
     const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     const picker = document.getElementById('viewMonthPicker');
-    
+    const btnPrev = document.getElementById('btnPrevMonth');
+    const btnNext = document.getElementById('btnNextMonth');
+
     if (!isAdmin && s.viewMonth) {
         if(picker) { picker.disabled = true; picker.classList.add('opacity-50', 'cursor-not-allowed'); }
+        if(btnPrev) btnPrev.classList.add('hidden');
+        if(btnNext) btnNext.classList.add('hidden');
         const currentY = currentCalendarDate.getFullYear();
         const currentM = String(currentCalendarDate.getMonth() + 1).padStart(2, '0');
         if (`${currentY}-${currentM}` !== s.viewMonth) {
@@ -353,21 +357,29 @@ window.renderLeaveTable = function() {
         }
     } else {
         if(picker) { picker.disabled = false; picker.classList.remove('opacity-50', 'cursor-not-allowed'); }
+        if(btnPrev) btnPrev.classList.remove('hidden');
+        if(btnNext) btnNext.classList.remove('hidden');
     }
 
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    let isOpen = typeof checkBookingWindow === 'function' ? checkBookingWindow() : true;
+    
+    // อัปเดตป้ายสถานะ UI ด้านบน
+    if(typeof checkBookingWindow === 'function') checkBookingWindow();
 
     const allDeptUsers = GLOBAL_USER_LIST.filter(u => {
         const uDept = u.department || 'AM';
         const uRole = u.role ? u.role.toLowerCase() : 'staff'; 
-        if (currentViewDept === 'TRAINER') return uDept === 'TRAINER' || uRole === 'trainer'; 
-        else if (currentViewDept === 'NEW') return uDept === 'NEW';
-        else return uRole === 'staff' && uDept === currentViewDept; 
+
+        if (currentViewDept === 'TRAINER') {
+            return uDept === 'TRAINER' || uRole === 'trainer'; 
+        } else if (currentViewDept === 'NEW') {
+            return uDept === 'NEW';
+        } else {
+            return uRole === 'staff' && uDept === currentViewDept; 
+        }
     });
-    
     const allDeptUserIds = new Set(allDeptUsers.map(u => u.id));
     const userShiftMapAll = {};
     allDeptUsers.forEach(u => userShiftMapAll[u.id] = u.allowed_shift || 'all');
@@ -378,13 +390,15 @@ window.renderLeaveTable = function() {
     ).sort((a,b) => a.username.localeCompare(b.username));
 
     const bookedMap = new Map(); 
-    const personalCounts = {};   
+    const personalCounts = {};    
     const shiftDailyCounts = {}; 
 
     allLeaveData.forEach(l => {
         if (!allDeptUserIds.has(l.user_id)) return;
+        
         const rsn = (l.reason === 'Table-Booking' || !l.reason) ? 'X' : l.reason;
         bookedMap.set(`${l.user_id}_${l.leave_date}`, rsn);
+        
         const uShift = userShiftMapAll[l.user_id];
         const shiftKey = `${l.leave_date}_${uShift}`;
         if(!shiftDailyCounts[shiftKey]) shiftDailyCounts[shiftKey] = 0;
@@ -403,11 +417,14 @@ window.renderLeaveTable = function() {
 
     let headerHtml = `
         <th class="p-2 sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[40px] min-w-[40px] max-w-[40px] text-center">No.</th>
-        <th class="p-2 sticky left-[39px] z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[140px] min-w-[140px] max-w-[140px] text-left pl-4">รายชื่อ (${displayDeptText})</th>
+        <th class="p-2 sticky left-[39px] z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[140px] min-w-[140px] max-w-[140px] text-left pl-4">
+            รายชื่อ (${displayDeptText})
+        </th>
     `;
     
     for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        
         const countM = shiftDailyCounts[`${dateStr}_กะเช้า`] || 0;
         const countA = shiftDailyCounts[`${dateStr}_กะกลาง`] || 0;
         const countN = shiftDailyCounts[`${dateStr}_กะดึก`] || 0;
@@ -429,9 +446,18 @@ window.renderLeaveTable = function() {
         headerHtml += `<th class="p-1.5 border-b border-r dark:border-slate-700 min-w-[75px] align-top ${bgClass}">
             <div class="text-[14px] text-slate-800 dark:text-white font-extrabold text-center mb-1 pb-0.5 border-b border-gray-200 dark:border-slate-600">${d}</div>
             <div class="flex flex-col gap-1">
-                <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-orange-500">เช้า</span><span class="text-[11px] font-mono font-bold ${textM}">${countM}/${s.quotaM || 0}</span></div>
-                <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-blue-500">กลาง</span><span class="text-[11px] font-mono font-bold ${textA}">${countA}/${s.quotaA || 0}</span></div>
-                <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-purple-400">ดึก</span><span class="text-[11px] font-mono font-bold ${textN}">${countN}/${s.quotaN || 0}</span></div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-orange-500">เช้า</span>
+                    <span class="text-[11px] font-mono font-bold ${textM}">${countM}/${s.quotaM || 0}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-blue-500">กลาง</span>
+                    <span class="text-[11px] font-mono font-bold ${textA}">${countA}/${s.quotaA || 0}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-purple-400">ดึก</span>
+                    <span class="text-[11px] font-mono font-bold ${textN}">${countN}/${s.quotaN || 0}</span>
+                </div>
             </div>
         </th>`;
     }
@@ -450,17 +476,31 @@ window.renderLeaveTable = function() {
         else if(u.allowed_shift === 'กะกลาง') targetQuota = s.quotaA;
         else if(u.allowed_shift === 'กะดึก') targetQuota = s.quotaN;
 
+        let removeBtn = '';
+        if (isAdmin && (currentViewDept === 'NEW' || currentViewDept === 'TRAINER')) {
+            if(typeof removeFromNewDept === 'function') {
+                removeBtn = `<button onclick="removeFromNewDept(${u.id}, '${u.username}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
+            }
+        }
+
         let rowHtml = `<tr class="transition ${rowClass}">`;
         rowHtml += `<td class="p-2 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-b dark:border-slate-700 text-[10px] text-center text-gray-400 font-mono w-[40px] min-w-[40px] max-w-[40px]">${index + 1}</td>`;
         rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r border-b dark:border-slate-700 text-xs truncate ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">
             <div class="flex justify-between items-center gap-1">
-                <div class="flex items-center"><span class="truncate max-w-[70px]">${u.username}</span></div>
+                <div class="flex items-center"><span class="truncate max-w-[70px]">${u.username}</span>${removeBtn}</div>
                 <span class="text-[9px] px-1.5 rounded-full border shrink-0 ${isPersonalFull ? 'bg-red-100 text-red-600 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200'}">${myTotal}/${s.limit}</span>
             </div>
         </td>`;
 
+        // 🌟 เพิ่มเงื่อนไขตรวจสอบว่า กะของพนักงานคนนี้ เปิดให้จองอยู่หรือไม่
+        let isThisUserShiftOpen = true;
+        if (typeof checkBookingWindow === 'function') {
+            isThisUserShiftOpen = checkBookingWindow(u.allowed_shift);
+        }
+
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            
             const leaveReason = bookedMap.get(`${u.id}_${dateStr}`);
             const isBooked = !!leaveReason;
             
@@ -482,14 +522,28 @@ window.renderLeaveTable = function() {
             if (isDateLocked && !isAdmin) {
                 cellClass = "bg-gray-300 dark:bg-slate-950 cursor-not-allowed opacity-30"; 
             } else if (isBooked) {
-                let finalColor = 'bg-red-500'; let finalText = '✕'; let textColor = 'text-white';
-                if (leaveReason === 'X' || leaveReason === 'Table-Booking') { finalColor = 'bg-red-500'; finalText = '✕'; }
-                else if (leaveReason === 'XX') { finalColor = 'bg-yellow-400'; finalText = 'XX'; textColor = 'text-yellow-900'; }
-                else if (leaveReason === 'X4') { finalColor = 'bg-pink-500'; finalText = 'X4'; } 
-                else if (leaveReason === 'KL') { finalColor = 'bg-green-500'; finalText = 'KL'; } 
-                else if (leaveReason === 'TL' || leaveReason === 'TX') { finalColor = 'bg-blue-500'; finalText = leaveReason; } 
-                else if (leaveReason === 'PN') { finalColor = 'bg-amber-800'; finalText = 'PN'; textColor = 'text-white'; } 
-                else { finalColor = baseDeptColor; finalText = leaveReason; }
+                let finalColor = 'bg-red-500'; 
+                let finalText = '✕';
+                let textColor = 'text-white';
+                
+                if (leaveReason === 'X' || leaveReason === 'Table-Booking') { 
+                    finalColor = 'bg-red-500'; finalText = '✕'; 
+                }
+                else if (leaveReason === 'XX') { 
+                    finalColor = 'bg-yellow-400'; finalText = 'XX'; textColor = 'text-yellow-900'; 
+                }
+                else if (leaveReason === 'X4') { 
+                    finalColor = 'bg-pink-500'; finalText = 'X4'; 
+                } 
+                else if (leaveReason === 'KL') {
+                    finalColor = 'bg-green-500'; finalText = 'KL';
+                } else if (leaveReason === 'TL' || leaveReason === 'TX') {
+                    finalColor = 'bg-blue-500'; finalText = leaveReason;
+                } else if (leaveReason === 'PN') {
+                    finalColor = 'bg-amber-800'; finalText = 'PN'; textColor = 'text-white';
+                } else {
+                    finalColor = baseDeptColor; finalText = leaveReason;
+                }
 
                 cellClass = `${finalColor} ${textColor} font-bold cursor-pointer text-sm leading-none pb-1 is-booked shadow-inner`;
                 cellContent = finalText; 
@@ -501,13 +555,26 @@ window.renderLeaveTable = function() {
 
             let hoverAttr = `onmouseover="highlightCell(this, ${d-1}, true)" onmouseout="highlightCell(this, ${d-1}, false)"`;
             let clickAttr = "";
-            if ((isMe || isAdmin) && (isOpen || isAdmin) && !(isDateLocked && !isAdmin)) {
-                    if (isBooked) clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'remove', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
-                    else if (!isShiftFull || isAdmin) { 
-                        if (!isPersonalFull || isAdmin) clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'add', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
-                        else if (isMe) clickAttr = `onclick="Swal.fire({icon:'warning', title:'ครบโควตา', text:'คุณใช้สิทธิ์ครบ ${s.limit} วันแล้ว', timer:1500, showConfirmButton:false})"`;
+            
+            // 🌟 เช็คเงื่อนไขก่อนอนุญาตให้กด
+            if (isDateLocked && !isAdmin) {
+                if(isMe) clickAttr = `onclick="Swal.fire({icon:'error', title:'ล็อกวัน', text:'วันที่นี้ถูกล็อก ไม่สามารถทำรายการได้', timer:1500, showConfirmButton:false})"`;
+            } else if (!isThisUserShiftOpen && !isAdmin && isMe) {
+                // 🛑 ถ้าหมดเวลาจองแล้ว ให้บล็อกและเด้งเตือน!
+                clickAttr = `onclick="Swal.fire({icon:'error', title:'ปิดจองแล้ว', text:'อยู่นอกเวลาทำรายการของกะคุณ', timer:2000, showConfirmButton:false})"`;
+            } else if (isMe || isAdmin) {
+                // ✅ ถ้าเปิดจอง หรือเป็นแอดมิน ให้ทำรายการได้ปกติ
+                if (isBooked) {
+                    clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'remove', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
+                } else if (!isShiftFull || isAdmin) { 
+                    if (!isPersonalFull || isAdmin) {
+                        clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'add', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
+                    } else if (isMe) {
+                        clickAttr = `onclick="Swal.fire({icon:'warning', title:'ครบโควตา', text:'คุณใช้สิทธิ์ครบ ${s.limit} วันแล้ว', timer:1500, showConfirmButton:false})"`;
                     }
                 }
+            }
+            
             rowHtml += `<td class="border-r border-b dark:border-slate-700 text-center ${cellClass}" ${clickAttr} ${hoverAttr}>${cellContent}</td>`;
         }
         rowHtml += `</tr>`;
@@ -516,7 +583,7 @@ window.renderLeaveTable = function() {
     
     if(staffListToRender.length === 0) bodyHtml = `<tr><td colspan="${daysInMonth + 2}" class="p-10 text-center text-gray-400">ไม่พบรายชื่อในแผนก ${displayDeptText}</td></tr>`;
     tbody.innerHTML = bodyHtml;
-}
+};
 
 window.changeMonth = function(step) { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + step); updateMonthPicker(); fetchLeaveData(); }
 window.updateMonthPicker = function() { 
