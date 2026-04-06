@@ -518,57 +518,37 @@
         </div>
         
         <div id="changePinModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4 animate-fade-in">
-        <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-sm overflow-hidden transform transition-all">
-            <div class="bg-gradient-to-r from-orange-500 to-amber-500 p-5 text-center relative">
-                <button type="button" onclick="closeChangePinModal()" class="absolute top-3 right-3 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full w-8 h-8 flex items-center justify-center transition">
-                    <span class="material-icons text-sm">close</span>
-                </button>
-                <div class="w-16 h-16 bg-white/20 rounded-full mx-auto flex items-center justify-center mb-2 border-2 border-white/30 shadow-inner">
-                    <span class="material-icons text-4xl text-white">vpn_key</span>
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-sm overflow-hidden transform transition-all">
+        <div class="bg-gradient-to-r from-orange-500 to-amber-500 p-5 text-center relative">
+            <button type="button" onclick="closeChangePinModal()" class="absolute top-3 right-3 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full w-8 h-8 flex items-center justify-center transition">
+                <span class="material-icons text-sm">close</span>
+            </button>
+            <div class="w-16 h-16 bg-white/20 rounded-full mx-auto flex items-center justify-center mb-2 border-2 border-white/30 shadow-inner">
+                <span class="material-icons text-4xl text-white">vpn_key</span>
+            </div>
+            <h3 class="text-xl font-black text-white tracking-wide">เปลี่ยนรหัสผ่าน (PIN)</h3>
+            <p class="text-orange-100 text-xs mt-1">กรุณาตั้งรหัสผ่านเป็นตัวเลข 6 หลัก</p>
+        </div>
+        
+        <form onsubmit="submitChangePin(event)" class="p-6 space-y-5">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">รหัสผ่านใหม่</label>
+                <div class="relative">
+                    <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">lock</span>
+                    <input type="password" id="newPin1" required pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
                 </div>
-                <h3 class="text-xl font-black text-white tracking-wide">เปลี่ยนรหัสผ่าน (PIN)</h3>
-                <p class="text-orange-100 text-xs mt-1">กรุณาตั้งรหัสผ่านเป็นตัวเลข 6 หลัก</p>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">ยืนยันรหัสผ่านอีกครั้ง</label>
+                <div class="relative">
+                    <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">lock_clock</span>
+                    <input type="password" id="newPin2" required pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
+                </div>
             </div>
             
-            <form onsubmit="submitChangePin(event)" class="p-6 space-y-5">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">รหัสผ่านใหม่</label>
-                    <div class="relative">
-                        <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">lock</span>
-                        <input type="password" id="newPin1" required pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">ยืนยันรหัสผ่านอีกครั้ง</label>
-                    <div class="relative">
-                        <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">lock_clock</span>
-                        <input type="password" id="newPin2" required pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
-                    </div>
-                </div>
-                
-                <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black py-3.5 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2">
-                    <span class="material-icons">save</span> บันทึกรหัสผ่านใหม่
-                </button>
-            </form>
-        </div>
+            <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black py-3.5 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2">
+                <span class="material-icons">save</span> บันทึกรหัสผ่านใหม่
+            </button>
+        </form>
     </div>
-
-    <script>
-        window.openChangePinModal = function() {
-            if(document.getElementById('newPin1')) document.getElementById('newPin1').value = '';
-            if(document.getElementById('newPin2')) document.getElementById('newPin2').value = '';
-            const modal = document.getElementById('changePinModal');
-            if(modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex'); 
-            }
-        };
-
-        window.closeChangePinModal = function() {
-            const modal = document.getElementById('changePinModal');
-            if(modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }
-        };
-    </script>
+</div>
