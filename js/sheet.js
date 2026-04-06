@@ -3,9 +3,12 @@
 // ==========================================
 
 window.GLOBAL_SHEETS = [];
+window.currentActiveTabId = null;
 let recentTabs = JSON.parse(localStorage.getItem('sheet_recent_tabs') || '[]');
 
-// 1. ฟังก์ชันโหลดครั้งแรก (เช็คสิทธิ์ & โหลดข้อมูล)
+// ==========================================
+// 🟢 1. โหลดข้อมูล & สร้าง UI
+// ==========================================
 window.initSheetApp = async function() {
     const btnManage = document.getElementById('btnManageSheet');
     if (btnManage) {
@@ -15,26 +18,23 @@ window.initSheetApp = async function() {
             btnManage.classList.add('hidden');
         }
     }
+    loadCalcSettings();
     await fetchSheets();
 };
 
-// 2. ดึงข้อมูลจากตาราง external_sheets (ตารางที่คุณสร้างไว้แต่แรก)
 window.fetchSheets = async function() {
     try {
         if (typeof appDB === 'undefined') return;
         const { data, error } = await appDB.from('external_sheets').select('*').order('id', { ascending: true });
-        
         if (error) throw error;
         
         window.GLOBAL_SHEETS = data || [];
         renderSheetMenu();
         if(typeof renderAdminSheetList === 'function') renderAdminSheetList();
-    } catch (err) {
-        console.error('Fetch Sheets Error:', err);
-    }
+        renderRecentTabs();
+    } catch (err) { console.error('Fetch Sheets Error:', err); }
 };
 
-// 3. สร้าง UI เมนูกลุ่มและปุ่มตาราง
 window.renderSheetMenu = function() {
     const container = document.getElementById('sheetGroupsContainer');
     const searchInput = document.getElementById('sheetSearch');
@@ -59,7 +59,7 @@ window.renderSheetMenu = function() {
     }
 
     const createCard = (sheet, isPinned) => {
-        const finalUrl = sheet.sheet_id || '';
+        const finalUrl = sheet.sheet_id || sheet.url || '';
         const isExternal = finalUrl.startsWith('http') || finalUrl.startsWith('www');
         const iconType = isExternal ? 'public' : 'grid_view';
         const starIcon = isPinned ? 'star' : 'star_outline';
@@ -76,7 +76,7 @@ window.renderSheetMenu = function() {
                 <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
                 <div class="absolute inset-0 flex flex-col items-center justify-center p-4 z-10">
                     <div class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mb-2 shadow-lg group-hover:bg-white/20 transition"><span class="material-icons text-2xl text-white drop-shadow-md">${iconType}</span></div>
-                    <span class="font-bold text-sm text-center leading-tight text-white drop-shadow-lg line-clamp-2 px-2">${sheet.name}</span>
+                    <span class="font-bold text-sm text-center leading-tight text-white drop-shadow-lg line-clamp-2 px-2">${sheet.name || sheet.title}</span>
                 </div>
                 <button onclick="togglePin(event, ${sheet.id})" class="absolute top-3 right-3 z-20 p-1.5 rounded-full transition-all duration-300 ${starClass} bg-black/20 backdrop-blur-md hover:bg-white/90"><span class="material-icons text-xl leading-none block">${starIcon}</span></button>
             </div>`;
@@ -99,11 +99,11 @@ window.renderSheetMenu = function() {
             }
 
             cardHtml = `
-            <div class="relative group cursor-pointer transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-xl rounded-2xl h-36 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 overflow-hidden flex flex-col items-center justify-center p-4" onclick='openSheet(${JSON.stringify(sheet)})'>
+            <div class="relative group cursor-pointer transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-xl rounded-2xl h-36 bg-[#1e293b] border border-slate-700 overflow-hidden flex flex-col items-center justify-center p-4" onclick='openSheet(${JSON.stringify(sheet)})'>
                 ${topBar}
                 ${iconWrapper}
-                <span class="font-extrabold text-sm text-center leading-tight text-slate-700 dark:text-slate-200 line-clamp-2 px-1">${sheet.name}</span>
-                <button onclick="togglePin(event, ${sheet.id})" class="absolute top-2 right-2 z-20 p-1.5 rounded-full transition-all duration-300 ${starClass} bg-slate-50 dark:bg-slate-900 hover:bg-white border border-transparent hover:border-amber-200 hover:shadow-sm"><span class="material-icons text-lg leading-none block">${starIcon}</span></button>
+                <span class="font-extrabold text-sm text-center leading-tight text-white line-clamp-2 px-1">${sheet.name || sheet.title}</span>
+                <button onclick="togglePin(event, ${sheet.id})" class="absolute top-2 right-2 z-20 p-1.5 rounded-full transition-all duration-300 ${starClass} bg-slate-900 hover:bg-white border border-transparent hover:border-amber-200 hover:shadow-sm"><span class="material-icons text-lg leading-none block">${starIcon}</span></button>
             </div>`;
         }
         return cardHtml;
@@ -135,7 +135,50 @@ window.togglePin = function(e, id) {
     renderSheetMenu();
 };
 
-// 4. ระบบแท็บล่าสุด (Recent Tabs)
+
+// ==========================================
+// 🟢 2. ระบบเครื่องคิดเลข
+// ==========================================
+window.saveCalcSettings = function() {
+    const team = document.getElementById('calcTeam').value;
+    const deduct = document.getElementById('calcDeduct').value;
+    localStorage.setItem('calc_saved_team', team);
+    localStorage.setItem('calc_saved_deduct', deduct);
+};
+
+window.loadCalcSettings = function() {
+    const team = localStorage.getItem('calc_saved_team') || 'VV72';
+    const deduct = localStorage.getItem('calc_saved_deduct') || '188';
+    if(document.getElementById('calcTeam')) document.getElementById('calcTeam').value = team;
+    if(document.getElementById('calcDeduct')) document.getElementById('calcDeduct').value = deduct;
+    if(typeof calculateNet === 'function') calculateNet();
+};
+
+window.calculateNet = function() {
+    const base = parseFloat(document.getElementById('calcBase').value) || 0;
+    const deduct = parseFloat(document.getElementById('calcDeduct').value) || 0;
+    const result = base - deduct;
+    
+    const resEl = document.getElementById('calcResult');
+    if(!resEl) return;
+    
+    resEl.innerText = result.toLocaleString();
+    if (result < 0) { resEl.classList.remove('text-emerald-400', 'text-white'); resEl.classList.add('text-rose-400'); }
+    else if (result > 0) { resEl.classList.remove('text-rose-400', 'text-white'); resEl.classList.add('text-emerald-400'); }
+    else { resEl.classList.remove('text-emerald-400', 'text-rose-400'); resEl.classList.add('text-white'); }
+};
+
+window.copyCalcResult = function() {
+    const result = document.getElementById('calcResult').innerText.replace(/,/g, '');
+    navigator.clipboard.writeText(result).then(() => {
+        Swal.fire({icon: 'success', title: 'คัดลอกแล้ว', text: result, timer: 1000, showConfirmButton: false});
+    });
+};
+
+
+// ==========================================
+// 🟢 3. ระบบจัดการแท็บ และเปิด iFrame
+// ==========================================
 window.renderRecentTabs = function() {
     const container = document.getElementById('recentTabsContainer');
     if (!container) return;
@@ -147,27 +190,34 @@ window.renderRecentTabs = function() {
     container.classList.remove('hidden');
 
     let html = recentTabs.map(tab => {
-        const titleEl = document.getElementById('sheetTitle');
-        const isViewerVisible = document.getElementById('sheetViewer') && !document.getElementById('sheetViewer').classList.contains('hidden');
-        const isActive = titleEl && titleEl.innerText.includes(tab.name) && isViewerVisible;
-        const activeClass = isActive ? 'bg-white text-blue-700 border-t-2 border-blue-600 rounded-t-lg shadow-sm' : 'bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-t-lg opacity-80';
-        const icon = (tab.sheet_id && (tab.sheet_id.startsWith('http') || tab.sheet_id.startsWith('www'))) ? 'link' : 'table_chart';
+        const isViewerVisible = !document.getElementById('sheetViewer').classList.contains('hidden');
+        const isActive = (String(window.currentActiveTabId) === String(tab.id)) && isViewerVisible;
+        const activeClass = isActive ? 'bg-white text-blue-700 font-black' : 'bg-gray-300 text-gray-600 hover:bg-gray-200 font-bold opacity-80';
+        const urlToCheck = tab.sheet_id || tab.url || '';
+        const icon = (urlToCheck.startsWith('http') || urlToCheck.startsWith('www')) ? 'link' : 'table_chart';
+        const tName = tab.name || tab.title || 'ไม่มีชื่อ';
 
-        return `<div onclick='openSheet(${JSON.stringify(tab)})' class="${activeClass} px-3 py-1.5 min-w-[120px] max-w-[200px] flex items-center justify-between gap-2 cursor-pointer transition select-none group border-x border-t border-gray-300/50">
-            <div class="flex items-center gap-1 overflow-hidden">
-                <span class="material-icons text-xs">${icon}</span>
-                <span class="text-xs font-bold truncate">${tab.name}</span>
+        return `
+        <div onclick="openSheetById('${tab.id}')" class="${activeClass} px-3 py-2 min-w-[120px] max-w-[200px] flex items-center justify-between gap-2 cursor-pointer transition select-none rounded-t-xl shrink-0">
+            <div class="flex items-center gap-1.5 overflow-hidden">
+                <span class="material-icons text-[14px]">${icon}</span>
+                <span class="text-xs truncate">${tName}</span>
             </div>
-            <button onclick="closeTab(event, ${tab.id})" class="text-gray-400 hover:text-red-500 rounded-full p-0.5 hover:bg-gray-100/50">
-                <span class="material-icons text-[14px] font-bold">close</span>
+            <button onclick="closeTab(event, '${tab.id}')" class="text-gray-400 hover:text-red-500 rounded-full p-0.5 hover:bg-gray-100/50">
+                <span class="material-icons text-[14px] font-bold leading-none block">close</span>
             </button>
         </div>`;
     }).join('');
 
     if (recentTabs.length > 1) { 
-        html += `<button onclick="clearAllTabs()" class="ml-2 px-2 pb-2 text-[10px] text-red-500 hover:text-red-700 underline shrink-0">ล้างทั้งหมด</button>`; 
+        html += `<button onclick="clearAllTabs()" class="ml-2 px-2 pb-2 text-[10px] text-red-500 hover:text-red-400 underline shrink-0">ล้างทั้งหมด</button>`; 
     }
     container.innerHTML = html;
+};
+
+window.openSheetById = function(id) {
+    const tab = recentTabs.find(t => String(t.id) === String(id)) || window.GLOBAL_SHEETS.find(s => String(s.id) === String(id));
+    if(tab) openSheet(tab);
 };
 
 window.addToRecentTabs = function(sheet) {
@@ -180,10 +230,18 @@ window.addToRecentTabs = function(sheet) {
 
 window.closeTab = function(e, id) {
     e.stopPropagation();
-    recentTabs = recentTabs.filter(t => t.id !== id);
+    recentTabs = recentTabs.filter(t => String(t.id) !== String(id));
     localStorage.setItem('sheet_recent_tabs', JSON.stringify(recentTabs));
-    if (recentTabs.length === 0) closeSheet();
-    renderRecentTabs();
+    
+    if (recentTabs.length === 0) {
+        closeSheet(); 
+    } else {
+        if (String(window.currentActiveTabId) === String(id)) {
+            openSheet(recentTabs[0]); 
+        } else {
+            renderRecentTabs(); 
+        }
+    }
 };
 
 window.clearAllTabs = function() {
@@ -193,16 +251,22 @@ window.clearAllTabs = function() {
     closeSheet();
 };
 
-// 5. ฟังก์ชันเปิด/ปิด iFrame 
 window.openSheet = function(sheet) {
-    document.getElementById('sheetMenu').classList.add('hidden');
-    document.getElementById('sheetViewer').classList.remove('hidden');
-    document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${sheet.group_name || ''}</span> <span class="material-icons text-xs mx-1">arrow_forward_ios</span> <span class="text-white">${sheet.name || ''}</span>`;
-    document.getElementById('sheetLoading').classList.remove('hidden');
+    window.currentActiveTabId = sheet.id;
     
+    document.getElementById('sheetMenu').classList.add('hidden');
+    const viewer = document.getElementById('sheetViewer');
+    viewer.classList.remove('hidden');
+    viewer.classList.add('flex');
+    
+    const gName = sheet.group_name || sheet.category || 'ทั่วไป';
+    const sName = sheet.name || sheet.title || 'ไม่มีชื่อ';
+    document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${gName}</span> <span class="material-icons text-[10px] mx-1 text-gray-600">arrow_forward_ios</span> <span class="text-white font-bold text-sm">${sName}</span>`;
+    
+    document.getElementById('sheetLoading').classList.remove('hidden');
     addToRecentTabs(sheet);
 
-    let url = sheet.sheet_id || '';
+    let url = sheet.sheet_id || sheet.url || '';
     if (url.startsWith('http') || url.startsWith('www')) {
         url = url.startsWith('www') ? 'https://' + url : url;
     } else {
@@ -211,9 +275,7 @@ window.openSheet = function(sheet) {
     }
     
     const btnNewTab = document.getElementById('btnOpenNewTab');
-    if (btnNewTab) {
-        btnNewTab.onclick = () => window.open(url, '_blank');
-    }
+    if (btnNewTab) btnNewTab.onclick = () => window.open(url, '_blank');
     
     const frame = document.getElementById('sheetFrame');
     if(frame) {
@@ -226,7 +288,9 @@ window.closeSheet = function() {
     const frame = document.getElementById('sheetFrame');
     if(frame) frame.src = 'about:blank';
     document.getElementById('sheetViewer')?.classList.add('hidden');
+    document.getElementById('sheetViewer')?.classList.remove('flex');
     document.getElementById('sheetMenu')?.classList.remove('hidden');
+    window.currentActiveTabId = null;
     renderRecentTabs();
 };
 
@@ -234,7 +298,10 @@ window.hideSheetLoading = function() {
     document.getElementById('sheetLoading')?.classList.add('hidden');
 };
 
-// 6. ส่วนแอดมิน (เพิ่ม/แก้ไข/ลบ ข้อมูลชีท)
+
+// ==========================================
+// 🟢 4. ระบบแอดมิน (เพิ่ม/ลบ/แก้ไข)
+// ==========================================
 window.showSheetAdmin = function() {
     document.getElementById('sheetAdminModal').classList.remove('hidden');
     document.getElementById('sheetAdminModal').classList.add('flex');
@@ -261,8 +328,8 @@ window.renderAdminSheetList = function() {
             <div class="overflow-hidden mr-2 flex items-center gap-4">
                 <div class="w-2.5 h-10 rounded-full shrink-0 shadow-inner" style="background-color: ${bg}"></div>
                 <div class="truncate">
-                    <div class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-0.5">${s.group_name || 'ทั่วไป'}</div>
-                    <div class="text-white font-bold text-sm truncate">${s.name}</div>
+                    <div class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-0.5">${s.group_name || s.category || 'ทั่วไป'}</div>
+                    <div class="text-white font-bold text-sm truncate">${s.name || s.title}</div>
                 </div>
             </div>
             <div class="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -278,30 +345,31 @@ window.startEdit = function(id) {
     if(!sheet) return;
 
     document.getElementById('editSheetId').value = sheet.id;
-    document.getElementById('newSheetName').value = sheet.name;
-    document.getElementById('newSheetGroup').value = sheet.group_name;
-    document.getElementById('newSheetCover').value = sheet.cover_url || '';
+    document.getElementById('newSheetName').value = sheet.name || sheet.title;
+    document.getElementById('newSheetGroup').value = sheet.group_name || sheet.category || '';
+    document.getElementById('newSheetCover').value = sheet.cover_url || sheet.bg_image || '';
     
     if(document.getElementById('newSheetCoverFile')) document.getElementById('newSheetCoverFile').value = ''; 
     const coverContainer = document.getElementById('currentSheetCoverContainer');
     const coverImg = document.getElementById('currentSheetCoverImg');
     if(coverContainer && coverImg) {
-        if(sheet.cover_url) { coverImg.src = sheet.cover_url; coverContainer.classList.remove('hidden'); } 
+        if(sheet.cover_url || sheet.bg_image) { coverImg.src = sheet.cover_url || sheet.bg_image; coverContainer.classList.remove('hidden'); } 
         else { coverContainer.classList.add('hidden'); }
     }
     
-    if (!sheet.sheet_id.startsWith('http')) {
-        let fullUrl = `https://docs.google.com/spreadsheets/d/${sheet.sheet_id}`;
+    let sheetId = sheet.sheet_id || sheet.url || '';
+    if (sheetId && !sheetId.startsWith('http')) {
+        let fullUrl = `https://docs.google.com/spreadsheets/d/${sheetId}`;
         if(sheet.gid) fullUrl += `#gid=${sheet.gid}`;
         document.getElementById('newSheetUrl').value = fullUrl;
-    } else { document.getElementById('newSheetUrl').value = sheet.sheet_id; }
+    } else { document.getElementById('newSheetUrl').value = sheetId; }
 
     const colorMap = { 'blue': '#3b82f6', 'green': '#22c55e', 'red': '#ef4444', 'yellow': '#eab308', 'purple': '#a855f7', 'gray': '#6b7280' };
     let hexColor = sheet.color;
     if (hexColor && !hexColor.startsWith('#')) hexColor = colorMap[hexColor] || '#3b82f6';
     document.getElementById('newSheetColor').value = hexColor;
 
-    document.getElementById('formTitle').innerText = `✏️ กำลังแก้ไข: ${sheet.name}`;
+    document.getElementById('formTitle').innerText = `✏️ กำลังแก้ไข: ${sheet.name || sheet.title}`;
     document.getElementById('formTitle').className = "text-sm font-bold text-orange-600";
     const btn = document.getElementById('btnSaveSheet');
     btn.innerHTML = `<span class="material-icons">save</span> บันทึกการแก้ไข`;
@@ -314,7 +382,7 @@ window.cancelEdit = function() {
     ['editSheetId','newSheetName','newSheetGroup','newSheetUrl','newSheetCover'].forEach(id => document.getElementById(id).value = '');
     if(document.getElementById('newSheetCoverFile')) document.getElementById('newSheetCoverFile').value = ''; 
     if(document.getElementById('currentSheetCoverContainer')) document.getElementById('currentSheetCoverContainer').classList.add('hidden');
-    document.getElementById('newSheetColor').value = '#3b82f6';
+    document.getElementById('newSheetColor').value = 'blue';
     
     document.getElementById('formTitle').innerHTML = `<span class="material-icons text-[18px]">add_circle</span> เพิ่มรายการใหม่`;
     document.getElementById('formTitle').className = "text-sm font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1";
@@ -358,7 +426,7 @@ window.saveSheetData = async function() {
             if (gidMatch) gid = gidMatch[1];
         } 
         
-        const payload = { name, group_name: group, sheet_id: sheetId, gid, color, cover_url: finalCoverUrl };
+        const payload = { name: name, group_name: group, sheet_id: sheetId, gid: gid, color: color, cover_url: finalCoverUrl };
 
         if (id) {
             const { error } = await appDB.from('external_sheets').update(payload).eq('id', id);
@@ -390,142 +458,30 @@ window.deleteSheet = async function(id) {
     }
 };
 
-setTimeout(() => { renderRecentTabs(); }, 500);
-
 // ==========================================
-// 🟢 ระบบเครื่องคิดเลข (จำค่าลง Browser)
+// 🟢 5. ระบบดักจับการสลับหน้า 
 // ==========================================
-window.saveCalcSettings = function() {
-    const team = document.getElementById('calcTeam').value;
-    const deduct = document.getElementById('calcDeduct').value;
-    localStorage.setItem('calc_saved_team', team);
-    localStorage.setItem('calc_saved_deduct', deduct);
-};
-
-window.loadCalcSettings = function() {
-    const team = localStorage.getItem('calc_saved_team') || 'VV72';
-    const deduct = localStorage.getItem('calc_saved_deduct') || '188';
-    if(document.getElementById('calcTeam')) document.getElementById('calcTeam').value = team;
-    if(document.getElementById('calcDeduct')) document.getElementById('calcDeduct').value = deduct;
-    if(typeof calculateNet === 'function') calculateNet();
-};
-
-window.calculateNet = function() {
-    const base = parseFloat(document.getElementById('calcBase').value) || 0;
-    const deduct = parseFloat(document.getElementById('calcDeduct').value) || 0;
-    const result = base - deduct;
-    
-    const resEl = document.getElementById('calcResult');
-    if(!resEl) return;
-    
-    resEl.innerText = result.toLocaleString();
-    if (result < 0) { resEl.classList.remove('text-emerald-400', 'text-white'); resEl.classList.add('text-rose-400'); }
-    else if (result > 0) { resEl.classList.remove('text-rose-400', 'text-white'); resEl.classList.add('text-emerald-400'); }
-    else { resEl.classList.remove('text-emerald-400', 'text-rose-400'); resEl.classList.add('text-white'); }
-};
-
-window.copyCalcResult = function() {
-    const result = document.getElementById('calcResult').innerText.replace(/,/g, '');
-    navigator.clipboard.writeText(result).then(() => {
-        Swal.fire({icon: 'success', title: 'คัดลอกแล้ว', text: result, timer: 1000, showConfirmButton: false});
-    });
-};
-
-// ดึงข้อมูลเดิมมาโชว์ตอนโหลดหน้า
-setTimeout(() => { loadCalcSettings(); }, 500);
-
-// ==========================================
-// 🟢 ระบบแท็บด้านบนสุด (แก้บั๊กปิดแท็บไม่ได้)
-// ==========================================
-window.currentActiveTabId = null;
-
-// ฟังก์ชันเปิดโดยใช้ ID แทนการส่ง Object ป้องกัน HTML พัง
-window.openSheetById = function(id) {
-    const tab = recentTabs.find(t => String(t.id) === String(id)) || window.GLOBAL_SHEETS.find(s => String(s.id) === String(id));
-    if(tab) openSheet(tab);
-};
-
-window.renderRecentTabs = function() {
-    const container = document.getElementById('recentTabsContainer');
-    if (!container) return;
-    
-    if (recentTabs.length === 0) { 
-        container.classList.add('hidden'); 
-        return; 
+const showPage_Old_Sheet = window.showPage; 
+window.showPage = async function(page) {
+    if (typeof showPage_Old_Sheet === 'function' && showPage_Old_Sheet !== window.showPage) {
+        await showPage_Old_Sheet(page);
     }
-    container.classList.remove('hidden');
-
-    let html = recentTabs.map(tab => {
-        const isViewerVisible = !document.getElementById('sheetViewer').classList.contains('hidden');
-        const isActive = (String(window.currentActiveTabId) === String(tab.id)) && isViewerVisible;
-        const activeClass = isActive ? 'bg-white text-blue-700 font-black' : 'bg-gray-300 text-gray-600 hover:bg-gray-200 font-bold opacity-80';
-        const icon = (tab.url && tab.url.startsWith('http')) || (tab.sheet_id && tab.sheet_id.startsWith('http')) ? 'link' : 'table_chart';
-        const tName = tab.name || tab.title || 'ไม่มีชื่อ';
-
-        return `
-        <div onclick="openSheetById('${tab.id}')" class="${activeClass} px-3 py-2 min-w-[120px] max-w-[200px] flex items-center justify-between gap-2 cursor-pointer transition select-none rounded-t-xl shrink-0">
-            <div class="flex items-center gap-1.5 overflow-hidden">
-                <span class="material-icons text-[14px]">${icon}</span>
-                <span class="text-xs truncate">${tName}</span>
-            </div>
-            <button onclick="closeTab(event, '${tab.id}')" class="text-gray-400 hover:text-red-500 rounded-full p-0.5 hover:bg-gray-100/50">
-                <span class="material-icons text-[14px] font-bold leading-none block">close</span>
-            </button>
-        </div>`;
-    }).join('');
-
-    if (recentTabs.length > 1) { 
-        html += `<button onclick="clearAllTabs()" class="ml-2 px-2 pb-2 text-[10px] text-red-500 hover:text-red-400 underline shrink-0">ล้างทั้งหมด</button>`; 
-    }
-    container.innerHTML = html;
-};
-
-// 🌟 แก้บั๊ก: ตอนปิดแท็บ ถ้าเป็นแท็บที่กำลังเปิดอยู่ ให้สลับไปเปิดแท็บอื่นแทน
-window.closeTab = function(e, id) {
-    e.stopPropagation(); // กันไม่ให้มันไปทริกเกอร์ปุ่มคลิกแท็บ
-    recentTabs = recentTabs.filter(t => String(t.id) !== String(id));
-    localStorage.setItem('sheet_recent_tabs', JSON.stringify(recentTabs));
     
-    if (recentTabs.length === 0) {
-        closeSheet(); // ถ้าไม่เหลือแท็บแล้ว ก็ปิดหน้าต่างทิ้ง
-    } else {
-        if (String(window.currentActiveTabId) === String(id)) {
-            openSheet(recentTabs[0]); // ถ้าปิดแท็บที่ดูอยู่ ให้สลับไปดูแท็บแรกสุดแทน
-        } else {
-            renderRecentTabs(); // ถ้าปิดแท็บอื่นที่ไม่ได้ดูอยู่ ก็แค่วาดใหม่
+    const sheetApp = document.getElementById('sheetApp');
+    if (page === 'sheet') {
+        ['mainContentArea', 'adminPanel', 'logsPage', 'leaveApp'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+        if (sheetApp) {
+            sheetApp.classList.remove('hidden');
+            sheetApp.classList.add('flex'); 
         }
-    }
-};
-
-window.openSheet = function(sheet) {
-    window.currentActiveTabId = sheet.id; // เก็บแท็บที่เปิดล่าสุด
-    
-    document.getElementById('sheetMenu').classList.add('hidden');
-    const viewer = document.getElementById('sheetViewer');
-    viewer.classList.remove('hidden');
-    viewer.classList.add('flex'); // 🌟 บังคับให้เป็น flex เสมอ จะได้กางเต็มจอ
-    
-    const gName = sheet.group_name || sheet.category || 'ทั่วไป';
-    const sName = sheet.name || sheet.title || 'ไม่มีชื่อ';
-    document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${gName}</span> <span class="material-icons text-[10px] mx-1 text-gray-600">arrow_forward_ios</span> <span class="text-white font-bold text-sm">${sName}</span>`;
-    
-    document.getElementById('sheetLoading').classList.remove('hidden');
-    addToRecentTabs(sheet);
-
-    let url = sheet.sheet_id || sheet.url || '';
-    if (url.startsWith('http') || url.startsWith('www')) {
-        url = url.startsWith('www') ? 'https://' + url : url;
+        if (typeof window.initSheetApp === 'function') window.initSheetApp();
     } else {
-        url = `https://docs.google.com/spreadsheets/d/${url}/edit?rm=minimal&single=true&widget=true&headers=false`;
-        if(sheet.gid) url += `&gid=${sheet.gid}`;
-    }
-    
-    const btnNewTab = document.getElementById('btnOpenNewTab');
-    if (btnNewTab) btnNewTab.onclick = () => window.open(url, '_blank');
-    
-    const frame = document.getElementById('sheetFrame');
-    if(frame) {
-        frame.onload = function() { window.hideSheetLoading(); };
-        frame.src = url;
+        if (sheetApp) {
+            sheetApp.classList.add('hidden');
+            sheetApp.classList.remove('flex');
+        }
     }
 };
