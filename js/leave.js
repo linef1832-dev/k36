@@ -543,52 +543,68 @@ window.updateThaiMonthDisplay = function() {
     }
 };
 
-window.toggleLeaveTable = async function(date, action, userId, userName, userShift) {
-    isEditingLeave = true;
-    clearTimeout(editLeaveTimer);
-    editLeaveTimer = setTimeout(() => { isEditingLeave = false; }, 2000);
+// =================================================================
+// 🟢 ระบบบันทึก/ลบ วันหยุด (รองรับ 6 ประเภทการลาแบบเดิม)
+// =================================================================
+window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUserName, targetUserShift) {
+    // 1. ดึงประเภทการลาที่กดเลือกไว้จากแถบเมนู (ถ้าไม่ได้เลือก ให้เป็น X ปกติ)
+    const typeToSave = window.activeLeaveType || 'X';
 
-    const s = deptSettings[currentViewDept];
-    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    if (action === 'remove') {
+        const result = await Swal.fire({
+            title: 'ยืนยันการลบ?',
+            text: `ยกเลิกรายการของ ${targetUserName} วันที่ ${dateStr} ใช่หรือไม่?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'ใช่, ลบเลย!',
+            cancelButtonText: 'ยกเลิก'
+        });
+        if (!result.isConfirmed) return;
+    }
 
-    if (action === 'add') {
-        if (typeof checkBookingWindow === 'function' && !checkBookingWindow(userShift) && !isAdmin) {
-            return Swal.fire('ปิดจอง', `ไม่อยู่ในช่วงเวลาจองของกะ: ${userShift.replace('กะ','')}`, 'warning');
+    // ล็อกระบบ Realtime ชั่วคราวกันจอกระพริบสู้มือ
+    window.isEditingLeave = true; 
+    Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+    try {
+        if (action === 'add') {
+            // 🌟 บันทึกประเภทการลา (typeToSave) ลงฐานข้อมูล
+            const { error } = await appDB.from('leave_requests').insert([
+                { user_id: targetUserId, leave_date: dateStr, reason: typeToSave, status: 'approved' }
+            ]);
+            if (error) throw error;
+            
+            await appDB.from('system_logs').insert([{
+                action_type: 'ลงเวลา',
+                performed_by: currentUser.username,
+                target_details: `ลงเวลา ${targetUserShift} ${dateStr} (${typeToSave}) [${currentViewDept}]`
+            }]);
+
+        } else if (action === 'remove') {
+            const { error } = await appDB.from('leave_requests')
+                .delete()
+                .eq('user_id', targetUserId)
+                .eq('leave_date', dateStr);
+            
+            if (error) throw error;
+
+            await appDB.from('system_logs').insert([{
+                action_type: 'ลบรายการ',
+                performed_by: currentUser.username,
+                target_details: `ลบรายการของ ${targetUserName} วันที่ ${dateStr} [${currentViewDept}]`
+            }]);
         }
         
-        const targetMonth = new Date(date).getMonth();
-        const currentLeaves = allLeaveData.filter(l => { 
-            const d = new Date(l.leave_date); 
-            return String(l.user_id) === String(userId) && d.getMonth() === targetMonth; 
-        }).length;
-        
-        if (!isAdmin && currentLeaves >= s.limit) {
-            return Swal.fire({icon: 'error', title: 'เต็มโควตา', text: `ครบ ${s.limit} วันแล้ว`});
-        }
+        await fetchLeaveData(); // โหลดตารางใหม่
+        Swal.fire({ icon: 'success', title: action === 'add' ? 'บันทึกสำเร็จ' : 'ลบสำเร็จ', showConfirmButton: false, timer: 1000 });
 
-        let selectedLeaveType = window.activeLeaveType || 'X';
-        allLeaveData.push({ user_id: userId, user_name: userName, leave_date: date, reason: selectedLeaveType });
-        renderLeaveTable(); 
-
-        const { error } = await appDB.from('leave_requests').insert([{ 
-            user_id: userId, user_name: userName, leave_date: date, reason: selectedLeaveType 
-        }]);
-        
-        if(error) { 
-            fetchLeaveData(); Swal.fire('Error', 'จองไม่สำเร็จ', 'error'); 
-        } else {
-            if(typeof logLeaveAction === 'function') logLeaveAction(`จอง [${selectedLeaveType}]`, userId, userName, date);
-        }
-    } else {
-        allLeaveData = allLeaveData.filter(l => !(String(l.user_id) === String(userId) && l.leave_date === date));
-        renderLeaveTable(); 
-        
-        const { error } = await appDB.from('leave_requests').delete().eq('user_id', userId).eq('leave_date', date);
-        if(error) { 
-            fetchLeaveData(); Swal.fire('Error', error.message, 'error'); 
-        } else {
-            if(typeof logLeaveAction === 'function') logLeaveAction('ยกเลิก', userId, userName, date);
-        }
+    } catch (error) {
+        console.error('Toggle Leave Error:', error);
+        Swal.fire('ข้อผิดพลาด', error.message, 'error');
+    } finally {
+        setTimeout(() => { window.isEditingLeave = false; }, 500); // ปลดล็อก
     }
 };
 
