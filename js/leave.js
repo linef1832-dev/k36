@@ -828,10 +828,11 @@ window.toggleLeaveStatus = async function(isChecked) {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
-        if (typeof window.appDB === 'undefined') throw new Error('ไม่พบฐานข้อมูล');
+        // 💡 แก้ไขตรงนี้: ใช้ appDB ตรงๆ เหมือนไฟล์อื่น
+        if (typeof appDB === 'undefined') throw new Error('ไม่พบตัวแปรเชื่อมต่อฐานข้อมูล');
 
         // 2. บันทึกลงฐานข้อมูลเฉพาะแผนกนั้นๆ
-        const { error } = await window.appDB.from('settings').upsert([
+        const { error } = await appDB.from('settings').upsert([
             { key: `leave_status_${currentDept}`, value: statusValue }
         ]);
 
@@ -856,7 +857,8 @@ window.toggleLeaveStatus = async function(isChecked) {
 // 🟢 ฟังก์ชันดึงค่าสถานะเดิมมาแสดงตอนโหลดหน้าเว็บ
 window.loadLeaveStatusConfig = async function() {
     try {
-        const { data } = await window.appDB.from('settings').select('*').like('key', 'leave_status_%');
+        // 💡 แก้ไขตรงนี้: ใช้ appDB ตรงๆ
+        const { data } = await appDB.from('settings').select('*').like('key', 'leave_status_%');
         if (data) {
             data.forEach(item => {
                 const dept = item.key.replace('leave_status_', '');
