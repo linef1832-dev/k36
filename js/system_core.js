@@ -1610,6 +1610,11 @@ window.loadSettings = async function() {
         if (typeof renderOperatingHours === 'function') renderOperatingHours();
         if (typeof renderQuotaSettings === 'function') renderQuotaSettings();
         if (typeof renderPermsTable === 'function') renderPermsTable();
+        
+        // 🟢 เพิ่ม 2 บรรทัดนี้เพื่อให้มันดึงรอบเวลาที่เคยตั้งไว้มาแสดง
+        if (typeof applyCustomTimeSlots === 'function') applyCustomTimeSlots();
+        if (typeof renderManualTimeSlots === 'function') renderManualTimeSlots(); 
+        
     } catch (e) { console.error("Load Settings Error:", e); }
 };
 
@@ -1972,4 +1977,141 @@ window.addTeamManual = function(dept) {
             }
         }
     });
+};
+// =========================================================
+// 🟢 ระบบเพิ่มรอบเวลาเอง (Manual Time Slots)
+// =========================================================
+
+window.renderManualTimeSlots = function() {
+    const container = document.getElementById('manualTimeSlotsContainer');
+    if (!container) return;
+
+    let customSlots = {};
+    try {
+        if (SETTINGS['custom_time_slots']) {
+            customSlots = typeof SETTINGS['custom_time_slots'] === 'string' ? JSON.parse(SETTINGS['custom_time_slots']) : SETTINGS['custom_time_slots'];
+        }
+    } catch(e) { customSlots = {}; }
+
+    let html = '';
+    let count = 0;
+
+    for (const [shift, periods] of Object.entries(customSlots)) {
+        for (const [period, slots] of Object.entries(periods)) {
+            slots.forEach(slot => {
+                let sName = shift.replace('กะ', '');
+                let pName = period.replace('ช่วงที่ ', 'P');
+                let colorClass = sName === 'เช้า' ? 'text-orange-400' : (sName === 'กลาง' ? 'text-blue-400' : 'text-purple-400');
+                
+                html += `
+                <div class="flex justify-between items-center bg-slate-800 p-2 rounded-lg border border-slate-600/50 shadow-sm">
+                    <div class="flex items-center gap-2 text-[10px] font-bold ${colorClass}">
+                        <span class="w-12">${sName} ${pName}</span>
+                        <span class="text-gray-300 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-700 tracking-wider shadow-inner">${slot}</span>
+                    </div>
+                    <button onclick="deleteManualTimeSlot('${shift}', '${period}', '${slot}')" class="text-red-400 hover:text-red-500 hover:bg-red-900/30 p-1 rounded transition" title="ลบเวลา">
+                        <span class="material-icons text-[14px]">delete</span>
+                    </button>
+                </div>`;
+                count++;
+            });
+        }
+    }
+
+    if (count === 0) {
+        container.innerHTML = '<div class="text-center text-gray-600 text-xs py-4">ยังไม่มีการตั้งค่า</div>';
+    } else {
+        container.innerHTML = html;
+    }
+};
+
+window.addManualTimeSlot = async function() {
+    const shiftSelect = document.getElementById('newTimeShift').value; 
+    const periodSelect = document.getElementById('newTimePeriod').value; 
+    const start = document.getElementById('newTimeStart').value;
+    const end = document.getElementById('newTimeEnd').value;
+
+    if (!start || !end) return Swal.fire('เตือน', 'กรุณาระบุเวลาให้ครบ', 'warning');
+    if (start >= end) return Swal.fire('เตือน', 'เวลาเริ่มต้องน้อยกว่าเวลาจบ', 'warning');
+
+    const timeSlot = `${start}-${end}`;
+
+    let customSlots = {};
+    try {
+        if (SETTINGS['custom_time_slots']) {
+            customSlots = typeof SETTINGS['custom_time_slots'] === 'string' ? JSON.parse(SETTINGS['custom_time_slots']) : SETTINGS['custom_time_slots'];
+        }
+    } catch(e) { customSlots = {}; }
+
+    if (!customSlots[shiftSelect]) customSlots[shiftSelect] = {};
+    if (!customSlots[shiftSelect][periodSelect]) customSlots[shiftSelect][periodSelect] = [];
+    
+    if (customSlots[shiftSelect][periodSelect].includes(timeSlot)) {
+        return Swal.fire('เตือน', 'มีรอบเวลานี้อยู่แล้ว', 'warning');
+    }
+
+    customSlots[shiftSelect][periodSelect].push(timeSlot);
+    customSlots[shiftSelect][periodSelect].sort();
+
+    SETTINGS['custom_time_slots'] = JSON.stringify(customSlots);
+    
+    Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(customSlots) }]);
+    
+    applyCustomTimeSlots();
+    renderManualTimeSlots();
+    
+    document.getElementById('newTimeStart').value = '';
+    document.getElementById('newTimeEnd').value = '';
+    
+    Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
+};
+
+window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
+    let customSlots = {};
+    try {
+        if (SETTINGS['custom_time_slots']) {
+            customSlots = typeof SETTINGS['custom_time_slots'] === 'string' ? JSON.parse(SETTINGS['custom_time_slots']) : SETTINGS['custom_time_slots'];
+        }
+    } catch(e) { customSlots = {}; }
+
+    if (customSlots[shift] && customSlots[shift][period]) {
+        customSlots[shift][period] = customSlots[shift][period].filter(t => t !== timeSlot);
+        if (customSlots[shift][period].length === 0) delete customSlots[shift][period];
+        if (Object.keys(customSlots[shift]).length === 0) delete customSlots[shift];
+    }
+
+    SETTINGS['custom_time_slots'] = JSON.stringify(customSlots);
+    
+    Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(customSlots) }]);
+    
+    if (SHIFT_GROUPS[shift] && SHIFT_GROUPS[shift][period]) {
+        SHIFT_GROUPS[shift][period] = SHIFT_GROUPS[shift][period].filter(t => t !== timeSlot);
+    }
+
+    renderManualTimeSlots();
+    Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
+};
+
+window.applyCustomTimeSlots = function() {
+    try {
+        if (SETTINGS['custom_time_slots']) {
+            const customSlots = typeof SETTINGS['custom_time_slots'] === 'string' ? JSON.parse(SETTINGS['custom_time_slots']) : SETTINGS['custom_time_slots'];
+            
+            for (const [shift, periods] of Object.entries(customSlots)) {
+                if (!SHIFT_GROUPS[shift]) SHIFT_GROUPS[shift] = {};
+                for (const [period, slots] of Object.entries(periods)) {
+                    if (!SHIFT_GROUPS[shift][period]) SHIFT_GROUPS[shift][period] = [];
+                    
+                    slots.forEach(slot => {
+                        if (!SHIFT_GROUPS[shift][period].includes(slot)) {
+                            SHIFT_GROUPS[shift][period].push(slot);
+                        }
+                    });
+                    SHIFT_GROUPS[shift][period].sort();
+                }
+            }
+        }
+    } catch(e) { console.error('Error applying custom time slots:', e); }
 };
