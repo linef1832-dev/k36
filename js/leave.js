@@ -814,46 +814,42 @@ window.fetchHistoryLogs = async function() {
     tbody.innerHTML = rows;
 }
 // =========================================================
-// 🟢 ระบบเปิด-ปิด การจองวันหยุด (AM / OD)
+// 🟢 ระบบเปิด-ปิด การจองวันหยุด (ปุ่มเดียวสลับตามแผนก)
 // =========================================================
 
-window.toggleLeaveStatus = async function(dept, isChecked) {
+// ตัวแปรเก็บสถานะเปิด/ปิดจองของแต่ละแผนก
+window.leaveStatusConfig = { 'AM': 'open', 'OD': 'open', 'NEW': 'open', 'TRAINER': 'open' };
+
+window.toggleLeaveStatus = async function(isChecked) {
+    // 1. ดึงชื่อแผนกที่กำลังเปิดอยู่ตอนนี้
+    const currentDept = window.currentDept || document.getElementById('settingTargetLabel').innerText || 'AM';
     const statusValue = isChecked ? 'open' : 'closed';
     
-    // แสดงกล่องโหลด
-    Swal.fire({
-        title: 'กำลังบันทึกสถานะ...', 
-        allowOutsideClick: false, 
-        didOpen: () => Swal.showLoading()
-    });
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
-        // ตรวจสอบว่ามีฐานข้อมูลไหม
         if (typeof window.appDB === 'undefined') throw new Error('ไม่พบฐานข้อมูล');
 
-        // บันทึกสถานะลงฐานข้อมูล Settings
+        // 2. บันทึกลงฐานข้อมูลเฉพาะแผนกนั้นๆ
         const { error } = await window.appDB.from('settings').upsert([
-            { key: `leave_status_${dept}`, value: statusValue }
+            { key: `leave_status_${currentDept}`, value: statusValue }
         ]);
 
         if (error) throw error;
 
-        // แจ้งเตือนเมื่อสำเร็จ
-        Swal.fire({
-            icon: 'success',
-            title: 'บันทึกสำเร็จ!',
-            text: `ระบบจองวันหยุดแผนก ${dept} ได้ถูก ${isChecked ? 'เปิด' : 'ปิด'} แล้ว`,
-            timer: 1500,
-            showConfirmButton: false
+        // 3. เก็บค่าไว้ในตัวแปร
+        window.leaveStatusConfig[currentDept] = statusValue;
+
+        Swal.fire({ 
+            icon: 'success', title: 'บันทึกสำเร็จ!', 
+            text: `ระบบจองวันหยุดแผนก ${currentDept} ถูก ${isChecked ? 'เปิด' : 'ปิด'} แล้ว`, 
+            timer: 1500, showConfirmButton: false 
         });
 
     } catch (error) {
         console.error('Toggle Leave Error:', error);
-        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกสถานะได้: ' + error.message, 'error');
-        
-        // ถ้า error ให้ดีดสวิตช์กลับไปค่าเดิม
-        const toggleBtn = document.getElementById(`toggleLeave${dept}`);
-        if (toggleBtn) toggleBtn.checked = !isChecked;
+        Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+        document.getElementById('setForceOpen').checked = !isChecked; // คืนค่าสวิตช์ถ้าพัง
     }
 };
 
@@ -863,20 +859,33 @@ window.loadLeaveStatusConfig = async function() {
         const { data } = await window.appDB.from('settings').select('*').like('key', 'leave_status_%');
         if (data) {
             data.forEach(item => {
-                if (item.key === 'leave_status_AM') {
-                    const tAM = document.getElementById('toggleLeaveAM');
-                    if (tAM) tAM.checked = (item.value === 'open');
-                }
-                if (item.key === 'leave_status_OD') {
-                    const tOD = document.getElementById('toggleLeaveOD');
-                    if (tOD) tOD.checked = (item.value === 'open');
-                }
+                const dept = item.key.replace('leave_status_', '');
+                window.leaveStatusConfig[dept] = item.value;
             });
         }
+        updateLeaveToggleUI(); // อัปเดตสวิตช์ให้ตรงกับแผนกปัจจุบัน
     } catch(e) { console.error('Load Leave Status Error:', e); }
 };
 
-// สั่งให้ดึงค่ามาแสดงทันทีที่ไฟล์นี้ถูกโหลด
+// 🟢 ฟังก์ชันเปลี่ยนหน้าตาสวิตช์ เมื่อกดสลับแท็บแผนก
+window.updateLeaveToggleUI = function() {
+    const currentDept = window.currentDept || document.getElementById('settingTargetLabel').innerText || 'AM';
+    const toggleBtn = document.getElementById('setForceOpen');
+    if (toggleBtn) {
+        toggleBtn.checked = (window.leaveStatusConfig[currentDept] !== 'closed'); // ปกติให้เป็นเปิด
+    }
+};
+
+// สั่งให้ดึงข้อมูลตอนเปิดหน้า
 setTimeout(() => {
     if(typeof loadLeaveStatusConfig === 'function') loadLeaveStatusConfig();
 }, 500);
+
+// 🟢 ดักจับการเปลี่ยนแท็บ (ถ้าป้ายชื่อแผนกเปลี่ยน ให้เปลี่ยนสถานะสวิตช์ตาม)
+setTimeout(() => {
+    const targetNode = document.getElementById('settingTargetLabel');
+    if (targetNode) {
+        const observer = new MutationObserver(() => { updateLeaveToggleUI(); });
+        observer.observe(targetNode, { childList: true, characterData: true, subtree: true });
+    }
+}, 1000);
