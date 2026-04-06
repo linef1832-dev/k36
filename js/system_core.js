@@ -1243,21 +1243,12 @@ window.updateUserDepartment = async function(id, newDept) {
 // ==========================================
 
 window.openChangePinModal = function() {
-    console.log("กำลังเปิดหน้าต่างเปลี่ยนรหัส...");
-    
-    // ล้างค่าในช่องกรอกให้ว่างเปล่าก่อนเปิด
     if(document.getElementById('newPin1')) document.getElementById('newPin1').value = '';
     if(document.getElementById('newPin2')) document.getElementById('newPin2').value = '';
-    
-    // สั่งเปิดกล่อง Modal
     const modal = document.getElementById('changePinModal');
     if(modal) {
         modal.classList.remove('hidden');
-        modal.classList.add('flex'); // บังคับแสดงแบบ flex ให้อยู่กึ่งกลาง
-    } else {
-        console.error("❌ หาไอดี changePinModal ไม่เจอใน HTML!");
-        // แจ้งเตือนแอดมินให้รู้ว่าลืมใส่กล่อง HTML
-        Swal.fire('ข้อผิดพลาด', 'ไม่พบส่วนแสดงผลหน้าต่างเปลี่ยนรหัส (HTML ไม่สมบูรณ์)', 'error');
+        modal.classList.add('flex'); 
     }
 };
 
@@ -1274,38 +1265,21 @@ window.submitChangePin = async function(e) {
     const pin1 = document.getElementById('newPin1').value;
     const pin2 = document.getElementById('newPin2').value;
 
-    if (pin1.length !== 6 || pin2.length !== 6) {
-        return Swal.fire('แจ้งเตือน', 'กรุณาใส่ตัวเลขให้ครบ 6 หลัก', 'warning');
-    }
-
-    if (pin1 !== pin2) {
-        return Swal.fire('ผิดพลาด', 'รหัสผ่านทั้งสองช่องไม่ตรงกัน!', 'error');
-    }
-
-    if (!window.currentUser || !window.currentUser.id) {
-        return Swal.fire('ผิดพลาด', 'ไม่พบข้อมูลผู้ใช้งาน กรุณารีเฟรชหน้าเว็บ', 'error');
-    }
+    if (pin1.length !== 6 || pin2.length !== 6) return Swal.fire('แจ้งเตือน', 'กรุณาใส่ตัวเลขให้ครบ 6 หลัก', 'warning');
+    if (pin1 !== pin2) return Swal.fire('ผิดพลาด', 'รหัสผ่านทั้งสองช่องไม่ตรงกัน!', 'error');
+    if (!currentUser || !currentUser.id) return Swal.fire('ผิดพลาด', 'ไม่พบข้อมูลผู้ใช้งาน กรุณารีเฟรชหน้าเว็บ', 'error');
 
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
-        const { error } = await appDB.from('users').update({ password: pin1 }).eq('id', window.currentUser.id);
+        const { error } = await appDB.from('users').update({ password: pin1 }).eq('id', currentUser.id);
         if (error) throw error;
 
-        // อัปเดตข้อมูลใน Session
-        window.currentUser.password = pin1;
-        sessionStorage.setItem('user_platinum_plus', JSON.stringify(window.currentUser));
-
-        window.closeChangePinModal(); // ปิดกล่อง
+        currentUser.password = pin1;
+        sessionStorage.setItem('user_platinum_plus', JSON.stringify(currentUser));
         
-        Swal.fire({ 
-            icon: 'success', 
-            title: 'เปลี่ยนรหัสสำเร็จ!', 
-            text: 'คราวหน้ากรุณาใช้รหัสผ่านใหม่นี้เข้าสู่ระบบครับ', 
-            timer: 2000, 
-            showConfirmButton: false 
-        });
-
+        closeChangePinModal();
+        Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสสำเร็จ!', text: 'คราวหน้ากรุณาใช้รหัสผ่านใหม่นี้เข้าสู่ระบบครับ', timer: 2000, showConfirmButton: false });
     } catch (err) {
         console.error(err);
         Swal.fire('Error', 'เกิดข้อผิดพลาดในการเปลี่ยนรหัส: ' + err.message, 'error');
