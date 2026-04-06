@@ -2107,3 +2107,42 @@ window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
     renderManualTimeSlots();
     Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
 };
+
+// ==========================================
+// 🟢 ควบคุมการเปิด/ปิด หน้าประวัติระบบ (Logs)
+// ==========================================
+window.openLogsPage = function() {
+    // ซ่อนหน้าหลักและหน้าแอดมิน
+    if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
+    if(document.getElementById('adminPanel')) {
+        document.getElementById('adminPanel').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('flex');
+    }
+    
+    // โชว์หน้า Logs
+    const logsPage = document.getElementById('logsPage');
+    if(logsPage) {
+        logsPage.classList.remove('hidden');
+        logsPage.classList.add('flex');
+        
+        // สั่งดึงข้อมูลประวัติทันที
+        if(typeof fetchLogs === 'function') fetchLogs(); 
+    }
+};
+
+window.backToDashboard = function() {
+    // ซ่อนหน้า Logs และหน้าแอดมิน
+    if(document.getElementById('logsPage')) {
+        document.getElementById('logsPage').classList.add('hidden');
+        document.getElementById('logsPage').classList.remove('flex');
+    }
+    if(document.getElementById('adminPanel')) {
+        document.getElementById('adminPanel').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('flex');
+    }
+    
+    // โชว์หน้าหลักกลับมา
+    if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.remove('hidden');
+};
+
+
