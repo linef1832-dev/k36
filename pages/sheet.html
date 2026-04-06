@@ -1,4 +1,5 @@
-<div id="sheetApp" class="hidden flex-col w-full h-full fade-in
+<div id="sheetApp" class="hidden flex-col w-full h-full fade-in overflow-hidden relative bg-[#0f172a]">
+    
     <div class="bg-white dark:bg-slate-800 text-slate-800 dark:text-white p-3 shadow-md shrink-0 flex flex-col md:flex-row justify-between items-center gap-4 z-30 border-b border-purple-500/50">
         <div class="flex items-center gap-3 w-full md:w-auto">
             <h1 class="font-black text-xl flex items-center gap-2">
@@ -26,7 +27,7 @@
 
     <div id="recentTabsContainer" class="hidden bg-white/50 dark:bg-slate-800/80 backdrop-blur border-b border-gray-300 dark:border-slate-700 px-2 pt-2 flex items-end gap-1 overflow-x-auto custom-scrollbar shrink-0 shadow-inner z-20 transition-all"></div>
 
-    <div id="sheetViewer" class="hidden flex-1 flex flex-col relative bg-white dark:bg-slate-950 z-10 transition-all animate-fade-in">
+    <div id="sheetViewer" class="hidden flex-1 flex flex-col relative bg-white dark:bg-slate-950 z-10 transition-all animate-fade-in w-full h-full">
         <div class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-white p-2 border-b border-gray-300 dark:border-slate-700 flex justify-between items-center shrink-0 shadow-sm">
             <div class="flex items-center gap-3 overflow-hidden">
                 <button onclick="closeSheet()" class="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full transition flex items-center justify-center shrink-0 text-gray-500 hover:text-red-500" title="ปิดหน้าต่าง"><span class="material-icons text-xl leading-none">close</span></button>
@@ -37,12 +38,12 @@
                 <button onclick="document.getElementById('sheetFrame').src = document.getElementById('sheetFrame').src" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1 border border-gray-300 dark:border-slate-600"><span class="material-icons text-[14px]">refresh</span> <span class="hidden sm:inline">รีเฟรช</span></button>
             </div>
         </div>
-        <div class="flex-1 relative bg-[#f8f9fa] dark:bg-[#0f172a]">
+        <div class="flex-1 relative bg-[#f8f9fa] dark:bg-[#0f172a] w-full h-full">
             <div id="sheetLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur z-10 animate-pulse">
                 <div class="animate-spin h-12 w-12 border-4 border-blue-600 rounded-full border-t-transparent mb-3 shadow-lg"></div>
                 <span class="text-blue-700 dark:text-blue-400 font-bold tracking-widest text-sm">กำลังโหลดข้อมูลตาราง...</span>
             </div>
-            <iframe id="sheetFrame" class="w-full h-full border-0" allowfullscreen></iframe>
+            <iframe id="sheetFrame" class="absolute inset-0 w-full h-full border-0" allowfullscreen></iframe>
         </div>
     </div>
 </div>
