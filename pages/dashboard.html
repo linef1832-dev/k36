@@ -516,10 +516,11 @@
                 </ul>
             </div>
         </div>
-        <div id="changePinModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+        
+        <div id="changePinModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4 animate-fade-in">
         <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-sm overflow-hidden transform transition-all">
             <div class="bg-gradient-to-r from-orange-500 to-amber-500 p-5 text-center relative">
-                <button onclick="closeChangePinModal()" class="absolute top-3 right-3 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full w-8 h-8 flex items-center justify-center transition">
+                <button type="button" onclick="closeChangePinModal()" class="absolute top-3 right-3 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full w-8 h-8 flex items-center justify-center transition">
                     <span class="material-icons text-sm">close</span>
                 </button>
                 <div class="w-16 h-16 bg-white/20 rounded-full mx-auto flex items-center justify-center mb-2 border-2 border-white/30 shadow-inner">
@@ -551,5 +552,23 @@
             </form>
         </div>
     </div>
-    </div>
-</div>
+
+    <script>
+        window.openChangePinModal = function() {
+            if(document.getElementById('newPin1')) document.getElementById('newPin1').value = '';
+            if(document.getElementById('newPin2')) document.getElementById('newPin2').value = '';
+            const modal = document.getElementById('changePinModal');
+            if(modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex'); 
+            }
+        };
+
+        window.closeChangePinModal = function() {
+            const modal = document.getElementById('changePinModal');
+            if(modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+    </script>
