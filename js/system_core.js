@@ -1979,7 +1979,7 @@ window.addTeamManual = function(dept) {
     });
 };
 // =========================================================
-// 🟢 ระบบเพิ่มรอบเวลาเอง (Manual Time Slots)
+// 🟢 ระบบเพิ่มรอบเวลาเอง (ดึงข้อมูลเก่าได้อัตโนมัติ)
 // =========================================================
 
 window.renderManualTimeSlots = function() {
@@ -1988,8 +1988,10 @@ window.renderManualTimeSlots = function() {
 
     let customSlots = {};
     try {
-        if (SETTINGS['custom_time_slots']) {
-            customSlots = typeof SETTINGS['custom_time_slots'] === 'string' ? JSON.parse(SETTINGS['custom_time_slots']) : SETTINGS['custom_time_slots'];
+        // ระบบจะค้นหาจากคีย์ใหม่ และคีย์เก่าๆ เผื่อไว้ให้ครับ
+        let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
+        if (rawData) {
+            customSlots = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
         }
     } catch(e) { customSlots = {}; }
 
@@ -2004,12 +2006,12 @@ window.renderManualTimeSlots = function() {
                 let colorClass = sName === 'เช้า' ? 'text-orange-400' : (sName === 'กลาง' ? 'text-blue-400' : 'text-purple-400');
                 
                 html += `
-                <div class="flex justify-between items-center bg-slate-800 p-2 rounded-lg border border-slate-600/50 shadow-sm">
+                <div class="flex justify-between items-center bg-slate-800 p-2 rounded-lg border border-slate-600/50 shadow-sm mb-1.5">
                     <div class="flex items-center gap-2 text-[10px] font-bold ${colorClass}">
                         <span class="w-12">${sName} ${pName}</span>
                         <span class="text-gray-300 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-700 tracking-wider shadow-inner">${slot}</span>
                     </div>
-                    <button onclick="deleteManualTimeSlot('${shift}', '${period}', '${slot}')" class="text-red-400 hover:text-red-500 hover:bg-red-900/30 p-1 rounded transition" title="ลบเวลา">
+                    <button type="button" onclick="deleteManualTimeSlot('${shift}', '${period}', '${slot}')" class="text-red-400 hover:text-red-500 hover:bg-red-900/30 p-1 rounded transition" title="ลบเวลา">
                         <span class="material-icons text-[14px]">delete</span>
                     </button>
                 </div>`;
@@ -2038,9 +2040,8 @@ window.addManualTimeSlot = async function() {
 
     let customSlots = {};
     try {
-        if (SETTINGS['custom_time_slots']) {
-            customSlots = typeof SETTINGS['custom_time_slots'] === 'string' ? JSON.parse(SETTINGS['custom_time_slots']) : SETTINGS['custom_time_slots'];
-        }
+        let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
+        if (rawData) customSlots = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
     } catch(e) { customSlots = {}; }
 
     if (!customSlots[shiftSelect]) customSlots[shiftSelect] = {};
@@ -2070,9 +2071,8 @@ window.addManualTimeSlot = async function() {
 window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
     let customSlots = {};
     try {
-        if (SETTINGS['custom_time_slots']) {
-            customSlots = typeof SETTINGS['custom_time_slots'] === 'string' ? JSON.parse(SETTINGS['custom_time_slots']) : SETTINGS['custom_time_slots'];
-        }
+        let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
+        if (rawData) customSlots = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
     } catch(e) { customSlots = {}; }
 
     if (customSlots[shift] && customSlots[shift][period]) {
@@ -2096,9 +2096,15 @@ window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
 
 window.applyCustomTimeSlots = function() {
     try {
-        if (SETTINGS['custom_time_slots']) {
-            const customSlots = typeof SETTINGS['custom_time_slots'] === 'string' ? JSON.parse(SETTINGS['custom_time_slots']) : SETTINGS['custom_time_slots'];
+        let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
+        if (rawData) {
+            const customSlots = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
             
+            // เตรียมพื้นที่ตัวแปรให้พร้อม
+            if(Object.keys(SHIFT_GROUPS).length === 0) {
+                 SHIFT_GROUPS = { 'กะเช้า': {}, 'กะกลาง': {}, 'กะดึก': {} };
+            }
+
             for (const [shift, periods] of Object.entries(customSlots)) {
                 if (!SHIFT_GROUPS[shift]) SHIFT_GROUPS[shift] = {};
                 for (const [period, slots] of Object.entries(periods)) {
