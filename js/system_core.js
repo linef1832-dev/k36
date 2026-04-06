@@ -1241,11 +1241,19 @@ window.updateUserDepartment = async function(id, newDept) {
 window.openChangePinModal = function() {
     if(document.getElementById('newPin1')) document.getElementById('newPin1').value = '';
     if(document.getElementById('newPin2')) document.getElementById('newPin2').value = '';
-    if(document.getElementById('changePinModal')) document.getElementById('changePinModal').classList.remove('hidden');
+    const modal = document.getElementById('changePinModal');
+    if(modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex'); // สำคัญ: ต้องใส่ flex ให้มันอยู่ตรงกลางจอ
+    }
 };
 
 window.closeChangePinModal = function() {
-    if(document.getElementById('changePinModal')) document.getElementById('changePinModal').classList.add('hidden');
+    const modal = document.getElementById('changePinModal');
+    if(modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
 };
 
 window.submitChangePin = async function(e) {
