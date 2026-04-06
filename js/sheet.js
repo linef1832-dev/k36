@@ -419,3 +419,99 @@ window.showPage = async function(page) {
         }
     }
 };
+// ==========================================
+// 🟢 ระบบเครื่องคิดเลข (คำนวณยอด)
+// ==========================================
+window.calculateNet = function() {
+    const base = parseFloat(document.getElementById('calcBase').value) || 0;
+    const deduct = parseFloat(document.getElementById('calcDeduct').value) || 0;
+    const result = base - deduct;
+    
+    const resEl = document.getElementById('calcResult');
+    resEl.innerText = result.toLocaleString();
+    if (result < 0) { resEl.classList.remove('text-emerald-400', 'text-white'); resEl.classList.add('text-rose-400'); }
+    else if (result > 0) { resEl.classList.remove('text-rose-400', 'text-white'); resEl.classList.add('text-emerald-400'); }
+    else { resEl.classList.remove('text-emerald-400', 'text-rose-400'); resEl.classList.add('text-white'); }
+};
+
+window.copyCalcResult = function() {
+    const result = document.getElementById('calcResult').innerText.replace(/,/g, '');
+    navigator.clipboard.writeText(result).then(() => {
+        Swal.fire({icon: 'success', title: 'คัดลอกแล้ว', text: result, timer: 1000, showConfirmButton: false});
+    });
+};
+
+// ==========================================
+// 🟢 ควบคุมหน้าตาแท็บ (Browser-Like)
+// ==========================================
+window.currentActiveTabId = null; // เก็บแท็บที่กำลังเปิดอยู่
+
+window.renderRecentTabs = function() {
+    const container = document.getElementById('recentTabsContainer');
+    if (!container) return;
+    
+    if (recentTabs.length === 0) { 
+        container.classList.add('hidden'); 
+        return; 
+    }
+    container.classList.remove('hidden');
+
+    let html = recentTabs.map(tab => {
+        const isViewerVisible = !document.getElementById('sheetViewer').classList.contains('hidden');
+        // ใช้ currentActiveTabId เช็คเพื่อให้ไฮไลท์สีขาวแม่นยำ 100%
+        const isActive = (window.currentActiveTabId === tab.id) && isViewerVisible;
+        const activeClass = isActive ? 'bg-white text-blue-700 font-black' : 'bg-gray-300 text-gray-600 hover:bg-gray-200 font-bold opacity-80';
+        const icon = (tab.sheet_id && (tab.sheet_id.startsWith('http') || tab.sheet_id.startsWith('www'))) ? 'link' : 'table_chart';
+        const tName = tab.name || tab.title || 'ไม่มีชื่อ';
+
+        return `
+        <div onclick='openSheet(${JSON.stringify(tab)})' class="${activeClass} px-3 py-2 min-w-[120px] max-w-[200px] flex items-center justify-between gap-2 cursor-pointer transition select-none rounded-t-xl shrink-0">
+            <div class="flex items-center gap-1.5 overflow-hidden">
+                <span class="material-icons text-[14px]">${icon}</span>
+                <span class="text-xs truncate">${tName}</span>
+            </div>
+            <button onclick="closeTab(event, '${tab.id}')" class="text-gray-400 hover:text-red-500 rounded-full p-0.5 hover:bg-gray-100/50">
+                <span class="material-icons text-[14px] font-bold leading-none block">close</span>
+            </button>
+        </div>`;
+    }).join('');
+
+    if (recentTabs.length > 1) { 
+        html += `<button onclick="clearAllTabs()" class="ml-2 px-2 pb-2 text-[10px] text-red-500 hover:text-red-400 underline shrink-0">ล้างทั้งหมด</button>`; 
+    }
+    container.innerHTML = html;
+};
+
+// และในฟังก์ชัน openSheet (ไปอัปเดตบรรทัดนี้ด้วยเพื่อเก็บแท็บ)
+const oldOpenSheet = window.openSheet;
+window.openSheet = function(sheet) {
+    window.currentActiveTabId = sheet.id; // เก็บแท็บที่เปิดล่าสุด
+    
+    document.getElementById('sheetMenu').classList.add('hidden');
+    document.getElementById('sheetViewer').classList.remove('hidden');
+    
+    // ตั้งชื่อให้เหมือนในรูป! (มี Breadcrumb)
+    const gName = sheet.group_name || sheet.category || 'ทั่วไป';
+    const sName = sheet.name || sheet.title || 'ไม่มีชื่อ';
+    document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${gName}</span> <span class="material-icons text-[10px] mx-1 text-gray-600">arrow_forward_ios</span> <span class="text-white font-bold text-sm">${sName}</span>`;
+    
+    document.getElementById('sheetLoading').classList.remove('hidden');
+    addToRecentTabs(sheet);
+
+    let url = sheet.sheet_id || sheet.url || '';
+    if (url.startsWith('http') || url.startsWith('www')) {
+        url = url.startsWith('www') ? 'https://' + url : url;
+    } else {
+        url = `https://docs.google.com/spreadsheets/d/${url}/edit?rm=minimal&single=true&widget=true&headers=false`;
+        if(sheet.gid) url += `&gid=${sheet.gid}`;
+    }
+    
+    const btnNewTab = document.getElementById('btnOpenNewTab');
+    if (btnNewTab) btnNewTab.onclick = () => window.open(url, '_blank');
+    
+    const frame = document.getElementById('sheetFrame');
+    if(frame) {
+        frame.onload = function() { window.hideSheetLoading(); };
+        frame.src = url;
+    }
+};
