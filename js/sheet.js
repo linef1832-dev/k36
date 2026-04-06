@@ -193,53 +193,46 @@ window.saveSheetData = async function() {
 };
 
 window.startEdit = function(id) {
-    const sheet = GLOBAL_SHEETS.find(s => String(s.id) === String(id));
+    // 💡 แก้ไขตรงนี้: ให้ดึงข้อมูลจาก window.globalSheetData แทนที่จะเป็น GLOBAL_SHEETS
+    const sheet = window.globalSheetData.find(s => String(s.id) === String(id));
     if(!sheet) return;
 
     document.getElementById('editSheetId').value = sheet.id;
-    document.getElementById('newSheetName').value = sheet.name;
-    document.getElementById('newSheetGroup').value = sheet.group_name;
-    document.getElementById('newSheetCover').value = sheet.cover_url || '';
+    document.getElementById('newSheetName').value = sheet.name || sheet.title; // ดักจับทั้งชื่อเก่าและใหม่
+    document.getElementById('newSheetGroup').value = sheet.group_name || sheet.category;
+    document.getElementById('newSheetCover').value = sheet.cover_url || sheet.bg_image || '';
     
     if(document.getElementById('newSheetCoverFile')) document.getElementById('newSheetCoverFile').value = ''; 
     const coverContainer = document.getElementById('currentSheetCoverContainer');
     const coverImg = document.getElementById('currentSheetCoverImg');
     if(coverContainer && coverImg) {
-        if(sheet.cover_url) { coverImg.src = sheet.cover_url; coverContainer.classList.remove('hidden'); } 
+        if(sheet.cover_url || sheet.bg_image) { coverImg.src = sheet.cover_url || sheet.bg_image; coverContainer.classList.remove('hidden'); } 
         else { coverContainer.classList.add('hidden'); }
     }
     
-    if (!sheet.sheet_id.startsWith('http')) {
-        let fullUrl = `https://docs.google.com/spreadsheets/d/${sheet.sheet_id}`;
+    // ดึง URL เดิมมาใส่ในช่อง 
+    let sheetId = sheet.sheet_id || sheet.url || '';
+    if (sheetId && !sheetId.startsWith('http')) {
+        let fullUrl = `https://docs.google.com/spreadsheets/d/${sheetId}`;
         if(sheet.gid) fullUrl += `#gid=${sheet.gid}`;
         document.getElementById('newSheetUrl').value = fullUrl;
-    } else { document.getElementById('newSheetUrl').value = sheet.sheet_id; }
+    } else { 
+        document.getElementById('newSheetUrl').value = sheetId; 
+    }
 
     const colorMap = { 'blue': '#3b82f6', 'green': '#22c55e', 'red': '#ef4444', 'yellow': '#eab308', 'purple': '#a855f7', 'gray': '#6b7280' };
-    let hexColor = sheet.color;
+    let hexColor = sheet.color || 'blue';
     if (hexColor && !hexColor.startsWith('#')) hexColor = colorMap[hexColor] || '#3b82f6';
     document.getElementById('newSheetColor').value = hexColor;
 
-    document.getElementById('formTitle').innerText = `✏️ กำลังแก้ไข: ${sheet.name}`;
+    document.getElementById('formTitle').innerText = `✏️ กำลังแก้ไข: ${sheet.name || sheet.title}`;
     document.getElementById('formTitle').className = "text-sm font-bold text-orange-600";
     const btn = document.getElementById('btnSaveSheet');
-    btn.innerText = "บันทึกการแก้ไข"; btn.classList.replace('bg-green-600', 'bg-orange-500'); btn.classList.replace('hover:bg-green-700', 'hover:bg-orange-600');
+    btn.innerHTML = `<span class="material-icons">save</span> บันทึกการแก้ไข`; 
+    btn.classList.replace('bg-green-600', 'bg-orange-500'); 
+    btn.classList.replace('hover:bg-green-500', 'hover:bg-orange-600');
     document.getElementById('btnCancelEdit').classList.remove('hidden');
 };
-
-window.cancelEdit = function() {
-    ['editSheetId','newSheetName','newSheetGroup','newSheetUrl','newSheetCover'].forEach(id => document.getElementById(id).value = '');
-    if(document.getElementById('newSheetCoverFile')) document.getElementById('newSheetCoverFile').value = ''; 
-    if(document.getElementById('currentSheetCoverContainer')) document.getElementById('currentSheetCoverContainer').classList.add('hidden');
-    document.getElementById('newSheetColor').value = '#3b82f6';
-    
-    document.getElementById('formTitle').innerText = "เพิ่มรายการใหม่";
-    document.getElementById('formTitle').className = "text-sm font-bold text-blue-600";
-    const btn = document.getElementById('btnSaveSheet');
-    btn.innerText = "บันทึก"; btn.classList.replace('bg-orange-500', 'bg-green-600'); btn.classList.replace('hover:bg-orange-600', 'hover:bg-green-700');
-    document.getElementById('btnCancelEdit').classList.add('hidden');
-};
-
 window.togglePin = function(e, id) {
     e.stopPropagation();
     let pinned = JSON.parse(localStorage.getItem('pinned_sheets') || '[]');
