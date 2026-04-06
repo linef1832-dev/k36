@@ -2109,44 +2109,51 @@ window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
 };
 
 // ==========================================
-// 🟢 ควบคุมการเปิด/ปิด หน้าประวัติระบบ (Logs)
+// 🟢 ควบคุมการสลับหน้า (แอดมิน / ประวัติ / หน้าหลัก)
 // ==========================================
-window.openLogsPage = async function() {
-    // 💡 ถ้าเรากดจากหน้าอื่น (ที่ไม่ได้อยู่ใน Dashboard) ให้สลับมาโหลดหน้า Dashboard ก่อน
-    if (!document.getElementById('logsPage')) {
+window.openAdminPanel = async function() {
+    if (!document.getElementById('adminPanel')) {
         if(typeof showPage === 'function') await showPage('dashboard');
-        
-        // รอโหลดกล่องสักครู่ แล้วค่อยสลับโชว์
-        setTimeout(() => {
-            toggleLogsVisibility();
-        }, 300);
-    } else {
-        toggleLogsVisibility();
+        if(typeof initDashboard === 'function') initDashboard(); // เตรียมตารางไว้เบื้องหลัง
     }
+    
+    // ซ่อนหน้าหลัก+ประวัติ และโชว์หน้าแอดมินทันที (ลบตัวหน่วงเวลาออกแล้ว ไม่กระพริบแน่นอน)
+    if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
+    if(document.getElementById('logsPage')) {
+        document.getElementById('logsPage').classList.add('hidden');
+        document.getElementById('logsPage').classList.remove('flex');
+    }
+    
+    const adminPanel = document.getElementById('adminPanel');
+    if(adminPanel) {
+        adminPanel.classList.remove('hidden');
+        adminPanel.classList.add('flex');
+    }
+    switchAdminTab('settings');
 };
 
-function toggleLogsVisibility() {
-    // ซ่อนหน้าหลัก
+window.openLogsPage = async function() {
+    if (!document.getElementById('logsPage')) {
+        if(typeof showPage === 'function') await showPage('dashboard');
+        if(typeof initDashboard === 'function') initDashboard();
+    }
+    
     if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
-    // ซ่อนหน้าแอดมิน (ถ้าเปิดอยู่)
     if(document.getElementById('adminPanel')) {
         document.getElementById('adminPanel').classList.add('hidden');
         document.getElementById('adminPanel').classList.remove('flex');
     }
     
-    // โชว์หน้าประวัติ
     const logsPage = document.getElementById('logsPage');
     if(logsPage) {
         logsPage.classList.remove('hidden');
         logsPage.classList.add('flex');
-        
-        // โชว์เสร็จปุ๊บ สั่งดึงข้อมูลประวัติทันที!
-        if(typeof fetchLogs === 'function') fetchLogs(); 
+        if(typeof fetchLogs === 'function') fetchLogs(); // ดึงข้อมูลประวัติทันที
     }
-}
+};
 
 window.backToDashboard = function() {
-    // ซ่อนหน้า Logs และหน้าแอดมิน
+    // ซ่อนหน้า Logs และแอดมิน
     if(document.getElementById('logsPage')) {
         document.getElementById('logsPage').classList.add('hidden');
         document.getElementById('logsPage').classList.remove('flex');
@@ -2159,7 +2166,8 @@ window.backToDashboard = function() {
     // โชว์หน้าหลักกลับมา
     if(document.getElementById('mainContentArea')) {
         document.getElementById('mainContentArea').classList.remove('hidden');
-        // รีเฟรชตารางเผื่อมีใครลงเวลาตอนที่เราแอบไปดูประวัติ
-        if(typeof fetchData === 'function') fetchData(); 
     }
+    
+    // 🟢 สำคัญ: สั่งให้รีโหลดตารางทุกครั้งที่กดปุ่ม "กลับหน้าหลัก"
+    if(typeof initDashboard === 'function') initDashboard(); 
 };
