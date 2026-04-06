@@ -1613,18 +1613,21 @@ window.loadSettings = async function() {
     } catch (e) { console.error("Load Settings Error:", e); }
 };
 
-// 🟢 คืนชีพดีไซน์หน้า "โควตาการเข้างาน" ให้เหมือนรูปที่ 1 และป้องกันชื่อทีมโดนตัด (ห้ามหด)
+// 🟢 คืนชีพดีไซน์หน้า "โควตาการเข้างาน" ดึงเว็บให้ครบ 10 เว็บตามฐานข้อมูล
 window.renderQuotaSettings = function() {
     const container = document.getElementById('quotaSettingsContainer');
     if (!container) return;
     
     let amHtml = ''; let odHtml = '';
-    const amTeams = ['Jun88', 'K188', 'MK8', 'NM9', 'PG688', 'TH26', 'VV72'];
-    const odTeams = ['F168', 'JL69', 'Jun88', 'K188', 'MK8', 'NM9', 'PG688', 'TH26', 'VV72'];
+    
+    // ดึงรายชื่อทีมทั้งหมด 10 ทีม และเรียงลำดับ A-Z
+    const allTeams = [...TEAM_LIST].sort((a, b) => a.localeCompare(b));
 
-    // ปรับให้ input กว้าง 16 (4rem) และเพิ่ม shrink-0 ไม่ให้โดนบีบ
-    amTeams.forEach(team => {
-        const qM = SETTINGS[`quota_team_${team}_AM_เช้า`] || 1; const qA = SETTINGS[`quota_team_${team}_AM_กลาง`] || 0; const qN = SETTINGS[`quota_team_${team}_AM_ดึก`] || 1;
+    // สร้างตารางให้แผนก AM
+    allTeams.forEach(team => {
+        const qM = SETTINGS[`quota_team_${team}_AM_เช้า`] || 1; 
+        const qA = SETTINGS[`quota_team_${team}_AM_กลาง`] || 0; 
+        const qN = SETTINGS[`quota_team_${team}_AM_ดึก`] || 1;
         amHtml += `
         <div class="flex items-center gap-2 quota-row-team group min-w-max">
             <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="AM">
@@ -1632,12 +1635,15 @@ window.renderQuotaSettings = function() {
             <input type="number" id="quota_team_${team}_AM_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
             <input type="number" id="quota_team_${team}_AM_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
             <input type="number" id="quota_team_${team}_AM_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
-            <button class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
+            <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
         </div>`;
     });
 
-    odTeams.forEach(team => {
-        const qM = SETTINGS[`quota_team_${team}_OD_เช้า`] || 1; const qA = SETTINGS[`quota_team_${team}_OD_กลาง`] || 0; const qN = SETTINGS[`quota_team_${team}_OD_ดึก`] || 1;
+    // สร้างตารางให้แผนก OD
+    allTeams.forEach(team => {
+        const qM = SETTINGS[`quota_team_${team}_OD_เช้า`] || 1; 
+        const qA = SETTINGS[`quota_team_${team}_OD_กลาง`] || 0; 
+        const qN = SETTINGS[`quota_team_${team}_OD_ดึก`] || 1;
         odHtml += `
         <div class="flex items-center gap-2 quota-row-team group min-w-max">
             <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="OD">
@@ -1645,7 +1651,7 @@ window.renderQuotaSettings = function() {
             <input type="number" id="quota_team_${team}_OD_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
             <input type="number" id="quota_team_${team}_OD_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
             <input type="number" id="quota_team_${team}_OD_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
-            <button class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
+            <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
         </div>`;
     });
 
@@ -1937,4 +1943,33 @@ window.hasUserPerm = function(menuId) {
     
     const userPerms = perms[key] || [];
     return userPerms.includes(menuId);
+};
+// ฟังก์ชันสำหรับปุ่มกดเพิ่มทีมผ่านหน้าเว็บ
+window.addTeamManual = function(dept) {
+    Swal.fire({
+        title: `เพิ่มทีมใหม่ (${dept})`,
+        input: 'text',
+        inputPlaceholder: 'พิมพ์ชื่อทีม / เว็บไซต์...',
+        showCancelButton: true,
+        confirmButtonText: 'เพิ่มทีม',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: dept === 'AM' ? '#3b82f6' : '#ec4899',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            const newTeam = result.value.trim();
+            if (!TEAM_LIST.includes(newTeam)) {
+                TEAM_LIST.push(newTeam); // ดันชื่อเข้าตัวแปรระบบ
+                renderQuotaSettings(); // สั่งให้วาดตารางใหม่
+                Swal.fire({
+                    icon: 'success', 
+                    title: 'เพิ่มเข้าตารางชั่วคราวแล้ว!', 
+                    text: `อย่าลืมไปพิมพ์คำว่า '${newTeam}' ใส่ในไฟล์ js/global.js ด้วยนะครับ เพื่อให้มันอยู่ถาวรเวลาคนอื่นเปิดเว็บ`,
+                    confirmButtonColor: '#10b981'
+                });
+            } else {
+                Swal.fire('เตือน', 'มีชื่อทีมนี้ในระบบอยู่แล้วครับ', 'warning');
+            }
+        }
+    });
 };
