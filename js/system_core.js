@@ -675,9 +675,11 @@ async function moveNowInstant() {
     });
 }
 
-function addToPendingList() {
-    const select = document.getElementById('indivUserSelect');
-    if(!select) return; // Prevent errors if dropdown method was used
+// =========================================================
+// 🟢 แก้ไขปุ่มกดเพิ่มรายการรอรัน (ตั้งเวลาเปลี่ยนกะล่วงหน้า)
+// =========================================================
+
+window.addToPendingList = function() {
     const shift = document.getElementById('indivTargetShift').value;
     const dateVal = document.getElementById('indivDate').value;
 
@@ -699,48 +701,52 @@ function addToPendingList() {
             scheduled_for: new Date(dateVal).toISOString()
         });
         
-        cb.checked = false;
+        cb.checked = false; // เอาติ๊กถูกออกให้หลังเพิ่มเสร็จ
         addedCount++;
     });
 
     renderPendingTable();
     
+    // เอาติ๊กถูกออกจากช่อง "เลือกทั้งหมด" ด้วย
     const selectAllCb = document.querySelector('input[onchange="toggleSelectAllIndiv(this)"]');
     if(selectAllCb) selectAllCb.checked = false;
 
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
     Toast.fire({ icon: 'success', title: `เพิ่ม ${addedCount} รายการรอรันแล้ว` });
-}
+};
 
-function removeFromPendingList(index) {
-    pendingSchedules.splice(index, 1);
-    renderPendingTable();
-}
-
-function renderPendingTable() {
+window.renderPendingTable = function() {
     const tbody = document.getElementById('pendingTableBody');
     const container = document.getElementById('pendingListContainer');
     const countSpan = document.getElementById('pendingCount');
     if(!tbody || !container) return;
 
+    // ถ้ามีรายการค้างอยู่ ให้โชว์กล่องรอรัน ถ้าไม่มีให้ซ่อนไว้
     if (pendingSchedules.length > 0) {
         container.classList.remove('hidden');
+        container.classList.add('flex'); // บังคับแสดงให้เห็นแบบ Flex
     } else {
         container.classList.add('hidden');
+        container.classList.remove('flex');
     }
     
     if(countSpan) countSpan.innerText = pendingSchedules.length;
     tbody.innerHTML = pendingSchedules.map((item, index) => `
         <tr class="border-b border-gray-600/50">
-            <td class="p-1">${item.user_name}</td>
-            <td class="p-1 font-bold text-yellow-200">${item.target_shift}</td>
-            <td class="p-1 font-mono">${new Date(item.scheduled_for).toLocaleString('th-TH')}</td>
-            <td class="p-1 text-center">
-                <button onclick="removeFromPendingList(${index})" class="text-red-400 hover:text-red-300 font-bold">x</button>
+            <td class="p-1.5">${item.user_name}</td>
+            <td class="p-1.5 font-bold text-yellow-200">${item.target_shift}</td>
+            <td class="p-1.5 font-mono">${new Date(item.scheduled_for).toLocaleString('th-TH')}</td>
+            <td class="p-1.5 text-center">
+                <button onclick="removeFromPendingList(${index})" class="text-red-400 hover:text-red-300 font-bold bg-slate-800 px-2 py-0.5 rounded transition">x</button>
             </td>
         </tr>
     `).join('');
-}
+};
+
+window.removeFromPendingList = function(index) {
+    pendingSchedules.splice(index, 1);
+    renderPendingTable();
+};
 
 async function commitIndividualSchedules() {
     if(pendingSchedules.length === 0) return;
