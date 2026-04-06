@@ -573,9 +573,15 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
 
     try {
         if (action === 'add') {
-            // 🌟 บันทึกประเภทการลา (typeToSave) ลงฐานข้อมูล
+            // 🌟 แก้ไขตรงนี้: เพิ่มคำว่า user_name: targetUserName ส่งไปให้ฐานข้อมูลด้วย
             const { error } = await appDB.from('leave_requests').insert([
-                { user_id: targetUserId, leave_date: dateStr, reason: typeToSave, status: 'approved' }
+                { 
+                    user_id: targetUserId, 
+                    user_name: targetUserName, // <--- เติมตรงนี้ครับ!
+                    leave_date: dateStr, 
+                    reason: typeToSave, 
+                    status: 'approved' 
+                }
             ]);
             if (error) throw error;
             
