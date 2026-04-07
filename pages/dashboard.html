@@ -286,16 +286,27 @@
 
                 </div>
             </div>
-            <div class="bg-[#151f32] p-5 rounded-2xl border border-red-900/50 shadow-lg mt-6 relative overflow-hidden">
+           <div class="bg-[#151f32] p-5 rounded-2xl border border-red-900/50 shadow-lg mt-6 relative overflow-hidden">
     <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none"><span class="material-icons text-8xl text-red-500">delete_sweep</span></div>
     <h4 class="text-red-500 font-bold mb-3 flex items-center gap-2 border-b border-red-900/30 pb-2 relative z-10">
-        <span class="material-icons text-xl">delete_sweep</span> ล้างกระดาน (ลบเวลากินข้าวทั้งหมด)
+        <span class="material-icons text-xl">delete_sweep</span> ล้างกระดาน (ลบเวลากินข้าว)
     </h4>
-    <p class="text-xs text-gray-400 mb-4 relative z-10">ลบข้อมูลการลงเวลาของพนักงาน <b>"ทั้งหมดทุกคน"</b> ในวันที่เลือก เพื่อให้พนักงานกดจองเวลาใหม่</p>
+    <p class="text-xs text-gray-400 mb-4 relative z-10">เลือกลบข้อมูลการลงเวลาเฉพาะ <b>"แผนก"</b> หรือ <b>"กะ"</b> ที่มีปัญหา เพื่อให้พนักงานกลุ่มนั้นกดจองเวลาใหม่</p>
     <div class="flex flex-col sm:flex-row gap-3 relative z-10">
-        <input type="date" id="clearScheduleDate" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner">
-        <button type="button" onclick="clearAllSchedules()" class="bg-red-600 hover:bg-red-500 text-white text-sm font-bold px-6 py-2.5 rounded-lg shadow-md transition flex items-center justify-center gap-2 active:scale-95">
-            <span class="material-icons text-base">warning</span> ยืนยันล้างข้อมูล
+        <input type="date" id="clearScheduleDate" class="w-full sm:w-auto flex-1 bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner">
+        <select id="clearScheduleDept" class="w-full sm:w-auto bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
+            <option value="all">🌐 ทุกแผนก</option>
+            <option value="AM">เฉพาะ AM</option>
+            <option value="OD">เฉพาะ OD</option>
+        </select>
+        <select id="clearScheduleShift" class="w-full sm:w-auto bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
+            <option value="all">⏱️ ทุกกะ</option>
+            <option value="กะเช้า">กะเช้า</option>
+            <option value="กะกลาง">กะกลาง</option>
+            <option value="กะดึก">กะดึก</option>
+        </select>
+        <button type="button" onclick="clearAllSchedules()" class="w-full sm:w-auto shrink-0 bg-red-600 hover:bg-red-500 text-white text-sm font-bold px-6 py-2.5 rounded-lg shadow-md transition flex items-center justify-center gap-2 active:scale-95">
+            <span class="material-icons text-base">warning</span> ล้างข้อมูล
         </button>
     </div>
 </div>
