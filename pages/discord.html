@@ -142,12 +142,12 @@
             </div>
         </div>
 
-        <div id="dsContent_manage" class="max-w-6xl mx-auto hidden fade-in pb-10">
-            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg transform-gpu">
+        <div id="dsContent_manage" class="max-w-6xl mx-auto hidden fade-in pb-10 h-full flex-col">
+            <div class="bg-slate-800 p-4 md:p-6 rounded-3xl border border-slate-700 shadow-lg transform-gpu overflow-y-auto custom-scrollbar flex-1">
                 <h2 class="text-amber-500 font-black mb-6 flex items-center gap-2 text-xl"><span class="material-icons">manage_accounts</span> จัดการรายชื่อพนักงานและกลุ่ม</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col h-[650px] transform-gpu">
+                    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col h-[650px] transform-gpu shadow-inner">
                         <div class="flex justify-between items-center mb-4 shrink-0">
                             <h3 class="text-sky-400 font-bold flex items-center gap-1.5"><span class="material-icons text-[18px]">person</span> พนักงานทั้งหมด (ดิสคอร์ด)</h3>
                             <button onclick="syncDiscord()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-md">
@@ -178,26 +178,24 @@
                         <div id="manageStaffList" class="flex-1 overflow-y-auto custom-scrollbar border border-slate-700 rounded-xl bg-slate-800 p-2 transform-gpu overscroll-contain"></div>
                     </div>
 
-                    <div class="flex flex-col gap-6 h-[650px] transform-gpu">
-                        <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col flex-1 min-h-0">
-                            <div class="flex justify-between items-center mb-2">
-                                <h3 class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="material-icons text-[18px]">auto_awesome</span> จัดการกลุ่ม (กดดู/แก้ชื่อได้)</h3>
-                                <button onclick="autoBuildGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition flex items-center gap-1" title="ดึงข้อมูลจากเว็บมาจัดกลุ่มให้ใหม่">
-                                    <span class="material-icons text-[14px]">bolt</span> จัดกลุ่มออโต้
-                                </button>
-                            </div>
-                            
-                            <div class="flex gap-2 mb-3 pb-3 border-b border-slate-700 shrink-0 mt-2">
-                                <input type="text" id="newGroupName" placeholder="พิมพ์ชื่อกลุ่มใหม่เพื่อสร้างเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500">
-                                <button onclick="createGroup()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">สร้างกลุ่ม</button>
-                            </div>
-
-                            <div id="groupList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2"></div>
+                    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col h-[650px] transform-gpu shadow-inner">
+                        <div class="flex justify-between items-center mb-2 shrink-0">
+                            <h3 class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="material-icons text-[18px]">auto_awesome</span> จัดการกลุ่ม (กดดู/แก้ชื่อได้)</h3>
+                            <button onclick="autoBuildGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition flex items-center gap-1" title="ดึงข้อมูลจากเว็บมาจัดกลุ่มให้ใหม่">
+                                <span class="material-icons text-[14px]">bolt</span> จัดกลุ่มออโต้
+                            </button>
                         </div>
+                        
+                        <div class="flex gap-2 mb-3 pb-3 border-b border-slate-700 shrink-0 mt-2">
+                            <input type="text" id="newGroupName" placeholder="พิมพ์ชื่อกลุ่มใหม่เพื่อสร้างเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500">
+                            <button onclick="createGroup()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">สร้างกลุ่ม</button>
+                        </div>
+
+                        <div id="groupList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2"></div>
                     </div>
                 </div>
 
-                <div class="bg-slate-900 p-6 rounded-2xl border border-indigo-500/30 shadow-lg transform-gpu mt-6">
+                <div class="bg-slate-900 p-4 md:p-6 rounded-2xl border border-indigo-500/30 shadow-lg transform-gpu mt-6 shrink-0">
                     <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4">
                         <h3 class="text-indigo-400 font-bold flex items-center gap-2 text-lg"><span class="material-icons">sync</span> ตารางย้ายกะ/โอนย้าย (รวมจากเว็บหลัก)</h3>
                     </div>
@@ -205,7 +203,7 @@
                     <div id="transferSummaryBoard" class="flex flex-wrap gap-2 mb-4 bg-slate-800 p-3 rounded-xl border border-slate-700"></div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="flex flex-col h-[550px]">
+                        <div class="flex flex-col">
                             <label class="text-gray-400 text-sm font-bold mb-2 shrink-0">1. เลือกพนักงานที่จะย้าย (เลือกหลายคนได้)</label>
                             
                             <div class="flex flex-wrap gap-2 mb-2 shrink-0">
@@ -224,10 +222,10 @@
                             <input type="text" id="transferSearch" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหา..." onkeyup="renderTransferUserList()" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500 mb-2 shrink-0">
                             
                             <div id="transferSelectedTags" class="flex flex-wrap gap-1.5 mb-2 max-h-20 overflow-y-auto custom-scrollbar shrink-0"></div>
-                            <div id="transferUserList" class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1.5 bg-slate-800 p-2 rounded-xl border border-slate-700 content-start transform-gpu overscroll-contain"></div>
+                            <div id="transferUserList" class="h-80 overflow-y-auto custom-scrollbar flex flex-col gap-1.5 bg-slate-800 p-2 rounded-xl border border-slate-700 content-start transform-gpu overscroll-contain"></div>
                         </div>
 
-                        <div class="flex flex-col h-[550px]">
+                        <div class="flex flex-col">
                             <label class="text-gray-400 text-sm font-bold mb-2 shrink-0">2. ปลายทาง & เวลา</label>
                             <select id="transferToGroup" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500 mb-4 shrink-0">
                                 <option value="">-- เลือกกลุ่มปลายทาง --</option>
@@ -236,15 +234,15 @@
                             <input type="datetime-local" id="transferTime" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500 mb-4 shrink-0">
                             <button onclick="scheduleTransfer()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow transition active:scale-95 mb-4 shrink-0 flex justify-center items-center gap-1"><span class="material-icons text-sm">schedule_send</span> บันทึกตารางย้ายกลุ่ม</button>
                             
-                            <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 min-h-0">
-                                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 flex flex-col min-h-0">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 flex flex-col h-64">
                                     <label class="text-amber-400 text-xs font-bold mb-2 block shrink-0 flex items-center justify-between">
                                         <span class="flex items-center gap-1"><span class="material-icons text-sm">schedule</span> รอทำงาน</span>
                                     </label>
                                     <input type="text" id="searchPendingTransfer" onkeyup="renderTransferLists()" placeholder="🔍 ค้นหาชื่อ..." class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg p-1.5 text-xs outline-none focus:border-amber-500 mb-2 shrink-0">
                                     <div id="transferList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 transform-gpu pr-1"></div>
                                 </div>
-                                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 flex flex-col min-h-0">
+                                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 flex flex-col h-64">
                                     <label class="text-emerald-400 text-xs font-bold mb-2 block shrink-0 flex items-center justify-between">
                                         <span class="flex items-center gap-1"><span class="material-icons text-sm">check_circle</span> สำเร็จ</span>
                                     </label>
@@ -257,7 +255,7 @@
                 </div>
             </div>
         </div>
-
+        
         <div id="dsContent_voicelog" class="max-w-5xl mx-auto hidden fade-in pb-10">
             <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
                 <div class="flex justify-between items-center mb-6">
