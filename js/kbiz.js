@@ -9,8 +9,24 @@ async function fetchKbizData() {
     grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดข้อมูลบอท...</span></div>';
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'kbiz_bots_data').single();
-        if (data && data.value) globalKbizBots = JSON.parse(data.value);
-        else globalKbizBots = [];
+        if (data && data.value) {
+            globalKbizBots = JSON.parse(data.value);
+            
+            // 🌟 ป้องกันข้อมูลเก่าพัง: เช็คว่าบอทตัวไหนไม่มี ID ให้สร้างใหม่และเซฟทับเลย
+            let needSave = false;
+            globalKbizBots = globalKbizBots.map(b => {
+                if (!b.id) {
+                    needSave = true;
+                    return { ...b, id: 'bot_' + Math.random().toString(36).substr(2, 9) };
+                }
+                return b;
+            });
+            if (needSave) {
+                await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
+            }
+        } else {
+            globalKbizBots = [];
+        }
         renderKbizGrid();
     } catch(e) { globalKbizBots = []; renderKbizGrid(); }
 }
@@ -85,16 +101,23 @@ window.saveKbizBot = async function(e) {
     const pass = document.getElementById('kbizPass').value.trim();
     const isActive = document.getElementById('kbizIsActive').checked;
 
+    // เช็คชื่อซ้ำเฉพาะตอนสร้างใหม่ (id ว่าง)
     if (!id && globalKbizBots.some(b => b.machine_id.toLowerCase() === mId.toLowerCase())) {
         return Swal.fire('ข้อมูลซ้ำ', `ชื่อเครื่อง ${mId} มีในระบบแล้วครับ`, 'warning');
     }
 
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
 
-    if (id) {
+    if (id && id.trim() !== '') {
+        // 🌟 โหมดแก้ไข (หา ID เจอแน่นอน อัปเดตทับของเดิม)
         const index = globalKbizBots.findIndex(x => String(x.id) === String(id));
-        if(index !== -1) globalKbizBots[index] = { id, machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive };
+        if(index !== -1) {
+            globalKbizBots[index] = { id, machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive };
+        } else {
+            globalKbizBots.push({ id, machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive });
+        }
     } else {
+        // 🌟 โหมดเพิ่มใหม่
         globalKbizBots.push({ id: 'bot_' + Date.now(), machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive });
     }
 
@@ -103,7 +126,9 @@ window.saveKbizBot = async function(e) {
         document.getElementById('kbizModal').classList.add('hidden');
         renderKbizGrid();
         Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1500, showConfirmButton: false});
-    } catch (err) { Swal.fire('Error', err.message, 'error'); }
+    } catch (err) { 
+        Swal.fire('Error', err.message, 'error'); 
+    }
 };
 
 window.deleteKbizBot = async function(id) {
