@@ -1275,14 +1275,32 @@ window.renderGroupList = function() {
 window.autoBuildGroups = async function() {
     Swal.fire({title: 'กำลังจัดกลุ่มออโต้...', didOpen: () => Swal.showLoading()});
     try {
-        const res = await fetch(DISCORD_API_URL + '/api/auto-build-groups', { method: 'POST' });
-        if(res.ok) {
-            await fetchSystemData(true, true);
-            Swal.fire('สำเร็จ', 'จัดกลุ่มตามเว็บเสร็จสิ้น', 'success');
-        } else {
-            const errData = await res.json().catch(()=>({}));
-            throw new Error(errData.error || 'บอทไม่ตอบสนอง หรือเกิดข้อผิดพลาดจากฝั่งเซิร์ฟเวอร์');
-        }
+        // สร้างกลุ่มจำลองจากฝั่งหน้าเว็บ แล้วส่งไปเซฟทีเดียว เพราะ backend ไม่มี endpoint นี้
+        let newGroups = {};
+        const teamKeywords = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
+        
+        extStaffList.forEach(s => {
+            for (let w of teamKeywords) {
+                if (s.name.toLowerCase().includes(w.toLowerCase())) {
+                    if (!newGroups[w]) newGroups[w] = [];
+                    newGroups[w].push(s.id);
+                    break;
+                }
+            }
+        });
+        
+        const res = await fetch(DISCORD_API_URL + '/api/groups/save-all', { 
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify({ groups: newGroups }) 
+        });
+        
+        let data;
+        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
+        if(!data.success) throw new Error('จัดกลุ่มไม่สำเร็จ');
+        
+        await fetchSystemData(true, true);
+        Swal.fire('สำเร็จ', 'จัดกลุ่มตามเว็บเสร็จสิ้น', 'success');
     } catch(e) { Swal.fire('Error', e.message, 'error'); }
 };
 
@@ -1291,11 +1309,16 @@ window.createGroup = async function() {
     if(!name) return;
     Swal.fire({title: 'กำลังสร้าง...', didOpen: () => Swal.showLoading()});
     try {
-        const res = await fetch(DISCORD_API_URL + '/api/staff-groups', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupName: name, userIds: [] }) });
-        if (!res.ok) {
-            const errData = await res.json().catch(()=>({}));
-            throw new Error(errData.error || 'เกิดข้อผิดพลาดในการสร้างกลุ่ม');
-        }
+        const res = await fetch(DISCORD_API_URL + '/api/groups/create', { 
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify({ name: name }) 
+        });
+        
+        let data;
+        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
+        if (!data.success) throw new Error(data.error || 'สร้างกลุ่มไม่สำเร็จ');
+        
         document.getElementById('newGroupName').value = '';
         await fetchSystemData(true, true);
         Swal.fire({icon: 'success', title: 'สร้างกลุ่มแล้ว', timer: 1000, showConfirmButton: false});
@@ -1308,8 +1331,16 @@ window.deleteGroup = async function(groupName) {
     if(confirm(`ลบกลุ่ม ${groupName} ใช่ไหม?`)) {
         Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
         try {
-            const res = await fetch(DISCORD_API_URL + '/api/staff-groups/' + encodeURIComponent(groupName), { method: 'DELETE' });
-            if (!res.ok) throw new Error('ลบไม่สำเร็จ บอทอาจมีปัญหา');
+            const res = await fetch(DISCORD_API_URL + '/api/groups/delete', { 
+                method: 'POST', 
+                headers: {'Content-Type':'application/json'}, 
+                body: JSON.stringify({ name: groupName }) 
+            });
+            
+            let data;
+            try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
+            if (!data.success) throw new Error('ลบไม่สำเร็จ');
+            
             await fetchSystemData(true, true);
             Swal.fire({icon: 'success', title: 'ลบกลุ่มแล้ว', timer: 1000, showConfirmButton: false});
         } catch(e) {
@@ -1323,11 +1354,16 @@ window.renameGroup = async function(oldName) {
     if(newName && newName !== oldName) {
         Swal.fire({title: 'กำลังเปลี่ยนชื่อ...', didOpen: () => Swal.showLoading()});
         try {
-            const userIds = extStaffGroups[oldName] || [];
-            const delRes = await fetch(DISCORD_API_URL + '/api/staff-groups/' + encodeURIComponent(oldName), { method: 'DELETE' });
-            if (!delRes.ok) throw new Error('ลบกลุ่มเดิมไม่สำเร็จ');
-            const addRes = await fetch(DISCORD_API_URL + '/api/staff-groups', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupName: newName, userIds }) });
-            if (!addRes.ok) throw new Error('สร้างกลุ่มใหม่ไม่สำเร็จ');
+            const res = await fetch(DISCORD_API_URL + '/api/groups/rename', { 
+                method: 'POST', 
+                headers: {'Content-Type':'application/json'}, 
+                body: JSON.stringify({ oldName: oldName, newName: newName }) 
+            });
+            
+            let data;
+            try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
+            if (!data.success) throw new Error('เปลี่ยนชื่อไม่สำเร็จ');
+            
             await fetchSystemData(true, true);
             Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแล้ว', timer: 1000, showConfirmButton: false});
         } catch(e) {
@@ -1341,11 +1377,16 @@ window.addStaff = async function() {
     if(!name) return;
     Swal.fire({title: 'กำลังเพิ่ม...', didOpen: () => Swal.showLoading()});
     try {
-        const res = await fetch(DISCORD_API_URL + '/api/staff', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
-        if (!res.ok) {
-            const errData = await res.json().catch(()=>({}));
-            throw new Error(errData.error || 'เกิดข้อผิดพลาดในการเพิ่มพนักงาน');
-        }
+        const res = await fetch(DISCORD_API_URL + '/api/staff/add', { 
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify({ name: name }) 
+        });
+        
+        let data;
+        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
+        if (!data.success) throw new Error(data.error || 'เพิ่มพนักงานไม่สำเร็จ');
+        
         document.getElementById('newStaffName').value = '';
         await fetchSystemData(true, true);
         Swal.fire({icon: 'success', title: 'เพิ่มรายชื่อแล้ว', timer: 1000, showConfirmButton: false});
@@ -1358,13 +1399,14 @@ window.syncDiscord = async function() {
     Swal.fire({title: 'กำลังสั่งบอทดึงรายชื่อ...', didOpen: () => Swal.showLoading()}); 
     try {
         const res = await fetch(DISCORD_API_URL + '/api/import-discord-members', { method:'POST', headers: { 'Cache-Control': 'no-cache' } }); 
-        if(!res.ok) {
-            const errData = await res.json().catch(()=>({}));
-            throw new Error(errData.error || 'API_FAIL');
-        }
+        
+        let data;
+        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
+        if(!data.success) throw new Error(data.error || 'บอทอาจจะหลับอยู่ หรือไม่มีสิทธิ์ดึงข้อมูล');
+        
         await fetchSystemData(true, true); 
         Swal.fire({icon: 'success', title: 'อัปเดตเรียบร้อย', timer: 1000, showConfirmButton: false}); 
     } catch(e) {
-        Swal.fire({ icon: 'error', title: 'เชื่อมต่อล้มเหลว', text: e.message === 'API_FAIL' ? 'บอทอาจจะหลับอยู่ หรือคอมเครื่องนี้มีระบบป้องกัน' : e.message });
+        Swal.fire({ icon: 'error', title: 'เชื่อมต่อล้มเหลว', text: e.message });
     }
 };
