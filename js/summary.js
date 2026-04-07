@@ -36,10 +36,16 @@ window.initSummaryDate = async function() {
         
         await loadWebLogos();
         if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
+        
+        // 🌟 เพิ่มบรรทัดนี้: บังคับโหลดรายชื่อพนักงานก่อน เพื่อให้ระบบรู้จักกะการทำงาน
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+            await fetchUsers();
+        }
+
         await window.fetchHistoricalSummary(true);
 
-        // 🟢 เปิดใช้งานระบบเรียลไทม์
-        window.subscribeSummaryChanges();
+        // เปิดใช้งานระบบเรียลไทม์
+        if (typeof window.subscribeSummaryChanges === 'function') window.subscribeSummaryChanges();
         
     } catch(e) { console.error(e); } 
     finally { Swal.close(); }
