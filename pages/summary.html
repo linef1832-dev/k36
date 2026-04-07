@@ -1,5 +1,5 @@
 <div id="summaryApp" class="fixed inset-0 z-50 bg-slate-100 dark:bg-slate-900 fade-in flex flex-col">
-    <div class="bg-gradient-to-r from-purple-800 to-indigo-900 text-white p-4 shadow-lg shrink-0 flex justify-between items-center z-10">
+    <div class="bg-gradient-to-r from-purple-800 to-indigo-900 text-white p-4 shadow-md shrink-0 flex justify-between items-center z-10">
         <div class="flex items-center gap-3">
             <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-purple-200">query_stats</span></div>
             <div>
@@ -7,7 +7,7 @@
                 <p class="text-xs text-purple-200 opacity-90">อัปโหลดไฟล์ Excel เพื่อคำนวณและสรุปยอดการถอนของพนักงาน</p>
             </div>
         </div>
-        <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm">
+        <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-xl font-bold transition-colors flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm">
             <span class="material-icons text-sm">arrow_back</span> กลับเมนูหลัก
         </button>
     </div>
@@ -16,33 +16,33 @@
         <div class="max-w-[1600px] mx-auto space-y-6 pb-10">
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border-2 border-blue-500/30 shadow-xl flex flex-col items-center justify-center relative overflow-hidden group">
+                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border-2 border-blue-500/30 shadow-lg flex flex-col items-center justify-center relative overflow-hidden group">
                     <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-7xl text-blue-500">cloud_upload</span></div>
                     <h3 class="font-black text-xl text-blue-600 dark:text-blue-400 mb-1 z-10">ระบบ K36</h3>
                     <p class="text-[10px] font-bold text-gray-500 mb-4 z-10 text-center">เว็บ: Jun88, MK8, VV72, TH26</p>
-                    <label ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'K36')" class="w-full border-2 border-dashed border-blue-400/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-300 z-10">
+                    <label ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'K36')" class="w-full border-2 border-dashed border-blue-400/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200 z-10">
                         <span class="material-icons text-4xl text-blue-400 mb-2 group-hover:scale-110 transition-transform pointer-events-none">upload_file</span>
                         <span class="text-sm font-bold text-slate-700 dark:text-gray-300 pointer-events-none">คลิก หรือ ลากไฟล์ลงที่นี่</span>
                         <input type="file" accept=".xlsx, .xls, .csv" class="hidden" onchange="processExcelUpload(event, 'K36')">
                     </label>
                 </div>
 
-                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border-2 border-emerald-500/30 shadow-xl flex flex-col items-center justify-center relative overflow-hidden group">
+                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border-2 border-emerald-500/30 shadow-lg flex flex-col items-center justify-center relative overflow-hidden group">
                     <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-7xl text-emerald-500">cloud_upload</span></div>
                     <h3 class="font-black text-xl text-emerald-600 dark:text-emerald-400 mb-1 z-10">ระบบ WG</h3>
                     <p class="text-[10px] font-bold text-gray-500 mb-4 z-10 text-center">เว็บ: F168</p>
-                    <label ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'WG')" class="w-full border-2 border-dashed border-emerald-400/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all duration-300 z-10">
+                    <label ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'WG')" class="w-full border-2 border-dashed border-emerald-400/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors duration-200 z-10">
                         <span class="material-icons text-4xl text-emerald-400 mb-2 group-hover:scale-110 transition-transform pointer-events-none">upload_file</span>
                         <span class="text-sm font-bold text-slate-700 dark:text-gray-300 pointer-events-none">คลิก หรือ ลากไฟล์ลงที่นี่</span>
                         <input type="file" accept=".xlsx, .xls, .csv" class="hidden" onchange="processExcelUpload(event, 'WG')">
                     </label>
                 </div>
 
-                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border-2 border-pink-500/30 shadow-xl flex flex-col items-center justify-center relative overflow-hidden group">
+                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border-2 border-pink-500/30 shadow-lg flex flex-col items-center justify-center relative overflow-hidden group">
                     <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-7xl text-pink-500">cloud_upload</span></div>
                     <h3 class="font-black text-xl text-pink-600 dark:text-pink-400 mb-1 z-10">ระบบ TCG</h3>
                     <p class="text-[10px] font-bold text-gray-500 mb-4 z-10 text-center">เว็บ: PG688, JL69, NM9</p>
-                    <label ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'TCG')" class="w-full border-2 border-dashed border-pink-400/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-all duration-300 z-10">
+                    <label ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'TCG')" class="w-full border-2 border-dashed border-pink-400/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors duration-200 z-10">
                         <span class="material-icons text-4xl text-pink-400 mb-2 group-hover:scale-110 transition-transform pointer-events-none">upload_file</span>
                         <span class="text-sm font-bold text-slate-700 dark:text-gray-300 pointer-events-none">คลิก หรือ ลากไฟล์ลงที่นี่</span>
                         <input type="file" accept=".xlsx, .xls, .csv" class="hidden" onchange="processExcelUpload(event, 'TCG')">
@@ -50,29 +50,29 @@
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row gap-4 items-center justify-between">
+            <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row gap-4 items-center justify-between">
                 <div class="flex gap-3 w-full xl:w-auto overflow-x-auto custom-scrollbar pb-2 xl:pb-0" id="shiftSummaryStats">
                     <div class="text-center text-gray-400 text-sm py-2 w-full">รออัปโหลดข้อมูล...</div>
                 </div>
                 
                 <div class="flex justify-end gap-2 w-full xl:w-auto shrink-0">
-                    <button onclick="clearSummaryData()" class="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white rounded-xl font-bold hover:bg-slate-300 transition">ล้างข้อมูลที่พรีวิว</button>
-                    <button onclick="saveSummaryToSupabase()" class="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-black shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 flex items-center gap-2">
+                    <button onclick="clearSummaryData()" class="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white rounded-xl font-bold hover:bg-slate-300 transition-colors">ล้างข้อมูลที่พรีวิว</button>
+                    <button onclick="saveSummaryToSupabase()" class="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-black shadow-md hover:shadow-lg transition-transform hover:-translate-y-0.5 flex items-center gap-2">
                         <span class="material-icons">save</span> บันทึกยอดเข้าฐานข้อมูล
                     </button>
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-xl border border-slate-200 dark:border-slate-700">
+            <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-lg border border-slate-200 dark:border-slate-700">
                 <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-slate-700 pb-3">
                     <h3 class="font-black text-lg text-emerald-500 flex items-center gap-2">
                         <span class="material-icons">language</span> สรุปแยกตามเว็บไซต์
                     </h3>
                     <div class="flex items-center gap-2">
-                        <button onclick="openManageSystemModal()" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1 transition active:scale-95">
+                        <button onclick="openManageSystemModal()" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1 transition-transform active:scale-95">
                             <span class="material-icons text-[14px]">settings</span> จัดการหลังบ้าน
                         </button>
-                        <button onclick="openManageLogoModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1 transition active:scale-95">
+                        <button onclick="openManageLogoModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1 transition-transform active:scale-95">
                             <span class="material-icons text-[14px]">edit</span> จัดการโลโก้
                         </button>
                     </div>
@@ -83,7 +83,7 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-xl border border-slate-200 dark:border-slate-700 lg:col-span-4 flex flex-col h-[550px]">
+                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-lg border border-slate-200 dark:border-slate-700 lg:col-span-4 flex flex-col h-[550px]">
                     <div class="flex flex-wrap justify-between items-center mb-3 shrink-0 gap-2">
                         <h3 class="font-black text-lg text-amber-500 flex items-center gap-2">
                             <span class="material-icons">emoji_events</span> จัดอันดับ
@@ -107,13 +107,13 @@
                     </div>
                 </div>
 
-                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-xl border border-slate-200 dark:border-slate-700 lg:col-span-8 flex flex-col h-[550px]">
+                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-lg border border-slate-200 dark:border-slate-700 lg:col-span-8 flex flex-col h-[550px]">
                     <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 pb-3 border-b border-gray-200 dark:border-slate-700 gap-3 shrink-0">
                         <div class="flex flex-col gap-1">
                             <h3 class="font-black text-lg text-sky-500 flex items-center gap-2">
                                 <span class="material-icons">analytics</span> สรุปรายบุคคล 
                                 <span class="text-xs text-gray-400 font-normal hidden lg:inline">(รายวัน)</span>
-                                <button onclick="exportSummaryToExcel()" class="ml-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold shadow flex items-center gap-1 transition">
+                                <button onclick="exportSummaryToExcel()" class="ml-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded-lg text-[10px] font-bold shadow flex items-center gap-1 transition-colors">
                                     <span class="material-icons text-[12px]">download</span> โหลด Excel
                                 </button>
                             </h3>
@@ -123,7 +123,7 @@
                         </div>
                         
                         <div class="flex flex-wrap items-center gap-2 w-full xl:w-auto mt-2 xl:mt-0">
-                            <div class="relative flex items-center bg-[#151f32] px-3 py-1.5 rounded-lg border border-slate-600 shadow-sm group hover:border-pink-500 transition">
+                            <div class="relative flex items-center bg-[#151f32] px-3 py-1.5 rounded-lg border border-slate-600 shadow-sm group hover:border-pink-500 transition-colors">
                                 <span class="material-icons text-pink-500 text-[18px] mr-2">smart_toy</span>
                                 <select id="summaryOdFilter" onchange="renderSummaryDashboard()" class="bg-transparent text-white text-xs font-bold outline-none cursor-pointer appearance-none pr-6 w-full z-10">
                                     <option value="ALL" class="bg-slate-800 text-white">รวมทุกประเภท</option>
@@ -131,12 +131,12 @@
                                     <option value="OD" class="bg-slate-800 text-blue-400 font-bold">OD ธรรมดา</option>
                                     <option value="ODOL" class="bg-slate-800 text-pink-400 font-bold">ODOL</option>
                                 </select>
-                                <span class="material-icons text-gray-400 text-sm absolute right-2 pointer-events-none group-hover:text-pink-400">expand_more</span>
+                                <span class="material-icons text-gray-400 text-sm absolute right-2 pointer-events-none group-hover:text-pink-400 transition-colors">expand_more</span>
                             </div>
 
                             <div class="relative flex-1 sm:flex-none sm:w-[180px]">
                                 <span class="material-icons absolute left-3 top-2 text-gray-400 text-[16px]">search</span>
-                                <input type="text" id="summarySearch" oninput="debounceRenderSummary()" placeholder="ค้นหาชื่อพนักงาน..." class="w-full pl-9 pr-3 py-2 bg-[#151f32] border border-slate-600 rounded-lg text-xs font-bold text-white outline-none focus:border-sky-500 shadow-inner transition">
+                                <input type="text" id="summarySearch" oninput="debounceRenderSummary()" placeholder="ค้นหาชื่อพนักงาน..." class="w-full pl-9 pr-3 py-2 bg-[#151f32] border border-slate-600 rounded-lg text-xs font-bold text-white outline-none focus:border-sky-500 shadow-inner transition-colors">
                             </div>
 
                             <div class="flex items-center bg-slate-100 dark:bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 shadow-inner flex-1 sm:flex-none">
@@ -171,26 +171,26 @@
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-600">
         <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 flex justify-between items-center text-white">
             <h3 class="font-black text-lg flex items-center gap-2">🖼️ ตั้งค่าโลโก้ <span id="webLogoTargetName" class="text-amber-300"></span></h3>
-            <button type="button" onclick="document.getElementById('webLogoModal').classList.add('hidden')" class="hover:bg-white/20 p-1 rounded-full transition"><span class="material-icons text-sm">close</span></button>
+            <button type="button" onclick="document.getElementById('webLogoModal').classList.add('hidden')" class="hover:bg-white/20 p-1 rounded-full transition-colors"><span class="material-icons text-sm">close</span></button>
         </div>
         <div class="p-6 space-y-4 text-left">
             <input type="hidden" id="webLogoKey" value="">
             <div>
                 <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ใส่ลิงก์รูปภาพ (URL)</label>
-                <input type="text" id="webLogoUrlInput" placeholder="https://..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm transition shadow-inner">
+                <input type="text" id="webLogoUrlInput" placeholder="https://..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors shadow-inner">
             </div>
             <div class="flex items-center gap-2 my-2">
                 <div class="h-px bg-gray-300 dark:bg-slate-700 flex-1"></div>
                 <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">หรืออัปโหลดจากคอม</span>
                 <div class="h-px bg-gray-300 dark:bg-slate-700 flex-1"></div>
             </div>
-            <input type="file" id="webLogoFileInput" accept="image/*" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-950 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer">
+            <input type="file" id="webLogoFileInput" accept="image/*" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-950 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer">
             
             <div class="text-center mt-4 hidden" id="currentWebLogoPreviewBox">
                 <span class="text-[10px] text-gray-400 mb-1 block">รูปปัจจุบัน</span>
                 <img id="currentWebLogoPreview" src="" class="w-16 h-16 object-cover rounded-full mx-auto border-2 border-gray-300 shadow-md bg-white">
             </div>
-            <button onclick="saveWebLogo()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3.5 rounded-xl shadow-lg transition transform active:scale-95 mt-4 text-base border border-blue-400">
+            <button onclick="saveWebLogo()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3.5 rounded-xl shadow-md transition-transform active:scale-95 mt-4 text-base border border-blue-400">
                 บันทึกโลโก้
             </button>
         </div>
