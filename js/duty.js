@@ -863,7 +863,9 @@ window.searchDutyMyself = function() {
     }
 }
 
+// ==========================================
 // 🚀 ระบบลากวาง (Drag & Drop) จัดหน้าที่ด้วยมือ
+// ==========================================
 let draggedUser = null;
 
 function cleanupDragEffects() {
@@ -909,6 +911,7 @@ window.handleDragStart = function(event, userId, username, fromTeam) {
 
 window.handleDragOver = function(event) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; };
 
+// 🌟 อัปเดตใหม่: เพิ่มเงื่อนไขเช็คโซนลาหยุดและใส่ Popup
 window.handleDrop = async function(event, toTeam) {
     event.preventDefault();
     if (!draggedUser) return;
@@ -919,6 +922,64 @@ window.handleDrop = async function(event, toTeam) {
 
     if (fromTeam === toTeam) { draggedUser = null; return; }
 
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+
+    // 🟢 1. เช็คว่าถ้าลากไปลงโซน "ลาหยุด" (dutyLeaveList) ให้เด้ง Popup ถามสาเหตุ
+    if (toTeam === 'leaveList' || event.target.closest('#dutyLeaveList')) {
+        const { value: leaveReason } = await Swal.fire({
+            title: '<div class="text-red-500 font-black">ระบุสถานะการหยุด</div>',
+            html: `
+                <div class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-4">
+                    พนักงาน: <span class="text-xl text-slate-800 dark:text-white uppercase tracking-wider">${username}</span>
+                </div>
+                <select id="leaveReasonSelect" class="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-red-500 shadow-inner cursor-pointer appearance-none transition">
+                    <option value="" disabled selected>-- เลือกสาเหตุการหยุด --</option>
+                    <option value="X">❌ วันหยุดปกติ (X)</option>
+                    <option value="KL">📝 ลากิจ (KL)</option>
+                    <option value="PN">🏖️ พักร้อน (PN)</option>
+                    <option value="XX">⏳ เปลี่ยนกะ / รอเข้ากะ (XX)</option>
+                    <option value="TL">🔄 สลับวันหยุด (TL / TX)</option>
+                    <option value="X4">⏱️ ลาครึ่งวัน (X4)</option>
+                    <option value="ขาดงาน">🚫 ขาดงาน (ไม่แจ้งล่วงหน้า)</option>
+                </select>
+            `,
+            showCancelButton: true, confirmButtonText: 'บันทึกสถานะ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b',
+            customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl shadow-2xl border border-slate-700' },
+            preConfirm: () => {
+                const val = document.getElementById('leaveReasonSelect').value;
+                if (!val) { Swal.showValidationMessage('กรุณาเลือกสาเหตุด้วยครับ!'); return false; }
+                return val;
+            }
+        });
+
+        if (!leaveReason) { draggedUser = null; return; }
+
+        Swal.fire({title: 'กำลังย้ายข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        try {
+            // ลบชื่อออกจากตารางงานหลัก
+            if (currentRosterData[fromTeam]) {
+                currentRosterData[fromTeam] = currentRosterData[fromTeam].filter(u => String(u.id) !== String(id));
+                const saveKey = typeof getDutySaveKey === 'function' ? getDutySaveKey(targetDate, shiftFilter) : `duty_roster_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+                await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+            }
+
+            // บันทึกลงตารางลาหยุด (leave_requests)
+            const { error: leaveErr } = await appDB.from('leave_requests').insert([{ user_id: id, user_name: username, leave_date: targetDate, reason: leaveReason, status: 'approved' }]);
+            if (leaveErr) throw leaveErr;
+
+            await appDB.from('system_logs').insert([{ action_type: 'ย้ายหน้าที่', performed_by: currentUser.username, target_details: `ย้าย ${username} จากเว็บ ${fromTeam} ไปอยู่โซนลาหยุด (${leaveReason}) วันที่: ${targetDate}` }]);
+            appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+            await window.refreshDutyData();
+
+            Swal.fire({icon: 'success', title: 'อัปเดตสถานะสำเร็จ!', timer: 1500, showConfirmButton: false});
+        } catch (err) { Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
+        
+        draggedUser = null;
+        return;
+    }
+
+    // 🟢 2. ถ้าลากไปลงเว็บอื่นๆ (จัดเวรปกติ)
     const userAccess = dutyAccessMatrix[id] || [];
     if (!userAccess.includes(toTeam)) {
         Swal.fire({ icon: 'error', title: 'ย้ายไม่ได้!', text: `ไม่อนุญาต! ${username} ไม่มีสิทธิ์หลังบ้านเว็บ ${toTeam} นะคะ`, confirmButtonText: 'ตกลง', confirmButtonColor: '#d33' });
@@ -933,8 +994,6 @@ window.handleDrop = async function(event, toTeam) {
         currentRosterData[toTeam].push(fullUserObj);
     }
 
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const saveKey = typeof getDutySaveKey === 'function' ? getDutySaveKey(targetDate, shiftFilter) : `duty_roster_${currentDutyDept}_${targetDate}_${shiftFilter}`;
 
     Swal.fire({title: 'กำลังอัปเดตตาราง...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
@@ -960,7 +1019,6 @@ document.addEventListener('dragend', (e) => {
     if(e.target.classList && e.target.classList.contains('duty-user-card')) e.target.classList.remove('opacity-50', 'scale-95');
     cleanupDragEffects(); draggedUser = null;
 });
-
 // 🎓 ระบบจัดการหน้าผู้สอน
 window.filterTrainerList = function() {
     const input = document.getElementById('trainerSearchInput'); const filter = input.value.toLowerCase();
