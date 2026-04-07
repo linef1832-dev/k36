@@ -48,13 +48,10 @@ window.initDashboard = async function() {
         }
     }
 
-    // โหลดข้อมูลรอบเวลาและตารางลงเวลา (โหลดแค่ครั้งแรกตอนเปิดหน้าเว็บ)
-    if (!window.hasLoadedDashboardData) {
-        if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-        if (typeof fetchData === 'function') fetchData();
-        window.hasLoadedDashboardData = true;
-    }
-    
+    // โหลดข้อมูลรอบเวลาและตารางลงเวลา เพื่อเติมข้อมูลในหน้าจอที่สร้างใหม่
+    if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+    if (typeof fetchData === 'function') fetchData();
+
     // 🌟 เรียกใช้งานระบบ Realtime
     if (typeof subscribeDashboardChanges === 'function') subscribeDashboardChanges();
 };
