@@ -2040,69 +2040,77 @@ window.addTeamManual = function(dept) {
 };
 
 // =========================================================
-// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) ตามสิทธิ์ (V.3 ดักทาง 100%)
+// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) ตามสิทธิ์ (V.4 กวาดเรียบ)
 // =========================================================
 window.applySidebarPermissions = async function() {
-    // 1. เช็คข้อมูลพนักงาน (ดักกรณีพนักงานกดรีเฟรชหน้าจอ F5)
+    // 1. เช็คข้อมูลพนักงาน 
     let user = window.currentUser;
     if (!user) {
         const savedUser = sessionStorage.getItem('user_platinum_plus');
         if (savedUser) { user = JSON.parse(savedUser); window.currentUser = user; }
-        else return; // ถ้ายังไม่ได้ล็อกอิน ให้หยุดทำงานไปเลย
+        else return; 
     }
 
-    // 2. ดึงตั้งค่าสิทธิ์จาก Database (ดักกรณีสิทธิ์ยังโหลดไม่เสร็จ)
+    const userRole = (user.role || '').toLowerCase().trim();
+
+    // 2. ดึงตั้งค่าจาก Database ถ้ายังไม่มี
     if (!SETTINGS['dept_menu_rules']) {
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single();
             if (data && data.value) SETTINGS['dept_menu_rules'] = data.value;
-        } catch(e) { console.error('ดึงสิทธิ์เมนูไม่สำเร็จ'); }
+        } catch(e) {}
     }
 
-    const allMenuBtns = document.querySelectorAll('.nm-menu-title');
+    // 🌟 3. ค้นหา "ทุกปุ่ม" ที่อยู่ในแถบเมนูด้านซ้าย (ไม่สนว่าจะมีคลาสอะไร)
+    const allMenuBtns = document.querySelectorAll('#menu-list button');
 
-    // 3. วนลูปตรวจสอบและซ่อนเมนูย่อยทีละอัน
+    // 4. วนลูปเช็คสิทธิ์แต่ละหน้า
     PERM_GROUPS.forEach(group => {
         group.items.forEach(item => {
-            if (item.isSub) return; // ข้ามเมนูย่อยไปก่อน
+            if (item.isSub) return; 
             
             const canSee = window.hasUserPerm(item.id);
             allMenuBtns.forEach(btn => {
                 const onClickAttr = btn.getAttribute('onclick') || '';
-                // ค้นหาปุ่มที่ตรงกับหน้าเมนู
                 if (onClickAttr.includes(`showPage('${item.id}')`) || onClickAttr.includes(`showPage("${item.id}")`)) {
-                    btn.style.display = canSee ? '' : 'none'; // ซ่อน/โชว์
+                    btn.style.display = canSee ? '' : 'none';
                 }
             });
         });
     });
 
-    // 4. ดักหมวด DISCORD (ซ่อนทั้งหมวดถ้าไม่มีสิทธิ์ย่อยเลย)
+    // 5. ดักหมวด DISCORD (Dropdown)
     const discordGroup = PERM_GROUPS.find(g => g.id === 'group_discord');
     if (discordGroup) {
         const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
         allMenuBtns.forEach(btn => {
             if ((btn.getAttribute('onclick') || '').includes("toggleSubMenu('menu-discord'")) {
-                const canSeeDs = hasAnyDiscordPerm || ['admin', 'manager'].includes(user.role);
+                const canSeeDs = hasAnyDiscordPerm || ['admin', 'manager'].includes(userRole);
                 btn.style.display = canSeeDs ? '' : 'none';
                 if (!canSeeDs) document.getElementById('menu-discord')?.classList.add('hidden');
             }
         });
     }
 
-    // 5. ดักหมวด เครื่องมือผู้จัดการ (อนุญาตเฉพาะ Admin / Manager)
+    // 6. ดักหมวด เครื่องมือผู้จัดการ (Dropdown)
     allMenuBtns.forEach(btn => {
-        if ((btn.getAttribute('onclick') || '').includes("toggleSubMenu('menu-admin'")) {
-            const canSeeAdmin = ['admin', 'manager'].includes(user.role);
+        const onClickAttr = btn.getAttribute('onclick') || '';
+        // ตรวจปุ่มหัวข้อ
+        if (onClickAttr.includes("toggleSubMenu('menu-admin'")) {
+            const canSeeAdmin = ['admin', 'manager'].includes(userRole);
             btn.style.display = canSeeAdmin ? '' : 'none';
             if (!canSeeAdmin) document.getElementById('menu-admin')?.classList.add('hidden');
+        }
+        // ตรวจปุ่มย่อยข้างใน (openAdminPanel)
+        if (onClickAttr.includes("openAdminPanel()")) {
+            const canSeeAdmin = ['admin', 'manager'].includes(userRole);
+            btn.style.display = canSeeAdmin ? '' : 'none';
         }
     });
 };
 
-// 🌟 ท่าไม้ตาย: สั่งให้ทำงานอัตโนมัติ 2 จังหวะ (ตอนโหลดหน้าเว็บเสร็จ และเผื่อเน็ตช้า)
-setTimeout(applySidebarPermissions, 500);
-setTimeout(applySidebarPermissions, 2000);
+setTimeout(applySidebarPermissions, 300);
+setTimeout(applySidebarPermissions, 1500);
 
 // =========================================================
 // 🟢 ระบบเพิ่มรอบเวลาเอง (ดึงข้อมูลเก่า + ค่าเริ่มต้น)
