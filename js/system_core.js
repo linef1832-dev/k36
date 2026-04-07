@@ -1669,6 +1669,7 @@ window.loadSettings = async function() {
         // 🟢 เพิ่ม 2 บรรทัดนี้เพื่อให้มันดึงรอบเวลาที่เคยตั้งไว้มาแสดง
         if (typeof applyCustomTimeSlots === 'function') applyCustomTimeSlots();
         if (typeof renderManualTimeSlots === 'function') renderManualTimeSlots(); 
+        if (typeof applySidebarPermissions === 'function') applySidebarPermissions();
         
     } catch (e) { console.error("Load Settings Error:", e); }
 };

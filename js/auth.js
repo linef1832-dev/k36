@@ -117,6 +117,9 @@ async function handleLogin(e) {
         // 🌟 ล็อกอินสำเร็จ เข้าสู่ระบบเลย
         currentUser = user; 
         sessionStorage.setItem('user_platinum_plus', JSON.stringify(user));
+
+        // 🌟 [เติมบรรทัดนี้] อัปเดตเมนูให้ตรงกับสิทธิ์พนักงานคนนี้
+        if (typeof applySidebarPermissions === 'function') applySidebarPermissions();
         
         document.getElementById('login-container').innerHTML = ''; // ลบหน้า login ทิ้ง
         document.getElementById('main-layout').classList.remove('hidden'); // โชว์กรอบหลัก
