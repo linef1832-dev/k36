@@ -613,6 +613,45 @@ window.updateThaiMonthDisplay = function() {
     }
 };
 
+window.updateThaiMonthDisplay = function() {
+    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    // ... (โค้ดเดิม) ...
+    if (setPicker && setDisplay) {
+        if (setPicker.value) {
+            const [y, m] = setPicker.value.split('-');
+            setDisplay.innerText = `${thaiMonths[parseInt(m) - 1]} ${parseInt(y) + 543}`;
+        } else {
+            setDisplay.innerText = 'เลือกเดือน';
+        }
+    }
+};
+
+window.changeAdminMonth = function(step) {
+    const inputEl = document.getElementById('setAllowedMonth');
+    if (!inputEl) return;
+
+    let currentVal = inputEl.value;
+    let d;
+
+    if (currentVal) {
+        const [y, m] = currentVal.split('-');
+        d = new Date(parseInt(y), parseInt(m) - 1, 1);
+    } else {
+        d = new Date();
+    }
+
+    d.setMonth(d.getMonth() + step);
+
+    const newY = d.getFullYear();
+    const newM = String(d.getMonth() + 1).padStart(2, '0');
+    
+    inputEl.value = `${newY}-${newM}`;
+    
+    if (typeof window.updateThaiMonthDisplay === 'function') {
+        window.updateThaiMonthDisplay();
+    }
+};
+
 // =================================================================
 // 🟢 ระบบบันทึก/ลบ วันหยุด (รองรับ 6 ประเภทการลาแบบเดิม)
 // =================================================================
