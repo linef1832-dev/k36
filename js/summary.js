@@ -1,5 +1,5 @@
 // ====================================================
-// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. แยก Template 100% + แก้กะเพี้ยน)
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. แยก Template 100% + แก้บั๊กยอดเมื่อวานหาย)
 // ====================================================
 
 let pendingSummaryData = []; 
@@ -11,6 +11,15 @@ window.availableSummaryDates = [];
 window.selectedSummaryDates = window.selectedSummaryDates || new Set();
 let summaryRenderTimer;
 let summarySubscription = null;
+
+// 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด (แก้ปัญหา Timezone เลื่อน)
+function getYesterdayString(dateStr) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    const dt = new Date(y, m - 1, d, 12, 0, 0); // ล็อกเป็นเที่ยงวันเสมอเพื่อกัน Timezone เพี้ยน
+    dt.setDate(dt.getDate() - 1);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
 
 // 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล
 function getTpl(templateId, data = {}) {
@@ -86,7 +95,6 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
-// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100% ไม่มีเดามั่วแล้ว
 function getShiftFromName(name) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
 
@@ -404,7 +412,6 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     
                     if (!webName) webName = defaultWeb; 
 
-                    // 🌟 ใช้เวลาจาก Excel หากะให้ถ้าเป็นกะอิสระ
                     let extractedShiftFromTime = 'UNKNOWN';
                     if (hour !== null) {
                         if (hour >= 7 && hour < 19) extractedShiftFromTime = 'กะเช้า';
@@ -428,20 +435,25 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     extractedRows.push({ empName, amount, website: webName, system: fileSystem, status: txStatus, odType: odType, date: finalRowDate, shift: finalShift });
                 }
 
-                const targetDate = detectedDate || document.getElementById('summaryDateFilter').value;
-                const targetObj = new Date(targetDate);
-                const yestObj = new Date(targetObj); yestObj.setDate(yestObj.getDate() - 1);
-                const yesterdayStr = yestObj.toISOString().split('T')[0];
+                // 🌟 ระบบหา "วันที่เมื่อวาน" แบบแม่นยำ เพื่อใช้หาตัวเปรียบเทียบ
+                const uniqueDates = [...new Set(extractedRows.map(r => r.date))];
+                const yesterdayDates = uniqueDates.map(d => getYesterdayString(d));
 
                 let yestMap = {};
-                if (typeof appDB !== 'undefined') {
-                    const { data: yestData } = await appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr);
-                    if (yestData) yestData.forEach(r => yestMap[`${r.employee_name}_${r.website}`] = r.count);
+                if (typeof appDB !== 'undefined' && yesterdayDates.length > 0) {
+                    const { data: yestData } = await appDB.from('transaction_daily_summary')
+                        .select('date, employee_name, website, count')
+                        .in('date', yesterdayDates);
+                    if (yestData) {
+                        yestData.forEach(r => yestMap[`${r.date}_${(r.employee_name||'').toLowerCase()}_${(r.website||'').toLowerCase()}`] = parseInt(r.count) || 0);
+                    }
                 }
 
                 extractedRows.forEach(row => {
-                    let existingIndex = pendingSummaryData.findIndex(p => p.empName === row.empName && p.website === row.website && p.date === row.date);
-                    const yestCount = yestMap[`${row.empName}_${row.website}`] || 0;
+                    let existingIndex = pendingSummaryData.findIndex(p => p.empName.toLowerCase() === row.empName.toLowerCase() && p.website.toLowerCase() === row.website.toLowerCase() && p.date === row.date);
+                    
+                    const rowYestDate = getYesterdayString(row.date);
+                    const yestCount = yestMap[`${rowYestDate}_${row.empName.toLowerCase()}_${row.website.toLowerCase()}`] || 0;
 
                     let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
                     if (customSystems[row.website]) { row.system = customSystems[row.website]; }
@@ -451,7 +463,9 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         pendingSummaryData[existingIndex].totalAmount += row.amount; 
                         if (row.status === 'Reject') pendingSummaryData[existingIndex].rejectCount = (pendingSummaryData[existingIndex].rejectCount || 0) + 1;
                         else pendingSummaryData[existingIndex].approvedCount = (pendingSummaryData[existingIndex].approvedCount || 0) + 1;
+                        
                         pendingSummaryData[existingIndex].diffFromYesterday = pendingSummaryData[existingIndex].count - yestCount;
+                        pendingSummaryData[existingIndex].yestCount = yestCount; 
                     } else {
                         pendingSummaryData.push({
                             date: row.date, empName: row.empName, website: row.website, system: row.system, shift: row.shift, odType: row.odType,
@@ -499,6 +513,7 @@ window.debounceRenderSummary = function() {
     summaryRenderTimer = setTimeout(() => { window.renderSummaryDashboard(); }, 200);
 };
 
+// 🌟 3. ฟังก์ชันวาดหน้าจอ (ใช้ Template HTML ที่เราแยกไว้ด้านบน ทำให้โค้ดสะอาดมาก)
 window.renderSummaryDashboard = function() {
     if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
         try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
@@ -999,7 +1014,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
         if (todayRes.error) throw todayRes.error;
 
         let yestMap = {};
-        if (yestRes.data) yestRes.data.forEach(r => yestMap[`${r.employee_name}_${r.website}`] = parseInt(r.count) || 0);
+        if (yestRes.data) yestRes.data.forEach(r => yestMap[`${r.employee_name.toLowerCase()}_${r.website.toLowerCase()}`] = parseInt(r.count) || 0);
 
         // 🌟 สร้างแผนที่รายชื่อ -> กะของวันนั้น
         let schMap = {};
@@ -1010,7 +1025,12 @@ window.fetchHistoricalSummary = async function(silent = false) {
         if (todayRes.data && todayRes.data.length > 0) {
             let mappedData = todayRes.data.map(r => {
                 const todayCount = parseInt(r.count) || 0;
-                const yestCount = yestMap[`${r.employee_name}_${r.website}`] || 0;
+                
+                // 🌟 ดึงข้อมูลเมื่อวานแบบตัวพิมพ์เล็กทั้งหมด
+                const empLower = (r.employee_name || '').toLowerCase();
+                const webLower = (r.website || '').toLowerCase();
+                const yestCount = yestMap[`${empLower}_${webLower}`] || 0;
+                
                 const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : todayCount;
                 const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
@@ -1129,7 +1149,7 @@ window.exportSummaryToExcel = async function() {
             if (colNumber <= 4) {
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
                 cell.font.color = { argb: 'FFFFFFFF' };
-                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
+                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
             } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
                 const webIndex = Math.floor((colNumber - 5) / 3);
                 const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
@@ -1439,3 +1459,4 @@ window.saveWebLogo = async function() {
         Swal.fire('Error', err.message, 'error');
     }
 };
+}
