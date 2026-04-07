@@ -7,7 +7,23 @@ window.availableSummaryDates = [];
 window.selectedSummaryDates = window.selectedSummaryDates || new Set();
 let summaryRenderTimer;
 
-// ฟังก์ชันเริ่มแรกตอนกดเข้าหน้า "สรุปยอด"
+let summarySubscription = null;
+
+// 🟢 ฟังก์ชันคอยดักฟังเวลามีเครื่องอื่นกดบันทึกยอด
+window.subscribeSummaryChanges = function() {
+    if (!window.appDB) return;
+    if (summarySubscription) window.appDB.removeChannel(summarySubscription);
+
+    summarySubscription = window.appDB.channel('summary-updates')
+    .on('broadcast', { event: 'force_summary_reload' }, async (payload) => {
+        const currentDate = document.getElementById('summaryDateFilter') ? document.getElementById('summaryDateFilter').value : '';
+        // ถ้ายืนอยู่หน้าประวัติของวันที่ตรงกับที่มีการบันทึก ให้แอบรีเฟรชข้อมูลเงียบๆ
+        if (viewMode === 'history' && payload?.payload?.date === currentDate) {
+            await window.fetchHistoricalSummary(true);
+        }
+    }).subscribe();
+};
+
 window.initSummaryDate = async function() {
     Swal.fire({title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
     try {
@@ -18,14 +34,12 @@ window.initSummaryDate = async function() {
             dateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
         }
         
-        // 1. โหลดข้อมูลโลโก้ที่เคยตั้งไว้
         await loadWebLogos();
-        
-        // 2. โหลดวันที่เคยมีคนอัปโหลดไว้ เพื่อทำปุ่มกดย้อนหลัง
         if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
-        
-        // 3. โหลดข้อมูลของวันนี้มาโชว์ (ถ้ามี)
         await window.fetchHistoricalSummary(true);
+
+        // 🟢 เปิดใช้งานระบบเรียลไทม์
+        window.subscribeSummaryChanges();
         
     } catch(e) { console.error(e); } 
     finally { Swal.close(); }
