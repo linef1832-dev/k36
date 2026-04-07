@@ -2036,56 +2036,76 @@ window.addTeamManual = function(dept) {
 };
 
 // =========================================================
-// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) ตามสิทธิ์
+// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) ตามสิทธิ์ (ฉบับแก้บั๊ก)
 // =========================================================
 window.applySidebarPermissions = function() {
     if (!window.currentUser) return; // ไม่ทำงานถ้ายังไม่ได้เข้าสู่ระบบ
 
+    // ดึงปุ่มเมนูทั้งหมดที่อยู่ในแถบด้านซ้ายมือ (อ้างอิงจากคลาส nm-menu-title)
+    const allMenuBtns = document.querySelectorAll('.nm-menu-title');
+
     // 1. วนลูปอ่านรายการเมนูทั้งหมดจาก PERM_GROUPS
     PERM_GROUPS.forEach(group => {
         group.items.forEach(item => {
-            // ถ้าเป็นเมนูย่อย (isSub) ข้ามไปก่อน เพราะเมนูย่อยมักอยู่ในหน้าหลัก ไม่ได้อยู่แถบซ้ายมือ
+            // ข้ามเมนูย่อยไปก่อน
             if (item.isSub) return; 
 
             // ตรวจสอบว่าคนนี้มีสิทธิ์มองเห็นหน้าเมนูนี้ไหม?
             const canSee = window.hasUserPerm(item.id);
 
-            // ค้นหาปุ่มเมนูด้านซ้ายมือ (อ้างอิงจากคำสั่ง onclick="showPage('ชื่อหน้า')")
-            const menuBtn = document.querySelector(`[onclick*="showPage('${item.id}')"]`) || 
-                            document.querySelector(`[onclick*='showPage("${item.id}")']`);
-
-            // ถ้าเจอปุ่มเมนู ให้สั่งซ่อนหรือโชว์ตามสิทธิ์
-            if (menuBtn) {
-                if (canSee) {
-                    menuBtn.classList.remove('hidden', 'no-perm-hidden');
-                    menuBtn.style.display = ''; // ล้างค่า display none
-                } else {
-                    menuBtn.classList.add('hidden', 'no-perm-hidden');
-                    menuBtn.style.display = 'none'; // บังคับซ่อน
+            // ค้นหาปุ่มที่ตรงกับเมนูนี้ โดยเช็คจาก 속性 onclick ว่ามีคำว่า showPage('ชื่อเมนู') ไหม
+            allMenuBtns.forEach(btn => {
+                const onClickAttr = btn.getAttribute('onclick') || '';
+                if (onClickAttr.includes(`showPage('${item.id}')`) || onClickAttr.includes(`showPage("${item.id}")`)) {
+                    if (canSee) {
+                        btn.classList.remove('hidden', 'no-perm-hidden');
+                        btn.style.display = ''; 
+                    } else {
+                        btn.classList.add('hidden', 'no-perm-hidden');
+                        btn.style.display = 'none'; 
+                    }
                 }
-            }
+            });
         });
     });
 
-    // 🌟 ดักจับพิเศษ: สำหรับหมวดเมนูที่มีลูกศร Dropdown (เช่น เครื่องมือ DISCORD, เครื่องมือผู้จัดการ)
-    // ถ้าไม่มีสิทธิ์เข้าถึงเมนูย่อยข้างในเลยสักอัน ให้ซ่อนหมวดหลักไปด้วยเลย
+    // 🌟 ดักจับพิเศษหมวด DISCORD (เพราะมันไม่ได้ใช้ showPage ตรงๆ แต่ใช้ toggleSubmenu)
     const discordGroup = PERM_GROUPS.find(g => g.id === 'group_discord');
     if (discordGroup) {
         const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
-        // หาปุ่มหมวด DISCORD (อาจจะไม่ได้ใช้ showPage แต่ใช้ toggleSubmenu หรือ ID ตรงๆ)
-        // คุณอาจจะต้องแก้ ID ตรงนี้ให้ตรงกับในไฟล์ HTML ของคุณนะครับ
-        const discordMainBtn = document.querySelector(`[onclick*="Discord"]`) || document.getElementById('menu_discord_main'); 
         
-        if (discordMainBtn) {
-            if (hasAnyDiscordPerm || currentUser.role === 'admin' || currentUser.role === 'manager') {
-                discordMainBtn.classList.remove('hidden');
-                discordMainBtn.style.display = '';
+        // ค้นหาปุ่มหมวด DISCORD
+        allMenuBtns.forEach(btn => {
+            const onClickAttr = btn.getAttribute('onclick') || '';
+            if (onClickAttr.includes("toggleSubMenu('menu-discord'")) {
+                if (hasAnyDiscordPerm || currentUser.role === 'admin' || currentUser.role === 'manager') {
+                    btn.classList.remove('hidden');
+                    btn.style.display = '';
+                } else {
+                    btn.classList.add('hidden');
+                    btn.style.display = 'none';
+                    // ซ่อนเมนูย่อยข้างในมันด้วย
+                    document.getElementById('menu-discord')?.classList.add('hidden');
+                }
+            }
+        });
+    }
+
+    // 🌟 ดักจับพิเศษหมวด เครื่องมือผู้จัดการ (Admin)
+    allMenuBtns.forEach(btn => {
+        const onClickAttr = btn.getAttribute('onclick') || '';
+        if (onClickAttr.includes("toggleSubMenu('menu-admin'")) {
+            // อนุญาตให้แค่ Admin และ Manager เห็นเท่านั้น
+            if (currentUser.role === 'admin' || currentUser.role === 'manager') {
+                btn.classList.remove('hidden');
+                btn.style.display = '';
             } else {
-                discordMainBtn.classList.add('hidden');
-                discordMainBtn.style.display = 'none';
+                btn.classList.add('hidden');
+                btn.style.display = 'none';
+                document.getElementById('menu-admin')?.classList.add('hidden');
             }
         }
-    }
+    });
 };
 
 // =========================================================
