@@ -598,6 +598,17 @@ window.saveSheetData = async function() {
     try {
         if (coverFileInput && coverFileInput.files && coverFileInput.files.length > 0) {
             Swal.update({text: `กำลังอัปโหลดรูปภาพหน้าปก...`});
+            
+            // 🌟 [เพิ่มใหม่] เช็ครูปหน้าปกเก่า และลบทิ้งถ้ามี
+            if (id) {
+                const sheetToEdit = window.GLOBAL_SHEETS.find(s => String(s.id) === String(id));
+                if (sheetToEdit && sheetToEdit.cover_url && sheetToEdit.cover_url.includes('supabase.co') && sheetToEdit.cover_url.includes('files/covers/')) {
+                    const oldPath = 'files/covers/' + sheetToEdit.cover_url.split('files/covers/')[1].split('?')[0];
+                    await appDB.storage.from('staff_images').remove([oldPath]);
+                }
+            }
+
+            // โค้ดอัปโหลดรูปใหม่ (ของเดิมของคุณ)
             const coverFile = coverFileInput.files[0];
             const coverName = `sheet_cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${coverFile.name.split('.').pop()}`;
 
