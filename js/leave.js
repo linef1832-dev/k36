@@ -161,8 +161,18 @@ window.initLeaveTable = async function() {
     const myDept = currentUser.department || 'AM';
     switchDept(myDept); 
     
-    setInterval(() => {
-        if(document.getElementById('leaveApp').classList.contains('hidden')) return;
+    // เคลียร์การนับเวลาอันเก่าทิ้งก่อน (ป้องกันนาฬิกาทำงานซ้อนกันเวลาเข้าหน้าเดิมซ้ำ)
+    if (window.leaveCheckInterval) {
+        clearInterval(window.leaveCheckInterval);
+    }
+
+    // ตั้งเวลานับใหม่
+    window.leaveCheckInterval = setInterval(() => {
+        const leaveAppEl = document.getElementById('leaveApp');
+        
+        // เช็คว่าถ้าสลับไปหน้าอื่นแล้ว (หาตัว leaveApp ไม่เจอ) ให้ข้ามไปเลย ระบบจะได้ไม่ Error
+        if(!leaveAppEl || leaveAppEl.classList.contains('hidden')) return;
+        
         checkBookingWindow();
     }, 1000);
 }
