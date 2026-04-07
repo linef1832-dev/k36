@@ -261,8 +261,14 @@ function clearSpecificTimeFilter() {
 }
 
 async function fetchData() {
-    const dateVal = document.getElementById('wDate').value;
-    const tableTeam = document.getElementById('tableTeamFilter').value;
+    const dateEl = document.getElementById('wDate');
+    const teamEl = document.getElementById('tableTeamFilter');
+    
+    // 🌟 ดัก Error: ถ้าไม่ได้อยู่หน้า Dashboard และไม่มีช่องให้ดึงค่า ให้หยุดการทำงานเลย
+    if (!dateEl || !teamEl) return;
+
+    const dateVal = dateEl.value;
+    const tableTeam = teamEl.value;
     if(!dateVal) return;
 
     updateTableSummary([]); 
