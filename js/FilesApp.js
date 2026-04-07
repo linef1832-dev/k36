@@ -182,6 +182,32 @@ window.saveFileData = async function(e) {
     let finalCoverUrl = '';
 
     try {
+        // 🌟 [เพิ่มใหม่] ค้นหาว่าเป็นการแก้ไขไฟล์เดิมหรือไม่ ถ้าใช่ให้เตรียมลบไฟล์เก่าทิ้ง
+        let oldPathsToDelete = [];
+        const existingFile = id ? globalAppFiles.find(x => String(x.id) === String(id)) : null;
+
+        if (existingFile) {
+            // เช็คว่าถ้ามีการเลือกอัปโหลดไฟล์ใหม่ หรือใส่ลิงก์ใหม่ (แปลว่าจะทิ้งไฟล์เดิม)
+            if (externalUrl || (fileInput && fileInput.files && fileInput.files.length > 0)) {
+                let oldUrls = Array.isArray(existingFile.url) ? existingFile.url : [existingFile.url];
+                oldUrls.forEach(u => {
+                    let urlStr = typeof u === 'string' ? u : (u.url || '');
+                    if (urlStr.includes('supabase.co') && urlStr.includes('files/')) {
+                        oldPathsToDelete.push('files/' + urlStr.split('files/')[1].split('?')[0]);
+                    }
+                });
+            }
+            // เช็คว่าถ้ามีการเลือกอัปโหลดรูปหน้าปกใหม่ (แปลว่าจะทิ้งรูปเดิม)
+            if (coverInput && coverInput.files && coverInput.files.length > 0 && existingFile.cover_url) {
+                if (existingFile.cover_url.includes('supabase.co') && existingFile.cover_url.includes('files/covers/')) {
+                    oldPathsToDelete.push('files/covers/' + existingFile.cover_url.split('files/covers/')[1].split('?')[0]);
+                }
+            }
+            // สั่งลบไฟล์ขยะทางกายภาพทิ้งทันที
+            if (oldPathsToDelete.length > 0) {
+                await appDB.storage.from('staff_images').remove(oldPathsToDelete);
+            }
+        }
         if (externalUrl) {
             finalFileUrls = [externalUrl];
         } 
