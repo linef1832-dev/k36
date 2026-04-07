@@ -1263,14 +1263,27 @@ window.renderGroupList = function() {
 };
 
 window.autoBuildGroups = async function() {
-    Swal.fire({title: 'กำลังจัดกลุ่มออโต้...', didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'กำลังจัดกลุ่มออโต้...', text: 'ระบบกำลังวิเคราะห์รายชื่อ...', didOpen: () => Swal.showLoading(), allowOutsideClick: false});
     try {
         const res = await fetch(DISCORD_API_URL + '/api/auto-build-groups', { method: 'POST' });
+        
+        // 🌟 แก้ไขตรงนี้: เช็คการตอบกลับจาก Bot แบบละเอียด
         if(res.ok) {
+            const result = await res.json();
             await fetchSystemData(true, true);
-            Swal.fire('สำเร็จ', 'จัดกลุ่มตามเว็บเสร็จสิ้น', 'success');
-        } else throw new Error();
-    } catch(e) { Swal.fire('Error', 'เกิดข้อผิดพลาด', 'error'); }
+            Swal.fire({
+                icon: 'success', 
+                title: 'จัดกลุ่มสำเร็จ!', 
+                text: result.message || 'จัดกลุ่มตามเว็บเสร็จสิ้น'
+            });
+        } else {
+            // ถ้า Error จะอ่านข้อความที่เซิร์ฟเวอร์ส่งกลับมา
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'บอทไม่ตอบสนอง');
+        }
+    } catch(e) { 
+        Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถจัดกลุ่มออโต้ได้: ${e.message}<br><br><span class="text-[10px] text-gray-500">โปรดเช็คว่าบอทบน Railway ตื่นอยู่หรือไม่</span>`, 'error'); 
+    }
 };
 
 window.createGroup = async function() {
