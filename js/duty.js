@@ -188,11 +188,16 @@ function getDutySaveKey(date, shift) {
 
 window.currentDutyLeaveData = []; 
 
-// 🌟 FIX: ป้องกัน Error ตอนโหลดข้อมูล โดยใช้ select() ธรรมดา แทนคำสั่งที่ทำให้แครช
 window.refreshDutyData = async function() {
     try {
-        const targetDate = document.getElementById('dutyDate').value;
-        const shiftFilter = document.getElementById('dutyShiftSelect').value;
+        // 🌟 ดัก Error: ตรวจสอบก่อนว่ามีกล่องวันที่ให้ดึงค่าไหม
+        const targetDateInput = document.getElementById('dutyDate');
+        const shiftFilterInput = document.getElementById('dutyShiftSelect');
+        
+        if (!targetDateInput || !shiftFilterInput) return; // ถ้าไม่มีให้หยุดทำงาน ไม่ต้องโวยวาย Error
+        
+        const targetDate = targetDateInput.value;
+        const shiftFilter = shiftFilterInput.value;
         if(!targetDate) return;
 
         const { data: leaves } = await appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate);
@@ -200,7 +205,7 @@ window.refreshDutyData = async function() {
         if (leaves) leaves.forEach(l => currentDutyLeaves.add(String(l.user_id))); 
 
         const relevantLeaves = [];
-        if (leaves && GLOBAL_USER_LIST.length > 0) {
+        if (leaves && typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
             leaves.forEach(l => {
                 let userObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(l.user_id) || u.username === l.user_name);
                 if (userObj && (userObj.department || 'AM') === currentDutyDept) {
@@ -213,7 +218,6 @@ window.refreshDutyData = async function() {
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter); 
         
-        // 🌟 แก้ไขตรงนี้: ใช้ .select('*').eq('key', saveKey) ปกติเพื่อความปลอดภัยสูงสุด ไม่ให้จอค้าง
         let savedRoster = null;
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', saveKey);
@@ -221,6 +225,7 @@ window.refreshDutyData = async function() {
         } catch(e) { console.log(e); }
         
         const btnGen = document.getElementById('btnGenerateRoster');
+        const grid = document.getElementById('dutyResultGrid');
 
         if (savedRoster && savedRoster.value) {
             const parsedRoster = JSON.parse(savedRoster.value);
@@ -230,7 +235,7 @@ window.refreshDutyData = async function() {
                 btnGen.classList.replace('bg-indigo-600', 'bg-gray-500'); btnGen.classList.replace('hover:bg-indigo-700', 'hover:bg-gray-600');
             }
         } else {
-            document.getElementById('dutyResultGrid').innerHTML = '<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 opacity-50"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>';
+            if(grid) grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 opacity-50"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>';
             if (btnGen) {
                 btnGen.disabled = false; btnGen.innerHTML = '<span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่';
                 btnGen.classList.replace('bg-gray-500', 'bg-indigo-600'); btnGen.classList.replace('hover:bg-gray-600', 'hover:bg-indigo-700');
@@ -244,7 +249,7 @@ window.refreshDutyData = async function() {
             else btnRestore.classList.add('hidden');
         }
 
-        if (currentUser.role === 'manager' || currentUser.role === 'admin') window.updateDutyStats(); 
+        if (typeof currentUser !== 'undefined' && (currentUser.role === 'manager' || currentUser.role === 'admin')) window.updateDutyStats(); 
     } catch (err) { console.error("Refresh Duty Data Error:", err); }
 };
 
