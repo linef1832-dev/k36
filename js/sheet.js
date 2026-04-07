@@ -160,169 +160,210 @@ window.togglePin = function(e, id) {
 
 
 // ==========================================
-    // 🧮 ระบบเครื่องคิดเลข (Calculator System)
-    // ==========================================
+// 🟢 2. เครื่องคิดเลข (Calculator System)
+// ==========================================
 
-    const CALC_STORAGE_KEY = 'calc_local_team_list';
+const CALC_STORAGE_KEY = 'calc_local_team_list';
 
-function initCalculator() {
-        const teamSelect = document.getElementById('calcTeamSelect');
-        const deductInput = document.getElementById('calcDeductAmount');
-        const saveBtn = document.getElementById('btnSaveCalc');
-        const lockIcon = document.getElementById('calcLockIcon');
-        
-        // 🎯 ดึงตัวแปรปุ่ม เพิ่ม/ลบ มาใช้งาน
-        const addBtn = document.getElementById('btnCalcAdd');
-        const delBtn = document.getElementById('btnCalcDelete');
+// ฟังก์ชันเริ่มต้นตอนเปิดหน้า
+window.initCalculator = async function() {
+    const teamSelect = document.getElementById('calcTeamSelect');
+    const deductInput = document.getElementById('calcDeductAmount');
+    const saveBtn = document.getElementById('btnSaveCalc');
+    const lockIcon = document.getElementById('calcLockIcon');
+    const addBtn = document.getElementById('btnCalcAdd');
+    const delBtn = document.getElementById('btnCalcDelete');
 
-        // 1. เช็คสิทธิ์ (Manager / Admin)
-        let isAdmin = false;
-        if (typeof currentUser !== 'undefined' && currentUser.role) {
-            const role = currentUser.role.toLowerCase().trim();
-            if (role === 'manager' || role === 'admin') {
-                isAdmin = true;
-            }
-        }
+    // 1. เช็คสิทธิ์ (Manager / Admin)
+    let isAdmin = false;
+    if (typeof window.currentUser !== 'undefined' && window.currentUser.role) {
+        const role = window.currentUser.role.toLowerCase().trim();
+        if (role === 'manager' || role === 'admin') isAdmin = true;
+    }
 
-        // 2. เติมรายชื่อเว็บ (ดึงจาก TEAM_LIST โดยตรง ไม่ใช้ localTeams แล้ว)
+    // 2. เติมรายชื่อเว็บ (ดึงจากตารางชีทที่มีอยู่)
+    if (teamSelect) {
         teamSelect.innerHTML = '';
+        const teamNames = window.GLOBAL_SHEETS
+            .filter(s => s.group_name !== 'วันหยุด / เปลี่ยนกะ' && s.group_name !== 'แก้ไขข้อมูล' && s.group_name !== 'งาน OD')
+            .map(s => s.name || s.title)
+            .filter(Boolean);
+            
+        let uniqueTeams = [...new Set(teamNames)];
         
-        // ใช้ TEAM_LIST ที่มีอยู่ (ถ้าไม่มีให้เป็น array ว่าง)
-        let teamsToDisplay = (typeof TEAM_LIST !== 'undefined') ? TEAM_LIST : [];
+        // ผสมกับ LocalStorage เผื่อแอดมินพิมพ์เพิ่มเข้ามาเอง
+        const localTeams = JSON.parse(localStorage.getItem(CALC_STORAGE_KEY) || '[]');
+        uniqueTeams = [...new Set([...uniqueTeams, ...localTeams])];
 
-        if (teamsToDisplay.length > 0) {
-            teamsToDisplay.forEach(t => { 
-                if(t) teamSelect.innerHTML += `<option value="${t}">${t}</option>`; 
-            });
+        if (uniqueTeams.length > 0) {
+            uniqueTeams.forEach(t => { teamSelect.innerHTML += `<option value="${t}">${t}</option>`; });
         } else {
             teamSelect.innerHTML = `<option value="General">ทั่วไป</option>`;
         }
-
-        // 3. เลือกเว็บอัตโนมัติจากหน้าหลัก
-        const mainTeam = document.getElementById('dailyTeam');
-        if (mainTeam && mainTeam.value) {
-            const options = Array.from(teamSelect.options).map(o => o.value);
-            if (options.includes(mainTeam.value)) teamSelect.value = mainTeam.value;
+        
+        // เลือกค่าเดิมที่เคยค้างไว้
+        const savedTeam = localStorage.getItem('calc_saved_team');
+        if (savedTeam && uniqueTeams.includes(savedTeam)) {
+            teamSelect.value = savedTeam;
         }
+    }
 
-        // 4. 🔒 ตั้งค่า ล็อค/ปลดล็อค ตามตำแหน่ง
+    // 3. 🔒 ตั้งค่า ล็อค/ปลดล็อค ตามสิทธิ์
+    if (deductInput && saveBtn && lockIcon) {
         if (isAdmin) {
             // --- กรณีเป็นผู้จัดการ ---
             deductInput.disabled = false;
-            deductInput.classList.remove('bg-red-900/50', 'bg-red-900/20', 'text-red-300', 'border-red-900/50');
-            deductInput.classList.add('bg-white', 'text-slate-900', 'border-white');
+            deductInput.classList.remove('bg-red-900/50', 'text-red-400', 'border-red-900/50', 'opacity-50');
+            deductInput.classList.add('bg-white', 'text-slate-900', 'border-white', 'opacity-100');
             
             saveBtn.classList.remove('hidden');
-            if(lockIcon) {
-                lockIcon.innerText = 'lock_open';
-                lockIcon.classList.remove('text-red-400');
-                lockIcon.classList.add('text-green-500');
-            }
+            lockIcon.innerText = 'lock_open';
+            lockIcon.classList.remove('text-red-400', 'opacity-50');
+            lockIcon.classList.add('text-green-500', 'opacity-100');
 
-            // ✅ โชว์ปุ่ม
             if(addBtn) addBtn.classList.remove('hidden');
             if(delBtn) delBtn.classList.remove('hidden');
-
         } else {
             // --- กรณีเป็นพนักงานทั่วไป ---
             deductInput.disabled = true;
-            deductInput.classList.remove('bg-white', 'text-slate-900', 'border-white');
-            deductInput.classList.add('bg-red-900/20', 'text-red-300', 'border-red-900/50');
+            deductInput.classList.remove('bg-white', 'text-slate-900', 'border-white', 'opacity-100');
+            deductInput.classList.add('bg-red-950/50', 'text-red-400', 'border-red-900/50', 'opacity-70');
             
             saveBtn.classList.add('hidden');
-            if(lockIcon) {
-                lockIcon.innerText = 'lock';
-                lockIcon.classList.remove('text-green-500');
-                lockIcon.classList.add('text-red-400');
-            }
+            lockIcon.innerText = 'lock';
+            lockIcon.classList.remove('text-green-500', 'opacity-100');
+            lockIcon.classList.add('text-red-400', 'opacity-50');
 
-            // ❌ ซ่อนปุ่ม
             if(addBtn) addBtn.classList.add('hidden');
             if(delBtn) delBtn.classList.add('hidden');
         }
-        
-        loadCalcSettings();
     }
+    
+    // โหลดยอดหัก
+    loadCalcSettings();
+};
 
-    function loadCalcSettings() {
-        const team = document.getElementById('calcTeamSelect').value;
-        const savedVal = (typeof SETTINGS !== 'undefined' ? SETTINGS[`calc_deduct_${team}`] : 0) || 0;
-        const deductElem = document.getElementById('calcDeductAmount');
-        if(deductElem) deductElem.value = savedVal;
-        calculateMoney();
-    }
-
-    function calculateMoney() {
-        const inputElem = document.getElementById('calcInputAmount');
-        const deductElem = document.getElementById('calcDeductAmount');
-        const displayElem = document.getElementById('calcResultDisplay');
-
-        if(!inputElem || !deductElem || !displayElem) return;
-
-        const amount = parseFloat(inputElem.value) || 0;
-        const deduct = parseFloat(deductElem.value) || 0;
-        const result = amount - deduct;
-        displayElem.innerText = result.toLocaleString('en-US');
-    }
-
-    async function saveCalcSettings() {
-        const team = document.getElementById('calcTeamSelect').value;
-        const deductVal = document.getElementById('calcDeductAmount').value;
-        
-        if(typeof appDB !== 'undefined') {
-            const { error } = await appDB.from('settings').upsert([{ key: `calc_deduct_${team}`, value: deductVal }]);
-            if (!error) {
-                if(typeof SETTINGS !== 'undefined') SETTINGS[`calc_deduct_${team}`] = deductVal;
-                Swal.fire({ icon: 'success', title: 'บันทึกค่าหักแล้ว', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
-            }
+window.loadCalcSettings = async function() {
+    const selectElem = document.getElementById('calcTeamSelect');
+    if (!selectElem) return;
+    
+    const team = selectElem.value;
+    localStorage.setItem('calc_saved_team', team); // จำเว็บล่าสุด
+    
+    let savedVal = 0;
+    try {
+        if (typeof appDB !== 'undefined') {
+            const { data } = await appDB.from('settings').select('value').eq('key', `calc_deduct_${team}`).single();
+            if (data && data.value) savedVal = parseFloat(data.value);
         }
-    }
+    } catch(e) {}
+    
+    const deductElem = document.getElementById('calcDeductAmount');
+    if(deductElem) deductElem.value = savedVal;
+    calculateMoney();
+};
 
-    // ==========================================
-    // 📋 ฟังก์ชันก๊อปปี้
-    // ==========================================
-    function copyCalcResult() {
-        const amount = parseFloat(document.getElementById('calcInputAmount').value) || 0;
-        const deduct = parseFloat(document.getElementById('calcDeductAmount').value) || 0;
-        const result = amount - deduct;
-        const textToCopy = result.toString(); 
+window.calculateMoney = function() {
+    const inputElem = document.getElementById('calcInputAmount');
+    const deductElem = document.getElementById('calcDeductAmount');
+    const displayElem = document.getElementById('calcResultDisplay');
 
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                showCopySuccess(textToCopy);
-            }).catch(err => {
-                console.warn('Clipboard API failed, trying fallback...', err);
-                fallbackCopyText(textToCopy); 
-            });
+    if(!inputElem || !deductElem || !displayElem) return;
+
+    const amount = parseFloat(inputElem.value) || 0;
+    const deduct = parseFloat(deductElem.value) || 0;
+    const result = amount - deduct;
+    
+    displayElem.innerText = result.toLocaleString('en-US');
+    
+    // จัดสีผลลัพธ์
+    if (result < 0) { displayElem.className = "flex-1 bg-slate-950 text-rose-500 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-rose-900/50"; }
+    else if (result > 0) { displayElem.className = "flex-1 bg-slate-950 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-emerald-900/50"; }
+    else { displayElem.className = "flex-1 bg-slate-950 text-slate-500 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-slate-800"; }
+};
+
+window.saveCalcSettings = async function() {
+    const team = document.getElementById('calcTeamSelect').value;
+    const deductVal = document.getElementById('calcDeductAmount').value;
+    
+    if(typeof appDB !== 'undefined') {
+        Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        const { error } = await appDB.from('settings').upsert([{ key: `calc_deduct_${team}`, value: deductVal }]);
+        if (!error) {
+            Swal.fire({ icon: 'success', title: 'บันทึกค่าหักแล้ว', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+            calculateMoney();
         } else {
-            fallbackCopyText(textToCopy);
+            Swal.fire('ข้อผิดพลาด', 'บันทึกไม่สำเร็จ', 'error');
         }
     }
+};
 
-    function fallbackCopyText(text) {
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.top = "0";
-        textArea.style.left = "0";
-        textArea.style.position = "fixed";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-            const successful = document.execCommand('copy');
-            if (successful) showCopySuccess(text);
-            else Swal.fire({ icon: 'error', title: 'คัดลอกไม่สำเร็จ', toast: true });
-        } catch (err) {
-            Swal.fire({ icon: 'error', title: 'คัดลอกไม่สำเร็จ', toast: true });
+window.addNewCalcTeam = async function() {
+    const { value: newTeam } = await Swal.fire({ title: 'เพิ่มชื่อเว็บ/ทีม', input: 'text', inputPlaceholder: 'พิมพ์ชื่อเว็บตรงนี้...', showCancelButton: true });
+    if (newTeam) {
+        let localTeams = JSON.parse(localStorage.getItem(CALC_STORAGE_KEY) || '[]');
+        if(!localTeams.includes(newTeam)) {
+            localTeams.push(newTeam);
+            localStorage.setItem(CALC_STORAGE_KEY, JSON.stringify(localTeams));
+            await initCalculator();
+            document.getElementById('calcTeamSelect').value = newTeam;
+            loadCalcSettings();
         }
-        document.body.removeChild(textArea);
     }
+};
 
-    function showCopySuccess(text) {
-        Swal.fire({ 
-            icon: 'success', title: 'คัดลอก: ' + text, toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 
+window.deleteCalcTeam = async function() {
+    const team = document.getElementById('calcTeamSelect').value;
+    if(!team) return;
+    
+    const result = await Swal.fire({ title: `ลบ ${team}?`, text: "คุณต้องการลบรายชื่อนี้ออกจากเครื่องคิดเลขใช่หรือไม่?", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+    if(result.isConfirmed) {
+        let localTeams = JSON.parse(localStorage.getItem(CALC_STORAGE_KEY) || '[]');
+        localTeams = localTeams.filter(t => t !== team);
+        localStorage.setItem(CALC_STORAGE_KEY, JSON.stringify(localTeams));
+        await initCalculator();
+    }
+};
+
+window.copyCalcResult = function() {
+    const amount = parseFloat(document.getElementById('calcInputAmount').value) || 0;
+    const deduct = parseFloat(document.getElementById('calcDeductAmount').value) || 0;
+    const result = amount - deduct;
+    const textToCopy = result.toString(); 
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            Swal.fire({ icon: 'success', title: 'คัดลอก: ' + textToCopy, toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
+        }).catch(err => {
+            fallbackCopyText(textToCopy); 
         });
+    } else {
+        fallbackCopyText(textToCopy);
     }
+};
+
+function fallbackCopyText(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.top = "0"; textArea.style.left = "0"; textArea.style.position = "fixed";
+    document.body.appendChild(textArea);
+    textArea.focus(); textArea.select();
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) Swal.fire({ icon: 'success', title: 'คัดลอก: ' + text, toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
+        else Swal.fire({ icon: 'error', title: 'คัดลอกไม่สำเร็จ', toast: true });
+    } catch (err) {
+        Swal.fire({ icon: 'error', title: 'คัดลอกไม่สำเร็จ', toast: true });
+    }
+    document.body.removeChild(textArea);
+}
+
+// ให้อัปเดตเครื่องคิดเลขทันทีหลังดึงข้อมูลชีทเสร็จ
+const oldFetchSheets = window.fetchSheets;
+window.fetchSheets = async function() {
+    await oldFetchSheets();
+    if(typeof initCalculator === 'function') await initCalculator();
+};
 
 // ==========================================
 // 🟢 3. ระบบจัดการแท็บ และเปิด iFrame
