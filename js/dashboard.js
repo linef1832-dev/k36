@@ -48,9 +48,16 @@ window.initDashboard = async function() {
         }
     }
 
-    // โหลดข้อมูลรอบเวลาและตารางลงเวลาทันที
+    // โหลดข้อมูลรอบเวลาและตารางลงเวลา
     if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-    if (typeof fetchData === 'function') fetchData();
+    
+    // 🌟 ป้องกันพนักงาน 200 คนรีเฟรชพร้อมกัน: เช็คว่าถ้าเคยดึงข้อมูลตารางมาแล้ว ให้ข้ามไปเลยไม่ต้องดึงซ้ำ
+    if (!window.hasLoadedDashboardData) {
+        if (typeof fetchData === 'function') {
+            fetchData();
+            window.hasLoadedDashboardData = true; // จำไว้ว่าโหลดแล้ว
+        }
+    }
 };
 
 window.updateDashboardUserInfo = function() {
