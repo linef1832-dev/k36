@@ -330,7 +330,7 @@
     </template>
 
     <template id="tpl-emp-row">
-        <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden shadow-sm hover:shadow-md" style="content-visibility: auto; contain-intrinsic-size: auto 50px;">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden transform-gpu will-change-transform" style="content-visibility: auto; contain-intrinsic-size: auto 50px;">
             <div class="flex justify-between items-center p-3 bg-slate-800 hover:bg-slate-700 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
                 <div class="flex items-center gap-3 overflow-hidden pr-2">
                     <div class="w-8 h-8 rounded-full bg-slate-700 text-gray-400 flex items-center justify-center font-black text-xs border border-slate-600 shadow-inner shrink-0">{{index}}</div>
@@ -390,7 +390,7 @@
     </template>
 
     <template id="tpl-leaderboard-item">
-        <div class="leaderboard-item flex flex-col p-3 rounded-xl hover:bg-slate-700 transition border-b border-slate-700/50 last:border-0" data-name="{{name}}">
+        <div class="leaderboard-item flex flex-col p-3 rounded-xl hover:bg-slate-700 border-b border-slate-700/50 last:border-0 transform-gpu will-change-transform" data-name="{{name}}">
             <div class="flex items-center justify-between mb-1.5">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 transition-transform {{medalClass}}">{{medalText}}</div>
