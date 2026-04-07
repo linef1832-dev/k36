@@ -665,8 +665,9 @@ window.renderSummaryDashboard = function() {
                                 else if (diffNum < 0) diffHtml = `<span class="text-red-400 font-bold bg-red-900/30 px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-red-800/50 text-[10px] shadow-sm"><span class="material-icons text-[10px]">trending_down</span> ${diffNum}</span>`;
                                 else diffHtml = `<span class="text-gray-400 bg-gray-800 px-2 py-0.5 rounded text-[10px] border border-gray-600 shadow-sm">คงที่</span>`;
 
+                                // 🚨 เอา class ที่เป็นตัวการทำให้หน่วงออกทั้งหมด (transform-gpu, will-change, transition ซับซ้อน)
                                 return `
-                                <div class="bg-[#0b1120] p-3 rounded-xl border border-slate-700/80 shadow-inner flex flex-col justify-between hover:border-sky-500/50 transition relative overflow-hidden group/card transform-gpu will-change-transform">
+                                <div class="bg-[#0b1120] p-3 rounded-xl border border-slate-700/80 shadow-inner flex flex-col justify-between hover:border-sky-500/50 relative overflow-hidden group/card">
                                     <div class="flex justify-between items-start mb-2 border-b border-slate-700/50 pb-2">
                                         <span class="font-black text-white text-sm tracking-wider flex items-center gap-1.5"><span class="material-icons text-[16px] text-sky-400">language</span> ${w.website}</span>
                                         ${diffHtml}
@@ -676,7 +677,7 @@ window.renderSummaryDashboard = function() {
                                             <div class="text-[9px] text-gray-500 font-bold mb-0.5 tracking-wide">เมื่อวาน</div>
                                             <div class="font-black text-gray-400 text-sm leading-none">${w.yestCount || 0} <span class="text-[9px] font-normal text-gray-500">ยอด</span></div>
                                         </div>
-                                        <div class="text-slate-600 material-icons text-[16px] group-hover/card:text-sky-500 transition">arrow_forward</div>
+                                        <div class="text-slate-600 material-icons text-[16px] group-hover/card:text-sky-500">arrow_forward</div>
                                         <div class="text-center">
                                             <div class="text-[9px] text-sky-400 font-bold mb-0.5 tracking-wide">วันนี้</div>
                                             <div class="font-black text-sky-400 text-lg leading-none">${w.count} <span class="text-[9px] font-normal text-sky-700">ยอด</span></div>
@@ -695,9 +696,10 @@ window.renderSummaryDashboard = function() {
 
                             let quickWebBadges = data.webs.map(w => `<span class="bg-slate-900 border border-slate-600 px-1.5 py-0.5 rounded text-[10px] text-gray-300 whitespace-nowrap shadow-sm"><b class="text-sky-400">${w.website}:</b> ${w.count}</span>`).join('');
 
+                            // 🚨 สร้างแถบธรรมดา ไม่ต้องบังคับการ์ดจอวาดแล้ว
                             htmlArr.push(`
-                            <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden shadow-sm hover:shadow-md transition-shadow will-change-transform" style="content-visibility: auto; contain-intrinsic-size: auto 72px;">
-                                <div class="flex justify-between items-center p-3 bg-slate-800 hover:bg-slate-700 transition-colors cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                            <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden shadow-sm hover:shadow-md">
+                                <div class="flex justify-between items-center p-3 bg-slate-800 hover:bg-slate-700 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
                                     <div class="flex items-center gap-3 overflow-hidden pr-2">
                                         <div class="w-8 h-8 rounded-full bg-slate-700 text-gray-400 flex items-center justify-center font-black text-xs border border-slate-600 shadow-inner shrink-0">${index + 1}</div>
                                         <div class="flex flex-col min-w-0">
