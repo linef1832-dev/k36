@@ -80,12 +80,10 @@ window.switchDept = function(dept) {
         try {
             const [y, m] = s.viewMonth.split('-');
             currentCalendarDate = new Date(parseInt(y), parseInt(m)-1, 1);
-            if(typeof updateMonthPicker === 'function') updateMonthPicker();
         } catch(e){}
-    } else {
-        currentCalendarDate = new Date();
-        if(typeof updateMonthPicker === 'function') updateMonthPicker();
-    }
+    } 
+    // อัปเดตป้ายชื่อเดือนด้านบนให้ตรงกับปฏิทินปัจจุบันเสมอ
+    if(typeof updateMonthPicker === 'function') updateMonthPicker();
     
     const tbody = document.getElementById('tableBody');
     if (tbody) {
