@@ -246,7 +246,7 @@ window.loadCalcSettings = async function() {
     let savedVal = 0;
     try {
         if (typeof appDB !== 'undefined') {
-            const { data } = await appDB.from('settings').select('value').eq('key', `calc_deduct_${team}`).single();
+            const { data } = await appDB.from('settings').select('value').eq('key', `calc_deduct_${team}`).maybeSingle();
             if (data && data.value) savedVal = parseFloat(data.value);
         }
     } catch(e) {}
