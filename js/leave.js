@@ -251,7 +251,14 @@ window.checkBookingWindow = function(targetShift) {
             if (st.isOpen) return `<span class="text-[10px] text-green-400 font-bold bg-green-900/30 border border-green-800/50 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">${st.msg}</span>`;
             return `<span class="text-[10px] text-red-400 font-bold bg-red-900/30 border border-red-800/50 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">${st.msg}</span>`;
         };
-        statusText.innerHTML = `<div class="flex flex-wrap items-center gap-1.5 mt-1">${makeBadge(stM)}${makeBadge(stA)}${makeBadge(stN)}</div>`;
+        
+        // 🌟 [ปรับปรุงใหม่] วาดโครง HTML ขึ้นมาก่อน
+        const newStatusHtml = `<div class="flex flex-wrap items-center gap-1.5 mt-1">${makeBadge(stM)}${makeBadge(stA)}${makeBadge(stN)}</div>`;
+        
+        // 🌟 สั่งอัปเดตหน้าจอเฉพาะตอนที่ "สถานะเปลี่ยนไปจากเดิมเท่านั้น" (ลดการทำงานฟรีทุกๆ 1 วินาที)
+        if (statusText.innerHTML !== newStatusHtml) {
+            statusText.innerHTML = newStatusHtml;
+        }
     }
     if(rtDot) rtDot.classList.add('realtime-active');
     return true;
@@ -280,16 +287,29 @@ function subscribeLeaveChanges() {
         const leaveAppEl = document.getElementById('leaveApp');
         if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
             
-            // 🌟 รับแค่ข้อมูลก้อนเล็กๆ (payload) ที่เปลี่ยนแปลง มาอัปเดตในเครื่อง
+            // 🌟 อัปเดตข้อมูลในเครื่อง (allLeaveData) เก็บไว้ก่อน
             if (payload.eventType === 'INSERT') {
                 allLeaveData.push(payload.new);
             } else if (payload.eventType === 'DELETE') {
                 allLeaveData = allLeaveData.filter(l => !(String(l.user_id) === String(payload.old.user_id) && l.leave_date === payload.old.leave_date));
             }
+
+            // 🌟 [ปรับปรุงใหม่] เช็คว่าการเปลี่ยนแปลงนี้ กระทบกับตารางแผนกที่เราดูอยู่หรือไม่?
+            const changedUserId = payload.eventType === 'DELETE' ? payload.old.user_id : payload.new.user_id;
+            const tUser = GLOBAL_USER_LIST.find(u => String(u.id) === String(changedUserId));
+            const tDept = tUser ? (tUser.department || 'AM') : 'AM';
+            const tRole = tUser ? (tUser.role || 'staff').toLowerCase() : 'staff';
             
-            // สั่งวาดตารางใหม่ทันทีโดยไม่เปลืองโควตา Database
-            window.renderLeaveTable(); 
-            flashRealtimeDot();
+            let shouldRenderTable = false;
+            if (currentViewDept === 'TRAINER' && (tDept === 'TRAINER' || tRole === 'trainer')) shouldRenderTable = true;
+            else if (currentViewDept === 'NEW' && tDept === 'NEW') shouldRenderTable = true;
+            else if (tRole === 'staff' && tDept === currentViewDept) shouldRenderTable = true;
+
+            // 🌟 ถ้ารายการที่เปลี่ยนแปลงเป็นของคนในหน้าจอนี้ ค่อยสั่งวาดตารางใหม่! (ลดภาระบราวเซอร์มหาศาล)
+            if (shouldRenderTable) {
+                window.renderLeaveTable(); 
+                flashRealtimeDot();
+            }
         }
     }).subscribe();
 }
