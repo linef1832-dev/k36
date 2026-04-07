@@ -373,3 +373,15 @@ setTimeout(() => {
         });
     }
 }, 1000);
+
+// ========================================================================
+// 🟢 ดักจับเวลาพนักงานกดเปลี่ยน "เว็บ/ทีม" ให้รีเฟรชยอดใหม่ตามเว็บนั้นๆ ทันที
+// ========================================================================
+setTimeout(() => {
+    const teamInput = document.getElementById('dailyTeam');
+    if (teamInput) {
+        teamInput.addEventListener('change', () => {
+            if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+        });
+    }
+}, 1000);
