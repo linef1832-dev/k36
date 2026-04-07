@@ -2336,3 +2336,77 @@ window.backToDashboard = function() {
     // 🟢 สำคัญ: สั่งให้รีโหลดตารางทุกครั้งที่กดปุ่ม "กลับหน้าหลัก"
     if(typeof initDashboard === 'function') initDashboard(); 
 };
+
+// =========================================================
+// 🔴 ฟังก์ชันล้างกระดาน (เลือก ลบตามแผนก / ตามกะ ได้)
+// =========================================================
+window.clearAllSchedules = async function() {
+    const dateInput = document.getElementById('clearScheduleDate');
+    const deptInput = document.getElementById('clearScheduleDept');
+    const shiftInput = document.getElementById('clearScheduleShift');
+
+    const dateVal = dateInput ? dateInput.value : '';
+    const deptVal = deptInput ? deptInput.value : 'all';
+    const shiftVal = shiftInput ? shiftInput.value : 'all';
+
+    if (!dateVal) {
+        return Swal.fire('แจ้งเตือน', 'กรุณาเลือกวันที่ ที่ต้องการล้างข้อมูลก่อนครับ', 'warning');
+    }
+
+    // สร้างข้อความแจ้งเตือนให้แอดมินรู้ตัวว่ากำลังจะลบกลุ่มไหน
+    let targetText = `วันที่: <b class="text-red-500">${dateVal}</b>`;
+    if(deptVal !== 'all') targetText += `<br>แผนก: <b class="text-sky-400">${deptVal}</b>`;
+    else targetText += `<br>แผนก: <b class="text-gray-300">ทั้งหมด</b>`;
+    
+    if(shiftVal !== 'all') targetText += `<br>กะ: <b class="text-orange-400">${shiftVal}</b>`;
+    else targetText += `<br>กะ: <b class="text-gray-300">ทั้งหมด</b>`;
+
+    // เด้งแจ้งเตือนยืนยัน
+    const confirm = await Swal.fire({
+        title: 'ยืนยันการล้างกระดาน?',
+        html: `คุณกำลังจะลบข้อมูลการลงเวลาตามเงื่อนไขนี้:<br><br><div class="bg-slate-900 p-4 rounded-lg border border-slate-700 text-left w-fit mx-auto text-sm shadow-inner">${targetText}</div><br><span class="text-xs text-gray-400">พนักงานในกลุ่มนี้จะต้องเข้ามาลงเวลาใหม่ ทำต่อหรือไม่?</span>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, ล้างข้อมูลเลย!',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
+    });
+
+    if (confirm.isConfirmed) {
+        Swal.fire({title: 'กำลังล้างข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        
+        try {
+            // 🌟 สร้างคำสั่งลบแบบฉลาด (เงื่อนไขจะเพิ่มขึ้นตามที่แอดมินเลือก)
+            let query = appDB.from('schedules').delete().eq('work_date', dateVal);
+            
+            if (deptVal !== 'all') { query = query.eq('department', deptVal); }
+            if (shiftVal !== 'all') { query = query.eq('shift_name', shiftVal); }
+
+            const { error } = await query;
+            if (error) throw error;
+
+            // บันทึกประวัติ
+            let logDetail = `แอดมินลบเวลากินข้าว วันที่ ${dateVal}`;
+            if(deptVal !== 'all') logDetail += ` [แผนก ${deptVal}]`;
+            if(shiftVal !== 'all') logDetail += ` [${shiftVal}]`;
+
+            if (typeof logAction === 'function') {
+                await logAction('ล้างกระดาน', logDetail);
+            }
+            
+            Swal.fire('ล้างข้อมูลสำเร็จ!', `ลบข้อมูลตามเงื่อนไขที่เลือกเรียบร้อยแล้ว`, 'success');
+            
+            // รีเฟรชตารางถ้าแอดมินเปิดหน้าวันที่นั้นค้างอยู่
+            const mainDate = document.getElementById('wDate');
+            if (mainDate && mainDate.value === dateVal) {
+                if (typeof fetchData === 'function') fetchData();
+            }
+            
+        } catch (e) {
+            console.error(e);
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถล้างข้อมูลได้: ' + e.message, 'error');
+        }
+    }
+};
