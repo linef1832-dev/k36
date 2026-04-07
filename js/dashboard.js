@@ -48,18 +48,17 @@ window.initDashboard = async function() {
         }
     }
 
-    // โหลดข้อมูลรอบเวลาและตารางลงเวลา
-    if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-    
-    // 🌟 ป้องกันพนักงาน 200 คนรีเฟรชพร้อมกัน: เช็คว่าถ้าเคยดึงข้อมูลตารางมาแล้ว ให้ข้ามไปเลยไม่ต้องดึงซ้ำ
+    // โหลดข้อมูลรอบเวลาและตารางลงเวลา (โหลดแค่ครั้งแรกตอนเปิดหน้าเว็บ)
     if (!window.hasLoadedDashboardData) {
-        if (typeof fetchData === 'function') {
-            fetchData();
-            window.hasLoadedDashboardData = true; // จำไว้ว่าโหลดแล้ว
-        }
+        if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+        if (typeof fetchData === 'function') fetchData();
+        window.hasLoadedDashboardData = true;
     }
+    
+    // 🌟 เรียกใช้งานระบบ Realtime
+    if (typeof subscribeDashboardChanges === 'function') subscribeDashboardChanges();
 };
-
+    
 window.updateDashboardUserInfo = function() {
     if (!window.currentUser) return;
     if(document.getElementById('uName')) document.getElementById('uName').innerText = window.currentUser.username || 'Unknown';
@@ -328,3 +327,41 @@ const dashboardObserver = new MutationObserver((mutations) => {
 });
 // เริ่มดักจับการเปลี่ยนแปลงบนหน้าเว็บ
 dashboardObserver.observe(document.body, { childList: true, subtree: true });
+
+// ========================================================================
+// 🟢 ระบบ Realtime สำหรับหน้าลงเวลาทำงาน (ดักฟังการจองของคนอื่น)
+// ========================================================================
+let dashboardSubscription = null;
+
+window.subscribeDashboardChanges = function() {
+    if (dashboardSubscription) return; // ถ้าเคยเปิดฟังแล้ว ไม่ต้องเปิดซ้ำ
+    
+    // ดักฟังการเปลี่ยนแปลงในตาราง 'schedules' (ตารางที่เก็บข้อมูลการจองเวลา)
+    dashboardSubscription = appDB.channel('dashboard-schedules')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, () => {
+            
+            // เช็คว่าพนักงานกำลังเปิดหน้า "ลงเวลา" ดูอยู่หรือไม่ (ไม่ได้เปิดหน้าอื่นทิ้งไว้)
+            // เช็คผ่าน ID ของหน้าจอหลัก ถ้าไม่ได้ซ่อนอยู่ แปลว่าดูอยู่
+            const mainContent = document.getElementById('mainContentArea');
+            if (mainContent && !mainContent.classList.contains('hidden')) {
+                // ถ้ามีการเปลี่ยนแปลงเกิดขึ้น ให้รีเฟรช Dropdown รอบเวลา และตารางยอดรวมทันที
+                if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+                if (typeof fetchData === 'function') fetchData();
+            }
+            
+        }).subscribe();
+};
+
+// ========================================================================
+// 🟢 ดักจับเวลาพนักงานกดเปลี่ยนวันที่ในปฏิทิน ให้บังคับโหลดข้อมูลตารางใหม่
+// ========================================================================
+setTimeout(() => {
+    const dInput = document.getElementById('wDate');
+    if (dInput) {
+        dInput.addEventListener('change', () => {
+            // เมื่อเปลี่ยนวันที่ ต้องดึงข้อมูลของวันนั้นๆ ใหม่เสมอ
+            if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+            if (typeof fetchData === 'function') fetchData();
+        });
+    }
+}, 1000);
