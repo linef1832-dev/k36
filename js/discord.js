@@ -1181,3 +1181,154 @@ window.ds_logAction = async function(actionName, detailStr) {
         });
     } catch(e) {}
 };
+// ==========================================
+// 🟢 อัปเดต Dropdown และ ระบบจัดการฐานข้อมูลดิสคอร์ด (Manage)
+// ==========================================
+
+window.updateAllFilters = function() {
+    const groupNames = Object.keys(extStaffGroups || {}).sort();
+    
+    const f1 = document.getElementById('groupFilter'); 
+    if(f1) f1.innerHTML = '<option value="ALL">-- ทุกกลุ่ม --</option>' + groupNames.map(g => `<option value="${g}">${g}</option>`).join('');
+    
+    const f2 = document.getElementById('filterStaffGroup'); 
+    if(f2) f2.innerHTML = '<option value="ALL">-- ดูทุกกลุ่ม --</option>' + groupNames.map(g => `<option value="${g}">${g}</option>`).join('');
+    
+    const f3 = document.getElementById('filterTransferGroup'); 
+    if(f3) f3.innerHTML = '<option value="ALL">ทุกกลุ่ม</option>' + groupNames.map(g => `<option value="${g}">${g}</option>`).join('');
+    
+    const f4 = document.getElementById('transferToGroup'); 
+    if(f4) f4.innerHTML = '<option value="">-- เลือกกลุ่มปลายทาง --</option>' + groupNames.map(g => `<option value="${g}">${g}</option>`).join('');
+};
+
+window.renderManagerList = function() { dsDebounce('mgrList', _doRenderManagerList, 200); };
+
+window._doRenderManagerList = function() {
+    const container = document.getElementById('manageStaffList');
+    if(!container) return;
+    const search = document.getElementById('searchMgrStaff').value.toLowerCase();
+    const group = document.getElementById('filterStaffGroup').value;
+    const deptFilter = document.getElementById('filterStaffDept').value;
+    const shiftFilter = document.getElementById('filterStaffShift').value;
+
+    const filtered = extStaffList.filter(s => {
+        const matchName = s.name.toLowerCase().includes(search);
+        const matchGroup = group === 'ALL' || (extStaffGroups[group] && extStaffGroups[group].includes(s.id));
+        let matchDept = true; let matchShift = true;
+        
+        if (deptFilter !== 'ALL' || shiftFilter !== 'ALL') {
+            const dbUser = getDbUserFromDiscordName(s.name);
+            if (!dbUser) return false;
+            if (deptFilter !== 'ALL' && (dbUser.department || 'AM') !== deptFilter) matchDept = false;
+            if (shiftFilter !== 'ALL' && dbUser.allowed_shift !== shiftFilter) matchShift = false;
+        }
+        return matchName && matchGroup && matchDept && matchShift;
+    });
+
+    container.innerHTML = filtered.map(s => {
+        const dbUser = getDbUserFromDiscordName(s.name);
+        let tagHtml = dbUser ? `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-700/50 ml-2 shadow-sm">${dbUser.department || 'AM'} | ${dbUser.allowed_shift.replace('กะ','')}</span>` : `<span class="bg-slate-700 text-gray-400 px-2 py-0.5 rounded text-[10px] font-bold ml-2">ไม่พบในระบบลงเวลา</span>`;
+        let groupsIn = [];
+        for(let g in extStaffGroups) { if(extStaffGroups[g].includes(s.id)) groupsIn.push(g); }
+        const gTags = groupsIn.map(g => `<span class="bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded text-[9px] mr-1">${g}</span>`).join('');
+        
+        return `
+        <div class="flex justify-between items-center p-3 bg-slate-900 rounded-xl border border-slate-700 shadow-sm mb-2 hover:border-sky-500 transition">
+            <div>
+                <div class="font-bold text-white text-sm flex items-center">${s.name} ${tagHtml}</div>
+                <div class="text-[10px] text-gray-500 mt-1 flex items-center gap-1"><span class="material-icons text-[12px]">folder</span> ${gTags || '- ไม่มีกลุ่ม -'}</div>
+            </div>
+            <button onclick="editCustomName('${s.id}', '${s.name}')" class="text-sky-400 hover:text-white bg-slate-800 hover:bg-sky-600 px-2 py-1 rounded text-xs transition border border-slate-600 shadow-sm">เปลี่ยนชื่อ</button>
+        </div>`;
+    }).join('') || '<div class="text-center text-gray-500 py-8 text-sm">ไม่พบรายชื่อ</div>';
+};
+
+window.renderGroupList = function() {
+    const container = document.getElementById('groupList');
+    if(!container) return;
+    
+    let html = '';
+    for(let g in extStaffGroups) {
+        const count = extStaffGroups[g].length;
+        html += `
+        <div class="flex justify-between items-center p-3 bg-slate-800 rounded-xl border border-slate-600 shadow-sm mb-2 hover:border-emerald-500 transition group/item">
+            <div>
+                <div class="font-bold text-emerald-400 text-sm cursor-pointer hover:underline" onclick="renameGroup('${g}')">${g} <span class="material-icons text-[10px] opacity-50">edit</span></div>
+                <div class="text-[10px] text-gray-400 mt-0.5">สมาชิก ${count} คน</div>
+            </div>
+            <button onclick="deleteGroup('${g}')" class="text-red-400 hover:text-white bg-slate-900 hover:bg-red-500 w-8 h-8 rounded-lg transition flex items-center justify-center border border-slate-700 shadow-sm opacity-0 group-hover/item:opacity-100"><span class="material-icons text-[14px]">delete</span></button>
+        </div>`;
+    }
+    container.innerHTML = html || '<div class="text-center text-gray-500 py-4 text-xs">ไม่มีกลุ่ม</div>';
+};
+
+window.autoBuildGroups = async function() {
+    Swal.fire({title: 'กำลังจัดกลุ่มออโต้...', didOpen: () => Swal.showLoading()});
+    try {
+        const res = await fetch(DISCORD_API_URL + '/api/auto-build-groups', { method: 'POST' });
+        if(res.ok) {
+            await fetchSystemData(true, true);
+            Swal.fire('สำเร็จ', 'จัดกลุ่มตามเว็บเสร็จสิ้น', 'success');
+        } else throw new Error();
+    } catch(e) { Swal.fire('Error', 'เกิดข้อผิดพลาด', 'error'); }
+};
+
+window.createGroup = async function() {
+    const name = document.getElementById('newGroupName').value.trim();
+    if(!name) return;
+    Swal.fire({title: 'กำลังสร้าง...', didOpen: () => Swal.showLoading()});
+    try {
+        await fetch(DISCORD_API_URL + '/api/staff-groups', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupName: name, userIds: [] }) });
+        document.getElementById('newGroupName').value = '';
+        await fetchSystemData(true, true);
+        Swal.fire({icon: 'success', title: 'สร้างกลุ่มแล้ว', timer: 1000, showConfirmButton: false});
+    } catch(e) {}
+};
+
+window.deleteGroup = async function(groupName) {
+    if(confirm(`ลบกลุ่ม ${groupName} ใช่ไหม?`)) {
+        await fetch(DISCORD_API_URL + '/api/staff-groups/' + encodeURIComponent(groupName), { method: 'DELETE' });
+        await fetchSystemData(true, true);
+    }
+};
+
+window.renameGroup = async function(oldName) {
+    const { value: newName } = await Swal.fire({ title: 'เปลี่ยนชื่อกลุ่ม', input: 'text', inputValue: oldName, showCancelButton: true });
+    if(newName && newName !== oldName) {
+        Swal.fire({title: 'กำลังเปลี่ยนชื่อ...', didOpen: () => Swal.showLoading()});
+        try {
+            const userIds = extStaffGroups[oldName] || [];
+            await fetch(DISCORD_API_URL + '/api/staff-groups/' + encodeURIComponent(oldName), { method: 'DELETE' });
+            await fetch(DISCORD_API_URL + '/api/staff-groups', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupName: newName, userIds }) });
+            await fetchSystemData(true, true);
+            Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแล้ว', timer: 1000, showConfirmButton: false});
+        } catch(e) {}
+    }
+};
+
+window.addStaff = async function() {
+    const name = document.getElementById('newStaffName').value.trim();
+    if(!name) return;
+    try {
+        await fetch(DISCORD_API_URL + '/api/staff', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+        document.getElementById('newStaffName').value = '';
+        await fetchSystemData(true, true);
+    } catch(e) {}
+};
+
+window.editCustomName = async function(discordId, currentName) {
+    const { value: newName } = await Swal.fire({
+        title: 'ตั้งชื่อแสดงผลใหม่',
+        text: 'ชื่อนี้จะแสดงผลแทนชื่อดิสคอร์ดในหน้าตารางนี้',
+        input: 'text',
+        inputValue: currentName,
+        showCancelButton: true
+    });
+
+    if (newName) {
+        window.customDiscordNames[discordId] = newName;
+        await appDB.from('settings').upsert([{ key: 'discord_custom_names', value: JSON.stringify(window.customDiscordNames) }]);
+        await fetchSystemData(true, true);
+        Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแสดงผลแล้ว', timer: 1000, showConfirmButton: false});
+    }
+};
