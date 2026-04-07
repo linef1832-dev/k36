@@ -443,12 +443,13 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     const { data: yestData } = await appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr);
                     if (yestData) yestData.forEach(r => yestMap[`${r.employee_name}_${r.website}`] = r.count);
                 }
+                    
+                    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
 
                 extractedRows.forEach(row => {
                     let existingIndex = pendingSummaryData.findIndex(p => p.empName === row.empName && p.website === row.website && p.date === row.date);
                     const yestCount = yestMap[`${row.empName}_${row.website}`] || 0;
 
-                    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
                     if (customSystems[row.website]) { row.system = customSystems[row.website]; }
 
                     if (existingIndex > -1) {
@@ -1389,10 +1390,21 @@ window.saveWebLogo = async function() {
             const fileExt = file.name.split('.').pop();
             const fileName = `logo_${web}_${Date.now()}.${fileExt}`;
 
+            // 🌟 [เพิ่มใหม่] เช็คว่ามีโลโก้เก่าไหม ถ้ามีให้ลบออกจาก Storage ก่อน
+            window.summaryWebLogos = window.summaryWebLogos || {};
+            const oldLogoUrl = window.summaryWebLogos[web];
+            if (oldLogoUrl && oldLogoUrl.includes('supabase.co') && oldLogoUrl.includes('logos/')) {
+                const oldPath = 'logos/' + oldLogoUrl.split('logos/')[1].split('?')[0];
+                await appDB.storage.from('staff_images').remove([oldPath]);
+            }
+
+            // อัปโหลดรูปใหม่ (โค้ดเดิมของคุณ)
             const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, file, { cacheControl: '3600', upsert: true });
             if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ: ' + uploadError.message);
+
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`logos/${fileName}`);
-            finalUrl = publicUrlData.publicUrl;
+        finalUrl = publicUrlData.publicUrl;
+
         }
 
         window.summaryWebLogos = window.summaryWebLogos || {};
