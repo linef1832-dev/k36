@@ -997,10 +997,14 @@ window.loadLeaveStatusConfig = async function() {
 
 // 🟢 ฟังก์ชันเปลี่ยนหน้าตาสวิตช์ เมื่อกดสลับแท็บแผนก
 window.updateLeaveToggleUI = function() {
-    const currentDept = window.currentDept || document.getElementById('settingTargetLabel').innerText || 'AM';
+    const targetLabel = document.getElementById('settingTargetLabel');
+    // เช็คก่อนว่ามี targetLabel ในหน้านี้ไหม ถ้าไม่มีให้ใช้ 'AM' เป็นค่าตั้งต้น
+    const currentDept = window.currentDept || (targetLabel ? targetLabel.innerText : 'AM');
     const toggleBtn = document.getElementById('setForceOpen');
+    
     if (toggleBtn) {
-        toggleBtn.checked = (window.leaveStatusConfig[currentDept] !== 'closed'); // ปกติให้เป็นเปิด
+        if (!window.leaveStatusConfig) window.leaveStatusConfig = {};
+        toggleBtn.checked = (window.leaveStatusConfig[currentDept] !== 'closed'); 
     }
 };
 
