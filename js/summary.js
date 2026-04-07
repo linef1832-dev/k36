@@ -43,7 +43,7 @@ window.initSummaryDate = async function() {
         await loadWebLogos();
         if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
         
-        // 🌟 บังคับโหลดรายชื่อพนักงานก่อน เพื่อให้ระบบเทียบ "กะ" ได้ถูกต้อง
+        // 🌟 บังคับโหลดรายชื่อพนักงานก่อน เพื่อให้ระบบเทียบ "กะ" ได้ถูกต้อง (แก้บั๊ก UNKNOWN)
         if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers();
         }
@@ -504,6 +504,7 @@ window.debounceRenderSummary = function() {
     summaryRenderTimer = setTimeout(() => { window.renderSummaryDashboard(); }, 200);
 };
 
+// 🌟 3. ฟังก์ชันวาดหน้าจอ (ใช้ Template HTML ที่เราแยกไว้ด้านบน ทำให้โค้ดสะอาดมาก)
 window.renderSummaryDashboard = function() {
     if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
         try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
@@ -892,8 +893,15 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
         else if (i === 2) medalClass = 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-50 scale-105 shadow-md'; 
         else medalClass = 'bg-slate-700 text-slate-400 border border-slate-600'; 
 
+        // 🌟 สร้าง HTML ป้ายกะตรงนี้ ก่อนยัดลง Template
+        let shiftBadgeHtml = '';
+        if (d.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
+        else if (d.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
+        else if (d.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[9px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
+
         return getTpl('tpl-leaderboard-item', {
             name: name, medalClass: medalClass, medalText: medalText,
+            shiftBadge: shiftBadgeHtml,
             totalCount: d.totalCount, totalApproved: d.totalApproved, totalReject: d.totalReject,
             totalMoney: d.totalMoney.toLocaleString('en-US', {minimumFractionDigits: 2})
         });
@@ -974,6 +982,11 @@ window.fetchHistoricalSummary = async function(silent = false) {
     if (!silent) Swal.fire({ title: 'กำลังดึงข้อมูลรายวัน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
+        // 🌟 บังคับโหลดรายชื่อก่อน เพื่อให้โชว์ "กะ" ไม่เป็น UNKNOWN 🌟
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+            await fetchUsers();
+        }
+
         const targetObj = new Date(dateVal);
         const yestObj = new Date(targetObj);
         yestObj.setDate(yestObj.getDate() - 1);
@@ -1271,6 +1284,11 @@ window.fetchMultipleHistoricalSummary = async function() {
     Swal.fire({ title: 'กำลังรวมข้อมูล...', text: `ดึงข้อมูล ${dates.length} วันมาบวกทบกัน`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
+        // 🌟 บังคับโหลดรายชื่อก่อน เพื่อให้รู้ "กะ" ที่แท้จริง (แก้บั๊ก UNKNOWN)
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+            await fetchUsers();
+        }
+
         const { data, error } = await appDB.from('transaction_daily_summary').select('*').in('date', dates);
         if (error) throw error;
 
