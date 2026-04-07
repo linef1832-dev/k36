@@ -274,13 +274,21 @@ async function fetchLeaveData() {
 function subscribeLeaveChanges() {
     if(leaveSubscription) appDB.removeChannel(leaveSubscription);
     leaveSubscription = appDB.channel('leave-updates')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
-        if (isEditingLeave) return;
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, (payload) => {
+        if (window.isEditingLeave) return; // ถ้าเราเป็นคนกดเอง ไม่ต้องทำอะไร
         
-        // 🌟 ดัก Error: เช็คก่อนว่ามี leaveApp อยู่ไหม
         const leaveAppEl = document.getElementById('leaveApp');
         if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
-            fetchLeaveData(); 
+            
+            // 🌟 รับแค่ข้อมูลก้อนเล็กๆ (payload) ที่เปลี่ยนแปลง มาอัปเดตในเครื่อง
+            if (payload.eventType === 'INSERT') {
+                allLeaveData.push(payload.new);
+            } else if (payload.eventType === 'DELETE') {
+                allLeaveData = allLeaveData.filter(l => !(String(l.user_id) === String(payload.old.user_id) && l.leave_date === payload.old.leave_date));
+            }
+            
+            // สั่งวาดตารางใหม่ทันทีโดยไม่เปลืองโควตา Database
+            window.renderLeaveTable(); 
             flashRealtimeDot();
         }
     }).subscribe();
@@ -730,7 +738,17 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
             }]);
         }
         
-        await fetchLeaveData(); // โหลดตารางใหม่
+        }
+        
+        // 🌟 อัปเดตข้อมูลในความจำบราวเซอร์ทันที (ไม่ต้องรอโหลด DB ใหม่)
+        if (action === 'add') {
+            allLeaveData.push({ user_id: targetUserId, leave_date: dateStr, reason: typeToSave });
+        } else if (action === 'remove') {
+            allLeaveData = allLeaveData.filter(l => !(String(l.user_id) === String(targetUserId) && l.leave_date === dateStr));
+        }
+        
+        window.renderLeaveTable(); // สั่งวาดตารางใหม่จากข้อมูลในเครื่อง (ไวมากแค่ 0.05 วินาที)
+        
         Swal.fire({ icon: 'success', title: action === 'add' ? 'บันทึกสำเร็จ' : 'ลบสำเร็จ', showConfirmButton: false, timer: 1000 });
 
     } catch (error) {
