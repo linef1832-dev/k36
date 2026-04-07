@@ -614,16 +614,27 @@ window.updateThaiMonthDisplay = function() {
 };
 
 window.updateThaiMonthDisplay = function() {
-    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    // ... (โค้ดเดิม) ...
-    if (setPicker && setDisplay) {
-        if (setPicker.value) {
-            const [y, m] = setPicker.value.split('-');
-            setDisplay.innerText = `${thaiMonths[parseInt(m) - 1]} ${parseInt(y) + 543}`;
-        } else {
-            setDisplay.innerText = 'เลือกเดือน';
-        }
-    }
+    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    
+    // ส่วนที่ 1: แสดงผลเดือนปฏิทินฝั่งพนักงาน
+    const viewPicker = document.getElementById('viewMonthPicker');
+    const viewDisplay = document.getElementById('viewMonthDisplay');
+    if (viewPicker && viewDisplay && viewPicker.value) {
+        const [y, m] = viewPicker.value.split('-');
+        viewDisplay.innerText = `${thaiMonths[parseInt(m) - 1]} ${parseInt(y) + 543}`;
+    }
+    
+    const setPicker = document.getElementById('setAllowedMonth');
+    const setDisplay = document.getElementById('setMonthDisplay');
+    
+    if (setPicker && setDisplay) {
+        if (setPicker.value) {
+            const [y, m] = setPicker.value.split('-');
+            setDisplay.innerText = `${thaiMonths[parseInt(m) - 1]} ${parseInt(y) + 543}`;
+        } else {
+            setDisplay.innerText = 'เลือกเดือน';
+        }
+    }
 };
 
 window.changeAdminMonth = function(step) {
