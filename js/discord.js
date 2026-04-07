@@ -86,7 +86,17 @@ window.applyDiscordPermissions = function() {
             }
         });
 
-        if (!isCurrentTabValid) switchDiscordTab(firstAllowedTab);
+        // บังคับให้โหลดข้อมูลแท็บที่เปิดอยู่เสมอ ป้องกันปัญหาเปิดมาแล้วตารางไม่โหลด
+        if (!isCurrentTabValid) {
+            switchDiscordTab(firstAllowedTab);
+        } else {
+            let visibleTab = 'spy';
+            activeTabs.forEach(t => {
+                const contentBox = document.getElementById('dsContent_' + t);
+                if(contentBox && !contentBox.classList.contains('hidden')) visibleTab = t;
+            });
+            switchDiscordTab(visibleTab);
+        }
 
     } else {
         tabs.forEach(t => {
@@ -1269,8 +1279,11 @@ window.autoBuildGroups = async function() {
         if(res.ok) {
             await fetchSystemData(true, true);
             Swal.fire('สำเร็จ', 'จัดกลุ่มตามเว็บเสร็จสิ้น', 'success');
-        } else throw new Error();
-    } catch(e) { Swal.fire('Error', 'เกิดข้อผิดพลาด', 'error'); }
+        } else {
+            const errData = await res.json().catch(()=>({}));
+            throw new Error(errData.error || 'บอทไม่ตอบสนอง หรือเกิดข้อผิดพลาดจากฝั่งเซิร์ฟเวอร์');
+        }
+    } catch(e) { Swal.fire('Error', e.message, 'error'); }
 };
 
 window.createGroup = async function() {
@@ -1278,17 +1291,30 @@ window.createGroup = async function() {
     if(!name) return;
     Swal.fire({title: 'กำลังสร้าง...', didOpen: () => Swal.showLoading()});
     try {
-        await fetch(DISCORD_API_URL + '/api/staff-groups', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupName: name, userIds: [] }) });
+        const res = await fetch(DISCORD_API_URL + '/api/staff-groups', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupName: name, userIds: [] }) });
+        if (!res.ok) {
+            const errData = await res.json().catch(()=>({}));
+            throw new Error(errData.error || 'เกิดข้อผิดพลาดในการสร้างกลุ่ม');
+        }
         document.getElementById('newGroupName').value = '';
         await fetchSystemData(true, true);
         Swal.fire({icon: 'success', title: 'สร้างกลุ่มแล้ว', timer: 1000, showConfirmButton: false});
-    } catch(e) {}
+    } catch(e) {
+        Swal.fire('Error', e.message, 'error');
+    }
 };
 
 window.deleteGroup = async function(groupName) {
     if(confirm(`ลบกลุ่ม ${groupName} ใช่ไหม?`)) {
-        await fetch(DISCORD_API_URL + '/api/staff-groups/' + encodeURIComponent(groupName), { method: 'DELETE' });
-        await fetchSystemData(true, true);
+        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
+        try {
+            const res = await fetch(DISCORD_API_URL + '/api/staff-groups/' + encodeURIComponent(groupName), { method: 'DELETE' });
+            if (!res.ok) throw new Error('ลบไม่สำเร็จ บอทอาจมีปัญหา');
+            await fetchSystemData(true, true);
+            Swal.fire({icon: 'success', title: 'ลบกลุ่มแล้ว', timer: 1000, showConfirmButton: false});
+        } catch(e) {
+            Swal.fire('Error', e.message, 'error');
+        }
     }
 };
 
@@ -1298,37 +1324,47 @@ window.renameGroup = async function(oldName) {
         Swal.fire({title: 'กำลังเปลี่ยนชื่อ...', didOpen: () => Swal.showLoading()});
         try {
             const userIds = extStaffGroups[oldName] || [];
-            await fetch(DISCORD_API_URL + '/api/staff-groups/' + encodeURIComponent(oldName), { method: 'DELETE' });
-            await fetch(DISCORD_API_URL + '/api/staff-groups', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupName: newName, userIds }) });
+            const delRes = await fetch(DISCORD_API_URL + '/api/staff-groups/' + encodeURIComponent(oldName), { method: 'DELETE' });
+            if (!delRes.ok) throw new Error('ลบกลุ่มเดิมไม่สำเร็จ');
+            const addRes = await fetch(DISCORD_API_URL + '/api/staff-groups', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupName: newName, userIds }) });
+            if (!addRes.ok) throw new Error('สร้างกลุ่มใหม่ไม่สำเร็จ');
             await fetchSystemData(true, true);
             Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแล้ว', timer: 1000, showConfirmButton: false});
-        } catch(e) {}
+        } catch(e) {
+            Swal.fire('Error', e.message, 'error');
+        }
     }
 };
 
 window.addStaff = async function() {
     const name = document.getElementById('newStaffName').value.trim();
     if(!name) return;
+    Swal.fire({title: 'กำลังเพิ่ม...', didOpen: () => Swal.showLoading()});
     try {
-        await fetch(DISCORD_API_URL + '/api/staff', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+        const res = await fetch(DISCORD_API_URL + '/api/staff', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+        if (!res.ok) {
+            const errData = await res.json().catch(()=>({}));
+            throw new Error(errData.error || 'เกิดข้อผิดพลาดในการเพิ่มพนักงาน');
+        }
         document.getElementById('newStaffName').value = '';
         await fetchSystemData(true, true);
-    } catch(e) {}
+        Swal.fire({icon: 'success', title: 'เพิ่มรายชื่อแล้ว', timer: 1000, showConfirmButton: false});
+    } catch(e) {
+        Swal.fire('Error', e.message, 'error');
+    }
 };
 
-window.editCustomName = async function(discordId, currentName) {
-    const { value: newName } = await Swal.fire({
-        title: 'ตั้งชื่อแสดงผลใหม่',
-        text: 'ชื่อนี้จะแสดงผลแทนชื่อดิสคอร์ดในหน้าตารางนี้',
-        input: 'text',
-        inputValue: currentName,
-        showCancelButton: true
-    });
-
-    if (newName) {
-        window.customDiscordNames[discordId] = newName;
-        await appDB.from('settings').upsert([{ key: 'discord_custom_names', value: JSON.stringify(window.customDiscordNames) }]);
-        await fetchSystemData(true, true);
-        Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแสดงผลแล้ว', timer: 1000, showConfirmButton: false});
+window.syncDiscord = async function() { 
+    Swal.fire({title: 'กำลังสั่งบอทดึงรายชื่อ...', didOpen: () => Swal.showLoading()}); 
+    try {
+        const res = await fetch(DISCORD_API_URL + '/api/import-discord-members', { method:'POST', headers: { 'Cache-Control': 'no-cache' } }); 
+        if(!res.ok) {
+            const errData = await res.json().catch(()=>({}));
+            throw new Error(errData.error || 'API_FAIL');
+        }
+        await fetchSystemData(true, true); 
+        Swal.fire({icon: 'success', title: 'อัปเดตเรียบร้อย', timer: 1000, showConfirmButton: false}); 
+    } catch(e) {
+        Swal.fire({ icon: 'error', title: 'เชื่อมต่อล้มเหลว', text: e.message === 'API_FAIL' ? 'บอทอาจจะหลับอยู่ หรือคอมเครื่องนี้มีระบบป้องกัน' : e.message });
     }
 };
