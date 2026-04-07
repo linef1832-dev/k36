@@ -292,7 +292,7 @@
         <span class="material-icons text-xl">delete_sweep</span> ล้างกระดาน (ลบเวลากินข้าว)
     </h4>
     <p class="text-xs text-gray-400 mb-4 relative z-10">เลือกลบข้อมูลการลงเวลาเฉพาะ <b>"แผนก"</b> หรือ <b>"กะ"</b> ที่มีปัญหา เพื่อให้พนักงานกลุ่มนั้นกดจองเวลาใหม่</p>
-    <div class="flex flex-col sm:flex-row gap-3 relative z-10">
+    <div class="flex flex-col sm:flex-row flex-wrap gap-3 relative z-10">
         <input type="date" id="clearScheduleDate" class="w-full sm:w-auto flex-1 bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner">
         <select id="clearScheduleDept" class="w-full sm:w-auto bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
             <option value="all">🌐 ทุกแผนก</option>
@@ -307,6 +307,9 @@
         </select>
         <button type="button" onclick="clearAllSchedules()" class="w-full sm:w-auto shrink-0 bg-red-600 hover:bg-red-500 text-white text-sm font-bold px-6 py-2.5 rounded-lg shadow-md transition flex items-center justify-center gap-2 active:scale-95">
             <span class="material-icons text-base">warning</span> ล้างข้อมูล
+        </button>
+        <button type="button" id="undoScheduleBtn" onclick="undoClearSchedules()" class="hidden w-full sm:w-auto shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold px-6 py-2.5 rounded-lg shadow-md transition flex items-center justify-center gap-2 active:scale-95 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+            <span class="material-icons text-base">restore</span> กู้คืนข้อมูลล่าสุด
         </button>
     </div>
 </div>

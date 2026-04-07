@@ -2338,7 +2338,7 @@ window.backToDashboard = function() {
 };
 
 // =========================================================
-// 🔴 ฟังก์ชันล้างกระดาน (เลือก ลบตามแผนก / ตามกะ ได้)
+// 🔴 ฟังก์ชันล้างกระดาน (เลือก ลบตามแผนก / ตามกะ ได้ + กู้คืนได้)
 // =========================================================
 window.clearAllSchedules = async function() {
     const dateInput = document.getElementById('clearScheduleDate');
@@ -2349,19 +2349,14 @@ window.clearAllSchedules = async function() {
     const deptVal = deptInput ? deptInput.value : 'all';
     const shiftVal = shiftInput ? shiftInput.value : 'all';
 
-    if (!dateVal) {
-        return Swal.fire('แจ้งเตือน', 'กรุณาเลือกวันที่ ที่ต้องการล้างข้อมูลก่อนครับ', 'warning');
-    }
+    if (!dateVal) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกวันที่ ที่ต้องการล้างข้อมูลก่อนครับ', 'warning');
 
-    // สร้างข้อความแจ้งเตือนให้แอดมินรู้ตัวว่ากำลังจะลบกลุ่มไหน
     let targetText = `วันที่: <b class="text-red-500">${dateVal}</b>`;
     if(deptVal !== 'all') targetText += `<br>แผนก: <b class="text-sky-400">${deptVal}</b>`;
     else targetText += `<br>แผนก: <b class="text-gray-300">ทั้งหมด</b>`;
-    
     if(shiftVal !== 'all') targetText += `<br>กะ: <b class="text-orange-400">${shiftVal}</b>`;
     else targetText += `<br>กะ: <b class="text-gray-300">ทั้งหมด</b>`;
 
-    // เด้งแจ้งเตือนยืนยัน
     const confirm = await Swal.fire({
         title: 'ยืนยันการล้างกระดาน?',
         html: `คุณกำลังจะลบข้อมูลการลงเวลาตามเงื่อนไขนี้:<br><br><div class="bg-slate-900 p-4 rounded-lg border border-slate-700 text-left w-fit mx-auto text-sm shadow-inner">${targetText}</div><br><span class="text-xs text-gray-400">พนักงานในกลุ่มนี้จะต้องเข้ามาลงเวลาใหม่ ทำต่อหรือไม่?</span>`,
@@ -2375,38 +2370,93 @@ window.clearAllSchedules = async function() {
     });
 
     if (confirm.isConfirmed) {
-        Swal.fire({title: 'กำลังล้างข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        Swal.fire({title: 'กำลังประมวลผล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         
         try {
-            // 🌟 สร้างคำสั่งลบแบบฉลาด (เงื่อนไขจะเพิ่มขึ้นตามที่แอดมินเลือก)
-            let query = appDB.from('schedules').delete().eq('work_date', dateVal);
+            // 🌟 1. ค้นหาและ "แบ็คอัพ" ข้อมูลชุดนี้เก็บไว้ในกระเป๋าก่อนลบ
+            let backupQuery = appDB.from('schedules').select('*').eq('work_date', dateVal);
+            if (deptVal !== 'all') backupQuery = backupQuery.eq('department', deptVal);
+            if (shiftVal !== 'all') backupQuery = backupQuery.eq('shift_name', shiftVal);
             
-            if (deptVal !== 'all') { query = query.eq('department', deptVal); }
-            if (shiftVal !== 'all') { query = query.eq('shift_name', shiftVal); }
+            const { data: backupData, error: backupErr } = await backupQuery;
+            if (backupErr) throw backupErr;
 
-            const { error } = await query;
+            if (!backupData || backupData.length === 0) {
+                return Swal.fire('ไม่พบข้อมูล', 'ไม่มีประวัติการลงเวลาในเงื่อนไขที่เลือกครับ', 'info');
+            }
+
+            // เก็บใส่ Session Storage (หน่วยความจำชั่วคราว)
+            sessionStorage.setItem('temp_schedule_backup', JSON.stringify(backupData));
+
+            // 🌟 2. สั่งลบจริง
+            let delQuery = appDB.from('schedules').delete().eq('work_date', dateVal);
+            if (deptVal !== 'all') delQuery = delQuery.eq('department', deptVal);
+            if (shiftVal !== 'all') delQuery = delQuery.eq('shift_name', shiftVal);
+
+            const { error } = await delQuery;
             if (error) throw error;
 
-            // บันทึกประวัติ
-            let logDetail = `แอดมินลบเวลากินข้าว วันที่ ${dateVal}`;
-            if(deptVal !== 'all') logDetail += ` [แผนก ${deptVal}]`;
-            if(shiftVal !== 'all') logDetail += ` [${shiftVal}]`;
-
-            if (typeof logAction === 'function') {
-                await logAction('ล้างกระดาน', logDetail);
-            }
+            if (typeof logAction === 'function') await logAction('ล้างกระดาน', `แอดมินลบเวลากินข้าว วันที่ ${dateVal} [${deptVal}] [${shiftVal}]`);
             
-            Swal.fire('ล้างข้อมูลสำเร็จ!', `ลบข้อมูลตามเงื่อนไขที่เลือกเรียบร้อยแล้ว`, 'success');
+            Swal.fire('ล้างข้อมูลสำเร็จ!', `ลบข้อมูลไปทั้งหมด ${backupData.length} รายการ (สามารถกดกู้คืนได้หากลบผิด)`, 'success');
             
-            // รีเฟรชตารางถ้าแอดมินเปิดหน้าวันที่นั้นค้างอยู่
-            const mainDate = document.getElementById('wDate');
-            if (mainDate && mainDate.value === dateVal) {
+            // 🌟 3. โชว์ปุ่มสีเขียว "กู้คืน" ขึ้นมา
+            const undoBtn = document.getElementById('undoScheduleBtn');
+            if (undoBtn) undoBtn.classList.remove('hidden');
+            
+            if (document.getElementById('wDate') && document.getElementById('wDate').value === dateVal) {
                 if (typeof fetchData === 'function') fetchData();
             }
             
         } catch (e) {
             console.error(e);
             Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถล้างข้อมูลได้: ' + e.message, 'error');
+        }
+    }
+};
+
+// =========================================================
+// 🟢 ฟังก์ชันกู้คืนข้อมูล (กรณีแอดมินมือลั่น)
+// =========================================================
+window.undoClearSchedules = async function() {
+    const backupStr = sessionStorage.getItem('temp_schedule_backup');
+    if (!backupStr) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลให้กู้คืนแล้วครับ', 'error');
+    
+    const backupData = JSON.parse(backupStr);
+
+    const confirm = await Swal.fire({
+        title: 'ยืนยันการกู้คืน?',
+        text: `คุณต้องการกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ ที่เพิ่งลบทิ้งไปใช่หรือไม่?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, นำข้อมูลกลับมา!',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
+    });
+
+    if (confirm.isConfirmed) {
+        Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        try {
+            // โยนข้อมูลที่ก๊อปปี้ไว้ กลับเข้าไปในฐานข้อมูล
+            const { error } = await appDB.from('schedules').insert(backupData);
+            if (error) throw error;
+
+            // กู้คืนเสร็จ ล้างกระเป๋า และซ่อนปุ่ม
+            sessionStorage.removeItem('temp_schedule_backup');
+            document.getElementById('undoScheduleBtn')?.classList.add('hidden');
+
+            if (typeof logAction === 'function') await logAction('กู้คืนข้อมูล', `แอดมินกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ`);
+
+            Swal.fire('กู้คืนสำเร็จ!', 'ข้อมูลกลับมาอยู่ที่เดิมเรียบร้อยแล้วครับ', 'success');
+
+            // สั่งให้ตารางรีเฟรชตัวเอง
+            if (typeof fetchData === 'function') fetchData();
+
+        } catch(e) {
+            console.error(e);
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนได้: ' + e.message, 'error');
         }
     }
 };
