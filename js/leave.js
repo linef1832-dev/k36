@@ -285,7 +285,10 @@ function subscribeLeaveChanges() {
     leaveSubscription = appDB.channel('leave-updates')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
         if (isEditingLeave) return;
-        if (!document.getElementById('leaveApp').classList.contains('hidden')) {
+        
+        // 🌟 ดัก Error: เช็คก่อนว่ามี leaveApp อยู่ไหม
+        const leaveAppEl = document.getElementById('leaveApp');
+        if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
             fetchLeaveData(); 
             flashRealtimeDot();
         }
@@ -296,7 +299,10 @@ function subscribeSettingsChanges() {
     if(settingsSubscription) appDB.removeChannel(settingsSubscription);
     settingsSubscription = appDB.channel('settings-updates')
     .on('broadcast', { event: 'force_leave_reload' }, async () => {
-        if (!document.getElementById('leaveApp').classList.contains('hidden')) {
+        
+        // 🌟 ดัก Error: เช็คก่อนว่ามี leaveApp อยู่ไหม
+        const leaveAppEl = document.getElementById('leaveApp');
+        if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
             await loadLeaveSettings();
             flashRealtimeDot();
         }
