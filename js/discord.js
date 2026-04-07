@@ -1260,156 +1260,183 @@ window.renderGroupList = function() {
     let html = '';
     for(let g in extStaffGroups) {
         const count = extStaffGroups[g].length;
+        
+        // 🎨 กำหนดสีตามชื่อแผนก (AM / OD)
+        let colorClass = 'text-emerald-400 border-slate-600 hover:border-emerald-500';
+        let bgClass = 'bg-slate-800 hover:bg-slate-700/50';
+        
+        if (g.startsWith('AM') || g.startsWith('AMQL')) {
+            colorClass = 'text-blue-400 border-blue-900/50 hover:border-blue-400';
+            bgClass = 'bg-[#0f172a] hover:bg-[#1e293b]';
+        } else if (g.startsWith('OD')) {
+            colorClass = 'text-pink-400 border-pink-900/50 hover:border-pink-400';
+            bgClass = 'bg-[#2b1b2e]/60 hover:bg-[#2b1b2e]';
+        } else if (g.includes('ไม่พบ') || g.includes('อิสระ')) {
+            colorClass = 'text-gray-400 border-gray-700 hover:border-gray-500';
+            bgClass = 'bg-slate-900/50 hover:bg-slate-800';
+        }
+
         html += `
-        <div class="flex justify-between items-center p-3 bg-slate-800 rounded-xl border border-slate-600 shadow-sm mb-2 hover:border-emerald-500 transition group/item">
-            <div>
-                <div class="font-bold text-emerald-400 text-sm cursor-pointer hover:underline" onclick="renameGroup('${g}')">${g} <span class="material-icons text-[10px] opacity-50">edit</span></div>
+        <div class="flex justify-between items-center p-3 rounded-xl border shadow-sm mb-2 transition cursor-pointer group/item ${bgClass} ${colorClass}" onclick="openGroupManagerModal('${g}')">
+            <div class="flex flex-col">
+                <div class="font-bold text-sm flex items-center gap-1">
+                    ${g} <span class="material-icons text-[12px] opacity-0 group-hover/item:opacity-100 transition">edit</span>
+                </div>
                 <div class="text-[10px] text-gray-400 mt-0.5">สมาชิก ${count} คน</div>
             </div>
-            <button onclick="deleteGroup('${g}')" class="text-red-400 hover:text-white bg-slate-900 hover:bg-red-500 w-8 h-8 rounded-lg transition flex items-center justify-center border border-slate-700 shadow-sm opacity-0 group-hover/item:opacity-100"><span class="material-icons text-[14px]">delete</span></button>
+            <button onclick="event.stopPropagation(); deleteGroup('${g}')" class="text-red-400 hover:text-white bg-slate-900 hover:bg-red-500 w-8 h-8 rounded-lg transition flex items-center justify-center border border-slate-700 shadow-sm opacity-0 group-hover/item:opacity-100" title="ลบกลุ่มนี้ทิ้ง"><span class="material-icons text-[14px]">delete</span></button>
         </div>`;
     }
     container.innerHTML = html || '<div class="text-center text-gray-500 py-4 text-xs">ไม่มีกลุ่ม</div>';
 };
 
-window.autoBuildGroups = async function() {
+// ==========================================
+// 🌟 ฟังก์ชันใหม่: ป๊อปอัปจัดการคนในกลุ่ม (เพิ่ม/ลบ สมาชิก)
+// ==========================================
+window.openGroupManagerModal = function(groupName) {
+    // 1. ฟังก์ชันวาดรายชื่อในป๊อปอัป
+    window.renderModalMemberList = function(gName) {
+        const memberIds = extStaffGroups[gName] || [];
+        if (memberIds.length === 0) return '<div class="text-center text-gray-500 py-6 text-sm">ยังไม่มีสมาชิกในกลุ่มนี้</div>';
+
+        const members = memberIds.map(id => {
+            const staff = extStaffList.find(s => s.id === id);
+            return { id: id, name: staff ? staff.name : 'Unknown User' };
+        }).sort((a,b) => a.name.localeCompare(b.name));
+
+        return members.map((m, idx) => `
+            <div class="flex justify-between items-center p-3 bg-slate-800 rounded-xl border border-slate-700 shadow-sm mb-2 hover:bg-slate-700/50 transition">
+                <div class="flex items-center gap-3">
+                    <div class="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-gray-400 border border-slate-600 shadow-inner">${idx + 1}</div>
+                    <span class="font-bold text-sm text-white tracking-wide">${m.name}</span>
+                </div>
+                <button onclick="removeUserFromGroup('${gName}', '${m.id}')" class="text-red-400 hover:text-white transition p-1.5 bg-slate-900 hover:bg-red-500 rounded-lg border border-slate-700" title="นำออกจากกลุ่ม"><span class="material-icons text-[16px]">person_remove</span></button>
+            </div>
+        `).join('');
+    };
+
+    // 2. ดึงรายชื่อคนที่ยังไม่ได้อยู่ในกลุ่มนี้ มาใส่ Dropdown ให้เลือกเพิ่ม
+    const allUsersOptions = extStaffList
+        .filter(s => !(extStaffGroups[groupName] || []).includes(s.id))
+        .sort((a,b) => a.name.localeCompare(b.name))
+        .map(s => `<option value="${s.id}">${s.name}</option>`)
+        .join('');
+
+    // 3. จัดสีหัวข้อป๊อปอัป
+    let headerColor = 'text-emerald-400';
+    if(groupName.startsWith('AM') || groupName.startsWith('AMQL')) headerColor = 'text-blue-400';
+    else if(groupName.startsWith('OD')) headerColor = 'text-pink-400';
+
+    // 4. แสดงป๊อปอัป
     Swal.fire({
-        title: 'กำลังจัดกลุ่มออโต้...', 
-        text: 'แยกตามแผนกและกะการทำงาน',
-        didOpen: () => Swal.showLoading()
+        html: `
+            <div class="text-left mt-2">
+                <div class="flex justify-between items-center mb-5 pb-4 border-b border-slate-700">
+                    <div class="text-xl font-black ${headerColor}">${groupName}</div>
+                    <span class="bg-slate-700 text-gray-300 text-xs px-3 py-1.5 rounded-full font-bold shadow-inner" id="modalMemberCount">${(extStaffGroups[groupName]||[]).length} คน</span>
+                </div>
+
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 mb-5 shadow-inner">
+                    <label class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mb-2"><span class="material-icons text-[16px]">person_add</span> เพิ่มพนักงานเข้ากลุ่ม</label>
+                    <div class="flex gap-2">
+                        <select id="addMemberSelect" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-emerald-500 font-bold cursor-pointer">
+                            <option value="">-- เลือกจากรายชื่อ --</option>
+                            ${allUsersOptions}
+                        </select>
+                        <button onclick="addUserToGroup('${groupName}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg font-bold transition shadow-md whitespace-nowrap flex items-center gap-1 active:scale-95">
+                            <span class="material-icons text-[16px]">add_circle</span> เพิ่ม
+                        </button>
+                    </div>
+                </div>
+
+                <div class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-widest">รายชื่อสมาชิกปัจจุบัน</div>
+                <div class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-2" id="modalMemberList">
+                    ${window.renderModalMemberList(groupName)}
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-slate-700 flex justify-start">
+                    <button onclick="renameGroup('${groupName}'); Swal.close();" class="text-xs font-bold text-amber-500 hover:text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/30 transition flex items-center gap-1">
+                        <span class="material-icons text-[14px]">edit</span> เปลี่ยนชื่อกลุ่ม
+                    </button>
+                </div>
+            </div>
+        `,
+        showConfirmButton: false,
+        showCloseButton: true,
+        width: '500px',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-600 shadow-2xl' }
     });
-    
-    try {
-        let newGroups = {};
-        
-        // วนลูปรายชื่อคนในดิสคอร์ด
-        extStaffList.forEach(s => {
-            // โยงชื่อในดิสคอร์ด ไปหาชื่อในฐานข้อมูลเพื่อดึงแผนกและกะ
-            const dbUser = getDbUserFromDiscordName(s.name);
-            
-            if (dbUser) {
-                const dept = dbUser.department || 'AM';
-                const shift = dbUser.allowed_shift || '';
+};
 
-                // กรองเฉพาะคนที่มีกะชัดเจน
-                if (shift === 'กะเช้า' || shift === 'กะกลาง' || shift === 'กะดึก') {
-                    // สร้างชื่อกลุ่ม เช่น "AM กะเช้า", "OD กะดึก"
-                    const groupName = `${dept} ${shift}`;
-                    
-                    if (!newGroups[groupName]) newGroups[groupName] = [];
-                    newGroups[groupName].push(s.id);
-                } else {
-                    // คนที่เป็นกะอิสระ หรือยังไม่ได้เลือกกะ
-                    if (!newGroups['กะอิสระ / อื่นๆ']) newGroups['กะอิสระ / อื่นๆ'] = [];
-                    newGroups['กะอิสระ / อื่นๆ'].push(s.id);
-                }
-            } else {
-                // คนที่ดิสคอร์ดชื่อไม่ตรงกับในระบบ หรือไม่พบในฐานข้อมูล
-                if (!newGroups['ไม่พบในระบบลงเวลา']) newGroups['ไม่พบในระบบลงเวลา'] = [];
-                newGroups['ไม่พบในระบบลงเวลา'].push(s.id);
+// ==========================================
+// 🌟 ฟังก์ชันย่อย: ยิง API เพิ่ม/ลบคนในป๊อปอัป
+// ==========================================
+window.addUserToGroup = async function(groupName) {
+    const select = document.getElementById('addMemberSelect');
+    const staffId = select.value;
+    if(!staffId) return;
+
+    const btn = select.nextElementSibling;
+    btn.innerHTML = '<span class="material-icons animate-spin">sync</span>';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(DISCORD_API_URL + '/api/groups/assign', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupName: groupName, staffIds: [staffId] })
+        });
+        
+        if(res.ok) {
+            // อัปเดตข้อมูลในความจำ
+            if(!extStaffGroups[groupName]) extStaffGroups[groupName] = [];
+            extStaffGroups[groupName].push(staffId);
+            
+            // รีเฟรชรายชื่อในป๊อปอัป
+            document.getElementById('modalMemberList').innerHTML = window.renderModalMemberList(groupName);
+            document.getElementById('modalMemberCount').innerText = `${extStaffGroups[groupName].length} คน`;
+            
+            // เอารายชื่อออกจาก Dropdown
+            select.querySelector(`option[value="${staffId}"]`).remove();
+            select.value = '';
+            
+            renderGroupList(); // รีเฟรชตารางข้างหลัง
+        }
+    } catch(e) { console.error(e); } 
+    finally {
+        btn.innerHTML = '<span class="material-icons text-[16px]">add_circle</span> เพิ่ม';
+        btn.disabled = false;
+    }
+};
+
+window.removeUserFromGroup = async function(groupName, staffId) {
+    const listContainer = document.getElementById('modalMemberList');
+    listContainer.style.opacity = '0.5';
+
+    try {
+        const res = await fetch(DISCORD_API_URL + '/api/groups/remove-member', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupName: groupName, staffId: staffId })
+        });
+
+        if(res.ok) {
+            // ลบจากข้อมูลความจำ
+            extStaffGroups[groupName] = extStaffGroups[groupName].filter(id => id !== staffId);
+            
+            // รีเฟรชรายชื่อในป๊อปอัป
+            listContainer.innerHTML = window.renderModalMemberList(groupName);
+            document.getElementById('modalMemberCount').innerText = `${extStaffGroups[groupName].length} คน`;
+            
+            // คืนรายชื่อกลับเข้า Dropdown ให้เลือกใหม่ได้
+            const staff = extStaffList.find(s => s.id === staffId);
+            if(staff) {
+                const select = document.getElementById('addMemberSelect');
+                select.innerHTML += `<option value="${staff.id}">${staff.name}</option>`;
             }
-        });
-        
-        // ส่งข้อมูลกลุ่มที่แยกเสร็จแล้ว ไปบันทึกทับของเดิม
-        const res = await fetch(DISCORD_API_URL + '/api/groups/save-all', { 
-            method: 'POST', 
-            headers: {'Content-Type':'application/json'}, 
-            body: JSON.stringify({ groups: newGroups }) 
-        });
-        
-        let data;
-        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์บอทไม่ตอบสนอง'); }
-        if(!data.success) throw new Error('บันทึกกลุ่มใหม่ไม่สำเร็จ');
-        
-        // โหลดข้อมูลใหม่มาแสดงบนหน้าเว็บ
-        await fetchSystemData(true, true);
-        Swal.fire('สำเร็จ', 'จัดกลุ่มตาม แผนก+กะ เรียบร้อยแล้ว', 'success');
-        
-    } catch(e) { 
-        Swal.fire('Error', e.message, 'error'); 
-    }
-};
-
-window.deleteGroup = async function(groupName) {
-    if(confirm(`ลบกลุ่ม ${groupName} ใช่ไหม?`)) {
-        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
-        try {
-            const res = await fetch(DISCORD_API_URL + '/api/groups/delete', { 
-                method: 'POST', 
-                headers: {'Content-Type':'application/json'}, 
-                body: JSON.stringify({ name: groupName }) 
-            });
             
-            let data;
-            try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
-            if (!data.success) throw new Error('ลบไม่สำเร็จ');
-            
-            await fetchSystemData(true, true);
-            Swal.fire({icon: 'success', title: 'ลบกลุ่มแล้ว', timer: 1000, showConfirmButton: false});
-        } catch(e) {
-            Swal.fire('Error', e.message, 'error');
+            renderGroupList(); // รีเฟรชตารางข้างหลัง
         }
-    }
-};
-
-window.renameGroup = async function(oldName) {
-    const { value: newName } = await Swal.fire({ title: 'เปลี่ยนชื่อกลุ่ม', input: 'text', inputValue: oldName, showCancelButton: true });
-    if(newName && newName !== oldName) {
-        Swal.fire({title: 'กำลังเปลี่ยนชื่อ...', didOpen: () => Swal.showLoading()});
-        try {
-            const res = await fetch(DISCORD_API_URL + '/api/groups/rename', { 
-                method: 'POST', 
-                headers: {'Content-Type':'application/json'}, 
-                body: JSON.stringify({ oldName: oldName, newName: newName }) 
-            });
-            
-            let data;
-            try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
-            if (!data.success) throw new Error('เปลี่ยนชื่อไม่สำเร็จ');
-            
-            await fetchSystemData(true, true);
-            Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแล้ว', timer: 1000, showConfirmButton: false});
-        } catch(e) {
-            Swal.fire('Error', e.message, 'error');
-        }
-    }
-};
-
-window.addStaff = async function() {
-    const name = document.getElementById('newStaffName').value.trim();
-    if(!name) return;
-    Swal.fire({title: 'กำลังเพิ่ม...', didOpen: () => Swal.showLoading()});
-    try {
-        const res = await fetch(DISCORD_API_URL + '/api/staff/add', { 
-            method: 'POST', 
-            headers: {'Content-Type':'application/json'}, 
-            body: JSON.stringify({ name: name }) 
-        });
-        
-        let data;
-        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
-        if (!data.success) throw new Error(data.error || 'เพิ่มพนักงานไม่สำเร็จ');
-        
-        document.getElementById('newStaffName').value = '';
-        await fetchSystemData(true, true);
-        Swal.fire({icon: 'success', title: 'เพิ่มรายชื่อแล้ว', timer: 1000, showConfirmButton: false});
-    } catch(e) {
-        Swal.fire('Error', e.message, 'error');
-    }
-};
-
-window.syncDiscord = async function() { 
-    Swal.fire({title: 'กำลังสั่งบอทดึงรายชื่อ...', didOpen: () => Swal.showLoading()}); 
-    try {
-        const res = await fetch(DISCORD_API_URL + '/api/import-discord-members', { method:'POST', headers: { 'Cache-Control': 'no-cache' } }); 
-        
-        let data;
-        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
-        if(!data.success) throw new Error(data.error || 'บอทอาจจะหลับอยู่ หรือไม่มีสิทธิ์ดึงข้อมูล');
-        
-        await fetchSystemData(true, true); 
-        Swal.fire({icon: 'success', title: 'อัปเดตเรียบร้อย', timer: 1000, showConfirmButton: false}); 
-    } catch(e) {
-        Swal.fire({ icon: 'error', title: 'เชื่อมต่อล้มเหลว', text: e.message });
+    } catch(e) { console.error(e); } 
+    finally {
+        listContainer.style.opacity = '1';
     }
 };
