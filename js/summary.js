@@ -1474,5 +1474,3 @@ window.saveWebLogo = async function() {
         Swal.fire('Error', err.message, 'error');
     }
 };
-
-}
