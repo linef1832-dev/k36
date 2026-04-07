@@ -147,6 +147,10 @@ window.refreshTimeSlots = async function() {
     const slotSelect = document.getElementById('tSlot');
     const dateVal = document.getElementById('wDate');
     
+    // 🌟 1. ดึงข้อมูล "เว็บ/ทีม" ที่พนักงานกำลังเลือกอยู่จาก Dropdown
+    const teamSelect = document.getElementById('dailyTeam');
+    const selectedTeam = teamSelect ? teamSelect.value : (window.currentUser?.team || '');
+    
     if (!slotSelect) return;
     if (!shiftEl || !dateVal || !dateVal.value) {
         slotSelect.innerHTML = '<option value="">-- กรุณาเลือกกะ/วันทีก่อน --</option>';
@@ -158,8 +162,9 @@ window.refreshTimeSlots = async function() {
     if(loadingIcon) loadingIcon.classList.remove('hidden');
 
     try {
+        // 🌟 2. เพิ่มการดึงคอลัมน์ 'team' มาจากฐานข้อมูลด้วย
         const { data: bookings } = await appDB.from('schedules')
-            .select('time_slot, department')
+            .select('time_slot, department, team') 
             .eq('work_date', dateVal.value)
             .eq('shift_name', shiftName);
         
@@ -172,7 +177,13 @@ window.refreshTimeSlots = async function() {
             
             times.forEach(time => {
                 const myDep = window.currentUser?.department || 'AM';
-                const count = bookings ? bookings.filter(b => b.time_slot === time && (b.department || 'AM') === myDep).length : 0;
+                
+                // 🌟 3. กรองให้นับเฉพาะคนที่จองใน "เว็บเดียวกัน" เท่านั้น! (b.team === selectedTeam)
+                const count = bookings ? bookings.filter(b => 
+                    b.time_slot === time && 
+                    (b.department || 'AM') === myDep && 
+                    b.team === selectedTeam
+                ).length : 0;
                 
                 const suffix = shiftName.replace('กะ', '');
                 let maxQuota = 50;
