@@ -460,7 +460,7 @@ async function refreshAdminData() {
     if(typeof populateTeamSelects === 'function') populateTeamSelects(); 
     if(typeof renderOperatingHours === 'function') renderOperatingHours();
     setTimeout(() => { if(btn) btn.classList.remove('animate-spin'); }, 800);
-    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 }); Toast.fire({ icon: 'success', title: 'รีเฟรชข้อมูลแล้ว' });
+    //const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 }); Toast.fire({ icon: 'success', title: 'รีเฟรชข้อมูลแล้ว' });
 }
 
 window.updateUserRole = async function(selectEl, id, newRole) {
