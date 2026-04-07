@@ -1,6 +1,4 @@
- <div id="recentTabsContainer" class="bg-slate-950 border-b border-slate-800 px-2 pt-2 flex gap-1 overflow-x-auto shrink-0 hidden h-12"></div>
-
-    <div id="sheetApp" class="fixed inset-0 z-50 bg-[#0b1120] hidden fade-in flex flex-col">
+<div id="sheetApp" class="fixed inset-0 z-50 bg-[#0b1120] hidden fade-in flex flex-col">
     <div class="bg-gradient-to-r from-indigo-950 via-purple-900 to-slate-900 text-white p-3 flex justify-between items-center shadow-lg shrink-0 border-b border-purple-500/20">
         <div class="flex items-center gap-3">
             <h1 class="font-black text-xl flex items-center gap-2">
@@ -17,75 +15,13 @@
                 <span class="material-icons absolute left-2 top-1.5 text-purple-300/70 text-sm">search</span>
                 <input type="text" id="sheetSearch" placeholder="ค้นหาชีท..." class="pl-8 pr-2 py-1.5 rounded-lg text-sm text-white bg-slate-800/80 border border-purple-500/30 font-bold outline-none w-48 transition focus:w-64 focus:border-purple-400 focus:ring-1 focus:ring-purple-400 placeholder-purple-300/50 shadow-inner" onkeyup="renderSheetMenu()">
             </div>
-            <button onclick="showPage('main')" class="bg-slate-800 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 text-sm shadow-sm">
+            <button onclick="closeSheetApp()" class="bg-slate-800 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 text-sm shadow-sm">
                 <span class="material-icons text-sm">arrow_back</span> กลับ
             </button>
         </div>
     </div>
 
-    <div id="recentTabsContainer" class="bg-slate-950 border-b border-slate-800 px-2 pt-2 flex gap-1 overflow-x-auto shrink-0 hidden h-12"></div>
-
-    <div id="sheetAdminModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 fade-in">
-        <div class="bg-slate-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-700">
-            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-5 flex justify-between items-center shrink-0">
-                <h3 class="font-black text-xl text-white flex items-center gap-2">
-                    <span class="material-icons">settings_applications</span> จัดการรายการ / ลิงก์
-                </h3>
-                <button onclick="closeSheetAdmin()" class="text-white/70 hover:text-white hover:bg-white/20 p-1 rounded-full transition">
-                    <span class="material-icons">close</span>
-                </button>
-            </div>
-            <div class="p-6 bg-slate-800/50 border-b border-slate-700 space-y-4 shrink-0">
-                <div class="flex justify-between items-center">
-                    <h4 id="formTitle" class="text-sm font-bold text-purple-400 flex items-center gap-1">
-                        <span class="material-icons text-base">add_circle</span> เพิ่มรายการใหม่
-                    </h4>
-                    <button id="btnCancelEdit" onclick="cancelEdit()" class="hidden text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition">ยกเลิกการแก้ไข</button>
-                </div>
-                <input type="hidden" id="editSheetId">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ชื่อเรียก</label>
-                        <input type="text" id="newSheetName" placeholder="เช่น ตารางงาน, เว็บหลังบ้าน..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">กลุ่ม / หมวด</label>
-                        <input type="text" id="newSheetGroup" placeholder="เช่น Jun88, ทั่วไป..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ลิงก์ (URL)</label>
-                    <input type="text" id="newSheetUrl" placeholder="วางลิงก์ Google Sheet หรือ Link เว็บใดๆ ที่นี่..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm font-mono focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
-                </div>
-                <div class="flex flex-col md:flex-row gap-4 items-start">
-                    <div class="flex-1 w-full">
-                        <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">🖼️ รูปลิงก์หน้าปก (อัปโหลดรูป)</label>
-                        <input type="file" id="newSheetCoverFile" accept="image/*" class="w-full p-2 border border-slate-700 rounded-xl bg-slate-950 text-white focus:ring-2 focus:ring-purple-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-600 file:text-white hover:file:bg-purple-500 cursor-pointer">
-                        <input type="hidden" id="newSheetCover" value="">
-                        <div id="currentSheetCoverContainer" class="hidden mt-2">
-                            <span class="text-[10px] text-gray-500 block mb-1">รูปปัจจุบัน:</span>
-                            <img id="currentSheetCoverImg" src="" class="h-16 w-auto rounded-lg border border-slate-600 shadow-sm object-cover bg-black">
-                        </div>
-                    </div>
-                    <div class="w-full md:w-auto flex gap-3 mt-4 md:mt-0">
-                        <div class="flex flex-col w-full md:w-24">
-                            <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider text-center">สีธีม</label>
-                            <div class="h-[46px] w-full bg-slate-950 border border-slate-700 rounded-xl overflow-hidden p-1 flex items-center justify-center shadow-inner">
-                                <input type="color" id="newSheetColor" value="#8b5cf6" class="w-full h-full cursor-pointer bg-transparent border-0 rounded-lg">
-                            </div>
-                        </div>
-                        <button id="btnSaveSheet" onclick="saveSheetData()" class="h-[46px] self-end px-6 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold transition shadow-lg shadow-purple-500/30 whitespace-nowrap active:scale-95">
-                            บันทึก
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div class="flex-1 overflow-y-auto p-6 bg-[#0b1120] custom-scrollbar">
-                <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4">รายการที่มีอยู่</h4>
-                <div id="adminSheetList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-            </div>
-        </div>
-    </div>
+    <div id="recentTabsContainer" class="bg-slate-950 border-b border-slate-800 px-2 pt-2 flex gap-1 overflow-x-auto shrink-0 hidden h-12 z-20"></div>
 
     <div id="sheetMenu" class="flex-1 bg-[#0b1120] p-4 md:p-8 overflow-y-auto custom-scrollbar relative z-0">
         <div class="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
@@ -154,19 +90,87 @@
         </div>
     </div>
 
-    <div id="sheetViewer" class="hidden flex-1 bg-[#0b1120] relative flex flex-col">
+    <div id="sheetViewer" class="hidden flex-1 bg-[#0b1120] relative flex-col">
         <div class="bg-slate-900 p-2 flex justify-between items-center border-b border-slate-700 shrink-0 h-14 shadow-sm z-20">
             <span id="sheetTitle" class="font-bold text-white ml-2 text-sm flex items-center gap-2">...</span>
-            <button onclick="closeSheet()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/50 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-md transition transform active:scale-95">
-                <span class="material-icons text-sm">close</span> ปิดหน้าต่างนี้
-            </button>
+            <div class="flex items-center gap-2">
+                <button onclick="document.getElementById('sheetFrame').src = document.getElementById('sheetFrame').src" class="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 shadow-md transition" title="โหลดหน้าเว็บใหม่">
+                    <span class="material-icons text-sm">refresh</span>
+                </button>
+                <button onclick="closeSheet()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/50 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-md transition transform active:scale-95">
+                    <span class="material-icons text-sm">close</span> ปิดหน้าต่างนี้
+                </button>
+            </div>
         </div>
+        
         <div class="flex-1 relative">
             <div id="sheetLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-[#0b1120] z-10">
                 <div class="animate-spin h-12 w-12 border-4 border-purple-500 rounded-full border-t-transparent mb-3"></div>
                 <span class="text-purple-400 font-bold animate-pulse">กำลังโหลดข้อมูล...</span>
             </div>
-            <iframe id="sheetFrame" class="absolute inset-0 w-full h-full border-0" allow="ambient-light-sensor 'none'; speaker 'none'; vibrate 'none'; vr 'none';"></iframe>
+            <iframe id="sheetFrame" class="absolute inset-0 w-full h-full border-0 bg-white" allow="ambient-light-sensor 'none'; speaker 'none'; vibrate 'none'; vr 'none';"></iframe>
+        </div>
+    </div>
+</div>
+
+<div id="sheetAdminModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4 fade-in">
+    <div class="bg-slate-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-700">
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-5 flex justify-between items-center shrink-0">
+            <h3 class="font-black text-xl text-white flex items-center gap-2">
+                <span class="material-icons">settings_applications</span> จัดการรายการ / ลิงก์
+            </h3>
+            <button onclick="closeSheetAdmin()" class="text-white/70 hover:text-white hover:bg-white/20 p-1 rounded-full transition">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <div class="p-6 bg-slate-800/50 border-b border-slate-700 space-y-4 shrink-0">
+            <div class="flex justify-between items-center">
+                <h4 id="formTitle" class="text-sm font-bold text-purple-400 flex items-center gap-1">
+                    <span class="material-icons text-base">add_circle</span> เพิ่มรายการใหม่
+                </h4>
+                <button id="btnCancelEdit" onclick="cancelEdit()" class="hidden text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition">ยกเลิกการแก้ไข</button>
+            </div>
+            <input type="hidden" id="editSheetId">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ชื่อเรียก</label>
+                    <input type="text" id="newSheetName" placeholder="เช่น ตารางงาน, เว็บหลังบ้าน..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">กลุ่ม / หมวด</label>
+                    <input type="text" id="newSheetGroup" placeholder="เช่น Jun88, ทั่วไป..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
+                </div>
+            </div>
+            <div>
+                <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ลิงก์ (URL)</label>
+                <input type="text" id="newSheetUrl" placeholder="วางลิงก์ Google Sheet หรือ Link เว็บใดๆ ที่นี่..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm font-mono focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
+            </div>
+            <div class="flex flex-col md:flex-row gap-4 items-start">
+                <div class="flex-1 w-full">
+                    <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">🖼️ รูปลิงก์หน้าปก (อัปโหลดรูป)</label>
+                    <input type="file" id="newSheetCoverFile" accept="image/*" class="w-full p-2 border border-slate-700 rounded-xl bg-slate-950 text-white focus:ring-2 focus:ring-purple-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-600 file:text-white hover:file:bg-purple-500 cursor-pointer">
+                    <input type="hidden" id="newSheetCover" value="">
+                    <div id="currentSheetCoverContainer" class="hidden mt-2">
+                        <span class="text-[10px] text-gray-500 block mb-1">รูปปัจจุบัน:</span>
+                        <img id="currentSheetCoverImg" src="" class="h-16 w-auto rounded-lg border border-slate-600 shadow-sm object-cover bg-black">
+                    </div>
+                </div>
+                <div class="w-full md:w-auto flex gap-3 mt-4 md:mt-0">
+                    <div class="flex flex-col w-full md:w-24">
+                        <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider text-center">สีธีม</label>
+                        <div class="h-[46px] w-full bg-slate-950 border border-slate-700 rounded-xl overflow-hidden p-1 flex items-center justify-center shadow-inner">
+                            <input type="color" id="newSheetColor" value="#8b5cf6" class="w-full h-full cursor-pointer bg-transparent border-0 rounded-lg">
+                        </div>
+                    </div>
+                    <button id="btnSaveSheet" onclick="saveSheetData()" class="h-[46px] self-end px-6 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold transition shadow-lg shadow-purple-500/30 whitespace-nowrap active:scale-95">
+                        บันทึก
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6 bg-[#0b1120] custom-scrollbar">
+            <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4">รายการที่มีอยู่</h4>
+            <div id="adminSheetList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
         </div>
     </div>
 </div>
