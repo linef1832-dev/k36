@@ -75,13 +75,6 @@ window.switchDept = function(dept) {
 
     updateAdminInputs();
     
-    const s = deptSettings[currentViewDept];
-    if (s && s.viewMonth && s.viewMonth !== '') {
-        try {
-            const [y, m] = s.viewMonth.split('-');
-            currentCalendarDate = new Date(parseInt(y), parseInt(m)-1, 1);
-        } catch(e){}
-    } 
     // อัปเดตป้ายชื่อเดือนด้านบนให้ตรงกับปฏิทินปัจจุบันเสมอ
     if(typeof updateMonthPicker === 'function') updateMonthPicker();
     
