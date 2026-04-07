@@ -648,7 +648,10 @@ function searchEmployee() {
         
         if (nameTd && shiftTd && deptTd) {
             const nameTxt = nameTd.textContent || nameTd.innerText; 
-            const deptTxt = deptTd.textContent || deptTd.innerText;
+            
+            // 🌟 แก้ไขตรงนี้: ให้ดึงค่าจาก Select ของแผนกแทนการอ่านข้อความธรรมดา
+            const deptSelect = deptTd.querySelector('select');
+            const deptTxt = deptSelect ? deptSelect.value : (deptTd.textContent || deptTd.innerText);
             
             const shiftSelect = shiftTd.querySelector('select');
             const shiftTxt = shiftSelect ? shiftSelect.value : (shiftTd.textContent || shiftTd.innerText);
