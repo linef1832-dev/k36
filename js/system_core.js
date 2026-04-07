@@ -1704,7 +1704,7 @@ window.renderQuotaSettings = function() {
                 <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col">
                     <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2">
                         <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">domain</span> รายทีม (AM):</h5>
-                        <button class="text-[10px] text-blue-400 border border-blue-500/50 px-2 py-1 rounded hover:bg-blue-900/30 transition">+ เพิ่มทีม AM</button>
+                        <button onclick="addTeamManual('AM')" class="text-[10px] text-blue-400 border border-blue-500/50 px-2 py-1 rounded hover:bg-blue-900/30 transition">+ เพิ่มทีม AM</button>
                     </div>
                     <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max">
                         <div class="w-24 shrink-0 text-center">ชื่อทีม</div>
@@ -1721,7 +1721,7 @@ window.renderQuotaSettings = function() {
                 <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 h-full flex flex-col">
                     <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2">
                         <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">groups</span> รายทีม (OD):</h5>
-                        <button class="text-[10px] text-pink-400 border border-pink-500/50 px-2 py-1 rounded hover:bg-pink-900/30 transition">+ เพิ่มทีม OD</button>
+                        <button onclick="addTeamManual('OD')" class="text-[10px] text-pink-400 border border-pink-500/50 px-2 py-1 rounded hover:bg-pink-900/30 transition">+ เพิ่มทีม OD</button>
                     </div>
                     <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max">
                         <div class="w-24 shrink-0 text-center">ชื่อทีม</div>
