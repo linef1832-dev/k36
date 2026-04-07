@@ -1,5 +1,5 @@
 // ====================================================
-// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้บั๊กกะ UNKNOWN 100%)
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. แยก Template 100% + แก้กะเพี้ยน)
 // ====================================================
 
 let pendingSummaryData = []; 
@@ -18,6 +18,7 @@ function getTpl(templateId, data = {}) {
     if (!tpl) {
         if (templateId === 'tpl-no-data') return `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
         if (templateId === 'tpl-emp-not-found') return `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${data.keyword}" ในวันนี้</div>`;
+        console.error('Template not found:', templateId); 
         return ''; 
     }
     let html = tpl.innerHTML;
@@ -85,25 +86,22 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
+// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100% ไม่มีเดามั่วแล้ว
 function getShiftFromName(name) {
-    let prefixShift = 'UNKNOWN';
-    let lowerName = name.toLowerCase();
-    
-    if (lowerName.startsWith('m')) prefixShift = 'กะเช้า';
-    else if (lowerName.startsWith('a')) prefixShift = 'กะกลาง';
-    else if (lowerName.startsWith('n')) prefixShift = 'กะดึก';
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
 
-    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return prefixShift;
-
-    const searchName = lowerName.replace(/[^a-z0-9ก-๙]/g, ''); 
+    const searchName = name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); 
     let foundUser = window.GLOBAL_USER_LIST.find(u => {
         const dbName = u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
         return dbName === searchName || (dbName.length > 2 && (dbName.includes(searchName) || searchName.includes(dbName)));
     });
     
-    let shift = foundUser && foundUser.allowed_shift ? foundUser.allowed_shift : 'UNKNOWN';
-    if (shift === 'all' || shift === '' || shift === 'UNKNOWN') shift = prefixShift !== 'UNKNOWN' ? prefixShift : 'UNKNOWN';
-    return shift;
+    if (foundUser && foundUser.allowed_shift) {
+        if (foundUser.allowed_shift === 'all') return 'กะอิสระ';
+        return foundUser.allowed_shift;
+    }
+    
+    return 'UNKNOWN';
 }
 
 function parseAmount(val) {
@@ -337,7 +335,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
                     let empName = ''; let amount = 0; let webName = '';
                     let txStatus = 'Approved'; let odType = 'ปกติ'; let rowDate = null;
-                    let hour = null; // เก็บเวลาทำรายการไว้หากะสำรอง
+                    let hour = null; 
 
                     for (let c of cellData) {
                         const strC = String(c).trim();
@@ -406,26 +404,23 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     
                     if (!webName) webName = defaultWeb; 
 
-                    // 🌟 1. ดึงกะจากอักษรหน้าชื่อก่อน
-                    let extractedShiftFromWeb = 'UNKNOWN';
-                    if (empName.match(/^[m]/i)) extractedShiftFromWeb = 'กะเช้า';
-                    else if (empName.match(/^[a]/i)) extractedShiftFromWeb = 'กะกลาง';
-                    else if (empName.match(/^[n]/i)) extractedShiftFromWeb = 'กะดึก';
-                    // 🌟 2. ถ้าชื่อไม่มีตัวอักษรกะ ให้ดูจาก "เวลาที่ทำรายการ (Hour)" ใน Excel แทน (แก้บั๊กชื่อเปล่าๆ แล้วกะเป็น UNKNOWN)
-                    else if (hour !== null) {
-                        if (hour >= 7 && hour < 15) extractedShiftFromWeb = 'กะเช้า';
-                        else if (hour >= 15 && hour < 23) extractedShiftFromWeb = 'กะกลาง';
-                        else extractedShiftFromWeb = 'กะดึก'; // 23:00 - 06:59
+                    // 🌟 ใช้เวลาจาก Excel หากะให้ถ้าเป็นกะอิสระ
+                    let extractedShiftFromTime = 'UNKNOWN';
+                    if (hour !== null) {
+                        if (hour >= 7 && hour < 19) extractedShiftFromTime = 'กะเช้า';
+                        else extractedShiftFromTime = 'กะดึก';
                     }
 
                     const realUser = getRealDbUser(empName);
-                    let finalShift = extractedShiftFromWeb;
+                    let finalShift = extractedShiftFromTime;
                     
                     if (realUser) {
                         empName = realUser.username; 
-                        // ถ้าพนักงานกะชัดเจนในฐานข้อมูล ให้ใช้กะนั้นทับ แต่ถ้าตั้งไว้เป็น "กะอิสระ (all)" ให้ใช้ค่าที่เราดึงได้จาก Excel
                         if (realUser.allowed_shift && realUser.allowed_shift !== 'all') {
                             finalShift = realUser.allowed_shift;
+                        } else if (realUser.allowed_shift === 'all') {
+                            if (extractedShiftFromTime !== 'UNKNOWN') finalShift = extractedShiftFromTime;
+                            else finalShift = 'กะอิสระ';
                         }
                     }
 
@@ -520,7 +515,7 @@ window.renderSummaryDashboard = function() {
     const searchKeyword = document.getElementById('summarySearch') ? document.getElementById('summarySearch').value.toLowerCase().trim() : '';
 
     if (webBox) webBox.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 p-1";
-    if (mainBox) mainBox.className = "flex-1 overflow-y-auto custom-scrollbar pr-2 content-start transform-gpu will-change-transform";
+    if (mainBox) mainBox.className = "flex-1 overflow-y-auto custom-scrollbar pr-2 content-start";
 
     const hasData = typeof pendingSummaryData !== 'undefined' && pendingSummaryData.length > 0;
 
@@ -551,7 +546,7 @@ window.renderSummaryDashboard = function() {
         let shiftStats = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0, 'UNKNOWN': 0, 'TOTAL': 0, 'APPROVED': 0, 'REJECT': 0 };
         
         let filteredData = pendingSummaryData;
-        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter);
+        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
         if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
         if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
 
@@ -561,7 +556,9 @@ window.renderSummaryDashboard = function() {
             shiftStats.TOTAL += item.count;
             shiftStats.APPROVED += (item.approvedCount || 0);
             shiftStats.REJECT += (item.rejectCount || 0);
-            if(shiftStats[item.shift] !== undefined) shiftStats[item.shift] += item.count;
+            if(item.shift === 'กะเช้า') shiftStats['กะเช้า'] += item.count;
+            else if(item.shift === 'กะกลาง') shiftStats['กะกลาง'] += item.count;
+            else if(item.shift === 'กะดึก') shiftStats['กะดึก'] += item.count;
             else shiftStats['UNKNOWN'] += item.count;
         });
 
@@ -641,7 +638,8 @@ window.renderSummaryDashboard = function() {
                             if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-2 py-0.5 rounded shadow-sm">เช้า</span>';
                             else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-2 py-0.5 rounded shadow-sm">กลาง</span>';
                             else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-2 py-0.5 rounded shadow-sm">ดึก</span>';
-                            else shiftBadgeHtml = '<span class="text-[10px] bg-gray-500/20 text-gray-400 border border-gray-500/50 px-2 py-0.5 rounded shadow-sm">UNKNOWN</span>';
+                            else if (data.shift === 'กะอิสระ') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded shadow-sm">อิสระ</span>';
+                            else shiftBadgeHtml = ''; 
                             
                             let odBadge = '';
                             if (data.odType === 'OD') odBadge = '<span class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">OD</span>';
@@ -718,7 +716,7 @@ window.renderSummaryDashboard = function() {
 
         if (hasData) {
             let dataForWebCards = pendingSummaryData;
-            if (shiftFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.shift === shiftFilter);
+            if (shiftFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
             if (odFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
 
             dataForWebCards.forEach(item => {
@@ -803,7 +801,7 @@ window.fetchLeaderboardData = async function() {
         let aggMap = {};
         
         let targetData = pendingSummaryData;
-        if (shiftFilter !== 'ALL') targetData = targetData.filter(i => i.shift === shiftFilter);
+        if (shiftFilter !== 'ALL') targetData = targetData.filter(i => i.shift === shiftFilter || (shiftFilter==='UNKNOWN' && i.shift==='กะอิสระ'));
         if (odFilter !== 'ALL') targetData = targetData.filter(i => i.odType === odFilter || (i.odType === undefined && odFilter === 'ปกติ'));
         if (selectedWeb !== 'ALL') targetData = targetData.filter(i => i.website === selectedWeb); 
 
@@ -850,7 +848,7 @@ window.fetchLeaderboardData = async function() {
             if (!name || name.toLowerCase().includes('system') || name.toLowerCase().includes('auto')) return;
 
             const shift = typeof getShiftFromName === 'function' ? getShiftFromName(name) : 'UNKNOWN';
-            if (shiftFilter !== 'ALL' && shift !== shiftFilter) return;
+            if (shiftFilter !== 'ALL' && shift !== shiftFilter && !(shiftFilter==='UNKNOWN' && shift==='กะอิสระ')) return;
             
             if (!aggMap[name]) aggMap[name] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, shift: shift };
             aggMap[name].totalCount += parseInt(r.count) || 0;
@@ -896,6 +894,7 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
         if (d.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
         else if (d.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
         else if (d.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[9px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
+        else if (d.shift === 'กะอิสระ') shiftBadgeHtml = '<span class="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
 
         return getTpl('tpl-leaderboard-item', {
             name: name, medalClass: medalClass, medalText: medalText,
@@ -1005,7 +1004,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
         // 🌟 สร้างแผนที่รายชื่อ -> กะของวันนั้น
         let schMap = {};
         if (schedulesRes && schedulesRes.data) {
-            schedulesRes.data.forEach(s => schMap[s.staff_name] = s.shift_name);
+            schedulesRes.data.forEach(s => schMap[`${s.work_date}_${s.staff_name}`] = s.shift_name);
         }
 
         if (todayRes.data && todayRes.data.length > 0) {
@@ -1016,7 +1015,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
                 const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
                 // 🌟 หากะจากที่ลงเวลาไว้ก่อน ถ้าไม่ได้ลงเวลาไว้ถึงจะไปสุ่มเดาจากชื่อ (getShiftFromName)
-                let actualShift = schMap[r.employee_name];
+                let actualShift = schMap[`${r.date}_${r.employee_name}`];
                 if (!actualShift) {
                     actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
                 }
@@ -1063,7 +1062,7 @@ window.exportSummaryToExcel = async function() {
         const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
         
         let filteredData = pendingSummaryData;
-        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter);
+        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
         if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
         if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
 
