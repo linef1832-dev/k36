@@ -925,7 +925,7 @@ window.openHistoryModal = async function() {
         <div class="text-left w-full">
             <div class="relative mb-4">
                 <span class="material-icons absolute left-3 top-3 text-gray-400 text-lg">search</span>
-                <input type="text" id="historySearch" placeholder="พิมพ์ชื่อพนักงานเพื่อค้นหา..." class="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner transition" onkeyup="fetchHistoryLogs()">
+                <input type="text" id="historySearch" placeholder="พิมพ์ชื่อพนักงานเพื่อค้นหา..." class="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner transition" onkeyup="debounceHistorySearch()">
             </div>
             <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
                 <div class="overflow-y-auto max-h-[60vh] custom-scrollbar">
@@ -957,6 +957,14 @@ window.openHistoryModal = async function() {
         didOpen: () => { fetchHistoryLogs(); }
     });
 }
+
+// 🌟 [เพิ่มใหม่] ฟังก์ชันหน่วงเวลาค้นหา (ป้องกันการสแปมยิง Database ถี่ยิบ)
+window.debounceHistorySearch = function() {
+    clearTimeout(window.historySearchTimer); // ถ้ายิงมาติดๆ กัน ให้ยกเลิกอันเก่า
+    window.historySearchTimer = setTimeout(() => {
+        fetchHistoryLogs(); // รอ 0.5 วินาทีหลังพิมพ์ตัวสุดท้ายเสร็จ ค่อยไปโหลด DB
+    }, 500); 
+};
 
 window.fetchHistoryLogs = async function() {
     const search = document.getElementById('historySearch').value.trim();
