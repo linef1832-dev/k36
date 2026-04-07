@@ -1,174 +1,172 @@
-<div id="sheetApp" class="hidden flex-col w-full h-full fade-in overflow-hidden relative bg-[#0f172a]">
-    
-    <div class="bg-[#1e103c] text-white p-3 shadow-md shrink-0 flex flex-col md:flex-row justify-between items-center gap-4 z-30 border-b border-purple-500/50">
-        <div class="flex items-center gap-3 w-full md:w-auto">
+ <div id="recentTabsContainer" class="bg-slate-950 border-b border-slate-800 px-2 pt-2 flex gap-1 overflow-x-auto shrink-0 hidden h-12"></div>
+
+    <div id="sheetApp" class="fixed inset-0 z-50 bg-[#0b1120] hidden fade-in flex flex-col">
+    <div class="bg-gradient-to-r from-indigo-950 via-purple-900 to-slate-900 text-white p-3 flex justify-between items-center shadow-lg shrink-0 border-b border-purple-500/20">
+        <div class="flex items-center gap-3">
             <h1 class="font-black text-xl flex items-center gap-2">
-                <span class="material-icons text-purple-400 text-2xl">grid_view</span> หน้าตารางงานรวม
+                <span class="material-icons text-2xl text-purple-400">grid_view</span> หน้าตารางงานรวม
             </h1>
-            <button onclick="showSheetAdmin()" id="btnManageSheet" class="hidden bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition flex items-center gap-1">
-                <span class="material-icons text-[14px]">settings</span> จัดการชีท
+            <div id="sheetAdminControls" class="hidden">
+                <button onclick="showSheetAdmin()" class="bg-purple-600/50 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition border border-purple-400/50">
+                    <span class="material-icons text-sm">settings</span> จัดการชีท
+                </button>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <div class="relative">
+                <span class="material-icons absolute left-2 top-1.5 text-purple-300/70 text-sm">search</span>
+                <input type="text" id="sheetSearch" placeholder="ค้นหาชีท..." class="pl-8 pr-2 py-1.5 rounded-lg text-sm text-white bg-slate-800/80 border border-purple-500/30 font-bold outline-none w-48 transition focus:w-64 focus:border-purple-400 focus:ring-1 focus:ring-purple-400 placeholder-purple-300/50 shadow-inner" onkeyup="renderSheetMenu()">
+            </div>
+            <button onclick="showPage('main')" class="bg-slate-800 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 text-sm shadow-sm">
+                <span class="material-icons text-sm">arrow_back</span> กลับ
             </button>
         </div>
-        <div class="flex items-center gap-3 w-full md:w-auto justify-end">
-            <div class="relative w-full md:w-64">
-                <span class="material-icons absolute left-3 top-2 text-gray-400 text-sm">search</span>
-                <input type="text" id="sheetSearch" onkeyup="renderSheetMenu()" placeholder="ค้นหาชีท..." class="w-full pl-9 pr-3 py-1.5 bg-[#0f172a] border border-slate-600 rounded-lg text-xs text-white outline-none focus:border-purple-500 shadow-inner transition">
-            </div>
-            <button onclick="showPage('dashboard')" class="bg-slate-700 hover:bg-slate-600 border border-slate-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1 whitespace-nowrap">
-                <span class="material-icons text-[14px]">arrow_back</span> กลับ
-            </button>
-        </div>
     </div>
 
-    <div id="sheetMenu" class="flex-1 overflow-auto p-4 md:p-8 custom-scrollbar flex flex-col lg:flex-row gap-6">
-        <div id="sheetGroupsContainer" class="flex-1 flex flex-col gap-6 fade-in"></div>
-        
-        <div class="w-full lg:w-[320px] shrink-0">
-            <div class="bg-[#1e293b] p-5 rounded-2xl shadow-xl border border-slate-700 sticky top-4 text-white">
-                <div class="flex items-center gap-2 mb-4 border-b border-slate-700 pb-3">
-                    <div class="bg-indigo-500/20 p-1.5 rounded-lg text-indigo-400 flex items-center justify-center">
-                        <span class="material-icons text-[18px]">calculate</span>
-                    </div>
-                    <h3 class="font-bold text-lg text-indigo-300">คำนวณยอด</h3>
-                </div>
-                
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 mb-1.5">เลือกเว็บ/ทีม</label>
-                        <div class="flex gap-2 relative">
-                            <input type="text" id="calcTeam" list="calcTeamOptions" onchange="saveCalcSettings()" class="flex-1 bg-[#0f172a] border border-indigo-500/50 text-white text-sm font-bold p-2.5 rounded-lg outline-none focus:border-indigo-400">
-                            <datalist id="calcTeamOptions">
-                                </datalist>
-                            <button onclick="document.getElementById('calcTeam').value=''; saveCalcSettings();" class="bg-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white p-2.5 rounded-lg transition flex items-center justify-center"><span class="material-icons text-[16px] leading-none block">delete_outline</span></button>
-                            <button onclick="document.getElementById('calcTeam').value='VV72'; saveCalcSettings();" class="bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white p-2.5 rounded-lg transition flex items-center justify-center"><span class="material-icons text-[16px] leading-none block">add</span></button>
-                        </div>
-                    </div>
-                        <label class="block text-xs font-bold text-gray-400 mb-1.5">ยอดเงินตั้งต้น</label>
-                        <input type="number" id="calcBase" oninput="calculateNet()" placeholder="วางตัวเลข..." class="w-full bg-[#0f172a] border border-slate-600 text-white text-base font-black p-3 rounded-lg outline-none focus:border-indigo-500 shadow-inner placeholder-gray-600">
-                    </div>
-                    <div class="bg-[#1e293b] p-3 rounded-xl border border-slate-700 relative overflow-hidden">
-                        <div class="flex justify-between items-center mb-1.5">
-                            <label class="text-xs font-bold text-rose-400">ยอดหักออก (-)</label>
-                            <span class="material-icons text-[14px] text-green-500">lock_open</span>
-                        </div>
-                        <div class="flex gap-2">
-                            <input type="number" id="calcDeduct" oninput="calculateNet(); saveCalcSettings();" class="flex-1 bg-white text-slate-800 text-base font-black p-2.5 rounded-lg outline-none text-center shadow-inner">
-                            <button class="bg-rose-500 text-white p-2.5 rounded-lg shrink-0 flex items-center justify-center"><span class="material-icons text-[16px] leading-none block">lock</span></button>
-                        </div>
-                    </div>
-                    <div class="pt-2">
-                        <label class="block text-xs font-bold text-emerald-400 mb-1">ยอดสุทธิ</label>
-                        <div class="flex items-center justify-between bg-[#0f172a] border border-slate-700 rounded-xl p-3">
-                            <span id="calcResult" class="text-3xl font-black text-emerald-400">0</span>
-                            <button onclick="copyCalcResult()" class="bg-emerald-500 hover:bg-emerald-400 text-white p-3 rounded-xl transition shadow-lg flex flex-col items-center justify-center gap-0.5 active:scale-95">
-                                <span class="material-icons text-xl leading-none block">content_copy</span>
-                                <span class="text-[9px] font-black uppercase tracking-wider block">COPY</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div id="recentTabsContainer" class="bg-slate-950 border-b border-slate-800 px-2 pt-2 flex gap-1 overflow-x-auto shrink-0 hidden h-12"></div>
 
-    <div id="sheetViewer" class="hidden flex-1 flex-col relative bg-[#0f172a] z-10 transition-all animate-fade-in w-full h-full">
-        <div id="recentTabsContainer" class="bg-[#1e103c] border-b border-purple-500/30 pt-2 px-2 flex items-end gap-1 overflow-x-auto custom-scrollbar shrink-0 shadow-inner"></div>
-        
-        <div class="bg-[#151f32] text-white p-2 border-b border-slate-700 flex justify-between items-center shrink-0 shadow-sm">
-            <div class="flex items-center gap-3 overflow-hidden">
-                <button onclick="closeSheet()" class="p-1.5 hover:bg-slate-700 rounded transition flex items-center justify-center shrink-0 text-gray-400 hover:text-white" title="ปิดหน้าต่าง">
-                    <span class="material-icons text-lg leading-none block">close</span>
-                </button>
-                <div id="sheetTitle" class="font-bold text-xs truncate flex items-center gap-2 select-none text-slate-300">
-                    กำลังโหลด...
-                </div>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-                <button id="btnOpenNewTab" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1" title="เปิดแท็บใหม่">
-                    <span class="material-icons text-[14px]">open_in_new</span>
-                </button>
-                <button onclick="document.getElementById('sheetFrame').src = document.getElementById('sheetFrame').src" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1 border border-slate-600" title="รีเฟรชหน้าต่าง">
-                    <span class="material-icons text-[14px]">refresh</span>
+    <div id="sheetAdminModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 fade-in">
+        <div class="bg-slate-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-700">
+            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-5 flex justify-between items-center shrink-0">
+                <h3 class="font-black text-xl text-white flex items-center gap-2">
+                    <span class="material-icons">settings_applications</span> จัดการรายการ / ลิงก์
+                </h3>
+                <button onclick="closeSheetAdmin()" class="text-white/70 hover:text-white hover:bg-white/20 p-1 rounded-full transition">
+                    <span class="material-icons">close</span>
                 </button>
             </div>
-        </div>
-        
-        <div class="flex-1 relative w-full h-full bg-white">
-            <div id="sheetLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-[#0f172a] z-10 animate-pulse">
-                <div class="animate-spin h-12 w-12 border-4 border-blue-600 rounded-full border-t-transparent mb-3 shadow-lg"></div>
-                <span class="text-blue-400 font-bold tracking-widest text-sm">กำลังโหลดข้อมูล...</span>
-            </div>
-            <iframe id="sheetFrame" class="absolute inset-0 w-full h-full border-0 bg-white" allowfullscreen></iframe>
-        </div>
-    </div>
-</div>
-
-<div id="sheetAdminModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4 animate-fade-in flex-col">
-    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
-        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 shrink-0 flex justify-between items-center shadow-md">
-            <h3 class="text-lg font-black text-white flex items-center gap-2"><span class="material-icons text-xl drop-shadow-md">admin_panel_settings</span> จัดการระบบตาราง (Admin)</h3>
-            <button onclick="closeSheetAdmin()" class="text-white hover:bg-white/20 p-1 rounded-full transition leading-none"><span class="material-icons">close</span></button>
-        </div>
-        <div class="flex-1 overflow-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-50 dark:bg-slate-900 custom-scrollbar">
-            <div class="lg:col-span-5 flex flex-col gap-4">
-                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-                    <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-slate-700 pb-3">
-                        <h4 id="formTitle" class="text-sm font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1"><span class="material-icons text-[18px]">add_circle</span> เพิ่มรายการใหม่</h4>
-                        <button id="btnCancelEdit" onclick="cancelEdit()" class="hidden text-[10px] bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded-full font-bold transition">ยกเลิกแก้ไข</button>
-                    </div>
-                    <form onsubmit="event.preventDefault(); saveSheetData();" class="space-y-4">
-                        <input type="hidden" id="editSheetId">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ชื่อตาราง/ลิงก์</label>
-                            <input type="text" id="newSheetName" required placeholder="เช่น ตารางงานรวม OD" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white text-sm outline-none focus:border-purple-500 transition shadow-inner">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หมวดหมู่ (แฟ้ม)</label>
-                            <input type="text" id="newSheetGroup" placeholder="เช่น งานหลัก, ทางเข้าเว็บ" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white text-sm outline-none focus:border-purple-500 transition shadow-inner">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ลิงก์ Google Sheet / URL หน้าเว็บ</label>
-                            <input type="text" id="newSheetUrl" required placeholder="https://docs.google.com/... หรือ www..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white text-xs font-mono outline-none focus:border-purple-500 transition shadow-inner">
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">สีของป้าย</label>
-                                <select id="newSheetColor" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white text-sm font-bold outline-none focus:border-purple-500 cursor-pointer shadow-inner">
-                                    <option value="blue" class="text-blue-500 font-bold">น้ำเงิน</option>
-                                    <option value="green" class="text-green-500 font-bold">เขียว</option>
-                                    <option value="red" class="text-red-500 font-bold">แดง</option>
-                                    <option value="yellow" class="text-amber-500 font-bold">เหลือง</option>
-                                    <option value="purple" class="text-purple-500 font-bold">ม่วง</option>
-                                    <option value="gray" class="text-gray-500 font-bold">เทา</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">อัปโหลดรูปปก (ถ้ามี)</label>
-                                <input type="file" id="newSheetCoverFile" accept="image/*" class="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200 cursor-pointer">
-                                <input type="hidden" id="newSheetCover">
-                                <div id="currentSheetCoverContainer" class="hidden mt-2 relative w-16 h-10 rounded border border-slate-600 overflow-hidden shadow-sm">
-                                    <img id="currentSheetCoverImg" class="w-full h-full object-cover">
-                                </div>
-                            </div>
-                        </div>
-                        <button type="submit" id="btnSaveSheet" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1 mt-2">
-                            <span class="material-icons">save</span> บันทึกข้อมูล
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="lg:col-span-7 flex flex-col gap-4">
-                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex-1 flex flex-col h-[500px]">
-                    <h4 class="text-sm font-bold text-slate-800 dark:text-white mb-4 border-b border-gray-200 dark:border-slate-700 pb-3 flex items-center justify-between">
-                        <span class="flex items-center gap-1"><span class="material-icons text-purple-500 text-[18px]">format_list_bulleted</span> รายการทั้งหมด</span>
+            <div class="p-6 bg-slate-800/50 border-b border-slate-700 space-y-4 shrink-0">
+                <div class="flex justify-between items-center">
+                    <h4 id="formTitle" class="text-sm font-bold text-purple-400 flex items-center gap-1">
+                        <span class="material-icons text-base">add_circle</span> เพิ่มรายการใหม่
                     </h4>
-                    <div id="adminSheetList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
-                        <div class="text-center py-10 text-gray-500">กำลังโหลด...</div>
+                    <button id="btnCancelEdit" onclick="cancelEdit()" class="hidden text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition">ยกเลิกการแก้ไข</button>
+                </div>
+                <input type="hidden" id="editSheetId">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ชื่อเรียก</label>
+                        <input type="text" id="newSheetName" placeholder="เช่น ตารางงาน, เว็บหลังบ้าน..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">กลุ่ม / หมวด</label>
+                        <input type="text" id="newSheetGroup" placeholder="เช่น Jun88, ทั่วไป..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ลิงก์ (URL)</label>
+                    <input type="text" id="newSheetUrl" placeholder="วางลิงก์ Google Sheet หรือ Link เว็บใดๆ ที่นี่..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm font-mono focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
+                </div>
+                <div class="flex flex-col md:flex-row gap-4 items-start">
+                    <div class="flex-1 w-full">
+                        <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">🖼️ รูปลิงก์หน้าปก (อัปโหลดรูป)</label>
+                        <input type="file" id="newSheetCoverFile" accept="image/*" class="w-full p-2 border border-slate-700 rounded-xl bg-slate-950 text-white focus:ring-2 focus:ring-purple-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-600 file:text-white hover:file:bg-purple-500 cursor-pointer">
+                        <input type="hidden" id="newSheetCover" value="">
+                        <div id="currentSheetCoverContainer" class="hidden mt-2">
+                            <span class="text-[10px] text-gray-500 block mb-1">รูปปัจจุบัน:</span>
+                            <img id="currentSheetCoverImg" src="" class="h-16 w-auto rounded-lg border border-slate-600 shadow-sm object-cover bg-black">
+                        </div>
+                    </div>
+                    <div class="w-full md:w-auto flex gap-3 mt-4 md:mt-0">
+                        <div class="flex flex-col w-full md:w-24">
+                            <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider text-center">สีธีม</label>
+                            <div class="h-[46px] w-full bg-slate-950 border border-slate-700 rounded-xl overflow-hidden p-1 flex items-center justify-center shadow-inner">
+                                <input type="color" id="newSheetColor" value="#8b5cf6" class="w-full h-full cursor-pointer bg-transparent border-0 rounded-lg">
+                            </div>
+                        </div>
+                        <button id="btnSaveSheet" onclick="saveSheetData()" class="h-[46px] self-end px-6 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold transition shadow-lg shadow-purple-500/30 whitespace-nowrap active:scale-95">
+                            บันทึก
+                        </button>
                     </div>
                 </div>
             </div>
+            <div class="flex-1 overflow-y-auto p-6 bg-[#0b1120] custom-scrollbar">
+                <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4">รายการที่มีอยู่</h4>
+                <div id="adminSheetList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="sheetMenu" class="flex-1 bg-[#0b1120] p-4 md:p-8 overflow-y-auto custom-scrollbar relative z-0">
+        <div class="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
+            <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/10 blur-[120px]"></div>
+            <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-600/10 blur-[120px]"></div>
+        </div>
+
+        <div class="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-8 items-start relative z-10">
+            
+            <div class="flex-1 min-w-0 w-full">
+                <div id="sheetGroupsContainer" class="space-y-8"></div>
+            </div>
+
+            <div class="w-full lg:w-[340px] shrink-0 space-y-4 sticky top-4 z-20">
+                <div class="bg-slate-800/60 backdrop-blur-xl p-6 rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.5)] border border-slate-700/50 text-white relative overflow-hidden group">
+                    <div class="absolute -top-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/30 transition duration-700"></div>
+
+                    <h3 class="font-black text-xl text-white mb-5 flex items-center gap-3 border-b border-slate-700/50 pb-4 relative z-10">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30 text-white border border-purple-400/30">
+                            <span class="material-icons">calculate</span>
+                        </div>
+                        คำนวณยอด
+                    </h3>
+
+                    <div class="space-y-5 relative z-10">
+                        <div>
+                            <label class="block text-[11px] font-extrabold text-indigo-300 mb-1.5 uppercase tracking-widest">เลือกเว็บ/ทีม</label>
+                            <div class="flex gap-2">
+                                <select id="calcTeamSelect" onchange="loadCalcSettings()" class="flex-1 p-3.5 rounded-xl border border-slate-600/80 bg-slate-900/80 font-bold text-white text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 cursor-pointer shadow-inner appearance-none transition"></select>
+                                <button id="btnCalcDelete" onclick="deleteCalcTeam()" class="hidden w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition shadow-sm"><span class="material-icons text-xl">delete_outline</span></button>
+                                <button id="btnCalcAdd" onclick="addNewCalcTeam()" class="hidden w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center hover:bg-purple-600 hover:text-white transition shadow-sm"><span class="material-icons text-xl">add</span></button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-extrabold text-indigo-300 mb-1.5 uppercase tracking-widest">ยอดเงินตั้งต้น</label>
+                            <input type="number" id="calcInputAmount" oninput="calculateMoney()" placeholder="วางตัวเลข..." class="w-full p-4 rounded-xl border border-slate-600/50 bg-slate-950 text-white text-2xl font-black focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none shadow-inner transition placeholder:font-normal placeholder:text-base placeholder:text-slate-500">
+                        </div>
+
+                        <div class="relative bg-slate-900/50 p-4 rounded-xl border border-red-900/40 group">
+                            <label class="flex justify-between items-center text-[11px] font-extrabold text-red-400 mb-2 uppercase tracking-widest">
+                                <span>ยอดหักออก (-)</span>
+                                <span id="calcLockIcon" class="material-icons text-sm opacity-50">lock</span>
+                            </label>
+                            <div class="flex gap-2">
+                                <input type="number" id="calcDeductAmount" oninput="calculateMoney()" placeholder="0" class="w-full p-3 rounded-lg border border-red-900/50 bg-red-950/50 text-red-400 font-black text-center outline-none focus:border-red-500 transition shadow-inner" disabled>
+                                <button id="btnSaveCalc" onclick="saveCalcSettings()" class="hidden bg-gradient-to-br from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white w-12 rounded-lg shadow-lg shadow-red-500/20 transition flex items-center justify-center border border-red-400/50"><span class="material-icons text-lg">save</span></button>
+                            </div>
+                        </div>
+
+                        <div class="pt-2">
+                            <label class="block text-[11px] font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">ผลลัพธ์สุทธิ</label>
+                            <div class="flex gap-3">
+                                <div id="calcResultDisplay" class="flex-1 bg-slate-950 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-slate-800">
+                                    0
+                                </div>
+                                <button onclick="copyCalcResult()" class="w-16 bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white rounded-2xl shadow-lg shadow-emerald-500/20 flex flex-col items-center justify-center transition-all transform active:scale-95 group border border-emerald-400/50">
+                                    <span class="material-icons text-2xl group-hover:scale-110 transition duration-300">content_copy</span>
+                                    <span class="text-[9px] font-black uppercase tracking-wider opacity-90 mt-1">Copy</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="sheetViewer" class="hidden flex-1 bg-[#0b1120] relative flex flex-col">
+        <div class="bg-slate-900 p-2 flex justify-between items-center border-b border-slate-700 shrink-0 h-14 shadow-sm z-20">
+            <span id="sheetTitle" class="font-bold text-white ml-2 text-sm flex items-center gap-2">...</span>
+            <button onclick="closeSheet()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/50 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-md transition transform active:scale-95">
+                <span class="material-icons text-sm">close</span> ปิดหน้าต่างนี้
+            </button>
+        </div>
+        <div class="flex-1 relative">
+            <div id="sheetLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-[#0b1120] z-10">
+                <div class="animate-spin h-12 w-12 border-4 border-purple-500 rounded-full border-t-transparent mb-3"></div>
+                <span class="text-purple-400 font-bold animate-pulse">กำลังโหลดข้อมูล...</span>
+            </div>
+            <iframe id="sheetFrame" class="absolute inset-0 w-full h-full border-0" allow="ambient-light-sensor 'none'; speaker 'none'; vibrate 'none'; vr 'none';"></iframe>
         </div>
     </div>
 </div>
