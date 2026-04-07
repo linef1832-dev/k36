@@ -1669,9 +1669,15 @@ window.loadSettings = async function() {
         if (typeof applyCustomTimeSlots === 'function') applyCustomTimeSlots();
         if (typeof renderManualTimeSlots === 'function') renderManualTimeSlots(); 
         
-        // 🌟 [แก้บั๊ก null] สั่งให้ตารางรีเฟรชตัวเองอีกครั้ง หลังจากที่ระบบรู้จัก "ช่วงเวลา" แล้ว!
-        if (typeof fetchData === 'function' && !document.getElementById('mainContentArea').classList.contains('hidden')) {
-            fetchData();
+        // 🌟 [แก้บั๊ก null] ป้องกัน Error โดยการเช็คให้ชัวร์ก่อนว่ามีหน้าต่างนี้อยู่จริง
+        if (typeof fetchData === 'function') {
+            // รองรับทั้งชื่อ ID เก่า (mainContentArea) และชื่อ ID ใหม่ (app-content)
+            const mainArea = document.getElementById('mainContentArea') || document.getElementById('app-content');
+            
+            // ถ้าหาหน้าต่างเจอ และหน้าต่างไม่ได้ถูกซ่อนอยู่ ค่อยดึงข้อมูล
+            if (mainArea && !mainArea.classList.contains('hidden')) {
+                fetchData();
+            }
         }
         
     } catch (e) { console.error("Load Settings Error:", e); }
