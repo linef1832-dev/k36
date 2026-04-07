@@ -160,43 +160,169 @@ window.togglePin = function(e, id) {
 
 
 // ==========================================
-// 🟢 2. ระบบเครื่องคิดเลข
-// ==========================================
-window.saveCalcSettings = function() {
-    const team = document.getElementById('calcTeam').value;
-    const deduct = document.getElementById('calcDeduct').value;
-    localStorage.setItem('calc_saved_team', team);
-    localStorage.setItem('calc_saved_deduct', deduct);
-};
+    // 🧮 ระบบเครื่องคิดเลข (Calculator System)
+    // ==========================================
 
-window.loadCalcSettings = function() {
-    const team = localStorage.getItem('calc_saved_team') || 'VV72';
-    const deduct = localStorage.getItem('calc_saved_deduct') || '188';
-    if(document.getElementById('calcTeam')) document.getElementById('calcTeam').value = team;
-    if(document.getElementById('calcDeduct')) document.getElementById('calcDeduct').value = deduct;
-    if(typeof calculateNet === 'function') calculateNet();
-};
+    const CALC_STORAGE_KEY = 'calc_local_team_list';
 
-window.calculateNet = function() {
-    const base = parseFloat(document.getElementById('calcBase').value) || 0;
-    const deduct = parseFloat(document.getElementById('calcDeduct').value) || 0;
-    const result = base - deduct;
-    
-    const resEl = document.getElementById('calcResult');
-    if(!resEl) return;
-    
-    resEl.innerText = result.toLocaleString();
-    if (result < 0) { resEl.classList.remove('text-emerald-400', 'text-white'); resEl.classList.add('text-rose-400'); }
-    else if (result > 0) { resEl.classList.remove('text-rose-400', 'text-white'); resEl.classList.add('text-emerald-400'); }
-    else { resEl.classList.remove('text-emerald-400', 'text-rose-400'); resEl.classList.add('text-white'); }
-};
+function initCalculator() {
+        const teamSelect = document.getElementById('calcTeamSelect');
+        const deductInput = document.getElementById('calcDeductAmount');
+        const saveBtn = document.getElementById('btnSaveCalc');
+        const lockIcon = document.getElementById('calcLockIcon');
+        
+        // 🎯 ดึงตัวแปรปุ่ม เพิ่ม/ลบ มาใช้งาน
+        const addBtn = document.getElementById('btnCalcAdd');
+        const delBtn = document.getElementById('btnCalcDelete');
 
-window.copyCalcResult = function() {
-    const result = document.getElementById('calcResult').innerText.replace(/,/g, '');
-    navigator.clipboard.writeText(result).then(() => {
-        Swal.fire({icon: 'success', title: 'คัดลอกแล้ว', text: result, timer: 1000, showConfirmButton: false});
-    });
-};
+        // 1. เช็คสิทธิ์ (Manager / Admin)
+        let isAdmin = false;
+        if (typeof currentUser !== 'undefined' && currentUser.role) {
+            const role = currentUser.role.toLowerCase().trim();
+            if (role === 'manager' || role === 'admin') {
+                isAdmin = true;
+            }
+        }
+
+        // 2. เติมรายชื่อเว็บ (ดึงจาก TEAM_LIST โดยตรง ไม่ใช้ localTeams แล้ว)
+        teamSelect.innerHTML = '';
+        
+        // ใช้ TEAM_LIST ที่มีอยู่ (ถ้าไม่มีให้เป็น array ว่าง)
+        let teamsToDisplay = (typeof TEAM_LIST !== 'undefined') ? TEAM_LIST : [];
+
+        if (teamsToDisplay.length > 0) {
+            teamsToDisplay.forEach(t => { 
+                if(t) teamSelect.innerHTML += `<option value="${t}">${t}</option>`; 
+            });
+        } else {
+            teamSelect.innerHTML = `<option value="General">ทั่วไป</option>`;
+        }
+
+        // 3. เลือกเว็บอัตโนมัติจากหน้าหลัก
+        const mainTeam = document.getElementById('dailyTeam');
+        if (mainTeam && mainTeam.value) {
+            const options = Array.from(teamSelect.options).map(o => o.value);
+            if (options.includes(mainTeam.value)) teamSelect.value = mainTeam.value;
+        }
+
+        // 4. 🔒 ตั้งค่า ล็อค/ปลดล็อค ตามตำแหน่ง
+        if (isAdmin) {
+            // --- กรณีเป็นผู้จัดการ ---
+            deductInput.disabled = false;
+            deductInput.classList.remove('bg-red-900/50', 'bg-red-900/20', 'text-red-300', 'border-red-900/50');
+            deductInput.classList.add('bg-white', 'text-slate-900', 'border-white');
+            
+            saveBtn.classList.remove('hidden');
+            if(lockIcon) {
+                lockIcon.innerText = 'lock_open';
+                lockIcon.classList.remove('text-red-400');
+                lockIcon.classList.add('text-green-500');
+            }
+
+            // ✅ โชว์ปุ่ม
+            if(addBtn) addBtn.classList.remove('hidden');
+            if(delBtn) delBtn.classList.remove('hidden');
+
+        } else {
+            // --- กรณีเป็นพนักงานทั่วไป ---
+            deductInput.disabled = true;
+            deductInput.classList.remove('bg-white', 'text-slate-900', 'border-white');
+            deductInput.classList.add('bg-red-900/20', 'text-red-300', 'border-red-900/50');
+            
+            saveBtn.classList.add('hidden');
+            if(lockIcon) {
+                lockIcon.innerText = 'lock';
+                lockIcon.classList.remove('text-green-500');
+                lockIcon.classList.add('text-red-400');
+            }
+
+            // ❌ ซ่อนปุ่ม
+            if(addBtn) addBtn.classList.add('hidden');
+            if(delBtn) delBtn.classList.add('hidden');
+        }
+        
+        loadCalcSettings();
+    }
+
+    function loadCalcSettings() {
+        const team = document.getElementById('calcTeamSelect').value;
+        const savedVal = (typeof SETTINGS !== 'undefined' ? SETTINGS[`calc_deduct_${team}`] : 0) || 0;
+        const deductElem = document.getElementById('calcDeductAmount');
+        if(deductElem) deductElem.value = savedVal;
+        calculateMoney();
+    }
+
+    function calculateMoney() {
+        const inputElem = document.getElementById('calcInputAmount');
+        const deductElem = document.getElementById('calcDeductAmount');
+        const displayElem = document.getElementById('calcResultDisplay');
+
+        if(!inputElem || !deductElem || !displayElem) return;
+
+        const amount = parseFloat(inputElem.value) || 0;
+        const deduct = parseFloat(deductElem.value) || 0;
+        const result = amount - deduct;
+        displayElem.innerText = result.toLocaleString('en-US');
+    }
+
+    async function saveCalcSettings() {
+        const team = document.getElementById('calcTeamSelect').value;
+        const deductVal = document.getElementById('calcDeductAmount').value;
+        
+        if(typeof appDB !== 'undefined') {
+            const { error } = await appDB.from('settings').upsert([{ key: `calc_deduct_${team}`, value: deductVal }]);
+            if (!error) {
+                if(typeof SETTINGS !== 'undefined') SETTINGS[`calc_deduct_${team}`] = deductVal;
+                Swal.fire({ icon: 'success', title: 'บันทึกค่าหักแล้ว', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+            }
+        }
+    }
+
+    // ==========================================
+    // 📋 ฟังก์ชันก๊อปปี้
+    // ==========================================
+    function copyCalcResult() {
+        const amount = parseFloat(document.getElementById('calcInputAmount').value) || 0;
+        const deduct = parseFloat(document.getElementById('calcDeductAmount').value) || 0;
+        const result = amount - deduct;
+        const textToCopy = result.toString(); 
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showCopySuccess(textToCopy);
+            }).catch(err => {
+                console.warn('Clipboard API failed, trying fallback...', err);
+                fallbackCopyText(textToCopy); 
+            });
+        } else {
+            fallbackCopyText(textToCopy);
+        }
+    }
+
+    function fallbackCopyText(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) showCopySuccess(text);
+            else Swal.fire({ icon: 'error', title: 'คัดลอกไม่สำเร็จ', toast: true });
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'คัดลอกไม่สำเร็จ', toast: true });
+        }
+        document.body.removeChild(textArea);
+    }
+
+    function showCopySuccess(text) {
+        Swal.fire({ 
+            icon: 'success', title: 'คัดลอก: ' + text, toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 
+        });
+    }
 
 
 // ==========================================
