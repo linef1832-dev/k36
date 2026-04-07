@@ -1042,3 +1042,128 @@ setTimeout(() => {
         observer.observe(targetNode, { childList: true, characterData: true, subtree: true });
     }
 }, 1000);
+
+// ==========================================
+// 🟢 จัดการรายชื่อพนักงานใหม่ (NEW DEPT)
+// ==========================================
+window.filterNewStaffList = function() {
+    const input = document.getElementById('newStaffSearchInput');
+    const filter = input.value.toLowerCase();
+    const container = document.getElementById('newStaffListContainer');
+    const labels = container.getElementsByTagName('label');
+    for (let i = 0; i < labels.length; i++) {
+        const nameSpan = labels[i].querySelector('.staff-name');
+        if (nameSpan) {
+            const txtValue = nameSpan.textContent || nameSpan.innerText;
+            labels[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "flex" : "none";
+        }
+    }
+};
+
+window.openManageNewStaffModal = async function() {
+    const users = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'manager' || u.role === 'admin').sort((a, b) => a.username.localeCompare(b.username));
+
+    let html = `
+        <div class="flex flex-col h-full text-left">
+            <div class="sticky top-0 bg-white dark:bg-slate-800 z-10 pb-2 border-b border-gray-200 dark:border-gray-600 mb-2">
+                <input type="text" id="newStaffSearchInput" onkeyup="filterNewStaffList()" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหา..." 
+                    class="w-full p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500 transition font-bold text-sm">
+            </div>
+            <div id="newStaffListContainer" class="max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
+    `;
+    
+    users.forEach(u => {
+        const isNewStaff = u.department === 'NEW'; 
+        const currentDept = u.department || 'AM';
+        let badgeColor = 'bg-blue-100 text-blue-700';
+        if(currentDept === 'OD') badgeColor = 'bg-pink-100 text-pink-700';
+        else if(currentDept === 'NEW') badgeColor = 'bg-teal-100 text-teal-700';
+        else if(currentDept === 'TRAINER') badgeColor = 'bg-cyan-100 text-cyan-700';
+        
+        let displayDept = currentDept === 'TRAINER' ? 'ผู้สอน' : (currentDept === 'NEW' ? 'พนักงานใหม่' : currentDept);
+        
+        html += `
+            <label class="flex items-center justify-between p-2 hover:bg-cyan-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-0 transition group">
+                <div class="flex items-center gap-2">
+                    <span class="staff-name font-bold text-sm text-slate-700 dark:text-gray-200 group-hover:text-cyan-700 transition">${u.username}</span>
+                    <span class="text-[9px] font-bold ${badgeColor} px-1.5 py-0.5 rounded border border-black/5 shadow-sm">${displayDept}</span>
+                </div>
+                <input type="checkbox" class="newstaff-cb w-5 h-5 rounded text-cyan-600 focus:ring-cyan-500 cursor-pointer border-gray-300" value="${u.id}" ${isNewStaff ? 'checked' : ''}>
+            </label>
+        `;
+    });
+    html += '</div></div>';
+
+    const { value: selectedIds } = await Swal.fire({
+        title: 'ดึงรายชื่อพนักงานใหม่', html: html, showCancelButton: true, confirmButtonText: 'บันทึกรายชื่อ', confirmButtonColor: '#0891b2', cancelButtonText: 'ยกเลิก', width: '400px',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white' },
+        preConfirm: () => {
+            const checkboxes = document.querySelectorAll('.newstaff-cb:checked');
+            const ids = []; checkboxes.forEach(cb => ids.push(String(cb.value))); return ids;
+        }
+    });
+
+    if (selectedIds) {
+        Swal.fire({title: 'กำลังย้ายข้อมูล...', didOpen: () => Swal.showLoading()});
+        
+        const selectedSet = new Set(selectedIds);
+        const toAddIds = []; const toRemoveIds = []; let updateCount = 0;
+
+        for (let i = 0; i < GLOBAL_USER_LIST.length; i++) {
+            let u = GLOBAL_USER_LIST[i];
+            const uidStr = String(u.id);
+            const isSelected = selectedSet.has(uidStr);
+            const isCurrentlyNew = u.department === 'NEW';
+
+            if (isSelected) {
+                GLOBAL_USER_LIST[i].department = 'NEW'; 
+                if (!isCurrentlyNew) toAddIds.push(u.id);
+                updateCount++;
+            } else {
+                if (isCurrentlyNew) {
+                    GLOBAL_USER_LIST[i].department = 'AM'; 
+                    toRemoveIds.push(u.id);
+                }
+            }
+        }
+
+        await new Promise(r => setTimeout(r, 50)); 
+        window.renderLeaveTable(); 
+        
+        const promises = [];
+        if (toAddIds.length > 0) promises.push(appDB.from('users').update({ department: 'NEW' }).in('id', toAddIds));
+        if (toRemoveIds.length > 0) promises.push(appDB.from('users').update({ department: 'AM' }).in('id', toRemoveIds));
+        await Promise.all(promises);
+
+        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: `อัปเดตรายชื่อพนักงานใหม่ ${updateCount} คน เรียบร้อยแล้ว`, timer: 2000, showConfirmButton: false });
+    }
+};
+
+window.removeFromNewDept = async function(id, username) {
+    Swal.fire({
+        title: 'ยืนยันการนำออก?',
+        text: `ต้องการย้าย ${username} กลับไปอยู่แผนก AM ใช่หรือไม่?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#0891b2',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, ย้ายกลับเลย',
+        cancelButtonText: 'ยกเลิก'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'กำลังย้าย...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            
+            const userIndex = GLOBAL_USER_LIST.findIndex(u => String(u.id) === String(id));
+            if (userIndex !== -1) GLOBAL_USER_LIST[userIndex].department = 'AM';
+            
+            const { error } = await appDB.from('users').update({ department: 'AM' }).eq('id', id);
+            
+            if (error) {
+                Swal.fire('Error', error.message, 'error');
+            } else {
+                window.renderLeaveTable();
+                Swal.fire({ icon: 'success', title: 'ย้ายสำเร็จ', timer: 1500, showConfirmButton: false });
+            }
+        }
+    });
+};
