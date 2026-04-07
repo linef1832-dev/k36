@@ -2040,10 +2040,9 @@ window.addTeamManual = function(dept) {
 };
 
 // =========================================================
-// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) ตามสิทธิ์ (V.4 กวาดเรียบ)
+// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) ตามสิทธิ์ (V.5 แก้เมนูกระพริบ)
 // =========================================================
 window.applySidebarPermissions = async function() {
-    // 1. เช็คข้อมูลพนักงาน 
     let user = window.currentUser;
     if (!user) {
         const savedUser = sessionStorage.getItem('user_platinum_plus');
@@ -2052,8 +2051,20 @@ window.applySidebarPermissions = async function() {
     }
 
     const userRole = (user.role || '').toLowerCase().trim();
+    const allMenuBtns = document.querySelectorAll('#menu-list button');
 
-    // 2. ดึงตั้งค่าจาก Database ถ้ายังไม่มี
+    // 🌟 [แก้บั๊กกระพริบ] สั่ง "หลับตา" (ซ่อน) ทุกปุ่มทันที ก่อนรอโหลดฐานข้อมูล!
+    // ยกเว้นปุ่มพื้นฐานที่ทุกคนต้องเห็น (เช่น หน้าหลัก, รหัสผ่าน)
+    allMenuBtns.forEach(btn => {
+        const onClickAttr = btn.getAttribute('onclick') || '';
+        if (!onClickAttr.includes('dashboard') && !onClickAttr.includes('password')) {
+            btn.style.display = 'none'; 
+        }
+    });
+    document.getElementById('menu-discord')?.classList.add('hidden');
+    document.getElementById('menu-admin')?.classList.add('hidden');
+
+    // 2. จังหวะดึงตั้งค่า (จุดนี้ที่ทำให้เน็ตหน่วงและเกิดอาการเมนูกระพริบ)
     if (!SETTINGS['dept_menu_rules']) {
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single();
@@ -2061,10 +2072,7 @@ window.applySidebarPermissions = async function() {
         } catch(e) {}
     }
 
-    // 🌟 3. ค้นหา "ทุกปุ่ม" ที่อยู่ในแถบเมนูด้านซ้าย (ไม่สนว่าจะมีคลาสอะไร)
-    const allMenuBtns = document.querySelectorAll('#menu-list button');
-
-    // 4. วนลูปเช็คสิทธิ์แต่ละหน้า
+    // 3. พอได้ข้อมูลมาแล้ว ค่อย "ลืมตา" (โชว์) เฉพาะปุ่มที่มีสิทธิ์
     PERM_GROUPS.forEach(group => {
         group.items.forEach(item => {
             if (item.isSub) return; 
@@ -2079,7 +2087,7 @@ window.applySidebarPermissions = async function() {
         });
     });
 
-    // 5. ดักหมวด DISCORD (Dropdown)
+    // 4. ดักหมวด DISCORD
     const discordGroup = PERM_GROUPS.find(g => g.id === 'group_discord');
     if (discordGroup) {
         const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
@@ -2092,16 +2100,14 @@ window.applySidebarPermissions = async function() {
         });
     }
 
-    // 6. ดักหมวด เครื่องมือผู้จัดการ (Dropdown)
+    // 5. ดักหมวด เครื่องมือผู้จัดการ
     allMenuBtns.forEach(btn => {
         const onClickAttr = btn.getAttribute('onclick') || '';
-        // ตรวจปุ่มหัวข้อ
         if (onClickAttr.includes("toggleSubMenu('menu-admin'")) {
             const canSeeAdmin = ['admin', 'manager'].includes(userRole);
             btn.style.display = canSeeAdmin ? '' : 'none';
             if (!canSeeAdmin) document.getElementById('menu-admin')?.classList.add('hidden');
         }
-        // ตรวจปุ่มย่อยข้างใน (openAdminPanel)
         if (onClickAttr.includes("openAdminPanel()")) {
             const canSeeAdmin = ['admin', 'manager'].includes(userRole);
             btn.style.display = canSeeAdmin ? '' : 'none';
@@ -2109,7 +2115,9 @@ window.applySidebarPermissions = async function() {
     });
 };
 
-setTimeout(applySidebarPermissions, 300);
+// 🌟 สั่งให้ทำงานทันที 1 รอบแบบไม่มีดีเลย์ (เพื่อให้ซ่อนปุ่มทันก่อนบราวเซอร์จะวาดหน้าเว็บเสร็จ)
+applySidebarPermissions();
+setTimeout(applySidebarPermissions, 500);
 setTimeout(applySidebarPermissions, 1500);
 
 // =========================================================
