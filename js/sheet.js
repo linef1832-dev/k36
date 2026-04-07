@@ -30,10 +30,33 @@ window.fetchSheets = async function() {
         
         window.GLOBAL_SHEETS = data || [];
         renderSheetMenu();
+        populateCalcTeamDropdown(); // 🟢 สร้าง Dropdown เครื่องคิดเลข
         if(typeof renderAdminSheetList === 'function') renderAdminSheetList();
         renderRecentTabs();
     } catch (err) { console.error('Fetch Sheets Error:', err); }
 };
+
+// 🟢 ดึงชื่อเว็บมาใส่ใน Dropdown ของเครื่องคิดเลข
+function populateCalcTeamDropdown() {
+    const datalist = document.getElementById('calcTeamOptions');
+    if (!datalist) return;
+    datalist.innerHTML = '';
+    
+    // ดึงรายชื่อทีมเฉพาะที่ไม่ใช่กลุ่ม "วันหยุด / เปลี่ยนกะ"
+    const teamNames = window.GLOBAL_SHEETS
+        .filter(s => s.group_name !== 'วันหยุด / เปลี่ยนกะ' && s.group_name !== 'แก้ไขข้อมูล')
+        .map(s => s.name || s.title)
+        .filter(Boolean);
+        
+    // กรองชื่อที่ซ้ำกันออก
+    const uniqueTeams = [...new Set(teamNames)];
+    
+    uniqueTeams.forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        datalist.appendChild(option);
+    });
+}
 
 window.renderSheetMenu = function() {
     const container = document.getElementById('sheetGroupsContainer');
@@ -266,13 +289,20 @@ window.openSheet = function(sheet) {
     document.getElementById('sheetLoading').classList.remove('hidden');
     addToRecentTabs(sheet);
 
+    // 🟢 แก้ไขบั๊ก URL ตรงนี้ (รองรับลิงก์ทุกรูปแบบ)
     let url = sheet.sheet_id || sheet.url || '';
+    
+    // ถ้าเป็นลิงก์เว็บไซต์ทั่วไป หรือ Google Docs/Sheets ที่แนบลิงก์เต็มมา
     if (url.startsWith('http') || url.startsWith('www')) {
         url = url.startsWith('www') ? 'https://' + url : url;
-    } else {
+    } 
+    // ถ้าเป็น Google Sheet ที่ใส่มาแค่ ID
+    else if (url.length > 20 && !url.includes('/')) {
         url = `https://docs.google.com/spreadsheets/d/${url}/edit?rm=minimal&single=true&widget=true&headers=false`;
         if(sheet.gid) url += `&gid=${sheet.gid}`;
     }
+    // ป้องกันการโหลดลิงก์ว่าง
+    if (!url) url = 'about:blank';
     
     const btnNewTab = document.getElementById('btnOpenNewTab');
     if (btnNewTab) btnNewTab.onclick = () => window.open(url, '_blank');
