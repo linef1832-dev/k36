@@ -690,8 +690,8 @@ window.renderSummaryDashboard = function() {
                             let quickWebBadges = data.webs.map(w => `<span class="bg-slate-900 border border-slate-600 px-1.5 py-0.5 rounded text-[10px] text-gray-300 whitespace-nowrap shadow-sm"><b class="text-sky-400">${w.website}:</b> ${w.count}</span>`).join('');
 
                             htmlArr.push(`
-                            <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden shadow-md">
-                                <div class="flex justify-between items-center p-3 bg-slate-800 hover:bg-slate-700 transition cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                            <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden shadow-sm hover:shadow-md transition-shadow will-change-transform" style="content-visibility: auto; contain-intrinsic-size: auto 72px;">
+                                <div class="flex justify-between items-center p-3 bg-slate-800 hover:bg-slate-700 transition-colors cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
                                     <div class="flex items-center gap-3 overflow-hidden pr-2">
                                         <div class="w-8 h-8 rounded-full bg-slate-700 text-gray-400 flex items-center justify-center font-black text-xs border border-slate-600 shadow-inner shrink-0">${index + 1}</div>
                                         <div class="flex flex-col min-w-0">
