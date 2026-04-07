@@ -1,5 +1,5 @@
 // ====================================================
-// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. แยก Template 100% + แก้แลค/หน่วง)
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้บั๊กกะ UNKNOWN 100%)
 // ====================================================
 
 let pendingSummaryData = []; 
@@ -16,10 +16,8 @@ let summarySubscription = null;
 function getTpl(templateId, data = {}) {
     const tpl = document.getElementById(templateId);
     if (!tpl) {
-        // Fallback สำหรับ Template เล็กๆ ที่ไม่ได้ประกาศไว้ใน HTML
         if (templateId === 'tpl-no-data') return `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
         if (templateId === 'tpl-emp-not-found') return `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${data.keyword}" ในวันนี้</div>`;
-        console.error('Template not found:', templateId); 
         return ''; 
     }
     let html = tpl.innerHTML;
@@ -43,7 +41,6 @@ window.initSummaryDate = async function() {
         await loadWebLogos();
         if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
         
-        // 🌟 บังคับโหลดรายชื่อพนักงานก่อน เพื่อให้ระบบเทียบ "กะ" ได้ถูกต้อง (แก้บั๊ก UNKNOWN)
         if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers();
         }
@@ -88,7 +85,6 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
-// 🌟 ระบบอ่าน "กะ" แบบใหม่ (ดึงจากอักษรหน้าเว็บ m=เช้า, a=กลาง, n=ดึก ก่อนเสมอ)
 function getShiftFromName(name) {
     let prefixShift = 'UNKNOWN';
     let lowerName = name.toLowerCase();
@@ -106,12 +102,7 @@ function getShiftFromName(name) {
     });
     
     let shift = foundUser && foundUser.allowed_shift ? foundUser.allowed_shift : 'UNKNOWN';
-    
-    // หากพนักงานคนนี้ระบุว่า "กะอิสระ (all)" หรือไม่ได้ระบุกะ ให้ใช้การดึงจากอักษรตัวแรกแทน
-    if (shift === 'all' || shift === '' || shift === 'UNKNOWN') {
-        shift = prefixShift !== 'UNKNOWN' ? prefixShift : 'UNKNOWN';
-    }
-    
+    if (shift === 'all' || shift === '' || shift === 'UNKNOWN') shift = prefixShift !== 'UNKNOWN' ? prefixShift : 'UNKNOWN';
     return shift;
 }
 
@@ -346,12 +337,13 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
                     let empName = ''; let amount = 0; let webName = '';
                     let txStatus = 'Approved'; let odType = 'ปกติ'; let rowDate = null;
+                    let hour = null; // เก็บเวลาทำรายการไว้หากะสำรอง
 
                     for (let c of cellData) {
                         const strC = String(c).trim();
                         let match = strC.match(/(202\d-\d{1,2}-\d{1,2})(?:\s+(\d{1,2}):\d{2}:\d{2})?/);
                         let altMatch = strC.match(/(\d{1,2})\/(\d{1,2})\/(202\d)(?:\s+(\d{1,2}):\d{2}(?::\d{2})?)?/);
-                        let rowDateStr = null; let hour = null;
+                        let rowDateStr = null;
 
                         if (match) { rowDateStr = match[1]; hour = match[2] ? parseInt(match[2], 10) : null; } 
                         else if (altMatch) {
@@ -414,16 +406,24 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     
                     if (!webName) webName = defaultWeb; 
 
+                    // 🌟 1. ดึงกะจากอักษรหน้าชื่อก่อน
                     let extractedShiftFromWeb = 'UNKNOWN';
                     if (empName.match(/^[m]/i)) extractedShiftFromWeb = 'กะเช้า';
                     else if (empName.match(/^[a]/i)) extractedShiftFromWeb = 'กะกลาง';
                     else if (empName.match(/^[n]/i)) extractedShiftFromWeb = 'กะดึก';
+                    // 🌟 2. ถ้าชื่อไม่มีตัวอักษรกะ ให้ดูจาก "เวลาที่ทำรายการ (Hour)" ใน Excel แทน (แก้บั๊กชื่อเปล่าๆ แล้วกะเป็น UNKNOWN)
+                    else if (hour !== null) {
+                        if (hour >= 7 && hour < 15) extractedShiftFromWeb = 'กะเช้า';
+                        else if (hour >= 15 && hour < 23) extractedShiftFromWeb = 'กะกลาง';
+                        else extractedShiftFromWeb = 'กะดึก'; // 23:00 - 06:59
+                    }
 
                     const realUser = getRealDbUser(empName);
                     let finalShift = extractedShiftFromWeb;
                     
                     if (realUser) {
                         empName = realUser.username; 
+                        // ถ้าพนักงานกะชัดเจนในฐานข้อมูล ให้ใช้กะนั้นทับ แต่ถ้าตั้งไว้เป็น "กะอิสระ (all)" ให้ใช้ค่าที่เราดึงได้จาก Excel
                         if (realUser.allowed_shift && realUser.allowed_shift !== 'all') {
                             finalShift = realUser.allowed_shift;
                         }
@@ -443,13 +443,12 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     const { data: yestData } = await appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr);
                     if (yestData) yestData.forEach(r => yestMap[`${r.employee_name}_${r.website}`] = r.count);
                 }
-                    
-                    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
 
                 extractedRows.forEach(row => {
                     let existingIndex = pendingSummaryData.findIndex(p => p.empName === row.empName && p.website === row.website && p.date === row.date);
                     const yestCount = yestMap[`${row.empName}_${row.website}`] || 0;
 
+                    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
                     if (customSystems[row.website]) { row.system = customSystems[row.website]; }
 
                     if (existingIndex > -1) {
@@ -505,7 +504,6 @@ window.debounceRenderSummary = function() {
     summaryRenderTimer = setTimeout(() => { window.renderSummaryDashboard(); }, 200);
 };
 
-// 🌟 3. ฟังก์ชันวาดหน้าจอ (ใช้ Template HTML ที่เราแยกไว้ด้านบน ทำให้โค้ดสะอาดมาก)
 window.renderSummaryDashboard = function() {
     if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
         try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
@@ -621,7 +619,6 @@ window.renderSummaryDashboard = function() {
                         displayDate = `วันที่ ${parseInt(d)} ${monthNames[parseInt(m)-1]} ${parseInt(y)+543}`;
                     }
 
-                    // 🌟 ใช้ฟังก์ชันสร้างแถบเปิด/ปิด จาก SummaryHTML
                     htmlArr.push(getTpl('tpl-date-group-start', {
                         displayDate: displayDate,
                         empCount: Object.keys(dGroup.emps).length,
@@ -993,15 +990,23 @@ window.fetchHistoricalSummary = async function(silent = false) {
         yestObj.setDate(yestObj.getDate() - 1);
         const yesterdayStr = yestObj.toISOString().split('T')[0];
 
-        const [todayRes, yestRes] = await Promise.all([
+        // 🌟 ดึงข้อมูลจากตาราง schedules (ตารางเวร) เพื่อเช็คว่าวันนั้นแต่ละคนลงเวลาเข้า "กะไหน" (แก้บั๊กคนหมุนเวียนกะ) 🌟
+        const [todayRes, yestRes, schedulesRes] = await Promise.all([
             appDB.from('transaction_daily_summary').select('*').eq('date', dateVal),
-            appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr)
+            appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr),
+            appDB.from('schedules').select('staff_name, shift_name').eq('work_date', dateVal)
         ]);
 
         if (todayRes.error) throw todayRes.error;
 
         let yestMap = {};
         if (yestRes.data) yestRes.data.forEach(r => yestMap[`${r.employee_name}_${r.website}`] = parseInt(r.count) || 0);
+
+        // 🌟 สร้างแผนที่รายชื่อ -> กะของวันนั้น
+        let schMap = {};
+        if (schedulesRes && schedulesRes.data) {
+            schedulesRes.data.forEach(s => schMap[s.staff_name] = s.shift_name);
+        }
 
         if (todayRes.data && todayRes.data.length > 0) {
             let mappedData = todayRes.data.map(r => {
@@ -1010,9 +1015,15 @@ window.fetchHistoricalSummary = async function(silent = false) {
                 const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : todayCount;
                 const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
+                // 🌟 หากะจากที่ลงเวลาไว้ก่อน ถ้าไม่ได้ลงเวลาไว้ถึงจะไปสุ่มเดาจากชื่อ (getShiftFromName)
+                let actualShift = schMap[r.employee_name];
+                if (!actualShift) {
+                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                }
+
                 return {
                     empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
-                    shift: typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN', 
+                    shift: actualShift, // 🌟 ใช้กะที่ได้จากการเช็ค
                     yestCount: yestCount, diffFromYesterday: todayCount - yestCount,
                     approvedCount: appCount, rejectCount: rejCount
                 };
@@ -1290,8 +1301,16 @@ window.fetchMultipleHistoricalSummary = async function() {
             await fetchUsers();
         }
 
+        // 🌟 ดึงตารางจัดเวรมาเทียบด้วย ว่าแต่ละวันพนักงานคนนี้ถูกจัดให้ลงกะไหน
         const { data, error } = await appDB.from('transaction_daily_summary').select('*').in('date', dates);
+        const { data: schData } = await appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates);
+        
         if (error) throw error;
+
+        let schMap = {};
+        if (schData) {
+            schData.forEach(s => schMap[`${s.work_date}_${s.staff_name}`] = s.shift_name);
+        }
 
         let groupedData = {};
         const sortedDatesForTitle = dates.sort((a, b) => new Date(b) - new Date(a)).map(d => {
@@ -1302,11 +1321,18 @@ window.fetchMultipleHistoricalSummary = async function() {
         if (data && data.length > 0) {
             data.forEach(r => {
                 const key = `${r.employee_name}_${r.website}`;
+                
+                // 🌟 หากะจากที่ลงเวลาไว้ก่อน ถ้าไม่ได้ลงเวลาไว้ถึงจะไปสุ่มเดาจากชื่อ (getShiftFromName)
+                let actualShift = schMap[`${r.date}_${r.employee_name}`];
+                if (!actualShift) {
+                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                }
+
                 if (!groupedData[key]) {
                     groupedData[key] = {
                         date: combinedDateLabel, empName: r.employee_name, website: r.website, system: r.system || 'UNKNOWN',
                         count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
-                        shift: typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN',
+                        shift: actualShift, // 🌟 ใช้กะที่ได้จากการเช็ค
                         yestCount: 0, diffFromYesterday: 0
                     };
                 }
@@ -1390,21 +1416,10 @@ window.saveWebLogo = async function() {
             const fileExt = file.name.split('.').pop();
             const fileName = `logo_${web}_${Date.now()}.${fileExt}`;
 
-            // 🌟 [เพิ่มใหม่] เช็คว่ามีโลโก้เก่าไหม ถ้ามีให้ลบออกจาก Storage ก่อน
-            window.summaryWebLogos = window.summaryWebLogos || {};
-            const oldLogoUrl = window.summaryWebLogos[web];
-            if (oldLogoUrl && oldLogoUrl.includes('supabase.co') && oldLogoUrl.includes('logos/')) {
-                const oldPath = 'logos/' + oldLogoUrl.split('logos/')[1].split('?')[0];
-                await appDB.storage.from('staff_images').remove([oldPath]);
-            }
-
-            // อัปโหลดรูปใหม่ (โค้ดเดิมของคุณ)
             const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, file, { cacheControl: '3600', upsert: true });
             if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ: ' + uploadError.message);
-
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`logos/${fileName}`);
-        finalUrl = publicUrlData.publicUrl;
-
+            finalUrl = publicUrlData.publicUrl;
         }
 
         window.summaryWebLogos = window.summaryWebLogos || {};
