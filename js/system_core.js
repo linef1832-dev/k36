@@ -1666,10 +1666,13 @@ window.loadSettings = async function() {
         if (typeof renderQuotaSettings === 'function') renderQuotaSettings();
         if (typeof renderPermsTable === 'function') renderPermsTable();
         
-        // 🟢 เพิ่ม 2 บรรทัดนี้เพื่อให้มันดึงรอบเวลาที่เคยตั้งไว้มาแสดง
         if (typeof applyCustomTimeSlots === 'function') applyCustomTimeSlots();
         if (typeof renderManualTimeSlots === 'function') renderManualTimeSlots(); 
-        if (typeof applySidebarPermissions === 'function') applySidebarPermissions();
+        
+        // 🌟 [แก้บั๊ก null] สั่งให้ตารางรีเฟรชตัวเองอีกครั้ง หลังจากที่ระบบรู้จัก "ช่วงเวลา" แล้ว!
+        if (typeof fetchData === 'function' && !document.getElementById('mainContentArea').classList.contains('hidden')) {
+            fetchData();
+        }
         
     } catch (e) { console.error("Load Settings Error:", e); }
 };
