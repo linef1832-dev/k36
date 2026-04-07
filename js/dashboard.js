@@ -186,9 +186,18 @@ window.refreshTimeSlots = async function() {
                 ).length : 0;
                 
                 const suffix = shiftName.replace('กะ', '');
-                let maxQuota = 50;
+                let maxQuota = 50; // ค่าเริ่มต้นกันเหนียว
                 if(typeof SETTINGS !== 'undefined') {
-                    maxQuota = myDep === 'OD' ? parseInt(SETTINGS[`quota_od_${suffix}`] || 5) : parseInt(SETTINGS[`quota_total_${suffix}`] || 50);
+                    // 🌟 สร้าง Key ค้นหาให้ตรงกับฐานข้อมูล (เช่น quota_team_Jun88_AM_เช้า)
+                    const teamQuotaKey = `quota_team_${selectedTeam}_${myDep}_${suffix}`;
+                    
+                    // 🌟 เช็คว่ามีโควตาทีมนี้ตั้งไว้ไหม ถ้ามีให้ใช้ตัวเลขของทีมนั้นเลย!
+                    if (SETTINGS[teamQuotaKey] !== undefined && SETTINGS[teamQuotaKey] !== '') {
+                        maxQuota = parseInt(SETTINGS[teamQuotaKey]);
+                    } else {
+                        // แต่ถ้าไม่ได้ตั้งโควตาทีมไว้ ค่อยดึงโควตารวมแผนกมาใช้แทน
+                        maxQuota = myDep === 'OD' ? parseInt(SETTINGS[`quota_od_${suffix}`] || 5) : parseInt(SETTINGS[`quota_total_${suffix}`] || 50);
+                    }
                 }
                 
                 const isFull = count >= maxQuota;
