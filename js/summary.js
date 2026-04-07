@@ -520,7 +520,7 @@ window.renderSummaryDashboard = function() {
     const searchKeyword = document.getElementById('summarySearch') ? document.getElementById('summarySearch').value.toLowerCase().trim() : '';
 
     if (webBox) webBox.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 p-1";
-    if (mainBox) mainBox.className = "flex-1 overflow-y-auto custom-scrollbar pr-2 content-start";
+    if (mainBox) mainBox.className = "flex-1 overflow-y-auto custom-scrollbar pr-2 content-start transform-gpu will-change-transform";
 
     const hasData = typeof pendingSummaryData !== 'undefined' && pendingSummaryData.length > 0;
 
