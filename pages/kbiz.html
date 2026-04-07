@@ -23,3 +23,43 @@
         <div id="kbizGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1600px] mx-auto pb-10"></div>
     </div>
 </div>
+
+<div id="kbizModal" class="fixed inset-0 bg-black/70 z-[60] hidden flex items-center justify-center p-4 fade-in backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 flex justify-between items-center text-white">
+            <h3 id="kbizModalTitle" class="font-bold text-lg flex items-center gap-2"><span class="material-icons">smart_toy</span> เพิ่มบอทตัวใหม่</h3>
+            <button type="button" onclick="document.getElementById('kbizModal').classList.add('hidden')" class="text-white/80 hover:text-white p-1 rounded-full bg-white/10 hover:bg-white/20 transition"><span class="material-icons text-sm block">close</span></button>
+        </div>
+        <form onsubmit="saveKbizBot(event)" class="p-6 space-y-4">
+            <input type="hidden" id="kbizEditId">
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">รหัสเครื่อง (Machine ID)</label>
+                <input type="text" id="kbizMachineId" required placeholder="เช่น kbiz1, kbiz-admin..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm shadow-inner transition">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ชื่อแอดมิน / รายละเอียด (ถ้ามี)</label>
+                <input type="text" id="kbizDisplayName" placeholder="เช่น A, B, แอดมินสมชาย..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none text-sm shadow-inner transition">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Username</label>
+                    <input type="text" id="kbizUser" required placeholder="ชื่อผู้ใช้" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm shadow-inner transition">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Password</label>
+                    <input type="text" id="kbizPass" required placeholder="รหัสผ่าน" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-emerald-500 font-bold text-sm shadow-inner transition">
+                </div>
+            </div>
+            <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-gray-300 dark:border-slate-600 mt-2 shadow-inner">
+                <span class="text-sm font-bold text-slate-700 dark:text-gray-300 flex items-center gap-1.5"><span class="material-icons text-emerald-500 text-[18px]">toggle_on</span> เปิดใช้งานบอทตัวนี้</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="kbizIsActive" class="sr-only peer" checked>
+                    <div class="w-11 h-6 bg-gray-300 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+                </label>
+            </div>
+            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 rounded-xl shadow-lg mt-4 transition transform active:scale-95 border border-emerald-400 flex items-center justify-center gap-2">
+                <span class="material-icons">save</span> บันทึกข้อมูล
+            </button>
+        </form>
+    </div>
+</div>
