@@ -165,7 +165,7 @@ window.togglePin = function(e, id) {
 
 const CALC_STORAGE_KEY = 'calc_local_team_list';
 
-// ฟังก์ชันเริ่มต้นตอนเปิดหน้า
+// ฟังก์ชันเริ่มต้นตอนเปิดหน้า (แก้สีตัวเลข)
 window.initCalculator = async function() {
     const teamSelect = document.getElementById('calcTeamSelect');
     const deductInput = document.getElementById('calcDeductAmount');
@@ -181,7 +181,7 @@ window.initCalculator = async function() {
         if (role === 'manager' || role === 'admin') isAdmin = true;
     }
 
-    // 2. เติมรายชื่อเว็บ (ดึงจากตารางชีทที่มีอยู่)
+    // 2. เติมรายชื่อเว็บ
     if (teamSelect) {
         teamSelect.innerHTML = '';
         const teamNames = window.GLOBAL_SHEETS
@@ -190,8 +190,6 @@ window.initCalculator = async function() {
             .filter(Boolean);
             
         let uniqueTeams = [...new Set(teamNames)];
-        
-        // ผสมกับ LocalStorage เผื่อแอดมินพิมพ์เพิ่มเข้ามาเอง
         const localTeams = JSON.parse(localStorage.getItem(CALC_STORAGE_KEY) || '[]');
         uniqueTeams = [...new Set([...uniqueTeams, ...localTeams])];
 
@@ -201,45 +199,40 @@ window.initCalculator = async function() {
             teamSelect.innerHTML = `<option value="General">ทั่วไป</option>`;
         }
         
-        // เลือกค่าเดิมที่เคยค้างไว้
         const savedTeam = localStorage.getItem('calc_saved_team');
         if (savedTeam && uniqueTeams.includes(savedTeam)) {
             teamSelect.value = savedTeam;
         }
     }
 
-    // 3. 🔒 ตั้งค่า ล็อค/ปลดล็อค ตามสิทธิ์
+    // 3. 🔒 ตั้งค่า ล็อค/ปลดล็อค ตามสิทธิ์ + แก้สีตัวหนังสือให้สว่าง!
     if (deductInput && saveBtn && lockIcon) {
         if (isAdmin) {
-            // --- กรณีเป็นผู้จัดการ ---
+            // --- กรณีเป็นผู้จัดการ (กรอกตัวเลขได้) ---
             deductInput.disabled = false;
-            deductInput.classList.remove('bg-red-900/50', 'text-red-400', 'border-red-900/50', 'opacity-50');
-            deductInput.classList.add('bg-white', 'text-slate-900', 'border-white', 'opacity-100');
+            deductInput.className = "w-full p-3 rounded-lg border border-slate-600 bg-[#0f172a] text-white text-base font-black text-center outline-none focus:border-purple-500 shadow-inner";
             
             saveBtn.classList.remove('hidden');
             lockIcon.innerText = 'lock_open';
             lockIcon.classList.remove('text-red-400', 'opacity-50');
             lockIcon.classList.add('text-green-500', 'opacity-100');
-
             if(addBtn) addBtn.classList.remove('hidden');
             if(delBtn) delBtn.classList.remove('hidden');
         } else {
-            // --- กรณีเป็นพนักงานทั่วไป ---
+            // --- กรณีเป็นพนักงานทั่วไป (ล็อคตัวเลข) ---
             deductInput.disabled = true;
-            deductInput.classList.remove('bg-white', 'text-slate-900', 'border-white', 'opacity-100');
-            deductInput.classList.add('bg-red-950/50', 'text-red-400', 'border-red-900/50', 'opacity-70');
+            // 🌟 แก้สีตรงนี้: บังคับตัวหนังสือเป็นสีสว่าง (text-rose-200) เพื่อให้อ่านออก
+            deductInput.className = "w-full p-3 rounded-lg border border-red-900/50 bg-red-950/50 text-rose-200 text-base font-black text-center outline-none shadow-inner opacity-100";
             
             saveBtn.classList.add('hidden');
             lockIcon.innerText = 'lock';
             lockIcon.classList.remove('text-green-500', 'opacity-100');
             lockIcon.classList.add('text-red-400', 'opacity-50');
-
             if(addBtn) addBtn.classList.add('hidden');
             if(delBtn) delBtn.classList.add('hidden');
         }
     }
     
-    // โหลดยอดหัก
     loadCalcSettings();
 };
 
