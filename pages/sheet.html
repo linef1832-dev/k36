@@ -35,13 +35,14 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-400 mb-1.5">เลือกเว็บ/ทีม</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="calcTeam" oninput="saveCalcSettings()" class="flex-1 bg-[#0f172a] border border-indigo-500/50 text-white text-sm font-bold p-2.5 rounded-lg outline-none focus:border-indigo-400">
+                        <div class="flex gap-2 relative">
+                            <input type="text" id="calcTeam" list="calcTeamOptions" onchange="saveCalcSettings()" class="flex-1 bg-[#0f172a] border border-indigo-500/50 text-white text-sm font-bold p-2.5 rounded-lg outline-none focus:border-indigo-400">
+                            <datalist id="calcTeamOptions">
+                                </datalist>
                             <button onclick="document.getElementById('calcTeam').value=''; saveCalcSettings();" class="bg-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white p-2.5 rounded-lg transition flex items-center justify-center"><span class="material-icons text-[16px] leading-none block">delete_outline</span></button>
                             <button onclick="document.getElementById('calcTeam').value='VV72'; saveCalcSettings();" class="bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white p-2.5 rounded-lg transition flex items-center justify-center"><span class="material-icons text-[16px] leading-none block">add</span></button>
                         </div>
                     </div>
-                    <div>
                         <label class="block text-xs font-bold text-gray-400 mb-1.5">ยอดเงินตั้งต้น</label>
                         <input type="number" id="calcBase" oninput="calculateNet()" placeholder="วางตัวเลข..." class="w-full bg-[#0f172a] border border-slate-600 text-white text-base font-black p-3 rounded-lg outline-none focus:border-indigo-500 shadow-inner placeholder-gray-600">
                     </div>
