@@ -2043,7 +2043,7 @@ window.addTeamManual = function(dept) {
 };
 
 // =========================================================
-// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) ตามสิทธิ์ (V.5 แก้เมนูกระพริบ)
+// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) (V.7 ดักปุ่มประวัติระบบ)
 // =========================================================
 window.applySidebarPermissions = async function() {
     let user = window.currentUser;
@@ -2055,19 +2055,29 @@ window.applySidebarPermissions = async function() {
 
     const userRole = (user.role || '').toLowerCase().trim();
     const allMenuBtns = document.querySelectorAll('#menu-list button');
+    
+    // 🌟 ค้นหาปุ่ม "ประวัติระบบ" ที่แยกอยู่ด้านล่างสุด
+    const logsBtn = document.querySelector('button[onclick="openLogsPage()"]');
 
-    // 🌟 [แก้บั๊กกระพริบ] สั่ง "หลับตา" (ซ่อน) ทุกปุ่มทันที ก่อนรอโหลดฐานข้อมูล!
-    // ยกเว้นปุ่มพื้นฐานที่ทุกคนต้องเห็น (เช่น หน้าหลัก, รหัสผ่าน)
+    // 1. บังคับ "หลับตา" (ซ่อน) แบบเด็ดขาดทะลุ CSS
     allMenuBtns.forEach(btn => {
         const onClickAttr = btn.getAttribute('onclick') || '';
+        // ยกเว้นหน้าหลัก กับ หน้าเปลี่ยนรหัส ให้เห็นได้ทุกคน
         if (!onClickAttr.includes('dashboard') && !onClickAttr.includes('password')) {
-            btn.style.display = 'none'; 
+            btn.classList.add('hidden');
+            btn.style.setProperty('display', 'none', 'important'); // บังคับซ่อนขั้นสุด
         }
     });
     document.getElementById('menu-discord')?.classList.add('hidden');
     document.getElementById('menu-admin')?.classList.add('hidden');
+    
+    // 🌟 สั่งหลับตาปุ่มประวัติระบบไปก่อน
+    if (logsBtn) {
+        logsBtn.classList.add('hidden');
+        logsBtn.style.setProperty('display', 'none', 'important');
+    }
 
-    // 2. จังหวะดึงตั้งค่า (จุดนี้ที่ทำให้เน็ตหน่วงและเกิดอาการเมนูกระพริบ)
+    // 2. ดึงตั้งค่าจาก Database
     if (!SETTINGS['dept_menu_rules']) {
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single();
@@ -2075,7 +2085,7 @@ window.applySidebarPermissions = async function() {
         } catch(e) {}
     }
 
-    // 3. พอได้ข้อมูลมาแล้ว ค่อย "ลืมตา" (โชว์) เฉพาะปุ่มที่มีสิทธิ์
+    // 3. "ลืมตา" โชว์เฉพาะปุ่มที่มีสิทธิ์
     PERM_GROUPS.forEach(group => {
         group.items.forEach(item => {
             if (item.isSub) return; 
@@ -2084,7 +2094,10 @@ window.applySidebarPermissions = async function() {
             allMenuBtns.forEach(btn => {
                 const onClickAttr = btn.getAttribute('onclick') || '';
                 if (onClickAttr.includes(`showPage('${item.id}')`) || onClickAttr.includes(`showPage("${item.id}")`)) {
-                    btn.style.display = canSee ? '' : 'none';
+                    if (canSee) {
+                        btn.classList.remove('hidden');
+                        btn.style.removeProperty('display'); // คืนค่าการแสดงผล
+                    }
                 }
             });
         });
@@ -2097,8 +2110,10 @@ window.applySidebarPermissions = async function() {
         allMenuBtns.forEach(btn => {
             if ((btn.getAttribute('onclick') || '').includes("toggleSubMenu('menu-discord'")) {
                 const canSeeDs = hasAnyDiscordPerm || ['admin', 'manager'].includes(userRole);
-                btn.style.display = canSeeDs ? '' : 'none';
-                if (!canSeeDs) document.getElementById('menu-discord')?.classList.add('hidden');
+                if (canSeeDs) {
+                    btn.classList.remove('hidden');
+                    btn.style.removeProperty('display');
+                }
             }
         });
     }
@@ -2108,17 +2123,31 @@ window.applySidebarPermissions = async function() {
         const onClickAttr = btn.getAttribute('onclick') || '';
         if (onClickAttr.includes("toggleSubMenu('menu-admin'")) {
             const canSeeAdmin = ['admin', 'manager'].includes(userRole);
-            btn.style.display = canSeeAdmin ? '' : 'none';
-            if (!canSeeAdmin) document.getElementById('menu-admin')?.classList.add('hidden');
+            if (canSeeAdmin) {
+                btn.classList.remove('hidden');
+                btn.style.removeProperty('display');
+            }
         }
         if (onClickAttr.includes("openAdminPanel()")) {
             const canSeeAdmin = ['admin', 'manager'].includes(userRole);
-            btn.style.display = canSeeAdmin ? '' : 'none';
+            if (canSeeAdmin) {
+                btn.classList.remove('hidden');
+                btn.style.removeProperty('display');
+            }
         }
     });
+
+    // 🌟 6. ดักปุ่ม "ประวัติระบบ" (อนุญาตเฉพาะ Admin / Manager)
+    if (logsBtn) {
+        const canSeeLogs = ['admin', 'manager'].includes(userRole);
+        if (canSeeLogs) {
+            logsBtn.classList.remove('hidden');
+            logsBtn.style.removeProperty('display');
+        }
+    }
 };
 
-// 🌟 สั่งให้ทำงานทันที 1 รอบแบบไม่มีดีเลย์ (เพื่อให้ซ่อนปุ่มทันก่อนบราวเซอร์จะวาดหน้าเว็บเสร็จ)
+// สั่งรันทันที ป้องกันเมนูกระพริบ
 applySidebarPermissions();
 setTimeout(applySidebarPermissions, 500);
 setTimeout(applySidebarPermissions, 1500);
