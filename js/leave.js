@@ -287,15 +287,25 @@ function subscribeLeaveChanges() {
         const leaveAppEl = document.getElementById('leaveApp');
         if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
             
-            // 🌟 อัปเดตข้อมูลในเครื่อง (allLeaveData) เก็บไว้ก่อน
+            let changedUserId = null;
+
+            // 🌟 อัปเดตข้อมูลในเครื่อง (allLeaveData)
             if (payload.eventType === 'INSERT') {
                 allLeaveData.push(payload.new);
+                changedUserId = payload.new.user_id;
             } else if (payload.eventType === 'DELETE') {
-                allLeaveData = allLeaveData.filter(l => !(String(l.user_id) === String(payload.old.user_id) && l.leave_date === payload.old.leave_date));
+                // 🛑 [แก้บั๊กตรงนี้] Supabase ส่งมาแค่ ID ตอนลบ! ต้องมาหา user_id จากข้อมูลเก่าในเครื่องก่อน
+                const deletedItem = allLeaveData.find(l => String(l.id) === String(payload.old.id));
+                if (deletedItem) changedUserId = deletedItem.user_id;
+                
+                // ลบข้อมูลนั้นออกจากความจำเครื่อง
+                allLeaveData = allLeaveData.filter(l => String(l.id) !== String(payload.old.id));
             }
 
-            // 🌟 [ปรับปรุงใหม่] เช็คว่าการเปลี่ยนแปลงนี้ กระทบกับตารางแผนกที่เราดูอยู่หรือไม่?
-            const changedUserId = payload.eventType === 'DELETE' ? payload.old.user_id : payload.new.user_id;
+            // ถ้าหา user_id ไม่เจอ (อาจจะลบของที่ไม่มีในหน้าจอ) ให้ข้ามไปเลย
+            if (!changedUserId) return;
+
+            // 🌟 เช็คว่าการเปลี่ยนแปลงนี้ กระทบกับตารางแผนกที่เราดูอยู่หรือไม่?
             const tUser = GLOBAL_USER_LIST.find(u => String(u.id) === String(changedUserId));
             const tDept = tUser ? (tUser.department || 'AM') : 'AM';
             const tRole = tUser ? (tUser.role || 'staff').toLowerCase() : 'staff';
@@ -305,7 +315,7 @@ function subscribeLeaveChanges() {
             else if (currentViewDept === 'NEW' && tDept === 'NEW') shouldRenderTable = true;
             else if (tRole === 'staff' && tDept === currentViewDept) shouldRenderTable = true;
 
-            // 🌟 ถ้ารายการที่เปลี่ยนแปลงเป็นของคนในหน้าจอนี้ ค่อยสั่งวาดตารางใหม่! (ลดภาระบราวเซอร์มหาศาล)
+            // 🌟 ถ้ารายการที่เปลี่ยนแปลงเป็นของคนในหน้าจอนี้ ค่อยสั่งวาดตารางใหม่!
             if (shouldRenderTable) {
                 window.renderLeaveTable(); 
                 flashRealtimeDot();
