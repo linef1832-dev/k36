@@ -723,7 +723,7 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
                 target_details: `ลงเวลา ${targetUserShift} ${dateStr} (${typeToSave}) [${currentViewDept}]`
             }]);
 
-        } else if (action === 'remove') {
+       } else if (action === 'remove') {
             const { error } = await appDB.from('leave_requests')
                 .delete()
                 .eq('user_id', targetUserId)
@@ -738,8 +738,6 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
             }]);
         }
         
-        }
-        
         // 🌟 อัปเดตข้อมูลในความจำบราวเซอร์ทันที (ไม่ต้องรอโหลด DB ใหม่)
         if (action === 'add') {
             allLeaveData.push({ user_id: targetUserId, leave_date: dateStr, reason: typeToSave });
@@ -747,8 +745,7 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
             allLeaveData = allLeaveData.filter(l => !(String(l.user_id) === String(targetUserId) && l.leave_date === dateStr));
         }
         
-        window.renderLeaveTable(); // สั่งวาดตารางใหม่จากข้อมูลในเครื่อง (ไวมากแค่ 0.05 วินาที)
-        
+        window.renderLeaveTable(); // สั่งวาดตารางใหม่จากข้อมูลในเครื่อง (ไวมาก)
         Swal.fire({ icon: 'success', title: action === 'add' ? 'บันทึกสำเร็จ' : 'ลบสำเร็จ', showConfirmButton: false, timer: 1000 });
 
     } catch (error) {
