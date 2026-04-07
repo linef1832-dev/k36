@@ -1273,22 +1273,44 @@ window.renderGroupList = function() {
 };
 
 window.autoBuildGroups = async function() {
-    Swal.fire({title: 'กำลังจัดกลุ่มออโต้...', didOpen: () => Swal.showLoading()});
+    Swal.fire({
+        title: 'กำลังจัดกลุ่มออโต้...', 
+        text: 'แยกตามแผนกและกะการทำงาน',
+        didOpen: () => Swal.showLoading()
+    });
+    
     try {
-        // สร้างกลุ่มจำลองจากฝั่งหน้าเว็บ แล้วส่งไปเซฟทีเดียว เพราะ backend ไม่มี endpoint นี้
         let newGroups = {};
-        const teamKeywords = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
         
+        // วนลูปรายชื่อคนในดิสคอร์ด
         extStaffList.forEach(s => {
-            for (let w of teamKeywords) {
-                if (s.name.toLowerCase().includes(w.toLowerCase())) {
-                    if (!newGroups[w]) newGroups[w] = [];
-                    newGroups[w].push(s.id);
-                    break;
+            // โยงชื่อในดิสคอร์ด ไปหาชื่อในฐานข้อมูลเพื่อดึงแผนกและกะ
+            const dbUser = getDbUserFromDiscordName(s.name);
+            
+            if (dbUser) {
+                const dept = dbUser.department || 'AM';
+                const shift = dbUser.allowed_shift || '';
+
+                // กรองเฉพาะคนที่มีกะชัดเจน
+                if (shift === 'กะเช้า' || shift === 'กะกลาง' || shift === 'กะดึก') {
+                    // สร้างชื่อกลุ่ม เช่น "AM กะเช้า", "OD กะดึก"
+                    const groupName = `${dept} ${shift}`;
+                    
+                    if (!newGroups[groupName]) newGroups[groupName] = [];
+                    newGroups[groupName].push(s.id);
+                } else {
+                    // คนที่เป็นกะอิสระ หรือยังไม่ได้เลือกกะ
+                    if (!newGroups['กะอิสระ / อื่นๆ']) newGroups['กะอิสระ / อื่นๆ'] = [];
+                    newGroups['กะอิสระ / อื่นๆ'].push(s.id);
                 }
+            } else {
+                // คนที่ดิสคอร์ดชื่อไม่ตรงกับในระบบ หรือไม่พบในฐานข้อมูล
+                if (!newGroups['ไม่พบในระบบลงเวลา']) newGroups['ไม่พบในระบบลงเวลา'] = [];
+                newGroups['ไม่พบในระบบลงเวลา'].push(s.id);
             }
         });
         
+        // ส่งข้อมูลกลุ่มที่แยกเสร็จแล้ว ไปบันทึกทับของเดิม
         const res = await fetch(DISCORD_API_URL + '/api/groups/save-all', { 
             method: 'POST', 
             headers: {'Content-Type':'application/json'}, 
@@ -1296,34 +1318,15 @@ window.autoBuildGroups = async function() {
         });
         
         let data;
-        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
-        if(!data.success) throw new Error('จัดกลุ่มไม่สำเร็จ');
+        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์บอทไม่ตอบสนอง'); }
+        if(!data.success) throw new Error('บันทึกกลุ่มใหม่ไม่สำเร็จ');
         
+        // โหลดข้อมูลใหม่มาแสดงบนหน้าเว็บ
         await fetchSystemData(true, true);
-        Swal.fire('สำเร็จ', 'จัดกลุ่มตามเว็บเสร็จสิ้น', 'success');
-    } catch(e) { Swal.fire('Error', e.message, 'error'); }
-};
-
-window.createGroup = async function() {
-    const name = document.getElementById('newGroupName').value.trim();
-    if(!name) return;
-    Swal.fire({title: 'กำลังสร้าง...', didOpen: () => Swal.showLoading()});
-    try {
-        const res = await fetch(DISCORD_API_URL + '/api/groups/create', { 
-            method: 'POST', 
-            headers: {'Content-Type':'application/json'}, 
-            body: JSON.stringify({ name: name }) 
-        });
+        Swal.fire('สำเร็จ', 'จัดกลุ่มตาม แผนก+กะ เรียบร้อยแล้ว', 'success');
         
-        let data;
-        try { data = await res.json(); } catch(e) { throw new Error('เซิร์ฟเวอร์ไม่ตอบสนอง'); }
-        if (!data.success) throw new Error(data.error || 'สร้างกลุ่มไม่สำเร็จ');
-        
-        document.getElementById('newGroupName').value = '';
-        await fetchSystemData(true, true);
-        Swal.fire({icon: 'success', title: 'สร้างกลุ่มแล้ว', timer: 1000, showConfirmButton: false});
-    } catch(e) {
-        Swal.fire('Error', e.message, 'error');
+    } catch(e) { 
+        Swal.fire('Error', e.message, 'error'); 
     }
 };
 
