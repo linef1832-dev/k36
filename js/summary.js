@@ -1,3 +1,7 @@
+// ====================================================
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. แยก Template 100% + แก้แลค/หน่วง)
+// ====================================================
+
 let pendingSummaryData = []; 
 let viewMode = 'preview'; 
 let summaryActiveWebFilter = 'ALL';
@@ -6,23 +10,25 @@ window.pendingFileNames = window.pendingFileNames || [];
 window.availableSummaryDates = [];
 window.selectedSummaryDates = window.selectedSummaryDates || new Set();
 let summaryRenderTimer;
-
 let summarySubscription = null;
 
-// 🟢 ฟังก์ชันคอยดักฟังเวลามีเครื่องอื่นกดบันทึกยอด
-window.subscribeSummaryChanges = function() {
-    if (!window.appDB) return;
-    if (summarySubscription) window.appDB.removeChannel(summarySubscription);
-
-    summarySubscription = window.appDB.channel('summary-updates')
-    .on('broadcast', { event: 'force_summary_reload' }, async (payload) => {
-        const currentDate = document.getElementById('summaryDateFilter') ? document.getElementById('summaryDateFilter').value : '';
-        // ถ้ายืนอยู่หน้าประวัติของวันที่ตรงกับที่มีการบันทึก ให้แอบรีเฟรชข้อมูลเงียบๆ
-        if (viewMode === 'history' && payload?.payload?.date === currentDate) {
-            await window.fetchHistoricalSummary(true);
-        }
-    }).subscribe();
-};
+// 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล
+function getTpl(templateId, data = {}) {
+    const tpl = document.getElementById(templateId);
+    if (!tpl) {
+        // Fallback สำหรับ Template เล็กๆ ที่ไม่ได้ประกาศไว้ใน HTML
+        if (templateId === 'tpl-no-data') return `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
+        if (templateId === 'tpl-emp-not-found') return `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${data.keyword}" ในวันนี้</div>`;
+        console.error('Template not found:', templateId); 
+        return ''; 
+    }
+    let html = tpl.innerHTML;
+    for (const key in data) {
+        const val = data[key] !== undefined && data[key] !== null ? data[key] : '';
+        html = html.split(`{{${key}}}`).join(val);
+    }
+    return html;
+}
 
 window.initSummaryDate = async function() {
     Swal.fire({title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
@@ -37,55 +43,75 @@ window.initSummaryDate = async function() {
         await loadWebLogos();
         if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
         
-        // 🌟 เพิ่มบรรทัดนี้: บังคับโหลดรายชื่อพนักงานก่อน เพื่อให้ระบบรู้จักกะการทำงาน
+        // 🌟 บังคับโหลดรายชื่อพนักงานก่อน เพื่อให้ระบบเทียบ "กะ" ได้ถูกต้อง
         if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers();
         }
 
         await window.fetchHistoricalSummary(true);
-
-        // เปิดใช้งานระบบเรียลไทม์
         if (typeof window.subscribeSummaryChanges === 'function') window.subscribeSummaryChanges();
         
     } catch(e) { console.error(e); } 
     finally { Swal.close(); }
 }
 
-// โหลดรูปโลโก้จาก Database
+window.subscribeSummaryChanges = function() {
+    if (!window.appDB) return;
+    if (summarySubscription) window.appDB.removeChannel(summarySubscription);
+
+    summarySubscription = window.appDB.channel('summary-updates')
+    .on('broadcast', { event: 'force_summary_reload' }, async (payload) => {
+        const currentDate = document.getElementById('summaryDateFilter') ? document.getElementById('summaryDateFilter').value : '';
+        if (viewMode === 'history' && payload?.payload?.date === currentDate) {
+            await window.fetchHistoricalSummary(true);
+        }
+    }).subscribe();
+};
+
 window.loadWebLogos = async function() {
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'summary_web_logos').single();
         if (data && data.value) {
             window.summaryWebLogos = JSON.parse(data.value);
             if (typeof SETTINGS !== 'undefined') SETTINGS['summary_web_logos'] = data.value;
-        } else {
-            window.summaryWebLogos = {};
-        }
-    } catch (e) {
-        window.summaryWebLogos = {};
-    }
+        } else window.summaryWebLogos = {};
+    } catch (e) { window.summaryWebLogos = {}; }
 }
 
-// ฟังก์ชันดึงวันที่ย้อนหลัง (สร้างปุ่มประวัติ)
-window.fetchAvailableDates = async function() {
+window.fetchAvailableDates = async function(forceRender = false) {
     try {
-        const { data } = await appDB.from('transaction_daily_summary').select('date');
+        const { data } = await appDB.from('transaction_daily_summary').select('date').order('date', {ascending: false}).limit(1000);
         if (data) {
-            window.availableSummaryDates = [...new Set(data.map(d => d.date))];
+            window.availableSummaryDates = [...new Set(data.map(item => item.date))].slice(0, 15);
+            if (forceRender || !pendingSummaryData || pendingSummaryData.length === 0) window.renderSummaryDashboard();
         }
-    } catch (e) { console.error("Fetch dates error:", e); }
+    } catch(e) { console.error("Fetch dates error:", e); }
 }
 
+// 🌟 ระบบอ่าน "กะ" แบบใหม่ (ดึงจากอักษรหน้าเว็บ m=เช้า, a=กลาง, n=ดึก ก่อนเสมอ)
 function getShiftFromName(name) {
-    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
-    const searchName = name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); 
+    let prefixShift = 'UNKNOWN';
+    let lowerName = name.toLowerCase();
+    
+    if (lowerName.startsWith('m')) prefixShift = 'กะเช้า';
+    else if (lowerName.startsWith('a')) prefixShift = 'กะกลาง';
+    else if (lowerName.startsWith('n')) prefixShift = 'กะดึก';
+
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return prefixShift;
+
+    const searchName = lowerName.replace(/[^a-z0-9ก-๙]/g, ''); 
     let foundUser = window.GLOBAL_USER_LIST.find(u => {
         const dbName = u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
         return dbName === searchName || (dbName.length > 2 && (dbName.includes(searchName) || searchName.includes(dbName)));
     });
     
     let shift = foundUser && foundUser.allowed_shift ? foundUser.allowed_shift : 'UNKNOWN';
-    if (shift === 'all' || shift === '') shift = 'UNKNOWN';
+    
+    // หากพนักงานคนนี้ระบุว่า "กะอิสระ (all)" หรือไม่ได้ระบุกะ ให้ใช้การดึงจากอักษรตัวแรกแทน
+    if (shift === 'all' || shift === '' || shift === 'UNKNOWN') {
+        shift = prefixShift !== 'UNKNOWN' ? prefixShift : 'UNKNOWN';
+    }
+    
     return shift;
 }
 
@@ -95,6 +121,61 @@ function parseAmount(val) {
     let cleanVal = String(val).replace(/[^0-9.-]+/g, ''); 
     return parseFloat(cleanVal) || 0;
 }
+
+window.clearSummaryData = async function() {
+    pendingSummaryData = [];
+    viewMode = 'preview';
+    if (window.uploadedFileDates) window.uploadedFileDates.clear();
+    window.pendingFileNames = [];
+    if (window.selectedSummaryDates) window.selectedSummaryDates.clear();
+
+    const dateFilter = document.getElementById('summaryDateFilter');
+    if (dateFilter) dateFilter.value = '';
+
+    const dateSpan = document.getElementById('summaryFileDates');
+    if (dateSpan) { dateSpan.innerText = '-'; dateSpan.className = "text-sky-500"; }
+
+    const lbMode = document.getElementById('leaderboardMode');
+    if (lbMode) lbMode.value = 'monthly';
+    
+    summaryActiveWebFilter = 'ALL';
+
+    if (typeof fetchAvailableDates === 'function') await fetchAvailableDates(true); 
+    else renderSummaryDashboard();
+
+    if (typeof fetchLeaderboardData === 'function') fetchLeaderboardData();
+};
+
+window.toggleSummaryWebFilter = function(webName) {
+    if (summaryActiveWebFilter === webName) summaryActiveWebFilter = 'ALL';
+    else summaryActiveWebFilter = webName;
+    renderSummaryDashboard();
+};
+
+window.filterSummaryLeaderboard = function() {
+    const term = document.getElementById('leaderboardSearch') ? document.getElementById('leaderboardSearch').value.toLowerCase() : '';
+    const items = document.querySelectorAll('.leaderboard-item');
+    items.forEach(item => {
+        const name = item.getAttribute('data-name').toLowerCase();
+        item.style.display = name.includes(term) ? 'flex' : 'none';
+    });
+};
+
+window.handleDragOverExcel = function(e) {
+    e.preventDefault(); e.stopPropagation();
+    e.currentTarget.classList.add('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
+};
+
+window.handleDragLeaveExcel = function(e) {
+    e.preventDefault(); e.stopPropagation();
+    e.currentTarget.classList.remove('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
+};
+
+window.handleDropExcel = function(e, systemName) {
+    e.preventDefault(); e.stopPropagation();
+    e.currentTarget.classList.remove('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
+    if (e.dataTransfer && e.dataTransfer.files.length > 0) window.processExcelUpload(e, systemName);
+};
 
 function getRealDbUser(rawName) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return null;
@@ -117,24 +198,6 @@ function getRealDbUser(rawName) {
     return match || null;
 }
 
-window.handleDragOverExcel = function(e) {
-    e.preventDefault(); e.stopPropagation();
-    e.currentTarget.classList.add('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
-};
-
-window.handleDragLeaveExcel = function(e) {
-    e.preventDefault(); e.stopPropagation();
-    e.currentTarget.classList.remove('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
-};
-
-window.handleDropExcel = function(e, systemName) {
-    e.preventDefault(); e.stopPropagation();
-    e.currentTarget.classList.remove('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
-    if (e.dataTransfer && e.dataTransfer.files.length > 0) {
-        window.processExcelUpload(e, systemName);
-    }
-};
-
 window.processExcelUpload = async function(event, fallbackSystemName) {
     let files = [];
     if (event.dataTransfer && event.dataTransfer.files.length > 0) files = Array.from(event.dataTransfer.files);
@@ -150,6 +213,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
     try {
         let totalExtracted = 0; let skippedFiles = []; let errorFiles = [];
         let savedFilesList = [];
+        
         if (typeof appDB !== 'undefined') {
             const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
             if (savedFilesData && savedFilesData.value) savedFilesList = JSON.parse(savedFilesData.value);
@@ -350,12 +414,19 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     
                     if (!webName) webName = defaultWeb; 
 
+                    let extractedShiftFromWeb = 'UNKNOWN';
+                    if (empName.match(/^[m]/i)) extractedShiftFromWeb = 'กะเช้า';
+                    else if (empName.match(/^[a]/i)) extractedShiftFromWeb = 'กะกลาง';
+                    else if (empName.match(/^[n]/i)) extractedShiftFromWeb = 'กะดึก';
+
                     const realUser = getRealDbUser(empName);
-                    let finalShift = 'UNKNOWN';
+                    let finalShift = extractedShiftFromWeb;
+                    
                     if (realUser) {
                         empName = realUser.username; 
-                        finalShift = realUser.allowed_shift || 'UNKNOWN';
-                        if (finalShift === 'all' || finalShift === '') finalShift = 'UNKNOWN';
+                        if (realUser.allowed_shift && realUser.allowed_shift !== 'all') {
+                            finalShift = realUser.allowed_shift;
+                        }
                     }
 
                     const finalRowDate = rowDate || detectedDate || document.getElementById('summaryDateFilter').value;
@@ -456,66 +527,24 @@ window.renderSummaryDashboard = function() {
     if (!hasData) {
         let datesHtml = '';
         if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
-            const sortedDates = window.availableSummaryDates.sort((a,b) => new Date(b) - new Date(a));
-            datesHtml = `
-            <div class="mt-8 w-full max-w-4xl animate-fade-in-up mx-auto">
-                <div class="bg-[#151f32] p-5 md:p-8 rounded-3xl border border-slate-700 shadow-2xl relative overflow-hidden">
-                    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-700/80 pb-6">
-                        <div class="flex items-center gap-4">
-                            <div class="w-14 h-14 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30 shadow-inner shrink-0">
-                                <span class="material-icons text-3xl">date_range</span>
-                            </div>
-                            <div class="text-left">
-                                <h3 class="text-lg md:text-xl font-black text-white tracking-wide">เลือกวันที่ต้องการดูข้อมูล</h3>
-                                <p class="text-xs text-sky-400/80 font-bold mt-0.5">หรือเลือกหลายๆ วันพร้อมกันเพื่อนำยอดมาบวกทบกันได้</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-xl border border-slate-600 shadow-inner w-full md:w-auto">
-                            <span class="material-icons text-gray-500 pl-2 text-[18px]">search</span>
-                            <input type="date" id="searchAvailableDate" onchange="if(this.value){ toggleSummaryDate(this.value); this.value=''; }" class="bg-transparent text-white text-sm outline-none px-2 py-1.5 cursor-pointer font-mono w-full" title="ค้นหาวันที่อื่นๆ">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3" id="availableDatesContainer">` + 
-            sortedDates.map(d => {
+            let btns = window.availableSummaryDates.map(d => {
                 const [y, m, day] = d.split('-');
-                const isSelected = window.selectedSummaryDates.has(d);
-                const cardClass = isSelected ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700';
-                const textClass = isSelected ? 'text-white' : 'text-gray-300';
-                const iconClass = isSelected ? 'text-white' : 'text-gray-500';
-
-                return `
-                <div class="relative group flex flex-col transition-all duration-300 rounded-xl border ${cardClass}">
-                    <button onclick="toggleSummaryDate('${d}')" class="flex-1 px-3 py-3.5 flex flex-col items-center justify-center gap-1.5 w-full outline-none">
-                        <span class="material-icons ${iconClass} text-[22px] transition-colors">${isSelected ? 'check_circle' : 'radio_button_unchecked'}</span>
-                        <span class="font-black ${textClass} text-sm tracking-wider">${day}/${m}/${y.substring(2)}</span>
-                    </button>
-                    <div class="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                        <button onclick="deleteSummaryDate('${d}')" class="bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg hover:bg-red-400 hover:scale-110 transition-transform border-2 border-[#151f32]" title="ลบข้อมูลของวันนี้ทิ้งถาวร">
-                            <span class="material-icons text-[12px]">delete</span>
-                        </button>
-                    </div>
-                </div>`;
-            }).join('') + `
-                    </div>
-                    <div class="mt-6 pt-5 border-t border-slate-700/80 flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#0b1120] -mx-8 -mb-8 px-8 py-5">
-                        <div class="text-sm font-bold text-gray-400 bg-slate-900 px-4 py-2.5 rounded-xl border border-slate-700 shadow-inner flex items-center gap-2">
-                            <span class="material-icons text-lg">shopping_cart</span>
-                            เลือกไว้: <span class="text-sky-400 font-black text-xl w-6 text-center leading-none">${window.selectedSummaryDates.size}</span> วัน
-                        </div>
-                        <div class="flex gap-2 w-full sm:w-auto">
-                            <button onclick="window.selectedSummaryDates.clear(); renderSummaryDashboard();" class="flex-1 sm:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-xl text-xs font-bold transition border border-slate-600">
-                                ล้างการเลือก
-                            </button>
-                            <button onclick="fetchMultipleHistoricalSummary()" class="flex-1 sm:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-black shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 transform active:scale-95 disabled:opacity-50 disabled:grayscale" ${window.selectedSummaryDates.size === 0 ? 'disabled' : ''}>
-                                <span class="material-icons text-[18px]">visibility</span> ดูยอดสรุป
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
+                return getTpl('tpl-date-button', { 
+                    d: d, day: day, m: m, year: y, 
+                    cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
+                    iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
+                    textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
+                    checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
+                });
+            }).join('');
+            datesHtml = getTpl('tpl-date-selector-container', { 
+                datesHtml: btns, 
+                selectedCount: window.selectedSummaryDates.size,
+                disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
+            });
         }
 
-        if(mainBox) mainBox.innerHTML = `<div class="text-center py-10 flex flex-col items-center w-full">${datesHtml}</div>`;
+        if(mainBox) mainBox.innerHTML = getTpl('tpl-no-data') + `<div class="text-center py-2 w-full">${datesHtml}</div>`;
         if(statsBox) statsBox.innerHTML = '<div class="text-center text-gray-400 text-sm py-2 w-full">ยังไม่มีข้อมูลยอดรวม</div>';
         
     } else {
@@ -537,45 +566,24 @@ window.renderSummaryDashboard = function() {
         });
 
         if (statsBox) {
-            statsBox.innerHTML = `
-                <div class="px-4 py-2 bg-slate-900 rounded-xl border border-slate-700 text-center min-w-[120px] shadow-inner flex-1">
-                    <div class="text-[10px] text-gray-500 font-bold mb-0.5 uppercase tracking-widest">ยอดรวมทั้งหมด</div>
-                    <div class="text-xl font-black text-white">${shiftStats.TOTAL.toLocaleString()}</div>
-                    <div class="flex justify-center gap-2 mt-1 text-[9px] font-bold">
-                        <span class="text-emerald-400">✅ ${shiftStats.APPROVED.toLocaleString()}</span>
-                        <span class="text-red-400">❌ ${shiftStats.REJECT.toLocaleString()}</span>
-                    </div>
-                </div>
-                <div class="px-4 py-2 bg-orange-900/20 rounded-xl border border-orange-900/50 text-center min-w-[100px] shadow-sm flex flex-col justify-center">
-                    <div class="text-[10px] text-orange-400 font-bold mb-0.5">☀️ กะเช้า</div>
-                    <div class="text-xl font-black text-orange-500">${shiftStats['กะเช้า'].toLocaleString()}</div>
-                </div>
-                <div class="px-4 py-2 bg-blue-900/20 rounded-xl border border-blue-900/50 text-center min-w-[100px] shadow-sm flex flex-col justify-center">
-                    <div class="text-[10px] text-blue-400 font-bold mb-0.5">🌤️ กะกลาง</div>
-                    <div class="text-xl font-black text-blue-500">${shiftStats['กะกลาง'].toLocaleString()}</div>
-                </div>
-                <div class="px-4 py-2 bg-purple-900/20 rounded-xl border border-purple-900/50 text-center min-w-[100px] shadow-sm flex flex-col justify-center">
-                    <div class="text-[10px] text-purple-400 font-bold mb-0.5">🌙 กะดึก</div>
-                    <div class="text-xl font-black text-purple-500">${shiftStats['กะดึก'].toLocaleString()}</div>
-                </div>
-            `;
+            statsBox.innerHTML = getTpl('tpl-shift-stats', {
+                total: shiftStats.TOTAL.toLocaleString(),
+                approved: shiftStats.APPROVED.toLocaleString(),
+                reject: shiftStats.REJECT.toLocaleString(),
+                morning: shiftStats['กะเช้า'].toLocaleString(),
+                afternoon: shiftStats['กะกลาง'].toLocaleString(),
+                night: shiftStats['กะดึก'].toLocaleString()
+            });
         }
 
         if (mainBox) {
             if (filteredData.length === 0) {
-                mainBox.innerHTML = `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
+                mainBox.innerHTML = getTpl('tpl-no-data');
             } else {
                 let htmlArr = [];
                 
                 if (viewMode === 'history' || viewMode === 'monthly_history') {
-                    htmlArr.push(`
-                    <div class="flex justify-between items-center mb-4 bg-slate-800 p-2 pl-4 rounded-xl border border-slate-600 shadow-sm">
-                        <span class="text-sky-400 text-xs font-bold flex items-center gap-1"><span class="material-icons text-[14px]">history</span> โหมดดูข้อมูลย้อนหลัง</span>
-                        <button onclick="clearSummaryData()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow border border-slate-500">
-                            <span class="material-icons text-sm">arrow_back</span> กลับไปหน้าเลือกวันที่
-                        </button>
-                    </div>
-                    `);
+                    htmlArr.push(getTpl('tpl-history-header'));
                 }
 
                 let dateGroups = {};
@@ -611,43 +619,25 @@ window.renderSummaryDashboard = function() {
                         displayDate = `วันที่ ${parseInt(d)} ${monthNames[parseInt(m)-1]} ${parseInt(y)+543}`;
                     }
 
-                    htmlArr.push(`
-                    <div class="bg-slate-800 border border-slate-600 rounded-2xl mb-4 overflow-hidden shadow-lg transform-gpu transition-all">
-                        <div class="flex justify-between items-center p-4 bg-indigo-900/60 hover:bg-indigo-800 transition cursor-pointer border-b border-indigo-500/30" 
-                             onclick="this.nextElementSibling.classList.toggle('hidden'); const icon = this.querySelector('.toggle-icon'); icon.innerText = icon.innerText === 'expand_more' ? 'expand_less' : 'expand_more';">
-                            <div class="flex items-center gap-4 overflow-hidden pr-2">
-                                <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-xl border border-indigo-500/30 shadow-inner shrink-0">
-                                    <span class="material-icons">calendar_month</span>
-                                </div>
-                                <div class="flex flex-col min-w-0">
-                                    <span class="font-black text-white text-lg md:text-xl truncate tracking-wide">${displayDate}</span>
-                                    <span class="text-[11px] text-indigo-300 font-bold flex items-center gap-1"><span class="material-icons text-[12px]">group</span> พนักงาน ${Object.keys(dGroup.emps).length} คน</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-4 shrink-0 pl-2">
-                                <div class="text-right flex flex-col items-end hidden sm:flex">
-                                    <span class="font-black text-emerald-400 text-lg md:text-xl leading-none">${dGroup.totalCount.toLocaleString()} <span class="text-[10px] text-gray-500 font-normal">ยอดรวม</span></span>
-                                    <div class="flex gap-1 mt-1">
-                                        <span class="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">✅ ${dGroup.totalApproved}</span>
-                                        <span class="text-[9px] font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/30">❌ ${dGroup.totalReject}</span>
-                                    </div>
-                                </div>
-                                <div class="w-8 h-8 rounded-full bg-slate-900/50 flex items-center justify-center border border-slate-700">
-                                    <span class="material-icons text-gray-400 text-xl toggle-icon transition-transform">expand_more</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="${sortedDates.length === 1 ? '' : 'hidden'} p-4 bg-slate-900/30">
-                    `);
+                    // 🌟 ใช้ฟังก์ชันสร้างแถบเปิด/ปิด จาก SummaryHTML
+                    htmlArr.push(getTpl('tpl-date-group-start', {
+                        displayDate: displayDate,
+                        empCount: Object.keys(dGroup.emps).length,
+                        totalCount: dGroup.totalCount.toLocaleString(),
+                        totalApproved: dGroup.totalApproved,
+                        totalReject: dGroup.totalReject,
+                        hiddenClass: sortedDates.length === 1 ? '' : 'hidden'
+                    }));
 
                     let sortedEmps = Object.keys(dGroup.emps).sort((a, b) => dGroup.emps[b].totalCount - dGroup.emps[a].totalCount);
                     if (searchKeyword !== '') sortedEmps = sortedEmps.filter(name => name.toLowerCase().includes(searchKeyword));
 
                     if (sortedEmps.length === 0) {
-                        htmlArr.push(`<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${searchKeyword}" ในวันนี้</div>`);
+                        htmlArr.push(getTpl('tpl-emp-not-found', { keyword: searchKeyword }));
                     } else {
                         sortedEmps.forEach((name, index) => {
                             const data = dGroup.emps[name];
+                            
                             let shiftBadgeHtml = '';
                             if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-2 py-0.5 rounded shadow-sm">เช้า</span>';
                             else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-2 py-0.5 rounded shadow-sm">กลาง</span>';
@@ -665,131 +655,45 @@ window.renderSummaryDashboard = function() {
                                 else if (diffNum < 0) diffHtml = `<span class="text-red-400 font-bold bg-red-900/30 px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-red-800/50 text-[10px] shadow-sm"><span class="material-icons text-[10px]">trending_down</span> ${diffNum}</span>`;
                                 else diffHtml = `<span class="text-gray-400 bg-gray-800 px-2 py-0.5 rounded text-[10px] border border-gray-600 shadow-sm">คงที่</span>`;
 
-                                // 🚨 เอา class ที่เป็นตัวการทำให้หน่วงออกทั้งหมด (transform-gpu, will-change, transition ซับซ้อน)
-                                return `
-                                <div class="bg-[#0b1120] p-3 rounded-xl border border-slate-700/80 shadow-inner flex flex-col justify-between hover:border-sky-500/50 relative overflow-hidden group/card">
-                                    <div class="flex justify-between items-start mb-2 border-b border-slate-700/50 pb-2">
-                                        <span class="font-black text-white text-sm tracking-wider flex items-center gap-1.5"><span class="material-icons text-[16px] text-sky-400">language</span> ${w.website}</span>
-                                        ${diffHtml}
-                                    </div>
-                                    <div class="flex items-center justify-between mb-2 px-1">
-                                        <div class="text-center">
-                                            <div class="text-[9px] text-gray-500 font-bold mb-0.5 tracking-wide">เมื่อวาน</div>
-                                            <div class="font-black text-gray-400 text-sm leading-none">${w.yestCount || 0} <span class="text-[9px] font-normal text-gray-500">ยอด</span></div>
-                                        </div>
-                                        <div class="text-slate-600 material-icons text-[16px] group-hover/card:text-sky-500">arrow_forward</div>
-                                        <div class="text-center">
-                                            <div class="text-[9px] text-sky-400 font-bold mb-0.5 tracking-wide">วันนี้</div>
-                                            <div class="font-black text-sky-400 text-lg leading-none">${w.count} <span class="text-[9px] font-normal text-sky-700">ยอด</span></div>
-                                        </div>
-                                    </div>
-                                    <div class="flex justify-between gap-1 mb-2">
-                                        <div class="flex-1 bg-emerald-900/20 text-emerald-400 text-[9px] font-bold px-1.5 py-0.5 rounded border border-emerald-800/30 text-center">✅ สำเร็จ: ${w.approvedCount || 0}</div>
-                                        <div class="flex-1 bg-red-900/20 text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded border border-red-800/30 text-center">❌ ปฏิเสธ: ${w.rejectCount || 0}</div>
-                                    </div>
-                                    <div class="bg-emerald-900/20 px-2 py-1.5 rounded-lg border border-emerald-800/30 flex justify-between items-center mt-auto shadow-sm">
-                                        <span class="text-[9px] text-emerald-500 font-bold">รวมเป็นเงิน</span>
-                                        <span class="font-mono font-bold text-emerald-400 text-sm">฿${w.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-                                    </div>
-                                </div>`;
+                                return getTpl('tpl-web-subcard', {
+                                    website: w.website, diffHtml: diffHtml,
+                                    yestCount: w.yestCount || 0, count: w.count,
+                                    approvedCount: w.approvedCount || 0, rejectCount: w.rejectCount || 0,
+                                    totalAmount: w.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2})
+                                });
                             }).join('');
 
                             let quickWebBadges = data.webs.map(w => `<span class="bg-slate-900 border border-slate-600 px-1.5 py-0.5 rounded text-[10px] text-gray-300 whitespace-nowrap shadow-sm"><b class="text-sky-400">${w.website}:</b> ${w.count}</span>`).join('');
 
-                            // 🚨 สร้างแถบธรรมดา ไม่ต้องบังคับการ์ดจอวาดแล้ว
-                            htmlArr.push(`
-                            <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden shadow-sm hover:shadow-md">
-                                <div class="flex justify-between items-center p-3 bg-slate-800 hover:bg-slate-700 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                                    <div class="flex items-center gap-3 overflow-hidden pr-2">
-                                        <div class="w-8 h-8 rounded-full bg-slate-700 text-gray-400 flex items-center justify-center font-black text-xs border border-slate-600 shadow-inner shrink-0">${index + 1}</div>
-                                        <div class="flex flex-col min-w-0">
-                                            <div class="flex items-center gap-2 mb-1"><span class="font-black text-white text-sm md:text-base truncate">${name}${odBadge}</span>${shiftBadgeHtml}</div>
-                                            <div class="flex flex-wrap gap-1">${quickWebBadges}</div>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-3 shrink-0 pl-2">
-                                        <div class="text-right flex flex-col items-end">
-                                            <span class="font-black text-emerald-400 text-base md:text-lg leading-none">${data.totalCount} <span class="text-[10px] text-gray-500 font-normal">ยอด</span></span>
-                                        </div>
-                                        <span class="material-icons text-gray-500 text-sm">expand_more</span>
-                                    </div>
-                                </div>
-                                <div class="hidden p-3 bg-slate-900/80 border-t border-slate-700">
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">${webTags}</div>
-                                </div>
-                            </div>`);
+                            htmlArr.push(getTpl('tpl-emp-row', {
+                                index: index + 1, name: name, odBadge: odBadge, shiftBadge: shiftBadgeHtml,
+                                quickWebBadges: quickWebBadges, totalCount: data.totalCount, webTagsHtml: webTags
+                            }));
                         });
                     }
-                    htmlArr.push(`</div></div>`);
+                    htmlArr.push(getTpl('tpl-date-group-end'));
                 });
-                
+
                 if (viewMode === 'history' || viewMode === 'monthly_history') {
                     let datesHtml = '';
                     if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
-                        const sortedDates = window.availableSummaryDates.sort((a,b) => new Date(b) - new Date(a));
-                        datesHtml = `
-                        <div class="mt-8 w-full max-w-4xl animate-fade-in-up mx-auto">
-                            <div class="bg-[#151f32] p-5 md:p-8 rounded-3xl border border-slate-700 shadow-2xl relative overflow-hidden">
-                                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-700/80 pb-6">
-                                    <div class="flex items-center gap-4">
-                                        <div class="w-14 h-14 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30 shadow-inner shrink-0">
-                                            <span class="material-icons text-3xl">date_range</span>
-                                        </div>
-                                        <div class="text-left">
-                                            <h3 class="text-lg md:text-xl font-black text-white tracking-wide">เลือกวันที่ต้องการดูข้อมูล</h3>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-xl border border-slate-600 shadow-inner w-full md:w-auto">
-                                        <span class="material-icons text-gray-500 pl-2 text-[18px]">search</span>
-                                        <input type="date" id="searchAvailableDate" onchange="if(this.value){ toggleSummaryDate(this.value); this.value=''; }" class="bg-transparent text-white text-sm outline-none px-2 py-1.5 cursor-pointer font-mono w-full" title="ค้นหาวันที่อื่นๆ">
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3" id="availableDatesContainer">` + 
-                        sortedDates.map(d => {
+                        let btns = window.availableSummaryDates.map(d => {
                             const [y, m, day] = d.split('-');
-                            const isSelected = window.selectedSummaryDates.has(d);
-                            const cardClass = isSelected ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700';
-                            const textClass = isSelected ? 'text-white' : 'text-gray-300';
-                            const iconClass = isSelected ? 'text-white' : 'text-gray-500';
-
-                            return `
-                            <div class="relative group flex flex-col transition-all duration-300 rounded-xl border ${cardClass}">
-                                <button onclick="toggleSummaryDate('${d}')" class="flex-1 px-3 py-3.5 flex flex-col items-center justify-center gap-1.5 w-full outline-none">
-                                    <span class="material-icons ${iconClass} text-[22px] transition-colors">${isSelected ? 'check_circle' : 'radio_button_unchecked'}</span>
-                                    <span class="font-black ${textClass} text-sm tracking-wider">${day}/${m}/${y.substring(2)}</span>
-                                </button>
-                                <div class="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                    <button onclick="deleteSummaryDate('${d}')" class="bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg hover:bg-red-400 hover:scale-110 transition-transform border-2 border-[#151f32]" title="ลบข้อมูลของวันนี้ทิ้งถาวร">
-                                        <span class="material-icons text-[12px]">delete</span>
-                                    </button>
-                                </div>
-                            </div>`;
-                        }).join('') + `
-                                </div>
-                                <div class="mt-6 pt-5 border-t border-slate-700/80 flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#0b1120] -mx-8 -mb-8 px-8 py-5">
-                                    <div class="text-sm font-bold text-gray-400 bg-slate-900 px-4 py-2.5 rounded-xl border border-slate-700 shadow-inner flex items-center gap-2">
-                                        <span class="material-icons text-lg">shopping_cart</span>
-                                        เลือกไว้: <span class="text-sky-400 font-black text-xl w-6 text-center leading-none">${window.selectedSummaryDates.size}</span> วัน
-                                    </div>
-                                    <div class="flex gap-2 w-full sm:w-auto">
-                                        <button onclick="window.selectedSummaryDates.clear(); renderSummaryDashboard();" class="flex-1 sm:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-xl text-xs font-bold transition border border-slate-600">
-                                            ล้างการเลือก
-                                        </button>
-                                        <button onclick="fetchMultipleHistoricalSummary()" class="flex-1 sm:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-black shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 transform active:scale-95 disabled:opacity-50 disabled:grayscale" ${window.selectedSummaryDates.size === 0 ? 'disabled' : ''}>
-                                            <span class="material-icons text-[18px]">visibility</span> ดูยอดสรุป
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>`;
+                            return getTpl('tpl-date-button', { 
+                                d: d, day: day, m: m, year: y, 
+                                cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
+                                iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
+                                textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
+                                checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
+                            });
+                        }).join('');
+                        datesHtml = getTpl('tpl-date-selector-container', { 
+                            datesHtml: btns, 
+                            selectedCount: window.selectedSummaryDates.size,
+                            disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
+                        });
                     }
-                    htmlArr.push(`
-                    <div class="w-full mt-8 border-t border-slate-700/50 pt-8 pb-4">
-                        <div class="text-center mb-2">
-                            <span class="text-lg font-black text-white tracking-wide">ดูประวัติย้อนหลังวันอื่นๆ</span>
-                        </div>
-                        ${datesHtml}
-                    </div>`);
+                    htmlArr.push(getTpl('tpl-history-footer', { datesHtml: datesHtml }));
                 }
 
                 mainBox.innerHTML = htmlArr.join('');
@@ -831,37 +735,17 @@ window.renderSummaryDashboard = function() {
                 const w = webAgg[web];
                 const defaultImg = `https://ui-avatars.com/api/?name=${web}&background=random&color=fff&size=256`;
                 const imgUrl = safeWebLogos[web] ? safeWebLogos[web] : defaultImg;
-                
                 const isActive = (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter === web);
-                const cardStyle = isActive ? 'ring-2 ring-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] z-20 scale-[1.02]' : 'hover:border-sky-500 hover:shadow-lg opacity-95 hover:opacity-100';
-                const filterBadge = isActive ? '<div class="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-30 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> กำลังดู</div>' : '';
-
-                return `
-                <div class="relative group transition-transform duration-300 rounded-2xl border border-slate-700 shadow-sm ${cardStyle} bg-[#151f32] overflow-hidden flex flex-col min-h-[180px]">
-                    <div onclick="toggleSummaryWebFilter('${web}')" class="cursor-pointer flex flex-col flex-1 relative z-10">
-                        <div class="relative w-full h-28 sm:h-32 bg-[#0b1120] flex items-center justify-center shrink-0 border-b border-slate-800">
-                            <div class="absolute inset-0 bg-cover bg-center opacity-20 group-hover:scale-105 transition-transform duration-500" style="background-image: url('${imgUrl}')"></div>
-                            <div class="absolute inset-0 bg-gradient-to-t from-[#151f32] to-transparent z-0"></div>
-                            <div class="bg-white rounded-2xl p-1 shadow-lg z-10 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                <img src="${imgUrl}" loading="lazy" class="max-w-full max-h-full object-contain rounded-xl">
-                            </div>
-                            <div class="absolute top-0 right-0 bg-indigo-600 text-white text-[9px] sm:text-[10px] px-3 py-1 rounded-bl-xl z-20 font-black shadow-md tracking-wider">${w.sys}</div>
-                            ${filterBadge}
-                        </div>
-                        <div class="p-4 flex flex-col justify-between flex-1 bg-[#151f32]">
-                            <div class="flex justify-between items-end mb-3">
-                                <h4 class="font-black text-white text-lg sm:text-xl truncate pr-2 tracking-wide">${web}</h4>
-                                <div class="text-right flex flex-col items-end">
-                                    <span class="text-sm sm:text-base font-black ${w.count > 0 ? 'text-sky-400' : 'text-gray-500'} leading-none">${w.count.toLocaleString()}</span>
-                                    <span class="text-[9px] sm:text-[10px] font-bold text-gray-600 uppercase tracking-widest mt-1">รายการ</span>
-                                </div>
-                            </div>
-                            <div class="text-sm sm:text-base font-black font-mono ${w.amount > 0 ? 'text-emerald-400 bg-[#0b1120] border-emerald-900/50' : 'text-gray-500 bg-slate-800 border-slate-700'} px-3 py-2 rounded-xl w-full border shadow-inner text-center truncate tracking-wider">
-                                ฿${w.amount.toLocaleString('en-US', {minimumFractionDigits: 2})}
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
+                
+                return getTpl('tpl-web-card', {
+                    cardStyle: isActive ? 'ring-2 ring-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] z-20 scale-[1.02]' : 'hover:border-sky-500 hover:shadow-lg opacity-95 hover:opacity-100',
+                    web: web, imgUrl: imgUrl, sys: w.sys,
+                    filterBadge: isActive ? '<div class="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-30 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> กำลังดู</div>' : '',
+                    countColor: w.count > 0 ? 'text-sky-400' : 'text-gray-500',
+                    count: w.count.toLocaleString(),
+                    amountColor: w.amount > 0 ? 'text-emerald-400 bg-[#0b1120] border-emerald-900/50' : 'text-gray-500 bg-slate-800 border-slate-700',
+                    amount: w.amount.toLocaleString('en-US', {minimumFractionDigits: 2})
+                });
             }).join('');
         }
     }
@@ -1008,29 +892,11 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
         else if (i === 2) medalClass = 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-50 scale-105 shadow-md'; 
         else medalClass = 'bg-slate-700 text-slate-400 border border-slate-600'; 
 
-        return `
-        <div class="leaderboard-item flex flex-col p-3 rounded-xl hover:bg-slate-700 transition border-b border-slate-700/50 last:border-0" data-name="${name}">
-            <div class="flex items-center justify-between mb-1.5">
-                <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 transition-transform ${medalClass}">${medalText}</div>
-                    <span class="font-bold text-white text-base truncate">${name}</span>
-                </div>
-                <div class="text-right flex flex-col items-end">
-                    <span class="font-black text-sky-400 bg-sky-900/30 px-2 py-0.5 rounded-md text-lg leading-none border border-sky-800/50" title="ยอดรวมทั้งหมด">
-                        ${d.totalCount} <span class="text-[10px] text-sky-500/80 font-normal">รวม</span>
-                    </span>
-                    <div class="flex gap-1.5 mt-1.5 text-xs font-bold">
-                        <span class="text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shadow-sm" title="สำเร็จ">✅ ${d.totalApproved}</span>
-                        <span class="text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 shadow-sm" title="ปฏิเสธ">❌ ${d.totalReject}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="flex justify-end w-full mt-1">
-                <span class="font-mono font-bold text-emerald-400 text-[11px] bg-slate-900 px-2 py-1 rounded shadow-inner border border-slate-700">
-                    ฿${d.totalMoney.toLocaleString('en-US', {minimumFractionDigits: 2})}
-                </span>
-            </div>
-        </div>`;
+        return getTpl('tpl-leaderboard-item', {
+            name: name, medalClass: medalClass, medalText: medalText,
+            totalCount: d.totalCount, totalApproved: d.totalApproved, totalReject: d.totalReject,
+            totalMoney: d.totalMoney.toLocaleString('en-US', {minimumFractionDigits: 2})
+        });
     }).join('');
 
     if(typeof window.filterSummaryLeaderboard === 'function') window.filterSummaryLeaderboard();
@@ -1442,6 +1308,12 @@ window.fetchMultipleHistoricalSummary = async function() {
     } catch (e) { Swal.fire('Error', e.message, 'error'); }
 };
 
+const _originalClearSummaryDataForMulti = window.clearSummaryData;
+window.clearSummaryData = function() {
+    window.selectedSummaryDates.clear(); 
+    _originalClearSummaryDataForMulti();
+};
+
 window.deleteSummaryDate = function(dateStr) {
     const [y, m, day] = dateStr.split('-');
     const displayDate = `${day}/${m}/${y}`;
@@ -1461,7 +1333,7 @@ window.deleteSummaryDate = function(dateStr) {
                 window.pendingFileNames = []; 
                 window.uploadedFileDates.clear(); 
                 
-                if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
+                if (typeof fetchAvailableDates === 'function') await fetchAvailableDates(true);
                 
                 if (pendingSummaryData.length === 0) {
                     renderSummaryDashboard();
