@@ -1992,19 +1992,23 @@ window.saveMenuPerms = async function() {
 };
 
 window.hasUserPerm = function(menuId) {
-    if (!currentUser) return false;
-    if (currentUser.role === 'admin' || currentUser.role === 'manager') return true;
+    if (!window.currentUser) return false;
+    
+    // 🌟 ดักจับตัวพิมพ์เล็ก-ใหญ่ ป้องกันการเช็คสิทธิ์แอดมินพลาด
+    const uRoleLower = (window.currentUser.role || '').toLowerCase().trim();
+    if (uRoleLower === 'admin' || uRoleLower === 'manager') return true;
     
     let perms = {};
     try { perms = typeof SETTINGS['dept_menu_rules'] === 'string' ? JSON.parse(SETTINGS['dept_menu_rules']) : (SETTINGS['dept_menu_rules'] || {}); } catch(e) {}
     
-    const uDept = currentUser.department || 'AM';
-    const uRole = currentUser.role === 'trainer' ? 'TRAINER' : 'STAFF';
+    const uDept = window.currentUser.department || 'AM';
+    const uRole = uRoleLower === 'trainer' ? 'TRAINER' : 'STAFF';
     const key = `${uDept}_${uRole}`;
     
     const userPerms = perms[key] || [];
     return userPerms.includes(menuId);
 };
+
 // ฟังก์ชันสำหรับปุ่มกดเพิ่มทีมผ่านหน้าเว็บ
 window.addTeamManual = function(dept) {
     Swal.fire({
@@ -2036,77 +2040,69 @@ window.addTeamManual = function(dept) {
 };
 
 // =========================================================
-// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) ตามสิทธิ์ (ฉบับแก้บั๊ก)
+// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) ตามสิทธิ์ (V.3 ดักทาง 100%)
 // =========================================================
-window.applySidebarPermissions = function() {
-    if (!window.currentUser) return; // ไม่ทำงานถ้ายังไม่ได้เข้าสู่ระบบ
+window.applySidebarPermissions = async function() {
+    // 1. เช็คข้อมูลพนักงาน (ดักกรณีพนักงานกดรีเฟรชหน้าจอ F5)
+    let user = window.currentUser;
+    if (!user) {
+        const savedUser = sessionStorage.getItem('user_platinum_plus');
+        if (savedUser) { user = JSON.parse(savedUser); window.currentUser = user; }
+        else return; // ถ้ายังไม่ได้ล็อกอิน ให้หยุดทำงานไปเลย
+    }
 
-    // ดึงปุ่มเมนูทั้งหมดที่อยู่ในแถบด้านซ้ายมือ (อ้างอิงจากคลาส nm-menu-title)
+    // 2. ดึงตั้งค่าสิทธิ์จาก Database (ดักกรณีสิทธิ์ยังโหลดไม่เสร็จ)
+    if (!SETTINGS['dept_menu_rules']) {
+        try {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single();
+            if (data && data.value) SETTINGS['dept_menu_rules'] = data.value;
+        } catch(e) { console.error('ดึงสิทธิ์เมนูไม่สำเร็จ'); }
+    }
+
     const allMenuBtns = document.querySelectorAll('.nm-menu-title');
 
-    // 1. วนลูปอ่านรายการเมนูทั้งหมดจาก PERM_GROUPS
+    // 3. วนลูปตรวจสอบและซ่อนเมนูย่อยทีละอัน
     PERM_GROUPS.forEach(group => {
         group.items.forEach(item => {
-            // ข้ามเมนูย่อยไปก่อน
-            if (item.isSub) return; 
-
-            // ตรวจสอบว่าคนนี้มีสิทธิ์มองเห็นหน้าเมนูนี้ไหม?
+            if (item.isSub) return; // ข้ามเมนูย่อยไปก่อน
+            
             const canSee = window.hasUserPerm(item.id);
-
-            // ค้นหาปุ่มที่ตรงกับเมนูนี้ โดยเช็คจาก 속性 onclick ว่ามีคำว่า showPage('ชื่อเมนู') ไหม
             allMenuBtns.forEach(btn => {
                 const onClickAttr = btn.getAttribute('onclick') || '';
+                // ค้นหาปุ่มที่ตรงกับหน้าเมนู
                 if (onClickAttr.includes(`showPage('${item.id}')`) || onClickAttr.includes(`showPage("${item.id}")`)) {
-                    if (canSee) {
-                        btn.classList.remove('hidden', 'no-perm-hidden');
-                        btn.style.display = ''; 
-                    } else {
-                        btn.classList.add('hidden', 'no-perm-hidden');
-                        btn.style.display = 'none'; 
-                    }
+                    btn.style.display = canSee ? '' : 'none'; // ซ่อน/โชว์
                 }
             });
         });
     });
 
-    // 🌟 ดักจับพิเศษหมวด DISCORD (เพราะมันไม่ได้ใช้ showPage ตรงๆ แต่ใช้ toggleSubmenu)
+    // 4. ดักหมวด DISCORD (ซ่อนทั้งหมวดถ้าไม่มีสิทธิ์ย่อยเลย)
     const discordGroup = PERM_GROUPS.find(g => g.id === 'group_discord');
     if (discordGroup) {
         const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
-        
-        // ค้นหาปุ่มหมวด DISCORD
         allMenuBtns.forEach(btn => {
-            const onClickAttr = btn.getAttribute('onclick') || '';
-            if (onClickAttr.includes("toggleSubMenu('menu-discord'")) {
-                if (hasAnyDiscordPerm || currentUser.role === 'admin' || currentUser.role === 'manager') {
-                    btn.classList.remove('hidden');
-                    btn.style.display = '';
-                } else {
-                    btn.classList.add('hidden');
-                    btn.style.display = 'none';
-                    // ซ่อนเมนูย่อยข้างในมันด้วย
-                    document.getElementById('menu-discord')?.classList.add('hidden');
-                }
+            if ((btn.getAttribute('onclick') || '').includes("toggleSubMenu('menu-discord'")) {
+                const canSeeDs = hasAnyDiscordPerm || ['admin', 'manager'].includes(user.role);
+                btn.style.display = canSeeDs ? '' : 'none';
+                if (!canSeeDs) document.getElementById('menu-discord')?.classList.add('hidden');
             }
         });
     }
 
-    // 🌟 ดักจับพิเศษหมวด เครื่องมือผู้จัดการ (Admin)
+    // 5. ดักหมวด เครื่องมือผู้จัดการ (อนุญาตเฉพาะ Admin / Manager)
     allMenuBtns.forEach(btn => {
-        const onClickAttr = btn.getAttribute('onclick') || '';
-        if (onClickAttr.includes("toggleSubMenu('menu-admin'")) {
-            // อนุญาตให้แค่ Admin และ Manager เห็นเท่านั้น
-            if (currentUser.role === 'admin' || currentUser.role === 'manager') {
-                btn.classList.remove('hidden');
-                btn.style.display = '';
-            } else {
-                btn.classList.add('hidden');
-                btn.style.display = 'none';
-                document.getElementById('menu-admin')?.classList.add('hidden');
-            }
+        if ((btn.getAttribute('onclick') || '').includes("toggleSubMenu('menu-admin'")) {
+            const canSeeAdmin = ['admin', 'manager'].includes(user.role);
+            btn.style.display = canSeeAdmin ? '' : 'none';
+            if (!canSeeAdmin) document.getElementById('menu-admin')?.classList.add('hidden');
         }
     });
 };
+
+// 🌟 ท่าไม้ตาย: สั่งให้ทำงานอัตโนมัติ 2 จังหวะ (ตอนโหลดหน้าเว็บเสร็จ และเผื่อเน็ตช้า)
+setTimeout(applySidebarPermissions, 500);
+setTimeout(applySidebarPermissions, 2000);
 
 // =========================================================
 // 🟢 ระบบเพิ่มรอบเวลาเอง (ดึงข้อมูลเก่า + ค่าเริ่มต้น)
