@@ -88,17 +88,22 @@
                         <h3 class="font-black text-lg text-amber-500 flex items-center gap-2">
                             <span class="material-icons">emoji_events</span> จัดอันดับ
                         </h3>
+                        
                         <div class="flex items-center bg-slate-100 dark:bg-slate-900 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 shadow-inner">
-                            <select id="leaderboardMode" onchange="fetchLeaderboardData()" class="bg-transparent text-slate-800 dark:text-white text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-300 dark:border-slate-600">
+                            <select id="leaderboardMode" onchange="fetchLeaderboardData()" class="bg-transparent text-slate-800 dark:text-white text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-300 dark:border-slate-600 z-10">
                                 <option value="monthly" class="bg-white dark:bg-slate-800 text-slate-800 dark:text-white">รายเดือน</option>
                                 <option value="alltime" class="bg-white dark:bg-slate-800 text-slate-800 dark:text-white">ทั้งหมด</option>
                             </select>
-                            <input type="month" id="leaderboardMonth" onchange="fetchLeaderboardData()" class="bg-transparent text-amber-600 dark:text-amber-400 text-[10px] font-bold outline-none cursor-pointer pl-2 w-[100px]">
+                            <div id="leaderboardMonthWrapper" class="relative w-[80px] h-full flex items-center justify-center pl-2">
+                                <span id="leaderboardMonthDisplay" class="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 pointer-events-none truncate whitespace-nowrap"></span>
+                                <input type="month" id="leaderboardMonth" onchange="updateLeaderboardMonthDisplay(); fetchLeaderboardData()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+                            </div>
                         </div>
+                        
                     </div>
                     
                     <div class="relative mb-3 shrink-0">
-                        <span class="material-icons absolute left-3 top-2 text-gray-400 text-[16px]">search</span>
+                        <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[16px]">search</span>
                         <input type="text" id="leaderboardSearch" onkeyup="filterSummaryLeaderboard()" placeholder="ค้นหาชื่อ..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-amber-500 shadow-inner">
                     </div>
 
@@ -135,7 +140,7 @@
                             </div>
 
                             <div class="relative flex-1 sm:flex-none sm:w-[180px]">
-                                <span class="material-icons absolute left-3 top-2 text-gray-400 text-[16px]">search</span>
+                                <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[16px]">search</span>
                                 <input type="text" id="summarySearch" oninput="debounceRenderSummary()" placeholder="ค้นหาชื่อพนักงาน..." class="w-full pl-9 pr-3 py-2 bg-[#151f32] border border-slate-600 rounded-lg text-xs font-bold text-white outline-none focus:border-sky-500 shadow-inner transition-colors">
                             </div>
 
@@ -371,7 +376,7 @@
         </div>
     </template>
 
-   <template id="tpl-web-card">
+    <template id="tpl-web-card">
         <div class="relative group transition-transform duration-300 rounded-2xl border border-slate-700 shadow-sm {{cardStyle}} bg-[#151f32] overflow-hidden flex flex-col min-h-[180px]">
             <div onclick="toggleSummaryWebFilter('{{web}}')" class="cursor-pointer flex flex-col flex-1 relative z-10">
                 <div class="relative w-full h-28 sm:h-32 bg-[#0b1120] flex items-center justify-center shrink-0 border-b border-slate-800">
