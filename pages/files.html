@@ -82,3 +82,24 @@
         </form>
     </div>
 </div>
+
+<div id="filesTemplates" style="display: none;">
+    <template id="tpl-file-card">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition-all group relative flex flex-col h-full transform hover:-translate-y-1">
+            {{adminBtns}}
+            <div class="flex items-start gap-4 mb-4">
+                {{imageOrIconHtml}}
+                <div class="flex-1 min-w-0 pr-6 pt-1">
+                    <h4 class="font-black text-slate-800 dark:text-white text-base truncate leading-tight" title="{{title}}">{{title}}</h4>
+                    <p class="text-[11px] font-bold text-gray-500 mt-1 line-clamp-2 leading-snug">{{desc}}</p>
+                </div>
+            </div>
+            
+            <div class="mt-auto pt-2">
+                <button onclick="forceDownloadFile('{{id}}')" class="w-full bg-slate-100 dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition group/btn">
+                    <span class="material-icons text-[18px] group-hover/btn:translate-y-0.5 transition-transform">download</span> ดาวน์โหลด
+                </button>
+            </div>
+        </div>
+    </template>
+</div>
