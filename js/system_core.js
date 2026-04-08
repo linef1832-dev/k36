@@ -296,9 +296,14 @@ async function fetchData() {
 }
 
 function renderTableRows(data) {
-    const filterVal = document.getElementById('periodFilter').value;
-    const searchName = document.getElementById('tableSearch').value.toLowerCase();
-    const deptFilterVal = document.getElementById('tableDeptFilter') ? document.getElementById('tableDeptFilter').value : 'all';
+    const periodEl = document.getElementById('periodFilter');
+const filterVal = periodEl ? periodEl.value : 'all';
+
+const searchEl = document.getElementById('tableSearch');
+const searchName = searchEl ? searchEl.value.toLowerCase() : '';
+
+const deptFilterEl = document.getElementById('tableDeptFilter');
+const deptFilterVal = deptFilterEl ? deptFilterEl.value : 'all';
 
     const box = document.getElementById('dataTableBody'); box.innerHTML = '';
     let filteredData = data;
