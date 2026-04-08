@@ -371,12 +371,10 @@
         </div>
     </template>
 
-    <template id="tpl-web-card">
+   <template id="tpl-web-card">
         <div class="relative group transition-transform duration-300 rounded-2xl border border-slate-700 shadow-sm {{cardStyle}} bg-[#151f32] overflow-hidden flex flex-col min-h-[180px]">
             <div onclick="toggleSummaryWebFilter('{{web}}')" class="cursor-pointer flex flex-col flex-1 relative z-10">
                 <div class="relative w-full h-28 sm:h-32 bg-[#0b1120] flex items-center justify-center shrink-0 border-b border-slate-800">
-                    <div class="absolute inset-0 bg-cover bg-center opacity-20 group-hover:scale-105 transition-transform duration-500 transform-gpu backface-hidden" style="background-image: url('{{imgUrl}}')"></div>
-                    <div class="absolute inset-0 bg-gradient-to-t from-[#151f32] to-transparent z-0 pointer-events-none"></div>
                     <div class="bg-white rounded-2xl p-1 shadow-lg z-10 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                         <img src="{{imgUrl}}" loading="lazy" class="max-w-full max-h-full object-contain rounded-xl">
                     </div>
