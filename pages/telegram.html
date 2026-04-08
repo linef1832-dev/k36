@@ -22,7 +22,48 @@
         </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
         <div id="teleGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-7xl mx-auto pb-10"></div>
+    </div>
+</div>
+
+<div id="teleModal" class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center p-4 fade-in backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
+        <div class="bg-gradient-to-r from-sky-600 to-blue-600 p-4 flex justify-between items-center text-white">
+            <h3 id="teleModalTitle" class="font-bold text-lg flex items-center gap-2"><span class="material-icons">add_link</span> เพิ่มลิงก์ใหม่</h3>
+            <button type="button" onclick="closeTeleModal()" class="text-white/80 hover:text-white p-1 rounded-full bg-white/10 hover:bg-white/20 transition"><span class="material-icons text-sm block">close</span></button>
+        </div>
+        <form onsubmit="saveTeleLink(event)" class="p-6 space-y-4 text-left">
+            <input type="hidden" id="teleId">
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ชื่อกลุ่ม / คำอธิบาย</label>
+                <input type="text" id="teleName" required placeholder="เช่น กลุ่มหลัก, กลุ่มแจ้งโอน..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm shadow-inner transition">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ลิงก์กลุ่ม (URL)</label>
+                <input type="text" id="teleUrl" required placeholder="https://t.me/..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none font-mono text-sm shadow-inner transition">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หมวดหมู่เว็บ</label>
+                    <select id="teleCategory" required class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm cursor-pointer shadow-inner transition">
+                        </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">สีไอคอน</label>
+                    <select id="teleColor" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm cursor-pointer shadow-inner transition">
+                        <option value="blue">🔵 ฟ้า (Blue)</option>
+                        <option value="green">🟢 เขียว (Green)</option>
+                        <option value="red">🔴 แดง (Red)</option>
+                        <option value="orange">🟠 ส้ม (Orange)</option>
+                        <option value="purple">🟣 ม่วง (Purple)</option>
+                        <option value="gray">⚪ เทา (Gray)</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" id="teleSubmitBtn" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-black py-3.5 rounded-xl shadow-lg mt-4 transition transform active:scale-95 border border-sky-400 flex items-center justify-center gap-2 text-base">
+                บันทึกข้อมูล
+            </button>
+        </form>
     </div>
 </div>
