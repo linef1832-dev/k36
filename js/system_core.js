@@ -2466,3 +2466,33 @@ window.undoClearSchedules = async function() {
         }
     }
 };
+// ==========================================
+// 🔄 ฟังก์ชันสลับหน้าแท็บ (Tab) ในระบบผู้จัดการ
+// ==========================================
+window.switchAdminTab = function(tabId) {
+    // 1. ซ่อนเนื้อหาของทุกแท็บก่อน
+    const allContents = document.querySelectorAll('.admin-tab-content');
+    allContents.forEach(content => {
+        content.classList.add('hidden');
+    });
+
+    // 2. ลบแถบสีเหลือง (Active) ออกจากทุกปุ่ม
+    const allButtons = document.querySelectorAll('.admin-tab-btn');
+    allButtons.forEach(btn => {
+        btn.classList.remove('bg-amber-500', 'text-slate-900', 'shadow-md');
+        btn.classList.add('text-gray-400', 'hover:text-white');
+    });
+
+    // 3. โชว์เนื้อหาของแท็บที่กด
+    const selectedContent = document.getElementById(`content-${tabId}`);
+    if (selectedContent) {
+        selectedContent.classList.remove('hidden');
+    }
+
+    // 4. ใส่แถบสีเหลือง (Active) ให้ปุ่มที่กด
+    const selectedButton = document.getElementById(`btn-${tabId}`);
+    if (selectedButton) {
+        selectedButton.classList.remove('text-gray-400', 'hover:text-white');
+        selectedButton.classList.add('bg-amber-500', 'text-slate-900', 'shadow-md');
+    }
+};
