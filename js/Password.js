@@ -56,45 +56,23 @@ window.fetchPasswords = async function() {
         return;
     }
 
-    // วาดการ์ดแสดงรหัสผ่าน
+    // วาดการ์ดแสดงรหัสผ่านโดยใช้ Template
     grid.innerHTML = data.map(item => {
         const ownerName = item.users ? item.users.username : 'Unknown';
         const ownerBadge = isAdmin ? `<div class="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1"><span class="material-icons text-[10px]">person</span> ${ownerName}</div>` : '';
         const delBtn = (isAdmin || item.user_id === currentUser.id) ? `<button onclick="deletePassword(${item.id})" class="text-red-400 hover:text-red-600 text-xs font-bold flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"><span class="material-icons text-sm">delete</span> ลบ</button>` : '';
+        const urlHtml = item.site_url ? `<a href="${item.site_url}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block">${item.site_url}</a>` : '';
 
-        return `
-        <div class="pwd-card bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 relative group hover:shadow-md transition">
-            ${ownerBadge}
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0"><span class="material-icons text-xl">language</span></div>
-                <div class="overflow-hidden">
-                    <h4 class="font-bold text-slate-800 dark:text-white truncate text-base">${item.site_name}</h4>
-                    ${item.site_url ? `<a href="${item.site_url}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block">${item.site_url}</a>` : ''}
-                </div>
-            </div>
-            
-            <div class="space-y-2 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                <div class="flex justify-between items-center text-xs">
-                    <span class="text-gray-500">User:</span>
-                    <div class="flex items-center gap-1">
-                        <span class="font-mono font-bold text-slate-700 dark:text-gray-300 select-all" id="user_${item.id}">${item.login_user || '-'}</span>
-                        <button onclick="copyText('${item.login_user}')" class="text-gray-400 hover:text-blue-500"><span class="material-icons text-xs">content_copy</span></button>
-                    </div>
-                </div>
-                <div class="flex justify-between items-center text-xs">
-                    <span class="text-gray-500">Pass:</span>
-                    <div class="flex items-center gap-1">
-                        <span class="font-mono font-bold text-red-600 dark:text-red-400 blur-sm hover:blur-none transition cursor-pointer select-all" title="คลิกเพื่อดู" onclick="this.classList.toggle('blur-sm')">${item.login_pass}</span>
-                        <button onclick="copyText('${item.login_pass}')" class="text-gray-400 hover:text-blue-500"><span class="material-icons text-xs">content_copy</span></button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-3 flex justify-end gap-2 border-t pt-2 dark:border-slate-700">
-                ${delBtn}
-            </div>
-        </div>
-        `;
+        // ส่งข้อมูลเข้า Template
+        return window.renderTemplate('tpl-pwd-card', {
+            ownerBadge: ownerBadge,
+            site_name: item.site_name,
+            urlHtml: urlHtml,
+            id: item.id,
+            login_user: item.login_user || '-',
+            login_pass: item.login_pass,
+            delBtn: delBtn
+        });
     }).join('');
 }
 
