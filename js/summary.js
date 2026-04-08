@@ -1,5 +1,5 @@
 // ====================================================
-// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้บั๊กยอดเมื่อวาน 100%)
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ เพิ่มป้ายแสดงส่วนต่างยอดรวม)
 // ====================================================
 
 let pendingSummaryData = []; 
@@ -12,22 +12,29 @@ window.selectedSummaryDates = window.selectedSummaryDates || new Set();
 let summaryRenderTimer;
 let summarySubscription = null;
 
-// 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด (แก้ปัญหา Timezone ข้ามวัน)
-window.getYesterdayDateStr = function(dateStr) {
+// 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด
+function getYesterdayDateStr(dateStr) {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
     if (parts.length !== 3) return '';
     const dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
     dt.setDate(dt.getDate() - 1);
     return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-};
+}
 
-// 🌟 ตัวช่วยทำความสะอาดชื่อเพื่อเทียบยอด (ลบช่องว่าง/แปลงพิมพ์เล็ก)
-window.cleanKeyStr = function(empName, website) {
+// 🌟 ฟังก์ชันทำความสะอาดคีย์เพื่อเทียบยอดแบบไม่แคร์พิมพ์เล็ก/ใหญ่
+function cleanKey(empName, website) {
     let n = (empName || '').toLowerCase().trim();
     let w = (website || '').toLowerCase().trim();
     return `${n}_${w}`;
-};
+}
+
+// 🌟 ตัวช่วยสร้างป้ายส่วนต่างขึ้น-ลงแบบเร็วๆ
+function buildDiffBadge(diffValue, extraClasses = '') {
+    if (diffValue > 0) return `<span class="text-emerald-400 font-bold bg-emerald-900/30 px-1.5 py-0.5 rounded flex items-center border border-emerald-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_up</span>+${diffValue}</span>`;
+    if (diffValue < 0) return `<span class="text-red-400 font-bold bg-red-900/30 px-1.5 py-0.5 rounded flex items-center border border-red-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_down</span>${diffValue}</span>`;
+    return `<span class="text-gray-400 bg-gray-800 px-2 py-0.5 rounded text-[10px] border border-gray-600 shadow-sm ${extraClasses}">คงที่</span>`;
+}
 
 // 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล
 function getTpl(templateId, data = {}) {
@@ -449,7 +456,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
                 // 🌟 ระบบหา "วันที่เมื่อวาน" แบบแม่นยำ เพื่อใช้หาตัวเปรียบเทียบ
                 const uniqueDates = [...new Set(extractedRows.map(r => r.date))];
-                const yesterdayDates = uniqueDates.map(d => window.getYesterdayDateStr(d));
+                const yesterdayDates = uniqueDates.map(d => getYesterdayDateStr(d));
 
                 let yestMap = {};
                 if (typeof appDB !== 'undefined' && yesterdayDates.length > 0) {
@@ -457,8 +464,8 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         .select('date, employee_name, website, count')
                         .in('date', yesterdayDates);
                     if (yestData) {
-                        // 🌟 บังคับพิมพ์เล็กทั้งหมด เพื่อให้การเปรียบเทียบ Case-Insensitive ทำงานได้ถูกต้อง 100%
-                        yestData.forEach(r => yestMap[`${r.date}_${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
+                        // 🌟 บังคับพิมพ์เล็กทั้งหมด
+                        yestData.forEach(r => yestMap[`${r.date}_${cleanKey(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
                     }
                 }
 
@@ -469,8 +476,8 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         p.date === row.date
                     );
                     
-                    const rowYestDate = window.getYesterdayDateStr(row.date);
-                    const yestCount = yestMap[`${rowYestDate}_${window.cleanKeyStr(row.empName, row.website)}`] || 0;
+                    const rowYestDate = getYesterdayDateStr(row.date);
+                    const yestCount = yestMap[`${rowYestDate}_${cleanKey(row.empName, row.website)}`] || 0;
 
                     let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
                     if (customSystems[row.website]) { row.system = customSystems[row.website]; }
@@ -481,7 +488,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         if (row.status === 'Reject') pendingSummaryData[existingIndex].rejectCount = (pendingSummaryData[existingIndex].rejectCount || 0) + 1;
                         else pendingSummaryData[existingIndex].approvedCount = (pendingSummaryData[existingIndex].approvedCount || 0) + 1;
                         
-                        // 🌟 อัปเดตยอดเมื่อวาน
+                        // อัปเดตยอดเมื่อวาน
                         pendingSummaryData[existingIndex].yestCount = yestCount; 
                         pendingSummaryData[existingIndex].diffFromYesterday = pendingSummaryData[existingIndex].count - yestCount;
                     } else {
@@ -576,7 +583,7 @@ window.renderSummaryDashboard = function() {
         if(statsBox) statsBox.innerHTML = '<div class="text-center text-gray-400 text-sm py-2 w-full">ยังไม่มีข้อมูลยอดรวม</div>';
         
     } else {
-        let shiftStats = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0, 'UNKNOWN': 0, 'TOTAL': 0, 'APPROVED': 0, 'REJECT': 0 };
+        let shiftStats = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0, 'UNKNOWN': 0, 'TOTAL': 0, 'TOTAL_YEST': 0, 'APPROVED': 0, 'REJECT': 0 };
         
         let filteredData = pendingSummaryData;
         if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
@@ -587,15 +594,22 @@ window.renderSummaryDashboard = function() {
 
         filteredData.forEach(item => {
             shiftStats.TOTAL += item.count;
+            shiftStats.TOTAL_YEST += item.yestCount || 0; 
             shiftStats.APPROVED += (item.approvedCount || 0);
             shiftStats.REJECT += (item.rejectCount || 0);
             if(shiftStats[item.shift] !== undefined) shiftStats[item.shift] += item.count;
             else shiftStats['UNKNOWN'] += item.count;
         });
 
+        // สร้างป้ายส่วนต่างของยอดรวมทั้งหมด
+        let grandDiff = shiftStats.TOTAL - shiftStats.TOTAL_YEST;
+        let grandDiffHtml = '';
+        if (grandDiff !== 0) grandDiffHtml = buildDiffBadge(grandDiff, 'ml-2 bg-slate-900 border-none scale-110');
+
         if (statsBox) {
             statsBox.innerHTML = getTpl('tpl-shift-stats', {
                 total: shiftStats.TOTAL.toLocaleString(),
+                totalDiffHtml: grandDiffHtml,
                 approved: shiftStats.APPROVED.toLocaleString(),
                 reject: shiftStats.REJECT.toLocaleString(),
                 morning: shiftStats['กะเช้า'].toLocaleString(),
@@ -618,18 +632,20 @@ window.renderSummaryDashboard = function() {
                 filteredData.forEach(item => {
                     let itemDate = item.date || document.getElementById('summaryDateFilter').value || 'ไม่ระบุวันที่';
                     if(!dateGroups[itemDate]) {
-                        dateGroups[itemDate] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, emps: {} };
+                        dateGroups[itemDate] = { totalCount: 0, totalYestCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, emps: {} };
                     }
                     let dGroup = dateGroups[itemDate];
                     dGroup.totalCount += item.count;
+                    dGroup.totalYestCount += item.yestCount || 0; 
                     dGroup.totalMoney += item.totalAmount;
                     dGroup.totalApproved += (item.approvedCount || 0);
                     dGroup.totalReject += (item.rejectCount || 0);
 
                     if(!dGroup.emps[item.empName]) {
-                        dGroup.emps[item.empName] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, webs: [], shift: item.shift, odType: item.odType || 'ปกติ' };
+                        dGroup.emps[item.empName] = { totalCount: 0, totalYestCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, webs: [], shift: item.shift, odType: item.odType || 'ปกติ' };
                     }
                     dGroup.emps[item.empName].totalCount += item.count;
+                    dGroup.emps[item.empName].totalYestCount += item.yestCount || 0; 
                     dGroup.emps[item.empName].totalApproved += (item.approvedCount || 0);
                     dGroup.emps[item.empName].totalReject += (item.rejectCount || 0);
                     dGroup.emps[item.empName].totalMoney += item.totalAmount;
@@ -647,11 +663,15 @@ window.renderSummaryDashboard = function() {
                         displayDate = `วันที่ ${parseInt(d)} ${monthNames[parseInt(m)-1]} ${parseInt(y)+543}`;
                     }
 
-                    // 🌟 ใช้ฟังก์ชันสร้างแถบเปิด/ปิด จาก SummaryHTML
+                    // ป้ายส่วนต่างของวันนั้นๆ ทั้งแผนก
+                    let groupDiff = dGroup.totalCount - dGroup.totalYestCount;
+                    let groupDiffHtml = buildDiffBadge(groupDiff);
+
                     htmlArr.push(getTpl('tpl-date-group-start', {
                         displayDate: displayDate,
                         empCount: Object.keys(dGroup.emps).length,
                         totalCount: dGroup.totalCount.toLocaleString(),
+                        totalDiffHtml: groupDiffHtml,
                         totalApproved: dGroup.totalApproved,
                         totalReject: dGroup.totalReject,
                         hiddenClass: sortedDates.length === 1 ? '' : 'hidden'
@@ -679,10 +699,7 @@ window.renderSummaryDashboard = function() {
 
                             let webTags = data.webs.map(w => {
                                 let diffNum = w.count - (w.yestCount || 0);
-                                let diffHtml = '';
-                                if (diffNum > 0) diffHtml = `<span class="text-emerald-400 font-bold bg-emerald-900/30 px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-emerald-800/50 text-[10px] shadow-sm"><span class="material-icons text-[10px]">trending_up</span> +${diffNum}</span>`;
-                                else if (diffNum < 0) diffHtml = `<span class="text-red-400 font-bold bg-red-900/30 px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-red-800/50 text-[10px] shadow-sm"><span class="material-icons text-[10px]">trending_down</span> ${diffNum}</span>`;
-                                else diffHtml = `<span class="text-gray-400 bg-gray-800 px-2 py-0.5 rounded text-[10px] border border-gray-600 shadow-sm">คงที่</span>`;
+                                let diffHtml = buildDiffBadge(diffNum, '');
 
                                 return getTpl('tpl-web-subcard', {
                                     website: w.website, diffHtml: diffHtml,
@@ -694,9 +711,15 @@ window.renderSummaryDashboard = function() {
 
                             let quickWebBadges = data.webs.map(w => `<span class="bg-slate-900 border border-slate-600 px-1.5 py-0.5 rounded text-[10px] text-gray-300 whitespace-nowrap shadow-sm"><b class="text-sky-400">${w.website}:</b> ${w.count}</span>`).join('');
 
+                            // ป้ายส่วนต่างของพนักงานแต่ละคน
+                            let empDiff = data.totalCount - data.totalYestCount;
+                            let empDiffHtml = buildDiffBadge(empDiff, 'mt-1');
+
                             htmlArr.push(getTpl('tpl-emp-row', {
                                 index: index + 1, name: name, odBadge: odBadge, shiftBadge: shiftBadgeHtml,
-                                quickWebBadges: quickWebBadges, totalCount: data.totalCount, webTagsHtml: webTags
+                                quickWebBadges: quickWebBadges, totalCount: data.totalCount, 
+                                totalDiffHtml: empDiffHtml,
+                                webTagsHtml: webTags
                             }));
                         });
                     }
@@ -1163,7 +1186,7 @@ window.exportSummaryToExcel = async function() {
             if (colNumber <= 4) {
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
                 cell.font.color = { argb: 'FFFFFFFF' };
-                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
+                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
             } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
                 const webIndex = Math.floor((colNumber - 5) / 3);
                 const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
