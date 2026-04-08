@@ -20,7 +20,7 @@ input[type="month"] {
 
 .hidden { display: none !important; } 
 body { transition: background-color 0.3s, color 0.3s; }
-input, select, button, a { transition: all 0.3s; }
+input, select, button, a { transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s; }
 .fade-in { animation: fadeIn 0.3s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
