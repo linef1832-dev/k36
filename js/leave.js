@@ -75,7 +75,6 @@ window.switchDept = function(dept) {
 
     updateAdminInputs();
     
-    // อัปเดตป้ายชื่อเดือนด้านบนให้ตรงกับปฏิทินปัจจุบันเสมอ
     if(typeof updateMonthPicker === 'function') updateMonthPicker();
     
     const tbody = document.getElementById('tableBody');
@@ -87,34 +86,32 @@ window.switchDept = function(dept) {
 };
 
 function updateAdminInputs() {
-        const s = deptSettings[currentViewDept];
-        if(!s) return; // ป้องกัน Error ถ้าหาค่าไม่เจอ
-        
-        if(document.getElementById('setPersonLimit')) document.getElementById('setPersonLimit').value = s.limit || 4;
-        
-        if(document.getElementById('setStartM')) document.getElementById('setStartM').value = s.startM || '';
-        if(document.getElementById('setEndM')) document.getElementById('setEndM').value = s.endM || '';
-        if(document.getElementById('setStartA')) document.getElementById('setStartA').value = s.startA || '';
-        if(document.getElementById('setEndA')) document.getElementById('setEndA').value = s.endA || '';
-        if(document.getElementById('setStartN')) document.getElementById('setStartN').value = s.startN || '';
-        if(document.getElementById('setEndN')) document.getElementById('setEndN').value = s.endN || '';
+    const s = deptSettings[currentViewDept];
+    if(!s) return; 
+    
+    if(document.getElementById('setPersonLimit')) document.getElementById('setPersonLimit').value = s.limit || 4;
+    if(document.getElementById('setStartM')) document.getElementById('setStartM').value = s.startM || '';
+    if(document.getElementById('setEndM')) document.getElementById('setEndM').value = s.endM || '';
+    if(document.getElementById('setStartA')) document.getElementById('setStartA').value = s.startA || '';
+    if(document.getElementById('setEndA')) document.getElementById('setEndA').value = s.endA || '';
+    if(document.getElementById('setStartN')) document.getElementById('setStartN').value = s.startN || '';
+    if(document.getElementById('setEndN')) document.getElementById('setEndN').value = s.endN || '';
 
-        if(document.getElementById('setForceOpen')) document.getElementById('setForceOpen').checked = s.isOpen || false;
-        
-        if(document.getElementById('setQuotaM')) document.getElementById('setQuotaM').value = s.quotaM || 0;
-        if(document.getElementById('setQuotaA')) document.getElementById('setQuotaA').value = s.quotaA || 0;
-        if(document.getElementById('setQuotaN')) document.getElementById('setQuotaN').value = s.quotaN || 0;
+    if(document.getElementById('setForceOpen')) document.getElementById('setForceOpen').checked = s.isOpen || false;
+    
+    if(document.getElementById('setQuotaM')) document.getElementById('setQuotaM').value = s.quotaM || 0;
+    if(document.getElementById('setQuotaA')) document.getElementById('setQuotaA').value = s.quotaA || 0;
+    if(document.getElementById('setQuotaN')) document.getElementById('setQuotaN').value = s.quotaN || 0;
 
-        if(document.getElementById('setAllowedMonth')) document.getElementById('setAllowedMonth').value = s.viewMonth || '';
-        if(document.getElementById('setStartDay')) document.getElementById('setStartDay').value = s.startDay || '';
-        if(document.getElementById('setEndDay')) document.getElementById('setEndDay').value = s.endDay || '';
-        
-        // 🟢 ปลดล็อกช่องเวลา ให้สว่างและพิมพ์ได้ 100% ตลอดเวลา
-        const timeGroup = document.getElementById('timeSettingsGroup');
-        if(timeGroup) {
-            timeGroup.classList.remove('opacity-30', 'pointer-events-none');
-        }
+    if(document.getElementById('setAllowedMonth')) document.getElementById('setAllowedMonth').value = s.viewMonth || '';
+    if(document.getElementById('setStartDay')) document.getElementById('setStartDay').value = s.startDay || '';
+    if(document.getElementById('setEndDay')) document.getElementById('setEndDay').value = s.endDay || '';
+    
+    const timeGroup = document.getElementById('timeSettingsGroup');
+    if(timeGroup) {
+        timeGroup.classList.remove('opacity-30', 'pointer-events-none');
     }
+}
 
 const forceOpenCb = document.getElementById('setForceOpen');
 if(forceOpenCb) forceOpenCb.addEventListener('change', (e) => { toggleTimeInputs(e.target.checked); });
@@ -152,18 +149,13 @@ window.initLeaveTable = async function() {
     const myDept = currentUser.department || 'AM';
     switchDept(myDept); 
     
-    // เคลียร์การนับเวลาอันเก่าทิ้งก่อน (ป้องกันนาฬิกาทำงานซ้อนกันเวลาเข้าหน้าเดิมซ้ำ)
     if (window.leaveCheckInterval) {
         clearInterval(window.leaveCheckInterval);
     }
 
-    // ตั้งเวลานับใหม่
     window.leaveCheckInterval = setInterval(() => {
         const leaveAppEl = document.getElementById('leaveApp');
-        
-        // เช็คว่าถ้าสลับไปหน้าอื่นแล้ว (หาตัว leaveApp ไม่เจอ) ให้ข้ามไปเลย ระบบจะได้ไม่ Error
         if(!leaveAppEl || leaveAppEl.classList.contains('hidden')) return;
-        
         checkBookingWindow();
     }, 1000);
 }
@@ -252,10 +244,7 @@ window.checkBookingWindow = function(targetShift) {
             return `<span class="text-[10px] text-red-400 font-bold bg-red-900/30 border border-red-800/50 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">${st.msg}</span>`;
         };
         
-        // 🌟 [ปรับปรุงใหม่] วาดโครง HTML ขึ้นมาก่อน
         const newStatusHtml = `<div class="flex flex-wrap items-center gap-1.5 mt-1">${makeBadge(stM)}${makeBadge(stA)}${makeBadge(stN)}</div>`;
-        
-        // 🌟 สั่งอัปเดตหน้าจอเฉพาะตอนที่ "สถานะเปลี่ยนไปจากเดิมเท่านั้น" (ลดการทำงานฟรีทุกๆ 1 วินาที)
         if (statusText.innerHTML !== newStatusHtml) {
             statusText.innerHTML = newStatusHtml;
         }
@@ -282,30 +271,24 @@ function subscribeLeaveChanges() {
     if(leaveSubscription) appDB.removeChannel(leaveSubscription);
     leaveSubscription = appDB.channel('leave-updates')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, (payload) => {
-        if (window.isEditingLeave) return; // ถ้าเราเป็นคนกดเอง ไม่ต้องทำอะไร
+        if (window.isEditingLeave) return;
         
         const leaveAppEl = document.getElementById('leaveApp');
         if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
             
             let changedUserId = null;
 
-            // 🌟 อัปเดตข้อมูลในเครื่อง (allLeaveData)
             if (payload.eventType === 'INSERT') {
                 allLeaveData.push(payload.new);
                 changedUserId = payload.new.user_id;
             } else if (payload.eventType === 'DELETE') {
-                // 🛑 [แก้บั๊กตรงนี้] Supabase ส่งมาแค่ ID ตอนลบ! ต้องมาหา user_id จากข้อมูลเก่าในเครื่องก่อน
                 const deletedItem = allLeaveData.find(l => String(l.id) === String(payload.old.id));
                 if (deletedItem) changedUserId = deletedItem.user_id;
-                
-                // ลบข้อมูลนั้นออกจากความจำเครื่อง
                 allLeaveData = allLeaveData.filter(l => String(l.id) !== String(payload.old.id));
             }
 
-            // ถ้าหา user_id ไม่เจอ (อาจจะลบของที่ไม่มีในหน้าจอ) ให้ข้ามไปเลย
             if (!changedUserId) return;
 
-            // 🌟 เช็คว่าการเปลี่ยนแปลงนี้ กระทบกับตารางแผนกที่เราดูอยู่หรือไม่?
             const tUser = GLOBAL_USER_LIST.find(u => String(u.id) === String(changedUserId));
             const tDept = tUser ? (tUser.department || 'AM') : 'AM';
             const tRole = tUser ? (tUser.role || 'staff').toLowerCase() : 'staff';
@@ -315,7 +298,6 @@ function subscribeLeaveChanges() {
             else if (currentViewDept === 'NEW' && tDept === 'NEW') shouldRenderTable = true;
             else if (tRole === 'staff' && tDept === currentViewDept) shouldRenderTable = true;
 
-            // 🌟 ถ้ารายการที่เปลี่ยนแปลงเป็นของคนในหน้าจอนี้ ค่อยสั่งวาดตารางใหม่!
             if (shouldRenderTable) {
                 window.renderLeaveTable(); 
                 flashRealtimeDot();
@@ -328,8 +310,6 @@ function subscribeSettingsChanges() {
     if(settingsSubscription) appDB.removeChannel(settingsSubscription);
     settingsSubscription = appDB.channel('settings-updates')
     .on('broadcast', { event: 'force_leave_reload' }, async () => {
-        
-        // 🌟 ดัก Error: เช็คก่อนว่ามี leaveApp อยู่ไหม
         const leaveAppEl = document.getElementById('leaveApp');
         if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
             await loadLeaveSettings();
@@ -410,7 +390,6 @@ window.renderLeaveTable = function() {
     const month = currentCalendarDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     
-    // อัปเดตป้ายสถานะ UI ด้านบน
     if(typeof checkBookingWindow === 'function') checkBookingWindow();
 
     const allDeptUsers = GLOBAL_USER_LIST.filter(u => {
@@ -537,7 +516,6 @@ window.renderLeaveTable = function() {
             </div>
         </td>`;
 
-        // 🌟 เพิ่มเงื่อนไขตรวจสอบว่า กะของพนักงานคนนี้ เปิดให้จองอยู่หรือไม่
         let isThisUserShiftOpen = true;
         if (typeof checkBookingWindow === 'function') {
             isThisUserShiftOpen = checkBookingWindow(u.allowed_shift);
@@ -601,14 +579,11 @@ window.renderLeaveTable = function() {
             let hoverAttr = `onmouseover="highlightCell(this, ${d-1}, true)" onmouseout="highlightCell(this, ${d-1}, false)"`;
             let clickAttr = "";
             
-            // 🌟 เช็คเงื่อนไขก่อนอนุญาตให้กด
             if (isDateLocked && !isAdmin) {
                 if(isMe) clickAttr = `onclick="Swal.fire({icon:'error', title:'ล็อกวัน', text:'วันที่นี้ถูกล็อก ไม่สามารถทำรายการได้', timer:1500, showConfirmButton:false})"`;
             } else if (!isThisUserShiftOpen && !isAdmin && isMe) {
-                // 🛑 ถ้าหมดเวลาจองแล้ว ให้บล็อกและเด้งเตือน!
                 clickAttr = `onclick="Swal.fire({icon:'error', title:'ปิดจองแล้ว', text:'อยู่นอกเวลาทำรายการของกะคุณ', timer:2000, showConfirmButton:false})"`;
             } else if (isMe || isAdmin) {
-                // ✅ ถ้าเปิดจอง หรือเป็นแอดมิน ให้ทำรายการได้ปกติ
                 if (isBooked) {
                     clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'remove', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
                 } else if (!isShiftFull || isAdmin) { 
@@ -658,30 +633,6 @@ window.updateThaiMonthDisplay = function() {
     }
 };
 
-window.updateThaiMonthDisplay = function() {
-    const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    
-    // ส่วนที่ 1: แสดงผลเดือนปฏิทินฝั่งพนักงาน
-    const viewPicker = document.getElementById('viewMonthPicker');
-    const viewDisplay = document.getElementById('viewMonthDisplay');
-    if (viewPicker && viewDisplay && viewPicker.value) {
-        const [y, m] = viewPicker.value.split('-');
-        viewDisplay.innerText = `${thaiMonths[parseInt(m) - 1]} ${parseInt(y) + 543}`;
-    }
-    
-    const setPicker = document.getElementById('setAllowedMonth');
-    const setDisplay = document.getElementById('setMonthDisplay');
-    
-    if (setPicker && setDisplay) {
-        if (setPicker.value) {
-            const [y, m] = setPicker.value.split('-');
-            setDisplay.innerText = `${thaiMonths[parseInt(m) - 1]} ${parseInt(y) + 543}`;
-        } else {
-            setDisplay.innerText = 'เลือกเดือน';
-        }
-    }
-};
-
 window.changeAdminMonth = function(step) {
     const inputEl = document.getElementById('setAllowedMonth');
     if (!inputEl) return;
@@ -708,11 +659,7 @@ window.changeAdminMonth = function(step) {
     }
 };
 
-// =================================================================
-// 🟢 ระบบบันทึก/ลบ วันหยุด (รองรับ 6 ประเภทการลาแบบเดิม)
-// =================================================================
 window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUserName, targetUserShift) {
-    // 1. ดึงประเภทการลาที่กดเลือกไว้จากแถบเมนู (ถ้าไม่ได้เลือก ให้เป็น X ปกติ)
     const typeToSave = window.activeLeaveType || 'X';
 
     if (action === 'remove') {
@@ -729,17 +676,15 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
         if (!result.isConfirmed) return;
     }
 
-    // ล็อกระบบ Realtime ชั่วคราวกันจอกระพริบสู้มือ
     window.isEditingLeave = true; 
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
         if (action === 'add') {
-            // 🌟 แก้ไขตรงนี้: เพิ่มคำว่า user_name: targetUserName ส่งไปให้ฐานข้อมูลด้วย
             const { error } = await appDB.from('leave_requests').insert([
                 { 
                     user_id: targetUserId, 
-                    user_name: targetUserName, // <--- เติมตรงนี้ครับ!
+                    user_name: targetUserName,
                     leave_date: dateStr, 
                     reason: typeToSave, 
                     status: 'approved' 
@@ -768,21 +713,20 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
             }]);
         }
         
-        // 🌟 อัปเดตข้อมูลในความจำบราวเซอร์ทันที (ไม่ต้องรอโหลด DB ใหม่)
         if (action === 'add') {
             allLeaveData.push({ user_id: targetUserId, leave_date: dateStr, reason: typeToSave });
         } else if (action === 'remove') {
             allLeaveData = allLeaveData.filter(l => !(String(l.user_id) === String(targetUserId) && l.leave_date === dateStr));
         }
         
-        window.renderLeaveTable(); // สั่งวาดตารางใหม่จากข้อมูลในเครื่อง (ไวมาก)
+        window.renderLeaveTable(); 
         Swal.fire({ icon: 'success', title: action === 'add' ? 'บันทึกสำเร็จ' : 'ลบสำเร็จ', showConfirmButton: false, timer: 1000 });
 
     } catch (error) {
         console.error('Toggle Leave Error:', error);
         Swal.fire('ข้อผิดพลาด', error.message, 'error');
     } finally {
-        setTimeout(() => { window.isEditingLeave = false; }, 500); // ปลดล็อก
+        setTimeout(() => { window.isEditingLeave = false; }, 500); 
     }
 };
 
@@ -968,11 +912,10 @@ window.openHistoryModal = async function() {
     });
 }
 
-// 🌟 [เพิ่มใหม่] ฟังก์ชันหน่วงเวลาค้นหา (ป้องกันการสแปมยิง Database ถี่ยิบ)
 window.debounceHistorySearch = function() {
-    clearTimeout(window.historySearchTimer); // ถ้ายิงมาติดๆ กัน ให้ยกเลิกอันเก่า
+    clearTimeout(window.historySearchTimer); 
     window.historySearchTimer = setTimeout(() => {
-        fetchHistoryLogs(); // รอ 0.5 วินาทีหลังพิมพ์ตัวสุดท้ายเสร็จ ค่อยไปโหลด DB
+        fetchHistoryLogs(); 
     }, 500); 
 };
 
@@ -1015,9 +958,7 @@ window.fetchHistoryLogs = async function() {
     });
     tbody.innerHTML = rows;
 }
-// =================================================================
-// 🟢 ระบบสวิตช์เปิด-ปิดจอง (ใช้ชื่อคีย์แบบดั้งเดิม)
-// =================================================================
+
 window.toggleLeaveStatus = async function(isChecked) {
     const statusValue = isChecked ? 'true' : 'false'; 
     
@@ -1026,14 +967,12 @@ window.toggleLeaveStatus = async function(isChecked) {
     try {
         if (typeof appDB === 'undefined') throw new Error('ไม่พบตัวแปรเชื่อมต่อฐานข้อมูล');
 
-        // 🌟 บันทึกโดยใช้ชื่อคีย์แบบเดิม เช่น AM_is_open, OD_is_open
         const { error } = await appDB.from('settings').upsert([
             { key: `${currentViewDept}_is_open`, value: statusValue } 
         ]);
 
         if (error) throw error;
 
-        // อัปเดตค่าในตัวแปรทันที
         if(deptSettings[currentViewDept]) {
             deptSettings[currentViewDept].isOpen = isChecked;
         }
@@ -1047,14 +986,12 @@ window.toggleLeaveStatus = async function(isChecked) {
     } catch (error) {
         console.error('Toggle Leave Error:', error);
         Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
-        document.getElementById('setForceOpen').checked = !isChecked; // คืนค่าสวิตช์ถ้าพัง
+        document.getElementById('setForceOpen').checked = !isChecked; 
     }
 };
 
-// 🟢 ฟังก์ชันดึงค่าสถานะเดิมมาแสดงตอนโหลดหน้าเว็บ
 window.loadLeaveStatusConfig = async function() {
     try {
-        // 💡 แก้ไขตรงนี้: ใช้ appDB ตรงๆ
         const { data } = await appDB.from('settings').select('*').like('key', 'leave_status_%');
         if (data) {
             data.forEach(item => {
@@ -1062,14 +999,12 @@ window.loadLeaveStatusConfig = async function() {
                 window.leaveStatusConfig[dept] = item.value;
             });
         }
-        updateLeaveToggleUI(); // อัปเดตสวิตช์ให้ตรงกับแผนกปัจจุบัน
+        updateLeaveToggleUI(); 
     } catch(e) { console.error('Load Leave Status Error:', e); }
 };
 
-// 🟢 ฟังก์ชันเปลี่ยนหน้าตาสวิตช์ เมื่อกดสลับแท็บแผนก
 window.updateLeaveToggleUI = function() {
     const targetLabel = document.getElementById('settingTargetLabel');
-    // เช็คก่อนว่ามี targetLabel ในหน้านี้ไหม ถ้าไม่มีให้ใช้ 'AM' เป็นค่าตั้งต้น
     const currentDept = window.currentDept || (targetLabel ? targetLabel.innerText : 'AM');
     const toggleBtn = document.getElementById('setForceOpen');
     
@@ -1079,12 +1014,10 @@ window.updateLeaveToggleUI = function() {
     }
 };
 
-// สั่งให้ดึงข้อมูลตอนเปิดหน้า
 setTimeout(() => {
     if(typeof loadLeaveStatusConfig === 'function') loadLeaveStatusConfig();
 }, 500);
 
-// 🟢 ดักจับการเปลี่ยนแท็บ (ถ้าป้ายชื่อแผนกเปลี่ยน ให้เปลี่ยนสถานะสวิตช์ตาม)
 setTimeout(() => {
     const targetNode = document.getElementById('settingTargetLabel');
     if (targetNode) {
@@ -1093,9 +1026,6 @@ setTimeout(() => {
     }
 }, 1000);
 
-// ==========================================
-// 🟢 จัดการรายชื่อพนักงานใหม่ (NEW DEPT)
-// ==========================================
 window.filterNewStaffList = function() {
     const input = document.getElementById('newStaffSearchInput');
     const filter = input.value.toLowerCase();
@@ -1216,4 +1146,44 @@ window.removeFromNewDept = async function(id, username) {
             }
         }
     });
+};
+
+window.undoClearSchedules = async function() {
+    const backupStr = sessionStorage.getItem('temp_schedule_backup');
+    if (!backupStr) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลให้กู้คืนแล้วครับ', 'error');
+    
+    const backupData = JSON.parse(backupStr);
+
+    const confirm = await Swal.fire({
+        title: 'ยืนยันการกู้คืน?',
+        text: `คุณต้องการกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ ที่เพิ่งลบทิ้งไปใช่หรือไม่?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, นำข้อมูลกลับมา!',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
+    });
+
+    if (confirm.isConfirmed) {
+        Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        try {
+            const { error } = await appDB.from('schedules').insert(backupData);
+            if (error) throw error;
+
+            sessionStorage.removeItem('temp_schedule_backup');
+            document.getElementById('undoScheduleBtn')?.classList.add('hidden');
+
+            if (typeof logAction === 'function') await logAction('กู้คืนข้อมูล', `แอดมินกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ`);
+
+            Swal.fire('กู้คืนสำเร็จ!', 'ข้อมูลกลับมาอยู่ที่เดิมเรียบร้อยแล้วครับ', 'success');
+
+            if (typeof fetchData === 'function') fetchData();
+
+        } catch(e) {
+            console.error(e);
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนได้: ' + e.message, 'error');
+        }
+    }
 };
