@@ -1,5 +1,5 @@
 // ====================================================
-// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้กะจัดอันดับ + เดือน + Excel)
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้จัดอันดับ + เดือน + Excel)
 // ====================================================
 
 let pendingSummaryData = []; 
@@ -109,22 +109,7 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
-// 🌟 อัปเดตการแสดงผลเดือนในช่องจัดอันดับ
-window.updateLeaderboardMonthDisplay = function() {
-    const el = document.getElementById('leaderboardMonth');
-    const disp = document.getElementById('leaderboardMonthDisplay');
-    if (el && disp) {
-        if (el.value) {
-            const [y, m] = el.value.split('-');
-            const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-            disp.innerText = `${thaiMonths[parseInt(m)-1]} ${parseInt(y)+543}`;
-        } else {
-            disp.innerText = 'เลือกเดือน';
-        }
-    }
-};
-
-// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100% (ลบการเดาตัวอักษรทิ้งถาวร)
+// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100%
 function getShiftFromName(name) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
 
@@ -134,7 +119,6 @@ function getShiftFromName(name) {
         return dbName === searchName || (dbName.length > 2 && (dbName.includes(searchName) || searchName.includes(dbName)));
     });
     
-    // 🌟 ดัก Error เพื่อป้องกันกรณีที่ foundUser.allowed_shift เป็นค่าว่างหรือ falsy
     if (foundUser) {
         let s = foundUser.allowed_shift;
         if (!s || s === 'all') return 'กะอิสระ';
@@ -444,13 +428,23 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     
                     if (!webName) webName = defaultWeb; 
 
+                    let extractedShiftFromTime = 'UNKNOWN';
+                    if (hour !== null) {
+                        if (hour >= 7 && hour < 19) extractedShiftFromTime = 'กะเช้า';
+                        else extractedShiftFromTime = 'กะดึก';
+                    }
+
                     const realUser = getRealDbUser(empName);
-                    let finalShift = 'UNKNOWN';
+                    let finalShift = extractedShiftFromTime;
                     
                     if (realUser) {
                         empName = realUser.username; 
-                        finalShift = realUser.allowed_shift || 'UNKNOWN';
-                        if (finalShift === 'all' || finalShift === '') finalShift = 'กะอิสระ';
+                        if (realUser.allowed_shift && realUser.allowed_shift !== 'all') {
+                            finalShift = realUser.allowed_shift;
+                        } else if (realUser.allowed_shift === 'all') {
+                            if (extractedShiftFromTime !== 'UNKNOWN') finalShift = extractedShiftFromTime;
+                            else finalShift = 'กะอิสระ';
+                        }
                     }
 
                     const finalRowDate = rowDate || detectedDate || document.getElementById('summaryDateFilter').value;
@@ -687,9 +681,8 @@ window.renderSummaryDashboard = function() {
                             if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
                             else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
                             else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
-                            else if (data.shift === 'กะอิสระ') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
-                            else shiftBadgeHtml = ''; 
-                            
+                            else if (data.shift === 'กะอิสระ' || data.shift === 'all') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
+
                             let odBadge = '';
                             if (data.odType === 'OD') odBadge = '<span class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">OD</span>';
                             if (data.odType === 'ODOL') odBadge = '<span class="text-[9px] bg-pink-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">ODOL</span>';
@@ -803,7 +796,6 @@ window.fetchLeaderboardData = async function() {
     const lbBox = document.getElementById('summaryLeaderboard');
     const modeEl = document.getElementById('leaderboardMode');
     const monthInput = document.getElementById('leaderboardMonth');
-    const monthWrapper = document.getElementById('leaderboardMonthWrapper');
     const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
     
     if(!lbBox) return;
@@ -835,22 +827,20 @@ window.fetchLeaderboardData = async function() {
     const selectedWeb = lbWebFilter ? lbWebFilter.value : 'ALL';
     const shiftFilter = lbShiftFilter ? lbShiftFilter.value : 'ALL';
 
-    if (monthInput && monthWrapper) {
+    if (monthInput) {
         if (mode === 'monthly') {
-            monthWrapper.classList.remove('hidden');
+            monthInput.classList.remove('hidden');
             if(!monthInput.value) {
                 const d = new Date();
                 monthInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             }
-            if (typeof updateLeaderboardMonthDisplay === 'function') updateLeaderboardMonthDisplay();
         } else {
-            monthWrapper.classList.add('hidden');
+            monthInput.classList.add('hidden');
         }
     }
 
     lbBox.innerHTML = '<div class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-3xl mb-2">sync</span><br>กำลังคำนวณอันดับ...</div>';
 
-    // 🌟 บังคับโหลดรายชื่อพนักงานก่อน เพื่อให้จัดอันดับรู้ว่าพนักงานคนนี้อยู่กะไหนจริงๆ (กันกะเพี้ยน)
     if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
         await fetchUsers();
     }
@@ -947,16 +937,9 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
         else if (i === 2) medalClass = 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-50 scale-105 shadow-md'; 
         else medalClass = 'bg-slate-700 text-slate-400 border border-slate-600'; 
 
-        let shiftBadgeHtml = '';
-        if (d.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
-        else if (d.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
-        else if (d.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[9px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
-        else if (d.shift === 'กะอิสระ' || d.shift === 'all') shiftBadgeHtml = '<span class="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
-        else shiftBadgeHtml = `<span class="text-[9px] bg-gray-500/20 text-gray-400 border border-gray-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">${d.shift || 'UNKNOWN'}</span>`;
-
+        // 🌟 ถอดป้ายกะออกจากการจัดอันดับตามที่ต้องการครับ
         return getTpl('tpl-leaderboard-item', {
             name: name, medalClass: medalClass, medalText: medalText,
-            shiftBadge: shiftBadgeHtml,
             totalCount: d.totalCount, totalApproved: d.totalApproved, totalReject: d.totalReject,
             totalMoney: d.totalMoney.toLocaleString('en-US', {minimumFractionDigits: 2})
         });
@@ -1211,7 +1194,6 @@ window.exportSummaryToExcel = async function() {
                     cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
                     if (colNumber === 2) { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' }; }
                     
-                    // 🌟 เพิ่มสีให้คอลัมน์ "กะ" (Column 3)
                     if (colNumber === 3) {
                         cell.font = { bold: true };
                         if (cell.value === 'เช้า') {
