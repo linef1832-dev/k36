@@ -67,3 +67,22 @@
         </form>
     </div>
 </div>
+
+<div id="teleTemplates" class="hidden">
+    <template id="tpl-tele-card">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition relative group">
+            {{adminBtns}}
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 rounded-full {{colorClass}} flex items-center justify-center shrink-0"><span class="material-icons text-2xl">near_me</span></div>
+                <div class="flex-1 min-w-0 pr-10">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{{category}}</div>
+                    <h4 class="font-bold text-slate-800 dark:text-white truncate text-base mb-1" title="{{name}}">{{name}}</h4>
+                    <div class="flex gap-2 mt-3">
+                        <a href="{{url}}" target="_blank" class="flex-1 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-900/30 dark:text-sky-300 py-1.5 rounded-lg text-xs font-bold text-center transition">เข้าร่วม</a>
+                        <button onclick="copyToClip('{{url}}')" class="px-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition" title="คัดลอกลิงก์"><span class="material-icons text-sm pt-1">content_copy</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
