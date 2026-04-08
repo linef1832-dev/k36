@@ -30,25 +30,22 @@ window.fetchSheets = async function() {
         
         window.GLOBAL_SHEETS = data || [];
         renderSheetMenu();
-        populateCalcTeamDropdown(); // 🟢 สร้าง Dropdown เครื่องคิดเลข
+        populateCalcTeamDropdown(); 
         if(typeof renderAdminSheetList === 'function') renderAdminSheetList();
         renderRecentTabs();
     } catch (err) { console.error('Fetch Sheets Error:', err); }
 };
 
-// 🟢 ดึงชื่อเว็บมาใส่ใน Dropdown ของเครื่องคิดเลข
 function populateCalcTeamDropdown() {
     const datalist = document.getElementById('calcTeamOptions');
     if (!datalist) return;
     datalist.innerHTML = '';
     
-    // ดึงรายชื่อทีมเฉพาะที่ไม่ใช่กลุ่ม "วันหยุด / เปลี่ยนกะ"
     const teamNames = window.GLOBAL_SHEETS
         .filter(s => s.group_name !== 'วันหยุด / เปลี่ยนกะ' && s.group_name !== 'แก้ไขข้อมูล')
         .map(s => s.name || s.title)
         .filter(Boolean);
         
-    // กรองชื่อที่ซ้ำกันออก
     const uniqueTeams = [...new Set(teamNames)];
     
     uniqueTeams.forEach(team => {
@@ -88,21 +85,19 @@ window.renderSheetMenu = function() {
         const starIcon = isPinned ? 'star' : 'star_outline';
         const starClass = isPinned ? 'text-amber-400 opacity-100 scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:scale-110';
         
-        let cardHtml = '';
         const isHex = sheet.color && sheet.color.startsWith('#');
         const themeColor = isHex ? sheet.color : '#3b82f6';
+        const tName = sheet.name || sheet.title || 'ไม่มีชื่อ';
 
         if (sheet.cover_url && sheet.cover_url.trim() !== '') {
-            cardHtml = `
-            <div class="relative group cursor-pointer transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-xl rounded-2xl h-36 overflow-hidden bg-slate-900 border border-slate-700/50" onclick='openSheet(${JSON.stringify(sheet)})'>
-                <img src="${sheet.cover_url}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-50 group-hover:opacity-30" loading="lazy" onerror="this.style.display='none'">
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
-                <div class="absolute inset-0 flex flex-col items-center justify-center p-4 z-10">
-                    <div class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mb-2 shadow-lg group-hover:bg-white/20 transition"><span class="material-icons text-2xl text-white drop-shadow-md">${iconType}</span></div>
-                    <span class="font-bold text-sm text-center leading-tight text-white drop-shadow-lg line-clamp-2 px-2">${sheet.name || sheet.title}</span>
-                </div>
-                <button onclick="togglePin(event, ${sheet.id})" class="absolute top-3 right-3 z-20 p-1.5 rounded-full transition-all duration-300 ${starClass} bg-black/20 backdrop-blur-md hover:bg-white/90"><span class="material-icons text-xl leading-none block">${starIcon}</span></button>
-            </div>`;
+            return window.renderTemplate('tpl-sheet-card-img', {
+                id: sheet.id,
+                cover_url: sheet.cover_url,
+                iconType: iconType,
+                title: tName,
+                starClass: starClass,
+                starIcon: starIcon
+            });
         } else {
             const colorStyles = {
                 'blue':   { bar: 'from-blue-400 to-indigo-500', iconBg: 'bg-blue-50 dark:bg-blue-900/20', iconColor: 'text-blue-500 dark:text-blue-400' },
@@ -121,15 +116,15 @@ window.renderSheetMenu = function() {
                 iconWrapper = `<div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-inner" style="background-color: ${themeColor}15; color: ${themeColor};"><span class="material-icons text-[26px]">${iconType}</span></div>`;
             }
 
-            cardHtml = `
-            <div class="relative group cursor-pointer transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-xl rounded-2xl h-36 bg-[#1e293b] border border-slate-700 overflow-hidden flex flex-col items-center justify-center p-4" onclick='openSheet(${JSON.stringify(sheet)})'>
-                ${topBar}
-                ${iconWrapper}
-                <span class="font-extrabold text-sm text-center leading-tight text-white line-clamp-2 px-1">${sheet.name || sheet.title}</span>
-                <button onclick="togglePin(event, ${sheet.id})" class="absolute top-2 right-2 z-20 p-1.5 rounded-full transition-all duration-300 ${starClass} bg-slate-900 hover:bg-white border border-transparent hover:border-amber-200 hover:shadow-sm"><span class="material-icons text-lg leading-none block">${starIcon}</span></button>
-            </div>`;
+            return window.renderTemplate('tpl-sheet-card-color', {
+                id: sheet.id,
+                topBar: topBar,
+                iconWrapper: iconWrapper,
+                title: tName,
+                starClass: starClass,
+                starIcon: starIcon
+            });
         }
-        return cardHtml;
     };
 
     if (pinnedSheets.length > 0 && !searchTerm) {
@@ -158,14 +153,11 @@ window.togglePin = function(e, id) {
     renderSheetMenu();
 };
 
-
 // ==========================================
 // 🟢 2. เครื่องคิดเลข (Calculator System)
 // ==========================================
-
 const CALC_STORAGE_KEY = 'calc_local_team_list';
 
-// ฟังก์ชันเริ่มต้นตอนเปิดหน้า (แก้สีตัวเลข)
 window.initCalculator = async function() {
     const teamSelect = document.getElementById('calcTeamSelect');
     const deductInput = document.getElementById('calcDeductAmount');
@@ -174,14 +166,12 @@ window.initCalculator = async function() {
     const addBtn = document.getElementById('btnCalcAdd');
     const delBtn = document.getElementById('btnCalcDelete');
 
-    // 1. เช็คสิทธิ์ (Manager / Admin)
     let isAdmin = false;
     if (typeof window.currentUser !== 'undefined' && window.currentUser.role) {
         const role = window.currentUser.role.toLowerCase().trim();
         if (role === 'manager' || role === 'admin') isAdmin = true;
     }
 
-    // 2. เติมรายชื่อเว็บ
     if (teamSelect) {
         teamSelect.innerHTML = '';
         const teamNames = window.GLOBAL_SHEETS
@@ -205,10 +195,8 @@ window.initCalculator = async function() {
         }
     }
 
-    // 3. 🔒 ตั้งค่า ล็อค/ปลดล็อค ตามสิทธิ์ + แก้สีตัวหนังสือให้สว่าง!
     if (deductInput && saveBtn && lockIcon) {
         if (isAdmin) {
-            // --- กรณีเป็นผู้จัดการ (กรอกตัวเลขได้) ---
             deductInput.disabled = false;
             deductInput.className = "w-full p-3 rounded-lg border border-slate-600 bg-[#0f172a] text-white text-base font-black text-center outline-none focus:border-purple-500 shadow-inner";
             
@@ -219,9 +207,7 @@ window.initCalculator = async function() {
             if(addBtn) addBtn.classList.remove('hidden');
             if(delBtn) delBtn.classList.remove('hidden');
         } else {
-            // --- กรณีเป็นพนักงานทั่วไป (ล็อคตัวเลข) ---
             deductInput.disabled = true;
-            // 🌟 แก้สีตรงนี้: บังคับตัวหนังสือเป็นสีสว่าง (text-rose-200) เพื่อให้อ่านออก
             deductInput.className = "w-full p-3 rounded-lg border border-red-900/50 bg-red-950/50 text-rose-200 text-base font-black text-center outline-none shadow-inner opacity-100";
             
             saveBtn.classList.add('hidden');
@@ -241,7 +227,7 @@ window.loadCalcSettings = async function() {
     if (!selectElem) return;
     
     const team = selectElem.value;
-    localStorage.setItem('calc_saved_team', team); // จำเว็บล่าสุด
+    localStorage.setItem('calc_saved_team', team); 
     
     let savedVal = 0;
     try {
@@ -269,7 +255,6 @@ window.calculateMoney = function() {
     
     displayElem.innerText = result.toLocaleString('en-US');
     
-    // จัดสีผลลัพธ์
     if (result < 0) { displayElem.className = "flex-1 bg-slate-950 text-rose-500 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-rose-900/50"; }
     else if (result > 0) { displayElem.className = "flex-1 bg-slate-950 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-emerald-900/50"; }
     else { displayElem.className = "flex-1 bg-slate-950 text-slate-500 text-4xl font-black p-4 rounded-2xl text-right shadow-inner flex items-center justify-end overflow-hidden border border-slate-800"; }
@@ -351,7 +336,6 @@ function fallbackCopyText(text) {
     document.body.removeChild(textArea);
 }
 
-// ให้อัปเดตเครื่องคิดเลขทันทีหลังดึงข้อมูลชีทเสร็จ
 const oldFetchSheets = window.fetchSheets;
 window.fetchSheets = async function() {
     await oldFetchSheets();
@@ -379,16 +363,12 @@ window.renderRecentTabs = function() {
         const icon = (urlToCheck.startsWith('http') || urlToCheck.startsWith('www')) ? 'link' : 'table_chart';
         const tName = tab.name || tab.title || 'ไม่มีชื่อ';
 
-        return `
-        <div onclick="openSheetById('${tab.id}')" class="${activeClass} px-3 py-2 min-w-[120px] max-w-[200px] flex items-center justify-between gap-2 cursor-pointer transition select-none rounded-t-xl shrink-0">
-            <div class="flex items-center gap-1.5 overflow-hidden">
-                <span class="material-icons text-[14px]">${icon}</span>
-                <span class="text-xs truncate">${tName}</span>
-            </div>
-            <button onclick="closeTab(event, '${tab.id}')" class="text-gray-400 hover:text-red-500 rounded-full p-0.5 hover:bg-gray-100/50">
-                <span class="material-icons text-[14px] font-bold leading-none block">close</span>
-            </button>
-        </div>`;
+        return window.renderTemplate('tpl-sheet-recent-tab', {
+            id: tab.id,
+            activeClass: activeClass,
+            icon: icon,
+            title: tName
+        });
     }).join('');
 
     if (recentTabs.length > 1) { 
@@ -448,19 +428,15 @@ window.openSheet = function(sheet) {
     document.getElementById('sheetLoading').classList.remove('hidden');
     addToRecentTabs(sheet);
 
-    // 🟢 แก้ไขบั๊ก URL ตรงนี้ (รองรับลิงก์ทุกรูปแบบ)
     let url = sheet.sheet_id || sheet.url || '';
     
-    // ถ้าเป็นลิงก์เว็บไซต์ทั่วไป หรือ Google Docs/Sheets ที่แนบลิงก์เต็มมา
     if (url.startsWith('http') || url.startsWith('www')) {
         url = url.startsWith('www') ? 'https://' + url : url;
     } 
-    // ถ้าเป็น Google Sheet ที่ใส่มาแค่ ID
     else if (url.length > 20 && !url.includes('/')) {
         url = `https://docs.google.com/spreadsheets/d/${url}/edit?rm=minimal&single=true&widget=true&headers=false`;
         if(sheet.gid) url += `&gid=${sheet.gid}`;
     }
-    // ป้องกันการโหลดลิงก์ว่าง
     if (!url) url = 'about:blank';
     
     const btnNewTab = document.getElementById('btnOpenNewTab');
@@ -487,7 +463,6 @@ window.hideSheetLoading = function() {
     document.getElementById('sheetLoading')?.classList.add('hidden');
 };
 
-
 // ==========================================
 // 🟢 4. ระบบแอดมิน (เพิ่ม/ลบ/แก้ไข)
 // ==========================================
@@ -512,20 +487,12 @@ window.renderAdminSheetList = function() {
         if(bg && !bg.startsWith('#')) bg = colorMap[bg] || '#8b5cf6';
         if(!bg) bg = '#8b5cf6';
         
-        return `
-        <div class="flex justify-between items-center bg-slate-800 p-3 border border-slate-700 rounded-2xl shadow-sm hover:border-purple-500/50 transition group hover:shadow-lg">
-            <div class="overflow-hidden mr-2 flex items-center gap-4">
-                <div class="w-2.5 h-10 rounded-full shrink-0 shadow-inner" style="background-color: ${bg}"></div>
-                <div class="truncate">
-                    <div class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-0.5">${s.group_name || s.category || 'ทั่วไป'}</div>
-                    <div class="text-white font-bold text-sm truncate">${s.name || s.title}</div>
-                </div>
-            </div>
-            <div class="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onclick="startEdit(${s.id})" class="text-amber-400 hover:bg-amber-400/10 p-2 rounded-xl transition" title="แก้ไข"><span class="material-icons text-sm">edit</span></button>
-                <button onclick="deleteSheet(${s.id})" class="text-red-400 hover:bg-red-400/10 p-2 rounded-xl transition" title="ลบ"><span class="material-icons text-sm">delete</span></button>
-            </div>
-        </div>`;
+        return window.renderTemplate('tpl-sheet-admin-item', {
+            id: s.id,
+            bg: bg,
+            groupName: s.group_name || s.category || 'ทั่วไป',
+            title: s.name || s.title
+        });
     }).join('');
 };
 
@@ -571,7 +538,7 @@ window.cancelEdit = function() {
     ['editSheetId','newSheetName','newSheetGroup','newSheetUrl','newSheetCover'].forEach(id => document.getElementById(id).value = '');
     if(document.getElementById('newSheetCoverFile')) document.getElementById('newSheetCoverFile').value = ''; 
     if(document.getElementById('currentSheetCoverContainer')) document.getElementById('currentSheetCoverContainer').classList.add('hidden');
-    document.getElementById('newSheetColor').value = 'blue';
+    document.getElementById('newSheetColor').value = '#3b82f6';
     
     document.getElementById('formTitle').innerHTML = `<span class="material-icons text-[18px]">add_circle</span> เพิ่มรายการใหม่`;
     document.getElementById('formTitle').className = "text-sm font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1";
@@ -599,7 +566,6 @@ window.saveSheetData = async function() {
         if (coverFileInput && coverFileInput.files && coverFileInput.files.length > 0) {
             Swal.update({text: `กำลังอัปโหลดรูปภาพหน้าปก...`});
             
-            // 🌟 [เพิ่มใหม่] เช็ครูปหน้าปกเก่า และลบทิ้งถ้ามี
             if (id) {
                 const sheetToEdit = window.GLOBAL_SHEETS.find(s => String(s.id) === String(id));
                 if (sheetToEdit && sheetToEdit.cover_url && sheetToEdit.cover_url.includes('supabase.co') && sheetToEdit.cover_url.includes('files/covers/')) {
@@ -608,7 +574,6 @@ window.saveSheetData = async function() {
                 }
             }
 
-            // โค้ดอัปโหลดรูปใหม่ (ของเดิมของคุณ)
             const coverFile = coverFileInput.files[0];
             const coverName = `sheet_cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${coverFile.name.split('.').pop()}`;
 
