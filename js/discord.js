@@ -86,7 +86,6 @@ window.applyDiscordPermissions = function() {
             }
         });
 
-        // บังคับให้โหลดข้อมูลแท็บที่เปิดอยู่เสมอ ป้องกันปัญหาเปิดมาแล้วตารางไม่โหลด
         if (!isCurrentTabValid) {
             switchDiscordTab(firstAllowedTab);
         } else {
@@ -332,14 +331,18 @@ window.ds_renderSpyTable = function() {
     const term = document.getElementById('spySearchInput').value.toLowerCase();
     const tbody = document.getElementById('ds_spyBody');
     const now = Date.now();
-    let html = '';
     
     let roomOptionsHtml = '<option value="">⚡ ย้ายไป..</option>';
     dsRoomList.forEach(c => { roomOptionsHtml += `<option value="${c.id}">${c.name}</option>`; });
 
     const filtered = globalSpyData.filter(u => term === '' || u.name.toLowerCase().includes(term));
     
-    filtered.forEach(u => {
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-gray-500">ไม่พบรายชื่อพนักงาน</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(u => {
         let mute = u.totalMute + (u.startMute ? (now - u.startMute) : 0);
         let deaf = u.totalDeaf + (u.startDeaf ? (now - u.startDeaf) : 0);
         
@@ -373,22 +376,19 @@ window.ds_renderSpyTable = function() {
         const nameColor = u.currentRoom ? 'text-white' : 'text-gray-500';
         const isChecked = spySelectedUsers.has(u.id) ? 'checked' : '';
 
-        html += `<tr class="hover:bg-slate-800 transition border-b border-slate-700/50">
-            <td class="p-3 text-center"><input type="checkbox" value="${u.id}" class="spy-user-cb w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600" onchange="spy_toggleSelectUser('${u.id}')" ${isChecked}></td>
-            <td class="p-3 font-bold ${nameColor}">${u.name}</td>
-            <td class="p-3">${roomBadge}</td>
-            <td class="p-3 flex items-center gap-1">${devicesHTML}</td>
-            <td class="p-3">${statusBadges}</td>
-            <td class="p-3 text-amber-400 font-mono font-bold">${mStr}</td>
-            <td class="p-3 text-red-400 font-mono font-bold">${dStr}</td>
-            <td class="p-3 text-center">
-                <select onfocus="window.isSpyDropdownFocused=true;" onblur="window.isSpyDropdownFocused=false;" onchange="window.isSpyDropdownFocused=false; spy_moveSingleUser('${u.id}', this.value)" class="bg-slate-900 text-white p-1.5 rounded border border-slate-600 outline-none text-xs w-28 cursor-pointer focus:ring-2 focus:ring-indigo-500 transition">
-                    ${roomOptionsHtml}
-                </select>
-            </td>
-        </tr>`;
-    });
-    tbody.innerHTML = html || '<tr><td colspan="8" class="text-center py-6 text-gray-500">ไม่พบรายชื่อพนักงาน</td></tr>';
+        return window.renderTemplate('tpl-ds-spy-row', {
+            id: u.id,
+            nameColor: nameColor,
+            name: u.name,
+            roomBadge: roomBadge,
+            devicesHTML: devicesHTML,
+            statusBadges: statusBadges,
+            mStr: mStr,
+            dStr: dStr,
+            roomOptionsHtml: roomOptionsHtml,
+            isChecked: isChecked
+        });
+    }).join('');
 };
 
 window.ds_fetchSpy = async function() {
@@ -435,11 +435,7 @@ window.ds_fetchChannels = async function() {
                 let targetHtml = '<option value="">-- เลือกห้องที่ต้องการย้ายไป --</option>';
                 
                 dsRoomList.forEach(c => {
-                    srcHtml += `
-                    <label class="ds-room-item flex items-center gap-3 p-3 bg-slate-900 border border-slate-700 rounded-xl cursor-pointer hover:border-indigo-500 transition group" data-name="${c.name}">
-                        <input type="checkbox" name="ds_src" value="${c.id}" class="w-5 h-5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500">
-                        <span class="font-bold text-gray-300 group-hover:text-white transition">${c.name}</span>
-                    </label>`;
+                    srcHtml += window.renderTemplate('tpl-ds-source-room', { id: c.id, name: c.name });
                     targetHtml += `<option value="${c.id}">${c.name}</option>`;
                 });
                 document.getElementById('ds_sourceRooms').innerHTML = srcHtml;
@@ -515,7 +511,13 @@ window._doRenderCheckinTable = function() {
         return passGroup && passSearch;
     });
 
-    let html = filteredStaff.map(s => {
+    if (filteredStaff.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-500 p-8 font-bold">ไม่พบข้อมูลรายชื่อ</div>';
+        document.getElementById('statusSummary').innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = filteredStaff.map(s => {
         counts.TOTAL++;
         const inVoiceRoom = globalSpyData.some(spy => (String(spy.id) === String(s.id) || spy.name === s.name) && spy.currentRoom);
         const isOnline = extOnlineUsers.includes(String(s.id)) || inVoiceRoom;
@@ -558,23 +560,20 @@ window._doRenderCheckinTable = function() {
             leaveBadgeHtml = `<span class="text-[9px] ${badgeColor} px-1.5 py-0.5 rounded shadow-sm ml-1 font-bold border border-black/10">${badgeText}</span>`;
         }
         
-        return `
-        <div class="flex justify-between items-center p-2.5 border-b border-slate-700/50 hover:bg-slate-700/30 transition">
-            <div class="font-bold text-sm flex items-center gap-2 ${isOnline ? 'text-emerald-400' : 'text-gray-400'}">
-                <span class="w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-gray-600'}"></span>
-                ${s.name} ${leaveBadgeHtml}
-            </div>
-            <select class="bg-slate-900 border border-slate-600 text-white p-1.5 rounded-lg text-xs outline-none focus:border-sky-500 cursor-pointer" onchange="updateCheckinStatus('${s.id}', this.value)">
-                <option value="✅" ${st==='✅'?'selected':''}>✅ มา</option>
-                <option value="🏖️" ${st==='🏖️'?'selected':''}>🏖️ หยุด</option>
-                <option value="🤒" ${st==='🤒'?'selected':''}>🤒 ป่วย</option>
-                <option value="📝" ${st==='📝'?'selected':''}>📝 กิจ</option>
-                <option value="❌" ${st==='❌'?'selected':''}>❌ ขาด</option>
-            </select>
-        </div>`;
+        return window.renderTemplate('tpl-ds-checkin-row', {
+            onlineColorClass: isOnline ? 'text-emerald-400' : 'text-gray-400',
+            onlineDotClass: isOnline ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-gray-600',
+            name: s.name,
+            leaveBadgeHtml: leaveBadgeHtml,
+            id: s.id,
+            selA: st==='✅'?'selected':'',
+            selB: st==='🏖️'?'selected':'',
+            selC: st==='🤒'?'selected':'',
+            selD: st==='📝'?'selected':'',
+            selE: st==='❌'?'selected':''
+        });
     }).join('');
     
-    container.innerHTML = html || '<div class="text-center text-gray-500 p-8 font-bold">ไม่พบข้อมูลรายชื่อ</div>';
     document.getElementById('statusSummary').innerHTML = `
         <div class="flex-1 bg-slate-900 border border-slate-700 p-3 rounded-xl text-center shadow-inner"><b class="text-white text-lg">${counts.TOTAL}</b><br><span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ทั้งหมด</span></div>
         <div class="flex-1 bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl text-center shadow-inner"><b class="text-emerald-400 text-lg">${counts['✅']}</b><br><span class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">มาทำงาน</span></div>
@@ -787,13 +786,24 @@ window._doRenderTransferUserList = function() {
         return nameMatch && groupMatch && matchDept && matchShift;
     });
 
+    if (filtered.length === 0) {
+        c.innerHTML = '<div class="text-center text-gray-500 text-xs py-6">ไม่พบรายชื่อพนักงาน</div>';
+        return;
+    }
+
     c.innerHTML = filtered.map(s => {
         const isSel = selectedTransfer.has(s.id);
         const dbUser = getDbUserFromDiscordName(s.name);
         let tagHtml = dbUser ? `<span class="text-[9px] text-gray-500 ml-2">(${dbUser.department||'AM'} | ${dbUser.allowed_shift.replace('กะ','')})</span>` : '';
 
-        return `<div onclick="toggleTransfer('${s.id}')" class="px-4 py-3 rounded-xl cursor-pointer text-left text-sm font-bold transition flex justify-between items-center ${isSel ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-400 shadow-inner ring-1 ring-emerald-500' : 'bg-slate-900 border border-slate-700 text-gray-300 hover:bg-slate-800'}"><span class="truncate">${s.name} ${tagHtml}</span>${isSel ? '<span class="material-icons text-emerald-500">check_circle</span>' : '<span class="material-icons text-gray-600 text-sm">radio_button_unchecked</span>'}</div>`;
-    }).join('') || '<div class="text-center text-gray-500 text-xs py-6">ไม่พบรายชื่อพนักงาน</div>';
+        return window.renderTemplate('tpl-ds-transfer-user-row', {
+            id: s.id,
+            bgClass: isSel ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-400 shadow-inner ring-1 ring-emerald-500' : 'bg-slate-900 border border-slate-700 text-gray-300 hover:bg-slate-800',
+            name: s.name,
+            tagHtml: tagHtml,
+            iconHtml: isSel ? '<span class="material-icons text-emerald-500">check_circle</span>' : '<span class="material-icons text-gray-600 text-sm">radio_button_unchecked</span>'
+        });
+    }).join('');
 };
 
 window.selectAllVisibleTransfer = function() {
@@ -893,19 +903,15 @@ window.renderTransferLists = function() {
         return name.includes(pSearch);
     });
 
-    pBox.innerHTML = filteredPending.map(t => {
-        const s = extStaffList.find(x=>x.id===t.staffId);
-        const name = s ? s.name : t.staffId;
-        const dateStr = new Date(t.executeAt).toLocaleString('th-TH');
-        return `<div class="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs shadow-sm mb-1.5 hover:border-amber-500 transition">
-            <div class="flex-1 min-w-0 pr-2">
-                <div class="text-sky-400 font-bold truncate">${name}</div>
-                <div class="text-gray-400 text-[10px] truncate">${t.fromGroup} ➝ ${t.toGroup}</div>
-                <div class="text-amber-400 text-[10px] mt-0.5 flex items-center gap-1"><span class="material-icons text-[10px]">timer</span> ${dateStr}</div>
-            </div>
-            <button onclick="delTransfer('${t.id}')" class="text-red-400 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition shrink-0"><span class="material-icons text-sm">close</span></button>
-        </div>`;
-    }).join('') || '<div class="text-center text-gray-500 text-xs py-4">ไม่มีรายการ</div>';
+    if (filteredPending.length === 0) pBox.innerHTML = '<div class="text-center text-gray-500 text-xs py-4">ไม่มีรายการ</div>';
+    else {
+        pBox.innerHTML = filteredPending.map(t => {
+            const s = extStaffList.find(x=>x.id===t.staffId);
+            const name = s ? s.name : t.staffId;
+            const dateStr = new Date(t.executeAt).toLocaleString('th-TH');
+            return window.renderTemplate('tpl-ds-transfer-pending-row', { id: t.id, name: name, fromGroup: t.fromGroup, toGroup: t.toGroup, dateStr: dateStr });
+        }).join('');
+    }
 
     const filteredHistory = transferHistory.slice().filter(t => {
         const s = extStaffList.find(x=>x.id===t.staffId);
@@ -913,16 +919,15 @@ window.renderTransferLists = function() {
         return name.includes(hSearch);
     });
 
-    hBox.innerHTML = filteredHistory.map(t => {
-        const s = extStaffList.find(x=>x.id===t.staffId);
-        const name = s ? s.name : t.staffId;
-        const dateStr = new Date(t.completedAt).toLocaleString('th-TH');
-        return `<div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs shadow-sm mb-1.5">
-            <div class="text-gray-300 font-bold truncate">${name}</div>
-            <div class="text-gray-500 text-[10px] truncate">${t.fromGroup} ➝ ${t.toGroup}</div>
-            <div class="text-emerald-400 text-[10px] mt-0.5 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> ${dateStr}</div>
-        </div>`;
-    }).join('') || '<div class="text-center text-gray-500 text-xs py-4">ไม่มีประวัติ</div>';
+    if (filteredHistory.length === 0) hBox.innerHTML = '<div class="text-center text-gray-500 text-xs py-4">ไม่มีประวัติ</div>';
+    else {
+        hBox.innerHTML = filteredHistory.map(t => {
+            const s = extStaffList.find(x=>x.id===t.staffId);
+            const name = s ? s.name : t.staffId;
+            const dateStr = new Date(t.completedAt).toLocaleString('th-TH');
+            return window.renderTemplate('tpl-ds-transfer-history-row', { name: name, fromGroup: t.fromGroup, toGroup: t.toGroup, dateStr: dateStr });
+        }).join('');
+    }
 };
 
 window.renderTransferSummary = function() {
@@ -935,12 +940,14 @@ window.renderTransferSummary = function() {
     
     const board = document.getElementById('transferSummaryBoard');
     if(!board) return;
-    board.innerHTML = Object.keys(summary).map(k => `
-        <div onclick="showTransferSummaryDetail('${k}')" class="cursor-pointer hover:ring-2 hover:ring-emerald-500 bg-slate-900 border border-slate-600 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition shadow-sm" title="คลิกเพื่อดูรายชื่อพนักงาน">
-            <span class="text-gray-300 font-bold">${k}</span>
-            <span class="bg-emerald-500 text-slate-900 px-2 py-0.5 rounded-md font-black shadow-inner">${summary[k]}</span>
-        </div>
-    `).join('') || '<span class="text-gray-500 text-sm py-2 font-bold flex items-center gap-2"><span class="material-icons text-[18px]">verified</span> ไม่มีคิวโอนย้ายรอดำเนินการ</span>';
+    
+    if (Object.keys(summary).length === 0) {
+        board.innerHTML = '<span class="text-gray-500 text-sm py-2 font-bold flex items-center gap-2"><span class="material-icons text-[18px]">verified</span> ไม่มีคิวโอนย้ายรอดำเนินการ</span>';
+    } else {
+        board.innerHTML = Object.keys(summary).map(k => {
+            return window.renderTemplate('tpl-ds-transfer-summary-card', { k: k, count: summary[k] });
+        }).join('');
+    }
 };
 
 window.showTransferSummaryDetail = function(key) {
@@ -950,14 +957,7 @@ window.showTransferSummaryDetail = function(key) {
         const s = extStaffList.find(x=>x.id===t.staffId);
         const name = s ? s.name : t.staffId;
         const dateStr = new Date(t.executeAt).toLocaleString('th-TH');
-        return `
-        <div class="p-3 bg-slate-800 rounded-xl border border-slate-600 shadow-sm flex items-center justify-between mb-2 hover:bg-slate-700 transition">
-            <div class="flex items-center gap-3 w-full overflow-hidden">
-                <div class="w-6 h-6 shrink-0 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-gray-400 border border-slate-700 shadow-inner">${i+1}</div>
-                <div class="font-bold text-sm text-sky-300 truncate" data-search-name="${name.toLowerCase()}">${name}</div>
-            </div>
-            <div class="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md border border-amber-400/20 whitespace-nowrap shadow-sm font-bold flex items-center gap-1"><span class="material-icons text-[12px]">schedule</span> ${dateStr}</div>
-        </div>`;
+        return window.renderTemplate('tpl-ds-transfer-detail-row', { index: i+1, searchName: name.toLowerCase(), name: name, dateStr: dateStr });
     }).join('');
 
     Swal.fire({
@@ -1114,12 +1114,15 @@ window.ds_renderVoiceLogs = function() {
         }
         const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
 
-        finalHtml += `<tr class="${rowClass} transition border-b border-slate-700/50">
-            <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${timeStr}</td>
-            <td class="p-3 font-bold text-white flex items-center">${log.name} ${shiftTag} ${lateBadge}</td>
-            <td class="p-3 whitespace-nowrap">${badge}</td>
-            <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">${log.room}</td>
-        </tr>`;
+        finalHtml += window.renderTemplate('tpl-ds-voice-log-row', {
+            rowClass: rowClass,
+            timeStr: timeStr,
+            name: log.name,
+            shiftTag: shiftTag,
+            lateBadge: lateBadge,
+            badge: badge,
+            room: log.room
+        });
     });
 
     if (finalHtml === '') {
@@ -1135,7 +1138,6 @@ window.ds_fetchActionLogs = async function() {
         const res = await fetch(DISCORD_API_URL + '/api/action-logs');
         if(res.ok) {
             let data = await res.json();
-            // Assign ข้อมูลเข้าตัวแปรส่วนกลางเพื่อใช้สำหรับ filter
             window.dsGlobalActionLogs = data; 
             ds_renderActionLogs();
         }
@@ -1147,7 +1149,6 @@ window.ds_renderActionLogs = function() {
     const dateFilter = document.getElementById('actionLogDate') ? document.getElementById('actionLogDate').value : '';
     const tbody = document.getElementById('ds_actionLogBody');
     
-    // ตรวจสอบว่ามีข้อมูลถูกโหลดมาหรือยัง
     if (!window.dsGlobalActionLogs || window.dsGlobalActionLogs.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบประวัติการใช้งาน</td></tr>';
         return;
@@ -1169,16 +1170,21 @@ window.ds_renderActionLogs = function() {
         });
     }
 
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบข้อมูลในเงื่อนไขที่ค้นหา</td></tr>';
+        return;
+    }
+
     tbody.innerHTML = filtered.map(log => {
         const d = new Date(log.time);
         const timeStr = d.toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-        return `<tr class="hover:bg-slate-700/50 transition border-b border-slate-700/50">
-            <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${timeStr}</td>
-            <td class="p-3 font-bold text-amber-400 whitespace-nowrap">${log.user}</td>
-            <td class="p-3 whitespace-nowrap"><span class="bg-slate-900 text-white px-2 py-1 rounded text-[11px] font-bold border border-slate-600">${log.action}</span></td>
-            <td class="p-3 text-gray-300 text-xs">${log.detail}</td>
-        </tr>`;
-    }).join('') || '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบข้อมูลในเงื่อนไขที่ค้นหา</td></tr>';
+        return window.renderTemplate('tpl-ds-action-log-row', {
+            timeStr: timeStr,
+            user: log.user,
+            action: log.action,
+            detail: log.detail
+        });
+    }).join('');
 };
 
 window.ds_logAction = async function(actionName, detailStr) {
@@ -1191,6 +1197,7 @@ window.ds_logAction = async function(actionName, detailStr) {
         });
     } catch(e) {}
 };
+
 // ==========================================
 // 🟢 อัปเดต Dropdown และ ระบบจัดการฐานข้อมูลดิสคอร์ด (Manage)
 // ==========================================
@@ -1235,6 +1242,11 @@ window._doRenderManagerList = function() {
         return matchName && matchGroup && matchDept && matchShift;
     });
 
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">ไม่พบรายชื่อ</div>';
+        return;
+    }
+
     container.innerHTML = filtered.map(s => {
         const dbUser = getDbUserFromDiscordName(s.name);
         let tagHtml = dbUser ? `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-700/50 ml-2 shadow-sm">${dbUser.department || 'AM'} | ${dbUser.allowed_shift.replace('กะ','')}</span>` : `<span class="bg-slate-700 text-gray-400 px-2 py-0.5 rounded text-[10px] font-bold ml-2">ไม่พบในระบบลงเวลา</span>`;
@@ -1242,15 +1254,13 @@ window._doRenderManagerList = function() {
         for(let g in extStaffGroups) { if(extStaffGroups[g].includes(s.id)) groupsIn.push(g); }
         const gTags = groupsIn.map(g => `<span class="bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded text-[9px] mr-1">${g}</span>`).join('');
         
-        return `
-        <div class="flex justify-between items-center p-3 bg-slate-900 rounded-xl border border-slate-700 shadow-sm mb-2 hover:border-sky-500 transition">
-            <div>
-                <div class="font-bold text-white text-sm flex items-center">${s.name} ${tagHtml}</div>
-                <div class="text-[10px] text-gray-500 mt-1 flex items-center gap-1"><span class="material-icons text-[12px]">folder</span> ${gTags || '- ไม่มีกลุ่ม -'}</div>
-            </div>
-            <button onclick="editCustomName('${s.id}', '${s.name}')" class="text-sky-400 hover:text-white bg-slate-800 hover:bg-sky-600 px-2 py-1 rounded text-xs transition border border-slate-600 shadow-sm">เปลี่ยนชื่อ</button>
-        </div>`;
-    }).join('') || '<div class="text-center text-gray-500 py-8 text-sm">ไม่พบรายชื่อ</div>';
+        return window.renderTemplate('tpl-ds-manager-row', {
+            id: s.id,
+            name: s.name,
+            tagHtml: tagHtml,
+            gTags: gTags || '- ไม่มีกลุ่ม -'
+        });
+    }).join('');
 };
 
 window.renderGroupList = function() {
@@ -1261,7 +1271,6 @@ window.renderGroupList = function() {
     for(let g in extStaffGroups) {
         const count = extStaffGroups[g].length;
         
-        // 🎨 กำหนดสีตามชื่อแผนก (AM / OD)
         let colorClass = 'text-emerald-400 border-slate-600 hover:border-emerald-500';
         let bgClass = 'bg-slate-800 hover:bg-slate-700/50';
         
@@ -1276,25 +1285,17 @@ window.renderGroupList = function() {
             bgClass = 'bg-slate-900/50 hover:bg-slate-800';
         }
 
-        html += `
-        <div class="flex justify-between items-center p-3 rounded-xl border shadow-sm mb-2 transition cursor-pointer group/item ${bgClass} ${colorClass}" onclick="openGroupManagerModal('${g}')">
-            <div class="flex flex-col">
-                <div class="font-bold text-sm flex items-center gap-1">
-                    ${g} <span class="material-icons text-[12px] opacity-0 group-hover/item:opacity-100 transition">edit</span>
-                </div>
-                <div class="text-[10px] text-gray-400 mt-0.5">สมาชิก ${count} คน</div>
-            </div>
-            <button onclick="event.stopPropagation(); deleteGroup('${g}')" class="text-red-400 hover:text-white bg-slate-900 hover:bg-red-500 w-8 h-8 rounded-lg transition flex items-center justify-center border border-slate-700 shadow-sm opacity-0 group-hover/item:opacity-100" title="ลบกลุ่มนี้ทิ้ง"><span class="material-icons text-[14px]">delete</span></button>
-        </div>`;
+        html += window.renderTemplate('tpl-ds-group-row', {
+            bgClass: bgClass,
+            colorClass: colorClass,
+            g: g,
+            count: count
+        });
     }
     container.innerHTML = html || '<div class="text-center text-gray-500 py-4 text-xs">ไม่มีกลุ่ม</div>';
 };
 
-// ==========================================
-// 🌟 ฟังก์ชันใหม่: ป๊อปอัปจัดการคนในกลุ่ม (เพิ่ม/ลบ สมาชิก)
-// ==========================================
 window.openGroupManagerModal = function(groupName) {
-    // 1. ฟังก์ชันวาดรายชื่อในป๊อปอัป
     window.renderModalMemberList = function(gName) {
         const memberIds = extStaffGroups[gName] || [];
         if (memberIds.length === 0) return '<div class="text-center text-gray-500 py-6 text-sm">ยังไม่มีสมาชิกในกลุ่มนี้</div>';
@@ -1315,19 +1316,16 @@ window.openGroupManagerModal = function(groupName) {
         `).join('');
     };
 
-    // 2. ดึงรายชื่อคนที่ยังไม่ได้อยู่ในกลุ่มนี้ มาใส่ Dropdown ให้เลือกเพิ่ม
     const allUsersOptions = extStaffList
         .filter(s => !(extStaffGroups[groupName] || []).includes(s.id))
         .sort((a,b) => a.name.localeCompare(b.name))
         .map(s => `<option value="${s.id}">${s.name}</option>`)
         .join('');
 
-    // 3. จัดสีหัวข้อป๊อปอัป
     let headerColor = 'text-emerald-400';
     if(groupName.startsWith('AM') || groupName.startsWith('AMQL')) headerColor = 'text-blue-400';
     else if(groupName.startsWith('OD')) headerColor = 'text-pink-400';
 
-    // 4. แสดงป๊อปอัป
     Swal.fire({
         html: `
             <div class="text-left mt-2">
@@ -1368,9 +1366,6 @@ window.openGroupManagerModal = function(groupName) {
     });
 };
 
-// ==========================================
-// 🌟 ฟังก์ชันย่อย: ยิง API เพิ่ม/ลบคนในป๊อปอัป
-// ==========================================
 window.addUserToGroup = async function(groupName) {
     const select = document.getElementById('addMemberSelect');
     const staffId = select.value;
@@ -1387,19 +1382,16 @@ window.addUserToGroup = async function(groupName) {
         });
         
         if(res.ok) {
-            // อัปเดตข้อมูลในความจำ
             if(!extStaffGroups[groupName]) extStaffGroups[groupName] = [];
             extStaffGroups[groupName].push(staffId);
             
-            // รีเฟรชรายชื่อในป๊อปอัป
             document.getElementById('modalMemberList').innerHTML = window.renderModalMemberList(groupName);
             document.getElementById('modalMemberCount').innerText = `${extStaffGroups[groupName].length} คน`;
             
-            // เอารายชื่อออกจาก Dropdown
             select.querySelector(`option[value="${staffId}"]`).remove();
             select.value = '';
             
-            renderGroupList(); // รีเฟรชตารางข้างหลัง
+            renderGroupList(); 
         }
     } catch(e) { console.error(e); } 
     finally {
@@ -1419,21 +1411,18 @@ window.removeUserFromGroup = async function(groupName, staffId) {
         });
 
         if(res.ok) {
-            // ลบจากข้อมูลความจำ
             extStaffGroups[groupName] = extStaffGroups[groupName].filter(id => id !== staffId);
             
-            // รีเฟรชรายชื่อในป๊อปอัป
             listContainer.innerHTML = window.renderModalMemberList(groupName);
             document.getElementById('modalMemberCount').innerText = `${extStaffGroups[groupName].length} คน`;
             
-            // คืนรายชื่อกลับเข้า Dropdown ให้เลือกใหม่ได้
             const staff = extStaffList.find(s => s.id === staffId);
             if(staff) {
                 const select = document.getElementById('addMemberSelect');
                 select.innerHTML += `<option value="${staff.id}">${staff.name}</option>`;
             }
             
-            renderGroupList(); // รีเฟรชตารางข้างหลัง
+            renderGroupList(); 
         }
     } catch(e) { console.error(e); } 
     finally {
