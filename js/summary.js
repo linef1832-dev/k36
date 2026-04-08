@@ -1,5 +1,5 @@
 // ====================================================
-// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ เพิ่มป้ายแสดงส่วนต่างยอดรวม)
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้กะเพี้ยน + บั๊ก Error)
 // ====================================================
 
 let pendingSummaryData = []; 
@@ -13,23 +13,23 @@ let summaryRenderTimer;
 let summarySubscription = null;
 
 // 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด
-function getYesterdayDateStr(dateStr) {
+window.getYesterdayDateStr = function(dateStr) {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
     if (parts.length !== 3) return '';
     const dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
     dt.setDate(dt.getDate() - 1);
     return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-}
+};
 
 // 🌟 ฟังก์ชันทำความสะอาดคีย์เพื่อเทียบยอดแบบไม่แคร์พิมพ์เล็ก/ใหญ่
-function cleanKey(empName, website) {
+window.cleanKeyStr = function(empName, website) {
     let n = (empName || '').toLowerCase().trim();
     let w = (website || '').toLowerCase().trim();
     return `${n}_${w}`;
-}
+};
 
-// 🌟 ตัวช่วยสร้างป้ายส่วนต่างขึ้น-ลงแบบเร็วๆ
+// 🌟 ตัวช่วยสร้างป้ายส่วนต่างขึ้น-ลง
 function buildDiffBadge(diffValue, extraClasses = '') {
     if (diffValue > 0) return `<span class="text-emerald-400 font-bold bg-emerald-900/30 px-1.5 py-0.5 rounded flex items-center border border-emerald-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_up</span>+${diffValue}</span>`;
     if (diffValue < 0) return `<span class="text-red-400 font-bold bg-red-900/30 px-1.5 py-0.5 rounded flex items-center border border-red-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_down</span>${diffValue}</span>`;
@@ -42,7 +42,6 @@ function getTpl(templateId, data = {}) {
     if (!tpl) {
         if (templateId === 'tpl-no-data') return `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
         if (templateId === 'tpl-emp-not-found') return `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${data.keyword}" ในวันนี้</div>`;
-        console.error('Template not found:', templateId); 
         return ''; 
     }
     let html = tpl.innerHTML;
@@ -110,25 +109,22 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
+// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100% ไม่มีเดามั่วตามอักษรหน้าชื่อแล้ว!
 function getShiftFromName(name) {
-    let prefixShift = 'UNKNOWN';
-    let lowerName = name.toLowerCase();
-    
-    if (lowerName.startsWith('m')) prefixShift = 'กะเช้า';
-    else if (lowerName.startsWith('a')) prefixShift = 'กะกลาง';
-    else if (lowerName.startsWith('n')) prefixShift = 'กะดึก';
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
 
-    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return prefixShift;
-
-    const searchName = lowerName.replace(/[^a-z0-9ก-๙]/g, ''); 
+    const searchName = name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); 
     let foundUser = window.GLOBAL_USER_LIST.find(u => {
         const dbName = u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
         return dbName === searchName || (dbName.length > 2 && (dbName.includes(searchName) || searchName.includes(dbName)));
     });
     
-    let shift = foundUser && foundUser.allowed_shift ? foundUser.allowed_shift : 'UNKNOWN';
-    if (shift === 'all' || shift === '' || shift === 'UNKNOWN') shift = prefixShift !== 'UNKNOWN' ? prefixShift : 'UNKNOWN';
-    return shift;
+    if (foundUser && foundUser.allowed_shift) {
+        if (foundUser.allowed_shift === 'all') return 'กะอิสระ';
+        return foundUser.allowed_shift;
+    }
+    
+    return 'UNKNOWN';
 }
 
 function parseAmount(val) {
@@ -454,9 +450,8 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     extractedRows.push({ empName, amount, website: webName, system: fileSystem, status: txStatus, odType: odType, date: finalRowDate, shift: finalShift });
                 }
 
-                // 🌟 ระบบหา "วันที่เมื่อวาน" แบบแม่นยำ เพื่อใช้หาตัวเปรียบเทียบ
                 const uniqueDates = [...new Set(extractedRows.map(r => r.date))];
-                const yesterdayDates = uniqueDates.map(d => getYesterdayDateStr(d));
+                const yesterdayDates = uniqueDates.map(d => window.getYesterdayDateStr(d));
 
                 let yestMap = {};
                 if (typeof appDB !== 'undefined' && yesterdayDates.length > 0) {
@@ -464,8 +459,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         .select('date, employee_name, website, count')
                         .in('date', yesterdayDates);
                     if (yestData) {
-                        // 🌟 บังคับพิมพ์เล็กทั้งหมด
-                        yestData.forEach(r => yestMap[`${r.date}_${cleanKey(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
+                        yestData.forEach(r => yestMap[`${r.date}_${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
                     }
                 }
 
@@ -476,8 +470,8 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         p.date === row.date
                     );
                     
-                    const rowYestDate = getYesterdayDateStr(row.date);
-                    const yestCount = yestMap[`${rowYestDate}_${cleanKey(row.empName, row.website)}`] || 0;
+                    const rowYestDate = window.getYesterdayDateStr(row.date);
+                    const yestCount = yestMap[`${rowYestDate}_${window.cleanKeyStr(row.empName, row.website)}`] || 0;
 
                     let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
                     if (customSystems[row.website]) { row.system = customSystems[row.website]; }
@@ -488,7 +482,6 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         if (row.status === 'Reject') pendingSummaryData[existingIndex].rejectCount = (pendingSummaryData[existingIndex].rejectCount || 0) + 1;
                         else pendingSummaryData[existingIndex].approvedCount = (pendingSummaryData[existingIndex].approvedCount || 0) + 1;
                         
-                        // อัปเดตยอดเมื่อวาน
                         pendingSummaryData[existingIndex].yestCount = yestCount; 
                         pendingSummaryData[existingIndex].diffFromYesterday = pendingSummaryData[existingIndex].count - yestCount;
                     } else {
@@ -538,7 +531,6 @@ window.debounceRenderSummary = function() {
     summaryRenderTimer = setTimeout(() => { window.renderSummaryDashboard(); }, 200);
 };
 
-// 🌟 3. ฟังก์ชันวาดหน้าจอ (ใช้ Template HTML ที่เราแยกไว้ด้านบน ทำให้โค้ดสะอาดมาก)
 window.renderSummaryDashboard = function() {
     if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
         try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
@@ -601,7 +593,6 @@ window.renderSummaryDashboard = function() {
             else shiftStats['UNKNOWN'] += item.count;
         });
 
-        // สร้างป้ายส่วนต่างของยอดรวมทั้งหมด
         let grandDiff = shiftStats.TOTAL - shiftStats.TOTAL_YEST;
         let grandDiffHtml = '';
         if (grandDiff !== 0) grandDiffHtml = buildDiffBadge(grandDiff, 'ml-2 bg-slate-900 border-none scale-110');
@@ -663,7 +654,6 @@ window.renderSummaryDashboard = function() {
                         displayDate = `วันที่ ${parseInt(d)} ${monthNames[parseInt(m)-1]} ${parseInt(y)+543}`;
                     }
 
-                    // ป้ายส่วนต่างของวันนั้นๆ ทั้งแผนก
                     let groupDiff = dGroup.totalCount - dGroup.totalYestCount;
                     let groupDiffHtml = buildDiffBadge(groupDiff);
 
@@ -687,10 +677,10 @@ window.renderSummaryDashboard = function() {
                             const data = dGroup.emps[name];
                             
                             let shiftBadgeHtml = '';
-                            if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-2 py-0.5 rounded shadow-sm">เช้า</span>';
-                            else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-2 py-0.5 rounded shadow-sm">กลาง</span>';
-                            else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-2 py-0.5 rounded shadow-sm">ดึก</span>';
-                            else if (data.shift === 'กะอิสระ') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded shadow-sm">อิสระ</span>';
+                            if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-2 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
+                            else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-2 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
+                            else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-2 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
+                            else if (data.shift === 'กะอิสระ') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
                             else shiftBadgeHtml = ''; 
                             
                             let odBadge = '';
@@ -711,7 +701,6 @@ window.renderSummaryDashboard = function() {
 
                             let quickWebBadges = data.webs.map(w => `<span class="bg-slate-900 border border-slate-600 px-1.5 py-0.5 rounded text-[10px] text-gray-300 whitespace-nowrap shadow-sm"><b class="text-sky-400">${w.website}:</b> ${w.count}</span>`).join('');
 
-                            // ป้ายส่วนต่างของพนักงานแต่ละคน
                             let empDiff = data.totalCount - data.totalYestCount;
                             let empDiffHtml = buildDiffBadge(empDiff, 'mt-1');
 
@@ -852,6 +841,11 @@ window.fetchLeaderboardData = async function() {
 
     lbBox.innerHTML = '<div class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-3xl mb-2">sync</span><br>กำลังคำนวณอันดับ...</div>';
 
+    // 🌟 บังคับโหลดรายชื่อพนักงานก่อน เพื่อให้จัดอันดับรู้ว่าพนักงานคนนี้อยู่กะไหนจริงๆ (กันกะเพี้ยน)
+    if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+        await fetchUsers();
+    }
+
     if (viewMode === 'preview' && pendingSummaryData.length > 0) {
         let aggMap = {};
         
@@ -944,7 +938,6 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
         else if (i === 2) medalClass = 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-50 scale-105 shadow-md'; 
         else medalClass = 'bg-slate-700 text-slate-400 border border-slate-600'; 
 
-        // 🌟 สร้าง HTML ป้ายกะตรงนี้ ก่อนยัดลง Template
         let shiftBadgeHtml = '';
         if (d.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
         else if (d.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
@@ -1034,15 +1027,12 @@ window.fetchHistoricalSummary = async function(silent = false) {
     if (!silent) Swal.fire({ title: 'กำลังดึงข้อมูลรายวัน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
-        // 🌟 บังคับโหลดรายชื่อก่อน เพื่อให้โชว์ "กะ" ไม่เป็น UNKNOWN 🌟
         if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers();
         }
 
-        // 🌟 ใช้ฟังก์ชันดึงวันที่เมื่อวานแบบใหม่
         const yesterdayStr = window.getYesterdayDateStr(dateVal);
 
-        // 🌟 ดึงข้อมูลจากตาราง schedules (ตารางเวร) เพื่อเช็คว่าวันนั้นแต่ละคนลงเวลาเข้า "กะไหน" (แก้บั๊กคนหมุนเวียนกะ) 🌟
         const [todayRes, yestRes, schedulesRes] = await Promise.all([
             appDB.from('transaction_daily_summary').select('*').eq('date', dateVal),
             appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr),
@@ -1052,10 +1042,8 @@ window.fetchHistoricalSummary = async function(silent = false) {
         if (todayRes.error) throw todayRes.error;
 
         let yestMap = {};
-        // 🌟 บังคับพิมพ์เล็กทั้งหมด เพื่อป้องกันบั๊กเวลาชื่อไม่ตรง Case
         if (yestRes.data) yestRes.data.forEach(r => yestMap[`${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
 
-        // 🌟 สร้างแผนที่รายชื่อ -> กะของวันนั้น
         let schMap = {};
         if (schedulesRes && schedulesRes.data) {
             schedulesRes.data.forEach(s => schMap[`${s.work_date}_${s.staff_name}`] = s.shift_name);
@@ -1064,14 +1052,10 @@ window.fetchHistoricalSummary = async function(silent = false) {
         if (todayRes.data && todayRes.data.length > 0) {
             let mappedData = todayRes.data.map(r => {
                 const todayCount = parseInt(r.count) || 0;
-                
-                // 🌟 ดึงข้อมูลเมื่อวานแบบตัวพิมพ์เล็กทั้งหมด
                 const yestCount = yestMap[window.cleanKeyStr(r.employee_name, r.website)] || 0;
-                
                 const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : todayCount;
                 const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
-                // 🌟 หากะจากที่ลงเวลาไว้ก่อน ถ้าไม่ได้ลงเวลาไว้ถึงจะไปสุ่มเดาจากชื่อ (getShiftFromName)
                 let actualShift = schMap[`${r.date}_${r.employee_name}`];
                 if (!actualShift) {
                     actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
@@ -1079,7 +1063,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
 
                 return {
                     empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
-                    shift: actualShift, // 🌟 ใช้กะที่ได้จากการเช็ค
+                    shift: actualShift, 
                     yestCount: yestCount, diffFromYesterday: todayCount - yestCount,
                     approvedCount: appCount, rejectCount: rejCount
                 };
@@ -1186,7 +1170,7 @@ window.exportSummaryToExcel = async function() {
             if (colNumber <= 4) {
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
                 cell.font.color = { argb: 'FFFFFFFF' };
-                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
+                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
             } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
                 const webIndex = Math.floor((colNumber - 5) / 3);
                 const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
@@ -1352,15 +1336,12 @@ window.fetchMultipleHistoricalSummary = async function() {
     Swal.fire({ title: 'กำลังรวมข้อมูล...', text: `ดึงข้อมูล ${dates.length} วันมาบวกทบกัน`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
-        // 🌟 บังคับโหลดรายชื่อก่อน เพื่อให้รู้ "กะ" ที่แท้จริง (แก้บั๊ก UNKNOWN)
         if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers();
         }
 
-        // 🌟 หา "วันที่เมื่อวาน" ของทุกๆ วันที่ถูกเลือก เพื่อไปกวาดข้อมูลเมื่อวานมาบวกด้วย
         const yesterdayDates = dates.map(d => window.getYesterdayDateStr(d));
 
-        // 🌟 ดึงข้อมูลรวดเดียว 3 ตาราง
         const [mainRes, schRes, yestRes] = await Promise.all([
             appDB.from('transaction_daily_summary').select('*').in('date', dates),
             appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
@@ -1378,7 +1359,6 @@ window.fetchMultipleHistoricalSummary = async function() {
 
         let yestMap = {};
         yestData.forEach(r => {
-            // 🌟 จัดกลุ่มยอดของเมื่อวาน โดยรวมยอดของทุกวันเอาไว้ด้วยกัน เพื่อเอาไปเทียบ
             const key = window.cleanKeyStr(r.employee_name, r.website);
             if (!yestMap[key]) yestMap[key] = 0;
             yestMap[key] += parseInt(r.count) || 0;
@@ -1394,7 +1374,6 @@ window.fetchMultipleHistoricalSummary = async function() {
             data.forEach(r => {
                 const key = window.cleanKeyStr(r.employee_name, r.website);
                 
-                // 🌟 หากะจากที่ลงเวลาไว้ก่อน ถ้าไม่ได้ลงเวลาไว้ถึงจะไปสุ่มเดาจากชื่อ (getShiftFromName)
                 let actualShift = schMap[`${r.date}_${r.employee_name}`];
                 if (!actualShift) {
                     actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
@@ -1404,8 +1383,8 @@ window.fetchMultipleHistoricalSummary = async function() {
                     groupedData[key] = {
                         date: combinedDateLabel, empName: r.employee_name, website: r.website, system: r.system || 'UNKNOWN',
                         count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
-                        shift: actualShift, // 🌟 ใช้กะที่ได้จากการเช็ค
-                        yestCount: yestMap[key] || 0, // 🌟 ดึงยอดรวมของเมื่อวานมาใส่ตรงนี้
+                        shift: actualShift, 
+                        yestCount: yestMap[key] || 0, 
                         diffFromYesterday: 0
                     };
                 }
@@ -1414,7 +1393,6 @@ window.fetchMultipleHistoricalSummary = async function() {
                 groupedData[key].approvedCount += (r.approved_count !== null ? parseInt(r.approved_count) : (parseInt(r.count) || 0));
                 groupedData[key].rejectCount += parseInt(r.reject_count) || 0;
                 
-                // 🌟 คำนวณความต่างใหม่
                 groupedData[key].diffFromYesterday = groupedData[key].count - groupedData[key].yestCount;
             });
         }
