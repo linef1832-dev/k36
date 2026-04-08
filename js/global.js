@@ -170,3 +170,16 @@ function toggleTheme() {
         if(cb) cb.checked = true;
     }
 }
+
+// ==========================================
+// 🧩 ระบบดึง HTML Template (ต้องอยู่ไฟล์ global.js)
+// ==========================================
+window.renderTemplate = function(templateId, data = {}) {
+    const tpl = document.getElementById(templateId);
+    if (!tpl) return '';
+    let html = tpl.innerHTML;
+    for (const key in data) {
+        html = html.split(`{{${key}}}`).join(data[key] !== undefined && data[key] !== null ? data[key] : '');
+    }
+    return html;
+};
