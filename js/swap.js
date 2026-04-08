@@ -82,12 +82,14 @@ window.searchExcludeStaff = function(shiftType) {
     });
 
     if (availableUsers.length > 0) {
-        dropdown.innerHTML = availableUsers.map(u => `
-            <div onclick="addExcludeStaff(${u.id}, '${shiftType}')" class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-600 cursor-pointer text-xs font-bold text-slate-700 dark:text-gray-200 border-b last:border-0 flex justify-between">
-                <span>${u.username}</span>
-                <span class="text-[9px] bg-white/50 px-1 rounded opacity-70">${u.department || 'AM'}</span>
-            </div>
-        `).join('');
+        dropdown.innerHTML = availableUsers.map(u => {
+            return window.renderTemplate('tpl-swap-exclude-dropdown-item', {
+                id: u.id,
+                shiftType: shiftType,
+                username: u.username,
+                dept: u.department || 'AM'
+            });
+        }).join('');
     } else {
         dropdown.innerHTML = `<div class="px-3 py-2 text-gray-400 text-xs text-center">ไม่พบรายชื่อ หรือถูกเลือกไปแล้ว</div>`;
     }
@@ -123,12 +125,14 @@ window.renderExcludeTags = function(shiftType) {
         container.innerHTML = `<span class="text-gray-400 text-[10px] italic w-full text-center py-2">ยังไม่มีรายชื่อ</span>`;
         return;
     }
-    container.innerHTML = list.map(u => `
-        <span class="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border ${colorClass} shadow-sm">
-            ${u.username}
-            <button onclick="removeExcludeStaff(${u.id}, '${shiftType}')" class="hover:text-red-500 bg-white/50 rounded-full w-3.5 h-3.5 flex items-center justify-center transition"><span class="material-icons text-[10px]">close</span></button>
-        </span>
-    `).join('');
+    container.innerHTML = list.map(u => {
+        return window.renderTemplate('tpl-swap-exclude-tag', {
+            colorClass: colorClass,
+            username: u.username,
+            id: u.id,
+            shiftType: shiftType
+        });
+    }).join('');
 }
 
 document.addEventListener('click', function(event) {
@@ -267,35 +271,45 @@ window.generateSwapPlan = async function() {
 window.renderSwapPlanPreviewUI = function() {
     const container = document.getElementById('planDaysContainer');
     if (!container) return;
-    let html = '';
-
-    generatedSwapPlan.forEach((plan, i) => {
+    
+    let html = generatedSwapPlan.map((plan, i) => {
         const displayDate = new Date(plan.targetDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
         const prevDateDisplay = new Date(getSafeDateStr(plan.targetDate, -1)).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
         const nextDateDisplay = new Date(plan.targetNextDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 
-        const mNames = plan.morningToNight.map(u => `<span draggable="true" ondragstart="swapDragStart(event, '${u.id}', ${i}, 'MtoN')" class="bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded text-[10px] m-0.5 inline-flex items-center gap-1 cursor-grab hover:bg-orange-200 hover:shadow-md transition active:cursor-grabbing border border-orange-200"><span class="material-icons text-[10px] opacity-50">drag_indicator</span>${u.username}</span>`).join('');
-        const nNames = plan.nightToMorning.map(u => `<span draggable="true" ondragstart="swapDragStart(event, '${u.id}', ${i}, 'NtoM')" class="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[10px] m-0.5 inline-flex items-center gap-1 cursor-grab hover:bg-purple-200 hover:shadow-md transition active:cursor-grabbing border border-purple-200"><span class="material-icons text-[10px] opacity-50">drag_indicator</span>${u.username}</span>`).join('');
+        const mNames = plan.morningToNight.map(u => {
+            return window.renderTemplate('tpl-swap-plan-user', {
+                id: u.id,
+                dayIndex: i,
+                direction: 'MtoN',
+                colorClass: 'bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200',
+                username: u.username
+            });
+        }).join('');
 
-        html += `
-        <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 shadow-sm overflow-hidden">
-            <div class="bg-slate-100 dark:bg-slate-700/50 p-2 border-b dark:border-slate-600 font-bold text-sm text-slate-800 dark:text-gray-200">
-                <span class="text-blue-600 dark:text-blue-400 mr-2">🗓️ คิวที่ ${plan.dayNumber}</span> (${displayDate})
-            </div>
-            <div class="grid grid-cols-2 divide-x dark:divide-slate-600">
-                <div class="p-3 transition-colors duration-200" ondragover="swapDragOver(event, 'MtoN')" ondragleave="swapDragLeave(event)" ondrop="swapDrop(event, ${i}, 'MtoN')">
-                    <div class="text-xs font-bold text-orange-600 mb-1 pointer-events-none">☀️ เช้าไปดึก (${plan.morningToNight.length} คน)</div>
-                    <div class="text-[9px] text-gray-500 mb-2 leading-tight pointer-events-none">ทำเช้าวันสุดท้าย: <b class="text-slate-700 dark:text-gray-300">${prevDateDisplay}</b><br>เริ่มเข้าดึกคืนแรก: <b class="text-orange-500">${displayDate}</b></div>
-                    <div class="flex flex-wrap min-h-[30px] p-1 -m-1 border border-transparent">${mNames || '<span class="text-gray-400 text-xs pointer-events-none mt-1">ลากมาวางที่นี่...</span>'}</div>
-                </div>
-                <div class="p-3 transition-colors duration-200" ondragover="swapDragOver(event, 'NtoM')" ondragleave="swapDragLeave(event)" ondrop="swapDrop(event, ${i}, 'NtoM')">
-                    <div class="text-xs font-bold text-purple-600 mb-1 pointer-events-none">🌙 ดึกไปเช้า (${plan.nightToMorning.length} คน)</div>
-                    <div class="text-[9px] text-gray-500 mb-2 leading-tight pointer-events-none">ออกกะเช้าวันที่: <b class="text-slate-700 dark:text-gray-300">${displayDate} (พัก 1 วัน)</b><br>เริ่มเข้าเช้าวันที่: <b class="text-green-500">${nextDateDisplay}</b></div>
-                    <div class="flex flex-wrap min-h-[30px] p-1 -m-1 border border-transparent">${nNames || '<span class="text-gray-400 text-xs pointer-events-none mt-1">ลากมาวางที่นี่...</span>'}</div>
-                </div>
-            </div>
-        </div>`;
-    });
+        const nNames = plan.nightToMorning.map(u => {
+            return window.renderTemplate('tpl-swap-plan-user', {
+                id: u.id,
+                dayIndex: i,
+                direction: 'NtoM',
+                colorClass: 'bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200',
+                username: u.username
+            });
+        }).join('');
+
+        return window.renderTemplate('tpl-swap-plan-day', {
+            dayNumber: plan.dayNumber,
+            displayDate: displayDate,
+            index: i,
+            mCount: plan.morningToNight.length,
+            prevDateDisplay: prevDateDisplay,
+            mNamesHtml: mNames || '<span class="text-gray-400 text-xs pointer-events-none mt-1">ลากมาวางที่นี่...</span>',
+            nCount: plan.nightToMorning.length,
+            nextDateDisplay: nextDateDisplay,
+            nNamesHtml: nNames || '<span class="text-gray-400 text-xs pointer-events-none mt-1">ลากมาวางที่นี่...</span>'
+        });
+    }).join('');
+    
     container.innerHTML = html;
 };
 
@@ -316,13 +330,11 @@ window.confirmAndSaveSwapPlan = async function() {
                     dayPlan.morningToNight.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetDate}T05:00:00+07:00`);
                         tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'กะดึก', display_desc: dayPlan.descMtoN }, scheduled_for: exactTime.toISOString(), status: 'pending' });
-                        // 🌟 เพิ่ม status: 'approved' กันเหนียว
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                     dayPlan.nightToMorning.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetNextDate}T05:00:00+07:00`);
                         tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'กะเช้า', display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
-                        // 🌟 เพิ่ม status: 'approved' กันเหนียว
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                 });
@@ -330,15 +342,12 @@ window.confirmAndSaveSwapPlan = async function() {
                 excludeMList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: 'กะเช้า', display_desc: 'อยู่กะเช้าตามเดิม' }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
                 excludeNList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: 'กะดึก', display_desc: 'อยู่กะดึกตามเดิม' }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
 
-                // 🌟 บันทึกคิวตั้งเวลา (Task)
                 if (tasksToInsert.length > 0) { 
                     const { error } = await appDB.from('scheduled_tasks').insert(tasksToInsert); 
                     if (error) throw error; 
                 }
                 
-                // 🌟 บันทึกวันหยุด (Leave Request)
                 if (leaveRequestsToInsert.length > 0) { 
-                    // แก้บั๊ก Error 400 Bad Request: ลบข้อมูลของเก่าในวันนั้นออกก่อน แทนการใช้คำสั่ง Upsert
                     for (let req of leaveRequestsToInsert) {
                         await appDB.from('leave_requests').delete().eq('user_id', req.user_id).eq('leave_date', req.leave_date);
                     }
@@ -419,7 +428,7 @@ window.fetchPublicSwapSchedule = async function() {
         if (data && data.length > 0) {
             const safeUserList = (typeof GLOBAL_USER_LIST !== 'undefined') ? GLOBAL_USER_LIST : [];
 
-            data.forEach(task => {
+            html = data.map(task => {
                 let p = {}; try { p = typeof task.payload === 'string' ? JSON.parse(task.payload) : (task.payload || {}); } catch(e) {}
                 const userName = String(p.user_name || 'ไม่ทราบชื่อ'); 
                 const targetShift = String(p.target_shift || '');
@@ -429,8 +438,8 @@ window.fetchPublicSwapSchedule = async function() {
                 const userDept = dbUser ? (dbUser.department || 'AM') : 'AM';
 
                 if (activeSwapDeptFilter !== 'ALL') {
-                    if (activeSwapDeptFilter === 'TRAINER') { if (userDept === 'AM' || userDept === 'OD') return; } 
-                    else { if (userDept !== activeSwapDeptFilter) return; }
+                    if (activeSwapDeptFilter === 'TRAINER') { if (userDept === 'AM' || userDept === 'OD') return ''; } 
+                    else { if (userDept !== activeSwapDeptFilter) return ''; }
                 }
 
                 validDataCount++; 
@@ -483,20 +492,23 @@ window.fetchPublicSwapSchedule = async function() {
                 let displayDeptBadge = userDept;
                 if (userDept !== 'AM' && userDept !== 'OD') displayDeptBadge = 'AMQL';
 
-                html += `
-                <div class="swap-item relative p-4 rounded-xl border-2 ${bgClass} ${myHighlight} flex items-center gap-4 transition hover:shadow-lg mt-2" data-name="${safeSearchName}" data-swaptype="${swapTypeForFilter}" data-dept="${userDept}">
-                    ${completedBadge} ${adminDelete}
-                    <div class="w-12 h-12 rounded-full bg-black/30 flex items-center justify-center shrink-0 shadow-inner ${txtClass}"><span class="material-icons text-2xl">${icon}</span></div>
-                    <div class="flex-1 min-w-0 pr-6">
-                        <div class="font-extrabold text-base text-white truncate flex items-center gap-2">
-                            ${userName} <span class="text-[9px] bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded border border-slate-600">${displayDeptBadge}</span>
-                            ${isMe ? '<span class="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded shadow-sm">คุณ</span>' : ''}
-                        </div>
-                        <div class="text-sm font-bold ${txtClass} mt-0.5 mb-1">${actionTitle}</div>
-                        <div class="text-[11px] bg-black/20 p-2 rounded-lg border border-white/5 inline-block w-full">${detailHtml}</div>
-                    </div>
-                </div>`;
-            });
+                return window.renderTemplate('tpl-swap-schedule-item', {
+                    bgClass: bgClass,
+                    myHighlight: myHighlight,
+                    safeSearchName: safeSearchName,
+                    swapTypeForFilter: swapTypeForFilter,
+                    userDept: userDept,
+                    completedBadge: completedBadge,
+                    adminDelete: adminDelete,
+                    txtClass: txtClass,
+                    icon: icon,
+                    userName: userName,
+                    displayDeptBadge: displayDeptBadge,
+                    isMeBadge: isMe ? '<span class="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded shadow-sm">คุณ</span>' : '',
+                    actionTitle: actionTitle,
+                    detailHtml: detailHtml
+                });
+            }).join('');
         }
 
         if (validDataCount === 0) {
