@@ -1215,3 +1215,5 @@ window.removeFromNewDept = async function(id, username) {
                 Swal.fire({ icon: 'success', title: 'ย้ายสำเร็จ', timer: 1500, showConfirmButton: false });
             }
         }
+    });
+};
