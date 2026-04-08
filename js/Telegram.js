@@ -61,7 +61,7 @@ window.filterTele = function(category) {
     renderTeleGrid();   // วาดตารางใหม่ตามการกรอง
 }
 
-// ฟังก์ชันวาดการ์ดแสดงลิงก์ Telegram
+// 🌟 ฟังก์ชันวาดการ์ดแสดงลิงก์ Telegram (ใช้ระบบ Template)
 function renderTeleGrid() {
     const grid = document.getElementById('teleGrid');
     if (!grid) return;
@@ -84,21 +84,14 @@ function renderTeleGrid() {
                 <button onclick="deleteTeleLink(${link.id})" class="text-gray-400 hover:text-red-500 p-1 bg-white/50 dark:bg-black/20 rounded-md transition" title="ลบ"><span class="material-icons text-[18px]">delete</span></button>
             </div>` : '';
 
-        return `
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition relative group">
-            ${adminBtns}
-            <div class="flex items-start gap-4">
-                <div class="w-12 h-12 rounded-full ${colorClass} flex items-center justify-center shrink-0"><span class="material-icons text-2xl">near_me</span></div>
-                <div class="flex-1 min-w-0 pr-10">
-                    <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">${link.category}</div>
-                    <h4 class="font-bold text-slate-800 dark:text-white truncate text-base mb-1" title="${link.name}">${link.name}</h4>
-                    <div class="flex gap-2 mt-3">
-                        <a href="${link.url}" target="_blank" class="flex-1 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-900/30 dark:text-sky-300 py-1.5 rounded-lg text-xs font-bold text-center transition">เข้าร่วม</a>
-                        <button onclick="copyToClip('${link.url}')" class="px-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition" title="คัดลอกลิงก์"><span class="material-icons text-sm pt-1">content_copy</span></button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
+        // ดึง Template จาก HTML แทนการพิมพ์โครงสร้างยาวๆ ตรงนี้
+        return window.renderTemplate('tpl-tele-card', {
+            adminBtns: adminBtns,
+            colorClass: colorClass,
+            category: link.category,
+            name: link.name,
+            url: link.url
+        });
     }).join('');
 }
 
