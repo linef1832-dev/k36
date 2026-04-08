@@ -90,7 +90,6 @@
                         </h3>
                         
                         <style>
-                            /* ปลดล็อกการซ่อนสีตัวอักษรของ input[type="month"] ที่มาจาก style.css เฉพาะส่วนนี้ */
                             #leaderboardMonth::-webkit-datetime-edit,
                             #leaderboardMonth::-webkit-datetime-edit-fields-wrapper,
                             #leaderboardMonth::-webkit-datetime-edit-text,
@@ -211,7 +210,6 @@
 </div>
 
 <div id="summaryTemplates" style="display: none;">
-    
     <template id="tpl-date-button">
         <div class="relative group flex flex-col transition-all duration-300 rounded-xl border {{cardClass}}">
             <button onclick="toggleSummaryDate('{{d}}')" class="flex-1 px-3 py-3.5 flex flex-col items-center justify-center gap-1.5 w-full outline-none">
@@ -431,6 +429,22 @@
                 <span class="font-mono font-bold text-emerald-400 text-[11px] bg-slate-900 px-2 py-1 rounded shadow-inner border border-slate-700">
                     ฿{{totalMoney}}
                 </span>
+            </div>
+        </div>
+    </template>
+    
+    <template id="tpl-no-data">
+        <div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center">
+            <span class="material-icons text-7xl mb-4 opacity-20">search_off</span>
+            ไม่พบข้อมูลตามเงื่อนไขที่เลือก
+        </div>
+    </template>
+
+    <template id="tpl-emp-not-found">
+        <div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "{{keyword}}" ในวันนี้</div>
+    </template>
+
+    <template id="tpl-date-group-end">
             </div>
         </div>
     </template>
