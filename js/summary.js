@@ -1,5 +1,5 @@
 // ====================================================
-// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้กะเพี้ยน + บั๊ก Error)
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ เพิ่มสีใน Excel)
 // ====================================================
 
 let pendingSummaryData = []; 
@@ -109,22 +109,25 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
-// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100% ไม่มีเดามั่วตามอักษรหน้าชื่อแล้ว!
 function getShiftFromName(name) {
-    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
+    let prefixShift = 'UNKNOWN';
+    let lowerName = name.toLowerCase();
+    
+    if (lowerName.startsWith('m')) prefixShift = 'กะเช้า';
+    else if (lowerName.startsWith('a')) prefixShift = 'กะกลาง';
+    else if (lowerName.startsWith('n')) prefixShift = 'กะดึก';
 
-    const searchName = name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); 
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return prefixShift;
+
+    const searchName = lowerName.replace(/[^a-z0-9ก-๙]/g, ''); 
     let foundUser = window.GLOBAL_USER_LIST.find(u => {
         const dbName = u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
         return dbName === searchName || (dbName.length > 2 && (dbName.includes(searchName) || searchName.includes(dbName)));
     });
     
-    if (foundUser && foundUser.allowed_shift) {
-        if (foundUser.allowed_shift === 'all') return 'กะอิสระ';
-        return foundUser.allowed_shift;
-    }
-    
-    return 'UNKNOWN';
+    let shift = foundUser && foundUser.allowed_shift ? foundUser.allowed_shift : 'UNKNOWN';
+    if (shift === 'all' || shift === '' || shift === 'UNKNOWN') shift = prefixShift !== 'UNKNOWN' ? prefixShift : 'UNKNOWN';
+    return shift;
 }
 
 function parseAmount(val) {
@@ -1200,6 +1203,26 @@ window.exportSummaryToExcel = async function() {
                 if (colNumber <= 4) {
                     cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
                     if (colNumber === 2) { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' }; }
+                    
+                    // 🌟 เพิ่มสีให้คอลัมน์ "กะ" (Column 3)
+                    if (colNumber === 3) {
+                        cell.font = { bold: true };
+                        if (cell.value === 'เช้า') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; 
+                            cell.font.color = { argb: 'FFEA580C' }; 
+                        } else if (cell.value === 'กลาง') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; 
+                            cell.font.color = { argb: 'FF2563EB' }; 
+                        } else if (cell.value === 'ดึก') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; 
+                            cell.font.color = { argb: 'FF9333EA' }; 
+                        } else if (cell.value === 'อิสระ') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; 
+                            cell.font.color = { argb: 'FF059669' }; 
+                        } else {
+                            cell.font.color = { argb: 'FF94A3B8' };
+                        }
+                    }
                 } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
                     const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3; 
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
@@ -1336,12 +1359,15 @@ window.fetchMultipleHistoricalSummary = async function() {
     Swal.fire({ title: 'กำลังรวมข้อมูล...', text: `ดึงข้อมูล ${dates.length} วันมาบวกทบกัน`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
+        // 🌟 บังคับโหลดรายชื่อก่อน เพื่อให้รู้ "กะ" ที่แท้จริง (แก้บั๊ก UNKNOWN)
         if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers();
         }
 
+        // 🌟 หา "วันที่เมื่อวาน" ของทุกๆ วันที่ถูกเลือก เพื่อไปกวาดข้อมูลเมื่อวานมาบวกด้วย
         const yesterdayDates = dates.map(d => window.getYesterdayDateStr(d));
 
+        // 🌟 ดึงข้อมูลรวดเดียว 3 ตาราง
         const [mainRes, schRes, yestRes] = await Promise.all([
             appDB.from('transaction_daily_summary').select('*').in('date', dates),
             appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
@@ -1359,6 +1385,7 @@ window.fetchMultipleHistoricalSummary = async function() {
 
         let yestMap = {};
         yestData.forEach(r => {
+            // 🌟 จัดกลุ่มยอดของเมื่อวาน โดยรวมยอดของทุกวันเอาไว้ด้วยกัน เพื่อเอาไปเทียบ
             const key = window.cleanKeyStr(r.employee_name, r.website);
             if (!yestMap[key]) yestMap[key] = 0;
             yestMap[key] += parseInt(r.count) || 0;
@@ -1374,6 +1401,7 @@ window.fetchMultipleHistoricalSummary = async function() {
             data.forEach(r => {
                 const key = window.cleanKeyStr(r.employee_name, r.website);
                 
+                // 🌟 หากะจากที่ลงเวลาไว้ก่อน ถ้าไม่ได้ลงเวลาไว้ถึงจะไปสุ่มเดาจากชื่อ (getShiftFromName)
                 let actualShift = schMap[`${r.date}_${r.employee_name}`];
                 if (!actualShift) {
                     actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
@@ -1383,8 +1411,8 @@ window.fetchMultipleHistoricalSummary = async function() {
                     groupedData[key] = {
                         date: combinedDateLabel, empName: r.employee_name, website: r.website, system: r.system || 'UNKNOWN',
                         count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
-                        shift: actualShift, 
-                        yestCount: yestMap[key] || 0, 
+                        shift: actualShift, // 🌟 ใช้กะที่ได้จากการเช็ค
+                        yestCount: yestMap[key] || 0, // 🌟 ดึงยอดรวมของเมื่อวานมาใส่ตรงนี้
                         diffFromYesterday: 0
                     };
                 }
@@ -1393,6 +1421,7 @@ window.fetchMultipleHistoricalSummary = async function() {
                 groupedData[key].approvedCount += (r.approved_count !== null ? parseInt(r.approved_count) : (parseInt(r.count) || 0));
                 groupedData[key].rejectCount += parseInt(r.reject_count) || 0;
                 
+                // 🌟 คำนวณความต่างใหม่
                 groupedData[key].diffFromYesterday = groupedData[key].count - groupedData[key].yestCount;
             });
         }
