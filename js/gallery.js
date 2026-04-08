@@ -292,34 +292,58 @@ window.downloadAllInFilter = async function() {
 };
 
 // ==========================================
-// 📋 ฟังก์ชันคัดลอกรูปภาพไปยัง Clipboard (สำหรับส่ง Line OA)
+// 📋 ฟังก์ชันคัดลอกรูปภาพไปยัง Clipboard (แก้บั๊ก JPEG ไม่ให้ก๊อปปี้)
 // ==========================================
 window.copyImageToClipboard = async function(imageUrl) {
     Swal.fire({
         title: 'กำลังคัดลอกรูปภาพ...',
-        text: 'กรุณารอสักครู่',
+        text: 'กรุณารอสักครู่ ระบบกำลังแปลงไฟล์ให้รองรับการคัดลอก',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
 
     try {
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        
         if (!navigator.clipboard || !window.ClipboardItem) {
             throw new Error("เบราว์เซอร์ไม่รองรับการคัดลอกรูปภาพโดยตรง (แนะนำให้ใช้ Chrome หรือ Edge)");
         }
 
-        const item = new ClipboardItem({ [blob.type]: blob });
-        await navigator.clipboard.write([item]);
-        
-        Swal.fire({
-            icon: 'success', 
-            title: 'คัดลอกสำเร็จ!', 
-            text: 'นำไปกดวาง (Ctrl+V) ในช่องแชท Line OA ได้เลยครับ', 
-            timer: 2000, 
-            showConfirmButton: false
+        // 1. สร้าง Image Object เพื่อโหลดรูปมาเตรียมไว้
+        const img = new Image();
+        img.crossOrigin = "Anonymous"; // ป้องกันปัญหา CORS เวลาดึงรูปจากเซิร์ฟเวอร์อื่น
+        img.src = imageUrl;
+
+        // 2. รอให้รูปโหลดเสร็จสมบูรณ์
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = () => reject(new Error("ไม่สามารถโหลดรูปภาพจากเซิร์ฟเวอร์ได้"));
         });
+
+        // 3. สร้าง Canvas จำลองขึ้นมาเพื่อวาดรูป (เทคนิคแปลงไฟล์ภาพ)
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        // 4. สั่งให้ Canvas ส่งรูปออกมาเป็นไฟล์สกุล image/png เสมอ!
+        canvas.toBlob(async (blob) => {
+            try {
+                // 5. นำไฟล์ PNG ที่ได้ ยัดลง Clipboard
+                const item = new ClipboardItem({ "image/png": blob });
+                await navigator.clipboard.write([item]);
+                
+                Swal.fire({
+                    icon: 'success', 
+                    title: 'คัดลอกสำเร็จ!', 
+                    text: 'นำไปกดวาง (Ctrl+V) ในช่องแชท Line OA ได้เลยครับ', 
+                    timer: 2000, 
+                    showConfirmButton: false
+                });
+            } catch (err) {
+                console.error('Clipboard write failed:', err);
+                Swal.fire('Error', 'ระบบปฏิเสธการคัดลอก: ' + err.message, 'error');
+            }
+        }, 'image/png'); // บังคับเป็น PNG ให้ Chrome ยอมรับ
 
     } catch (err) {
         console.error('Copy image failed:', err);
