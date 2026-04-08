@@ -3,6 +3,18 @@
 // ==========================================
 let globalKbizBots = [];
 
+// 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล (เหมือนของหน้า Summary/Gallery)
+function getKbizTpl(templateId, data = {}) {
+    const tpl = document.getElementById(templateId);
+    if (!tpl) return '';
+    let html = tpl.innerHTML;
+    for (const key in data) {
+        const val = data[key] !== undefined && data[key] !== null ? data[key] : '';
+        html = html.split(`{{${key}}}`).join(val);
+    }
+    return html;
+}
+
 async function fetchKbizData() {
     const grid = document.getElementById('kbizGrid');
     if(!grid) return;
@@ -43,31 +55,17 @@ window.renderKbizGrid = function() {
         return;
     }
 
+    // 🌟 ส่งค่าจาก JS เข้าไปฝังใน Template ของ HTML
     grid.innerHTML = filtered.map(b => {
-        const statusColor = b.is_active ? 'bg-emerald-500' : 'bg-gray-500';
-        const statusText = b.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
-        
-        return `
-        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition-all group relative flex flex-col h-full transform hover:-translate-y-1">
-            <div class="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition z-10">
-                <button onclick="editKbizBot('${b.id}')" class="text-gray-400 hover:text-amber-500 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-lg shadow-sm transition"><span class="material-icons text-[16px]">edit</span></button>
-                <button onclick="deleteKbizBot('${b.id}')" class="text-gray-400 hover:text-red-500 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-lg shadow-sm transition"><span class="material-icons text-[16px]">delete</span></button>
-            </div>
-            <div class="flex items-center gap-4 mb-4">
-                <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-inner"><span class="material-icons text-3xl text-slate-500 dark:text-slate-400">computer</span></div>
-                <div class="flex-1 min-w-0 pt-1">
-                    <h4 class="font-black text-slate-800 dark:text-white text-lg truncate">${b.machine_id}</h4>
-                    <div class="flex items-center gap-1.5 mt-1"><span class="w-2 h-2 rounded-full ${statusColor} shadow-[0_0_5px_currentColor]"></span><span class="text-[10px] font-bold text-gray-500">${statusText}</span></div>
-                </div>
-            </div>
-            <div class="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700 mt-auto space-y-2">
-                <div class="text-xs text-gray-500 font-bold truncate">${b.display_name || '-'}</div>
-                <div class="flex justify-between items-center text-xs border-t border-slate-200 dark:border-slate-700 pt-2">
-                    <span class="text-gray-500">User: <b class="text-slate-700 dark:text-gray-300 ml-1">${b.username}</b></span>
-                    <span class="text-gray-500">Pass: <b class="text-emerald-600 dark:text-emerald-400 ml-1 blur-sm hover:blur-none transition cursor-pointer select-all" title="คลิกเพื่อดูรหัส">${b.password}</b></span>
-                </div>
-            </div>
-        </div>`;
+        return getKbizTpl('tpl-kbiz-card', {
+            id: b.id,
+            machine_id: b.machine_id,
+            statusColor: b.is_active ? 'bg-emerald-500' : 'bg-gray-500',
+            statusText: b.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน',
+            display_name: b.display_name || '-',
+            username: b.username,
+            password: b.password
+        });
     }).join('');
 };
 
@@ -109,7 +107,7 @@ window.saveKbizBot = async function(e) {
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
 
     if (id && id.trim() !== '') {
-        // 🌟 โหมดแก้ไข (หา ID เจอแน่นอน อัปเดตทับของเดิม)
+        // โหมดแก้ไข
         const index = globalKbizBots.findIndex(x => String(x.id) === String(id));
         if(index !== -1) {
             globalKbizBots[index] = { id, machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive };
@@ -117,7 +115,7 @@ window.saveKbizBot = async function(e) {
             globalKbizBots.push({ id, machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive });
         }
     } else {
-        // 🌟 โหมดเพิ่มใหม่
+        // โหมดเพิ่มใหม่
         globalKbizBots.push({ id: 'bot_' + Date.now(), machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive });
     }
 
