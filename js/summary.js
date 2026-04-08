@@ -677,11 +677,11 @@ window.renderSummaryDashboard = function() {
                             const data = dGroup.emps[name];
                             
                             let shiftBadgeHtml = '';
-                            if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
-                            else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
-                            else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
-                            else if (data.shift === 'กะอิสระ') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
-                            else shiftBadgeHtml = ''; 
+                            if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-2 py-0.5 rounded shadow-sm ml-1">เช้า</span>';
+                            else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-2 py-0.5 rounded shadow-sm ml-1">กลาง</span>';
+                            else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-2 py-0.5 rounded shadow-sm ml-1">ดึก</span>';
+                            else if (data.shift === 'กะอิสระ' || data.shift === 'all') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded shadow-sm ml-1">อิสระ</span>';
+                            else shiftBadgeHtml = `<span class="text-[10px] bg-gray-500/20 text-gray-400 border border-gray-500/50 px-2 py-0.5 rounded shadow-sm ml-1">${data.shift || 'UNKNOWN'}</span>`;
                             
                             let odBadge = '';
                             if (data.odType === 'OD') odBadge = '<span class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">OD</span>';
@@ -941,7 +941,8 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
         if (d.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
         else if (d.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
         else if (d.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[9px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
-        else if (d.shift === 'กะอิสระ') shiftBadgeHtml = '<span class="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
+        else if (d.shift === 'กะอิสระ' || d.shift === 'all') shiftBadgeHtml = '<span class="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
+        else shiftBadgeHtml = `<span class="text-[9px] bg-gray-500/20 text-gray-400 border border-gray-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">${d.shift || 'UNKNOWN'}</span>`;
 
         return getTpl('tpl-leaderboard-item', {
             name: name, medalClass: medalClass, medalText: medalText,
