@@ -1,6 +1,18 @@
 let currentGalleryData = [];
 let currentGalleryMode = 'general';
 
+// 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล (เหมือนของหน้า Summary)
+function getGalleryTpl(templateId, data = {}) {
+    const tpl = document.getElementById(templateId);
+    if (!tpl) return '';
+    let html = tpl.innerHTML;
+    for (const key in data) {
+        const val = data[key] !== undefined && data[key] !== null ? data[key] : '';
+        html = html.split(`{{${key}}}`).join(val);
+    }
+    return html;
+}
+
 window.initGalleryApp = function() {
     switchGalleryMode('general');
 
@@ -111,6 +123,7 @@ window.fetchGalleryImages = async function() {
     const lastViewKey = `gallery_last_view_${currentUser.username}`;
     const lastViewedTime = new Date(localStorage.getItem(lastViewKey) || '2000-01-01T00:00:00');
 
+    // 🌟 ดึงข้อมูลไปยัดใส่ Template ที่แยกไว้ใน HTML 🌟
     grid.innerHTML = filteredData.map(img => {
         const imgDate = new Date(img.created_at);
         const isNew = imgDate > lastViewedTime;
@@ -128,24 +141,14 @@ window.fetchGalleryImages = async function() {
 
         const catBadge = `<span class="absolute bottom-2 left-2 ${catColor} text-[10px] px-2 py-0.5 rounded border z-20 backdrop-blur-sm font-bold shadow-sm">${showCatName}</span>`;
 
-        return `
-        <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 shadow-lg flex flex-col group relative hover:border-slate-500 transition-all h-full shrink-0">
-            <div class="h-56 w-full bg-black relative flex items-center justify-center cursor-pointer overflow-hidden shrink-0" onclick="viewImageFull('${img.url}')">
-                ${newBadge}
-                ${adminCheckbox}
-                ${catBadge}
-                <img src="${img.url}" class="w-full h-full object-contain transition duration-300 group-hover:scale-105" loading="lazy">
-            </div>
-            <div class="p-2 bg-slate-900 border-t border-slate-700 flex flex-col gap-2 mt-auto">
-                <div class="text-white font-bold text-xs truncate text-center" title="${img.name}">${img.name}</div>
-                <div class="mt-1">
-                    <button onclick="event.stopPropagation(); downloadGalleryUrl('${img.url}', '${img.name}')" class="w-full bg-green-600 hover:bg-green-500 text-white text-[10px] py-2 rounded-lg shadow font-bold flex items-center justify-center gap-1 transition active:scale-95">
-                        <span class="material-icons text-xs">download</span> โหลด
-                    </button>
-                </div>
-            </div>
-        </div>
-    `}).join('');
+        return getGalleryTpl('tpl-gallery-card', {
+            url: img.url,
+            name: img.name,
+            newBadge: newBadge,
+            adminCheckbox: adminCheckbox,
+            catBadge: catBadge
+        });
+    }).join('');
     
     updateBulkDeleteButton();
 }
@@ -285,5 +288,41 @@ window.downloadAllInFilter = async function() {
 
             Swal.fire({ icon: 'success', title: 'ดาวน์โหลดเสร็จสิ้น!', timer: 1500, showConfirmButton: false });
         } catch (err) { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างไฟล์ ZIP ได้', 'error'); }
+    }
+};
+
+// ==========================================
+// 📋 ฟังก์ชันคัดลอกรูปภาพไปยัง Clipboard (สำหรับส่ง Line OA)
+// ==========================================
+window.copyImageToClipboard = async function(imageUrl) {
+    Swal.fire({
+        title: 'กำลังคัดลอกรูปภาพ...',
+        text: 'กรุณารอสักครู่',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        
+        if (!navigator.clipboard || !window.ClipboardItem) {
+            throw new Error("เบราว์เซอร์ไม่รองรับการคัดลอกรูปภาพโดยตรง (แนะนำให้ใช้ Chrome หรือ Edge)");
+        }
+
+        const item = new ClipboardItem({ [blob.type]: blob });
+        await navigator.clipboard.write([item]);
+        
+        Swal.fire({
+            icon: 'success', 
+            title: 'คัดลอกสำเร็จ!', 
+            text: 'นำไปกดวาง (Ctrl+V) ในช่องแชท Line OA ได้เลยครับ', 
+            timer: 2000, 
+            showConfirmButton: false
+        });
+
+    } catch (err) {
+        console.error('Copy image failed:', err);
+        Swal.fire('Error', 'คัดลอกรูปไม่สำเร็จ: ' + err.message, 'error');
     }
 };
