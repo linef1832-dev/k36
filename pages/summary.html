@@ -89,15 +89,23 @@
                             <span class="material-icons">emoji_events</span> จัดอันดับ
                         </h3>
                         
+                        <style>
+                            /* ปลดล็อกการซ่อนสีตัวอักษรของ input[type="month"] ที่มาจาก style.css เฉพาะส่วนนี้ */
+                            #leaderboardMonth::-webkit-datetime-edit,
+                            #leaderboardMonth::-webkit-datetime-edit-fields-wrapper,
+                            #leaderboardMonth::-webkit-datetime-edit-text,
+                            #leaderboardMonth::-webkit-datetime-edit-month-field,
+                            #leaderboardMonth::-webkit-datetime-edit-year-field {
+                                color: inherit !important;
+                            }
+                            #leaderboardMonth { color: inherit !important; text-shadow: none !important; }
+                        </style>
                         <div class="flex items-center bg-slate-100 dark:bg-slate-900 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 shadow-inner">
                             <select id="leaderboardMode" onchange="fetchLeaderboardData()" class="bg-transparent text-slate-800 dark:text-white text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-300 dark:border-slate-600 z-10">
                                 <option value="monthly" class="bg-white dark:bg-slate-800 text-slate-800 dark:text-white">รายเดือน</option>
                                 <option value="alltime" class="bg-white dark:bg-slate-800 text-slate-800 dark:text-white">ทั้งหมด</option>
                             </select>
-                            <div id="leaderboardMonthWrapper" class="relative w-[80px] h-full flex items-center justify-center pl-2">
-                                <span id="leaderboardMonthDisplay" class="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 pointer-events-none truncate whitespace-nowrap"></span>
-                                <input type="month" id="leaderboardMonth" onchange="updateLeaderboardMonthDisplay(); fetchLeaderboardData()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
-                            </div>
+                            <input type="month" id="leaderboardMonth" onchange="fetchLeaderboardData()" class="bg-transparent text-amber-600 dark:text-amber-400 text-[11px] font-bold outline-none cursor-pointer pl-2 w-[110px]">
                         </div>
                         
                     </div>
@@ -407,7 +415,7 @@
             <div class="flex items-center justify-between mb-1.5">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 transition-transform {{medalClass}}">{{medalText}}</div>
-                    <span class="font-bold text-white text-base truncate flex items-center">{{name}} {{shiftBadge}}</span>
+                    <span class="font-bold text-white text-base truncate flex items-center">{{name}}</span>
                 </div>
                 <div class="text-right flex flex-col items-end">
                     <span class="font-black text-sky-400 bg-sky-900/30 px-2 py-0.5 rounded-md text-lg leading-none border border-sky-800/50" title="ยอดรวมทั้งหมด">
