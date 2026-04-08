@@ -1,7 +1,9 @@
 <div id="summaryApp" class="fixed inset-0 z-50 bg-slate-100 dark:bg-slate-900 fade-in flex flex-col">
     <div class="bg-gradient-to-r from-purple-800 to-indigo-900 text-white p-4 shadow-md shrink-0 flex justify-between items-center z-10">
         <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-purple-200">query_stats</span></div>
+            <div class="bg-white/20 p-2 rounded-xl shadow-inner">
+                <span class="material-icons text-3xl text-purple-200">query_stats</span>
+            </div>
             <div>
                 <h1 class="font-black text-xl tracking-wide">สรุปยอดทำรายการ (Transaction Dashboard)</h1>
                 <p class="text-xs text-purple-200 opacity-90">อัปโหลดไฟล์ Excel เพื่อคำนวณและสรุปยอดการถอนของพนักงาน</p>
@@ -17,7 +19,9 @@
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border-2 border-blue-500/30 shadow-lg flex flex-col items-center justify-center relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-7xl text-blue-500">cloud_upload</span></div>
+                    <div class="absolute top-0 right-0 p-2 opacity-10">
+                        <span class="material-icons text-7xl text-blue-500">cloud_upload</span>
+                    </div>
                     <h3 class="font-black text-xl text-blue-600 dark:text-blue-400 mb-1 z-10">ระบบ K36</h3>
                     <p class="text-[10px] font-bold text-gray-500 mb-4 z-10 text-center">เว็บ: Jun88, MK8, VV72, TH26</p>
                     <label ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'K36')" class="w-full border-2 border-dashed border-blue-400/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200 z-10">
@@ -28,7 +32,9 @@
                 </div>
 
                 <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border-2 border-emerald-500/30 shadow-lg flex flex-col items-center justify-center relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-7xl text-emerald-500">cloud_upload</span></div>
+                    <div class="absolute top-0 right-0 p-2 opacity-10">
+                        <span class="material-icons text-7xl text-emerald-500">cloud_upload</span>
+                    </div>
                     <h3 class="font-black text-xl text-emerald-600 dark:text-emerald-400 mb-1 z-10">ระบบ WG</h3>
                     <p class="text-[10px] font-bold text-gray-500 mb-4 z-10 text-center">เว็บ: F168</p>
                     <label ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'WG')" class="w-full border-2 border-dashed border-emerald-400/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors duration-200 z-10">
@@ -39,7 +45,9 @@
                 </div>
 
                 <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border-2 border-pink-500/30 shadow-lg flex flex-col items-center justify-center relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-7xl text-pink-500">cloud_upload</span></div>
+                    <div class="absolute top-0 right-0 p-2 opacity-10">
+                        <span class="material-icons text-7xl text-pink-500">cloud_upload</span>
+                    </div>
                     <h3 class="font-black text-xl text-pink-600 dark:text-pink-400 mb-1 z-10">ระบบ TCG</h3>
                     <p class="text-[10px] font-bold text-gray-500 mb-4 z-10 text-center">เว็บ: PG688, JL69, NM9</p>
                     <label ondragover="handleDragOverExcel(event)" ondragleave="handleDragLeaveExcel(event)" ondrop="handleDropExcel(event, 'TCG')" class="w-full border-2 border-dashed border-pink-400/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors duration-200 z-10">
@@ -56,7 +64,9 @@
                 </div>
                 
                 <div class="flex justify-end gap-2 w-full xl:w-auto shrink-0">
-                    <button onclick="clearSummaryData()" class="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white rounded-xl font-bold hover:bg-slate-300 transition-colors">ล้างข้อมูลที่พรีวิว</button>
+                    <button onclick="clearSummaryData()" class="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white rounded-xl font-bold hover:bg-slate-300 transition-colors">
+                        ล้างข้อมูลที่พรีวิว
+                    </button>
                     <button onclick="saveSummaryToSupabase()" class="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-black shadow-md hover:shadow-lg transition-transform hover:-translate-y-0.5 flex items-center gap-2">
                         <span class="material-icons">save</span> บันทึกยอดเข้าฐานข้อมูล
                     </button>
@@ -78,7 +88,7 @@
                     </div>
                 </div>
                 <div id="summaryWebGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 p-1">
-                     <div class="col-span-full text-center text-gray-400 py-6 text-sm">รออัปโหลดข้อมูล...</div>
+                    <div class="col-span-full text-center text-gray-400 py-6 text-sm">รออัปโหลดข้อมูล...</div>
                 </div>
             </div>
 
@@ -90,15 +100,15 @@
                         </h3>
                         
                         <style>
+                            /* ปลดล็อกการซ่อนสีตัวอักษรของ input[type="month"] */
                             #leaderboardMonth::-webkit-datetime-edit,
                             #leaderboardMonth::-webkit-datetime-edit-fields-wrapper,
                             #leaderboardMonth::-webkit-datetime-edit-text,
                             #leaderboardMonth::-webkit-datetime-edit-month-field,
-                            #leaderboardMonth::-webkit-datetime-edit-year-field {
-                                color: inherit !important;
-                            }
+                            #leaderboardMonth::-webkit-datetime-edit-year-field { color: inherit !important; }
                             #leaderboardMonth { color: inherit !important; text-shadow: none !important; }
                         </style>
+                        
                         <div class="flex items-center bg-slate-100 dark:bg-slate-900 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 shadow-inner">
                             <select id="leaderboardMode" onchange="fetchLeaderboardData()" class="bg-transparent text-slate-800 dark:text-white text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-300 dark:border-slate-600 z-10">
                                 <option value="monthly" class="bg-white dark:bg-slate-800 text-slate-800 dark:text-white">รายเดือน</option>
@@ -106,7 +116,6 @@
                             </select>
                             <input type="month" id="leaderboardMonth" onchange="fetchLeaderboardData()" class="bg-transparent text-amber-600 dark:text-amber-400 text-[11px] font-bold outline-none cursor-pointer pl-2 w-[110px]">
                         </div>
-                        
                     </div>
                     
                     <div class="relative mb-3 shrink-0">
@@ -172,9 +181,9 @@
                             รออัปโหลดไฟล์ Excel หรือเลือกวันที่ด้านบน...
                         </div>
                     </div>
+
                 </div>
             </div>
-
         </div>
     </div>
 </div>
@@ -183,25 +192,31 @@
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-600">
         <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 flex justify-between items-center text-white">
             <h3 class="font-black text-lg flex items-center gap-2">🖼️ ตั้งค่าโลโก้ <span id="webLogoTargetName" class="text-amber-300"></span></h3>
-            <button type="button" onclick="document.getElementById('webLogoModal').classList.add('hidden')" class="hover:bg-white/20 p-1 rounded-full transition-colors"><span class="material-icons text-sm">close</span></button>
+            <button type="button" onclick="document.getElementById('webLogoModal').classList.add('hidden')" class="hover:bg-white/20 p-1 rounded-full transition-colors">
+                <span class="material-icons text-sm">close</span>
+            </button>
         </div>
         <div class="p-6 space-y-4 text-left">
             <input type="hidden" id="webLogoKey" value="">
+            
             <div>
                 <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ใส่ลิงก์รูปภาพ (URL)</label>
                 <input type="text" id="webLogoUrlInput" placeholder="https://..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors shadow-inner">
             </div>
+            
             <div class="flex items-center gap-2 my-2">
                 <div class="h-px bg-gray-300 dark:bg-slate-700 flex-1"></div>
                 <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">หรืออัปโหลดจากคอม</span>
                 <div class="h-px bg-gray-300 dark:bg-slate-700 flex-1"></div>
             </div>
+            
             <input type="file" id="webLogoFileInput" accept="image/*" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-950 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer">
             
             <div class="text-center mt-4 hidden" id="currentWebLogoPreviewBox">
                 <span class="text-[10px] text-gray-400 mb-1 block">รูปปัจจุบัน</span>
                 <img id="currentWebLogoPreview" src="" class="w-16 h-16 object-cover rounded-full mx-auto border-2 border-gray-300 shadow-md bg-white">
             </div>
+            
             <button onclick="saveWebLogo()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3.5 rounded-xl shadow-md transition-transform active:scale-95 mt-4 text-base border border-blue-400">
                 บันทึกโลโก้
             </button>
@@ -235,9 +250,11 @@
                     <input type="date" id="searchAvailableDate" onchange="if(this.value){ document.getElementById('summaryDateFilter').value = this.value; fetchHistoricalSummary(); }" class="pl-9 pr-3 py-2 bg-slate-900 border border-slate-600 rounded-xl text-white text-xs outline-none focus:border-sky-500 transition cursor-pointer shadow-inner">
                 </div>
             </div>
+            
             <div class="flex flex-wrap gap-2 justify-center" id="availableDatesContainer">
                 {{datesHtml}}
             </div>
+            
             <div class="mt-6 pt-5 border-t border-slate-700/80 flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#0b1120] -mx-8 -mb-8 px-8 py-5">
                 <div class="text-sm font-bold text-gray-400 bg-slate-900 px-4 py-2.5 rounded-xl border border-slate-700 shadow-inner flex items-center gap-2">
                     <span class="material-icons text-lg">shopping_cart</span>
@@ -258,7 +275,9 @@
     <template id="tpl-shift-stats">
         <div class="px-4 py-2 bg-slate-900 rounded-xl border border-slate-700 text-center min-w-[120px] shadow-inner flex-1">
             <div class="text-[10px] text-gray-500 font-bold mb-0.5 uppercase tracking-widest">ยอดรวมทั้งหมด</div>
-            <div class="text-xl font-black text-white flex items-center justify-center gap-2">{{total}} {{totalDiffHtml}}</div>
+            <div class="text-xl font-black text-white flex items-center justify-center gap-2">
+                {{total}} {{totalDiffHtml}}
+            </div>
             <div class="flex justify-center gap-2 mt-1 text-[9px] font-bold">
                 <span class="text-emerald-400">✅ {{approved}}</span>
                 <span class="text-red-400">❌ {{reject}}</span>
@@ -280,7 +299,9 @@
 
     <template id="tpl-history-header">
         <div class="flex justify-between items-center mb-4 bg-slate-800 p-2 pl-4 rounded-xl border border-slate-600 shadow-sm">
-            <span class="text-sky-400 text-xs font-bold flex items-center gap-1"><span class="material-icons text-[14px]">history</span> โหมดดูข้อมูลย้อนหลัง</span>
+            <span class="text-sky-400 text-xs font-bold flex items-center gap-1">
+                <span class="material-icons text-[14px]">history</span> โหมดดูข้อมูลย้อนหลัง
+            </span>
             <button onclick="clearSummaryData()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow border border-slate-500">
                 <span class="material-icons text-sm">arrow_back</span> กลับไปหน้าเลือกวันที่
             </button>
@@ -289,21 +310,26 @@
 
     <template id="tpl-date-group-start">
         <div class="bg-slate-800 border border-slate-700 rounded-xl mb-4 overflow-hidden shadow-sm hover:shadow-md transition-shadow" style="content-visibility: auto; contain-intrinsic-size: auto 72px;">
-            <div class="flex justify-between items-center p-4 bg-indigo-900/60 hover:bg-indigo-800 transition-colors cursor-pointer border-b border-indigo-500/30" 
-                 onclick="this.nextElementSibling.classList.toggle('hidden'); const icon = this.querySelector('.toggle-icon'); icon.innerText = icon.innerText === 'expand_more' ? 'expand_less' : 'expand_more';">
+            <div class="flex justify-between items-center p-4 bg-indigo-900/60 hover:bg-indigo-800 transition-colors cursor-pointer border-b border-indigo-500/30" onclick="this.nextElementSibling.classList.toggle('hidden'); const icon = this.querySelector('.toggle-icon'); icon.innerText = icon.innerText === 'expand_more' ? 'expand_less' : 'expand_more';">
+                
                 <div class="flex items-center gap-4 overflow-hidden pr-2">
                     <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-xl border border-indigo-500/30 shadow-inner shrink-0">
                         <span class="material-icons">calendar_month</span>
                     </div>
                     <div class="flex flex-col min-w-0">
                         <span class="font-black text-white text-lg md:text-xl truncate tracking-wide">{{displayDate}}</span>
-                        <span class="text-[11px] text-indigo-300 font-bold flex items-center gap-1"><span class="material-icons text-[12px]">group</span> พนักงาน {{empCount}} คน</span>
+                        <span class="text-[11px] text-indigo-300 font-bold flex items-center gap-1">
+                            <span class="material-icons text-[12px]">group</span> พนักงาน {{empCount}} คน
+                        </span>
                     </div>
                 </div>
+                
                 <div class="flex items-center gap-4 shrink-0 pl-2">
                     <div class="text-right flex flex-col items-end hidden sm:flex">
                         <div class="flex items-center gap-2">
-                            <span class="font-black text-emerald-400 text-lg md:text-xl leading-none">{{totalCount}} <span class="text-[10px] text-gray-500 font-normal">ยอดรวม</span></span>
+                            <span class="font-black text-emerald-400 text-lg md:text-xl leading-none">
+                                {{totalCount}} <span class="text-[10px] text-gray-500 font-normal">ยอดรวม</span>
+                            </span>
                             {{totalDiffHtml}}
                         </div>
                         <div class="flex gap-1 mt-1">
@@ -315,25 +341,37 @@
                         <span class="material-icons text-gray-400 text-xl toggle-icon transition-transform">expand_more</span>
                     </div>
                 </div>
+
             </div>
             <div class="{{hiddenClass}} p-4 bg-slate-900/30">
+    </template>
+    
+    <template id="tpl-date-group-end">
+            </div>
+        </div>
     </template>
 
     <template id="tpl-web-subcard">
         <div class="bg-[#0b1120] p-3 rounded-xl border border-slate-700/80 shadow-inner flex flex-col justify-between hover:border-sky-500/50 relative overflow-hidden group/card">
             <div class="flex justify-between items-start mb-2 border-b border-slate-700/50 pb-2">
-                <span class="font-black text-white text-sm tracking-wider flex items-center gap-1.5"><span class="material-icons text-[16px] text-sky-400">language</span> {{website}}</span>
+                <span class="font-black text-white text-sm tracking-wider flex items-center gap-1.5">
+                    <span class="material-icons text-[16px] text-sky-400">language</span> {{website}}
+                </span>
                 {{diffHtml}}
             </div>
             <div class="flex items-center justify-between mb-2 px-1">
                 <div class="text-center">
                     <div class="text-[9px] text-gray-500 font-bold mb-0.5 tracking-wide">เมื่อวาน</div>
-                    <div class="font-black text-gray-400 text-sm leading-none">{{yestCount}} <span class="text-[9px] font-normal text-gray-500">ยอด</span></div>
+                    <div class="font-black text-gray-400 text-sm leading-none">
+                        {{yestCount}} <span class="text-[9px] font-normal text-gray-500">ยอด</span>
+                    </div>
                 </div>
                 <div class="text-slate-600 material-icons text-[16px] group-hover/card:text-sky-500">arrow_forward</div>
                 <div class="text-center">
                     <div class="text-[9px] text-sky-400 font-bold mb-0.5 tracking-wide">วันนี้</div>
-                    <div class="font-black text-sky-400 text-lg leading-none">{{count}} <span class="text-[9px] font-normal text-sky-700">ยอด</span></div>
+                    <div class="font-black text-sky-400 text-lg leading-none">
+                        {{count}} <span class="text-[9px] font-normal text-sky-700">ยอด</span>
+                    </div>
                 </div>
             </div>
             <div class="flex justify-between gap-1 mb-2">
@@ -351,16 +389,25 @@
         <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden shadow-sm hover:shadow-md" style="content-visibility: auto; contain-intrinsic-size: auto 50px;">
             <div class="flex justify-between items-center p-3 bg-slate-800 hover:bg-slate-700 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
                 <div class="flex items-center gap-3 overflow-hidden pr-2">
-                    <div class="w-8 h-8 rounded-full bg-slate-700 text-gray-400 flex items-center justify-center font-black text-xs border border-slate-600 shadow-inner shrink-0">{{index}}</div>
+                    <div class="w-8 h-8 rounded-full bg-slate-700 text-gray-400 flex items-center justify-center font-black text-xs border border-slate-600 shadow-inner shrink-0">
+                        {{index}}
+                    </div>
                     <div class="flex flex-col min-w-0">
-                        <div class="flex items-center gap-2 mb-1"><span class="font-black text-white text-sm md:text-base truncate flex items-center gap-1">{{name}}{{odBadge}}</span>{{shiftBadge}}</div>
-                        <div class="flex flex-wrap gap-1">{{quickWebBadges}}</div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-black text-white text-sm md:text-base truncate flex items-center gap-1">{{name}}{{odBadge}}</span>
+                            {{shiftBadge}}
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                            {{quickWebBadges}}
+                        </div>
                     </div>
                 </div>
                 <div class="flex items-center gap-3 shrink-0 pl-2">
                     <div class="text-right flex flex-col items-end">
                         <div class="flex flex-col items-end">
-                            <span class="font-black text-emerald-400 text-base md:text-lg leading-none">{{totalCount}} <span class="text-[10px] text-gray-500 font-normal">ยอด</span></span>
+                            <span class="font-black text-emerald-400 text-base md:text-lg leading-none">
+                                {{totalCount}} <span class="text-[10px] text-gray-500 font-normal">ยอด</span>
+                            </span>
                             {{totalDiffHtml}}
                         </div>
                     </div>
@@ -368,7 +415,9 @@
                 </div>
             </div>
             <div class="hidden p-3 bg-slate-900/80 border-t border-slate-700">
-                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">{{webTagsHtml}}</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {{webTagsHtml}}
+                </div>
             </div>
         </div>
     </template>
@@ -378,7 +427,9 @@
             <div class="text-center mb-2">
                 <span class="text-lg font-black text-white tracking-wide">ดูประวัติย้อนหลังวันอื่นๆ</span>
             </div>
-            <div class="text-center py-2 flex flex-col items-center w-full">{{datesHtml}}</div>
+            <div class="text-center py-2 flex flex-col items-center w-full">
+                {{datesHtml}}
+            </div>
         </div>
     </template>
 
@@ -389,7 +440,9 @@
                     <div class="bg-white rounded-2xl p-1 shadow-lg z-10 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                         <img src="{{imgUrl}}" loading="lazy" class="max-w-full max-h-full object-contain rounded-xl">
                     </div>
-                    <div class="absolute top-0 right-0 bg-indigo-600 text-white text-[9px] sm:text-[10px] px-3 py-1 rounded-bl-xl z-20 font-black shadow-md tracking-wider">{{sys}}</div>
+                    <div class="absolute top-0 right-0 bg-indigo-600 text-white text-[9px] sm:text-[10px] px-3 py-1 rounded-bl-xl z-20 font-black shadow-md tracking-wider">
+                        {{sys}}
+                    </div>
                     {{filterBadge}}
                 </div>
                 <div class="p-4 flex flex-col justify-between flex-1 bg-[#151f32]">
@@ -412,7 +465,9 @@
         <div class="leaderboard-item flex flex-col p-3 rounded-xl hover:bg-slate-700 transition border-b border-slate-700/50 last:border-0" data-name="{{name}}">
             <div class="flex items-center justify-between mb-1.5">
                 <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 transition-transform {{medalClass}}">{{medalText}}</div>
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 transition-transform {{medalClass}}">
+                        {{medalText}}
+                    </div>
                     <span class="font-bold text-white text-base truncate flex items-center">{{name}}</span>
                 </div>
                 <div class="text-right flex flex-col items-end">
@@ -433,19 +488,15 @@
         </div>
     </template>
     
-    <template id="tpl-no-data">
-        <div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center">
-            <span class="material-icons text-7xl mb-4 opacity-20">search_off</span>
-            ไม่พบข้อมูลตามเงื่อนไขที่เลือก
-        </div>
-    </template>
-
-    <template id="tpl-emp-not-found">
-        <div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "{{keyword}}" ในวันนี้</div>
-    </template>
-
-    <template id="tpl-date-group-end">
-            </div>
+    <template id="tpl-manage-system-item">
+        <div class="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-600 shadow-sm hover:border-sky-500 transition">
+            <div class="font-black text-white text-base">{{web}}</div>
+            <select id="sys_select_modal_{{web}}" class="bg-slate-900 border border-slate-500 text-sky-400 font-bold p-2 rounded-lg outline-none cursor-pointer focus:ring-2 focus:ring-sky-500">
+                <option value="SYSTEM" {{selSystem}}>- ไม่ระบุ -</option>
+                <option value="K36" {{selK36}}>K36</option>
+                <option value="WG" {{selWg}}>WG</option>
+                <option value="TCG" {{selTcg}}>TCG</option>
+            </select>
         </div>
     </template>
 </div>
