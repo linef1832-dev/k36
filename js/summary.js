@@ -1,5 +1,5 @@
 // ====================================================
-// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้บั๊กจัดอันดับกะเพี้ยน)
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้กะจัดอันดับ + เดือน + Excel)
 // ====================================================
 
 let pendingSummaryData = []; 
@@ -109,19 +109,36 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
+// 🌟 อัปเดตการแสดงผลเดือนในช่องจัดอันดับ
+window.updateLeaderboardMonthDisplay = function() {
+    const el = document.getElementById('leaderboardMonth');
+    const disp = document.getElementById('leaderboardMonthDisplay');
+    if (el && disp) {
+        if (el.value) {
+            const [y, m] = el.value.split('-');
+            const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            disp.innerText = `${thaiMonths[parseInt(m)-1]} ${parseInt(y)+543}`;
+        } else {
+            disp.innerText = 'เลือกเดือน';
+        }
+    }
+};
+
 // 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100% (ลบการเดาตัวอักษรทิ้งถาวร)
 function getShiftFromName(name) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
 
     const searchName = name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); 
     let foundUser = window.GLOBAL_USER_LIST.find(u => {
-        const dbName = u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
+        const dbName = (u.username || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
         return dbName === searchName || (dbName.length > 2 && (dbName.includes(searchName) || searchName.includes(dbName)));
     });
     
-    if (foundUser && foundUser.allowed_shift) {
-        if (foundUser.allowed_shift === 'all' || foundUser.allowed_shift === '') return 'กะอิสระ';
-        return foundUser.allowed_shift;
+    // 🌟 ดัก Error เพื่อป้องกันกรณีที่ foundUser.allowed_shift เป็นค่าว่างหรือ falsy
+    if (foundUser) {
+        let s = foundUser.allowed_shift;
+        if (!s || s === 'all') return 'กะอิสระ';
+        return s;
     }
     
     return 'UNKNOWN';
@@ -427,23 +444,13 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     
                     if (!webName) webName = defaultWeb; 
 
-                    let extractedShiftFromTime = 'UNKNOWN';
-                    if (hour !== null) {
-                        if (hour >= 7 && hour < 19) extractedShiftFromTime = 'กะเช้า';
-                        else extractedShiftFromTime = 'กะดึก';
-                    }
-
                     const realUser = getRealDbUser(empName);
-                    let finalShift = extractedShiftFromTime;
+                    let finalShift = 'UNKNOWN';
                     
                     if (realUser) {
                         empName = realUser.username; 
-                        if (realUser.allowed_shift && realUser.allowed_shift !== 'all') {
-                            finalShift = realUser.allowed_shift;
-                        } else if (realUser.allowed_shift === 'all') {
-                            if (extractedShiftFromTime !== 'UNKNOWN') finalShift = extractedShiftFromTime;
-                            else finalShift = 'กะอิสระ';
-                        }
+                        finalShift = realUser.allowed_shift || 'UNKNOWN';
+                        if (finalShift === 'all' || finalShift === '') finalShift = 'กะอิสระ';
                     }
 
                     const finalRowDate = rowDate || detectedDate || document.getElementById('summaryDateFilter').value;
@@ -677,11 +684,11 @@ window.renderSummaryDashboard = function() {
                             const data = dGroup.emps[name];
                             
                             let shiftBadgeHtml = '';
-                            if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-2 py-0.5 rounded shadow-sm ml-1">เช้า</span>';
-                            else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-2 py-0.5 rounded shadow-sm ml-1">กลาง</span>';
-                            else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-2 py-0.5 rounded shadow-sm ml-1">ดึก</span>';
-                            else if (data.shift === 'กะอิสระ' || data.shift === 'all') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded shadow-sm ml-1">อิสระ</span>';
-                            else shiftBadgeHtml = `<span class="text-[10px] bg-gray-500/20 text-gray-400 border border-gray-500/50 px-2 py-0.5 rounded shadow-sm ml-1">${data.shift || 'UNKNOWN'}</span>`;
+                            if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
+                            else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
+                            else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
+                            else if (data.shift === 'กะอิสระ') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
+                            else shiftBadgeHtml = ''; 
                             
                             let odBadge = '';
                             if (data.odType === 'OD') odBadge = '<span class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">OD</span>';
@@ -796,6 +803,7 @@ window.fetchLeaderboardData = async function() {
     const lbBox = document.getElementById('summaryLeaderboard');
     const modeEl = document.getElementById('leaderboardMode');
     const monthInput = document.getElementById('leaderboardMonth');
+    const monthWrapper = document.getElementById('leaderboardMonthWrapper');
     const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
     
     if(!lbBox) return;
@@ -827,20 +835,22 @@ window.fetchLeaderboardData = async function() {
     const selectedWeb = lbWebFilter ? lbWebFilter.value : 'ALL';
     const shiftFilter = lbShiftFilter ? lbShiftFilter.value : 'ALL';
 
-    if (monthInput) {
+    if (monthInput && monthWrapper) {
         if (mode === 'monthly') {
-            monthInput.classList.remove('hidden');
+            monthWrapper.classList.remove('hidden');
             if(!monthInput.value) {
                 const d = new Date();
                 monthInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             }
+            if (typeof updateLeaderboardMonthDisplay === 'function') updateLeaderboardMonthDisplay();
         } else {
-            monthInput.classList.add('hidden');
+            monthWrapper.classList.add('hidden');
         }
     }
 
     lbBox.innerHTML = '<div class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-3xl mb-2">sync</span><br>กำลังคำนวณอันดับ...</div>';
 
+    // 🌟 บังคับโหลดรายชื่อพนักงานก่อน เพื่อให้จัดอันดับรู้ว่าพนักงานคนนี้อยู่กะไหนจริงๆ (กันกะเพี้ยน)
     if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
         await fetchUsers();
     }
@@ -1213,9 +1223,10 @@ window.exportSummaryToExcel = async function() {
                         } else if (cell.value === 'ดึก') {
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; 
                             cell.font.color = { argb: 'FF9333EA' }; 
-                        } else if (cell.value === 'อิสระ') {
+                        } else if (cell.value === 'อิสระ' || cell.value === 'all') {
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; 
                             cell.font.color = { argb: 'FF059669' }; 
+                            cell.value = 'อิสระ';
                         } else {
                             cell.font.color = { argb: 'FF94A3B8' };
                         }
@@ -1356,15 +1367,12 @@ window.fetchMultipleHistoricalSummary = async function() {
     Swal.fire({ title: 'กำลังรวมข้อมูล...', text: `ดึงข้อมูล ${dates.length} วันมาบวกทบกัน`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
-        // 🌟 บังคับโหลดรายชื่อก่อน เพื่อให้รู้ "กะ" ที่แท้จริง (แก้บั๊ก UNKNOWN)
         if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers();
         }
 
-        // 🌟 หา "วันที่เมื่อวาน" ของทุกๆ วันที่ถูกเลือก เพื่อไปกวาดข้อมูลเมื่อวานมาบวกด้วย
         const yesterdayDates = dates.map(d => window.getYesterdayDateStr(d));
 
-        // 🌟 ดึงข้อมูลรวดเดียว 3 ตาราง
         const [mainRes, schRes, yestRes] = await Promise.all([
             appDB.from('transaction_daily_summary').select('*').in('date', dates),
             appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
@@ -1382,7 +1390,6 @@ window.fetchMultipleHistoricalSummary = async function() {
 
         let yestMap = {};
         yestData.forEach(r => {
-            // 🌟 จัดกลุ่มยอดของเมื่อวาน โดยรวมยอดของทุกวันเอาไว้ด้วยกัน เพื่อเอาไปเทียบ
             const key = window.cleanKeyStr(r.employee_name, r.website);
             if (!yestMap[key]) yestMap[key] = 0;
             yestMap[key] += parseInt(r.count) || 0;
@@ -1398,7 +1405,6 @@ window.fetchMultipleHistoricalSummary = async function() {
             data.forEach(r => {
                 const key = window.cleanKeyStr(r.employee_name, r.website);
                 
-                // 🌟 หากะจากที่ลงเวลาไว้ก่อน ถ้าไม่ได้ลงเวลาไว้ถึงจะไปสุ่มเดาจากชื่อ (getShiftFromName)
                 let actualShift = schMap[`${r.date}_${r.employee_name}`];
                 if (!actualShift) {
                     actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
@@ -1408,8 +1414,8 @@ window.fetchMultipleHistoricalSummary = async function() {
                     groupedData[key] = {
                         date: combinedDateLabel, empName: r.employee_name, website: r.website, system: r.system || 'UNKNOWN',
                         count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
-                        shift: actualShift, // 🌟 ใช้กะที่ได้จากการเช็ค
-                        yestCount: yestMap[key] || 0, // 🌟 ดึงยอดรวมของเมื่อวานมาใส่ตรงนี้
+                        shift: actualShift, 
+                        yestCount: yestMap[key] || 0, 
                         diffFromYesterday: 0
                     };
                 }
@@ -1418,7 +1424,6 @@ window.fetchMultipleHistoricalSummary = async function() {
                 groupedData[key].approvedCount += (r.approved_count !== null ? parseInt(r.approved_count) : (parseInt(r.count) || 0));
                 groupedData[key].rejectCount += parseInt(r.reject_count) || 0;
                 
-                // 🌟 คำนวณความต่างใหม่
                 groupedData[key].diffFromYesterday = groupedData[key].count - groupedData[key].yestCount;
             });
         }
