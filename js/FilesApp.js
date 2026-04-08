@@ -35,7 +35,7 @@ window.fetchFilesData = async function() {
     renderFilesGrid();
 };
 
-// 3. วาดตาราง
+// 3. วาดตาราง (ใช้ระบบ Template)
 window.renderFilesGrid = function() {
     const grid = document.getElementById('filesGrid');
     if(!grid) return;
@@ -77,23 +77,14 @@ window.renderFilesGrid = function() {
                 <button onclick="deleteFileLink('${f.id}')" class="text-gray-400 hover:text-red-500 p-1.5 bg-white/80 dark:bg-slate-900/80 rounded-lg shadow-sm transition"><span class="material-icons text-[16px]">delete</span></button>
             </div>` : '';
 
-        return `
-        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition-all group relative flex flex-col h-full transform hover:-translate-y-1">
-            ${adminBtns}
-            <div class="flex items-start gap-4 mb-4">
-                ${imageOrIconHtml}
-                <div class="flex-1 min-w-0 pr-6 pt-1">
-                    <h4 class="font-black text-slate-800 dark:text-white text-base truncate leading-tight" title="${f.title}">${f.title}</h4>
-                    <p class="text-[11px] font-bold text-gray-500 mt-1 line-clamp-2 leading-snug">${f.desc || 'ไม่มีคำอธิบาย'}</p>
-                </div>
-            </div>
-            
-            <div class="mt-auto pt-2">
-                <button onclick="forceDownloadFile('${f.id}')" class="w-full bg-slate-100 dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition group/btn">
-                    <span class="material-icons text-[18px] group-hover/btn:translate-y-0.5 transition-transform">download</span> ดาวน์โหลด
-                </button>
-            </div>
-        </div>`;
+        // ส่งข้อมูลเข้าฟังก์ชัน renderTemplate ที่เราทำไว้ใน global.js
+        return window.renderTemplate('tpl-file-card', {
+            adminBtns: adminBtns,
+            imageOrIconHtml: imageOrIconHtml,
+            title: f.title,
+            desc: f.desc || 'ไม่มีคำอธิบาย',
+            id: f.id
+        });
     }).join('');
 };
 
@@ -121,7 +112,7 @@ window.editFileLink = function(id) {
     const extUrlInput = document.getElementById('fileExternalUrl');
     let urls = Array.isArray(f.url) ? f.url : [f.url];
     
-    // 🌟 แปลงโครงสร้างให้เป็น String เสมอเพื่อป้องกัน Error .includes is not a function 🌟
+    // แปลงโครงสร้างให้เป็น String เสมอ
     let firstUrlStr = '';
     if (urls.length > 0 && urls[0]) {
         firstUrlStr = typeof urls[0] === 'object' ? (urls[0].url || '') : String(urls[0]);
@@ -280,7 +271,7 @@ window.deleteFileLink = async function(id) {
     });
 };
 
-// 8. ฟังก์ชันสั่งโหลดไฟล์ (แก้ปัญหา Chrome บล็อกโหลดหลายๆ ไฟล์พร้อมกัน)
+// 8. ฟังก์ชันสั่งโหลดไฟล์
 window.forceDownloadFile = async function(id) {
     const f = globalAppFiles.find(x => String(x.id) === String(id));
     if(!f || !f.url) return Swal.fire('Error', 'ไม่มีลิงก์สำหรับดาวน์โหลด', 'error');
