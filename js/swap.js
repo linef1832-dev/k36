@@ -316,20 +316,35 @@ window.confirmAndSaveSwapPlan = async function() {
                     dayPlan.morningToNight.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetDate}T05:00:00+07:00`);
                         tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'กะดึก', display_desc: dayPlan.descMtoN }, scheduled_for: exactTime.toISOString(), status: 'pending' });
-                        leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX' });
+                        // 🌟 เพิ่ม status: 'approved' กันเหนียว
+                        leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                     dayPlan.nightToMorning.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetNextDate}T05:00:00+07:00`);
                         tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'กะเช้า', display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
-                        leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX' });
+                        // 🌟 เพิ่ม status: 'approved' กันเหนียว
+                        leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                 });
 
                 excludeMList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: 'กะเช้า', display_desc: 'อยู่กะเช้าตามเดิม' }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
                 excludeNList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: 'กะดึก', display_desc: 'อยู่กะดึกตามเดิม' }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
 
-                if (tasksToInsert.length > 0) { const { error } = await appDB.from('scheduled_tasks').insert(tasksToInsert); if (error) throw error; }
-                if (leaveRequestsToInsert.length > 0) { const { error: leaveError } = await appDB.from('leave_requests').upsert(leaveRequestsToInsert, { onConflict: 'user_id, leave_date' }); }
+                // 🌟 บันทึกคิวตั้งเวลา (Task)
+                if (tasksToInsert.length > 0) { 
+                    const { error } = await appDB.from('scheduled_tasks').insert(tasksToInsert); 
+                    if (error) throw error; 
+                }
+                
+                // 🌟 บันทึกวันหยุด (Leave Request)
+                if (leaveRequestsToInsert.length > 0) { 
+                    // แก้บั๊ก Error 400 Bad Request: ลบข้อมูลของเก่าในวันนั้นออกก่อน แทนการใช้คำสั่ง Upsert
+                    for (let req of leaveRequestsToInsert) {
+                        await appDB.from('leave_requests').delete().eq('user_id', req.user_id).eq('leave_date', req.leave_date);
+                    }
+                    const { error: leaveError } = await appDB.from('leave_requests').insert(leaveRequestsToInsert); 
+                    if (leaveError) throw leaveError;
+                }
 
                 if(typeof logAction === 'function') await logAction('Auto Swap Plan', `สร้างแผนสลับกะ และลง XX อัตโนมัติ`);
 
@@ -337,7 +352,10 @@ window.confirmAndSaveSwapPlan = async function() {
                 document.getElementById('swapPlanPreview').style.display = 'none';
                 clearExcludeStaff(); fetchPublicSwapSchedule(); 
                 if(typeof fetchLeaveData === 'function') fetchLeaveData();
-            } catch (err) { Swal.fire('Error', 'เกิดข้อผิดพลาดในการบันทึก', 'error'); }
+            } catch (err) { 
+                Swal.fire('Error', 'เกิดข้อผิดพลาดในการบันทึก: ' + err.message, 'error'); 
+                console.error(err);
+            }
         }
     });
 }
