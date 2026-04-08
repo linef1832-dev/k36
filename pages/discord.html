@@ -328,3 +328,128 @@
 
     </div>
 </div>
+
+<div id="discordTemplates" class="hidden">
+    <template id="tpl-ds-spy-row">
+        <tr class="hover:bg-slate-800 transition border-b border-slate-700/50">
+            <td class="p-3 text-center"><input type="checkbox" value="{{id}}" class="spy-user-cb w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600" onchange="spy_toggleSelectUser('{{id}}')" {{isChecked}}></td>
+            <td class="p-3 font-bold {{nameColor}}">{{name}}</td>
+            <td class="p-3">{{roomBadge}}</td>
+            <td class="p-3 flex items-center gap-1">{{devicesHTML}}</td>
+            <td class="p-3">{{statusBadges}}</td>
+            <td class="p-3 text-amber-400 font-mono font-bold">{{mStr}}</td>
+            <td class="p-3 text-red-400 font-mono font-bold">{{dStr}}</td>
+            <td class="p-3 text-center">
+                <select onfocus="window.isSpyDropdownFocused=true;" onblur="window.isSpyDropdownFocused=false;" onchange="window.isSpyDropdownFocused=false; spy_moveSingleUser('{{id}}', this.value)" class="bg-slate-900 text-white p-1.5 rounded border border-slate-600 outline-none text-xs w-28 cursor-pointer focus:ring-2 focus:ring-indigo-500 transition">
+                    {{roomOptionsHtml}}
+                </select>
+            </td>
+        </tr>
+    </template>
+    
+    <template id="tpl-ds-source-room">
+        <label class="ds-room-item flex items-center gap-3 p-3 bg-slate-900 border border-slate-700 rounded-xl cursor-pointer hover:border-indigo-500 transition group" data-name="{{name}}">
+            <input type="checkbox" name="ds_src" value="{{id}}" class="w-5 h-5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500">
+            <span class="font-bold text-gray-300 group-hover:text-white transition">{{name}}</span>
+        </label>
+    </template>
+    
+    <template id="tpl-ds-checkin-row">
+        <div class="flex justify-between items-center p-2.5 border-b border-slate-700/50 hover:bg-slate-700/30 transition">
+            <div class="font-bold text-sm flex items-center gap-2 {{onlineColorClass}}">
+                <span class="w-2.5 h-2.5 rounded-full {{onlineDotClass}}"></span>
+                {{name}} {{leaveBadgeHtml}}
+            </div>
+            <select class="bg-slate-900 border border-slate-600 text-white p-1.5 rounded-lg text-xs outline-none focus:border-sky-500 cursor-pointer" onchange="updateCheckinStatus('{{id}}', this.value)">
+                <option value="✅" {{selA}}>✅ มา</option>
+                <option value="🏖️" {{selB}}>🏖️ หยุด</option>
+                <option value="🤒" {{selC}}>🤒 ป่วย</option>
+                <option value="📝" {{selD}}>📝 กิจ</option>
+                <option value="❌" {{selE}}>❌ ขาด</option>
+            </select>
+        </div>
+    </template>
+
+    <template id="tpl-ds-manager-row">
+        <div class="flex justify-between items-center p-3 bg-slate-900 rounded-xl border border-slate-700 shadow-sm mb-2 hover:border-sky-500 transition">
+            <div>
+                <div class="font-bold text-white text-sm flex items-center">{{name}} {{tagHtml}}</div>
+                <div class="text-[10px] text-gray-500 mt-1 flex items-center gap-1"><span class="material-icons text-[12px]">folder</span> {{gTags}}</div>
+            </div>
+            <button onclick="editCustomName('{{id}}', '{{name}}')" class="text-sky-400 hover:text-white bg-slate-800 hover:bg-sky-600 px-2 py-1 rounded text-xs transition border border-slate-600 shadow-sm">เปลี่ยนชื่อ</button>
+        </div>
+    </template>
+
+    <template id="tpl-ds-group-row">
+        <div class="flex justify-between items-center p-3 rounded-xl border shadow-sm mb-2 transition cursor-pointer group/item {{bgClass}} {{colorClass}}" onclick="openGroupManagerModal('{{g}}')">
+            <div class="flex flex-col">
+                <div class="font-bold text-sm flex items-center gap-1">
+                    {{g}} <span class="material-icons text-[12px] opacity-0 group-hover/item:opacity-100 transition">edit</span>
+                </div>
+                <div class="text-[10px] text-gray-400 mt-0.5">สมาชิก {{count}} คน</div>
+            </div>
+            <button onclick="event.stopPropagation(); deleteGroup('{{g}}')" class="text-red-400 hover:text-white bg-slate-900 hover:bg-red-500 w-8 h-8 rounded-lg transition flex items-center justify-center border border-slate-700 shadow-sm opacity-0 group-hover/item:opacity-100" title="ลบกลุ่มนี้ทิ้ง"><span class="material-icons text-[14px]">delete</span></button>
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-user-row">
+        <div onclick="toggleTransfer('{{id}}')" class="px-4 py-3 rounded-xl cursor-pointer text-left text-sm font-bold transition flex justify-between items-center {{bgClass}}">
+            <span class="truncate">{{name}} {{tagHtml}}</span>
+            {{iconHtml}}
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-pending-row">
+        <div class="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs shadow-sm mb-1.5 hover:border-amber-500 transition">
+            <div class="flex-1 min-w-0 pr-2">
+                <div class="text-sky-400 font-bold truncate">{{name}}</div>
+                <div class="text-gray-400 text-[10px] truncate">{{fromGroup}} ➝ {{toGroup}}</div>
+                <div class="text-amber-400 text-[10px] mt-0.5 flex items-center gap-1"><span class="material-icons text-[10px]">timer</span> {{dateStr}}</div>
+            </div>
+            <button onclick="delTransfer('{{id}}')" class="text-red-400 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition shrink-0"><span class="material-icons text-sm">close</span></button>
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-history-row">
+        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs shadow-sm mb-1.5">
+            <div class="text-gray-300 font-bold truncate">{{name}}</div>
+            <div class="text-gray-500 text-[10px] truncate">{{fromGroup}} ➝ {{toGroup}}</div>
+            <div class="text-emerald-400 text-[10px] mt-0.5 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> {{dateStr}}</div>
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-summary-card">
+        <div onclick="showTransferSummaryDetail('{{k}}')" class="cursor-pointer hover:ring-2 hover:ring-emerald-500 bg-slate-900 border border-slate-600 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition shadow-sm" title="คลิกเพื่อดูรายชื่อพนักงาน">
+            <span class="text-gray-300 font-bold">{{k}}</span>
+            <span class="bg-emerald-500 text-slate-900 px-2 py-0.5 rounded-md font-black shadow-inner">{{count}}</span>
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-detail-row">
+        <div class="p-3 bg-slate-800 rounded-xl border border-slate-600 shadow-sm flex items-center justify-between mb-2 hover:bg-slate-700 transition">
+            <div class="flex items-center gap-3 w-full overflow-hidden">
+                <div class="w-6 h-6 shrink-0 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-gray-400 border border-slate-700 shadow-inner">{{index}}</div>
+                <div class="font-bold text-sm text-sky-300 truncate" data-search-name="{{searchName}}">{{name}}</div>
+            </div>
+            <div class="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md border border-amber-400/20 whitespace-nowrap shadow-sm font-bold flex items-center gap-1"><span class="material-icons text-[12px]">schedule</span> {{dateStr}}</div>
+        </div>
+    </template>
+
+    <template id="tpl-ds-voice-log-row">
+        <tr class="{{rowClass}} transition border-b border-slate-700/50">
+            <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">{{timeStr}}</td>
+            <td class="p-3 font-bold text-white flex items-center">{{name}} {{shiftTag}} {{lateBadge}}</td>
+            <td class="p-3 whitespace-nowrap">{{badge}}</td>
+            <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">{{room}}</td>
+        </tr>
+    </template>
+
+    <template id="tpl-ds-action-log-row">
+        <tr class="hover:bg-slate-700/50 transition border-b border-slate-700/50">
+            <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">{{timeStr}}</td>
+            <td class="p-3 font-bold text-amber-400 whitespace-nowrap">{{user}}</td>
+            <td class="p-3 whitespace-nowrap"><span class="bg-slate-900 text-white px-2 py-1 rounded text-[11px] font-bold border border-slate-600">{{action}}</span></td>
+            <td class="p-3 text-gray-300 text-xs">{{detail}}</td>
+        </tr>
+    </template>
+</div>
