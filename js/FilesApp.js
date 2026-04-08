@@ -56,7 +56,7 @@ window.renderFilesGrid = function() {
         let icon = 'description'; 
         let iconColor = 'text-blue-500 bg-blue-100 dark:bg-blue-900/30';
         let firstUrl = Array.isArray(f.url) && f.url.length > 0 ? (typeof f.url[0] === 'object' ? (f.url[0].url || '') : (f.url[0] || '')) : (typeof f.url === 'string' ? f.url : '');
-        const urlLower = firstUrl.toLowerCase();
+        const urlLower = String(firstUrl).toLowerCase();
         
         if (urlLower.includes('.zip') || urlLower.includes('.rar') || (Array.isArray(f.url) && f.url.length > 1)) { 
             icon = 'folder_zip'; iconColor = 'text-amber-500 bg-amber-100 dark:bg-amber-900/30'; 
@@ -68,7 +68,7 @@ window.renderFilesGrid = function() {
 
         // จัดการรูปหน้าปก
         const imageOrIconHtml = (f.cover_url && f.cover_url.trim() !== '') ? 
-            `<img src="${f.cover_url}" loading="lazy" class="w-14 h-14 rounded-2xl object-cover shadow-md border border-gray-200 dark:border-slate-600 shrink-0 bg-white" alt="cover">` : 
+            `<img src="${f.cover_url}" class="w-14 h-14 rounded-2xl object-cover shadow-md border border-gray-200 dark:border-slate-600 shrink-0 bg-white" alt="cover">` : 
             `<div class="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${iconColor}"><span class="material-icons text-3xl">${icon}</span></div>`;
         
         const adminBtns = isAdmin ? `
@@ -119,11 +119,16 @@ window.editFileLink = function(id) {
     document.getElementById('fileDesc').value = f.desc || '';
     
     const extUrlInput = document.getElementById('fileExternalUrl');
-    
     let urls = Array.isArray(f.url) ? f.url : [f.url];
     
-    if(urls.length > 0 && urls[0] && !urls[0].includes('supabase.co')) {
-        extUrlInput.value = urls[0];
+    // 🌟 แปลงโครงสร้างให้เป็น String เสมอเพื่อป้องกัน Error .includes is not a function 🌟
+    let firstUrlStr = '';
+    if (urls.length > 0 && urls[0]) {
+        firstUrlStr = typeof urls[0] === 'object' ? (urls[0].url || '') : String(urls[0]);
+    }
+    
+    if (firstUrlStr && !firstUrlStr.includes('supabase.co')) {
+        extUrlInput.value = firstUrlStr;
     } else {
         extUrlInput.value = '';
     }
@@ -132,7 +137,7 @@ window.editFileLink = function(id) {
     if(document.getElementById('fileCoverInput')) document.getElementById('fileCoverInput').value = ''; 
     
     const urlEl = document.getElementById('currentFileUrl');
-    if(urlEl && urls.length > 0 && urls[0] && urls[0].includes('supabase.co')) {
+    if (urlEl && firstUrlStr.includes('supabase.co')) {
         urlEl.innerText = `มีไฟล์เดิมอยู่แล้ว: ${urls.length} ไฟล์`;
         urlEl.classList.remove('hidden');
     } else {
@@ -182,32 +187,6 @@ window.saveFileData = async function(e) {
     let finalCoverUrl = '';
 
     try {
-        // 🌟 [เพิ่มใหม่] ค้นหาว่าเป็นการแก้ไขไฟล์เดิมหรือไม่ ถ้าใช่ให้เตรียมลบไฟล์เก่าทิ้ง
-        let oldPathsToDelete = [];
-        const existingFile = id ? globalAppFiles.find(x => String(x.id) === String(id)) : null;
-
-        if (existingFile) {
-            // เช็คว่าถ้ามีการเลือกอัปโหลดไฟล์ใหม่ หรือใส่ลิงก์ใหม่ (แปลว่าจะทิ้งไฟล์เดิม)
-            if (externalUrl || (fileInput && fileInput.files && fileInput.files.length > 0)) {
-                let oldUrls = Array.isArray(existingFile.url) ? existingFile.url : [existingFile.url];
-                oldUrls.forEach(u => {
-                    let urlStr = typeof u === 'string' ? u : (u.url || '');
-                    if (urlStr.includes('supabase.co') && urlStr.includes('files/')) {
-                        oldPathsToDelete.push('files/' + urlStr.split('files/')[1].split('?')[0]);
-                    }
-                });
-            }
-            // เช็คว่าถ้ามีการเลือกอัปโหลดรูปหน้าปกใหม่ (แปลว่าจะทิ้งรูปเดิม)
-            if (coverInput && coverInput.files && coverInput.files.length > 0 && existingFile.cover_url) {
-                if (existingFile.cover_url.includes('supabase.co') && existingFile.cover_url.includes('files/covers/')) {
-                    oldPathsToDelete.push('files/covers/' + existingFile.cover_url.split('files/covers/')[1].split('?')[0]);
-                }
-            }
-            // สั่งลบไฟล์ขยะทางกายภาพทิ้งทันที
-            if (oldPathsToDelete.length > 0) {
-                await appDB.storage.from('staff_images').remove(oldPathsToDelete);
-            }
-        }
         if (externalUrl) {
             finalFileUrls = [externalUrl];
         } 
@@ -280,7 +259,7 @@ window.saveFileData = async function(e) {
 window.deleteFileLink = async function(id) {
     Swal.fire({
         title: 'ลบไฟล์นี้?',
-        text: "ลบแล้วจะไม่สามารถกู้คืนได้ (ไฟล์จะถูกลบออกจากเซิร์ฟเวอร์ด้วย)",
+        text: "ลบแล้วจะไม่สามารถกู้คืนได้ (ไฟล์ผี 404 ให้ลบทิ้งตรงนี้เลยครับ)",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
@@ -288,39 +267,10 @@ window.deleteFileLink = async function(id) {
         confirmButtonText: 'ลบทิ้งเลย'
     }).then(async (result) => {
         if (result.isConfirmed) {
-            Swal.fire({title: 'กำลังลบข้อมูลและไฟล์...', didOpen: () => Swal.showLoading()});
+            Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
             try {
-                // 🌟 [เพิ่มใหม่] หาข้อมูลไฟล์ที่จะลบ เพื่อดึง Path ไปลบใน Storage
-                const fileToDelete = globalAppFiles.find(f => String(f.id) === String(id));
-                if (fileToDelete) {
-                    let pathsToDelete = [];
-                    
-                    // ดึง Path ของไฟล์หลัก
-                    let urls = Array.isArray(fileToDelete.url) ? fileToDelete.url : [fileToDelete.url];
-                    urls.forEach(u => {
-                        let urlStr = typeof u === 'string' ? u : (u.url || '');
-                        if (urlStr.includes('supabase.co') && urlStr.includes('files/')) {
-                            const path = 'files/' + urlStr.split('files/')[1].split('?')[0];
-                            pathsToDelete.push(path);
-                        }
-                    });
-                    
-                    // ดึง Path ของรูปหน้าปก (ถ้ามี)
-                    if (fileToDelete.cover_url && fileToDelete.cover_url.includes('supabase.co') && fileToDelete.cover_url.includes('files/covers/')) {
-                        const coverPath = 'files/covers/' + fileToDelete.cover_url.split('files/covers/')[1].split('?')[0];
-                        pathsToDelete.push(coverPath);
-                    }
-
-                    // 🌟 สั่งลบไฟล์ทางกายภาพออกจาก Supabase Storage (ป้องกันขยะสะสม)
-                    if (pathsToDelete.length > 0) {
-                        await appDB.storage.from('staff_images').remove(pathsToDelete);
-                    }
-                }
-
-                // ลบข้อมูล Text ออกจาก JSON เหมือนเดิม
                 globalAppFiles = globalAppFiles.filter(f => String(f.id) !== String(id));
                 await appDB.from('settings').upsert([{ key: 'app_files_data', value: JSON.stringify(globalAppFiles) }]);
-                
                 renderFilesGrid();
                 Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false});
             } catch (e) {
