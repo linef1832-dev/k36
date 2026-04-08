@@ -12,22 +12,22 @@ window.selectedSummaryDates = window.selectedSummaryDates || new Set();
 let summaryRenderTimer;
 let summarySubscription = null;
 
-// 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด
-function getYesterdayDateStr(dateStr) {
+// 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด (แก้ปัญหา Timezone ข้ามวัน)
+window.getYesterdayDateStr = function(dateStr) {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
     if (parts.length !== 3) return '';
     const dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
     dt.setDate(dt.getDate() - 1);
     return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-}
+};
 
-// 🌟 ฟังก์ชันทำความสะอาดคีย์เพื่อเทียบยอดแบบไม่แคร์พิมพ์เล็ก/ใหญ่
-function cleanKey(empName, website) {
+// 🌟 ตัวช่วยทำความสะอาดชื่อเพื่อเทียบยอด (ลบช่องว่าง/แปลงพิมพ์เล็ก)
+window.cleanKeyStr = function(empName, website) {
     let n = (empName || '').toLowerCase().trim();
     let w = (website || '').toLowerCase().trim();
     return `${n}_${w}`;
-}
+};
 
 // 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล
 function getTpl(templateId, data = {}) {
@@ -35,6 +35,7 @@ function getTpl(templateId, data = {}) {
     if (!tpl) {
         if (templateId === 'tpl-no-data') return `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
         if (templateId === 'tpl-emp-not-found') return `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${data.keyword}" ในวันนี้</div>`;
+        console.error('Template not found:', templateId); 
         return ''; 
     }
     let html = tpl.innerHTML;
@@ -448,7 +449,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
                 // 🌟 ระบบหา "วันที่เมื่อวาน" แบบแม่นยำ เพื่อใช้หาตัวเปรียบเทียบ
                 const uniqueDates = [...new Set(extractedRows.map(r => r.date))];
-                const yesterdayDates = uniqueDates.map(d => getYesterdayDateStr(d));
+                const yesterdayDates = uniqueDates.map(d => window.getYesterdayDateStr(d));
 
                 let yestMap = {};
                 if (typeof appDB !== 'undefined' && yesterdayDates.length > 0) {
@@ -457,7 +458,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         .in('date', yesterdayDates);
                     if (yestData) {
                         // 🌟 บังคับพิมพ์เล็กทั้งหมด เพื่อให้การเปรียบเทียบ Case-Insensitive ทำงานได้ถูกต้อง 100%
-                        yestData.forEach(r => yestMap[`${r.date}_${cleanKey(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
+                        yestData.forEach(r => yestMap[`${r.date}_${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
                     }
                 }
 
@@ -468,8 +469,8 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                         p.date === row.date
                     );
                     
-                    const rowYestDate = getYesterdayDateStr(row.date);
-                    const yestCount = yestMap[`${rowYestDate}_${cleanKey(row.empName, row.website)}`] || 0;
+                    const rowYestDate = window.getYesterdayDateStr(row.date);
+                    const yestCount = yestMap[`${rowYestDate}_${window.cleanKeyStr(row.empName, row.website)}`] || 0;
 
                     let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
                     if (customSystems[row.website]) { row.system = customSystems[row.website]; }
@@ -1015,10 +1016,8 @@ window.fetchHistoricalSummary = async function(silent = false) {
             await fetchUsers();
         }
 
-        const targetObj = new Date(dateVal);
-        const yestObj = new Date(targetObj);
-        yestObj.setDate(yestObj.getDate() - 1);
-        const yesterdayStr = yestObj.toISOString().split('T')[0];
+        // 🌟 ใช้ฟังก์ชันดึงวันที่เมื่อวานแบบใหม่
+        const yesterdayStr = window.getYesterdayDateStr(dateVal);
 
         // 🌟 ดึงข้อมูลจากตาราง schedules (ตารางเวร) เพื่อเช็คว่าวันนั้นแต่ละคนลงเวลาเข้า "กะไหน" (แก้บั๊กคนหมุนเวียนกะ) 🌟
         const [todayRes, yestRes, schedulesRes] = await Promise.all([
@@ -1031,7 +1030,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
 
         let yestMap = {};
         // 🌟 บังคับพิมพ์เล็กทั้งหมด เพื่อป้องกันบั๊กเวลาชื่อไม่ตรง Case
-        if (yestRes.data) yestRes.data.forEach(r => yestMap[`${cleanKey(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
+        if (yestRes.data) yestRes.data.forEach(r => yestMap[`${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
 
         // 🌟 สร้างแผนที่รายชื่อ -> กะของวันนั้น
         let schMap = {};
@@ -1044,7 +1043,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
                 const todayCount = parseInt(r.count) || 0;
                 
                 // 🌟 ดึงข้อมูลเมื่อวานแบบตัวพิมพ์เล็กทั้งหมด
-                const yestCount = yestMap[cleanKey(r.employee_name, r.website)] || 0;
+                const yestCount = yestMap[window.cleanKeyStr(r.employee_name, r.website)] || 0;
                 
                 const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : todayCount;
                 const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
@@ -1335,16 +1334,32 @@ window.fetchMultipleHistoricalSummary = async function() {
             await fetchUsers();
         }
 
-        // 🌟 ดึงตารางจัดเวรมาเทียบด้วย ว่าแต่ละวันพนักงานคนนี้ถูกจัดให้ลงกะไหน
-        const { data, error } = await appDB.from('transaction_daily_summary').select('*').in('date', dates);
-        const { data: schData } = await appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates);
+        // 🌟 หา "วันที่เมื่อวาน" ของทุกๆ วันที่ถูกเลือก เพื่อไปกวาดข้อมูลเมื่อวานมาบวกด้วย
+        const yesterdayDates = dates.map(d => window.getYesterdayDateStr(d));
+
+        // 🌟 ดึงข้อมูลรวดเดียว 3 ตาราง
+        const [mainRes, schRes, yestRes] = await Promise.all([
+            appDB.from('transaction_daily_summary').select('*').in('date', dates),
+            appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
+            appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates)
+        ]);
         
-        if (error) throw error;
+        if (mainRes.error) throw mainRes.error;
+        
+        const data = mainRes.data || [];
+        const schData = schRes.data || [];
+        const yestData = yestRes.data || [];
 
         let schMap = {};
-        if (schData) {
-            schData.forEach(s => schMap[`${s.work_date}_${s.staff_name}`] = s.shift_name);
-        }
+        schData.forEach(s => schMap[`${s.work_date}_${s.staff_name}`] = s.shift_name);
+
+        let yestMap = {};
+        yestData.forEach(r => {
+            // 🌟 จัดกลุ่มยอดของเมื่อวาน โดยรวมยอดของทุกวันเอาไว้ด้วยกัน เพื่อเอาไปเทียบ
+            const key = window.cleanKeyStr(r.employee_name, r.website);
+            if (!yestMap[key]) yestMap[key] = 0;
+            yestMap[key] += parseInt(r.count) || 0;
+        });
 
         let groupedData = {};
         const sortedDatesForTitle = dates.sort((a, b) => new Date(b) - new Date(a)).map(d => {
@@ -1354,7 +1369,7 @@ window.fetchMultipleHistoricalSummary = async function() {
 
         if (data && data.length > 0) {
             data.forEach(r => {
-                const key = `${r.employee_name}_${r.website}`;
+                const key = window.cleanKeyStr(r.employee_name, r.website);
                 
                 // 🌟 หากะจากที่ลงเวลาไว้ก่อน ถ้าไม่ได้ลงเวลาไว้ถึงจะไปสุ่มเดาจากชื่อ (getShiftFromName)
                 let actualShift = schMap[`${r.date}_${r.employee_name}`];
@@ -1367,13 +1382,17 @@ window.fetchMultipleHistoricalSummary = async function() {
                         date: combinedDateLabel, empName: r.employee_name, website: r.website, system: r.system || 'UNKNOWN',
                         count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
                         shift: actualShift, // 🌟 ใช้กะที่ได้จากการเช็ค
-                        yestCount: 0, diffFromYesterday: 0
+                        yestCount: yestMap[key] || 0, // 🌟 ดึงยอดรวมของเมื่อวานมาใส่ตรงนี้
+                        diffFromYesterday: 0
                     };
                 }
                 groupedData[key].count += parseInt(r.count) || 0;
                 groupedData[key].totalAmount += parseFloat(r.total_amount) || 0;
                 groupedData[key].approvedCount += (r.approved_count !== null ? parseInt(r.approved_count) : (parseInt(r.count) || 0));
                 groupedData[key].rejectCount += parseInt(r.reject_count) || 0;
+                
+                // 🌟 คำนวณความต่างใหม่
+                groupedData[key].diffFromYesterday = groupedData[key].count - groupedData[key].yestCount;
             });
         }
 
