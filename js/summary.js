@@ -1,5 +1,5 @@
 // ====================================================
-// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แก้จัดอันดับ + เดือน + Excel)
+// 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แยกหน้า HTML กับ JS ชัดเจน)
 // ====================================================
 
 let pendingSummaryData = []; 
@@ -34,6 +34,22 @@ function buildDiffBadge(diffValue, extraClasses = '') {
     if (diffValue > 0) return `<span class="text-emerald-400 font-bold bg-emerald-900/30 px-1.5 py-0.5 rounded flex items-center border border-emerald-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_up</span>+${diffValue}</span>`;
     if (diffValue < 0) return `<span class="text-red-400 font-bold bg-red-900/30 px-1.5 py-0.5 rounded flex items-center border border-red-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_down</span>${diffValue}</span>`;
     return `<span class="text-gray-400 bg-gray-800 px-2 py-0.5 rounded text-[10px] border border-gray-600 shadow-sm ${extraClasses}">คงที่</span>`;
+}
+
+// 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล
+function getTpl(templateId, data = {}) {
+    const tpl = document.getElementById(templateId);
+    if (!tpl) {
+        if (templateId === 'tpl-no-data') return `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
+        if (templateId === 'tpl-emp-not-found') return `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${data.keyword}" ในวันนี้</div>`;
+        return ''; 
+    }
+    let html = tpl.innerHTML;
+    for (const key in data) {
+        const val = data[key] !== undefined && data[key] !== null ? data[key] : '';
+        html = html.split(`{{${key}}}`).join(val);
+    }
+    return html;
 }
 
 window.initSummaryDate = async function() {
@@ -541,7 +557,7 @@ window.renderSummaryDashboard = function() {
         if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
             let btns = window.availableSummaryDates.map(d => {
                 const [y, m, day] = d.split('-');
-                return window.renderTemplate('tpl-date-button', { 
+                return getTpl('tpl-date-button', { 
                     d: d, day: day, m: m, year: y, 
                     cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
                     iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
@@ -549,14 +565,14 @@ window.renderSummaryDashboard = function() {
                     checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
                 });
             }).join('');
-            datesHtml = window.renderTemplate('tpl-date-selector-container', { 
+            datesHtml = getTpl('tpl-date-selector-container', { 
                 datesHtml: btns, 
                 selectedCount: window.selectedSummaryDates.size,
                 disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
             });
         }
 
-        if(mainBox) mainBox.innerHTML = window.renderTemplate('tpl-no-data') + `<div class="text-center py-2 w-full">${datesHtml}</div>`;
+        if(mainBox) mainBox.innerHTML = getTpl('tpl-no-data') + `<div class="text-center py-2 w-full">${datesHtml}</div>`;
         if(statsBox) statsBox.innerHTML = '<div class="text-center text-gray-400 text-sm py-2 w-full">ยังไม่มีข้อมูลยอดรวม</div>';
         
     } else {
@@ -583,7 +599,7 @@ window.renderSummaryDashboard = function() {
         if (grandDiff !== 0) grandDiffHtml = buildDiffBadge(grandDiff, 'ml-2 bg-slate-900 border-none scale-110');
 
         if (statsBox) {
-            statsBox.innerHTML = window.renderTemplate('tpl-shift-stats', {
+            statsBox.innerHTML = getTpl('tpl-shift-stats', {
                 total: shiftStats.TOTAL.toLocaleString(),
                 totalDiffHtml: grandDiffHtml,
                 approved: shiftStats.APPROVED.toLocaleString(),
@@ -596,12 +612,12 @@ window.renderSummaryDashboard = function() {
 
         if (mainBox) {
             if (filteredData.length === 0) {
-                mainBox.innerHTML = window.renderTemplate('tpl-no-data');
+                mainBox.innerHTML = getTpl('tpl-no-data');
             } else {
                 let htmlArr = [];
                 
                 if (viewMode === 'history' || viewMode === 'monthly_history') {
-                    htmlArr.push(window.renderTemplate('tpl-history-header'));
+                    htmlArr.push(getTpl('tpl-history-header'));
                 }
 
                 let dateGroups = {};
@@ -642,7 +658,7 @@ window.renderSummaryDashboard = function() {
                     let groupDiff = dGroup.totalCount - dGroup.totalYestCount;
                     let groupDiffHtml = buildDiffBadge(groupDiff);
 
-                    htmlArr.push(window.renderTemplate('tpl-date-group-start', {
+                    htmlArr.push(getTpl('tpl-date-group-start', {
                         displayDate: displayDate,
                         empCount: Object.keys(dGroup.emps).length,
                         totalCount: dGroup.totalCount.toLocaleString(),
@@ -656,7 +672,7 @@ window.renderSummaryDashboard = function() {
                     if (searchKeyword !== '') sortedEmps = sortedEmps.filter(name => name.toLowerCase().includes(searchKeyword));
 
                     if (sortedEmps.length === 0) {
-                        htmlArr.push(window.renderTemplate('tpl-emp-not-found', { keyword: searchKeyword }));
+                        htmlArr.push(getTpl('tpl-emp-not-found', { keyword: searchKeyword }));
                     } else {
                         sortedEmps.forEach((name, index) => {
                             const data = dGroup.emps[name];
@@ -675,7 +691,7 @@ window.renderSummaryDashboard = function() {
                                 let diffNum = w.count - (w.yestCount || 0);
                                 let diffHtml = buildDiffBadge(diffNum, '');
 
-                                return window.renderTemplate('tpl-web-subcard', {
+                                return getTpl('tpl-web-subcard', {
                                     website: w.website, diffHtml: diffHtml,
                                     yestCount: w.yestCount || 0, count: w.count,
                                     approvedCount: w.approvedCount || 0, rejectCount: w.rejectCount || 0,
@@ -688,7 +704,7 @@ window.renderSummaryDashboard = function() {
                             let empDiff = data.totalCount - data.totalYestCount;
                             let empDiffHtml = buildDiffBadge(empDiff, 'mt-1');
 
-                            htmlArr.push(window.renderTemplate('tpl-emp-row', {
+                            htmlArr.push(getTpl('tpl-emp-row', {
                                 index: index + 1, name: name, odBadge: odBadge, shiftBadge: shiftBadgeHtml,
                                 quickWebBadges: quickWebBadges, totalCount: data.totalCount, 
                                 totalDiffHtml: empDiffHtml,
@@ -696,7 +712,7 @@ window.renderSummaryDashboard = function() {
                             }));
                         });
                     }
-                    htmlArr.push(window.renderTemplate('tpl-date-group-end'));
+                    htmlArr.push(getTpl('tpl-date-group-end'));
                 });
 
                 if (viewMode === 'history' || viewMode === 'monthly_history') {
@@ -704,7 +720,7 @@ window.renderSummaryDashboard = function() {
                     if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
                         let btns = window.availableSummaryDates.map(d => {
                             const [y, m, day] = d.split('-');
-                            return window.renderTemplate('tpl-date-button', { 
+                            return getTpl('tpl-date-button', { 
                                 d: d, day: day, m: m, year: y, 
                                 cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
                                 iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
@@ -712,13 +728,13 @@ window.renderSummaryDashboard = function() {
                                 checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
                             });
                         }).join('');
-                        datesHtml = window.renderTemplate('tpl-date-selector-container', { 
+                        datesHtml = getTpl('tpl-date-selector-container', { 
                             datesHtml: btns, 
                             selectedCount: window.selectedSummaryDates.size,
                             disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
                         });
                     }
-                    htmlArr.push(window.renderTemplate('tpl-history-footer', { datesHtml: datesHtml }));
+                    htmlArr.push(getTpl('tpl-history-footer', { datesHtml: datesHtml }));
                 }
 
                 mainBox.innerHTML = htmlArr.join('');
@@ -762,7 +778,7 @@ window.renderSummaryDashboard = function() {
                 const imgUrl = safeWebLogos[web] ? safeWebLogos[web] : defaultImg;
                 const isActive = (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter === web);
                 
-                return window.renderTemplate('tpl-web-card', {
+                return getTpl('tpl-web-card', {
                     cardStyle: isActive ? 'ring-2 ring-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] z-20 scale-[1.02]' : 'hover:border-sky-500 hover:shadow-lg opacity-95 hover:opacity-100',
                     web: web, imgUrl: imgUrl, sys: w.sys,
                     filterBadge: isActive ? '<div class="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-30 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> กำลังดู</div>' : '',
@@ -916,36 +932,577 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
     lbBox.innerHTML = sortedEmps.map((name, i) => {
         const d = aggMap[name];
         let medalClass = ''; let medalText = i + 1;
-        
-        // 🏆 จัดสไตล์อันดับ 1, 2, 3 และอันดับทั่วไป
-        if (i === 0) medalClass = 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.6)] font-black border-2 border-yellow-200 z-10'; 
-        else if (i === 1) medalClass = 'bg-gradient-to-br from-gray-300 to-gray-500 text-gray-900 shadow-[0_0_10px_rgba(156,163,175,0.6)] font-bold border border-gray-200'; 
-        else if (i === 2) medalClass = 'bg-gradient-to-br from-orange-300 to-orange-600 text-orange-950 shadow-[0_0_10px_rgba(234,88,12,0.6)] font-bold border border-orange-200'; 
-        else medalClass = 'bg-slate-700 text-gray-400 font-medium border border-slate-600';
+        if (i === 0) medalClass = 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.6)]';
+        else if (i === 1) medalClass = 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800 scale-105 shadow-md'; 
+        else if (i === 2) medalClass = 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-50 scale-105 shadow-md'; 
+        else medalClass = 'bg-slate-700 text-slate-400 border border-slate-600'; 
 
-        // 🏷️ ป้ายกำกับกะการทำงาน
-        let shiftBadgeHtml = '';
-        if (d.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] text-orange-400 ml-1">(เช้า)</span>';
-        else if (d.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] text-blue-400 ml-1">(กลาง)</span>';
-        else if (d.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] text-purple-400 ml-1">(ดึก)</span>';
-        else if (d.shift === 'กะอิสระ' || d.shift === 'all') shiftBadgeHtml = '<span class="text-[10px] text-emerald-400 ml-1">(อิสระ)</span>';
-
-        return `
-        <div class="leaderboard-item flex items-center justify-between p-2.5 mb-2 bg-slate-800/60 hover:bg-slate-700/80 rounded-xl border border-slate-700/50 transition-all duration-200 shadow-sm" data-name="${name}">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm ${medalClass}">${medalText}</div>
-                <div>
-                    <div class="font-bold text-gray-200 text-sm flex items-center">${name} ${shiftBadgeHtml}</div>
-                    <div class="text-[10px] text-gray-400 mt-0.5">
-                        อนุมัติ: <b class="text-emerald-400">${d.totalApproved.toLocaleString()}</b> | 
-                        ปฏิเสธ: <b class="text-red-400">${d.totalReject.toLocaleString()}</b>
-                    </div>
-                </div>
-            </div>
-            <div class="text-right">
-                <div class="font-black text-sky-400 text-lg leading-none">${d.totalCount.toLocaleString()}</div>
-                <div class="text-[10px] text-gray-500 mt-1">รายการ</div>
-            </div>
-        </div>`;
+        return getTpl('tpl-leaderboard-item', {
+            name: name, medalClass: medalClass, medalText: medalText,
+            totalCount: d.totalCount, totalApproved: d.totalApproved, totalReject: d.totalReject,
+            totalMoney: d.totalMoney.toLocaleString('en-US', {minimumFractionDigits: 2})
+        });
     }).join('');
+
+    if(typeof window.filterSummaryLeaderboard === 'function') window.filterSummaryLeaderboard();
 }
+
+window.saveSummaryToSupabase = async function() {
+    if (viewMode === 'monthly_history') return Swal.fire('ข้อมูลรายเดือน', 'นี่คือข้อมูลสรุปรวมทั้งเดือนจากฐานข้อมูล ไม่สามารถบันทึกซ้ำได้ครับ', 'info');
+    if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'กรุณาอัปโหลดไฟล์ให้เรียบร้อยก่อนบันทึก', 'warning');
+
+    Swal.fire({title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+    try {
+        const fallbackDate = document.getElementById('summaryDateFilter').value;
+        const groupedData = {};
+        
+        pendingSummaryData.forEach(item => {
+            const dateVal = item.date || fallbackDate;
+            const empName = (item.empName || '').trim();
+            const web = (item.website || '').trim();
+            
+            const key = `${dateVal}_${empName.toLowerCase()}_${web.toLowerCase()}`;
+
+            if (!groupedData[key]) {
+                groupedData[key] = {
+                    date: dateVal, employee_name: empName, website: web, system: item.system || 'UNKNOWN',
+                    count: item.count || 0, total_amount: item.totalAmount || 0,
+                    approved_count: item.approvedCount || 0, reject_count: item.rejectCount || 0
+                };
+            } else {
+                groupedData[key].count += (item.count || 0);
+                groupedData[key].total_amount += (item.totalAmount || 0);
+                groupedData[key].approved_count += (item.approvedCount || 0);
+                groupedData[key].reject_count += (item.rejectCount || 0);
+            }
+        });
+
+        const finalInsertData = Object.values(groupedData);
+
+        const chunkSize = 500;
+        for (let i = 0; i < finalInsertData.length; i += chunkSize) {
+            const chunk = finalInsertData.slice(i, i + chunkSize);
+            const { error } = await appDB.from('transaction_daily_summary').upsert(chunk, { onConflict: 'date,employee_name,website' });
+            if (error) throw error;
+        }
+
+        if (window.pendingFileNames && window.pendingFileNames.length > 0) {
+            const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
+            let savedFilesList = savedFilesData && savedFilesData.value ? JSON.parse(savedFilesData.value) : [];
+            savedFilesList = [...new Set([...savedFilesList, ...window.pendingFileNames])];
+            await appDB.from('settings').upsert([{ key: 'saved_excel_files', value: JSON.stringify(savedFilesList) }]);
+            window.pendingFileNames = []; 
+        }
+
+        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false});
+        
+        viewMode = 'history';
+        await fetchAvailableDates(); 
+        document.getElementById('summaryDateFilter').value = fallbackDate; 
+        await window.fetchHistoricalSummary(true); 
+
+        if (window.appDB && window.appDB.channel) {
+            window.appDB.channel('summary-updates').send({
+                type: 'broadcast', event: 'force_summary_reload', payload: { date: fallbackDate }
+            });
+        }
+    } catch(e) {
+        Swal.fire('Error', e.message, 'error');
+    }
+};
+
+window.fetchHistoricalSummary = async function(silent = false) {
+    const dateVal = document.getElementById('summaryDateFilter') ? document.getElementById('summaryDateFilter').value : '';
+    if (!dateVal) return;
+
+    if (!silent) Swal.fire({ title: 'กำลังดึงข้อมูลรายวัน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    try {
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+            await fetchUsers();
+        }
+
+        const yesterdayStr = window.getYesterdayDateStr(dateVal);
+
+        const [todayRes, yestRes, schedulesRes] = await Promise.all([
+            appDB.from('transaction_daily_summary').select('*').eq('date', dateVal),
+            appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr),
+            appDB.from('schedules').select('staff_name, shift_name').eq('work_date', dateVal)
+        ]);
+
+        if (todayRes.error) throw todayRes.error;
+
+        let yestMap = {};
+        if (yestRes.data) yestRes.data.forEach(r => yestMap[`${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
+
+        let schMap = {};
+        if (schedulesRes && schedulesRes.data) {
+            schedulesRes.data.forEach(s => schMap[`${s.work_date}_${s.staff_name}`] = s.shift_name);
+        }
+
+        if (todayRes.data && todayRes.data.length > 0) {
+            let mappedData = todayRes.data.map(r => {
+                const todayCount = parseInt(r.count) || 0;
+                const yestCount = yestMap[window.cleanKeyStr(r.employee_name, r.website)] || 0;
+                const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : todayCount;
+                const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
+
+                let actualShift = schMap[`${r.date}_${r.employee_name}`];
+                if (!actualShift) {
+                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                }
+
+                return {
+                    empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
+                    shift: actualShift, 
+                    yestCount: yestCount, diffFromYesterday: todayCount - yestCount,
+                    approvedCount: appCount, rejectCount: rejCount
+                };
+            });
+            
+            pendingSummaryData = mappedData; 
+            viewMode = 'history';
+            
+            renderSummaryDashboard(); 
+            fetchLeaderboardData();
+            
+            if (!silent) {
+                Swal.fire({ icon: 'success', title: 'ดึงข้อมูลสำเร็จ', timer: 1000, showConfirmButton: false });
+            } else {
+                Swal.close(); 
+            }
+        } else {
+            pendingSummaryData = []; 
+            renderSummaryDashboard(); 
+            fetchLeaderboardData();
+            if (!silent) Swal.fire('ไม่มีข้อมูล', `ไม่มีข้อมูลสรุปยอดของวันที่ ${dateVal}`, 'info');
+        }
+    } catch (e) { 
+        if (!silent) Swal.fire('Error', e.message, 'error'); 
+        console.error("Fetch Summary Error:", e);
+    }
+};
+
+window.exportSummaryToExcel = async function() {
+    if (typeof ExcelJS === 'undefined') return Swal.fire('ระบบไม่พร้อม', 'กรุณารอโหลดสคริปต์ ExcelJS สักครู่', 'warning');
+    if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลสำหรับดาวน์โหลด กรุณาอัปโหลดไฟล์ให้เรียบร้อย', 'warning');
+
+    Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', text: 'จัดระเบียบตามรูปแบบใหม่...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    try {
+        const shiftFilter = document.getElementById('summaryShiftFilter') ? document.getElementById('summaryShiftFilter').value : 'ALL';
+        const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
+        
+        let filteredData = pendingSummaryData;
+        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
+        if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
+        if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
+
+        const targetWebOrder = ['Jun88', 'MK8', 'VV72', 'TH26', 'F168', 'PG688', 'JL69', 'NM9', 'BT678', 'K188'];
+
+        let empGroups = {};
+        filteredData.forEach(item => {
+            if(!empGroups[item.empName]) {
+                empGroups[item.empName] = { 
+                    name: item.empName, shift: item.shift === 'UNKNOWN' ? 'UNKNOWN' : item.shift.replace('กะ', ''), odType: item.odType || 'ปกติ',
+                    totalApproved: 0, totalReject: 0, grandTotal: 0, websData: {} 
+                };
+                targetWebOrder.forEach(w => { empGroups[item.empName].websData[w] = { approved: 0, reject: 0, total: 0 }; });
+            }
+            
+            empGroups[item.empName].totalApproved += (item.approvedCount || 0);
+            empGroups[item.empName].totalReject += (item.rejectCount || 0);
+            empGroups[item.empName].grandTotal += (item.count || 0);
+            
+            const webKey = targetWebOrder.find(w => w.toLowerCase() === item.website.toLowerCase());
+            if (webKey) {
+                empGroups[item.empName].websData[webKey].approved += (item.approvedCount || 0);
+                empGroups[item.empName].websData[webKey].reject += (item.rejectCount || 0);
+                empGroups[item.empName].websData[webKey].total += (item.count || 0);
+            }
+        });
+
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet(`สรุปยอดแยกเว็บ`);
+
+        let headers = ['ลำดับ', 'ชื่อพนักงาน', 'กะ', 'แผนก'];
+        targetWebOrder.forEach(w => { headers.push(`${w} (สำเร็จ)`); headers.push(`${w} (ปฏิเสธ)`); headers.push(`${w} (รวม)`); });
+        headers.push('รวมสำเร็จ'); headers.push('รวมปฏิเสธ'); headers.push('รวมทั้งสิ้น');
+
+        let titleDateStr = '';
+        if (viewMode === 'preview' && window.uploadedFileDates && window.uploadedFileDates.size > 0) {
+            const datesArr = Array.from(window.uploadedFileDates).sort();
+            if (datesArr.length === 1) {
+                const [y, m, d] = datesArr[0].split('-'); titleDateStr = `วันที่ ${d} เดือน ${m} ${y}`;
+            } else {
+                const formattedDates = datesArr.map(d => { const [yy, mm, dd] = d.split('-'); return `${dd}/${mm}/${yy}`; });
+                titleDateStr = `ข้อมูลรวมหลายวัน: ${formattedDates.join(', ')}`;
+            }
+        } else {
+            const dateVal = document.getElementById('summaryDateFilter').value;
+            if (dateVal) { const [y, m, d] = dateVal.split('-'); titleDateStr = `วันที่ ${d} เดือน ${m} ${y}`; } 
+            else { titleDateStr = 'ข้อมูลพรีวิว (ยังไม่ได้บันทึก)'; }
+        }
+
+        const titleRow = ws.addRow([titleDateStr]);
+        ws.mergeCells(1, 1, 1, headers.length); 
+        titleRow.height = 30;
+        titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: 'FF000000' } };
+        titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; 
+        titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+        titleRow.getCell(1).border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
+
+        const headerRow = ws.addRow(headers); headerRow.height = 25;
+        const headerColors = ['FFDBEAFE', 'FFDCFCE7', 'FFFEE2E2', 'FFFEF3C7', 'FFF3E8FF', 'FFFFEDD5', 'FFCCFBF1', 'FFE0E7FF', 'FFFCE7F3', 'FFE2E8F0'];
+        const dataBgColors = ['FFF0F9FF', 'FFF0FDF4', 'FFFEF2F2', 'FFFFFBEB', 'FFFAF5FF', 'FFFFF7ED', 'FFF0FDFA', 'FFEEF2FF', 'FFFDF2F8', 'FFF8FAFC'];
+
+        headerRow.eachCell((cell, colNumber) => {
+            cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            if (colNumber <= 4) {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
+                cell.font.color = { argb: 'FFFFFFFF' };
+                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
+            } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
+                const webIndex = Math.floor((colNumber - 5) / 3);
+                const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
+                cell.font.color = { argb: 'FF0F172A' };
+                let rightBorder = isLastInGroup ? 'medium' : 'thin'; let leftBorder = isFirstInGroup ? 'medium' : 'thin';
+                cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
+            } else {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }; 
+                cell.font.color = { argb: 'FFFFFFFF' };
+                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
+            }
+        });
+
+        ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 2 }];
+
+        let rowIndex = 1;
+        Object.values(empGroups).sort((a, b) => b.totalApproved - a.totalApproved).forEach((emp) => {
+            let rowData = [ rowIndex++, emp.name, emp.shift, emp.odType === 'ปกติ' ? 'UNKNOWN' : emp.odType ];
+            targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
+            rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal); 
+
+            const empRow = ws.addRow(rowData);
+
+            empRow.eachCell((cell, colNumber) => {
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                if (colNumber <= 4) {
+                    cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
+                    if (colNumber === 2) { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' }; }
+                    
+                    if (colNumber === 3) {
+                        cell.font = { bold: true };
+                        if (cell.value === 'เช้า') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; 
+                            cell.font.color = { argb: 'FFEA580C' }; 
+                        } else if (cell.value === 'กลาง') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; 
+                            cell.font.color = { argb: 'FF2563EB' }; 
+                        } else if (cell.value === 'ดึก') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; 
+                            cell.font.color = { argb: 'FF9333EA' }; 
+                        } else if (cell.value === 'อิสระ' || cell.value === 'all') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; 
+                            cell.font.color = { argb: 'FF059669' }; 
+                            cell.value = 'อิสระ';
+                        } else {
+                            cell.font.color = { argb: 'FF94A3B8' };
+                        }
+                    }
+                } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
+                    const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3; 
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
+                    let rightBorder = colIdxInGroup === 2 ? 'medium' : 'thin'; let leftBorder = colIdxInGroup === 0 ? 'medium' : 'thin';
+                    cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
+                    if (cell.value > 0) {
+                        if (colIdxInGroup === 0) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
+                        if (colIdxInGroup === 1) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
+                        if (colIdxInGroup === 2) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
+                    } else { cell.font = { color: { argb: 'FF94A3B8' } }; }
+                } else {
+                    cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
+                    if (cell.value > 0) {
+                        if (colNumber === 4 + (targetWebOrder.length * 3) + 1) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
+                        if (colNumber === 4 + (targetWebOrder.length * 3) + 2) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
+                        if (colNumber === 4 + (targetWebOrder.length * 3) + 3) {
+                            cell.font = { color: { argb: 'FF000000' }, bold: true }; 
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; 
+                        }
+                    } else {
+                        if (colNumber === 4 + (targetWebOrder.length * 3) + 3) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
+                    }
+                }
+            });
+        });
+
+        ws.columns.forEach((col, index) => {
+            if (index === 0) col.width = 8; else if (index === 1) col.width = 25; else if (index === 2) col.width = 12; else if (index === 3) col.width = 12; else if (index >= ws.columns.length - 3) col.width = 15; else col.width = 11; 
+        });
+
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url; link.download = `สรุปยอดรวมแต่ละเว็บ_ครบถ้วน.xlsx`; document.body.appendChild(link);
+        link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+
+        Swal.fire({ icon: 'success', title: 'ดาวน์โหลดไฟล์ Excel สำเร็จ!', timer: 1500, showConfirmButton: false });
+    } catch (error) { Swal.fire('เกิดข้อผิดพลาด', 'ดาวน์โหลด Excel ไม่สำเร็จ: ' + error.message, 'error'); }
+};
+
+// 🌟 ย้ายส่วนการจัดการ HTML Modal มาใช้ Template แทน
+window.openManageSystemModal = async function() {
+    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
+    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26'];
+
+    let html = '<div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto p-1 custom-scrollbar text-sm">';
+    defaultWebList.forEach(web => {
+        let currentSys = customSystems[web];
+        if (!currentSys) {
+            if(['Jun88', 'MK8', 'VV72', 'TH26'].includes(web)) currentSys = 'K36';
+            else if(['F168'].includes(web)) currentSys = 'WG';
+            else if(['PG688', 'JL69', 'NM9'].includes(web)) currentSys = 'TCG';
+            else currentSys = 'SYSTEM';
+        }
+        
+        // ใช้ getTpl แทนการเขียน HTML ต่อ String
+        html += getTpl('tpl-manage-system-item', {
+            web: web,
+            selSystem: currentSys === 'SYSTEM' ? 'selected' : '',
+            selK36: currentSys === 'K36' ? 'selected' : '',
+            selWg: currentSys === 'WG' ? 'selected' : '',
+            selTcg: currentSys === 'TCG' ? 'selected' : ''
+        });
+    });
+    html += '</div>';
+
+    const { isConfirmed } = await Swal.fire({
+        title: '<div class="text-xl font-black text-sky-400 flex items-center justify-center gap-2"><span class="material-icons">settings_applications</span> ตั้งค่าหลังบ้านให้เว็บไซต์</div>',
+        html: `<p class="text-xs text-gray-400 mb-3">ตั้งค่าตรงนี้ก่อนอัปโหลดไฟล์ Excel ข้อมูลจะได้เข้าถูกกล่อง</p>${html}`,
+        showCancelButton: true, confirmButtonText: 'บันทึกการตั้งค่า', cancelButtonText: 'ปิด', confirmButtonColor: '#0ea5e9', cancelButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl' }
+    });
+
+    if (isConfirmed) {
+        defaultWebList.forEach(web => {
+            const sel = document.getElementById(`sys_select_modal_${web}`);
+            if(sel) customSystems[web] = sel.value;
+        });
+        localStorage.setItem('custom_web_systems', JSON.stringify(customSystems));
+
+        if (typeof pendingSummaryData !== 'undefined') {
+            pendingSummaryData.forEach(item => {
+                if (customSystems[item.website]) item.system = customSystems[item.website];
+            });
+        }
+        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'คราวหน้าอัปโหลด Excel ระบบจะดึงเข้ากล่องให้ถูกต้องเลย', timer: 2000, showConfirmButton: false});
+        if (typeof debounceRenderSummary === 'function') debounceRenderSummary();
+    }
+};
+
+window.openManageLogoModal = async function() {
+    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
+    let optionsHtml = defaultWebList.map(w => `<option value="${w}">${w}</option>`).join('');
+
+    const { value: selectedWeb } = await Swal.fire({
+        title: 'เลือกเว็บไซต์',
+        html: `
+            <p class="text-sm text-gray-400 mb-4">ต้องการเปลี่ยนโลโก้ของเว็บไหนครับ?</p>
+            <select id="swal-web-select" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-inner">
+                <option value="">-- เลือกเว็บไซต์ --</option>
+                ${optionsHtml}
+            </select>
+        `,
+        showCancelButton: true, confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b', confirmButtonText: 'ถัดไป', cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+        preConfirm: () => {
+            const val = document.getElementById('swal-web-select').value;
+            if (!val) { Swal.showValidationMessage('กรุณาเลือกเว็บไซต์ก่อนครับ'); return false; }
+            return val;
+        }
+    });
+
+    if (selectedWeb) {
+        document.getElementById('webLogoKey').value = selectedWeb;
+        document.getElementById('webLogoTargetName').innerText = selectedWeb;
+        document.getElementById('webLogoUrlInput').value = '';
+        document.getElementById('webLogoFileInput').value = '';
+        
+        const currentLogo = window.summaryWebLogos && window.summaryWebLogos[selectedWeb];
+        const previewBox = document.getElementById('currentWebLogoPreviewBox');
+        const previewImg = document.getElementById('currentWebLogoPreview');
+        
+        if (currentLogo) { previewImg.src = currentLogo; previewBox.classList.remove('hidden'); } 
+        else { previewBox.classList.add('hidden'); }
+        document.getElementById('webLogoModal').classList.remove('hidden');
+    }
+};
+
+window.fetchMultipleHistoricalSummary = async function() {
+    const dates = Array.from(window.selectedSummaryDates);
+    if (dates.length === 0) return Swal.fire('เตือน', 'กรุณาเลือกวันที่อย่างน้อย 1 วัน', 'warning');
+
+    Swal.fire({ title: 'กำลังรวมข้อมูล...', text: `ดึงข้อมูล ${dates.length} วันมาบวกทบกัน`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    try {
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+            await fetchUsers();
+        }
+
+        const yesterdayDates = dates.map(d => window.getYesterdayDateStr(d));
+
+        const [mainRes, schRes, yestRes] = await Promise.all([
+            appDB.from('transaction_daily_summary').select('*').in('date', dates),
+            appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
+            appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates)
+        ]);
+        
+        if (mainRes.error) throw mainRes.error;
+        
+        const data = mainRes.data || [];
+        const schData = schRes.data || [];
+        const yestData = yestRes.data || [];
+
+        let schMap = {};
+        schData.forEach(s => schMap[`${s.work_date}_${s.staff_name}`] = s.shift_name);
+
+        let yestMap = {};
+        yestData.forEach(r => {
+            const key = window.cleanKeyStr(r.employee_name, r.website);
+            if (!yestMap[key]) yestMap[key] = 0;
+            yestMap[key] += parseInt(r.count) || 0;
+        });
+
+        let groupedData = {};
+        const sortedDatesForTitle = dates.sort((a, b) => new Date(b) - new Date(a)).map(d => {
+            const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`;
+        }).join(', ');
+        const combinedDateLabel = `ข้อมูลรวมหลายวัน: ${sortedDatesForTitle}`;
+
+        if (data && data.length > 0) {
+            data.forEach(r => {
+                const key = window.cleanKeyStr(r.employee_name, r.website);
+                
+                let actualShift = schMap[`${r.date}_${r.employee_name}`];
+                if (!actualShift) {
+                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                }
+
+                if (!groupedData[key]) {
+                    groupedData[key] = {
+                        date: combinedDateLabel, empName: r.employee_name, website: r.website, system: r.system || 'UNKNOWN',
+                        count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
+                        shift: actualShift, 
+                        yestCount: yestMap[key] || 0, 
+                        diffFromYesterday: 0
+                    };
+                }
+                groupedData[key].count += parseInt(r.count) || 0;
+                groupedData[key].totalAmount += parseFloat(r.total_amount) || 0;
+                groupedData[key].approvedCount += (r.approved_count !== null ? parseInt(r.approved_count) : (parseInt(r.count) || 0));
+                groupedData[key].rejectCount += parseInt(r.reject_count) || 0;
+                
+                groupedData[key].diffFromYesterday = groupedData[key].count - groupedData[key].yestCount;
+            });
+        }
+
+        pendingSummaryData = Object.values(groupedData);
+        viewMode = 'monthly_history'; 
+        window.uploadedFileDates = new Set(dates);
+
+        renderSummaryDashboard();
+        fetchLeaderboardData();
+        Swal.close();
+    } catch (e) { Swal.fire('Error', e.message, 'error'); }
+};
+
+const _originalClearSummaryDataForMulti = window.clearSummaryData;
+window.clearSummaryData = function() {
+    window.selectedSummaryDates.clear(); 
+    _originalClearSummaryDataForMulti();
+};
+
+window.deleteSummaryDate = function(dateStr) {
+    const [y, m, day] = dateStr.split('-');
+    const displayDate = `${day}/${m}/${y}`;
+
+    Swal.fire({
+        title: `ลบข้อมูลวันที่ ${displayDate}?`, text: "ข้อมูลสรุปยอดของวันนี้จะถูกลบทิ้งอย่างถาวร!", icon: 'warning',
+        showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'ลบทิ้งเลย', cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                await appDB.from('transaction_daily_summary').delete().eq('date', dateStr);
+                await appDB.from('settings').update({ value: '[]' }).eq('key', 'saved_excel_files');
+                
+                window.selectedSummaryDates.delete(dateStr);
+                window.pendingFileNames = []; 
+                window.uploadedFileDates.clear(); 
+                
+                if (typeof fetchAvailableDates === 'function') await fetchAvailableDates(true);
+                
+                if (pendingSummaryData.length === 0) {
+                    renderSummaryDashboard();
+                    Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1500, showConfirmButton: false });
+                } else {
+                    clearSummaryData(); Swal.close();
+                }
+            } catch (e) { Swal.fire('Error', e.message, 'error'); }
+        }
+    });
+};
+
+window.toggleSummaryDate = function(dateStr) {
+    if (window.selectedSummaryDates.has(dateStr)) window.selectedSummaryDates.delete(dateStr);
+    else window.selectedSummaryDates.add(dateStr);
+    renderSummaryDashboard();
+};
+
+window.saveWebLogo = async function() {
+    const web = document.getElementById('webLogoKey').value;
+    const urlInput = document.getElementById('webLogoUrlInput').value.trim();
+    const fileInput = document.getElementById('webLogoFileInput');
+    
+    if (!urlInput && (!fileInput.files || fileInput.files.length === 0)) {
+        return Swal.fire('เตือน', 'กรุณาใส่ลิงก์ URL หรือ อัปโหลดรูปภาพ', 'warning');
+    }
+
+    Swal.fire({title: 'กำลังบันทึกโลโก้...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+    let finalUrl = urlInput;
+
+    try {
+        if (fileInput.files && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `logo_${web}_${Date.now()}.${fileExt}`;
+
+            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, file, { cacheControl: '3600', upsert: true });
+            if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ: ' + uploadError.message);
+            const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`logos/${fileName}`);
+            finalUrl = publicUrlData.publicUrl;
+        }
+
+        window.summaryWebLogos = window.summaryWebLogos || {};
+        window.summaryWebLogos[web] = finalUrl;
+        
+        if (typeof SETTINGS !== 'undefined') {
+            SETTINGS['summary_web_logos'] = JSON.stringify(window.summaryWebLogos);
+        }
+
+        await appDB.from('settings').upsert([{ key: 'summary_web_logos', value: JSON.stringify(window.summaryWebLogos) }]);
+
+        document.getElementById('webLogoModal').classList.add('hidden');
+        if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();
+        
+        Swal.fire({icon: 'success', title: 'บันทึกโลโก้สำเร็จ!', timer: 1500, showConfirmButton: false});
+
+    } catch (err) {
+        Swal.fire('Error', err.message, 'error');
+    }
+};
