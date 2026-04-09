@@ -1159,24 +1159,6 @@ window.removeFromNewDept = async function(id, username) {
     });
 };
 
-window.undoClearSchedules = async function() {
-    const backupStr = sessionStorage.getItem('temp_schedule_backup');
-    if (!backupStr) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลให้กู้คืนแล้วครับ', 'error');
-    
-    const backupData = JSON.parse(backupStr);
-
-    const confirm = await Swal.fire({
-        title: 'ยืนยันการกู้คืน?',
-        text: `คุณต้องการกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ ที่เพิ่งลบทิ้งไปใช่หรือไม่?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#10b981',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'ใช่, นำข้อมูลกลับมา!',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
-    });
-
     if (confirm.isConfirmed) {
         Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         try {
