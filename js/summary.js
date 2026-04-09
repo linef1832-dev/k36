@@ -109,14 +109,21 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
-// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100%
+// 🌟 ระบบอ่านกะที่ถูกต้อง ค้นหาชื่อแบบไม่สนใจพิมพ์เล็ก/ใหญ่และเว้นวรรค
 function getShiftFromName(name) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
 
-    const searchName = (name || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); 
+    // แปลงชื่อเป็นตัวพิมพ์เล็กและตัดช่องว่างหน้าหลัง
+    const searchName = String(name || '').toLowerCase().trim();
+    
+    if (!searchName) return 'UNKNOWN';
+
     let foundUser = window.GLOBAL_USER_LIST.find(u => {
-        const dbName = (u.username || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
-        return dbName === searchName || (dbName.length > 2 && (dbName.includes(searchName) || searchName.includes(dbName)));
+        const dbName = String(u.username || '').toLowerCase().trim();
+        // แมตช์ชื่อตรงๆ หรือชื่อที่มีในระบบสั้นกว่า/ยาวกว่าแต่นำหน้าเหมือนกัน
+        return dbName === searchName || 
+               (dbName.length >= 3 && searchName.startsWith(dbName)) || 
+               (searchName.length >= 3 && dbName.startsWith(searchName));
     });
     
     if (foundUser) {
@@ -125,6 +132,7 @@ function getShiftFromName(name) {
         if (s === 'กลาง') return 'กะกลาง';
         if (s === 'ดึก') return 'กะดึก';
         if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
+        return `กะ${s}`; // เผื่อกรณีเก็บค่าแปลกๆ มา
     }
     
     return 'UNKNOWN';
@@ -194,22 +202,28 @@ window.handleDropExcel = function(e, systemName) {
 
 function getRealDbUser(rawName) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return null;
-    const searchName = rawName.toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); 
     
-    let match = window.GLOBAL_USER_LIST.find(u => u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') === searchName);
+    const searchName = String(rawName || '').toLowerCase().trim();
+    if (!searchName) return null;
+    
+    // ลองหาแบบตรงตัวเป๊ะๆ ก่อน
+    let match = window.GLOBAL_USER_LIST.find(u => String(u.username || '').toLowerCase().trim() === searchName);
     if (match) return match;
 
+    // ถ้าไม่เจอ ลองหาแบบตัดคำนำหน้า m, a, n (เผื่อมีคนพิมพ์ผิด)
     if (searchName.match(/^[man]/)) {
         const strippedSearchName = searchName.substring(1);
-        match = window.GLOBAL_USER_LIST.find(u => u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') === strippedSearchName);
+        match = window.GLOBAL_USER_LIST.find(u => String(u.username || '').toLowerCase().trim() === strippedSearchName);
         if (match) return match;
     }
 
-    const sortedUsers = [...window.GLOBAL_USER_LIST].sort((a, b) => b.username.length - a.username.length);
+    // ถ้ายังไม่เจออีก ลองหาแบบ contains (เรียงชื่อจากยาวไปสั้น กันการแมตช์ชื่อสั้นๆ ซ้ำกัน)
+    const sortedUsers = [...window.GLOBAL_USER_LIST].sort((a, b) => (b.username || '').length - (a.username || '').length);
     match = sortedUsers.find(u => {
-        const dbName = u.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
-        return dbName.length > 2 && (searchName.includes(dbName) || dbName.includes(searchName));
+        const dbName = String(u.username || '').toLowerCase().trim();
+        return dbName.length >= 3 && (searchName.startsWith(dbName) || dbName.startsWith(searchName));
     });
+    
     return match || null;
 }
 
