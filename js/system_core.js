@@ -1801,14 +1801,14 @@ window.renderQuotaSettings = function() {
     });
 
     container.innerHTML = `
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full mt-2">
-            <div class="flex flex-col gap-6">
-                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-5">
-                    <div class="flex justify-between items-center mb-4 border-b border-slate-700/50 pb-2">
-                        <h5 class="text-white font-bold text-sm tracking-wide">รวมทั้งกะ (ภาพรวม):</h5>
-                        <button class="text-[10px] text-emerald-400 border border-emerald-500/50 px-2 py-1 rounded hover:bg-emerald-900/30 transition flex items-center gap-1">+ เพิ่ม</button>
-                    </div>
-                    <div class="mb-4">
+        <div class="flex flex-col gap-6 w-full mt-2">
+            <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-5 w-full">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-700/50 pb-2">
+                    <h5 class="text-white font-bold text-sm tracking-wide">รวมทั้งกะ (ภาพรวม):</h5>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
                         <div class="text-xs font-bold text-blue-400 mb-2 flex items-center gap-1.5"><div class="w-3 h-3 bg-blue-500 rounded-sm shadow-sm"></div> โควตา AM รวม:</div>
                         <div class="space-y-2 pl-4">
                             <div class="flex items-center justify-between gap-4 quota-row-total"><input type="hidden" class="key-input" value="เช้า"><div class="w-1/2 bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-600 text-slate-700 dark:text-gray-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">กะเช้า</div><input type="number" id="quota_total_เช้า" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-blue-500" value="${SETTINGS.quota_total_เช้า || 12}"></div>
@@ -1825,37 +1825,37 @@ window.renderQuotaSettings = function() {
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col">
-                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2">
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
+                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2 shrink-0">
                         <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">domain</span> รายทีม (AM):</h5>
                         <button onclick="addTeamManual('AM')" class="text-[10px] text-blue-400 border border-blue-500/50 px-2 py-1 rounded hover:bg-blue-900/30 transition">+ เพิ่มทีม AM</button>
                     </div>
-                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max">
+                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max shrink-0">
                         <div class="w-24 shrink-0 text-center">ชื่อทีม</div>
                         <div class="w-16 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
                         <div class="w-16 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
                         <div class="w-16 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
                         <div class="w-6 shrink-0 ml-2"></div>
                     </div>
-                    <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto max-h-[300px] custom-scrollbar pr-1">${amHtml}</div>
+                    <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto custom-scrollbar pr-1">${amHtml}</div>
                 </div>
-            </div>
 
-            <div class="flex flex-col h-full">
-                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 h-full flex flex-col">
-                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2">
+                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2 shrink-0">
                         <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">groups</span> รายทีม (OD):</h5>
                         <button onclick="addTeamManual('OD')" class="text-[10px] text-pink-400 border border-pink-500/50 px-2 py-1 rounded hover:bg-pink-900/30 transition">+ เพิ่มทีม OD</button>
                     </div>
-                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max">
+                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max shrink-0">
                         <div class="w-24 shrink-0 text-center">ชื่อทีม</div>
                         <div class="w-16 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
                         <div class="w-16 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
                         <div class="w-16 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
                         <div class="w-6 shrink-0 ml-2"></div>
                     </div>
-                    <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto max-h-[700px] custom-scrollbar pr-1">${odHtml}</div>
+                    <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto custom-scrollbar pr-1">${odHtml}</div>
                 </div>
             </div>
         </div>
