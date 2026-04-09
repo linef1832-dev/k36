@@ -1005,36 +1005,102 @@ window.delTransfer = async function(id) {
     fetchTransfers();
 };
 
-window.ds_fetchVoiceLogs = async function() {
+// ==============================================================
+// 🌟 ตัวแปรสำหรับควบคุมการแบ่งหน้า (Pagination)
+// ==============================================================
+window.dsCurrentPage = 1;
+window.dsRowsPerPage = 50; // โหลดทีละ 50 บรรทัด
+window.dsTotalPages = 1;
+
+// ==============================================================
+// 🌟 ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แบบแบ่งหน้า + ค้นหาจากฐานข้อมูล)
+// ==============================================================
+window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = 1) {
+    if (typeof ds_subscribeVoiceLogs === 'function') ds_subscribeVoiceLogs(); 
+
+    // อัปเดตหน้าปัจจุบัน
+    window.dsCurrentPage = page;
+
+    const dateInput = document.getElementById('voiceLogDate');
+    let targetDate = dateInput ? dateInput.value : '';
+    
+    if (!targetDate) {
+        const today = new Date();
+        targetDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        if (dateInput) dateInput.value = targetDate;
+    }
+
+    // 🌟 อ่านค่าจากช่องค้นหาชื่อ (ถ้ามี)
+    const searchInput = document.getElementById('dsLogSearch'); 
+    const searchText = searchInput ? searchInput.value.trim() : '';
+
+    const tbody = document.getElementById('ds_voiceLogBody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลหน้า ${page}...</td></tr>`;
+
     try {
-        const res = await fetch(DISCORD_API_URL + '/api/voice-logs');
-        if(res.ok) {
-            dsGlobalVoiceLogs = await res.json();
-            ds_renderVoiceLogs();
+        const startOfDay = `${targetDate}T00:00:00+07:00`;
+        const endOfDay = `${targetDate}T23:59:59+07:00`;
+
+        // 🌟 1. สร้างคำสั่งดึงข้อมูล พร้อมขอนับจำนวนทั้งหมด (count: 'exact')
+        let query = appDB.from('discord_voice_logs')
+            .select('id, user_name, action_type, room_name, created_at', { count: 'exact' })
+            .gte('created_at', startOfDay)
+            .lte('created_at', endOfDay)
+            .order('created_at', { ascending: false });
+
+        // 🌟 2. ถ้ามีการพิมพ์ชื่อ ให้ค้นหาจากฐานข้อมูลเลย (ilike)
+        if (searchText) {
+            query = query.ilike('user_name', `%${searchText}%`);
         }
-    } catch(e) { }
+
+        // 🌟 3. คำนวณจุดเริ่มต้นและจุดสิ้นสุดของหน้า (Pagination)
+        const from = (window.dsCurrentPage - 1) * window.dsRowsPerPage;
+        const to = from + window.dsRowsPerPage - 1;
+        query = query.range(from, to); // สั่งตัดมาแค่ 50 บรรทัด!
+
+        // ยิงคำสั่งไปที่ฐานข้อมูล
+        const { data, count, error } = await query;
+
+        if (error) throw error;
+
+        // คำนวณว่ามีทั้งหมดกี่หน้า
+        window.dsTotalPages = Math.ceil((count || 0) / window.dsRowsPerPage) || 1;
+
+        window.dsGlobalVoiceLogs = data.map(row => ({
+            id: row.id,
+            name: row.user_name,
+            action: row.action_type,
+            room: row.room_name,
+            time: row.created_at
+        }));
+
+        // วาดตาราง 50 บรรทัด
+        if (typeof ds_renderVoiceLogs === 'function') ds_renderVoiceLogs();
+
+        // 🌟 วาดปุ่มเปลี่ยนหน้าด้านล่างตาราง
+        ds_renderPaginationControls(count);
+
+        if (forceRefresh === true && !searchText) {
+            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+            Toast.fire({ icon: 'success', title: 'อัปเดตข้อมูลเรียบร้อย' });
+        }
+
+    } catch (e) {
+        console.error("Fetch Voice Logs Error:", e);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">ไม่สามารถดึงข้อมูลได้: ${e.message}</td></tr>`;
+    }
 };
 
 window.ds_renderVoiceLogs = function() {
-    const term = document.getElementById('searchVoiceLog').value.toLowerCase();
+    const term = document.getElementById('dsLogSearch') ? document.getElementById('dsLogSearch').value.toLowerCase() : '';
     const dateFilter = document.getElementById('voiceLogDate').value;
     const lateFilter = document.getElementById('voiceLogLateFilter').value;
     const shiftFilter = document.getElementById('voiceLogShiftFilter') ? document.getElementById('voiceLogShiftFilter').value : 'ALL';
     const tbody = document.getElementById('ds_voiceLogBody');
     
-    let filtered = dsGlobalVoiceLogs.filter(log => log.name.toLowerCase().includes(term));
-    
-    if (dateFilter) {
-        filtered = filtered.filter(log => {
-            const logDateObj = new Date(log.time); 
-            const y = logDateObj.getFullYear();
-            const m = String(logDateObj.getMonth() + 1).padStart(2, '0');
-            const dStr = String(logDateObj.getDate()).padStart(2, '0');
-            const localDateStr = `${y}-${m}-${dStr}`; 
-            return localDateStr === dateFilter;
-        });
-    }
+    let filtered = window.dsGlobalVoiceLogs || [];
 
+    // การกรอง Shift และสาย ย้ายมาทำฝั่ง Frontend เหมือนเดิม (เฉพาะหน้าปัจจุบัน)
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
             const dbUser = getDbUserFromDiscordName(log.name);
@@ -1043,8 +1109,6 @@ window.ds_renderVoiceLogs = function() {
             return false;
         });
     }
-
-    filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
 
     let finalHtml = '';
     
@@ -1126,10 +1190,49 @@ window.ds_renderVoiceLogs = function() {
     });
 
     if (finalHtml === '') {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในเงื่อนไขนี้</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในหน้านี้</td></tr>';
     } else {
         tbody.innerHTML = finalHtml;
     }
+};
+
+// ==============================================================
+// 🌟 ฟังก์ชันสร้างปุ่มเปลี่ยนหน้า (Pagination UI)
+// ==============================================================
+window.ds_renderPaginationControls = function(totalItems) {
+    let paginationDiv = document.getElementById('ds_paginationContainer');
+    
+    // ถ้ายังไม่มีแถบเปลี่ยนหน้า ให้สร้างต่อท้ายตาราง
+    if (!paginationDiv) {
+        const tableContainer = document.getElementById('ds_voiceLogBody').closest('.overflow-x-auto') || document.getElementById('ds_voiceLogBody').closest('table').parentElement;
+        paginationDiv = document.createElement('div');
+        paginationDiv.id = 'ds_paginationContainer';
+        paginationDiv.className = 'flex flex-col sm:flex-row justify-between items-center mt-4 p-3 bg-[#151f32] rounded-xl border border-slate-700/80 shadow-md gap-3';
+        tableContainer.parentElement.appendChild(paginationDiv);
+    }
+
+    if (totalItems === 0) {
+        paginationDiv.innerHTML = `<div class="text-xs text-gray-500 w-full text-center font-bold">ไม่มีประวัติในเงื่อนไขนี้</div>`;
+        return;
+    }
+
+    const startItem = (window.dsCurrentPage - 1) * window.dsRowsPerPage + 1;
+    const endItem = Math.min(window.dsCurrentPage * window.dsRowsPerPage, totalItems);
+
+    paginationDiv.innerHTML = `
+        <div class="text-xs text-gray-400 font-bold">
+            แสดง <span class="text-fuchsia-400">${startItem} - ${endItem}</span> จากทั้งหมด <span class="text-white">${totalItems}</span> รายการ
+        </div>
+        <div class="flex items-center gap-1 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50">
+            <button onclick="ds_fetchVoiceLogs(false, 1)" ${window.dsCurrentPage === 1 ? 'disabled class="opacity-30 cursor-not-allowed"' : 'class="hover:bg-slate-700 text-gray-300 p-1 rounded transition"'} title="หน้าแรก"><span class="material-icons text-sm">keyboard_double_arrow_left</span></button>
+            <button onclick="ds_fetchVoiceLogs(false, ${window.dsCurrentPage - 1})" ${window.dsCurrentPage === 1 ? 'disabled class="opacity-30 cursor-not-allowed"' : 'class="hover:bg-slate-700 text-fuchsia-400 p-1 rounded transition"'} title="ก่อนหน้า"><span class="material-icons text-sm">chevron_left</span></button>
+            
+            <span class="text-[11px] font-bold text-white px-3 border-x border-slate-700/50">หน้า ${window.dsCurrentPage} / ${window.dsTotalPages}</span>
+            
+            <button onclick="ds_fetchVoiceLogs(false, ${window.dsCurrentPage + 1})" ${window.dsCurrentPage === window.dsTotalPages ? 'disabled class="opacity-30 cursor-not-allowed"' : 'class="hover:bg-slate-700 text-fuchsia-400 p-1 rounded transition"'} title="ถัดไป"><span class="material-icons text-sm">chevron_right</span></button>
+            <button onclick="ds_fetchVoiceLogs(false, ${window.dsTotalPages})" ${window.dsCurrentPage === window.dsTotalPages ? 'disabled class="opacity-30 cursor-not-allowed"' : 'class="hover:bg-slate-700 text-gray-300 p-1 rounded transition"'} title="หน้าสุดท้าย"><span class="material-icons text-sm">keyboard_double_arrow_right</span></button>
+        </div>
+    `;
 };
 
 window.ds_fetchActionLogs = async function() {
