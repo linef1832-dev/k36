@@ -1040,18 +1040,24 @@ window.fetchHistoricalSummary = async function(silent = false) {
             await fetchUsers();
         }
 
-        const yesterdayStr = window.getYesterdayDateStr(dateVal);
+        // 🌟 แก้ไข: บังคับคำนวณหาวันที่เมื่อวานให้ถูกต้องที่สุด
+        const yesterdayDateObj = new Date(dateVal);
+        yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+        const yesterdayStr = `${yesterdayDateObj.getFullYear()}-${String(yesterdayDateObj.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDateObj.getDate()).padStart(2, '0')}`;
 
         const [todayRes, yestRes, schedulesRes] = await Promise.all([
             appDB.from('transaction_daily_summary').select('*').eq('date', dateVal),
-            appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr),
+            appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr), // ดึงเฉพาะของเมื่อวาน
             appDB.from('schedules').select('staff_name, shift_name').eq('work_date', dateVal)
         ]);
 
         if (todayRes.error) throw todayRes.error;
 
         let yestMap = {};
-        if (yestRes.data) yestRes.data.forEach(r => yestMap[`${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
+        if (yestRes.data) {
+            // 🌟 แก้ไข: จัดเก็บข้อมูลของเมื่อวานให้แม่นยำ
+            yestRes.data.forEach(r => yestMap[`${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
+        }
 
         let schMap = {};
         if (schedulesRes && schedulesRes.data) {
@@ -1061,7 +1067,10 @@ window.fetchHistoricalSummary = async function(silent = false) {
         if (todayRes.data && todayRes.data.length > 0) {
             let mappedData = todayRes.data.map(r => {
                 const todayCount = parseInt(r.count) || 0;
+                
+                // 🌟 ดึงข้อมูลของเมื่อวานมาเทียบ (ถ้าไม่มีให้เป็น 0)
                 const yestCount = yestMap[window.cleanKeyStr(r.employee_name, r.website)] || 0;
+                
                 const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : todayCount;
                 const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
@@ -1081,7 +1090,8 @@ window.fetchHistoricalSummary = async function(silent = false) {
                 return {
                     empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
                     shift: actualShift, 
-                    yestCount: yestCount, diffFromYesterday: todayCount - yestCount,
+                    yestCount: yestCount, // 🌟 กำหนดค่าที่นี่ให้ชัดเจน
+                    diffFromYesterday: todayCount - yestCount, // 🌟 คำนวณส่วนต่าง
                     approvedCount: appCount, rejectCount: rejCount
                 };
             });
@@ -1375,12 +1385,17 @@ window.fetchMultipleHistoricalSummary = async function() {
             await fetchUsers();
         }
 
-        const yesterdayDates = dates.map(d => window.getYesterdayDateStr(d));
+        // 🌟 สร้าง Array ของวันที่เมื่อวานให้ตรงกับทุกวันที่เลือก
+        const yesterdayDates = dates.map(d => {
+            const dt = new Date(d);
+            dt.setDate(dt.getDate() - 1);
+            return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        });
 
         const [mainRes, schRes, yestRes] = await Promise.all([
             appDB.from('transaction_daily_summary').select('*').in('date', dates),
             appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
-            appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates)
+            appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates) // 🌟 ดึงข้อมูลของวันที่ก่อนหน้าทั้งหมด
         ]);
         
         if (mainRes.error) throw mainRes.error;
@@ -1393,6 +1408,7 @@ window.fetchMultipleHistoricalSummary = async function() {
         schData.forEach(s => schMap[`${s.work_date}_${(s.staff_name || '').toLowerCase().trim()}`] = s.shift_name);
 
         let yestMap = {};
+        // 🌟 รวมยอดของเมื่อวานทั้งหมด
         yestData.forEach(r => {
             const key = window.cleanKeyStr(r.employee_name, r.website);
             if (!yestMap[key]) yestMap[key] = 0;
@@ -1427,7 +1443,7 @@ window.fetchMultipleHistoricalSummary = async function() {
                         date: combinedDateLabel, empName: r.employee_name, website: r.website, system: r.system || 'UNKNOWN',
                         count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
                         shift: actualShift, 
-                        yestCount: yestMap[key] || 0, 
+                        yestCount: yestMap[key] || 0, // 🌟 ดึงค่ายอดของเมื่อวานมาใช้
                         diffFromYesterday: 0
                     };
                 }
@@ -1436,6 +1452,7 @@ window.fetchMultipleHistoricalSummary = async function() {
                 groupedData[key].approvedCount += (r.approved_count !== null ? parseInt(r.approved_count) : (parseInt(r.count) || 0));
                 groupedData[key].rejectCount += parseInt(r.reject_count) || 0;
                 
+                // 🌟 คำนวณส่วนต่างหลังจากบวกทบยอดของวันนี้เสร็จแล้ว
                 groupedData[key].diffFromYesterday = groupedData[key].count - groupedData[key].yestCount;
             });
         }
