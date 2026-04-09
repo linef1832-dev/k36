@@ -286,33 +286,58 @@
 
                 </div>
             </div>
-           <div class="bg-[#151f32] p-5 rounded-2xl border border-red-900/50 shadow-lg mt-6 relative overflow-hidden">
-    <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none"><span class="material-icons text-8xl text-red-500">delete_sweep</span></div>
-    <h4 class="text-red-500 font-bold mb-3 flex items-center gap-2 border-b border-red-900/30 pb-2 relative z-10">
-        <span class="material-icons text-xl">delete_sweep</span> ล้างกระดาน (ลบเวลากินข้าว)
-    </h4>
-    <p class="text-xs text-gray-400 mb-4 relative z-10">เลือกลบข้อมูลการลงเวลาเฉพาะ <b>"แผนก"</b> หรือ <b>"กะ"</b> ที่มีปัญหา เพื่อให้พนักงานกลุ่มนั้นกดจองเวลาใหม่</p>
-    <div class="flex flex-col sm:flex-row flex-wrap gap-3 relative z-10">
-        <input type="date" id="clearScheduleDate" class="w-full sm:w-auto flex-1 bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner">
-        <select id="clearScheduleDept" class="w-full sm:w-auto bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
-            <option value="all">🌐 ทุกแผนก</option>
-            <option value="AM">เฉพาะ AM</option>
-            <option value="OD">เฉพาะ OD</option>
-        </select>
-        <select id="clearScheduleShift" class="w-full sm:w-auto bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
-            <option value="all">⏱️ ทุกกะ</option>
-            <option value="กะเช้า">กะเช้า</option>
-            <option value="กะกลาง">กะกลาง</option>
-            <option value="กะดึก">กะดึก</option>
-        </select>
-        <button type="button" onclick="clearAllSchedules()" class="w-full sm:w-auto shrink-0 bg-red-600 hover:bg-red-500 text-white text-sm font-bold px-6 py-2.5 rounded-lg shadow-md transition flex items-center justify-center gap-2 active:scale-95">
-            <span class="material-icons text-base">warning</span> ล้างข้อมูล
-        </button>
-        <button type="button" id="undoScheduleBtn" onclick="undoClearSchedules()" class="hidden w-full sm:w-auto shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold px-6 py-2.5 rounded-lg shadow-md transition flex items-center justify-center gap-2 active:scale-95 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-            <span class="material-icons text-base">restore</span> กู้คืนข้อมูลล่าสุด
-        </button>
-    </div>
-</div>
+           <div class="text-[10px] text-gray-500 mb-2">รอบเวลาที่เพิ่มไว้:</div>
+                        <div id="manualTimeSlotsContainer" class="max-h-[150px] overflow-y-auto custom-scrollbar space-y-1.5 bg-slate-900 p-2 rounded-lg border border-slate-700">
+                            <div class="text-center text-gray-600 text-xs py-4">ยังไม่มีการตั้งค่า</div>
+                        </div>
+                    </div>
+                    ```
+
+แล้วเอาโค้ดใหม่ด้านล่างนี้ ไปวางแทรกเข้าไปเลยครับ:
+
+```html
+                    <div class="bg-[#151f32] p-5 rounded-2xl border border-red-900/50 shadow-lg relative overflow-hidden flex flex-col h-full mt-6">
+                        <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none"><span class="material-icons text-8xl text-red-500">delete_sweep</span></div>
+                        <h4 class="text-red-500 font-bold mb-3 flex items-center gap-2 border-b border-red-900/30 pb-2 relative z-10">
+                            <span class="material-icons text-xl">delete_sweep</span> ล้างกระดาน (ลบเวลา)
+                        </h4>
+                        <p class="text-[10px] text-gray-400 mb-4 relative z-10">เลือกลบข้อมูลการลงเวลา เพื่อให้พนักงานกลุ่มนั้นจองใหม่</p>
+                        
+                        <div class="flex flex-col gap-3 relative z-10 flex-1">
+                            <div>
+                                <label class="block text-[10px] text-gray-500 mb-1">วันที่</label>
+                                <input type="date" id="clearScheduleDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] text-gray-500 mb-1">แผนก</label>
+                                    <select id="clearScheduleDept" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-[11px] font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
+                                        <option value="all">🌐 ทุกแผนก</option>
+                                        <option value="AM">เฉพาะ AM</option>
+                                        <option value="OD">เฉพาะ OD</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-gray-500 mb-1">กะ</label>
+                                    <select id="clearScheduleShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-[11px] font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
+                                        <option value="all">⏱️ ทุกกะ</option>
+                                        <option value="กะเช้า">เช้า</option>
+                                        <option value="กะกลาง">กลาง</option>
+                                        <option value="กะดึก">ดึก</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-auto pt-2 flex flex-col gap-2">
+                                <button type="button" onclick="clearAllSchedules()" class="w-full bg-red-600 hover:bg-red-500 text-white text-sm font-bold py-3 rounded-lg shadow-md transition flex items-center justify-center gap-1 active:scale-95 border border-red-500">
+                                    <span class="material-icons text-base">warning</span> ล้างข้อมูล
+                                </button>
+                                <button type="button" id="undoScheduleBtn" onclick="undoClearSchedules()" class="hidden w-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold py-3 rounded-lg shadow-md transition flex items-center justify-center gap-2 active:scale-95 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+                                    <span class="material-icons text-base">restore</span> กู้คืนข้อมูลล่าสุด
+                                </button>
+                            </div>
+                        </div>
+                    </div>
             
             <div class="bg-[#0f172a] p-1 rounded-2xl border border-teal-900/50 shadow-lg mt-6 overflow-hidden">
                 <div class="bg-teal-900/20 p-4 border-b border-teal-900/50 flex items-center gap-2">
