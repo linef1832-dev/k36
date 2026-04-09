@@ -1710,8 +1710,15 @@ window.manualAdjustReq = async function(changedTeam) {
 
     const activeStaff = allUsers.filter(u => {
         const uDept = String(u.department || 'AM').toUpperCase();
-        if (currentDutyDept === 'TRAINER' && uDept !== 'TRAINER') return false;
-        if (currentDutyDept !== 'TRAINER' && uDept !== currentDutyDept) return false;
+        const uRole = String(u.role || '').toLowerCase(); // 🌟 ดึงข้อมูล Role มาเช็ค
+        
+        if (currentDutyDept === 'TRAINER') {
+            if (uDept !== 'TRAINER') return false;
+        } else {
+            // 🌟 ถ้าไม่ใช่หน้า Trainer บังคับว่าต้องอยู่แผนกตรงกัน และ "ต้องเป็น Staff" เท่านั้น (ตัด Manager ออก)
+            const isStaff = (uRole === 'staff' || uRole === '');
+            if (uDept !== currentDutyDept || !isStaff) return false;
+        }
 
         const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
         const searchShift = String(shiftFilter || '').toLowerCase().replace('กะ', '').trim();
@@ -1800,8 +1807,15 @@ window.autoSuggestRequirements = async function() {
 
     const activeStaff = allUsers.filter(u => {
         const uDept = String(u.department || 'AM').toUpperCase();
-        if (currentDutyDept === 'TRAINER' && uDept !== 'TRAINER') return false;
-        if (currentDutyDept !== 'TRAINER' && uDept !== currentDutyDept) return false;
+        const uRole = String(u.role || '').toLowerCase(); // 🌟 ดึงข้อมูล Role มาเช็ค
+        
+        if (currentDutyDept === 'TRAINER') {
+            if (uDept !== 'TRAINER') return false;
+        } else {
+            // 🌟 ถ้าไม่ใช่หน้า Trainer บังคับว่าต้องอยู่แผนกตรงกัน และ "ต้องเป็น Staff" เท่านั้น (ตัด Manager ออก)
+            const isStaff = (uRole === 'staff' || uRole === '');
+            if (uDept !== currentDutyDept || !isStaff) return false;
+        }
         
         const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
         const searchShift = String(shiftFilter || '').toLowerCase().replace('กะ', '').trim();
@@ -1881,8 +1895,15 @@ window.updateDutyStats = async function() {
 
     const activeStaff = allUsers.filter(u => {
         const uDept = String(u.department || 'AM').toUpperCase();
-        if (currentDutyDept === 'TRAINER' && uDept !== 'TRAINER') return false;
-        if (currentDutyDept !== 'TRAINER' && uDept !== currentDutyDept) return false;
+        const uRole = String(u.role || '').toLowerCase(); // 🌟 ดึงข้อมูล Role มาเช็ค
+        
+        if (currentDutyDept === 'TRAINER') {
+            if (uDept !== 'TRAINER') return false;
+        } else {
+            // 🌟 ถ้าไม่ใช่หน้า Trainer บังคับว่าต้องอยู่แผนกตรงกัน และ "ต้องเป็น Staff" เท่านั้น (ตัด Manager ออก)
+            const isStaff = (uRole === 'staff' || uRole === '');
+            if (uDept !== currentDutyDept || !isStaff) return false;
+        }
         
         const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
         const searchShift = String(shiftFilter || '').toLowerCase().replace('กะ', '').trim();
