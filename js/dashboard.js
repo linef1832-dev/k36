@@ -271,7 +271,7 @@ setTimeout(() => {
     }
 }, 500);
 // ========================================================================
-// 🟢 1. ฟังก์ชันดึงประวัติระบบ (Audit Logs)
+// 🟢 1. ฟังก์ชันดึงประวัติระบบ (Audit Logs) [Optimized โหลดลื่นขึ้น]
 // ========================================================================
 window.fetchLogs = async function() {
     const dateVal = document.getElementById('logDate') ? document.getElementById('logDate').value : '';
@@ -306,10 +306,14 @@ window.fetchLogs = async function() {
         
         if(filtered.length === 0) { box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติที่ค้นหา</td></tr>`; return; }
         
+        // 🌟 แก้ไข: สร้างตัวแปรเก็บ HTML ไว้ก่อน ไม่สั่งเขียนลงหน้าจอซ้ำๆ
+        let logsHtml = '';
+        
         filtered.forEach(log => {
             const time = new Date(log.log_date).toLocaleString('th-TH'); 
             const badgeColor = log.action_type === 'ลงเวลา' ? 'bg-green-900/50 text-green-400 border-green-700' : (log.action_type.includes('ลบ') ? 'bg-red-900/50 text-red-400 border-red-700' : 'bg-blue-900/50 text-blue-400 border-blue-700');
-            box.innerHTML += `
+            
+            logsHtml += `
             <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition">
                 <td class="px-4 py-3 text-xs text-gray-400">${time}</td>
                 <td class="px-4 py-3 font-bold text-white">${log.performed_by}</td>
@@ -317,6 +321,10 @@ window.fetchLogs = async function() {
                 <td class="px-4 py-3 text-xs text-gray-300">${log.target_details}</td>
             </tr>`;
         });
+
+        // 🌟 สั่งเขียนลงหน้าจอทีเดียวจบ
+        box.innerHTML = logsHtml;
+
     } else {
         box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติ</td></tr>`;
     }
