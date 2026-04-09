@@ -297,13 +297,13 @@ async function fetchData() {
 
 function renderTableRows(data) {
     const periodEl = document.getElementById('periodFilter');
-const filterVal = periodEl ? periodEl.value : 'all';
+    const filterVal = periodEl ? periodEl.value : 'all';
 
-const searchEl = document.getElementById('tableSearch');
-const searchName = searchEl ? searchEl.value.toLowerCase() : '';
+    const searchEl = document.getElementById('tableSearch');
+    const searchName = searchEl ? searchEl.value.toLowerCase() : '';
 
-const deptFilterEl = document.getElementById('tableDeptFilter');
-const deptFilterVal = deptFilterEl ? deptFilterEl.value : 'all';
+    const deptFilterEl = document.getElementById('tableDeptFilter');
+    const deptFilterVal = deptFilterEl ? deptFilterEl.value : 'all';
 
     const box = document.getElementById('dataTableBody'); box.innerHTML = '';
     let filteredData = data;
@@ -323,23 +323,27 @@ const deptFilterVal = deptFilterEl ? deptFilterEl.value : 'all';
 
     if(filteredData.length === 0) { box.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>`; return; }
     
-    let htmlContent = ''; // 🌟 [ปรับใหม่] สร้างตัวแปรมารับข้อความก่อน
+    let htmlContent = ''; 
 
     filteredData.forEach(i => {
         const periodName = getPeriodForTime(i.shift_name, i.time_slot);
-        let pClass = 'text-gray-500'; 
-        if (periodName === 'ช่วงที่ 1') pClass = 'text-green-600 dark:text-green-400'; 
-        else if (periodName === 'ช่วงที่ 2') pClass = 'text-orange-500 dark:text-orange-400'; 
-        else if (periodName === 'ช่วงที่ 3') pClass = 'text-purple-600 dark:text-purple-400';
+        
+        // 🌟 แก้ไข: ดักจับค่า null ตอนหน้าเว็บเพิ่งโหลด ให้โชว์ไอคอนหมุนๆ แทน
+        let displayPeriod = periodName || '<span class="material-icons text-[12px] animate-spin">sync</span>';
+        let pClass = 'text-gray-500 border-transparent'; 
+        
+        if (periodName === 'ช่วงที่ 1') pClass = 'text-green-600 dark:text-green-400 border-current'; 
+        else if (periodName === 'ช่วงที่ 2') pClass = 'text-orange-500 dark:text-orange-400 border-current'; 
+        else if (periodName === 'ช่วงที่ 3') pClass = 'text-purple-600 dark:text-purple-400 border-current';
+        else if (!periodName) pClass = 'text-gray-400 border-gray-400/50 border-dashed bg-gray-100 dark:bg-slate-800'; // สไตล์กรอบไข่ปลาตอนรอข้อมูล
         
         const canDelete = ['manager', 'admin'].includes(currentUser.role) || i.staff_name === currentUser.username;
         let delBtn = canDelete ? `<button onclick="delSch(${i.id}, '${i.shift_name}')" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-lg bg-red-50 dark:bg-red-900/30 transition"><span class="material-icons text-lg">delete</span></button>` : '';
         
         const deptColor = (i.department === 'OD') ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700';
 
-        // 🌟 [ปรับใหม่] เอาไปต่อท้ายในตัวแปร htmlContent แทน
         htmlContent += `<tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
-            <td class="px-6 py-4 w-32 text-center"><div class="flex justify-center"><span class="${pClass} font-extrabold text-sm border border-current px-2 py-0.5 rounded-full whitespace-nowrap">${periodName}</span></div></td>
+            <td class="px-6 py-4 w-32 text-center"><div class="flex justify-center"><span class="${pClass} font-extrabold text-sm border px-2 py-0.5 rounded-full whitespace-nowrap flex items-center justify-center min-w-[60px] min-h-[28px]">${displayPeriod}</span></div></td>
             <td class="px-6 py-4 font-bold text-slate-700 dark:text-gray-200">${i.staff_name}</td>
             <td class="px-6 py-4 flex items-center gap-1">
                 <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span>
@@ -351,7 +355,6 @@ const deptFilterVal = deptFilterEl ? deptFilterEl.value : 'all';
         </tr>`;
     });
     
-    // 🌟 [ปรับใหม่] สั่งให้บราวเซอร์วาดตารางทีเดียวจบ! (ไวขึ้น 3 เท่า)
     box.innerHTML = htmlContent;
 }
 
