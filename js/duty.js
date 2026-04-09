@@ -467,22 +467,13 @@ window.restoreDutyRoster = async function() {
     });
 };
 
-window.generateDutyRoster = async function() {
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    if(!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
-
-    const saveKeyCheck = getDutySaveKey(targetDate, shiftFilter);
-    
-    let checkExistVal = null;
-    try {
-        const { data: checkExist } = await appDB.from('settings').select('value').eq('key', saveKeyCheck);
-        if (checkExist && checkExist.length > 0) checkExistVal = checkExist[0].value;
-    } catch(e) {}
-    
-    if (checkExistVal) {
-         window.refreshDutyData(); 
-         return Swal.fire('ป้องกันการจัดซ้ำ!', 'กะนี้มีการจัดหน้าที่ไปแล้ว กรุณากดปุ่ม "ล้างตาราง" ก่อนสุ่มใหม่ครับ', 'warning');
+// 🌟 บังคับดึงรายชื่อพนักงานจาก DB ถ้า GLOBAL_USER_LIST หายไป
+    let allUsers = window.GLOBAL_USER_LIST || [];
+    if (allUsers.length === 0 && window.appDB) {
+        try {
+            const { data } = await appDB.from('users').select('*');
+            if (data) { window.GLOBAL_USER_LIST = data; allUsers = data; }
+        } catch(e) { console.log('โหลดพนักงานไม่ขึ้น:', e); }
     }
 
     let targetDateLeaves = new Set();
@@ -491,21 +482,21 @@ window.generateDutyRoster = async function() {
         if (leaveData) leaveData.forEach(l => targetDateLeaves.add(String(l.user_id)));
     } catch(e) { console.error("โหลดข้อมูลลาหยุดพลาด:", e); }
 
-    const activeStaff = GLOBAL_USER_LIST.filter(u => {
-        const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff' || !u.role || u.role === '');
+    const activeStaff = allUsers.filter(u => {
+        const uDept = String(u.department || 'AM').toUpperCase();
+        if (currentDutyDept === 'TRAINER' && uDept !== 'TRAINER') return false;
+        if (currentDutyDept !== 'TRAINER' && uDept !== currentDutyDept) return false;
         
         const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
-        const searchShift = shiftFilter.toLowerCase().replace('กะ', '').trim();
-        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift === 'อิสระ');
+        const searchShift = String(shiftFilter || '').toLowerCase().replace('กะ', '').trim();
+        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift.includes('อิสระ') || searchShift === 'all' || searchShift.includes('ทุกกะ') || dbShift === '');
 
-        return hasValidRole && isCorrectDept && isShiftMatch && !targetDateLeaves.has(String(u.id));
+        return isShiftMatch && !targetDateLeaves.has(String(u.id));
     });
     
     let requiredCount = 0; document.querySelectorAll('.req-input').forEach(i => requiredCount += (parseInt(i.value) || 0));
 
     if(activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย`, 'error');
-    if(requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
 
     Swal.fire({title: 'กำลังจัดและวิเคราะห์คิว...', text: 'ระบบกำลังเช็คประวัติเมื่อวาน เพื่อกระจายเว็บไม่ให้ซ้ำ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
@@ -1723,14 +1714,15 @@ window.manualAdjustReq = async function(changedTeam) {
     } catch(e) {}
     
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
-        const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff' || !u.role || u.role === '');
+        const uDept = String(u.department || 'AM').toUpperCase();
+        if (currentDutyDept === 'TRAINER' && uDept !== 'TRAINER') return false;
+        if (currentDutyDept !== 'TRAINER' && uDept !== currentDutyDept) return false;
         
         const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
-        const searchShift = shiftFilter.toLowerCase().replace('กะ', '').trim();
-        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift === 'อิสระ');
+        const searchShift = String(shiftFilter || '').toLowerCase().replace('กะ', '').trim();
+        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift.includes('อิสระ') || searchShift === 'all' || searchShift.includes('ทุกกะ') || dbShift === '');
 
-        return hasValidRole && isCorrectDept && isShiftMatch && !targetDateLeaves.has(String(u.id));
+        return isShiftMatch && !targetDateLeaves.has(String(u.id));
     });
     
     const availableCount = activeStaff.length;
@@ -1805,14 +1797,15 @@ window.autoSuggestRequirements = async function() {
     } catch(e) {}
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
-        const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff' || !u.role || u.role === '');
+        const uDept = String(u.department || 'AM').toUpperCase();
+        if (currentDutyDept === 'TRAINER' && uDept !== 'TRAINER') return false;
+        if (currentDutyDept !== 'TRAINER' && uDept !== currentDutyDept) return false;
         
         const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
-        const searchShift = shiftFilter.toLowerCase().replace('กะ', '').trim();
-        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift === 'อิสระ');
+        const searchShift = String(shiftFilter || '').toLowerCase().replace('กะ', '').trim();
+        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift.includes('อิสระ') || searchShift === 'all' || searchShift.includes('ทุกกะ') || dbShift === '');
 
-        return hasValidRole && isCorrectDept && isShiftMatch && !targetDateLeaves.has(String(u.id));
+        return isShiftMatch && !targetDateLeaves.has(String(u.id));
     });
 
     if(activeStaff.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ไม่มีพนักงานว่างในกะนี้เลย', 'info');
@@ -1871,21 +1864,27 @@ window.updateDutyStats = async function() {
     const statusBar = document.getElementById('dutyStatusBar');
     if(!statusBar) return;
 
+    let allUsers = window.GLOBAL_USER_LIST || [];
+    if (allUsers.length === 0 && window.appDB) {
+        try { const { data } = await appDB.from('users').select('*'); if (data) { window.GLOBAL_USER_LIST = data; allUsers = data; } } catch(e) {}
+    }
+
     let targetDateLeaves = new Set();
     try {
         const { data: leaveData } = await appDB.from('leave_requests').select('user_id').eq('leave_date', targetDate);
         if (leaveData) leaveData.forEach(l => targetDateLeaves.add(String(l.user_id)));
     } catch(e) {}
 
-    const activeStaff = GLOBAL_USER_LIST.filter(u => {
-        const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff' || !u.role || u.role === '');
+    const activeStaff = allUsers.filter(u => {
+        const uDept = String(u.department || 'AM').toUpperCase();
+        if (currentDutyDept === 'TRAINER' && uDept !== 'TRAINER') return false;
+        if (currentDutyDept !== 'TRAINER' && uDept !== currentDutyDept) return false;
         
         const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
-        const searchShift = shiftFilter.toLowerCase().replace('กะ', '').trim();
-        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift === 'อิสระ');
+        const searchShift = String(shiftFilter || '').toLowerCase().replace('กะ', '').trim();
+        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift.includes('อิสระ') || searchShift === 'all' || searchShift.includes('ทุกกะ') || dbShift === '');
 
-        return hasValidRole && isCorrectDept && isShiftMatch && !targetDateLeaves.has(String(u.id));
+        return isShiftMatch && !targetDateLeaves.has(String(u.id));
     });
     
     const availableCount = activeStaff.length;
