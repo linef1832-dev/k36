@@ -309,13 +309,35 @@ function subscribeLeaveChanges() {
 function subscribeSettingsChanges() {
     if(settingsSubscription) appDB.removeChannel(settingsSubscription);
     settingsSubscription = appDB.channel('settings-updates')
+    // 🌟 ส่วนที่ 1: ฟังคำสั่ง Broadcast (สำหรับสั่งให้โหลดใหม่แบบเจาะจง)
     .on('broadcast', { event: 'force_leave_reload' }, async () => {
         const leaveAppEl = document.getElementById('leaveApp');
         if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
             await loadLeaveSettings();
             flashRealtimeDot();
         }
-    }).subscribe();
+    })
+    // 🌟 ส่วนที่ 2: เพิ่มใหม่! ดักฟังการเปลี่ยนแปลงข้อมูลในตาราง settings โดยตรง
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, async (payload) => {
+        // เช็คว่าถ้าเป็นคีย์ที่เกี่ยวกับการตั้งค่าหน้าลางาน (มี _is_open, _quota, _limit, _start, _end)
+        if (payload.new && payload.new.key && (
+            payload.new.key.includes('_is_open') || 
+            payload.new.key.includes('_quota') || 
+            payload.new.key.includes('_limit') ||
+            payload.new.key.includes('time_') ||
+            payload.new.key.includes('lock_') ||
+            payload.new.key.includes('_start') ||
+            payload.new.key.includes('_end')
+        )) {
+            const leaveAppEl = document.getElementById('leaveApp');
+            // เช็คว่าผู้ใช้อยู่หน้าลางานพอดีไหม ถ้าอยู่ก็ให้โหลดการตั้งค่าใหม่มาอัปเดตหน้าจอทันที
+            if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
+                await loadLeaveSettings();
+                flashRealtimeDot();
+            }
+        }
+    })
+    .subscribe();
 }
 
 function flashRealtimeDot() {
@@ -1004,13 +1026,13 @@ window.loadLeaveStatusConfig = async function() {
 };
 
 window.updateLeaveToggleUI = function() {
-    const targetLabel = document.getElementById('settingTargetLabel');
-    const currentDept = window.currentDept || (targetLabel ? targetLabel.innerText : 'AM');
     const toggleBtn = document.getElementById('setForceOpen');
-    
-    if (toggleBtn) {
-        if (!window.leaveStatusConfig) window.leaveStatusConfig = {};
-        toggleBtn.checked = (window.leaveStatusConfig[currentDept] !== 'closed'); 
+    if (!toggleBtn) return;
+
+    // 🌟 เช็คค่าที่ดึงมาจาก Database ล่าสุดของแผนกปัจจุบันมาอัปเดตสวิตช์
+    const s = deptSettings[currentViewDept];
+    if (s && s.isOpen !== undefined) {
+        toggleBtn.checked = s.isOpen;
     }
 };
 
