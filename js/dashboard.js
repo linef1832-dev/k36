@@ -233,7 +233,6 @@ window.openAdminPanel = async function() {
 window.switchAdminTab = function(tab) {
     const tabs = ['settings', 'users', 'perms', 'info'];
     
-    // เอาตัวหน่วงเวลา (requestAnimationFrame) ออก เพื่อให้สลับหน้าต่างทันทีที่กด!
     tabs.forEach(t => {
         // 1. จัดการปุ่มเมนูด้านบน (เปลี่ยนสี)
         const btn = document.getElementById('btnAdminTab_' + t);
@@ -250,10 +249,10 @@ window.switchAdminTab = function(tab) {
         if (view) {
             if (t === tab) {
                 view.classList.remove('hidden');
-                view.classList.add('flex');
+                view.classList.add('flex'); // ใช้ flex เพื่อแสดงผล
             } else {
                 view.classList.add('hidden');
-                view.classList.remove('flex');
+                view.classList.remove('flex'); // ลบ flex ออกเพื่อซ่อน
             }
         }
     });
