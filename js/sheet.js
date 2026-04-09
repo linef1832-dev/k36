@@ -622,31 +622,3 @@ window.deleteSheet = async function(id) {
         Swal.fire('Error', e.message, 'error');
     }
 };
-
-// ==========================================
-// 🟢 5. ระบบดักจับการสลับหน้า 
-// ==========================================
-const showPage_Old_Sheet = window.showPage; 
-window.showPage = async function(page) {
-    if (typeof showPage_Old_Sheet === 'function' && showPage_Old_Sheet !== window.showPage) {
-        await showPage_Old_Sheet(page);
-    }
-    
-    const sheetApp = document.getElementById('sheetApp');
-    if (page === 'sheet') {
-        ['mainContentArea', 'adminPanel', 'logsPage', 'leaveApp'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
-        });
-        if (sheetApp) {
-            sheetApp.classList.remove('hidden');
-            sheetApp.classList.add('flex'); 
-        }
-        if (typeof window.initSheetApp === 'function') window.initSheetApp();
-    } else {
-        if (sheetApp) {
-            sheetApp.classList.add('hidden');
-            sheetApp.classList.remove('flex');
-        }
-    }
-};
