@@ -1554,26 +1554,27 @@ window.autoCalculateTeamQuotas = async function() {
     } catch (error) { Swal.fire('Error', 'เกิดข้อผิดพลาดในการดึงข้อมูลตารางงาน', 'error'); }
 };
 
-window.renderDutyAccessTable = function() {
+window.renderDutyAccessTable = async function() {
     const head = document.getElementById('dutyAccessHead');
     const body = document.getElementById('dutyAccessBody');
     if(!head || !body) return;
     
-    // 🌟 1. ป้องกันกรณีที่รายชื่อยังโหลดไม่เสร็จ
-    let allUsers = window.GLOBAL_USER_LIST || [];
-    if (allUsers.length === 0) {
+    // 🌟 1. บังคับดึงข้อมูลใหม่ ถ้ายังไม่มี หรือโหลดมาไม่ครบ
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
         body.innerHTML = `<tr><td colspan="${sortedTeams.length+1}" class="p-8 text-center text-gray-400"><span class="material-icons animate-spin mb-2 text-3xl">sync</span><br>กำลังโหลดข้อมูลพนักงาน...</td></tr>`;
-        return;
+        if (typeof fetchUsers === 'function') await fetchUsers();
     }
 
-    // 🌟 2. ดึงรายชื่อโดยยืดหยุ่นขึ้น (อนุโลมคนที่ไม่มี Role ก็ให้โชว์ได้)
+    let allUsers = window.GLOBAL_USER_LIST || [];
+
+    // 🌟 2. กรองคนแบบเปิดกว้างสุดๆ: ขอแค่แผนกตรง ก็เอามาโชว์เลย (ไม่สน role)
     let staff = allUsers.filter(u => {
-        const uDept = u.department || 'AM';
+        const uDept = String(u.department || 'AM').toUpperCase();
         if (currentDutyDept === 'TRAINER') {
             return uDept === 'TRAINER';
         } else {
-            const isStaff = u.role === 'staff' || !u.role || u.role === '';
-            return isStaff && uDept === currentDutyDept;
+            // ถ้าเป็น AM หรือ OD ขอแค่แผนกตรง ก็เอามาโชว์หมดเลย (ตัดเงื่อนไข role ทิ้งไปเลยเพื่อแก้ปัญหา)
+            return uDept === currentDutyDept;
         }
     });
 
@@ -1585,11 +1586,11 @@ window.renderDutyAccessTable = function() {
     const shiftFilterEl = document.getElementById('settingShiftFilter');
     const searchFilterEl = document.getElementById('settingSearchInput');
     
-    // 🌟 3. แก้บัคตัวพิมพ์เล็กพิมพ์ใหญ่ ทำให้กรองกะได้แม่นยำ 100%
+    // 🌟 3. ระบบกรองกะที่แม่นยำ
     const shiftFilter = shiftFilterEl ? String(shiftFilterEl.value).toLowerCase() : 'all'; 
     const searchFilter = searchFilterEl ? String(searchFilterEl.value).toLowerCase() : '';
 
-    if (shiftFilter !== 'all') {
+    if (shiftFilter !== 'all' && shiftFilter !== 'ดูทุกกะ') {
         staff = staff.filter(u => {
             const uShift = String(u.allowed_shift || '').toLowerCase();
             return uShift === shiftFilter || uShift.includes(shiftFilter.replace('กะ', ''));
@@ -1641,7 +1642,7 @@ window.renderDutyAccessTable = function() {
         bodyHtml += rowHtml;
     });
     
-    if(staff.length === 0) bodyHtml = `<tr><td colspan="${sortedTeams.length+1}" class="p-8 text-center text-gray-400 font-bold">ไม่พบพนักงานที่ค้นหา หรือยังไม่มีพนักงานในแผนกนี้</td></tr>`;
+    if(staff.length === 0) bodyHtml = `<tr><td colspan="${sortedTeams.length+1}" class="p-8 text-center text-gray-400 font-bold">ไม่พบพนักงาน หรือไม่มีใครอยู่แผนก ${currentDutyDept} เลย</td></tr>`;
     body.innerHTML = bodyHtml;
 };
 
