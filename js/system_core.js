@@ -1,5 +1,5 @@
 let userCurrentPage = 1;
-let userRowsPerPage = 50;
+let userRowsPerPage = 5; // เปลี่ยนค่าเริ่มต้นเป็น 5 คน
 let allowedViewMonth = ''; 
 let allowedStartDay = 0;   
 let allowedEndDay = 31;   
@@ -1279,7 +1279,8 @@ window.renderPaginationControls = function(totalUsers, totalPages) {
     paginationBox.innerHTML = `
         <div class="flex items-center gap-3">
             <span class="font-bold">แสดง:</span>
-            <select onchange="userRowsPerPage = this.value; userCurrentPage = 1; window.renderUserTableDirectly();" class="bg-slate-800 border border-slate-600 text-white rounded p-1 outline-none font-bold">
+           <select onchange="userRowsPerPage = this.value; userCurrentPage = 1; window.renderUserTableDirectly();" class="bg-slate-800 border border-slate-600 text-white rounded p-1 outline-none font-bold">
+                <option value="5" ${userRowsPerPage == 5 ? 'selected' : ''}>5</option>
                 <option value="10" ${userRowsPerPage == 10 ? 'selected' : ''}>10</option>
                 <option value="50" ${userRowsPerPage == 50 ? 'selected' : ''}>50</option>
                 <option value="100" ${userRowsPerPage == 100 ? 'selected' : ''}>100</option>
