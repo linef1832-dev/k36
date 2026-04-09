@@ -178,9 +178,25 @@ window.toggleSummaryWebFilter = function(webName) {
 window.filterSummaryLeaderboard = function() {
     const term = document.getElementById('leaderboardSearch') ? document.getElementById('leaderboardSearch').value.toLowerCase() : '';
     const items = document.querySelectorAll('.leaderboard-item');
-    items.forEach(item => {
+    
+    items.forEach((item, index) => {
         const name = item.getAttribute('data-name').toLowerCase();
-        item.style.display = name.includes(term) ? 'flex' : 'none';
+        
+        if (term === '') {
+            // 🌟 ถ้าไม่ได้พิมพ์ค้นหา ให้โชว์แค่ 10 อันดับแรก (ซ่อนคนที่เหลือ)
+            if (index < 10) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        } else {
+            // 🌟 ถ้าพิมพ์ค้นหา ให้โชว์คนที่ชื่อตรง (แม้จะอยู่อันดับ 95 ก็จะโผล่ขึ้นมาพร้อมอันดับ)
+            if (name.includes(term)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        }
     });
 };
 
@@ -970,8 +986,8 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
         return;
     }
 
-    // 🌟 เติม .slice(0, 10) ตรงนี้ครับ! เพื่อตัดเอาแค่ 10 อันดับแรก
-    lbBox.innerHTML = sortedEmps.slice(0, 10).map((name, i) => {
+    // 🌟 เอา .slice ออก เพื่อวาดทุกคนลงไป แต่เดี๋ยวเราจะให้ฟังก์ชันค้นหาช่วยซ่อนให้
+    lbBox.innerHTML = sortedEmps.map((name, i) => {
         const d = aggMap[name];
         let medalClass = ''; let medalText = i + 1;
         if (i === 0) medalClass = 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.6)]';
