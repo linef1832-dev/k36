@@ -946,7 +946,8 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
         return;
     }
 
-    lbBox.innerHTML = sortedEmps.map((name, i) => {
+    // 🌟 เติม .slice(0, 10) ตรงนี้ครับ! เพื่อตัดเอาแค่ 10 อันดับแรก
+    lbBox.innerHTML = sortedEmps.slice(0, 10).map((name, i) => {
         const d = aggMap[name];
         let medalClass = ''; let medalText = i + 1;
         if (i === 0) medalClass = 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.6)]';
