@@ -1030,6 +1030,9 @@ window.ds_fetchVoiceLogs = async function() {
 // ==============================================================
 // 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แก้ปัญหา Timezone 100%)
 // ==============================================================
+// ==============================================================
+// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แบบแก้ปัญหา Timezone หายขาด)
+// ==============================================================
 window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
     ds_subscribeVoiceLogs(); 
 
@@ -1037,10 +1040,9 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
     let targetDate = dateInput ? dateInput.value : '';
     
     if (!targetDate) {
-        // หาวันที่ปัจจุบัน (เวลาไทย)
+        // หาวันที่ปัจจุบันของเครื่องผู้ใช้
         const today = new Date();
-        const tzOffset = 7 * 60 * 60 * 1000;
-        targetDate = new Date(today.getTime() + tzOffset).toISOString().split('T')[0];
+        targetDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         if (dateInput) dateInput.value = targetDate;
     }
 
@@ -1065,13 +1067,11 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 
         if (error) throw error;
 
-        // 🌟 แก้ปัญหาเวลาเด็ดขาด: แปลง Date String เป็นเวลาไทยตั้งแต่เนิ่นๆ 
+        // 🌟 แก้ปัญหาเวลาเด็ดขาด: สร้าง Object เก็บเวลาไว้เลย ไม่ต้องมานั่งบวก/ลบ Timezone ให้ปวดหัว
         window.dsGlobalVoiceLogs = data.map(row => {
             const rawDate = new Date(row.created_at); 
-            // แปลงเป็นเวลาไทย
-            const thaiTime = new Date(rawDate.getTime() + (7 * 60 * 60 * 1000));
-            // สร้าง String ของวันที่ (YYYY-MM-DD)
-            const localDateStr = thaiTime.toISOString().split('T')[0];
+            // บังคับแปลงเป็นเวลาไทย เพื่อให้ดึง Date, Month, Year, Hours, Mins ออกมาใช้ได้ตรงๆ
+            const localDateStr = rawDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }); // format: YYYY-MM-DD
             
             return {
                 id: row.id,
@@ -1079,8 +1079,8 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
                 action: row.action_type,
                 room: row.room_name,
                 time: row.created_at,      
-                localDate: localDateStr, // ใช้อันนี้เทียบกับ DatePicker
-                thaiTimeObj: thaiTime     // ใช้อันนี้แสดงผลและลบเวลา
+                localDate: localDateStr, // ใช้อันนี้เทียบกับ DatePicker ได้เป๊ะๆ!
+                rawDateObj: rawDate      // เอาไว้คำนวณมาสาย
             };
         });
 
@@ -1112,7 +1112,7 @@ window.ds_renderVoiceLogs = function() {
         return;
     }
 
-    // 1. 🌟 กรองตามวันที่ (เรามี field localDate พร้อมใช้แล้ว ไม่ต้องแปลงอะไรอีก)
+    // 1. 🌟 กรองตามวันที่ ที่แปลงไว้แล้ว! ชัวร์ 100%
     let filtered = window.dsGlobalVoiceLogs;
     if (dateFilter) {
         filtered = filtered.filter(log => log.localDate === dateFilter);
@@ -1145,18 +1145,18 @@ window.ds_renderVoiceLogs = function() {
     }
 
     // เรียงจากเก่าไปใหม่ เพื่อให้การคำนวณมาสายและหายไป x นาทีทำได้ถูกต้อง
-    filtered.sort((a, b) => a.thaiTimeObj.getTime() - b.thaiTimeObj.getTime());
+    filtered.sort((a, b) => a.rawDateObj.getTime() - b.rawDateObj.getTime());
 
     let htmlArray = []; 
     let userLastLeaveTime = {};
 
     filtered.forEach((log, index) => {
-        // ใช้เวลาที่แปลงแล้วมาโชว์
-        const d = log.thaiTimeObj;
+        // ใช้เวลาที่บอทส่งมาตรงๆ
+        const d = log.rawDateObj;
         
-        // 🚀 แสดง วันที่ + เวลา โดยดึงจาก thaiTimeObj
-        const dayStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
-        const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC' }); // บังคับเป็น UTC เพราะบวกเวลามาให้แล้ว
+        // 🚀 สร้างข้อความ วันที่ + เวลา โดยใช้ Timezone ไทย
+        const dayStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', timeZone: 'Asia/Bangkok' });
+        const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Bangkok' }); 
         const fullDateTimeStr = `${dayStr} ${timeStr}`;
         
         let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
@@ -1196,10 +1196,17 @@ window.ds_renderVoiceLogs = function() {
                 
                 if (expectedStart) {
                     const [h, m] = expectedStart.split(':').map(Number);
+                    
+                    // ดึงเวลา ชั่วโมง นาที ของ Log ออกมาแบบ Timezone ไทย
+                    const logHour = parseInt(d.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' }));
+                    const logMin = parseInt(d.toLocaleTimeString('en-US', { minute: '2-digit', timeZone: 'Asia/Bangkok' }));
+                    
+                    // สร้างเวลาที่ควรจะเข้างาน โดยใช้วันที่ของ Log
                     let expectedTime = new Date(d); 
-                    expectedTime.setUTCHours(h, m, 0, 0); // ต้องเซ็ตผ่าน UTC เพราะอ็อบเจ็กต์บวกเวลามาแล้ว
+                    expectedTime.setUTCHours(h - 7, m, 0, 0); // ตั้งค่าแบบ UTC (เพราะ -7 เพื่อชดเชยเวลาไทย)
 
-                    if (h >= 18 && d.getUTCHours() < 12) {
+                    // เช็คว่า กะดึก (18:00 เป็นต้นไป) แล้วพนักงานมาเข้างานตอนเช้ามืด (เที่ยงคืนถึงเที่ยงวัน)
+                    if (h >= 18 && logHour < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
 
