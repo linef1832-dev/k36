@@ -1559,13 +1559,21 @@ window.renderDutyAccessTable = function() {
     const body = document.getElementById('dutyAccessBody');
     if(!head || !body) return;
     
-    // 🌟 ดึงรายชื่อพนักงานทั้งหมด โดยถ้าแอดมินหรือคนที่จัดเวรเพิ่งแก้ไข/เพิ่มชื่อ ระบบจะอ่านเจอ
-    let staff = GLOBAL_USER_LIST.filter(u => {
+    // 🌟 1. ป้องกันกรณีที่รายชื่อยังโหลดไม่เสร็จ
+    let allUsers = window.GLOBAL_USER_LIST || [];
+    if (allUsers.length === 0) {
+        body.innerHTML = `<tr><td colspan="${sortedTeams.length+1}" class="p-8 text-center text-gray-400"><span class="material-icons animate-spin mb-2 text-3xl">sync</span><br>กำลังโหลดข้อมูลพนักงาน...</td></tr>`;
+        return;
+    }
+
+    // 🌟 2. ดึงรายชื่อโดยยืดหยุ่นขึ้น (อนุโลมคนที่ไม่มี Role ก็ให้โชว์ได้)
+    let staff = allUsers.filter(u => {
         const uDept = u.department || 'AM';
         if (currentDutyDept === 'TRAINER') {
             return uDept === 'TRAINER';
         } else {
-            return u.role === 'staff' && uDept === currentDutyDept;
+            const isStaff = u.role === 'staff' || !u.role || u.role === '';
+            return isStaff && uDept === currentDutyDept;
         }
     });
 
@@ -1574,20 +1582,31 @@ window.renderDutyAccessTable = function() {
     headHtml += `</tr>`;
     head.innerHTML = headHtml;
     
-    const shiftFilter = document.getElementById('settingShiftFilter') ? document.getElementById('settingShiftFilter').value : 'all';
-    const searchFilter = document.getElementById('settingSearchInput') ? document.getElementById('settingSearchInput').value.toLowerCase() : '';
-
-    if (shiftFilter !== 'all') staff = staff.filter(u => u.allowed_shift === shiftFilter);
-    if (searchFilter) staff = staff.filter(u => u.username.toLowerCase().includes(searchFilter));
+    const shiftFilterEl = document.getElementById('settingShiftFilter');
+    const searchFilterEl = document.getElementById('settingSearchInput');
     
-    staff.sort((a,b) => a.username.localeCompare(b.username));
+    // 🌟 3. แก้บัคตัวพิมพ์เล็กพิมพ์ใหญ่ ทำให้กรองกะได้แม่นยำ 100%
+    const shiftFilter = shiftFilterEl ? String(shiftFilterEl.value).toLowerCase() : 'all'; 
+    const searchFilter = searchFilterEl ? String(searchFilterEl.value).toLowerCase() : '';
+
+    if (shiftFilter !== 'all') {
+        staff = staff.filter(u => {
+            const uShift = String(u.allowed_shift || '').toLowerCase();
+            return uShift === shiftFilter || uShift.includes(shiftFilter.replace('กะ', ''));
+        });
+    }
+    
+    if (searchFilter) staff = staff.filter(u => String(u.username || '').toLowerCase().includes(searchFilter));
+    
+    staff.sort((a,b) => String(a.username || '').localeCompare(String(b.username || '')));
     
     const countEl = document.getElementById('dutyStaffCount');
     if(countEl) countEl.innerText = `${staff.length} คน`;
 
     let bodyHtml = '';
     staff.forEach(u => {
-        const shiftColor = u.allowed_shift === 'กะเช้า' ? 'text-orange-500' : (u.allowed_shift === 'กะกลาง' ? 'text-blue-500' : 'text-purple-500');
+        const shiftStr = u.allowed_shift || 'ไม่ระบุ';
+        const shiftColor = shiftStr.includes('เช้า') ? 'text-orange-500' : (shiftStr.includes('กลาง') ? 'text-blue-500' : 'text-purple-500');
         
         let roleBadge = '';
         if (u.role === 'manager' || u.role === 'admin') {
@@ -1608,10 +1627,10 @@ window.renderDutyAccessTable = function() {
         let rowHtml = `<tr class="${rowBgClass} transition">
             <td class="p-2 font-bold text-slate-700 dark:text-gray-200 border-r dark:border-slate-700 flex justify-between items-center">
                 <div class="flex items-center flex-wrap">
-                    <span>${u.username}</span>
+                    <span>${u.username || 'Unknown'}</span>
                     ${roleBadge}
                     ${noAccessWarning} </div>
-                <span class="text-[9px] ${shiftColor} bg-gray-100 dark:bg-slate-900 px-1 rounded border dark:border-slate-600 shrink-0 ml-1">${u.allowed_shift.replace('กะ','')}</span>
+                <span class="text-[9px] ${shiftColor} bg-gray-100 dark:bg-slate-900 px-1 rounded border dark:border-slate-600 shrink-0 ml-1">${shiftStr.replace('กะ','')}</span>
             </td>`;
         
         sortedTeams.forEach(team => {
@@ -1622,9 +1641,9 @@ window.renderDutyAccessTable = function() {
         bodyHtml += rowHtml;
     });
     
-    if(staff.length === 0) bodyHtml = `<tr><td colspan="${sortedTeams.length+1}" class="p-8 text-center text-gray-400">ไม่พบพนักงานที่ค้นหา</td></tr>`;
+    if(staff.length === 0) bodyHtml = `<tr><td colspan="${sortedTeams.length+1}" class="p-8 text-center text-gray-400 font-bold">ไม่พบพนักงานที่ค้นหา หรือยังไม่มีพนักงานในแผนกนี้</td></tr>`;
     body.innerHTML = bodyHtml;
-}
+};
 
 window.updateLocalDutyAccess = function(uid, team, isChecked) {
     if(!dutyAccessMatrix[uid]) dutyAccessMatrix[uid] = [];
