@@ -467,9 +467,31 @@ window.generateDutyRoster = async function() {
     if(activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย`, 'error');
     if(requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
 
-    Swal.fire({title: 'กำลังสุ่มและวิเคราะห์...', text: 'ระบบกำลังจับคู่งานหลักและกระจายงานรองให้สมดุล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'กำลังจัดและวิเคราะห์คิว...', text: 'ระบบกำลังเช็คประวัติเมื่อวาน เพื่อกระจายเว็บไม่ให้ซ้ำ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
+        // --- 🌟 ส่วนที่เพิ่มใหม่: ดึงข้อมูลของ "เมื่อวาน" มาตรวจสอบ ---
+        const tDateObj = new Date(targetDate);
+        tDateObj.setDate(tDateObj.getDate() - 1);
+        const yestDateStr = tDateObj.toISOString().split('T')[0];
+        const yestSaveKey = getDutySaveKey(yestDateStr, shiftFilter);
+
+        let yestTeamMap = {}; // เก็บว่าใครทำเว็บอะไรไปเมื่อวาน
+        try {
+            const { data: yestData } = await appDB.from('settings').select('value').eq('key', yestSaveKey);
+            if (yestData && yestData.length > 0 && yestData[0].value) {
+                const yestRoster = JSON.parse(yestData[0].value);
+                for (const team in yestRoster) {
+                    yestRoster[team].forEach(u => {
+                        if (!u.username.includes('ขาดคน')) {
+                            yestTeamMap[u.id] = team;
+                        }
+                    });
+                }
+            }
+        } catch(e) { console.log("ไม่มีประวัติตารางของเมื่อวาน"); }
+        // --------------------------------------------------------
+
         const requirements = {}; const reqsToSave = {};
         document.querySelectorAll('.req-input').forEach(input => {
             const team = input.id.replace('req_', ''); const count = parseInt(input.value) || 0;
@@ -507,12 +529,22 @@ window.generateDutyRoster = async function() {
             let userOptions = target.eligibleUsers.map(u => {
                 let access = dutyAccessMatrix[u.id] || [];
                 let viableTeamsCount = access.filter(t => remainingReqs[t] > 0).length;
-                return { user: u, flexibility: viableTeamsCount, access: access }; 
+                
+                // 🌟 ตรวจสอบว่าพนักงานคนนี้ทำเว็บนี้ไปเมื่อวานหรือไม่ (1 = เพิ่งทำ, 0 = ไม่ได้ทำ)
+                let didThisTeamYesterday = (yestTeamMap[u.id] === teamToFill) ? 1 : 0;
+                
+                return { user: u, flexibility: viableTeamsCount, access: access, didYest: didThisTeamYesterday }; 
             });
 
             userOptions.sort((a, b) => {
-                if (a.flexibility === b.flexibility) return Math.random() - 0.5;
-                return a.flexibility - b.flexibility;
+                // 🌟 1. ดันคนที่ "เพิ่งทำเว็บนี้เมื่อวาน" ไปไว้ลำดับท้ายสุด เพื่อให้คนอื่นที่ไม่ได้ทำได้ทำก่อน
+                if (a.didYest !== b.didYest) return a.didYest - b.didYest; 
+                
+                // 2. ให้คนที่สิทธิ์เข้าเว็บได้น้อยที่สุด ได้ลงกล่องก่อน
+                if (a.flexibility !== b.flexibility) return a.flexibility - b.flexibility;
+                
+                // 3. ถ้าเท่ากันหมด สุ่ม
+                return Math.random() - 0.5;
             });
 
             let pickedUser = { ...userOptions[0].user }; 
@@ -521,6 +553,7 @@ window.generateDutyRoster = async function() {
             unassignedPool = unassignedPool.filter(u => u.id !== pickedUser.id);
         }
 
+        // --- ส่วนของการแจกงานรอง (สแตนด์บาย) ---
         let secondaryCounts = {};
         sortedTeams.forEach(t => secondaryCounts[t] = 0); 
         let allAssignedUsers = [];
@@ -554,7 +587,7 @@ window.generateDutyRoster = async function() {
         if (error) throw error;
 
         try {
-            await appDB.from('system_logs').insert([{ action_type: 'สุ่มจัดหน้าที่', performed_by: currentUser.username, target_details: `สุ่มจัดเวรแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
+            await appDB.from('system_logs').insert([{ action_type: 'สุ่มจัดหน้าที่', performed_by: currentUser.username, target_details: `จัดเวรแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
             if(appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
         } catch(logError) {}
 
@@ -564,7 +597,7 @@ window.generateDutyRoster = async function() {
             const leftNames = unassignedPool.map(u => u.username).join(', ');
             Swal.fire({ icon: 'warning', title: `จัดสำเร็จ! (แต่มีคนไม่ได้ลงเว็บ)`, html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b> เพราะไม่ได้ติ๊กสิทธิ์หลังบ้านไว้:<br><br><span class="text-red-500 font-bold">${leftNames}</span>` });
         } else {
-            Swal.fire({ icon: 'success', title: `จัดคนพอดีเป๊ะ 100%`, timer: 2000, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: `จัดคนพร้อมสลับเว็บสำเร็จ!`, timer: 2000, showConfirmButton: false });
         }
     } catch(e) { Swal.fire('Error', e.message, 'error'); }
 };
