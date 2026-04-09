@@ -221,30 +221,23 @@ window.refreshTimeSlots = async function() {
 window.openAdminPanel = async function() {
     if (!document.getElementById('adminPanel')) {
         if(typeof showPage === 'function') await showPage('dashboard');
-        setTimeout(() => {
-            if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
-            if(document.getElementById('adminPanel')) {
-                document.getElementById('adminPanel').classList.remove('hidden');
-                document.getElementById('adminPanel').classList.add('flex');
-            }
-            switchAdminTab('settings');
-        }, 300);
-    } else {
-        if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
-        if(document.getElementById('adminPanel')) {
-            document.getElementById('adminPanel').classList.remove('hidden');
-            document.getElementById('adminPanel').classList.add('flex');
-        }
-        switchAdminTab('settings');
     }
+    
+    // ไม่ใช้ setTimeout แล้ว เพื่อให้ตอบสนองทันที
+    if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
+    if(document.getElementById('adminPanel')) {
+        document.getElementById('adminPanel').classList.remove('hidden');
+        document.getElementById('adminPanel').classList.add('flex');
+    }
+    switchAdminTab('settings');
 };
 
 window.switchAdminTab = function(tab) {
     const tabs = ['settings', 'users', 'perms', 'info'];
+    
+    // 1. จัดการปุ่มเมนูด้านบน (เปลี่ยนสี)
     tabs.forEach(t => {
         const btn = document.getElementById('btnAdminTab_' + t);
-        const view = document.getElementById('adminView_' + t);
-        
         if (btn) {
             if (t === tab) {
                 btn.className = 'whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow-md';
@@ -252,16 +245,22 @@ window.switchAdminTab = function(tab) {
                 btn.className = 'whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent';
             }
         }
-        
-        if (view) {
-            if (t === tab) {
-                view.classList.remove('hidden');
-                view.classList.add('flex');
-            } else {
-                view.classList.add('hidden');
-                view.classList.remove('flex');
+    });
+
+    // 2. จัดการการแสดงผลของเนื้อหา (ใช้ requestAnimationFrame เพื่อไม่ให้ขวาง UI Thread)
+    requestAnimationFrame(() => {
+        tabs.forEach(t => {
+            const view = document.getElementById('adminView_' + t);
+            if (view) {
+                if (t === tab) {
+                    view.classList.remove('hidden');
+                    view.classList.add('flex');
+                } else {
+                    view.classList.add('hidden');
+                    view.classList.remove('flex');
+                }
             }
-        }
+        });
     });
 };
 
