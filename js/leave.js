@@ -714,11 +714,8 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
             ]);
             if (error) throw error;
             
-            await appDB.from('system_logs').insert([{
-                action_type: 'ลงเวลา',
-                performed_by: currentUser.username,
-                target_details: `ลงเวลา ${targetUserShift} ${dateStr} (${typeToSave}) [${currentViewDept}]`
-            }]);
+            // 🌟 แก้ไข: เรียกใช้ logLeaveAction เพื่อให้มันบันทึกลงตาราง leave_logs ให้ถูกต้อง
+            await logLeaveAction(`จอง [${typeToSave}]`, targetUserId, targetUserName, dateStr);
 
        } else if (action === 'remove') {
             const { error } = await appDB.from('leave_requests')
@@ -728,20 +725,12 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
             
             if (error) throw error;
 
-            await appDB.from('system_logs').insert([{
-                action_type: 'ลบรายการ',
-                performed_by: currentUser.username,
-                target_details: `ลบรายการของ ${targetUserName} วันที่ ${dateStr} [${currentViewDept}]`
-            }]);
+            // 🌟 แก้ไข: เรียกใช้ logLeaveAction เพื่อบันทึกประวัติการยกเลิก
+            await logLeaveAction('ยกเลิก', targetUserId, targetUserName, dateStr);
         }
         
-        if (action === 'add') {
-            allLeaveData.push({ user_id: targetUserId, leave_date: dateStr, reason: typeToSave });
-        } else if (action === 'remove') {
-            allLeaveData = allLeaveData.filter(l => !(String(l.user_id) === String(targetUserId) && l.leave_date === dateStr));
-        }
-        
-        window.renderLeaveTable(); 
+        // 🌟 อัปเดตตารางด้วยข้อมูลล่าสุดจากฐานข้อมูลโดยตรง (ชัวร์และแม่นยำ 100%)
+        await fetchLeaveData(); 
         Swal.fire({ icon: 'success', title: action === 'add' ? 'บันทึกสำเร็จ' : 'ลบสำเร็จ', showConfirmButton: false, timer: 1000 });
 
     } catch (error) {
