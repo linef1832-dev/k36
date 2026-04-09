@@ -1232,6 +1232,7 @@ window.saveWebLogo = async function() {
         Swal.fire('Error', err.message, 'error');
     }
 };
+
 window.renderSummaryDashboard = function() {
     if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
         try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
