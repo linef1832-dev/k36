@@ -479,19 +479,39 @@ window.generateDutyRoster = async function() {
          return Swal.fire('ป้องกันการจัดซ้ำ!', 'กะนี้มีการจัดหน้าที่ไปแล้ว กรุณากดปุ่ม "ล้างตาราง" ก่อนสุ่มใหม่ครับ', 'warning');
     }
 
+    // 🌟 1. ดึงพนักงานใหม่ให้ชัวร์ว่าไม่ว่างเปล่า
+    let allUsers = window.GLOBAL_USER_LIST || [];
+    if (allUsers.length === 0 && window.appDB) {
+        try { 
+            const { data } = await appDB.from('users').select('*'); 
+            if (data) { window.GLOBAL_USER_LIST = data; allUsers = data; } 
+        } catch(e) {}
+    }
+
+    // 🌟 2. ดึงรายชื่อคนลาหยุด
     let targetDateLeaves = new Set();
     try {
         const { data: leaveData } = await appDB.from('leave_requests').select('user_id').eq('leave_date', targetDate);
         if (leaveData) leaveData.forEach(l => targetDateLeaves.add(String(l.user_id)));
-    } catch(e) { console.error("โหลดข้อมูลลาหยุดพลาด:", e); }
+    } catch(e) {}
 
-    const activeStaff = GLOBAL_USER_LIST.filter(u => {
+    // 🌟 3. กรองเฉพาะพนักงานที่ต้องจัดเวร (ระบบฉลาด อิงตามแถบสีเขียว)
+    const activeStaff = allUsers.filter(u => {
         const uDept = String(u.department || 'AM').toUpperCase();
-        const isCorrectDept = (currentDutyDept === 'TRAINER') ? (uDept === 'TRAINER') : (uDept === currentDutyDept);
+        const uRole = String(u.role || '').toLowerCase();
+        
+        if (currentDutyDept === 'TRAINER') {
+            if (uDept !== 'TRAINER') return false;
+        } else {
+            const isStaff = (uRole === 'staff' || uRole === '');
+            if (uDept !== currentDutyDept || !isStaff) return false;
+        }
+        
         const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
         const searchShift = String(shiftFilter || '').toLowerCase().replace('กะ', '').trim();
         const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift.includes('อิสระ') || searchShift === 'all' || searchShift.includes('ทุกกะ') || dbShift === '');
-        return isCorrectDept && isShiftMatch && !targetDateLeaves.has(String(u.id));
+
+        return isShiftMatch && !targetDateLeaves.has(String(u.id));
     });
     
     let requiredCount = 0; document.querySelectorAll('.req-input').forEach(i => requiredCount += (parseInt(i.value) || 0));
