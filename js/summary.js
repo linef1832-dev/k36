@@ -109,34 +109,47 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
-// 🌟 ระบบอ่านกะที่ถูกต้อง ค้นหาชื่อแบบไม่สนใจพิมพ์เล็ก/ใหญ่และเว้นวรรค
+// 🌟 ระบบอ่านกะที่ฉลาดขึ้น (ค้นหาจากฐานข้อมูล + เดาจากชื่อถ้าไม่เจอ)
 function getShiftFromName(name) {
-    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
-
-    // แปลงชื่อเป็นตัวพิมพ์เล็กและตัดช่องว่างหน้าหลัง
     const searchName = String(name || '').toLowerCase().trim();
-    
     if (!searchName) return 'UNKNOWN';
 
-    let foundUser = window.GLOBAL_USER_LIST.find(u => {
-        const dbName = String(u.username || '').toLowerCase().trim();
-        // แมตช์ชื่อตรงๆ หรือชื่อที่มีในระบบสั้นกว่า/ยาวกว่าแต่นำหน้าเหมือนกัน
-        return dbName === searchName || 
-               (dbName.length >= 3 && searchName.startsWith(dbName)) || 
-               (searchName.length >= 3 && dbName.startsWith(searchName));
-    });
-    
-    if (foundUser) {
-        let s = String(foundUser.allowed_shift || '').trim().replace('กะ', '');
-        if (s === 'เช้า') return 'กะเช้า';
-        if (s === 'กลาง') return 'กะกลาง';
-        if (s === 'ดึก') return 'กะดึก';
-        if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
-        return `กะ${s}`; // เผื่อกรณีเก็บค่าแปลกๆ มา
+    // 1. พยายามหาจากฐานข้อมูลก่อน (ถ้าโหลดมาแล้ว)
+    if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
+        let foundUser = window.GLOBAL_USER_LIST.find(u => {
+            const dbName = String(u.username || '').toLowerCase().trim();
+            return dbName === searchName || 
+                   (dbName.length >= 3 && searchName.startsWith(dbName)) || 
+                   (searchName.length >= 3 && dbName.startsWith(searchName));
+        });
+        
+        if (foundUser) {
+            let s = String(foundUser.allowed_shift || '').trim().replace('กะ', '');
+            if (s === 'เช้า') return 'กะเช้า';
+            if (s === 'กลาง') return 'กะกลาง';
+            if (s === 'ดึก') return 'กะดึก';
+            if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
+            return `กะ${s}`;
+        }
     }
+    
+    // 🌟 2. ถ้าในฐานข้อมูลไม่มี หรือเว็บยังโหลดไม่เสร็จ ให้ "เดา" กะจากชื่อทันที!
+    if (searchName.includes('เช้า')) return 'กะเช้า';
+    if (searchName.includes('กลาง')) return 'กะกลาง';
+    if (searchName.includes('ดึก')) return 'กะดึก';
     
     return 'UNKNOWN';
 }
+
+// 🌟 ฟังก์ชันบังคับดึงรายชื่อพนักงาน (อุดรอยรั่วตอนเปิดหน้าเว็บครั้งแรก)
+window.fetchUsers = async function() {
+    try {
+        if (typeof appDB !== 'undefined') {
+            const { data } = await appDB.from('users').select('*');
+            if (data && data.length > 0) window.GLOBAL_USER_LIST = data;
+        }
+    } catch (e) { console.error("Error fetching users:", e); }
+};
 
 function parseAmount(val) {
     if(!val) return 0;
