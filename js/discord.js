@@ -1022,19 +1022,28 @@ window.ds_renderVoiceLogs = function() {
     const shiftFilter = document.getElementById('voiceLogShiftFilter') ? document.getElementById('voiceLogShiftFilter').value : 'ALL';
     const tbody = document.getElementById('ds_voiceLogBody');
     
+    // 1. กรองตามชื่อ
     let filtered = dsGlobalVoiceLogs.filter(log => log.name.toLowerCase().includes(term));
     
+    // 2. กรองตามวันที่ (แก้ปัญหาดูย้อนหลังไม่ได้)
     if (dateFilter) {
         filtered = filtered.filter(log => {
+            // ดึงวันที่จาก log.time มาเทียบแบบ local time
             const logDateObj = new Date(log.time); 
-            const y = logDateObj.getFullYear();
-            const m = String(logDateObj.getMonth() + 1).padStart(2, '0');
-            const dStr = String(logDateObj.getDate()).padStart(2, '0');
+            // ปรับ Timezone เป็นไทยเผื่อเซิร์ฟเวอร์บอทอยู่ต่างประเทศ
+            const tzOffset = 7 * 60 * 60 * 1000;
+            const thaiTime = new Date(logDateObj.getTime() + tzOffset);
+            
+            const y = thaiTime.getUTCFullYear();
+            const m = String(thaiTime.getUTCMonth() + 1).padStart(2, '0');
+            const dStr = String(thaiTime.getUTCDate()).padStart(2, '0');
             const localDateStr = `${y}-${m}-${dStr}`; 
+            
             return localDateStr === dateFilter;
         });
     }
 
+    // 3. กรองตามกะ
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
             const dbUser = getDbUserFromDiscordName(log.name);
@@ -1055,7 +1064,8 @@ window.ds_renderVoiceLogs = function() {
         let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
         const dbUser = getDbUserFromDiscordName(log.name);
 
-        if(log.action === 'เข้าห้อง') {
+        // 🌟 แก้ไข: ลอจิกการคำนวณมาสาย
+        if(log.action === 'เข้าห้อง' || log.action === 'เข้าดิสคอร์ด') {
             badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
             
             let targetShift = dbUser ? dbUser.allowed_shift : null;
@@ -1068,25 +1078,34 @@ window.ds_renderVoiceLogs = function() {
             if (targetShift && targetShift !== 'all') {
                 const shiftPrefix = targetShift.replace('กะ', '');
                 let expectedStart = null; 
-                if (shiftPrefix === 'เช้า') expectedStart = '08:00'; 
-                else if (shiftPrefix === 'กลาง') expectedStart = '11:00'; 
-                else if (shiftPrefix === 'ดึก') expectedStart = '20:00'; 
-
+                // ใช้เวลาเริ่มกะตามที่ตั้งในระบบ
                 if (typeof SETTINGS !== 'undefined' && SETTINGS['open_time_' + shiftPrefix]) {
                     expectedStart = SETTINGS['open_time_' + shiftPrefix];
+                } else {
+                    // ถ้าไม่เจอ ให้ใช้ค่า Default
+                    if (shiftPrefix === 'เช้า') expectedStart = '08:00'; 
+                    else if (shiftPrefix === 'กลาง') expectedStart = '11:00'; 
+                    else if (shiftPrefix === 'ดึก') expectedStart = '20:00'; 
                 }
                 
                 if (expectedStart) {
                     const [h, m] = expectedStart.split(':').map(Number);
-                    let expectedTime = new Date(d); 
-                    expectedTime.setHours(h, m, 0, 0);
+                    let expectedTime = new Date(d); // ใช้วันที่เดียวกับ Log เป็นตัวตั้งต้น
+                    expectedTime.setHours(h, m, 0, 0); // ตั้งเวลาเป็นเวลาที่ต้องเข้างาน
 
+                    // 🌟 แก้ไขปัญหา "กะดึกข้ามวัน": 
+                    // ถ้ากะดึก (เช่น เริ่ม 20:00) แต่ Log เป็นเวลาช่วงเช้ามืด (00:00 - 05:00)
+                    // แสดงว่าเขามาสายของ "กะของเมื่อวาน" ต้องถอย ExpectedTime กลับไป 1 วัน
                     if (h >= 18 && d.getHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
+                    // ในทางกลับกัน ถ้ากะเช้า (เช่น 08:00) แต่มี Log เข้าช่วงดึกๆ ของวันก่อนหน้า อันนี้ไม่ถือว่าสาย
 
-                    if (d > expectedTime && (d - expectedTime) > 60000) {
-                        const diffMins = Math.floor((d - expectedTime) / 60000);
+                    // ถ้าระยะห่างระหว่างเวลาที่เข้า (d) กับเวลาที่ต้องเข้า (expectedTime) มากกว่า 1 นาที (60000ms)
+                    if (d > expectedTime && (d.getTime() - expectedTime.getTime()) > 60000) {
+                        const diffMins = Math.floor((d.getTime() - expectedTime.getTime()) / 60000);
+                        
+                        // ถ้าสายเกิน 12 ชั่วโมง (720 นาที) แสดงว่าเป็นการเข้าห้องในวันอื่น (ไม่ใช่วันทำงานปกติ) ไม่ต้องเอามาคิดมาสาย
                         if (diffMins <= 720) { 
                             lateBadge = `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
                             isLate = true;
@@ -1100,9 +1119,11 @@ window.ds_renderVoiceLogs = function() {
             rowClass = 'bg-red-900/10 hover:bg-red-900/30'; 
         }
         else {
+            // สถานะอื่นๆ เช่น ย้ายห้อง
             badge = '<span class="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-blue-500/50 whitespace-nowrap shadow-sm">ย้ายไป</span>';
         }
 
+        // กรองตาม Dropdown สถานะ (ทั้งหมด / มาสาย / ออกห้อง)
         if (lateFilter === 'late' && !isLate) return; 
         if (lateFilter === 'leave' && !log.action.includes('ออกดิส') && !log.action.includes('ออกห้อง')) return;
 
@@ -1114,15 +1135,28 @@ window.ds_renderVoiceLogs = function() {
         }
         const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
 
-        finalHtml += window.renderTemplate('tpl-ds-voice-log-row', {
-            rowClass: rowClass,
-            timeStr: timeStr,
-            name: log.name,
-            shiftTag: shiftTag,
-            lateBadge: lateBadge,
-            badge: badge,
-            room: log.room
-        });
+        // ถ้าหาเทมเพลตไม่เจอ ให้ใช้ HTML ตรงๆ ไปเลย ป้องกันบั๊กจอดำ
+        const templateEl = document.getElementById('tpl-ds-voice-log-row');
+        if (templateEl) {
+             finalHtml += window.renderTemplate('tpl-ds-voice-log-row', {
+                rowClass: rowClass,
+                timeStr: timeStr,
+                name: log.name,
+                shiftTag: shiftTag,
+                lateBadge: lateBadge,
+                badge: badge,
+                room: log.room
+            });
+        } else {
+             finalHtml += `
+                <tr class="${rowClass} transition border-b border-slate-700/50">
+                    <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${timeStr}</td>
+                    <td class="p-3 font-bold text-white flex items-center">${log.name} ${shiftTag} ${lateBadge}</td>
+                    <td class="p-3 whitespace-nowrap">${badge}</td>
+                    <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">${log.room}</td>
+                </tr>
+            `;
+        }
     });
 
     if (finalHtml === '') {
