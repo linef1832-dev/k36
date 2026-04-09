@@ -53,27 +53,32 @@ function getTpl(templateId, data = {}) {
 }
 
 window.initSummaryDate = async function() {
-    Swal.fire({title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    try {
-        const dateInput = document.getElementById('summaryDateFilter');
-        if(dateInput && !dateInput.value) {
-            const today = new Date();
-            const offset = today.getTimezoneOffset() * 60000;
-            dateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
-        }
-        
-        await loadWebLogos();
-        if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
-        
-        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
-            await fetchUsers();
-        }
+    Swal.fire({title: 'กำลังเตรียมข้อมูลสรุปยอด...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    try {
+        const dateInput = document.getElementById('summaryDateFilter');
+        if(dateInput && !dateInput.value) {
+            const today = new Date();
+            const offset = today.getTimezoneOffset() * 60000;
+            dateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
+        }
+        
+        await loadWebLogos();
+        if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
+        
+        // 🌟 แก้ไขตรงนี้: บังคับโหลดรายชื่อพนักงานและ "รอ" จนกว่าจะเสร็จจริงๆ
+        if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
+            if (typeof appDB !== 'undefined') {
+                const { data } = await appDB.from('users').select('*');
+                if (data && data.length > 0) window.GLOBAL_USER_LIST = data;
+            }
+        }
 
-        await window.fetchHistoricalSummary(true);
-        if (typeof window.subscribeSummaryChanges === 'function') window.subscribeSummaryChanges();
-        
-    } catch(e) { console.error(e); } 
-    finally { Swal.close(); }
+        // 🌟 พอมั่นใจว่ามีรายชื่อแล้ว ค่อยสั่งวาดตารางข้อมูล
+        await window.fetchHistoricalSummary(true);
+        if (typeof window.subscribeSummaryChanges === 'function') window.subscribeSummaryChanges();
+        
+    } catch(e) { console.error("Init Summary Error:", e); } 
+    finally { Swal.close(); }
 }
 
 window.subscribeSummaryChanges = function() {
