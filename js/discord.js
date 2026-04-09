@@ -1027,48 +1027,82 @@ window.ds_fetchVoiceLogs = async function() {
     } catch(e) { console.error("Fetch history error:", e); }
 };
 
+// ==============================================================
+// 🌟 2. ฟังก์ชันวาดตาราง (Render)
+// ==============================================================
 window.ds_renderVoiceLogs = function() {
-    const term = document.getElementById('searchVoiceLog').value.toLowerCase();
-    const dateFilter = document.getElementById('voiceLogDate').value;
-    const lateFilter = document.getElementById('voiceLogLateFilter').value;
+    const term = document.getElementById('searchVoiceLog') ? document.getElementById('searchVoiceLog').value.toLowerCase() : '';
+    const lateFilter = document.getElementById('voiceLogLateFilter') ? document.getElementById('voiceLogLateFilter').value : 'ALL';
     const shiftFilter = document.getElementById('voiceLogShiftFilter') ? document.getElementById('voiceLogShiftFilter').value : 'ALL';
+    const dateFilter = document.getElementById('voiceLogDate') ? document.getElementById('voiceLogDate').value : '';
     const tbody = document.getElementById('ds_voiceLogBody');
     
-    let filtered = dsGlobalVoiceLogs.filter(log => log.name.toLowerCase().includes(term));
-    
-    if (dateFilter) {
-        filtered = filtered.filter(log => {
-            const logDateObj = new Date(log.time); 
-            // แปลงเวลาให้เป็น Timezone ไทย (UTC+7) ป้องกันปัญหาข้อมูลหายตอนเปลี่ยนวัน
-            const thaiTime = new Date(logDateObj.getTime() + (7 * 60 * 60 * 1000));
-            const localDateStr = thaiTime.toISOString().split('T')[0]; 
-            return localDateStr === dateFilter;
-        });
+    if (!window.dsGlobalVoiceLogs || window.dsGlobalVoiceLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในระบบ</td></tr>';
+        return;
     }
 
+    // 1. กรองตามวันที่ ที่เราคำนวณแบบ LocalTime ไว้ตั้งแต่ตอนดึงข้อมูลแล้ว
+    let filtered = window.dsGlobalVoiceLogs;
+    if (dateFilter) {
+        filtered = filtered.filter(log => log.localDate === dateFilter);
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่ ${dateFilter}</td></tr>`;
+        return;
+    }
+
+    // 2. Cache ชื่อพนักงาน
+    const userMapCache = {};
+    const getCachedUser = (dsName) => {
+        if(!dsName) return null;
+        if(userMapCache[dsName] !== undefined) return userMapCache[dsName]; 
+        const user = getDbUserFromDiscordName(dsName); 
+        userMapCache[dsName] = user;
+        return user;
+    };
+
+    // 3. กรองชื่อ และ กะ
+    filtered = filtered.filter(log => (log.name || '').toLowerCase().includes(term));
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
-            const dbUser = getDbUserFromDiscordName(log.name);
+            const dbUser = getCachedUser(log.name); 
             if (dbUser && dbUser.allowed_shift === shiftFilter) return true;
-            if (log.name.includes(shiftFilter)) return true;
+            if (log.name && log.name.includes(shiftFilter)) return true;
             return false;
         });
     }
 
-    filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
+    // เรียงจากเก่าไปใหม่ เพื่อให้การคำนวณมาสายและหายไป x นาทีทำได้ถูกต้อง
+    filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
 
-    let finalHtml = '';
-    
-    filtered.forEach(log => {
+    let htmlArray = []; 
+    let userLastLeaveTime = {};
+
+    filtered.forEach((log, index) => {
         const d = new Date(log.time);
+        
+        const dayStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
         const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const fullDateTimeStr = `${dayStr} ${timeStr}`;
         
         let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
-        const dbUser = getDbUserFromDiscordName(log.name);
+        const dbUser = getCachedUser(log.name); 
 
-        if(log.action === 'เข้าห้อง') {
+        if(log.action === 'เข้าห้อง' || log.action === 'เข้าดิสคอร์ด') {
             badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
             
+            if (userLastLeaveTime[log.name]) {
+                const leaveTime = userLastLeaveTime[log.name];
+                const diffMins = Math.floor((d.getTime() - leaveTime.getTime()) / 60000);
+                
+                if (diffMins >= 2) {
+                    lateBadge += `<span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">หายไป ${diffMins} นาที</span>`;
+                }
+                userLastLeaveTime[log.name] = null; 
+            }
+
             let targetShift = dbUser ? dbUser.allowed_shift : null;
             if (!targetShift) {
                 if (log.name.includes('กะเช้า')) targetShift = 'กะเช้า';
@@ -1079,12 +1113,13 @@ window.ds_renderVoiceLogs = function() {
             if (targetShift && targetShift !== 'all') {
                 const shiftPrefix = targetShift.replace('กะ', '');
                 let expectedStart = null; 
-                if (shiftPrefix === 'เช้า') expectedStart = '08:00'; 
-                else if (shiftPrefix === 'กลาง') expectedStart = '11:00'; 
-                else if (shiftPrefix === 'ดึก') expectedStart = '20:00'; 
-
+                
                 if (typeof SETTINGS !== 'undefined' && SETTINGS['open_time_' + shiftPrefix]) {
                     expectedStart = SETTINGS['open_time_' + shiftPrefix];
+                } else {
+                    if (shiftPrefix === 'เช้า') expectedStart = '08:00'; 
+                    else if (shiftPrefix === 'กลาง') expectedStart = '11:00'; 
+                    else if (shiftPrefix === 'ดึก') expectedStart = '20:00'; 
                 }
                 
                 if (expectedStart) {
@@ -1092,15 +1127,20 @@ window.ds_renderVoiceLogs = function() {
                     let expectedTime = new Date(d); 
                     expectedTime.setHours(h, m, 0, 0);
 
+                    // ถ้าเป็นกะดึก และ log.time เข้ามาตอนเช้า (เลยเที่ยงคืนไปแล้ว) แปลว่ากะของเขาคือ "เมื่อวาน"
                     if (h >= 18 && d.getHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
 
-                    if (d > expectedTime && (d - expectedTime) > 60000) {
-                        const diffMins = Math.floor((d - expectedTime) / 60000);
+                    if (d > expectedTime && (d.getTime() - expectedTime.getTime()) > 60000) {
+                        const diffMins = Math.floor((d.getTime() - expectedTime.getTime()) / 60000);
+                        
                         if (diffMins <= 720) { 
-                            lateBadge = `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
-                            isLate = true;
+                            const isFirstEntry = filtered.findIndex(l => l.name === log.name && (l.action === 'เข้าห้อง' || l.action === 'เข้าดิสคอร์ด')) === index;
+                            if (isFirstEntry) {
+                                lateBadge += `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
+                                isLate = true;
+                            }
                         }
                     }
                 }
@@ -1109,6 +1149,7 @@ window.ds_renderVoiceLogs = function() {
         else if(log.action.includes('ออกดิส') || log.action.includes('ออกห้อง')) {
             badge = '<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-red-500/50 whitespace-nowrap shadow-sm">ออกดิสคอร์ด</span>';
             rowClass = 'bg-red-900/10 hover:bg-red-900/30'; 
+            userLastLeaveTime[log.name] = d;
         }
         else {
             badge = '<span class="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-blue-500/50 whitespace-nowrap shadow-sm">ย้ายไป</span>';
@@ -1125,21 +1166,37 @@ window.ds_renderVoiceLogs = function() {
         }
         const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
 
-        finalHtml += window.renderTemplate('tpl-ds-voice-log-row', {
-            rowClass: rowClass,
-            timeStr: timeStr,
-            name: log.name,
-            shiftTag: shiftTag,
-            lateBadge: lateBadge,
-            badge: badge,
-            room: log.room
-        });
+        // 🚀 โค้ดตรงนี้ถูกจัดการแล้ว! มันจะส่ง fullDateTimeStr ลงไปให้ทั้ง Template และ HTML สด
+        const templateEl = document.getElementById('tpl-ds-voice-log-row');
+        let rowHtml = '';
+        if (templateEl) {
+             rowHtml = window.renderTemplate('tpl-ds-voice-log-row', {
+                rowClass: rowClass,
+                timeStr: fullDateTimeStr, 
+                name: log.name || 'ไม่ทราบชื่อ',
+                shiftTag: shiftTag,
+                lateBadge: lateBadge,
+                badge: badge,
+                room: log.room || '-'
+            });
+        } else {
+             rowHtml = `
+                <tr class="${rowClass} transition border-b border-slate-700/50">
+                    <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${fullDateTimeStr}</td>
+                    <td class="p-3 font-bold text-white flex items-center">${log.name || 'ไม่ทราบชื่อ'} ${shiftTag} ${lateBadge}</td>
+                    <td class="p-3 whitespace-nowrap">${badge}</td>
+                    <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">${log.room || '-'}</td>
+                </tr>
+            `;
+        }
+        
+        htmlArray.unshift(rowHtml);
     });
 
-    if (finalHtml === '') {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในเงื่อนไขนี้</td></tr>';
+    if (htmlArray.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่ ${dateFilter}</td></tr>`;
     } else {
-        tbody.innerHTML = finalHtml;
+        tbody.innerHTML = htmlArray.join('');
     }
 };
 
