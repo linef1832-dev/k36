@@ -1006,18 +1006,48 @@ window.delTransfer = async function(id) {
 };
 
 // ==============================================================
-// 🌟 ตัวแปรเก็บความจำ (Cache) ช่วยให้โหลดไวขึ้นเมื่อเปลี่ยนวัน
+// 🌟 ระบบ Realtime ดักจับการเข้า-ออกดิสคอร์ดแบบสดๆ (ไม่ต้องรีเฟรช)
 // ==============================================================
-window.voiceLogCache = window.voiceLogCache || {};
+let dsVoiceLogSubscription = null;
+window.ds_subscribeVoiceLogs = function() {
+    if (dsVoiceLogSubscription) return; // ถ้าเปิดฟังอยู่แล้ว ไม่ต้องเปิดซ้ำ
+    if (typeof appDB === 'undefined') return;
+
+    // สั่งให้หน้าเว็บดักฟังตาราง discord_voice_logs ตลอดเวลา
+    dsVoiceLogSubscription = appDB.channel('realtime-voice-logs')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'discord_voice_logs' }, payload => {
+            const newLog = {
+                id: payload.new.id,
+                name: payload.new.user_name,
+                action: payload.new.action_type,
+                room: payload.new.room_name,
+                time: payload.new.created_at
+            };
+
+            if (!window.dsGlobalVoiceLogs) window.dsGlobalVoiceLogs = [];
+            
+            // 🚀 มีข้อมูลใหม่เข้ามาปุ๊บ ยัดใส่ความจำเครื่องทันที
+            window.dsGlobalVoiceLogs.unshift(newLog); 
+
+            // สั่งอัปเดตตารางเฉพาะตอนที่เปิดหน้าประวัติอยู่
+            const contentBox = document.getElementById('dsContent_voicelog');
+            if (contentBox && !contentBox.classList.contains('hidden')) {
+                ds_renderVoiceLogs();
+            }
+        })
+        .subscribe();
+};
 
 // ==============================================================
-// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แบบดึงรวดเดียว 7 วันเก็บไว้ในเครื่อง)
+// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (ดึงรวดเดียว + เปิด Realtime)
 // ==============================================================
 window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
+    // เปิดระบบ Realtime ทันทีที่เข้าหน้านี้
+    ds_subscribeVoiceLogs();
+
     const dateInput = document.getElementById('voiceLogDate');
     let targetDate = dateInput ? dateInput.value : '';
     
-    // 1. ถ้าไม่ได้เลือกวัน ให้ใช้วันนี้
     if (!targetDate) {
         const tzOffset = 7 * 60 * 60 * 1000;
         targetDate = new Date(Date.now() + tzOffset).toISOString().split('T')[0];
@@ -1026,30 +1056,31 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 
     const tbody = document.getElementById('ds_voiceLogBody');
 
-    // 2. ถ้าระบบเคยดึงข้อมูลใหญ่ (Bulk Data) มาแล้ว และไม่ได้ถูกสั่งบังคับรีเฟรช ให้ Render จากในเครื่องเลย
+    // ตรวจสอบถ้าปุ่มถูกกด จะส่ง event มา ให้ตีความว่าเป็นการบังคับรีเฟรช
+    if (forceRefresh instanceof Event) forceRefresh = true;
+
+    // ถ้าระบบจำข้อมูลไว้แล้ว และไม่ได้กดบังคับรีเฟรช ให้วาดตารางเลย ไม่ต้องรอโหลด
     if (!forceRefresh && window.dsGlobalVoiceLogs && window.dsGlobalVoiceLogs.length > 0) {
         ds_renderVoiceLogs();
         return; 
     }
 
-    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังโหลดประวัติจากฐานข้อมูล (ดึงทีเดียวหลายวัน)...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลประวัติย้อนหลัง...</td></tr>';
 
     try {
-        // 🚀 ความลับความเร็ว: ดึงข้อมูลรวดเดียว 7 วันย้อนหลัง
-        // แทนที่จะดึงแค่วันนี้วันเดียว เราดึงเผื่อไว้เลย เวลาคลิกดูย้อนหลังจะได้ไม่ต้องโหลดใหม่
+        // ดึงเผื่อไว้ 3 วันย้อนหลัง (ไม่ดึงเยอะเกินไปจนเว็บค้าง)
         const d = new Date(targetDate);
-        d.setDate(d.getDate() - 7); 
-        const sevenDaysAgo = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T00:00:00+07:00`;
+        d.setDate(d.getDate() - 3); 
+        const threeDaysAgo = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T00:00:00+07:00`;
 
         const { data, error } = await appDB.from('discord_voice_logs')
             .select('id, user_name, action_type, room_name, created_at')
-            .gte('created_at', sevenDaysAgo) // ดึงตั้งแต่ 7 วันที่แล้วเป็นต้นมา
+            .gte('created_at', threeDaysAgo) 
             .order('created_at', { ascending: false })
-            .limit(5000); // ดึงมาตุนไว้เยอะๆ
+            .limit(3000); 
 
         if (error) throw error;
 
-        // จัดรูปแบบให้เรียกใช้ง่ายๆ
         window.dsGlobalVoiceLogs = data.map(row => ({
             id: row.id,
             name: row.user_name,
@@ -1058,12 +1089,11 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
             time: row.created_at
         }));
 
-        // วาดตารางทันที
         ds_renderVoiceLogs();
 
-        if (forceRefresh) {
+        if (forceRefresh === true) {
             const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
-            Toast.fire({ icon: 'success', title: 'อัปเดตข้อมูลล่าสุดแล้ว' });
+            Toast.fire({ icon: 'success', title: 'ดึงข้อมูลล่าสุดเรียบร้อย' });
         }
 
     } catch (e) {
@@ -1073,7 +1103,7 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 };
 
 // ==============================================================
-// 🌟 2. ฟังก์ชันวาดตาราง (Render ทันทีจากข้อมูลที่ตุนไว้)
+// 🌟 2. ฟังก์ชันวาดตาราง (Render แบบโคตรไว + อัปเดตข้อมูล)
 // ==============================================================
 window.ds_renderVoiceLogs = function() {
     const term = document.getElementById('searchVoiceLog') ? document.getElementById('searchVoiceLog').value.toLowerCase() : '';
@@ -1083,7 +1113,7 @@ window.ds_renderVoiceLogs = function() {
     const tbody = document.getElementById('ds_voiceLogBody');
     
     if (!window.dsGlobalVoiceLogs || window.dsGlobalVoiceLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติการใช้งาน</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในระบบ</td></tr>';
         return;
     }
 
@@ -1092,20 +1122,18 @@ window.ds_renderVoiceLogs = function() {
     if (dateFilter) {
         filtered = filtered.filter(log => {
             const logDate = new Date(log.time);
-            // ชดเชยเวลาเป็นไทย (UTC+7) เพื่อให้เทียบวันได้เป๊ะๆ
             const thaiTime = new Date(logDate.getTime() + (7 * 60 * 60 * 1000));
             const localDateStr = thaiTime.toISOString().split('T')[0];
             return localDateStr === dateFilter;
         });
     }
 
-    // 2. ถ้าในวันนั้นไม่มีข้อมูลเลย ก็แจ้งให้ทราบ
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่ ${dateFilter}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่เลือก</td></tr>`;
         return;
     }
 
-    // 3. ระบบ Cache ความจำเรื่องชื่อ (ไม่ต้องไปควานหา 2 แสนรอบ)
+    // 2. ระบบ Cache ความจำชื่อพนักงาน
     const userMapCache = {};
     const getCachedUser = (dsName) => {
         if(!dsName) return null;
@@ -1115,10 +1143,8 @@ window.ds_renderVoiceLogs = function() {
         return user;
     };
 
-    // 4. กรองตามชื่อที่พิมพ์ค้นหา
+    // 3. กรองชื่อและกะ
     filtered = filtered.filter(log => (log.name || '').toLowerCase().includes(term));
-
-    // 5. กรองตามกะ
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
             const dbUser = getCachedUser(log.name); 
@@ -1128,17 +1154,15 @@ window.ds_renderVoiceLogs = function() {
         });
     }
 
-    // 6. เรียงจาก "เก่าไปใหม่" ก่อน เพื่อจะได้เอาเวลามาลบกันถูก (คำนวณมาสาย/หายไป)
+    // เรียงจากเก่าไปใหม่ เพื่อคำนวณมาสายและเวลาเข้า-ออก
     filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
 
-    let finalHtml = '';
+    let htmlArray = []; // 🚀 ความลับความเร็ว: ใช้ Array เก็บข้อมูลแทนการต่อ String
     let userLastLeaveTime = {};
 
-    // 7. วนลูปทีละบรรทัดเพื่อสร้าง HTML
     filtered.forEach((log, index) => {
         const d = new Date(log.time);
         
-        // รูปแบบเวลาสำหรับแสดงผล
         const dayStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
         const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fullDateTimeStr = `${dayStr} ${timeStr}`;
@@ -1149,18 +1173,16 @@ window.ds_renderVoiceLogs = function() {
         if(log.action === 'เข้าห้อง' || log.action === 'เข้าดิสคอร์ด') {
             badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
             
-            // เช็คว่าก่อนหน้านี้มีประวัติออกห้องไว้หรือเปล่า? (เอามาลบกันหาว่าหายไปกี่นาที)
             if (userLastLeaveTime[log.name]) {
                 const leaveTime = userLastLeaveTime[log.name];
                 const diffMins = Math.floor((d.getTime() - leaveTime.getTime()) / 60000);
                 
-                if (diffMins >= 2) { // เน็ตหลุดไม่เกิน 2 นาที รอดตัว
+                if (diffMins >= 2) {
                     lateBadge += `<span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">หายไป ${diffMins} นาที</span>`;
                 }
                 userLastLeaveTime[log.name] = null; 
             }
 
-            // คำนวณมาสายตอนเริ่มกะ
             let targetShift = dbUser ? dbUser.allowed_shift : null;
             if (!targetShift) {
                 if (log.name.includes('กะเช้า')) targetShift = 'กะเช้า';
@@ -1185,7 +1207,6 @@ window.ds_renderVoiceLogs = function() {
                     let expectedTime = new Date(d); 
                     expectedTime.setHours(h, m, 0, 0);
 
-                    // แก้ปัญหากะดึก (ถ้าเข้าห้องตอนตี 1 แปลว่าเป็นกะของเมื่อวาน)
                     if (h >= 18 && d.getHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
@@ -1207,8 +1228,6 @@ window.ds_renderVoiceLogs = function() {
         else if(log.action.includes('ออกดิส') || log.action.includes('ออกห้อง')) {
             badge = '<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-red-500/50 whitespace-nowrap shadow-sm">ออกดิสคอร์ด</span>';
             rowClass = 'bg-red-900/10 hover:bg-red-900/30'; 
-            
-            // จำเวลาออกห้องของคนนี้ไว้
             userLastLeaveTime[log.name] = d;
         }
         else {
@@ -1226,10 +1245,10 @@ window.ds_renderVoiceLogs = function() {
         }
         const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
 
-        // 8. ประกอบ HTML เอาของใหม่ไว้ข้างบนสุด (+ finalHtml)
         const templateEl = document.getElementById('tpl-ds-voice-log-row');
+        let rowHtml = '';
         if (templateEl) {
-             finalHtml = window.renderTemplate('tpl-ds-voice-log-row', {
+             rowHtml = window.renderTemplate('tpl-ds-voice-log-row', {
                 rowClass: rowClass,
                 timeStr: fullDateTimeStr,
                 name: log.name || 'ไม่ทราบชื่อ',
@@ -1237,20 +1256,22 @@ window.ds_renderVoiceLogs = function() {
                 lateBadge: lateBadge,
                 badge: badge,
                 room: log.room || '-'
-            }) + finalHtml; 
+            });
         } else {
-             finalHtml = `
+             rowHtml = `
                 <tr class="${rowClass} transition border-b border-slate-700/50">
                     <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${fullDateTimeStr}</td>
                     <td class="p-3 font-bold text-white flex items-center">${log.name || 'ไม่ทราบชื่อ'} ${shiftTag} ${lateBadge}</td>
                     <td class="p-3 whitespace-nowrap">${badge}</td>
                     <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">${log.room || '-'}</td>
                 </tr>
-            ` + finalHtml;
+            `;
         }
+        // 🚀 ยัดข้อมูลใหม่ไว้บรรทัดบนสุด
+        htmlArray.unshift(rowHtml);
     });
 
-    tbody.innerHTML = finalHtml;
+    tbody.innerHTML = htmlArray.join('');
 };
 // ==========================================
 // 🟢 อัปเดต Dropdown และ ระบบจัดการฐานข้อมูลดิสคอร์ด (Manage)
