@@ -104,23 +104,21 @@ window.renderShiftButtons = function(allowedShift) {
     
     const userRole = window.currentUser?.role || 'staff';
     const shiftRight = allowedShift || 'all';
+    const isAdmin = ['manager', 'admin'].includes(userRole);
     
     shifts.forEach((s, index) => {
-        let isDisabled = false;
-        let bgClass = 'bg-white dark:bg-slate-800';
+        // 🌟 จุดสำคัญ: ถ้าไม่ใช่แอดมิน และกะนี้ไม่ใช่กะของพนักงานคนนี้ ให้ "ข้าม (return)" ไปเลย (คือไม่สร้างปุ่มนี้ขึ้นมา)
+        if (!isAdmin && shiftRight !== 'all' && shiftRight !== s) {
+            return; 
+        }
+
+        let bgClass = 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer';
         let textClass = 'text-gray-700 dark:text-gray-300';
         let borderClass = 'border-gray-200 dark:border-slate-600';
         
-        if (shiftRight !== 'all' && shiftRight !== s && !['manager', 'admin'].includes(userRole)) {
-            isDisabled = true;
-            bgClass = 'bg-gray-100 dark:bg-slate-900 opacity-50 cursor-not-allowed';
-        } else {
-            bgClass = 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer';
-        }
-        
         let isChecked = false;
-        if (!isDisabled && !hasChecked) {
-            if (shiftRight === 'all' || ['manager', 'admin'].includes(userRole)) {
+        if (!hasChecked) {
+            if (shiftRight === 'all' || isAdmin) {
                 if (index === 0) { isChecked = true; hasChecked = true; } 
             } else if (shiftRight === s) {
                 isChecked = true; hasChecked = true; 
@@ -132,7 +130,7 @@ window.renderShiftButtons = function(allowedShift) {
 
         container.innerHTML += `
             <label class="relative flex flex-col items-center p-3 rounded-xl border-2 ${borderClass} ${bgClass} transition shadow-sm">
-                <input type="radio" name="shift" value="${s}" class="peer hidden" onchange="refreshTimeSlots()" ${isDisabled ? 'disabled' : ''} ${isChecked ? 'checked' : ''}>
+                <input type="radio" name="shift" value="${s}" class="peer hidden" onchange="refreshTimeSlots()" ${isChecked ? 'checked' : ''}>
                 <span class="material-icons ${color} mb-1 peer-checked:scale-125 transition-transform">${icon}</span>
                 <span class="font-bold ${textClass} text-sm">${s}</span>
                 <div class="absolute inset-0 border-2 border-transparent peer-checked:border-blue-500 rounded-xl pointer-events-none transition-colors"></div>
