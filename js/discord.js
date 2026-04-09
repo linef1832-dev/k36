@@ -1028,6 +1028,76 @@ window.ds_fetchVoiceLogs = async function() {
 };
 
 // ==============================================================
+// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แก้ปัญหา Timezone 100%)
+// ==============================================================
+window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
+    ds_subscribeVoiceLogs(); 
+
+    const dateInput = document.getElementById('voiceLogDate');
+    let targetDate = dateInput ? dateInput.value : '';
+    
+    if (!targetDate) {
+        // หาวันที่ปัจจุบัน (เวลาไทย)
+        const today = new Date();
+        const tzOffset = 7 * 60 * 60 * 1000;
+        targetDate = new Date(today.getTime() + tzOffset).toISOString().split('T')[0];
+        if (dateInput) dateInput.value = targetDate;
+    }
+
+    const tbody = document.getElementById('ds_voiceLogBody');
+
+    if (forceRefresh instanceof Event) forceRefresh = true;
+
+    // เช็คว่ามีข้อมูลเดิมในเครื่องอยู่หรือยัง 
+    if (!forceRefresh && window.dsGlobalVoiceLogs && window.dsGlobalVoiceLogs.length > 0) {
+        ds_renderVoiceLogs();
+        return; 
+    }
+
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลประวัติทั้งหมด...</td></tr>';
+
+    try {
+        // ดึงข้อมูลดิบมาทั้งหมด 5000 แถว
+        const { data, error } = await appDB.from('discord_voice_logs')
+            .select('id, user_name, action_type, room_name, created_at')
+            .order('created_at', { ascending: false })
+            .limit(5000); 
+
+        if (error) throw error;
+
+        // 🌟 แก้ปัญหาเวลาเด็ดขาด: แปลง Date String เป็นเวลาไทยตั้งแต่เนิ่นๆ 
+        window.dsGlobalVoiceLogs = data.map(row => {
+            const rawDate = new Date(row.created_at); 
+            // แปลงเป็นเวลาไทย
+            const thaiTime = new Date(rawDate.getTime() + (7 * 60 * 60 * 1000));
+            // สร้าง String ของวันที่ (YYYY-MM-DD)
+            const localDateStr = thaiTime.toISOString().split('T')[0];
+            
+            return {
+                id: row.id,
+                name: row.user_name,
+                action: row.action_type,
+                room: row.room_name,
+                time: row.created_at,      
+                localDate: localDateStr, // ใช้อันนี้เทียบกับ DatePicker
+                thaiTimeObj: thaiTime     // ใช้อันนี้แสดงผลและลบเวลา
+            };
+        });
+
+        ds_renderVoiceLogs();
+
+        if (forceRefresh === true) {
+            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+            Toast.fire({ icon: 'success', title: 'ดึงข้อมูลล่าสุดเรียบร้อย' });
+        }
+
+    } catch (e) {
+        console.error("Fetch Voice Logs Error:", e);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">ไม่สามารถดึงข้อมูลประวัติได้</td></tr>`;
+    }
+};
+
+// ==============================================================
 // 🌟 2. ฟังก์ชันวาดตาราง (Render)
 // ==============================================================
 window.ds_renderVoiceLogs = function() {
@@ -1042,7 +1112,7 @@ window.ds_renderVoiceLogs = function() {
         return;
     }
 
-    // 1. กรองตามวันที่ ที่เราคำนวณแบบ LocalTime ไว้ตั้งแต่ตอนดึงข้อมูลแล้ว
+    // 1. 🌟 กรองตามวันที่ (เรามี field localDate พร้อมใช้แล้ว ไม่ต้องแปลงอะไรอีก)
     let filtered = window.dsGlobalVoiceLogs;
     if (dateFilter) {
         filtered = filtered.filter(log => log.localDate === dateFilter);
@@ -1075,16 +1145,18 @@ window.ds_renderVoiceLogs = function() {
     }
 
     // เรียงจากเก่าไปใหม่ เพื่อให้การคำนวณมาสายและหายไป x นาทีทำได้ถูกต้อง
-    filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
+    filtered.sort((a, b) => a.thaiTimeObj.getTime() - b.thaiTimeObj.getTime());
 
     let htmlArray = []; 
     let userLastLeaveTime = {};
 
     filtered.forEach((log, index) => {
-        const d = new Date(log.time);
+        // ใช้เวลาที่แปลงแล้วมาโชว์
+        const d = log.thaiTimeObj;
         
+        // 🚀 แสดง วันที่ + เวลา โดยดึงจาก thaiTimeObj
         const dayStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
-        const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC' }); // บังคับเป็น UTC เพราะบวกเวลามาให้แล้ว
         const fullDateTimeStr = `${dayStr} ${timeStr}`;
         
         let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
@@ -1125,10 +1197,9 @@ window.ds_renderVoiceLogs = function() {
                 if (expectedStart) {
                     const [h, m] = expectedStart.split(':').map(Number);
                     let expectedTime = new Date(d); 
-                    expectedTime.setHours(h, m, 0, 0);
+                    expectedTime.setUTCHours(h, m, 0, 0); // ต้องเซ็ตผ่าน UTC เพราะอ็อบเจ็กต์บวกเวลามาแล้ว
 
-                    // ถ้าเป็นกะดึก และ log.time เข้ามาตอนเช้า (เลยเที่ยงคืนไปแล้ว) แปลว่ากะของเขาคือ "เมื่อวาน"
-                    if (h >= 18 && d.getHours() < 12) {
+                    if (h >= 18 && d.getUTCHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
 
@@ -1166,13 +1237,12 @@ window.ds_renderVoiceLogs = function() {
         }
         const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
 
-        // 🚀 โค้ดตรงนี้ถูกจัดการแล้ว! มันจะส่ง fullDateTimeStr ลงไปให้ทั้ง Template และ HTML สด
         const templateEl = document.getElementById('tpl-ds-voice-log-row');
         let rowHtml = '';
         if (templateEl) {
              rowHtml = window.renderTemplate('tpl-ds-voice-log-row', {
                 rowClass: rowClass,
-                timeStr: fullDateTimeStr, 
+                timeStr: fullDateTimeStr,
                 name: log.name || 'ไม่ทราบชื่อ',
                 shiftTag: shiftTag,
                 lateBadge: lateBadge,
