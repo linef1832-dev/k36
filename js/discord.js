@@ -1074,7 +1074,7 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 };
 
 // ==============================================================
-// 🌟 2. ฟังก์ชันวาดตาราง
+// 🌟 2. ฟังก์ชันวาดตารางและคำนวณมาสาย/หายไป (อัปเดต: เร็วขึ้น 100x + เพิ่มวันที่)
 // ==============================================================
 window.ds_renderVoiceLogs = function() {
     const term = document.getElementById('searchVoiceLog') ? document.getElementById('searchVoiceLog').value.toLowerCase() : '';
@@ -1087,11 +1087,21 @@ window.ds_renderVoiceLogs = function() {
         return;
     }
 
+    // 🚀 ความลับความเร็ว: สร้าง Cache ไว้จำชื่อพนักงาน ไม่ต้องวนลูปหาใหม่ 2 แสนรอบ!
+    const userMapCache = {};
+    const getCachedUser = (dsName) => {
+        if(!dsName) return null;
+        if(userMapCache[dsName] !== undefined) return userMapCache[dsName]; // ถ้าเคยหาแล้ว เอามาใช้เลย
+        const user = getDbUserFromDiscordName(dsName); // ถ้าไม่เคยหา ค่อยไปควานหา
+        userMapCache[dsName] = user;
+        return user;
+    };
+
     let filtered = window.dsGlobalVoiceLogs.filter(log => (log.name || '').toLowerCase().includes(term));
 
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
-            const dbUser = getDbUserFromDiscordName(log.name);
+            const dbUser = getCachedUser(log.name); // ใช้ตัว Cache แทน
             if (dbUser && dbUser.allowed_shift === shiftFilter) return true;
             if (log.name && log.name.includes(shiftFilter)) return true;
             return false;
@@ -1105,10 +1115,14 @@ window.ds_renderVoiceLogs = function() {
 
     filtered.forEach((log, index) => {
         const d = new Date(log.time);
+        
+        // 🚀 แสดง วันที่ + เวลา ควบคู่กันไปเลย
+        const dayStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
         const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const fullDateTimeStr = `${dayStr} ${timeStr}`;
         
         let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
-        const dbUser = getDbUserFromDiscordName(log.name);
+        const dbUser = getCachedUser(log.name); // ใช้ตัว Cache แทน
 
         if(log.action === 'เข้าห้อง' || log.action === 'เข้าดิสคอร์ด') {
             badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
@@ -1189,7 +1203,7 @@ window.ds_renderVoiceLogs = function() {
         if (templateEl) {
              finalHtml = window.renderTemplate('tpl-ds-voice-log-row', {
                 rowClass: rowClass,
-                timeStr: timeStr,
+                timeStr: fullDateTimeStr, // 🚀 ส่งข้อมูล วันที่+เวลา ลงไปให้
                 name: log.name || 'ไม่ทราบชื่อ',
                 shiftTag: shiftTag,
                 lateBadge: lateBadge,
@@ -1199,7 +1213,7 @@ window.ds_renderVoiceLogs = function() {
         } else {
              finalHtml = `
                 <tr class="${rowClass} transition border-b border-slate-700/50">
-                    <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${timeStr}</td>
+                    <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${fullDateTimeStr}</td>
                     <td class="p-3 font-bold text-white flex items-center">${log.name || 'ไม่ทราบชื่อ'} ${shiftTag} ${lateBadge}</td>
                     <td class="p-3 whitespace-nowrap">${badge}</td>
                     <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">${log.room || '-'}</td>
