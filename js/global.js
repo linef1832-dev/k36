@@ -62,28 +62,50 @@ async function showLogin() {
     }
 }
 
+// 1. สร้างตัวแปรเก็บ Cache สำหรับ HTML String ไว้บนสุดของส่วนนี้
+const pageCache = {};
+
+// 2. ฟังก์ชัน showPage ตัวใหม่ที่อัปเกรดความเร็วแล้ว
 async function showPage(pageName) {
     const loading = document.getElementById('loading');
-    if(loading) loading.classList.remove('hidden');
     
     try {
-        // 1. โหลดไฟล์ HTML
-        const response = await fetch(`./pages/${pageName}.html`);
-        if (!response.ok) throw new Error('Page not found');
-        const html = await response.text();
-        document.getElementById('app-content').innerHTML = html;
+        // โชว์หน้าโหลดเฉพาะตอนที่ยังไม่มี Cache (ดึงข้อมูลครั้งแรก)
+        if (!pageCache[pageName] && loading) loading.classList.remove('hidden');
         
-        // 2. ไฮไลท์เมนูที่กำลังเลือก
-        document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
-        const activeBtn = document.querySelector(`button[onclick="showPage('${pageName}')"]`);
-        if (activeBtn) activeBtn.classList.add('active');
+        // ดึง HTML (จาก Cache หรือ Fetch ใหม่ถ้ายังไม่มี)
+        if (!pageCache[pageName]) {
+            const response = await fetch(`./pages/${pageName}.html`);
+            if (!response.ok) throw new Error('Page not found');
+            pageCache[pageName] = await response.text();
+        }
+        
+        const htmlContent = pageCache[pageName];
 
-        // 3. กระตุ้นให้ JS ทำงานตามหน้าเว็บ
-        setTimeout(async () => {
+        // ฟังก์ชันสำหรับอัปเดตหน้าจอ
+        const updateDOM = () => {
+            document.getElementById('app-content').innerHTML = htmlContent;
+            
+            // ไฮไลท์เมนูที่กำลังเลือกทางซ้ายมือ
+            document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
+            const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+        };
+
+        // ใช้ View Transitions สลับหน้าแบบสมูท (ถ้าบราวเซอร์รองรับ)
+        if (document.startViewTransition) {
+            document.startViewTransition(() => updateDOM());
+        } else {
+            updateDOM();
+        }
+
+        // รันสคริปต์ทันทีที่หน้าจอวาดเสร็จ (แทนที่ setTimeout 150ms เดิม)
+        requestAnimationFrame(async () => {
             if(document.getElementById('uName') && currentUser.username) {
                 document.getElementById('uName').innerText = currentUser.username;
             }
 
+            // --- รันสคริปต์ประจำหน้าต่างๆ ตามเงื่อนไข ---
             if (pageName === 'dashboard') {
                 if (typeof refreshAdminData === 'function') refreshAdminData();
                 if (typeof fetchData === 'function') fetchData();
@@ -108,8 +130,8 @@ async function showPage(pageName) {
             }
             else if (pageName === 'summary') {
                 if (typeof initSummaryDate === 'function') initSummaryDate();
-                if (typeof fetchAvailableDates === 'function') fetchAvailableDates(); // 👇 เพิ่มบรรทัดนี้ เพื่อดึงปุ่มวันที่ย้อนหลัง
-                if (typeof fetchHistoricalSummary === 'function') await fetchHistoricalSummary(true); // 👇 เติม (true) เพื่อไม่ให้ป๊อปอัปแจ้งเตือนเด้งกวนใจ
+                if (typeof fetchAvailableDates === 'function') fetchAvailableDates(); 
+                if (typeof fetchHistoricalSummary === 'function') await fetchHistoricalSummary(true); 
             }
             else if (pageName === 'telegram') {
                 if (typeof initTelegramApp === 'function') await initTelegramApp();
@@ -118,10 +140,10 @@ async function showPage(pageName) {
                 if (typeof initPasswordApp === 'function') await initPasswordApp();
             }
             else if (pageName === 'files') {
-                if (typeof initFilesApp === 'function') await initFilesApp(); // แก้โหลดหมุนค้าง
+                if (typeof initFilesApp === 'function') await initFilesApp(); 
             }
             else if (pageName === 'sheet') {
-                if (typeof fetchSheets === 'function') await fetchSheets(); // แก้โหลดหมุนค้าง
+                if (typeof fetchSheets === 'function') await fetchSheets(); 
                 if (typeof renderSheetMenu === 'function') renderSheetMenu();
                 if (typeof renderRecentTabs === 'function') renderRecentTabs();
                 if (currentUser.role === 'manager' || currentUser.role === 'admin') {
@@ -137,12 +159,10 @@ async function showPage(pageName) {
                     if(document.getElementById('adminAnnouncementControls')) document.getElementById('adminAnnouncementControls').classList.remove('hidden');
                 }
             }
-            // 👇👇👇 เพิ่มหน้า swap เข้ามาตรงนี้ครับ 👇👇👇
             else if (pageName === 'swap') {
                 if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
             }
-            // 👆👆👆 
-        }, 150);
+        });
 
     } catch (err) {
         console.error(err);
