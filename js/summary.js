@@ -109,34 +109,26 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
-// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100%
-// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100%
+// 🌟 1. ฟังก์ชันค้นหากะจากชื่อพนักงาน (อัปเดต: แปลงกะให้เป็นมาตรฐาน)
 function getShiftFromName(name) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
 
-    const searchName = name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); 
+    const searchName = (name || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); 
     let foundUser = window.GLOBAL_USER_LIST.find(u => {
         const dbName = (u.username || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
         return dbName === searchName || (dbName.length > 2 && (dbName.includes(searchName) || searchName.includes(dbName)));
     });
     
     if (foundUser) {
-        let s = foundUser.allowed_shift;
-        // ถ้าค่าว่าง หรือเป็น all ให้ถือว่าเป็นกะอิสระ
-        if (!s || s === 'all' || s.trim() === '') return 'กะอิสระ';
-        
-        // ถ้าข้อมูลใน DB เก็บมาแบบไม่มีคำว่า "กะ" นำหน้า ให้เติมเข้าไปให้ตรงกับเงื่อนไขตอน Render
+        let s = String(foundUser.allowed_shift || '').trim().replace('กะ', '');
         if (s === 'เช้า') return 'กะเช้า';
         if (s === 'กลาง') return 'กะกลาง';
         if (s === 'ดึก') return 'กะดึก';
-        if (s === 'อิสระ') return 'กะอิสระ';
-        
-        return s;
+        if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
     }
     
     return 'UNKNOWN';
 }
-
 function parseAmount(val) {
     if(!val) return 0;
     if(typeof val === 'number') return val;
@@ -1023,6 +1015,7 @@ window.saveSummaryToSupabase = async function() {
     }
 };
 
+// 🌟 2. ฟังก์ชันดึงข้อมูลประวัติรายวัน (อัปเดต: แก้ปัญหาชื่อเคสไม่ตรงกัน)
 window.fetchHistoricalSummary = async function(silent = false) {
     const dateVal = document.getElementById('summaryDateFilter') ? document.getElementById('summaryDateFilter').value : '';
     if (!dateVal) return;
@@ -1049,7 +1042,8 @@ window.fetchHistoricalSummary = async function(silent = false) {
 
         let schMap = {};
         if (schedulesRes && schedulesRes.data) {
-            schedulesRes.data.forEach(s => schMap[`${s.work_date}_${s.staff_name}`] = s.shift_name);
+            // แปลงชื่อให้เป็นพิมพ์เล็กทั้งหมดเพื่อป้องกันปัญหาชื่อไม่ตรงกัน
+            schedulesRes.data.forEach(s => schMap[`${s.work_date}_${(s.staff_name || '').toLowerCase().trim()}`] = s.shift_name);
         }
 
         if (todayRes.data && todayRes.data.length > 0) {
@@ -1059,10 +1053,20 @@ window.fetchHistoricalSummary = async function(silent = false) {
                 const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : todayCount;
                 const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
-                let actualShift = schMap[`${r.date}_${r.employee_name}`];
+                // แมตช์ชื่อด้วยตัวพิมพ์เล็ก
+                let empKey = (r.employee_name || '').toLowerCase().trim();
+                let actualShift = schMap[`${r.date}_${empKey}`];
                 if (!actualShift) {
                     actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
                 }
+                
+                // จัดระเบียบข้อความกะให้ตรงกับเงื่อนไขในระบบ
+                let s = String(actualShift || '').trim().replace('กะ', '');
+                if (s === 'เช้า') actualShift = 'กะเช้า';
+                else if (s === 'กลาง') actualShift = 'กะกลาง';
+                else if (s === 'ดึก') actualShift = 'กะดึก';
+                else if (s === 'อิสระ' || s === 'all' || s === '') actualShift = 'กะอิสระ';
+                else actualShift = 'UNKNOWN';
 
                 return {
                     empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
@@ -1352,6 +1356,7 @@ window.openManageLogoModal = async function() {
     }
 };
 
+// 🌟 3. ฟังก์ชันดึงข้อมูลประวัติหลายวัน (อัปเดต: แก้ปัญหาชื่อเคสไม่ตรงกัน)
 window.fetchMultipleHistoricalSummary = async function() {
     const dates = Array.from(window.selectedSummaryDates);
     if (dates.length === 0) return Swal.fire('เตือน', 'กรุณาเลือกวันที่อย่างน้อย 1 วัน', 'warning');
@@ -1378,7 +1383,7 @@ window.fetchMultipleHistoricalSummary = async function() {
         const yestData = yestRes.data || [];
 
         let schMap = {};
-        schData.forEach(s => schMap[`${s.work_date}_${s.staff_name}`] = s.shift_name);
+        schData.forEach(s => schMap[`${s.work_date}_${(s.staff_name || '').toLowerCase().trim()}`] = s.shift_name);
 
         let yestMap = {};
         yestData.forEach(r => {
@@ -1397,10 +1402,18 @@ window.fetchMultipleHistoricalSummary = async function() {
             data.forEach(r => {
                 const key = window.cleanKeyStr(r.employee_name, r.website);
                 
-                let actualShift = schMap[`${r.date}_${r.employee_name}`];
+                let empKey = (r.employee_name || '').toLowerCase().trim();
+                let actualShift = schMap[`${r.date}_${empKey}`];
                 if (!actualShift) {
                     actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
                 }
+                
+                let s = String(actualShift || '').trim().replace('กะ', '');
+                if (s === 'เช้า') actualShift = 'กะเช้า';
+                else if (s === 'กลาง') actualShift = 'กะกลาง';
+                else if (s === 'ดึก') actualShift = 'กะดึก';
+                else if (s === 'อิสระ' || s === 'all' || s === '') actualShift = 'กะอิสระ';
+                else actualShift = 'UNKNOWN';
 
                 if (!groupedData[key]) {
                     groupedData[key] = {
@@ -1428,42 +1441,6 @@ window.fetchMultipleHistoricalSummary = async function() {
         fetchLeaderboardData();
         Swal.close();
     } catch (e) { Swal.fire('Error', e.message, 'error'); }
-};
-
-const _originalClearSummaryDataForMulti = window.clearSummaryData;
-window.clearSummaryData = function() {
-    window.selectedSummaryDates.clear(); 
-    _originalClearSummaryDataForMulti();
-};
-
-window.deleteSummaryDate = function(dateStr) {
-    const [y, m, day] = dateStr.split('-');
-    const displayDate = `${day}/${m}/${y}`;
-
-    Swal.fire({
-        title: `ลบข้อมูลวันที่ ${displayDate}?`, text: "ข้อมูลสรุปยอดของวันนี้จะถูกลบทิ้งอย่างถาวร!", icon: 'warning',
-        showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'ลบทิ้งเลย', cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            try {
-                await appDB.from('transaction_daily_summary').delete().eq('date', dateStr);
-                await appDB.from('settings').update({ value: '[]' }).eq('key', 'saved_excel_files');
-                
-                window.selectedSummaryDates.delete(dateStr);
-                window.pendingFileNames = []; 
-                window.uploadedFileDates.clear(); 
-                
-                if (typeof fetchAvailableDates === 'function') await fetchAvailableDates(true);
-                
-                if (pendingSummaryData.length === 0) {
-                    renderSummaryDashboard();
-                    Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1500, showConfirmButton: false });
-                } else {
-                    clearSummaryData(); Swal.close();
-                }
-            } catch (e) { Swal.fire('Error', e.message, 'error'); }
         }
     });
 };
@@ -1515,5 +1492,266 @@ window.saveWebLogo = async function() {
 
     } catch (err) {
         Swal.fire('Error', err.message, 'error');
+    }
+};
+window.renderSummaryDashboard = function() {
+    if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
+        try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
+        catch(e) { window.summaryWebLogos = {}; }
+    } else if (typeof window.summaryWebLogos === 'undefined') { window.summaryWebLogos = {}; }
+    const safeWebLogos = window.summaryWebLogos;
+
+    const mainBox = document.getElementById('summaryTableBody');
+    const webBox = document.getElementById('summaryWebGrid');
+    const statsBox = document.getElementById('shiftSummaryStats');
+    
+    const shiftFilter = document.getElementById('summaryShiftFilter') ? document.getElementById('summaryShiftFilter').value : 'ALL';
+    const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
+    const searchKeyword = document.getElementById('summarySearch') ? document.getElementById('summarySearch').value.toLowerCase().trim() : '';
+
+    if (webBox) webBox.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 p-1";
+    if (mainBox) mainBox.className = "flex-1 overflow-y-auto custom-scrollbar pr-2 content-start";
+
+    const hasData = typeof pendingSummaryData !== 'undefined' && pendingSummaryData.length > 0;
+
+    if (!hasData) {
+        let datesHtml = '';
+        if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
+            let btns = window.availableSummaryDates.map(d => {
+                const [y, m, day] = d.split('-');
+                return getTpl('tpl-date-button', { 
+                    d: d, day: day, m: m, year: y, 
+                    cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
+                    iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
+                    textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
+                    checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
+                });
+            }).join('');
+            datesHtml = getTpl('tpl-date-selector-container', { 
+                datesHtml: btns, 
+                selectedCount: window.selectedSummaryDates.size,
+                disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
+            });
+        }
+
+        if(mainBox) mainBox.innerHTML = getTpl('tpl-no-data') + `<div class="text-center py-2 w-full">${datesHtml}</div>`;
+        if(statsBox) statsBox.innerHTML = '<div class="text-center text-gray-400 text-sm py-2 w-full">ยังไม่มีข้อมูลยอดรวม</div>';
+        
+    } else {
+        let shiftStats = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0, 'UNKNOWN': 0, 'TOTAL': 0, 'TOTAL_YEST': 0, 'APPROVED': 0, 'REJECT': 0 };
+        
+        let filteredData = pendingSummaryData;
+        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && (item.shift==='กะอิสระ' || item.shift==='UNKNOWN')));
+        if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
+        if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
+
+        filteredData = filteredData.filter(item => !item.empName.toLowerCase().includes('system') && !item.empName.toLowerCase().includes('auto'));
+
+        filteredData.forEach(item => {
+            shiftStats.TOTAL += item.count;
+            shiftStats.TOTAL_YEST += item.yestCount || 0; 
+            shiftStats.APPROVED += (item.approvedCount || 0);
+            shiftStats.REJECT += (item.rejectCount || 0);
+            if(shiftStats[item.shift] !== undefined) shiftStats[item.shift] += item.count;
+            else shiftStats['UNKNOWN'] += item.count;
+        });
+
+        let grandDiff = shiftStats.TOTAL - shiftStats.TOTAL_YEST;
+        let grandDiffHtml = '';
+        if (grandDiff !== 0) grandDiffHtml = buildDiffBadge(grandDiff, 'ml-2 bg-slate-900 border-none scale-110');
+
+        if (statsBox) {
+            statsBox.innerHTML = getTpl('tpl-shift-stats', {
+                total: shiftStats.TOTAL.toLocaleString(),
+                totalDiffHtml: grandDiffHtml,
+                approved: shiftStats.APPROVED.toLocaleString(),
+                reject: shiftStats.REJECT.toLocaleString(),
+                morning: shiftStats['กะเช้า'].toLocaleString(),
+                afternoon: shiftStats['กะกลาง'].toLocaleString(),
+                night: shiftStats['กะดึก'].toLocaleString()
+            });
+        }
+
+        if (mainBox) {
+            if (filteredData.length === 0) {
+                mainBox.innerHTML = getTpl('tpl-no-data');
+            } else {
+                let htmlArr = [];
+                
+                if (viewMode === 'history' || viewMode === 'monthly_history') {
+                    htmlArr.push(getTpl('tpl-history-header'));
+                }
+
+                let dateGroups = {};
+                filteredData.forEach(item => {
+                    let itemDate = item.date || document.getElementById('summaryDateFilter').value || 'ไม่ระบุวันที่';
+                    if(!dateGroups[itemDate]) {
+                        dateGroups[itemDate] = { totalCount: 0, totalYestCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, emps: {} };
+                    }
+                    let dGroup = dateGroups[itemDate];
+                    dGroup.totalCount += item.count;
+                    dGroup.totalYestCount += item.yestCount || 0; 
+                    dGroup.totalMoney += item.totalAmount;
+                    dGroup.totalApproved += (item.approvedCount || 0);
+                    dGroup.totalReject += (item.rejectCount || 0);
+
+                    if(!dGroup.emps[item.empName]) {
+                        dGroup.emps[item.empName] = { totalCount: 0, totalYestCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, webs: [], shift: item.shift, odType: item.odType || 'ปกติ' };
+                    }
+                    dGroup.emps[item.empName].totalCount += item.count;
+                    dGroup.emps[item.empName].totalYestCount += item.yestCount || 0; 
+                    dGroup.emps[item.empName].totalApproved += (item.approvedCount || 0);
+                    dGroup.emps[item.empName].totalReject += (item.rejectCount || 0);
+                    dGroup.emps[item.empName].totalMoney += item.totalAmount;
+                    dGroup.emps[item.empName].webs.push(item);
+                });
+
+                const sortedDates = Object.keys(dateGroups).sort((a, b) => new Date(b) - new Date(a));
+
+                sortedDates.forEach((dateStr) => {
+                    const dGroup = dateGroups[dateStr];
+                    let displayDate = dateStr;
+                    if(dateStr.includes('-')) {
+                        const [y, m, d] = dateStr.split('-');
+                        const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+                        displayDate = `วันที่ ${parseInt(d)} ${monthNames[parseInt(m)-1]} ${parseInt(y)+543}`;
+                    }
+
+                    let groupDiff = dGroup.totalCount - dGroup.totalYestCount;
+                    let groupDiffHtml = buildDiffBadge(groupDiff);
+
+                    htmlArr.push(getTpl('tpl-date-group-start', {
+                        displayDate: displayDate,
+                        empCount: Object.keys(dGroup.emps).length,
+                        totalCount: dGroup.totalCount.toLocaleString(),
+                        totalDiffHtml: groupDiffHtml,
+                        totalApproved: dGroup.totalApproved,
+                        totalReject: dGroup.totalReject,
+                        hiddenClass: sortedDates.length === 1 ? '' : 'hidden'
+                    }));
+
+                    let sortedEmps = Object.keys(dGroup.emps).sort((a, b) => dGroup.emps[b].totalCount - dGroup.emps[a].totalCount);
+                    if (searchKeyword !== '') sortedEmps = sortedEmps.filter(name => name.toLowerCase().includes(searchKeyword));
+
+                    if (sortedEmps.length === 0) {
+                        htmlArr.push(getTpl('tpl-emp-not-found', { keyword: searchKeyword }));
+                    } else {
+                        sortedEmps.forEach((name, index) => {
+                            const data = dGroup.emps[name];
+                            
+                            // 🌟 แก้ไข: จัดการป้ายสีกะให้ดักคำว่า ไม่ระบุ ด้วย
+                            let shiftBadgeHtml = '';
+                            if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
+                            else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
+                            else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
+                            else if (data.shift === 'กะอิสระ' || data.shift === 'all') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
+                            else shiftBadgeHtml = '<span class="text-[10px] bg-slate-500/20 text-slate-400 border border-slate-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ไม่ระบุ</span>';
+
+                            let odBadge = '';
+                            if (data.odType === 'OD') odBadge = '<span class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">OD</span>';
+                            if (data.odType === 'ODOL') odBadge = '<span class="text-[9px] bg-pink-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">ODOL</span>';
+
+                            let webTags = data.webs.map(w => {
+                                let diffNum = w.count - (w.yestCount || 0);
+                                let diffHtml = buildDiffBadge(diffNum, '');
+
+                                return getTpl('tpl-web-subcard', {
+                                    website: w.website, diffHtml: diffHtml,
+                                    yestCount: w.yestCount || 0, count: w.count,
+                                    approvedCount: w.approvedCount || 0, rejectCount: w.rejectCount || 0,
+                                    totalAmount: w.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2})
+                                });
+                            }).join('');
+
+                            let quickWebBadges = data.webs.map(w => `<span class="bg-slate-900 border border-slate-600 px-1.5 py-0.5 rounded text-[10px] text-gray-300 whitespace-nowrap shadow-sm"><b class="text-sky-400">${w.website}:</b> ${w.count}</span>`).join('');
+
+                            let empDiff = data.totalCount - data.totalYestCount;
+                            let empDiffHtml = buildDiffBadge(empDiff, 'mt-1');
+
+                            htmlArr.push(getTpl('tpl-emp-row', {
+                                index: index + 1, name: name, odBadge: odBadge, shiftBadge: shiftBadgeHtml,
+                                quickWebBadges: quickWebBadges, totalCount: data.totalCount, 
+                                totalDiffHtml: empDiffHtml,
+                                webTagsHtml: webTags
+                            }));
+                        });
+                    }
+                    htmlArr.push(getTpl('tpl-date-group-end'));
+                });
+
+                if (viewMode === 'history' || viewMode === 'monthly_history') {
+                    let datesHtml = '';
+                    if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
+                        let btns = window.availableSummaryDates.map(d => {
+                            const [y, m, day] = d.split('-');
+                            return getTpl('tpl-date-button', { 
+                                d: d, day: day, m: m, year: y, 
+                                cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
+                                iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
+                                textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
+                                checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
+                            });
+                        }).join('');
+                        datesHtml = getTpl('tpl-date-selector-container', { 
+                            datesHtml: btns, 
+                            selectedCount: window.selectedSummaryDates.size,
+                            disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
+                        });
+                    }
+                    htmlArr.push(getTpl('tpl-history-footer', { datesHtml: datesHtml }));
+                }
+
+                mainBox.innerHTML = htmlArr.join('');
+            }
+        }
+    }
+
+    if (webBox) {
+        let webAgg = {};
+        let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188']; 
+        let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
+
+        defaultWebList.forEach(web => {
+            let sysLabel = 'SYSTEM';
+            if (customSystems[web]) sysLabel = customSystems[web];
+            else {
+                if(['Jun88', 'MK8', 'VV72', 'TH26', 'BT678', 'K188'].includes(web)) sysLabel = 'K36';
+                else if(['F168'].includes(web)) sysLabel = 'WG';
+                else if(['PG688', 'JL69', 'NM9'].includes(web)) sysLabel = 'TCG';
+            }
+            webAgg[web] = { count: 0, amount: 0, sys: sysLabel };
+        });
+
+        if (hasData) {
+            let dataForWebCards = pendingSummaryData;
+            if (shiftFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
+            if (odFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
+
+            dataForWebCards.forEach(item => {
+                if (!webAgg[item.website]) webAgg[item.website] = { count: 0, amount: 0, sys: item.system || 'SYSTEM' };
+                webAgg[item.website].count += item.count;
+                webAgg[item.website].amount += item.totalAmount;
+                if (item.system) webAgg[item.website].sys = item.system;
+            });
+        }
+
+        if (Object.keys(webAgg).length > 0) {
+            webBox.innerHTML = Object.keys(webAgg).map(web => {
+                const w = webAgg[web];
+                const defaultImg = `https://ui-avatars.com/api/?name=${web}&background=random&color=fff&size=256`;
+                const imgUrl = safeWebLogos[web] ? safeWebLogos[web] : defaultImg;
+                const isActive = (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter === web);
+                
+                return getTpl('tpl-web-card', {
+                    cardStyle: isActive ? 'ring-2 ring-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] z-20 scale-[1.02]' : 'hover:border-sky-500 hover:shadow-lg opacity-95 hover:opacity-100',
+                    web: web, imgUrl: imgUrl, sys: w.sys,
+                    filterBadge: isActive ? '<div class="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-30 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> กำลังดู</div>' : '',
+                    countColor: w.count > 0 ? 'text-sky-400' : 'text-gray-500',
+                    count: w.count.toLocaleString(),
+                    amountColor: w.amount > 0 ? 'text-emerald-400 bg-[#0b1120] border-emerald-900/50' : 'text-gray-500 bg-slate-800 border-slate-700',
+                    amount: w.amount.toLocaleString('en-US', {minimumFractionDigits: 2})
+                });
+            }).join('');
+        }
     }
 };
