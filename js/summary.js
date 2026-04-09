@@ -110,6 +110,7 @@ window.fetchAvailableDates = async function(forceRender = false) {
 }
 
 // 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100%
+// 🌟 ระบบอ่านกะที่ถูกต้อง ดึงจากฐานข้อมูล 100%
 function getShiftFromName(name) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
 
@@ -121,7 +122,15 @@ function getShiftFromName(name) {
     
     if (foundUser) {
         let s = foundUser.allowed_shift;
-        if (!s || s === 'all') return 'กะอิสระ';
+        // ถ้าค่าว่าง หรือเป็น all ให้ถือว่าเป็นกะอิสระ
+        if (!s || s === 'all' || s.trim() === '') return 'กะอิสระ';
+        
+        // ถ้าข้อมูลใน DB เก็บมาแบบไม่มีคำว่า "กะ" นำหน้า ให้เติมเข้าไปให้ตรงกับเงื่อนไขตอน Render
+        if (s === 'เช้า') return 'กะเช้า';
+        if (s === 'กลาง') return 'กะกลาง';
+        if (s === 'ดึก') return 'กะดึก';
+        if (s === 'อิสระ') return 'กะอิสระ';
+        
         return s;
     }
     
@@ -682,6 +691,8 @@ window.renderSummaryDashboard = function() {
                             else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
                             else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
                             else if (data.shift === 'กะอิสระ' || data.shift === 'all') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
+                            // เพิ่มเงื่อนไขดักจับกรณีไม่พบข้อมูลกะ (UNKNOWN)
+                            else shiftBadgeHtml = '<span class="text-[10px] bg-gray-500/20 text-gray-400 border border-gray-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ไม่ระบุ</span>';
 
                             let odBadge = '';
                             if (data.odType === 'OD') odBadge = '<span class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">OD</span>';
