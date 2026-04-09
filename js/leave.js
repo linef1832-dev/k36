@@ -1158,25 +1158,3 @@ window.removeFromNewDept = async function(id, username) {
         }
     });
 };
-
-    if (confirm.isConfirmed) {
-        Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        try {
-            const { error } = await appDB.from('schedules').insert(backupData);
-            if (error) throw error;
-
-            sessionStorage.removeItem('temp_schedule_backup');
-            document.getElementById('undoScheduleBtn')?.classList.add('hidden');
-
-            if (typeof logAction === 'function') await logAction('กู้คืนข้อมูล', `แอดมินกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ`);
-
-            Swal.fire('กู้คืนสำเร็จ!', 'ข้อมูลกลับมาอยู่ที่เดิมเรียบร้อยแล้วครับ', 'success');
-
-            if (typeof fetchData === 'function') fetchData();
-
-        } catch(e) {
-            console.error(e);
-            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนได้: ' + e.message, 'error');
-        }
-    }
-};
