@@ -79,17 +79,17 @@ async function showPage(pageName) {
         
         const htmlContent = pageCache[pageName];
 
-        // 🌟 ย้ายการรันสคริปต์ทั้งหมด เข้ามาไว้ในฟังก์ชันนี้
+        // 🌟 ฟังก์ชันอัปเดตหน้าจอและการรันสคริปต์ (เงื่อนไขทั้งหมดต้องอยู่ในนี้)
         const updateDOM = () => {
-            // 1. ยัด HTML ลงไป
-            document.getElementById('app-content').innerHTML = htmlContent;
+            const appContent = document.getElementById('app-content');
+            appContent.innerHTML = htmlContent;
+            appContent.classList.remove('hidden'); // จุดที่ 2: ป้องกันกรอบหลักโดนซ่อน
             
-            // 2. ไฮไลท์เมนู
             document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
             const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
             if (activeBtn) activeBtn.classList.add('active');
 
-            // 3. บังคับให้รันสคริปต์ "หลังจาก" ยัด HTML ลงไปเสร็จแล้วชัวร์ๆ
+            // 🌟 การรันสคริปต์ประจำหน้า ต้องอยู่ตรงนี้! (ใน requestAnimationFrame)
             requestAnimationFrame(async () => {
                 if(document.getElementById('uName') && currentUser && currentUser.username) {
                     document.getElementById('uName').innerText = currentUser.username;
@@ -137,6 +137,13 @@ async function showPage(pageName) {
                     if (typeof renderRecentTabs === 'function') renderRecentTabs();
                     if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
                         if(document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
+                    }
+                    
+                    // จุดที่ 1: บังคับเปิดหน้าเมนูเลือกชีท และปิดหน้าดูชีท
+                    if (document.getElementById('sheetMenu')) document.getElementById('sheetMenu').classList.remove('hidden');
+                    if (document.getElementById('sheetViewer')) {
+                        document.getElementById('sheetViewer').classList.add('hidden');
+                        document.getElementById('sheetViewer').classList.remove('flex');
                     }
                 }
                 else if (pageName === 'kbiz') {
