@@ -160,6 +160,110 @@ async function showPage(pageName) {
                 }
             });
         };
+// 1. สร้างตัวแปรเก็บ Cache สำหรับ HTML String
+const pageCache = {};
+
+async function showPage(pageName) {
+    const loading = document.getElementById('loading');
+    
+    try {
+        if (!pageCache[pageName] && loading) loading.classList.remove('hidden');
+        
+        if (!pageCache[pageName]) {
+            const response = await fetch(`./pages/${pageName}.html`);
+            if (!response.ok) throw new Error('Page not found');
+            pageCache[pageName] = await response.text();
+        }
+        
+        const htmlContent = pageCache[pageName];
+
+        // 🌟 ฟังก์ชันอัปเดตหน้าจอและการรันสคริปต์
+        const updateDOM = () => {
+            const appContent = document.getElementById('app-content');
+            appContent.innerHTML = htmlContent;
+            appContent.classList.remove('hidden'); // ป้องกันหน้าจอดำ
+            
+            document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
+            const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            requestAnimationFrame(async () => {
+                if(document.getElementById('uName') && currentUser && currentUser.username) {
+                    document.getElementById('uName').innerText = currentUser.username;
+                }
+
+                if (pageName === 'dashboard') {
+                    if (typeof refreshAdminData === 'function') refreshAdminData();
+                    if (typeof fetchData === 'function') fetchData();
+                    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+                        if (document.getElementById('userManagerUIBlock')) {
+                            document.getElementById('userManagerUIBlock').classList.remove('hidden');
+                            document.getElementById('userManagerUIBlock').classList.add('flex');
+                        }
+                    }
+                }
+                else if (pageName === 'leave') {
+                    if (typeof initLeaveTable === 'function') await initLeaveTable();
+                }
+                else if (pageName === 'gallery') {
+                    if (typeof initGalleryApp === 'function') initGalleryApp();
+                }
+                else if (pageName === 'duty') {
+                    if (typeof initDutyApp === 'function') await initDutyApp();
+                }
+                else if (pageName === 'discord') {
+                    if (typeof applyDiscordPermissions === 'function') applyDiscordPermissions();
+                }
+                else if (pageName === 'summary') {
+                    if (typeof initSummaryDate === 'function') initSummaryDate();
+                    if (typeof fetchAvailableDates === 'function') fetchAvailableDates(); 
+                    if (typeof fetchHistoricalSummary === 'function') await fetchHistoricalSummary(true); 
+                }
+                else if (pageName === 'telegram') {
+                    if (typeof initTelegramApp === 'function') await initTelegramApp();
+                }
+                else if (pageName === 'password') {
+                    if (typeof initPasswordApp === 'function') await initPasswordApp();
+                }
+                else if (pageName === 'files') {
+                    if (typeof initFilesApp === 'function') await initFilesApp(); 
+                }
+                else if (pageName === 'sheet') {
+                    if (typeof fetchSheets === 'function') await fetchSheets(); 
+                    if (typeof renderSheetMenu === 'function') renderSheetMenu();
+                    if (typeof renderRecentTabs === 'function') renderRecentTabs();
+                    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+                        if(document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
+                    }
+                    
+                    // 🌟 เพิ่มโค้ดตรงนี้: เพื่อปลดล็อกให้กรอบตารางงาน (sheetApp) แสดงขึ้นมา
+                    const sheetApp = document.getElementById('sheetApp');
+                    if (sheetApp) {
+                        sheetApp.classList.remove('hidden');
+                        sheetApp.classList.add('flex');
+                    }
+
+                    // โค้ดเดิม
+                    if (document.getElementById('sheetMenu')) document.getElementById('sheetMenu').classList.remove('hidden');
+                    if (document.getElementById('sheetViewer')) {
+                        document.getElementById('sheetViewer').classList.add('hidden');
+                        document.getElementById('sheetViewer').classList.remove('flex');
+                    }
+                }
+                else if (pageName === 'kbiz') {
+                    if (typeof fetchKbizData === 'function') await fetchKbizData();
+                }
+                else if (pageName === 'announcement') {
+                    if (typeof renderAnnouncementUI === 'function') renderAnnouncementUI();
+                    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+                        if(document.getElementById('adminAnnouncementControls')) document.getElementById('adminAnnouncementControls').classList.remove('hidden');
+                    }
+                }
+                else if (pageName === 'swap') {
+                    if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
+                }
+            });
+        };
 
         // ใช้ View Transitions สลับหน้าแบบสมูท (ถ้าบราวเซอร์รองรับ)
         if (document.startViewTransition) {
