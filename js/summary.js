@@ -844,6 +844,7 @@ window.fetchLeaderboardData = async function() {
                 <option value="กะเช้า" class="bg-slate-800 text-white">☀️ เช้า</option>
                 <option value="กะกลาง" class="bg-slate-800 text-white">🌤️ กลาง</option>
                 <option value="กะดึก" class="bg-slate-800 text-white">🌙 ดึก</option>
+                <option value="UNKNOWN" class="bg-slate-800 text-gray-400">❓ ไม่ระบุกะ</option>
             </select>
             <select id="leaderboardWebFilter" onchange="fetchLeaderboardData()" class="bg-transparent text-emerald-400 text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-600 mr-2">
                 <option value="ALL" class="bg-slate-800 text-white">🏆 รวมทุกเว็บ</option>
@@ -882,18 +883,16 @@ window.fetchLeaderboardData = async function() {
         let aggMap = {};
         let targetData = pendingSummaryData;
         
-        // 🌟 แก้ไขจุดที่ 1: กรองกะให้ฉลาดขึ้น (Preview Mode)
         if (shiftFilter !== 'ALL') {
             targetData = targetData.filter(i => {
                 let s = i.shift;
-                // ถ้าไม่รู้กะ ให้เดาจากชื่อ
                 if (!s || s === 'UNKNOWN') {
                     if (i.empName.includes('เช้า')) s = 'กะเช้า';
                     else if (i.empName.includes('กลาง')) s = 'กะกลาง';
                     else if (i.empName.includes('ดึก')) s = 'กะดึก';
+                    else s = 'UNKNOWN';
                 }
-                // ยอมให้โชว์ถ้าตรงกะ หรือเป็นคนกะอิสระ
-                return s === shiftFilter || s === 'กะอิสระ';
+                return s === shiftFilter || (shiftFilter === 'UNKNOWN' && s === 'กะอิสระ');
             });
         }
         
@@ -942,18 +941,16 @@ window.fetchLeaderboardData = async function() {
             const name = r.employee_name;
             if (!name || name.toLowerCase().includes('system') || name.toLowerCase().includes('auto')) return;
 
-            // 🌟 แก้ไขจุดที่ 2: กรองกะให้ฉลาดขึ้น (DB Mode)
             let shift = typeof getShiftFromName === 'function' ? getShiftFromName(name) : 'UNKNOWN';
             
-            // ถ้าดึงกะจากฐานข้อมูลพนักงานไม่ได้ ให้พยายามเดาจากชื่อที่ดึงมา
             if (shift === 'UNKNOWN') {
                 if (name.includes('เช้า')) shift = 'กะเช้า';
                 else if (name.includes('กลาง')) shift = 'กะกลาง';
                 else if (name.includes('ดึก')) shift = 'กะดึก';
             }
 
-            // กรองกะ ถ้าไม่ตรงก็ข้ามไป (เว้นแต่จะเป็นกะอิสระ ให้โชว์ได้)
-            if (shiftFilter !== 'ALL' && shift !== shiftFilter && shift !== 'กะอิสระ') return;
+            // ยอมให้โชว์ถ้ากะตรงกับที่เลือก หรือเลือกหาคนไม่ระบุกะ
+            if (shiftFilter !== 'ALL' && shift !== shiftFilter && !(shiftFilter === 'UNKNOWN' && shift === 'กะอิสระ')) return;
             
             if (!aggMap[name]) aggMap[name] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, shift: shift };
             aggMap[name].totalCount += parseInt(r.count) || 0;
