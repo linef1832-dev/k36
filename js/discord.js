@@ -1007,12 +1007,24 @@ window.delTransfer = async function(id) {
 
 window.ds_fetchVoiceLogs = async function() {
     try {
-        const res = await fetch(DISCORD_API_URL + '/api/voice-logs');
-        if(res.ok) {
-            dsGlobalVoiceLogs = await res.json();
+        // เปลี่ยนจากดึงผ่าน API บอท มาดึงจากฐานข้อมูล Supabase แทน (จะได้มีประวัติย้อนหลัง)
+        const { data, error } = await appDB.from('discord_voice_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(3000); // ดึงย้อนหลังมาตุนไว้ 3000 รายการ
+
+        if (!error && data) {
+            // แมปข้อมูลให้หน้าตาเหมือนที่บอทส่งมา โค้ดด้านล่างของคุณจะได้ทำงานต่อได้เลย
+            dsGlobalVoiceLogs = data.map(row => ({
+                id: row.id,
+                name: row.user_name,
+                action: row.action_type,
+                room: row.room_name,
+                time: row.created_at
+            }));
             ds_renderVoiceLogs();
         }
-    } catch(e) { }
+    } catch(e) { console.error("Fetch history error:", e); }
 };
 
 window.ds_renderVoiceLogs = function() {
@@ -1027,10 +1039,9 @@ window.ds_renderVoiceLogs = function() {
     if (dateFilter) {
         filtered = filtered.filter(log => {
             const logDateObj = new Date(log.time); 
-            const y = logDateObj.getFullYear();
-            const m = String(logDateObj.getMonth() + 1).padStart(2, '0');
-            const dStr = String(logDateObj.getDate()).padStart(2, '0');
-            const localDateStr = `${y}-${m}-${dStr}`; 
+            // แปลงเวลาให้เป็น Timezone ไทย (UTC+7) ป้องกันปัญหาข้อมูลหายตอนเปลี่ยนวัน
+            const thaiTime = new Date(logDateObj.getTime() + (7 * 60 * 60 * 1000));
+            const localDateStr = thaiTime.toISOString().split('T')[0]; 
             return localDateStr === dateFilter;
         });
     }
