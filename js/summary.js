@@ -864,9 +864,23 @@ window.fetchLeaderboardData = async function() {
 
     if (viewMode === 'preview' && pendingSummaryData.length > 0) {
         let aggMap = {};
-        
         let targetData = pendingSummaryData;
-        if (shiftFilter !== 'ALL') targetData = targetData.filter(i => i.shift === shiftFilter || (shiftFilter==='UNKNOWN' && i.shift==='กะอิสระ'));
+        
+        // 🌟 แก้ไขจุดที่ 1: กรองกะให้ฉลาดขึ้น (Preview Mode)
+        if (shiftFilter !== 'ALL') {
+            targetData = targetData.filter(i => {
+                let s = i.shift;
+                // ถ้าไม่รู้กะ ให้เดาจากชื่อ
+                if (!s || s === 'UNKNOWN') {
+                    if (i.empName.includes('เช้า')) s = 'กะเช้า';
+                    else if (i.empName.includes('กลาง')) s = 'กะกลาง';
+                    else if (i.empName.includes('ดึก')) s = 'กะดึก';
+                }
+                // ยอมให้โชว์ถ้าตรงกะ หรือเป็นคนกะอิสระ
+                return s === shiftFilter || s === 'กะอิสระ';
+            });
+        }
+        
         if (odFilter !== 'ALL') targetData = targetData.filter(i => i.odType === odFilter || (i.odType === undefined && odFilter === 'ปกติ'));
         if (selectedWeb !== 'ALL') targetData = targetData.filter(i => i.website === selectedWeb); 
 
@@ -912,8 +926,18 @@ window.fetchLeaderboardData = async function() {
             const name = r.employee_name;
             if (!name || name.toLowerCase().includes('system') || name.toLowerCase().includes('auto')) return;
 
-            const shift = typeof getShiftFromName === 'function' ? getShiftFromName(name) : 'UNKNOWN';
-            if (shiftFilter !== 'ALL' && shift !== shiftFilter && !(shiftFilter==='UNKNOWN' && shift==='กะอิสระ')) return;
+            // 🌟 แก้ไขจุดที่ 2: กรองกะให้ฉลาดขึ้น (DB Mode)
+            let shift = typeof getShiftFromName === 'function' ? getShiftFromName(name) : 'UNKNOWN';
+            
+            // ถ้าดึงกะจากฐานข้อมูลพนักงานไม่ได้ ให้พยายามเดาจากชื่อที่ดึงมา
+            if (shift === 'UNKNOWN') {
+                if (name.includes('เช้า')) shift = 'กะเช้า';
+                else if (name.includes('กลาง')) shift = 'กะกลาง';
+                else if (name.includes('ดึก')) shift = 'กะดึก';
+            }
+
+            // กรองกะ ถ้าไม่ตรงก็ข้ามไป (เว้นแต่จะเป็นกะอิสระ ให้โชว์ได้)
+            if (shiftFilter !== 'ALL' && shift !== shiftFilter && shift !== 'กะอิสระ') return;
             
             if (!aggMap[name]) aggMap[name] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, shift: shift };
             aggMap[name].totalCount += parseInt(r.count) || 0;
