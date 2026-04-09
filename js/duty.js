@@ -1549,12 +1549,16 @@ window.renderDutyAccessTable = async function() {
 
     let allUsers = window.GLOBAL_USER_LIST || [];
 
+    // 🌟 คืนชีพตัวกรอง: เอาเฉพาะคนที่ Role เป็น Staff (หรือค่าว่าง) เท่านั้น ตัด Manager/Admin ทิ้ง
     let staff = allUsers.filter(u => {
         const uDept = String(u.department || 'AM').toUpperCase();
+        const uRole = String(u.role || '').toLowerCase();
+        
         if (currentDutyDept === 'TRAINER') {
             return uDept === 'TRAINER';
         } else {
-            return uDept === currentDutyDept;
+            const isStaff = (uRole === 'staff' || uRole === '');
+            return uDept === currentDutyDept && isStaff;
         }
     });
 
