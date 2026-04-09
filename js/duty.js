@@ -190,39 +190,67 @@ window.currentDutyLeaveData = [];
 
 window.refreshDutyData = async function() {
     try {
-        // 🌟 ดัก Error: ตรวจสอบก่อนว่ามีกล่องวันที่ให้ดึงค่าไหม
         const targetDateInput = document.getElementById('dutyDate');
         const shiftFilterInput = document.getElementById('dutyShiftSelect');
-        
-        if (!targetDateInput || !shiftFilterInput) return; // ถ้าไม่มีให้หยุดทำงาน ไม่ต้องโวยวาย Error
+        if (!targetDateInput || !shiftFilterInput) return;
         
         const targetDate = targetDateInput.value;
         const shiftFilter = shiftFilterInput.value;
         if(!targetDate) return;
 
+        // 🌟 1. ดึงข้อมูลคนลาหยุดให้แม่นยำขึ้น
         const { data: leaves } = await appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate);
         currentDutyLeaves = new Set();
-        if (leaves) leaves.forEach(l => currentDutyLeaves.add(String(l.user_id))); 
-
         const relevantLeaves = [];
-        if (leaves && typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
+
+        if (leaves && leaves.length > 0) {
+            if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
+                if (typeof fetchUsers === 'function') await fetchUsers();
+            }
+
             leaves.forEach(l => {
-                let userObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(l.user_id) || u.username === l.user_name);
-                if (userObj && (userObj.department || 'AM') === currentDutyDept) {
-                    relevantLeaves.push({ user_id: userObj.id, username: userObj.username, reason: l.reason, originalShift: userObj.allowed_shift || 'all' });
+                const leaveName = String(l.user_name || '').toLowerCase().trim();
+                const leaveId = String(l.user_id || '');
+
+                // 🌟 ค้นหาแบบยืดหยุ่น: หาจาก ID หรือ หาจากชื่อแบบไม่สนใจพิมพ์เล็กใหญ่
+                let userObj = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => {
+                    const dbName = String(u.username || '').toLowerCase().trim();
+                    return (leaveId && String(u.id) === leaveId) || (dbName !== '' && (dbName === leaveName || dbName.includes(leaveName) || leaveName.includes(dbName)));
+                }) : null;
+
+                if (userObj) {
+                    currentDutyLeaves.add(String(userObj.id)); 
+                    // เช็คแผนกว่าตรงกับแท็บที่กำลังดูอยู่ไหม (AM, OD)
+                    if ((userObj.department || 'AM') === currentDutyDept) {
+                        relevantLeaves.push({ 
+                            user_id: userObj.id, 
+                            username: userObj.username, 
+                            reason: l.reason, 
+                            originalShift: userObj.allowed_shift || 'all' 
+                        });
+                    }
+                } else {
+                    // ถ้าหาในฐานข้อมูลหลักไม่เจอ แต่เขาลางานไว้ ก็ต้องดึงมาโชว์!
+                    relevantLeaves.push({ 
+                        user_id: leaveId || `unk_${Date.now()}_${Math.random()}`, 
+                        username: l.user_name || 'ไม่ระบุชื่อ', 
+                        reason: l.reason, 
+                        originalShift: 'all' 
+                    });
                 }
             });
         }
         window.currentDutyLeaveData = relevantLeaves;
-        window.renderDutyLeaveBox();
+        if(typeof window.renderDutyLeaveBox === 'function') window.renderDutyLeaveBox();
 
+        // 🌟 2. โหลดตารางงาน
         const saveKey = getDutySaveKey(targetDate, shiftFilter); 
         
         let savedRoster = null;
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', saveKey);
             if (data && data.length > 0) savedRoster = data[0];
-        } catch(e) { console.log(e); }
+        } catch(e) {}
         
         const btnGen = document.getElementById('btnGenerateRoster');
         const grid = document.getElementById('dutyResultGrid');
@@ -249,7 +277,9 @@ window.refreshDutyData = async function() {
             else btnRestore.classList.add('hidden');
         }
 
-        if (typeof currentUser !== 'undefined' && (currentUser.role === 'manager' || currentUser.role === 'admin')) window.updateDutyStats(); 
+        if (typeof currentUser !== 'undefined' && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+            if(typeof window.updateDutyStats === 'function') window.updateDutyStats(); 
+        }
     } catch (err) { console.error("Refresh Duty Data Error:", err); }
 };
 
