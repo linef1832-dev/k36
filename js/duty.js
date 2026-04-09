@@ -1763,37 +1763,6 @@ window.manualAdjustReq = async function(changedTeam) {
     window.updateDutyStats();
 };
 
-    let safeLoopLimit = 1000;
-
-    while (diff > 0 && safeLoopLimit-- > 0) {
-        let maxTeam = null; let maxVal = -1;
-        sortedTeams.forEach(t => {
-            if (t !== changedTeam && reqs[t] > maxVal && reqs[t] > 0) { maxVal = reqs[t]; maxTeam = t; }
-        });
-        if (maxTeam) { reqs[maxTeam]--; diff--; } 
-        else { reqs[changedTeam]--; diff--; }
-    }
-
-    while (diff < 0 && safeLoopLimit-- > 0) {
-        let minTeam = null; let minVal = Infinity;
-        sortedTeams.forEach(t => {
-            if (t !== changedTeam && reqs[t] < minVal) { minVal = reqs[t]; minTeam = t; }
-        });
-        if (minTeam) { reqs[minTeam]++; diff++; } 
-        else { reqs[changedTeam]++; diff++; }
-    }
-
-    const reqsToSave = {};
-    sortedTeams.forEach(team => {
-        const input = document.getElementById(`req_${team}`);
-        if (input) input.value = reqs[team];
-        reqsToSave[`req_${team}`] = reqs[team];
-    });
-    
-    localStorage.setItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
-    window.updateDutyStats();
-};
-
 window.autoSuggestRequirements = async function() {
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const targetDate = document.getElementById('dutyDate').value;
@@ -1862,7 +1831,7 @@ window.autoSuggestRequirements = async function() {
         const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
         Toast.fire({ icon: 'success', title: 'คำนวณยอดคนออโต้สำเร็จ!' });
     }
-}
+};
 
 window.updateDutyStats = async function() {
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
@@ -1909,4 +1878,27 @@ window.updateDutyStats = async function() {
 
     statusBar.className = statusClass;
     statusBar.innerHTML = statusHTML;
+};
+
+if (window.appDB && appDB.from) {
+    const originalDbUpsert = appDB.from('settings').upsert;
+    appDB.from('settings').upsert = async function(payload) {
+        const result = await originalDbUpsert.call(this, payload);
+        try {
+            if (payload && payload[0] && payload[0].key && payload[0].key.startsWith('report_TRAINER_')) {
+                const parts = payload[0].key.split('_');
+                const dateStr = parts[2];
+                const shiftStr = parts[3];
+                
+                await appDB.from('system_logs').insert([{ 
+                    action_type: 'ประเมินงานผู้สอน', 
+                    performed_by: currentUser.username, 
+                    target_details: `ลงข้อมูลประเมินการทำงาน (กะ: ${shiftStr}, วันที่: ${dateStr})` 
+                }]);
+                
+                appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+            }
+        } catch(e) {}
+        return result;
+    };
 }
