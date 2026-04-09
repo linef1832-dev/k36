@@ -1011,12 +1011,13 @@ window.delTransfer = async function(id) {
 window.voiceLogCache = window.voiceLogCache || {};
 
 // ==============================================================
-// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แบบมี Cache เร็วขึ้น 10 เท่า)
+// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แบบดึงรวดเดียว 7 วันเก็บไว้ในเครื่อง)
 // ==============================================================
 window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
     const dateInput = document.getElementById('voiceLogDate');
     let targetDate = dateInput ? dateInput.value : '';
     
+    // 1. ถ้าไม่ได้เลือกวัน ให้ใช้วันนี้
     if (!targetDate) {
         const tzOffset = 7 * 60 * 60 * 1000;
         targetDate = new Date(Date.now() + tzOffset).toISOString().split('T')[0];
@@ -1024,30 +1025,31 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
     }
 
     const tbody = document.getElementById('ds_voiceLogBody');
-    
-    // ถ้าระบบเคยดึงข้อมูลของ "วันนี้" มาแล้ว และไม่ได้ถูกสั่งให้ดึงใหม่ (ปุ่มรีเฟรช) ให้เอาจากตะกร้ามาโชว์เลย
-    if (!forceRefresh && window.voiceLogCache[targetDate]) {
-        window.dsGlobalVoiceLogs = window.voiceLogCache[targetDate];
+
+    // 2. ถ้าระบบเคยดึงข้อมูลใหญ่ (Bulk Data) มาแล้ว และไม่ได้ถูกสั่งบังคับรีเฟรช ให้ Render จากในเครื่องเลย
+    if (!forceRefresh && window.dsGlobalVoiceLogs && window.dsGlobalVoiceLogs.length > 0) {
         ds_renderVoiceLogs();
         return; 
     }
 
-    // ถ้าไม่มีในตะกร้า ค่อยขึ้นโหลดและไปดึงจากฐานข้อมูล
-    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูล...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังโหลดประวัติจากฐานข้อมูล (ดึงทีเดียวหลายวัน)...</td></tr>';
 
     try {
-        const startOfDay = `${targetDate}T00:00:00+07:00`;
-        const endOfDay = `${targetDate}T23:59:59+07:00`;
+        // 🚀 ความลับความเร็ว: ดึงข้อมูลรวดเดียว 7 วันย้อนหลัง
+        // แทนที่จะดึงแค่วันนี้วันเดียว เราดึงเผื่อไว้เลย เวลาคลิกดูย้อนหลังจะได้ไม่ต้องโหลดใหม่
+        const d = new Date(targetDate);
+        d.setDate(d.getDate() - 7); 
+        const sevenDaysAgo = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T00:00:00+07:00`;
 
         const { data, error } = await appDB.from('discord_voice_logs')
-            .select('id, user_name, action_type, room_name, created_at') // ระบุคอลัมน์ให้ชัด ลดภาระข้อมูล
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay)
+            .select('id, user_name, action_type, room_name, created_at')
+            .gte('created_at', sevenDaysAgo) // ดึงตั้งแต่ 7 วันที่แล้วเป็นต้นมา
             .order('created_at', { ascending: false })
-            .limit(1000); // กันพังถ้าข้อมูลเยอะเกินในวันเดียว
+            .limit(5000); // ดึงมาตุนไว้เยอะๆ
 
         if (error) throw error;
 
+        // จัดรูปแบบให้เรียกใช้ง่ายๆ
         window.dsGlobalVoiceLogs = data.map(row => ({
             id: row.id,
             name: row.user_name,
@@ -1056,12 +1058,9 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
             time: row.created_at
         }));
 
-        // ดึงเสร็จ เก็บใส่ตะกร้าไว้ใช้คราวหลัง
-        window.voiceLogCache[targetDate] = window.dsGlobalVoiceLogs;
-
+        // วาดตารางทันที
         ds_renderVoiceLogs();
 
-        // แจ้งเตือนถ้าย้ำปุ่มรีเฟรช
         if (forceRefresh) {
             const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
             Toast.fire({ icon: 'success', title: 'อัปเดตข้อมูลล่าสุดแล้ว' });
@@ -1074,69 +1073,94 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 };
 
 // ==============================================================
-// 🌟 2. ฟังก์ชันวาดตารางและคำนวณมาสาย/หายไป (อัปเดต: เร็วขึ้น 100x + เพิ่มวันที่)
+// 🌟 2. ฟังก์ชันวาดตาราง (Render ทันทีจากข้อมูลที่ตุนไว้)
 // ==============================================================
 window.ds_renderVoiceLogs = function() {
     const term = document.getElementById('searchVoiceLog') ? document.getElementById('searchVoiceLog').value.toLowerCase() : '';
     const lateFilter = document.getElementById('voiceLogLateFilter') ? document.getElementById('voiceLogLateFilter').value : 'ALL';
     const shiftFilter = document.getElementById('voiceLogShiftFilter') ? document.getElementById('voiceLogShiftFilter').value : 'ALL';
+    const dateFilter = document.getElementById('voiceLogDate') ? document.getElementById('voiceLogDate').value : '';
     const tbody = document.getElementById('ds_voiceLogBody');
     
     if (!window.dsGlobalVoiceLogs || window.dsGlobalVoiceLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในวันที่เลือก</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติการใช้งาน</td></tr>';
         return;
     }
 
-    // 🚀 ความลับความเร็ว: สร้าง Cache ไว้จำชื่อพนักงาน ไม่ต้องวนลูปหาใหม่ 2 แสนรอบ!
+    // 1. กรองตามวันที่เลือกในปฏิทิน
+    let filtered = window.dsGlobalVoiceLogs;
+    if (dateFilter) {
+        filtered = filtered.filter(log => {
+            const logDate = new Date(log.time);
+            // ชดเชยเวลาเป็นไทย (UTC+7) เพื่อให้เทียบวันได้เป๊ะๆ
+            const thaiTime = new Date(logDate.getTime() + (7 * 60 * 60 * 1000));
+            const localDateStr = thaiTime.toISOString().split('T')[0];
+            return localDateStr === dateFilter;
+        });
+    }
+
+    // 2. ถ้าในวันนั้นไม่มีข้อมูลเลย ก็แจ้งให้ทราบ
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่ ${dateFilter}</td></tr>`;
+        return;
+    }
+
+    // 3. ระบบ Cache ความจำเรื่องชื่อ (ไม่ต้องไปควานหา 2 แสนรอบ)
     const userMapCache = {};
     const getCachedUser = (dsName) => {
         if(!dsName) return null;
-        if(userMapCache[dsName] !== undefined) return userMapCache[dsName]; // ถ้าเคยหาแล้ว เอามาใช้เลย
-        const user = getDbUserFromDiscordName(dsName); // ถ้าไม่เคยหา ค่อยไปควานหา
+        if(userMapCache[dsName] !== undefined) return userMapCache[dsName]; 
+        const user = getDbUserFromDiscordName(dsName); 
         userMapCache[dsName] = user;
         return user;
     };
 
-    let filtered = window.dsGlobalVoiceLogs.filter(log => (log.name || '').toLowerCase().includes(term));
+    // 4. กรองตามชื่อที่พิมพ์ค้นหา
+    filtered = filtered.filter(log => (log.name || '').toLowerCase().includes(term));
 
+    // 5. กรองตามกะ
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
-            const dbUser = getCachedUser(log.name); // ใช้ตัว Cache แทน
+            const dbUser = getCachedUser(log.name); 
             if (dbUser && dbUser.allowed_shift === shiftFilter) return true;
             if (log.name && log.name.includes(shiftFilter)) return true;
             return false;
         });
     }
 
+    // 6. เรียงจาก "เก่าไปใหม่" ก่อน เพื่อจะได้เอาเวลามาลบกันถูก (คำนวณมาสาย/หายไป)
     filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
 
     let finalHtml = '';
     let userLastLeaveTime = {};
 
+    // 7. วนลูปทีละบรรทัดเพื่อสร้าง HTML
     filtered.forEach((log, index) => {
         const d = new Date(log.time);
         
-        // 🚀 แสดง วันที่ + เวลา ควบคู่กันไปเลย
+        // รูปแบบเวลาสำหรับแสดงผล
         const dayStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
         const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fullDateTimeStr = `${dayStr} ${timeStr}`;
         
         let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
-        const dbUser = getCachedUser(log.name); // ใช้ตัว Cache แทน
+        const dbUser = getCachedUser(log.name); 
 
         if(log.action === 'เข้าห้อง' || log.action === 'เข้าดิสคอร์ด') {
             badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
             
+            // เช็คว่าก่อนหน้านี้มีประวัติออกห้องไว้หรือเปล่า? (เอามาลบกันหาว่าหายไปกี่นาที)
             if (userLastLeaveTime[log.name]) {
                 const leaveTime = userLastLeaveTime[log.name];
                 const diffMins = Math.floor((d.getTime() - leaveTime.getTime()) / 60000);
                 
-                if (diffMins >= 2) {
+                if (diffMins >= 2) { // เน็ตหลุดไม่เกิน 2 นาที รอดตัว
                     lateBadge += `<span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">หายไป ${diffMins} นาที</span>`;
                 }
                 userLastLeaveTime[log.name] = null; 
             }
 
+            // คำนวณมาสายตอนเริ่มกะ
             let targetShift = dbUser ? dbUser.allowed_shift : null;
             if (!targetShift) {
                 if (log.name.includes('กะเช้า')) targetShift = 'กะเช้า';
@@ -1161,6 +1185,7 @@ window.ds_renderVoiceLogs = function() {
                     let expectedTime = new Date(d); 
                     expectedTime.setHours(h, m, 0, 0);
 
+                    // แก้ปัญหากะดึก (ถ้าเข้าห้องตอนตี 1 แปลว่าเป็นกะของเมื่อวาน)
                     if (h >= 18 && d.getHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
@@ -1182,6 +1207,8 @@ window.ds_renderVoiceLogs = function() {
         else if(log.action.includes('ออกดิส') || log.action.includes('ออกห้อง')) {
             badge = '<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-red-500/50 whitespace-nowrap shadow-sm">ออกดิสคอร์ด</span>';
             rowClass = 'bg-red-900/10 hover:bg-red-900/30'; 
+            
+            // จำเวลาออกห้องของคนนี้ไว้
             userLastLeaveTime[log.name] = d;
         }
         else {
@@ -1199,11 +1226,12 @@ window.ds_renderVoiceLogs = function() {
         }
         const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
 
+        // 8. ประกอบ HTML เอาของใหม่ไว้ข้างบนสุด (+ finalHtml)
         const templateEl = document.getElementById('tpl-ds-voice-log-row');
         if (templateEl) {
              finalHtml = window.renderTemplate('tpl-ds-voice-log-row', {
                 rowClass: rowClass,
-                timeStr: fullDateTimeStr, // 🚀 ส่งข้อมูล วันที่+เวลา ลงไปให้
+                timeStr: fullDateTimeStr,
                 name: log.name || 'ไม่ทราบชื่อ',
                 shiftTag: shiftTag,
                 lateBadge: lateBadge,
@@ -1222,79 +1250,8 @@ window.ds_renderVoiceLogs = function() {
         }
     });
 
-    if (finalHtml === '') {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในเงื่อนไขนี้</td></tr>';
-    } else {
-        tbody.innerHTML = finalHtml;
-    }
+    tbody.innerHTML = finalHtml;
 };
-
-window.ds_fetchActionLogs = async function() {
-    try {
-        document.getElementById('ds_actionLogBody').innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500"><span class="material-icons animate-spin">sync</span></td></tr>';
-        const res = await fetch(DISCORD_API_URL + '/api/action-logs');
-        if(res.ok) {
-            let data = await res.json();
-            window.dsGlobalActionLogs = data; 
-            ds_renderActionLogs();
-        }
-    } catch(e) {}
-};
-
-window.ds_renderActionLogs = function() {
-    const term = document.getElementById('actionLogSearch') ? document.getElementById('actionLogSearch').value.toLowerCase() : '';
-    const dateFilter = document.getElementById('actionLogDate') ? document.getElementById('actionLogDate').value : '';
-    const tbody = document.getElementById('ds_actionLogBody');
-    
-    if (!window.dsGlobalActionLogs || window.dsGlobalActionLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบประวัติการใช้งาน</td></tr>';
-        return;
-    }
-
-    let filtered = window.dsGlobalActionLogs.filter(log => 
-        log.user.toLowerCase().includes(term) || 
-        log.action.toLowerCase().includes(term) || 
-        log.detail.toLowerCase().includes(term)
-    );
-
-    if (dateFilter) {
-        filtered = filtered.filter(log => {
-            const d = new Date(log.time);
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${day}` === dateFilter;
-        });
-    }
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบข้อมูลในเงื่อนไขที่ค้นหา</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = filtered.map(log => {
-        const d = new Date(log.time);
-        const timeStr = d.toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-        return window.renderTemplate('tpl-ds-action-log-row', {
-            timeStr: timeStr,
-            user: log.user,
-            action: log.action,
-            detail: log.detail
-        });
-    }).join('');
-};
-
-window.ds_logAction = async function(actionName, detailStr) {
-    try {
-        const userName = (typeof currentUser !== 'undefined' && currentUser.username) ? currentUser.username : 'Unknown Admin';
-        await fetch(DISCORD_API_URL + '/api/action-logs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user: userName, action: actionName, detail: detailStr })
-        });
-    } catch(e) {}
-};
-
 // ==========================================
 // 🟢 อัปเดต Dropdown และ ระบบจัดการฐานข้อมูลดิสคอร์ด (Manage)
 // ==========================================
