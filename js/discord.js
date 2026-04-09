@@ -1005,48 +1005,83 @@ window.delTransfer = async function(id) {
     fetchTransfers();
 };
 
+// ==============================================================
+// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้องจากฐานข้อมูล (Supabase)
+// ==============================================================
 window.ds_fetchVoiceLogs = async function() {
+    const dateInput = document.getElementById('voiceLogDate');
+    let targetDate = dateInput ? dateInput.value : '';
+    
+    // ถ้ายังไม่ได้เลือกวัน ให้ใช้วันนี้เป็นค่าเริ่มต้น
+    if (!targetDate) {
+        const tzOffset = 7 * 60 * 60 * 1000;
+        targetDate = new Date(Date.now() + tzOffset).toISOString().split('T')[0];
+        if (dateInput) dateInput.value = targetDate;
+    }
+
+    const tbody = document.getElementById('ds_voiceLogBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังโหลดประวัติจากฐานข้อมูล...</td></tr>';
+
     try {
-        const res = await fetch(DISCORD_API_URL + '/api/voice-logs');
-        if(res.ok) {
-            dsGlobalVoiceLogs = await res.json();
-            ds_renderVoiceLogs();
-        }
-    } catch(e) { }
+        // กำหนดช่วงเวลา (ตั้งแต่ 00:00:00 ถึง 23:59:59 ของวันที่เลือก)
+        const startOfDay = `${targetDate}T00:00:00+07:00`;
+        const endOfDay = `${targetDate}T23:59:59+07:00`;
+
+        // 🌟 ดึงข้อมูลจากตาราง discord_voice_logs โดยตรง
+        const { data, error } = await appDB.from('discord_voice_logs')
+            .select('*')
+            .gte('created_at', startOfDay)
+            .lte('created_at', endOfDay)
+            .order('created_at', { ascending: false }); // ดึงแบบ ใหม่ไปเก่า ไว้ก่อน
+            // ถ้าข้อมูลเยอะมากอาจจะใส่ .limit(1000) ต่อท้ายได้ครับ
+
+        if (error) throw error;
+
+        // แปลงโครงสร้างข้อมูลให้ตรงกับที่ render ใช้งาน
+        window.dsGlobalVoiceLogs = data.map(row => ({
+            id: row.id,
+            name: row.user_name,
+            action: row.action_type,
+            room: row.room_name,
+            time: row.created_at
+        }));
+
+        ds_renderVoiceLogs();
+
+    } catch (e) {
+        console.error("Fetch Voice Logs Error:", e);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">ไม่สามารถดึงข้อมูลประวัติได้</td></tr>`;
+    }
 };
 
+// ==============================================================
+// 🌟 2. ฟังก์ชันวาดตารางและคำนวณมาสาย/หายไป
+// ==============================================================
 window.ds_renderVoiceLogs = function() {
-    const term = document.getElementById('searchVoiceLog').value.toLowerCase();
-    const dateFilter = document.getElementById('voiceLogDate').value;
-    const lateFilter = document.getElementById('voiceLogLateFilter').value;
+    const term = document.getElementById('searchVoiceLog') ? document.getElementById('searchVoiceLog').value.toLowerCase() : '';
+    const lateFilter = document.getElementById('voiceLogLateFilter') ? document.getElementById('voiceLogLateFilter').value : 'ALL';
     const shiftFilter = document.getElementById('voiceLogShiftFilter') ? document.getElementById('voiceLogShiftFilter').value : 'ALL';
     const tbody = document.getElementById('ds_voiceLogBody');
     
-    // 1. กรองตามชื่อ
-    let filtered = dsGlobalVoiceLogs.filter(log => log.name.toLowerCase().includes(term));
-    
-    // 2. กรองตามวันที่ (แก้ใหม่ ให้เช็คแบบยืดหยุ่นขึ้น)
-    if (dateFilter) {
-        filtered = filtered.filter(log => {
-            const logDate = new Date(log.time);
-            // แปลงให้อยู่ใน Timezone ไทย (UTC+7)
-            const thaiTime = new Date(logDate.getTime() + (7 * 60 * 60 * 1000));
-            const localDateStr = thaiTime.toISOString().split('T')[0];
-            return localDateStr === dateFilter;
-        });
+    if (!window.dsGlobalVoiceLogs || window.dsGlobalVoiceLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในวันที่เลือก</td></tr>';
+        return;
     }
 
-    // 3. กรองตามกะ
+    // 1. กรองตามชื่อ
+    let filtered = window.dsGlobalVoiceLogs.filter(log => (log.name || '').toLowerCase().includes(term));
+
+    // 2. กรองตามกะ
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
             const dbUser = getDbUserFromDiscordName(log.name);
             if (dbUser && dbUser.allowed_shift === shiftFilter) return true;
-            if (log.name.includes(shiftFilter)) return true;
+            if (log.name && log.name.includes(shiftFilter)) return true;
             return false;
         });
     }
 
-    // เรียงจาก "เก่าไปใหม่" ก่อน เพื่อให้คำนวณเวลาเข้า-ออกได้ง่าย
+    // 🌟 เรียงข้อมูลจาก "เก่า ไป ใหม่" ก่อน เพื่อให้การคำนวณเวลาเข้า-ออกทำงานได้ถูกต้อง
     filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
 
     let finalHtml = '';
@@ -1054,7 +1089,6 @@ window.ds_renderVoiceLogs = function() {
     // 🌟 ตัวแปรช่วยจำเวลาที่แต่ละคน "ออกห้อง" เพื่อเอาไปคำนวณตอนกลับเข้ามาใหม่
     let userLastLeaveTime = {};
 
-    // 🌟 วนลูปสร้างตาราง (และคำนวณ)
     filtered.forEach((log, index) => {
         const d = new Date(log.time);
         const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -1065,20 +1099,18 @@ window.ds_renderVoiceLogs = function() {
         if(log.action === 'เข้าห้อง' || log.action === 'เข้าดิสคอร์ด') {
             badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
             
-            // 🌟 1. คำนวณว่า "หายไปกี่นาที" (ถ้ามีประวัติออกห้องก่อนหน้านี้)
+            // 🌟 1. คำนวณว่า "หายไปกี่นาที"
             if (userLastLeaveTime[log.name]) {
                 const leaveTime = userLastLeaveTime[log.name];
                 const diffMins = Math.floor((d.getTime() - leaveTime.getTime()) / 60000);
                 
-                // ถ้าหายไปมากกว่า 2 นาที ค่อยแจ้งเตือน (กันกรณีเน็ตหลุดแล้วเข้าใหม่ทันที)
                 if (diffMins >= 2) {
                     lateBadge += `<span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">หายไป ${diffMins} นาที</span>`;
                 }
-                // เคลียร์ค่าทิ้ง หลังจากคำนวณเสร็จ
                 userLastLeaveTime[log.name] = null; 
             }
 
-            // 🌟 2. คำนวณมาสาย (ตอนเริ่มกะ)
+            // 🌟 2. คำนวณมาสาย
             let targetShift = dbUser ? dbUser.allowed_shift : null;
             if (!targetShift) {
                 if (log.name.includes('กะเช้า')) targetShift = 'กะเช้า';
@@ -1089,6 +1121,7 @@ window.ds_renderVoiceLogs = function() {
             if (targetShift && targetShift !== 'all') {
                 const shiftPrefix = targetShift.replace('กะ', '');
                 let expectedStart = null; 
+                
                 if (typeof SETTINGS !== 'undefined' && SETTINGS['open_time_' + shiftPrefix]) {
                     expectedStart = SETTINGS['open_time_' + shiftPrefix];
                 } else {
@@ -1102,18 +1135,16 @@ window.ds_renderVoiceLogs = function() {
                     let expectedTime = new Date(d); 
                     expectedTime.setHours(h, m, 0, 0);
 
+                    // แก้ปัญหากะดึกข้ามวัน
                     if (h >= 18 && d.getHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
 
-                    // ถ้าเพิ่งเข้าครั้งแรกของวัน และสายเกิน 1 นาที
                     if (d > expectedTime && (d.getTime() - expectedTime.getTime()) > 60000) {
                         const diffMins = Math.floor((d.getTime() - expectedTime.getTime()) / 60000);
                         
-                        // ป้องกันกรณีเข้าห้องข้ามวันไปแล้ว (สายเป็นพันนาที)
                         if (diffMins <= 720) { 
-                            // เช็คว่าเป็น Log "เข้าห้องครั้งแรก" ของกะนี้หรือเปล่า 
-                            // ถ้าใช่ ค่อยติดป้ายมาสาย (เพื่อไม่ให้มันขึ้นมาสายซ้อนกับป้าย "หายไป x นาที")
+                            // ตรวจสอบว่านี่คือการ "เข้าห้องครั้งแรก" ของวันนั้นหรือไม่
                             const isFirstEntry = filtered.findIndex(l => l.name === log.name && (l.action === 'เข้าห้อง' || l.action === 'เข้าดิสคอร์ด')) === index;
                             if (isFirstEntry) {
                                 lateBadge += `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
@@ -1128,13 +1159,14 @@ window.ds_renderVoiceLogs = function() {
             badge = '<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-red-500/50 whitespace-nowrap shadow-sm">ออกดิสคอร์ด</span>';
             rowClass = 'bg-red-900/10 hover:bg-red-900/30'; 
             
-            // 🌟 จำเวลาที่คนนี้ออกห้องเอาไว้
+            // จำเวลาที่คนนี้ออกห้องเอาไว้
             userLastLeaveTime[log.name] = d;
         }
         else {
             badge = '<span class="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-blue-500/50 whitespace-nowrap shadow-sm">ย้ายไป</span>';
         }
 
+        // กรองสถานะ
         if (lateFilter === 'late' && !isLate) return; 
         if (lateFilter === 'leave' && !log.action.includes('ออกดิส') && !log.action.includes('ออกห้อง')) return;
 
@@ -1148,23 +1180,23 @@ window.ds_renderVoiceLogs = function() {
 
         const templateEl = document.getElementById('tpl-ds-voice-log-row');
         if (templateEl) {
-             // เราต้องเอา Log ไปแทรกไว้ "ข้างบนสุด" เพราะตอนแรกเราเรียงจากเก่าไปใหม่ เพื่อให้คำนวณเวลาได้
+             // แทรก Log ไว้ข้างบนสุด (ใหม่ไปเก่า)
              finalHtml = window.renderTemplate('tpl-ds-voice-log-row', {
                 rowClass: rowClass,
                 timeStr: timeStr,
-                name: log.name,
+                name: log.name || 'ไม่ทราบชื่อ',
                 shiftTag: shiftTag,
                 lateBadge: lateBadge,
                 badge: badge,
-                room: log.room
+                room: log.room || '-'
             }) + finalHtml; 
         } else {
              finalHtml = `
                 <tr class="${rowClass} transition border-b border-slate-700/50">
                     <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${timeStr}</td>
-                    <td class="p-3 font-bold text-white flex items-center">${log.name} ${shiftTag} ${lateBadge}</td>
+                    <td class="p-3 font-bold text-white flex items-center">${log.name || 'ไม่ทราบชื่อ'} ${shiftTag} ${lateBadge}</td>
                     <td class="p-3 whitespace-nowrap">${badge}</td>
-                    <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">${log.room}</td>
+                    <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">${log.room || '-'}</td>
                 </tr>
             ` + finalHtml;
         }
