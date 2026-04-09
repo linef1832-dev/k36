@@ -493,8 +493,13 @@ window.generateDutyRoster = async function() {
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff');
-        const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
+        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff' || !u.role || u.role === '');
+        
+        // 🌟 แก้ระบบเช็คกะให้ฉลาดขึ้น (ตัดคำว่า 'กะ' ออกแล้วเทียบ)
+        const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
+        const searchShift = shiftFilter.toLowerCase().replace('กะ', '').trim();
+        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift === 'อิสระ');
+
         return hasValidRole && isCorrectDept && isShiftMatch && !targetDateLeaves.has(String(u.id));
     });
     
@@ -1720,8 +1725,12 @@ window.manualAdjustReq = async function(changedTeam) {
     
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff');
-        const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all'); 
+        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff' || !u.role || u.role === '');
+        
+        const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
+        const searchShift = shiftFilter.toLowerCase().replace('กะ', '').trim();
+        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift === 'อิสระ');
+
         return hasValidRole && isCorrectDept && isShiftMatch && !targetDateLeaves.has(String(u.id));
     });
     
@@ -1853,22 +1862,14 @@ window.autoSuggestRequirements = async function() {
     }
 };
 
-window.updateDutyStats = async function() {
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    const targetDate = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : new Date().toISOString().split('T')[0];
-    const statusBar = document.getElementById('dutyStatusBar');
-    if(!statusBar) return;
-
-    let targetDateLeaves = new Set();
-    try {
-        const { data: leaveData } = await appDB.from('leave_requests').select('user_id').eq('leave_date', targetDate);
-        if (leaveData) leaveData.forEach(l => targetDateLeaves.add(String(l.user_id)));
-    } catch(e) {}
-
-    const activeStaff = GLOBAL_USER_LIST.filter(u => {
+const activeStaff = GLOBAL_USER_LIST.filter(u => {
         const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff');
-        const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
+        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff' || !u.role || u.role === '');
+        
+        const dbShift = String(u.allowed_shift || '').toLowerCase().replace('กะ', '').trim();
+        const searchShift = shiftFilter.toLowerCase().replace('กะ', '').trim();
+        const isShiftMatch = (dbShift === searchShift || dbShift === 'all' || dbShift === 'อิสระ');
+
         return hasValidRole && isCorrectDept && isShiftMatch && !targetDateLeaves.has(String(u.id));
     });
     
