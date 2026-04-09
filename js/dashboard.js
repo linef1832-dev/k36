@@ -233,8 +233,9 @@ window.openAdminPanel = async function() {
 window.switchAdminTab = function(tab) {
     const tabs = ['settings', 'users', 'perms', 'info'];
     
-    // 1. จัดการปุ่มเมนูด้านบน (เปลี่ยนสี)
+    // เอาตัวหน่วงเวลา (requestAnimationFrame) ออก เพื่อให้สลับหน้าต่างทันทีที่กด!
     tabs.forEach(t => {
+        // 1. จัดการปุ่มเมนูด้านบน (เปลี่ยนสี)
         const btn = document.getElementById('btnAdminTab_' + t);
         if (btn) {
             if (t === tab) {
@@ -243,22 +244,18 @@ window.switchAdminTab = function(tab) {
                 btn.className = 'whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent';
             }
         }
-    });
 
-    // 2. จัดการการแสดงผลของเนื้อหา (ใช้ requestAnimationFrame เพื่อไม่ให้ขวาง UI Thread)
-    requestAnimationFrame(() => {
-        tabs.forEach(t => {
-            const view = document.getElementById('adminView_' + t);
-            if (view) {
-                if (t === tab) {
-                    view.classList.remove('hidden');
-                    view.classList.add('flex');
-                } else {
-                    view.classList.add('hidden');
-                    view.classList.remove('flex');
-                }
+        // 2. จัดการหน้าต่างเนื้อหา (เปิด/ปิด)
+        const view = document.getElementById('adminView_' + t);
+        if (view) {
+            if (t === tab) {
+                view.classList.remove('hidden');
+                view.classList.add('flex');
+            } else {
+                view.classList.add('hidden');
+                view.classList.remove('flex');
             }
-        });
+        }
     });
 };
 
