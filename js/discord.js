@@ -1056,9 +1056,9 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
     let targetDate = dateInput ? dateInput.value : '';
     
     if (!targetDate) {
-        // ดึงวันที่ปัจจุบันแบบ Local (เวลาไทย) ให้ตรงกับ Calendar
         const today = new Date();
-        targetDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const tzOffset = today.getTimezoneOffset() * 60000;
+        targetDate = new Date(today.getTime() - tzOffset).toISOString().split('T')[0];
         if (dateInput) dateInput.value = targetDate;
     }
 
@@ -1066,41 +1066,41 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 
     if (forceRefresh instanceof Event) forceRefresh = true;
 
-    // เช็ค Cache ก่อน ว่าเคยโหลดของวันนี้หรือยัง?
+    // เช็คว่ามีข้อมูลเดิมในเครื่องอยู่หรือยัง 
+    // ถ้ามีและไม่ได้กดปุ่มรีเฟรช ให้วาดตารางใหม่เลย
     if (!forceRefresh && window.dsGlobalVoiceLogs && window.dsGlobalVoiceLogs.length > 0) {
-        const hasDataForTargetDate = window.dsGlobalVoiceLogs.some(log => {
-            // 🌟 แก้ไข: ไม่ต้องบวก +7 แล้ว เบราว์เซอร์จัดการให้เอง
-            const logDate = new Date(log.time);
-            const localDateStr = new Date(logDate.getTime() - (logDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            return localDateStr === targetDate;
-        });
-
-        if (hasDataForTargetDate) {
-            ds_renderVoiceLogs();
-            return; 
-        }
+        ds_renderVoiceLogs();
+        return; 
     }
 
-    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลประวัติย้อนหลัง...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลประวัติทั้งหมด...</td></tr>';
 
     try {
-        // 🌟 แก้ไข: เราจะใช้วิธีดึงแบบ LIMIT 3000 ล่าสุดเหมือนเดิม 
-        // เพราะ Supabase จัดการเรื่อง Date Filter แบบ Local <-> UTC ค่อนข้างยุ่งยาก
-        // การดึงก้อนใหญ่มาให้ JS จัดการ (Render) จะชัวร์ที่สุดครับ
+        // 🚀 แก้ปัญหาขั้นเด็ดขาด: ดึงมาทั้งหมด 5000 แถวไปเลย โดยไม่ใช้ Date Filter ในการดึงจาก Supabase
         const { data, error } = await appDB.from('discord_voice_logs')
             .select('id, user_name, action_type, room_name, created_at')
             .order('created_at', { ascending: false })
-            .limit(3000); 
+            .limit(5000); 
 
         if (error) throw error;
 
-        window.dsGlobalVoiceLogs = data.map(row => ({
-            id: row.id,
-            name: row.user_name,
-            action: row.action_type,
-            room: row.room_name,
-            time: row.created_at
-        }));
+        // ดึงมาแล้วแปลงเวลาให้อยู่ใน Timezone ของผู้ใช้ (Local Time) ตั้งแต่ตอนนี้เลย
+        window.dsGlobalVoiceLogs = data.map(row => {
+            const rawDate = new Date(row.created_at);
+            // แปลงให้อยู่ในโซนเวลาของไทย (UTC+7) เผื่อบางเบราว์เซอร์จัดการเวลาเพี้ยน
+            const localDate = new Date(rawDate.getTime() + (7 * 60 * 60 * 1000));
+            // หาวันที่ (YYYY-MM-DD) ที่แท้จริงของเวลานี้
+            const localDateString = localDate.toISOString().split('T')[0];
+            
+            return {
+                id: row.id,
+                name: row.user_name,
+                action: row.action_type,
+                room: row.room_name,
+                time: row.created_at,       // เวลาต้นฉบับ
+                localDate: localDateString // เวลาแบบ YYYY-MM-DD
+            };
+        });
 
         ds_renderVoiceLogs();
 
@@ -1130,14 +1130,10 @@ window.ds_renderVoiceLogs = function() {
         return;
     }
 
-    // 1. 🌟 แก้ไข: กรองตามวันที่ (ใช้ getTimezoneOffset เพื่อดึงวันที่ตามเวลาเครื่องของผู้ใช้เป๊ะๆ)
+    // 1. 🌟 แก้ไข: กรองตามวันที่ ที่เราคำนวณแบบ LocalTime ไว้ตั้งแต่ตอนดึงข้อมูลแล้ว!
     let filtered = window.dsGlobalVoiceLogs;
     if (dateFilter) {
-        filtered = filtered.filter(log => {
-            const logDate = new Date(log.time);
-            const localDateStr = new Date(logDate.getTime() - (logDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            return localDateStr === dateFilter;
-        });
+        filtered = filtered.filter(log => log.localDate === dateFilter);
     }
 
     if (filtered.length === 0) {
@@ -1166,7 +1162,7 @@ window.ds_renderVoiceLogs = function() {
         });
     }
 
-    // เรียงจากเก่าไปใหม่ 
+    // เรียงจากเก่าไปใหม่ เพื่อให้การคำนวณมาสายและหายไป x นาทีทำได้ถูกต้อง
     filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
 
     let htmlArray = []; 
@@ -1219,6 +1215,7 @@ window.ds_renderVoiceLogs = function() {
                     let expectedTime = new Date(d); 
                     expectedTime.setHours(h, m, 0, 0);
 
+                    // ถ้าเป็นกะดึก และ log.time เข้ามาตอนเช้า (เลยเที่ยงคืนไปแล้ว) แปลว่ากะของเขาคือ "เมื่อวาน"
                     if (h >= 18 && d.getHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
@@ -1280,11 +1277,14 @@ window.ds_renderVoiceLogs = function() {
             `;
         }
         
-        // ยัดข้อมูลใหม่ไว้บรรทัดบนสุด
         htmlArray.unshift(rowHtml);
     });
 
-    tbody.innerHTML = htmlArray.join('');
+    if (htmlArray.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่ ${dateFilter}</td></tr>`;
+    } else {
+        tbody.innerHTML = htmlArray.join('');
+    }
 };
 // ==========================================
 // 🟢 อัปเดต Dropdown และ ระบบจัดการฐานข้อมูลดิสคอร์ด (Manage)
