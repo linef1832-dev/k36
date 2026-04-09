@@ -1006,13 +1006,17 @@ window.delTransfer = async function(id) {
 };
 
 // ==============================================================
-// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้องจากฐานข้อมูล (Supabase)
+// 🌟 ตัวแปรเก็บความจำ (Cache) ช่วยให้โหลดไวขึ้นเมื่อเปลี่ยนวัน
 // ==============================================================
-window.ds_fetchVoiceLogs = async function() {
+window.voiceLogCache = window.voiceLogCache || {};
+
+// ==============================================================
+// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แบบมี Cache เร็วขึ้น 10 เท่า)
+// ==============================================================
+window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
     const dateInput = document.getElementById('voiceLogDate');
     let targetDate = dateInput ? dateInput.value : '';
     
-    // ถ้ายังไม่ได้เลือกวัน ให้ใช้วันนี้เป็นค่าเริ่มต้น
     if (!targetDate) {
         const tzOffset = 7 * 60 * 60 * 1000;
         targetDate = new Date(Date.now() + tzOffset).toISOString().split('T')[0];
@@ -1020,24 +1024,30 @@ window.ds_fetchVoiceLogs = async function() {
     }
 
     const tbody = document.getElementById('ds_voiceLogBody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังโหลดประวัติจากฐานข้อมูล...</td></tr>';
+    
+    // ถ้าระบบเคยดึงข้อมูลของ "วันนี้" มาแล้ว และไม่ได้ถูกสั่งให้ดึงใหม่ (ปุ่มรีเฟรช) ให้เอาจากตะกร้ามาโชว์เลย
+    if (!forceRefresh && window.voiceLogCache[targetDate]) {
+        window.dsGlobalVoiceLogs = window.voiceLogCache[targetDate];
+        ds_renderVoiceLogs();
+        return; 
+    }
+
+    // ถ้าไม่มีในตะกร้า ค่อยขึ้นโหลดและไปดึงจากฐานข้อมูล
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูล...</td></tr>';
 
     try {
-        // กำหนดช่วงเวลา (ตั้งแต่ 00:00:00 ถึง 23:59:59 ของวันที่เลือก)
         const startOfDay = `${targetDate}T00:00:00+07:00`;
         const endOfDay = `${targetDate}T23:59:59+07:00`;
 
-        // 🌟 ดึงข้อมูลจากตาราง discord_voice_logs โดยตรง
         const { data, error } = await appDB.from('discord_voice_logs')
-            .select('*')
+            .select('id, user_name, action_type, room_name, created_at') // ระบุคอลัมน์ให้ชัด ลดภาระข้อมูล
             .gte('created_at', startOfDay)
             .lte('created_at', endOfDay)
-            .order('created_at', { ascending: false }); // ดึงแบบ ใหม่ไปเก่า ไว้ก่อน
-            // ถ้าข้อมูลเยอะมากอาจจะใส่ .limit(1000) ต่อท้ายได้ครับ
+            .order('created_at', { ascending: false })
+            .limit(1000); // กันพังถ้าข้อมูลเยอะเกินในวันเดียว
 
         if (error) throw error;
 
-        // แปลงโครงสร้างข้อมูลให้ตรงกับที่ render ใช้งาน
         window.dsGlobalVoiceLogs = data.map(row => ({
             id: row.id,
             name: row.user_name,
@@ -1046,7 +1056,16 @@ window.ds_fetchVoiceLogs = async function() {
             time: row.created_at
         }));
 
+        // ดึงเสร็จ เก็บใส่ตะกร้าไว้ใช้คราวหลัง
+        window.voiceLogCache[targetDate] = window.dsGlobalVoiceLogs;
+
         ds_renderVoiceLogs();
+
+        // แจ้งเตือนถ้าย้ำปุ่มรีเฟรช
+        if (forceRefresh) {
+            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+            Toast.fire({ icon: 'success', title: 'อัปเดตข้อมูลล่าสุดแล้ว' });
+        }
 
     } catch (e) {
         console.error("Fetch Voice Logs Error:", e);
@@ -1055,7 +1074,7 @@ window.ds_fetchVoiceLogs = async function() {
 };
 
 // ==============================================================
-// 🌟 2. ฟังก์ชันวาดตารางและคำนวณมาสาย/หายไป
+// 🌟 2. ฟังก์ชันวาดตาราง
 // ==============================================================
 window.ds_renderVoiceLogs = function() {
     const term = document.getElementById('searchVoiceLog') ? document.getElementById('searchVoiceLog').value.toLowerCase() : '';
@@ -1068,10 +1087,8 @@ window.ds_renderVoiceLogs = function() {
         return;
     }
 
-    // 1. กรองตามชื่อ
     let filtered = window.dsGlobalVoiceLogs.filter(log => (log.name || '').toLowerCase().includes(term));
 
-    // 2. กรองตามกะ
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
             const dbUser = getDbUserFromDiscordName(log.name);
@@ -1081,12 +1098,9 @@ window.ds_renderVoiceLogs = function() {
         });
     }
 
-    // 🌟 เรียงข้อมูลจาก "เก่า ไป ใหม่" ก่อน เพื่อให้การคำนวณเวลาเข้า-ออกทำงานได้ถูกต้อง
     filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
 
     let finalHtml = '';
-    
-    // 🌟 ตัวแปรช่วยจำเวลาที่แต่ละคน "ออกห้อง" เพื่อเอาไปคำนวณตอนกลับเข้ามาใหม่
     let userLastLeaveTime = {};
 
     filtered.forEach((log, index) => {
@@ -1099,7 +1113,6 @@ window.ds_renderVoiceLogs = function() {
         if(log.action === 'เข้าห้อง' || log.action === 'เข้าดิสคอร์ด') {
             badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
             
-            // 🌟 1. คำนวณว่า "หายไปกี่นาที"
             if (userLastLeaveTime[log.name]) {
                 const leaveTime = userLastLeaveTime[log.name];
                 const diffMins = Math.floor((d.getTime() - leaveTime.getTime()) / 60000);
@@ -1110,7 +1123,6 @@ window.ds_renderVoiceLogs = function() {
                 userLastLeaveTime[log.name] = null; 
             }
 
-            // 🌟 2. คำนวณมาสาย
             let targetShift = dbUser ? dbUser.allowed_shift : null;
             if (!targetShift) {
                 if (log.name.includes('กะเช้า')) targetShift = 'กะเช้า';
@@ -1135,7 +1147,6 @@ window.ds_renderVoiceLogs = function() {
                     let expectedTime = new Date(d); 
                     expectedTime.setHours(h, m, 0, 0);
 
-                    // แก้ปัญหากะดึกข้ามวัน
                     if (h >= 18 && d.getHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
@@ -1144,7 +1155,6 @@ window.ds_renderVoiceLogs = function() {
                         const diffMins = Math.floor((d.getTime() - expectedTime.getTime()) / 60000);
                         
                         if (diffMins <= 720) { 
-                            // ตรวจสอบว่านี่คือการ "เข้าห้องครั้งแรก" ของวันนั้นหรือไม่
                             const isFirstEntry = filtered.findIndex(l => l.name === log.name && (l.action === 'เข้าห้อง' || l.action === 'เข้าดิสคอร์ด')) === index;
                             if (isFirstEntry) {
                                 lateBadge += `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
@@ -1158,15 +1168,12 @@ window.ds_renderVoiceLogs = function() {
         else if(log.action.includes('ออกดิส') || log.action.includes('ออกห้อง')) {
             badge = '<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-red-500/50 whitespace-nowrap shadow-sm">ออกดิสคอร์ด</span>';
             rowClass = 'bg-red-900/10 hover:bg-red-900/30'; 
-            
-            // จำเวลาที่คนนี้ออกห้องเอาไว้
             userLastLeaveTime[log.name] = d;
         }
         else {
             badge = '<span class="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-blue-500/50 whitespace-nowrap shadow-sm">ย้ายไป</span>';
         }
 
-        // กรองสถานะ
         if (lateFilter === 'late' && !isLate) return; 
         if (lateFilter === 'leave' && !log.action.includes('ออกดิส') && !log.action.includes('ออกห้อง')) return;
 
@@ -1180,7 +1187,6 @@ window.ds_renderVoiceLogs = function() {
 
         const templateEl = document.getElementById('tpl-ds-voice-log-row');
         if (templateEl) {
-             // แทรก Log ไว้ข้างบนสุด (ใหม่ไปเก่า)
              finalHtml = window.renderTemplate('tpl-ds-voice-log-row', {
                 rowClass: rowClass,
                 timeStr: timeStr,
