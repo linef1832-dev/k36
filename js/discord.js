@@ -1006,14 +1006,14 @@ window.delTransfer = async function(id) {
 };
 
 // ==============================================================
-// 🌟 ระบบ Realtime ดักจับการเข้า-ออกดิสคอร์ดแบบสดๆ (ไม่ต้องรีเฟรช)
+// 🌟 ระบบ Realtime ดักจับการเข้า-ออกดิสคอร์ดแบบสดๆ 
 // ==============================================================
 let dsVoiceLogSubscription = null;
+
 window.ds_subscribeVoiceLogs = function() {
-    if (dsVoiceLogSubscription) return; // ถ้าเปิดฟังอยู่แล้ว ไม่ต้องเปิดซ้ำ
+    if (dsVoiceLogSubscription) return; 
     if (typeof appDB === 'undefined') return;
 
-    // สั่งให้หน้าเว็บดักฟังตาราง discord_voice_logs ตลอดเวลา
     dsVoiceLogSubscription = appDB.channel('realtime-voice-logs')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'discord_voice_logs' }, payload => {
             const newLog = {
@@ -1026,24 +1026,31 @@ window.ds_subscribeVoiceLogs = function() {
 
             if (!window.dsGlobalVoiceLogs) window.dsGlobalVoiceLogs = [];
             
-            // 🚀 มีข้อมูลใหม่เข้ามาปุ๊บ ยัดใส่ความจำเครื่องทันที
+            // 🚀 แทรกข้อมูลใหม่ไว้บนสุด
             window.dsGlobalVoiceLogs.unshift(newLog); 
 
-            // สั่งอัปเดตตารางเฉพาะตอนที่เปิดหน้าประวัติอยู่
+            // สั่งอัปเดตตารางเฉพาะตอนที่ดูของ "วันนี้"
             const contentBox = document.getElementById('dsContent_voicelog');
+            const dateInput = document.getElementById('voiceLogDate');
+            
+            // เช็คว่ากำลังเปิดหน้าประวัติอยู่ และไม่ได้ดูย้อนหลัง
             if (contentBox && !contentBox.classList.contains('hidden')) {
-                ds_renderVoiceLogs();
+                const tzOffset = 7 * 60 * 60 * 1000;
+                const todayStr = new Date(Date.now() + tzOffset).toISOString().split('T')[0];
+                
+                if (!dateInput || dateInput.value === todayStr) {
+                    ds_renderVoiceLogs();
+                }
             }
         })
         .subscribe();
 };
 
 // ==============================================================
-// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (ดึงรวดเดียว + เปิด Realtime)
+// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง 
 // ==============================================================
 window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
-    // เปิดระบบ Realtime ทันทีที่เข้าหน้านี้
-    ds_subscribeVoiceLogs();
+    ds_subscribeVoiceLogs(); // เปิด Realtime เสมอเมื่อเข้าหน้านี้
 
     const dateInput = document.getElementById('voiceLogDate');
     let targetDate = dateInput ? dateInput.value : '';
@@ -1056,26 +1063,33 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 
     const tbody = document.getElementById('ds_voiceLogBody');
 
-    // ตรวจสอบถ้าปุ่มถูกกด จะส่ง event มา ให้ตีความว่าเป็นการบังคับรีเฟรช
     if (forceRefresh instanceof Event) forceRefresh = true;
 
-    // ถ้าระบบจำข้อมูลไว้แล้ว และไม่ได้กดบังคับรีเฟรช ให้วาดตารางเลย ไม่ต้องรอโหลด
+    // 🚀 [แก้ปัญหาดูย้อนหลัง]: ถ้ามีข้อมูลอยู่ในเครื่องแล้ว และไม่ได้กดรีเฟรช ให้เช็คก่อนว่ามีข้อมูลของ "วันที่เลือก" ไหม?
     if (!forceRefresh && window.dsGlobalVoiceLogs && window.dsGlobalVoiceLogs.length > 0) {
-        ds_renderVoiceLogs();
-        return; 
+        // เช็คคร่าวๆ ว่ามีข้อมูลของวันที่ targetDate หรือเปล่า
+        const hasDataForTargetDate = window.dsGlobalVoiceLogs.some(log => {
+            const logDate = new Date(log.time);
+            const thaiTime = new Date(logDate.getTime() + (7 * 60 * 60 * 1000));
+            return thaiTime.toISOString().split('T')[0] === targetDate;
+        });
+
+        // ถ้ามีข้อมูลของวันนั้นใน Cache แล้ว ให้ Render เลย
+        if (hasDataForTargetDate) {
+            ds_renderVoiceLogs();
+            return; 
+        }
     }
 
     if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลประวัติย้อนหลัง...</td></tr>';
 
     try {
-        // ดึงเผื่อไว้ 3 วันย้อนหลัง (ไม่ดึงเยอะเกินไปจนเว็บค้าง)
-        const d = new Date(targetDate);
-        d.setDate(d.getDate() - 3); 
-        const threeDaysAgo = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T00:00:00+07:00`;
-
+        // 🚀 [แก้ปัญหา Timezone]: ใช้การดึงแบบ Like (ค้นหาตัวอักษร) แทนการเปรียบเทียบ gte, lte 
+        // Supabase เก็บเวลาเป็นแบบ UTC (เช่น 2026-04-09 05:00:00 = 12:00:00 ไทย)
+        // เพื่อความชัวร์ที่สุด เราดึงข้อมูล "ทุกอย่าง" มาไว้ในเครื่อง (จำกัด 3000 แถว) แล้วให้เบราว์เซอร์กรองเอง!
+        
         const { data, error } = await appDB.from('discord_voice_logs')
             .select('id, user_name, action_type, room_name, created_at')
-            .gte('created_at', threeDaysAgo) 
             .order('created_at', { ascending: false })
             .limit(3000); 
 
@@ -1103,7 +1117,7 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 };
 
 // ==============================================================
-// 🌟 2. ฟังก์ชันวาดตาราง (Render แบบโคตรไว + อัปเดตข้อมูล)
+// 🌟 2. ฟังก์ชันวาดตาราง (เร็วปรู๊ดปร๊าด)
 // ==============================================================
 window.ds_renderVoiceLogs = function() {
     const term = document.getElementById('searchVoiceLog') ? document.getElementById('searchVoiceLog').value.toLowerCase() : '';
@@ -1117,7 +1131,7 @@ window.ds_renderVoiceLogs = function() {
         return;
     }
 
-    // 1. กรองตามวันที่เลือกในปฏิทิน
+    // 1. กรองตามวันที่ (แปลงเวลา UTC เป็นไทยก่อนเทียบ)
     let filtered = window.dsGlobalVoiceLogs;
     if (dateFilter) {
         filtered = filtered.filter(log => {
@@ -1129,11 +1143,11 @@ window.ds_renderVoiceLogs = function() {
     }
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่เลือก</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่ ${dateFilter}</td></tr>`;
         return;
     }
 
-    // 2. ระบบ Cache ความจำชื่อพนักงาน
+    // 2. Cache ชื่อพนักงาน
     const userMapCache = {};
     const getCachedUser = (dsName) => {
         if(!dsName) return null;
@@ -1143,7 +1157,7 @@ window.ds_renderVoiceLogs = function() {
         return user;
     };
 
-    // 3. กรองชื่อและกะ
+    // 3. กรองชื่อ และ กะ
     filtered = filtered.filter(log => (log.name || '').toLowerCase().includes(term));
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
@@ -1154,10 +1168,10 @@ window.ds_renderVoiceLogs = function() {
         });
     }
 
-    // เรียงจากเก่าไปใหม่ เพื่อคำนวณมาสายและเวลาเข้า-ออก
+    // เรียงจาก "เก่า" ไป "ใหม่" ก่อน เพื่อให้ลบเวลาหาว่าสายไหม หรือหายไปกี่นาที ได้ถูกต้อง
     filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
 
-    let htmlArray = []; // 🚀 ความลับความเร็ว: ใช้ Array เก็บข้อมูลแทนการต่อ String
+    let htmlArray = []; 
     let userLastLeaveTime = {};
 
     filtered.forEach((log, index) => {
@@ -1267,7 +1281,8 @@ window.ds_renderVoiceLogs = function() {
                 </tr>
             `;
         }
-        // 🚀 ยัดข้อมูลใหม่ไว้บรรทัดบนสุด
+        
+        // 🚀 ยัดข้อมูลใหม่ไว้บรรทัดบนสุด (เพราะเราเรียงเก่าไปใหม่ก่อนหน้านี้)
         htmlArray.unshift(rowHtml);
     });
 
