@@ -1050,14 +1050,15 @@ window.ds_subscribeVoiceLogs = function() {
 // 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง 
 // ==============================================================
 window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
-    ds_subscribeVoiceLogs(); // เปิด Realtime เสมอเมื่อเข้าหน้านี้
+    ds_subscribeVoiceLogs(); 
 
     const dateInput = document.getElementById('voiceLogDate');
     let targetDate = dateInput ? dateInput.value : '';
     
     if (!targetDate) {
-        const tzOffset = 7 * 60 * 60 * 1000;
-        targetDate = new Date(Date.now() + tzOffset).toISOString().split('T')[0];
+        // ดึงวันที่ปัจจุบันแบบ Local (เวลาไทย) ให้ตรงกับ Calendar
+        const today = new Date();
+        targetDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         if (dateInput) dateInput.value = targetDate;
     }
 
@@ -1065,16 +1066,15 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 
     if (forceRefresh instanceof Event) forceRefresh = true;
 
-    // 🚀 [แก้ปัญหาดูย้อนหลัง]: ถ้ามีข้อมูลอยู่ในเครื่องแล้ว และไม่ได้กดรีเฟรช ให้เช็คก่อนว่ามีข้อมูลของ "วันที่เลือก" ไหม?
+    // เช็ค Cache ก่อน ว่าเคยโหลดของวันนี้หรือยัง?
     if (!forceRefresh && window.dsGlobalVoiceLogs && window.dsGlobalVoiceLogs.length > 0) {
-        // เช็คคร่าวๆ ว่ามีข้อมูลของวันที่ targetDate หรือเปล่า
         const hasDataForTargetDate = window.dsGlobalVoiceLogs.some(log => {
+            // 🌟 แก้ไข: ไม่ต้องบวก +7 แล้ว เบราว์เซอร์จัดการให้เอง
             const logDate = new Date(log.time);
-            const thaiTime = new Date(logDate.getTime() + (7 * 60 * 60 * 1000));
-            return thaiTime.toISOString().split('T')[0] === targetDate;
+            const localDateStr = new Date(logDate.getTime() - (logDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            return localDateStr === targetDate;
         });
 
-        // ถ้ามีข้อมูลของวันนั้นใน Cache แล้ว ให้ Render เลย
         if (hasDataForTargetDate) {
             ds_renderVoiceLogs();
             return; 
@@ -1084,10 +1084,9 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
     if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลประวัติย้อนหลัง...</td></tr>';
 
     try {
-        // 🚀 [แก้ปัญหา Timezone]: ใช้การดึงแบบ Like (ค้นหาตัวอักษร) แทนการเปรียบเทียบ gte, lte 
-        // Supabase เก็บเวลาเป็นแบบ UTC (เช่น 2026-04-09 05:00:00 = 12:00:00 ไทย)
-        // เพื่อความชัวร์ที่สุด เราดึงข้อมูล "ทุกอย่าง" มาไว้ในเครื่อง (จำกัด 3000 แถว) แล้วให้เบราว์เซอร์กรองเอง!
-        
+        // 🌟 แก้ไข: เราจะใช้วิธีดึงแบบ LIMIT 3000 ล่าสุดเหมือนเดิม 
+        // เพราะ Supabase จัดการเรื่อง Date Filter แบบ Local <-> UTC ค่อนข้างยุ่งยาก
+        // การดึงก้อนใหญ่มาให้ JS จัดการ (Render) จะชัวร์ที่สุดครับ
         const { data, error } = await appDB.from('discord_voice_logs')
             .select('id, user_name, action_type, room_name, created_at')
             .order('created_at', { ascending: false })
@@ -1117,7 +1116,7 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
 };
 
 // ==============================================================
-// 🌟 2. ฟังก์ชันวาดตาราง (เร็วปรู๊ดปร๊าด)
+// 🌟 2. ฟังก์ชันวาดตาราง (Render)
 // ==============================================================
 window.ds_renderVoiceLogs = function() {
     const term = document.getElementById('searchVoiceLog') ? document.getElementById('searchVoiceLog').value.toLowerCase() : '';
@@ -1131,13 +1130,12 @@ window.ds_renderVoiceLogs = function() {
         return;
     }
 
-    // 1. กรองตามวันที่ (แปลงเวลา UTC เป็นไทยก่อนเทียบ)
+    // 1. 🌟 แก้ไข: กรองตามวันที่ (ใช้ getTimezoneOffset เพื่อดึงวันที่ตามเวลาเครื่องของผู้ใช้เป๊ะๆ)
     let filtered = window.dsGlobalVoiceLogs;
     if (dateFilter) {
         filtered = filtered.filter(log => {
             const logDate = new Date(log.time);
-            const thaiTime = new Date(logDate.getTime() + (7 * 60 * 60 * 1000));
-            const localDateStr = thaiTime.toISOString().split('T')[0];
+            const localDateStr = new Date(logDate.getTime() - (logDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
             return localDateStr === dateFilter;
         });
     }
@@ -1168,7 +1166,7 @@ window.ds_renderVoiceLogs = function() {
         });
     }
 
-    // เรียงจาก "เก่า" ไป "ใหม่" ก่อน เพื่อให้ลบเวลาหาว่าสายไหม หรือหายไปกี่นาที ได้ถูกต้อง
+    // เรียงจากเก่าไปใหม่ 
     filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
 
     let htmlArray = []; 
@@ -1282,7 +1280,7 @@ window.ds_renderVoiceLogs = function() {
             `;
         }
         
-        // 🚀 ยัดข้อมูลใหม่ไว้บรรทัดบนสุด (เพราะเราเรียงเก่าไปใหม่ก่อนหน้านี้)
+        // ยัดข้อมูลใหม่ไว้บรรทัดบนสุด
         htmlArray.unshift(rowHtml);
     });
 
