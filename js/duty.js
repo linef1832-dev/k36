@@ -280,7 +280,9 @@ window.renderDutyLeaveBox = function() {
     }
 
     leaveBadge.innerText = filteredLeaves.length;
-    leaveContainer.innerHTML = '';
+
+    // 🌟 แก้ไขตรงนี้: สร้างตัวแปรมารับ HTML ก่อน ไม่สั่งเขียนลงหน้าจอซ้ำๆ
+    let leaveHtml = '';
 
     if (filteredLeaves.length > 0) {
         filteredLeaves.sort((a, b) => a.username.localeCompare(b.username));
@@ -298,7 +300,7 @@ window.renderDutyLeaveBox = function() {
 
             const shiftTag = l.originalShift && l.originalShift !== '?' ? `<span class="text-[8px] text-gray-400 ml-1">(${l.originalShift.replace('กะ','')})</span>` : '';
 
-            leaveContainer.innerHTML += `
+            leaveHtml += `
                 <div onclick="restoreFromLeave('${l.user_id}', '${l.username}')" title="คลิกเพื่อดึงกลับมาทำงาน" class="bg-white dark:bg-slate-700 p-1.5 rounded-lg border ${boxBorder} shadow-sm flex justify-between items-center mb-1.5 transition-all hover:bg-blue-50 dark:hover:bg-slate-600 group cursor-pointer hover:border-blue-500">
                     <span class="text-[11px] font-bold text-slate-700 dark:text-gray-200 truncate pr-2 flex items-center">
                         <span class="material-icons text-[14px] text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity mr-1">settings_backup_restore</span>
@@ -308,7 +310,10 @@ window.renderDutyLeaveBox = function() {
                 </div>
             `;
         });
-    } else { leaveContainer.innerHTML = `<div class="text-center text-[10px] text-gray-400 mt-4">ไม่มีข้อมูลตามตัวกรอง</div>`; }
+        leaveContainer.innerHTML = leaveHtml; // 🌟 สั่งเขียนลงหน้าจอทีเดียวจบ
+    } else { 
+        leaveContainer.innerHTML = `<div class="text-center text-[10px] text-gray-400 mt-4">ไม่มีข้อมูลตามตัวกรอง</div>`; 
+    }
 };
 
 window.restoreFromLeave = async function(userId, username) {
@@ -567,7 +572,10 @@ window.generateDutyRoster = async function() {
 window.renderRosterGrid = async function(rosterData) {
     const grid = document.getElementById('dutyResultGrid');
     if(!grid) return;
+    
     grid.innerHTML = '';
+    let finalGridHtml = ''; // 🌟 สร้างตัวแปรมารับ HTML
+    
     currentRosterData = rosterData; 
     const isAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
 
@@ -711,7 +719,8 @@ window.renderRosterGrid = async function(rosterData) {
         const standbyList = standbyData[team] || [];
         const standbyCount = standbyList.length;
 
-        grid.innerHTML += `
+        // 🌟 2. เปลี่ยนจาก grid.innerHTML += เป็น finalGridHtml +=
+        finalGridHtml += `
             <div class="duty-site-card bg-slate-50 dark:bg-slate-900 border-2 ${colorClass.border} rounded-2xl shadow-md flex flex-col h-[500px] overflow-hidden w-full">
                 <div class="flex justify-between items-center ${colorClass.bg} ${colorClass.text} p-3 shadow-sm shrink-0">
                     <div class="flex items-center flex-wrap gap-2 w-full">
@@ -736,6 +745,9 @@ window.renderRosterGrid = async function(rosterData) {
             </div>
         `;
     });
+
+    // 🌟 3. สั่งวาดหน้าจอทีเดียวจบ!
+    grid.innerHTML = finalGridHtml;
 };
 
 window.selectSecOption = function(el, val) {
