@@ -109,47 +109,34 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
-// 🌟 ระบบอ่านกะที่ฉลาดขึ้น (ค้นหาจากฐานข้อมูล + เดาจากชื่อถ้าไม่เจอ)
+// 🌟 ระบบอ่านกะที่ถูกต้อง ค้นหาชื่อแบบไม่สนใจพิมพ์เล็ก/ใหญ่และเว้นวรรค
 function getShiftFromName(name) {
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return 'UNKNOWN';
+
+    // แปลงชื่อเป็นตัวพิมพ์เล็กและตัดช่องว่างหน้าหลัง
     const searchName = String(name || '').toLowerCase().trim();
+    
     if (!searchName) return 'UNKNOWN';
 
-    // 1. พยายามหาจากฐานข้อมูลก่อน (ถ้าโหลดมาแล้ว)
-    if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
-        let foundUser = window.GLOBAL_USER_LIST.find(u => {
-            const dbName = String(u.username || '').toLowerCase().trim();
-            return dbName === searchName || 
-                   (dbName.length >= 3 && searchName.startsWith(dbName)) || 
-                   (searchName.length >= 3 && dbName.startsWith(searchName));
-        });
-        
-        if (foundUser) {
-            let s = String(foundUser.allowed_shift || '').trim().replace('กะ', '');
-            if (s === 'เช้า') return 'กะเช้า';
-            if (s === 'กลาง') return 'กะกลาง';
-            if (s === 'ดึก') return 'กะดึก';
-            if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
-            return `กะ${s}`;
-        }
-    }
+    let foundUser = window.GLOBAL_USER_LIST.find(u => {
+        const dbName = String(u.username || '').toLowerCase().trim();
+        // แมตช์ชื่อตรงๆ หรือชื่อที่มีในระบบสั้นกว่า/ยาวกว่าแต่นำหน้าเหมือนกัน
+        return dbName === searchName || 
+               (dbName.length >= 3 && searchName.startsWith(dbName)) || 
+               (searchName.length >= 3 && dbName.startsWith(searchName));
+    });
     
-    // 🌟 2. ถ้าในฐานข้อมูลไม่มี หรือเว็บยังโหลดไม่เสร็จ ให้ "เดา" กะจากชื่อทันที!
-    if (searchName.includes('เช้า')) return 'กะเช้า';
-    if (searchName.includes('กลาง')) return 'กะกลาง';
-    if (searchName.includes('ดึก')) return 'กะดึก';
+    if (foundUser) {
+        let s = String(foundUser.allowed_shift || '').trim().replace('กะ', '');
+        if (s === 'เช้า') return 'กะเช้า';
+        if (s === 'กลาง') return 'กะกลาง';
+        if (s === 'ดึก') return 'กะดึก';
+        if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
+        return `กะ${s}`; // เผื่อกรณีเก็บค่าแปลกๆ มา
+    }
     
     return 'UNKNOWN';
 }
-
-// 🌟 ฟังก์ชันบังคับดึงรายชื่อพนักงาน (อุดรอยรั่วตอนเปิดหน้าเว็บครั้งแรก)
-window.fetchUsers = async function() {
-    try {
-        if (typeof appDB !== 'undefined') {
-            const { data } = await appDB.from('users').select('*');
-            if (data && data.length > 0) window.GLOBAL_USER_LIST = data;
-        }
-    } catch (e) { console.error("Error fetching users:", e); }
-};
 
 function parseAmount(val) {
     if(!val) return 0;
@@ -191,25 +178,9 @@ window.toggleSummaryWebFilter = function(webName) {
 window.filterSummaryLeaderboard = function() {
     const term = document.getElementById('leaderboardSearch') ? document.getElementById('leaderboardSearch').value.toLowerCase() : '';
     const items = document.querySelectorAll('.leaderboard-item');
-    
-    items.forEach((item, index) => {
+    items.forEach(item => {
         const name = item.getAttribute('data-name').toLowerCase();
-        
-        if (term === '') {
-            // 🌟 ถ้าไม่ได้พิมพ์ค้นหา ให้โชว์แค่ 10 อันดับแรก (ซ่อนคนที่เหลือ)
-            if (index < 10) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
-        } else {
-            // 🌟 ถ้าพิมพ์ค้นหา ให้โชว์คนที่ชื่อตรง (แม้จะอยู่อันดับ 95 ก็จะโผล่ขึ้นมาพร้อมอันดับ)
-            if (name.includes(term)) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
-        }
+        item.style.display = name.includes(term) ? 'flex' : 'none';
     });
 };
 
@@ -857,7 +828,6 @@ window.fetchLeaderboardData = async function() {
                 <option value="กะเช้า" class="bg-slate-800 text-white">☀️ เช้า</option>
                 <option value="กะกลาง" class="bg-slate-800 text-white">🌤️ กลาง</option>
                 <option value="กะดึก" class="bg-slate-800 text-white">🌙 ดึก</option>
-                <option value="UNKNOWN" class="bg-slate-800 text-gray-400">❓ ไม่ระบุกะ</option>
             </select>
             <select id="leaderboardWebFilter" onchange="fetchLeaderboardData()" class="bg-transparent text-emerald-400 text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-600 mr-2">
                 <option value="ALL" class="bg-slate-800 text-white">🏆 รวมทุกเว็บ</option>
@@ -894,21 +864,9 @@ window.fetchLeaderboardData = async function() {
 
     if (viewMode === 'preview' && pendingSummaryData.length > 0) {
         let aggMap = {};
+        
         let targetData = pendingSummaryData;
-        
-        if (shiftFilter !== 'ALL') {
-            targetData = targetData.filter(i => {
-                let s = i.shift;
-                if (!s || s === 'UNKNOWN') {
-                    if (i.empName.includes('เช้า')) s = 'กะเช้า';
-                    else if (i.empName.includes('กลาง')) s = 'กะกลาง';
-                    else if (i.empName.includes('ดึก')) s = 'กะดึก';
-                    else s = 'UNKNOWN';
-                }
-                return s === shiftFilter || (shiftFilter === 'UNKNOWN' && s === 'กะอิสระ');
-            });
-        }
-        
+        if (shiftFilter !== 'ALL') targetData = targetData.filter(i => i.shift === shiftFilter || (shiftFilter==='UNKNOWN' && i.shift==='กะอิสระ'));
         if (odFilter !== 'ALL') targetData = targetData.filter(i => i.odType === odFilter || (i.odType === undefined && odFilter === 'ปกติ'));
         if (selectedWeb !== 'ALL') targetData = targetData.filter(i => i.website === selectedWeb); 
 
@@ -954,16 +912,8 @@ window.fetchLeaderboardData = async function() {
             const name = r.employee_name;
             if (!name || name.toLowerCase().includes('system') || name.toLowerCase().includes('auto')) return;
 
-            let shift = typeof getShiftFromName === 'function' ? getShiftFromName(name) : 'UNKNOWN';
-            
-            if (shift === 'UNKNOWN') {
-                if (name.includes('เช้า')) shift = 'กะเช้า';
-                else if (name.includes('กลาง')) shift = 'กะกลาง';
-                else if (name.includes('ดึก')) shift = 'กะดึก';
-            }
-
-            // ยอมให้โชว์ถ้ากะตรงกับที่เลือก หรือเลือกหาคนไม่ระบุกะ
-            if (shiftFilter !== 'ALL' && shift !== shiftFilter && !(shiftFilter === 'UNKNOWN' && shift === 'กะอิสระ')) return;
+            const shift = typeof getShiftFromName === 'function' ? getShiftFromName(name) : 'UNKNOWN';
+            if (shiftFilter !== 'ALL' && shift !== shiftFilter && !(shiftFilter==='UNKNOWN' && shift==='กะอิสระ')) return;
             
             if (!aggMap[name]) aggMap[name] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, shift: shift };
             aggMap[name].totalCount += parseInt(r.count) || 0;
@@ -996,8 +946,8 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
         return;
     }
 
-    // 🌟 เอา .slice ออก เพื่อวาดทุกคนลงไป แต่เดี๋ยวเราจะให้ฟังก์ชันค้นหาช่วยซ่อนให้
-    lbBox.innerHTML = sortedEmps.map((name, i) => {
+    // 🌟 เติม .slice(0, 10) ตรงนี้ครับ! เพื่อตัดเอาแค่ 10 อันดับแรก
+    lbBox.innerHTML = sortedEmps.slice(0, 10).map((name, i) => {
         const d = aggMap[name];
         let medalClass = ''; let medalText = i + 1;
         if (i === 0) medalClass = 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.6)]';
