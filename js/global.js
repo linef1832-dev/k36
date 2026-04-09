@@ -62,18 +62,15 @@ async function showLogin() {
     }
 }
 
-// 1. สร้างตัวแปรเก็บ Cache สำหรับ HTML String ไว้บนสุดของส่วนนี้
+// 1. สร้างตัวแปรเก็บ Cache สำหรับ HTML String
 const pageCache = {};
 
-// 2. ฟังก์ชัน showPage ตัวใหม่ที่อัปเกรดความเร็วแล้ว
 async function showPage(pageName) {
     const loading = document.getElementById('loading');
     
     try {
-        // โชว์หน้าโหลดเฉพาะตอนที่ยังไม่มี Cache (ดึงข้อมูลครั้งแรก)
         if (!pageCache[pageName] && loading) loading.classList.remove('hidden');
         
-        // ดึง HTML (จาก Cache หรือ Fetch ใหม่ถ้ายังไม่มี)
         if (!pageCache[pageName]) {
             const response = await fetch(`./pages/${pageName}.html`);
             if (!response.ok) throw new Error('Page not found');
@@ -82,14 +79,79 @@ async function showPage(pageName) {
         
         const htmlContent = pageCache[pageName];
 
-        // ฟังก์ชันสำหรับอัปเดตหน้าจอ
+        // 🌟 ย้ายการรันสคริปต์ทั้งหมด เข้ามาไว้ในฟังก์ชันนี้
         const updateDOM = () => {
+            // 1. ยัด HTML ลงไป
             document.getElementById('app-content').innerHTML = htmlContent;
             
-            // ไฮไลท์เมนูที่กำลังเลือกทางซ้ายมือ
+            // 2. ไฮไลท์เมนู
             document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
             const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
             if (activeBtn) activeBtn.classList.add('active');
+
+            // 3. บังคับให้รันสคริปต์ "หลังจาก" ยัด HTML ลงไปเสร็จแล้วชัวร์ๆ
+            requestAnimationFrame(async () => {
+                if(document.getElementById('uName') && currentUser && currentUser.username) {
+                    document.getElementById('uName').innerText = currentUser.username;
+                }
+
+                if (pageName === 'dashboard') {
+                    if (typeof refreshAdminData === 'function') refreshAdminData();
+                    if (typeof fetchData === 'function') fetchData();
+                    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+                        if (document.getElementById('userManagerUIBlock')) {
+                            document.getElementById('userManagerUIBlock').classList.remove('hidden');
+                            document.getElementById('userManagerUIBlock').classList.add('flex');
+                        }
+                    }
+                }
+                else if (pageName === 'leave') {
+                    if (typeof initLeaveTable === 'function') await initLeaveTable();
+                }
+                else if (pageName === 'gallery') {
+                    if (typeof initGalleryApp === 'function') initGalleryApp();
+                }
+                else if (pageName === 'duty') {
+                    if (typeof initDutyApp === 'function') await initDutyApp();
+                }
+                else if (pageName === 'discord') {
+                    if (typeof applyDiscordPermissions === 'function') applyDiscordPermissions();
+                }
+                else if (pageName === 'summary') {
+                    if (typeof initSummaryDate === 'function') initSummaryDate();
+                    if (typeof fetchAvailableDates === 'function') fetchAvailableDates(); 
+                    if (typeof fetchHistoricalSummary === 'function') await fetchHistoricalSummary(true); 
+                }
+                else if (pageName === 'telegram') {
+                    if (typeof initTelegramApp === 'function') await initTelegramApp();
+                }
+                else if (pageName === 'password') {
+                    if (typeof initPasswordApp === 'function') await initPasswordApp();
+                }
+                else if (pageName === 'files') {
+                    if (typeof initFilesApp === 'function') await initFilesApp(); 
+                }
+                else if (pageName === 'sheet') {
+                    if (typeof fetchSheets === 'function') await fetchSheets(); 
+                    if (typeof renderSheetMenu === 'function') renderSheetMenu();
+                    if (typeof renderRecentTabs === 'function') renderRecentTabs();
+                    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+                        if(document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
+                    }
+                }
+                else if (pageName === 'kbiz') {
+                    if (typeof fetchKbizData === 'function') await fetchKbizData();
+                }
+                else if (pageName === 'announcement') {
+                    if (typeof renderAnnouncementUI === 'function') renderAnnouncementUI();
+                    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+                        if(document.getElementById('adminAnnouncementControls')) document.getElementById('adminAnnouncementControls').classList.remove('hidden');
+                    }
+                }
+                else if (pageName === 'swap') {
+                    if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
+                }
+            });
         };
 
         // ใช้ View Transitions สลับหน้าแบบสมูท (ถ้าบราวเซอร์รองรับ)
@@ -99,76 +161,10 @@ async function showPage(pageName) {
             updateDOM();
         }
 
-        // รันสคริปต์ทันทีที่หน้าจอวาดเสร็จ (แทนที่ setTimeout 150ms เดิม)
-        requestAnimationFrame(async () => {
-            if(document.getElementById('uName') && currentUser.username) {
-                document.getElementById('uName').innerText = currentUser.username;
-            }
-
-            // --- รันสคริปต์ประจำหน้าต่างๆ ตามเงื่อนไข ---
-            if (pageName === 'dashboard') {
-                if (typeof refreshAdminData === 'function') refreshAdminData();
-                if (typeof fetchData === 'function') fetchData();
-                if (currentUser.role === 'manager' || currentUser.role === 'admin') {
-                    if (document.getElementById('userManagerUIBlock')) {
-                        document.getElementById('userManagerUIBlock').classList.remove('hidden');
-                        document.getElementById('userManagerUIBlock').classList.add('flex');
-                    }
-                }
-            }
-            else if (pageName === 'leave') {
-                if (typeof initLeaveTable === 'function') await initLeaveTable();
-            }
-            else if (pageName === 'gallery') {
-                if (typeof initGalleryApp === 'function') initGalleryApp();
-            }
-            else if (pageName === 'duty') {
-                if (typeof initDutyApp === 'function') await initDutyApp();
-            }
-            else if (pageName === 'discord') {
-                if (typeof applyDiscordPermissions === 'function') applyDiscordPermissions();
-            }
-            else if (pageName === 'summary') {
-                if (typeof initSummaryDate === 'function') initSummaryDate();
-                if (typeof fetchAvailableDates === 'function') fetchAvailableDates(); 
-                if (typeof fetchHistoricalSummary === 'function') await fetchHistoricalSummary(true); 
-            }
-            else if (pageName === 'telegram') {
-                if (typeof initTelegramApp === 'function') await initTelegramApp();
-            }
-            else if (pageName === 'password') {
-                if (typeof initPasswordApp === 'function') await initPasswordApp();
-            }
-            else if (pageName === 'files') {
-                if (typeof initFilesApp === 'function') await initFilesApp(); 
-            }
-            else if (pageName === 'sheet') {
-                if (typeof fetchSheets === 'function') await fetchSheets(); 
-                if (typeof renderSheetMenu === 'function') renderSheetMenu();
-                if (typeof renderRecentTabs === 'function') renderRecentTabs();
-                if (currentUser.role === 'manager' || currentUser.role === 'admin') {
-                    if(document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
-                }
-            }
-            else if (pageName === 'kbiz') {
-                if (typeof fetchKbizData === 'function') await fetchKbizData();
-            }
-            else if (pageName === 'announcement') {
-                if (typeof renderAnnouncementUI === 'function') renderAnnouncementUI();
-                if (currentUser.role === 'manager' || currentUser.role === 'admin') {
-                    if(document.getElementById('adminAnnouncementControls')) document.getElementById('adminAnnouncementControls').classList.remove('hidden');
-                }
-            }
-            else if (pageName === 'swap') {
-                if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
-            }
-        });
-
     } catch (err) {
         console.error(err);
         document.getElementById('app-content').innerHTML = `<div class="p-10 text-center text-red-500 font-bold">เกิดข้อผิดพลาดในการโหลดหน้า ${pageName}<br><br><span class="text-xs text-gray-500">${err.message}</span></div>`;
     } finally {
-        // บังคับให้หน้าโหลด (Spinner) หายไปเสมอ ไม่ว่าจะ Error หรือไม่
         if(loading) loading.classList.add('hidden');
     }
 }
