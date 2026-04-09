@@ -399,3 +399,49 @@ setTimeout(() => {
         });
     }
 }, 1000);
+
+// ========================================================================
+// 🟢 ฟังก์ชันกู้คืนข้อมูล (กรณีแอดมินมือลั่นล้างกระดาน)
+// ========================================================================
+window.undoClearSchedules = async function() {
+    const backupStr = sessionStorage.getItem('temp_schedule_backup');
+    if (!backupStr) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลให้กู้คืนแล้วครับ', 'error');
+    
+    const backupData = JSON.parse(backupStr);
+    const confirm = await Swal.fire({
+        title: 'ยืนยันการกู้คืน?',
+        text: `คุณต้องการกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ ที่เพิ่งลบทิ้งไปใช่หรือไม่?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, นำข้อมูลกลับมา!',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
+    });
+
+    // 🌟 ท่อนที่หายไปอยู่ตรงนี้ครับ!
+    if (confirm.isConfirmed) {
+        Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        try {
+            // โยนข้อมูลที่ก๊อปปี้ไว้ กลับเข้าไปในฐานข้อมูล
+            const { error } = await appDB.from('schedules').insert(backupData);
+            if (error) throw error;
+
+            // กู้คืนเสร็จ ล้างกระเป๋า และซ่อนปุ่ม
+            sessionStorage.removeItem('temp_schedule_backup');
+            document.getElementById('undoScheduleBtn')?.classList.add('hidden');
+
+            if (typeof logAction === 'function') await logAction('กู้คืนข้อมูล', `แอดมินกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ`);
+
+            Swal.fire('กู้คืนสำเร็จ!', 'ข้อมูลกลับมาอยู่ที่เดิมเรียบร้อยแล้วครับ', 'success');
+
+            // สั่งให้ตารางรีเฟรชตัวเอง
+            if (typeof fetchData === 'function') fetchData();
+
+        } catch(e) {
+            console.error(e);
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนได้: ' + e.message, 'error');
+        }
+    }
+};
