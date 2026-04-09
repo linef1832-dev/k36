@@ -1005,192 +1005,59 @@ window.delTransfer = async function(id) {
     fetchTransfers();
 };
 
-// ==============================================================
-// 🌟 ระบบ Realtime ดักจับการเข้า-ออกดิสคอร์ดแบบสดๆ 
-// ==============================================================
-let dsVoiceLogSubscription = null;
-
-window.ds_subscribeVoiceLogs = function() {
-    if (dsVoiceLogSubscription) return; 
-    if (typeof appDB === 'undefined') return;
-
-    dsVoiceLogSubscription = appDB.channel('realtime-voice-logs')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'discord_voice_logs' }, payload => {
-            const newLog = {
-                id: payload.new.id,
-                name: payload.new.user_name,
-                action: payload.new.action_type,
-                room: payload.new.room_name,
-                time: payload.new.created_at
-            };
-
-            if (!window.dsGlobalVoiceLogs) window.dsGlobalVoiceLogs = [];
-            
-            // 🚀 แทรกข้อมูลใหม่ไว้บนสุด
-            window.dsGlobalVoiceLogs.unshift(newLog); 
-
-            // สั่งอัปเดตตารางเฉพาะตอนที่ดูของ "วันนี้"
-            const contentBox = document.getElementById('dsContent_voicelog');
-            const dateInput = document.getElementById('voiceLogDate');
-            
-            // เช็คว่ากำลังเปิดหน้าประวัติอยู่ และไม่ได้ดูย้อนหลัง
-            if (contentBox && !contentBox.classList.contains('hidden')) {
-                const tzOffset = 7 * 60 * 60 * 1000;
-                const todayStr = new Date(Date.now() + tzOffset).toISOString().split('T')[0];
-                
-                if (!dateInput || dateInput.value === todayStr) {
-                    ds_renderVoiceLogs();
-                }
-            }
-        })
-        .subscribe();
-};
-
-// ==============================================================
-// 🌟 1. ฟังก์ชันดึงประวัติการเข้า-ออกห้อง 
-// ==============================================================
-window.ds_fetchVoiceLogs = async function(forceRefresh = false) {
-    ds_subscribeVoiceLogs(); 
-
-    const dateInput = document.getElementById('voiceLogDate');
-    let targetDate = dateInput ? dateInput.value : '';
-    
-    if (!targetDate) {
-        const today = new Date();
-        const tzOffset = today.getTimezoneOffset() * 60000;
-        targetDate = new Date(today.getTime() - tzOffset).toISOString().split('T')[0];
-        if (dateInput) dateInput.value = targetDate;
-    }
-
-    const tbody = document.getElementById('ds_voiceLogBody');
-
-    if (forceRefresh instanceof Event) forceRefresh = true;
-
-    // เช็คว่ามีข้อมูลเดิมในเครื่องอยู่หรือยัง 
-    // ถ้ามีและไม่ได้กดปุ่มรีเฟรช ให้วาดตารางใหม่เลย
-    if (!forceRefresh && window.dsGlobalVoiceLogs && window.dsGlobalVoiceLogs.length > 0) {
-        ds_renderVoiceLogs();
-        return; 
-    }
-
-    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลประวัติทั้งหมด...</td></tr>';
-
+window.ds_fetchVoiceLogs = async function() {
     try {
-        // 🚀 แก้ปัญหาขั้นเด็ดขาด: ดึงมาทั้งหมด 5000 แถวไปเลย โดยไม่ใช้ Date Filter ในการดึงจาก Supabase
-        const { data, error } = await appDB.from('discord_voice_logs')
-            .select('id, user_name, action_type, room_name, created_at')
-            .order('created_at', { ascending: false })
-            .limit(5000); 
-
-        if (error) throw error;
-
-        // ดึงมาแล้วแปลงเวลาให้อยู่ใน Timezone ของผู้ใช้ (Local Time) ตั้งแต่ตอนนี้เลย
-        window.dsGlobalVoiceLogs = data.map(row => {
-            const rawDate = new Date(row.created_at);
-            // แปลงให้อยู่ในโซนเวลาของไทย (UTC+7) เผื่อบางเบราว์เซอร์จัดการเวลาเพี้ยน
-            const localDate = new Date(rawDate.getTime() + (7 * 60 * 60 * 1000));
-            // หาวันที่ (YYYY-MM-DD) ที่แท้จริงของเวลานี้
-            const localDateString = localDate.toISOString().split('T')[0];
-            
-            return {
-                id: row.id,
-                name: row.user_name,
-                action: row.action_type,
-                room: row.room_name,
-                time: row.created_at,       // เวลาต้นฉบับ
-                localDate: localDateString // เวลาแบบ YYYY-MM-DD
-            };
-        });
-
-        ds_renderVoiceLogs();
-
-        if (forceRefresh === true) {
-            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
-            Toast.fire({ icon: 'success', title: 'ดึงข้อมูลล่าสุดเรียบร้อย' });
+        const res = await fetch(DISCORD_API_URL + '/api/voice-logs');
+        if(res.ok) {
+            dsGlobalVoiceLogs = await res.json();
+            ds_renderVoiceLogs();
         }
-
-    } catch (e) {
-        console.error("Fetch Voice Logs Error:", e);
-        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">ไม่สามารถดึงข้อมูลประวัติได้</td></tr>`;
-    }
+    } catch(e) { }
 };
 
-// ==============================================================
-// 🌟 2. ฟังก์ชันวาดตาราง (Render)
-// ==============================================================
 window.ds_renderVoiceLogs = function() {
-    const term = document.getElementById('searchVoiceLog') ? document.getElementById('searchVoiceLog').value.toLowerCase() : '';
-    const lateFilter = document.getElementById('voiceLogLateFilter') ? document.getElementById('voiceLogLateFilter').value : 'ALL';
+    const term = document.getElementById('searchVoiceLog').value.toLowerCase();
+    const dateFilter = document.getElementById('voiceLogDate').value;
+    const lateFilter = document.getElementById('voiceLogLateFilter').value;
     const shiftFilter = document.getElementById('voiceLogShiftFilter') ? document.getElementById('voiceLogShiftFilter').value : 'ALL';
-    const dateFilter = document.getElementById('voiceLogDate') ? document.getElementById('voiceLogDate').value : '';
     const tbody = document.getElementById('ds_voiceLogBody');
     
-    if (!window.dsGlobalVoiceLogs || window.dsGlobalVoiceLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในระบบ</td></tr>';
-        return;
-    }
-
-    // 1. 🌟 แก้ไข: กรองตามวันที่ ที่เราคำนวณแบบ LocalTime ไว้ตั้งแต่ตอนดึงข้อมูลแล้ว!
-    let filtered = window.dsGlobalVoiceLogs;
+    let filtered = dsGlobalVoiceLogs.filter(log => log.name.toLowerCase().includes(term));
+    
     if (dateFilter) {
-        filtered = filtered.filter(log => log.localDate === dateFilter);
+        filtered = filtered.filter(log => {
+            const logDateObj = new Date(log.time); 
+            const y = logDateObj.getFullYear();
+            const m = String(logDateObj.getMonth() + 1).padStart(2, '0');
+            const dStr = String(logDateObj.getDate()).padStart(2, '0');
+            const localDateStr = `${y}-${m}-${dStr}`; 
+            return localDateStr === dateFilter;
+        });
     }
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่ ${dateFilter}</td></tr>`;
-        return;
-    }
-
-    // 2. Cache ชื่อพนักงาน
-    const userMapCache = {};
-    const getCachedUser = (dsName) => {
-        if(!dsName) return null;
-        if(userMapCache[dsName] !== undefined) return userMapCache[dsName]; 
-        const user = getDbUserFromDiscordName(dsName); 
-        userMapCache[dsName] = user;
-        return user;
-    };
-
-    // 3. กรองชื่อ และ กะ
-    filtered = filtered.filter(log => (log.name || '').toLowerCase().includes(term));
     if (shiftFilter !== 'ALL') {
         filtered = filtered.filter(log => {
-            const dbUser = getCachedUser(log.name); 
+            const dbUser = getDbUserFromDiscordName(log.name);
             if (dbUser && dbUser.allowed_shift === shiftFilter) return true;
-            if (log.name && log.name.includes(shiftFilter)) return true;
+            if (log.name.includes(shiftFilter)) return true;
             return false;
         });
     }
 
-    // เรียงจากเก่าไปใหม่ เพื่อให้การคำนวณมาสายและหายไป x นาทีทำได้ถูกต้อง
-    filtered.sort((a, b) => new Date(a.time) - new Date(b.time));
+    filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-    let htmlArray = []; 
-    let userLastLeaveTime = {};
-
-    filtered.forEach((log, index) => {
+    let finalHtml = '';
+    
+    filtered.forEach(log => {
         const d = new Date(log.time);
-        
-        const dayStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
         const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const fullDateTimeStr = `${dayStr} ${timeStr}`;
         
         let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
-        const dbUser = getCachedUser(log.name); 
+        const dbUser = getDbUserFromDiscordName(log.name);
 
-        if(log.action === 'เข้าห้อง' || log.action === 'เข้าดิสคอร์ด') {
+        if(log.action === 'เข้าห้อง') {
             badge = '<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/50 whitespace-nowrap shadow-sm">เข้าห้อง</span>';
             
-            if (userLastLeaveTime[log.name]) {
-                const leaveTime = userLastLeaveTime[log.name];
-                const diffMins = Math.floor((d.getTime() - leaveTime.getTime()) / 60000);
-                
-                if (diffMins >= 2) {
-                    lateBadge += `<span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">หายไป ${diffMins} นาที</span>`;
-                }
-                userLastLeaveTime[log.name] = null; 
-            }
-
             let targetShift = dbUser ? dbUser.allowed_shift : null;
             if (!targetShift) {
                 if (log.name.includes('กะเช้า')) targetShift = 'กะเช้า';
@@ -1201,13 +1068,12 @@ window.ds_renderVoiceLogs = function() {
             if (targetShift && targetShift !== 'all') {
                 const shiftPrefix = targetShift.replace('กะ', '');
                 let expectedStart = null; 
-                
+                if (shiftPrefix === 'เช้า') expectedStart = '08:00'; 
+                else if (shiftPrefix === 'กลาง') expectedStart = '11:00'; 
+                else if (shiftPrefix === 'ดึก') expectedStart = '20:00'; 
+
                 if (typeof SETTINGS !== 'undefined' && SETTINGS['open_time_' + shiftPrefix]) {
                     expectedStart = SETTINGS['open_time_' + shiftPrefix];
-                } else {
-                    if (shiftPrefix === 'เช้า') expectedStart = '08:00'; 
-                    else if (shiftPrefix === 'กลาง') expectedStart = '11:00'; 
-                    else if (shiftPrefix === 'ดึก') expectedStart = '20:00'; 
                 }
                 
                 if (expectedStart) {
@@ -1215,20 +1081,15 @@ window.ds_renderVoiceLogs = function() {
                     let expectedTime = new Date(d); 
                     expectedTime.setHours(h, m, 0, 0);
 
-                    // ถ้าเป็นกะดึก และ log.time เข้ามาตอนเช้า (เลยเที่ยงคืนไปแล้ว) แปลว่ากะของเขาคือ "เมื่อวาน"
                     if (h >= 18 && d.getHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
 
-                    if (d > expectedTime && (d.getTime() - expectedTime.getTime()) > 60000) {
-                        const diffMins = Math.floor((d.getTime() - expectedTime.getTime()) / 60000);
-                        
+                    if (d > expectedTime && (d - expectedTime) > 60000) {
+                        const diffMins = Math.floor((d - expectedTime) / 60000);
                         if (diffMins <= 720) { 
-                            const isFirstEntry = filtered.findIndex(l => l.name === log.name && (l.action === 'เข้าห้อง' || l.action === 'เข้าดิสคอร์ด')) === index;
-                            if (isFirstEntry) {
-                                lateBadge += `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
-                                isLate = true;
-                            }
+                            lateBadge = `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
+                            isLate = true;
                         }
                     }
                 }
@@ -1237,7 +1098,6 @@ window.ds_renderVoiceLogs = function() {
         else if(log.action.includes('ออกดิส') || log.action.includes('ออกห้อง')) {
             badge = '<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-red-500/50 whitespace-nowrap shadow-sm">ออกดิสคอร์ด</span>';
             rowClass = 'bg-red-900/10 hover:bg-red-900/30'; 
-            userLastLeaveTime[log.name] = d;
         }
         else {
             badge = '<span class="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-md text-[11px] font-bold border border-blue-500/50 whitespace-nowrap shadow-sm">ย้ายไป</span>';
@@ -1254,38 +1114,90 @@ window.ds_renderVoiceLogs = function() {
         }
         const shiftTag = displayShift ? `<span class="text-[9px] text-gray-500 ml-1 whitespace-nowrap">(${displayShift})</span>` : '';
 
-        const templateEl = document.getElementById('tpl-ds-voice-log-row');
-        let rowHtml = '';
-        if (templateEl) {
-             rowHtml = window.renderTemplate('tpl-ds-voice-log-row', {
-                rowClass: rowClass,
-                timeStr: fullDateTimeStr,
-                name: log.name || 'ไม่ทราบชื่อ',
-                shiftTag: shiftTag,
-                lateBadge: lateBadge,
-                badge: badge,
-                room: log.room || '-'
-            });
-        } else {
-             rowHtml = `
-                <tr class="${rowClass} transition border-b border-slate-700/50">
-                    <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">${fullDateTimeStr}</td>
-                    <td class="p-3 font-bold text-white flex items-center">${log.name || 'ไม่ทราบชื่อ'} ${shiftTag} ${lateBadge}</td>
-                    <td class="p-3 whitespace-nowrap">${badge}</td>
-                    <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">${log.room || '-'}</td>
-                </tr>
-            `;
-        }
-        
-        htmlArray.unshift(rowHtml);
+        finalHtml += window.renderTemplate('tpl-ds-voice-log-row', {
+            rowClass: rowClass,
+            timeStr: timeStr,
+            name: log.name,
+            shiftTag: shiftTag,
+            lateBadge: lateBadge,
+            badge: badge,
+            room: log.room
+        });
     });
 
-    if (htmlArray.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่มีการเข้า-ออกห้องในวันที่ ${dateFilter}</td></tr>`;
+    if (finalHtml === '') {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500 font-bold">ไม่พบประวัติในเงื่อนไขนี้</td></tr>';
     } else {
-        tbody.innerHTML = htmlArray.join('');
+        tbody.innerHTML = finalHtml;
     }
 };
+
+window.ds_fetchActionLogs = async function() {
+    try {
+        document.getElementById('ds_actionLogBody').innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500"><span class="material-icons animate-spin">sync</span></td></tr>';
+        const res = await fetch(DISCORD_API_URL + '/api/action-logs');
+        if(res.ok) {
+            let data = await res.json();
+            window.dsGlobalActionLogs = data; 
+            ds_renderActionLogs();
+        }
+    } catch(e) {}
+};
+
+window.ds_renderActionLogs = function() {
+    const term = document.getElementById('actionLogSearch') ? document.getElementById('actionLogSearch').value.toLowerCase() : '';
+    const dateFilter = document.getElementById('actionLogDate') ? document.getElementById('actionLogDate').value : '';
+    const tbody = document.getElementById('ds_actionLogBody');
+    
+    if (!window.dsGlobalActionLogs || window.dsGlobalActionLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบประวัติการใช้งาน</td></tr>';
+        return;
+    }
+
+    let filtered = window.dsGlobalActionLogs.filter(log => 
+        log.user.toLowerCase().includes(term) || 
+        log.action.toLowerCase().includes(term) || 
+        log.detail.toLowerCase().includes(term)
+    );
+
+    if (dateFilter) {
+        filtered = filtered.filter(log => {
+            const d = new Date(log.time);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}` === dateFilter;
+        });
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบข้อมูลในเงื่อนไขที่ค้นหา</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(log => {
+        const d = new Date(log.time);
+        const timeStr = d.toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        return window.renderTemplate('tpl-ds-action-log-row', {
+            timeStr: timeStr,
+            user: log.user,
+            action: log.action,
+            detail: log.detail
+        });
+    }).join('');
+};
+
+window.ds_logAction = async function(actionName, detailStr) {
+    try {
+        const userName = (typeof currentUser !== 'undefined' && currentUser.username) ? currentUser.username : 'Unknown Admin';
+        await fetch(DISCORD_API_URL + '/api/action-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user: userName, action: actionName, detail: detailStr })
+        });
+    } catch(e) {}
+};
+
 // ==========================================
 // 🟢 อัปเดต Dropdown และ ระบบจัดการฐานข้อมูลดิสคอร์ด (Manage)
 // ==========================================
