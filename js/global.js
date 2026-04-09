@@ -79,17 +79,15 @@ async function showPage(pageName) {
         
         const htmlContent = pageCache[pageName];
 
-        // 🌟 ฟังก์ชันอัปเดตหน้าจอและการรันสคริปต์ (เงื่อนไขทั้งหมดต้องอยู่ในนี้)
         const updateDOM = () => {
             const appContent = document.getElementById('app-content');
             appContent.innerHTML = htmlContent;
-            appContent.classList.remove('hidden'); // จุดที่ 2: ป้องกันกรอบหลักโดนซ่อน
+            appContent.classList.remove('hidden'); 
             
             document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
             const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
             if (activeBtn) activeBtn.classList.add('active');
 
-            // 🌟 การรันสคริปต์ประจำหน้า ต้องอยู่ตรงนี้! (ใน requestAnimationFrame)
             requestAnimationFrame(async () => {
                 if(document.getElementById('uName') && currentUser && currentUser.username) {
                     document.getElementById('uName').innerText = currentUser.username;
@@ -139,7 +137,12 @@ async function showPage(pageName) {
                         if(document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
                     }
                     
-                    // จุดที่ 1: บังคับเปิดหน้าเมนูเลือกชีท และปิดหน้าดูชีท
+                    const sheetApp = document.getElementById('sheetApp');
+                    if (sheetApp) {
+                        sheetApp.classList.remove('hidden');
+                        sheetApp.classList.add('flex');
+                    }
+
                     if (document.getElementById('sheetMenu')) document.getElementById('sheetMenu').classList.remove('hidden');
                     if (document.getElementById('sheetViewer')) {
                         document.getElementById('sheetViewer').classList.add('hidden');
@@ -160,8 +163,20 @@ async function showPage(pageName) {
                 }
             });
         };
-// 1. สร้างตัวแปรเก็บ Cache สำหรับ HTML String
-const pageCache = {};
+
+        if (document.startViewTransition) {
+            document.startViewTransition(() => updateDOM());
+        } else {
+            updateDOM();
+        }
+
+    } catch (err) {
+        console.error(err);
+        document.getElementById('app-content').innerHTML = `<div class="p-10 text-center text-red-500 font-bold">เกิดข้อผิดพลาดในการโหลดหน้า ${pageName}<br><br><span class="text-xs text-gray-500">${err.message}</span></div>`;
+    } finally {
+        if(loading) loading.classList.add('hidden');
+    }
+} // <---- อันนี้แหละครับตัวการ วงเล็บปิดตัวสุดท้ายของฟังก์ชันที่หายไป!
 
 async function showPage(pageName) {
     const loading = document.getElementById('loading');
