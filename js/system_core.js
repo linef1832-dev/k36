@@ -305,7 +305,12 @@ function renderTableRows(data) {
     const deptFilterEl = document.getElementById('tableDeptFilter');
     const deptFilterVal = deptFilterEl ? deptFilterEl.value : 'all';
 
-    const box = document.getElementById('dataTableBody'); box.innerHTML = '';
+    const box = document.getElementById('dataTableBody'); 
+    
+    // 🌟 แก้ไขจุดที่ 1: ดัก Error ไว้ตรงนี้ ถ้าหาตารางไม่เจอ ให้หยุดทำงานไปเลย
+    if (!box) return; 
+
+    box.innerHTML = '';
     let filteredData = data;
     
     if (filterVal !== 'all') filteredData = filteredData.filter(item => getPeriodForTime(item.shift_name, item.time_slot) === filterVal);
@@ -328,14 +333,13 @@ function renderTableRows(data) {
     filteredData.forEach(i => {
         const periodName = getPeriodForTime(i.shift_name, i.time_slot);
         
-        // 🌟 แก้ไข: ดักจับค่า null ตอนหน้าเว็บเพิ่งโหลด ให้โชว์ไอคอนหมุนๆ แทน
         let displayPeriod = periodName || '<span class="material-icons text-[12px] animate-spin">sync</span>';
         let pClass = 'text-gray-500 border-transparent'; 
         
         if (periodName === 'ช่วงที่ 1') pClass = 'text-green-600 dark:text-green-400 border-current'; 
         else if (periodName === 'ช่วงที่ 2') pClass = 'text-orange-500 dark:text-orange-400 border-current'; 
         else if (periodName === 'ช่วงที่ 3') pClass = 'text-purple-600 dark:text-purple-400 border-current';
-        else if (!periodName) pClass = 'text-gray-400 border-gray-400/50 border-dashed bg-gray-100 dark:bg-slate-800'; // สไตล์กรอบไข่ปลาตอนรอข้อมูล
+        else if (!periodName) pClass = 'text-gray-400 border-gray-400/50 border-dashed bg-gray-100 dark:bg-slate-800';
         
         const canDelete = ['manager', 'admin'].includes(currentUser.role) || i.staff_name === currentUser.username;
         let delBtn = canDelete ? `<button onclick="delSch(${i.id}, '${i.shift_name}')" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-lg bg-red-50 dark:bg-red-900/30 transition"><span class="material-icons text-lg">delete</span></button>` : '';
@@ -355,7 +359,8 @@ function renderTableRows(data) {
         </tr>`;
     });
     
-    box.innerHTML = htmlContent;
+    // 🌟 แก้ไขจุดที่ 2: เช็คอีกรอบให้ชัวร์ก่อนสั่งยัดข้อมูล
+    if (box) box.innerHTML = htmlContent;
 }
 
 function updateTableSummary(data) {
