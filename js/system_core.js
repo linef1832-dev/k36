@@ -1,3 +1,5 @@
+let userCurrentPage = 1;
+let userRowsPerPage = 50;
 let allowedViewMonth = ''; 
 let allowedStartDay = 0;   
 let allowedEndDay = 31;   
@@ -660,36 +662,10 @@ async function deleteSelectedUsers() {
     });
 }
 
-function searchEmployee() {
-    const inputSearch = document.getElementById('searchUser') ? document.getElementById('searchUser').value.toLowerCase() : '';
-    const shiftFilter = document.getElementById('filterUserShift') ? document.getElementById('filterUserShift').value : 'all';
-    const deptFilter = document.getElementById('filterUserDept') ? document.getElementById('filterUserDept').value : 'all'; 
-    
-    const tr = document.getElementById('userTableBody').getElementsByTagName('tr');
-
-    for (let i = 0; i < tr.length; i++) {
-        const nameTd = tr[i].getElementsByTagName('td')[1]; 
-        const deptTd = tr[i].getElementsByTagName('td')[2]; 
-        const shiftTd = tr[i].getElementsByTagName('td')[4]; 
-        
-        if (nameTd && shiftTd && deptTd) {
-            const nameTxt = nameTd.textContent || nameTd.innerText; 
-            
-            // 🌟 แก้ไขตรงนี้: ให้ดึงค่าจาก Select ของแผนกแทนการอ่านข้อความธรรมดา
-            const deptSelect = deptTd.querySelector('select');
-            const deptTxt = deptSelect ? deptSelect.value : (deptTd.textContent || deptTd.innerText);
-            
-            const shiftSelect = shiftTd.querySelector('select');
-            const shiftTxt = shiftSelect ? shiftSelect.value : (shiftTd.textContent || shiftTd.innerText);
-
-            const matchName = nameTxt.toLowerCase().indexOf(inputSearch) > -1;
-            const matchShift = (shiftFilter === 'all') || (shiftFilter === 'all_shift' && shiftTxt === 'all') || (shiftTxt.indexOf(shiftFilter) > -1);
-            const matchDept = (deptFilter === 'all') || (deptTxt.trim() === deptFilter);
-
-            tr[i].style.display = (matchName && matchShift && matchDept) ? "" : "none";
-        }         
-    }
-}
+window.searchEmployee = function() {
+    userCurrentPage = 1; 
+    window.renderUserTableDirectly();
+};
 
 async function addScheduledTask() { 
     const f=document.getElementById('schFrom').value, t=document.getElementById('schTo').value, d=document.getElementById('schDate').value; 
@@ -1176,10 +1152,39 @@ async function fetchUsers(forceRefresh = false) {
     }
 }
 
-function renderUserTableDirectly() {
+window.renderUserTableDirectly = function() {
     const box = document.getElementById('userTableBody');
     if(!box || GLOBAL_USER_LIST.length === 0) return;
 
+    // 1. ดึงคำค้นหาและตัวกรอง
+    const inputSearch = document.getElementById('searchUser') ? document.getElementById('searchUser').value.toLowerCase() : '';
+    const shiftFilter = document.getElementById('filterUserShift') ? document.getElementById('filterUserShift').value : 'all';
+    const deptFilter = document.getElementById('filterUserDept') ? document.getElementById('filterUserDept').value : 'all';
+
+    // 2. กรองข้อมูลจาก Array โดยตรง
+    let filteredUsers = GLOBAL_USER_LIST.filter(u => {
+        const matchName = u.username.toLowerCase().includes(inputSearch);
+        const matchShift = (shiftFilter === 'all') || (u.allowed_shift === shiftFilter);
+        const matchDept = (deptFilter === 'all') || ((u.department || 'AM') === deptFilter);
+        return matchName && matchShift && matchDept;
+    });
+
+    // 3. ตัดแบ่งหน้า (Pagination)
+    let totalUsers = filteredUsers.length;
+    let totalPages = userRowsPerPage === 'all' ? 1 : Math.ceil(totalUsers / parseInt(userRowsPerPage));
+    
+    // ป้องกันกรณีอยู่หน้าที่ลึกๆ แล้วค้นหาชื่อจนเหลือหน้าลดลง
+    if (userCurrentPage > totalPages) userCurrentPage = Math.max(1, totalPages);
+
+    let paginatedUsers = filteredUsers;
+    let startIndex = 0;
+    
+    if (userRowsPerPage !== 'all') {
+        startIndex = (userCurrentPage - 1) * parseInt(userRowsPerPage);
+        paginatedUsers = filteredUsers.slice(startIndex, startIndex + parseInt(userRowsPerPage));
+    }
+
+    // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ 
     let availableDepts = new Set([...(typeof permDepartmentsList !== 'undefined' ? permDepartmentsList : ['AM', 'OD'])]);
     GLOBAL_USER_LIST.forEach(u => { 
         if(u.department && u.department !== 'TRAINER' && u.department !== 'NEW') availableDepts.add(u.department); 
@@ -1192,8 +1197,11 @@ function renderUserTableDirectly() {
     const uniqueRoles = [...new Set(rawRoles)];
     const roleOptions = uniqueRoles.map(r => ({ val: r, label: r.charAt(0).toUpperCase() + r.slice(1) }));
 
+    // 5. วาดตาราง (เฉพาะคนที่อยู่ในหน้านี้)
     let html = '';
-    GLOBAL_USER_LIST.forEach(u => {
+    paginatedUsers.forEach((u, index) => {
+        const displayIndex = startIndex + index + 1; // ลำดับที่ถูกต้อง
+
         let currentDep = u.department || 'AM';
         if (currentDep === 'TRAINER' || currentDep === 'NEW') currentDep = 'AM';
         let depColor = currentDep === 'OD' ? 'text-pink-400' : (currentDep === 'AM' ? 'text-blue-400' : 'text-teal-400');
@@ -1225,7 +1233,11 @@ function renderUserTableDirectly() {
         html += `
             <tr class="hover:bg-slate-700/30 transition duration-200 group">
                 <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
-                <td class="p-3 text-gray-100 text-sm font-extrabold text-left border-b border-slate-700/50 flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-xs shadow-inner group-hover:text-white transition">${u.username.substring(0,2).toUpperCase()}</div>${u.username}</td>
+                <td class="p-3 text-gray-100 text-sm font-extrabold text-left border-b border-slate-700/50 flex items-center gap-2">
+                    <span class="text-[10px] text-gray-500 w-5 text-right mr-1">${displayIndex}.</span>
+                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-xs shadow-inner group-hover:text-white transition">${u.username.substring(0,2).toUpperCase()}</div>
+                    ${u.username}
+                </td>
                 <td class="p-3 text-center border-b border-slate-700/50">${depBadge}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${teamBadge}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${shiftSelect}</td>
@@ -1234,9 +1246,59 @@ function renderUserTableDirectly() {
                 <td class="p-3 text-center border-b border-slate-700/50">${roleBadge}</td> 
             </tr>`;
     });
+    
+    if (paginatedUsers.length === 0) {
+        html = `<tr><td colspan="8" class="text-center p-10 text-gray-400">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่ค้นหา</td></tr>`;
+    }
+
     box.innerHTML = html;
+
+    // 6. วาดปุ่มควบคุมหน้า (Pagination Controls)
+    window.renderPaginationControls(totalUsers, totalPages);
+    
     if(typeof populateTeamSelects === 'function') populateTeamSelects();
-}
+};
+
+window.renderPaginationControls = function(totalUsers, totalPages) {
+    let paginationBox = document.getElementById('userPaginationControls');
+    
+    if (!paginationBox) {
+        const tableContainer = document.getElementById('userTableBody').closest('.max-h-\\[500px\\]').parentElement;
+        tableContainer.insertAdjacentHTML('beforeend', `<div id="userPaginationControls" class="p-4 bg-slate-900 border-t border-slate-700 flex flex-wrap justify-between items-center gap-4 text-sm text-gray-400"></div>`);
+        paginationBox = document.getElementById('userPaginationControls');
+    }
+
+    if (totalUsers === 0) {
+        paginationBox.innerHTML = '';
+        return;
+    }
+
+    let startCount = userRowsPerPage === 'all' ? 1 : ((userCurrentPage - 1) * parseInt(userRowsPerPage)) + 1;
+    let endCount = userRowsPerPage === 'all' ? totalUsers : Math.min(userCurrentPage * parseInt(userRowsPerPage), totalUsers);
+
+    paginationBox.innerHTML = `
+        <div class="flex items-center gap-3">
+            <span class="font-bold">แสดง:</span>
+            <select onchange="userRowsPerPage = this.value; userCurrentPage = 1; window.renderUserTableDirectly();" class="bg-slate-800 border border-slate-600 text-white rounded p-1 outline-none font-bold">
+                <option value="10" ${userRowsPerPage == 10 ? 'selected' : ''}>10</option>
+                <option value="50" ${userRowsPerPage == 50 ? 'selected' : ''}>50</option>
+                <option value="100" ${userRowsPerPage == 100 ? 'selected' : ''}>100</option>
+                <option value="all" ${userRowsPerPage === 'all' ? 'selected' : ''}>ทั้งหมด</option>
+            </select>
+            <span class="hidden sm:inline">คน (รายการที่ ${startCount} - ${endCount} จาก ${totalUsers})</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="if(userCurrentPage > 1) { userCurrentPage--; window.renderUserTableDirectly(); }" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold transition disabled:opacity-30 disabled:cursor-not-allowed" ${userCurrentPage === 1 ? 'disabled' : ''}>◀ ก่อนหน้า</button>
+            <span class="text-white font-bold px-3">หน้า ${userCurrentPage} / ${totalPages}</span>
+            <button onclick="if(userCurrentPage < ${totalPages}) { userCurrentPage++; window.renderUserTableDirectly(); }" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold transition disabled:opacity-30 disabled:cursor-not-allowed" ${userCurrentPage >= totalPages ? 'disabled' : ''}>ถัดไป ▶</button>
+        </div>
+    `;
+};
+
+window.searchEmployee = function() {
+    userCurrentPage = 1; 
+    window.renderUserTableDirectly();
+};
 
 function fastRecalculateStats() {
     let stats = { 'กะเช้า': { total: 0, AM: 0, OD: 0 }, 'กะกลาง': { total: 0, AM: 0, OD: 0 }, 'กะดึก': { total: 0, AM: 0, OD: 0 } };
