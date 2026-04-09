@@ -14,7 +14,7 @@
         </button>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar" style="will-change: transform, scroll-position; transform: translateZ(0); backface-visibility: hidden;">
         <div class="max-w-[1600px] mx-auto space-y-6 pb-10">
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -309,7 +309,7 @@
     </template>
 
     <template id="tpl-date-group-start">
-        <div class="bg-slate-800 border border-slate-700 rounded-xl mb-4 overflow-hidden shadow-sm hover:shadow-md transition-shadow" style="content-visibility: auto; contain-intrinsic-size: auto 72px;">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl mb-4 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <div class="flex justify-between items-center p-4 bg-indigo-900/60 hover:bg-indigo-800 transition-colors cursor-pointer border-b border-indigo-500/30" onclick="this.nextElementSibling.classList.toggle('hidden'); const icon = this.querySelector('.toggle-icon'); icon.innerText = icon.innerText === 'expand_more' ? 'expand_less' : 'expand_more';">
                 
                 <div class="flex items-center gap-4 overflow-hidden pr-2">
@@ -385,8 +385,8 @@
         </div>
     </template>
 
-    <template id="tpl-emp-row">
-        <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden shadow-sm hover:shadow-md" style="content-visibility: auto; contain-intrinsic-size: auto 50px;">
+   <template id="tpl-emp-row">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl mb-3 overflow-hidden shadow-sm hover:shadow-md">
             <div class="flex justify-between items-center p-3 bg-slate-800 hover:bg-slate-700 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
                 <div class="flex items-center gap-3 overflow-hidden pr-2">
                     <div class="w-8 h-8 rounded-full bg-slate-700 text-gray-400 flex items-center justify-center font-black text-xs border border-slate-600 shadow-inner shrink-0">
