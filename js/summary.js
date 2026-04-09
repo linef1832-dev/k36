@@ -53,11 +53,14 @@ function getTpl(templateId, data = {}) {
 }
 
 window.initSummaryDate = async function() {
-    // 🌟 1. ล้างข้อมูลเก่าทิ้งทั้งหมดก่อนเริ่มทำงานทุกครั้ง (เพิ่ม 3 บรรทัดนี้)
-    pendingSummaryData = [];
-    if (window.uploadedFileDates) window.uploadedFileDates.clear();
-    if (window.selectedSummaryDates) window.selectedSummaryDates.clear();
+    // 🌟 1. เช็คความจำ: ถ้ามีข้อมูลที่ดูค้างไว้ (ไฟล์ Excel หรือดูย้อนหลัง) ให้ "คงไว้" ห้ามล้างทิ้ง!
+    if (pendingSummaryData && pendingSummaryData.length > 0) {
+        if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();
+        if (typeof window.fetchLeaderboardData === 'function') window.fetchLeaderboardData();
+        return; // 🛑 สั่งหยุดการทำงานตรงนี้เลย ข้อมูลจะได้ไม่หายตอนสลับหน้าเว็บ
+    }
 
+    // 🌟 2. ถ้าหน้าจอว่างเปล่าจริงๆ (เปิดเว็บครั้งแรก) ค่อยเริ่มกระบวนการดึงข้อมูลใหม่
     Swal.fire({title: 'กำลังเตรียมข้อมูลสรุปยอด...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
     try {
         const dateInput = document.getElementById('summaryDateFilter');
@@ -70,7 +73,7 @@ window.initSummaryDate = async function() {
         await loadWebLogos();
         if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
         
-        // 🌟 2. รอโหลดรายชื่อพนักงานให้เสร็จ 100%
+        // รอโหลดรายชื่อพนักงานให้เสร็จ 100%
         if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
             if (typeof appDB !== 'undefined') {
                 const { data } = await appDB.from('users').select('*');
