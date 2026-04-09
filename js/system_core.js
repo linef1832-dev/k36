@@ -1674,12 +1674,11 @@ window.loadSettings = async function() {
         if (typeof applyCustomTimeSlots === 'function') applyCustomTimeSlots();
         if (typeof renderManualTimeSlots === 'function') renderManualTimeSlots(); 
         
-        // 🌟 [แก้บั๊ก null] ป้องกัน Error โดยการเช็คให้ชัวร์ก่อนว่ามีหน้าต่างนี้อยู่จริง
+        // 🌟 เพิ่มบรรทัดนี้: บังคับให้โหลดช่วงเวลาใส่ Dropdown ทันทีหลังดึงข้อมูลเสร็จ
+        if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+        
         if (typeof fetchData === 'function') {
-            // รองรับทั้งชื่อ ID เก่า (mainContentArea) และชื่อ ID ใหม่ (app-content)
             const mainArea = document.getElementById('mainContentArea') || document.getElementById('app-content');
-            
-            // ถ้าหาหน้าต่างเจอ และหน้าต่างไม่ได้ถูกซ่อนอยู่ ค่อยดึงข้อมูล
             if (mainArea && !mainArea.classList.contains('hidden')) {
                 fetchData();
             }
