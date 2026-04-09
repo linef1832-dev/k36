@@ -1113,8 +1113,15 @@ window.ds_renderVoiceLogs = function() {
     let finalHtml = '';
     
     filtered.forEach(log => {
-        const d = new Date(log.time);
-        const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        let d = new Date(log.time);
+        d = new Date(d.getTime() - (7 * 60 * 60 * 1000));
+        
+        // 🌟 1. ดึงวันที่ (รูปแบบ 09/04/2569)
+        const datePart = d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        // 🌟 2. ดึงเวลา (รูปแบบ 15:38:51)
+        const timePart = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        // 🌟 3. เอามาจับมัดรวมกัน จัดให้วันที่เป็นตัวหนังสือเล็กๆ สีเทาๆ
+        const timeStr = `${timePart} <span class="text-[9px] text-gray-600 ml-1">(${datePart})</span>`;
         
         let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
         const dbUser = getDbUserFromDiscordName(log.name);
