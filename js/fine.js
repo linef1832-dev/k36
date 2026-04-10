@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System - Full Experience)
+// 🚨 ระบบจัดการใบปรับ (Fine System - Reborn)
 // ==========================================
 let globalFines = [];
 let currentFineState = {
@@ -29,8 +29,8 @@ const DEFAULT_RULE_SETS = [
             { id: 'on_8', type: 'ปรับ', chapter: '3', item: '4', penalty: '150 THB', desc: 'ไม่ทำงานตามกระบวนการ ทำให้เกิดความเสียหาย' },
             { id: 'on_9', type: 'ปรับ', chapter: '3', item: '5', penalty: '500 THB', desc: 'มีพฤติกรรมทำลายผลประโยชน์บริษัท (ร้ายแรงเลิกจ้าง)' },
             { id: 'on_10', type: 'ปรับ', chapter: '3', item: '6', penalty: '500 THB', desc: 'ไม่รายงานข้อมูล ปิดบัง ให้ข้อมูลเท็จ ปกป้องผู้กระทำผิด' },
-            { id: 'on_11', type: 'เลิกจ้าง', chapter: '3', item: '7', penalty: 'เลิกจ้างทันที', desc: 'ทำงานมากกว่า 1 งาน / ใช้เรซูเม่ปลอม / ทำงานนอก / แชร์คอมพิวเตอร์' },
-            { id: 'on_12', type: 'ปรับ', chapter: '3', item: '8', penalty: '2,500 THB', desc: 'ไม่ปฏิบัติตามจรรยาบรรณ / ขโมยข้อมูล / ปลอมแปลงข้อมูล / สมัครบัญชีเอง' }
+            { id: 'on_11', type: 'เลิกจ้าง', chapter: '3', item: '7', penalty: 'เลิกจ้างทันที (ไม่จ่ายค่าจ้าง)', desc: 'ทำงานมากกว่า 1 งาน / ใช้เรซูเม่ปลอม / ทำงานนอก / แชร์คอมพิวเตอร์' },
+            { id: 'on_12', type: 'ปรับ', chapter: '3', item: '8', penalty: '2,500 THB + คืนผลประโยชน์', desc: 'ไม่ปฏิบัติตามจรรยาบรรณ / ขโมยข้อมูล / ปลอมแปลงข้อมูล / สมัครบัญชีเอง' }
         ]
     },
     {
@@ -39,7 +39,7 @@ const DEFAULT_RULE_SETS = [
             { id: 'wf_1', type: 'ปรับ', chapter: '2', item: '1', penalty: '300 THB', desc: 'การมาสายหรือกลับก่อนเวลา (สายเกิน 30 นาที ไม่ได้รับค่าจ้างวันนั้น)' },
             { id: 'wf_2', type: 'ปรับ', chapter: '2', item: '2', penalty: '300 THB', desc: 'อัปโหลดรูปเช็กชื่อที่ไม่เป็นไปตามข้อกำหนด และไม่ได้เช็กชื่อใหม่' },
             { id: 'wf_3', type: 'หักค่าแรง', chapter: '2', item: '3', penalty: 'หักค่าแรง 1 วัน', desc: 'ไม่อยู่ในตำแหน่งทำงาน หรือไม่ได้รับสายโทรศัพท์ต่อเนื่อง 3 ครั้ง' },
-            { id: 'wf_4', type: 'ขาดงาน', chapter: '2', item: '4', penalty: 'ปรับ 3 เท่า', desc: 'ไม่มาทำงานโดยไม่ได้รับอนุญาตถือเป็นการขาดงาน' },
+            { id: 'wf_4', type: 'ขาดงาน', chapter: '2', item: '4', penalty: 'ปรับ 3 เท่าของค่าจ้าง', desc: 'ไม่มาทำงานโดยไม่ได้รับอนุญาตถือเป็นการขาดงาน' },
             { id: 'wf_5', type: 'ปรับ', chapter: '3', item: '1', penalty: '300 THB', desc: 'ใช้อุปกรณ์เล่นเกม/ดูวิดีโอ/ช้อปปิ้ง ส่งผลกระทบต่องาน' },
             { id: 'wf_6', type: 'ปรับ', chapter: '3', item: '2', penalty: '1,000 THB', desc: 'ลบประวัติแชทของบัญชีงานโดยไม่ได้รับอนุญาต' },
             { id: 'wf_7', type: 'ปรับ', chapter: '3', item: '3', penalty: '1,000 THB', desc: 'ไม่เชื่อฟังคนเบื้องบน หรือไม่ปฏิบัติตามการมอบหมาย (ร้ายแรงเลิกจ้าง)' },
@@ -54,18 +54,18 @@ const DEFAULT_RULE_SETS = [
     {
         category: 'OKVIP - กฎระเบียบสำนักงาน',
         rules: [
-            { id: 'of_1', type: 'ตักเตือน', chapter: '2', item: '1', penalty: 'คัดกฎ 1 รอบ', desc: 'การมาสาย หรือ กลับก่อนเวลา (สาย 30 นาที ไม่ได้ค่าแรง / 3 ชม. ขาดงาน)' },
+            { id: 'of_1', type: 'ตักเตือน', chapter: '2', item: '1', penalty: 'คัดกฎระเบียบ 1 รอบ', desc: 'การมาสาย หรือ กลับก่อนเวลา (สาย 30 นาที ไม่ได้ค่าแรง / 3 ชม. ขาดงาน)' },
             { id: 'of_2', type: 'ปรับ', chapter: '2', item: '3', penalty: '100 THB', desc: 'ไม่สแกนบัตรเข้า-ออกงานตามเวลาปกติ' },
-            { id: 'of_3', type: 'ขาดงาน', chapter: '2', item: '4', penalty: 'ปรับ 3 เท่า', desc: 'การขาดงาน ไม่มาทำงานโดยไม่ได้รับอนุญาต' },
+            { id: 'of_3', type: 'ขาดงาน', chapter: '2', item: '4', penalty: 'ปรับ 3 เท่าของค่าจ้าง', desc: 'การขาดงาน ไม่มาทำงานโดยไม่ได้รับอนุญาต' },
             { id: 'of_4', type: 'ปรับ', chapter: '2', item: '5', penalty: '100 - 300 THB', desc: 'ออกจากหน้างานชั่วคราวเกิน 5 นาที (100 บ.) / ภายใน 30 นาที (300 บ.)' },
             { id: 'of_5', type: 'ปรับ', chapter: '3', item: '1', penalty: '1,000 THB', desc: 'พกอุปกรณ์อิเล็กทรอนิกส์ส่วนตัว (มือถือ) ไปพื้นที่สำนักงาน (ไม่ได้เก็บล็อกเกอร์)' },
-            { id: 'of_6', type: 'ตักเตือน', chapter: '3', item: '2', penalty: 'คัดกฎ 1 รอบ', desc: 'ดูวิดีโอ ช้อปปิ้ง ใส่หูฟังฟังเพลง เล่นเกม นอนหลับ หยอกล้อ' },
+            { id: 'of_6', type: 'ตักเตือน', chapter: '3', item: '2', penalty: 'คัดกฎระเบียบ 1 รอบ', desc: 'ดูวิดีโอ ช้อปปิ้ง ใส่หูฟังฟังเพลง เล่นเกม นอนหลับ หยอกล้อ' },
             { id: 'of_7', type: 'ปรับ', chapter: '3', item: '3', penalty: '1,000 THB', desc: 'นำอุปกรณ์ส่วนตัวเชื่อมเครือข่ายบริษัท / ลบประวัติแชทงาน' },
             { id: 'of_8', type: 'ปรับ', chapter: '3', item: '6', penalty: '300 THB', desc: 'กินข้าวในสำนักงาน นำของกลิ่นแรงเข้ามา หรือดื่มแอลกอฮอล์' },
             { id: 'of_9', type: 'ปรับ', chapter: '4', item: '1', penalty: '300 - 500 THB', desc: 'ก่อเรื่อง ติดแอลกอฮอล์ เสียงดังในหอพัก' },
             { id: 'of_10', type: 'ปรับ', chapter: '4', item: '3', penalty: '300 - 500 THB', desc: 'ผู้ชายเข้าห้องพักผู้หญิง / ผู้หญิงเข้าห้องผู้อื่นโดยไม่ได้รับอนุญาต' },
             { id: 'of_11', type: 'ปรับ', chapter: '4', item: '8', penalty: '500 THB', desc: 'ใช้เครื่องใช้ไฟฟ้ากำลังสูง ประกอบอาหารในหอพัก นำวัตถุไวไฟเข้า' },
-            { id: 'of_12', type: 'ปรับ', chapter: '5', item: '1', penalty: '1,000 THB', desc: 'ทะเลาะวิวาท ข่มขู่ ใส่ร้ายป้ายสี (ร้ายแรงเชิญออก)' },
+            { id: 'of_12', type: 'ปรับ', chapter: '5', item: '1', penalty: '1,000 THB + คัด 2 รอบ', desc: 'ทะเลาะวิวาท ข่มขู่ ใส่ร้ายป้ายสี (ร้ายแรงเชิญออก)' },
             { id: 'of_13', type: 'ปรับ', chapter: '5', item: '4', penalty: '5,000 THB', desc: 'ขโมย ครอบครองทรัพย์สินสาธารณะ ขโมยข้อมูล' }
         ]
     }
@@ -82,27 +82,22 @@ window.initFineApp = async function() {
     }
 
     if (!isAdmin) {
-        // 🌟 ซ่อนปุ่มเมนูด้านบนที่แอดมินใช้
-        document.getElementById('tabFineCreate').classList.add('hidden');
-        document.getElementById('tabFineManage').classList.add('hidden');
+        // 🌟 พนักงานทั่วไป: บังคับซ่อนทุกอย่างให้เห็นแค่หน้าประวัติตัวเอง
+        document.getElementById('fineTopNav').classList.add('hidden'); // ซ่อนแถบเมนูด้านบน
+        document.getElementById('fineTopNav').classList.remove('flex');
         
-        // 🌟 ซ่อนหน้าย่อย (กล่อง) ของแอดมิน
-        document.getElementById('fineTabCreate').classList.add('hidden');
-        document.getElementById('fineTabManage').classList.add('hidden');
+        switchFineTab('history'); // บังคับไปหน้าประวัติ
         
-        // 🌟 แสดงหน้าประวัติการปรับ (ที่เป็นของพนักงานทั่วไป)
-        switchFineTab('history');
-        
-        // ซ่อนคอลัมน์และปุ่มที่ไม่จำเป็นสำหรับพนักงาน
-        document.getElementById('thAction').style.display = 'none';
-        document.getElementById('thEmpName').style.display = 'none';
+        document.getElementById('thAction').style.display = 'none'; // ซ่อนปุ่มลบ
+        document.getElementById('thEmpName').style.display = 'none'; // ซ่อนคอลัมน์ชื่อตัวเอง
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
     } else {
-        // ถ้าเป็นแอดมิน ให้แสดงปุ่มทั้งหมด และไปที่หน้าสร้างใบปรับก่อน
-        document.getElementById('tabFineCreate').classList.remove('hidden');
-        document.getElementById('tabFineManage').classList.remove('hidden');
-        document.getElementById('thEmpName').style.display = '';
+        // 🌟 แอดมิน: แสดงเมนูทั้งหมด
+        document.getElementById('fineTopNav').classList.remove('hidden');
+        document.getElementById('fineTopNav').classList.add('flex');
+
         document.getElementById('thAction').style.display = '';
+        document.getElementById('thEmpName').style.display = '';
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">view_list</span> รายการใบปรับทั้งหมดในระบบ';
         
         await loadCompanyRules();
@@ -114,6 +109,12 @@ window.initFineApp = async function() {
 };
 
 window.switchFineTab = function(tab) {
+    const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
+    const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
+
+    // 🌟 ถอยกลับทันทีถ้าพนักงานทั่วไปพยายามเปลี่ยนแท็บ
+    if (!isAdmin && tab !== 'history') return;
+
     ['create', 'history', 'manage'].forEach(t => {
         document.getElementById('fineTab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.add('hidden');
         document.getElementById('fineTab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('flex');
@@ -181,6 +182,7 @@ window.switchRuleCategory = function(cat) {
     
     document.getElementById('searchFineRule').value = '';
     document.getElementById('filterRuleType').value = 'ALL';
+    document.getElementById('filterRuleChapter').value = 'ALL';
     currentFineState.ruleId = null;
     currentFineState.ruleData = null;
     
@@ -262,6 +264,7 @@ window.renderFineRuleList = function() {
 
     const term = document.getElementById('searchFineRule').value.toLowerCase();
     const filterType = document.getElementById('filterRuleType').value;
+    const filterChapter = document.getElementById('filterRuleChapter').value;
 
     const targetSet = window.COMPANY_RULE_SETS.find(s => s.category === currentRuleCategory);
     if (!targetSet) return;
@@ -269,7 +272,8 @@ window.renderFineRuleList = function() {
     let filteredRules = targetSet.rules.filter(rule => {
         const matchTerm = rule.desc.toLowerCase().includes(term) || rule.penalty.toLowerCase().includes(term);
         const matchType = filterType === 'ALL' || rule.type === filterType;
-        return matchTerm && matchType;
+        const matchChapter = filterChapter === 'ALL' || rule.chapter === filterChapter;
+        return matchTerm && matchType && matchChapter;
     });
 
     if(filteredRules.length === 0) {
@@ -320,6 +324,9 @@ window.selectFineRule = function(id, ruleJson) {
     updateFinePattern();
 };
 
+// -----------------------------------------
+// การสร้าง Pattern และบันทึก
+// -----------------------------------------
 window.updateFinePattern = function() {
     currentFineState.note = document.getElementById('fineExtraNote').value.trim();
     const preview = document.getElementById('finePatternPreview');
@@ -334,6 +341,7 @@ window.updateFinePattern = function() {
     const r = currentFineState.ruleData;
     
     let noteTxt = currentFineState.note ? ` - ${currentFineState.note}` : '';
+    // แพทเทิร์น: ปรับ AMOL-AMADA บทที่ 3 ข้อที่ 8 2,500 THB + คืนผลประโยชน์ (ไม่ปฏิบัติตามจรรยาบรรณวิชาชีพ...)
     const text = `${r.type} ${eName}${eWeb} บทที่ ${r.chapter} ข้อที่ ${r.item} ${r.penalty} (${r.desc}${noteTxt})`;
     
     preview.innerHTML = `<span class="text-white">${text}</span>`;
@@ -359,7 +367,7 @@ window.submitNewFine = async function() {
 
     try {
         const r = currentFineState.ruleData;
-        const amountMatch = r.penalty.match(/\d+(,\d+)?/g);
+        const amountMatch = r.penalty.match(/\d+(,\d+)?/g); 
         let amountNum = 0;
         if (amountMatch) {
             amountNum = parseInt(amountMatch[0].replace(/,/g, ''));
@@ -392,7 +400,7 @@ window.submitNewFine = async function() {
 };
 
 // -----------------------------------------
-// TAB 2: ตารางประวัติ
+// ดึงข้อมูลประวัติ และวาดตาราง
 // -----------------------------------------
 window.fetchFinesData = async function(isAdmin) {
     const tbody = document.getElementById('fineHistoryBody');
@@ -408,6 +416,7 @@ window.fetchFinesData = async function(isAdmin) {
         
         globalFines = data || [];
         renderFineHistoryTable(isAdmin);
+
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-red-500">เกิดข้อผิดพลาดในการโหลดประวัติ<br><span class="text-xs text-gray-500">${e.message}</span></td></tr>`;
     }
@@ -432,7 +441,8 @@ window.renderFineHistoryTable = function(isAdminOverride) {
     if (totalAmountEl) totalAmountEl.innerText = `฿${totalAmount.toLocaleString('en-US')}`;
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-500">ไม่พบประวัติใบปรับ</td></tr>`;
+        const cols = isAdmin ? 6 : 4; // พนักงานมี 4 คอลัมน์ แอดมินมี 6
+        tbody.innerHTML = `<tr><td colspan="${cols}" class="text-center py-10 text-gray-500">ไม่พบประวัติใบปรับ</td></tr>`;
         return;
     }
 
@@ -444,16 +454,17 @@ window.renderFineHistoryTable = function(isAdminOverride) {
 
         const delBtn = isAdmin ? `<button onclick="deleteFine(${f.id})" class="text-red-400 hover:text-white bg-slate-800 hover:bg-red-500 p-1.5 rounded-lg transition border border-slate-600 shadow-sm"><span class="material-icons text-[16px] block">delete</span></button>` : '';
         const actionCol = isAdmin ? `<td class="p-4 text-center align-top pt-6">${delBtn}</td>` : '';
+        const empCol = isAdmin ? `<td class="p-4 font-black text-white align-top pt-6 text-sm">${f.user_name}</td>` : '';
 
         let ruleDisplay = `<span class="bg-red-900/30 text-red-400 px-3 py-1.5 rounded-lg border border-red-800/50 shadow-sm inline-block font-bold">${f.rule_text}</span>`;
         if (f.note && f.note.trim() !== '') {
-            ruleDisplay += `<div class="mt-2 text-yellow-500 text-xs font-bold flex items-start gap-1.5 w-fit max-w-[400px]"><span class="material-icons text-[16px] shrink-0 mt-0.5">info</span><span class="whitespace-normal break-words leading-relaxed">${f.note}</span></div>`;
+            ruleDisplay += `<div class="mt-2.5 text-yellow-500 text-xs font-bold flex items-start gap-1.5 w-fit max-w-[400px]"><span class="material-icons text-[16px] shrink-0 mt-0.5">info</span><span class="whitespace-normal break-words leading-relaxed">${f.note}</span></div>`;
         }
 
         return `
         <tr class="hover:bg-slate-800/50 transition border-b border-slate-700/50 group">
             <td class="p-4 text-xs text-gray-500 font-mono align-top pt-6">${dateStr}</td>
-            <td class="p-4 font-black text-white align-top pt-6 text-sm">${f.user_name}</td>
+            ${empCol}
             <td class="p-4 text-xs align-top pt-5 pb-5">${ruleDisplay}</td>
             <td class="p-4 text-center align-top pt-6">${amountDisplay}</td>
             <td class="p-4 text-center align-top pt-6 text-gray-500 text-xs">- ไม่มีรูป -</td>
