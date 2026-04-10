@@ -9,8 +9,8 @@ window.initFineApp = async function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
 
-    // === 🌟 เพิ่มโค้ดตรงนี้: สั่งให้ดึงรายชื่อพนักงานก่อนถ้ายังไม่มี ===
-    if (isAdmin && typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+    // === 🌟 ดึงรายชื่อพนักงานก่อนถ้ายังไม่มี ===
+    if (isAdmin && typeof fetchUsers === 'function' && (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0)) {
         await fetchUsers();
     }
     // ====================================================
@@ -47,9 +47,9 @@ window.initFineApp = async function() {
 // ดึงรายชื่อพนักงานใส่ Dropdown
 function populateEmpSelect() {
     const select = document.getElementById('fineEmpSelect');
-    if (!select || !window.GLOBAL_USER_LIST) return;
+    if (!select || !GLOBAL_USER_LIST) return;
     
-    const sortedUsers = [...window.GLOBAL_USER_LIST].sort((a, b) => a.username.localeCompare(b.username));
+    const sortedUsers = [...GLOBAL_USER_LIST].sort((a, b) => a.username.localeCompare(b.username));
     select.innerHTML = '<option value="">-- เลือกพนักงาน --</option>' + 
         sortedUsers.map(u => `<option value="${u.username}">${u.username} (${u.department || 'AM'})</option>`).join('');
 }
@@ -159,12 +159,10 @@ window.submitFine = async function(e) {
         }
 
         // ค้นหา user_id จากชื่อ
-        const targetUser = window.GLOBAL_USER_LIST.find(u => u.username === empName);
+        const targetUser = GLOBAL_USER_LIST.find(u => u.username === empName);
         const targetId = targetUser ? targetUser.id : null;
 
         // จำลองเซฟลง DB (ต้องสร้าง Table 'fines' ใน Supabase)
-        // หรือถ้าไม่อยากสร้าง Table ใหม่ จะเซฟเป็น JSON ลง settings ก็ได้ (แต่ Table ดีกว่า)
-        // เพื่อความง่ายในตัวอย่างนี้ ผมจะสมมติว่าคุณสร้าง Table ชื่อ 'fines' แล้ว
         const { error: dbError } = await appDB.from('fines').insert([{
             user_id: targetId,
             user_name: empName,
