@@ -84,14 +84,34 @@ document.addEventListener('click', function(e) {
 });
 
 // -----------------------------------------
-// จัดการหัวข้อกฎ
+// จัดการหัวข้อกฎ (ดึงกฎเริ่มต้นจากเอกสาร OKVIP)
 // -----------------------------------------
+const defaultRules = [
+    'มาทำงานสาย / เช็คชื่อสาย',
+    'กลับก่อนเวลาเลิกงาน',
+    'ไม่สแกนบัตร / ไม่เช็คชื่อ / ขาดงาน',
+    'ออกจากหน้างานชั่วคราวเกินกำหนด / ไม่อยู่หน้างาน',
+    'เล่นเกม / ดูวิดีโอ / ช้อปปิ้ง ในเวลางาน',
+    'ใช้อุปกรณ์ส่วนตัว (มือถือ) ในพื้นที่ทำงาน',
+    'ลบประวัติแชทบัญชีทำงาน',
+    'ไม่ปฏิบัติตามคำสั่ง / ทำงานด้วยอารมณ์',
+    'ประกอบอาชีพอื่น / ทำงานซ้อน',
+    'ดื่มเครื่องดื่มแอลกอฮอล์ในเวลางาน',
+    'ทำงานผิดพลาด / ไม่ตั้งใจทำงาน / ล่าช้า',
+    'ไม่รายงาน / ปิดบังข้อมูล / รายงานเท็จ / ทำข้อมูลปลอม',
+    'รับไฟล์หรือลิงก์จากคนแปลกหน้า',
+    'ทะเลาะวิวาท / คุกคาม / พูดจาไม่สุภาพ'
+];
+
 async function loadFineRules() {
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'fine_rules_data').single();
-        globalFineRules = (data && data.value) ? JSON.parse(data.value) : ['ขาดงานไม่แจ้ง', 'แต่งกายผิดระเบียบ'];
+        globalFineRules = (data && data.value) ? JSON.parse(data.value) : defaultRules;
         renderRulesDropdown();
-    } catch(e) { globalFineRules = ['ขาดงานไม่แจ้ง', 'แต่งกายผิดระเบียบ']; renderRulesDropdown(); }
+    } catch(e) { 
+        globalFineRules = defaultRules; 
+        renderRulesDropdown(); 
+    }
 }
 
 function renderRulesDropdown() {
@@ -101,7 +121,7 @@ function renderRulesDropdown() {
     const listDiv = document.getElementById('fineRulesList');
     if (listDiv) {
         listDiv.innerHTML = globalFineRules.map((r, idx) => `
-            <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded shadow-sm border border-gray-200 dark:border-slate-700">
+            <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded shadow-sm border border-gray-200 dark:border-slate-700 mb-2">
                 <span class="text-sm font-bold text-slate-700 dark:text-gray-200">${r}</span>
                 <button onclick="removeFineRule(${idx})" class="text-red-400 hover:text-red-600"><span class="material-icons text-sm">delete</span></button>
             </div>`).join('');
