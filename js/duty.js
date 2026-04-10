@@ -96,7 +96,7 @@ window.subscribeDutyChanges = function() {
 }
 
 window.applyDutyRoleUI = function() {
-    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'AMQL');
     const isTrainerDept = (currentUser.department === 'TRAINER'); 
     const isTrainerRole = (currentUser.role && currentUser.role.toLowerCase() === 'trainer');
 
@@ -137,7 +137,7 @@ window.switchDutyTab = function(tabName) {
         document.getElementById('tabBtnRoster').className = 'px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition';
         document.getElementById('tabBtnSettings').className = 'px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition';
         window.renderDutyRequirements();
-        if(currentUser.role === 'manager' || currentUser.role === 'admin') window.updateDutyStats();
+        if(currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'AMQL') window.updateDutyStats();
     } else {
         document.getElementById('dutyTabSettings').classList.remove('hidden'); document.getElementById('dutyTabSettings').classList.add('flex');
         document.getElementById('dutyTabRoster').classList.add('hidden'); document.getElementById('dutyTabRoster').classList.remove('flex');
@@ -159,9 +159,9 @@ window.switchDutyDept = function(dept) {
     const taskModeContainer = document.getElementById('trainerTaskModeContainer');
     
     if (dept === 'TRAINER') {
-        if (btnManageTrainer && (currentUser.role === 'manager' || currentUser.role === 'admin')) btnManageTrainer.classList.remove('hidden');
+        if (btnManageTrainer && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'AMQL')) btnManageTrainer.classList.remove('hidden');
         if (filterTrainer) filterTrainer.classList.remove('hidden');
-        if (taskModeContainer && (currentUser.role === 'manager' || currentUser.role === 'admin')) { taskModeContainer.classList.remove('hidden'); taskModeContainer.classList.add('flex'); }
+        if (taskModeContainer && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'AMQL')) { taskModeContainer.classList.remove('hidden'); taskModeContainer.classList.add('flex'); }
     } else {
         if (btnManageTrainer) btnManageTrainer.classList.add('hidden');
         if (filterTrainer) filterTrainer.classList.add('hidden');
@@ -249,7 +249,7 @@ window.refreshDutyData = async function() {
             else btnRestore.classList.add('hidden');
         }
 
-        if (typeof currentUser !== 'undefined' && (currentUser.role === 'manager' || currentUser.role === 'admin')) window.updateDutyStats(); 
+        if (typeof currentUser !== 'undefined' && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'AMQL')) window.updateDutyStats();
     } catch (err) { console.error("Refresh Duty Data Error:", err); }
 };
 
@@ -610,7 +610,7 @@ window.renderRosterGrid = async function(rosterData) {
     let finalGridHtml = ''; // 🌟 สร้างตัวแปรมารับ HTML
     
     currentRosterData = rosterData; 
-    const isAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const isAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'AMQL'));
 
     let trainerReports = {};
     const targetDate = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '';
@@ -934,7 +934,7 @@ document.addEventListener('dragover', (e) => {
 });
 
 window.handleDragStart = function(event, userId, username, fromTeam) {
-    if (!currentUser || (currentUser.role !== 'manager' && currentUser.role !== 'admin')) { event.preventDefault(); return; }
+    if (!currentUser || (currentUser.role !== 'manager' && currentUser.role !== 'admin' && currentUser.role !== 'AMQL')) { event.preventDefault(); return; }
     if(!userId || userId === 'undefined') { event.preventDefault(); return; }
     draggedUser = { id: userId, username: username, fromTeam: fromTeam };
     event.dataTransfer.effectAllowed = "move";
