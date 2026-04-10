@@ -4,23 +4,62 @@
 let globalFines = [];
 let globalFineRules = [];
 
-// 📜 สรุปกฎระเบียบจากเอกสาร OKVIP
+// 📜 สรุปกฎระเบียบจากเอกสาร OKVIP ทั้ง 4 ไฟล์ (แยกหมวดหมู่)
 const okvipRules = [
-    "บทที่ 2: มาทำงานสาย / กลับก่อนเวลา",
-    "บทที่ 2: ไม่สแกนบัตรเข้า-ออกงาน / ขาดงาน",
-    "บทที่ 2: ออกจากหน้างานชั่วคราวเกินเวลา / ไม่อยู่หน้างาน",
-    "บทที่ 3: พกอุปกรณ์ส่วนตัว / เล่นมือถือในเวลาทำงาน",
-    "บทที่ 3: ดูวิดีโอ / ช้อปปิ้ง / เล่นเกม / นอนหลับเวลางาน",
-    "บทที่ 3: ลบประวัติแชท / ใช้อุปกรณ์ทำงานเรื่องส่วนตัว",
-    "บทที่ 3: ไม่ปฏิบัติตามคำสั่ง / ทำงานด้วยอารมณ์ / ก้าวร้าว",
-    "บทที่ 3: ดื่มแอลกอฮอล์ / ทานอาหารในสำนักงาน",
-    "บทที่ 3: ทำงานล่าช้า / ไม่ตั้งใจ / ละเลยงาน",
-    "บทที่ 3: ไม่รายงานข้อมูล / ปิดบัง / ทำข้อมูลปลอม",
-    "บทที่ 3: รับไฟล์หรือลิงก์จากคนแปลกหน้า",
-    "บทที่ 4: ทะเลาะวิวาท / ก่อเรื่อง / เสียงดัง",
-    "บทที่ 4: ทำผิดกฎหอพัก (พาคนนอกเข้า / เข้าห้องผิดเพศ)",
-    "บทที่ 5: ทุจริต / ปลอมแปลงข้อมูล / ขโมยทรัพย์สิน",
-    "บทที่ 5: พูดจาไม่สุภาพ / ดูหมิ่น / ยุยงสร้างความขัดแย้ง"
+    // ============ 🌐 หมวดออนไลน์ ============
+    "[ออนไลน์] เช็คชื่อสายเกิน 10 นาที (ปรับ 100) / เกิน 1 ชม. (ไม่ได้ค่าแรง)",
+    "[ออนไลน์] ไม่ได้เช็คชื่อ 2 ครั้ง (ขาดงาน ไม่ได้ค่าแรง 2 วัน)",
+    "[ออนไลน์] ไม่รับสาย OA สุ่มโทรติดต่อกัน 3 ครั้ง (ไม่ได้ค่าแรง)",
+    "[ออนไลน์] รูปเช็คชื่อไม่ได้มาตรฐาน / ไม่เห็นจอ / ข้อมือ / มืด (ปรับ 100)",
+    "[ออนไลน์] ไม่ปฏิบัติตามคำสั่ง / ทำงานด้วยอารมณ์ (ปรับ 300)",
+    "[ออนไลน์] ไม่ตั้งใจทำงาน / พูดจาไม่สุภาพ (ปรับ 150)",
+    "[ออนไลน์] ทำงานล่าช้า / ไม่ร่วมมือระหว่างแผนก (ปรับ 150)",
+    "[ออนไลน์] ไม่ทำงานตามกระบวนการจนเกิดความเสียหาย (ปรับ 150)",
+    "[ออนไลน์] ทำลายผลประโยชน์บริษัท (ปรับ 500 / ร้ายแรงเลิกจ้าง)",
+    "[ออนไลน์] ปิดบังข้อมูล / ให้ข้อมูลเท็จ / ปกป้องคนผิด (ปรับ 500)",
+    "[ออนไลน์] รับงานซ้อน / ใช้เรซูเม่ปลอม / ใช้คอมเครื่องเดียวกัน (เลิกจ้าง)",
+    "[ออนไลน์] ขโมยข้อมูล / ปลอมแปลงข้อมูล / สมัครบัญชีเว็บตัวเอง (ปรับ 2,500 + คืนเงิน)",
+
+    // ============ 🏠 หมวด WFH ============
+    "[WFH] มาสาย / กลับก่อนเวลา 10-30 นาที (ปรับ 300) / เกิน 30 นาที (ไม่ได้ค่าแรง)",
+    "[WFH] รูปเช็คชื่อไม่ได้มาตรฐาน (ปรับ 300)",
+    "[WFH] ไม่อยู่หน้างาน / ไม่รับสาย 3 ครั้ง (หักค่าจ้าง 1 วัน)",
+    "[WFH] ให้คนอื่นทำแทน / ทำงานซ้อน 2 งาน (เลิกจ้าง)",
+    "[WFH] ขาดงานไม่แจ้ง / ติดต่อไม่ได้เกิน 24 ชม. (หัก 3 เท่า / เลิกจ้าง)",
+    "[WFH] เล่นเกม / ดูวิดีโอ / ช้อปปิ้ง เวลางาน (ปรับ 300)",
+    "[WFH] ลบประวัติแชทโดยไม่ได้รับอนุญาต (ปรับ 1,000)",
+    "[WFH] ไม่เชื่อฟัง / ทำงานตามอารมณ์ / ก้าวร้าว (ปรับ 1,000)",
+    "[WFH] รับงานนอก / ทำพฤติกรรมกระทบความสามัคคี (ปรับ 1,000)",
+    "[WFH] กินข้าวเวลางาน / ดื่มแอลกอฮอล์ (ปรับ 300)",
+    "[WFH] ไม่ตั้งใจทำงาน / พฤติกรรมไม่เหมาะสม (ปรับ 300)",
+    "[WFH] ทำงานล่าช้า / ประสานงานข้ามแผนกไม่ดี (ปรับ 500)",
+    "[WFH] ไม่ทำตามขั้นตอนจนเกิดความเสียหาย (ปรับ 300)",
+    "[WFH] ปกปิดข้อมูล / รายงานเท็จ / ปกปิดความผิด (ปรับ 300)",
+    "[WFH] รับไฟล์แปลกปลอม / ขาดความระมัดระวังด้านความปลอดภัย (ปรับ 500)",
+    "[WFH] ยุยงสร้างความขัดแย้ง / ด่าทอ / คุกคาม (ปรับ 1,000)",
+    "[WFH] พูดจาไม่สุภาพ / โจมตีบุคคล (ปรับ 300)",
+    "[WFH] ขโมย / ยักยอกทรัพย์ / ปลอมแปลงข้อมูล (ปรับ 5,000 + คืนเงิน)",
+
+    // ============ 🏢 หมวดออฟฟิศ (ทั่วไป) ============
+    "[ออฟฟิศ] มาสาย / กลับก่อน / ไม่อยู่หน้างาน (ปรับ 100-300 / คัดกฎ / ไม่ได้ค่าแรง)",
+    "[ออฟฟิศ] ไม่สแกนบัตรเข้า-ออกงาน (ปรับ 100)",
+    "[ออฟฟิศ] ขาดงานไม่แจ้ง (ปรับ 3 เท่าของค่าแรง)",
+    "[ออฟฟิศ] พกโทรศัพท์ / อุปกรณ์ส่วนตัวเข้าพื้นที่ทำงาน (ปรับ 1,000)",
+    "[ออฟฟิศ] ลบประวัติแชท / ใช้อุปกรณ์บริษัททำเรื่องส่วนตัว (ปรับ 1,000)",
+    "[ออฟฟิศ] รับงานนอก / ทำพฤติกรรมกระทบความสามัคคี (ปรับ 1,000)",
+    "[ออฟฟิศ] กินอาหารในสำนักงาน / ดื่มแอลกอฮอล์ (ปรับ 300)",
+    "[ออฟฟิศ] ไม่ตั้งใจทำงาน / ปกปิดข้อมูล / ให้ข้อมูลเท็จ (ปรับ 300)",
+    "[ออฟฟิศ] รับไฟล์แปลกปลอม / ขาดความระมัดระวังด้านความปลอดภัย (ปรับ 500)",
+    "[ออฟฟิศ] ก่อเรื่อง / เสียงดัง / ดื่มแอลกอฮอล์ในหอพัก (ปรับ 300-500)",
+    "[ออฟฟิศ] เลี้ยงสัตว์ / ทิ้งขยะไม่เป็นที่ / สูบบุหรี่ผิดที่ (ปรับ 300)",
+    "[ออฟฟิศ] ชายเข้าห้องหญิง (ปรับ 500) / หญิงเข้าห้องผู้อื่นโดยไม่ขอ (ปรับ 300)",
+    "[ออฟฟิศ] ทำกิจกรรมรบกวนผู้อื่นหลังตี 3 / ออกนอกหอพักตี 3-6 (ปรับ 300)",
+    "[ออฟฟิศ] เล่นการพนัน / ยาเสพติด / ไสยศาสตร์ (ปรับ 5,000 + เลิกจ้าง)",
+    "[ออฟฟิศ] พาคนนอกเข้าพื้นที่สำนักงานหรือหอพัก (ปรับ 500)",
+    "[ออฟฟิศ] แอบใช้เครื่องใช้ไฟฟ้ากำลังสูง / ทำอาหารในหอพัก (ปรับ 500)",
+    "[ออฟฟิศ] ยุยงสร้างความขัดแย้ง / ด่าทอ / คุกคาม (ปรับ 1,000 + คัดกฎ)",
+    "[ออฟฟิศ] ไม่ปิดน้ำไฟ / ทำลายทรัพย์สินบริษัท (ปรับ 300 + ชดใช้ราคาจริง)",
+    "[ออฟฟิศ] ขโมย / ปลอมแปลงข้อมูล / ยักยอกทรัพย์ (ปรับ 5,000 + คืนเงิน)"
 ];
 
 window.initFineApp = async function() {
@@ -37,7 +76,7 @@ window.initFineApp = async function() {
     
     if (isAdmin) {
         adminControls.classList.remove('hidden');
-        tabsContainer.classList.remove('hidden'); // โชว์ปุ่ม Tab ให้ Admin
+        tabsContainer.classList.remove('hidden'); 
         tableContainer.classList.remove('lg:col-span-12');
         tableContainer.classList.add('lg:col-span-8');
         document.getElementById('fineSubtitle').innerText = "ออกใบปรับและดูประวัติทั้งหมด";
@@ -48,7 +87,7 @@ window.initFineApp = async function() {
         populateEmpSelect(); 
     } else {
         adminControls.classList.add('hidden');
-        tabsContainer.classList.add('hidden'); // ซ่อนปุ่ม Tab สำหรับพนักงาน
+        tabsContainer.classList.add('hidden'); 
         tableContainer.classList.remove('lg:col-span-8');
         tableContainer.classList.add('lg:col-span-12');
         document.getElementById('fineSubtitle').innerText = "ดูประวัติใบปรับของคุณ";
@@ -57,7 +96,6 @@ window.initFineApp = async function() {
         document.getElementById('thAction').style.display = 'none';
     }
 
-    // เซ็ตให้เริ่มที่หน้าแรกเสมอ
     switchFineTab('issue');
     await loadFineRules();
     await fetchFinesData(isAdmin);
@@ -143,7 +181,8 @@ async function loadFineRules() {
         
         if (data && data.value) {
             globalFineRules = JSON.parse(data.value);
-            if (globalFineRules.length <= 2 && globalFineRules.includes('ขาดงานไม่แจ้ง')) {
+            // 🌟 เช็คว่าถ้ามีกฎในระบบน้อยกว่า 20 ข้อ ให้โหลดชุดกฎใหม่ (49 ข้อ) เข้าไปทับเลยอัตโนมัติ
+            if (globalFineRules.length < 20) {
                 globalFineRules = okvipRules;
                 await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
             }
@@ -158,13 +197,10 @@ async function loadFineRules() {
     }
 }
 
-// 🌟 อัปเดตฟังก์ชันให้วาดทั้ง Dropdown หน้าแรก และ List ในหน้าที่สอง
 function renderRulesDropdown() {
-    // 1. Dropdown ในหน้าออกใบปรับ
     const select = document.getElementById('fineRuleSelect');
     if (select) select.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + globalFineRules.map(r => `<option value="${r}">${r}</option>`).join('');
     
-    // 2. List เต็มๆ ในหน้า จัดการกฎ
     const listDivFull = document.getElementById('fineRulesListFull');
     const countSpan = document.getElementById('ruleCount');
     
@@ -176,20 +212,27 @@ function renderRulesDropdown() {
             return;
         }
 
-        listDivFull.innerHTML = globalFineRules.map((r, idx) => `
+        listDivFull.innerHTML = globalFineRules.map((r, idx) => {
+            // กำหนดสีป้ายหนัาข้อตามหมวดหมู่
+            let badgeColor = 'bg-gray-100 text-gray-600';
+            if (r.includes('[ออนไลน์]')) badgeColor = 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800';
+            else if (r.includes('[WFH]')) badgeColor = 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800';
+            else if (r.includes('[ออฟฟิศ]')) badgeColor = 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800';
+
+            return `
             <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 transition hover:border-amber-400 group">
                 <div class="flex items-center gap-3 pr-2">
-                    <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">${idx+1}</div>
+                    <div class="w-8 h-8 rounded-full ${badgeColor} flex items-center justify-center font-bold text-xs shadow-inner shrink-0">${idx+1}</div>
                     <span class="text-sm font-bold text-slate-700 dark:text-gray-200">${r}</span>
                 </div>
                 <button onclick="removeFineRulePage(${idx})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 p-2 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm opacity-50 group-hover:opacity-100 shrink-0" title="ลบกฎข้อนี้">
                     <span class="material-icons text-[18px] block">delete_sweep</span>
                 </button>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     }
 }
 
-// 🌟 เพิ่มกฎจากหน้า 2
 window.addFineRulePage = async function() {
     const input = document.getElementById('newRuleInputPage');
     const val = input.value.trim();
@@ -204,7 +247,6 @@ window.addFineRulePage = async function() {
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
 
-// 🌟 ลบกฎจากหน้า 2
 window.removeFineRulePage = async function(idx) {
     const res = await Swal.fire({
         title: 'ลบกฎข้อนี้?',
@@ -246,7 +288,6 @@ window.restoreOKVIPRules = async function() {
     }
 }
 
-
 // -----------------------------------------
 // จัดการรูปภาพ & ระบบ Ctrl+V
 // -----------------------------------------
@@ -281,7 +322,6 @@ document.addEventListener('paste', function(e) {
     const fileInput = document.getElementById('fineImageInput');
     const fineApp = document.getElementById('fineContent_issue');
     
-    // เช็คว่าอยู่ในหน้าจอแรก (issue)
     if (!fileInput || !fineApp || fineApp.classList.contains('hidden')) return;
 
     let items = (e.clipboardData || e.originalEvent.clipboardData).items;
