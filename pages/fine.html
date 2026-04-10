@@ -1,5 +1,5 @@
 <div class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-    <div class="bg-gradient-to-r from-red-800 to-rose-900 text-white p-4 shadow-lg shrink-0 flex justify-between items-center z-10">
+    <div class="bg-gradient-to-r from-red-800 to-rose-900 text-white p-4 shadow-lg shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center z-10 gap-4">
         <div class="flex items-center gap-3">
             <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-red-200">gavel</span></div>
             <div>
@@ -7,18 +7,21 @@
                 <p class="text-xs text-red-200 opacity-90" id="fineSubtitle">ตรวจสอบรายการใบปรับของคุณ</p>
             </div>
         </div>
+
+        <div id="fineTabsContainer" class="hidden flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 w-full md:w-auto">
+            <button onclick="switchFineTab('issue')" id="tabFineIssue" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-md flex items-center gap-1 border border-red-400"><span class="material-icons text-sm">post_add</span> ออกใบปรับ & ประวัติ</button>
+            <button onclick="switchFineTab('rules')" id="tabFineRules" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600"><span class="material-icons text-sm">settings</span> ตั้งค่ากฎ / กฎ OKVIP</button>
+        </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
-        <div class="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 pb-10">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar relative">
+        
+        <div id="fineContent_issue" class="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 pb-10 fade-in block">
             
             <div id="fineAdminControls" class="hidden lg:col-span-4 flex flex-col gap-6">
                 <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
                     <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3 mb-4">
                         <h2 class="text-lg font-black text-red-500 flex items-center gap-2"><span class="material-icons">post_add</span> ออกใบปรับใหม่</h2>
-                        <button onclick="openManageFineRulesModal()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-900 px-3 py-1.5 rounded-lg shadow-md font-bold flex items-center gap-1 transition active:scale-95 border border-amber-600" title="เพิ่ม หรือ ลบ หัวข้อกฎหมาย">
-                            <span class="material-icons text-[14px]">settings</span> จัดการหัวข้อกฎ
-                        </button>
                     </div>
                     
                     <form onsubmit="submitFine(event)" class="space-y-4">
@@ -29,12 +32,11 @@
                                 <input type="text" id="fineEmpInput" required placeholder="พิมพ์ค้นหาชื่อพนักงาน..." class="w-full pl-9 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner transition" autocomplete="off" onfocus="showEmpDropdown()" onkeyup="filterEmpDropdown()">
                                 <span class="material-icons absolute right-3 top-2.5 text-gray-400 text-[18px] pointer-events-none">expand_more</span>
                             </div>
-                            <div id="fineEmpDropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-2xl">
-                                </div>
+                            <div id="fineEmpDropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-2xl"></div>
                         </div>
                         
                         <div>
-                            <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หัวข้อกฎ</label>
+                            <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หัวข้อกฎ (ดึงจากหน้าตั้งค่ากฎ)</label>
                             <select id="fineRuleSelect" required class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
                                 <option value="">-- โหลดข้อมูลกฎ --</option>
                             </select>
@@ -112,27 +114,46 @@
                 </div>
             </div>
         </div>
+
+        <div id="fineContent_rules" class="max-w-[1200px] mx-auto pb-10 fade-in hidden">
+            <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700">
+                
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 dark:border-slate-700 pb-5 mb-6 gap-4">
+                    <div>
+                        <h2 class="text-xl font-black text-amber-500 flex items-center gap-2"><span class="material-icons">settings</span> กำหนดหัวข้อกฎระเบียบ</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">กฎเหล่านี้จะไปแสดงในช่อง Dropdown หน้าออกใบปรับ</p>
+                    </div>
+                    <button onclick="restoreOKVIPRules()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-md border border-slate-600 active:scale-95">
+                        <span class="material-icons text-[14px]">restore</span> คืนค่ากฎ OKVIP เริ่มต้น
+                    </button>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 mb-8 bg-amber-50 dark:bg-slate-900 p-5 rounded-2xl border border-amber-200 dark:border-slate-700 shadow-inner">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-amber-700 dark:text-amber-500 mb-2">เพิ่มหัวข้อกฎใหม่</label>
+                        <input type="text" id="newRuleInputPage" placeholder="พิมพ์หัวข้อความผิด (เช่น ลืมปิดไฟในห้อง)..." class="w-full p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm transition">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="addFineRulePage()" class="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-3.5 rounded-xl font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-1 border border-orange-400">
+                            <span class="material-icons text-base">add_circle</span> เพิ่มลงระบบ
+                        </button>
+                    </div>
+                </div>
+
+                <div class="text-sm font-bold text-gray-500 mb-4 flex items-center justify-between">
+                    <span>รายการกฎที่มีในระบบทั้งหมด (<span id="ruleCount" class="text-amber-500">0</span> ข้อ)</span>
+                </div>
+                
+                <div id="fineRulesListFull" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    </div>
+
+            </div>
+        </div>
+
     </div>
 </div>
 
 <div id="fineImageModal" class="fixed inset-0 bg-black/90 z-[100] hidden items-center justify-center p-4 fade-in backdrop-blur-sm" onclick="this.classList.add('hidden'); this.classList.remove('flex');">
     <span class="absolute top-4 right-4 text-white hover:text-gray-300 cursor-pointer material-icons text-4xl">close</span>
     <img id="fineExpandedImg" class="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl border border-slate-700" onclick="event.stopPropagation()">
-</div>
-
-<div id="fineRulesModal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center p-4 fade-in backdrop-blur-sm">
-    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-600">
-        <div class="bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center">
-            <h3 class="font-bold text-white flex items-center gap-2"><span class="material-icons text-amber-500">settings</span> จัดการหัวข้อกฎ</h3>
-            <button onclick="document.getElementById('fineRulesModal').classList.add('hidden'); document.getElementById('fineRulesModal').classList.remove('flex');" class="text-gray-400 hover:text-white"><span class="material-icons">close</span></button>
-        </div>
-        <div class="p-5">
-            <div class="flex gap-2 mb-4">
-                <input type="text" id="newRuleInput" placeholder="เพิ่มหัวข้อกฎใหม่..." class="flex-1 p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm outline-none focus:border-amber-500">
-                <button onclick="addFineRule()" class="bg-amber-600 hover:bg-amber-500 text-slate-900 px-3 py-2 rounded-lg text-sm font-bold shadow transition flex items-center gap-1"><span class="material-icons text-sm">add</span> เพิ่มกฎ</button>
-            </div>
-            <div class="text-xs text-gray-500 mb-2">หัวข้อกฎที่มีในระบบ:</div>
-            <div id="fineRulesList" class="max-h-60 overflow-y-auto custom-scrollbar space-y-2 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-slate-200 dark:border-slate-700"></div>
-        </div>
-    </div>
 </div>
