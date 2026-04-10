@@ -9,6 +9,12 @@ window.initFineApp = async function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
 
+    // === 🌟 เพิ่มโค้ดตรงนี้: สั่งให้ดึงรายชื่อพนักงานก่อนถ้ายังไม่มี ===
+    if (isAdmin && typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+        await fetchUsers();
+    }
+    // ====================================================
+
     const adminControls = document.getElementById('fineAdminControls');
     const tableContainer = document.getElementById('fineTableContainer');
     
@@ -20,15 +26,17 @@ window.initFineApp = async function() {
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> รายการใบปรับทั้งหมดในระบบ';
         document.getElementById('thEmpName').style.display = '';
         document.getElementById('thAction').style.display = '';
-        populateEmpSelect();
+        
+        // พอเราดึงรายชื่อบรรทัดบนเสร็จ ค่อยสั่งเอามาใส่ Dropdown ตรงนี้
+        populateEmpSelect(); 
     } else {
         adminControls.classList.add('hidden');
         tableContainer.classList.remove('lg:col-span-8');
         tableContainer.classList.add('lg:col-span-12');
         document.getElementById('fineSubtitle').innerText = "ดูประวัติใบปรับของคุณ";
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
-        document.getElementById('thEmpName').style.display = 'none'; // ซ่อนคอลัมน์ชื่อเพราะดูแค่ของตัวเอง
-        document.getElementById('thAction').style.display = 'none'; // ซ่อนปุ่มลบ
+        document.getElementById('thEmpName').style.display = 'none';
+        document.getElementById('thAction').style.display = 'none';
     }
 
     // 2. ดึงข้อมูลกฎและใบปรับ
