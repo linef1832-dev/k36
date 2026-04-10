@@ -283,7 +283,7 @@ async function fetchData() {
         if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) { query = query.eq('shift_name', currentUser.allowed_shift); } 
     }
 
-    const { data } = await query;
+   const { data } = await query;
     if (data) {
         data.sort((a, b) => {
             const pA = getPeriodForTime(a.shift_name, a.time_slot); const pB = getPeriodForTime(b.shift_name, b.time_slot);
@@ -292,7 +292,15 @@ async function fetchData() {
             return a.time_slot.localeCompare(b.time_slot);
         });
         globalScheduleData = data; 
-        updateTableSummary(data); 
+        
+        // 🌟 เพิ่มระบบดึงค่าตัวกรองและส่งข้อมูลไปสรุปยอด
+        const deptFilterForSummary = document.getElementById('summaryDeptFilter') ? document.getElementById('summaryDeptFilter').value : 'all';
+        let dataForSummary = data;
+        if (deptFilterForSummary !== 'all') {
+            dataForSummary = data.filter(i => (i.department || 'AM') === deptFilterForSummary);
+        }
+        
+        updateTableSummary(dataForSummary); 
         renderTableRows(data);
     }
 }
