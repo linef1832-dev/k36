@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V2 (Tabs Layout + Accordion Groups)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V3 (Dropdown Groups + Auto Amount)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -173,7 +173,7 @@ document.addEventListener('click', function(e) {
 });
 
 // -----------------------------------------
-// จัดการหัวข้อกฎ (Accordion UI)
+// จัดการหัวข้อกฎ (Accordion UI + Dropdown Auto Fill)
 // -----------------------------------------
 async function loadFineRules() {
     try {
@@ -196,7 +196,7 @@ async function loadFineRules() {
     }
 }
 
-// ปุ่มเปิด/ปิดหมวดหมู่ย่อย
+// ปุ่มเปิด/ปิดหมวดหมู่ย่อย (Accordion หน้าตั้งค่า)
 window.toggleRuleGroup = function(groupId, btn) {
     const groupDiv = document.getElementById(groupId);
     const icon = btn.querySelector('.material-icons:last-child');
@@ -213,11 +213,56 @@ window.toggleRuleGroup = function(groupId, btn) {
 
 function renderRulesDropdown() {
     const select = document.getElementById('fineRuleSelect');
-    if (select) select.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + globalFineRules.map(r => `<option value="${r}">${r}</option>`).join('');
-    
     const listDivFull = document.getElementById('fineRulesListFull');
     const countSpan = document.getElementById('ruleCount');
+
+    // จัดกลุ่มข้อมูล
+    const groups = {
+        'ออนไลน์': [],
+        'WFH': [],
+        'ออฟฟิศ': [],
+        'อื่นๆ': []
+    };
+
+    globalFineRules.forEach((r, idx) => {
+        if (r.includes('[ออนไลน์]')) groups['ออนไลน์'].push({ text: r, index: idx });
+        else if (r.includes('[WFH]')) groups['WFH'].push({ text: r, index: idx });
+        else if (r.includes('[ออฟฟิศ]')) groups['ออฟฟิศ'].push({ text: r, index: idx });
+        else groups['อื่นๆ'].push({ text: r, index: idx });
+    });
+
+    // 🌟 1. เรนเดอร์ Dropdown หน้าแรก (ใส่ optgroup แยกหมวดหมู่)
+    if (select) {
+        let selectHtml = '<option value="">-- เลือกหัวข้อที่ผิด --</option>';
+        for (const [gName, items] of Object.entries(groups)) {
+            if (items.length > 0) {
+                selectHtml += `<optgroup label="--- หมวด: ${gName} ---">`;
+                items.forEach(item => {
+                    selectHtml += `<option value="${item.text}">${item.text}</option>`;
+                });
+                selectHtml += `</optgroup>`;
+            }
+        }
+        select.innerHTML = selectHtml;
+
+        // 🌟 ดึงตัวเลขค่าปรับมาใส่อัตโนมัติเมื่อเลือก
+        select.onchange = function() {
+            const amountInput = document.getElementById('fineAmount');
+            if (this.value && amountInput) {
+                // หาข้อความที่มีคำว่า "ปรับ " ตามด้วยตัวเลข เช่น "ปรับ 300", "ปรับ 1,000"
+                const match = this.value.match(/ปรับ\s*([\d,]+)/);
+                if (match && match[1].replace(/,/g, '').length >= 3) {
+                    amountInput.value = parseInt(match[1].replace(/,/g, ''), 10);
+                } else {
+                    amountInput.value = ''; // ถ้าไม่มี หรือเจอคำอื่น ก็ปล่อยว่างให้กรอกเอง
+                }
+            } else if (amountInput) {
+                amountInput.value = '';
+            }
+        };
+    }
     
+    // 🌟 2. เรนเดอร์ List ในหน้าตั้งค่ากฎ (Accordion)
     if (listDivFull) {
         if(countSpan) countSpan.innerText = globalFineRules.length;
         
@@ -226,23 +271,7 @@ function renderRulesDropdown() {
             return;
         }
 
-        // จัดกลุ่มข้อมูล
-        const groups = {
-            'ออนไลน์': [],
-            'WFH': [],
-            'ออฟฟิศ': [],
-            'อื่นๆ': []
-        };
-
-        globalFineRules.forEach((r, idx) => {
-            if (r.includes('[ออนไลน์]')) groups['ออนไลน์'].push({ text: r, index: idx });
-            else if (r.includes('[WFH]')) groups['WFH'].push({ text: r, index: idx });
-            else if (r.includes('[ออฟฟิศ]')) groups['ออฟฟิศ'].push({ text: r, index: idx });
-            else groups['อื่นๆ'].push({ text: r, index: idx });
-        });
-
         let html = '';
-        
         const buildGroupHtml = (title, items, icon, colorClass) => {
             if (items.length === 0) return '';
             const groupId = 'group_' + title;
@@ -258,7 +287,6 @@ function renderRulesDropdown() {
                 </div>
             `).join('');
 
-            // ใช้ไอคอน transform rotate สำหรับลูกศรชี้ลง/ซ้าย
             return `
             <div class="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-4">
                 <button onclick="toggleRuleGroup('${groupId}', this)" class="w-full flex justify-between items-center p-4 ${colorClass.header} transition">
