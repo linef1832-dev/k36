@@ -136,3 +136,21 @@ function logout() {
     sessionStorage.removeItem('user_platinum_plus'); 
     location.reload(); // รีเฟรชหน้าเว็บ 1 ที เพื่อกลับไปสภาพเริ่มต้น
 }
+
+// ==========================================
+// 🔄 ดึงชื่อที่จำไว้มาแสดงตอนโหลดหน้าเว็บ (วางไว้ล่างสุดของไฟล์ auth.js)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    // ใช้ setTimeout ช่วยหน่วงเวลานิดนึง เผื่อระบบกำลังวาดหน้า Login ลงใน <div id="login-container">
+    setTimeout(() => {
+        const savedName = localStorage.getItem('remember_me_name');
+        const nameInput = document.getElementById('loginName');
+        const rememberCheckbox = document.getElementById('rememberMe');
+
+        // ถ้ามีชื่อเซฟไว้ และหาช่องกรอกเจอ ให้เอาชื่อไปใส่และติ๊กถูก
+        if (savedName && nameInput && rememberCheckbox) {
+            nameInput.value = savedName;
+            rememberCheckbox.checked = true;
+        }
+    }, 200); 
+});
