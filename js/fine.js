@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V2 (Tabs Layout)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V2 (Tabs Layout + Accordion Groups)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -173,7 +173,7 @@ document.addEventListener('click', function(e) {
 });
 
 // -----------------------------------------
-// จัดการหัวข้อกฎ (แสดง 2 หน้า)
+// จัดการหัวข้อกฎ (Accordion UI)
 // -----------------------------------------
 async function loadFineRules() {
     try {
@@ -181,7 +181,6 @@ async function loadFineRules() {
         
         if (data && data.value) {
             globalFineRules = JSON.parse(data.value);
-            // 🌟 เช็คว่าถ้ามีกฎในระบบน้อยกว่า 20 ข้อ ให้โหลดชุดกฎใหม่ (49 ข้อ) เข้าไปทับเลยอัตโนมัติ
             if (globalFineRules.length < 20) {
                 globalFineRules = okvipRules;
                 await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
@@ -197,6 +196,21 @@ async function loadFineRules() {
     }
 }
 
+// ปุ่มเปิด/ปิดหมวดหมู่ย่อย
+window.toggleRuleGroup = function(groupId, btn) {
+    const groupDiv = document.getElementById(groupId);
+    const icon = btn.querySelector('.material-icons:last-child');
+    if (groupDiv.classList.contains('hidden')) {
+        groupDiv.classList.remove('hidden');
+        groupDiv.classList.add('flex');
+        icon.style.transform = 'rotate(0deg)';
+    } else {
+        groupDiv.classList.add('hidden');
+        groupDiv.classList.remove('flex');
+        icon.style.transform = 'rotate(-90deg)';
+    }
+}
+
 function renderRulesDropdown() {
     const select = document.getElementById('fineRuleSelect');
     if (select) select.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + globalFineRules.map(r => `<option value="${r}">${r}</option>`).join('');
@@ -208,28 +222,65 @@ function renderRulesDropdown() {
         if(countSpan) countSpan.innerText = globalFineRules.length;
         
         if (globalFineRules.length === 0) {
-            listDivFull.innerHTML = `<div class="col-span-full text-center py-10 text-gray-400 font-bold bg-slate-100 dark:bg-slate-900 rounded-xl">ไม่มีหัวข้อกฎหมายในระบบ</div>`;
+            listDivFull.innerHTML = `<div class="text-center py-10 text-gray-400 font-bold bg-slate-100 dark:bg-slate-900 rounded-xl">ไม่มีหัวข้อกฎหมายในระบบ</div>`;
             return;
         }
 
-        listDivFull.innerHTML = globalFineRules.map((r, idx) => {
-            // กำหนดสีป้ายหนัาข้อตามหมวดหมู่
-            let badgeColor = 'bg-gray-100 text-gray-600';
-            if (r.includes('[ออนไลน์]')) badgeColor = 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800';
-            else if (r.includes('[WFH]')) badgeColor = 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800';
-            else if (r.includes('[ออฟฟิศ]')) badgeColor = 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800';
+        // จัดกลุ่มข้อมูล
+        const groups = {
+            'ออนไลน์': [],
+            'WFH': [],
+            'ออฟฟิศ': [],
+            'อื่นๆ': []
+        };
 
-            return `
-            <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 transition hover:border-amber-400 group">
-                <div class="flex items-center gap-3 pr-2">
-                    <div class="w-8 h-8 rounded-full ${badgeColor} flex items-center justify-center font-bold text-xs shadow-inner shrink-0">${idx+1}</div>
-                    <span class="text-sm font-bold text-slate-700 dark:text-gray-200">${r}</span>
+        globalFineRules.forEach((r, idx) => {
+            if (r.includes('[ออนไลน์]')) groups['ออนไลน์'].push({ text: r, index: idx });
+            else if (r.includes('[WFH]')) groups['WFH'].push({ text: r, index: idx });
+            else if (r.includes('[ออฟฟิศ]')) groups['ออฟฟิศ'].push({ text: r, index: idx });
+            else groups['อื่นๆ'].push({ text: r, index: idx });
+        });
+
+        let html = '';
+        
+        const buildGroupHtml = (title, items, icon, colorClass) => {
+            if (items.length === 0) return '';
+            const groupId = 'group_' + title;
+            let itemsHtml = items.map((item, i) => `
+                <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 transition hover:border-amber-400 group">
+                    <div class="flex items-center gap-3 pr-2">
+                        <div class="w-6 h-6 rounded-full ${colorClass.badge} flex items-center justify-center font-bold text-[10px] shadow-inner shrink-0">${i+1}</div>
+                        <span class="text-xs font-bold text-slate-700 dark:text-gray-200">${item.text}</span>
+                    </div>
+                    <button onclick="removeFineRulePage(${item.index})" class="text-red-400 hover:text-white bg-slate-50 dark:bg-slate-900 hover:bg-red-500 p-1.5 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm opacity-50 group-hover:opacity-100 shrink-0" title="ลบกฎข้อนี้">
+                        <span class="material-icons text-[16px] block">delete_sweep</span>
+                    </button>
                 </div>
-                <button onclick="removeFineRulePage(${idx})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 p-2 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm opacity-50 group-hover:opacity-100 shrink-0" title="ลบกฎข้อนี้">
-                    <span class="material-icons text-[18px] block">delete_sweep</span>
+            `).join('');
+
+            // ใช้ไอคอน transform rotate สำหรับลูกศรชี้ลง/ซ้าย
+            return `
+            <div class="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-4">
+                <button onclick="toggleRuleGroup('${groupId}', this)" class="w-full flex justify-between items-center p-4 ${colorClass.header} transition">
+                    <div class="flex items-center gap-2 font-black text-sm">
+                        <span class="material-icons">${icon}</span> หมวด: ${title} 
+                        <span class="bg-black/10 dark:bg-white/20 px-2 py-0.5 rounded-full text-[10px] ml-2 shadow-inner">${items.length} ข้อ</span>
+                    </div>
+                    <span class="material-icons transition-transform duration-300 transform -rotate-90">expand_more</span>
                 </button>
-            </div>`;
-        }).join('');
+                <div id="${groupId}" class="hidden flex-col gap-2 p-4 bg-slate-50 dark:bg-slate-900/50 border-t border-gray-200 dark:border-slate-700">
+                    ${itemsHtml}
+                </div>
+            </div>
+            `;
+        };
+
+        html += buildGroupHtml('ออนไลน์', groups['ออนไลน์'], 'language', { header: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60', badge: 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' });
+        html += buildGroupHtml('WFH', groups['WFH'], 'home_work', { header: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60', badge: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400' });
+        html += buildGroupHtml('ออฟฟิศ', groups['ออฟฟิศ'], 'domain', { header: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/60', badge: 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400' });
+        html += buildGroupHtml('อื่นๆ', groups['อื่นๆ'], 'list', { header: 'bg-gray-200 dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-700', badge: 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-400' });
+
+        listDivFull.innerHTML = html;
     }
 }
 
@@ -239,7 +290,7 @@ window.addFineRulePage = async function() {
     if(!val) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์หัวข้อกฎก่อนครับ', 'warning');
     
     Swal.fire({title: 'กำลังเพิ่มกฎ...', didOpen: () => Swal.showLoading()});
-    globalFineRules.unshift(val); 
+    globalFineRules.push(val); // เอาไปต่อท้าย เพื่อให้ตกหมวด "อื่นๆ" ในกรณีไม่ได้ระบุวงเล็บหน้าชื่อ
     input.value = '';
     
     await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
@@ -267,7 +318,6 @@ window.removeFineRulePage = async function(idx) {
     }
 }
 
-// 🌟 ปุ่มคืนค่ากฎ OKVIP
 window.restoreOKVIPRules = async function() {
     const res = await Swal.fire({
         title: 'คืนค่าเริ่มต้น?',
