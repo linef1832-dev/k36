@@ -27,7 +27,7 @@ window.initFineApp = async function() {
         document.getElementById('thEmpName').style.display = '';
         document.getElementById('thAction').style.display = '';
         
-        // พอเราดึงรายชื่อบรรทัดบนเสร็จ ค่อยสั่งเอามาใส่ Dropdown ตรงนี้
+        // เอารายชื่อใส่ Datalist (สำหรับช่องค้นหาชื่อ)
         populateEmpSelect(); 
     } else {
         adminControls.classList.add('hidden');
@@ -44,14 +44,15 @@ window.initFineApp = async function() {
     await fetchFinesData(isAdmin);
 };
 
-// ดึงรายชื่อพนักงานใส่ Dropdown
+// -----------------------------------------
+// ดึงรายชื่อพนักงานใส่ Datalist (แบบพิมพ์ค้นหาได้)
+// -----------------------------------------
 function populateEmpSelect() {
-    const select = document.getElementById('fineEmpSelect');
-    if (!select || !GLOBAL_USER_LIST) return;
+    const datalist = document.getElementById('fineEmpList');
+    if (!datalist || !GLOBAL_USER_LIST) return;
     
     const sortedUsers = [...GLOBAL_USER_LIST].sort((a, b) => a.username.localeCompare(b.username));
-    select.innerHTML = '<option value="">-- เลือกพนักงาน --</option>' + 
-        sortedUsers.map(u => `<option value="${u.username}">${u.username} (${u.department || 'AM'})</option>`).join('');
+    datalist.innerHTML = sortedUsers.map(u => `<option value="${u.username}">${u.username} (${u.department || 'AM'})</option>`).join('');
 }
 
 // -----------------------------------------
@@ -134,18 +135,27 @@ window.viewFineImage = function(url) {
 // -----------------------------------------
 window.submitFine = async function(e) {
     e.preventDefault();
-    const empName = document.getElementById('fineEmpSelect').value;
+    // รับค่าจาก Input (ไม่ใช่ Select แล้ว)
+    const empName = document.getElementById('fineEmpInput').value.trim();
     const ruleText = document.getElementById('fineRuleSelect').value;
+    const noteText = document.getElementById('fineNote').value.trim(); // รับค่าหมายเหตุ
     const amount = document.getElementById('fineAmount').value || 0;
     const fileInput = document.getElementById('fineImageInput');
 
     if(!empName || !ruleText) return;
 
+    // เช็คว่าพิมพ์ชื่อถูกคนไหม (ต้องตรงกับในระบบ)
+    const targetUser = GLOBAL_USER_LIST.find(u => u.username === empName);
+    if (!targetUser) {
+        return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง (ต้องพิมพ์ให้ตรงเป๊ะหรือเลือกจากรายชื่อที่โผล่ขึ้นมา)', 'warning');
+    }
+    const targetId = targetUser.id;
+
     Swal.fire({title: 'กำลังบันทึกใบปรับ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     let imageUrl = '';
     try {
-        // อัปโหลดรูป (ถ้ามี) ไปที่ Bucket 'staff_images' เหมือนหน้าคลังไฟล์
+        // อัปโหลดรูป (ถ้ามี) ไปที่ Bucket 'staff_images' 
         if (fileInput.files && fileInput.files.length > 0) {
             Swal.update({text: 'กำลังอัปโหลดหลักฐาน...'});
             const file = fileInput.files[0];
@@ -158,15 +168,12 @@ window.submitFine = async function(e) {
             imageUrl = publicUrlData.publicUrl;
         }
 
-        // ค้นหา user_id จากชื่อ
-        const targetUser = GLOBAL_USER_LIST.find(u => u.username === empName);
-        const targetId = targetUser ? targetUser.id : null;
-
-        // จำลองเซฟลง DB (ต้องสร้าง Table 'fines' ใน Supabase)
+        // เซฟลง DB
         const { error: dbError } = await appDB.from('fines').insert([{
             user_id: targetId,
             user_name: empName,
             rule_text: ruleText,
+            note: noteText, // บันทึกหมายเหตุลงฐานข้อมูล
             amount: amount,
             evidence_url: imageUrl,
             issued_by: currentUser.username
@@ -177,7 +184,9 @@ window.submitFine = async function(e) {
         Swal.fire({icon: 'success', title: 'ออกใบปรับสำเร็จ', timer: 1500, showConfirmButton: false});
         
         // เคลียร์ฟอร์ม
+        document.getElementById('fineEmpInput').value = '';
         document.getElementById('fineRuleSelect').value = '';
+        document.getElementById('fineNote').value = '';
         document.getElementById('fineAmount').value = '';
         clearFineImg();
         
@@ -225,7 +234,8 @@ window.renderFineTable = function(isAdminOverride) {
     
     const filtered = globalFines.filter(f => 
         (f.user_name && f.user_name.toLowerCase().includes(term)) || 
-        (f.rule_text && f.rule_text.toLowerCase().includes(term))
+        (f.rule_text && f.rule_text.toLowerCase().includes(term)) ||
+        (f.note && f.note.toLowerCase().includes(term)) // ให้ค้นหาจากหมายเหตุได้ด้วย
     );
 
     if (filtered.length === 0) {
@@ -244,10 +254,10 @@ window.renderFineTable = function(isAdminOverride) {
             '<span class="text-gray-400 text-[10px]">- ไม่มีรูป -</span>';
 
         const delBtn = isAdmin ? `<button onclick="deleteFine(${f.id})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition"><span class="material-icons text-sm block">delete</span></button>` : '';
-        const empCol = isAdmin ? `<td class="p-3 font-bold text-slate-800 dark:text-white">${f.user_name}</td>` : '';
-        const actionCol = isAdmin ? `<td class="p-3 text-center">${delBtn}</td>` : '';
+        const empCol = isAdmin ? `<td class="p-3 font-bold text-slate-800 dark:text-white pt-4">${f.user_name}</td>` : '';
+        const actionCol = isAdmin ? `<td class="p-3 text-center pt-3">${delBtn}</td>` : '';
 
-        // 🌟 ส่วนที่แก้: เอาหมายเหตุมาโชว์ต่อท้ายหัวข้อกฎ
+        // 🌟 ส่วนแสดงผลหัวข้อกฎ + หมายเหตุสีเหลือง (ถ้ามี)
         let ruleDisplay = `<span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-1 rounded-lg border border-red-200 dark:border-red-800/50">${f.rule_text}</span>`;
         if (f.note && f.note.trim() !== '') {
             ruleDisplay += `<div class="text-[10px] text-yellow-600 dark:text-yellow-500 mt-1.5 font-bold flex items-start gap-1"><span class="material-icons text-[12px] mt-0.5">info</span><span class="whitespace-normal break-words max-w-[200px]">${f.note}</span></div>`;
@@ -256,11 +266,11 @@ window.renderFineTable = function(isAdminOverride) {
         return `
         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition border-b border-gray-100 dark:border-slate-700/50 align-top">
             <td class="p-3 text-xs text-gray-500 pt-4">${dateStr}</td>
-            ${empCol ? `<td class="p-3 font-bold text-slate-800 dark:text-white pt-4">${f.user_name}</td>` : ''}
+            ${empCol}
             <td class="p-3 text-xs font-bold leading-relaxed">${ruleDisplay}</td>
             <td class="p-3 text-center pt-4">${amountDisplay}</td>
             <td class="p-3 text-center pt-3">${imgDisplay}</td>
-            ${actionCol ? `<td class="p-3 text-center pt-3">${delBtn}</td>` : ''}
+            ${actionCol}
         </tr>`;
     }).join('');
 };
