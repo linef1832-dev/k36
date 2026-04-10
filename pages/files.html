@@ -22,26 +22,29 @@
                     <form onsubmit="submitFine(event)" class="space-y-4">
                         <div>
                             <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">พนักงานที่ทำผิด</label>
-                            <select id="fineEmpSelect" required class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner"></select>
+                            <input type="text" id="fineEmpInput" list="fineEmpList" required placeholder="🔍 พิมพ์เพื่อค้นหาชื่อพนักงาน..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner">
+                            <datalist id="fineEmpList"></datalist>
                         </div>
+                        
                         <div>
                             <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หัวข้อกฎ</label>
                             <select id="fineRuleSelect" required class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner">
                                 <option value="">-- โหลดข้อมูลกฎ --</option>
                             </select>
                         </div>
-                        
+
                         <div>
                             <label class="block text-[11px] font-bold text-yellow-500 uppercase mb-1 flex items-center gap-1">
                                 <span class="material-icons text-[14px]">edit_note</span> หมายเหตุ / รายละเอียดเพิ่มเติม (ถ้ามี)
                             </label>
-                            <input type="text" id="fineNote" placeholder="เช่น ใส่รองเท้าแตะมาทำงาน, มาสาย 30 นาที..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-yellow-500/30 text-slate-800 dark:text-white font-bold outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 shadow-inner">
+                            <input type="text" id="fineNote" placeholder="เช่น โทรติด 3 ครั้ง ไม่รับสาย, ขาดงานไม่แจ้งล่วงหน้า..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-yellow-500/30 text-slate-800 dark:text-white font-bold outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 shadow-inner">
                         </div>
 
                         <div>
                             <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">จำนวนเงินปรับ (ถ้ามี)</label>
                             <input type="number" id="fineAmount" placeholder="ใส่ตัวเลข เช่น 300" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner">
                         </div>
+
                         <div>
                             <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 text-red-500">📸 แนบรูปหลักฐาน (ถ้ามี)</label>
                             <input type="file" id="fineImageInput" accept="image/*" class="w-full p-2 border border-slate-600 rounded-xl bg-slate-900 text-white focus:ring-2 focus:ring-red-500 outline-none text-xs shadow-inner file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-red-600 file:text-white hover:file:bg-red-500 cursor-pointer" onchange="previewFineImg(this)">
@@ -50,6 +53,7 @@
                                 <button type="button" onclick="clearFineImg()" class="absolute -top-2 -right-2 bg-slate-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-md hover:bg-slate-600 transition"><span class="material-icons text-[12px]">close</span></button>
                             </div>
                         </div>
+
                         <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1 border border-red-500">
                             <span class="material-icons text-sm">send</span> ยืนยันการออกใบปรับ
                         </button>
