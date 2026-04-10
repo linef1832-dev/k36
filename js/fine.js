@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V2 (Tabs Layout)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -33,9 +33,11 @@ window.initFineApp = async function() {
 
     const adminControls = document.getElementById('fineAdminControls');
     const tableContainer = document.getElementById('fineTableContainer');
+    const tabsContainer = document.getElementById('fineTabsContainer');
     
     if (isAdmin) {
         adminControls.classList.remove('hidden');
+        tabsContainer.classList.remove('hidden'); // โชว์ปุ่ม Tab ให้ Admin
         tableContainer.classList.remove('lg:col-span-12');
         tableContainer.classList.add('lg:col-span-8');
         document.getElementById('fineSubtitle').innerText = "ออกใบปรับและดูประวัติทั้งหมด";
@@ -46,6 +48,7 @@ window.initFineApp = async function() {
         populateEmpSelect(); 
     } else {
         adminControls.classList.add('hidden');
+        tabsContainer.classList.add('hidden'); // ซ่อนปุ่ม Tab สำหรับพนักงาน
         tableContainer.classList.remove('lg:col-span-8');
         tableContainer.classList.add('lg:col-span-12');
         document.getElementById('fineSubtitle').innerText = "ดูประวัติใบปรับของคุณ";
@@ -54,8 +57,38 @@ window.initFineApp = async function() {
         document.getElementById('thAction').style.display = 'none';
     }
 
+    // เซ็ตให้เริ่มที่หน้าแรกเสมอ
+    switchFineTab('issue');
     await loadFineRules();
     await fetchFinesData(isAdmin);
+};
+
+// -----------------------------------------
+// 🔄 ระบบเปลี่ยนหน้า (Tab System)
+// -----------------------------------------
+window.switchFineTab = function(tabName) {
+    const issueTab = document.getElementById('fineContent_issue');
+    const rulesTab = document.getElementById('fineContent_rules');
+    const btnIssue = document.getElementById('tabFineIssue');
+    const btnRules = document.getElementById('tabFineRules');
+
+    if (tabName === 'issue') {
+        issueTab.classList.remove('hidden');
+        issueTab.classList.add('grid');
+        rulesTab.classList.add('hidden');
+        rulesTab.classList.remove('block');
+
+        btnIssue.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-md flex items-center gap-1 border border-red-400";
+        btnRules.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600";
+    } else {
+        issueTab.classList.add('hidden');
+        issueTab.classList.remove('grid');
+        rulesTab.classList.remove('hidden');
+        rulesTab.classList.add('block');
+
+        btnRules.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-amber-500 text-slate-900 shadow-md flex items-center gap-1 border border-amber-400";
+        btnIssue.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600";
+    }
 };
 
 // -----------------------------------------
@@ -102,7 +135,7 @@ document.addEventListener('click', function(e) {
 });
 
 // -----------------------------------------
-// จัดการหัวข้อกฎ (บังคับโหลดกฎ OKVIP)
+// จัดการหัวข้อกฎ (แสดง 2 หน้า)
 // -----------------------------------------
 async function loadFineRules() {
     try {
@@ -110,14 +143,11 @@ async function loadFineRules() {
         
         if (data && data.value) {
             globalFineRules = JSON.parse(data.value);
-            
-            // เช็คว่าถ้าเป็นกฎตั้งต้นเก่าที่ติดมากับระบบ ให้แทนที่ด้วยกฎของ OKVIP เลย
             if (globalFineRules.length <= 2 && globalFineRules.includes('ขาดงานไม่แจ้ง')) {
                 globalFineRules = okvipRules;
                 await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
             }
         } else {
-            // ถ้ายังไม่มีข้อมูลในระบบเลย ให้บันทึกกฎ OKVIP ลงไป
             globalFineRules = okvipRules;
             await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
         }
@@ -128,48 +158,94 @@ async function loadFineRules() {
     }
 }
 
+// 🌟 อัปเดตฟังก์ชันให้วาดทั้ง Dropdown หน้าแรก และ List ในหน้าที่สอง
 function renderRulesDropdown() {
+    // 1. Dropdown ในหน้าออกใบปรับ
     const select = document.getElementById('fineRuleSelect');
     if (select) select.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + globalFineRules.map(r => `<option value="${r}">${r}</option>`).join('');
     
-    const listDiv = document.getElementById('fineRulesList');
-    if (listDiv) {
-        listDiv.innerHTML = globalFineRules.map((r, idx) => `
-            <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded shadow-sm border border-gray-200 dark:border-slate-700 mb-2">
-                <span class="text-sm font-bold text-slate-700 dark:text-gray-200">${r}</span>
-                <button onclick="removeFineRule(${idx})" class="text-red-400 hover:text-red-600 p-1 bg-red-50 dark:bg-red-900/30 rounded transition"><span class="material-icons text-sm">delete</span></button>
+    // 2. List เต็มๆ ในหน้า จัดการกฎ
+    const listDivFull = document.getElementById('fineRulesListFull');
+    const countSpan = document.getElementById('ruleCount');
+    
+    if (listDivFull) {
+        if(countSpan) countSpan.innerText = globalFineRules.length;
+        
+        if (globalFineRules.length === 0) {
+            listDivFull.innerHTML = `<div class="col-span-full text-center py-10 text-gray-400 font-bold bg-slate-100 dark:bg-slate-900 rounded-xl">ไม่มีหัวข้อกฎหมายในระบบ</div>`;
+            return;
+        }
+
+        listDivFull.innerHTML = globalFineRules.map((r, idx) => `
+            <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 transition hover:border-amber-400 group">
+                <div class="flex items-center gap-3 pr-2">
+                    <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">${idx+1}</div>
+                    <span class="text-sm font-bold text-slate-700 dark:text-gray-200">${r}</span>
+                </div>
+                <button onclick="removeFineRulePage(${idx})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 p-2 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm opacity-50 group-hover:opacity-100 shrink-0" title="ลบกฎข้อนี้">
+                    <span class="material-icons text-[18px] block">delete_sweep</span>
+                </button>
             </div>`).join('');
     }
 }
 
-window.openManageFineRulesModal = function() {
-    const modal = document.getElementById('fineRulesModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    renderRulesDropdown();
-}
-
-window.addFineRule = async function() {
-    const input = document.getElementById('newRuleInput');
+// 🌟 เพิ่มกฎจากหน้า 2
+window.addFineRulePage = async function() {
+    const input = document.getElementById('newRuleInputPage');
     const val = input.value.trim();
-    if(!val) return;
+    if(!val) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์หัวข้อกฎก่อนครับ', 'warning');
     
-    // เพิ่มกฎเข้าไปและบันทึกลง Database ทันที
-    globalFineRules.unshift(val); // เอาไว้บนสุดจะได้หาง่าย
+    Swal.fire({title: 'กำลังเพิ่มกฎ...', didOpen: () => Swal.showLoading()});
+    globalFineRules.unshift(val); 
     input.value = '';
-    renderRulesDropdown();
     
-    // บันทึกลง Supabase ทันทีที่กดเพิ่ม
     await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+    renderRulesDropdown();
+    Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
 
-window.removeFineRule = async function(idx) {
-    globalFineRules.splice(idx, 1);
-    renderRulesDropdown();
-    
-    // บันทึกลง Supabase ทันทีที่กดลบ
-    await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+// 🌟 ลบกฎจากหน้า 2
+window.removeFineRulePage = async function(idx) {
+    const res = await Swal.fire({
+        title: 'ลบกฎข้อนี้?',
+        text: `คุณต้องการลบ "${globalFineRules[idx]}" ออกจากระบบใช่หรือไม่?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ลบทิ้ง'
+    });
+
+    if (res.isConfirmed) {
+        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
+        globalFineRules.splice(idx, 1);
+        await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+        renderRulesDropdown();
+        Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
+    }
 }
+
+// 🌟 ปุ่มคืนค่ากฎ OKVIP
+window.restoreOKVIPRules = async function() {
+    const res = await Swal.fire({
+        title: 'คืนค่าเริ่มต้น?',
+        text: `ระบบจะล้างกฎที่คุณพิมพ์เองทั้งหมด และโหลดกฎตั้งต้นของ "OKVIP" เข้ามาแทน คุณแน่ใจหรือไม่?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, คืนค่าเลย'
+    });
+
+    if (res.isConfirmed) {
+        Swal.fire({title: 'กำลังดึงข้อมูล OKVIP...', didOpen: () => Swal.showLoading()});
+        globalFineRules = [...okvipRules];
+        await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+        renderRulesDropdown();
+        Swal.fire({icon: 'success', title: 'คืนค่าสำเร็จ!', text: 'ระบบอัปเดตเป็นกฎของ OKVIP ให้เรียบร้อยครับ', timer: 2000, showConfirmButton: false});
+    }
+}
+
 
 // -----------------------------------------
 // จัดการรูปภาพ & ระบบ Ctrl+V
@@ -203,8 +279,9 @@ window.viewFineImage = function(url) {
 
 document.addEventListener('paste', function(e) {
     const fileInput = document.getElementById('fineImageInput');
-    const fineApp = document.getElementById('fineAdminControls');
+    const fineApp = document.getElementById('fineContent_issue');
     
+    // เช็คว่าอยู่ในหน้าจอแรก (issue)
     if (!fileInput || !fineApp || fineApp.classList.contains('hidden')) return;
 
     let items = (e.clipboardData || e.originalEvent.clipboardData).items;
