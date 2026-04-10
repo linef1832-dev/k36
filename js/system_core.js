@@ -307,6 +307,9 @@ function renderTableRows(data) {
     const deptFilterEl = document.getElementById('tableDeptFilter');
     const deptFilterVal = deptFilterEl ? deptFilterEl.value : 'all';
 
+    // ---- ให้เพิ่ม 2 บรรทัดนี้ต่อท้ายลงไป ----
+    const shiftFilterEl = document.getElementById('tableShiftFilter');
+    const shiftFilterVal = shiftFilterEl ? shiftFilterEl.value : 'all';
     const box = document.getElementById('dataTableBody'); 
     
     // 🌟 แก้ไขจุดที่ 1: ดัก Error ไว้ตรงนี้ ถ้าหาตารางไม่เจอ ให้หยุดทำงานไปเลย
@@ -315,12 +318,23 @@ function renderTableRows(data) {
     box.innerHTML = '';
     let filteredData = data;
     
+    // กรองช่วงเวลา
     if (filterVal !== 'all') filteredData = filteredData.filter(item => getPeriodForTime(item.shift_name, item.time_slot) === filterVal);
+    
+    // กรองชื่อ
     if (searchName) filteredData = filteredData.filter(i => i.staff_name.toLowerCase().includes(searchName));
+    
+    // กรองแผนก
     if (deptFilterVal !== 'all') {
         filteredData = filteredData.filter(i => (i.department || 'AM') === deptFilterVal);
     }
     
+    // 🌟 กรองกะ (ที่เพิ่มเข้ามาใหม่)
+    if (typeof shiftFilterVal !== 'undefined' && shiftFilterVal !== 'all') {
+        filteredData = filteredData.filter(i => i.shift_name === shiftFilterVal);
+    }
+    
+    // กรองปุ่มเวลาย่อย
     if (currentSpecificTimeFilter) {
         filteredData = filteredData.filter(i => 
             i.time_slot === currentSpecificTimeFilter.time && 
