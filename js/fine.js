@@ -285,6 +285,17 @@ window.renderFineTable = function(isAdminOverride) {
         (f.note && f.note.toLowerCase().includes(term))
     );
 
+    // 🌟 คำนวณยอดรวมค่าปรับ
+    let totalAmount = 0;
+    filtered.forEach(f => {
+        totalAmount += Number(f.amount) || 0;
+    });
+    // อัปเดตยอดรวมไปที่ UI
+    const totalAmountEl = document.getElementById('fineTotalAmount');
+    if (totalAmountEl) {
+        totalAmountEl.innerText = `฿${totalAmount.toLocaleString('en-US')}`;
+    }
+
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-400">ไม่พบประวัติใบปรับ</td></tr>`;
         return;
@@ -304,7 +315,6 @@ window.renderFineTable = function(isAdminOverride) {
         const empCol = isAdmin ? `<td class="p-4 font-black text-slate-800 dark:text-white pt-5">${f.user_name}</td>` : '';
         const actionCol = isAdmin ? `<td class="p-4 text-center pt-4">${delBtn}</td>` : '';
 
-        // 🌟 ไฮไลต์ให้หมายเหตุสีเหลืองโดดเด่นขึ้นมากๆ
         let ruleDisplay = `<span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800/50 shadow-sm inline-block">${f.rule_text}</span>`;
         if (f.note && f.note.trim() !== '') {
             ruleDisplay += `<div class="mt-2.5 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600/50 text-yellow-700 dark:text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-start gap-1.5 w-fit max-w-[300px] shadow-sm"><span class="material-icons text-[16px] shrink-0 mt-0.5 text-yellow-500">info</span><span class="whitespace-normal break-words leading-snug">${f.note}</span></div>`;
