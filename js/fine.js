@@ -5,15 +5,12 @@ let globalFines = [];
 let globalFineRules = [];
 
 window.initFineApp = async function() {
-    // 1. ตรวจสอบสิทธิ์
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
 
-    // === 🌟 ดึงรายชื่อพนักงานก่อนถ้ายังไม่มี ===
     if (isAdmin && typeof fetchUsers === 'function' && (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0)) {
         await fetchUsers();
     }
-    // ====================================================
 
     const adminControls = document.getElementById('fineAdminControls');
     const tableContainer = document.getElementById('fineTableContainer');
@@ -27,7 +24,6 @@ window.initFineApp = async function() {
         document.getElementById('thEmpName').style.display = '';
         document.getElementById('thAction').style.display = '';
         
-        // เอารายชื่อใส่ Datalist (สำหรับช่องค้นหาชื่อ)
         populateEmpSelect(); 
     } else {
         adminControls.classList.add('hidden');
@@ -39,24 +35,56 @@ window.initFineApp = async function() {
         document.getElementById('thAction').style.display = 'none';
     }
 
-    // 2. ดึงข้อมูลกฎและใบปรับ
     await loadFineRules();
     await fetchFinesData(isAdmin);
 };
 
 // -----------------------------------------
-// ดึงรายชื่อพนักงานใส่ Datalist (แบบพิมพ์ค้นหาได้)
+// ระบบค้นหาพนักงาน (Custom Dropdown)
 // -----------------------------------------
 function populateEmpSelect() {
-    const datalist = document.getElementById('fineEmpList');
-    if (!datalist || !GLOBAL_USER_LIST) return;
+    const dropdown = document.getElementById('fineEmpDropdown');
+    if (!dropdown || !GLOBAL_USER_LIST) return;
     
     const sortedUsers = [...GLOBAL_USER_LIST].sort((a, b) => a.username.localeCompare(b.username));
-    datalist.innerHTML = sortedUsers.map(u => `<option value="${u.username}">${u.username} (${u.department || 'AM'})</option>`).join('');
+    dropdown.innerHTML = sortedUsers.map(u => `
+        <div class="fine-emp-item cursor-pointer px-4 py-2.5 hover:bg-red-50 dark:hover:bg-slate-700/80 border-b border-gray-100 dark:border-slate-700/50 last:border-0 transition flex justify-between items-center" onclick="selectFineEmp('${u.username}')">
+            <div class="font-bold text-slate-800 dark:text-white text-sm">${u.username}</div>
+            <div class="text-[10px] text-gray-500 bg-gray-100 dark:bg-slate-900 px-2 py-0.5 rounded border dark:border-slate-600">${u.department || 'AM'}</div>
+        </div>
+    `).join('');
 }
 
+window.showEmpDropdown = function() {
+    document.getElementById('fineEmpDropdown').classList.remove('hidden');
+}
+
+window.filterEmpDropdown = function() {
+    const term = document.getElementById('fineEmpInput').value.toLowerCase();
+    const items = document.querySelectorAll('.fine-emp-item');
+    items.forEach(item => {
+        const name = item.querySelector('.font-bold').innerText.toLowerCase();
+        if(name.includes(term)) item.style.display = 'flex';
+        else item.style.display = 'none';
+    });
+}
+
+window.selectFineEmp = function(name) {
+    document.getElementById('fineEmpInput').value = name;
+    document.getElementById('fineEmpDropdown').classList.add('hidden');
+}
+
+// คลิกข้างนอกให้ปิด Dropdown
+document.addEventListener('click', function(e) {
+    const input = document.getElementById('fineEmpInput');
+    const dropdown = document.getElementById('fineEmpDropdown');
+    if (input && dropdown && !input.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.add('hidden');
+    }
+});
+
 // -----------------------------------------
-// จัดการหัวข้อกฎ (ดึง / เพิ่ม / ลบ)
+// จัดการหัวข้อกฎ
 // -----------------------------------------
 async function loadFineRules() {
     try {
@@ -104,7 +132,7 @@ window.removeFineRule = async function(idx) {
 }
 
 // -----------------------------------------
-// จัดการรูปภาพ
+// จัดการรูปภาพ & ระบบ Ctrl+V
 // -----------------------------------------
 window.previewFineImg = function(input) {
     if (input.files && input.files[0]) {
@@ -112,15 +140,18 @@ window.previewFineImg = function(input) {
         reader.onload = function(e) {
             document.getElementById('fineImgPreview').src = e.target.result;
             document.getElementById('fineImgPreviewBox').classList.remove('hidden');
+            document.getElementById('finePasteArea').classList.add('hidden'); // ซ่อนกล่องวาง
         };
         reader.readAsDataURL(input.files[0]);
     }
 };
 
-window.clearFineImg = function() {
+window.clearFineImg = function(e) {
+    if(e) e.preventDefault(); // กันไม่ให้ไปกดโดน Label
     document.getElementById('fineImageInput').value = '';
     document.getElementById('fineImgPreview').src = '';
     document.getElementById('fineImgPreviewBox').classList.add('hidden');
+    document.getElementById('finePasteArea').classList.remove('hidden'); // โชว์กล่องวางกลับมา
 };
 
 window.viewFineImage = function(url) {
@@ -130,24 +161,46 @@ window.viewFineImage = function(url) {
     modal.classList.add('flex');
 }
 
+// ระบบวางรูปจาก Clipboard (Ctrl+V)
+document.addEventListener('paste', function(e) {
+    const fileInput = document.getElementById('fineImageInput');
+    const fineApp = document.getElementById('fineAdminControls');
+    
+    // ตรวจสอบว่าเปิดหน้าออกใบปรับอยู่หรือไม่
+    if (!fileInput || !fineApp || fineApp.classList.contains('hidden')) return;
+
+    let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (let index in items) {
+        let item = items[index];
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+            e.preventDefault();
+            let blob = item.getAsFile();
+            const file = new File([blob], "pasted_image.png", { type: item.type });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            window.previewFineImg(fileInput); // สั่งพรีวิว
+            break; 
+        }
+    }
+});
+
 // -----------------------------------------
 // บันทึกใบปรับ
 // -----------------------------------------
 window.submitFine = async function(e) {
     e.preventDefault();
-    // รับค่าจาก Input (ไม่ใช่ Select แล้ว)
     const empName = document.getElementById('fineEmpInput').value.trim();
     const ruleText = document.getElementById('fineRuleSelect').value;
-    const noteText = document.getElementById('fineNote').value.trim(); // รับค่าหมายเหตุ
+    const noteText = document.getElementById('fineNote').value.trim(); 
     const amount = document.getElementById('fineAmount').value || 0;
     const fileInput = document.getElementById('fineImageInput');
 
     if(!empName || !ruleText) return;
 
-    // เช็คว่าพิมพ์ชื่อถูกคนไหม (ต้องตรงกับในระบบ)
     const targetUser = GLOBAL_USER_LIST.find(u => u.username === empName);
     if (!targetUser) {
-        return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง (ต้องพิมพ์ให้ตรงเป๊ะหรือเลือกจากรายชื่อที่โผล่ขึ้นมา)', 'warning');
+        return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง', 'warning');
     }
     const targetId = targetUser.id;
 
@@ -155,7 +208,6 @@ window.submitFine = async function(e) {
 
     let imageUrl = '';
     try {
-        // อัปโหลดรูป (ถ้ามี) ไปที่ Bucket 'staff_images' 
         if (fileInput.files && fileInput.files.length > 0) {
             Swal.update({text: 'กำลังอัปโหลดหลักฐาน...'});
             const file = fileInput.files[0];
@@ -168,12 +220,11 @@ window.submitFine = async function(e) {
             imageUrl = publicUrlData.publicUrl;
         }
 
-        // เซฟลง DB
         const { error: dbError } = await appDB.from('fines').insert([{
             user_id: targetId,
             user_name: empName,
             rule_text: ruleText,
-            note: noteText, // บันทึกหมายเหตุลงฐานข้อมูล
+            note: noteText,
             amount: amount,
             evidence_url: imageUrl,
             issued_by: currentUser.username
@@ -183,14 +234,12 @@ window.submitFine = async function(e) {
 
         Swal.fire({icon: 'success', title: 'ออกใบปรับสำเร็จ', timer: 1500, showConfirmButton: false});
         
-        // เคลียร์ฟอร์ม
         document.getElementById('fineEmpInput').value = '';
         document.getElementById('fineRuleSelect').value = '';
         document.getElementById('fineNote').value = '';
         document.getElementById('fineAmount').value = '';
         clearFineImg();
         
-        // โหลดข้อมูลตารางใหม่
         fetchFinesData(true);
 
     } catch (err) {
@@ -208,7 +257,6 @@ window.fetchFinesData = async function(isAdmin) {
 
     try {
         let query = appDB.from('fines').select('*').order('created_at', { ascending: false });
-        // ถ้าเป็นพนักงาน ให้ดึงเฉพาะชื่อตัวเอง
         if (!isAdmin) {
             query = query.eq('user_name', currentUser.username);
         }
@@ -220,7 +268,6 @@ window.fetchFinesData = async function(isAdmin) {
         renderFineTable(isAdmin);
 
     } catch (e) {
-        // ถ้ายังไม่ได้สร้างตาราง fines ใน Supabase มันจะมาเข้าตรงนี้
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-red-500">เกิดข้อผิดพลาด หรือยังไม่ได้สร้าง Table 'fines' ใน Supabase<br><span class="text-xs text-gray-500">${e.message}</span></td></tr>`;
     }
 };
@@ -235,7 +282,7 @@ window.renderFineTable = function(isAdminOverride) {
     const filtered = globalFines.filter(f => 
         (f.user_name && f.user_name.toLowerCase().includes(term)) || 
         (f.rule_text && f.rule_text.toLowerCase().includes(term)) ||
-        (f.note && f.note.toLowerCase().includes(term)) // ให้ค้นหาจากหมายเหตุได้ด้วย
+        (f.note && f.note.toLowerCase().includes(term))
     );
 
     if (filtered.length === 0) {
@@ -247,29 +294,29 @@ window.renderFineTable = function(isAdminOverride) {
         const d = new Date(f.created_at);
         const dateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
         
-        const amountDisplay = f.amount > 0 ? `<span class="font-mono text-red-500 font-bold">฿${f.amount}</span>` : '<span class="text-gray-400">-</span>';
+        const amountDisplay = f.amount > 0 ? `<span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50">฿${f.amount}</span>` : '<span class="text-gray-400">-</span>';
         
         const imgDisplay = f.evidence_url ? 
-            `<button onclick="viewFineImage('${f.evidence_url}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm"><span class="material-icons text-blue-500 text-lg block">image</span></button>` : 
-            '<span class="text-gray-400 text-[10px]">- ไม่มีรูป -</span>';
+            `<button onclick="viewFineImage('${f.evidence_url}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>` : 
+            '<span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700">- ไม่มีรูป -</span>';
 
         const delBtn = isAdmin ? `<button onclick="deleteFine(${f.id})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition"><span class="material-icons text-sm block">delete</span></button>` : '';
-        const empCol = isAdmin ? `<td class="p-3 font-bold text-slate-800 dark:text-white pt-4">${f.user_name}</td>` : '';
-        const actionCol = isAdmin ? `<td class="p-3 text-center pt-3">${delBtn}</td>` : '';
+        const empCol = isAdmin ? `<td class="p-4 font-black text-slate-800 dark:text-white pt-5">${f.user_name}</td>` : '';
+        const actionCol = isAdmin ? `<td class="p-4 text-center pt-4">${delBtn}</td>` : '';
 
-        // 🌟 ส่วนแสดงผลหัวข้อกฎ + หมายเหตุสีเหลือง (ถ้ามี)
-        let ruleDisplay = `<span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-1 rounded-lg border border-red-200 dark:border-red-800/50">${f.rule_text}</span>`;
+        // 🌟 ไฮไลต์ให้หมายเหตุสีเหลืองโดดเด่นขึ้นมากๆ
+        let ruleDisplay = `<span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800/50 shadow-sm inline-block">${f.rule_text}</span>`;
         if (f.note && f.note.trim() !== '') {
-            ruleDisplay += `<div class="text-[10px] text-yellow-600 dark:text-yellow-500 mt-1.5 font-bold flex items-start gap-1"><span class="material-icons text-[12px] mt-0.5">info</span><span class="whitespace-normal break-words max-w-[200px]">${f.note}</span></div>`;
+            ruleDisplay += `<div class="mt-2.5 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600/50 text-yellow-700 dark:text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-start gap-1.5 w-fit max-w-[300px] shadow-sm"><span class="material-icons text-[16px] shrink-0 mt-0.5 text-yellow-500">info</span><span class="whitespace-normal break-words leading-snug">${f.note}</span></div>`;
         }
 
         return `
-        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition border-b border-gray-100 dark:border-slate-700/50 align-top">
-            <td class="p-3 text-xs text-gray-500 pt-4">${dateStr}</td>
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition border-b border-gray-100 dark:border-slate-700/50 align-top group">
+            <td class="p-4 text-xs text-gray-500 pt-5 font-mono">${dateStr}</td>
             ${empCol}
-            <td class="p-3 text-xs font-bold leading-relaxed">${ruleDisplay}</td>
-            <td class="p-3 text-center pt-4">${amountDisplay}</td>
-            <td class="p-3 text-center pt-3">${imgDisplay}</td>
+            <td class="p-4 text-xs font-bold pt-4 pb-4">${ruleDisplay}</td>
+            <td class="p-4 text-center pt-5">${amountDisplay}</td>
+            <td class="p-4 text-center pt-4">${imgDisplay}</td>
             ${actionCol}
         </tr>`;
     }).join('');
