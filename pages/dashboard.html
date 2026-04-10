@@ -125,14 +125,23 @@
                         
                         <div id="tableSummary" class="mb-4"></div>
                         
-                        <div class="flex flex-wrap gap-2 justify-end items-center bg-slate-900/50 p-2 rounded-lg">
-                            <span class="text-xs font-bold text-gray-500 uppercase">ตัวกรอง:</span>
-                            <button onclick="clearSpecificTimeFilter()" id="clearFilterBtn" class="hidden bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1.5 rounded flex items-center"><span class="material-icons text-sm mr-1">close</span> ล้างเวลากรอง</button>
-                            <select id="tableDeptFilter" onchange="renderTableRows(globalScheduleData)" class="text-sm p-1.5 rounded border border-slate-600 font-bold text-white bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกแผนก --</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
-                            <select id="tableTeamFilter" onchange="fetchData()" class="text-sm p-1.5 rounded border border-slate-600 font-bold text-white bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกเว็บ --</option></select>
-                            <select id="periodFilter" onchange="renderTableRows(globalScheduleData)" class="text-sm p-1.5 rounded border border-slate-600 font-bold text-white bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกช่วงเวลา --</option><option value="ช่วงที่ 1">ช่วงที่ 1</option><option value="ช่วงที่ 2">ช่วงที่ 2</option><option value="ช่วงที่ 3">ช่วงที่ 3</option></select>
-                            <button onclick="manualRefresh()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-3 py-1.5 rounded flex items-center transition shadow-sm"><span class="material-icons text-base">refresh</span></button>
-                        </div>
+                        <div class="flex flex-wrap gap-2 justify-end items-center bg-gray-100 dark:bg-slate-900/50 p-2 rounded-lg border border-gray-200 dark:border-transparent">
+    <span class="text-xs font-bold text-gray-500 uppercase">ตัวกรอง:</span>
+    <button onclick="clearSpecificTimeFilter()" id="clearFilterBtn" class="hidden bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1.5 rounded flex items-center"><span class="material-icons text-sm mr-1">close</span> ล้างเวลากรอง</button>
+    
+    <select id="tableShiftFilter" onchange="renderTableRows(globalScheduleData)" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-white dark:bg-slate-700 outline-none cursor-pointer">
+        <option value="all">-- ทุกกะ --</option>
+        <option value="กะเช้า">กะเช้า</option>
+        <option value="กะกลาง">กะกลาง</option>
+        <option value="กะดึก">กะดึก</option>
+    </select>
+
+    <select id="tableDeptFilter" onchange="renderTableRows(globalScheduleData)" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-white dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกแผนก --</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
+    <select id="tableTeamFilter" onchange="fetchData()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-white dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกเว็บ --</option></select>
+    <select id="periodFilter" onchange="renderTableRows(globalScheduleData)" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-white dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกช่วงเวลา --</option><option value="ช่วงที่ 1">ช่วงที่ 1</option><option value="ช่วงที่ 2">ช่วงที่ 2</option><option value="ช่วงที่ 3">ช่วงที่ 3</option></select>
+    
+    <button onclick="manualRefresh()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-3 py-1.5 rounded flex items-center transition shadow-sm"><span class="material-icons text-base">refresh</span></button>
+</div>
                     </div>
                     
                     <div class="overflow-x-auto p-4">
