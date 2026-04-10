@@ -20,15 +20,20 @@
                     </div>
                     
                     <form onsubmit="submitFine(event)" class="space-y-4">
-                        <div>
+                        <div class="relative">
                             <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">พนักงานที่ทำผิด</label>
-                            <input type="text" id="fineEmpInput" list="fineEmpList" required placeholder="🔍 พิมพ์เพื่อค้นหาชื่อพนักงาน..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner">
-                            <datalist id="fineEmpList"></datalist>
+                            <div class="relative">
+                                <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[18px]">search</span>
+                                <input type="text" id="fineEmpInput" required placeholder="พิมพ์ค้นหาชื่อพนักงาน..." class="w-full pl-9 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner transition" autocomplete="off" onfocus="showEmpDropdown()" onkeyup="filterEmpDropdown()">
+                                <span class="material-icons absolute right-3 top-2.5 text-gray-400 text-[18px] pointer-events-none">expand_more</span>
+                            </div>
+                            <div id="fineEmpDropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-2xl">
+                                </div>
                         </div>
                         
                         <div>
                             <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หัวข้อกฎ</label>
-                            <select id="fineRuleSelect" required class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner">
+                            <select id="fineRuleSelect" required class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
                                 <option value="">-- โหลดข้อมูลกฎ --</option>
                             </select>
                         </div>
@@ -37,7 +42,7 @@
                             <label class="block text-[11px] font-bold text-yellow-500 uppercase mb-1 flex items-center gap-1">
                                 <span class="material-icons text-[14px]">edit_note</span> หมายเหตุ / รายละเอียดเพิ่มเติม (ถ้ามี)
                             </label>
-                            <input type="text" id="fineNote" placeholder="เช่น โทรติด 3 ครั้ง ไม่รับสาย..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-yellow-500/30 text-slate-800 dark:text-white font-bold outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 shadow-inner">
+                            <input type="text" id="fineNote" placeholder="เช่น โทรติด 3 ครั้ง ไม่รับสาย..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-yellow-500/50 text-slate-800 dark:text-white font-bold outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 shadow-inner">
                         </div>
 
                         <div>
@@ -46,16 +51,25 @@
                         </div>
 
                         <div>
-                            <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 text-red-500">📸 แนบรูปหลักฐาน (ถ้ามี)</label>
-                            <input type="file" id="fineImageInput" accept="image/*" class="w-full p-2 border border-slate-600 rounded-xl bg-slate-900 text-white focus:ring-2 focus:ring-red-500 outline-none text-xs shadow-inner file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-red-600 file:text-white hover:file:bg-red-500 cursor-pointer" onchange="previewFineImg(this)">
-                            <div id="fineImgPreviewBox" class="hidden mt-2 relative inline-block bg-slate-900 p-2 rounded-xl border border-slate-700">
-                                <img id="fineImgPreview" src="" class="h-24 w-auto object-cover rounded-lg border border-slate-600 shadow-md">
-                                <button type="button" onclick="clearFineImg()" class="absolute -top-2 -right-2 bg-slate-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-md hover:bg-slate-600 transition"><span class="material-icons text-[12px]">close</span></button>
+                            <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 text-red-500 flex items-center gap-1"><span class="material-icons text-[14px]">image</span> แนบรูปหลักฐาน (คลิก หรือ Ctrl+V)</label>
+                            
+                            <input type="file" id="fineImageInput" accept="image/*" class="hidden" onchange="previewFineImg(this)">
+                            
+                            <label for="fineImageInput" id="finePasteArea" class="flex flex-col items-center justify-center w-full min-h-[80px] border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition shadow-inner">
+                                <div class="flex flex-col items-center justify-center pt-3 pb-3 text-gray-400">
+                                    <span class="material-icons text-3xl mb-1 opacity-50">content_paste</span>
+                                    <p class="text-[11px] font-bold">คลิกเลือกไฟล์ หรือ กด <span class="text-red-500">Ctrl+V</span> เพื่อวางรูป</p>
+                                </div>
+                            </label>
+
+                            <div id="fineImgPreviewBox" class="hidden mt-2 relative inline-block bg-slate-900 p-2 rounded-xl border border-slate-700 w-full text-center shadow-inner">
+                                <img id="fineImgPreview" src="" class="max-h-32 w-auto object-contain rounded-lg shadow-md mx-auto border border-slate-600">
+                                <button type="button" onclick="clearFineImg(event)" class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg hover:bg-red-600 transition hover:scale-110"><span class="material-icons text-[14px]">close</span></button>
                             </div>
                         </div>
 
-                        <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-1 border border-red-500">
-                            <span class="material-icons text-sm">send</span> ยืนยันการออกใบปรับ
+                        <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3.5 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2 border border-red-500 mt-2 text-base">
+                            <span class="material-icons">send</span> ยืนยันการออกใบปรับ
                         </button>
                     </form>
                 </div>
@@ -75,12 +89,12 @@
                     <table class="w-full text-left text-sm whitespace-nowrap">
                         <thead class="bg-slate-100 dark:bg-slate-900 text-gray-500 dark:text-gray-400 text-xs uppercase sticky top-0 shadow-sm z-10">
                             <tr>
-                                <th class="p-3 font-bold">วันที่ออกใบปรับ</th>
-                                <th class="p-3 font-bold" id="thEmpName">ชื่อพนักงาน</th>
-                                <th class="p-3 font-bold">หัวข้อที่ผิด</th>
-                                <th class="p-3 font-bold text-center">ค่าปรับ</th>
-                                <th class="p-3 font-bold text-center">หลักฐาน</th>
-                                <th class="p-3 font-bold text-center" id="thAction">จัดการ</th>
+                                <th class="p-4 font-bold">วันที่ออกใบปรับ</th>
+                                <th class="p-4 font-bold" id="thEmpName">ชื่อพนักงาน</th>
+                                <th class="p-4 font-bold">หัวข้อที่ผิด</th>
+                                <th class="p-4 font-bold text-center">ค่าปรับ</th>
+                                <th class="p-4 font-bold text-center">หลักฐาน</th>
+                                <th class="p-4 font-bold text-center" id="thAction">จัดการ</th>
                             </tr>
                         </thead>
                         <tbody id="fineTableBody" class="divide-y divide-gray-100 dark:divide-slate-700 text-slate-700 dark:text-gray-200">
