@@ -247,14 +247,20 @@ window.renderFineTable = function(isAdminOverride) {
         const empCol = isAdmin ? `<td class="p-3 font-bold text-slate-800 dark:text-white">${f.user_name}</td>` : '';
         const actionCol = isAdmin ? `<td class="p-3 text-center">${delBtn}</td>` : '';
 
+        // 🌟 ส่วนที่แก้: เอาหมายเหตุมาโชว์ต่อท้ายหัวข้อกฎ
+        let ruleDisplay = `<span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-1 rounded-lg border border-red-200 dark:border-red-800/50">${f.rule_text}</span>`;
+        if (f.note && f.note.trim() !== '') {
+            ruleDisplay += `<div class="text-[10px] text-yellow-600 dark:text-yellow-500 mt-1.5 font-bold flex items-start gap-1"><span class="material-icons text-[12px] mt-0.5">info</span><span class="whitespace-normal break-words max-w-[200px]">${f.note}</span></div>`;
+        }
+
         return `
-        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition border-b border-gray-100 dark:border-slate-700/50">
-            <td class="p-3 text-xs text-gray-500">${dateStr}</td>
-            ${empCol}
-            <td class="p-3 text-xs font-bold"><span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-1 rounded-lg border border-red-200 dark:border-red-800/50">${f.rule_text}</span></td>
-            <td class="p-3 text-center">${amountDisplay}</td>
-            <td class="p-3 text-center">${imgDisplay}</td>
-            ${actionCol}
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition border-b border-gray-100 dark:border-slate-700/50 align-top">
+            <td class="p-3 text-xs text-gray-500 pt-4">${dateStr}</td>
+            ${empCol ? `<td class="p-3 font-bold text-slate-800 dark:text-white pt-4">${f.user_name}</td>` : ''}
+            <td class="p-3 text-xs font-bold leading-relaxed">${ruleDisplay}</td>
+            <td class="p-3 text-center pt-4">${amountDisplay}</td>
+            <td class="p-3 text-center pt-3">${imgDisplay}</td>
+            ${actionCol ? `<td class="p-3 text-center pt-3">${delBtn}</td>` : ''}
         </tr>`;
     }).join('');
 };
