@@ -317,6 +317,19 @@ window.renderDutyLeaveBox = function() {
 };
 
 window.restoreFromLeave = async function(userId, username) {
+    // --- 🚨 เพิ่มโค้ดเช็คสิทธิ์ตรงนี้ ---
+    const canRestore = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin' || (currentUser.role && currentUser.role.toLowerCase() === 'trainer'));
+    
+    if (!canRestore) {
+        return Swal.fire({
+            icon: 'error',
+            title: 'ไม่มีสิทธิ์ทำรายการ',
+            text: 'เฉพาะ Admin, Manager และ Trainer เท่านั้น ที่สามารถดึงพนักงานกลับมาทำงานได้ครับ!',
+            confirmButtonColor: '#d33',
+            customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+        });
+    }
+    
     let optionsHtml = '<option value="" disabled selected>-- เลือกเว็บที่จะให้ไปทำ --</option>';
     sortedTeams.forEach(t => { optionsHtml += `<option value="${t}">${t}</option>`; });
 
