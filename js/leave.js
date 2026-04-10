@@ -16,7 +16,7 @@ let editLeaveTimer;
 window.setLeaveType = function(type) {
     window.activeLeaveType = type;
     document.querySelectorAll('.leave-type-btn').forEach(btn => {
-        btn.classList.remove('ring-2', 'ring-offset-1', 'scale-105', 'opacity-100', 'ring-red-500', 'ring-yellow-400', 'ring-pink-500', 'ring-green-500', 'ring-blue-500', 'ring-amber-800');
+        btn.classList.remove('ring-2', 'ring-offset-1', 'scale-105', 'opacity-100', 'ring-red-500', 'ring-yellow-400', 'ring-pink-500', 'ring-green-500', 'ring-blue-500', 'ring-amber-800', 'ring-yellow-700');
         btn.classList.add('opacity-50');
     });
     const activeBtn = document.getElementById('ltBtn_' + type);
@@ -29,6 +29,7 @@ window.setLeaveType = function(type) {
         if(type === 'KL') activeBtn.classList.add('ring-green-500');
         if(type === 'TX') activeBtn.classList.add('ring-blue-500');
         if(type === 'PN') activeBtn.classList.add('ring-amber-800');
+        if(type === 'KP') activeBtn.classList.add('ring-yellow-700');
     }
 };
 
@@ -586,6 +587,8 @@ window.renderLeaveTable = function() {
                     finalColor = 'bg-blue-500'; finalText = leaveReason;
                 } else if (leaveReason === 'PN') {
                     finalColor = 'bg-amber-800'; finalText = 'PN'; textColor = 'text-white';
+                } else if (leaveReason === 'KP') {
+                    finalColor = 'bg-yellow-700'; finalText = 'KP'; textColor = 'text-white';
                 } else {
                     finalColor = baseDeptColor; finalText = leaveReason;
                 }
@@ -824,7 +827,8 @@ window.exportLeaveToExcel = async function() {
             'X':  { bg: 'FFEF4444', font: 'FFFFFFFF' }, 'XX': { bg: 'FFFACC15', font: 'FF854D0E' },
             'X4': { bg: 'FFEC4899', font: 'FFFFFFFF' }, 'KL': { bg: 'FF22C55E', font: 'FFFFFFFF' },
             'TL': { bg: 'FF3B82F6', font: 'FFFFFFFF' }, 'TX': { bg: 'FF3B82F6', font: 'FFFFFFFF' },
-            'PN': { bg: 'FF92400E', font: 'FFFFFFFF' } 
+            'PN': { bg: 'FF92400E', font: 'FFFFFFFF' },
+            'KP': { bg: 'FFA16207', font: 'FFFFFFFF' }
         };
 
         const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet(`วันหยุด ${currentViewDept}`);
