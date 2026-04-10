@@ -355,8 +355,8 @@ function renderTableRows(data) {
                 <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span>
                 <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>
             </td>
-            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 dark:bg-slate-600 dark:text-white">${i.shift_name}</span></td>
-            <td class="px-6 py-4 font-mono text-base dark:text-gray-300">${i.time_slot}</td>
+            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white">${i.shift_name}</span></td>
+            <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300">${i.time_slot}</td>
             <td class="px-6 py-4 text-center">${delBtn}</td>
         </tr>`;
     });
