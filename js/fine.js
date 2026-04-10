@@ -82,11 +82,29 @@ window.initFineApp = async function() {
     }
 
     if (!isAdmin) {
+        // 🌟 ซ่อนปุ่มเมนูด้านบนที่แอดมินใช้
         document.getElementById('tabFineCreate').classList.add('hidden');
         document.getElementById('tabFineManage').classList.add('hidden');
+        
+        // 🌟 ซ่อนหน้าย่อย (กล่อง) ของแอดมิน
+        document.getElementById('fineTabCreate').classList.add('hidden');
+        document.getElementById('fineTabManage').classList.add('hidden');
+        
+        // 🌟 แสดงหน้าประวัติการปรับ (ที่เป็นของพนักงานทั่วไป)
         switchFineTab('history');
+        
+        // ซ่อนคอลัมน์และปุ่มที่ไม่จำเป็นสำหรับพนักงาน
         document.getElementById('thAction').style.display = 'none';
+        document.getElementById('thEmpName').style.display = 'none';
+        document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
     } else {
+        // ถ้าเป็นแอดมิน ให้แสดงปุ่มทั้งหมด และไปที่หน้าสร้างใบปรับก่อน
+        document.getElementById('tabFineCreate').classList.remove('hidden');
+        document.getElementById('tabFineManage').classList.remove('hidden');
+        document.getElementById('thEmpName').style.display = '';
+        document.getElementById('thAction').style.display = '';
+        document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">view_list</span> รายการใบปรับทั้งหมดในระบบ';
+        
         await loadCompanyRules();
         populateFineFilters();
         switchFineTab('create');
