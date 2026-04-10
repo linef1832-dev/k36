@@ -4,6 +4,25 @@
 let globalFines = [];
 let globalFineRules = [];
 
+// 📜 สรุปกฎระเบียบจากเอกสาร OKVIP
+const okvipRules = [
+    "บทที่ 2: มาทำงานสาย / กลับก่อนเวลา",
+    "บทที่ 2: ไม่สแกนบัตรเข้า-ออกงาน / ขาดงาน",
+    "บทที่ 2: ออกจากหน้างานชั่วคราวเกินเวลา / ไม่อยู่หน้างาน",
+    "บทที่ 3: พกอุปกรณ์ส่วนตัว / เล่นมือถือในเวลาทำงาน",
+    "บทที่ 3: ดูวิดีโอ / ช้อปปิ้ง / เล่นเกม / นอนหลับเวลางาน",
+    "บทที่ 3: ลบประวัติแชท / ใช้อุปกรณ์ทำงานเรื่องส่วนตัว",
+    "บทที่ 3: ไม่ปฏิบัติตามคำสั่ง / ทำงานด้วยอารมณ์ / ก้าวร้าว",
+    "บทที่ 3: ดื่มแอลกอฮอล์ / ทานอาหารในสำนักงาน",
+    "บทที่ 3: ทำงานล่าช้า / ไม่ตั้งใจ / ละเลยงาน",
+    "บทที่ 3: ไม่รายงานข้อมูล / ปิดบัง / ทำข้อมูลปลอม",
+    "บทที่ 3: รับไฟล์หรือลิงก์จากคนแปลกหน้า",
+    "บทที่ 4: ทะเลาะวิวาท / ก่อเรื่อง / เสียงดัง",
+    "บทที่ 4: ทำผิดกฎหอพัก (พาคนนอกเข้า / เข้าห้องผิดเพศ)",
+    "บทที่ 5: ทุจริต / ปลอมแปลงข้อมูล / ขโมยทรัพย์สิน",
+    "บทที่ 5: พูดจาไม่สุภาพ / ดูหมิ่น / ยุยงสร้างความขัดแย้ง"
+];
+
 window.initFineApp = async function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
@@ -74,7 +93,6 @@ window.selectFineEmp = function(name) {
     document.getElementById('fineEmpDropdown').classList.add('hidden');
 }
 
-// คลิกข้างนอกให้ปิด Dropdown
 document.addEventListener('click', function(e) {
     const input = document.getElementById('fineEmpInput');
     const dropdown = document.getElementById('fineEmpDropdown');
@@ -84,32 +102,28 @@ document.addEventListener('click', function(e) {
 });
 
 // -----------------------------------------
-// จัดการหัวข้อกฎ (ดึงกฎเริ่มต้นจากเอกสาร OKVIP)
+// จัดการหัวข้อกฎ (บังคับโหลดกฎ OKVIP)
 // -----------------------------------------
-const defaultRules = [
-    'มาทำงานสาย / เช็คชื่อสาย',
-    'กลับก่อนเวลาเลิกงาน',
-    'ไม่สแกนบัตร / ไม่เช็คชื่อ / ขาดงาน',
-    'ออกจากหน้างานชั่วคราวเกินกำหนด / ไม่อยู่หน้างาน',
-    'เล่นเกม / ดูวิดีโอ / ช้อปปิ้ง ในเวลางาน',
-    'ใช้อุปกรณ์ส่วนตัว (มือถือ) ในพื้นที่ทำงาน',
-    'ลบประวัติแชทบัญชีทำงาน',
-    'ไม่ปฏิบัติตามคำสั่ง / ทำงานด้วยอารมณ์',
-    'ประกอบอาชีพอื่น / ทำงานซ้อน',
-    'ดื่มเครื่องดื่มแอลกอฮอล์ในเวลางาน',
-    'ทำงานผิดพลาด / ไม่ตั้งใจทำงาน / ล่าช้า',
-    'ไม่รายงาน / ปิดบังข้อมูล / รายงานเท็จ / ทำข้อมูลปลอม',
-    'รับไฟล์หรือลิงก์จากคนแปลกหน้า',
-    'ทะเลาะวิวาท / คุกคาม / พูดจาไม่สุภาพ'
-];
-
 async function loadFineRules() {
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'fine_rules_data').single();
-        globalFineRules = (data && data.value) ? JSON.parse(data.value) : defaultRules;
+        
+        if (data && data.value) {
+            globalFineRules = JSON.parse(data.value);
+            
+            // เช็คว่าถ้าเป็นกฎตั้งต้นเก่าที่ติดมากับระบบ ให้แทนที่ด้วยกฎของ OKVIP เลย
+            if (globalFineRules.length <= 2 && globalFineRules.includes('ขาดงานไม่แจ้ง')) {
+                globalFineRules = okvipRules;
+                await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+            }
+        } else {
+            // ถ้ายังไม่มีข้อมูลในระบบเลย ให้บันทึกกฎ OKVIP ลงไป
+            globalFineRules = okvipRules;
+            await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+        }
         renderRulesDropdown();
     } catch(e) { 
-        globalFineRules = defaultRules; 
+        globalFineRules = okvipRules; 
         renderRulesDropdown(); 
     }
 }
@@ -123,7 +137,7 @@ function renderRulesDropdown() {
         listDiv.innerHTML = globalFineRules.map((r, idx) => `
             <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded shadow-sm border border-gray-200 dark:border-slate-700 mb-2">
                 <span class="text-sm font-bold text-slate-700 dark:text-gray-200">${r}</span>
-                <button onclick="removeFineRule(${idx})" class="text-red-400 hover:text-red-600"><span class="material-icons text-sm">delete</span></button>
+                <button onclick="removeFineRule(${idx})" class="text-red-400 hover:text-red-600 p-1 bg-red-50 dark:bg-red-900/30 rounded transition"><span class="material-icons text-sm">delete</span></button>
             </div>`).join('');
     }
 }
@@ -139,15 +153,21 @@ window.addFineRule = async function() {
     const input = document.getElementById('newRuleInput');
     const val = input.value.trim();
     if(!val) return;
-    globalFineRules.push(val);
+    
+    // เพิ่มกฎเข้าไปและบันทึกลง Database ทันที
+    globalFineRules.unshift(val); // เอาไว้บนสุดจะได้หาง่าย
     input.value = '';
     renderRulesDropdown();
+    
+    // บันทึกลง Supabase ทันทีที่กดเพิ่ม
     await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
 }
 
 window.removeFineRule = async function(idx) {
     globalFineRules.splice(idx, 1);
     renderRulesDropdown();
+    
+    // บันทึกลง Supabase ทันทีที่กดลบ
     await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
 }
 
@@ -160,18 +180,18 @@ window.previewFineImg = function(input) {
         reader.onload = function(e) {
             document.getElementById('fineImgPreview').src = e.target.result;
             document.getElementById('fineImgPreviewBox').classList.remove('hidden');
-            document.getElementById('finePasteArea').classList.add('hidden'); // ซ่อนกล่องวาง
+            document.getElementById('finePasteArea').classList.add('hidden');
         };
         reader.readAsDataURL(input.files[0]);
     }
 };
 
 window.clearFineImg = function(e) {
-    if(e) e.preventDefault(); // กันไม่ให้ไปกดโดน Label
+    if(e) e.preventDefault(); 
     document.getElementById('fineImageInput').value = '';
     document.getElementById('fineImgPreview').src = '';
     document.getElementById('fineImgPreviewBox').classList.add('hidden');
-    document.getElementById('finePasteArea').classList.remove('hidden'); // โชว์กล่องวางกลับมา
+    document.getElementById('finePasteArea').classList.remove('hidden');
 };
 
 window.viewFineImage = function(url) {
@@ -181,12 +201,10 @@ window.viewFineImage = function(url) {
     modal.classList.add('flex');
 }
 
-// ระบบวางรูปจาก Clipboard (Ctrl+V)
 document.addEventListener('paste', function(e) {
     const fileInput = document.getElementById('fineImageInput');
     const fineApp = document.getElementById('fineAdminControls');
     
-    // ตรวจสอบว่าเปิดหน้าออกใบปรับอยู่หรือไม่
     if (!fileInput || !fineApp || fineApp.classList.contains('hidden')) return;
 
     let items = (e.clipboardData || e.originalEvent.clipboardData).items;
@@ -199,7 +217,7 @@ document.addEventListener('paste', function(e) {
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
             fileInput.files = dataTransfer.files;
-            window.previewFineImg(fileInput); // สั่งพรีวิว
+            window.previewFineImg(fileInput); 
             break; 
         }
     }
@@ -305,12 +323,11 @@ window.renderFineTable = function(isAdminOverride) {
         (f.note && f.note.toLowerCase().includes(term))
     );
 
-    // 🌟 คำนวณยอดรวมค่าปรับ
     let totalAmount = 0;
     filtered.forEach(f => {
         totalAmount += Number(f.amount) || 0;
     });
-    // อัปเดตยอดรวมไปที่ UI
+    
     const totalAmountEl = document.getElementById('fineTotalAmount');
     if (totalAmountEl) {
         totalAmountEl.innerText = `฿${totalAmount.toLocaleString('en-US')}`;
