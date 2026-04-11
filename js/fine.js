@@ -231,7 +231,6 @@ window.addFineNotePage = async function() {
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
 
-// 🌟 เพิ่มฟังก์ชันแก้ไขหมายเหตุ
 window.editFineNotePage = async function(idx) {
     const currentNote = globalFineNotes[idx];
     
@@ -305,7 +304,6 @@ async function loadFineRules() {
     }
 }
 
-// 🌟 ระบบสลับช่องกรอกเงิน (ระบุเงิน / ไม่ได้รับค่าแรง)
 window.toggleFineAmountInput = function() {
     const typeSelect = document.getElementById('finePenaltyType');
     const amtInput = document.getElementById('fineAmount');
@@ -357,10 +355,6 @@ window.filterRulesByCategory = function() {
     ruleSelect.onchange = function() {
         this.title = this.value; 
         
-        // ... (โค้ดที่เหลือในฟังก์ชัน onchange ปล่อยไว้เหมือนเดิม) ...
-
-    // 🌟 อัปเดตตรรกะให้ฉลาดขึ้น: ตรวจจับ "ไม่ได้ค่าแรง" และเซ็ต Dropdown อัตโนมัติ
-    ruleSelect.onchange = function() {
         const typeSelect = document.getElementById('finePenaltyType');
         const amtInput = document.getElementById('fineAmount');
         if (!typeSelect || !amtInput) return;
@@ -675,12 +669,9 @@ window.submitFine = async function(e) {
     let finalNote = noteSelect;
     if (noteInput) {
         if (finalNote) {
-            // ตรวจจับว่าในเทมเพลตมีสัญลักษณ์จุดไข่ปลา (...), ขีดล่าง (_), หรือมีการเว้นวรรคติดกัน 2 ช่องขึ้นไปหรือไม่
             if (finalNote.includes('...') || finalNote.includes('_') || /\s{2,}/.test(finalNote)) {
-                // นำข้อความที่พิมพ์ไปแทรกตรงกลาง แล้วจัดช่องไฟให้สวยงาม
                 finalNote = finalNote.replace(/_+|\.\.\.|\s{2,}/, ` ${noteInput} `).replace(/\s+/g, ' ');
             } else {
-                // ถ้าไม่มีช่องว่างให้แทรก ก็เอาไปต่อท้ายเหมือนเดิม
                 finalNote = `${finalNote} (${noteInput})`;
             }
         } else {
@@ -688,12 +679,11 @@ window.submitFine = async function(e) {
         }
     }
     
-    // 🌟 อ่านค่าว่าลงโทษเป็น "จำนวนเงิน" หรือ "ไม่ได้รับค่าแรง"
     const penaltyType = document.getElementById('finePenaltyType').value;
     let amountToSave = 0;
     
     if (penaltyType === 'nowage') {
-        amountToSave = -1; // ใช้ -1 เพื่อระบุว่าเป็น "ไม่ได้รับค่าแรง"
+        amountToSave = -1;
     } else {
         amountToSave = parseInt(document.getElementById('fineAmount').value) || 0;
     }
@@ -729,7 +719,7 @@ window.submitFine = async function(e) {
             user_name: empName,
             rule_text: ruleText,
             note: finalNote, 
-            amount: amountToSave, // เซฟ -1 หรือ ตัวเลขปกติ
+            amount: amountToSave,
             evidence_url: imageUrl,
             issued_by: currentUser.username
         }]);
@@ -749,17 +739,13 @@ window.submitFine = async function(e) {
             document.getElementById('finePenaltyType').value = 'money';
             window.toggleFineAmountInput();
         }
-       // โค้ดเดิมที่มีอยู่แล้ว
         document.getElementById('fineAmount').value = '';
         clearFineImg();
         
-        // 🟢 เพิ่มโค้ดนี้เข้าไปต่อท้าย
         if (document.getElementById('fineTextResultBox')) {
             document.getElementById('fineTextResultBox').classList.add('hidden');
             document.getElementById('fineTextResult').value = '';
         }
-        
-        fetchFinesData(true);
         
         fetchFinesData(true);
 
@@ -769,7 +755,7 @@ window.submitFine = async function(e) {
 };
 
 // -----------------------------------------
-// ดึงข้อมูลและวาดตาราง (แก้ให้รวมกันอยู่ในบรรทัดเดียว)
+// ดึงข้อมูลและวาดตาราง
 // -----------------------------------------
 window.fetchFinesData = async function(isAdmin) {
     const tbody = document.getElementById('fineTableBody');
@@ -797,7 +783,6 @@ window.renderFineTable = function(isAdminOverride) {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const isAdmin = isAdminOverride !== undefined ? isAdminOverride : (hasManagePerm || currentUser.role === 'manager' || currentUser.role === 'admin');
     
-    // ควบคุมการแสดงผลคอลัมน์ของ Admin
     document.querySelectorAll('.admin-col').forEach(el => {
         if (isAdmin) el.classList.remove('hidden');
         else el.classList.add('hidden');
@@ -831,7 +816,6 @@ window.renderFineTable = function(isAdminOverride) {
         const d = new Date(f.created_at);
         const dateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
         
-        // 🌟 ตรวจสอบว่าโดนปรับเป็นเงิน หรือ โดนตัดค่าแรง (-1)
         let amountDisplay = '';
         if (f.amount === -1) {
             amountDisplay = `<span class="font-bold text-[10px] text-white bg-slate-700 px-2 py-1 rounded border border-slate-600 whitespace-nowrap shadow-sm">ไม่ได้รับค่าแรง</span>`;
@@ -843,17 +827,13 @@ window.renderFineTable = function(isAdminOverride) {
         
         const imgDisplay = f.evidence_url ? `<button type="button" onclick="viewFineImage('${f.evidence_url}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>` : '<span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700">- ไม่มีรูป -</span>';
 
-        const delBtn = window.renderTemplate('tpl-fine-history-del-btn', { id: f.id });
-        
-        // เอาบรรทัด delBtn ออกไปเลยครับ
-        
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: f.note });
         }
 
         return window.renderTemplate('tpl-fine-history-row', {
-            id: f.id,               // <--- เพิ่มบรรทัดนี้ เพื่อส่ง ID ไปให้ปุ่มลบ
+            id: f.id,
             dateStr: dateStr,
             username: f.user_name,
             ruleText: f.rule_text,
@@ -863,7 +843,6 @@ window.renderFineTable = function(isAdminOverride) {
         });
     }).join('');
     
-    // รีรันอีกรอบหลังยัด HTML ลงไป
     document.querySelectorAll('.admin-col').forEach(el => {
         if (isAdmin) el.classList.remove('hidden');
         else el.classList.add('hidden');
@@ -879,6 +858,7 @@ window.deleteFine = async function(id) {
         Swal.fire('ลบสำเร็จ', '', 'success');
     }
 }
+
 // =========================================
 // 📝 ฟังก์ชันสร้างข้อความสรุป และ คัดลอก
 // =========================================
@@ -894,11 +874,9 @@ window.generateFineText = function() {
         return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อความผิดก่อนสร้างข้อความครับ', 'warning');
     }
 
-   // 1. ทำความสะอาดกฎ (ตัดคำว่า [ออนไลน์] ด้านหน้า และ ลบวงเล็บชุดสุดท้ายทิ้งไปเลย 100%)
     let cleanRule = rawRule.replace(/^\[.*?\]\s*/, '');
     cleanRule = cleanRule.replace(/\s*\([^)]*\)$/, '').trim();
     
-    // 2. จัดการบทลงโทษ
     let penaltyText = '';
     if (penaltyType === 'nowage') {
         penaltyText = 'ไม่ได้ค่าแรง';
@@ -906,7 +884,6 @@ window.generateFineText = function() {
         penaltyText = `ปรับ ${amount} THB`;
     }
 
-    // 3. จัดการหมายเหตุ (รองรับระบบเว้นวรรค/จุดไข่ปลา ที่แก้ไปก่อนหน้านี้)
     let finalNote = noteSelect;
     if (noteInput) {
         if (finalNote) {
@@ -920,12 +897,10 @@ window.generateFineText = function() {
         }
     }
 
-    // 4. ประกอบร่างข้อความ
     let resultText = `ปรับ ${empName} ${cleanRule}`;
     if (penaltyText) resultText += ` ${penaltyText}`;
     if (finalNote) resultText += ` (${finalNote})`;
 
-    // แสดงผลในกล่อง
     document.getElementById('fineTextResult').value = resultText;
     document.getElementById('fineTextResultBox').classList.remove('hidden');
 };
