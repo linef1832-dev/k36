@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V21 (Fixed Global User List Bug)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V22 (Added Date to Copy Text)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -690,12 +690,13 @@ window.submitFine = async function(e) {
             } else {
                 finalNote = `${finalNote} ${noteInput}`;
             }
-            finalNote = finalNote.replace(/\s+/g, ' '); 
+            finalNote = finalNote.replace(/\s+/g, ' '); // ล้างช่องว่างที่อาจจะซ้ำซ้อน
         } else {
             finalNote = noteInput;
         }
     }
     
+    // 🌟 ล้างวงเล็บครอบหน้า-หลัง เพื่อป้องกันการแสดงผลซ้อน
     if (finalNote) {
         finalNote = finalNote.trim();
         while (finalNote.startsWith('(') && finalNote.endsWith(')')) {
@@ -718,8 +719,8 @@ window.submitFine = async function(e) {
 
     if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
 
-    // 🌟 แก้ไข: ใช้ GLOBAL_USER_LIST แบบตรงๆ ไม่ติด window.
-    const targetUser = GLOBAL_USER_LIST ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
+    // 🌟 แก้ไข: ค้นหาแบบไม่สนพิมพ์เล็ก/ใหญ่ เพื่อป้องกันหาคนไม่เจอ
+    const targetUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (!targetUser) {
         return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง', 'warning');
     }
@@ -777,7 +778,7 @@ window.submitFine = async function(e) {
 };
 
 // -----------------------------------------
-// ดึงข้อมูลและวาดตาราง
+// ดึงข้อมูลและวาดตาราง (ใช้ Template แยก HTML อออกจาก JS)
 // -----------------------------------------
 window.fetchFinesData = async function(isAdmin) {
     const tbody = document.getElementById('fineTableBody');
@@ -870,9 +871,8 @@ window.renderFineTable = function(isAdminOverride) {
         let displayName = f.user_name;
         let deptBadgeHtml = '';
 
-        // 🌟 แก้ไข: ใช้ GLOBAL_USER_LIST แบบไม่มี window.
-        if (GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
-            const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+        if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
+            const dbUser = window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
             
             if (dbUser) {
                 let dept = dbUser.department || 'AM';
@@ -1012,6 +1012,13 @@ window.generateFineText = function() {
     if (finalNote) {
         resultText += ` (${finalNote})`;
     }
+
+    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    resultText += ` ${dd}/${mm}/${yyyy}`;
 
     const resultBox = document.getElementById('fineTextResultBox');
     const textArea = document.getElementById('fineTextResult');
