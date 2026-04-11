@@ -667,7 +667,18 @@ window.submitFine = async function(e) {
     
     let finalNote = noteSelect;
     if (noteInput) {
-        finalNote = finalNote ? `${finalNote} (${noteInput})` : noteInput;
+        if (finalNote) {
+            // ตรวจจับว่าในเทมเพลตมีสัญลักษณ์จุดไข่ปลา (...), ขีดล่าง (_), หรือมีการเว้นวรรคติดกัน 2 ช่องขึ้นไปหรือไม่
+            if (finalNote.includes('...') || finalNote.includes('_') || /\s{2,}/.test(finalNote)) {
+                // นำข้อความที่พิมพ์ไปแทรกตรงกลาง แล้วจัดช่องไฟให้สวยงาม
+                finalNote = finalNote.replace(/_+|\.\.\.|\s{2,}/, ` ${noteInput} `).replace(/\s+/g, ' ');
+            } else {
+                // ถ้าไม่มีช่องว่างให้แทรก ก็เอาไปต่อท้ายเหมือนเดิม
+                finalNote = `${finalNote} (${noteInput})`;
+            }
+        } else {
+            finalNote = noteInput;
+        }
     }
     
     // 🌟 อ่านค่าว่าลงโทษเป็น "จำนวนเงิน" หรือ "ไม่ได้รับค่าแรง"
