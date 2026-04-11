@@ -12,6 +12,31 @@ window.selectedSummaryDates = window.selectedSummaryDates || new Set();
 let summaryRenderTimer;
 let summarySubscription = null;
 
+// 🌟 ฟังก์ชันสำหรับโหลด ExcelJS แบบ Lazy Load
+window.loadExcelLibrary = function(callback) {
+    if (typeof ExcelJS !== 'undefined') {
+        callback();
+        return;
+    }
+
+    Swal.fire({ title: 'กำลังโหลดเครื่องมือสร้าง Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    const script1 = document.createElement('script');
+    script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    document.body.appendChild(script1);
+
+    script1.onload = () => {
+        const script2 = document.createElement('script');
+        script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
+        document.body.appendChild(script2);
+
+        script2.onload = () => {
+            Swal.close();
+            callback();
+        };
+    };
+};
+
 // 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด
 window.getYesterdayDateStr = function(dateStr) {
     if (!dateStr) return '';
@@ -1175,172 +1200,174 @@ window.fetchHistoricalSummary = async function(silent = false) {
 };
 
 window.exportSummaryToExcel = async function() {
-    if (typeof ExcelJS === 'undefined') return Swal.fire('ระบบไม่พร้อม', 'กรุณารอโหลดสคริปต์ ExcelJS สักครู่', 'warning');
-    if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลสำหรับดาวน์โหลด กรุณาอัปโหลดไฟล์ให้เรียบร้อย', 'warning');
+    if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลสำหรับดาวน์โหลด กรุณาอัปโหลดไฟล์ให้เรียบร้อย', 'warning');
 
-    Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', text: 'จัดระเบียบตามรูปแบบใหม่...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    // เรียกฟังก์ชันแอบโหลดก่อน
+    window.loadExcelLibrary(async function() {
+        Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', text: 'จัดระเบียบตามรูปแบบใหม่...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-    try {
-        const shiftFilter = document.getElementById('summaryShiftFilter') ? document.getElementById('summaryShiftFilter').value : 'ALL';
-        const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
-        
-        let filteredData = pendingSummaryData;
-        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
-        if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
-        if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
+        try {
+            const shiftFilter = document.getElementById('summaryShiftFilter') ? document.getElementById('summaryShiftFilter').value : 'ALL';
+            const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
+            
+            let filteredData = pendingSummaryData;
+            if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
+            if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
+            if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
 
-        const targetWebOrder = ['Jun88', 'MK8', 'VV72', 'TH26', 'F168', 'PG688', 'JL69', 'NM9', 'BT678', 'K188'];
+            const targetWebOrder = ['Jun88', 'MK8', 'VV72', 'TH26', 'F168', 'PG688', 'JL69', 'NM9', 'BT678', 'K188'];
 
-        let empGroups = {};
-        filteredData.forEach(item => {
-            if(!empGroups[item.empName]) {
-                empGroups[item.empName] = { 
-                    name: item.empName, shift: item.shift === 'UNKNOWN' ? 'UNKNOWN' : item.shift.replace('กะ', ''), odType: item.odType || 'ปกติ',
-                    totalApproved: 0, totalReject: 0, grandTotal: 0, websData: {} 
-                };
-                targetWebOrder.forEach(w => { empGroups[item.empName].websData[w] = { approved: 0, reject: 0, total: 0 }; });
-            }
-            
-            empGroups[item.empName].totalApproved += (item.approvedCount || 0);
-            empGroups[item.empName].totalReject += (item.rejectCount || 0);
-            empGroups[item.empName].grandTotal += (item.count || 0);
-            
-            const webKey = targetWebOrder.find(w => w.toLowerCase() === item.website.toLowerCase());
-            if (webKey) {
-                empGroups[item.empName].websData[webKey].approved += (item.approvedCount || 0);
-                empGroups[item.empName].websData[webKey].reject += (item.rejectCount || 0);
-                empGroups[item.empName].websData[webKey].total += (item.count || 0);
-            }
-        });
+            let empGroups = {};
+            filteredData.forEach(item => {
+                if(!empGroups[item.empName]) {
+                    empGroups[item.empName] = { 
+                        name: item.empName, shift: item.shift === 'UNKNOWN' ? 'UNKNOWN' : item.shift.replace('กะ', ''), odType: item.odType || 'ปกติ',
+                        totalApproved: 0, totalReject: 0, grandTotal: 0, websData: {} 
+                    };
+                    targetWebOrder.forEach(w => { empGroups[item.empName].websData[w] = { approved: 0, reject: 0, total: 0 }; });
+                }
+                
+                empGroups[item.empName].totalApproved += (item.approvedCount || 0);
+                empGroups[item.empName].totalReject += (item.rejectCount || 0);
+                empGroups[item.empName].grandTotal += (item.count || 0);
+                
+                const webKey = targetWebOrder.find(w => w.toLowerCase() === item.website.toLowerCase());
+                if (webKey) {
+                    empGroups[item.empName].websData[webKey].approved += (item.approvedCount || 0);
+                    empGroups[item.empName].websData[webKey].reject += (item.rejectCount || 0);
+                    empGroups[item.empName].websData[webKey].total += (item.count || 0);
+                }
+            });
 
-        const wb = new ExcelJS.Workbook();
-        const ws = wb.addWorksheet(`สรุปยอดแยกเว็บ`);
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet(`สรุปยอดแยกเว็บ`);
 
-        let headers = ['ลำดับ', 'ชื่อพนักงาน', 'กะ', 'แผนก'];
-        targetWebOrder.forEach(w => { headers.push(`${w} (สำเร็จ)`); headers.push(`${w} (ปฏิเสธ)`); headers.push(`${w} (รวม)`); });
-        headers.push('รวมสำเร็จ'); headers.push('รวมปฏิเสธ'); headers.push('รวมทั้งสิ้น');
+            let headers = ['ลำดับ', 'ชื่อพนักงาน', 'กะ', 'แผนก'];
+            targetWebOrder.forEach(w => { headers.push(`${w} (สำเร็จ)`); headers.push(`${w} (ปฏิเสธ)`); headers.push(`${w} (รวม)`); });
+            headers.push('รวมสำเร็จ'); headers.push('รวมปฏิเสธ'); headers.push('รวมทั้งสิ้น');
 
-        let titleDateStr = '';
-        if (viewMode === 'preview' && window.uploadedFileDates && window.uploadedFileDates.size > 0) {
-            const datesArr = Array.from(window.uploadedFileDates).sort();
-            if (datesArr.length === 1) {
-                const [y, m, d] = datesArr[0].split('-'); titleDateStr = `วันที่ ${d} เดือน ${m} ${y}`;
-            } else {
-                const formattedDates = datesArr.map(d => { const [yy, mm, dd] = d.split('-'); return `${dd}/${mm}/${yy}`; });
-                titleDateStr = `ข้อมูลรวมหลายวัน: ${formattedDates.join(', ')}`;
-            }
-        } else {
-            const dateVal = document.getElementById('summaryDateFilter').value;
-            if (dateVal) { const [y, m, d] = dateVal.split('-'); titleDateStr = `วันที่ ${d} เดือน ${m} ${y}`; } 
-            else { titleDateStr = 'ข้อมูลพรีวิว (ยังไม่ได้บันทึก)'; }
-        }
+            let titleDateStr = '';
+            if (viewMode === 'preview' && window.uploadedFileDates && window.uploadedFileDates.size > 0) {
+                const datesArr = Array.from(window.uploadedFileDates).sort();
+                if (datesArr.length === 1) {
+                    const [y, m, d] = datesArr[0].split('-'); titleDateStr = `วันที่ ${d} เดือน ${m} ${y}`;
+                } else {
+                    const formattedDates = datesArr.map(d => { const [yy, mm, dd] = d.split('-'); return `${dd}/${mm}/${yy}`; });
+                    titleDateStr = `ข้อมูลรวมหลายวัน: ${formattedDates.join(', ')}`;
+                }
+            } else {
+                const dateVal = document.getElementById('summaryDateFilter').value;
+                if (dateVal) { const [y, m, d] = dateVal.split('-'); titleDateStr = `วันที่ ${d} เดือน ${m} ${y}`; } 
+                else { titleDateStr = 'ข้อมูลพรีวิว (ยังไม่ได้บันทึก)'; }
+            }
 
-        const titleRow = ws.addRow([titleDateStr]);
-        ws.mergeCells(1, 1, 1, headers.length); 
-        titleRow.height = 30;
-        titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: 'FF000000' } };
-        titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; 
-        titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-        titleRow.getCell(1).border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
+            const titleRow = ws.addRow([titleDateStr]);
+            ws.mergeCells(1, 1, 1, headers.length); 
+            titleRow.height = 30;
+            titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: 'FF000000' } };
+            titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; 
+            titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+            titleRow.getCell(1).border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
 
-        const headerRow = ws.addRow(headers); headerRow.height = 25;
-        const headerColors = ['FFDBEAFE', 'FFDCFCE7', 'FFFEE2E2', 'FFFEF3C7', 'FFF3E8FF', 'FFFFEDD5', 'FFCCFBF1', 'FFE0E7FF', 'FFFCE7F3', 'FFE2E8F0'];
-        const dataBgColors = ['FFF0F9FF', 'FFF0FDF4', 'FFFEF2F2', 'FFFFFBEB', 'FFFAF5FF', 'FFFFF7ED', 'FFF0FDFA', 'FFEEF2FF', 'FFFDF2F8', 'FFF8FAFC'];
+            const headerRow = ws.addRow(headers); headerRow.height = 25;
+            const headerColors = ['FFDBEAFE', 'FFDCFCE7', 'FFFEE2E2', 'FFFEF3C7', 'FFF3E8FF', 'FFFFEDD5', 'FFCCFBF1', 'FFE0E7FF', 'FFFCE7F3', 'FFE2E8F0'];
+            const dataBgColors = ['FFF0F9FF', 'FFF0FDF4', 'FFFEF2F2', 'FFFFFBEB', 'FFFAF5FF', 'FFFFF7ED', 'FFF0FDFA', 'FFEEF2FF', 'FFFDF2F8', 'FFF8FAFC'];
 
-        headerRow.eachCell((cell, colNumber) => {
-            cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle' };
-            if (colNumber <= 4) {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
-                cell.font.color = { argb: 'FFFFFFFF' };
-                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
-            } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
-                const webIndex = Math.floor((colNumber - 5) / 3);
-                const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
-                cell.font.color = { argb: 'FF0F172A' };
-                let rightBorder = isLastInGroup ? 'medium' : 'thin'; let leftBorder = isFirstInGroup ? 'medium' : 'thin';
-                cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
-            } else {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }; 
-                cell.font.color = { argb: 'FFFFFFFF' };
-                cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
-            }
-        });
+            headerRow.eachCell((cell, colNumber) => {
+                cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                if (colNumber <= 4) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
+                    cell.font.color = { argb: 'FFFFFFFF' };
+                    cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
+                } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
+                    const webIndex = Math.floor((colNumber - 5) / 3);
+                    const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
+                    cell.font.color = { argb: 'FF0F172A' };
+                    let rightBorder = isLastInGroup ? 'medium' : 'thin'; let leftBorder = isFirstInGroup ? 'medium' : 'thin';
+                    cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
+                } else {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }; 
+                    cell.font.color = { argb: 'FFFFFFFF' };
+                    cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
+                }
+            });
 
-        ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 2 }];
+            ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 2 }];
 
-        let rowIndex = 1;
-        Object.values(empGroups).sort((a, b) => b.totalApproved - a.totalApproved).forEach((emp) => {
-            let rowData = [ rowIndex++, emp.name, emp.shift, emp.odType === 'ปกติ' ? 'UNKNOWN' : emp.odType ];
-            targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
-            rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal); 
+            let rowIndex = 1;
+            Object.values(empGroups).sort((a, b) => b.totalApproved - a.totalApproved).forEach((emp) => {
+                let rowData = [ rowIndex++, emp.name, emp.shift, emp.odType === 'ปกติ' ? 'UNKNOWN' : emp.odType ];
+                targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
+                rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal); 
 
-            const empRow = ws.addRow(rowData);
+                const empRow = ws.addRow(rowData);
 
-            empRow.eachCell((cell, colNumber) => {
-                cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                if (colNumber <= 4) {
-                    cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
-                    if (colNumber === 2) { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' }; }
-                    
-                    if (colNumber === 3) {
-                        cell.font = { bold: true };
-                        if (cell.value === 'เช้า') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; 
-                            cell.font.color = { argb: 'FFEA580C' }; 
-                        } else if (cell.value === 'กลาง') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; 
-                            cell.font.color = { argb: 'FF2563EB' }; 
-                        } else if (cell.value === 'ดึก') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; 
-                            cell.font.color = { argb: 'FF9333EA' }; 
-                        } else if (cell.value === 'อิสระ' || cell.value === 'all') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; 
-                            cell.font.color = { argb: 'FF059669' }; 
-                            cell.value = 'อิสระ';
-                        } else {
-                            cell.font.color = { argb: 'FF94A3B8' };
-                        }
-                    }
-                } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
-                    const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3; 
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
-                    let rightBorder = colIdxInGroup === 2 ? 'medium' : 'thin'; let leftBorder = colIdxInGroup === 0 ? 'medium' : 'thin';
-                    cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
-                    if (cell.value > 0) {
-                        if (colIdxInGroup === 0) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
-                        if (colIdxInGroup === 1) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
-                        if (colIdxInGroup === 2) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
-                    } else { cell.font = { color: { argb: 'FF94A3B8' } }; }
-                } else {
-                    cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
-                    if (cell.value > 0) {
-                        if (colNumber === 4 + (targetWebOrder.length * 3) + 1) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
-                        if (colNumber === 4 + (targetWebOrder.length * 3) + 2) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
-                        if (colNumber === 4 + (targetWebOrder.length * 3) + 3) {
-                            cell.font = { color: { argb: 'FF000000' }, bold: true }; 
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; 
-                        }
-                    } else {
-                        if (colNumber === 4 + (targetWebOrder.length * 3) + 3) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
-                    }
-                }
-            });
-        });
+                empRow.eachCell((cell, colNumber) => {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    if (colNumber <= 4) {
+                        cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
+                        if (colNumber === 2) { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' }; }
+                        
+                        if (colNumber === 3) {
+                            cell.font = { bold: true };
+                            if (cell.value === 'เช้า') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; 
+                                cell.font.color = { argb: 'FFEA580C' }; 
+                            } else if (cell.value === 'กลาง') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; 
+                                cell.font.color = { argb: 'FF2563EB' }; 
+                            } else if (cell.value === 'ดึก') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; 
+                                cell.font.color = { argb: 'FF9333EA' }; 
+                            } else if (cell.value === 'อิสระ' || cell.value === 'all') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; 
+                                cell.font.color = { argb: 'FF059669' }; 
+                                cell.value = 'อิสระ';
+                            } else {
+                                cell.font.color = { argb: 'FF94A3B8' };
+                            }
+                        }
+                    } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
+                        const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3; 
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
+                        let rightBorder = colIdxInGroup === 2 ? 'medium' : 'thin'; let leftBorder = colIdxInGroup === 0 ? 'medium' : 'thin';
+                        cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
+                        if (cell.value > 0) {
+                            if (colIdxInGroup === 0) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
+                            if (colIdxInGroup === 1) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
+                            if (colIdxInGroup === 2) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
+                        } else { cell.font = { color: { argb: 'FF94A3B8' } }; }
+                    } else {
+                        cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
+                        if (cell.value > 0) {
+                            if (colNumber === 4 + (targetWebOrder.length * 3) + 1) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
+                            if (colNumber === 4 + (targetWebOrder.length * 3) + 2) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
+                            if (colNumber === 4 + (targetWebOrder.length * 3) + 3) {
+                                cell.font = { color: { argb: 'FF000000' }, bold: true }; 
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; 
+                            }
+                        } else {
+                            if (colNumber === 4 + (targetWebOrder.length * 3) + 3) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
+                        }
+                    }
+                });
+            });
 
-        ws.columns.forEach((col, index) => {
-            if (index === 0) col.width = 8; else if (index === 1) col.width = 25; else if (index === 2) col.width = 12; else if (index === 3) col.width = 12; else if (index >= ws.columns.length - 3) col.width = 15; else col.width = 11; 
-        });
+            ws.columns.forEach((col, index) => {
+                if (index === 0) col.width = 8; else if (index === 1) col.width = 25; else if (index === 2) col.width = 12; else if (index === 3) col.width = 12; else if (index >= ws.columns.length - 3) col.width = 15; else col.width = 11; 
+            });
 
-        const buffer = await wb.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url; link.download = `สรุปยอดรวมแต่ละเว็บ_ครบถ้วน.xlsx`; document.body.appendChild(link);
-        link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url; link.download = `สรุปยอดรวมแต่ละเว็บ_ครบถ้วน.xlsx`; document.body.appendChild(link);
+            link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
 
-        Swal.fire({ icon: 'success', title: 'ดาวน์โหลดไฟล์ Excel สำเร็จ!', timer: 1500, showConfirmButton: false });
-    } catch (error) { Swal.fire('เกิดข้อผิดพลาด', 'ดาวน์โหลด Excel ไม่สำเร็จ: ' + error.message, 'error'); }
+            Swal.fire({ icon: 'success', title: 'ดาวน์โหลดไฟล์ Excel สำเร็จ!', timer: 1500, showConfirmButton: false });
+        } catch (error) { Swal.fire('เกิดข้อผิดพลาด', 'ดาวน์โหลด Excel ไม่สำเร็จ: ' + error.message, 'error'); }
+    });
 };
 
 window.openManageSystemModal = async function() {
