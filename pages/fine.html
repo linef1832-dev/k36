@@ -9,8 +9,8 @@
         </div>
 
         <div id="fineTabsContainer" class="hidden flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 w-full md:w-auto">
-            <button onclick="switchFineTab('issue')" id="tabFineIssue" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-md flex items-center gap-1 border border-red-400"><span class="material-icons text-sm">post_add</span> ออกใบปรับ & ประวัติ</button>
-            <button onclick="switchFineTab('rules')" id="tabFineRules" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600"><span class="material-icons text-sm">settings</span> ตั้งค่ากฎ / กฎ OKVIP</button>
+            <button type="button" onclick="switchFineTab('issue')" id="tabFineIssue" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-md flex items-center gap-1 border border-red-400"><span class="material-icons text-sm">post_add</span> ออกใบปรับ & ประวัติ</button>
+            <button type="button" onclick="switchFineTab('rules')" id="tabFineRules" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600"><span class="material-icons text-sm">settings</span> ตั้งค่ากฎ / กฎ OKVIP</button>
         </div>
     </div>
 
@@ -35,11 +35,23 @@
                             <div id="fineEmpDropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-2xl"></div>
                         </div>
                         
-                        <div>
-                            <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หัวข้อกฎ (ดึงจากหน้าตั้งค่ากฎ)</label>
-                            <select id="fineRuleSelect" required class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
-                                <option value="">-- โหลดข้อมูลกฎ --</option>
-                            </select>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">1. หมวดหมู่กฎ</label>
+                                <select id="fineCategorySelect" onchange="filterRulesByCategory()" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer transition">
+                                    <option value="">-- เลือกหมวดหมู่ --</option>
+                                    <option value="ออนไลน์">🌐 ออนไลน์</option>
+                                    <option value="WFH">🏠 WFH</option>
+                                    <option value="ออฟฟิศ">🏢 ออฟฟิศ</option>
+                                    <option value="อื่นๆ">📌 อื่นๆ (ทั่วไป)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">2. หัวข้อความผิด</label>
+                                <select id="fineRuleSelect" required class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer transition disabled:opacity-50" disabled>
+                                    <option value="">-- เลือกหมวดซ้ายมือก่อน --</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div>
@@ -123,7 +135,7 @@
                         <h2 class="text-xl font-black text-amber-500 flex items-center gap-2"><span class="material-icons">settings</span> กำหนดหัวข้อกฎระเบียบ</h2>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">กฎเหล่านี้จะไปแสดงในช่อง Dropdown หน้าออกใบปรับ</p>
                     </div>
-                    <button onclick="restoreOKVIPRules()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-md border border-slate-600 active:scale-95">
+                    <button type="button" onclick="restoreOKVIPRules()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-md border border-slate-600 active:scale-95">
                         <span class="material-icons text-[14px]">restore</span> คืนค่ากฎ OKVIP เริ่มต้น
                     </button>
                 </div>
@@ -153,7 +165,7 @@
                         </div>
                         
                         <div class="w-full md:w-auto">
-                            <button onclick="addFineRulePage()" class="w-full md:w-auto bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-3.5 rounded-xl font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-1 border border-orange-400">
+                            <button type="button" onclick="addFineRulePage()" class="w-full md:w-auto bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-3.5 rounded-xl font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-1 border border-orange-400">
                                 <span class="material-icons text-base">add_circle</span> เพิ่มลงระบบ
                             </button>
                         </div>
