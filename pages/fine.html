@@ -98,7 +98,7 @@
                         <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3.5 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2 border border-red-500 mt-2 text-base">
                             <span class="material-icons">send</span> ยืนยันการออกใบปรับ
                         </button>
-                        
+
                         <button type="button" onclick="generateFineText()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl shadow transition active:scale-95 flex items-center justify-center gap-2 border border-slate-600 mt-3 text-sm">
                             <span class="material-icons text-[18px]">notes</span> สร้างข้อความสำหรับคัดลอก
                         </button>
@@ -107,7 +107,7 @@
                             <div class="bg-slate-800 border-b border-slate-700 px-3 py-2 flex justify-between items-center">
                                 <span class="text-xs text-sky-400 font-bold flex items-center gap-1"><span class="material-icons text-[14px]">subject</span> ข้อความสรุป</span>
                                 <button type="button" onclick="copyFineText()" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-md transition flex items-center gap-1 active:scale-95">
-                                    <span class="material-icons text-[14px]">content_copy</span> คัดลอกข้อความ
+                                    <span class="material-icons text-[14px]">content_copy</span> คัดลอก
                                 </button>
                             </div>
                             <textarea id="fineTextResult" rows="3" class="w-full bg-transparent text-gray-300 text-sm outline-none resize-none custom-scrollbar p-3" readonly></textarea>
@@ -153,7 +153,6 @@
         </div>
 
         <div id="fineContent_rules" class="max-w-[1200px] mx-auto pb-10 fade-in hidden">
-            
             <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 mb-6">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 dark:border-slate-700 pb-5 mb-6 gap-4">
                     <div>
@@ -201,8 +200,7 @@
                     <span>รายการกฎที่มีในระบบทั้งหมด (<span id="ruleCount" class="text-amber-500">0</span> ข้อ)</span>
                 </div>
                 
-                <div id="fineRulesListFull" class="w-full">
-                    </div>
+                <div id="fineRulesListFull" class="w-full"></div>
             </div>
 
             <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700">
@@ -220,10 +218,8 @@
                     </button>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="fineNotesListFull">
-                    </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="fineNotesListFull"></div>
             </div>
-
         </div>
     </div>
 </div>
@@ -275,15 +271,65 @@
     </template>
 
     <template id="tpl-fine-history-row">
+        <tr class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+            <td class="p-4 text-xs text-gray-500 font-mono align-middle whitespace-nowrap">{{dateStr}}</td>
+            <td class="p-4 align-middle border-r border-slate-100 dark:border-slate-700 bg-red-50/30 dark:bg-red-900/20 admin-col">
+                <div class="font-black text-base text-slate-800 dark:text-white">{{usernameDisplay}}</div>
+            </td>
+            <td class="p-4 align-middle min-w-[300px]">
+                <div class="text-sm font-bold mb-1">{{ruleText}}</div>
+                {{noteHtml}}
+            </td>
+            <td class="p-4 text-center align-middle">{{amountDisplay}}</td>
+            <td class="p-4 text-center align-middle">{{imgDisplay}}</td>
+            <td class="p-4 text-center align-middle admin-col">
+                <button type="button" onclick="deleteFine({{id}})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition inline-block"><span class="material-icons text-sm block">delete</span></button>
+            </td>
+        </tr>
+    </template>
+
+    <template id="tpl-fine-history-dept-badge">
+        <span class="text-[9px] px-1.5 py-0.5 rounded border {{deptColor}} shadow-sm font-black whitespace-nowrap">{{deptName}}</span>
+    </template>
+
+    <template id="tpl-fine-history-emp-display">
+        <div class="flex items-center gap-1.5 flex-wrap">
+            <span>{{empName}}</span>
+            {{deptBadgeHtml}}
+        </div>
+    </template>
+
+    <template id="tpl-fine-history-rule-cat">
+        <div class="flex items-start md:items-center gap-2 flex-col md:flex-row">
+            <span class="text-[10px] px-2 py-0.5 rounded border {{catColor}} shadow-sm font-black whitespace-nowrap">{{catName}}</span>
+            <span class="text-red-600 dark:text-red-400 leading-snug">{{ruleDetail}}</span>
+        </div>
+    </template>
+
+    <template id="tpl-fine-history-rule-normal">
+        <span class="text-red-600 dark:text-red-400 leading-snug">{{ruleDetail}}</span>
+    </template>
+
+    <template id="tpl-fine-history-amount-badge">
+        <span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50 whitespace-nowrap">฿{{amount}}</span>
+    </template>
+
+    <template id="tpl-fine-history-amount-nowage">
+        <span class="font-bold text-[10px] text-white bg-slate-700 px-2 py-1 rounded border border-slate-600 whitespace-nowrap shadow-sm">ไม่ได้รับค่าแรง</span>
+    </template>
+
+    <template id="tpl-fine-history-img-btn">
+        <button type="button" onclick="viewFineImage('{{url}}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>
+    </template>
+
+    <template id="tpl-fine-history-img-none">
+        <span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700 whitespace-nowrap">- ไม่มีรูป -</span>
+    </template>
 
     <template id="tpl-fine-history-note">
         <div class="mt-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600/50 text-yellow-700 dark:text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-start gap-1.5 w-fit max-w-[400px] shadow-sm">
             <span class="material-icons text-[16px] shrink-0 mt-0.5 text-yellow-500">info</span>
             <span class="whitespace-normal break-words leading-snug">{{note}}</span>
         </div>
-    </template>
-
-    <template id="tpl-fine-history-amount-badge">
-        <span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50 whitespace-nowrap">฿{{amount}}</span>
     </template>
 </div>
