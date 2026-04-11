@@ -97,6 +97,9 @@ window.initFineApp = async function() {
     await fetchFinesData(isAdmin);
 };
 
+// -----------------------------------------
+// 🔄 ระบบเปลี่ยนหน้า (Tab System)
+// -----------------------------------------
 window.switchFineTab = function(tabName) {
     const issueTab = document.getElementById('fineContent_issue');
     const rulesTab = document.getElementById('fineContent_rules');
@@ -122,6 +125,9 @@ window.switchFineTab = function(tabName) {
     }
 };
 
+// -----------------------------------------
+// ระบบค้นหาพนักงาน (Custom Dropdown)
+// -----------------------------------------
 function populateEmpSelect() {
     const dropdown = document.getElementById('fineEmpDropdown');
     if (!dropdown || !GLOBAL_USER_LIST) return;
@@ -162,9 +168,9 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ===============================================
-// 🌟 การจัดการกฎ (ตัวกรองหมวดหมู่ และ Accordion)
-// ===============================================
+// -----------------------------------------
+// จัดการหัวข้อกฎ (Accordion UI + Dropdown Auto Fill)
+// -----------------------------------------
 async function loadFineRules() {
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'fine_rules_data').single();
@@ -185,7 +191,7 @@ async function loadFineRules() {
     }
 }
 
-// ระบบกรองกฎสำหรับหน้าแรก (Two-step selection)
+// 🌟 ระบบกรองกฎแบบ 2 ขั้นตอน
 window.filterRulesByCategory = function() {
     const catSelect = document.getElementById('fineCategorySelect');
     const ruleSelect = document.getElementById('fineRuleSelect');
@@ -220,7 +226,7 @@ window.filterRulesByCategory = function() {
 
     ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}">${r}</option>`).join('');
 
-    // ระบบดึงจำนวนเงินอัตโนมัติ
+    // ดึงตัวเลขค่าปรับมาใส่อัตโนมัติเมื่อเลือก
     ruleSelect.onchange = function() {
         const amtInput = document.getElementById('fineAmount');
         if (this.value && amtInput) {
@@ -236,6 +242,7 @@ window.filterRulesByCategory = function() {
     };
 }
 
+// ปุ่มเปิด/ปิดหมวดหมู่ย่อย (Accordion)
 window.toggleRuleGroup = function(groupId, btn) {
     const groupDiv = document.getElementById(groupId);
     const icon = btn.querySelector('.material-icons:last-child');
@@ -251,15 +258,14 @@ window.toggleRuleGroup = function(groupId, btn) {
 }
 
 function renderRulesDropdown() {
-    const listDivFull = document.getElementById('fineRulesListFull');
-    const countSpan = document.getElementById('ruleCount');
-    
-    // รีเซ็ต Dropdown หน้าแรก
     const catSelect = document.getElementById('fineCategorySelect');
     if (catSelect) {
         catSelect.value = "";
-        window.filterRulesByCategory(); // บังคับล้างช่องกฎ
+        window.filterRulesByCategory(); 
     }
+
+    const listDivFull = document.getElementById('fineRulesListFull');
+    const countSpan = document.getElementById('ruleCount');
 
     if (listDivFull) {
         if(countSpan) countSpan.innerText = globalFineRules.length;
@@ -281,13 +287,15 @@ function renderRulesDropdown() {
         const buildGroupHtml = (title, items, icon, colorClass) => {
             if (items.length === 0) return '';
             const groupId = 'group_' + title;
+            
+            // 🌟 แก้ไขปุ่มลบ ให้เรียกใช้งานได้สมบูรณ์ และกันการ Refresh หน้า
             let itemsHtml = items.map((item, i) => `
                 <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 transition hover:border-amber-400 group">
                     <div class="flex items-center gap-3 pr-2">
                         <div class="w-6 h-6 rounded-full ${colorClass.badge} flex items-center justify-center font-bold text-[10px] shadow-inner shrink-0">${i+1}</div>
                         <span class="text-xs font-bold text-slate-700 dark:text-gray-200">${item.text}</span>
                     </div>
-                    <button onclick="removeFineRulePage(${item.index})" class="text-red-400 hover:text-white bg-slate-50 dark:bg-slate-900 hover:bg-red-500 p-1.5 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm opacity-50 group-hover:opacity-100 shrink-0" title="ลบกฎข้อนี้">
+                    <button type="button" onclick="removeFineRulePage(${item.index})" class="text-red-400 hover:text-white bg-slate-50 dark:bg-slate-900 hover:bg-red-500 p-1.5 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm opacity-50 group-hover:opacity-100 shrink-0" title="ลบกฎข้อนี้">
                         <span class="material-icons text-[16px] block">delete_sweep</span>
                     </button>
                 </div>
@@ -295,7 +303,7 @@ function renderRulesDropdown() {
 
             return `
             <div class="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-4">
-                <button onclick="toggleRuleGroup('${groupId}', this)" class="w-full flex justify-between items-center p-4 ${colorClass.header} transition">
+                <button type="button" onclick="toggleRuleGroup('${groupId}', this)" class="w-full flex justify-between items-center p-4 ${colorClass.header} transition">
                     <div class="flex items-center gap-2 font-black text-sm">
                         <span class="material-icons">${icon}</span> หมวด: ${title} 
                         <span class="bg-black/10 dark:bg-white/20 px-2 py-0.5 rounded-full text-[10px] ml-2 shadow-inner">${items.length} ข้อ</span>
@@ -318,6 +326,7 @@ function renderRulesDropdown() {
     }
 }
 
+// 🌟 เพิ่มกฎจากหน้า 2
 window.addFineRulePage = async function() {
     const catInput = document.getElementById('newRuleCategory');
     const textInput = document.getElementById('newRuleInputPage');
@@ -330,6 +339,7 @@ window.addFineRulePage = async function() {
     if(!textVal) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์รายละเอียดความผิดก่อนครับ', 'warning');
     
     let finalRuleString = `[${category}] ${textVal}`;
+
     if (amtVal && parseInt(amtVal) > 0) {
         const formattedAmt = parseInt(amtVal).toLocaleString('en-US');
         finalRuleString += ` (ปรับ ${formattedAmt})`;
@@ -346,7 +356,7 @@ window.addFineRulePage = async function() {
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
 
-// 🌟 แก้ไขฟังก์ชันการลบ ให้ใช้งานได้ถูกต้อง!
+// 🌟 ฟังก์ชันลบกฎที่ใช้งานได้ 100% แน่นอน
 window.removeFineRulePage = async function(idx) {
     const res = await Swal.fire({
         title: 'ลบกฎข้อนี้?',
@@ -491,7 +501,7 @@ window.submitFine = async function(e) {
         document.getElementById('fineEmpInput').value = '';
         const catSelect = document.getElementById('fineCategorySelect');
         if(catSelect) catSelect.value = '';
-        window.filterRulesByCategory(); // ล้างกฎ
+        window.filterRulesByCategory(); 
         
         document.getElementById('fineNote').value = '';
         document.getElementById('fineAmount').value = '';
@@ -564,10 +574,10 @@ window.renderFineTable = function(isAdminOverride) {
         const amountDisplay = f.amount > 0 ? `<span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50">฿${f.amount}</span>` : '<span class="text-gray-400">-</span>';
         
         const imgDisplay = f.evidence_url ? 
-            `<button onclick="viewFineImage('${f.evidence_url}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>` : 
+            `<button type="button" onclick="viewFineImage('${f.evidence_url}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>` : 
             '<span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700">- ไม่มีรูป -</span>';
 
-        const delBtn = isAdmin ? `<button onclick="deleteFine(${f.id})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition"><span class="material-icons text-sm block">delete</span></button>` : '';
+        const delBtn = isAdmin ? `<button type="button" onclick="deleteFine(${f.id})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition"><span class="material-icons text-sm block">delete</span></button>` : '';
         const empCol = isAdmin ? `<td class="p-4 font-black text-slate-800 dark:text-white pt-5">${f.user_name}</td>` : '';
         const actionCol = isAdmin ? `<td class="p-4 text-center pt-4">${delBtn}</td>` : '';
 
