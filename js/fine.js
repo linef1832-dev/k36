@@ -1,10 +1,52 @@
+
 // ==========================================
 // 🚨 ระบบจัดการใบปรับ (Fine System) V26 (Bypass User Validation on Submit)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
 let globalFineNotes = []; 
+let finesSubscription = null;
 
+window.subscribeFinesChanges = function(isAdmin) {
+    // ป้องกันการเปิดรับสัญญาณซ้ำซ้อน
+    if (finesSubscription) return;
+
+    finesSubscription = appDB.channel('fines-realtime')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fines' }, (payload) => {
+            const newFine = payload.new;
+
+            // กรองให้ทำงานเฉพาะแอดมิน หรือ พนักงานที่เป็นเจ้าของใบปรับใบนี้เท่านั้น
+            if (isAdmin || currentUser.username === newFine.user_name) {
+                
+                // เช็คกันเหนียว เผื่อข้อมูลเข้าซ้ำ
+                const isExist = globalFines.some(f => String(f.id) === String(newFine.id));
+                if (!isExist) {
+                    // 1. ยัดข้อมูลใหม่ใส่ด้านบนสุดของ Array ในหน้าเว็บทันที (0 Database Requests!)
+                    globalFines.unshift(newFine);
+                    
+                    // 2. สั่งวาดตารางใหม่
+                    renderFineTable(isAdmin);
+
+                    // 3. แจ้งเตือนพนักงานที่โดนปรับ (ถ้าเขาเปิดหน้าเว็บทิ้งไว้)
+                    if (!isAdmin && currentUser.username === newFine.user_name) {
+                        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 6000 })
+                            .fire({ icon: 'warning', title: '🚨 คุณได้รับใบปรับใหม่!' });
+                    }
+                }
+            }
+        })
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'fines' }, (payload) => {
+            // กรณีแอดมิน "ลบ" ใบปรับ ให้หน้าจอของพนักงานหายไปแบบเรียลไทม์ด้วย
+            const deletedId = payload.old.id;
+            const isExist = globalFines.some(f => String(f.id) === String(deletedId));
+            
+            if (isExist) {
+                globalFines = globalFines.filter(f => String(f.id) !== String(deletedId));
+                renderFineTable(isAdmin);
+            }
+        })
+        .subscribe();
+};
 const defaultNotes = [
     "โทรไม่รับสาย / ติดต่อไม่ได้",
     "แชทไม่ตอบเกินเวลา",
@@ -73,6 +115,8 @@ window.initFineApp = async function() {
     await loadFineRules();
     await loadFineNotes(); 
     await fetchFinesData(isAdmin);
+// --- 🌟 เพิ่มบรรทัดนี้ลงไป ---
+    subscribeFinesChanges(isAdmin);
 };
 
 window.switchFineTab = function(tabName) {
@@ -738,6 +782,7 @@ window.submitFine = async function(e) {
         
         if (document.getElementById('fineNoteSelect')) document.getElementById('fineNoteSelect').value = '';
         if (document.getElementById('fineNoteInput')) document.getElementById('fineNoteInput').value = '';
+        // ค้นหาบรรทัดนี้ใน window.submitFine
         if (penaltyTypeEl) {
             penaltyTypeEl.value = 'money';
             window.toggleFineAmountInput();
@@ -745,7 +790,8 @@ window.submitFine = async function(e) {
         if(amountEl) amountEl.value = '';
         clearFineImg();
         
-        fetchFinesData(true);
+        // ❌ คอมเมนต์หรือลบบรรทัดนี้ทิ้ง เพื่อลด Database Requests
+        // fetchFinesData(true);
 
     } catch (err) {
         Swal.fire('Error', err.message, 'error');
