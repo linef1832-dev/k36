@@ -275,27 +275,6 @@
     </template>
 
     <template id="tpl-fine-history-row">
-        <tr class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
-            <td class="p-4 text-xs text-gray-500 font-mono align-middle whitespace-nowrap">{{dateStr}}</td>
-            
-            <td class="p-4 align-middle border-r border-slate-100 dark:border-slate-700 bg-red-50/30 dark:bg-red-900/20 admin-col">
-                <div class="font-black text-base text-slate-800 dark:text-white">{{username}}</div>
-            </td>
-            
-            <td class="p-4 align-middle min-w-[300px]">
-                <div class="text-sm font-bold text-red-600 dark:text-red-400 mb-1">{{ruleText}}</div>
-                {{noteHtml}}
-            </td>
-            
-            <td class="p-4 text-center align-middle">{{amountDisplay}}</td>
-            
-            <td class="p-4 text-center align-middle">{{imgDisplay}}</td>
-            
-            <td class="p-4 text-center align-middle admin-col">
-                <button type="button" onclick="deleteFine({{id}})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition inline-block"><span class="material-icons text-sm block">delete</span></button>
-            </td>
-        </tr>
-    </template>
 
     <template id="tpl-fine-history-note">
         <div class="mt-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600/50 text-yellow-700 dark:text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-start gap-1.5 w-fit max-w-[400px] shadow-sm">
