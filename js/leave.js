@@ -147,8 +147,19 @@ window.initLeaveTable = async function() {
     subscribeLeaveChanges(); 
     subscribeSettingsChanges();
     
-    const myDept = currentUser.department || 'AM';
+    // ==========================================
+    // 🟢 จุดที่แก้ไข: ดักจับแผนกแปลกๆ ให้แสดงหน้า AM
+    // ==========================================
+    const allowedDepts = ['AM', 'OD', 'NEW', 'TRAINER'];
+    let myDept = currentUser.department || 'AM';
+    
+    // ถ้ายูสเซอร์อยู่แผนกแปลกๆ (เช่น AMQL) ให้เปลี่ยนเป็น AM อัตโนมัติ (หรือจะแก้เป็น 'TRAINER' ก็ได้ครับ)
+    if (!allowedDepts.includes(myDept)) {
+        myDept = 'AM'; 
+    }
+    
     switchDept(myDept); 
+    // ==========================================
     
     if (window.leaveCheckInterval) {
         clearInterval(window.leaveCheckInterval);
