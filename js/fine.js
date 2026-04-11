@@ -1,8 +1,18 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V7 (Fix Template Bug & Split Edit Fields)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V8 (Notes Management & Fixed Table UI)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
+let globalFineNotes = []; // ตัวแปรสำหรับเก็บหมายเหตุสำเร็จรูป
+
+const defaultNotes = [
+    "โทรไม่รับสาย / ติดต่อไม่ได้",
+    "แชทไม่ตอบเกินเวลา",
+    "ทำงานผิดพลาด / ไม่ตรวจสอบ",
+    "ไม่แจ้งล่วงหน้า",
+    "ไม่เห็นหน้าจอ / กล้องมืด",
+    "เตือนแล้วแต่ไม่ปรับปรุง"
+];
 
 const okvipRules = [
     "[ออนไลน์] เช็คชื่อสายเกิน 10 นาที (ปรับ 100) / เกิน 1 ชม. (ไม่ได้ค่าแรง)",
@@ -77,8 +87,8 @@ window.initFineApp = async function() {
         tableContainer.classList.add('lg:col-span-8');
         document.getElementById('fineSubtitle').innerText = "ออกใบปรับและดูประวัติทั้งหมด";
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> รายการใบปรับทั้งหมดในระบบ';
-        document.getElementById('thEmpName').style.display = '';
-        document.getElementById('thAction').style.display = '';
+        document.getElementById('thEmpName').style.display = 'table-cell';
+        document.getElementById('thAction').style.display = 'table-cell';
         
         populateEmpSelect(); 
     } else {
@@ -94,6 +104,7 @@ window.initFineApp = async function() {
 
     switchFineTab('issue');
     await loadFineRules();
+    await loadFineNotes(); // โหลดหมายเหตุ
     await fetchFinesData(isAdmin);
 };
 
@@ -163,7 +174,87 @@ document.addEventListener('click', function(e) {
 });
 
 // ===============================================
-// 🌟 การจัดการกฎ (Accordion UI + Dropdown Auto Fill)
+// 🌟 1. การจัดการ หมายเหตุสำเร็จรูป (Notes)
+// ===============================================
+async function loadFineNotes() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'fine_notes_data').single();
+        if (data && data.value) {
+            globalFineNotes = JSON.parse(data.value);
+        } else {
+            globalFineNotes = defaultNotes;
+            await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
+        }
+        renderNotesDropdown();
+    } catch(e) { 
+        globalFineNotes = defaultNotes; 
+        renderNotesDropdown(); 
+    }
+}
+
+function renderNotesDropdown() {
+    // ใส่ตัวเลือกลงใน Select หน้าออกใบปรับ
+    const noteSelect = document.getElementById('fineNoteSelect');
+    if (noteSelect) {
+        noteSelect.innerHTML = '<option value="">-- เลือกหมายเหตุสำเร็จรูป (ไม่บังคับ) --</option>' + 
+            globalFineNotes.map(n => `<option value="${n}">${n}</option>`).join('');
+    }
+
+    // สร้างกล่องแก้ไขในหน้าตั้งค่า
+    const listDiv = document.getElementById('fineNotesListFull');
+    if (listDiv) {
+        if (globalFineNotes.length === 0) {
+            listDiv.innerHTML = `<div class="col-span-full text-center py-4 text-gray-500 text-sm">ยังไม่มีหมายเหตุสำเร็จรูปในระบบ</div>`;
+            return;
+        }
+
+        listDiv.innerHTML = globalFineNotes.map((n, idx) => `
+            <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
+                <span class="text-sm font-bold text-slate-700 dark:text-gray-300 truncate pr-2">${n}</span>
+                <button type="button" onclick="removeFineNotePage(${idx})" class="text-red-400 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition shrink-0">
+                    <span class="material-icons text-sm block">delete</span>
+                </button>
+            </div>
+        `).join('');
+    }
+}
+
+window.addFineNotePage = async function() {
+    const input = document.getElementById('newNoteInputPage');
+    const val = input.value.trim();
+    if(!val) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์ข้อความหมายเหตุก่อนครับ', 'warning');
+    
+    Swal.fire({title: 'กำลังเพิ่ม...', didOpen: () => Swal.showLoading()});
+    globalFineNotes.push(val); 
+    input.value = '';
+    
+    await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
+    renderNotesDropdown();
+    Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
+}
+
+window.removeFineNotePage = async function(idx) {
+    const res = await Swal.fire({
+        title: 'ลบหมายเหตุข้อนี้?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonText: 'ลบทิ้ง'
+    });
+
+    if (res.isConfirmed) {
+        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
+        globalFineNotes.splice(idx, 1);
+        await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
+        renderNotesDropdown();
+        Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
+    }
+}
+
+
+// ===============================================
+// 🌟 2. การจัดการกฎ (Accordion UI + Dropdown Auto Fill)
 // ===============================================
 async function loadFineRules() {
     try {
@@ -336,23 +427,19 @@ window.addFineRulePage = async function() {
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
 
-// 🌟 ปรับปรุงการแก้ไขกฎหมาย (แยก 3 ช่อง: หมวดหมู่ / ความผิด / ค่าปรับ)
 window.editFineRulePage = async function(idx) {
     const currentRule = globalFineRules[idx];
     
-    // แกะข้อความเดิมออกมาเป็นชิ้นๆ
     let currentCategory = 'อื่นๆ';
     let currentDetail = currentRule;
     let currentAmount = '';
 
-    // ดึงหมวดหมู่ออกมา (ถ้ามีในวงเล็บเหลี่ยม)
     const catMatch = currentRule.match(/^\[(.*?)\]\s*/);
     if (catMatch) {
         currentCategory = catMatch[1];
         currentDetail = currentDetail.replace(catMatch[0], ''); 
     }
 
-    // ดึงค่าปรับออกมา (ถ้ามีในวงเล็บท้าย)
     const amtMatch = currentDetail.match(/\s*\(ปรับ\s*([\d,]+)\)$/);
     if (amtMatch) {
         currentAmount = amtMatch[1].replace(/,/g, '');
@@ -518,7 +605,16 @@ window.submitFine = async function(e) {
     e.preventDefault();
     const empName = document.getElementById('fineEmpInput').value.trim();
     const ruleText = document.getElementById('fineRuleSelect').value;
-    const noteText = document.getElementById('fineNote').value.trim(); 
+    
+    // 🌟 เอาค่าจาก Select และ Input ของหมายเหตุ มารวมกัน 🌟
+    const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
+    const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
+    
+    let finalNote = noteSelect;
+    if (noteInput) {
+        finalNote = finalNote ? `${finalNote} (${noteInput})` : noteInput;
+    }
+    
     const amount = document.getElementById('fineAmount').value || 0;
     const fileInput = document.getElementById('fineImageInput');
 
@@ -550,7 +646,7 @@ window.submitFine = async function(e) {
             user_id: targetId,
             user_name: empName,
             rule_text: ruleText,
-            note: noteText,
+            note: finalNote, // เซฟค่าหมายเหตุที่รวมแล้ว
             amount: amount,
             evidence_url: imageUrl,
             issued_by: currentUser.username
@@ -565,7 +661,9 @@ window.submitFine = async function(e) {
         if(catSelect) catSelect.value = '';
         window.filterRulesByCategory(); 
         
-        document.getElementById('fineNote').value = '';
+        if (document.getElementById('fineNoteSelect')) document.getElementById('fineNoteSelect').value = '';
+        if (document.getElementById('fineNoteInput')) document.getElementById('fineNoteInput').value = '';
+        
         document.getElementById('fineAmount').value = '';
         clearFineImg();
         
@@ -577,7 +675,7 @@ window.submitFine = async function(e) {
 };
 
 // -----------------------------------------
-// ดึงข้อมูลและวาดตาราง
+// ดึงข้อมูลและวาดตาราง (แยกข้อมูลใส่ Template ชัดเจน)
 // -----------------------------------------
 window.fetchFinesData = async function(isAdmin) {
     const tbody = document.getElementById('fineTableBody');
@@ -629,32 +727,34 @@ window.renderFineTable = function(isAdminOverride) {
         return;
     }
 
+    // 🌟 วาดตารางโดยใช้ Template คืนความสวยงามและไม่ Error
     tbody.innerHTML = filtered.map(f => {
         const d = new Date(f.created_at);
         const dateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
         
-        const amountDisplay = f.amount > 0 ? window.renderTemplate('tpl-fine-history-amount-badge', { amount: f.amount.toLocaleString('en-US') }) : '<span class="text-gray-400">-</span>';
+        const amountDisplay = f.amount > 0 ? `<span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50">฿${f.amount}</span>` : '<span class="text-gray-400">-</span>';
         
-        const imgDisplay = f.evidence_url ? window.renderTemplate('tpl-fine-history-img-btn', { url: f.evidence_url }) : '<span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700">- ไม่มีรูป -</span>';
+        const imgDisplay = f.evidence_url ? `<button type="button" onclick="viewFineImage('${f.evidence_url}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>` : '<span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700">- ไม่มีรูป -</span>';
 
-        const delBtn = isAdmin ? window.renderTemplate('tpl-fine-history-del-btn', { id: f.id }) : '';
-        const empCol = isAdmin ? window.renderTemplate('tpl-fine-history-emp-col', { username: f.user_name }) : '';
-        const actionCol = isAdmin ? window.renderTemplate('tpl-fine-history-action-col', { delBtn: delBtn }) : '';
+        const delBtn = isAdmin ? `<button type="button" onclick="deleteFine(${f.id})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition"><span class="material-icons text-sm block">delete</span></button>` : '';
+        
+        // ทำให้ชื่อพนักงานเด่นชัดขึ้น
+        const empColHtml = isAdmin ? `<td class="p-3 align-middle border-r border-slate-100 dark:border-slate-700 bg-red-50/30 dark:bg-red-900/20"><div class="font-black text-lg text-slate-800 dark:text-white">${f.user_name}</div></td>` : '';
+        const actionColHtml = isAdmin ? `<td class="p-3 text-center align-middle">${delBtn}</td>` : '';
 
-        // 🌟 แก้ปัญหา Template Error ในหน้านี้โดยการส่ง ruleText แยก
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
-            noteHtml = window.renderTemplate('tpl-fine-history-note', { note: f.note });
+            noteHtml = `<div class="mt-1 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600/50 text-yellow-700 dark:text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-start gap-1.5 w-fit max-w-[400px] shadow-sm"><span class="material-icons text-[16px] shrink-0 text-yellow-500">info</span><span class="whitespace-normal break-words leading-snug">${f.note}</span></div>`;
         }
 
         return window.renderTemplate('tpl-fine-history-row', {
             dateStr: dateStr,
-            empCol: empCol,
+            empColHtml: empColHtml,
             ruleText: f.rule_text,
             noteHtml: noteHtml,
             amountDisplay: amountDisplay,
             imgDisplay: imgDisplay,
-            actionCol: actionCol
+            actionColHtml: actionColHtml
         });
     }).join('');
 };
