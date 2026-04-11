@@ -460,12 +460,14 @@ window.editFineRulePage = async function(idx) {
     let currentDetail = currentRule;
     let currentAmount = '';
 
+    // ดึงหมวดหมู่ออกมาจากวงเล็บก้ามปู
     const catMatch = currentRule.match(/^\[(.*?)\]\s*/);
     if (catMatch) {
-        currentCategory = catMatch[1];
+        currentCategory = catMatch[1].trim(); // เพิ่ม .trim() ป้องกันบัคช่องว่าง
         currentDetail = currentDetail.replace(catMatch[0], ''); 
     }
 
+    // ดึงค่าปรับออกมา (ถ้ามี)
     const amtMatch = currentDetail.match(/\s*\(ปรับ\s*([\d,]+)\)$/);
     if (amtMatch) {
         currentAmount = amtMatch[1].replace(/,/g, '');
@@ -473,10 +475,10 @@ window.editFineRulePage = async function(idx) {
     }
     
     const htmlForm = window.renderTemplate('tpl-fine-edit-rule-form', {
-        selOnline: currentCategory === 'ออนไลน์' ? 'selected' : '',
-        selWFH: currentCategory === 'WFH' ? 'selected' : '',
-        selOffice: currentCategory === 'ออฟฟิศ' ? 'selected' : '',
-        selOther: currentCategory === 'อื่นๆ' ? 'selected' : '',
+        selOnline: currentCategory === 'ออนไลน์' ? 'selected="selected"' : '',
+        selWFH: currentCategory === 'WFH' ? 'selected="selected"' : '',
+        selOffice: currentCategory === 'ออฟฟิศ' ? 'selected="selected"' : '',
+        selOther: currentCategory === 'อื่นๆ' ? 'selected="selected"' : '',
         currentDetail: currentDetail,
         currentAmount: currentAmount
     });
@@ -490,6 +492,15 @@ window.editFineRulePage = async function(idx) {
         confirmButtonColor: '#f59e0b',
         cancelButtonColor: '#64748b',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl' },
+        
+        // 🌟 เพิ่มบรรทัดนี้: บังคับให้ Dropdown เลือกหมวดหมู่ที่ถูกต้องทันทีที่ Popup เปิดขึ้นมา
+        didOpen: () => {
+            const catSelect = document.getElementById('editRuleCategory');
+            if (catSelect) {
+                catSelect.value = currentCategory;
+            }
+        },
+
         preConfirm: () => {
             const cat = document.getElementById('editRuleCategory').value;
             const detail = document.getElementById('editRuleDetail').value.trim();
@@ -513,7 +524,7 @@ window.editFineRulePage = async function(idx) {
             Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
             globalFineRules[idx] = finalRuleString;
             await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
-            renderRulesDropdown();
+            renderRulesDropdown(); // สั่งให้หน้าจอรีเฟรชข้อมูลใหม่
             Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
         }
     }
