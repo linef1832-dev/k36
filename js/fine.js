@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V9 (Penalty Type + Fix Table + Edit Notes)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V13 (Strict HTML Separation)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -87,6 +87,9 @@ window.initFineApp = async function() {
         tableContainer.classList.add('lg:col-span-8');
         document.getElementById('fineSubtitle').innerText = "ออกใบปรับและดูประวัติทั้งหมด";
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> รายการใบปรับทั้งหมดในระบบ';
+        document.getElementById('thEmpName').style.display = 'table-cell';
+        document.getElementById('thAction').style.display = 'table-cell';
+        
         populateEmpSelect(); 
     } else {
         adminControls.classList.add('hidden');
@@ -95,6 +98,8 @@ window.initFineApp = async function() {
         tableContainer.classList.add('lg:col-span-12');
         document.getElementById('fineSubtitle').innerText = "ดูประวัติใบปรับของคุณ";
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
+        document.getElementById('thEmpName').style.display = 'none';
+        document.getElementById('thAction').style.display = 'none';
     }
 
     switchFineTab('issue');
@@ -322,7 +327,10 @@ window.toggleFineAmountInput = function() {
 window.filterRulesByCategory = function() {
     const catSelect = document.getElementById('fineCategorySelect');
     const ruleSelect = document.getElementById('fineRuleSelect');
+    const amountInput = document.getElementById('fineAmount');
     
+    if(amountInput) amountInput.value = '';
+
     if (!catSelect || !ruleSelect) return;
     
     const cat = catSelect.value;
@@ -348,13 +356,9 @@ window.filterRulesByCategory = function() {
         return;
     }
 
-    // เติม title เข้าไป เพื่อให้เอาเมาส์ชี้แล้วอ่านตัวเต็มได้
-    ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}" title="${r}">${r}</option>`).join('');
+    ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}">${r}</option>`).join('');
 
-    // เพิ่มบรรทัดนี้ เพื่อให้กล่องหลักโชว์ข้อความตอนเอาเมาส์ชี้ด้วย
     ruleSelect.onchange = function() {
-        this.title = this.value; 
-        
         const typeSelect = document.getElementById('finePenaltyType');
         const amtInput = document.getElementById('fineAmount');
         if (!typeSelect || !amtInput) return;
@@ -668,15 +672,7 @@ window.submitFine = async function(e) {
     
     let finalNote = noteSelect;
     if (noteInput) {
-        if (finalNote) {
-            if (finalNote.includes('...') || finalNote.includes('_') || /\s{2,}/.test(finalNote)) {
-                finalNote = finalNote.replace(/_+|\.\.\.|\s{2,}/, ` ${noteInput} `).replace(/\s+/g, ' ');
-            } else {
-                finalNote = `${finalNote} (${noteInput})`;
-            }
-        } else {
-            finalNote = noteInput;
-        }
+        finalNote = finalNote ? `${finalNote} (${noteInput})` : noteInput;
     }
     
     const penaltyType = document.getElementById('finePenaltyType').value;
@@ -719,7 +715,7 @@ window.submitFine = async function(e) {
             user_name: empName,
             rule_text: ruleText,
             note: finalNote, 
-            amount: amountToSave,
+            amount: amountToSave, 
             evidence_url: imageUrl,
             issued_by: currentUser.username
         }]);
@@ -742,11 +738,6 @@ window.submitFine = async function(e) {
         document.getElementById('fineAmount').value = '';
         clearFineImg();
         
-        if (document.getElementById('fineTextResultBox')) {
-            document.getElementById('fineTextResultBox').classList.add('hidden');
-            document.getElementById('fineTextResult').value = '';
-        }
-        
         fetchFinesData(true);
 
     } catch (err) {
@@ -755,7 +746,7 @@ window.submitFine = async function(e) {
 };
 
 // -----------------------------------------
-// ดึงข้อมูลและวาดตาราง
+// ดึงข้อมูลและวาดตาราง (ใช้ Template แยก HTML อออกจาก JS)
 // -----------------------------------------
 window.fetchFinesData = async function(isAdmin) {
     const tbody = document.getElementById('fineTableBody');
@@ -818,28 +809,73 @@ window.renderFineTable = function(isAdminOverride) {
         
         let amountDisplay = '';
         if (f.amount === -1) {
-            amountDisplay = `<span class="font-bold text-[10px] text-white bg-slate-700 px-2 py-1 rounded border border-slate-600 whitespace-nowrap shadow-sm">ไม่ได้รับค่าแรง</span>`;
+            amountDisplay = window.renderTemplate('tpl-fine-history-amount-nowage');
         } else if (f.amount > 0) {
             amountDisplay = window.renderTemplate('tpl-fine-history-amount-badge', { amount: f.amount.toLocaleString('en-US') });
         } else {
             amountDisplay = '<span class="text-gray-400">-</span>';
         }
         
-        const imgDisplay = f.evidence_url ? `<button type="button" onclick="viewFineImage('${f.evidence_url}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>` : '<span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700">- ไม่มีรูป -</span>';
+        const imgDisplay = f.evidence_url ? window.renderTemplate('tpl-fine-history-img-btn', { url: f.evidence_url }) : window.renderTemplate('tpl-fine-history-img-none');
 
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: f.note });
         }
 
+        // 🌟 ดึงแผนกของพนักงานมาใส่ท้ายชื่อโดยใช้ Template
+        let displayName = f.user_name;
+        const dbUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => u.username === f.user_name) : null;
+        
+        if (dbUser) {
+            let dept = dbUser.department || 'AM';
+            let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
+            
+            let deptColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800/50';
+            let deptName = 'AM';
+            
+            if (isTrainer) {
+                deptColor = 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-800/50';
+                deptName = 'ผู้สอน';
+            } else if (dept === 'OD') {
+                deptColor = 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-300 dark:border-pink-800/50';
+                deptName = 'OD';
+            }
+            
+            const deptBadgeHtml = window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
+            displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml });
+        }
+
+        // 🌟 ลบคำว่า (ปรับ XXX) และใส่สีหมวดหมู่โดยใช้ Template
+        let rawRule = f.rule_text || '';
+        let cleanRule = rawRule.replace(/\s*\(\s*ปรับ.*?\)/g, '').trim();
+
+        let ruleDisplay = cleanRule;
+        const catMatch = cleanRule.match(/^\[(.*?)\]\s*(.*)/);
+        
+        if (catMatch) {
+            const cat = catMatch[1];
+            const detail = catMatch[2];
+            let catColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
+
+            if (cat === 'ออนไลน์') catColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800/50';
+            else if (cat === 'WFH') catColor = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800/50';
+            else if (cat === 'ออฟฟิศ') catColor = 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800/50';
+
+            ruleDisplay = window.renderTemplate('tpl-fine-history-rule-cat', { catColor, catName: cat, ruleDetail: detail });
+        } else {
+            ruleDisplay = window.renderTemplate('tpl-fine-history-rule-normal', { ruleDetail: cleanRule });
+        }
+
+        // 🌟 ใช้ Template แม่แบบของแถวในการรวม HTML ทั้งหมดเข้าด้วยกัน
         return window.renderTemplate('tpl-fine-history-row', {
             id: f.id,
             dateStr: dateStr,
-            username: f.user_name,
-            ruleText: f.rule_text,
+            usernameDisplay: displayName,
+            ruleDisplay: ruleDisplay,
             noteHtml: noteHtml,
             amountDisplay: amountDisplay,
-            imgDisplay: imgDisplay
+            imgDisplay: imgDisplay,
         });
     }).join('');
     
@@ -858,59 +894,3 @@ window.deleteFine = async function(id) {
         Swal.fire('ลบสำเร็จ', '', 'success');
     }
 }
-
-// =========================================
-// 📝 ฟังก์ชันสร้างข้อความสรุป และ คัดลอก
-// =========================================
-window.generateFineText = function() {
-    const empName = document.getElementById('fineEmpInput').value.trim();
-    const rawRule = document.getElementById('fineRuleSelect').value;
-    const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
-    const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
-    const penaltyType = document.getElementById('finePenaltyType').value;
-    const amount = document.getElementById('fineAmount').value.trim();
-
-    if (!empName || !rawRule) {
-        return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อความผิดก่อนสร้างข้อความครับ', 'warning');
-    }
-
-    let cleanRule = rawRule.replace(/^\[.*?\]\s*/, '');
-    cleanRule = cleanRule.replace(/\s*\([^)]*\)$/, '').trim();
-    
-    let penaltyText = '';
-    if (penaltyType === 'nowage') {
-        penaltyText = 'ไม่ได้ค่าแรง';
-    } else if (amount) {
-        penaltyText = `ปรับ ${amount} THB`;
-    }
-
-    let finalNote = noteSelect;
-    if (noteInput) {
-        if (finalNote) {
-            if (finalNote.includes('...') || finalNote.includes('_') || /\s{2,}/.test(finalNote)) {
-                finalNote = finalNote.replace(/_+|\.\.\.|\s{2,}/, ` ${noteInput} `).replace(/\s+/g, ' ');
-            } else {
-                finalNote = `${finalNote} (${noteInput})`;
-            }
-        } else {
-            finalNote = noteInput;
-        }
-    }
-
-    let resultText = `ปรับ ${empName} ${cleanRule}`;
-    if (penaltyText) resultText += ` ${penaltyText}`;
-    if (finalNote) resultText += ` (${finalNote})`;
-
-    document.getElementById('fineTextResult').value = resultText;
-    document.getElementById('fineTextResultBox').classList.remove('hidden');
-};
-
-window.copyFineText = function() {
-    const text = document.getElementById('fineTextResult').value;
-    if (!text) return;
-    navigator.clipboard.writeText(text).then(() => {
-        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 }).fire({ icon: 'success', title: 'คัดลอกข้อความแล้ว' });
-    }).catch(() => {
-        Swal.fire('Error', 'เบราว์เซอร์ไม่รองรับการคัดลอกอัตโนมัติ', 'error');
-    });
-};
