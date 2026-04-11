@@ -1171,3 +1171,21 @@ window.removeFromNewDept = async function(id, username) {
         }
     });
 };
+
+// ฟังก์ชันสำหรับบันทึกประวัติการจอง/ยกเลิกวันหยุด
+window.logLeaveAction = async function(action, userId, username, dateStr) {
+    try {
+        if (typeof appDB !== 'undefined') {
+            await appDB.from('leave_logs').insert({ 
+                action_type: action, 
+                user_id: userId, 
+                username: username, 
+                actor_name: (typeof currentUser !== 'undefined' && currentUser.username) ? currentUser.username : 'Unknown', 
+                leave_date: dateStr, 
+                department: (typeof currentViewDept !== 'undefined') ? currentViewDept : 'AM' 
+            });
+        }
+    } catch (err) { 
+        console.error("Log Error:", err); 
+    }
+};
