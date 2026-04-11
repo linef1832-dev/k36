@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V18 (Clean Copy Format)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V19 (Added Shift Badge to History Table)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -856,10 +856,12 @@ window.renderFineTable = function(isAdminOverride) {
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: cleanNoteForTable });
         }
 
+        // 🌟 ดึงแผนกและกะของพนักงานมาใส่ท้ายชื่อโดยใช้ Template
         let displayName = f.user_name;
         const dbUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => u.username === f.user_name) : null;
         
         if (dbUser) {
+            // 1. ป้ายแผนก (Dept)
             let dept = dbUser.department || 'AM';
             let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
             
@@ -875,13 +877,31 @@ window.renderFineTable = function(isAdminOverride) {
             }
             
             const deptBadgeHtml = window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
-            displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml });
+
+            // 2. ป้ายกะ (Shift)
+            let shiftBadgeHtml = '';
+            if (dbUser.allowed_shift) {
+                let sName = dbUser.allowed_shift.replace('กะ', '');
+                let sColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700';
+                
+                if (sName === 'เช้า') sColor = 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800/50';
+                else if (sName === 'กลาง') sColor = 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-800/50';
+                else if (sName === 'ดึก') sColor = 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800/50';
+                else if (sName === 'all' || sName === 'อิสระ') { sName = 'อิสระ'; sColor = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800/50'; }
+                
+                shiftBadgeHtml = window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: sColor, deptName: sName });
+            }
+
+            // นำป้ายทั้ง 2 มารวมกัน
+            displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml: deptBadgeHtml + shiftBadgeHtml });
         }
 
+        // 🌟 ลบคำว่า (ปรับ XXX) ออกไปให้หมด
         let rawRule = f.rule_text || '';
         let cleanRule = rawRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
         let ruleDisplay = cleanRule;
+        // 🌟 ใส่สีหมวดหมู่อย่างแม่นยำด้วย Regex ใหม่
         const catMatch = cleanRule.match(/^\s*\[([^\]]+)\]\s*(.*)/);
         
         if (catMatch) {
@@ -898,6 +918,7 @@ window.renderFineTable = function(isAdminOverride) {
             ruleDisplay = window.renderTemplate('tpl-fine-history-rule-normal', { ruleDetail: cleanRule });
         }
 
+        // 🌟 ส่งตัวแปร ruleText เข้า Template ให้ตรงเป๊ะ!
         return window.renderTemplate('tpl-fine-history-row', {
             id: f.id,
             dateStr: dateStr,
