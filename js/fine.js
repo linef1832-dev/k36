@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V4 (Two-Step Select + Fix Delete)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V6 (Strict HTML/JS Separation)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -97,9 +97,6 @@ window.initFineApp = async function() {
     await fetchFinesData(isAdmin);
 };
 
-// -----------------------------------------
-// 🔄 ระบบเปลี่ยนหน้า (Tab System)
-// -----------------------------------------
 window.switchFineTab = function(tabName) {
     const issueTab = document.getElementById('fineContent_issue');
     const rulesTab = document.getElementById('fineContent_rules');
@@ -125,20 +122,17 @@ window.switchFineTab = function(tabName) {
     }
 };
 
-// -----------------------------------------
-// ระบบค้นหาพนักงาน (Custom Dropdown)
-// -----------------------------------------
 function populateEmpSelect() {
     const dropdown = document.getElementById('fineEmpDropdown');
     if (!dropdown || !GLOBAL_USER_LIST) return;
     
     const sortedUsers = [...GLOBAL_USER_LIST].sort((a, b) => a.username.localeCompare(b.username));
-    dropdown.innerHTML = sortedUsers.map(u => `
-        <div class="fine-emp-item cursor-pointer px-4 py-2.5 hover:bg-red-50 dark:hover:bg-slate-700/80 border-b border-gray-100 dark:border-slate-700/50 last:border-0 transition flex justify-between items-center" onclick="selectFineEmp('${u.username}')">
-            <div class="font-bold text-slate-800 dark:text-white text-sm">${u.username}</div>
-            <div class="text-[10px] text-gray-500 bg-gray-100 dark:bg-slate-900 px-2 py-0.5 rounded border dark:border-slate-600">${u.department || 'AM'}</div>
-        </div>
-    `).join('');
+    dropdown.innerHTML = sortedUsers.map(u => {
+        return window.renderTemplate('tpl-fine-emp-item', {
+            username: u.username,
+            dept: u.department || 'AM'
+        });
+    }).join('');
 }
 
 window.showEmpDropdown = function() {
@@ -168,9 +162,9 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// -----------------------------------------
-// จัดการหัวข้อกฎ (Accordion UI + Dropdown Auto Fill)
-// -----------------------------------------
+// ===============================================
+// 🌟 การจัดการกฎ (Accordion UI + Dropdown Auto Fill)
+// ===============================================
 async function loadFineRules() {
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'fine_rules_data').single();
@@ -191,7 +185,6 @@ async function loadFineRules() {
     }
 }
 
-// 🌟 ระบบกรองกฎแบบ 2 ขั้นตอน
 window.filterRulesByCategory = function() {
     const catSelect = document.getElementById('fineCategorySelect');
     const ruleSelect = document.getElementById('fineRuleSelect');
@@ -226,7 +219,6 @@ window.filterRulesByCategory = function() {
 
     ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}">${r}</option>`).join('');
 
-    // ดึงตัวเลขค่าปรับมาใส่อัตโนมัติเมื่อเลือก
     ruleSelect.onchange = function() {
         const amtInput = document.getElementById('fineAmount');
         if (this.value && amtInput) {
@@ -242,7 +234,6 @@ window.filterRulesByCategory = function() {
     };
 }
 
-// ปุ่มเปิด/ปิดหมวดหมู่ย่อย (Accordion)
 window.toggleRuleGroup = function(groupId, btn) {
     const groupDiv = document.getElementById(groupId);
     const icon = btn.querySelector('.material-icons:last-child');
@@ -288,33 +279,25 @@ function renderRulesDropdown() {
             if (items.length === 0) return '';
             const groupId = 'group_' + title;
             
-            // 🌟 แก้ไขปุ่มลบ ให้เรียกใช้งานได้สมบูรณ์ และกันการ Refresh หน้า
-            let itemsHtml = items.map((item, i) => `
-                <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 transition hover:border-amber-400 group">
-                    <div class="flex items-center gap-3 pr-2">
-                        <div class="w-6 h-6 rounded-full ${colorClass.badge} flex items-center justify-center font-bold text-[10px] shadow-inner shrink-0">${i+1}</div>
-                        <span class="text-xs font-bold text-slate-700 dark:text-gray-200">${item.text}</span>
-                    </div>
-                    <button type="button" onclick="removeFineRulePage(${item.index})" class="text-red-400 hover:text-white bg-slate-50 dark:bg-slate-900 hover:bg-red-500 p-1.5 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm opacity-50 group-hover:opacity-100 shrink-0" title="ลบกฎข้อนี้">
-                        <span class="material-icons text-[16px] block">delete_sweep</span>
-                    </button>
-                </div>
-            `).join('');
+            // 🌟 ใช้งาน Template สำหรับ Item
+            let itemsHtml = items.map((item, i) => {
+                return window.renderTemplate('tpl-fine-rule-item', {
+                    badgeClass: colorClass.badge,
+                    indexDisplay: i + 1,
+                    text: item.text,
+                    rawIndex: item.index
+                });
+            }).join('');
 
-            return `
-            <div class="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-4">
-                <button type="button" onclick="toggleRuleGroup('${groupId}', this)" class="w-full flex justify-between items-center p-4 ${colorClass.header} transition">
-                    <div class="flex items-center gap-2 font-black text-sm">
-                        <span class="material-icons">${icon}</span> หมวด: ${title} 
-                        <span class="bg-black/10 dark:bg-white/20 px-2 py-0.5 rounded-full text-[10px] ml-2 shadow-inner">${items.length} ข้อ</span>
-                    </div>
-                    <span class="material-icons transition-transform duration-300 transform -rotate-90">expand_more</span>
-                </button>
-                <div id="${groupId}" class="hidden flex-col gap-2 p-4 bg-slate-50 dark:bg-slate-900/50 border-t border-gray-200 dark:border-slate-700">
-                    ${itemsHtml}
-                </div>
-            </div>
-            `;
+            // 🌟 ใช้งาน Template สำหรับ Group
+            return window.renderTemplate('tpl-fine-rule-group', {
+                groupId: groupId,
+                headerClass: colorClass.header,
+                icon: icon,
+                title: title,
+                count: items.length,
+                itemsHtml: itemsHtml
+            });
         };
 
         html += buildGroupHtml('ออนไลน์', groups['ออนไลน์'], 'language', { header: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60', badge: 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' });
@@ -326,7 +309,6 @@ function renderRulesDropdown() {
     }
 }
 
-// 🌟 เพิ่มกฎจากหน้า 2
 window.addFineRulePage = async function() {
     const catInput = document.getElementById('newRuleCategory');
     const textInput = document.getElementById('newRuleInputPage');
@@ -356,7 +338,39 @@ window.addFineRulePage = async function() {
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
 
-// 🌟 ฟังก์ชันลบกฎที่ใช้งานได้ 100% แน่นอน
+window.editFineRulePage = async function(idx) {
+    const currentRule = globalFineRules[idx];
+    
+    const { value: newRuleText } = await Swal.fire({
+        title: '<span class="text-amber-500">แก้ไขหัวข้อกฎ</span>',
+        input: 'textarea',
+        inputValue: currentRule,
+        inputPlaceholder: 'พิมพ์รายละเอียดกฎตรงนี้...',
+        showCancelButton: true,
+        confirmButtonText: 'บันทึกการแก้ไข',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#64748b',
+        inputValidator: (value) => {
+            if (!value.trim()) {
+                return 'กรุณากรอกข้อความกฎหมาย!';
+            }
+        },
+        customClass: { 
+            popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl',
+            input: 'bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl'
+        }
+    });
+
+    if (newRuleText && newRuleText.trim() !== currentRule) {
+        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+        globalFineRules[idx] = newRuleText.trim();
+        await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+        renderRulesDropdown();
+        Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
+    }
+};
+
 window.removeFineRulePage = async function(idx) {
     const res = await Swal.fire({
         title: 'ลบกฎข้อนี้?',
@@ -571,30 +585,30 @@ window.renderFineTable = function(isAdminOverride) {
         const d = new Date(f.created_at);
         const dateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
         
-        const amountDisplay = f.amount > 0 ? `<span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50">฿${f.amount}</span>` : '<span class="text-gray-400">-</span>';
+        const amountDisplay = f.amount > 0 ? window.renderTemplate('tpl-fine-history-amount-badge', { amount: f.amount.toLocaleString('en-US') }) : '<span class="text-gray-400">-</span>';
         
-        const imgDisplay = f.evidence_url ? 
-            `<button type="button" onclick="viewFineImage('${f.evidence_url}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>` : 
-            '<span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700">- ไม่มีรูป -</span>';
+        const imgDisplay = f.evidence_url ? window.renderTemplate('tpl-fine-history-img-btn', { url: f.evidence_url }) : '<span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700">- ไม่มีรูป -</span>';
 
-        const delBtn = isAdmin ? `<button type="button" onclick="deleteFine(${f.id})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition"><span class="material-icons text-sm block">delete</span></button>` : '';
-        const empCol = isAdmin ? `<td class="p-4 font-black text-slate-800 dark:text-white pt-5">${f.user_name}</td>` : '';
-        const actionCol = isAdmin ? `<td class="p-4 text-center pt-4">${delBtn}</td>` : '';
+        const delBtn = isAdmin ? window.renderTemplate('tpl-fine-history-del-btn', { id: f.id }) : '';
+        const empCol = isAdmin ? window.renderTemplate('tpl-fine-history-emp-col', { username: f.user_name }) : '';
+        const actionCol = isAdmin ? window.renderTemplate('tpl-fine-history-action-col', { delBtn: delBtn }) : '';
 
-        let ruleDisplay = `<span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800/50 shadow-sm inline-block">${f.rule_text}</span>`;
+        // 🌟 ใช้งาน Template แทนการใช้ HTML แบบ String แบบดิบๆ
+        let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
-            ruleDisplay += `<div class="mt-2.5 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600/50 text-yellow-700 dark:text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-start gap-1.5 w-fit max-w-[300px] shadow-sm"><span class="material-icons text-[16px] shrink-0 mt-0.5 text-yellow-500">info</span><span class="whitespace-normal break-words leading-snug">${f.note}</span></div>`;
+            noteHtml = window.renderTemplate('tpl-fine-history-note', { note: f.note });
         }
+        
+        const ruleDisplay = `<span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800/50 shadow-sm inline-block">${f.rule_text}</span>${noteHtml}`;
 
-        return `
-        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition border-b border-gray-100 dark:border-slate-700/50 align-top group">
-            <td class="p-4 text-xs text-gray-500 pt-5 font-mono">${dateStr}</td>
-            ${empCol}
-            <td class="p-4 text-xs font-bold pt-4 pb-4">${ruleDisplay}</td>
-            <td class="p-4 text-center pt-5">${amountDisplay}</td>
-            <td class="p-4 text-center pt-4">${imgDisplay}</td>
-            ${actionCol}
-        </tr>`;
+        return window.renderTemplate('tpl-fine-history-row', {
+            dateStr: dateStr,
+            empCol: empCol,
+            ruleDisplay: ruleDisplay,
+            amountDisplay: amountDisplay,
+            imgDisplay: imgDisplay,
+            actionCol: actionCol
+        });
     }).join('');
 };
 
