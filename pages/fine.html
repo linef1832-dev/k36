@@ -189,3 +189,86 @@
     <span class="absolute top-4 right-4 text-white hover:text-gray-300 cursor-pointer material-icons text-4xl">close</span>
     <img id="fineExpandedImg" class="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl border border-slate-700" onclick="event.stopPropagation()">
 </div>
+
+<div id="fineTemplates" class="hidden">
+    
+    <template id="tpl-fine-emp-item">
+        <div class="fine-emp-item cursor-pointer px-4 py-2.5 hover:bg-red-50 dark:hover:bg-slate-700/80 border-b border-gray-100 dark:border-slate-700/50 last:border-0 transition flex justify-between items-center" onclick="selectFineEmp('{{username}}')">
+            <div class="font-bold text-slate-800 dark:text-white text-sm">{{username}}</div>
+            <div class="text-[10px] text-gray-500 bg-gray-100 dark:bg-slate-900 px-2 py-0.5 rounded border dark:border-slate-600">{{dept}}</div>
+        </div>
+    </template>
+
+    <template id="tpl-fine-rule-group">
+        <div class="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-4">
+            <button type="button" onclick="toggleRuleGroup('{{groupId}}', this)" class="w-full flex justify-between items-center p-4 {{headerClass}} transition">
+                <div class="flex items-center gap-2 font-black text-sm">
+                    <span class="material-icons">{{icon}}</span> หมวด: {{title}} 
+                    <span class="bg-black/10 dark:bg-white/20 px-2 py-0.5 rounded-full text-[10px] ml-2 shadow-inner">{{count}} ข้อ</span>
+                </div>
+                <span class="material-icons transition-transform duration-300 transform -rotate-90">expand_more</span>
+            </button>
+            <div id="{{groupId}}" class="hidden flex-col gap-2 p-4 bg-slate-50 dark:bg-slate-900/50 border-t border-gray-200 dark:border-slate-700">
+                {{itemsHtml}}
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-fine-rule-item">
+        <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 transition hover:border-amber-400 group">
+            <div class="flex items-center gap-3 pr-2">
+                <div class="w-6 h-6 rounded-full {{badgeClass}} flex items-center justify-center font-bold text-[10px] shadow-inner shrink-0">{{indexDisplay}}</div>
+                <span class="text-xs font-bold text-slate-700 dark:text-gray-200">{{text}}</span>
+            </div>
+            <div class="flex items-center gap-1 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
+                <button type="button" onclick="editFineRulePage({{rawIndex}})" class="text-amber-500 hover:text-white bg-slate-50 dark:bg-slate-900 hover:bg-amber-500 p-1.5 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm" title="แก้ไขกฎข้อนี้">
+                    <span class="material-icons text-[16px] block">edit</span>
+                </button>
+                <button type="button" onclick="removeFineRulePage({{rawIndex}})" class="text-red-400 hover:text-white bg-slate-50 dark:bg-slate-900 hover:bg-red-500 p-1.5 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm" title="ลบกฎข้อนี้">
+                    <span class="material-icons text-[16px] block">delete_sweep</span>
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-fine-history-row">
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition border-b border-gray-100 dark:border-slate-700/50 align-top group">
+            <td class="p-4 text-xs text-gray-500 pt-5 font-mono">{{dateStr}}</td>
+            {{empCol}}
+            <td class="p-4 text-xs font-bold pt-4 pb-4">
+                <span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800/50 shadow-sm inline-block">{{ruleText}}</span>
+                {{noteHtml}}
+            </td>
+            <td class="p-4 text-center pt-5">{{amountDisplay}}</td>
+            <td class="p-4 text-center pt-4">{{imgDisplay}}</td>
+            {{actionCol}}
+        </tr>
+    </template>
+
+    <template id="tpl-fine-history-note">
+        <div class="mt-2.5 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600/50 text-yellow-700 dark:text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-start gap-1.5 w-fit max-w-[300px] shadow-sm">
+            <span class="material-icons text-[16px] shrink-0 mt-0.5 text-yellow-500">info</span>
+            <span class="whitespace-normal break-words leading-snug">{{note}}</span>
+        </div>
+    </template>
+
+    <template id="tpl-fine-history-amount-badge">
+        <span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50">฿{{amount}}</span>
+    </template>
+
+    <template id="tpl-fine-history-img-btn">
+        <button type="button" onclick="viewFineImage('{{url}}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>
+    </template>
+
+    <template id="tpl-fine-history-del-btn">
+        <button type="button" onclick="deleteFine({{id}})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition"><span class="material-icons text-sm block">delete</span></button>
+    </template>
+    
+    <template id="tpl-fine-history-emp-col">
+        <td class="p-4 font-black text-slate-800 dark:text-white pt-5">{{username}}</td>
+    </template>
+    
+    <template id="tpl-fine-history-action-col">
+        <td class="p-4 text-center pt-4">{{delBtn}}</td>
+    </template>
+</div>
