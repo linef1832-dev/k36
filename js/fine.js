@@ -1,9 +1,10 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V26 (Bypass User Validation on Submit)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V25 (Smart Realtime - No DB Overload)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
 let globalFineNotes = []; 
+let fineSubscription = null; // 🌟 ตัวแปรสำหรับดักจับ Realtime
 
 const defaultNotes = [
     "โทรไม่รับสาย / ติดต่อไม่ได้",
@@ -14,7 +15,6 @@ const defaultNotes = [
     "เตือนแล้วแต่ไม่ปรับปรุง"
 ];
 
-// 🌟 อัปเดตกฎระเบียบชุดใหม่
 const okvipRules = [
     "[ออนไลน์] บทที่2 ข้อที่1 ไม่ได้เข้าเช็คชื่อ",
     "[ออนไลน์] บทที่ 2 ข้อที่ 4 โทรติดต่อกัน 3 ครั้ง ไม่มีการรับสาย",
@@ -73,6 +73,43 @@ window.initFineApp = async function() {
     await loadFineRules();
     await loadFineNotes(); 
     await fetchFinesData(isAdmin);
+    subscribeFineChanges(); // 🌟 สั่งให้ระบบเริ่มดักฟัง Realtime
+};
+
+// ===============================================
+// 🌟 ฟังก์ชันดักจับ Realtime ที่ประหยัด Database ที่สุด
+// ===============================================
+window.subscribeFineChanges = function() {
+    if (!window.appDB) return;
+    if (fineSubscription) window.appDB.removeChannel(fineSubscription);
+
+    fineSubscription = window.appDB.channel('public:fines')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fines' }, (payload) => {
+            
+            // ตรวจสอบว่าเปิดหน้าใบปรับอยู่หรือไม่ ถ้าไม่ได้เปิดไม่ต้องทำอะไร (ประหยัดทรัพยากรเครื่อง)
+            const fineAppEl = document.getElementById('fineContent_issue');
+            if (!fineAppEl || fineAppEl.classList.contains('hidden')) return;
+
+            const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
+            const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
+
+            if (payload.eventType === 'INSERT') {
+                // ถ้าเป็นพนักงานธรรมดา และใบปรับนั้นไม่ใช่ของตัวเอง ให้ข้ามไปเลย
+                if (!isAdmin && payload.new.user_name !== currentUser.username) return;
+                
+                // ป้องกันการใส่ข้อมูลซ้ำซ้อน (กรณีคนที่เพิ่งกดบันทึก ดึงข้อมูลมาแล้ว)
+                const exists = globalFines.find(f => f.id === payload.new.id);
+                if (!exists) {
+                    globalFines.unshift(payload.new); // 🌟 ยัดใบปรับใหม่ไว้บรรทัดบนสุดของ Array ตัวเอง
+                    renderFineTable(isAdmin); // สั่งวาดตารางใหม่
+                }
+            } 
+            else if (payload.eventType === 'DELETE') {
+                // ถ้ามีการลบใบปรับ ก็แค่เอาออกจาก Array ในเครื่อง แล้ววาดใหม่ (ไม่ต้องไปกวน Database)
+                globalFines = globalFines.filter(f => f.id !== payload.old.id);
+                renderFineTable(isAdmin);
+            }
+        }).subscribe();
 };
 
 window.switchFineTab = function(tabName) {
@@ -660,7 +697,6 @@ window.submitFine = async function(e) {
         }
     }
     
-    // 🌟 ล้างวงเล็บครอบหน้า-หลัง เพื่อป้องกันการแสดงผลซ้อน
     if (finalNote) {
         finalNote = finalNote.trim();
         while (finalNote.startsWith('(') && finalNote.endsWith(')')) {
@@ -699,7 +735,6 @@ window.submitFine = async function(e) {
             imageUrl = publicUrlData.publicUrl;
         }
         
-        // 🌟 ลองค้นหาไอดีพนักงานจากระบบ ถ้าไม่มีก็ให้เป็น null ไปเลย
         let targetId = null;
         if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) {
              const tUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase());
@@ -707,8 +742,8 @@ window.submitFine = async function(e) {
         }
 
         const { error: dbError } = await appDB.from('fines').insert([{
-            user_id: targetId, // ใส่ null ได้ถ้าไม่มีในระบบ
-            user_name: empName, // 🌟 บันทึกชื่อที่พิมพ์ลงไปตรงๆ เลย
+            user_id: targetId, 
+            user_name: empName, 
             rule_text: ruleText,
             note: finalNote, 
             amount: amountToSave, 
@@ -734,7 +769,8 @@ window.submitFine = async function(e) {
         if(amountEl) amountEl.value = '';
         clearFineImg();
         
-        fetchFinesData(true);
+        // 🌟 เอาการโหลดซ้ำออกไป เพราะเราใช้ Realtime อัปเดตตารางแล้ว 
+        // fetchFinesData(true);
 
     } catch (err) {
         Swal.fire('Error', err.message, 'error');
@@ -750,7 +786,7 @@ window.fetchFinesData = async function(isAdmin) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><span class="material-icons animate-spin text-red-500">sync</span> โหลดข้อมูล...</td></tr>';
 
     try {
-        if (typeof fetchUsers === 'function' && (typeof GLOBAL_USER_LIST === 'undefined' || GLOBAL_USER_LIST.length === 0)) {
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers(true);
         }
 
@@ -824,7 +860,6 @@ window.renderFineTable = function(isAdminOverride) {
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             let cleanNoteForTable = f.note.trim();
-            // 🌟 ล้างวงเล็บอีกชั้นก่อนแสดงผลในตาราง
             while (cleanNoteForTable.startsWith('(') && cleanNoteForTable.endsWith(')')) {
                 cleanNoteForTable = cleanNoteForTable.substring(1, cleanNoteForTable.length - 1).trim();
             }
@@ -834,12 +869,10 @@ window.renderFineTable = function(isAdminOverride) {
         let displayName = f.user_name;
         let deptBadgeHtml = '';
 
-        // 🌟 แก้ไขการดึงป้ายแผนกและกะให้แน่นอน 100%
-        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
-            const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+        if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
+            const dbUser = window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
             
             if (dbUser) {
-                // 1. ป้ายแผนก (Dept)
                 let dept = dbUser.department || 'AM';
                 let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
                 
@@ -856,7 +889,6 @@ window.renderFineTable = function(isAdminOverride) {
                 
                 deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
 
-                // 2. ป้ายกะ (Shift)
                 if (dbUser.allowed_shift) {
                     let sName = dbUser.allowed_shift.replace('กะ', '');
                     let sColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700';
@@ -919,7 +951,7 @@ window.deleteFine = async function(id) {
     if(res.isConfirmed) {
         Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
         await appDB.from('fines').delete().eq('id', id);
-        fetchFinesData(true);
+        // 🌟 ไม่ต้องโหลดซ้ำ เรารอให้ Realtime ทำงานลบแถวเอง
         Swal.fire('ลบสำเร็จ', '', 'success');
     }
 }
@@ -933,7 +965,6 @@ window.generateFineText = function() {
     
     if (!empInput || !ruleSelect) return;
 
-    // 🌟 ดึงชื่อพนักงานมาตรงๆ ไม่ต้องสนพิมพ์เล็กใหญ่ เพราะจะดึงชื่อที่ถูกต้องจากระบบมาใช้
     let empName = empInput.value.trim();
     const targetUser = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (targetUser) empName = targetUser.username; 
@@ -947,7 +978,6 @@ window.generateFineText = function() {
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
-    // 🌟 ระบบแทรกคำอัตโนมัติ (Smart Insertion) สำหรับคัดลอก
     let finalNote = noteSelect;
     if (noteInput) {
         if (finalNote) {
@@ -984,7 +1014,6 @@ window.generateFineText = function() {
         resultText += ` (${finalNote})`;
     }
 
-    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย (รูปแบบ วัน/เดือน/ปี)
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
