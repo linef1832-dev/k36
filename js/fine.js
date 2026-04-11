@@ -818,19 +818,21 @@ window.renderFineTable = function(isAdminOverride) {
 
         const delBtn = window.renderTemplate('tpl-fine-history-del-btn', { id: f.id });
         
+        // เอาบรรทัด delBtn ออกไปเลยครับ
+        
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: f.note });
         }
 
         return window.renderTemplate('tpl-fine-history-row', {
+            id: f.id,               // <--- เพิ่มบรรทัดนี้ เพื่อส่ง ID ไปให้ปุ่มลบ
             dateStr: dateStr,
             username: f.user_name,
             ruleText: f.rule_text,
             noteHtml: noteHtml,
             amountDisplay: amountDisplay,
-            imgDisplay: imgDisplay,
-            delBtn: delBtn
+            imgDisplay: imgDisplay
         });
     }).join('');
     
