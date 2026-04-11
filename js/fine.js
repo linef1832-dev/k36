@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V17 (Smart Note Insertion)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V18 (Clean Copy Format)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -969,27 +969,13 @@ window.generateFineText = function() {
         }
     }
 
-    // ดึงแผนกและทีมของพนักงาน
-    let dept = 'AM';
-    let team = '-';
-    if (window.GLOBAL_USER_LIST) {
-        const targetUser = window.GLOBAL_USER_LIST.find(u => u.username === empName);
-        if (targetUser) {
-            dept = targetUser.department || 'AM';
-            team = targetUser.team || '-';
-        }
-    }
+    // ทำความสะอาดกฎ 
+    // 1. เอาคำว่า [หมวดหมู่] และ (ปรับ XXX) ออก
+    let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
+    cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
-    // สร้างคำขึ้นต้น
-    let userStr = [dept, team, empName].filter(x => x && x !== '-').join('-');
-    // แก้ไข ODOL ให้เป็น AMOL แทน
-    if (userStr.includes('ODOL-')) userStr = userStr.replace('OD-ODOL-', 'AMOL-').replace('ODOL-', 'AMOL-');
-
-    // ทำความสะอาดกฎ (เอาคำว่า (ปรับ 100) ท้ายประโยคออก เพื่อไม่ให้ซ้ำ)
-    let cleanRule = ruleText.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
-
-    // ประกอบร่างข้อความ
-    let resultText = `ปรับ ${userStr} ${cleanRule}`;
+    // ประกอบร่างข้อความ (ไม่เอาแผนกและทีมมาต่อชื่อ)
+    let resultText = `ปรับ ${empName} ${cleanRule}`;
     
     if (finalNote) {
         resultText += ` (${finalNote})`;
