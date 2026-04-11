@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V19 (Fixed Department & Shift Badges Render)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V20 (Separated HTML Templates completely)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -213,19 +213,13 @@ function renderNotesDropdown() {
             return;
         }
 
-        listDiv.innerHTML = globalFineNotes.map((n, idx) => `
-            <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center shadow-sm group">
-                <span class="text-sm font-bold text-slate-700 dark:text-gray-300 truncate pr-2">${n}</span>
-                <div class="flex items-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity shrink-0">
-                    <button type="button" onclick="editFineNotePage(${idx})" class="text-amber-500 hover:text-white hover:bg-amber-500 p-1.5 rounded-lg transition" title="แก้ไข">
-                        <span class="material-icons text-sm block">edit</span>
-                    </button>
-                    <button type="button" onclick="removeFineNotePage(${idx})" class="text-red-400 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition" title="ลบ">
-                        <span class="material-icons text-sm block">delete</span>
-                    </button>
-                </div>
-            </div>
-        `).join('');
+        // 🌟 แยก HTML ออกจาก JS ด้วย renderTemplate
+        listDiv.innerHTML = globalFineNotes.map((n, idx) => {
+            return window.renderTemplate('tpl-fine-note-item', {
+                noteText: n,
+                index: idx
+            });
+        }).join('');
     }
 }
 
@@ -516,27 +510,15 @@ window.editFineRulePage = async function(idx) {
         currentDetail = currentDetail.replace(amtMatch[0], ''); 
     }
     
-    const htmlForm = `
-        <div class="text-left space-y-3">
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หมวดหมู่</label>
-                <select id="editRuleCategory" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner cursor-pointer transition">
-                    <option value="ออนไลน์" ${currentCategory === 'ออนไลน์' ? 'selected' : ''}>🌐 ออนไลน์</option>
-                    <option value="WFH" ${currentCategory === 'WFH' ? 'selected' : ''}>🏠 WFH</option>
-                    <option value="ออฟฟิศ" ${currentCategory === 'ออฟฟิศ' ? 'selected' : ''}>🏢 ออฟฟิศ</option>
-                    <option value="อื่นๆ" ${currentCategory === 'อื่นๆ' ? 'selected' : ''}>📌 อื่นๆ</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">รายละเอียดความผิด</label>
-                <input type="text" id="editRuleDetail" value="${currentDetail}" placeholder="ระบุรายละเอียด..." class="w-full p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner transition">
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ค่าปรับ (ถ้ามี)</label>
-                <input type="number" id="editRuleAmount" value="${currentAmount}" placeholder="ระบุตัวเลข เช่น 500" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner transition">
-            </div>
-        </div>
-    `;
+    // 🌟 แยก HTML ออกจาก JS ด้วย renderTemplate
+    const htmlForm = window.renderTemplate('tpl-fine-edit-rule-form', {
+        selOnline: currentCategory === 'ออนไลน์' ? 'selected' : '',
+        selWFH: currentCategory === 'WFH' ? 'selected' : '',
+        selOffice: currentCategory === 'ออฟฟิศ' ? 'selected' : '',
+        selOther: currentCategory === 'อื่นๆ' ? 'selected' : '',
+        currentDetail: currentDetail,
+        currentAmount: currentAmount
+    });
 
     const { isConfirmed, value: parsedData } = await Swal.fire({
         title: '<div class="text-xl font-black text-amber-500 flex items-center justify-center gap-2"><span class="material-icons">edit</span> แก้ไขหัวข้อกฎ</div>',
@@ -1035,13 +1017,27 @@ window.generateFineText = function() {
         }
     }
 
-    // ทำความสะอาดกฎ 
-    // 1. เอาคำว่า [หมวดหมู่] และ (ปรับ XXX) ออก
-    let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
-    cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
+    // ดึงแผนกและทีมของพนักงาน
+    let dept = 'AM';
+    let team = '-';
+    if (window.GLOBAL_USER_LIST) {
+        const targetUser = window.GLOBAL_USER_LIST.find(u => u.username === empName);
+        if (targetUser) {
+            dept = targetUser.department || 'AM';
+            team = targetUser.team || '-';
+        }
+    }
 
-    // ประกอบร่างข้อความ (ไม่เอาแผนกและทีมมาต่อชื่อ ตามที่ยูสเซอร์ขอ)
-    let resultText = `ปรับ ${empName} ${cleanRule}`;
+    // สร้างคำขึ้นต้น
+    let userStr = [dept, team, empName].filter(x => x && x !== '-').join('-');
+    // แก้ไข ODOL ให้เป็น AMOL แทน
+    if (userStr.includes('ODOL-')) userStr = userStr.replace('OD-ODOL-', 'AMOL-').replace('ODOL-', 'AMOL-');
+
+    // ทำความสะอาดกฎ (เอาคำว่า (ปรับ 100) ท้ายประโยคออก เพื่อไม่ให้ซ้ำ)
+    let cleanRule = ruleText.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
+
+    // ประกอบร่างข้อความ
+    let resultText = `ปรับ ${userStr} ${cleanRule}`;
     
     if (finalNote) {
         resultText += ` (${finalNote})`;
