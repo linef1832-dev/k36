@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V10 (Fix Delete Button)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V11 (Perfect Render & Split Edit)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -327,7 +327,10 @@ window.toggleFineAmountInput = function() {
 window.filterRulesByCategory = function() {
     const catSelect = document.getElementById('fineCategorySelect');
     const ruleSelect = document.getElementById('fineRuleSelect');
+    const amountInput = document.getElementById('fineAmount');
     
+    if(amountInput) amountInput.value = '';
+
     if (!catSelect || !ruleSelect) return;
     
     const cat = catSelect.value;
@@ -743,7 +746,7 @@ window.submitFine = async function(e) {
 };
 
 // -----------------------------------------
-// ดึงข้อมูลและวาดตาราง (🌟 แก้ไขบั๊ก Template ลบข้อมูลแล้ว 🌟)
+// ดึงข้อมูลและวาดตาราง 
 // -----------------------------------------
 window.fetchFinesData = async function(isAdmin) {
     const tbody = document.getElementById('fineTableBody');
@@ -820,7 +823,7 @@ window.renderFineTable = function(isAdminOverride) {
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: f.note });
         }
 
-        // 🌟 จุดที่มีปัญหา: ส่งตัวแปร id ที่ถูกต้อง (f.id) เข้าไปใน Template
+        // 🌟 ส่งค่า f.id เข้า Template ทำให้ปุ่มลบทำงานได้แน่นอน
         return window.renderTemplate('tpl-fine-history-row', {
             id: f.id,
             dateStr: dateStr,
@@ -828,7 +831,7 @@ window.renderFineTable = function(isAdminOverride) {
             ruleText: f.rule_text,
             noteHtml: noteHtml,
             amountDisplay: amountDisplay,
-            imgDisplay: imgDisplay,
+            imgDisplay: imgDisplay
         });
     }).join('');
     
