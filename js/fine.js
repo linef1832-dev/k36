@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V20 (Separated HTML Templates completely)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V21 (Fixed Global User List Bug)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -213,7 +213,6 @@ function renderNotesDropdown() {
             return;
         }
 
-        // 🌟 แยก HTML ออกจาก JS ด้วย renderTemplate
         listDiv.innerHTML = globalFineNotes.map((n, idx) => {
             return window.renderTemplate('tpl-fine-note-item', {
                 noteText: n,
@@ -510,7 +509,6 @@ window.editFineRulePage = async function(idx) {
         currentDetail = currentDetail.replace(amtMatch[0], ''); 
     }
     
-    // 🌟 แยก HTML ออกจาก JS ด้วย renderTemplate
     const htmlForm = window.renderTemplate('tpl-fine-edit-rule-form', {
         selOnline: currentCategory === 'ออนไลน์' ? 'selected' : '',
         selWFH: currentCategory === 'WFH' ? 'selected' : '',
@@ -692,13 +690,12 @@ window.submitFine = async function(e) {
             } else {
                 finalNote = `${finalNote} ${noteInput}`;
             }
-            finalNote = finalNote.replace(/\s+/g, ' '); // ล้างช่องว่างที่อาจจะซ้ำซ้อน
+            finalNote = finalNote.replace(/\s+/g, ' '); 
         } else {
             finalNote = noteInput;
         }
     }
     
-    // 🌟 ล้างวงเล็บครอบหน้า-หลัง เพื่อป้องกันการแสดงผลซ้อน
     if (finalNote) {
         finalNote = finalNote.trim();
         while (finalNote.startsWith('(') && finalNote.endsWith(')')) {
@@ -721,8 +718,8 @@ window.submitFine = async function(e) {
 
     if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
 
-    // 🌟 แก้ไข: ค้นหาแบบไม่สนพิมพ์เล็ก/ใหญ่ เพื่อป้องกันหาคนไม่เจอ
-    const targetUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
+    // 🌟 แก้ไข: ใช้ GLOBAL_USER_LIST แบบตรงๆ ไม่ติด window.
+    const targetUser = GLOBAL_USER_LIST ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (!targetUser) {
         return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง', 'warning');
     }
@@ -780,7 +777,7 @@ window.submitFine = async function(e) {
 };
 
 // -----------------------------------------
-// ดึงข้อมูลและวาดตาราง (ใช้ Template แยก HTML อออกจาก JS)
+// ดึงข้อมูลและวาดตาราง
 // -----------------------------------------
 window.fetchFinesData = async function(isAdmin) {
     const tbody = document.getElementById('fineTableBody');
@@ -789,7 +786,8 @@ window.fetchFinesData = async function(isAdmin) {
 
     try {
         // 🌟 FORCE FETCH USERS IF EMPTY TO ENSURE BADGES RENDER
-        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+        // 🌟 แก้ไข: ใช้ GLOBAL_USER_LIST แบบไม่มี window.
+        if (typeof fetchUsers === 'function' && (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers(true);
         }
 
@@ -863,23 +861,20 @@ window.renderFineTable = function(isAdminOverride) {
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             let cleanNoteForTable = f.note.trim();
-            // 🌟 ล้างวงเล็บอีกชั้นก่อนแสดงผลในตาราง (ป้องกันฐานข้อมูลเก่า)
             while (cleanNoteForTable.startsWith('(') && cleanNoteForTable.endsWith(')')) {
                 cleanNoteForTable = cleanNoteForTable.substring(1, cleanNoteForTable.length - 1).trim();
             }
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: cleanNoteForTable });
         }
 
-        // 🌟 ดึงแผนกและกะของพนักงานมาใส่ท้ายชื่อโดยใช้ Template
         let displayName = f.user_name;
         let deptBadgeHtml = '';
 
-        if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
-            // 🌟 ค้นหาแบบไม่สนตัวพิมพ์เล็ก/ใหญ่ ป้องกันปัญหาพิมพ์ admin กับ Admin แล้วหาไม่เจอ
-            const dbUser = window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+        // 🌟 แก้ไข: ใช้ GLOBAL_USER_LIST แบบไม่มี window.
+        if (GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
+            const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
             
             if (dbUser) {
-                // 1. ป้ายแผนก (Dept)
                 let dept = dbUser.department || 'AM';
                 let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
                 
@@ -896,7 +891,6 @@ window.renderFineTable = function(isAdminOverride) {
                 
                 deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
 
-                // 2. ป้ายกะ (Shift)
                 if (dbUser.allowed_shift) {
                     let sName = dbUser.allowed_shift.replace('กะ', '');
                     let sColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700';
@@ -909,7 +903,6 @@ window.renderFineTable = function(isAdminOverride) {
                     deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: sColor, deptName: sName });
                 }
             } else {
-                // 🌟 กรณีชื่อที่พิมพ์ไม่มีอยู่ในระบบ
                 deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: 'bg-gray-100 text-gray-500 border-gray-300 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700', deptName: 'ไม่มีในระบบ' });
             }
         } else {
@@ -918,12 +911,10 @@ window.renderFineTable = function(isAdminOverride) {
 
         displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml: deptBadgeHtml });
 
-        // 🌟 ลบคำว่า (ปรับ XXX) ออกไปให้หมด
         let rawRule = f.rule_text || '';
         let cleanRule = rawRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
         let ruleDisplay = cleanRule;
-        // 🌟 ใส่สีหมวดหมู่อย่างแม่นยำด้วย Regex ใหม่
         const catMatch = cleanRule.match(/^\s*\[([^\]]+)\]\s*(.*)/);
         
         if (catMatch) {
@@ -940,7 +931,6 @@ window.renderFineTable = function(isAdminOverride) {
             ruleDisplay = window.renderTemplate('tpl-fine-history-rule-normal', { ruleDetail: cleanRule });
         }
 
-        // 🌟 ส่งตัวแปร ruleText เข้า Template ให้ตรงเป๊ะ!
         return window.renderTemplate('tpl-fine-history-row', {
             id: f.id,
             dateStr: dateStr,
@@ -984,11 +974,9 @@ window.generateFineText = function() {
         return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎหมายก่อนครับ', 'warning');
     }
 
-    // ดึงหมายเหตุ
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
-    // 🌟 ระบบแทรกคำอัตโนมัติ (Smart Insertion) สำหรับคัดลอก
     let finalNote = noteSelect;
     if (noteInput) {
         if (finalNote) {
@@ -1009,7 +997,6 @@ window.generateFineText = function() {
         }
     }
 
-    // 🌟 ล้างวงเล็บให้เหลืออันเดียว
     if (finalNote) {
         finalNote = finalNote.trim();
         while (finalNote.startsWith('(') && finalNote.endsWith(')')) {
@@ -1017,33 +1004,15 @@ window.generateFineText = function() {
         }
     }
 
-    // ดึงแผนกและทีมของพนักงาน
-    let dept = 'AM';
-    let team = '-';
-    if (window.GLOBAL_USER_LIST) {
-        const targetUser = window.GLOBAL_USER_LIST.find(u => u.username === empName);
-        if (targetUser) {
-            dept = targetUser.department || 'AM';
-            team = targetUser.team || '-';
-        }
-    }
+    let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
+    cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
-    // สร้างคำขึ้นต้น
-    let userStr = [dept, team, empName].filter(x => x && x !== '-').join('-');
-    // แก้ไข ODOL ให้เป็น AMOL แทน
-    if (userStr.includes('ODOL-')) userStr = userStr.replace('OD-ODOL-', 'AMOL-').replace('ODOL-', 'AMOL-');
-
-    // ทำความสะอาดกฎ (เอาคำว่า (ปรับ 100) ท้ายประโยคออก เพื่อไม่ให้ซ้ำ)
-    let cleanRule = ruleText.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
-
-    // ประกอบร่างข้อความ
-    let resultText = `ปรับ ${userStr} ${cleanRule}`;
+    let resultText = `ปรับ ${empName} ${cleanRule}`;
     
     if (finalNote) {
         resultText += ` (${finalNote})`;
     }
 
-    // โชว์กล่องข้อความ
     const resultBox = document.getElementById('fineTextResultBox');
     const textArea = document.getElementById('fineTextResult');
     if (resultBox && textArea) {
