@@ -128,15 +128,35 @@
                     </button>
                 </div>
 
-                <div class="flex flex-col sm:flex-row gap-3 mb-8 bg-amber-50 dark:bg-slate-900 p-5 rounded-2xl border border-amber-200 dark:border-slate-700 shadow-inner">
-                    <div class="flex-1">
-                        <label class="block text-xs font-bold text-amber-700 dark:text-amber-500 mb-2">เพิ่มหัวข้อกฎใหม่</label>
-                        <input type="text" id="newRuleInputPage" placeholder="พิมพ์หัวข้อความผิด (เช่น ลืมปิดไฟในห้อง)..." class="w-full p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm transition">
-                    </div>
-                    <div class="flex items-end">
-                        <button onclick="addFineRulePage()" class="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-3.5 rounded-xl font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-1 border border-orange-400">
-                            <span class="material-icons text-base">add_circle</span> เพิ่มลงระบบ
-                        </button>
+                <div class="flex flex-col gap-4 mb-8 bg-amber-50 dark:bg-slate-900 p-5 rounded-2xl border border-amber-200 dark:border-slate-700 shadow-inner">
+                    <label class="block text-sm font-black text-amber-700 dark:text-amber-500 flex items-center gap-1"><span class="material-icons text-[18px]">add_task</span> เพิ่มหัวข้อกฎใหม่</label>
+                    
+                    <div class="flex flex-col md:flex-row gap-3 items-start md:items-end">
+                        <div class="w-full md:w-[20%]">
+                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หมวดหมู่</label>
+                            <select id="newRuleCategory" class="w-full p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm cursor-pointer transition">
+                                <option value="ออนไลน์">🌐 ออนไลน์</option>
+                                <option value="WFH">🏠 WFH</option>
+                                <option value="ออฟฟิศ">🏢 ออฟฟิศ</option>
+                                <option value="อื่นๆ">📌 อื่นๆ</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex-1 w-full">
+                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">รายละเอียดความผิด</label>
+                            <input type="text" id="newRuleInputPage" placeholder="เช่น ลืมปิดไฟในห้อง, เล่นเกมเวลางาน..." class="w-full p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm transition">
+                        </div>
+                        
+                        <div class="w-full md:w-[20%]">
+                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ค่าปรับ (ถ้ามี)</label>
+                            <input type="number" id="newRuleAmount" placeholder="เช่น 500" class="w-full p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm transition">
+                        </div>
+                        
+                        <div class="w-full md:w-auto">
+                            <button onclick="addFineRulePage()" class="w-full md:w-auto bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-3.5 rounded-xl font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-1 border border-orange-400">
+                                <span class="material-icons text-base">add_circle</span> เพิ่มลงระบบ
+                            </button>
+                        </div>
                     </div>
                 </div>
 
