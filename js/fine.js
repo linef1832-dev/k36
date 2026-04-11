@@ -1,12 +1,10 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V3 (Dropdown Groups + Auto Amount)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V4 (Two-Step Select + Fix Delete)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
 
-// 📜 สรุปกฎระเบียบจากเอกสาร OKVIP ทั้ง 4 ไฟล์ (แยกหมวดหมู่)
 const okvipRules = [
-    // ============ 🌐 หมวดออนไลน์ ============
     "[ออนไลน์] เช็คชื่อสายเกิน 10 นาที (ปรับ 100) / เกิน 1 ชม. (ไม่ได้ค่าแรง)",
     "[ออนไลน์] ไม่ได้เช็คชื่อ 2 ครั้ง (ขาดงาน ไม่ได้ค่าแรง 2 วัน)",
     "[ออนไลน์] ไม่รับสาย OA สุ่มโทรติดต่อกัน 3 ครั้ง (ไม่ได้ค่าแรง)",
@@ -20,7 +18,6 @@ const okvipRules = [
     "[ออนไลน์] รับงานซ้อน / ใช้เรซูเม่ปลอม / ใช้คอมเครื่องเดียวกัน (เลิกจ้าง)",
     "[ออนไลน์] ขโมยข้อมูล / ปลอมแปลงข้อมูล / สมัครบัญชีเว็บตัวเอง (ปรับ 2,500 + คืนเงิน)",
 
-    // ============ 🏠 หมวด WFH ============
     "[WFH] มาสาย / กลับก่อนเวลา 10-30 นาที (ปรับ 300) / เกิน 30 นาที (ไม่ได้ค่าแรง)",
     "[WFH] รูปเช็คชื่อไม่ได้มาตรฐาน (ปรับ 300)",
     "[WFH] ไม่อยู่หน้างาน / ไม่รับสาย 3 ครั้ง (หักค่าจ้าง 1 วัน)",
@@ -40,7 +37,6 @@ const okvipRules = [
     "[WFH] พูดจาไม่สุภาพ / โจมตีบุคคล (ปรับ 300)",
     "[WFH] ขโมย / ยักยอกทรัพย์ / ปลอมแปลงข้อมูล (ปรับ 5,000 + คืนเงิน)",
 
-    // ============ 🏢 หมวดออฟฟิศ (ทั่วไป) ============
     "[ออฟฟิศ] มาสาย / กลับก่อน / ไม่อยู่หน้างาน (ปรับ 100-300 / คัดกฎ / ไม่ได้ค่าแรง)",
     "[ออฟฟิศ] ไม่สแกนบัตรเข้า-ออกงาน (ปรับ 100)",
     "[ออฟฟิศ] ขาดงานไม่แจ้ง (ปรับ 3 เท่าของค่าแรง)",
@@ -101,9 +97,6 @@ window.initFineApp = async function() {
     await fetchFinesData(isAdmin);
 };
 
-// -----------------------------------------
-// 🔄 ระบบเปลี่ยนหน้า (Tab System)
-// -----------------------------------------
 window.switchFineTab = function(tabName) {
     const issueTab = document.getElementById('fineContent_issue');
     const rulesTab = document.getElementById('fineContent_rules');
@@ -129,9 +122,6 @@ window.switchFineTab = function(tabName) {
     }
 };
 
-// -----------------------------------------
-// ระบบค้นหาพนักงาน (Custom Dropdown)
-// -----------------------------------------
 function populateEmpSelect() {
     const dropdown = document.getElementById('fineEmpDropdown');
     if (!dropdown || !GLOBAL_USER_LIST) return;
@@ -172,13 +162,12 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// -----------------------------------------
-// จัดการหัวข้อกฎ (Accordion UI + Dropdown Auto Fill)
-// -----------------------------------------
+// ===============================================
+// 🌟 การจัดการกฎ (ตัวกรองหมวดหมู่ และ Accordion)
+// ===============================================
 async function loadFineRules() {
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'fine_rules_data').single();
-        
         if (data && data.value) {
             globalFineRules = JSON.parse(data.value);
             if (globalFineRules.length < 20) {
@@ -196,7 +185,57 @@ async function loadFineRules() {
     }
 }
 
-// ปุ่มเปิด/ปิดหมวดหมู่ย่อย (Accordion หน้าตั้งค่า)
+// ระบบกรองกฎสำหรับหน้าแรก (Two-step selection)
+window.filterRulesByCategory = function() {
+    const catSelect = document.getElementById('fineCategorySelect');
+    const ruleSelect = document.getElementById('fineRuleSelect');
+    const amountInput = document.getElementById('fineAmount');
+    
+    if(amountInput) amountInput.value = '';
+
+    if (!catSelect || !ruleSelect) return;
+    
+    const cat = catSelect.value;
+    if (!cat) {
+        ruleSelect.innerHTML = '<option value="">-- เลือกหมวดหมู่ทางซ้ายก่อน --</option>';
+        ruleSelect.disabled = true;
+        return;
+    }
+
+    ruleSelect.disabled = false;
+    let filteredRules = [];
+    
+    globalFineRules.forEach(r => {
+        if (cat === 'ออนไลน์' && r.includes('[ออนไลน์]')) filteredRules.push(r);
+        else if (cat === 'WFH' && r.includes('[WFH]')) filteredRules.push(r);
+        else if (cat === 'ออฟฟิศ' && r.includes('[ออฟฟิศ]')) filteredRules.push(r);
+        else if (cat === 'อื่นๆ' && !r.includes('[ออนไลน์]') && !r.includes('[WFH]') && !r.includes('[ออฟฟิศ]')) filteredRules.push(r);
+    });
+
+    if (filteredRules.length === 0) {
+        ruleSelect.innerHTML = '<option value="">-- ไม่มีกฎในหมวดนี้ --</option>';
+        ruleSelect.disabled = true;
+        return;
+    }
+
+    ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}">${r}</option>`).join('');
+
+    // ระบบดึงจำนวนเงินอัตโนมัติ
+    ruleSelect.onchange = function() {
+        const amtInput = document.getElementById('fineAmount');
+        if (this.value && amtInput) {
+            const match = this.value.match(/ปรับ\s*([\d,]+)/);
+            if (match && match[1].replace(/,/g, '').length >= 3) {
+                amtInput.value = parseInt(match[1].replace(/,/g, ''), 10);
+            } else {
+                amtInput.value = ''; 
+            }
+        } else if (amtInput) {
+            amtInput.value = '';
+        }
+    };
+}
+
 window.toggleRuleGroup = function(groupId, btn) {
     const groupDiv = document.getElementById(groupId);
     const icon = btn.querySelector('.material-icons:last-child');
@@ -212,57 +251,16 @@ window.toggleRuleGroup = function(groupId, btn) {
 }
 
 function renderRulesDropdown() {
-    const select = document.getElementById('fineRuleSelect');
     const listDivFull = document.getElementById('fineRulesListFull');
     const countSpan = document.getElementById('ruleCount');
-
-    // จัดกลุ่มข้อมูล
-    const groups = {
-        'ออนไลน์': [],
-        'WFH': [],
-        'ออฟฟิศ': [],
-        'อื่นๆ': []
-    };
-
-    globalFineRules.forEach((r, idx) => {
-        if (r.includes('[ออนไลน์]')) groups['ออนไลน์'].push({ text: r, index: idx });
-        else if (r.includes('[WFH]')) groups['WFH'].push({ text: r, index: idx });
-        else if (r.includes('[ออฟฟิศ]')) groups['ออฟฟิศ'].push({ text: r, index: idx });
-        else groups['อื่นๆ'].push({ text: r, index: idx });
-    });
-
-    // 🌟 1. เรนเดอร์ Dropdown หน้าแรก (ใส่ optgroup แยกหมวดหมู่)
-    if (select) {
-        let selectHtml = '<option value="">-- เลือกหัวข้อที่ผิด --</option>';
-        for (const [gName, items] of Object.entries(groups)) {
-            if (items.length > 0) {
-                selectHtml += `<optgroup label="--- หมวด: ${gName} ---">`;
-                items.forEach(item => {
-                    selectHtml += `<option value="${item.text}">${item.text}</option>`;
-                });
-                selectHtml += `</optgroup>`;
-            }
-        }
-        select.innerHTML = selectHtml;
-
-        // 🌟 ดึงตัวเลขค่าปรับมาใส่อัตโนมัติเมื่อเลือก
-        select.onchange = function() {
-            const amountInput = document.getElementById('fineAmount');
-            if (this.value && amountInput) {
-                // หาข้อความที่มีคำว่า "ปรับ " ตามด้วยตัวเลข เช่น "ปรับ 300", "ปรับ 1,000"
-                const match = this.value.match(/ปรับ\s*([\d,]+)/);
-                if (match && match[1].replace(/,/g, '').length >= 3) {
-                    amountInput.value = parseInt(match[1].replace(/,/g, ''), 10);
-                } else {
-                    amountInput.value = ''; // ถ้าไม่มี หรือเจอคำอื่น ก็ปล่อยว่างให้กรอกเอง
-                }
-            } else if (amountInput) {
-                amountInput.value = '';
-            }
-        };
-    }
     
-    // 🌟 2. เรนเดอร์ List ในหน้าตั้งค่ากฎ (Accordion)
+    // รีเซ็ต Dropdown หน้าแรก
+    const catSelect = document.getElementById('fineCategorySelect');
+    if (catSelect) {
+        catSelect.value = "";
+        window.filterRulesByCategory(); // บังคับล้างช่องกฎ
+    }
+
     if (listDivFull) {
         if(countSpan) countSpan.innerText = globalFineRules.length;
         
@@ -270,6 +268,14 @@ function renderRulesDropdown() {
             listDivFull.innerHTML = `<div class="text-center py-10 text-gray-400 font-bold bg-slate-100 dark:bg-slate-900 rounded-xl">ไม่มีหัวข้อกฎหมายในระบบ</div>`;
             return;
         }
+
+        const groups = { 'ออนไลน์': [], 'WFH': [], 'ออฟฟิศ': [], 'อื่นๆ': [] };
+        globalFineRules.forEach((r, idx) => {
+            if (r.includes('[ออนไลน์]')) groups['ออนไลน์'].push({ text: r, index: idx });
+            else if (r.includes('[WFH]')) groups['WFH'].push({ text: r, index: idx });
+            else if (r.includes('[ออฟฟิศ]')) groups['ออฟฟิศ'].push({ text: r, index: idx });
+            else groups['อื่นๆ'].push({ text: r, index: idx });
+        });
 
         let html = '';
         const buildGroupHtml = (title, items, icon, colorClass) => {
@@ -323,11 +329,8 @@ window.addFineRulePage = async function() {
 
     if(!textVal) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์รายละเอียดความผิดก่อนครับ', 'warning');
     
-    // 🌟 นำข้อมูลมาต่อกันให้อัตโนมัติ
     let finalRuleString = `[${category}] ${textVal}`;
-
     if (amtVal && parseInt(amtVal) > 0) {
-        // ใส่ลูกน้ำให้ตัวเลขดูสวยงาม (เช่น 1,000)
         const formattedAmt = parseInt(amtVal).toLocaleString('en-US');
         finalRuleString += ` (ปรับ ${formattedAmt})`;
     }
@@ -335,13 +338,33 @@ window.addFineRulePage = async function() {
     Swal.fire({title: 'กำลังเพิ่มกฎ...', didOpen: () => Swal.showLoading()});
     globalFineRules.push(finalRuleString); 
     
-    // เคลียร์ค่าหลังกรอกเสร็จ
     textInput.value = '';
     if(amtInput) amtInput.value = '';
     
     await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
     renderRulesDropdown();
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
+}
+
+// 🌟 แก้ไขฟังก์ชันการลบ ให้ใช้งานได้ถูกต้อง!
+window.removeFineRulePage = async function(idx) {
+    const res = await Swal.fire({
+        title: 'ลบกฎข้อนี้?',
+        text: `คุณต้องการลบ "${globalFineRules[idx]}" ออกจากระบบใช่หรือไม่?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ลบทิ้ง'
+    });
+
+    if (res.isConfirmed) {
+        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
+        globalFineRules.splice(idx, 1);
+        await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+        renderRulesDropdown();
+        Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
+    }
 }
 
 window.restoreOKVIPRules = async function() {
@@ -427,7 +450,7 @@ window.submitFine = async function(e) {
     const amount = document.getElementById('fineAmount').value || 0;
     const fileInput = document.getElementById('fineImageInput');
 
-    if(!empName || !ruleText) return;
+    if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
 
     const targetUser = GLOBAL_USER_LIST.find(u => u.username === empName);
     if (!targetUser) {
@@ -466,7 +489,10 @@ window.submitFine = async function(e) {
         Swal.fire({icon: 'success', title: 'ออกใบปรับสำเร็จ', timer: 1500, showConfirmButton: false});
         
         document.getElementById('fineEmpInput').value = '';
-        document.getElementById('fineRuleSelect').value = '';
+        const catSelect = document.getElementById('fineCategorySelect');
+        if(catSelect) catSelect.value = '';
+        window.filterRulesByCategory(); // ล้างกฎ
+        
         document.getElementById('fineNote').value = '';
         document.getElementById('fineAmount').value = '';
         clearFineImg();
