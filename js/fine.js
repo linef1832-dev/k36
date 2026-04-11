@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V23 (Fix User Not Found & Load Badges)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V24 (Fixed User List & Case Sensitive)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -72,7 +72,7 @@ window.initFineApp = async function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
 
-    if (typeof fetchUsers === 'function' && (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0)) {
+    if (typeof fetchUsers === 'function' && (typeof GLOBAL_USER_LIST === 'undefined' || GLOBAL_USER_LIST.length === 0)) {
         await fetchUsers();
     }
 
@@ -135,7 +135,7 @@ window.switchFineTab = function(tabName) {
 
 function populateEmpSelect() {
     const dropdown = document.getElementById('fineEmpDropdown');
-    if (!dropdown || !GLOBAL_USER_LIST) return;
+    if (!dropdown || typeof GLOBAL_USER_LIST === 'undefined') return;
     
     const sortedUsers = [...GLOBAL_USER_LIST].sort((a, b) => a.username.localeCompare(b.username));
     dropdown.innerHTML = sortedUsers.map(u => {
@@ -719,12 +719,8 @@ window.submitFine = async function(e) {
 
     if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
 
-    // 🌟 FORCE FETCH USERS IF EMPTY TO ENSURE BADGES RENDER
-    if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
-        await fetchUsers(true);
-    }
-
-    const targetUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
+    // 🌟 แก้ไข: ค้นหาพนักงานแบบไม่สนใจพิมพ์เล็ก-พิมพ์ใหญ่
+    const targetUser = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (!targetUser) {
         return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง', 'warning');
     }
@@ -748,7 +744,7 @@ window.submitFine = async function(e) {
 
         const { error: dbError } = await appDB.from('fines').insert([{
             user_id: targetId,
-            user_name: empName,
+            user_name: targetUser.username, // 🌟 ใช้ชื่อที่สะกดถูก 100% จากฐานข้อมูลเซฟลงไป
             rule_text: ruleText,
             note: finalNote, 
             amount: amountToSave, 
@@ -790,7 +786,8 @@ window.fetchFinesData = async function(isAdmin) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><span class="material-icons animate-spin text-red-500">sync</span> โหลดข้อมูล...</td></tr>';
 
     try {
-        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+        // 🌟 FORCE FETCH USERS IF EMPTY TO ENSURE BADGES RENDER
+        if (typeof fetchUsers === 'function' && (typeof GLOBAL_USER_LIST === 'undefined' || GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers(true);
         }
 
@@ -864,6 +861,7 @@ window.renderFineTable = function(isAdminOverride) {
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             let cleanNoteForTable = f.note.trim();
+            // 🌟 ล้างวงเล็บอีกชั้นก่อนแสดงผลในตาราง
             while (cleanNoteForTable.startsWith('(') && cleanNoteForTable.endsWith(')')) {
                 cleanNoteForTable = cleanNoteForTable.substring(1, cleanNoteForTable.length - 1).trim();
             }
@@ -873,10 +871,12 @@ window.renderFineTable = function(isAdminOverride) {
         let displayName = f.user_name;
         let deptBadgeHtml = '';
 
-        if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
-            const dbUser = window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+        // 🌟 แก้ไขการดึงป้ายแผนกและกะให้แน่นอน 100%
+        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
+            const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
             
             if (dbUser) {
+                // 1. ป้ายแผนก (Dept)
                 let dept = dbUser.department || 'AM';
                 let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
                 
@@ -893,6 +893,7 @@ window.renderFineTable = function(isAdminOverride) {
                 
                 deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
 
+                // 2. ป้ายกะ (Shift)
                 if (dbUser.allowed_shift) {
                     let sName = dbUser.allowed_shift.replace('กะ', '');
                     let sColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700';
@@ -913,10 +914,12 @@ window.renderFineTable = function(isAdminOverride) {
 
         displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml: deptBadgeHtml });
 
+        // 🌟 ลบคำว่า (ปรับ XXX) ออกไปให้หมด
         let rawRule = f.rule_text || '';
         let cleanRule = rawRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
         let ruleDisplay = cleanRule;
+        // 🌟 ใส่สีหมวดหมู่อย่างแม่นยำด้วย Regex ใหม่
         const catMatch = cleanRule.match(/^\s*\[([^\]]+)\]\s*(.*)/);
         
         if (catMatch) {
@@ -969,7 +972,11 @@ window.generateFineText = function() {
     
     if (!empInput || !ruleSelect) return;
 
-    const empName = empInput.value.trim();
+    // 🌟 ดึงชื่อพนักงานมาตรงๆ ไม่ต้องสนพิมพ์เล็กใหญ่ เพราะจะดึงชื่อที่ถูกต้องจากระบบมาใช้
+    let empName = empInput.value.trim();
+    const targetUser = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
+    if (targetUser) empName = targetUser.username; // ใช้ชื่อจากระบบ ป้องกันพิมพ์สลับพิมพ์ใหญ่เล็ก
+    
     const ruleText = ruleSelect.value;
     
     if (!empName || !ruleText) {
@@ -979,6 +986,7 @@ window.generateFineText = function() {
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
+    // 🌟 ระบบแทรกคำอัตโนมัติ (Smart Insertion) สำหรับคัดลอก
     let finalNote = noteSelect;
     if (noteInput) {
         if (finalNote) {
@@ -1006,6 +1014,7 @@ window.generateFineText = function() {
         }
     }
 
+    // 🌟 เอาคำว่า [หมวดหมู่] และ (ปรับ XXX) ออก
     let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
     cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
@@ -1015,7 +1024,7 @@ window.generateFineText = function() {
         resultText += ` (${finalNote})`;
     }
 
-    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย (รูปแบบ วัน/เดือน/ปี)
+    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
