@@ -2382,12 +2382,25 @@ window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
 // 🟢 ควบคุมการสลับหน้า (แอดมิน / ประวัติ / หน้าหลัก)
 // ==========================================
 window.openAdminPanel = async function() {
+    // 🌟 1. เปิดวงกลมหมุนๆ บังคับให้เบราว์เซอร์รอก่อน
+    Swal.fire({title: 'กำลังดึงรายชื่อพนักงาน...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
     if (!document.getElementById('adminPanel')) {
         if(typeof showPage === 'function') await showPage('dashboard');
         if(typeof initDashboard === 'function') initDashboard(); // เตรียมตารางไว้เบื้องหลัง
     }
-    
-    // ซ่อนหน้าหลัก+ประวัติ และโชว์หน้าแอดมินทันที (ลบตัวหน่วงเวลาออกแล้ว ไม่กระพริบแน่นอน)
+
+    // 🌟 2. หัวใจสำคัญ: ถ้าข้อมูลพนักงานยังไม่มี ให้บังคับดึงข้อมูลให้เสร็จ (await) ก่อนไปต่อ
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
+        if (typeof fetchUsers === 'function') {
+            await fetchUsers(); 
+        }
+    } else {
+        // ถ้ามีข้อมูลอยู่แล้ว สั่งให้มันวาดตารางอัปเดตรอไว้เลย
+        if (typeof renderUserTableDirectly === 'function') window.renderUserTableDirectly();
+    }
+
+    // ซ่อนหน้าหลัก+ประวัติ และโชว์หน้าแอดมินทันที
     if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
     if(document.getElementById('logsPage')) {
         document.getElementById('logsPage').classList.add('hidden');
@@ -2399,47 +2412,11 @@ window.openAdminPanel = async function() {
         adminPanel.classList.remove('hidden');
         adminPanel.classList.add('flex');
     }
-    switchAdminTab('settings');
-};
+    
+    if (typeof switchAdminTab === 'function') switchAdminTab('settings');
 
-window.openLogsPage = async function() {
-    if (!document.getElementById('logsPage')) {
-        if(typeof showPage === 'function') await showPage('dashboard');
-        if(typeof initDashboard === 'function') initDashboard();
-    }
-    
-    if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
-    if(document.getElementById('adminPanel')) {
-        document.getElementById('adminPanel').classList.add('hidden');
-        document.getElementById('adminPanel').classList.remove('flex');
-    }
-    
-    const logsPage = document.getElementById('logsPage');
-    if(logsPage) {
-        logsPage.classList.remove('hidden');
-        logsPage.classList.add('flex');
-        if(typeof fetchLogs === 'function') fetchLogs(); // ดึงข้อมูลประวัติทันที
-    }
-};
-
-window.backToDashboard = function() {
-    // ซ่อนหน้า Logs และแอดมิน
-    if(document.getElementById('logsPage')) {
-        document.getElementById('logsPage').classList.add('hidden');
-        document.getElementById('logsPage').classList.remove('flex');
-    }
-    if(document.getElementById('adminPanel')) {
-        document.getElementById('adminPanel').classList.add('hidden');
-        document.getElementById('adminPanel').classList.remove('flex');
-    }
-    
-    // โชว์หน้าหลักกลับมา
-    if(document.getElementById('mainContentArea')) {
-        document.getElementById('mainContentArea').classList.remove('hidden');
-    }
-    
-    // 🟢 สำคัญ: สั่งให้รีโหลดตารางทุกครั้งที่กดปุ่ม "กลับหน้าหลัก"
-    if(typeof initDashboard === 'function') initDashboard(); 
+    // 🌟 3. ข้อมูลมาครบ วาดตารางเสร็จ สั่งปิดวงกลมหมุนๆ ได้
+    Swal.close();
 };
 
 // =========================================================
