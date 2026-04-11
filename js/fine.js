@@ -313,37 +313,35 @@ function renderRulesDropdown() {
 }
 
 window.addFineRulePage = async function() {
-    const input = document.getElementById('newRuleInputPage');
-    const val = input.value.trim();
-    if(!val) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์หัวข้อกฎก่อนครับ', 'warning');
+    const catInput = document.getElementById('newRuleCategory');
+    const textInput = document.getElementById('newRuleInputPage');
+    const amtInput = document.getElementById('newRuleAmount');
+
+    const category = catInput ? catInput.value : 'อื่นๆ';
+    const textVal = textInput.value.trim();
+    const amtVal = amtInput ? amtInput.value.trim() : '';
+
+    if(!textVal) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์รายละเอียดความผิดก่อนครับ', 'warning');
+    
+    // 🌟 นำข้อมูลมาต่อกันให้อัตโนมัติ
+    let finalRuleString = `[${category}] ${textVal}`;
+
+    if (amtVal && parseInt(amtVal) > 0) {
+        // ใส่ลูกน้ำให้ตัวเลขดูสวยงาม (เช่น 1,000)
+        const formattedAmt = parseInt(amtVal).toLocaleString('en-US');
+        finalRuleString += ` (ปรับ ${formattedAmt})`;
+    }
     
     Swal.fire({title: 'กำลังเพิ่มกฎ...', didOpen: () => Swal.showLoading()});
-    globalFineRules.push(val); // เอาไปต่อท้าย เพื่อให้ตกหมวด "อื่นๆ" ในกรณีไม่ได้ระบุวงเล็บหน้าชื่อ
-    input.value = '';
+    globalFineRules.push(finalRuleString); 
+    
+    // เคลียร์ค่าหลังกรอกเสร็จ
+    textInput.value = '';
+    if(amtInput) amtInput.value = '';
     
     await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
     renderRulesDropdown();
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
-}
-
-window.removeFineRulePage = async function(idx) {
-    const res = await Swal.fire({
-        title: 'ลบกฎข้อนี้?',
-        text: `คุณต้องการลบ "${globalFineRules[idx]}" ออกจากระบบใช่หรือไม่?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'ลบทิ้ง'
-    });
-
-    if (res.isConfirmed) {
-        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
-        globalFineRules.splice(idx, 1);
-        await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
-        renderRulesDropdown();
-        Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
-    }
 }
 
 window.restoreOKVIPRules = async function() {
