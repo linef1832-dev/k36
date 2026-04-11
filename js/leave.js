@@ -800,94 +800,92 @@ window.executeSaveSettings = async function() {
 };
 
 window.exportLeaveToExcel = async function() {
-    if (typeof ExcelJS === 'undefined') return Swal.fire('ระบบไม่พร้อม', 'รอโหลดระบบ Excel สักครู่', 'warning');
+    // 1. เช็คข้อมูลพนักงานก่อน
     if (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) return Swal.fire('ข้อมูลยังไม่พร้อม', 'กรุณารอสักครู่แล้วลองใหม่', 'warning');
 
-    Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', text: 'รอสักครู่นะครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    try {
-        const year = currentCalendarDate.getFullYear();
-        const month = currentCalendarDate.getMonth();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const monthNamesThai = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
-        const monthName = `${monthNamesThai[month]} ${year}`;
-
-        const staffList = GLOBAL_USER_LIST.filter(u => {
-            const uDept = u.department || 'AM';
-            if (currentViewDept === 'TRAINER') return uDept === 'TRAINER';
-            if (currentViewDept === 'NEW') return uDept === 'NEW';
-            return u.role === 'staff' && uDept === currentViewDept;
-        }).sort((a,b) => a.username.localeCompare(b.username));
-
-        if (staffList.length === 0) { Swal.close(); return Swal.fire('ไม่มีข้อมูล', `ไม่มีรายชื่อพนักงานในแผนก ${currentViewDept}`, 'warning'); }
-
-        const bookedMap = new Map();
-        allLeaveData.forEach(l => { const rsn = (l.reason === 'Table-Booking' || !l.reason) ? 'X' : l.reason; bookedMap.set(`${l.user_id}_${l.leave_date}`, rsn); });
-
-        const styleMap = {
-            'X':  { bg: 'FFEF4444', font: 'FFFFFFFF' }, 'XX': { bg: 'FFFACC15', font: 'FF854D0E' },
-            'X4': { bg: 'FFEC4899', font: 'FFFFFFFF' }, 'KL': { bg: 'FF22C55E', font: 'FFFFFFFF' },
-            'TL': { bg: 'FF3B82F6', font: 'FFFFFFFF' }, 'TX': { bg: 'FF3B82F6', font: 'FFFFFFFF' },
-            'PN': { bg: 'FF92400E', font: 'FFFFFFFF' },
-            'KP': { bg: 'FFA16207', font: 'FFFFFFFF' }
-        };
-
-        const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet(`วันหยุด ${currentViewDept}`);
-        ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 1 }];
-
-        let headers = ['ลำดับ', 'ชื่อพนักงาน', 'กะที่ทำ', 'รวมวันหยุด'];
-        for (let d = 1; d <= daysInMonth; d++) headers.push(String(d)); 
-        const headerRow = ws.addRow(headers);
+    // 2. เรียกใช้ฟังก์ชันแอบโหลด ExcelJS (ดึงมาจากที่เราสร้างไว้ใน summary.js)
+    window.loadExcelLibrary(async function() {
+        Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', text: 'รอสักครู่นะครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
-        headerRow.eachCell((cell) => {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
-            cell.alignment = { horizontal: 'center', vertical: 'middle' };
-            cell.border = { top: {style:'thin', color: {argb:'FF334155'}}, left: {style:'thin', color: {argb:'FF334155'}}, bottom: {style:'thin', color: {argb:'FF334155'}}, right: {style:'thin', color: {argb:'FF334155'}} };
-        });
+        try {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const monthNamesThai = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+            const monthName = `${monthNamesThai[month]} ${year}`;
 
-        staffList.forEach((u, index) => {
-            let rowData = [ index + 1, u.username, (u.allowed_shift || '-').replace('กะ', ''), 0 ];
-            let leaveCount = 0; let dailyReasons = [];
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                let rsn = bookedMap.get(`${u.id}_${dateStr}`);
-                if (rsn) { leaveCount++; if(rsn === 'Table-Booking') rsn = 'X'; dailyReasons.push(rsn); } else { dailyReasons.push(''); }
-            }
-            rowData[3] = leaveCount; 
-            const excelRow = ws.addRow(rowData.concat(dailyReasons));
+            const staffList = GLOBAL_USER_LIST.filter(u => {
+                const uDept = u.department || 'AM';
+                if (currentViewDept === 'TRAINER') return uDept === 'TRAINER';
+                if (currentViewDept === 'NEW') return uDept === 'NEW';
+                return u.role === 'staff' && uDept === currentViewDept;
+            }).sort((a,b) => a.username.localeCompare(b.username));
 
-            for (let d = 1; d <= daysInMonth; d++) {
-                const cellVal = dailyReasons[d - 1]; const cell = excelRow.getCell(d + 4); 
+            if (staffList.length === 0) { Swal.close(); return Swal.fire('ไม่มีข้อมูล', `ไม่มีรายชื่อพนักงานในแผนก ${currentViewDept}`, 'warning'); }
+
+            const bookedMap = new Map();
+            allLeaveData.forEach(l => { const rsn = (l.reason === 'Table-Booking' || !l.reason) ? 'X' : l.reason; bookedMap.set(`${l.user_id}_${l.leave_date}`, rsn); });
+
+            const styleMap = {
+                'X':  { bg: 'FFEF4444', font: 'FFFFFFFF' }, 'XX': { bg: 'FFFACC15', font: 'FF854D0E' },
+                'X4': { bg: 'FFEC4899', font: 'FFFFFFFF' }, 'KL': { bg: 'FF22C55E', font: 'FFFFFFFF' },
+                'TL': { bg: 'FF3B82F6', font: 'FFFFFFFF' }, 'TX': { bg: 'FF3B82F6', font: 'FFFFFFFF' },
+                'PN': { bg: 'FF92400E', font: 'FFFFFFFF' },
+                'KP': { bg: 'FFA16207', font: 'FFFFFFFF' }
+            };
+
+            const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet(`วันหยุด ${currentViewDept}`);
+            ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 1 }];
+
+            let headers = ['ลำดับ', 'ชื่อพนักงาน', 'กะที่ทำ', 'รวมวันหยุด'];
+            for (let d = 1; d <= daysInMonth; d++) headers.push(String(d)); 
+            const headerRow = ws.addRow(headers);
+            
+            headerRow.eachCell((cell) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+                cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                cell.border = { top: {style:'thin', color: {argb:'FFE2E8F0'}}, left: {style:'thin', color: {argb:'FFE2E8F0'}}, bottom: {style:'thin', color: {argb:'FFE2E8F0'}}, right: {style:'thin', color: {argb:'FFE2E8F0'}} };
-                if (cellVal && styleMap[cellVal]) {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: styleMap[cellVal].bg } };
-                    cell.font = { color: { argb: styleMap[cellVal].font }, bold: true };
+                cell.border = { top: {style:'thin', color: {argb:'FF334155'}}, left: {style:'thin', color: {argb:'FF334155'}}, bottom: {style:'thin', color: {argb:'FF334155'}}, right: {style:'thin', color: {argb:'FF334155'}} };
+            });
+
+            staffList.forEach((u, index) => {
+                let rowData = [ index + 1, u.username, (u.allowed_shift || '-').replace('กะ', ''), 0 ];
+                let leaveCount = 0; let dailyReasons = [];
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    let rsn = bookedMap.get(`${u.id}_${dateStr}`);
+                    if (rsn) { leaveCount++; if(rsn === 'Table-Booking') rsn = 'X'; dailyReasons.push(rsn); } else { dailyReasons.push(''); }
                 }
-            }
-            excelRow.getCell(1).alignment = { horizontal: 'center' }; excelRow.getCell(2).font = { bold: true }; excelRow.getCell(3).alignment = { horizontal: 'center' }; excelRow.getCell(4).alignment = { horizontal: 'center' }; excelRow.getCell(4).font = { bold: true, color: { argb: 'FFEF4444' } }; 
-        });
+                rowData[3] = leaveCount; 
+                const excelRow = ws.addRow(rowData.concat(dailyReasons));
 
-        ws.columns.forEach((col, index) => {
-            if (index === 0) col.width = 6; else if (index === 1) col.width = 20; else if (index === 2) col.width = 10; else if (index === 3) col.width = 12; else col.width = 5; 
-        });
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const cellVal = dailyReasons[d - 1]; const cell = excelRow.getCell(d + 4); 
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = { top: {style:'thin', color: {argb:'FFE2E8F0'}}, left: {style:'thin', color: {argb:'FFE2E8F0'}}, bottom: {style:'thin', color: {argb:'FFE2E8F0'}}, right: {style:'thin', color: {argb:'FFE2E8F0'}} };
+                    if (cellVal && styleMap[cellVal]) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: styleMap[cellVal].bg } };
+                        cell.font = { color: { argb: styleMap[cellVal].font }, bold: true };
+                    }
+                }
+                excelRow.getCell(1).alignment = { horizontal: 'center' }; excelRow.getCell(2).font = { bold: true }; excelRow.getCell(3).alignment = { horizontal: 'center' }; excelRow.getCell(4).alignment = { horizontal: 'center' }; excelRow.getCell(4).font = { bold: true, color: { argb: 'FFEF4444' } }; 
+            });
 
-        const buffer = await wb.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url; link.download = `ตารางวันหยุด_${currentViewDept}_${monthName}.xlsx`; document.body.appendChild(link);
-        link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+            ws.columns.forEach((col, index) => {
+                if (index === 0) col.width = 6; else if (index === 1) col.width = 20; else if (index === 2) col.width = 10; else if (index === 3) col.width = 12; else col.width = 5; 
+            });
 
-        Swal.fire({ icon: 'success', title: 'ดาวน์โหลดไฟล์ Excel สำเร็จ!', timer: 1500, showConfirmButton: false });
-    } catch (err) { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างไฟล์ Excel ได้', 'error'); }
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url; link.download = `ตารางวันหยุด_${currentViewDept}_${monthName}.xlsx`; document.body.appendChild(link);
+            link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+
+            Swal.fire({ icon: 'success', title: 'ดาวน์โหลดไฟล์ Excel สำเร็จ!', timer: 1500, showConfirmButton: false });
+        } catch (err) { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างไฟล์ Excel ได้: ' + err.message, 'error'); }
+    });
 };
-
-async function logLeaveAction(action, userId, username, dateStr) {
-    try {
-        await appDB.from('leave_logs').insert({ action_type: action, user_id: userId, username: username, actor_name: currentUser.username || 'Unknown', leave_date: dateStr, department: currentViewDept });
-    } catch (err) { console.error("Log Error:", err); }
-}
 
 window.openHistoryModal = async function() {
     let htmlContent = `
