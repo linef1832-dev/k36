@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V6 (Strict HTML/JS Separation)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V7 (Fix Template Bug & Split Edit Fields)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -279,7 +279,6 @@ function renderRulesDropdown() {
             if (items.length === 0) return '';
             const groupId = 'group_' + title;
             
-            // 🌟 ใช้งาน Template สำหรับ Item
             let itemsHtml = items.map((item, i) => {
                 return window.renderTemplate('tpl-fine-rule-item', {
                     badgeClass: colorClass.badge,
@@ -289,7 +288,6 @@ function renderRulesDropdown() {
                 });
             }).join('');
 
-            // 🌟 ใช้งาน Template สำหรับ Group
             return window.renderTemplate('tpl-fine-rule-group', {
                 groupId: groupId,
                 headerClass: colorClass.header,
@@ -338,36 +336,86 @@ window.addFineRulePage = async function() {
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
 
+// 🌟 ปรับปรุงการแก้ไขกฎหมาย (แยก 3 ช่อง: หมวดหมู่ / ความผิด / ค่าปรับ)
 window.editFineRulePage = async function(idx) {
     const currentRule = globalFineRules[idx];
     
-    const { value: newRuleText } = await Swal.fire({
-        title: '<span class="text-amber-500">แก้ไขหัวข้อกฎ</span>',
-        input: 'textarea',
-        inputValue: currentRule,
-        inputPlaceholder: 'พิมพ์รายละเอียดกฎตรงนี้...',
+    // แกะข้อความเดิมออกมาเป็นชิ้นๆ
+    let currentCategory = 'อื่นๆ';
+    let currentDetail = currentRule;
+    let currentAmount = '';
+
+    // ดึงหมวดหมู่ออกมา (ถ้ามีในวงเล็บเหลี่ยม)
+    const catMatch = currentRule.match(/^\[(.*?)\]\s*/);
+    if (catMatch) {
+        currentCategory = catMatch[1];
+        currentDetail = currentDetail.replace(catMatch[0], ''); 
+    }
+
+    // ดึงค่าปรับออกมา (ถ้ามีในวงเล็บท้าย)
+    const amtMatch = currentDetail.match(/\s*\(ปรับ\s*([\d,]+)\)$/);
+    if (amtMatch) {
+        currentAmount = amtMatch[1].replace(/,/g, '');
+        currentDetail = currentDetail.replace(amtMatch[0], ''); 
+    }
+    
+    const htmlForm = `
+        <div class="text-left space-y-3">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หมวดหมู่</label>
+                <select id="editRuleCategory" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner cursor-pointer transition">
+                    <option value="ออนไลน์" ${currentCategory === 'ออนไลน์' ? 'selected' : ''}>🌐 ออนไลน์</option>
+                    <option value="WFH" ${currentCategory === 'WFH' ? 'selected' : ''}>🏠 WFH</option>
+                    <option value="ออฟฟิศ" ${currentCategory === 'ออฟฟิศ' ? 'selected' : ''}>🏢 ออฟฟิศ</option>
+                    <option value="อื่นๆ" ${currentCategory === 'อื่นๆ' ? 'selected' : ''}>📌 อื่นๆ</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">รายละเอียดความผิด</label>
+                <input type="text" id="editRuleDetail" value="${currentDetail}" placeholder="ระบุรายละเอียด..." class="w-full p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner transition">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ค่าปรับ (ถ้ามี)</label>
+                <input type="number" id="editRuleAmount" value="${currentAmount}" placeholder="ระบุตัวเลข เช่น 500" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner transition">
+            </div>
+        </div>
+    `;
+
+    const { isConfirmed, value: parsedData } = await Swal.fire({
+        title: '<div class="text-xl font-black text-amber-500 flex items-center justify-center gap-2"><span class="material-icons">edit</span> แก้ไขหัวข้อกฎ</div>',
+        html: htmlForm,
         showCancelButton: true,
         confirmButtonText: 'บันทึกการแก้ไข',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#f59e0b',
         cancelButtonColor: '#64748b',
-        inputValidator: (value) => {
-            if (!value.trim()) {
-                return 'กรุณากรอกข้อความกฎหมาย!';
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl' },
+        preConfirm: () => {
+            const cat = document.getElementById('editRuleCategory').value;
+            const detail = document.getElementById('editRuleDetail').value.trim();
+            const amt = document.getElementById('editRuleAmount').value.trim();
+            if (!detail) {
+                Swal.showValidationMessage('กรุณากรอกรายละเอียดความผิด!');
+                return false;
             }
-        },
-        customClass: { 
-            popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl',
-            input: 'bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl'
+            return { cat, detail, amt };
         }
     });
 
-    if (newRuleText && newRuleText.trim() !== currentRule) {
-        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
-        globalFineRules[idx] = newRuleText.trim();
-        await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
-        renderRulesDropdown();
-        Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
+    if (isConfirmed && parsedData) {
+        let finalRuleString = `[${parsedData.cat}] ${parsedData.detail}`;
+        if (parsedData.amt && parseInt(parsedData.amt) > 0) {
+            const formattedAmt = parseInt(parsedData.amt).toLocaleString('en-US');
+            finalRuleString += ` (ปรับ ${formattedAmt})`;
+        }
+
+        if (finalRuleString !== currentRule) {
+            Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+            globalFineRules[idx] = finalRuleString;
+            await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+            renderRulesDropdown();
+            Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
+        }
     }
 };
 
@@ -593,18 +641,17 @@ window.renderFineTable = function(isAdminOverride) {
         const empCol = isAdmin ? window.renderTemplate('tpl-fine-history-emp-col', { username: f.user_name }) : '';
         const actionCol = isAdmin ? window.renderTemplate('tpl-fine-history-action-col', { delBtn: delBtn }) : '';
 
-        // 🌟 ใช้งาน Template แทนการใช้ HTML แบบ String แบบดิบๆ
+        // 🌟 แก้ปัญหา Template Error ในหน้านี้โดยการส่ง ruleText แยก
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: f.note });
         }
-        
-        const ruleDisplay = `<span class="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800/50 shadow-sm inline-block">${f.rule_text}</span>${noteHtml}`;
 
         return window.renderTemplate('tpl-fine-history-row', {
             dateStr: dateStr,
             empCol: empCol,
-            ruleDisplay: ruleDisplay,
+            ruleText: f.rule_text,
+            noteHtml: noteHtml,
             amountDisplay: amountDisplay,
             imgDisplay: imgDisplay,
             actionCol: actionCol
