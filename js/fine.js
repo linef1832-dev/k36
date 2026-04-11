@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V19 (Added Shift Badge to History Table)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V19 (Fixed Department & Shift Badges Render)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -72,7 +72,7 @@ window.initFineApp = async function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
 
-    if (isAdmin && typeof fetchUsers === 'function' && (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0)) {
+    if (typeof fetchUsers === 'function' && (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0)) {
         await fetchUsers();
     }
 
@@ -119,21 +119,17 @@ window.switchFineTab = function(tabName) {
     const btnRules = document.getElementById('tabFineRules');
 
     if (tabName === 'issue') {
-        issueTab.classList.remove('hidden');
-        issueTab.classList.add('grid');
-        rulesTab.classList.add('hidden');
-        rulesTab.classList.remove('block');
+        if(issueTab) { issueTab.classList.remove('hidden'); issueTab.classList.add('grid'); }
+        if(rulesTab) { rulesTab.classList.add('hidden'); rulesTab.classList.remove('block'); }
 
-        btnIssue.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-md flex items-center gap-1 border border-red-400";
-        btnRules.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600";
+        if(btnIssue) btnIssue.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-md flex items-center gap-1 border border-red-400";
+        if(btnRules) btnRules.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600";
     } else {
-        issueTab.classList.add('hidden');
-        issueTab.classList.remove('grid');
-        rulesTab.classList.remove('hidden');
-        rulesTab.classList.add('block');
+        if(issueTab) { issueTab.classList.add('hidden'); issueTab.classList.remove('grid'); }
+        if(rulesTab) { rulesTab.classList.remove('hidden'); rulesTab.classList.add('block'); }
 
-        btnRules.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-amber-500 text-slate-900 shadow-md flex items-center gap-1 border border-amber-400";
-        btnIssue.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600";
+        if(btnRules) btnRules.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-amber-500 text-slate-900 shadow-md flex items-center gap-1 border border-amber-400";
+        if(btnIssue) btnIssue.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600";
     }
 };
 
@@ -151,22 +147,29 @@ function populateEmpSelect() {
 }
 
 window.showEmpDropdown = function() {
-    document.getElementById('fineEmpDropdown').classList.remove('hidden');
+    const dd = document.getElementById('fineEmpDropdown');
+    if(dd) dd.classList.remove('hidden');
 }
 
 window.filterEmpDropdown = function() {
-    const term = document.getElementById('fineEmpInput').value.toLowerCase();
+    const input = document.getElementById('fineEmpInput');
+    if(!input) return;
+    const term = input.value.toLowerCase();
     const items = document.querySelectorAll('.fine-emp-item');
     items.forEach(item => {
-        const name = item.querySelector('.font-bold').innerText.toLowerCase();
+        const nameEl = item.querySelector('.font-bold');
+        if(!nameEl) return;
+        const name = nameEl.innerText.toLowerCase();
         if(name.includes(term)) item.style.display = 'flex';
         else item.style.display = 'none';
     });
 }
 
 window.selectFineEmp = function(name) {
-    document.getElementById('fineEmpInput').value = name;
-    document.getElementById('fineEmpDropdown').classList.add('hidden');
+    const input = document.getElementById('fineEmpInput');
+    const dd = document.getElementById('fineEmpDropdown');
+    if(input) input.value = name;
+    if(dd) dd.classList.add('hidden');
 }
 
 document.addEventListener('click', function(e) {
@@ -228,6 +231,7 @@ function renderNotesDropdown() {
 
 window.addFineNotePage = async function() {
     const input = document.getElementById('newNoteInputPage');
+    if(!input) return;
     const val = input.value.trim();
     if(!val) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์ข้อความหมายเหตุก่อนครับ', 'warning');
     
@@ -392,15 +396,16 @@ window.filterRulesByCategory = function() {
 
 window.toggleRuleGroup = function(groupId, btn) {
     const groupDiv = document.getElementById(groupId);
+    if(!groupDiv) return;
     const icon = btn.querySelector('.material-icons:last-child');
     if (groupDiv.classList.contains('hidden')) {
         groupDiv.classList.remove('hidden');
         groupDiv.classList.add('flex');
-        icon.style.transform = 'rotate(0deg)';
+        if(icon) icon.style.transform = 'rotate(0deg)';
     } else {
         groupDiv.classList.add('hidden');
         groupDiv.classList.remove('flex');
-        icon.style.transform = 'rotate(-90deg)';
+        if(icon) icon.style.transform = 'rotate(-90deg)';
     }
 }
 
@@ -469,7 +474,7 @@ window.addFineRulePage = async function() {
     const amtInput = document.getElementById('newRuleAmount');
 
     const category = catInput ? catInput.value : 'อื่นๆ';
-    const textVal = textInput.value.trim();
+    const textVal = textInput ? textInput.value.trim() : '';
     const amtVal = amtInput ? amtInput.value.trim() : '';
 
     if(!textVal) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์รายละเอียดความผิดก่อนครับ', 'warning');
@@ -484,7 +489,7 @@ window.addFineRulePage = async function() {
     Swal.fire({title: 'กำลังเพิ่มกฎ...', didOpen: () => Swal.showLoading()});
     globalFineRules.push(finalRuleString); 
     
-    textInput.value = '';
+    if(textInput) textInput.value = '';
     if(amtInput) amtInput.value = '';
     
     await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
@@ -618,9 +623,12 @@ window.previewFineImg = function(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            document.getElementById('fineImgPreview').src = e.target.result;
-            document.getElementById('fineImgPreviewBox').classList.remove('hidden');
-            document.getElementById('finePasteArea').classList.add('hidden');
+            const imgPreview = document.getElementById('fineImgPreview');
+            const previewBox = document.getElementById('fineImgPreviewBox');
+            const pasteArea = document.getElementById('finePasteArea');
+            if(imgPreview) imgPreview.src = e.target.result;
+            if(previewBox) previewBox.classList.remove('hidden');
+            if(pasteArea) pasteArea.classList.add('hidden');
         };
         reader.readAsDataURL(input.files[0]);
     }
@@ -628,17 +636,25 @@ window.previewFineImg = function(input) {
 
 window.clearFineImg = function(e) {
     if(e) e.preventDefault(); 
-    document.getElementById('fineImageInput').value = '';
-    document.getElementById('fineImgPreview').src = '';
-    document.getElementById('fineImgPreviewBox').classList.add('hidden');
-    document.getElementById('finePasteArea').classList.remove('hidden');
+    const fileInput = document.getElementById('fineImageInput');
+    const imgPreview = document.getElementById('fineImgPreview');
+    const previewBox = document.getElementById('fineImgPreviewBox');
+    const pasteArea = document.getElementById('finePasteArea');
+    
+    if(fileInput) fileInput.value = '';
+    if(imgPreview) imgPreview.src = '';
+    if(previewBox) previewBox.classList.add('hidden');
+    if(pasteArea) pasteArea.classList.remove('hidden');
 };
 
 window.viewFineImage = function(url) {
-    document.getElementById('fineExpandedImg').src = url;
+    const expImg = document.getElementById('fineExpandedImg');
     const modal = document.getElementById('fineImageModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    if(expImg) expImg.src = url;
+    if(modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
 }
 
 document.addEventListener('paste', function(e) {
@@ -668,8 +684,13 @@ document.addEventListener('paste', function(e) {
 // -----------------------------------------
 window.submitFine = async function(e) {
     e.preventDefault();
-    const empName = document.getElementById('fineEmpInput').value.trim();
-    const ruleText = document.getElementById('fineRuleSelect').value;
+    const empInput = document.getElementById('fineEmpInput');
+    const ruleSelect = document.getElementById('fineRuleSelect');
+    
+    if(!empInput || !ruleSelect) return;
+    
+    const empName = empInput.value.trim();
+    const ruleText = ruleSelect.value;
     
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
@@ -703,20 +724,23 @@ window.submitFine = async function(e) {
         }
     }
     
-    const penaltyType = document.getElementById('finePenaltyType').value;
+    const penaltyTypeEl = document.getElementById('finePenaltyType');
+    const amountEl = document.getElementById('fineAmount');
+    const penaltyType = penaltyTypeEl ? penaltyTypeEl.value : 'money';
     let amountToSave = 0;
     
     if (penaltyType === 'nowage') {
         amountToSave = -1;
     } else {
-        amountToSave = parseInt(document.getElementById('fineAmount').value) || 0;
+        amountToSave = amountEl ? (parseInt(amountEl.value) || 0) : 0;
     }
     
     const fileInput = document.getElementById('fineImageInput');
 
     if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
 
-    const targetUser = GLOBAL_USER_LIST.find(u => u.username === empName);
+    // 🌟 แก้ไข: ค้นหาแบบไม่สนพิมพ์เล็ก/ใหญ่ เพื่อป้องกันหาคนไม่เจอ
+    const targetUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (!targetUser) {
         return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง', 'warning');
     }
@@ -726,7 +750,7 @@ window.submitFine = async function(e) {
 
     let imageUrl = '';
     try {
-        if (fileInput.files && fileInput.files.length > 0) {
+        if (fileInput && fileInput.files && fileInput.files.length > 0) {
             Swal.update({text: 'กำลังอัปโหลดหลักฐาน...'});
             const file = fileInput.files[0];
             const fileExt = file.name.split('.').pop();
@@ -752,18 +776,18 @@ window.submitFine = async function(e) {
 
         Swal.fire({icon: 'success', title: 'ออกใบปรับสำเร็จ', timer: 1500, showConfirmButton: false});
         
-        document.getElementById('fineEmpInput').value = '';
+        if(empInput) empInput.value = '';
         const catSelect = document.getElementById('fineCategorySelect');
         if(catSelect) catSelect.value = '';
         window.filterRulesByCategory(); 
         
         if (document.getElementById('fineNoteSelect')) document.getElementById('fineNoteSelect').value = '';
         if (document.getElementById('fineNoteInput')) document.getElementById('fineNoteInput').value = '';
-        if (document.getElementById('finePenaltyType')) {
-            document.getElementById('finePenaltyType').value = 'money';
+        if (penaltyTypeEl) {
+            penaltyTypeEl.value = 'money';
             window.toggleFineAmountInput();
         }
-        document.getElementById('fineAmount').value = '';
+        if(amountEl) amountEl.value = '';
         clearFineImg();
         
         fetchFinesData(true);
@@ -782,6 +806,11 @@ window.fetchFinesData = async function(isAdmin) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><span class="material-icons animate-spin text-red-500">sync</span> โหลดข้อมูล...</td></tr>';
 
     try {
+        // 🌟 FORCE FETCH USERS IF EMPTY TO ENSURE BADGES RENDER
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+            await fetchUsers(true);
+        }
+
         let query = appDB.from('fines').select('*').order('created_at', { ascending: false });
         if (!isAdmin) {
             query = query.eq('user_name', currentUser.username);
@@ -808,8 +837,11 @@ window.renderFineTable = function(isAdminOverride) {
     });
     
     const tbody = document.getElementById('fineTableBody');
-    const term = document.getElementById('fineSearchInput') ? document.getElementById('fineSearchInput').value.toLowerCase() : '';
+    const searchInput = document.getElementById('fineSearchInput');
+    const term = searchInput ? searchInput.value.toLowerCase() : '';
     
+    if(!tbody) return;
+
     const filtered = globalFines.filter(f => 
         (f.user_name && f.user_name.toLowerCase().includes(term)) || 
         (f.rule_text && f.rule_text.toLowerCase().includes(term)) ||
@@ -858,43 +890,51 @@ window.renderFineTable = function(isAdminOverride) {
 
         // 🌟 ดึงแผนกและกะของพนักงานมาใส่ท้ายชื่อโดยใช้ Template
         let displayName = f.user_name;
-        const dbUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => u.username === f.user_name) : null;
-        
-        if (dbUser) {
-            // 1. ป้ายแผนก (Dept)
-            let dept = dbUser.department || 'AM';
-            let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
-            
-            let deptColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800/50';
-            let deptName = 'AM';
-            
-            if (isTrainer) {
-                deptColor = 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-800/50';
-                deptName = 'ผู้สอน';
-            } else if (dept === 'OD') {
-                deptColor = 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-300 dark:border-pink-800/50';
-                deptName = 'OD';
-            }
-            
-            const deptBadgeHtml = window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
+        let deptBadgeHtml = '';
 
-            // 2. ป้ายกะ (Shift)
-            let shiftBadgeHtml = '';
-            if (dbUser.allowed_shift) {
-                let sName = dbUser.allowed_shift.replace('กะ', '');
-                let sColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700';
+        if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
+            // 🌟 ค้นหาแบบไม่สนตัวพิมพ์เล็ก/ใหญ่ ป้องกันปัญหาพิมพ์ admin กับ Admin แล้วหาไม่เจอ
+            const dbUser = window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+            
+            if (dbUser) {
+                // 1. ป้ายแผนก (Dept)
+                let dept = dbUser.department || 'AM';
+                let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
                 
-                if (sName === 'เช้า') sColor = 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800/50';
-                else if (sName === 'กลาง') sColor = 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-800/50';
-                else if (sName === 'ดึก') sColor = 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800/50';
-                else if (sName === 'all' || sName === 'อิสระ') { sName = 'อิสระ'; sColor = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800/50'; }
+                let deptColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800/50';
+                let deptName = 'AM';
                 
-                shiftBadgeHtml = window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: sColor, deptName: sName });
-            }
+                if (isTrainer) {
+                    deptColor = 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-800/50';
+                    deptName = 'ผู้สอน';
+                } else if (dept === 'OD') {
+                    deptColor = 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-300 dark:border-pink-800/50';
+                    deptName = 'OD';
+                }
+                
+                deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
 
-            // นำป้ายทั้ง 2 มารวมกัน
-            displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml: deptBadgeHtml + shiftBadgeHtml });
+                // 2. ป้ายกะ (Shift)
+                if (dbUser.allowed_shift) {
+                    let sName = dbUser.allowed_shift.replace('กะ', '');
+                    let sColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700';
+                    
+                    if (sName === 'เช้า') sColor = 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800/50';
+                    else if (sName === 'กลาง') sColor = 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-800/50';
+                    else if (sName === 'ดึก') sColor = 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800/50';
+                    else if (sName === 'all' || sName === 'อิสระ') { sName = 'อิสระ'; sColor = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800/50'; }
+                    
+                    deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: sColor, deptName: sName });
+                }
+            } else {
+                // 🌟 กรณีชื่อที่พิมพ์ไม่มีอยู่ในระบบ
+                deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: 'bg-gray-100 text-gray-500 border-gray-300 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700', deptName: 'ไม่มีในระบบ' });
+            }
+        } else {
+             deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: 'bg-gray-100 text-gray-500 border-gray-300 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700', deptName: 'กำลังโหลด..' });
         }
+
+        displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml: deptBadgeHtml });
 
         // 🌟 ลบคำว่า (ปรับ XXX) ออกไปให้หมด
         let rawRule = f.rule_text || '';
@@ -950,8 +990,13 @@ window.deleteFine = async function(id) {
 // 🌟 ฟังก์ชันสร้างข้อความสำหรับคัดลอก (Copy Text)
 // =========================================
 window.generateFineText = function() {
-    const empName = document.getElementById('fineEmpInput').value.trim();
-    const ruleText = document.getElementById('fineRuleSelect').value;
+    const empInput = document.getElementById('fineEmpInput');
+    const ruleSelect = document.getElementById('fineRuleSelect');
+    
+    if (!empInput || !ruleSelect) return;
+
+    const empName = empInput.value.trim();
+    const ruleText = ruleSelect.value;
     
     if (!empName || !ruleText) {
         return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎหมายก่อนครับ', 'warning');
@@ -995,7 +1040,7 @@ window.generateFineText = function() {
     let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
     cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
-    // ประกอบร่างข้อความ (ไม่เอาแผนกและทีมมาต่อชื่อ)
+    // ประกอบร่างข้อความ (ไม่เอาแผนกและทีมมาต่อชื่อ ตามที่ยูสเซอร์ขอ)
     let resultText = `ปรับ ${empName} ${cleanRule}`;
     
     if (finalNote) {
