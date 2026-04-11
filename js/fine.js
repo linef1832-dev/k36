@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V15 (Final Clean UI & Copy Text)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V16 (Fixed Init Crash & Copy Format)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -81,25 +81,29 @@ window.initFineApp = async function() {
     const tabsContainer = document.getElementById('fineTabsContainer');
     
     if (isAdmin) {
-        adminControls.classList.remove('hidden');
-        tabsContainer.classList.remove('hidden'); 
-        tableContainer.classList.remove('lg:col-span-12');
-        tableContainer.classList.add('lg:col-span-8');
-        document.getElementById('fineSubtitle').innerText = "ออกใบปรับและดูประวัติทั้งหมด";
-        document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> รายการใบปรับทั้งหมดในระบบ';
-        document.getElementById('thEmpName').style.display = 'table-cell';
-        document.getElementById('thAction').style.display = 'table-cell';
+        if(adminControls) adminControls.classList.remove('hidden');
+        if(tabsContainer) tabsContainer.classList.remove('hidden'); 
+        if(tableContainer) {
+            tableContainer.classList.remove('lg:col-span-12');
+            tableContainer.classList.add('lg:col-span-8');
+        }
+        const sub = document.getElementById('fineSubtitle');
+        if(sub) sub.innerText = "ออกใบปรับและดูประวัติทั้งหมด";
+        const title = document.getElementById('tableFineTitle');
+        if(title) title.innerHTML = '<span class="material-icons text-blue-500">list_alt</span> รายการใบปรับทั้งหมดในระบบ';
         
         populateEmpSelect(); 
     } else {
-        adminControls.classList.add('hidden');
-        tabsContainer.classList.add('hidden'); 
-        tableContainer.classList.remove('lg:col-span-8');
-        tableContainer.classList.add('lg:col-span-12');
-        document.getElementById('fineSubtitle').innerText = "ดูประวัติใบปรับของคุณ";
-        document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
-        document.getElementById('thEmpName').style.display = 'none';
-        document.getElementById('thAction').style.display = 'none';
+        if(adminControls) adminControls.classList.add('hidden');
+        if(tabsContainer) tabsContainer.classList.add('hidden'); 
+        if(tableContainer) {
+            tableContainer.classList.remove('lg:col-span-8');
+            tableContainer.classList.add('lg:col-span-12');
+        }
+        const sub = document.getElementById('fineSubtitle');
+        if(sub) sub.innerText = "ดูประวัติใบปรับของคุณ";
+        const title = document.getElementById('tableFineTitle');
+        if(title) title.innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
     }
 
     switchFineTab('issue');
@@ -929,8 +933,6 @@ window.generateFineText = function() {
     // คำนวณบทลงโทษ
     const penaltyType = document.getElementById('finePenaltyType').value;
     const amount = document.getElementById('fineAmount').value || 0;
-    // ไม่เอาจำนวนเงินมาใส่ในข้อความแล้ว
-    // let penaltyStr = penaltyType === 'nowage' ? 'ไม่ได้ค่าแรง' : `ปรับ ${amount} THB`;
 
     // ดึงแผนกและทีมของพนักงาน
     let dept = 'AM';
@@ -946,7 +948,7 @@ window.generateFineText = function() {
     // สร้างคำขึ้นต้น
     let userStr = [dept, team, empName].filter(x => x && x !== '-').join('-');
     // แก้ไข ODOL ให้เป็น AMOL แทน
-    if (userStr.startsWith('ODOL-')) userStr = userStr.replace('ODOL-', 'AMOL-');
+    if (userStr.includes('ODOL-')) userStr = userStr.replace('OD-ODOL-', 'AMOL-').replace('ODOL-', 'AMOL-');
 
     // ทำความสะอาดกฎ (เอาคำว่า (ปรับ 100) ท้ายประโยคออก เพื่อไม่ให้ซ้ำ)
     let cleanRule = ruleText.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
@@ -955,7 +957,7 @@ window.generateFineText = function() {
     let resultText = `ปรับ ${userStr} ${cleanRule}`;
     
     if (finalNote) {
-        resultText += ` ( ${finalNote} )`;
+        resultText += ` (${finalNote})`;
     }
 
     // โชว์กล่องข้อความ
