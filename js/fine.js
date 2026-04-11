@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V13 (Strict HTML Separation)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V14 (Fixed Init Error & Final UI)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -87,9 +87,6 @@ window.initFineApp = async function() {
         tableContainer.classList.add('lg:col-span-8');
         document.getElementById('fineSubtitle').innerText = "ออกใบปรับและดูประวัติทั้งหมด";
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> รายการใบปรับทั้งหมดในระบบ';
-        document.getElementById('thEmpName').style.display = 'table-cell';
-        document.getElementById('thAction').style.display = 'table-cell';
-        
         populateEmpSelect(); 
     } else {
         adminControls.classList.add('hidden');
@@ -98,8 +95,6 @@ window.initFineApp = async function() {
         tableContainer.classList.add('lg:col-span-12');
         document.getElementById('fineSubtitle').innerText = "ดูประวัติใบปรับของคุณ";
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
-        document.getElementById('thEmpName').style.display = 'none';
-        document.getElementById('thAction').style.display = 'none';
     }
 
     switchFineTab('issue');
