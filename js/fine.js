@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V24 (Fixed User List & Case Sensitive)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V25 (Updated Default Rules)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -14,58 +14,21 @@ const defaultNotes = [
     "เตือนแล้วแต่ไม่ปรับปรุง"
 ];
 
+// 🌟 อัปเดตกฎระเบียบชุดใหม่
 const okvipRules = [
-    "[ออนไลน์] เช็คชื่อสายเกิน 10 นาที (ปรับ 100) / เกิน 1 ชม. (ไม่ได้ค่าแรง)",
-    "[ออนไลน์] ไม่ได้เช็คชื่อ 2 ครั้ง (ขาดงาน ไม่ได้ค่าแรง 2 วัน)",
-    "[ออนไลน์] ไม่รับสาย OA สุ่มโทรติดต่อกัน 3 ครั้ง (ไม่ได้ค่าแรง)",
-    "[ออนไลน์] รูปเช็คชื่อไม่ได้มาตรฐาน / ไม่เห็นจอ / ข้อมือ / มืด (ปรับ 100)",
-    "[ออนไลน์] ไม่ปฏิบัติตามคำสั่ง / ทำงานด้วยอารมณ์ (ปรับ 300)",
-    "[ออนไลน์] ไม่ตั้งใจทำงาน / พูดจาไม่สุภาพ (ปรับ 150)",
-    "[ออนไลน์] ทำงานล่าช้า / ไม่ร่วมมือระหว่างแผนก (ปรับ 150)",
-    "[ออนไลน์] ไม่ทำงานตามกระบวนการจนเกิดความเสียหาย (ปรับ 150)",
-    "[ออนไลน์] ทำลายผลประโยชน์บริษัท (ปรับ 500 / ร้ายแรงเลิกจ้าง)",
-    "[ออนไลน์] ปิดบังข้อมูล / ให้ข้อมูลเท็จ / ปกป้องคนผิด (ปรับ 500)",
-    "[ออนไลน์] รับงานซ้อน / ใช้เรซูเม่ปลอม / ใช้คอมเครื่องเดียวกัน (เลิกจ้าง)",
-    "[ออนไลน์] ขโมยข้อมูล / ปลอมแปลงข้อมูล / สมัครบัญชีเว็บตัวเอง (ปรับ 2,500 + คืนเงิน)",
-
-    "[WFH] มาสาย / กลับก่อนเวลา 10-30 นาที (ปรับ 300) / เกิน 30 นาที (ไม่ได้ค่าแรง)",
-    "[WFH] รูปเช็คชื่อไม่ได้มาตรฐาน (ปรับ 300)",
-    "[WFH] ไม่อยู่หน้างาน / ไม่รับสาย 3 ครั้ง (หักค่าจ้าง 1 วัน)",
-    "[WFH] ให้คนอื่นทำแทน / ทำงานซ้อน 2 งาน (เลิกจ้าง)",
-    "[WFH] ขาดงานไม่แจ้ง / ติดต่อไม่ได้เกิน 24 ชม. (หัก 3 เท่า / เลิกจ้าง)",
-    "[WFH] เล่นเกม / ดูวิดีโอ / ช้อปปิ้ง เวลางาน (ปรับ 300)",
-    "[WFH] ลบประวัติแชทโดยไม่ได้รับอนุญาต (ปรับ 1,000)",
-    "[WFH] ไม่เชื่อฟัง / ทำงานตามอารมณ์ / ก้าวร้าว (ปรับ 1,000)",
-    "[WFH] รับงานนอก / ทำพฤติกรรมกระทบความสามัคคี (ปรับ 1,000)",
-    "[WFH] กินข้าวเวลางาน / ดื่มแอลกอฮอล์ (ปรับ 300)",
-    "[WFH] ไม่ตั้งใจทำงาน / พฤติกรรมไม่เหมาะสม (ปรับ 300)",
-    "[WFH] ทำงานล่าช้า / ประสานงานข้ามแผนกไม่ดี (ปรับ 500)",
-    "[WFH] ไม่ทำตามขั้นตอนจนเกิดความเสียหาย (ปรับ 300)",
-    "[WFH] ปกปิดข้อมูล / รายงานเท็จ / ปกปิดความผิด (ปรับ 300)",
-    "[WFH] รับไฟล์แปลกปลอม / ขาดความระมัดระวังด้านความปลอดภัย (ปรับ 500)",
-    "[WFH] ยุยงสร้างความขัดแย้ง / ด่าทอ / คุกคาม (ปรับ 1,000)",
-    "[WFH] พูดจาไม่สุภาพ / โจมตีบุคคล (ปรับ 300)",
-    "[WFH] ขโมย / ยักยอกทรัพย์ / ปลอมแปลงข้อมูล (ปรับ 5,000 + คืนเงิน)",
-
-    "[ออฟฟิศ] มาสาย / กลับก่อน / ไม่อยู่หน้างาน (ปรับ 100-300 / คัดกฎ / ไม่ได้ค่าแรง)",
-    "[ออฟฟิศ] ไม่สแกนบัตรเข้า-ออกงาน (ปรับ 100)",
-    "[ออฟฟิศ] ขาดงานไม่แจ้ง (ปรับ 3 เท่าของค่าแรง)",
-    "[ออฟฟิศ] พกโทรศัพท์ / อุปกรณ์ส่วนตัวเข้าพื้นที่ทำงาน (ปรับ 1,000)",
-    "[ออฟฟิศ] ลบประวัติแชท / ใช้อุปกรณ์บริษัททำเรื่องส่วนตัว (ปรับ 1,000)",
-    "[ออฟฟิศ] รับงานนอก / ทำพฤติกรรมกระทบความสามัคคี (ปรับ 1,000)",
-    "[ออฟฟิศ] กินอาหารในสำนักงาน / ดื่มแอลกอฮอล์ (ปรับ 300)",
-    "[ออฟฟิศ] ไม่ตั้งใจทำงาน / ปกปิดข้อมูล / ให้ข้อมูลเท็จ (ปรับ 300)",
-    "[ออฟฟิศ] รับไฟล์แปลกปลอม / ขาดความระมัดระวังด้านความปลอดภัย (ปรับ 500)",
-    "[ออฟฟิศ] ก่อเรื่อง / เสียงดัง / ดื่มแอลกอฮอล์ในหอพัก (ปรับ 300-500)",
-    "[ออฟฟิศ] เลี้ยงสัตว์ / ทิ้งขยะไม่เป็นที่ / สูบบุหรี่ผิดที่ (ปรับ 300)",
-    "[ออฟฟิศ] ชายเข้าห้องหญิง (ปรับ 500) / หญิงเข้าห้องผู้อื่นโดยไม่ขอ (ปรับ 300)",
-    "[ออฟฟิศ] ทำกิจกรรมรบกวนผู้อื่นหลังตี 3 / ออกนอกหอพักตี 3-6 (ปรับ 300)",
-    "[ออฟฟิศ] เล่นการพนัน / ยาเสพติด / ไสยศาสตร์ (ปรับ 5,000 + เลิกจ้าง)",
-    "[ออฟฟิศ] พาคนนอกเข้าพื้นที่สำนักงานหรือหอพัก (ปรับ 500)",
-    "[ออฟฟิศ] แอบใช้เครื่องใช้ไฟฟ้ากำลังสูง / ทำอาหารในหอพัก (ปรับ 500)",
-    "[ออฟฟิศ] ยุยงสร้างความขัดแย้ง / ด่าทอ / คุกคาม (ปรับ 1,000 + คัดกฎ)",
-    "[ออฟฟิศ] ไม่ปิดน้ำไฟ / ทำลายทรัพย์สินบริษัท (ปรับ 300 + ชดใช้ราคาจริง)",
-    "[ออฟฟิศ] ขโมย / ปลอมแปลงข้อมูล / ยักยอกทรัพย์ (ปรับ 5,000 + คืนเงิน)"
+    "[ออนไลน์] บทที่2 ข้อที่1 ไม่ได้เข้าเช็คชื่อ",
+    "[ออนไลน์] บทที่ 2 ข้อที่ 4 โทรติดต่อกัน 3 ครั้ง ไม่มีการรับสาย",
+    "[ออนไลน์] บทที่ 2 ข้อที่ 3 ออกจากหน้างานโดยไม่แจ้งให้คนเบื้องบนทราบ",
+    "[ออนไลน์] บทที่ 3 ข้อ 1 พฤติกรรมไม่เหมาะสม",
+    "[ออนไลน์] บทที่ 3 ข้อ 2 ไม่ตั้งใจทำงาน ทำงานไม่รอบคอบ",
+    "[ออนไลน์] บทที่ 3 ข้อที่ 4 ไม่ทำงานตามกระบวนการ",
+    "[ออฟฟิศ] บทที่ 3 ข้อ 7 ไม่ตั้งใจทำงาน ทำงานไม่รอบคอบ",
+    "[ออฟฟิศ] บทที่ 3 ข้อที่ 9 ไม่ทำงานตามกระบวนการ",
+    "[ออฟฟิศ] บทที่ 3 ข้อที่ 2 พฤติกรรมที่ส่งผลกระทบต่องาน",
+    "[WFH] บทที่ 2 ข้อที่ 1.1 มาทำงานเกินเวลาปกติ",
+    "[WFH] บทที่ 3 ข้อที่1 ระหว่างเวลางานทำเรื่องไม่เกี่ยวกับงาน",
+    "[WFH] บทที่ 3 ข้อที่ 6 ไม่ตั้งใจทำงาน ทำงานไม่รอบคอบ",
+    "[WFH] บทที่ 3 ข้อที่ 8 ไม่ทำตามขั้นตอน"
 ];
 
 window.initFineApp = async function() {
@@ -295,7 +258,7 @@ async function loadFineRules() {
         const { data } = await appDB.from('settings').select('value').eq('key', 'fine_rules_data').single();
         if (data && data.value) {
             globalFineRules = JSON.parse(data.value);
-            if (globalFineRules.length < 20) {
+            if (globalFineRules.length < 5) {
                 globalFineRules = okvipRules;
                 await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
             }
@@ -579,7 +542,7 @@ window.removeFineRulePage = async function(idx) {
 window.restoreOKVIPRules = async function() {
     const res = await Swal.fire({
         title: 'คืนค่าเริ่มต้น?',
-        text: `ระบบจะล้างกฎที่คุณพิมพ์เองทั้งหมด และโหลดกฎตั้งต้นของ "OKVIP" เข้ามาแทน คุณแน่ใจหรือไม่?`,
+        text: `คุณต้องการโหลดกฎตั้งต้นของ "OKVIP" ชุดใหม่เข้ามาทับกฎเดิมใช่หรือไม่? (กฎที่คุณสร้างเองจะหายไปทั้งหมด)`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#f59e0b',
@@ -590,9 +553,12 @@ window.restoreOKVIPRules = async function() {
     if (res.isConfirmed) {
         Swal.fire({title: 'กำลังดึงข้อมูล OKVIP...', didOpen: () => Swal.showLoading()});
         globalFineRules = [...okvipRules];
+        
+        // 🌟 เซฟทับฐานข้อมูลด้วยชุดกฎใหม่เสมอ
         await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
+        
         renderRulesDropdown();
-        Swal.fire({icon: 'success', title: 'คืนค่าสำเร็จ!', text: 'ระบบอัปเดตเป็นกฎของ OKVIP ให้เรียบร้อยครับ', timer: 2000, showConfirmButton: false});
+        Swal.fire({icon: 'success', title: 'คืนค่าสำเร็จ!', text: 'ระบบอัปเดตเป็นกฎของ OKVIP ชุดใหม่ให้เรียบร้อยครับ', timer: 2000, showConfirmButton: false});
     }
 }
 
@@ -719,8 +685,8 @@ window.submitFine = async function(e) {
 
     if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
 
-    // 🌟 แก้ไข: ค้นหาพนักงานแบบไม่สนใจพิมพ์เล็ก-พิมพ์ใหญ่
-    const targetUser = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
+    // 🌟 แก้ไข: ค้นหาแบบไม่สนพิมพ์เล็ก/ใหญ่ เพื่อป้องกันหาคนไม่เจอ
+    const targetUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (!targetUser) {
         return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง', 'warning');
     }
@@ -744,7 +710,7 @@ window.submitFine = async function(e) {
 
         const { error: dbError } = await appDB.from('fines').insert([{
             user_id: targetId,
-            user_name: targetUser.username, // 🌟 ใช้ชื่อที่สะกดถูก 100% จากฐานข้อมูลเซฟลงไป
+            user_name: targetUser.username, // 🌟 ใช้ชื่อที่สะกดถูก 100%
             rule_text: ruleText,
             note: finalNote, 
             amount: amountToSave, 
@@ -786,8 +752,7 @@ window.fetchFinesData = async function(isAdmin) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><span class="material-icons animate-spin text-red-500">sync</span> โหลดข้อมูล...</td></tr>';
 
     try {
-        // 🌟 FORCE FETCH USERS IF EMPTY TO ENSURE BADGES RENDER
-        if (typeof fetchUsers === 'function' && (typeof GLOBAL_USER_LIST === 'undefined' || GLOBAL_USER_LIST.length === 0)) {
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers(true);
         }
 
@@ -861,19 +826,19 @@ window.renderFineTable = function(isAdminOverride) {
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             let cleanNoteForTable = f.note.trim();
-            // 🌟 ล้างวงเล็บอีกชั้นก่อนแสดงผลในตาราง
+            // 🌟 ล้างวงเล็บอีกชั้นก่อนแสดงผลในตาราง (ป้องกันฐานข้อมูลเก่า)
             while (cleanNoteForTable.startsWith('(') && cleanNoteForTable.endsWith(')')) {
                 cleanNoteForTable = cleanNoteForTable.substring(1, cleanNoteForTable.length - 1).trim();
             }
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: cleanNoteForTable });
         }
 
+        // 🌟 ดึงแผนกและกะของพนักงานมาใส่ท้ายชื่อโดยใช้ Template
         let displayName = f.user_name;
         let deptBadgeHtml = '';
 
-        // 🌟 แก้ไขการดึงป้ายแผนกและกะให้แน่นอน 100%
-        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
-            const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+        if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
+            const dbUser = window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
             
             if (dbUser) {
                 // 1. ป้ายแผนก (Dept)
@@ -914,12 +879,10 @@ window.renderFineTable = function(isAdminOverride) {
 
         displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml: deptBadgeHtml });
 
-        // 🌟 ลบคำว่า (ปรับ XXX) ออกไปให้หมด
         let rawRule = f.rule_text || '';
         let cleanRule = rawRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
         let ruleDisplay = cleanRule;
-        // 🌟 ใส่สีหมวดหมู่อย่างแม่นยำด้วย Regex ใหม่
         const catMatch = cleanRule.match(/^\s*\[([^\]]+)\]\s*(.*)/);
         
         if (catMatch) {
@@ -972,10 +935,9 @@ window.generateFineText = function() {
     
     if (!empInput || !ruleSelect) return;
 
-    // 🌟 ดึงชื่อพนักงานมาตรงๆ ไม่ต้องสนพิมพ์เล็กใหญ่ เพราะจะดึงชื่อที่ถูกต้องจากระบบมาใช้
     let empName = empInput.value.trim();
     const targetUser = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
-    if (targetUser) empName = targetUser.username; // ใช้ชื่อจากระบบ ป้องกันพิมพ์สลับพิมพ์ใหญ่เล็ก
+    if (targetUser) empName = targetUser.username; 
     
     const ruleText = ruleSelect.value;
     
@@ -1014,7 +976,6 @@ window.generateFineText = function() {
         }
     }
 
-    // 🌟 เอาคำว่า [หมวดหมู่] และ (ปรับ XXX) ออก
     let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
     cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
@@ -1024,7 +985,7 @@ window.generateFineText = function() {
         resultText += ` (${finalNote})`;
     }
 
-    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย
+    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย (รูปแบบ วัน/เดือน/ปี)
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
