@@ -1,9 +1,9 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V8 (Notes Management & Fixed Table UI)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V9 (Penalty Type + Fix Table + Edit Notes)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
-let globalFineNotes = []; // ตัวแปรสำหรับเก็บหมายเหตุสำเร็จรูป
+let globalFineNotes = []; 
 
 const defaultNotes = [
     "โทรไม่รับสาย / ติดต่อไม่ได้",
@@ -87,9 +87,6 @@ window.initFineApp = async function() {
         tableContainer.classList.add('lg:col-span-8');
         document.getElementById('fineSubtitle').innerText = "ออกใบปรับและดูประวัติทั้งหมด";
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> รายการใบปรับทั้งหมดในระบบ';
-        document.getElementById('thEmpName').style.display = 'table-cell';
-        document.getElementById('thAction').style.display = 'table-cell';
-        
         populateEmpSelect(); 
     } else {
         adminControls.classList.add('hidden');
@@ -98,13 +95,11 @@ window.initFineApp = async function() {
         tableContainer.classList.add('lg:col-span-12');
         document.getElementById('fineSubtitle').innerText = "ดูประวัติใบปรับของคุณ";
         document.getElementById('tableFineTitle').innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
-        document.getElementById('thEmpName').style.display = 'none';
-        document.getElementById('thAction').style.display = 'none';
     }
 
     switchFineTab('issue');
     await loadFineRules();
-    await loadFineNotes(); // โหลดหมายเหตุ
+    await loadFineNotes(); 
     await fetchFinesData(isAdmin);
 };
 
@@ -174,7 +169,7 @@ document.addEventListener('click', function(e) {
 });
 
 // ===============================================
-// 🌟 1. การจัดการ หมายเหตุสำเร็จรูป (Notes)
+// 🌟 1. การจัดการ หมายเหตุสำเร็จรูป (Notes) + Edit
 // ===============================================
 async function loadFineNotes() {
     try {
@@ -193,14 +188,12 @@ async function loadFineNotes() {
 }
 
 function renderNotesDropdown() {
-    // ใส่ตัวเลือกลงใน Select หน้าออกใบปรับ
     const noteSelect = document.getElementById('fineNoteSelect');
     if (noteSelect) {
         noteSelect.innerHTML = '<option value="">-- เลือกหมายเหตุสำเร็จรูป (ไม่บังคับ) --</option>' + 
             globalFineNotes.map(n => `<option value="${n}">${n}</option>`).join('');
     }
 
-    // สร้างกล่องแก้ไขในหน้าตั้งค่า
     const listDiv = document.getElementById('fineNotesListFull');
     if (listDiv) {
         if (globalFineNotes.length === 0) {
@@ -209,11 +202,16 @@ function renderNotesDropdown() {
         }
 
         listDiv.innerHTML = globalFineNotes.map((n, idx) => `
-            <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
+            <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center shadow-sm group">
                 <span class="text-sm font-bold text-slate-700 dark:text-gray-300 truncate pr-2">${n}</span>
-                <button type="button" onclick="removeFineNotePage(${idx})" class="text-red-400 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition shrink-0">
-                    <span class="material-icons text-sm block">delete</span>
-                </button>
+                <div class="flex items-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button type="button" onclick="editFineNotePage(${idx})" class="text-amber-500 hover:text-white hover:bg-amber-500 p-1.5 rounded-lg transition" title="แก้ไข">
+                        <span class="material-icons text-sm block">edit</span>
+                    </button>
+                    <button type="button" onclick="removeFineNotePage(${idx})" class="text-red-400 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition" title="ลบ">
+                        <span class="material-icons text-sm block">delete</span>
+                    </button>
+                </div>
             </div>
         `).join('');
     }
@@ -232,6 +230,37 @@ window.addFineNotePage = async function() {
     renderNotesDropdown();
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
+
+// 🌟 เพิ่มฟังก์ชันแก้ไขหมายเหตุ
+window.editFineNotePage = async function(idx) {
+    const currentNote = globalFineNotes[idx];
+    
+    const { value: newNote } = await Swal.fire({
+        title: '<span class="text-amber-500">แก้ไขข้อความหมายเหตุ</span>',
+        input: 'text',
+        inputValue: currentNote,
+        showCancelButton: true,
+        confirmButtonText: 'บันทึกการแก้ไข',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#64748b',
+        inputValidator: (value) => {
+            if (!value.trim()) return 'กรุณากรอกข้อความ!';
+        },
+        customClass: { 
+            popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl',
+            input: 'bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl'
+        }
+    });
+
+    if (newNote && newNote.trim() !== currentNote) {
+        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+        globalFineNotes[idx] = newNote.trim();
+        await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
+        renderNotesDropdown();
+        Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
+    }
+};
 
 window.removeFineNotePage = async function(idx) {
     const res = await Swal.fire({
@@ -254,7 +283,7 @@ window.removeFineNotePage = async function(idx) {
 
 
 // ===============================================
-// 🌟 2. การจัดการกฎ (Accordion UI + Dropdown Auto Fill)
+// 🌟 2. การจัดการกฎ (Accordion UI + Dropdown Auto Fill + Amount Type)
 // ===============================================
 async function loadFineRules() {
     try {
@@ -276,13 +305,26 @@ async function loadFineRules() {
     }
 }
 
+// 🌟 ระบบสลับช่องกรอกเงิน (ระบุเงิน / ไม่ได้รับค่าแรง)
+window.toggleFineAmountInput = function() {
+    const typeSelect = document.getElementById('finePenaltyType');
+    const amtInput = document.getElementById('fineAmount');
+    if(!typeSelect || !amtInput) return;
+
+    if (typeSelect.value === 'nowage') {
+        amtInput.value = '';
+        amtInput.disabled = true;
+        amtInput.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-200', 'dark:bg-slate-800');
+    } else {
+        amtInput.disabled = false;
+        amtInput.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-200', 'dark:bg-slate-800');
+    }
+};
+
 window.filterRulesByCategory = function() {
     const catSelect = document.getElementById('fineCategorySelect');
     const ruleSelect = document.getElementById('fineRuleSelect');
-    const amountInput = document.getElementById('fineAmount');
     
-    if(amountInput) amountInput.value = '';
-
     if (!catSelect || !ruleSelect) return;
     
     const cat = catSelect.value;
@@ -310,17 +352,31 @@ window.filterRulesByCategory = function() {
 
     ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}">${r}</option>`).join('');
 
+    // 🌟 อัปเดตตรรกะให้ฉลาดขึ้น: ตรวจจับ "ไม่ได้ค่าแรง" และเซ็ต Dropdown อัตโนมัติ
     ruleSelect.onchange = function() {
+        const typeSelect = document.getElementById('finePenaltyType');
         const amtInput = document.getElementById('fineAmount');
-        if (this.value && amtInput) {
-            const match = this.value.match(/ปรับ\s*([\d,]+)/);
-            if (match && match[1].replace(/,/g, '').length >= 3) {
-                amtInput.value = parseInt(match[1].replace(/,/g, ''), 10);
+        if (!typeSelect || !amtInput) return;
+
+        if (this.value) {
+            if (this.value.includes('ไม่ได้ค่าแรง')) {
+                typeSelect.value = 'nowage';
+                window.toggleFineAmountInput();
             } else {
-                amtInput.value = ''; 
+                typeSelect.value = 'money';
+                window.toggleFineAmountInput();
+                
+                const match = this.value.match(/ปรับ\s*([\d,]+)/);
+                if (match && match[1].replace(/,/g, '').length >= 3) {
+                    amtInput.value = parseInt(match[1].replace(/,/g, ''), 10);
+                } else {
+                    amtInput.value = ''; 
+                }
             }
-        } else if (amtInput) {
+        } else {
+            typeSelect.value = 'money';
             amtInput.value = '';
+            window.toggleFineAmountInput();
         }
     };
 }
@@ -606,7 +662,6 @@ window.submitFine = async function(e) {
     const empName = document.getElementById('fineEmpInput').value.trim();
     const ruleText = document.getElementById('fineRuleSelect').value;
     
-    // 🌟 เอาค่าจาก Select และ Input ของหมายเหตุ มารวมกัน 🌟
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
@@ -615,7 +670,16 @@ window.submitFine = async function(e) {
         finalNote = finalNote ? `${finalNote} (${noteInput})` : noteInput;
     }
     
-    const amount = document.getElementById('fineAmount').value || 0;
+    // 🌟 อ่านค่าว่าลงโทษเป็น "จำนวนเงิน" หรือ "ไม่ได้รับค่าแรง"
+    const penaltyType = document.getElementById('finePenaltyType').value;
+    let amountToSave = 0;
+    
+    if (penaltyType === 'nowage') {
+        amountToSave = -1; // ใช้ -1 เพื่อระบุว่าเป็น "ไม่ได้รับค่าแรง"
+    } else {
+        amountToSave = parseInt(document.getElementById('fineAmount').value) || 0;
+    }
+    
     const fileInput = document.getElementById('fineImageInput');
 
     if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
@@ -646,8 +710,8 @@ window.submitFine = async function(e) {
             user_id: targetId,
             user_name: empName,
             rule_text: ruleText,
-            note: finalNote, // เซฟค่าหมายเหตุที่รวมแล้ว
-            amount: amount,
+            note: finalNote, 
+            amount: amountToSave, // เซฟ -1 หรือ ตัวเลขปกติ
             evidence_url: imageUrl,
             issued_by: currentUser.username
         }]);
@@ -663,7 +727,10 @@ window.submitFine = async function(e) {
         
         if (document.getElementById('fineNoteSelect')) document.getElementById('fineNoteSelect').value = '';
         if (document.getElementById('fineNoteInput')) document.getElementById('fineNoteInput').value = '';
-        
+        if (document.getElementById('finePenaltyType')) {
+            document.getElementById('finePenaltyType').value = 'money';
+            window.toggleFineAmountInput();
+        }
         document.getElementById('fineAmount').value = '';
         clearFineImg();
         
@@ -675,7 +742,7 @@ window.submitFine = async function(e) {
 };
 
 // -----------------------------------------
-// ดึงข้อมูลและวาดตาราง (แยกข้อมูลใส่ Template ชัดเจน)
+// ดึงข้อมูลและวาดตาราง (แก้ให้รวมกันอยู่ในบรรทัดเดียว)
 // -----------------------------------------
 window.fetchFinesData = async function(isAdmin) {
     const tbody = document.getElementById('fineTableBody');
@@ -703,6 +770,12 @@ window.renderFineTable = function(isAdminOverride) {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const isAdmin = isAdminOverride !== undefined ? isAdminOverride : (hasManagePerm || currentUser.role === 'manager' || currentUser.role === 'admin');
     
+    // ควบคุมการแสดงผลคอลัมน์ของ Admin
+    document.querySelectorAll('.admin-col').forEach(el => {
+        if (isAdmin) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+    });
+    
     const tbody = document.getElementById('fineTableBody');
     const term = document.getElementById('fineSearchInput') ? document.getElementById('fineSearchInput').value.toLowerCase() : '';
     
@@ -714,7 +787,7 @@ window.renderFineTable = function(isAdminOverride) {
 
     let totalAmount = 0;
     filtered.forEach(f => {
-        totalAmount += Number(f.amount) || 0;
+        if (f.amount > 0) totalAmount += Number(f.amount);
     });
     
     const totalAmountEl = document.getElementById('fineTotalAmount');
@@ -727,36 +800,45 @@ window.renderFineTable = function(isAdminOverride) {
         return;
     }
 
-    // 🌟 วาดตารางโดยใช้ Template คืนความสวยงามและไม่ Error
     tbody.innerHTML = filtered.map(f => {
         const d = new Date(f.created_at);
         const dateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
         
-        const amountDisplay = f.amount > 0 ? `<span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50">฿${f.amount}</span>` : '<span class="text-gray-400">-</span>';
+        // 🌟 ตรวจสอบว่าโดนปรับเป็นเงิน หรือ โดนตัดค่าแรง (-1)
+        let amountDisplay = '';
+        if (f.amount === -1) {
+            amountDisplay = `<span class="font-bold text-[10px] text-white bg-slate-700 px-2 py-1 rounded border border-slate-600 whitespace-nowrap shadow-sm">ไม่ได้รับค่าแรง</span>`;
+        } else if (f.amount > 0) {
+            amountDisplay = window.renderTemplate('tpl-fine-history-amount-badge', { amount: f.amount.toLocaleString('en-US') });
+        } else {
+            amountDisplay = '<span class="text-gray-400">-</span>';
+        }
         
         const imgDisplay = f.evidence_url ? `<button type="button" onclick="viewFineImage('${f.evidence_url}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>` : '<span class="text-gray-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border dark:border-slate-700">- ไม่มีรูป -</span>';
 
-        const delBtn = isAdmin ? `<button type="button" onclick="deleteFine(${f.id})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition"><span class="material-icons text-sm block">delete</span></button>` : '';
+        const delBtn = window.renderTemplate('tpl-fine-history-del-btn', { id: f.id });
         
-        // ทำให้ชื่อพนักงานเด่นชัดขึ้น
-        const empColHtml = isAdmin ? `<td class="p-3 align-middle border-r border-slate-100 dark:border-slate-700 bg-red-50/30 dark:bg-red-900/20"><div class="font-black text-lg text-slate-800 dark:text-white">${f.user_name}</div></td>` : '';
-        const actionColHtml = isAdmin ? `<td class="p-3 text-center align-middle">${delBtn}</td>` : '';
-
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
-            noteHtml = `<div class="mt-1 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-600/50 text-yellow-700 dark:text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-start gap-1.5 w-fit max-w-[400px] shadow-sm"><span class="material-icons text-[16px] shrink-0 text-yellow-500">info</span><span class="whitespace-normal break-words leading-snug">${f.note}</span></div>`;
+            noteHtml = window.renderTemplate('tpl-fine-history-note', { note: f.note });
         }
 
         return window.renderTemplate('tpl-fine-history-row', {
             dateStr: dateStr,
-            empColHtml: empColHtml,
+            username: f.user_name,
             ruleText: f.rule_text,
             noteHtml: noteHtml,
             amountDisplay: amountDisplay,
             imgDisplay: imgDisplay,
-            actionColHtml: actionColHtml
+            delBtn: delBtn
         });
     }).join('');
+    
+    // รีรันอีกรอบหลังยัด HTML ลงไป
+    document.querySelectorAll('.admin-col').forEach(el => {
+        if (isAdmin) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+    });
 };
 
 window.deleteFine = async function(id) {
