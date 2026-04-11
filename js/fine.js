@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V22 (Added Date to Copy Text)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V23 (Fix User Not Found & Load Badges)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -690,7 +690,7 @@ window.submitFine = async function(e) {
             } else {
                 finalNote = `${finalNote} ${noteInput}`;
             }
-            finalNote = finalNote.replace(/\s+/g, ' '); // ล้างช่องว่างที่อาจจะซ้ำซ้อน
+            finalNote = finalNote.replace(/\s+/g, ' '); 
         } else {
             finalNote = noteInput;
         }
@@ -719,7 +719,11 @@ window.submitFine = async function(e) {
 
     if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
 
-    // 🌟 แก้ไข: ค้นหาแบบไม่สนพิมพ์เล็ก/ใหญ่ เพื่อป้องกันหาคนไม่เจอ
+    // 🌟 FORCE FETCH USERS IF EMPTY TO ENSURE BADGES RENDER
+    if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+        await fetchUsers(true);
+    }
+
     const targetUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (!targetUser) {
         return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง', 'warning');
@@ -786,9 +790,7 @@ window.fetchFinesData = async function(isAdmin) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><span class="material-icons animate-spin text-red-500">sync</span> โหลดข้อมูล...</td></tr>';
 
     try {
-        // 🌟 FORCE FETCH USERS IF EMPTY TO ENSURE BADGES RENDER
-        // 🌟 แก้ไข: ใช้ GLOBAL_USER_LIST แบบไม่มี window.
-        if (typeof fetchUsers === 'function' && (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0)) {
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers(true);
         }
 
@@ -1013,7 +1015,7 @@ window.generateFineText = function() {
         resultText += ` (${finalNote})`;
     }
 
-    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย
+    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย (รูปแบบ วัน/เดือน/ปี)
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
