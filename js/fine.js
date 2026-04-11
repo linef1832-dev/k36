@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V16 (Fixed Init Crash & Copy Format)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V17 (Smart Note Insertion)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -674,14 +674,33 @@ window.submitFine = async function(e) {
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
+    // 🌟 ระบบแทรกคำอัตโนมัติ (Smart Insertion)
     let finalNote = noteSelect;
     if (noteInput) {
-        finalNote = finalNote ? `${finalNote} ${noteInput}` : noteInput;
+        if (finalNote) {
+            if (finalNote.includes(' นาที')) {
+                finalNote = finalNote.replace(' นาที', ` ${noteInput} นาที`);
+            } else if (finalNote.includes(' ครั้ง')) {
+                finalNote = finalNote.replace(' ครั้ง', ` ${noteInput} ครั้ง`);
+            } else if (finalNote.includes(' วัน')) {
+                finalNote = finalNote.replace(' วัน', ` ${noteInput} วัน`);
+            } else if (finalNote.includes('...')) {
+                finalNote = finalNote.replace('...', noteInput);
+            } else {
+                finalNote = `${finalNote} ${noteInput}`;
+            }
+            finalNote = finalNote.replace(/\s+/g, ' '); // ล้างช่องว่างที่อาจจะซ้ำซ้อน
+        } else {
+            finalNote = noteInput;
+        }
     }
     
-    // ทำความสะอาดวงเล็บที่ผู้ใช้พิมพ์มาซ้ำๆ
+    // 🌟 ล้างวงเล็บครอบหน้า-หลัง เพื่อป้องกันการแสดงผลซ้อน
     if (finalNote) {
-        finalNote = finalNote.replace(/^[()\[\]\s]+|[()\[\]\s]+$/g, '').trim();
+        finalNote = finalNote.trim();
+        while (finalNote.startsWith('(') && finalNote.endsWith(')')) {
+            finalNote = finalNote.substring(1, finalNote.length - 1).trim();
+        }
     }
     
     const penaltyType = document.getElementById('finePenaltyType').value;
@@ -830,12 +849,13 @@ window.renderFineTable = function(isAdminOverride) {
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             let cleanNoteForTable = f.note.trim();
-            // ตัดวงเล็บซ้อนทับกันออกให้เหลืออันเดียว
-            cleanNoteForTable = cleanNoteForTable.replace(/^[()\[\]\s]+|[()\[\]\s]+$/g, '').trim();
+            // 🌟 ล้างวงเล็บอีกชั้นก่อนแสดงผลในตาราง (ป้องกันฐานข้อมูลเก่า)
+            while (cleanNoteForTable.startsWith('(') && cleanNoteForTable.endsWith(')')) {
+                cleanNoteForTable = cleanNoteForTable.substring(1, cleanNoteForTable.length - 1).trim();
+            }
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: cleanNoteForTable });
         }
 
-        // 🌟 ดึงแผนกของพนักงานมาใส่ท้ายชื่อโดยใช้ Template
         let displayName = f.user_name;
         const dbUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => u.username === f.user_name) : null;
         
@@ -858,12 +878,10 @@ window.renderFineTable = function(isAdminOverride) {
             displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml });
         }
 
-        // 🌟 ลบคำว่า (ปรับ XXX) ออกไปให้หมด
         let rawRule = f.rule_text || '';
         let cleanRule = rawRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
         let ruleDisplay = cleanRule;
-        // 🌟 ใส่สีหมวดหมู่อย่างแม่นยำด้วย Regex ใหม่
         const catMatch = cleanRule.match(/^\s*\[([^\]]+)\]\s*(.*)/);
         
         if (catMatch) {
@@ -880,7 +898,6 @@ window.renderFineTable = function(isAdminOverride) {
             ruleDisplay = window.renderTemplate('tpl-fine-history-rule-normal', { ruleDetail: cleanRule });
         }
 
-        // 🌟 ส่งตัวแปร ruleText เข้า Template ให้ตรงเป๊ะ!
         return window.renderTemplate('tpl-fine-history-row', {
             id: f.id,
             dateStr: dateStr,
@@ -922,17 +939,35 @@ window.generateFineText = function() {
     // ดึงหมายเหตุ
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
+    
+    // 🌟 ระบบแทรกคำอัตโนมัติ (Smart Insertion) สำหรับคัดลอก
     let finalNote = noteSelect;
-    if (noteInput) finalNote = finalNote ? `${finalNote} ${noteInput}` : noteInput;
-
-    // ล้างวงเล็บให้เหลืออันเดียว
-    if (finalNote) {
-        finalNote = finalNote.replace(/^[()\[\]\s]+|[()\[\]\s]+$/g, '').trim();
+    if (noteInput) {
+        if (finalNote) {
+            if (finalNote.includes(' นาที')) {
+                finalNote = finalNote.replace(' นาที', ` ${noteInput} นาที`);
+            } else if (finalNote.includes(' ครั้ง')) {
+                finalNote = finalNote.replace(' ครั้ง', ` ${noteInput} ครั้ง`);
+            } else if (finalNote.includes(' วัน')) {
+                finalNote = finalNote.replace(' วัน', ` ${noteInput} วัน`);
+            } else if (finalNote.includes('...')) {
+                finalNote = finalNote.replace('...', noteInput);
+            } else {
+                finalNote = `${finalNote} ${noteInput}`;
+            }
+            finalNote = finalNote.replace(/\s+/g, ' '); 
+        } else {
+            finalNote = noteInput;
+        }
     }
 
-    // คำนวณบทลงโทษ
-    const penaltyType = document.getElementById('finePenaltyType').value;
-    const amount = document.getElementById('fineAmount').value || 0;
+    // 🌟 ล้างวงเล็บให้เหลืออันเดียว
+    if (finalNote) {
+        finalNote = finalNote.trim();
+        while (finalNote.startsWith('(') && finalNote.endsWith(')')) {
+            finalNote = finalNote.substring(1, finalNote.length - 1).trim();
+        }
+    }
 
     // ดึงแผนกและทีมของพนักงาน
     let dept = 'AM';
