@@ -350,7 +350,14 @@ window.filterRulesByCategory = function() {
         return;
     }
 
-    ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}">${r}</option>`).join('');
+    // เติม title เข้าไป เพื่อให้เอาเมาส์ชี้แล้วอ่านตัวเต็มได้
+    ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}" title="${r}">${r}</option>`).join('');
+
+    // เพิ่มบรรทัดนี้ เพื่อให้กล่องหลักโชว์ข้อความตอนเอาเมาส์ชี้ด้วย
+    ruleSelect.onchange = function() {
+        this.title = this.value; 
+        
+        // ... (โค้ดที่เหลือในฟังก์ชัน onchange ปล่อยไว้เหมือนเดิม) ...
 
     // 🌟 อัปเดตตรรกะให้ฉลาดขึ้น: ตรวจจับ "ไม่ได้ค่าแรง" และเซ็ต Dropdown อัตโนมัติ
     ruleSelect.onchange = function() {
@@ -887,10 +894,10 @@ window.generateFineText = function() {
         return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อความผิดก่อนสร้างข้อความครับ', 'warning');
     }
 
-    // 1. ทำความสะอาดกฎ (ตัดคำว่า [ออนไลน์] ด้านหน้า และ (ปรับ...) ด้านหลังออก เพื่อให้ข้อความดูสะอาด)
+   // 1. ทำความสะอาดกฎ (ตัดคำว่า [ออนไลน์] ด้านหน้า และ ลบวงเล็บชุดสุดท้ายทิ้งไปเลย 100%)
     let cleanRule = rawRule.replace(/^\[.*?\]\s*/, '');
-    cleanRule = cleanRule.replace(/\s*\(ปรับ.*?\)$/, '');
-
+    cleanRule = cleanRule.replace(/\s*\([^)]*\)$/, '').trim();
+    
     // 2. จัดการบทลงโทษ
     let penaltyText = '';
     if (penaltyType === 'nowage') {
