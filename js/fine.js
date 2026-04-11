@@ -1,10 +1,9 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V27 (Fixed Auto-Refresh & Loading Badges)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V26 (Bypass User Validation on Submit)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
 let globalFineNotes = []; 
-let fineSubscription = null; // 🌟 ตัวแปรสำหรับ Realtime
 
 const defaultNotes = [
     "โทรไม่รับสาย / ติดต่อไม่ได้",
@@ -15,6 +14,7 @@ const defaultNotes = [
     "เตือนแล้วแต่ไม่ปรับปรุง"
 ];
 
+// 🌟 อัปเดตกฎระเบียบชุดใหม่
 const okvipRules = [
     "[ออนไลน์] บทที่2 ข้อที่1 ไม่ได้เข้าเช็คชื่อ",
     "[ออนไลน์] บทที่ 2 ข้อที่ 4 โทรติดต่อกัน 3 ครั้ง ไม่มีการรับสาย",
@@ -73,44 +73,6 @@ window.initFineApp = async function() {
     await loadFineRules();
     await loadFineNotes(); 
     await fetchFinesData(isAdmin);
-    
-    // 🌟 เรียกใช้ฟังก์ชัน Realtime ทันทีที่เปิดหน้า
-    subscribeFineChanges();
-};
-
-// ===============================================
-// 🌟 ฟังก์ชันดักจับ Realtime ที่ประหยัด Database 
-// ===============================================
-window.subscribeFineChanges = function() {
-    if (typeof appDB === 'undefined' || !appDB) return;
-    if (fineSubscription) appDB.removeChannel(fineSubscription);
-
-    fineSubscription = appDB.channel('public:fines')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'fines' }, (payload) => {
-            
-            // เช็คว่าผู้ใช้อยู่หน้าใบปรับหรือไม่ ถ้าไม่อยู่ไม่ต้องวาดตารางใหม่
-            const fineAppEl = document.getElementById('fineContent_issue');
-            if (!fineAppEl || fineAppEl.classList.contains('hidden')) return;
-
-            const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
-            const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
-
-            if (payload.eventType === 'INSERT') {
-                // ถ้าเป็นพนักงานธรรมดา และใบปรับที่เด้งมาไม่ใช่ของตัวเอง ให้ข้ามไป
-                if (!isAdmin && payload.new.user_name !== currentUser.username) return;
-                
-                // ป้องกันข้อมูลซ้ำซ้อน
-                const exists = globalFines.find(f => f.id === payload.new.id);
-                if (!exists) {
-                    globalFines.unshift(payload.new); // ยัดข้อมูลใหม่ไว้บนสุด
-                    renderFineTable(isAdmin); // วาดตารางใหม่
-                }
-            } 
-            else if (payload.eventType === 'DELETE') {
-                globalFines = globalFines.filter(f => f.id !== payload.old.id);
-                renderFineTable(isAdmin);
-            }
-        }).subscribe();
 };
 
 window.switchFineTab = function(tabName) {
@@ -136,7 +98,7 @@ window.switchFineTab = function(tabName) {
 
 function populateEmpSelect() {
     const dropdown = document.getElementById('fineEmpDropdown');
-    if (!dropdown || typeof GLOBAL_USER_LIST === 'undefined' || GLOBAL_USER_LIST.length === 0) return;
+    if (!dropdown || typeof GLOBAL_USER_LIST === 'undefined') return;
     
     const sortedUsers = [...GLOBAL_USER_LIST].sort((a, b) => a.username.localeCompare(b.username));
     dropdown.innerHTML = sortedUsers.map(u => {
@@ -670,6 +632,7 @@ window.submitFine = async function(e) {
     
     if(!empInput || !ruleSelect) return;
     
+    // 🌟 ดึงค่าที่ผู้ใช้ "พิมพ์เข้ามาสดๆ" ไปใช้งานตรงๆ ได้เลย
     const empName = empInput.value.trim();
     const ruleText = ruleSelect.value;
     
@@ -697,6 +660,7 @@ window.submitFine = async function(e) {
         }
     }
     
+    // 🌟 ล้างวงเล็บครอบหน้า-หลัง เพื่อป้องกันการแสดงผลซ้อน
     if (finalNote) {
         finalNote = finalNote.trim();
         while (finalNote.startsWith('(') && finalNote.endsWith(')')) {
@@ -719,21 +683,6 @@ window.submitFine = async function(e) {
 
     if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
 
-    // 🌟 ค้นหาไอดีพนักงานจากระบบ
-    let targetId = null;
-    let finalUserNameToSave = empName;
-    if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
-         const tUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase());
-         if (tUser) {
-             targetId = tUser.id;
-             finalUserNameToSave = tUser.username; // ใช้ชื่อที่สะกดถูก 100%
-         } else {
-             return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง', 'warning');
-         }
-    } else {
-         return Swal.fire('รอสักครู่', 'ระบบกำลังโหลดฐานข้อมูลพนักงาน โปรดลองใหม่อีกครั้ง', 'info');
-    }
-
     Swal.fire({title: 'กำลังบันทึกใบปรับ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     let imageUrl = '';
@@ -749,16 +698,23 @@ window.submitFine = async function(e) {
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`fines/${fileName}`);
             imageUrl = publicUrlData.publicUrl;
         }
+        
+        // 🌟 ลองค้นหาไอดีพนักงานจากระบบ ถ้าไม่มีก็ให้เป็น null ไปเลย
+        let targetId = null;
+        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) {
+             const tUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase());
+             if (tUser) targetId = tUser.id;
+        }
 
-        const { data: insertedData, error: dbError } = await appDB.from('fines').insert([{
-            user_id: targetId, 
-            user_name: finalUserNameToSave, 
+        const { error: dbError } = await appDB.from('fines').insert([{
+            user_id: targetId, // ใส่ null ได้ถ้าไม่มีในระบบ
+            user_name: empName, // 🌟 บันทึกชื่อที่พิมพ์ลงไปตรงๆ เลย
             rule_text: ruleText,
             note: finalNote, 
             amount: amountToSave, 
             evidence_url: imageUrl,
             issued_by: currentUser.username
-        }]).select();
+        }]);
 
         if (dbError) throw dbError;
 
@@ -778,17 +734,7 @@ window.submitFine = async function(e) {
         if(amountEl) amountEl.value = '';
         clearFineImg();
         
-        // 🌟 อัปเดตตารางสำหรับคนกดยืนยันให้เห็นทันที (ไม่ต้องรอ Realtime)
-        if (insertedData && insertedData.length > 0) {
-            const newRow = insertedData[0];
-            const exists = globalFines.find(f => f.id === newRow.id);
-            if (!exists) {
-                globalFines.unshift(newRow);
-                const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
-                const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
-                renderFineTable(isAdmin);
-            }
-        }
+        fetchFinesData(true);
 
     } catch (err) {
         Swal.fire('Error', err.message, 'error');
@@ -888,8 +834,8 @@ window.renderFineTable = function(isAdminOverride) {
         let displayName = f.user_name;
         let deptBadgeHtml = '';
 
-        // 🌟 แก้ไข: ลบ window. ออกจาก GLOBAL_USER_LIST ป้องกันการหาตัวแปรไม่เจอ
-        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
+        // 🌟 แก้ไขการดึงป้ายแผนกและกะให้แน่นอน 100%
+        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
             const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
             
             if (dbUser) {
@@ -973,7 +919,7 @@ window.deleteFine = async function(id) {
     if(res.isConfirmed) {
         Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
         await appDB.from('fines').delete().eq('id', id);
-        // ไม่ต้อง fetchFinesData() เพราะ Realtime จะจัดการให้
+        fetchFinesData(true);
         Swal.fire('ลบสำเร็จ', '', 'success');
     }
 }
@@ -987,9 +933,9 @@ window.generateFineText = function() {
     
     if (!empInput || !ruleSelect) return;
 
+    // 🌟 ดึงชื่อพนักงานมาตรงๆ ไม่ต้องสนพิมพ์เล็กใหญ่ เพราะจะดึงชื่อที่ถูกต้องจากระบบมาใช้
     let empName = empInput.value.trim();
-    // 🌟 แก้ไข: ลบ window. ออกจาก GLOBAL_USER_LIST
-    const targetUser = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
+    const targetUser = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (targetUser) empName = targetUser.username; 
     
     const ruleText = ruleSelect.value;
@@ -1001,6 +947,7 @@ window.generateFineText = function() {
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
+    // 🌟 ระบบแทรกคำอัตโนมัติ (Smart Insertion) สำหรับคัดลอก
     let finalNote = noteSelect;
     if (noteInput) {
         if (finalNote) {
@@ -1037,6 +984,7 @@ window.generateFineText = function() {
         resultText += ` (${finalNote})`;
     }
 
+    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย (รูปแบบ วัน/เดือน/ปี)
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
