@@ -1,5 +1,5 @@
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V25 (Updated Default Rules)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V26 (Bypass User Validation on Submit)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -553,12 +553,9 @@ window.restoreOKVIPRules = async function() {
     if (res.isConfirmed) {
         Swal.fire({title: 'กำลังดึงข้อมูล OKVIP...', didOpen: () => Swal.showLoading()});
         globalFineRules = [...okvipRules];
-        
-        // 🌟 เซฟทับฐานข้อมูลด้วยชุดกฎใหม่เสมอ
         await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
-        
         renderRulesDropdown();
-        Swal.fire({icon: 'success', title: 'คืนค่าสำเร็จ!', text: 'ระบบอัปเดตเป็นกฎของ OKVIP ชุดใหม่ให้เรียบร้อยครับ', timer: 2000, showConfirmButton: false});
+        Swal.fire({icon: 'success', title: 'คืนค่าสำเร็จ!', text: 'ระบบอัปเดตเป็นกฎของ OKVIP ให้เรียบร้อยครับ', timer: 2000, showConfirmButton: false});
     }
 }
 
@@ -635,6 +632,7 @@ window.submitFine = async function(e) {
     
     if(!empInput || !ruleSelect) return;
     
+    // 🌟 ดึงค่าที่ผู้ใช้ "พิมพ์เข้ามาสดๆ" ไปใช้งานตรงๆ ได้เลย
     const empName = empInput.value.trim();
     const ruleText = ruleSelect.value;
     
@@ -685,13 +683,6 @@ window.submitFine = async function(e) {
 
     if(!empName || !ruleText) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อกฎให้ครบถ้วน', 'warning');
 
-    // 🌟 แก้ไข: ค้นหาแบบไม่สนพิมพ์เล็ก/ใหญ่ เพื่อป้องกันหาคนไม่เจอ
-    const targetUser = window.GLOBAL_USER_LIST ? window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
-    if (!targetUser) {
-        return Swal.fire('ไม่พบพนักงาน', 'โปรดตรวจสอบชื่อพนักงานที่พิมพ์อีกครั้ง', 'warning');
-    }
-    const targetId = targetUser.id;
-
     Swal.fire({title: 'กำลังบันทึกใบปรับ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     let imageUrl = '';
@@ -707,10 +698,17 @@ window.submitFine = async function(e) {
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`fines/${fileName}`);
             imageUrl = publicUrlData.publicUrl;
         }
+        
+        // 🌟 ลองค้นหาไอดีพนักงานจากระบบ ถ้าไม่มีก็ให้เป็น null ไปเลย
+        let targetId = null;
+        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) {
+             const tUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase());
+             if (tUser) targetId = tUser.id;
+        }
 
         const { error: dbError } = await appDB.from('fines').insert([{
-            user_id: targetId,
-            user_name: targetUser.username, // 🌟 ใช้ชื่อที่สะกดถูก 100%
+            user_id: targetId, // ใส่ null ได้ถ้าไม่มีในระบบ
+            user_name: empName, // 🌟 บันทึกชื่อที่พิมพ์ลงไปตรงๆ เลย
             rule_text: ruleText,
             note: finalNote, 
             amount: amountToSave, 
@@ -752,7 +750,7 @@ window.fetchFinesData = async function(isAdmin) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><span class="material-icons animate-spin text-red-500">sync</span> โหลดข้อมูล...</td></tr>';
 
     try {
-        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+        if (typeof fetchUsers === 'function' && (typeof GLOBAL_USER_LIST === 'undefined' || GLOBAL_USER_LIST.length === 0)) {
             await fetchUsers(true);
         }
 
@@ -826,19 +824,19 @@ window.renderFineTable = function(isAdminOverride) {
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             let cleanNoteForTable = f.note.trim();
-            // 🌟 ล้างวงเล็บอีกชั้นก่อนแสดงผลในตาราง (ป้องกันฐานข้อมูลเก่า)
+            // 🌟 ล้างวงเล็บอีกชั้นก่อนแสดงผลในตาราง
             while (cleanNoteForTable.startsWith('(') && cleanNoteForTable.endsWith(')')) {
                 cleanNoteForTable = cleanNoteForTable.substring(1, cleanNoteForTable.length - 1).trim();
             }
             noteHtml = window.renderTemplate('tpl-fine-history-note', { note: cleanNoteForTable });
         }
 
-        // 🌟 ดึงแผนกและกะของพนักงานมาใส่ท้ายชื่อโดยใช้ Template
         let displayName = f.user_name;
         let deptBadgeHtml = '';
 
-        if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
-            const dbUser = window.GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+        // 🌟 แก้ไขการดึงป้ายแผนกและกะให้แน่นอน 100%
+        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
+            const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
             
             if (dbUser) {
                 // 1. ป้ายแผนก (Dept)
@@ -935,6 +933,7 @@ window.generateFineText = function() {
     
     if (!empInput || !ruleSelect) return;
 
+    // 🌟 ดึงชื่อพนักงานมาตรงๆ ไม่ต้องสนพิมพ์เล็กใหญ่ เพราะจะดึงชื่อที่ถูกต้องจากระบบมาใช้
     let empName = empInput.value.trim();
     const targetUser = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (targetUser) empName = targetUser.username; 
