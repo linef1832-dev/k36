@@ -742,8 +742,17 @@ window.submitFine = async function(e) {
             document.getElementById('finePenaltyType').value = 'money';
             window.toggleFineAmountInput();
         }
+       // โค้ดเดิมที่มีอยู่แล้ว
         document.getElementById('fineAmount').value = '';
         clearFineImg();
+        
+        // 🟢 เพิ่มโค้ดนี้เข้าไปต่อท้าย
+        if (document.getElementById('fineTextResultBox')) {
+            document.getElementById('fineTextResultBox').classList.add('hidden');
+            document.getElementById('fineTextResult').value = '';
+        }
+        
+        fetchFinesData(true);
         
         fetchFinesData(true);
 
@@ -863,3 +872,63 @@ window.deleteFine = async function(id) {
         Swal.fire('ลบสำเร็จ', '', 'success');
     }
 }
+// =========================================
+// 📝 ฟังก์ชันสร้างข้อความสรุป และ คัดลอก
+// =========================================
+window.generateFineText = function() {
+    const empName = document.getElementById('fineEmpInput').value.trim();
+    const rawRule = document.getElementById('fineRuleSelect').value;
+    const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
+    const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
+    const penaltyType = document.getElementById('finePenaltyType').value;
+    const amount = document.getElementById('fineAmount').value.trim();
+
+    if (!empName || !rawRule) {
+        return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุพนักงานและหัวข้อความผิดก่อนสร้างข้อความครับ', 'warning');
+    }
+
+    // 1. ทำความสะอาดกฎ (ตัดคำว่า [ออนไลน์] ด้านหน้า และ (ปรับ...) ด้านหลังออก เพื่อให้ข้อความดูสะอาด)
+    let cleanRule = rawRule.replace(/^\[.*?\]\s*/, '');
+    cleanRule = cleanRule.replace(/\s*\(ปรับ.*?\)$/, '');
+
+    // 2. จัดการบทลงโทษ
+    let penaltyText = '';
+    if (penaltyType === 'nowage') {
+        penaltyText = 'ไม่ได้ค่าแรง';
+    } else if (amount) {
+        penaltyText = `ปรับ ${amount} THB`;
+    }
+
+    // 3. จัดการหมายเหตุ (รองรับระบบเว้นวรรค/จุดไข่ปลา ที่แก้ไปก่อนหน้านี้)
+    let finalNote = noteSelect;
+    if (noteInput) {
+        if (finalNote) {
+            if (finalNote.includes('...') || finalNote.includes('_') || /\s{2,}/.test(finalNote)) {
+                finalNote = finalNote.replace(/_+|\.\.\.|\s{2,}/, ` ${noteInput} `).replace(/\s+/g, ' ');
+            } else {
+                finalNote = `${finalNote} (${noteInput})`;
+            }
+        } else {
+            finalNote = noteInput;
+        }
+    }
+
+    // 4. ประกอบร่างข้อความ
+    let resultText = `ปรับ ${empName} ${cleanRule}`;
+    if (penaltyText) resultText += ` ${penaltyText}`;
+    if (finalNote) resultText += ` (${finalNote})`;
+
+    // แสดงผลในกล่อง
+    document.getElementById('fineTextResult').value = resultText;
+    document.getElementById('fineTextResultBox').classList.remove('hidden');
+};
+
+window.copyFineText = function() {
+    const text = document.getElementById('fineTextResult').value;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 }).fire({ icon: 'success', title: 'คัดลอกข้อความแล้ว' });
+    }).catch(() => {
+        Swal.fire('Error', 'เบราว์เซอร์ไม่รองรับการคัดลอกอัตโนมัติ', 'error');
+    });
+};
