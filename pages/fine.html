@@ -11,6 +11,7 @@
         <div id="fineTabsContainer" class="hidden flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 w-full md:w-auto">
             <button type="button" onclick="switchFineTab('issue')" id="tabFineIssue" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-md flex items-center gap-1 border border-red-400"><span class="material-icons text-sm">post_add</span> ออกใบปรับ & ประวัติ</button>
             <button type="button" onclick="switchFineTab('rules')" id="tabFineRules" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600"><span class="material-icons text-sm">settings</span> ตั้งค่ากฎ / หมายเหตุ</button>
+            <button type="button" onclick="switchFineTab('stats')" id="tabFineStats" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600"><span class="material-icons text-sm">leaderboard</span> สถิติใบปรับ</button>
         </div>
     </div>
 
@@ -246,6 +247,25 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="fineNotesListFull"></div>
             </div>
         </div>
+
+        <div id="fineContent_stats" class="max-w-[1200px] mx-auto pb-10 fade-in hidden">
+            <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 dark:border-slate-700 pb-5 mb-6 gap-4">
+                    <div>
+                        <h2 class="text-xl font-black text-rose-500 flex items-center gap-2"><span class="material-icons">leaderboard</span> จัดอันดับพนักงานที่โดนปรับ</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">แสดงสถิติยอดรวมค่าปรับและจำนวนครั้งที่ทำผิด (เรียงจากปรับมากไปน้อย)</p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <select id="fineStatsMonth" onchange="renderFineStats()" class="w-full sm:w-auto bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-sm font-bold outline-none cursor-pointer shadow-sm focus:border-rose-500 transition">
+                            <option value="all">รวมทุกเดือน (All Time)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="fineStatsLeaderboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </div>
+        </div>
+        
     </div>
 </div>
 
@@ -408,6 +428,23 @@
             <div>
                 <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ค่าปรับ (ถ้ามี)</label>
                 <input type="number" id="editRuleAmount" value="{{currentAmount}}" placeholder="ระบุตัวเลข เช่น 500" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner transition">
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-fine-stats-card">
+        <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-4 hover:border-rose-400 transition group">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center font-black text-lg shrink-0 {{medalClass}} shadow-inner transition-transform group-hover:scale-110">
+                {{rank}}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="font-black text-slate-800 dark:text-white text-base truncate">{{name}}</div>
+                <div class="text-[11px] font-bold text-gray-500 mt-1 flex items-center gap-1.5">
+                    <span class="bg-gray-200 dark:bg-slate-800 px-2 py-0.5 rounded shadow-inner">ทำผิด <span class="text-red-500 dark:text-red-400">{{count}}</span> ครั้ง</span>
+                </div>
+            </div>
+            <div class="text-right shrink-0">
+                <div class="font-mono text-rose-600 dark:text-rose-400 font-extrabold text-lg">฿{{amount}}</div>
             </div>
         </div>
     </template>
