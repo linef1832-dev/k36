@@ -584,21 +584,22 @@ window.renderLeaveTable = function() {
                 }
             }
             breakdownHtml = `<div class="text-[9px] leading-tight mt-1.5 flex flex-wrap gap-x-1 gap-y-1">${detailItems.join('')}</div>`;
-        }
+    }
 
-        let rowHtml = `<tr class="transition ${rowClass} border-b border-gray-200 dark:border-slate-700">`;
-        rowHtml += `<td class="p-2 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-b border-gray-200 dark:border-slate-700 text-[10px] text-center text-gray-400 font-mono w-[40px] min-w-[40px] max-w-[40px]">${index + 1}</td>`;
-        
-        // 🌟 เอา breakdownHtml ไปใส่ใต้ชื่อพนักงาน (เพิ่มการตีเส้นขอบให้ชัวร์)
-        rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r border-b border-gray-200 dark:border-slate-700 text-xs ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">
-            <div class="flex justify-between items-start gap-1">
-                <div class="flex flex-col min-w-0 flex-1">
-                    <div class="flex items-center"><span class="truncate max-w-[70px] font-bold text-[13px]">${u.username}</span>${removeBtn}</div>
-                    ${breakdownHtml}
-                </div>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 mt-0.5 ${isPersonalFull ? 'bg-red-100 text-red-600 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200 shadow-inner'}">${myTotal}/${s.limit}</span>
+    let rowHtml = `<tr class="transition ${rowClass}">`;
+    
+    // 🌟 ใช้ shadow-inset แทน border-b เพื่อแก้ปัญหาเส้นขอบแหว่ง/หาย ตอนเลื่อนตาราง
+    rowHtml += `<td class="p-2 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r dark:border-slate-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#334155] text-[10px] text-center text-gray-400 font-mono w-[40px] min-w-[40px] max-w-[40px]">${index + 1}</td>`;
+    
+    rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r dark:border-slate-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#334155] text-xs ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">
+        <div class="flex justify-between items-start gap-1">
+            <div class="flex flex-col min-w-0 flex-1">
+                <div class="flex items-center"><span class="truncate max-w-[70px] font-bold text-[13px]">${u.username}</span>${removeBtn}</div>
+                ${breakdownHtml}
             </div>
-        </td>`;
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 mt-0.5 ${isPersonalFull ? 'bg-red-100 text-red-600 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200 shadow-inner'}">${myTotal}/${s.limit}</span>
+        </div>
+    </td>`;
 
         let isThisUserShiftOpen = true;
         if (typeof checkBookingWindow === 'function') {
