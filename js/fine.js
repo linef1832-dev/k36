@@ -960,8 +960,11 @@ window.submitFine = async function(e) {
 window.fetchFinesData = async function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const hasViewAllPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_view_all') : false;
+    const hasStatsPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_stats') : false;
+
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
     const canViewAll = isAdmin || hasViewAllPerm;
+    const canViewStats = isAdmin || hasStatsPerm; // 🌟 เช็คสิทธิ์หน้าสถิติ
 
     const tbody = document.getElementById('fineTableBody');
     if(!tbody) return;
@@ -974,7 +977,8 @@ window.fetchFinesData = async function() {
 
         let query = appDB.from('fines').select('*').order('created_at', { ascending: false });
         
-        if (!canViewAll) {
+        // 🌟 หัวใจสำคัญ: ถ้าไม่มีสิทธิ์ดูทั้งหมด และ ไม่มีสิทธิ์ดูสถิติ ถึงจะถูกล็อกให้ดึงจาก DB แค่ของตัวเอง
+        if (!canViewAll && !canViewStats) {
             query = query.eq('user_name', currentUser.username);
         }
 
@@ -983,6 +987,9 @@ window.fetchFinesData = async function() {
         
         globalFines = data || [];
         renderFineTable();
+        
+        // 🌟 สั่งให้หน้าสถิติอัปเดตข้อมูลด้วยทันทีหลังจากดึงเสร็จ
+        if (typeof renderFineStats === 'function') renderFineStats();
 
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-red-500">เกิดข้อผิดพลาด: ${e.message}</td></tr>`;
@@ -1015,7 +1022,13 @@ window.renderFineTable = function() {
     
     if(!tbody) return;
 
-    const filtered = globalFines.filter(f => {
+    // 🌟 ดักคนที่ได้สิทธิ์แค่ 'ดูสถิติ' แต่ไม่ได้สิทธิ์ 'ดูตารางทั้งหมด' จะถูกบังคับให้เห็นตารางแค่ของตัวเอง
+    let baseData = globalFines;
+    if (!canViewAll) {
+        baseData = globalFines.filter(f => f.user_name === currentUser.username);
+    }
+
+    const filtered = baseData.filter(f => {
         const matchTerm = (f.user_name && f.user_name.toLowerCase().includes(term)) || 
                           (f.rule_text && f.rule_text.toLowerCase().includes(term)) ||
                           (f.note && f.note.toLowerCase().includes(term));
