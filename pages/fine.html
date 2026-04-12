@@ -140,13 +140,13 @@
                     </div>
                     
                     <div class="flex items-center gap-2 w-full sm:w-auto">
-                        <select id="fineDeptFilter" onchange="renderFineTable()" class="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-xs font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer admin-col">
+                        <select id="fineDeptFilter" onchange="renderFineTable()" class="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-xs font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer view-all-col">
                             <option value="ALL">ทุกแผนก</option>
                             <option value="AM">AM</option>
                             <option value="OD">OD</option>
                             <option value="TRAINER">ผู้สอน</option>
                         </select>
-                        <select id="fineShiftFilter" onchange="renderFineTable()" class="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-xs font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer admin-col">
+                        <select id="fineShiftFilter" onchange="renderFineTable()" class="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-xs font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer view-all-col">
                             <option value="ALL">ทุกกะ</option>
                             <option value="กะเช้า">กะเช้า</option>
                             <option value="กะกลาง">กะกลาง</option>
@@ -163,7 +163,7 @@
                         <thead class="bg-slate-200 dark:bg-slate-900 text-gray-600 dark:text-gray-400 text-xs uppercase sticky top-0 shadow-sm z-10 border-b border-gray-300 dark:border-slate-700">
                             <tr>
                                 <th class="p-4 font-bold w-32">วัน/เวลา</th>
-                                <th class="p-4 font-bold w-40 border-r border-slate-300 dark:border-slate-700 admin-col">ชื่อพนักงาน</th>
+                                <th class="p-4 font-bold w-40 border-r border-slate-300 dark:border-slate-700 view-all-col">ชื่อพนักงาน</th>
                                 <th class="p-4 font-bold">รายละเอียดความผิด</th>
                                 <th class="p-4 font-bold text-center w-32">บทลงโทษ</th>
                                 <th class="p-4 font-bold text-center w-24">หลักฐาน</th>
@@ -340,8 +340,8 @@
                     </div>
                 </div>
             </td>
-            <td class="p-4 align-middle border-r border-slate-100 dark:border-slate-700 bg-red-50/30 dark:bg-red-900/20 admin-col">
-                <div class="text-slate-800 dark:text-white">{{usernameDisplay}}</div>
+            <td class="p-4 align-middle border-r border-slate-100 dark:border-slate-700 bg-red-50/30 dark:bg-red-900/20 view-all-col">
+                 <div class="text-slate-800 dark:text-white">{{usernameDisplay}}</div>
             </td>
             <td class="p-4 align-middle min-w-[300px]">
                 <div class="text-sm font-bold mb-1">{{ruleText}}</div>
