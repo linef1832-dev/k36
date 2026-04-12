@@ -375,9 +375,16 @@ async function loadFineNotes() {
 function updateNewNoteRuleDropdown() {
     const select = document.getElementById('newNoteRuleSelect');
     if (!select) return;
-    let html = '<option value="ALL">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
+    let html = '<option value="ALL" class="text-gray-500 font-bold">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
     globalFineRules.forEach(r => {
-        html += `<option value="${r}">${r}</option>`;
+        // 🌟 เพิ่มระบบแยกสีให้ Dropdown
+        let colorStyle = '';
+        if (r.includes('[ออนไลน์]')) colorStyle = 'color: #3b82f6; font-weight: bold; background-color: #1e293b;'; // สีฟ้า
+        else if (r.includes('[WFH]')) colorStyle = 'color: #10b981; font-weight: bold; background-color: #1e293b;'; // สีเขียว
+        else if (r.includes('[ออฟฟิศ]')) colorStyle = 'color: #f59e0b; font-weight: bold; background-color: #1e293b;'; // สีส้ม
+        else colorStyle = 'color: #cbd5e1; background-color: #1e293b;';
+
+        html += `<option value="${r}" style="${colorStyle}">${r}</option>`;
     });
     select.innerHTML = html;
 }
@@ -442,10 +449,18 @@ window.editFineNotePage = async function(idx) {
     const currentNote = globalFineNotes[idx];
     
     // สร้าง Dropdown กฎสำหรับ Popup แก้ไข
-    let ruleOptionsHtml = '<option value="ALL">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
+    let ruleOptionsHtml = '<option value="ALL" style="color: #6b7280; font-weight: bold; background-color: #1e293b;">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
     globalFineRules.forEach(r => {
         const isSelected = r === currentNote.rule ? 'selected' : '';
-        ruleOptionsHtml += `<option value="${r}" ${isSelected}>${r}</option>`;
+        
+        // 🌟 เพิ่มระบบแยกสีให้ Dropdown ใน Popup
+        let colorStyle = '';
+        if (r.includes('[ออนไลน์]')) colorStyle = 'color: #3b82f6; font-weight: bold; background-color: #1e293b;'; // สีฟ้า
+        else if (r.includes('[WFH]')) colorStyle = 'color: #10b981; font-weight: bold; background-color: #1e293b;'; // สีเขียว
+        else if (r.includes('[ออฟฟิศ]')) colorStyle = 'color: #f59e0b; font-weight: bold; background-color: #1e293b;'; // สีส้ม
+        else colorStyle = 'color: #cbd5e1; background-color: #1e293b;';
+
+        ruleOptionsHtml += `<option value="${r}" ${isSelected} style="${colorStyle}">${r}</option>`;
     });
     
     const { isConfirmed, value: parsedData } = await Swal.fire({
