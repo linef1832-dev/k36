@@ -1,6 +1,5 @@
-
 // ==========================================
-// 🚨 ระบบจัดการใบปรับ (Fine System) V26 (Bypass User Validation on Submit)
+// 🚨 ระบบจัดการใบปรับ (Fine System) V28 (อัปเดตระบบวันที่กระทำความผิด)
 // ==========================================
 let globalFines = [];
 let globalFineRules = [];
@@ -8,26 +7,18 @@ let globalFineNotes = [];
 let finesSubscription = null;
 
 window.subscribeFinesChanges = function(isAdmin) {
-    // ป้องกันการเปิดรับสัญญาณซ้ำซ้อน
     if (finesSubscription) return;
 
     finesSubscription = appDB.channel('fines-realtime')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fines' }, (payload) => {
             const newFine = payload.new;
 
-            // กรองให้ทำงานเฉพาะแอดมิน หรือ พนักงานที่เป็นเจ้าของใบปรับใบนี้เท่านั้น
             if (isAdmin || currentUser.username === newFine.user_name) {
-                
-                // เช็คกันเหนียว เผื่อข้อมูลเข้าซ้ำ
                 const isExist = globalFines.some(f => String(f.id) === String(newFine.id));
                 if (!isExist) {
-                    // 1. ยัดข้อมูลใหม่ใส่ด้านบนสุดของ Array ในหน้าเว็บทันที (0 Database Requests!)
                     globalFines.unshift(newFine);
-                    
-                    // 2. สั่งวาดตารางใหม่
                     renderFineTable(isAdmin);
 
-                    // 3. แจ้งเตือนพนักงานที่โดนปรับ (ถ้าเขาเปิดหน้าเว็บทิ้งไว้)
                     if (!isAdmin && currentUser.username === newFine.user_name) {
                         Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 6000 })
                             .fire({ icon: 'warning', title: '🚨 คุณได้รับใบปรับใหม่!' });
@@ -36,7 +27,6 @@ window.subscribeFinesChanges = function(isAdmin) {
             }
         })
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'fines' }, (payload) => {
-            // กรณีแอดมิน "ลบ" ใบปรับ ให้หน้าจอของพนักงานหายไปแบบเรียลไทม์ด้วย
             const deletedId = payload.old.id;
             const isExist = globalFines.some(f => String(f.id) === String(deletedId));
             
@@ -47,6 +37,7 @@ window.subscribeFinesChanges = function(isAdmin) {
         })
         .subscribe();
 };
+
 const defaultNotes = [
     "โทรไม่รับสาย / ติดต่อไม่ได้",
     "แชทไม่ตอบเกินเวลา",
@@ -56,7 +47,6 @@ const defaultNotes = [
     "เตือนแล้วแต่ไม่ปรับปรุง"
 ];
 
-// 🌟 อัปเดตกฎระเบียบชุดใหม่
 const okvipRules = [
     "[ออนไลน์] บทที่2 ข้อที่1 ไม่ได้เข้าเช็คชื่อ",
     "[ออนไลน์] บทที่ 2 ข้อที่ 4 โทรติดต่อกัน 3 ครั้ง ไม่มีการรับสาย",
@@ -112,10 +102,18 @@ window.initFineApp = async function() {
     }
 
     switchFineTab('issue');
+    
+    // 🌟 ตั้งค่า Default วันที่กระทำผิดให้เป็นวันนี้
+    const offDateInput = document.getElementById('fineOffenseDate');
+    if (offDateInput && !offDateInput.value) {
+        const today = new Date();
+        const offset = today.getTimezoneOffset() * 60000;
+        offDateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
+    }
+
     await loadFineRules();
     await loadFineNotes(); 
     await fetchFinesData(isAdmin);
-// --- 🌟 เพิ่มบรรทัดนี้ลงไป ---
     subscribeFinesChanges(isAdmin);
 };
 
@@ -292,7 +290,6 @@ window.removeFineNotePage = async function(idx) {
         Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
     }
 }
-
 
 // ===============================================
 // 🌟 2. การจัดการกฎ (Accordion UI + Dropdown Auto Fill + Amount Type)
@@ -504,14 +501,12 @@ window.editFineRulePage = async function(idx) {
     let currentDetail = currentRule;
     let currentAmount = '';
 
-    // ดึงหมวดหมู่ออกมาจากวงเล็บก้ามปู
     const catMatch = currentRule.match(/^\[(.*?)\]\s*/);
     if (catMatch) {
-        currentCategory = catMatch[1].trim(); // เพิ่ม .trim() ป้องกันบัคช่องว่าง
+        currentCategory = catMatch[1].trim(); 
         currentDetail = currentDetail.replace(catMatch[0], ''); 
     }
 
-    // ดึงค่าปรับออกมา (ถ้ามี)
     const amtMatch = currentDetail.match(/\s*\(ปรับ\s*([\d,]+)\)$/);
     if (amtMatch) {
         currentAmount = amtMatch[1].replace(/,/g, '');
@@ -537,7 +532,6 @@ window.editFineRulePage = async function(idx) {
         cancelButtonColor: '#64748b',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl' },
         
-        // 🌟 เพิ่มบรรทัดนี้: บังคับให้ Dropdown เลือกหมวดหมู่ที่ถูกต้องทันทีที่ Popup เปิดขึ้นมา
         didOpen: () => {
             const catSelect = document.getElementById('editRuleCategory');
             if (catSelect) {
@@ -568,7 +562,7 @@ window.editFineRulePage = async function(idx) {
             Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
             globalFineRules[idx] = finalRuleString;
             await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
-            renderRulesDropdown(); // สั่งให้หน้าจอรีเฟรชข้อมูลใหม่
+            renderRulesDropdown(); 
             Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
         }
     }
@@ -687,14 +681,16 @@ window.submitFine = async function(e) {
     
     if(!empInput || !ruleSelect) return;
     
-    // 🌟 ดึงค่าที่ผู้ใช้ "พิมพ์เข้ามาสดๆ" ไปใช้งานตรงๆ ได้เลย
     const empName = empInput.value.trim();
     const ruleText = ruleSelect.value;
     
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
-    // 🌟 ระบบแทรกคำอัตโนมัติ (Smart Insertion)
+    // 🌟 ดึงค่าจากช่อง "วันที่กระทำผิด"
+    const offenseDateInput = document.getElementById('fineOffenseDate');
+    const offenseDateVal = offenseDateInput ? offenseDateInput.value : null;
+    
     let finalNote = noteSelect;
     if (noteInput) {
         if (finalNote) {
@@ -715,7 +711,6 @@ window.submitFine = async function(e) {
         }
     }
     
-    // 🌟 ล้างวงเล็บครอบหน้า-หลัง เพื่อป้องกันการแสดงผลซ้อน
     if (finalNote) {
         finalNote = finalNote.trim();
         while (finalNote.startsWith('(') && finalNote.endsWith(')')) {
@@ -754,7 +749,6 @@ window.submitFine = async function(e) {
             imageUrl = publicUrlData.publicUrl;
         }
         
-        // 🌟 ลองค้นหาไอดีพนักงานจากระบบ ถ้าไม่มีก็ให้เป็น null ไปเลย
         let targetId = null;
         if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) {
              const tUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase());
@@ -762,13 +756,14 @@ window.submitFine = async function(e) {
         }
 
         const { error: dbError } = await appDB.from('fines').insert([{
-            user_id: targetId, // ใส่ null ได้ถ้าไม่มีในระบบ
-            user_name: empName, // 🌟 บันทึกชื่อที่พิมพ์ลงไปตรงๆ เลย
+            user_id: targetId, 
+            user_name: empName, 
             rule_text: ruleText,
             note: finalNote, 
             amount: amountToSave, 
             evidence_url: imageUrl,
-            issued_by: currentUser.username
+            issued_by: currentUser.username,
+            offense_date: offenseDateVal // 🌟 บันทึกวันที่กระทำความผิด
         }]);
 
         if (dbError) throw dbError;
@@ -782,7 +777,6 @@ window.submitFine = async function(e) {
         
         if (document.getElementById('fineNoteSelect')) document.getElementById('fineNoteSelect').value = '';
         if (document.getElementById('fineNoteInput')) document.getElementById('fineNoteInput').value = '';
-        // ค้นหาบรรทัดนี้ใน window.submitFine
         if (penaltyTypeEl) {
             penaltyTypeEl.value = 'money';
             window.toggleFineAmountInput();
@@ -790,8 +784,12 @@ window.submitFine = async function(e) {
         if(amountEl) amountEl.value = '';
         clearFineImg();
         
-        // ❌ คอมเมนต์หรือลบบรรทัดนี้ทิ้ง เพื่อลด Database Requests
-        // fetchFinesData(true);
+        // 🌟 รีเซ็ตวันที่กลับมาเป็นวันนี้
+        if (offenseDateInput) {
+            const today = new Date();
+            const offset = today.getTimezoneOffset() * 60000;
+            offenseDateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
+        }
 
     } catch (err) {
         Swal.fire('Error', err.message, 'error');
@@ -799,7 +797,7 @@ window.submitFine = async function(e) {
 };
 
 // -----------------------------------------
-// ดึงข้อมูลและวาดตาราง (ใช้ Template แยก HTML อออกจาก JS)
+// ดึงข้อมูลและวาดตาราง
 // -----------------------------------------
 window.fetchFinesData = async function(isAdmin) {
     const tbody = document.getElementById('fineTableBody');
@@ -865,7 +863,17 @@ window.renderFineTable = function(isAdminOverride) {
 
     tbody.innerHTML = filtered.map(f => {
         const d = new Date(f.created_at);
-        const dateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
+        // 🌟 ดึงวันที่ออกใบปรับ
+        const issueDateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
+        
+        // 🌟 ดึงวันที่ทำความผิด
+        let offenseDateStr = '-';
+        if (f.offense_date) {
+            const od = new Date(f.offense_date);
+            offenseDateStr = od.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+        } else {
+            offenseDateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
         
         let amountDisplay = '';
         if (f.amount === -1) {
@@ -881,7 +889,6 @@ window.renderFineTable = function(isAdminOverride) {
         let noteHtml = '';
         if (f.note && f.note.trim() !== '') {
             let cleanNoteForTable = f.note.trim();
-            // 🌟 ล้างวงเล็บอีกชั้นก่อนแสดงผลในตาราง
             while (cleanNoteForTable.startsWith('(') && cleanNoteForTable.endsWith(')')) {
                 cleanNoteForTable = cleanNoteForTable.substring(1, cleanNoteForTable.length - 1).trim();
             }
@@ -891,12 +898,10 @@ window.renderFineTable = function(isAdminOverride) {
         let displayName = f.user_name;
         let deptBadgeHtml = '';
 
-        // 🌟 แก้ไขการดึงป้ายแผนกและกะให้แน่นอน 100%
         if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
             const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
             
             if (dbUser) {
-                // 1. ป้ายแผนก (Dept)
                 let dept = dbUser.department || 'AM';
                 let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
                 
@@ -913,7 +918,6 @@ window.renderFineTable = function(isAdminOverride) {
                 
                 deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
 
-                // 2. ป้ายกะ (Shift)
                 if (dbUser.allowed_shift) {
                     let sName = dbUser.allowed_shift.replace('กะ', '');
                     let sColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700';
@@ -956,7 +960,8 @@ window.renderFineTable = function(isAdminOverride) {
 
         return window.renderTemplate('tpl-fine-history-row', {
             id: f.id,
-            dateStr: dateStr,
+            issueDateStr: issueDateStr,   // 🌟 โยนวันที่ออกใบปรับ
+            offenseDateStr: offenseDateStr, // 🌟 โยนวันที่ทำผิด
             usernameDisplay: displayName,
             ruleText: ruleDisplay,
             noteHtml: noteHtml,
@@ -990,7 +995,6 @@ window.generateFineText = function() {
     
     if (!empInput || !ruleSelect) return;
 
-    // 🌟 ดึงชื่อพนักงานมาตรงๆ ไม่ต้องสนพิมพ์เล็กใหญ่ เพราะจะดึงชื่อที่ถูกต้องจากระบบมาใช้
     let empName = empInput.value.trim();
     const targetUser = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(empName).toLowerCase()) : null;
     if (targetUser) empName = targetUser.username; 
@@ -1004,7 +1008,14 @@ window.generateFineText = function() {
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
-    // 🌟 ระบบแทรกคำอัตโนมัติ (Smart Insertion) สำหรับคัดลอก
+    // 🌟 ดึงวันที่ทำผิดมาใส่ในข้อความ
+    const offenseDateVal = document.getElementById('fineOffenseDate') ? document.getElementById('fineOffenseDate').value : '';
+    let offenseDisplay = '';
+    if (offenseDateVal) {
+        const [y, m, d] = offenseDateVal.split('-');
+        offenseDisplay = ` (เหตุเกิดวันที่ ${d}/${m}/${y})`;
+    }
+    
     let finalNote = noteSelect;
     if (noteInput) {
         if (finalNote) {
@@ -1035,13 +1046,13 @@ window.generateFineText = function() {
     let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
     cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
-    let resultText = `ปรับ ${empName} ${cleanRule}`;
+    // 🌟 ประกอบร่างข้อความโดยใส่ offenseDisplay
+    let resultText = `ปรับ ${empName} ${cleanRule}${offenseDisplay}`;
     
     if (finalNote) {
         resultText += ` (${finalNote})`;
     }
 
-    // 🌟 เพิ่มวันที่ปัจจุบันต่อท้าย (รูปแบบ วัน/เดือน/ปี)
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
