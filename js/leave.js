@@ -451,7 +451,7 @@ window.renderLeaveTable = function() {
     const personalCounts = {};    
     const shiftDailyCounts = {}; 
 
-    allLeaveData.forEach(l => {
+   allLeaveData.forEach(l => {
         if (!allDeptUserIds.has(l.user_id)) return;
         
         const rsn = (l.reason === 'Table-Booking' || !l.reason) ? 'X' : l.reason;
@@ -464,8 +464,16 @@ window.renderLeaveTable = function() {
 
         const lDate = new Date(l.leave_date);
         if (lDate.getMonth() === month && lDate.getFullYear() === year) {
-            if(!personalCounts[l.user_id]) personalCounts[l.user_id] = 0;
-            personalCounts[l.user_id]++;
+            // 🌟 แก้ไข: เปลี่ยนการเก็บข้อมูลให้มีทั้งยอดรวม และแยกประเภทย่อย
+            if(!personalCounts[l.user_id]) {
+                personalCounts[l.user_id] = { total: 0, details: {} };
+            }
+            personalCounts[l.user_id].total++;
+            
+            if(!personalCounts[l.user_id].details[rsn]) {
+                personalCounts[l.user_id].details[rsn] = 0;
+            }
+            personalCounts[l.user_id].details[rsn]++;
         }
     });
 
@@ -526,7 +534,10 @@ window.renderLeaveTable = function() {
         const isMe = u.id === currentUser.id;
         const nameClass = isMe ? "text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-900/10" : "";
         const rowClass = isMe ? "bg-rose-50/30 dark:bg-rose-900/5" : "";
-        const myTotal = personalCounts[u.id] || 0;
+        
+        // 🌟 ดึงข้อมูลที่นับแบบแยกประเภทแล้วออกมาใช้
+        const myLeaveData = personalCounts[u.id] || { total: 0, details: {} };
+        const myTotal = myLeaveData.total;
         const isPersonalFull = myTotal >= s.limit; 
 
         let targetQuota = s.quotaM || 2; 
@@ -541,12 +552,46 @@ window.renderLeaveTable = function() {
             }
         }
 
+        // 🌟 สร้าง HTML แสดงจำนวนลางานแยกตามประเภท ให้ครบทุกแบบตามหน้าเว็บคุณ
+        let breakdownHtml = '';
+        if (myTotal > 0) {
+            const detailItems = [];
+            // กำหนดสีให้ครบตามประเภทการลาเลยครับ
+            const colors = {
+                'X': 'text-red-500 font-black',
+                'XX': 'text-yellow-600 font-black',
+                'X4': 'text-pink-500 font-black',
+                'KL': 'text-green-600 font-black',
+                'TX': 'text-blue-500 font-black',
+                'TL': 'text-blue-500 font-black',
+                'PN': 'text-amber-700 font-black',
+                'KP': 'text-yellow-800 font-black'
+            };
+            
+            for (const [rsn, count] of Object.entries(myLeaveData.details)) {
+                // เผื่อมีค่า Table-Booking หลุดมา ให้โชว์เป็น X
+                let displayRsn = (rsn === 'Table-Booking') ? 'X' : rsn;
+                const colorCls = colors[displayRsn] || 'text-gray-500 font-black';
+                
+                // เช็คกันซ้ำ
+                if (!detailItems.some(item => item.includes(`>${displayRsn}:`))) {
+                    detailItems.push(`<span class="${colorCls} bg-slate-100 dark:bg-slate-800 px-1 rounded shadow-sm border border-gray-200 dark:border-slate-600">${displayRsn}:${count}</span>`);
+                }
+            }
+            breakdownHtml = `<div class="text-[9px] leading-tight mt-1.5 flex flex-wrap gap-x-1 gap-y-1">${detailItems.join('')}</div>`;
+        }
+
         let rowHtml = `<tr class="transition ${rowClass}">`;
         rowHtml += `<td class="p-2 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-b dark:border-slate-700 text-[10px] text-center text-gray-400 font-mono w-[40px] min-w-[40px] max-w-[40px]">${index + 1}</td>`;
-        rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r border-b dark:border-slate-700 text-xs truncate ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">
-            <div class="flex justify-between items-center gap-1">
-                <div class="flex items-center"><span class="truncate max-w-[70px]">${u.username}</span>${removeBtn}</div>
-                <span class="text-[9px] px-1.5 rounded-full border shrink-0 ${isPersonalFull ? 'bg-red-100 text-red-600 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200'}">${myTotal}/${s.limit}</span>
+        
+        // 🌟 เอา breakdownHtml ไปใส่ใต้ชื่อพนักงาน
+        rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r border-b dark:border-slate-700 text-xs ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">
+            <div class="flex justify-between items-start gap-1">
+                <div class="flex flex-col min-w-0 flex-1">
+                    <div class="flex items-center"><span class="truncate max-w-[70px] font-bold text-[13px]">${u.username}</span>${removeBtn}</div>
+                    ${breakdownHtml}
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 mt-0.5 ${isPersonalFull ? 'bg-red-100 text-red-600 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200 shadow-inner'}">${myTotal}/${s.limit}</span>
             </div>
         </td>`;
 
