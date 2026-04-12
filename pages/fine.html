@@ -238,7 +238,11 @@
                 </div>
 
                 <div class="flex flex-col md:flex-row gap-3 mb-6">
-                    <input type="text" id="newNoteInputPage" placeholder="พิมพ์ข้อความหมายเหตุ (เช่น โทรไม่รับสาย, แชทไม่ตอบ)..." class="flex-1 p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-yellow-500 shadow-sm transition">
+                    <select id="newNoteRuleSelect" class="w-full md:w-1/3 p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-yellow-500 shadow-sm transition cursor-pointer">
+                        <option value="ALL">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>
+                        </select>
+                    
+                    <input type="text" id="newNoteInputPage" placeholder="พิมพ์ข้อความหมายเหตุ (เช่น โทรไม่รับสาย)..." class="flex-1 p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-yellow-500 shadow-sm transition">
                     <button type="button" onclick="addFineNotePage()" class="w-full md:w-auto bg-yellow-600 hover:bg-yellow-500 text-white px-6 py-3.5 rounded-xl font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-1 border border-yellow-700">
                         <span class="material-icons text-base">add_circle</span> เพิ่มหมายเหตุ
                     </button>
@@ -410,13 +414,16 @@
     </template>
 
     <template id="tpl-fine-note-item">
-        <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center shadow-sm group">
-            <span class="text-sm font-bold text-slate-700 dark:text-gray-300 truncate pr-2">{{noteText}}</span>
-            <div class="flex items-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity shrink-0">
-                <button type="button" onclick="editFineNotePage({{index}})" class="text-amber-500 hover:text-white hover:bg-amber-500 p-1.5 rounded-lg transition" title="แก้ไข">
+        <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-sm group gap-2 hover:border-yellow-400 transition">
+            <div class="flex flex-col min-w-0 flex-1">
+                <span class="text-sm font-bold text-slate-700 dark:text-gray-200">{{noteText}}</span>
+                <span class="text-[10px] font-bold text-yellow-600 dark:text-yellow-500 mt-0.5 flex items-center gap-1"><span class="material-icons text-[12px]">link</span> {{ruleText}}</span>
+            </div>
+            <div class="flex items-center gap-1 opacity-100 sm:opacity-50 group-hover:opacity-100 transition-opacity shrink-0">
+                <button type="button" onclick="editFineNotePage({{index}})" class="text-amber-500 hover:text-white bg-white dark:bg-slate-800 hover:bg-amber-500 p-1.5 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm" title="แก้ไข">
                     <span class="material-icons text-sm block">edit</span>
                 </button>
-                <button type="button" onclick="removeFineNotePage({{index}})" class="text-red-400 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition" title="ลบ">
+                <button type="button" onclick="removeFineNotePage({{index}})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 p-1.5 rounded-lg border border-gray-200 dark:border-slate-600 transition shadow-sm" title="ลบ">
                     <span class="material-icons text-sm block">delete</span>
                 </button>
             </div>
