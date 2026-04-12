@@ -322,52 +322,64 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
             try {
                 let parsedRowsData = [];
-                if (fileName.endsWith('.csv')) {
-                    const text = await file.text();
-                    const parseCSV = (str) => {
-                        const rows = []; let currentRow = []; let currentCell = ''; let inQuotes = false;
-                        for (let i = 0; i < str.length; i++) {
-                            let cc = str[i], nc = str[i + 1];
-                            if (cc === '"' && inQuotes && nc === '"') { currentCell += '"'; i++; } 
-                            else if (cc === '"') { inQuotes = !inQuotes; } 
-                            else if (cc === ',' && !inQuotes) { currentRow.push(currentCell.trim()); currentCell = ''; } 
-                            else if ((cc === '\n' || cc === '\r') && !inQuotes) {
-                                if (cc === '\r' && nc === '\n') i++; 
-                                currentRow.push(currentCell.trim());
-                                if (currentRow.some(v => v !== '')) rows.push(currentRow); 
-                                currentRow = []; currentCell = '';
-                            } else { currentCell += cc; }
-                        }
-                        if (currentCell !== '' || currentRow.length > 0) {
-                            currentRow.push(currentCell.trim());
-                            if (currentRow.some(v => v !== '')) rows.push(currentRow);
-                        }
-                        return rows;
-                    };
-                    parsedRowsData = parseCSV(text);
-                } else {
-                    const wb = new ExcelJS.Workbook();
-                    const buffer = await file.arrayBuffer();
-                    await wb.xlsx.load(buffer);
-                    const ws = wb.worksheets[0]; 
-                    ws.eachRow((row, rowNumber) => {
-                        let cols = [];
-                        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-                            let val = cell.value;
-                            if (val && typeof val === 'object' && val.text) val = val.text;
-                            if (val && val instanceof Date) {
-                                const offset = val.getTimezoneOffset() * 60000;
-                                const localDate = new Date(val - offset);
-                                const ds = localDate.toISOString().split('T')[0];
-                                const ts = localDate.toISOString().split('T')[1].split('.')[0];
-                                val = `${ds} ${ts}`; 
-                            }
-                            cols[colNumber - 1] = String(val || '');
-                        });
-                        for(let i=0; i<cols.length; i++) { if(cols[i]===undefined) cols[i]=''; }
-                        parsedRowsData.push(cols);
-                    });
-                }
+                
+                // 🌟 1. ยกฟังก์ชัน parseCSV ออกมาประกาศไว้ด้านบน เพื่อให้สลับใช้ได้ทันที
+                const parseCSV = (str) => {
+                    const rows = []; let currentRow = []; let currentCell = ''; let inQuotes = false;
+                    for (let i = 0; i < str.length; i++) {
+                        let cc = str[i], nc = str[i + 1];
+                        if (cc === '"' && inQuotes && nc === '"') { currentCell += '"'; i++; } 
+                        else if (cc === '"') { inQuotes = !inQuotes; } 
+                        else if (cc === ',' && !inQuotes) { currentRow.push(currentCell.trim()); currentCell = ''; } 
+                        else if ((cc === '\n' || cc === '\r') && !inQuotes) {
+                            if (cc === '\r' && nc === '\n') i++; 
+                            currentRow.push(currentCell.trim());
+                            if (currentRow.some(v => v !== '')) rows.push(currentRow); 
+                            currentRow = []; currentCell = '';
+                        } else { currentCell += cc; }
+                    }
+                    if (currentCell !== '' || currentRow.length > 0) {
+                        currentRow.push(currentCell.trim());
+                        if (currentRow.some(v => v !== '')) rows.push(currentRow);
+                    }
+                    return rows;
+                };
+
+                if (fileName.endsWith('.csv')) {
+                    // โหลดไฟล์ CSV ปกติ
+                    const text = await file.text();
+                    parsedRowsData = parseCSV(text);
+                } else {
+                    try {
+                        // พยายามโหลดไฟล์ Excel ตามปกติก่อน
+                        const wb = new ExcelJS.Workbook();
+                        const buffer = await file.arrayBuffer();
+                        await wb.xlsx.load(buffer);
+                        const ws = wb.worksheets[0]; 
+                        ws.eachRow((row, rowNumber) => {
+                            let cols = [];
+                            row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                                let val = cell.value;
+                                if (val && typeof val === 'object' && val.text) val = val.text;
+                                if (val && val instanceof Date) {
+                                    const offset = val.getTimezoneOffset() * 60000;
+                                    const localDate = new Date(val - offset);
+                                    const ds = localDate.toISOString().split('T')[0];
+                                    const ts = localDate.toISOString().split('T')[1].split('.')[0];
+                                    val = `${ds} ${ts}`; 
+                                }
+                                cols[colNumber - 1] = String(val || '');
+                            });
+                            for(let i=0; i<cols.length; i++) { if(cols[i]===undefined) cols[i]=''; }
+                            parsedRowsData.push(cols);
+                        });
+                    } catch (xlsxError) {
+                        // 🌟 2. ไฮไลท์จุดแก้: ถ้าโหลดแบบ Excel พัง แปลว่าเป็น "ไฟล์ CSV ปลอมตัวมา"
+                        console.warn(`ไฟล์ ${file.name} ไม่ใช่ Excel แท้ กำลังสลับไปอ่านโหมด CSV...`);
+                        const text = await file.text();
+                        parsedRowsData = parseCSV(text);
+                    }
+                }
 
                 const webNameMap = { 'vv72': 'VV72', 'jun88': 'Jun88', 'mk8': 'MK8', 'th26': 'TH26', 'bt678': 'BT678', 'k188': 'K188', 'nm9': 'NM9', 'pg688': 'PG688', 'jl69': 'JL69', 'f168': 'F168' };
                 let colMap = { amount: -1, status: -1, emp: -1, web: -1 };
