@@ -191,19 +191,40 @@ window.renderFineStats = function() {
     if (!container) return;
 
     const monthFilter = document.getElementById('fineStatsMonth') ? document.getElementById('fineStatsMonth').value : 'all';
+    const deptFilter = document.getElementById('fineStatsDept') ? document.getElementById('fineStatsDept').value : 'ALL';
+    const shiftFilter = document.getElementById('fineStatsShift') ? document.getElementById('fineStatsShift').value : 'ALL';
 
-    // 1. กรองเฉพาะเดือนที่เลือก
-    let filteredFines = globalFines;
-    if (monthFilter !== 'all') {
-        filteredFines = globalFines.filter(f => {
+    // 1. กรองเดือน แผนก และกะ
+    let filteredFines = globalFines.filter(f => {
+        // กรองเดือน
+        if (monthFilter !== 'all') {
             const d = f.offense_date ? new Date(f.offense_date) : new Date(f.created_at);
             const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            return ym === monthFilter;
-        });
-    }
+            if (ym !== monthFilter) return false;
+        }
+
+        // กรองแผนก และ กะ
+        if (deptFilter !== 'ALL' || shiftFilter !== 'ALL') {
+            let dbUser = null;
+            if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
+                dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+            }
+            
+            if (!dbUser) return false; // ถ้าหาคนในระบบไม่เจอ ให้ข้ามไปถ้ามีการกรองกะ/แผนก
+
+            let uDept = dbUser.department || 'AM';
+            let isTrainer = dbUser.role === 'trainer' || uDept === 'TRAINER';
+            if (isTrainer) uDept = 'TRAINER';
+
+            if (deptFilter !== 'ALL' && uDept !== deptFilter) return false;
+            if (shiftFilter !== 'ALL' && dbUser.allowed_shift !== shiftFilter) return false;
+        }
+
+        return true;
+    });
 
     if (filteredFines.length === 0) {
-        container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400 font-bold bg-slate-50 dark:bg-slate-900 rounded-2xl border border-dashed border-gray-300 dark:border-slate-700">ไม่มีประวัติโดนปรับในเดือนที่เลือกครับ 🎉</div>';
+        container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400 font-bold bg-slate-50 dark:bg-slate-900 rounded-2xl border border-dashed border-gray-300 dark:border-slate-700">ไม่มีประวัติโดนปรับในเงื่อนไขที่เลือกครับ 🎉</div>';
         return;
     }
 
@@ -249,6 +270,13 @@ window.renderFineStats = function() {
             amount: stat.amount.toLocaleString('en-US')
         });
     }).join('');
+    
+    // (Optional) สั่งให้ซ่อน/โชว์ Dropdown แผนกกับกะ สำหรับแอดมินเท่านั้น
+    const isAdmin = typeof currentUser !== 'undefined' && (currentUser.role === 'manager' || currentUser.role === 'admin' || (typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false));
+    document.querySelectorAll('.admin-col').forEach(el => {
+        if (isAdmin) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+    });
 };
 
 function populateEmpSelect() {
