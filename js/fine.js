@@ -718,77 +718,74 @@ window.addFineRulePage = async function() {
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
 
-window.editFineRulePage = async function(idx) {
-    const currentRule = globalFineRules[idx];
-    
-    let currentCategory = 'อื่นๆ';
-    let currentDetail = currentRule;
-    let currentAmount = '';
+window.editFineNotePage = async function(idx) {
+    const currentNote = globalFineNotes[idx];
 
-    const catMatch = currentRule.match(/^\[(.*?)\]\s*/);
-    if (catMatch) {
-        currentCategory = catMatch[1].trim(); 
-        currentDetail = currentDetail.replace(catMatch[0], ''); 
-    }
+    // 🌟 1. ดึงข้อความออกมาให้ถูกต้อง (รองรับทั้งแบบ Object และ String ธรรมดา)
+    let noteText = typeof currentNote === 'object' ? (currentNote.note || currentNote.text || '') : currentNote;
+    let currentRule = typeof currentNote === 'object' ? (currentNote.rule || '') : '';
 
-    const amtMatch = currentDetail.match(/\s*\(ปรับ\s*([\d,]+)\)$/);
-    if (amtMatch) {
-        currentAmount = amtMatch[1].replace(/,/g, '');
-        currentDetail = currentDetail.replace(amtMatch[0], ''); 
-    }
-    
-    const htmlForm = window.renderTemplate('tpl-fine-edit-rule-form', {
-        selOnline: currentCategory === 'ออนไลน์' ? 'selected="selected"' : '',
-        selWFH: currentCategory === 'WFH' ? 'selected="selected"' : '',
-        selOffice: currentCategory === 'ออฟฟิศ' ? 'selected="selected"' : '',
-        selOther: currentCategory === 'อื่นๆ' ? 'selected="selected"' : '',
-        currentDetail: currentDetail,
-        currentAmount: currentAmount
+    // ========================================================
+    // 🌟 2. โค้ดลูปสร้าง Option สีๆ
+    // ========================================================
+    let optionsHtml = '<option value="">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
+
+    globalFineRules.forEach(rule => {
+        let optStyle = '';
+        if (rule.includes('[ออนไลน์]')) optStyle = 'color: #60a5fa; font-weight: bold; background-color: #0f172a;'; 
+        else if (rule.includes('[WFH]')) optStyle = 'color: #34d399; font-weight: bold; background-color: #0f172a;'; 
+        else if (rule.includes('[ออฟฟิศ]')) optStyle = 'color: #fbbf24; font-weight: bold; background-color: #0f172a;'; 
+        else optStyle = 'color: #e2e8f0; background-color: #0f172a;'; 
+        
+        // 🌟 ทำให้เลือกกฎเดิมที่เคยผูกไว้ (ถ้ามี)
+        let isSelected = (currentRule === rule) ? 'selected' : '';
+        optionsHtml += `<option value="${rule}" style="${optStyle}" ${isSelected}>${rule}</option>`;
     });
 
-    const { isConfirmed, value: parsedData } = await Swal.fire({
-        title: '<div class="text-xl font-black text-amber-500 flex items-center justify-center gap-2"><span class="material-icons">edit</span> แก้ไขหัวข้อกฎ</div>',
-        html: htmlForm,
+    // ========================================================
+    // 🌟 3. สร้างหน้าต่างป๊อปอัป
+    // ========================================================
+    const { value: formValues } = await Swal.fire({
+        title: '<span class="text-amber-500">แก้ไขข้อความหมายเหตุ</span>',
+        html: `
+            <div class="text-left">
+                <label class="block text-xs font-bold text-gray-400 mb-1">กฎที่ต้องการผูก</label>
+                <select id="bindRuleSelect" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-600 text-white outline-none mb-3 cursor-pointer">
+                    ${optionsHtml} 
+                </select>
+
+                <label class="block text-xs font-bold text-gray-400 mb-1">ข้อความหมายเหตุ</label>
+                <input id="noteInput" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-600 text-white outline-none focus:border-amber-500 transition" value="${noteText}">
+            </div>
+        `,
         showCancelButton: true,
         confirmButtonText: 'บันทึกการแก้ไข',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#f59e0b',
         cancelButtonColor: '#64748b',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl' },
-        
-        didOpen: () => {
-            const catSelect = document.getElementById('editRuleCategory');
-            if (catSelect) {
-                catSelect.value = currentCategory;
-            }
-        },
-
         preConfirm: () => {
-            const cat = document.getElementById('editRuleCategory').value;
-            const detail = document.getElementById('editRuleDetail').value.trim();
-            const amt = document.getElementById('editRuleAmount').value.trim();
-            if (!detail) {
-                Swal.showValidationMessage('กรุณากรอกรายละเอียดความผิด!');
+            const selectedRule = document.getElementById('bindRuleSelect').value;
+            const newNote = document.getElementById('noteInput').value.trim();
+            if (!newNote) {
+                Swal.showValidationMessage('กรุณากรอกข้อความหมายเหตุ!');
                 return false;
             }
-            return { cat, detail, amt };
+            // ส่งค่ากลับเป็น Object
+            return { rule: selectedRule, note: newNote };
         }
     });
 
-    if (isConfirmed && parsedData) {
-        let finalRuleString = `[${parsedData.cat}] ${parsedData.detail}`;
-        if (parsedData.amt && parseInt(parsedData.amt) > 0) {
-            const formattedAmt = parseInt(parsedData.amt).toLocaleString('en-US');
-            finalRuleString += ` (ปรับ ${formattedAmt})`;
-        }
-
-        if (finalRuleString !== currentRule) {
-            Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
-            globalFineRules[idx] = finalRuleString;
-            await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
-            renderRulesDropdown(); 
-            Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
-        }
+    // เช็คค่าเมื่อกดยืนยัน
+    if (formValues) {
+        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+        
+        // 🌟 เซฟข้อมูลรูปแบบ Object ลงระบบ
+        globalFineNotes[idx] = formValues; 
+        await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
+        
+        renderNotesDropdown();
+        Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
     }
 };
 
