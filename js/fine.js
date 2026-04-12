@@ -838,13 +838,43 @@ window.renderFineTable = function(isAdminOverride) {
     const searchInput = document.getElementById('fineSearchInput');
     const term = searchInput ? searchInput.value.toLowerCase() : '';
     
+    // 🌟 ดึงค่าจาก Dropdown Filter แผนกและกะ
+    const deptFilter = document.getElementById('fineDeptFilter') ? document.getElementById('fineDeptFilter').value : 'ALL';
+    const shiftFilter = document.getElementById('fineShiftFilter') ? document.getElementById('fineShiftFilter').value : 'ALL';
+    
     if(!tbody) return;
 
-    const filtered = globalFines.filter(f => 
-        (f.user_name && f.user_name.toLowerCase().includes(term)) || 
-        (f.rule_text && f.rule_text.toLowerCase().includes(term)) ||
-        (f.note && f.note.toLowerCase().includes(term))
-    );
+    // 🌟 ประมวลผลการกรองข้อมูลแบบผสม (ค้นหา + แผนก + กะ)
+    const filtered = globalFines.filter(f => {
+        // 1. ตรวจสอบการค้นหาข้อความ
+        const matchTerm = (f.user_name && f.user_name.toLowerCase().includes(term)) || 
+                          (f.rule_text && f.rule_text.toLowerCase().includes(term)) ||
+                          (f.note && f.note.toLowerCase().includes(term));
+        
+        let matchDept = true;
+        let matchShift = true;
+
+        // 2. ตรวจสอบ Filter ว่าผู้ใช้ถูกจัดให้อยู่แผนก/กะ ไหน (อิงตาม GLOBAL_USER_LIST)
+        if (deptFilter !== 'ALL' || shiftFilter !== 'ALL') {
+            if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
+                const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+                if (dbUser) {
+                    let uDept = dbUser.department || 'AM';
+                    if (dbUser.role === 'trainer' || uDept === 'TRAINER') uDept = 'TRAINER';
+                    let uShift = dbUser.allowed_shift || 'UNKNOWN';
+
+                    if (deptFilter !== 'ALL' && uDept !== deptFilter) matchDept = false;
+                    if (shiftFilter !== 'ALL' && uShift !== shiftFilter) matchShift = false;
+                } else {
+                    // ถ้าในระบบไม่มีประวัติคนนี้ ให้หลุดกรองไปเลย
+                    matchDept = false;
+                    matchShift = false;
+                }
+            }
+        }
+
+        return matchTerm && matchDept && matchShift;
+    });
 
     let totalAmount = 0;
     filtered.forEach(f => {
@@ -857,16 +887,14 @@ window.renderFineTable = function(isAdminOverride) {
     }
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-400">ไม่พบประวัติใบปรับ</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">ไม่พบประวัติใบปรับตามเงื่อนไข</td></tr>`;
         return;
     }
 
     tbody.innerHTML = filtered.map(f => {
         const d = new Date(f.created_at);
-        // 🌟 ดึงวันที่ออกใบปรับ
         const issueDateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
         
-        // 🌟 ดึงวันที่ทำความผิด
         let offenseDateStr = '-';
         if (f.offense_date) {
             const od = new Date(f.offense_date);
@@ -958,8 +986,6 @@ window.renderFineTable = function(isAdminOverride) {
             ruleDisplay = window.renderTemplate('tpl-fine-history-rule-normal', { ruleDetail: cleanRule });
         }
 
-        // ส่วนอื่นๆ ด้านบนคงเดิม...
-
         return window.renderTemplate('tpl-fine-history-row', {
             id: f.id,
             issueDateStr: issueDateStr,   
@@ -969,7 +995,7 @@ window.renderFineTable = function(isAdminOverride) {
             noteHtml: noteHtml,
             amountDisplay: amountDisplay,
             imgDisplay: imgDisplay,
-            issuedBy: f.issued_by || 'ไม่ระบุ'  // 🌟 เพิ่มบรรทัดนี้ลงไป 🌟
+            issuedBy: f.issued_by || 'ไม่ระบุ'
         });
     }).join('');
     
@@ -978,16 +1004,6 @@ window.renderFineTable = function(isAdminOverride) {
         else el.classList.add('hidden');
     });
 };
-
-window.deleteFine = async function(id) {
-    const res = await Swal.fire({title: 'ลบรายการนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบทิ้ง'});
-    if(res.isConfirmed) {
-        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
-        await appDB.from('fines').delete().eq('id', id);
-        fetchFinesData(true);
-        Swal.fire('ลบสำเร็จ', '', 'success');
-    }
-}
 
 // =========================================
 // 🌟 ฟังก์ชันสร้างข้อความสำหรับคัดลอก (Copy Text)
