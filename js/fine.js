@@ -397,7 +397,11 @@ window.renderNotesDropdown = function(selectedRule = '') {
         }
 
         noteSelect.innerHTML = '<option value="">-- เลือกหมายเหตุสำเร็จรูป (ไม่บังคับ) --</option>' + 
-            filteredNotes.map(n => `<option value="${n.text}">${n.text}</option>`).join('');
+            filteredNotes.map(n => {
+                // ดึงเฉพาะข้อความมาแสดงใน Dropdown หลัก
+                const text = typeof n === 'object' ? (n.note || n.text || '') : n;
+                return `<option value="${text}">${text}</option>`;
+            }).join('');
     }
 
     // 🌟 เรนเดอร์รายการหมายเหตุในหน้าตั้งค่า
@@ -409,15 +413,18 @@ window.renderNotesDropdown = function(selectedRule = '') {
         }
 
         listDiv.innerHTML = globalFineNotes.map((n, idx) => {
-            let displayRule = n.rule === 'ALL' ? 'ใช้ได้กับทุกกฎ (ทั่วไป)' : n.rule;
+            // ดึงเฉพาะข้อความมาแสดง
+            const text = typeof n === 'object' ? (n.note || n.text || '') : n;
+            let displayRule = (typeof n === 'object' && n.rule) ? (n.rule === 'ALL' ? 'ใช้ได้กับทุกกฎ (ทั่วไป)' : n.rule) : 'ใช้ได้กับทุกกฎ (ทั่วไป)';
+            
             return window.renderTemplate('tpl-fine-note-item', {
-                noteText: n.text,
+                noteText: text,
                 ruleText: displayRule,
                 index: idx
             });
         }).join('');
     }
-}
+};
 
 window.addFineNotePage = async function() {
     const ruleSelect = document.getElementById('newNoteRuleSelect');
