@@ -346,8 +346,12 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                 };
 
                 if (fileName.endsWith('.csv')) {
-                    // โหลดไฟล์ CSV ปกติ
-                    const text = await file.text();
+                    // โหลดไฟล์ CSV และบังคับอ่านภาษาไทยแบบ Windows-874 (สำหรับเว็บ TCG)
+                    const text = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.readAsText(file, 'windows-874');
+                    });
                     parsedRowsData = parseCSV(text);
                 } else {
                     try {
@@ -374,9 +378,13 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                             parsedRowsData.push(cols);
                         });
                     } catch (xlsxError) {
-                        // 🌟 2. ไฮไลท์จุดแก้: ถ้าโหลดแบบ Excel พัง แปลว่าเป็น "ไฟล์ CSV ปลอมตัวมา"
                         console.warn(`ไฟล์ ${file.name} ไม่ใช่ Excel แท้ กำลังสลับไปอ่านโหมด CSV...`);
-                        const text = await file.text();
+                        // สลับมาอ่าน CSV และบังคับอ่านภาษาไทย
+                        const text = await new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.readAsText(file, 'windows-874');
+                        });
                         parsedRowsData = parseCSV(text);
                     }
                 }
