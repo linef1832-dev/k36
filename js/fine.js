@@ -395,11 +395,9 @@ window.renderNotesDropdown = function(selectedRule = '') {
     if (noteSelect) {
         let filteredNotes = globalFineNotes;
         
-        // ถ้ามีการเลือกกฎ ให้กรองเอาเฉพาะหมายเหตุของกฎนั้น + หมายเหตุทั่วไป (ALL)
         if (selectedRule) {
             filteredNotes = globalFineNotes.filter(n => n.rule === 'ALL' || n.rule === selectedRule);
         } else {
-            // ถ้ายังไม่เลือกกฎ ให้โชว์เฉพาะหมายเหตุทั่วไป
             filteredNotes = globalFineNotes.filter(n => n.rule === 'ALL');
         }
 
@@ -407,7 +405,6 @@ window.renderNotesDropdown = function(selectedRule = '') {
             filteredNotes.map(n => `<option value="${n.text}">${n.text}</option>`).join('');
     }
 
-    // 🌟 เรนเดอร์รายการหมายเหตุในหน้าตั้งค่า
     const listDiv = document.getElementById('fineNotesListFull');
     if (listDiv) {
         if (globalFineNotes.length === 0) {
@@ -417,9 +414,17 @@ window.renderNotesDropdown = function(selectedRule = '') {
 
         listDiv.innerHTML = globalFineNotes.map((n, idx) => {
             let displayRule = n.rule === 'ALL' ? 'ใช้ได้กับทุกกฎ (ทั่วไป)' : n.rule;
+            
+            // 🌟 เพิ่มระบบแยกสีให้ตรงกับข้อความ
+            let ruleColorClass = 'text-gray-500 dark:text-gray-400';
+            if (n.rule.includes('[ออนไลน์]')) ruleColorClass = 'text-blue-500 dark:text-blue-400';
+            else if (n.rule.includes('[WFH]')) ruleColorClass = 'text-emerald-600 dark:text-emerald-400';
+            else if (n.rule.includes('[ออฟฟิศ]')) ruleColorClass = 'text-orange-500 dark:text-orange-400';
+
             return window.renderTemplate('tpl-fine-note-item', {
                 noteText: n.text,
                 ruleText: displayRule,
+                ruleColor: ruleColorClass, // 🌟 ส่งสีเข้าไปที่ HTML
                 index: idx
             });
         }).join('');
