@@ -505,9 +505,75 @@ window.removeFineNotePage = async function(idx) {
         Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
     }
 }
+window.editFineNotePage = async function(idx) {
+    const currentNote = globalFineNotes[idx];
 
+    // ========================================================
+    // 🌟 1. วางโค้ดลูปสร้าง Option สีๆ ไว้ตรงนี้ (ก่อนสร้างป๊อปอัป) 🌟
+    // ========================================================
+    let optionsHtml = '<option value="">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
+
+    globalFineRules.forEach(rule => {
+        let optStyle = '';
+        if (rule.includes('[ออนไลน์]')) {
+            optStyle = 'color: #60a5fa; font-weight: bold; background-color: #0f172a;'; 
+        } else if (rule.includes('[WFH]')) {
+            optStyle = 'color: #34d399; font-weight: bold; background-color: #0f172a;'; 
+        } else if (rule.includes('[ออฟฟิศ]')) {
+            optStyle = 'color: #fbbf24; font-weight: bold; background-color: #0f172a;'; 
+        } else {
+            optStyle = 'color: #e2e8f0; background-color: #0f172a;'; 
+        }
+        optionsHtml += `<option value="${rule}" style="${optStyle}">${rule}</option>`;
+    });
+
+
+    // ========================================================
+    // 🌟 2. นำตัวแปร optionsHtml ไปแทรกใน <select> ใน html ของ Swal 🌟
+    // ========================================================
+    const { value: formValues } = await Swal.fire({
+        title: '<span class="text-amber-500">แก้ไขข้อความหมายเหตุ</span>',
+        // เปลี่ยนจาก input: 'text' เป็นการเขียน HTML เอง
+        html: `
+            <div class="text-left">
+                <label class="block text-xs font-bold text-gray-400 mb-1">กฎที่ต้องการผูก</label>
+                
+                <select id="bindRuleSelect" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-600 text-white outline-none mb-3">
+                    ${optionsHtml} 
+                </select>
+
+                <label class="block text-xs font-bold text-gray-400 mb-1">ข้อความหมายเหตุ</label>
+                <input id="noteInput" class="w-full p-3 rounded-xl bg-slate-900 border border-slate-600 text-white outline-none" value="${currentNote}">
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'บันทึกการแก้ไข',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl' },
+        preConfirm: () => {
+            // ดึงค่าตอนที่กดปุ่มบันทึก
+            const selectedRule = document.getElementById('bindRuleSelect').value;
+            const newNote = document.getElementById('noteInput').value;
+            return { rule: selectedRule, note: newNote };
+        }
+    });
+
+    // เช็คค่าเมื่อกดยืนยัน และเซฟลงระบบ
+    if (formValues && formValues.note.trim() !== '') {
+        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+        
+        // (เขียนโค้ดเซฟข้อมูลใหม่ของคุณตรงนี้)
+        // globalFineNotes[idx] = formValues.note.trim();
+        // await appDB.from('settings').upsert(...)
+        
+        renderNotesDropdown();
+        Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
+    }
+};
 // ===============================================
-// 🌟 2. การจัดการกฎ (Accordion UI + Dropdown Auto Fill + Amount Type)
+// 🌟 3. การจัดการกฎ (Accordion UI + Dropdown Auto Fill + Amount Type)
 // ===============================================
 async function loadFineRules() {
     try {
@@ -559,7 +625,6 @@ window.filterRulesByCategory = function() {
     if (!cat) {
         ruleSelect.innerHTML = '<option value="">-- เลือกหมวดหมู่ทางซ้ายก่อน --</option>';
         ruleSelect.disabled = true;
-        renderNotesDropdown(''); // ล้างหมายเหตุ
         return;
     }
 
@@ -576,19 +641,22 @@ window.filterRulesByCategory = function() {
     if (filteredRules.length === 0) {
         ruleSelect.innerHTML = '<option value="">-- ไม่มีกฎในหมวดนี้ --</option>';
         ruleSelect.disabled = true;
-        renderNotesDropdown(''); // ล้างหมายเหตุ
         return;
     }
 
-    ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}">${r}</option>`).join('');
+    // 🌟 เพิ่มระบบแยกสีให้ Option ตรงนี้ 🌟
+    ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => {
+        let optStyle = 'color: #e2e8f0; background-color: #0f172a;'; // สีพื้นฐาน
+        if (r.includes('[ออนไลน์]')) optStyle = 'color: #60a5fa; font-weight: bold; background-color: #0f172a;';
+        else if (r.includes('[WFH]')) optStyle = 'color: #34d399; font-weight: bold; background-color: #0f172a;';
+        else if (r.includes('[ออฟฟิศ]')) optStyle = 'color: #fbbf24; font-weight: bold; background-color: #0f172a;';
+
+        return `<option value="${r}" style="${optStyle}">${r}</option>`;
+    }).join('');
 
     ruleSelect.onchange = function() {
         const typeSelect = document.getElementById('finePenaltyType');
         const amtInput = document.getElementById('fineAmount');
-        
-        // 🌟 เมื่อเปลี่ยนกฎ ให้เรียกอัปเดตหมายเหตุ
-        renderNotesDropdown(this.value);
-
         if (!typeSelect || !amtInput) return;
 
         if (this.value) {
