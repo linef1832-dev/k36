@@ -120,22 +120,135 @@ window.initFineApp = async function() {
 window.switchFineTab = function(tabName) {
     const issueTab = document.getElementById('fineContent_issue');
     const rulesTab = document.getElementById('fineContent_rules');
+    const statsTab = document.getElementById('fineContent_stats'); // เพิ่มหน้าต่าง Stats
     const btnIssue = document.getElementById('tabFineIssue');
     const btnRules = document.getElementById('tabFineRules');
+    const btnStats = document.getElementById('tabFineStats'); // เพิ่มปุ่ม Stats
 
+    // 1. ซ่อนทุกอย่างและรีเซ็ตสีปุ่มให้เป็นสีเทาก่อน
+    const inactiveBtnClass = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600";
+    
+    if(issueTab) { issueTab.classList.add('hidden'); issueTab.classList.remove('grid'); }
+    if(rulesTab) { rulesTab.classList.add('hidden'); rulesTab.classList.remove('block'); }
+    if(statsTab) { statsTab.classList.add('hidden'); statsTab.classList.remove('block'); }
+    
+    if(btnIssue) btnIssue.className = inactiveBtnClass;
+    if(btnRules) btnRules.className = inactiveBtnClass;
+    if(btnStats) btnStats.className = inactiveBtnClass;
+
+    // 2. เปิดโชว์เฉพาะหน้าที่เลือก และเปลี่ยนสีปุ่ม
     if (tabName === 'issue') {
         if(issueTab) { issueTab.classList.remove('hidden'); issueTab.classList.add('grid'); }
-        if(rulesTab) { rulesTab.classList.add('hidden'); rulesTab.classList.remove('block'); }
-
         if(btnIssue) btnIssue.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-md flex items-center gap-1 border border-red-400";
-        if(btnRules) btnRules.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600";
-    } else {
-        if(issueTab) { issueTab.classList.add('hidden'); issueTab.classList.remove('grid'); }
+    } else if (tabName === 'rules') {
         if(rulesTab) { rulesTab.classList.remove('hidden'); rulesTab.classList.add('block'); }
-
         if(btnRules) btnRules.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-amber-500 text-slate-900 shadow-md flex items-center gap-1 border border-amber-400";
-        if(btnIssue) btnIssue.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-800 text-gray-300 hover:text-white flex items-center gap-1 border border-slate-600";
+    } else if (tabName === 'stats') {
+        if(statsTab) { statsTab.classList.remove('hidden'); statsTab.classList.add('block'); }
+        if(btnStats) btnStats.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-rose-600 text-white shadow-[0_0_10px_rgba(225,29,72,0.5)] flex items-center gap-1 border border-rose-400";
+        
+        // เมื่อเปิดหน้าสถิติ ให้รันฟังก์ชันจัดเรียงเดือนและข้อมูลสถิติ
+        if(typeof renderFineStatsMonthOptions === 'function') renderFineStatsMonthOptions();
+        if(typeof renderFineStats === 'function') renderFineStats();
     }
+};
+
+// --- ฟังก์ชันเตรียมตัวเลือกเดือน สำหรับหน้าสถิติ ---
+window.renderFineStatsMonthOptions = function() {
+    const select = document.getElementById('fineStatsMonth');
+    if (!select || select.options.length > 1) return; // ถ้าเคยโหลดไปแล้วไม่ต้องโหลดซ้ำ
+
+    const months = new Set();
+    globalFines.forEach(f => {
+        // อิงจากวันที่ทำผิด หรือวันที่ออกใบปรับ
+        const d = f.offense_date ? new Date(f.offense_date) : new Date(f.created_at);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        months.add(`${y}-${m}`);
+    });
+
+    const sortedMonths = Array.from(months).sort().reverse(); // เรียงจากล่าสุดไปเก่าสุด
+    const thaiMonths = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+
+    let html = '<option value="all">รวมทุกเดือน (All Time)</option>';
+    sortedMonths.forEach(ym => {
+        const [y, m] = ym.split('-');
+        html += `<option value="${ym}">${thaiMonths[parseInt(m)-1]} ${parseInt(y)+543}</option>`;
+    });
+    select.innerHTML = html;
+
+    // ตั้งค่า Default เป็นเดือนปัจจุบัน (ถ้ามีข้อมูลเดือนนี้)
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (sortedMonths.includes(currentYM)) {
+        select.value = currentYM;
+    }
+};
+
+// --- ฟังก์ชันคำนวณและวาดกล่อง Leaderboard สถิติ ---
+window.renderFineStats = function() {
+    const container = document.getElementById('fineStatsLeaderboard');
+    if (!container) return;
+
+    const monthFilter = document.getElementById('fineStatsMonth') ? document.getElementById('fineStatsMonth').value : 'all';
+
+    // 1. กรองเฉพาะเดือนที่เลือก
+    let filteredFines = globalFines;
+    if (monthFilter !== 'all') {
+        filteredFines = globalFines.filter(f => {
+            const d = f.offense_date ? new Date(f.offense_date) : new Date(f.created_at);
+            const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return ym === monthFilter;
+        });
+    }
+
+    if (filteredFines.length === 0) {
+        container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400 font-bold bg-slate-50 dark:bg-slate-900 rounded-2xl border border-dashed border-gray-300 dark:border-slate-700">ไม่มีประวัติโดนปรับในเดือนที่เลือกครับ 🎉</div>';
+        return;
+    }
+
+    // 2. รวมยอดของพนักงานแต่ละคน (นับจำนวนครั้ง และรวมจำนวนเงิน)
+    const statsMap = {};
+    filteredFines.forEach(f => {
+        const name = f.user_name;
+        if (!statsMap[name]) {
+            statsMap[name] = { count: 0, amount: 0 };
+        }
+        statsMap[name].count++;
+        // ถ้าเป็นการปรับเงิน (ไม่ใช่หักค่าแรง=-1) ค่อยบวกเงิน
+        if (f.amount > 0) {
+            statsMap[name].amount += Number(f.amount);
+        }
+    });
+
+    // 3. แปลงเป็น Array แล้วจัดอันดับ (เรียงจาก จำนวนเงินมากไปน้อย -> ถ้าเงินเท่ากันเรียงจำนวนครั้ง)
+    const sortedStats = Object.keys(statsMap).map(name => ({
+        name: name,
+        count: statsMap[name].count,
+        amount: statsMap[name].amount
+    })).sort((a, b) => {
+        if (b.amount !== a.amount) return b.amount - a.amount;
+        return b.count - a.count;
+    });
+
+    // 4. วาดการ์ดแสดงผล
+    container.innerHTML = sortedStats.map((stat, index) => {
+        const rank = index + 1;
+        let medalClass = 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-gray-400 border border-slate-300 dark:border-slate-600';
+        
+        // ให้สีพิเศษสำหรับ Top 3
+        if (rank === 1) medalClass = 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950 border border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.6)]';
+        else if (rank === 2) medalClass = 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800 border border-gray-400 shadow-md';
+        else if (rank === 3) medalClass = 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-50 border border-orange-500 shadow-md';
+
+        return window.renderTemplate('tpl-fine-stats-card', {
+            rank: rank,
+            medalClass: medalClass,
+            name: stat.name,
+            count: stat.count,
+            amount: stat.amount.toLocaleString('en-US')
+        });
+    }).join('');
 };
 
 function populateEmpSelect() {
