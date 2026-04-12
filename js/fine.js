@@ -136,13 +136,21 @@ window.initFineApp = async function() {
         btnIssue.innerHTML = isAdmin ? '<span class="material-icons text-sm">post_add</span> ออกใบปรับ & ประวัติ' : '<span class="material-icons text-sm">list_alt</span> ประวัติใบปรับ';
     }
 
-    switchFineTab('issue');
+   switchFineTab('issue');
     
     const offDateInput = document.getElementById('fineOffenseDate');
     if (offDateInput && !offDateInput.value) {
         const today = new Date();
         const offset = today.getTimezoneOffset() * 60000;
         offDateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
+    }
+
+    // 🌟 โค้ดที่เพิ่มเข้ามา: บังคับเซ็ตช่อง Filter ให้เป็นวันนี้
+    const filterDateInput = document.getElementById('fineDateFilter');
+    if (filterDateInput && !filterDateInput.value) {
+        const today = new Date();
+        const offset = today.getTimezoneOffset() * 60000;
+        filterDateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
     }
 
     await loadFineRules();
@@ -1164,12 +1172,13 @@ window.renderFineTable = function() {
     const searchInput = document.getElementById('fineSearchInput');
     const term = searchInput ? searchInput.value.toLowerCase() : '';
     
+    // 🌟 ดึงค่า Filter วันที่
+    const dateFilter = document.getElementById('fineDateFilter') ? document.getElementById('fineDateFilter').value : '';
     const deptFilter = document.getElementById('fineDeptFilter') ? document.getElementById('fineDeptFilter').value : 'ALL';
     const shiftFilter = document.getElementById('fineShiftFilter') ? document.getElementById('fineShiftFilter').value : 'ALL';
     
     if(!tbody) return;
 
-    // 🌟 ดักคนที่ได้สิทธิ์แค่ 'ดูสถิติ' แต่ไม่ได้สิทธิ์ 'ดูตารางทั้งหมด' จะถูกบังคับให้เห็นตารางแค่ของตัวเอง
     let baseData = globalFines;
     if (!canViewAll) {
         baseData = globalFines.filter(f => f.user_name === currentUser.username);
@@ -1182,6 +1191,13 @@ window.renderFineTable = function() {
         
         let matchDept = true;
         let matchShift = true;
+        let matchDate = true; // 🌟 ตัวแปรเช็ควันที่
+
+        // 🌟 ตรวจสอบ Filter วันที่ (อิงจากวันที่กระทำความผิดเป็นหลัก)
+        if (dateFilter) {
+            let fDate = f.offense_date ? f.offense_date.split('T')[0] : f.created_at.split('T')[0];
+            if (fDate !== dateFilter) matchDate = false;
+        }
 
         if (deptFilter !== 'ALL' || shiftFilter !== 'ALL') {
             if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
@@ -1200,7 +1216,7 @@ window.renderFineTable = function() {
             }
         }
 
-        return matchTerm && matchDept && matchShift;
+        return matchTerm && matchDept && matchShift && matchDate;
     });
 
     let totalAmount = 0;
