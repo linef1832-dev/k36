@@ -390,16 +390,26 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     let rowClean = parsedRowsData[r].map(c => String(c).replace(/[\s\r\n]+/g, '').toLowerCase());
                     
                     if (fileSystem === 'TCG') {
-                        let cEmp = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติครั้งแรก'));
-                        let cStat = rowClean.findIndex(c => c === 'สถานะ' || c === 'status');
-                        let cAmt = rowClean.findIndex(c => c.includes('จำนวนที่จ่ายจริง'));
-                        let cWeb = rowClean.findIndex(c => c === 'แบรนด์' || c === 'brand');
+                // 🌟 ดักจับช่องอนุมัติหลายๆ ช่องเผื่อไว้เลย
+                let cEmp1 = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติครั้งแรก'));
+                let cEmp2 = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติครั้งที่สอง'));
+                let cEmp3 = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติการถอนเงิน'));
+                let cEmp4 = rowClean.findIndex(c => c.includes('ปรับปรุงล่าสุด'));
 
-                        if (cEmp !== -1 && cStat !== -1 && cAmt !== -1) {
-                            colMap = { emp: cEmp, status: cStat, amount: cAmt, web: cWeb !== -1 ? cWeb : -1 };
-                            headerFound = true; startDataRow = r + 1; break;
-                        }
-                    } else { 
+                let cStat = rowClean.findIndex(c => c === 'สถานะ' || c === 'status');
+                let cAmt = rowClean.findIndex(c => c.includes('จำนวนที่จ่ายจริง'));
+                let cWeb = rowClean.findIndex(c => c === 'แบรนด์' || c === 'brand');
+
+                if (cStat !== -1 && cAmt !== -1) {
+                    colMap = { 
+                        emp: cEmp1 !== -1 ? cEmp1 : 24, 
+                        empOptions: [cEmp4, cEmp3, cEmp2, cEmp1].filter(idx => idx !== -1), // หาจากหลังมาหน้า
+                        status: cStat, amount: cAmt, web: cWeb !== -1 ? cWeb : -1 
+                    };
+                    headerFound = true; startDataRow = r + 1; break;
+                }
+            }
+                    else { 
                         let cEmp = rowClean.findIndex(c => c.includes('riskverification'));
                         let cStat = rowClean.findIndex(c => c === 'status' || c === 'สถานะ');
                         let cAmt = rowClean.findIndex(c => c.includes('actualw/d'));
@@ -413,10 +423,10 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     }
                 }
 
-                if (!headerFound) {
-                    if (fileSystem === 'TCG') colMap = { amount: 16, status: 22, web: 23, emp: 24 };
-                    else colMap = { amount: 25, status: 31, web: 33, emp: 33 };
-                }
+               if (!headerFound) {
+            if (fileSystem === 'TCG') colMap = { amount: 16, status: 22, web: 23, emp: 24, empOptions: [33, 30, 27, 24] };
+            else colMap = { amount: 25, status: 31, web: 33, emp: 33 };
+        }
 
                 let defaultWeb = '';
                 for (let w of Object.keys(webNameMap)) { if (fileName.includes(w)) { defaultWeb = webNameMap[w]; break; } }
@@ -474,9 +484,22 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     if (!detectedDate && rowDate) detectedDate = rowDate; 
 
                     amount = parseAmount(cellData[colMap.amount]);
-                    let rawStatus = String(cellData[colMap.status] || '').toUpperCase();
-                    let rawApproveStr = String(cellData[colMap.emp] || '').trim().toLowerCase();
-
+        let rawStatus = String(cellData[colMap.status] || '').toUpperCase();
+        let rawApproveStr = '';
+        
+        // 🌟 วนหาชื่อพนักงาน OD จากช่องหลังสุดก่อน (ถ้าช่องแรกเป็น SYSTEM หรือ บุคคลที่สาม จะได้ข้ามไปเอาชื่อคนแทน)
+        if (colMap.empOptions && colMap.empOptions.length > 0) {
+            for (let idx of colMap.empOptions) {
+                let val = String(cellData[idx] || '').trim().toLowerCase();
+                let fw = val.split(/[\s\r\n]+/)[0] || '';
+                // ดักไม่ให้เอาชื่อระบบออโต้มานับเป็นผลงาน
+                if (fw && fw !== 'system' && fw !== 'auto' && !val.includes('บุคคลที่สาม')) {
+                    rawApproveStr = val;
+                    break;
+                }
+            }
+        }
+        if (!rawApproveStr) rawApproveStr = String(cellData[colMap.emp] || '').trim().toLowerCase();
                     if (fileSystem === 'TCG' && colMap.web !== -1) {
                         let rawWeb = String(cellData[colMap.web] || '').trim().toLowerCase();
                         for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { webName = webNameMap[w]; break; } }
