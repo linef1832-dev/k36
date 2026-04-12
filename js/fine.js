@@ -9,7 +9,6 @@ let finesSubscription = null;
 window.subscribeFinesChanges = function() {
     if (finesSubscription) return;
 
-    // 🌟 ดึงสิทธิ์มาเช็ค
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const hasViewAllPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_view_all') : false;
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
@@ -72,8 +71,11 @@ const okvipRules = [
 window.initFineApp = async function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const hasViewAllPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_view_all') : false;
+    const hasStatsPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_stats') : false;
+    
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
     const canViewAll = isAdmin || hasViewAllPerm;
+    const canViewStats = isAdmin || hasStatsPerm;
 
     if (typeof fetchUsers === 'function' && (typeof GLOBAL_USER_LIST === 'undefined' || GLOBAL_USER_LIST.length === 0)) {
         await fetchUsers();
@@ -83,10 +85,28 @@ window.initFineApp = async function() {
     const tableContainer = document.getElementById('fineTableContainer');
     const tabsContainer = document.getElementById('fineTabsContainer');
     
-    // ควบคุมฟอร์มออกใบปรับ (ให้เฉพาะคนมีสิทธิ์ Manage)
+    const btnRules = document.getElementById('tabFineRules');
+    const btnStats = document.getElementById('tabFineStats');
+    const btnIssue = document.getElementById('tabFineIssue');
+
+    if (btnRules) {
+        if (isAdmin) { btnRules.classList.remove('hidden'); btnRules.style.display = ''; }
+        else { btnRules.classList.add('hidden'); btnRules.style.display = 'none'; }
+    }
+
+    if (btnStats) {
+        if (canViewStats) { btnStats.classList.remove('hidden'); btnStats.style.display = ''; }
+        else { btnStats.classList.add('hidden'); btnStats.style.display = 'none'; }
+    }
+    
+    if (isAdmin || canViewStats) {
+        if(tabsContainer) tabsContainer.classList.remove('hidden'); 
+    } else {
+        if(tabsContainer) tabsContainer.classList.add('hidden'); 
+    }
+
     if (isAdmin) {
         if(adminControls) adminControls.classList.remove('hidden');
-        if(tabsContainer) tabsContainer.classList.remove('hidden'); 
         if(tableContainer) {
             tableContainer.classList.remove('lg:col-span-12');
             tableContainer.classList.add('lg:col-span-8');
@@ -94,14 +114,12 @@ window.initFineApp = async function() {
         populateEmpSelect(); 
     } else {
         if(adminControls) adminControls.classList.add('hidden');
-        if(tabsContainer) tabsContainer.classList.add('hidden'); 
         if(tableContainer) {
             tableContainer.classList.remove('lg:col-span-8');
             tableContainer.classList.add('lg:col-span-12');
         }
     }
 
-    // จัดการข้อความ Title ตามสิทธิ์ที่มองเห็น
     if (canViewAll) {
         const sub = document.getElementById('fineSubtitle');
         if(sub) sub.innerText = isAdmin ? "ออกใบปรับและดูประวัติทั้งหมด" : "ดูประวัติและสถิติใบปรับทั้งหมดในระบบ";
@@ -112,6 +130,10 @@ window.initFineApp = async function() {
         if(sub) sub.innerText = "ตรวจสอบรายการใบปรับของคุณ";
         const title = document.getElementById('tableFineTitle');
         if(title) title.innerHTML = '<span class="material-icons text-blue-500">list_alt</span> ใบปรับของฉัน';
+    }
+
+    if (btnIssue) {
+        btnIssue.innerHTML = isAdmin ? '<span class="material-icons text-sm">post_add</span> ออกใบปรับ & ประวัติ' : '<span class="material-icons text-sm">list_alt</span> ประวัติใบปรับ';
     }
 
     switchFineTab('issue');
@@ -267,7 +289,6 @@ window.renderFineStats = function() {
         });
     }).join('');
     
-    // ดักการโชว์/ซ่อน กล่อง Filter แอดมิน
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
     document.querySelectorAll('.admin-col').forEach(el => {
