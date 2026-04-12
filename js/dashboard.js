@@ -266,6 +266,7 @@ setTimeout(() => {
         window.initDashboard();
     }
 }, 500);
+
 // ========================================================================
 // 🟢 1. ฟังก์ชันดึงประวัติระบบ (Audit Logs) [Optimized โหลดลื่นขึ้น]
 // ========================================================================
@@ -416,7 +417,6 @@ window.undoClearSchedules = async function() {
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
     });
 
-    // 🌟 ท่อนที่หายไปอยู่ตรงนี้ครับ!
     if (confirm.isConfirmed) {
         Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         try {
@@ -440,4 +440,58 @@ window.undoClearSchedules = async function() {
             Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนได้: ' + e.message, 'error');
         }
     }
+};
+
+// ========================================================================
+// 🟢 ควบคุมการเปิด/ปิด หน้าประวัติระบบ (Audit Logs) และกลับหน้าหลัก
+// ========================================================================
+window.openLogsPage = async function() {
+    // 1. ถ้ายังไม่ได้โหลดหน้า Dashboard ให้โหลดก่อน
+    if (!document.getElementById('logsPage')) {
+        if(typeof showPage === 'function') await showPage('dashboard');
+        if(typeof initDashboard === 'function') initDashboard();
+    }
+    
+    // 2. ซ่อนหน้าหลัก และ หน้าตารางแอดมิน
+    const mainContent = document.getElementById('mainContentArea');
+    if (mainContent) mainContent.classList.add('hidden');
+    
+    const adminPanel = document.getElementById('adminPanel');
+    if (adminPanel) {
+        adminPanel.classList.add('hidden');
+        adminPanel.classList.remove('flex');
+    }
+    
+    // 3. โชว์หน้าประวัติระบบ และดึงข้อมูลทันที
+    const logsPage = document.getElementById('logsPage');
+    if (logsPage) {
+        logsPage.classList.remove('hidden');
+        logsPage.classList.add('flex');
+        if(typeof fetchLogs === 'function') fetchLogs(); 
+    }
+};
+
+window.backToDashboard = function() {
+    // 1. ซ่อนหน้าประวัติระบบ
+    const logsPage = document.getElementById('logsPage');
+    if (logsPage) {
+        logsPage.classList.add('hidden');
+        logsPage.classList.remove('flex');
+    }
+    
+    // 2. ซ่อนหน้าตารางแอดมิน
+    const adminPanel = document.getElementById('adminPanel');
+    if (adminPanel) {
+        adminPanel.classList.add('hidden');
+        adminPanel.classList.remove('flex');
+    }
+    
+    // 3. โชว์หน้าหลัก (ลงเวลา) กลับมา
+    const mainContent = document.getElementById('mainContentArea');
+    if (mainContent) {
+        mainContent.classList.remove('hidden');
+    }
+    
+    // รีเฟรชตารางให้เป็นปัจจุบัน
+    if(typeof initDashboard === 'function') initDashboard(); 
 };
