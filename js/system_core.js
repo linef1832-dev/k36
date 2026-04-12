@@ -1950,6 +1950,7 @@ const PERM_GROUPS = [
             {id: 'summary', name: 'สรุปยอดทำรายการ', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
             {id: 'fine', name: 'ระบบใบปรับพนักงาน', color: 'bg-red-500/20 text-red-400 border-red-500/50'},
             {id: 'fine_manage', name: '└ [ย่อย] ออกใบปรับ / จัดการกฎ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'fine_view_all', name: '└ [ย่อย] ดูสถิติ / ใบปรับทั้งหมด', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'telegram', name: 'กลุ่มงาน (Telegram)', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
             {id: 'files', name: 'คลังไฟล์ / โปรแกรม', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
             {id: 'files_manage', name: '└ [ย่อย] แอดมินคลังไฟล์', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
