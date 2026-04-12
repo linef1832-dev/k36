@@ -537,8 +537,10 @@ window.renderLeaveTable = function() {
         
         // 🌟 ดึงข้อมูลที่นับแบบแยกประเภทแล้วออกมาใช้
         const myLeaveData = personalCounts[u.id] || { total: 0, details: {} };
-        const myTotal = myLeaveData.total;
-        const isPersonalFull = myTotal >= s.limit; 
+        
+        // 🌟 แก้ไข: ให้ดึงเฉพาะยอดของประเภท "X" มาใช้คำนวณโควตาและแสดงในวงกลม
+        const myTotal = myLeaveData.details['X'] || 0; 
+        const isPersonalFull = myTotal >= s.limit;
 
         let targetQuota = s.quotaM || 2; 
         if(u.allowed_shift === 'กะเช้า') targetQuota = s.quotaM;
