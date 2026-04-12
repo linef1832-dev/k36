@@ -389,7 +389,7 @@ function updateNewNoteRuleDropdown() {
     select.innerHTML = html;
 }
 
-// 🌟 เรนเดอร์ Dropdown ในหน้า "ออกใบปรับ" (กรองตามกฎที่เลือก)
+// 🌟 เรนเดอร์ Dropdown ในหน้า "ออกใบปรับ" และ แยกคอลัมน์การ์ดหมายเหตุ
 window.renderNotesDropdown = function(selectedRule = '') {
     const noteSelect = document.getElementById('fineNoteSelect');
     if (noteSelect) {
@@ -408,26 +408,57 @@ window.renderNotesDropdown = function(selectedRule = '') {
     const listDiv = document.getElementById('fineNotesListFull');
     if (listDiv) {
         if (globalFineNotes.length === 0) {
+            listDiv.className = ""; // ล้างคลาสกริดออก
             listDiv.innerHTML = `<div class="col-span-full text-center py-4 text-gray-500 text-sm">ยังไม่มีหมายเหตุสำเร็จรูปในระบบ</div>`;
             return;
         }
 
-        listDiv.innerHTML = globalFineNotes.map((n, idx) => {
-            let displayRule = n.rule === 'ALL' ? 'ใช้ได้กับทุกกฎ (ทั่วไป)' : n.rule;
-            
-            // 🌟 เพิ่มระบบแยกสีให้ตรงกับข้อความ
-            let ruleColorClass = 'text-gray-500 dark:text-gray-400';
-            if (n.rule.includes('[ออนไลน์]')) ruleColorClass = 'text-blue-500 dark:text-blue-400';
-            else if (n.rule.includes('[WFH]')) ruleColorClass = 'text-emerald-600 dark:text-emerald-400';
-            else if (n.rule.includes('[ออฟฟิศ]')) ruleColorClass = 'text-orange-500 dark:text-orange-400';
+        // 🌟 ปรับ Grid ให้รองรับ 4 คอลัมน์ และจัดให้อยู่ด้านบน (items-start) เพื่อไม่ให้ยืดตามกัน
+        listDiv.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start";
 
-            return window.renderTemplate('tpl-fine-note-item', {
-                noteText: n.text,
-                ruleText: displayRule,
-                ruleColor: ruleColorClass, // 🌟 ส่งสีเข้าไปที่ HTML
-                index: idx
-            });
-        }).join('');
+        // 🌟 1. แยกกลุ่มข้อมูลตามหมวดหมู่
+        const groups = { 'ALL': [], 'ออนไลน์': [], 'WFH': [], 'ออฟฟิศ': [] };
+        
+        globalFineNotes.forEach((n, idx) => {
+            if (n.rule.includes('[ออนไลน์]')) groups['ออนไลน์'].push({ n, idx });
+            else if (n.rule.includes('[WFH]')) groups['WFH'].push({ n, idx });
+            else if (n.rule.includes('[ออฟฟิศ]')) groups['ออฟฟิศ'].push({ n, idx });
+            else groups['ALL'].push({ n, idx });
+        });
+
+        let html = '';
+        
+        // 🌟 2. ฟังก์ชันช่วยสร้างคอลัมน์แนวตั้ง ของใครของมัน
+        const buildCol = (title, items, icon, headerColor, ruleColorClass) => {
+            if (items.length === 0) return '';
+            
+            let itemsHtml = items.map(item => {
+                let displayRule = item.n.rule === 'ALL' ? 'ใช้ได้กับทุกกฎ (ทั่วไป)' : item.n.rule;
+                return window.renderTemplate('tpl-fine-note-item', {
+                    noteText: item.n.text,
+                    ruleText: displayRule,
+                    ruleColor: ruleColorClass,
+                    index: item.idx
+                });
+            }).join('');
+            
+            return `
+                <div class="flex flex-col gap-3">
+                    <div class="flex items-center gap-1.5 text-sm font-black ${headerColor} border-b border-slate-700 pb-2 mb-1">
+                        <span class="material-icons text-[18px]">${icon}</span> ${title}
+                    </div>
+                    ${itemsHtml}
+                </div>
+            `;
+        };
+
+        // 🌟 3. วาดคอลัมน์ลงไปตามลำดับ
+        html += buildCol('ทั่วไป (ทุกกฎ)', groups['ALL'], 'public', 'text-gray-400', 'text-gray-500 dark:text-gray-400');
+        html += buildCol('ออนไลน์', groups['ออนไลน์'], 'language', 'text-blue-400', 'text-blue-500 dark:text-blue-400');
+        html += buildCol('WFH', groups['WFH'], 'home_work', 'text-emerald-400', 'text-emerald-600 dark:text-emerald-400');
+        html += buildCol('ออฟฟิศ', groups['ออฟฟิศ'], 'domain', 'text-orange-400', 'text-orange-500 dark:text-orange-400');
+
+        listDiv.innerHTML = html;
     }
 }
 
