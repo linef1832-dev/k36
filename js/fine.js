@@ -389,7 +389,7 @@ function updateNewNoteRuleDropdown() {
     select.innerHTML = html;
 }
 
-// 🌟 เรนเดอร์ Dropdown ในหน้า "ออกใบปรับ" และ แยกคอลัมน์การ์ดหมายเหตุ
+// 🌟 เรนเดอร์ Dropdown ในหน้า "ออกใบปรับ" และ แยกคอลัมน์การ์ดหมายเหตุ (อัปเดตใหม่ 3 คอลัมน์)
 window.renderNotesDropdown = function(selectedRule = '') {
     const noteSelect = document.getElementById('fineNoteSelect');
     if (noteSelect) {
@@ -413,9 +413,6 @@ window.renderNotesDropdown = function(selectedRule = '') {
             return;
         }
 
-        // 🌟 ปรับ Grid ให้รองรับ 4 คอลัมน์ และจัดให้อยู่ด้านบน (items-start) เพื่อไม่ให้ยืดตามกัน
-        listDiv.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start";
-
         // 🌟 1. แยกกลุ่มข้อมูลตามหมวดหมู่
         const groups = { 'ALL': [], 'ออนไลน์': [], 'WFH': [], 'ออฟฟิศ': [] };
         
@@ -426,13 +423,9 @@ window.renderNotesDropdown = function(selectedRule = '') {
             else groups['ALL'].push({ n, idx });
         });
 
-        let html = '';
-        
-        // 🌟 2. ฟังก์ชันช่วยสร้างคอลัมน์แนวตั้ง ของใครของมัน
-        const buildCol = (title, items, icon, headerColor, ruleColorClass) => {
-            if (items.length === 0) return '';
-            
-            let itemsHtml = items.map(item => {
+        // 🌟 2. ฟังก์ชันช่วยสร้าง HTML ของการ์ด
+        const buildCards = (items, ruleColorClass) => {
+            return items.map(item => {
                 let displayRule = item.n.rule === 'ALL' ? 'ใช้ได้กับทุกกฎ (ทั่วไป)' : item.n.rule;
                 return window.renderTemplate('tpl-fine-note-item', {
                     noteText: item.n.text,
@@ -441,22 +434,61 @@ window.renderNotesDropdown = function(selectedRule = '') {
                     index: item.idx
                 });
             }).join('');
-            
-            return `
-                <div class="flex flex-col gap-3">
-                    <div class="flex items-center gap-1.5 text-sm font-black ${headerColor} border-b border-slate-700 pb-2 mb-1">
-                        <span class="material-icons text-[18px]">${icon}</span> ${title}
-                    </div>
-                    ${itemsHtml}
-                </div>
-            `;
         };
 
-        // 🌟 3. วาดคอลัมน์ลงไปตามลำดับ
-        html += buildCol('ทั่วไป (ทุกกฎ)', groups['ALL'], 'public', 'text-gray-400', 'text-gray-500 dark:text-gray-400');
-        html += buildCol('ออนไลน์', groups['ออนไลน์'], 'language', 'text-blue-400', 'text-blue-500 dark:text-blue-400');
-        html += buildCol('WFH', groups['WFH'], 'home_work', 'text-emerald-400', 'text-emerald-600 dark:text-emerald-400');
-        html += buildCol('ออฟฟิศ', groups['ออฟฟิศ'], 'domain', 'text-orange-400', 'text-orange-500 dark:text-orange-400');
+        // 🌟 3. สร้าง Layout ใหม่: ทั่วไปอยู่ด้านบนสุดยาวๆ, والبقيةอยู่เป็น 3 คอลัมน์ด้านล่าง
+        listDiv.className = "flex flex-col gap-6 w-full"; // เปลี่ยน Parent เป็น Flex Column
+        
+        let html = '';
+
+        // --- ส่วนที่ 1: หมวดหมู่ทั่วไป (โชว์ถ้ามีข้อมูล) ---
+        if (groups['ALL'].length > 0) {
+            html += `
+                <div class="w-full mb-2">
+                    <div class="flex items-center gap-1.5 text-sm font-black text-gray-400 border-b border-slate-700 pb-2 mb-3">
+                        <span class="material-icons text-[18px]">public</span> ทั่วไป (ใช้ได้กับทุกกฎ)
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        ${buildCards(groups['ALL'], 'text-gray-500 dark:text-gray-400')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- ส่วนที่ 2: หมวดหมู่หลัก (แบ่ง 3 คอลัมน์พอดี) ---
+        html += `<div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start w-full">`;
+        
+        // คอลัมน์ออนไลน์
+        html += `
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-1.5 text-sm font-black text-blue-400 border-b border-slate-700 pb-2 mb-1">
+                    <span class="material-icons text-[18px]">language</span> ออนไลน์
+                </div>
+                ${buildCards(groups['ออนไลน์'], 'text-blue-500 dark:text-blue-400')}
+            </div>
+        `;
+
+        // คอลัมน์ WFH
+        html += `
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-1.5 text-sm font-black text-emerald-400 border-b border-slate-700 pb-2 mb-1">
+                    <span class="material-icons text-[18px]">home_work</span> WFH
+                </div>
+                ${buildCards(groups['WFH'], 'text-emerald-600 dark:text-emerald-400')}
+            </div>
+        `;
+
+        // คอลัมน์ ออฟฟิศ
+        html += `
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-1.5 text-sm font-black text-orange-400 border-b border-slate-700 pb-2 mb-1">
+                    <span class="material-icons text-[18px]">domain</span> ออฟฟิศ
+                </div>
+                ${buildCards(groups['ออฟฟิศ'], 'text-orange-500 dark:text-orange-400')}
+            </div>
+        `;
+
+        html += `</div>`; // ปิดกริด 3 คอลัมน์
 
         listDiv.innerHTML = html;
     }
