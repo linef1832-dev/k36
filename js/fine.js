@@ -958,15 +958,18 @@ window.renderFineTable = function(isAdminOverride) {
             ruleDisplay = window.renderTemplate('tpl-fine-history-rule-normal', { ruleDetail: cleanRule });
         }
 
+        // ส่วนอื่นๆ ด้านบนคงเดิม...
+
         return window.renderTemplate('tpl-fine-history-row', {
             id: f.id,
-            issueDateStr: issueDateStr,   // 🌟 โยนวันที่ออกใบปรับ
-            offenseDateStr: offenseDateStr, // 🌟 โยนวันที่ทำผิด
+            issueDateStr: issueDateStr,   
+            offenseDateStr: offenseDateStr, 
             usernameDisplay: displayName,
             ruleText: ruleDisplay,
             noteHtml: noteHtml,
             amountDisplay: amountDisplay,
             imgDisplay: imgDisplay,
+            issuedBy: f.issued_by || 'ไม่ระบุ'  // 🌟 เพิ่มบรรทัดนี้ลงไป 🌟
         });
     }).join('');
     
