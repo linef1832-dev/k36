@@ -151,6 +151,7 @@
                                 <th class="p-4 font-bold">รายละเอียดความผิด</th>
                                 <th class="p-4 font-bold text-center w-32">บทลงโทษ</th>
                                 <th class="p-4 font-bold text-center w-24">หลักฐาน</th>
+                                <th class="p-4 font-bold text-center w-28 admin-col">ผู้ออกใบ</th>
                                 <th class="p-4 font-bold text-center w-24 admin-col">จัดการ</th>
                             </tr>
                         </thead>
@@ -300,6 +301,12 @@
             </td>
             <td class="p-4 text-center align-middle">{{amountDisplay}}</td>
             <td class="p-4 text-center align-middle">{{imgDisplay}}</td>
+            
+            <td class="p-4 text-center align-middle admin-col">
+                <div class="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800/50 px-2 py-1 rounded-md shadow-sm whitespace-nowrap flex items-center justify-center gap-1 w-fit mx-auto">
+                    <span class="material-icons text-[12px]">support_agent</span> {{issuedBy}}
+                </div>
+            </td>
             <td class="p-4 text-center align-middle admin-col">
                 <button type="button" onclick="deleteFine({{id}})" class="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/20 p-1.5 rounded-lg transition inline-block"><span class="material-icons text-sm block">delete</span></button>
             </td>
