@@ -146,36 +146,61 @@ window.fetchAvailableDates = async function(forceRender = false) {
     } catch(e) { console.error("Fetch dates error:", e); }
 }
 
-// 🌟 ระบบอ่านกะที่ฉลาดขึ้น (ค้นหาจากฐานข้อมูล + เดาจากชื่อถ้าไม่เจอ)
-function getShiftFromName(name) {
-    const searchName = String(name || '').toLowerCase().trim();
-    if (!searchName) return 'UNKNOWN';
+// 🌟 เพิ่มตัวแปรเก็บ Cache พจนานุกรมชื่อ เพื่อลดการวนลูปซ้ำซ้อน
+let summaryUserCacheMap = null;
+let summarySortedUserCache = null;
 
-    // 1. พยายามหาจากฐานข้อมูลก่อน (ถ้าโหลดมาแล้ว)
-    if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
-        let foundUser = window.GLOBAL_USER_LIST.find(u => {
-            const dbName = String(u.username || '').toLowerCase().trim();
-            return dbName === searchName || 
-                   (dbName.length >= 3 && searchName.startsWith(dbName)) || 
-                   (searchName.length >= 3 && dbName.startsWith(searchName));
-        });
-        
-        if (foundUser) {
-            let s = String(foundUser.allowed_shift || '').trim().replace('กะ', '');
-            if (s === 'เช้า') return 'กะเช้า';
-            if (s === 'กลาง') return 'กะกลาง';
-            if (s === 'ดึก') return 'กะดึก';
-            if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
-            return `กะ${s}`;
-        }
-    }
-    
-    // 🌟 2. ถ้าในฐานข้อมูลไม่มี หรือเว็บยังโหลดไม่เสร็จ ให้ "เดา" กะจากชื่อทันที!
-    if (searchName.includes('เช้า')) return 'กะเช้า';
-    if (searchName.includes('กลาง')) return 'กะกลาง';
-    if (searchName.includes('ดึก')) return 'กะดึก';
-    
-    return 'UNKNOWN';
+function buildSummaryUserCache() {
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return;
+    summaryUserCacheMap = new Map();
+    window.GLOBAL_USER_LIST.forEach(u => {
+        const dbName = String(u.username || '').toLowerCase().trim();
+        summaryUserCacheMap.set(dbName, u);
+    });
+    // เรียงลำดับแค่ครั้งเดียวพอ
+    summarySortedUserCache = [...window.GLOBAL_USER_LIST].sort((a, b) => (b.username || '').length - (a.username || '').length);
+}
+
+// 🌟 ระบบอ่านกะที่ฉลาดและทำงานไวขึ้น (O(1) Lookup)
+function getShiftFromName(name) {
+    const searchName = String(name || '').toLowerCase().trim();
+    if (!searchName) return 'UNKNOWN';
+
+    // 1. พยายามหาจากฐานข้อมูลก่อน
+    if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
+        // ถ้าพจนานุกรมยังไม่ถูกสร้าง หรือจำนวนพนักงานเปลี่ยน ให้สร้างใหม่
+        if (!summaryUserCacheMap || summaryUserCacheMap.size !== window.GLOBAL_USER_LIST.length) {
+            buildSummaryUserCache();
+        }
+
+        // ค้นหาแบบเปิดพจนานุกรม (เจอทันที ไม่ต้องวนลูป)
+        let foundUser = summaryUserCacheMap.get(searchName);
+        
+        // ถ้าไม่เจอ ค่อยวนลูปหาแบบเช็คตัวอักษรนำหน้า (ทางเลือกสุดท้าย)
+        if (!foundUser) {
+            foundUser = summarySortedUserCache.find(u => {
+                const dbName = String(u.username || '').toLowerCase().trim();
+                return (dbName.length >= 3 && searchName.startsWith(dbName)) || 
+                       (searchName.length >= 3 && dbName.startsWith(searchName));
+            });
+        }
+        
+        if (foundUser) {
+            let s = String(foundUser.allowed_shift || '').trim().replace('กะ', '');
+            if (s === 'เช้า') return 'กะเช้า';
+            if (s === 'กลาง') return 'กะกลาง';
+            if (s === 'ดึก') return 'กะดึก';
+            if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
+            return `กะ${s}`;
+        }
+    }
+    
+    // 2. ถ้าในฐานข้อมูลไม่มี ให้เดาจากชื่อ
+    if (searchName.includes('เช้า')) return 'กะเช้า';
+    if (searchName.includes('กลาง')) return 'กะกลาง';
+    if (searchName.includes('ดึก')) return 'กะดึก';
+    
+    return 'UNKNOWN';
 }
 
 // 🌟 ฟังก์ชันบังคับดึงรายชื่อพนักงาน (อุดรอยรั่วตอนเปิดหน้าเว็บครั้งแรก)
@@ -258,31 +283,34 @@ window.handleDropExcel = function(e, systemName) {
     if (e.dataTransfer && e.dataTransfer.files.length > 0) window.processExcelUpload(e, systemName);
 };
 
+// 🌟 ฟังก์ชันดึงชื่อพนักงานจริงจากระบบ (อัปเกรดให้ทำงานไวขึ้นด้วย Cache)
 function getRealDbUser(rawName) {
-    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return null;
-    
-    const searchName = String(rawName || '').toLowerCase().trim();
-    if (!searchName) return null;
-    
-    // ลองหาแบบตรงตัวเป๊ะๆ ก่อน
-    let match = window.GLOBAL_USER_LIST.find(u => String(u.username || '').toLowerCase().trim() === searchName);
-    if (match) return match;
+    if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return null;
+    
+    // เรียกใช้พจนานุกรม
+    if (!summaryUserCacheMap || summaryUserCacheMap.size !== window.GLOBAL_USER_LIST.length) {
+        buildSummaryUserCache();
+    }
+    
+    const searchName = String(rawName || '').toLowerCase().trim();
+    if (!searchName) return null;
+    
+    // 1. ลองหาแบบตรงตัวเป๊ะๆ ก่อน (ใช้เวลา 0.001 วิ)
+    if (summaryUserCacheMap.has(searchName)) return summaryUserCacheMap.get(searchName);
 
-    // ถ้าไม่เจอ ลองหาแบบตัดคำนำหน้า m, a, n (เผื่อมีคนพิมพ์ผิด)
-    if (searchName.match(/^[man]/)) {
-        const strippedSearchName = searchName.substring(1);
-        match = window.GLOBAL_USER_LIST.find(u => String(u.username || '').toLowerCase().trim() === strippedSearchName);
-        if (match) return match;
-    }
+    // 2. ถ้าไม่เจอ ลองหาแบบตัดคำนำหน้า m, a, n (เผื่อมีคนพิมพ์ผิด)
+    if (searchName.match(/^[man]/)) {
+        const strippedSearchName = searchName.substring(1);
+        if (summaryUserCacheMap.has(strippedSearchName)) return summaryUserCacheMap.get(strippedSearchName);
+    }
 
-    // ถ้ายังไม่เจออีก ลองหาแบบ contains (เรียงชื่อจากยาวไปสั้น กันการแมตช์ชื่อสั้นๆ ซ้ำกัน)
-    const sortedUsers = [...window.GLOBAL_USER_LIST].sort((a, b) => (b.username || '').length - (a.username || '').length);
-    match = sortedUsers.find(u => {
-        const dbName = String(u.username || '').toLowerCase().trim();
-        return dbName.length >= 3 && (searchName.startsWith(dbName) || dbName.startsWith(searchName));
-    });
-    
-    return match || null;
+    // 3. ถ้ายังไม่เจออีก ลองหาแบบ contains โดยอิงจากลิสต์ที่ถูก sort เตรียมไว้แล้ว
+    const match = summarySortedUserCache.find(u => {
+        const dbName = String(u.username || '').toLowerCase().trim();
+        return dbName.length >= 3 && (searchName.startsWith(dbName) || dbName.startsWith(searchName));
+    });
+    
+    return match || null;
 }
 
 window.processExcelUpload = async function(event, fallbackSystemName) {
