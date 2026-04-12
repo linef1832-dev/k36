@@ -286,319 +286,322 @@ function getRealDbUser(rawName) {
 }
 
 window.processExcelUpload = async function(event, fallbackSystemName) {
-    let files = [];
-    if (event.dataTransfer && event.dataTransfer.files.length > 0) files = Array.from(event.dataTransfer.files);
-    else if (event.target && event.target.files.length > 0) files = Array.from(event.target.files);
+    let files = [];
+    if (event.dataTransfer && event.dataTransfer.files.length > 0) files = Array.from(event.dataTransfer.files);
+    else if (event.target && event.target.files.length > 0) files = Array.from(event.target.files);
 
-    if (files.length === 0) return;
+    if (files.length === 0) return;
 
-    Swal.fire({
-        title: `กำลังประมวลผล ${files.length} ไฟล์...`, html: 'ระบบกำลังดึงข้อมูลและคัดกรองกะของพนักงาน...',
-        allowOutsideClick: false, didOpen: () => Swal.showLoading()
-    });
+    // 🌟 เพิ่มบรรทัดนี้: บังคับโหลด ExcelJS ให้เสร็จก่อนเริ่มประมวลผล
+    window.loadExcelLibrary(async () => {
+        Swal.fire({
+            title: `กำลังประมวลผล ${files.length} ไฟล์...`, html: 'ระบบกำลังดึงข้อมูลและคัดกรองกะของพนักงาน...',
+            allowOutsideClick: false, didOpen: () => Swal.showLoading()
+        });
 
-    try {
-        let totalExtracted = 0; let skippedFiles = []; let errorFiles = [];
-        let savedFilesList = [];
-        
-        if (typeof appDB !== 'undefined') {
-            const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
-            if (savedFilesData && savedFilesData.value) savedFilesList = JSON.parse(savedFilesData.value);
-        }
+        try {
+            let totalExtracted = 0; let skippedFiles = []; let errorFiles = [];
+            let savedFilesList = [];
+            
+            if (typeof appDB !== 'undefined') {
+                const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
+                if (savedFilesData && savedFilesData.value) savedFilesList = JSON.parse(savedFilesData.value);
+            }
 
-        for (let fIndex = 0; fIndex < files.length; fIndex++) {
-            let file = files[fIndex];
-            const fileName = file.name.toLowerCase();
+            for (let fIndex = 0; fIndex < files.length; fIndex++) {
+                let file = files[fIndex];
+                const fileName = file.name.toLowerCase();
 
-            Swal.update({ html: `กำลังวิเคราะห์ไฟล์ที่ ${fIndex + 1}/${files.length}<br><b class="text-sky-500">${file.name}</b>` });
+                Swal.update({ html: `กำลังวิเคราะห์ไฟล์ที่ ${fIndex + 1}/${files.length}<br><b class="text-sky-500">${file.name}</b>` });
 
-            if (!fileName.endsWith('.csv') && !fileName.endsWith('.xlsx')) { skippedFiles.push(`${file.name} (ไม่ใช่ไฟล์ Excel/CSV)`); continue; }
-            if (window.pendingFileNames.includes(fileName)) { skippedFiles.push(`${file.name} (ซ้ำในรอบนี้)`); continue; }
-            window.pendingFileNames.push(fileName);
+                if (!fileName.endsWith('.csv') && !fileName.endsWith('.xlsx')) { skippedFiles.push(`${file.name} (ไม่ใช่ไฟล์ Excel/CSV)`); continue; }
+                if (window.pendingFileNames.includes(fileName)) { skippedFiles.push(`${file.name} (ซ้ำในรอบนี้)`); continue; }
+                window.pendingFileNames.push(fileName);
 
-            let fileSystem = 'K36'; 
-            if (fileName.includes('jl69') || fileName.includes('nm9') || fileName.includes('pg688')) fileSystem = 'TCG';
-            else if (fileName.includes('f168')) fileSystem = 'WG';
+                let fileSystem = 'K36'; 
+                if (fileName.includes('jl69') || fileName.includes('nm9') || fileName.includes('pg688')) fileSystem = 'TCG';
+                else if (fileName.includes('f168')) fileSystem = 'WG';
 
-            try {
-                let parsedRowsData = [];
-                if (fileName.endsWith('.csv')) {
-                    const text = await file.text();
-                    const parseCSV = (str) => {
-                        const rows = []; let currentRow = []; let currentCell = ''; let inQuotes = false;
-                        for (let i = 0; i < str.length; i++) {
-                            let cc = str[i], nc = str[i + 1];
-                            if (cc === '"' && inQuotes && nc === '"') { currentCell += '"'; i++; } 
-                            else if (cc === '"') { inQuotes = !inQuotes; } 
-                            else if (cc === ',' && !inQuotes) { currentRow.push(currentCell.trim()); currentCell = ''; } 
-                            else if ((cc === '\n' || cc === '\r') && !inQuotes) {
-                                if (cc === '\r' && nc === '\n') i++; 
-                                currentRow.push(currentCell.trim());
-                                if (currentRow.some(v => v !== '')) rows.push(currentRow); 
-                                currentRow = []; currentCell = '';
-                            } else { currentCell += cc; }
-                        }
-                        if (currentCell !== '' || currentRow.length > 0) {
-                            currentRow.push(currentCell.trim());
-                            if (currentRow.some(v => v !== '')) rows.push(currentRow);
-                        }
-                        return rows;
-                    };
-                    parsedRowsData = parseCSV(text);
-                } else {
-                    const wb = new ExcelJS.Workbook();
-                    const buffer = await file.arrayBuffer();
-                    await wb.xlsx.load(buffer);
-                    const ws = wb.worksheets[0]; 
-                    ws.eachRow((row, rowNumber) => {
-                        let cols = [];
-                        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-                            let val = cell.value;
-                            if (val && typeof val === 'object' && val.text) val = val.text;
-                            if (val && val instanceof Date) {
-                                const offset = val.getTimezoneOffset() * 60000;
-                                const localDate = new Date(val - offset);
-                                const ds = localDate.toISOString().split('T')[0];
-                                const ts = localDate.toISOString().split('T')[1].split('.')[0];
-                                val = `${ds} ${ts}`; 
-                            }
-                            cols[colNumber - 1] = String(val || '');
-                        });
-                        for(let i=0; i<cols.length; i++) { if(cols[i]===undefined) cols[i]=''; }
-                        parsedRowsData.push(cols);
-                    });
-                }
+                try {
+                    let parsedRowsData = [];
+                    if (fileName.endsWith('.csv')) {
+                        const text = await file.text();
+                        const parseCSV = (str) => {
+                            const rows = []; let currentRow = []; let currentCell = ''; let inQuotes = false;
+                            for (let i = 0; i < str.length; i++) {
+                                let cc = str[i], nc = str[i + 1];
+                                if (cc === '"' && inQuotes && nc === '"') { currentCell += '"'; i++; } 
+                                else if (cc === '"') { inQuotes = !inQuotes; } 
+                                else if (cc === ',' && !inQuotes) { currentRow.push(currentCell.trim()); currentCell = ''; } 
+                                else if ((cc === '\n' || cc === '\r') && !inQuotes) {
+                                    if (cc === '\r' && nc === '\n') i++; 
+                                    currentRow.push(currentCell.trim());
+                                    if (currentRow.some(v => v !== '')) rows.push(currentRow); 
+                                    currentRow = []; currentCell = '';
+                                } else { currentCell += cc; }
+                            }
+                            if (currentCell !== '' || currentRow.length > 0) {
+                                currentRow.push(currentCell.trim());
+                                if (currentRow.some(v => v !== '')) rows.push(currentRow);
+                            }
+                            return rows;
+                        };
+                        parsedRowsData = parseCSV(text);
+                    } else {
+                        const wb = new ExcelJS.Workbook();
+                        const buffer = await file.arrayBuffer();
+                        await wb.xlsx.load(buffer);
+                        const ws = wb.worksheets[0]; 
+                        ws.eachRow((row, rowNumber) => {
+                            let cols = [];
+                            row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                                let val = cell.value;
+                                if (val && typeof val === 'object' && val.text) val = val.text;
+                                if (val && val instanceof Date) {
+                                    const offset = val.getTimezoneOffset() * 60000;
+                                    const localDate = new Date(val - offset);
+                                    const ds = localDate.toISOString().split('T')[0];
+                                    const ts = localDate.toISOString().split('T')[1].split('.')[0];
+                                    val = `${ds} ${ts}`; 
+                                }
+                                cols[colNumber - 1] = String(val || '');
+                            });
+                            for(let i=0; i<cols.length; i++) { if(cols[i]===undefined) cols[i]=''; }
+                            parsedRowsData.push(cols);
+                        });
+                    }
 
-                const webNameMap = { 'vv72': 'VV72', 'jun88': 'Jun88', 'mk8': 'MK8', 'th26': 'TH26', 'bt678': 'BT678', 'k188': 'K188', 'nm9': 'NM9', 'pg688': 'PG688', 'jl69': 'JL69', 'f168': 'F168' };
-                let colMap = { amount: -1, status: -1, emp: -1, web: -1 };
-                let headerFound = false; let startDataRow = 1;
+                    const webNameMap = { 'vv72': 'VV72', 'jun88': 'Jun88', 'mk8': 'MK8', 'th26': 'TH26', 'bt678': 'BT678', 'k188': 'K188', 'nm9': 'NM9', 'pg688': 'PG688', 'jl69': 'JL69', 'f168': 'F168' };
+                    let colMap = { amount: -1, status: -1, emp: -1, web: -1 };
+                    let headerFound = false; let startDataRow = 1;
 
-                for (let r = 0; r < Math.min(10, parsedRowsData.length); r++) {
-                    if(!parsedRowsData[r]) continue;
-                    let rowClean = parsedRowsData[r].map(c => String(c).replace(/[\s\r\n]+/g, '').toLowerCase());
-                    
-                    if (fileSystem === 'TCG') {
-                        let cEmp = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติครั้งแรก'));
-                        let cStat = rowClean.findIndex(c => c === 'สถานะ' || c === 'status');
-                        let cAmt = rowClean.findIndex(c => c.includes('จำนวนที่จ่ายจริง'));
-                        let cWeb = rowClean.findIndex(c => c === 'แบรนด์' || c === 'brand');
+                    for (let r = 0; r < Math.min(10, parsedRowsData.length); r++) {
+                        if(!parsedRowsData[r]) continue;
+                        let rowClean = parsedRowsData[r].map(c => String(c).replace(/[\s\r\n]+/g, '').toLowerCase());
+                        
+                        if (fileSystem === 'TCG') {
+                            let cEmp = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติครั้งแรก'));
+                            let cStat = rowClean.findIndex(c => c === 'สถานะ' || c === 'status');
+                            let cAmt = rowClean.findIndex(c => c.includes('จำนวนที่จ่ายจริง'));
+                            let cWeb = rowClean.findIndex(c => c === 'แบรนด์' || c === 'brand');
 
-                        if (cEmp !== -1 && cStat !== -1 && cAmt !== -1) {
-                            colMap = { emp: cEmp, status: cStat, amount: cAmt, web: cWeb !== -1 ? cWeb : -1 };
-                            headerFound = true; startDataRow = r + 1; break;
-                        }
-                    } else { 
-                        let cEmp = rowClean.findIndex(c => c.includes('riskverification'));
-                        let cStat = rowClean.findIndex(c => c === 'status' || c === 'สถานะ');
-                        let cAmt = rowClean.findIndex(c => c.includes('actualw/d'));
+                            if (cEmp !== -1 && cStat !== -1 && cAmt !== -1) {
+                                colMap = { emp: cEmp, status: cStat, amount: cAmt, web: cWeb !== -1 ? cWeb : -1 };
+                                headerFound = true; startDataRow = r + 1; break;
+                            }
+                        } else { 
+                            let cEmp = rowClean.findIndex(c => c.includes('riskverification'));
+                            let cStat = rowClean.findIndex(c => c === 'status' || c === 'สถานะ');
+                            let cAmt = rowClean.findIndex(c => c.includes('actualw/d'));
 
-                        if (cEmp === -1) cEmp = rowClean.findIndex(c => c.includes('approvedby') || c.includes('ตรวจสอบโดย'));
+                            if (cEmp === -1) cEmp = rowClean.findIndex(c => c.includes('approvedby') || c.includes('ตรวจสอบโดย'));
 
-                        if (cEmp !== -1 && cStat !== -1 && cAmt !== -1) {
-                            colMap = { emp: cEmp, status: cStat, amount: cAmt, web: cEmp };
-                            headerFound = true; startDataRow = r + 1; break;
-                        }
-                    }
-                }
+                            if (cEmp !== -1 && cStat !== -1 && cAmt !== -1) {
+                                colMap = { emp: cEmp, status: cStat, amount: cAmt, web: cEmp };
+                                headerFound = true; startDataRow = r + 1; break;
+                            }
+                        }
+                    }
 
-                if (!headerFound) {
-                    if (fileSystem === 'TCG') colMap = { amount: 16, status: 22, web: 23, emp: 24 };
-                    else colMap = { amount: 25, status: 31, web: 33, emp: 33 };
-                }
+                    if (!headerFound) {
+                        if (fileSystem === 'TCG') colMap = { amount: 16, status: 22, web: 23, emp: 24 };
+                        else colMap = { amount: 25, status: 31, web: 33, emp: 33 };
+                    }
 
-                let defaultWeb = '';
-                for (let w of Object.keys(webNameMap)) { if (fileName.includes(w)) { defaultWeb = webNameMap[w]; break; } }
-                
-                if (!defaultWeb) {
-                    for (let r = startDataRow; r < Math.min(startDataRow + 50, parsedRowsData.length); r++) {
-                        if (!parsedRowsData[r]) continue;
-                        if (fileSystem === 'TCG') {
-                            let rawWeb = colMap.web !== -1 ? String(parsedRowsData[r][colMap.web] || '').trim().toLowerCase() : '';
-                            for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { defaultWeb = webNameMap[w]; break; } }
-                        } else {
-                            let rawApp = colMap.emp !== -1 ? String(parsedRowsData[r][colMap.emp] || '').trim().toLowerCase() : '';
-                            let fw = rawApp.split(/[\s\r\n]+/)[0] || '';
-                            for (let w of Object.keys(webNameMap)) { if (fw.endsWith(w)) { defaultWeb = webNameMap[w]; break; } }
-                        }
-                        if (defaultWeb) break;
-                    }
-                }
-                if (!defaultWeb) defaultWeb = fileSystem === 'TCG' ? 'PG688' : 'Jun88'; 
+                    let defaultWeb = '';
+                    for (let w of Object.keys(webNameMap)) { if (fileName.includes(w)) { defaultWeb = webNameMap[w]; break; } }
+                    
+                    if (!defaultWeb) {
+                        for (let r = startDataRow; r < Math.min(startDataRow + 50, parsedRowsData.length); r++) {
+                            if (!parsedRowsData[r]) continue;
+                            if (fileSystem === 'TCG') {
+                                let rawWeb = colMap.web !== -1 ? String(parsedRowsData[r][colMap.web] || '').trim().toLowerCase() : '';
+                                for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { defaultWeb = webNameMap[w]; break; } }
+                            } else {
+                                let rawApp = colMap.emp !== -1 ? String(parsedRowsData[r][colMap.emp] || '').trim().toLowerCase() : '';
+                                let fw = rawApp.split(/[\s\r\n]+/)[0] || '';
+                                for (let w of Object.keys(webNameMap)) { if (fw.endsWith(w)) { defaultWeb = webNameMap[w]; break; } }
+                            }
+                            if (defaultWeb) break;
+                        }
+                    }
+                    if (!defaultWeb) defaultWeb = fileSystem === 'TCG' ? 'PG688' : 'Jun88'; 
 
-                let extractedRows = []; let detectedDate = null;
+                    let extractedRows = []; let detectedDate = null;
 
-                for (let i = startDataRow; i < parsedRowsData.length; i++) {
-                    let cellData = parsedRowsData[i];
-                    if (!cellData || cellData.length < 3) continue; 
+                    for (let i = startDataRow; i < parsedRowsData.length; i++) {
+                        let cellData = parsedRowsData[i];
+                        if (!cellData || cellData.length < 3) continue; 
 
-                    let empName = ''; let amount = 0; let webName = '';
-                    let txStatus = 'Approved'; let odType = 'ปกติ'; let rowDate = null;
-                    let hour = null; 
+                        let empName = ''; let amount = 0; let webName = '';
+                        let txStatus = 'Approved'; let odType = 'ปกติ'; let rowDate = null;
+                        let hour = null; 
 
-                    for (let c of cellData) {
-                        const strC = String(c).trim();
-                        let match = strC.match(/(202\d-\d{1,2}-\d{1,2})(?:\s+(\d{1,2}):\d{2}:\d{2})?/);
-                        let altMatch = strC.match(/(\d{1,2})\/(\d{1,2})\/(202\d)(?:\s+(\d{1,2}):\d{2}(?::\d{2})?)?/);
-                        let rowDateStr = null;
+                        for (let c of cellData) {
+                            const strC = String(c).trim();
+                            let match = strC.match(/(202\d-\d{1,2}-\d{1,2})(?:\s+(\d{1,2}):\d{2}:\d{2})?/);
+                            let altMatch = strC.match(/(\d{1,2})\/(\d{1,2})\/(202\d)(?:\s+(\d{1,2}):\d{2}(?::\d{2})?)?/);
+                            let rowDateStr = null;
 
-                        if (match) { rowDateStr = match[1]; hour = match[2] ? parseInt(match[2], 10) : null; } 
-                        else if (altMatch) {
-                            let p1 = parseInt(altMatch[1], 10); let p2 = parseInt(altMatch[2], 10);
-                            let y = altMatch[3]; let m = p2 > 12 ? p1 : p2; let d = p2 > 12 ? p2 : p1; 
-                            rowDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                            hour = altMatch[4] ? parseInt(altMatch[4], 10) : null;
-                        }
+                            if (match) { rowDateStr = match[1]; hour = match[2] ? parseInt(match[2], 10) : null; } 
+                            else if (altMatch) {
+                                let p1 = parseInt(altMatch[1], 10); let p2 = parseInt(altMatch[2], 10);
+                                let y = altMatch[3]; let m = p2 > 12 ? p1 : p2; let d = p2 > 12 ? p2 : p1; 
+                                rowDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                hour = altMatch[4] ? parseInt(altMatch[4], 10) : null;
+                            }
 
-                        if (rowDateStr) {
-                            rowDate = rowDateStr;
-                            if (hour !== null && hour >= 0 && hour < 8) {
-                                let dObj = new Date(rowDate); dObj.setDate(dObj.getDate() - 1);
-                                rowDate = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
-                            }
-                            window.uploadedFileDates.add(rowDate); 
-                            break; 
-                        }
-                    }
-                    if (!detectedDate && rowDate) detectedDate = rowDate; 
+                            if (rowDateStr) {
+                                rowDate = rowDateStr;
+                                if (hour !== null && hour >= 0 && hour < 8) {
+                                    let dObj = new Date(rowDate); dObj.setDate(dObj.getDate() - 1);
+                                    rowDate = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
+                                }
+                                window.uploadedFileDates.add(rowDate); 
+                                break; 
+                            }
+                        }
+                        if (!detectedDate && rowDate) detectedDate = rowDate; 
 
-                    amount = parseAmount(cellData[colMap.amount]);
-                    let rawStatus = String(cellData[colMap.status] || '').toUpperCase();
-                    let rawApproveStr = String(cellData[colMap.emp] || '').trim().toLowerCase();
+                        amount = parseAmount(cellData[colMap.amount]);
+                        let rawStatus = String(cellData[colMap.status] || '').toUpperCase();
+                        let rawApproveStr = String(cellData[colMap.emp] || '').trim().toLowerCase();
 
-                    if (fileSystem === 'TCG' && colMap.web !== -1) {
-                        let rawWeb = String(cellData[colMap.web] || '').trim().toLowerCase();
-                        for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { webName = webNameMap[w]; break; } }
-                    }
+                        if (fileSystem === 'TCG' && colMap.web !== -1) {
+                            let rawWeb = String(cellData[colMap.web] || '').trim().toLowerCase();
+                            for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { webName = webNameMap[w]; break; } }
+                        }
 
-                    if (rawStatus.includes('REJECT') || rawStatus.includes('DECLINE') || rawStatus.includes('CANCEL') || rawStatus.includes('FAIL') || rawStatus.includes('REFUND') || rawStatus.includes('ปฏิเสธ') || rawStatus.includes('ยกเลิก')) {
-                        txStatus = 'Reject'; amount = 0;
-                    }
+                        if (rawStatus.includes('REJECT') || rawStatus.includes('DECLINE') || rawStatus.includes('CANCEL') || rawStatus.includes('FAIL') || rawStatus.includes('REFUND') || rawStatus.includes('ปฏิเสธ') || rawStatus.includes('ยกเลิก')) {
+                            txStatus = 'Reject'; amount = 0;
+                        }
 
-                    let firstWord = rawApproveStr.split(/[\s\r\n]+/)[0] || ''; 
-                    
-                    if (firstWord && firstWord !== 'system' && firstWord !== 'auto' && firstWord !== '-' && firstWord !== 'nan' && !firstWord.includes('202') && firstWord !== 'null') {
-                        for (let w of Object.keys(webNameMap)) {
-                            if (firstWord.endsWith(w)) {
-                                if (fileSystem === 'K36') webName = webNameMap[w]; 
-                                firstWord = firstWord.replace(w, '');
-                                break;
-                            }
-                        }
+                        let firstWord = rawApproveStr.split(/[\s\r\n]+/)[0] || ''; 
+                        
+                        if (firstWord && firstWord !== 'system' && firstWord !== 'auto' && firstWord !== '-' && firstWord !== 'nan' && !firstWord.includes('202') && firstWord !== 'null') {
+                            for (let w of Object.keys(webNameMap)) {
+                                if (firstWord.endsWith(w)) {
+                                    if (fileSystem === 'K36') webName = webNameMap[w]; 
+                                    firstWord = firstWord.replace(w, '');
+                                    break;
+                                }
+                            }
 
-                        if(firstWord.startsWith('odol')) { odType = 'ODOL'; firstWord = firstWord.replace('odol', ''); }
-                        else if(firstWord.startsWith('odo')) { odType = 'OD'; firstWord = firstWord.replace('odo', ''); }
-                        else if(firstWord.startsWith('od')) { odType = 'OD'; firstWord = firstWord.replace('od', ''); }
-                        else if(firstWord.startsWith('am')) { odType = 'AM'; firstWord = firstWord.replace('am', ''); }
-                        else if(firstWord.startsWith('fttt')) { odType = 'ปกติ'; firstWord = firstWord.replace('fttt', ''); }
-                        else if(firstWord.startsWith('ftt')) { odType = 'ปกติ'; firstWord = firstWord.replace('ftt', ''); }
-                        else if(firstWord.startsWith('ft')) { odType = 'ปกติ'; firstWord = firstWord.replace('ft', ''); }
-                        
-                        firstWord = firstWord.replace(/(\d+|vv)$/i, ''); empName = firstWord;
-                    } else { continue; }
+                            if(firstWord.startsWith('odol')) { odType = 'ODOL'; firstWord = firstWord.replace('odol', ''); }
+                            else if(firstWord.startsWith('odo')) { odType = 'OD'; firstWord = firstWord.replace('odo', ''); }
+                            else if(firstWord.startsWith('od')) { odType = 'OD'; firstWord = firstWord.replace('od', ''); }
+                            else if(firstWord.startsWith('am')) { odType = 'AM'; firstWord = firstWord.replace('am', ''); }
+                            else if(firstWord.startsWith('fttt')) { odType = 'ปกติ'; firstWord = firstWord.replace('fttt', ''); }
+                            else if(firstWord.startsWith('ftt')) { odType = 'ปกติ'; firstWord = firstWord.replace('ftt', ''); }
+                            else if(firstWord.startsWith('ft')) { odType = 'ปกติ'; firstWord = firstWord.replace('ft', ''); }
+                            
+                            firstWord = firstWord.replace(/(\d+|vv)$/i, ''); empName = firstWord;
+                        } else { continue; }
 
-                    if (!empName || empName.length < 2 || /^[\d\W]+$/.test(empName)) continue; 
-                    const sysWords = ['system', 'auto', 'null', 'nan', 'admin', 'api', 'bot'];
-                    if (sysWords.includes(empName.toLowerCase())) continue;
-                    
-                    if (!webName) webName = defaultWeb; 
+                        if (!empName || empName.length < 2 || /^[\d\W]+$/.test(empName)) continue; 
+                        const sysWords = ['system', 'auto', 'null', 'nan', 'admin', 'api', 'bot'];
+                        if (sysWords.includes(empName.toLowerCase())) continue;
+                        
+                        if (!webName) webName = defaultWeb; 
 
-                    let extractedShiftFromTime = 'UNKNOWN';
-                    if (hour !== null) {
-                        if (hour >= 7 && hour < 19) extractedShiftFromTime = 'กะเช้า';
-                        else extractedShiftFromTime = 'กะดึก';
-                    }
+                        let extractedShiftFromTime = 'UNKNOWN';
+                        if (hour !== null) {
+                            if (hour >= 7 && hour < 19) extractedShiftFromTime = 'กะเช้า';
+                            else extractedShiftFromTime = 'กะดึก';
+                        }
 
-                    const realUser = getRealDbUser(empName);
-                    let finalShift = extractedShiftFromTime;
-                    
-                    if (realUser) {
-                        empName = realUser.username; 
-                        if (realUser.allowed_shift && realUser.allowed_shift !== 'all') {
-                            finalShift = realUser.allowed_shift;
-                        } else if (realUser.allowed_shift === 'all') {
-                            if (extractedShiftFromTime !== 'UNKNOWN') finalShift = extractedShiftFromTime;
-                            else finalShift = 'กะอิสระ';
-                        }
-                    }
+                        const realUser = getRealDbUser(empName);
+                        let finalShift = extractedShiftFromTime;
+                        
+                        if (realUser) {
+                            empName = realUser.username; 
+                            if (realUser.allowed_shift && realUser.allowed_shift !== 'all') {
+                                finalShift = realUser.allowed_shift;
+                            } else if (realUser.allowed_shift === 'all') {
+                                if (extractedShiftFromTime !== 'UNKNOWN') finalShift = extractedShiftFromTime;
+                                else finalShift = 'กะอิสระ';
+                            }
+                        }
 
-                    const finalRowDate = rowDate || detectedDate || document.getElementById('summaryDateFilter').value;
-                    extractedRows.push({ empName, amount, website: webName, system: fileSystem, status: txStatus, odType: odType, date: finalRowDate, shift: finalShift });
-                }
+                        const finalRowDate = rowDate || detectedDate || document.getElementById('summaryDateFilter').value;
+                        extractedRows.push({ empName, amount, website: webName, system: fileSystem, status: txStatus, odType: odType, date: finalRowDate, shift: finalShift });
+                    }
 
-                const uniqueDates = [...new Set(extractedRows.map(r => r.date))];
-                const yesterdayDates = uniqueDates.map(d => window.getYesterdayDateStr(d));
+                    const uniqueDates = [...new Set(extractedRows.map(r => r.date))];
+                    const yesterdayDates = uniqueDates.map(d => window.getYesterdayDateStr(d));
 
-                let yestMap = {};
-                if (typeof appDB !== 'undefined' && yesterdayDates.length > 0) {
-                    const { data: yestData } = await appDB.from('transaction_daily_summary')
-                        .select('date, employee_name, website, count')
-                        .in('date', yesterdayDates);
-                    if (yestData) {
-                        yestData.forEach(r => yestMap[`${r.date}_${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
-                    }
-                }
+                    let yestMap = {};
+                    if (typeof appDB !== 'undefined' && yesterdayDates.length > 0) {
+                        const { data: yestData } = await appDB.from('transaction_daily_summary')
+                            .select('date, employee_name, website, count')
+                            .in('date', yesterdayDates);
+                        if (yestData) {
+                            yestData.forEach(r => yestMap[`${r.date}_${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
+                        }
+                    }
 
-                extractedRows.forEach(row => {
-                    let existingIndex = pendingSummaryData.findIndex(p => 
-                        p.empName.toLowerCase() === row.empName.toLowerCase() && 
-                        p.website.toLowerCase() === row.website.toLowerCase() && 
-                        p.date === row.date
-                    );
-                    
-                    const rowYestDate = window.getYesterdayDateStr(row.date);
-                    const yestCount = yestMap[`${rowYestDate}_${window.cleanKeyStr(row.empName, row.website)}`] || 0;
+                    extractedRows.forEach(row => {
+                        let existingIndex = pendingSummaryData.findIndex(p => 
+                            p.empName.toLowerCase() === row.empName.toLowerCase() && 
+                            p.website.toLowerCase() === row.website.toLowerCase() && 
+                            p.date === row.date
+                        );
+                        
+                        const rowYestDate = window.getYesterdayDateStr(row.date);
+                        const yestCount = yestMap[`${rowYestDate}_${window.cleanKeyStr(row.empName, row.website)}`] || 0;
 
-                    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
-                    if (customSystems[row.website]) { row.system = customSystems[row.website]; }
+                        let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
+                        if (customSystems[row.website]) { row.system = customSystems[row.website]; }
 
-                    if (existingIndex > -1) {
-                        pendingSummaryData[existingIndex].count += 1;
-                        pendingSummaryData[existingIndex].totalAmount += row.amount; 
-                        if (row.status === 'Reject') pendingSummaryData[existingIndex].rejectCount = (pendingSummaryData[existingIndex].rejectCount || 0) + 1;
-                        else pendingSummaryData[existingIndex].approvedCount = (pendingSummaryData[existingIndex].approvedCount || 0) + 1;
-                        
-                        pendingSummaryData[existingIndex].yestCount = yestCount; 
-                        pendingSummaryData[existingIndex].diffFromYesterday = pendingSummaryData[existingIndex].count - yestCount;
-                    } else {
-                        pendingSummaryData.push({
-                            date: row.date, empName: row.empName, website: row.website, system: row.system, shift: row.shift, odType: row.odType,
-                            count: 1, approvedCount: row.status !== 'Reject' ? 1 : 0, rejectCount: row.status === 'Reject' ? 1 : 0,
-                            totalAmount: row.amount, yestCount: yestCount, diffFromYesterday: 1 - yestCount
-                        });
-                    }
-                });
-                totalExtracted += extractedRows.length;
-            } catch (e) {
-                console.error(`Error in file ${file.name}:`, e);
-                window.pendingFileNames = window.pendingFileNames.filter(n => n !== fileName);
-                errorFiles.push(`${file.name} (${e.message})`);
-            }
-        } 
+                        if (existingIndex > -1) {
+                            pendingSummaryData[existingIndex].count += 1;
+                            pendingSummaryData[existingIndex].totalAmount += row.amount; 
+                            if (row.status === 'Reject') pendingSummaryData[existingIndex].rejectCount = (pendingSummaryData[existingIndex].rejectCount || 0) + 1;
+                            else pendingSummaryData[existingIndex].approvedCount = (pendingSummaryData[existingIndex].approvedCount || 0) + 1;
+                            
+                            pendingSummaryData[existingIndex].yestCount = yestCount; 
+                            pendingSummaryData[existingIndex].diffFromYesterday = pendingSummaryData[existingIndex].count - yestCount;
+                        } else {
+                            pendingSummaryData.push({
+                                date: row.date, empName: row.empName, website: row.website, system: row.system, shift: row.shift, odType: row.odType,
+                                count: 1, approvedCount: row.status !== 'Reject' ? 1 : 0, rejectCount: row.status === 'Reject' ? 1 : 0,
+                                totalAmount: row.amount, yestCount: yestCount, diffFromYesterday: 1 - yestCount
+                            });
+                        }
+                    });
+                    totalExtracted += extractedRows.length;
+                } catch (e) {
+                    console.error(`Error in file ${file.name}:`, e);
+                    window.pendingFileNames = window.pendingFileNames.filter(n => n !== fileName);
+                    errorFiles.push(`${file.name} (${e.message})`);
+                }
+            } 
 
-        const dateSpan = document.getElementById('summaryFileDates');
-        if(dateSpan) {
-            if (window.uploadedFileDates.size > 0) {
-                const dateArr = Array.from(window.uploadedFileDates).sort().map(d => {
-                    const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`;
-                });
-                dateSpan.innerText = dateArr.join(', ');
-                dateSpan.className = "text-emerald-500 font-black"; 
-            } else { dateSpan.innerText = '-'; }
-        }
+            const dateSpan = document.getElementById('summaryFileDates');
+            if(dateSpan) {
+                if (window.uploadedFileDates.size > 0) {
+                    const dateArr = Array.from(window.uploadedFileDates).sort().map(d => {
+                        const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`;
+                    });
+                    dateSpan.innerText = dateArr.join(', ');
+                    dateSpan.className = "text-emerald-500 font-black"; 
+                } else { dateSpan.innerText = '-'; }
+            }
 
-        viewMode = 'preview';
-        renderSummaryDashboard();
-        fetchLeaderboardData();
+            viewMode = 'preview';
+            renderSummaryDashboard();
+            fetchLeaderboardData();
 
-        let resultHtml = `ดึงข้อมูลมาได้ <b>${totalExtracted}</b> รายการ (เฉพาะ OD)<br><span class="text-sm text-green-600 font-bold">(ยอดถูกบวกทบกันเรียบร้อยแล้ว)</span>`;
-        if (skippedFiles.length > 0) resultHtml += `<br><br><span class="text-xs text-orange-500"><b>ข้ามไฟล์ซ้ำ:</b><br>${skippedFiles.join('<br>')}</span>`;
-        if (errorFiles.length > 0) resultHtml += `<br><br><span class="text-xs text-red-500"><b>ไฟล์ที่มีปัญหา:</b><br>${errorFiles.join('<br>')}</span>`;
+            let resultHtml = `ดึงข้อมูลมาได้ <b>${totalExtracted}</b> รายการ (เฉพาะ OD)<br><span class="text-sm text-green-600 font-bold">(ยอดถูกบวกทบกันเรียบร้อยแล้ว)</span>`;
+            if (skippedFiles.length > 0) resultHtml += `<br><br><span class="text-xs text-orange-500"><b>ข้ามไฟล์ซ้ำ:</b><br>${skippedFiles.join('<br>')}</span>`;
+            if (errorFiles.length > 0) resultHtml += `<br><br><span class="text-xs text-red-500"><b>ไฟล์ที่มีปัญหา:</b><br>${errorFiles.join('<br>')}</span>`;
 
-        if (totalExtracted > 0) Swal.fire({ icon: 'success', title: 'ประมวลผลเสร็จสิ้น!', html: resultHtml, showConfirmButton: true, confirmButtonColor: '#10b981' });
-        else Swal.fire({ icon: 'warning', title: 'เสร็จสิ้น (ไม่ได้ข้อมูลเพิ่ม)', html: resultHtml, showConfirmButton: true, confirmButtonColor: '#f59e0b' });
-        
-    } catch (e) { Swal.fire('Error', 'เกิดข้อผิดพลาดในระบบ: ' + e.message, 'error'); }
-    if (event.target && event.target.type === 'file') event.target.value = ''; 
+            if (totalExtracted > 0) Swal.fire({ icon: 'success', title: 'ประมวลผลเสร็จสิ้น!', html: resultHtml, showConfirmButton: true, confirmButtonColor: '#10b981' });
+            else Swal.fire({ icon: 'warning', title: 'เสร็จสิ้น (ไม่ได้ข้อมูลเพิ่ม)', html: resultHtml, showConfirmButton: true, confirmButtonColor: '#f59e0b' });
+            
+        } catch (e) { Swal.fire('Error', 'เกิดข้อผิดพลาดในระบบ: ' + e.message, 'error'); }
+        if (event.target && event.target.type === 'file') event.target.value = ''; 
+    }); // ปิด Block loadExcelLibrary
 };
 
 window.debounceRenderSummary = function() {
