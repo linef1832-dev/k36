@@ -322,72 +322,52 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
             try {
                 let parsedRowsData = [];
-                
-                // 🌟 1. ยกฟังก์ชัน parseCSV ออกมาประกาศไว้ด้านบน เพื่อให้สลับใช้ได้ทันที
-                const parseCSV = (str) => {
-                    const rows = []; let currentRow = []; let currentCell = ''; let inQuotes = false;
-                    for (let i = 0; i < str.length; i++) {
-                        let cc = str[i], nc = str[i + 1];
-                        if (cc === '"' && inQuotes && nc === '"') { currentCell += '"'; i++; } 
-                        else if (cc === '"') { inQuotes = !inQuotes; } 
-                        else if (cc === ',' && !inQuotes) { currentRow.push(currentCell.trim()); currentCell = ''; } 
-                        else if ((cc === '\n' || cc === '\r') && !inQuotes) {
-                            if (cc === '\r' && nc === '\n') i++; 
-                            currentRow.push(currentCell.trim());
-                            if (currentRow.some(v => v !== '')) rows.push(currentRow); 
-                            currentRow = []; currentCell = '';
-                        } else { currentCell += cc; }
-                    }
-                    if (currentCell !== '' || currentRow.length > 0) {
-                        currentRow.push(currentCell.trim());
-                        if (currentRow.some(v => v !== '')) rows.push(currentRow);
-                    }
-                    return rows;
-                };
-
-                if (fileName.endsWith('.csv')) {
-                    // โหลดไฟล์ CSV และบังคับอ่านภาษาไทยแบบ Windows-874 (สำหรับเว็บ TCG)
-                    const text = await new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => resolve(e.target.result);
-                        reader.readAsText(file, 'windows-874');
-                    });
-                    parsedRowsData = parseCSV(text);
-                } else {
-                    try {
-                        // พยายามโหลดไฟล์ Excel ตามปกติก่อน
-                        const wb = new ExcelJS.Workbook();
-                        const buffer = await file.arrayBuffer();
-                        await wb.xlsx.load(buffer);
-                        const ws = wb.worksheets[0]; 
-                        ws.eachRow((row, rowNumber) => {
-                            let cols = [];
-                            row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-                                let val = cell.value;
-                                if (val && typeof val === 'object' && val.text) val = val.text;
-                                if (val && val instanceof Date) {
-                                    const offset = val.getTimezoneOffset() * 60000;
-                                    const localDate = new Date(val - offset);
-                                    const ds = localDate.toISOString().split('T')[0];
-                                    const ts = localDate.toISOString().split('T')[1].split('.')[0];
-                                    val = `${ds} ${ts}`; 
-                                }
-                                cols[colNumber - 1] = String(val || '');
-                            });
-                            for(let i=0; i<cols.length; i++) { if(cols[i]===undefined) cols[i]=''; }
-                            parsedRowsData.push(cols);
-                        });
-                    } catch (xlsxError) {
-                        console.warn(`ไฟล์ ${file.name} ไม่ใช่ Excel แท้ กำลังสลับไปอ่านโหมด CSV...`);
-                        // สลับมาอ่าน CSV และบังคับอ่านภาษาไทย
-                        const text = await new Promise((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = (e) => resolve(e.target.result);
-                            reader.readAsText(file, 'windows-874');
-                        });
-                        parsedRowsData = parseCSV(text);
-                    }
-                }
+                if (fileName.endsWith('.csv')) {
+                    const text = await file.text();
+                    const parseCSV = (str) => {
+                        const rows = []; let currentRow = []; let currentCell = ''; let inQuotes = false;
+                        for (let i = 0; i < str.length; i++) {
+                            let cc = str[i], nc = str[i + 1];
+                            if (cc === '"' && inQuotes && nc === '"') { currentCell += '"'; i++; } 
+                            else if (cc === '"') { inQuotes = !inQuotes; } 
+                            else if (cc === ',' && !inQuotes) { currentRow.push(currentCell.trim()); currentCell = ''; } 
+                            else if ((cc === '\n' || cc === '\r') && !inQuotes) {
+                                if (cc === '\r' && nc === '\n') i++; 
+                                currentRow.push(currentCell.trim());
+                                if (currentRow.some(v => v !== '')) rows.push(currentRow); 
+                                currentRow = []; currentCell = '';
+                            } else { currentCell += cc; }
+                        }
+                        if (currentCell !== '' || currentRow.length > 0) {
+                            currentRow.push(currentCell.trim());
+                            if (currentRow.some(v => v !== '')) rows.push(currentRow);
+                        }
+                        return rows;
+                    };
+                    parsedRowsData = parseCSV(text);
+                } else {
+                    const wb = new ExcelJS.Workbook();
+                    const buffer = await file.arrayBuffer();
+                    await wb.xlsx.load(buffer);
+                    const ws = wb.worksheets[0]; 
+                    ws.eachRow((row, rowNumber) => {
+                        let cols = [];
+                        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                            let val = cell.value;
+                            if (val && typeof val === 'object' && val.text) val = val.text;
+                            if (val && val instanceof Date) {
+                                const offset = val.getTimezoneOffset() * 60000;
+                                const localDate = new Date(val - offset);
+                                const ds = localDate.toISOString().split('T')[0];
+                                const ts = localDate.toISOString().split('T')[1].split('.')[0];
+                                val = `${ds} ${ts}`; 
+                            }
+                            cols[colNumber - 1] = String(val || '');
+                        });
+                        for(let i=0; i<cols.length; i++) { if(cols[i]===undefined) cols[i]=''; }
+                        parsedRowsData.push(cols);
+                    });
+                }
 
                 const webNameMap = { 'vv72': 'VV72', 'jun88': 'Jun88', 'mk8': 'MK8', 'th26': 'TH26', 'bt678': 'BT678', 'k188': 'K188', 'nm9': 'NM9', 'pg688': 'PG688', 'jl69': 'JL69', 'f168': 'F168' };
                 let colMap = { amount: -1, status: -1, emp: -1, web: -1 };
@@ -398,26 +378,16 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     let rowClean = parsedRowsData[r].map(c => String(c).replace(/[\s\r\n]+/g, '').toLowerCase());
                     
                     if (fileSystem === 'TCG') {
-                // 🌟 ดักจับช่องอนุมัติหลายๆ ช่องเผื่อไว้เลย
-                let cEmp1 = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติครั้งแรก'));
-                let cEmp2 = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติครั้งที่สอง'));
-                let cEmp3 = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติการถอนเงิน'));
-                let cEmp4 = rowClean.findIndex(c => c.includes('ปรับปรุงล่าสุด'));
+                        let cEmp = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติครั้งแรก'));
+                        let cStat = rowClean.findIndex(c => c === 'สถานะ' || c === 'status');
+                        let cAmt = rowClean.findIndex(c => c.includes('จำนวนที่จ่ายจริง'));
+                        let cWeb = rowClean.findIndex(c => c === 'แบรนด์' || c === 'brand');
 
-                let cStat = rowClean.findIndex(c => c === 'สถานะ' || c === 'status');
-                let cAmt = rowClean.findIndex(c => c.includes('จำนวนที่จ่ายจริง'));
-                let cWeb = rowClean.findIndex(c => c === 'แบรนด์' || c === 'brand');
-
-                if (cStat !== -1 && cAmt !== -1) {
-                    colMap = { 
-                        emp: cEmp1 !== -1 ? cEmp1 : 24, 
-                        empOptions: [cEmp4, cEmp3, cEmp2, cEmp1].filter(idx => idx !== -1), // หาจากหลังมาหน้า
-                        status: cStat, amount: cAmt, web: cWeb !== -1 ? cWeb : -1 
-                    };
-                    headerFound = true; startDataRow = r + 1; break;
-                }
-            }
-                    else { 
+                        if (cEmp !== -1 && cStat !== -1 && cAmt !== -1) {
+                            colMap = { emp: cEmp, status: cStat, amount: cAmt, web: cWeb !== -1 ? cWeb : -1 };
+                            headerFound = true; startDataRow = r + 1; break;
+                        }
+                    } else { 
                         let cEmp = rowClean.findIndex(c => c.includes('riskverification'));
                         let cStat = rowClean.findIndex(c => c === 'status' || c === 'สถานะ');
                         let cAmt = rowClean.findIndex(c => c.includes('actualw/d'));
@@ -431,10 +401,10 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     }
                 }
 
-               if (!headerFound) {
-            if (fileSystem === 'TCG') colMap = { amount: 16, status: 22, web: 23, emp: 24, empOptions: [33, 30, 27, 24] };
-            else colMap = { amount: 25, status: 31, web: 33, emp: 33 };
-        }
+                if (!headerFound) {
+                    if (fileSystem === 'TCG') colMap = { amount: 16, status: 22, web: 23, emp: 24 };
+                    else colMap = { amount: 25, status: 31, web: 33, emp: 33 };
+                }
 
                 let defaultWeb = '';
                 for (let w of Object.keys(webNameMap)) { if (fileName.includes(w)) { defaultWeb = webNameMap[w]; break; } }
@@ -492,22 +462,9 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     if (!detectedDate && rowDate) detectedDate = rowDate; 
 
                     amount = parseAmount(cellData[colMap.amount]);
-        let rawStatus = String(cellData[colMap.status] || '').toUpperCase();
-        let rawApproveStr = '';
-        
-        // 🌟 วนหาชื่อพนักงาน OD จากช่องหลังสุดก่อน (ถ้าช่องแรกเป็น SYSTEM หรือ บุคคลที่สาม จะได้ข้ามไปเอาชื่อคนแทน)
-        if (colMap.empOptions && colMap.empOptions.length > 0) {
-            for (let idx of colMap.empOptions) {
-                let val = String(cellData[idx] || '').trim().toLowerCase();
-                let fw = val.split(/[\s\r\n]+/)[0] || '';
-                // ดักไม่ให้เอาชื่อระบบออโต้มานับเป็นผลงาน
-                if (fw && fw !== 'system' && fw !== 'auto' && !val.includes('บุคคลที่สาม')) {
-                    rawApproveStr = val;
-                    break;
-                }
-            }
-        }
-        if (!rawApproveStr) rawApproveStr = String(cellData[colMap.emp] || '').trim().toLowerCase();
+                    let rawStatus = String(cellData[colMap.status] || '').toUpperCase();
+                    let rawApproveStr = String(cellData[colMap.emp] || '').trim().toLowerCase();
+
                     if (fileSystem === 'TCG' && colMap.web !== -1) {
                         let rawWeb = String(cellData[colMap.web] || '').trim().toLowerCase();
                         for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { webName = webNameMap[w]; break; } }
