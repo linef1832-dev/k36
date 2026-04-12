@@ -345,31 +345,62 @@ document.addEventListener('click', function(e) {
 });
 
 // ===============================================
-// 🌟 1. การจัดการ หมายเหตุสำเร็จรูป (Notes) + Edit
+// 🌟 1. การจัดการ หมายเหตุสำเร็จรูป (Notes) แบบผูกกับกฎ
 // ===============================================
 async function loadFineNotes() {
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'fine_notes_data').single();
         if (data && data.value) {
-            globalFineNotes = JSON.parse(data.value);
+            let parsed = JSON.parse(data.value);
+            // 🌟 Migration: ถ้าข้อมูลเดิมเป็นแค่ Array ของ String (ข้อมูลเก่า) ให้แปลงเป็น Object
+            if (parsed.length > 0 && typeof parsed[0] === 'string') {
+                globalFineNotes = parsed.map(text => ({ text: text, rule: 'ALL' }));
+                await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
+            } else {
+                globalFineNotes = parsed;
+            }
         } else {
-            globalFineNotes = defaultNotes;
+            // ค่าเริ่มต้นของใหม่
+            globalFineNotes = defaultNotes.map(text => ({ text: text, rule: 'ALL' }));
             await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
         }
         renderNotesDropdown();
     } catch(e) { 
-        globalFineNotes = defaultNotes; 
+        globalFineNotes = defaultNotes.map(text => ({ text: text, rule: 'ALL' }));
         renderNotesDropdown(); 
     }
 }
 
-function renderNotesDropdown() {
+// อัปเดต Dropdown เลือกกฎในหน้าตั้งค่าหมายเหตุ
+function updateNewNoteRuleDropdown() {
+    const select = document.getElementById('newNoteRuleSelect');
+    if (!select) return;
+    let html = '<option value="ALL">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
+    globalFineRules.forEach(r => {
+        html += `<option value="${r}">${r}</option>`;
+    });
+    select.innerHTML = html;
+}
+
+// 🌟 เรนเดอร์ Dropdown ในหน้า "ออกใบปรับ" (กรองตามกฎที่เลือก)
+window.renderNotesDropdown = function(selectedRule = '') {
     const noteSelect = document.getElementById('fineNoteSelect');
     if (noteSelect) {
+        let filteredNotes = globalFineNotes;
+        
+        // ถ้ามีการเลือกกฎ ให้กรองเอาเฉพาะหมายเหตุของกฎนั้น + หมายเหตุทั่วไป (ALL)
+        if (selectedRule) {
+            filteredNotes = globalFineNotes.filter(n => n.rule === 'ALL' || n.rule === selectedRule);
+        } else {
+            // ถ้ายังไม่เลือกกฎ ให้โชว์เฉพาะหมายเหตุทั่วไป
+            filteredNotes = globalFineNotes.filter(n => n.rule === 'ALL');
+        }
+
         noteSelect.innerHTML = '<option value="">-- เลือกหมายเหตุสำเร็จรูป (ไม่บังคับ) --</option>' + 
-            globalFineNotes.map(n => `<option value="${n}">${n}</option>`).join('');
+            filteredNotes.map(n => `<option value="${n.text}">${n.text}</option>`).join('');
     }
 
+    // 🌟 เรนเดอร์รายการหมายเหตุในหน้าตั้งค่า
     const listDiv = document.getElementById('fineNotesListFull');
     if (listDiv) {
         if (globalFineNotes.length === 0) {
@@ -378,8 +409,10 @@ function renderNotesDropdown() {
         }
 
         listDiv.innerHTML = globalFineNotes.map((n, idx) => {
+            let displayRule = n.rule === 'ALL' ? 'ใช้ได้กับทุกกฎ (ทั่วไป)' : n.rule;
             return window.renderTemplate('tpl-fine-note-item', {
-                noteText: n,
+                noteText: n.text,
+                ruleText: displayRule,
                 index: idx
             });
         }).join('');
@@ -387,13 +420,17 @@ function renderNotesDropdown() {
 }
 
 window.addFineNotePage = async function() {
+    const ruleSelect = document.getElementById('newNoteRuleSelect');
     const input = document.getElementById('newNoteInputPage');
-    if(!input) return;
-    const val = input.value.trim();
-    if(!val) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์ข้อความหมายเหตุก่อนครับ', 'warning');
+    if(!input || !ruleSelect) return;
+    
+    const textVal = input.value.trim();
+    const ruleVal = ruleSelect.value;
+    
+    if(!textVal) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์ข้อความหมายเหตุก่อนครับ', 'warning');
     
     Swal.fire({title: 'กำลังเพิ่ม...', didOpen: () => Swal.showLoading()});
-    globalFineNotes.push(val); 
+    globalFineNotes.push({ text: textVal, rule: ruleVal }); 
     input.value = '';
     
     await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
@@ -404,30 +441,49 @@ window.addFineNotePage = async function() {
 window.editFineNotePage = async function(idx) {
     const currentNote = globalFineNotes[idx];
     
-    const { value: newNote } = await Swal.fire({
+    // สร้าง Dropdown กฎสำหรับ Popup แก้ไข
+    let ruleOptionsHtml = '<option value="ALL">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
+    globalFineRules.forEach(r => {
+        const isSelected = r === currentNote.rule ? 'selected' : '';
+        ruleOptionsHtml += `<option value="${r}" ${isSelected}>${r}</option>`;
+    });
+    
+    const { isConfirmed, value: parsedData } = await Swal.fire({
         title: '<span class="text-amber-500">แก้ไขข้อความหมายเหตุ</span>',
-        input: 'text',
-        inputValue: currentNote,
+        html: `
+            <div class="text-left space-y-3 mt-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">กฎที่ต้องการผูก</label>
+                    <select id="swalEditNoteRule" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-yellow-500 shadow-sm cursor-pointer">${ruleOptionsHtml}</select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ข้อความหมายเหตุ</label>
+                    <input type="text" id="swalEditNoteText" value="${currentNote.text}" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-yellow-500 shadow-sm">
+                </div>
+            </div>
+        `,
         showCancelButton: true,
         confirmButtonText: 'บันทึกการแก้ไข',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#f59e0b',
         cancelButtonColor: '#64748b',
-        inputValidator: (value) => {
-            if (!value.trim()) return 'กรุณากรอกข้อความ!';
-        },
-        customClass: { 
-            popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl',
-            input: 'bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl'
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl' },
+        preConfirm: () => {
+            const rule = document.getElementById('swalEditNoteRule').value;
+            const text = document.getElementById('swalEditNoteText').value.trim();
+            if (!text) { Swal.showValidationMessage('กรุณากรอกข้อความ!'); return false; }
+            return { rule, text };
         }
     });
 
-    if (newNote && newNote.trim() !== currentNote) {
-        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
-        globalFineNotes[idx] = newNote.trim();
-        await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
-        renderNotesDropdown();
-        Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
+    if (isConfirmed && parsedData) {
+        if (parsedData.text !== currentNote.text || parsedData.rule !== currentNote.rule) {
+            Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+            globalFineNotes[idx] = { text: parsedData.text, rule: parsedData.rule };
+            await appDB.from('settings').upsert([{ key: 'fine_notes_data', value: JSON.stringify(globalFineNotes) }]);
+            renderNotesDropdown();
+            Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
+        }
     }
 };
 
@@ -451,7 +507,7 @@ window.removeFineNotePage = async function(idx) {
 }
 
 // ===============================================
-// 🌟 2. การจัดการกฎ
+// 🌟 2. การจัดการกฎ (Accordion UI + Dropdown Auto Fill + Amount Type)
 // ===============================================
 async function loadFineRules() {
     try {
@@ -467,9 +523,11 @@ async function loadFineRules() {
             await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
         }
         renderRulesDropdown();
+        updateNewNoteRuleDropdown(); // 🌟 อัปเดต Dropdown ในหน้าหมายเหตุด้วย
     } catch(e) { 
         globalFineRules = okvipRules; 
         renderRulesDropdown(); 
+        updateNewNoteRuleDropdown();
     }
 }
 
@@ -501,6 +559,7 @@ window.filterRulesByCategory = function() {
     if (!cat) {
         ruleSelect.innerHTML = '<option value="">-- เลือกหมวดหมู่ทางซ้ายก่อน --</option>';
         ruleSelect.disabled = true;
+        renderNotesDropdown(''); // ล้างหมายเหตุ
         return;
     }
 
@@ -517,6 +576,7 @@ window.filterRulesByCategory = function() {
     if (filteredRules.length === 0) {
         ruleSelect.innerHTML = '<option value="">-- ไม่มีกฎในหมวดนี้ --</option>';
         ruleSelect.disabled = true;
+        renderNotesDropdown(''); // ล้างหมายเหตุ
         return;
     }
 
@@ -525,6 +585,10 @@ window.filterRulesByCategory = function() {
     ruleSelect.onchange = function() {
         const typeSelect = document.getElementById('finePenaltyType');
         const amtInput = document.getElementById('fineAmount');
+        
+        // 🌟 เมื่อเปลี่ยนกฎ ให้เรียกอัปเดตหมายเหตุ
+        renderNotesDropdown(this.value);
+
         if (!typeSelect || !amtInput) return;
 
         if (this.value) {
