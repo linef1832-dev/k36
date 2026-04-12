@@ -1354,6 +1354,126 @@ window.deleteFine = async function(id) {
 }
 
 // =========================================
+// 🌟 ฟังก์ชันแก้ไขข้อมูลใบปรับย้อนหลัง
+// =========================================
+window.editFineRecord = async function(id) {
+    // 1. หาข้อมูลใบปรับที่แอดมินกดแก้ไข
+    const fineRecord = globalFines.find(f => String(f.id) === String(id));
+    if (!fineRecord) return Swal.fire('Error', 'ไม่พบข้อมูลใบปรับนี้', 'error');
+
+    // 2. ดึงวันที่ทำผิดเดิมมาโชว์ (ถ้าไม่มี ให้ดึงจาก created_at)
+    let currentOffenseDate = '';
+    if (fineRecord.offense_date) {
+        currentOffenseDate = fineRecord.offense_date.split('T')[0];
+    } else {
+        currentOffenseDate = fineRecord.created_at.split('T')[0];
+    }
+
+    // 3. ดึงกฎทั้งหมดมาเป็นตัวเลือก (ตั้งค่า default เป็นกฎเดิม)
+    let ruleOptionsHtml = '';
+    globalFineRules.forEach(r => {
+        const isSelected = r === fineRecord.rule_text ? 'selected' : '';
+        ruleOptionsHtml += `<option value="${r}" ${isSelected}>${r}</option>`;
+    });
+
+    // 4. ดึงจำนวนเงินเดิม (ถ้า -1 คือตัดค่าแรง)
+    let currentAmount = fineRecord.amount === -1 ? '' : fineRecord.amount;
+    let isNoWage = fineRecord.amount === -1;
+
+    // 5. แสดงหน้าต่าง Popup ฟอร์มแก้ไข
+    const { isConfirmed, value: parsedData } = await Swal.fire({
+        title: '<div class="text-xl font-black text-amber-500 flex items-center justify-center gap-2"><span class="material-icons">edit_note</span> แก้ไขข้อมูลใบปรับ</div>',
+        html: `
+            <div class="text-left space-y-4 mt-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">วันที่ทำผิด (เหตุเกิดวันที่)</label>
+                    <input type="date" id="swalEditOffenseDate" value="${currentOffenseDate}" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm cursor-pointer transition">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">กฎ / ความผิด</label>
+                    <select id="swalEditRule" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm cursor-pointer transition">
+                        ${ruleOptionsHtml}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">หมายเหตุเพิ่มเติม</label>
+                    <input type="text" id="swalEditNote" value="${fineRecord.note || ''}" placeholder="พิมพ์หมายเหตุเพิ่มเติม..." class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm transition">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ค่าปรับ</label>
+                    <div class="flex gap-2">
+                        <select id="swalEditPenaltyType" onchange="document.getElementById('swalEditAmount').disabled = this.value === 'nowage'; if(this.value === 'nowage') document.getElementById('swalEditAmount').value = '';" class="w-[45%] p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm cursor-pointer transition">
+                            <option value="money" ${!isNoWage ? 'selected' : ''}>ระบุเงิน (บาท)</option>
+                            <option value="nowage" ${isNoWage ? 'selected' : ''}>ไม่ได้รับค่าแรง</option>
+                        </select>
+                        <input type="number" id="swalEditAmount" value="${currentAmount}" ${isNoWage ? 'disabled' : ''} placeholder="ระบุตัวเลข (ไม่ต้องใส่ลูกน้ำ)" class="flex-1 p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm transition disabled:opacity-50">
+                    </div>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'บันทึกการแก้ไข',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600 shadow-2xl' },
+        preConfirm: () => {
+            const offenseDate = document.getElementById('swalEditOffenseDate').value;
+            const ruleText = document.getElementById('swalEditRule').value;
+            const note = document.getElementById('swalEditNote').value.trim();
+            const penaltyType = document.getElementById('swalEditPenaltyType').value;
+            const amountInput = document.getElementById('swalEditAmount').value.trim();
+            
+            let finalAmount = 0;
+            if (penaltyType === 'nowage') finalAmount = -1;
+            else finalAmount = parseInt(amountInput) || 0;
+
+            if (!offenseDate) { Swal.showValidationMessage('กรุณาระบุวันที่เกิดเหตุ!'); return false; }
+            if (!ruleText) { Swal.showValidationMessage('กรุณาเลือกกฎ!'); return false; }
+
+            return { offenseDate, ruleText, note, amount: finalAmount };
+        }
+    });
+
+    if (isConfirmed && parsedData) {
+        Swal.fire({title: 'กำลังอัปเดตข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        
+        try {
+            // 6. อัปเดตข้อมูลขึ้นฐานข้อมูล
+            const { error } = await appDB.from('fines').update({
+                offense_date: parsedData.offenseDate,
+                rule_text: parsedData.ruleText,
+                note: parsedData.note,
+                amount: parsedData.amount
+            }).eq('id', id);
+
+            if (error) throw error;
+
+            // 7. แก้ไขข้อมูลในตัวแปรบนหน้าจอ (ไม่ต้องดึงใหม่จาก Server ช่วยให้ทำงานเร็วขึ้น)
+            const idx = globalFines.findIndex(f => String(f.id) === String(id));
+            if (idx > -1) {
+                globalFines[idx].offense_date = parsedData.offenseDate;
+                globalFines[idx].rule_text = parsedData.ruleText;
+                globalFines[idx].note = parsedData.note;
+                globalFines[idx].amount = parsedData.amount;
+            }
+
+            renderFineTable(); // วาดตารางใหม่
+            
+            // อัปเดตสถิติ (ถ้าเปิดหน้าสถิติอยู่)
+            if (typeof renderFineStats === 'function' && document.getElementById('fineContent_stats') && !document.getElementById('fineContent_stats').classList.contains('hidden')) {
+                renderFineStats();
+            }
+
+            Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1500, showConfirmButton: false});
+
+        } catch (e) {
+            Swal.fire('Error', e.message, 'error');
+        }
+    }
+};
+
+// =========================================
 // 🌟 ฟังก์ชันสร้างข้อความสำหรับคัดลอก (Copy Text)
 // =========================================
 window.generateFineText = function() {
