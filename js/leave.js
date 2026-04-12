@@ -397,6 +397,9 @@ window.renderLeaveTable = function() {
     if(!thead || !tbody) return;
     thead.innerHTML = ''; tbody.innerHTML = '';
 
+    // 🌟 แก้บั๊กเส้นตารางหาย: ลบคลาสที่ทำให้เส้นขอบชนกันออก
+    tbody.classList.remove('divide-y', 'divide-gray-100', 'dark:divide-slate-700');
+
     const s = deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 }; 
     const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     const picker = document.getElementById('viewMonthPicker');
@@ -583,11 +586,11 @@ window.renderLeaveTable = function() {
             breakdownHtml = `<div class="text-[9px] leading-tight mt-1.5 flex flex-wrap gap-x-1 gap-y-1">${detailItems.join('')}</div>`;
         }
 
-        let rowHtml = `<tr class="transition ${rowClass}">`;
-        rowHtml += `<td class="p-2 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-b dark:border-slate-700 text-[10px] text-center text-gray-400 font-mono w-[40px] min-w-[40px] max-w-[40px]">${index + 1}</td>`;
+        let rowHtml = `<tr class="transition ${rowClass} border-b border-gray-200 dark:border-slate-700">`;
+        rowHtml += `<td class="p-2 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-b border-gray-200 dark:border-slate-700 text-[10px] text-center text-gray-400 font-mono w-[40px] min-w-[40px] max-w-[40px]">${index + 1}</td>`;
         
-        // 🌟 เอา breakdownHtml ไปใส่ใต้ชื่อพนักงาน
-        rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r border-b dark:border-slate-700 text-xs ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">
+        // 🌟 เอา breakdownHtml ไปใส่ใต้ชื่อพนักงาน (เพิ่มการตีเส้นขอบให้ชัวร์)
+        rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r border-b border-gray-200 dark:border-slate-700 text-xs ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">
             <div class="flex justify-between items-start gap-1">
                 <div class="flex flex-col min-w-0 flex-1">
                     <div class="flex items-center"><span class="truncate max-w-[70px] font-bold text-[13px]">${u.username}</span>${removeBtn}</div>
