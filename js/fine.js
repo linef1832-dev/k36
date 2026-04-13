@@ -796,17 +796,22 @@ function renderRulesDropdown() {
 window.addFineRulePage = async function() {
     const catInput = document.getElementById('newRuleCategory');
     const textInput = document.getElementById('newRuleInputPage');
+    const typeSelect = document.getElementById('newRulePenaltyType'); // เพิ่มมาใหม่
     const amtInput = document.getElementById('newRuleAmount');
 
     const category = catInput ? catInput.value : 'อื่นๆ';
     const textVal = textInput ? textInput.value.trim() : '';
+    const penaltyType = typeSelect ? typeSelect.value : 'money';
     const amtVal = amtInput ? amtInput.value.trim() : '';
 
     if(!textVal) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณาพิมพ์รายละเอียดความผิดก่อนครับ', 'warning');
     
     let finalRuleString = `[${category}] ${textVal}`;
 
-    if (amtVal && parseInt(amtVal) > 0) {
+    // 🌟 ดักจับประเภทบทลงโทษ
+    if (penaltyType === 'nowage') {
+        finalRuleString += ` (ไม่ได้ค่าแรง)`;
+    } else if (amtVal && parseInt(amtVal) > 0) {
         const formattedAmt = parseInt(amtVal).toLocaleString('en-US');
         finalRuleString += ` (ปรับ ${formattedAmt})`;
     }
@@ -814,11 +819,17 @@ window.addFineRulePage = async function() {
     Swal.fire({title: 'กำลังเพิ่มกฎ...', didOpen: () => Swal.showLoading()});
     globalFineRules.push(finalRuleString); 
     
+    // เคลียร์ค่าฟอร์มให้กลับเป็นเหมือนเดิม
     if(textInput) textInput.value = '';
     if(amtInput) amtInput.value = '';
+    if(typeSelect) {
+        typeSelect.value = 'money';
+        amtInput.disabled = false;
+    }
     
     await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
     renderRulesDropdown();
+    updateNewNoteRuleDropdown();
     Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
 }
 
@@ -828,6 +839,7 @@ window.editFineRulePage = async function(idx) {
     let currentCategory = 'อื่นๆ';
     let currentDetail = currentRule;
     let currentAmount = '';
+    let isNoWage = false; // 🌟 เพิ่มตัวแปรเช็ค
 
     const catMatch = currentRule.match(/^\[(.*?)\]\s*/);
     if (catMatch) {
@@ -835,10 +847,16 @@ window.editFineRulePage = async function(idx) {
         currentDetail = currentDetail.replace(catMatch[0], ''); 
     }
 
-    const amtMatch = currentDetail.match(/\s*\(ปรับ\s*([\d,]+)\)$/);
-    if (amtMatch) {
-        currentAmount = amtMatch[1].replace(/,/g, '');
-        currentDetail = currentDetail.replace(amtMatch[0], ''); 
+    // 🌟 ตรวจสอบว่ากฎเก่าระบุว่า "ไม่ได้ค่าแรง" ไว้หรือไม่
+    if (currentDetail.includes('(ไม่ได้ค่าแรง)')) {
+        isNoWage = true;
+        currentDetail = currentDetail.replace(/\s*\(ไม่ได้ค่าแรง\)/, '');
+    } else {
+        const amtMatch = currentDetail.match(/\s*\(ปรับ\s*([\d,]+)\)$/);
+        if (amtMatch) {
+            currentAmount = amtMatch[1].replace(/,/g, '');
+            currentDetail = currentDetail.replace(amtMatch[0], ''); 
+        }
     }
     
     const htmlForm = window.renderTemplate('tpl-fine-edit-rule-form', {
@@ -846,6 +864,9 @@ window.editFineRulePage = async function(idx) {
         selWFH: currentCategory === 'WFH' ? 'selected="selected"' : '',
         selOffice: currentCategory === 'ออฟฟิศ' ? 'selected="selected"' : '',
         selOther: currentCategory === 'อื่นๆ' ? 'selected="selected"' : '',
+        selMoney: !isNoWage ? 'selected="selected"' : '', // 🌟 ดันค่าลง Popup
+        selNoWage: isNoWage ? 'selected="selected"' : '', // 🌟 ดันค่าลง Popup
+        amtDisabled: isNoWage ? 'disabled' : '',          // 🌟 ดันค่าลง Popup
         currentDetail: currentDetail,
         currentAmount: currentAmount
     });
@@ -870,18 +891,23 @@ window.editFineRulePage = async function(idx) {
         preConfirm: () => {
             const cat = document.getElementById('editRuleCategory').value;
             const detail = document.getElementById('editRuleDetail').value.trim();
+            const penType = document.getElementById('editRulePenaltyType').value;
             const amt = document.getElementById('editRuleAmount').value.trim();
             if (!detail) {
                 Swal.showValidationMessage('กรุณากรอกรายละเอียดความผิด!');
                 return false;
             }
-            return { cat, detail, amt };
+            return { cat, detail, penType, amt };
         }
     });
 
     if (isConfirmed && parsedData) {
         let finalRuleString = `[${parsedData.cat}] ${parsedData.detail}`;
-        if (parsedData.amt && parseInt(parsedData.amt) > 0) {
+        
+        // 🌟 ประกอบสตริงกฎใหม่ให้ถูกต้อง
+        if (parsedData.penType === 'nowage') {
+            finalRuleString += ` (ไม่ได้ค่าแรง)`;
+        } else if (parsedData.amt && parseInt(parsedData.amt) > 0) {
             const formattedAmt = parseInt(parsedData.amt).toLocaleString('en-US');
             finalRuleString += ` (ปรับ ${formattedAmt})`;
         }
@@ -891,6 +917,7 @@ window.editFineRulePage = async function(idx) {
             globalFineRules[idx] = finalRuleString;
             await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
             renderRulesDropdown(); 
+            updateNewNoteRuleDropdown();
             Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1000, showConfirmButton: false});
         }
     }
