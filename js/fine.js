@@ -56,10 +56,10 @@ const okvipRules = [
     "[ออนไลน์] บทที่ 2 ข้อที่ 1 ไม่ได้เข้าเช็คชื่อ",
     "[ออนไลน์] บทที่ 2 ข้อที่ 4 โทรติดต่อกัน 3 ครั้ง ไม่มีการรับสาย",
     "[ออนไลน์] บทที่ 2 ข้อที่ 3 ออกจากหน้างานโดยไม่แจ้งให้คนเบื้องบนทราบ",
-    "[ออนไลน์] บทที่ 3 ข้อ 1 พฤติกรรมไม่เหมาะสม",
-    "[ออนไลน์] บทที่ 3 ข้อ 2 ไม่ตั้งใจทำงาน ทำงานไม่รอบคอบ",
+    "[ออนไลน์] บทที่ 3 ข้อที่ 1 พฤติกรรมไม่เหมาะสม",
+    "[ออนไลน์] บทที่ 3 ข้อที่ 2 ไม่ตั้งใจทำงาน ทำงานไม่รอบคอบ",
     "[ออนไลน์] บทที่ 3 ข้อที่ 4 ไม่ทำงานตามกระบวนการ",
-    "[ออฟฟิศ] บทที่ 3 ข้อ 7 ไม่ตั้งใจทำงาน ทำงานไม่รอบคอบ",
+    "[ออฟฟิศ] บทที่ 3 ข้อที่ 7 ไม่ตั้งใจทำงาน ทำงานไม่รอบคอบ",
     "[ออฟฟิศ] บทที่ 3 ข้อที่ 9 ไม่ทำงานตามกระบวนการ",
     "[ออฟฟิศ] บทที่ 3 ข้อที่ 2 พฤติกรรมที่ส่งผลกระทบต่องาน",
     "[WFH] บทที่ 2 ข้อที่ 1.1 มาทำงานเกินเวลาปกติ",
@@ -229,6 +229,14 @@ window.renderFineStats = function() {
     const deptFilter = document.getElementById('fineStatsDept') ? document.getElementById('fineStatsDept').value : 'ALL';
     const shiftFilter = document.getElementById('fineStatsShift') ? document.getElementById('fineStatsShift').value : 'ALL';
 
+    // 🌟 [จุดที่ปรับแก้] สร้างพจนานุกรมชื่อเพื่อดึงข้อมูลอย่างรวดเร็ว
+    const userDict = {};
+    if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
+        GLOBAL_USER_LIST.forEach(u => {
+            userDict[String(u.username).toLowerCase()] = u;
+        });
+    }
+
     let filteredFines = globalFines.filter(f => {
         if (monthFilter !== 'all') {
             const d = f.offense_date ? new Date(f.offense_date) : new Date(f.created_at);
@@ -237,10 +245,8 @@ window.renderFineStats = function() {
         }
 
         if (deptFilter !== 'ALL' || shiftFilter !== 'ALL') {
-            let dbUser = null;
-            if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
-                dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
-            }
+            // 🌟 [จุดที่ปรับแก้] ดึงข้อมูลจากพจนานุกรมแทน .find()
+            let dbUser = userDict[String(f.user_name).toLowerCase()];
             
             if (!dbUser) return false; 
 
@@ -1172,7 +1178,6 @@ window.renderFineTable = function() {
     const searchInput = document.getElementById('fineSearchInput');
     const term = searchInput ? searchInput.value.toLowerCase() : '';
     
-    // 🌟 ดึงค่า Filter วันที่
     const dateFilter = document.getElementById('fineDateFilter') ? document.getElementById('fineDateFilter').value : '';
     const deptFilter = document.getElementById('fineDeptFilter') ? document.getElementById('fineDeptFilter').value : 'ALL';
     const shiftFilter = document.getElementById('fineShiftFilter') ? document.getElementById('fineShiftFilter').value : 'ALL';
@@ -1184,6 +1189,14 @@ window.renderFineTable = function() {
         baseData = globalFines.filter(f => f.user_name === currentUser.username);
     }
 
+    // 🌟 [จุดที่ปรับแก้] สร้างพจนานุกรมชื่อเพื่อดึงข้อมูลอย่างรวดเร็ว
+    const userDict = {};
+    if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
+        GLOBAL_USER_LIST.forEach(u => {
+            userDict[String(u.username).toLowerCase()] = u;
+        });
+    }
+
     const filtered = baseData.filter(f => {
         const matchTerm = (f.user_name && f.user_name.toLowerCase().includes(term)) || 
                           (f.rule_text && f.rule_text.toLowerCase().includes(term)) ||
@@ -1191,28 +1204,27 @@ window.renderFineTable = function() {
         
         let matchDept = true;
         let matchShift = true;
-        let matchDate = true; // 🌟 ตัวแปรเช็ควันที่
+        let matchDate = true; 
 
-        // 🌟 ตรวจสอบ Filter วันที่ (อิงจากวันที่กระทำความผิดเป็นหลัก)
         if (dateFilter) {
             let fDate = f.offense_date ? f.offense_date.split('T')[0] : f.created_at.split('T')[0];
             if (fDate !== dateFilter) matchDate = false;
         }
 
         if (deptFilter !== 'ALL' || shiftFilter !== 'ALL') {
-            if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
-                const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
-                if (dbUser) {
-                    let uDept = dbUser.department || 'AM';
-                    if (dbUser.role === 'trainer' || uDept === 'TRAINER') uDept = 'TRAINER';
-                    let uShift = dbUser.allowed_shift || 'UNKNOWN';
+            // 🌟 [จุดที่ปรับแก้] ดึงข้อมูลจากพจนานุกรมแทน .find()
+            const dbUser = userDict[String(f.user_name).toLowerCase()];
+            
+            if (dbUser) {
+                let uDept = dbUser.department || 'AM';
+                if (dbUser.role === 'trainer' || uDept === 'TRAINER') uDept = 'TRAINER';
+                let uShift = dbUser.allowed_shift || 'UNKNOWN';
 
-                    if (deptFilter !== 'ALL' && uDept !== deptFilter) matchDept = false;
-                    if (shiftFilter !== 'ALL' && uShift !== shiftFilter) matchShift = false;
-                } else {
-                    matchDept = false;
-                    matchShift = false;
-                }
+                if (deptFilter !== 'ALL' && uDept !== deptFilter) matchDept = false;
+                if (shiftFilter !== 'ALL' && uShift !== shiftFilter) matchShift = false;
+            } else {
+                matchDept = false;
+                matchShift = false;
             }
         }
 
@@ -1269,42 +1281,39 @@ window.renderFineTable = function() {
         let displayName = f.user_name;
         let deptBadgeHtml = '';
 
-        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length > 0) {
-            const dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+        // 🌟 [จุดที่ปรับแก้] ดึงข้อมูลจากพจนานุกรมแทน .find()
+        const dbUser = userDict[String(f.user_name).toLowerCase()];
             
-            if (dbUser) {
-                let dept = dbUser.department || 'AM';
-                let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
-                
-                let deptColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800/50';
-                let deptName = 'AM';
-                
-                if (isTrainer) {
-                    deptColor = 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-800/50';
-                    deptName = 'ผู้สอน';
-                } else if (dept === 'OD') {
-                    deptColor = 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-300 dark:border-pink-800/50';
-                    deptName = 'OD';
-                }
-                
-                deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
+        if (dbUser) {
+            let dept = dbUser.department || 'AM';
+            let isTrainer = dbUser.role === 'trainer' || dept === 'TRAINER';
+            
+            let deptColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800/50';
+            let deptName = 'AM';
+            
+            if (isTrainer) {
+                deptColor = 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-800/50';
+                deptName = 'ผู้สอน';
+            } else if (dept === 'OD') {
+                deptColor = 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-300 dark:border-pink-800/50';
+                deptName = 'OD';
+            }
+            
+            deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor, deptName });
 
-                if (dbUser.allowed_shift) {
-                    let sName = dbUser.allowed_shift.replace('กะ', '');
-                    let sColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700';
-                    
-                    if (sName === 'เช้า') sColor = 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800/50';
-                    else if (sName === 'กลาง') sColor = 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-800/50';
-                    else if (sName === 'ดึก') sColor = 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800/50';
-                    else if (sName === 'all' || sName === 'อิสระ') { sName = 'อิสระ'; sColor = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800/50'; }
-                    
-                    deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: sColor, deptName: sName });
-                }
-            } else {
-                deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: 'bg-gray-100 text-gray-500 border-gray-300 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700', deptName: 'ไม่มีในระบบ' });
+            if (dbUser.allowed_shift) {
+                let sName = dbUser.allowed_shift.replace('กะ', '');
+                let sColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700';
+                
+                if (sName === 'เช้า') sColor = 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800/50';
+                else if (sName === 'กลาง') sColor = 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-800/50';
+                else if (sName === 'ดึก') sColor = 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800/50';
+                else if (sName === 'all' || sName === 'อิสระ') { sName = 'อิสระ'; sColor = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800/50'; }
+                
+                deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: sColor, deptName: sName });
             }
         } else {
-             deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: 'bg-gray-100 text-gray-500 border-gray-300 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700', deptName: 'กำลังโหลด..' });
+            deptBadgeHtml += window.renderTemplate('tpl-fine-history-dept-badge', { deptColor: 'bg-gray-100 text-gray-500 border-gray-300 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700', deptName: 'ไม่มีในระบบ' });
         }
 
         displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml: deptBadgeHtml });
