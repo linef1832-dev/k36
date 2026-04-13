@@ -1573,9 +1573,17 @@ window.generateFineText = function() {
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
+    // 🌟 จัดการหมายเหตุให้เนียนกริ๊บ ไม่มีวงเล็บซ้อน
     let finalNote = noteSelect;
+    
+    // ถ้าหมายเหตุจาก Dropdown มีวงเล็บครอบอยู่ ให้ถอดออกก่อนชั่วคราว
+    if (finalNote.startsWith('(') && finalNote.endsWith(')')) {
+        finalNote = finalNote.substring(1, finalNote.length - 1).trim();
+    }
+
     if (noteInput) {
         if (finalNote) {
+            // ถ้าระบุเพิ่มเติม เช่น "นาที", "ครั้ง" ให้เอาไปแทนที่ช่องว่างในประโยค
             if (finalNote.includes(' นาที')) {
                 finalNote = finalNote.replace(' นาที', ` ${noteInput} นาที`);
             } else if (finalNote.includes(' ครั้ง')) {
@@ -1585,6 +1593,7 @@ window.generateFineText = function() {
             } else if (finalNote.includes('...')) {
                 finalNote = finalNote.replace('...', noteInput);
             } else {
+                // ถ้าไม่มีคำเฉพาะ ให้เอามาต่อท้ายกันด้วยเว้นวรรค
                 finalNote = `${finalNote} ${noteInput}`;
             }
             finalNote = finalNote.replace(/\s+/g, ' '); 
@@ -1593,25 +1602,41 @@ window.generateFineText = function() {
         }
     }
 
-    if (finalNote) {
-        finalNote = finalNote.trim();
-        while (finalNote.startsWith('(') && finalNote.endsWith(')')) {
-            finalNote = finalNote.substring(1, finalNote.length - 1).trim();
+    // 🌟 เช็คว่ามีการคิดเปอร์เซ็นต์ด้วยไหม
+    const isPercentChecked = document.getElementById('fineUsePercent') ? document.getElementById('fineUsePercent').checked : false;
+    let percentText = "";
+    if (isPercentChecked && typeof window.calculatePercentTotal === 'function') {
+        const percentFineAmount = window.calculatePercentTotal();
+        if (percentFineAmount > 0) {
+            const baseVol = document.getElementById('finePercentBaseAmount').value;
+            const rateVal = document.getElementById('finePercentRate').value;
+            // สร้างข้อความเปอร์เซ็นต์
+            percentText = `+ปรับ ${rateVal}% จากยอด ${parseInt(baseVol).toLocaleString('en-US')} = ${percentFineAmount.toLocaleString('en-US')} บาท`;
         }
     }
 
-    // ล้างหมวดหมู่และราคาปรับออกจากข้อความ
+    // 🌟 นำเปอร์เซ็นต์ไปต่อท้ายหมายเหตุ (ถ้ามีเปอร์เซ็นต์)
+    if (percentText) {
+        if (finalNote) {
+            finalNote = `${finalNote} ${percentText}`;
+        } else {
+            finalNote = percentText;
+        }
+    }
+
+    // ล้างหมวดหมู่และราคาปรับออกจากข้อความกฎ
     let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
     cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
-    // 🌟 ประกอบร่างข้อความ (เอา "เหตุเกิดวันที่" ออกไปแล้ว)
+    // ประกอบร่างข้อความหลัก
     let resultText = `ปรับ ${empName} ${cleanRule}`;
     
+    // เอาหมายเหตุทั้งหมดมาครอบวงเล็บแค่ชั้นเดียวตอนจบ
     if (finalNote) {
-        resultText += ` (${finalNote})`;
+        resultText += ` (${finalNote.trim()})`;
     }
 
-    // 🌟 ดึงวันที่ทำผิดมาต่อท้าย
+    // ดึงวันที่ทำผิดมาต่อท้ายสุด
     const offenseDateVal = document.getElementById('fineOffenseDate') ? document.getElementById('fineOffenseDate').value : '';
     if (offenseDateVal) {
         const [y, m, d] = offenseDateVal.split('-');
