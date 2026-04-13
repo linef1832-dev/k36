@@ -209,9 +209,15 @@
                             <input type="text" id="newRuleInputPage" placeholder="เช่น ลืมปิดไฟในห้อง, เล่นเกมเวลางาน..." class="w-full p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm transition">
                         </div>
                         
-                        <div class="w-full md:w-[20%]">
-                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ค่าปรับ (ถ้ามี)</label>
-                            <input type="number" id="newRuleAmount" placeholder="เช่น 500" class="w-full p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm transition">
+                        <div class="w-full md:w-[30%]">
+                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">บทลงโทษ / ค่าปรับ</label>
+                            <div class="flex gap-2">
+                                <select id="newRulePenaltyType" onchange="document.getElementById('newRuleAmount').disabled = this.value === 'nowage'; if(this.value === 'nowage') document.getElementById('newRuleAmount').value = '';" class="w-1/2 p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm cursor-pointer transition">
+                                    <option value="money">ระบุเงิน (บาท)</option>
+                                    <option value="nowage">ไม่ได้ค่าแรง</option>
+                                </select>
+                                <input type="number" id="newRuleAmount" placeholder="เช่น 500" class="w-1/2 p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-sm transition disabled:opacity-50 disabled:bg-gray-200 dark:disabled:bg-slate-700">
+                            </div>
                         </div>
                         
                         <div class="w-full md:w-auto">
@@ -455,8 +461,14 @@
                 <input type="text" id="editRuleDetail" value="{{currentDetail}}" placeholder="ระบุรายละเอียด..." class="w-full p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner transition">
             </div>
             <div>
-                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ค่าปรับ (ถ้ามี)</label>
-                <input type="number" id="editRuleAmount" value="{{currentAmount}}" placeholder="ระบุตัวเลข เช่น 500" class="w-full p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner transition">
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">บทลงโทษ / ค่าปรับ</label>
+                <div class="flex gap-2">
+                    <select id="editRulePenaltyType" onchange="document.getElementById('editRuleAmount').disabled = this.value === 'nowage'; if(this.value === 'nowage') document.getElementById('editRuleAmount').value = '';" class="w-[45%] p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner cursor-pointer transition">
+                        <option value="money" {{selMoney}}>ระบุเงิน (บาท)</option>
+                        <option value="nowage" {{selNoWage}}>ไม่ได้ค่าแรง</option>
+                    </select>
+                    <input type="number" id="editRuleAmount" value="{{currentAmount}}" {{amtDisabled}} placeholder="ตัวเลข (เช่น 500)" class="flex-1 p-3 rounded-xl bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-amber-500 shadow-inner transition disabled:opacity-50">
+                </div>
             </div>
         </div>
     </template>
