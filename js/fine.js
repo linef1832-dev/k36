@@ -1552,7 +1552,7 @@ window.editFineRecord = async function(id) {
 };
 
 // =========================================
-// 🌟 ฟังก์ชันสร้างข้อความสำหรับคัดลอก (Copy Text)
+// 🌟 ฟังก์ชันสร้างข้อความสำหรับคัดลอก (Copy Text) แบบหลายบรรทัด
 // =========================================
 window.generateFineText = function() {
     const empInput = document.getElementById('fineEmpInput');
@@ -1573,17 +1573,14 @@ window.generateFineText = function() {
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
-    // 🌟 จัดการหมายเหตุให้เนียนกริ๊บ ไม่มีวงเล็บซ้อน
+    // 🌟 1. จัดการหมายเหตุให้เนียนกริ๊บ ไม่มีวงเล็บซ้อน
     let finalNote = noteSelect;
-    
-    // ถ้าหมายเหตุจาก Dropdown มีวงเล็บครอบอยู่ ให้ถอดออกก่อนชั่วคราว
     if (finalNote.startsWith('(') && finalNote.endsWith(')')) {
         finalNote = finalNote.substring(1, finalNote.length - 1).trim();
     }
 
     if (noteInput) {
         if (finalNote) {
-            // ถ้าระบุเพิ่มเติม เช่น "นาที", "ครั้ง" ให้เอาไปแทนที่ช่องว่างในประโยค
             if (finalNote.includes(' นาที')) {
                 finalNote = finalNote.replace(' นาที', ` ${noteInput} นาที`);
             } else if (finalNote.includes(' ครั้ง')) {
@@ -1593,7 +1590,6 @@ window.generateFineText = function() {
             } else if (finalNote.includes('...')) {
                 finalNote = finalNote.replace('...', noteInput);
             } else {
-                // ถ้าไม่มีคำเฉพาะ ให้เอามาต่อท้ายกันด้วยเว้นวรรค
                 finalNote = `${finalNote} ${noteInput}`;
             }
             finalNote = finalNote.replace(/\s+/g, ' '); 
@@ -1602,7 +1598,38 @@ window.generateFineText = function() {
         }
     }
 
-    // 🌟 เช็คว่ามีการคิดเปอร์เซ็นต์ด้วยไหม
+    // 🌟 2. แยกส่วนหัวข้อกฎ (บท/ข้อ) และ รายละเอียดความผิด
+    let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); // ตัด [ออนไลน์], [WFH] ทิ้ง
+    cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim(); // ตัดยอดเงินวงเล็บท้ายทิ้ง
+
+    let ruleHeader = cleanRule;
+    let ruleDesc = "";
+    
+    const match = cleanRule.match(/^(บทที่\s*[\d\.]+\s*ข้อ(?:ที่)?\s*[\d\.]+)\s+(.*)$/);
+    if (match) {
+        ruleHeader = match[1].trim();
+        ruleDesc = match[2].trim();
+    }
+
+    // 🌟 3. ดึงวันที่กระทำผิด
+    const offenseDateVal = document.getElementById('fineOffenseDate') ? document.getElementById('fineOffenseDate').value : '';
+    let dateStr = '';
+    if (offenseDateVal) {
+        const [y, m, d] = offenseDateVal.split('-');
+        dateStr = `${d}/${m}/${y}`;
+    } else {
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, '0');
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yyyy = now.getFullYear();
+        dateStr = `${dd}/${mm}/${yyyy}`;
+    }
+
+    // 🌟 4. นับจำนวนครั้งที่ทำผิด
+    const pastFines = globalFines.filter(f => String(f.user_name).toLowerCase() === String(empName).toLowerCase() && f.rule_text === ruleText).length;
+    const currentCount = pastFines + 1;
+
+    // 🌟 5. การคิดเปอร์เซ็นต์
     const isPercentChecked = document.getElementById('fineUsePercent') ? document.getElementById('fineUsePercent').checked : false;
     let percentText = "";
     if (isPercentChecked && typeof window.calculatePercentTotal === 'function') {
@@ -1610,53 +1637,41 @@ window.generateFineText = function() {
         if (percentFineAmount > 0) {
             const baseVol = document.getElementById('finePercentBaseAmount').value;
             const rateVal = document.getElementById('finePercentRate').value;
-            // สร้างข้อความเปอร์เซ็นต์
-            percentText = `+ปรับ ${rateVal}% จากยอด ${parseInt(baseVol).toLocaleString('en-US')} = ${percentFineAmount.toLocaleString('en-US')} บาท`;
+            percentText = `เสียหาย ${parseInt(baseVol).toLocaleString('en-US')} - ${rateVal} % = ${percentFineAmount.toLocaleString('en-US')} บ.`;
         }
     }
 
-    // 🌟 นำเปอร์เซ็นต์ไปต่อท้ายหมายเหตุ (ถ้ามีเปอร์เซ็นต์)
-    if (percentText) {
-        if (finalNote) {
-            finalNote = `${finalNote} ${percentText}`;
-        } else {
-            finalNote = percentText;
-        }
-    }
-
-    // ล้างหมวดหมู่และราคาปรับออกจากข้อความกฎ
-    let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
-    cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
-
-    // ประกอบร่างข้อความหลัก
-    let resultText = `ปรับ ${empName} ${cleanRule}`;
+    // 🌟 6. ประกอบร่างข้อความหลัก (แบบหลายบรรทัด)
+    let resultText = `${empName} ${ruleHeader} - ${dateStr}\n`;
     
-    // เอาหมายเหตุทั้งหมดมาครอบวงเล็บแค่ชั้นเดียวตอนจบ
+    if (ruleDesc) {
+        resultText += `${ruleDesc}\n`;
+    }
+    
     if (finalNote) {
-        resultText += ` (${finalNote.trim()})`;
+        resultText += `(${finalNote.trim()})\n`;
     }
 
-    // ดึงวันที่ทำผิดมาต่อท้ายสุด
-    const offenseDateVal = document.getElementById('fineOffenseDate') ? document.getElementById('fineOffenseDate').value : '';
-    if (offenseDateVal) {
-        const [y, m, d] = offenseDateVal.split('-');
-        resultText += ` ${d}/${m}/${y}`;
+    resultText += `\n`; // เคาะบรรทัดว่าง 1 บรรทัด
+    
+    if (percentText) {
+        resultText += `${percentText}  ครั้งที่ ${currentCount}`;
     } else {
-        const now = new Date();
-        const dd = String(now.getDate()).padStart(2, '0');
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const yyyy = now.getFullYear();
-        resultText += ` ${dd}/${mm}/${yyyy}`;
+        resultText += `ครั้งที่ ${currentCount}`;
     }
 
     const resultBox = document.getElementById('fineTextResultBox');
     const textArea = document.getElementById('fineTextResult');
     if (resultBox && textArea) {
         textArea.value = resultText;
+        textArea.rows = 6;
         resultBox.classList.remove('hidden');
     }
 };
 
+// =========================================
+// 🌟 ฟังก์ชันคัดลอกข้อความ
+// =========================================
 window.copyFineText = function() {
     const textArea = document.getElementById('fineTextResult');
     if (!textArea || !textArea.value) return;
@@ -1668,7 +1683,6 @@ window.copyFineText = function() {
         Swal.fire('Error', 'เบราว์เซอร์ไม่รองรับการคัดลอกอัตโนมัติ', 'error');
     });
 };
-
 // =========================================
 // 🌟 ฟังก์ชันคำนวณและแสดงช่องใส่เปอร์เซ็นต์
 // =========================================
