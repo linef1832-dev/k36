@@ -145,12 +145,16 @@ window.initFineApp = async function() {
         offDateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
     }
 
-    // 🌟 โค้ดที่เพิ่มเข้ามา: บังคับเซ็ตช่อง Filter ให้เป็นวันนี้
+    // 🌟 บังคับเซ็ตช่อง Filter ให้เป็นวันนี้ (เฉพาะคนที่มีสิทธิ์ดูทั้งหมดเท่านั้น)
     const filterDateInput = document.getElementById('fineDateFilter');
     if (filterDateInput && !filterDateInput.value) {
-        const today = new Date();
-        const offset = today.getTimezoneOffset() * 60000;
-        filterDateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
+        if (canViewAll) {
+            const today = new Date();
+            const offset = today.getTimezoneOffset() * 60000;
+            filterDateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
+        } else {
+            filterDateInput.value = ''; // พนักงานทั่วไปให้เป็นค่าว่างเพื่อดูประวัติได้ทุกวัน
+        }
     }
 
     await loadFineRules();
@@ -1241,7 +1245,8 @@ window.renderFineTable = function() {
         let matchShift = true;
         let matchDate = true; 
 
-        if (dateFilter) {
+        // 🌟 ตรวจสอบ Filter วันที่ (กรองเฉพาะคนที่มีสิทธิ์ดูทั้งหมด พนักงานทั่วไปไม่ต้องกรองวันที่)
+        if (dateFilter && canViewAll) {
             let fDate = f.offense_date ? f.offense_date.split('T')[0] : f.created_at.split('T')[0];
             if (fDate !== dateFilter) matchDate = false;
         }
