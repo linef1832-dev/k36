@@ -1495,13 +1495,6 @@ window.generateFineText = function() {
     const noteSelect = document.getElementById('fineNoteSelect') ? document.getElementById('fineNoteSelect').value : '';
     const noteInput = document.getElementById('fineNoteInput') ? document.getElementById('fineNoteInput').value.trim() : '';
     
-    const offenseDateVal = document.getElementById('fineOffenseDate') ? document.getElementById('fineOffenseDate').value : '';
-    let offenseDisplay = '';
-    if (offenseDateVal) {
-        const [y, m, d] = offenseDateVal.split('-');
-        offenseDisplay = ` (เหตุเกิดวันที่ ${d}/${m}/${y})`;
-    }
-    
     let finalNote = noteSelect;
     if (noteInput) {
         if (finalNote) {
@@ -1529,20 +1522,29 @@ window.generateFineText = function() {
         }
     }
 
+    // ล้างหมวดหมู่และราคาปรับออกจากข้อความ
     let cleanRule = ruleText.replace(/^\s*\[.*?\]\s*/, ''); 
     cleanRule = cleanRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
-    let resultText = `ปรับ ${empName} ${cleanRule}${offenseDisplay}`;
+    // 🌟 ประกอบร่างข้อความ (เอา "เหตุเกิดวันที่" ออกไปแล้ว)
+    let resultText = `ปรับ ${empName} ${cleanRule}`;
     
     if (finalNote) {
         resultText += ` (${finalNote})`;
     }
 
-    const now = new Date();
-    const dd = String(now.getDate()).padStart(2, '0');
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const yyyy = now.getFullYear();
-    resultText += ` ${dd}/${mm}/${yyyy}`;
+    // 🌟 ดึงวันที่ทำผิดมาต่อท้าย
+    const offenseDateVal = document.getElementById('fineOffenseDate') ? document.getElementById('fineOffenseDate').value : '';
+    if (offenseDateVal) {
+        const [y, m, d] = offenseDateVal.split('-');
+        resultText += ` ${d}/${m}/${y}`;
+    } else {
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, '0');
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yyyy = now.getFullYear();
+        resultText += ` ${dd}/${mm}/${yyyy}`;
+    }
 
     const resultBox = document.getElementById('fineTextResultBox');
     const textArea = document.getElementById('fineTextResult');
