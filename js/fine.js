@@ -1312,11 +1312,29 @@ window.renderFineTable = function() {
                 offenseDateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
             }
             
+            // 🌟 สร้างการแสดงผลคอลัมน์ "บทลงโทษ" (แยกยอดปกติ กับ ยอดเปอร์เซ็นต์)
             let amountDisplay = '';
             if (f.amount === -1) {
                 amountDisplay = window.renderTemplate('tpl-fine-history-amount-nowage');
             } else if (f.amount > 0) {
-                amountDisplay = window.renderTemplate('tpl-fine-history-amount-badge', { amount: f.amount.toLocaleString('en-US') });
+                // ใช้ Regex จับหาข้อความเปอร์เซ็นต์ในช่องหมายเหตุ เพื่อดึงยอดเงินออกมา
+                const percentMatch = f.note ? f.note.match(/\[\+ปรับ.*?=\s*([\d,]+)\s*บาท\]/) : null;
+                
+                if (percentMatch) {
+                    // ถอดแยกยอดเงินปกติ กับ ยอดที่บวกเปอร์เซ็นต์
+                    const percentAmt = parseInt(percentMatch[1].replace(/,/g, ''));
+                    const baseAmt = f.amount - percentAmt; // เอายอดรวมหักออก
+                    
+                    amountDisplay = `<div class="flex flex-col items-center gap-1.5">`;
+                    if (baseAmt > 0) {
+                        amountDisplay += `<span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50 whitespace-nowrap" title="ค่าปรับปกติ">฿${baseAmt.toLocaleString('en-US')}</span>`;
+                    }
+                    amountDisplay += `<span class="font-mono text-[10px] text-rose-500 font-bold bg-rose-50 dark:bg-rose-900/30 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-800/50 whitespace-nowrap shadow-sm" title="บวกเพิ่มจาก % ความเสียหาย">+฿${percentAmt.toLocaleString('en-US')}</span>`;
+                    amountDisplay += `</div>`;
+                } else {
+                    // ถ้าไม่มีเปอร์เซ็นต์ ก็โชว์ยอดปกติเดี่ยวๆ
+                    amountDisplay = window.renderTemplate('tpl-fine-history-amount-badge', { amount: f.amount.toLocaleString('en-US') });
+                }
             } else {
                 amountDisplay = '<span class="text-gray-400">-</span>';
             }
