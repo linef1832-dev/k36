@@ -1080,12 +1080,37 @@ window.submitFine = async function(e) {
     const penaltyTypeEl = document.getElementById('finePenaltyType');
     const amountEl = document.getElementById('fineAmount');
     const penaltyType = penaltyTypeEl ? penaltyTypeEl.value : 'money';
+    
+    // 🌟 ส่วนคำนวณค่าปรับ (รวมค่าปรับปกติ + ค่าปรับเปอร์เซ็นต์)
+    let baseFineAmount = 0;
+    let percentFineAmount = 0;
     let amountToSave = 0;
     
     if (penaltyType === 'nowage') {
-        amountToSave = -1;
+        amountToSave = -1; // -1 แปลว่าไม่ได้ค่าแรง (ไม่เอามาบวกกับเปอร์เซ็นต์)
     } else {
-        amountToSave = amountEl ? (parseInt(amountEl.value) || 0) : 0;
+        baseFineAmount = amountEl ? (parseInt(amountEl.value) || 0) : 0;
+        
+        // เช็คว่ามีการกดใช้งาน "คิดค่าปรับเพิ่มเติม (แบบ %)" หรือไม่
+        const isPercentChecked = document.getElementById('fineUsePercent') ? document.getElementById('fineUsePercent').checked : false;
+        if (isPercentChecked && typeof window.calculatePercentTotal === 'function') {
+            percentFineAmount = window.calculatePercentTotal(); // ดึงยอดที่คำนวณไว้แล้วมาใช้
+        }
+        
+        amountToSave = baseFineAmount + percentFineAmount; // บวกรวมยอดเพื่อบันทึก
+    }
+    
+    // 🌟 ถ้ายอดเปอร์เซ็นต์ > 0 ให้เขียนอธิบายลงไปใน "หมายเหตุ" ด้วย
+    if (percentFineAmount > 0) {
+        const baseVol = document.getElementById('finePercentBaseAmount').value;
+        const rateVal = document.getElementById('finePercentRate').value;
+        const percentNoteStr = `[+ปรับ ${rateVal}% จากยอด ${parseInt(baseVol).toLocaleString('en-US')} = ${percentFineAmount.toLocaleString('en-US')} บาท]`;
+        
+        if (finalNote) {
+            finalNote = `${finalNote} ${percentNoteStr}`;
+        } else {
+            finalNote = percentNoteStr;
+        }
     }
     
     const fileInput = document.getElementById('fineImageInput');
@@ -1129,6 +1154,7 @@ window.submitFine = async function(e) {
 
         Swal.fire({icon: 'success', title: 'ออกใบปรับสำเร็จ', timer: 1500, showConfirmButton: false});
         
+        // --- รีเซ็ตหน้าฟอร์มให้กลับเป็นเหมือนเดิม ---
         if(empInput) empInput.value = '';
         const catSelect = document.getElementById('fineCategorySelect');
         if(catSelect) catSelect.value = '';
@@ -1149,11 +1175,17 @@ window.submitFine = async function(e) {
             offenseDateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
         }
 
+        // 🌟 รีเซ็ตช่องเปอร์เซ็นต์
+        const chkPercent = document.getElementById('fineUsePercent');
+        if (chkPercent) {
+            chkPercent.checked = false;
+            window.togglePercentCalc();
+        }
+
     } catch (err) {
         Swal.fire('Error', err.message, 'error');
     }
 };
-
 // -----------------------------------------
 // ดึงข้อมูลและวาดตาราง
 // -----------------------------------------
