@@ -1378,22 +1378,28 @@ window.renderFineTable = function() {
            let rawRule = f.rule_text || '';
             let cleanRule = rawRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
-            // 🌟 ระบบนับจำนวนครั้งของใบปรับใบนี้ (นับใบที่ออกก่อนหน้า + ตัวมันเอง)
-            const offenseCount = globalFines.filter(past => 
-                String(past.user_name).toLowerCase() === String(f.user_name).toLowerCase() && 
-                past.rule_text === f.rule_text && 
-                new Date(past.created_at) <= new Date(f.created_at)
-            ).length;
+            // 🌟 เช็คว่าใบปรับนี้มีการคิดเปอร์เซ็นต์ (ความเสียหาย) หรือไม่
+            const hasPercent = f.note && f.note.includes('[+ปรับ');
 
-            // 🌟 ป้าย Badge โชว์จำนวนครั้ง
-            const countBadge = `<span class="bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-800/50 text-[10px] ml-1.5 font-black shadow-sm whitespace-nowrap">ครั้งที่ ${offenseCount}</span>`;
+            let countBadge = '';
+            if (hasPercent) {
+                // ถ้าระบุเปอร์เซ็นต์ ถึงจะนับจำนวนครั้งที่ทำผิดกฎข้อนี้
+                const offenseCount = globalFines.filter(past => 
+                    String(past.user_name).toLowerCase() === String(f.user_name).toLowerCase() && 
+                    past.rule_text === f.rule_text && 
+                    new Date(past.created_at) <= new Date(f.created_at)
+                ).length;
+
+                // สร้างป้าย Badge โชว์จำนวนครั้ง
+                countBadge = `<span class="bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-800/50 text-[10px] ml-1.5 font-black shadow-sm whitespace-nowrap">ครั้งที่ ${offenseCount}</span>`;
+            }
 
             let ruleDisplay = cleanRule;
             const catMatch = cleanRule.match(/^\s*\[([^\]]+)\]\s*(.*)/);
             
             if (catMatch) {
                 const cat = catMatch[1].trim();
-                const detail = catMatch[2].trim() + countBadge; // <--- นำป้ายมาต่อท้ายข้อความ
+                const detail = catMatch[2].trim() + countBadge; // <--- ป้ายจะโชว์เฉพาะเวลามีเปอร์เซ็นต์
                 let catColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
 
                 if (cat === 'ออนไลน์') catColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800/50';
@@ -1402,7 +1408,7 @@ window.renderFineTable = function() {
 
                 ruleDisplay = window.renderTemplate('tpl-fine-history-rule-cat', { catColor, catName: cat, ruleDetail: detail });
             } else {
-                ruleDisplay = window.renderTemplate('tpl-fine-history-rule-normal', { ruleDetail: cleanRule + countBadge }); // <--- นำป้ายมาต่อท้ายข้อความ
+                ruleDisplay = window.renderTemplate('tpl-fine-history-rule-normal', { ruleDetail: cleanRule + countBadge }); // <--- ป้ายจะโชว์เฉพาะเวลามีเปอร์เซ็นต์
             }
             return window.renderTemplate('tpl-fine-history-row', {
                 id: f.id,
