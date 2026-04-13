@@ -250,6 +250,19 @@ window.resetBtn = function() {
 
 async function manualRefresh() { await fetchData(); const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true }); Toast.fire({ icon: 'success', title: 'อัปเดตข้อมูลแล้ว' }); }
 
+// 🌟 เพิ่มระบบหน่วงเวลาการค้นหาหน้า Dashboard (วางเพิ่มไว้ด้านบน)
+let dashboardSearchTimer;
+
+window.debounceDashboardSearch = function() {
+    clearTimeout(dashboardSearchTimer);
+    dashboardSearchTimer = setTimeout(() => {
+        // ใช้ข้อมูลที่ดึงมาแล้ว (globalScheduleData) มากรองแทนการยิง DB ใหม่
+        if (typeof renderTableRows === 'function' && globalScheduleData) {
+            renderTableRows(globalScheduleData);
+        }
+    }, 300);
+};
+
 function filterTableBySpecificTime(time, shiftName) { 
     currentSpecificTimeFilter = { time: time, shift: shiftName }; 
     document.getElementById('clearFilterBtn').classList.remove('hidden'); 
