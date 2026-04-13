@@ -312,16 +312,10 @@ function getRealDbUser(rawName) {
     
     return match || null;
 }
-window.processExcelUpload = async function(event, fallbackSystemName) {
-    // 👇 เพิ่มโค้ดชุดนี้เข้าไปบรรทัดแรก
-    if (typeof window.hasUserPerm === 'function' && !window.hasUserPerm('summary_upload')) {
-        return Swal.fire('ไม่มีสิทธิ์ใช้งาน', 'คุณไม่มีสิทธิ์อัปโหลดไฟล์ Excel เพื่อสรุปยอดครับ', 'error');
-    }
-    // 👆 สิ้นสุดโค้ดที่เพิ่ม
 
+window.processExcelUpload = async function(event, fallbackSystemName) {
     let files = [];
     if (event.dataTransfer && event.dataTransfer.files.length > 0) files = Array.from(event.dataTransfer.files);
-    // ... (โค้ดเดิมด้านล่าง) ...
     else if (event.target && event.target.files.length > 0) files = Array.from(event.target.files);
 
     if (files.length === 0) return;
@@ -855,53 +849,54 @@ window.renderSummaryDashboard = function() {
     }
 
     if (webBox) {
-        let webAgg = {};
-        let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188']; 
-        let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
+        let webAgg = {};
+        let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188']; 
+        let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
 
-        defaultWebList.forEach(web => {
-            let sysLabel = 'SYSTEM';
-            if (customSystems[web]) sysLabel = customSystems[web];
-            else {
-                if(['Jun88', 'MK8', 'VV72', 'TH26', 'BT678', 'K188'].includes(web)) sysLabel = 'K36';
-                else if(['F168'].includes(web)) sysLabel = 'WG';
-                else if(['PG688', 'JL69', 'NM9'].includes(web)) sysLabel = 'TCG';
-            }
-            webAgg[web] = { count: 0, amount: 0, sys: sysLabel };
-        });
+        defaultWebList.forEach(web => {
+            let sysLabel = 'SYSTEM';
+            if (customSystems[web]) sysLabel = customSystems[web];
+            else {
+                if(['Jun88', 'MK8', 'VV72', 'TH26', 'BT678', 'K188'].includes(web)) sysLabel = 'K36';
+                else if(['F168'].includes(web)) sysLabel = 'WG';
+                else if(['PG688', 'JL69', 'NM9'].includes(web)) sysLabel = 'TCG';
+            }
+            webAgg[web] = { count: 0, amount: 0, sys: sysLabel };
+        });
 
-        if (hasData) {
-            let dataForWebCards = pendingSummaryData;
-            if (shiftFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
-            if (odFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
+        if (hasData) {
+            let dataForWebCards = pendingSummaryData;
+            if (shiftFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
+            if (odFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
 
-            dataForWebCards.forEach(item => {
-                if (!webAgg[item.website]) webAgg[item.website] = { count: 0, amount: 0, sys: item.system || 'SYSTEM' };
-                webAgg[item.website].count += item.count;
-                webAgg[item.website].amount += item.totalAmount;
-                if (item.system) webAgg[item.website].sys = item.system;
-            });
-        }
+            dataForWebCards.forEach(item => {
+                if (!webAgg[item.website]) webAgg[item.website] = { count: 0, amount: 0, sys: item.system || 'SYSTEM' };
+                webAgg[item.website].count += item.count;
+                webAgg[item.website].amount += item.totalAmount;
+                if (item.system) webAgg[item.website].sys = item.system;
+            });
+        }
 
-        if (Object.keys(webAgg).length > 0) {
-            webBox.innerHTML = Object.keys(webAgg).map(web => {
-                const w = webAgg[web];
-                const defaultImg = `https://ui-avatars.com/api/?name=${web}&background=random&color=fff&size=256`;
-                const imgUrl = safeWebLogos[web] ? safeWebLogos[web] : defaultImg;
-                const isActive = (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter === web);
-                
-                return getTpl('tpl-web-card', {
-                    cardStyle: isActive ? 'ring-2 ring-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] z-20 scale-[1.02]' : 'hover:border-sky-500 hover:shadow-lg opacity-95 hover:opacity-100',
-                    web: web, imgUrl: imgUrl, sys: w.sys,
-                    filterBadge: isActive ? '<div class="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-30 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> กำลังดู</div>' : '',
-                    countColor: w.count > 0 ? 'text-sky-400' : 'text-gray-500',
-                    count: w.count.toLocaleString(),
-                    amountColor: w.amount > 0 ? 'text-emerald-400 bg-[#0b1120] border-emerald-900/50' : 'text-gray-500 bg-slate-800 border-slate-700',
-                    amount: w.amount.toLocaleString('en-US', {minimumFractionDigits: 2})
-                });
-            }).join('');
-        }
-    }
+        if (Object.keys(webAgg).length > 0) {
+            webBox.innerHTML = Object.keys(webAgg).map(web => {
+                const w = webAgg[web];
+                const defaultImg = `https://ui-avatars.com/api/?name=${web}&background=random&color=fff&size=256`;
+                const imgUrl = safeWebLogos[web] ? safeWebLogos[web] : defaultImg;
+                const isActive = (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter === web);
+                
+                return getTpl('tpl-web-card', {
+                    cardStyle: isActive ? 'ring-2 ring-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] z-20 scale-[1.02]' : 'hover:border-sky-500 hover:shadow-lg opacity-95 hover:opacity-100',
+                    web: web, imgUrl: imgUrl, sys: w.sys,
+                    filterBadge: isActive ? '<div class="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-30 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> กำลังดู</div>' : '',
+                    countColor: w.count > 0 ? 'text-sky-400' : 'text-gray-500',
+                    count: w.count.toLocaleString(),
+                    amountColor: w.amount > 0 ? 'text-emerald-400 bg-[#0b1120] border-emerald-900/50' : 'text-gray-500 bg-slate-800 border-slate-700',
+                    amount: w.amount.toLocaleString('en-US', {minimumFractionDigits: 2})
+                });
+            }).join('');
+        }
+    }
+};
 
 window.fetchLeaderboardData = async function() {
     const lbBox = document.getElementById('summaryLeaderboard');
@@ -1081,15 +1076,8 @@ function drawLeaderboardFromMap(aggMap, lbBox) {
 }
 
 window.saveSummaryToSupabase = async function() {
-    // 👇 เพิ่มโค้ดชุดนี้เข้าไปบรรทัดแรก
-    if (typeof window.hasUserPerm === 'function' && !window.hasUserPerm('summary_manage')) {
-        return Swal.fire('ไม่มีสิทธิ์ใช้งาน', 'คุณไม่มีสิทธิ์บันทึกยอดเข้าฐานข้อมูลครับ', 'error');
-    }
-    // 👆 สิ้นสุดโค้ดที่เพิ่ม
-
     if (viewMode === 'monthly_history') return Swal.fire('ข้อมูลรายเดือน', 'นี่คือข้อมูลสรุปรวมทั้งเดือนจากฐานข้อมูล ไม่สามารถบันทึกซ้ำได้ครับ', 'info');
     if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'กรุณาอัปโหลดไฟล์ให้เรียบร้อยก่อนบันทึก', 'warning');
-    // ... (โค้ดเดิมด้านล่าง) ...
 
     Swal.fire({title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
@@ -1414,58 +1402,51 @@ window.exportSummaryToExcel = async function() {
 };
 
 window.openManageSystemModal = async function() {
-    // 🔒 เช็คสิทธิ์การจัดการหลังบ้าน
-    if (typeof window.hasUserPerm === 'function' && !window.hasUserPerm('summary_manage')) {
-        return Swal.fire('ไม่มีสิทธิ์ใช้งาน', 'คุณไม่มีสิทธิ์ตั้งค่าระบบหลังบ้านครับ', 'error');
-    }
+    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
+    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26'];
 
-    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
-    // 👇 เพิ่ม 'BT678', 'K188' เข้าไปใน list 
-    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
+    let html = '<div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto p-1 custom-scrollbar text-sm">';
+    defaultWebList.forEach(web => {
+        let currentSys = customSystems[web];
+        if (!currentSys) {
+            if(['Jun88', 'MK8', 'VV72', 'TH26'].includes(web)) currentSys = 'K36';
+            else if(['F168'].includes(web)) currentSys = 'WG';
+            else if(['PG688', 'JL69', 'NM9'].includes(web)) currentSys = 'TCG';
+            else currentSys = 'SYSTEM';
+        }
+        
+        html += getTpl('tpl-manage-system-item', {
+            web: web,
+            selSystem: currentSys === 'SYSTEM' ? 'selected' : '',
+            selK36: currentSys === 'K36' ? 'selected' : '',
+            selWg: currentSys === 'WG' ? 'selected' : '',
+            selTcg: currentSys === 'TCG' ? 'selected' : ''
+        });
+    });
+    html += '</div>';
 
-    let html = '<div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto p-1 custom-scrollbar text-sm">';
-    defaultWebList.forEach(web => {
-        let currentSys = customSystems[web];
-        if (!currentSys) {
-            // 👇 นำ 'BT678', 'K188' ไปผูกกับระบบ K36
-            if(['Jun88', 'MK8', 'VV72', 'TH26', 'BT678', 'K188'].includes(web)) currentSys = 'K36';
-            else if(['F168'].includes(web)) currentSys = 'WG';
-            else if(['PG688', 'JL69', 'NM9'].includes(web)) currentSys = 'TCG';
-            else currentSys = 'SYSTEM';
-        }
-        
-        html += getTpl('tpl-manage-system-item', {
-            web: web,
-            selSystem: currentSys === 'SYSTEM' ? 'selected' : '',
-            selK36: currentSys === 'K36' ? 'selected' : '',
-            selWg: currentSys === 'WG' ? 'selected' : '',
-            selTcg: currentSys === 'TCG' ? 'selected' : ''
-        });
-    });
-    html += '</div>';
+    const { isConfirmed } = await Swal.fire({
+        title: '<div class="text-xl font-black text-sky-400 flex items-center justify-center gap-2"><span class="material-icons">settings_applications</span> ตั้งค่าหลังบ้านให้เว็บไซต์</div>',
+        html: `<p class="text-xs text-gray-400 mb-3">ตั้งค่าตรงนี้ก่อนอัปโหลดไฟล์ Excel ข้อมูลจะได้เข้าถูกกล่อง</p>${html}`,
+        showCancelButton: true, confirmButtonText: 'บันทึกการตั้งค่า', cancelButtonText: 'ปิด', confirmButtonColor: '#0ea5e9', cancelButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl' }
+    });
 
-    const { isConfirmed } = await Swal.fire({
-        title: '<div class="text-xl font-black text-sky-400 flex items-center justify-center gap-2"><span class="material-icons">settings_applications</span> ตั้งค่าหลังบ้านให้เว็บไซต์</div>',
-        html: `<p class="text-xs text-gray-400 mb-3">ตั้งค่าตรงนี้ก่อนอัปโหลดไฟล์ Excel ข้อมูลจะได้เข้าถูกกล่อง</p>${html}`,
-        showCancelButton: true, confirmButtonText: 'บันทึกการตั้งค่า', cancelButtonText: 'ปิด', confirmButtonColor: '#0ea5e9', cancelButtonColor: '#64748b',
-        customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl' }
-    });
+    if (isConfirmed) {
+        defaultWebList.forEach(web => {
+            const sel = document.getElementById(`sys_select_modal_${web}`);
+            if(sel) customSystems[web] = sel.value;
+        });
+        localStorage.setItem('custom_web_systems', JSON.stringify(customSystems));
 
-    if (isConfirmed) {
-        defaultWebList.forEach(web => {
-            const sel = document.getElementById(`sys_select_modal_${web}`);
-            if(sel) customSystems[web] = sel.value;
-        });
-        localStorage.setItem('custom_web_systems', JSON.stringify(customSystems));
-
-        if (typeof pendingSummaryData !== 'undefined') {
-            pendingSummaryData.forEach(item => {
-                if (customSystems[item.website]) item.system = customSystems[item.website];
-            });
-        }
-        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'คราวหน้าอัปโหลด Excel ระบบจะดึงเข้ากล่องให้ถูกต้องเลย', timer: 2000, showConfirmButton: false});
-        if (typeof debounceRenderSummary === 'function') debounceRenderSummary();
-    }
+        if (typeof pendingSummaryData !== 'undefined') {
+            pendingSummaryData.forEach(item => {
+                if (customSystems[item.website]) item.system = customSystems[item.website];
+            });
+        }
+        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'คราวหน้าอัปโหลด Excel ระบบจะดึงเข้ากล่องให้ถูกต้องเลย', timer: 2000, showConfirmButton: false});
+        if (typeof debounceRenderSummary === 'function') debounceRenderSummary();
+    }
 };
 
 window.openManageLogoModal = async function() {
@@ -1606,15 +1587,8 @@ window.clearSummaryData = function() {
 };
 
 window.deleteSummaryDate = function(dateStr) {
-    // 👇 เพิ่มโค้ดชุดนี้เข้าไปบรรทัดแรก
-    if (typeof window.hasUserPerm === 'function' && !window.hasUserPerm('summary_manage')) {
-        return Swal.fire('ไม่มีสิทธิ์ใช้งาน', 'คุณไม่มีสิทธิ์ลบข้อมูลสรุปยอดรายวันครับ', 'error');
-    }
-    // 👆 สิ้นสุดโค้ดที่เพิ่ม
-
     const [y, m, day] = dateStr.split('-');
     const displayDate = `${day}/${m}/${y}`;
-    // ... (โค้ดเดิมด้านล่าง) ...
 
     Swal.fire({
         title: `ลบข้อมูลวันที่ ${displayDate}?`, text: "ข้อมูลสรุปยอดของวันนี้จะถูกลบทิ้งอย่างถาวร!", icon: 'warning',
