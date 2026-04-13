@@ -1,0 +1,10 @@
+{
+  "name": "k36",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "tailwindcss -i ./css/input.css -o ./css/tailwind-compiled.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.3"
+  }
+}
