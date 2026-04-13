@@ -1961,6 +1961,8 @@ const PERM_GROUPS = [
         id: 'group_other', name: 'สรุปยอด & เครื่องมืออื่นๆ', 
         items: [
             {id: 'summary', name: 'สรุปยอดทำรายการ', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
+            {id: 'summary_upload', name: '└ [ย่อย] อัปโหลดไฟล์ Excel', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'summary_manage', name: '└ [ย่อย] บันทึกยอด & จัดการหลังบ้าน', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'fine', name: 'ระบบใบปรับพนักงาน', color: 'bg-red-500/20 text-red-400 border-red-500/50'},
             {id: 'fine_manage', name: '└ [ย่อย] ออกใบปรับ / จัดการกฎ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'fine_view_all', name: '└ [ย่อย] ดูตารางใบปรับของทุกคน', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
