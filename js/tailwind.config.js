@@ -4,7 +4,8 @@ module.exports = {
   content: [
     "./index.html",
     "./pages/**/*.html",
-    "./js/**/*.js"
+    "./js/**/*.js",   // <--- เติมลูกน้ำตรงนี้ครับ
+    "./**/*.html" 
   ],
   theme: {
     extend: {
