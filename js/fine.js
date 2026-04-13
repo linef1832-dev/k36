@@ -1643,3 +1643,40 @@ window.copyFineText = function() {
         Swal.fire('Error', 'เบราว์เซอร์ไม่รองรับการคัดลอกอัตโนมัติ', 'error');
     });
 };
+
+// =========================================
+// 🌟 ฟังก์ชันคำนวณและแสดงช่องใส่เปอร์เซ็นต์
+// =========================================
+window.togglePercentCalc = function() {
+    const box = document.getElementById('finePercentCalcBox');
+    const isChecked = document.getElementById('fineUsePercent').checked;
+    const baseAmtInput = document.getElementById('finePercentBaseAmount');
+    
+    if (isChecked) {
+        if(box) {
+            box.classList.remove('hidden');
+            box.classList.add('flex');
+        }
+        if(baseAmtInput) baseAmtInput.focus();
+    } else {
+        if(box) {
+            box.classList.add('hidden');
+            box.classList.remove('flex');
+        }
+        if(baseAmtInput) baseAmtInput.value = '';
+        if(document.getElementById('finePercentRate')) document.getElementById('finePercentRate').value = '10';
+        if(document.getElementById('finePercentResultText')) document.getElementById('finePercentResultText').innerText = '฿0';
+    }
+}
+
+window.calculatePercentTotal = function() {
+    const baseAmt = parseInt(document.getElementById('finePercentBaseAmount').value) || 0;
+    const rate = parseInt(document.getElementById('finePercentRate').value) || 10;
+    const result = Math.floor(baseAmt * (rate / 100)); // ปัดเศษลงเป็นจำนวนเต็ม
+    
+    if(document.getElementById('finePercentResultText')) {
+        document.getElementById('finePercentResultText').innerText = `฿${result.toLocaleString('en-US')}`;
+    }
+    
+    return result;
+}
