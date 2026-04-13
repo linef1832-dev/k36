@@ -229,14 +229,6 @@ window.renderFineStats = function() {
     const deptFilter = document.getElementById('fineStatsDept') ? document.getElementById('fineStatsDept').value : 'ALL';
     const shiftFilter = document.getElementById('fineStatsShift') ? document.getElementById('fineStatsShift').value : 'ALL';
 
-    // 🌟 [จุดที่ปรับแก้] สร้างพจนานุกรมชื่อเพื่อดึงข้อมูลอย่างรวดเร็ว
-    const userDict = {};
-    if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
-        GLOBAL_USER_LIST.forEach(u => {
-            userDict[String(u.username).toLowerCase()] = u;
-        });
-    }
-
     let filteredFines = globalFines.filter(f => {
         if (monthFilter !== 'all') {
             const d = f.offense_date ? new Date(f.offense_date) : new Date(f.created_at);
@@ -245,8 +237,10 @@ window.renderFineStats = function() {
         }
 
         if (deptFilter !== 'ALL' || shiftFilter !== 'ALL') {
-            // 🌟 [จุดที่ปรับแก้] ดึงข้อมูลจากพจนานุกรมแทน .find()
-            let dbUser = userDict[String(f.user_name).toLowerCase()];
+            let dbUser = null;
+            if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
+                dbUser = GLOBAL_USER_LIST.find(u => String(u.username).toLowerCase() === String(f.user_name).toLowerCase());
+            }
             
             if (!dbUser) return false; 
 
@@ -260,8 +254,15 @@ window.renderFineStats = function() {
         return true;
     });
 
+    let totalAmountForStats = 0; // 🌟 เพิ่มตัวแปรเก็บยอดรวม
+
     if (filteredFines.length === 0) {
         container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400 font-bold bg-slate-50 dark:bg-slate-900 rounded-2xl border border-dashed border-gray-300 dark:border-slate-700">ไม่มีประวัติโดนปรับในเงื่อนไขที่เลือกครับ 🎉</div>';
+        
+        // ถ้าไม่มีข้อมูล ให้รีเซ็ตยอดเป็น 0
+        if(document.getElementById('fineStatsTotalAmount')) {
+            document.getElementById('fineStatsTotalAmount').innerHTML = '';
+        }
         return;
     }
 
@@ -274,8 +275,15 @@ window.renderFineStats = function() {
         statsMap[name].count++;
         if (f.amount > 0) {
             statsMap[name].amount += Number(f.amount);
+            totalAmountForStats += Number(f.amount); // 🌟 บวกยอดรวมของคนในหน้าสถิติ
         }
     });
+
+    // 🌟 นำยอดรวมไปยัดใส่ HTML ที่เราเตรียมไว้
+    const statsTotalEl = document.getElementById('fineStatsTotalAmount');
+    if (statsTotalEl) {
+        statsTotalEl.innerHTML = `<div class="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm ml-4 uppercase tracking-wider flex items-center gap-2">ยอดรวมค่าปรับ: <span class="font-mono text-base font-black">฿${totalAmountForStats.toLocaleString('en-US')}</span></div>`;
+    }
 
     const sortedStats = Object.keys(statsMap).map(name => ({
         name: name,
