@@ -83,10 +83,31 @@
                                     <option value="money">ระบุเงิน (บาท)</option>
                                     <option value="nowage">ไม่ได้รับค่าแรง</option>
                                 </select>
-                                <input type="number" id="fineAmount" placeholder="ใส่ตัวเลข เช่น 300" class="flex-1 w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner transition">
+                                <input type="number" id="fineAmount" placeholder="ใส่ตัวเลข เช่น 300" class="flex-1 w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-red-500 shadow-inner transition disabled:opacity-50 disabled:bg-gray-200 dark:disabled:bg-slate-700">
                             </div>
                         </div>
 
+                        <div class="bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-900/50 p-3 rounded-xl shadow-inner mt-2">
+                            <label class="flex items-center gap-2 cursor-pointer mb-2 w-fit">
+                                <input type="checkbox" id="fineUsePercent" onchange="togglePercentCalc()" class="w-4 h-4 text-rose-600 bg-white border-gray-300 rounded focus:ring-rose-500 dark:focus:ring-rose-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600">
+                                <span class="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase flex items-center gap-1"><span class="material-icons text-[14px]">calculate</span> คิดค่าปรับเพิ่มเติม (แบบ %)</span>
+                            </label>
+                            
+                            <div id="finePercentCalcBox" class="hidden flex flex-col md:flex-row gap-2 mt-2">
+                                <div class="w-full md:w-1/2">
+                                    <input type="number" id="finePercentBaseAmount" oninput="calculatePercentTotal()" placeholder="ยอดเงินตั้งต้น (เช่น 10000)" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-800/50 text-slate-800 dark:text-white font-bold outline-none focus:border-rose-500 shadow-sm transition text-sm">
+                                </div>
+                                <div class="w-full md:w-1/4">
+                                    <select id="finePercentRate" onchange="calculatePercentTotal()" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-800/50 text-slate-800 dark:text-white font-bold outline-none focus:border-rose-500 shadow-sm cursor-pointer transition text-sm">
+                                        <option value="10">10%</option>
+                                        <option value="20">20%</option>
+                                    </select>
+                                </div>
+                                <div class="w-full md:w-1/4 flex items-center justify-center bg-rose-100 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800/50 rounded-xl px-2 py-2">
+                                    <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 flex flex-col items-center leading-tight">คิดเป็น: <span id="finePercentResultText" class="text-sm font-black">฿0</span></span>
+                                </div>
+                            </div>
+                        </div>
                         <div>
                             <label class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 text-red-500 flex items-center gap-1"><span class="material-icons text-[14px]">image</span> แนบรูปหลักฐาน (คลิก หรือ Ctrl+V)</label>
                             <input type="file" id="fineImageInput" accept="image/*" class="hidden" onchange="previewFineImg(this)">
