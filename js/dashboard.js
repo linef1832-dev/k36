@@ -155,6 +155,9 @@ window.refreshTimeSlots = async function() {
         return;
     }
 
+    // 💡 [เพิ่มใหม่] ให้ระบบ "จดจำ" ค่าที่พนักงานกำลังเลือกค้างไว้ก่อน
+    const previousSelectedSlot = slotSelect.value; 
+
     const shiftName = shiftEl.value;
     const loadingIcon = document.getElementById('slotLoading');
     if(loadingIcon) loadingIcon.classList.remove('hidden');
@@ -209,6 +212,15 @@ window.refreshTimeSlots = async function() {
             html += `</optgroup>`;
         }
         slotSelect.innerHTML = html;
+
+        // 💡 [เพิ่มใหม่] พอกระดานรีเฟรชยอดเสร็จปุ๊บ ก็ยัดค่าเดิมที่จำไว้กลับไปให้ทันที (ถ้าช่องนั้นยังไม่เต็ม)
+        if (previousSelectedSlot) {
+            const optionToCheck = slotSelect.querySelector(`option[value="${previousSelectedSlot}"]`);
+            if (optionToCheck && !optionToCheck.disabled) {
+                slotSelect.value = previousSelectedSlot;
+            }
+        }
+
     } catch (e) {
         console.error("Refresh Slots Error:", e);
     } finally {
