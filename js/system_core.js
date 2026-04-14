@@ -2095,20 +2095,11 @@ window.renderPermsTable = function() {
         'teal': 'text-teal-400 bg-teal-500/10 border-teal-500/20',
     };
 
-    // 🌟 เพิ่มชุดสีสำหรับ Checkbox แยกตามธีม
-    const checkboxColors = {
-        'blue': 'peer-checked:bg-blue-500 peer-checked:border-blue-500 group-hover:border-blue-400',
-        'rose': 'peer-checked:bg-rose-500 peer-checked:border-rose-500 group-hover:border-rose-400',
-        'pink': 'peer-checked:bg-pink-500 peer-checked:border-pink-500 group-hover:border-pink-400',
-        'amber': 'peer-checked:bg-amber-500 peer-checked:border-amber-500 group-hover:border-amber-400',
-        'green': 'peer-checked:bg-green-500 peer-checked:border-green-500 group-hover:border-green-400',
-        'orange': 'peer-checked:bg-orange-500 peer-checked:border-orange-500 group-hover:border-orange-400',
-        'indigo': 'peer-checked:bg-indigo-500 peer-checked:border-indigo-500 group-hover:border-indigo-400',
-        'sky': 'peer-checked:bg-sky-500 peer-checked:border-sky-500 group-hover:border-sky-400',
-        'emerald': 'peer-checked:bg-emerald-500 peer-checked:border-emerald-500 group-hover:border-emerald-400',
-        'purple': 'peer-checked:bg-purple-500 peer-checked:border-purple-500 group-hover:border-purple-400',
-        'red': 'peer-checked:bg-red-500 peer-checked:border-red-500 group-hover:border-red-400',
-        'teal': 'peer-checked:bg-teal-500 peer-checked:border-teal-500 group-hover:border-teal-400',
+    // 🌟 แก้ไข: ใช้รหัสสี Hex โดยตรงเพื่อป้องกันปัญหา CSS ไม่อัปเดต
+    const themeHexColors = {
+        'blue': '#3b82f6', 'rose': '#f43f5e', 'pink': '#ec4899', 'amber': '#f59e0b',
+        'green': '#22c55e', 'orange': '#f97316', 'indigo': '#6366f1', 'sky': '#0ea5e9',
+        'emerald': '#10b981', 'purple': '#a855f7', 'red': '#ef4444', 'teal': '#14b8a6',
     };
 
     depts.forEach(dept => {
@@ -2173,7 +2164,7 @@ window.renderPermsTable = function() {
         
         PERM_GROUPS.forEach(g => {
             const themeClass = colorClasses[g.theme] || colorClasses['blue'];
-            const cbColorClass = checkboxColors[g.theme] || checkboxColors['blue']; // 🌟 ดึงคลาสสี Checkbox ตามธีม
+            const themeColorHex = themeHexColors[g.theme] || '#3b82f6'; // ดึงสี Hex มาใช้
             const iconColor = themeClass.split(' ')[0];
             
             popupContentHtml += `
@@ -2190,15 +2181,15 @@ window.renderPermsTable = function() {
                 const marginLeft = item.isSub ? 'ml-6 pl-2 border-l-2 border-slate-600/50' : 'font-bold bg-slate-700/30 rounded-lg p-1 mb-1';
                 const textStyle = item.isSub ? 'text-gray-400 text-[10px]' : 'text-gray-200 text-[11px]';
                 
+                // 🌟 แก้ไข: เปลี่ยน sr-only เป็น opacity-0 และใส่สีพื้นหลังด้วยสไตล์ Inline
                 popupContentHtml += `
-                    <label class="flex items-center gap-3 ${textStyle} cursor-pointer hover:bg-slate-700 p-2 rounded-lg transition ${marginLeft} group">
-                        <div class="relative flex items-center">
-                            <input type="checkbox" class="perm-cb peer sr-only" data-key="${key}" data-menu="${item.id}" ${isChecked}>
-                            <div class="w-4 h-4 rounded border-2 border-slate-500 bg-slate-900 ${cbColorClass} transition flex items-center justify-center shadow-inner">
-                                <span class="material-icons text-[12px] text-white opacity-0 peer-checked:opacity-100 scale-50 peer-checked:scale-100 transition-all font-bold">check</span>
-                            </div>
+                    <label class="relative flex items-center gap-3 ${textStyle} cursor-pointer hover:bg-slate-700 p-2 rounded-lg transition ${marginLeft} group">
+                        <input type="checkbox" class="perm-cb absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 peer" data-key="${key}" data-menu="${item.id}" ${isChecked}>
+                        <div class="relative w-4 h-4 shrink-0 rounded border-2 border-slate-500 bg-slate-900 transition flex items-center justify-center shadow-inner peer-checked:border-transparent">
+                            <div class="absolute inset-0 rounded opacity-0 peer-checked:opacity-100 transition-opacity" style="background-color: ${themeColorHex};"></div>
+                            <span class="material-icons text-[12px] text-white opacity-0 peer-checked:opacity-100 scale-50 peer-checked:scale-100 transition-transform font-bold z-10">check</span>
                         </div>
-                        <span class="flex-1 select-none leading-none group-hover:text-white transition-colors pt-0.5">${item.name}</span>
+                        <span class="flex-1 select-none leading-none group-hover:text-white transition-colors pt-0.5 z-10">${item.name}</span>
                     </label>`;
             });
             popupContentHtml += `</div></div>`;
