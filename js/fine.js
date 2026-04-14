@@ -1728,3 +1728,15 @@ window.calculatePercentTotal = function() {
     
     return result;
 }
+
+// =========================================
+// 🌟 ระบบหน่วงเวลาช่องค้นหา (พิมพ์เสร็จค่อยหา)
+// =========================================
+let fineSearchTimeout = null;
+
+window.onFineSearch = function() {
+    clearTimeout(fineSearchTimeout); // ยกเลิกคำสั่งเดิมถ้ายังพิมพ์ไม่เสร็จ
+    fineSearchTimeout = setTimeout(() => {
+        renderFineTable(); // สั่งวาดตารางเมื่อหยุดพิมพ์ไปแล้ว 300ms (0.3 วินาที)
+    }, 300); 
+};
