@@ -119,31 +119,7 @@
     </template>
     
     <template id="tpl-kb-caption">
-        <div class="text-center text-sm font-bold text-gray-500 mt-2 bg-slate-50 dark:bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm w-fit max-w-full break-words mx-auto">{{caption}}</div>
-    </template>
-
-    <template id="tpl-kb-add-form">
-        <div class="text-left mt-4 space-y-4">
-            <div>
-                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">หมวดหมู่</label>
-                <select id="swal-kb-cat" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 font-bold cursor-pointer shadow-inner">
-                    {{catOptionsHtml}}
-                </select>
-            </div>
-            <div>
-                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">หัวข้อเรื่อง</label>
-                <input id="swal-kb-title" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 shadow-inner font-bold" placeholder="เช่น วิธีรับงาน, กฎการลางาน...">
-            </div>
-            <div>
-                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">เนื้อหาบทความ (เว้นว่างไว้ได้หากแนบไฟล์เอกสาร)</label>
-                <textarea id="swal-kb-content" rows="8" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 custom-scrollbar shadow-inner" placeholder="พิมพ์เนื้อหาที่นี่..."></textarea>
-            </div>
-            <div>
-                <label class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider block mb-1 flex items-center gap-1"><span class="material-icons text-[14px]">attach_file</span> แนบไฟล์ประกอบ (รูปภาพ หรือ ไฟล์ PDF)</label>
-                <input type="file" id="swal-kb-images" multiple accept="image/*,application/pdf" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer" onchange="previewKbImages(this)">
-                <div id="kb-img-preview-box" class="hidden mt-2 flex flex-col gap-2 bg-slate-100 dark:bg-slate-950 p-2 rounded-xl border border-gray-200 dark:border-slate-700 max-h-64 overflow-y-auto custom-scrollbar shadow-inner"></div>
-            </div>
-        </div>
+        <div class="text-left md:text-center text-sm font-bold text-gray-500 mt-2 bg-slate-50 dark:bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm w-fit max-w-full break-words mx-auto whitespace-pre-line">{{caption}}</div>
     </template>
 
     <template id="tpl-kb-preview-pdf">
@@ -153,7 +129,19 @@
             </div>
             <div class="flex-1 flex flex-col justify-center min-w-0">
                 <span class="text-[10px] font-bold text-gray-400 truncate mb-1">{{fileName}}</span>
-                <input type="text" id="kb-img-cap-{{index}}" placeholder="พิมพ์คำอธิบายใต้ไฟล์นี้..." class="w-full p-2 text-xs bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded outline-none focus:border-sky-500 text-slate-800 dark:text-white shadow-inner">
+                <textarea id="kb-img-cap-{{index}}" rows="2" placeholder="พิมพ์คำอธิบายใต้ไฟล์นี้... (ขึ้นบรรทัดใหม่ได้)" class="w-full p-2 text-xs bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded outline-none focus:border-sky-500 text-slate-800 dark:text-white shadow-inner custom-scrollbar resize-none"></textarea>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-kb-preview-img">
+        <div class="relative flex items-start gap-3 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-sm p-2 w-full">
+            <div class="shrink-0">
+                <img id="kb-preview-img-{{index}}" src="" class="h-16 w-16 object-cover rounded-md shadow-sm border border-gray-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900">
+            </div>
+            <div class="flex-1 flex flex-col justify-center min-w-0">
+                <span class="text-[10px] font-bold text-gray-400 truncate mb-1">{{fileName}}</span>
+                <textarea id="kb-img-cap-{{index}}" rows="2" placeholder="พิมพ์คำอธิบายใต้รูปนี้... (ขึ้นบรรทัดใหม่ได้)" class="w-full p-2 text-xs bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded outline-none focus:border-sky-500 text-slate-800 dark:text-white shadow-inner custom-scrollbar resize-none"></textarea>
             </div>
         </div>
     </template>
