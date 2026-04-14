@@ -20,8 +20,9 @@
             </div>
             
             <div class="flex items-center gap-2 shrink-0">
-                <button id="btnCheckMissingLunch" onclick="checkMissingLunch()" class="hidden bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-3 md:px-4 py-2 md:py-3 rounded-xl font-bold flex items-center gap-2 transition border border-indigo-200 dark:border-indigo-800/50 shadow-sm active:scale-95">
+                <button id="btnCheckMissingLunch" onclick="checkMissingLunch()" class="relative hidden bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-3 md:px-4 py-2 md:py-3 rounded-xl font-bold flex items-center gap-2 transition border border-indigo-200 dark:border-indigo-800/50 shadow-sm active:scale-95">
                     <span class="material-icons">person_search</span> <span class="hidden md:block">เช็คคนยังไม่ลงข้าว</span>
+                    <span id="missingLunchBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-lg border border-white dark:border-slate-800 z-10">0</span>
                 </button>
                 <button onclick="forceShowAnnouncementPopup()" class="relative bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 px-3 md:px-4 py-2 md:py-3 rounded-xl font-bold flex items-center gap-2 transition border border-yellow-200 dark:border-yellow-800/50 shadow-sm active:scale-95">
                     <span class="material-icons">campaign</span> <span class="hidden md:block">ประกาศ</span>

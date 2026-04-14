@@ -243,6 +243,9 @@ window.refreshTimeSlots = async function() {
     } finally {
         if(loadingIcon) loadingIcon.classList.add('hidden');
     }
+    
+    // 🌟 สั่งอัปเดตตัวเลขแจ้งเตือนคนยังไม่ลงข้าว (เพิ่มบรรทัดนี้ลงไปล่างสุดของฟังก์ชัน)
+    if (typeof updateMissingLunchBadge === 'function') updateMissingLunchBadge();
 };
 
 window.openAdminPanel = async function() {
@@ -736,5 +739,63 @@ window.checkMissingLunch = async function() {
     } catch (e) {
         console.error("Missing Lunch Error:", e);
         Swal.fire('ข้อผิดพลาด', 'ดึงข้อมูลไม่สำเร็จ: ' + e.message, 'error');
+    }
+};
+
+// ========================================================================
+// 🟢 ฟังก์ชันอัปเดตตัวเลขแจ้งเตือน (Badge) บนปุ่มเช็คคนยังไม่ลงข้าว
+// ========================================================================
+window.updateMissingLunchBadge = async function() {
+    const badge = document.getElementById('missingLunchBadge');
+    const btn = document.getElementById('btnCheckMissingLunch');
+    
+    // ถ้าปุ่มซ่อนอยู่ (พนักงานปกติที่ไม่ใช่แอดมิน) ไม่ต้องให้ระบบทำงานให้หนักเครื่อง
+    if (!badge || !btn || btn.classList.contains('hidden')) return; 
+
+    const dateVal = document.getElementById('wDate').value;
+    if (!dateVal) return;
+
+    try {
+        if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) return;
+        
+        // ดึงข้อมูลการลงเวลาวันนี้
+        const { data: schedules } = await appDB.from('schedules').select('staff_name').eq('work_date', dateVal);
+        const bookingCounts = {};
+        if (schedules) schedules.forEach(s => { bookingCounts[s.staff_name] = (bookingCounts[s.staff_name] || 0) + 1; });
+
+        // ดึงข้อมูลคนลาหยุด
+        const { data: leaves } = await appDB.from('leave_requests').select('user_name').eq('leave_date', dateVal);
+        const onLeaveNames = (leaves || []).map(l => l.user_name);
+
+        // 🌟 หากะที่แอดมินกำลังคลิกดูอยู่บนหน้าจอตอนนี้
+        const currentShiftEl = document.querySelector('input[name="shift"]:checked');
+        const targetShift = currentShiftEl ? currentShiftEl.value : (window.currentUser?.allowed_shift || 'กะเช้า');
+
+        const dailyQuota = (typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit) ? parseInt(SETTINGS.daily_limit) : 2;
+        let missingCount = 0;
+
+        GLOBAL_USER_LIST.forEach(u => {
+            // ข้ามแอดมิน และข้ามคนลาหยุด
+            if (['admin', 'manager', 'trainer'].includes(u.role) || u.department === 'TRAINER' || u.department === 'NEW') return;
+            if (onLeaveNames.includes(u.username)) return;
+            
+            // 🌟 เช็คเฉพาะพนักงานที่อยู่ "กะเดียวกับที่กำลังกดดูอยู่" เท่านั้น!
+            if (u.allowed_shift !== targetShift) return;
+
+            const userBookedTimes = bookingCounts[u.username] || 0;
+            if (userBookedTimes < dailyQuota) missingCount++; // ถ้ายอดลงไม่ครบ ให้นับทันที
+        });
+
+        // อัปเดตตัวเลขลงบนจุดแดง
+        if (missingCount > 0) {
+            badge.innerText = missingCount;
+            badge.classList.remove('hidden');
+            badge.classList.add('animate-pulse'); // ให้มันกระพริบดึงดูดสายตา
+        } else {
+            badge.classList.add('hidden');
+            badge.classList.remove('animate-pulse');
+        }
+    } catch (e) { 
+        console.error("Badge Update Error:", e); 
     }
 };
