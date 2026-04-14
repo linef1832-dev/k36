@@ -1,4 +1,28 @@
-// 🟢 บังคับเซ็ตวันที่ให้เป็น "วันนี้" เสมอ (ปรับให้กะดึกข้ามวัน)
+// ========================================================================
+// 🟢 ไฟล์: js/dashboard.js (ควบคุมการทำงานหน้าลงเวลา และ Admin Panel)
+// ========================================================================
+
+window.initDashboard = async function() {
+    // 1. รอระบบโหลดข้อมูล user (เผื่อเน็ตช้า)
+    let retry = 0;
+    while (!window.currentUser && retry < 10) {
+        await new Promise(r => setTimeout(r, 200));
+        retry++;
+    }
+    
+    if (!window.currentUser) {
+        const savedUser = sessionStorage.getItem('user_platinum_plus');
+        if (savedUser) window.currentUser = JSON.parse(savedUser);
+        else return;
+    }
+    
+    // อัปเดตข้อมูลพนักงานที่แถบด้านบน
+    if (typeof updateDashboardUserInfo === 'function') updateDashboardUserInfo();
+    
+    // ดึงรายชื่อทีมเข้า Dropdown
+    if (typeof populateTeamSelects === 'function') populateTeamSelects();
+    
+    // 🟢 บังคับเซ็ตวันที่ให้เป็น "วันนี้" เสมอ (ปรับให้กะดึกข้ามวัน)
     const dInput = document.getElementById('wDate');
     if (dInput) {
         const today = new Date();
@@ -38,6 +62,7 @@
 
     // 🌟 เรียกใช้งานระบบ Realtime
     if (typeof subscribeDashboardChanges === 'function') subscribeDashboardChanges();
+};
     
 window.updateDashboardUserInfo = function() {
     if (!window.currentUser) return;
