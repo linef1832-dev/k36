@@ -1,7 +1,3 @@
-// ========================================================================
-// 🟢 ไฟล์: js/dashboard.js (ควบคุมการทำงานหน้าลงเวลา และ Admin Panel)
-// ========================================================================
-
 window.initDashboard = async function() {
     // 1. รอระบบโหลดข้อมูล user (เผื่อเน็ตช้า)
     let retry = 0;
@@ -18,6 +14,19 @@ window.initDashboard = async function() {
     
     // อัปเดตข้อมูลพนักงานที่แถบด้านบน
     if (typeof updateDashboardUserInfo === 'function') updateDashboardUserInfo();
+
+    // 🌟🌟🌟 โค้ดส่วนนี้แหละครับที่หายไป (ควบคุมการโชว์ปุ่มเช็คคนยังไม่ลงข้าว) 🌟🌟🌟
+    const btnCheckMissing = document.getElementById('btnCheckMissingLunch');
+    if (btnCheckMissing) {
+        const uRole = (window.currentUser.role || '').toLowerCase();
+        const uDept = (window.currentUser.department || '');
+        if (['admin', 'manager', 'trainer'].includes(uRole) || uDept === 'TRAINER') {
+            btnCheckMissing.classList.remove('hidden');
+        } else {
+            btnCheckMissing.classList.add('hidden');
+        }
+    }
+    // 🌟🌟🌟 สิ้นสุดการเปิดปุ่ม 🌟🌟🌟
     
     // ดึงรายชื่อทีมเข้า Dropdown
     if (typeof populateTeamSelects === 'function') populateTeamSelects();
@@ -28,7 +37,7 @@ window.initDashboard = async function() {
         const today = new Date();
         const currentHour = today.getHours(); // ดึงเวลาชั่วโมงปัจจุบัน (0-23)
         
-        // 🌟 ถ้านาฬิกาอยู่ระหว่างเที่ยงคืน (00:00) ถึงก่อน 8 โมงเช้า (07:59)
+        // ถ้านาฬิกาอยู่ระหว่างเที่ยงคืน (00:00) ถึงก่อน 8 โมงเช้า (07:59)
         // ให้ปฏิทินถอยกลับไปแสดงเป็นวันที่ของ "เมื่อวาน" อัตโนมัติ
         if (currentHour >= 0 && currentHour < 8) {
             today.setDate(today.getDate() - 1);
