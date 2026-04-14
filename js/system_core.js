@@ -1941,13 +1941,18 @@ const PERM_GROUPS = [
             {id: 'leave_request', name: '└ [ย่อย] กดจอง/ยกเลิกวันหยุดได้', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'leave_history', name: '└ [ย่อย] ดูประวัติการกด', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'leave_export', name: '└ [ย่อย] โหลด Excel ตารางหยุด', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'leave_manage', name: '└ [ย่อย] แอดมินจัดการโควตา', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             
-            // --- เพิ่ม 4 บรรทัดนี้เข้าไปครับ ---
-            {id: 'leave_am', name: '└ [หน้า] ดูแท็บ AM', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'leave_od', name: '└ [หน้า] ดูแท็บ OD', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'leave_new', name: '└ [หน้า] ดูแท็บ พนักงานใหม่', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'leave_trainer', name: '└ [หน้า] ดูแท็บ ผู้สอน', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+            // --- สิทธิ์ในการมองเห็นหน้า (คุณทำมาแล้ว) ---
+            {id: 'leave_am', name: '└ [ดูหน้า] ดูแท็บ AM', color: 'bg-blue-500/20 text-blue-400 border-blue-600', isSub: true},
+            {id: 'leave_od', name: '└ [ดูหน้า] ดูแท็บ OD', color: 'bg-pink-500/20 text-pink-400 border-pink-600', isSub: true},
+            {id: 'leave_new', name: '└ [ดูหน้า] ดูแท็บ พนักงานใหม่', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-600', isSub: true},
+            {id: 'leave_trainer', name: '└ [ดูหน้า] ดูแท็บ ผู้สอน', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-600', isSub: true},
+
+            // --- สิทธิ์ในการจัดการ (ตั้งค่าโควตา/เวลาเปิดปิด) แยกรายหน้า ---
+            {id: 'leave_manage_am', name: '└ ⚙️ [แอดมิน] จัดการ AM', color: 'bg-red-500/20 text-red-400 border-red-600', isSub: true},
+            {id: 'leave_manage_od', name: '└ ⚙️ [แอดมิน] จัดการ OD', color: 'bg-red-500/20 text-red-400 border-red-600', isSub: true},
+            {id: 'leave_manage_new', name: '└ ⚙️ [แอดมิน] จัดการ พนง.ใหม่', color: 'bg-red-500/20 text-red-400 border-red-600', isSub: true},
+            {id: 'leave_manage_trainer', name: '└ ⚙️ [แอดมิน] จัดการ ผู้สอน', color: 'bg-red-500/20 text-red-400 border-red-600', isSub: true}
         ]
     },
     {
