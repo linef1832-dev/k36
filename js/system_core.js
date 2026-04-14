@@ -2095,12 +2095,27 @@ window.renderPermsTable = function() {
         'teal': 'text-teal-400 bg-teal-500/10 border-teal-500/20',
     };
 
+    // 🌟 เพิ่มชุดสีสำหรับ Checkbox แยกตามธีม
+    const checkboxColors = {
+        'blue': 'peer-checked:bg-blue-500 peer-checked:border-blue-500 group-hover:border-blue-400',
+        'rose': 'peer-checked:bg-rose-500 peer-checked:border-rose-500 group-hover:border-rose-400',
+        'pink': 'peer-checked:bg-pink-500 peer-checked:border-pink-500 group-hover:border-pink-400',
+        'amber': 'peer-checked:bg-amber-500 peer-checked:border-amber-500 group-hover:border-amber-400',
+        'green': 'peer-checked:bg-green-500 peer-checked:border-green-500 group-hover:border-green-400',
+        'orange': 'peer-checked:bg-orange-500 peer-checked:border-orange-500 group-hover:border-orange-400',
+        'indigo': 'peer-checked:bg-indigo-500 peer-checked:border-indigo-500 group-hover:border-indigo-400',
+        'sky': 'peer-checked:bg-sky-500 peer-checked:border-sky-500 group-hover:border-sky-400',
+        'emerald': 'peer-checked:bg-emerald-500 peer-checked:border-emerald-500 group-hover:border-emerald-400',
+        'purple': 'peer-checked:bg-purple-500 peer-checked:border-purple-500 group-hover:border-purple-400',
+        'red': 'peer-checked:bg-red-500 peer-checked:border-red-500 group-hover:border-red-400',
+        'teal': 'peer-checked:bg-teal-500 peer-checked:border-teal-500 group-hover:border-teal-400',
+    };
+
     depts.forEach(dept => {
         const role = window.permRowSelections[dept] || 'STAFF';
         const key = `${dept}_${role}`;
         const activePerms = MENU_PERMS[key] || [];
         
-        // 🌟 1. สร้าง Badges ที่โชว์บนตารางให้อ่านง่ายเป็นระเบียบ
         let badgesHtml = '<div class="grid grid-cols-2 xl:grid-cols-3 gap-3 w-full content-start items-start">';
         let activeCount = 0;
 
@@ -2109,7 +2124,7 @@ window.renderPermsTable = function() {
             if (activeItemsInGroup.length > 0) {
                 activeCount++;
                 const themeClass = colorClasses[g.theme] || colorClasses['blue'];
-                const iconColor = themeClass.split(' ')[0]; // ดึงคลาสสีข้อความมาใช้กับไอคอน
+                const iconColor = themeClass.split(' ')[0]; 
 
                 let itemsHtml = '';
                 activeItemsInGroup.forEach(item => {
@@ -2138,7 +2153,6 @@ window.renderPermsTable = function() {
             badgesHtml = `<div class="flex flex-col items-center justify-center py-6 text-gray-500 w-full"><span class="material-icons text-4xl mb-2 opacity-30">admin_panel_settings</span><span class="text-sm font-bold">คลิกที่นี่เพื่อกำหนดสิทธิ์การเข้าถึง</span></div>`;
         }
 
-        // 🌟 2. สร้าง Popup สไตล์ Dashboard Panel 
         let popupContentHtml = `
             <div id="popup_${key}" class="perm-popup absolute top-full left-0 mt-2 bg-[#0f172a] border border-slate-600 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[950px] z-[99] hidden cursor-default overflow-hidden flex-col">
                 
@@ -2159,6 +2173,7 @@ window.renderPermsTable = function() {
         
         PERM_GROUPS.forEach(g => {
             const themeClass = colorClasses[g.theme] || colorClasses['blue'];
+            const cbColorClass = checkboxColors[g.theme] || checkboxColors['blue']; // 🌟 ดึงคลาสสี Checkbox ตามธีม
             const iconColor = themeClass.split(' ')[0];
             
             popupContentHtml += `
@@ -2179,7 +2194,7 @@ window.renderPermsTable = function() {
                     <label class="flex items-center gap-3 ${textStyle} cursor-pointer hover:bg-slate-700 p-2 rounded-lg transition ${marginLeft} group">
                         <div class="relative flex items-center">
                             <input type="checkbox" class="perm-cb peer sr-only" data-key="${key}" data-menu="${item.id}" ${isChecked}>
-                            <div class="w-4 h-4 rounded border-2 border-slate-500 bg-slate-900 peer-checked:bg-blue-500 peer-checked:border-blue-500 transition flex items-center justify-center shadow-inner group-hover:border-blue-400">
+                            <div class="w-4 h-4 rounded border-2 border-slate-500 bg-slate-900 ${cbColorClass} transition flex items-center justify-center shadow-inner">
                                 <span class="material-icons text-[12px] text-white opacity-0 peer-checked:opacity-100 scale-50 peer-checked:scale-100 transition-all font-bold">check</span>
                             </div>
                         </div>
@@ -2201,7 +2216,6 @@ window.renderPermsTable = function() {
                 </div>
             </div>`;
 
-        // สลับสี Select ตาม Role
         let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
         let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
 
