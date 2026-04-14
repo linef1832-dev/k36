@@ -190,7 +190,13 @@ window.kb_readArticle = function(id) {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('kb_manage') : false;
     const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
     
-    const deleteBtn = isAdmin ? `<button onclick="kb_deleteArticle('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm shrink-0" title="ลบบทความนี้"><span class="material-icons">delete</span></button>` : '';
+    // 🌟 เปลี่ยนจากปุ่มลบเดี่ยวๆ เป็นกลุ่มปุ่มจัดการ (แก้ไข + ลบ)
+    const deleteBtn = isAdmin ? `
+        <div class="flex items-center gap-2 shrink-0">
+            <button onclick="kb_editArticle('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไขบทความ"><span class="material-icons">edit</span></button>
+            <button onclick="kb_deleteArticle('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบบทความ"><span class="material-icons">delete</span></button>
+        </div>` : '';
+
     let displayCat = globalKBCategories.find(c => c.id === item.category)?.name || item.category;
 
     let mediaHtml = '';
@@ -321,5 +327,176 @@ window.kb_deleteArticle = async function(id) {
             kb_fetchData();
             Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', showConfirmButton: false, timer: 1500 });
         } catch(e) { Swal.fire('Error', 'ลบไม่สำเร็จ: ' + e.message, 'error'); }
+    }
+};
+// ==========================================
+// 🌟 ระบบแก้ไขบทความ (Edit Article)
+// ==========================================
+window.kb_editArticle = async function(id) {
+    const item = globalKBData.find(x => x.id === id);
+    if (!item) return;
+
+    let catOptionsHtml = globalKBCategories.map(c => `<option value="${c.id}" ${c.id === item.category ? 'selected' : ''}>${c.name}</option>`).join('');
+    
+    // ดึงไฟล์แนบเดิมมาแสดง
+    let existingMedia = [];
+    try {
+        if (item.image_urls && item.image_urls !== '[]') existingMedia = JSON.parse(item.image_urls);
+    } catch(e) {}
+
+    let existingMediaHtml = '';
+    if (existingMedia.length > 0) {
+        existingMediaHtml = `<div class="mb-2 text-[10px] text-amber-500 font-bold uppercase tracking-wider">ไฟล์ประกอบเดิม: (สามารถกดยกเลิกเพื่อลบ หรือแก้แคปชั่นได้)</div><div class="flex flex-col gap-2 mb-4 max-h-40 overflow-y-auto custom-scrollbar p-1">`;
+        existingMedia.forEach((media, idx) => {
+            let url = typeof media === 'string' ? media : media.url;
+            let cap = typeof media === 'string' ? '' : (media.caption || '');
+            let isPdf = url.toLowerCase().includes('.pdf');
+            
+            let preview = isPdf ? `<div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded flex items-center justify-center shrink-0 border border-red-200 dark:border-red-800"><span class="material-icons text-red-500">picture_as_pdf</span></div>` : `<img src="${url}" class="h-12 w-12 rounded object-cover border border-slate-600 shrink-0">`;
+            let filename = url.split('/').pop().split('?')[0];
+            
+            existingMediaHtml += `
+                <div class="flex items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-lg border border-gray-200 dark:border-slate-700 existing-media-item shadow-sm" data-url="${url}">
+                    ${preview}
+                    <div class="flex-1 flex flex-col min-w-0">
+                        <span class="text-[10px] text-gray-500 truncate mb-1" title="${filename}">${filename}</span>
+                        <input type="text" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded px-2 py-1 text-[11px] text-slate-800 dark:text-white existing-media-cap outline-none focus:border-amber-500" value="${cap.replace(/"/g, '&quot;')}" placeholder="พิมพ์หมายเหตุใต้ภาพ/ไฟล์...">
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" class="text-gray-400 hover:text-red-500 bg-slate-50 dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded-md border border-gray-200 dark:border-slate-600 transition shrink-0"><span class="material-icons text-sm block">delete</span></button>
+                </div>
+            `;
+        });
+        existingMediaHtml += `</div>`;
+    }
+
+    Swal.fire({
+        title: '<span class="text-amber-500 font-black"><span class="material-icons align-middle text-2xl">edit_document</span> แก้ไขบทความ</span>',
+        html: `
+            <div class="text-left mt-4 space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">หมวดหมู่</label>
+                    <select id="swal-kb-cat-edit" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 font-bold cursor-pointer shadow-inner">
+                        ${catOptionsHtml}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">หัวข้อเรื่อง</label>
+                    <input id="swal-kb-title-edit" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 shadow-inner font-bold" value="${item.title.replace(/"/g, '&quot;')}">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">เนื้อหาบทความ</label>
+                    <textarea id="swal-kb-content-edit" rows="8" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 custom-scrollbar shadow-inner">${item.content}</textarea>
+                </div>
+                <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-gray-300 dark:border-slate-600">
+                    ${existingMediaHtml}
+                    <label class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider block mb-1 flex items-center gap-1"><span class="material-icons text-[14px]">add_photo_alternate</span> อัปโหลดไฟล์/รูป เพิ่มเติม</label>
+                    <input type="file" id="swal-kb-images-edit" multiple accept="image/*,application/pdf" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer" onchange="previewKbImagesEdit(this)">
+                    <div id="kb-img-preview-box-edit" class="hidden mt-2 flex flex-col gap-2 bg-slate-100 dark:bg-slate-950 p-2 rounded-xl border border-gray-200 dark:border-slate-700 max-h-40 overflow-y-auto custom-scrollbar shadow-inner"></div>
+                </div>
+            </div>
+        `,
+        showCancelButton: true, confirmButtonText: 'บันทึกการแก้ไข', cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b', width: '700px',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
+        preConfirm: () => {
+            const cat = document.getElementById('swal-kb-cat-edit').value;
+            const title = document.getElementById('swal-kb-title-edit').value.trim();
+            const content = document.getElementById('swal-kb-content-edit').value.trim();
+            const imgInput = document.getElementById('swal-kb-images-edit');
+            
+            // ดึงไฟล์เก่าที่เหลืออยู่จากการกดลบ (ถ้ามี)
+            let retainedMedia = [];
+            document.querySelectorAll('.existing-media-item').forEach(el => {
+                retainedMedia.push({
+                    url: el.getAttribute('data-url'),
+                    caption: el.querySelector('.existing-media-cap').value.trim()
+                });
+            });
+
+            if (!title) { Swal.showValidationMessage('กรุณาใส่หัวข้อเรื่อง'); return false; }
+            if (!content && retainedMedia.length === 0 && (!imgInput.files || imgInput.files.length === 0)) { 
+                Swal.showValidationMessage('กรุณาพิมพ์เนื้อหา หรือ มีไฟล์ประกอบอย่างน้อย 1 ไฟล์'); return false; 
+            }
+            
+            let newCaptions = [];
+            if (imgInput && imgInput.files && imgInput.files.length > 0) {
+                for(let i = 0; i < imgInput.files.length; i++) {
+                    let capInput = document.getElementById('kb-img-cap-edit-' + i);
+                    newCaptions.push(capInput ? capInput.value.trim() : '');
+                }
+            }
+
+            return { category: cat, title: title, content: content, files: imgInput ? imgInput.files : [], retainedMedia: retainedMedia, newCaptions: newCaptions };
+        }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'กำลังบันทึก...', html: 'โปรดรอสักครู่...', didOpen: () => Swal.showLoading()});
+            try {
+                let finalMedia = [...result.value.retainedMedia];
+                const files = result.value.files;
+                
+                // ถ้ามีการอัปโหลดไฟล์มาใหม่ ให้ส่งขึ้นเซิร์ฟเวอร์ก่อน
+                if (files && files.length > 0) {
+                    Swal.update({ html: `กำลังอัปโหลดไฟล์ใหม่ ${files.length} รายการ...` });
+                    const uploadPromises = Array.from(files).map(async (file, index) => {
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `kb_${Date.now()}_${Math.floor(Math.random() * 1000)}_${index}.${fileExt}`;
+                        
+                        const { error: uploadError } = await appDB.storage.from('staff_images').upload(`knowledge_base/${fileName}`, file, { cacheControl: '3600', upsert: false });
+                        if (uploadError) throw new Error(`อัปโหลดไฟล์ไม่สำเร็จ: ${uploadError.message}`);
+                        
+                        const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`knowledge_base/${fileName}`);
+                        return { url: publicUrlData.publicUrl, caption: result.value.newCaptions[index] || '' };
+                    });
+                    const newlyUploaded = await Promise.all(uploadPromises);
+                    finalMedia = finalMedia.concat(newlyUploaded); // เอาไฟล์เก่ากับไฟล์ใหม่มารวมกัน
+                }
+
+                const { error } = await appDB.from('knowledge_base').update({ 
+                    category: result.value.category, 
+                    title: result.value.title, 
+                    content: result.value.content || ' ', 
+                    image_urls: JSON.stringify(finalMedia) 
+                }).eq('id', id);
+                
+                if(error) throw error;
+                
+                Swal.fire({icon: 'success', title: 'แก้ไขสำเร็จ', timer: 1500, showConfirmButton: false});
+                kb_fetchData(); 
+            } catch (e) { Swal.fire('Error', 'ไม่สามารถบันทึกได้: ' + e.message, 'error'); }
+        }
+    });
+};
+
+// ฟังก์ชันพรีวิวรูปภาพ (สำหรับหน้าแก้ไขโดยเฉพาะ)
+window.previewKbImagesEdit = function(input) {
+    const previewBox = document.getElementById('kb-img-preview-box-edit');
+    if (!previewBox) return;
+    previewBox.innerHTML = '';
+    
+    if (input.files && input.files.length > 0) {
+        previewBox.classList.remove('hidden');
+        previewBox.className = 'mt-2 flex flex-col gap-2 bg-slate-100 dark:bg-slate-950 p-2 rounded-xl border border-gray-200 dark:border-slate-700 max-h-40 overflow-y-auto custom-scrollbar shadow-inner block';
+        
+        Array.from(input.files).forEach((file, index) => {
+            const itemDiv = document.createElement('div');
+            
+            if (file.type === 'application/pdf') {
+                itemDiv.innerHTML = window.renderTemplate('tpl-kb-preview-pdf', { index: 'edit-'+index, fileName: file.name });
+                previewBox.appendChild(itemDiv.firstElementChild);
+            } else {
+                itemDiv.innerHTML = window.renderTemplate('tpl-kb-preview-img', { index: 'edit-'+index, fileName: file.name });
+                previewBox.appendChild(itemDiv.firstElementChild);
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imgEl = document.getElementById(`kb-preview-img-edit-${index}`);
+                    if(imgEl) imgEl.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    } else {
+        previewBox.classList.add('hidden');
     }
 };
