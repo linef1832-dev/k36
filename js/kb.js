@@ -251,21 +251,34 @@ window.kb_readArticle = function(id) {
     const matchedCat = globalKBCategories.find(c => c.id === item.category);
     if (matchedCat) displayCat = matchedCat.name;
 
-    // 🌟 ระบบแสดงผล แยกตามประเภทไฟล์ (PDF กางออก / รูปภาพโชว์ปกติ)
+    // 🌟 ระบบแสดงผล แยกตามประเภทไฟล์ (แก้ปัญหาแลค: เปลี่ยน PDF เป็นปุ่มเปิดหน้าใหม่เต็มจอ)
     let mediaHtml = '';
     if (item.image_urls && item.image_urls !== '[]') {
         try {
             const urls = JSON.parse(item.image_urls);
             if (urls && urls.length > 0) {
-                mediaHtml = '<div class="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700 flex flex-col gap-6">';
+                mediaHtml = '<div class="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700 flex flex-col gap-4">';
                 urls.forEach(url => {
                     // เช็คว่าเป็นไฟล์ PDF ไหม
                     if (url.toLowerCase().includes('.pdf')) {
-                        mediaHtml += `<div class="w-full bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-slate-700">
-                                          <iframe src="${url}" class="w-full h-[70vh] min-h-[600px] border-0" title="PDF Document"></iframe>
-                                      </div>`;
+                        // 🌟 เปลี่ยนจากการฝัง iframe เป็นการ์ดปุ่มกดแทน
+                        mediaHtml += `
+                        <div onclick="window.open('${url}', '_blank')" class="w-full bg-gradient-to-br from-red-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-sm border border-red-200 dark:border-red-900/50 p-5 flex flex-col sm:flex-row items-center justify-between gap-4 cursor-pointer hover:shadow-md hover:border-red-400 transition group">
+                            <div class="flex items-center gap-4 w-full sm:w-auto">
+                                <div class="w-14 h-14 bg-red-100 dark:bg-red-900/50 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                                    <span class="material-icons text-3xl text-red-500">picture_as_pdf</span>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="text-base font-black text-slate-800 dark:text-white group-hover:text-red-500 transition">เอกสารประกอบ (PDF)</h4>
+                                    <p class="text-[11px] font-bold text-gray-500 mt-0.5">คลิกเพื่อเปิดอ่านแบบเต็มหน้าจอ (ลดอาการแลค)</p>
+                                </div>
+                            </div>
+                            <button class="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-1.5 shadow-md transition active:scale-95 shrink-0 text-sm">
+                                <span class="material-icons text-[16px]">open_in_new</span> เปิดอ่านไฟล์
+                            </button>
+                        </div>`;
                     } else {
-                        // ถ้าเป็นรูปภาพ
+                        // ถ้าเป็นรูปภาพให้โชว์ปกติ
                         mediaHtml += `<a href="${url}" target="_blank" class="block group relative rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition overflow-hidden bg-white dark:bg-slate-900 w-fit">
                                           <img src="${url}" class="max-h-96 w-auto object-contain transition duration-300 group-hover:scale-105 cursor-zoom-in">
                                        </a>`;
