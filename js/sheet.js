@@ -622,3 +622,14 @@ window.deleteSheet = async function(id) {
         Swal.fire('Error', e.message, 'error');
     }
 };
+
+// =========================================
+// 🌟 ระบบหน่วงเวลาช่องค้นหา (พิมพ์เสร็จค่อยหา)
+// =========================================
+let sheetSearchTimeout = null;
+window.onSheetSearch = function() {
+    clearTimeout(sheetSearchTimeout);
+    sheetSearchTimeout = setTimeout(() => {
+        renderSheetMenu(); // สั่งวาดตารางเมื่อหยุดพิมพ์ไปแล้ว 300ms
+    }, 300); 
+};

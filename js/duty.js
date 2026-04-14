@@ -1869,3 +1869,14 @@ if (window.appDB && appDB.from) {
         return result;
     };
 }
+
+// =========================================
+// 🌟 ระบบหน่วงเวลาช่องค้นหา (พิมพ์เสร็จค่อยหา)
+// =========================================
+let dutySearchTimeout = null;
+window.onDutySearch = function() {
+    clearTimeout(dutySearchTimeout);
+    dutySearchTimeout = setTimeout(() => {
+        filterDutyResult(); // สั่งวาดตารางเมื่อหยุดพิมพ์ไปแล้ว 300ms
+    }, 300); 
+};

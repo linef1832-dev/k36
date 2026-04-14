@@ -25,7 +25,7 @@
             </select>
             <div class="relative">
                 <span class="material-icons absolute left-2 top-1.5 text-gray-400 text-sm">search</span>
-                <input type="text" id="leaveSearchInput" onkeyup="renderLeaveTable()" placeholder="ค้นหาชื่อ..." class="w-36 h-8 pl-8 pr-2 rounded-lg text-xs text-slate-800 font-bold outline-none bg-white shadow-sm border border-gray-200">
+                <input type="text" id="leaveSearchInput" onkeyup="onLeaveSearch()" placeholder="ค้นหาชื่อ..." class="w-36 h-8 pl-8 pr-2 rounded-lg text-xs text-slate-800 font-bold outline-none bg-white shadow-sm border border-gray-200">
             </div>
         </div>
 
@@ -104,7 +104,7 @@
         <button id="ltBtn_KP" onclick="setLeaveType('KP')" class="leave-type-btn opacity-50 bg-yellow-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">KP (ขาดงาน)</button>
     </div>
 
-    <div class="flex-1 overflow-auto bg-white dark:bg-slate-900 relative custom-scrollbar">
+    <div class="flex-1 overflow-auto bg-white dark:bg-slate-900 relative custom-scrollbar fast-render-list">
         <table class="w-full border-collapse text-xs" id="leaveTableMain">
             <thead class="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 shadow-sm text-slate-600 dark:text-gray-300">
                 <tr id="tableHeaderRow"></tr>
