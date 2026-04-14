@@ -1917,38 +1917,29 @@ window.saveQuotaSettings = async function() {
     Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
 };
 
-
 // =========================================================
-// 🟢 ระบบสิทธิ์เมนู (อัปเดตเมนูให้ครบถ้วน 100%)
+// 🟢 ระบบสิทธิ์เมนู (แยกหมวดหมู่ตามหน้าเว็บแบบละเอียด)
 // =========================================================
 let MENU_PERMS = {};
 
 const PERM_GROUPS = [
     {
-        id: 'group_main', name: 'ระบบหลัก (ลงเวลา/รูป)', 
+        id: 'page_dashboard', name: '🏠 หน้าหลักลงเวลา', 
         items: [
-            {id: 'dashboard', name: 'หน้าหลักลงเวลา', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'gallery', name: 'หน้าคลังรูปภาพ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'gallery_upload', name: '└ [ย่อย] อัปโหลดรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'gallery_delete', name: '└ [ย่อย] ลบรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'announcement', name: 'กระดานประกาศ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'}
+            {id: 'dashboard', name: 'หน้าหลักลงเวลา', color: 'bg-blue-500/20 text-blue-400 border-blue-500/50'}
         ]
     },
     {
-        id: 'group_leave', name: 'ระบบวันหยุด / ลางาน', 
+        id: 'page_leave', name: '📅 หน้าวันหยุด / ลางาน', 
         items: [
             {id: 'leave', name: 'เข้าหน้าตารางวันหยุด', color: 'bg-rose-500/20 text-rose-400 border-rose-500/50'},
             {id: 'leave_request', name: '└ [ย่อย] กดจอง/ยกเลิกวันหยุดได้', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'leave_history', name: '└ [ย่อย] ดูประวัติการกด', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'leave_export', name: '└ [ย่อย] โหลด Excel ตารางหยุด', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            
-            // --- สิทธิ์ในการมองเห็นหน้า (คุณทำมาแล้ว) ---
-            {id: 'leave_am', name: '└ [ดูหน้า] ดูแท็บ AM', color: 'bg-blue-500/20 text-blue-400 border-blue-600', isSub: true},
-            {id: 'leave_od', name: '└ [ดูหน้า] ดูแท็บ OD', color: 'bg-pink-500/20 text-pink-400 border-pink-600', isSub: true},
-            {id: 'leave_new', name: '└ [ดูหน้า] ดูแท็บ พนักงานใหม่', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-600', isSub: true},
-            {id: 'leave_trainer', name: '└ [ดูหน้า] ดูแท็บ ผู้สอน', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-600', isSub: true},
-
-            // --- สิทธิ์ในการจัดการ (ตั้งค่าโควตา/เวลาเปิดปิด) แยกรายหน้า ---
+            {id: 'leave_am', name: '└ [ดูหน้า] แท็บ AM', color: 'bg-blue-500/20 text-blue-400 border-blue-600', isSub: true},
+            {id: 'leave_od', name: '└ [ดูหน้า] แท็บ OD', color: 'bg-pink-500/20 text-pink-400 border-pink-600', isSub: true},
+            {id: 'leave_new', name: '└ [ดูหน้า] แท็บ พนักงานใหม่', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-600', isSub: true},
+            {id: 'leave_trainer', name: '└ [ดูหน้า] แท็บ ผู้สอน', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-600', isSub: true},
             {id: 'leave_manage_am', name: '└ ⚙️ [แอดมิน] จัดการ AM', color: 'bg-red-500/20 text-red-400 border-red-600', isSub: true},
             {id: 'leave_manage_od', name: '└ ⚙️ [แอดมิน] จัดการ OD', color: 'bg-red-500/20 text-red-400 border-red-600', isSub: true},
             {id: 'leave_manage_new', name: '└ ⚙️ [แอดมิน] จัดการ พนง.ใหม่', color: 'bg-red-500/20 text-red-400 border-red-600', isSub: true},
@@ -1956,22 +1947,82 @@ const PERM_GROUPS = [
         ]
     },
     {
-        id: 'group_table', name: 'ตารางงาน & กะ', 
+        id: 'page_gallery', name: '🖼️ หน้าคลังรูปภาพ', 
         items: [
-            {id: 'sheet', name: 'ตารางงาน (Sheets)', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'sheet_manage', name: '└ [ย่อย] เพิ่ม/แก้/ลบ ลิงก์ชีท', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'gallery', name: 'หน้าคลังรูปภาพ', color: 'bg-pink-500/20 text-pink-400 border-pink-500/50'},
+            {id: 'gallery_upload', name: '└ [ย่อย] อัปโหลดรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'gallery_delete', name: '└ [ย่อย] ลบรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+        ]
+    },
+    {
+        id: 'page_password', name: '🔑 รหัสผ่าน', 
+        items: [
+            {id: 'password', name: 'รหัสผ่าน', color: 'bg-amber-500/20 text-amber-400 border-amber-500/50'}
+        ]
+    },
+    {
+        id: 'page_sheet', name: '📊 ตารางงาน (Sheets)', 
+        items: [
+            {id: 'sheet', name: 'ตารางงาน (Sheets)', color: 'bg-green-500/20 text-green-400 border-green-500/50'},
+            {id: 'sheet_manage', name: '└ [ย่อย] เพิ่ม/แก้/ลบ ลิงก์ชีท', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+        ]
+    },
+    {
+        id: 'page_swap', name: '🔄 สลับกะการทำงาน', 
+        items: [
             {id: 'swap', name: 'สลับกะการทำงาน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-
-            // --- เพิ่มบรรทัดนี้ลงไปครับ ---
-            {id: 'swap_manage', name: '└ [ย่อย] แอดมินจัดการสลับกะ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            // --------------------------
-
-            {id: 'duty', name: 'จัดหน้าที่ / เวร', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+            {id: 'swap_manage', name: '└ [ย่อย] แอดมินจัดการสลับกะ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+        ]
+    },
+    {
+        id: 'page_duty', name: '📋 จัดหน้าที่ / เวร', 
+        items: [
+            {id: 'duty', name: 'จัดหน้าที่ / เวร', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50'},
             {id: 'duty_manage', name: '└ [ย่อย] สุ่มเวร & ตั้งค่าหัวข้อ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
         ]
     },
     {
-        id: 'group_discord', name: 'เครื่องมือ DISCORD', 
+        id: 'page_telegram', name: '✈️ กลุ่มงาน (Telegram)', 
+        items: [
+            {id: 'telegram', name: 'กลุ่มงาน (Telegram)', color: 'bg-sky-500/20 text-sky-400 border-sky-500/50'}
+        ]
+    },
+    {
+        id: 'page_files', name: '📁 คลังไฟล์ / โปรแกรม', 
+        items: [
+            {id: 'files', name: 'คลังไฟล์ / โปรแกรม', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
+            {id: 'files_manage', name: '└ [ย่อย] แอดมินคลังไฟล์', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+        ]
+    },
+    {
+        id: 'page_summary', name: '📈 สรุปยอดทำรายการ', 
+        items: [
+            {id: 'summary', name: 'สรุปยอดทำรายการ', color: 'bg-purple-500/20 text-purple-400 border-purple-500/50'}
+        ]
+    },
+    {
+        id: 'page_fine', name: '🚨 ระบบใบปรับ', 
+        items: [
+            {id: 'fine', name: 'ระบบใบปรับพนักงาน', color: 'bg-red-500/20 text-red-400 border-red-500/50'},
+            {id: 'fine_manage', name: '└ [ย่อย] ออกใบปรับ / จัดการกฎ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'fine_view_all', name: '└ [ย่อย] ดูตารางใบปรับของทุกคน', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'fine_stats', name: '└ [ย่อย] ดูหน้าสถิติการปรับ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+        ]
+    },
+    {
+        id: 'page_announcement', name: '📢 กระดานประกาศ', 
+        items: [
+            {id: 'announcement', name: 'กระดานประกาศ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'}
+        ]
+    },
+    {
+        id: 'page_kbiz', name: '🤖 จัดการบอท K BIZ', 
+        items: [
+            {id: 'kbiz', name: 'จัดการบอท K BIZ', color: 'bg-teal-500/20 text-teal-400 border-teal-500/50'}
+        ]
+    },
+    {
+        id: 'page_discord', name: '👾 เครื่องมือ DISCORD', 
         items: [
             {id: 'discord', name: 'หน้าต่างระบบ DISCORD', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50'},
             {id: 'ds_spy', name: '└ [ย่อย] Spy Monitor', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
@@ -1982,18 +2033,8 @@ const PERM_GROUPS = [
         ]
     },
     {
-        id: 'group_other', name: 'สรุปยอด & เครื่องมืออื่นๆ', 
+        id: 'page_admin', name: '⚙️ เครื่องมือผู้จัดการ (Admin)', 
         items: [
-            {id: 'summary', name: 'สรุปยอดทำรายการ', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
-            {id: 'fine', name: 'ระบบใบปรับพนักงาน', color: 'bg-red-500/20 text-red-400 border-red-500/50'},
-            {id: 'fine_manage', name: '└ [ย่อย] ออกใบปรับ / จัดการกฎ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'fine_view_all', name: '└ [ย่อย] ดูตารางใบปรับของทุกคน', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'fine_stats', name: '└ [ย่อย] ดูหน้าสถิติการปรับ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'telegram', name: 'กลุ่มงาน (Telegram)', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
-            {id: 'files', name: 'คลังไฟล์ / โปรแกรม', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
-            {id: 'files_manage', name: '└ [ย่อย] แอดมินคลังไฟล์', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'password', name: 'รหัสผ่าน', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
-            {id: 'kbiz', name: 'จัดการบอท K BIZ', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
             {id: 'admin', name: 'เครื่องมือผู้จัดการ (Admin)', color: 'bg-red-500/20 text-red-400 border-red-500/50'}
         ]
     }
@@ -2048,7 +2089,7 @@ window.renderPermsTable = function() {
         PERM_GROUPS.forEach(g => {
             const hasAnyInGroup = g.items.some(i => activePerms.includes(i.id));
             if(hasAnyInGroup) {
-                badgesHtml += `<div class="mb-2"><div class="text-[10px] text-gray-400 mb-1 flex items-center gap-1 font-bold"><span class="material-icons text-[12px]">folder</span> ${g.name}</div><div class="flex flex-wrap gap-1.5 pl-2">`;
+                badgesHtml += `<div class="mb-2"><div class="text-[11px] text-gray-300 mb-1 flex items-center gap-1 font-bold">${g.name}</div><div class="flex flex-wrap gap-1.5 pl-2">`;
                 g.items.forEach(item => {
                     if (activePerms.includes(item.id)) {
                         badgesHtml += `<span class="text-[10px] ${item.color} border px-2 py-1 rounded shadow-sm font-bold">${item.name}</span>`;
@@ -2059,10 +2100,10 @@ window.renderPermsTable = function() {
         });
         if(badgesHtml === '') badgesHtml = `<span class="text-sm text-gray-500 italic p-2 block">คลิกที่นี่เพื่อเพิ่มสิทธิ์ให้แผนกนี้...</span>`;
 
-        // ขยายป๊อปอัปเป็น 750px เพื่อให้จุหมวด Discord ได้สวยงาม
-        let popupContentHtml = `<div id="popup_${key}" class="perm-popup absolute top-full left-6 mt-1 bg-[#0f172a] border border-slate-500 rounded-xl shadow-2xl p-5 w-[750px] z-[99] hidden cursor-default"><div class="grid grid-cols-2 gap-5">`;
+        // 🌟 ปรับความกว้างเป็น 950px และแบ่งเป็น 3 คอลัมน์ (grid-cols-3) เพื่อให้อ่านง่าย
+        let popupContentHtml = `<div id="popup_${key}" class="perm-popup absolute top-full left-6 mt-1 bg-[#0f172a] border border-slate-500 rounded-xl shadow-2xl p-5 w-[950px] z-[99] hidden cursor-default"><div class="grid grid-cols-3 gap-4 max-h-[65vh] overflow-y-auto custom-scrollbar pr-2">`;
         PERM_GROUPS.forEach(g => {
-            popupContentHtml += `<div class="bg-slate-800/80 p-3 rounded-lg border border-slate-600 shadow-inner"><div class="text-[11px] font-black text-orange-400 mb-3 border-b border-slate-600 pb-1.5 flex items-center gap-1.5"><span class="material-icons text-sm">folder</span> ${g.name}</div><div class="space-y-2 pl-1">`;
+            popupContentHtml += `<div class="bg-slate-800/80 p-3 rounded-lg border border-slate-600 shadow-inner h-fit"><div class="text-[11px] font-black text-orange-400 mb-3 border-b border-slate-600 pb-1.5 flex items-center gap-1.5">${g.name}</div><div class="space-y-2 pl-1">`;
             g.items.forEach(item => {
                 const isChecked = activePerms.includes(item.id) ? 'checked' : '';
                 const marginLeft = item.isSub ? 'ml-5' : '';
