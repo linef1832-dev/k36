@@ -581,7 +581,7 @@ window.backToDashboard = function() {
 };
 
 // ========================================================================
-// 🟢 ฟังก์ชันเช็ครายชื่อพนักงานที่ยังไม่ได้ลงเวลากินข้าว (มีระบบ Filter)
+// 🟢 ฟังก์ชันเช็ครายชื่อพนักงานที่ยังไม่ได้ลงเวลากินข้าว (เช็คยอดโควตาต่อวันด้วย)
 // ========================================================================
 window.tempMissingStaffData = {}; // ตัวแปรเก็บข้อมูลชั่วคราวเพื่อทำระบบกรอง
 
@@ -616,8 +616,14 @@ window.renderMissingList = function() {
         `;
         list.forEach(staff => {
             const deptColor = staff.dept === 'OD' ? 'text-pink-600 bg-pink-100 dark:bg-pink-900/30 border-pink-200' : 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 border-blue-200';
+            
+            // 🌟 เพิ่มป้ายกำกับบอกว่า "ขาดกี่ครั้ง"
+            const missingBadgeHtml = `<span class="text-[9px] font-black text-red-500 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-1 rounded shadow-sm">ขาด ${staff.missingAmount}</span>`;
+
             htmlChunk += `<div class="text-xs font-bold text-slate-700 dark:text-gray-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 px-2 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-default hover:border-indigo-400">
-                ${staff.name} <span class="text-[9px] font-black ${deptColor} border px-1 rounded shadow-sm">${staff.dept}</span>
+                ${staff.name} 
+                ${missingBadgeHtml}
+                <span class="text-[9px] font-black ${deptColor} border px-1 rounded shadow-sm">${staff.dept}</span>
             </div>`;
         });
         htmlChunk += `</div></div>`;
@@ -642,15 +648,23 @@ window.checkMissingLunch = async function() {
     const dateVal = document.getElementById('wDate').value;
     if (!dateVal) return Swal.fire('เตือน', 'กรุณาเลือกวันที่ต้องการตรวจสอบก่อนครับ', 'warning');
 
-    Swal.fire({title: 'กำลังสแกนรายชื่อ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'กำลังสแกนยอดการลงเวลา...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
         if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) {
             if (typeof fetchUsers === 'function') await fetchUsers(true);
         }
         
+        // ดึงข้อมูลการลงเวลาของทุกคนในวันนี้
         const { data: schedules } = await appDB.from('schedules').select('staff_name').eq('work_date', dateVal);
-        const bookedNames = (schedules || []).map(s => s.staff_name);
+        
+        // 🌟 นับว่าพนักงานแต่ละคนลงไปแล้วกี่ครั้ง
+        const bookingCounts = {};
+        if (schedules) {
+            schedules.forEach(s => {
+                bookingCounts[s.staff_name] = (bookingCounts[s.staff_name] || 0) + 1;
+            });
+        }
 
         const { data: leaves } = await appDB.from('leave_requests').select('user_name').eq('leave_date', dateVal);
         const onLeaveNames = (leaves || []).map(l => l.user_name);
@@ -658,29 +672,43 @@ window.checkMissingLunch = async function() {
         window.tempMissingStaffData = { 'กะเช้า': [], 'กะกลาง': [], 'กะดึก': [] };
         let missingCount = 0;
 
+        // 🌟 ดึงยอดโควตาต่อวันจากตั้งค่าระบบ (ถ้าไม่ได้ตั้งไว้ ให้ถือว่าต้องลง 2 ครั้ง/วัน)
+        const dailyQuota = (typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit) ? parseInt(SETTINGS.daily_limit) : 2;
+
         GLOBAL_USER_LIST.forEach(u => {
             if (u.role === 'admin' || u.role === 'manager' || u.role === 'trainer') return;
             if (u.department === 'TRAINER' || u.department === 'NEW') return;
             if (!['กะเช้า', 'กะกลาง', 'กะดึก'].includes(u.allowed_shift)) return;
 
-            if (!bookedNames.includes(u.username) && !onLeaveNames.includes(u.username)) {
-                window.tempMissingStaffData[u.allowed_shift].push({ name: u.username, dept: u.department || 'AM' });
+            // ถ้าลาหยุด ไม่ต้องเอามาคิด
+            if (onLeaveNames.includes(u.username)) return;
+
+            // ดึงจำนวนครั้งที่พนักงานคนนี้ลงเวลาไปแล้ว
+            const userBookedTimes = bookingCounts[u.username] || 0;
+
+            // 🌟 เช็คว่าลงเวลา "ครบ" ตามจำนวนที่กำหนดหรือไม่
+            if (userBookedTimes < dailyQuota) {
+                const missingAmt = dailyQuota - userBookedTimes; // คำนวณว่าขาดอีกกี่ครั้ง
+                window.tempMissingStaffData[u.allowed_shift].push({ 
+                    name: u.username, 
+                    dept: u.department || 'AM',
+                    missingAmount: missingAmt // แนบจำนวนที่ขาดเข้าไปด้วย
+                });
                 missingCount++;
             }
         });
 
         if (missingCount === 0) {
-            return Swal.fire({ icon: 'success', title: 'ครบทุกคน!', text: 'พนักงานในกะทุกคนลงเวลากินข้าว หรือลาหยุด ครบถ้วนแล้วครับ 🎉', confirmButtonColor: '#3b82f6' });
+            return Swal.fire({ icon: 'success', title: 'ครบทุกคน!', text: 'พนักงานในกะทุกคนลงเวลาครบตามโควตา หรือลาหยุดเรียบร้อยแล้วครับ 🎉', confirmButtonColor: '#3b82f6' });
         }
 
-        // 🌟 ดึงกะที่กำลังเลือกอยู่หน้าจอหลักมาเป็นค่าเริ่มต้น
         const currentShiftEl = document.querySelector('input[name="shift"]:checked');
         const defaultShift = currentShiftEl ? currentShiftEl.value : 'all';
 
         Swal.fire({
-            title: `<div class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3"><span class="material-icons text-indigo-500 text-3xl">person_search</span> รายชื่อคนที่ยังไม่ลงเวลา</div>`,
+            title: `<div class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3"><span class="material-icons text-indigo-500 text-3xl">person_search</span> รายชื่อคนที่ยังไม่ลงเวลา (หรือลงไม่ครบ)</div>`,
             html: `
-                <div class="text-xs text-gray-500 dark:text-gray-400 text-left mb-3">ระบบคัดกรองเฉพาะพนักงานที่ไม่ได้ลาหยุด (รวมที่แสดง: <span id="missingTotalCount" class="text-indigo-500 font-bold">${missingCount}</span> คน)</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 text-left mb-3">ระบบคัดกรองพนักงานที่ยังลงเวลา <span class="text-red-500 font-bold underline">ไม่ครบ ${dailyQuota} ครั้ง</span> (รวมที่แสดง: <span id="missingTotalCount" class="text-indigo-500 font-bold">${missingCount}</span> คน)</div>
                 <div class="flex gap-2 mb-3 border-b border-gray-100 dark:border-slate-700 pb-3">
                     <select id="missingShiftFilter" onchange="renderMissingList()" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-xs font-bold outline-none cursor-pointer shadow-inner focus:border-indigo-500 transition">
                         <option value="all">🌐 ทุกกะ</option>
@@ -694,15 +722,14 @@ window.checkMissingLunch = async function() {
                         <option value="OD">เฉพาะ OD</option>
                     </select>
                 </div>
-                <div id="missingListContainer" class="text-left max-h-[45vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
-                    </div>
+                <div id="missingListContainer" class="text-left max-h-[45vh] overflow-y-auto custom-scrollbar pr-2 pb-2"></div>
             `,
             showCloseButton: true,
             showConfirmButton: false,
             width: '600px',
             customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-[2rem] border border-slate-700 shadow-2xl' },
             didOpen: () => {
-                window.renderMissingList(); // สั่งให้วาดรายชื่อครั้งแรกตาม Filter ที่เลือกไว้ทันที
+                window.renderMissingList();
             }
         });
 
