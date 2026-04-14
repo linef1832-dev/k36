@@ -2032,7 +2032,6 @@ const PERM_GROUPS = [
             {id: 'ds_log', name: 'ดูประวัติ DS', isSub: true}
         ]
     },
-    {
         {
         id: 'page_admin', name: 'เครื่องมือผู้จัดการ', icon: 'manage_accounts', theme: 'red',
         items: [
