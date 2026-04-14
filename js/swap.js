@@ -21,10 +21,15 @@ window.openAutoSwapModal = async function() {
 
     await fetchPublicSwapSchedule();
     
-    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+    // --- เปลี่ยนการเช็คสิทธิ์ตรงนี้ ---
+    const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
+
+    if (canManageSwap) {
         if(adminPanel) adminPanel.style.display = 'block';
         if(managerToolbar) managerToolbar.style.display = 'flex';
         if(previewPanel) previewPanel.style.display = 'none';
+        // ... (โค้ดเดิมด้านล่าง)
         
         if(typeof clearExcludeStaff === 'function') clearExcludeStaff();
 
@@ -399,9 +404,10 @@ window.setSwapDeptFilter = function(dept) {
     const deptSelect = document.getElementById('swapDeptSelect');
     if (deptSelect && deptSelect.value !== dept) { deptSelect.value = dept; if(typeof clearExcludeStaff === 'function') clearExcludeStaff(); }
     
-    window.fetchPublicSwapSchedule(); 
-    if(typeof checkSwapBackup === 'function') window.checkSwapBackup(); 
-};
+    const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
+    
+    const adminDelete = canManageSwap ? `<button onclick="deleteTask(${task.id}); setTimeout(fetchPublicSwapSchedule, 500);" class="absolute top-2 right-2 text-red-500 hover:text-red-400 p-1 bg-black/20 rounded-lg transition z-20" title="${task.status === 'completed' ? 'ลบประวัตินี้' : 'ยกเลิกคิวนี้'}"><span class="material-icons text-sm">delete</span></button>` : '';
 
 // ==========================================
 // 📊 ดึงตารางสลับกะมาแสดง
@@ -516,7 +522,7 @@ window.fetchPublicSwapSchedule = async function() {
             box.innerHTML = `<div class="col-span-full text-center text-gray-400 py-8 bg-slate-800/50 rounded-xl border border-dashed border-slate-600">${noDataMsg}</div>`;
         } else { box.innerHTML = html; }
 
-        if (currentUser.role === 'manager' || currentUser.role === 'admin') {
+        if (isGlobalAdmin || canManageSwap) {
             const elMorning = document.getElementById('statSwapMorning'); const elNight = document.getElementById('statSwapNight'); const elSame = document.getElementById('statSwapSame');
             if (elMorning) { elMorning.innerText = countMorning; elMorning.style.color = '#ffffff'; }
             if (elNight) { elNight.innerText = countNight; elNight.style.color = '#ffffff'; }
@@ -601,8 +607,12 @@ window.checkSwapBackup = function() {
 };
 
 window.deleteAllSwapSchedules = async function() {
-    if (currentUser.role !== 'manager' && currentUser.role !== 'admin') return;
+    const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
+    if (!canManageSwap) return;
+    
     let deptName = activeSwapDeptFilter === 'TRAINER' ? 'ผู้สอน' : activeSwapDeptFilter;
+    // ... (โค้ดเดิมด้านล่าง)
 
     Swal.fire({
         title: `ล้างตารางสลับกะ ${deptName}?`, text: `ข้อมูลการสลับกะจะถูกลบ (สามารถกดกู้คืนได้ภายหลัง)`, icon: 'warning',
