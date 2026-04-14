@@ -351,7 +351,7 @@ window.kb_editArticle = async function(id) {
 
     let existingMediaHtml = '';
     if (existingMedia.length > 0) {
-        existingMediaHtml = `<div class="mb-2 text-[10px] text-amber-500 font-bold uppercase tracking-wider">ไฟล์ประกอบเดิม: (สามารถกดยกเลิกเพื่อลบ หรือแก้แคปชั่นได้)</div><div class="flex flex-col gap-2 mb-4 max-h-40 overflow-y-auto custom-scrollbar p-1">`;
+        existingMediaHtml = `<div class="mb-2 text-[10px] text-amber-500 font-bold uppercase tracking-wider">ไฟล์ประกอบเดิม: (สามารถกดยกเลิกเพื่อลบ หรือแก้แคปชั่นได้)</div><div class="flex flex-col gap-2 mb-4 max-h-[300px] overflow-y-auto custom-scrollbar p-1">`;
         existingMedia.forEach((media, idx) => {
             let url = typeof media === 'string' ? media : media.url;
             let cap = typeof media === 'string' ? '' : (media.caption || '');
@@ -361,11 +361,11 @@ window.kb_editArticle = async function(id) {
             let filename = url.split('/').pop().split('?')[0];
             
             existingMediaHtml += `
-                <div class="flex items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-lg border border-gray-200 dark:border-slate-700 existing-media-item shadow-sm" data-url="${url}">
+                <div class="flex items-start gap-3 bg-white dark:bg-slate-800 p-2 rounded-lg border border-gray-200 dark:border-slate-700 existing-media-item shadow-sm" data-url="${url}">
                     ${preview}
                     <div class="flex-1 flex flex-col min-w-0">
                         <span class="text-[10px] text-gray-500 truncate mb-1" title="${filename}">${filename}</span>
-                        <input type="text" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded px-2 py-1 text-[11px] text-slate-800 dark:text-white existing-media-cap outline-none focus:border-amber-500" value="${cap.replace(/"/g, '&quot;')}" placeholder="พิมพ์หมายเหตุใต้ภาพ/ไฟล์...">
+                        <textarea rows="2" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-[11px] text-slate-800 dark:text-white existing-media-cap outline-none focus:border-amber-500 custom-scrollbar resize-none" placeholder="พิมพ์หมายเหตุใต้ภาพ/ไฟล์... (ขึ้นบรรทัดใหม่ได้)">${cap.replace(/"/g, '&quot;')}</textarea>
                     </div>
                     <button type="button" onclick="this.parentElement.remove()" class="text-gray-400 hover:text-red-500 bg-slate-50 dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded-md border border-gray-200 dark:border-slate-600 transition shrink-0"><span class="material-icons text-sm block">delete</span></button>
                 </div>
@@ -409,7 +409,6 @@ window.kb_editArticle = async function(id) {
             const content = document.getElementById('swal-kb-content-edit').value.trim();
             const imgInput = document.getElementById('swal-kb-images-edit');
             
-            // ดึงไฟล์เก่าที่เหลืออยู่จากการกดลบ (ถ้ามี)
             let retainedMedia = [];
             document.querySelectorAll('.existing-media-item').forEach(el => {
                 retainedMedia.push({
@@ -440,7 +439,6 @@ window.kb_editArticle = async function(id) {
                 let finalMedia = [...result.value.retainedMedia];
                 const files = result.value.files;
                 
-                // ถ้ามีการอัปโหลดไฟล์มาใหม่ ให้ส่งขึ้นเซิร์ฟเวอร์ก่อน
                 if (files && files.length > 0) {
                     Swal.update({ html: `กำลังอัปโหลดไฟล์ใหม่ ${files.length} รายการ...` });
                     const uploadPromises = Array.from(files).map(async (file, index) => {
@@ -454,7 +452,7 @@ window.kb_editArticle = async function(id) {
                         return { url: publicUrlData.publicUrl, caption: result.value.newCaptions[index] || '' };
                     });
                     const newlyUploaded = await Promise.all(uploadPromises);
-                    finalMedia = finalMedia.concat(newlyUploaded); // เอาไฟล์เก่ากับไฟล์ใหม่มารวมกัน
+                    finalMedia = finalMedia.concat(newlyUploaded); 
                 }
 
                 const { error } = await appDB.from('knowledge_base').update({ 
@@ -472,7 +470,6 @@ window.kb_editArticle = async function(id) {
         }
     });
 };
-
 // ฟังก์ชันพรีวิวรูปภาพ (สำหรับหน้าแก้ไขโดยเฉพาะ)
 window.previewKbImagesEdit = function(input) {
     const previewBox = document.getElementById('kb-img-preview-box-edit');
