@@ -571,8 +571,63 @@ window.backToDashboard = function() {
 };
 
 // ========================================================================
-// 🟢 ฟังก์ชันเช็ครายชื่อพนักงานที่ยังไม่ได้ลงเวลากินข้าว (หักคนหยุดแล้ว)
+// 🟢 ฟังก์ชันเช็ครายชื่อพนักงานที่ยังไม่ได้ลงเวลากินข้าว (มีระบบ Filter)
 // ========================================================================
+window.tempMissingStaffData = {}; // ตัวแปรเก็บข้อมูลชั่วคราวเพื่อทำระบบกรอง
+
+window.renderMissingList = function() {
+    const shiftFilter = document.getElementById('missingShiftFilter').value;
+    const deptFilter = document.getElementById('missingDeptFilter').value;
+    const container = document.getElementById('missingListContainer');
+    if(!container) return;
+
+    let html = '';
+    let totalCount = 0;
+
+    const renderList = (shiftName, listKey, colorClass) => {
+        let list = window.tempMissingStaffData[listKey] || [];
+        
+        // กรองตามแผนก
+        if (deptFilter !== 'all') {
+            list = list.filter(s => s.dept === deptFilter);
+        }
+
+        if (list.length === 0) return '';
+        
+        totalCount += list.length;
+
+        let htmlChunk = `
+            <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm mb-3">
+                <div class="flex justify-between items-center mb-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                    <span class="font-black ${colorClass} flex items-center gap-1">${shiftName}</span>
+                    <span class="text-[10px] font-bold ${colorClass.replace('text-', 'bg-').replace('-500', '-100')} ${colorClass.replace('text-', 'dark:bg-').replace('-500', '-900/30')} px-2 py-0.5 rounded shadow-inner border border-current opacity-80">${list.length} คน</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+        `;
+        list.forEach(staff => {
+            const deptColor = staff.dept === 'OD' ? 'text-pink-600 bg-pink-100 dark:bg-pink-900/30 border-pink-200' : 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 border-blue-200';
+            htmlChunk += `<div class="text-xs font-bold text-slate-700 dark:text-gray-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 px-2 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-default hover:border-indigo-400">
+                ${staff.name} <span class="text-[9px] font-black ${deptColor} border px-1 rounded shadow-sm">${staff.dept}</span>
+            </div>`;
+        });
+        htmlChunk += `</div></div>`;
+        return htmlChunk;
+    };
+
+    if (shiftFilter === 'all' || shiftFilter === 'กะเช้า') html += renderList('☀️ กะเช้า', 'กะเช้า', 'text-orange-500');
+    if (shiftFilter === 'all' || shiftFilter === 'กะกลาง') html += renderList('🌤️ กะกลาง', 'กะกลาง', 'text-blue-500');
+    if (shiftFilter === 'all' || shiftFilter === 'กะดึก') html += renderList('🌙 กะดึก', 'กะดึก', 'text-purple-500');
+
+    if (html === '') {
+        html = '<div class="text-center py-10 text-gray-500 text-sm font-bold bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-gray-300 dark:border-slate-600 mt-2">ไม่พบรายชื่อในเงื่อนไขที่เลือก</div>';
+    }
+
+    container.innerHTML = html;
+    
+    const countEl = document.getElementById('missingTotalCount');
+    if (countEl) countEl.innerText = totalCount;
+};
+
 window.checkMissingLunch = async function() {
     const dateVal = document.getElementById('wDate').value;
     if (!dateVal) return Swal.fire('เตือน', 'กรุณาเลือกวันที่ต้องการตรวจสอบก่อนครับ', 'warning');
@@ -580,7 +635,6 @@ window.checkMissingLunch = async function() {
     Swal.fire({title: 'กำลังสแกนรายชื่อ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
-        // 🌟 แก้ไขบั๊ก Error หาตัวแปรไม่เจอ
         if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) {
             if (typeof fetchUsers === 'function') await fetchUsers(true);
         }
@@ -591,7 +645,7 @@ window.checkMissingLunch = async function() {
         const { data: leaves } = await appDB.from('leave_requests').select('user_name').eq('leave_date', dateVal);
         const onLeaveNames = (leaves || []).map(l => l.user_name);
 
-        const missingStaff = { 'กะเช้า': [], 'กะกลาง': [], 'กะดึก': [] };
+        window.tempMissingStaffData = { 'กะเช้า': [], 'กะกลาง': [], 'กะดึก': [] };
         let missingCount = 0;
 
         GLOBAL_USER_LIST.forEach(u => {
@@ -600,7 +654,7 @@ window.checkMissingLunch = async function() {
             if (!['กะเช้า', 'กะกลาง', 'กะดึก'].includes(u.allowed_shift)) return;
 
             if (!bookedNames.includes(u.username) && !onLeaveNames.includes(u.username)) {
-                missingStaff[u.allowed_shift].push({ name: u.username, dept: u.department || 'AM' });
+                window.tempMissingStaffData[u.allowed_shift].push({ name: u.username, dept: u.department || 'AM' });
                 missingCount++;
             }
         });
@@ -609,41 +663,37 @@ window.checkMissingLunch = async function() {
             return Swal.fire({ icon: 'success', title: 'ครบทุกคน!', text: 'พนักงานในกะทุกคนลงเวลากินข้าว หรือลาหยุด ครบถ้วนแล้วครับ 🎉', confirmButtonColor: '#3b82f6' });
         }
 
-        let htmlContent = `<div class="text-left space-y-3 mt-4 max-h-[50vh] overflow-y-auto custom-scrollbar pr-2 pb-2">`;
-        
-        const renderList = (shiftName, list, colorClass) => {
-            if (list.length === 0) return '';
-            let html = `
-                <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm">
-                    <div class="flex justify-between items-center mb-2 border-b border-slate-200 dark:border-slate-700 pb-2">
-                        <span class="font-black ${colorClass} flex items-center gap-1">${shiftName}</span>
-                        <span class="text-[10px] font-bold ${colorClass.replace('text-', 'bg-').replace('-500', '-100')} ${colorClass.replace('text-', 'dark:bg-').replace('-500', '-900/30')} px-2 py-0.5 rounded shadow-inner border border-current opacity-80">${list.length} คน</span>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-            `;
-            list.forEach(staff => {
-                const deptColor = staff.dept === 'OD' ? 'text-pink-600 bg-pink-100 dark:bg-pink-900/30 border-pink-200' : 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 border-blue-200';
-                html += `<div class="text-xs font-bold text-slate-700 dark:text-gray-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 px-2 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-default hover:border-indigo-400">
-                    ${staff.name} <span class="text-[9px] font-black ${deptColor} border px-1 rounded shadow-sm">${staff.dept}</span>
-                </div>`;
-            });
-            html += `</div></div>`;
-            return html;
-        };
-
-        htmlContent += renderList('☀️ กะเช้า', missingStaff['กะเช้า'], 'text-orange-500');
-        htmlContent += renderList('🌤️ กะกลาง', missingStaff['กะกลาง'], 'text-blue-500');
-        htmlContent += renderList('🌙 กะดึก', missingStaff['กะดึก'], 'text-purple-500');
-
-        htmlContent += '</div>';
+        // 🌟 ดึงกะที่กำลังเลือกอยู่หน้าจอหลักมาเป็นค่าเริ่มต้น
+        const currentShiftEl = document.querySelector('input[name="shift"]:checked');
+        const defaultShift = currentShiftEl ? currentShiftEl.value : 'all';
 
         Swal.fire({
-            title: `<div class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3"><span class="material-icons text-indigo-500 text-3xl">person_search</span> รายชื่อพนักงานที่ยังไม่ลงเวลา</div>`,
-            html: `<div class="text-xs text-gray-500 dark:text-gray-400 text-left">ระบบคัดกรองเฉพาะพนักงานที่ไม่ได้ลาหยุด (รวมทั้งสิ้น: <span class="text-indigo-500 font-bold">${missingCount} คน</span>)</div>` + htmlContent,
+            title: `<div class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3"><span class="material-icons text-indigo-500 text-3xl">person_search</span> รายชื่อคนที่ยังไม่ลงเวลา</div>`,
+            html: `
+                <div class="text-xs text-gray-500 dark:text-gray-400 text-left mb-3">ระบบคัดกรองเฉพาะพนักงานที่ไม่ได้ลาหยุด (รวมที่แสดง: <span id="missingTotalCount" class="text-indigo-500 font-bold">${missingCount}</span> คน)</div>
+                <div class="flex gap-2 mb-3 border-b border-gray-100 dark:border-slate-700 pb-3">
+                    <select id="missingShiftFilter" onchange="renderMissingList()" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-xs font-bold outline-none cursor-pointer shadow-inner focus:border-indigo-500 transition">
+                        <option value="all">🌐 ทุกกะ</option>
+                        <option value="กะเช้า" ${defaultShift === 'กะเช้า' ? 'selected' : ''}>☀️ กะเช้า</option>
+                        <option value="กะกลาง" ${defaultShift === 'กะกลาง' ? 'selected' : ''}>🌤️ กะกลาง</option>
+                        <option value="กะดึก" ${defaultShift === 'กะดึก' ? 'selected' : ''}>🌙 กะดึก</option>
+                    </select>
+                    <select id="missingDeptFilter" onchange="renderMissingList()" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-xs font-bold outline-none cursor-pointer shadow-inner focus:border-indigo-500 transition">
+                        <option value="all">🏢 ทุกแผนก</option>
+                        <option value="AM">เฉพาะ AM</option>
+                        <option value="OD">เฉพาะ OD</option>
+                    </select>
+                </div>
+                <div id="missingListContainer" class="text-left max-h-[45vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
+                    </div>
+            `,
             showCloseButton: true,
             showConfirmButton: false,
             width: '600px',
-            customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-[2rem] border border-slate-700 shadow-2xl' }
+            customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-[2rem] border border-slate-700 shadow-2xl' },
+            didOpen: () => {
+                window.renderMissingList(); // สั่งให้วาดรายชื่อครั้งแรกตาม Filter ที่เลือกไว้ทันที
+            }
         });
 
     } catch (e) {
