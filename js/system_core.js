@@ -1925,15 +1925,23 @@ let MENU_PERMS = {};
 
 const PERM_GROUPS = [
     {
-        id: 'group_main', name: 'ระบบหลัก (ลงเวลา/ลางาน/รูป)', 
+        id: 'group_main', name: 'ระบบหลัก (ลงเวลา/รูป)', 
         items: [
             {id: 'dashboard', name: 'หน้าหลักลงเวลา', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'leave', name: 'หน้าวันหยุด / ลางาน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'leave_manage', name: '└ [ย่อย] ตั้งค่าโควตา & โหลด Excel', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'gallery', name: 'หน้าคลังรูปภาพ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
             {id: 'gallery_upload', name: '└ [ย่อย] อัปโหลดรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'gallery_delete', name: '└ [ย่อย] ลบรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'announcement', name: 'กระดานประกาศ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'}
+        ]
+    },
+    {
+        id: 'group_leave', name: 'ระบบวันหยุด / ลางาน', 
+        items: [
+            {id: 'leave', name: 'เข้าหน้าตารางวันหยุด', color: 'bg-rose-500/20 text-rose-400 border-rose-500/50'},
+            {id: 'leave_request', name: '└ [ย่อย] กดจอง/ยกเลิกวันหยุดได้', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'leave_history', name: '└ [ย่อย] ดูประวัติการกด', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'leave_export', name: '└ [ย่อย] โหลด Excel ตารางหยุด', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'leave_manage', name: '└ [ย่อย] แอดมินจัดการโควตา', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
         ]
     },
     {
