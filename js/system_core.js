@@ -2603,12 +2603,11 @@ window.openAdminPanel = async function() {
     }
     
     // 🌟 1. ดึงสิทธิ์ของแต่ละแท็บแบบ "บังคับเช็คตาม Checkbox 100%" 
-    // โดยไม่อิงอภิสิทธิ์ของ Admin (เพื่อให้แสดงผลตามที่ติ๊กไว้เป๊ะๆ)
     let canSeeSettings = false, canSeeUsers = false, canSeePerms = false, canSeeInfo = false;
 
     if (window.currentUser) {
         const uRoleLower = (window.currentUser.role || '').toLowerCase().trim();
-        const uDept = window.currentUser.department || 'AM';
+        const uDept = window.currentUser.department || 'AM'; // <-- ดึงแผนกของคนล็อกอิน
         
         let uRole = 'STAFF';
         if (uRoleLower === 'trainer') uRole = 'TRAINER';
@@ -2625,11 +2624,8 @@ window.openAdminPanel = async function() {
         canSeeUsers = userPerms.includes('admin_users');
         canSeePerms = userPerms.includes('admin_perms');
         canSeeInfo = userPerms.includes('admin_info');
-
-        // 🛑 เซฟตี้: ถ้าเป็นแอดมินแต่ไม่มีสิทธิ์ดูแท็บไหนเลย (อาจจะลืมติ๊ก) ให้เปิดทุกแท็บกันพลาด
-        if (uRole === 'MANAGER' && !canSeeSettings && !canSeeUsers && !canSeePerms && !canSeeInfo) {
-            canSeeSettings = true; canSeeUsers = true; canSeePerms = true; canSeeInfo = true;
-        }
+        
+        // ❌ เอาโค้ดเซฟตี้ออกแล้ว ระบบจะซ่อนตามที่คุณติ๊กเป๊ะๆ
     }
 
     // 🌟 2. สั่งซ่อน/โชว์ ปุ่มแท็บด้านบน ตามสิทธิ์
@@ -2649,11 +2645,17 @@ window.openAdminPanel = async function() {
         else if (canSeeUsers) switchAdminTab('users');
         else if (canSeePerms) switchAdminTab('perms');
         else if (canSeeInfo) switchAdminTab('info');
+        else {
+            // ถ้าไม่ได้ติ๊กให้สิทธิ์เลยสักหน้า ก็ซ่อนเนื้อหาข้างในให้หมด
+            ['settings', 'users', 'perms', 'info'].forEach(t => {
+                const view = document.getElementById('adminView_' + t);
+                if (view) { view.classList.add('hidden'); view.classList.remove('flex'); }
+            });
+        }
     }
 
     Swal.close();
 };
-
 // =========================================================
 // 🔴 ฟังก์ชันล้างกระดาน (เลือก ลบตามแผนก / ตามกะ ได้ + กู้คืนได้)
 // =========================================================
