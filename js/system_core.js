@@ -235,7 +235,7 @@ window.saveData = async function(e) {
         if(typeof logAction === 'function') await logAction('ลงเวลา', `ลงเวลา ${sName} ${timeVal} (${activeTeam}) [${myDep}]`);
         Swal.fire({icon:'success', title:'บันทึกสำเร็จ', timer:800, showConfirmButton:false}); 
         if(typeof refreshTimeSlots === 'function') await refreshTimeSlots(); 
-        if(typeof fetchData === 'function') await fetchData(); 
+        //if(typeof fetchData === 'function') await fetchData(); 
         window.resetBtn();
     }
 };
@@ -468,7 +468,7 @@ async function delSch(id, shiftName) {
             const { error } = await appDB.from('schedules').delete().eq('id', id); 
             if(error) { Swal.fire('Error', error.message, 'error'); return; }
             if(item) await logAction('ลบรายการ', `ลบรายการของ ${item.staff_name} (${item.shift_name} ${item.time_slot})`);
-            Swal.fire('ลบสำเร็จ!', '', 'success'); await refreshTimeSlots(); await fetchData(); 
+            Swal.fire('ลบสำเร็จ!', '', 'success'); await refreshTimeSlots(); 
         }
     })
 }

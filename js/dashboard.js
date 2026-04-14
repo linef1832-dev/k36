@@ -353,21 +353,67 @@ dashboardObserver.observe(document.body, { childList: true, subtree: true });
 let dashboardSubscription = null;
 
 window.subscribeDashboardChanges = function() {
-    if (dashboardSubscription) return; // ถ้าเคยเปิดฟังแล้ว ไม่ต้องเปิดซ้ำ
+    if (dashboardSubscription) return;
     
-    // ดักฟังการเปลี่ยนแปลงในตาราง 'schedules' (ตารางที่เก็บข้อมูลการจองเวลา)
     dashboardSubscription = appDB.channel('dashboard-schedules')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, () => {
-            
-            // เช็คว่าพนักงานกำลังเปิดหน้า "ลงเวลา" ดูอยู่หรือไม่ (ไม่ได้เปิดหน้าอื่นทิ้งไว้)
-            // เช็คผ่าน ID ของหน้าจอหลัก ถ้าไม่ได้ซ่อนอยู่ แปลว่าดูอยู่
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, (payload) => {
             const mainContent = document.getElementById('mainContentArea');
             if (mainContent && !mainContent.classList.contains('hidden')) {
-                // ถ้ามีการเปลี่ยนแปลงเกิดขึ้น ให้รีเฟรช Dropdown รอบเวลา และตารางยอดรวมทันที
+                
+                const dateEl = document.getElementById('wDate');
+                const dateVal = dateEl ? dateEl.value : '';
+                
+                // ตรวจสอบว่าเกี่ยวข้องกับวันที่กำลังดูอยู่ไหม
+                if (payload.eventType !== 'DELETE' && payload.new.work_date !== dateVal) return;
+
+                // 🌟 อัปเดตข้อมูลในกระเป๋า (Array) แทรกแถวใหม่ทันทีแทนการยิงดึงข้อมูล
+                if (payload.eventType === 'INSERT') {
+                    const isExist = globalScheduleData.some(item => String(item.id) === String(payload.new.id));
+                    if (!isExist) globalScheduleData.push(payload.new);
+                } else if (payload.eventType === 'DELETE') {
+                    globalScheduleData = globalScheduleData.filter(item => String(item.id) !== String(payload.old.id));
+                } else if (payload.eventType === 'UPDATE') {
+                    const idx = globalScheduleData.findIndex(item => String(item.id) === String(payload.new.id));
+                    if (idx > -1) globalScheduleData[idx] = payload.new;
+                }
+
+                // 🌟 จัดเรียงข้อมูลใหม่ตามเวลา
+                globalScheduleData.sort((a, b) => {
+                    const pA = getPeriodForTime(a.shift_name, a.time_slot); 
+                    const pB = getPeriodForTime(b.shift_name, b.time_slot);
+                    const pOrder = {'ช่วงที่ 1': 1, 'ช่วงที่ 2': 2, 'ช่วงที่ 3': 3};
+                    if (pOrder[pA] !== pOrder[pB]) return pOrder[pA] - pOrder[pB];
+                    return a.time_slot.localeCompare(b.time_slot);
+                });
+
+                // 🌟 กรองข้อมูลตามสิทธิ์ของพนักงานและตัวกรองปัจจุบัน
+                let dataToRender = globalScheduleData;
+                const tableTeam = document.getElementById('tableTeamFilter') ? document.getElementById('tableTeamFilter').value : 'all';
+                
+                if (tableTeam !== 'all') {
+                    dataToRender = dataToRender.filter(item => item.team === tableTeam);
+                }
+
+                if (!['manager', 'admin'].includes(currentUser.role)) { 
+                    if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) {
+                        dataToRender = dataToRender.filter(item => item.shift_name === currentUser.allowed_shift);
+                    }
+                }
+
+                // 🌟 สรุปยอดตาราง
+                const deptFilterForSummary = document.getElementById('summaryDeptFilter') ? document.getElementById('summaryDeptFilter').value : 'all';
+                let dataForSummary = dataToRender;
+                if (deptFilterForSummary !== 'all') {
+                    dataForSummary = dataToRender.filter(i => (i.department || 'AM') === deptFilterForSummary);
+                }
+                
+                // สั่งวาดข้อมูลใหม่ (ไม่ขึ้นวงกลมหมุนโหลด)
+                updateTableSummary(dataForSummary);
+                renderTableRows(dataToRender);
+
+                // อัปเดตช่องเวลาให้มีตัวเลขโควตาเปลี่ยนตามไปด้วย
                 if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-                if (typeof fetchData === 'function') fetchData();
             }
-            
         }).subscribe();
 };
 
