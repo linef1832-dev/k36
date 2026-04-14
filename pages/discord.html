@@ -256,7 +256,9 @@
             </div>
         </div>
 
-        <div class="flex justify-between items-center mb-6">
+        <div id="dsContent_voicelog" class="max-w-5xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center mb-6">
                     <h2 class="text-fuchsia-500 font-black flex items-center gap-2 text-xl"><span class="material-icons">history</span> ประวัติเข้า-ออกห้องดิสคอร์ด</h2>
                     
                     <div class="flex items-center gap-2">
@@ -268,7 +270,7 @@
                 </div>
                 
                 <div class="flex flex-wrap gap-4 mb-6">
-                    <input type="date" id="voiceLogDate" onchange="ds_renderVoiceLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-fuchsia-500">
+                    <input type="date" id="voiceLogDate" onchange="ds_fetchVoiceLogs(true, 1)" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-fuchsia-500">
                     
                     <select id="voiceLogShiftFilter" onchange="ds_renderVoiceLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-fuchsia-500 font-bold">
                         <option value="ALL">🌐 ทุกกะ</option>
@@ -301,7 +303,7 @@
                 </div>
             </div>
         </div>
-
+    
         <div id="dsContent_actionlog" class="max-w-5xl mx-auto hidden fade-in pb-10">
             <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
                 <div class="flex justify-between items-center mb-6">
