@@ -6439,6 +6439,11 @@ video {
   background-color: rgb(234 179 8 / var(--tw-bg-opacity, 1));
 }
 
+.hover\:bg-indigo-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(224 231 255 / var(--tw-bg-opacity, 1));
+}
+
 .hover\:from-amber-200:hover {
   --tw-gradient-from: #fde68a var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(253 230 138 / 0) var(--tw-gradient-to-position);
@@ -7847,6 +7852,10 @@ video {
 
 .dark\:hover\:bg-yellow-900\/50:hover:is(.dark *) {
   background-color: rgb(113 63 18 / 0.5);
+}
+
+.dark\:hover\:bg-indigo-900\/50:hover:is(.dark *) {
+  background-color: rgb(49 46 129 / 0.5);
 }
 
 .dark\:hover\:text-emerald-400:hover:is(.dark *) {
