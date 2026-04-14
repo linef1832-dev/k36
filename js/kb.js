@@ -193,16 +193,21 @@ window.kb_renderList = function() {
         else if(item.category.includes('ประกาศ')) { icon = 'campaign'; iconColor = 'text-orange-500 dark:text-orange-400'; }
         else if(item.category.includes('โบนัส')) { icon = 'redeem'; iconColor = 'text-rose-500 dark:text-rose-400'; }
 
-        // 🌟 ดึงชื่อหมวดหมู่ที่ตั้งไว้แบบเต็มมาแสดง
         let displayCat = item.category;
         const matchedCat = globalKBCategories.find(c => c.id === item.category);
         if (matchedCat) displayCat = matchedCat.name;
 
-        let hasImageBadge = '';
+        // 🌟 เปลี่ยนไอคอนให้แสดงว่าเป็นไฟล์ PDF หรือ รูปภาพ
+        let fileBadge = '';
         if (item.image_urls && item.image_urls !== '[]') {
             try {
                 const arr = JSON.parse(item.image_urls);
-                if (arr.length > 0) hasImageBadge = `<span class="material-icons text-[12px] text-sky-500" title="มีรูปภาพประกอบ">image</span>`;
+                if (arr.length > 0) {
+                    const hasPdf = arr.some(u => u.toLowerCase().includes('.pdf'));
+                    const iconName = hasPdf ? 'picture_as_pdf' : 'image';
+                    const iconColorClass = hasPdf ? 'text-red-400' : 'text-sky-500';
+                    fileBadge = `<span class="material-icons text-[12px] ${iconColorClass}" title="มีไฟล์ประกอบ">${iconName}</span>`;
+                }
             } catch(e) {}
         }
 
@@ -217,7 +222,7 @@ window.kb_renderList = function() {
                 <div class="flex-1 min-w-0">
                     <h4 class="text-slate-800 dark:text-white font-bold text-sm truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition">${item.title}</h4>
                     <div class="flex items-center gap-2 mt-1.5 text-[10px] font-bold text-gray-500">
-                        <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-slate-600 shadow-sm flex items-center gap-1">${displayCat} ${hasImageBadge}</span>
+                        <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-slate-600 shadow-sm flex items-center gap-1">${displayCat} ${fileBadge}</span>
                         <span class="flex items-center gap-0.5"><span class="material-icons text-[12px]">calendar_today</span> ${date}</span>
                     </div>
                 </div>
@@ -246,18 +251,27 @@ window.kb_readArticle = function(id) {
     const matchedCat = globalKBCategories.find(c => c.id === item.category);
     if (matchedCat) displayCat = matchedCat.name;
 
-    let imagesHtml = '';
+    // 🌟 ระบบแสดงผล แยกตามประเภทไฟล์ (PDF กางออก / รูปภาพโชว์ปกติ)
+    let mediaHtml = '';
     if (item.image_urls && item.image_urls !== '[]') {
         try {
             const urls = JSON.parse(item.image_urls);
             if (urls && urls.length > 0) {
-                imagesHtml = '<div class="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700 flex flex-wrap gap-4">';
+                mediaHtml = '<div class="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700 flex flex-col gap-6">';
                 urls.forEach(url => {
-                    imagesHtml += `<a href="${url}" target="_blank" class="block group relative rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition overflow-hidden bg-white dark:bg-slate-900">
-                                      <img src="${url}" class="max-h-64 w-auto object-contain transition duration-300 group-hover:scale-105 cursor-zoom-in">
-                                   </a>`;
+                    // เช็คว่าเป็นไฟล์ PDF ไหม
+                    if (url.toLowerCase().includes('.pdf')) {
+                        mediaHtml += `<div class="w-full bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-slate-700">
+                                          <iframe src="${url}" class="w-full h-[70vh] min-h-[600px] border-0" title="PDF Document"></iframe>
+                                      </div>`;
+                    } else {
+                        // ถ้าเป็นรูปภาพ
+                        mediaHtml += `<a href="${url}" target="_blank" class="block group relative rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition overflow-hidden bg-white dark:bg-slate-900 w-fit">
+                                          <img src="${url}" class="max-h-96 w-auto object-contain transition duration-300 group-hover:scale-105 cursor-zoom-in">
+                                       </a>`;
+                    }
                 });
-                imagesHtml += '</div>';
+                mediaHtml += '</div>';
             }
         } catch(e) {}
     }
@@ -276,7 +290,7 @@ window.kb_readArticle = function(id) {
                 ${deleteBtn}
             </div>
             <div class="text-slate-700 dark:text-gray-300 text-sm md:text-base leading-relaxed space-y-4 whitespace-pre-wrap font-medium">${formattedContent}</div>
-            ${imagesHtml}
+            ${mediaHtml}
             <div class="h-10"></div>
         </div>
     `;
@@ -290,11 +304,21 @@ window.previewKbImages = function(input) {
     if (input.files && input.files.length > 0) {
         previewBox.classList.remove('hidden');
         Array.from(input.files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                previewBox.innerHTML += `<div class="relative"><img src="${e.target.result}" class="h-16 w-auto object-cover rounded-lg shadow-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"></div>`;
+            // 🌟 พรีวิวสำหรับไฟล์ PDF
+            if (file.type === 'application/pdf') {
+                previewBox.innerHTML += `
+                    <div class="relative flex items-center justify-center bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-sm h-16 w-16 shrink-0">
+                        <span class="material-icons text-red-500 text-3xl">picture_as_pdf</span>
+                        <span class="absolute bottom-0.5 right-1 text-[9px] font-black text-gray-400">PDF</span>
+                    </div>`;
+            } else {
+            // พรีวิวสำหรับรูปภาพปกติ
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewBox.innerHTML += `<div class="relative shrink-0"><img src="${e.target.result}" class="h-16 w-auto object-cover rounded-lg shadow-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"></div>`;
+                }
+                reader.readAsDataURL(file);
             }
-            reader.readAsDataURL(file);
         });
     } else {
         previewBox.classList.add('hidden');
@@ -319,12 +343,12 @@ window.kb_openAddModal = function() {
                     <input id="swal-kb-title" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 shadow-inner font-bold" placeholder="เช่น วิธีกดรับงาน, กฎการลางาน...">
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">เนื้อหาบทความ</label>
-                    <textarea id="swal-kb-content" rows="10" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 custom-scrollbar shadow-inner" placeholder="พิมพ์เนื้อหาที่นี่... (เว้นบรรทัดได้ตามปกติ)"></textarea>
+                    <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">เนื้อหาบทความ (เว้นว่างไว้ได้หากต้องการแนบแค่ไฟล์เอกสาร)</label>
+                    <textarea id="swal-kb-content" rows="10" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 custom-scrollbar shadow-inner" placeholder="พิมพ์เนื้อหาที่นี่..."></textarea>
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider block mb-1 flex items-center gap-1"><span class="material-icons text-[14px]">add_photo_alternate</span> แนบรูปภาพประกอบ (เลือกได้หลายรูป)</label>
-                    <input type="file" id="swal-kb-images" multiple accept="image/*" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer" onchange="previewKbImages(this)">
+                    <label class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider block mb-1 flex items-center gap-1"><span class="material-icons text-[14px]">attach_file</span> แนบไฟล์ประกอบ (รูปภาพ หรือ ไฟล์ PDF)</label>
+                    <input type="file" id="swal-kb-images" multiple accept="image/*,application/pdf" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer" onchange="previewKbImages(this)">
                     <div id="kb-img-preview-box" class="hidden mt-2 flex flex-wrap gap-2 bg-slate-100 dark:bg-slate-950 p-2 rounded-xl border border-gray-200 dark:border-slate-700 max-h-32 overflow-y-auto custom-scrollbar shadow-inner"></div>
                 </div>
             </div>
@@ -337,7 +361,11 @@ window.kb_openAddModal = function() {
             const title = document.getElementById('swal-kb-title').value.trim();
             const content = document.getElementById('swal-kb-content').value.trim();
             const imgInput = document.getElementById('swal-kb-images');
-            if (!title || !content) { Swal.showValidationMessage('กรุณาใส่หัวข้อและเนื้อหาให้ครบถ้วน'); return false; }
+            
+            // เช็คว่าต้องมีหัวข้อ และต้องมี เนื้อหา หรือ ไฟล์แนบ อย่างใดอย่างหนึ่ง
+            if (!title) { Swal.showValidationMessage('กรุณาใส่หัวข้อเรื่อง'); return false; }
+            if (!content && (!imgInput.files || imgInput.files.length === 0)) { Swal.showValidationMessage('กรุณาพิมพ์เนื้อหา หรือ แนบไฟล์ประกอบอย่างน้อย 1 ไฟล์'); return false; }
+            
             return { category: cat, title: title, content: content, files: imgInput ? imgInput.files : [] };
         }
     }).then(async (result) => {
@@ -350,7 +378,7 @@ window.kb_openAddModal = function() {
                 const files = result.value.files;
                 
                 if (files && files.length > 0) {
-                    Swal.update({ html: `กำลังอัปโหลดรูปภาพ ${files.length} รูป...` });
+                    Swal.update({ html: `กำลังอัปโหลดไฟล์ ${files.length} รายการ...` });
                     
                     const uploadPromises = Array.from(files).map(async (file, index) => {
                         const fileExt = file.name.split('.').pop();
@@ -360,7 +388,7 @@ window.kb_openAddModal = function() {
                             .from('staff_images') 
                             .upload(`knowledge_base/${fileName}`, file, { cacheControl: '3600', upsert: false });
 
-                        if (uploadError) throw new Error(`อัปโหลดรูปไม่สำเร็จ: ${uploadError.message}`);
+                        if (uploadError) throw new Error(`อัปโหลดไฟล์ไม่สำเร็จ: ${uploadError.message}`);
                         
                         const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`knowledge_base/${fileName}`);
                         return publicUrlData.publicUrl;
@@ -372,7 +400,7 @@ window.kb_openAddModal = function() {
                 const { error } = await appDB.from('knowledge_base').insert([{ 
                     category: result.value.category, 
                     title: result.value.title, 
-                    content: result.value.content, 
+                    content: result.value.content || ' ', // ป้องกัน content ว่างเปล่าถ้าอัปโหลดแค่ไฟล์
                     author_name: author,
                     image_urls: JSON.stringify(uploadedUrls)
                 }]);
@@ -386,7 +414,7 @@ window.kb_openAddModal = function() {
 };
 
 window.kb_deleteArticle = async function(id) {
-    const confirm = await Swal.fire({ title: 'ยืนยันการลบ?', text: "หากลบแล้วจะไม่สามารถกู้คืนได้ (รวมถึงรูปภาพประกอบ)", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonText: 'ยกเลิก', confirmButtonText: 'ลบทิ้งเลย!' });
+    const confirm = await Swal.fire({ title: 'ยืนยันการลบ?', text: "หากลบแล้วจะไม่สามารถกู้คืนได้ (รวมถึงรูปภาพและไฟล์ประกอบ)", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonText: 'ยกเลิก', confirmButtonText: 'ลบทิ้งเลย!' });
     if(confirm.isConfirmed) {
         Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
         try {
