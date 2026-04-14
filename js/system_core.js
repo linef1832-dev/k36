@@ -1986,6 +1986,13 @@ const PERM_GROUPS = [
         ]
     },
     {
+        id: 'page_kb', name: 'คลังความรู้', icon: 'menu_book', theme: 'amber',
+        items: [
+            {id: 'kb', name: 'เข้าหน้าคลังความรู้', isSub: false},
+            {id: 'kb_manage', name: 'เขียน/ลบบทความ', isSub: true}
+        ]
+    },
+    {
         id: 'page_sheet', name: 'ตารางงาน (Sheets)', icon: 'table_view', theme: 'emerald',
         items: [
             {id: 'sheet', name: 'เข้าตารางงาน (Sheets)', isSub: false},
