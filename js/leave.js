@@ -70,13 +70,34 @@ window.switchDept = function(dept) {
 
     const btnManage = document.getElementById('btnManageNewStaff');
     if(btnManage) {
-        if(dept === 'NEW') btnManage.classList.remove('hidden');
-        else btnManage.classList.add('hidden');   
-    }
+    if(dept === 'NEW') btnManage.classList.remove('hidden');
+    else btnManage.classList.add('hidden');   
+}
 
-    updateAdminInputs();
+// ----------------------------------------------------
+// 🟢 เพิ่มโค้ดเช็คสิทธิ์ควบคุม ตรงนี้ครับ 🟢
+const controls = document.getElementById('leaveManagerControls');
+if(controls) {
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    let canManageThisDept = isGlobalAdmin;
     
-    if(typeof updateMonthPicker === 'function') updateMonthPicker();
+    // เช็คสิทธิ์ตามหน้าปัจจุบันที่กดดูอยู่
+    if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
+    if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
+    if (dept === 'NEW') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_new');
+    if (dept === 'TRAINER') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
+
+    if(canManageThisDept) {
+         controls.classList.remove('hidden');
+    } else {
+         controls.classList.add('hidden');
+    }
+}
+// ----------------------------------------------------
+
+updateAdminInputs();
+
+if(typeof updateMonthPicker === 'function') updateMonthPicker();
     
     const tbody = document.getElementById('tableBody');
     if (tbody) {
@@ -121,20 +142,56 @@ window.initLeaveTable = async function() {
     if(typeof updateMonthPicker === 'function') updateMonthPicker();
     await loadLeaveSettings();
     
-    if (currentUser.role === 'manager' || currentUser.role === 'admin') {
-        const controls = document.getElementById('leaveManagerControls');
-        if(controls) controls.classList.remove('hidden');
-        const btnExport = document.getElementById('btnExportExcel');
-        if(btnExport) btnExport.classList.remove('hidden');
-        const typeToolbar = document.getElementById('leaveTypeToolbar');
-        if(typeToolbar) typeToolbar.classList.remove('hidden');
-    } else {
-        const controls = document.getElementById('leaveManagerControls');
-        if(controls) controls.classList.add('hidden');
-        const btnExport = document.getElementById('btnExportExcel');
-        if(btnExport) btnExport.classList.add('hidden');
-        const typeToolbar = document.getElementById('leaveTypeToolbar');
-        if(typeToolbar) typeToolbar.classList.add('hidden');
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const canManage = isGlobalAdmin || window.hasUserPerm('leave_manage');
+    const canExport = isGlobalAdmin || window.hasUserPerm('leave_export');
+    const canViewHistory = isGlobalAdmin || window.hasUserPerm('leave_history');
+    
+    // --- เช็คสิทธิ์ 4 หน้าแผนก ---
+    const canViewAM = isGlobalAdmin || window.hasUserPerm('leave_am');
+    const canViewOD = isGlobalAdmin || window.hasUserPerm('leave_od');
+    const canViewNEW = isGlobalAdmin || window.hasUserPerm('leave_new');
+    const canViewTRAINER = isGlobalAdmin || window.hasUserPerm('leave_trainer');
+
+    // ซ่อน/โชว์ แท็บแผนกตามสิทธิ์
+    const btnAM = document.getElementById('btnAM');
+    if (btnAM) { if(canViewAM) btnAM.classList.remove('hidden'); else btnAM.classList.add('hidden'); }
+    
+    const btnOD = document.getElementById('btnOD');
+    if (btnOD) { if(canViewOD) btnOD.classList.remove('hidden'); else btnOD.classList.add('hidden'); }
+    
+    const btnNEW = document.getElementById('btnNEW');
+    if (btnNEW) { if(canViewNEW) btnNEW.classList.remove('hidden'); else btnNEW.classList.add('hidden'); }
+    
+    const btnTRAINER = document.getElementById('btnTRAINER');
+    if (btnTRAINER) { if(canViewTRAINER) btnTRAINER.classList.remove('hidden'); else btnTRAINER.classList.add('hidden'); }
+
+    // 1. แถบจัดการของแอดมิน (ตั้งค่าต่างๆ)
+    const controls = document.getElementById('leaveManagerControls');
+    if(controls) { 
+        if(canManage) controls.classList.remove('hidden'); 
+        else controls.classList.add('hidden'); 
+    }
+    
+    // 2. แถบเครื่องมือเลือกประเภทการลา
+    const typeToolbar = document.getElementById('leaveTypeToolbar');
+    if(typeToolbar) { 
+        if(canManage) typeToolbar.classList.remove('hidden'); 
+        else typeToolbar.classList.add('hidden'); 
+    }
+
+    // 3. ปุ่มดาวน์โหลด Excel
+    const btnExport = document.getElementById('btnExportExcel');
+    if(btnExport) { 
+        if(canExport) btnExport.classList.remove('hidden'); 
+        else btnExport.classList.add('hidden'); 
+    }
+
+    // 4. ปุ่มดูประวัติการกด
+    const btnHistory = document.querySelector('button[onclick="openHistoryModal()"]');
+    if(btnHistory) { 
+        if(canViewHistory) btnHistory.classList.remove('hidden'); 
+        else btnHistory.classList.add('hidden'); 
     }
 
     if (GLOBAL_USER_LIST.length === 0 && typeof fetchUsers === 'function') {
@@ -148,16 +205,18 @@ window.initLeaveTable = async function() {
     subscribeSettingsChanges();
     
     // ==========================================
-    // 🟢 จุดที่แก้ไข: ดักจับแผนกแปลกๆ ให้แสดงหน้า AM
+    // 🟢 กำหนดหน้าเริ่มต้น และเช็คสิทธิ์การมองเห็น
     // ==========================================
     const allowedDepts = ['AM', 'OD', 'NEW', 'TRAINER'];
     let myDept = currentUser.department || 'AM';
-    
-    // ถ้ายูสเซอร์อยู่แผนกแปลกๆ (เช่น AMQL) ให้เปลี่ยนเป็น AM อัตโนมัติ (หรือจะแก้เป็น 'TRAINER' ก็ได้ครับ)
-    if (!allowedDepts.includes(myDept)) {
-        myDept = 'AM'; 
-    }
-    
+    if (!allowedDepts.includes(myDept)) myDept = 'AM';
+
+    // ถ้าไม่มีสิทธิ์ดูหน้าแผนกตัวเอง ให้หาแผนกแรกที่มีสิทธิ์ดูเพื่อแสดงผลแทน
+    if (myDept === 'AM' && !canViewAM) myDept = canViewOD ? 'OD' : (canViewNEW ? 'NEW' : (canViewTRAINER ? 'TRAINER' : 'AM'));
+    else if (myDept === 'OD' && !canViewOD) myDept = canViewAM ? 'AM' : (canViewNEW ? 'NEW' : (canViewTRAINER ? 'TRAINER' : 'AM'));
+    else if (myDept === 'NEW' && !canViewNEW) myDept = canViewAM ? 'AM' : (canViewOD ? 'OD' : (canViewTRAINER ? 'TRAINER' : 'AM'));
+    else if (myDept === 'TRAINER' && !canViewTRAINER) myDept = canViewAM ? 'AM' : (canViewOD ? 'OD' : (canViewNEW ? 'NEW' : 'AM'));
+
     switchDept(myDept); 
     // ==========================================
     
@@ -401,7 +460,9 @@ window.renderLeaveTable = function() {
     tbody.classList.remove('divide-y', 'divide-gray-100', 'dark:divide-slate-700');
 
     const s = deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 }; 
-    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = isGlobalAdmin || window.hasUserPerm('leave_manage');
+    const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request');
     const picker = document.getElementById('viewMonthPicker');
     const btnPrev = document.getElementById('btnPrevMonth');
     const btnNext = document.getElementById('btnNextMonth');
@@ -671,13 +732,17 @@ window.renderLeaveTable = function() {
             } else if (!isThisUserShiftOpen && !isAdmin && isMe) {
                 clickAttr = `onclick="Swal.fire({icon:'error', title:'ปิดจองแล้ว', text:'อยู่นอกเวลาทำรายการของกะคุณ', timer:2000, showConfirmButton:false})"`;
             } else if (isMe || isAdmin) {
-                if (isBooked) {
-                    clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'remove', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
-                } else if (!isShiftFull || isAdmin) { 
-                    if (!isPersonalFull || isAdmin) {
-                        clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'add', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
-                    } else if (isMe) {
-                        clickAttr = `onclick="Swal.fire({icon:'warning', title:'ครบโควตา', text:'คุณใช้สิทธิ์ครบ ${s.limit} วันแล้ว', timer:1500, showConfirmButton:false})"`;
+                if (!canRequest && isMe && !isAdmin) {
+                    clickAttr = `onclick="Swal.fire({icon:'error', title:'ไม่มีสิทธิ์', text:'คุณไม่มีสิทธิ์กดจอง/ยกเลิกวันหยุด', timer:1500, showConfirmButton:false})"`;
+                } else {
+                    if (isBooked) {
+                        clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'remove', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
+                    } else if (!isShiftFull || isAdmin) { 
+                        if (!isPersonalFull || isAdmin) {
+                            clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'add', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
+                        } else if (isMe) {
+                            clickAttr = `onclick="Swal.fire({icon:'warning', title:'ครบโควตา', text:'คุณใช้สิทธิ์ครบ ${s.limit} วันแล้ว', timer:1500, showConfirmButton:false})"`;
+                        }
                     }
                 }
             }

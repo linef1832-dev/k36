@@ -1312,11 +1312,30 @@ window.renderFineTable = function() {
                 offenseDateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
             }
             
+           // 🌟 1. จัดการแสดงผลคอลัมน์ "บทลงโทษ" (ขยายขนาดป้ายเปอร์เซ็นต์ให้ชัดเจน)
             let amountDisplay = '';
             if (f.amount === -1) {
                 amountDisplay = window.renderTemplate('tpl-fine-history-amount-nowage');
             } else if (f.amount > 0) {
-                amountDisplay = window.renderTemplate('tpl-fine-history-amount-badge', { amount: f.amount.toLocaleString('en-US') });
+                // ใช้ Regex จับหาข้อความเปอร์เซ็นต์ในช่องหมายเหตุ เพื่อดึงยอดเงินออกมา
+                const percentMatch = f.note ? f.note.match(/\[\+ปรับ.*?=\s*([\d,]+)\s*บาท\]/) : null;
+                
+                if (percentMatch) {
+                    // ถอดแยกยอดเงินปกติ กับ ยอดที่บวกเปอร์เซ็นต์
+                    const percentAmt = parseInt(percentMatch[1].replace(/,/g, ''));
+                    const baseAmt = f.amount - percentAmt; // เอายอดรวมหักออก
+                    
+                    amountDisplay = `<div class="flex flex-col items-center gap-1.5">`;
+                    if (baseAmt > 0) {
+                        amountDisplay += `<span class="font-mono text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/50 whitespace-nowrap shadow-sm" title="ค่าปรับปกติ">฿${baseAmt.toLocaleString('en-US')}</span>`;
+                    }
+                    // 🌟 ขยายขนาดป้าย % เป็น text-xs และใช้สีพื้นหลังทึบให้เด่นขึ้น
+                    amountDisplay += `<span class="font-mono text-xs text-white font-bold bg-rose-500 px-2 py-1 rounded border border-rose-600 whitespace-nowrap shadow-md" title="บวกเพิ่มจาก % ความเสียหาย">+฿${percentAmt.toLocaleString('en-US')}</span>`;
+                    amountDisplay += `</div>`;
+                } else {
+                    // ถ้าไม่มีเปอร์เซ็นต์ ก็โชว์ยอดปกติเดี่ยวๆ
+                    amountDisplay = window.renderTemplate('tpl-fine-history-amount-badge', { amount: f.amount.toLocaleString('en-US') });
+                }
             } else {
                 amountDisplay = '<span class="text-gray-400">-</span>';
             }
@@ -1375,35 +1394,59 @@ window.renderFineTable = function() {
 
             displayName = window.renderTemplate('tpl-fine-history-emp-display', { empName: f.user_name, deptBadgeHtml: deptBadgeHtml });
 
-           let rawRule = f.rule_text || '';
+            // ==========================================
+            // 🌟 2. จัดการข้อความกฎ และจัดระเบียบป้าย "ครั้งที่"
+            // ==========================================
+            let rawRule = f.rule_text || '';
             let cleanRule = rawRule.replace(/\s*\([^)]*(ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)/gi, '').trim();
 
-            // 🌟 ระบบนับจำนวนครั้งของใบปรับใบนี้ (นับใบที่ออกก่อนหน้า + ตัวมันเอง)
-            const offenseCount = globalFines.filter(past => 
-                String(past.user_name).toLowerCase() === String(f.user_name).toLowerCase() && 
-                past.rule_text === f.rule_text && 
-                new Date(past.created_at) <= new Date(f.created_at)
-            ).length;
+            // เช็คว่าใบปรับนี้มีการคิดเปอร์เซ็นต์ (ความเสียหาย) หรือไม่
+            const hasPercent = f.note && f.note.includes('[+ปรับ');
 
-            // 🌟 ป้าย Badge โชว์จำนวนครั้ง
-            const countBadge = `<span class="bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-800/50 text-[10px] ml-1.5 font-black shadow-sm whitespace-nowrap">ครั้งที่ ${offenseCount}</span>`;
+            let countBadge = '';
+            if (hasPercent) {
+                // ถ้าระบุเปอร์เซ็นต์ ถึงจะนับจำนวนครั้งที่ทำผิดกฎข้อนี้
+                const offenseCount = globalFines.filter(past => 
+                    String(past.user_name).toLowerCase() === String(f.user_name).toLowerCase() && 
+                    past.rule_text === f.rule_text && 
+                    new Date(past.created_at) <= new Date(f.created_at)
+                ).length;
+
+                // 🌟 ปรับสีป้าย "ครั้งที่" ให้เป็นสีทึบ ดูเป็นทางการขึ้น
+                countBadge = `<span class="bg-rose-500 text-white px-2 py-0.5 rounded border border-rose-600 text-[10px] font-black shadow-sm whitespace-nowrap">ครั้งที่ ${offenseCount}</span>`;
+            }
 
             let ruleDisplay = cleanRule;
             const catMatch = cleanRule.match(/^\s*\[([^\]]+)\]\s*(.*)/);
             
             if (catMatch) {
                 const cat = catMatch[1].trim();
-                const detail = catMatch[2].trim() + countBadge; // <--- นำป้ายมาต่อท้ายข้อความ
+                const detail = catMatch[2].trim();
                 let catColor = 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
 
                 if (cat === 'ออนไลน์') catColor = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800/50';
                 else if (cat === 'WFH') catColor = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800/50';
                 else if (cat === 'ออฟฟิศ') catColor = 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800/50';
 
-                ruleDisplay = window.renderTemplate('tpl-fine-history-rule-cat', { catColor, catName: cat, ruleDetail: detail });
+                // 🌟 จัด Layout ใหม่ มัดรวมป้ายหมวดหมู่ และ ป้ายครั้งที่ ให้อยู่ชิดกันด้านหน้าสุด
+                ruleDisplay = `
+                    <div class="flex items-start md:items-center gap-2 flex-col md:flex-row flex-wrap">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[10px] px-2 py-0.5 rounded border ${catColor} shadow-sm font-black whitespace-nowrap">${cat}</span>
+                            ${countBadge}
+                        </div>
+                        <span class="text-red-600 dark:text-red-400 leading-snug">${detail}</span>
+                    </div>
+                `;
             } else {
-                ruleDisplay = window.renderTemplate('tpl-fine-history-rule-normal', { ruleDetail: cleanRule + countBadge }); // <--- นำป้ายมาต่อท้ายข้อความ
+                ruleDisplay = `
+                    <div class="flex items-start gap-2 flex-col md:flex-row flex-wrap">
+                        ${countBadge ? `<div class="flex items-center gap-1.5">${countBadge}</div>` : ''}
+                        <span class="text-red-600 dark:text-red-400 leading-snug">${cleanRule}</span>
+                    </div>
+                `;
             }
+
             return window.renderTemplate('tpl-fine-history-row', {
                 id: f.id,
                 issueDateStr: issueDateStr,   

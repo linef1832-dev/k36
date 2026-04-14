@@ -1917,67 +1917,132 @@ window.saveQuotaSettings = async function() {
     Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
 };
 
-
 // =========================================================
-// 🟢 ระบบสิทธิ์เมนู (อัปเดตเมนูให้ครบถ้วน 100%)
+// 🟢 ระบบสิทธิ์เมนู (ดีไซน์พรีเมียม & มืออาชีพ)
 // =========================================================
 let MENU_PERMS = {};
 
 const PERM_GROUPS = [
     {
-        id: 'group_main', name: 'ระบบหลัก (ลงเวลา/ลางาน/รูป)', 
+        id: 'page_dashboard', name: 'หน้าหลักลงเวลา', icon: 'home', theme: 'blue',
         items: [
-            {id: 'dashboard', name: 'หน้าหลักลงเวลา', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'leave', name: 'หน้าวันหยุด / ลางาน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'leave_manage', name: '└ [ย่อย] ตั้งค่าโควตา & โหลด Excel', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'gallery', name: 'หน้าคลังรูปภาพ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'gallery_upload', name: '└ [ย่อย] อัปโหลดรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'gallery_delete', name: '└ [ย่อย] ลบรูปภาพ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'announcement', name: 'กระดานประกาศ', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'}
+            {id: 'dashboard', name: 'เข้าหน้าหลักลงเวลา', isSub: false}
         ]
     },
     {
-        id: 'group_table', name: 'ตารางงาน & กะ', 
+        id: 'page_leave', name: 'หน้าวันหยุด / ลางาน', icon: 'event_busy', theme: 'rose',
         items: [
-            {id: 'sheet', name: 'ตารางงาน (Sheets)', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'sheet_manage', name: '└ [ย่อย] เพิ่ม/แก้/ลบ ลิงก์ชีท', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'swap', name: 'สลับกะการทำงาน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'duty', name: 'จัดหน้าที่ / เวร', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
-            {id: 'duty_manage', name: '└ [ย่อย] สุ่มเวร & ตั้งค่าหัวข้อ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+            {id: 'leave', name: 'เข้าหน้าตารางวันหยุด', isSub: false},
+            {id: 'leave_request', name: 'กดจอง/ยกเลิก', isSub: true},
+            {id: 'leave_history', name: 'ดูประวัติ', isSub: true},
+            {id: 'leave_export', name: 'โหลด Excel', isSub: true},
+            {id: 'leave_am', name: '[ดูหน้า] แท็บ AM', isSub: true},
+            {id: 'leave_od', name: '[ดูหน้า] แท็บ OD', isSub: true},
+            {id: 'leave_new', name: '[ดูหน้า] พนักงานใหม่', isSub: true},
+            {id: 'leave_trainer', name: '[ดูหน้า] ผู้สอน', isSub: true},
+            {id: 'leave_manage_am', name: '⚙️ จัดการ AM', isSub: true},
+            {id: 'leave_manage_od', name: '⚙️ จัดการ OD', isSub: true},
+            {id: 'leave_manage_new', name: '⚙️ จัดการ พนง.ใหม่', isSub: true},
+            {id: 'leave_manage_trainer', name: '⚙️ จัดการ ผู้สอน', isSub: true}
         ]
     },
     {
-        id: 'group_discord', name: 'เครื่องมือ DISCORD', 
+        id: 'page_gallery', name: 'คลังรูปภาพ', icon: 'photo_library', theme: 'pink',
         items: [
-            {id: 'discord', name: 'หน้าต่างระบบ DISCORD', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50'},
-            {id: 'ds_spy', name: '└ [ย่อย] Spy Monitor', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'ds_move', name: '└ [ย่อย] ย้ายห้อง', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'ds_checkin', name: '└ [ย่อย] เช็คชื่อ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'ds_manage', name: '└ [ย่อย] ฐานข้อมูล DS', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'ds_log', name: '└ [ย่อย] ดูประวัติ DS', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+            {id: 'gallery', name: 'เข้าหน้าคลังรูปภาพ', isSub: false},
+            {id: 'gallery_upload', name: 'อัปโหลดรูปภาพ', isSub: true},
+            {id: 'gallery_delete', name: 'ลบรูปภาพ', isSub: true}
         ]
     },
     {
-        id: 'group_other', name: 'สรุปยอด & เครื่องมืออื่นๆ', 
+        id: 'page_password', name: 'รหัสผ่าน', icon: 'vpn_key', theme: 'amber',
         items: [
-            {id: 'summary', name: 'สรุปยอดทำรายการ', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
-            {id: 'fine', name: 'ระบบใบปรับพนักงาน', color: 'bg-red-500/20 text-red-400 border-red-500/50'},
-            {id: 'fine_manage', name: '└ [ย่อย] ออกใบปรับ / จัดการกฎ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'fine_view_all', name: '└ [ย่อย] ดูตารางใบปรับของทุกคน', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'fine_stats', name: '└ [ย่อย] ดูหน้าสถิติการปรับ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'telegram', name: 'กลุ่มงาน (Telegram)', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
-            {id: 'files', name: 'คลังไฟล์ / โปรแกรม', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
-            {id: 'files_manage', name: '└ [ย่อย] แอดมินคลังไฟล์', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'password', name: 'รหัสผ่าน', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
-            {id: 'kbiz', name: 'จัดการบอท K BIZ', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'},
-            {id: 'admin', name: 'เครื่องมือผู้จัดการ (Admin)', color: 'bg-red-500/20 text-red-400 border-red-500/50'}
+            {id: 'password', name: 'เข้าหน้าจัดการรหัสผ่าน', isSub: false}
+        ]
+    },
+    {
+        id: 'page_sheet', name: 'ตารางงาน (Sheets)', icon: 'table_view', theme: 'emerald',
+        items: [
+            {id: 'sheet', name: 'เข้าตารางงาน (Sheets)', isSub: false},
+            {id: 'sheet_manage', name: 'เพิ่ม/แก้/ลบ ลิงก์', isSub: true}
+        ]
+    },
+    {
+        id: 'page_swap', name: 'สลับกะการทำงาน', icon: 'swap_horiz', theme: 'orange',
+        items: [
+            {id: 'swap', name: 'เข้าหน้าสลับกะการทำงาน', isSub: false},
+            {id: 'swap_manage', name: 'แอดมินจัดการสลับกะ', isSub: true}
+        ]
+    },
+    {
+        id: 'page_duty', name: 'จัดหน้าที่ / เวร', icon: 'assignment_ind', theme: 'indigo',
+        items: [
+            {id: 'duty', name: 'เข้าหน้าจัดหน้าที่ / เวร', isSub: false},
+            {id: 'duty_manage', name: 'สุ่มเวร & ตั้งค่าหัวข้อ', isSub: true}
+        ]
+    },
+    {
+        id: 'page_telegram', name: 'กลุ่มงาน (Telegram)', icon: 'near_me', theme: 'sky',
+        items: [
+            {id: 'telegram', name: 'เข้าหน้ากลุ่มงาน (Telegram)', isSub: false}
+        ]
+    },
+    {
+        id: 'page_files', name: 'คลังไฟล์ / โปรแกรม', icon: 'folder_zip', theme: 'teal',
+        items: [
+            {id: 'files', name: 'เข้าหน้าคลังไฟล์ / โปรแกรม', isSub: false},
+            {id: 'files_manage', name: 'แอดมินคลังไฟล์', isSub: true}
+        ]
+    },
+    {
+        id: 'page_summary', name: 'สรุปยอดทำรายการ', icon: 'query_stats', theme: 'purple',
+        items: [
+            {id: 'summary', name: 'เข้าหน้าสรุปยอดทำรายการ', isSub: false}
+        ]
+    },
+    {
+        id: 'page_fine', name: 'ระบบใบปรับ', icon: 'gavel', theme: 'red',
+        items: [
+            {id: 'fine', name: 'เข้าระบบใบปรับพนักงาน', isSub: false},
+            {id: 'fine_manage', name: 'ออกใบปรับ / จัดการกฎ', isSub: true},
+            {id: 'fine_view_all', name: 'ดูตารางของทุกคน', isSub: true},
+            {id: 'fine_stats', name: 'ดูหน้าสถิติ', isSub: true}
+        ]
+    },
+    {
+        id: 'page_announcement', name: 'กระดานประกาศ', icon: 'campaign', theme: 'orange',
+        items: [
+            {id: 'announcement', name: 'เข้าหน้ากระดานประกาศ', isSub: false}
+        ]
+    },
+    {
+        id: 'page_kbiz', name: 'จัดการบอท K BIZ', icon: 'smart_toy', theme: 'emerald',
+        items: [
+            {id: 'kbiz', name: 'เข้าหน้าจัดการบอท K BIZ', isSub: false}
+        ]
+    },
+    {
+        id: 'page_discord', name: 'เครื่องมือ DISCORD', icon: 'discord', theme: 'indigo',
+        items: [
+            {id: 'discord', name: 'เข้าหน้าต่างระบบ DISCORD', isSub: false},
+            {id: 'ds_spy', name: 'Spy Monitor', isSub: true},
+            {id: 'ds_move', name: 'ย้ายห้อง', isSub: true},
+            {id: 'ds_checkin', name: 'เช็คชื่อ', isSub: true},
+            {id: 'ds_manage', name: 'ฐานข้อมูล DS', isSub: true},
+            {id: 'ds_log', name: 'ดูประวัติ DS', isSub: true}
+        ]
+    },
+    {
+        id: 'page_admin', name: 'เครื่องมือผู้จัดการ', icon: 'manage_accounts', theme: 'red',
+        items: [
+            {id: 'admin', name: 'เข้าเครื่องมือผู้จัดการ (Admin)', isSub: false}
         ]
     }
 ];
 
 // ฟังก์ชันคลิกพื้นที่ว่างแล้วให้ป๊อปอัปปิด
 document.addEventListener('click', function(e) {
-    if (!e.target.closest('.perm-cell')) {
+    if (!e.target.closest('.perm-cell') && !e.target.closest('.swal2-container')) {
         document.querySelectorAll('.perm-popup').forEach(el => el.classList.add('hidden'));
     }
 });
@@ -2015,68 +2080,172 @@ window.renderPermsTable = function() {
     const depts = ['AM', 'OD', 'AMQL'];
     let bodyHtml = '';
 
+    const colorClasses = {
+        'blue': 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+        'rose': 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+        'pink': 'text-pink-400 bg-pink-500/10 border-pink-500/20',
+        'amber': 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+        'green': 'text-green-400 bg-green-500/10 border-green-500/20',
+        'orange': 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+        'indigo': 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+        'sky': 'text-sky-400 bg-sky-500/10 border-sky-500/20',
+        'emerald': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+        'purple': 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+        'red': 'text-red-400 bg-red-500/10 border-red-500/20',
+        'teal': 'text-teal-400 bg-teal-500/10 border-teal-500/20',
+    };
+
+    const themeHexColors = {
+        'blue': '#3b82f6', 'rose': '#f43f5e', 'pink': '#ec4899', 'amber': '#f59e0b',
+        'green': '#22c55e', 'orange': '#f97316', 'indigo': '#6366f1', 'sky': '#0ea5e9',
+        'emerald': '#10b981', 'purple': '#a855f7', 'red': '#ef4444', 'teal': '#14b8a6',
+    };
+
     depts.forEach(dept => {
         const role = window.permRowSelections[dept] || 'STAFF';
         const key = `${dept}_${role}`;
         const activePerms = MENU_PERMS[key] || [];
         
-        let badgesHtml = '';
+        let badgesHtml = '<div class="grid grid-cols-2 xl:grid-cols-3 gap-3 w-full content-start items-start">';
+        let activeCount = 0;
+
         PERM_GROUPS.forEach(g => {
-            const hasAnyInGroup = g.items.some(i => activePerms.includes(i.id));
-            if(hasAnyInGroup) {
-                badgesHtml += `<div class="mb-2"><div class="text-[10px] text-gray-400 mb-1 flex items-center gap-1 font-bold"><span class="material-icons text-[12px]">folder</span> ${g.name}</div><div class="flex flex-wrap gap-1.5 pl-2">`;
-                g.items.forEach(item => {
-                    if (activePerms.includes(item.id)) {
-                        badgesHtml += `<span class="text-[10px] ${item.color} border px-2 py-1 rounded shadow-sm font-bold">${item.name}</span>`;
+            const activeItemsInGroup = g.items.filter(i => activePerms.includes(i.id));
+            if (activeItemsInGroup.length > 0) {
+                activeCount++;
+                const themeClass = colorClasses[g.theme] || colorClasses['blue'];
+                const iconColor = themeClass.split(' ')[0]; 
+
+                let itemsHtml = '';
+                activeItemsInGroup.forEach(item => {
+                    if (item.isSub) {
+                        itemsHtml += `<span class="bg-slate-700/50 text-gray-300 border border-slate-600/50 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap shadow-sm mt-1">${item.name}</span>`;
+                    } else {
+                        itemsHtml += `<span class="${themeClass} border px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap shadow-sm mt-1">${item.name}</span>`;
                     }
                 });
-                badgesHtml += `</div></div>`;
+
+                badgesHtml += `
+                    <div class="bg-slate-800/40 border border-slate-700 rounded-xl p-3 flex flex-col shadow-inner hover:border-slate-500 transition h-fit">
+                        <div class="flex items-center gap-2 border-b border-slate-700/50 pb-2 mb-1">
+                            <span class="material-icons text-[16px] ${iconColor}">${g.icon}</span>
+                            <span class="font-bold text-white text-[11px] truncate">${g.name}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1 content-start">
+                            ${itemsHtml}
+                        </div>
+                    </div>
+                `;
             }
         });
-        if(badgesHtml === '') badgesHtml = `<span class="text-sm text-gray-500 italic p-2 block">คลิกที่นี่เพื่อเพิ่มสิทธิ์ให้แผนกนี้...</span>`;
+        badgesHtml += '</div>';
+        if (activeCount === 0) {
+            badgesHtml = `<div class="flex flex-col items-center justify-center py-6 text-gray-500 w-full"><span class="material-icons text-4xl mb-2 opacity-30">admin_panel_settings</span><span class="text-sm font-bold">คลิกที่นี่เพื่อกำหนดสิทธิ์การเข้าถึง</span></div>`;
+        }
 
-        // ขยายป๊อปอัปเป็น 750px เพื่อให้จุหมวด Discord ได้สวยงาม
-        let popupContentHtml = `<div id="popup_${key}" class="perm-popup absolute top-full left-6 mt-1 bg-[#0f172a] border border-slate-500 rounded-xl shadow-2xl p-5 w-[750px] z-[99] hidden cursor-default"><div class="grid grid-cols-2 gap-5">`;
+        let popupContentHtml = `
+            <div id="popup_${key}" class="perm-popup absolute top-full left-0 mt-2 bg-[#0f172a] border border-slate-600 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[950px] z-[99] hidden cursor-default overflow-hidden flex-col">
+                
+                <div class="bg-gradient-to-r from-slate-800 to-slate-900 border-b border-slate-700 p-5 flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-500/20 text-blue-400 p-2 rounded-xl shadow-inner border border-blue-500/30"><span class="material-icons text-xl block">tune</span></div>
+                        <div>
+                            <h4 class="text-white font-black text-lg leading-tight tracking-wide">จัดการสิทธิ์ <span class="text-blue-400">(${dept})</span></h4>
+                            <p class="text-[10px] text-gray-400 mt-0.5">ระบุการเข้าถึงหน้าเว็บและเครื่องมือต่างๆ สำหรับ ${role}</p>
+                        </div>
+                    </div>
+                    <button onclick="togglePermPopup('${key}')" class="text-gray-400 hover:text-white bg-slate-700/50 hover:bg-red-500 rounded-full w-8 h-8 flex items-center justify-center transition border border-slate-600 shadow-sm"><span class="material-icons text-[16px]">close</span></button>
+                </div>
+
+                <div class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-slate-900/50">
+                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-5 items-start">
+        `;
+        
         PERM_GROUPS.forEach(g => {
-            popupContentHtml += `<div class="bg-slate-800/80 p-3 rounded-lg border border-slate-600 shadow-inner"><div class="text-[11px] font-black text-orange-400 mb-3 border-b border-slate-600 pb-1.5 flex items-center gap-1.5"><span class="material-icons text-sm">folder</span> ${g.name}</div><div class="space-y-2 pl-1">`;
+            const themeClass = colorClasses[g.theme] || colorClasses['blue'];
+            const themeColorHex = themeHexColors[g.theme] || '#3b82f6';
+            const iconColor = themeClass.split(' ')[0];
+            
+            popupContentHtml += `
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-sm hover:border-slate-500 transition">
+                    <div class="bg-slate-900/60 px-4 py-3 border-b border-slate-700 flex items-center gap-2">
+                        <span class="material-icons text-[18px] ${iconColor}">${g.icon}</span>
+                        <span class="font-bold text-white text-[11px] tracking-wide">${g.name}</span>
+                    </div>
+                    <div class="p-3 bg-slate-800/80 flex flex-col gap-0.5">
+            `;
+            
             g.items.forEach(item => {
-                const isChecked = activePerms.includes(item.id) ? 'checked' : '';
-                const marginLeft = item.isSub ? 'ml-5' : '';
-                popupContentHtml += `<label class="flex items-center gap-2 text-[11px] font-bold text-gray-300 cursor-pointer hover:text-white ${marginLeft}"><input type="checkbox" class="perm-cb w-4 h-4 rounded bg-slate-900 border-slate-500 text-blue-500 focus:ring-blue-500 cursor-pointer" data-key="${key}" data-menu="${item.id}" ${isChecked}> ${item.name}</label>`;
+                const isCheckedAttr = activePerms.includes(item.id) ? 'checked' : '';
+                const bgOpacity = activePerms.includes(item.id) ? '1' : '0';
+                const borderColor = activePerms.includes(item.id) ? 'transparent' : '';
+                const marginLeft = item.isSub ? 'ml-6 pl-2 border-l-2 border-slate-600/50' : 'font-bold bg-slate-700/30 rounded-lg p-1 mb-1';
+                const textStyle = item.isSub ? 'text-gray-400 text-[10px]' : 'text-gray-200 text-[11px]';
+                
+                // 🌟 แก้ไข: ใช้ OnChange เพื่อสั่งการ CSS โดยตรงไม่ต้องรอ Tailwind
+                popupContentHtml += `
+                    <label class="relative flex items-center gap-3 ${textStyle} cursor-pointer hover:bg-slate-700 p-2 rounded-lg transition ${marginLeft} group">
+                        <input type="checkbox" class="perm-cb absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                               data-key="${key}" data-menu="${item.id}" ${isCheckedAttr}
+                               onchange="
+                                  this.nextElementSibling.style.borderColor = this.checked ? 'transparent' : '';
+                                  this.nextElementSibling.querySelector('.check-bg').style.opacity = this.checked ? '1' : '0';
+                                  this.nextElementSibling.querySelector('.check-icon').style.opacity = this.checked ? '1' : '0';
+                                  this.nextElementSibling.querySelector('.check-icon').style.transform = this.checked ? 'scale(1)' : 'scale(0.5)';
+                               ">
+                        <div class="relative w-4 h-4 shrink-0 rounded border-2 border-slate-500 bg-slate-900 transition-all flex items-center justify-center shadow-inner" style="border-color: ${borderColor};">
+                            <div class="check-bg absolute inset-0 rounded transition-opacity duration-200" style="background-color: ${themeColorHex}; opacity: ${bgOpacity};"></div>
+                            <span class="check-icon material-icons text-[12px] text-white font-bold z-10 transition-all duration-200" style="opacity: ${bgOpacity}; transform: scale(${bgOpacity === '1' ? '1' : '0.5'});">check</span>
+                        </div>
+                        <span class="flex-1 select-none leading-none group-hover:text-white transition-colors pt-0.5 z-10">${item.name}</span>
+                    </label>`;
             });
             popupContentHtml += `</div></div>`;
         });
-        popupContentHtml += `</div><div class="mt-4 text-center text-[10px] text-gray-500 italic">* กดยกเลิกการเลือก/ติ๊กถูก เพื่อกำหนดสิทธิ์ จากนั้นคลิกปุ่มบันทึกด้านขวามือ</div></div>`;
+        
+        popupContentHtml += `
+                    </div>
+                </div>
+                <div class="bg-slate-800 border-t border-slate-700 p-5 flex justify-between items-center shrink-0">
+                    <span class="text-[10px] text-gray-500 flex items-center gap-1"><span class="material-icons text-[14px]">info</span> กดติ๊กถูกเพื่อเปิดสิทธิ์การใช้งานให้เมนูนั้นๆ</span>
+                    <div class="flex gap-2">
+                        <button onclick="togglePermPopup('${key}')" class="px-5 py-2.5 rounded-xl text-xs font-bold text-gray-300 hover:bg-slate-700 transition border border-slate-600 shadow-sm">ยกเลิก</button>
+                        <button onclick="saveMenuPerms()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg transition flex items-center gap-1 border border-blue-400 active:scale-95"><span class="material-icons text-[16px]">save</span> บันทึกสิทธิ์</button>
+                    </div>
+                </div>
+            </div>`;
 
-        // สลับสีตาม Role
         let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
         let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
 
         bodyHtml += `
-        <tr class="hover:bg-slate-800/50 transition border-b border-slate-700/50">
-            <td class="px-6 py-4 border-r border-slate-700 align-top"><div class="bg-slate-900 border border-slate-600 px-3 py-2 rounded-lg font-black text-white shadow-inner text-sm w-32 text-center">${dept}</div></td>
+        <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">
+            <td class="px-6 py-5 border-r border-slate-700 align-top">
+                <div class="bg-slate-900 border border-slate-600 px-3 py-3 rounded-xl font-black text-white shadow-inner text-sm w-32 text-center tracking-wider">${dept}</div>
+            </td>
             
-            <td class="px-6 py-4 border-r border-slate-700 align-top">
+            <td class="px-6 py-5 border-r border-slate-700 align-top">
                 <div class="relative w-32">
-                    <select onchange="changePermRowRole('${dept}', this.value)" class="${roleColor} border px-3 py-2 rounded-lg font-black text-[11px] shadow-sm w-full outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-purple-500 transition relative z-10">
+                    <select onchange="changePermRowRole('${dept}', this.value)" class="${roleColor} border px-3 py-3 rounded-xl font-black text-[11px] shadow-sm w-full outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-purple-500 transition relative z-10 text-center tracking-wide">
                         <option value="STAFF" ${role === 'STAFF' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">STAFF</option>
                         <option value="TRAINER" ${role === 'TRAINER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">TRAINER</option>
                         <option value="MANAGER" ${role === 'MANAGER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">MANAGER</option>
                     </select>
-                    <span class="material-icons text-[14px] opacity-70 absolute right-2.5 top-2.5 pointer-events-none z-20 ${iconColor}">expand_more</span>
+                    <span class="material-icons text-[14px] opacity-70 absolute right-2.5 top-3 pointer-events-none z-20 ${iconColor}">expand_more</span>
                 </div>
             </td>
             
-            <td class="px-6 py-4 border-r border-slate-700 align-top relative perm-cell" style="overflow: visible;">
-                <div onclick="togglePermPopup('${key}')" class="bg-slate-900/50 border border-orange-500/30 p-3 rounded-xl min-h-[60px] cursor-pointer hover:border-orange-500 transition shadow-inner">
+            <td class="px-6 py-5 border-r border-slate-700 align-top relative perm-cell" style="overflow: visible;">
+                <div onclick="togglePermPopup('${key}')" class="bg-slate-900/30 border border-slate-700 p-4 rounded-2xl min-h-[60px] cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/50 transition shadow-inner">
                     ${badgesHtml}
                 </div>
                 ${popupContentHtml}
             </td>
 
-            <td class="px-6 py-4 text-center align-middle bg-slate-900/30">
-                <button onclick="saveMenuPerms()" class="bg-emerald-600/20 text-emerald-400 border border-emerald-600 hover:bg-emerald-600 hover:text-white w-14 h-14 rounded-xl flex flex-col items-center justify-center transition shadow mx-auto">
-                    <span class="material-icons text-lg">save</span><span class="text-[9px] font-bold mt-0.5">บันทึก</span>
+            <td class="px-6 py-5 text-center align-middle bg-slate-900/20">
+                <button onclick="saveMenuPerms()" class="bg-emerald-600/10 text-emerald-400 border border-emerald-600/50 hover:bg-emerald-500 hover:text-white hover:border-emerald-400 w-16 h-16 rounded-2xl flex flex-col items-center justify-center transition shadow mx-auto group">
+                    <span class="material-icons text-xl group-hover:scale-110 transition-transform">save</span>
+                    <span class="text-[9px] font-bold mt-1">บันทึก</span>
                 </button>
             </td>
         </tr>`;
@@ -2241,15 +2410,10 @@ window.applySidebarPermissions = async function() {
     // 5. ดักหมวด เครื่องมือผู้จัดการ
     allMenuBtns.forEach(btn => {
         const onClickAttr = btn.getAttribute('onclick') || '';
-        if (onClickAttr.includes("toggleSubMenu('menu-admin'")) {
-            const canSeeAdmin = ['admin', 'manager'].includes(userRole);
-            if (canSeeAdmin) {
-                btn.classList.remove('hidden');
-                btn.style.removeProperty('display');
-            }
-        }
-        if (onClickAttr.includes("openAdminPanel()")) {
-            const canSeeAdmin = ['admin', 'manager'].includes(userRole);
+        if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
+            // เช็คสิทธิ์จากระบบที่เราเพิ่งทำ (ติ๊กถูกในหน้าตั้งค่า) แทนการล็อค Role ตายตัว
+            const canSeeAdmin = window.hasUserPerm('admin'); 
+            
             if (canSeeAdmin) {
                 btn.classList.remove('hidden');
                 btn.style.removeProperty('display');
