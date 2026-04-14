@@ -38,7 +38,6 @@
 
     // 🌟 เรียกใช้งานระบบ Realtime
     if (typeof subscribeDashboardChanges === 'function') subscribeDashboardChanges();
-};
     
 window.updateDashboardUserInfo = function() {
     if (!window.currentUser) return;
