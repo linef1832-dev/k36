@@ -2398,7 +2398,7 @@ window.applySidebarPermissions = async function() {
     });
 
     // 4. ดักหมวด DISCORD
-    const discordGroup = PERM_GROUPS.find(g => g.id === 'group_discord');
+    const discordGroup = PERM_GROUPS.find(g => g.id === 'page_discord');
     if (discordGroup) {
         const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
         allMenuBtns.forEach(btn => {
