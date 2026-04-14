@@ -179,7 +179,32 @@ window.saveData = async function(e) {
 
     const select = document.getElementById('tSlot');
     const dateVal = document.getElementById('wDate').value;
-    const timeVal = select.value;
+
+    // 🌟 --- โค้ดดักลงเวลาล่วงหน้า (รองรับกะดึกข้ามวัน) --- 🌟
+    const todayObj = new Date();
+    const currentHour = todayObj.getHours(); 
+    
+    // หาวันที่ของ "วันนี้" และ "เมื่อวาน"
+    const realTodayStr = new Date(todayObj.getTime() - (todayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const yesterdayObj = new Date(todayObj);
+    yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+    const realYesterdayStr = new Date(yesterdayObj.getTime() - (yesterdayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
+    let isAllowedDate = (dateVal === realTodayStr);
+    
+    // ถ้านาฬิกาอยู่ระหว่าง 00:00 น. ถึง 07:59 น. อนุญาตให้ลงของเมื่อวานได้
+    if (currentHour >= 0 && currentHour < 8) {
+        if (dateVal === realYesterdayStr) {
+            isAllowedDate = true;
+        }
+    }
+
+    if (!['manager', 'admin'].includes(currentUser.role) && !isAllowedDate) {
+        window.resetBtn();
+        return Swal.fire('ไม่อนุญาต', 'ลงเวลาได้เฉพาะของ "วันนี้" เท่านั้น<br><span class="text-xs text-gray-500">(กะดึกสามารถลงเวลาของเมื่อวานได้จนถึง 07:59 น.)</span>', 'error');
+    }
+    // 🌟 ------------------------------------------------ 🌟
+
     let activeTeam = TEAM_LIST[0];
     const dt = document.getElementById('dailyTeam');
     if(dt && dt.value) activeTeam = dt.value; else if(currentUser.team) activeTeam = currentUser.team;
@@ -235,7 +260,6 @@ window.saveData = async function(e) {
         if(typeof logAction === 'function') await logAction('ลงเวลา', `ลงเวลา ${sName} ${timeVal} (${activeTeam}) [${myDep}]`);
         Swal.fire({icon:'success', title:'บันทึกสำเร็จ', timer:800, showConfirmButton:false}); 
         if(typeof refreshTimeSlots === 'function') await refreshTimeSlots(); 
-        //if(typeof fetchData === 'function') await fetchData(); 
         window.resetBtn();
     }
 };
@@ -290,7 +314,7 @@ async function fetchData() {
     const tBody = document.getElementById('dataTableBody');
     if(tBody) tBody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-400"><span class="animate-spin material-icons text-3xl text-blue-500 mb-2">sync</span><br><b>กำลังดึงข้อมูล...</b></td></tr>`;
 
-    let query = appDB.from('schedules').select('*').eq('work_date', dateVal);
+    let query = appDB.from('schedules').select('id, work_date, staff_name, team, shift_name, time_slot, department').eq('work_date', dateVal);
     if (tableTeam !== 'all') { query = query.eq('team', tableTeam); } 
     if (!['manager', 'admin'].includes(currentUser.role)) { 
         if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) { query = query.eq('shift_name', currentUser.allowed_shift); } 

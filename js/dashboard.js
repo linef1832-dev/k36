@@ -1,31 +1,15 @@
-// ========================================================================
-// 🟢 ไฟล์: js/dashboard.js (ควบคุมการทำงานหน้าลงเวลา และ Admin Panel)
-// ========================================================================
-
-window.initDashboard = async function() {
-    // 1. รอระบบโหลดข้อมูล user (เผื่อเน็ตช้า)
-    let retry = 0;
-    while (!window.currentUser && retry < 10) {
-        await new Promise(r => setTimeout(r, 200));
-        retry++;
-    }
-    
-    if (!window.currentUser) {
-        const savedUser = sessionStorage.getItem('user_platinum_plus');
-        if (savedUser) window.currentUser = JSON.parse(savedUser);
-        else return;
-    }
-    
-    // อัปเดตข้อมูลพนักงานที่แถบด้านบน
-    if (typeof updateDashboardUserInfo === 'function') updateDashboardUserInfo();
-    
-    // ดึงรายชื่อทีมเข้า Dropdown
-    if (typeof populateTeamSelects === 'function') populateTeamSelects();
-    
-    // 🟢 บังคับเซ็ตวันที่ให้เป็น "วันนี้" เสมอ
+// 🟢 บังคับเซ็ตวันที่ให้เป็น "วันนี้" เสมอ (ปรับให้กะดึกข้ามวัน)
     const dInput = document.getElementById('wDate');
     if (dInput) {
         const today = new Date();
+        const currentHour = today.getHours(); // ดึงเวลาชั่วโมงปัจจุบัน (0-23)
+        
+        // 🌟 ถ้านาฬิกาอยู่ระหว่างเที่ยงคืน (00:00) ถึงก่อน 8 โมงเช้า (07:59)
+        // ให้ปฏิทินถอยกลับไปแสดงเป็นวันที่ของ "เมื่อวาน" อัตโนมัติ
+        if (currentHour >= 0 && currentHour < 8) {
+            today.setDate(today.getDate() - 1);
+        }
+
         const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         dInput.value = localDate;
         const displayDate = document.getElementById('displayDate');
@@ -418,10 +402,12 @@ window.subscribeDashboardChanges = function() {
                     dataForSummary = dataToRender.filter(i => (i.department || 'AM') === deptFilterForSummary);
                 }
                 
-                // สั่งวาดตารางและสรุปยอดใหม่แบบไร้รอยต่อ
-                if(typeof updateTableSummary === 'function') updateTableSummary(dataForSummary);
-                if(typeof renderTableRows === 'function') renderTableRows(dataToRender);
-                if(typeof refreshTimeSlots === 'function') refreshTimeSlots();
+                clearTimeout(window.realtimeRenderTimer);
+window.realtimeRenderTimer = setTimeout(() => {
+    if(typeof updateTableSummary === 'function') updateTableSummary(dataForSummary);
+    if(typeof renderTableRows === 'function') renderTableRows(dataToRender);
+    if(typeof refreshTimeSlots === 'function') refreshTimeSlots();
+}, 200);
             }
         }).subscribe();
 };
