@@ -1577,3 +1577,55 @@ window.spy_kickUser = async function(uid, name) {
         Swal.fire('ล้มเหลว', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์บอทได้', 'error');
     }
 };
+
+// ==============================================================
+// 🌟 ฟังก์ชันลบประวัติย้ายห้องที่เก่ากว่า 7 วัน (เก็บเข้า/ออก/สาย ไว้)
+// ==============================================================
+window.ds_clearOldMoveLogs = async function() {
+    const res = await Swal.fire({
+        title: 'ล้างประวัติการ "ย้ายห้อง"?',
+        text: "ระบบจะลบประวัติการย้ายห้องที่เก่ากว่า 7 วันทิ้งเพื่อลดพื้นที่ (ระบบจะยังเก็บประวัติ 'เข้าห้อง', 'ออกห้อง' และสถิติ 'มาสาย' ไว้ตามปกติครับ)",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, ลบทิ้งเลย'
+    });
+
+    if (res.isConfirmed) {
+        Swal.fire({title: 'กำลังตรวจสอบและลบข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        try {
+            // คำนวณวันที่ย้อนหลัง 7 วัน
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - 7);
+            const cutoffDateStr = cutoffDate.toISOString();
+
+            // สั่งลบเฉพาะที่มีคำว่า "ย้าย" ในตาราง และเวลาเก่ากว่า 7 วัน
+            const { error } = await appDB.from('discord_voice_logs')
+                .delete()
+                .like('action_type', '%ย้าย%')
+                .lt('created_at', cutoffDateStr);
+
+            if (error) throw error;
+
+            Swal.fire({
+                icon: 'success', 
+                title: 'ลบสำเร็จ!', 
+                text: 'เคลียร์ประวัติการย้ายห้องที่เก่ากว่า 7 วันเรียบร้อยแล้วครับ', 
+                timer: 2000, 
+                showConfirmButton: false
+            });
+            
+            // รีเฟรชตารางหน้า 1 ใหม่
+            ds_fetchVoiceLogs(true, 1);
+            
+            // บันทึกประวัติการทำงานของแอดมินไว้ด้วย
+            if (typeof ds_logAction === 'function') {
+                ds_logAction('ล้างประวัติดิสคอร์ด', 'ลบประวัติย้ายห้องที่เก่ากว่า 7 วันทิ้ง');
+            }
+
+        } catch (e) {
+            Swal.fire('Error', 'เกิดข้อผิดพลาด: ' + e.message, 'error');
+        }
+    }
+};
