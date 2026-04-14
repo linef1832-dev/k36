@@ -121,21 +121,40 @@ window.initLeaveTable = async function() {
     if(typeof updateMonthPicker === 'function') updateMonthPicker();
     await loadLeaveSettings();
     
-    if (currentUser.role === 'manager' || currentUser.role === 'admin') {
-        const controls = document.getElementById('leaveManagerControls');
-        if(controls) controls.classList.remove('hidden');
-        const btnExport = document.getElementById('btnExportExcel');
-        if(btnExport) btnExport.classList.remove('hidden');
-        const typeToolbar = document.getElementById('leaveTypeToolbar');
-        if(typeToolbar) typeToolbar.classList.remove('hidden');
-    } else {
-        const controls = document.getElementById('leaveManagerControls');
-        if(controls) controls.classList.add('hidden');
-        const btnExport = document.getElementById('btnExportExcel');
-        if(btnExport) btnExport.classList.add('hidden');
-        const typeToolbar = document.getElementById('leaveTypeToolbar');
-        if(typeToolbar) typeToolbar.classList.add('hidden');
+    // --- ส่วนที่แก้ไข: เช็คสิทธิ์แบบแยกย่อยตามที่ตั้งค่าไว้ ---
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const canManage = isGlobalAdmin || window.hasUserPerm('leave_manage');
+    const canExport = isGlobalAdmin || window.hasUserPerm('leave_export');
+    const canViewHistory = isGlobalAdmin || window.hasUserPerm('leave_history');
+    
+    // 1. แถบจัดการของแอดมิน (ตั้งค่าต่างๆ)
+    const controls = document.getElementById('leaveManagerControls');
+    if(controls) { 
+        if(canManage) controls.classList.remove('hidden'); 
+        else controls.classList.add('hidden'); 
     }
+    
+    // 2. แถบเครื่องมือเลือกประเภทการลา (X, XX, X4 ฯลฯ)
+    const typeToolbar = document.getElementById('leaveTypeToolbar');
+    if(typeToolbar) { 
+        if(canManage) typeToolbar.classList.remove('hidden'); 
+        else typeToolbar.classList.add('hidden'); 
+    }
+
+    // 3. ปุ่มดาวน์โหลด Excel
+    const btnExport = document.getElementById('btnExportExcel');
+    if(btnExport) { 
+        if(canExport) btnExport.classList.remove('hidden'); 
+        else btnExport.classList.add('hidden'); 
+    }
+
+    // 4. ปุ่มดูประวัติการกด (ถ้ามี)
+    const btnHistory = document.querySelector('button[onclick="openHistoryModal()"]');
+    if(btnHistory) { 
+        if(canViewHistory) btnHistory.classList.remove('hidden'); 
+        else btnHistory.classList.add('hidden'); 
+    }
+    // ---------------------------------------------------
 
     if (GLOBAL_USER_LIST.length === 0 && typeof fetchUsers === 'function') {
         Swal.fire({title: 'โหลดรายชื่อ...', didOpen: () => Swal.showLoading()});
@@ -401,7 +420,9 @@ window.renderLeaveTable = function() {
     tbody.classList.remove('divide-y', 'divide-gray-100', 'dark:divide-slate-700');
 
     const s = deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 }; 
-    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = isGlobalAdmin || window.hasUserPerm('leave_manage');
+    const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request');
     const picker = document.getElementById('viewMonthPicker');
     const btnPrev = document.getElementById('btnPrevMonth');
     const btnNext = document.getElementById('btnNextMonth');
@@ -671,13 +692,17 @@ window.renderLeaveTable = function() {
             } else if (!isThisUserShiftOpen && !isAdmin && isMe) {
                 clickAttr = `onclick="Swal.fire({icon:'error', title:'ปิดจองแล้ว', text:'อยู่นอกเวลาทำรายการของกะคุณ', timer:2000, showConfirmButton:false})"`;
             } else if (isMe || isAdmin) {
-                if (isBooked) {
-                    clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'remove', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
-                } else if (!isShiftFull || isAdmin) { 
-                    if (!isPersonalFull || isAdmin) {
-                        clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'add', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
-                    } else if (isMe) {
-                        clickAttr = `onclick="Swal.fire({icon:'warning', title:'ครบโควตา', text:'คุณใช้สิทธิ์ครบ ${s.limit} วันแล้ว', timer:1500, showConfirmButton:false})"`;
+                if (!canRequest && isMe && !isAdmin) {
+                    clickAttr = `onclick="Swal.fire({icon:'error', title:'ไม่มีสิทธิ์', text:'คุณไม่มีสิทธิ์กดจอง/ยกเลิกวันหยุด', timer:1500, showConfirmButton:false})"`;
+                } else {
+                    if (isBooked) {
+                        clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'remove', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
+                    } else if (!isShiftFull || isAdmin) { 
+                        if (!isPersonalFull || isAdmin) {
+                            clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'add', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
+                        } else if (isMe) {
+                            clickAttr = `onclick="Swal.fire({icon:'warning', title:'ครบโควตา', text:'คุณใช้สิทธิ์ครบ ${s.limit} วันแล้ว', timer:1500, showConfirmButton:false})"`;
+                        }
                     }
                 }
             }
