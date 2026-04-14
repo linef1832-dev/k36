@@ -1961,6 +1961,11 @@ const PERM_GROUPS = [
             {id: 'sheet', name: 'ตารางงาน (Sheets)', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
             {id: 'sheet_manage', name: '└ [ย่อย] เพิ่ม/แก้/ลบ ลิงก์ชีท', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'swap', name: 'สลับกะการทำงาน', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
+
+            // --- เพิ่มบรรทัดนี้ลงไปครับ ---
+            {id: 'swap_manage', name: '└ [ย่อย] แอดมินจัดการสลับกะ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            // --------------------------
+
             {id: 'duty', name: 'จัดหน้าที่ / เวร', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'},
             {id: 'duty_manage', name: '└ [ย่อย] สุ่มเวร & ตั้งค่าหัวข้อ', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
         ]
