@@ -2291,6 +2291,10 @@ window.saveMenuPerms = async function() {
 window.hasUserPerm = function(menuId) {
     if (!window.currentUser) return false;
     
+    // 🌟 คืนค่าบรรทัดนี้กลับมา: เพื่อให้ Admin และ Manager มองเห็นทุกเมนูและกดได้ทุกปุ่มเสมอ
+    const uRoleLower = (window.currentUser.role || '').toLowerCase().trim();
+    if (uRoleLower === 'admin' || uRoleLower === 'manager') return true;
+    
     let perms = {};
     try { perms = typeof SETTINGS['dept_menu_rules'] === 'string' ? JSON.parse(SETTINGS['dept_menu_rules']) : (SETTINGS['dept_menu_rules'] || {}); } catch(e) {}
     
@@ -2412,8 +2416,9 @@ window.applySidebarPermissions = async function() {
     allMenuBtns.forEach(btn => {
         const onClickAttr = btn.getAttribute('onclick') || '';
         if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
-            // เช็คสิทธิ์จากระบบที่เราเพิ่งทำ (ติ๊กถูกในหน้าตั้งค่า) แทนการล็อค Role ตายตัว
-            const canSeeAdmin = window.hasUserPerm('admin'); 
+            
+            // 🌟 ให้สิทธิ์คนที่ติ๊ก Checkbox หรือ เป็นแอดมินโดยตรง
+            const canSeeAdmin = window.hasUserPerm('admin') || ['admin', 'manager'].includes(userRole); 
             
             if (canSeeAdmin) {
                 btn.classList.remove('hidden');
