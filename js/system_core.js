@@ -2427,9 +2427,10 @@ window.applySidebarPermissions = async function() {
         }
     });
 
-    // 🌟 6. ดักปุ่ม "ประวัติระบบ" (อนุญาตเฉพาะ Admin / Manager)
+    // 🌟 6. ดักปุ่ม "ประวัติระบบ" (ซ้ายล่างสุด)
     if (logsBtn) {
-        const canSeeLogs = ['admin', 'manager'].includes(userRole);
+        // เช็คว่าถ้าเป็นแอดมินหลัก หรือ มีสิทธิ์ 'admin_logs' ก็ให้โชว์ปุ่มได้
+        const canSeeLogs = ['admin', 'manager'].includes(userRole) || window.hasUserPerm('admin_logs');
         if (canSeeLogs) {
             logsBtn.classList.remove('hidden');
             logsBtn.style.removeProperty('display');
@@ -2598,9 +2599,33 @@ window.openAdminPanel = async function() {
         adminPanel.classList.add('flex');
     }
     
-    if (typeof switchAdminTab === 'function') switchAdminTab('settings');
+    // 🌟 3. ดึงสิทธิ์ของการเข้าถึงแต่ละแท็บ
+    const isAdmin = (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'manager'));
+    const canSeeSettings = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_settings'));
+    const canSeeUsers = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_users'));
+    const canSeePerms = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_perms'));
+    const canSeeInfo = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_info'));
+    
+    // 🌟 4. สั่งซ่อน/โชว์ ปุ่มแท็บด้านบน ตามสิทธิ์ที่พนักงานคนนั้นมี
+    const btnSettings = document.getElementById('btnAdminTab_settings');
+    const btnUsers = document.getElementById('btnAdminTab_users');
+    const btnPerms = document.getElementById('btnAdminTab_perms');
+    const btnInfo = document.getElementById('btnAdminTab_info');
 
-    // 🌟 3. ข้อมูลมาครบ วาดตารางเสร็จ สั่งปิดวงกลมหมุนๆ ได้
+    if(btnSettings) btnSettings.style.display = canSeeSettings ? '' : 'none';
+    if(btnUsers) btnUsers.style.display = canSeeUsers ? '' : 'none';
+    if(btnPerms) btnPerms.style.display = canSeePerms ? '' : 'none';
+    if(btnInfo) btnInfo.style.display = canSeeInfo ? '' : 'none';
+
+    // 🌟 5. สั่งให้ระบบ "เปิดแท็บแรก" ที่พนักงานคนนั้นมีสิทธิ์เห็นโดยอัตโนมัติ
+    if (typeof switchAdminTab === 'function') {
+        if (canSeeSettings) switchAdminTab('settings');
+        else if (canSeeUsers) switchAdminTab('users');
+        else if (canSeePerms) switchAdminTab('perms');
+        else if (canSeeInfo) switchAdminTab('info');
+    }
+
+    // 🌟 6. ข้อมูลมาครบ วาดตารางเสร็จ สั่งปิดวงกลมหมุนๆ ได้
     Swal.close();
 };
 
