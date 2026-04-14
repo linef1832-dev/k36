@@ -44,3 +44,149 @@
         </div>
     </div>
 </div>
+
+<div id="kb-templates" class="hidden">
+    
+    <template id="tpl-kb-list-item">
+        <div onclick="kb_readArticle('{{id}}')" class="cursor-pointer p-3.5 rounded-xl border {{activeBg}} transition flex gap-3 group shadow-sm">
+            <div class="mt-1 shrink-0"><span class="material-icons {{iconColor}} text-[22px] bg-white dark:bg-slate-800 p-2 rounded-lg shadow-sm border border-gray-100 dark:border-slate-600 group-hover:scale-110 transition">{{icon}}</span></div>
+            <div class="flex-1 min-w-0">
+                <h4 class="text-slate-800 dark:text-white font-bold text-sm truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition">{{title}}</h4>
+                <div class="flex items-center gap-2 mt-1.5 text-[10px] font-bold text-gray-500">
+                    <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-slate-600 shadow-sm flex items-center gap-1">{{displayCat}} {{fileBadge}}</span>
+                    <span class="flex items-center gap-0.5"><span class="material-icons text-[12px]">calendar_today</span> {{date}}</span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-kb-read">
+        <div class="fade-in">
+            <div class="flex justify-between items-start mb-6 pb-6 border-b border-gray-200 dark:border-slate-700">
+                <div>
+                    <span class="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 px-3 py-1 rounded-full text-[11px] font-black border border-amber-200 dark:border-amber-500/50 shadow-sm mb-3 inline-block">{{displayCat}}</span>
+                    <h1 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-white leading-tight">{{title}}</h1>
+                    <div class="flex items-center gap-4 mt-4 text-xs font-bold text-gray-500 dark:text-gray-400">
+                        <span class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-gray-200 dark:border-slate-700"><span class="material-icons text-[14px]">edit_document</span> ผู้เขียน: {{author_name}}</span>
+                        <span class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-gray-200 dark:border-slate-700"><span class="material-icons text-[14px]">schedule</span> อัปเดต: {{dateStr}}</span>
+                    </div>
+                </div>
+                {{deleteBtn}}
+            </div>
+            <div class="text-slate-700 dark:text-gray-300 text-sm md:text-base leading-relaxed space-y-4 whitespace-pre-wrap font-medium">{{formattedContent}}</div>
+            <div class="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700 flex flex-col gap-6">
+                {{mediaHtml}}
+            </div>
+            <div class="h-10"></div>
+        </div>
+    </template>
+
+    <template id="tpl-kb-empty">
+        <div class="text-center text-gray-400 dark:text-gray-600 mt-[15vh] flex flex-col items-center select-none">
+            <span class="material-icons text-[100px] mb-6 opacity-30 group-hover:opacity-50 transition">chrome_reader_mode</span>
+            <h2 class="text-2xl font-black text-gray-500">เลือกบทความเพื่อเริ่มอ่าน</h2>
+            <p class="text-sm mt-2 font-bold">คลิกที่รายการด้านซ้ายมือเพื่อเปิดดูเนื้อหา</p>
+        </div>
+    </template>
+
+    <template id="tpl-kb-media-pdf">
+        <div class="flex flex-col w-full items-center">
+            <div onclick="window.open('{{url}}', '_blank')" class="w-full bg-gradient-to-br from-red-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-sm border border-red-200 dark:border-red-900/50 p-5 flex flex-col sm:flex-row items-center justify-between gap-4 cursor-pointer hover:shadow-md hover:border-red-400 transition group">
+                <div class="flex items-center gap-4 w-full sm:w-auto">
+                    <div class="w-14 h-14 bg-red-100 dark:bg-red-900/50 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                        <span class="material-icons text-3xl text-red-500">picture_as_pdf</span>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-base font-black text-slate-800 dark:text-white group-hover:text-red-500 transition">เอกสารประกอบ (PDF)</h4>
+                        <p class="text-[11px] font-bold text-gray-500 mt-0.5">คลิกเพื่อเปิดอ่านแบบเต็มหน้าจอ</p>
+                    </div>
+                </div>
+                <button class="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-1.5 shadow-md transition active:scale-95 shrink-0 text-sm">
+                    <span class="material-icons text-[16px]">open_in_new</span> เปิดอ่านไฟล์
+                </button>
+            </div>
+            {{captionHtml}}
+        </div>
+    </template>
+
+    <template id="tpl-kb-media-img">
+        <div class="flex flex-col items-center w-full">
+            <a href="{{url}}" target="_blank" class="block group relative rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition overflow-hidden bg-white dark:bg-slate-900 w-fit max-w-full">
+                <img src="{{url}}" class="max-h-96 w-auto object-contain transition duration-300 group-hover:scale-105 cursor-zoom-in max-w-full">
+            </a>
+            {{captionHtml}}
+        </div>
+    </template>
+    
+    <template id="tpl-kb-caption">
+        <div class="text-center text-sm font-bold text-gray-500 mt-2 bg-slate-50 dark:bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm w-fit max-w-full break-words mx-auto">{{caption}}</div>
+    </template>
+
+    <template id="tpl-kb-add-form">
+        <div class="text-left mt-4 space-y-4">
+            <div>
+                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">หมวดหมู่</label>
+                <select id="swal-kb-cat" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 font-bold cursor-pointer shadow-inner">
+                    {{catOptionsHtml}}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">หัวข้อเรื่อง</label>
+                <input id="swal-kb-title" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 shadow-inner font-bold" placeholder="เช่น วิธีรับงาน, กฎการลางาน...">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">เนื้อหาบทความ (เว้นว่างไว้ได้หากแนบไฟล์เอกสาร)</label>
+                <textarea id="swal-kb-content" rows="8" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 custom-scrollbar shadow-inner" placeholder="พิมพ์เนื้อหาที่นี่..."></textarea>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider block mb-1 flex items-center gap-1"><span class="material-icons text-[14px]">attach_file</span> แนบไฟล์ประกอบ (รูปภาพ หรือ ไฟล์ PDF)</label>
+                <input type="file" id="swal-kb-images" multiple accept="image/*,application/pdf" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer" onchange="previewKbImages(this)">
+                <div id="kb-img-preview-box" class="hidden mt-2 flex flex-col gap-2 bg-slate-100 dark:bg-slate-950 p-2 rounded-xl border border-gray-200 dark:border-slate-700 max-h-64 overflow-y-auto custom-scrollbar shadow-inner"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-kb-preview-pdf">
+        <div class="relative flex items-start gap-3 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-sm p-2 w-full">
+            <div class="flex items-center justify-center h-16 w-16 shrink-0 bg-red-50 dark:bg-red-900/20 rounded-md border border-red-100 dark:border-red-900/50">
+                <span class="material-icons text-red-500 text-3xl">picture_as_pdf</span>
+            </div>
+            <div class="flex-1 flex flex-col justify-center min-w-0">
+                <span class="text-[10px] font-bold text-gray-400 truncate mb-1">{{fileName}}</span>
+                <input type="text" id="kb-img-cap-{{index}}" placeholder="พิมพ์คำอธิบายใต้ไฟล์นี้..." class="w-full p-2 text-xs bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded outline-none focus:border-sky-500 text-slate-800 dark:text-white shadow-inner">
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-kb-preview-img">
+        <div class="relative flex items-start gap-3 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-sm p-2 w-full">
+            <div class="shrink-0">
+                <img id="kb-preview-img-{{index}}" src="" class="h-16 w-16 object-cover rounded-md shadow-sm border border-gray-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900">
+            </div>
+            <div class="flex-1 flex flex-col justify-center min-w-0">
+                <span class="text-[10px] font-bold text-gray-400 truncate mb-1">{{fileName}}</span>
+                <input type="text" id="kb-img-cap-{{index}}" placeholder="พิมพ์คำอธิบายใต้รูปนี้..." class="w-full p-2 text-xs bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded outline-none focus:border-sky-500 text-slate-800 dark:text-white shadow-inner">
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-kb-manage-cat">
+        <div class="text-left mt-4">
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="newKbCatName" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่ (เช่น 💡 ไอเดียใหม่)..." class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 shadow-inner font-bold">
+                <button onclick="kb_addCategory()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-3 rounded-xl font-bold shadow-md transition active:scale-95 flex items-center gap-1 border border-amber-500"><span class="material-icons text-sm">add</span> เพิ่ม</button>
+            </div>
+            <div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-2 border-b border-gray-200 dark:border-slate-700 pb-1">หมวดหมู่ที่มีอยู่</div>
+            <div id="kbCatListContainer" class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
+                {{catListHtml}}
+            </div>
+        </div>
+    </template>
+    
+    <template id="tpl-kb-manage-cat-item">
+        <div class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl mb-2 shadow-sm">
+            <span class="text-slate-800 dark:text-white font-bold text-sm">{{catName}}</span>
+            <button onclick="kb_deleteCategory({{index}})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 px-2 py-1.5 rounded-lg transition shadow-sm border border-gray-200 dark:border-slate-700" title="ลบหมวดหมู่"><span class="material-icons text-[16px]">delete</span></button>
+        </div>
+    </template>
+</div>
