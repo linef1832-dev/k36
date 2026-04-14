@@ -2095,7 +2095,6 @@ window.renderPermsTable = function() {
         'teal': 'text-teal-400 bg-teal-500/10 border-teal-500/20',
     };
 
-    // 🌟 แก้ไข: ใช้รหัสสี Hex โดยตรงเพื่อป้องกันปัญหา CSS ไม่อัปเดต
     const themeHexColors = {
         'blue': '#3b82f6', 'rose': '#f43f5e', 'pink': '#ec4899', 'amber': '#f59e0b',
         'green': '#22c55e', 'orange': '#f97316', 'indigo': '#6366f1', 'sky': '#0ea5e9',
@@ -2164,7 +2163,7 @@ window.renderPermsTable = function() {
         
         PERM_GROUPS.forEach(g => {
             const themeClass = colorClasses[g.theme] || colorClasses['blue'];
-            const themeColorHex = themeHexColors[g.theme] || '#3b82f6'; // ดึงสี Hex มาใช้
+            const themeColorHex = themeHexColors[g.theme] || '#3b82f6';
             const iconColor = themeClass.split(' ')[0];
             
             popupContentHtml += `
@@ -2177,17 +2176,26 @@ window.renderPermsTable = function() {
             `;
             
             g.items.forEach(item => {
-                const isChecked = activePerms.includes(item.id) ? 'checked' : '';
+                const isCheckedAttr = activePerms.includes(item.id) ? 'checked' : '';
+                const bgOpacity = activePerms.includes(item.id) ? '1' : '0';
+                const borderColor = activePerms.includes(item.id) ? 'transparent' : '';
                 const marginLeft = item.isSub ? 'ml-6 pl-2 border-l-2 border-slate-600/50' : 'font-bold bg-slate-700/30 rounded-lg p-1 mb-1';
                 const textStyle = item.isSub ? 'text-gray-400 text-[10px]' : 'text-gray-200 text-[11px]';
                 
-                // 🌟 แก้ไข: เปลี่ยน sr-only เป็น opacity-0 และใส่สีพื้นหลังด้วยสไตล์ Inline
+                // 🌟 แก้ไข: ใช้ OnChange เพื่อสั่งการ CSS โดยตรงไม่ต้องรอ Tailwind
                 popupContentHtml += `
                     <label class="relative flex items-center gap-3 ${textStyle} cursor-pointer hover:bg-slate-700 p-2 rounded-lg transition ${marginLeft} group">
-                        <input type="checkbox" class="perm-cb absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 peer" data-key="${key}" data-menu="${item.id}" ${isChecked}>
-                        <div class="relative w-4 h-4 shrink-0 rounded border-2 border-slate-500 bg-slate-900 transition flex items-center justify-center shadow-inner peer-checked:border-transparent">
-                            <div class="absolute inset-0 rounded opacity-0 peer-checked:opacity-100 transition-opacity" style="background-color: ${themeColorHex};"></div>
-                            <span class="material-icons text-[12px] text-white opacity-0 peer-checked:opacity-100 scale-50 peer-checked:scale-100 transition-transform font-bold z-10">check</span>
+                        <input type="checkbox" class="perm-cb absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                               data-key="${key}" data-menu="${item.id}" ${isCheckedAttr}
+                               onchange="
+                                  this.nextElementSibling.style.borderColor = this.checked ? 'transparent' : '';
+                                  this.nextElementSibling.querySelector('.check-bg').style.opacity = this.checked ? '1' : '0';
+                                  this.nextElementSibling.querySelector('.check-icon').style.opacity = this.checked ? '1' : '0';
+                                  this.nextElementSibling.querySelector('.check-icon').style.transform = this.checked ? 'scale(1)' : 'scale(0.5)';
+                               ">
+                        <div class="relative w-4 h-4 shrink-0 rounded border-2 border-slate-500 bg-slate-900 transition-all flex items-center justify-center shadow-inner" style="border-color: ${borderColor};">
+                            <div class="check-bg absolute inset-0 rounded transition-opacity duration-200" style="background-color: ${themeColorHex}; opacity: ${bgOpacity};"></div>
+                            <span class="check-icon material-icons text-[12px] text-white font-bold z-10 transition-all duration-200" style="opacity: ${bgOpacity}; transform: scale(${bgOpacity === '1' ? '1' : '0.5'});">check</span>
                         </div>
                         <span class="flex-1 select-none leading-none group-hover:text-white transition-colors pt-0.5 z-10">${item.name}</span>
                     </label>`;
