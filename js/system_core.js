@@ -2575,25 +2575,21 @@ window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
 // 🟢 ควบคุมการสลับหน้า (แอดมิน / ประวัติ / หน้าหลัก)
 // ==========================================
 window.openAdminPanel = async function() {
-    // 🌟 1. เปิดวงกลมหมุนๆ บังคับให้เบราว์เซอร์รอก่อน
-    Swal.fire({title: 'กำลังดึงรายชื่อพนักงาน...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'กำลังดึงข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     if (!document.getElementById('adminPanel')) {
         if(typeof showPage === 'function') await showPage('dashboard');
-        if(typeof initDashboard === 'function') initDashboard(); // เตรียมตารางไว้เบื้องหลัง
+        if(typeof initDashboard === 'function') initDashboard();
     }
 
-    // 🌟 2. หัวใจสำคัญ: ถ้าข้อมูลพนักงานยังไม่มี ให้บังคับดึงข้อมูลให้เสร็จ (await) ก่อนไปต่อ
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
         if (typeof fetchUsers === 'function') {
             await fetchUsers(); 
         }
     } else {
-        // ถ้ามีข้อมูลอยู่แล้ว สั่งให้มันวาดตารางอัปเดตรอไว้เลย
         if (typeof renderUserTableDirectly === 'function') window.renderUserTableDirectly();
     }
 
-    // ซ่อนหน้าหลัก+ประวัติ และโชว์หน้าแอดมินทันที
     if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
     if(document.getElementById('logsPage')) {
         document.getElementById('logsPage').classList.add('hidden');
@@ -2606,13 +2602,37 @@ window.openAdminPanel = async function() {
         adminPanel.classList.add('flex');
     }
     
-    // 🌟 3. ดึงสิทธิ์ของการเข้าถึงแต่ละแท็บ (บังคับเช็คตาม Checkbox 100%)
-    const canSeeSettings = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_settings'));
-    const canSeeUsers = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_users'));
-    const canSeePerms = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_perms'));
-    const canSeeInfo = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_info'));
-    
-    // 🌟 4. สั่งซ่อน/โชว์ ปุ่มแท็บด้านบน ตามสิทธิ์ที่พนักงานคนนั้นมี
+    // 🌟 1. ดึงสิทธิ์ของแต่ละแท็บแบบ "บังคับเช็คตาม Checkbox 100%" 
+    // โดยไม่อิงอภิสิทธิ์ของ Admin (เพื่อให้แสดงผลตามที่ติ๊กไว้เป๊ะๆ)
+    let canSeeSettings = false, canSeeUsers = false, canSeePerms = false, canSeeInfo = false;
+
+    if (window.currentUser) {
+        const uRoleLower = (window.currentUser.role || '').toLowerCase().trim();
+        const uDept = window.currentUser.department || 'AM';
+        
+        let uRole = 'STAFF';
+        if (uRoleLower === 'trainer') uRole = 'TRAINER';
+        else if (uRoleLower === 'manager' || uRoleLower === 'admin') uRole = 'MANAGER';
+        
+        const key = `${uDept}_${uRole}`;
+        
+        let perms = {};
+        try { perms = typeof SETTINGS['dept_menu_rules'] === 'string' ? JSON.parse(SETTINGS['dept_menu_rules']) : (SETTINGS['dept_menu_rules'] || {}); } catch(e) {}
+        
+        const userPerms = perms[key] || [];
+        
+        canSeeSettings = userPerms.includes('admin_settings');
+        canSeeUsers = userPerms.includes('admin_users');
+        canSeePerms = userPerms.includes('admin_perms');
+        canSeeInfo = userPerms.includes('admin_info');
+
+        // 🛑 เซฟตี้: ถ้าเป็นแอดมินแต่ไม่มีสิทธิ์ดูแท็บไหนเลย (อาจจะลืมติ๊ก) ให้เปิดทุกแท็บกันพลาด
+        if (uRole === 'MANAGER' && !canSeeSettings && !canSeeUsers && !canSeePerms && !canSeeInfo) {
+            canSeeSettings = true; canSeeUsers = true; canSeePerms = true; canSeeInfo = true;
+        }
+    }
+
+    // 🌟 2. สั่งซ่อน/โชว์ ปุ่มแท็บด้านบน ตามสิทธิ์
     const btnSettings = document.getElementById('btnAdminTab_settings');
     const btnUsers = document.getElementById('btnAdminTab_users');
     const btnPerms = document.getElementById('btnAdminTab_perms');
@@ -2623,7 +2643,7 @@ window.openAdminPanel = async function() {
     if(btnPerms) btnPerms.style.display = canSeePerms ? '' : 'none';
     if(btnInfo) btnInfo.style.display = canSeeInfo ? '' : 'none';
 
-    // 🌟 5. สั่งให้ระบบ "เปิดแท็บแรก" ที่พนักงานคนนั้นมีสิทธิ์เห็นโดยอัตโนมัติ
+    // 🌟 3. สั่งให้ระบบ "เปิดแท็บแรก" ที่มีสิทธิ์เห็นโดยอัตโนมัติ
     if (typeof switchAdminTab === 'function') {
         if (canSeeSettings) switchAdminTab('settings');
         else if (canSeeUsers) switchAdminTab('users');
@@ -2631,7 +2651,6 @@ window.openAdminPanel = async function() {
         else if (canSeeInfo) switchAdminTab('info');
     }
 
-    // 🌟 6. ข้อมูลมาครบ วาดตารางเสร็จ สั่งปิดวงกลมหมุนๆ ได้
     Swal.close();
 };
 
