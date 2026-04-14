@@ -202,7 +202,7 @@ window.saveData = async function(e) {
     // 🛑 ตรวจสอบสิทธิ์: ถ้าไม่ใช่แอดมิน และเลือกวันที่ไม่ใช่วันนี้ บล็อกทันที!
     if (!['manager', 'admin'].includes(currentUser.role) && !isAllowedDate) {
         window.resetBtn();
-        return Swal.fire('ไม่อนุญาต', 'ลงเวลาได้เฉพาะของ "วันนี้" เท่านั้น<br><span class="text-xs text-gray-500">(กะดึกสามารถลงเวลาของเมื่อวานได้จนถึง 07:59 น.)</span>', 'error');
+        return Swal.fire('ไม่อนุญาต', 'ลงเวลาได้เฉพาะของ "วันนี้" เท่านั้น<br><span class="text-xs text-gray-500">(เลือกตามวันที่ตัวเองทำงานเท่านั้นนะจ๊ะ)</span>', 'error');
     }
     // 🌟 --------------------------------------------------- 🌟
 
