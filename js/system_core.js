@@ -321,19 +321,13 @@ async function fetchData() {
     }
 
    const { data } = await query;
-        if (data) {
-            // 🌟 วางทับตั้งแต่บรรทัดนี้เป็นต้นไป
-            data.sort((a, b) => {
-                const pA = getPeriodForTime(a.shift_name, a.time_slot); 
-                const pB = getPeriodForTime(b.shift_name, b.time_slot);
-                const pOrder = {'ช่วงที่ 1': 1, 'ช่วงที่ 2': 2, 'ช่วงที่ 3': 3};
-                
-                if (pOrder[pA] !== pOrder[pB]) return (pOrder[pA] || 99) - (pOrder[pB] || 99);
-                
-                const timeA = a.time_slot || "";
-                const timeB = b.time_slot || "";
-                return timeA.localeCompare(timeB); 
-            });
+    if (data) {
+        data.sort((a, b) => {
+            const pA = getPeriodForTime(a.shift_name, a.time_slot); const pB = getPeriodForTime(b.shift_name, b.time_slot);
+            const pOrder = {'ช่วงที่ 1': 1, 'ช่วงที่ 2': 2, 'ช่วงที่ 3': 3};
+            if (pOrder[pA] !== pOrder[pB]) return pOrder[pA] - pOrder[pB];
+            return a.time_slot.localeCompare(b.time_slot);
+        });
         globalScheduleData = data; 
         
         // 🌟 เพิ่มระบบดึงค่าตัวกรองและส่งข้อมูลไปสรุปยอด
@@ -498,7 +492,7 @@ async function delSch(id, shiftName) {
             const { error } = await appDB.from('schedules').delete().eq('id', id); 
             if(error) { Swal.fire('Error', error.message, 'error'); return; }
             if(item) await logAction('ลบรายการ', `ลบรายการของ ${item.staff_name} (${item.shift_name} ${item.time_slot})`);
-            Swal.fire('ลบสำเร็จ!', '', 'success'); await refreshTimeSlots(); 
+            Swal.fire('ลบสำเร็จ!', '', 'success'); await refreshTimeSlots(); await fetchData(); 
         }
     })
 }
@@ -2062,7 +2056,6 @@ const PERM_GROUPS = [
             {id: 'ds_log', name: 'ดูประวัติ DS', isSub: true}
         ]
     },
-
         {
         id: 'page_admin', name: 'เครื่องมือผู้จัดการ', icon: 'manage_accounts', theme: 'red',
         items: [
@@ -2429,7 +2422,7 @@ window.applySidebarPermissions = async function() {
     });
 
     // 4. ดักหมวด DISCORD
-    const discordGroup = PERM_GROUPS.find(g => g.id === 'group_discord');
+    const discordGroup = PERM_GROUPS.find(g => g.id === 'page_discord');
     if (discordGroup) {
         const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
         allMenuBtns.forEach(btn => {
