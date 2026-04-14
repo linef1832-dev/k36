@@ -107,6 +107,9 @@ async function showPage(pageName) {
                 else if (pageName === 'fine') {
                     if (typeof initFineApp === 'function') await initFineApp();
                 }
+                else if (pageName === 'kb') {
+                    if (typeof initKbApp === 'function') await initKbApp();
+                }
                 else if (pageName === 'leave') {
                     if (typeof initLeaveTable === 'function') await initLeaveTable();
                 }
