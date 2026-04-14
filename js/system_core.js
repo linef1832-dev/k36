@@ -2291,10 +2291,6 @@ window.saveMenuPerms = async function() {
 window.hasUserPerm = function(menuId) {
     if (!window.currentUser) return false;
     
-    // 🌟 ดักจับตัวพิมพ์เล็ก-ใหญ่ ป้องกันการเช็คสิทธิ์แอดมินพลาด
-    const uRoleLower = (window.currentUser.role || '').toLowerCase().trim();
-    if (uRoleLower === 'admin' || uRoleLower === 'manager') return true;
-    
     let perms = {};
     try { perms = typeof SETTINGS['dept_menu_rules'] === 'string' ? JSON.parse(SETTINGS['dept_menu_rules']) : (SETTINGS['dept_menu_rules'] || {}); } catch(e) {}
     
@@ -2598,12 +2594,11 @@ window.openAdminPanel = async function() {
         adminPanel.classList.add('flex');
     }
     
-    // 🌟 3. ดึงสิทธิ์ของการเข้าถึงแต่ละแท็บ
-    const isAdmin = (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'manager'));
-    const canSeeSettings = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_settings'));
-    const canSeeUsers = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_users'));
-    const canSeePerms = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_perms'));
-    const canSeeInfo = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_info'));
+    // 🌟 3. ดึงสิทธิ์ของการเข้าถึงแต่ละแท็บ (บังคับเช็คตาม Checkbox 100%)
+    const canSeeSettings = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_settings'));
+    const canSeeUsers = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_users'));
+    const canSeePerms = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_perms'));
+    const canSeeInfo = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_info'));
     
     // 🌟 4. สั่งซ่อน/โชว์ ปุ่มแท็บด้านบน ตามสิทธิ์ที่พนักงานคนนั้นมี
     const btnSettings = document.getElementById('btnAdminTab_settings');
