@@ -122,6 +122,11 @@ window.kb_fetchData = async function() {
         if (error) throw error;
         globalKBData = data || [];
         kb_renderList();
+        
+        // 🌟 เพิ่มคำสั่งตรงนี้: สั่งให้รีเฟรชหน้ากระดาษอ่านบทความ เพื่อโชว์ข้อมูลที่เพิ่งแก้ทันที
+        if (currentKbId) {
+            kb_readArticle(currentKbId);
+        }
     } catch(e) {
         if(container) container.innerHTML = '<div class="text-center text-red-500 py-10">โหลดข้อมูลไม่สำเร็จ</div>';
     }
