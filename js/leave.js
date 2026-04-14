@@ -70,13 +70,34 @@ window.switchDept = function(dept) {
 
     const btnManage = document.getElementById('btnManageNewStaff');
     if(btnManage) {
-        if(dept === 'NEW') btnManage.classList.remove('hidden');
-        else btnManage.classList.add('hidden');   
-    }
+    if(dept === 'NEW') btnManage.classList.remove('hidden');
+    else btnManage.classList.add('hidden');   
+}
 
-    updateAdminInputs();
+// ----------------------------------------------------
+// 🟢 เพิ่มโค้ดเช็คสิทธิ์ควบคุม ตรงนี้ครับ 🟢
+const controls = document.getElementById('leaveManagerControls');
+if(controls) {
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    let canManageThisDept = isGlobalAdmin;
     
-    if(typeof updateMonthPicker === 'function') updateMonthPicker();
+    // เช็คสิทธิ์ตามหน้าปัจจุบันที่กดดูอยู่
+    if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
+    if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
+    if (dept === 'NEW') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_new');
+    if (dept === 'TRAINER') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
+
+    if(canManageThisDept) {
+         controls.classList.remove('hidden');
+    } else {
+         controls.classList.add('hidden');
+    }
+}
+// ----------------------------------------------------
+
+updateAdminInputs();
+
+if(typeof updateMonthPicker === 'function') updateMonthPicker();
     
     const tbody = document.getElementById('tableBody');
     if (tbody) {
