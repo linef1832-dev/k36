@@ -121,12 +121,30 @@ window.initLeaveTable = async function() {
     if(typeof updateMonthPicker === 'function') updateMonthPicker();
     await loadLeaveSettings();
     
-    // --- ส่วนที่แก้ไข: เช็คสิทธิ์แบบแยกย่อยตามที่ตั้งค่าไว้ ---
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     const canManage = isGlobalAdmin || window.hasUserPerm('leave_manage');
     const canExport = isGlobalAdmin || window.hasUserPerm('leave_export');
     const canViewHistory = isGlobalAdmin || window.hasUserPerm('leave_history');
     
+    // --- เช็คสิทธิ์ 4 หน้าแผนก ---
+    const canViewAM = isGlobalAdmin || window.hasUserPerm('leave_am');
+    const canViewOD = isGlobalAdmin || window.hasUserPerm('leave_od');
+    const canViewNEW = isGlobalAdmin || window.hasUserPerm('leave_new');
+    const canViewTRAINER = isGlobalAdmin || window.hasUserPerm('leave_trainer');
+
+    // ซ่อน/โชว์ แท็บแผนกตามสิทธิ์
+    const btnAM = document.getElementById('btnAM');
+    if (btnAM) { if(canViewAM) btnAM.classList.remove('hidden'); else btnAM.classList.add('hidden'); }
+    
+    const btnOD = document.getElementById('btnOD');
+    if (btnOD) { if(canViewOD) btnOD.classList.remove('hidden'); else btnOD.classList.add('hidden'); }
+    
+    const btnNEW = document.getElementById('btnNEW');
+    if (btnNEW) { if(canViewNEW) btnNEW.classList.remove('hidden'); else btnNEW.classList.add('hidden'); }
+    
+    const btnTRAINER = document.getElementById('btnTRAINER');
+    if (btnTRAINER) { if(canViewTRAINER) btnTRAINER.classList.remove('hidden'); else btnTRAINER.classList.add('hidden'); }
+
     // 1. แถบจัดการของแอดมิน (ตั้งค่าต่างๆ)
     const controls = document.getElementById('leaveManagerControls');
     if(controls) { 
@@ -134,7 +152,7 @@ window.initLeaveTable = async function() {
         else controls.classList.add('hidden'); 
     }
     
-    // 2. แถบเครื่องมือเลือกประเภทการลา (X, XX, X4 ฯลฯ)
+    // 2. แถบเครื่องมือเลือกประเภทการลา
     const typeToolbar = document.getElementById('leaveTypeToolbar');
     if(typeToolbar) { 
         if(canManage) typeToolbar.classList.remove('hidden'); 
@@ -148,13 +166,12 @@ window.initLeaveTable = async function() {
         else btnExport.classList.add('hidden'); 
     }
 
-    // 4. ปุ่มดูประวัติการกด (ถ้ามี)
+    // 4. ปุ่มดูประวัติการกด
     const btnHistory = document.querySelector('button[onclick="openHistoryModal()"]');
     if(btnHistory) { 
         if(canViewHistory) btnHistory.classList.remove('hidden'); 
         else btnHistory.classList.add('hidden'); 
     }
-    // ---------------------------------------------------
 
     if (GLOBAL_USER_LIST.length === 0 && typeof fetchUsers === 'function') {
         Swal.fire({title: 'โหลดรายชื่อ...', didOpen: () => Swal.showLoading()});
@@ -167,16 +184,18 @@ window.initLeaveTable = async function() {
     subscribeSettingsChanges();
     
     // ==========================================
-    // 🟢 จุดที่แก้ไข: ดักจับแผนกแปลกๆ ให้แสดงหน้า AM
+    // 🟢 กำหนดหน้าเริ่มต้น และเช็คสิทธิ์การมองเห็น
     // ==========================================
     const allowedDepts = ['AM', 'OD', 'NEW', 'TRAINER'];
     let myDept = currentUser.department || 'AM';
-    
-    // ถ้ายูสเซอร์อยู่แผนกแปลกๆ (เช่น AMQL) ให้เปลี่ยนเป็น AM อัตโนมัติ (หรือจะแก้เป็น 'TRAINER' ก็ได้ครับ)
-    if (!allowedDepts.includes(myDept)) {
-        myDept = 'AM'; 
-    }
-    
+    if (!allowedDepts.includes(myDept)) myDept = 'AM';
+
+    // ถ้าไม่มีสิทธิ์ดูหน้าแผนกตัวเอง ให้หาแผนกแรกที่มีสิทธิ์ดูเพื่อแสดงผลแทน
+    if (myDept === 'AM' && !canViewAM) myDept = canViewOD ? 'OD' : (canViewNEW ? 'NEW' : (canViewTRAINER ? 'TRAINER' : 'AM'));
+    else if (myDept === 'OD' && !canViewOD) myDept = canViewAM ? 'AM' : (canViewNEW ? 'NEW' : (canViewTRAINER ? 'TRAINER' : 'AM'));
+    else if (myDept === 'NEW' && !canViewNEW) myDept = canViewAM ? 'AM' : (canViewOD ? 'OD' : (canViewTRAINER ? 'TRAINER' : 'AM'));
+    else if (myDept === 'TRAINER' && !canViewTRAINER) myDept = canViewAM ? 'AM' : (canViewOD ? 'OD' : (canViewNEW ? 'NEW' : 'AM'));
+
     switchDept(myDept); 
     // ==========================================
     
