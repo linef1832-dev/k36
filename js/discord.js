@@ -1539,3 +1539,41 @@ window.removeUserFromGroup = async function(groupName, staffId) {
         listContainer.style.opacity = '1';
     }
 };
+
+// ==========================================
+// 🟢 ฟังก์ชันสำหรับเตะคนออกจากเซิร์ฟเวอร์ดิสคอร์ด
+// ==========================================
+window.spy_kickUser = async function(uid, name) {
+    const confirm = await Swal.fire({
+        title: 'ยืนยันการเตะ?',
+        text: `คุณแน่ใจหรือไม่ที่จะเตะ "${name}" ออกจากเซิร์ฟเวอร์ดิสคอร์ด? (ต้องส่งคำเชิญใหม่หากต้องการให้เข้ามาอีก)`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#475569',
+        confirmButtonText: 'ใช่, เตะออกเลย!',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    Swal.fire({title: 'กำลังดำเนินการ...', didOpen: () => Swal.showLoading()});
+    try {
+        const res = await fetch(`${DISCORD_API_URL}/api/kick-user`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ userId: uid })
+        });
+        const r = await res.json();
+        
+        if (r.success) {
+            Swal.fire('สำเร็จ', `เตะ ${name} ออกจากเซิร์ฟเวอร์แล้ว`, 'success');
+            ds_logAction('Kick User', `เตะพนักงาน ${name} ออกจากเซิร์ฟเวอร์ดิสคอร์ด`);
+            ds_fetchSpy(); // รีเฟรชตารางใหม่
+        } else {
+            Swal.fire('เกิดข้อผิดพลาด', r.error || 'ไม่สามารถเตะผู้ใช้นี้ได้', 'error');
+        }
+    } catch(e) {
+        Swal.fire('ล้มเหลว', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์บอทได้', 'error');
+    }
+};
