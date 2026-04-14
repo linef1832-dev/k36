@@ -179,12 +179,12 @@ window.saveData = async function(e) {
 
     const select = document.getElementById('tSlot');
     const dateVal = document.getElementById('wDate').value;
-
-    // 🌟 --- โค้ดดักลงเวลาล่วงหน้า (รองรับกะดึกข้ามวัน) --- 🌟
+    const timeVal = select.value;
+    
+    // 🌟 --- โค้ดดักลงเวลาล่วงหน้า (ล็อกไม่ให้จองข้ามวัน) --- 🌟
     const todayObj = new Date();
     const currentHour = todayObj.getHours(); 
     
-    // หาวันที่ของ "วันนี้" และ "เมื่อวาน"
     const realTodayStr = new Date(todayObj.getTime() - (todayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     const yesterdayObj = new Date(todayObj);
     yesterdayObj.setDate(yesterdayObj.getDate() - 1);
@@ -192,18 +192,19 @@ window.saveData = async function(e) {
 
     let isAllowedDate = (dateVal === realTodayStr);
     
-    // ถ้านาฬิกาอยู่ระหว่าง 00:00 น. ถึง 07:59 น. อนุญาตให้ลงของเมื่อวานได้
+    // อนุโลมให้กะดึกลงเวลาของเมื่อวานได้ถึง 07:59 น.
     if (currentHour >= 0 && currentHour < 8) {
         if (dateVal === realYesterdayStr) {
             isAllowedDate = true;
         }
     }
 
+    // 🛑 ตรวจสอบสิทธิ์: ถ้าไม่ใช่แอดมิน และเลือกวันที่ไม่ใช่วันนี้ บล็อกทันที!
     if (!['manager', 'admin'].includes(currentUser.role) && !isAllowedDate) {
         window.resetBtn();
         return Swal.fire('ไม่อนุญาต', 'ลงเวลาได้เฉพาะของ "วันนี้" เท่านั้น<br><span class="text-xs text-gray-500">(กะดึกสามารถลงเวลาของเมื่อวานได้จนถึง 07:59 น.)</span>', 'error');
     }
-    // 🌟 ------------------------------------------------ 🌟
+    // 🌟 --------------------------------------------------- 🌟
 
     let activeTeam = TEAM_LIST[0];
     const dt = document.getElementById('dailyTeam');
