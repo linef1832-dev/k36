@@ -66,6 +66,15 @@ window.kb_renderList = function() {
         if(item.category.includes('กฎ')) { icon = 'gavel'; iconColor = 'text-amber-500 dark:text-amber-400'; }
         if(item.category.includes('ไอที')) { icon = 'computer'; iconColor = 'text-purple-500 dark:text-purple-400'; }
 
+        // เช็คว่าบทความนี้มีรูปภาพหรือไม่ เพื่อโชว์ไอคอนเล็กๆ
+        let hasImageBadge = '';
+        if (item.image_urls && item.image_urls !== '[]') {
+            try {
+                const arr = JSON.parse(item.image_urls);
+                if (arr.length > 0) hasImageBadge = `<span class="material-icons text-[12px] text-sky-500" title="มีรูปภาพประกอบ">image</span>`;
+            } catch(e) {}
+        }
+
         const date = new Date(item.created_at).toLocaleDateString('th-TH');
         
         const isActive = currentKbId === item.id;
@@ -77,7 +86,7 @@ window.kb_renderList = function() {
                 <div class="flex-1 min-w-0">
                     <h4 class="text-slate-800 dark:text-white font-bold text-sm truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition">${item.title}</h4>
                     <div class="flex items-center gap-2 mt-1.5 text-[10px] font-bold text-gray-500">
-                        <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-slate-600 shadow-sm">${item.category}</span>
+                        <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-slate-600 shadow-sm flex items-center gap-1">${item.category} ${hasImageBadge}</span>
                         <span class="flex items-center gap-0.5"><span class="material-icons text-[12px]">calendar_today</span> ${date}</span>
                     </div>
                 </div>
@@ -102,6 +111,23 @@ window.kb_readArticle = function(id) {
     
     const deleteBtn = isAdmin ? `<button onclick="kb_deleteArticle('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm shrink-0" title="ลบบทความนี้"><span class="material-icons">delete</span></button>` : '';
 
+    // 🌟 ดึงรูปภาพมาแสดงผลด้านล่างเนื้อหา
+    let imagesHtml = '';
+    if (item.image_urls && item.image_urls !== '[]') {
+        try {
+            const urls = JSON.parse(item.image_urls);
+            if (urls && urls.length > 0) {
+                imagesHtml = '<div class="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700 flex flex-wrap gap-4">';
+                urls.forEach(url => {
+                    imagesHtml += `<a href="${url}" target="_blank" class="block group relative rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition overflow-hidden bg-white dark:bg-slate-900">
+                                      <img src="${url}" class="max-h-64 w-auto object-contain transition duration-300 group-hover:scale-105 cursor-zoom-in">
+                                   </a>`;
+                });
+                imagesHtml += '</div>';
+            }
+        } catch(e) {}
+    }
+
     reader.innerHTML = `
         <div class="fade-in">
             <div class="flex justify-between items-start mb-6 pb-6 border-b border-gray-200 dark:border-slate-700">
@@ -115,9 +141,31 @@ window.kb_readArticle = function(id) {
                 </div>
                 ${deleteBtn}
             </div>
-            <div class="text-slate-700 dark:text-gray-300 text-sm md:text-base leading-relaxed space-y-4 whitespace-pre-wrap font-medium pb-10">${formattedContent}</div>
+            <div class="text-slate-700 dark:text-gray-300 text-sm md:text-base leading-relaxed space-y-4 whitespace-pre-wrap font-medium">${formattedContent}</div>
+            ${imagesHtml}
+            <div class="h-10"></div>
         </div>
     `;
+};
+
+// 🌟 ฟังก์ชันดูตัวอย่างรูปภาพหลายๆ รูปก่อนอัปโหลด
+window.previewKbImages = function(input) {
+    const previewBox = document.getElementById('kb-img-preview-box');
+    if (!previewBox) return;
+    previewBox.innerHTML = '';
+    
+    if (input.files && input.files.length > 0) {
+        previewBox.classList.remove('hidden');
+        Array.from(input.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewBox.innerHTML += `<div class="relative"><img src="${e.target.result}" class="h-16 w-auto object-cover rounded-lg shadow-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"></div>`;
+            }
+            reader.readAsDataURL(file);
+        });
+    } else {
+        previewBox.classList.add('hidden');
+    }
 };
 
 window.kb_openAddModal = function() {
@@ -140,7 +188,12 @@ window.kb_openAddModal = function() {
                 </div>
                 <div>
                     <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">เนื้อหาบทความ</label>
-                    <textarea id="swal-kb-content" rows="12" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 custom-scrollbar shadow-inner" placeholder="พิมพ์เนื้อหาที่นี่... (เว้นบรรทัดได้ตามปกติ)"></textarea>
+                    <textarea id="swal-kb-content" rows="10" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 custom-scrollbar shadow-inner" placeholder="พิมพ์เนื้อหาที่นี่... (เว้นบรรทัดได้ตามปกติ)"></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider block mb-1 flex items-center gap-1"><span class="material-icons text-[14px]">add_photo_alternate</span> แนบรูปภาพประกอบ (เลือกได้หลายรูป)</label>
+                    <input type="file" id="swal-kb-images" multiple accept="image/*" class="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer" onchange="previewKbImages(this)">
+                    <div id="kb-img-preview-box" class="hidden mt-2 flex flex-wrap gap-2 bg-slate-100 dark:bg-slate-950 p-2 rounded-xl border border-gray-200 dark:border-slate-700 max-h-32 overflow-y-auto custom-scrollbar shadow-inner"></div>
                 </div>
             </div>
         `,
@@ -151,15 +204,49 @@ window.kb_openAddModal = function() {
             const cat = document.getElementById('swal-kb-cat').value;
             const title = document.getElementById('swal-kb-title').value.trim();
             const content = document.getElementById('swal-kb-content').value.trim();
+            const imgInput = document.getElementById('swal-kb-images');
             if (!title || !content) { Swal.showValidationMessage('กรุณาใส่หัวข้อและเนื้อหาให้ครบถ้วน'); return false; }
-            return { category: cat, title: title, content: content };
+            return { category: cat, title: title, content: content, files: imgInput ? imgInput.files : [] };
         }
     }).then(async (result) => {
         if (result.isConfirmed) {
-            Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+            Swal.fire({title: 'กำลังบันทึก...', html: 'โปรดรอสักครู่...', didOpen: () => Swal.showLoading()});
             try {
                 const author = (typeof currentUser !== 'undefined' && currentUser.username) ? currentUser.username : 'Admin';
-                const { error } = await appDB.from('knowledge_base').insert([{ category: result.value.category, title: result.value.title, content: result.value.content, author_name: author }]);
+                
+                // 🌟 อัปโหลดรูปภาพทั้งหมด (ถ้ามี)
+                let uploadedUrls = [];
+                const files = result.value.files;
+                
+                if (files && files.length > 0) {
+                    Swal.update({ html: `กำลังอัปโหลดรูปภาพ ${files.length} รูป...` });
+                    
+                    const uploadPromises = Array.from(files).map(async (file, index) => {
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `kb_${Date.now()}_${Math.floor(Math.random() * 1000)}_${index}.${fileExt}`;
+                        
+                        const { error: uploadError } = await appDB.storage
+                            .from('staff_images') 
+                            .upload(`knowledge_base/${fileName}`, file, { cacheControl: '3600', upsert: false });
+
+                        if (uploadError) throw new Error(`อัปโหลดรูปไม่สำเร็จ: ${uploadError.message}`);
+                        
+                        const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`knowledge_base/${fileName}`);
+                        return publicUrlData.publicUrl;
+                    });
+                    
+                    uploadedUrls = await Promise.all(uploadPromises);
+                }
+
+                // 🌟 บันทึกข้อมูลลงฐานข้อมูล พร้อมกับรูปที่อัปโหลด (ถ้าไม่มีรูปจะเป็น "[]")
+                const { error } = await appDB.from('knowledge_base').insert([{ 
+                    category: result.value.category, 
+                    title: result.value.title, 
+                    content: result.value.content, 
+                    author_name: author,
+                    image_urls: JSON.stringify(uploadedUrls)
+                }]);
+                
                 if(error) throw error;
                 Swal.fire({icon: 'success', title: 'สำเร็จ', text: 'บันทึกบทความเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false});
                 kb_fetchData(); 
@@ -169,7 +256,7 @@ window.kb_openAddModal = function() {
 };
 
 window.kb_deleteArticle = async function(id) {
-    const confirm = await Swal.fire({ title: 'ยืนยันการลบ?', text: "หากลบแล้วจะไม่สามารถกู้คืนได้", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonText: 'ยกเลิก', confirmButtonText: 'ลบทิ้งเลย!' });
+    const confirm = await Swal.fire({ title: 'ยืนยันการลบ?', text: "หากลบแล้วจะไม่สามารถกู้คืนได้ (รวมถึงรูปภาพประกอบ)", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonText: 'ยกเลิก', confirmButtonText: 'ลบทิ้งเลย!' });
     if(confirm.isConfirmed) {
         Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
         try {
