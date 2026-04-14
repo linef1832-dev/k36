@@ -348,7 +348,7 @@ const dashboardObserver = new MutationObserver((mutations) => {
 dashboardObserver.observe(document.body, { childList: true, subtree: true });
 
 // ========================================================================
-// 🟢 ระบบ Realtime สำหรับหน้าลงเวลาทำงาน (ดักฟังการจองของคนอื่น)
+// 🟢 ระบบ Realtime สำหรับหน้าลงเวลาทำงาน (แทรกข้อมูลเนียนๆ ไม่ต้องรีเฟรช)
 // ========================================================================
 let dashboardSubscription = null;
 
@@ -363,10 +363,10 @@ window.subscribeDashboardChanges = function() {
                 const dateEl = document.getElementById('wDate');
                 const dateVal = dateEl ? dateEl.value : '';
                 
-                // ตรวจสอบว่าเกี่ยวข้องกับวันที่กำลังดูอยู่ไหม
+                // ข้ามถ้าไม่ใช่วันที่กำลังดูอยู่
                 if (payload.eventType !== 'DELETE' && payload.new.work_date !== dateVal) return;
 
-                // 🌟 อัปเดตข้อมูลในกระเป๋า (Array) แทรกแถวใหม่ทันทีแทนการยิงดึงข้อมูล
+                // 🌟 อัปเดตข้อมูลแบบแทรกแถว (ไม่ต้องเรียก fetchData() ให้หมุนๆ แล้ว)
                 if (payload.eventType === 'INSERT') {
                     const isExist = globalScheduleData.some(item => String(item.id) === String(payload.new.id));
                     if (!isExist) globalScheduleData.push(payload.new);
@@ -377,42 +377,39 @@ window.subscribeDashboardChanges = function() {
                     if (idx > -1) globalScheduleData[idx] = payload.new;
                 }
 
-                // 🌟 จัดเรียงข้อมูลใหม่ตามเวลา
+                // เรียงเวลาใหม่
                 globalScheduleData.sort((a, b) => {
                     const pA = getPeriodForTime(a.shift_name, a.time_slot); 
                     const pB = getPeriodForTime(b.shift_name, b.time_slot);
                     const pOrder = {'ช่วงที่ 1': 1, 'ช่วงที่ 2': 2, 'ช่วงที่ 3': 3};
-                    if (pOrder[pA] !== pOrder[pB]) return pOrder[pA] - pOrder[pB];
-                    return a.time_slot.localeCompare(b.time_slot);
+                    if (pOrder[pA] !== pOrder[pB]) return (pOrder[pA] || 99) - (pOrder[pB] || 99);
+                    
+                    const timeA = a.time_slot || "";
+                    const timeB = b.time_slot || "";
+                    return timeA.localeCompare(timeB); 
                 });
 
-                // 🌟 กรองข้อมูลตามสิทธิ์ของพนักงานและตัวกรองปัจจุบัน
+                // กรองข้อมูลตามสิทธิ์แอดมิน/พนักงาน
                 let dataToRender = globalScheduleData;
                 const tableTeam = document.getElementById('tableTeamFilter') ? document.getElementById('tableTeamFilter').value : 'all';
-                
-                if (tableTeam !== 'all') {
-                    dataToRender = dataToRender.filter(item => item.team === tableTeam);
-                }
+                if (tableTeam !== 'all') dataToRender = dataToRender.filter(item => item.team === tableTeam);
 
-                if (!['manager', 'admin'].includes(currentUser.role)) { 
+                if (typeof currentUser !== 'undefined' && !['manager', 'admin'].includes(currentUser.role)) { 
                     if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) {
                         dataToRender = dataToRender.filter(item => item.shift_name === currentUser.allowed_shift);
                     }
                 }
 
-                // 🌟 สรุปยอดตาราง
                 const deptFilterForSummary = document.getElementById('summaryDeptFilter') ? document.getElementById('summaryDeptFilter').value : 'all';
                 let dataForSummary = dataToRender;
                 if (deptFilterForSummary !== 'all') {
                     dataForSummary = dataToRender.filter(i => (i.department || 'AM') === deptFilterForSummary);
                 }
                 
-                // สั่งวาดข้อมูลใหม่ (ไม่ขึ้นวงกลมหมุนโหลด)
-                updateTableSummary(dataForSummary);
-                renderTableRows(dataToRender);
-
-                // อัปเดตช่องเวลาให้มีตัวเลขโควตาเปลี่ยนตามไปด้วย
-                if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+                // สั่งวาดตารางและสรุปยอดใหม่แบบไร้รอยต่อ
+                if(typeof updateTableSummary === 'function') updateTableSummary(dataForSummary);
+                if(typeof renderTableRows === 'function') renderTableRows(dataToRender);
+                if(typeof refreshTimeSlots === 'function') refreshTimeSlots();
             }
         }).subscribe();
 };

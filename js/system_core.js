@@ -297,13 +297,19 @@ async function fetchData() {
     }
 
    const { data } = await query;
-    if (data) {
-        data.sort((a, b) => {
-            const pA = getPeriodForTime(a.shift_name, a.time_slot); const pB = getPeriodForTime(b.shift_name, b.time_slot);
-            const pOrder = {'ช่วงที่ 1': 1, 'ช่วงที่ 2': 2, 'ช่วงที่ 3': 3};
-            if (pOrder[pA] !== pOrder[pB]) return pOrder[pA] - pOrder[pB];
-            return a.time_slot.localeCompare(b.time_slot);
-        });
+        if (data) {
+            // 🌟 วางทับตั้งแต่บรรทัดนี้เป็นต้นไป
+            data.sort((a, b) => {
+                const pA = getPeriodForTime(a.shift_name, a.time_slot); 
+                const pB = getPeriodForTime(b.shift_name, b.time_slot);
+                const pOrder = {'ช่วงที่ 1': 1, 'ช่วงที่ 2': 2, 'ช่วงที่ 3': 3};
+                
+                if (pOrder[pA] !== pOrder[pB]) return (pOrder[pA] || 99) - (pOrder[pB] || 99);
+                
+                const timeA = a.time_slot || "";
+                const timeB = b.time_slot || "";
+                return timeA.localeCompare(timeB); 
+            });
         globalScheduleData = data; 
         
         // 🌟 เพิ่มระบบดึงค่าตัวกรองและส่งข้อมูลไปสรุปยอด
@@ -2032,7 +2038,10 @@ const PERM_GROUPS = [
             {id: 'ds_log', name: 'ดูประวัติ DS', isSub: true}
         ]
     },
+<<<<<<< HEAD
     
+=======
+>>>>>>> e9e7e7f99418025bfcc610f722b6eab52fad1b47
         {
         id: 'page_admin', name: 'เครื่องมือผู้จัดการ', icon: 'manage_accounts', theme: 'red',
         items: [
@@ -2292,7 +2301,7 @@ window.saveMenuPerms = async function() {
 window.hasUserPerm = function(menuId) {
     if (!window.currentUser) return false;
     
-    // 🌟 ดักจับตัวพิมพ์เล็ก-ใหญ่ ป้องกันการเช็คสิทธิ์แอดมินพลาด
+    // 🌟 คืนค่าบรรทัดนี้กลับมา: เพื่อให้ Admin และ Manager มองเห็นทุกเมนูและกดได้ทุกปุ่มเสมอ
     const uRoleLower = (window.currentUser.role || '').toLowerCase().trim();
     if (uRoleLower === 'admin' || uRoleLower === 'manager') return true;
     
@@ -2417,8 +2426,9 @@ window.applySidebarPermissions = async function() {
     allMenuBtns.forEach(btn => {
         const onClickAttr = btn.getAttribute('onclick') || '';
         if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
-            // เช็คสิทธิ์จากระบบที่เราเพิ่งทำ (ติ๊กถูกในหน้าตั้งค่า) แทนการล็อค Role ตายตัว
-            const canSeeAdmin = window.hasUserPerm('admin'); 
+            
+            // 🌟 ให้สิทธิ์คนที่ติ๊ก Checkbox หรือ เป็นแอดมินโดยตรง
+            const canSeeAdmin = window.hasUserPerm('admin') || ['admin', 'manager'].includes(userRole); 
             
             if (canSeeAdmin) {
                 btn.classList.remove('hidden');
@@ -2599,12 +2609,11 @@ window.openAdminPanel = async function() {
         adminPanel.classList.add('flex');
     }
     
-    // 🌟 3. ดึงสิทธิ์ของการเข้าถึงแต่ละแท็บ
-    const isAdmin = (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'manager'));
-    const canSeeSettings = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_settings'));
-    const canSeeUsers = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_users'));
-    const canSeePerms = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_perms'));
-    const canSeeInfo = isAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_info'));
+    // 🌟 3. ดึงสิทธิ์ของการเข้าถึงแต่ละแท็บ (บังคับเช็คตาม Checkbox 100%)
+    const canSeeSettings = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_settings'));
+    const canSeeUsers = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_users'));
+    const canSeePerms = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_perms'));
+    const canSeeInfo = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_info'));
     
     // 🌟 4. สั่งซ่อน/โชว์ ปุ่มแท็บด้านบน ตามสิทธิ์ที่พนักงานคนนั้นมี
     const btnSettings = document.getElementById('btnAdminTab_settings');
