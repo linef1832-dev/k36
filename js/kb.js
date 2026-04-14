@@ -3,6 +3,7 @@
 // ==========================================
 let globalKBData = [];
 let currentKbId = null;
+let globalKBCategories = [];
 
 window.initKbApp = async function() {
     // เช็คสิทธิ์ว่ามีปุ่มแอดมินไหม
@@ -24,8 +25,131 @@ window.initKbApp = async function() {
         </div>
     `;
 
+    await kb_loadCategories();
     await kb_fetchData();
 };
+
+// 🌟 โหลดหมวดหมู่ทั้งหมดจากฐานข้อมูล
+window.kb_loadCategories = async function() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'kb_categories').single();
+        if (data && data.value) {
+            globalKBCategories = JSON.parse(data.value);
+        } else {
+            // ค่าเริ่มต้น ถ้ายังไม่เคยสร้างหมวดหมู่เลย
+            globalKBCategories = [
+                { id: 'คู่มือการทำงาน', name: '📘 คู่มือการทำงาน' },
+                { id: 'สคริปต์ตอบแชท', name: '💬 สคริปต์ตอบแชท' },
+                { id: 'กฎระเบียบ', name: '⚖️ กฎระเบียบ' },
+                { id: 'ไอทีและระบบ', name: '💻 ไอทีและระบบ' }
+            ];
+            await appDB.from('settings').upsert([{ key: 'kb_categories', value: JSON.stringify(globalKBCategories) }]);
+        }
+        kb_renderCategoryDropdowns();
+    } catch(e) {
+        console.error("Load Categories Error:", e);
+    }
+};
+
+// 🌟 ยัดหมวดหมู่ใส่ Dropdown ค้นหา
+window.kb_renderCategoryDropdowns = function() {
+    const filterSelect = document.getElementById('kbCategory');
+    if (filterSelect) {
+        const currentVal = filterSelect.value;
+        let html = '<option value="ALL">📂 ทุกหมวดหมู่</option>';
+        globalKBCategories.forEach(c => html += `<option value="${c.id}">${c.name}</option>`);
+        filterSelect.innerHTML = html;
+        if (currentVal && (currentVal === 'ALL' || globalKBCategories.some(c => c.id === currentVal))) {
+            filterSelect.value = currentVal;
+        } else {
+            filterSelect.value = 'ALL';
+        }
+    }
+};
+
+// 🌟 เปิดหน้าจัดการหมวดหมู่
+window.kb_manageCategories = function() {
+    window.renderManageCatHtml = function() {
+        if (globalKBCategories.length === 0) return '<div class="text-center text-gray-500 text-sm py-4">ไม่มีหมวดหมู่</div>';
+        return globalKBCategories.map((c, idx) => `
+            <div class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl mb-2 shadow-sm">
+                <span class="text-slate-800 dark:text-white font-bold text-sm">${c.name}</span>
+                <button onclick="kb_deleteCategory(${idx})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 px-2 py-1.5 rounded-lg transition shadow-sm border border-gray-200 dark:border-slate-700" title="ลบหมวดหมู่"><span class="material-icons text-[16px]">delete</span></button>
+            </div>
+        `).join('');
+    };
+
+    Swal.fire({
+        title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-amber-500">category</span> จัดการหมวดหมู่</div>',
+        html: `
+            <div class="text-left mt-4">
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="newKbCatName" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่ (เช่น 💡 ไอเดียใหม่)..." class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 shadow-inner font-bold">
+                    <button onclick="kb_addCategory()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-3 rounded-xl font-bold shadow-md transition active:scale-95 flex items-center gap-1 border border-amber-500"><span class="material-icons text-sm">add</span> เพิ่ม</button>
+                </div>
+                <div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-2 border-b border-gray-200 dark:border-slate-700 pb-1">หมวดหมู่ที่มีอยู่</div>
+                <div id="kbCatListContainer" class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
+                    ${window.renderManageCatHtml()}
+                </div>
+            </div>
+        `,
+        showConfirmButton: false,
+        showCloseButton: true,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' }
+    });
+};
+
+// 🌟 กดเพิ่มหมวดหมู่ใหม่
+window.kb_addCategory = async function() {
+    const input = document.getElementById('newKbCatName');
+    const val = input.value.trim();
+    if (!val) return;
+
+    // ลบ Emoji ออกเพื่อเอามาตั้งเป็น ID (เพื่อความปลอดภัยในการ Filter)
+    const id = val.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim() || val;
+
+    if (globalKBCategories.some(c => c.id === id || c.name === val)) {
+        Swal.showValidationMessage('มีหมวดหมู่นี้ในระบบแล้วครับ');
+        return;
+    }
+    
+    Swal.resetValidationMessage();
+    const btn = document.querySelector('.swal2-html-container button');
+    if(btn) btn.innerHTML = '<span class="material-icons animate-spin text-sm">sync</span>';
+
+    globalKBCategories.push({ id: id, name: val });
+    input.value = '';
+    
+    document.getElementById('kbCatListContainer').innerHTML = window.renderManageCatHtml();
+    
+    await appDB.from('settings').upsert([{ key: 'kb_categories', value: JSON.stringify(globalKBCategories) }]);
+    kb_renderCategoryDropdowns();
+    
+    if(btn) btn.innerHTML = '<span class="material-icons text-sm">add</span> เพิ่ม';
+};
+
+// 🌟 กดลบหมวดหมู่
+window.kb_deleteCategory = async function(idx) {
+    const cat = globalKBCategories[idx];
+    const confirm = await Swal.fire({
+        title: 'ยืนยันลบหมวดหมู่?',
+        text: `ต้องการลบหมวด "${cat.name}" ใช่หรือไม่? (บทความเก่าในหมวดนี้ยังอยู่ แต่จะไม่แสดงในตัวกรอง)`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ลบทิ้ง',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (confirm.isConfirmed) {
+        globalKBCategories.splice(idx, 1);
+        document.getElementById('kbCatListContainer').innerHTML = window.renderManageCatHtml();
+        await appDB.from('settings').upsert([{ key: 'kb_categories', value: JSON.stringify(globalKBCategories) }]);
+        kb_renderCategoryDropdowns();
+    }
+};
+
 
 window.kb_fetchData = async function() {
     const container = document.getElementById('kbListContainer');
@@ -61,12 +185,19 @@ window.kb_renderList = function() {
 
     container.innerHTML = filtered.map(item => {
         let icon = 'article'; let iconColor = 'text-gray-500 dark:text-gray-400';
+        
         if(item.category.includes('คู่มือ')) { icon = 'menu_book'; iconColor = 'text-blue-500 dark:text-blue-400'; }
-        if(item.category.includes('สคริปต์')) { icon = 'chat'; iconColor = 'text-emerald-500 dark:text-emerald-400'; }
-        if(item.category.includes('กฎ')) { icon = 'gavel'; iconColor = 'text-amber-500 dark:text-amber-400'; }
-        if(item.category.includes('ไอที')) { icon = 'computer'; iconColor = 'text-purple-500 dark:text-purple-400'; }
+        else if(item.category.includes('สคริปต์')) { icon = 'chat'; iconColor = 'text-emerald-500 dark:text-emerald-400'; }
+        else if(item.category.includes('กฎ')) { icon = 'gavel'; iconColor = 'text-amber-500 dark:text-amber-400'; }
+        else if(item.category.includes('ไอที') || item.category.includes('ระบบ')) { icon = 'computer'; iconColor = 'text-purple-500 dark:text-purple-400'; }
+        else if(item.category.includes('ประกาศ')) { icon = 'campaign'; iconColor = 'text-orange-500 dark:text-orange-400'; }
+        else if(item.category.includes('โบนัส')) { icon = 'redeem'; iconColor = 'text-rose-500 dark:text-rose-400'; }
 
-        // เช็คว่าบทความนี้มีรูปภาพหรือไม่ เพื่อโชว์ไอคอนเล็กๆ
+        // 🌟 ดึงชื่อหมวดหมู่ที่ตั้งไว้แบบเต็มมาแสดง
+        let displayCat = item.category;
+        const matchedCat = globalKBCategories.find(c => c.id === item.category);
+        if (matchedCat) displayCat = matchedCat.name;
+
         let hasImageBadge = '';
         if (item.image_urls && item.image_urls !== '[]') {
             try {
@@ -86,7 +217,7 @@ window.kb_renderList = function() {
                 <div class="flex-1 min-w-0">
                     <h4 class="text-slate-800 dark:text-white font-bold text-sm truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition">${item.title}</h4>
                     <div class="flex items-center gap-2 mt-1.5 text-[10px] font-bold text-gray-500">
-                        <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-slate-600 shadow-sm flex items-center gap-1">${item.category} ${hasImageBadge}</span>
+                        <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-slate-600 shadow-sm flex items-center gap-1">${displayCat} ${hasImageBadge}</span>
                         <span class="flex items-center gap-0.5"><span class="material-icons text-[12px]">calendar_today</span> ${date}</span>
                     </div>
                 </div>
@@ -111,7 +242,10 @@ window.kb_readArticle = function(id) {
     
     const deleteBtn = isAdmin ? `<button onclick="kb_deleteArticle('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm shrink-0" title="ลบบทความนี้"><span class="material-icons">delete</span></button>` : '';
 
-    // 🌟 ดึงรูปภาพมาแสดงผลด้านล่างเนื้อหา
+    let displayCat = item.category;
+    const matchedCat = globalKBCategories.find(c => c.id === item.category);
+    if (matchedCat) displayCat = matchedCat.name;
+
     let imagesHtml = '';
     if (item.image_urls && item.image_urls !== '[]') {
         try {
@@ -132,7 +266,7 @@ window.kb_readArticle = function(id) {
         <div class="fade-in">
             <div class="flex justify-between items-start mb-6 pb-6 border-b border-gray-200 dark:border-slate-700">
                 <div>
-                    <span class="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 px-3 py-1 rounded-full text-[11px] font-black border border-amber-200 dark:border-amber-500/50 shadow-sm mb-3 inline-block">${item.category}</span>
+                    <span class="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 px-3 py-1 rounded-full text-[11px] font-black border border-amber-200 dark:border-amber-500/50 shadow-sm mb-3 inline-block">${displayCat}</span>
                     <h1 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-white leading-tight">${item.title}</h1>
                     <div class="flex items-center gap-4 mt-4 text-xs font-bold text-gray-500 dark:text-gray-400">
                         <span class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-gray-200 dark:border-slate-700"><span class="material-icons text-[14px]">edit_document</span> ผู้เขียน: ${item.author_name}</span>
@@ -148,7 +282,6 @@ window.kb_readArticle = function(id) {
     `;
 };
 
-// 🌟 ฟังก์ชันดูตัวอย่างรูปภาพหลายๆ รูปก่อนอัปโหลด
 window.previewKbImages = function(input) {
     const previewBox = document.getElementById('kb-img-preview-box');
     if (!previewBox) return;
@@ -169,6 +302,8 @@ window.previewKbImages = function(input) {
 };
 
 window.kb_openAddModal = function() {
+    let catOptionsHtml = globalKBCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
     Swal.fire({
         title: '<span class="text-amber-500 font-black"><span class="material-icons align-middle text-2xl">post_add</span> เขียนบทความใหม่</span>',
         html: `
@@ -176,10 +311,7 @@ window.kb_openAddModal = function() {
                 <div>
                     <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">หมวดหมู่</label>
                     <select id="swal-kb-cat" class="w-full bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-amber-500 font-bold cursor-pointer shadow-inner">
-                        <option value="คู่มือการทำงาน">📘 คู่มือการทำงาน</option>
-                        <option value="สคริปต์ตอบแชท">💬 สคริปต์ตอบแชท</option>
-                        <option value="กฎระเบียบ">⚖️ กฎระเบียบ</option>
-                        <option value="ไอทีและระบบ">💻 ไอทีและระบบ</option>
+                        ${catOptionsHtml}
                     </select>
                 </div>
                 <div>
@@ -214,7 +346,6 @@ window.kb_openAddModal = function() {
             try {
                 const author = (typeof currentUser !== 'undefined' && currentUser.username) ? currentUser.username : 'Admin';
                 
-                // 🌟 อัปโหลดรูปภาพทั้งหมด (ถ้ามี)
                 let uploadedUrls = [];
                 const files = result.value.files;
                 
@@ -238,7 +369,6 @@ window.kb_openAddModal = function() {
                     uploadedUrls = await Promise.all(uploadPromises);
                 }
 
-                // 🌟 บันทึกข้อมูลลงฐานข้อมูล พร้อมกับรูปที่อัปโหลด (ถ้าไม่มีรูปจะเป็น "[]")
                 const { error } = await appDB.from('knowledge_base').insert([{ 
                     category: result.value.category, 
                     title: result.value.title, 
