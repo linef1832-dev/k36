@@ -1941,7 +1941,13 @@ const PERM_GROUPS = [
             {id: 'leave_request', name: '└ [ย่อย] กดจอง/ยกเลิกวันหยุดได้', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'leave_history', name: '└ [ย่อย] ดูประวัติการกด', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
             {id: 'leave_export', name: '└ [ย่อย] โหลด Excel ตารางหยุด', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
-            {id: 'leave_manage', name: '└ [ย่อย] แอดมินจัดการโควตา', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
+            {id: 'leave_manage', name: '└ [ย่อย] แอดมินจัดการโควตา', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            
+            // --- เพิ่ม 4 บรรทัดนี้เข้าไปครับ ---
+            {id: 'leave_am', name: '└ [หน้า] ดูแท็บ AM', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'leave_od', name: '└ [หน้า] ดูแท็บ OD', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'leave_new', name: '└ [หน้า] ดูแท็บ พนักงานใหม่', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true},
+            {id: 'leave_trainer', name: '└ [หน้า] ดูแท็บ ผู้สอน', color: 'bg-gray-800 text-gray-400 border-gray-600', isSub: true}
         ]
     },
     {
