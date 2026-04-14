@@ -1197,13 +1197,35 @@ window.renderUserTableDirectly = function() {
     const box = document.getElementById('userTableBody');
     if(!box || GLOBAL_USER_LIST.length === 0) return;
 
-    // 1. ดึงคำค้นหาและตัวกรอง
     const inputSearch = document.getElementById('searchUser') ? document.getElementById('searchUser').value.toLowerCase() : '';
     const shiftFilter = document.getElementById('filterUserShift') ? document.getElementById('filterUserShift').value : 'all';
     const deptFilter = document.getElementById('filterUserDept') ? document.getElementById('filterUserDept').value : 'all';
 
-    // 2. กรองข้อมูลจาก Array โดยตรง
-    let filteredUsers = GLOBAL_USER_LIST.filter(u => {
+    // 🌟 1. ดักสิทธิ์การมองเห็นข้อมูลพนักงาน (สำคัญมาก!)
+    let allowedToSeeData = GLOBAL_USER_LIST;
+    
+    if (window.currentUser) {
+        const myRole = (window.currentUser.role || '').toLowerCase().trim();
+        const myDept = window.currentUser.department || 'AM';
+        
+        // ถ้า "ไม่ใช่" admin หรือ manager จะถูกจำกัดการมองเห็น
+        if (myRole !== 'admin' && myRole !== 'manager') {
+            if (myRole === 'trainer' || myDept === 'AMQL' || myDept === 'TRAINER') {
+                // 🛑 ผู้สอน (TRAINER/AMQL) ให้เห็นเฉพาะแผนกตัวเอง และ NEW (เด็กใหม่)
+                allowedToSeeData = GLOBAL_USER_LIST.filter(u => 
+                    u.department === 'TRAINER' || 
+                    u.department === 'AMQL' || 
+                    u.department === 'NEW'
+                );
+            } else {
+                // 🛑 พนักงานปกติ (STAFF) ให้เห็นเฉพาะแผนกตัวเอง (AM เห็นแค่ AM, OD เห็นแค่ OD)
+                allowedToSeeData = GLOBAL_USER_LIST.filter(u => (u.department || 'AM') === myDept);
+            }
+        }
+    }
+
+    // 2. กรองข้อมูลจาก Array ที่ถูกจำกัดสิทธิ์แล้ว
+    let filteredUsers = allowedToSeeData.filter(u => {
         const matchName = u.username.toLowerCase().includes(inputSearch);
         const matchShift = (shiftFilter === 'all') || (u.allowed_shift === shiftFilter);
         const matchDept = (deptFilter === 'all') || ((u.department || 'AM') === deptFilter);
@@ -1214,7 +1236,6 @@ window.renderUserTableDirectly = function() {
     let totalUsers = filteredUsers.length;
     let totalPages = userRowsPerPage === 'all' ? 1 : Math.ceil(totalUsers / parseInt(userRowsPerPage));
     
-    // ป้องกันกรณีอยู่หน้าที่ลึกๆ แล้วค้นหาชื่อจนเหลือหน้าลดลง
     if (userCurrentPage > totalPages) userCurrentPage = Math.max(1, totalPages);
 
     let paginatedUsers = filteredUsers;
@@ -1225,7 +1246,6 @@ window.renderUserTableDirectly = function() {
         paginatedUsers = filteredUsers.slice(startIndex, startIndex + parseInt(userRowsPerPage));
     }
 
-    // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ 
     let availableDepts = new Set([...(typeof permDepartmentsList !== 'undefined' ? permDepartmentsList : ['AM', 'OD'])]);
     GLOBAL_USER_LIST.forEach(u => { 
         if(u.department && u.department !== 'TRAINER' && u.department !== 'NEW') availableDepts.add(u.department); 
@@ -1235,45 +1255,62 @@ window.renderUserTableDirectly = function() {
     
     let rawRoles = typeof permRolesList !== 'undefined' ? permRolesList : ['staff', 'trainer', 'manager'];
     if (!rawRoles.includes('manager')) rawRoles.push('manager');
-    const uniqueRoles = [...new Set(rawRoles)];
-    const roleOptions = uniqueRoles.map(r => ({ val: r, label: r.charAt(0).toUpperCase() + r.slice(1) }));
+    const roleOptions = [...new Set(rawRoles)].map(r => ({ val: r, label: r.charAt(0).toUpperCase() + r.slice(1) }));
 
-    // 5. วาดตาราง (เฉพาะคนที่อยู่ในหน้านี้)
+    // 🌟 4. ดักสิทธิ์การแก้ไข (ถ้าไม่ใช่แอดมิน จะเปลี่ยน Role/แผนก คนอื่นไม่ได้ ป้องกันการแกล้งกัน)
+    const isAdminOrManager = (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'manager'));
+
     let html = '';
     paginatedUsers.forEach((u, index) => {
-        const displayIndex = startIndex + index + 1; // ลำดับที่ถูกต้อง
+        const displayIndex = startIndex + index + 1;
 
         let currentDep = u.department || 'AM';
         if (currentDep === 'TRAINER' || currentDep === 'NEW') currentDep = 'AM';
         let depColor = currentDep === 'OD' ? 'text-pink-400' : (currentDep === 'AM' ? 'text-blue-400' : 'text-teal-400');
         
-        let depBadge = `<select onchange="updateUserDepartment(${u.id}, this.value)" class="bg-slate-900 ${depColor} text-[10px] p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center w-[60px]">`;
-        deptListArray.forEach(dName => { depBadge += `<option value="${dName}" ${currentDep === dName ? 'selected' : ''} class="text-white">${dName}</option>`; });
-        depBadge += `</select>`;
+        let depBadge = '';
+        if (isAdminOrManager) {
+            depBadge = `<select onchange="updateUserDepartment(${u.id}, this.value)" class="bg-slate-900 ${depColor} text-[10px] p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center w-[60px]">`;
+            deptListArray.forEach(dName => { depBadge += `<option value="${dName}" ${currentDep === dName ? 'selected' : ''} class="text-white">${dName}</option>`; });
+            depBadge += `</select>`;
+        } else {
+            depBadge = `<div class="bg-slate-900 ${depColor} text-[10px] p-1.5 rounded-md border border-slate-700 font-bold text-center w-[60px] mx-auto">${currentDep}</div>`;
+        }
         
-        const teamBadge = `<button class="bg-indigo-900/50 text-indigo-300 text-xs px-2.5 py-1 rounded-md font-bold hover:bg-indigo-800 transition border border-indigo-700/50 shadow-inner" onclick="updateUserTeam('${u.id}', '${u.team || ''}')">${u.team || '-'}</button>`;
+        const teamBadge = isAdminOrManager ? `<button class="bg-indigo-900/50 text-indigo-300 text-xs px-2.5 py-1 rounded-md font-bold hover:bg-indigo-800 transition border border-indigo-700/50 shadow-inner" onclick="updateUserTeam('${u.id}', '${u.team || ''}')">${u.team || '-'}</button>` : `<div class="bg-indigo-900/50 text-indigo-300 text-xs px-2.5 py-1 rounded-md font-bold border border-indigo-700/50 inline-block shadow-inner">${u.team || '-'}</div>`;
         
         let shiftColor = u.allowed_shift === 'กะเช้า' ? 'text-orange-400' : (u.allowed_shift === 'กะกลาง' ? 'text-blue-400' : (u.allowed_shift === 'กะดึก' ? 'text-purple-400' : 'text-gray-400'));
-        let shiftSelect = `<select onchange="updateUserShift(this, ${u.id}, this.value)" class="bg-slate-900 ${shiftColor} text-xs p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center">`;
-        ['all', 'กะเช้า', 'กะกลาง', 'กะดึก'].forEach(opt => { shiftSelect += `<option value="${opt}" ${u.allowed_shift === opt ? 'selected' : ''} class="text-white">${opt}</option>`; });
-        shiftSelect += `</select>`;
+        let shiftSelect = '';
+        if (isAdminOrManager) {
+            shiftSelect = `<select onchange="updateUserShift(this, ${u.id}, this.value)" class="bg-slate-900 ${shiftColor} text-xs p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center">`;
+            ['all', 'กะเช้า', 'กะกลาง', 'กะดึก'].forEach(opt => { shiftSelect += `<option value="${opt}" ${u.allowed_shift === opt ? 'selected' : ''} class="text-white">${opt}</option>`; });
+            shiftSelect += `</select>`;
+        } else {
+            shiftSelect = `<div class="bg-slate-900 ${shiftColor} text-xs p-1.5 rounded-md border border-slate-700 font-bold text-center inline-block shadow-inner">${u.allowed_shift}</div>`;
+        }
 
         const checkType = u.check_type || 'team';
-        const typeBadge = `<button class="${checkType === 'shift' ? 'bg-fuchsia-900/40 text-fuchsia-400 border-fuchsia-800/50' : 'bg-emerald-900/40 text-emerald-400 border-emerald-800/50'} text-[10px] px-2 py-1 rounded-md font-bold hover:opacity-80 border shadow-inner transition" onclick="updateCheckType(this, ${u.id}, '${checkType}')">${checkType === 'shift' ? 'เน้นกะ' : 'เน้นทีม'}</button>`;
+        const typeBadge = isAdminOrManager ? `<button class="${checkType === 'shift' ? 'bg-fuchsia-900/40 text-fuchsia-400 border-fuchsia-800/50' : 'bg-emerald-900/40 text-emerald-400 border-emerald-800/50'} text-[10px] px-2 py-1 rounded-md font-bold hover:opacity-80 border shadow-inner transition" onclick="updateCheckType(this, ${u.id}, '${checkType}')">${checkType === 'shift' ? 'เน้นกะ' : 'เน้นทีม'}</button>` : `<div class="${checkType === 'shift' ? 'bg-fuchsia-900/40 text-fuchsia-400 border-fuchsia-800/50' : 'bg-emerald-900/40 text-emerald-400 border-emerald-800/50'} text-[10px] px-2 py-1 rounded-md font-bold border shadow-inner inline-block">${checkType === 'shift' ? 'เน้นกะ' : 'เน้นทีม'}</div>`;
 
         let roleColor = (u.role === 'manager' || u.role === 'admin') ? 'text-red-400' : (u.role !== 'staff' ? 'text-fuchsia-400' : 'text-gray-400');
         let currentRoleVal = (u.role === 'admin') ? 'manager' : (u.role || 'staff');
-        let roleBadge = `<select onchange="updateUserRole(this, ${u.id}, this.value)" class="bg-slate-900 ${roleColor} text-xs p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center capitalize">`;
-        roleOptions.forEach(opt => { roleBadge += `<option value="${opt.val}" ${currentRoleVal === opt.val ? 'selected' : ''} class="text-white">${opt.label}</option>`; });
-        roleBadge += `</select>`;
+        
+        let roleBadge = '';
+        if (isAdminOrManager) {
+            roleBadge = `<select onchange="updateUserRole(this, ${u.id}, this.value)" class="bg-slate-900 ${roleColor} text-xs p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center capitalize">`;
+            roleOptions.forEach(opt => { roleBadge += `<option value="${opt.val}" ${currentRoleVal === opt.val ? 'selected' : ''} class="text-white">${opt.label}</option>`; });
+            roleBadge += `</select>`;
+        } else {
+            roleBadge = `<span class="${roleColor} font-bold text-[11px] capitalize px-3 py-1 bg-slate-900 rounded-md border border-slate-700 shadow-inner">${currentRoleVal}</span>`;
+        }
 
         const pinDisplay = u.password 
-            ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs">${u.password}</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
-            : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
+            ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs">${isAdminOrManager ? u.password : '******'}</span>${isAdminOrManager ? `<button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button>` : ''}</div>` 
+            : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span>${isAdminOrManager ? `<button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button>` : ''}</div>`;
 
         html += `
             <tr class="hover:bg-slate-700/30 transition duration-200 group">
-                <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
+                <td class="p-3 text-center border-b border-slate-700/50">${isAdminOrManager ? `<input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}">` : ''}</td>
                 <td class="p-3 text-gray-100 text-sm font-extrabold text-left border-b border-slate-700/50 flex items-center gap-2">
                     <span class="text-[10px] text-gray-500 w-5 text-right mr-1">${displayIndex}.</span>
                     <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-xs shadow-inner group-hover:text-white transition">${u.username.substring(0,2).toUpperCase()}</div>
@@ -1293,101 +1330,9 @@ window.renderUserTableDirectly = function() {
     }
 
     box.innerHTML = html;
-
-    // 6. วาดปุ่มควบคุมหน้า (Pagination Controls)
     window.renderPaginationControls(totalUsers, totalPages);
-    
     if(typeof populateTeamSelects === 'function') populateTeamSelects();
 };
-
-window.renderPaginationControls = function(totalUsers, totalPages) {
-    let paginationBox = document.getElementById('userPaginationControls');
-    
-    if (!paginationBox) {
-        const tableContainer = document.getElementById('userTableBody').closest('.max-h-\\[500px\\]').parentElement;
-        tableContainer.insertAdjacentHTML('beforeend', `<div id="userPaginationControls" class="p-4 bg-slate-900 border-t border-slate-700 flex flex-wrap justify-between items-center gap-4 text-sm text-gray-400"></div>`);
-        paginationBox = document.getElementById('userPaginationControls');
-    }
-
-    if (totalUsers === 0) {
-        paginationBox.innerHTML = '';
-        return;
-    }
-
-    let startCount = userRowsPerPage === 'all' ? 1 : ((userCurrentPage - 1) * parseInt(userRowsPerPage)) + 1;
-    let endCount = userRowsPerPage === 'all' ? totalUsers : Math.min(userCurrentPage * parseInt(userRowsPerPage), totalUsers);
-
-    paginationBox.innerHTML = `
-        <div class="flex items-center gap-3">
-            <span class="font-bold">แสดง:</span>
-           <select onchange="userRowsPerPage = this.value; userCurrentPage = 1; window.renderUserTableDirectly();" class="bg-slate-800 border border-slate-600 text-white rounded p-1 outline-none font-bold">
-                <option value="5" ${userRowsPerPage == 5 ? 'selected' : ''}>5</option>
-                <option value="10" ${userRowsPerPage == 10 ? 'selected' : ''}>10</option>
-                <option value="50" ${userRowsPerPage == 50 ? 'selected' : ''}>50</option>
-                <option value="100" ${userRowsPerPage == 100 ? 'selected' : ''}>100</option>
-                <option value="all" ${userRowsPerPage === 'all' ? 'selected' : ''}>ทั้งหมด</option>
-            </select>
-            <span class="hidden sm:inline">คน (รายการที่ ${startCount} - ${endCount} จาก ${totalUsers})</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <button onclick="if(userCurrentPage > 1) { userCurrentPage--; window.renderUserTableDirectly(); }" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold transition disabled:opacity-30 disabled:cursor-not-allowed" ${userCurrentPage === 1 ? 'disabled' : ''}>◀ ก่อนหน้า</button>
-            <span class="text-white font-bold px-3">หน้า ${userCurrentPage} / ${totalPages}</span>
-            <button onclick="if(userCurrentPage < ${totalPages}) { userCurrentPage++; window.renderUserTableDirectly(); }" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold transition disabled:opacity-30 disabled:cursor-not-allowed" ${userCurrentPage >= totalPages ? 'disabled' : ''}>ถัดไป ▶</button>
-        </div>
-    `;
-};
-
-window.searchEmployee = function() {
-    userCurrentPage = 1; 
-    window.renderUserTableDirectly();
-};
-
-function fastRecalculateStats() {
-    let stats = { 'กะเช้า': { total: 0, AM: 0, OD: 0 }, 'กะกลาง': { total: 0, AM: 0, OD: 0 }, 'กะดึก': { total: 0, AM: 0, OD: 0 } };
-    GLOBAL_USER_LIST.forEach(u => {
-        if (stats[u.allowed_shift]) {
-            stats[u.allowed_shift].total++; 
-            if (u.department === 'OD') stats[u.allowed_shift].OD++;
-            else stats[u.allowed_shift].AM++;
-        }
-    });
-
-    const updateBox = (elId, st) => {
-        const el = document.getElementById(elId);
-        if(el) {
-            if(el.querySelector('.stat-total')) el.querySelector('.stat-total').innerText = st.total;
-            if(el.querySelector('.stat-am')) el.querySelector('.stat-am').innerText = st.AM;
-            if(el.querySelector('.stat-od')) el.querySelector('.stat-od').innerText = st.OD;
-        }
-    };
-    updateBox('countShiftM', stats['กะเช้า']);
-    updateBox('countShiftA', stats['กะกลาง']);
-    updateBox('countShiftN', stats['กะดึก']);
-}
-
-window.updateUserDepartment = async function(id, newDept) {
-    const user = GLOBAL_USER_LIST.find(u => String(u.id) === String(id));
-    if(user) user.department = newDept;
-    if(typeof fastRecalculateStats === 'function') fastRecalculateStats();
-
-    const selectEl = document.querySelector(`select[onchange*="updateUserDepartment(${id}"]`);
-    if (selectEl) {
-        selectEl.classList.remove('text-blue-400', 'text-pink-400', 'text-teal-400');
-        if (newDept === 'OD') selectEl.classList.add('text-pink-400');
-        else if (newDept === 'AM') selectEl.classList.add('text-blue-400');
-        else selectEl.classList.add('text-teal-400');
-    }
-
-    appDB.from('users').update({ department: newDept }).eq('id', id).then(({error}) => {
-        if (error) {
-            Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
-            if(typeof fetchUsers === 'function') fetchUsers(); 
-        }
-    });
-
-    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
-    Toast.fire({ icon: 'success', title: `ย้ายไปแผนก ${newDept} แล้ว` });
-}
 
 // ==========================================
 // 🟢 ระบบจัดการรหัสผ่าน (เปลี่ยน PIN)
