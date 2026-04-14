@@ -285,6 +285,16 @@ window.switchAdminTab = function(tab) {
             }
         }
     });
+
+    // 🌟 เพิ่มโค้ดตรงนี้: บังคับวาดตารางรายชื่อใหม่เสมอเมื่อกดเข้าแท็บ "จัดการพนักงาน"
+    if (tab === 'users') {
+        if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
+            if (typeof fetchUsers === 'function') fetchUsers();
+        } else {
+            if (typeof renderUserTableDirectly === 'function') window.renderUserTableDirectly();
+            if (typeof fastRecalculateStats === 'function') window.fastRecalculateStats();
+        }
+    }
 };
 
 // ========================================================================
