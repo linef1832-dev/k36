@@ -2,9 +2,9 @@
     <div class="bg-[#151f32] p-4 md:p-6 rounded-2xl shadow-sm border border-slate-700 mb-6 flex justify-between items-center">
         <div>
             <h1 class="font-black text-2xl text-white flex items-center gap-2">
-                <span class="material-icons text-indigo-500">receipt_long</span> ระบบตรวจสอบสลิปโอนเงิน
+                <span class="material-icons text-indigo-500">receipt_long</span> ระบบตรวจสอบสลิป & QR
             </h1>
-            <p class="text-sm text-gray-400 mt-1">ตรวจสอบสลิปปลอมและเช็คข้อมูลโอนเงินผ่านระบบ Thunder API</p>
+            <p class="text-sm text-gray-400 mt-1">ตรวจสอบสลิปปลอมด้วย AI และเช็คข้อมูลพร้อมเพย์</p>
         </div>
         <button onclick="showPage('dashboard')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition active:scale-95 text-sm border border-slate-600 shadow-sm">
             <span class="material-icons text-sm">dashboard</span> กลับหน้า Dashboard
@@ -21,220 +21,152 @@
     </div>
 
     <div id="tabContentSlip" class="fade-in w-full flex flex-col gap-6">
-        
         <div class="max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-5 flex flex-col gap-4">
-                <div class="bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 p-6 relative overflow-hidden flex flex-col h-[400px]">
-                    <h3 class="font-bold text-lg text-white flex items-center gap-2 mb-4 border-b border-slate-700 pb-3 shrink-0">
-                        <span class="material-icons text-indigo-400">cloud_upload</span> อัปโหลดรูปสลิป
-                    </h3>
-
-                    <label for="slipUploadInput" class="flex-1 flex flex-col items-center justify-center w-full border-2 border-dashed border-indigo-500/50 rounded-xl cursor-pointer bg-[#0f172a] hover:bg-[#1e293b] transition relative z-10 overflow-hidden group">
+                <div class="bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 p-6 flex flex-col h-[400px]">
+                    <h3 class="font-bold text-lg text-white mb-4 border-b border-slate-700 pb-3"><span class="material-icons text-indigo-400">cloud_upload</span> อัปโหลดรูปสลิป</h3>
+                    <label for="slipUploadInput" class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-indigo-500/50 rounded-xl cursor-pointer bg-[#0f172a] hover:bg-[#1e293b] transition relative overflow-hidden group">
                         <div id="slipUploadPlaceholder" class="flex flex-col items-center justify-center p-6 text-center">
-                            <div class="w-16 h-16 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner">
-                                <span class="material-icons text-3xl">add_photo_alternate</span>
-                            </div>
-                            <h4 class="text-white font-bold text-base mb-1">คลิกเพื่อเลือกรูปภาพ หรือ ลากไฟล์มาวาง</h4>
-                            <p class="text-xs text-gray-500 font-medium">รองรับ .JPG, .PNG</p>
-                            <p class="text-xs text-indigo-400 mt-2 font-bold bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 shadow-sm">(สามารถกด Ctrl+V เพื่อวางรูปได้เลย)</p>
+                            <span class="material-icons text-4xl text-indigo-400 mb-2">add_photo_alternate</span>
+                            <h4 class="text-white font-bold text-sm">คลิกเพื่อเลือกรูป หรือกด Ctrl+V</h4>
                         </div>
                         <img id="slipPreviewImg" class="absolute inset-0 w-full h-full object-contain hidden bg-[#0f172a] p-2">
-                        <input id="slipUploadInput" type="file" class="hidden" accept="image/png, image/jpeg, image/jpg" onchange="handleSlipUpload(event)">
+                        <input id="slipUploadInput" type="file" class="hidden" accept="image/*" onchange="handleSlipUpload(event)">
                     </label>
-
-                    <div class="flex gap-3 mt-4 shrink-0">
-                        <button onclick="verifyThunderSlip()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-black transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 active:scale-95 border border-indigo-500">
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="verifyThunderSlip()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-black flex items-center justify-center gap-2 border border-indigo-500 transition">
                             <span class="material-icons">qr_code_scanner</span> ตรวจสอบสลิป
                         </button>
-                        <button onclick="clearSlipUpload()" class="w-14 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl font-bold transition flex items-center justify-center border border-red-500/30 active:scale-95" title="ล้างรูปภาพ">
-                            <span class="material-icons text-xl">delete</span>
+                        <button onclick="clearSlipUpload()" class="w-14 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl flex items-center justify-center border border-red-500/30 transition">
+                            <span class="material-icons">delete</span>
                         </button>
                     </div>
                 </div>
-
-                <div class="bg-indigo-900/20 border border-indigo-800/50 rounded-xl p-4 shadow-inner flex items-start gap-3">
-                    <span class="material-icons text-indigo-400 text-lg">info</span>
-                    <div>
-                        <h4 class="text-indigo-300 text-xs font-bold mb-1">คำแนะนำ</h4>
-                        <p class="text-[10px] text-gray-400 leading-relaxed">สลิปที่นำมาตรวจสอบจะต้องเห็น QR Code ชัดเจน ระบบจะทำการอ่าน QR Code และส่งไปตรวจสอบยอดเงินกับธนาคารโดยตรง</p>
-                    </div>
-                </div>
             </div>
-
-            <div class="lg:col-span-7 flex flex-col h-[400px]">
-                <div class="bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 h-full flex flex-col overflow-hidden relative">
-                    
-                    <div class="p-5 border-b border-slate-700 flex justify-between items-center shrink-0">
-                        <h3 class="font-bold text-lg text-emerald-400 flex items-center gap-2">
-                            <span class="material-icons">verified</span> ผลการตรวจสอบ
-                        </h3>
-                        <span id="slipStatusBadge" class="bg-slate-800 text-gray-400 px-3 py-1 rounded-full text-xs font-bold shadow-inner border border-slate-600">
-                            รอรูปภาพ...
-                        </span>
+            <div class="lg:col-span-7 h-[400px]">
+                <div class="bg-[#151f32] rounded-2xl border border-slate-700 h-full flex flex-col overflow-hidden">
+                    <div class="p-5 border-b border-slate-700 flex justify-between items-center bg-slate-800/20">
+                        <h3 class="font-bold text-emerald-400 flex items-center gap-2"><span class="material-icons">verified</span> ผลการตรวจสอบ</h3>
+                        <span id="slipStatusBadge" class="bg-slate-800 text-gray-400 px-3 py-1 rounded-full text-[10px] font-bold border border-slate-600">รอรูปภาพ...</span>
                     </div>
-
-                    <div class="flex-1 flex flex-col justify-center items-center p-6 relative overflow-y-auto custom-scrollbar">
-                        <div id="slipResultEmpty" class="text-center text-gray-500 flex flex-col items-center">
-                            <span class="material-icons text-6xl opacity-20 mb-3">receipt_long</span>
-                            <p class="font-bold text-gray-400">รอการอัปโหลดสลิปเพื่อตรวจสอบ</p>
+                    <div class="flex-1 p-6 overflow-y-auto custom-scrollbar">
+                        <div id="slipResultEmpty" class="h-full flex flex-col items-center justify-center text-gray-500 opacity-30">
+                            <span class="material-icons text-6xl">receipt_long</span>
+                            <p class="font-bold">ยังไม่มีข้อมูล</p>
                         </div>
-
-                        <div id="slipResultData" class="hidden flex-col gap-4 w-full h-full justify-start">
-                            <div class="bg-emerald-900/20 border border-emerald-800/50 rounded-xl p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center shadow-inner gap-2">
-                                <span class="text-emerald-400 font-bold text-sm flex items-center gap-2"><span class="material-icons text-[18px]">payments</span> ยอดเงินโอน (Amount)</span>
-                                <div class="text-3xl font-black text-emerald-400 font-mono">
-                                    ฿<span id="resAmount">0.00</span>
+                        <div id="slipResultData" class="hidden flex-col gap-4">
+                            <div class="bg-emerald-900/20 border border-emerald-800/50 rounded-xl p-5 flex justify-between items-center">
+                                <span class="text-emerald-400 font-bold text-sm">ยอดเงินโอนจริง</span>
+                                <div class="text-3xl font-black text-emerald-400 font-mono">฿<span id="resAmount">0.00</span></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                                    <p class="text-[10px] text-gray-500 font-bold uppercase">ผู้โอน</p>
+                                    <p id="resSenderName" class="font-bold text-white truncate">-</p>
+                                </div>
+                                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                                    <p class="text-[10px] text-gray-500 font-bold uppercase">ผู้รับ</p>
+                                    <p id="resReceiverName" class="font-bold text-white truncate">-</p>
                                 </div>
                             </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div class="bg-slate-900 border border-slate-700 p-4 rounded-xl shadow-inner">
-                                    <div class="text-[10px] text-gray-500 font-bold mb-1.5 flex items-center gap-1 uppercase tracking-widest"><span class="material-icons text-[14px] text-rose-400">output</span> ผู้โอน (Sender)</div>
-                                    <div class="font-black text-white text-base truncate" id="resSenderName">-</div>
-                                    <div class="text-xs text-gray-400 font-mono mt-1" id="resSenderBank">-</div>
-                                </div>
-                                <div class="bg-slate-900 border border-slate-700 p-4 rounded-xl shadow-inner relative overflow-hidden">
-                                    <div class="absolute right-0 top-0 bg-emerald-500/20 text-emerald-400 text-[9px] font-black px-2 py-1 rounded-bl-lg border-l border-b border-emerald-500/30">ผู้รับเงิน</div>
-                                    <div class="text-[10px] text-gray-500 font-bold mb-1.5 flex items-center gap-1 uppercase tracking-widest"><span class="material-icons text-[14px] text-emerald-400">input</span> ผู้รับ (Receiver)</div>
-                                    <div class="font-black text-white text-base truncate" id="resReceiverName">-</div>
-                                    <div class="text-xs text-gray-400 font-mono mt-1" id="resReceiverBank">-</div>
-                                </div>
-                            </div>
-
-                            <div class="bg-slate-900 border border-slate-700 p-4 rounded-xl text-xs space-y-3 shadow-inner mt-auto">
-                                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                                    <span class="text-gray-500 font-bold">วัน-เวลาที่โอน:</span>
-                                    <span class="font-bold text-gray-200" id="resDate">-</span>
-                                </div>
-                                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                                    <span class="text-gray-500 font-bold">เลขอ้างอิง (Ref No.):</span>
-                                    <span class="font-mono text-sky-400 font-bold text-[11px] sm:text-xs tracking-wider select-all" id="resRef">-</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-500 font-bold">บัญชี/พร้อมเพย์ ผู้รับ:</span>
-                                    <span class="font-mono text-gray-200 font-bold text-[11px] sm:text-xs select-all" id="resReceiverAccount">-</span>
-                                </div>
+                            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 text-xs space-y-2">
+                                <div class="flex justify-between"><span class="text-gray-500">วันเวลา:</span><span id="resDate" class="text-gray-200">-</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Ref No:</span><span id="resRef" class="text-sky-400 font-mono">-</span></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        <div class="max-w-[1600px] mx-auto w-full bg-[#151f32] rounded-2xl border border-slate-700 h-[350px] overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-slate-700 bg-slate-800/30 flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-white flex items-center gap-2"><span class="material-icons text-amber-500">history</span> ประวัติสลิป</h3>
+                <input type="text" id="slipHistorySearch" onkeyup="filterSlipHistory()" placeholder="ค้นหา..." class="bg-slate-900 border border-slate-600 text-xs rounded-lg px-3 py-1.5 outline-none focus:border-indigo-500 w-64 text-white">
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left text-xs">
+                    <thead class="sticky top-0 bg-[#151f32] text-gray-500 uppercase font-black border-b border-slate-700">
+                        <tr>
+                            <th class="p-3">เวลา</th><th class="p-3">เลขอ้างอิง</th><th class="p-3">ผู้โอน</th><th class="p-3 text-right">ยอดเงิน</th><th class="p-3 text-center">ผลลัพธ์</th><th class="p-3">พนักงาน</th><th class="p-3 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="slipHistoryBody" class="divide-y divide-slate-700/50"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-        <div class="max-w-[1600px] mx-auto w-full">
-            <div class="bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 flex flex-col h-[350px] overflow-hidden">
-                <div class="p-4 border-b border-slate-700 bg-slate-800/30 flex justify-between items-center shrink-0">
-                    <h3 class="font-bold text-base text-white flex items-center gap-2">
-                        <span class="material-icons text-amber-500">history</span> ประวัติการตรวจสอบล่าสุด
-                    </h3>
-                    <div class="relative w-48 sm:w-64">
-                        <span class="material-icons absolute left-3 top-2 text-gray-500 text-sm">search</span>
-                        <input type="text" id="slipHistorySearch" onkeyup="filterSlipHistory()" placeholder="ค้นหาชื่อ, เลขอ้างอิง..." class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs outline-none focus:border-amber-500 transition shadow-inner">
+    <div id="tabContentQR" class="hidden fade-in w-full flex-col gap-6">
+        
+        <div class="max-w-[1600px] mx-auto w-full flex flex-col lg:flex-row gap-6">
+            <div class="w-full lg:w-5/12 bg-[#151f32] rounded-2xl border border-slate-700 p-6 h-[400px] flex flex-col">
+                <h3 class="font-bold text-lg text-white mb-4 border-b border-slate-700 pb-3 shrink-0"><span class="material-icons text-blue-400">qr_code_2</span> สแกน QR ผู้รับเงิน</h3>
+                <label for="qrReceiverInput" class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-600 rounded-xl cursor-pointer bg-[#0f172a] hover:bg-[#1e293b] relative overflow-hidden group">
+                    <div id="qrReceiverPlaceholder" class="flex flex-col items-center justify-center text-center">
+                        <span class="material-icons text-5xl text-slate-500 mb-2">qr_code_scanner</span>
+                        <p class="text-xs text-slate-400 font-bold">คลิกเพื่อเลือกรูป QR Code</p>
+                    </div>
+                    <img id="qrReceiverImg" class="absolute inset-0 w-full h-full object-contain hidden bg-[#0f172a] p-2">
+                    <input type="file" id="qrReceiverInput" class="hidden" accept="image/*" onchange="handleScanQRReceiver(event)">
+                </label>
+                <button onclick="clearQRReceiver()" class="w-full mt-4 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl font-bold border border-red-500/30 transition">
+                    <span class="material-icons text-[18px]">delete</span> ล้างรูปภาพ
+                </button>
+            </div>
+            
+            <div class="w-full lg:w-7/12 bg-[#151f32] rounded-2xl border border-slate-700 p-6 h-[400px] flex flex-col relative overflow-hidden">
+                <h3 class="font-bold text-lg text-emerald-400 mb-4 border-b border-slate-700 pb-3 shrink-0"><span class="material-icons">info</span> ข้อมูลจาก QR Code</h3>
+                
+                <div id="qrResultEmpty" class="flex-1 flex flex-col items-center justify-center text-gray-600 opacity-30">
+                    <span class="material-icons text-6xl">account_balance_wallet</span>
+                </div>
+                
+                <div id="qrResultData" class="hidden flex-col gap-4 mt-2 h-full justify-start overflow-y-auto custom-scrollbar">
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                        <p class="text-[10px] text-gray-500 font-bold">ประเภท QR Code</p>
+                        <p id="resQrType" class="font-bold text-blue-400 text-lg">-</p>
+                    </div>
+                    <div class="bg-emerald-900/10 p-5 rounded-xl border border-emerald-800/30 shadow-inner">
+                        <p class="text-[10px] text-emerald-500/70 font-bold uppercase mb-1">รหัสพร้อมเพย์ / เลขบัญชี</p>
+                        <div class="flex justify-between items-center gap-3">
+                            <p id="resQrAccount" class="text-2xl sm:text-3xl font-black text-emerald-400 font-mono select-all truncate">-</p>
+                            <button onclick="copyToClipboard(document.getElementById('resQrAccount').innerText, this, event)" class="shrink-0 p-3 bg-slate-800 rounded-lg text-gray-400 hover:text-white border border-slate-700 transition">
+                                <span class="material-icons">content_copy</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-3 rounded-xl mt-auto shadow-inner">
+                        <p class="text-[10px] text-slate-500 mb-1 font-bold">ข้อมูลดิบ (Raw Payload)</p>
+                        <p id="resQrRaw" class="text-[10px] text-slate-400 font-mono break-all line-clamp-2 select-all">-</p>
                     </div>
                 </div>
-                <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#0b1120]/50 p-2">
-                    <table class="w-full text-left text-sm whitespace-nowrap">
-                        <thead class="text-[10px] text-gray-500 uppercase sticky top-0 bg-[#151f32] shadow-sm z-10 font-black tracking-wider">
-                            <tr>
-                                <th class="p-3 border-b border-slate-700">เวลาที่กดตรวจ</th>
-                                <th class="p-3 border-b border-slate-700">เลขอ้างอิง (Ref)</th>
-                                <th class="p-3 border-b border-slate-700">ผู้โอน (Sender)</th>
-                                <th class="p-3 border-b border-slate-700">ผู้รับ (Receiver)</th>
-                                <th class="p-3 text-right border-b border-slate-700">ยอดเงิน</th>
-                                <th class="p-3 text-center border-b border-slate-700">ผลลัพธ์</th>
-                                <th class="p-3 border-b border-slate-700">ผู้ทำรายการ</th>
-                                <th class="p-3 text-center border-b border-slate-700">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="slipHistoryBody" class="divide-y divide-slate-700/50 text-gray-300">
+            </div>
+        </div>
+
+        <div class="max-w-[1600px] mx-auto w-full bg-[#151f32] rounded-2xl border border-slate-700 h-[350px] flex flex-col overflow-hidden">
+            <div class="p-4 bg-slate-800/30 flex justify-between items-center border-b border-slate-700 shrink-0">
+                <h3 class="font-bold text-white flex items-center gap-2"><span class="material-icons text-blue-400">history</span> ประวัติการเช็ค QR</h3>
+                <div class="relative w-48 sm:w-64">
+                    <span class="material-icons absolute left-3 top-2 text-gray-500 text-sm">search</span>
+                    <input type="text" id="qrHistorySearch" onkeyup="filterQRHistory()" placeholder="ค้นหาเบอร์, เลขบัญชี..." class="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-600 text-xs rounded-lg text-white outline-none focus:border-indigo-500 transition shadow-inner">
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
+                <table class="w-full text-left text-xs whitespace-nowrap">
+                    <thead class="sticky top-0 bg-[#151f32] text-gray-500 uppercase font-black border-b border-slate-700 z-10">
+                        <tr>
+                            <th class="p-3 border-b border-slate-700">เวลาที่กดตรวจ</th>
+                            <th class="p-3 border-b border-slate-700">ประเภท QR CODE</th>
+                            <th class="p-3 border-b border-slate-700">รหัสพร้อมเพย์ / เลขบัญชี</th>
+                            <th class="p-3 border-b border-slate-700">ผู้ทำรายการ</th>
+                            <th class="p-3 text-center border-b border-slate-700">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="qrHistoryBody" class="divide-y divide-slate-700/50 text-gray-300">
                         </tbody>
-                    </table>
-                </div>
+                </table>
             </div>
         </div>
     </div>
 
-
-    <div id="tabContentQR" class="hidden fade-in max-w-[1600px] mx-auto w-full flex-col gap-6">
-    
-    <div class="flex flex-col lg:flex-row gap-6 w-full">
-        <div class="w-full lg:w-5/12 bg-[#151f32] rounded-2xl border border-slate-700 p-6 shadow-xl h-[400px] flex flex-col">
-            <h3 class="font-bold text-lg text-white flex items-center gap-2 mb-4 border-b border-slate-700 pb-3 shrink-0">
-                <span class="material-icons text-blue-400">qr_code_2</span> อัปโหลดรูป QR Code เพื่อตรวจสอบ
-            </h3>
-            <label class="flex-1 flex flex-col items-center justify-center w-full border-2 border-dashed border-slate-600 rounded-xl cursor-pointer bg-[#0f172a] hover:bg-[#1e293b] transition relative z-10 overflow-hidden group">
-                <input type="file" id="qrReceiverInput" class="hidden" accept="image/*" onchange="handleScanQRReceiver(event)">
-                
-                <div id="qrReceiverPlaceholder" class="flex flex-col items-center justify-center text-slate-400 group-hover:text-blue-400 transition">
-                    <span class="material-icons text-5xl mb-3">qr_code_scanner</span>
-                    <p class="text-sm font-bold">คลิกเพื่อเลือกรูป QR Code</p>
-                    <p class="text-xs mt-1 text-slate-500">รองรับ QR Code พร้อมเพย์ จากหน้าแอปธนาคาร</p>
-                </div>
-                
-                <img id="qrReceiverImg" src="" class="absolute inset-0 w-full h-full object-contain hidden z-10 bg-[#0f172a] p-2" />
-            </label>
-            
-            <button onclick="clearQRReceiver()" class="w-full mt-4 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl font-bold transition flex items-center justify-center gap-2 border border-red-500/30 active:scale-95">
-                <span class="material-icons text-[18px]">delete</span> ล้างรูปภาพ
-            </button>
-        </div>
-
-        <div class="w-full lg:w-7/12 bg-[#151f32] rounded-2xl border border-slate-700 p-6 shadow-xl h-[400px] flex flex-col relative overflow-hidden">
-            <h3 class="font-bold text-lg text-emerald-400 flex items-center gap-2 border-b border-slate-700 pb-3 shrink-0">
-                <span class="material-icons">info</span> ข้อมูลจาก QR Code
-            </h3>
-            
-            <div id="qrResultEmpty" class="flex-1 flex flex-col items-center justify-center text-slate-500">
-                <span class="material-icons text-6xl mb-3 opacity-20">document_scanner</span>
-                <p class="text-sm font-bold">อัปโหลดรูป QR Code เพื่อดูข้อมูล ✨</p>
-            </div>
-
-            <div id="qrResultData" class="hidden flex-col gap-4 mt-6 h-full justify-start overflow-y-auto custom-scrollbar">
-    <div class="bg-slate-900 border border-slate-700 p-4 rounded-xl shadow-inner">
-        <p class="text-xs text-slate-400 mb-1 font-bold">ประเภท QR Code</p>
-        <p id="resQrType" class="text-lg font-black text-blue-400">-</p>
-    </div>
-    
-    <div class="bg-emerald-900/10 border border-emerald-800/30 p-5 rounded-xl shadow-inner">
-        <p class="text-xs text-emerald-500/70 mb-1 font-bold tracking-wider">เลขบัญชี / รหัสพร้อมเพย์</p>
-        <div class="flex items-center justify-between gap-3">
-            <p id="resQrAccount" class="text-2xl sm:text-3xl font-black text-emerald-400 tracking-wider font-mono select-all truncate">-</p>
-            <button onclick="copyToClipboard(document.getElementById('resQrAccount').innerText, this, event)" class="shrink-0 w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-white rounded-lg border border-slate-600 transition active:scale-95" title="คัดลอก">
-                <span class="material-icons text-[20px]">content_copy</span>
-            </button>
-        </div>
-    </div>
-
-    <div class="bg-slate-900 border border-slate-700 p-3 rounded-xl mt-auto shadow-inner">
-        <p class="text-[10px] text-slate-500 mb-1 font-bold">ข้อมูลดิบ (Raw Payload)</p>
-        <p id="resQrRaw" class="text-[10px] text-slate-400 font-mono break-all line-clamp-2 select-all">-</p>
-    </div>
-</div>
-
-    <div class="w-full bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 flex flex-col h-[350px] overflow-hidden">
-        <div class="p-4 border-b border-slate-700 bg-slate-800/30 flex justify-between items-center shrink-0">
-            <h3 class="font-bold text-base text-white flex items-center gap-2">
-                <span class="material-icons text-amber-500">history</span> ประวัติการสแกน QR ล่าสุด
-            </h3>
-            <div class="relative w-48 sm:w-64">
-                <span class="material-icons absolute left-3 top-2 text-gray-500 text-sm">search</span>
-                <input type="text" id="qrHistorySearch" onkeyup="filterQRHistory()" placeholder="ค้นหาเบอร์, เลขบัญชี, ผู้ทำรายการ..." class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs outline-none focus:border-amber-500 transition shadow-inner">
-            </div>
-        </div>
-        <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#0b1120]/50 p-2">
-            <table class="w-full text-left text-sm whitespace-nowrap">
-                <thead class="text-[10px] text-gray-500 uppercase sticky top-0 bg-[#151f32] shadow-sm z-10 font-black tracking-wider">
-                    <tr>
-                        <th class="p-3 border-b border-slate-700">เวลาที่กดตรวจ</th>
-                        <th class="p-3 border-b border-slate-700">ประเภท QR Code</th>
-                        <th class="p-3 border-b border-slate-700">รหัสพร้อมเพย์ / เลขบัญชี</th>
-                        <th class="p-3 border-b border-slate-700">ผู้ทำรายการ</th>
-                        <th class="p-3 text-center border-b border-slate-700">จัดการ</th>
-                    </tr>
-                </thead>
-                <tbody id="qrHistoryBody" class="divide-y divide-slate-700/50 text-gray-300">
-                </tbody>
-            </table>
-        </div>
-    </div>
 </div>
