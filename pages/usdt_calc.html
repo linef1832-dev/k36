@@ -1,0 +1,124 @@
+<style>
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
+</style>
+
+<div class="fade-in pb-10">
+    <div class="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-2xl shadow-sm border dark:border-slate-700 mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="font-black text-2xl text-slate-800 dark:text-white flex items-center gap-2">
+                <span class="material-icons text-emerald-500">currency_exchange</span> เครื่องคำนวณ USDT / THB
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">ตรวจสอบเรทราคาล่าสุดและคำนวณเงินบาทแบบ Real-time</p>
+        </div>
+        <button onclick="showPage('dashboard')" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition active:scale-95 text-sm">
+            <span class="material-icons text-sm">dashboard</span> กลับหน้า Dashboard
+        </button>
+    </div>
+
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            
+            <div class="bg-slate-50 dark:bg-slate-900/50 p-6 md:p-10 border-b dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex items-center gap-5 w-full md:w-auto">
+                    <div class="w-20 h-20 bg-emerald-100 dark:bg-emerald-500/20 rounded-3xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shadow-sm shrink-0">
+                        <span class="material-icons text-5xl">payments</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+                            <div class="text-xs font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest">Current Exchange Rate</div>
+                            <div class="flex bg-slate-200 dark:bg-slate-700/80 p-0.5 rounded-lg border border-slate-300 dark:border-slate-600 w-fit">
+                                <button id="modeAutoBtn" onclick="setUsdtMode('auto')" class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-white dark:bg-slate-800 shadow-sm text-emerald-500 border border-slate-200 dark:border-slate-600 transition flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Auto
+                                </button>
+                                <button id="modeManualBtn" onclick="setUsdtMode('manual')" class="px-2 py-0.5 text-[10px] font-bold rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span> กำหนดเอง
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div id="autoRateDisplay" class="flex items-center gap-3">
+                                <span class="text-5xl font-black text-slate-800 dark:text-white font-mono" id="usdtRateDisplay">0.0000</span>
+                                <span class="text-2xl font-bold text-slate-400 dark:text-gray-500">฿</span>
+                                <span class="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-lg shadow-emerald-500/20">LIVE</span>
+                            </div>
+                            <div id="manualRateDisplay" class="hidden items-center gap-2">
+                               <input type="number" id="manualUsdtRate" placeholder="00.00" class="w-32 sm:w-48 bg-slate-100 dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-600 text-amber-600 dark:text-amber-400 text-3xl sm:text-4xl font-black font-mono rounded-xl py-1 px-3 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition shadow-inner" oninput="updateManualRate()">
+                               <span class="text-2xl font-bold text-slate-400 dark:text-gray-500">฿</span>
+                               <span class="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg shadow-amber-500/20">MANUAL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-right w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-slate-200 dark:border-slate-700 flex flex-col items-end shrink-0">
+                    <div class="text-xs text-gray-400 font-bold mb-1 uppercase tracking-tight">อัปเดตล่าสุดเมื่อ</div>
+                    <div class="text-slate-700 dark:text-white font-mono font-bold text-xl mb-3" id="usdtUpdateTime">--:--:--</div>
+                    <button id="btnRefreshUsdt" onclick="fetchUsdtRate()" class="bg-white hover:bg-gray-50 text-sky-500 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition shadow-md border border-gray-200 active:scale-95">
+                        <span class="material-icons text-base">sync</span> รีเฟรชราคา
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-4 border-b dark:border-slate-700 bg-slate-50/50 dark:bg-black/10">
+                <div class="text-center">
+                    <div class="text-[10px] text-gray-500 font-bold mb-1 uppercase">ราคาเมื่อวาน</div>
+                    <div class="text-slate-600 dark:text-gray-300 font-bold">อ้างอิงตลาด</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] text-gray-500 font-bold mb-1 uppercase">เปลี่ยน 24 ชม.</div>
+                    <div class="text-emerald-500 font-bold">▲ +0.05%</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] text-gray-500 font-bold mb-1 uppercase">ต่ำสุด (24ชม.)</div>
+                    <div class="text-red-400 font-bold">Auto</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] text-gray-500 font-bold mb-1 uppercase">สูงสุด (24ชม.)</div>
+                    <div class="text-emerald-400 font-bold">Auto</div>
+                </div>
+            </div>
+
+            <div class="p-8 md:p-12 space-y-10">
+                <div class="relative text-center">
+                    <label class="block text-[11px] font-black text-amber-500 uppercase tracking-widest mb-3">คุณมีกี่เหรียญ? (USDT)</label>
+                    <input type="number" id="calcUsdtInput" placeholder="0.0000" 
+                        class="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white text-4xl sm:text-5xl font-black font-mono rounded-3xl py-6 px-8 text-center outline-none focus:border-amber-500 focus:ring-8 focus:ring-amber-500/10 shadow-inner transition" 
+                        oninput="calcUsdtToThb()">
+                </div>
+
+                <div class="flex justify-center -my-6 relative z-10 pointer-events-none">
+                    <div class="bg-white dark:bg-slate-800 p-4 rounded-full shadow-2xl border-4 border-slate-50 dark:border-slate-700 text-slate-400">
+                        <span class="material-icons text-4xl animate-pulse">sync_alt</span>
+                    </div>
+                </div>
+
+                <div class="relative text-center">
+                    <label class="block text-[11px] font-black text-blue-500 uppercase tracking-widest mb-3">คิดเป็นเงินไทยประมาณ (THB)</label>
+                    <input type="number" id="calcThbInput" placeholder="0.00" 
+                        class="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white text-4xl sm:text-5xl font-black font-mono rounded-3xl py-6 px-8 text-center outline-none focus:border-blue-500 focus:ring-8 focus:ring-blue-500/10 shadow-inner transition" 
+                        oninput="calcThbToUsdt()">
+                </div>
+
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-700 dark:to-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg text-white text-left">
+                    <div class="flex items-start gap-4">
+                        <span class="material-icons text-amber-400">info</span>
+                        <div>
+                            <h4 class="font-bold text-sm mb-1">หมายเหตุการคำนวณ</h4>
+                            <p class="text-xs text-gray-400 leading-relaxed" id="noteDescription">
+                                ราคาที่แสดงเป็นราคาประมาณการเบื้องต้นแบบ Real-time 
+                                <span class="text-amber-400 font-bold">(อ้างอิงเรทราคาตลาดโลก เทียบเท่า Google Finance)</span> 
+                                เรทราคาจริงเวลาโอนอาจมีการเปลี่ยนแปลงตามความผันผวนของตลาดในช่วงเวลานั้นๆ
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
