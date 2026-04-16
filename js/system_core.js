@@ -2007,6 +2007,18 @@ const PERM_GROUPS = [
         ]
     },
     {
+        id: 'page_usdt_calc', name: 'คำนวณ USDT / THB', icon: 'currency_exchange', theme: 'emerald',
+        items: [
+            {id: 'usdt_calc', name: 'เข้าหน้าคำนวณ USDT', isSub: false}
+        ]
+    },
+    {
+        id: 'page_slip_check', name: 'ตรวจสอบสลิป', icon: 'qr_code_scanner', theme: 'blue',
+        items: [
+            {id: 'slip_check', name: 'เข้าหน้าตรวจสอบสลิป', isSub: false}
+        ]
+    },
+    {
         id: 'page_duty', name: 'จัดหน้าที่ / เวร', icon: 'assignment_ind', theme: 'indigo',
         items: [
             {id: 'duty', name: 'เข้าหน้าจัดหน้าที่ / เวร', isSub: false},
