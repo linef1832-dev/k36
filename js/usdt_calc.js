@@ -1,23 +1,21 @@
 // เก็บสถานะว่าอยู่โหมดไหน (auto / manual)
 window.usdtCalcMode = 'auto';
 
+// ของใหม่ (เอาไปวางทับ window.initUsdtCalc ของเดิมเลยครับ)
 window.initUsdtCalc = function() {
     window.currentUsdtRate = 0; 
     
-    // โหลดเรท Manual เดิมที่เคยกรอกไว้
+    // โหลดเรท Manual เดิมที่เคยกรอกไว้ (ถ้าไม่มี ให้เป็นค่าว่าง)
     let savedRate = localStorage.getItem('manual_usdt_rate');
-    
-    // 🚨 จุดแก้บัคเลข 3 ค้าง: ถ้าเจอว่าเครื่องจำเลข 3 ไว้ ให้ลบทิ้งเป็นค่าว่างเลย!
-    if (savedRate === "3" || savedRate === 3) {
-        savedRate = '';
-        localStorage.removeItem('manual_usdt_rate'); // สั่งล้างออกจากความจำเบราว์เซอร์
-    }
-    
     window.manualUsdtRateValue = savedRate ? savedRate : '';
     
     const manualInput = document.getElementById('manualUsdtRate');
     if (manualInput) {
         manualInput.value = window.manualUsdtRateValue;
+        // เช็คอีกที ถ้ามันเป็นเลข 3 โดดๆ แบบไม่มีเหตุผล ให้ล้างทิ้งเลย!
+        if (manualInput.value === "3") {
+             manualInput.value = '';
+        }
     }
 
     // สั่งให้เริ่มทำงานด้วยโหมด Auto เสมอ
@@ -126,7 +124,7 @@ window.updateManualRate = function() {
     }
 };
 
-// 🟢 ฟังก์ชันดึง/รีเฟรชราคาจากเน็ต (ดึงเรทสากล ตรงตาม Google Forex เป๊ะๆ)
+// 🟢 ฟังก์ชันดึง/รีเฟรชราคาจากเน็ต (เรทธนาคารโลก อิงตาม Google Forex)
 window.fetchUsdtRate = async function() {
     if (window.usdtCalcMode === 'manual') return;
 
@@ -137,27 +135,26 @@ window.fetchUsdtRate = async function() {
     if (rateDisplay) rateDisplay.innerHTML = '<span class="material-icons animate-spin text-3xl">sync</span>';
     
     try {
-        // ใช้ API ที่เสถียรและให้จุดทศนิยมเป๊ะๆ ของ ExchangeRate-API
+        // ใช้ API เรทเงินตราต่างประเทศ (Forex) USD -> THB ซึ่งจะตรงกับ Google
         const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
         const data = await response.json();
         
         if (data && data.rates && data.rates.THB) {
             window.currentUsdtRate = parseFloat(data.rates.THB);
         } else {
-            throw new Error("API ดึงข้อมูลไม่ได้");
+            window.currentUsdtRate = 34.5000;
         }
     } catch (error) {
-        console.warn('สลับใช้ API สำรอง...', error);
+        console.error('API Error:', error);
+        // ถ้า API ตัวแรกมีปัญหา ให้สลับไปใช้ API สำรอง
         try {
             const res2 = await fetch('https://open.er-api.com/v6/latest/USD');
             const data2 = await res2.json();
             if (data2 && data2.rates && data2.rates.THB) {
                 window.currentUsdtRate = parseFloat(data2.rates.THB);
-            } else {
-                window.currentUsdtRate = 34.6125; // ค่าสำรองฉุกเฉิน
             }
         } catch(e) {
-            window.currentUsdtRate = 34.6125; // ค่าสำรองฉุกเฉิน
+            window.currentUsdtRate = 34.5000; 
         }
     }
     
@@ -170,7 +167,6 @@ window.fetchUsdtRate = async function() {
     }
     
     if (rateDisplay) {
-        // บังคับโชว์ทศนิยม 4 ตำแหน่งเสมอ เช่น 34.6125
         rateDisplay.innerText = window.currentUsdtRate.toFixed(4);
     }
     
