@@ -1,15 +1,22 @@
 // เก็บสถานะว่าอยู่โหมดไหน (auto / manual)
 window.usdtCalcMode = 'auto';
 
+// ของใหม่ (เอาไปวางทับ window.initUsdtCalc ของเดิมเลยครับ)
 window.initUsdtCalc = function() {
     window.currentUsdtRate = 0; 
     
-    // โหลดเรท Manual เดิมที่เคยกรอกไว้ (ถ้าไม่มีให้ว่างไว้ เพื่อโชว์ 00.00)
+    // โหลดเรท Manual เดิมที่เคยกรอกไว้ (ถ้าไม่มี ให้เป็นค่าว่าง)
     let savedRate = localStorage.getItem('manual_usdt_rate');
     window.manualUsdtRateValue = savedRate ? savedRate : '';
     
     const manualInput = document.getElementById('manualUsdtRate');
-    if (manualInput) manualInput.value = window.manualUsdtRateValue;
+    if (manualInput) {
+        manualInput.value = window.manualUsdtRateValue;
+        // เช็คอีกที ถ้ามันเป็นเลข 3 โดดๆ แบบไม่มีเหตุผล ให้ล้างทิ้งเลย!
+        if (manualInput.value === "3") {
+             manualInput.value = '';
+        }
+    }
 
     // สั่งให้เริ่มทำงานด้วยโหมด Auto เสมอ
     window.setUsdtMode('auto');
