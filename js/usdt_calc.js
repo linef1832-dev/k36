@@ -1,22 +1,48 @@
 // เก็บสถานะว่าอยู่โหมดไหน (auto / manual)
 window.usdtCalcMode = 'auto';
 
-// ของใหม่ (เอาไปวางทับ window.initUsdtCalc ของเดิมเลยครับ)
+// 🟢 ฟังก์ชันโหลดหน้าแรก (แก้แคชบัค)
 window.initUsdtCalc = function() {
     window.currentUsdtRate = 0; 
     
-    // โหลดเรท Manual เดิมที่เคยกรอกไว้ (ถ้าไม่มี ให้เป็นค่าว่าง)
-    let savedRate = localStorage.getItem('manual_usdt_rate');
-    window.manualUsdtRateValue = savedRate ? savedRate : '';
+    // 🌟 เปลี่ยนชื่อ Key ใหม่เป็น 'usdt_custom_rate_new' เพื่อล้างความจำที่บัคค้างในเครื่อง
+    let savedRate = localStorage.getItem('usdt_custom_rate_new');
     
     const manualInput = document.getElementById('manualUsdtRate');
     if (manualInput) {
-        manualInput.value = window.manualUsdtRateValue;
-        // เช็คอีกที ถ้ามันเป็นเลข 3 โดดๆ แบบไม่มีเหตุผล ให้ล้างทิ้งเลย!
-        if (manualInput.value === "3") {
-             manualInput.value = '';
-        }
+        // ดึงอะไรมาได้ ให้โชว์แบบนั้นเป๊ะๆ 
+        manualInput.value = savedRate ? savedRate : '';
     }
+
+    // สั่งให้เริ่มทำงานด้วยโหมด Auto เสมอ
+    window.setUsdtMode('auto');
+};
+
+// 🟢 อัปเดตราคาเมื่อพิมพ์ในโหมด Manual
+window.updateManualRate = function() {
+    const input = document.getElementById('manualUsdtRate');
+    if (!input) return;
+    
+    // 🌟 บันทึกทุกอย่างที่คุณพิมพ์ลงเบราว์เซอร์แบบตรงๆ ทันที (พิมพ์ 45 ก็เซฟ 45)
+    localStorage.setItem('usdt_custom_rate_new', input.value); 
+
+    // ดักไว้ว่าถ้าลบจนช่องว่างเปล่า ไม่ต้องทำอะไร
+    if (input.value === '') {
+        window.currentUsdtRate = 0;
+        window.calcUsdtToThb();
+        return;
+    }
+
+    const val = parseFloat(input.value);
+    
+    if (!isNaN(val) && val > 0) {
+        window.currentUsdtRate = val;
+        window.calcUsdtToThb(); // สั่งให้ด้านล่างคำนวณใหม่
+    } else {
+        window.currentUsdtRate = 0;
+        window.calcUsdtToThb();
+    }
+};
 
     // สั่งให้เริ่มทำงานด้วยโหมด Auto เสมอ
     window.setUsdtMode('auto');
