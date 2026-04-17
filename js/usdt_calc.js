@@ -124,7 +124,7 @@ window.updateManualRate = function() {
     }
 };
 
-// 🟢 ฟังก์ชันดึง/รีเฟรชราคาจากเน็ต (ทำงานเฉพาะตอนอยู่โหมด Auto)
+// 🟢 ฟังก์ชันดึง/รีเฟรชราคาจากเน็ต (เรทธนาคารโลก อิงตาม Google Forex)
 window.fetchUsdtRate = async function() {
     if (window.usdtCalcMode === 'manual') return;
 
@@ -135,17 +135,27 @@ window.fetchUsdtRate = async function() {
     if (rateDisplay) rateDisplay.innerHTML = '<span class="material-icons animate-spin text-3xl">sync</span>';
     
     try {
-        const response = await fetch('https://open.er-api.com/v6/latest/USD');
+        // ใช้ API เรทเงินตราต่างประเทศ (Forex) USD -> THB ซึ่งจะตรงกับ Google
+        const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
         const data = await response.json();
         
         if (data && data.rates && data.rates.THB) {
-            window.currentUsdtRate = data.rates.THB;
+            window.currentUsdtRate = parseFloat(data.rates.THB);
         } else {
             window.currentUsdtRate = 34.5000;
         }
     } catch (error) {
         console.error('API Error:', error);
-        window.currentUsdtRate = 34.5000; 
+        // ถ้า API ตัวแรกมีปัญหา ให้สลับไปใช้ API สำรอง
+        try {
+            const res2 = await fetch('https://open.er-api.com/v6/latest/USD');
+            const data2 = await res2.json();
+            if (data2 && data2.rates && data2.rates.THB) {
+                window.currentUsdtRate = parseFloat(data2.rates.THB);
+            }
+        } catch(e) {
+            window.currentUsdtRate = 34.5000; 
+        }
     }
     
     if (timeDisplay) {
