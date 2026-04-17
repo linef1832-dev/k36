@@ -58,14 +58,25 @@ window.switchSlipTab = function(tabName) {
 // ==========================================
 // 🌟 โหมดที่ 2: เช็ค QR Code ผู้รับเงิน
 // ==========================================
+// ✅ คัดลอกโค้ดนี้ไปทับฟังก์ชันเดิม
 window.clearQRReceiver = function() {
-    document.getElementById('qrReceiverInput').value = '';
-    document.getElementById('qrReceiverImg').src = '';
-    document.getElementById('qrReceiverImg').classList.add('hidden');
-    document.getElementById('qrReceiverPlaceholder').classList.remove('opacity-0');
+    const qrInput = document.getElementById('qrReceiverInput');
+    if (qrInput) qrInput.value = '';
     
-    document.getElementById('qrResultEmpty').classList.remove('hidden');
-    document.getElementById('qrResultData').classList.add('hidden');
+    const qrImg = document.getElementById('qrReceiverImg');
+    if (qrImg) {
+        qrImg.src = '';
+        qrImg.classList.add('hidden');
+    }
+    
+    const qrPlaceholder = document.getElementById('qrReceiverPlaceholder');
+    if (qrPlaceholder) qrPlaceholder.classList.remove('opacity-0');
+    
+    const resultEmpty = document.getElementById('qrResultEmpty');
+    if (resultEmpty) resultEmpty.classList.remove('hidden');
+    
+    const resultData = document.getElementById('qrResultData');
+    if (resultData) resultData.classList.add('hidden');
 };
 
 window.handleScanQRReceiver = async function(event) {
@@ -151,17 +162,33 @@ window.handleSlipUpload = function(event) {
     updateSlipBadge('ready', 'พร้อมตรวจสอบ');
 };
 
+// ✅ คัดลอกโค้ดนี้ไปทับฟังก์ชันเดิม
 window.clearSlipUpload = function() {
     window.selectedSlipFile = null;
-    document.getElementById('slipUploadInput').value = '';
-    document.getElementById('slipPreviewImg').src = '';
-    document.getElementById('slipPreviewImg').classList.add('hidden');
-    document.getElementById('slipUploadPlaceholder').classList.remove('opacity-0');
     
-    document.getElementById('slipResultEmpty').classList.remove('hidden');
-    document.getElementById('slipResultEmpty').classList.add('flex');
-    document.getElementById('slipResultData').classList.add('hidden');
-    document.getElementById('slipResultData').classList.remove('flex');
+    const slipInput = document.getElementById('slipUploadInput');
+    if (slipInput) slipInput.value = '';
+    
+    const slipImg = document.getElementById('slipPreviewImg');
+    if (slipImg) {
+        slipImg.src = '';
+        slipImg.classList.add('hidden');
+    }
+    
+    const slipPlaceholder = document.getElementById('slipUploadPlaceholder');
+    if (slipPlaceholder) slipPlaceholder.classList.remove('opacity-0');
+    
+    const resultEmpty = document.getElementById('slipResultEmpty');
+    if (resultEmpty) {
+        resultEmpty.classList.remove('hidden');
+        resultEmpty.classList.add('flex');
+    }
+    
+    const resultData = document.getElementById('slipResultData');
+    if (resultData) {
+        resultData.classList.add('hidden');
+        resultData.classList.remove('flex');
+    }
     
     updateSlipBadge('none', 'รอรูปภาพ...');
 };
@@ -476,7 +503,7 @@ window.renderSlipHistory = function() {
             amountColor = "text-gray-500";
         }
 
-        const actionBtn = hasPermission('slip_check_delete') 
+        const actionBtn = window.hasUserPerm('slip_check_delete') 
             ? `<button onclick="window.deleteSlipHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition" title="ลบประวัติ"><span class="material-icons text-[18px]">delete</span></button>`
             : `<span class="text-slate-600 material-icons text-[16px]" title="ไม่มีสิทธิ์ลบ">block</span>`;
             
@@ -666,7 +693,7 @@ window.renderQRHistory = function() {
         const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
         
         // ปุ่มลบโชว์เฉพาะผู้จัดการ
-        const actionBtn = hasPermission('slip_check_delete') 
+        const actionBtn = window.hasUserPerm('slip_check_delete') 
             ? `<button onclick="window.deleteQRHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition" title="ลบประวัติ"><span class="material-icons text-[18px]">delete</span></button>`
             : `<span class="text-slate-600 material-icons text-[16px]" title="ไม่มีสิทธิ์ลบ">block</span>`;
             
