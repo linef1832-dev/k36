@@ -124,7 +124,8 @@ window.updateManualRate = function() {
     }
 };
 
-// 🟢 ฟังก์ชันดึง/รีเฟรชราคาจากเน็ต (เรทธนาคารโลก อิงตาม Google Forex)
+// 🟢 ฟังก์ชันดึง/รีเฟรชราคาจากเน็ต (ดึงเรทสากล ตรงตาม Google Forex เป๊ะๆ)
+// 🟢 ฟังก์ชันดึง/รีเฟรชราคาจากเน็ต (ดึงเรทสากล ตรงตาม Google Forex เป๊ะๆ)
 window.fetchUsdtRate = async function() {
     if (window.usdtCalcMode === 'manual') return;
 
@@ -135,28 +136,73 @@ window.fetchUsdtRate = async function() {
     if (rateDisplay) rateDisplay.innerHTML = '<span class="material-icons animate-spin text-3xl">sync</span>';
     
     try {
-        // ใช้ API เรทเงินตราต่างประเทศ (Forex) USD -> THB ซึ่งจะตรงกับ Google
-        const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        // 🌟 ใช้ API ตัวใหม่ ที่แม่นยำสูงและมีจุดทศนิยมตรงตาม Google
+        const response = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
         const data = await response.json();
         
-        if (data && data.rates && data.rates.THB) {
-            window.currentUsdtRate = parseFloat(data.rates.THB);
+        if (data && data.usd && data.usd.thb) {
+            // ดึงเรท THB ออกมา จะได้เป็นจุดทศนิยมยาวๆ เช่น 34.612543
+            window.currentUsdtRate = parseFloat(data.usd.thb);
         } else {
-            window.currentUsdtRate = 34.5000;
+            throw new Error("ดึงข้อมูล API หลักไม่ได้");
         }
     } catch (error) {
-        console.error('API Error:', error);
-        // ถ้า API ตัวแรกมีปัญหา ให้สลับไปใช้ API สำรอง
+        console.warn('API หลักขัดข้อง สลับไปใช้ API สำรอง...', error);
+        // API สำรองเผื่อตัวแรกพัง
         try {
             const res2 = await fetch('https://open.er-api.com/v6/latest/USD');
             const data2 = await res2.json();
             if (data2 && data2.rates && data2.rates.THB) {
                 window.currentUsdtRate = parseFloat(data2.rates.THB);
+            } else {
+                window.currentUsdtRate = 34.5678; // ตัวเลขสมมติให้รู้ว่าเน็ตหลุด
             }
         } catch(e) {
-            window.currentUsdtRate = 34.5000; 
+            window.currentUsdtRate = 34.5678; 
         }
     }
+    
+    // แอบพิมพ์ค่าเรทในหลังบ้าน เผื่อแอดมินกด F12 เข้ามาดู
+    console.log("เรทอัตราแลกเปลี่ยนปัจจุบัน (USD -> THB):", window.currentUsdtRate);
+    
+    if (timeDisplay) {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        timeDisplay.innerText = `${h}:${m}:${s}`;
+    }
+    
+    if (rateDisplay) {
+        // บังคับโชว์ทศนิยม 4 ตำแหน่งเสมอ เช่น 34.6125
+        rateDisplay.innerText = window.currentUsdtRate.toFixed(4);
+    }
+    
+    if (usdtInput && usdtInput.value) {
+        window.calcUsdtToThb();
+    }
+};
+    
+    // แอบพิมพ์ค่าเรทในหลังบ้าน เผื่อแอดมินกด F12 เข้ามาดู
+    console.log("เรทอัตราแลกเปลี่ยนปัจจุบัน (USD -> THB):", window.currentUsdtRate);
+    
+    if (timeDisplay) {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        timeDisplay.innerText = `${h}:${m}:${s}`;
+    }
+    
+    if (rateDisplay) {
+        // บังคับโชว์ทศนิยม 4 ตำแหน่งเสมอ เช่น 34.6125
+        rateDisplay.innerText = window.currentUsdtRate.toFixed(4);
+    }
+    
+    if (usdtInput && usdtInput.value) {
+        window.calcUsdtToThb();
+    }
+};
     
     if (timeDisplay) {
         const now = new Date();
