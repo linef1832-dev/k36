@@ -6,7 +6,7 @@ window.initUsdtCalc = function() {
     
     // โหลดเรท Manual เดิมที่เคยกรอกไว้ (ถ้าไม่มีให้ว่างไว้ เพื่อโชว์ 00.00)
     let savedRate = localStorage.getItem('manual_usdt_rate');
-    window.manualUsdtRateValue = savedRate ? parseFloat(savedRate) : '';
+    window.manualUsdtRateValue = savedRate ? savedRate : '';
     
     const manualInput = document.getElementById('manualUsdtRate');
     if (manualInput) manualInput.value = window.manualUsdtRateValue;
@@ -95,6 +95,14 @@ window.setUsdtMode = function(mode) {
 window.updateManualRate = function() {
     const input = document.getElementById('manualUsdtRate');
     if (!input) return;
+    
+    // ดักไว้ว่าถ้าค่าเป็นว่างๆ ไม่ต้องทำอะไร
+    if (input.value === '') {
+        window.currentUsdtRate = 0;
+        window.calcUsdtToThb();
+        return;
+    }
+
     const val = parseFloat(input.value);
     
     if (!isNaN(val) && val > 0) {
