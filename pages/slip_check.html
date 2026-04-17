@@ -11,12 +11,15 @@
         </button>
     </div>
 
-    <div class="max-w-[1600px] mx-auto w-full flex gap-3 mb-6 border-b border-slate-700/50 pb-4">
-        <button id="tabBtnSlip" onclick="switchSlipTab('slip')" class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition">
+    <div class="max-w-[1600px] mx-auto w-full flex gap-3 mb-6 border-b border-slate-700/50 pb-4 overflow-x-auto custom-scrollbar">
+        <button id="tabBtnSlip" onclick="switchSlipTab('slip')" class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition whitespace-nowrap">
             <span class="material-icons text-[18px]">receipt_long</span> เช็คสลิปโอนเงิน
         </button>
-        <button id="tabBtnQR" onclick="switchSlipTab('qr')" class="px-5 py-2.5 bg-[#151f32] text-gray-400 rounded-lg hover:bg-slate-800 font-bold text-sm flex items-center gap-2 transition border border-slate-700">
+        <button id="tabBtnQR" onclick="switchSlipTab('qr')" class="px-5 py-2.5 bg-[#151f32] text-gray-400 rounded-lg hover:bg-slate-800 font-bold text-sm flex items-center gap-2 transition border border-slate-700 whitespace-nowrap">
             <span class="material-icons text-[18px]">qr_code_scanner</span> เช็ค QR ผู้รับเงิน
+        </button>
+        <button id="tabBtnFake" onclick="switchSlipTab('fake')" class="px-5 py-2.5 bg-[#151f32] text-gray-400 rounded-lg hover:bg-slate-800 font-bold text-sm flex items-center gap-2 transition border border-slate-700 whitespace-nowrap">
+            <span class="material-icons text-[18px] text-red-500">gavel</span> บัญชีดำ (สลิปปลอม)
         </button>
     </div>
 
@@ -210,7 +213,10 @@
                         <p id="resQrRaw" class="text-[10px] text-slate-400 font-mono break-all line-clamp-2 select-all">-</p>
                     </div>
                 </div>
-            </div> </div> <div class="w-full bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 flex flex-col h-[350px] overflow-hidden">
+            </div>
+        </div>
+
+        <div class="w-full bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 flex flex-col h-[350px] overflow-hidden">
             <div class="p-4 border-b border-slate-700 bg-slate-800/30 flex justify-between items-center shrink-0">
                 <h3 class="font-bold text-base text-white flex items-center gap-2">
                     <span class="material-icons text-amber-500">history</span> ประวัติการสแกน QR ล่าสุด
@@ -237,4 +243,35 @@
             </div>
         </div>
     </div>
+
+
+    <div id="tabContentFake" class="hidden fade-in max-w-[1600px] mx-auto w-full flex-col gap-6">
+        <div class="w-full bg-[#151f32] rounded-2xl shadow-lg border border-red-900/50 flex flex-col h-[600px] overflow-hidden">
+            <div class="p-4 border-b border-red-900/30 bg-red-900/10 flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-lg text-red-500 flex items-center gap-2">
+                    <span class="material-icons">gavel</span> ประวัติผู้โอนสลิปปลอม (Blacklist)
+                </h3>
+                <div class="relative w-48 sm:w-64">
+                    <span class="material-icons absolute left-3 top-2 text-red-500/50 text-sm">search</span>
+                    <input type="text" id="fakeHistorySearch" onkeyup="filterFakeHistory()" placeholder="ค้นหาชื่อผู้โอน..." class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs outline-none focus:border-red-500 transition shadow-inner">
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#0b1120]/50 p-2">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="text-[10px] text-red-400/70 uppercase sticky top-0 bg-[#151f32] shadow-sm z-10 font-black tracking-wider">
+                        <tr>
+                            <th class="p-3 border-b border-slate-700">เวลาที่สแกนเจอ</th>
+                            <th class="p-3 border-b border-slate-700">ชื่อบัญชีผู้โอน (มิจฉาชีพ)</th>
+                            <th class="p-3 border-b border-slate-700">ชื่อบัญชีรับเงิน (ฝั่งเรา)</th>
+                            <th class="p-3 text-right border-b border-slate-700">ยอดที่พยายามหลอก</th>
+                            <th class="p-3 border-b border-slate-700">ผู้ตรวจสอบ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fakeHistoryBody" class="divide-y divide-slate-700/50 text-gray-300">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>
