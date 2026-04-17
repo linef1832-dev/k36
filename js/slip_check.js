@@ -476,7 +476,7 @@ window.renderSlipHistory = function() {
             amountColor = "text-gray-500";
         }
 
-        const actionBtn = isManager 
+        const actionBtn = hasPermission('slip_check_delete') 
             ? `<button onclick="window.deleteSlipHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition" title="ลบประวัติ"><span class="material-icons text-[18px]">delete</span></button>`
             : `<span class="text-slate-600 material-icons text-[16px]" title="ไม่มีสิทธิ์ลบ">block</span>`;
             
@@ -666,7 +666,7 @@ window.renderQRHistory = function() {
         const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
         
         // ปุ่มลบโชว์เฉพาะผู้จัดการ
-        const actionBtn = isManager 
+        const actionBtn = hasPermission('slip_check_delete') 
             ? `<button onclick="window.deleteQRHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition" title="ลบประวัติ"><span class="material-icons text-[18px]">delete</span></button>`
             : `<span class="text-slate-600 material-icons text-[16px]" title="ไม่มีสิทธิ์ลบ">block</span>`;
             
