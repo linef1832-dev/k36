@@ -18,21 +18,40 @@ window.initSlipCheck = function() {
 window.switchSlipTab = function(tabName) {
     const btnSlip = document.getElementById('tabBtnSlip');
     const btnQR = document.getElementById('tabBtnQR');
+    const btnFake = document.getElementById('tabBtnFake'); 
     const contentSlip = document.getElementById('tabContentSlip');
     const contentQR = document.getElementById('tabContentQR');
+    const contentFake = document.getElementById('tabContentFake'); 
+
+    // รีเซ็ตปุ่มทั้งหมด
+    [btnSlip, btnQR, btnFake].forEach(btn => {
+        if(btn) btn.className = "px-5 py-2.5 bg-[#151f32] text-gray-400 rounded-lg hover:bg-slate-800 font-bold text-sm flex items-center gap-2 transition border border-slate-700 whitespace-nowrap";
+    });
+    
+    // ซ่อนเนื้อหาทั้งหมด
+    [contentSlip, contentQR, contentFake].forEach(content => {
+        if(content) {
+            content.classList.add('hidden');
+            content.classList.remove('flex');
+        }
+    });
 
     if(tabName === 'slip') {
-        btnSlip.className = "px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition";
-        btnQR.className = "px-5 py-2.5 bg-slate-800 text-gray-400 rounded-lg hover:bg-slate-700 font-bold text-sm flex items-center gap-2 transition";
-        contentSlip.classList.remove('hidden');
-        contentQR.classList.add('hidden');
-        contentQR.classList.remove('flex');
-    } else {
-        btnQR.className = "px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition";
-        btnSlip.className = "px-5 py-2.5 bg-slate-800 text-gray-400 rounded-lg hover:bg-slate-700 font-bold text-sm flex items-center gap-2 transition";
-        contentQR.classList.remove('hidden');
-        contentQR.classList.add('flex');
-        contentSlip.classList.add('hidden');
+        if(btnSlip) btnSlip.className = "px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition whitespace-nowrap";
+        if(contentSlip) contentSlip.classList.remove('hidden');
+    } else if (tabName === 'qr') {
+        if(btnQR) btnQR.className = "px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition whitespace-nowrap";
+        if(contentQR) {
+            contentQR.classList.remove('hidden');
+            contentQR.classList.add('flex');
+        }
+    } else if (tabName === 'fake') {
+        if(btnFake) btnFake.className = "px-5 py-2.5 bg-red-600 text-white rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition whitespace-nowrap";
+        if(contentFake) {
+            contentFake.classList.remove('hidden');
+            contentFake.classList.add('flex');
+        }
+        window.renderFakeHistory();
     }
 };
 
@@ -733,4 +752,60 @@ window.copyToClipboard = function(text, btnElement, event) {
     }).catch(err => {
         console.error('คัดลอกไม่สำเร็จ: ', err);
     });
+};
+// ==============================================================
+// 🌟 ระบบประวัติย้อนหลัง สำหรับ "สลิปปลอม (Blacklist)"
+// ==============================================================
+
+window.renderFakeHistory = function() {
+    const tbody = document.getElementById('fakeHistoryBody');
+    if (!tbody) return;
+    
+    const search = document.getElementById('fakeHistorySearch') ? document.getElementById('fakeHistorySearch').value.toLowerCase() : '';
+    
+    // กรองเอาเฉพาะรายการที่เจอว่า "ปลอม" (isFake === true)
+    const fakes = window.slipHistoryData.filter(h => h.isFake);
+    
+    const filtered = fakes.filter(h => 
+        (h.senderName && h.senderName.toLowerCase().includes(search)) ||
+        (h.receiverName && h.receiverName.toLowerCase().includes(search)) ||
+        (h.checkerName && h.checkerName.toLowerCase().includes(search))
+    );
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500 font-bold bg-[#151f32] text-xs">ไม่พบประวัติผู้โอนสลิปปลอม</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(h => {
+        const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+        
+        return `
+            <tr class="hover:bg-red-900/20 transition border-b border-slate-800/50">
+                <td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td>
+                <td class="p-3 font-bold text-sm text-red-400">${h.senderName || '-'}</td>
+                <td class="p-3 text-xs text-gray-400">${h.receiverName || '-'}</td>
+                <td class="p-3 text-right font-mono font-bold text-red-500">฿${parseFloat(h.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.filterFakeHistory = function() {
+    renderFakeHistory();
+};
+
+// ดักจับการแก้ไขเวลาลบ / เซฟ สลิป ให้มันอัปเดตหน้าบัญชีดำไปด้วย
+const _originalDeleteSlip = window.deleteSlipHistory;
+window.deleteSlipHistory = function(id, event) {
+    // ให้รันของเดิม แล้วสั่งรีเฟรชหน้าปลอมด้วย เผื่อแอดมินลบสลิปปลอมทิ้ง
+    _originalDeleteSlip(id, event);
+    setTimeout(() => { if(typeof window.renderFakeHistory === 'function') window.renderFakeHistory(); }, 1500);
+};
+
+const _originalSaveSlip = window.saveSlipHistory;
+window.saveSlipHistory = function(result, isSuccess) {
+    _originalSaveSlip(result, isSuccess);
+    if (typeof window.renderFakeHistory === 'function') window.renderFakeHistory();
 };
