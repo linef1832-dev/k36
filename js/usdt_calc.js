@@ -44,9 +44,6 @@ window.updateManualRate = function() {
     }
 };
 
-    // สั่งให้เริ่มทำงานด้วยโหมด Auto เสมอ
-    window.setUsdtMode('auto');
-
 // 🟢 ฟังก์ชันสลับโหมด
 window.setUsdtMode = function(mode) {
     window.usdtCalcMode = mode;
