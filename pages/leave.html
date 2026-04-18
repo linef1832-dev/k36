@@ -5,7 +5,7 @@
             <div class="dept-segment-container">
                 <button onclick="switchDept('AM')" id="btnAM" class="dept-segment-btn active"><span class="material-icons text-sm">business</span> AM</button>
                 <button onclick="switchDept('OD')" id="btnOD" class="dept-segment-btn"><span class="material-icons text-sm">groups</span> OD</button>
-                <button onclick="switchDept('NEW')" id="btnNEW" class="dept-segment-btn"><span class="material-icons text-sm">person_add</span> พนักงานใหม่</button>
+                <button onclick="switchDept('SPECIAL')" id="btnSPECIAL" class="dept-segment-btn"><span class="material-icons text-sm">star</span> จัดกลุ่มเอง</button>
                 <button onclick="switchDept('TRAINER')" id="btnTRAINER" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน</button>
             </div>
             <div>
@@ -89,7 +89,7 @@
             <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-1 rounded border border-blue-700/50"><span class="text-[10px] text-blue-400 font-bold">กลาง🌤️</span><input type="number" id="setQuotaA" class="w-8 bg-slate-900 text-blue-400 border border-blue-500/50 text-xs text-center font-bold rounded outline-none h-6"></div>
             <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-1 rounded border border-purple-700/50"><span class="text-[10px] text-purple-400 font-bold">ดึก🌙</span><input type="number" id="setQuotaN" class="w-8 bg-slate-900 text-purple-400 border border-purple-500/50 text-xs text-center font-bold rounded outline-none h-6"></div>
         </div>
-        <button id="btnManageNewStaff" onclick="openManageNewStaffModal()" class="hidden bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg font-bold ml-1 shadow-lg flex items-center gap-1 transition shrink-0"><span class="material-icons text-sm">group_add</span></button>
+        <button id="btnManageNewStaff" onclick="openManageSpecialModal()" title="ดึงพนักงานเข้ากลุ่ม" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-bold ml-1 shadow-lg flex items-center gap-1 transition shrink-0"><span class="material-icons text-sm">group_add</span></button>
         <button onclick="executeSaveSettings()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-extrabold text-sm ml-auto shadow-lg flex items-center gap-1 transition transform hover:scale-105 border border-green-400 shrink-0"><span class="material-icons text-base">save</span> บันทึก <span id="saveBtnLabel">AM</span></button>
     </div>
 
