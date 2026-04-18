@@ -12,8 +12,6 @@ let settingsSubscription = null;
 let isEditingLeave = false;
 let editLeaveTimer;
 
-window.newStaffIds = []; // 🟢 ตะกร้าเก็บ ID พนักงานใหม่
-
 window.setLeaveType = function(type) {
     window.activeLeaveType = type;
     document.querySelectorAll('.leave-type-btn').forEach(btn => {
@@ -36,7 +34,7 @@ window.setLeaveType = function(type) {
 
 window.switchDept = function(dept) {
     currentViewDept = dept;
-    ['AM', 'OD', 'NEW', 'TRAINER'].forEach(d => {
+    ['AM', 'OD', 'TRAINER'].forEach(d => {
         const btn = document.getElementById(`btn${d}`);
         if(!btn) return;
         if(d === dept) {
@@ -44,7 +42,6 @@ window.switchDept = function(dept) {
             btn.classList.remove('text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500');
             if(d === 'AM') btn.classList.add('text-rose-600');
             if(d === 'OD') btn.classList.add('text-fuchsia-600');
-            if(d === 'NEW') btn.classList.add('text-cyan-500');
             if(d === 'TRAINER') btn.classList.add('text-indigo-500');
         } else {
             btn.classList.remove('active', 'text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500');
@@ -56,7 +53,6 @@ window.switchDept = function(dept) {
     const saveLabel = document.getElementById('saveBtnLabel');
     
     let displayDeptName = dept;
-    if (dept === 'NEW') displayDeptName = 'พนักงานใหม่';
     if (dept === 'TRAINER') displayDeptName = 'ผู้สอน';
 
     if(label) label.innerText = displayDeptName;
@@ -65,35 +61,37 @@ window.switchDept = function(dept) {
 
     let colorClass = 'bg-rose-600'; 
     if(dept === 'OD') colorClass = 'bg-fuchsia-600';
-    if(dept === 'NEW') colorClass = 'bg-cyan-600';
     if(dept === 'TRAINER') colorClass = 'bg-indigo-600';
     if(label) label.className = `text-[10px] ${colorClass} px-2 rounded shadow transition-colors duration-300`;
 
     const btnManage = document.getElementById('btnManageNewStaff');
     if(btnManage) {
-        if(dept === 'NEW') btnManage.classList.remove('hidden');
-        else btnManage.classList.add('hidden');   
+        btnManage.classList.add('hidden');   
     }
 
-    const controls = document.getElementById('leaveManagerControls');
-    if(controls) {
-        if (dept === 'NEW') {
-            controls.classList.add('hidden'); // 🟢 ซ่อนแผงตั้งค่าเวลาอยู่หน้าพนักงานใหม่
-        } else {
-            const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
-            let canManageThisDept = isGlobalAdmin;
-            
-            if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
-            if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
-            if (dept === 'TRAINER') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
+// ----------------------------------------------------
+// 🟢 เพิ่มโค้ดเช็คสิทธิ์ควบคุม ตรงนี้ครับ 🟢
+const controls = document.getElementById('leaveManagerControls');
+if(controls) {
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    let canManageThisDept = isGlobalAdmin;
+    
+    // เช็คสิทธิ์ตามหน้าปัจจุบันที่กดดูอยู่
+    if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
+    if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
+    if (dept === 'TRAINER') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
 
-            if(canManageThisDept) controls.classList.remove('hidden');
-            else controls.classList.add('hidden');
-        }
+    if(canManageThisDept) {
+         controls.classList.remove('hidden');
+    } else {
+         controls.classList.add('hidden');
     }
+}
+// ----------------------------------------------------
 
-    updateAdminInputs();
-    if(typeof updateMonthPicker === 'function') updateMonthPicker();
+updateAdminInputs();
+
+if(typeof updateMonthPicker === 'function') updateMonthPicker();
     
     const tbody = document.getElementById('tableBody');
     if (tbody) {
@@ -104,7 +102,6 @@ window.switchDept = function(dept) {
 };
 
 function updateAdminInputs() {
-    if (currentViewDept === 'NEW') return; // 🟢 ข้ามการดึงตั้งค่าถ้าเป็นหน้าพนักงานใหม่
     const s = deptSettings[currentViewDept];
     if(!s) return; 
     
@@ -137,15 +134,6 @@ if(forceOpenCb) forceOpenCb.addEventListener('change', (e) => { toggleTimeInputs
 
 window.initLeaveTable = async function() {
     if(typeof updateMonthPicker === 'function') updateMonthPicker();
-    
-    // 🟢 โหลดตะกร้าพนักงานใหม่จาก Settings มาเก็บไว้ในเครื่อง
-    try {
-        const { data: nsData } = await appDB.from('settings').select('value').eq('key', 'new_staff_list').single();
-        if (nsData && nsData.value) {
-            window.newStaffIds = JSON.parse(nsData.value);
-        }
-    } catch(e) { window.newStaffIds = []; }
-    
     await loadLeaveSettings();
     
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
@@ -153,10 +141,12 @@ window.initLeaveTable = async function() {
     const canExport = isGlobalAdmin || window.hasUserPerm('leave_export');
     const canViewHistory = isGlobalAdmin || window.hasUserPerm('leave_history');
     
+    // --- เช็คสิทธิ์หน้าแผนก ---
     const canViewAM = isGlobalAdmin || window.hasUserPerm('leave_am');
     const canViewOD = isGlobalAdmin || window.hasUserPerm('leave_od');
     const canViewTRAINER = isGlobalAdmin || window.hasUserPerm('leave_trainer');
 
+    // ซ่อน/โชว์ แท็บแผนกตามสิทธิ์
     const btnAM = document.getElementById('btnAM');
     if (btnAM) { if(canViewAM) btnAM.classList.remove('hidden'); else btnAM.classList.add('hidden'); }
     
@@ -164,29 +154,33 @@ window.initLeaveTable = async function() {
     if (btnOD) { if(canViewOD) btnOD.classList.remove('hidden'); else btnOD.classList.add('hidden'); }
     
     const btnNEW = document.getElementById('btnNEW');
-    if (btnNEW) { btnNEW.classList.remove('hidden'); } // 🟢 ให้ปุ่มพนักงานใหม่โชว์เสมอ
+    if (btnNEW) btnNEW.classList.add('hidden'); // ซ่อนแท็บ NEW ถาวร
     
     const btnTRAINER = document.getElementById('btnTRAINER');
     if (btnTRAINER) { if(canViewTRAINER) btnTRAINER.classList.remove('hidden'); else btnTRAINER.classList.add('hidden'); }
 
+    // 1. แถบจัดการของแอดมิน (ตั้งค่าต่างๆ)
     const controls = document.getElementById('leaveManagerControls');
     if(controls) { 
         if(canManage) controls.classList.remove('hidden'); 
         else controls.classList.add('hidden'); 
     }
     
+    // 2. แถบเครื่องมือเลือกประเภทการลา
     const typeToolbar = document.getElementById('leaveTypeToolbar');
     if(typeToolbar) { 
         if(canManage) typeToolbar.classList.remove('hidden'); 
         else typeToolbar.classList.add('hidden'); 
     }
 
+    // 3. ปุ่มดาวน์โหลด Excel
     const btnExport = document.getElementById('btnExportExcel');
     if(btnExport) { 
         if(canExport) btnExport.classList.remove('hidden'); 
         else btnExport.classList.add('hidden'); 
     }
 
+    // 4. ปุ่มดูประวัติการกด
     const btnHistory = document.querySelector('button[onclick="openHistoryModal()"]');
     if(btnHistory) { 
         if(canViewHistory) btnHistory.classList.remove('hidden'); 
@@ -203,20 +197,20 @@ window.initLeaveTable = async function() {
     subscribeLeaveChanges(); 
     subscribeSettingsChanges();
     
-    const allowedDepts = ['AM', 'OD', 'NEW', 'TRAINER'];
+    // ==========================================
+    // 🟢 กำหนดหน้าเริ่มต้น และเช็คสิทธิ์การมองเห็น
+    // ==========================================
+    const allowedDepts = ['AM', 'OD', 'TRAINER'];
     let myDept = currentUser.department || 'AM';
-    
-    if (window.newStaffIds.includes(String(currentUser.id))) {
-        myDept = 'NEW';
-    } else if (!allowedDepts.includes(myDept)) {
-        myDept = 'AM';
-    }
+    if (!allowedDepts.includes(myDept)) myDept = 'AM';
 
-    if (myDept === 'AM' && !canViewAM) myDept = canViewOD ? 'OD' : 'NEW';
-    else if (myDept === 'OD' && !canViewOD) myDept = canViewAM ? 'AM' : 'NEW';
-    else if (myDept === 'TRAINER' && !canViewTRAINER) myDept = canViewAM ? 'AM' : 'OD';
+    // ถ้าไม่มีสิทธิ์ดูหน้าแผนกตัวเอง ให้หาแผนกแรกที่มีสิทธิ์ดูเพื่อแสดงผลแทน
+    if (myDept === 'AM' && !canViewAM) myDept = canViewOD ? 'OD' : (canViewTRAINER ? 'TRAINER' : 'AM');
+    else if (myDept === 'OD' && !canViewOD) myDept = canViewAM ? 'AM' : (canViewTRAINER ? 'TRAINER' : 'AM');
+    else if (myDept === 'TRAINER' && !canViewTRAINER) myDept = canViewAM ? 'AM' : (canViewOD ? 'OD' : 'AM');
 
     switchDept(myDept); 
+    // ==========================================
     
     if (window.leaveCheckInterval) {
         clearInterval(window.leaveCheckInterval);
@@ -242,7 +236,6 @@ async function loadLeaveSettings() {
         .neq('key', 'discord_custom_names');
 
     if (data) {
-        // 🟢 วนลูปแค่ 3 แผนกหลักที่แท้จริง ไม่รวม NEW
         ['AM', 'OD', 'TRAINER'].forEach(dept => {
             const getDbValue = (keySuffix, defaultVal) => {
                 const row = data.find(d => d.key === `${dept}_${keySuffix}`);
@@ -271,8 +264,7 @@ async function loadLeaveSettings() {
 
 window.checkBookingWindow = function(targetShift) {
     const now = new Date();
-    // 🟢 ถ้าดูหน้าพนักงานใหม่ ให้ยืมตั้งค่าเวลาของ AM มาใช้แสดงผลชั่วคราว
-    const s = (currentViewDept === 'NEW') ? (deptSettings['AM'] || {}) : (deptSettings[currentViewDept] || {});
+    const s = deptSettings[currentViewDept] || {};
 
     const getStatus = (name, startStr, endStr) => {
         let msg = "", isOpen = true;
@@ -365,10 +357,8 @@ function subscribeLeaveChanges() {
             const tRole = tUser ? (tUser.role || 'staff').toLowerCase() : 'staff';
             
             let shouldRenderTable = false;
-            // 🟢 อัปเดตเงื่อนไขให้ใช้ ID เช็คว่าอยู่ในตะกร้าพนักงานใหม่ไหม
             if (currentViewDept === 'TRAINER' && (tDept === 'TRAINER' || tRole === 'trainer')) shouldRenderTable = true;
-            else if (currentViewDept === 'NEW' && window.newStaffIds.includes(String(tUser.id))) shouldRenderTable = true;
-            else if (tRole === 'staff' && tDept === currentViewDept && !window.newStaffIds.includes(String(tUser.id))) shouldRenderTable = true;
+            else if (tRole === 'staff' && tDept === currentViewDept) shouldRenderTable = true;
 
             if (shouldRenderTable) {
                 window.renderLeaveTable(); 
@@ -381,6 +371,7 @@ function subscribeLeaveChanges() {
 function subscribeSettingsChanges() {
     if(settingsSubscription) appDB.removeChannel(settingsSubscription);
     settingsSubscription = appDB.channel('settings-updates')
+    // 🌟 ส่วนที่ 1: ฟังคำสั่ง Broadcast (สำหรับสั่งให้โหลดใหม่แบบเจาะจง)
     .on('broadcast', { event: 'force_leave_reload' }, async () => {
         const leaveAppEl = document.getElementById('leaveApp');
         if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
@@ -388,7 +379,9 @@ function subscribeSettingsChanges() {
             flashRealtimeDot();
         }
     })
+    // 🌟 ส่วนที่ 2: เพิ่มใหม่! ดักฟังการเปลี่ยนแปลงข้อมูลในตาราง settings โดยตรง
     .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, async (payload) => {
+        // เช็คว่าถ้าเป็นคีย์ที่เกี่ยวกับการตั้งค่าหน้าลางาน (มี _is_open, _quota, _limit, _start, _end)
         if (payload.new && payload.new.key && (
             payload.new.key.includes('_is_open') || 
             payload.new.key.includes('_quota') || 
@@ -396,17 +389,12 @@ function subscribeSettingsChanges() {
             payload.new.key.includes('time_') ||
             payload.new.key.includes('lock_') ||
             payload.new.key.includes('_start') ||
-            payload.new.key.includes('_end') ||
-            payload.new.key === 'new_staff_list' // 🟢 ดักฟังตะกร้าอัปเดต
+            payload.new.key.includes('_end')
         )) {
             const leaveAppEl = document.getElementById('leaveApp');
+            // เช็คว่าผู้ใช้อยู่หน้าลางานพอดีไหม ถ้าอยู่ก็ให้โหลดการตั้งค่าใหม่มาอัปเดตหน้าจอทันที
             if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
-                if (payload.new.key === 'new_staff_list') {
-                    try { window.newStaffIds = JSON.parse(payload.new.value); } catch(e) {}
-                    window.renderLeaveTable();
-                } else {
-                    await loadLeaveSettings();
-                }
+                await loadLeaveSettings();
                 flashRealtimeDot();
             }
         }
@@ -459,11 +447,10 @@ window.renderLeaveTable = function() {
     if(!thead || !tbody) return;
     thead.innerHTML = ''; tbody.innerHTML = '';
 
+    // 🌟 แก้บั๊กเส้นตารางหาย: ลบคลาสที่ทำให้เส้นขอบชนกันออก
     tbody.classList.remove('divide-y', 'divide-gray-100', 'dark:divide-slate-700');
 
-    // 🟢 ถ้ายืนอยู่หน้า NEW ให้ดึงโควตา/ตั้งค่าของ AM มาใช้คำนวณชั่วคราว
-    const s = (currentViewDept === 'NEW') ? (deptSettings['AM'] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 }) : (deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 }); 
-    
+    const s = deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 }; 
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     const isAdmin = isGlobalAdmin || window.hasUserPerm('leave_manage');
     const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request');
@@ -494,20 +481,16 @@ window.renderLeaveTable = function() {
     
     if(typeof checkBookingWindow === 'function') checkBookingWindow();
 
-    // 🟢 ระบบกรองแบบใหม่ ดึงเฉพาะคนที่ควรโชว์ในหน้านี้
     const allDeptUsers = GLOBAL_USER_LIST.filter(u => {
         const uDept = u.department || 'AM';
         const uRole = u.role ? u.role.toLowerCase() : 'staff'; 
 
         if (currentViewDept === 'TRAINER') {
             return uDept === 'TRAINER' || uRole === 'trainer'; 
-        } else if (currentViewDept === 'NEW') {
-            return window.newStaffIds.includes(String(u.id)); // 🟢 ดึงเฉพาะคนในตะกร้า
         } else {
-            return uRole === 'staff' && uDept === currentViewDept && !window.newStaffIds.includes(String(u.id)); // 🟢 ซ่อนคนในตะกร้าออกไป
+            return uRole === 'staff' && uDept === currentViewDept; 
         }
     });
-    
     const allDeptUserIds = new Set(allDeptUsers.map(u => u.id));
     const userShiftMapAll = {};
     allDeptUsers.forEach(u => userShiftMapAll[u.id] = u.allowed_shift || 'all');
@@ -534,6 +517,7 @@ window.renderLeaveTable = function() {
 
         const lDate = new Date(l.leave_date);
         if (lDate.getMonth() === month && lDate.getFullYear() === year) {
+            // 🌟 แก้ไข: เปลี่ยนการเก็บข้อมูลให้มีทั้งยอดรวม และแยกประเภทย่อย
             if(!personalCounts[l.user_id]) {
                 personalCounts[l.user_id] = { total: 0, details: {} };
             }
@@ -547,7 +531,6 @@ window.renderLeaveTable = function() {
     });
 
     let displayDeptText = currentViewDept;
-    if(currentViewDept === 'NEW') displayDeptText = 'พนักงานใหม่';
     if(currentViewDept === 'TRAINER') displayDeptText = 'ผู้สอน';
 
     let headerHtml = `
@@ -604,7 +587,10 @@ window.renderLeaveTable = function() {
         const nameClass = isMe ? "text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-900/10" : "";
         const rowClass = isMe ? "bg-rose-50/30 dark:bg-rose-900/5" : "";
         
+        // 🌟 ดึงข้อมูลที่นับแบบแยกประเภทแล้วออกมาใช้
         const myLeaveData = personalCounts[u.id] || { total: 0, details: {} };
+        
+        // 🌟 แก้ไข: ให้ดึงเฉพาะยอดของประเภท "X" มาใช้คำนวณโควตาและแสดงในวงกลม
         const myTotal = myLeaveData.details['X'] || 0; 
         const isPersonalFull = myTotal >= s.limit;
 
@@ -614,15 +600,17 @@ window.renderLeaveTable = function() {
         else if(u.allowed_shift === 'กะดึก') targetQuota = s.quotaN;
 
         let removeBtn = '';
-        if (isAdmin && (currentViewDept === 'NEW' || currentViewDept === 'TRAINER')) {
+        if (isAdmin && currentViewDept === 'TRAINER') {
             if(typeof removeFromNewDept === 'function') {
                 removeBtn = `<button onclick="removeFromNewDept(${u.id}, '${u.username}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
             }
         }
 
+        // 🌟 สร้าง HTML แสดงจำนวนลางานแยกตามประเภท ให้ครบทุกแบบตามหน้าเว็บคุณ
         let breakdownHtml = '';
         if (myTotal > 0) {
             const detailItems = [];
+            // กำหนดสีให้ครบตามประเภทการลาเลยครับ
             const colors = {
                 'X': 'text-red-500 font-black',
                 'XX': 'text-yellow-600 font-black',
@@ -635,9 +623,11 @@ window.renderLeaveTable = function() {
             };
             
             for (const [rsn, count] of Object.entries(myLeaveData.details)) {
+                // เผื่อมีค่า Table-Booking หลุดมา ให้โชว์เป็น X
                 let displayRsn = (rsn === 'Table-Booking') ? 'X' : rsn;
                 const colorCls = colors[displayRsn] || 'text-gray-500 font-black';
                 
+                // เช็คกันซ้ำ
                 if (!detailItems.some(item => item.includes(`>${displayRsn}:`))) {
                     detailItems.push(`<span class="${colorCls} bg-slate-100 dark:bg-slate-800 px-1 rounded shadow-sm border border-gray-200 dark:border-slate-600">${displayRsn}:${count}</span>`);
                 }
@@ -647,6 +637,7 @@ window.renderLeaveTable = function() {
 
     let rowHtml = `<tr class="transition ${rowClass}">`;
     
+    // 🌟 ใช้ shadow-inset แทน border-b เพื่อแก้ปัญหาเส้นขอบแหว่ง/หาย ตอนเลื่อนตาราง
     rowHtml += `<td class="p-2 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r dark:border-slate-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#334155] text-[10px] text-center text-gray-400 font-mono w-[40px] min-w-[40px] max-w-[40px]">${index + 1}</td>`;
     
     rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r dark:border-slate-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#334155] text-xs ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">
@@ -682,7 +673,6 @@ window.renderLeaveTable = function() {
             let cellContent = "";
             let baseDeptColor = 'bg-rose-500'; 
             if(currentViewDept === 'OD') baseDeptColor = 'bg-fuchsia-500';
-            if(currentViewDept === 'NEW') baseDeptColor = 'bg-cyan-500';
             if(currentViewDept === 'TRAINER') baseDeptColor = 'bg-indigo-500';
 
             if (isDateLocked && !isAdmin) {
@@ -841,6 +831,7 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
             ]);
             if (error) throw error;
             
+            // 🌟 แก้ไข: เรียกใช้ logLeaveAction เพื่อให้มันบันทึกลงตาราง leave_logs ให้ถูกต้อง
             await logLeaveAction(`จอง [${typeToSave}]`, targetUserId, targetUserName, dateStr);
 
        } else if (action === 'remove') {
@@ -851,9 +842,11 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
             
             if (error) throw error;
 
+            // 🌟 แก้ไข: เรียกใช้ logLeaveAction เพื่อบันทึกประวัติการยกเลิก
             await logLeaveAction('ยกเลิก', targetUserId, targetUserName, dateStr);
         }
         
+        // 🌟 อัปเดตตารางด้วยข้อมูลล่าสุดจากฐานข้อมูลโดยตรง (ชัวร์และแม่นยำ 100%)
         await fetchLeaveData(); 
         Swal.fire({ icon: 'success', title: action === 'add' ? 'บันทึกสำเร็จ' : 'ลบสำเร็จ', showConfirmButton: false, timer: 1000 });
 
@@ -866,7 +859,6 @@ window.toggleLeaveTable = async function(dateStr, action, targetUserId, targetUs
 };
 
 window.executeSaveSettings = async function() {
-    if (currentViewDept === 'NEW') return Swal.fire('แจ้งเตือน', 'หน้าพนักงานใหม่ไม่มีการตั้งค่าโควตาแยกครับ', 'warning');
     try {
         Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         const q = document.getElementById('setQuota')?.value || "0";
@@ -922,8 +914,10 @@ window.executeSaveSettings = async function() {
 };
 
 window.exportLeaveToExcel = async function() {
+    // 1. เช็คข้อมูลพนักงานก่อน
     if (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) return Swal.fire('ข้อมูลยังไม่พร้อม', 'กรุณารอสักครู่แล้วลองใหม่', 'warning');
 
+    // 2. เรียกใช้ฟังก์ชันแอบโหลด ExcelJS (ดึงมาจากที่เราสร้างไว้ใน summary.js)
     window.loadExcelLibrary(async function() {
         Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', text: 'รอสักครู่นะครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
@@ -934,12 +928,10 @@ window.exportLeaveToExcel = async function() {
             const monthNamesThai = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
             const monthName = `${monthNamesThai[month]} ${year}`;
 
-            // 🟢 แก้ไขการโหลด Excel ให้แสดงผลพนักงานใหม่ถูกต้อง
             const staffList = GLOBAL_USER_LIST.filter(u => {
                 const uDept = u.department || 'AM';
                 if (currentViewDept === 'TRAINER') return uDept === 'TRAINER';
-                if (currentViewDept === 'NEW') return window.newStaffIds.includes(String(u.id));
-                return u.role === 'staff' && uDept === currentViewDept && !window.newStaffIds.includes(String(u.id));
+                return u.role === 'staff' && uDept === currentViewDept;
             }).sort((a,b) => a.username.localeCompare(b.username));
 
             if (staffList.length === 0) { Swal.close(); return Swal.fire('ไม่มีข้อมูล', `ไม่มีรายชื่อพนักงานในแผนก ${currentViewDept}`, 'warning'); }
@@ -1056,23 +1048,7 @@ window.debounceHistorySearch = function() {
 window.fetchHistoryLogs = async function() {
     const search = document.getElementById('historySearch').value.trim();
     const tbody = document.getElementById('historyTableBody');
-    
-    let query = appDB.from('leave_logs').select('*');
-    
-    // 🟢 ถ้าเป็นพนักงานใหม่ ให้ค้นหาเฉพาะชื่อคนที่มี ID อยู่ในตะกร้า
-    if (currentViewDept === 'NEW') {
-        const newStaffUsernames = GLOBAL_USER_LIST.filter(u => window.newStaffIds.includes(String(u.id))).map(u => u.username);
-        if (newStaffUsernames.length > 0) {
-            query = query.in('username', newStaffUsernames);
-        } else {
-            query = query.eq('department', 'NONE'); 
-        }
-    } else {
-        query = query.eq('department', currentViewDept);
-    }
-    
-    query = query.order('created_at', { ascending: false }).limit(100);
-
+    let query = appDB.from('leave_logs').select('*').eq('department', currentViewDept).order('created_at', { ascending: false }).limit(100);
     if (search) query = query.ilike('username', `%${search}%`);
 
     const { data, error } = await query;
@@ -1110,7 +1086,6 @@ window.fetchHistoryLogs = async function() {
 }
 
 window.toggleLeaveStatus = async function(isChecked) {
-    if (currentViewDept === 'NEW') return; // 🟢 ป้องกันการสับสวิตช์ในหน้า NEW
     const statusValue = isChecked ? 'true' : 'false'; 
     
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -1157,11 +1132,8 @@ window.loadLeaveStatusConfig = async function() {
 window.updateLeaveToggleUI = function() {
     const toggleBtn = document.getElementById('setForceOpen');
     if (!toggleBtn) return;
-    if (currentViewDept === 'NEW') {
-        toggleBtn.checked = false; // 🟢 รีเซ็ตสวิตช์หน้าพนักงานใหม่
-        return;
-    }
 
+    // 🌟 เช็คค่าที่ดึงมาจาก Database ล่าสุดของแผนกปัจจุบันมาอัปเดตสวิตช์
     const s = deptSettings[currentViewDept];
     if (s && s.isOpen !== undefined) {
         toggleBtn.checked = s.isOpen;
@@ -1180,115 +1152,46 @@ setTimeout(() => {
     }
 }, 1000);
 
-window.filterNewStaffList = function() {
-    const input = document.getElementById('newStaffSearchInput');
-    const filter = input.value.toLowerCase();
-    const container = document.getElementById('newStaffListContainer');
-    const labels = container.getElementsByTagName('label');
-    for (let i = 0; i < labels.length; i++) {
-        const nameSpan = labels[i].querySelector('.staff-name');
-        if (nameSpan) {
-            const txtValue = nameSpan.textContent || nameSpan.innerText;
-            labels[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "flex" : "none";
-        }
-    }
-};
-
-// 🟢 ระบบจัดการพนักงานใหม่แบบใหม่ ไม่แตะต้อง department จริงของพนักงาน
-window.openManageNewStaffModal = async function() {
-    const users = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'manager' || u.role === 'admin').sort((a, b) => a.username.localeCompare(b.username));
-
-    let html = `
-        <div class="flex flex-col h-full text-left">
-            <div class="sticky top-0 bg-white dark:bg-slate-800 z-10 pb-2 border-b border-gray-200 dark:border-gray-600 mb-2">
-                <input type="text" id="newStaffSearchInput" onkeyup="filterNewStaffList()" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหา..." 
-                    class="w-full p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500 transition font-bold text-sm">
-            </div>
-            <div id="newStaffListContainer" class="max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
-    `;
-    
-    users.forEach(u => {
-        // 🟢 เช็คว่ามีรายชื่ออยู่ในตะกร้าไหม
-        const isNewStaff = window.newStaffIds.includes(String(u.id)); 
-        const currentDept = u.department || 'AM';
-        
-        let badgeColor = 'bg-blue-100 text-blue-700';
-        if(currentDept === 'OD') badgeColor = 'bg-pink-100 text-pink-700';
-        else if(currentDept === 'TRAINER') badgeColor = 'bg-cyan-100 text-cyan-700';
-        
-        let displayDept = currentDept === 'TRAINER' ? 'ผู้สอน' : currentDept;
-        
-        html += `
-            <label class="flex items-center justify-between p-2 hover:bg-cyan-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-0 transition group">
-                <div class="flex items-center gap-2">
-                    <span class="staff-name font-bold text-sm text-slate-700 dark:text-gray-200 group-hover:text-cyan-700 transition">${u.username}</span>
-                    <span class="text-[9px] font-bold ${badgeColor} px-1.5 py-0.5 rounded border border-black/5 shadow-sm">${displayDept}</span>
-                </div>
-                <input type="checkbox" class="newstaff-cb w-5 h-5 rounded text-cyan-600 focus:ring-cyan-500 cursor-pointer border-gray-300" value="${u.id}" ${isNewStaff ? 'checked' : ''}>
-            </label>
-        `;
-    });
-    html += '</div></div>';
-
-    const { value: selectedIds } = await Swal.fire({
-        title: 'ดึงรายชื่อพนักงานใหม่', html: html, showCancelButton: true, confirmButtonText: 'บันทึกรายชื่อ', confirmButtonColor: '#0891b2', cancelButtonText: 'ยกเลิก', width: '400px',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white' },
-        preConfirm: () => {
-            const checkboxes = document.querySelectorAll('.newstaff-cb:checked');
-            const ids = []; checkboxes.forEach(cb => ids.push(String(cb.value))); return ids;
-        }
-    });
-
-    if (selectedIds) {
-        Swal.fire({title: 'กำลังดึงรายชื่อเข้ากลุ่ม...', didOpen: () => Swal.showLoading()});
-        
-        // 🟢 อัปเดตตะกร้าพนักงานใหม่ ลง Settings อย่างเดียวจบ ไม่กวนสิทธิ์แผนก!
-        window.newStaffIds = selectedIds;
-        await appDB.from('settings').upsert([{ key: 'new_staff_list', value: JSON.stringify(selectedIds) }]);
-        
-        window.renderLeaveTable(); 
-        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: `อัปเดตรายชื่อพนักงานใหม่ ${selectedIds.length} คน เรียบร้อยแล้ว`, timer: 2000, showConfirmButton: false });
-    }
-};
-
 window.removeFromNewDept = async function(id, username) {
     Swal.fire({
         title: 'ยืนยันการนำออก?',
-        text: `ต้องการนำ ${username} ออกจากกลุ่มพนักงานใหม่ใช่หรือไม่?`,
+        text: `ต้องการย้าย ${username} กลับไปอยู่แผนก AM ใช่หรือไม่?`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#0891b2',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'ใช่, นำออกเลย',
+        confirmButtonText: 'ใช่, ย้ายกลับเลย',
         cancelButtonText: 'ยกเลิก'
     }).then(async (result) => {
         if (result.isConfirmed) {
-            Swal.fire({title: 'กำลังนำออก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            Swal.fire({title: 'กำลังย้าย...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
             
-            // 🟢 ลบ ID ออกจากตะกร้า
-            window.newStaffIds = window.newStaffIds.filter(uid => String(uid) !== String(id));
-            await appDB.from('settings').upsert([{ key: 'new_staff_list', value: JSON.stringify(window.newStaffIds) }]);
+            const userIndex = GLOBAL_USER_LIST.findIndex(u => String(u.id) === String(id));
+            if (userIndex !== -1) GLOBAL_USER_LIST[userIndex].department = 'AM';
             
-            window.renderLeaveTable();
-            Swal.fire({ icon: 'success', title: 'นำออกสำเร็จ', timer: 1500, showConfirmButton: false });
+            const { error } = await appDB.from('users').update({ department: 'AM' }).eq('id', id);
+            
+            if (error) {
+                Swal.fire('Error', error.message, 'error');
+            } else {
+                window.renderLeaveTable();
+                Swal.fire({ icon: 'success', title: 'ย้ายสำเร็จ', timer: 1500, showConfirmButton: false });
+            }
         }
     });
 };
 
+// ฟังก์ชันสำหรับบันทึกประวัติการจอง/ยกเลิกวันหยุด
 window.logLeaveAction = async function(action, userId, username, dateStr) {
     try {
         if (typeof appDB !== 'undefined') {
-            // 🟢 บันทึกเป็นแผนกจริงของพนักงานเลย ไม่ต้องเป็น NEW
-            const targetUser = GLOBAL_USER_LIST.find(u => String(u.id) === String(userId));
-            const realDept = targetUser ? (targetUser.department || 'AM') : 'AM';
-            
             await appDB.from('leave_logs').insert({ 
                 action_type: action, 
                 user_id: userId, 
                 username: username, 
                 actor_name: (typeof currentUser !== 'undefined' && currentUser.username) ? currentUser.username : 'Unknown', 
                 leave_date: dateStr, 
-                department: realDept 
+                department: (typeof currentViewDept !== 'undefined') ? currentViewDept : 'AM' 
             });
         }
     } catch (err) { 
@@ -1296,10 +1199,13 @@ window.logLeaveAction = async function(action, userId, username, dateStr) {
     }
 };
 
+// =========================================
+// 🌟 ระบบหน่วงเวลาช่องค้นหา (พิมพ์เสร็จค่อยหา)
+// =========================================
 let leaveSearchTimeout = null;
 window.onLeaveSearch = function() {
     clearTimeout(leaveSearchTimeout);
     leaveSearchTimeout = setTimeout(() => {
-        renderLeaveTable();
+        renderLeaveTable(); // สั่งวาดตารางเมื่อหยุดพิมพ์ไปแล้ว 300ms
     }, 300); 
 };
