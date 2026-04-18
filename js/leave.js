@@ -4,6 +4,7 @@ window.activeLeaveType = 'X';
 let deptSettings = {
     AM: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
     OD: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
+    NEW: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
     TRAINER: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' }
 };
 let allLeaveData = [];  
@@ -34,7 +35,7 @@ window.setLeaveType = function(type) {
 
 window.switchDept = function(dept) {
     currentViewDept = dept;
-    ['AM', 'OD', 'TRAINER'].forEach(d => {
+    ['AM', 'OD', 'NEW', 'TRAINER'].forEach(d => {
         const btn = document.getElementById(`btn${d}`);
         if(!btn) return;
         if(d === dept) {
@@ -42,6 +43,7 @@ window.switchDept = function(dept) {
             btn.classList.remove('text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500');
             if(d === 'AM') btn.classList.add('text-rose-600');
             if(d === 'OD') btn.classList.add('text-fuchsia-600');
+            if(d === 'NEW') btn.classList.add('text-cyan-500');
             if(d === 'TRAINER') btn.classList.add('text-indigo-500');
         } else {
             btn.classList.remove('active', 'text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500');
@@ -53,6 +55,7 @@ window.switchDept = function(dept) {
     const saveLabel = document.getElementById('saveBtnLabel');
     
     let displayDeptName = dept;
+    if (dept === 'NEW') displayDeptName = 'พนักงานใหม่';
     if (dept === 'TRAINER') displayDeptName = 'ผู้สอน';
 
     if(label) label.innerText = displayDeptName;
@@ -61,12 +64,14 @@ window.switchDept = function(dept) {
 
     let colorClass = 'bg-rose-600'; 
     if(dept === 'OD') colorClass = 'bg-fuchsia-600';
+    if(dept === 'NEW') colorClass = 'bg-cyan-600';
     if(dept === 'TRAINER') colorClass = 'bg-indigo-600';
     if(label) label.className = `text-[10px] ${colorClass} px-2 rounded shadow transition-colors duration-300`;
 
     const btnManage = document.getElementById('btnManageNewStaff');
     if(btnManage) {
-        btnManage.classList.add('hidden');   
+        if(dept === 'NEW') btnManage.classList.remove('hidden');
+        else btnManage.classList.add('hidden');   
     }
 
 // ----------------------------------------------------
@@ -79,6 +84,7 @@ if(controls) {
     // เช็คสิทธิ์ตามหน้าปัจจุบันที่กดดูอยู่
     if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
     if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
+    if (dept === 'NEW') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_new');
     if (dept === 'TRAINER') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
 
     if(canManageThisDept) {
@@ -141,9 +147,10 @@ window.initLeaveTable = async function() {
     const canExport = isGlobalAdmin || window.hasUserPerm('leave_export');
     const canViewHistory = isGlobalAdmin || window.hasUserPerm('leave_history');
     
-    // --- เช็คสิทธิ์หน้าแผนก ---
+    // --- เช็คสิทธิ์ 4 หน้าแผนก ---
     const canViewAM = isGlobalAdmin || window.hasUserPerm('leave_am');
     const canViewOD = isGlobalAdmin || window.hasUserPerm('leave_od');
+    const canViewNEW = isGlobalAdmin || window.hasUserPerm('leave_new');
     const canViewTRAINER = isGlobalAdmin || window.hasUserPerm('leave_trainer');
 
     // ซ่อน/โชว์ แท็บแผนกตามสิทธิ์
@@ -154,7 +161,7 @@ window.initLeaveTable = async function() {
     if (btnOD) { if(canViewOD) btnOD.classList.remove('hidden'); else btnOD.classList.add('hidden'); }
     
     const btnNEW = document.getElementById('btnNEW');
-    if (btnNEW) btnNEW.classList.add('hidden'); // ซ่อนแท็บ NEW ถาวร
+    if (btnNEW) { if(canViewNEW) btnNEW.classList.remove('hidden'); else btnNEW.classList.add('hidden'); }
     
     const btnTRAINER = document.getElementById('btnTRAINER');
     if (btnTRAINER) { if(canViewTRAINER) btnTRAINER.classList.remove('hidden'); else btnTRAINER.classList.add('hidden'); }
@@ -200,14 +207,15 @@ window.initLeaveTable = async function() {
     // ==========================================
     // 🟢 กำหนดหน้าเริ่มต้น และเช็คสิทธิ์การมองเห็น
     // ==========================================
-    const allowedDepts = ['AM', 'OD', 'TRAINER'];
+    const allowedDepts = ['AM', 'OD', 'NEW', 'TRAINER'];
     let myDept = currentUser.department || 'AM';
     if (!allowedDepts.includes(myDept)) myDept = 'AM';
 
     // ถ้าไม่มีสิทธิ์ดูหน้าแผนกตัวเอง ให้หาแผนกแรกที่มีสิทธิ์ดูเพื่อแสดงผลแทน
-    if (myDept === 'AM' && !canViewAM) myDept = canViewOD ? 'OD' : (canViewTRAINER ? 'TRAINER' : 'AM');
-    else if (myDept === 'OD' && !canViewOD) myDept = canViewAM ? 'AM' : (canViewTRAINER ? 'TRAINER' : 'AM');
-    else if (myDept === 'TRAINER' && !canViewTRAINER) myDept = canViewAM ? 'AM' : (canViewOD ? 'OD' : 'AM');
+    if (myDept === 'AM' && !canViewAM) myDept = canViewOD ? 'OD' : (canViewNEW ? 'NEW' : (canViewTRAINER ? 'TRAINER' : 'AM'));
+    else if (myDept === 'OD' && !canViewOD) myDept = canViewAM ? 'AM' : (canViewNEW ? 'NEW' : (canViewTRAINER ? 'TRAINER' : 'AM'));
+    else if (myDept === 'NEW' && !canViewNEW) myDept = canViewAM ? 'AM' : (canViewOD ? 'OD' : (canViewTRAINER ? 'TRAINER' : 'AM'));
+    else if (myDept === 'TRAINER' && !canViewTRAINER) myDept = canViewAM ? 'AM' : (canViewOD ? 'OD' : (canViewNEW ? 'NEW' : 'AM'));
 
     switchDept(myDept); 
     // ==========================================
@@ -236,7 +244,7 @@ async function loadLeaveSettings() {
         .neq('key', 'discord_custom_names');
 
     if (data) {
-        ['AM', 'OD', 'TRAINER'].forEach(dept => {
+        ['AM', 'OD', 'NEW', 'TRAINER'].forEach(dept => {
             const getDbValue = (keySuffix, defaultVal) => {
                 const row = data.find(d => d.key === `${dept}_${keySuffix}`);
                 return row ? row.value : defaultVal;
@@ -358,6 +366,7 @@ function subscribeLeaveChanges() {
             
             let shouldRenderTable = false;
             if (currentViewDept === 'TRAINER' && (tDept === 'TRAINER' || tRole === 'trainer')) shouldRenderTable = true;
+            else if (currentViewDept === 'NEW' && tDept === 'NEW') shouldRenderTable = true;
             else if (tRole === 'staff' && tDept === currentViewDept) shouldRenderTable = true;
 
             if (shouldRenderTable) {
@@ -487,6 +496,8 @@ window.renderLeaveTable = function() {
 
         if (currentViewDept === 'TRAINER') {
             return uDept === 'TRAINER' || uRole === 'trainer'; 
+        } else if (currentViewDept === 'NEW') {
+            return uDept === 'NEW';
         } else {
             return uRole === 'staff' && uDept === currentViewDept; 
         }
@@ -531,6 +542,7 @@ window.renderLeaveTable = function() {
     });
 
     let displayDeptText = currentViewDept;
+    if(currentViewDept === 'NEW') displayDeptText = 'พนักงานใหม่';
     if(currentViewDept === 'TRAINER') displayDeptText = 'ผู้สอน';
 
     let headerHtml = `
@@ -600,7 +612,7 @@ window.renderLeaveTable = function() {
         else if(u.allowed_shift === 'กะดึก') targetQuota = s.quotaN;
 
         let removeBtn = '';
-        if (isAdmin && currentViewDept === 'TRAINER') {
+        if (isAdmin && (currentViewDept === 'NEW' || currentViewDept === 'TRAINER')) {
             if(typeof removeFromNewDept === 'function') {
                 removeBtn = `<button onclick="removeFromNewDept(${u.id}, '${u.username}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
             }
@@ -673,6 +685,7 @@ window.renderLeaveTable = function() {
             let cellContent = "";
             let baseDeptColor = 'bg-rose-500'; 
             if(currentViewDept === 'OD') baseDeptColor = 'bg-fuchsia-500';
+            if(currentViewDept === 'NEW') baseDeptColor = 'bg-cyan-500';
             if(currentViewDept === 'TRAINER') baseDeptColor = 'bg-indigo-500';
 
             if (isDateLocked && !isAdmin) {
@@ -931,6 +944,7 @@ window.exportLeaveToExcel = async function() {
             const staffList = GLOBAL_USER_LIST.filter(u => {
                 const uDept = u.department || 'AM';
                 if (currentViewDept === 'TRAINER') return uDept === 'TRAINER';
+                if (currentViewDept === 'NEW') return uDept === 'NEW';
                 return u.role === 'staff' && uDept === currentViewDept;
             }).sort((a,b) => a.username.localeCompare(b.username));
 
@@ -1151,6 +1165,99 @@ setTimeout(() => {
         observer.observe(targetNode, { childList: true, characterData: true, subtree: true });
     }
 }, 1000);
+
+window.filterNewStaffList = function() {
+    const input = document.getElementById('newStaffSearchInput');
+    const filter = input.value.toLowerCase();
+    const container = document.getElementById('newStaffListContainer');
+    const labels = container.getElementsByTagName('label');
+    for (let i = 0; i < labels.length; i++) {
+        const nameSpan = labels[i].querySelector('.staff-name');
+        if (nameSpan) {
+            const txtValue = nameSpan.textContent || nameSpan.innerText;
+            labels[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "flex" : "none";
+        }
+    }
+};
+
+window.openManageNewStaffModal = async function() {
+    const users = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'manager' || u.role === 'admin').sort((a, b) => a.username.localeCompare(b.username));
+
+    let html = `
+        <div class="flex flex-col h-full text-left">
+            <div class="sticky top-0 bg-white dark:bg-slate-800 z-10 pb-2 border-b border-gray-200 dark:border-gray-600 mb-2">
+                <input type="text" id="newStaffSearchInput" onkeyup="filterNewStaffList()" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหา..." 
+                    class="w-full p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500 transition font-bold text-sm">
+            </div>
+            <div id="newStaffListContainer" class="max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
+    `;
+    
+    users.forEach(u => {
+        const isNewStaff = u.department === 'NEW'; 
+        const currentDept = u.department || 'AM';
+        let badgeColor = 'bg-blue-100 text-blue-700';
+        if(currentDept === 'OD') badgeColor = 'bg-pink-100 text-pink-700';
+        else if(currentDept === 'NEW') badgeColor = 'bg-teal-100 text-teal-700';
+        else if(currentDept === 'TRAINER') badgeColor = 'bg-cyan-100 text-cyan-700';
+        
+        let displayDept = currentDept === 'TRAINER' ? 'ผู้สอน' : (currentDept === 'NEW' ? 'พนักงานใหม่' : currentDept);
+        
+        html += `
+            <label class="flex items-center justify-between p-2 hover:bg-cyan-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-0 transition group">
+                <div class="flex items-center gap-2">
+                    <span class="staff-name font-bold text-sm text-slate-700 dark:text-gray-200 group-hover:text-cyan-700 transition">${u.username}</span>
+                    <span class="text-[9px] font-bold ${badgeColor} px-1.5 py-0.5 rounded border border-black/5 shadow-sm">${displayDept}</span>
+                </div>
+                <input type="checkbox" class="newstaff-cb w-5 h-5 rounded text-cyan-600 focus:ring-cyan-500 cursor-pointer border-gray-300" value="${u.id}" ${isNewStaff ? 'checked' : ''}>
+            </label>
+        `;
+    });
+    html += '</div></div>';
+
+    const { value: selectedIds } = await Swal.fire({
+        title: 'ดึงรายชื่อพนักงานใหม่', html: html, showCancelButton: true, confirmButtonText: 'บันทึกรายชื่อ', confirmButtonColor: '#0891b2', cancelButtonText: 'ยกเลิก', width: '400px',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white' },
+        preConfirm: () => {
+            const checkboxes = document.querySelectorAll('.newstaff-cb:checked');
+            const ids = []; checkboxes.forEach(cb => ids.push(String(cb.value))); return ids;
+        }
+    });
+
+    if (selectedIds) {
+        Swal.fire({title: 'กำลังย้ายข้อมูล...', didOpen: () => Swal.showLoading()});
+        
+        const selectedSet = new Set(selectedIds);
+        const toAddIds = []; const toRemoveIds = []; let updateCount = 0;
+
+        for (let i = 0; i < GLOBAL_USER_LIST.length; i++) {
+            let u = GLOBAL_USER_LIST[i];
+            const uidStr = String(u.id);
+            const isSelected = selectedSet.has(uidStr);
+            const isCurrentlyNew = u.department === 'NEW';
+
+            if (isSelected) {
+                GLOBAL_USER_LIST[i].department = 'NEW'; 
+                if (!isCurrentlyNew) toAddIds.push(u.id);
+                updateCount++;
+            } else {
+                if (isCurrentlyNew) {
+                    GLOBAL_USER_LIST[i].department = 'AM'; 
+                    toRemoveIds.push(u.id);
+                }
+            }
+        }
+
+        await new Promise(r => setTimeout(r, 50)); 
+        window.renderLeaveTable(); 
+        
+        const promises = [];
+        if (toAddIds.length > 0) promises.push(appDB.from('users').update({ department: 'NEW' }).in('id', toAddIds));
+        if (toRemoveIds.length > 0) promises.push(appDB.from('users').update({ department: 'AM' }).in('id', toRemoveIds));
+        await Promise.all(promises);
+
+        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: `อัปเดตรายชื่อพนักงานใหม่ ${updateCount} คน เรียบร้อยแล้ว`, timer: 2000, showConfirmButton: false });
+    }
+};
 
 window.removeFromNewDept = async function(id, username) {
     Swal.fire({
