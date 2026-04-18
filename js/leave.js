@@ -4,7 +4,8 @@ window.activeLeaveType = 'X';
 let deptSettings = {
     AM: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
     OD: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
-    TRAINER: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' }
+    TRAINER: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
+    SPECIAL: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' }
 };
 let allLeaveData = [];  
 let leaveSubscription = null; 
@@ -34,17 +35,18 @@ window.setLeaveType = function(type) {
 
 window.switchDept = function(dept) {
     currentViewDept = dept;
-    ['AM', 'OD', 'TRAINER'].forEach(d => {
+    ['AM', 'OD', 'TRAINER', 'SPECIAL'].forEach(d => {
         const btn = document.getElementById(`btn${d}`);
         if(!btn) return;
         if(d === dept) {
             btn.classList.add('active');
-            btn.classList.remove('text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500');
+            btn.classList.remove('text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500', 'text-amber-500');
             if(d === 'AM') btn.classList.add('text-rose-600');
             if(d === 'OD') btn.classList.add('text-fuchsia-600');
             if(d === 'TRAINER') btn.classList.add('text-indigo-500');
+            if(d === 'SPECIAL') btn.classList.add('text-amber-500');
         } else {
-            btn.classList.remove('active', 'text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500');
+            btn.classList.remove('active', 'text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500', 'text-amber-500');
         }
     });
 
@@ -54,6 +56,7 @@ window.switchDept = function(dept) {
     
     let displayDeptName = dept;
     if (dept === 'TRAINER') displayDeptName = 'ผู้สอน';
+    if (dept === 'SPECIAL') displayDeptName = 'จัดกลุ่มเอง';
 
     if(label) label.innerText = displayDeptName;
     if(targetLabel) targetLabel.innerText = displayDeptName;
@@ -62,36 +65,31 @@ window.switchDept = function(dept) {
     let colorClass = 'bg-rose-600'; 
     if(dept === 'OD') colorClass = 'bg-fuchsia-600';
     if(dept === 'TRAINER') colorClass = 'bg-indigo-600';
+    if(dept === 'SPECIAL') colorClass = 'bg-amber-500';
     if(label) label.className = `text-[10px] ${colorClass} px-2 rounded shadow transition-colors duration-300`;
 
     const btnManage = document.getElementById('btnManageNewStaff');
     if(btnManage) {
-        btnManage.classList.add('hidden');   
+        if(dept === 'SPECIAL') btnManage.classList.remove('hidden');
+        else btnManage.classList.add('hidden');   
     }
 
-// ----------------------------------------------------
-// 🟢 เพิ่มโค้ดเช็คสิทธิ์ควบคุม ตรงนี้ครับ 🟢
-const controls = document.getElementById('leaveManagerControls');
-if(controls) {
-    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
-    let canManageThisDept = isGlobalAdmin;
-    
-    // เช็คสิทธิ์ตามหน้าปัจจุบันที่กดดูอยู่
-    if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
-    if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
-    if (dept === 'TRAINER') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
+    const controls = document.getElementById('leaveManagerControls');
+    if(controls) {
+        const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+        let canManageThisDept = isGlobalAdmin;
+        
+        if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
+        if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
+        if (dept === 'TRAINER') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
+        if (dept === 'SPECIAL') canManageThisDept = true; // แอดมินจัดการห้องพิเศษได้
 
-    if(canManageThisDept) {
-         controls.classList.remove('hidden');
-    } else {
-         controls.classList.add('hidden');
+        if(canManageThisDept) controls.classList.remove('hidden');
+        else controls.classList.add('hidden');
     }
-}
-// ----------------------------------------------------
 
-updateAdminInputs();
-
-if(typeof updateMonthPicker === 'function') updateMonthPicker();
+    updateAdminInputs();
+    if(typeof updateMonthPicker === 'function') updateMonthPicker();
     
     const tbody = document.getElementById('tableBody');
     if (tbody) {
@@ -604,6 +602,8 @@ window.renderLeaveTable = function() {
             if(typeof removeFromNewDept === 'function') {
                 removeBtn = `<button onclick="removeFromNewDept(${u.id}, '${u.username}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
             }
+        } else if (isAdmin && currentViewDept === 'SPECIAL') {
+             removeBtn = `<button onclick="removeFromSpecialDept(${u.id}, '${u.username}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
         }
 
         // 🌟 สร้าง HTML แสดงจำนวนลางานแยกตามประเภท ให้ครบทุกแบบตามหน้าเว็บคุณ
@@ -1208,4 +1208,125 @@ window.onLeaveSearch = function() {
     leaveSearchTimeout = setTimeout(() => {
         renderLeaveTable(); // สั่งวาดตารางเมื่อหยุดพิมพ์ไปแล้ว 300ms
     }, 300); 
+};
+
+window.openManageSpecialModal = async function() {
+    const users = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'manager' || u.role === 'admin').sort((a, b) => a.username.localeCompare(b.username));
+
+    let html = `
+        <div class="flex flex-col h-full text-left">
+            <div class="sticky top-0 bg-white dark:bg-slate-800 z-10 pb-2 border-b border-gray-200 dark:border-gray-600 mb-2">
+                <input type="text" id="specialSearchInput" onkeyup="filterSpecialList()" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหา..." 
+                    class="w-full p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 transition font-bold text-sm">
+            </div>
+            <div id="specialListContainer" class="max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
+    `;
+    
+    users.forEach(u => {
+        const isSpecial = u.department === 'SPECIAL'; 
+        const currentDept = u.department || 'AM';
+        
+        let badgeColor = 'bg-blue-100 text-blue-700';
+        if(currentDept === 'OD') badgeColor = 'bg-pink-100 text-pink-700';
+        else if(currentDept === 'TRAINER') badgeColor = 'bg-cyan-100 text-cyan-700';
+        else if(currentDept === 'SPECIAL') badgeColor = 'bg-amber-100 text-amber-700';
+        
+        let displayDept = currentDept;
+        
+        html += `
+            <label class="flex items-center justify-between p-2 hover:bg-amber-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-0 transition group">
+                <div class="flex items-center gap-2">
+                    <span class="staff-name font-bold text-sm text-slate-700 dark:text-gray-200 group-hover:text-amber-600 transition">${u.username}</span>
+                    <span class="text-[9px] font-bold ${badgeColor} px-1.5 py-0.5 rounded border border-black/5 shadow-sm">${displayDept}</span>
+                </div>
+                <input type="checkbox" class="special-cb w-5 h-5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer border-gray-300" value="${u.id}" ${isSpecial ? 'checked' : ''}>
+            </label>
+        `;
+    });
+    html += '</div></div>';
+
+    const { value: selectedIds } = await Swal.fire({
+        title: 'ดึงพนักงานเข้าหน้าจัดกลุ่มเอง', html: html, showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#f59e0b', cancelButtonText: 'ยกเลิก', width: '400px',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white' },
+        preConfirm: () => {
+            const checkboxes = document.querySelectorAll('.special-cb:checked');
+            const ids = []; checkboxes.forEach(cb => ids.push(String(cb.value))); return ids;
+        }
+    });
+
+    if (selectedIds) {
+        Swal.fire({title: 'กำลังย้ายข้อมูล...', didOpen: () => Swal.showLoading()});
+        
+        const selectedSet = new Set(selectedIds);
+        const toAddIds = []; const toRemoveIds = []; let updateCount = 0;
+
+        for (let i = 0; i < GLOBAL_USER_LIST.length; i++) {
+            let u = GLOBAL_USER_LIST[i];
+            const uidStr = String(u.id);
+            const isSelected = selectedSet.has(uidStr);
+            const isCurrentlySpecial = u.department === 'SPECIAL';
+
+            if (isSelected) {
+                if (!isCurrentlySpecial) {
+                    GLOBAL_USER_LIST[i].department = 'SPECIAL'; 
+                    toAddIds.push(u.id);
+                    updateCount++;
+                }
+            } else {
+                if (isCurrentlySpecial) {
+                    GLOBAL_USER_LIST[i].department = 'AM'; // คืนค่ากลับ AM 
+                    toRemoveIds.push(u.id);
+                }
+            }
+        }
+
+        const promises = [];
+        if (toAddIds.length > 0) promises.push(appDB.from('users').update({ department: 'SPECIAL' }).in('id', toAddIds));
+        if (toRemoveIds.length > 0) promises.push(appDB.from('users').update({ department: 'AM' }).in('id', toRemoveIds));
+        if (promises.length > 0) await Promise.all(promises);
+
+        window.renderLeaveTable();
+        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: `จัดการรายชื่อเรียบร้อย`, timer: 2000, showConfirmButton: false });
+    }
+};
+
+window.filterSpecialList = function() {
+    const input = document.getElementById('specialSearchInput'); const filter = input.value.toLowerCase();
+    const container = document.getElementById('specialListContainer'); const labels = container.getElementsByTagName('label');
+    for (let i = 0; i < labels.length; i++) {
+        const nameSpan = labels[i].querySelector('.staff-name');
+        if (nameSpan) {
+            const txtValue = nameSpan.textContent || nameSpan.innerText;
+            labels[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "flex" : "none";
+        }
+    }
+};
+
+window.removeFromSpecialDept = async function(id, username) {
+    Swal.fire({
+        title: 'ยืนยันการนำออก?',
+        text: `ต้องการย้าย ${username} กลับไปอยู่แผนก AM ใช่หรือไม่?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, ย้ายกลับเลย',
+        cancelButtonText: 'ยกเลิก'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'กำลังย้าย...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            
+            const userIndex = GLOBAL_USER_LIST.findIndex(u => String(u.id) === String(id));
+            if (userIndex !== -1) GLOBAL_USER_LIST[userIndex].department = 'AM';
+            
+            const { error } = await appDB.from('users').update({ department: 'AM' }).eq('id', id);
+            
+            if (error) {
+                Swal.fire('Error', error.message, 'error');
+            } else {
+                window.renderLeaveTable();
+                Swal.fire({ icon: 'success', title: 'ย้ายสำเร็จ', timer: 1500, showConfirmButton: false });
+            }
+        }
+    });
 };
