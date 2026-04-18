@@ -2342,7 +2342,9 @@ window.hasUserPerm = function(menuId) {
     let perms = {};
     try { perms = typeof SETTINGS['dept_menu_rules'] === 'string' ? JSON.parse(SETTINGS['dept_menu_rules']) : (SETTINGS['dept_menu_rules'] || {}); } catch(e) {}
     
-    const uDept = window.currentUser.department || 'AM';
+    let uDept = window.currentUser.department || 'AM';
+    if (uDept === 'SPECIAL') uDept = 'AM'; // 🌟 เพิ่มบรรทัดนี้: ให้กลุ่มพิเศษดึงสิทธิ์เมนู AM มาใช้
+    
     const uRole = uRoleLower === 'trainer' ? 'TRAINER' : 'STAFF';
     const key = `${uDept}_${uRole}`;
     
