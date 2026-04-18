@@ -23,8 +23,9 @@ window.getCurrentUserRole = () => {
 };
 
 // ==========================================
-// 🌟 ระบบเชื่อมต่อฐานข้อมูล (Supabase)
+// 🌟 ระบบเชื่อมต่อฐานข้อมูล (Supabase) และ Real-time
 // ==========================================
+window.syncChannel = null; // 🌟 เพิ่มตัวแปรเตรียมรับสัญญาณ
 
 window.fetchSlipHistoryDB = async function() {
     try {
@@ -50,17 +51,50 @@ window.fetchQRHistoryDB = async function() {
     } catch (e) { console.error('Fetch QR DB Error:', e); }
 };
 
+// 🚀 เพิ่มฟังก์ชัน Broadcast รับสัญญาณกระซิบจากเครื่องคนอื่น (ไม่กินโควต้า DB)
+window.initRealtimeSync = function() {
+    if (typeof appDB === 'undefined') return;
+    
+    if (window.syncChannel) appDB.removeChannel(window.syncChannel);
+    
+    // สร้างห้องสื่อสารสำหรับพนักงาน
+    window.syncChannel = appDB.channel('history-sync-room');
+    
+    window.syncChannel
+        .on('broadcast', { event: 'update_slip' }, (payload) => {
+            // เมื่อเครื่องอื่นสแกนสลิป เครื่องเราจะอัปเดตหน้าจอทันที
+            if (payload.payload) {
+                window.slipHistoryData = payload.payload;
+                localStorage.setItem('slip_check_history', JSON.stringify(window.slipHistoryData));
+                if (document.getElementById('slipHistoryBody')) window.renderSlipHistory();
+                if (document.getElementById('fakeHistoryBody') && typeof window.renderFakeHistory === 'function') window.renderFakeHistory();
+            }
+        })
+        .on('broadcast', { event: 'update_qr' }, (payload) => {
+            // เมื่อเครื่องอื่นสแกน QR เครื่องเราจะอัปเดตหน้าจอทันที
+            if (payload.payload) {
+                window.qrHistoryData = payload.payload;
+                localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
+                if (document.getElementById('qrHistoryBody')) window.renderQRHistory();
+            }
+        })
+        .subscribe();
+};
+
 window.initSlipCheck = async function() {
     window.clearSlipUpload();
     window.clearQRReceiver();
     
-    // โหลดประวัติจาก DB กลางเพื่อให้ทุกคนเห็นตรงกัน
+    // 1. โหลดประวัติจาก DB กลาง (ทำแค่ครั้งแรกตอนเปิดหน้าเว็บ)
     await window.fetchSlipHistoryDB();
     await window.fetchQRHistoryDB();
     
     window.renderSlipHistory();
     window.renderQRHistory();
     if (typeof window.renderFakeHistory === 'function') window.renderFakeHistory();
+
+    // 2. 🌟 เปิดระบบรอรับสัญญาณ Real-time แบบ Broadcast
+    window.initRealtimeSync();
 };
 
 // ==========================================
@@ -213,6 +247,11 @@ window.saveQRHistory = async function(data) {
     // ซิงค์ขึ้นฐานข้อมูล
     if (typeof appDB !== 'undefined') {
         await appDB.from('settings').upsert([{ key: 'qr_check_history', value: JSON.stringify(window.qrHistoryData) }]);
+        
+        // 🌟 ส่งสัญญาณ Broadcast บอกเครื่องอื่นให้อัปเดตหน้าจอทันที
+        if (window.syncChannel) {
+            window.syncChannel.send({ type: 'broadcast', event: 'update_qr', payload: window.qrHistoryData });
+        }
     }
     
     window.renderQRHistory();
@@ -279,6 +318,11 @@ window.deleteQRHistory = function(id, event) {
             
             if (typeof appDB !== 'undefined') {
                 await appDB.from('settings').upsert([{ key: 'qr_check_history', value: JSON.stringify(window.qrHistoryData) }]);
+                
+                // 🌟 ส่งสัญญาณบอกเครื่องอื่นให้ลบรายการนี้ออกจากหน้าจอ
+                if (window.syncChannel) {
+                    window.syncChannel.send({ type: 'broadcast', event: 'update_qr', payload: window.qrHistoryData });
+                }
             }
             
             window.renderQRHistory();
@@ -286,7 +330,6 @@ window.deleteQRHistory = function(id, event) {
         }
     });
 };
-
 
 // ==========================================
 // 🌟 โหมดที่ 1: เช็คสลิปโอนเงิน (OCR & API)
@@ -595,6 +638,11 @@ window.saveSlipHistory = async function(result, isSuccess) {
     // ซิงค์ขึ้นฐานข้อมูล
     if (typeof appDB !== 'undefined') {
         await appDB.from('settings').upsert([{ key: 'slip_check_history', value: JSON.stringify(window.slipHistoryData) }]);
+        
+        // 🌟 ส่งสัญญาณ Broadcast บอกเครื่องอื่นให้อัปเดตหน้าจอทันที
+        if (window.syncChannel) {
+            window.syncChannel.send({ type: 'broadcast', event: 'update_slip', payload: window.slipHistoryData });
+        }
     }
     
     window.renderSlipHistory();
@@ -690,6 +738,11 @@ window.deleteSlipHistory = function(id, event) {
             // ลบออกจากฐานข้อมูลกลางด้วย
             if (typeof appDB !== 'undefined') {
                 await appDB.from('settings').upsert([{ key: 'slip_check_history', value: JSON.stringify(window.slipHistoryData) }]);
+                
+                // 🌟 ส่งสัญญาณบอกเครื่องอื่นให้ลบรายการนี้ออกจากหน้าจอ
+                if (window.syncChannel) {
+                    window.syncChannel.send({ type: 'broadcast', event: 'update_slip', payload: window.slipHistoryData });
+                }
             }
             
             window.renderSlipHistory();
@@ -733,21 +786,18 @@ window.viewHistoryDetail = function(id) {
     }
 };
 
-// ==========================================
-// 🌟 ประวัติบัญชีดำ (สลิปปลอม)
-// ==========================================
+// 🌟 หน้าบัญชีดำ (สลิปปลอม)
 window.renderFakeHistory = function() {
     const tbody = document.getElementById('fakeHistoryBody');
     if (!tbody) return;
     
     const search = document.getElementById('fakeHistorySearch') ? document.getElementById('fakeHistorySearch').value.toLowerCase() : '';
     
-    // กรองเอาเฉพาะรายการที่เจอว่า "ปลอม" (isFake === true)
+    // กรองเอาเฉพาะรายการที่เป็น "สลิปปลอม" (isFake: true)
     const fakes = window.slipHistoryData.filter(h => h.isFake);
     
     const filtered = fakes.filter(h => 
         (h.senderName && h.senderName.toLowerCase().includes(search)) ||
-        (h.receiverName && h.receiverName.toLowerCase().includes(search)) ||
         (h.checkerName && h.checkerName.toLowerCase().includes(search))
     );
     
