@@ -95,6 +95,7 @@ async function showPage(pageName) {
                 }
 
                 if (pageName === 'dashboard') {
+                    if (typeof initDashboard === 'function') initDashboard(); // 👈 เพิ่มบรรทัดนี้เข้าไปครับ
                     if (typeof refreshAdminData === 'function') refreshAdminData();
                     if (typeof fetchData === 'function') fetchData();
                     if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
