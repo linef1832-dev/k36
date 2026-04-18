@@ -369,25 +369,6 @@ window.fetchLogs = async function() {
     }
 };
 
-// ========================================================================
-// 🟢 2. ระบบช่วยโหลดตารางอัตโนมัติ เวลาสลับเมนูไปมา (กันตารางหาย)
-// ========================================================================
-const dashboardObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-        if (mutation.addedNodes.length) {
-            const wDate = document.getElementById('wDate');
-            // ถ้าตรวจพบว่าหน้า Dashboard เพิ่งถูกโหลดมาใหม่ และยังไม่ได้โหลดข้อมูล
-            if (wDate && !wDate.dataset.initialized) {
-                wDate.dataset.initialized = 'true';
-                if (typeof window.initDashboard === 'function') {
-                    window.initDashboard(); // สั่งให้ดึงตารางใหม่ทันที
-                }
-            }
-        }
-    });
-});
-// เริ่มดักจับการเปลี่ยนแปลงบนหน้าเว็บ
-dashboardObserver.observe(document.body, { childList: true, subtree: true });
 
 // ========================================================================
 // 🟢 ระบบ Realtime สำหรับหน้าลงเวลาทำงาน (แทรกข้อมูลเนียนๆ ไม่ต้องรีเฟรช)

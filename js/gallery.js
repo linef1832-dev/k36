@@ -350,3 +350,12 @@ window.copyImageToClipboard = async function(imageUrl) {
         Swal.fire('Error', 'คัดลอกรูปไม่สำเร็จ: ' + err.message, 'error');
     }
 };
+
+// เพิ่มฟังก์ชันนี้เข้าไป
+window.filterGalleryImages = function() {
+    clearTimeout(window.gallerySearchTimer);
+    window.gallerySearchTimer = setTimeout(() => {
+        // ให้ฟังก์ชันเดิมทำงานโดยไม่ต้องยิง DB ใหม่ถ้ามี currentGalleryData แล้ว
+        fetchGalleryImages(true); 
+    }, 300); // หน่วง 0.3 วินาที
+};
