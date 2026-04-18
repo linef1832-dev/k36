@@ -1,15 +1,66 @@
-// ดึงประวัติจากที่บันทึกไว้ในเครื่อง
+// ==========================================
+// 🌟 โหลดข้อมูลพื้นฐานและสิทธิ์ผู้ใช้งาน
+// ==========================================
+
+// ดึงประวัติจากที่บันทึกไว้ในเครื่องเบื้องต้น
 window.slipHistoryData = JSON.parse(localStorage.getItem('slip_check_history') || '[]');
+window.qrHistoryData = JSON.parse(localStorage.getItem('qr_check_history') || '[]');
 window.selectedSlipFile = null;
 
-// ดึงชื่อและสิทธิ์
-window.getCurrentUserName = () => localStorage.getItem('username') || localStorage.getItem('name') || 'แอดมิน';
-window.getCurrentUserRole = () => localStorage.getItem('role') || localStorage.getItem('userRole') || 'manager'; 
+// ดึงชื่อและสิทธิ์ (รองรับระบบ Session ใหม่)
+window.getCurrentUserName = () => {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) return currentUser.username;
+    const savedUser = sessionStorage.getItem('user_platinum_plus');
+    if (savedUser) { try { const user = JSON.parse(savedUser); if (user.username) return user.username; } catch(e) {} }
+    return localStorage.getItem('username') || localStorage.getItem('name') || 'แอดมิน';
+};
 
-window.initSlipCheck = function() {
+window.getCurrentUserRole = () => {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role) return currentUser.role;
+    const savedUser = sessionStorage.getItem('user_platinum_plus');
+    if (savedUser) { try { const user = JSON.parse(savedUser); if (user.role) return user.role; } catch(e) {} }
+    return localStorage.getItem('role') || localStorage.getItem('userRole') || 'manager'; 
+};
+
+// ==========================================
+// 🌟 ระบบเชื่อมต่อฐานข้อมูล (Supabase)
+// ==========================================
+
+window.fetchSlipHistoryDB = async function() {
+    try {
+        if (typeof appDB !== 'undefined') {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'slip_check_history').single();
+            if (data && data.value) {
+                window.slipHistoryData = JSON.parse(data.value);
+                localStorage.setItem('slip_check_history', data.value);
+            }
+        }
+    } catch (e) { console.error('Fetch Slip DB Error:', e); }
+};
+
+window.fetchQRHistoryDB = async function() {
+    try {
+        if (typeof appDB !== 'undefined') {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'qr_check_history').single();
+            if (data && data.value) {
+                window.qrHistoryData = JSON.parse(data.value);
+                localStorage.setItem('qr_check_history', data.value);
+            }
+        }
+    } catch (e) { console.error('Fetch QR DB Error:', e); }
+};
+
+window.initSlipCheck = async function() {
     window.clearSlipUpload();
     window.clearQRReceiver();
+    
+    // โหลดประวัติจาก DB กลางเพื่อให้ทุกคนเห็นตรงกัน
+    await window.fetchSlipHistoryDB();
+    await window.fetchQRHistoryDB();
+    
     window.renderSlipHistory();
+    window.renderQRHistory();
+    if (typeof window.renderFakeHistory === 'function') window.renderFakeHistory();
 };
 
 // ==========================================
@@ -58,7 +109,6 @@ window.switchSlipTab = function(tabName) {
 // ==========================================
 // 🌟 โหมดที่ 2: เช็ค QR Code ผู้รับเงิน
 // ==========================================
-// ✅ คัดลอกโค้ดนี้ไปทับฟังก์ชันเดิม
 window.clearQRReceiver = function() {
     const qrInput = document.getElementById('qrReceiverInput');
     if (qrInput) qrInput.value = '';
@@ -107,8 +157,7 @@ window.handleScanQRReceiver = async function(event) {
 
         if (phoneMatch) {
             type = '💳 พร้อมเพย์ (เบอร์โทรศัพท์)';
-            // แปลง 0066 8x เป็น 08x
-            account = '0' + phoneMatch[1];
+            account = '0' + phoneMatch[1]; // แปลง 0066 8x เป็น 08x
         } else if (nidMatch) {
             type = '🪪 พร้อมเพย์ (บัตรประชาชน)';
             account = nidMatch[1];
@@ -134,15 +183,113 @@ window.handleScanQRReceiver = async function(event) {
 
         Swal.fire({icon: 'success', title: 'อ่านข้อมูลสำเร็จ', timer: 1000, showConfirmButton: false});
 
+        // 🌟 บันทึกประวัติ QR ลงฐานข้อมูลทันที
+        window.saveQRHistory({ type: type, account: account, raw: qrText });
+
     } catch (e) {
         Swal.fire('ตรวจพบปัญหา', 'รูปภาพนี้ไม่มี QR Code หรือสแกนไม่ผ่านครับ', 'error');
         window.clearQRReceiver();
     }
 };
 
+// ==========================================
+// 🌟 ระบบประวัติย้อนหลัง สำหรับ "สแกน QR ผู้รับเงิน"
+// ==========================================
+window.saveQRHistory = async function(data) {
+    const newEntry = {
+        id: 'qr_' + Date.now(),
+        timestamp: Date.now(),
+        type: data.type,
+        account: data.account,
+        raw: data.raw,
+        checkerName: window.getCurrentUserName() // บันทึกชื่อคนทำรายการ
+    };
+    
+    window.qrHistoryData.unshift(newEntry);
+    if (window.qrHistoryData.length > 200) window.qrHistoryData.pop(); 
+    
+    localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
+    
+    // ซิงค์ขึ้นฐานข้อมูล
+    if (typeof appDB !== 'undefined') {
+        await appDB.from('settings').upsert([{ key: 'qr_check_history', value: JSON.stringify(window.qrHistoryData) }]);
+    }
+    
+    window.renderQRHistory();
+};
+
+window.renderQRHistory = function() {
+    const tbody = document.getElementById('qrHistoryBody');
+    if (!tbody) return;
+    
+    const search = document.getElementById('qrHistorySearch') ? document.getElementById('qrHistorySearch').value.toLowerCase() : '';
+    
+    const filtered = window.qrHistoryData.filter(h => 
+        (h.account && h.account.toLowerCase().includes(search)) ||
+        (h.type && h.type.toLowerCase().includes(search)) ||
+        (h.checkerName && h.checkerName.toLowerCase().includes(search))
+    );
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500 font-bold bg-[#151f32] text-xs">ไม่พบประวัติการสแกน QR Code</td></tr>`;
+        return;
+    }
+
+    const role = window.getCurrentUserRole().toLowerCase();
+    const isManager = (role === 'manager' || role === 'admin' || role === 'vip' || role === 'ผู้จัดการ');
+    const canDelete = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('slip_check_delete') : isManager;
+    
+    tbody.innerHTML = filtered.map(h => {
+        const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+        
+        const actionBtn = canDelete 
+            ? `<button onclick="window.deleteQRHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition" title="ลบประวัติ"><span class="material-icons text-[18px]">delete</span></button>`
+            : `<span class="text-slate-600 material-icons text-[16px]" title="ไม่มีสิทธิ์ลบ">block</span>`;
+            
+        return `
+            <tr class="hover:bg-slate-800 transition border-b border-slate-800/50">
+                <td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td>
+                <td class="p-3 text-xs text-sky-400 font-bold">${h.type || '-'}</td>
+                <td class="p-3 font-mono font-bold text-emerald-400 text-sm tracking-wider select-all">${h.account || '-'}</td>
+                <td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td>
+                <td class="p-3 text-center">${actionBtn}</td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.filterQRHistory = function() { window.renderQRHistory(); };
+
+window.deleteQRHistory = function(id, event) {
+    if (event) event.stopPropagation(); 
+    Swal.fire({
+        title: 'ยืนยันการลบประวัติ?',
+        text: "คุณต้องการลบประวัติการสแกน QR นี้ใช่หรือไม่?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#4b5563',
+        confirmButtonText: 'ลบเลย',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            window.qrHistoryData = window.qrHistoryData.filter(h => h.id !== id);
+            localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
+            
+            if (typeof appDB !== 'undefined') {
+                await appDB.from('settings').upsert([{ key: 'qr_check_history', value: JSON.stringify(window.qrHistoryData) }]);
+            }
+            
+            window.renderQRHistory();
+            Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
+        }
+    });
+};
+
 
 // ==========================================
-// 🌟 โหมดที่ 1: เช็คสลิปโอนเงิน (ของเดิม)
+// 🌟 โหมดที่ 1: เช็คสลิปโอนเงิน (OCR & API)
 // ==========================================
 
 window.handleSlipUpload = function(event) {
@@ -162,7 +309,6 @@ window.handleSlipUpload = function(event) {
     updateSlipBadge('ready', 'พร้อมตรวจสอบ');
 };
 
-// ✅ คัดลอกโค้ดนี้ไปทับฟังก์ชันเดิม
 window.clearSlipUpload = function() {
     window.selectedSlipFile = null;
     
@@ -272,10 +418,8 @@ window.verifyThunderSlip = async function() {
     }
 
     Swal.fire({
-        title: 'กำลังสแกน QR Code...',
-        html: 'โปรดรอสักครู่...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading(),
+        title: 'กำลังสแกน QR Code...', html: 'โปรดรอสักครู่...',
+        allowOutsideClick: false, didOpen: () => Swal.showLoading(),
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
     });
 
@@ -370,11 +514,8 @@ window.verifyThunderSlip = async function() {
             document.getElementById('resReceiverAccount').innerText = getAccount(receiverObj);
             document.getElementById('resRef').innerText = transRef;
             
-            if (transDate) {
-                 document.getElementById('resDate').innerText = new Date(transDate).toLocaleString('th-TH');
-            } else {
-                 document.getElementById('resDate').innerText = '-';
-            }
+            if (transDate) document.getElementById('resDate').innerText = new Date(transDate).toLocaleString('th-TH');
+            else document.getElementById('resDate').innerText = '-';
 
             document.getElementById('slipResultEmpty').classList.add('hidden');
             document.getElementById('slipResultEmpty').classList.remove('flex');
@@ -384,24 +525,20 @@ window.verifyThunderSlip = async function() {
             if (isDuplicate) {
                  updateSlipBadge('warning', 'สลิปถูกใช้แล้ว ⚠️');
                  Swal.fire({
-                     icon: 'warning', 
-                     title: '🚨 ตรวจพบสลิปซ้ำ!', 
+                     icon: 'warning', title: '🚨 ตรวจพบสลิปซ้ำ!', 
                      html: 'สลิปนี้ <b>ได้มีการค้นหาในระบบไปแล้ว</b><br>ห้ามนำมาทำรายการซ้ำเด็ดขาด!', 
-                     confirmButtonText: 'รับทราบ', 
-                     confirmButtonColor: '#f59e0b'
+                     confirmButtonText: 'รับทราบ', confirmButtonColor: '#f59e0b'
                  });
             } else if (isFakeSlip) {
                 updateSlipBadge('error', 'สลิปปลอมแปลงยอดเงิน ❌');
                 Swal.fire({
-                    icon: 'error',
-                    title: '🚨 AI จับโป๊ะสลิปปลอม!',
+                    icon: 'error', title: '🚨 AI จับโป๊ะสลิปปลอม!',
                     html: `สลิปนี้โดนแก้ไขตัวเลขชัวร์!<br><br>ยอดโอนในระบบคือ <b>${actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</b> บาท<br>แต่ AI อ่านตัวเลขบนรูปได้ <b>${ocrDetectedAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</b> บาท`,
                     confirmButtonColor: '#ef4444'
                 });
                 
                 window.saveSlipHistory({
-                    success: true,
-                    isFake: true,
+                    success: true, isFake: true,
                     data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate }
                 }, true);
 
@@ -410,8 +547,7 @@ window.verifyThunderSlip = async function() {
                  Swal.fire({icon: 'success', title: 'สลิปจริง', text: 'ตัวเลขบนรูปตรงกับยอดใน QR Code', timer: 1500, showConfirmButton: false});
                  
                  window.saveSlipHistory({
-                     success: true,
-                     isFake: false,
+                     success: true, isFake: false,
                      data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate }
                  }, true);
             }
@@ -432,33 +568,44 @@ window.verifyThunderSlip = async function() {
     }
 };
 
-window.deleteSlipHistory = function(id, event) {
-    event.stopPropagation(); 
+// ==========================================
+// 🌟 ระบบประวัติย้อนหลัง สำหรับ "สลิปโอนเงิน"
+// ==========================================
+
+window.saveSlipHistory = async function(result, isSuccess) {
+    const isFake = result.isFake || false;
+    const newEntry = {
+        id: 'slip_' + Date.now(),
+        timestamp: Date.now(),
+        success: isSuccess,
+        isFake: isFake,
+        checkerName: window.getCurrentUserName(),
+        amount: isSuccess && result.data ? result.data.amount : 0,
+        senderName: isSuccess && result.data ? (result.data.sender?.name || '') : '',
+        receiverName: isSuccess && result.data ? (result.data.receiver?.name || '') : '',
+        ref: isSuccess && result.data ? (result.data.transRef || result.data.ref1 || '') : '',
+        date: isSuccess && result.data ? (result.data.date || '') : ''
+    };
     
-    Swal.fire({
-        title: 'ยืนยันการลบประวัติ?',
-        text: "คุณต้องการลบประวัติการตรวจสลิปนี้ใช่หรือไม่?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#4b5563',
-        confirmButtonText: 'ลบเลย',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.slipHistoryData = window.slipHistoryData.filter(h => h.id !== id);
-            localStorage.setItem('slip_check_history', JSON.stringify(window.slipHistoryData));
-            window.renderSlipHistory();
-            Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
-        }
-    });
+    window.slipHistoryData.unshift(newEntry);
+    if (window.slipHistoryData.length > 200) window.slipHistoryData.pop(); 
+    
+    localStorage.setItem('slip_check_history', JSON.stringify(window.slipHistoryData));
+    
+    // ซิงค์ขึ้นฐานข้อมูล
+    if (typeof appDB !== 'undefined') {
+        await appDB.from('settings').upsert([{ key: 'slip_check_history', value: JSON.stringify(window.slipHistoryData) }]);
+    }
+    
+    window.renderSlipHistory();
+    if (typeof window.renderFakeHistory === 'function') window.renderFakeHistory();
 };
 
 window.renderSlipHistory = function() {
     const tbody = document.getElementById('slipHistoryBody');
     if (!tbody) return;
 
+    // แทรกหัวตาราง (จัดการ) ถ้ายังไม่มี
     const table = tbody.closest('table');
     if (table) {
         const theadTr = table.querySelector('thead tr');
@@ -484,6 +631,7 @@ window.renderSlipHistory = function() {
 
     const role = window.getCurrentUserRole().toLowerCase();
     const isManager = (role === 'manager' || role === 'admin' || role === 'vip' || role === 'ผู้จัดการ');
+    const canDelete = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('slip_check_delete') : isManager;
     
     tbody.innerHTML = filtered.map(h => {
         const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
@@ -503,12 +651,12 @@ window.renderSlipHistory = function() {
             amountColor = "text-gray-500";
         }
 
-        const actionBtn = window.hasUserPerm('slip_check_delete') 
+        const actionBtn = canDelete 
             ? `<button onclick="window.deleteSlipHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition" title="ลบประวัติ"><span class="material-icons text-[18px]">delete</span></button>`
             : `<span class="text-slate-600 material-icons text-[16px]" title="ไม่มีสิทธิ์ลบ">block</span>`;
             
         return `
-            <tr class="${rowClass}" onclick="viewHistoryDetail('${h.id}')" title="คลิกเพื่อดูรายละเอียด">
+            <tr class="${rowClass}" onclick="window.viewHistoryDetail('${h.id}')" title="คลิกเพื่อดูรายละเอียด">
                 <td class="p-3 text-xs text-gray-400 font-mono flex items-center gap-2">
                     <span class="material-icons text-gray-500 text-[14px] opacity-0 group-hover:opacity-100 transition">touch_app</span>
                     ${timeStr} น.
@@ -525,30 +673,30 @@ window.renderSlipHistory = function() {
     }).join('');
 };
 
-window.filterSlipHistory = function() {
-    renderSlipHistory();
-};
+window.filterSlipHistory = function() { window.renderSlipHistory(); };
 
-window.saveSlipHistory = function(result, isSuccess) {
-    const isFake = result.isFake || false;
-    const newEntry = {
-        id: 'slip_' + Date.now(),
-        timestamp: Date.now(),
-        success: isSuccess,
-        isFake: isFake,
-        checkerName: window.getCurrentUserName(),
-        amount: isSuccess && result.data ? result.data.amount : 0,
-        senderName: isSuccess && result.data ? (result.data.sender?.name || '') : '',
-        receiverName: isSuccess && result.data ? (result.data.receiver?.name || '') : '',
-        ref: isSuccess && result.data ? (result.data.transRef || result.data.ref1 || '') : '',
-        date: isSuccess && result.data ? (result.data.date || '') : ''
-    };
+window.deleteSlipHistory = function(id, event) {
+    if(event) event.stopPropagation(); 
     
-    window.slipHistoryData.unshift(newEntry);
-    if (window.slipHistoryData.length > 50) window.slipHistoryData.pop(); 
-    
-    localStorage.setItem('slip_check_history', JSON.stringify(window.slipHistoryData));
-    renderSlipHistory();
+    Swal.fire({
+        title: 'ยืนยันการลบประวัติ?', text: "คุณต้องการลบประวัติการตรวจสลิปนี้ใช่หรือไม่?", icon: 'warning',
+        showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#4b5563', confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            window.slipHistoryData = window.slipHistoryData.filter(h => h.id !== id);
+            localStorage.setItem('slip_check_history', JSON.stringify(window.slipHistoryData));
+            
+            // ลบออกจากฐานข้อมูลกลางด้วย
+            if (typeof appDB !== 'undefined') {
+                await appDB.from('settings').upsert([{ key: 'slip_check_history', value: JSON.stringify(window.slipHistoryData) }]);
+            }
+            
+            window.renderSlipHistory();
+            if(typeof window.renderFakeHistory === 'function') window.renderFakeHistory();
+            Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
+        }
+    });
 };
 
 window.viewHistoryDetail = function(id) {
@@ -583,6 +731,65 @@ window.viewHistoryDetail = function(id) {
         resAmountEl.classList.remove('text-red-500');
         resAmountEl.classList.add('text-emerald-400');
     }
+};
+
+// ==========================================
+// 🌟 ประวัติบัญชีดำ (สลิปปลอม)
+// ==========================================
+window.renderFakeHistory = function() {
+    const tbody = document.getElementById('fakeHistoryBody');
+    if (!tbody) return;
+    
+    const search = document.getElementById('fakeHistorySearch') ? document.getElementById('fakeHistorySearch').value.toLowerCase() : '';
+    
+    // กรองเอาเฉพาะรายการที่เจอว่า "ปลอม" (isFake === true)
+    const fakes = window.slipHistoryData.filter(h => h.isFake);
+    
+    const filtered = fakes.filter(h => 
+        (h.senderName && h.senderName.toLowerCase().includes(search)) ||
+        (h.receiverName && h.receiverName.toLowerCase().includes(search)) ||
+        (h.checkerName && h.checkerName.toLowerCase().includes(search))
+    );
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500 font-bold bg-[#151f32] text-xs">ไม่พบประวัติผู้โอนสลิปปลอม</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(h => {
+        const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+        
+        return `
+            <tr class="hover:bg-red-900/20 transition border-b border-slate-800/50">
+                <td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td>
+                <td class="p-3 font-bold text-sm text-red-400">${h.senderName || '-'}</td>
+                <td class="p-3 text-xs text-gray-400">${h.receiverName || '-'}</td>
+                <td class="p-3 text-right font-mono font-bold text-red-500">฿${parseFloat(h.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.filterFakeHistory = function() { window.renderFakeHistory(); };
+
+// ==========================================
+// 🌟 ฟังก์ชันอื่นๆ (คัดลอก และ วางสลิป)
+// ==========================================
+window.copyToClipboard = function(text, btnElement, event) {
+    if (event) event.stopPropagation(); // ป้องกันไม่ให้ตารางเด้งเปิดรายละเอียดตอนกดปุ่ม
+    if (!text || text === '-') return;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        const originalHTML = btnElement.innerHTML;
+        btnElement.innerHTML = '<span class="material-icons text-[18px] text-emerald-400">check</span>';
+        btnElement.classList.add('border-emerald-500/50', 'bg-emerald-900/30');
+        
+        setTimeout(() => {
+            btnElement.innerHTML = originalHTML;
+            btnElement.classList.remove('border-emerald-500/50', 'bg-emerald-900/30');
+        }, 1500); 
+    }).catch(err => console.error('คัดลอกไม่สำเร็จ: ', err));
 };
 
 document.addEventListener('paste', function(e) {
@@ -638,201 +845,3 @@ document.addEventListener('click', (e) => {
         if(input) input.dataset.initialized = '';
     }
 });
-// ==============================================================
-// 🌟 ระบบประวัติย้อนหลัง สำหรับ "สแกน QR ผู้รับเงิน"
-// ==============================================================
-
-// ดึงประวัติ QR จากเครื่อง (แยกกับประวัติ Slip)
-window.qrHistoryData = JSON.parse(localStorage.getItem('qr_check_history') || '[]');
-
-// เพิ่มให้ render ตอนเข้าหน้าเว็บครั้งแรก
-const originalInit = window.initSlipCheck;
-window.initSlipCheck = function() {
-    if(originalInit) originalInit();
-    window.renderQRHistory();
-};
-
-window.saveQRHistory = function(data) {
-    const newEntry = {
-        id: 'qr_' + Date.now(),
-        timestamp: Date.now(),
-        type: data.type,
-        account: data.account,
-        raw: data.raw,
-        checkerName: window.getCurrentUserName() // บันทึกชื่อคนทำรายการ
-    };
-    
-    window.qrHistoryData.unshift(newEntry);
-    if (window.qrHistoryData.length > 50) window.qrHistoryData.pop(); 
-    
-    localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
-    window.renderQRHistory();
-};
-
-window.renderQRHistory = function() {
-    const tbody = document.getElementById('qrHistoryBody');
-    if (!tbody) return;
-    
-    const search = document.getElementById('qrHistorySearch') ? document.getElementById('qrHistorySearch').value.toLowerCase() : '';
-    
-    const filtered = window.qrHistoryData.filter(h => 
-        (h.account && h.account.toLowerCase().includes(search)) ||
-        (h.type && h.type.toLowerCase().includes(search)) ||
-        (h.checkerName && h.checkerName.toLowerCase().includes(search))
-    );
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500 font-bold bg-[#151f32] text-xs">ไม่พบประวัติการสแกน QR Code</td></tr>`;
-        return;
-    }
-
-    const role = window.getCurrentUserRole().toLowerCase();
-    const isManager = (role === 'manager' || role === 'admin' || role === 'vip' || role === 'ผู้จัดการ');
-    
-    tbody.innerHTML = filtered.map(h => {
-        const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
-        
-        // ปุ่มลบโชว์เฉพาะผู้จัดการ
-        const actionBtn = window.hasUserPerm('slip_check_delete') 
-            ? `<button onclick="window.deleteQRHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition" title="ลบประวัติ"><span class="material-icons text-[18px]">delete</span></button>`
-            : `<span class="text-slate-600 material-icons text-[16px]" title="ไม่มีสิทธิ์ลบ">block</span>`;
-            
-        return `
-            <tr class="hover:bg-slate-800 transition border-b border-slate-800/50">
-                <td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td>
-                <td class="p-3 text-xs text-sky-400 font-bold">${h.type || '-'}</td>
-                <td class="p-3 font-mono font-bold text-emerald-400 text-sm tracking-wider select-all">${h.account || '-'}</td>
-                <td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td>
-                <td class="p-3 text-center">${actionBtn}</td>
-            </tr>
-        `;
-    }).join('');
-};
-
-window.filterQRHistory = function() {
-    renderQRHistory();
-};
-
-window.deleteQRHistory = function(id, event) {
-    event.stopPropagation(); 
-    Swal.fire({
-        title: 'ยืนยันการลบประวัติ?',
-        text: "คุณต้องการลบประวัติการสแกน QR นี้ใช่หรือไม่?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#4b5563',
-        confirmButtonText: 'ลบเลย',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.qrHistoryData = window.qrHistoryData.filter(h => h.id !== id);
-            localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
-            window.renderQRHistory();
-            Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
-        }
-    });
-};
-
-// 🌟 สิ่งสุดท้าย: ต้องสั่งให้บันทึกประวัติ ตอนที่สแกน QR สำเร็จด้วย
-// เราจะเขียนทับฟังก์ชัน handleScanQRReceiver เดิมเล็กน้อย เพื่อให้มันเรียก saveQRHistory
-const originalHandleScanQRReceiver = window.handleScanQRReceiver;
-window.handleScanQRReceiver = async function(event) {
-    const file = event.target.files[0];
-    if(!file) return;
-
-    // รันโค้ดเก่า
-    await originalHandleScanQRReceiver(event);
-    
-    // ดึงค่ามาบันทึกประวัติ
-    setTimeout(() => {
-        const typeEl = document.getElementById('resQrType');
-        const accountEl = document.getElementById('resQrAccount');
-        const rawEl = document.getElementById('resQrRaw');
-        
-        // ถ้าแสดงผลแล้ว ไม่ใช่ค่า '-' แปลว่าสำเร็จ ให้บันทึกประวัติ
-        if(typeEl && typeEl.innerText !== '-') {
-            window.saveQRHistory({
-                type: typeEl.innerText,
-                account: accountEl.innerText,
-                raw: rawEl.innerText
-            });
-        }
-    }, 500); // ดีเลย์นิดนึงเพื่อให้ DOM โหลดค่าเสร็จก่อน
-};
-// 🌟 ฟังก์ชันคัดลอกข้อความ
-window.copyToClipboard = function(text, btnElement, event) {
-    if (event) event.stopPropagation(); // ป้องกันไม่ให้ตารางเด้งเปิดรายละเอียดตอนกดปุ่ม
-    if (!text || text === '-') return;
-    
-    navigator.clipboard.writeText(text).then(() => {
-        // เปลี่ยนไอคอนเป็นเครื่องหมายถูกชั่วคราว
-        const originalHTML = btnElement.innerHTML;
-        btnElement.innerHTML = '<span class="material-icons text-[18px] text-emerald-400">check</span>';
-        btnElement.classList.add('border-emerald-500/50', 'bg-emerald-900/30');
-        
-        setTimeout(() => {
-            btnElement.innerHTML = originalHTML;
-            btnElement.classList.remove('border-emerald-500/50', 'bg-emerald-900/30');
-        }, 1500); // กลับเป็นปกติใน 1.5 วินาที
-    }).catch(err => {
-        console.error('คัดลอกไม่สำเร็จ: ', err);
-    });
-};
-// ==============================================================
-// 🌟 ระบบประวัติย้อนหลัง สำหรับ "สลิปปลอม (Blacklist)"
-// ==============================================================
-
-window.renderFakeHistory = function() {
-    const tbody = document.getElementById('fakeHistoryBody');
-    if (!tbody) return;
-    
-    const search = document.getElementById('fakeHistorySearch') ? document.getElementById('fakeHistorySearch').value.toLowerCase() : '';
-    
-    // กรองเอาเฉพาะรายการที่เจอว่า "ปลอม" (isFake === true)
-    const fakes = window.slipHistoryData.filter(h => h.isFake);
-    
-    const filtered = fakes.filter(h => 
-        (h.senderName && h.senderName.toLowerCase().includes(search)) ||
-        (h.receiverName && h.receiverName.toLowerCase().includes(search)) ||
-        (h.checkerName && h.checkerName.toLowerCase().includes(search))
-    );
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500 font-bold bg-[#151f32] text-xs">ไม่พบประวัติผู้โอนสลิปปลอม</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = filtered.map(h => {
-        const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
-        
-        return `
-            <tr class="hover:bg-red-900/20 transition border-b border-slate-800/50">
-                <td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td>
-                <td class="p-3 font-bold text-sm text-red-400">${h.senderName || '-'}</td>
-                <td class="p-3 text-xs text-gray-400">${h.receiverName || '-'}</td>
-                <td class="p-3 text-right font-mono font-bold text-red-500">฿${parseFloat(h.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td>
-            </tr>
-        `;
-    }).join('');
-};
-
-window.filterFakeHistory = function() {
-    renderFakeHistory();
-};
-
-// ดักจับการแก้ไขเวลาลบ / เซฟ สลิป ให้มันอัปเดตหน้าบัญชีดำไปด้วย
-const _originalDeleteSlip = window.deleteSlipHistory;
-window.deleteSlipHistory = function(id, event) {
-    // ให้รันของเดิม แล้วสั่งรีเฟรชหน้าปลอมด้วย เผื่อแอดมินลบสลิปปลอมทิ้ง
-    _originalDeleteSlip(id, event);
-    setTimeout(() => { if(typeof window.renderFakeHistory === 'function') window.renderFakeHistory(); }, 1500);
-};
-
-const _originalSaveSlip = window.saveSlipHistory;
-window.saveSlipHistory = function(result, isSuccess) {
-    _originalSaveSlip(result, isSuccess);
-    if (typeof window.renderFakeHistory === 'function') window.renderFakeHistory();
-};
