@@ -82,7 +82,9 @@ window.switchDept = function(dept) {
         if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
         if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
         if (dept === 'TRAINER') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
-        if (dept === 'SPECIAL') canManageThisDept = true; // แอดมินจัดการห้องพิเศษได้
+        
+        // 🌟 แก้ตรงนี้: ให้เฉพาะผู้จัดการ หรือ แอดมิน หรือ คนที่มีสิทธิ์จัดการ AM เท่านั้นที่เห็นแถบตั้งค่า
+        if (dept === 'SPECIAL') canManageThisDept = isGlobalAdmin || window.hasUserPerm('leave_manage_am');
 
         if(canManageThisDept) controls.classList.remove('hidden');
         else controls.classList.add('hidden');
