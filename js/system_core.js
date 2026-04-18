@@ -2006,6 +2006,22 @@ const PERM_GROUPS = [
             {id: 'swap_manage', name: 'แอดมินจัดการสลับกะ', isSub: true}
         ]
     },
+    // ==========================================
+    // 🌟 เพิ่มสิทธิ์ 2 หน้าใหม่ตรงนี้ครับ
+    // ==========================================
+    {
+        id: 'page_usdt_calc', name: 'คำนวณ USDT / THB', icon: 'currency_exchange', theme: 'emerald',
+        items: [
+            {id: 'usdt_calc', name: 'เข้าหน้าคำนวณ USDT', isSub: false}
+        ]
+    },
+    {
+        id: 'page_slip_check', name: 'ตรวจสอบสลิป', icon: 'qr_code_scanner', theme: 'blue',
+        items: [
+            {id: 'slip_check', name: 'เข้าหน้าตรวจสอบสลิป', isSub: false},
+            {id: 'slip_check_delete', name: 'ลบประวัติสลิป', isSub: true} // เพิ่มบรรทัดนี้ครับ
+        ]
+    },
     {
         id: 'page_duty', name: 'จัดหน้าที่ / เวร', icon: 'assignment_ind', theme: 'indigo',
         items: [
@@ -2064,7 +2080,7 @@ const PERM_GROUPS = [
             {id: 'ds_log', name: 'ดูประวัติ DS', isSub: true}
         ]
     },
-        {
+    {
         id: 'page_admin', name: 'เครื่องมือผู้จัดการ', icon: 'manage_accounts', theme: 'red',
         items: [
             {id: 'admin', name: 'เข้าเครื่องมือผู้จัดการ (Admin)', isSub: false},
