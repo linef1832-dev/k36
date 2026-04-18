@@ -2109,7 +2109,7 @@ window.permRowSelections = JSON.parse(localStorage.getItem('saved_perm_roles')) 
 
 window.changePermRowRole = function(dept, newRole) {
     window.permRowSelections[dept] = newRole;
-    // บันทึกค่า Dropdown ลงเครื่อง เวลาพิมพ์หรือรีเฟรชจะได้ไม่เด้งกลับไป STAFF
+    // บันทึกค่า Dropdown ลงเครื่อง เวลาเปลี่ยนแล้วรีเฟรชจะได้ไม่เด้งกลับ
     localStorage.setItem('saved_perm_roles', JSON.stringify(window.permRowSelections));
     renderPermsTable();
 };
@@ -2124,7 +2124,28 @@ window.renderPermsTable = function() {
     const tbody = document.getElementById('permTableBody');
     if(!tbody) return;
 
-    const depts = ['AM', 'OD', 'AMQL']; // กลับมาใช้ชื่อเดิม สิทธิ์ที่หายไปจะกลับมาทันทีครับ
+    // 🌟 1. ดึงแผนกทั้งหมดอัตโนมัติ: ดึงทั้งค่าตั้งต้น ค่าที่เคยเซฟสิทธิ์ไว้ และดึงแผนกจากพนักงานทุกคน
+    let activeDepts = new Set(['AM', 'OD', 'AMQL']); 
+    if (typeof GLOBAL_USER_LIST !== 'undefined') {
+        GLOBAL_USER_LIST.forEach(u => {
+            if (u.department && u.department !== 'NEW') activeDepts.add(u.department.toUpperCase());
+        });
+    }
+    Object.keys(MENU_PERMS).forEach(key => {
+        const deptPart = key.split('_')[0];
+        if(deptPart) activeDepts.add(deptPart);
+    });
+    const depts = Array.from(activeDepts).sort();
+
+    // 🌟 2. ดึง Role อัตโนมัติ: ดึงทั้งค่าตั้งต้น และดึง Role จากพนักงานทุกคน
+    let rawRoles = ['STAFF', 'TRAINER', 'MANAGER'];
+    if (typeof GLOBAL_USER_LIST !== 'undefined') {
+        GLOBAL_USER_LIST.forEach(u => {
+            if (u.role) rawRoles.push(u.role.toUpperCase());
+        });
+    }
+    const uniqueRoles = [...new Set(rawRoles)];
+
     let bodyHtml = '';
 
     const colorClasses = {
@@ -2149,7 +2170,11 @@ window.renderPermsTable = function() {
     };
 
     depts.forEach(dept => {
-        const role = window.permRowSelections[dept] || 'STAFF';
+        if(!window.permRowSelections[dept]) {
+            if(dept === 'TRAINER' || dept === 'AMQL') window.permRowSelections[dept] = 'TRAINER';
+            else window.permRowSelections[dept] = 'STAFF';
+        }
+        const role = window.permRowSelections[dept];
         const key = `${dept}_${role}`;
         const activePerms = MENU_PERMS[key] || [];
         
@@ -2263,6 +2288,8 @@ window.renderPermsTable = function() {
 
         let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
         let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
+        
+        let roleOptionsHtml = uniqueRoles.map(r => `<option value="${r}" ${role === r ? 'selected' : ''} class="bg-slate-800 text-white font-bold">${r}</option>`).join('');
 
         bodyHtml += `
         <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">
@@ -2273,9 +2300,7 @@ window.renderPermsTable = function() {
             <td class="px-6 py-5 border-r border-slate-700 align-top">
                 <div class="relative w-32">
                     <select onchange="changePermRowRole('${dept}', this.value)" class="${roleColor} border px-3 py-3 rounded-xl font-black text-[11px] shadow-sm w-full outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-purple-500 transition relative z-10 text-center tracking-wide">
-                        <option value="STAFF" ${role === 'STAFF' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">STAFF</option>
-                        <option value="TRAINER" ${role === 'TRAINER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">TRAINER</option>
-                        <option value="MANAGER" ${role === 'MANAGER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">MANAGER</option>
+                        ${roleOptionsHtml}
                     </select>
                     <span class="material-icons text-[14px] opacity-70 absolute right-2.5 top-3 pointer-events-none z-20 ${iconColor}">expand_more</span>
                 </div>
@@ -2302,19 +2327,15 @@ window.renderPermsTable = function() {
 window.saveMenuPerms = async function() {
     Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
     
-    // คัดลอกสิทธิ์เดิมมาทั้งหมด เพื่อป้องกันการบันทึกทับข้อมูลของแผนกที่ไม่ได้โชว์อยู่
     let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
     
-    // หากุญแจ (key) ที่กำลังเปิดให้แก้อยู่ตอนนี้
     const visibleKeys = new Set();
     document.querySelectorAll('.perm-cb').forEach(cb => {
         visibleKeys.add(cb.getAttribute('data-key'));
     });
     
-    // ล้างเฉพาะค่าของ key ที่กำลังแก้อยู่
     visibleKeys.forEach(k => { newPerms[k] = []; });
 
-    // วนลูปอ่านค่าที่ติ๊กถูก แล้วเอามาใส่เข้าไปใหม่
     document.querySelectorAll('.perm-cb:checked').forEach(cb => {
         const key = cb.getAttribute('data-key');
         const menu = cb.getAttribute('data-menu');
