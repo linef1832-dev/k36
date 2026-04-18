@@ -2100,11 +2100,15 @@ document.addEventListener('click', function(e) {
     }
 });
 
+// ==========================================
+// 🌟 ระบบจัดการสิทธิ์เมนู (รองรับการกดเพิ่มแผนกและ Role)
+// ==========================================
+
 // ตัวแปรเก็บว่าแต่ละบรรทัดเลือก Role อะไรอยู่ (ให้จำค่าเดิมไว้ในเครื่อง)
 window.permRowSelections = JSON.parse(localStorage.getItem('saved_perm_roles')) || {
     'AM': 'STAFF',
     'OD': 'STAFF',
-    'AMQL': 'TRAINER'
+    'AMQL': 'TRAINER' // คืนค่า AMQL กลับมาให้แล้วครับ สิทธิ์เดิมจะไม่หาย
 };
 
 window.changePermRowRole = function(dept, newRole) {
@@ -2112,6 +2116,46 @@ window.changePermRowRole = function(dept, newRole) {
     // บันทึกค่า Dropdown ลงเครื่อง เวลาเปลี่ยนแล้วรีเฟรชจะได้ไม่เด้งกลับ
     localStorage.setItem('saved_perm_roles', JSON.stringify(window.permRowSelections));
     renderPermsTable();
+};
+
+// 🟢 ฟังก์ชันสำหรับปุ่ม "เพิ่มแผนก" 
+window.addPermDept = async function() {
+    const { value: newDept } = await Swal.fire({
+        title: 'เพิ่มแผนกใหม่',
+        input: 'text',
+        inputPlaceholder: 'พิมพ์ชื่อย่อแผนก เช่น VIP, CS',
+        showCancelButton: true,
+        confirmButtonText: 'เพิ่มแผนก',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    if (newDept && newDept.trim() !== '') {
+        let depts = JSON.parse(localStorage.getItem('custom_perm_depts') || '[]');
+        if(!depts.includes(newDept.trim().toUpperCase())) depts.push(newDept.trim().toUpperCase());
+        localStorage.setItem('custom_perm_depts', JSON.stringify(depts));
+        renderPermsTable();
+        Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
+    }
+};
+
+// 🟢 ฟังก์ชันสำหรับปุ่ม "เพิ่ม Role" 
+window.addPermRole = async function() {
+    const { value: newRole } = await Swal.fire({
+        title: 'เพิ่ม Role (สิทธิ์) ใหม่',
+        input: 'text',
+        inputPlaceholder: 'พิมพ์ชื่อ Role เช่น LEADER',
+        showCancelButton: true,
+        confirmButtonText: 'เพิ่ม Role',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    if (newRole && newRole.trim() !== '') {
+        let roles = JSON.parse(localStorage.getItem('custom_perm_roles') || '[]');
+        if(!roles.includes(newRole.trim().toUpperCase())) roles.push(newRole.trim().toUpperCase());
+        localStorage.setItem('custom_perm_roles', JSON.stringify(roles));
+        renderPermsTable();
+        Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
+    }
 };
 
 window.renderPermsTable = function() {
@@ -2124,7 +2168,7 @@ window.renderPermsTable = function() {
     const tbody = document.getElementById('permTableBody');
     if(!tbody) return;
 
-    // 🌟 1. ดึงแผนกทั้งหมดอัตโนมัติ: ดึงทั้งค่าตั้งต้น ค่าที่เคยเซฟสิทธิ์ไว้ และดึงแผนกจากพนักงานทุกคน
+    // 🌟 ดึงแผนก (ดึงค่าตั้งต้น + ที่ดึงจากพนักงาน + ที่กดเพิ่มเอง)
     let activeDepts = new Set(['AM', 'OD', 'AMQL']); 
     if (typeof GLOBAL_USER_LIST !== 'undefined') {
         GLOBAL_USER_LIST.forEach(u => {
@@ -2135,32 +2179,30 @@ window.renderPermsTable = function() {
         const deptPart = key.split('_')[0];
         if(deptPart) activeDepts.add(deptPart);
     });
+    const customDepts = JSON.parse(localStorage.getItem('custom_perm_depts') || '[]');
+    customDepts.forEach(d => activeDepts.add(d));
     const depts = Array.from(activeDepts).sort();
 
-    // 🌟 2. ดึง Role อัตโนมัติ: ดึงทั้งค่าตั้งต้น และดึง Role จากพนักงานทุกคน
+    // 🌟 ดึง Role (ดึงค่าตั้งต้น + ที่ดึงจากพนักงาน + ที่กดเพิ่มเอง)
     let rawRoles = ['STAFF', 'TRAINER', 'MANAGER'];
     if (typeof GLOBAL_USER_LIST !== 'undefined') {
         GLOBAL_USER_LIST.forEach(u => {
             if (u.role) rawRoles.push(u.role.toUpperCase());
         });
     }
+    const customRoles = JSON.parse(localStorage.getItem('custom_perm_roles') || '[]');
+    customRoles.forEach(r => rawRoles.push(r));
     const uniqueRoles = [...new Set(rawRoles)];
 
     let bodyHtml = '';
 
     const colorClasses = {
-        'blue': 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-        'rose': 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-        'pink': 'text-pink-400 bg-pink-500/10 border-pink-500/20',
-        'amber': 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-        'green': 'text-green-400 bg-green-500/10 border-green-500/20',
-        'orange': 'text-orange-400 bg-orange-500/10 border-orange-500/20',
-        'indigo': 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
-        'sky': 'text-sky-400 bg-sky-500/10 border-sky-500/20',
-        'emerald': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-        'purple': 'text-purple-400 bg-purple-500/10 border-purple-500/20',
-        'red': 'text-red-400 bg-red-500/10 border-red-500/20',
-        'teal': 'text-teal-400 bg-teal-500/10 border-teal-500/20',
+        'blue': 'text-blue-400 bg-blue-500/10 border-blue-500/20', 'rose': 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+        'pink': 'text-pink-400 bg-pink-500/10 border-pink-500/20', 'amber': 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+        'green': 'text-green-400 bg-green-500/10 border-green-500/20', 'orange': 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+        'indigo': 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20', 'sky': 'text-sky-400 bg-sky-500/10 border-sky-500/20',
+        'emerald': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', 'purple': 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+        'red': 'text-red-400 bg-red-500/10 border-red-500/20', 'teal': 'text-teal-400 bg-teal-500/10 border-teal-500/20',
     };
 
     const themeHexColors = {
