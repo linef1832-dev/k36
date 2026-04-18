@@ -234,11 +234,13 @@ async function loadLeaveSettings() {
         .neq('key', 'discord_custom_names');
 
     if (data) {
-        ['AM', 'OD', 'TRAINER'].forEach(dept => {
+        // 🌟 ต้องมี SPECIAL ตรงนี้ด้วย ข้อมูลการเปิด/ปิด ถึงจะเรียลไทม์
+        ['AM', 'OD', 'TRAINER', 'SPECIAL'].forEach(dept => {
             const getDbValue = (keySuffix, defaultVal) => {
                 const row = data.find(d => d.key === `${dept}_${keySuffix}`);
                 return row ? row.value : defaultVal;
             };
+            if (!deptSettings[dept]) return; // กันสคริปต์พัง
             deptSettings[dept].limit = parseInt(getDbValue('limit', '4')) || 4;
             deptSettings[dept].startM = getDbValue('startM', '');
             deptSettings[dept].endM = getDbValue('endM', '');
@@ -485,10 +487,14 @@ window.renderLeaveTable = function() {
 
         if (currentViewDept === 'TRAINER') {
             return uDept === 'TRAINER' || uRole === 'trainer'; 
+        } else if (currentViewDept === 'SPECIAL') {
+            // 🌟 สำคัญมาก: ถ้าเปิดแท็บจัดกลุ่มเอง ให้แสดงรายชื่อทุกคนที่โดนดึงมา โดยไม่สนว่ายศแอดมินหรือพนักงาน
+            return uDept === 'SPECIAL'; 
         } else {
             return uRole === 'staff' && uDept === currentViewDept; 
         }
     });
+    
     const allDeptUserIds = new Set(allDeptUsers.map(u => u.id));
     const userShiftMapAll = {};
     allDeptUsers.forEach(u => userShiftMapAll[u.id] = u.allowed_shift || 'all');
