@@ -2100,62 +2100,24 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ==========================================
-// 🌟 ระบบจัดการสิทธิ์เมนู (รองรับการกดเพิ่มแผนกและ Role)
-// ==========================================
+// ฟังก์ชันเปิด/ปิด ป๊อปอัปสิทธิ์เมนู
+window.togglePermPopup = function(key) {
+    const popup = document.getElementById('popup_' + key);
+    const isHidden = popup.classList.contains('hidden');
+    document.querySelectorAll('.perm-popup').forEach(p => p.classList.add('hidden'));
+    if (isHidden) popup.classList.remove('hidden');
+};
 
-// ตัวแปรเก็บว่าแต่ละบรรทัดเลือก Role อะไรอยู่ (ให้จำค่าเดิมไว้ในเครื่อง)
-window.permRowSelections = JSON.parse(localStorage.getItem('saved_perm_roles')) || {
+// ตัวแปรเก็บว่าแต่ละบรรทัดเลือก Role อะไรอยู่
+window.permRowSelections = window.permRowSelections || {
     'AM': 'STAFF',
     'OD': 'STAFF',
-    'AMQL': 'TRAINER' // คืนค่า AMQL กลับมาให้แล้วครับ สิทธิ์เดิมจะไม่หาย
+    'AMQL': 'TRAINER'
 };
 
 window.changePermRowRole = function(dept, newRole) {
     window.permRowSelections[dept] = newRole;
-    // บันทึกค่า Dropdown ลงเครื่อง เวลาเปลี่ยนแล้วรีเฟรชจะได้ไม่เด้งกลับ
-    localStorage.setItem('saved_perm_roles', JSON.stringify(window.permRowSelections));
     renderPermsTable();
-};
-
-// 🟢 ฟังก์ชันสำหรับปุ่ม "เพิ่มแผนก" 
-window.addPermDept = async function() {
-    const { value: newDept } = await Swal.fire({
-        title: 'เพิ่มแผนกใหม่',
-        input: 'text',
-        inputPlaceholder: 'พิมพ์ชื่อย่อแผนก เช่น VIP, CS',
-        showCancelButton: true,
-        confirmButtonText: 'เพิ่มแผนก',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    });
-    if (newDept && newDept.trim() !== '') {
-        let depts = JSON.parse(localStorage.getItem('custom_perm_depts') || '[]');
-        if(!depts.includes(newDept.trim().toUpperCase())) depts.push(newDept.trim().toUpperCase());
-        localStorage.setItem('custom_perm_depts', JSON.stringify(depts));
-        renderPermsTable();
-        Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
-    }
-};
-
-// 🟢 ฟังก์ชันสำหรับปุ่ม "เพิ่ม Role" 
-window.addPermRole = async function() {
-    const { value: newRole } = await Swal.fire({
-        title: 'เพิ่ม Role (สิทธิ์) ใหม่',
-        input: 'text',
-        inputPlaceholder: 'พิมพ์ชื่อ Role เช่น LEADER',
-        showCancelButton: true,
-        confirmButtonText: 'เพิ่ม Role',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    });
-    if (newRole && newRole.trim() !== '') {
-        let roles = JSON.parse(localStorage.getItem('custom_perm_roles') || '[]');
-        if(!roles.includes(newRole.trim().toUpperCase())) roles.push(newRole.trim().toUpperCase());
-        localStorage.setItem('custom_perm_roles', JSON.stringify(roles));
-        renderPermsTable();
-        Swal.fire({icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false});
-    }
 };
 
 window.renderPermsTable = function() {
@@ -2168,41 +2130,22 @@ window.renderPermsTable = function() {
     const tbody = document.getElementById('permTableBody');
     if(!tbody) return;
 
-    // 🌟 ดึงแผนก (ดึงค่าตั้งต้น + ที่ดึงจากพนักงาน + ที่กดเพิ่มเอง)
-    let activeDepts = new Set(['AM', 'OD', 'AMQL']); 
-    if (typeof GLOBAL_USER_LIST !== 'undefined') {
-        GLOBAL_USER_LIST.forEach(u => {
-            if (u.department && u.department !== 'NEW') activeDepts.add(u.department.toUpperCase());
-        });
-    }
-    Object.keys(MENU_PERMS).forEach(key => {
-        const deptPart = key.split('_')[0];
-        if(deptPart) activeDepts.add(deptPart);
-    });
-    const customDepts = JSON.parse(localStorage.getItem('custom_perm_depts') || '[]');
-    customDepts.forEach(d => activeDepts.add(d));
-    const depts = Array.from(activeDepts).sort();
-
-    // 🌟 ดึง Role (ดึงค่าตั้งต้น + ที่ดึงจากพนักงาน + ที่กดเพิ่มเอง)
-    let rawRoles = ['STAFF', 'TRAINER', 'MANAGER'];
-    if (typeof GLOBAL_USER_LIST !== 'undefined') {
-        GLOBAL_USER_LIST.forEach(u => {
-            if (u.role) rawRoles.push(u.role.toUpperCase());
-        });
-    }
-    const customRoles = JSON.parse(localStorage.getItem('custom_perm_roles') || '[]');
-    customRoles.forEach(r => rawRoles.push(r));
-    const uniqueRoles = [...new Set(rawRoles)];
-
+    const depts = ['AM', 'OD', 'AMQL'];
     let bodyHtml = '';
 
     const colorClasses = {
-        'blue': 'text-blue-400 bg-blue-500/10 border-blue-500/20', 'rose': 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-        'pink': 'text-pink-400 bg-pink-500/10 border-pink-500/20', 'amber': 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-        'green': 'text-green-400 bg-green-500/10 border-green-500/20', 'orange': 'text-orange-400 bg-orange-500/10 border-orange-500/20',
-        'indigo': 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20', 'sky': 'text-sky-400 bg-sky-500/10 border-sky-500/20',
-        'emerald': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', 'purple': 'text-purple-400 bg-purple-500/10 border-purple-500/20',
-        'red': 'text-red-400 bg-red-500/10 border-red-500/20', 'teal': 'text-teal-400 bg-teal-500/10 border-teal-500/20',
+        'blue': 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+        'rose': 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+        'pink': 'text-pink-400 bg-pink-500/10 border-pink-500/20',
+        'amber': 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+        'green': 'text-green-400 bg-green-500/10 border-green-500/20',
+        'orange': 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+        'indigo': 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+        'sky': 'text-sky-400 bg-sky-500/10 border-sky-500/20',
+        'emerald': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+        'purple': 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+        'red': 'text-red-400 bg-red-500/10 border-red-500/20',
+        'teal': 'text-teal-400 bg-teal-500/10 border-teal-500/20',
     };
 
     const themeHexColors = {
@@ -2212,11 +2155,7 @@ window.renderPermsTable = function() {
     };
 
     depts.forEach(dept => {
-        if(!window.permRowSelections[dept]) {
-            if(dept === 'TRAINER' || dept === 'AMQL') window.permRowSelections[dept] = 'TRAINER';
-            else window.permRowSelections[dept] = 'STAFF';
-        }
-        const role = window.permRowSelections[dept];
+        const role = window.permRowSelections[dept] || 'STAFF';
         const key = `${dept}_${role}`;
         const activePerms = MENU_PERMS[key] || [];
         
@@ -2296,6 +2235,7 @@ window.renderPermsTable = function() {
                 const marginLeft = item.isSub ? 'ml-6 pl-2 border-l-2 border-slate-600/50' : 'font-bold bg-slate-700/30 rounded-lg p-1 mb-1';
                 const textStyle = item.isSub ? 'text-gray-400 text-[10px]' : 'text-gray-200 text-[11px]';
                 
+                // 🌟 แก้ไข: ใช้ OnChange เพื่อสั่งการ CSS โดยตรงไม่ต้องรอ Tailwind
                 popupContentHtml += `
                     <label class="relative flex items-center gap-3 ${textStyle} cursor-pointer hover:bg-slate-700 p-2 rounded-lg transition ${marginLeft} group">
                         <input type="checkbox" class="perm-cb absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
@@ -2330,8 +2270,6 @@ window.renderPermsTable = function() {
 
         let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
         let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
-        
-        let roleOptionsHtml = uniqueRoles.map(r => `<option value="${r}" ${role === r ? 'selected' : ''} class="bg-slate-800 text-white font-bold">${r}</option>`).join('');
 
         bodyHtml += `
         <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">
@@ -2342,7 +2280,9 @@ window.renderPermsTable = function() {
             <td class="px-6 py-5 border-r border-slate-700 align-top">
                 <div class="relative w-32">
                     <select onchange="changePermRowRole('${dept}', this.value)" class="${roleColor} border px-3 py-3 rounded-xl font-black text-[11px] shadow-sm w-full outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-purple-500 transition relative z-10 text-center tracking-wide">
-                        ${roleOptionsHtml}
+                        <option value="STAFF" ${role === 'STAFF' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">STAFF</option>
+                        <option value="TRAINER" ${role === 'TRAINER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">TRAINER</option>
+                        <option value="MANAGER" ${role === 'MANAGER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">MANAGER</option>
                     </select>
                     <span class="material-icons text-[14px] opacity-70 absolute right-2.5 top-3 pointer-events-none z-20 ${iconColor}">expand_more</span>
                 </div>
@@ -2369,15 +2309,19 @@ window.renderPermsTable = function() {
 window.saveMenuPerms = async function() {
     Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
     
+    // คัดลอกสิทธิ์เดิมมาทั้งหมด เพื่อป้องกันการบันทึกทับข้อมูลของแผนกที่ไม่ได้โชว์อยู่
     let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
     
+    // หากุญแจ (key) ที่กำลังเปิดให้แก้อยู่ตอนนี้
     const visibleKeys = new Set();
     document.querySelectorAll('.perm-cb').forEach(cb => {
         visibleKeys.add(cb.getAttribute('data-key'));
     });
     
+    // ล้างเฉพาะค่าของ key ที่กำลังแก้อยู่
     visibleKeys.forEach(k => { newPerms[k] = []; });
 
+    // วนลูปอ่านค่าที่ติ๊กถูก แล้วเอามาใส่เข้าไปใหม่
     document.querySelectorAll('.perm-cb:checked').forEach(cb => {
         const key = cb.getAttribute('data-key');
         const menu = cb.getAttribute('data-menu');
@@ -2389,68 +2333,6 @@ window.saveMenuPerms = async function() {
     
     await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
     Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์การมองเห็นเมนูเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false});
-    renderPermsTable(); 
-};
-
-// ฟังก์ชันเพิ่มแผนกใหม่เข้าตารางสิทธิ์
-window.addNewPermDept = async function() {
-    const { value: newDept } = await Swal.fire({
-        title: 'เพิ่มแผนกใหม่',
-        input: 'text',
-        inputLabel: 'ชื่อย่อแผนก (เช่น MARKETING, CS, VIP)',
-        inputPlaceholder: 'พิมพ์ชื่อแผนก...',
-        showCancelButton: true,
-        confirmButtonText: 'เพิ่ม',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' },
-        inputValidator: (value) => {
-            if (!value) return 'กรุณาใส่ชื่อแผนกครับ!';
-        }
-    });
-
-    if (newDept) {
-        const upperDept = newDept.trim().toUpperCase();
-        const key = `${upperDept}_STAFF`; // สร้างสิทธิ์เริ่มต้นให้เป็น STAFF
-        
-        if (!MENU_PERMS[key]) {
-            MENU_PERMS[key] = [];
-            SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
-            
-            // บันทึกลงฐานข้อมูลเพื่อให้มันเซฟจำไว้
-            await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
-            
-            renderPermsTable();
-            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-            Toast.fire({ icon: 'success', title: `เพิ่มแผนก ${upperDept} ลงตารางสิทธิ์แล้ว` });
-        } else {
-            Swal.fire('แจ้งเตือน', 'มีแผนกนี้ในตารางสิทธิ์อยู่แล้วครับ', 'info');
-        }
-    }
-};
-
-window.saveMenuPerms = async function() {
-    Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
-    
-    let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
-    
-    const visibleKeys = new Set();
-    document.querySelectorAll('.perm-cb').forEach(cb => {
-        visibleKeys.add(cb.getAttribute('data-key'));
-    });
-    
-    visibleKeys.forEach(k => { newPerms[k] = []; });
-
-    document.querySelectorAll('.perm-cb:checked').forEach(cb => {
-        const key = cb.getAttribute('data-key');
-        const menu = cb.getAttribute('data-menu');
-        newPerms[key].push(menu);
-    });
-
-    MENU_PERMS = newPerms;
-    SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
-    
-    await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
-    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์การมองเห็นเมนูเรียบร้อยแล้ว พนักงานอาจต้องรีเฟรชหน้าเว็บ 1 ครั้งเพื่อเห็นการเปลี่ยนแปลง', timer: 2000, showConfirmButton: false});
     renderPermsTable(); 
 };
 
