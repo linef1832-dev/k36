@@ -109,15 +109,15 @@ function subscribeUserChanges() {
                     isChanged = true;
                 }
 
-                if (currentUser.team !== updatedUser.team) {
-                    currentUser.team = updatedUser.team;
-                    msg = `แอดมินเปลี่ยนทีมของคุณเป็น "${updatedUser.team || 'ไม่มีทีม'}"`;
-                    const dailyTeamSelect = document.getElementById('dailyTeam');
-                    if (dailyTeamSelect) {
-                        dailyTeamSelect.value = updatedUser.team || TEAM_LIST[0] || '';
-                        if (typeof handleTeamChange === 'function') handleTeamChange();
-                    }
+                // 🌟 ดักจับการเปลี่ยนแผนก (Department) ให้เรียลไทม์
+                if (currentUser.department !== updatedUser.department) {
+                    currentUser.department = updatedUser.department;
+                    msg = `แอดมินเปลี่ยนแผนกของคุณเป็น "${updatedUser.department}"`;
                     isChanged = true;
+                    // สั่งอัปเดตป้ายชื่อด้านบนทันที
+                    if (typeof updateDashboardUserInfo === 'function') updateDashboardUserInfo();
+                    // อัปเดตสิทธิ์เมนูซ้ายมือใหม่
+                    if (typeof applySidebarPermissions === 'function') applySidebarPermissions(); 
                 }
 
                 if (isChanged) {
