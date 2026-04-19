@@ -68,3 +68,16 @@ input:checked + .theme-slider:before { transform: translateX(20px); background-c
     content-visibility: auto;
     contain-intrinsic-size: 1px 80px; /* เป็นการบอกคอมว่า 1 แถวของพี่สูงประมาณ 80px นะ */
 }
+/* 🚀 ล็อกหัวตารางหน้าตรวจสอบสลิปให้ชิดขอบและทึบ 100% */
+#slipCheckPage table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important; /* ป้องกันบั๊กเส้นขอบทะลุตอนเลื่อน */
+}
+#slipCheckPage thead th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 50 !important;
+    background-color: #151f32 !important;
+    border-bottom: none !important; /* ปิด border ปกติ */
+    box-shadow: 0 1px 0 0 #334155 !important; /* ใช้ shadow สร้างเส้นขอบล่างแทน ปิดรอยต่อมิดชิด */
+}

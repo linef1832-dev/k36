@@ -54,16 +54,17 @@
                     </div>
                 </div>
 
-                <div class="bg-indigo-900/20 border border-indigo-800/50 rounded-xl p-4 shadow-inner flex items-start gap-3">
-                    <span class="material-icons text-indigo-400 text-lg">info</span>
-                    <div>
-                        <h4 class="text-indigo-300 text-xs font-bold mb-1">คำแนะนำ</h4>
-                        <p class="text-[10px] text-gray-400 leading-relaxed">สลิปที่นำมาตรวจสอบจะต้องเห็น QR Code ชัดเจน ระบบจะทำการอ่าน QR Code และส่งไปตรวจสอบยอดเงินกับธนาคารโดยตรง</p>
-                    </div>
+                <div class="bg-indigo-900/30 border border-indigo-700/50 rounded-2xl p-5 shadow-inner flex items-start gap-4">
+                   <span class="material-icons text-indigo-400 text-3xl mt-0.5">info</span>
+                   <div>
+                       <h4 class="text-indigo-300 text-base font-bold mb-1.5">คำแนะนำในการตรวจสอบ</h4>
+                       <p class="text-sm text-gray-300 leading-relaxed">
+                           สลิปที่นำมาตรวจสอบจะต้องเห็น <b class="text-white">QR Code</b> ชัดเจน<br>
+                           ระบบจะทำการอ่านข้อมูลและส่งไปเช็คยอดเงินกับเซิร์ฟเวอร์ธนาคารโดยตรง
+                       </p>
+                   </div>
                 </div>
-            </div>
-
-            <div class="lg:col-span-7 flex flex-col h-[400px]">
+            </div> <div class="lg:col-span-7 flex flex-col h-[400px]">
                 <div class="bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 h-full flex flex-col overflow-hidden relative">
                     
                     <div class="p-5 border-b border-slate-700 flex justify-between items-center shrink-0">
@@ -123,7 +124,7 @@
             </div>
         </div>
 
-        <div class="max-w-[1600px] mx-auto w-full">
+        <div class="max-w-[1600px] mx-auto w-full mt-6">
             <div class="bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 flex flex-col h-[350px] overflow-hidden">
                 <div class="p-4 border-b border-slate-700 bg-slate-800/30 flex justify-between items-center shrink-0">
                     <h3 class="font-bold text-base text-white flex items-center gap-2">
@@ -134,9 +135,9 @@
                         <input type="text" id="slipHistorySearch" onkeyup="filterSlipHistory()" placeholder="ค้นหาชื่อ, เลขอ้างอิง..." class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs outline-none focus:border-amber-500 transition shadow-inner">
                     </div>
                 </div>
-                <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#0b1120]/50 p-2">
+                <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#0b1120]/50 px-2 pb-2">
                     <table class="w-full text-left text-sm whitespace-nowrap">
-                        <thead class="text-[10px] text-gray-500 uppercase sticky top-0 bg-[#151f32] [&>tr>th]:bg-[#151f32] shadow-sm z-10 font-black tracking-wider">
+                        <thead class="text-[10px] text-gray-500 uppercase font-black tracking-wider [&>tr>th]:sticky [&>tr>th]:top-0 [&>tr>th]:z-20 [&>tr>th]:bg-[#151f32] [&>tr>th]:shadow-[0_-2px_0_0_#151f32,0_1px_2px_0_rgba(0,0,0,0.05)]">
                             <tr>
                                 <th class="p-3 border-b border-slate-700">เวลาที่กดตรวจ</th>
                                 <th class="p-3 border-b border-slate-700">เลขอ้างอิง (Ref)</th>
@@ -215,30 +216,32 @@
             </div>
         </div>
 
-        <div class="w-full bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 flex flex-col h-[350px] overflow-hidden">
-            <div class="p-4 border-b border-slate-700 bg-slate-800/30 flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-base text-white flex items-center gap-2">
-                    <span class="material-icons text-amber-500">history</span> ประวัติการสแกน QR ล่าสุด
-                </h3>
-                <div class="relative w-48 sm:w-64">
-                    <span class="material-icons absolute left-3 top-2 text-gray-500 text-sm">search</span>
-                    <input type="text" id="qrHistorySearch" onkeyup="filterQRHistory()" placeholder="ค้นหาเบอร์, เลขบัญชี, ผู้ทำรายการ..." class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs outline-none focus:border-amber-500 transition shadow-inner">
+        <div class="max-w-[1600px] mx-auto w-full mt-6">
+            <div class="bg-[#151f32] rounded-2xl shadow-lg border border-slate-700 flex flex-col h-[350px] overflow-hidden">
+                <div class="p-4 border-b border-slate-700 bg-slate-800/30 flex justify-between items-center shrink-0">
+                    <h3 class="font-bold text-base text-white flex items-center gap-2">
+                        <span class="material-icons text-amber-500">history</span> ประวัติการสแกน QR ล่าสุด
+                    </h3>
+                    <div class="relative w-48 sm:w-64">
+                        <span class="material-icons absolute left-3 top-2 text-gray-500 text-sm">search</span>
+                        <input type="text" id="qrHistorySearch" onkeyup="filterQRHistory()" placeholder="ค้นหาเบอร์, เลขบัญชี, ผู้ทำรายการ..." class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs outline-none focus:border-amber-500 transition shadow-inner">
+                    </div>
                 </div>
-            </div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#0b1120]/50 p-2">
-                <table class="w-full text-left text-sm whitespace-nowrap">
-                    <thead class="text-[10px] text-gray-500 uppercase sticky top-0 bg-[#151f32] [&>tr>th]:bg-[#151f32] shadow-sm z-10 font-black tracking-wider">
-                        <tr>
-                            <th class="p-3 border-b border-slate-700">เวลาที่กดตรวจ</th>
-                            <th class="p-3 border-b border-slate-700">ประเภท QR Code</th>
-                            <th class="p-3 border-b border-slate-700">รหัสพร้อมเพย์ / เลขบัญชี</th>
-                            <th class="p-3 border-b border-slate-700">ผู้ทำรายการ</th>
-                            <th class="p-3 text-center border-b border-slate-700">จัดการ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="qrHistoryBody" class="divide-y divide-slate-700/50 text-gray-300">
-                    </tbody>
-                </table>
+                <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#0b1120]/50 px-2 pb-2">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="text-[10px] text-gray-500 uppercase font-black tracking-wider [&>tr>th]:sticky [&>tr>th]:top-0 [&>tr>th]:z-20 [&>tr>th]:bg-[#151f32] [&>tr>th]:shadow-[0_-2px_0_0_#151f32,0_1px_2px_0_rgba(0,0,0,0.05)]">
+                            <tr>
+                                <th class="p-3 border-b border-slate-700">เวลาที่กดตรวจ</th>
+                                <th class="p-3 border-b border-slate-700">ประเภท QR Code</th>
+                                <th class="p-3 border-b border-slate-700">รหัสพร้อมเพย์ / เลขบัญชี</th>
+                                <th class="p-3 border-b border-slate-700">ผู้ทำรายการ</th>
+                                <th class="p-3 text-center border-b border-slate-700">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="qrHistoryBody" class="divide-y divide-slate-700/50 text-gray-300">
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -255,9 +258,9 @@
                     <input type="text" id="fakeHistorySearch" onkeyup="filterFakeHistory()" placeholder="ค้นหาชื่อผู้โอน..." class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-xs outline-none focus:border-red-500 transition shadow-inner">
                 </div>
             </div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#0b1120]/50 p-2">
+            <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#0b1120]/50 px-2 pb-2">
                 <table class="w-full text-left text-sm whitespace-nowrap">
-                    <thead class="text-[10px] text-red-400/70 uppercase sticky top-0 bg-[#151f32] [&>tr>th]:bg-[#151f32] shadow-sm z-10 font-black tracking-wider">
+                    <thead class="text-[10px] text-red-400/70 uppercase font-black tracking-wider [&>tr>th]:sticky [&>tr>th]:top-0 [&>tr>th]:z-20 [&>tr>th]:bg-[#151f32] [&>tr>th]:shadow-[0_-2px_0_0_#151f32,0_1px_2px_0_rgba(0,0,0,0.05)]">
                         <tr>
                             <th class="p-3 border-b border-slate-700">เวลาที่สแกนเจอ</th>
                             <th class="p-3 border-b border-slate-700">ชื่อบัญชีผู้โอน (มิจฉาชีพ)</th>
