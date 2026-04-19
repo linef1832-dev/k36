@@ -455,6 +455,9 @@ const findDeep = (obj, key) => {
     return undefined;
 };
 
+// ==========================================
+// 🌟 2. ฟังก์ชันตรวจสอบสลิปหลัก (อัปเดตให้มีการอัปโหลดรูป)
+// ==========================================
 window.verifyThunderSlip = async function() {
     if (!window.selectedSlipFile) {
         return Swal.fire('แจ้งเตือน', 'กรุณาอัปโหลดรูปภาพ หรือกด Ctrl+V เพื่อวางสลิปก่อนครับ', 'warning');
@@ -511,9 +514,6 @@ window.verifyThunderSlip = async function() {
                 }
             }
 
-            let senderObj = data.sender || {};
-            let receiverObj = data.receiver || {};
-
             const getName = (obj) => {
                 if (!obj) return 'ไม่ระบุ';
                 if (typeof obj === 'string') return obj;
@@ -531,6 +531,8 @@ window.verifyThunderSlip = async function() {
                 return findDeep(obj, 'value') || findDeep(obj, 'account') || findDeep(obj, 'anyId') || '-';
             };
 
+            let senderObj = data.sender || {};
+            let receiverObj = data.receiver || {};
             let senderName = getName(senderObj);
             let receiverName = getName(receiverObj);
             let transRef = findDeep(data, 'transRef') || findDeep(data, 'ref1') || '-';
@@ -542,13 +544,8 @@ window.verifyThunderSlip = async function() {
             const resAmountEl = document.getElementById('resAmount');
             resAmountEl.innerText = actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
             
-            if (isFakeSlip) {
-                resAmountEl.classList.remove('text-emerald-400');
-                resAmountEl.classList.add('text-red-500');
-            } else {
-                resAmountEl.classList.add('text-emerald-400');
-                resAmountEl.classList.remove('text-red-500');
-            }
+            if (isFakeSlip) { resAmountEl.classList.remove('text-emerald-400'); resAmountEl.classList.add('text-red-500'); } 
+            else { resAmountEl.classList.add('text-emerald-400'); resAmountEl.classList.remove('text-red-500'); }
 
             document.getElementById('resSenderName').innerText = senderName;
             document.getElementById('resSenderBank').innerText = getBank(senderObj.bank);
@@ -556,14 +553,18 @@ window.verifyThunderSlip = async function() {
             document.getElementById('resReceiverBank').innerText = getBank(receiverObj.bank);
             document.getElementById('resReceiverAccount').innerText = getAccount(receiverObj);
             document.getElementById('resRef').innerText = transRef;
-            
             if (transDate) document.getElementById('resDate').innerText = new Date(transDate).toLocaleString('th-TH');
             else document.getElementById('resDate').innerText = '-';
 
-            document.getElementById('slipResultEmpty').classList.add('hidden');
-            document.getElementById('slipResultEmpty').classList.remove('flex');
-            document.getElementById('slipResultData').classList.remove('hidden');
-            document.getElementById('slipResultData').classList.add('flex');
+            document.getElementById('slipResultEmpty').classList.add('hidden'); document.getElementById('slipResultEmpty').classList.remove('flex');
+            document.getElementById('slipResultData').classList.remove('hidden'); document.getElementById('slipResultData').classList.add('flex');
+
+            // 🔴 🔴 อัปโหลดรูปสลิปขึ้น Storage ก่อนบันทึกประวัติ
+            let uploadedImageUrl = null;
+            if (!isDuplicate) { // ไม่ต้องเปลืองพื้นที่อัปโหลดรูปถ้าเป็นสลิปซ้ำ
+                Swal.update({ title: 'อัปโหลดสลิป...', html: 'กำลังบันทึกรูปภาพอ้างอิงเข้าระบบ...' });
+                uploadedImageUrl = await window.uploadSlipToStorage(window.selectedSlipFile);
+            }
 
             if (isDuplicate) {
                  updateSlipBadge('warning', 'สลิปถูกใช้แล้ว ⚠️');
@@ -582,7 +583,8 @@ window.verifyThunderSlip = async function() {
                 
                 window.saveSlipHistory({
                     success: true, isFake: true,
-                    data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate }
+                    data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate },
+                    imageUrl: uploadedImageUrl // แนบ URL รูปไปบันทึก
                 }, true);
 
             } else {
@@ -591,7 +593,8 @@ window.verifyThunderSlip = async function() {
                  
                  window.saveSlipHistory({
                      success: true, isFake: false,
-                     data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate }
+                     data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate },
+                     imageUrl: uploadedImageUrl // แนบ URL รูปไปบันทึก
                  }, true);
             }
 
@@ -600,7 +603,6 @@ window.verifyThunderSlip = async function() {
             let errorMsg = result.message || 'สลิปนี้ไม่ถูกต้อง หรือไม่สามารถอ่าน QR Code ได้';
             if (errorMsg === 'quota_exceeded') errorMsg = 'โควต้าการตรวจสอบสลิปของ Thunder หมดแล้ว';
             else if (errorMsg === 'unauthorized') errorMsg = 'API Key ของ Thunder ไม่ถูกต้อง';
-            
             Swal.fire('ตรวจพบปัญหา', errorMsg, 'error');
         }
 
@@ -612,7 +614,7 @@ window.verifyThunderSlip = async function() {
 };
 
 // ==========================================
-// 🌟 ระบบประวัติย้อนหลัง (ป้องกันข้อมูลหาย + แก้บัคค้นหา)
+// 🌟 3. ระบบบันทึก ลบ และแสดงผลประวัติ (อัปเดตให้รองรับ URL รูปภาพ)
 // ==========================================
 
 window.saveSlipHistory = async function(result, isSuccess) {
@@ -627,16 +629,14 @@ window.saveSlipHistory = async function(result, isSuccess) {
         senderName: isSuccess && result.data ? (result.data.sender?.name || '') : '',
         receiverName: isSuccess && result.data ? (result.data.receiver?.name || '') : '',
         ref: isSuccess && result.data ? (result.data.transRef || result.data.ref1 || '') : '',
-        date: isSuccess && result.data ? (result.data.date || '') : ''
+        date: isSuccess && result.data ? (result.data.date || '') : '',
+        imageUrl: result.imageUrl || null // 🔴 เซฟ URL ลง Database
     };
     
-    // 🛡️ ป้องกันข้อมูลหาย: ดึงข้อมูลล่าสุดจาก DB ก่อนเซฟทับเสมอ
     if (typeof appDB !== 'undefined') {
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'slip_check_history').single();
-            if (data && data.value) {
-                window.slipHistoryData = JSON.parse(data.value); // อัปเดตข้อมูลในเครื่องให้ใหม่ล่าสุดก่อน
-            }
+            if (data && data.value) window.slipHistoryData = JSON.parse(data.value);
         } catch (e) { console.error("Error fetching before save:", e); }
         
         window.slipHistoryData.unshift(newEntry);
@@ -659,12 +659,24 @@ window.saveSlipHistory = async function(result, isSuccess) {
 window.deleteSlipHistory = function(id, event) {
     if(event) event.stopPropagation(); 
     Swal.fire({
-        title: 'ยืนยันการลบประวัติ?', icon: 'warning', showCancelButton: true,
+        title: 'ยืนยันการลบประวัติ?', 
+        text: 'หากมีรูปสลิป รูปจะถูกลบทิ้งอย่างถาวรด้วย',
+        icon: 'warning', showCancelButton: true,
         confirmButtonColor: '#ef4444', cancelButtonColor: '#4b5563', confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     }).then(async (result) => {
         if (result.isConfirmed) {
-            // 🛡️ ดึงข้อมูลล่าสุดก่อนลบ เพื่อป้องกันการลบรายการที่คนอื่นเพิ่งเพิ่มเข้ามา
+            // 🔴 สั่งลบรูปออกจาก Storage ก่อน
+            const slipToDelete = window.slipHistoryData.find(h => h.id === id);
+            if (slipToDelete && slipToDelete.imageUrl && typeof appDB !== 'undefined') {
+                try {
+                    const urlParts = slipToDelete.imageUrl.split('/slips/');
+                    if (urlParts.length === 2) {
+                        await appDB.storage.from('slips').remove([urlParts[1]]);
+                    }
+                } catch(e) { console.error('Delete image error:', e); }
+            }
+
             if (typeof appDB !== 'undefined') {
                 try {
                     const { data } = await appDB.from('settings').select('value').eq('key', 'slip_check_history').single();
@@ -691,18 +703,10 @@ window.renderSlipHistory = function() {
     const tbody = document.getElementById('slipHistoryBody');
     if (!tbody) return;
     
-    const table = tbody.closest('table');
-    if (table) {
-        const theadTr = table.querySelector('thead tr');
-        if (theadTr && theadTr.children.length === 6) {
-            theadTr.innerHTML += `<th class="p-3 font-semibold text-gray-400 text-left">ผู้ทำรายการ</th><th class="p-3 font-semibold text-gray-400 text-center">จัดการ</th>`;
-        }
-    }
-    
     const search = document.getElementById('slipHistorySearch') ? document.getElementById('slipHistorySearch').value.toLowerCase() : '';
     
     const filtered = window.slipHistoryData.filter(h => {
-        if (!search) return true; // 🌟 แก้บัค: ถ้าช่องค้นหาว่าง ให้แสดงข้อมูลทั้งหมดเสมอ ไม่ซ่อน
+        if (!search) return true;
         return (h.senderName && h.senderName.toLowerCase().includes(search)) ||
                (h.receiverName && h.receiverName.toLowerCase().includes(search)) ||
                (h.ref && h.ref.toLowerCase().includes(search)) ||
@@ -721,8 +725,20 @@ window.renderSlipHistory = function() {
     tbody.innerHTML = filtered.map(h => {
         const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
         let statusBadge = h.isFake ? `<span class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">ปลอม!</span>` : (h.success ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">สำเร็จ</span>` : `<span class="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">ไม่สำเร็จ</span>`);
-        const actionBtn = canDelete ? `<button onclick="window.deleteSlipHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition"><span class="material-icons text-[18px]">delete</span></button>` : `<span class="text-slate-600 material-icons text-[16px]">block</span>`;
-        return `<tr class="hover:bg-slate-800 transition cursor-pointer border-b border-slate-800/50 group" onclick="window.viewHistoryDetail('${h.id}')"><td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td><td class="p-3 font-mono text-xs text-sky-400 font-bold">${h.ref || '-'}</td><td class="p-3 font-bold text-sm text-gray-200">${h.senderName || '-'}</td><td class="p-3 text-xs text-gray-400">${h.receiverName || '-'}</td><td class="p-3 text-right font-mono font-bold ${h.isFake ? 'text-red-400':'text-emerald-400'}">฿${parseFloat(h.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="p-3 text-center">${statusBadge}</td><td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td><td class="p-3 text-center">${actionBtn}</td></tr>`;
+        
+        // 🔴 สร้างปุ่มดวงตา (ถ้ามี URL รูปให้กดดูได้ ถ้าไม่มีให้ปุ่มเป็นสีเทา)
+        const viewImgBtn = h.imageUrl 
+            ? `<button onclick="window.viewSlipImage('${h.imageUrl}', event)" class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 p-1.5 rounded-lg transition" title="ดูรูปสลิป"><span class="material-icons text-[18px]">visibility</span></button>` 
+            : `<span class="text-slate-600 material-icons text-[16px] p-1.5" title="ไม่มีรูป">visibility_off</span>`;
+            
+        const delBtn = canDelete 
+            ? `<button onclick="window.deleteSlipHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition"><span class="material-icons text-[18px]">delete</span></button>` 
+            : `<span class="text-slate-600 material-icons text-[16px] p-1.5">block</span>`;
+            
+        // จับมัดรวมปุ่ม ตา 👁️ และปุ่ม ถังขยะ 🗑️ ไว้ในคอลัมน์เดียวกัน
+        const actionBtns = `<div class="flex items-center justify-center gap-1">${viewImgBtn}${delBtn}</div>`;
+
+        return `<tr class="hover:bg-slate-800 transition cursor-pointer border-b border-slate-800/50 group" onclick="window.viewHistoryDetail('${h.id}')"><td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td><td class="p-3 font-mono text-xs text-sky-400 font-bold">${h.ref || '-'}</td><td class="p-3 font-bold text-sm text-gray-200">${h.senderName || '-'}</td><td class="p-3 text-xs text-gray-400">${h.receiverName || '-'}</td><td class="p-3 text-right font-mono font-bold ${h.isFake ? 'text-red-400':'text-emerald-400'}">฿${parseFloat(h.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="p-3 text-center">${statusBadge}</td><td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td><td class="p-3 text-center">${actionBtns}</td></tr>`;
     }).join('');
 };
 
@@ -911,3 +927,43 @@ document.addEventListener('click', (e) => {
         if(input) input.dataset.initialized = '';
     }
 });
+
+// ==========================================
+// 🌟 1. ฟังก์ชันอัปโหลดรูป และ แสดงรูป (เพิ่มใหม่)
+// ==========================================
+
+// ฟังก์ชันอัปโหลดรูปลง Supabase Storage
+window.uploadSlipToStorage = async function(file) {
+    if (!file || typeof appDB === 'undefined') return null;
+    try {
+        const fileExt = file.name ? file.name.split('.').pop() : 'png';
+        const fileName = `slip_${Date.now()}_${Math.random().toString(36).substring(2,9)}.${fileExt}`;
+
+        // โยนรูปลง Bucket ชื่อ 'slips'
+        const { error } = await appDB.storage.from('slips').upload(fileName, file);
+        if (error) throw error;
+
+        // ดึง URL กลับมาเพื่อเอาไปเซฟลงตารางประวัติ
+        const { data: publicUrlData } = appDB.storage.from('slips').getPublicUrl(fileName);
+        return publicUrlData.publicUrl;
+    } catch (e) {
+        console.error("Storage Upload Error:", e);
+        return null;
+    }
+};
+
+// ฟังก์ชันเปิดดูรูปสลิปแบบ Pop-up (ใช้ SweetAlert2)
+window.viewSlipImage = function(url, event) {
+    if (event) event.stopPropagation(); // ป้องกันไม่ให้คลิกทะลุไปโดนแถวตาราง
+    Swal.fire({
+        imageUrl: url,
+        imageAlt: 'รูปสลิปโอนเงิน',
+        showConfirmButton: false,
+        showCloseButton: true,
+        customClass: { 
+            popup: 'dark:bg-slate-800 rounded-2xl', 
+            image: 'rounded-lg max-h-[80vh] object-contain shadow-lg bg-[#0f172a]' 
+        },
+        width: 'auto'
+    });
+};
