@@ -2390,7 +2390,7 @@ window.addTeamManual = function(dept) {
 };
 
 // =========================================================
-// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) (V.7 ดักปุ่มประวัติระบบ)
+// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) (V.8 แก้ไขเมนูกระพริบเด็ดขาด)
 // =========================================================
 window.applySidebarPermissions = async function() {
     let user = window.currentUser;
@@ -2402,91 +2402,94 @@ window.applySidebarPermissions = async function() {
 
     const userRole = (user.role || '').toLowerCase().trim();
     const allMenuBtns = document.querySelectorAll('#menu-list button');
-    
-    // 🌟 ค้นหาปุ่ม "ประวัติระบบ" ที่แยกอยู่ด้านล่างสุด
     const logsBtn = document.querySelector('button[onclick="openLogsPage()"]');
 
-    // 1. บังคับ "หลับตา" (ซ่อน) แบบเด็ดขาดทะลุ CSS
-    allMenuBtns.forEach(btn => {
-        const onClickAttr = btn.getAttribute('onclick') || '';
-        // ยกเว้นหน้าหลัก กับ หน้าเปลี่ยนรหัส ให้เห็นได้ทุกคน
-        if (!onClickAttr.includes('dashboard') && !onClickAttr.includes('password')) {
-            btn.classList.add('hidden');
-            btn.style.setProperty('display', 'none', 'important'); // บังคับซ่อนขั้นสุด
-        }
-    });
-    document.getElementById('menu-discord')?.classList.add('hidden');
-    document.getElementById('menu-admin')?.classList.add('hidden');
-    
-    // 🌟 สั่งหลับตาปุ่มประวัติระบบไปก่อน
-    if (logsBtn) {
-        logsBtn.classList.add('hidden');
-        logsBtn.style.setProperty('display', 'none', 'important');
+    // 🌟 1. ดึงสิทธิ์จากความจำเครื่อง (Cache) มาใช้ก่อนเพื่อความรวดเร็ว (ไม่ต้องรอเน็ต)
+    if (!SETTINGS['dept_menu_rules']) {
+        const cachedRules = localStorage.getItem('cached_menu_rules');
+        if (cachedRules) SETTINGS['dept_menu_rules'] = cachedRules;
     }
 
-    // 2. ดึงตั้งค่าจาก Database
-    if (!SETTINGS['dept_menu_rules']) {
+    // 🌟 2. ถ้าเครื่องไม่มีประวัติจำไว้ และไม่ใช่แอดมิน ค่อยไปดึงจากฐานข้อมูล
+    if (!SETTINGS['dept_menu_rules'] && !['admin', 'manager'].includes(userRole)) {
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single();
-            if (data && data.value) SETTINGS['dept_menu_rules'] = data.value;
+            if (data && data.value) {
+                SETTINGS['dept_menu_rules'] = data.value;
+                localStorage.setItem('cached_menu_rules', data.value); // จำไว้ใช้รอบหน้าจะได้ไม่กระพริบ
+            }
         } catch(e) {}
     }
 
-    // 3. "ลืมตา" โชว์เฉพาะปุ่มที่มีสิทธิ์
-    PERM_GROUPS.forEach(group => {
-        group.items.forEach(item => {
-            if (item.isSub) return; 
-            
-            const canSee = window.hasUserPerm(item.id);
-            allMenuBtns.forEach(btn => {
-                const onClickAttr = btn.getAttribute('onclick') || '';
-                if (onClickAttr.includes(`showPage('${item.id}')`) || onClickAttr.includes(`showPage("${item.id}")`)) {
-                    if (canSee) {
-                        btn.classList.remove('hidden');
-                        btn.style.removeProperty('display'); // คืนค่าการแสดงผล
-                    }
-                }
-            });
-        });
-    });
-
-    // 4. ดักหมวด DISCORD
-    const discordGroup = PERM_GROUPS.find(g => g.id === 'page_discord');
-    if (discordGroup) {
-        const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
-        allMenuBtns.forEach(btn => {
-            if ((btn.getAttribute('onclick') || '').includes("toggleSubMenu('menu-discord'")) {
-                const canSeeDs = hasAnyDiscordPerm || ['admin', 'manager'].includes(userRole);
-                if (canSeeDs) {
-                    btn.classList.remove('hidden');
-                    btn.style.removeProperty('display');
-                }
-            }
-        });
-    }
-
-    // 5. ดักหมวด เครื่องมือผู้จัดการ
+    // 🌟 3. คำนวณและประมวลผลสิทธิ์ "แบบรวดเดียวจบ" (ไม่ซ่อนทิ้งก่อน เพื่อลดการกระพริบ 100%)
     allMenuBtns.forEach(btn => {
         const onClickAttr = btn.getAttribute('onclick') || '';
-        if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
-            
-            // 🌟 ให้สิทธิ์คนที่ติ๊ก Checkbox หรือ เป็นแอดมินโดยตรง
-            const canSeeAdmin = window.hasUserPerm('admin') || ['admin', 'manager'].includes(userRole); 
-            
-            if (canSeeAdmin) {
-                btn.classList.remove('hidden');
-                btn.style.removeProperty('display');
+        let shouldShow = false;
+
+        // ยกเว้นหน้าหลัก กับ หน้าเปลี่ยนรหัส ให้เห็นได้ทุกคนเสมอ
+        if (onClickAttr.includes('dashboard') || onClickAttr.includes('password')) {
+            shouldShow = true;
+        } else {
+            // เช็คสิทธิ์ทีละเมนู
+            PERM_GROUPS.forEach(group => {
+                group.items.forEach(item => {
+                    if (item.isSub) return; 
+                    if (onClickAttr.includes(`showPage('${item.id}')`) || onClickAttr.includes(`showPage("${item.id}")`)) {
+                        if (window.hasUserPerm(item.id)) shouldShow = true;
+                    }
+                });
+            });
+
+            // ดักหมวด DISCORD (เมนูหลักที่ดรอปดาวน์ลงมา)
+            const discordGroup = PERM_GROUPS.find(g => g.id === 'page_discord');
+            if (discordGroup && onClickAttr.includes("toggleSubMenu('menu-discord'")) {
+                const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
+                if (hasAnyDiscordPerm || ['admin', 'manager'].includes(userRole)) {
+                    shouldShow = true;
+                }
             }
+
+            // ดักหมวด เครื่องมือผู้จัดการ (Admin Panel)
+            if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
+                if (window.hasUserPerm('admin') || ['admin', 'manager'].includes(userRole)) {
+                    shouldShow = true;
+                }
+            }
+        }
+
+        // 🌟 สั่งอัปเดตหน้าจอเฉพาะปุ่มที่สิทธิ์ไม่ตรงกับที่โชว์อยู่ (เพื่อความสมูทที่สุด)
+        if (shouldShow) {
+            btn.classList.remove('hidden');
+            btn.style.removeProperty('display');
+        } else {
+            btn.classList.add('hidden');
+            btn.style.setProperty('display', 'none', 'important');
         }
     });
 
-    // 🌟 6. ดักปุ่ม "ประวัติระบบ" (ซ้ายล่างสุด)
+    // ซ่อนกล่องย่อยของ Discord ด้วยถ้าเมนูหลักไม่ได้โชว์
+    const menuDiscord = document.getElementById('menu-discord');
+    const discordBtn = Array.from(allMenuBtns).find(b => (b.getAttribute('onclick')||'').includes("toggleSubMenu('menu-discord'"));
+    if (menuDiscord && discordBtn && discordBtn.classList.contains('hidden')) {
+        menuDiscord.classList.add('hidden');
+    }
+    
+    // ซ่อนกล่องย่อยของ Admin ด้วยถ้าเมนูหลักไม่ได้โชว์
+    const menuAdmin = document.getElementById('menu-admin');
+    const adminBtn = Array.from(allMenuBtns).find(b => (b.getAttribute('onclick')||'').includes("toggleSubMenu('menu-admin'"));
+    if (menuAdmin && adminBtn && adminBtn.classList.contains('hidden')) {
+        menuAdmin.classList.add('hidden');
+    }
+
+    // 🌟 4. ดักปุ่ม "ประวัติระบบ" (ซ้ายล่างสุด)
     if (logsBtn) {
-        // เช็คว่าถ้าเป็นแอดมินหลัก หรือ มีสิทธิ์ 'admin_logs' ก็ให้โชว์ปุ่มได้
         const canSeeLogs = ['admin', 'manager'].includes(userRole) || window.hasUserPerm('admin_logs');
         if (canSeeLogs) {
             logsBtn.classList.remove('hidden');
             logsBtn.style.removeProperty('display');
+        } else {
+            logsBtn.classList.add('hidden');
+            logsBtn.style.setProperty('display', 'none', 'important');
         }
     }
 };
