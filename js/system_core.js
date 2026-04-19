@@ -2333,6 +2333,7 @@ window.saveMenuPerms = async function() {
 
     MENU_PERMS = newPerms;
     SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
+    localStorage.setItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
     
     await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
     Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์การมองเห็นเมนูเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false});
@@ -2390,7 +2391,7 @@ window.addTeamManual = function(dept) {
 };
 
 // =========================================================
-// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) (V.8 แก้ไขเมนูกระพริบเด็ดขาด)
+// 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) (V.8.1 แก้ไขกระพริบ + ซิงค์สิทธิ์เบื้องหลัง)
 // =========================================================
 window.applySidebarPermissions = async function() {
     let user = window.currentUser;
@@ -2401,96 +2402,84 @@ window.applySidebarPermissions = async function() {
     }
 
     const userRole = (user.role || '').toLowerCase().trim();
-    const allMenuBtns = document.querySelectorAll('#menu-list button');
-    const logsBtn = document.querySelector('button[onclick="openLogsPage()"]');
-
-    // 🌟 1. ดึงสิทธิ์จากความจำเครื่อง (Cache) มาใช้ก่อนเพื่อความรวดเร็ว (ไม่ต้องรอเน็ต)
-    if (!SETTINGS['dept_menu_rules']) {
-        const cachedRules = localStorage.getItem('cached_menu_rules');
-        if (cachedRules) SETTINGS['dept_menu_rules'] = cachedRules;
-    }
-
-    // 🌟 2. ถ้าเครื่องไม่มีประวัติจำไว้ และไม่ใช่แอดมิน ค่อยไปดึงจากฐานข้อมูล
-    if (!SETTINGS['dept_menu_rules'] && !['admin', 'manager'].includes(userRole)) {
-        try {
-            const { data } = await appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single();
-            if (data && data.value) {
-                SETTINGS['dept_menu_rules'] = data.value;
-                localStorage.setItem('cached_menu_rules', data.value); // จำไว้ใช้รอบหน้าจะได้ไม่กระพริบ
-            }
-        } catch(e) {}
-    }
-
-    // 🌟 3. คำนวณและประมวลผลสิทธิ์ "แบบรวดเดียวจบ" (ไม่ซ่อนทิ้งก่อน เพื่อลดการกระพริบ 100%)
-    allMenuBtns.forEach(btn => {
-        const onClickAttr = btn.getAttribute('onclick') || '';
-        let shouldShow = false;
-
-        // ยกเว้นหน้าหลัก กับ หน้าเปลี่ยนรหัส ให้เห็นได้ทุกคนเสมอ
-        if (onClickAttr.includes('dashboard') || onClickAttr.includes('password')) {
-            shouldShow = true;
-        } else {
-            // เช็คสิทธิ์ทีละเมนู
-            PERM_GROUPS.forEach(group => {
-                group.items.forEach(item => {
-                    if (item.isSub) return; 
-                    if (onClickAttr.includes(`showPage('${item.id}')`) || onClickAttr.includes(`showPage("${item.id}")`)) {
-                        if (window.hasUserPerm(item.id)) shouldShow = true;
-                    }
-                });
-            });
-
-            // ดักหมวด DISCORD (เมนูหลักที่ดรอปดาวน์ลงมา)
-            const discordGroup = PERM_GROUPS.find(g => g.id === 'page_discord');
-            if (discordGroup && onClickAttr.includes("toggleSubMenu('menu-discord'")) {
-                const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
-                if (hasAnyDiscordPerm || ['admin', 'manager'].includes(userRole)) {
-                    shouldShow = true;
-                }
-            }
-
-            // ดักหมวด เครื่องมือผู้จัดการ (Admin Panel)
-            if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
-                if (window.hasUserPerm('admin') || ['admin', 'manager'].includes(userRole)) {
-                    shouldShow = true;
-                }
-            }
-        }
-
-        // 🌟 สั่งอัปเดตหน้าจอเฉพาะปุ่มที่สิทธิ์ไม่ตรงกับที่โชว์อยู่ (เพื่อความสมูทที่สุด)
-        if (shouldShow) {
-            btn.classList.remove('hidden');
-            btn.style.removeProperty('display');
-        } else {
-            btn.classList.add('hidden');
-            btn.style.setProperty('display', 'none', 'important');
-        }
-    });
-
-    // ซ่อนกล่องย่อยของ Discord ด้วยถ้าเมนูหลักไม่ได้โชว์
-    const menuDiscord = document.getElementById('menu-discord');
-    const discordBtn = Array.from(allMenuBtns).find(b => (b.getAttribute('onclick')||'').includes("toggleSubMenu('menu-discord'"));
-    if (menuDiscord && discordBtn && discordBtn.classList.contains('hidden')) {
-        menuDiscord.classList.add('hidden');
-    }
     
-    // ซ่อนกล่องย่อยของ Admin ด้วยถ้าเมนูหลักไม่ได้โชว์
-    const menuAdmin = document.getElementById('menu-admin');
-    const adminBtn = Array.from(allMenuBtns).find(b => (b.getAttribute('onclick')||'').includes("toggleSubMenu('menu-admin'"));
-    if (menuAdmin && adminBtn && adminBtn.classList.contains('hidden')) {
-        menuAdmin.classList.add('hidden');
-    }
+    // ฟังก์ชันย่อยสำหรับวาดเมนู
+    const executeMenuUpdate = () => {
+        const allMenuBtns = document.querySelectorAll('#menu-list button');
+        const logsBtn = document.querySelector('button[onclick="openLogsPage()"]');
 
-    // 🌟 4. ดักปุ่ม "ประวัติระบบ" (ซ้ายล่างสุด)
-    if (logsBtn) {
-        const canSeeLogs = ['admin', 'manager'].includes(userRole) || window.hasUserPerm('admin_logs');
-        if (canSeeLogs) {
-            logsBtn.classList.remove('hidden');
-            logsBtn.style.removeProperty('display');
-        } else {
-            logsBtn.classList.add('hidden');
-            logsBtn.style.setProperty('display', 'none', 'important');
+        allMenuBtns.forEach(btn => {
+            const onClickAttr = btn.getAttribute('onclick') || '';
+            let shouldShow = false;
+
+            if (onClickAttr.includes('dashboard') || onClickAttr.includes('password')) {
+                shouldShow = true;
+            } else {
+                PERM_GROUPS.forEach(group => {
+                    group.items.forEach(item => {
+                        if (item.isSub) return; 
+                        if (onClickAttr.includes(`showPage('${item.id}')`) || onClickAttr.includes(`showPage("${item.id}")`)) {
+                            if (window.hasUserPerm(item.id)) shouldShow = true;
+                        }
+                    });
+                });
+
+                const discordGroup = PERM_GROUPS.find(g => g.id === 'page_discord');
+                if (discordGroup && onClickAttr.includes("toggleSubMenu('menu-discord'")) {
+                    const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
+                    if (hasAnyDiscordPerm || ['admin', 'manager'].includes(userRole)) shouldShow = true;
+                }
+
+                if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
+                    if (window.hasUserPerm('admin') || ['admin', 'manager'].includes(userRole)) shouldShow = true;
+                }
+            }
+
+            if (shouldShow) {
+                btn.classList.remove('hidden');
+                btn.style.removeProperty('display');
+            } else {
+                btn.classList.add('hidden');
+                btn.style.setProperty('display', 'none', 'important');
+            }
+        });
+
+        const menuDiscord = document.getElementById('menu-discord');
+        const discordBtn = Array.from(document.querySelectorAll('#menu-list button')).find(b => (b.getAttribute('onclick')||'').includes("toggleSubMenu('menu-discord'"));
+        if (menuDiscord && discordBtn && discordBtn.classList.contains('hidden')) menuDiscord.classList.add('hidden');
+        
+        const menuAdmin = document.getElementById('menu-admin');
+        const adminBtn = Array.from(document.querySelectorAll('#menu-list button')).find(b => (b.getAttribute('onclick')||'').includes("toggleSubMenu('menu-admin'"));
+        if (menuAdmin && adminBtn && adminBtn.classList.contains('hidden')) menuAdmin.classList.add('hidden');
+
+        if (logsBtn) {
+            const canSeeLogs = ['admin', 'manager'].includes(userRole) || window.hasUserPerm('admin_logs');
+            if (canSeeLogs) {
+                logsBtn.classList.remove('hidden');
+                logsBtn.style.removeProperty('display');
+            } else {
+                logsBtn.classList.add('hidden');
+                logsBtn.style.setProperty('display', 'none', 'important');
+            }
         }
+    };
+
+    // 🌟 1. ดึงสิทธิ์จากความจำเครื่อง (Cache) มาโชว์เมนูทันที (ภาพไม่กระพริบ)
+    const cachedRules = localStorage.getItem('cached_menu_rules');
+    if (cachedRules && !SETTINGS['dept_menu_rules']) {
+        SETTINGS['dept_menu_rules'] = cachedRules;
+    }
+    executeMenuUpdate();
+
+    // 🌟 2. วิ่งไปเช็คฐานข้อมูลเงียบๆ (ถ้ามีการเปลี่ยนสิทธิ์ใหม่ เมนูจะอัปเดตให้อัตโนมัติ)
+    if (typeof appDB !== 'undefined' && !['admin', 'manager'].includes(userRole)) {
+        appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single().then(({data}) => {
+            if (data && data.value && data.value !== cachedRules) {
+                SETTINGS['dept_menu_rules'] = data.value;
+                localStorage.setItem('cached_menu_rules', data.value);
+                executeMenuUpdate(); 
+            }
+        }).catch(e => console.log(e));
     }
 };
 

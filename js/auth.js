@@ -134,7 +134,8 @@ async function handleLogin(e) {
 
 function logout() { 
     sessionStorage.removeItem('user_platinum_plus'); 
-    location.reload(); // รีเฟรชหน้าเว็บ 1 ที เพื่อกลับไปสภาพเริ่มต้น
+    localStorage.removeItem('cached_menu_rules');
+    location.reload(); 
 }
 
 // ==========================================
