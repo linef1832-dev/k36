@@ -255,7 +255,6 @@ window.refreshTimeSlots = async function() {
         document.getElementById('adminPanel').classList.add('flex');
     }
     switchAdminTab('settings');
-};
 
 window.switchAdminTab = function(tab) {
     const tabs = ['settings', 'users', 'perms', 'info'];
