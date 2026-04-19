@@ -1263,10 +1263,17 @@ window.renderUserTableDirectly = function() {
         const displayIndex = startIndex + index + 1; // ลำดับที่ถูกต้อง
 
         let currentDep = u.department || 'AM';
-        if (currentDep === 'TRAINER' || currentDep === 'NEW') currentDep = 'AM';
-        let depColor = currentDep === 'OD' ? 'text-pink-400' : (currentDep === 'AM' ? 'text-blue-400' : 'text-teal-400');
+        if (currentDep === 'TRAINER') currentDep = 'AM'; // ซ่อนแค่ TRAINER
+        
+        let depColor = currentDep === 'OD' ? 'text-pink-400' : (currentDep === 'AM' ? 'text-blue-400' : (currentDep === 'NEW' ? 'text-emerald-400' : 'text-teal-400'));
         
         let depBadge = `<select onchange="updateUserDepartment(${u.id}, this.value)" class="bg-slate-900 ${depColor} text-[10px] p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center w-[60px]">`;
+        
+        // ถ้าเป็นพนักงานใหม่ (NEW) ให้มีตัวเลือก NEW โผล่มาให้เห็นชัดๆ ไม่หลอกตา
+        if (currentDep === 'NEW') {
+            depBadge += `<option value="NEW" selected class="text-white">NEW</option>`;
+        }
+        
         deptListArray.forEach(dName => { depBadge += `<option value="${dName}" ${currentDep === dName ? 'selected' : ''} class="text-white">${dName}</option>`; });
         depBadge += `</select>`;
         
