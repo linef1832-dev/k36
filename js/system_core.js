@@ -2491,10 +2491,29 @@ window.applySidebarPermissions = async function() {
     }
 };
 
-// สั่งรันทันที ป้องกันเมนูกระพริบ
-applySidebarPermissions();
-setTimeout(applySidebarPermissions, 500);
-setTimeout(applySidebarPermissions, 1500);
+// 🌟 เปลี่ยนมาใช้ MutationObserver แทน setTimeout 
+// เพื่อให้ทันทีที่เมนูด้านซ้ายโหลดขึ้นมาปุ๊บ ระบบจะรีบจัดแจงซ่อน/โชว์ให้เสร็จปั๊บ 
+// ป้องกันปัญหาเมนูกระพริบแวบๆ ตอนกด F5 ได้เนียนตาที่สุดครับ
+const sidebarObserver = new MutationObserver((mutations) => {
+    const menuList = document.getElementById('menu-list');
+    if (menuList && menuList.children.length > 0) {
+        applySidebarPermissions();
+        // พอจัดเมนูเสร็จรอบแรกก็หยุดจับตาดูเลย เพื่อไม่ให้เปลืองแรงเครื่อง
+        sidebarObserver.disconnect(); 
+    }
+});
+
+// เริ่มจับตาดูการเปลี่ยนแปลงของร่างกายเว็บ (body)
+if (document.body) {
+    sidebarObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+// แปะไว้กันเหนียว เผื่อกรณีไฟล์โหลดเร็วมากๆ จน Observer ทำงานไม่ทัน
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    applySidebarPermissions();
+} else {
+    document.addEventListener('DOMContentLoaded', applySidebarPermissions);
+}
 
 // =========================================================
 // 🟢 ระบบเพิ่มรอบเวลาเอง (ดึงข้อมูลเก่า + ค่าเริ่มต้น)
