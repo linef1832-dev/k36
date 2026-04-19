@@ -373,16 +373,23 @@ function subscribeLeaveChanges() {
             const tUser = GLOBAL_USER_LIST.find(u => String(u.id) === String(changedUserId));
             const tDept = tUser ? (tUser.department || 'AM') : 'AM';
             const tRole = tUser ? (tUser.role || 'staff').toLowerCase() : 'staff';
-            
+
             let shouldRenderTable = false;
-            if (currentViewDept === 'TRAINER' && (tDept === 'TRAINER' || tRole === 'trainer')) shouldRenderTable = true;
-            else if (tRole === 'staff' && tDept === currentViewDept) shouldRenderTable = true;
+            if (currentViewDept === 'TRAINER' && (tDept === 'TRAINER' || tRole === 'trainer')) {
+                shouldRenderTable = true;
+            } 
+            // 🌟 เพิ่มเงื่อนไขให้หน้านี้อัปเดตเรียลไทม์ ถ้าคนที่กดมีชื่ออยู่ในกลุ่มพิเศษ
+            else if (currentViewDept === 'SPECIAL' && window.specialGroupUserIds && window.specialGroupUserIds.includes(String(changedUserId))) {
+                shouldRenderTable = true;
+            } 
+            else if (tRole === 'staff' && tDept === currentViewDept) {
+                shouldRenderTable = true;
+            }
 
             if (shouldRenderTable) {
-                window.renderLeaveTable(); 
-                flashRealtimeDot();
-            }
-        }
+               window.renderLeaveTable();
+            flashRealtimeDot();
+}
     }).subscribe();
 }
 
