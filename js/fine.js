@@ -1685,30 +1685,30 @@ window.generateFineText = function() {
         }
     }
 
-    // 🌟 6. ประกอบร่างข้อความหลัก (แบบหลายบรรทัด)
-    let resultText = `${empName} ${ruleHeader} - ${dateStr}\n`;
+    // 🌟 6. ประกอบร่างข้อความหลัก
+    let resultText = `${empName} ${ruleHeader}`;
     
     if (ruleDesc) {
-        resultText += `${ruleDesc}\n`;
+        resultText += ` - ${ruleDesc}`;
     }
     
     if (finalNote) {
-        resultText += `(${finalNote.trim()})\n`;
+        resultText += ` (${finalNote.trim()})`;
     }
 
-    resultText += `\n`; // เคาะบรรทัดว่าง 1 บรรทัด
+    // ต่อด้วยวันที่ด้านท้ายสุด
+    resultText += ` ${dateStr}`;
     
+    // 🌟 ถ้ามีการติ๊กใช้งาน "คิดค่าปรับ %" ถึงจะขึ้นบรรทัดใหม่และแสดง "ครั้งที่..."
     if (percentText) {
-        resultText += `${percentText}  ครั้งที่ ${currentCount}`;
-    } else {
-        resultText += `ครั้งที่ ${currentCount}`;
+        resultText += `\n${percentText} ครั้งที่ ${currentCount}`;
     }
 
     const resultBox = document.getElementById('fineTextResultBox');
     const textArea = document.getElementById('fineTextResult');
     if (resultBox && textArea) {
         textArea.value = resultText;
-        textArea.rows = 6;
+        textArea.rows = percentText ? 3 : 2; // ปรับขนาดกล่องข้อความให้พอดี
         resultBox.classList.remove('hidden');
     }
 };
