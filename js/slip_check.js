@@ -726,16 +726,15 @@ window.renderSlipHistory = function() {
         const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
         let statusBadge = h.isFake ? `<span class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">ปลอม!</span>` : (h.success ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">สำเร็จ</span>` : `<span class="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">ไม่สำเร็จ</span>`);
         
-        // 🔴 สร้างปุ่มดวงตา (ถ้ามี URL รูปให้กดดูได้ ถ้าไม่มีให้ปุ่มเป็นสีเทา)
+        // 🔴 เปลี่ยนไอคอนจากดวงตา (visibility) เป็นไอคอนรูปภาพ (image)
         const viewImgBtn = h.imageUrl 
-            ? `<button onclick="window.viewSlipImage('${h.imageUrl}', event)" class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 p-1.5 rounded-lg transition" title="ดูรูปสลิป"><span class="material-icons text-[18px]">visibility</span></button>` 
-            : `<span class="text-slate-600 material-icons text-[16px] p-1.5" title="ไม่มีรูป">visibility_off</span>`;
+            ? `<button onclick="window.viewSlipImage('${h.imageUrl}', event)" class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 p-1.5 rounded-lg transition" title="ดูรูปสลิป"><span class="material-icons text-[18px]">image</span></button>` 
+            : `<span class="text-slate-600 material-icons text-[16px] p-1.5" title="ไม่มีรูป">image_not_supported</span>`;
             
         const delBtn = canDelete 
             ? `<button onclick="window.deleteSlipHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition"><span class="material-icons text-[18px]">delete</span></button>` 
             : `<span class="text-slate-600 material-icons text-[16px] p-1.5">block</span>`;
             
-        // จับมัดรวมปุ่ม ตา 👁️ และปุ่ม ถังขยะ 🗑️ ไว้ในคอลัมน์เดียวกัน
         const actionBtns = `<div class="flex items-center justify-center gap-1">${viewImgBtn}${delBtn}</div>`;
 
         return `<tr class="hover:bg-slate-800 transition cursor-pointer border-b border-slate-800/50 group" onclick="window.viewHistoryDetail('${h.id}')"><td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td><td class="p-3 font-mono text-xs text-sky-400 font-bold">${h.ref || '-'}</td><td class="p-3 font-bold text-sm text-gray-200">${h.senderName || '-'}</td><td class="p-3 text-xs text-gray-400">${h.receiverName || '-'}</td><td class="p-3 text-right font-mono font-bold ${h.isFake ? 'text-red-400':'text-emerald-400'}">฿${parseFloat(h.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="p-3 text-center">${statusBadge}</td><td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td><td class="p-3 text-center">${actionBtns}</td></tr>`;
@@ -952,14 +951,28 @@ window.uploadSlipToStorage = async function(file) {
     }
 };
 
-// ฟังก์ชันเปิดดูรูปสลิปแบบ Pop-up (ใช้ SweetAlert2)
+// ฟังก์ชันเปิดดูรูปสลิปแบบ Pop-up (ใช้ SweetAlert2) แบบเด้งขึ้นมาช้าๆ
 window.viewSlipImage = function(url, event) {
     if (event) event.stopPropagation(); // ป้องกันไม่ให้คลิกทะลุไปโดนแถวตาราง
+    
+    // ฝัง CSS ชั่วคราวเพื่อให้แอนิเมชันตอนเด้งขึ้นมาดูช้าและนุ่มนวลขึ้น
+    if (!document.getElementById('swal-slow-anim')) {
+        const style = document.createElement('style');
+        style.id = 'swal-slow-anim';
+        style.innerHTML = `
+            .swal2-popup.swal-slow-show { animation: swal2-show 0.6s ease-in-out !important; }
+            .swal2-popup.swal-slow-hide { animation: swal2-hide 0.4s ease-in-out !important; }
+        `;
+        document.head.appendChild(style);
+    }
+
     Swal.fire({
         imageUrl: url,
         imageAlt: 'รูปสลิปโอนเงิน',
         showConfirmButton: false,
         showCloseButton: true,
+        showClass: { popup: 'swal2-popup swal2-modal swal-slow-show' },
+        hideClass: { popup: 'swal2-popup swal2-modal swal-slow-hide' },
         customClass: { 
             popup: 'dark:bg-slate-800 rounded-2xl', 
             image: 'rounded-lg max-h-[80vh] object-contain shadow-lg bg-[#0f172a]' 
