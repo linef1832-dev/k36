@@ -510,14 +510,17 @@ window.renderLeaveTable = function() {
     const allDeptUsers = GLOBAL_USER_LIST.filter(u => {
         const uDept = u.department || 'AM';
         const uRole = u.role ? u.role.toLowerCase() : 'staff'; 
+        
+        // 🌟 เช็คว่าพนักงานคนนี้ถูกดึงเข้ากลุ่มพิเศษไปแล้วหรือยัง
+        const isInSpecial = window.specialGroupUserIds && window.specialGroupUserIds.includes(String(u.id));
 
-        if (currentViewDept === 'TRAINER') {
-            return uDept === 'TRAINER' || uRole === 'trainer'; 
-        } else if (currentViewDept === 'SPECIAL') {
-            // 🌟 เปลี่ยนให้ดึงจาก ID ที่ติ๊กไว้แทนการเปลี่ยนแผนก (โชว์ 2 หน้าพร้อมกันได้)
-            return window.specialGroupUserIds && window.specialGroupUserIds.includes(String(u.id));
+        if (currentViewDept === 'SPECIAL') {
+            return isInSpecial; // แท็บพิเศษโชว์เฉพาะคนที่ถูกดึงเข้ามา
+        } else if (currentViewDept === 'TRAINER') {
+            return (uDept === 'TRAINER' || uRole === 'trainer') && !isInSpecial; 
         } else {
-            return uRole === 'staff' && uDept === currentViewDept; 
+            // 🌟 แท็บ AM และ OD จะโชว์แค่คนที่ยังไม่ถูกดึงไปกลุ่มพิเศษ (!isInSpecial)
+            return uRole === 'staff' && uDept === currentViewDept && !isInSpecial; 
         }
     });
     
