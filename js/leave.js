@@ -471,7 +471,7 @@ window.renderLeaveTable = function() {
     const s = deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 }; 
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     const isAdmin = isGlobalAdmin || window.hasUserPerm('leave_manage');
-    const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request');
+    const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request') || currentViewDept === 'SPECIAL';
     const picker = document.getElementById('viewMonthPicker');
     const btnPrev = document.getElementById('btnPrevMonth');
     const btnNext = document.getElementById('btnNextMonth');
