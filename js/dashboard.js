@@ -248,11 +248,6 @@ window.refreshTimeSlots = async function() {
     if (typeof updateMissingLunchBadge === 'function') updateMissingLunchBadge();
 };
 
-window.openAdminPanel = async function() {
-    if (!document.getElementById('adminPanel')) {
-        if(typeof showPage === 'function') await showPage('dashboard');
-    }
-    
     // ไม่ใช้ setTimeout แล้ว เพื่อให้ตอบสนองทันที
     if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
     if(document.getElementById('adminPanel')) {
