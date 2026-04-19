@@ -158,13 +158,17 @@ window.initLeaveTable = async function() {
     const btnTRAINER = document.getElementById('btnTRAINER');
     if (btnTRAINER) { if(canViewTRAINER) btnTRAINER.classList.remove('hidden'); else btnTRAINER.classList.add('hidden'); }
 
-    // 🌟 ควบคุมแท็บ จัดกลุ่มเอง (ให้เห็นเฉพาะแอดมิน กับคนที่ถูกดึงชื่อเข้ามา)
+    // 🌟 ควบคุมแท็บ จัดกลุ่มเอง (ให้เห็นเฉพาะแอดมิน, คนที่ถูกดึงชื่อเข้ามา และ ผู้สอน)
     const btnSPECIAL = document.getElementById('btnSPECIAL');
     if (btnSPECIAL) {
         window.specialGroupUserIds = window.specialGroupUserIds || [];
         const isInSpecialGroup = window.specialGroupUserIds.includes(String(currentUser.id));
         
-        if (isGlobalAdmin || isInSpecialGroup) {
+        // เช็คว่าบัญชีที่ล็อกอินอยู่เป็น "ผู้สอน" หรือไม่
+        const isTrainerUser = (currentUser.role && currentUser.role.toLowerCase() === 'trainer') || currentUser.department === 'TRAINER';
+        
+        // ถ้าเป็น แอดมิน หรือ มีชื่อในกลุ่ม หรือ เป็นผู้สอน = ให้มองเห็นแท็บนี้ได้
+        if (isGlobalAdmin || isInSpecialGroup || isTrainerUser) {
             btnSPECIAL.classList.remove('hidden');
         } else {
             btnSPECIAL.classList.add('hidden');
