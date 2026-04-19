@@ -257,6 +257,10 @@ async function loadLeaveSettings() {
             deptSettings[dept].startDay = parseInt(getDbValue('lock_start', '')) || '';
             deptSettings[dept].endDay = parseInt(getDbValue('lock_end', '')) || '';
         });
+
+    // 🌟 โค้ดที่เพิ่มใหม่: โหลดรายชื่อพนักงานกลุ่มพิเศษมาเก็บไว้
+        const specialGrpRow = data.find(d => d.key === 'leave_special_users');
+        window.specialGroupUserIds = specialGrpRow && specialGrpRow.value ? JSON.parse(specialGrpRow.value) : [];
     }
     updateAdminInputs();
     renderLeaveTable(); 
@@ -489,8 +493,8 @@ window.renderLeaveTable = function() {
         if (currentViewDept === 'TRAINER') {
             return uDept === 'TRAINER' || uRole === 'trainer'; 
         } else if (currentViewDept === 'SPECIAL') {
-            // 🌟 สำคัญมาก: ถ้าเปิดแท็บจัดกลุ่มเอง ให้แสดงรายชื่อทุกคนที่โดนดึงมา โดยไม่สนว่ายศแอดมินหรือพนักงาน
-            return uDept === 'SPECIAL'; 
+            // 🌟 เปลี่ยนให้ดึงจาก ID ที่ติ๊กไว้แทนการเปลี่ยนแผนก (โชว์ 2 หน้าพร้อมกันได้)
+            return window.specialGroupUserIds && window.specialGroupUserIds.includes(String(u.id));
         } else {
             return uRole === 'staff' && uDept === currentViewDept; 
         }
@@ -1219,9 +1223,9 @@ window.onLeaveSearch = function() {
 
 window.openManageSpecialModal = async function() {
     const users = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'manager' || u.role === 'admin').sort((a, b) => a.username.localeCompare(b.username));
-
-    // 🌟 ดึงชื่อแผนกจากแท็บปัจจุบันที่กำลังเปิดอยู่ (AM, OD, SPECIAL)
-    const targetDept = currentViewDept; 
+    
+    // โหลดข้อมูลล่าสุดกันเหนียว
+    window.specialGroupUserIds = window.specialGroupUserIds || [];
 
     let html = `
         <div class="flex flex-col h-full text-left">
@@ -1233,14 +1237,13 @@ window.openManageSpecialModal = async function() {
     `;
     
     users.forEach(u => {
-        // 🌟 เช็คว่าพนักงานคนนี้อยู่ในแท็บปัจจุบันที่เรากำลังดูอยู่หรือไม่
-        const isInTargetDept = u.department === targetDept; 
+        // เช็คว่าเคยถูกติ๊กเลือกไว้ในกลุ่มพิเศษหรือยัง
+        const isSpecial = window.specialGroupUserIds.includes(String(u.id)); 
         const currentDept = u.department || 'AM';
         
         let badgeColor = 'bg-blue-100 text-blue-700';
         if(currentDept === 'OD') badgeColor = 'bg-pink-100 text-pink-700';
         else if(currentDept === 'TRAINER') badgeColor = 'bg-cyan-100 text-cyan-700';
-        else if(currentDept === 'SPECIAL') badgeColor = 'bg-amber-100 text-amber-700';
         
         html += `
             <label class="flex items-center justify-between p-2 hover:bg-amber-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-0 transition group">
@@ -1248,14 +1251,14 @@ window.openManageSpecialModal = async function() {
                     <span class="staff-name font-bold text-sm text-slate-700 dark:text-gray-200 group-hover:text-amber-600 transition">${u.username}</span>
                     <span class="text-[9px] font-bold ${badgeColor} px-1.5 py-0.5 rounded border border-black/5 shadow-sm">${currentDept}</span>
                 </div>
-                <input type="checkbox" class="special-cb w-5 h-5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer border-gray-300" value="${u.id}" ${isInTargetDept ? 'checked' : ''}>
+                <input type="checkbox" class="special-cb w-5 h-5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer border-gray-300" value="${u.id}" ${isSpecial ? 'checked' : ''}>
             </label>
         `;
     });
     html += '</div></div>';
 
     const { value: selectedIds } = await Swal.fire({
-        title: `จัดการรายชื่อ (${targetDept})`, html: html, showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#f59e0b', cancelButtonText: 'ยกเลิก', width: '400px',
+        title: 'จัดการรายชื่อ (จัดกลุ่มเอง)', html: html, showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#f59e0b', cancelButtonText: 'ยกเลิก', width: '400px',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white' },
         preConfirm: () => {
             const checkboxes = document.querySelectorAll('.special-cb:checked');
@@ -1264,48 +1267,14 @@ window.openManageSpecialModal = async function() {
     });
 
     if (selectedIds) {
-        Swal.fire({title: 'กำลังย้ายข้อมูล...', didOpen: () => Swal.showLoading()});
+        Swal.fire({title: 'กำลังบันทึกกลุ่ม...', didOpen: () => Swal.showLoading()});
         
-        const selectedSet = new Set(selectedIds);
-        const toAddIds = []; const toRemoveIds = [];
-
-        for (let i = 0; i < GLOBAL_USER_LIST.length; i++) {
-            let u = GLOBAL_USER_LIST[i];
-            const uidStr = String(u.id);
-            const isSelected = selectedSet.has(uidStr);
-            const isCurrentlyInTarget = u.department === targetDept;
-
-            if (isSelected) {
-                if (!isCurrentlyInTarget) {
-                    GLOBAL_USER_LIST[i].department = targetDept; 
-                    toAddIds.push(u.id);
-                }
-            } else {
-                if (isCurrentlyInTarget) {
-                    // ถ้าเอาติ๊กออก ให้กลับไปอยู่แผนกตั้งต้น
-                    const fallbackDept = targetDept === 'AM' ? 'SPECIAL' : 'AM';
-                    GLOBAL_USER_LIST[i].department = fallbackDept; 
-                    toRemoveIds.push({ id: u.id, fallback: fallbackDept });
-                }
-            }
-        }
-
-        const promises = [];
-        // อัปเดตคนที่ดึงเข้ามาใหม่
-        if (toAddIds.length > 0) promises.push(appDB.from('users').update({ department: targetDept }).in('id', toAddIds));
-        
-        // อัปเดตคนที่เอาติ๊กออก
-        if (toRemoveIds.length > 0) {
-            const toAM = toRemoveIds.filter(x => x.fallback === 'AM').map(x => x.id);
-            const toSpecial = toRemoveIds.filter(x => x.fallback === 'SPECIAL').map(x => x.id);
-            if (toAM.length > 0) promises.push(appDB.from('users').update({ department: 'AM' }).in('id', toAM));
-            if (toSpecial.length > 0) promises.push(appDB.from('users').update({ department: 'SPECIAL' }).in('id', toSpecial));
-        }
-
-        if (promises.length > 0) await Promise.all(promises);
+        // 🌟 บันทึก ID ลงในตั้งค่าระบบ โดยไม่ไปแตะแผนกหลักของพนักงาน
+        window.specialGroupUserIds = selectedIds;
+        await appDB.from('settings').upsert([{ key: 'leave_special_users', value: JSON.stringify(window.specialGroupUserIds) }]);
 
         window.renderLeaveTable();
-        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'จัดการรายชื่อเรียบร้อย', timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'อัปเดตรายชื่อในกลุ่มเรียบร้อย', timer: 2000, showConfirmButton: false });
     }
 };
 
@@ -1324,28 +1293,23 @@ window.filterSpecialList = function() {
 window.removeFromSpecialDept = async function(id, username) {
     Swal.fire({
         title: 'ยืนยันการนำออก?',
-        text: `ต้องการย้าย ${username} กลับไปอยู่แผนก AM ใช่หรือไม่?`,
+        text: `ต้องการเอา ${username} ออกจากกลุ่มพิเศษนี้ใช่หรือไม่? (พนักงานจะยังอยู่ในแผนกปกติ)`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#f59e0b',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'ใช่, ย้ายกลับเลย',
+        confirmButtonText: 'ใช่, นำออกเลย',
         cancelButtonText: 'ยกเลิก'
     }).then(async (result) => {
         if (result.isConfirmed) {
-            Swal.fire({title: 'กำลังย้าย...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            Swal.fire({title: 'กำลังนำออก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
             
-            const userIndex = GLOBAL_USER_LIST.findIndex(u => String(u.id) === String(id));
-            if (userIndex !== -1) GLOBAL_USER_LIST[userIndex].department = 'AM';
+            // 🌟 ลบ ID ออกจาก Array แล้วบันทึกกลับลงไป
+            window.specialGroupUserIds = window.specialGroupUserIds.filter(uid => String(uid) !== String(id));
+            await appDB.from('settings').upsert([{ key: 'leave_special_users', value: JSON.stringify(window.specialGroupUserIds) }]);
             
-            const { error } = await appDB.from('users').update({ department: 'AM' }).eq('id', id);
-            
-            if (error) {
-                Swal.fire('Error', error.message, 'error');
-            } else {
-                window.renderLeaveTable();
-                Swal.fire({ icon: 'success', title: 'ย้ายสำเร็จ', timer: 1500, showConfirmButton: false });
-            }
+            window.renderLeaveTable();
+            Swal.fire({ icon: 'success', title: 'นำออกสำเร็จ', timer: 1500, showConfirmButton: false });
         }
     });
 };
