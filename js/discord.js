@@ -1020,6 +1020,7 @@ window.dsTotalPages = 1;
 window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = 1) {
     if (typeof ds_subscribeVoiceLogs === 'function') ds_subscribeVoiceLogs(); 
 
+    // อัปเดตหน้าปัจจุบัน
     window.dsCurrentPage = page;
 
     const dateInput = document.getElementById('voiceLogDate');
@@ -1031,8 +1032,9 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = 1) {
         if (dateInput) dateInput.value = targetDate;
     }
 
+    // 🌟 อ่านค่าจากช่องค้นหาชื่อ
     const searchInput = document.getElementById('dsLogSearch'); 
-    const searchText = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const searchText = searchInput ? searchInput.value.trim() : '';
 
     const tbody = document.getElementById('ds_voiceLogBody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลหน้า ${page}...</td></tr>`;
@@ -1041,43 +1043,38 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = 1) {
         const startOfDay = `${targetDate}T00:00:00+07:00`;
         const endOfDay = `${targetDate}T23:59:59+07:00`;
 
-        // 🌟 1. ดึงข้อมูลของ "วันนี้ทั้งวัน" มาเก็บไว้ในตัวแปรก่อน (ดึงมาให้หมดเลย)
+        // 🌟 1. ดึงแบบ Server-Side แบ่งหน้า เพื่อทะลุขีดจำกัด 1000 รายการของระบบ
         let query = appDB.from('discord_voice_logs')
-            .select('id, user_name, action_type, room_name, created_at')
+            .select('id, user_name, action_type, room_name, created_at', { count: 'exact' })
             .gte('created_at', startOfDay)
             .lte('created_at', endOfDay)
             .order('created_at', { ascending: false });
 
-        // ยิงคำสั่งไปที่ฐานข้อมูล (รอแป๊บนึง)
-        const { data, error } = await query;
+        // 🌟 2. ถ้ามีการพิมพ์ชื่อ ให้ค้นหาจากฐานข้อมูลโดยตรง (หาเจอ 100% แม้ชื่อจะตกไปอยู่หน้าหลังๆ)
+        if (searchText) {
+            query = query.ilike('user_name', `%${searchText}%`);
+        }
+
+        // 🌟 3. คำนวณจุดเริ่มต้นและสิ้นสุด (ดึงทีละ 50 บรรทัด)
+        const from = (window.dsCurrentPage - 1) * window.dsRowsPerPage;
+        const to = from + window.dsRowsPerPage - 1;
+        
+        // ใส่ Range ลงไปใน Query จะทำให้ได้ข้อมูลครบและทะลุ 1000 ได้ชัวร์ๆ
+        query = query.range(from, to);
+
+        const { data, count, error } = await query;
         if (error) throw error;
 
-        // 🌟 2. นำข้อมูลทั้งหมดมากรอง (Filter) ผ่าน JavaScript ในเครื่องเรา
-        // วิธีนี้จะค้นหาชื่อเจอ 100% แม้ชื่อในดิสคอร์ดจะมีขยะติดมาก็ตาม
-        let allLogsOfDay = data || [];
-        
-        if (searchText) {
-            allLogsOfDay = allLogsOfDay.filter(row => {
-                const name = (row.user_name || '').toLowerCase();
-                return name.includes(searchText);
-            });
-        }
+        // 🌟 4. คำนวณจำนวนหน้า (Pagination) จากยอดรวมจริงๆ ในระบบ (count)
+        window.dsTotalPages = Math.ceil((count || 0) / window.dsRowsPerPage) || 1;
 
-        // 🌟 3. คำนวณจำนวนหน้า (Pagination) จากข้อมูลที่ถูกกรองแล้ว
-        const totalItems = allLogsOfDay.length;
-        window.dsTotalPages = Math.ceil(totalItems / window.dsRowsPerPage) || 1;
-
-        // ถ้าหน้าปัจจุบันมันเกินหน้าสุดท้าย (เช่น ค้นหาจนเหลือน้อย) ให้ถอยกลับมาหน้า 1
+        // ดักจับกรณีค้นหาจนหน้าปัจจุบันเกินจำนวนหน้าทั้งหมด
         if (window.dsCurrentPage > window.dsTotalPages) {
             window.dsCurrentPage = 1;
+            return ds_fetchVoiceLogs(forceRefresh, 1);
         }
 
-        // 🌟 4. สับข้อมูลมาแค่ 50 บรรทัด (ตามหน้าปัจจุบัน)
-        const from = (window.dsCurrentPage - 1) * window.dsRowsPerPage;
-        const to = from + window.dsRowsPerPage;
-        const pageData = allLogsOfDay.slice(from, to);
-
-        window.dsGlobalVoiceLogs = pageData.map(row => ({
+        window.dsGlobalVoiceLogs = data.map(row => ({
             id: row.id,
             name: row.user_name,
             action: row.action_type,
@@ -1088,10 +1085,9 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = 1) {
         // วาดตาราง 50 บรรทัด
         if (typeof ds_renderVoiceLogs === 'function') ds_renderVoiceLogs();
 
-        // 🌟 วาดปุ่มเปลี่ยนหน้าด้านล่างตาราง (ส่ง totalItems ไปให้ด้วย)
-        ds_renderPaginationControls(totalItems);
+        // 🌟 วาดปุ่มเปลี่ยนหน้า (ส่ง count ที่แท้จริงไปให้)
+        ds_renderPaginationControls(count);
 
-        // แจ้งเตือนเฉพาะตอนที่ผู้ใช้ตั้งใจกดปุ่มรีเฟรชเอง (forceRefresh = true)
         if (forceRefresh === true && !searchText) {
             const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
             Toast.fire({ icon: 'success', title: 'อัปเดตข้อมูลเรียบร้อย' });
