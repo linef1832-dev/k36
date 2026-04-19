@@ -387,9 +387,10 @@ function subscribeLeaveChanges() {
             }
 
             if (shouldRenderTable) {
-               window.renderLeaveTable();
-            flashRealtimeDot();
-}
+                window.renderLeaveTable(); 
+                flashRealtimeDot();
+            }
+        } // 🌟 เพิ่มปีกกาปิด } ตรงนี้ 1 ตัวครับ
     }).subscribe();
 }
 
