@@ -158,6 +158,19 @@ window.initLeaveTable = async function() {
     const btnTRAINER = document.getElementById('btnTRAINER');
     if (btnTRAINER) { if(canViewTRAINER) btnTRAINER.classList.remove('hidden'); else btnTRAINER.classList.add('hidden'); }
 
+    // 🌟 ควบคุมแท็บ จัดกลุ่มเอง (ให้เห็นเฉพาะแอดมิน กับคนที่ถูกดึงชื่อเข้ามา)
+    const btnSPECIAL = document.getElementById('btnSPECIAL');
+    if (btnSPECIAL) {
+        window.specialGroupUserIds = window.specialGroupUserIds || [];
+        const isInSpecialGroup = window.specialGroupUserIds.includes(String(currentUser.id));
+        
+        if (isGlobalAdmin || isInSpecialGroup) {
+            btnSPECIAL.classList.remove('hidden');
+        } else {
+            btnSPECIAL.classList.add('hidden');
+        }
+    }
+
     // 1. แถบจัดการของแอดมิน (ตั้งค่าต่างๆ)
     const controls = document.getElementById('leaveManagerControls');
     if(controls) { 
@@ -541,6 +554,7 @@ window.renderLeaveTable = function() {
 
     let displayDeptText = currentViewDept;
     if(currentViewDept === 'TRAINER') displayDeptText = 'ผู้สอน';
+    if(currentViewDept === 'SPECIAL') displayDeptText = 'จัดกลุ่มเอง';
 
     let headerHtml = `
         <th class="p-2 sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[40px] min-w-[40px] max-w-[40px] text-center">No.</th>
