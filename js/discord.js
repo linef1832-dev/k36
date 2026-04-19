@@ -174,7 +174,9 @@ window.switchDiscordTab = function(tabName) {
                     dateInput.value = new Date(Date.now() + tzOffset).toISOString().split('T')[0];
                 }
                 ds_fetchVoiceLogs();
-                logInterval = setInterval(ds_fetchVoiceLogs, 15000); 
+                logInterval = setInterval(() => {
+                    ds_fetchVoiceLogs(false, 1);
+                }, 15000);
             }
             else if (tabName === 'actionlog') {
                 activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.5)] flex items-center gap-1";
@@ -1089,6 +1091,7 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = 1) {
         // 🌟 วาดปุ่มเปลี่ยนหน้าด้านล่างตาราง (ส่ง totalItems ไปให้ด้วย)
         ds_renderPaginationControls(totalItems);
 
+        // แจ้งเตือนเฉพาะตอนที่ผู้ใช้ตั้งใจกดปุ่มรีเฟรชเอง (forceRefresh = true)
         if (forceRefresh === true && !searchText) {
             const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
             Toast.fire({ icon: 'success', title: 'อัปเดตข้อมูลเรียบร้อย' });
