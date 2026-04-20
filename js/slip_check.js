@@ -379,6 +379,10 @@ window.clearSlipUpload = function() {
         resultData.classList.remove('flex');
     }
     
+    // 🔴 ซ่อนป้ายรายละเอียดความผิดปกติเมื่อล้างรูปภาพ
+    const detailBadge = document.getElementById('slipDetailBadge');
+    if (detailBadge) detailBadge.classList.add('hidden');
+    
     updateSlipBadge('none', 'รอรูปภาพ...');
 };
 
@@ -520,6 +524,8 @@ window.verifyThunderSlip = async function() {
             const ocrText = await window.performOCR(window.selectedSlipFile);
 
             let isFakeSlip = false;
+            let isFakeName = false;
+            let isFakeAmount = false;
             let fakeReasons = []; // เก็บเหตุผลความผิดปกติทั้งหมด
             let ocrDetectedAmount = actualAmount;
 
@@ -537,6 +543,7 @@ window.verifyThunderSlip = async function() {
                         ocrDetectedAmount = Math.max(...extractedNumbers); 
                         if (ocrDetectedAmount !== actualAmount && ocrDetectedAmount > actualAmount) {
                             isFakeSlip = true; 
+                            isFakeAmount = true;
                             fakeReasons.push(`<b>ยอดเงินไม่ตรง:</b> ตรวจพบ ฿${ocrDetectedAmount.toLocaleString('en-US', {minimumFractionDigits: 2})} แต่ QR คือ ฿${actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
                         }
                     }
@@ -557,6 +564,7 @@ window.verifyThunderSlip = async function() {
                         let firstPart = normalizeText(senderParts[0]);
                         if (!normalizedOcr.includes(firstPart)) {
                             isFakeSlip = true;
+                            isFakeName = true;
                             fakeReasons.push(`<b>ชื่อผู้โอนไม่ตรง:</b> ไม่พบคำว่า "${senderParts[0]}" บนสลิป`);
                         }
                     }
@@ -570,11 +578,37 @@ window.verifyThunderSlip = async function() {
                         let firstPart = normalizeText(receiverParts[0]);
                         if (!normalizedOcr.includes(firstPart)) {
                             isFakeSlip = true;
+                            isFakeName = true;
                             fakeReasons.push(`<b>ชื่อผู้รับไม่ตรง:</b> ไม่พบคำว่า "${receiverParts[0]}" บนสลิป`);
                         }
                     }
                 }
             }
+
+            // 🔴 เพิ่มป้ายสถานะแบบละเอียด (ปกติ / ปลอมชื่อ / ปลอมจำนวนเงิน)
+            let detailBadge = document.getElementById('slipDetailBadge');
+            if (!detailBadge) {
+                detailBadge = document.createElement('span');
+                detailBadge.id = 'slipDetailBadge';
+                const statusBadge = document.getElementById('slipStatusBadge');
+                if (statusBadge) {
+                    statusBadge.parentNode.insertBefore(detailBadge, statusBadge);
+                }
+            }
+            
+            detailBadge.className = "ml-auto mr-3 px-3 py-1 rounded-full text-[11px] font-black shadow-inner border ";
+            if (isFakeSlip) {
+                let fakeTypes = [];
+                if (isFakeAmount) fakeTypes.push('ปลอมจำนวนเงิน');
+                if (isFakeName) fakeTypes.push('ปลอมชื่อ');
+                detailBadge.innerHTML = `<span class="material-icons text-[12px] align-middle mr-1">warning</span> ${fakeTypes.join(' และ ')}`;
+                detailBadge.className += "bg-red-900/40 text-red-400 border-red-700/50";
+            } else {
+                detailBadge.innerHTML = `<span class="material-icons text-[12px] align-middle mr-1">task_alt</span> ข้อมูลปกติ`;
+                detailBadge.className += "bg-emerald-900/40 text-emerald-400 border-emerald-700/50";
+            }
+            detailBadge.classList.remove('hidden');
+            // -------------------------------------------------------------
 
             let isLocalDuplicate = window.slipHistoryData.some(h => h.ref === transRef && transRef !== '-');
             let isDuplicate = data.isDuplicate || isLocalDuplicate;
