@@ -616,7 +616,7 @@ window.verifyThunderSlip = async function() {
 };
 
 // ==========================================
-// 🌟 3. ระบบบันทึก ลบ และแสดงผลประวัติ 
+// 🌟 3. ระบบบันทึก ลบ และแสดงผลประวัติ (อัปเดตให้รองรับ URL รูปภาพ)
 // ==========================================
 
 window.saveSlipHistory = async function(result, isSuccess) {
@@ -632,7 +632,7 @@ window.saveSlipHistory = async function(result, isSuccess) {
         receiverName: isSuccess && result.data ? (result.data.receiver?.name || '') : '',
         ref: isSuccess && result.data ? (result.data.transRef || result.data.ref1 || '') : '',
         date: isSuccess && result.data ? (result.data.date || '') : '',
-        imageUrl: result.imageUrl || null 
+        imageUrl: result.imageUrl || null // 🔴 เซฟ URL ลง Database
     };
     
     if (typeof appDB !== 'undefined') {
@@ -668,6 +668,7 @@ window.deleteSlipHistory = function(id, event) {
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     }).then(async (result) => {
         if (result.isConfirmed) {
+            // 🔴 สั่งลบรูปออกจาก Storage ก่อน
             const slipToDelete = window.slipHistoryData.find(h => h.id === id);
             if (slipToDelete && slipToDelete.imageUrl && typeof appDB !== 'undefined') {
                 try {
@@ -727,14 +728,16 @@ window.renderSlipHistory = function() {
         const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
         let statusBadge = h.isFake ? `<span class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">ปลอม!</span>` : (h.success ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">สำเร็จ</span>` : `<span class="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">ไม่สำเร็จ</span>`);
         
+        // 🔴 สร้างปุ่มดวงตา (ถ้ามี URL รูปให้กดดูได้ ถ้าไม่มีให้ปุ่มเป็นสีเทา)
         const viewImgBtn = h.imageUrl 
-            ? `<button onclick="window.viewSlipImage('${h.imageUrl}', event)" class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 p-1.5 rounded-lg transition" title="ดูรูปสลิป"><span class="material-icons text-[18px]">image</span></button>` 
-            : `<span class="text-slate-600 material-icons text-[16px] p-1.5" title="ไม่มีรูป">image_not_supported</span>`;
+            ? `<button onclick="window.viewSlipImage('${h.imageUrl}', event)" class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 p-1.5 rounded-lg transition" title="ดูรูปสลิป"><span class="material-icons text-[18px]">visibility</span></button>` 
+            : `<span class="text-slate-600 material-icons text-[16px] p-1.5" title="ไม่มีรูป">visibility_off</span>`;
             
         const delBtn = canDelete 
             ? `<button onclick="window.deleteSlipHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition"><span class="material-icons text-[18px]">delete</span></button>` 
             : `<span class="text-slate-600 material-icons text-[16px] p-1.5">block</span>`;
             
+        // จับมัดรวมปุ่ม ตา 👁️ และปุ่ม ถังขยะ 🗑️ ไว้ในคอลัมน์เดียวกัน
         const actionBtns = `<div class="flex items-center justify-center gap-1">${viewImgBtn}${delBtn}</div>`;
 
         return `<tr class="hover:bg-slate-800 transition cursor-pointer border-b border-slate-800/50 group" onclick="window.viewHistoryDetail('${h.id}')"><td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td><td class="p-3 font-mono text-xs text-sky-400 font-bold">${h.ref || '-'}</td><td class="p-3 font-bold text-sm text-gray-200">${h.senderName || '-'}</td><td class="p-3 text-xs text-gray-400">${h.receiverName || '-'}</td><td class="p-3 text-right font-mono font-bold ${h.isFake ? 'text-red-400':'text-emerald-400'}">฿${parseFloat(h.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td><td class="p-3 text-center">${statusBadge}</td><td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td><td class="p-3 text-center">${actionBtns}</td></tr>`;
@@ -748,7 +751,7 @@ window.renderFakeHistory = function() {
     
     const fakes = window.slipHistoryData.filter(h => h.isFake);
     const filtered = fakes.filter(h => {
-        if (!search) return true; 
+        if (!search) return true; // 🌟 แก้บัค: ถ้าไม่ได้พิมพ์ค้นหา ให้โชว์สลิปปลอมทั้งหมด
         return (h.senderName && h.senderName.toLowerCase().includes(search)) ||
                (h.receiverName && h.receiverName.toLowerCase().includes(search)) ||
                (h.checkerName && h.checkerName.toLowerCase().includes(search));
@@ -765,7 +768,7 @@ window.renderFakeHistory = function() {
 window.filterFakeHistory = function() { window.renderFakeHistory(); };
 
 // ==========================================
-// 🌟 ประวัติการสแกน QR Code
+// 🌟 ประวัติการสแกน QR Code (เพิ่มตัวป้องกันข้อมูลหายเช่นกัน)
 // ==========================================
 
 window.saveQRHistory = async function(data) {
@@ -830,7 +833,7 @@ window.renderQRHistory = function() {
     const search = document.getElementById('qrHistorySearch') ? document.getElementById('qrHistorySearch').value.toLowerCase() : '';
     
     const filtered = window.qrHistoryData.filter(h => {
-        if (!search) return true; 
+        if (!search) return true; // 🌟 แก้บัคช่องค้นหา
         return (h.account && h.account.toLowerCase().includes(search)) ||
                (h.type && h.type.toLowerCase().includes(search)) ||
                (h.checkerName && h.checkerName.toLowerCase().includes(search));
@@ -858,7 +861,7 @@ window.filterQRHistory = function() { window.renderQRHistory(); };
 // 🌟 ฟังก์ชันอื่นๆ (คัดลอก และ วางสลิป)
 // ==========================================
 window.copyToClipboard = function(text, btnElement, event) {
-    if (event) event.stopPropagation(); 
+    if (event) event.stopPropagation(); // ป้องกันไม่ให้ตารางเด้งเปิดรายละเอียดตอนกดปุ่ม
     if (!text || text === '-') return;
     
     navigator.clipboard.writeText(text).then(() => {
@@ -887,6 +890,7 @@ document.addEventListener('paste', function(e) {
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
             
+            // ส่งไฟล์ไปเข้าโหมดที่กำลังเปิดอยู่ (สลิป หรือ QR)
             const contentQR = document.getElementById('tabContentQR');
             if (contentQR && !contentQR.classList.contains('hidden')) {
                 const qrInput = document.getElementById('qrReceiverInput');
@@ -927,18 +931,21 @@ document.addEventListener('click', (e) => {
 });
 
 // ==========================================
-// 🌟 1. ฟังก์ชันอัปโหลดรูป และ แสดงรูป
+// 🌟 1. ฟังก์ชันอัปโหลดรูป และ แสดงรูป (เพิ่มใหม่)
 // ==========================================
 
+// ฟังก์ชันอัปโหลดรูปลง Supabase Storage
 window.uploadSlipToStorage = async function(file) {
     if (!file || typeof appDB === 'undefined') return null;
     try {
         const fileExt = file.name ? file.name.split('.').pop() : 'png';
         const fileName = `slip_${Date.now()}_${Math.random().toString(36).substring(2,9)}.${fileExt}`;
 
+        // โยนรูปลง Bucket ชื่อ 'slips'
         const { error } = await appDB.storage.from('slips').upload(fileName, file);
         if (error) throw error;
 
+        // ดึง URL กลับมาเพื่อเอาไปเซฟลงตารางประวัติ
         const { data: publicUrlData } = appDB.storage.from('slips').getPublicUrl(fileName);
         return publicUrlData.publicUrl;
     } catch (e) {
@@ -947,26 +954,14 @@ window.uploadSlipToStorage = async function(file) {
     }
 };
 
+// ฟังก์ชันเปิดดูรูปสลิปแบบ Pop-up (ใช้ SweetAlert2)
 window.viewSlipImage = function(url, event) {
-    if (event) event.stopPropagation(); 
-    
-    if (!document.getElementById('swal-slow-anim')) {
-        const style = document.createElement('style');
-        style.id = 'swal-slow-anim';
-        style.innerHTML = `
-            .swal2-popup.swal-slow-show { animation: swal2-show 0.6s ease-in-out !important; }
-            .swal2-popup.swal-slow-hide { animation: swal2-hide 0.4s ease-in-out !important; }
-        `;
-        document.head.appendChild(style);
-    }
-
+    if (event) event.stopPropagation(); // ป้องกันไม่ให้คลิกทะลุไปโดนแถวตาราง
     Swal.fire({
         imageUrl: url,
         imageAlt: 'รูปสลิปโอนเงิน',
         showConfirmButton: false,
         showCloseButton: true,
-        showClass: { popup: 'swal2-popup swal2-modal swal-slow-show' },
-        hideClass: { popup: 'swal2-popup swal2-modal swal-slow-hide' },
         customClass: { 
             popup: 'dark:bg-slate-800 rounded-2xl', 
             image: 'rounded-lg max-h-[80vh] object-contain shadow-lg bg-[#0f172a]' 
