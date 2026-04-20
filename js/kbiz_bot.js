@@ -5,17 +5,11 @@ const STORAGE_KEY = 'my_saved_kbiz_bots';
 window.initKbizBotPage = async function() {
     window.removeEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
     window.addEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
-    
     renderSavedBots();
     renderBotQueue();
 };
 
-// ==========================================
-// ระบบจัดการบอท (บันทึก/ดึง/ลบ)
-// ==========================================
-function getSavedBots() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-}
+function getSavedBots() { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
 
 window.saveKbizBot = function() {
     const idInput = document.getElementById('editBotId').value;
@@ -26,17 +20,13 @@ window.saveKbizBot = function() {
     if (!name || !user || !pass) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'warning');
 
     let bots = getSavedBots();
-    
     if (idInput) {
         let index = bots.findIndex(b => b.id === idInput);
         if(index > -1) bots[index] = { id: idInput, name, user, pass };
-    } else {
-        bots.push({ id: 'b_'+Date.now(), name, user, pass });
-    }
+    } else { bots.push({ id: 'b_'+Date.now(), name, user, pass }); }
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(bots));
-    clearBotForm();
-    renderSavedBots();
+    clearBotForm(); renderSavedBots();
     Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', timer: 1000, showConfirmButton: false});
 };
 
@@ -53,26 +43,18 @@ window.editSavedBot = function(id) {
 window.deleteSavedBot = function(id) {
     if(!confirm('ต้องการลบบอทตัวนี้ใช่หรือไม่?')) return;
     let bots = getSavedBots().filter(b => b.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(bots));
-    renderSavedBots();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(bots)); renderSavedBots();
 };
 
 window.clearBotForm = function() {
-    document.getElementById('editBotId').value = '';
-    document.getElementById('botSaveName').value = '';
-    document.getElementById('botSaveUser').value = '';
-    document.getElementById('botSavePass').value = '';
+    document.getElementById('editBotId').value = ''; document.getElementById('botSaveName').value = '';
+    document.getElementById('botSaveUser').value = ''; document.getElementById('botSavePass').value = '';
 };
 
 window.renderSavedBots = function() {
     const list = document.getElementById('savedBotsList');
     const bots = getSavedBots();
-    
-    if(bots.length === 0) {
-        list.innerHTML = '<div class="text-xs text-gray-400 text-center py-2">ยังไม่มีข้อมูลบอท</div>';
-        return;
-    }
-
+    if(bots.length === 0) { list.innerHTML = '<div class="text-xs text-gray-400 text-center py-2">ยังไม่มีข้อมูลบอท</div>'; return; }
     list.innerHTML = bots.map(b => `
         <div class="flex justify-between items-center bg-slate-100 dark:bg-slate-700 p-2 rounded border border-slate-200 dark:border-slate-600">
             <div class="flex flex-col">
@@ -88,51 +70,30 @@ window.renderSavedBots = function() {
     `).join('');
 };
 
-// ==========================================
-// ระบบคิวทำงาน
-// ==========================================
 window.addSavedBotToQueue = function(id) {
     if (window.isKbizBotRunning) return Swal.fire('เตือน', 'กรุณาหยุดบอทก่อนเพิ่มคิว', 'warning');
     const bot = getSavedBots().find(b => b.id === id);
     if (!bot) return;
+    if (window.kbizBotQueue.find(b => b.machine_id === bot.name)) return Swal.fire('ข้อมูลซ้ำ', 'มีบอทชื่อนี้ในคิวแล้วครับ', 'info');
 
-    if (window.kbizBotQueue.find(b => b.machine_id === bot.name)) {
-        return Swal.fire('ข้อมูลซ้ำ', 'มีบอทชื่อนี้ในคิวแล้วครับ', 'info');
-    }
-
-    window.kbizBotQueue.push({
-        id: 'q_'+Date.now(),
-        machine_id: bot.name,
-        username: bot.user,
-        password: bot.pass,
-        success: 0,
-        fail: 0,
-        status: 'ready'
-    });
+    window.kbizBotQueue.push({ id: 'q_'+Date.now(), machine_id: bot.name, username: bot.user, password: bot.pass, success: 0, fail: 0, status: 'ready' });
     renderBotQueue();
 };
 
 window.removeBotFromQueue = function(id) {
     if (window.isKbizBotRunning) return;
-    window.kbizBotQueue = window.kbizBotQueue.filter(b => b.id !== id);
-    renderBotQueue();
+    window.kbizBotQueue = window.kbizBotQueue.filter(b => b.id !== id); renderBotQueue();
 };
 
 window.clearBotQueue = function() {
     if (window.isKbizBotRunning) return;
-    window.kbizBotQueue = [];
-    renderBotQueue();
+    window.kbizBotQueue = []; renderBotQueue();
 };
 
 window.renderBotQueue = function() {
     const list = document.getElementById('botQueueList');
     document.getElementById('botQueueCount').innerText = window.kbizBotQueue.length;
-    
-    if (window.kbizBotQueue.length === 0) {
-        list.innerHTML = '<div class="text-center text-gray-400 text-xs py-10">กรุณากด "+ เลือกลงคิว" จากด้านบน</div>';
-        return;
-    }
-    
+    if (window.kbizBotQueue.length === 0) { list.innerHTML = '<div class="text-center text-gray-400 text-xs py-10">กรุณากด "+ เลือกลงคิว" จากด้านบน</div>'; return; }
     list.innerHTML = window.kbizBotQueue.map(b => `
         <div class="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-gray-200 dark:border-slate-700 flex items-center justify-between">
             <div class="flex flex-col">
@@ -150,9 +111,7 @@ window.renderBotQueue = function() {
 window.handleBotStatusUpdate = function(e) {
     const { message, status, botId, action } = e.detail;
     addBotLog(message, status);
-    
     if (botId) {
-        // หาบอทตัวที่ทำงานอยู่ผ่าน id คิว หรือ machine_id
         const bot = window.kbizBotQueue.find(b => b.id === botId || b.machine_id === botId);
         if (bot) {
             if (action === 'success') bot.success++;
@@ -166,30 +125,29 @@ window.startKbizBotProcess = function() {
     if (window.kbizBotQueue.length === 0) return Swal.fire('คิวว่าง', 'กรุณาเลือกบอทลงคิว', 'warning');
 
     const btn = document.getElementById('btnStartAutoRun');
+    // 🌟 อ่านค่าลิมิตจำนวนครั้งที่ถอนเงิน 🌟
+    const maxWithdraw = parseInt(document.getElementById('botSettingMaxWithdrawal').value) || 3;
 
     if (window.isKbizBotRunning) {
         window.isKbizBotRunning = false;
         btn.innerHTML = '<span class="material-icons">play_circle</span> เริ่มทำงานอัตโนมัติ (Auto-Run)';
         btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl shadow-lg mt-2 flex items-center justify-center gap-2";
-        window.kbizBotQueue.forEach(b => b.status = 'ready');
-        renderBotQueue();
+        window.kbizBotQueue.forEach(b => b.status = 'ready'); renderBotQueue();
         addBotLog('หยุดการทำงานบอทแล้ว', 'warning');
         window.dispatchEvent(new CustomEvent('STOP_KBIZ_BOT'));
     } else {
         window.isKbizBotRunning = true;
         btn.innerHTML = '<span class="material-icons">stop_circle</span> หยุดการทำงานบอท (Stop)';
         btn.className = "w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl shadow-lg mt-2 flex items-center justify-center gap-2";
-        window.kbizBotQueue.forEach(b => b.status = 'running');
-        renderBotQueue();
-        addBotLog(`เริ่มส่งคำสั่งไปให้บอทจำนวน ${window.kbizBotQueue.length} ตัว ทำงาน...`, 'info');
+        window.kbizBotQueue.forEach(b => b.status = 'running'); renderBotQueue();
+        
+        addBotLog(`ส่งคำสั่งไปให้บอท ${window.kbizBotQueue.length} ตัว... (ตั้งลิมิตยอดถอนไว้ที่ ${maxWithdraw} ครั้ง)`, 'info');
         
         window.dispatchEvent(new CustomEvent('START_KBIZ_BOT', {
             detail: {
+                max_withdrawal: maxWithdraw, // 👈 แนบไปกับคำสั่งด้วย
                 bots: window.kbizBotQueue.map(b => ({
-                    id: b.machine_id, // ส่งชื่อบอทไปเป็น ID อ้างอิง
-                    machine_id: b.machine_id,
-                    username: b.username,
-                    password: b.password
+                    id: b.machine_id, machine_id: b.machine_id, username: b.username, password: b.password
                 }))
             }
         }));
@@ -197,8 +155,7 @@ window.startKbizBotProcess = function() {
 };
 
 window.addBotLog = function(message, status = 'info') {
-    const logArea = document.getElementById('botLogArea');
-    if (!logArea) return;
+    const logArea = document.getElementById('botLogArea'); if (!logArea) return;
     const time = new Date().toLocaleTimeString('th-TH');
     let color = 'text-green-400';
     if (status === 'error') color = 'text-red-400';
@@ -209,23 +166,14 @@ window.addBotLog = function(message, status = 'info') {
 };
 window.clearBotLog = () => { document.getElementById('botLogArea').innerHTML = ''; };
 
-// ==========================================
-// ระบบ Auto-Load ดึงข้อมูลทันทีที่เปิดหน้าเว็บ
-// ==========================================
 setInterval(() => {
     const list = document.getElementById('savedBotsList');
-    
-    // ตรวจสอบว่าหน้าจอถูกเปิดขึ้นมาแล้ว และยังไม่ได้โหลดข้อมูล
     if (list && !list.hasAttribute('data-loaded')) {
         if (typeof window.renderSavedBots === 'function') {
-            window.renderSavedBots(); // สั่งวาดรายการบอทที่บันทึกไว้
-            window.renderBotQueue();  // สั่งวาดคิวที่ค้างอยู่
-            
-            list.setAttribute('data-loaded', 'true'); // ทำสัญลักษณ์ไว้ว่าโหลดเสร็จแล้ว จะได้ไม่โหลดซ้ำ
-            
-            // เชื่อมต่อเสาอากาศรับแจ้งเตือนจาก Extension อีกครั้ง
+            window.renderSavedBots(); window.renderBotQueue();
+            list.setAttribute('data-loaded', 'true');
             window.removeEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
             window.addEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
         }
     }
-}, 500); // เช็คแบบเรียลไทม์ทุกๆ ครึ่งวินาที
+}, 500);
