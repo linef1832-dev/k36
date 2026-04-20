@@ -10,6 +10,7 @@ window.initKbizBotPage = async function() {
             if (data && data.value) {
                 const bots = JSON.parse(data.value);
                 // เอามาโชว์เฉพาะบอทที่ "เปิดใช้งาน" อยู่
+                select.innerHTML = '<option value="">-- พิมพ์เองด้านล่าง --</option>'; // Reset
                 bots.filter(b => b.is_active).forEach(b => {
                     const val = JSON.stringify({ u: b.username, p: b.password });
                     select.innerHTML += `<option value='${val}'>${b.machine_id} - ${b.display_name || 'ไม่ระบุชื่อ'}</option>`;
@@ -19,10 +20,13 @@ window.initKbizBotPage = async function() {
     } catch(e) { console.error('Load Bots Error:', e); }
 
     // สมัครรับข้อมูลแจ้งเตือน (Log) ตอบกลับมาจาก Extension
-    window.addEventListener('BOT_STATUS_UPDATE', function(e) {
-        addBotLog(e.detail.message, e.detail.status);
-    });
+    window.removeEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
+    window.addEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
 };
+
+function handleBotStatusUpdate(e) {
+    addBotLog(e.detail.message, e.detail.status);
+}
 
 // กรอกข้อมูลล็อกอินอัตโนมัติเมื่อเลือกบอท
 window.autoFillBotLogin = function() {
@@ -56,24 +60,19 @@ function addBotLog(message, status = 'info') {
 window.startKbizBotProcess = function() {
     const u = document.getElementById('botUsername').value.trim();
     const p = document.getElementById('botPassword').value.trim();
-    const bank = document.getElementById('botTargetBank').value;
-    const acc = document.getElementById('botTargetAcc').value.trim();
-    const name = document.getElementById('botTargetName').value.trim();
 
-    if (!u || !p || !acc || !name) {
-        return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลให้ครบทุกช่องก่อนเริ่มรันบอทครับ', 'warning');
+    if (!u || !p) {
+        return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกรหัสผู้ใช้งาน และ รหัสผ่าน K BIZ ก่อนเริ่มรันบอทครับ', 'warning');
     }
 
-    addBotLog('กำลังส่งคำสั่งไปที่ Extension...', 'info');
+    addBotLog('กำลังส่งคำสั่งไปที่ Extension ให้เริ่มสแกนระบบหลังบ้าน...', 'info');
 
-    // ส่ง Event ออกไปให้ Chrome Extension (ที่เป็นเสาอากาศ) รับทราบ
+    // ส่ง Event ออกไปให้ Chrome Extension (ที่เป็นเสาอากาศรับเรื่อง)
+    // ส่งไปแค่ข้อมูลล็อกอิน K BIZ ส่วนข้อมูลบัญชีให้ตัว Extension หาเอง
     window.dispatchEvent(new CustomEvent('START_KBIZ_BOT', {
         detail: {
             username: u,
-            password: p,
-            bank_name: bank,
-            acc_no: acc,
-            target_name: name
+            password: p
         }
     }));
 };
