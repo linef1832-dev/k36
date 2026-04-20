@@ -352,7 +352,268 @@ window.handleSlipUpload = function(event) {
     updateSlipBadge('ready', 'พร้อมตรวจสอบ');
 };
 
+// ==========================================
+// 🌟 โหมดที่ 1: เช็คสลิปโอนเงิน (OCR & API)
+// ==========================================
+
 window.clearSlipUpload = function() {
+    window.selectedSlipFile = null;
+    
+    const slipInput = document.getElementById('slipUploadInput');
+    if (slipInput) slipInput.value = '';
+    
+    const slipImg = document.getElementById('slipPreviewImg');
+    if (slipImg) {
+        slipImg.src = '';
+        slipImg.classList.add('hidden');
+    }
+    
+    const slipPlaceholder = document.getElementById('slipUploadPlaceholder');
+    if (slipPlaceholder) slipPlaceholder.classList.remove('opacity-0');
+    
+    const resultEmpty = document.getElementById('slipResultEmpty');
+    if (resultEmpty) {
+        resultEmpty.classList.remove('hidden');
+        resultEmpty.classList.add('flex');
+    }
+    
+    const resultData = document.getElementById('slipResultData');
+    if (resultData) {
+        resultData.classList.add('hidden');
+        resultData.classList.remove('flex');
+    }
+    
+    // 🔴 ซ่อนป้ายรายละเอียดความผิดปกติเมื่อล้างรูปภาพ
+    const detailBadge = document.getElementById('slipDetailBadge');
+    if (detailBadge) detailBadge.classList.add('hidden');
+    
+    updateSlipBadge('none', 'รอรูปภาพ...');
+};
+
+// ==========================================
+// 🌟 2. ฟังก์ชันตรวจสอบสลิปหลัก
+// ==========================================
+window.verifyThunderSlip = async function() {
+    if (!window.selectedSlipFile) {
+        return Swal.fire('แจ้งเตือน', 'กรุณาอัปโหลดรูปภาพ หรือกด Ctrl+V เพื่อวางสลิปก่อนครับ', 'warning');
+    }
+
+    Swal.fire({
+        title: 'กำลังสแกน QR Code...', html: 'โปรดรอสักครู่...',
+        allowOutsideClick: false, didOpen: () => Swal.showLoading(),
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+
+    try {
+        const qrPayload = await window.extractQrPayload(window.selectedSlipFile);
+        
+        Swal.update({ title: 'เชื่อมต่อฐานข้อมูล...', html: 'กำลังดึงข้อมูลจากธนาคาร...' });
+        const SUPABASE_FUNCTION_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/functions/v1/verify-slip'; 
+
+        const response = await fetch(SUPABASE_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payload: qrPayload, checkDuplicate: true }) 
+        });
+
+        const result = await response.json();
+
+        if (result.status === 200 || result.success === true) {
+            const data = result.data || result; 
+
+            // ดึงข้อมูลยอดเงิน
+            let rawAmount = findDeep(data, 'amount');
+            let amountVal = typeof rawAmount === 'object' ? (rawAmount.amount || 0) : (rawAmount || 0);
+            let actualAmount = parseFloat(amountVal);
+
+            // ดึงข้อมูลรายชื่อมาเตรียมไว้ก่อนตรวจสอบ
+            const getName = (obj) => {
+                if (!obj) return 'ไม่ระบุ';
+                if (typeof obj === 'string') return obj;
+                return findDeep(obj, 'th') || findDeep(obj, 'en') || findDeep(obj, 'displayName') || findDeep(obj, 'name') || 'ไม่ระบุ';
+            };
+
+            const getBank = (obj) => {
+                if (!obj) return '-';
+                if (typeof obj === 'string') return obj;
+                return findDeep(obj, 'short') || findDeep(obj, 'name') || '-';
+            };
+
+            const getAccount = (obj) => {
+                if (!obj) return '-';
+                return findDeep(obj, 'value') || findDeep(obj, 'account') || findDeep(obj, 'anyId') || '-';
+            };
+
+            let senderObj = data.sender || {};
+            let receiverObj = data.receiver || {};
+            let senderName = getName(senderObj);
+            let receiverName = getName(receiverObj);
+            let transRef = findDeep(data, 'transRef') || findDeep(data, 'ref1') || '-';
+            let transDate = findDeep(data, 'transDate') || findDeep(data, 'date');
+
+            Swal.update({ title: 'AI กำลังอ่านตัวเลขและรายชื่อ...', html: 'ตรวจสอบสลิปตัดต่อด้วยระบบ AI...' });
+            const ocrText = await window.performOCR(window.selectedSlipFile);
+
+            let isFakeSlip = false;
+            let isFakeName = false;
+            let isFakeAmount = false;
+            let fakeReasons = []; // เก็บเหตุผลความผิดปกติทั้งหมด
+            let ocrDetectedAmount = actualAmount;
+
+            if (ocrText.trim() !== "") {
+                // 1. ตรวจสอบยอดเงิน (Amount)
+                const amountStr1 = actualAmount.toFixed(2); 
+                const amountStr2 = actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
+                const hasRealAmount = ocrText.includes(amountStr1) || ocrText.includes(amountStr2);
+
+                if (!hasRealAmount) {
+                    const numberMatches = ocrText.replace(/,/g, '').match(/\d+\.\d{2}/g) || [];
+                    const extractedNumbers = numberMatches.map(n => parseFloat(n));
+
+                    if (extractedNumbers.length > 0) {
+                        ocrDetectedAmount = Math.max(...extractedNumbers); 
+                        if (ocrDetectedAmount !== actualAmount && ocrDetectedAmount > actualAmount) {
+                            isFakeSlip = true; 
+                            isFakeAmount = true;
+                            fakeReasons.push(`<b>ยอดเงินไม่ตรง:</b> ตรวจพบ ฿${ocrDetectedAmount.toLocaleString('en-US', {minimumFractionDigits: 2})} แต่ QR คือ ฿${actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
+                        }
+                    }
+                }
+
+                // ฟังก์ชันช่วยเคลียร์ช่องว่างเพื่อให้เปรียบเทียบชื่อได้แม่นยำขึ้น
+                const normalizeText = (text) => text.replace(/\s+/g, '').toLowerCase();
+                const normalizedOcr = normalizeText(ocrText);
+
+                // 2. ตรวจสอบชื่อผู้โอน (Sender)
+                if (senderName !== 'ไม่ระบุ' && senderName !== '-' && !senderName.includes('*') && !senderName.includes('x')) {
+                    let cleanSender = senderName.replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.|Miss\.)\s*/i, '').trim();
+                    let senderParts = cleanSender.split(/\s+/);
+                    if (senderParts.length > 0 && senderParts[0].length > 2) {
+                        let firstPart = normalizeText(senderParts[0]);
+                        if (!normalizedOcr.includes(firstPart)) {
+                            isFakeSlip = true;
+                            isFakeName = true;
+                            fakeReasons.push(`<b>ชื่อผู้โอนไม่ตรง:</b> ไม่พบคำว่า "${senderParts[0]}" บนสลิป`);
+                        }
+                    }
+                }
+
+                // 3. ตรวจสอบชื่อผู้รับ (Receiver)
+                if (receiverName !== 'ไม่ระบุ' && receiverName !== '-' && !receiverName.includes('*') && !receiverName.includes('x')) {
+                    let cleanReceiver = receiverName.replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.|Miss\.)\s*/i, '').trim();
+                    let receiverParts = cleanReceiver.split(/\s+/);
+                    if (receiverParts.length > 0 && receiverParts[0].length > 2) {
+                        let firstPart = normalizeText(receiverParts[0]);
+                        if (!normalizedOcr.includes(firstPart)) {
+                            isFakeSlip = true;
+                            isFakeName = true;
+                            fakeReasons.push(`<b>ชื่อผู้รับไม่ตรง:</b> ไม่พบคำว่า "${receiverParts[0]}" บนสลิป`);
+                        }
+                    }
+                }
+            }
+
+            // 🔴 เพิ่มป้ายสถานะแบบละเอียด (ปกติ / ปลอมชื่อ / ปลอมจำนวนเงิน)
+            let detailBadge = document.getElementById('slipDetailBadge');
+            if (!detailBadge) {
+                detailBadge = document.createElement('span');
+                detailBadge.id = 'slipDetailBadge';
+                const statusBadge = document.getElementById('slipStatusBadge');
+                if (statusBadge) {
+                    statusBadge.parentNode.insertBefore(detailBadge, statusBadge);
+                }
+            }
+            
+            detailBadge.className = "ml-auto mr-3 px-3 py-1 rounded-full text-[11px] font-black shadow-inner border ";
+            if (isFakeSlip) {
+                let fakeTypes = [];
+                if (isFakeAmount) fakeTypes.push('ปลอมจำนวนเงิน');
+                if (isFakeName) fakeTypes.push('ปลอมชื่อ');
+                detailBadge.innerHTML = `<span class="material-icons text-[12px] align-middle mr-1">warning</span> ${fakeTypes.join(' และ ')}`;
+                detailBadge.className += "bg-red-900/40 text-red-400 border-red-700/50";
+            } else {
+                detailBadge.innerHTML = `<span class="material-icons text-[12px] align-middle mr-1">task_alt</span> ข้อมูลปกติ`;
+                detailBadge.className += "bg-emerald-900/40 text-emerald-400 border-emerald-700/50";
+            }
+            detailBadge.classList.remove('hidden');
+            // -------------------------------------------------------------
+
+            let isLocalDuplicate = window.slipHistoryData.some(h => h.ref === transRef && transRef !== '-');
+            let isDuplicate = data.isDuplicate || isLocalDuplicate;
+
+            const resAmountEl = document.getElementById('resAmount');
+            resAmountEl.innerText = actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
+            
+            if (isFakeSlip) { resAmountEl.classList.remove('text-emerald-400'); resAmountEl.classList.add('text-red-500'); } 
+            else { resAmountEl.classList.add('text-emerald-400'); resAmountEl.classList.remove('text-red-500'); }
+
+            document.getElementById('resSenderName').innerText = senderName;
+            document.getElementById('resSenderBank').innerText = getBank(senderObj.bank);
+            document.getElementById('resReceiverName').innerText = receiverName;
+            document.getElementById('resReceiverBank').innerText = getBank(receiverObj.bank);
+            document.getElementById('resReceiverAccount').innerText = getAccount(receiverObj);
+            document.getElementById('resRef').innerText = transRef;
+            if (transDate) document.getElementById('resDate').innerText = new Date(transDate).toLocaleString('th-TH');
+            else document.getElementById('resDate').innerText = '-';
+
+            document.getElementById('slipResultEmpty').classList.add('hidden'); document.getElementById('slipResultEmpty').classList.remove('flex');
+            document.getElementById('slipResultData').classList.remove('hidden'); document.getElementById('slipResultData').classList.add('flex');
+
+            // อัปโหลดรูปสลิปขึ้น Storage ก่อนบันทึกประวัติ
+            let uploadedImageUrl = null;
+            if (!isDuplicate) { 
+                Swal.update({ title: 'อัปโหลดสลิป...', html: 'กำลังบันทึกรูปภาพอ้างอิงเข้าระบบ...' });
+                uploadedImageUrl = await window.uploadSlipToStorage(window.selectedSlipFile);
+            }
+
+            if (isDuplicate) {
+                 updateSlipBadge('warning', 'สลิปถูกใช้แล้ว ⚠️');
+                 Swal.fire({
+                     icon: 'warning', title: '🚨 ตรวจพบสลิปซ้ำ!', 
+                     html: 'สลิปนี้ <b>ได้มีการค้นหาในระบบไปแล้ว</b><br>ห้ามนำมาทำรายการซ้ำเด็ดขาด!', 
+                     confirmButtonText: 'รับทราบ', confirmButtonColor: '#f59e0b'
+                 });
+            } else if (isFakeSlip) {
+                updateSlipBadge('error', 'สลิปไม่ตรงปก ❌');
+                let reasonHtml = fakeReasons.map(r => `<li style="margin-bottom:6px;">- ${r}</li>`).join('');
+                
+                Swal.fire({
+                    icon: 'error', title: '🚨 AI จับโป๊ะสลิปไม่ตรงปก!',
+                    html: `ระบบตรวจพบความผิดปกติ ดังนี้:<br><ul style="text-align:left; display:inline-block; margin-top:15px; font-size:14px; color:#ef4444;">${reasonHtml}</ul>`,
+                    confirmButtonColor: '#ef4444'
+                });
+                
+                window.saveSlipHistory({
+                    success: true, isFake: true,
+                    data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate },
+                    imageUrl: uploadedImageUrl 
+                }, true);
+
+            } else {
+                 updateSlipBadge('success', 'สลิปถูกต้อง ✅');
+                 Swal.fire({icon: 'success', title: 'สลิปจริง', text: 'ชื่อและยอดเงินบนรูปตรงกับระบบธนาคาร', timer: 1500, showConfirmButton: false});
+                 
+                 window.saveSlipHistory({
+                     success: true, isFake: false,
+                     data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate },
+                     imageUrl: uploadedImageUrl 
+                 }, true);
+            }
+
+        } else {
+            updateSlipBadge('error', 'สลิปไม่ถูกต้อง ❌');
+            let errorMsg = result.message || 'สลิปนี้ไม่ถูกต้อง หรือไม่สามารถอ่าน QR Code ได้';
+            if (errorMsg === 'quota_exceeded') errorMsg = 'โควต้าการตรวจสอบสลิปของ Thunder หมดแล้ว';
+            else if (errorMsg === 'unauthorized') errorMsg = 'API Key ของ Thunder ไม่ถูกต้อง';
+            Swal.fire('ตรวจพบปัญหา', errorMsg, 'error');
+        }
+
+    } catch (error) {
+        console.error("Slip API Error:", error);
+        updateSlipBadge('error', 'เชื่อมต่อขัดข้อง');
+        Swal.fire('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ตรวจสอบได้', 'error');
+    }
+};
 
 // ==========================================
 // 🌟 3. ระบบบันทึก ลบ และแสดงผลประวัติ 
