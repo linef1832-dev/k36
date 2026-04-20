@@ -2,24 +2,6 @@ window.kbizBotQueue = [];
 window.isKbizBotRunning = false;
 
 window.initKbizBotPage = async function() {
-    const select = document.getElementById('botSelectAcc');
-    if (!select) return;
-
-    try {
-        if(typeof appDB !== 'undefined') {
-            const { data } = await appDB.from('settings').select('value').eq('key', 'kbiz_bots_data').single();
-            if (data && data.value) {
-                const bots = JSON.parse(data.value);
-                select.innerHTML = '<option value="">-- เลือกบอทที่บันทึกไว้ --</option>';
-                // ดึงเฉพาะตัวที่เปิดใช้งานอยู่มาใส่ Dropdown
-                bots.filter(b => b.is_active).forEach(b => {
-                    const val = JSON.stringify({ id: b.id, machine_id: b.machine_id, u: b.username, p: b.password });
-                    select.innerHTML += `<option value='${val}'>${b.machine_id} - ${b.display_name || b.username}</option>`;
-                });
-            }
-        }
-    } catch(e) { console.error('Load Bots Error:', e); }
-
     // สมัครรับข้อมูลแจ้งเตือน (Log และ สถิติ) จาก Extension
     window.removeEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
     window.addEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
@@ -30,29 +12,33 @@ window.initKbizBotPage = async function() {
 window.addBotToQueue = function() {
     if (window.isKbizBotRunning) return Swal.fire('ไม่สามารถเพิ่มได้', 'กรุณาหยุดการทำงานของบอทก่อน จึงจะเพิ่มคิวได้ครับ', 'warning');
     
-    const select = document.getElementById('botSelectAcc');
-    const val = select.value;
-    if (!val) return Swal.fire('ไม่ได้เลือก', 'กรุณาเลือกบอทจากรายการด้านซ้ายก่อนกดเพิ่มครับ', 'warning');
+    const botIdInput = document.getElementById('newBotId').value.trim();
+    const botUser = document.getElementById('newBotUser').value.trim();
+    const botPass = document.getElementById('newBotPass').value.trim();
     
-    const botData = JSON.parse(val);
-    
-    // ดักไม่ให้เพิ่มบอทตัวเดียวกันซ้ำ
-    if (window.kbizBotQueue.find(b => b.id === botData.id)) {
-        return Swal.fire('ข้อมูลซ้ำ', 'มีบอทตัวนี้ในคิวทำงานอยู่แล้วครับ', 'info');
+    if (!botIdInput || !botUser || !botPass) {
+        return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอก ชื่ออ้างอิงบอท, Username และ Password ให้ครบถ้วนครับ', 'warning');
     }
     
+    // สร้าง ID แบบสุ่มเพื่อให้ระบบจัดการคิวได้ง่าย
+    const uniqueId = 'bot_' + Date.now();
+    
     window.kbizBotQueue.push({
-        id: botData.id,
-        machine_id: botData.machine_id,
-        username: botData.u,
-        password: botData.p,
+        id: uniqueId,
+        machine_id: botIdInput,
+        username: botUser,
+        password: botPass,
         success: 0,
         fail: 0,
         status: 'ready' // สถานะ: ready, running
     });
     
     renderBotQueue();
-    select.value = ''; // รีเซ็ตช่องเผื่อเลือกตัวต่อไป
+    
+    // เคลียร์ช่องกรอกให้พร้อมสำหรับบอทตัวต่อไป
+    document.getElementById('newBotId').value = '';
+    document.getElementById('newBotUser').value = '';
+    document.getElementById('newBotPass').value = '';
 };
 
 window.removeBotFromQueue = function(id) {
@@ -107,17 +93,15 @@ window.renderBotQueue = function() {
 };
 
 window.handleBotStatusUpdate = function(e) {
-    // รับข้อมูลมาจาก Extension
     const { message, status, botId, action } = e.detail;
     addBotLog(message, status);
     
-    // ถ้า Extension แนบ ID ของบอทกลับมาด้วย ให้บวกแต้มให้ตรงตัว
     if (botId) {
         const bot = window.kbizBotQueue.find(b => b.id === botId);
         if (bot) {
             if (action === 'success') bot.success++;
             else if (action === 'fail') bot.fail++;
-            renderBotQueue(); // วาดตัวเลขใหม่ให้ผู้ใช้เห็นทันที
+            renderBotQueue(); 
         }
     }
 };
@@ -135,12 +119,10 @@ window.startKbizBotProcess = function() {
         btn.innerHTML = '<span class="material-icons">play_circle</span> เริ่มทำงานอัตโนมัติ (Auto-Run)';
         btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition transform active:scale-95 text-lg border border-emerald-500 mt-2 flex items-center justify-center gap-2 shrink-0";
         
-        // ปรับสถานะบอททุกตัวในคิวให้กลับมาเป็นรอ
         window.kbizBotQueue.forEach(b => b.status = 'ready');
         renderBotQueue();
         addBotLog('หยุดการทำงานของบอททั้งหมดแล้ว', 'warning');
         
-        // ส่งคำสั่งหยุดไปบอก Extension
         window.dispatchEvent(new CustomEvent('STOP_KBIZ_BOT'));
     } else {
         // 🟢 โหมด: เริ่มการทำงาน
@@ -148,13 +130,11 @@ window.startKbizBotProcess = function() {
         btn.innerHTML = '<span class="material-icons">stop_circle</span> หยุดการทำงานบอท (Stop)';
         btn.className = "w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl shadow-lg transition transform active:scale-95 text-lg border border-red-500 mt-2 flex items-center justify-center gap-2 shrink-0";
         
-        // ปรับสถานะเป็นวิ่ง
         window.kbizBotQueue.forEach(b => b.status = 'running');
         renderBotQueue();
         
         addBotLog(`เริ่มส่งคำสั่งไปให้บอทจำนวน ${window.kbizBotQueue.length} ตัว ทำงาน...`, 'info');
         
-        // โยนคิวบอททั้งหมดที่มีให้ Chrome Extension ไปบริหารจัดการต่อ (ส่ง machine_id ไปด้วย)
         window.dispatchEvent(new CustomEvent('START_KBIZ_BOT', {
             detail: {
                 bots: window.kbizBotQueue.map(b => ({
