@@ -140,7 +140,7 @@ window.startKbizBotProcess = function() {
         renderBotQueue();
         addBotLog('หยุดการทำงานของบอททั้งหมดแล้ว', 'warning');
         
-        // ส่งคำสั่งหยุดไปบอก Extension (ถ้า Extension ถูกเขียนให้รองรับ)
+        // ส่งคำสั่งหยุดไปบอก Extension
         window.dispatchEvent(new CustomEvent('STOP_KBIZ_BOT'));
     } else {
         // 🟢 โหมด: เริ่มการทำงาน
@@ -154,7 +154,7 @@ window.startKbizBotProcess = function() {
         
         addBotLog(`เริ่มส่งคำสั่งไปให้บอทจำนวน ${window.kbizBotQueue.length} ตัว ทำงาน...`, 'info');
         
-        // โยนคิวบอททั้งหมดที่มีให้ Chrome Extension ไปบริหารจัดการต่อ
+        // โยนคิวบอททั้งหมดที่มีให้ Chrome Extension ไปบริหารจัดการต่อ (ส่ง machine_id ไปด้วย)
         window.dispatchEvent(new CustomEvent('START_KBIZ_BOT', {
             detail: {
                 bots: window.kbizBotQueue.map(b => ({
