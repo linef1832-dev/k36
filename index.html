@@ -106,6 +106,9 @@
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-teal-400">smart_toy</span> จัดการบอท K BIZ</div>
                     </button>
 
+                    <button onclick="showPage('kbiz_bot')" class="nm-menu-title border-b border-[#1a273a]">
+                        <div class="flex items-center"><span class="material-icons nm-menu-icon text-emerald-500">precision_manufacturing</span> เครื่องมือรันบอท K BIZ</div>
+                    </button>
                     <button onclick="toggleSubMenu('menu-discord', 'icon-discord')" class="nm-menu-title border-b border-[#1a273a] justify-between">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-indigo-500">discord</span> เครื่องมือ DISCORD</div>
                         <span class="material-icons text-sm transition-transform duration-200" id="icon-discord">chevron_right</span>
@@ -144,7 +147,9 @@
                     </button>
                 </div>
 
-            </div> <div id="app-content" class="flex-1 w-full min-w-0 pb-10 relative"></div>
+            </div> 
+            
+            <div id="app-content" class="flex-1 w-full min-w-0 pb-10 relative"></div>
 
         </div>
     </div>
@@ -168,12 +173,10 @@
     <script src="./js/usdt_calc.js" defer></script>
     <script src="./js/kb.js" defer></script>
     
+    <script src="./js/kbiz_bot.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" defer></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
-    
     <script src="./js/slip_check.js" defer></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
 </body>
 </html>
