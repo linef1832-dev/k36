@@ -208,3 +208,24 @@ window.addBotLog = function(message, status = 'info') {
     logArea.scrollTop = logArea.scrollHeight;
 };
 window.clearBotLog = () => { document.getElementById('botLogArea').innerHTML = ''; };
+
+// ==========================================
+// ระบบ Auto-Load ดึงข้อมูลทันทีที่เปิดหน้าเว็บ
+// ==========================================
+setInterval(() => {
+    const list = document.getElementById('savedBotsList');
+    
+    // ตรวจสอบว่าหน้าจอถูกเปิดขึ้นมาแล้ว และยังไม่ได้โหลดข้อมูล
+    if (list && !list.hasAttribute('data-loaded')) {
+        if (typeof window.renderSavedBots === 'function') {
+            window.renderSavedBots(); // สั่งวาดรายการบอทที่บันทึกไว้
+            window.renderBotQueue();  // สั่งวาดคิวที่ค้างอยู่
+            
+            list.setAttribute('data-loaded', 'true'); // ทำสัญลักษณ์ไว้ว่าโหลดเสร็จแล้ว จะได้ไม่โหลดซ้ำ
+            
+            // เชื่อมต่อเสาอากาศรับแจ้งเตือนจาก Extension อีกครั้ง
+            window.removeEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
+            window.addEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
+        }
+    }
+}, 500); // เช็คแบบเรียลไทม์ทุกๆ ครึ่งวินาที
