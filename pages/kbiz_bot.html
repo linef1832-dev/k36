@@ -13,45 +13,49 @@
     </div>
 
     <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
-        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
             
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-4">
+            <div class="lg:col-span-5 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-4">
                 <h3 class="font-bold text-lg text-slate-800 dark:text-white border-b border-gray-200 dark:border-slate-700 pb-3 flex items-center gap-2">
                     <span class="material-icons text-emerald-500">settings</span> ตั้งค่าระบบบอท
                 </h3>
                 
-                <div class="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/50 p-4 rounded-xl shadow-sm">
-                    <h4 class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-3 flex items-center gap-1"><span class="material-icons text-[14px]">login</span> ข้อมูลเข้าสู่ระบบ K BIZ</h4>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">เลือกบอทที่บันทึกไว้ในระบบ</label>
-                            <select id="botSelectAcc" onchange="autoFillBotLogin()" class="w-full p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-emerald-500 shadow-inner cursor-pointer">
-                                <option value="">-- พิมพ์เองด้านล่าง --</option>
-                            </select>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="botUsername" placeholder="รหัสผู้ใช้งาน K BIZ" class="w-full p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm outline-none focus:border-emerald-500 shadow-inner font-bold">
-                            <input type="password" id="botPassword" placeholder="รหัสผ่าน" class="w-full p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm outline-none focus:border-emerald-500 shadow-inner font-mono font-bold">
-                        </div>
+                <div class="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/50 p-4 rounded-xl shadow-sm shrink-0">
+                    <h4 class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-3 flex items-center gap-1">
+                        <span class="material-icons text-[14px]">smart_toy</span> เพิ่มบอทลงในคิวการทำงาน
+                    </h4>
+                    <div class="flex gap-2 items-center">
+                        <select id="botSelectAcc" class="flex-1 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-emerald-500 shadow-inner cursor-pointer">
+                            <option value="">-- เลือกบอทที่บันทึกไว้ --</option>
+                        </select>
+                        <button onclick="addBotToQueue()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg font-bold shadow-md transition active:scale-95 whitespace-nowrap flex items-center gap-1 border border-emerald-500">
+                            <span class="material-icons text-sm">add</span> เพิ่ม
+                        </button>
                     </div>
                 </div>
 
-                <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 p-4 rounded-xl shadow-sm mt-2 flex gap-3 items-start">
-                    <span class="material-icons text-blue-500 text-2xl">info</span>
-                    <p class="text-xs text-blue-700 dark:text-blue-300 leading-relaxed font-medium">
-                        เมื่อกด <b>"เริ่มทำงานอัตโนมัติ"</b> บอทจะทำการสแกนหาข้อมูล <b>"แก้ไขชื่อถอนแรก(FT/OD)"</b> จากหน้าระบบหลังบ้าน และเข้าไปทำงานใน K BIZ ให้เองครับ
-                    </p>
+                <div class="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900/50 overflow-hidden flex flex-col min-h-[250px]">
+                    <div class="bg-slate-200 dark:bg-slate-800 p-2.5 border-b border-slate-300 dark:border-slate-700 flex justify-between items-center text-xs font-bold text-slate-700 dark:text-gray-300 shrink-0">
+                        <span>รายการบอทที่พร้อมทำงาน (<span id="botQueueCount" class="text-emerald-500">0</span>)</span>
+                        <button onclick="clearBotQueue()" class="text-red-500 hover:text-red-600 underline">ล้างทั้งหมด</button>
+                    </div>
+                    <div id="botQueueList" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 content-start">
+                        <div class="text-center text-gray-400 text-xs py-10">ยังไม่ได้เพิ่มบอท</div>
+                    </div>
                 </div>
 
-                <button onclick="startKbizBotProcess()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition transform active:scale-95 text-lg border border-emerald-500 mt-2 flex items-center justify-center gap-2">
+                <button id="btnStartAutoRun" onclick="startKbizBotProcess()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition transform active:scale-95 text-lg border border-emerald-500 mt-2 flex items-center justify-center gap-2 shrink-0">
                     <span class="material-icons">play_circle</span> เริ่มทำงานอัตโนมัติ (Auto-Run)
                 </button>
             </div>
 
-            <div class="bg-slate-900 rounded-2xl shadow-lg border border-slate-700 p-6 flex flex-col h-[600px]">
-                <h3 class="font-bold text-lg text-white border-b border-slate-700 pb-3 flex items-center gap-2 shrink-0">
-                    <span class="material-icons text-sky-400">terminal</span> สถานะการทำงานของบอท
-                </h3>
+            <div class="lg:col-span-7 bg-slate-900 rounded-2xl shadow-lg border border-slate-700 p-6 flex flex-col h-[600px] lg:h-auto">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-3 shrink-0">
+                    <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                        <span class="material-icons text-sky-400">terminal</span> สถานะการทำงานเรียลไทม์
+                    </h3>
+                    <button onclick="clearBotLog()" class="text-gray-400 hover:text-white bg-slate-800 border border-slate-600 px-3 py-1 rounded-lg text-xs transition shadow-sm">ล้างจอ</button>
+                </div>
                 <div id="botLogArea" class="flex-1 overflow-y-auto custom-scrollbar bg-[#020617] rounded-xl p-4 mt-4 font-mono text-[11px] sm:text-xs text-green-400 space-y-2 border border-slate-700 shadow-inner leading-relaxed">
                     <div class="text-gray-500 flex items-center gap-1"><span class="material-icons text-[14px]">sensors</span> รอรับคำสั่งและเชื่อมต่อกับส่วนขยาย (Extension)...</div>
                 </div>
