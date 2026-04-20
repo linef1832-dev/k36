@@ -431,8 +431,8 @@ window.performOCR = async function(file) {
         const reader = new FileReader();
         reader.onload = async () => {
             try {
-                const worker = await Tesseract.createWorker('eng');
-                await worker.setParameters({ tessedit_char_whitelist: '0123456789.,' });
+                // 🔴 อัปเดตให้อ่านทั้งภาษาไทยและอังกฤษ เพื่อเช็คชื่อในสลิป
+                const worker = await Tesseract.createWorker('tha+eng');
                 const ret = await worker.recognize(reader.result);
                 await worker.terminate();
                 resolve(ret.data.text);
@@ -456,7 +456,7 @@ const findDeep = (obj, key) => {
 };
 
 // ==========================================
-// 🌟 2. ฟังก์ชันตรวจสอบสลิปหลัก (อัปเดตให้มีการอัปโหลดรูป)
+// 🌟 2. ฟังก์ชันตรวจสอบสลิปหลัก
 // ==========================================
 window.verifyThunderSlip = async function() {
     if (!window.selectedSlipFile) {
@@ -486,34 +486,12 @@ window.verifyThunderSlip = async function() {
         if (result.status === 200 || result.success === true) {
             const data = result.data || result; 
 
+            // ดึงข้อมูลยอดเงิน
             let rawAmount = findDeep(data, 'amount');
             let amountVal = typeof rawAmount === 'object' ? (rawAmount.amount || 0) : (rawAmount || 0);
             let actualAmount = parseFloat(amountVal);
 
-            Swal.update({ title: 'AI กำลังอ่านตัวเลขบนรูป...', html: 'ตรวจสอบสลิปตัดต่อด้วยระบบ AI...' });
-            const ocrText = await window.performOCR(window.selectedSlipFile);
-
-            let isFakeSlip = false;
-            let ocrDetectedAmount = actualAmount;
-
-            if (ocrText.trim() !== "") {
-                const amountStr1 = actualAmount.toFixed(2); 
-                const amountStr2 = actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
-                const hasRealAmount = ocrText.includes(amountStr1) || ocrText.includes(amountStr2);
-
-                if (!hasRealAmount) {
-                    const numberMatches = ocrText.replace(/,/g, '').match(/\d+\.\d{2}/g) || [];
-                    const extractedNumbers = numberMatches.map(n => parseFloat(n));
-
-                    if (extractedNumbers.length > 0) {
-                        ocrDetectedAmount = Math.max(...extractedNumbers); 
-                        if (ocrDetectedAmount !== actualAmount && ocrDetectedAmount > actualAmount) {
-                            isFakeSlip = true; 
-                        }
-                    }
-                }
-            }
-
+            // ดึงข้อมูลรายชื่อมาเตรียมไว้ก่อนตรวจสอบ
             const getName = (obj) => {
                 if (!obj) return 'ไม่ระบุ';
                 if (typeof obj === 'string') return obj;
@@ -538,6 +516,66 @@ window.verifyThunderSlip = async function() {
             let transRef = findDeep(data, 'transRef') || findDeep(data, 'ref1') || '-';
             let transDate = findDeep(data, 'transDate') || findDeep(data, 'date');
 
+            Swal.update({ title: 'AI กำลังอ่านตัวเลขและรายชื่อ...', html: 'ตรวจสอบสลิปตัดต่อด้วยระบบ AI...' });
+            const ocrText = await window.performOCR(window.selectedSlipFile);
+
+            let isFakeSlip = false;
+            let fakeReasons = []; // เก็บเหตุผลความผิดปกติทั้งหมด
+            let ocrDetectedAmount = actualAmount;
+
+            if (ocrText.trim() !== "") {
+                // 1. ตรวจสอบยอดเงิน (Amount)
+                const amountStr1 = actualAmount.toFixed(2); 
+                const amountStr2 = actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
+                const hasRealAmount = ocrText.includes(amountStr1) || ocrText.includes(amountStr2);
+
+                if (!hasRealAmount) {
+                    const numberMatches = ocrText.replace(/,/g, '').match(/\d+\.\d{2}/g) || [];
+                    const extractedNumbers = numberMatches.map(n => parseFloat(n));
+
+                    if (extractedNumbers.length > 0) {
+                        ocrDetectedAmount = Math.max(...extractedNumbers); 
+                        if (ocrDetectedAmount !== actualAmount && ocrDetectedAmount > actualAmount) {
+                            isFakeSlip = true; 
+                            fakeReasons.push(`<b>ยอดเงินไม่ตรง:</b> ตรวจพบ ฿${ocrDetectedAmount.toLocaleString('en-US', {minimumFractionDigits: 2})} แต่ QR คือ ฿${actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
+                        }
+                    }
+                }
+
+                // ฟังก์ชันช่วยเคลียร์ช่องว่างเพื่อให้เปรียบเทียบชื่อได้แม่นยำขึ้น
+                const normalizeText = (text) => text.replace(/\s+/g, '').toLowerCase();
+                const normalizedOcr = normalizeText(ocrText);
+
+                // 2. ตรวจสอบชื่อผู้โอน (Sender)
+                // ข้ามการตรวจถ้าชื่อมีเครื่องหมายดอกจัน (*) เซ็นเซอร์มาจากธนาคาร
+                if (senderName !== 'ไม่ระบุ' && senderName !== '-' && !senderName.includes('*') && !senderName.includes('x')) {
+                    // ตัดคำนำหน้าออกป้องกัน OCR ผิดเพี้ยน
+                    let cleanSender = senderName.replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.|Miss\.)\s*/i, '').trim();
+                    let senderParts = cleanSender.split(/\s+/);
+                    // หยิบเฉพาะชื่อแรก (ความยาว > 2) ไปค้นหาในสลิป
+                    if (senderParts.length > 0 && senderParts[0].length > 2) {
+                        let firstPart = normalizeText(senderParts[0]);
+                        if (!normalizedOcr.includes(firstPart)) {
+                            isFakeSlip = true;
+                            fakeReasons.push(`<b>ชื่อผู้โอนไม่ตรง:</b> ไม่พบคำว่า "${senderParts[0]}" บนสลิป`);
+                        }
+                    }
+                }
+
+                // 3. ตรวจสอบชื่อผู้รับ (Receiver)
+                if (receiverName !== 'ไม่ระบุ' && receiverName !== '-' && !receiverName.includes('*') && !receiverName.includes('x')) {
+                    let cleanReceiver = receiverName.replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.|Miss\.)\s*/i, '').trim();
+                    let receiverParts = cleanReceiver.split(/\s+/);
+                    if (receiverParts.length > 0 && receiverParts[0].length > 2) {
+                        let firstPart = normalizeText(receiverParts[0]);
+                        if (!normalizedOcr.includes(firstPart)) {
+                            isFakeSlip = true;
+                            fakeReasons.push(`<b>ชื่อผู้รับไม่ตรง:</b> ไม่พบคำว่า "${receiverParts[0]}" บนสลิป`);
+                        }
+                    }
+                }
+            }
+
             let isLocalDuplicate = window.slipHistoryData.some(h => h.ref === transRef && transRef !== '-');
             let isDuplicate = data.isDuplicate || isLocalDuplicate;
 
@@ -561,7 +599,7 @@ window.verifyThunderSlip = async function() {
 
             // 🔴 🔴 อัปโหลดรูปสลิปขึ้น Storage ก่อนบันทึกประวัติ
             let uploadedImageUrl = null;
-            if (!isDuplicate) { // ไม่ต้องเปลืองพื้นที่อัปโหลดรูปถ้าเป็นสลิปซ้ำ
+            if (!isDuplicate) { 
                 Swal.update({ title: 'อัปโหลดสลิป...', html: 'กำลังบันทึกรูปภาพอ้างอิงเข้าระบบ...' });
                 uploadedImageUrl = await window.uploadSlipToStorage(window.selectedSlipFile);
             }
@@ -574,27 +612,29 @@ window.verifyThunderSlip = async function() {
                      confirmButtonText: 'รับทราบ', confirmButtonColor: '#f59e0b'
                  });
             } else if (isFakeSlip) {
-                updateSlipBadge('error', 'สลิปปลอมแปลงยอดเงิน ❌');
+                updateSlipBadge('error', 'สลิปไม่ตรงปก ❌');
+                let reasonHtml = fakeReasons.map(r => `<li style="margin-bottom:6px;">- ${r}</li>`).join('');
+                
                 Swal.fire({
-                    icon: 'error', title: '🚨 AI จับโป๊ะสลิปปลอม!',
-                    html: `สลิปนี้โดนแก้ไขตัวเลขชัวร์!<br><br>ยอดโอนในระบบคือ <b>${actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</b> บาท<br>แต่ AI อ่านตัวเลขบนรูปได้ <b>${ocrDetectedAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</b> บาท`,
+                    icon: 'error', title: '🚨 AI จับโป๊ะสลิปไม่ตรงปก!',
+                    html: `ระบบตรวจพบความผิดปกติ ดังนี้:<br><ul style="text-align:left; display:inline-block; margin-top:15px; font-size:14px; color:#ef4444;">${reasonHtml}</ul>`,
                     confirmButtonColor: '#ef4444'
                 });
                 
                 window.saveSlipHistory({
                     success: true, isFake: true,
                     data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate },
-                    imageUrl: uploadedImageUrl // แนบ URL รูปไปบันทึก
+                    imageUrl: uploadedImageUrl 
                 }, true);
 
             } else {
                  updateSlipBadge('success', 'สลิปถูกต้อง ✅');
-                 Swal.fire({icon: 'success', title: 'สลิปจริง', text: 'ตัวเลขบนรูปตรงกับยอดใน QR Code', timer: 1500, showConfirmButton: false});
+                 Swal.fire({icon: 'success', title: 'สลิปจริง', text: 'ชื่อและยอดเงินบนรูปตรงกับระบบธนาคาร', timer: 1500, showConfirmButton: false});
                  
                  window.saveSlipHistory({
                      success: true, isFake: false,
                      data: { amount: actualAmount, sender: { name: senderName }, receiver: { name: receiverName }, transRef: transRef, date: transDate },
-                     imageUrl: uploadedImageUrl // แนบ URL รูปไปบันทึก
+                     imageUrl: uploadedImageUrl 
                  }, true);
             }
 
@@ -614,7 +654,7 @@ window.verifyThunderSlip = async function() {
 };
 
 // ==========================================
-// 🌟 3. ระบบบันทึก ลบ และแสดงผลประวัติ (อัปเดตให้รองรับ URL รูปภาพ)
+// 🌟 3. ระบบบันทึก ลบ และแสดงผลประวัติ 
 // ==========================================
 
 window.saveSlipHistory = async function(result, isSuccess) {
@@ -630,7 +670,7 @@ window.saveSlipHistory = async function(result, isSuccess) {
         receiverName: isSuccess && result.data ? (result.data.receiver?.name || '') : '',
         ref: isSuccess && result.data ? (result.data.transRef || result.data.ref1 || '') : '',
         date: isSuccess && result.data ? (result.data.date || '') : '',
-        imageUrl: result.imageUrl || null // 🔴 เซฟ URL ลง Database
+        imageUrl: result.imageUrl || null 
     };
     
     if (typeof appDB !== 'undefined') {
@@ -666,7 +706,6 @@ window.deleteSlipHistory = function(id, event) {
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
     }).then(async (result) => {
         if (result.isConfirmed) {
-            // 🔴 สั่งลบรูปออกจาก Storage ก่อน
             const slipToDelete = window.slipHistoryData.find(h => h.id === id);
             if (slipToDelete && slipToDelete.imageUrl && typeof appDB !== 'undefined') {
                 try {
@@ -726,7 +765,6 @@ window.renderSlipHistory = function() {
         const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
         let statusBadge = h.isFake ? `<span class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">ปลอม!</span>` : (h.success ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">สำเร็จ</span>` : `<span class="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto w-fit">ไม่สำเร็จ</span>`);
         
-        // 🔴 เปลี่ยนไอคอนจากดวงตา (visibility) เป็นไอคอนรูปภาพ (image)
         const viewImgBtn = h.imageUrl 
             ? `<button onclick="window.viewSlipImage('${h.imageUrl}', event)" class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 p-1.5 rounded-lg transition" title="ดูรูปสลิป"><span class="material-icons text-[18px]">image</span></button>` 
             : `<span class="text-slate-600 material-icons text-[16px] p-1.5" title="ไม่มีรูป">image_not_supported</span>`;
@@ -748,7 +786,7 @@ window.renderFakeHistory = function() {
     
     const fakes = window.slipHistoryData.filter(h => h.isFake);
     const filtered = fakes.filter(h => {
-        if (!search) return true; // 🌟 แก้บัค: ถ้าไม่ได้พิมพ์ค้นหา ให้โชว์สลิปปลอมทั้งหมด
+        if (!search) return true; 
         return (h.senderName && h.senderName.toLowerCase().includes(search)) ||
                (h.receiverName && h.receiverName.toLowerCase().includes(search)) ||
                (h.checkerName && h.checkerName.toLowerCase().includes(search));
@@ -765,7 +803,7 @@ window.renderFakeHistory = function() {
 window.filterFakeHistory = function() { window.renderFakeHistory(); };
 
 // ==========================================
-// 🌟 ประวัติการสแกน QR Code (เพิ่มตัวป้องกันข้อมูลหายเช่นกัน)
+// 🌟 ประวัติการสแกน QR Code
 // ==========================================
 
 window.saveQRHistory = async function(data) {
@@ -830,7 +868,7 @@ window.renderQRHistory = function() {
     const search = document.getElementById('qrHistorySearch') ? document.getElementById('qrHistorySearch').value.toLowerCase() : '';
     
     const filtered = window.qrHistoryData.filter(h => {
-        if (!search) return true; // 🌟 แก้บัคช่องค้นหา
+        if (!search) return true; 
         return (h.account && h.account.toLowerCase().includes(search)) ||
                (h.type && h.type.toLowerCase().includes(search)) ||
                (h.checkerName && h.checkerName.toLowerCase().includes(search));
@@ -858,7 +896,7 @@ window.filterQRHistory = function() { window.renderQRHistory(); };
 // 🌟 ฟังก์ชันอื่นๆ (คัดลอก และ วางสลิป)
 // ==========================================
 window.copyToClipboard = function(text, btnElement, event) {
-    if (event) event.stopPropagation(); // ป้องกันไม่ให้ตารางเด้งเปิดรายละเอียดตอนกดปุ่ม
+    if (event) event.stopPropagation(); 
     if (!text || text === '-') return;
     
     navigator.clipboard.writeText(text).then(() => {
@@ -887,7 +925,6 @@ document.addEventListener('paste', function(e) {
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
             
-            // ส่งไฟล์ไปเข้าโหมดที่กำลังเปิดอยู่ (สลิป หรือ QR)
             const contentQR = document.getElementById('tabContentQR');
             if (contentQR && !contentQR.classList.contains('hidden')) {
                 const qrInput = document.getElementById('qrReceiverInput');
@@ -928,21 +965,18 @@ document.addEventListener('click', (e) => {
 });
 
 // ==========================================
-// 🌟 1. ฟังก์ชันอัปโหลดรูป และ แสดงรูป (เพิ่มใหม่)
+// 🌟 1. ฟังก์ชันอัปโหลดรูป และ แสดงรูป
 // ==========================================
 
-// ฟังก์ชันอัปโหลดรูปลง Supabase Storage
 window.uploadSlipToStorage = async function(file) {
     if (!file || typeof appDB === 'undefined') return null;
     try {
         const fileExt = file.name ? file.name.split('.').pop() : 'png';
         const fileName = `slip_${Date.now()}_${Math.random().toString(36).substring(2,9)}.${fileExt}`;
 
-        // โยนรูปลง Bucket ชื่อ 'slips'
         const { error } = await appDB.storage.from('slips').upload(fileName, file);
         if (error) throw error;
 
-        // ดึง URL กลับมาเพื่อเอาไปเซฟลงตารางประวัติ
         const { data: publicUrlData } = appDB.storage.from('slips').getPublicUrl(fileName);
         return publicUrlData.publicUrl;
     } catch (e) {
@@ -951,11 +985,9 @@ window.uploadSlipToStorage = async function(file) {
     }
 };
 
-// ฟังก์ชันเปิดดูรูปสลิปแบบ Pop-up (ใช้ SweetAlert2) แบบเด้งขึ้นมาช้าๆ
 window.viewSlipImage = function(url, event) {
-    if (event) event.stopPropagation(); // ป้องกันไม่ให้คลิกทะลุไปโดนแถวตาราง
+    if (event) event.stopPropagation(); 
     
-    // ฝัง CSS ชั่วคราวเพื่อให้แอนิเมชันตอนเด้งขึ้นมาดูช้าและนุ่มนวลขึ้น
     if (!document.getElementById('swal-slow-anim')) {
         const style = document.createElement('style');
         style.id = 'swal-slow-anim';
