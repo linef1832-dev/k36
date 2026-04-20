@@ -22,14 +22,25 @@
                 
                 <div class="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/50 p-4 rounded-xl shadow-sm shrink-0">
                     <h4 class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-3 flex items-center gap-1">
-                        <span class="material-icons text-[14px]">smart_toy</span> เพิ่มบอทลงในคิวการทำงาน
+                        <span class="material-icons text-[14px]">add_circle</span> เพิ่มบอทลงในคิวการทำงาน
                     </h4>
-                    <div class="flex gap-2 items-center">
-                        <select id="botSelectAcc" class="flex-1 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-emerald-500 shadow-inner cursor-pointer">
-                            <option value="">-- เลือกบอทที่บันทึกไว้ --</option>
-                        </select>
-                        <button onclick="addBotToQueue()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg font-bold shadow-md transition active:scale-95 whitespace-nowrap flex items-center gap-1 border border-emerald-500">
-                            <span class="material-icons text-sm">add</span> เพิ่ม
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ชื่ออ้างอิงบอท (เช่น Bot-01)</label>
+                            <input type="text" id="newBotId" placeholder="ตั้งชื่อให้บอทตัวนี้" class="w-full p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold outline-none focus:border-emerald-500 shadow-inner">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">รหัสผู้ใช้งาน K BIZ</label>
+                                <input type="text" id="newBotUser" placeholder="Username" class="w-full p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm outline-none focus:border-emerald-500 shadow-inner font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">รหัสผ่าน</label>
+                                <input type="password" id="newBotPass" placeholder="Password" class="w-full p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm outline-none focus:border-emerald-500 shadow-inner font-mono font-bold">
+                            </div>
+                        </div>
+                        <button onclick="addBotToQueue()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg font-bold shadow-md transition active:scale-95 flex items-center justify-center gap-1 border border-emerald-500 mt-1">
+                            <span class="material-icons text-sm">add</span> เพิ่มลงคิวทำงาน
                         </button>
                     </div>
                 </div>
