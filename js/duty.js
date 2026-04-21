@@ -18,11 +18,19 @@ const TEAM_COLORS = {
     'NM9': { bg: 'bg-pink-500', text: 'text-white', border: 'border-pink-700', lightBg: 'bg-pink-100', lightText: 'text-pink-800' },
     'สอนงาน': { bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-700', lightBg: 'bg-emerald-100', lightText: 'text-emerald-800' },
     'Telegram': { bg: 'bg-sky-500', text: 'text-white', border: 'border-sky-700', lightBg: 'bg-sky-100', lightText: 'text-sky-800' },
+    // --- 🌟 สีหัวข้องานใหม่ สำหรับผู้สอน OD ---
+    'ตรวจสอบหน้าเว็บ': { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-800', lightBg: 'bg-emerald-100', lightText: 'text-emerald-800' },
+    'ดึงรีพอร์ต ODOL': { bg: 'bg-rose-500', text: 'text-white', border: 'border-rose-700', lightBg: 'bg-rose-100', lightText: 'text-rose-800' },
+    'ตรวจแนะนำเพื่อน OD': { bg: 'bg-amber-500', text: 'text-white', border: 'border-amber-700', lightBg: 'bg-amber-100', lightText: 'text-amber-800' },
+    'เช็คส่งแก้ไขข้อมูล': { bg: 'bg-purple-500', text: 'text-white', border: 'border-purple-700', lightBg: 'bg-purple-100', lightText: 'text-purple-800' },
     'DEFAULT': { bg: 'bg-indigo-500', text: 'text-white', border: 'border-indigo-700', lightBg: 'bg-indigo-100', lightText: 'text-indigo-800' }
 };
 
 window.syncTeamOrder = function() {
-    if (currentDutyDept.startsWith('TRAINER')) {
+    if (currentDutyDept === 'TRAINER_OD') {
+        // 🌟 ล็อกหัวข้องานของ OD เป็นเซ็ตนี้เลย
+        sortedTeams = ['Telegram', 'ตรวจสอบหน้าเว็บ', 'ดึงรีพอร์ต ODOL', 'ตรวจแนะนำเพื่อน OD', 'เช็คส่งแก้ไขข้อมูล'];
+    } else if (currentDutyDept === 'TRAINER_AM') {
         const mode = document.getElementById('trainerTaskMode') ? document.getElementById('trainerTaskMode').value : 'normal';
         if (mode === 'telegram') sortedTeams = ['Telegram']; 
         else sortedTeams = ['สอนงาน', 'Telegram'];
@@ -57,12 +65,15 @@ window.initDutyApp = async function() {
         if(GLOBAL_USER_LIST.length === 0 && typeof fetchUsers === 'function') await fetchUsers();
         await window.loadDutyAccessAndRoles();
         
-        const teamSelect = document.getElementById('roleEditorTeam');
-        if(teamSelect) teamSelect.innerHTML = TEAM_LIST.map(t => `<option value="${t}">${t}</option>`).join('');
-        
         window.syncTeamOrder();
+        
+        // 🌟 อัปเดต Dropdown ในหน้าตั้งค่าให้แสดงเว็บตามที่แผนกนั้นๆ มี
+        const teamSelect = document.getElementById('roleEditorTeam');
+        if(teamSelect) {
+            teamSelect.innerHTML = sortedTeams.map(t => `<option value="${t}">${t}</option>`).join('');
+        }
+        
         window.applyDutyRoleUI(); 
-
         window.renderDutyAccessTable();
         window.renderDutyRequirements();
         await window.refreshDutyData(); 
@@ -83,7 +94,15 @@ window.loadDutyAccessAndRoles = async function() {
 
             const rolesData = data.find(d => d.key === 'duty_custom_roles');
             if(rolesData && rolesData.value) customDutyRoles = JSON.parse(rolesData.value);
-            else { customDutyRoles = {}; TEAM_LIST.forEach(t => customDutyRoles[t] = ['แอดมินหลัก', 'ฝาก-ถอน']); }
+            else { 
+                customDutyRoles = {}; 
+                TEAM_LIST.forEach(t => customDutyRoles[t] = ['แอดมินหลัก', 'ฝาก-ถอน']); 
+                // 🌟 ตั้งค่าหัวข้อย่อยให้แผนกผู้สอน OD อัตโนมัติ (ครั้งแรก)
+                customDutyRoles['ตรวจสอบหน้าเว็บ'] = ['เวลา 12:00', 'เวลา 18:00', 'เวลา 21:00', 'เวลา 01:00'];
+                customDutyRoles['ดึงรีพอร์ต ODOL'] = ['รอบ 10:00 น.', 'รอบ 23:00 น.'];
+                customDutyRoles['ตรวจแนะนำเพื่อน OD'] = ['เริ่ม 10:30 น.'];
+                customDutyRoles['เช็คส่งแก้ไขข้อมูล'] = ['รอบ 09:00 น.'];
+            }
         }
     } catch(e) { dutyAccessMatrix = {}; customDutyRoles = {}; }
 }
@@ -182,7 +201,19 @@ window.switchDutyDept = function(dept) {
     if (grid) grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400"><span class="material-icons animate-spin text-5xl text-indigo-500 mb-2">sync</span><span class="font-bold text-sm">กำลังจัดเตรียมตาราง...</span></div>`;
     
     setTimeout(() => {
-        window.syncTeamOrder(); window.applyDutyRoleUI(); window.renderDutyAccessTable(); window.renderDutyRequirements(); window.refreshDutyData(); 
+        window.syncTeamOrder(); 
+        
+        // 🌟 อัปเดตตัวเลือกหัวข้อให้ตรงกับแผนก เพื่อให้ตั้งค่าได้ถูกต้อง
+        const teamSelect = document.getElementById('roleEditorTeam');
+        if(teamSelect) {
+            teamSelect.innerHTML = sortedTeams.map(t => `<option value="${t}">${t}</option>`).join('');
+            window.renderRoleEditorList();
+        }
+        
+        window.applyDutyRoleUI(); 
+        window.renderDutyAccessTable(); 
+        window.renderDutyRequirements(); 
+        window.refreshDutyData(); 
     }, 50);
 };
 
