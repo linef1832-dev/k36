@@ -27,31 +27,31 @@ const TEAM_COLORS = {
 };
 
 window.syncTeamOrder = function() {
-    if (currentDutyDept === 'TRAINER_OD') {
-        // 🌟 ล็อกหัวข้องานของ OD เป็นเซ็ตนี้เลย
-        sortedTeams = ['Telegram', 'ตรวจสอบหน้าเว็บ', 'ดึงรีพอร์ต ODOL', 'ตรวจแนะนำเพื่อน OD', 'เช็คส่งแก้ไขข้อมูล'];
-    } else if (currentDutyDept === 'TRAINER_AM') {
-        const mode = document.getElementById('trainerTaskMode') ? document.getElementById('trainerTaskMode').value : 'normal';
-        if (mode === 'telegram') sortedTeams = ['Telegram']; 
-        else sortedTeams = ['สอนงาน', 'Telegram'];
-    } else {
-        const savedOrder = JSON.parse(localStorage.getItem('duty_team_order') || '[]');
-        let validSaved = savedOrder.filter(t => TEAM_LIST.includes(t));
+    // 🌟 ดึงชื่อเว็บจาก TEAM_LIST (ตารางกินข้าว) มาใช้กับทุกแผนกเสมอ! (รวมถึงผู้สอนด้วย)
+    const savedOrder = JSON.parse(localStorage.getItem('duty_team_order') || '[]');
+    let validSaved = savedOrder.filter(t => typeof TEAM_LIST !== 'undefined' && TEAM_LIST.includes(t));
+    
+    if (typeof TEAM_LIST !== 'undefined') {
         TEAM_LIST.forEach(t => { if(!validSaved.includes(t)) validSaved.push(t); });
-        sortedTeams = validSaved;
     }
-}
+    sortedTeams = validSaved;
+};
 
 window.moveTeam = function(teamName, direction) {
-    if (currentDutyDept.startsWith('TRAINER')) return; 
+    // 🌟 ปลดล็อกให้แผนกผู้สอน สามารถกดเลื่อนตำแหน่งเว็บ (ซ้าย-ขวา) ได้เหมือนแอดมินปกติ
     const index = sortedTeams.indexOf(teamName);
     if(index === -1) return;
-    if(direction === -1 && index > 0) { [sortedTeams[index - 1], sortedTeams[index]] = [sortedTeams[index], sortedTeams[index - 1]]; } 
-    else if (direction === 1 && index < sortedTeams.length - 1) { [sortedTeams[index], sortedTeams[index + 1]] = [sortedTeams[index + 1], sortedTeams[index]]; }
+    
+    if(direction === -1 && index > 0) { 
+        [sortedTeams[index - 1], sortedTeams[index]] = [sortedTeams[index], sortedTeams[index - 1]]; 
+    } else if (direction === 1 && index < sortedTeams.length - 1) { 
+        [sortedTeams[index], sortedTeams[index + 1]] = [sortedTeams[index + 1], sortedTeams[index]]; 
+    }
+    
     localStorage.setItem('duty_team_order', JSON.stringify(sortedTeams));
     window.renderDutyRequirements();
     window.updateDutyStats(); 
-}
+};
 
 window.initDutyApp = async function() {
     Swal.fire({title: 'โหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
