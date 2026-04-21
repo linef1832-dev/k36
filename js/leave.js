@@ -511,19 +511,21 @@ window.renderLeaveTable = function() {
     
     if(typeof checkBookingWindow === 'function') checkBookingWindow();
 
+    // ... หาจุดที่มีการ filter allDeptUsers
     const allDeptUsers = GLOBAL_USER_LIST.filter(u => {
         const uDept = u.department || 'AM';
         const uRole = u.role ? u.role.toLowerCase() : 'staff'; 
         
-        // 🌟 เช็คว่าพนักงานคนนี้ถูกดึงเข้ากลุ่มพิเศษไปแล้วหรือยัง
+        // เช็คว่าพนักงานคนนี้ถูกดึงเข้ากลุ่มพิเศษไปแล้วหรือยัง
         const isInSpecial = window.specialGroupUserIds && window.specialGroupUserIds.includes(String(u.id));
 
         if (currentViewDept === 'SPECIAL') {
             return isInSpecial; // แท็บพิเศษโชว์เฉพาะคนที่ถูกดึงเข้ามา
         } else if (currentViewDept === 'TRAINER') {
-            return (uDept === 'TRAINER' || uRole === 'trainer') && !isInSpecial; 
+            // ให้ดึงทั้ง TRAINER_AM, TRAINER_OD และ TRAINER ปกติมารวมไว้หน้าเดียวกัน
+            return (uDept.startsWith('TRAINER') || uRole === 'trainer') && !isInSpecial; 
         } else {
-            // 🌟 แท็บ AM และ OD จะโชว์แค่คนที่ยังไม่ถูกดึงไปกลุ่มพิเศษ (!isInSpecial)
+            // แท็บ AM และ OD จะโชว์แค่คนที่ยังไม่ถูกดึงไปกลุ่มพิเศษ (!isInSpecial)
             return uRole === 'staff' && uDept === currentViewDept && !isInSpecial; 
         }
     });
