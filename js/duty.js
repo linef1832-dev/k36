@@ -680,7 +680,14 @@ window.renderRosterGrid = async function(rosterData) {
             }
         });
     }
-   // 🌟 1. ตั้งค่าแปลงชื่อหน้าที่ เป็นชื่อเว็บ (สามารถแก้ "ชื่อเว็บ..." เป็นชื่อเว็บจริงของคุณได้เลย)
+    window.currentStandbyData = standbyData; 
+
+    // 🔴🔴🔴 ตรงนี้คือลูปที่หายไปในโค้ดของคุณ! ต้องมีเพื่อสร้างการ์ดทีละทีม
+    sortedTeams.forEach(team => {
+        let assignees = rosterData[team] || [];
+        if(assignees.length === 0) return; 
+
+        // 🌟 1. ตั้งค่าแปลงชื่อหน้าที่ เป็นชื่อเว็บ (สามารถแก้ "ชื่อเว็บ..." เป็นชื่อเว็บจริงของคุณได้เลย)
         const teamToWebMap = {
             'Telegram': 'เว็บ Jun88',
             'ตรวจสอบหน้าเว็บ': 'เว็บ MK8',
@@ -776,7 +783,7 @@ window.renderRosterGrid = async function(rosterData) {
                 </div>
             </div>
         `;
-    });
+    }); // 🔴🔴🔴 ตรงนี้คือวงเล็บปิดของลูปที่หายไปเช่นกันครับ
 
     grid.innerHTML = finalGridHtml;
 };
