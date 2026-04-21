@@ -680,19 +680,28 @@ window.renderRosterGrid = async function(rosterData) {
             }
         });
     }
-    window.currentStandbyData = standbyData; 
+   // 🌟 1. ตั้งค่าแปลงชื่อหน้าที่ เป็นชื่อเว็บ (สามารถแก้ "ชื่อเว็บ..." เป็นชื่อเว็บจริงของคุณได้เลย)
+        const teamToWebMap = {
+            'Telegram': 'เว็บ Jun88',
+            'ตรวจสอบหน้าเว็บ': 'เว็บ MK8',
+            'ดึงรีพอร์ต ODOL': 'เว็บ JILI',
+            // สามารถเพิ่มชื่อหน้าที่ และ ชื่อเว็บ คู่กันลงมาได้เรื่อยๆ ครับ
+        };
 
-    sortedTeams.forEach(team => {
-        let assignees = rosterData[team] || [];
-        if(assignees.length === 0) return; 
-        
-        if (currentDutyDept.startsWith('TRAINER') && subFilter !== 'ALL') assignees = assignees.filter(a => true);
-        
+        // ดึงชื่อเว็บมาเป็นหัวการ์ด ถ้าไม่ได้ตั้งไว้ด้านบนจะใช้ชื่อเดิม
+        const displayWebName = teamToWebMap[team] || team;
+
+        // 🌟 2. สร้างป้ายบอกหน้าที่จากชื่อทีมเดิม (เช่น เอาคำว่า Telegram มาทำเป็นป้ายห้อย)
+        const teamRoleTag = (team !== displayWebName) ? `<span class="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded text-[9px] mr-1 mb-1 font-bold inline-block border border-indigo-200 dark:border-indigo-700">${team}</span>` : '';
+
         const rolesForThisTeam = customDutyRoles[team] || [];
         const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
         let rolesTags = rolesForThisTeam.map(r => `<span class="${colorClass.lightBg} ${colorClass.lightText} px-1.5 py-0.5 rounded text-[9px] mr-1 mb-1 font-bold inline-block border ${colorClass.border} opacity-90">${r}</span>`).join('');
         
-      let namesHtml = assignees.map(a => {
+        // 🌟 3. เอาป้ายหน้าที่ (Telegram) มารวมกับ ป้ายโปรโมชั่น/แนะนำ (rolesTags)
+        const finalTags = teamRoleTag + rolesTags;
+
+        let namesHtml = assignees.map(a => {
             const isMissing = a.username.includes('ขาดคน');
             const canDrag = !isMissing && a.id && isAdmin;
             const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${a.username}', '${team}')"` : '';
@@ -735,7 +744,7 @@ window.renderRosterGrid = async function(rosterData) {
                             <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
                         </div>
                         <div class="w-full pl-7">
-                            ${rolesTags || '<span class="text-[9px] text-gray-400 border border-gray-200 dark:border-slate-600 px-1 rounded">เหมาทุกตำแหน่ง</span>'}
+                            ${finalTags || '<span class="text-[9px] text-gray-400 border border-gray-200 dark:border-slate-600 px-1 rounded">ไม่ได้ระบุหน้าที่</span>'}
                         </div>
                     </div>
                 </div>
@@ -747,12 +756,11 @@ window.renderRosterGrid = async function(rosterData) {
         const standbyList = standbyData[team] || [];
         const standbyCount = standbyList.length;
 
-        // 🌟 2. เปลี่ยนจาก grid.innerHTML += เป็น finalGridHtml += (ลบระบบประเมินออกไปแล้ว)
         finalGridHtml += `
             <div class="duty-site-card bg-slate-50 dark:bg-slate-900 border-2 ${colorClass.border} rounded-2xl shadow-md flex flex-col h-[500px] overflow-hidden w-full">
                 <div class="flex justify-between items-center ${colorClass.bg} ${colorClass.text} p-3 shadow-sm shrink-0">
                     <div class="flex items-center flex-wrap gap-2 w-full">
-                        <h4 class="font-black text-base pointer-events-none tracking-wide">${team}</h4>
+                        <h4 class="font-black text-base pointer-events-none tracking-wide">${displayWebName}</h4>
                         <div class="flex items-center gap-2 ml-auto">
                             <div class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-lg shadow-inner whitespace-nowrap border border-white/30 flex items-center gap-1" style="color: inherit;">
                                 <span class="opacity-80">หลัก</span><span class="text-xs font-black bg-black/20 px-1 rounded-md">${primaryCount}</span>
