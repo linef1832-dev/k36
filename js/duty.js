@@ -682,24 +682,22 @@ window.renderRosterGrid = async function(rosterData) {
     }
     window.currentStandbyData = standbyData; 
 
-    // 🔴🔴🔴 ตรงนี้คือลูปที่หายไปในโค้ดของคุณ! ต้องมีเพื่อสร้างการ์ดทีละทีม
-    sortedTeams.forEach(team => {
+    // 🔴🔴🔴 ตรงนี้คือลูปที่สร้างการ์ดทีละทีม
+    sortedTeams.forEach((team, index) => {
         let assignees = rosterData[team] || [];
         if(assignees.length === 0) return; 
 
-        // 🌟 1. ตั้งค่าแปลงชื่อหน้าที่ เป็นชื่อเว็บ (สามารถแก้ "ชื่อเว็บ..." เป็นชื่อเว็บจริงของคุณได้เลย)
-        const teamToWebMap = {
-            'Telegram': 'เว็บ Jun88',
-            'ตรวจสอบหน้าเว็บ': 'เว็บ MK8',
-            'ดึงรีพอร์ต ODOL': 'เว็บ JILI',
-            // สามารถเพิ่มชื่อหน้าที่ และ ชื่อเว็บ คู่กันลงมาได้เรื่อยๆ ครับ
-        };
+        // 🌟 1. ดึงชื่อเว็บจากตารางกินข้าว (TEAM_LIST) อัตโนมัติตามลำดับกล่อง!
+        // เพิ่มเว็บในตารางกินข้าว หัวการ์ดตรงนี้ก็จะเปลี่ยนและเพิ่มตามให้อัตโนมัติครับ
+        let displayWebName = team;
+        if (typeof TEAM_LIST !== 'undefined' && TEAM_LIST[index]) {
+            displayWebName = 'เว็บ ' + TEAM_LIST[index];
+        }
 
-        // ดึงชื่อเว็บมาเป็นหัวการ์ด ถ้าไม่ได้ตั้งไว้ด้านบนจะใช้ชื่อเดิม
-        const displayWebName = teamToWebMap[team] || team;
-
-        // 🌟 2. สร้างป้ายบอกหน้าที่จากชื่อทีมเดิม (เช่น เอาคำว่า Telegram มาทำเป็นป้ายห้อย)
-        const teamRoleTag = (team !== displayWebName) ? `<span class="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded text-[9px] mr-1 mb-1 font-bold inline-block border border-indigo-200 dark:border-indigo-700">${team}</span>` : '';
+        // 🌟 2. สร้างป้ายบอกหน้าที่จากชื่อหน้าที่เดิม (เช่น Telegram, ตรวจสอบหน้าเว็บ)
+        const teamRoleTag = (team !== (typeof TEAM_LIST !== 'undefined' ? TEAM_LIST[index] : team)) 
+            ? `<span class="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded text-[9px] mr-1 mb-1 font-bold inline-block border border-indigo-200 dark:border-indigo-700">${team}</span>` 
+            : '';
 
         const rolesForThisTeam = customDutyRoles[team] || [];
         const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
@@ -783,7 +781,7 @@ window.renderRosterGrid = async function(rosterData) {
                 </div>
             </div>
         `;
-    }); // 🔴🔴🔴 ตรงนี้คือวงเล็บปิดของลูปที่หายไปเช่นกันครับ
+    }); // 🔴 วงเล็บปิดลูปที่หายไป
 
     grid.innerHTML = finalGridHtml;
 };
