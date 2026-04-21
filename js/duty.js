@@ -692,7 +692,7 @@ window.renderRosterGrid = async function(rosterData) {
         const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
         let rolesTags = rolesForThisTeam.map(r => `<span class="${colorClass.lightBg} ${colorClass.lightText} px-1.5 py-0.5 rounded text-[9px] mr-1 mb-1 font-bold inline-block border ${colorClass.border} opacity-90">${r}</span>`).join('');
         
-        let namesHtml = assignees.map(a => {
+      let namesHtml = assignees.map(a => {
             const isMissing = a.username.includes('ขาดคน');
             const canDrag = !isMissing && a.id && isAdmin;
             const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${a.username}', '${team}')"` : '';
@@ -729,70 +729,25 @@ window.renderRosterGrid = async function(rosterData) {
             return `
             <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition shrink-0 group ${cursorClass}" data-name="${(a.username || '').toLowerCase()}" ${dragAttrs}>
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span> 
-                        <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
+                    <div class="flex items-center gap-2.5 flex-wrap w-full">
+                        <div class="flex items-center gap-2.5 w-full">
+                            <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span> 
+                            <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
+                        </div>
+                        <div class="w-full pl-7">
+                            ${rolesTags || '<span class="text-[9px] text-gray-400 border border-gray-200 dark:border-slate-600 px-1 rounded">เหมาทุกตำแหน่ง</span>'}
+                        </div>
                     </div>
                 </div>
                 ${secHtml}
             </div>`;
         }).join('');
 
-        let trainerReportHtml = '';
-        if (currentDutyDept.startsWith('TRAINER')) {
-            const tr = trainerReports[team] || { missed: 0, checker: '-', score: '-', mistakes: [] };
-            const scoreNum = parseInt(tr.score);
-            let scoreColor = 'text-gray-500';
-            if(scoreNum >= 8) scoreColor = 'text-green-600';
-            else if(scoreNum >= 5) scoreColor = 'text-amber-500';
-            else if(scoreNum > 0) scoreColor = 'text-red-600';
-            const missedColor = parseInt(tr.missed) > 0 ? 'text-red-500 font-bold' : 'text-green-600';
-            
-            let behaviorHtml = '<span class="text-gray-400 mt-0.5 block">- ไม่มี -</span>';
-            if (tr.mistakes && tr.mistakes.length > 0) {
-                behaviorHtml = tr.mistakes.map(m => `
-                    <div class="mt-1 p-1.5 bg-red-50 dark:bg-red-900/30 rounded border border-red-100 dark:border-red-800 text-[10px]">
-                        <span class="font-bold text-red-600">${m.empName}</span>: <span class="text-slate-600 dark:text-slate-300">${m.note || '-'}</span>
-                        <div class="flex gap-1 mt-1 overflow-x-auto">
-                            ${m.images && m.images.length > 0 ? m.images.map(img => `<img src="${img}" class="h-10 w-auto rounded shadow-sm border border-red-200 cursor-pointer" onclick="window.open('${img}','_blank')">`).join('') : ''}
-                        </div>
-                    </div>
-                `).join('');
-            } else if (tr.bad_behavior && tr.bad_behavior !== '-') { 
-                behaviorHtml = `<span class="text-red-600 bg-red-50 p-1 rounded font-bold block mt-0.5 break-words">${tr.bad_behavior}</span>`;
-            }
-
-            const isTrainerStaff = (currentUser.department && currentUser.department.startsWith('TRAINER'));
-            const btnLogData = (isAdmin || isTrainerStaff) ? `<button onclick="openTrainerReportModal('${team}')" class="text-[9px] bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded shadow transition font-bold border border-amber-600">📝 ประเมิน</button>` : '';
-
-            trainerReportHtml = `
-            <div class="mt-2 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-700/50 p-2 flex flex-col gap-1.5 shrink-0">
-                <div class="flex justify-between items-center mb-1 border-b border-amber-200/50 pb-1">
-                    <span class="text-[10px] font-extrabold text-amber-800 dark:text-amber-400 flex items-center gap-1"><span class="material-icons text-[12px]">assignment</span> สรุปรายงานดูแลเว็บ</span>
-                    ${btnLogData}
-                </div>
-                <div class="text-[10px] text-slate-700 dark:text-slate-300 leading-tight bg-white dark:bg-slate-800 p-2 rounded border border-gray-200 dark:border-slate-600 space-y-1">
-                    <div class="flex justify-between border-b border-gray-100 dark:border-slate-700 pb-1">
-                        <span class="font-bold">👮 คนเช็คชื่อ:</span> <span class="text-blue-600 font-bold">${tr.checker || '-'}</span>
-                    </div>
-                    <div class="flex justify-between border-b border-gray-100 dark:border-slate-700 pb-1">
-                        <span class="font-bold">🚨 แชทหลุด:</span> <span class="${missedColor}">${tr.missed} แชท</span>
-                    </div>
-                    <div class="flex justify-between border-b border-gray-100 dark:border-slate-700 pb-1">
-                        <span class="font-bold">⭐ คะแนนรวม:</span> <span class="font-extrabold text-[12px] ${scoreColor}">${tr.score !== '-' ? tr.score + '/10' : '-'}</span>
-                    </div>
-                    <div class="pt-1">
-                        <span class="font-bold text-red-500 flex items-center">⚠️ พฤติกรรมไม่ดี:</span>
-                        ${behaviorHtml}
-                    </div>
-                </div>
-            </div>`;
-        }
-
         const primaryCount = assignees.filter(u => !u.username.includes('ขาดคน')).length;
         const standbyList = standbyData[team] || [];
         const standbyCount = standbyList.length;
 
+        // 🌟 2. เปลี่ยนจาก grid.innerHTML += เป็น finalGridHtml += (ลบระบบประเมินออกไปแล้ว)
         finalGridHtml += `
             <div class="duty-site-card bg-slate-50 dark:bg-slate-900 border-2 ${colorClass.border} rounded-2xl shadow-md flex flex-col h-[500px] overflow-hidden w-full">
                 <div class="flex justify-between items-center ${colorClass.bg} ${colorClass.text} p-3 shadow-sm shrink-0">
@@ -808,13 +763,9 @@ window.renderRosterGrid = async function(rosterData) {
                         </div>
                     </div>
                 </div>
-                <div class="p-2 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
-                    ${rolesTags || '<span class="text-[9px] text-gray-400">เหมาทุกตำแหน่ง</span>'}
-                </div>
                 <div class="flex flex-col gap-2.5 flex-1 p-2 overflow-y-auto custom-scrollbar content-start drop-zone" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${team}')">
                     ${namesHtml}
                 </div>
-                ${trainerReportHtml}
             </div>
         `;
     });
