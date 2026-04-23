@@ -1279,7 +1279,7 @@ window.exportSummaryToExcel = async function() {
             // 2. สร้างคอลัมน์ รวมทั้งสิ้น
             headers.push('รวมสำเร็จ'); headers.push('รวมปฏิเสธ'); headers.push('รวมทั้งสิ้น');
             
-            // 🌟 (เพิ่มใหม่) ขยับ 3 ช่อง โดยให้ช่องที่ 3 เป็น ชื่อพนักงาน
+            // ขยับ 3 ช่อง โดยให้ช่องที่ 3 เป็น ชื่อพนักงาน
             headers.push('', '', 'ชื่อพนักงาน (อ้างอิง)');
 
             // 3. สร้างคอลัมน์ สรุปยอด ของแต่ละเว็บ ไว้ท้ายสุด
@@ -1333,7 +1333,7 @@ window.exportSummaryToExcel = async function() {
                     cell.font.color = { argb: 'FFFFFFFF' };
                     cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
                 } else if (colNumber > 37 && colNumber <= 40) {
-                    // 🌟 (เพิ่มใหม่) ชื่อพนักงานก่อนเริ่มคอลัมน์สรุปยอด
+                    // ชื่อพนักงานก่อนเริ่มคอลัมน์สรุปยอด
                     if (colNumber === 40) {
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
                         cell.font.color = { argb: 'FFFFFFFF' };
@@ -1356,7 +1356,7 @@ window.exportSummaryToExcel = async function() {
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
                 rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal); 
                 
-                // 🌟 (เพิ่มใหม่) ดันช่องว่างและชื่อพนักงานไปอยู่หน้ากลุ่มสรุปยอด
+                // ดันช่องว่างและชื่อพนักงานไปอยู่หน้ากลุ่มสรุปยอด
                 rowData.push('', '', emp.name);
 
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].total); });
@@ -1412,7 +1412,7 @@ window.exportSummaryToExcel = async function() {
                             if (colNumber === 37) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
                         }
                     } else if (colNumber > 37 && colNumber <= 40) {
-                        // 🌟 (เพิ่มใหม่) ตกแต่งคอลัมน์ชื่อพนักงานอ้างอิง
+                        // ตกแต่งคอลัมน์ชื่อพนักงานอ้างอิง
                         if (colNumber === 40) {
                             cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' };
                             cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
@@ -1437,9 +1437,10 @@ window.exportSummaryToExcel = async function() {
                 else if (index === 2) col.width = 12; 
                 else if (index === 3) col.width = 12; 
                 else if (index >= 34 && index < 37) col.width = 15; // กลุ่ม "รวมทั้งสิ้น"
-                else if (index === 37 || index === 38) col.width = 5; // 🌟 ช่องว่าง
-                else if (index === 39) col.width = 25; // 🌟 คอลัมน์ชื่อพนักงาน (อ้างอิง)
-                else col.width = 11; // เว็บปกติ และสรุปยอดท้ายสุด
+                else if (index === 37 || index === 38) col.width = 5; // ช่องว่าง
+                else if (index === 39) col.width = 25; // คอลัมน์ชื่อพนักงาน (อ้างอิง)
+                else if (index >= 40) col.width = 16; // ขยายคอลัมน์สรุปยอดท้ายสุด เป็น 16 เพื่อให้เห็นชื่อเว็บครบ
+                else col.width = 11; // เว็บปกติ
             });
 
             const buffer = await wb.xlsx.writeBuffer();
