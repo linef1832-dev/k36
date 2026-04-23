@@ -1122,7 +1122,7 @@ window.ds_renderVoiceLogs = function() {
     
     filtered.forEach(log => {
         let d = new Date(log.time);
-        d = new Date(d.getTime() - (7 * 60 * 60 * 1000));
+        //d = new Date(d.getTime() - (7 * 60 * 60 * 1000));
         
         // 🌟 1. ดึงวันที่ (รูปแบบ 09/04/2569)
         const datePart = d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
