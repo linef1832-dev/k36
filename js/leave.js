@@ -674,10 +674,10 @@ window.renderLeaveTable = function() {
                     detailItems.push(`<span class="${colorCls} bg-slate-100 dark:bg-slate-800 px-1 rounded shadow-sm border border-gray-200 dark:border-slate-600">${displayRsn}:${count}</span>`);
                 }
             }
-            breakdownHtml = `<div class="text-[9px] leading-tight mt-1.5 flex flex-wrap gap-x-1 gap-y-1">${detailItems.join('')}</div>`;
+            breakdownHtml = `<div class="text-[9px] leading-tight mt-1.5 flex flex-nowrap overflow-x-auto custom-scrollbar pb-1 gap-x-1">${detailItems.join('')}</div>`;
     }
 
-    let rowHtml = `<tr class="transition ${rowClass}">`;
+    let rowHtml = `<tr class="transition ${rowClass} h-[56px]">`;
     
     // 🌟 ใช้ shadow-inset แทน border-b เพื่อแก้ปัญหาเส้นขอบแหว่ง/หาย ตอนเลื่อนตาราง
     rowHtml += `<td class="p-2 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r dark:border-slate-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#334155] text-[10px] text-center text-gray-400 font-mono w-[40px] min-w-[40px] max-w-[40px]">${index + 1}</td>`;
