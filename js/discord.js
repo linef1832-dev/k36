@@ -1128,12 +1128,14 @@ window.ds_renderVoiceLogs = function() {
     
     filtered.forEach(log => {
         let d = new Date(log.time);
-        //d = new Date(d.getTime() - (7 * 60 * 60 * 1000));
+        
+        // 🌟 แก้ปัญหาเวลาแสดงผล: หักลบ 7 ชั่วโมงที่บราวเซอร์บวกเพิ่มซ้ำซ้อนออก
+        d = new Date(d.getTime() - (7 * 60 * 60 * 1000));
         
         // 🌟 1. ดึงวันที่ (รูปแบบ 09/04/2569)
-        const datePart = d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const datePart = d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: 'numeric' });
         // 🌟 2. ดึงเวลา (รูปแบบ 15:38:51)
-        const timePart = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const timePart = d.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit' });
         // 🌟 3. เอามาจับมัดรวมกัน จัดให้วันที่เป็นตัวหนังสือเล็กๆ สีเทาๆ
         const timeStr = `${timePart} <span class="text-[9px] text-gray-600 ml-1">(${datePart})</span>`;
         
@@ -1300,8 +1302,12 @@ window.ds_renderActionLogs = function() {
     }
 
     tbody.innerHTML = filtered.map(log => {
-        const d = new Date(log.time);
-        const timeStr = d.toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        let d = new Date(log.time);
+        
+        // 🌟 หักลบ 7 ชั่วโมงให้ตรงกับประเทศไทย (GMT+7) เช่นเดียวกันสำหรับหน้าประวัติ Action
+        d = new Date(d.getTime() - (7 * 60 * 60 * 1000));
+        const timeStr = d.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        
         return window.renderTemplate('tpl-ds-action-log-row', {
             timeStr: timeStr,
             user: log.user,
