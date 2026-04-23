@@ -1648,46 +1648,61 @@ window.ds_clearOldMoveLogs = async function() {
 // 🌟 ระบบส่งข้อความและข้อความสำเร็จรูป
 // ---------------------------------------------------------
 
+// ดึงรายชื่อห้อง (ดึงมาทั้ง Text Channels และ Voice Channels)
 window.ds_fetchChannelsForSendMsg = async function() {
     const targetSelect = document.getElementById('dsSendMsgChannel');
     if (targetSelect) targetSelect.innerHTML = '<option value="">-- กำลังโหลดรายชื่อห้อง --</option>';
 
     try {
         if (typeof appDB !== 'undefined') {
-            const { data, error } = await appDB.from('settings').select('value').eq('key', 'discord_text_channels').single();
+            // 🌟 ดึงข้อมูลจากฐานข้อมูลมาทั้ง 2 แบบ (ห้องแชทพิมพ์ และ ห้องคุยเสียง)
+            const [textRes, voiceRes] = await Promise.all([
+                appDB.from('settings').select('value').eq('key', 'discord_text_channels').single(),
+                appDB.from('settings').select('value').eq('key', 'discord_channels').single()
+            ]);
             
-            if (error) {
-                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel (ระบบขัดข้อง) --</option>';
-                return;
+            let allChannels = [];
+
+            // 1. เอาห้องแชทข้อความปกติมาใส่ (เติมไอคอน 💬 ให้ดูง่าย)
+            if (textRes.data && textRes.data.value) {
+                try {
+                    const textCh = typeof textRes.data.value === 'string' ? JSON.parse(textRes.data.value) : textRes.data.value;
+                    if(Array.isArray(textCh)) allChannels = allChannels.concat(textCh.map(c => ({ id: c.id, name: `💬 ${c.name}` })));
+                } catch(e){}
             }
 
-            if (data && data.value) {
-                let channels = [];
+            // 2. เอาห้องเสียงมาใส่ด้วย (เติมไอคอน 🔊 ให้รู้ว่าเป็นห้องพูดคุย)
+            if (voiceRes.data && voiceRes.data.value) {
                 try {
-                    channels = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
-                } catch (parseErr) {
-                    if(targetSelect) targetSelect.innerHTML = '<option value="">-- รูปแบบข้อมูลห้องไม่ถูกต้อง --</option>';
-                    return;
-                }
-                
-                if (Array.isArray(channels) && channels.length > 0) {
-                    let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
-                    channels.forEach(c => {
-                        dropHtml += `<option value="${c.id}">${c.name}</option>`;
-                    });
-                    
-                    if(targetSelect) {
-                        targetSelect.innerHTML = dropHtml;
-                        const lastChannel = localStorage.getItem('ds_last_text_channel');
-                        if (lastChannel && channels.some(c => String(c.id) === String(lastChannel))) {
-                            targetSelect.value = lastChannel;
-                        }
+                    const voiceCh = typeof voiceRes.data.value === 'string' ? JSON.parse(voiceRes.data.value) : voiceRes.data.value;
+                    if(Array.isArray(voiceCh)) {
+                        voiceCh.forEach(vc => {
+                            if(!allChannels.find(c => c.id === vc.id)) {
+                                allChannels.push({ id: vc.id, name: `🔊 ${vc.name}` }); 
+                            }
+                        });
                     }
-                } else {
-                    if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel ในเซิร์ฟเวอร์บอท --</option>';
+                } catch(e){}
+            }
+
+            // นำห้องทั้งหมดมายัดใส่ช่อง Dropdown
+            if (allChannels.length > 0) {
+                let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
+                // เรียงตัวอักษรให้หาห้องง่ายๆ
+                allChannels.sort((a,b) => a.name.localeCompare(b.name)).forEach(c => {
+                    dropHtml += `<option value="${c.id}">${c.name}</option>`;
+                });
+                
+                if(targetSelect) {
+                    targetSelect.innerHTML = dropHtml;
+                    // จำค่าห้องล่าสุดที่เคยเลือกไว้
+                    const lastChannel = localStorage.getItem('ds_last_text_channel');
+                    if (lastChannel && allChannels.some(c => String(c.id) === String(lastChannel))) {
+                        targetSelect.value = lastChannel;
+                    }
                 }
             } else {
-                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ยังไม่มีการซิงค์ข้อมูลห้อง (ให้บอทเริ่มทำงานใหม่) --</option>';
+                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบห้องในระบบ (รอแอดมินเปิดบอท) --</option>';
             }
         }
     } catch(e) { 
