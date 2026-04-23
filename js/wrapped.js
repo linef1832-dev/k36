@@ -140,13 +140,16 @@ function buildWrappedUI(data) {
         </div>
         `;
 
-        // Slide 2: เว็บตัวท็อป
+        // Slide 2: เว็บตัวท็อป (เจ้าแห่งเว็บ)
         slidesHTML += `
         <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-bl from-orange-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
-            <div class="text-6xl mb-4 scale-110 drop-shadow-xl">👑</div>
-            <p class="text-lg text-orange-200 font-bold mb-2">เว็บที่คุณผูกพันที่สุดคือ</p>
-            <h2 class="text-5xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(251,146,60,0.8)]">${data.topWeb}</h2>
-            <p class="text-base text-orange-300/80 mt-2">ทำให้เว็บนี้ไปถึง <b class="text-white">${data.topWebCount.toLocaleString()}</b> บิล</p>
+            <div class="text-7xl mb-4 scale-110 drop-shadow-[0_0_20px_rgba(251,146,60,0.8)] animate-pulse">👑</div>
+            <p class="text-xl text-orange-200 font-bold mb-2">ฉายาของคุณเดือนนี้คือ...</p>
+            <h2 class="text-4xl font-black text-white mb-2 drop-shadow-lg">เจ้าแห่งเว็บ<br><span class="text-6xl text-yellow-300 drop-shadow-[0_0_15px_rgba(253,224,71,0.8)] leading-tight mt-2 block">${data.topWeb}</span></h2>
+            <div class="mt-4 bg-black/20 px-5 py-3 rounded-2xl border border-orange-500/30 backdrop-blur-sm shadow-inner">
+                <p class="text-sm text-orange-200">ฟาดบิลเว็บนี้คนเดียวไปถึง</p>
+                <p class="text-3xl font-black text-white mt-1">${data.topWebCount.toLocaleString()} <span class="text-sm font-normal text-orange-100">รายการ!</span></p>
+            </div>
         </div>
         `;
     } else {
