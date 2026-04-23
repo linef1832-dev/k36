@@ -498,6 +498,10 @@ window.renderLeaveTable = function() {
             const [y, m] = s.viewMonth.split('-');
             currentCalendarDate = new Date(parseInt(y), parseInt(m)-1, 1);
             if(typeof updateMonthPicker === 'function') updateMonthPicker();
+            
+            // 🌟 แก้บัค: ถ้าโดนบังคับเปลี่ยนเดือน ให้ไปดึงข้อมูลของเดือนนั้นมาใหม่ก่อน แล้วค่อยวาดตาราง
+            fetchLeaveData();
+            return;
         }
     } else {
         if(picker) { picker.disabled = false; picker.classList.remove('opacity-50', 'cursor-not-allowed'); }
