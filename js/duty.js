@@ -1590,12 +1590,11 @@ window.renderDutyAccessTable = function() {
     const body = document.getElementById('dutyAccessBody');
     if(!head || !body) return;
     
-    // 🌟 ดึงรายชื่อพนักงานทั้งหมด โดยถ้าแอดมินหรือคนที่จัดเวรเพิ่งแก้ไข/เพิ่มชื่อ ระบบจะอ่านเจอ
     let staff = GLOBAL_USER_LIST.filter(u => {
         const uDept = u.department || 'AM';
-        // 🔴 แก้ไข: เปลี่ยนมาใช้ .startsWith('TRAINER') แทน
+        // 🔴 แก้ไข: บรรทัด return ต้องเปลี่ยนเป็น uDept === currentDutyDept 
         if (currentDutyDept.startsWith('TRAINER')) {
-            return uDept === 'TRAINER'; 
+            return uDept === currentDutyDept; 
         } else {
             return u.role === 'staff' && uDept === currentDutyDept;
         }
@@ -1725,7 +1724,7 @@ window.manualAdjustReq = function(changedTeam) {
     
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff');
+        const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all'); 
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
