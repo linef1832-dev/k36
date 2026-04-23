@@ -117,54 +117,54 @@ function buildWrappedUI(data) {
     let slideCount = 0;
 
     // Slide 0: Intro
-    slidesHTML += \`
+    slidesHTML += `
         <!-- Slide 0: Intro -->
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-center transition-opacity duration-500 opacity-100 z-10" id="slide-\${slideCount++}">
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-center transition-opacity duration-500 opacity-100 z-10" id="slide-${slideCount++}">
             <div class="text-5xl mb-4 animate-bounce">👋</div>
             <h2 class="text-2xl font-black text-white mb-2 drop-shadow-lg">สวัสดี, ${currentUser.username}</h2>
             <p class="text-base text-purple-200 font-bold">เดือน ${data.month} นี้ผ่านไปไวเหมือนโกหก...</p>
             <p class="text-sm text-gray-400 mt-4">มาดูกันดีกว่าว่าคุณลุยงานไปแค่ไหน!</p>
         </div>
-    \`;
+    `;
 
     // 🌟 แยกเงื่อนไข: ถ้ามีบิลให้โชว์สถิติ ถ้าไม่มีบิล (เช่น แอดมิน) ให้โชว์คำขอบคุณแทน
     if (data.totalBills > 0) {
         // Slide 1: ยอดบิลรวม
-        slidesHTML += \`
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-emerald-900 via-teal-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-\${slideCount++}">
+        slidesHTML += `
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-emerald-900 via-teal-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
             <div class="text-6xl mb-4 animate-pulse">🔥</div>
             <p class="text-lg text-emerald-200 font-bold mb-2">ตลอดทั้งเดือนนี้ คุณทำรายการไป</p>
             <h2 class="text-5xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(52,211,153,0.8)]">${data.totalBills.toLocaleString()} <span class="text-xl">บิล</span></h2>
             <p class="text-sm text-emerald-300/80 mt-2">และสำเร็จถึง ${data.totalApproved.toLocaleString()} รายการ!</p>
             <p class="text-xs text-gray-400 mt-6">(แอดมินปลื้มใจมาก 👏)</p>
         </div>
-        \`;
+        `;
 
         // Slide 2: เว็บตัวท็อป
-        slidesHTML += \`
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-bl from-orange-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-\${slideCount++}">
+        slidesHTML += `
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-bl from-orange-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
             <div class="text-6xl mb-4 scale-110 drop-shadow-xl">👑</div>
             <p class="text-lg text-orange-200 font-bold mb-2">เว็บที่คุณผูกพันที่สุดคือ</p>
             <h2 class="text-5xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(251,146,60,0.8)]">${data.topWeb}</h2>
             <p class="text-base text-orange-300/80 mt-2">ทำให้เว็บนี้ไปถึง <b class="text-white">${data.topWebCount.toLocaleString()}</b> บิล</p>
         </div>
-        \`;
+        `;
     } else {
         // Slide สำหรับ Admin / พนักงานที่ไม่ได้ทำบิล
-        slidesHTML += \`
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-blue-900 via-indigo-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-\${slideCount++}">
+        slidesHTML += `
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-blue-900 via-indigo-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
             <div class="text-6xl mb-4 animate-pulse">🛡️</div>
             <p class="text-lg text-blue-200 font-bold mb-2">ในฐานะทีมซัพพอร์ต / แอดมิน</p>
             <h2 class="text-3xl font-black text-white mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]">คุณคือเบื้องหลังความสำเร็จ!</h2>
             <p class="text-sm text-blue-300/80 mt-2">คอยดูแลและสนับสนุนทีมงานตลอดทั้งเดือน</p>
             <p class="text-xs text-gray-400 mt-6">(เหนื่อยหน่อยนะเดือนนี้ ✌️)</p>
         </div>
-        \`;
+        `;
     }
 
     // Slide: สถิติวันหยุด
-    slidesHTML += \`
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-pink-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-\${slideCount++}">
+    slidesHTML += `
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-pink-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
             <div class="text-6xl mb-4 scale-110 drop-shadow-xl">${data.totalLeaves === 0 ? '🏆' : '🏖️'}</div>
             <p class="text-lg text-pink-200 font-bold mb-2">เรื่องพักผ่อนในเดือนนี้...</p>
             <h2 class="text-3xl font-black text-white mb-4 drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]">${data.totalLeaves === 0 ? 'คุณไม่เคยหยุดเลย!' : 'หยุดไป <span class="text-5xl">' + data.totalLeaves + '</span> วัน'}</h2>
@@ -177,18 +177,18 @@ function buildWrappedUI(data) {
                 }).join('') || '<span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold text-white border border-white/30">ขยันทำงาน 100% 👏</span>'}
             </div>
         </div>
-    \`;
+    `;
 
     // Slide: Outro
-    slidesHTML += \`
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-b from-sky-900 via-blue-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-\${slideCount++}">
+    slidesHTML += `
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-b from-sky-900 via-blue-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
             <div class="text-6xl mb-4 animate-bounce">💖</div>
             <h2 class="text-3xl font-black text-white mb-3 drop-shadow-lg">ขอบคุณที่ทุ่มเท!</h2>
             <p class="text-base text-blue-200 font-bold">ทีมจะไปต่อไม่ได้เลย ถ้าไม่มีคุณ</p>
             <p class="text-sm text-blue-300 mt-4">เตรียมลุยต่อในเดือนหน้านะครับ 🚀</p>
             <button onclick="closeWrapped()" class="mt-8 px-6 py-2.5 bg-white/20 hover:bg-white/30 text-white font-bold rounded-full backdrop-blur-md border border-white/30 transition shadow-lg relative z-50">ปิดหน้าต่าง</button>
         </div>
-    \`;
+    `;
 
     // 🌟 ให้อัปเดตจำนวนสไลด์ทั้งหมดให้ตรงกับที่สร้างจริงๆ
     wrappedTotalSlides = slideCount; 
