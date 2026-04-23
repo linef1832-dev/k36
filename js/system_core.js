@@ -2072,14 +2072,6 @@ const PERM_GROUPS = [
             {id: 'kbiz', name: 'เข้าหน้าจัดการบอท K BIZ', isSub: false}
         ]
     },
-    // 🔽 เพิ่มบล็อกนี้เข้าไป 🔽
-    {
-        id: 'page_kbiz_bot', name: 'เครื่องมือรันบอท K BIZ', icon: 'precision_manufacturing', theme: 'emerald',
-        items: [
-            {id: 'kbiz_bot', name: 'เข้าหน้าเครื่องมือรันบอท', isSub: false}
-        ]
-    },
-    // 🔼 สิ้นสุดที่เพิ่ม 🔼
     {
         id: 'page_discord', name: 'เครื่องมือ DISCORD', icon: 'discord', theme: 'indigo',
         items: [
@@ -2420,7 +2412,7 @@ window.applySidebarPermissions = async function() {
             const onClickAttr = btn.getAttribute('onclick') || '';
             let shouldShow = false;
 
-            if (onClickAttr.includes('dashboard') || onClickAttr.includes('password')) {
+            if (onClickAttr.includes('dashboard') || onClickAttr.includes('password') || onClickAttr.includes('openEmployeeWrapped')) {
                 shouldShow = true;
             } else {
                 PERM_GROUPS.forEach(group => {
