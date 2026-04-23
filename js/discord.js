@@ -1648,14 +1648,13 @@ window.ds_clearOldMoveLogs = async function() {
 // 🌟 ระบบส่งข้อความและข้อความสำเร็จรูป
 // ---------------------------------------------------------
 
-// ดึงรายชื่อห้อง (ดึงมาทั้ง Text Channels และ Voice Channels)
+// ดึงรายชื่อห้อง (ดึงมาทั้ง Text Channels และ Voice Channels แบบ Checkbox)
 window.ds_fetchChannelsForSendMsg = async function() {
-    const targetSelect = document.getElementById('dsSendMsgChannel');
-    if (targetSelect) targetSelect.innerHTML = '<option value="">-- กำลังโหลดรายชื่อห้อง --</option>';
+    const targetContainer = document.getElementById('dsSendMsgChannelContainer');
+    if (targetContainer) targetContainer.innerHTML = '<div class="text-center text-gray-500 text-xs py-10"><span class="material-icons animate-spin mb-2">sync</span><br>กำลังโหลดรายชื่อห้อง...</div>';
 
     try {
         if (typeof appDB !== 'undefined') {
-            // 🌟 ดึงข้อมูลจากฐานข้อมูลมาทั้ง 2 แบบ (ห้องแชทพิมพ์ และ ห้องคุยเสียง)
             const [textRes, voiceRes] = await Promise.all([
                 appDB.from('settings').select('value').eq('key', 'discord_text_channels').single(),
                 appDB.from('settings').select('value').eq('key', 'discord_channels').single()
@@ -1663,7 +1662,6 @@ window.ds_fetchChannelsForSendMsg = async function() {
             
             let allChannels = [];
 
-            // 1. เอาห้องแชทข้อความปกติมาใส่ (เติมไอคอน 💬 ให้ดูง่าย)
             if (textRes.data && textRes.data.value) {
                 try {
                     const textCh = typeof textRes.data.value === 'string' ? JSON.parse(textRes.data.value) : textRes.data.value;
@@ -1671,7 +1669,6 @@ window.ds_fetchChannelsForSendMsg = async function() {
                 } catch(e){}
             }
 
-            // 2. เอาห้องเสียงมาใส่ด้วย (เติมไอคอน 🔊 ให้รู้ว่าเป็นห้องพูดคุย)
             if (voiceRes.data && voiceRes.data.value) {
                 try {
                     const voiceCh = typeof voiceRes.data.value === 'string' ? JSON.parse(voiceRes.data.value) : voiceRes.data.value;
@@ -1685,125 +1682,116 @@ window.ds_fetchChannelsForSendMsg = async function() {
                 } catch(e){}
             }
 
-            // นำห้องทั้งหมดมายัดใส่ช่อง Dropdown
             if (allChannels.length > 0) {
-                let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
-                // เรียงตัวอักษรให้หาห้องง่ายๆ
+                let savedChannels = [];
+                try { savedChannels = JSON.parse(localStorage.getItem('ds_last_selected_channels') || '[]'); } catch(e){}
+
+                let html = '';
                 allChannels.sort((a,b) => a.name.localeCompare(b.name)).forEach(c => {
-                    dropHtml += `<option value="${c.id}">${c.name}</option>`;
+                    const isChecked = savedChannels.includes(c.id) ? 'checked' : '';
+                    html += `
+                        <label class="flex items-center gap-3 p-2.5 hover:bg-slate-800 rounded-lg cursor-pointer border border-transparent hover:border-slate-700 transition">
+                            <input type="checkbox" value="${c.id}" class="ds-send-channel-cb w-5 h-5 rounded border-gray-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-2 shadow-inner transition cursor-pointer" ${isChecked} onchange="ds_updateSelectedChannelsLabel()">
+                            <span class="text-gray-200 font-bold text-sm truncate">${c.name}</span>
+                        </label>
+                    `;
                 });
                 
-                if(targetSelect) {
-                    targetSelect.innerHTML = dropHtml;
-                    // จำค่าห้องล่าสุดที่เคยเลือกไว้
-                    const lastChannel = localStorage.getItem('ds_last_text_channel');
-                    if (lastChannel && allChannels.some(c => String(c.id) === String(lastChannel))) {
-                        targetSelect.value = lastChannel;
-                    }
+                if(targetContainer) {
+                    targetContainer.innerHTML = html;
+                    ds_updateSelectedChannelsLabel();
                 }
             } else {
-                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบห้องในระบบ (รอแอดมินเปิดบอท) --</option>';
+                if(targetContainer) targetContainer.innerHTML = '<div class="text-center text-gray-500 text-xs py-10">-- ไม่พบห้องในระบบ (รอแอดมินเปิดบอท) --</div>';
             }
         }
     } catch(e) { 
-        if(targetSelect) targetSelect.innerHTML = '<option value="">-- เกิดข้อผิดพลาดในการโหลดห้อง --</option>';
+        if(targetContainer) targetContainer.innerHTML = '<div class="text-center text-red-500 text-xs py-10">-- เกิดข้อผิดพลาดในการโหลดห้อง --</div>';
     }
 };
 
-// ฟังก์ชันโหลดรายการข้อความสำเร็จรูป
-window.ds_loadMsgTemplates = function() {
-    const list = document.getElementById('dsMsgTemplatesList');
-    if (!list) return;
+// อัปเดตตัวเลขห้องที่ถูกเลือก และบันทึกลงความจำเครื่อง
+window.ds_updateSelectedChannelsLabel = function() {
+    const checkboxes = document.querySelectorAll('.ds-send-channel-cb:checked');
+    const label = document.getElementById('dsSelectedChannelsLabel');
+    if (label) {
+        label.innerHTML = `เลือกรอไว้ <span class="text-white">${checkboxes.length}</span> ห้อง`;
+    }
     
-    let templates = [];
-    try { templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]'); } catch (e) { templates = []; }
+    // บันทึกใส่เครื่อง เผื่อปิดเว็บเปิดใหม่ก็ยังจำได้
+    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+    localStorage.setItem('ds_last_selected_channels', JSON.stringify(selectedIds));
+};
+
+// ปุ่มเลือกทั้งหมด / ยกเลิกทั้งหมด
+window.ds_selectAllChannels = function() {
+    const checkboxes = document.querySelectorAll('.ds-send-channel-cb');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
     
-    if (templates.length === 0) {
-        list.innerHTML = '<div class="text-center text-gray-500 text-xs py-10">ยังไม่มีข้อความที่บันทึกไว้<br>พิมพ์ข้อความด้านซ้ายแล้วกด "+ บันทึกเป็นข้อความประจำ"</div>';
-        return;
-    }
-
-    list.innerHTML = templates.map((t, idx) => `
-        <div class="bg-slate-800 border border-slate-600 p-3 rounded-xl hover:border-emerald-500 transition group relative">
-            <div class="text-xs text-gray-300 whitespace-pre-line line-clamp-3 mb-2 cursor-pointer" onclick="ds_useMsgTemplate(${idx})">${t.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-            <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-700">
-                <button onclick="ds_useMsgTemplate(${idx})" class="text-[10px] bg-sky-600 hover:bg-sky-500 text-white px-2 py-1 rounded shadow-sm font-bold">นำไปใช้</button>
-                <button onclick="ds_deleteMsgTemplate(${idx})" class="text-gray-400 hover:text-red-500 transition" title="ลบข้อความนี้"><span class="material-icons text-[14px]">delete</span></button>
-            </div>
-        </div>
-    `).join('');
+    checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+    });
+    ds_updateSelectedChannelsLabel();
 };
 
-// ฟังก์ชันบันทึกข้อความเก็บไว้เป็นเทมเพลต
-window.ds_saveMsgTemplate = function() {
-    const textEl = document.getElementById('dsSendMsgText');
-    if (!textEl) return;
-    const text = textEl.value.trim();
-    if (!text) return Swal.fire('เตือน', 'กรุณาพิมพ์ข้อความที่ต้องการบันทึกก่อนครับ', 'warning');
-
-    let templates = [];
-    try { templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]'); } catch (e) { templates = []; }
-
-    if (templates.includes(text)) return Swal.fire('เตือน', 'มีข้อความนี้บันทึกไว้แล้ว', 'info');
-
-    templates.unshift(text); // เอาข้อความใหม่ไว้บนสุด
-    localStorage.setItem('ds_msg_templates', JSON.stringify(templates));
-    ds_loadMsgTemplates();
-    Swal.fire({icon: 'success', title: 'บันทึกเป็นข้อความประจำแล้ว', timer: 1000, showConfirmButton: false});
-};
-
-// ฟังก์ชันนำข้อความที่บันทึกไว้มาเติมในช่องพิมพ์
-window.ds_useMsgTemplate = function(idx) {
-    let templates = [];
-    try { templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]'); } catch (e) { return; }
-    if (templates[idx]) {
-        const textEl = document.getElementById('dsSendMsgText');
-        if (textEl) textEl.value = templates[idx];
-    }
-};
-
-// ฟังก์ชันลบข้อความเทมเพลต
-window.ds_deleteMsgTemplate = function(idx) {
-    let templates = [];
-    try { templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]'); } catch (e) { return; }
-    templates.splice(idx, 1);
-    localStorage.setItem('ds_msg_templates', JSON.stringify(templates));
-    ds_loadMsgTemplates();
-};
-
-// ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ
+// ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ (แบบวนลูปส่งหลายห้อง)
 window.ds_sendMessage = async function() {
-    const channelIdEl = document.getElementById('dsSendMsgChannel');
+    const checkboxes = document.querySelectorAll('.ds-send-channel-cb:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
     const messageEl = document.getElementById('dsSendMsgText');
+    const message = messageEl ? messageEl.value.trim() : '';
     
-    if (!channelIdEl || !messageEl) return;
-    
-    const channelId = channelIdEl.value;
-    const message = messageEl.value.trim();
-    
-    if (!channelId) return Swal.fire('เตือน', 'กรุณาเลือกห้องปลายทาง', 'warning');
-    if (!message) return Swal.fire('เตือน', 'กรุณาพิมพ์ข้อความที่ต้องการส่ง', 'warning');
+    if (selectedIds.length === 0) return Swal.fire('เตือน', 'กรุณาติ๊กเลือกห้องปลายทางอย่างน้อย 1 ห้องครับ', 'warning');
+    if (!message) return Swal.fire('เตือน', 'กรุณาพิมพ์ข้อความที่ต้องการส่งก่อนครับ', 'warning');
 
-    Swal.fire({title: 'กำลังส่งข้อความ...', didOpen: () => Swal.showLoading()});
-    try {
-        const res = await fetch(`${DISCORD_API_URL}/api/send-message`, {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ channelId: channelId, content: message })
-        });
-        
-        const r = await res.json();
-        if (r.success) {
-            Swal.fire('สำเร็จ', 'บอทส่งข้อความเข้ากลุ่มเรียบร้อยแล้ว', 'success');
-            messageEl.value = ''; 
-            if(typeof ds_logAction === 'function') {
-                const channelName = channelIdEl.options[channelIdEl.selectedIndex].text;
-                ds_logAction('ส่งข้อความ (Bot)', `สั่งบอทพิมพ์ข้อความลงห้อง: ${channelName}`);
+    Swal.fire({
+        title: 'กำลังส่งข้อความ...', 
+        html: `กำลังเริ่มส่ง 0 / ${selectedIds.length} ห้อง`,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    // ยิงคำสั่งไปหาบอททีละห้อง ป้องกันการโดนแบนจากการสแปม
+    for (let i = 0; i < selectedIds.length; i++) {
+        const channelId = selectedIds[i];
+        try {
+            const res = await fetch(`${DISCORD_API_URL}/api/send-message`, {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channelId: channelId, content: message })
+            });
+            const r = await res.json();
+            if (r.success) {
+                successCount++;
+            } else {
+                failCount++;
+                console.error("Failed to send to", channelId, r.error);
             }
-        } else {
-            Swal.fire('Error', r.error || 'ส่งข้อความไม่สำเร็จ (ห้องอาจจะผิดหรือบอทไม่มีสิทธิ์)', 'error');
+        } catch(e) {
+            failCount++;
+            console.error("Fetch error to", channelId, e);
         }
-    } catch(e) { 
-        Swal.fire('Error', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์บอทได้', 'error'); 
+        
+        // อัปเดตหน้าจอโชว์ความคืบหน้าให้ผู้ใช้เห็นสดๆ
+        Swal.update({ 
+            html: `ส่งไปแล้ว ${i + 1} / ${selectedIds.length} ห้อง<br>
+            <div class="flex justify-center gap-4 mt-2">
+                <span class="text-sm text-emerald-500 font-bold">✅ สำเร็จ: ${successCount}</span>
+                <span class="text-sm text-red-500 font-bold">❌ ล้มเหลว: ${failCount}</span>
+            </div>` 
+        });
+    }
+
+    if (successCount > 0) {
+        Swal.fire('สำเร็จ!', `บอทส่งข้อความสำเร็จ ${successCount} ห้อง${failCount > 0 ? `<br><span class="text-xs text-red-500">และส่งไม่ได้ ${failCount} ห้อง (บอทอาจไม่มีสิทธิ์พิมพ์)</span>` : ''}`, 'success');
+        messageEl.value = ''; // ล้างช่องข้อความหลังส่งเสร็จ
+        if(typeof ds_logAction === 'function') {
+            ds_logAction('ส่งข้อความ (Bot)', `สั่งบอทพิมพ์ข้อความลง ${selectedIds.length} ห้อง สำเร็จ ${successCount}`);
+        }
+    } else {
+        Swal.fire('เกิดข้อผิดพลาด', 'ส่งข้อความไม่สำเร็จเลย (บอทอาจจะติด Error 401: ไม่มีสิทธิ์พิมพ์ในห้องที่คุณเลือกครับ โปรดเช็คสิทธิ์ในดิสคอร์ด)', 'error');
     }
 };
