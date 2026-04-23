@@ -26,19 +26,26 @@ window.openEmployeeWrapped = async function() {
         const year = now.getFullYear();
         const monthStr = String(now.getMonth() + 1).padStart(2, '0');
         const startOfMonth = `${year}-${monthStr}-01`;
+        
+        // 🌟 เพิ่มตัวแปรคำนวณวันสิ้นเดือน
+        const daysInMonth = new Date(year, now.getMonth() + 1, 0).getDate();
+        const endOfMonth = `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
+        
         const monthName = now.toLocaleString('th-TH', { month: 'long' });
 
         // ดึงสถิติทำรายการจาก summary
         const { data: summaryData } = await appDB.from('transaction_daily_summary')
             .select('*')
             .eq('employee_name', currentUser.username)
-            .gte('date', startOfMonth);
+            .gte('date', startOfMonth)
+            .lte('date', endOfMonth); // 🌟 ล็อกไม่ให้เกินวันสิ้นเดือน
             
         // ดึงสถิติวันหยุดจาก leave_requests
         const { data: leaveData } = await appDB.from('leave_requests')
             .select('*')
             .eq('user_name', currentUser.username)
-            .gte('leave_date', startOfMonth);
+            .gte('leave_date', startOfMonth)
+            .lte('leave_date', endOfMonth); // 🌟 ล็อกไม่ให้ดึงวันหยุดที่จองล่วงหน้าของเดือนถัดไปมานับ
 
         let totalBills = 0;
         let totalApproved = 0;
