@@ -1655,27 +1655,49 @@ window.ds_fetchChannelsForSendMsg = async function() {
         if(targetSelect) targetSelect.innerHTML = '<option value="">-- กำลังโหลดรายชื่อห้อง --</option>';
 
         if(typeof appDB !== 'undefined') {
-            // 🌟 แก้ไขตรงนี้: ให้ดึงจาก key 'discord_text_channels' แทน
-            const { data } = await appDB.from('settings').select('value').eq('key', 'discord_text_channels').single();
+            const { data, error } = await appDB.from('settings').select('value').eq('key', 'discord_text_channels').single();
+            
+            if (error) {
+                console.error("ดึงข้อมูลห้องจาก DB ไม่ได้:", error);
+                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel (ตรวจสอบบอท) --</option>';
+                return;
+            }
+
             if (data && data.value) {
-                const channels = JSON.parse(data.value);
-                let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
-                // กรองเฉพาะห้อง Text (ถ้ามี) หรือแสดงทั้งหมดที่บอทส่งมา
-                channels.forEach(c => dropHtml += `<option value="${c.id}">${c.name}</option>`);
+                // เช็คว่าค่าที่ได้มาเป็น String หรือ Object (ดัก Error)
+                let channels = [];
+                try {
+                    channels = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+                } catch (parseErr) {
+                    console.error("แปลงข้อมูล JSON ไม่ผ่าน:", parseErr);
+                }
                 
-                if(targetSelect) {
-                    targetSelect.innerHTML = dropHtml;
-                    // ดึงความจำเดิมว่าเคยเลือกห้องไหนไว้
-                    const lastChannel = localStorage.getItem('ds_last_text_channel');
-                    if (lastChannel && channels.some(c => c.id === lastChannel)) {
-                        targetSelect.value = lastChannel;
+                if (channels && channels.length > 0) {
+                    let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
+                    channels.forEach(c => {
+                        dropHtml += `<option value="${c.id}">${c.name}</option>`;
+                    });
+                    
+                    if(targetSelect) {
+                        targetSelect.innerHTML = dropHtml;
+                        // ดึงความจำเดิมว่าเคยเลือกห้องไหนไว้
+                        const lastChannel = localStorage.getItem('ds_last_text_channel');
+                        if (lastChannel && channels.some(c => c.id === lastChannel)) {
+                            targetSelect.value = lastChannel;
+                        }
                     }
+                } else {
+                    if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel ใน Server --</option>';
                 }
             } else {
-                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel (รอแอดมินเปิดบอท) --</option>';
+                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบข้อมูลห้อง (ให้บอทเริ่มทำงานใหม่) --</option>';
             }
         }
-    } catch(e) { console.error("Fetch Text Channels Error:", e); }
+    } catch(e) { 
+        console.error("เกิดข้อผิดพลาดตอนดึงห้องแชท:", e); 
+        const targetSelect = document.getElementById('dsSendMsgChannel');
+        if(targetSelect) targetSelect.innerHTML = '<option value="">-- เกิดข้อผิดพลาดในการโหลดห้อง --</option>';
+    }
 };
 
 // โหลดรายการข้อความสำเร็จรูป
@@ -1730,7 +1752,7 @@ window.ds_deleteMsgTemplate = function(idx) {
     ds_loadMsgTemplates();
 };
 
-// ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ (ตัวเดิม)
+// ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ
 window.ds_sendMessage = async function() {
     const channelId = document.getElementById('dsSendMsgChannel').value;
     const message = document.getElementById('dsSendMsgText').value.trim();
