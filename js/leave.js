@@ -530,9 +530,9 @@ window.renderLeaveTable = function() {
         }
     });
     
-    const allDeptUserIds = new Set(allDeptUsers.map(u => u.id));
+    const allDeptUserIds = new Set(allDeptUsers.map(u => String(u.id)));
     const userShiftMapAll = {};
-    allDeptUsers.forEach(u => userShiftMapAll[u.id] = u.allowed_shift || 'all');
+    allDeptUsers.forEach(u => userShiftMapAll[String(u.id)] = u.allowed_shift || 'all');
 
     const staffListToRender = allDeptUsers.filter(u => 
         u.username.toLowerCase().includes(searchTerm) &&
@@ -544,12 +544,13 @@ window.renderLeaveTable = function() {
     const shiftDailyCounts = {}; 
 
    allLeaveData.forEach(l => {
-        if (!allDeptUserIds.has(l.user_id)) return;
+        const strUid = String(l.user_id);
+        if (!allDeptUserIds.has(strUid)) return;
         
         const rsn = (l.reason === 'Table-Booking' || !l.reason) ? 'X' : l.reason;
-        bookedMap.set(`${l.user_id}_${l.leave_date}`, rsn);
+        bookedMap.set(`${strUid}_${l.leave_date}`, rsn);
         
-        const uShift = userShiftMapAll[l.user_id];
+        const uShift = userShiftMapAll[strUid];
         const shiftKey = `${l.leave_date}_${uShift}`;
         if(!shiftDailyCounts[shiftKey]) shiftDailyCounts[shiftKey] = 0;
         shiftDailyCounts[shiftKey]++;
@@ -557,15 +558,15 @@ window.renderLeaveTable = function() {
         const lDate = new Date(l.leave_date);
         if (lDate.getMonth() === month && lDate.getFullYear() === year) {
             // 🌟 แก้ไข: เปลี่ยนการเก็บข้อมูลให้มีทั้งยอดรวม และแยกประเภทย่อย
-            if(!personalCounts[l.user_id]) {
-                personalCounts[l.user_id] = { total: 0, details: {} };
+            if(!personalCounts[strUid]) {
+                personalCounts[strUid] = { total: 0, details: {} };
             }
-            personalCounts[l.user_id].total++;
+            personalCounts[strUid].total++;
             
-            if(!personalCounts[l.user_id].details[rsn]) {
-                personalCounts[l.user_id].details[rsn] = 0;
+            if(!personalCounts[strUid].details[rsn]) {
+                personalCounts[strUid].details[rsn] = 0;
             }
-            personalCounts[l.user_id].details[rsn]++;
+            personalCounts[strUid].details[rsn]++;
         }
     });
 
@@ -623,12 +624,13 @@ window.renderLeaveTable = function() {
 
     let bodyHtml = '';
     staffListToRender.forEach((u, index) => {
-        const isMe = u.id === currentUser.id;
+        const isMe = String(u.id) === String(currentUser.id);
+        const strUid = String(u.id);
         const nameClass = isMe ? "text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-900/10" : "";
         const rowClass = isMe ? "bg-rose-50/30 dark:bg-rose-900/5" : "";
         
         // 🌟 ดึงข้อมูลที่นับแบบแยกประเภทแล้วออกมาใช้
-        const myLeaveData = personalCounts[u.id] || { total: 0, details: {} };
+        const myLeaveData = personalCounts[strUid] || { total: 0, details: {} };
         
         // 🌟 แก้ไข: ให้ดึงเฉพาะยอดของประเภท "X" มาใช้คำนวณโควตาและแสดงในวงกลม
         const myTotal = myLeaveData.details['X'] || 0; 
@@ -650,23 +652,29 @@ window.renderLeaveTable = function() {
 
         // 🌟 สร้าง HTML แสดงจำนวนลางานแยกตามประเภท ให้ครบทุกแบบตามหน้าเว็บคุณ
         let breakdownHtml = '';
-        if (myTotal > 0) {
-            const detailItems = [];
-            // กำหนดสีให้ครบตามประเภทการลาเลยครับ
-            const colors = {
-                'X': 'text-red-500 font-black',
-                'XX': 'text-yellow-600 font-black',
-                'X4': 'text-pink-500 font-black',
-                'KL': 'text-green-600 font-black',
-                'TX': 'text-blue-500 font-black',
-                'TL': 'text-blue-500 font-black',
-                'PN': 'text-amber-700 font-black',
-                'KP': 'text-yellow-800 font-black'
-            };
-            
+        const detailItems = [];
+        // กำหนดสีให้ครบตามประเภทการลาเลยครับ
+        const colors = {
+            'X': 'text-red-500 font-black',
+            'XX': 'text-yellow-600 font-black',
+            'X4': 'text-pink-500 font-black',
+            'KL': 'text-green-600 font-black',
+            'TX': 'text-blue-500 font-black',
+            'TL': 'text-blue-500 font-black',
+            'PN': 'text-amber-700 font-black',
+            'KP': 'text-yellow-800 font-black'
+        };
+
+        // 🌟 บังคับโชว์สถานะวันหยุดปกติ (X) เป็นค่าเริ่มต้นเสมอ แม้จะยังไม่เคยกดอะไรเลยก็ตาม
+        const defaultXCount = myLeaveData.details['X'] || myLeaveData.details['Table-Booking'] || 0;
+        detailItems.push(`<span class="${colors['X']} bg-slate-100 dark:bg-slate-800 px-1 rounded shadow-sm border border-gray-200 dark:border-slate-600">X:${defaultXCount}</span>`);
+
+        if (myLeaveData.total > 0) {
             for (const [rsn, count] of Object.entries(myLeaveData.details)) {
                 // เผื่อมีค่า Table-Booking หลุดมา ให้โชว์เป็น X
                 let displayRsn = (rsn === 'Table-Booking') ? 'X' : rsn;
+                if (displayRsn === 'X') continue; // ข้าม X เพราะถูกดึงมาโชว์เป็นค่าตั้งต้นแล้ว
+
                 const colorCls = colors[displayRsn] || 'text-gray-500 font-black';
                 
                 // เช็คกันซ้ำ
@@ -674,8 +682,8 @@ window.renderLeaveTable = function() {
                     detailItems.push(`<span class="${colorCls} bg-slate-100 dark:bg-slate-800 px-1 rounded shadow-sm border border-gray-200 dark:border-slate-600">${displayRsn}:${count}</span>`);
                 }
             }
-            breakdownHtml = `<div class="text-[9px] leading-tight mt-1.5 flex flex-nowrap overflow-x-auto custom-scrollbar pb-1 gap-x-1">${detailItems.join('')}</div>`;
-    }
+        }
+        breakdownHtml = `<div class="text-[9px] leading-tight mt-1.5 flex flex-nowrap overflow-x-auto custom-scrollbar pb-1 gap-x-1">${detailItems.join('')}</div>`;
 
     let rowHtml = `<tr class="transition ${rowClass} h-[56px]">`;
     
@@ -700,7 +708,7 @@ window.renderLeaveTable = function() {
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             
-            const leaveReason = bookedMap.get(`${u.id}_${dateStr}`);
+            const leaveReason = bookedMap.get(`${strUid}_${dateStr}`);
             const isBooked = !!leaveReason;
             
             const shiftCountKey = `${dateStr}_${u.allowed_shift}`;
