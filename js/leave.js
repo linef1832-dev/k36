@@ -547,16 +547,20 @@ window.renderLeaveTable = function() {
         const strUid = String(l.user_id);
         if (!allDeptUserIds.has(strUid)) return;
         
+        // 🌟 แก้บัค: ตัดเวลาออก เพื่อให้ตรงกับวันที่บนตารางเสมอ ป้องกันข้อมูลเก่าใน DB ที่มีเวลาติดมา
+        const cleanDate = String(l.leave_date || '').split('T')[0].split(' ')[0];
+        
         const rsn = (l.reason === 'Table-Booking' || !l.reason) ? 'X' : l.reason;
-        bookedMap.set(`${strUid}_${l.leave_date}`, rsn);
+        bookedMap.set(`${strUid}_${cleanDate}`, rsn);
         
         const uShift = userShiftMapAll[strUid];
-        const shiftKey = `${l.leave_date}_${uShift}`;
+        const shiftKey = `${cleanDate}_${uShift}`;
         if(!shiftDailyCounts[shiftKey]) shiftDailyCounts[shiftKey] = 0;
         shiftDailyCounts[shiftKey]++;
 
-        const lDate = new Date(l.leave_date);
-        if (lDate.getMonth() === month && lDate.getFullYear() === year) {
+        // 🌟 แก้บัค: ใช้ split เทียบเดือนและปี ป้องกันปัญหา Timezone เลื่อนวัน
+        const parts = cleanDate.split('-');
+        if (parts.length >= 3 && parseInt(parts[1], 10) === (month + 1) && parseInt(parts[0], 10) === year) {
             // 🌟 แก้ไข: เปลี่ยนการเก็บข้อมูลให้มีทั้งยอดรวม และแยกประเภทย่อย
             if(!personalCounts[strUid]) {
                 personalCounts[strUid] = { total: 0, details: {} };
@@ -987,7 +991,11 @@ window.exportLeaveToExcel = async function() {
             if (staffList.length === 0) { Swal.close(); return Swal.fire('ไม่มีข้อมูล', `ไม่มีรายชื่อพนักงานในแผนก ${currentViewDept}`, 'warning'); }
 
             const bookedMap = new Map();
-            allLeaveData.forEach(l => { const rsn = (l.reason === 'Table-Booking' || !l.reason) ? 'X' : l.reason; bookedMap.set(`${l.user_id}_${l.leave_date}`, rsn); });
+            allLeaveData.forEach(l => { 
+                const cleanDate = String(l.leave_date || '').split('T')[0].split(' ')[0];
+                const rsn = (l.reason === 'Table-Booking' || !l.reason) ? 'X' : l.reason; 
+                bookedMap.set(`${l.user_id}_${cleanDate}`, rsn); 
+            });
 
             const styleMap = {
                 'X':  { bg: 'FFEF4444', font: 'FFFFFFFF' }, 'XX': { bg: 'FFFACC15', font: 'FF854D0E' },
