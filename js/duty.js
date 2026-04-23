@@ -165,17 +165,31 @@ window.switchDutyTab = function(tabName) {
 
 window.switchDutyDept = function(dept) {
     currentDutyDept = dept;
-    document.getElementById('btnDutyAM')?.classList.remove('active'); document.getElementById('btnDutyOD')?.classList.remove('active');
-    document.getElementById('btnDutyTRAINER')?.classList.remove('active'); document.getElementById(`btnDuty${dept}`)?.classList.add('active');
     
-    let labelText = dept === 'TRAINER' ? 'ผู้สอน' : dept;
-    const labelEl = document.getElementById('dutyDeptLabel'); if(labelEl) labelEl.innerText = labelText;
+    // 1. 🌟 ล้างสถานะ active ของปุ่มทุกปุ่มออกก่อน (เพิ่มการล้างปุ่มที่แยกใหม่ด้วย)
+    document.getElementById('btnDutyAM')?.classList.remove('active'); 
+    document.getElementById('btnDutyOD')?.classList.remove('active');
+    document.getElementById('btnDutyTRAINER_AM')?.classList.remove('active'); 
+    document.getElementById('btnDutyTRAINER_OD')?.classList.remove('active');
+    
+    // 2. 🌟 แอดคลาส active ให้เฉพาะปุ่มที่กำลังถูกกด
+    // หมายเหตุ: ในไฟล์ HTML ปุ่มต้องใช้ id="btnDutyTRAINER_AM" และ id="btnDutyTRAINER_OD"
+    document.getElementById(`btnDuty${dept}`)?.classList.add('active');
+    
+    // 3. 🌟 จัดการข้อความป้ายชื่อให้ตรงกับแท็บ
+    let labelText = dept;
+    if (dept.startsWith('TRAINER')) {
+        labelText = dept.replace('TRAINER_', 'ผู้สอน '); // จะได้เป็น "ผู้สอน AM" หรือ "ผู้สอน OD"
+    }
+    const labelEl = document.getElementById('dutyDeptLabel'); 
+    if(labelEl) labelEl.innerText = labelText;
     
     const btnManageTrainer = document.getElementById('btnManageTrainer');
     const filterTrainer = document.getElementById('trainerDeptFilterContainer');
     const taskModeContainer = document.getElementById('trainerTaskModeContainer');
     
-    if (dept === 'TRAINER') {
+    // 4. 🌟 เปลี่ยนมาเช็คว่า "ขึ้นต้นด้วยคำว่า TRAINER หรือเปล่า" เพื่อแสดงเมนูจัดการผู้สอน
+    if (dept.startsWith('TRAINER')) {
         if (btnManageTrainer && window.isDutyAdmin()) btnManageTrainer.classList.remove('hidden');
         if (filterTrainer) filterTrainer.classList.remove('hidden');
         if (taskModeContainer && window.isDutyAdmin()) { taskModeContainer.classList.remove('hidden'); taskModeContainer.classList.add('flex'); }
