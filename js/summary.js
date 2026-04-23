@@ -1274,8 +1274,12 @@ window.exportSummaryToExcel = async function() {
             const ws = wb.addWorksheet(`สรุปยอดแยกเว็บ`);
 
             let headers = ['ลำดับ', 'ชื่อพนักงาน', 'กะ', 'แผนก'];
+            // 1. สร้างคอลัมน์ สำเร็จ/ปฏิเสธ/รวม ของแต่ละเว็บ
             targetWebOrder.forEach(w => { headers.push(`${w} (สำเร็จ)`); headers.push(`${w} (ปฏิเสธ)`); headers.push(`${w} (รวม)`); });
+            // 2. สร้างคอลัมน์ รวมทั้งสิ้น
             headers.push('รวมสำเร็จ'); headers.push('รวมปฏิเสธ'); headers.push('รวมทั้งสิ้น');
+            // 3. 🌟 (เพิ่มใหม่) สร้างคอลัมน์ สรุปยอด ของแต่ละเว็บ ไว้ท้ายสุด
+            targetWebOrder.forEach(w => { headers.push(`${w} (สรุปยอด)`); });
 
             let titleDateStr = '';
             if (viewMode === 'preview' && window.uploadedFileDates && window.uploadedFileDates.size > 0) {
@@ -1293,7 +1297,7 @@ window.exportSummaryToExcel = async function() {
             }
 
             const titleRow = ws.addRow([titleDateStr]);
-            ws.mergeCells(1, 1, 1, headers.length); 
+            ws.mergeCells(1, 1, 1, headers.length); // ปรับการประสานเซลล์ให้ครอบคลุมคอลัมน์ใหม่
             titleRow.height = 30;
             titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: 'FF000000' } };
             titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; 
@@ -1304,6 +1308,7 @@ window.exportSummaryToExcel = async function() {
             const headerColors = ['FFDBEAFE', 'FFDCFCE7', 'FFFEE2E2', 'FFFEF3C7', 'FFF3E8FF', 'FFFFEDD5', 'FFCCFBF1', 'FFE0E7FF', 'FFFCE7F3', 'FFE2E8F0'];
             const dataBgColors = ['FFF0F9FF', 'FFF0FDF4', 'FFFEF2F2', 'FFFFFBEB', 'FFFAF5FF', 'FFFFF7ED', 'FFF0FDFA', 'FFEEF2FF', 'FFFDF2F8', 'FFF8FAFC'];
 
+            // ใส่สีและเส้นขอบให้ส่วนหัว
             headerRow.eachCell((cell, colNumber) => {
                 cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle' };
                 if (colNumber <= 4) {
@@ -1317,10 +1322,16 @@ window.exportSummaryToExcel = async function() {
                     cell.font.color = { argb: 'FF0F172A' };
                     let rightBorder = isLastInGroup ? 'medium' : 'thin'; let leftBorder = isFirstInGroup ? 'medium' : 'thin';
                     cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
-                } else {
+                } else if (colNumber > 4 + (targetWebOrder.length * 3) && colNumber <= 4 + (targetWebOrder.length * 3) + 3) {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }; 
                     cell.font.color = { argb: 'FFFFFFFF' };
                     cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
+                } else {
+                    // 🌟 (เพิ่มใหม่) การตั้งค่าสีให้หัวตารางในโซน สรุปยอดท้ายสุด
+                    const webIndex = colNumber - (4 + (targetWebOrder.length * 3) + 3) - 1;
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
+                    cell.font.color = { argb: 'FF0F172A' };
+                    cell.border = { top: {style:'medium'}, left: {style:'thin', color:{argb:'FF94A3B8'}}, bottom: {style:'medium'}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
                 }
             });
 
@@ -1331,9 +1342,13 @@ window.exportSummaryToExcel = async function() {
                 let rowData = [ rowIndex++, emp.name, emp.shift, emp.odType === 'ปกติ' ? 'UNKNOWN' : emp.odType ];
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
                 rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal); 
+                
+                // 🌟 (เพิ่มใหม่) ดันยอดรวมแต่ละเว็บไปเรียงต่อกันท้ายสุดอีกรอบ
+                targetWebOrder.forEach(w => { rowData.push(emp.websData[w].total); });
 
                 const empRow = ws.addRow(rowData);
 
+                // ตกแต่งแต่ละ Cell
                 empRow.eachCell((cell, colNumber) => {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                     if (colNumber <= 4) {
@@ -1369,7 +1384,7 @@ window.exportSummaryToExcel = async function() {
                             if (colIdxInGroup === 1) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
                             if (colIdxInGroup === 2) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
                         } else { cell.font = { color: { argb: 'FF94A3B8' } }; }
-                    } else {
+                    } else if (colNumber > 4 + (targetWebOrder.length * 3) && colNumber <= 4 + (targetWebOrder.length * 3) + 3) {
                         cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
                         if (cell.value > 0) {
                             if (colNumber === 4 + (targetWebOrder.length * 3) + 1) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
@@ -1381,12 +1396,28 @@ window.exportSummaryToExcel = async function() {
                         } else {
                             if (colNumber === 4 + (targetWebOrder.length * 3) + 3) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
                         }
+                    } else {
+                        // 🌟 (เพิ่มใหม่) ตกแต่งคอลัมน์ สรุปยอดท้ายสุด
+                        const webIndex = colNumber - (4 + (targetWebOrder.length * 3) + 3) - 1;
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
+                        cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FF94A3B8'}}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
+                        if (cell.value > 0) {
+                            cell.font = { color: { argb: 'FF2563EB' }, bold: true }; // สีน้ำเงินให้เห็นยอดชัดๆ
+                        } else {
+                            cell.font = { color: { argb: 'FF94A3B8' } }; 
+                        }
                     }
                 });
             });
 
+            // ปรับความกว้างคอลัมน์
             ws.columns.forEach((col, index) => {
-                if (index === 0) col.width = 8; else if (index === 1) col.width = 25; else if (index === 2) col.width = 12; else if (index === 3) col.width = 12; else if (index >= ws.columns.length - 3) col.width = 15; else col.width = 11; 
+                if (index === 0) col.width = 8; 
+                else if (index === 1) col.width = 25; 
+                else if (index === 2) col.width = 12; 
+                else if (index === 3) col.width = 12; 
+                else if (index >= 4 + (targetWebOrder.length * 3) && index < 4 + (targetWebOrder.length * 3) + 3) col.width = 15; // กลุ่ม "รวมทั้งสิ้น"
+                else col.width = 11; // เว็บปกติ และสรุปยอดท้ายสุด ให้เท่าๆ กัน
             });
 
             const buffer = await wb.xlsx.writeBuffer();
