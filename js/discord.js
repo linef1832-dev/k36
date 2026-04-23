@@ -1734,7 +1734,7 @@ window.ds_selectAllChannels = function() {
     ds_updateSelectedChannelsLabel();
 };
 
-// ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ (แบบวนลูปส่งหลายห้อง)
+// ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ (อัปเดตให้โชว์ Error จริง)
 window.ds_sendMessage = async function() {
     const checkboxes = document.querySelectorAll('.ds-send-channel-cb:checked');
     const selectedIds = Array.from(checkboxes).map(cb => cb.value);
@@ -1753,8 +1753,8 @@ window.ds_sendMessage = async function() {
 
     let successCount = 0;
     let failCount = 0;
+    let realErrorMsg = ''; // เก็บข้อผิดพลาดจริงมาโชว์
 
-    // ยิงคำสั่งไปหาบอททีละห้อง ป้องกันการโดนแบนจากการสแปม
     for (let i = 0; i < selectedIds.length; i++) {
         const channelId = selectedIds[i];
         try {
@@ -1763,19 +1763,29 @@ window.ds_sendMessage = async function() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ channelId: channelId, content: message })
             });
-            const r = await res.json();
-            if (r.success) {
-                successCount++;
-            } else {
+            
+            // อ่านข้อความที่เซิร์ฟเวอร์บอทตอบกลับมา
+            const textResponse = await res.text();
+            
+            try {
+                const r = JSON.parse(textResponse);
+                if (r.success) {
+                    successCount++;
+                } else {
+                    failCount++;
+                    realErrorMsg = r.error || 'เซิร์ฟเวอร์บอทไม่ตอบสนอง';
+                }
+            } catch(jsonErr) {
                 failCount++;
-                console.error("Failed to send to", channelId, r.error);
+                realErrorMsg = 'เซิร์ฟเวอร์บอทไม่ได้ตอบกลับมาเป็น JSON (อาจจะล่ม หรืออัปเดตไม่เสร็จ)';
+                console.error("ไม่ใช่ JSON:", textResponse);
             }
+
         } catch(e) {
             failCount++;
-            console.error("Fetch error to", channelId, e);
+            realErrorMsg = 'การเชื่อมต่อถูกตัดขาด: ' + e.message;
         }
         
-        // อัปเดตหน้าจอโชว์ความคืบหน้าให้ผู้ใช้เห็นสดๆ
         Swal.update({ 
             html: `ส่งไปแล้ว ${i + 1} / ${selectedIds.length} ห้อง<br>
             <div class="flex justify-center gap-4 mt-2">
@@ -1786,12 +1796,13 @@ window.ds_sendMessage = async function() {
     }
 
     if (successCount > 0) {
-        Swal.fire('สำเร็จ!', `บอทส่งข้อความสำเร็จ ${successCount} ห้อง${failCount > 0 ? `<br><span class="text-xs text-red-500">และส่งไม่ได้ ${failCount} ห้อง (บอทอาจไม่มีสิทธิ์พิมพ์)</span>` : ''}`, 'success');
-        messageEl.value = ''; // ล้างช่องข้อความหลังส่งเสร็จ
+        Swal.fire('สำเร็จ!', `บอทส่งข้อความสำเร็จ ${successCount} ห้อง${failCount > 0 ? `<br><span class="text-xs text-red-500">ส่งไม่ได้ ${failCount} ห้อง<br>(สาเหตุ: ${realErrorMsg})</span>` : ''}`, 'success');
+        messageEl.value = ''; 
         if(typeof ds_logAction === 'function') {
             ds_logAction('ส่งข้อความ (Bot)', `สั่งบอทพิมพ์ข้อความลง ${selectedIds.length} ห้อง สำเร็จ ${successCount}`);
         }
     } else {
-        Swal.fire('เกิดข้อผิดพลาด', 'ส่งข้อความไม่สำเร็จเลย (บอทอาจจะติด Error 401: ไม่มีสิทธิ์พิมพ์ในห้องที่คุณเลือกครับ โปรดเช็คสิทธิ์ในดิสคอร์ด)', 'error');
+        // โชว์ Error ที่แท้จริงเลย!
+        Swal.fire('เกิดข้อผิดพลาด', `ส่งข้อความไม่สำเร็จเลย<br><br><span class="text-sm font-bold text-red-500">สาเหตุที่แท้จริง:<br>${realErrorMsg}</span>`, 'error');
     }
 };
