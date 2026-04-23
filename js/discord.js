@@ -1655,11 +1655,12 @@ window.ds_fetchChannelsForSendMsg = async function() {
         if(targetSelect) targetSelect.innerHTML = '<option value="">-- กำลังโหลดรายชื่อห้อง --</option>';
 
         if(typeof appDB !== 'undefined') {
-            // ดึงจาก key 'discord_text_channels' ที่บอทส่งมาให้
+            // 🌟 แก้ไขตรงนี้: ให้ดึงจาก key 'discord_text_channels' แทน
             const { data } = await appDB.from('settings').select('value').eq('key', 'discord_text_channels').single();
             if (data && data.value) {
                 const channels = JSON.parse(data.value);
                 let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
+                // กรองเฉพาะห้อง Text (ถ้ามี) หรือแสดงทั้งหมดที่บอทส่งมา
                 channels.forEach(c => dropHtml += `<option value="${c.id}">${c.name}</option>`);
                 
                 if(targetSelect) {
@@ -1674,7 +1675,7 @@ window.ds_fetchChannelsForSendMsg = async function() {
                 if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel (รอแอดมินเปิดบอท) --</option>';
             }
         }
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error("Fetch Text Channels Error:", e); }
 };
 
 // โหลดรายการข้อความสำเร็จรูป
