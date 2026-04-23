@@ -3,7 +3,7 @@
 // ====================================================
 
 let wrappedSlideIndex = 0;
-let wrappedTotalSlides = 4;
+let wrappedTotalSlides = 5;
 let wrappedTimer = null;
 let wrappedSlideDuration = 5000; // 5 วินาทีต่อ 1 หน้า
 
@@ -33,6 +33,12 @@ window.openEmployeeWrapped = async function() {
             .select('*')
             .eq('employee_name', currentUser.username)
             .gte('date', startOfMonth);
+            
+        // ดึงสถิติวันหยุดจาก leave_requests
+        const { data: leaveData } = await appDB.from('leave_requests')
+            .select('*')
+            .eq('user_name', currentUser.username)
+            .gte('leave_date', startOfMonth);
 
         let totalBills = 0;
         let totalApproved = 0;
@@ -58,6 +64,19 @@ window.openEmployeeWrapped = async function() {
             if (c > topWebCount) { topWeb = w; topWebCount = c; }
         }
 
+        // สรุปยอดวันหยุด
+        let totalLeaves = 0;
+        let leaveBreakdown = {};
+        if (leaveData) {
+            leaveData.forEach(l => {
+                let rsn = l.reason || 'X';
+                if (rsn === 'Table-Booking') rsn = 'X';
+                totalLeaves++;
+                if (!leaveBreakdown[rsn]) leaveBreakdown[rsn] = 0;
+                leaveBreakdown[rsn]++;
+            });
+        }
+
         Swal.close();
 
         // 2. สร้างหน้าจอ UI
@@ -67,7 +86,9 @@ window.openEmployeeWrapped = async function() {
             totalBills: totalBills,
             totalApproved: totalApproved,
             topWeb: topWeb,
-            topWebCount: topWebCount
+            topWebCount: topWebCount,
+            totalLeaves: totalLeaves,
+            leaveBreakdown: leaveBreakdown
         };
 
         buildWrappedUI(wrapData);
@@ -112,8 +133,23 @@ function buildWrappedUI(data) {
             <p class="text-lg text-orange-300/80 mt-2">ทำรายการให้เว็บนี้ไปถึง <b class="text-white">${data.topWebCount.toLocaleString()}</b> บิล</p>
         </div>
 
-        <!-- Slide 3: Outro -->
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-sky-900 via-blue-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-3">
+        <!-- Slide 3: สถิติวันหยุด -->
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-tr from-pink-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-3">
+            <div class="text-7xl mb-6 scale-110 drop-shadow-xl">${data.totalLeaves === 0 ? '🏆' : '🏖️'}</div>
+            <p class="text-xl text-pink-200 font-bold mb-2">เรื่องพักผ่อนในเดือนนี้...</p>
+            <h2 class="text-5xl font-black text-white mb-4 drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]">${data.totalLeaves === 0 ? 'คุณไม่เคยหยุดเลย!' : 'หยุดไป <span class="text-6xl">' + data.totalLeaves + '</span> วัน'}</h2>
+            <div class="flex flex-wrap justify-center gap-2 mt-2">
+                ${Object.entries(data.leaveBreakdown).map(([k, v]) => {
+                    let label = k;
+                    if(k === 'X') label = 'หยุดปกติ'; else if(k === 'KL') label = 'ลากิจ'; else if(k === 'PN') label = 'พักร้อน';
+                    else if(k === 'XX') label = 'เปลี่ยนกะ'; else if(k === 'X4') label = 'ลาครึ่งวัน'; else if(k === 'TL' || k === 'TX') label = 'สลับวันหยุด';
+                    return '<span class="bg-white/20 px-3 py-1 rounded-full text-sm font-bold text-white border border-white/30">' + label + ': ' + v + ' วัน</span>';
+                }).join('') || '<span class="bg-white/20 px-3 py-1 rounded-full text-sm font-bold text-white border border-white/30">ขยันทำงาน 100% 👏</span>'}
+            </div>
+        </div>
+
+        <!-- Slide 4: Outro -->
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-sky-900 via-blue-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-4">
             <div class="text-7xl mb-6 animate-bounce">💖</div>
             <h2 class="text-4xl font-black text-white mb-4 drop-shadow-lg">ขอบคุณที่ทุ่มเท!</h2>
             <p class="text-lg text-blue-200 font-bold">ทีมจะขับเคลื่อนไปไม่ได้เลย ถ้าไม่มีคุณ</p>
