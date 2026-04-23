@@ -1563,8 +1563,9 @@ window.renderDutyAccessTable = function() {
     // 🌟 ดึงรายชื่อพนักงานทั้งหมด โดยถ้าแอดมินหรือคนที่จัดเวรเพิ่งแก้ไข/เพิ่มชื่อ ระบบจะอ่านเจอ
     let staff = GLOBAL_USER_LIST.filter(u => {
         const uDept = u.department || 'AM';
-        if (currentDutyDept === 'TRAINER') {
-            return uDept === 'TRAINER';
+        // 🔴 แก้ไข: เปลี่ยนมาใช้ .startsWith('TRAINER') แทน
+        if (currentDutyDept.startsWith('TRAINER')) {
+            return uDept === 'TRAINER'; 
         } else {
             return u.role === 'staff' && uDept === currentDutyDept;
         }
