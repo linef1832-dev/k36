@@ -77,6 +77,30 @@ function getTpl(templateId, data = {}) {
     return html;
 }
 
+// 🌟 ตัวช่วยแปลงชื่อกะให้เป็นมาตรฐานเดียวกัน
+window.normalizeShiftName = function(shift) {
+    let s = String(shift || '').trim().replace('กะ', '');
+    if (s === 'เช้า') return 'กะเช้า';
+    if (s === 'กลาง') return 'กะกลาง';
+    if (s === 'ดึก') return 'กะดึก';
+    if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
+    return 'UNKNOWN';
+};
+
+const SHIFT_BADGE_STYLES = {
+    'กะเช้า': { text: 'เช้า', colorClass: 'bg-orange-500/20 text-orange-400 border-orange-500/50' },
+    'กะกลาง': { text: 'กลาง', colorClass: 'bg-blue-500/20 text-blue-400 border-blue-500/50' },
+    'กะดึก': { text: 'ดึก', colorClass: 'bg-purple-500/20 text-purple-400 border-purple-500/50' },
+    'กะอิสระ': { text: 'อิสระ', colorClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' },
+    'all': { text: 'อิสระ', colorClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' }
+};
+
+// 🌟 ตัวช่วยสร้าง HTML ป้ายชื่อกะ
+window.getShiftBadgeHtml = function(shift) {
+    const style = SHIFT_BADGE_STYLES[shift] || { text: 'ไม่ระบุ', colorClass: 'bg-slate-500/20 text-slate-400 border-slate-500/50' };
+    return `<span class="text-[10px] ${style.colorClass} border px-1.5 py-0.5 rounded shadow-sm ml-2">${style.text}</span>`;
+};
+
 window.initSummaryDate = async function() {
     // 🌟 1. เช็คความจำ: ถ้ามีข้อมูลที่ดูค้างไว้ (ไฟล์ Excel หรือดูย้อนหลัง) ให้ "คงไว้" ห้ามล้างทิ้ง!
     if (pendingSummaryData && pendingSummaryData.length > 0) {
@@ -186,12 +210,7 @@ function getShiftFromName(name) {
         }
         
         if (foundUser) {
-            let s = String(foundUser.allowed_shift || '').trim().replace('กะ', '');
-            if (s === 'เช้า') return 'กะเช้า';
-            if (s === 'กลาง') return 'กะกลาง';
-            if (s === 'ดึก') return 'กะดึก';
-            if (s === 'อิสระ' || s === 'all' || s === '') return 'กะอิสระ';
-            return `กะ${s}`;
+            return window.normalizeShiftName(foundUser.allowed_shift);
         }
     }
     
@@ -782,12 +801,7 @@ window.renderSummaryDashboard = function() {
                         sortedEmps.forEach((name, index) => {
                             const data = dGroup.emps[name];
                             
-                            let shiftBadgeHtml = '';
-                            if (data.shift === 'กะเช้า') shiftBadgeHtml = '<span class="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">เช้า</span>';
-                            else if (data.shift === 'กะกลาง') shiftBadgeHtml = '<span class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">กลาง</span>';
-                            else if (data.shift === 'กะดึก') shiftBadgeHtml = '<span class="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ดึก</span>';
-                            else if (data.shift === 'กะอิสระ' || data.shift === 'all') shiftBadgeHtml = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">อิสระ</span>';
-                            else shiftBadgeHtml = '<span class="text-[10px] bg-slate-500/20 text-slate-400 border border-slate-500/50 px-1.5 py-0.5 rounded shadow-sm ml-2">ไม่ระบุ</span>';
+                            let shiftBadgeHtml = window.getShiftBadgeHtml(data.shift);
 
                             let odBadge = '';
                             if (data.odType === 'OD') odBadge = '<span class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">OD</span>';
@@ -1191,12 +1205,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
                     actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
                 }
                 
-                let s = String(actualShift || '').trim().replace('กะ', '');
-                if (s === 'เช้า') actualShift = 'กะเช้า';
-                else if (s === 'กลาง') actualShift = 'กะกลาง';
-                else if (s === 'ดึก') actualShift = 'กะดึก';
-                else if (s === 'อิสระ' || s === 'all' || s === '') actualShift = 'กะอิสระ';
-                else actualShift = 'UNKNOWN';
+                actualShift = window.normalizeShiftName(actualShift);
 
                 return {
                     empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
@@ -1274,16 +1283,8 @@ window.exportSummaryToExcel = async function() {
             const ws = wb.addWorksheet(`สรุปยอดแยกเว็บ`);
 
             let headers = ['ลำดับ', 'ชื่อพนักงาน', 'กะ', 'แผนก'];
-            // 1. สร้างคอลัมน์ สำเร็จ/ปฏิเสธ/รวม ของแต่ละเว็บ
             targetWebOrder.forEach(w => { headers.push(`${w} (สำเร็จ)`); headers.push(`${w} (ปฏิเสธ)`); headers.push(`${w} (รวม)`); });
-            // 2. สร้างคอลัมน์ รวมทั้งสิ้น
             headers.push('รวมสำเร็จ'); headers.push('รวมปฏิเสธ'); headers.push('รวมทั้งสิ้น');
-            
-            // ขยับช่องว่างและเพิ่มคอลัมน์อ้างอิง (ชื่อ และ กะ)
-            headers.push('', '', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)');
-
-            // 3. สร้างคอลัมน์ สรุปยอด ของแต่ละเว็บ ไว้ท้ายสุด
-            targetWebOrder.forEach(w => { headers.push(`${w} (สรุปยอด)`); });
 
             let titleDateStr = '';
             if (viewMode === 'preview' && window.uploadedFileDates && window.uploadedFileDates.size > 0) {
@@ -1318,28 +1319,17 @@ window.exportSummaryToExcel = async function() {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
                     cell.font.color = { argb: 'FFFFFFFF' };
                     cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
-                } else if (colNumber > 4 && colNumber <= 34) {
+                } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
                     const webIndex = Math.floor((colNumber - 5) / 3);
                     const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
                     cell.font.color = { argb: 'FF0F172A' };
                     let rightBorder = isLastInGroup ? 'medium' : 'thin'; let leftBorder = isFirstInGroup ? 'medium' : 'thin';
                     cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
-                } else if (colNumber > 34 && colNumber <= 37) {
+                } else {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }; 
                     cell.font.color = { argb: 'FFFFFFFF' };
                     cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
-                } else if (colNumber > 37 && colNumber <= 41) {
-                    if (colNumber >= 40) {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
-                        cell.font.color = { argb: 'FFFFFFFF' };
-                        cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
-                    }
-                } else {
-                    const webIndex = colNumber - 42;
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
-                    cell.font.color = { argb: 'FF0F172A' };
-                    cell.border = { top: {style:'medium'}, left: {style:'thin', color:{argb:'FF94A3B8'}}, bottom: {style:'medium'}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
                 }
             });
 
@@ -1350,11 +1340,6 @@ window.exportSummaryToExcel = async function() {
                 let rowData = [ rowIndex++, emp.name, emp.shift, emp.odType === 'ปกติ' ? 'UNKNOWN' : emp.odType ];
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
                 rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal); 
-                
-                // เพิ่มข้อมูลอ้างอิง ชื่อพนักงาน และ กะ
-                rowData.push('', '', emp.name, emp.shift);
-
-                targetWebOrder.forEach(w => { rowData.push(emp.websData[w].total); });
 
                 const empRow = ws.addRow(rowData);
 
@@ -1363,14 +1348,27 @@ window.exportSummaryToExcel = async function() {
                     if (colNumber <= 4) {
                         cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
                         if (colNumber === 2) { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' }; }
+                        
                         if (colNumber === 3) {
                             cell.font = { bold: true };
-                            if (cell.value === 'เช้า') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; cell.font.color = { argb: 'FFEA580C' }; } 
-                            else if (cell.value === 'กลาง') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; cell.font.color = { argb: 'FF2563EB' }; } 
-                            else if (cell.value === 'ดึก') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; cell.font.color = { argb: 'FF9333EA' }; } 
-                            else if (cell.value === 'อิสระ' || cell.value === 'all') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; cell.font.color = { argb: 'FF059669' }; cell.value = 'อิสระ'; }
+                            if (cell.value === 'เช้า') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; 
+                                cell.font.color = { argb: 'FFEA580C' }; 
+                            } else if (cell.value === 'กลาง') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; 
+                                cell.font.color = { argb: 'FF2563EB' }; 
+                            } else if (cell.value === 'ดึก') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; 
+                                cell.font.color = { argb: 'FF9333EA' }; 
+                            } else if (cell.value === 'อิสระ' || cell.value === 'all') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; 
+                                cell.font.color = { argb: 'FF059669' }; 
+                                cell.value = 'อิสระ';
+                            } else {
+                                cell.font.color = { argb: 'FF94A3B8' };
+                            }
                         }
-                    } else if (colNumber > 4 && colNumber <= 34) {
+                    } else if (colNumber > 4 && colNumber <= 4 + (targetWebOrder.length * 3)) {
                         const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3; 
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
                         let rightBorder = colIdxInGroup === 2 ? 'medium' : 'thin'; let leftBorder = colIdxInGroup === 0 ? 'medium' : 'thin';
@@ -1380,39 +1378,24 @@ window.exportSummaryToExcel = async function() {
                             if (colIdxInGroup === 1) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
                             if (colIdxInGroup === 2) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
                         } else { cell.font = { color: { argb: 'FF94A3B8' } }; }
-                    } else if (colNumber > 34 && colNumber <= 37) {
+                    } else {
                         cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
                         if (cell.value > 0) {
-                            if (colNumber === 35) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
-                            if (colNumber === 36) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
-                            if (colNumber === 37) { cell.font = { color: { argb: 'FF000000' }, bold: true }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
-                        } else { if (colNumber === 37) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; } }
-                    } else if (colNumber > 37 && colNumber <= 41) {
-                        if (colNumber >= 40) {
-                            cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' };
-                            cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
+                            if (colNumber === 4 + (targetWebOrder.length * 3) + 1) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
+                            if (colNumber === 4 + (targetWebOrder.length * 3) + 2) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
+                            if (colNumber === 4 + (targetWebOrder.length * 3) + 3) {
+                                cell.font = { color: { argb: 'FF000000' }, bold: true }; 
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; 
+                            }
+                        } else {
+                            if (colNumber === 4 + (targetWebOrder.length * 3) + 3) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
                         }
-                    } else {
-                        const webIndex = colNumber - 42;
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
-                        cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FF94A3B8'}}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
-                        if (cell.value > 0) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
-                        else cell.font = { color: { argb: 'FF94A3B8' } }; 
                     }
                 });
             });
 
             ws.columns.forEach((col, index) => {
-                if (index === 0) col.width = 8; 
-                else if (index === 1) col.width = 25; 
-                else if (index === 2) col.width = 10; 
-                else if (index === 3) col.width = 12; 
-                else if (index >= 34 && index < 37) col.width = 15; 
-                else if (index === 37 || index === 38) col.width = 5; 
-                else if (index === 39) col.width = 25; // คอลัมน์ชื่อพนักงาน (อ้างอิง)
-                else if (index === 40) col.width = 12; // คอลัมน์กะ (อ้างอิง)
-                else if (index >= 41) col.width = 16; 
-                else col.width = 11; 
+                if (index === 0) col.width = 8; else if (index === 1) col.width = 25; else if (index === 2) col.width = 12; else if (index === 3) col.width = 12; else if (index >= ws.columns.length - 3) col.width = 15; else col.width = 11; 
             });
 
             const buffer = await wb.xlsx.writeBuffer();
@@ -1570,12 +1553,7 @@ window.fetchMultipleHistoricalSummary = async function() {
                     actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
                 }
                 
-                let s = String(actualShift || '').trim().replace('กะ', '');
-                if (s === 'เช้า') actualShift = 'กะเช้า';
-                else if (s === 'กลาง') actualShift = 'กะกลาง';
-                else if (s === 'ดึก') actualShift = 'กะดึก';
-                else if (s === 'อิสระ' || s === 'all' || s === '') actualShift = 'กะอิสระ';
-                else actualShift = 'UNKNOWN';
+                actualShift = window.normalizeShiftName(actualShift);
 
                 if (!groupedData[key]) {
                     groupedData[key] = {
