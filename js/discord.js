@@ -120,7 +120,7 @@ window.applyDiscordPermissions = function() {
 
 window.switchDiscordTab = function(tabName) {
     try {
-        const allViews = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog'];
+        const allViews = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog', 'sendmsg'];
         allViews.forEach(view => {
             const el = document.getElementById('dsContent_' + view);
             if (el) el.classList.add('hidden');
@@ -183,6 +183,11 @@ window.switchDiscordTab = function(tabName) {
                 ds_fetchActionLogs();
             }
         }
+        else if (tabName === 'sendmsg') {
+                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)] flex items-center gap-1";
+                ds_fetchChannelsForSendMsg(); // ดึงรายชื่อห้องมาใส่ Dropdown
+            }
+        
     } catch(err) { console.error("Tab Switch Error:", err); }
 };
 
@@ -1635,5 +1640,49 @@ window.ds_clearOldMoveLogs = async function() {
         } catch (e) {
             Swal.fire('Error', 'เกิดข้อผิดพลาด: ' + e.message, 'error');
         }
+    }
+};
+// ฟังก์ชันดึงรายชื่อห้องมาใส่ใน Dropdown เลือกห้อง
+window.ds_fetchChannelsForSendMsg = async function() {
+    try {
+        if(typeof appDB !== 'undefined') {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').single();
+            if (data && data.value) {
+                const channels = JSON.parse(data.value);
+                let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
+                channels.forEach(c => dropHtml += `<option value="${c.id}">${c.name}</option>`);
+                const targetSelect = document.getElementById('dsSendMsgChannel');
+                if(targetSelect) targetSelect.innerHTML = dropHtml;
+            }
+        }
+    } catch(e) { console.error(e); }
+};
+
+// ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ
+window.ds_sendMessage = async function() {
+    const channelId = document.getElementById('dsSendMsgChannel').value;
+    const message = document.getElementById('dsSendMsgText').value.trim();
+    
+    if (!channelId) return Swal.fire('เตือน', 'กรุณาเลือกห้องปลายทาง', 'warning');
+    if (!message) return Swal.fire('เตือน', 'กรุณาพิมพ์ข้อความที่ต้องการส่ง', 'warning');
+
+    Swal.fire({title: 'กำลังส่งข้อความ...', didOpen: () => Swal.showLoading()});
+    try {
+        const res = await fetch(`${DISCORD_API_URL}/api/send-message`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channelId: channelId, content: message })
+        });
+        
+        const r = await res.json();
+        if (r.success) {
+            Swal.fire('สำเร็จ', 'บอทส่งข้อความเข้ากลุ่มเรียบร้อยแล้ว', 'success');
+            document.getElementById('dsSendMsgText').value = ''; // ล้างช่องข้อความให้ว่าง
+            if(typeof ds_logAction === 'function') ds_logAction('ส่งข้อความ (Bot)', `สั่งบอทพิมพ์ข้อความลงห้อง ID: ${channelId}`);
+        } else {
+            Swal.fire('Error', r.error || 'ส่งข้อความไม่สำเร็จ (ห้องอาจจะผิด)', 'error');
+        }
+    } catch(e) { 
+        Swal.fire('Error', 'ไม่สามารถเชื่อมต่อกับบอทได้', 'error'); 
     }
 };
