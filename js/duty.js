@@ -39,7 +39,7 @@ const TEAM_COLORS = {
 };
 
 window.syncTeamOrder = function() {
-    if (currentDutyDept === 'TRAINER') {
+    if (currentDutyDept.startsWith('TRAINER')) {
         const mode = document.getElementById('trainerTaskMode') ? document.getElementById('trainerTaskMode').value : 'normal';
         if (mode === 'telegram') sortedTeams = ['Telegram']; 
         else sortedTeams = ['สอนงาน', 'Telegram'];
@@ -52,7 +52,7 @@ window.syncTeamOrder = function() {
 }
 
 window.moveTeam = function(teamName, direction) {
-    if (currentDutyDept === 'TRAINER') return; 
+    if (currentDutyDept.startsWith('TRAINER')) return; 
     const index = sortedTeams.indexOf(teamName);
     if(index === -1) return;
     if(direction === -1 && index > 0) { [sortedTeams[index - 1], sortedTeams[index]] = [sortedTeams[index], sortedTeams[index - 1]]; } 
@@ -114,12 +114,12 @@ window.subscribeDutyChanges = function() {
 
 window.applyDutyRoleUI = function() {
     const isAdmin = window.isDutyAdmin();
-    const isTrainerDept = (currentUser.department === 'TRAINER'); 
+    const isTrainerDept = (currentUser.department && currentUser.department.startsWith('TRAINER')); 
     const isTrainerRole = (currentUser.role && currentUser.role.toLowerCase() === 'trainer');
 
     let canManageDuty = false;
     if (isAdmin) canManageDuty = true; 
-    else if (currentDutyDept === 'TRAINER') canManageDuty = false; 
+    else if (currentDutyDept.startsWith('TRAINER')) canManageDuty = false; 
     else canManageDuty = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('duty_manage') : false; 
     
     const adminElements = document.querySelectorAll('.duty-admin-only');
@@ -166,20 +166,16 @@ window.switchDutyTab = function(tabName) {
 window.switchDutyDept = function(dept) {
     currentDutyDept = dept;
     
-    // 1. 🌟 ล้างสถานะ active ของปุ่มทุกปุ่มออกก่อน (เพิ่มการล้างปุ่มที่แยกใหม่ด้วย)
     document.getElementById('btnDutyAM')?.classList.remove('active'); 
     document.getElementById('btnDutyOD')?.classList.remove('active');
     document.getElementById('btnDutyTRAINER_AM')?.classList.remove('active'); 
     document.getElementById('btnDutyTRAINER_OD')?.classList.remove('active');
     
-    // 2. 🌟 แอดคลาส active ให้เฉพาะปุ่มที่กำลังถูกกด
-    // หมายเหตุ: ในไฟล์ HTML ปุ่มต้องใช้ id="btnDutyTRAINER_AM" และ id="btnDutyTRAINER_OD"
     document.getElementById(`btnDuty${dept}`)?.classList.add('active');
     
-    // 3. 🌟 จัดการข้อความป้ายชื่อให้ตรงกับแท็บ
     let labelText = dept;
     if (dept.startsWith('TRAINER')) {
-        labelText = dept.replace('TRAINER_', 'ผู้สอน '); // จะได้เป็น "ผู้สอน AM" หรือ "ผู้สอน OD"
+        labelText = dept.replace('TRAINER_', 'ผู้สอน '); 
     }
     const labelEl = document.getElementById('dutyDeptLabel'); 
     if(labelEl) labelEl.innerText = labelText;
@@ -188,7 +184,6 @@ window.switchDutyDept = function(dept) {
     const filterTrainer = document.getElementById('trainerDeptFilterContainer');
     const taskModeContainer = document.getElementById('trainerTaskModeContainer');
     
-    // 4. 🌟 เปลี่ยนมาเช็คว่า "ขึ้นต้นด้วยคำว่า TRAINER หรือเปล่า" เพื่อแสดงเมนูจัดการผู้สอน
     if (dept.startsWith('TRAINER')) {
         if (btnManageTrainer && window.isDutyAdmin()) btnManageTrainer.classList.remove('hidden');
         if (filterTrainer) filterTrainer.classList.remove('hidden');
@@ -210,7 +205,7 @@ window.switchDutyDept = function(dept) {
 
 function getDutySaveKey(date, shift) {
     let key = `duty_roster_${currentDutyDept}_${date}_${shift}`;
-    if (currentDutyDept === 'TRAINER') {
+    if (currentDutyDept.startsWith('TRAINER')) {
         const mode = document.getElementById('trainerTaskMode') ? document.getElementById('trainerTaskMode').value : 'normal';
         if (mode === 'telegram') key += '_telegram';
     }
@@ -221,11 +216,10 @@ window.currentDutyLeaveData = [];
 
 window.refreshDutyData = async function() {
     try {
-        // 🌟 ดัก Error: ตรวจสอบก่อนว่ามีกล่องวันที่ให้ดึงค่าไหม
         const targetDateInput = document.getElementById('dutyDate');
         const shiftFilterInput = document.getElementById('dutyShiftSelect');
         
-        if (!targetDateInput || !shiftFilterInput) return; // ถ้าไม่มีให้หยุดทำงาน ไม่ต้องโวยวาย Error
+        if (!targetDateInput || !shiftFilterInput) return; 
         
         const targetDate = targetDateInput.value;
         const shiftFilter = shiftFilterInput.value;
@@ -239,8 +233,12 @@ window.refreshDutyData = async function() {
         if (leaves && typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
             leaves.forEach(l => {
                 let userObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(l.user_id) || u.username === l.user_name);
-                if (userObj && (userObj.department || 'AM') === currentDutyDept) {
-                    relevantLeaves.push({ user_id: userObj.id, username: userObj.username, reason: l.reason, originalShift: userObj.allowed_shift || 'all' });
+                if (userObj) {
+                    let uDept = userObj.department || 'AM';
+                    if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // Legacy Fix
+                    if (uDept === currentDutyDept) {
+                        relevantLeaves.push({ user_id: userObj.id, username: userObj.username, reason: l.reason, originalShift: userObj.allowed_shift || 'all' });
+                    }
                 }
             });
         }
@@ -311,8 +309,6 @@ window.renderDutyLeaveBox = function() {
     }
 
     leaveBadge.innerText = filteredLeaves.length;
-
-    // 🌟 แก้ไขตรงนี้: สร้างตัวแปรมารับ HTML ก่อน ไม่สั่งเขียนลงหน้าจอซ้ำๆ
     let leaveHtml = '';
 
     if (filteredLeaves.length > 0) {
@@ -336,14 +332,13 @@ window.renderDutyLeaveBox = function() {
                 </div>
             `;
         });
-        leaveContainer.innerHTML = leaveHtml; // 🌟 สั่งเขียนลงหน้าจอทีเดียวจบ
+        leaveContainer.innerHTML = leaveHtml; 
     } else { 
         leaveContainer.innerHTML = `<div class="text-center text-[10px] text-gray-400 mt-4">ไม่มีข้อมูลตามตัวกรอง</div>`; 
     }
 };
 
 window.restoreFromLeave = async function(userId, username) {
-    // --- 🚨 เพิ่มโค้ดเช็คสิทธิ์ตรงนี้ ---
     const canRestore = window.isDutyAdmin();
     
     if (!canRestore) {
@@ -415,7 +410,7 @@ window.clearDutyRoster = async function() {
         if (result.isConfirmed) {
             Swal.fire({title: 'กำลังล้างข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
             const saveKey = getDutySaveKey(targetDate, shiftFilter);
-            const reportKey = `report_TRAINER_${targetDate}_${shiftFilter}`; 
+            const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`; 
             
             try {
                 let currentDataVal = null;
@@ -424,7 +419,7 @@ window.clearDutyRoster = async function() {
                 
                 if (currentDataVal) {
                     localStorage.setItem(`backup_${saveKey}`, currentDataVal);
-                    if (currentDutyDept === 'TRAINER') {
+                    if (currentDutyDept.startsWith('TRAINER')) {
                         let currentReportVal = null;
                         const { data: currentReport } = await appDB.from('settings').select('value').eq('key', reportKey);
                         if (currentReport && currentReport.length > 0) currentReportVal = currentReport[0].value;
@@ -433,7 +428,7 @@ window.clearDutyRoster = async function() {
                 }
                 
                 await appDB.from('settings').delete().eq('key', saveKey);
-                if (currentDutyDept === 'TRAINER') await appDB.from('settings').delete().eq('key', reportKey);
+                if (currentDutyDept.startsWith('TRAINER')) await appDB.from('settings').delete().eq('key', reportKey);
                 
                 await appDB.from('system_logs').insert([{ action_type: 'ล้างตารางงาน', performed_by: currentUser.username, target_details: `ล้างตารางของแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
                 appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
@@ -449,7 +444,7 @@ window.restoreDutyRoster = async function() {
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const saveKey = getDutySaveKey(targetDate, shiftFilter);
-    const reportKey = `report_TRAINER_${targetDate}_${shiftFilter}`;
+    const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
 
     const backupData = localStorage.getItem(`backup_${saveKey}`);
     if (!backupData) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลสำรองให้กู้คืนสำหรับกะนี้', 'error');
@@ -463,7 +458,7 @@ window.restoreDutyRoster = async function() {
             try {
                 await appDB.from('settings').upsert([{ key: saveKey, value: backupData }]);
                 const backupReport = localStorage.getItem(`backup_${reportKey}`);
-                if (currentDutyDept === 'TRAINER' && backupReport) await appDB.from('settings').upsert([{ key: reportKey, value: backupReport }]);
+                if (currentDutyDept.startsWith('TRAINER') && backupReport) await appDB.from('settings').upsert([{ key: reportKey, value: backupReport }]);
 
                 await appDB.from('system_logs').insert([{ action_type: 'กู้คืนตารางงาน', performed_by: currentUser.username, target_details: `กู้คืนตารางแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
                 localStorage.removeItem(`backup_${saveKey}`); localStorage.removeItem(`backup_${reportKey}`);
@@ -494,34 +489,30 @@ window.generateDutyRoster = async function() {
          return Swal.fire('ป้องกันการจัดซ้ำ!', 'กะนี้มีการจัดหน้าที่ไปแล้ว กรุณากดปุ่ม "ล้างตาราง" ก่อนสุ่มใหม่ครับ', 'warning');
     }
 
-    // 🔴 ส่วนที่ต้องแก้ไขคือตรงนี้ครับ 🔴
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
-        const isCorrectDept = (u.department || 'AM') === currentDutyDept;
+        let uDept = u.department || 'AM';
+        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ช่วยดึงคนที่ยังเป็นระบบเก่าให้
         
-        // แก้ไข hasValidRole ให้เช็คแบบ startsWith แทน === 'TRAINER'
+        const isCorrectDept = uDept === currentDutyDept;
         const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
-        
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
     
     let requiredCount = 0; document.querySelectorAll('.req-input').forEach(i => requiredCount += (parseInt(i.value) || 0));
 
-    if(activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย`, 'error');
+    if(activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย (ลองเช็คสิทธิ์หรือรายชื่ออีกครั้ง)`, 'error');
     if(requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
-
-    // ... (โค้ดส่วนที่เหลือปล่อยไว้เหมือนเดิมครับ) ...
 
     Swal.fire({title: 'กำลังจัดและวิเคราะห์คิว...', text: 'ระบบกำลังเช็คประวัติเมื่อวาน เพื่อกระจายเว็บไม่ให้ซ้ำ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
-        // --- 🌟 ส่วนที่เพิ่มใหม่: ดึงข้อมูลของ "เมื่อวาน" มาตรวจสอบ ---
         const tDateObj = new Date(targetDate);
         tDateObj.setDate(tDateObj.getDate() - 1);
         const yestDateStr = tDateObj.toISOString().split('T')[0];
         const yestSaveKey = getDutySaveKey(yestDateStr, shiftFilter);
 
-        let yestTeamMap = {}; // เก็บว่าใครทำเว็บอะไรไปเมื่อวาน
+        let yestTeamMap = {}; 
         try {
             const { data: yestData } = await appDB.from('settings').select('value').eq('key', yestSaveKey);
             if (yestData && yestData.length > 0 && yestData[0].value) {
@@ -535,7 +526,6 @@ window.generateDutyRoster = async function() {
                 }
             }
         } catch(e) { console.log("ไม่มีประวัติตารางของเมื่อวาน"); }
-        // --------------------------------------------------------
 
         const requirements = {}; const reqsToSave = {};
         document.querySelectorAll('.req-input').forEach(input => {
@@ -574,21 +564,14 @@ window.generateDutyRoster = async function() {
             let userOptions = target.eligibleUsers.map(u => {
                 let access = dutyAccessMatrix[u.id] || [];
                 let viableTeamsCount = access.filter(t => remainingReqs[t] > 0).length;
-                
-                // 🌟 ตรวจสอบว่าพนักงานคนนี้ทำเว็บนี้ไปเมื่อวานหรือไม่ (1 = เพิ่งทำ, 0 = ไม่ได้ทำ)
                 let didThisTeamYesterday = (yestTeamMap[u.id] === teamToFill) ? 1 : 0;
                 
                 return { user: u, flexibility: viableTeamsCount, access: access, didYest: didThisTeamYesterday }; 
             });
 
             userOptions.sort((a, b) => {
-                // 🌟 1. ดันคนที่ "เพิ่งทำเว็บนี้เมื่อวาน" ไปไว้ลำดับท้ายสุด เพื่อให้คนอื่นที่ไม่ได้ทำได้ทำก่อน
                 if (a.didYest !== b.didYest) return a.didYest - b.didYest; 
-                
-                // 2. ให้คนที่สิทธิ์เข้าเว็บได้น้อยที่สุด ได้ลงกล่องก่อน
                 if (a.flexibility !== b.flexibility) return a.flexibility - b.flexibility;
-                
-                // 3. ถ้าเท่ากันหมด สุ่ม
                 return Math.random() - 0.5;
             });
 
@@ -598,7 +581,6 @@ window.generateDutyRoster = async function() {
             unassignedPool = unassignedPool.filter(u => u.id !== pickedUser.id);
         }
 
-        // --- ส่วนของการแจกงานรอง (สแตนด์บาย) ---
         let secondaryCounts = {};
         sortedTeams.forEach(t => secondaryCounts[t] = 0); 
         let allAssignedUsers = [];
@@ -652,7 +634,7 @@ window.renderRosterGrid = async function(rosterData) {
     if(!grid) return;
     
     grid.innerHTML = '';
-    let finalGridHtml = ''; // 🌟 สร้างตัวแปรมารับ HTML
+    let finalGridHtml = ''; 
     
     currentRosterData = rosterData; 
     const isAdmin = window.isDutyAdmin();
@@ -662,8 +644,8 @@ window.renderRosterGrid = async function(rosterData) {
     const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : '';
     const subFilter = document.getElementById('trainerDeptFilter') ? document.getElementById('trainerDeptFilter').value : 'ALL';
 
-    if (currentDutyDept === 'TRAINER' && targetDate) {
-        const reportKey = `report_TRAINER_${targetDate}_${shiftFilter}`;
+    if (currentDutyDept.startsWith('TRAINER') && targetDate) {
+        const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         try {
             let reportDataVal = null;
             const { data: reportData } = await appDB.from('settings').select('value').eq('key', reportKey);
@@ -690,7 +672,7 @@ window.renderRosterGrid = async function(rosterData) {
         let assignees = rosterData[team] || [];
         if(assignees.length === 0) return; 
         
-        if (currentDutyDept === 'TRAINER' && subFilter !== 'ALL') assignees = assignees.filter(a => true);
+        if (currentDutyDept.startsWith('TRAINER') && subFilter !== 'ALL') assignees = assignees.filter(a => true);
         
         const rolesForThisTeam = customDutyRoles[team] || [];
         const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
@@ -743,7 +725,7 @@ window.renderRosterGrid = async function(rosterData) {
         }).join('');
 
         let trainerReportHtml = '';
-        if (currentDutyDept === 'TRAINER') {
+        if (currentDutyDept.startsWith('TRAINER')) {
             const tr = trainerReports[team] || { missed: 0, checker: '-', score: '-', mistakes: [] };
             const scoreNum = parseInt(tr.score);
             let scoreColor = 'text-gray-500';
@@ -766,7 +748,7 @@ window.renderRosterGrid = async function(rosterData) {
                 behaviorHtml = `<span class="text-red-600 bg-red-50 p-1 rounded font-bold block mt-0.5 break-words">${tr.bad_behavior}</span>`;
             }
 
-            const isTrainerStaff = (currentUser.department === 'TRAINER');
+            const isTrainerStaff = (currentUser.department && currentUser.department.startsWith('TRAINER'));
             const btnLogData = (isAdmin || isTrainerStaff) ? `<button onclick="openTrainerReportModal('${team}')" class="text-[9px] bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded shadow transition font-bold border border-amber-600">📝 ประเมิน</button>` : '';
 
             trainerReportHtml = `
@@ -797,7 +779,6 @@ window.renderRosterGrid = async function(rosterData) {
         const standbyList = standbyData[team] || [];
         const standbyCount = standbyList.length;
 
-        // 🌟 2. เปลี่ยนจาก grid.innerHTML += เป็น finalGridHtml +=
         finalGridHtml += `
             <div class="duty-site-card bg-slate-50 dark:bg-slate-900 border-2 ${colorClass.border} rounded-2xl shadow-md flex flex-col h-[500px] overflow-hidden w-full">
                 <div class="flex justify-between items-center ${colorClass.bg} ${colorClass.text} p-3 shadow-sm shrink-0">
@@ -824,7 +805,6 @@ window.renderRosterGrid = async function(rosterData) {
         `;
     });
 
-    // 🌟 3. สั่งวาดหน้าจอทีเดียวจบ!
     grid.innerHTML = finalGridHtml;
 };
 
@@ -1007,7 +987,6 @@ window.handleDragStart = function(event, userId, username, fromTeam) {
 
 window.handleDragOver = function(event) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; };
 
-// 🌟 อัปเดตใหม่: เพิ่มเงื่อนไขเช็คโซนลาหยุดและใส่ Popup
 window.handleDrop = async function(event, toTeam) {
     event.preventDefault();
     if (!draggedUser) return;
@@ -1021,7 +1000,6 @@ window.handleDrop = async function(event, toTeam) {
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
 
-    // 🟢 1. เช็คว่าถ้าลากไปลงโซน "ลาหยุด" (dutyLeaveList) ให้เด้ง Popup ถามสาเหตุ
     if (toTeam === 'leaveList' || event.target.closest('#dutyLeaveList')) {
         const { value: leaveReason } = await Swal.fire({
             title: '<div class="text-red-500 font-black">ระบุสถานะการหยุด</div>',
@@ -1053,14 +1031,12 @@ window.handleDrop = async function(event, toTeam) {
 
         Swal.fire({title: 'กำลังย้ายข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         try {
-            // ลบชื่อออกจากตารางงานหลัก
             if (currentRosterData[fromTeam]) {
                 currentRosterData[fromTeam] = currentRosterData[fromTeam].filter(u => String(u.id) !== String(id));
                 const saveKey = typeof getDutySaveKey === 'function' ? getDutySaveKey(targetDate, shiftFilter) : `duty_roster_${currentDutyDept}_${targetDate}_${shiftFilter}`;
                 await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
             }
 
-            // บันทึกลงตารางลาหยุด (leave_requests)
             const { error: leaveErr } = await appDB.from('leave_requests').insert([{ user_id: id, user_name: username, leave_date: targetDate, reason: leaveReason, status: 'approved' }]);
             if (leaveErr) throw leaveErr;
 
@@ -1075,7 +1051,6 @@ window.handleDrop = async function(event, toTeam) {
         return;
     }
 
-    // 🟢 2. ถ้าลากไปลงเว็บอื่นๆ (จัดเวรปกติ)
     const userAccess = dutyAccessMatrix[id] || [];
     if (!userAccess.includes(toTeam)) {
         Swal.fire({ icon: 'error', title: 'ย้ายไม่ได้!', text: `ไม่อนุญาต! ${username} ไม่มีสิทธิ์หลังบ้านเว็บ ${toTeam} นะคะ`, confirmButtonText: 'ตกลง', confirmButtonColor: '#d33' });
@@ -1115,7 +1090,7 @@ document.addEventListener('dragend', (e) => {
     if(e.target.classList && e.target.classList.contains('duty-user-card')) e.target.classList.remove('opacity-50', 'scale-95');
     cleanupDragEffects(); draggedUser = null;
 });
-// 🎓 ระบบจัดการหน้าผู้สอน
+
 window.filterTrainerList = function() {
     const input = document.getElementById('trainerSearchInput'); const filter = input.value.toLowerCase();
     const container = document.getElementById('trainerListContainer'); const labels = container.getElementsByTagName('label');
@@ -1128,12 +1103,9 @@ window.filterTrainerList = function() {
     }
 };
 
-// 🎓 ระบบจัดการหน้าผู้สอน
 window.openManageTrainerModal = async function() {
-    // 🔴 1. เช็คก่อนว่ากดปุ่มมาจากแท็บ "ผู้สอน AM" หรือ "ผู้สอน OD"
     let targetDept = currentDutyDept; 
     
-    // ถ้าหลงมากดตอนที่ไม่ได้อยู่หน้าผู้สอน ให้บังคับเป็นผู้สอน AM ไว้ก่อน
     if (targetDept !== 'TRAINER_AM' && targetDept !== 'TRAINER_OD') {
         targetDept = 'TRAINER_AM'; 
     }
@@ -1150,8 +1122,8 @@ window.openManageTrainerModal = async function() {
     `;
     
     users.forEach(u => {
-        // 🔴 2. เช็คว่าคนนี้เป็นผู้สอนในแผนกที่เรากำลังเลือกอยู่หรือไม่
-        const isTrainer = u.department === targetDept; 
+        // 🔴 Legacy fallback: ถ้ามีคนหลงเหลือใน 'TRAINER' ให้ถือว่าเป็น 'TRAINER_AM' ในสายตา UI
+        const isTrainer = u.department === targetDept || (targetDept === 'TRAINER_AM' && u.department === 'TRAINER'); 
         const currentDept = u.department || 'AM';
         
         let badgeColor = 'bg-blue-100 text-blue-700';
@@ -1159,8 +1131,9 @@ window.openManageTrainerModal = async function() {
         else if(currentDept === 'NEW') badgeColor = 'bg-teal-100 text-teal-700';
         else if(currentDept.startsWith('TRAINER')) badgeColor = 'bg-cyan-100 text-cyan-700';
         
-        // 🔴 3. ปรับชื่อป้ายให้โชว์ว่าอยู่ผู้สอนแผนกไหน (เช่น "ผู้สอน AM")
         let displayDept = currentDept.startsWith('TRAINER') ? 'ผู้สอน ' + currentDept.replace('TRAINER_', '') : currentDept;
+        if (displayDept === 'ผู้สอน TRAINER') displayDept = 'ผู้สอน AM'; // แก้คำเก่าให้ดูง่าย
+        
         let roleBadge = '';
         if (u.role === 'manager' || u.role === 'admin') { roleBadge = `<span class="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 shadow-sm ml-1">Manager</span>`; }
 
@@ -1178,7 +1151,6 @@ window.openManageTrainerModal = async function() {
     html += '</div></div>';
 
     const { value: selectedIds } = await Swal.fire({
-        // 🔴 4. เปลี่ยนชื่อหัวข้อป๊อปอัปให้ชัดเจนว่ากำลังดึงเข้าแผนกไหน
         title: `ดึงรายชื่อผู้สอน (${targetDept.replace('TRAINER_', '')})`, 
         html: html, showCancelButton: true, confirmButtonText: 'บันทึกรายชื่อ', confirmButtonColor: '#0891b2', cancelButtonText: 'ยกเลิก', width: '400px',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white' },
@@ -1198,14 +1170,13 @@ window.openManageTrainerModal = async function() {
             let u = GLOBAL_USER_LIST[i];
             const uidStr = String(u.id);
             const isSelected = selectedSet.has(uidStr);
-            const isCurrentlyTrainer = u.department === targetDept;
+            const isCurrentlyTrainer = u.department === targetDept || u.department === 'TRAINER';
 
             if (isSelected) {
-                GLOBAL_USER_LIST[i].department = targetDept; // 🔴 5. กำหนดให้เป็น TRAINER_AM หรือ TRAINER_OD ตามที่กด
+                GLOBAL_USER_LIST[i].department = targetDept; 
                 if (!isCurrentlyTrainer) toAddIds.push(u.id);
                 updateCount++;
             } else {
-                // ถ้าคนนี้เคยเป็นผู้สอนของแผนกนี้ แต่โดนติ๊กออก ให้ย้ายกลับไป AM ปกติ
                 if (isCurrentlyTrainer) {
                     GLOBAL_USER_LIST[i].department = 'AM'; 
                     toRemoveIds.push(u.id);
@@ -1217,7 +1188,7 @@ window.openManageTrainerModal = async function() {
         window.renderDutyAccessTable(); window.refreshDutyData();
 
         const promises = [];
-        if (toAddIds.length > 0) promises.push(appDB.from('users').update({ department: targetDept }).in('id', toAddIds)); // 🔴 6. บันทึกลงฐานข้อมูลให้ตรงแผนก
+        if (toAddIds.length > 0) promises.push(appDB.from('users').update({ department: targetDept }).in('id', toAddIds)); 
         if (toRemoveIds.length > 0) promises.push(appDB.from('users').update({ department: 'AM' }).in('id', toRemoveIds));
         await Promise.all(promises);
 
@@ -1229,26 +1200,27 @@ window.openTrainerReportModal = async function(team) {
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     
-    const reportKey = `report_TRAINER_${targetDate}_${shiftFilter}`;
-    const amRosterKey = `duty_roster_AM_${targetDate}_${shiftFilter}`;
+    const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+    const baseDept = currentDutyDept.replace('TRAINER_', ''); // ช่วยดึงข้อมูล roster จาก AM หรือ OD ให้ถูก
+    const rosterKey = `duty_roster_${baseDept}_${targetDate}_${shiftFilter}`;
 
-    let currentReports = {}; let amRosterData = {};
+    let currentReports = {}; let rosterData = {};
 
     Swal.fire({title: 'กำลังดึงข้อมูลตารางงาน...', didOpen: () => Swal.showLoading()});
     try {
-        const { data } = await appDB.from('settings').select('*').in('key', [reportKey, amRosterKey]);
+        const { data } = await appDB.from('settings').select('*').in('key', [reportKey, rosterKey]);
         if (data) {
             const reportRow = data.find(d => d.key === reportKey);
             if (reportRow && reportRow.value) currentReports = JSON.parse(reportRow.value);
 
-            const rosterRow = data.find(d => d.key === amRosterKey);
-            if (rosterRow && rosterRow.value) amRosterData = JSON.parse(rosterRow.value);
+            const rosterRow = data.find(d => d.key === rosterKey);
+            if (rosterRow && rosterRow.value) rosterData = JSON.parse(rosterRow.value);
         }
     } catch(e) {}
     Swal.close();
 
     const tr = currentReports[team] || { missed: 0, checker: currentUser.username, score: '', bad_behavior: '', mistakes: [] };
-    window._currentAssignedStaff = amRosterData[team] ? amRosterData[team].filter(u => !u.username.includes('ขาดคน')) : [];
+    window._currentAssignedStaff = rosterData[team] ? rosterData[team].filter(u => !u.username.includes('ขาดคน')) : [];
     const datalistOptions = GLOBAL_USER_LIST.map(u => `<option value="${u.username}">`).join('');
 
     const htmlForm = `
@@ -1485,9 +1457,6 @@ window.openDutyHistoryModal = async function() {
     } catch (e) { Swal.fire('Error', 'ไม่สามารถโหลดประวัติได้: ' + e.message, 'error'); }
 };
 
-// ==========================================
-// 🧠 อัลกอริทึม 
-// ==========================================
 function calculateQuotaByRule(totalStaff) {
     if (totalStaff === 0) return 0;
     if (totalStaff <= 4) return 1;  
@@ -1497,7 +1466,7 @@ function calculateQuotaByRule(totalStaff) {
     if (totalStaff <= 20) return 5; 
     if (totalStaff <= 25) return 6; 
     if (totalStaff <= 30) return 7; 
-    return 8;                       
+    return 8;                               
 }
 
 window.autoCalculateTeamQuotas = async function() {
@@ -1597,8 +1566,9 @@ window.renderDutyAccessTable = function() {
     if(!head || !body) return;
     
     let staff = GLOBAL_USER_LIST.filter(u => {
-        const uDept = u.department || 'AM';
-        // 🔴 แก้ไข: บรรทัด return ต้องเปลี่ยนเป็น uDept === currentDutyDept 
+        let uDept = u.department || 'AM';
+        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ย้ายชื่อเก่าให้เข้าระบบอัตโนมัติ
+
         if (currentDutyDept.startsWith('TRAINER')) {
             return uDept === currentDutyDept; 
         } else {
@@ -1729,7 +1699,10 @@ window.manualAdjustReq = function(changedTeam) {
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
-        const isCorrectDept = (u.department || 'AM') === currentDutyDept;
+        let uDept = u.department || 'AM';
+        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ช่วยดึงระบบเก่า
+
+        const isCorrectDept = uDept === currentDutyDept;
         const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all'); 
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
@@ -1799,8 +1772,11 @@ window.autoSuggestRequirements = function() {
     if(!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
-        const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff');
+        let uDept = u.department || 'AM';
+        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ช่วยดึงระบบเก่า
+
+        const isCorrectDept = uDept === currentDutyDept;
+        const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -1861,8 +1837,11 @@ window.updateDutyStats = function() {
     if(!statusBar) return;
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
-        const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff');
+        let uDept = u.department || 'AM';
+        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ช่วยดึงระบบเก่า
+
+        const isCorrectDept = uDept === currentDutyDept;
+        const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -1900,31 +1879,31 @@ if (window.appDB && appDB.from) {
     appDB.from('settings').upsert = async function(payload) {
         const result = await originalDbUpsert.call(this, payload);
         try {
-            if (payload && payload[0] && payload[0].key && payload[0].key.startsWith('report_TRAINER_')) {
+            if (payload && payload[0] && payload[0].key && payload[0].key.startsWith('report_')) {
                 const parts = payload[0].key.split('_');
-                const dateStr = parts[2];
-                const shiftStr = parts[3];
-                
-                await appDB.from('system_logs').insert([{ 
-                    action_type: 'ประเมินงานผู้สอน', 
-                    performed_by: currentUser.username, 
-                    target_details: `ลงข้อมูลประเมินการทำงาน (กะ: ${shiftStr}, วันที่: ${dateStr})` 
-                }]);
-                
-                appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+                // ดักจับรูปแบบ: report_TRAINER_AM_YYYY-MM-DD_กะเช้า
+                if (parts[1].startsWith('TRAINER')) {
+                    const dateStr = parts[parts.length - 2];
+                    const shiftStr = parts[parts.length - 1];
+                    
+                    await appDB.from('system_logs').insert([{ 
+                        action_type: 'ประเมินงานผู้สอน', 
+                        performed_by: currentUser.username, 
+                        target_details: `ลงข้อมูลประเมินการทำงาน (กะ: ${shiftStr}, วันที่: ${dateStr})` 
+                    }]);
+                    
+                    appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+                }
             }
         } catch(e) {}
         return result;
     };
 }
 
-// =========================================
-// 🌟 ระบบหน่วงเวลาช่องค้นหา (พิมพ์เสร็จค่อยหา)
-// =========================================
 let dutySearchTimeout = null;
 window.onDutySearch = function() {
     clearTimeout(dutySearchTimeout);
     dutySearchTimeout = setTimeout(() => {
-        filterDutyResult(); // สั่งวาดตารางเมื่อหยุดพิมพ์ไปแล้ว 300ms
+        filterDutyResult(); 
     }, 300); 
 };
