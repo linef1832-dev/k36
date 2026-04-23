@@ -333,32 +333,47 @@
             </div>
         </div>
 
-        <div id="dsContent_sendmsg" class="max-w-4xl mx-auto hidden fade-in pb-10">
+        <div id="dsContent_sendmsg" class="max-w-5xl mx-auto hidden fade-in pb-10">
             <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
-                <h2 class="text-emerald-400 font-black mb-6 flex items-center gap-2 text-xl">
-                    <span class="material-icons">forum</span> ส่งข้อความเข้าห้องดิสคอร์ด (ผ่านบอท)
-                </h2>
+                <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                    <h2 class="text-emerald-400 font-black flex items-center gap-2 text-xl">
+                        <span class="material-icons">forum</span> ส่งข้อความเข้าห้องดิสคอร์ด (ผ่านบอท)
+                    </h2>
+                </div>
                 
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-400 mb-1">เลือกห้องปลายทาง (Text Channel)</label>
-                        <select id="dsSendMsgChannel" class="w-full bg-slate-900 border border-slate-600 text-white rounded-xl p-3 text-sm outline-none focus:border-emerald-500 font-bold shadow-inner cursor-pointer">
-                            <option value="">-- กำลังโหลดรายชื่อห้อง --</option>
-                        </select>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-400 mb-1">เลือกห้องปลายทาง (Text Channel)</label>
+                            <select id="dsSendMsgChannel" onchange="localStorage.setItem('ds_last_text_channel', this.value)" class="w-full bg-slate-900 border border-slate-600 text-white rounded-xl p-3 text-sm outline-none focus:border-emerald-500 font-bold shadow-inner cursor-pointer transition">
+                                <option value="">-- กำลังโหลดรายชื่อห้อง --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-end mb-1">
+                                <label class="block text-[11px] font-bold text-gray-400">ข้อความที่ต้องการส่ง</label>
+                                <button onclick="ds_saveMsgTemplate()" class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/50 hover:bg-emerald-500 hover:text-white transition font-bold">
+                                    + บันทึกเป็นข้อความประจำ
+                                </button>
+                            </div>
+                            <textarea id="dsSendMsgText" rows="6" placeholder="พิมพ์ข้อความที่นี่... (ขึ้นบรรทัดใหม่ได้)" class="w-full bg-slate-900 border border-slate-600 text-white rounded-xl p-3 text-sm outline-none focus:border-emerald-500 shadow-inner custom-scrollbar resize-none transition"></textarea>
+                        </div>
+                        <button onclick="ds_sendMessage()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition active:scale-95 flex justify-center items-center gap-2 text-lg mt-2">
+                            <span class="material-icons">send</span> สั่งบอทส่งข้อความ
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-400 mb-1">ข้อความที่ต้องการส่ง</label>
-                        <textarea id="dsSendMsgText" rows="6" placeholder="พิมพ์ข้อความที่นี่... (ขึ้นบรรทัดใหม่ได้)" class="w-full bg-slate-900 border border-slate-600 text-white rounded-xl p-3 text-sm outline-none focus:border-emerald-500 shadow-inner custom-scrollbar resize-none"></textarea>
+
+                    <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-700 shadow-inner flex flex-col h-[350px]">
+                        <h3 class="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-1.5 border-b border-slate-700 pb-2 shrink-0">
+                            <span class="material-icons text-[18px]">bookmarks</span> ข้อความที่บันทึกไว้
+                        </h3>
+                        <div id="dsMsgTemplatesList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 content-start pr-1">
+                            <div class="text-center text-gray-500 text-xs py-10">ยังไม่มีข้อความที่บันทึกไว้<br>พิมพ์ข้อความด้านซ้ายแล้วกด "+ บันทึก"</div>
+                        </div>
                     </div>
-                    <button onclick="ds_sendMessage()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition active:scale-95 flex justify-center items-center gap-2 text-lg mt-2">
-                        <span class="material-icons">send</span> สั่งบอทส่งข้อความ
-                    </button>
                 </div>
             </div>
         </div>
-
-    </div>
-</div>
 
 <div id="discordTemplates" class="hidden">
     <template id="tpl-ds-spy-row">
