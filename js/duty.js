@@ -494,9 +494,13 @@ window.generateDutyRoster = async function() {
          return Swal.fire('ป้องกันการจัดซ้ำ!', 'กะนี้มีการจัดหน้าที่ไปแล้ว กรุณากดปุ่ม "ล้างตาราง" ก่อนสุ่มใหม่ครับ', 'warning');
     }
 
+    // 🔴 ส่วนที่ต้องแก้ไขคือตรงนี้ครับ 🔴
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff');
+        
+        // แก้ไข hasValidRole ให้เช็คแบบ startsWith แทน === 'TRAINER'
+        const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
+        
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -505,6 +509,8 @@ window.generateDutyRoster = async function() {
 
     if(activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย`, 'error');
     if(requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
+
+    // ... (โค้ดส่วนที่เหลือปล่อยไว้เหมือนเดิมครับ) ...
 
     Swal.fire({title: 'กำลังจัดและวิเคราะห์คิว...', text: 'ระบบกำลังเช็คประวัติเมื่อวาน เพื่อกระจายเว็บไม่ให้ซ้ำ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
