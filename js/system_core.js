@@ -2080,7 +2080,8 @@ const PERM_GROUPS = [
             {id: 'ds_move', name: 'ย้ายห้อง', isSub: true},
             {id: 'ds_checkin', name: 'เช็คชื่อ', isSub: true},
             {id: 'ds_manage', name: 'ฐานข้อมูล DS', isSub: true},
-            {id: 'ds_log', name: 'ดูประวัติ DS', isSub: true}
+            {id: 'ds_log', name: 'ดูประวัติ DS', isSub: true},
+            {id: 'ds_sendmsg', name: 'ส่งข้อความ', isSub: true}
         ]
     },
         {
