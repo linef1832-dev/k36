@@ -47,9 +47,40 @@ window.openEmployeeWrapped = async function() {
             .gte('leave_date', startOfMonth)
             .lte('leave_date', endOfMonth); // 🌟 ล็อกไม่ให้ดึงวันหยุดที่จองล่วงหน้าของเดือนถัดไปมานับ
 
+        // 🌟 ดึงสถิติเข้างานจากตาราง Dashboard (schedules) เพื่อหา "เว็บที่ทำบ่อยสุด"
+        const { data: scheduleData } = await appDB.from('schedules')
+            .select('work_date, team')
+            .eq('staff_name', currentUser.username)
+            .gte('work_date', startOfMonth)
+            .lte('work_date', endOfMonth);
+
+        // ดึงสถิติใบปรับ
+        const { data: fineData } = await appDB.from('fines')
+            .select('amount, offense_date, created_at')
+            .eq('user_name', currentUser.username);
+
+        let teamDaysMap = {};
+        let totalWorkingDaysSet = new Set();
+        if (scheduleData) {
+            scheduleData.forEach(s => {
+                let t = s.team || 'ไม่ระบุ';
+                if (!teamDaysMap[t]) teamDaysMap[t] = new Set();
+                teamDaysMap[t].add(s.work_date);
+                totalWorkingDaysSet.add(s.work_date); // นับวันทำงานแบบไม่ซ้ำกัน
+            });
+        }
+        
+        let topTeam = '-';
+        let topTeamDays = 0;
+        for (const [t, dates] of Object.entries(teamDaysMap)) {
+            if (dates.size > topTeamDays) {
+                topTeam = t;
+                topTeamDays = dates.size;
+            }
+        }
+
         let totalBills = 0;
         let totalApproved = 0;
-        let webStats = {};
         
         if (summaryData) {
             summaryData.forEach(r => {
@@ -58,17 +89,22 @@ window.openEmployeeWrapped = async function() {
                 
                 totalBills += c;
                 totalApproved += appCount;
-
-                if (!webStats[r.website]) webStats[r.website] = 0;
-                webStats[r.website] += c;
             });
         }
 
-        // หาเว็บที่ทำบ่อยสุด
-        let topWeb = '-';
-        let topWebCount = 0;
-        for (const [w, c] of Object.entries(webStats)) {
-            if (c > topWebCount) { topWeb = w; topWebCount = c; }
+        // สรุปยอดใบปรับ
+        let totalFineCount = 0;
+        let totalFineAmount = 0;
+        if (fineData) {
+            fineData.forEach(f => {
+                const d = f.offense_date ? new Date(f.offense_date) : new Date(f.created_at);
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                if (`${y}-${m}` === `${year}-${monthStr}`) {
+                    totalFineCount++;
+                    if (f.amount > 0) totalFineAmount += Number(f.amount);
+                }
+            });
         }
 
         // สรุปยอดวันหยุด
@@ -92,8 +128,11 @@ window.openEmployeeWrapped = async function() {
             year: year + 543,
             totalBills: totalBills,
             totalApproved: totalApproved,
-            topWeb: topWeb,
-            topWebCount: topWebCount,
+            topWeb: topTeam,
+            topWebDays: topTeamDays,
+            totalWorkingDays: totalWorkingDaysSet.size,
+            totalFineCount: totalFineCount,
+            totalFineAmount: totalFineAmount,
             totalLeaves: totalLeaves,
             leaveBreakdown: leaveBreakdown
         };
@@ -127,33 +166,37 @@ function buildWrappedUI(data) {
         </div>
     `;
 
-    // 🌟 แยกเงื่อนไข: ถ้ามีบิลให้โชว์สถิติ ถ้าไม่มีบิล (เช่น แอดมิน) ให้โชว์คำขอบคุณแทน
-    if (data.totalBills > 0) {
-        // Slide 1: ยอดบิลรวม
-        slidesHTML += `
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-emerald-900 via-teal-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
-            <div class="text-6xl mb-4 animate-pulse">🔥</div>
-            <p class="text-lg text-emerald-200 font-bold mb-2">ตลอดทั้งเดือนนี้ คุณทำรายการไป</p>
-            <h2 class="text-5xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(52,211,153,0.8)]">${data.totalBills.toLocaleString()} <span class="text-xl">บิล</span></h2>
-            <p class="text-sm text-emerald-300/80 mt-2">และสำเร็จถึง ${data.totalApproved.toLocaleString()} รายการ!</p>
-            <p class="text-xs text-gray-400 mt-6">(แอดมินปลื้มใจมาก 👏)</p>
-        </div>
-        `;
-
-        // Slide 2: เว็บตัวท็อป (เจ้าแห่งเว็บ)
+    // 🌟 แยกเงื่อนไข: ถ้ามีการลงเวลาทำงาน ให้โชว์ "เจ้าแห่งเว็บ" ก่อน (ใช้ได้ทั้ง AM และ OD)
+    if (data.totalWorkingDays > 0) {
+        // Slide 1: เจ้าแห่งเว็บ (จากตารางลงเวลา)
         slidesHTML += `
         <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-bl from-orange-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
             <div class="text-7xl mb-4 scale-110 drop-shadow-[0_0_20px_rgba(251,146,60,0.8)] animate-pulse">👑</div>
             <p class="text-xl text-orange-200 font-bold mb-2">ฉายาของคุณเดือนนี้คือ...</p>
             <h2 class="text-4xl font-black text-white mb-2 drop-shadow-lg">เจ้าแห่งเว็บ<br><span class="text-6xl text-yellow-300 drop-shadow-[0_0_15px_rgba(253,224,71,0.8)] leading-tight mt-2 block">${data.topWeb}</span></h2>
             <div class="mt-4 bg-black/20 px-5 py-3 rounded-2xl border border-orange-500/30 backdrop-blur-sm shadow-inner">
-                <p class="text-sm text-orange-200">ฟาดบิลเว็บนี้คนเดียวไปถึง</p>
-                <p class="text-3xl font-black text-white mt-1">${data.topWebCount.toLocaleString()} <span class="text-sm font-normal text-orange-100">รายการ!</span></p>
+                <p class="text-sm text-orange-200">เข้าเวรประจำเว็บนี้ไปถึง</p>
+                <p class="text-4xl font-black text-white mt-1">${data.topWebDays} <span class="text-base font-normal text-orange-100">วัน!</span></p>
             </div>
         </div>
         `;
-    } else {
-        // Slide สำหรับ Admin / พนักงานที่ไม่ได้ทำบิล
+    }
+
+    if (data.totalBills > 0) {
+        // Slide 1: ยอดบิลรวม
+        slidesHTML += `
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-emerald-900 via-teal-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
+            <div class="text-6xl mb-4 animate-pulse">🔥</div>
+            <p class="text-lg text-emerald-200 font-bold mb-2">${data.totalWorkingDays > 0 ? 'และ' : ''}ตลอดทั้งเดือนนี้ คุณทำรายการไป</p>
+            <h2 class="text-5xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(52,211,153,0.8)]">${data.totalBills.toLocaleString()} <span class="text-xl">บิล</span></h2>
+            <p class="text-sm text-emerald-300/80 mt-2">และสำเร็จถึง ${data.totalApproved.toLocaleString()} รายการ!</p>
+            <p class="text-xs text-gray-400 mt-6">(สุดยอดมือทำรายการ 👏)</p>
+        </div>
+        `;
+    }
+    
+    if (data.totalWorkingDays === 0 && data.totalBills === 0) {
+        // Slide สำหรับ Admin / พนักงานที่ไม่ได้ทำบิลและไม่ได้ลงเวลา (ออฟฟิศ/Support)
         slidesHTML += `
         <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-blue-900 via-indigo-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
             <div class="text-6xl mb-4 animate-pulse">🛡️</div>
@@ -181,6 +224,31 @@ function buildWrappedUI(data) {
             </div>
         </div>
     `;
+
+    // Slide: สถิติใบปรับ
+    if (data.totalFineCount > 0) {
+        slidesHTML += `
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-red-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
+            <div class="text-6xl mb-4 animate-pulse">🚨</div>
+            <p class="text-lg text-red-200 font-bold mb-2">โอ๊ะโอ... เดือนนี้แอบพลาดไปนิด</p>
+            <h2 class="text-3xl font-black text-white mb-2 drop-shadow-lg">โดนใบปรับไป <span class="text-5xl text-red-400 drop-shadow-[0_0_15px_rgba(248,113,113,0.8)]">${data.totalFineCount}</span> ครั้ง</h2>
+            <div class="mt-4 bg-black/20 px-5 py-3 rounded-2xl border border-red-500/30 backdrop-blur-sm shadow-inner">
+                <p class="text-sm text-red-200">รวมเป็นเงินทั้งสิ้น</p>
+                <p class="text-4xl font-black text-white mt-1">฿${data.totalFineAmount.toLocaleString('en-US')} <span class="text-base font-normal text-red-100">บาท</span></p>
+            </div>
+            <p class="text-xs text-gray-400 mt-6">(เดือนหน้าเอาใหม่นะ ✌️)</p>
+        </div>
+        `;
+    } else {
+        slidesHTML += `
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-emerald-900 via-green-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
+            <div class="text-6xl mb-4 drop-shadow-[0_0_20px_rgba(52,211,153,0.8)] animate-bounce">🛡️</div>
+            <p class="text-lg text-emerald-200 font-bold mb-2">เรื่องระเบียบวินัยในเดือนนี้...</p>
+            <h2 class="text-3xl font-black text-white mb-2 drop-shadow-lg">คุณรอดพ้นจาก<br><span class="text-5xl text-yellow-300 drop-shadow-[0_0_15px_rgba(253,224,71,0.8)] leading-tight mt-2 block">ใบปรับ 100%</span></h2>
+            <p class="text-sm text-emerald-300/80 mt-4">การทำงานไร้ที่ติ แอดมินขอคารวะ 👏</p>
+        </div>
+        `;
+    }
 
     // Slide: Outro
     slidesHTML += `
