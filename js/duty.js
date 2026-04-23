@@ -165,17 +165,31 @@ window.switchDutyTab = function(tabName) {
 
 window.switchDutyDept = function(dept) {
     currentDutyDept = dept;
-    document.getElementById('btnDutyAM')?.classList.remove('active'); document.getElementById('btnDutyOD')?.classList.remove('active');
-    document.getElementById('btnDutyTRAINER')?.classList.remove('active'); document.getElementById(`btnDuty${dept}`)?.classList.add('active');
     
-    let labelText = dept === 'TRAINER' ? 'ผู้สอน' : dept;
-    const labelEl = document.getElementById('dutyDeptLabel'); if(labelEl) labelEl.innerText = labelText;
+    // 1. 🌟 ล้างสถานะ active ของปุ่มทุกปุ่มออกก่อน (เพิ่มการล้างปุ่มที่แยกใหม่ด้วย)
+    document.getElementById('btnDutyAM')?.classList.remove('active'); 
+    document.getElementById('btnDutyOD')?.classList.remove('active');
+    document.getElementById('btnDutyTRAINER_AM')?.classList.remove('active'); 
+    document.getElementById('btnDutyTRAINER_OD')?.classList.remove('active');
+    
+    // 2. 🌟 แอดคลาส active ให้เฉพาะปุ่มที่กำลังถูกกด
+    // หมายเหตุ: ในไฟล์ HTML ปุ่มต้องใช้ id="btnDutyTRAINER_AM" และ id="btnDutyTRAINER_OD"
+    document.getElementById(`btnDuty${dept}`)?.classList.add('active');
+    
+    // 3. 🌟 จัดการข้อความป้ายชื่อให้ตรงกับแท็บ
+    let labelText = dept;
+    if (dept.startsWith('TRAINER')) {
+        labelText = dept.replace('TRAINER_', 'ผู้สอน '); // จะได้เป็น "ผู้สอน AM" หรือ "ผู้สอน OD"
+    }
+    const labelEl = document.getElementById('dutyDeptLabel'); 
+    if(labelEl) labelEl.innerText = labelText;
     
     const btnManageTrainer = document.getElementById('btnManageTrainer');
     const filterTrainer = document.getElementById('trainerDeptFilterContainer');
     const taskModeContainer = document.getElementById('trainerTaskModeContainer');
     
-    if (dept === 'TRAINER') {
+    // 4. 🌟 เปลี่ยนมาเช็คว่า "ขึ้นต้นด้วยคำว่า TRAINER หรือเปล่า" เพื่อแสดงเมนูจัดการผู้สอน
+    if (dept.startsWith('TRAINER')) {
         if (btnManageTrainer && window.isDutyAdmin()) btnManageTrainer.classList.remove('hidden');
         if (filterTrainer) filterTrainer.classList.remove('hidden');
         if (taskModeContainer && window.isDutyAdmin()) { taskModeContainer.classList.remove('hidden'); taskModeContainer.classList.add('flex'); }
@@ -1108,7 +1122,16 @@ window.filterTrainerList = function() {
     }
 };
 
+// 🎓 ระบบจัดการหน้าผู้สอน
 window.openManageTrainerModal = async function() {
+    // 🔴 1. เช็คก่อนว่ากดปุ่มมาจากแท็บ "ผู้สอน AM" หรือ "ผู้สอน OD"
+    let targetDept = currentDutyDept; 
+    
+    // ถ้าหลงมากดตอนที่ไม่ได้อยู่หน้าผู้สอน ให้บังคับเป็นผู้สอน AM ไว้ก่อน
+    if (targetDept !== 'TRAINER_AM' && targetDept !== 'TRAINER_OD') {
+        targetDept = 'TRAINER_AM'; 
+    }
+
     const users = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'manager' || u.role === 'admin').sort((a, b) => a.username.localeCompare(b.username));
 
     let html = `
@@ -1121,13 +1144,17 @@ window.openManageTrainerModal = async function() {
     `;
     
     users.forEach(u => {
-        const isTrainer = u.department === 'TRAINER'; const currentDept = u.department || 'AM';
+        // 🔴 2. เช็คว่าคนนี้เป็นผู้สอนในแผนกที่เรากำลังเลือกอยู่หรือไม่
+        const isTrainer = u.department === targetDept; 
+        const currentDept = u.department || 'AM';
+        
         let badgeColor = 'bg-blue-100 text-blue-700';
         if(currentDept === 'OD') badgeColor = 'bg-pink-100 text-pink-700';
         else if(currentDept === 'NEW') badgeColor = 'bg-teal-100 text-teal-700';
-        else if(currentDept === 'TRAINER') badgeColor = 'bg-cyan-100 text-cyan-700';
+        else if(currentDept.startsWith('TRAINER')) badgeColor = 'bg-cyan-100 text-cyan-700';
         
-        let displayDept = currentDept === 'TRAINER' ? 'ผู้สอน' : currentDept;
+        // 🔴 3. ปรับชื่อป้ายให้โชว์ว่าอยู่ผู้สอนแผนกไหน (เช่น "ผู้สอน AM")
+        let displayDept = currentDept.startsWith('TRAINER') ? 'ผู้สอน ' + currentDept.replace('TRAINER_', '') : currentDept;
         let roleBadge = '';
         if (u.role === 'manager' || u.role === 'admin') { roleBadge = `<span class="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 shadow-sm ml-1">Manager</span>`; }
 
@@ -1145,7 +1172,9 @@ window.openManageTrainerModal = async function() {
     html += '</div></div>';
 
     const { value: selectedIds } = await Swal.fire({
-        title: 'ดึงรายชื่อผู้สอน', html: html, showCancelButton: true, confirmButtonText: 'บันทึกรายชื่อ', confirmButtonColor: '#0891b2', cancelButtonText: 'ยกเลิก', width: '400px',
+        // 🔴 4. เปลี่ยนชื่อหัวข้อป๊อปอัปให้ชัดเจนว่ากำลังดึงเข้าแผนกไหน
+        title: `ดึงรายชื่อผู้สอน (${targetDept.replace('TRAINER_', '')})`, 
+        html: html, showCancelButton: true, confirmButtonText: 'บันทึกรายชื่อ', confirmButtonColor: '#0891b2', cancelButtonText: 'ยกเลิก', width: '400px',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white' },
         preConfirm: () => {
             const checkboxes = document.querySelectorAll('.trainer-cb:checked');
@@ -1163,13 +1192,14 @@ window.openManageTrainerModal = async function() {
             let u = GLOBAL_USER_LIST[i];
             const uidStr = String(u.id);
             const isSelected = selectedSet.has(uidStr);
-            const isCurrentlyTrainer = u.department === 'TRAINER';
+            const isCurrentlyTrainer = u.department === targetDept;
 
             if (isSelected) {
-                GLOBAL_USER_LIST[i].department = 'TRAINER'; 
+                GLOBAL_USER_LIST[i].department = targetDept; // 🔴 5. กำหนดให้เป็น TRAINER_AM หรือ TRAINER_OD ตามที่กด
                 if (!isCurrentlyTrainer) toAddIds.push(u.id);
                 updateCount++;
             } else {
+                // ถ้าคนนี้เคยเป็นผู้สอนของแผนกนี้ แต่โดนติ๊กออก ให้ย้ายกลับไป AM ปกติ
                 if (isCurrentlyTrainer) {
                     GLOBAL_USER_LIST[i].department = 'AM'; 
                     toRemoveIds.push(u.id);
@@ -1181,11 +1211,11 @@ window.openManageTrainerModal = async function() {
         window.renderDutyAccessTable(); window.refreshDutyData();
 
         const promises = [];
-        if (toAddIds.length > 0) promises.push(appDB.from('users').update({ department: 'TRAINER' }).in('id', toAddIds));
+        if (toAddIds.length > 0) promises.push(appDB.from('users').update({ department: targetDept }).in('id', toAddIds)); // 🔴 6. บันทึกลงฐานข้อมูลให้ตรงแผนก
         if (toRemoveIds.length > 0) promises.push(appDB.from('users').update({ department: 'AM' }).in('id', toRemoveIds));
         await Promise.all(promises);
 
-        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: `ดึงรายชื่อผู้สอน ${updateCount} คน เรียบร้อยแล้ว`, timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: `ดึงรายชื่อผู้สอน ${updateCount} คน เข้าทีม ${targetDept.replace('TRAINER_', '')} เรียบร้อยแล้ว`, timer: 2000, showConfirmButton: false });
     }
 };
 
@@ -1560,11 +1590,11 @@ window.renderDutyAccessTable = function() {
     const body = document.getElementById('dutyAccessBody');
     if(!head || !body) return;
     
-    // 🌟 ดึงรายชื่อพนักงานทั้งหมด โดยถ้าแอดมินหรือคนที่จัดเวรเพิ่งแก้ไข/เพิ่มชื่อ ระบบจะอ่านเจอ
     let staff = GLOBAL_USER_LIST.filter(u => {
         const uDept = u.department || 'AM';
-        if (currentDutyDept === 'TRAINER') {
-            return uDept === 'TRAINER';
+        // 🔴 แก้ไข: บรรทัด return ต้องเปลี่ยนเป็น uDept === currentDutyDept 
+        if (currentDutyDept.startsWith('TRAINER')) {
+            return uDept === currentDutyDept; 
         } else {
             return u.role === 'staff' && uDept === currentDutyDept;
         }
@@ -1694,7 +1724,7 @@ window.manualAdjustReq = function(changedTeam) {
     
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         const isCorrectDept = (u.department || 'AM') === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'TRAINER') ? true : (u.role === 'staff');
+        const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all'); 
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });

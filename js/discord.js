@@ -56,7 +56,7 @@ window.applyDiscordPermissions = function() {
         { btnId: 'tabDsManage', viewId: 'manage', reqPerm: 'ds_manage' },
         { btnId: 'tabDsVoicelog', viewId: 'voicelog', reqPerm: 'ds_log' },
         { btnId: 'tabDsActionlog', viewId: 'actionlog', reqPerm: 'ds_log' },
-        { btnId: 'tabDsSendmsg', viewId: 'sendmsg', reqPerm: 'ds_manage' }
+        { btnId: 'tabDsSendmsg', viewId: 'sendmsg', reqPerm: 'ds_sendmsg' }
     ];
 
     let firstAllowedTab = null;
