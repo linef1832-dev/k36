@@ -1160,6 +1160,12 @@ window.toggleLeaveStatus = async function(isChecked) {
 
 window.loadLeaveStatusConfig = async function() {
     try {
+        // 🌟 1. เช็คก่อนว่าระบบฐานข้อมูลพร้อมทำงานหรือยัง ถ้ายังให้หยุดรอก่อน
+        if (typeof appDB === 'undefined' || !appDB) return;
+        
+        // 🌟 2. ป้องกันตัวแปรหาย
+        window.leaveStatusConfig = window.leaveStatusConfig || {};
+
         const { data } = await appDB.from('settings').select('*').like('key', 'leave_status_%');
         if (data) {
             data.forEach(item => {
@@ -1168,7 +1174,9 @@ window.loadLeaveStatusConfig = async function() {
             });
         }
         updateLeaveToggleUI(); 
-    } catch(e) { console.error('Load Leave Status Error:', e); }
+    } catch(e) { 
+        console.error('Load Leave Status Error:', e); 
+    }
 };
 
 window.updateLeaveToggleUI = function() {
