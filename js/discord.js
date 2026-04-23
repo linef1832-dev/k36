@@ -185,7 +185,8 @@ window.switchDiscordTab = function(tabName) {
         }
         else if (tabName === 'sendmsg') {
                 activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)] flex items-center gap-1";
-                ds_fetchChannelsForSendMsg(); // ดึงรายชื่อห้องมาใส่ Dropdown
+                ds_fetchChannelsForSendMsg(); 
+                ds_loadMsgTemplates(); // <--- เพิ่มคำสั่งนี้ให้โหลดข้อความเก่ามาแสดง
             }
         
     } catch(err) { console.error("Tab Switch Error:", err); }
@@ -1642,23 +1643,93 @@ window.ds_clearOldMoveLogs = async function() {
         }
     }
 };
-// ฟังก์ชันดึงรายชื่อห้องมาใส่ใน Dropdown เลือกห้อง
+
+// ---------------------------------------------------------
+// 🌟 ระบบส่งข้อความและข้อความสำเร็จรูป
+// ---------------------------------------------------------
+
+// ดึงรายชื่อห้อง (Text Channels) และจำห้องที่เคยเลือก
 window.ds_fetchChannelsForSendMsg = async function() {
     try {
+        const targetSelect = document.getElementById('dsSendMsgChannel');
+        if(targetSelect) targetSelect.innerHTML = '<option value="">-- กำลังโหลดรายชื่อห้อง --</option>';
+
         if(typeof appDB !== 'undefined') {
-            const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').single();
+            // ดึงจาก key 'discord_text_channels' ที่บอทส่งมาให้
+            const { data } = await appDB.from('settings').select('value').eq('key', 'discord_text_channels').single();
             if (data && data.value) {
                 const channels = JSON.parse(data.value);
                 let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
                 channels.forEach(c => dropHtml += `<option value="${c.id}">${c.name}</option>`);
-                const targetSelect = document.getElementById('dsSendMsgChannel');
-                if(targetSelect) targetSelect.innerHTML = dropHtml;
+                
+                if(targetSelect) {
+                    targetSelect.innerHTML = dropHtml;
+                    // ดึงความจำเดิมว่าเคยเลือกห้องไหนไว้
+                    const lastChannel = localStorage.getItem('ds_last_text_channel');
+                    if (lastChannel && channels.some(c => c.id === lastChannel)) {
+                        targetSelect.value = lastChannel;
+                    }
+                }
+            } else {
+                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel (รอแอดมินเปิดบอท) --</option>';
             }
         }
     } catch(e) { console.error(e); }
 };
 
-// ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ
+// โหลดรายการข้อความสำเร็จรูป
+window.ds_loadMsgTemplates = function() {
+    const list = document.getElementById('dsMsgTemplatesList');
+    if (!list) return;
+    const templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]');
+    
+    if (templates.length === 0) {
+        list.innerHTML = '<div class="text-center text-gray-500 text-xs py-10">ยังไม่มีข้อความที่บันทึกไว้<br>พิมพ์ข้อความด้านซ้ายแล้วกด "+ บันทึกเป็นข้อความประจำ"</div>';
+        return;
+    }
+
+    list.innerHTML = templates.map((t, idx) => `
+        <div class="bg-slate-800 border border-slate-600 p-3 rounded-xl hover:border-emerald-500 transition group relative">
+            <div class="text-xs text-gray-300 whitespace-pre-line line-clamp-3 mb-2 cursor-pointer" onclick="ds_useMsgTemplate(${idx})">${t.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-700">
+                <button onclick="ds_useMsgTemplate(${idx})" class="text-[10px] bg-sky-600 hover:bg-sky-500 text-white px-2 py-1 rounded shadow-sm font-bold">นำไปใช้</button>
+                <button onclick="ds_deleteMsgTemplate(${idx})" class="text-gray-400 hover:text-red-500 transition" title="ลบข้อความนี้"><span class="material-icons text-[14px]">delete</span></button>
+            </div>
+        </div>
+    `).join('');
+};
+
+// บันทึกข้อความเก็บไว้
+window.ds_saveMsgTemplate = function() {
+    const text = document.getElementById('dsSendMsgText').value.trim();
+    if (!text) return Swal.fire('เตือน', 'กรุณาพิมพ์ข้อความที่ต้องการบันทึกก่อนครับ', 'warning');
+
+    let templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]');
+    if (templates.includes(text)) return Swal.fire('เตือน', 'มีข้อความนี้บันทึกไว้แล้ว', 'info');
+
+    templates.unshift(text); // เอาข้อความใหม่ไว้บนสุด
+    localStorage.setItem('ds_msg_templates', JSON.stringify(templates));
+    ds_loadMsgTemplates();
+    Swal.fire({icon: 'success', title: 'บันทึกเป็นข้อความประจำแล้ว', timer: 1000, showConfirmButton: false});
+};
+
+// นำข้อความที่บันทึกไว้มาเติมในช่องพิมพ์
+window.ds_useMsgTemplate = function(idx) {
+    const templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]');
+    if (templates[idx]) {
+        document.getElementById('dsSendMsgText').value = templates[idx];
+    }
+};
+
+// ลบข้อความที่บันทึก
+window.ds_deleteMsgTemplate = function(idx) {
+    let templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]');
+    templates.splice(idx, 1);
+    localStorage.setItem('ds_msg_templates', JSON.stringify(templates));
+    ds_loadMsgTemplates();
+};
+
+// ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ (ตัวเดิม)
 window.ds_sendMessage = async function() {
     const channelId = document.getElementById('dsSendMsgChannel').value;
     const message = document.getElementById('dsSendMsgText').value.trim();
@@ -1677,7 +1748,7 @@ window.ds_sendMessage = async function() {
         const r = await res.json();
         if (r.success) {
             Swal.fire('สำเร็จ', 'บอทส่งข้อความเข้ากลุ่มเรียบร้อยแล้ว', 'success');
-            document.getElementById('dsSendMsgText').value = ''; // ล้างช่องข้อความให้ว่าง
+            document.getElementById('dsSendMsgText').value = ''; 
             if(typeof ds_logAction === 'function') ds_logAction('ส่งข้อความ (Bot)', `สั่งบอทพิมพ์ข้อความลงห้อง ID: ${channelId}`);
         } else {
             Swal.fire('Error', r.error || 'ส่งข้อความไม่สำเร็จ (ห้องอาจจะผิด)', 'error');
