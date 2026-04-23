@@ -116,77 +116,88 @@ function buildWrappedUI(data) {
     // ชุดสีและข้อความของแต่ละ Slide
     const slidesHTML = `
         <!-- Slide 0: Intro -->
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-center transition-opacity duration-500 opacity-100 z-10" id="slide-0">
-            <div class="text-6xl mb-6 animate-bounce">👋</div>
-            <h2 class="text-3xl font-black text-white mb-2 drop-shadow-lg">สวัสดี, ${currentUser.username}</h2>
-            <p class="text-lg text-purple-200 font-bold">เดือน ${data.month} นี้ผ่านไปไวเหมือนโกหก...</p>
-            <p class="text-md text-gray-400 mt-4">มาดูกันดีกว่าว่าคุณลุยงานไปแค่ไหน!</p>
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-center transition-opacity duration-500 opacity-100 z-10" id="slide-0">
+            <div class="text-5xl mb-4 animate-bounce">👋</div>
+            <h2 class="text-2xl font-black text-white mb-2 drop-shadow-lg">สวัสดี, ${currentUser.username}</h2>
+            <p class="text-base text-purple-200 font-bold">เดือน ${data.month} นี้ผ่านไปไวเหมือนโกหก...</p>
+            <p class="text-sm text-gray-400 mt-4">มาดูกันดีกว่าว่าคุณลุยงานไปแค่ไหน!</p>
         </div>
 
         <!-- Slide 1: ยอดบิลรวม -->
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-tr from-emerald-900 via-teal-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-1">
-            <div class="text-7xl mb-6 animate-pulse">🔥</div>
-            <p class="text-xl text-emerald-200 font-bold mb-2">ตลอดทั้งเดือนนี้ คุณทำรายการไปทั้งหมด</p>
-            <h2 class="text-6xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(52,211,153,0.8)]">${data.totalBills.toLocaleString()} <span class="text-2xl">บิล</span></h2>
-            <p class="text-md text-emerald-300/80 mt-2">และเป็นบิลที่สำเร็จถึง ${data.totalApproved.toLocaleString()} รายการ!</p>
-            <p class="text-sm text-gray-400 mt-6">(แอดมินปลื้มใจมาก 👏)</p>
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-emerald-900 via-teal-800 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-1">
+            <div class="text-6xl mb-4 animate-pulse">🔥</div>
+            <p class="text-lg text-emerald-200 font-bold mb-2">ตลอดทั้งเดือนนี้ คุณทำรายการไป</p>
+            <h2 class="text-5xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(52,211,153,0.8)]">${data.totalBills.toLocaleString()} <span class="text-xl">บิล</span></h2>
+            <p class="text-sm text-emerald-300/80 mt-2">และสำเร็จถึง ${data.totalApproved.toLocaleString()} รายการ!</p>
+            <p class="text-xs text-gray-400 mt-6">(แอดมินปลื้มใจมาก 👏)</p>
         </div>
 
         <!-- Slide 2: เว็บตัวท็อป -->
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-bl from-orange-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-2">
-            <div class="text-7xl mb-6 scale-110 drop-shadow-xl">👑</div>
-            <p class="text-xl text-orange-200 font-bold mb-2">เว็บที่คุณดูแลบ่อยและผูกพันที่สุดคือ</p>
-            <h2 class="text-6xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(251,146,60,0.8)]">${data.topWeb}</h2>
-            <p class="text-lg text-orange-300/80 mt-2">ทำรายการให้เว็บนี้ไปถึง <b class="text-white">${data.topWebCount.toLocaleString()}</b> บิล</p>
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-bl from-orange-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-2">
+            <div class="text-6xl mb-4 scale-110 drop-shadow-xl">👑</div>
+            <p class="text-lg text-orange-200 font-bold mb-2">เว็บที่คุณผูกพันที่สุดคือ</p>
+            <h2 class="text-5xl font-black text-white mb-2 drop-shadow-[0_0_15px_rgba(251,146,60,0.8)]">${data.topWeb}</h2>
+            <p class="text-base text-orange-300/80 mt-2">ทำให้เว็บนี้ไปถึง <b class="text-white">${data.topWebCount.toLocaleString()}</b> บิล</p>
         </div>
 
         <!-- Slide 3: สถิติวันหยุด -->
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-tr from-pink-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-3">
-            <div class="text-7xl mb-6 scale-110 drop-shadow-xl">${data.totalLeaves === 0 ? '🏆' : '🏖️'}</div>
-            <p class="text-xl text-pink-200 font-bold mb-2">เรื่องพักผ่อนในเดือนนี้...</p>
-            <h2 class="text-5xl font-black text-white mb-4 drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]">${data.totalLeaves === 0 ? 'คุณไม่เคยหยุดเลย!' : 'หยุดไป <span class="text-6xl">' + data.totalLeaves + '</span> วัน'}</h2>
-            <div class="flex flex-wrap justify-center gap-2 mt-2">
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-tr from-pink-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-3">
+            <div class="text-6xl mb-4 scale-110 drop-shadow-xl">${data.totalLeaves === 0 ? '🏆' : '🏖️'}</div>
+            <p class="text-lg text-pink-200 font-bold mb-2">เรื่องพักผ่อนในเดือนนี้...</p>
+            <h2 class="text-3xl font-black text-white mb-4 drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]">${data.totalLeaves === 0 ? 'คุณไม่เคยหยุดเลย!' : 'หยุดไป <span class="text-5xl">' + data.totalLeaves + '</span> วัน'}</h2>
+            <div class="flex flex-wrap justify-center gap-1.5 mt-2">
                 ${Object.entries(data.leaveBreakdown).map(([k, v]) => {
                     let label = k;
                     if(k === 'X') label = 'หยุดปกติ'; else if(k === 'KL') label = 'ลากิจ'; else if(k === 'PN') label = 'พักร้อน';
                     else if(k === 'XX') label = 'เปลี่ยนกะ'; else if(k === 'X4') label = 'ลาครึ่งวัน'; else if(k === 'TL' || k === 'TX') label = 'สลับวันหยุด';
-                    return '<span class="bg-white/20 px-3 py-1 rounded-full text-sm font-bold text-white border border-white/30">' + label + ': ' + v + ' วัน</span>';
-                }).join('') || '<span class="bg-white/20 px-3 py-1 rounded-full text-sm font-bold text-white border border-white/30">ขยันทำงาน 100% 👏</span>'}
+                    return '<span class="bg-white/20 px-2.5 py-1 rounded-full text-xs font-bold text-white border border-white/30">' + label + ': ' + v + ' วัน</span>';
+                }).join('') || '<span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold text-white border border-white/30">ขยันทำงาน 100% 👏</span>'}
             </div>
         </div>
 
         <!-- Slide 4: Outro -->
-        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-sky-900 via-blue-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-4">
-            <div class="text-7xl mb-6 animate-bounce">💖</div>
-            <h2 class="text-4xl font-black text-white mb-4 drop-shadow-lg">ขอบคุณที่ทุ่มเท!</h2>
-            <p class="text-lg text-blue-200 font-bold">ทีมจะขับเคลื่อนไปไม่ได้เลย ถ้าไม่มีคุณ</p>
-            <p class="text-md text-blue-300 mt-4">เตรียมตัวลุยต่อในเดือนหน้านะครับ 🚀</p>
-            <button onclick="closeWrapped()" class="mt-10 px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-bold rounded-full backdrop-blur-md border border-white/30 transition shadow-lg">ปิดหน้าต่างนี้</button>
+        <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-b from-sky-900 via-blue-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-4">
+            <div class="text-6xl mb-4 animate-bounce">💖</div>
+            <h2 class="text-3xl font-black text-white mb-3 drop-shadow-lg">ขอบคุณที่ทุ่มเท!</h2>
+            <p class="text-base text-blue-200 font-bold">ทีมจะไปต่อไม่ได้เลย ถ้าไม่มีคุณ</p>
+            <p class="text-sm text-blue-300 mt-4">เตรียมลุยต่อในเดือนหน้านะครับ 🚀</p>
+            <button onclick="closeWrapped()" class="mt-8 px-6 py-2.5 bg-white/20 hover:bg-white/30 text-white font-bold rounded-full backdrop-blur-md border border-white/30 transition shadow-lg relative z-50">ปิดหน้าต่าง</button>
         </div>
     `;
 
     // หลอด Progress Bar ด้านบน
     let barsHtml = '';
     for (let i = 0; i < wrappedTotalSlides; i++) {
-        barsHtml += `<div class="flex-1 h-1.5 bg-white/30 rounded-full overflow-hidden relative">
+        barsHtml += `<div class="flex-1 h-1 bg-white/30 rounded-full overflow-hidden relative">
                         <div id="wrap-bar-${i}" class="absolute left-0 top-0 bottom-0 bg-white w-0 transition-all duration-100 ease-linear"></div>
                      </div>`;
     }
 
     const overlay = document.createElement('div');
     overlay.id = 'wrapped-overlay';
-    overlay.className = 'fixed inset-0 z-[99999] bg-black text-white overflow-hidden select-none font-sans';
+    overlay.className = 'fixed inset-0 z-[99999] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 text-white select-none font-sans transition-opacity duration-300 opacity-0';
+    overlay.onclick = closeWrapped;
+    
     overlay.innerHTML = `
-        <div class="absolute top-4 left-4 right-4 flex gap-2 z-50">${barsHtml}</div>
-        <div class="absolute inset-0 z-40 flex">
-            <div class="w-1/3 h-full cursor-pointer" onclick="prevWrappedSlide()"></div>
-            <div class="w-2/3 h-full cursor-pointer" onclick="nextWrappedSlide()"></div>
+        <div class="relative w-full max-w-[360px] h-[600px] sm:h-[650px] bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.4)] border border-slate-700/50" onclick="event.stopPropagation()">
+            <div class="absolute top-4 left-5 right-5 flex items-center gap-3 z-50">
+                <div class="flex flex-1 gap-1.5">${barsHtml}</div>
+                <button onclick="closeWrapped()" class="w-6 h-6 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white transition-colors shrink-0 backdrop-blur-sm"><span class="material-icons text-[14px]">close</span></button>
+            </div>
+            
+            <div class="absolute inset-0 z-40 flex mt-12">
+                <div class="w-1/3 h-full cursor-pointer" onclick="prevWrappedSlide()"></div>
+                <div class="w-2/3 h-full cursor-pointer" onclick="nextWrappedSlide()"></div>
+            </div>
+            
+            ${slidesHTML}
         </div>
-        ${slidesHTML}
     `;
 
     document.body.appendChild(overlay);
     
+    setTimeout(() => { overlay.classList.remove('opacity-0'); }, 10);
+
     // เริ่มเล่น Slide
     playWrappedSlide();
 }
@@ -235,6 +246,6 @@ window.closeWrapped = function() {
     const overlay = document.getElementById('wrapped-overlay');
     if (overlay) {
         overlay.classList.add('opacity-0');
-        setTimeout(() => overlay.remove(), 500);
+        setTimeout(() => overlay.remove(), 300);
     }
 };
