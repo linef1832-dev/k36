@@ -55,7 +55,8 @@ window.applyDiscordPermissions = function() {
         { btnId: 'tabDsCheckin', viewId: 'checkin', reqPerm: 'ds_checkin' },
         { btnId: 'tabDsManage', viewId: 'manage', reqPerm: 'ds_manage' },
         { btnId: 'tabDsVoicelog', viewId: 'voicelog', reqPerm: 'ds_log' },
-        { btnId: 'tabDsActionlog', viewId: 'actionlog', reqPerm: 'ds_log' }
+        { btnId: 'tabDsActionlog', viewId: 'actionlog', reqPerm: 'ds_log' },
+        { btnId: 'tabDsSendmsg', viewId: 'sendmsg', reqPerm: 'ds_manage' }
     ];
 
     let firstAllowedTab = null;
@@ -63,7 +64,7 @@ window.applyDiscordPermissions = function() {
     tabs.forEach(tab => {
         const btn = document.getElementById(tab.btnId);
         if (!btn) return;
-        if (window.hasUserPerm(tab.reqPerm)) {
+        if (window.hasUserPerm(tab.reqPerm) || ['manager', 'admin'].includes(currentUser?.role)) {
             btn.classList.remove('no-perm-hidden', 'hidden');
             btn.style.display = ''; 
             if (!firstAllowedTab) firstAllowedTab = tab.viewId;
@@ -75,14 +76,14 @@ window.applyDiscordPermissions = function() {
 
     if (firstAllowedTab) {
         document.getElementById('discordNoAccessMessage')?.remove();
-        const activeTabs = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog'];
+        const activeTabs = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog', 'sendmsg'];
         let isCurrentTabValid = false;
         
         activeTabs.forEach(t => {
             const contentBox = document.getElementById('dsContent_' + t);
             if(contentBox && !contentBox.classList.contains('hidden')) {
                 const reqPerm = tabs.find(x => x.viewId === t)?.reqPerm;
-                if(window.hasUserPerm(reqPerm)) isCurrentTabValid = true;
+                if(window.hasUserPerm(reqPerm) || ['manager', 'admin'].includes(currentUser?.role)) isCurrentTabValid = true;
             }
         });
 
@@ -182,13 +183,12 @@ window.switchDiscordTab = function(tabName) {
                 activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.5)] flex items-center gap-1";
                 ds_fetchActionLogs();
             }
-        }
-        else if (tabName === 'sendmsg') {
+            else if (tabName === 'sendmsg') {
                 activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)] flex items-center gap-1";
-                ds_fetchChannelsForSendMsg(); 
-                ds_loadMsgTemplates(); // <--- เพิ่มคำสั่งนี้ให้โหลดข้อความเก่ามาแสดง
+                if(typeof ds_fetchChannelsForSendMsg === 'function') ds_fetchChannelsForSendMsg();
+                if(typeof ds_loadMsgTemplates === 'function') ds_loadMsgTemplates();
             }
-        
+        }
     } catch(err) { console.error("Tab Switch Error:", err); }
 };
 
@@ -1648,7 +1648,6 @@ window.ds_clearOldMoveLogs = async function() {
 // 🌟 ระบบส่งข้อความและข้อความสำเร็จรูป
 // ---------------------------------------------------------
 
-// ดึงรายชื่อห้อง (Text Channels) และจำห้องที่เคยเลือก
 window.ds_fetchChannelsForSendMsg = async function() {
     const targetSelect = document.getElementById('dsSendMsgChannel');
     if (targetSelect) targetSelect.innerHTML = '<option value="">-- กำลังโหลดรายชื่อห้อง --</option>';
