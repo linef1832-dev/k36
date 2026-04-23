@@ -8,6 +8,7 @@
             <button onclick="switchDiscordTab('manage')" id="tabDsManage" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">manage_accounts</span> ฐานข้อมูล</button>
             <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติเข้า/ออกดิส</button>
             <button onclick="switchDiscordTab('actionlog')" id="tabDsActionlog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">list_alt</span> ประวัติกดคำสั่ง</button>
+            <button onclick="switchDiscordTab('sendmsg')" id="tabDsSendmsg" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">send</span> ส่งข้อความ</button>
         </div>
         <button onclick="showPage('dashboard')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition flex items-center gap-1 text-sm shrink-0 border border-slate-600"><span class="material-icons text-sm">close</span> ปิดหน้าต่าง</button>
     </div>
@@ -328,6 +329,30 @@
                             <tbody id="ds_actionLogBody" class="text-sm"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dsContent_sendmsg" class="max-w-4xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+                <h2 class="text-emerald-400 font-black mb-6 flex items-center gap-2 text-xl">
+                    <span class="material-icons">forum</span> ส่งข้อความเข้าห้องดิสคอร์ด (ผ่านบอท)
+                </h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-1">เลือกห้องปลายทาง (Text Channel)</label>
+                        <select id="dsSendMsgChannel" class="w-full bg-slate-900 border border-slate-600 text-white rounded-xl p-3 text-sm outline-none focus:border-emerald-500 font-bold shadow-inner cursor-pointer">
+                            <option value="">-- กำลังโหลดรายชื่อห้อง --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-1">ข้อความที่ต้องการส่ง</label>
+                        <textarea id="dsSendMsgText" rows="6" placeholder="พิมพ์ข้อความที่นี่... (ขึ้นบรรทัดใหม่ได้)" class="w-full bg-slate-900 border border-slate-600 text-white rounded-xl p-3 text-sm outline-none focus:border-emerald-500 shadow-inner custom-scrollbar resize-none"></textarea>
+                    </div>
+                    <button onclick="ds_sendMessage()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition active:scale-95 flex justify-center items-center gap-2 text-lg mt-2">
+                        <span class="material-icons">send</span> สั่งบอทส่งข้อความ
+                    </button>
                 </div>
             </div>
         </div>
