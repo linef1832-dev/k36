@@ -2945,6 +2945,10 @@ video {
   border-color: rgb(161 98 7 / 0.5);
 }
 
+.border-amber-200\/50 {
+  border-color: rgb(253 230 138 / 0.5);
+}
+
 .border-t-transparent {
   border-top-color: transparent;
 }
@@ -5334,6 +5338,11 @@ video {
 .text-yellow-900 {
   --tw-text-opacity: 1;
   color: rgb(113 63 18 / var(--tw-text-opacity, 1));
+}
+
+.text-cyan-600 {
+  --tw-text-opacity: 1;
+  color: rgb(8 145 178 / var(--tw-text-opacity, 1));
 }
 
 .underline {
