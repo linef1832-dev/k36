@@ -1279,8 +1279,8 @@ window.exportSummaryToExcel = async function() {
             // 2. สร้างคอลัมน์ รวมทั้งสิ้น
             headers.push('รวมสำเร็จ'); headers.push('รวมปฏิเสธ'); headers.push('รวมทั้งสิ้น');
             
-            // 🌟 (เพิ่มใหม่) ขยับ 3 ช่อง โดยให้ช่องที่ 3 เป็น ชื่อพนักงาน
-            headers.push('', '', 'ชื่อพนักงาน (อ้างอิง)');
+            // ขยับช่องว่างและเพิ่มคอลัมน์อ้างอิง (ชื่อ และ กะ)
+            headers.push('', '', 'ชื่อพนักงาน (อ้างอิง)', 'กะ (อ้างอิง)');
 
             // 3. สร้างคอลัมน์ สรุปยอด ของแต่ละเว็บ ไว้ท้ายสุด
             targetWebOrder.forEach(w => { headers.push(`${w} (สรุปยอด)`); });
@@ -1312,7 +1312,6 @@ window.exportSummaryToExcel = async function() {
             const headerColors = ['FFDBEAFE', 'FFDCFCE7', 'FFFEE2E2', 'FFFEF3C7', 'FFF3E8FF', 'FFFFEDD5', 'FFCCFBF1', 'FFE0E7FF', 'FFFCE7F3', 'FFE2E8F0'];
             const dataBgColors = ['FFF0F9FF', 'FFF0FDF4', 'FFFEF2F2', 'FFFFFBEB', 'FFFAF5FF', 'FFFFF7ED', 'FFF0FDFA', 'FFEEF2FF', 'FFFDF2F8', 'FFF8FAFC'];
 
-            // ใส่สีและเส้นขอบให้ส่วนหัว
             headerRow.eachCell((cell, colNumber) => {
                 cell.font = { bold: true }; cell.alignment = { horizontal: 'center', vertical: 'middle' };
                 if (colNumber <= 4) {
@@ -1320,7 +1319,6 @@ window.exportSummaryToExcel = async function() {
                     cell.font.color = { argb: 'FFFFFFFF' };
                     cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'thin', color: {argb:'FF94A3B8'}} };
                 } else if (colNumber > 4 && colNumber <= 34) {
-                    // ส่วนข้อมูลเว็บ
                     const webIndex = Math.floor((colNumber - 5) / 3);
                     const isLastInGroup = (colNumber - 5) % 3 === 2; const isFirstInGroup = (colNumber - 5) % 3 === 0;
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
@@ -1328,20 +1326,17 @@ window.exportSummaryToExcel = async function() {
                     let rightBorder = isLastInGroup ? 'medium' : 'thin'; let leftBorder = isFirstInGroup ? 'medium' : 'thin';
                     cell.border = { top: {style:'medium'}, bottom: {style:'medium'}, right: {style:rightBorder, color:{argb:'FF94A3B8'}}, left: {style:leftBorder, color:{argb:'FF94A3B8'}} };
                 } else if (colNumber > 34 && colNumber <= 37) {
-                    // รวมทั้งสิ้น
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }; 
                     cell.font.color = { argb: 'FFFFFFFF' };
                     cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
-                } else if (colNumber > 37 && colNumber <= 40) {
-                    // 🌟 (เพิ่มใหม่) ชื่อพนักงานก่อนเริ่มคอลัมน์สรุปยอด
-                    if (colNumber === 40) {
+                } else if (colNumber > 37 && colNumber <= 41) {
+                    if (colNumber >= 40) {
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } }; 
                         cell.font.color = { argb: 'FFFFFFFF' };
                         cell.border = { top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'} };
                     }
                 } else {
-                    // สรุปยอดท้ายสุด
-                    const webIndex = colNumber - 41;
+                    const webIndex = colNumber - 42;
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColors[webIndex % headerColors.length] } };
                     cell.font.color = { argb: 'FF0F172A' };
                     cell.border = { top: {style:'medium'}, left: {style:'thin', color:{argb:'FF94A3B8'}}, bottom: {style:'medium'}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
@@ -1356,38 +1351,24 @@ window.exportSummaryToExcel = async function() {
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
                 rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal); 
                 
-                // 🌟 (เพิ่มใหม่) ดันช่องว่างและชื่อพนักงานไปอยู่หน้ากลุ่มสรุปยอด
-                rowData.push('', '', emp.name);
+                // เพิ่มข้อมูลอ้างอิง ชื่อพนักงาน และ กะ
+                rowData.push('', '', emp.name, emp.shift);
 
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].total); });
 
                 const empRow = ws.addRow(rowData);
 
-                // ตกแต่งแต่ละ Cell
                 empRow.eachCell((cell, colNumber) => {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                     if (colNumber <= 4) {
                         cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
                         if (colNumber === 2) { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' }; }
-                        
                         if (colNumber === 3) {
                             cell.font = { bold: true };
-                            if (cell.value === 'เช้า') {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; 
-                                cell.font.color = { argb: 'FFEA580C' }; 
-                            } else if (cell.value === 'กลาง') {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; 
-                                cell.font.color = { argb: 'FF2563EB' }; 
-                            } else if (cell.value === 'ดึก') {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; 
-                                cell.font.color = { argb: 'FF9333EA' }; 
-                            } else if (cell.value === 'อิสระ' || cell.value === 'all') {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; 
-                                cell.font.color = { argb: 'FF059669' }; 
-                                cell.value = 'อิสระ';
-                            } else {
-                                cell.font.color = { argb: 'FF94A3B8' };
-                            }
+                            if (cell.value === 'เช้า') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; cell.font.color = { argb: 'FFEA580C' }; } 
+                            else if (cell.value === 'กลาง') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }; cell.font.color = { argb: 'FF2563EB' }; } 
+                            else if (cell.value === 'ดึก') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; cell.font.color = { argb: 'FF9333EA' }; } 
+                            else if (cell.value === 'อิสระ' || cell.value === 'all') { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }; cell.font.color = { argb: 'FF059669' }; cell.value = 'อิสระ'; }
                         }
                     } else if (colNumber > 4 && colNumber <= 34) {
                         const webIndex = Math.floor((colNumber - 5) / 3); const colIdxInGroup = (colNumber - 5) % 3; 
@@ -1404,42 +1385,34 @@ window.exportSummaryToExcel = async function() {
                         if (cell.value > 0) {
                             if (colNumber === 35) cell.font = { color: { argb: 'FF16A34A' }, bold: true }; 
                             if (colNumber === 36) cell.font = { color: { argb: 'FFDC2626' }, bold: true }; 
-                            if (colNumber === 37) {
-                                cell.font = { color: { argb: 'FF000000' }, bold: true }; 
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; 
-                            }
-                        } else {
-                            if (colNumber === 37) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
-                        }
-                    } else if (colNumber > 37 && colNumber <= 40) {
-                        // 🌟 (เพิ่มใหม่) ตกแต่งคอลัมน์ชื่อพนักงานอ้างอิง
-                        if (colNumber === 40) {
+                            if (colNumber === 37) { cell.font = { color: { argb: 'FF000000' }, bold: true }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; }
+                        } else { if (colNumber === 37) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE047' } }; } }
+                    } else if (colNumber > 37 && colNumber <= 41) {
+                        if (colNumber >= 40) {
                             cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'left' };
                             cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FFCBD5E1'}}, right: {style:'thin', color:{argb:'FFCBD5E1'}} };
                         }
                     } else {
-                        const webIndex = colNumber - 41;
+                        const webIndex = colNumber - 42;
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dataBgColors[webIndex % dataBgColors.length] } };
                         cell.border = { top: {style:'thin', color:{argb:'FFCBD5E1'}}, bottom: {style:'thin', color:{argb:'FFCBD5E1'}}, left: {style:'thin', color:{argb:'FF94A3B8'}}, right: {style:'thin', color:{argb:'FF94A3B8'}} };
-                        if (cell.value > 0) {
-                            cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
-                        } else {
-                            cell.font = { color: { argb: 'FF94A3B8' } }; 
-                        }
+                        if (cell.value > 0) cell.font = { color: { argb: 'FF2563EB' }, bold: true }; 
+                        else cell.font = { color: { argb: 'FF94A3B8' } }; 
                     }
                 });
             });
 
-            // ปรับความกว้างคอลัมน์
             ws.columns.forEach((col, index) => {
                 if (index === 0) col.width = 8; 
                 else if (index === 1) col.width = 25; 
-                else if (index === 2) col.width = 12; 
+                else if (index === 2) col.width = 10; 
                 else if (index === 3) col.width = 12; 
-                else if (index >= 34 && index < 37) col.width = 15; // กลุ่ม "รวมทั้งสิ้น"
-                else if (index === 37 || index === 38) col.width = 5; // 🌟 ช่องว่าง
-                else if (index === 39) col.width = 25; // 🌟 คอลัมน์ชื่อพนักงาน (อ้างอิง)
-                else col.width = 11; // เว็บปกติ และสรุปยอดท้ายสุด
+                else if (index >= 34 && index < 37) col.width = 15; 
+                else if (index === 37 || index === 38) col.width = 5; 
+                else if (index === 39) col.width = 25; // คอลัมน์ชื่อพนักงาน (อ้างอิง)
+                else if (index === 40) col.width = 12; // คอลัมน์กะ (อ้างอิง)
+                else if (index >= 41) col.width = 16; 
+                else col.width = 11; 
             });
 
             const buffer = await wb.xlsx.writeBuffer();
