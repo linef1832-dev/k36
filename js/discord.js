@@ -1650,29 +1650,28 @@ window.ds_clearOldMoveLogs = async function() {
 
 // ดึงรายชื่อห้อง (Text Channels) และจำห้องที่เคยเลือก
 window.ds_fetchChannelsForSendMsg = async function() {
-    try {
-        const targetSelect = document.getElementById('dsSendMsgChannel');
-        if(targetSelect) targetSelect.innerHTML = '<option value="">-- กำลังโหลดรายชื่อห้อง --</option>';
+    const targetSelect = document.getElementById('dsSendMsgChannel');
+    if (targetSelect) targetSelect.innerHTML = '<option value="">-- กำลังโหลดรายชื่อห้อง --</option>';
 
-        if(typeof appDB !== 'undefined') {
+    try {
+        if (typeof appDB !== 'undefined') {
             const { data, error } = await appDB.from('settings').select('value').eq('key', 'discord_text_channels').single();
             
             if (error) {
-                console.error("ดึงข้อมูลห้องจาก DB ไม่ได้:", error);
-                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel (ตรวจสอบบอท) --</option>';
+                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel (ระบบขัดข้อง) --</option>';
                 return;
             }
 
             if (data && data.value) {
-                // เช็คว่าค่าที่ได้มาเป็น String หรือ Object (ดัก Error)
                 let channels = [];
                 try {
                     channels = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
                 } catch (parseErr) {
-                    console.error("แปลงข้อมูล JSON ไม่ผ่าน:", parseErr);
+                    if(targetSelect) targetSelect.innerHTML = '<option value="">-- รูปแบบข้อมูลห้องไม่ถูกต้อง --</option>';
+                    return;
                 }
                 
-                if (channels && channels.length > 0) {
+                if (Array.isArray(channels) && channels.length > 0) {
                     let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
                     channels.forEach(c => {
                         dropHtml += `<option value="${c.id}">${c.name}</option>`;
@@ -1680,31 +1679,30 @@ window.ds_fetchChannelsForSendMsg = async function() {
                     
                     if(targetSelect) {
                         targetSelect.innerHTML = dropHtml;
-                        // ดึงความจำเดิมว่าเคยเลือกห้องไหนไว้
                         const lastChannel = localStorage.getItem('ds_last_text_channel');
-                        if (lastChannel && channels.some(c => c.id === lastChannel)) {
+                        if (lastChannel && channels.some(c => String(c.id) === String(lastChannel))) {
                             targetSelect.value = lastChannel;
                         }
                     }
                 } else {
-                    if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel ใน Server --</option>';
+                    if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบ Text Channel ในเซิร์ฟเวอร์บอท --</option>';
                 }
             } else {
-                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ไม่พบข้อมูลห้อง (ให้บอทเริ่มทำงานใหม่) --</option>';
+                if(targetSelect) targetSelect.innerHTML = '<option value="">-- ยังไม่มีการซิงค์ข้อมูลห้อง (ให้บอทเริ่มทำงานใหม่) --</option>';
             }
         }
     } catch(e) { 
-        console.error("เกิดข้อผิดพลาดตอนดึงห้องแชท:", e); 
-        const targetSelect = document.getElementById('dsSendMsgChannel');
         if(targetSelect) targetSelect.innerHTML = '<option value="">-- เกิดข้อผิดพลาดในการโหลดห้อง --</option>';
     }
 };
 
-// โหลดรายการข้อความสำเร็จรูป
+// ฟังก์ชันโหลดรายการข้อความสำเร็จรูป
 window.ds_loadMsgTemplates = function() {
     const list = document.getElementById('dsMsgTemplatesList');
     if (!list) return;
-    const templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]');
+    
+    let templates = [];
+    try { templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]'); } catch (e) { templates = []; }
     
     if (templates.length === 0) {
         list.innerHTML = '<div class="text-center text-gray-500 text-xs py-10">ยังไม่มีข้อความที่บันทึกไว้<br>พิมพ์ข้อความด้านซ้ายแล้วกด "+ บันทึกเป็นข้อความประจำ"</div>';
@@ -1722,12 +1720,16 @@ window.ds_loadMsgTemplates = function() {
     `).join('');
 };
 
-// บันทึกข้อความเก็บไว้
+// ฟังก์ชันบันทึกข้อความเก็บไว้เป็นเทมเพลต
 window.ds_saveMsgTemplate = function() {
-    const text = document.getElementById('dsSendMsgText').value.trim();
+    const textEl = document.getElementById('dsSendMsgText');
+    if (!textEl) return;
+    const text = textEl.value.trim();
     if (!text) return Swal.fire('เตือน', 'กรุณาพิมพ์ข้อความที่ต้องการบันทึกก่อนครับ', 'warning');
 
-    let templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]');
+    let templates = [];
+    try { templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]'); } catch (e) { templates = []; }
+
     if (templates.includes(text)) return Swal.fire('เตือน', 'มีข้อความนี้บันทึกไว้แล้ว', 'info');
 
     templates.unshift(text); // เอาข้อความใหม่ไว้บนสุด
@@ -1736,17 +1738,20 @@ window.ds_saveMsgTemplate = function() {
     Swal.fire({icon: 'success', title: 'บันทึกเป็นข้อความประจำแล้ว', timer: 1000, showConfirmButton: false});
 };
 
-// นำข้อความที่บันทึกไว้มาเติมในช่องพิมพ์
+// ฟังก์ชันนำข้อความที่บันทึกไว้มาเติมในช่องพิมพ์
 window.ds_useMsgTemplate = function(idx) {
-    const templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]');
+    let templates = [];
+    try { templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]'); } catch (e) { return; }
     if (templates[idx]) {
-        document.getElementById('dsSendMsgText').value = templates[idx];
+        const textEl = document.getElementById('dsSendMsgText');
+        if (textEl) textEl.value = templates[idx];
     }
 };
 
-// ลบข้อความที่บันทึก
+// ฟังก์ชันลบข้อความเทมเพลต
 window.ds_deleteMsgTemplate = function(idx) {
-    let templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]');
+    let templates = [];
+    try { templates = JSON.parse(localStorage.getItem('ds_msg_templates') || '[]'); } catch (e) { return; }
     templates.splice(idx, 1);
     localStorage.setItem('ds_msg_templates', JSON.stringify(templates));
     ds_loadMsgTemplates();
@@ -1754,8 +1759,13 @@ window.ds_deleteMsgTemplate = function(idx) {
 
 // ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ
 window.ds_sendMessage = async function() {
-    const channelId = document.getElementById('dsSendMsgChannel').value;
-    const message = document.getElementById('dsSendMsgText').value.trim();
+    const channelIdEl = document.getElementById('dsSendMsgChannel');
+    const messageEl = document.getElementById('dsSendMsgText');
+    
+    if (!channelIdEl || !messageEl) return;
+    
+    const channelId = channelIdEl.value;
+    const message = messageEl.value.trim();
     
     if (!channelId) return Swal.fire('เตือน', 'กรุณาเลือกห้องปลายทาง', 'warning');
     if (!message) return Swal.fire('เตือน', 'กรุณาพิมพ์ข้อความที่ต้องการส่ง', 'warning');
@@ -1771,12 +1781,15 @@ window.ds_sendMessage = async function() {
         const r = await res.json();
         if (r.success) {
             Swal.fire('สำเร็จ', 'บอทส่งข้อความเข้ากลุ่มเรียบร้อยแล้ว', 'success');
-            document.getElementById('dsSendMsgText').value = ''; 
-            if(typeof ds_logAction === 'function') ds_logAction('ส่งข้อความ (Bot)', `สั่งบอทพิมพ์ข้อความลงห้อง ID: ${channelId}`);
+            messageEl.value = ''; 
+            if(typeof ds_logAction === 'function') {
+                const channelName = channelIdEl.options[channelIdEl.selectedIndex].text;
+                ds_logAction('ส่งข้อความ (Bot)', `สั่งบอทพิมพ์ข้อความลงห้อง: ${channelName}`);
+            }
         } else {
-            Swal.fire('Error', r.error || 'ส่งข้อความไม่สำเร็จ (ห้องอาจจะผิด)', 'error');
+            Swal.fire('Error', r.error || 'ส่งข้อความไม่สำเร็จ (ห้องอาจจะผิดหรือบอทไม่มีสิทธิ์)', 'error');
         }
     } catch(e) { 
-        Swal.fire('Error', 'ไม่สามารถเชื่อมต่อกับบอทได้', 'error'); 
+        Swal.fire('Error', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์บอทได้', 'error'); 
     }
 };
