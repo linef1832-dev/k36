@@ -221,67 +221,62 @@ window.renderTemplate = function(templateId, data = {}) {
 };
 
 // ==========================================
-// 🛠️ ฟังก์ชันเพิ่มแผนก และ Role ลงฐานข้อมูล (Database)
+// 🛠️ ฟังก์ชันเพิ่มแผนก และ Role ลงฐานข้อมูล (ดึงจากช่อง Input)
 // ==========================================
 
 window.addCustomPermDept = async function() {
-    const { value: newDept } = await Swal.fire({
-        title: 'เพิ่มแผนกใหม่',
-        input: 'text',
-        inputPlaceholder: 'เช่น MARKETING, CS, VIP',
-        showCancelButton: true,
-        confirmButtonText: 'เพิ่มแผนก',
-        confirmButtonColor: '#2563eb'
-    });
+    const inputEl = document.getElementById('newDeptInput');
+    if (!inputEl) return Swal.fire('Error', 'ไม่พบช่องกรอกชื่อแผนก', 'error');
+    
+    const deptName = inputEl.value.toUpperCase().trim();
+    if (!deptName) return Swal.fire('แจ้งเตือน', 'กรุณาพิมพ์ชื่อแผนกก่อนกดเพิ่มครับ', 'warning');
 
-    if (newDept) {
-        const deptName = newDept.toUpperCase().trim();
-        // ดึงค่าเดิมจากระบบมาก่อน
-        let currentDepts = [];
-        try {
-            const { data } = await appDB.from('settings').select('value').eq('key', 'custom_departments').single();
-            if(data && data.value) currentDepts = JSON.parse(data.value);
-        } catch(e) {}
+    // ดึงค่าเดิมจากระบบมาก่อน
+    let currentDepts = [];
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'custom_departments').single();
+        if(data && data.value) currentDepts = JSON.parse(data.value);
+    } catch(e) {}
 
-        if (!currentDepts.includes(deptName)) {
-            currentDepts.push(deptName);
-            Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-            await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
-            // สั่งโหลดค่าใหม่และวาดตารางทันที
-            await window.loadSettings();
-            Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มแผนก ${deptName} แล้ว`, timer: 1500, showConfirmButton: false});
-        } else {
-            Swal.fire('เตือน', 'มีแผนกนี้ในระบบแล้ว', 'warning');
-        }
+    if (!currentDepts.includes(deptName)) {
+        currentDepts.push(deptName);
+        Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        
+        await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
+        
+        inputEl.value = ''; // เคลียร์ช่องพิมพ์
+        await window.loadSettings(); // โหลดข้อมูลและวาดตารางใหม่
+        
+        Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มแผนก ${deptName} แล้ว`, timer: 1500, showConfirmButton: false});
+    } else {
+        Swal.fire('เตือน', 'มีแผนกนี้ในระบบแล้ว', 'warning');
     }
 };
 
 window.addCustomPermRole = async function() {
-    const { value: newRole } = await Swal.fire({
-        title: 'เพิ่มตำแหน่ง (Role) ใหม่',
-        input: 'text',
-        inputPlaceholder: 'เช่น LEADER, SUPERVISOR',
-        showCancelButton: true,
-        confirmButtonText: 'เพิ่ม Role',
-        confirmButtonColor: '#8b5cf6'
-    });
+    const inputEl = document.getElementById('newRoleInput');
+    if (!inputEl) return Swal.fire('Error', 'ไม่พบช่องกรอกชื่อ Role', 'error');
+    
+    const roleName = inputEl.value.toLowerCase().trim();
+    if (!roleName) return Swal.fire('แจ้งเตือน', 'กรุณาพิมพ์ชื่อ Role ก่อนกดเพิ่มครับ', 'warning');
 
-    if (newRole) {
-        const roleName = newRole.toLowerCase().trim();
-        let currentRoles = [];
-        try {
-            const { data } = await appDB.from('settings').select('value').eq('key', 'custom_roles').single();
-            if(data && data.value) currentRoles = JSON.parse(data.value);
-        } catch(e) {}
+    let currentRoles = [];
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'custom_roles').single();
+        if(data && data.value) currentRoles = JSON.parse(data.value);
+    } catch(e) {}
 
-        if (!currentRoles.includes(roleName)) {
-            currentRoles.push(roleName);
-            Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-            await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(currentRoles) }]);
-            await window.loadSettings();
-            Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มตำแหน่ง ${roleName.toUpperCase()} แล้ว`, timer: 1500, showConfirmButton: false});
-        } else {
-            Swal.fire('เตือน', 'มีตำแหน่งนี้ในระบบแล้ว', 'warning');
-        }
+    if (!currentRoles.includes(roleName)) {
+        currentRoles.push(roleName);
+        Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        
+        await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(currentRoles) }]);
+        
+        inputEl.value = ''; // เคลียร์ช่องพิมพ์
+        await window.loadSettings(); // โหลดข้อมูลและวาดตารางใหม่
+        
+        Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มตำแหน่ง ${roleName.toUpperCase()} แล้ว`, timer: 1500, showConfirmButton: false});
+    } else {
+        Swal.fire('เตือน', 'มีตำแหน่งนี้ในระบบแล้ว', 'warning');
     }
 };

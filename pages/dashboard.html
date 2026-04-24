@@ -537,16 +537,16 @@
                         </div>
                     </div>
                     
-                    <div class="flex flex-wrap gap-2 items-center w-full xl:w-auto">
-                        <div class="relative flex-1 min-w-[150px]">
-                            <span class="material-icons absolute left-2 top-2.5 text-gray-400 text-sm">search</span>
-                            <input type="text" placeholder="ค้นหาแผนก..." class="w-full pl-8 pr-2 py-2 bg-slate-900 border border-slate-600 rounded-lg text-xs text-white outline-none focus:border-orange-500 transition shadow-inner">
-                        </div>
-                        <div class="w-px h-6 bg-slate-700 mx-1 hidden sm:block"></div>
-                        <input type="text" placeholder="ชื่อแผนกใหม่..." class="py-2 px-3 bg-slate-900 border border-slate-600 rounded-lg text-xs text-white w-28 outline-none focus:border-blue-500 transition shadow-inner">
-                        <button class="bg-blue-600 hover:bg-blue-500 text-white text-[11px] px-3 py-2 rounded-lg shadow-md font-bold flex items-center gap-1 transition"><span class="material-icons text-[14px]">add</span> เพิ่มแผนก</button>
-                        <input type="text" placeholder="ชื่อ Role ใหม่..." class="py-2 px-3 bg-slate-900 border border-slate-600 rounded-lg text-xs text-white w-28 outline-none focus:border-fuchsia-500 transition shadow-inner">
-                        <button class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-[11px] px-3 py-2 rounded-lg shadow-md font-bold flex items-center gap-1 transition"><span class="material-icons text-[14px]">add</span> เพิ่ม Role</button>
+                    <div class="flex items-center justify-end gap-2 w-full">
+                        <input type="text" id="newDeptInput" placeholder="ชื่อแผนกใหม่..." class="bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 shadow-inner w-32 transition">
+                        <button onclick="addCustomPermDept()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-1 border border-blue-500 active:scale-95">
+                            <span class="material-icons text-[16px]">add</span> เพิ่มแผนก
+                        </button>
+                    
+                        <input type="text" id="newRoleInput" placeholder="ชื่อ Role ใหม่..." class="bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-fuchsia-500 shadow-inner w-32 transition ml-2">
+                        <button onclick="addCustomPermRole()" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-1 border border-fuchsia-500 active:scale-95">
+                            <span class="material-icons text-[16px]">add</span> เพิ่ม Role
+                        </button>
                     </div>
                 </div>
                 
