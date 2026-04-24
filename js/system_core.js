@@ -1106,6 +1106,46 @@ async function saveDailyLimit() {
     Swal.fire('Saved', '', 'success'); 
 }
 
+// ==========================================
+// 🛠️ อัปเดต Dropdown แผนกให้เป็นแบบไดนามิก (หน้าจัดการพนักงาน)
+// ==========================================
+window.populateAdminDeptSelects = function() {
+    let dbDepts = [];
+    try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
+    
+    // รวมแผนกพื้นฐาน + แผนกที่สร้างใหม่
+    let availableDepts = new Set(['AM', 'OD', ...dbDepts]);
+    if (typeof GLOBAL_USER_LIST !== 'undefined') {
+        GLOBAL_USER_LIST.forEach(u => { 
+            if(u.department && u.department !== 'TRAINER' && u.department !== 'NEW') availableDepts.add(u.department); 
+        });
+    }
+    availableDepts.delete('TRAINER'); availableDepts.delete('NEW');
+    const deptListArray = Array.from(availableDepts).sort();
+
+    // 1. อัปเดตช่อง "เลือกแผนกตอนเพิ่มพนักงานใหม่" (ขวาสุด)
+    const newDeptSelect = document.getElementById('newDept');
+    if (newDeptSelect) {
+        let html = '';
+        deptListArray.forEach(d => {
+            html += `<option value="${d}">แผนก ${d}</option>`;
+        });
+        newDeptSelect.innerHTML = html;
+    }
+
+    // 2. อัปเดตช่อง "ตัวกรองค้นหาแผนก" (ซ้ายสุด)
+    const filterUserDept = document.getElementById('filterUserDept');
+    if (filterUserDept) {
+        const currentVal = filterUserDept.value;
+        let html = '<option value="all">ทุกแผนก</option>';
+        deptListArray.forEach(d => {
+            html += `<option value="${d}">แผนก ${d}</option>`;
+        });
+        filterUserDept.innerHTML = html;
+        filterUserDept.value = currentVal || 'all';
+    }
+};
+
 async function addUsersBulk() {
     const text = document.getElementById('newUsersArea').value.trim(); 
     const s = document.getElementById('newAllowedShift').value; 
@@ -1187,6 +1227,7 @@ async function fetchUsers(forceRefresh = false) {
     if (!forceRefresh && window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
         if(typeof populateIndivUserSelect === 'function') populateIndivUserSelect();
         if(typeof fastRecalculateStats === 'function') fastRecalculateStats();
+        if(typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
         return;
     }
 
@@ -1200,6 +1241,7 @@ async function fetchUsers(forceRefresh = false) {
         GLOBAL_USER_LIST = data || [];
         
         if(typeof populateIndivUserSelect === 'function') populateIndivUserSelect();
+        if(typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
 
         requestAnimationFrame(() => {
             if(typeof fastRecalculateStats === 'function') fastRecalculateStats();
