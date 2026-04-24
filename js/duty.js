@@ -38,7 +38,7 @@ const TEAM_COLORS = {
 };
 
 window.syncTeamOrder = function() {
-    if (currentDutyDept.startsWith('TRAINER')) {
+    if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
         const mode = document.getElementById('trainerTaskMode') ? document.getElementById('trainerTaskMode').value : 'normal';
         if (mode === 'telegram') sortedTeams = ['Telegram']; 
         else sortedTeams = ['สอนงาน', 'Telegram'];
@@ -51,7 +51,7 @@ window.syncTeamOrder = function() {
 }
 
 window.moveTeam = function(teamName, direction) {
-    if (currentDutyDept.startsWith('TRAINER')) return; 
+    if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) return; 
     const index = sortedTeams.indexOf(teamName);
     if(index === -1) return;
     if(direction === -1 && index > 0) { [sortedTeams[index - 1], sortedTeams[index]] = [sortedTeams[index], sortedTeams[index - 1]]; } 
@@ -113,16 +113,16 @@ window.subscribeDutyChanges = function() {
 
 window.applyDutyRoleUI = function() {
     const isAdmin = window.isDutyAdmin();
-    const isTrainerDept = (currentUser.department && currentUser.department.startsWith('TRAINER')); 
+    const isTrainerDept = (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || (currentUser.department && currentUser.department.startsWith('TRAINER'))); 
     const isTrainerRole = (currentUser.role && currentUser.role.toLowerCase() === 'trainer');
 
     let canManageDuty = false;
     if (isAdmin) canManageDuty = true; 
-    else if (currentDutyDept.startsWith('TRAINER')) canManageDuty = false; 
+    else if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) canManageDuty = false; 
     else canManageDuty = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('duty_manage') : false; 
     
     const adminElements = document.querySelectorAll('.duty-admin-only');
-    const trainerBtn = document.getElementById('btnDutyTRAINER');
+    const trainerBtn = document.getElementById('btnDutyTRAINER'); // ปุ่มเก่าเผื่อมี
     
     if(trainerBtn) {
         if(isAdmin || isTrainerDept || isTrainerRole) {
@@ -167,13 +167,17 @@ window.switchDutyDept = function(dept) {
     
     document.getElementById('btnDutyAM')?.classList.remove('active'); 
     document.getElementById('btnDutyOD')?.classList.remove('active');
+    document.getElementById('btnDutyAMQL')?.classList.remove('active'); 
+    document.getElementById('btnDutyODQL')?.classList.remove('active');
     document.getElementById('btnDutyTRAINER_AM')?.classList.remove('active'); 
     document.getElementById('btnDutyTRAINER_OD')?.classList.remove('active');
     
     document.getElementById(`btnDuty${dept}`)?.classList.add('active');
     
     let labelText = dept;
-    if (dept.startsWith('TRAINER')) {
+    if (dept === 'AMQL') labelText = 'ผู้สอน AM';
+    else if (dept === 'ODQL') labelText = 'ผู้สอน OD';
+    else if (dept.startsWith('TRAINER')) {
         labelText = dept.replace('TRAINER_', 'ผู้สอน '); 
     }
     const labelEl = document.getElementById('dutyDeptLabel'); 
@@ -183,12 +187,13 @@ window.switchDutyDept = function(dept) {
     const filterTrainer = document.getElementById('trainerDeptFilterContainer');
     const taskModeContainer = document.getElementById('trainerTaskModeContainer');
     
-    if (dept.startsWith('TRAINER')) {
-        if (btnManageTrainer && window.isDutyAdmin()) btnManageTrainer.classList.remove('hidden');
+    // ผู้ใช้บอกว่า "ไม่ต้องเป็นการดึงแล้วก็ได้ ก็ให้ตามแผนกไปเลย" ฉะนั้นซ่อนปุ่มจัดการรายชื่อผู้สอนไปเลย
+    if (btnManageTrainer) btnManageTrainer.classList.add('hidden');
+    
+    if (dept === 'AMQL' || dept === 'ODQL' || dept.startsWith('TRAINER')) {
         if (filterTrainer) filterTrainer.classList.remove('hidden');
         if (taskModeContainer && window.isDutyAdmin()) { taskModeContainer.classList.remove('hidden'); taskModeContainer.classList.add('flex'); }
     } else {
-        if (btnManageTrainer) btnManageTrainer.classList.add('hidden');
         if (filterTrainer) filterTrainer.classList.add('hidden');
         if (taskModeContainer) { taskModeContainer.classList.add('hidden'); taskModeContainer.classList.remove('flex'); }
         if (document.getElementById('trainerTaskMode')) document.getElementById('trainerTaskMode').value = 'normal';
@@ -204,7 +209,7 @@ window.switchDutyDept = function(dept) {
 
 function getDutySaveKey(date, shift) {
     let key = `duty_roster_${currentDutyDept}_${date}_${shift}`;
-    if (currentDutyDept.startsWith('TRAINER')) {
+    if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
         const mode = document.getElementById('trainerTaskMode') ? document.getElementById('trainerTaskMode').value : 'normal';
         if (mode === 'telegram') key += '_telegram';
     }
@@ -234,7 +239,7 @@ window.refreshDutyData = async function() {
                 let userObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(l.user_id) || u.username === l.user_name);
                 if (userObj) {
                     let uDept = userObj.department || 'AM';
-                    if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // Legacy Fix
+                    if (uDept === 'TRAINER') uDept = 'AMQL'; // Legacy Fix
                     if (uDept === currentDutyDept) {
                         relevantLeaves.push({ user_id: userObj.id, username: userObj.username, reason: l.reason, originalShift: userObj.allowed_shift || 'all' });
                     }
@@ -423,7 +428,7 @@ window.clearDutyRoster = async function() {
                 
                 if (currentDataVal) {
                     localStorage.setItem(`backup_${saveKey}`, currentDataVal);
-                    if (currentDutyDept.startsWith('TRAINER')) {
+                    if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
                         let currentReportVal = null;
                         const { data: currentReport } = await appDB.from('settings').select('value').eq('key', reportKey);
                         if (currentReport && currentReport.length > 0) currentReportVal = currentReport[0].value;
@@ -432,7 +437,7 @@ window.clearDutyRoster = async function() {
                 }
                 
                 await appDB.from('settings').delete().eq('key', saveKey);
-                if (currentDutyDept.startsWith('TRAINER')) await appDB.from('settings').delete().eq('key', reportKey);
+                if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) await appDB.from('settings').delete().eq('key', reportKey);
                 
                 await appDB.from('system_logs').insert([{ action_type: 'ล้างตารางงาน', performed_by: currentUser.username, target_details: `ล้างตารางของแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
                 appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
@@ -462,7 +467,7 @@ window.restoreDutyRoster = async function() {
             try {
                 await appDB.from('settings').upsert([{ key: saveKey, value: backupData }]);
                 const backupReport = localStorage.getItem(`backup_${reportKey}`);
-                if (currentDutyDept.startsWith('TRAINER') && backupReport) await appDB.from('settings').upsert([{ key: reportKey, value: backupReport }]);
+                if ((currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) && backupReport) await appDB.from('settings').upsert([{ key: reportKey, value: backupReport }]);
 
                 await appDB.from('system_logs').insert([{ action_type: 'กู้คืนตารางงาน', performed_by: currentUser.username, target_details: `กู้คืนตารางแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
                 localStorage.removeItem(`backup_${saveKey}`); localStorage.removeItem(`backup_${reportKey}`);
@@ -495,10 +500,10 @@ window.generateDutyRoster = async function() {
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ช่วยดึงคนที่ยังเป็นระบบเก่าให้
+        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ช่วยดึงคนที่ยังเป็นระบบเก่าให้
         
         const isCorrectDept = uDept === currentDutyDept;
-        const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
+        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -634,13 +639,13 @@ window.generateDutyRoster = async function() {
 };
 
 window.renderRosterGrid = async function(rosterData) {
-    const cardGrid = document.getElementById('dutyResultGrid'); // เปลี่ยนชื่อตัวแปรให้ชัดขึ้น
-    const matrixGrid = document.getElementById('dutyMatrixGrid'); // ดึงกล่องใหม่มา
+    const cardGrid = document.getElementById('dutyResultGrid'); 
+    const matrixGrid = document.getElementById('dutyMatrixGrid'); 
     
     if(!cardGrid) return;
     
     // 🟢 ถ้าเป็นผู้สอน OD (เปลี่ยนให้ตารางแสดงผล)
-    if (currentDutyDept === 'TRAINER_OD') {
+    if (currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD') {
         cardGrid.classList.add('hidden');
         if (matrixGrid) matrixGrid.classList.remove('hidden');
         
@@ -656,7 +661,7 @@ window.renderRosterGrid = async function(rosterData) {
         if (matrixGrid) matrixGrid.classList.add('hidden');
     }
 
-    cardGrid.innerHTML = ''; // เปลี่ยนตัวแปรจาก grid เป็น cardGrid
+    cardGrid.innerHTML = ''; 
     let finalGridHtml = '';
     
     currentRosterData = rosterData; 
@@ -667,7 +672,7 @@ window.renderRosterGrid = async function(rosterData) {
     const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : '';
     const subFilter = document.getElementById('trainerDeptFilter') ? document.getElementById('trainerDeptFilter').value : 'ALL';
 
-    if (currentDutyDept.startsWith('TRAINER') && targetDate) {
+    if ((currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) && targetDate) {
         const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         try {
             let reportDataVal = null;
@@ -695,7 +700,9 @@ window.renderRosterGrid = async function(rosterData) {
         let assignees = rosterData[team] || [];
         if(assignees.length === 0) return; 
         
-        if (currentDutyDept.startsWith('TRAINER') && subFilter !== 'ALL') assignees = assignees.filter(a => true);
+        if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
+            if (subFilter !== 'ALL') assignees = assignees.filter(a => true);
+        }
         
         const rolesForThisTeam = customDutyRoles[team] || [];
         const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
@@ -748,7 +755,7 @@ window.renderRosterGrid = async function(rosterData) {
         }).join('');
 
         let trainerReportHtml = '';
-        if (currentDutyDept.startsWith('TRAINER')) {
+        if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
             const tr = trainerReports[team] || { missed: 0, checker: '-', score: '-', mistakes: [] };
             const scoreNum = parseInt(tr.score);
             let scoreColor = 'text-gray-500';
@@ -771,7 +778,7 @@ window.renderRosterGrid = async function(rosterData) {
                 behaviorHtml = `<span class="text-red-600 bg-red-50 p-1 rounded font-bold block mt-0.5 break-words">${tr.bad_behavior}</span>`;
             }
 
-            const isTrainerStaff = (currentUser.department && currentUser.department.startsWith('TRAINER'));
+            const isTrainerStaff = (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || (currentUser.department && currentUser.department.startsWith('TRAINER')));
             const btnLogData = (isAdmin || isTrainerStaff) ? `<button onclick="openTrainerReportModal('${team}')" class="text-[9px] bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded shadow transition font-bold border border-amber-600">📝 ประเมิน</button>` : '';
 
             trainerReportHtml = `
@@ -1129,8 +1136,8 @@ window.filterTrainerList = function() {
 window.openManageTrainerModal = async function() {
     let targetDept = currentDutyDept; 
     
-    if (targetDept !== 'TRAINER_AM' && targetDept !== 'TRAINER_OD') {
-        targetDept = 'TRAINER_AM'; 
+    if (targetDept !== 'AMQL' && targetDept !== 'ODQL') {
+        targetDept = 'AMQL'; 
     }
 
     const users = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'manager' || u.role === 'admin').sort((a, b) => a.username.localeCompare(b.username));
@@ -1145,14 +1152,14 @@ window.openManageTrainerModal = async function() {
     `;
     
     users.forEach(u => {
-        // 🔴 Legacy fallback: ถ้ามีคนหลงเหลือใน 'TRAINER' ให้ถือว่าเป็น 'TRAINER_AM' ในสายตา UI
-        const isTrainer = u.department === targetDept || (targetDept === 'TRAINER_AM' && u.department === 'TRAINER'); 
+        // 🔴 Legacy fallback: ถ้ามีคนหลงเหลือใน 'TRAINER' ให้ถือว่าเป็น 'AMQL' ในสายตา UI
+        const isTrainer = u.department === targetDept || (targetDept === 'AMQL' && u.department === 'TRAINER'); 
         const currentDept = u.department || 'AM';
         
         let badgeColor = 'bg-blue-100 text-blue-700';
         if(currentDept === 'OD') badgeColor = 'bg-pink-100 text-pink-700';
         else if(currentDept === 'NEW') badgeColor = 'bg-teal-100 text-teal-700';
-        else if(currentDept.startsWith('TRAINER')) badgeColor = 'bg-cyan-100 text-cyan-700';
+        else if(currentDept === 'AMQL' || currentDept === 'ODQL' || currentDept.startsWith('TRAINER')) badgeColor = 'bg-cyan-100 text-cyan-700';
         
         let displayDept = currentDept.startsWith('TRAINER') ? 'ผู้สอน ' + currentDept.replace('TRAINER_', '') : currentDept;
         if (displayDept === 'ผู้สอน TRAINER') displayDept = 'ผู้สอน AM'; // แก้คำเก่าให้ดูง่าย
@@ -1224,7 +1231,7 @@ window.openTrainerReportModal = async function(team) {
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     
     const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-    const baseDept = currentDutyDept.replace('TRAINER_', ''); // ช่วยดึงข้อมูล roster จาก AM หรือ OD ให้ถูก
+    const baseDept = currentDutyDept.replace('TRAINER_', '').replace('QL', ''); // ช่วยดึงข้อมูล roster จาก AM หรือ OD ให้ถูก
     const rosterKey = `duty_roster_${baseDept}_${targetDate}_${shiftFilter}`;
 
     let currentReports = {}; let rosterData = {};
@@ -1590,9 +1597,9 @@ window.renderDutyAccessTable = function() {
     
     let staff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ย้ายชื่อเก่าให้เข้าระบบอัตโนมัติ
+        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ย้ายชื่อเก่าให้เข้าระบบอัตโนมัติ
 
-        if (currentDutyDept.startsWith('TRAINER')) {
+        if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
             return uDept === currentDutyDept; 
         } else {
             return u.role === 'staff' && uDept === currentDutyDept;
@@ -1723,10 +1730,10 @@ window.manualAdjustReq = function(changedTeam) {
     
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ช่วยดึงระบบเก่า
+        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ช่วยดึงระบบเก่า
 
         const isCorrectDept = uDept === currentDutyDept;
-        const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
+        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all'); 
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -1796,10 +1803,10 @@ window.autoSuggestRequirements = function() {
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ช่วยดึงระบบเก่า
+        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ช่วยดึงระบบเก่า
 
         const isCorrectDept = uDept === currentDutyDept;
-        const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
+        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -1861,10 +1868,10 @@ window.updateDutyStats = function() {
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'TRAINER_AM'; // 🔴 ช่วยดึงระบบเก่า
+        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ช่วยดึงระบบเก่า
 
         const isCorrectDept = uDept === currentDutyDept;
-        const hasValidRole = currentDutyDept.startsWith('TRAINER') ? true : (u.role === 'staff');
+        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -1904,8 +1911,8 @@ if (window.appDB && appDB.from) {
         try {
             if (payload && payload[0] && payload[0].key && payload[0].key.startsWith('report_')) {
                 const parts = payload[0].key.split('_');
-                // ดักจับรูปแบบ: report_TRAINER_AM_YYYY-MM-DD_กะเช้า
-                if (parts[1].startsWith('TRAINER')) {
+                // ดักจับรูปแบบ: report_AMQL_YYYY-MM-DD_กะเช้า หรือ report_TRAINER_AM_YYYY...
+                if (parts[1] === 'AMQL' || parts[1] === 'ODQL' || parts[1].startsWith('TRAINER')) {
                     const dateStr = parts[parts.length - 2];
                     const shiftStr = parts[parts.length - 1];
                     
@@ -1939,11 +1946,9 @@ window.renderTrainerOdMatrix = function(rosterData) {
     const tasks = ['ถอนเงิน', 'ตรวจถอน', 'แนะนำเพื่อน', 'เคสเทเล']; // ปรับแก้ตามงานจริงได้เลย
 
     // 2. ดึงรายชื่อพนักงานที่เป็นผู้สอน OD 
-    // (ระบบเก่าของกูเกิ้ลชีทอาจจะเซ็ต department เป็นอะไร คุณต้องดึงมาให้ถูก ในที่นี้ดึงทุกคนที่เป็น TRAINER_OD)
-    // 2. ดึงรายชื่อพนักงานที่เป็นผู้สอน OD เท่านั้น (ดักเฉพาะฝั่ง OD)
     const staffList = GLOBAL_USER_LIST.filter(u => {
-        // เงื่อนไขที่ 1: ถ้าในชีทตั้งชื่อแผนกว่า TRAINER_OD ตรงๆ
-        if (u.department === 'TRAINER_OD') return true;
+        // เงื่อนไขที่ 1: ถ้าในชีทตั้งชื่อแผนกว่า ODQL ตรงๆ
+        if (u.department === 'ODQL' || u.department === 'TRAINER_OD') return true;
         
         // เงื่อนไขที่ 2: ถ้าในชีทตั้งแผนกว่า OD และตั้งตำแหน่งว่า trainer
         if (u.department === 'OD' && (u.role === 'trainer' || u.role === 'TRAINER')) return true;
