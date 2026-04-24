@@ -1046,8 +1046,8 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = 1) {
     if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลหน้า ${page}...</td></tr>`;
 
     try {
-        const startOfDay = `${targetDate}T00:00:00+07:00`;
-        const endOfDay = `${targetDate}T23:59:59+07:00`;
+        const startOfDay = `${targetDate}T00:00:00+00:00`;
+        const endOfDay = `${targetDate}T23:59:59+00:00`;
 
         // 🌟 1. ดึงแบบ Server-Side แบ่งหน้า เพื่อทะลุขีดจำกัด 1000 รายการของระบบ
         let query = appDB.from('discord_voice_logs')
@@ -1289,6 +1289,8 @@ window.ds_renderActionLogs = function() {
     if (dateFilter) {
         filtered = filtered.filter(log => {
             const d = new Date(log.time);
+            let d = new Date(log.time);
+            d = new Date(d.getTime() - (7 * 60 * 60 * 1000)); // 🌟 หักลบ 7 ชั่วโมงก่อนคำนวณวัน
             const y = d.getFullYear();
             const m = String(d.getMonth() + 1).padStart(2, '0');
             const day = String(d.getDate()).padStart(2, '0');
