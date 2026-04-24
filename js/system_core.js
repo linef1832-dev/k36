@@ -2339,8 +2339,15 @@ window.renderPermsTable = function() {
 
         // 🌟 เพิ่มปุ่มลบ (แสดงเฉพาะแผนกที่ไม่ได้เป็นค่าเริ่มต้น)
         let delDeptBtn = '';
+        // 🌟 เพิ่มปุ่มแก้ไข และ ลบ (แสดงเฉพาะแผนกที่สร้างเอง)
+        let actionBtns = '';
         if (!['AM', 'OD', 'AMQL'].includes(dept)) {
             delDeptBtn = `<button onclick="deleteCustomPermDept('${dept}')" class="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-lg transition active:scale-95"><span class="material-icons text-[12px]">close</span></button>`;
+            actionBtns = `
+            <div class="absolute -top-3 -right-3 flex gap-1 z-30">
+                <button onclick="renameCustomPermDept('${dept}')" class="bg-amber-500 hover:bg-amber-400 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
+                <button onclick="deleteCustomPermDept('${dept}')" class="bg-red-600 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>
+            </div>`;
         }
 
         bodyHtml += `
@@ -2349,6 +2356,7 @@ window.renderPermsTable = function() {
                 <div class="relative bg-slate-900 border border-slate-600 px-3 py-3 rounded-xl font-black text-white shadow-inner text-sm w-32 text-center tracking-wider">
                     ${dept}
                     ${delDeptBtn}
+                    ${actionBtns}
                 </div>
             </td>
             

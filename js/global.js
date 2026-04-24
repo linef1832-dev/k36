@@ -342,3 +342,80 @@ window.deleteCustomPermRole = async function() {
         Swal.fire({icon: 'success', title: 'ลบ Role สำเร็จ', timer: 1000, showConfirmButton: false});
     }
 };
+
+// ==========================================
+// ✏️ ฟังก์ชันเปลี่ยนชื่อแผนก และอัปเดตพนักงานทั้งระบบ
+// ==========================================
+window.renameCustomPermDept = async function(oldDept) {
+    const { value: newDeptRaw } = await Swal.fire({
+        title: `เปลี่ยนชื่อแผนก ${oldDept}`,
+        input: 'text',
+        inputValue: oldDept,
+        inputPlaceholder: 'พิมพ์ชื่อแผนกใหม่...',
+        showCancelButton: true,
+        confirmButtonText: 'บันทึกการเปลี่ยนแปลง',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+
+    if (newDeptRaw) {
+        const newDept = newDeptRaw.toUpperCase().trim();
+        if (!newDept || newDept === oldDept) return; // ถ้าชื่อว่าง หรือชื่อเดิม ไม่ต้องทำอะไร
+
+        let dbDepts = [];
+        try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
+
+        // เช็คว่าชื่อใหม่ไปซ้ำกับชาวบ้านไหม
+        if (dbDepts.includes(newDept) || ['AM', 'OD', 'AMQL'].includes(newDept)) {
+            return Swal.fire('เตือน', 'มีแผนกชื่อนี้อยู่ในระบบแล้วครับ', 'warning');
+        }
+
+        Swal.fire({title: 'กำลังอัปเดตข้อมูลทั้งระบบ...', text: 'โปรดรอสักครู่...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+        try {
+            // 1. เปลี่ยนชื่อใน List แผนก
+            dbDepts = dbDepts.map(d => d === oldDept ? newDept : d);
+            SETTINGS['custom_departments'] = JSON.stringify(dbDepts);
+
+            // 2. ย้ายสิทธิ์ (MENU_PERMS) ตามไปที่ชื่อใหม่
+            let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
+            Object.keys(newPerms).forEach(key => {
+                if (key.startsWith(oldDept + '_')) {
+                    const newKey = key.replace(oldDept + '_', newDept + '_');
+                    newPerms[newKey] = newPerms[key];
+                    delete newPerms[key]; // ลบกุญแจเก่าทิ้ง
+                }
+            });
+            MENU_PERMS = newPerms;
+            SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
+            localStorage.setItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
+
+            // 3. อัปเดตขึ้น Database (ตาราง settings)
+            await appDB.from('settings').upsert([
+                { key: 'custom_departments', value: JSON.stringify(dbDepts) },
+                { key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }
+            ]);
+
+            // 4. 🔥 วิ่งไปเปลี่ยนแผนกให้ "พนักงานทุกคน" ในตาราง users อัตโนมัติ 🔥
+            await appDB.from('users').update({ department: newDept }).eq('department', oldDept);
+
+            // 5. อัปเดตข้อมูลในหน้าเว็บปัจจุบันให้ตรงกัน
+            if (typeof GLOBAL_USER_LIST !== 'undefined') {
+                GLOBAL_USER_LIST.forEach(u => {
+                    if (u.department === oldDept) u.department = newDept;
+                });
+            }
+
+            // 6. วาดตารางสิทธิ์ใหม่ และอัปเดต Dropdown ในหน้าอื่นๆ
+            window.renderPermsTable();
+            if (typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
+
+            Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแผนกสำเร็จ!', text: `ระบบอัปเดตแท็กของพนักงานทุกคนเป็น ${newDept} เรียบร้อยแล้วครับ 🎉`, timer: 2500, showConfirmButton: false});
+
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'เกิดข้อผิดพลาด: ' + e.message, 'error');
+        }
+    }
+};
