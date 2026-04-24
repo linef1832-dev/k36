@@ -1115,7 +1115,7 @@ window.populateAdminDeptSelects = function() {
     
     // 🌟 ดึงเฉพาะ AM, OD และแผนกที่สร้างใหม่ในหน้าตั้งค่าเท่านั้น! (ลบการสแกนพนักงานเก่าทิ้งถาวร)
     let availableDepts = new Set(['AM', 'OD', 'AMQL', ...dbDepts]);
-    const deptListArray = Array.from(availableDepts).sort();
+    const deptListArray = window.getSystemDepts();
 
     // 1. อัปเดตช่อง "เลือกแผนกตอนเพิ่มพนักงานใหม่" (ขวาสุด)
     const newDeptSelect = document.getElementById('newDept');
@@ -1280,15 +1280,12 @@ window.renderUserTableDirectly = function() {
         paginatedUsers = filteredUsers.slice(startIndex, startIndex + parseInt(userRowsPerPage));
     }
 
-    // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ (ดึงแบบไดนามิกจากฐานข้อมูลเท่านั้น)
     // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ (ดึงแบบไดนามิกจากฐานข้อมูล)
     let dbDepts = [];
     try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
     
-    // 🌟 เติม 'AMQL' กลับเข้ามาตรงนี้ครับ
-    // 🌟 ดึง AM, OD, AMQL และแผนกที่สร้างใหม่มาใส่ในตัวเลือก
     let availableDepts = new Set(['AM', 'OD', 'AMQL', ...dbDepts]);
-    const deptListArray = Array.from(availableDepts).sort();
+    const deptListArray = window.getSystemDepts();
     
     let dbRoles = [];
     try { dbRoles = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
@@ -1697,6 +1694,121 @@ window.deleteAnnouncement = async function() {
             Swal.fire({icon: 'success', title: 'ลบประกาศเรียบร้อย', timer: 1500, showConfirmButton: false});
         } catch (e) {
             Swal.fire('Error', e.message, 'error');
+        }
+    }
+};
+
+// ==========================================
+// 🛠️ ระบบจัดการแผนกอัจฉริยะ (จัดการ AM, OD และแผนกสร้างใหม่ทั้งหมด)
+// ==========================================
+window.getSystemDepts = function() {
+    let dbDepts = [];
+    try { 
+        if (SETTINGS['custom_departments']) {
+            dbDepts = JSON.parse(SETTINGS['custom_departments']);
+        } else {
+            dbDepts = ['AM', 'OD', 'AMQL']; // ถ้าฐานข้อมูลยังว่าง ให้ใช้ 3 แผนกนี้เป็นค่าเริ่มต้น
+        }
+    } catch(e) { dbDepts = ['AM', 'OD', 'AMQL']; }
+    return [...new Set(dbDepts)].sort();
+};
+
+window.addCustomPermDept = async function() {
+    const inputEl = document.getElementById('newDeptInput');
+    if (!inputEl) return Swal.fire('Error', 'ไม่พบช่องกรอกชื่อแผนก', 'error');
+    
+    const deptName = inputEl.value.toUpperCase().trim();
+    if (!deptName) return Swal.fire('แจ้งเตือน', 'กรุณาพิมพ์ชื่อแผนกก่อนกดเพิ่มครับ', 'warning');
+
+    let currentDepts = window.getSystemDepts();
+
+    if (!currentDepts.includes(deptName)) {
+        currentDepts.push(deptName);
+        Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        
+        await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
+        SETTINGS['custom_departments'] = JSON.stringify(currentDepts);
+        
+        inputEl.value = ''; 
+        await window.loadSettings(); 
+        if (typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
+        if (typeof renderUserTableDirectly === 'function') window.renderUserTableDirectly();
+        
+        Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มแผนก ${deptName} แล้ว`, timer: 1500, showConfirmButton: false});
+    } else {
+        Swal.fire('เตือน', 'มีแผนกนี้ในระบบแล้ว', 'warning');
+    }
+};
+
+window.renameAnyDept = async function(oldDept) {
+    const { value: newDeptRaw } = await Swal.fire({
+        title: `เปลี่ยนชื่อแผนก ${oldDept}`,
+        input: 'text',
+        inputValue: oldDept,
+        inputPlaceholder: 'พิมพ์ชื่อแผนกใหม่...',
+        showCancelButton: true,
+        confirmButtonText: 'บันทึกการเปลี่ยนแปลง',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+
+    if (newDeptRaw) {
+        const newDept = newDeptRaw.toUpperCase().trim();
+        if (!newDept || newDept === oldDept) return; 
+
+        let currentDepts = window.getSystemDepts();
+
+        if (currentDepts.includes(newDept)) {
+            return Swal.fire('เตือน', 'มีแผนกชื่อนี้อยู่ในระบบแล้วครับ', 'warning');
+        }
+
+        Swal.fire({title: 'กำลังอัปเดตข้อมูลทั้งระบบ...', text: 'โปรดรอสักครู่...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+        try {
+            // 1. เปลี่ยนชื่อใน List แผนก
+            currentDepts = currentDepts.map(d => d === oldDept ? newDept : d);
+            SETTINGS['custom_departments'] = JSON.stringify(currentDepts);
+
+            // 2. ย้ายสิทธิ์ (MENU_PERMS) ตามไปที่ชื่อใหม่
+            let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
+            Object.keys(newPerms).forEach(key => {
+                if (key.startsWith(oldDept + '_')) {
+                    const newKey = key.replace(oldDept + '_', newDept + '_');
+                    newPerms[newKey] = newPerms[key];
+                    delete newPerms[key]; 
+                }
+            });
+            MENU_PERMS = newPerms;
+            SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
+            localStorage.setItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
+
+            // 3. อัปเดตขึ้น Database (ตาราง settings)
+            await appDB.from('settings').upsert([
+                { key: 'custom_departments', value: JSON.stringify(currentDepts) },
+                { key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }
+            ]);
+
+            // 4. 🔥 วิ่งไปเปลี่ยนแผนกให้ "พนักงานทุกคน" ในตาราง users อัตโนมัติ 🔥
+            await appDB.from('users').update({ department: newDept }).eq('department', oldDept);
+
+            // 5. อัปเดตข้อมูลในหน้าเว็บปัจจุบันให้ตรงกัน
+            if (typeof GLOBAL_USER_LIST !== 'undefined') {
+                GLOBAL_USER_LIST.forEach(u => {
+                    if (u.department === oldDept) u.department = newDept;
+                });
+            }
+
+            // 6. รีเฟรชหน้าจอให้ทุกอย่างอัปเดต
+            window.renderPermsTable(); 
+            if (typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
+            if (typeof renderUserTableDirectly === 'function') window.renderUserTableDirectly();
+
+            Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแผนกสำเร็จ!', text: `ระบบอัปเดตแท็กของพนักงานทุกคนเป็น ${newDept} เรียบร้อยแล้วครับ 🎉`, timer: 2500, showConfirmButton: false});
+
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'เกิดข้อผิดพลาด: ' + e.message, 'error');
         }
     }
 };
@@ -2177,7 +2289,7 @@ window.renderPermsTable = function() {
     // 🌟 1. ดึงชื่อแผนกจากฐานข้อมูล (DB)
     let dbDepts = [];
     try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
-    const depts = [...new Set(['AM', 'OD', 'AMQL', ...dbDepts])];
+    const depts = window.getSystemDepts();
     
     let bodyHtml = '';
 
@@ -2351,6 +2463,12 @@ window.renderPermsTable = function() {
                 <button onclick="deleteCustomPermDept('${dept}')" class="bg-red-600 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>
             </div>`;
         }
+        // 🌟 สร้างกลุ่มปุ่มจัดการ (แก้ไขได้ทุกแผนก, ลบได้เฉพาะแผนกที่สร้างเอง)
+        let actionBtns = `
+        <div class="absolute -top-3 -right-3 flex gap-1 z-30">
+            <button onclick="renameAnyDept('${dept}')" class="bg-amber-500 hover:bg-amber-400 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
+            ${!['AM', 'OD', 'AMQL'].includes(dept) ? `<button onclick="deleteCustomPermDept('${dept}')" class="bg-red-600 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>` : ''}
+        </div>`;
 
         bodyHtml += `
         <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">
