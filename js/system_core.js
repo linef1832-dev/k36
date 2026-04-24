@@ -1114,6 +1114,7 @@ window.populateAdminDeptSelects = function() {
     try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
     
     // รวมแผนกพื้นฐาน + แผนกที่สร้างใหม่
+    // 🌟 ดึงเฉพาะ AM, OD และแผนกที่สร้างใหม่ในตั้งค่าเท่านั้น
     let availableDepts = new Set(['AM', 'OD', ...dbDepts]);
     if (typeof GLOBAL_USER_LIST !== 'undefined') {
         GLOBAL_USER_LIST.forEach(u => { 
@@ -1124,6 +1125,7 @@ window.populateAdminDeptSelects = function() {
     const deptListArray = Array.from(availableDepts).sort();
 
     // 1. อัปเดตช่อง "เลือกแผนกตอนเพิ่มพนักงานใหม่" (ขวาสุด)
+    // 1. อัปเดตช่อง "เลือกแผนกตอนเพิ่มพนักงานใหม่"
     const newDeptSelect = document.getElementById('newDept');
     if (newDeptSelect) {
         let html = '';
@@ -1134,6 +1136,7 @@ window.populateAdminDeptSelects = function() {
     }
 
     // 2. อัปเดตช่อง "ตัวกรองค้นหาแผนก" (ซ้ายสุด)
+    // 2. อัปเดตช่อง "ตัวกรองค้นหาแผนก"
     const filterUserDept = document.getElementById('filterUserDept');
     if (filterUserDept) {
         const currentVal = filterUserDept.value;
@@ -1290,11 +1293,8 @@ window.renderUserTableDirectly = function() {
     let dbDepts = [];
     try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
     
+    // 🌟 ดึงเฉพาะแผนกและ Role ที่มีอยู่ในตั้งค่าเท่านั้น
     let availableDepts = new Set(['AM', 'OD', ...dbDepts]);
-    GLOBAL_USER_LIST.forEach(u => { 
-        if(u.department && u.department !== 'TRAINER' && u.department !== 'NEW') availableDepts.add(u.department); 
-    });
-    availableDepts.delete('TRAINER'); availableDepts.delete('NEW');
     const deptListArray = Array.from(availableDepts).sort();
     
     let dbRoles = [];
