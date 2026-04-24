@@ -2180,11 +2180,11 @@ window.renderPermsTable = function() {
         const key = `${dept}_${role}`;
         const activePerms = MENU_PERMS[key] || [];
 
-        // 🌟 ต้องมีส่วนนี้อยู่ก่อนถึง bodyHtml += 
-        let roleOptionsHtml = '';
+        // 🌟 สร้าง Dropdown ของ Role รอไว้
+        let dynamicRoleOpts = '';
         allSystemRoles.forEach(r => {
             let rUpper = r.toUpperCase();
-            roleOptionsHtml += `<option value="${rUpper}" ${role === rUpper ? 'selected' : ''} class="bg-slate-800 text-white font-bold">${rUpper}</option>`;
+            dynamicRoleOpts += `<option value="${rUpper}" ${role === rUpper ? 'selected' : ''} class="bg-slate-800 text-white font-bold">${rUpper}</option>`;
         });
         
         let badgesHtml = '<div class="grid grid-cols-2 xl:grid-cols-3 gap-3 w-full content-start items-start">';
@@ -2299,25 +2299,6 @@ window.renderPermsTable = function() {
         let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
         let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
 
-        // --- ย้ายโค้ดดึง Role มาไว้ข้างนอก HTML ตรงนี้ครับ ---
-        let customRoles = JSON.parse(localStorage.getItem('custom_perm_roles') || '[]');
-        let allSystemRoles = [...new Set(['staff', 'trainer', 'manager', ...customRoles])];
-        
-        if (typeof GLOBAL_USER_LIST !== 'undefined') {
-            GLOBAL_USER_LIST.forEach(u => {
-                if (u.role && !allSystemRoles.includes(u.role.toLowerCase())) {
-                    allSystemRoles.push(u.role.toLowerCase());
-                }
-            });
-        }
-
-        let roleOptionsHtml = '';
-        allSystemRoles.forEach(r => {
-            let rUpper = r.toUpperCase();
-            roleOptionsHtml += `<option value="${rUpper}" ${role === rUpper ? 'selected' : ''} class="bg-slate-800 text-white font-bold">${rUpper}</option>`;
-        });
-        // ---------------------------------------------
-
         bodyHtml += `
         <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">
             <td class="px-6 py-5 border-r border-slate-700 align-top">
@@ -2327,7 +2308,7 @@ window.renderPermsTable = function() {
             <td class="px-6 py-5 border-r border-slate-700 align-top">
                 <div class="relative w-32">
                     <select onchange="changePermRowRole('${dept}', this.value)" class="${roleColor} border px-3 py-3 rounded-xl font-black text-[11px] shadow-sm w-full outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-purple-500 transition relative z-10 text-center tracking-wide">
-                        ${roleOptionsHtml}
+                        ${dynamicRoleOpts}
                     </select>
                     <span class="material-icons text-[14px] opacity-70 absolute right-2.5 top-3 pointer-events-none z-20 ${iconColor}">expand_more</span>
                 </div>
