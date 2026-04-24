@@ -47,37 +47,57 @@ window.openEmployeeWrapped = async function() {
             .gte('leave_date', startOfMonth)
             .lte('leave_date', endOfMonth); // 🌟 ล็อกไม่ให้ดึงวันหยุดที่จองล่วงหน้าของเดือนถัดไปมานับ
 
-        // 🌟 ดึงสถิติเข้างานจากตาราง Dashboard (schedules) เพื่อหา "เว็บที่ทำบ่อยสุด"
+        // 🌟 ดึงสถิติเข้างานจากตาราง Dashboard (schedules) เพื่อนับวันทำงาน
         const { data: scheduleData } = await appDB.from('schedules')
             .select('work_date, team')
             .eq('staff_name', currentUser.username)
             .gte('work_date', startOfMonth)
             .lte('work_date', endOfMonth);
 
-        // ดึงสถิติใบปรับ
-        const { data: fineData } = await appDB.from('fines')
-            .select('amount, offense_date, created_at')
-            .eq('user_name', currentUser.username);
+        // 🌟 ดึงสถิติจากระบบจัดหน้าที่ (Duty Roster) เพื่อหา "เว็บที่ทำบ่อยสุด"
+        const { data: dutyData } = await appDB.from('settings')
+            .select('key, value')
+            .like('key', `duty_roster_%_${year}-${monthStr}-%`);
 
-        let teamDaysMap = {};
         let totalWorkingDaysSet = new Set();
         if (scheduleData) {
             scheduleData.forEach(s => {
-                let t = s.team || 'ไม่ระบุ';
-                if (!teamDaysMap[t]) teamDaysMap[t] = new Set();
-                teamDaysMap[t].add(s.work_date);
                 totalWorkingDaysSet.add(s.work_date); // นับวันทำงานแบบไม่ซ้ำกัน
             });
         }
         
+        let dutyTeamCount = {};
+        if (dutyData) {
+            dutyData.forEach(row => {
+                try {
+                    const roster = JSON.parse(row.value);
+                    for (const team in roster) {
+                        const users = roster[team];
+                        if (users && Array.isArray(users)) {
+                            const isAssigned = users.some(u => String(u.username).toLowerCase() === String(currentUser.username).toLowerCase());
+                            if (isAssigned) {
+                                if (!dutyTeamCount[team]) dutyTeamCount[team] = 0;
+                                dutyTeamCount[team]++;
+                            }
+                        }
+                    }
+                } catch(e) {}
+            });
+        }
+
         let topTeam = '-';
         let topTeamDays = 0;
-        for (const [t, dates] of Object.entries(teamDaysMap)) {
-            if (dates.size > topTeamDays) {
+        for (const [t, count] of Object.entries(dutyTeamCount)) {
+            if (count > topTeamDays) {
                 topTeam = t;
-                topTeamDays = dates.size;
+                topTeamDays = count;
             }
         }
+
+        // ดึงสถิติใบปรับ
+        const { data: fineData } = await appDB.from('fines')
+            .select('amount, offense_date, created_at')
+            .eq('user_name', currentUser.username);
 
         let totalBills = 0;
         let totalApproved = 0;
@@ -166,17 +186,17 @@ function buildWrappedUI(data) {
         </div>
     `;
 
-    // 🌟 แยกเงื่อนไข: ถ้ามีการลงเวลาทำงาน ให้โชว์ "เจ้าแห่งเว็บ" ก่อน (ใช้ได้ทั้ง AM และ OD)
-    if (data.totalWorkingDays > 0) {
-        // Slide 1: เจ้าแห่งเว็บ (จากตารางลงเวลา)
+    // 🌟 แยกเงื่อนไข: ถ้ามีการจัดหน้าที่ ให้โชว์ "เจ้าแห่งเว็บ" ก่อน
+    if (data.topWebDays > 0) {
+        // Slide 1: เจ้าแห่งเว็บ (จากระบบจัดหน้าที่ Duty)
         slidesHTML += `
         <div class="wrapped-slide absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-bl from-orange-900 via-rose-900 to-slate-900 text-center transition-opacity duration-500 opacity-0 z-0" id="slide-${slideCount++}">
             <div class="text-7xl mb-4 scale-110 drop-shadow-[0_0_20px_rgba(251,146,60,0.8)] animate-pulse">👑</div>
             <p class="text-xl text-orange-200 font-bold mb-2">ฉายาของคุณเดือนนี้คือ...</p>
             <h2 class="text-4xl font-black text-white mb-2 drop-shadow-lg">เจ้าแห่งเว็บ<br><span class="text-6xl text-yellow-300 drop-shadow-[0_0_15px_rgba(253,224,71,0.8)] leading-tight mt-2 block">${data.topWeb}</span></h2>
             <div class="mt-4 bg-black/20 px-5 py-3 rounded-2xl border border-orange-500/30 backdrop-blur-sm shadow-inner">
-                <p class="text-sm text-orange-200">เข้าเวรประจำเว็บนี้ไปถึง</p>
-                <p class="text-4xl font-black text-white mt-1">${data.topWebDays} <span class="text-base font-normal text-orange-100">วัน!</span></p>
+                <p class="text-sm text-orange-200">ถูกจัดหน้าที่ให้ดูแลเว็บนี้ถึง</p>
+                <p class="text-4xl font-black text-white mt-1">${data.topWebDays} <span class="text-base font-normal text-orange-100">ครั้ง!</span></p>
             </div>
         </div>
         `;
