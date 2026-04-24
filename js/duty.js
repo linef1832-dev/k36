@@ -1979,19 +1979,45 @@ window.renderTrainerOdMatrix = function(rosterData) {
     });
     html += `</tr></thead><tbody>`;
 
-    // ---------------- สร้างแถวพนักงาน ----------------
-    ['กะดึก', 'กะเช้า'].forEach(shift => {
-        const shiftStaff = staffList.filter(u => u.allowed_shift === shift);
-        
-        if (shiftStaff.length === 0) return; // ข้ามถ้ากะนั้นไม่มีคน
+   // ---------------- สร้างแถวพนักงาน ----------------
+    // 1. จัดกลุ่มพนักงานตามกะที่มีอยู่จริง (เช้า, กลาง, ดึก, all)
+    const shiftGroups = {};
+    staffList.forEach(u => {
+        const s = u.allowed_shift || 'all';
+        if (!shiftGroups[s]) shiftGroups[s] = [];
+        shiftGroups[s].push(u);
+    });
+
+    // 2. เรียงลำดับกะที่จะแสดง (เช้า -> กลาง -> ดึก -> อิสระ)
+    const shiftOrder = ['กะเช้า', 'กะกลาง', 'กะดึก', 'all'];
+    const sortedShifts = Object.keys(shiftGroups).sort((a, b) => {
+        let ia = shiftOrder.indexOf(a); if(ia === -1) ia = 99;
+        let ib = shiftOrder.indexOf(b); if(ib === -1) ib = 99;
+        return ia - ib;
+    });
+
+    // 3. วาดแถวตามกลุ่มกะ
+    sortedShifts.forEach(shift => {
+        const shiftStaff = shiftGroups[shift];
+        if (shiftStaff.length === 0) return;
+
+        // แปลงชื่อกะให้สั้นลง
+        let shiftNameDisplay = shift.replace('กะ', '');
+        if (shift === 'all') shiftNameDisplay = 'อิสระ';
+
+        // กำหนดสีกะแต่ละแบบ
+        let shiftColor = 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-200';
+        if (shift === 'กะดึก') shiftColor = 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200';
+        else if (shift === 'กะเช้า') shiftColor = 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200';
+        else if (shift === 'กะกลาง') shiftColor = 'bg-blue-200 text-blue-900 dark:bg-blue-900 dark:text-blue-200';
+        else if (shift === 'all') shiftColor = 'bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200';
 
         shiftStaff.forEach((user, index) => {
             html += `<tr class="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition border-b border-slate-200 dark:border-slate-700">`;
             
-            // คอลัมน์ กะ (รวมช่อง rowspan)
+            // คอลัมน์ กะ (รวมช่องเฉพาะแถวแรกของกะนั้นๆ)
             if (index === 0) {
-                let shiftColor = shift === 'กะดึก' ? 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200' : 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200';
-                html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black ${shiftColor}">${shift.replace('กะ','')}</td>`;
+                html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black ${shiftColor}">${shiftNameDisplay}</td>`;
             }
             
             // คอลัมน์ ชื่อ
