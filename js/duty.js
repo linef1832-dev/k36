@@ -8,7 +8,6 @@ let currentRosterData = {};
 let window_currentAssignedStaff = [];
 
 window.isDutyAdmin = function() {
-    // แบบใหม่: ใครก็ตามที่ถูกติ๊กสิทธิ์ "duty_manage" ในหน้าเว็บ จะใช้งานได้ทันที
     return window.hasUserPerm('duty_manage'); 
 };
 
@@ -31,6 +30,7 @@ const TEAM_COLORS = {
     'JL69': { bg: 'bg-slate-500', text: 'text-white', border: 'border-slate-700', lightBg: 'bg-slate-200', lightText: 'text-slate-800' },
     'TH26': { bg: 'bg-gray-700', text: 'text-white', border: 'border-gray-900', lightBg: 'bg-gray-200', lightText: 'text-gray-800' },
     'VV72': { bg: 'bg-red-800', text: 'text-white', border: 'border-red-950', lightBg: 'bg-red-100', lightText: 'text-red-800' },
+    'Vv72': { bg: 'bg-green-700', text: 'text-white', border: 'border-green-900', lightBg: 'bg-green-100', lightText: 'text-green-800' }, // เพิ่มเผื่อไว้สะกดต่างกัน
     'NM9': { bg: 'bg-pink-500', text: 'text-white', border: 'border-pink-700', lightBg: 'bg-pink-100', lightText: 'text-pink-800' },
     'สอนงาน': { bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-700', lightBg: 'bg-emerald-100', lightText: 'text-emerald-800' },
     'Telegram': { bg: 'bg-sky-500', text: 'text-white', border: 'border-sky-700', lightBg: 'bg-sky-100', lightText: 'text-sky-800' },
@@ -99,7 +99,10 @@ window.loadDutyAccessAndRoles = async function() {
 
             const rolesData = data.find(d => d.key === 'duty_custom_roles');
             if(rolesData && rolesData.value) customDutyRoles = JSON.parse(rolesData.value);
-            else { customDutyRoles = {}; TEAM_LIST.forEach(t => customDutyRoles[t] = ['แอดมินหลัก', 'ฝาก-ถอน']); }
+            else { 
+                customDutyRoles = {}; 
+                TEAM_LIST.forEach(t => customDutyRoles[t] = ['แอดมินหลัก', 'ฝาก-ถอน']); 
+            }
         }
     } catch(e) { dutyAccessMatrix = {}; customDutyRoles = {}; }
 }
@@ -122,7 +125,7 @@ window.applyDutyRoleUI = function() {
     else canManageDuty = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('duty_manage') : false; 
     
     const adminElements = document.querySelectorAll('.duty-admin-only');
-    const trainerBtn = document.getElementById('btnDutyTRAINER'); // ปุ่มเก่าเผื่อมี
+    const trainerBtn = document.getElementById('btnDutyTRAINER'); 
     
     if(trainerBtn) {
         if(isAdmin || isTrainerDept || isTrainerRole) {
@@ -183,12 +186,8 @@ window.switchDutyDept = function(dept) {
     const labelEl = document.getElementById('dutyDeptLabel'); 
     if(labelEl) labelEl.innerText = labelText;
     
-    const btnManageTrainer = document.getElementById('btnManageTrainer');
     const filterTrainer = document.getElementById('trainerDeptFilterContainer');
     const taskModeContainer = document.getElementById('trainerTaskModeContainer');
-    
-    // ผู้ใช้บอกว่า "ไม่ต้องเป็นการดึงแล้วก็ได้ ก็ให้ตามแผนกไปเลย" ฉะนั้นซ่อนปุ่มจัดการรายชื่อผู้สอนไปเลย
-    if (btnManageTrainer) btnManageTrainer.classList.add('hidden');
     
     if (dept === 'AMQL' || dept === 'ODQL' || dept.startsWith('TRAINER')) {
         if (filterTrainer) filterTrainer.classList.remove('hidden');
@@ -239,7 +238,7 @@ window.refreshDutyData = async function() {
                 let userObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(l.user_id) || u.username === l.user_name);
                 if (userObj) {
                     let uDept = userObj.department || 'AM';
-                    if (uDept === 'TRAINER') uDept = 'AMQL'; // Legacy Fix
+                    if (uDept === 'TRAINER') uDept = 'AMQL'; 
                     if (uDept === currentDutyDept) {
                         relevantLeaves.push({ user_id: userObj.id, username: userObj.username, reason: l.reason, originalShift: userObj.allowed_shift || 'all' });
                     }
@@ -259,7 +258,7 @@ window.refreshDutyData = async function() {
         
         const btnGen = document.getElementById('btnGenerateRoster');
         const grid = document.getElementById('dutyResultGrid');
-        const matrixGrid = document.getElementById('dutyMatrixGrid'); // 🟢 1. ดึงกล่องตารางมา
+        const matrixGrid = document.getElementById('dutyMatrixGrid');
 
         if (savedRoster && savedRoster.value) {
             const parsedRoster = JSON.parse(savedRoster.value);
@@ -271,7 +270,6 @@ window.refreshDutyData = async function() {
         } else {
             if(grid) grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 opacity-50"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>';
             
-            // 🟢 2. สั่งล้างข้อมูลกล่องตารางของผู้สอน OD ด้วย
             if(matrixGrid) matrixGrid.innerHTML = '<div class="flex flex-col items-center justify-center py-20 text-gray-400 opacity-50 h-full"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>'; 
 
             if (btnGen) {
@@ -500,7 +498,7 @@ window.generateDutyRoster = async function() {
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ช่วยดึงคนที่ยังเป็นระบบเก่าให้
+        if (uDept === 'TRAINER') uDept = 'AMQL'; 
         
         const isCorrectDept = uDept === currentDutyDept;
         const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
@@ -644,18 +642,15 @@ window.renderRosterGrid = async function(rosterData) {
     
     if(!cardGrid) return;
     
-    // 🟢 ถ้าเป็นผู้สอน OD (เปลี่ยนให้ตารางแสดงผล)
     if (currentDutyDept === 'ODQL' || currentDutyDept === 'TRAINER_OD') {
         cardGrid.classList.add('hidden');
         if (matrixGrid) matrixGrid.classList.remove('hidden');
         
-        // โยนไปให้ฟังก์ชันวาดตารางจัดการต่อ
         if (typeof window.renderTrainerOdMatrix === 'function') {
             window.renderTrainerOdMatrix(rosterData); 
         }
-        return; // จบการทำงานฟังก์ชันนี้เลย ไม่ต้องวาดการ์ด
+        return; 
     } 
-    // 🛑 แผนกอื่นๆ (แสดงการ์ดลากวางเหมือนเดิม)
     else {
         cardGrid.classList.remove('hidden');
         if (matrixGrid) matrixGrid.classList.add('hidden');
@@ -969,7 +964,7 @@ window.searchDutyMyself = function() {
 }
 
 // ==========================================
-// 🚀 ระบบลากวาง (Drag & Drop) จัดหน้าที่ด้วยมือ
+// 🚀 ระบบลากวาง (Drag & Drop)
 // ==========================================
 let draggedUser = null;
 
@@ -1133,105 +1128,12 @@ window.filterTrainerList = function() {
     }
 };
 
-window.openManageTrainerModal = async function() {
-    let targetDept = currentDutyDept; 
-    
-    if (targetDept !== 'AMQL' && targetDept !== 'ODQL') {
-        targetDept = 'AMQL'; 
-    }
-
-    const users = GLOBAL_USER_LIST.filter(u => u.role === 'staff' || u.role === 'manager' || u.role === 'admin').sort((a, b) => a.username.localeCompare(b.username));
-
-    let html = `
-        <div class="flex flex-col h-full text-left">
-            <div class="sticky top-0 bg-white dark:bg-slate-800 z-10 pb-2 border-b border-gray-200 dark:border-gray-600 mb-2">
-                <input type="text" id="trainerSearchInput" onkeyup="filterTrainerList()" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหา..." 
-                    class="w-full p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500 transition font-bold text-sm">
-            </div>
-            <div id="trainerListContainer" class="max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
-    `;
-    
-    users.forEach(u => {
-        // 🔴 Legacy fallback: ถ้ามีคนหลงเหลือใน 'TRAINER' ให้ถือว่าเป็น 'AMQL' ในสายตา UI
-        const isTrainer = u.department === targetDept || (targetDept === 'AMQL' && u.department === 'TRAINER'); 
-        const currentDept = u.department || 'AM';
-        
-        let badgeColor = 'bg-blue-100 text-blue-700';
-        if(currentDept === 'OD') badgeColor = 'bg-pink-100 text-pink-700';
-        else if(currentDept === 'NEW') badgeColor = 'bg-teal-100 text-teal-700';
-        else if(currentDept === 'AMQL' || currentDept === 'ODQL' || currentDept.startsWith('TRAINER')) badgeColor = 'bg-cyan-100 text-cyan-700';
-        
-        let displayDept = currentDept.startsWith('TRAINER') ? 'ผู้สอน ' + currentDept.replace('TRAINER_', '') : currentDept;
-        if (displayDept === 'ผู้สอน TRAINER') displayDept = 'ผู้สอน AM'; // แก้คำเก่าให้ดูง่าย
-        
-        let roleBadge = '';
-        if (u.role === 'manager' || u.role === 'admin') { roleBadge = `<span class="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 shadow-sm ml-1">Manager</span>`; }
-
-        html += `
-            <label class="flex items-center justify-between p-2 hover:bg-cyan-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-0 transition group">
-                <div class="flex items-center gap-2">
-                    <span class="staff-name font-bold text-sm text-slate-700 dark:text-gray-200 group-hover:text-cyan-700 transition">${u.username}</span>
-                    ${roleBadge}
-                    <span class="text-[9px] font-bold ${badgeColor} px-1.5 py-0.5 rounded border border-black/5 shadow-sm">${displayDept}</span>
-                </div>
-                <input type="checkbox" class="trainer-cb w-5 h-5 rounded text-cyan-600 focus:ring-cyan-500 cursor-pointer border-gray-300" value="${u.id}" ${isTrainer ? 'checked' : ''}>
-            </label>
-        `;
-    });
-    html += '</div></div>';
-
-    const { value: selectedIds } = await Swal.fire({
-        title: `ดึงรายชื่อผู้สอน (${targetDept.replace('TRAINER_', '')})`, 
-        html: html, showCancelButton: true, confirmButtonText: 'บันทึกรายชื่อ', confirmButtonColor: '#0891b2', cancelButtonText: 'ยกเลิก', width: '400px',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white' },
-        preConfirm: () => {
-            const checkboxes = document.querySelectorAll('.trainer-cb:checked');
-            const ids = []; checkboxes.forEach(cb => ids.push(String(cb.value))); return ids;
-        }
-    });
-
-    if (selectedIds) {
-        Swal.fire({title: 'กำลังย้ายข้อมูล...', didOpen: () => Swal.showLoading()});
-        
-        const selectedSet = new Set(selectedIds);
-        const toAddIds = []; const toRemoveIds = []; let updateCount = 0;
-
-        for (let i = 0; i < GLOBAL_USER_LIST.length; i++) {
-            let u = GLOBAL_USER_LIST[i];
-            const uidStr = String(u.id);
-            const isSelected = selectedSet.has(uidStr);
-            const isCurrentlyTrainer = u.department === targetDept || u.department === 'TRAINER';
-
-            if (isSelected) {
-                GLOBAL_USER_LIST[i].department = targetDept; 
-                if (!isCurrentlyTrainer) toAddIds.push(u.id);
-                updateCount++;
-            } else {
-                if (isCurrentlyTrainer) {
-                    GLOBAL_USER_LIST[i].department = 'AM'; 
-                    toRemoveIds.push(u.id);
-                }
-            }
-        }
-
-        await new Promise(r => setTimeout(r, 50)); 
-        window.renderDutyAccessTable(); window.refreshDutyData();
-
-        const promises = [];
-        if (toAddIds.length > 0) promises.push(appDB.from('users').update({ department: targetDept }).in('id', toAddIds)); 
-        if (toRemoveIds.length > 0) promises.push(appDB.from('users').update({ department: 'AM' }).in('id', toRemoveIds));
-        await Promise.all(promises);
-
-        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: `ดึงรายชื่อผู้สอน ${updateCount} คน เข้าทีม ${targetDept.replace('TRAINER_', '')} เรียบร้อยแล้ว`, timer: 2000, showConfirmButton: false });
-    }
-};
-
 window.openTrainerReportModal = async function(team) {
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     
     const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-    const baseDept = currentDutyDept.replace('TRAINER_', '').replace('QL', ''); // ช่วยดึงข้อมูล roster จาก AM หรือ OD ให้ถูก
+    const baseDept = currentDutyDept.replace('TRAINER_', '').replace('QL', ''); 
     const rosterKey = `duty_roster_${baseDept}_${targetDate}_${shiftFilter}`;
 
     let currentReports = {}; let rosterData = {};
@@ -1597,7 +1499,7 @@ window.renderDutyAccessTable = function() {
     
     let staff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ย้ายชื่อเก่าให้เข้าระบบอัตโนมัติ
+        if (uDept === 'TRAINER') uDept = 'AMQL'; 
 
         if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
             return uDept === currentDutyDept; 
@@ -1694,11 +1596,24 @@ window.addDutyRole = async function() {
     if(!val || !team) return;
     if(!customDutyRoles[team]) customDutyRoles[team] = [];
     customDutyRoles[team].push(val); input.value = ''; window.renderRoleEditorList(); await window.saveCustomRolesToDB();
+    // ถ้าแก้หัวข้อให้ render ตาราง OD ใหม่ด้วยเผื่อเปิดอยู่
+    if (document.getElementById('dutyMatrixGrid') && !document.getElementById('dutyMatrixGrid').classList.contains('hidden')) {
+        window.renderTrainerOdMatrix(currentRosterData);
+    }
 }
 
 window.removeDutyRole = async function(team, idx) {
-    if(customDutyRoles[team]) { customDutyRoles[team].splice(idx, 1); window.renderRoleEditorList(); await window.saveCustomRolesToDB(); }
+    if(customDutyRoles[team]) { 
+        customDutyRoles[team].splice(idx, 1); 
+        window.renderRoleEditorList(); 
+        await window.saveCustomRolesToDB(); 
+        // ถ้าแก้หัวข้อให้ render ตาราง OD ใหม่ด้วยเผื่อเปิดอยู่
+        if (document.getElementById('dutyMatrixGrid') && !document.getElementById('dutyMatrixGrid').classList.contains('hidden')) {
+            window.renderTrainerOdMatrix(currentRosterData);
+        }
+    }
 }
+
 window.saveCustomRolesToDB = async function() { await appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]); }
 
 window.renderDutyRequirements = function() {
@@ -1730,7 +1645,7 @@ window.manualAdjustReq = function(changedTeam) {
     
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ช่วยดึงระบบเก่า
+        if (uDept === 'TRAINER') uDept = 'AMQL';
 
         const isCorrectDept = uDept === currentDutyDept;
         const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
@@ -1803,7 +1718,7 @@ window.autoSuggestRequirements = function() {
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ช่วยดึงระบบเก่า
+        if (uDept === 'TRAINER') uDept = 'AMQL';
 
         const isCorrectDept = uDept === currentDutyDept;
         const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
@@ -1868,7 +1783,7 @@ window.updateDutyStats = function() {
 
     const activeStaff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'AMQL'; // 🔴 ช่วยดึงระบบเก่า
+        if (uDept === 'TRAINER') uDept = 'AMQL'; 
 
         const isCorrectDept = uDept === currentDutyDept;
         const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
@@ -1911,7 +1826,6 @@ if (window.appDB && appDB.from) {
         try {
             if (payload && payload[0] && payload[0].key && payload[0].key.startsWith('report_')) {
                 const parts = payload[0].key.split('_');
-                // ดักจับรูปแบบ: report_AMQL_YYYY-MM-DD_กะเช้า หรือ report_TRAINER_AM_YYYY...
                 if (parts[1] === 'AMQL' || parts[1] === 'ODQL' || parts[1].startsWith('TRAINER')) {
                     const dateStr = parts[parts.length - 2];
                     const shiftStr = parts[parts.length - 1];
@@ -1937,54 +1851,64 @@ window.onDutySearch = function() {
         filterDutyResult(); 
     }, 300); 
 };
+
+// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
 
-    // 1. จำลองโครงสร้างคอลัมน์จากภาพของคุณ
-    const websites = ['Jun88', 'MK8', 'Vv72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168']; 
-    const tasks = ['ถอนเงิน', 'ตรวจถอน', 'แนะนำเพื่อน', 'เคสเทเล']; // ปรับแก้ตามงานจริงได้เลย
+    // เลือกใช้รายชื่อเว็บจากระบบที่แอคทีฟอยู่ (เอาเว็บสอนงานกับ Telegram ออกเพื่อความเป็นระเบียบ)
+    const matrixWebsites = sortedTeams.filter(t => t !== 'สอนงาน' && t !== 'Telegram');
 
-    // 2. ดึงรายชื่อพนักงานที่เป็นผู้สอน OD 
+    // ดึงรายชื่อพนักงานที่เป็นผู้สอน OD 
     const staffList = GLOBAL_USER_LIST.filter(u => {
-        // เงื่อนไขที่ 1: ถ้าในชีทตั้งชื่อแผนกว่า ODQL ตรงๆ
         if (u.department === 'ODQL' || u.department === 'TRAINER_OD') return true;
-        
-        // เงื่อนไขที่ 2: ถ้าในชีทตั้งแผนกว่า OD และตั้งตำแหน่งว่า trainer
         if (u.department === 'OD' && (u.role === 'trainer' || u.role === 'TRAINER')) return true;
-        
-        // นอกนั้น (เช่น ฝั่ง AM) ปัดตกให้หมด ไม่เอามาแสดง
         return false;
     });
 
     let html = `<div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
         <table class="w-full text-center border-collapse text-xs whitespace-nowrap dark:text-white">`;
     
-    // ---------------- สร้างหัวตาราง (Header) ----------------
+    // ---------------- สร้างหัวตาราง (Header) แถวแรก ชื่อเว็บ ----------------
     html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b-2 border-slate-400 dark:border-slate-600"><tr>`;
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-16">กะ</th>`;
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-32">รายชื่อผู้ดูแล</th>`;
     
-    websites.forEach(web => {
-        // สลับสีหัวตารางเว็บ (จำลองจากภาพ)
+    matrixWebsites.forEach(web => {
+        // ดึงหัวข้อจากหน้าตั้งค่า (ถ้าไม่มีเลย ให้แสดงเป็นขีด '-')
+        let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
+        if (webTasks.length === 0) webTasks = ['-'];
+
         let bg = 'bg-blue-600 text-white';
         if(web === 'MK8') bg = 'bg-yellow-500 text-black';
         else if (web === 'Vv72') bg = 'bg-green-700 text-white';
-        // ... (ใส่สีตามชอบ)
+        else if (web === 'TH26') bg = 'bg-gray-700 text-white';
+        else if (web === 'PG688') bg = 'bg-amber-100 text-amber-900';
+        else if (web === 'F168') bg = 'bg-orange-500 text-white';
+        else if (web === 'NM9') bg = 'bg-pink-500 text-white';
+        else if (web === 'JL69') bg = 'bg-slate-500 text-white';
+        else if (web === 'K188') bg = 'bg-blue-500 text-white'; // เพิ่มเติมสี K188
+        else if (web === 'BT678') bg = 'bg-red-500 text-white'; // เพิ่มเติมสี BT678
         
-        html += `<th colspan="${tasks.length}" class="border border-slate-300 dark:border-slate-700 p-1 font-bold ${bg}">${web}</th>`;
+        // ขยาย colspan ตามจำนวนหัวข้อของเว็บนั้นจริงๆ
+        html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-1 font-bold ${bg}">${web}</th>`;
     });
     html += `</tr><tr>`;
     
-    websites.forEach(() => {
-        tasks.forEach(task => {
+    // ---------------- สร้างหัวตาราง (Header) แถวที่สอง หัวข้องาน ----------------
+    matrixWebsites.forEach(web => {
+        // ดึงหัวข้อของเว็บนี้มาแสดงทีละคอลัมน์
+        let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
+        if (webTasks.length === 0) webTasks = ['-'];
+        
+        webTasks.forEach(task => {
             html += `<th class="border border-slate-300 dark:border-slate-700 p-1 text-[10px] bg-slate-50 dark:bg-slate-800">${task}</th>`;
         });
     });
     html += `</tr></thead><tbody>`;
 
    // ---------------- สร้างแถวพนักงาน ----------------
-    // 1. จัดกลุ่มพนักงานตามกะที่มีอยู่จริง (เช้า, กลาง, ดึก, all)
     const shiftGroups = {};
     staffList.forEach(u => {
         const s = u.allowed_shift || 'all';
@@ -1992,7 +1916,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
         shiftGroups[s].push(u);
     });
 
-    // 2. เรียงลำดับกะที่จะแสดง (เช้า -> กลาง -> ดึก -> อิสระ)
     const shiftOrder = ['กะเช้า', 'กะกลาง', 'กะดึก', 'all'];
     const sortedShifts = Object.keys(shiftGroups).sort((a, b) => {
         let ia = shiftOrder.indexOf(a); if(ia === -1) ia = 99;
@@ -2000,16 +1923,13 @@ window.renderTrainerOdMatrix = function(rosterData) {
         return ia - ib;
     });
 
-    // 3. วาดแถวตามกลุ่มกะ
     sortedShifts.forEach(shift => {
         const shiftStaff = shiftGroups[shift];
         if (shiftStaff.length === 0) return;
 
-        // แปลงชื่อกะให้สั้นลง
         let shiftNameDisplay = shift.replace('กะ', '');
         if (shift === 'all') shiftNameDisplay = 'อิสระ';
 
-        // กำหนดสีกะแต่ละแบบ
         let shiftColor = 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-200';
         if (shift === 'กะดึก') shiftColor = 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200';
         else if (shift === 'กะเช้า') shiftColor = 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200';
@@ -2019,27 +1939,33 @@ window.renderTrainerOdMatrix = function(rosterData) {
         shiftStaff.forEach((user, index) => {
             html += `<tr class="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition border-b border-slate-200 dark:border-slate-700">`;
             
-            // คอลัมน์ กะ (รวมช่องเฉพาะแถวแรกของกะนั้นๆ)
             if (index === 0) {
                 html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black ${shiftColor}">${shiftNameDisplay}</td>`;
             }
             
-            // คอลัมน์ ชื่อ
             html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 text-left font-bold text-green-600 dark:text-green-400 pl-3">
                 <span class="uppercase">${user.username}</span>
             </td>`;
             
-            // คอลัมน์ Dropdown สถานะงาน
-            websites.forEach(web => {
-                tasks.forEach(task => {
-                    html += `<td class="border border-slate-300 dark:border-slate-700 p-1">
-                        <select class="text-[10px] p-0.5 rounded outline-none cursor-pointer bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 font-bold focus:ring-1 focus:ring-blue-500 w-full text-center">
-                            <option value="not" class="text-red-500">🚫 Not</option>
-                            <option value="job" class="text-green-500">✅ Job</option>
-                            <option value="sup" class="text-yellow-600">👉 Sup</option>
-                            <option value="off" class="text-gray-500">⛔ OFF</option>
-                        </select>
-                    </td>`;
+            // วนลูปวาดกล่องตัวเลือก (Dropdown) ให้ตรงกับจำนวนหัวข้อเป๊ะๆ
+            matrixWebsites.forEach(web => {
+                let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
+                if (webTasks.length === 0) webTasks = ['-'];
+                
+                webTasks.forEach(task => {
+                    // ปิดช่องถ้าหัวข้อคือ "-"
+                    if (task === '-') {
+                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1 bg-gray-100 dark:bg-slate-800"></td>`;
+                    } else {
+                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1">
+                            <select class="text-[10px] p-0.5 rounded outline-none cursor-pointer bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 font-bold focus:ring-1 focus:ring-blue-500 w-full text-center">
+                                <option value="not" class="text-red-500">🚫 Not</option>
+                                <option value="job" class="text-green-500">✅ Job</option>
+                                <option value="sup" class="text-yellow-600">👉 Sup</option>
+                                <option value="off" class="text-gray-500">⛔ OFF</option>
+                            </select>
+                        </td>`;
+                    }
                 });
             });
             html += `</tr>`;
