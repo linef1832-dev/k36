@@ -1,59 +1,111 @@
-<div id="loginScreen" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-4 transition-all duration-300">
-    <div class="relative w-full max-w-md transform transition-all duration-500 ease-out" id="loginModalContainer">
+<style>
+    @keyframes scan {
+        0% { transform: translateY(-100%); opacity: 0; }
+        50% { opacity: 1; }
+        100% { transform: translateY(100%); opacity: 0; }
+    }
+    .scan-line {
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #22d3ee, transparent);
+        animation: scan 3s linear infinite;
+    }
+    .cyber-border {
+        box-shadow: 0 0 15px rgba(34, 211, 238, 0.3), inset 0 0 15px rgba(34, 211, 238, 0.2);
+    }
+    .text-glow-cyan { text-shadow: 0 0 10px rgba(34, 211, 238, 0.8), 0 0 20px rgba(34, 211, 238, 0.5); }
+    .text-glow-gold { text-shadow: 0 0 10px rgba(250, 204, 21, 0.8), 0 0 20px rgba(250, 204, 21, 0.5); }
+</style>
+
+<div id="loginScreen" class="fixed inset-0 z-50 bg-[#020617] flex items-center justify-center p-4 overflow-hidden">
+    <div class="absolute inset-0 opacity-20 pointer-events-none">
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+                    <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#1e293b" stroke-width="1"/>
+                </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+            <path d="M0 100 L50 150 M1000 800 L1050 850" stroke="#0891b2" stroke-width="2" fill="none" />
+        </svg>
+    </div>
+
+    <div class="relative w-full max-w-lg transform transition-all duration-700 ease-out" id="loginModalContainer">
         
-        <div class="absolute -inset-0.5 bg-gradient-to-b from-yellow-500/20 to-amber-600/5 rounded-[2rem] blur-2xl opacity-80 animate-pulse"></div>
+        <div class="absolute -inset-1 bg-gradient-to-r from-cyan-500 via-blue-600 to-yellow-500 rounded-[2.5rem] blur opacity-30 animate-pulse"></div>
         
-        <div class="relative bg-gradient-to-b from-[#161a24] to-[#0b1120] border border-yellow-500/20 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-8 md:p-10 backdrop-blur-xl">
+        <div class="relative bg-slate-950/80 border-2 border-cyan-500/30 rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,1)] p-8 md:p-12 backdrop-blur-2xl cyber-border overflow-hidden">
             
-            <div class="text-center mb-8 relative">
-                <div class="relative inline-flex items-center justify-center w-28 h-28 mb-4 group">
-                    <div class="absolute inset-0 bg-yellow-500/20 rounded-full blur-[25px] group-hover:bg-yellow-400/40 transition duration-700 pointer-events-none"></div>
-                    
-                    <div class="relative w-20 h-20 bg-gradient-to-b from-slate-800 to-[#0b1120] rounded-2xl border border-yellow-500/40 flex items-center justify-center shadow-[0_0_30px_rgba(234,179,8,0.15)] overflow-hidden">
-                        
-                        <img src="./favicon.png.png" alt="Logo" class="w-full h-full object-cover drop-shadow-[0_0_8px_rgba(250,204,21,0.4)] relative z-10">
-                        
+            <div class="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 border-cyan-400 rounded-tl-[2.5rem]"></div>
+            <div class="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 border-yellow-400 rounded-tr-[2.5rem]"></div>
+
+            <div class="text-center mb-10 relative">
+                <div class="relative inline-flex flex-col items-center justify-center mb-6">
+                    <div class="absolute w-64 h-24 flex items-center justify-between opacity-60">
+                        <svg class="w-24 h-full" viewBox="0 0 100 60">
+                            <path d="M0 30 H60 L80 10 M60 30 L80 50" stroke="#22d3ee" stroke-width="2" fill="none" />
+                            <circle cx="90" cy="10" r="3" fill="#22d3ee" />
+                            <circle cx="90" cy="50" r="3" fill="#22d3ee" />
+                        </svg>
+                        <svg class="w-24 h-full transform scale-x-[-1]" viewBox="0 0 100 60">
+                            <path d="M0 30 H60 L80 10 M60 30 L80 50" stroke="#eab308" stroke-width="2" fill="none" />
+                            <circle cx="90" cy="10" r="3" fill="#eab308" />
+                            <circle cx="90" cy="50" r="3" fill="#eab308" />
+                        </svg>
+                    </div>
+
+                    <div class="relative w-24 h-24 bg-slate-900 rounded-full border-2 border-cyan-500/50 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.4)] overflow-hidden">
+                        <div class="scan-line absolute w-full z-20"></div>
+                        <span class="material-icons text-6xl text-cyan-400 opacity-80">fingerprint</span>
+                        <div class="absolute inset-0 bg-cyan-500/10 animate-pulse"></div>
                     </div>
                 </div>
                 
-                <h2 class="text-4xl font-black tracking-widest flex items-center justify-center gap-2.5 mb-2 relative z-10">
-                    <span class="text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_15px_rgba(250,204,21,0.4)]">OK</span>
-                    <span class="text-transparent bg-clip-text bg-gradient-to-b from-slate-200 to-slate-400 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">VIP</span>
+                <h2 class="text-5xl font-black tracking-[0.2em] mb-3">
+                    <span class="text-white text-glow-cyan">OK</span>
                 </h2>
-                
-                <p class="text-slate-400 text-sm font-medium tracking-wide">กรุณายืนยันตัวตนเพื่อเข้าใช้งาน</p>
+                <p class="text-cyan-200/70 text-sm font-bold tracking-widest uppercase mb-1">Security Authentication</p>
+                <div class="w-32 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent mx-auto"></div>
             </div>
 
-            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-6">
+            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-8">
                 <div class="relative group">
-                    <span class="material-icons absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-yellow-400 transition-colors">person</span>
-                    <input type="text" id="loginName" name="username" required placeholder="ชื่อพนักงาน" autocomplete="username" class="w-full py-4 pl-12 pr-4 bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-white font-bold placeholder:text-slate-500 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 outline-none transition-all shadow-inner">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <span class="material-icons text-cyan-500/70 group-focus-within:text-cyan-300">account_circle</span>
+                    </div>
+                    <input type="text" id="loginName" name="username" required placeholder="ชื่อพนักงาน" 
+                        class="w-full py-4 pl-12 pr-4 bg-slate-900/50 border-b-2 border-slate-700 text-white font-bold text-lg placeholder:text-slate-600 focus:border-cyan-400 outline-none transition-all tracking-wider">
                 </div>
                 
-                <div>
-                    <label class="block text-slate-400 text-sm font-bold mb-4 text-center tracking-wide">รหัส PIN 6 หลัก</label>
-                    <div id="pinInputs" class="flex justify-center gap-2 sm:gap-3" onpaste="handlePinPaste(event)">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
+                <div class="space-y-6">
+                    <label class="block text-cyan-300/80 text-xs font-black text-center tracking-[0.3em] uppercase">Enter Security PIN</label>
+                    <div id="pinInputs" class="flex justify-between gap-2" onpaste="handlePinPaste(event)">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-full h-16 text-center text-3xl font-black bg-slate-800/40 border-2 border-slate-700 rounded-xl text-yellow-400 focus:border-yellow-400 focus:bg-slate-800/80 outline-none transition-all shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-full h-16 text-center text-3xl font-black bg-slate-800/40 border-2 border-slate-700 rounded-xl text-yellow-400 focus:border-yellow-400 focus:bg-slate-800/80 outline-none transition-all shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-full h-16 text-center text-3xl font-black bg-slate-800/40 border-2 border-slate-700 rounded-xl text-yellow-400 focus:border-yellow-400 focus:bg-slate-800/80 outline-none transition-all shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-full h-16 text-center text-3xl font-black bg-slate-800/40 border-2 border-slate-700 rounded-xl text-yellow-400 focus:border-yellow-400 focus:bg-slate-800/80 outline-none transition-all shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-full h-16 text-center text-3xl font-black bg-slate-800/40 border-2 border-slate-700 rounded-xl text-yellow-400 focus:border-yellow-400 focus:bg-slate-800/80 outline-none transition-all shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-full h-16 text-center text-3xl font-black bg-slate-800/40 border-2 border-slate-700 rounded-xl text-yellow-400 focus:border-yellow-400 focus:bg-slate-800/80 outline-none transition-all shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
                     </div>
-                    <p class="text-[11px] text-slate-500 mt-5 text-center font-medium">* พิมพ์ครบ 6 หลัก ระบบจะเข้าสู่หน้าหลักอัตโนมัติ</p>
                 </div>
 
-                <label class="flex items-center justify-center gap-3 text-sm font-bold text-slate-400 cursor-pointer hover:text-yellow-400 transition select-none py-2">
-                    <div class="relative">
-                        <input type="checkbox" id="rememberMe" class="peer sr-only">
-                        <div class="w-6 h-6 bg-slate-800/80 border border-slate-600 rounded-lg peer-checked:bg-gradient-to-r peer-checked:from-yellow-500 peer-checked:to-yellow-400 peer-checked:border-transparent transition-all relative flex items-center justify-center">
-                            <span class="material-icons text-slate-900 text-sm opacity-0 peer-checked:opacity-100 transition-opacity scale-0 peer-checked:scale-100 font-bold">check</span>
+                <div class="flex flex-col items-center gap-6">
+                    <label class="flex items-center gap-3 group cursor-pointer">
+                        <div class="relative w-6 h-6">
+                            <input type="checkbox" id="rememberMe" class="peer sr-only">
+                            <div class="absolute inset-0 bg-slate-800 border-2 border-cyan-500/50 rounded-md peer-checked:bg-cyan-500 peer-checked:shadow-[0_0_15px_rgba(34,211,238,0.8)] transition-all flex items-center justify-center">
+                                <span class="material-icons text-slate-950 text-sm font-bold opacity-0 peer-checked:opacity-100 scale-50 peer-checked:scale-100 transition-all">check</span>
+                            </div>
                         </div>
+                        <span class="text-sm font-bold text-cyan-200/60 group-hover:text-cyan-300 transition-colors">จำชื่อฉันไว้ในเครื่องนี้</span>
+                    </label>
+
+                    <div class="text-[10px] text-slate-500 text-center uppercase tracking-widest leading-relaxed">
+                        System encrypted with AES-256<br>
+                        <span class="text-cyan-500/50">* พิมพ์ครบ 6 หลัก ระบบจะเข้าสู่หน้าหลักอัตโนมัติ</span>
                     </div>
-                    จำชื่อฉันไว้ในเครื่องนี้
-                </label>
+                </div>
                 
-                <button type="submit" id="hiddenSubmitBtn" class="hidden">Hidden Submit</button>
+                <button type="submit" id="hiddenSubmitBtn" class="hidden"></button>
             </form>
         </div>
     </div>
