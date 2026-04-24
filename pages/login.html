@@ -1,50 +1,53 @@
-<div id="loginScreen" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-4 transition-all duration-300">
+<div id="loginScreen" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-4 transition-all duration-300">
     <div class="relative w-full max-w-md transform transition-all duration-500 ease-out" id="loginModalContainer">
         
-        <div class="absolute -inset-0.5 bg-gradient-to-b from-blue-500/40 to-indigo-600/10 rounded-[2rem] blur-2xl opacity-80 animate-pulse"></div>
+        <div class="absolute -inset-0.5 bg-gradient-to-b from-yellow-500/20 to-amber-600/5 rounded-[2rem] blur-2xl opacity-80 animate-pulse"></div>
         
-        <div class="relative bg-[#0b1120]/95 border border-slate-700/50 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 md:p-10 backdrop-blur-xl">
+        <div class="relative bg-gradient-to-b from-[#161a24] to-[#0b1120] border border-yellow-500/20 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-8 md:p-10 backdrop-blur-xl">
             
             <div class="text-center mb-8 relative">
-                <div class="relative inline-flex items-center justify-center w-24 h-24 mb-2 group">
-                    <div class="absolute inset-0 bg-blue-500/30 rounded-full blur-[25px] group-hover:bg-blue-400/50 transition duration-700 pointer-events-none"></div>
-                    <div class="relative w-16 h-16 bg-gradient-to-b from-slate-700 to-[#0b1120] rounded-2xl border border-blue-400/40 flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)]">
-                        <span class="material-icons text-[40px] text-blue-300 drop-shadow-[0_0_12px_rgba(147,197,253,0.9)]">enhanced_encryption</span>
+                <div class="relative inline-flex items-center justify-center w-28 h-28 mb-4 group">
+                    <div class="absolute inset-0 bg-yellow-500/20 rounded-full blur-[25px] group-hover:bg-yellow-400/40 transition duration-700 pointer-events-none"></div>
+                    
+                    <div class="relative w-20 h-20 bg-gradient-to-b from-slate-800 to-[#0b1120] rounded-2xl border border-yellow-500/40 flex items-center justify-center shadow-[0_0_30px_rgba(234,179,8,0.15)] overflow-hidden">
+                        
+                        <img src="./favicon.png.png" alt="Logo" class="w-full h-full object-cover drop-shadow-[0_0_8px_rgba(250,204,21,0.4)] relative z-10">
+                        
                     </div>
                 </div>
                 
                 <h2 class="text-4xl font-black tracking-widest flex items-center justify-center gap-2.5 mb-2 relative z-10">
-                    <span class="text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)]">OK</span>
-                    <span class="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.7)]">VIP</span>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_15px_rgba(250,204,21,0.4)]">OK</span>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-b from-slate-200 to-slate-400 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">VIP</span>
                 </h2>
                 
-                <p class="text-slate-400 text-sm font-medium">กรุณายืนยันตัวตนเพื่อเข้าใช้งาน</p>
+                <p class="text-slate-400 text-sm font-medium tracking-wide">กรุณายืนยันตัวตนเพื่อเข้าใช้งาน</p>
             </div>
 
             <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-6">
                 <div class="relative group">
-                    <span class="material-icons absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors">person</span>
-                    <input type="text" id="loginName" name="username" required placeholder="ชื่อพนักงาน" autocomplete="username" class="w-full py-4 pl-12 pr-4 bg-slate-800/50 border border-slate-700 rounded-2xl text-white font-bold placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all">
+                    <span class="material-icons absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-yellow-400 transition-colors">person</span>
+                    <input type="text" id="loginName" name="username" required placeholder="ชื่อพนักงาน" autocomplete="username" class="w-full py-4 pl-12 pr-4 bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-white font-bold placeholder:text-slate-500 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 outline-none transition-all shadow-inner">
                 </div>
                 
                 <div>
-                    <label class="block text-slate-400 text-sm font-bold mb-4 text-center">รหัส PIN 6 หลัก</label>
-                    <div id="pinInputs" class="flex justify-center gap-3 sm:gap-4" onpaste="handlePinPaste(event)">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
+                    <label class="block text-slate-400 text-sm font-bold mb-4 text-center tracking-wide">รหัส PIN 6 หลัก</label>
+                    <div id="pinInputs" class="flex justify-center gap-2 sm:gap-3" onpaste="handlePinPaste(event)">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-[#1a1f2e]/80 border border-slate-700/80 rounded-xl text-yellow-400 focus:ring-2 focus:ring-yellow-500/40 focus:border-yellow-500/80 focus:bg-[#202738] outline-none transition-all caret-transparent shadow-inner">
                     </div>
-                    <p class="text-[11px] text-slate-500 mt-4 text-center font-medium">* พิมพ์ครบ 6 หลัก ระบบจะเข้าสู่หน้าหลักอัตโนมัติ</p>
+                    <p class="text-[11px] text-slate-500 mt-5 text-center font-medium">* พิมพ์ครบ 6 หลัก ระบบจะเข้าสู่หน้าหลักอัตโนมัติ</p>
                 </div>
 
-                <label class="flex items-center justify-center gap-3 text-sm font-bold text-slate-400 cursor-pointer hover:text-blue-300 transition select-none py-2">
+                <label class="flex items-center justify-center gap-3 text-sm font-bold text-slate-400 cursor-pointer hover:text-yellow-400 transition select-none py-2">
                     <div class="relative">
                         <input type="checkbox" id="rememberMe" class="peer sr-only">
-                        <div class="w-6 h-6 bg-slate-800 border-2 border-slate-600 rounded-lg peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-cyan-500 peer-checked:border-transparent transition-all relative flex items-center justify-center">
-                            <span class="material-icons text-white text-sm opacity-0 peer-checked:opacity-100 transition-opacity scale-0 peer-checked:scale-100">check</span>
+                        <div class="w-6 h-6 bg-slate-800/80 border border-slate-600 rounded-lg peer-checked:bg-gradient-to-r peer-checked:from-yellow-500 peer-checked:to-yellow-400 peer-checked:border-transparent transition-all relative flex items-center justify-center">
+                            <span class="material-icons text-slate-900 text-sm opacity-0 peer-checked:opacity-100 transition-opacity scale-0 peer-checked:scale-100 font-bold">check</span>
                         </div>
                     </div>
                     จำชื่อฉันไว้ในเครื่องนี้
