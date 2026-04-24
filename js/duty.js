@@ -630,11 +630,30 @@ window.generateDutyRoster = async function() {
 };
 
 window.renderRosterGrid = async function(rosterData) {
-    const grid = document.getElementById('dutyResultGrid');
-    if(!grid) return;
+    const cardGrid = document.getElementById('dutyResultGrid'); // เปลี่ยนชื่อตัวแปรให้ชัดขึ้น
+    const matrixGrid = document.getElementById('dutyMatrixGrid'); // ดึงกล่องใหม่มา
     
-    grid.innerHTML = '';
-    let finalGridHtml = ''; 
+    if(!cardGrid) return;
+    
+    // 🟢 ถ้าเป็นผู้สอน OD (เปลี่ยนให้ตารางแสดงผล)
+    if (currentDutyDept === 'TRAINER_OD') {
+        cardGrid.classList.add('hidden');
+        if (matrixGrid) matrixGrid.classList.remove('hidden');
+        
+        // โยนไปให้ฟังก์ชันวาดตารางจัดการต่อ
+        if (typeof window.renderTrainerOdMatrix === 'function') {
+            window.renderTrainerOdMatrix(rosterData); 
+        }
+        return; // จบการทำงานฟังก์ชันนี้เลย ไม่ต้องวาดการ์ด
+    } 
+    // 🛑 แผนกอื่นๆ (แสดงการ์ดลากวางเหมือนเดิม)
+    else {
+        cardGrid.classList.remove('hidden');
+        if (matrixGrid) matrixGrid.classList.add('hidden');
+    }
+
+    cardGrid.innerHTML = ''; // เปลี่ยนตัวแปรจาก grid เป็น cardGrid
+    let finalGridHtml = '';
     
     currentRosterData = rosterData; 
     const isAdmin = window.isDutyAdmin();
@@ -1906,4 +1925,82 @@ window.onDutySearch = function() {
     dutySearchTimeout = setTimeout(() => {
         filterDutyResult(); 
     }, 300); 
+};
+window.renderTrainerOdMatrix = function(rosterData) {
+    const matrixGrid = document.getElementById('dutyMatrixGrid');
+    if (!matrixGrid) return;
+
+    // 1. จำลองโครงสร้างคอลัมน์จากภาพของคุณ
+    const websites = ['Jun88', 'MK8', 'Vv72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168']; 
+    const tasks = ['ถอนเงิน', 'ตรวจถอน', 'แนะนำเพื่อน', 'เคสเทเล']; // ปรับแก้ตามงานจริงได้เลย
+
+    // 2. ดึงรายชื่อพนักงานที่เป็นผู้สอน OD 
+    // (ระบบเก่าของกูเกิ้ลชีทอาจจะเซ็ต department เป็นอะไร คุณต้องดึงมาให้ถูก ในที่นี้ดึงทุกคนที่เป็น TRAINER_OD)
+    const staffList = GLOBAL_USER_LIST.filter(u => u.department === 'TRAINER_OD' || u.role === 'trainer');
+
+    let html = `<div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
+        <table class="w-full text-center border-collapse text-xs whitespace-nowrap dark:text-white">`;
+    
+    // ---------------- สร้างหัวตาราง (Header) ----------------
+    html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b-2 border-slate-400 dark:border-slate-600"><tr>`;
+    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-16">กะ</th>`;
+    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-32">รายชื่อผู้ดูแล</th>`;
+    
+    websites.forEach(web => {
+        // สลับสีหัวตารางเว็บ (จำลองจากภาพ)
+        let bg = 'bg-blue-600 text-white';
+        if(web === 'MK8') bg = 'bg-yellow-500 text-black';
+        else if (web === 'Vv72') bg = 'bg-green-700 text-white';
+        // ... (ใส่สีตามชอบ)
+        
+        html += `<th colspan="${tasks.length}" class="border border-slate-300 dark:border-slate-700 p-1 font-bold ${bg}">${web}</th>`;
+    });
+    html += `</tr><tr>`;
+    
+    websites.forEach(() => {
+        tasks.forEach(task => {
+            html += `<th class="border border-slate-300 dark:border-slate-700 p-1 text-[10px] bg-slate-50 dark:bg-slate-800">${task}</th>`;
+        });
+    });
+    html += `</tr></thead><tbody>`;
+
+    // ---------------- สร้างแถวพนักงาน ----------------
+    ['กะดึก', 'กะเช้า'].forEach(shift => {
+        const shiftStaff = staffList.filter(u => u.allowed_shift === shift);
+        
+        if (shiftStaff.length === 0) return; // ข้ามถ้ากะนั้นไม่มีคน
+
+        shiftStaff.forEach((user, index) => {
+            html += `<tr class="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition border-b border-slate-200 dark:border-slate-700">`;
+            
+            // คอลัมน์ กะ (รวมช่อง rowspan)
+            if (index === 0) {
+                let shiftColor = shift === 'กะดึก' ? 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200' : 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200';
+                html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black ${shiftColor}">${shift.replace('กะ','')}</td>`;
+            }
+            
+            // คอลัมน์ ชื่อ
+            html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 text-left font-bold text-green-600 dark:text-green-400 pl-3">
+                <span class="uppercase">${user.username}</span>
+            </td>`;
+            
+            // คอลัมน์ Dropdown สถานะงาน
+            websites.forEach(web => {
+                tasks.forEach(task => {
+                    html += `<td class="border border-slate-300 dark:border-slate-700 p-1">
+                        <select class="text-[10px] p-0.5 rounded outline-none cursor-pointer bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 font-bold focus:ring-1 focus:ring-blue-500 w-full text-center">
+                            <option value="not" class="text-red-500">🚫 Not</option>
+                            <option value="job" class="text-green-500">✅ Job</option>
+                            <option value="sup" class="text-yellow-600">👉 Sup</option>
+                            <option value="off" class="text-gray-500">⛔ OFF</option>
+                        </select>
+                    </td>`;
+                });
+            });
+            html += `</tr>`;
+        });
+    });
+
+    html += `</tbody></table></div>`;
+    matrixGrid.innerHTML = html;
 };
