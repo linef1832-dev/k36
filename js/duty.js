@@ -1941,7 +1941,17 @@ window.renderTrainerOdMatrix = function(rosterData) {
 
     // 2. ดึงรายชื่อพนักงานที่เป็นผู้สอน OD 
     // (ระบบเก่าของกูเกิ้ลชีทอาจจะเซ็ต department เป็นอะไร คุณต้องดึงมาให้ถูก ในที่นี้ดึงทุกคนที่เป็น TRAINER_OD)
-    const staffList = GLOBAL_USER_LIST.filter(u => u.department === 'TRAINER_OD' || u.role === 'trainer');
+    // 2. ดึงรายชื่อพนักงานที่เป็นผู้สอน OD เท่านั้น (ดักเฉพาะฝั่ง OD)
+    const staffList = GLOBAL_USER_LIST.filter(u => {
+        // เงื่อนไขที่ 1: ถ้าในชีทตั้งชื่อแผนกว่า TRAINER_OD ตรงๆ
+        if (u.department === 'TRAINER_OD') return true;
+        
+        // เงื่อนไขที่ 2: ถ้าในชีทตั้งแผนกว่า OD และตั้งตำแหน่งว่า trainer
+        if (u.department === 'OD' && (u.role === 'trainer' || u.role === 'TRAINER')) return true;
+        
+        // นอกนั้น (เช่น ฝั่ง AM) ปัดตกให้หมด ไม่เอามาแสดง
+        return false;
+    });
 
     let html = `<div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
         <table class="w-full text-center border-collapse text-xs whitespace-nowrap dark:text-white">`;
