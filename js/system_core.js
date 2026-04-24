@@ -2134,7 +2134,8 @@ window.renderPermsTable = function() {
     const tbody = document.getElementById('permTableBody');
     if(!tbody) return;
 
-    const depts = ['AM', 'OD', 'AMQL'];
+    let customDepts = JSON.parse(localStorage.getItem('custom_perm_depts') || '[]');
+    const depts = [...new Set(['AM', 'OD', 'AMQL', ...customDepts])];
     let bodyHtml = '';
 
     let allSystemRoles = ['staff', 'trainer', 'manager'];
@@ -2284,11 +2285,24 @@ window.renderPermsTable = function() {
         let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
         let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
 
+        // --- ย้ายโค้ดดึง Role มาไว้ข้างนอก HTML ตรงนี้ครับ ---
+        let customRoles = JSON.parse(localStorage.getItem('custom_perm_roles') || '[]');
+        let allSystemRoles = [...new Set(['staff', 'trainer', 'manager', ...customRoles])];
+        
+        if (typeof GLOBAL_USER_LIST !== 'undefined') {
+            GLOBAL_USER_LIST.forEach(u => {
+                if (u.role && !allSystemRoles.includes(u.role.toLowerCase())) {
+                    allSystemRoles.push(u.role.toLowerCase());
+                }
+            });
+        }
+
         let roleOptionsHtml = '';
         allSystemRoles.forEach(r => {
             let rUpper = r.toUpperCase();
             roleOptionsHtml += `<option value="${rUpper}" ${role === rUpper ? 'selected' : ''} class="bg-slate-800 text-white font-bold">${rUpper}</option>`;
         });
+        // ---------------------------------------------
 
         bodyHtml += `
         <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">

@@ -219,3 +219,57 @@ window.renderTemplate = function(templateId, data = {}) {
     }
     return html;
 };
+
+// ==========================================
+// 🛠️ ฟังก์ชันเพิ่มแผนก และ Role แบบไดนามิกในหน้าสิทธิ์
+// ==========================================
+
+window.addCustomPermDept = function() {
+    Swal.fire({
+        title: 'เพิ่มแผนกใหม่',
+        input: 'text',
+        inputPlaceholder: 'เช่น MARKETING, CS, VIP',
+        showCancelButton: true,
+        confirmButtonText: 'เพิ่มแผนก',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            let newDept = result.value.toUpperCase().trim();
+            let customDepts = JSON.parse(localStorage.getItem('custom_perm_depts') || '[]');
+            if (!customDepts.includes(newDept)) {
+                customDepts.push(newDept);
+                localStorage.setItem('custom_perm_depts', JSON.stringify(customDepts));
+                window.renderPermsTable(); // รีเฟรชตารางให้งอกแถวใหม่
+                Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มแผนก ${newDept} แล้ว`, timer: 1500, showConfirmButton: false});
+            } else {
+                Swal.fire('เตือน', 'มีแผนกนี้อยู่ในตารางแล้ว', 'warning');
+            }
+        }
+    });
+};
+
+window.addCustomPermRole = function() {
+    Swal.fire({
+        title: 'เพิ่ม Role ใหม่',
+        input: 'text',
+        inputPlaceholder: 'เช่น LEADER, SUPERVISOR',
+        showCancelButton: true,
+        confirmButtonText: 'เพิ่ม Role',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            let newRole = result.value.toLowerCase().trim();
+            let customRoles = JSON.parse(localStorage.getItem('custom_perm_roles') || '[]');
+            if (!customRoles.includes(newRole)) {
+                customRoles.push(newRole);
+                localStorage.setItem('custom_perm_roles', JSON.stringify(customRoles));
+                window.renderPermsTable(); // รีเฟรชตารางให้ Dropdown อัปเดต
+                Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่ม Role ${newRole.toUpperCase()} แล้ว`, timer: 1500, showConfirmButton: false});
+            } else {
+                Swal.fire('เตือน', 'มี Role นี้อยู่ในระบบแล้ว', 'warning');
+            }
+        }
+    });
+};
