@@ -2134,11 +2134,18 @@ window.renderPermsTable = function() {
     const tbody = document.getElementById('permTableBody');
     if(!tbody) return;
 
-    let customDepts = JSON.parse(localStorage.getItem('custom_perm_depts') || '[]');
-    const depts = [...new Set(['AM', 'OD', 'AMQL', ...customDepts])];
+    // 🌟 1. ดึงชื่อแผนกจากฐานข้อมูล (DB)
+    let dbDepts = [];
+    try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
+    const depts = [...new Set(['AM', 'OD', 'AMQL', ...dbDepts])];
+    
     let bodyHtml = '';
 
-    let allSystemRoles = ['staff', 'trainer', 'manager'];
+    // 🌟 2. ดึงชื่อ Role จากฐานข้อมูล (DB) และรายชื่อพนักงาน
+    let dbRoles = [];
+    try { dbRoles = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
+    let allSystemRoles = [...new Set(['staff', 'trainer', 'manager', ...dbRoles])];
+
     if (typeof GLOBAL_USER_LIST !== 'undefined') {
         GLOBAL_USER_LIST.forEach(u => {
             if (u.role && !allSystemRoles.includes(u.role.toLowerCase())) {
@@ -2172,6 +2179,13 @@ window.renderPermsTable = function() {
         const role = window.permRowSelections[dept] || 'STAFF';
         const key = `${dept}_${role}`;
         const activePerms = MENU_PERMS[key] || [];
+
+        // 🌟 ต้องมีส่วนนี้อยู่ก่อนถึง bodyHtml += 
+        let roleOptionsHtml = '';
+        allSystemRoles.forEach(r => {
+            let rUpper = r.toUpperCase();
+            roleOptionsHtml += `<option value="${rUpper}" ${role === rUpper ? 'selected' : ''} class="bg-slate-800 text-white font-bold">${rUpper}</option>`;
+        });
         
         let badgesHtml = '<div class="grid grid-cols-2 xl:grid-cols-3 gap-3 w-full content-start items-start">';
         let activeCount = 0;

@@ -221,55 +221,67 @@ window.renderTemplate = function(templateId, data = {}) {
 };
 
 // ==========================================
-// 🛠️ ฟังก์ชันเพิ่มแผนก และ Role แบบไดนามิกในหน้าสิทธิ์
+// 🛠️ ฟังก์ชันเพิ่มแผนก และ Role ลงฐานข้อมูล (Database)
 // ==========================================
 
-window.addCustomPermDept = function() {
-    Swal.fire({
+window.addCustomPermDept = async function() {
+    const { value: newDept } = await Swal.fire({
         title: 'เพิ่มแผนกใหม่',
         input: 'text',
         inputPlaceholder: 'เช่น MARKETING, CS, VIP',
         showCancelButton: true,
         confirmButtonText: 'เพิ่มแผนก',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            let newDept = result.value.toUpperCase().trim();
-            let customDepts = JSON.parse(localStorage.getItem('custom_perm_depts') || '[]');
-            if (!customDepts.includes(newDept)) {
-                customDepts.push(newDept);
-                localStorage.setItem('custom_perm_depts', JSON.stringify(customDepts));
-                window.renderPermsTable(); // รีเฟรชตารางให้งอกแถวใหม่
-                Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มแผนก ${newDept} แล้ว`, timer: 1500, showConfirmButton: false});
-            } else {
-                Swal.fire('เตือน', 'มีแผนกนี้อยู่ในตารางแล้ว', 'warning');
-            }
-        }
+        confirmButtonColor: '#2563eb'
     });
+
+    if (newDept) {
+        const deptName = newDept.toUpperCase().trim();
+        // ดึงค่าเดิมจากระบบมาก่อน
+        let currentDepts = [];
+        try {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'custom_departments').single();
+            if(data && data.value) currentDepts = JSON.parse(data.value);
+        } catch(e) {}
+
+        if (!currentDepts.includes(deptName)) {
+            currentDepts.push(deptName);
+            Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
+            // สั่งโหลดค่าใหม่และวาดตารางทันที
+            await window.loadSettings();
+            Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มแผนก ${deptName} แล้ว`, timer: 1500, showConfirmButton: false});
+        } else {
+            Swal.fire('เตือน', 'มีแผนกนี้ในระบบแล้ว', 'warning');
+        }
+    }
 };
 
-window.addCustomPermRole = function() {
-    Swal.fire({
-        title: 'เพิ่ม Role ใหม่',
+window.addCustomPermRole = async function() {
+    const { value: newRole } = await Swal.fire({
+        title: 'เพิ่มตำแหน่ง (Role) ใหม่',
         input: 'text',
         inputPlaceholder: 'เช่น LEADER, SUPERVISOR',
         showCancelButton: true,
         confirmButtonText: 'เพิ่ม Role',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            let newRole = result.value.toLowerCase().trim();
-            let customRoles = JSON.parse(localStorage.getItem('custom_perm_roles') || '[]');
-            if (!customRoles.includes(newRole)) {
-                customRoles.push(newRole);
-                localStorage.setItem('custom_perm_roles', JSON.stringify(customRoles));
-                window.renderPermsTable(); // รีเฟรชตารางให้ Dropdown อัปเดต
-                Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่ม Role ${newRole.toUpperCase()} แล้ว`, timer: 1500, showConfirmButton: false});
-            } else {
-                Swal.fire('เตือน', 'มี Role นี้อยู่ในระบบแล้ว', 'warning');
-            }
-        }
+        confirmButtonColor: '#8b5cf6'
     });
+
+    if (newRole) {
+        const roleName = newRole.toLowerCase().trim();
+        let currentRoles = [];
+        try {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'custom_roles').single();
+            if(data && data.value) currentRoles = JSON.parse(data.value);
+        } catch(e) {}
+
+        if (!currentRoles.includes(roleName)) {
+            currentRoles.push(roleName);
+            Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(currentRoles) }]);
+            await window.loadSettings();
+            Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มตำแหน่ง ${roleName.toUpperCase()} แล้ว`, timer: 1500, showConfirmButton: false});
+        } else {
+            Swal.fire('เตือน', 'มีตำแหน่งนี้ในระบบแล้ว', 'warning');
+        }
+    }
 };
