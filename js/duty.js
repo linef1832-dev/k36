@@ -8,9 +8,8 @@ let currentRosterData = {};
 let window_currentAssignedStaff = [];
 
 window.isDutyAdmin = function() {
-    if (typeof currentUser === 'undefined' || !currentUser) return false;
-    const role = currentUser.role ? currentUser.role.toLowerCase() : '';
-    return role === 'manager' || role === 'admin' || role === 'trainer';
+    // แบบใหม่: ใครก็ตามที่ถูกติ๊กสิทธิ์ "duty_manage" ในหน้าเว็บ จะใช้งานได้ทันที
+    return window.hasUserPerm('duty_manage'); 
 };
 
 const LEAVE_STYLES = {

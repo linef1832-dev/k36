@@ -2137,6 +2137,15 @@ window.renderPermsTable = function() {
     const depts = ['AM', 'OD', 'AMQL'];
     let bodyHtml = '';
 
+    let allSystemRoles = ['staff', 'trainer', 'manager'];
+    if (typeof GLOBAL_USER_LIST !== 'undefined') {
+        GLOBAL_USER_LIST.forEach(u => {
+            if (u.role && !allSystemRoles.includes(u.role.toLowerCase())) {
+                allSystemRoles.push(u.role.toLowerCase());
+            }
+        });
+    }
+
     const colorClasses = {
         'blue': 'text-blue-400 bg-blue-500/10 border-blue-500/20',
         'rose': 'text-rose-400 bg-rose-500/10 border-rose-500/20',
@@ -2275,6 +2284,12 @@ window.renderPermsTable = function() {
         let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
         let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
 
+        let roleOptionsHtml = '';
+        allSystemRoles.forEach(r => {
+            let rUpper = r.toUpperCase();
+            roleOptionsHtml += `<option value="${rUpper}" ${role === rUpper ? 'selected' : ''} class="bg-slate-800 text-white font-bold">${rUpper}</option>`;
+        });
+
         bodyHtml += `
         <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">
             <td class="px-6 py-5 border-r border-slate-700 align-top">
@@ -2284,9 +2299,7 @@ window.renderPermsTable = function() {
             <td class="px-6 py-5 border-r border-slate-700 align-top">
                 <div class="relative w-32">
                     <select onchange="changePermRowRole('${dept}', this.value)" class="${roleColor} border px-3 py-3 rounded-xl font-black text-[11px] shadow-sm w-full outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-purple-500 transition relative z-10 text-center tracking-wide">
-                        <option value="STAFF" ${role === 'STAFF' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">STAFF</option>
-                        <option value="TRAINER" ${role === 'TRAINER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">TRAINER</option>
-                        <option value="MANAGER" ${role === 'MANAGER' ? 'selected' : ''} class="bg-slate-800 text-white font-bold">MANAGER</option>
+                        ${roleOptionsHtml}
                     </select>
                     <span class="material-icons text-[14px] opacity-70 absolute right-2.5 top-3 pointer-events-none z-20 ${iconColor}">expand_more</span>
                 </div>

@@ -20,11 +20,10 @@ window.initDashboard = async function() {
     if (btnCheckMissing) {
         const uRole = (window.currentUser.role || '').toLowerCase();
         const uDept = (window.currentUser.department || '');
-        if (['admin', 'manager', 'trainer'].includes(uRole) || uDept === 'TRAINER') {
-            btnCheckMissing.classList.remove('hidden');
-        } else {
-            btnCheckMissing.classList.add('hidden');
-        }
+        // ให้เช็คสิทธิ์ว่ามีสิทธิ์เข้ามาดูเมนูจัดการลางาน หรือจัดการเวรไหม ถ้ามีก็ให้กดดูได้เลย
+if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
+    btnCheckMissing.classList.remove('hidden');
+}
     }
 
     // ดึงรายชื่อทีมเข้า Dropdown
@@ -120,7 +119,7 @@ window.renderShiftButtons = function(allowedShift) {
 
     const userRole = window.currentUser?.role || 'staff';
     const shiftRight = allowedShift || 'all';
-    const isAdmin = ['manager', 'admin'].includes(userRole);
+    const isAdmin = window.hasUserPerm('ds_manage') || window.hasUserPerm('admin');
 
     shifts.forEach((s, index) => {
         // 🌟 จุดสำคัญ: ถ้าไม่ใช่แอดมิน และกะนี้ไม่ใช่กะของพนักงานคนนี้ ให้ "ข้าม (return)" ไปเลย (คือไม่สร้างปุ่มนี้ขึ้นมา)
