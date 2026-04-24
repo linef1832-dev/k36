@@ -1113,19 +1113,11 @@ window.populateAdminDeptSelects = function() {
     let dbDepts = [];
     try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
     
-    // รวมแผนกพื้นฐาน + แผนกที่สร้างใหม่
-    // 🌟 ดึงเฉพาะ AM, OD และแผนกที่สร้างใหม่ในตั้งค่าเท่านั้น
+    // 🌟 ดึงเฉพาะ AM, OD และแผนกที่สร้างใหม่ในหน้าตั้งค่าเท่านั้น! (ลบการสแกนพนักงานเก่าทิ้งถาวร)
     let availableDepts = new Set(['AM', 'OD', ...dbDepts]);
-    if (typeof GLOBAL_USER_LIST !== 'undefined') {
-        GLOBAL_USER_LIST.forEach(u => { 
-            if(u.department && u.department !== 'TRAINER' && u.department !== 'NEW') availableDepts.add(u.department); 
-        });
-    }
-    availableDepts.delete('TRAINER'); availableDepts.delete('NEW');
     const deptListArray = Array.from(availableDepts).sort();
 
     // 1. อัปเดตช่อง "เลือกแผนกตอนเพิ่มพนักงานใหม่" (ขวาสุด)
-    // 1. อัปเดตช่อง "เลือกแผนกตอนเพิ่มพนักงานใหม่"
     const newDeptSelect = document.getElementById('newDept');
     if (newDeptSelect) {
         let html = '';
@@ -1136,7 +1128,6 @@ window.populateAdminDeptSelects = function() {
     }
 
     // 2. อัปเดตช่อง "ตัวกรองค้นหาแผนก" (ซ้ายสุด)
-    // 2. อัปเดตช่อง "ตัวกรองค้นหาแผนก"
     const filterUserDept = document.getElementById('filterUserDept');
     if (filterUserDept) {
         const currentVal = filterUserDept.value;
@@ -1289,11 +1280,11 @@ window.renderUserTableDirectly = function() {
         paginatedUsers = filteredUsers.slice(startIndex, startIndex + parseInt(userRowsPerPage));
     }
 
-    // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ (ดึงแบบไดนามิกจากฐานข้อมูล)
+    // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ (ดึงแบบไดนามิกจากฐานข้อมูลเท่านั้น)
     let dbDepts = [];
     try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
     
-    // 🌟 ดึงเฉพาะแผนกและ Role ที่มีอยู่ในตั้งค่าเท่านั้น
+    // 🌟 ดึงเฉพาะแผนกที่อยู่ในระบบตั้งค่า ห้ามดึงจากพนักงานเก่า
     let availableDepts = new Set(['AM', 'OD', ...dbDepts]);
     const deptListArray = Array.from(availableDepts).sort();
     
