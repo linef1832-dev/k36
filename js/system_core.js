@@ -2299,10 +2299,20 @@ window.renderPermsTable = function() {
         let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
         let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
 
+        // 🌟 เพิ่มปุ่มลบ (แสดงเฉพาะแผนกที่ไม่ได้เป็นค่าเริ่มต้น)
+        let delDeptBtn = '';
+        if (!['AM', 'OD', 'AMQL'].includes(dept)) {
+            delDeptBtn = `<button onclick="deleteCustomPermDept('${dept}')" class="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-lg transition active:scale-95"><span class="material-icons text-[12px]">close</span></button>`;
+        }
+
         bodyHtml += `
         <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">
             <td class="px-6 py-5 border-r border-slate-700 align-top">
                 <div class="bg-slate-900 border border-slate-600 px-3 py-3 rounded-xl font-black text-white shadow-inner text-sm w-32 text-center tracking-wider">${dept}</div>
+                <div class="relative bg-slate-900 border border-slate-600 px-3 py-3 rounded-xl font-black text-white shadow-inner text-sm w-32 text-center tracking-wider">
+                    ${dept}
+                    ${delDeptBtn}
+                </div>
             </td>
             
             <td class="px-6 py-5 border-r border-slate-700 align-top">

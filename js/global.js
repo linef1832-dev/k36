@@ -280,3 +280,65 @@ window.addCustomPermRole = async function() {
         Swal.fire('เตือน', 'มีตำแหน่งนี้ในระบบแล้ว', 'warning');
     }
 };
+
+// ==========================================
+// 🗑️ ฟังก์ชันลบแผนก และ Role ที่สร้างเอง
+// ==========================================
+
+window.deleteCustomPermDept = async function(dept) {
+    Swal.fire({
+        title: `ลบแผนก ${dept}?`,
+        text: 'ลบแล้วจะไม่แสดงในตารางอีก',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ลบเลย',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            let dbDepts = [];
+            try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
+            
+            dbDepts = dbDepts.filter(d => d !== dept); // เอาแผนกนี้ออก
+            SETTINGS['custom_departments'] = JSON.stringify(dbDepts); // อัปเดตตัวแปรระบบ
+            
+            await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(dbDepts) }]);
+            window.renderPermsTable(); // วาดตารางใหม่
+            Swal.fire({icon: 'success', title: 'ลบแผนกสำเร็จ', timer: 1000, showConfirmButton: false});
+        }
+    });
+};
+
+window.deleteCustomPermRole = async function() {
+    let dbRoles = [];
+    try { dbRoles = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
+    
+    if (dbRoles.length === 0) return Swal.fire('ไม่มี Role ให้ลบ', 'มีแต่ Role มาตรฐานของระบบครับ', 'info');
+
+    // สร้างตัวเลือก Dropdown จาก Role ที่สร้างเอง
+    let options = {};
+    dbRoles.forEach(r => options[r] = r.toUpperCase());
+
+    const { value: roleToDelete } = await Swal.fire({
+        title: 'เลือกลบ Role ที่สร้างเอง',
+        input: 'select',
+        inputOptions: options,
+        inputPlaceholder: '-- เลือก Role ที่ต้องการลบ --',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'ลบทิ้ง',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+
+    if (roleToDelete) {
+        Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        dbRoles = dbRoles.filter(r => r !== roleToDelete); // เอา Role นี้ออก
+        SETTINGS['custom_roles'] = JSON.stringify(dbRoles);
+        
+        await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(dbRoles) }]);
+        window.renderPermsTable(); // วาดตารางใหม่
+        Swal.fire({icon: 'success', title: 'ลบ Role สำเร็จ', timer: 1000, showConfirmButton: false});
+    }
+};
