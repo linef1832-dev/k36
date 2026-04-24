@@ -1281,10 +1281,12 @@ window.renderUserTableDirectly = function() {
     }
 
     // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ (ดึงแบบไดนามิกจากฐานข้อมูลเท่านั้น)
+    // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ (ดึงแบบไดนามิกจากฐานข้อมูล)
     let dbDepts = [];
     try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
     
     // 🌟 เติม 'AMQL' กลับเข้ามาตรงนี้ครับ
+    // 🌟 ดึง AM, OD, AMQL และแผนกที่สร้างใหม่มาใส่ในตัวเลือก
     let availableDepts = new Set(['AM', 'OD', 'AMQL', ...dbDepts]);
     const deptListArray = Array.from(availableDepts).sort();
     
