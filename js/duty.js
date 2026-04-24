@@ -255,6 +255,7 @@ window.refreshDutyData = async function() {
         
         const btnGen = document.getElementById('btnGenerateRoster');
         const grid = document.getElementById('dutyResultGrid');
+        const matrixGrid = document.getElementById('dutyMatrixGrid'); // 🟢 1. ดึงกล่องตารางมา
 
         if (savedRoster && savedRoster.value) {
             const parsedRoster = JSON.parse(savedRoster.value);
@@ -265,6 +266,10 @@ window.refreshDutyData = async function() {
             }
         } else {
             if(grid) grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 opacity-50"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>';
+            
+            // 🟢 2. สั่งล้างข้อมูลกล่องตารางของผู้สอน OD ด้วย
+            if(matrixGrid) matrixGrid.innerHTML = '<div class="flex flex-col items-center justify-center py-20 text-gray-400 opacity-50 h-full"><span class="material-icons text-6xl mb-2">event_busy</span><span class="font-bold text-lg">ยังไม่มีการจัดเวรในกะนี้</span></div>'; 
+
             if (btnGen) {
                 btnGen.disabled = false; btnGen.innerHTML = '<span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่';
                 btnGen.classList.replace('bg-gray-500', 'bg-indigo-600'); btnGen.classList.replace('hover:bg-gray-600', 'hover:bg-indigo-700');
@@ -824,7 +829,7 @@ window.renderRosterGrid = async function(rosterData) {
         `;
     });
 
-    grid.innerHTML = finalGridHtml;
+   cardGrid.innerHTML = finalGridHtml;
 };
 
 window.selectSecOption = function(el, val) {
