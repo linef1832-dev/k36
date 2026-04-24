@@ -1244,18 +1244,23 @@ window.renderUserTableDirectly = function() {
         paginatedUsers = filteredUsers.slice(startIndex, startIndex + parseInt(userRowsPerPage));
     }
 
-    // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ 
-    let availableDepts = new Set([...(typeof permDepartmentsList !== 'undefined' ? permDepartmentsList : ['AM', 'OD'])]);
+    // 4. เตรียมข้อมูล Dropdown สิทธิ์ต่างๆ (ดึงแบบไดนามิกจากฐานข้อมูล)
+    let dbDepts = [];
+    try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
+    
+    let availableDepts = new Set(['AM', 'OD', ...dbDepts]);
     GLOBAL_USER_LIST.forEach(u => { 
         if(u.department && u.department !== 'TRAINER' && u.department !== 'NEW') availableDepts.add(u.department); 
     });
     availableDepts.delete('TRAINER'); availableDepts.delete('NEW');
     const deptListArray = Array.from(availableDepts).sort();
     
-    let rawRoles = typeof permRolesList !== 'undefined' ? permRolesList : ['staff', 'trainer', 'manager'];
-    if (!rawRoles.includes('manager')) rawRoles.push('manager');
+    let dbRoles = [];
+    try { dbRoles = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
+    
+    let rawRoles = ['staff', 'trainer', 'manager', ...dbRoles];
     const uniqueRoles = [...new Set(rawRoles)];
-    const roleOptions = uniqueRoles.map(r => ({ val: r, label: r.charAt(0).toUpperCase() + r.slice(1) }));
+    const roleOptions = uniqueRoles.map(r => ({ val: r, label: r.toUpperCase() }));
 
     // 5. วาดตาราง (เฉพาะคนที่อยู่ในหน้านี้)
     let html = '';
