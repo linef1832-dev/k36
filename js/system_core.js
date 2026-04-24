@@ -2308,7 +2308,6 @@ window.renderPermsTable = function() {
         bodyHtml += `
         <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">
             <td class="px-6 py-5 border-r border-slate-700 align-top">
-                <div class="bg-slate-900 border border-slate-600 px-3 py-3 rounded-xl font-black text-white shadow-inner text-sm w-32 text-center tracking-wider">${dept}</div>
                 <div class="relative bg-slate-900 border border-slate-600 px-3 py-3 rounded-xl font-black text-white shadow-inner text-sm w-32 text-center tracking-wider">
                     ${dept}
                     ${delDeptBtn}
