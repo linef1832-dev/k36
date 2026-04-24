@@ -1288,9 +1288,9 @@ window.ds_renderActionLogs = function() {
 
     if (dateFilter) {
         filtered = filtered.filter(log => {
-            const d = new Date(log.time);
+            // 🌟 จุดที่แก้ไข: รวมตัวแปร d ให้เหลือตัวเดียว แล้วหักลบเวลา 7 ชั่วโมง
             let d = new Date(log.time);
-            d = new Date(d.getTime() - (7 * 60 * 60 * 1000)); // 🌟 หักลบ 7 ชั่วโมงก่อนคำนวณวัน
+            d = new Date(d.getTime() - (7 * 60 * 60 * 1000)); 
             const y = d.getFullYear();
             const m = String(d.getMonth() + 1).padStart(2, '0');
             const day = String(d.getDate()).padStart(2, '0');
@@ -1306,7 +1306,7 @@ window.ds_renderActionLogs = function() {
     tbody.innerHTML = filtered.map(log => {
         let d = new Date(log.time);
         
-        // 🌟 หักลบ 7 ชั่วโมงให้ตรงกับประเทศไทย (GMT+7) เช่นเดียวกันสำหรับหน้าประวัติ Action
+        // 🌟 หักลบ 7 ชั่วโมงให้ตรงกับประเทศไทย (GMT+7)
         d = new Date(d.getTime() - (7 * 60 * 60 * 1000));
         const timeStr = d.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
         
