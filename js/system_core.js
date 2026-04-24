@@ -2455,11 +2455,15 @@ window.renderPermsTable = function() {
         let delDeptBtn = '';
         // 🌟 เพิ่มปุ่มแก้ไข และ ลบ (แสดงเฉพาะแผนกที่สร้างเอง)
         let actionBtns = '';
+        // 🌟 เปลี่ยนชื่อตัวแปรจาก actionBtns เป็น deptActionBtns เพื่อหนีการซ้ำซ้อน
+        let deptActionBtns = '';
         if (!['AM', 'OD', 'AMQL'].includes(dept)) {
             delDeptBtn = `<button onclick="deleteCustomPermDept('${dept}')" class="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-lg transition active:scale-95"><span class="material-icons text-[12px]">close</span></button>`;
             actionBtns = `
+            deptActionBtns = `
             <div class="absolute -top-3 -right-3 flex gap-1 z-30">
                 <button onclick="renameCustomPermDept('${dept}')" class="bg-amber-500 hover:bg-amber-400 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
+                <button onclick="renameAnyDept('${dept}')" class="bg-amber-500 hover:bg-amber-400 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
                 <button onclick="deleteCustomPermDept('${dept}')" class="bg-red-600 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>
             </div>`;
         }
@@ -2477,6 +2481,7 @@ window.renderPermsTable = function() {
                     ${dept}
                     ${delDeptBtn}
                     ${actionBtns}
+                    ${deptActionBtns}
                 </div>
             </td>
             
