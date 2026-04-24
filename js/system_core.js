@@ -1114,7 +1114,7 @@ window.populateAdminDeptSelects = function() {
     try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
     
     // 🌟 ดึงเฉพาะ AM, OD และแผนกที่สร้างใหม่ในหน้าตั้งค่าเท่านั้น! (ลบการสแกนพนักงานเก่าทิ้งถาวร)
-    let availableDepts = new Set(['AM', 'OD', ...dbDepts]);
+    let availableDepts = new Set(['AM', 'OD', 'AMQL', ...dbDepts]);
     const deptListArray = Array.from(availableDepts).sort();
 
     // 1. อัปเดตช่อง "เลือกแผนกตอนเพิ่มพนักงานใหม่" (ขวาสุด)
@@ -1284,8 +1284,8 @@ window.renderUserTableDirectly = function() {
     let dbDepts = [];
     try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
     
-    // 🌟 ดึงเฉพาะแผนกที่อยู่ในระบบตั้งค่า ห้ามดึงจากพนักงานเก่า
-    let availableDepts = new Set(['AM', 'OD', ...dbDepts]);
+    // 🌟 เติม 'AMQL' กลับเข้ามาตรงนี้ครับ
+    let availableDepts = new Set(['AM', 'OD', 'AMQL', ...dbDepts]);
     const deptListArray = Array.from(availableDepts).sort();
     
     let dbRoles = [];
