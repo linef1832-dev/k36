@@ -2287,9 +2287,7 @@ window.renderPermsTable = function() {
     if(!tbody) return;
 
     // 🌟 1. ดึงชื่อแผนกจากฐานข้อมูล (DB)
-    let dbDepts = [];
-    try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
-    const depts = window.getSystemDepts();
+    const depts = typeof window.getSystemDepts === 'function' ? window.getSystemDepts() : ['AM', 'OD', 'AMQL'];
     
     let bodyHtml = '';
 
@@ -2415,7 +2413,6 @@ window.renderPermsTable = function() {
                 const marginLeft = item.isSub ? 'ml-6 pl-2 border-l-2 border-slate-600/50' : 'font-bold bg-slate-700/30 rounded-lg p-1 mb-1';
                 const textStyle = item.isSub ? 'text-gray-400 text-[10px]' : 'text-gray-200 text-[11px]';
                 
-                // 🌟 แก้ไข: ใช้ OnChange เพื่อสั่งการ CSS โดยตรงไม่ต้องรอ Tailwind
                 popupContentHtml += `
                     <label class="relative flex items-center gap-3 ${textStyle} cursor-pointer hover:bg-slate-700 p-2 rounded-lg transition ${marginLeft} group">
                         <input type="checkbox" class="perm-cb absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
@@ -2451,24 +2448,8 @@ window.renderPermsTable = function() {
         let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
         let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
 
-        // 🌟 เพิ่มปุ่มลบ (แสดงเฉพาะแผนกที่ไม่ได้เป็นค่าเริ่มต้น)
-        let delDeptBtn = '';
-        // 🌟 เพิ่มปุ่มแก้ไข และ ลบ (แสดงเฉพาะแผนกที่สร้างเอง)
-        let actionBtns = '';
-        // 🌟 เปลี่ยนชื่อตัวแปรจาก actionBtns เป็น deptActionBtns เพื่อหนีการซ้ำซ้อน
-        let deptActionBtns = '';
-        if (!['AM', 'OD', 'AMQL'].includes(dept)) {
-            delDeptBtn = `<button onclick="deleteCustomPermDept('${dept}')" class="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-lg transition active:scale-95"><span class="material-icons text-[12px]">close</span></button>`;
-            actionBtns = `
-            deptActionBtns = `
-            <div class="absolute -top-3 -right-3 flex gap-1 z-30">
-                <button onclick="renameCustomPermDept('${dept}')" class="bg-amber-500 hover:bg-amber-400 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
-                <button onclick="renameAnyDept('${dept}')" class="bg-amber-500 hover:bg-amber-400 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
-                <button onclick="deleteCustomPermDept('${dept}')" class="bg-red-600 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>
-            </div>`;
-        }
         // 🌟 สร้างกลุ่มปุ่มจัดการ (แก้ไขได้ทุกแผนก, ลบได้เฉพาะแผนกที่สร้างเอง)
-        let actionBtns = `
+        let deptActionBtns = `
         <div class="absolute -top-3 -right-3 flex gap-1 z-30">
             <button onclick="renameAnyDept('${dept}')" class="bg-amber-500 hover:bg-amber-400 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
             ${!['AM', 'OD', 'AMQL'].includes(dept) ? `<button onclick="deleteCustomPermDept('${dept}')" class="bg-red-600 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>` : ''}
@@ -2479,8 +2460,6 @@ window.renderPermsTable = function() {
             <td class="px-6 py-5 border-r border-slate-700 align-top">
                 <div class="relative bg-slate-900 border border-slate-600 px-3 py-3 rounded-xl font-black text-white shadow-inner text-sm w-32 text-center tracking-wider">
                     ${dept}
-                    ${delDeptBtn}
-                    ${actionBtns}
                     ${deptActionBtns}
                 </div>
             </td>
