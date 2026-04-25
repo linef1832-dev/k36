@@ -1883,6 +1883,7 @@ window.onDutySearch = function() {
 };
 
 // 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ และสุ่มแจกงานอัตโนมัติ
+// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ และสุ่มแจกงานอัตโนมัติ
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
@@ -2077,5 +2078,4 @@ window.renderTrainerOdMatrix = function(rosterData) {
 
     html += `</tbody></table></div>`;
     matrixGrid.innerHTML = html;
-};
 };
