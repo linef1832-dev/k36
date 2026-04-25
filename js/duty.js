@@ -1886,13 +1886,8 @@ window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
 
-    // เลือกใช้รายชื่อเว็บจากระบบที่แอคทีฟอยู่ (เอาเว็บสอนงานกับ Telegram ออกเพื่อความเป็นระเบียบ)
-    const matrixWebsites = sortedTeams.filter(t => t !== 'สอนงาน' && t !== 'Telegram');
-
-    /// เพิ่มหมวดหน้าที่ส่วนกลางเข้าไปต่อท้ายสุด
-    if (!matrixWebsites.includes('หน้าที่ส่วนกลาง')) {
-        matrixWebsites.push('หน้าที่ส่วนกลาง');
-    }
+    // ใช้รายชื่อเว็บตายตัวตามที่คุณกำหนด เพื่อให้แสดงครบทุกเว็บแน่นอน
+    const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
 
     // ดึงรายชื่อพนักงานที่เป็นผู้สอน OD 
     const staffList = GLOBAL_USER_LIST.filter(u => {
@@ -1907,11 +1902,13 @@ window.renderTrainerOdMatrix = function(rosterData) {
     // ---------------- สร้างหัวตาราง (Header) แถวแรก ชื่อเว็บ ----------------
     html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b-2 border-slate-400 dark:border-slate-600"><tr>`;
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-[1%] whitespace-nowrap">กะ</th>`;
-    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-auto min-w-[200px]">รายชื่อผู้ดูแล</th>`;
+    // ปรับให้ช่องรายชื่อผู้ดูแลมีความกว้างที่พอดี ไม่ยืดจนเกินไป
+    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-[150px] min-w-[150px] whitespace-nowrap">รายชื่อผู้ดูแล</th>`;
     
     matrixWebsites.forEach(web => {
         // ดึงหัวข้อจากหน้าตั้งค่า (ถ้าไม่มีเลย ให้แสดงเป็นขีด '-')
-        let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
+        // ใช้ Vv72 เผื่อมีการสะกดต่างกัน
+        let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
 
         let bg = 'bg-blue-600 text-white';
@@ -1933,8 +1930,7 @@ window.renderTrainerOdMatrix = function(rosterData) {
     
     // ---------------- สร้างหัวตาราง (Header) แถวที่สอง หัวข้องาน ----------------
     matrixWebsites.forEach(web => {
-        // ดึงหัวข้อของเว็บนี้มาแสดงทีละคอลัมน์
-        let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
+        let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
         
         webTasks.forEach(task => {
@@ -1984,7 +1980,7 @@ window.renderTrainerOdMatrix = function(rosterData) {
             
             // วนลูปวาดกล่องตัวเลือก (Dropdown) ให้ตรงกับจำนวนหัวข้อเป๊ะๆ
             matrixWebsites.forEach(web => {
-                let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
+                let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
                 if (webTasks.length === 0) webTasks = ['-'];
                 
                 webTasks.forEach(task => {
