@@ -1945,13 +1945,30 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ และสุ่มแจกงานอัตโนมัติ
+// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ สุ่มแจกงาน และปรับสีได้อิสระ
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
 
     // ใช้รายชื่อเว็บตายตัวตามที่คุณกำหนด เพื่อให้แสดงครบทุกเว็บแน่นอน
     const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
+
+    // 🎨 กล่องตั้งค่าสี (คุณสามารถมาแก้สีเว็บและสีหัวข้อย่อยตรงนี้ได้เลย) 🎨
+    // main = สีของหัวเว็บหลัก | sub = สีของหัวข้อย่อยด้านล่าง
+    const webColors = {
+        'Jun88': { main: 'bg-blue-600 text-white', sub: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200' },
+        'MK8': { main: 'bg-yellow-500 text-black', sub: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200' },
+        'VV72': { main: 'bg-green-600 text-white', sub: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200' },
+        'Vv72': { main: 'bg-green-600 text-white', sub: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200' },
+        'TH26': { main: 'bg-gray-700 text-white', sub: 'bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200' },
+        'K188': { main: 'bg-cyan-500 text-black', sub: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200' },
+        'BT678': { main: 'bg-red-500 text-white', sub: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200' },
+        'PG688': { main: 'bg-amber-200 text-amber-900', sub: 'bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200' },
+        'JL69': { main: 'bg-slate-500 text-white', sub: 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200' },
+        'NM9': { main: 'bg-pink-500 text-white', sub: 'bg-pink-100 dark:bg-pink-900/40 text-pink-800 dark:text-pink-200' },
+        'F168': { main: 'bg-orange-500 text-white', sub: 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200' },
+        'หน้าที่ส่วนกลาง': { main: 'bg-indigo-900 text-amber-400', sub: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200' }
+    };
 
     // 🌟 ดึงค่าตัวกรองกะปัจจุบัน (จาก Dropdown ด้านบน)
     const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
@@ -2030,19 +2047,10 @@ window.renderTrainerOdMatrix = function(rosterData) {
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
 
-        let bg = 'bg-blue-600 text-white';
-        if(web === 'MK8') bg = 'bg-yellow-500 text-black';
-        else if (web === 'Vv72' || web === 'VV72') bg = 'bg-green-700 text-white';
-        else if (web === 'TH26') bg = 'bg-gray-700 text-white';
-        else if (web === 'PG688') bg = 'bg-amber-100 text-amber-900';
-        else if (web === 'F168') bg = 'bg-orange-500 text-white';
-        else if (web === 'NM9') bg = 'bg-pink-500 text-white';
-        else if (web === 'JL69') bg = 'bg-slate-500 text-white';
-        else if (web === 'K188') bg = 'bg-blue-500 text-white';
-        else if (web === 'BT678') bg = 'bg-red-500 text-white';
-        else if (web === 'หน้าที่ส่วนกลาง') bg = 'bg-indigo-900 text-amber-400 border-b border-amber-500';
+        // ดึงสีเว็บจากกล่องที่เราสร้างไว้ (ถ้าพิมพ์ชื่อเว็บไม่ตรง จะใช้สีเทาเป็นค่าเริ่มต้น)
+        let colors = webColors[web] || { main: 'bg-slate-600 text-white', sub: 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200' };
         
-        html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-sm tracking-wide ${bg}">${web}</th>`;
+        html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-sm tracking-wide ${colors.main}">${web}</th>`;
     });
     html += `</tr><tr>`;
     
@@ -2051,8 +2059,11 @@ window.renderTrainerOdMatrix = function(rosterData) {
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
         
+        // ดึงสีหัวข้อย่อยให้เข้ากับสีเว็บหลัก
+        let colors = webColors[web] || { main: 'bg-slate-600 text-white', sub: 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200' };
+        
         webTasks.forEach(task => {
-            html += `<th class="border border-slate-300 dark:border-slate-700 p-2 text-[11px] bg-slate-50 dark:bg-slate-800 min-w-[90px] max-w-[120px] truncate" title="${task}">${task}</th>`;
+            html += `<th class="border border-slate-300 dark:border-slate-700 p-2 text-[11px] ${colors.sub} min-w-[90px] max-w-[120px] truncate" title="${task}">${task}</th>`;
         });
     });
     html += `</tr></thead><tbody>`;
