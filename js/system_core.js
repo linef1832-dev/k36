@@ -2181,7 +2181,11 @@ const PERM_GROUPS = [
         id: 'page_duty', name: 'จัดหน้าที่ / เวร', icon: 'assignment_ind', theme: 'indigo',
         items: [
             {id: 'duty', name: 'เข้าหน้าจัดหน้าที่ / เวร', isSub: false},
-            {id: 'duty_manage', name: 'สุ่มเวร & ตั้งค่าหัวข้อ', isSub: true}
+            {id: 'duty_manage_am', name: '⚙️ จัดการของ AM', isSub: true},
+            {id: 'duty_manage_od', name: '⚙️ จัดการของ OD', isSub: true},
+            {id: 'duty_manage_amql', name: '⚙️ จัดการของผู้สอน AM', isSub: true},
+            {id: 'duty_manage_odql', name: '⚙️ จัดการของผู้สอน OD', isSub: true},
+            {id: 'duty_manage', name: 'สุ่มเวร & ตั้งค่าหัวข้อ (รวม)', isSub: true}
         ]
     },
     {
