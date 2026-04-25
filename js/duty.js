@@ -967,6 +967,8 @@ window.viewStandbyList = function(team) {
 
 window.filterDutyResult = function() {
     const term = document.getElementById('dutySearchInput').value.toLowerCase();
+    
+    // 🟢 1. จัดการค้นหาในรูปแบบ การ์ด (Card) ของพนักงาน AM / OD ปกติ
     const siteCards = document.querySelectorAll('.duty-site-card');
     
     siteCards.forEach(card => {
@@ -975,14 +977,76 @@ window.filterDutyResult = function() {
 
         userCards.forEach(uCard => {
             const name = uCard.dataset.name;
-            if(name && name.includes(term)) { uCard.classList.add('ring-2', 'ring-amber-500', 'bg-amber-50'); cardHasMatch = true; } 
-            else { uCard.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50'); }
+            if(name && name.includes(term)) { 
+                // ถ้าค้นหาเจอ ให้แสดงกล่องพนักงานนั้น และไฮไลต์สี
+                uCard.style.display = 'flex';
+                if(term !== '') {
+                    uCard.classList.add('ring-2', 'ring-amber-500', 'bg-amber-50'); 
+                    cardHasMatch = true; 
+                } else {
+                    uCard.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50'); 
+                }
+            } else { 
+                // ถ้าค้นหาไม่เจอ ให้ซ่อนกล่องพนักงานคนนั้นทิ้งไปเลย จะได้ไม่รกตา
+                uCard.style.display = term === '' ? 'flex' : 'none'; 
+                uCard.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50'); 
+            }
         });
 
+        // ถ้าในเว็บนั้นไม่มีคนที่เราค้นหาเลย ก็ซ่อนการ์ดเว็บนั้นทิ้งไปเลย
         if(term === '') {
-            card.style.display = 'flex'; userCards.forEach(u => u.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50'));
-        } else { card.style.display = cardHasMatch ? 'flex' : 'none'; }
+            card.style.display = 'flex'; 
+        } else { 
+            card.style.display = cardHasMatch ? 'flex' : 'none'; 
+        }
     });
+
+    // 🟢 2. จัดการค้นหาในรูปแบบ ตาราง (Matrix) ของผู้สอน OD
+    const matrixGrid = document.getElementById('dutyMatrixGrid');
+    if (matrixGrid && !matrixGrid.classList.contains('hidden')) {
+        const trs = matrixGrid.querySelectorAll('tbody tr');
+        let currentShiftDisplay = null;
+        let visibleCountInShift = 0;
+
+        trs.forEach(tr => {
+            const nameCell = tr.querySelector('td:nth-child(2) span, td:nth-child(1) span'); 
+            if (!nameCell) return;
+            
+            const name = nameCell.innerText.toLowerCase();
+            const shiftCell = tr.querySelector('td[rowspan]');
+
+            // อัปเดตกะปัจจุบันที่กำลังประมวลผลอยู่
+            if (shiftCell) {
+                currentShiftDisplay = shiftCell;
+                visibleCountInShift = 0; // เริ่มนับคนในกะใหม่
+            }
+
+            if (term === '' || name.includes(term)) {
+                tr.style.display = 'table-row';
+                visibleCountInShift++;
+                
+                // ไฮไลต์ชื่อถ้าค้นหา
+                if (term !== '') nameCell.parentElement.classList.add('bg-amber-100', 'rounded', 'px-1');
+                else nameCell.parentElement.classList.remove('bg-amber-100', 'rounded', 'px-1');
+            } else {
+                tr.style.display = 'none';
+                nameCell.parentElement.classList.remove('bg-amber-100', 'rounded', 'px-1');
+            }
+
+            // จัดการอัปเดต rowspan ของกะ ให้พอดีกับจำนวนคนที่แสดงอยู่ (จะได้ไม่โบ๋)
+            if (shiftCell) {
+                shiftCell.rowSpan = 1; // ตั้งค่าเริ่มต้น
+            } else if (currentShiftDisplay && tr.style.display !== 'none') {
+                 currentShiftDisplay.rowSpan = visibleCountInShift;
+                 currentShiftDisplay.parentElement.style.display = 'table-row'; // ให้แน่ใจว่าแถวแม่ของกะแสดงอยู่
+            }
+            
+            // ถ้ากะนั้นไม่มีคนถูกค้นหาเจอเลย ก็ซ่อนแถวที่มีชื่อกะทิ้งไปเลย
+            if (currentShiftDisplay && visibleCountInShift === 0 && tr.style.display === 'none' && !tr.querySelector('td[rowspan]')) {
+                currentShiftDisplay.parentElement.style.display = 'none';
+            }
+        });
+    }
 }
 
 window.searchDutyMyself = function() {
@@ -1335,7 +1399,6 @@ window.handleUrlPaste = function(e, div) {
          setTimeout(()=> div.innerHTML = div.innerHTML.replace(text, ''), 10);
     }
 };
-
 document.addEventListener('paste', function(e) {
     let target = e.target;
     while (target && target.nodeName !== 'BODY') {
