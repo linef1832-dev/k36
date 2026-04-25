@@ -1537,8 +1537,15 @@ window.renderDutyAccessTable = function() {
         }
     });
 
+    // 🌟 ส่วนที่แก้ไข: ใช้ TEAM_LIST หรือ matrixWebsites แทน sortedTeams
+    // สำหรับผู้สอน OD ให้ดึงลิสต์เว็บมาแสดงเหมือนตารางหน้าที่
+    let displayTeams = sortedTeams;
+    if (currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER_OD')) {
+         displayTeams = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
+    }
+
     let headHtml = `<tr><th class="p-2 bg-slate-200 dark:bg-slate-800 border-r dark:border-slate-700 min-w-[120px]">ชื่อพนักงาน</th>`;
-    sortedTeams.forEach(team => { headHtml += `<th class="p-2 text-center text-[10px] font-extrabold truncate max-w-[50px] border-r dark:border-slate-700" title="${team}">${team}</th>`; });
+    displayTeams.forEach(team => { headHtml += `<th class="p-2 text-center text-[10px] font-extrabold truncate max-w-[50px] border-r dark:border-slate-700" title="${team}">${team}</th>`; });
     headHtml += `</tr>`;
     head.innerHTML = headHtml;
     
@@ -1563,7 +1570,7 @@ window.renderDutyAccessTable = function() {
         }
 
         const userAccess = dutyAccessMatrix[u.id] || [];
-        const validAccessCount = userAccess.filter(t => sortedTeams.includes(t)).length; 
+        const validAccessCount = userAccess.filter(t => displayTeams.includes(t)).length; 
 
         let noAccessWarning = '';
         let rowBgClass = 'hover:bg-slate-50 dark:hover:bg-slate-800/50'; 
@@ -1582,7 +1589,7 @@ window.renderDutyAccessTable = function() {
                 <span class="text-[9px] ${shiftColor} bg-gray-100 dark:bg-slate-900 px-1 rounded border dark:border-slate-600 shrink-0 ml-1">${u.allowed_shift.replace('กะ','')}</span>
             </td>`;
         
-        sortedTeams.forEach(team => {
+        displayTeams.forEach(team => {
             const isChecked = userAccess.includes(team) ? 'checked' : '';
             rowHtml += `<td class="p-1 text-center border-r dark:border-slate-700 bg-white dark:bg-transparent"><input type="checkbox" class="duty-check w-5 h-5 text-green-500 rounded cursor-pointer border-gray-300 focus:ring-green-500 shadow-sm transition" onchange="updateLocalDutyAccess('${u.id}', '${team}', this.checked)" ${isChecked}></td>`;
         });
@@ -1590,7 +1597,7 @@ window.renderDutyAccessTable = function() {
         bodyHtml += rowHtml;
     });
     
-    if(staff.length === 0) bodyHtml = `<tr><td colspan="${sortedTeams.length+1}" class="p-8 text-center text-gray-400">ไม่พบพนักงานที่ค้นหา</td></tr>`;
+    if(staff.length === 0) bodyHtml = `<tr><td colspan="${displayTeams.length+1}" class="p-8 text-center text-gray-400">ไม่พบพนักงานที่ค้นหา</td></tr>`;
     body.innerHTML = bodyHtml;
 }
 
