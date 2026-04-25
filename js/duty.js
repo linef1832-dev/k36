@@ -1951,10 +1951,23 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ให้สุ่มแจกงานแบบ "เวียนเทียน" (กระจายคน ห้ามเหมาคนเดียว)
+// 🟢 อัปเดตตาราง OD ให้สุ่มแจกงานแบบ "เวียนเทียน" และ "ล็อคสิทธิ์แก้ไขสำหรับพนักงาน"
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
+
+    // 🔒 เช็คสิทธิ์การแก้ไข (ถ้าเป็นผู้สอน จะแก้ไขหน้าตารางของตัวเองไม่ได้)
+    let canEdit = window.isDutyAdmin();
+    if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
+        if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+            canEdit = false; // บังคับล็อคถ้าไม่ใช่แอดมิน
+        }
+    }
+    
+    // เตรียม Class สำหรับล็อคกล่องตัวเลือก
+    let disableAttr = canEdit ? '' : 'disabled';
+    // appearance-none จะซ่อนลูกศร drop-down ทำให้ดูเหมือนเป็นป้ายข้อความธรรมดา
+    let cursorClass = canEdit ? 'cursor-pointer' : 'cursor-default pointer-events-none appearance-none opacity-95';
 
     const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
 
@@ -1990,11 +2003,10 @@ window.renderTrainerOdMatrix = function(rosterData) {
 
     const leaveIds = new Set(window.currentDutyLeaveData.map(l => String(l.user_id)));
     
-    // 🌟 ดึงเฉพาะคนที่เข้ากะนี้ และ "ไม่ได้ลาหยุด" เพื่อมาช่วยกันรับงาน
     const activeTrainers = staffList.filter(u => !leaveIds.has(String(u.id)));
 
     let userTaskRoles = {}; 
-    let globalPoolIndex = 0; // ตัวเวียนเทียนคนรับงาน
+    let globalPoolIndex = 0; 
 
     matrixWebsites.forEach(web => {
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
@@ -2002,26 +2014,19 @@ window.renderTrainerOdMatrix = function(rosterData) {
         
         let primaryUsers = (rosterData[web] || []).filter(u => !u.username.includes('ขาดคน'));
         
-        // 🌟 กฎเหล็กใหม่: "หน้าที่ส่วนกลาง" ต้องกระจายกันทำ (ห้ามคนเดียวเหมา)
-        // หรือ ถ้าเป็นเว็บอื่นๆ แล้วว่างเปล่า ก็ดึงทุกคนมากระจายงานแบบเดียวกัน
         if (web === 'หน้าที่ส่วนกลาง' || (primaryUsers.length === 0 && activeTrainers.length > 0)) {
-            
             let pool = activeTrainers.length > 0 ? activeTrainers : primaryUsers;
             
             webTasks.forEach((task, tIdx) => {
                 if (pool.length > 0) {
-                    // ดึงพนักงานมา 1 คน แล้วขยับ Index ไปคนถัดไปทันที (เวียนเทียน)
                     let u = pool[globalPoolIndex % pool.length];
-                    
                     if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
                     if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
-                    
                     userTaskRoles[u.id][web][tIdx] = 'job';
                     globalPoolIndex++; 
                 }
             });
         } else {
-            // สำหรับเว็บปกติที่มีคนถูกจัดมาลงแล้ว ก็ให้หารงานกันเฉพาะคนที่ลงเว็บนั้น
             primaryUsers.sort((a,b) => a.username.localeCompare(b.username));
             webTasks.forEach((task, tIdx) => {
                 if (primaryUsers.length > 0) {
@@ -2030,14 +2035,12 @@ window.renderTrainerOdMatrix = function(rosterData) {
 
                     if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
                     if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
-                    
                     userTaskRoles[u.id][web][tIdx] = 'job';
                 }
             });
         }
     });
 
-    // ส่วนของงานรอง (Sup)
     for (const pWeb in rosterData) {
         let standbyUsers = (rosterData[pWeb] || []).filter(u => u.secondary_team && matrixWebsites.includes(u.secondary_team) && !u.username.includes('ขาดคน'));
         standbyUsers.sort((a,b) => a.username.localeCompare(b.username));
@@ -2078,7 +2081,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
         if (webTasks.length === 0) webTasks = ['-'];
 
         let bgColor = webColors[web] || 'bg-slate-700 text-white';
-        
         html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-sm tracking-wide od-divider ${bgColor}">${web}</th>`;
     });
     html += `</tr><tr>`;
@@ -2162,14 +2164,19 @@ window.renderTrainerOdMatrix = function(rosterData) {
                         let selSup = role === 'sup' ? 'selected' : '';
                         let selOff = role === 'off' ? 'selected' : '';
 
-                        let selectClass = "text-xs p-1 rounded outline-none cursor-pointer border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition ";
+                        // เพิ่ม class สำหรับล็อค (cursorClass)
+                        let selectClass = `text-xs p-1 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition `;
                         if (role === 'job') selectClass += "bg-green-50 dark:bg-green-900/30 text-green-600 border-green-300 dark:border-green-700";
                         else if (role === 'sup') selectClass += "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 border-yellow-300 dark:border-yellow-700";
                         else if (role === 'off') selectClass += "bg-gray-100 dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
                         else selectClass += "bg-white dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
 
+                        // สร้าง event onchange เฉพาะเมื่อเป็น Admin เท่านั้น
+                        let onChangeAttr = canEdit ? `onchange="this.className = this.options[this.selectedIndex].className + ' text-xs p-1 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition'"` : '';
+
+                        // ใส่ disableAttr เพื่อป้องกันการคลิก
                         html += `<td class="border border-slate-300 dark:border-slate-700 p-1 ${dividerClass}">
-                            <select class="${selectClass}" onchange="this.className = this.options[this.selectedIndex].className + ' text-xs p-1 rounded outline-none cursor-pointer border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition'">
+                            <select class="${selectClass}" ${disableAttr} ${onChangeAttr}>
                                 <option value="not" class="bg-white dark:bg-slate-800 text-gray-500" ${selNot}>🚫 Not</option>
                                 <option value="job" class="bg-green-50 dark:bg-green-900/30 text-green-600" ${selJob}>✅ Job</option>
                                 <option value="sup" class="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600" ${selSup}>👉 Sup</option>
