@@ -1946,7 +1946,6 @@ window.onDutySearch = function() {
 };
 
 // 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ และสุ่มแจกงานอัตโนมัติ
-// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ และสุ่มแจกงานอัตโนมัติ
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
@@ -1954,11 +1953,22 @@ window.renderTrainerOdMatrix = function(rosterData) {
     // ใช้รายชื่อเว็บตายตัวตามที่คุณกำหนด เพื่อให้แสดงครบทุกเว็บแน่นอน
     const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
 
+    // 🌟 ดึงค่าตัวกรองกะปัจจุบัน (จาก Dropdown ด้านบน)
+    const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
+
     // ดึงรายชื่อพนักงานที่เป็นผู้สอน OD 
     const staffList = GLOBAL_USER_LIST.filter(u => {
-        if (u.department === 'ODQL' || u.department === 'TRAINER_OD') return true;
-        if (u.department === 'OD' && (u.role === 'trainer' || u.role === 'TRAINER')) return true;
-        return false;
+        let isOdTrainer = false;
+        if (u.department === 'ODQL' || u.department === 'TRAINER_OD') isOdTrainer = true;
+        if (u.department === 'OD' && (u.role === 'trainer' || u.role === 'TRAINER')) isOdTrainer = true;
+        
+        if (!isOdTrainer) return false;
+
+        // 🌟 กรองกะให้ตรงกับที่เลือก (ข้ามคนที่ไม่ตรงกะ)
+        if (shiftFilter !== 'all') {
+             if (u.allowed_shift !== shiftFilter && u.allowed_shift !== 'all') return false;
+        }
+        return true;
     });
 
     // ดึงรายชื่อคนที่ลาหยุดในกะนี้
