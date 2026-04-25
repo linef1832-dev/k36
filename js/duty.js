@@ -1951,15 +1951,13 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ สุ่มแจกงาน และสีไม่ซ้ำ
+// 🟢 อัปเดตตาราง OD ให้สุ่มแจกงานครอบคลุมทุกหัวข้อ และแบ่งเส้นเว็บชัดเจน
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
 
-    // ใช้รายชื่อเว็บตายตัวตามที่คุณกำหนด เพื่อให้แสดงครบทุกเว็บแน่นอน
     const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
 
-    // 🎨 กล่องตั้งค่าสีของหัวเว็บ (ผมเลือกสีที่มีในระบบให้ชัวร์ๆ จะได้ไม่พังอีกครับ)
     const webColors = {
         'Jun88': 'bg-blue-600 text-white',
         'MK8': 'bg-black text-yellow-400',
@@ -1975,10 +1973,8 @@ window.renderTrainerOdMatrix = function(rosterData) {
         'หน้าที่ส่วนกลาง': 'bg-indigo-900 text-amber-400'
     };
 
-    // 🌟 ดึงค่าตัวกรองกะปัจจุบัน (จาก Dropdown ด้านบน)
     const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
 
-    // ดึงรายชื่อพนักงานที่เป็นผู้สอน OD 
     const staffList = GLOBAL_USER_LIST.filter(u => {
         let isOdTrainer = false;
         if (u.department === 'ODQL' || u.department === 'TRAINER_OD') isOdTrainer = true;
@@ -1986,40 +1982,39 @@ window.renderTrainerOdMatrix = function(rosterData) {
         
         if (!isOdTrainer) return false;
 
-        // 🌟 กรองกะให้ตรงกับที่เลือก (ข้ามคนที่ไม่ตรงกะ)
         if (shiftFilter !== 'all') {
              if (u.allowed_shift !== shiftFilter && u.allowed_shift !== 'all') return false;
         }
         return true;
     });
 
-    // ดึงรายชื่อคนที่ลาหยุดในกะนี้
     const leaveIds = new Set(window.currentDutyLeaveData.map(l => String(l.user_id)));
 
-    // 🌟 สร้าง Mapping สำหรับสุ่มแจกงาน (Job/Sup) อัตโนมัติ
     let userTaskRoles = {}; 
 
     matrixWebsites.forEach(web => {
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
         
-        // ดึงรายชื่อคนที่ถูกระบบสุ่มให้เป็น "เว็บหลัก"
         let primaryUsers = (rosterData[web] || []).filter(u => !u.username.includes('ขาดคน'));
-        
-        // เรียงพนักงานตามชื่อเพื่อให้ผลลัพธ์การสุ่มคงที่เวลา Refresh ไม่กระพริบไปมา
         primaryUsers.sort((a,b) => a.username.localeCompare(b.username));
 
-        primaryUsers.forEach((u, idx) => {
-            if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
-            if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
-            
-            // สุ่มแจกงานในเว็บนั้นให้แบบกระจายเท่าๆ กัน (Job)
-            let taskIndex = idx % webTasks.length; 
-            userTaskRoles[u.id][web][taskIndex] = 'job';
+        // 🌟 แก้ไข: วนลูปตาม "จำนวนหัวข้องาน" แทนจำนวนคน
+        // เพื่อรับประกันว่าทุกหัวข้อต้องมีคนทำ และถ้าคนน้อยกว่าหัวข้อ พนักงาน 1 คนจะได้งานเบิ้ลไปเลย
+        webTasks.forEach((task, tIdx) => {
+            if (primaryUsers.length > 0) {
+                // วนลูปให้คนรับงานตามลำดับ ถ้าเกินจำนวนคนก็วนกลับมาคนแรกใหม่
+                let uIndex = tIdx % primaryUsers.length;
+                let u = primaryUsers[uIndex];
+
+                if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
+                if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
+                
+                userTaskRoles[u.id][web][tIdx] = 'job';
+            }
         });
     });
 
-    // 🌟 แจกงานรอง (Sup) สำหรับคนที่โดนสุ่มให้สแตนด์บายเว็บนี้
     for (const pWeb in rosterData) {
         let standbyUsers = (rosterData[pWeb] || []).filter(u => u.secondary_team && matrixWebsites.includes(u.secondary_team) && !u.username.includes('ขาดคน'));
         standbyUsers.sort((a,b) => a.username.localeCompare(b.username));
@@ -2032,10 +2027,14 @@ window.renderTrainerOdMatrix = function(rosterData) {
             let sWebTasks = customDutyRoles[sWeb] || customDutyRoles[(sWeb === 'VV72' ? 'Vv72' : sWeb)] || ['ไม่มีหัวข้อ'];
             if(sWebTasks.length === 0) sWebTasks = ['-'];
             
-            // แจกงาน sup แบบสุ่มให้ตรงกับหัวข้อที่ไม่ทับซ้อนเกินไป
+            // หาตำแหน่งที่ยังไม่ได้เป็น Job เพื่อลงตำแหน่ง Sup
             let sTaskIndex = (idx + 1) % sWebTasks.length;
-            if (userTaskRoles[u.id][sWeb][sTaskIndex] !== 'job') {
-                userTaskRoles[u.id][sWeb][sTaskIndex] = 'sup';
+            for (let offset = 0; offset < sWebTasks.length; offset++) {
+                let currentTry = (sTaskIndex + offset) % sWebTasks.length;
+                if (userTaskRoles[u.id][sWeb][currentTry] !== 'job') {
+                    userTaskRoles[u.id][sWeb][currentTry] = 'sup';
+                    break;
+                }
             }
         });
     }
@@ -2043,35 +2042,33 @@ window.renderTrainerOdMatrix = function(rosterData) {
     let html = `<div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
         <table class="w-full text-center border-collapse text-sm whitespace-nowrap dark:text-white">`;
     
-    // ---------------- สร้างหัวตาราง (Header) แถวแรก ชื่อเว็บ ----------------
     html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b border-slate-400 dark:border-slate-700"><tr>`;
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[1%] whitespace-nowrap text-sm">กะ</th>`;
-    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[180px] min-w-[180px] whitespace-nowrap text-sm">รายชื่อผู้ดูแล</th>`;
+    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[180px] min-w-[180px] whitespace-nowrap text-sm border-r-[3px] border-r-slate-800 dark:border-r-black">รายชื่อผู้ดูแล</th>`;
     
     matrixWebsites.forEach(web => {
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
 
-        // ดึงสีเว็บจากกล่องที่เราสร้างไว้
         let bgColor = webColors[web] || 'bg-slate-700 text-white';
         
-        html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-sm tracking-wide ${bgColor}">${web}</th>`;
+        // 🌟 เพิ่มเส้นขอบหนาสีดำ (border-r-[3px] border-r-slate-800) ขั้นระหว่างเว็บ
+        html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-sm tracking-wide border-r-[3px] border-r-slate-800 dark:border-r-black ${bgColor}">${web}</th>`;
     });
     html += `</tr><tr>`;
     
-    // ---------------- สร้างหัวตาราง (Header) แถวที่สอง หัวข้องาน ----------------
     matrixWebsites.forEach(web => {
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
         
-        webTasks.forEach(task => {
-            // 🌟 แก้ไข: คืนค่าสีหัวข้อย่อยให้เป็นสีทึบของตารางปกติ จะได้ดูเหมือนเป็นหัวตาราง ไม่กลืนกับข้อมูล
-            html += `<th class="border border-slate-300 dark:border-slate-700 p-2 text-[11px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-gray-300 min-w-[90px] max-w-[120px] truncate" title="${task}">${task}</th>`;
+        webTasks.forEach((task, tIdx) => {
+            // 🌟 เพิ่มเส้นขอบหนาสีดำ เฉพาะคอลัมน์สุดท้ายของเว็บนั้นๆ
+            let thickBorder = (tIdx === webTasks.length - 1) ? 'border-r-[3px] border-r-slate-800 dark:border-r-black' : '';
+            html += `<th class="border border-slate-300 dark:border-slate-700 p-2 text-[11px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-gray-300 min-w-[90px] max-w-[120px] truncate ${thickBorder}" title="${task}">${task}</th>`;
         });
     });
     html += `</tr></thead><tbody>`;
 
-   // ---------------- สร้างแถวพนักงาน ----------------
     const shiftGroups = {};
     staffList.forEach(u => {
         const s = u.allowed_shift || 'all';
@@ -2112,20 +2109,22 @@ window.renderTrainerOdMatrix = function(rosterData) {
             let nameColor = isLeave ? 'text-red-500' : 'text-green-600 dark:text-green-400';
             let leaveTag = isLeave ? '<span class="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm ml-1">ลาหยุด</span>' : '';
             
-            html += `<td class="border border-slate-300 dark:border-slate-700 p-2 text-left font-bold ${nameColor} pl-3 text-sm">
+            // 🌟 ใส่ขอบหนาที่ท้ายรายชื่อด้วย เพื่อให้เส้นยาวต่อกันลงมา
+            html += `<td class="border border-slate-300 dark:border-slate-700 p-2 text-left font-bold ${nameColor} pl-3 text-sm border-r-[3px] border-r-slate-800 dark:border-r-black">
                 <div class="flex items-center">
                     <span class="uppercase">${user.username}</span> ${leaveTag}
                 </div>
             </td>`;
             
-            // วนลูปวาดกล่องตัวเลือก (Dropdown)
             matrixWebsites.forEach(web => {
                 let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
                 if (webTasks.length === 0) webTasks = ['-'];
                 
                 webTasks.forEach((task, tIdx) => {
+                    let thickBorder = (tIdx === webTasks.length - 1) ? 'border-r-[3px] border-r-slate-800 dark:border-r-black' : '';
+
                     if (task === '-') {
-                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 bg-gray-100 dark:bg-slate-800/50"></td>`;
+                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 bg-gray-100 dark:bg-slate-800/50 ${thickBorder}"></td>`;
                     } else {
                         let role = 'not';
                         if (isLeave) {
@@ -2145,7 +2144,7 @@ window.renderTrainerOdMatrix = function(rosterData) {
                         else if (role === 'off') selectClass += "bg-gray-100 dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
                         else selectClass += "bg-white dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
 
-                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1">
+                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1 ${thickBorder}">
                             <select class="${selectClass}" onchange="this.className = this.options[this.selectedIndex].className + ' text-xs p-1 rounded outline-none cursor-pointer border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition'">
                                 <option value="not" class="bg-white dark:bg-slate-800 text-gray-500" ${selNot}>🚫 Not</option>
                                 <option value="job" class="bg-green-50 dark:bg-green-900/30 text-green-600" ${selJob}>✅ Job</option>
