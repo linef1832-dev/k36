@@ -47,16 +47,19 @@ const TEAM_COLORS = {
 };
 
 window.syncTeamOrder = function() {
-    if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
-        const mode = document.getElementById('trainerTaskMode') ? document.getElementById('trainerTaskMode').value : 'normal';
-        if (mode === 'telegram') sortedTeams = ['Telegram']; 
-        else sortedTeams = ['สอนงาน', 'Telegram'];
-    } else {
-        const savedOrder = JSON.parse(localStorage.getItem('duty_team_order') || '[]');
-        let validSaved = savedOrder.filter(t => TEAM_LIST.includes(t));
-        TEAM_LIST.forEach(t => { if(!validSaved.includes(t)) validSaved.push(t); });
-        sortedTeams = validSaved;
+    // ลบเงื่อนไขดักของผู้สอนออก ให้ทุกคนดึงรายชื่อเว็บจาก TEAM_LIST เหมือนกันหมด
+    const savedOrder = JSON.parse(localStorage.getItem('duty_team_order') || '[]');
+    let validSaved = savedOrder.filter(t => TEAM_LIST.includes(t));
+    
+    // ดึงเว็บมาตรฐานทั้งหมดมาใส่
+    TEAM_LIST.forEach(t => { if(!validSaved.includes(t)) validSaved.push(t); });
+    
+    // เติม หน้าที่ส่วนกลาง ต่อท้ายเสมอ
+    if (!validSaved.includes('หน้าที่ส่วนกลาง')) {
+        validSaved.push('หน้าที่ส่วนกลาง');
     }
+    
+    sortedTeams = validSaved;
 }
 
 window.moveTeam = function(teamName, direction) {
@@ -217,13 +220,14 @@ window.switchDutyDept = function(dept) {
     
     const filterTrainer = document.getElementById('trainerDeptFilterContainer');
     
+    // โชว์ตัวกรองแผนกผู้สอนตามปกติ
     if (dept === 'AMQL' || dept === 'ODQL' || dept.startsWith('TRAINER')) {
         if (filterTrainer) filterTrainer.classList.remove('hidden');
     } else {
         if (filterTrainer) filterTrainer.classList.add('hidden');
     }
     
-    // บังคับซ่อนช่องเลือกหมวดตลอดเวลา (เผื่อยังลบ HTML ออกไม่หมด)
+    // บังคับซ่อนช่องเลือกหมวดตลอดเวลา
     const taskModeContainer = document.getElementById('trainerTaskModeContainer');
     if (taskModeContainer) { taskModeContainer.classList.add('hidden'); taskModeContainer.classList.remove('flex'); }
     
