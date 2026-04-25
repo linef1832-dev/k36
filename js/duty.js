@@ -1951,12 +1951,12 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD เพิ่มกฎจัดความสำคัญหัวข้อตามกะ (เช้าเน้นโปร / ดึกเน้นแนะนำเพื่อน)
+// 🟢 อัปเดตตาราง OD เพิ่มกฎ "แบนงานหลักข้ามกะ" เด็ดขาด (เช้าห้ามแนะนำเพื่อน, ดึกห้ามคำขอโปร)
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
 
-    // 🔒 เช็คสิทธิ์การแก้ไข
+    // 🔒 เช็คสิทธิ์การแก้ไข (ถ้าเป็นผู้สอน จะแก้ไขหน้าตารางของตัวเองไม่ได้)
     let canEdit = window.isDutyAdmin();
     if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
         if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
@@ -2014,6 +2014,10 @@ window.renderTrainerOdMatrix = function(rosterData) {
             let pool = activeTrainers.length > 0 ? activeTrainers : primaryUsers;
             
             webTasks.forEach((task, tIdx) => {
+                // 🌟 กฎเหล็ก: แบนงานหลักข้ามกะ
+                if (shiftFilter === 'กะเช้า' && task === 'แนะนำเพื่อน') return;
+                if (shiftFilter === 'กะดึก' && task === 'คำขอโปร') return;
+
                 if (pool.length > 0) {
                     if (web === 'หน้าที่ส่วนกลาง' && task === 'เคสเทเลแกรม') {
                         let uJob1 = pool[globalPoolIndex % pool.length];
@@ -2058,6 +2062,10 @@ window.renderTrainerOdMatrix = function(rosterData) {
             
             if (web === 'F168') {
                 webTasks.forEach((task, tIdx) => {
+                    // 🌟 กฎเหล็ก: แบนงานหลักข้ามกะ
+                    if (shiftFilter === 'กะเช้า' && task === 'แนะนำเพื่อน') return;
+                    if (shiftFilter === 'กะดึก' && task === 'คำขอโปร') return;
+
                     if (primaryUsers.length > 0) {
                         let uJob1 = primaryUsers[tIdx % primaryUsers.length];
                         if (!userTaskRoles[uJob1.id]) userTaskRoles[uJob1.id] = {};
@@ -2089,37 +2097,38 @@ window.renderTrainerOdMatrix = function(rosterData) {
                     }
                 });
             } else {
-                // 🌟 กฎใหม่: เรียงลำดับความสำคัญของหัวข้องานตามกะ (Shift-based priority)
-                let taskIndices = webTasks.map((t, i) => i);
-                taskIndices.sort((a, b) => {
+                // 🌟 เว็บปกติอื่นๆ: ดักจับและ "แบน" หัวข้อที่ไม่ตรงกะทิ้งไปเลย
+                let allowedTaskIndices = [];
+                webTasks.forEach((task, i) => {
+                    if (shiftFilter === 'กะเช้า' && task === 'แนะนำเพื่อน') return; 
+                    if (shiftFilter === 'กะดึก' && task === 'คำขอโปร') return; 
+                    allowedTaskIndices.push(i);
+                });
+
+                // เรียงลำดับความสำคัญของหัวข้อที่รอดจากการแบน
+                allowedTaskIndices.sort((a, b) => {
                     let taskA = webTasks[a];
                     let taskB = webTasks[b];
-                    
                     const getScore = (task) => {
                         if (task === 'ถอนเงิน') return 100;
-                        // กะดึก: บังคับ "แนะนำเพื่อน" สำคัญเป็นอันดับ 2
-                        if (shiftFilter === 'กะดึก' && task === 'แนะนำเพื่อน') return 90;
-                        // กะเช้า: บังคับ "คำขอโปร" สำคัญเป็นอันดับ 2
                         if (shiftFilter === 'กะเช้า' && task === 'คำขอโปร') return 90;
-                        
+                        if (shiftFilter === 'กะดึก' && task === 'แนะนำเพื่อน') return 90;
                         if (task === 'ตรวจถอนเงิน') return 80;
                         if (task === 'คำขอโปร') return 70;
                         if (task === 'แนะนำเพื่อน') return 60;
                         return 50;
                     };
-                    
-                    let scoreDiff = getScore(taskB) - getScore(taskA);
-                    return scoreDiff !== 0 ? scoreDiff : a - b;
+                    return getScore(taskB) - getScore(taskA);
                 });
 
-                // กระจาย Job ตามลำดับความสำคัญ
-                primaryUsers.forEach((u, pIdx) => {
-                    // ดึงหัวข้องานที่ความสำคัญสูงสุดก่อน (ตามที่เรียงคะแนนไว้)
-                    let tIdx = taskIndices[pIdx % taskIndices.length];
-                    if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
-                    if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
-                    userTaskRoles[u.id][web][tIdx] = 'job';
-                });
+                if (allowedTaskIndices.length > 0) {
+                    primaryUsers.forEach((u, pIdx) => {
+                        let tIdx = allowedTaskIndices[pIdx % allowedTaskIndices.length];
+                        if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
+                        if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
+                        userTaskRoles[u.id][web][tIdx] = 'job';
+                    });
+                }
             }
         }
     });
