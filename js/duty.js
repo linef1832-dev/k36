@@ -151,10 +151,16 @@ window.applyDutyRoleUI = function() {
     const isTrainerDept = (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || (currentUser.department && currentUser.department.startsWith('TRAINER'))); 
     const isTrainerRole = (currentUser.role && currentUser.role.toLowerCase() === 'trainer');
 
-    let canManageDuty = false;
-    if (isAdmin) canManageDuty = true; 
-    else if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) canManageDuty = false; 
-    else canManageDuty = window.isDutyAdmin();
+    let canManageDuty = isAdmin;
+    
+    // 🚨 กฎเหล็กฮาร์ดโค้ด: ถ้ากำลังเปิดแท็บ "ผู้สอน" (AMQL, ODQL)
+    // คนที่จะมีสิทธิ์จัดการ/สุ่มเวรได้ ต้องเป็น 'admin' หรือ 'manager' เท่านั้น!
+    // ผู้สอน (trainer) จะถูกริบสิทธิ์ปุ่มจัดการทันที แม้ในหลังบ้านจะเผลอติ๊กสิทธิ์ไว้ก็ตาม
+    if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
+        if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+            canManageDuty = false; 
+        }
+    }
     
     const adminElements = document.querySelectorAll('.duty-admin-only');
     const trainerBtn = document.getElementById('btnDutyTRAINER'); 
