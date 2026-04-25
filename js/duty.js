@@ -1951,8 +1951,7 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ให้สุ่มแจกงานครอบคลุม และบังคับขีดเส้นแบ่งชัดเจน
-// 🟢 อัปเดตตาราง OD ให้สุ่มแจกงานครอบคลุมทุกเว็บ (กฎ: ห้ามเว็บว่างเด็ดขาด)
+// 🟢 อัปเดตตาราง OD ให้สุ่มแจกงานแบบ "เวียนเทียน" (กระจายคน ห้ามเหมาคนเดียว)
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
@@ -1980,7 +1979,9 @@ window.renderTrainerOdMatrix = function(rosterData) {
         let isOdTrainer = false;
         if (u.department === 'ODQL' || u.department === 'TRAINER_OD') isOdTrainer = true;
         if (u.department === 'OD' && (u.role === 'trainer' || u.role === 'TRAINER')) isOdTrainer = true;
+        
         if (!isOdTrainer) return false;
+
         if (shiftFilter !== 'all') {
              if (u.allowed_shift !== shiftFilter && u.allowed_shift !== 'all') return false;
         }
@@ -1989,11 +1990,11 @@ window.renderTrainerOdMatrix = function(rosterData) {
 
     const leaveIds = new Set(window.currentDutyLeaveData.map(l => String(l.user_id)));
     
-    // 🌟 รายชื่อพนักงานที่ว่างงานจริงๆ (ไม่ลา และเข้ากะนี้)
+    // 🌟 ดึงเฉพาะคนที่เข้ากะนี้ และ "ไม่ได้ลาหยุด" เพื่อมาช่วยกันรับงาน
     const activeTrainers = staffList.filter(u => !leaveIds.has(String(u.id)));
 
     let userTaskRoles = {}; 
-    let globalPoolIndex = 0; // ตัวนับสำหรับเวียนเทียนคนลงเว็บที่ว่าง
+    let globalPoolIndex = 0; // ตัวเวียนเทียนคนรับงาน
 
     matrixWebsites.forEach(web => {
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
@@ -2001,38 +2002,54 @@ window.renderTrainerOdMatrix = function(rosterData) {
         
         let primaryUsers = (rosterData[web] || []).filter(u => !u.username.includes('ขาดคน'));
         
-        // 🌟 กฎเหล็ก: ห้ามเว็บว่าง! 
-        // ถ้าเว็บนี้ไม่มีใครถูกสุ่มลง ให้ดึงคนจากคลัง Trainer ที่ว่างอยู่มาลงแทน (วนลูปเฉลี่ยๆ กันไป)
-        if (primaryUsers.length === 0 && activeTrainers.length > 0) {
-            let forcedUser = activeTrainers[globalPoolIndex % activeTrainers.length];
-            primaryUsers = [forcedUser];
-            globalPoolIndex++; // ขยับไปคนถัดไปสำหรับเว็บถัดไปที่ว่าง
+        // 🌟 กฎเหล็กใหม่: "หน้าที่ส่วนกลาง" ต้องกระจายกันทำ (ห้ามคนเดียวเหมา)
+        // หรือ ถ้าเป็นเว็บอื่นๆ แล้วว่างเปล่า ก็ดึงทุกคนมากระจายงานแบบเดียวกัน
+        if (web === 'หน้าที่ส่วนกลาง' || (primaryUsers.length === 0 && activeTrainers.length > 0)) {
+            
+            let pool = activeTrainers.length > 0 ? activeTrainers : primaryUsers;
+            
+            webTasks.forEach((task, tIdx) => {
+                if (pool.length > 0) {
+                    // ดึงพนักงานมา 1 คน แล้วขยับ Index ไปคนถัดไปทันที (เวียนเทียน)
+                    let u = pool[globalPoolIndex % pool.length];
+                    
+                    if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
+                    if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
+                    
+                    userTaskRoles[u.id][web][tIdx] = 'job';
+                    globalPoolIndex++; 
+                }
+            });
+        } else {
+            // สำหรับเว็บปกติที่มีคนถูกจัดมาลงแล้ว ก็ให้หารงานกันเฉพาะคนที่ลงเว็บนั้น
+            primaryUsers.sort((a,b) => a.username.localeCompare(b.username));
+            webTasks.forEach((task, tIdx) => {
+                if (primaryUsers.length > 0) {
+                    let uIndex = tIdx % primaryUsers.length;
+                    let u = primaryUsers[uIndex];
+
+                    if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
+                    if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
+                    
+                    userTaskRoles[u.id][web][tIdx] = 'job';
+                }
+            });
         }
-
-        primaryUsers.sort((a,b) => a.username.localeCompare(b.username));
-
-        webTasks.forEach((task, tIdx) => {
-            if (primaryUsers.length > 0) {
-                // เฉลี่ยงานให้คนในเว็บนั้นๆ (ถ้าคนน้อยกว่างาน 1 คนจะรับ Job มากกว่า 1 อย่าง)
-                let uIndex = tIdx % primaryUsers.length;
-                let u = primaryUsers[uIndex];
-
-                if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
-                if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
-                
-                userTaskRoles[u.id][web][tIdx] = 'job';
-            }
-        });
     });
 
     // ส่วนของงานรอง (Sup)
     for (const pWeb in rosterData) {
         let standbyUsers = (rosterData[pWeb] || []).filter(u => u.secondary_team && matrixWebsites.includes(u.secondary_team) && !u.username.includes('ขาดคน'));
+        standbyUsers.sort((a,b) => a.username.localeCompare(b.username));
+
         standbyUsers.forEach((u, idx) => {
             let sWeb = u.secondary_team;
             if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
             if (!userTaskRoles[u.id][sWeb]) userTaskRoles[u.id][sWeb] = {};
+            
             let sWebTasks = customDutyRoles[sWeb] || customDutyRoles[(sWeb === 'VV72' ? 'Vv72' : sWeb)] || ['ไม่มีหัวข้อ'];
+            if(sWebTasks.length === 0) sWebTasks = ['-'];
+            
             let sTaskIndex = (idx + 1) % sWebTasks.length;
             for (let offset = 0; offset < sWebTasks.length; offset++) {
                 let currentTry = (sTaskIndex + offset) % sWebTasks.length;
@@ -2058,13 +2075,18 @@ window.renderTrainerOdMatrix = function(rosterData) {
     
     matrixWebsites.forEach(web => {
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
+        if (webTasks.length === 0) webTasks = ['-'];
+
         let bgColor = webColors[web] || 'bg-slate-700 text-white';
+        
         html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-sm tracking-wide od-divider ${bgColor}">${web}</th>`;
     });
     html += `</tr><tr>`;
     
     matrixWebsites.forEach(web => {
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
+        if (webTasks.length === 0) webTasks = ['-'];
+        
         webTasks.forEach((task, tIdx) => {
             let dividerClass = (tIdx === webTasks.length - 1) ? 'od-divider' : '';
             html += `<th class="border border-slate-300 dark:border-slate-700 p-2 text-[11px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-gray-300 min-w-[90px] max-w-[120px] truncate ${dividerClass}" title="${task}">${task}</th>`;
@@ -2089,8 +2111,10 @@ window.renderTrainerOdMatrix = function(rosterData) {
     sortedShifts.forEach(shift => {
         const shiftStaff = shiftGroups[shift];
         if (shiftStaff.length === 0) return;
+
         let shiftNameDisplay = shift.replace('กะ', '');
         if (shift === 'all') shiftNameDisplay = 'อิสระ';
+
         let shiftColor = 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-200';
         if (shift === 'กะดึก') shiftColor = 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200';
         else if (shift === 'กะเช้า') shiftColor = 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200';
@@ -2100,21 +2124,29 @@ window.renderTrainerOdMatrix = function(rosterData) {
         shiftStaff.forEach((user, index) => {
             let isLeave = leaveIds.has(String(user.id));
             let rowOpacity = isLeave ? 'opacity-60 bg-red-50/50 dark:bg-red-900/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800/50';
+            
             html += `<tr class="${rowOpacity} transition border-b border-slate-200 dark:border-slate-700">`;
+            
             if (index === 0) {
                 html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black text-sm ${shiftColor}">${shiftNameDisplay}</td>`;
             }
+            
             let nameColor = isLeave ? 'text-red-500' : 'text-green-600 dark:text-green-400';
             let leaveTag = isLeave ? '<span class="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm ml-1">ลาหยุด</span>' : '';
+            
             html += `<td class="border border-slate-300 dark:border-slate-700 p-2 text-left font-bold ${nameColor} pl-3 text-sm od-divider">
                 <div class="flex items-center">
                     <span class="uppercase">${user.username}</span> ${leaveTag}
                 </div>
             </td>`;
+            
             matrixWebsites.forEach(web => {
                 let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
+                if (webTasks.length === 0) webTasks = ['-'];
+                
                 webTasks.forEach((task, tIdx) => {
                     let dividerClass = (tIdx === webTasks.length - 1) ? 'od-divider' : '';
+
                     if (task === '-') {
                         html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 bg-gray-100 dark:bg-slate-800/50 ${dividerClass}"></td>`;
                     } else {
@@ -2124,15 +2156,18 @@ window.renderTrainerOdMatrix = function(rosterData) {
                         } else if (userTaskRoles[user.id] && userTaskRoles[user.id][web] && userTaskRoles[user.id][web][tIdx]) {
                             role = userTaskRoles[user.id][web][tIdx];
                         }
+
                         let selNot = role === 'not' ? 'selected' : '';
                         let selJob = role === 'job' ? 'selected' : '';
                         let selSup = role === 'sup' ? 'selected' : '';
                         let selOff = role === 'off' ? 'selected' : '';
+
                         let selectClass = "text-xs p-1 rounded outline-none cursor-pointer border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition ";
                         if (role === 'job') selectClass += "bg-green-50 dark:bg-green-900/30 text-green-600 border-green-300 dark:border-green-700";
                         else if (role === 'sup') selectClass += "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 border-yellow-300 dark:border-yellow-700";
                         else if (role === 'off') selectClass += "bg-gray-100 dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
                         else selectClass += "bg-white dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
+
                         html += `<td class="border border-slate-300 dark:border-slate-700 p-1 ${dividerClass}">
                             <select class="${selectClass}" onchange="this.className = this.options[this.selectedIndex].className + ' text-xs p-1 rounded outline-none cursor-pointer border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition'">
                                 <option value="not" class="bg-white dark:bg-slate-800 text-gray-500" ${selNot}>🚫 Not</option>
@@ -2147,6 +2182,7 @@ window.renderTrainerOdMatrix = function(rosterData) {
             html += `</tr>`;
         });
     });
+
     html += `</tbody></table></div>`;
     matrixGrid.innerHTML = html;
 };
