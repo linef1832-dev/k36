@@ -1882,7 +1882,7 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ (ปรับขนาดให้อ่านง่ายขึ้น)
+// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ และสุ่มแจกงานอัตโนมัติ
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
@@ -1897,18 +1897,62 @@ window.renderTrainerOdMatrix = function(rosterData) {
         return false;
     });
 
+    // ดึงรายชื่อคนที่ลาหยุดในกะนี้
+    const leaveIds = new Set(window.currentDutyLeaveData.map(l => String(l.user_id)));
+
+    // 🌟 สร้าง Mapping สำหรับสุ่มแจกงาน (Job/Sup) อัตโนมัติ
+    let userTaskRoles = {}; 
+
+    matrixWebsites.forEach(web => {
+        let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
+        if (webTasks.length === 0) webTasks = ['-'];
+        
+        // ดึงรายชื่อคนที่ถูกระบบสุ่มให้เป็น "เว็บหลัก"
+        let primaryUsers = (rosterData[web] || []).filter(u => !u.username.includes('ขาดคน'));
+        
+        // เรียงพนักงานตามชื่อเพื่อให้ผลลัพธ์การสุ่มคงที่เวลา Refresh ไม่กระพริบไปมา
+        primaryUsers.sort((a,b) => a.username.localeCompare(b.username));
+
+        primaryUsers.forEach((u, idx) => {
+            if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
+            if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
+            
+            // สุ่มแจกงานในเว็บนั้นให้แบบกระจายเท่าๆ กัน (Job)
+            let taskIndex = idx % webTasks.length; 
+            userTaskRoles[u.id][web][taskIndex] = 'job';
+        });
+    });
+
+    // 🌟 แจกงานรอง (Sup) สำหรับคนที่โดนสุ่มให้สแตนด์บายเว็บนี้
+    for (const pWeb in rosterData) {
+        let standbyUsers = (rosterData[pWeb] || []).filter(u => u.secondary_team && matrixWebsites.includes(u.secondary_team) && !u.username.includes('ขาดคน'));
+        standbyUsers.sort((a,b) => a.username.localeCompare(b.username));
+
+        standbyUsers.forEach((u, idx) => {
+            let sWeb = u.secondary_team;
+            if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
+            if (!userTaskRoles[u.id][sWeb]) userTaskRoles[u.id][sWeb] = {};
+            
+            let sWebTasks = customDutyRoles[sWeb] || customDutyRoles[(sWeb === 'VV72' ? 'Vv72' : sWeb)] || ['ไม่มีหัวข้อ'];
+            if(sWebTasks.length === 0) sWebTasks = ['-'];
+            
+            // แจกงาน sup แบบสุ่มให้ตรงกับหัวข้อที่ไม่ทับซ้อนเกินไป
+            let sTaskIndex = (idx + 1) % sWebTasks.length;
+            if (userTaskRoles[u.id][sWeb][sTaskIndex] !== 'job') {
+                userTaskRoles[u.id][sWeb][sTaskIndex] = 'sup';
+            }
+        });
+    }
+
     let html = `<div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
         <table class="w-full text-center border-collapse text-sm whitespace-nowrap dark:text-white">`;
     
     // ---------------- สร้างหัวตาราง (Header) แถวแรก ชื่อเว็บ ----------------
     html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b-2 border-slate-400 dark:border-slate-600"><tr>`;
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[1%] whitespace-nowrap text-sm">กะ</th>`;
-    // ขยายช่องชื่อให้กว้างขึ้น
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[180px] min-w-[180px] whitespace-nowrap text-sm">รายชื่อผู้ดูแล</th>`;
     
     matrixWebsites.forEach(web => {
-        // ดึงหัวข้อจากหน้าตั้งค่า (ถ้าไม่มีเลย ให้แสดงเป็นขีด '-')
-        // ใช้ Vv72 เผื่อมีการสะกดต่างกัน
         let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
 
@@ -1924,7 +1968,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
         else if (web === 'BT678') bg = 'bg-red-500 text-white';
         else if (web === 'หน้าที่ส่วนกลาง') bg = 'bg-indigo-900 text-amber-400 border-b border-amber-500';
         
-        // ขยาย colspan ตามจำนวนหัวข้อของเว็บนั้นจริงๆ (ปรับฟอนต์ใหญ่ขึ้น)
         html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-sm tracking-wide ${bg}">${web}</th>`;
     });
     html += `</tr><tr>`;
@@ -1935,8 +1978,7 @@ window.renderTrainerOdMatrix = function(rosterData) {
         if (webTasks.length === 0) webTasks = ['-'];
         
         webTasks.forEach(task => {
-            // บังคับกว้าง 90px ฟอนต์ใหญ่ขึ้นเป็น xs
-            html += `<th class="border border-slate-300 dark:border-slate-700 p-2 text-xs bg-slate-50 dark:bg-slate-800 min-w-[90px]">${task}</th>`;
+            html += `<th class="border border-slate-300 dark:border-slate-700 p-2 text-[11px] bg-slate-50 dark:bg-slate-800 min-w-[90px] max-w-[120px] truncate" title="${task}">${task}</th>`;
         });
     });
     html += `</tr></thead><tbody>`;
@@ -1970,14 +2012,23 @@ window.renderTrainerOdMatrix = function(rosterData) {
         else if (shift === 'all') shiftColor = 'bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200';
 
         shiftStaff.forEach((user, index) => {
-            html += `<tr class="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition border-b border-slate-200 dark:border-slate-700">`;
+            // เช็คว่าพนักงานคนนี้ลาหยุดหรือไม่?
+            let isLeave = leaveIds.has(String(user.id));
+            let rowOpacity = isLeave ? 'opacity-60 bg-red-50/50 dark:bg-red-900/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800/50';
+            
+            html += `<tr class="${rowOpacity} transition border-b border-slate-200 dark:border-slate-700">`;
             
             if (index === 0) {
                 html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black text-sm ${shiftColor}">${shiftNameDisplay}</td>`;
             }
             
-            html += `<td class="border border-slate-300 dark:border-slate-700 p-2 text-left font-bold text-green-600 dark:text-green-400 pl-3 text-sm">
-                <span class="uppercase">${user.username}</span>
+            let nameColor = isLeave ? 'text-red-500' : 'text-green-600 dark:text-green-400';
+            let leaveTag = isLeave ? '<span class="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm ml-1">ลาหยุด</span>' : '';
+            
+            html += `<td class="border border-slate-300 dark:border-slate-700 p-2 text-left font-bold ${nameColor} pl-3 text-sm">
+                <div class="flex items-center">
+                    <span class="uppercase">${user.username}</span> ${leaveTag}
+                </div>
             </td>`;
             
             // วนลูปวาดกล่องตัวเลือก (Dropdown) ให้ตรงกับจำนวนหัวข้อเป๊ะๆ
@@ -1985,18 +2036,36 @@ window.renderTrainerOdMatrix = function(rosterData) {
                 let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
                 if (webTasks.length === 0) webTasks = ['-'];
                 
-                webTasks.forEach(task => {
-                    // ปิดช่องถ้าหัวข้อคือ "-"
+                webTasks.forEach((task, tIdx) => {
                     if (task === '-') {
-                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 bg-gray-100 dark:bg-slate-800"></td>`;
+                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 bg-gray-100 dark:bg-slate-800/50"></td>`;
                     } else {
-                        // ปรับขนาด dropdown ให้กว้างขึ้น และตัวหนังสือใหญ่ขึ้น
-                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5">
-                            <select class="text-xs p-1 rounded outline-none cursor-pointer bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm">
-                                <option value="not" class="text-red-500">🚫 Not</option>
-                                <option value="job" class="text-green-500">✅ Job</option>
-                                <option value="sup" class="text-yellow-600">👉 Sup</option>
-                                <option value="off" class="text-gray-500">⛔ OFF</option>
+                        // 🌟 ดึงผลการสุ่มมาใช้งาน หรือบังคับเป็น OFF ถ้าพนักงานลาหยุด
+                        let role = 'not';
+                        if (isLeave) {
+                            role = 'off';
+                        } else if (userTaskRoles[user.id] && userTaskRoles[user.id][web] && userTaskRoles[user.id][web][tIdx]) {
+                            role = userTaskRoles[user.id][web][tIdx];
+                        }
+
+                        let selNot = role === 'not' ? 'selected' : '';
+                        let selJob = role === 'job' ? 'selected' : '';
+                        let selSup = role === 'sup' ? 'selected' : '';
+                        let selOff = role === 'off' ? 'selected' : '';
+
+                        // 🌟 ทำสีพื้นหลังให้ตัวเลือกที่ถูกสุ่มมาให้เด่นๆ
+                        let selectClass = "text-xs p-1 rounded outline-none cursor-pointer border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition ";
+                        if (role === 'job') selectClass += "bg-green-50 dark:bg-green-900/30 text-green-600 border-green-300 dark:border-green-700";
+                        else if (role === 'sup') selectClass += "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 border-yellow-300 dark:border-yellow-700";
+                        else if (role === 'off') selectClass += "bg-gray-100 dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
+                        else selectClass += "bg-white dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
+
+                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1">
+                            <select class="${selectClass}" onchange="this.className = this.options[this.selectedIndex].className + ' text-xs p-1 rounded outline-none cursor-pointer border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition'">
+                                <option value="not" class="bg-white dark:bg-slate-800 text-gray-500" ${selNot}>🚫 Not</option>
+                                <option value="job" class="bg-green-50 dark:bg-green-900/30 text-green-600" ${selJob}>✅ Job</option>
+                                <option value="sup" class="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600" ${selSup}>👉 Sup</option>
+                                <option value="off" class="bg-gray-100 dark:bg-slate-800 text-gray-500" ${selOff}>⛔ OFF</option>
                             </select>
                         </td>`;
                     }
@@ -2008,4 +2077,5 @@ window.renderTrainerOdMatrix = function(rosterData) {
 
     html += `</tbody></table></div>`;
     matrixGrid.innerHTML = html;
+};
 };
