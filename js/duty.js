@@ -1951,7 +1951,7 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ให้สุ่มแจกงานแบบ "เวียนเทียน" (มีทั้ง Job และ Sup ครบทุกช่อง)
+// 🟢 อัปเดตตาราง OD เพิ่มกฎพิเศษ "เคสเทเลแกรม" ต้องมีหลัก 2 คน ที่เหลือ Sup หมด
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
@@ -2016,21 +2016,49 @@ window.renderTrainerOdMatrix = function(rosterData) {
             
             webTasks.forEach((task, tIdx) => {
                 if (pool.length > 0) {
-                    // 🌟 1. แจกงานหลัก (Job) ให้คนที่ถึงคิว
-                    let uJob = pool[globalPoolIndex % pool.length];
-                    if (!userTaskRoles[uJob.id]) userTaskRoles[uJob.id] = {};
-                    if (!userTaskRoles[uJob.id][web]) userTaskRoles[uJob.id][web] = {};
-                    userTaskRoles[uJob.id][web][tIdx] = 'job';
-                    
-                    // 🌟 2. แจกงานรอง (Sup) ให้ "คนถัดไป" ในคิว เพื่อให้มีคนช่วยทุกหัวข้อ
-                    if (pool.length > 1) {
-                        let uSup = pool[(globalPoolIndex + 1) % pool.length];
-                        if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
-                        if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
-                        userTaskRoles[uSup.id][web][tIdx] = 'sup';
-                    }
+                    // 🌟 กฎพิเศษสำหรับ "เคสเทเลแกรม" : มี Job 2 คน ที่เหลือเป็น Sup ทั้งหมด
+                    if (web === 'หน้าที่ส่วนกลาง' && task === 'เคสเทเลแกรม') {
+                        
+                        let uJob1 = pool[globalPoolIndex % pool.length];
+                        if (!userTaskRoles[uJob1.id]) userTaskRoles[uJob1.id] = {};
+                        if (!userTaskRoles[uJob1.id][web]) userTaskRoles[uJob1.id][web] = {};
+                        userTaskRoles[uJob1.id][web][tIdx] = 'job';
 
-                    globalPoolIndex++; 
+                        if (pool.length > 1) {
+                            let uJob2 = pool[(globalPoolIndex + 1) % pool.length];
+                            if (!userTaskRoles[uJob2.id]) userTaskRoles[uJob2.id] = {};
+                            if (!userTaskRoles[uJob2.id][web]) userTaskRoles[uJob2.id][web] = {};
+                            userTaskRoles[uJob2.id][web][tIdx] = 'job';
+                        }
+
+                        // คนที่เหลือทั้งหมดในคลังกะนี้ ให้จับเป็น Sup
+                        if (pool.length > 2) {
+                            for (let i = 2; i < pool.length; i++) {
+                                let uSup = pool[(globalPoolIndex + i) % pool.length];
+                                if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
+                                if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
+                                userTaskRoles[uSup.id][web][tIdx] = 'sup';
+                            }
+                        }
+                        
+                        globalPoolIndex += 2; // ขยับคิวไป 2 คนเพราะแจก Job ไป 2
+                        
+                    } else {
+                        // 🌟 หัวข้ออื่นๆ ทำงานตามปกติ (1 Job / 1 Sup)
+                        let uJob = pool[globalPoolIndex % pool.length];
+                        if (!userTaskRoles[uJob.id]) userTaskRoles[uJob.id] = {};
+                        if (!userTaskRoles[uJob.id][web]) userTaskRoles[uJob.id][web] = {};
+                        userTaskRoles[uJob.id][web][tIdx] = 'job';
+                        
+                        if (pool.length > 1) {
+                            let uSup = pool[(globalPoolIndex + 1) % pool.length];
+                            if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
+                            if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
+                            userTaskRoles[uSup.id][web][tIdx] = 'sup';
+                        }
+
+                        globalPoolIndex++; 
+                    }
                 }
             });
         } else {
