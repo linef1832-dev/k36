@@ -45,14 +45,6 @@
                         <option value="กะดึก">🌙 กะดึก</option>
                     </select>
                 </div>
-
-                <div id="trainerTaskModeContainer" class="hidden duty-admin-only items-center gap-2 border-r dark:border-slate-600 pr-3 pl-1">
-                    <span class="text-xs font-bold text-sky-500">หมวด:</span>
-                    <select id="trainerTaskMode" onchange="window.syncTeamOrder(); window.renderDutyAccessTable(); window.renderDutyRequirements(); window.refreshDutyData();" class="text-sm p-1.5 rounded font-bold text-sky-700 outline-none border border-sky-300 bg-sky-50 cursor-pointer shadow-sm dark:bg-slate-700 dark:text-sky-300 dark:border-slate-600">
-                        <option value="normal">🎓 งานสอนปกติ</option>
-                        <option value="telegram">✈️ ทีม Telegram</option>
-                    </select>
-                </div>
                 
                 <button id="btnGenerateRoster" onclick="generateDutyRoster()" class="duty-admin-only bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 disabled:bg-gray-500 disabled:cursor-not-allowed">
                     <span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่
