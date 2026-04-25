@@ -1881,8 +1881,8 @@ window.renderTrainerOdMatrix = function(rosterData) {
     
     // ---------------- สร้างหัวตาราง (Header) แถวแรก ชื่อเว็บ ----------------
     html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b-2 border-slate-400 dark:border-slate-600"><tr>`;
-    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-16">กะ</th>`;
-    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-32">รายชื่อผู้ดูแล</th>`;
+    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-[1%] whitespace-nowrap">กะ</th>`;
+    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-auto min-w-[200px]">รายชื่อผู้ดูแล</th>`;
     
     matrixWebsites.forEach(web => {
         // ดึงหัวข้อจากหน้าตั้งค่า (ถ้าไม่มีเลย ให้แสดงเป็นขีด '-')
