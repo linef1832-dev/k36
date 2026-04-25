@@ -1951,7 +1951,7 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ให้สุ่มแจกงานแบบ "เวียนเทียน" และ "ล็อคสิทธิ์แก้ไขสำหรับพนักงาน"
+// 🟢 อัปเดตตาราง OD ให้สุ่มแจกงานแบบ "เวียนเทียน" (มีทั้ง Job และ Sup ครบทุกช่อง)
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
@@ -1964,9 +1964,7 @@ window.renderTrainerOdMatrix = function(rosterData) {
         }
     }
     
-    // เตรียม Class สำหรับล็อคกล่องตัวเลือก
     let disableAttr = canEdit ? '' : 'disabled';
-    // appearance-none จะซ่อนลูกศร drop-down ทำให้ดูเหมือนเป็นป้ายข้อความธรรมดา
     let cursorClass = canEdit ? 'cursor-pointer' : 'cursor-default pointer-events-none appearance-none opacity-95';
 
     const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
@@ -2002,7 +2000,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
     });
 
     const leaveIds = new Set(window.currentDutyLeaveData.map(l => String(l.user_id)));
-    
     const activeTrainers = staffList.filter(u => !leaveIds.has(String(u.id)));
 
     let userTaskRoles = {}; 
@@ -2019,10 +2016,20 @@ window.renderTrainerOdMatrix = function(rosterData) {
             
             webTasks.forEach((task, tIdx) => {
                 if (pool.length > 0) {
-                    let u = pool[globalPoolIndex % pool.length];
-                    if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
-                    if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
-                    userTaskRoles[u.id][web][tIdx] = 'job';
+                    // 🌟 1. แจกงานหลัก (Job) ให้คนที่ถึงคิว
+                    let uJob = pool[globalPoolIndex % pool.length];
+                    if (!userTaskRoles[uJob.id]) userTaskRoles[uJob.id] = {};
+                    if (!userTaskRoles[uJob.id][web]) userTaskRoles[uJob.id][web] = {};
+                    userTaskRoles[uJob.id][web][tIdx] = 'job';
+                    
+                    // 🌟 2. แจกงานรอง (Sup) ให้ "คนถัดไป" ในคิว เพื่อให้มีคนช่วยทุกหัวข้อ
+                    if (pool.length > 1) {
+                        let uSup = pool[(globalPoolIndex + 1) % pool.length];
+                        if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
+                        if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
+                        userTaskRoles[uSup.id][web][tIdx] = 'sup';
+                    }
+
                     globalPoolIndex++; 
                 }
             });
@@ -2164,17 +2171,14 @@ window.renderTrainerOdMatrix = function(rosterData) {
                         let selSup = role === 'sup' ? 'selected' : '';
                         let selOff = role === 'off' ? 'selected' : '';
 
-                        // เพิ่ม class สำหรับล็อค (cursorClass)
                         let selectClass = `text-xs p-1 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition `;
                         if (role === 'job') selectClass += "bg-green-50 dark:bg-green-900/30 text-green-600 border-green-300 dark:border-green-700";
                         else if (role === 'sup') selectClass += "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 border-yellow-300 dark:border-yellow-700";
                         else if (role === 'off') selectClass += "bg-gray-100 dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
                         else selectClass += "bg-white dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
 
-                        // สร้าง event onchange เฉพาะเมื่อเป็น Admin เท่านั้น
                         let onChangeAttr = canEdit ? `onchange="this.className = this.options[this.selectedIndex].className + ' text-xs p-1 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[80px] text-center shadow-sm transition'"` : '';
 
-                        // ใส่ disableAttr เพื่อป้องกันการคลิก
                         html += `<td class="border border-slate-300 dark:border-slate-700 p-1 ${dividerClass}">
                             <select class="${selectClass}" ${disableAttr} ${onChangeAttr}>
                                 <option value="not" class="bg-white dark:bg-slate-800 text-gray-500" ${selNot}>🚫 Not</option>
