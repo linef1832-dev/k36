@@ -8,7 +8,16 @@ let currentRosterData = {};
 let window_currentAssignedStaff = [];
 
 window.isDutyAdmin = function() {
-    return window.hasUserPerm('duty_manage'); 
+    // ปรับชื่อแผนกให้ตรงกับรหัสสิทธิ์
+    let deptCheck = currentDutyDept;
+    if (deptCheck === 'TRAINER_AM') deptCheck = 'AMQL';
+    if (deptCheck === 'TRAINER_OD') deptCheck = 'ODQL';
+    
+    // ดึงค่าสิทธิ์ตามแท็บที่เปิดดูอยู่ เช่น duty_manage_am, duty_manage_od
+    const reqPerm = 'duty_manage_' + deptCheck.toLowerCase();
+    
+    // ระบบจะยอมให้จัดการได้ ถ้ามีสิทธิ์ตรงตามแผนก หรือมีสิทธิ์จัดการแบบรวม (เผื่อแอดมินหลัก)
+    return window.hasUserPerm(reqPerm) || window.hasUserPerm('duty_manage'); 
 };
 
 const LEAVE_STYLES = {
@@ -122,7 +131,7 @@ window.applyDutyRoleUI = function() {
     let canManageDuty = false;
     if (isAdmin) canManageDuty = true; 
     else if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) canManageDuty = false; 
-    else canManageDuty = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('duty_manage') : false; 
+    else canManageDuty = window.isDutyAdmin();
     
     const adminElements = document.querySelectorAll('.duty-admin-only');
     const trainerBtn = document.getElementById('btnDutyTRAINER'); 
