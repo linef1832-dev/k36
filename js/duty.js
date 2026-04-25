@@ -1951,12 +1951,12 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ขยายฟอนต์ให้อ่านง่าย & เพิ่มกฎพิเศษ F168
+// 🟢 อัปเดตตาราง OD เพิ่มกฎจัดความสำคัญหัวข้อตามกะ (เช้าเน้นโปร / ดึกเน้นแนะนำเพื่อน)
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
 
-    // 🔒 เช็คสิทธิ์การแก้ไข (ถ้าเป็นผู้สอน จะแก้ไขหน้าตารางของตัวเองไม่ได้)
+    // 🔒 เช็คสิทธิ์การแก้ไข
     let canEdit = window.isDutyAdmin();
     if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
         if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
@@ -1965,7 +1965,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
     }
     
     let disableAttr = canEdit ? '' : 'disabled';
-    // ทำให้คนไม่มีสิทธิ์คลิกไม่ได้ แต่สีไม่จางหายไป (opacity-100)
     let cursorClass = canEdit ? 'cursor-pointer hover:shadow-md' : 'cursor-default pointer-events-none appearance-none opacity-100'; 
 
     const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
@@ -2017,7 +2016,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
             webTasks.forEach((task, tIdx) => {
                 if (pool.length > 0) {
                     if (web === 'หน้าที่ส่วนกลาง' && task === 'เคสเทเลแกรม') {
-                        // กฎพิเศษ: เคสเทเลแกรม (หลัก 2 คน ที่เหลือ Sup)
                         let uJob1 = pool[globalPoolIndex % pool.length];
                         if (!userTaskRoles[uJob1.id]) userTaskRoles[uJob1.id] = {};
                         if (!userTaskRoles[uJob1.id][web]) userTaskRoles[uJob1.id][web] = {};
@@ -2040,7 +2038,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
                         }
                         globalPoolIndex += 2; 
                     } else {
-                        // หน้าที่ส่วนกลางอื่นๆ (หลัก 1, Sup 1)
                         let uJob = pool[globalPoolIndex % pool.length];
                         if (!userTaskRoles[uJob.id]) userTaskRoles[uJob.id] = {};
                         if (!userTaskRoles[uJob.id][web]) userTaskRoles[uJob.id][web] = {};
@@ -2060,7 +2057,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
             primaryUsers.sort((a,b) => a.username.localeCompare(b.username));
             
             if (web === 'F168') {
-                // 🌟 กฎพิเศษ: F168 (หลัก 2 คน ที่เหลือ Sup) ในแต่ละหัวข้อ
                 webTasks.forEach((task, tIdx) => {
                     if (primaryUsers.length > 0) {
                         let uJob1 = primaryUsers[tIdx % primaryUsers.length];
@@ -2074,9 +2070,16 @@ window.renderTrainerOdMatrix = function(rosterData) {
                             if (!userTaskRoles[uJob2.id][web]) userTaskRoles[uJob2.id][web] = {};
                             userTaskRoles[uJob2.id][web][tIdx] = 'job';
                         }
-                        
+
                         if (primaryUsers.length > 2) {
-                            for (let i = 2; i < primaryUsers.length; i++) {
+                            let uJob3 = primaryUsers[(tIdx + 2) % primaryUsers.length];
+                            if (!userTaskRoles[uJob3.id]) userTaskRoles[uJob3.id] = {};
+                            if (!userTaskRoles[uJob3.id][web]) userTaskRoles[uJob3.id][web] = {};
+                            userTaskRoles[uJob3.id][web][tIdx] = 'job';
+                        }
+                        
+                        if (primaryUsers.length > 3) {
+                            for (let i = 3; i < primaryUsers.length; i++) {
                                 let uSup = primaryUsers[(tIdx + i) % primaryUsers.length];
                                 if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
                                 if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
@@ -2086,9 +2089,33 @@ window.renderTrainerOdMatrix = function(rosterData) {
                     }
                 });
             } else {
-                // 🌟 เว็บปกติอื่นๆ: กระจาย Job ให้พนักงานที่มีชื่อในเว็บทุกคนเท่าๆ กัน
+                // 🌟 กฎใหม่: เรียงลำดับความสำคัญของหัวข้องานตามกะ (Shift-based priority)
+                let taskIndices = webTasks.map((t, i) => i);
+                taskIndices.sort((a, b) => {
+                    let taskA = webTasks[a];
+                    let taskB = webTasks[b];
+                    
+                    const getScore = (task) => {
+                        if (task === 'ถอนเงิน') return 100;
+                        // กะดึก: บังคับ "แนะนำเพื่อน" สำคัญเป็นอันดับ 2
+                        if (shiftFilter === 'กะดึก' && task === 'แนะนำเพื่อน') return 90;
+                        // กะเช้า: บังคับ "คำขอโปร" สำคัญเป็นอันดับ 2
+                        if (shiftFilter === 'กะเช้า' && task === 'คำขอโปร') return 90;
+                        
+                        if (task === 'ตรวจถอนเงิน') return 80;
+                        if (task === 'คำขอโปร') return 70;
+                        if (task === 'แนะนำเพื่อน') return 60;
+                        return 50;
+                    };
+                    
+                    let scoreDiff = getScore(taskB) - getScore(taskA);
+                    return scoreDiff !== 0 ? scoreDiff : a - b;
+                });
+
+                // กระจาย Job ตามลำดับความสำคัญ
                 primaryUsers.forEach((u, pIdx) => {
-                    let tIdx = pIdx % webTasks.length;
+                    // ดึงหัวข้องานที่ความสำคัญสูงสุดก่อน (ตามที่เรียงคะแนนไว้)
+                    let tIdx = taskIndices[pIdx % taskIndices.length];
                     if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
                     if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
                     userTaskRoles[u.id][web][tIdx] = 'job';
@@ -2112,7 +2139,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
             let sTaskIndex = (idx + 1) % sWebTasks.length;
             for (let offset = 0; offset < sWebTasks.length; offset++) {
                 let currentTry = (sTaskIndex + offset) % sWebTasks.length;
-                // แจก Sup เฉพาะช่องที่ยังไม่มีหน้าที่
                 if (!userTaskRoles[u.id][sWeb][currentTry]) {
                     userTaskRoles[u.id][sWeb][currentTry] = 'sup';
                     break;
@@ -2127,10 +2153,9 @@ window.renderTrainerOdMatrix = function(rosterData) {
             .dark .od-divider, html.dark .od-divider { border-right: 3px solid #000000 !important; }
         </style>
         <div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
-        <table class="w-full text-center border-collapse whitespace-nowrap dark:text-white">`; // 🌟 ลบ text-sm รวมออก ไปจัดการรายตัว
+        <table class="w-full text-center border-collapse whitespace-nowrap dark:text-white">`; 
     
     html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b border-slate-400 dark:border-slate-700"><tr>`;
-    // 🌟 ขยายฟอนต์หัวตาราง เป็น text-base (16px) และ [15px]
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[1%] whitespace-nowrap text-base">กะ</th>`;
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[180px] min-w-[180px] whitespace-nowrap text-[15px] od-divider">รายชื่อผู้ดูแล</th>`;
     
@@ -2139,7 +2164,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
         if (webTasks.length === 0) webTasks = ['-'];
 
         let bgColor = webColors[web] || 'bg-slate-700 text-white';
-        // 🌟 ขยายชื่อเว็บเป็น text-base
         html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-base tracking-wide od-divider ${bgColor}">${web}</th>`;
     });
     html += `</tr><tr>`;
@@ -2150,7 +2174,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
         
         webTasks.forEach((task, tIdx) => {
             let dividerClass = (tIdx === webTasks.length - 1) ? 'od-divider' : '';
-            // 🌟 ขยายหัวข้อย่อยเป็น text-[13px] font-bold อ่านง่ายขึ้น ไม่เล็กจิ๋ว
             html += `<th class="border border-slate-300 dark:border-slate-700 p-2.5 text-[13px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-gray-300 min-w-[100px] max-w-[130px] truncate ${dividerClass}" title="${task}">${task}</th>`;
         });
     });
@@ -2190,14 +2213,12 @@ window.renderTrainerOdMatrix = function(rosterData) {
             html += `<tr class="${rowOpacity} transition border-b border-slate-200 dark:border-slate-700">`;
             
             if (index === 0) {
-                // 🌟 ขยายตัวหนังสือกะ เป็น text-[15px]
                 html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black text-[15px] ${shiftColor}">${shiftNameDisplay}</td>`;
             }
             
             let nameColor = isLeave ? 'text-red-500' : 'text-green-600 dark:text-green-400';
             let leaveTag = isLeave ? '<span class="text-[11px] bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm ml-1">ลาหยุด</span>' : '';
             
-            // 🌟 ขยายชื่อพนักงาน เป็น text-[15px] 
             html += `<td class="border border-slate-300 dark:border-slate-700 p-3 text-left font-bold ${nameColor} pl-3 text-[15px] od-divider">
                 <div class="flex items-center">
                     <span class="uppercase">${user.username}</span> ${leaveTag}
@@ -2226,308 +2247,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
                         let selSup = role === 'sup' ? 'selected' : '';
                         let selOff = role === 'off' ? 'selected' : '';
 
-                        // 🌟 ขยายปุ่ม Dropdown ให้อ่านง่ายขึ้น (text-[13px] เพิ่ม padding เป็น p-1.5)
-                        let selectClass = `text-[13px] p-1.5 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm transition `;
-                        if (role === 'job') selectClass += "bg-green-50 dark:bg-green-900/30 text-green-600 border-green-300 dark:border-green-700";
-                        else if (role === 'sup') selectClass += "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 border-yellow-300 dark:border-yellow-700";
-                        else if (role === 'off') selectClass += "bg-gray-100 dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
-                        else selectClass += "bg-white dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
-
-                        let onChangeAttr = canEdit ? `onchange="this.className = this.options[this.selectedIndex].className + ' text-[13px] p-1.5 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm transition'"` : '';
-
-                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 ${dividerClass}">
-                            <select class="${selectClass}" ${disableAttr} ${onChangeAttr}>
-                                <option value="not" class="bg-white dark:bg-slate-800 text-gray-500" ${selNot}>🚫 Not</option>
-                                <option value="job" class="bg-green-50 dark:bg-green-900/30 text-green-600" ${selJob}>✅ Job</option>
-                                <option value="sup" class="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600" ${selSup}>👉 Sup</option>
-                                <option value="off" class="bg-gray-100 dark:bg-slate-800 text-gray-500" ${selOff}>⛔ OFF</option>
-                            </select>
-                        </td>`;
-                    }
-                });
-            });
-            html += `</tr>`;
-        });
-    });
-
-    html += `</tbody></table></div>`;
-    matrixGrid.innerHTML = html;
-};// 🟢 อัปเดตตาราง OD ขยายฟอนต์ให้อ่านง่าย & เพิ่มกฎพิเศษ F168
-window.renderTrainerOdMatrix = function(rosterData) {
-    const matrixGrid = document.getElementById('dutyMatrixGrid');
-    if (!matrixGrid) return;
-
-    // 🔒 เช็คสิทธิ์การแก้ไข (ถ้าเป็นผู้สอน จะแก้ไขหน้าตารางของตัวเองไม่ได้)
-    let canEdit = window.isDutyAdmin();
-    if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
-        if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
-            canEdit = false;
-        }
-    }
-    
-    let disableAttr = canEdit ? '' : 'disabled';
-    // ทำให้คนไม่มีสิทธิ์คลิกไม่ได้ แต่สีไม่จางหายไป (opacity-100)
-    let cursorClass = canEdit ? 'cursor-pointer hover:shadow-md' : 'cursor-default pointer-events-none appearance-none opacity-100'; 
-
-    const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
-
-    const webColors = {
-        'Jun88': 'bg-blue-600 text-white',
-        'MK8': 'bg-black text-yellow-400',
-        'VV72': 'bg-green-700 text-white',
-        'Vv72': 'bg-green-700 text-white',
-        'TH26': 'bg-gray-700 text-white',
-        'K188': 'bg-sky-500 text-white',
-        'BT678': 'bg-red-600 text-white',
-        'PG688': 'bg-amber-100 text-amber-900',
-        'JL69': 'bg-slate-600 text-white',
-        'NM9': 'bg-pink-600 text-white',
-        'F168': 'bg-orange-600 text-white',
-        'หน้าที่ส่วนกลาง': 'bg-indigo-900 text-amber-400'
-    };
-
-    const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
-
-    const staffList = GLOBAL_USER_LIST.filter(u => {
-        let isOdTrainer = false;
-        if (u.department === 'ODQL' || u.department === 'TRAINER_OD') isOdTrainer = true;
-        if (u.department === 'OD' && (u.role === 'trainer' || u.role === 'TRAINER')) isOdTrainer = true;
-        
-        if (!isOdTrainer) return false;
-        if (shiftFilter !== 'all') {
-             if (u.allowed_shift !== shiftFilter && u.allowed_shift !== 'all') return false;
-        }
-        return true;
-    });
-
-    const leaveIds = new Set(window.currentDutyLeaveData.map(l => String(l.user_id)));
-    const activeTrainers = staffList.filter(u => !leaveIds.has(String(u.id)));
-
-    let userTaskRoles = {}; 
-    let globalPoolIndex = 0; 
-
-    matrixWebsites.forEach(web => {
-        let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
-        if (webTasks.length === 0) webTasks = ['-'];
-        
-        let primaryUsers = (rosterData[web] || []).filter(u => !u.username.includes('ขาดคน'));
-        
-        if (web === 'หน้าที่ส่วนกลาง' || (primaryUsers.length === 0 && activeTrainers.length > 0)) {
-            let pool = activeTrainers.length > 0 ? activeTrainers : primaryUsers;
-            
-            webTasks.forEach((task, tIdx) => {
-                if (pool.length > 0) {
-                    if (web === 'หน้าที่ส่วนกลาง' && task === 'เคสเทเลแกรม') {
-                        // กฎพิเศษ: เคสเทเลแกรม (หลัก 2 คน ที่เหลือ Sup)
-                        let uJob1 = pool[globalPoolIndex % pool.length];
-                        if (!userTaskRoles[uJob1.id]) userTaskRoles[uJob1.id] = {};
-                        if (!userTaskRoles[uJob1.id][web]) userTaskRoles[uJob1.id][web] = {};
-                        userTaskRoles[uJob1.id][web][tIdx] = 'job';
-
-                        if (pool.length > 1) {
-                            let uJob2 = pool[(globalPoolIndex + 1) % pool.length];
-                            if (!userTaskRoles[uJob2.id]) userTaskRoles[uJob2.id] = {};
-                            if (!userTaskRoles[uJob2.id][web]) userTaskRoles[uJob2.id][web] = {};
-                            userTaskRoles[uJob2.id][web][tIdx] = 'job';
-                        }
-
-                        if (pool.length > 2) {
-                            for (let i = 2; i < pool.length; i++) {
-                                let uSup = pool[(globalPoolIndex + i) % pool.length];
-                                if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
-                                if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
-                                userTaskRoles[uSup.id][web][tIdx] = 'sup';
-                            }
-                        }
-                        globalPoolIndex += 2; 
-                    } else {
-                        // หน้าที่ส่วนกลางอื่นๆ (หลัก 1, Sup 1)
-                        let uJob = pool[globalPoolIndex % pool.length];
-                        if (!userTaskRoles[uJob.id]) userTaskRoles[uJob.id] = {};
-                        if (!userTaskRoles[uJob.id][web]) userTaskRoles[uJob.id][web] = {};
-                        userTaskRoles[uJob.id][web][tIdx] = 'job';
-                        
-                        if (pool.length > 1) {
-                            let uSup = pool[(globalPoolIndex + 1) % pool.length];
-                            if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
-                            if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
-                            userTaskRoles[uSup.id][web][tIdx] = 'sup';
-                        }
-                        globalPoolIndex++; 
-                    }
-                }
-            });
-        } else {
-            primaryUsers.sort((a,b) => a.username.localeCompare(b.username));
-            
-            if (web === 'F168') {
-                // 🌟 กฎพิเศษ: F168 (หลัก 2 คน ที่เหลือ Sup) ในแต่ละหัวข้อ
-                webTasks.forEach((task, tIdx) => {
-                    if (primaryUsers.length > 0) {
-                        let uJob1 = primaryUsers[tIdx % primaryUsers.length];
-                        if (!userTaskRoles[uJob1.id]) userTaskRoles[uJob1.id] = {};
-                        if (!userTaskRoles[uJob1.id][web]) userTaskRoles[uJob1.id][web] = {};
-                        userTaskRoles[uJob1.id][web][tIdx] = 'job';
-                        
-                        if (primaryUsers.length > 1) {
-                            let uJob2 = primaryUsers[(tIdx + 1) % primaryUsers.length];
-                            if (!userTaskRoles[uJob2.id]) userTaskRoles[uJob2.id] = {};
-                            if (!userTaskRoles[uJob2.id][web]) userTaskRoles[uJob2.id][web] = {};
-                            userTaskRoles[uJob2.id][web][tIdx] = 'job';
-                        }
-                        
-                        if (primaryUsers.length > 2) {
-                            for (let i = 2; i < primaryUsers.length; i++) {
-                                let uSup = primaryUsers[(tIdx + i) % primaryUsers.length];
-                                if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
-                                if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
-                                userTaskRoles[uSup.id][web][tIdx] = 'sup';
-                            }
-                        }
-                    }
-                });
-            } else {
-                // 🌟 เว็บปกติอื่นๆ: กระจาย Job ให้พนักงานที่มีชื่อในเว็บทุกคนเท่าๆ กัน
-                primaryUsers.forEach((u, pIdx) => {
-                    let tIdx = pIdx % webTasks.length;
-                    if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
-                    if (!userTaskRoles[u.id][web]) userTaskRoles[u.id][web] = {};
-                    userTaskRoles[u.id][web][tIdx] = 'job';
-                });
-            }
-        }
-    });
-
-    for (const pWeb in rosterData) {
-        let standbyUsers = (rosterData[pWeb] || []).filter(u => u.secondary_team && matrixWebsites.includes(u.secondary_team) && !u.username.includes('ขาดคน'));
-        standbyUsers.sort((a,b) => a.username.localeCompare(b.username));
-
-        standbyUsers.forEach((u, idx) => {
-            let sWeb = u.secondary_team;
-            if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
-            if (!userTaskRoles[u.id][sWeb]) userTaskRoles[u.id][sWeb] = {};
-            
-            let sWebTasks = customDutyRoles[sWeb] || customDutyRoles[(sWeb === 'VV72' ? 'Vv72' : sWeb)] || ['ไม่มีหัวข้อ'];
-            if(sWebTasks.length === 0) sWebTasks = ['-'];
-            
-            let sTaskIndex = (idx + 1) % sWebTasks.length;
-            for (let offset = 0; offset < sWebTasks.length; offset++) {
-                let currentTry = (sTaskIndex + offset) % sWebTasks.length;
-                // แจก Sup เฉพาะช่องที่ยังไม่มีหน้าที่
-                if (!userTaskRoles[u.id][sWeb][currentTry]) {
-                    userTaskRoles[u.id][sWeb][currentTry] = 'sup';
-                    break;
-                }
-            }
-        });
-    }
-
-    let html = `
-        <style>
-            .od-divider { border-right: 3px solid #64748b !important; }
-            .dark .od-divider, html.dark .od-divider { border-right: 3px solid #000000 !important; }
-        </style>
-        <div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
-        <table class="w-full text-center border-collapse whitespace-nowrap dark:text-white">`; // 🌟 ลบ text-sm รวมออก ไปจัดการรายตัว
-    
-    html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b border-slate-400 dark:border-slate-700"><tr>`;
-    // 🌟 ขยายฟอนต์หัวตาราง เป็น text-base (16px) และ [15px]
-    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[1%] whitespace-nowrap text-base">กะ</th>`;
-    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[180px] min-w-[180px] whitespace-nowrap text-[15px] od-divider">รายชื่อผู้ดูแล</th>`;
-    
-    matrixWebsites.forEach(web => {
-        let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
-        if (webTasks.length === 0) webTasks = ['-'];
-
-        let bgColor = webColors[web] || 'bg-slate-700 text-white';
-        // 🌟 ขยายชื่อเว็บเป็น text-base
-        html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-base tracking-wide od-divider ${bgColor}">${web}</th>`;
-    });
-    html += `</tr><tr>`;
-    
-    matrixWebsites.forEach(web => {
-        let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
-        if (webTasks.length === 0) webTasks = ['-'];
-        
-        webTasks.forEach((task, tIdx) => {
-            let dividerClass = (tIdx === webTasks.length - 1) ? 'od-divider' : '';
-            // 🌟 ขยายหัวข้อย่อยเป็น text-[13px] font-bold อ่านง่ายขึ้น ไม่เล็กจิ๋ว
-            html += `<th class="border border-slate-300 dark:border-slate-700 p-2.5 text-[13px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-gray-300 min-w-[100px] max-w-[130px] truncate ${dividerClass}" title="${task}">${task}</th>`;
-        });
-    });
-    html += `</tr></thead><tbody>`;
-
-    const shiftGroups = {};
-    staffList.forEach(u => {
-        const s = u.allowed_shift || 'all';
-        if (!shiftGroups[s]) shiftGroups[s] = [];
-        shiftGroups[s].push(u);
-    });
-
-    const shiftOrder = ['กะเช้า', 'กะกลาง', 'กะดึก', 'all'];
-    const sortedShifts = Object.keys(shiftGroups).sort((a, b) => {
-        let ia = shiftOrder.indexOf(a); if(ia === -1) ia = 99;
-        let ib = shiftOrder.indexOf(b); if(ib === -1) ib = 99;
-        return ia - ib;
-    });
-
-    sortedShifts.forEach(shift => {
-        const shiftStaff = shiftGroups[shift];
-        if (shiftStaff.length === 0) return;
-
-        let shiftNameDisplay = shift.replace('กะ', '');
-        if (shift === 'all') shiftNameDisplay = 'อิสระ';
-
-        let shiftColor = 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-200';
-        if (shift === 'กะดึก') shiftColor = 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200';
-        else if (shift === 'กะเช้า') shiftColor = 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200';
-        else if (shift === 'กะกลาง') shiftColor = 'bg-blue-200 text-blue-900 dark:bg-blue-900 dark:text-blue-200';
-        else if (shift === 'all') shiftColor = 'bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200';
-
-        shiftStaff.forEach((user, index) => {
-            let isLeave = leaveIds.has(String(user.id));
-            let rowOpacity = isLeave ? 'opacity-60 bg-red-50/50 dark:bg-red-900/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800/50';
-            
-            html += `<tr class="${rowOpacity} transition border-b border-slate-200 dark:border-slate-700">`;
-            
-            if (index === 0) {
-                // 🌟 ขยายตัวหนังสือกะ เป็น text-[15px]
-                html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black text-[15px] ${shiftColor}">${shiftNameDisplay}</td>`;
-            }
-            
-            let nameColor = isLeave ? 'text-red-500' : 'text-green-600 dark:text-green-400';
-            let leaveTag = isLeave ? '<span class="text-[11px] bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm ml-1">ลาหยุด</span>' : '';
-            
-            // 🌟 ขยายชื่อพนักงาน เป็น text-[15px] 
-            html += `<td class="border border-slate-300 dark:border-slate-700 p-3 text-left font-bold ${nameColor} pl-3 text-[15px] od-divider">
-                <div class="flex items-center">
-                    <span class="uppercase">${user.username}</span> ${leaveTag}
-                </div>
-            </td>`;
-            
-            matrixWebsites.forEach(web => {
-                let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
-                if (webTasks.length === 0) webTasks = ['-'];
-                
-                webTasks.forEach((task, tIdx) => {
-                    let dividerClass = (tIdx === webTasks.length - 1) ? 'od-divider' : '';
-
-                    if (task === '-') {
-                        html += `<td class="border border-slate-300 dark:border-slate-700 p-2 bg-gray-100 dark:bg-slate-800/50 ${dividerClass}"></td>`;
-                    } else {
-                        let role = 'not';
-                        if (isLeave) {
-                            role = 'off';
-                        } else if (userTaskRoles[user.id] && userTaskRoles[user.id][web] && userTaskRoles[user.id][web][tIdx]) {
-                            role = userTaskRoles[user.id][web][tIdx];
-                        }
-
-                        let selNot = role === 'not' ? 'selected' : '';
-                        let selJob = role === 'job' ? 'selected' : '';
-                        let selSup = role === 'sup' ? 'selected' : '';
-                        let selOff = role === 'off' ? 'selected' : '';
-
-                        // 🌟 ขยายปุ่ม Dropdown ให้อ่านง่ายขึ้น (text-[13px] เพิ่ม padding เป็น p-1.5)
                         let selectClass = `text-[13px] p-1.5 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm transition `;
                         if (role === 'job') selectClass += "bg-green-50 dark:bg-green-900/30 text-green-600 border-green-300 dark:border-green-700";
                         else if (role === 'sup') selectClass += "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 border-yellow-300 dark:border-yellow-700";
