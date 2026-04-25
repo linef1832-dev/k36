@@ -1951,7 +1951,7 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ขยายฟอนต์ให้อ่านง่าย & เพิ่มกฎพิเศษ F168
+// 🟢 อัปเดตตาราง OD ขยายฟอนต์ และปรับกฎพิเศษ F168 (Job 3 คน ที่เหลือ Sup)
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
@@ -2060,23 +2060,34 @@ window.renderTrainerOdMatrix = function(rosterData) {
             primaryUsers.sort((a,b) => a.username.localeCompare(b.username));
             
             if (web === 'F168') {
-                // 🌟 กฎพิเศษ: F168 (หลัก 2 คน ที่เหลือ Sup) ในแต่ละหัวข้อ
+                // 🌟 กฎพิเศษ: F168 (หลัก 3 คน ที่เหลือ Sup) ในแต่ละหัวข้อ
                 webTasks.forEach((task, tIdx) => {
                     if (primaryUsers.length > 0) {
+                        // Job 1
                         let uJob1 = primaryUsers[tIdx % primaryUsers.length];
                         if (!userTaskRoles[uJob1.id]) userTaskRoles[uJob1.id] = {};
                         if (!userTaskRoles[uJob1.id][web]) userTaskRoles[uJob1.id][web] = {};
                         userTaskRoles[uJob1.id][web][tIdx] = 'job';
                         
+                        // Job 2
                         if (primaryUsers.length > 1) {
                             let uJob2 = primaryUsers[(tIdx + 1) % primaryUsers.length];
                             if (!userTaskRoles[uJob2.id]) userTaskRoles[uJob2.id] = {};
                             if (!userTaskRoles[uJob2.id][web]) userTaskRoles[uJob2.id][web] = {};
                             userTaskRoles[uJob2.id][web][tIdx] = 'job';
                         }
-                        
+
+                        // Job 3
                         if (primaryUsers.length > 2) {
-                            for (let i = 2; i < primaryUsers.length; i++) {
+                            let uJob3 = primaryUsers[(tIdx + 2) % primaryUsers.length];
+                            if (!userTaskRoles[uJob3.id]) userTaskRoles[uJob3.id] = {};
+                            if (!userTaskRoles[uJob3.id][web]) userTaskRoles[uJob3.id][web] = {};
+                            userTaskRoles[uJob3.id][web][tIdx] = 'job';
+                        }
+                        
+                        // ที่เหลือเป็น Sup ให้หมด (เริ่มที่ index 3)
+                        if (primaryUsers.length > 3) {
+                            for (let i = 3; i < primaryUsers.length; i++) {
                                 let uSup = primaryUsers[(tIdx + i) % primaryUsers.length];
                                 if (!userTaskRoles[uSup.id]) userTaskRoles[uSup.id] = {};
                                 if (!userTaskRoles[uSup.id][web]) userTaskRoles[uSup.id][web] = {};
@@ -2127,10 +2138,9 @@ window.renderTrainerOdMatrix = function(rosterData) {
             .dark .od-divider, html.dark .od-divider { border-right: 3px solid #000000 !important; }
         </style>
         <div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
-        <table class="w-full text-center border-collapse whitespace-nowrap dark:text-white">`; // 🌟 ลบ text-sm รวมออก ไปจัดการรายตัว
+        <table class="w-full text-center border-collapse whitespace-nowrap dark:text-white">`; 
     
     html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b border-slate-400 dark:border-slate-700"><tr>`;
-    // 🌟 ขยายฟอนต์หัวตาราง เป็น text-base (16px) และ [15px]
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[1%] whitespace-nowrap text-base">กะ</th>`;
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[180px] min-w-[180px] whitespace-nowrap text-[15px] od-divider">รายชื่อผู้ดูแล</th>`;
     
@@ -2139,7 +2149,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
         if (webTasks.length === 0) webTasks = ['-'];
 
         let bgColor = webColors[web] || 'bg-slate-700 text-white';
-        // 🌟 ขยายชื่อเว็บเป็น text-base
         html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-base tracking-wide od-divider ${bgColor}">${web}</th>`;
     });
     html += `</tr><tr>`;
@@ -2150,7 +2159,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
         
         webTasks.forEach((task, tIdx) => {
             let dividerClass = (tIdx === webTasks.length - 1) ? 'od-divider' : '';
-            // 🌟 ขยายหัวข้อย่อยเป็น text-[13px] font-bold อ่านง่ายขึ้น ไม่เล็กจิ๋ว
             html += `<th class="border border-slate-300 dark:border-slate-700 p-2.5 text-[13px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-gray-300 min-w-[100px] max-w-[130px] truncate ${dividerClass}" title="${task}">${task}</th>`;
         });
     });
@@ -2190,14 +2198,12 @@ window.renderTrainerOdMatrix = function(rosterData) {
             html += `<tr class="${rowOpacity} transition border-b border-slate-200 dark:border-slate-700">`;
             
             if (index === 0) {
-                // 🌟 ขยายตัวหนังสือกะ เป็น text-[15px]
                 html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black text-[15px] ${shiftColor}">${shiftNameDisplay}</td>`;
             }
             
             let nameColor = isLeave ? 'text-red-500' : 'text-green-600 dark:text-green-400';
             let leaveTag = isLeave ? '<span class="text-[11px] bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm ml-1">ลาหยุด</span>' : '';
             
-            // 🌟 ขยายชื่อพนักงาน เป็น text-[15px] 
             html += `<td class="border border-slate-300 dark:border-slate-700 p-3 text-left font-bold ${nameColor} pl-3 text-[15px] od-divider">
                 <div class="flex items-center">
                     <span class="uppercase">${user.username}</span> ${leaveTag}
@@ -2226,7 +2232,6 @@ window.renderTrainerOdMatrix = function(rosterData) {
                         let selSup = role === 'sup' ? 'selected' : '';
                         let selOff = role === 'off' ? 'selected' : '';
 
-                        // 🌟 ขยายปุ่ม Dropdown ให้อ่านง่ายขึ้น (text-[13px] เพิ่ม padding เป็น p-1.5)
                         let selectClass = `text-[13px] p-1.5 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm transition `;
                         if (role === 'job') selectClass += "bg-green-50 dark:bg-green-900/30 text-green-600 border-green-300 dark:border-green-700";
                         else if (role === 'sup') selectClass += "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 border-yellow-300 dark:border-yellow-700";
