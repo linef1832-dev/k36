@@ -39,7 +39,7 @@ const TEAM_COLORS = {
     'JL69': { bg: 'bg-slate-500', text: 'text-white', border: 'border-slate-700', lightBg: 'bg-slate-200', lightText: 'text-slate-800' },
     'TH26': { bg: 'bg-gray-700', text: 'text-white', border: 'border-gray-900', lightBg: 'bg-gray-200', lightText: 'text-gray-800' },
     'VV72': { bg: 'bg-red-800', text: 'text-white', border: 'border-red-950', lightBg: 'bg-red-100', lightText: 'text-red-800' },
-    'Vv72': { bg: 'bg-green-700', text: 'text-white', border: 'border-green-900', lightBg: 'bg-green-100', lightText: 'text-green-800' }, // เพิ่มเผื่อไว้สะกดต่างกัน
+    'Vv72': { bg: 'bg-green-700', text: 'text-white', border: 'border-green-900', lightBg: 'bg-green-100', lightText: 'text-green-800' }, 
     'NM9': { bg: 'bg-pink-500', text: 'text-white', border: 'border-pink-700', lightBg: 'bg-pink-100', lightText: 'text-pink-800' },
     'สอนงาน': { bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-700', lightBg: 'bg-emerald-100', lightText: 'text-emerald-800' },
     'Telegram': { bg: 'bg-sky-500', text: 'text-white', border: 'border-sky-700', lightBg: 'bg-sky-100', lightText: 'text-sky-800' },
@@ -106,7 +106,11 @@ window.loadDutyAccessAndRoles = async function() {
     try {
         const { data } = await appDB.from('settings').select('*').in('key', ['duty_access_matrix', 'duty_custom_roles']);
         if(data) {
-           const rolesData = data.find(d => d.key === 'duty_custom_roles');
+            const accessData = data.find(d => d.key === 'duty_access_matrix');
+            if(accessData && accessData.value) dutyAccessMatrix = JSON.parse(accessData.value);
+            else dutyAccessMatrix = {};
+
+            const rolesData = data.find(d => d.key === 'duty_custom_roles');
             if(rolesData && rolesData.value && Object.keys(JSON.parse(rolesData.value)).length > 0) {
                 customDutyRoles = JSON.parse(rolesData.value);
             } else { 
@@ -127,9 +131,6 @@ window.loadDutyAccessAndRoles = async function() {
                 }; 
                 // บันทึกขึ้นฐานข้อมูลทันทีเพื่อให้แอดมินแก้ไขทีหลังได้
                 appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]);
-            }
-                customDutyRoles = {}; 
-                TEAM_LIST.forEach(t => customDutyRoles[t] = ['แอดมินหลัก', 'ฝาก-ถอน']); 
             }
         }
     } catch(e) { dutyAccessMatrix = {}; customDutyRoles = {}; }
@@ -1884,6 +1885,9 @@ window.onDutySearch = function() {
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
+
+    // เลือกใช้รายชื่อเว็บจากระบบที่แอคทีฟอยู่ (เอาเว็บสอนงานกับ Telegram ออกเพื่อความเป็นระเบียบ)
+    const matrixWebsites = sortedTeams.filter(t => t !== 'สอนงาน' && t !== 'Telegram');
 
     /// เพิ่มหมวดหน้าที่ส่วนกลางเข้าไปต่อท้ายสุด
     if (!matrixWebsites.includes('หน้าที่ส่วนกลาง')) {
