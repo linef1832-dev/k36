@@ -8,18 +8,16 @@ let currentRosterData = {};
 let window_currentAssignedStaff = [];
 
 window.isDutyAdmin = function() {
-    if (!window.currentUser) return false;
-    
-    // 1. เช็คสิทธิ์แบบเหมารวม (Manager / Admin ที่ติ๊กสิทธิ์รวมไว้)
-    if (window.hasUserPerm('duty_manage')) return true;
-    
-    // 2. ตรวจสอบสิทธิ์ย่อยตามแท็บที่กำลังเปิดอยู่
+    // ปรับชื่อแผนกให้ตรงกับรหัสสิทธิ์
     let deptCheck = currentDutyDept;
     if (deptCheck === 'TRAINER_AM') deptCheck = 'AMQL';
     if (deptCheck === 'TRAINER_OD') deptCheck = 'ODQL';
     
+    // ดึงค่าสิทธิ์ตามแท็บที่เปิดดูอยู่ เช่น duty_manage_am, duty_manage_od
     const reqPerm = 'duty_manage_' + deptCheck.toLowerCase();
-    return window.hasUserPerm(reqPerm); 
+    
+    // ระบบจะยอมให้จัดการได้ ถ้ามีสิทธิ์ตรงตามแผนก หรือมีสิทธิ์จัดการแบบรวม (เผื่อแอดมินหลัก)
+    return window.hasUserPerm(reqPerm) || window.hasUserPerm('duty_manage'); 
 };
 
 const LEAVE_STYLES = {
@@ -126,38 +124,23 @@ window.subscribeDutyChanges = function() {
 }
 
 window.applyDutyRoleUI = function() {
-    const canManageDuty = window.isDutyAdmin();
+    const isAdmin = window.isDutyAdmin();
+    const isTrainerDept = (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || (currentUser.department && currentUser.department.startsWith('TRAINER'))); 
     const isTrainerRole = (currentUser.role && currentUser.role.toLowerCase() === 'trainer');
-    const isTrainerDept = ['AMQL', 'ODQL'].includes(currentUser.department) || (currentUser.department || '').startsWith('TRAINER');
 
-    // จัดการแท็บผู้สอนให้โชว์เฉพาะคนมีสิทธิ์
-    const trainerBtn = document.getElementById('btnDutyTRAINER'); 
-    if(trainerBtn) {
-        if(window.hasUserPerm('duty_manage') || isTrainerDept || isTrainerRole) {
-            trainerBtn.classList.remove('hidden', 'no-perm-hidden'); 
-            trainerBtn.style.display = '';
-        } else {
-            trainerBtn.classList.add('hidden');
-        }
-    }
+    let canManageDuty = false;
+    if (isAdmin) canManageDuty = true; 
+    else if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) canManageDuty = false; 
+    else canManageDuty = window.isDutyAdmin();
     
-    // จัดการปุ่มเครื่องมือ (สุ่มเวร, ล้างตาราง)
     const adminElements = document.querySelectorAll('.duty-admin-only');
-    if (!canManageDuty) {
-        adminElements.forEach(el => { el.style.display = 'none'; el.classList.add('hidden'); });
-        const shiftSelect = document.getElementById('dutyShiftSelect');
-        if (shiftSelect && currentUser.allowed_shift !== 'all') shiftSelect.value = currentUser.allowed_shift;
-        const indicator = document.getElementById('staffShiftIndicator');
-        if (indicator) {
-            indicator.classList.remove('hidden', 'no-perm-hidden'); indicator.style.display = '';
-            document.getElementById('staffShiftLabel').innerText = (currentUser.allowed_shift || 'ไม่ระบุกะ');
-        }
-    } else {
-        adminElements.forEach(el => { el.style.display = ''; el.classList.remove('hidden', 'no-perm-hidden'); });
-        const indicator = document.getElementById('staffShiftIndicator');
-        if(indicator) indicator.classList.add('hidden');
+    const trainerBtn = document.getElementById('btnDutyTRAINER'); 
+    
+    if(trainerBtn) {
+        if(isAdmin || isTrainerDept || isTrainerRole) {
+            trainerBtn.classList.remove('hidden', 'no-perm-hidden'); trainerBtn.style.display = '';
+        } else trainerBtn.classList.add('hidden');
     }
-};
     
     if (!canManageDuty) {
         adminElements.forEach(el => { el.style.display = 'none'; el.classList.add('hidden'); });
