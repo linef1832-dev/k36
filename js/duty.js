@@ -1881,7 +1881,7 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ
+// 🟢 อัปเดตตาราง OD ให้หัวข้อแสดงตามที่ตั้งค่าไว้เป๊ะๆ (ปรับขนาดให้อ่านง่ายขึ้น)
 window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
@@ -1897,13 +1897,13 @@ window.renderTrainerOdMatrix = function(rosterData) {
     });
 
     let html = `<div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
-        <table class="w-full text-center border-collapse text-xs whitespace-nowrap dark:text-white">`;
+        <table class="w-full text-center border-collapse text-sm whitespace-nowrap dark:text-white">`;
     
     // ---------------- สร้างหัวตาราง (Header) แถวแรก ชื่อเว็บ ----------------
     html += `<thead class="bg-slate-200 dark:bg-slate-900 border-b-2 border-slate-400 dark:border-slate-600"><tr>`;
-    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-[1%] whitespace-nowrap">กะ</th>`;
-    // ปรับให้ช่องรายชื่อผู้ดูแลมีความกว้างที่พอดี ไม่ยืดจนเกินไป
-    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-2 w-[150px] min-w-[150px] whitespace-nowrap">รายชื่อผู้ดูแล</th>`;
+    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[1%] whitespace-nowrap text-sm">กะ</th>`;
+    // ขยายช่องชื่อให้กว้างขึ้น
+    html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[180px] min-w-[180px] whitespace-nowrap text-sm">รายชื่อผู้ดูแล</th>`;
     
     matrixWebsites.forEach(web => {
         // ดึงหัวข้อจากหน้าตั้งค่า (ถ้าไม่มีเลย ให้แสดงเป็นขีด '-')
@@ -1923,8 +1923,8 @@ window.renderTrainerOdMatrix = function(rosterData) {
         else if (web === 'BT678') bg = 'bg-red-500 text-white';
         else if (web === 'หน้าที่ส่วนกลาง') bg = 'bg-indigo-900 text-amber-400 border-b border-amber-500';
         
-        // ขยาย colspan ตามจำนวนหัวข้อของเว็บนั้นจริงๆ
-        html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-1 font-bold ${bg}">${web}</th>`;
+        // ขยาย colspan ตามจำนวนหัวข้อของเว็บนั้นจริงๆ (ปรับฟอนต์ใหญ่ขึ้น)
+        html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-2 font-black text-sm tracking-wide ${bg}">${web}</th>`;
     });
     html += `</tr><tr>`;
     
@@ -1934,7 +1934,8 @@ window.renderTrainerOdMatrix = function(rosterData) {
         if (webTasks.length === 0) webTasks = ['-'];
         
         webTasks.forEach(task => {
-            html += `<th class="border border-slate-300 dark:border-slate-700 p-1 text-[10px] bg-slate-50 dark:bg-slate-800">${task}</th>`;
+            // บังคับกว้าง 90px ฟอนต์ใหญ่ขึ้นเป็น xs
+            html += `<th class="border border-slate-300 dark:border-slate-700 p-2 text-xs bg-slate-50 dark:bg-slate-800 min-w-[90px]">${task}</th>`;
         });
     });
     html += `</tr></thead><tbody>`;
@@ -1971,10 +1972,10 @@ window.renderTrainerOdMatrix = function(rosterData) {
             html += `<tr class="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition border-b border-slate-200 dark:border-slate-700">`;
             
             if (index === 0) {
-                html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black ${shiftColor}">${shiftNameDisplay}</td>`;
+                html += `<td rowspan="${shiftStaff.length}" class="border border-slate-300 dark:border-slate-700 font-black text-sm ${shiftColor}">${shiftNameDisplay}</td>`;
             }
             
-            html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 text-left font-bold text-green-600 dark:text-green-400 pl-3">
+            html += `<td class="border border-slate-300 dark:border-slate-700 p-2 text-left font-bold text-green-600 dark:text-green-400 pl-3 text-sm">
                 <span class="uppercase">${user.username}</span>
             </td>`;
             
@@ -1986,10 +1987,11 @@ window.renderTrainerOdMatrix = function(rosterData) {
                 webTasks.forEach(task => {
                     // ปิดช่องถ้าหัวข้อคือ "-"
                     if (task === '-') {
-                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1 bg-gray-100 dark:bg-slate-800"></td>`;
+                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 bg-gray-100 dark:bg-slate-800"></td>`;
                     } else {
-                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1">
-                            <select class="text-[10px] p-0.5 rounded outline-none cursor-pointer bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 font-bold focus:ring-1 focus:ring-blue-500 w-full text-center">
+                        // ปรับขนาด dropdown ให้กว้างขึ้น และตัวหนังสือใหญ่ขึ้น
+                        html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5">
+                            <select class="text-xs p-1 rounded outline-none cursor-pointer bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm">
                                 <option value="not" class="text-red-500">🚫 Not</option>
                                 <option value="job" class="text-green-500">✅ Job</option>
                                 <option value="sup" class="text-yellow-600">👉 Sup</option>
