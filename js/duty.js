@@ -83,7 +83,11 @@ window.initDutyApp = async function() {
         await window.loadDutyAccessAndRoles();
         
         const teamSelect = document.getElementById('roleEditorTeam');
-        if(teamSelect) teamSelect.innerHTML = TEAM_LIST.map(t => `<option value="${t}">${t}</option>`).join('');
+        if(teamSelect) {
+            let opts = TEAM_LIST.map(t => `<option value="${t}">${t}</option>`);
+            opts.push(`<option value="หน้าที่ส่วนกลาง" class="font-bold text-amber-500">📌 หน้าที่ส่วนกลาง</option>`);
+            teamSelect.innerHTML = opts.join('');
+        }
         
         window.syncTeamOrder();
         window.applyDutyRoleUI(); 
@@ -102,13 +106,28 @@ window.loadDutyAccessAndRoles = async function() {
     try {
         const { data } = await appDB.from('settings').select('*').in('key', ['duty_access_matrix', 'duty_custom_roles']);
         if(data) {
-            const accessData = data.find(d => d.key === 'duty_access_matrix');
-            if(accessData && accessData.value) dutyAccessMatrix = JSON.parse(accessData.value);
-            else dutyAccessMatrix = {};
-
-            const rolesData = data.find(d => d.key === 'duty_custom_roles');
-            if(rolesData && rolesData.value) customDutyRoles = JSON.parse(rolesData.value);
-            else { 
+           const rolesData = data.find(d => d.key === 'duty_custom_roles');
+            if(rolesData && rolesData.value && Object.keys(JSON.parse(rolesData.value)).length > 0) {
+                customDutyRoles = JSON.parse(rolesData.value);
+            } else { 
+                // ค่าเริ่มต้นสำหรับแต่ละเว็บ
+                customDutyRoles = {
+                    'Jun88': ['ถอนเงิน', 'ตรวจถอนเงิน', 'คำขอโปร', 'แนะนำเพื่อน'],
+                    'MK8': ['ถอนเงิน', 'ตรวจถอนเงิน'],
+                    'Vv72': ['ถอนเงิน', 'ตรวจถอนเงิน', 'คำขอโปร', 'แนะนำเพื่อน'],
+                    'VV72': ['ถอนเงิน', 'ตรวจถอนเงิน', 'คำขอโปร', 'แนะนำเพื่อน'],
+                    'TH26': ['ถอนเงิน', 'ตรวจถอนเงิน'],
+                    'K188': ['ถอนเงิน', 'ตรวจถอนเงิน', 'คำขอโปร', 'แนะนำเพื่อน'],
+                    'BT678': ['ถอนเงิน', 'ตรวจถอนเงิน'],
+                    'PG688': ['ถอนเงิน', 'ตรวจถอนเงิน'],
+                    'JL69': ['ถอนเงิน', 'ตรวจถอนเงิน'],
+                    'NM9': ['ถอนเงิน', 'ตรวจถอนเงิน'],
+                    'F168': ['ถอนเงิน', 'ตรวจถอนเงิน'],
+                    'หน้าที่ส่วนกลาง': ['เคสเทเลแกรม', 'ตรวจสอบหน้าเว็บ', 'ตรวจแนะนำเพื่อนกะดึก OD', 'เช็คส่งแก้ไขข้อมูล']
+                }; 
+                // บันทึกขึ้นฐานข้อมูลทันทีเพื่อให้แอดมินแก้ไขทีหลังได้
+                appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]);
+            }
                 customDutyRoles = {}; 
                 TEAM_LIST.forEach(t => customDutyRoles[t] = ['แอดมินหลัก', 'ฝาก-ถอน']); 
             }
@@ -1866,8 +1885,10 @@ window.renderTrainerOdMatrix = function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
 
-    // เลือกใช้รายชื่อเว็บจากระบบที่แอคทีฟอยู่ (เอาเว็บสอนงานกับ Telegram ออกเพื่อความเป็นระเบียบ)
-    const matrixWebsites = sortedTeams.filter(t => t !== 'สอนงาน' && t !== 'Telegram');
+    /// เพิ่มหมวดหน้าที่ส่วนกลางเข้าไปต่อท้ายสุด
+    if (!matrixWebsites.includes('หน้าที่ส่วนกลาง')) {
+        matrixWebsites.push('หน้าที่ส่วนกลาง');
+    }
 
     // ดึงรายชื่อพนักงานที่เป็นผู้สอน OD 
     const staffList = GLOBAL_USER_LIST.filter(u => {
@@ -1891,14 +1912,15 @@ window.renderTrainerOdMatrix = function(rosterData) {
 
         let bg = 'bg-blue-600 text-white';
         if(web === 'MK8') bg = 'bg-yellow-500 text-black';
-        else if (web === 'Vv72') bg = 'bg-green-700 text-white';
+        else if (web === 'Vv72' || web === 'VV72') bg = 'bg-green-700 text-white';
         else if (web === 'TH26') bg = 'bg-gray-700 text-white';
         else if (web === 'PG688') bg = 'bg-amber-100 text-amber-900';
         else if (web === 'F168') bg = 'bg-orange-500 text-white';
         else if (web === 'NM9') bg = 'bg-pink-500 text-white';
         else if (web === 'JL69') bg = 'bg-slate-500 text-white';
-        else if (web === 'K188') bg = 'bg-blue-500 text-white'; // เพิ่มเติมสี K188
-        else if (web === 'BT678') bg = 'bg-red-500 text-white'; // เพิ่มเติมสี BT678
+        else if (web === 'K188') bg = 'bg-blue-500 text-white';
+        else if (web === 'BT678') bg = 'bg-red-500 text-white';
+        else if (web === 'หน้าที่ส่วนกลาง') bg = 'bg-indigo-900 text-amber-400 border-b border-amber-500';
         
         // ขยาย colspan ตามจำนวนหัวข้อของเว็บนั้นจริงๆ
         html += `<th colspan="${webTasks.length}" class="border border-slate-300 dark:border-slate-700 p-1 font-bold ${bg}">${web}</th>`;
