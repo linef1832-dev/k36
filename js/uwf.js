@@ -122,3 +122,29 @@ window.subscribeUwfChanges = function() {
         })
         .subscribe();
 };
+// ฟังก์ชันปลดล็อคทุกเครื่องพร้อมกัน (สำหรับอัปเดตแพทช์/โปรแกรม)
+window.bulkUnlockUwf = async function() {
+    const result = await Swal.fire({
+        title: 'ยืนยันการปลดล็อคทั้งหมด?',
+        text: 'คอมพิวเตอร์ทุกเครื่องในระบบจะถูก "ปลดล็อค" และ "รีสตาร์ท" ทันที! (ใช้สำหรับอัปเดตแพทช์เกม หรือลงโปรแกรมพร้อมกัน)',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'ใช่, ปลดล็อคทั้งหมด',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+        Swal.fire({title: 'กำลังส่งคำสั่ง...', didOpen: () => Swal.showLoading()});
+        
+        // สั่งอัปเดตทุกเครื่องที่มีในฐานข้อมูลให้ uwf_status = false (ปลดล็อค)
+        const { error } = await appDB.from('uwf_computers').update({ uwf_status: false }).neq('computer_name', '');
+        
+        if (error) {
+            Swal.fire('Error', error.message, 'error');
+        } else {
+            Swal.fire({icon: 'success', title: 'ส่งคำสั่งสำเร็จ!', text: 'คอมพิวเตอร์ทุกเครื่องกำลังรีสตาร์ทเพื่อเข้าสู่โหมดปกติ', timer: 3000});
+            fetchUwfComputers();
+        }
+    }
+};
