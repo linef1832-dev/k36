@@ -176,7 +176,6 @@ window.switchDiscordTab = function(tabName) {
                 }
                 ds_fetchVoiceLogs();
                 logInterval = setInterval(() => {
-                    ds_fetchVoiceLogs(false, 1);
                     ds_fetchVoiceLogs(false, window.dsCurrentPage);
                 }, 15000);
             }
