@@ -1024,9 +1024,8 @@ window.dsTotalPages = 1;
 // ==============================================================
 // 🌟 ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แบบแบ่งหน้า + ค้นหาจากฐานข้อมูล)
 // ==============================================================
-window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = 1) {
 window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.dsCurrentPage) {
-    if (typeof ds_subscribeVoiceLogs === 'function') ds_subscribeVoiceLogs(); 
+    if (typeof ds_subscribeVoiceLogs === 'function') ds_subscribeVoiceLogs();
 
     // อัปเดตหน้าปัจจุบัน
     window.dsCurrentPage = page;
