@@ -2159,6 +2159,13 @@ const PERM_GROUPS = [
         ]
     },
     {
+        id: 'page_uwf', name: 'แช่แข็งคอมฯ (UWF)', icon: 'ac_unit', theme: 'sky',
+        items: [
+            {id: 'uwf', name: 'เข้าหน้าควบคุม UWF', isSub: false},
+            {id: 'uwf_manage', name: 'สั่งแช่แข็ง / ปลดล็อค', isSub: true}
+        ]
+    },
+    {
         id: 'page_swap', name: 'สลับกะการทำงาน', icon: 'swap_horiz', theme: 'orange',
         items: [
             {id: 'swap', name: 'เข้าหน้าสลับกะการทำงาน', isSub: false},
