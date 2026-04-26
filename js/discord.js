@@ -177,6 +177,7 @@ window.switchDiscordTab = function(tabName) {
                 ds_fetchVoiceLogs();
                 logInterval = setInterval(() => {
                     ds_fetchVoiceLogs(false, 1);
+                    ds_fetchVoiceLogs(false, window.dsCurrentPage);
                 }, 15000);
             }
             else if (tabName === 'actionlog') {
@@ -1024,6 +1025,7 @@ window.dsTotalPages = 1;
 // 🌟 ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แบบแบ่งหน้า + ค้นหาจากฐานข้อมูล)
 // ==============================================================
 window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = 1) {
+window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.dsCurrentPage) {
     if (typeof ds_subscribeVoiceLogs === 'function') ds_subscribeVoiceLogs(); 
 
     // อัปเดตหน้าปัจจุบัน
