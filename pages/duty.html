@@ -14,8 +14,8 @@
                <div class="dept-segment-container flex scale-90 origin-left">
                     <button onclick="switchDutyDept('AM')" id="btnDutyAM" class="dept-segment-btn active"><span class="material-icons text-sm">business</span> AM</button>
                     <button onclick="switchDutyDept('OD')" id="btnDutyOD" class="dept-segment-btn"><span class="material-icons text-sm">groups</span> OD</button>
-                    <button onclick="switchDutyDept('TRAINER_AM')" id="btnDutyTRAINER_AM" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน AM</button>
-                    <button onclick="switchDutyDept('TRAINER_OD')" id="btnDutyTRAINER_OD" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน OD</button>
+                    <button onclick="switchDutyDept('AMQL')" id="btnDutyAMQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน AM</button>
+                    <button onclick="switchDutyDept('ODQL')" id="btnDutyODQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน OD</button>
                 </div>
 
                 <div class="flex bg-indigo-900 rounded-lg p-1 mr-2 duty-admin-only">
@@ -45,14 +45,6 @@
                         <option value="กะดึก">🌙 กะดึก</option>
                     </select>
                 </div>
-
-                <div id="trainerTaskModeContainer" class="hidden duty-admin-only items-center gap-2 border-r dark:border-slate-600 pr-3 pl-1">
-                    <span class="text-xs font-bold text-sky-500">หมวด:</span>
-                    <select id="trainerTaskMode" onchange="window.syncTeamOrder(); window.renderDutyAccessTable(); window.renderDutyRequirements(); window.refreshDutyData();" class="text-sm p-1.5 rounded font-bold text-sky-700 outline-none border border-sky-300 bg-sky-50 cursor-pointer shadow-sm dark:bg-slate-700 dark:text-sky-300 dark:border-slate-600">
-                        <option value="normal">🎓 งานสอนปกติ</option>
-                        <option value="telegram">✈️ ทีม Telegram</option>
-                    </select>
-                </div>
                 
                 <button id="btnGenerateRoster" onclick="generateDutyRoster()" class="duty-admin-only bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 disabled:bg-gray-500 disabled:cursor-not-allowed">
                     <span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่
@@ -65,8 +57,6 @@
                 <button id="btnRestoreRoster" onclick="restoreDutyRoster()" class="hidden duty-admin-only bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 ml-2">
                     <span class="material-icons text-base">restore</span> กู้คืนที่ลบ
                 </button>
-                
-                <button id="btnManageTrainer" onclick="openManageTrainerModal()" class="duty-admin-only hidden bg-cyan-600 hover:bg-cyan-700 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 ml-2"><span class="material-icons text-base">person_add</span> จัดการรายชื่อผู้สอน</button>
 
                 <div id="staffShiftIndicator" class="hidden text-sm font-bold text-indigo-700 bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200 flex items-center gap-1 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-700">
                     <span class="material-icons text-sm">schedule</span> กะ: <span id="staffShiftLabel">...</span>
@@ -187,8 +177,5 @@
                 <div id="roleEditorList" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2 bg-slate-50 dark:bg-slate-900"></div>
             </div>
         </div>
-
-        <div id="trainerModalTemplate" style="display: none;"></div>
     </div>
-
 </div>
