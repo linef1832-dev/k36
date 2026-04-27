@@ -293,61 +293,6 @@ window.saveData = async function(e) {
     }
 };
 
-    // 🌟 --------------------------------------------------- 🌟
-
-    const { data: myBookings } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('staff_name', currentUser.username);
-    const dailyLimit = parseInt(SETTINGS.daily_limit || 2);
-    if (myBookings.length >= dailyLimit) { window.resetBtn(); return Swal.fire('ครบโควตา', `คุณลงครบ ${dailyLimit} รอบต่อวันแล้ว`, 'error'); }
-
-    const targetPeriod = select.options[select.selectedIndex].dataset.period;
-    const periodLimit = parseInt(SETTINGS.period_limit || 1);
-    
-    const checkPeriod = typeof getPeriodForTime === 'function' ? getPeriodForTime : () => targetPeriod; 
-    const countInPeriod = myBookings.filter(b => b.shift_name === sName && checkPeriod(sName, b.time_slot) === targetPeriod).length;
-    if (countInPeriod >= periodLimit) { window.resetBtn(); return Swal.fire('ซ้ำ!', `คุณลงช่วง "${targetPeriod}" ครบ ${periodLimit} ครั้งแล้ว`, 'error'); }
-
-    const shiftSuffix = sName.replace('กะ','');
-    const { data: slotBookings } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', timeVal);
-    
-    let limitTotal = 0;
-    if (myDep === 'OD') {
-        limitTotal = parseInt(SETTINGS[`quota_od_${shiftSuffix}`] || 5);
-    } else {
-        limitTotal = parseInt(SETTINGS[`quota_total_${shiftSuffix}`] || SETTINGS[`quota_total_${sName}`] || 50);
-    }
-    
-    let limitTeam = 5;
-    if (SETTINGS[`quota_team_${activeTeam}_${myDep}_${shiftSuffix}`] !== undefined) {
-        limitTeam = parseInt(SETTINGS[`quota_team_${activeTeam}_${myDep}_${shiftSuffix}`]);
-    } else if (SETTINGS[`quota_team_${activeTeam}_${shiftSuffix}`] !== undefined) {
-        limitTeam = parseInt(SETTINGS[`quota_team_${activeTeam}_${shiftSuffix}`]);
-    }
-
-    const useTeamLogic = (currentUser.check_type !== 'shift');
-    const countTotal = slotBookings.filter(b => (b.department || 'AM') === myDep).length;
-    const countTeam = slotBookings.filter(b => b.team === activeTeam && (b.department || 'AM') === myDep).length;
-
-    if (countTotal >= limitTotal) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาแผนก ${myDep} เต็มแล้ว`, 'error'); }
-    if (useTeamLogic && countTeam >= limitTeam) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาทีม ${activeTeam} (${shiftSuffix}) เต็มแล้ว`, 'error'); }
-
-    const { error } = await appDB.from('schedules').insert([{ 
-        work_date: dateVal, 
-        staff_name: currentUser.username, 
-        team: activeTeam, 
-        shift_name: sName, 
-        time_slot: timeVal,
-        department: myDep 
-    }]);
-    
-    if (error) { window.resetBtn(); Swal.fire('Error', error.message, 'error'); } 
-    else { 
-        if(typeof logAction === 'function') await logAction('ลงเวลา', `ลงเวลา ${sName} ${timeVal} (${activeTeam}) [${myDep}]`);
-        Swal.fire({icon:'success', title:'บันทึกสำเร็จ', timer:800, showConfirmButton:false}); 
-        if(typeof refreshTimeSlots === 'function') await refreshTimeSlots(); 
-        window.resetBtn();
-    }
-};
-
 window.resetBtn = function() { 
     const btn = document.getElementById('btnSave'); 
     if(btn) {
