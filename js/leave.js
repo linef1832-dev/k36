@@ -526,10 +526,16 @@ window.renderLeaveTable = function() {
         if (currentViewDept === 'SPECIAL') {
             return isInSpecial; // แท็บพิเศษโชว์เฉพาะคนที่ถูกดึงเข้ามา
         } else if (currentViewDept === 'TRAINER') {
-            // ให้ดึงทั้ง TRAINER_AM, TRAINER_OD และ TRAINER ปกติมารวมไว้หน้าเดียวกัน
+            // แท็บผู้สอนรวม
             return (uDept.startsWith('TRAINER') || uRole === 'trainer') && !isInSpecial; 
+        } else if (currentViewDept === 'AMQL' || currentViewDept === 'TRAINER_AM') {
+            // 🌟 แท็บผู้สอน AM: ดึงคนที่ (แผนก AM + สิทธิ์ trainer) หรือคนที่แผนกเป็น AMQL
+            return ((uDept === 'AM' && uRole === 'trainer') || uDept === 'AMQL' || uDept === 'TRAINER_AM') && !isInSpecial;
+        } else if (currentViewDept === 'ODQL' || currentViewDept === 'TRAINER_OD') {
+            // 🌟 แท็บผู้สอน OD: ดึงคนที่ (แผนก OD + สิทธิ์ trainer) หรือคนที่แผนกเป็น ODQL
+            return ((uDept === 'OD' && uRole === 'trainer') || uDept === 'ODQL' || uDept === 'TRAINER_OD') && !isInSpecial;
         } else {
-            // แท็บ AM และ OD จะโชว์แค่คนที่ยังไม่ถูกดึงไปกลุ่มพิเศษ (!isInSpecial)
+            // แท็บ AM, OD พนักงานปกติ: โชว์เฉพาะคนที่เป็น staff
             return uRole === 'staff' && uDept === currentViewDept && !isInSpecial; 
         }
     });
