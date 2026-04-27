@@ -742,7 +742,6 @@ window.renderLeaveTable = function() {
     </td>`;
 
         // 🌟 NEW: คำนวณกะแต่ละวัน เพื่อไฮไลต์สีพื้นหลัง (แม่นยำ 100% ด้วย Time Stamp)
-        // 🌟 NEW: คำนวณกะแต่ละวัน เพื่อไฮไลต์สีพื้นหลัง (แม่นยำ 100% ด้วย Time Stamp)
         const myMonthSwaps = allSwapData.filter(t => {
             let p = t.payload;
             if (typeof p === 'string') {
@@ -750,69 +749,35 @@ window.renderLeaveTable = function() {
             }
             return p && String(p.user_id) === String(u.id);
         });
-        .getTime().getTime()
-        myMonthSwaps.sort((a,b) => new Date(a.scheduled_for) - new Date(b.scheduled_for));
         myMonthSwaps.sort((a,b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime());
 
-// ลูปหาคิวสลับกะของแต่ละวันในเดือนที่กำลังเปิดดู
-        {
-            // วันที่ในตารางปฏิทินที่กำลังวาด (ล้างเวลาออกให้เป็น 00:00:00)
-            // หมายเหตุ: currentCalendarDate.getMont() จะเริ่มนับจาก 0 (ม.ค.)
-            cons loopDat = new Date(year, currentCaedarDat.getMonth(), );
-           loopDate.setHours(0, 0, 0, 0); 
-            
-            let dayShift  // ยึดกะปัจจุบันในฐานข้อมูลเป็นหลักก่อน
         let shiftTimeline = {};
-            for(let d=1; d<=daysInMonth; d++) shiftTimeline[d] = u.allowed_shift;
-    
-        myMo    nthSwaps.forEach(swap => {
-            let     p = swap.payload;
+
+        // ลูปหาคิวสลับกะของแต่ละวันในเดือนที่กำลังเปิดดู
+        for(let d=1; d<=daysInMonth; d++) {
+            // วันที่ในตารางปฏิทินที่กำลังวาด (ล้างเวลาออกให้เป็น 00:00:00)
+            // หมายเหตุ: currentCalendarDate.getMonth() จะเริ่มนับจาก 0 (ม.ค.)
+            const loopDate = new Date(year, currentCalendarDate.getMonth(), d);
+            loopDate.setHours(0, 0, 0, 0); 
+            
+            let dayShift = u.allowed_shift; // ยึดกะปัจจุบันในฐานข้อมูลเป็นหลักก่อน
+
+            myMonthSwaps.forEach(swap => {
+                let p = swap.payload;
                 if (typeof p === 'string') {
                     try { p = JSON.parse(p); } catch(e) { p = {}; }
-            // วัที่้งวาสลัะ(ลาวลาอกใหเป็ 00:00:00)
-        // ล    ูปหาคิวwapสลับองแต่ละวันในเดือนที่กำลังเปิดดู
-        for(=   1; d<=da.n Hos0,,,0
-
-                ure(swaCaslerua p==D'aeeden.'setHours(0, 0, 0, 0); 
-             // ถ้าคิวยังรออยู่ แลวันที่ในตารางไปถงหรือเลยวันสลับะแล้ว->เปลี่ยนสีใหม่ล่วงหน
-               // ้บั๊กloopDaชe.ร์ T0me() >ลงswapDate.getTime(ล &&ขp.taYYtt_shOftj!= = คaเดิมt)({swap.scheduled_for);
-                        dayShictagSp.t rget_ hifgt
-   let =_h}            if (!orig) {
-                } else if (targetShift === 'comกletะึ orig = 'กะเช้า';
-                else if (targสลtบกะไปเhียบf้=ะแล้r= 'กะดึอดีตตองแสดงสีของเดิ
-                else orig = 'กะe.gกงTime()'<e.gTime()) {
-                      le orig = p.oiinal_s;
-                        if(orig
-                }(p._s === 'กะดึก') orig = 'กะเช้า';
-   let daySrge_hiftกะเช้า orig ='กะดึก';
-                  for(let 1delse)orig='กลาง';
-                consl e }month + 1) * 100 + d;
-            myMonthSwapsdaySforE {
-                let p = swap.pap.yload;_s
-                if (typedaySf p ') p.{_s
-                    try { p = JSON.parse(p); } catch(e) { p = {}; }
                 }
-             );
-            
-            shiftTimeline[d] = dayShift;   
-              // วันที่ตั้งเวลาสลับกะ (ล้างเวลาออกให้เป็น 00:00:00)
+                
+                // วันที่ตั้งเวลาสลับกะ (ล้างเวลาออกให้เป็น 00:00:00)
                 const swapDate = new Date(swap.scheduled_for);
                 swapDate.setHours(0, 0, 0, 0);
 
                 if (swap.status === 'pending') {
-                    // ถ้าคิวยังรอรันอยู่ (ยังไม่ถึงวัน) -> วันที่ในลูป มากกว่าหรือเท่ากับ วันสลับกะ ให้เป็นกะใหม่
-                    if (loopDateInt >= swapDateInt && targetShift !== 'คงเดิม') {
-                        shiftTimeline[d] = targetShift;
                     // ถ้าคิวยังรออยู่ และวันที่ในตารางไปถึงหรือเลยวันสลับกะแล้ว -> เปลี่ยนสีกะใหม่ล่วงหน้า
                     if (loopDate.getTime() >= swapDate.getTime() && p.target_shift !== 'คงเดิม') {
                         dayShift = p.target_shift;
                     }
                 } else if (swap.status === 'completed') {
-                    // ถ้าคิวรันเสร็จแล้ว -> วันที่ในลูป น้อยกว่า วันสลับกะ ให้เป็นกะเดิม
-                    if (loopDateInt < swapDateInt) {
-                        shiftTimeline[d] = orig;
-                    } else if (targetShift !== 'คงเดิม') {
-                        shiftTimeline[d] = targetShift;
                     // ถ้าคิวสลับกะไปเรียบร้อยแล้ว -> วันในอดีตก่อนสลับกะ ต้องแสดงเป็นสีของกะเดิม
                     if (loopDate.getTime() < swapDate.getTime()) {
                         let orig = p.original_shift;
@@ -821,13 +786,11 @@ window.renderLeaveTable = function() {
                             else if (p.target_shift === 'กะเช้า') orig = 'กะดึก';
                             else orig = 'กะกลาง'; 
                         }
-                        dayShift = orส้ม
+                        dayShift = orig;
                     } else if (p.target_shift !== 'คงเดิม') {
                         dayShift = p.target_shift;
                     }
                 }
-            }
-        });
             });
             
             shiftTimeline[d] = dayShift;
