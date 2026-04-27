@@ -2402,11 +2402,16 @@ window.renderImportantTasksPanel = function() {
             <div class="p-3 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3">
     `;
     
-    if (window.globalImportantTasks.length === 0) {
+    // 🌟 ดึงงานทั้งหมดมาโชว์ (ทั้งงานในปัจจุบัน และงานเก่าในอดีตที่เคยมีคนทำ)
+    const allTasksToShow = [...new Set([...window.globalImportantTasks, ...Object.keys(window.currentImportantAssigns)])];
+    
+    if (allTasksToShow.length === 0) {
         html += `<div class="text-center py-10 text-gray-500 text-xs font-bold border border-dashed border-slate-700 rounded-xl bg-slate-900/50">แอดมินยังไม่ได้ตั้งค่างานพิเศษ</div>`;
     } else {
-        window.globalImportantTasks.forEach(task => {
+        allTasksToShow.forEach(task => {
             const assignedUser = window.currentImportantAssigns[task];
+            const isLegacy = !window.globalImportantTasks.includes(task); // เช็คว่าเป็นงานที่ถูกลบไปแล้วรึเปล่า
+            
             let statusHtml = '';
             let boxClass = '';
             
@@ -2423,7 +2428,7 @@ window.renderImportantTasksPanel = function() {
                             <span class="material-icons text-[16px]">${isLocked ? 'badge' : 'person_check'}</span> ${assignedUser}
                             ${isLocked ? '<span class="text-[9px] bg-amber-200 dark:bg-amber-800/50 text-amber-800 dark:text-amber-300 px-1 rounded ml-1">หน้าที่ประจำ</span>' : ''}
                         </div>
-                        ${isAdmin ? `
+                        ${(isAdmin && !isLegacy) ? `
                         <div class="flex gap-1">
                             <button onclick="window.toggleLockImportantTask('${task}')" class="${lockColor} bg-white dark:bg-slate-800 rounded px-1.5 py-0.5 shadow-sm border border-gray-200 dark:border-slate-700 transition hover:bg-slate-50 dark:hover:bg-slate-700" title="ตั้ง/ยกเลิก เป็นหน้าที่ประจำ"><span class="material-icons text-[14px] block">${lockIcon}</span></button>
                             <button onclick="window.unassignImportantTask('${task}')" class="text-red-400 hover:text-red-500 bg-white dark:bg-slate-800 rounded px-1.5 py-0.5 shadow-sm border border-red-200 dark:border-red-900/50 transition hover:bg-red-50" title="ปลดคนนี้ออก"><span class="material-icons text-[14px] block">close</span></button>
@@ -2438,7 +2443,7 @@ window.renderImportantTasksPanel = function() {
                         <div class="flex items-center gap-1.5 text-red-600 dark:text-red-400 font-extrabold text-[12px]">
                             <span class="material-icons text-[16px]">warning</span> ยังไม่มีคนดูแล
                         </div>
-                        ${isAdmin ? `<button onclick="window.assignImportantTask('${task}')" class="bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 rounded text-[10px] font-bold shadow-md transition border border-red-500 active:scale-95">เลือกคน</button>` : ''}
+                        ${(isAdmin && !isLegacy) ? `<button onclick="window.assignImportantTask('${task}')" class="bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 rounded text-[10px] font-bold shadow-md transition border border-red-500 active:scale-95">เลือกคน</button>` : ''}
                     </div>
                 `;
             }
@@ -2446,8 +2451,11 @@ window.renderImportantTasksPanel = function() {
             html += `
                 <div class="p-3 rounded-xl border transition shadow-sm group bg-slate-800 ${boxClass}">
                     <div class="flex justify-between items-start gap-2">
-                        <div class="font-bold text-sm text-slate-200 leading-tight flex-1">${task}</div>
-                        ${isAdmin ? `<button onclick="window.deleteImportantTask('${task}')" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition bg-slate-900 rounded p-1.5 shadow-inner border border-slate-700" title="ลบงานนี้ทิ้งถาวร"><span class="material-icons text-[14px] block">delete</span></button>` : ''}
+                        <div class="font-bold text-sm text-slate-200 leading-tight flex-1">
+                            ${task}
+                            ${isLegacy ? '<span class="text-[9px] text-gray-500 ml-1 font-normal">(งานนี้ถูกลบแล้ว)</span>' : ''}
+                        </div>
+                        ${(isAdmin && !isLegacy) ? `<button onclick="window.deleteImportantTask('${task}')" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition bg-slate-900 rounded p-1.5 shadow-inner border border-slate-700" title="ลบงานนี้ทิ้งถาวร"><span class="material-icons text-[14px] block">delete</span></button>` : ''}
                     </div>
                     ${statusHtml}
                 </div>
