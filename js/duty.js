@@ -756,13 +756,9 @@ window.renderRosterGrid = async function(rosterData) {
             const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${a.username}', '${team}')"` : '';
             const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing hover:scale-[1.02] hover:shadow-lg' : 'cursor-default';
 
-            // 🌟 NEW: สร้างป้ายโชว์เวลากินข้าว
             // 🌟 NEW: สร้างป้ายโชว์เวลากินข้าว (อัปเดตให้ดึงมาทั้งหมด 2 ช่วง)
             let breakTimeHtml = '';
             if (!isMissing) {
-                const mySchedule = (window.currentDutySchedules || []).find(s => s.staff_name === a.username);
-                if (mySchedule && mySchedule.time_slot) {
-                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-400 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm transition hover:scale-105 cursor-default"><span class="material-icons text-[12px]">restaurant</span> พัก: ${mySchedule.time_slot}</div>`;
                 // เปลี่ยนจาก .find() เป็น .filter() เพื่อดึงมาทั้งหมด
                 const mySchedules = (window.currentDutySchedules || []).filter(s => s.staff_name === a.username);
                 
