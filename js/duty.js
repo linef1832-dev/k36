@@ -989,38 +989,39 @@ window.viewStandbyList = function(team) {
 
     const teamColor = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
     const namesHtml = list.map((item, i) => {
-        // 🌟 NEW: ดึงข้อมูลเวลาพักของคนรอง มาแสดงผล
         let breakTimeHtml = '';
         const mySchedules = (window.currentDutySchedules || []).filter(s => s.staff_name === item.name);
         
         if (mySchedules && mySchedules.length > 0) {
             const timeSlotsText = mySchedules.map(s => s.time_slot).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
-            breakTimeHtml = `<span class="text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-900/30 px-1.5 py-0.5 rounded flex items-center gap-1"><span class="material-icons text-[11px]">restaurant</span> พัก: ${timeSlotsText}</span>`;
+            // 🌟 ปรับขนาดป้ายเวลาพักให้ใหญ่ขึ้น (text-xs = 12px, px-2.5 py-1)
+            breakTimeHtml = `<span class="text-xs text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-900/30 px-2.5 py-1 rounded-md flex items-center gap-1 border border-sky-200 dark:border-sky-800/50 shadow-sm"><span class="material-icons text-[14px]">restaurant</span> พัก: ${timeSlotsText}</span>`;
         } else {
-            breakTimeHtml = `<span class="text-red-500 font-bold bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 rounded flex items-center gap-1 animate-pulse"><span class="material-icons text-[11px]">warning</span> ยังไม่ลงเวลา</span>`;
+            breakTimeHtml = `<span class="text-xs text-red-500 font-bold bg-red-50 dark:bg-red-900/30 px-2.5 py-1 rounded-md flex items-center gap-1 border border-red-200 dark:border-red-800/50 shadow-sm animate-pulse"><span class="material-icons text-[14px]">warning</span> ยังไม่ลงเวลา</span>`;
         }
 
         return `
-        <div class="p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm flex items-center justify-between group hover:border-amber-400 transition">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">${i + 1}</div>
-                <div class="text-left flex flex-col gap-1">
-                    <div class="font-extrabold text-slate-800 dark:text-white text-sm">${item.name}</div>
-                    <div class="text-[9px] text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-1.5">
-                        <div class="flex items-center gap-1">จากเว็บหลัก: <span class="font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1 rounded">${item.fromTeam}</span></div>
+        <div class="p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm flex items-center justify-between group hover:border-amber-400 transition mb-2.5">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-black text-sm shadow-inner shrink-0">${i + 1}</div>
+                <div class="text-left flex flex-col gap-1.5">
+                    <div class="font-black text-slate-800 dark:text-white text-[15px] uppercase tracking-wide">${item.name}</div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">จากเว็บหลัก: <span class="font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/50">${item.fromTeam}</span></div>
                         ${breakTimeHtml}
                     </div>
                 </div>
             </div>
-            <span class="material-icons text-amber-400 text-xl opacity-50 group-hover:scale-110 transition shrink-0 ml-2">support_agent</span>
+            <span class="material-icons text-amber-400 text-2xl opacity-40 group-hover:scale-110 transition shrink-0 ml-2">support_agent</span>
         </div>
         `;
     }).join('');
 
     Swal.fire({
-        title: `<div class="flex flex-col items-center gap-1"><span class="text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">ทีมสแตนด์บายช่วย</span><span class="text-2xl font-black ${teamColor.text} ${teamColor.bg} px-4 py-1 rounded-lg shadow-md border ${teamColor.border}">${team}</span></div>`,
-        html: `<div class="flex flex-col gap-2.5 mt-4 max-h-[50vh] overflow-y-auto custom-scrollbar p-1">${namesHtml}</div>`,
+        title: `<div class="flex flex-col items-center gap-1.5"><span class="text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">ทีมสแตนด์บายช่วย</span><span class="text-3xl font-black ${teamColor.text} ${teamColor.bg} px-5 py-1.5 rounded-xl shadow-md border-2 ${teamColor.border}">${team}</span></div>`,
+        html: `<div class="flex flex-col mt-4 max-h-[55vh] overflow-y-auto custom-scrollbar p-1">${namesHtml}</div>`,
         confirmButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#64748b',
+        width: '500px', // 🌟 ขยายขนาดหน้าต่างให้กว้างขึ้น เพื่อให้ข้อความไม่เบียดกัน
         customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl' }
     });
 };
