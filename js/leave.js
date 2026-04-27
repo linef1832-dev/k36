@@ -833,28 +833,29 @@ window.renderLeaveTable = function() {
             }
 
             let cellClass = `cursor-pointer transition-colors duration-300 ${shiftBgColor}`;
-            // 🌟 ------------------------------------
-
             let cellContent = "";
             let baseDeptColor = 'bg-rose-500'; 
             if(currentViewDept === 'OD') baseDeptColor = 'bg-fuchsia-500';
             if(currentViewDept === 'TRAINER') baseDeptColor = 'bg-indigo-500';
 
             if (isDateLocked && !isAdmin) {
-                // 🌟 แก้ไข: คงสีพื้นหลังกะไว้ (shiftBgColor) แต่ปรับให้จางลง (opacity-40) เพื่อให้ดูเป็นระเบียบ
-                cellClass = `${shiftBgColor} cursor-not-allowed opacity-40`;
                 if (isBooked) {
-                    let badgeStyle = typeof getLeaveBadgeStyle === 'function' ? getLeaveBadgeStyle(leaveReason, baseDeptColor) : 'bg-red-500';
-                    cellContent = `<div class="flex items-center justify-center w-full h-full"><span class="${badgeStyle} text-white text-[11px] px-2 py-0.5 rounded shadow-sm opacity-80 font-bold">${leaveReason}</span></div>`;
+                    let badgeStyle = getLeaveBadgeStyle(leaveReason, baseDeptColor);
+                    // 🌟 แก้ไข: ย้ายสีวันหยุดไปทับพื้นหลังของช่อง (td) ให้เต็มช่อง และเอาป้ายอันเล็กออก
+                    cellClass = `cursor-not-allowed opacity-70 ${badgeStyle}`; 
+                    cellContent = `<div class="flex items-center justify-center w-full h-full text-white text-[12px] font-bold">${leaveReason}</div>`;
                 } else {
+                    cellClass = `${shiftBgColor} cursor-not-allowed opacity-40`;
                     cellContent = `<div class="flex items-center justify-center w-full h-full"><span class="material-icons text-gray-400 dark:text-slate-500 text-xs">lock</span></div>`;
                 }
             } else {
                 if (isBooked) {
-                    cellClass += ' is-booked';
-                    let badgeStyle = typeof getLeaveBadgeStyle === 'function' ? getLeaveBadgeStyle(leaveReason, baseDeptColor) : 'bg-red-500';
-                    cellContent = `<div class="flex items-center justify-center w-full h-full"><span class="${badgeStyle} text-white text-[11px] px-2 py-0.5 rounded shadow-sm font-bold animate-fade-in hover:scale-110 transition-transform">${leaveReason}</span></div>`;
+                    let badgeStyle = getLeaveBadgeStyle(leaveReason, baseDeptColor);
+                    // 🌟 แก้ไข: ย้ายสีวันหยุดไปทับพื้นหลังของช่อง (td) ให้เต็มช่อง
+                    cellClass = `cursor-pointer hover:opacity-90 transition-opacity duration-300 ${badgeStyle}`;
+                    cellContent = `<div class="flex items-center justify-center w-full h-full text-white text-[12px] font-bold animate-fade-in">${leaveReason}</div>`;
                 } else {
+                    // ถ้าไม่ใช่วันหยุด ให้โชว์สีของกะปกติ
                     cellContent = `<div class="flex items-center justify-center w-full h-full opacity-0 group-hover:opacity-100 transition-opacity"><div class="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-500 hover:border-slate-400 dark:hover:border-slate-400 transition-colors"></div></div>`;
                 }
             }

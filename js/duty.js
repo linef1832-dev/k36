@@ -295,7 +295,7 @@ window.refreshDutyData = async function() {
         const saveKey = getDutySaveKey(targetDate, shiftFilter); 
         
         // 🌟 NEW: ดึงข้อมูลงานพิเศษจากฐานข้อมูล
-        const impListKey = `duty_important_tasks_list_${currentDutyDept}`; // 🌟 แก้ไข: เติมชื่อแผนกต่อท้าย Key
+        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; // 🌟 แก้ไข: เติมชื่อแผนก และ กะ ต่อท้าย
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         
         let savedRoster = null;
@@ -2419,10 +2419,13 @@ window.addImportantTask = async function() {
         const name = taskName.trim();
         if (window.globalImportantTasks.includes(name)) return Swal.fire('เตือน', 'มีหน้าที่นี้อยู่ในระบบแล้วครับ', 'warning');
         
+        // 🌟 ดึงค่า "กะ" ปัจจุบันที่กำลังเลือกอยู่
+        const shiftFilter = document.getElementById('dutyShiftSelect').value;
+        
         window.globalImportantTasks.push(name);
         Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
         
-        const impListKey = `duty_important_tasks_list_${currentDutyDept}`; // 🌟 NEW: แยกลงกล่องตามแผนก
+        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; // 🌟 NEW: แยกลงกล่องตาม แผนก+กะ
         await appDB.from('settings').upsert([{ key: impListKey, value: JSON.stringify(window.globalImportantTasks) }]);
         
         window.renderImportantTasksPanel();
@@ -2449,11 +2452,10 @@ window.deleteImportantTask = async function(taskName) {
         const targetDate = document.getElementById('dutyDate').value;
         const shiftFilter = document.getElementById('dutyShiftSelect').value;
         
-        const impListKey = `duty_important_tasks_list_${currentDutyDept}`; // 🌟 NEW: ลบจากกล่องของแผนกตัวเอง
+        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; // 🌟 NEW: ลบจากกล่องของ แผนก+กะ ตัวเอง
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         
         await appDB.from('settings').upsert([
-            { key: 'duty_important_tasks_list', value: JSON.stringify(window.globalImportantTasks) },
             { key: impListKey, value: JSON.stringify(window.globalImportantTasks) },
             { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }
         ]);
