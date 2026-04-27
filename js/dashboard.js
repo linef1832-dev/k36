@@ -159,10 +159,7 @@ window.refreshTimeSlots = async function() {
     const shiftEl = document.querySelector('input[name="shift"]:checked');
     const slotSelect = document.getElementById('tSlot');
     const dateVal = document.getElementById('wDate');
-
-    // 🌟 1. ดึงข้อมูล "เว็บ/ทีม" ที่พนักงานกำลังเลือกอยู่จาก Dropdown
     const teamSelect = document.getElementById('dailyTeam');
-    const selectedTeam = teamSelect ? teamSelect.value : (window.currentUser?.team || '');
 
     if (!slotSelect) return;
     if (!shiftEl || !dateVal || !dateVal.value) {
@@ -170,10 +167,48 @@ window.refreshTimeSlots = async function() {
         return;
     }
 
+    const shiftName = shiftEl.value;
+    const myDep = window.currentUser?.department || 'AM';
+
+    // 🌟 NEW: อัปเดต Dropdown เลือกทีมให้เหลือแค่ทีมที่ถูกจัดเวร 🌟
+    if (teamSelect && !['manager', 'admin'].includes(currentUser.role)) {
+        const rosterKey = `duty_roster_${myDep}_${dateVal.value}_${shiftName}`;
+        try {
+            const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
+            if (rosterData && rosterData.value) {
+                const roster = JSON.parse(rosterData.value);
+                let allowedTeams = [];
+                for (const team in roster) {
+                    (roster[team] || []).forEach(u => {
+                        if (String(u.id) === String(currentUser.id)) {
+                            if (!allowedTeams.includes(team)) allowedTeams.push(team);
+                            if (u.secondary_team && !allowedTeams.includes(u.secondary_team)) allowedTeams.push(u.secondary_team);
+                        }
+                    });
+                }
+
+                if (allowedTeams.length > 0) {
+                    let html = '';
+                    allowedTeams.forEach(t => html += `<option value="${t}">${t}</option>`);
+                    teamSelect.innerHTML = html;
+                } else {
+                    teamSelect.innerHTML = '<option value="">-- ไม่มีรายชื่อในเวรนี้ --</option>';
+                }
+            } else {
+                // คืนค่า Dropdown เดิมถ้ายังไม่มีเวร
+                let html = '';
+                TEAM_LIST.sort((a,b) => a.localeCompare(b)).forEach(t => html += `<option value="${t}">${t}</option>`);
+                teamSelect.innerHTML = html;
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    // 🌟 1. ดึงข้อมูล "เว็บ/ทีม" ที่พนักงานกำลังเลือกอยู่จาก Dropdown
+    const selectedTeam = teamSelect ? teamSelect.value : (window.currentUser?.team || '');
+
     // 💡 [เพิ่มใหม่] ให้ระบบ "จดจำ" ค่าที่พนักงานกำลังเลือกค้างไว้ก่อน
     const previousSelectedSlot = slotSelect.value;
 
-    const shiftName = shiftEl.value;
     const loadingIcon = document.getElementById('slotLoading');
     if(loadingIcon) loadingIcon.classList.remove('hidden');
 

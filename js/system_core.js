@@ -212,6 +212,34 @@ window.saveData = async function(e) {
 
     const myDep = currentUser.department || 'AM';
 
+    // 🌟 NEW: ล็อคการบันทึกให้ตรงกับตารางจัดหน้าที่ (Backend Check) 🌟
+    if (!['manager', 'admin'].includes(currentUser.role)) {
+        const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
+        const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
+        
+        if (rosterData && rosterData.value) {
+            const roster = JSON.parse(rosterData.value);
+            let allowedTeams = [];
+            for (const team in roster) {
+                (roster[team] || []).forEach(u => {
+                    if (String(u.id) === String(currentUser.id)) {
+                        if (!allowedTeams.includes(team)) allowedTeams.push(team);
+                        if (u.secondary_team && !allowedTeams.includes(u.secondary_team)) allowedTeams.push(u.secondary_team);
+                    }
+                });
+            }
+            
+            if (allowedTeams.length > 0 && !allowedTeams.includes(activeTeam)) {
+                window.resetBtn();
+                return Swal.fire('ผิดเว็บ!', `แอดมินจัดหน้าที่ให้คุณลงเว็บ <b>${allowedTeams.join(' หรือ ')}</b> ในกะนี้<br>กรุณาลงเวลาให้ตรงกับหน้าที่ครับ`, 'error');
+            } else if (allowedTeams.length === 0) {
+                window.resetBtn();
+                return Swal.fire('ไม่มีหน้าที่!', `คุณไม่มีรายชื่อจัดหน้าที่ในกะนี้ ไม่สามารถลงเวลาได้ครับ`, 'error');
+            }
+        }
+    }
+    // 🌟 --------------------------------------------------- 🌟
+
     const { data: myBookings } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('staff_name', currentUser.username);
     const dailyLimit = parseInt(SETTINGS.daily_limit || 2);
     if (myBookings.length >= dailyLimit) { window.resetBtn(); return Swal.fire('ครบโควตา', `คุณลงครบ ${dailyLimit} รอบต่อวันแล้ว`, 'error'); }
@@ -2999,12 +3027,4 @@ window.undoClearSchedules = async function() {
 
             Swal.fire('กู้คืนสำเร็จ!', 'ข้อมูลกลับมาอยู่ที่เดิมเรียบร้อยแล้วครับ', 'success');
 
-            // สั่งให้ตารางรีเฟรชตัวเอง
-            if (typeof fetchData === 'function') fetchData();
-
-        } catch(e) {
-            console.error(e);
-            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนได้: ' + e.message, 'error');
-        }
-    }
-};
+            // สั��
