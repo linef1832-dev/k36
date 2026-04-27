@@ -741,7 +741,8 @@ window.renderLeaveTable = function() {
         </div>
     </td>`;
 
-        // 🌟 NEW: คำนวณกะแต่ละวัน เพื่อไฮไลต์สีพื้นหลัง (แปลงรหัส JSON)
+        // 🌟 NEW: คำนวณกะแต่ละวัน เพื่อไฮไลต์สีพื้นหลัง (แม่นยำ 100% ด้วย Time Stamp)
+        // 🌟 NEW: คำนวณกะแต่ละวัน เพื่อไฮไลต์สีพื้นหลัง (แม่นยำ 100% ด้วย Time Stamp)
         const myMonthSwaps = allSwapData.filter(t => {
             let p = t.payload;
             if (typeof p === 'string') {
@@ -749,37 +750,62 @@ window.renderLeaveTable = function() {
             }
             return p && String(p.user_id) === String(u.id);
         });
-        
+        .getTime().getTime()
         myMonthSwaps.sort((a,b) => new Date(a.scheduled_for) - new Date(b.scheduled_for));
+        myMonthSwaps.sort((a,b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime());
 
+// ลูปหาคิวสลับกะของแต่ละวันในเดือนที่กำลังเปิดดู
+        {
+            // วันที่ในตารางปฏิทินที่กำลังวาด (ล้างเวลาออกให้เป็น 00:00:00)
+            // หมายเหตุ: currentCalendarDate.getMont() จะเริ่มนับจาก 0 (ม.ค.)
+            cons loopDat = new Date(year, currentCaedarDat.getMonth(), );
+           loopDate.setHours(0, 0, 0, 0); 
+            
+            let dayShift  // ยึดกะปัจจุบันในฐานข้อมูลเป็นหลักก่อน
         let shiftTimeline = {};
-        for(let d=1; d<=daysInMonth; d++) shiftTimeline[d] = u.allowed_shift;
+            for(let d=1; d<=daysInMonth; d++) shiftTimeline[d] = u.allowed_shift;
+    
+        myMo    nthSwaps.forEach(swap => {
+            let     p = swap.payload;
+                if (typeof p === 'string') {
+                    try { p = JSON.parse(p); } catch(e) { p = {}; }
+            // วัที่้งวาสลัะ(ลาวลาอกใหเป็ 00:00:00)
+        // ล    ูปหาคิวwapสลับองแต่ละวันในเดือนที่กำลังเปิดดู
+        for(=   1; d<=da.n Hos0,,,0
 
-        myMonthSwaps.forEach(swap => {
-            let p = swap.payload;
-            if (typeof p === 'string') {
-                try { p = JSON.parse(p); } catch(e) { p = {}; }
-            }
+                ure(swaCaslerua p==D'aeeden.'setHours(0, 0, 0, 0); 
+             // ถ้าคิวยังรออยู่ แลวันที่ในตารางไปถงหรือเลยวันสลับะแล้ว->เปลี่ยนสีใหม่ล่วงหน
+               // ้บั๊กloopDaชe.ร์ T0me() >ลงswapDate.getTime(ล &&ขp.taYYtt_shOftj!= = คaเดิมt)({swap.scheduled_for);
+                        dayShictagSp.t rget_ hifgt
+   let =_h}            if (!orig) {
+                } else if (targetShift === 'comกletะึ orig = 'กะเช้า';
+                else if (targสลtบกะไปเhียบf้=ะแล้r= 'กะดึอดีตตองแสดงสีของเดิ
+                else orig = 'กะe.gกงTime()'<e.gTime()) {
+                      le orig = p.oiinal_s;
+                        if(orig
+                }(p._s === 'กะดึก') orig = 'กะเช้า';
+   let daySrge_hiftกะเช้า orig ='กะดึก';
+                  for(let 1delse)orig='กลาง';
+                consl e }month + 1) * 100 + d;
+            myMonthSwapsdaySforE {
+                let p = swap.pap.yload;_s
+                if (typedaySf p ') p.{_s
+                    try { p = JSON.parse(p); } catch(e) { p = {}; }
+                }
+             );
             
-            // 🌟 แก้บั๊กชัวร์ 100%: แปลงเป็นตัวเลข YYYYMMDD เทียบกันตรงๆ ป้องกันปฏิทินนับเดือนเพี้ยน
-            const sDateObj = new Date(swap.scheduled_for);
-            const swapDateInt = sDateObj.getFullYear() * 10000 + (sDateObj.getMonth() + 1) * 100 + sDateObj.getDate();
-            
-            const targetShift = p.target_shift;
-            let orig = p.original_shift;
-            if (!orig) {
-                if (targetShift === 'กะดึก') orig = 'กะเช้า';
-                else if (targetShift === 'กะเช้า') orig = 'กะดึก';
-                else orig = 'กะกลาง'; 
-            }
-
-            for(let d=1; d<=daysInMonth; d++) {
-                const loopDateInt = year * 10000 + (month + 1) * 100 + d;
+            shiftTimeline[d] = dayShift;   
+              // วันที่ตั้งเวลาสลับกะ (ล้างเวลาออกให้เป็น 00:00:00)
+                const swapDate = new Date(swap.scheduled_for);
+                swapDate.setHours(0, 0, 0, 0);
 
                 if (swap.status === 'pending') {
                     // ถ้าคิวยังรอรันอยู่ (ยังไม่ถึงวัน) -> วันที่ในลูป มากกว่าหรือเท่ากับ วันสลับกะ ให้เป็นกะใหม่
                     if (loopDateInt >= swapDateInt && targetShift !== 'คงเดิม') {
                         shiftTimeline[d] = targetShift;
+                    // ถ้าคิวยังรออยู่ และวันที่ในตารางไปถึงหรือเลยวันสลับกะแล้ว -> เปลี่ยนสีกะใหม่ล่วงหน้า
+                    if (loopDate.getTime() >= swapDate.getTime() && p.target_shift !== 'คงเดิม') {
+                        dayShift = p.target_shift;
                     }
                 } else if (swap.status === 'completed') {
                     // ถ้าคิวรันเสร็จแล้ว -> วันที่ในลูป น้อยกว่า วันสลับกะ ให้เป็นกะเดิม
@@ -787,10 +813,25 @@ window.renderLeaveTable = function() {
                         shiftTimeline[d] = orig;
                     } else if (targetShift !== 'คงเดิม') {
                         shiftTimeline[d] = targetShift;
+                    // ถ้าคิวสลับกะไปเรียบร้อยแล้ว -> วันในอดีตก่อนสลับกะ ต้องแสดงเป็นสีของกะเดิม
+                    if (loopDate.getTime() < swapDate.getTime()) {
+                        let orig = p.original_shift;
+                        if (!orig) {
+                            if (p.target_shift === 'กะดึก') orig = 'กะเช้า';
+                            else if (p.target_shift === 'กะเช้า') orig = 'กะดึก';
+                            else orig = 'กะกลาง'; 
+                        }
+                        dayShift = orส้ม
+                    } else if (p.target_shift !== 'คงเดิม') {
+                        dayShift = p.target_shift;
                     }
                 }
             }
         });
+            });
+            
+            shiftTimeline[d] = dayShift;
+        }
         // 🌟 ------------------------------------
 
         let isThisUserShiftOpen = true;
@@ -817,12 +858,15 @@ window.renderLeaveTable = function() {
             let shiftBgColor = '';
             
             // ปรับสีกะเช้าให้เป็นโทนเหลืองทอง/น้ำตาล เพื่อให้ตัดกับป้ายวันหยุดสีแดงได้ชัดเจนขึ้น
+            // ปรับสีกะเช้าให้เป็นโทนส้มน้ำตาล
             if (activeShiftForThisDay === 'กะเช้า') {
                 shiftBgColor = 'bg-amber-100 dark:bg-[#4a3615]'; // โทนเหลืองทอง/น้ำตาลหม่น
             } else if (activeShiftForThisDay === 'กะดึก') {
                 shiftBgColor = 'bg-indigo-100 dark:bg-[#3d2c6b]'; // โทนม่วง/ฟ้าพาสเทล
+                shiftBgColor = 'bg-indigo-100 dark:bg-[#3d2c6b]'; // โทนม่วง
             } else if (activeShiftForThisDay === 'กะกลาง') {
                 shiftBgColor = 'bg-sky-100 dark:bg-[#1e4875]'; // โทนน้ำเงิน/ฟ้าพาสเทล
+                shiftBgColor = 'bg-sky-100 dark:bg-[#1e4875]'; // โทนฟ้า
             }
 
             let cellClass = `cursor-pointer transition-colors duration-300 ${shiftBgColor}`;
