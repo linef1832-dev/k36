@@ -25,7 +25,8 @@
                             <div class="dept-segment-container flex scale-90 origin-left">
                                 <button onclick="setSwapDeptFilter('AM')" id="btnSwapDeptAM" class="dept-segment-btn active"><span class="material-icons text-sm">business</span> AM</button>
                                 <button onclick="setSwapDeptFilter('OD')" id="btnSwapDeptOD" class="dept-segment-btn"><span class="material-icons text-sm">groups</span> OD</button>
-                                <button onclick="setSwapDeptFilter('TRAINER')" id="btnSwapDeptTRAINER" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน</button>
+                                <button onclick="setSwapDeptFilter('AMQL')" id="btnSwapDeptAMQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน AM</button>
+                                <button onclick="setSwapDeptFilter('ODQL')" id="btnSwapDeptODQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน OD</button>
                             </div>
                         </div>
                         
@@ -86,7 +87,8 @@
                                 <select id="swapDeptSelect" onchange="clearExcludeStaff()" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer">
                                         <option value="AM">เฉพาะแผนก AM</option>
                                         <option value="OD">เฉพาะแผนก OD</option>
-                                        <option value="TRAINER">เฉพาะผู้สอน (AMQL / TRAINER)</option>
+                                        <option value="AMQL">เฉพาะผู้สอน AM (AMQL)</option>
+                                        <option value="ODQL">เฉพาะผู้สอน OD (ODQL)</option>
                                 </select>
                             </div>
                             <div>
