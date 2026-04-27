@@ -277,7 +277,7 @@ window.refreshTimeSlots = async function() {
         if(loadingIcon) loadingIcon.classList.add('hidden');
     }
 
-    // 🌟 สั่งอัปเดตตัวเลขแจ้งเตือนคนยังไม่ลงข้าว (เพิ่มบรรทัดนี้ลงไปล่างสุดของฟังก์ชัน)
+    // 🌟 สั่งอัปเดตตัวเลขแจ้งเตือนคนยังไม่ลงข้าว
     if (typeof updateMissingLunchBadge === 'function') updateMissingLunchBadge();
 };
 
