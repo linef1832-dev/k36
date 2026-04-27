@@ -988,19 +988,38 @@ window.viewStandbyList = function(team) {
     }
 
     const teamColor = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
-    const namesHtml = list.map((item, i) => `
+    const namesHtml = list.map((item, i) => {
+        // 🌟 NEW: ดึงข้อมูลเวลาพักของคนรอง มาแสดงผล
+        let breakTimeHtml = '';
+        const mySchedules = (window.currentDutySchedules || []).filter(s => s.staff_name === item.name);
+        
+        if (mySchedules && mySchedules.length > 0) {
+            const timeSlotsText = mySchedules.map(s => s.time_slot).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
+            breakTimeHtml = `<span class="text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-900/30 px-1.5 py-0.5 rounded flex items-center gap-1"><span class="material-icons text-[11px]">restaurant</span> พัก: ${timeSlotsText}</span>`;
+        } else {
+            breakTimeHtml = `<span class="text-red-500 font-bold bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 rounded flex items-center gap-1 animate-pulse"><span class="material-icons text-[11px]">warning</span> ยังไม่ลงเวลา</span>`;
+        }
+
+        return `
         <div class="p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm flex items-center justify-between group hover:border-amber-400 transition">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-xs shadow-inner">${i + 1}</div>
-                <div class="text-left"><div class="font-extrabold text-slate-800 dark:text-white text-sm">${item.name}</div><div class="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1">ย้ายมาจากเว็บหลัก: <span class="font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1 rounded">${item.fromTeam}</span></div></div>
+                <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-xs shadow-inner shrink-0">${i + 1}</div>
+                <div class="text-left flex flex-col gap-1">
+                    <div class="font-extrabold text-slate-800 dark:text-white text-sm">${item.name}</div>
+                    <div class="text-[9px] text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-1.5">
+                        <div class="flex items-center gap-1">จากเว็บหลัก: <span class="font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1 rounded">${item.fromTeam}</span></div>
+                        ${breakTimeHtml}
+                    </div>
+                </div>
             </div>
-            <span class="material-icons text-amber-400 text-xl opacity-50 group-hover:scale-110 transition">support_agent</span>
+            <span class="material-icons text-amber-400 text-xl opacity-50 group-hover:scale-110 transition shrink-0 ml-2">support_agent</span>
         </div>
-    `).join('');
+        `;
+    }).join('');
 
     Swal.fire({
         title: `<div class="flex flex-col items-center gap-1"><span class="text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">ทีมสแตนด์บายช่วย</span><span class="text-2xl font-black ${teamColor.text} ${teamColor.bg} px-4 py-1 rounded-lg shadow-md border ${teamColor.border}">${team}</span></div>`,
-        html: `<div class="flex flex-col gap-2 mt-4 max-h-[50vh] overflow-y-auto custom-scrollbar p-1">${namesHtml}</div>`,
+        html: `<div class="flex flex-col gap-2.5 mt-4 max-h-[50vh] overflow-y-auto custom-scrollbar p-1">${namesHtml}</div>`,
         confirmButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#64748b',
         customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl' }
     });
@@ -2637,7 +2656,7 @@ window.unassignImportantTask = async function(taskName) {
 };
 
 // ==========================================
-// 🌟 ระบบแจกงานรองด่วน (AI คำนวณเวลาพักไม่ให้ชนคนหลัก)
+// 🌟 ระบบแจกงานรองด่วน (AI จับคู่ 1 ต่อ 1 ไม่ให้เวลาพักชนกัน)
 // ==========================================
 window.quickAssignBackups = async function() {
     const targetDate = document.getElementById('dutyDate').value;
@@ -2658,12 +2677,12 @@ window.quickAssignBackups = async function() {
 
     Swal.fire({
         title: 'กำลังจับคู่งานรอง...', 
-        html: '<span class="text-sm text-gray-500">AI กำลังประมวลผลเวลาพักเพื่อไม่ให้หน้าเว็บว่าง...</span>', 
+        html: '<span class="text-sm text-gray-500">AI กำลังจับคู่ 1-ต่อ-1 ไม่ให้เวลาพักชนกัน...</span>', 
         allowOutsideClick: false, 
         didOpen: () => Swal.showLoading()
     });
 
-    // 1. ดึงข้อมูลเวลาพักของทุกคนจากตารางเวลา (Schedules)
+    // 1. ดึงข้อมูลเวลาพักของทุกคนจากตารางเวลา
     let breakTimes = {};
     if (window.currentDutySchedules) {
         window.currentDutySchedules.forEach(s => {
@@ -2689,46 +2708,42 @@ window.quickAssignBackups = async function() {
         let primaries = (roster[teamToSupport] || []).filter(u => !u.username.includes('ขาดคน'));
         if (primaries.length === 0) return;
 
-        // รวบรวมเวลาพักของตำแหน่ง "หลัก" ทั้งหมดในเว็บนี้
-        let primaryBreaks = [];
+        // 🌟 แก้ไข: วนลูปจับคู่ "หลัก 1 คน" ต่อ "รอง 1 คน" 
         primaries.forEach(p => {
-            let pBreaks = breakTimes[p.username] || [];
-            primaryBreaks.push(...pBreaks);
-        });
+            let primaryBreaks = breakTimes[p.username] || [];
 
-        // หากลุ่มคนจาก "เว็บอื่น" ที่มีสิทธิ์เข้าเว็บนี้ และเวลาพักไม่ชนกัน
-        let candidates = availableForBackup.filter(c => {
-            if (c.primaryTeam === teamToSupport) return false; // ห้ามสแตนด์บายช่วยเว็บที่ตัวเองเป็นหลักอยู่แล้ว
-            if (c.secondary_team) return false; // มีงานรองไปแล้ว ห้ามรับซ้อน
-            
-            let access = dutyAccessMatrix[c.id] || [];
-            if (!access.includes(teamToSupport)) return false; // ไม่มีสิทธิ์หลังบ้านเว็บนี้
-
-            // 🔥 เช็คเวลาพัก: ต้องไม่มีเวลาไหนที่ตรงกับเวลาพักของ "คนหลัก" เลยแม้แต่ช่วงเดียว!
-            let cBreaks = breakTimes[c.username] || [];
-            let hasOverlap = cBreaks.some(time => primaryBreaks.includes(time));
-            return !hasOverlap;
-        });
-
-        // สุ่มรายชื่อคนที่ผ่านเงื่อนไข เพื่อไม่ให้งานไปตกที่คนเดิมๆ ตลอด
-        candidates.sort(() => Math.random() - 0.5);
-
-        // ถ้ามีคนที่เวลาพักไม่ชนกัน ก็หยิบคนแรกมาเสียบเป็นงานรองเลย
-        if (candidates.length > 0) {
-            let chosen = candidates[0];
-            
-            // อัปเดตข้อมูลคนในตารางหลักให้มีงานรอง
-            let userInRoster = roster[chosen.primaryTeam].find(u => u.id === chosen.id);
-            if (userInRoster) {
-                userInRoster.secondary_team = teamToSupport;
+            let candidates = availableForBackup.filter(c => {
+                if (c.primaryTeam === teamToSupport) return false; // ห้ามอยู่เว็บเดียวกัน
+                if (c.secondary_team) return false; // มีงานรองแล้ว ห้ามรับซ้อน
                 
-                // อัปเดตสถานะในลิสต์ด้วย จะได้ไม่โดนดึงไปซ้ำ
-                let availIndex = availableForBackup.findIndex(a => a.id === chosen.id);
-                if (availIndex > -1) availableForBackup[availIndex].secondary_team = teamToSupport;
+                let access = dutyAccessMatrix[c.id] || [];
+                if (!access.includes(teamToSupport)) return false; // ไม่มีสิทธิ์หลังบ้าน
+
+                // 🔥 เช็คเวลาพัก: ต้องไม่ตรงกับตำแหน่งหลัก "คนนี้"
+                let cBreaks = breakTimes[c.username] || [];
+                let hasOverlap = cBreaks.some(time => primaryBreaks.includes(time));
+                return !hasOverlap; 
+            });
+
+            // สุ่มรายชื่อเพื่อกระจายงาน
+            candidates.sort(() => Math.random() - 0.5);
+
+            if (candidates.length > 0) {
+                let chosen = candidates[0];
                 
-                successCount++;
+                // อัปเดตข้อมูลให้คนคนนั้นว่าต้องไปสแตนด์บายช่วยเว็บนี้นะ
+                let userInRoster = roster[chosen.primaryTeam].find(u => u.id === chosen.id);
+                if (userInRoster) {
+                    userInRoster.secondary_team = teamToSupport;
+                    
+                    // ตัดชื่อออกจากลิสต์ว่าง
+                    let availIndex = availableForBackup.findIndex(a => a.id === chosen.id);
+                    if (availIndex > -1) availableForBackup[availIndex].secondary_team = teamToSupport;
+                    
+                    successCount++;
+                }
             }
-        }
+        });
     });
 
     // 4. บันทึกและวาดตารางขึ้นมาใหม่
@@ -2740,22 +2755,8 @@ window.quickAssignBackups = async function() {
     }
 
     if (successCount > 0) {
-        Swal.fire({ icon: 'success', title: 'แจกงานรองสำเร็จ!', text: `แจกงานรองได้ ${successCount} ตำแหน่ง (เวลาพักไม่ชนคนหลัก 100%)`, timer: 2500, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'แจกงานรองสำเร็จ!', text: `จ่ายงานรองได้ครบ ${successCount} ตำแหน่งแล้วครับ!`, timer: 2500, showConfirmButton: false });
     } else {
-        Swal.fire('จัดไม่ได้', 'ระบบไม่สามารถจับคู่งานรองได้ครับ (อาจเพราะสิทธิ์หลังบ้านไม่ตรง หรือเวลาพักชนกันหมดเกลี้ยง)', 'info');
+        Swal.fire('ข้อมูลครบถ้วน', 'สแตนด์บายถูกจัดเต็มหมดแล้ว หรือไม่สามารถหาคนที่เวลาพักไม่ชนกันได้ครับ', 'info');
     }
 };
-
-// ฝังปุ่ม "⚡ จัดรองด่วน (AI)" ไว้ข้างๆ ปุ่มล้างตารางแบบอัตโนมัติ
-setInterval(() => {
-    const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
-    if (clearBtn && !document.getElementById('btnQuickBackup')) {
-        const btn = document.createElement('button');
-        btn.id = 'btnQuickBackup';
-        btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
-        btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
-        btn.onclick = window.quickAssignBackups;
-        
-        clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
-    }
-}, 1000);
