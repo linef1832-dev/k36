@@ -679,19 +679,22 @@ window.generateDutyRoster = async function() {
         allAssignedUsers.sort(() => Math.random() - 0.5);
 
         allAssignedUsers.forEach(item => {
-            const u = item.userObj; const primaryTeam = item.primaryTeam;
-            const access = dutyAccessMatrix[u.id] || [];
-            let possibleSecondary = access.filter(t => t !== primaryTeam && sortedTeams.includes(t));
-
-            if (possibleSecondary.length > 0) {
-                possibleSecondary.sort((teamA, teamB) => secondaryCounts[teamA] - secondaryCounts[teamB]);
-                const minCount = secondaryCounts[possibleSecondary[0]];
-                const minTeams = possibleSecondary.filter(t => secondaryCounts[t] === minCount);
-                const pickedSecondary = minTeams[Math.floor(Math.random() * minTeams.length)];
-
-                u.secondary_team = pickedSecondary;
-                secondaryCounts[pickedSecondary]++; 
-            } else { u.secondary_team = null; }
+            const u = item.userObj; 
+            // 🌟 ปิดการสุ่มงานรอง (สแตนด์บายช่วยเว็บอื่น) อัตโนมัติ ตามคำขอ
+            // const primaryTeam = item.primaryTeam;
+            // const access = dutyAccessMatrix[u.id] || [];
+            // let possibleSecondary = access.filter(t => t !== primaryTeam && sortedTeams.includes(t));
+            // 
+            // if (possibleSecondary.length > 0) {
+            //     possibleSecondary.sort((teamA, teamB) => secondaryCounts[teamA] - secondaryCounts[teamB]);
+            //     const minCount = secondaryCounts[possibleSecondary[0]];
+            //     const minTeams = possibleSecondary.filter(t => secondaryCounts[t] === minCount);
+            //     const pickedSecondary = minTeams[Math.floor(Math.random() * minTeams.length)];
+            // 
+            //     u.secondary_team = pickedSecondary;
+            //     secondaryCounts[pickedSecondary]++; 
+            // } else { u.secondary_team = null; }
+            u.secondary_team = null; // บังคับให้งานรองเป็นค่าว่าง (ไม่ต้องไปช่วยใคร)
         });
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
