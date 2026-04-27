@@ -589,7 +589,7 @@ window.generateDutyRoster = async function() {
     if(activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย (ลองเช็คสิทธิ์หรือรายชื่ออีกครั้ง)`, 'error');
     if(requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
 
-    Swal.fire({title: 'กำลังจัดและวิเคราะห์คิว...', text: 'ระบบกำลังเช็คประวัติเมื่อวาน เพื่อกระจายเว็บไม่ให้ซ้ำ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'กำลังจัดตารางหลัก...', text: 'ระบบกำลังจัดหน้าที่หลัก โดยจะยังไม่แจกงานรอง...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
         const tDateObj = new Date(targetDate);
@@ -660,42 +660,14 @@ window.generateDutyRoster = async function() {
                 return Math.random() - 0.5;
             });
 
+            // 🌟 พระเอกอยู่ตรงนี้: ตอนดึงคนมาลง เราบังคับเคลียร์งานรอง (ความจำเก่า) ทิ้งให้เป็น null เสมอ!
             let pickedUser = { ...userOptions[0].user }; 
+            pickedUser.secondary_team = null; 
+            
             rosterResult[teamToFill].push(pickedUser);
             remainingReqs[teamToFill]--;
             unassignedPool = unassignedPool.filter(u => u.id !== pickedUser.id);
         }
-
-        let secondaryCounts = {};
-        sortedTeams.forEach(t => secondaryCounts[t] = 0); 
-        let allAssignedUsers = [];
-        
-        for (const primaryTeam in rosterResult) {
-            rosterResult[primaryTeam].forEach(u => {
-                if (!u.username.includes('ขาดคน')) allAssignedUsers.push({ userObj: u, primaryTeam: primaryTeam });
-            });
-        }
-
-        allAssignedUsers.sort(() => Math.random() - 0.5);
-
-        allAssignedUsers.forEach(item => {
-            const u = item.userObj; 
-            // 🌟 ปิดการสุ่มงานรอง (สแตนด์บายช่วยเว็บอื่น) อัตโนมัติ ตามคำขอ
-            // const primaryTeam = item.primaryTeam;
-            // const access = dutyAccessMatrix[u.id] || [];
-            // let possibleSecondary = access.filter(t => t !== primaryTeam && sortedTeams.includes(t));
-            // 
-            // if (possibleSecondary.length > 0) {
-            //     possibleSecondary.sort((teamA, teamB) => secondaryCounts[teamA] - secondaryCounts[teamB]);
-            //     const minCount = secondaryCounts[possibleSecondary[0]];
-            //     const minTeams = possibleSecondary.filter(t => secondaryCounts[t] === minCount);
-            //     const pickedSecondary = minTeams[Math.floor(Math.random() * minTeams.length)];
-            // 
-            //     u.secondary_team = pickedSecondary;
-            //     secondaryCounts[pickedSecondary]++; 
-            // } else { u.secondary_team = null; }
-            u.secondary_team = null; // บังคับให้งานรองเป็นค่าว่าง (ไม่ต้องไปช่วยใคร)
-        });
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
         const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(rosterResult) }]);
@@ -710,9 +682,9 @@ window.generateDutyRoster = async function() {
         
         if (unassignedPool.length > 0) {
             const leftNames = unassignedPool.map(u => u.username).join(', ');
-            Swal.fire({ icon: 'warning', title: `จัดสำเร็จ! (แต่มีคนไม่ได้ลงเว็บ)`, html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b> เพราะไม่ได้ติ๊กสิทธิ์หลังบ้านไว้:<br><br><span class="text-red-500 font-bold">${leftNames}</span>` });
+            Swal.fire({ icon: 'warning', title: `จัดหลักสำเร็จ! (มีคนเหลือ)`, html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b> เพราะไม่ได้ติ๊กสิทธิ์หลังบ้านไว้:<br><br><span class="text-red-500 font-bold">${leftNames}</span>` });
         } else {
-            Swal.fire({ icon: 'success', title: `จัดคนพร้อมสลับเว็บสำเร็จ!`, timer: 2000, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: `จัดตำแหน่งหลักสำเร็จ!`, text: 'กรุณากดปุ่มสายฟ้า (จัดตำแหน่งรองด่วน) เพื่อจับคู่เวลาพักครับ', timer: 2500, showConfirmButton: false });
         }
     } catch(e) { Swal.fire('Error', e.message, 'error'); }
 };
@@ -2663,3 +2635,117 @@ window.unassignImportantTask = async function(taskName) {
     Swal.close();
     appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
 };
+
+// ==========================================
+// 🌟 ระบบแจกงานรองอัตโนมัติ (ไม่ให้เวลาพักชนกับตำแหน่งหลัก)
+// ==========================================
+window.quickAssignBackups = async function() {
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    if(!targetDate) return Swal.fire('เตือน', 'กรุณาเลือกวันที่ก่อน', 'warning');
+
+    const saveKey = getDutySaveKey(targetDate, shiftFilter);
+    let currentDataVal = null;
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', saveKey);
+        if (data && data.length > 0) currentDataVal = data[0].value;
+    } catch(e) {}
+
+    if (!currentDataVal) return Swal.fire('เตือน', 'คุณต้องกดจัดตาราง (หลัก) ให้เสร็จก่อนครับ', 'warning');
+
+    let roster = JSON.parse(currentDataVal);
+
+    Swal.fire({
+        title: 'กำลังจับคู่งานรอง...', 
+        html: '<span class="text-sm text-gray-500">AI กำลังคำนวณเวลาพักเพื่อไม่ให้หน้าเว็บว่าง...</span>', 
+        allowOutsideClick: false, 
+        didOpen: () => Swal.showLoading()
+    });
+
+    // 1. ดึงข้อมูลเวลาพักของทุกคนมารอไว้
+    let breakTimes = {};
+    if (window.currentDutySchedules) {
+        window.currentDutySchedules.forEach(s => {
+            if (!breakTimes[s.staff_name]) breakTimes[s.staff_name] = [];
+            breakTimes[s.staff_name].push(s.time_slot);
+        });
+    }
+
+    // 2. รวบรวมรายชื่อคนที่ "มีงานหลักแล้ว" เพื่อเอามาทำเป็น "งานรอง" ให้เว็บอื่น
+    let availableForBackup = [];
+    for (const team in roster) {
+        roster[team].forEach(u => {
+            if (!u.username.includes('ขาดคน')) {
+                availableForBackup.push({ ...u, primaryTeam: team });
+            }
+        });
+    }
+
+    let successCount = 0;
+
+    // 3. วนลูปหา "คนช่วย" ให้ทีละเว็บ
+    sortedTeams.forEach(teamToSupport => {
+        let primaries = (roster[teamToSupport] || []).filter(u => !u.username.includes('ขาดคน'));
+        if (primaries.length === 0) return;
+
+        // รวบรวมเวลาพักของตำแหน่ง "หลัก" ทั้งหมดในเว็บนี้
+        let primaryBreaks = [];
+        primaries.forEach(p => {
+            let pBreaks = breakTimes[p.username] || [];
+            primaryBreaks.push(...pBreaks);
+        });
+
+        // หากลุ่มคนจาก "เว็บอื่น" ที่มีสิทธิ์เข้าเว็บนี้ และเวลาพักไม่ชนกัน
+        let candidates = availableForBackup.filter(c => {
+            if (c.primaryTeam === teamToSupport) return false; // ห้ามช่วยเว็บตัวเอง
+            if (c.secondary_team) return false; // คนนี้มีงานรองไปแล้ว ห้ามรับซ้อน
+            
+            let access = dutyAccessMatrix[c.id] || [];
+            if (!access.includes(teamToSupport)) return false; // ไม่มีสิทธิ์หลังบ้าน
+
+            // 🔥 เช็คเวลาพัก: ต้องไม่มีเวลาไหนที่ตรงกับตำแหน่งหลักเลย!
+            let cBreaks = breakTimes[c.username] || [];
+            let hasOverlap = cBreaks.some(time => primaryBreaks.includes(time));
+            return !hasOverlap;
+        });
+
+        // สุ่มหยิบมา 1 คนเพื่อความยุติธรรม
+        candidates.sort(() => Math.random() - 0.5);
+
+        if (candidates.length > 0) {
+            let chosen = candidates[0];
+            // อัปเดตข้อมูลให้คนคนนั้นว่าต้องไปสแตนด์บายช่วยเว็บนี้นะ
+            let userInRoster = roster[chosen.primaryTeam].find(u => u.id === chosen.id);
+            if (userInRoster) {
+                userInRoster.secondary_team = teamToSupport;
+                chosen.secondary_team = teamToSupport; // อัปเดตให้จำไว้จะได้ไม่โดนดึงไปซ้ำ
+                successCount++;
+            }
+        }
+    });
+
+    // 4. บันทึกและวาดตารางใหม่
+    await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(roster) }]);
+    window.renderRosterGrid(roster);
+    appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+
+    if (successCount > 0) {
+        Swal.fire({ icon: 'success', title: 'จัดงานรองสำเร็จ!', text: `จ่ายงานรองได้ ${successCount} ตำแหน่ง (เวลาพักไม่ชนกัน 100%)`, timer: 2500, showConfirmButton: false });
+    } else {
+        Swal.fire('จัดไม่ได้', 'ไม่สามารถจับคู่ได้ครับ (อาจจะเพราะสิทธิ์ไม่ตรง หรือเวลาพักชนกันหมด)', 'info');
+    }
+};
+
+// ฝังปุ่ม "⚡ จัดตำแหน่งรองด่วน" ไว้ข้างปุ่มล้างตารางแบบอัตโนมัติ
+setInterval(() => {
+    const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
+    if (clearBtn && !document.getElementById('btnQuickBackup')) {
+        const btn = document.createElement('button');
+        btn.id = 'btnQuickBackup';
+        btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
+        btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> แจกงานรอง (AI)';
+        btn.onclick = window.quickAssignBackups;
+        
+        clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
+    }
+}, 1000);
