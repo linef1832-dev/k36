@@ -1470,3 +1470,20 @@ function getLeaveBadgeStyle(reason, baseDeptColor) {
 
 // ผูกเข้ากับ window เผื่อมีการเรียกใช้จากจุดอื่น
 window.getLeaveBadgeStyle = getLeaveBadgeStyle;
+
+// ฟังก์ชันรับสัญญาณเรียลไทม์เวลาแอดมินกดสลับกะ
+window.subscribeScheduledTasksChanges = function() {
+    if(window.scheduledTasksSubscription) appDB.removeChannel(window.scheduledTasksSubscription);
+    window.scheduledTasksSubscription = appDB.channel('tasks-leave-sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduled_tasks' }, (payload) => {
+        const leaveAppEl = document.getElementById('leaveApp');
+        if (leaveAppEl && !leaveAppEl.classList.contains('hidden')) {
+            if (typeof fetchLeaveData === 'function') fetchLeaveData();
+        }
+    }).subscribe();
+};
+
+// ผูกฟังก์ชันเข้ากับ window ป้องกัน error หาไม่เจอ
+if (typeof subscribeScheduledTasksChanges === 'undefined') {
+    var subscribeScheduledTasksChanges = window.subscribeScheduledTasksChanges;
+}

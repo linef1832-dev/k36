@@ -2555,11 +2555,18 @@ window.deleteImportantTask = async function(taskName) {
         const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; // 🌟 NEW: ลบจากกล่องของ แผนก+กะ ตัวเอง
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         const impLockKey = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+        // ประกาศตัวแปรแบบไม่ให้ชื่อซ้ำกับของเดิม
+        const listKeyUpdate = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
+        const assignKeyUpdate = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+        const lockKeyUpdate = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         
         await appDB.from('settings').upsert([
             { key: impListKey, value: JSON.stringify(window.globalImportantTasks) },
             { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) },
             { key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) }
+            { key: listKeyUpdate, value: JSON.stringify(window.globalImportantTasks) },
+            { key: assignKeyUpdate, value: JSON.stringify(window.currentImportantAssigns) },
+            { key: lockKeyUpdate, value: JSON.stringify(window.lockedImportantTasks) }
         ]);
         window.renderImportantTasksPanel();
         Swal.close();
