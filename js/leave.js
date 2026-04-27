@@ -10,6 +10,7 @@ let deptSettings = {
     SPECIAL: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' }
 };
 let allLeaveData = [];  
+let allSwapData = []; // 🌟 เพิ่มบรรทัดนี้
 let leaveSubscription = null; 
 let settingsSubscription = null;
 let isEditingLeave = false;
@@ -352,8 +353,18 @@ async function fetchLeaveData() {
     const { data } = await appDB.from('leave_requests').select('*').gte('leave_date', startDate).lte('leave_date', endDate);
     if(data) {
         allLeaveData = data;
-        renderLeaveTable();
     }
+
+    // 🌟 NEW: ดึงข้อมูลประวัติการสลับกะมาทำไฮไลต์สีพื้นหลัง
+    const { data: swaps } = await appDB.from('scheduled_tasks')
+        .select('*')
+        .eq('task_type', 'individual_shift_update')
+        .gte('scheduled_for', startDate)
+        .lte('scheduled_for', `${endDate}T23:59:59`);
+    if (swaps) allSwapData = swaps;
+    else allSwapData = [];
+
+    renderLeaveTable();
 }
 
 function subscribeLeaveChanges() {
@@ -718,6 +729,33 @@ window.renderLeaveTable = function() {
         </div>
     </td>`;
 
+        // 🌟 NEW: คำนวณกะแต่ละวัน เพื่อไฮไลต์สีพื้นหลัง
+        const myMonthSwaps = allSwapData.filter(t => t.payload && String(t.payload.user_id) === String(u.id));
+        myMonthSwaps.sort((a,b) => new Date(a.scheduled_for) - new Date(b.scheduled_for));
+
+        let shiftTimeline = {};
+        for(let d=1; d<=daysInMonth; d++) shiftTimeline[d] = u.allowed_shift;
+
+        myMonthSwaps.forEach(swap => {
+            const sDate = new Date(swap.scheduled_for);
+            const swapDay = sDate.getDate();
+            const targetShift = swap.payload.target_shift;
+            
+            if (swap.status === 'pending') {
+                for(let d = swapDay; d <= daysInMonth; d++) shiftTimeline[d] = targetShift;
+            } else if (swap.status === 'completed') {
+                let orig = swap.payload.original_shift;
+                if (!orig) {
+                    if (targetShift === 'กะดึก') orig = 'กะเช้า';
+                    else if (targetShift === 'กะเช้า') orig = 'กะดึก';
+                    else orig = 'กะเช้า';
+                }
+                for(let d = 1; d < swapDay; d++) shiftTimeline[d] = orig;
+                for(let d = swapDay; d <= daysInMonth; d++) shiftTimeline[d] = targetShift;
+            }
+        });
+        // 🌟 ------------------------------------
+
         let isThisUserShiftOpen = true;
         if (typeof checkBookingWindow === 'function') {
             isThisUserShiftOpen = checkBookingWindow(u.allowed_shift);
@@ -737,7 +775,16 @@ window.renderLeaveTable = function() {
             if (s.startDay && d < s.startDay) isDateLocked = true;
             if (s.endDay && d > s.endDay) isDateLocked = true;
 
-            let cellClass = "cursor-pointer";
+            // 🌟 NEW: กำหนดสีพื้นหลังตามกะของวันนั้น
+            let activeShiftForThisDay = shiftTimeline[d];
+            let shiftBgColor = '';
+            if (activeShiftForThisDay === 'กะเช้า') shiftBgColor = 'bg-orange-50 dark:bg-orange-900/20'; 
+            else if (activeShiftForThisDay === 'กะดึก') shiftBgColor = 'bg-sky-100 dark:bg-sky-900/30';
+            else if (activeShiftForThisDay === 'กะกลาง') shiftBgColor = 'bg-blue-50 dark:bg-blue-900/10';
+
+            let cellClass = `cursor-pointer transition-colors duration-300 ${shiftBgColor}`;
+            // 🌟 ------------------------------------
+
             let cellContent = "";
             let baseDeptColor = 'bg-rose-500'; 
             if(currentViewDept === 'OD') baseDeptColor = 'bg-fuchsia-500';
