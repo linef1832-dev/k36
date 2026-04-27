@@ -267,6 +267,18 @@ window.refreshDutyData = async function() {
         currentDutyLeaves = new Set();
         if (leaves) leaves.forEach(l => currentDutyLeaves.add(String(l.user_id))); 
 
+        // 🌟 NEW: ดึงข้อมูลเวลาพักกินข้าวของวันและกะนี้มาเตรียมไว้
+        let currentSchedules = [];
+        try {
+            const { data: schData } = await appDB.from('schedules')
+                .select('staff_name, time_slot')
+                .eq('work_date', targetDate)
+                .eq('shift_name', shiftFilter);
+            if (schData) currentSchedules = schData;
+        } catch(e) { console.error("Fetch schedules error", e); }
+        window.currentDutySchedules = currentSchedules; // เก็บตัวแปรไว้ใช้ตอนวาดหน้าจอ
+        // 🌟 ---------------------------------------------
+
         const relevantLeaves = [];
         if (leaves && typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
             leaves.forEach(l => {
@@ -744,6 +756,18 @@ window.renderRosterGrid = async function(rosterData) {
             const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${a.username}', '${team}')"` : '';
             const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing hover:scale-[1.02] hover:shadow-lg' : 'cursor-default';
 
+            // 🌟 NEW: สร้างป้ายโชว์เวลากินข้าว
+            let breakTimeHtml = '';
+            if (!isMissing) {
+                const mySchedule = (window.currentDutySchedules || []).find(s => s.staff_name === a.username);
+                if (mySchedule && mySchedule.time_slot) {
+                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-400 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm transition hover:scale-105 cursor-default"><span class="material-icons text-[12px]">restaurant</span> พัก: ${mySchedule.time_slot}</div>`;
+                } else {
+                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-md border border-red-200 dark:border-red-800/50 w-fit shadow-sm animate-pulse"><span class="material-icons text-[12px]">warning</span> ยังไม่ลงเวลา</div>`;
+                }
+            }
+            // 🌟 -----------------------------------
+
             let secHtml = '';
             if (a.secondary_team && !isMissing) {
                 const secTeamColors = TEAM_COLORS[a.secondary_team] || TEAM_COLORS['DEFAULT'];
@@ -780,6 +804,7 @@ window.renderRosterGrid = async function(rosterData) {
                         <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
                     </div>
                 </div>
+                ${breakTimeHtml}
                 ${secHtml}
             </div>`;
         }).join('');
