@@ -394,14 +394,21 @@ function subscribeLeaveChanges() {
             const tRole = tUser ? (tUser.role || 'staff').toLowerCase() : 'staff';
 
             let shouldRenderTable = false;
-            if (currentViewDept === 'TRAINER' && (tDept === 'TRAINER' || tRole === 'trainer')) {
-                shouldRenderTable = true;
-            } 
-            // 🌟 เพิ่มเงื่อนไขให้หน้านี้อัปเดตเรียลไทม์ ถ้าคนที่กดมีชื่ออยู่ในกลุ่มพิเศษ
-            else if (currentViewDept === 'SPECIAL' && window.specialGroupUserIds && window.specialGroupUserIds.includes(String(changedUserId))) {
-                shouldRenderTable = true;
-            } 
-            else if (tRole === 'staff' && tDept === currentViewDept) {
+                
+                // 🌟 เช็คเงื่อนไขเรียลไทม์ให้ครอบคลุมทุกแท็บ รวมถึงผู้สอน AM/OD
+                if (currentViewDept === 'SPECIAL' && window.specialGroupUserIds && window.specialGroupUserIds.includes(String(changedUserId))) {
+                    shouldRenderTable = true;
+                } 
+                else if (currentViewDept === 'TRAINER' && (tDept.startsWith('TRAINER') || tRole === 'trainer')) {
+                    shouldRenderTable = true;
+                } 
+                else if (currentViewDept === 'AMQL' || currentViewDept === 'TRAINER_AM') {
+                    if (tDept === 'AMQL' || tDept === 'TRAINER_AM' || (tDept === 'AM' && tRole === 'trainer')) shouldRenderTable = true;
+                } 
+                else if (currentViewDept === 'ODQL' || currentViewDept === 'TRAINER_OD') {
+                    if (tDept === 'ODQL' || tDept === 'TRAINER_OD' || (tDept === 'OD' && tRole === 'trainer')) shouldRenderTable = true;
+                } 
+                else if (tRole === 'staff' && tDept === currentViewDept) {
                 shouldRenderTable = true;
             }
 
@@ -409,7 +416,7 @@ function subscribeLeaveChanges() {
                 window.renderLeaveTable(); 
                 flashRealtimeDot();
             }
-        } // 🌟 เพิ่มปีกกาปิด } ตรงนี้ 1 ตัวครับ
+            }
     }).subscribe();
 }
 
