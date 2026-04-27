@@ -5,6 +5,8 @@ let deptSettings = {
     AM: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
     OD: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
     TRAINER: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
+    AMQL: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
+    ODQL: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' },
     SPECIAL: { limit: 4, startM: '', endM: '', startA: '', endA: '', startN: '', endN: '', isOpen: false, quotaM: 0, quotaA: 0, quotaN: 0, viewMonth: '', startDay: '', endDay: '' }
 };
 let allLeaveData = [];  
@@ -35,7 +37,7 @@ window.setLeaveType = function(type) {
 
 window.switchDept = function(dept) {
     currentViewDept = dept;
-    ['AM', 'OD', 'TRAINER', 'SPECIAL'].forEach(d => {
+    ['AM', 'OD', 'TRAINER', 'SPECIAL', 'AMQL', 'ODQL'].forEach(d => {
         const btn = document.getElementById(`btn${d}`);
         if(!btn) return;
         if(d === dept) {
@@ -43,7 +45,7 @@ window.switchDept = function(dept) {
             btn.classList.remove('text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500', 'text-amber-500');
             if(d === 'AM') btn.classList.add('text-rose-600');
             if(d === 'OD') btn.classList.add('text-fuchsia-600');
-            if(d === 'TRAINER') btn.classList.add('text-indigo-500');
+            if(d === 'TRAINER' || d === 'AMQL' || d === 'ODQL') btn.classList.add('text-indigo-500');
             if(d === 'SPECIAL') btn.classList.add('text-amber-500');
         } else {
             btn.classList.remove('active', 'text-rose-600', 'text-fuchsia-600', 'text-cyan-500', 'text-indigo-500', 'text-amber-500');
@@ -57,6 +59,8 @@ window.switchDept = function(dept) {
     let displayDeptName = dept;
     if (dept === 'TRAINER') displayDeptName = 'ผู้สอน';
     if (dept === 'SPECIAL') displayDeptName = 'จัดกลุ่มเอง';
+    if (dept === 'AMQL') displayDeptName = 'ผู้สอน AM';
+    if (dept === 'ODQL') displayDeptName = 'ผู้สอน OD';
 
     if(label) label.innerText = displayDeptName;
     if(targetLabel) targetLabel.innerText = displayDeptName;
@@ -64,7 +68,7 @@ window.switchDept = function(dept) {
 
     let colorClass = 'bg-rose-600'; 
     if(dept === 'OD') colorClass = 'bg-fuchsia-600';
-    if(dept === 'TRAINER') colorClass = 'bg-indigo-600';
+    if(dept === 'TRAINER' || dept === 'AMQL' || dept === 'ODQL') colorClass = 'bg-indigo-600';
     if(dept === 'SPECIAL') colorClass = 'bg-amber-500';
     if(label) label.className = `text-[10px] ${colorClass} px-2 rounded shadow transition-colors duration-300`;
 
@@ -80,7 +84,7 @@ window.switchDept = function(dept) {
         
         if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
         if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
-        if (dept === 'TRAINER') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
+        if (dept === 'TRAINER' || dept === 'AMQL' || dept === 'ODQL') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
         
         // 🌟 แก้ตรงนี้: ให้เฉพาะผู้จัดการ หรือ แอดมิน หรือ คนที่มีสิทธิ์จัดการ AM เท่านั้นที่เห็นแถบตั้งค่า
         if (dept === 'SPECIAL') canManageThisDept = isGlobalAdmin || window.hasUserPerm('leave_manage_am');
@@ -252,8 +256,8 @@ async function loadLeaveSettings() {
         .neq('key', 'discord_custom_names');
 
     if (data) {
-        // 🌟 ต้องมี SPECIAL ตรงนี้ด้วย ข้อมูลการเปิด/ปิด ถึงจะเรียลไทม์
-        ['AM', 'OD', 'TRAINER', 'SPECIAL'].forEach(dept => {
+        // 🌟 ต้องมี SPECIAL, AMQL, ODQL ตรงนี้ด้วย ข้อมูลการเปิด/ปิด ถึงจะเรียลไทม์
+        ['AM', 'OD', 'TRAINER', 'SPECIAL', 'AMQL', 'ODQL'].forEach(dept => {
             const getDbValue = (keySuffix, defaultVal) => {
                 const row = data.find(d => d.key === `${dept}_${keySuffix}`);
                 return row ? row.value : defaultVal;
