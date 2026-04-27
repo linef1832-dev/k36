@@ -785,9 +785,15 @@ window.renderLeaveTable = function() {
             // 🌟 NEW: กำหนดสีพื้นหลังตามกะของวันนั้น
             let activeShiftForThisDay = shiftTimeline[d];
             let shiftBgColor = '';
-            if (activeShiftForThisDay === 'กะเช้า') shiftBgColor = 'bg-orange-50 dark:bg-orange-900/20'; 
-            else if (activeShiftForThisDay === 'กะดึก') shiftBgColor = 'bg-sky-100 dark:bg-sky-900/30';
-            else if (activeShiftForThisDay === 'กะกลาง') shiftBgColor = 'bg-blue-50 dark:bg-blue-900/10';
+            
+            // ปรับสีให้ชัดขึ้น (พาสเทลชัดเจน แต่ยังอ่านตัวหนังสือในโหมดมืดได้)
+            if (activeShiftForThisDay === 'กะเช้า') {
+                shiftBgColor = 'bg-orange-100 dark:bg-[#6b3110]'; // โทนส้มพาสเทล
+            } else if (activeShiftForThisDay === 'กะดึก') {
+                shiftBgColor = 'bg-indigo-100 dark:bg-[#3d2c6b]'; // โทนม่วง/ฟ้าพาสเทล
+            } else if (activeShiftForThisDay === 'กะกลาง') {
+                shiftBgColor = 'bg-sky-100 dark:bg-[#1e4875]'; // โทนน้ำเงิน/ฟ้าพาสเทล
+            }
 
             let cellClass = `cursor-pointer transition-colors duration-300 ${shiftBgColor}`;
             // 🌟 ------------------------------------
