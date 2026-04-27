@@ -296,14 +296,19 @@ window.refreshDutyData = async function() {
         
         // 🌟 NEW: ดึงข้อมูลงานพิเศษจากฐานข้อมูล
         const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; // 🌟 แก้ไข: เติมชื่อแผนก และ กะ ต่อท้าย
+        // 🌟 NEW: ดึงข้อมูลงานพิเศษและสถานะการล็อคจากฐานข้อมูล
+        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; 
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+        const impLockKey = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`; // 🌟 คีย์เก็บข้อมูลล็อค
         
         let savedRoster = null;
         window.globalImportantTasks = [];
         window.currentImportantAssigns = {};
+        window.lockedImportantTasks = []; // 🌟 เก็บรายชื่องานที่ถูกล็อค
 
         try {
             const { data } = await appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey]);
+            const { data } = await appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey]);
             if (data && data.length > 0) {
                 const rosterRow = data.find(d => d.key === saveKey);
                 if (rosterRow && rosterRow.value) savedRoster = rosterRow;
@@ -313,10 +318,14 @@ window.refreshDutyData = async function() {
 
                 const assignRow = data.find(d => d.key === impAssignKey);
                 if (assignRow && assignRow.value) window.currentImportantAssigns = JSON.parse(assignRow.value);
+
+                const lockRow = data.find(d => d.key === impLockKey);
+                if (lockRow && lockRow.value) window.lockedImportantTasks = JSON.parse(lockRow.value);
             }
         } catch(e) { console.log(e); }
         
         window.renderImportantTasksPanel(); // 🌟 วาดกล่องงานพิเศษ
+        window.renderImportantTasksPanel();
         // ----------------------------------------------------
 
         const btnGen = document.getElementById('btnGenerateRoster');
@@ -482,6 +491,8 @@ window.clearDutyRoster = async function() {
             const saveKey = getDutySaveKey(targetDate, shiftFilter);
             const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`; 
             const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`; // 🌟 NEW: ล้างคนทำงานพิเศษ
+            const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`; 
+            const impLockKey = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`; // 🌟 NEW
             
             try {
                 let currentDataVal = null;
@@ -499,7 +510,8 @@ window.clearDutyRoster = async function() {
                 }
                 
                 await appDB.from('settings').delete().eq('key', saveKey);
-                await appDB.from('settings').delete().eq('key', impAssignKey); // 🌟 NEW
+                await appDB.from('settings').delete().eq('key', impAssignKey); 
+                await appDB.from('settings').delete().eq('key', impLockKey); // 🌟 NEW
                 if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) await appDB.from('settings').delete().eq('key', reportKey);
                 
                 await appDB.from('system_logs').insert([{ action_type: 'ล้างตารางงาน', performed_by: currentUser.username, target_details: `ล้างตารางของแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
@@ -2353,7 +2365,10 @@ window.renderImportantTasksPanel = function() {
                     <span class="material-icons">star</span>
                     <h4 class="font-black text-sm tracking-wide">หน้าที่สำคัญ / พิเศษ</h4>
                 </div>
-                ${isAdmin ? `<button onclick="window.addImportantTask()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-white/20"><span class="material-icons text-[12px]">add</span> เพิ่มงาน</button>` : ''}
+                <div class="flex gap-1">
+                    ${isAdmin ? `<button onclick="window.randomizeImportantTasks()" class="bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-indigo-400 active:scale-95"><span class="material-icons text-[12px]">casino</span> สุ่มลงงาน</button>` : ''}
+                    ${isAdmin ? `<button onclick="window.addImportantTask()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-white/20 active:scale-95"><span class="material-icons text-[12px]">add</span> เพิ่ม</button>` : ''}
+                </div>
             </div>
             <div class="p-3 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3">
     `;
@@ -2367,13 +2382,22 @@ window.renderImportantTasksPanel = function() {
             let boxClass = '';
             
             if (assignedUser) {
-                boxClass = 'border-emerald-500/30 bg-emerald-900/10 hover:border-emerald-400';
+                const isLocked = window.lockedImportantTasks.includes(task);
+                boxClass = isLocked ? 'border-amber-500/50 bg-amber-900/10 hover:border-amber-400' : 'border-emerald-500/30 bg-emerald-900/10 hover:border-emerald-400';
+                const lockIcon = isLocked ? 'lock' : 'lock_open';
+                const lockColor = isLocked ? 'text-amber-500' : 'text-gray-400 hover:text-slate-700 dark:hover:text-white';
+                
                 statusHtml = `
-                    <div class="mt-2.5 flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/50 shadow-inner">
-                        <div class="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-extrabold text-[12px]">
+                    <div class="mt-2.5 flex items-center justify-between ${isLocked ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800/50' : 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50'} px-2.5 py-1.5 rounded-lg border shadow-inner transition-colors">
+                        <div class="flex items-center gap-1.5 ${isLocked ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'} font-extrabold text-[12px]">
                             <span class="material-icons text-[16px]">person_check</span> ${assignedUser}
                         </div>
-                        ${isAdmin ? `<button onclick="window.unassignImportantTask('${task}')" class="text-red-400 hover:text-red-500 bg-white dark:bg-slate-800 rounded px-1.5 py-0.5 shadow-sm border border-red-200 dark:border-red-900/50 transition hover:bg-red-50" title="ปลดคนนี้ออก"><span class="material-icons text-[14px] block">close</span></button>` : ''}
+                        ${isAdmin ? `
+                        <div class="flex gap-1">
+                            <button onclick="window.toggleLockImportantTask('${task}')" class="${lockColor} bg-white dark:bg-slate-800 rounded px-1.5 py-0.5 shadow-sm border border-gray-200 dark:border-slate-700 transition hover:bg-slate-50 dark:hover:bg-slate-700" title="ล็อค/ปลดล็อคคนนี้"><span class="material-icons text-[14px] block">${lockIcon}</span></button>
+                            ${!isLocked ? `<button onclick="window.unassignImportantTask('${task}')" class="text-red-400 hover:text-red-500 bg-white dark:bg-slate-800 rounded px-1.5 py-0.5 shadow-sm border border-red-200 dark:border-red-900/50 transition hover:bg-red-50" title="ปลดคนนี้ออก"><span class="material-icons text-[14px] block">close</span></button>` : ''}
+                        </div>
+                        ` : ''}
                     </div>
                 `;
             } else {
@@ -2401,6 +2425,81 @@ window.renderImportantTasksPanel = function() {
     }
     html += `</div></div>`;
     panel.innerHTML = html;
+};
+
+window.toggleLockImportantTask = async function(taskName) {
+    if (window.lockedImportantTasks.includes(taskName)) {
+        window.lockedImportantTasks = window.lockedImportantTasks.filter(t => t !== taskName);
+    } else {
+        window.lockedImportantTasks.push(taskName);
+    }
+    
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const impLockKey = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+    
+    await appDB.from('settings').upsert([{ key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) }]);
+    window.renderImportantTasksPanel();
+    appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+};
+
+window.randomizeImportantTasks = async function() {
+    if (window.globalImportantTasks.length === 0) return Swal.fire('ไม่มีงาน', 'กรุณาเพิ่มหน้าที่สำคัญก่อนทำการสุ่มครับ', 'warning');
+    
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    
+    // ดึงรายชื่อผู้สอนที่พร้อมทำงานในวันนี้
+    let availableStaff = GLOBAL_USER_LIST.filter(u => {
+        let uDept = u.department || 'AM';
+        if (uDept === 'TRAINER') uDept = 'AMQL';
+        const isCorrectDept = uDept === currentDutyDept;
+        const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
+        return isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
+    }).map(u => u.username);
+    
+    if (availableStaff.length === 0) return Swal.fire('ไม่มีพนักงาน', 'ไม่พบรายชื่อผู้สอนในกะนี้ครับ', 'error');
+
+    // คัดแยกคนที่ถูก "ล็อค" ไว้อยู่แล้วออกจากการสุ่ม
+    const lockedStaff = [];
+    window.lockedImportantTasks.forEach(task => {
+        if (window.currentImportantAssigns[task]) lockedStaff.push(window.currentImportantAssigns[task]);
+    });
+    availableStaff = availableStaff.filter(name => !lockedStaff.includes(name));
+    
+    // สับเปลี่ยนรายชื่อ (สุ่ม)
+    availableStaff = availableStaff.sort(() => Math.random() - 0.5);
+    
+    let staffIndex = 0;
+    let assignedCount = 0;
+    
+    // จ่ายงานให้พนักงานที่เหลือ
+    window.globalImportantTasks.forEach(task => {
+        if (!window.lockedImportantTasks.includes(task)) {
+            if (staffIndex < availableStaff.length) {
+                window.currentImportantAssigns[task] = availableStaff[staffIndex];
+                staffIndex++;
+                assignedCount++;
+            } else {
+                delete window.currentImportantAssigns[task]; // คนหมด งานก็ว่าง
+            }
+        }
+    });
+    
+    Swal.fire({title: 'กำลังสุ่มและจัดเรียงงาน...', didOpen: () => Swal.showLoading()});
+    
+    const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+    await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
+    
+    window.renderImportantTasksPanel();
+    Swal.close();
+    appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+    
+    if (assignedCount > 0) {
+        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: `สุ่มสำเร็จ ${assignedCount} หน้าที่` });
+    } else {
+        Swal.fire('เตือน', 'คุณล็อคงานไว้ครบหมดแล้ว หรือไม่มีพนักงานเหลือให้สุ่มครับ', 'info');
+    }
 };
 
 window.addImportantTask = async function() {
@@ -2447,6 +2546,7 @@ window.deleteImportantTask = async function(taskName) {
     if (res.isConfirmed) {
         window.globalImportantTasks = window.globalImportantTasks.filter(t => t !== taskName);
         delete window.currentImportantAssigns[taskName]; 
+        window.lockedImportantTasks = window.lockedImportantTasks.filter(t => t !== taskName); // ลบตัวล็อคออกด้วย
         
         Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
         const targetDate = document.getElementById('dutyDate').value;
@@ -2454,10 +2554,12 @@ window.deleteImportantTask = async function(taskName) {
         
         const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; // 🌟 NEW: ลบจากกล่องของ แผนก+กะ ตัวเอง
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+        const impLockKey = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         
         await appDB.from('settings').upsert([
             { key: impListKey, value: JSON.stringify(window.globalImportantTasks) },
-            { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }
+            { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) },
+            { key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) }
         ]);
         window.renderImportantTasksPanel();
         Swal.close();
@@ -2507,13 +2609,20 @@ window.assignImportantTask = async function(taskName) {
 
 window.unassignImportantTask = async function(taskName) {
     delete window.currentImportantAssigns[taskName];
+    window.lockedImportantTasks = window.lockedImportantTasks.filter(t => t !== taskName); // ปลดล็อคให้อัตโนมัติเมื่อเตะคนออก
+    
     Swal.fire({title: 'กำลังปลดคน...', didOpen: () => Swal.showLoading()});
     
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+    const impLockKey = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`;
     
-    await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
+    await appDB.from('settings').upsert([
+        { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) },
+        { key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) }
+    ]);
+    
     window.renderImportantTasksPanel();
     Swal.close();
     

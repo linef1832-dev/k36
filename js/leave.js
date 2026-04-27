@@ -1455,3 +1455,18 @@ window.removeFromSpecialDept = async function(id, username) {
         }
     });
 };
+
+// ฟังก์ชันสำหรับดึงสีของป้ายวันหยุดแต่ละประเภท
+function getLeaveBadgeStyle(reason, baseDeptColor) {
+    if (reason === 'X') return 'bg-red-500 border border-red-600';
+    if (reason === 'XX') return 'bg-yellow-400 text-yellow-900 border border-yellow-500';
+    if (reason === 'X4') return 'bg-fuchsia-500 border border-fuchsia-600';
+    if (reason === 'KL') return 'bg-green-500 border border-green-600';
+    if (reason === 'TX') return 'bg-blue-500 border border-blue-600';
+    if (reason === 'PN') return 'bg-orange-500 border border-orange-600';
+    if (reason === 'KP') return 'bg-stone-500 border border-stone-600';
+    return baseDeptColor;
+}
+
+// ผูกเข้ากับ window เผื่อมีการเรียกใช้จากจุดอื่น
+window.getLeaveBadgeStyle = getLeaveBadgeStyle;
