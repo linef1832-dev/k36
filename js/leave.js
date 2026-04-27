@@ -761,7 +761,10 @@ window.renderLeaveTable = function() {
                 try { p = JSON.parse(p); } catch(e) { p = {}; }
             }
             
-            const sDate = new Date(swap.scheduled_for);
+            // 🌟 แก้บั๊กชัวร์ 100%: แปลงเป็นตัวเลข YYYYMMDD เทียบกันตรงๆ ป้องกันปฏิทินนับเดือนเพี้ยน
+            const sDateObj = new Date(swap.scheduled_for);
+            const swapDateInt = sDateObj.getFullYear() * 10000 + (sDateObj.getMonth() + 1) * 100 + sDateObj.getDate();
+            
             const targetShift = p.target_shift;
             let orig = p.original_shift;
             if (!orig) {
@@ -771,13 +774,20 @@ window.renderLeaveTable = function() {
             }
 
             for(let d=1; d<=daysInMonth; d++) {
-                const loopDate = new Date(year, month, d);
-                // ถ้ารอบลูปเลยวันสลับกะไปแล้ว ให้ระบายสีกะใหม่
-                if (loopDate >= sDate) {
-                    if (targetShift !== 'คงเดิม') shiftTimeline[d] = targetShift;
+                const loopDateInt = year * 10000 + (month + 1) * 100 + d;
+
+                if (swap.status === 'pending') {
+                    // ถ้าคิวยังรอรันอยู่ (ยังไม่ถึงวัน) -> วันที่ในลูป มากกว่าหรือเท่ากับ วันสลับกะ ให้เป็นกะใหม่
+                    if (loopDateInt >= swapDateInt && targetShift !== 'คงเดิม') {
+                        shiftTimeline[d] = targetShift;
+                    }
                 } else if (swap.status === 'completed') {
-                    // ถ้าวันสลับกะผ่านไปแล้ว ช่องที่อยู่ก่อนหน้าวันสลับ ให้ระบายสีกะเดิม
-                    shiftTimeline[d] = orig;
+                    // ถ้าคิวรันเสร็จแล้ว -> วันที่ในลูป น้อยกว่า วันสลับกะ ให้เป็นกะเดิม
+                    if (loopDateInt < swapDateInt) {
+                        shiftTimeline[d] = orig;
+                    } else if (targetShift !== 'คงเดิม') {
+                        shiftTimeline[d] = targetShift;
+                    }
                 }
             }
         });
