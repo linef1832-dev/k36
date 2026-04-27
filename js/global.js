@@ -123,8 +123,8 @@ async function showPage(pageName) {
                 else if (pageName === 'discord') {
                     if (typeof applyDiscordPermissions === 'function') applyDiscordPermissions();
                 }
-                else if (pageName === 'uwf') {
-                    if (typeof initUwfApp === 'function') await initUwfApp();
+                else if (pageName === 'withdrawal_report') {
+                    if (typeof initWithdrawalReport === 'function') await initWithdrawalReport();
                 }
                 else if (pageName === 'summary') {
                     if (typeof initSummaryDate === 'function') initSummaryDate();
