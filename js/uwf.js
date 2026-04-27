@@ -1,150 +1,125 @@
-let globalUwfComputers = [];
-let uwfSubscription = null;
+let withdrawalReportData = [];
 
-window.initUwfApp = async function() {
-    // โหลดข้อมูลเมื่อเปิดหน้าต่าง
-    await fetchUwfComputers();
-    subscribeUwfChanges();
-};
+// API Key และ URL จาก Supabase 
+const W_SUPABASE_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/rest/v1/staff_withdrawal_logs';
+const W_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplZGJidGp4dWlkZnVicGlhdXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MjQ2ODgsImV4cCI6MjA4MzIwMDY4OH0.4orJyfFcOwnZcnHFjLOTLXaqFNeapCVe9yCxj3rLMBM';
 
-window.fetchUwfComputers = async function() {
-    const grid = document.getElementById('uwfGrid');
-    if (!grid) return;
+window.initWithdrawalReport = async function() {
+    const tbody = document.getElementById('withdrawalReportBody');
+    if (!tbody) return;
     
-    grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-cyan-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดสถานะคอมพิวเตอร์...</span></div>';
-
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10"><span class="material-icons animate-spin text-emerald-500">sync</span> กำลังดึงข้อมูลล่าสุด...</td></tr>';
+    
     try {
-        const { data, error } = await appDB.from('uwf_computers').select('*').order('computer_name', { ascending: true });
-        if (error) throw error;
-        
-        globalUwfComputers = data || [];
-        renderUwfGrid();
-    } catch (e) {
-        console.error(e);
-        grid.innerHTML = `<div class="col-span-full text-center text-red-500 py-10">โหลดไม่สำเร็จ: ${e.message}</div>`;
+        const response = await fetch(`${W_SUPABASE_URL}?select=*&order=created_at.desc`, {
+            method: 'GET',
+            headers: {
+                'apikey': W_SUPABASE_KEY,
+                'Authorization': `Bearer ${W_SUPABASE_KEY}`
+            }
+        });
+
+        if (response.ok) {
+            withdrawalReportData = await response.json();
+            renderWithdrawalTable();
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-red-500">ไม่สามารถดึงข้อมูลได้ (โปรดตรวจสอบสิทธิ์ Supabase)</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-red-500">เกิดข้อผิดพลาดในการเชื่อมต่อ</td></tr>';
     }
 };
 
-window.renderUwfGrid = function() {
-    const grid = document.getElementById('uwfGrid');
-    if (!grid) return;
+window.renderWithdrawalTable = function() {
+    const tbody = document.getElementById('withdrawalReportBody');
+    if (!tbody) return;
     
-    const searchVal = document.getElementById('uwfSearchInput') ? document.getElementById('uwfSearchInput').value.toLowerCase() : '';
-    const filtered = globalUwfComputers.filter(pc => pc.computer_name.toLowerCase().includes(searchVal));
-
-    if (filtered.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-20 font-bold">ไม่พบข้อมูลคอมพิวเตอร์</div>';
+    if (withdrawalReportData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-gray-500">ยังไม่มีข้อมูลการทำรายการจากส่วนขยายพนักงาน</td></tr>';
         return;
     }
+    
+    tbody.innerHTML = withdrawalReportData.map((row, index) => {
+        const dateObj = new Date(row.created_at);
+        const formattedDate = dateObj.toLocaleString('th-TH');
+        
+        let actionBadge = row.action_type === 'Approve' 
+            ? '<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded text-[10px] font-bold shadow-sm">อนุมัติ</span>' 
+            : '<span class="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-1 rounded text-[10px] font-bold shadow-sm">ปฏิเสธ</span>';
 
-    grid.innerHTML = filtered.map(pc => {
-        // จัดการสีและไอคอนตามสถานะ
-        const isOnline = pc.is_online;
-        const isFrozen = pc.uwf_status;
-        
-        const onlineColor = isOnline ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-gray-500';
-        const onlineText = isOnline ? 'Online' : 'Offline';
-        
-        const freezeBg = isFrozen ? 'bg-blue-900/30 border-blue-500/50' : 'bg-red-900/30 border-red-500/50';
-        const freezeText = isFrozen ? '<span class="text-blue-400 font-bold"><span class="material-icons text-[14px] align-middle">ac_unit</span> แช่แข็งอยู่</span>' 
-                                    : '<span class="text-red-400 font-bold"><span class="material-icons text-[14px] align-middle">lock_open</span> ปลดล็อคแล้ว</span>';
-        
-        const btnAction = isFrozen 
-            ? `<button onclick="toggleUwfStatus('${pc.computer_name}', false)" class="w-full bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white py-2 rounded-lg font-bold text-xs transition border border-red-500/50 flex justify-center items-center gap-1"><span class="material-icons text-[14px]">lock_open</span> สั่งปลดล็อค</button>`
-            : `<button onclick="toggleUwfStatus('${pc.computer_name}', true)" class="w-full bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white py-2 rounded-lg font-bold text-xs transition border border-blue-500/50 flex justify-center items-center gap-1"><span class="material-icons text-[14px]">ac_unit</span> สั่งแช่แข็ง</button>`;
-
-        return `
-        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-gray-200 dark:border-slate-700 shadow-sm flex flex-col group hover:border-cyan-500 transition">
-            <div class="flex justify-between items-start mb-3">
-                <div class="flex items-center gap-2">
-                    <span class="material-icons text-3xl text-slate-400 dark:text-slate-500 group-hover:text-cyan-400 transition">desktop_windows</span>
-                    <div>
-                        <h4 class="font-black text-slate-800 dark:text-white text-base">${pc.computer_name}</h4>
-                        <div class="flex items-center gap-1.5 mt-0.5"><span class="w-2 h-2 rounded-full ${onlineColor}"></span><span class="text-[10px] text-gray-500 font-bold">${onlineText}</span></div>
-                    </div>
-                </div>
-                <button onclick="restartComputer('${pc.computer_name}')" class="text-gray-400 hover:text-amber-500 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-lg border border-transparent dark:border-slate-700 transition" title="สั่ง Restart เครื่อง"><span class="material-icons text-[18px]">restart_alt</span></button>
-            </div>
+        let backendBadge = row.backend_system === 'Jun88'
+            ? '<span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded text-[10px] font-bold">Jun88</span>'
+            : `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] font-bold">${row.backend_system}</span>`;
             
-            <div class="mt-auto flex flex-col gap-2">
-                <div class="p-2 rounded-lg border text-center text-xs shadow-inner ${freezeBg}">
-                    ${freezeText}
-                </div>
-                ${btnAction}
-            </div>
-        </div>
+        return `
+            <tr class="hover:bg-slate-800 transition border-b border-slate-700/50">
+                <td class="p-4 text-center text-xs text-gray-500">${index + 1}</td>
+                <td class="p-4 text-xs text-gray-400 font-mono">${formattedDate}</td>
+                <td class="p-4 font-black text-white">${row.staff_username}</td>
+                <td class="p-4">${backendBadge}</td>
+                <td class="p-4 text-center">${actionBadge}</td>
+            </tr>
         `;
     }).join('');
 };
 
-window.toggleUwfStatus = async function(computerName, targetStatus) {
-    const actionText = targetStatus ? 'แช่แข็ง' : 'ปลดล็อค';
-    const result = await Swal.fire({
-        title: `ยืนยันการ ${actionText}?`,
-        text: `เครื่อง ${computerName} จะทำการ Restart ทันทีที่รับคำสั่ง`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: targetStatus ? '#3b82f6' : '#ef4444',
-        confirmButtonText: `ใช่, ${actionText}เลย`
-    });
-
-    if (result.isConfirmed) {
-        Swal.fire({title: 'กำลังส่งคำสั่ง...', didOpen: () => Swal.showLoading()});
-        
-        // อัปเดตลง Database เพื่อให้ Agent ในเครื่องนั้นดึงคำสั่งไปทำงาน
-        const { error } = await appDB.from('uwf_computers').update({ uwf_status: targetStatus }).eq('computer_name', computerName);
-        
-        if (error) Swal.fire('Error', error.message, 'error');
-        else Swal.fire({icon: 'success', title: 'ส่งคำสั่งสำเร็จ', timer: 1000, showConfirmButton: false});
+window.exportWithdrawalToExcel = function() {
+    if (withdrawalReportData.length === 0) {
+        Swal.fire('แจ้งเตือน', 'ไม่มีข้อมูลสำหรับดาวน์โหลด', 'warning');
+        return;
     }
-};
-
-window.restartComputer = async function(computerName) {
-    const result = await Swal.fire({
-        title: `สั่ง Restart ${computerName}?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'รีสตาร์ท',
-        confirmButtonColor: '#f59e0b'
-    });
-
-    if (result.isConfirmed) {
-        // (ทริคเพิ่มเติม: ถ้าต้องการสั่งรีสตาร์ทเพียวๆ คุณอาจต้องเพิ่ม column เช่น 'command' ให้ agent ดึงไปอ่านด้วยครับ)
-        Swal.fire('ส่งคำสั่งแล้ว', `เครื่อง ${computerName} กำลังเริ่มระบบใหม่`, 'success');
-    }
-};
-
-window.subscribeUwfChanges = function() {
-    if (uwfSubscription) return;
-    uwfSubscription = appDB.channel('custom-uwf-channel')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'uwf_computers' }, (payload) => {
-            fetchUwfComputers(); // โหลดข้อมูลวาดหน้าเว็บใหม่แบบเรียลไทม์
-        })
-        .subscribe();
-};
-// ฟังก์ชันปลดล็อคทุกเครื่องพร้อมกัน (สำหรับอัปเดตแพทช์/โปรแกรม)
-window.bulkUnlockUwf = async function() {
-    const result = await Swal.fire({
-        title: 'ยืนยันการปลดล็อคทั้งหมด?',
-        text: 'คอมพิวเตอร์ทุกเครื่องในระบบจะถูก "ปลดล็อค" และ "รีสตาร์ท" ทันที! (ใช้สำหรับอัปเดตแพทช์เกม หรือลงโปรแกรมพร้อมกัน)',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        confirmButtonText: 'ใช่, ปลดล็อคทั้งหมด',
-        cancelButtonText: 'ยกเลิก'
-    });
-
-    if (result.isConfirmed) {
-        Swal.fire({title: 'กำลังส่งคำสั่ง...', didOpen: () => Swal.showLoading()});
+    
+    // เรียกใช้ระบบโหลด ExcelJS ของคุณที่อยู่ในหน้า Summary
+    window.loadExcelLibrary(async function() {
+        Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
-        // สั่งอัปเดตทุกเครื่องที่มีในฐานข้อมูลให้ uwf_status = false (ปลดล็อค)
-        const { error } = await appDB.from('uwf_computers').update({ uwf_status: false }).neq('computer_name', '');
-        
-        if (error) {
-            Swal.fire('Error', error.message, 'error');
-        } else {
-            Swal.fire({icon: 'success', title: 'ส่งคำสั่งสำเร็จ!', text: 'คอมพิวเตอร์ทุกเครื่องกำลังรีสตาร์ทเพื่อเข้าสู่โหมดปกติ', timer: 3000});
-            fetchUwfComputers();
+        try {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('รายงานการถอน');
+            
+            ws.columns = [
+                { header: 'ลำดับ', key: 'index', width: 10 },
+                { header: 'วัน-เวลาที่ทำรายการ', key: 'date', width: 25 },
+                { header: 'รหัสพนักงาน', key: 'staff', width: 20 },
+                { header: 'ระบบที่ทำรายการ', key: 'system', width: 15 },
+                { header: 'สถานะ (Approve/Reject)', key: 'action', width: 25 }
+            ];
+            
+            // ตกแต่ง Header
+            ws.getRow(1).eachCell(cell => {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            });
+            
+            withdrawalReportData.forEach((row, idx) => {
+                ws.addRow({
+                    index: idx + 1,
+                    date: new Date(row.created_at).toLocaleString('th-TH'),
+                    staff: row.staff_username,
+                    system: row.backend_system,
+                    action: row.action_type === 'Approve' ? 'อนุมัติ' : 'ปฏิเสธ'
+                });
+            });
+            
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            
+            const dateStr = new Date().toISOString().split('T')[0];
+            link.download = `Staff_Withdrawal_Report_${dateStr}.xlsx`;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            Swal.fire({ icon: 'success', title: 'ดาวน์โหลดสำเร็จ', timer: 1500, showConfirmButton: false });
+        } catch (e) {
+            Swal.fire('Error', 'ไม่สามารถดาวน์โหลดไฟล์ได้: ' + e.message, 'error');
         }
-    }
+    });
 };
