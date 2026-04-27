@@ -2760,3 +2760,19 @@ window.quickAssignBackups = async function() {
         Swal.fire('ข้อมูลครบถ้วน', 'สแตนด์บายถูกจัดเต็มหมดแล้ว หรือไม่สามารถหาคนที่เวลาพักไม่ชนกันได้ครับ', 'info');
     }
 };
+
+// ==========================================
+// 🌟 โค้ดเสกปุ่ม "⚡ จัดรองด่วน (AI)" ให้โผล่ขึ้นมาข้างปุ่มล้างตาราง
+// ==========================================
+setInterval(() => {
+    const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
+    if (clearBtn && !document.getElementById('btnQuickBackup')) {
+        const btn = document.createElement('button');
+        btn.id = 'btnQuickBackup';
+        btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
+        btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
+        btn.onclick = window.quickAssignBackups;
+        
+        clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
+    }
+}, 1000);
