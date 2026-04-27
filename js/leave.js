@@ -13,6 +13,7 @@ let allLeaveData = [];
 let allSwapData = []; // 🌟 เพิ่มบรรทัดนี้
 let leaveSubscription = null; 
 let settingsSubscription = null;
+let scheduledTasksSubscription = null; // 🌟 NEW: เพิ่มตัวแปรนี้
 let isEditingLeave = false;
 let editLeaveTimer;
 
@@ -217,6 +218,7 @@ window.initLeaveTable = async function() {
     await fetchLeaveData(); 
     subscribeLeaveChanges(); 
     subscribeSettingsChanges();
+    subscribeScheduledTasksChanges(); // 🌟 NEW: สั่งให้ฟังการเปลี่ยนกะแบบเรียลไทม์
     
     // ==========================================
     // 🟢 กำหนดหน้าเริ่มต้น และเช็คสิทธิ์การมองเห็น
