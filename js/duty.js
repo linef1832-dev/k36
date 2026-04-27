@@ -294,8 +294,6 @@ window.refreshDutyData = async function() {
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter); 
         
-        // 🌟 NEW: ดึงข้อมูลงานพิเศษจากฐานข้อมูล
-        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; // 🌟 แก้ไข: เติมชื่อแผนก และ กะ ต่อท้าย
         // 🌟 NEW: ดึงข้อมูลงานพิเศษและสถานะการล็อคจากฐานข้อมูล
         const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; 
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
@@ -307,7 +305,6 @@ window.refreshDutyData = async function() {
         window.lockedImportantTasks = []; // 🌟 เก็บรายชื่องานที่ถูกล็อค
 
         try {
-            const { data } = await appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey]);
             const { data } = await appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey]);
             if (data && data.length > 0) {
                 const rosterRow = data.find(d => d.key === saveKey);
@@ -324,7 +321,6 @@ window.refreshDutyData = async function() {
             }
         } catch(e) { console.log(e); }
         
-        window.renderImportantTasksPanel(); // 🌟 วาดกล่องงานพิเศษ
         window.renderImportantTasksPanel();
         // ----------------------------------------------------
 
@@ -490,7 +486,6 @@ window.clearDutyRoster = async function() {
             Swal.fire({title: 'กำลังล้างข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
             const saveKey = getDutySaveKey(targetDate, shiftFilter);
             const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`; 
-            const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`; // 🌟 NEW: ล้างคนทำงานพิเศษ
             const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`; 
             const impLockKey = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`; // 🌟 NEW
             
@@ -2552,18 +2547,11 @@ window.deleteImportantTask = async function(taskName) {
         const targetDate = document.getElementById('dutyDate').value;
         const shiftFilter = document.getElementById('dutyShiftSelect').value;
         
-        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; // 🌟 NEW: ลบจากกล่องของ แผนก+กะ ตัวเอง
-        const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-        const impLockKey = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-        // ประกาศตัวแปรแบบไม่ให้ชื่อซ้ำกับของเดิม
         const listKeyUpdate = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
         const assignKeyUpdate = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         const lockKeyUpdate = `duty_important_lock_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         
         await appDB.from('settings').upsert([
-            { key: impListKey, value: JSON.stringify(window.globalImportantTasks) },
-            { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) },
-            { key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) }
             { key: listKeyUpdate, value: JSON.stringify(window.globalImportantTasks) },
             { key: assignKeyUpdate, value: JSON.stringify(window.currentImportantAssigns) },
             { key: lockKeyUpdate, value: JSON.stringify(window.lockedImportantTasks) }
