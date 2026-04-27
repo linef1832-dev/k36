@@ -2187,10 +2187,9 @@ const PERM_GROUPS = [
         ]
     },
     {
-        id: 'page_uwf', name: 'แช่แข็งคอมฯ (UWF)', icon: 'ac_unit', theme: 'sky',
+        id: 'page_withdrawal_report', name: 'รายงานการถอนเงิน', icon: 'receipt_long', theme: 'emerald',
         items: [
-            {id: 'uwf', name: 'เข้าหน้าควบคุม UWF', isSub: false},
-            {id: 'uwf_manage', name: 'สั่งแช่แข็ง / ปลดล็อค', isSub: true}
+            {id: 'withdrawal_report', name: 'ตรวจสอบยอดพนักงานถอน', isSub: false}
         ]
     },
     {
