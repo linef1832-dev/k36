@@ -295,7 +295,7 @@ window.refreshDutyData = async function() {
         const saveKey = getDutySaveKey(targetDate, shiftFilter); 
         
         // 🌟 NEW: ดึงข้อมูลงานพิเศษจากฐานข้อมูล
-        const impListKey = 'duty_important_tasks_list'; 
+        const impListKey = `duty_important_tasks_list_${currentDutyDept}`; // 🌟 แก้ไข: เติมชื่อแผนกต่อท้าย Key
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         
         let savedRoster = null;
@@ -2421,7 +2421,10 @@ window.addImportantTask = async function() {
         
         window.globalImportantTasks.push(name);
         Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
-        await appDB.from('settings').upsert([{ key: 'duty_important_tasks_list', value: JSON.stringify(window.globalImportantTasks) }]);
+        
+        const impListKey = `duty_important_tasks_list_${currentDutyDept}`; // 🌟 NEW: แยกลงกล่องตามแผนก
+        await appDB.from('settings').upsert([{ key: impListKey, value: JSON.stringify(window.globalImportantTasks) }]);
+        
         window.renderImportantTasksPanel();
         Swal.close();
     }
@@ -2445,10 +2448,13 @@ window.deleteImportantTask = async function(taskName) {
         Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
         const targetDate = document.getElementById('dutyDate').value;
         const shiftFilter = document.getElementById('dutyShiftSelect').value;
+        
+        const impListKey = `duty_important_tasks_list_${currentDutyDept}`; // 🌟 NEW: ลบจากกล่องของแผนกตัวเอง
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         
         await appDB.from('settings').upsert([
             { key: 'duty_important_tasks_list', value: JSON.stringify(window.globalImportantTasks) },
+            { key: impListKey, value: JSON.stringify(window.globalImportantTasks) },
             { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }
         ]);
         window.renderImportantTasksPanel();

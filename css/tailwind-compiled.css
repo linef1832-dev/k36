@@ -6552,6 +6552,11 @@ video {
   border-color: rgb(14 165 233 / 0.5);
 }
 
+.hover\:border-slate-400:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(148 163 184 / var(--tw-border-opacity, 1));
+}
+
 .hover\:border-slate-500:hover {
   --tw-border-opacity: 1;
   border-color: rgb(100 116 139 / var(--tw-border-opacity, 1));
@@ -8483,6 +8488,11 @@ video {
 
 .dark\:hover\:border-amber-500\/50:hover:is(.dark *) {
   border-color: rgb(245 158 11 / 0.5);
+}
+
+.dark\:hover\:border-slate-400:hover:is(.dark *) {
+  --tw-border-opacity: 1;
+  border-color: rgb(148 163 184 / var(--tw-border-opacity, 1));
 }
 
 .dark\:hover\:bg-amber-500\/20:hover:is(.dark *) {

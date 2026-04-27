@@ -841,39 +841,22 @@ window.renderLeaveTable = function() {
             if(currentViewDept === 'TRAINER') baseDeptColor = 'bg-indigo-500';
 
             if (isDateLocked && !isAdmin) {
-                cellClass = "bg-gray-300 dark:bg-slate-950 cursor-not-allowed opacity-30"; 
-            } else if (isBooked) {
-                let finalColor = 'bg-red-500'; 
-                let finalText = '✕';
-                let textColor = 'text-white';
-                
-                if (leaveReason === 'X' || leaveReason === 'Table-Booking') { 
-                    finalColor = 'bg-red-500'; finalText = '✕'; 
-                }
-                else if (leaveReason === 'XX') { 
-                    finalColor = 'bg-yellow-400'; finalText = 'XX'; textColor = 'text-yellow-900'; 
-                }
-                else if (leaveReason === 'X4') { 
-                    finalColor = 'bg-pink-500'; finalText = 'X4'; 
-                } 
-                else if (leaveReason === 'KL') {
-                    finalColor = 'bg-green-500'; finalText = 'KL';
-                } else if (leaveReason === 'TL' || leaveReason === 'TX') {
-                    finalColor = 'bg-blue-500'; finalText = leaveReason;
-                } else if (leaveReason === 'PN') {
-                    finalColor = 'bg-amber-800'; finalText = 'PN'; textColor = 'text-white';
-                } else if (leaveReason === 'KP') {
-                    finalColor = 'bg-yellow-700'; finalText = 'KP'; textColor = 'text-white';
+                // 🌟 แก้ไข: คงสีพื้นหลังกะไว้ (shiftBgColor) แต่ปรับให้จางลง (opacity-40) เพื่อให้ดูเป็นระเบียบ
+                cellClass = `${shiftBgColor} cursor-not-allowed opacity-40`;
+                if (isBooked) {
+                    let badgeStyle = typeof getLeaveBadgeStyle === 'function' ? getLeaveBadgeStyle(leaveReason, baseDeptColor) : 'bg-red-500';
+                    cellContent = `<div class="flex items-center justify-center w-full h-full"><span class="${badgeStyle} text-white text-[11px] px-2 py-0.5 rounded shadow-sm opacity-80 font-bold">${leaveReason}</span></div>`;
                 } else {
-                    finalColor = baseDeptColor; finalText = leaveReason;
+                    cellContent = `<div class="flex items-center justify-center w-full h-full"><span class="material-icons text-gray-400 dark:text-slate-500 text-xs">lock</span></div>`;
                 }
-
-                cellClass = `${finalColor} ${textColor} font-bold cursor-pointer text-sm leading-none pb-1 is-booked shadow-inner`;
-                cellContent = finalText; 
-            } else if (isShiftFull && !isAdmin) { 
-                cellClass = "bg-gray-100 dark:bg-slate-800 cursor-not-allowed opacity-30"; 
-            } else if (!isBooked && isPersonalFull && !isAdmin && isMe) {
-                cellClass = "bg-gray-50 dark:bg-slate-800/50 cursor-not-allowed opacity-50"; 
+            } else {
+                if (isBooked) {
+                    cellClass += ' is-booked';
+                    let badgeStyle = typeof getLeaveBadgeStyle === 'function' ? getLeaveBadgeStyle(leaveReason, baseDeptColor) : 'bg-red-500';
+                    cellContent = `<div class="flex items-center justify-center w-full h-full"><span class="${badgeStyle} text-white text-[11px] px-2 py-0.5 rounded shadow-sm font-bold animate-fade-in hover:scale-110 transition-transform">${leaveReason}</span></div>`;
+                } else {
+                    cellContent = `<div class="flex items-center justify-center w-full h-full opacity-0 group-hover:opacity-100 transition-opacity"><div class="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-500 hover:border-slate-400 dark:hover:border-slate-400 transition-colors"></div></div>`;
+                }
             }
 
             let hoverAttr = `onmouseover="highlightCell(this, ${d-1}, true)" onmouseout="highlightCell(this, ${d-1}, false)"`;
