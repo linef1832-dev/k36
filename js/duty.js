@@ -254,6 +254,8 @@ window.currentDutyLeaveData = [];
 
 window.refreshDutyData = async function() {
     try {
+        window.ensureImportantTasksContainer(); // 🌟 NEW: สร้างโครงสร้างกล่องงานพิเศษ
+
         const targetDateInput = document.getElementById('dutyDate');
         const shiftFilterInput = document.getElementById('dutyShiftSelect');
         
@@ -267,17 +269,12 @@ window.refreshDutyData = async function() {
         currentDutyLeaves = new Set();
         if (leaves) leaves.forEach(l => currentDutyLeaves.add(String(l.user_id))); 
 
-        // 🌟 NEW: ดึงข้อมูลเวลาพักกินข้าวของวันและกะนี้มาเตรียมไว้
         let currentSchedules = [];
         try {
-            const { data: schData } = await appDB.from('schedules')
-                .select('staff_name, time_slot')
-                .eq('work_date', targetDate)
-                .eq('shift_name', shiftFilter);
+            const { data: schData } = await appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter);
             if (schData) currentSchedules = schData;
         } catch(e) { console.error("Fetch schedules error", e); }
-        window.currentDutySchedules = currentSchedules; // เก็บตัวแปรไว้ใช้ตอนวาดหน้าจอ
-        // 🌟 ---------------------------------------------
+        window.currentDutySchedules = currentSchedules;
 
         const relevantLeaves = [];
         if (leaves && typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
@@ -297,12 +294,31 @@ window.refreshDutyData = async function() {
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter); 
         
+        // 🌟 NEW: ดึงข้อมูลงานพิเศษจากฐานข้อมูล
+        const impListKey = 'duty_important_tasks_list'; 
+        const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+        
         let savedRoster = null;
+        window.globalImportantTasks = [];
+        window.currentImportantAssigns = {};
+
         try {
-            const { data } = await appDB.from('settings').select('value').eq('key', saveKey);
-            if (data && data.length > 0) savedRoster = data[0];
+            const { data } = await appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey]);
+            if (data && data.length > 0) {
+                const rosterRow = data.find(d => d.key === saveKey);
+                if (rosterRow && rosterRow.value) savedRoster = rosterRow;
+
+                const listRow = data.find(d => d.key === impListKey);
+                if (listRow && listRow.value) window.globalImportantTasks = JSON.parse(listRow.value);
+
+                const assignRow = data.find(d => d.key === impAssignKey);
+                if (assignRow && assignRow.value) window.currentImportantAssigns = JSON.parse(assignRow.value);
+            }
         } catch(e) { console.log(e); }
         
+        window.renderImportantTasksPanel(); // 🌟 วาดกล่องงานพิเศษ
+        // ----------------------------------------------------
+
         const btnGen = document.getElementById('btnGenerateRoster');
         const grid = document.getElementById('dutyResultGrid');
         const matrixGrid = document.getElementById('dutyMatrixGrid');
@@ -465,6 +481,7 @@ window.clearDutyRoster = async function() {
             Swal.fire({title: 'กำลังล้างข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
             const saveKey = getDutySaveKey(targetDate, shiftFilter);
             const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`; 
+            const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`; // 🌟 NEW: ล้างคนทำงานพิเศษ
             
             try {
                 let currentDataVal = null;
@@ -482,6 +499,7 @@ window.clearDutyRoster = async function() {
                 }
                 
                 await appDB.from('settings').delete().eq('key', saveKey);
+                await appDB.from('settings').delete().eq('key', impAssignKey); // 🌟 NEW
                 if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) await appDB.from('settings').delete().eq('key', reportKey);
                 
                 await appDB.from('system_logs').insert([{ action_type: 'ล้างตารางงาน', performed_by: currentUser.username, target_details: `ล้างตารางของแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
@@ -489,37 +507,6 @@ window.clearDutyRoster = async function() {
                 
                 Swal.fire({ icon: 'success', title: 'ล้างตารางเรียบร้อย', text: 'สามารถกดปุ่ม "กู้คืน" ที่เพิ่มขึ้นมาได้', timer: 2000, showConfirmButton: false });
                 if(typeof window.refreshDutyData === 'function') window.refreshDutyData(); 
-            } catch (e) { Swal.fire('Error', e.message, 'error'); }
-        }
-    });
-};
-
-window.restoreDutyRoster = async function() {
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    const saveKey = getDutySaveKey(targetDate, shiftFilter);
-    const reportKey = `report_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-
-    const backupData = localStorage.getItem(`backup_${saveKey}`);
-    if (!backupData) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลสำรองให้กู้คืนสำหรับกะนี้', 'error');
-
-    Swal.fire({
-        title: 'กู้คืนตาราง?', text: 'ระบบจะนำตารางที่คุณเพิ่งลบไปกลับมาใช้งาน', icon: 'question',
-        showCancelButton: true, confirmButtonColor: '#10b981', confirmButtonText: 'กู้คืนเลย', cancelButtonText: 'ยกเลิก'
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            Swal.fire({title: 'กำลังกู้คืน...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-            try {
-                await appDB.from('settings').upsert([{ key: saveKey, value: backupData }]);
-                const backupReport = localStorage.getItem(`backup_${reportKey}`);
-                if ((currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) && backupReport) await appDB.from('settings').upsert([{ key: reportKey, value: backupReport }]);
-
-                await appDB.from('system_logs').insert([{ action_type: 'กู้คืนตารางงาน', performed_by: currentUser.username, target_details: `กู้คืนตารางแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
-                localStorage.removeItem(`backup_${saveKey}`); localStorage.removeItem(`backup_${reportKey}`);
-                appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
-                
-                Swal.fire({ icon: 'success', title: 'กู้คืนสำเร็จ!', timer: 1500, showConfirmButton: false });
-                if(typeof window.refreshDutyData === 'function') window.refreshDutyData();
             } catch (e) { Swal.fire('Error', e.message, 'error'); }
         }
     });
@@ -2310,4 +2297,217 @@ window.renderTrainerOdMatrix = function(rosterData) {
 
     html += `</tbody></table></div>`;
     matrixGrid.innerHTML = html;
+};
+
+// ==========================================
+// 🌟 ระบบหน้าที่สำคัญ / พิเศษ (แสดงผลซ้ายมือ)
+// ==========================================
+
+window.ensureImportantTasksContainer = function() {
+    let container = document.getElementById('importantTasksPanel');
+    if (!container) {
+        const resultGrid = document.getElementById('dutyResultGrid');
+        const matrixGrid = document.getElementById('dutyMatrixGrid');
+        const gridParent = resultGrid.parentElement;
+        
+        if (gridParent.id === 'dutyRosterWrapper') return;
+
+        const wrapper = document.createElement('div');
+        wrapper.id = 'dutyRosterWrapper';
+        wrapper.className = 'flex flex-col xl:flex-row gap-5 w-full items-start';
+        
+        const leftPanel = document.createElement('div');
+        leftPanel.id = 'importantTasksPanel';
+        leftPanel.className = 'w-full xl:w-[340px] shrink-0 hidden transition-all';
+        
+        const rightPanel = document.createElement('div');
+        rightPanel.id = 'mainRosterPanel';
+        rightPanel.className = 'flex-1 min-w-0 w-full';
+        
+        gridParent.insertBefore(wrapper, resultGrid);
+        rightPanel.appendChild(resultGrid);
+        if(matrixGrid) rightPanel.appendChild(matrixGrid);
+        
+        wrapper.appendChild(leftPanel);
+        wrapper.appendChild(rightPanel);
+    }
+};
+
+window.renderImportantTasksPanel = function() {
+    const panel = document.getElementById('importantTasksPanel');
+    if (!panel) return;
+    
+    const isTrainerDept = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER'));
+    if (!isTrainerDept) {
+        panel.classList.add('hidden');
+        return;
+    }
+    
+    panel.classList.remove('hidden');
+    const isAdmin = window.isDutyAdmin();
+    
+    let html = `
+        <div class="bg-[#151f32] border border-slate-700/80 rounded-2xl shadow-lg flex flex-col max-h-[750px] overflow-hidden">
+            <div class="bg-gradient-to-r from-amber-600 to-yellow-500 text-white p-3 flex justify-between items-center shadow-md shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="material-icons">star</span>
+                    <h4 class="font-black text-sm tracking-wide">หน้าที่สำคัญ / พิเศษ</h4>
+                </div>
+                ${isAdmin ? `<button onclick="window.addImportantTask()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold shadow-inner transition flex items-center gap-1 border border-white/20"><span class="material-icons text-[12px]">add</span> เพิ่มงาน</button>` : ''}
+            </div>
+            <div class="p-3 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3">
+    `;
+    
+    if (window.globalImportantTasks.length === 0) {
+        html += `<div class="text-center py-10 text-gray-500 text-xs font-bold border border-dashed border-slate-700 rounded-xl bg-slate-900/50">แอดมินยังไม่ได้ตั้งค่างานพิเศษ</div>`;
+    } else {
+        window.globalImportantTasks.forEach(task => {
+            const assignedUser = window.currentImportantAssigns[task];
+            let statusHtml = '';
+            let boxClass = '';
+            
+            if (assignedUser) {
+                boxClass = 'border-emerald-500/30 bg-emerald-900/10 hover:border-emerald-400';
+                statusHtml = `
+                    <div class="mt-2.5 flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/50 shadow-inner">
+                        <div class="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-extrabold text-[12px]">
+                            <span class="material-icons text-[16px]">person_check</span> ${assignedUser}
+                        </div>
+                        ${isAdmin ? `<button onclick="window.unassignImportantTask('${task}')" class="text-red-400 hover:text-red-500 bg-white dark:bg-slate-800 rounded px-1.5 py-0.5 shadow-sm border border-red-200 dark:border-red-900/50 transition hover:bg-red-50" title="ปลดคนนี้ออก"><span class="material-icons text-[14px] block">close</span></button>` : ''}
+                    </div>
+                `;
+            } else {
+                boxClass = 'border-red-500/50 bg-red-900/10 hover:border-red-400';
+                statusHtml = `
+                    <div class="mt-2.5 flex items-center justify-between bg-red-50 dark:bg-red-900/30 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-800/50 animate-pulse shadow-inner">
+                        <div class="flex items-center gap-1.5 text-red-600 dark:text-red-400 font-extrabold text-[12px]">
+                            <span class="material-icons text-[16px]">warning</span> ยังไม่มีคนดูแล
+                        </div>
+                        ${isAdmin ? `<button onclick="window.assignImportantTask('${task}')" class="bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 rounded text-[10px] font-bold shadow-md transition border border-red-500 active:scale-95">เลือกคน</button>` : ''}
+                    </div>
+                `;
+            }
+            
+            html += `
+                <div class="p-3 rounded-xl border transition shadow-sm group bg-slate-800 ${boxClass}">
+                    <div class="flex justify-between items-start gap-2">
+                        <div class="font-bold text-sm text-slate-200 leading-tight flex-1">${task}</div>
+                        ${isAdmin ? `<button onclick="window.deleteImportantTask('${task}')" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition bg-slate-900 rounded p-1.5 shadow-inner border border-slate-700" title="ลบงานนี้ทิ้งถาวร"><span class="material-icons text-[14px] block">delete</span></button>` : ''}
+                    </div>
+                    ${statusHtml}
+                </div>
+            `;
+        });
+    }
+    html += `</div></div>`;
+    panel.innerHTML = html;
+};
+
+window.addImportantTask = async function() {
+    const { value: taskName } = await Swal.fire({
+        title: 'เพิ่มหน้าที่สำคัญ / พิเศษ',
+        input: 'text',
+        inputPlaceholder: 'เช่น ดูแลระบบฝากถอน, เช็คแชท VIP...',
+        showCancelButton: true,
+        confirmButtonText: 'บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    
+    if (taskName) {
+        const name = taskName.trim();
+        if (window.globalImportantTasks.includes(name)) return Swal.fire('เตือน', 'มีหน้าที่นี้อยู่ในระบบแล้วครับ', 'warning');
+        
+        window.globalImportantTasks.push(name);
+        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+        await appDB.from('settings').upsert([{ key: 'duty_important_tasks_list', value: JSON.stringify(window.globalImportantTasks) }]);
+        window.renderImportantTasksPanel();
+        Swal.close();
+    }
+};
+
+window.deleteImportantTask = async function(taskName) {
+    const res = await Swal.fire({
+        title: 'ลบหน้าที่นี้?',
+        text: `ต้องการลบ "${taskName}" ออกจากรายการงานพิเศษใช่หรือไม่? (ลบทิ้งถาวร)`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'ลบทิ้งเลย',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    
+    if (res.isConfirmed) {
+        window.globalImportantTasks = window.globalImportantTasks.filter(t => t !== taskName);
+        delete window.currentImportantAssigns[taskName]; 
+        
+        Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
+        const targetDate = document.getElementById('dutyDate').value;
+        const shiftFilter = document.getElementById('dutyShiftSelect').value;
+        const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+        
+        await appDB.from('settings').upsert([
+            { key: 'duty_important_tasks_list', value: JSON.stringify(window.globalImportantTasks) },
+            { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }
+        ]);
+        window.renderImportantTasksPanel();
+        Swal.close();
+    }
+};
+
+window.assignImportantTask = async function(taskName) {
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const activeStaff = GLOBAL_USER_LIST.filter(u => {
+        let uDept = u.department || 'AM';
+        if (uDept === 'TRAINER') uDept = 'AMQL';
+        const isCorrectDept = uDept === currentDutyDept;
+        const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
+        return isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
+    });
+    
+    if (activeStaff.length === 0) return Swal.fire('ไม่มีรายชื่อ', 'ไม่มีผู้สอนที่พร้อมทำงานในกะนี้เลยครับ', 'error');
+    
+    let options = {};
+    activeStaff.sort((a,b) => a.username.localeCompare(b.username)).forEach(u => options[u.username] = u.username);
+    
+    const { value: selectedUser } = await Swal.fire({
+        title: `<div class="text-sm text-gray-400 mb-1">มอบหมายงาน:</div><div class="text-amber-500 font-black">${taskName}</div>`,
+        input: 'select',
+        inputOptions: options,
+        inputPlaceholder: '-- เลือกผู้รับผิดชอบงานนี้ --',
+        showCancelButton: true,
+        confirmButtonText: 'มอบหมาย',
+        confirmButtonColor: '#10b981',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    
+    if (selectedUser) {
+        window.currentImportantAssigns[taskName] = selectedUser;
+        Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+        
+        const targetDate = document.getElementById('dutyDate').value;
+        const shiftFilter = document.getElementById('dutyShiftSelect').value;
+        const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+        
+        await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
+        window.renderImportantTasksPanel();
+        Swal.close();
+        appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+    }
+};
+
+window.unassignImportantTask = async function(taskName) {
+    delete window.currentImportantAssigns[taskName];
+    Swal.fire({title: 'กำลังปลดคน...', didOpen: () => Swal.showLoading()});
+    
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+    
+    await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
+    window.renderImportantTasksPanel();
+    Swal.close();
+    
+    appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
 };

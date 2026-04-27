@@ -355,12 +355,15 @@ async function fetchLeaveData() {
         allLeaveData = data;
     }
 
-    // 🌟 NEW: ดึงข้อมูลประวัติการสลับกะมาทำไฮไลต์สีพื้นหลัง
+    // 🌟 NEW: ดึงข้อมูลประวัติการสลับกะมาทำไฮไลต์สีพื้นหลัง (ดึงเผื่อไปเดือนหน้าด้วย)
+    const fetchStart = new Date(year, month - 2, 1).toISOString();
+    const fetchEnd = new Date(year, month + 1, 0).toISOString() + "T23:59:59";
     const { data: swaps } = await appDB.from('scheduled_tasks')
         .select('*')
         .eq('task_type', 'individual_shift_update')
-        .gte('scheduled_for', startDate)
-        .lte('scheduled_for', `${endDate}T23:59:59`);
+        .gte('scheduled_for', fetchStart)
+        .lte('scheduled_for', fetchEnd);
+        
     if (swaps) allSwapData = swaps;
     else allSwapData = [];
 
@@ -736,29 +739,44 @@ window.renderLeaveTable = function() {
         </div>
     </td>`;
 
-        // 🌟 NEW: คำนวณกะแต่ละวัน เพื่อไฮไลต์สีพื้นหลัง
-        const myMonthSwaps = allSwapData.filter(t => t.payload && String(t.payload.user_id) === String(u.id));
+        // 🌟 NEW: คำนวณกะแต่ละวัน เพื่อไฮไลต์สีพื้นหลัง (แปลงรหัส JSON)
+        const myMonthSwaps = allSwapData.filter(t => {
+            let p = t.payload;
+            if (typeof p === 'string') {
+                try { p = JSON.parse(p); } catch(e) { p = {}; }
+            }
+            return p && String(p.user_id) === String(u.id);
+        });
+        
         myMonthSwaps.sort((a,b) => new Date(a.scheduled_for) - new Date(b.scheduled_for));
 
         let shiftTimeline = {};
         for(let d=1; d<=daysInMonth; d++) shiftTimeline[d] = u.allowed_shift;
 
         myMonthSwaps.forEach(swap => {
-            const sDate = new Date(swap.scheduled_for);
-            const swapDay = sDate.getDate();
-            const targetShift = swap.payload.target_shift;
+            let p = swap.payload;
+            if (typeof p === 'string') {
+                try { p = JSON.parse(p); } catch(e) { p = {}; }
+            }
             
-            if (swap.status === 'pending') {
-                for(let d = swapDay; d <= daysInMonth; d++) shiftTimeline[d] = targetShift;
-            } else if (swap.status === 'completed') {
-                let orig = swap.payload.original_shift;
-                if (!orig) {
-                    if (targetShift === 'กะดึก') orig = 'กะเช้า';
-                    else if (targetShift === 'กะเช้า') orig = 'กะดึก';
-                    else orig = 'กะเช้า';
+            const sDate = new Date(swap.scheduled_for);
+            const targetShift = p.target_shift;
+            let orig = p.original_shift;
+            if (!orig) {
+                if (targetShift === 'กะดึก') orig = 'กะเช้า';
+                else if (targetShift === 'กะเช้า') orig = 'กะดึก';
+                else orig = 'กะกลาง'; 
+            }
+
+            for(let d=1; d<=daysInMonth; d++) {
+                const loopDate = new Date(year, month, d);
+                // ถ้ารอบลูปเลยวันสลับกะไปแล้ว ให้ระบายสีกะใหม่
+                if (loopDate >= sDate) {
+                    if (targetShift !== 'คงเดิม') shiftTimeline[d] = targetShift;
+                } else if (swap.status === 'completed') {
+                    // ถ้าวันสลับกะผ่านไปแล้ว ช่องที่อยู่ก่อนหน้าวันสลับ ให้ระบายสีกะเดิม
+                    shiftTimeline[d] = orig;
                 }
-                for(let d = 1; d < swapDay; d++) shiftTimeline[d] = orig;
-                for(let d = swapDay; d <= daysInMonth; d++) shiftTimeline[d] = targetShift;
             }
         });
         // 🌟 ------------------------------------
@@ -786,9 +804,9 @@ window.renderLeaveTable = function() {
             let activeShiftForThisDay = shiftTimeline[d];
             let shiftBgColor = '';
             
-            // ปรับสีให้ชัดขึ้น (พาสเทลชัดเจน แต่ยังอ่านตัวหนังสือในโหมดมืดได้)
+            // ปรับสีกะเช้าให้เป็นโทนเหลืองทอง/น้ำตาล เพื่อให้ตัดกับป้ายวันหยุดสีแดงได้ชัดเจนขึ้น
             if (activeShiftForThisDay === 'กะเช้า') {
-                shiftBgColor = 'bg-orange-100 dark:bg-[#6b3110]'; // โทนส้มพาสเทล
+                shiftBgColor = 'bg-amber-100 dark:bg-[#4a3615]'; // โทนเหลืองทอง/น้ำตาลหม่น
             } else if (activeShiftForThisDay === 'กะดึก') {
                 shiftBgColor = 'bg-indigo-100 dark:bg-[#3d2c6b]'; // โทนม่วง/ฟ้าพาสเทล
             } else if (activeShiftForThisDay === 'กะกลาง') {
