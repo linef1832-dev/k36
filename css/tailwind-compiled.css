@@ -3980,6 +3980,11 @@ video {
   background-color: rgb(120 113 108 / var(--tw-bg-opacity, 1));
 }
 
+.bg-amber-200 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(253 230 138 / var(--tw-bg-opacity, 1));
+}
+
 .bg-gradient-to-b {
   background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
 }
@@ -8277,6 +8282,10 @@ video {
 
 .dark\:bg-yellow-900\/40:is(.dark *) {
   background-color: rgb(113 63 18 / 0.4);
+}
+
+.dark\:bg-amber-800\/50:is(.dark *) {
+  background-color: rgb(146 64 14 / 0.5);
 }
 
 .dark\:from-slate-700:is(.dark *) {
