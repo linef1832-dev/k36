@@ -756,19 +756,18 @@ window.renderRosterGrid = async function(rosterData) {
             const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${a.username}', '${team}')"` : '';
             const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing hover:scale-[1.02] hover:shadow-lg' : 'cursor-default';
 
-            // 🌟 NEW: สร้างป้ายโชว์เวลากินข้าว (อัปเดตให้ดึงมาทั้งหมด 2 ช่วง)
+            // 🌟 NEW: สร้างป้ายโชว์เวลากินข้าว (อัปเดตให้ดึงมาทั้งหมด 2 ช่วง และปรับขนาดใหญ่ขึ้น)
             let breakTimeHtml = '';
             if (!isMissing) {
-                // เปลี่ยนจาก .find() เป็น .filter() เพื่อดึงมาทั้งหมด
                 const mySchedules = (window.currentDutySchedules || []).filter(s => s.staff_name === a.username);
                 
                 if (mySchedules && mySchedules.length > 0) {
-                    // นำเวลาทั้งหมดมาเรียงลำดับและเชื่อมด้วยลูกน้ำ
                     const timeSlotsText = mySchedules.map(s => s.time_slot).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
                     
-                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-400 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm transition hover:scale-105 cursor-default"><span class="material-icons text-[12px]">restaurant</span> พัก: ${timeSlotsText}</div>`;
+                    // ปรับ text-[10px] เป็น text-xs (ใหญ่ขึ้น), เพิ่มช่องว่าง gap-1.5, ขยายไอคอนเป็น text-[14px], ปรับ Padding px-2.5 py-1
+                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-400 px-2.5 py-1 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm transition hover:scale-105 cursor-default"><span class="material-icons text-[14px]">restaurant</span> พัก: ${timeSlotsText}</div>`;
                 } else {
-                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-md border border-red-200 dark:border-red-800/50 w-fit shadow-sm animate-pulse"><span class="material-icons text-[12px]">warning</span> ยังไม่ลงเวลา</div>`;
+                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 px-2.5 py-1 rounded-md border border-red-200 dark:border-red-800/50 w-fit shadow-sm animate-pulse"><span class="material-icons text-[14px]">warning</span> ยังไม่ลงเวลา</div>`;
                 }
             }
             // 🌟 -----------------------------------
