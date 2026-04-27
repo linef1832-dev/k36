@@ -203,35 +203,45 @@ window.generateSwapPlan = async function() {
         let nBuckets = Array.from({length: daysToDistribute}, () => []);
         let failedMStaff = []; let failedNStaff = [];
 
+        // 🌟 1. เช็คสลับกะ เช้า -> ดึก (บังคับเว้นวันหยุดหน้า/หลัง)
         for (let u of mStaff) {
-            let bestDayIndex = -1; let minCount = Infinity; let validDaysStrict = []; let validDaysLoose = [];  
+            let bestDayIndex = -1; let minCount = Infinity; let validDaysStrict = [];
             for (let i = 0; i < daysToDistribute; i++) {
-                const targetDate = getSafeDateStr(startDateVal, i); const prevDate = getSafeDateStr(targetDate, -1); const nextDate = getSafeDateStr(targetDate, 1);
-                if (!hasLeave(u.id, targetDate)) {
-                    validDaysLoose.push(i);
-                    if (!hasLeave(u.id, prevDate) && !hasLeave(u.id, nextDate)) validDaysStrict.push(i);
+                const targetDate = getSafeDateStr(startDateVal, i); 
+                const dMinus2 = getSafeDateStr(targetDate, -2);
+                const dMinus1 = getSafeDateStr(targetDate, -1);
+                const dPlus1 = getSafeDateStr(targetDate, 1);
+                const dPlus2 = getSafeDateStr(targetDate, 2);
+                
+                // ล็อคเด็ดขาด: ต้องไม่มีวันหยุดในระยะ -2 ถึง +2 วันจากวันสลับกะ
+                if (!hasLeave(u.id, dMinus2) && !hasLeave(u.id, dMinus1) && !hasLeave(u.id, targetDate) && !hasLeave(u.id, dPlus1) && !hasLeave(u.id, dPlus2)) {
+                    validDaysStrict.push(i);
                 }
             }
-            let daysToConsider = validDaysStrict.length > 0 ? validDaysStrict : validDaysLoose;
-            if (daysToConsider.length > 0) {
-                for (let idx of daysToConsider) { if (mBuckets[idx].length < minCount) { minCount = mBuckets[idx].length; bestDayIndex = idx; } }
+            if (validDaysStrict.length > 0) {
+                for (let idx of validDaysStrict) { if (mBuckets[idx].length < minCount) { minCount = mBuckets[idx].length; bestDayIndex = idx; } }
             }
             if (bestDayIndex !== -1) mBuckets[bestDayIndex].push(u); else failedMStaff.push(u); 
         }
 
+        // 🌟 2. เช็คสลับกะ ดึก -> เช้า (บังคับเว้นวันหยุดหน้า/หลัง)
         for (let u of nStaff) {
-            let bestDayIndex = -1; let minCount = Infinity; let validDaysStrict = []; let validDaysLoose = [];
+            let bestDayIndex = -1; let minCount = Infinity; let validDaysStrict = [];
             for (let i = 0; i < daysToDistribute; i++) {
-                const gapDate = getSafeDateStr(startDateVal, i); const nextDate = getSafeDateStr(gapDate, 1);     
-                const prevDate = getSafeDateStr(gapDate, -1); const nextNextDate = getSafeDateStr(nextDate, 1);
-                if (!hasLeave(u.id, gapDate) && !hasLeave(u.id, nextDate)) {
-                    validDaysLoose.push(i);
-                    if (!hasLeave(u.id, prevDate) && !hasLeave(u.id, nextNextDate)) validDaysStrict.push(i);
+                const gapDate = getSafeDateStr(startDateVal, i); 
+                const dMinus2 = getSafeDateStr(gapDate, -2);
+                const dMinus1 = getSafeDateStr(gapDate, -1);
+                const dPlus1 = getSafeDateStr(gapDate, 1);
+                const dPlus2 = getSafeDateStr(gapDate, 2);
+                const dPlus3 = getSafeDateStr(gapDate, 3);
+                
+                // ล็อคเด็ดขาด: ต้องไม่มีวันหยุดในระยะ -2 ถึง +3 วัน (เนื่องจากกะดึกไปเช้ามีวันพักคั่น)
+                if (!hasLeave(u.id, dMinus2) && !hasLeave(u.id, dMinus1) && !hasLeave(u.id, gapDate) && !hasLeave(u.id, dPlus1) && !hasLeave(u.id, dPlus2) && !hasLeave(u.id, dPlus3)) {
+                    validDaysStrict.push(i);
                 }
             }
-            let daysToConsider = validDaysStrict.length > 0 ? validDaysStrict : validDaysLoose;
-            if (daysToConsider.length > 0) {
-                for (let idx of daysToConsider) { if (nBuckets[idx].length < minCount) { minCount = nBuckets[idx].length; bestDayIndex = idx; } }
+            if (validDaysStrict.length > 0) {
+                for (let idx of validDaysStrict) { if (nBuckets[idx].length < minCount) { minCount = nBuckets[idx].length; bestDayIndex = idx; } }
             }
             if (bestDayIndex !== -1) nBuckets[bestDayIndex].push(u); else failedNStaff.push(u); 
         }
@@ -736,22 +746,23 @@ window.swapDrop = function(event, toDayIndex, shiftType) {
     let hasConflict = false;
     let conflictMsg = '';
 
+    const targetDateStr = targetPlan.targetDate;
+    const dMinus2 = getSafeDateStr(targetDateStr, -2);
+    const dMinus1 = getSafeDateStr(targetDateStr, -1);
+    const dPlus1 = getSafeDateStr(targetDateStr, 1);
+    const dPlus2 = getSafeDateStr(targetDateStr, 2);
+    const dPlus3 = getSafeDateStr(targetDateStr, 3);
+
+    // 🌟 ดักจับการลากวาง: เช็คว่าติดวันหยุดไหม (ห่าง 1 วัน)
     if (shiftType === 'MtoN') {
-        if (userLeaves.has(targetPlan.targetDate)) {
+        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2)) {
             hasConflict = true;
-            conflictMsg = `ติดวันหยุดวันที่ ${new Date(targetPlan.targetDate).toLocaleDateString('th-TH', {day:'numeric', month:'short'})}`;
+            conflictMsg = `พนักงานมีวันหยุดใกล้กับช่วงสลับกะ (ต้องห่างจากวันหยุดอย่างน้อย 1 วัน)`;
         }
     } else {
-        const prevDayStr = getSafeDateStr(targetPlan.targetDate, -1);
-        const prevDayDisplay = new Date(prevDayStr).toLocaleDateString('th-TH', {day:'numeric', month:'short'});
-
-        if (userLeaves.has(prevDayStr)) {
+        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2) || userLeaves.has(dPlus3)) {
             hasConflict = true;
-            conflictMsg = `พนักงานหยุดวันที่ ${prevDayDisplay} ห้ามเริ่มสลับกะในวันถัดไปทันที (กติกา AMQL บล็อกหยุดติดสลับกะ)`;
-        } 
-        else if (userLeaves.has(targetPlan.targetDate) || userLeaves.has(targetPlan.targetNextDate)) {
-            hasConflict = true;
-            conflictMsg = `มีวันหยุดคาบเกี่ยวในช่วงที่ย้าย (วันที่ 6 หรือ 7)`;
+            conflictMsg = `พนักงานมีวันหยุดใกล้กับช่วงสลับกะ (ต้องห่างจากวันหยุดอย่างน้อย 1 วัน)`;
         }
     }
 
