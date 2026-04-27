@@ -328,13 +328,21 @@ window.refreshDutyData = async function() {
                 }
             }
             
-            // 🌟 ดึงคนที่ถูกล็อค มายัดใส่ในตารางของวันใหม่แบบอัตโนมัติ
+            // 🌟 ดึงคนที่ถูกล็อค มายัดใส่ในตารางอัตโนมัติ (เฉพาะวันนี้และอนาคต ป้องกันประวัติอดีตหาย)
             let needSave = false;
-            for (const [lTask, lUser] of Object.entries(window.lockedImportantTasks)) {
-                if (window.globalImportantTasks.includes(lTask)) {
-                    if (window.currentImportantAssigns[lTask] !== lUser) {
-                        window.currentImportantAssigns[lTask] = lUser;
-                        needSave = true; // เติมชื่อแล้ว ต้องเซฟอัปเดตลงฐานข้อมูลของวันนี้ด้วย
+            
+            // สร้างวันที่ปัจจุบัน (อิงตามเวลาท้องถิ่น)
+            const t = new Date();
+            const todayStr = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+            
+            // ถ้าย้อนไปดูอดีต จะไม่เอาระบบล็อคปัจจุบันไปทับเด็ดขาด (ทำงานเฉพาะเป้าหมาย >= วันนี้)
+            if (targetDate >= todayStr) {
+                for (const [lTask, lUser] of Object.entries(window.lockedImportantTasks)) {
+                    if (window.globalImportantTasks.includes(lTask)) {
+                        if (window.currentImportantAssigns[lTask] !== lUser) {
+                            window.currentImportantAssigns[lTask] = lUser;
+                            needSave = true; 
+                        }
                     }
                 }
             }
