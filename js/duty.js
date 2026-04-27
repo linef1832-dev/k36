@@ -2777,3 +2777,46 @@ setInterval(() => {
         clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
     }
 }, 1000);
+
+// ==========================================
+// 🌟 ฟังก์ชันกู้คืนตารางงาน (จากที่กดล้างไป)
+// ==========================================
+window.restoreDutyRoster = async function() {
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    if(!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
+
+    const saveKey = typeof getDutySaveKey === 'function' ? getDutySaveKey(targetDate, shiftFilter) : `duty_roster_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+    const backupData = localStorage.getItem(`backup_${saveKey}`);
+
+    if (!backupData) {
+        return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลสำรองสำหรับกะและวันที่นี้ครับ', 'error');
+    }
+
+    Swal.fire({
+        title: 'ยืนยันการกู้คืน?',
+        text: `ต้องการกู้คืนตารางงานของวันที่ ${targetDate} (${shiftFilter}) ใช่หรือไม่?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'กู้คืนเลย',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            try {
+                await appDB.from('settings').upsert([{ key: saveKey, value: backupData }]);
+                await appDB.from('system_logs').insert([{ action_type: 'กู้คืนตารางงาน', performed_by: currentUser.username, target_details: `กู้คืนตาราง ${currentDutyDept} (${shiftFilter}, ${targetDate})` }]);
+                
+                if(appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+                
+                Swal.fire({ icon: 'success', title: 'กู้คืนตารางเรียบร้อย', showConfirmButton: false, timer: 1500 });
+                if(typeof window.refreshDutyData === 'function') window.refreshDutyData(); 
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        }
+    });
+};
