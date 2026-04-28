@@ -1,5 +1,5 @@
 let withdrawalReportData = [];
-let staffDutyMap = {}; // ตัวแปรเก็บว่าใครทำงานหลัก/รอง อะไรในวันนี้
+let staffDutyMap = {}; 
 
 const W_SUPABASE_LOGS_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/rest/v1/staff_withdrawal_logs';
 const W_SUPABASE_SETTING_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/rest/v1/settings';
@@ -12,20 +12,20 @@ window.initWithdrawalReport = async function() {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><span class="material-icons animate-spin text-emerald-500">sync</span> กำลังประมวลผลข้อมูลและตารางงาน...</td></tr>';
     
     try {
-        // สร้างวันที่ของวันนี้ (โซนเวลาท้องถิ่น)
         const today = new Date();
         const offset = today.getTimezoneOffset() * 60000;
         const localISOTime = (new Date(Date.now() - offset)).toISOString();
-        const todayDateStr = localISOTime.split('T')[0]; // ได้ค่าเช่น "2026-04-28"
+        const todayDateStr = localISOTime.split('T')[0]; 
         
         today.setHours(0, 0, 0, 0);
         const todayUtcIso = today.toISOString();
 
-        // 1. ดึงข้อมูลตารางงานของวันนี้ทั้งหมด (เพื่อหาว่าใครอยู่เว็บไหน)
+        // 🟢 แก้ไขตรงนี้: ใช้เครื่องหมาย * เพื่อค้นหาชื่อตารางเช่นเดียวกัน
         staffDutyMap = {};
-        const rosterRes = await fetch(`${W_SUPABASE_SETTING_URL}?select=value&key=like.duty_roster_%_${todayDateStr}_%`, {
+        const rosterRes = await fetch(`${W_SUPABASE_SETTING_URL}?select=value,key&key=ilike.*duty_roster_*${todayDateStr}*`, {
             method: 'GET', headers: { 'apikey': W_SUPABASE_KEY, 'Authorization': `Bearer ${W_SUPABASE_KEY}` }
         });
+        
         if (rosterRes.ok) {
             const rosterRows = await rosterRes.json();
             rosterRows.forEach(row => {
@@ -34,7 +34,7 @@ window.initWithdrawalReport = async function() {
                     for (const primaryTeam in rosterObj) {
                         rosterObj[primaryTeam].forEach(u => {
                             if (!u.username.includes('ขาดคน')) {
-                                staffDutyMap[u.username] = {
+                                staffDutyMap[u.username.toLowerCase()] = {
                                     primary: primaryTeam,
                                     secondary: u.secondary_team || null
                                 };
@@ -45,7 +45,6 @@ window.initWithdrawalReport = async function() {
             });
         }
 
-        // 2. ดึงข้อมูลประวัติการกดถอนเงินจาก Extension
         const logRes = await fetch(`${W_SUPABASE_LOGS_URL}?select=*&created_at=gte.${todayUtcIso}&order=created_at.desc`, {
             method: 'GET', headers: { 'apikey': W_SUPABASE_KEY, 'Authorization': `Bearer ${W_SUPABASE_KEY}` }
         });
@@ -70,10 +69,12 @@ window.renderWithdrawalDashboard = function() {
 
     withdrawalReportData.forEach(row => {
         let sys = row.backend_system;
-        let sName = row.staff_username || 'ไม่ระบุตัวตน';
+        let rawName = row.staff_username || 'ไม่ระบุตัวตน';
+        let sName = rawName.toLowerCase();
         
         if (!staffStats[sName]) {
             staffStats[sName] = { 
+                displayName: rawName,
                 total: 0, primaryCount: 0, secondaryCount: 0, otherCount: 0,
                 assignedPrimary: staffDutyMap[sName] ? staffDutyMap[sName].primary : 'ไม่มีงานหลัก',
                 assignedSecondary: staffDutyMap[sName] && staffDutyMap[sName].secondary ? staffDutyMap[sName].secondary : '-'
@@ -82,7 +83,6 @@ window.renderWithdrawalDashboard = function() {
 
         staffStats[sName].total++;
 
-        // เช็คว่ากดตรงกับงานที่จัดไว้ไหม
         let dutyInfo = staffDutyMap[sName];
         if (dutyInfo && sys === dutyInfo.primary) {
             staffStats[sName].primaryCount++;
@@ -111,10 +111,10 @@ window.renderWithdrawalDashboard = function() {
                 <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex justify-between items-center shadow-sm hover:border-emerald-500/50 transition">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-black text-sm shadow-inner shrink-0 border border-emerald-500/30">
-                            ${name.substring(0,2).toUpperCase()}
+                            ${data.displayName.substring(0,2).toUpperCase()}
                         </div>
                         <div>
-                            <div class="font-bold text-slate-800 dark:text-white text-[15px] tracking-wide">${name}</div>
+                            <div class="font-bold text-slate-800 dark:text-white text-[15px] tracking-wide uppercase">${data.displayName}</div>
                             <div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold mt-1 flex flex-wrap gap-1">
                                 <span class="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20">หลัก (${data.assignedPrimary}): ${data.primaryCount}</span>
                                 <span class="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">รอง (${data.assignedSecondary}): ${data.secondaryCount}</span>
@@ -150,7 +150,8 @@ window.renderWithdrawalTable = function() {
             ? '<span class="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-bold">อนุมัติ</span>' 
             : '<span class="bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded text-[10px] font-bold">ปฏิเสธ</span>';
 
-        let dutyInfo = staffDutyMap[row.staff_username];
+        let sName = (row.staff_username || '').toLowerCase();
+        let dutyInfo = staffDutyMap[sName];
         let statusDutyBadge = '<span class="text-gray-400 font-bold text-[10px]">นอกหน้าที่ / ไม่ระบุ</span>';
         
         if (dutyInfo) {
@@ -165,7 +166,7 @@ window.renderWithdrawalTable = function() {
             <tr class="hover:bg-slate-800 transition border-b border-slate-700/50">
                 <td class="p-3 text-center text-xs text-gray-500">${index + 1}</td>
                 <td class="p-3 text-xs text-gray-400 font-mono">${formattedDate}</td>
-                <td class="p-3 font-bold text-white text-xs">${row.staff_username}</td>
+                <td class="p-3 font-bold text-white text-xs uppercase">${row.staff_username}</td>
                 <td class="p-3 text-emerald-400 font-bold text-xs">${row.backend_system}</td>
                 <td class="p-3">${statusDutyBadge}</td>
                 <td class="p-3 text-center">${actionBadge}</td>
@@ -190,8 +191,10 @@ window.exportWithdrawalToExcel = function() {
     function processExcel() {
         Swal.fire({ title: 'กำลังโหลด Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         const excelData = withdrawalReportData.map((row, index) => {
-            let dutyInfo = staffDutyMap[row.staff_username];
+            let sName = (row.staff_username || '').toLowerCase();
+            let dutyInfo = staffDutyMap[sName];
             let dutyType = 'นอกหน้าที่';
+            
             if (dutyInfo) {
                 if (row.backend_system === dutyInfo.primary) dutyType = 'งานหลัก';
                 else if (row.backend_system === dutyInfo.secondary) dutyType = 'งานรอง';
