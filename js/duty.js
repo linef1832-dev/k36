@@ -265,16 +265,26 @@ window.refreshDutyData = async function() {
         const shiftFilter = shiftFilterInput.value;
         if(!targetDate) return;
 
-        const { data: leaves } = await appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate);
-        currentDutyLeaves = new Set();
-        if (leaves) leaves.forEach(l => currentDutyLeaves.add(String(l.user_id))); 
+        // 🚀 คำนวณคีย์ทั้งหมดก่อน เพื่อยิง 3 query ขนานกันได้ในรอบเดียว
+        const saveKey = getDutySaveKey(targetDate, shiftFilter);
+        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
+        const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+        const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
 
-        let currentSchedules = [];
-        try {
-            const { data: schData } = await appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter);
-            if (schData) currentSchedules = schData;
-        } catch(e) { console.error("Fetch schedules error", e); }
-        window.currentDutySchedules = currentSchedules;
+        // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (leaves + schedules + settings) ลด latency 3 เท่า
+        const [leavesRes, schedulesRes, settingsRes] = await Promise.all([
+            appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
+            appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey])
+        ]);
+
+        // ประมวลผล leaves
+        const leaves = leavesRes && leavesRes.data;
+        currentDutyLeaves = new Set();
+        if (leaves) leaves.forEach(l => currentDutyLeaves.add(String(l.user_id)));
+
+        // ประมวลผล schedules
+        window.currentDutySchedules = (schedulesRes && schedulesRes.data) ? schedulesRes.data : [];
 
         const relevantLeaves = [];
         if (leaves && typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST.length > 0) {
@@ -282,7 +292,7 @@ window.refreshDutyData = async function() {
                 let userObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(l.user_id) || u.username === l.user_name);
                 if (userObj) {
                     let uDept = userObj.department || 'AM';
-                    if (uDept === 'TRAINER') uDept = 'AMQL'; 
+                    if (uDept === 'TRAINER') uDept = 'AMQL';
                     if (uDept === currentDutyDept) {
                         relevantLeaves.push({ user_id: userObj.id, username: userObj.username, reason: l.reason, originalShift: userObj.allowed_shift || 'all' });
                     }
@@ -292,20 +302,13 @@ window.refreshDutyData = async function() {
         window.currentDutyLeaveData = relevantLeaves;
         window.renderDutyLeaveBox();
 
-        const saveKey = getDutySaveKey(targetDate, shiftFilter); 
-        
-        // 🌟 NEW: ดึงข้อมูลงานพิเศษและหน้าที่ประจำ (ล็อคแบบข้ามวัน)
-        const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`; 
-        const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-        const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
-        
         let savedRoster = null;
         window.globalImportantTasks = [];
         window.currentImportantAssigns = {};
-        window.lockedImportantTasks = {}; 
+        window.lockedImportantTasks = {};
 
         try {
-            const { data } = await appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey]);
+            const data = settingsRes && settingsRes.data;
             if (data && data.length > 0) {
                 const rosterRow = data.find(d => d.key === saveKey);
                 if (rosterRow && rosterRow.value) savedRoster = rosterRow;
