@@ -187,7 +187,7 @@
     </template>
 
     <template id="tpl-swap-plan-user">
-        <span draggable="true" ondragstart="swapDragStart(event, '{{id}}', {{dayIndex}}, '{{direction}}')" class="{{colorClass}} px-1.5 py-0.5 rounded text-[10px] m-0.5 inline-flex items-center gap-1 cursor-grab hover:shadow-md transition active:cursor-grabbing border"><span class="material-icons text-[10px] opacity-50">drag_indicator</span>{{username}}</span>
+        <span draggable="true" ondragstart="swapDragStart(event, '{{id}}', {{dayIndex}}, '{{direction}}')" onclick="openSwapUserMenu('{{id}}', {{dayIndex}}, '{{direction}}')" title="คลิกเพื่อจัดการ หรือลากวาง" class="{{colorClass}} px-1.5 py-0.5 rounded text-[10px] m-0.5 inline-flex items-center gap-1 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-blue-400 transition active:cursor-grabbing border"><span class="material-icons text-[10px] opacity-50">drag_indicator</span>{{username}}</span>
     </template>
 
     <template id="tpl-swap-plan-day">
@@ -216,7 +216,7 @@
             <div class="w-12 h-12 rounded-full bg-black/30 flex items-center justify-center shrink-0 shadow-inner {{txtClass}}"><span class="material-icons text-2xl">{{icon}}</span></div>
             <div class="flex-1 min-w-0 pr-6">
                 <div class="font-extrabold text-base text-white truncate flex items-center gap-2">
-                    {{userName}} <span class="text-[9px] bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded border border-slate-600">{{displayDeptBadge}}</span>
+                    {{userNameHtml}} <span class="text-[9px] bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded border border-slate-600">{{displayDeptBadge}}</span>
                     {{isMeBadge}}
                 </div>
                 <div class="text-sm font-bold {{txtClass}} mt-0.5 mb-1">{{actionTitle}}</div>
