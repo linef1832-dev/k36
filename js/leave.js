@@ -218,6 +218,7 @@ window.initLeaveTable = async function() {
     if (typeof updateAdminInputs === 'function') updateAdminInputs();
     renderLeaveTable();
     if (typeof checkBookingWindow === 'function') checkBookingWindow();
+    if (typeof setupLeaveHoverDelegation === 'function') setupLeaveHoverDelegation();
 
     subscribeLeaveChanges();
     subscribeSettingsChanges();
@@ -478,7 +479,7 @@ window.highlightCell = function(cell, colIndex, isEnter) {
         cell.classList.add('hover-cell-active');
         const cssIndex = colIndex + 3;
         const isDark = document.documentElement.classList.contains('dark');
-        const bgColor = isDark ? '#374151' : '#fff7ed'; 
+        const bgColor = isDark ? '#374151' : '#fff7ed';
         styleTag.innerHTML = `
             #leaveTableMain tbody tr td:nth-child(${cssIndex}):not(.is-booked),
             #leaveTableMain thead tr th:nth-child(${cssIndex}) {
@@ -490,6 +491,77 @@ window.highlightCell = function(cell, colIndex, isEnter) {
         cell.classList.remove('hover-cell-active');
         styleTag.innerHTML = '';
     }
+};
+
+// 🚀 ตั้ง event delegation สำหรับ hover crosshair ครั้งเดียว (ไม่ใส่ inline ทุก cell)
+window.setupLeaveHoverDelegation = function() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || tbody._hoverSetup) return;
+    tbody._hoverSetup = true;
+
+    // หา scroll container (parent ที่ overflow-auto)
+    let scrollContainer = tbody.closest('.overflow-auto') || tbody.parentElement;
+
+    let lastCell = null;
+    let rafId = null;
+    let isScrolling = false;
+    let scrollTimer = null;
+
+    const clearHover = () => {
+        const styleTag = document.getElementById('crosshair-dynamic-style');
+        if (styleTag && styleTag.innerHTML) styleTag.innerHTML = '';
+        if (lastCell) {
+            lastCell.classList.remove('hover-cell-active');
+            if (lastCell.parentElement) lastCell.parentElement.classList.remove('hover-row-active');
+            lastCell = null;
+        }
+    };
+
+    // 🟢 ตอน scroll ปิด hover ชั่วคราว เพื่อกัน mouseover spam ตอนเลื่อนเมาส์/ล้อ
+    if (scrollContainer) {
+        scrollContainer.addEventListener('scroll', () => {
+            if (!isScrolling) {
+                isScrolling = true;
+                clearHover();
+            }
+            if (scrollTimer) clearTimeout(scrollTimer);
+            scrollTimer = setTimeout(() => { isScrolling = false; }, 120);
+        }, { passive: true });
+    }
+
+    tbody.addEventListener('mouseover', (e) => {
+        if (isScrolling) return;
+        const cell = e.target.closest('td[data-col]');
+        if (!cell || cell === lastCell) return;
+
+        if (lastCell) {
+            lastCell.classList.remove('hover-cell-active');
+            if (lastCell.parentElement) lastCell.parentElement.classList.remove('hover-row-active');
+        }
+
+        cell.classList.add('hover-cell-active');
+        if (cell.parentElement) cell.parentElement.classList.add('hover-row-active');
+        lastCell = cell;
+
+        const colIndex = parseInt(cell.dataset.col, 10);
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+            const cssIndex = colIndex + 3;
+            const isDark = document.documentElement.classList.contains('dark');
+            const bgColor = isDark ? '#374151' : '#fff7ed';
+            const styleTag = document.getElementById('crosshair-dynamic-style');
+            if (styleTag) {
+                styleTag.innerHTML = `
+                    #leaveTableMain tbody tr td:nth-child(${cssIndex}):not(.is-booked),
+                    #leaveTableMain thead tr th:nth-child(${cssIndex}) {
+                        background-color: ${bgColor} !important;
+                    }
+                `;
+            }
+        });
+    });
+
+    tbody.addEventListener('mouseleave', clearHover);
 };
 
 window.renderLeaveTable = function() {
@@ -702,6 +774,20 @@ window.renderLeaveTable = function() {
 
     thead.innerHTML = headerHtml;
 
+    // 🚀 Pre-parse swap payloads และจัดกลุ่มตาม user_id ครั้งเดียว (เลี่ยง O(N×D×S))
+    const swapsByUserId = {};
+    (allSwapData || []).forEach(t => {
+        let p = t.payload;
+        if (typeof p === 'string') { try { p = JSON.parse(p); } catch(e) { p = {}; } }
+        if (!p || !p.user_id) return;
+        const uid = String(p.user_id);
+        if (!swapsByUserId[uid]) swapsByUserId[uid] = [];
+        swapsByUserId[uid].push({ scheduled_for: t.scheduled_for, status: t.status, _p: p });
+    });
+    Object.keys(swapsByUserId).forEach(uid => {
+        swapsByUserId[uid].sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime());
+    });
+
     let bodyHtml = '';
     staffListToRender.forEach((u, index) => {
         const isMe = String(u.id) === String(currentUser.id);
@@ -780,61 +866,52 @@ window.renderLeaveTable = function() {
         </div>
     </td>`;
 
-        // 🌟 NEW: คำนวณกะแต่ละวัน เพื่อไฮไลต์สีพื้นหลัง (แม่นยำ 100% ด้วย Time Stamp)
-        const myMonthSwaps = allSwapData.filter(t => {
-            let p = t.payload;
-            if (typeof p === 'string') {
-                try { p = JSON.parse(p); } catch(e) { p = {}; }
-            }
-            return p && String(p.user_id) === String(u.id);
+        // 🚀 ใช้ swap ที่ pre-parsed/sorted แล้ว แทนการ filter+parse ซ้ำทุก user
+        const myMonthSwaps = swapsByUserId[strUid] || [];
+
+        // 🚀 cache swapDate.getTime() เป็น array ก่อน เพื่อไม่ต้องสร้าง Date object ในลูปวัน
+        const swapTimestamps = myMonthSwaps.map(s => {
+            const dt = new Date(s.scheduled_for);
+            dt.setHours(0, 0, 0, 0);
+            return dt.getTime();
         });
-        myMonthSwaps.sort((a,b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime());
 
         let shiftTimeline = {};
+        const monthIdx = currentCalendarDate.getMonth();
 
-        // ลูปหาคิวสลับกะของแต่ละวันในเดือนที่กำลังเปิดดู
-        for(let d=1; d<=daysInMonth; d++) {
-            // วันที่ในตารางปฏิทินที่กำลังวาด (ล้างเวลาออกให้เป็น 00:00:00)
-            // หมายเหตุ: currentCalendarDate.getMonth() จะเริ่มนับจาก 0 (ม.ค.)
-            const loopDate = new Date(year, currentCalendarDate.getMonth(), d);
-            loopDate.setHours(0, 0, 0, 0); 
-            
-            let dayShift = u.allowed_shift; // ยึดกะปัจจุบันในฐานข้อมูลเป็นหลักก่อน
+        for (let d = 1; d <= daysInMonth; d++) {
+            const loopDate = new Date(year, monthIdx, d);
+            loopDate.setHours(0, 0, 0, 0);
+            const loopTs = loopDate.getTime();
 
-            myMonthSwaps.forEach(swap => {
-                let p = swap.payload;
-                if (typeof p === 'string') {
-                    try { p = JSON.parse(p); } catch(e) { p = {}; }
-                }
-                
-                // วันที่ตั้งเวลาสลับกะ (ล้างเวลาออกให้เป็น 00:00:00)
-                const swapDate = new Date(swap.scheduled_for);
-                swapDate.setHours(0, 0, 0, 0);
+            let dayShift = u.allowed_shift;
+
+            for (let i = 0; i < myMonthSwaps.length; i++) {
+                const swap = myMonthSwaps[i];
+                const p = swap._p;
+                const swapTs = swapTimestamps[i];
 
                 if (swap.status === 'pending') {
-                    // ถ้าคิวยังรออยู่ และวันที่ในตารางไปถึงหรือเลยวันสลับกะแล้ว -> เปลี่ยนสีกะใหม่ล่วงหน้า
-                    if (loopDate.getTime() >= swapDate.getTime() && p.target_shift !== 'คงเดิม') {
+                    if (loopTs >= swapTs && p.target_shift !== 'คงเดิม') {
                         dayShift = p.target_shift;
                     }
                 } else if (swap.status === 'completed') {
-                    // ถ้าคิวสลับกะไปเรียบร้อยแล้ว -> วันในอดีตก่อนสลับกะ ต้องแสดงเป็นสีของกะเดิม
-                    if (loopDate.getTime() < swapDate.getTime()) {
+                    if (loopTs < swapTs) {
                         let orig = p.original_shift;
                         if (!orig) {
                             if (p.target_shift === 'กะดึก') orig = 'กะเช้า';
                             else if (p.target_shift === 'กะเช้า') orig = 'กะดึก';
-                            else orig = 'กะกลาง'; 
+                            else orig = 'กะกลาง';
                         }
                         dayShift = orig;
                     } else if (p.target_shift !== 'คงเดิม') {
                         dayShift = p.target_shift;
                     }
                 }
-            });
-            
+            }
+
             shiftTimeline[d] = dayShift;
         }
-        // 🌟 ------------------------------------
 
         let isThisUserShiftOpen = true;
         if (typeof checkBookingWindow === 'function') {
@@ -871,7 +948,7 @@ window.renderLeaveTable = function() {
                 shiftBgColor = 'bg-sky-100 dark:bg-[#1e4875]'; // โทนฟ้า
             }
 
-            let cellClass = `cursor-pointer transition-colors duration-300 ${shiftBgColor}`;
+            let cellClass = `cursor-pointer ${shiftBgColor}`;
             let cellContent = "";
             let baseDeptColor = 'bg-rose-500'; 
             if(currentViewDept === 'OD') baseDeptColor = 'bg-fuchsia-500';
@@ -894,12 +971,12 @@ window.renderLeaveTable = function() {
                     cellClass = `cursor-pointer hover:opacity-90 transition-opacity duration-300 ${badgeStyle}`;
                     cellContent = `<div class="flex items-center justify-center w-full h-full text-white text-[12px] font-bold animate-fade-in">${leaveReason}</div>`;
                 } else {
-                    // ถ้าไม่ใช่วันหยุด ให้โชว์สีของกะปกติ
-                    cellContent = `<div class="flex items-center justify-center w-full h-full opacity-0 group-hover:opacity-100 transition-opacity"><div class="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-500 hover:border-slate-400 dark:hover:border-slate-400 transition-colors"></div></div>`;
+                    // ถ้าไม่ใช่วันหยุด ปล่อยช่องว่างไว้ (ไม่ render วงกลม + transitions เพื่อความเร็ว scroll)
+                    cellContent = '';
                 }
             }
 
-            let hoverAttr = `onmouseover="highlightCell(this, ${d-1}, true)" onmouseout="highlightCell(this, ${d-1}, false)"`;
+            let hoverAttr = `data-col="${d-1}"`;
             let clickAttr = "";
             
             if (isDateLocked && !isAdmin) {
