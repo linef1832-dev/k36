@@ -4,11 +4,12 @@
 
 // ฟังก์ชันเริ่มต้นตอนเข้าหน้า Password
 async function initPasswordApp() {
-    if (!currentUser) return; 
-    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    if (!currentUser) return;
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const canViewAll = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('password_view_all'));
 
-    // ถ้าเป็นแอดมิน ให้โชว์ปุ่มดูรหัสผ่านของพนักงานคนอื่น
-    if(isAdmin) {
+    // ถ้ามีสิทธิ์ดูทั้งหมด ให้โชว์ปุ่มดูรหัสผ่านของพนักงานคนอื่น
+    if(canViewAll) {
         document.getElementById('pwdManagerControls')?.classList.remove('hidden');
         document.getElementById('pwdStaffLabel')?.classList.add('hidden');
         
@@ -35,15 +36,16 @@ window.fetchPasswords = async function() {
     const grid = document.getElementById('pwdGrid');
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl">sync</span></div>';
-    
-    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
-    let query = appDB.from('user_passwords').select(`*, users(username)`); 
 
-    if(!isAdmin) {
-        // พนักงานปกติ ดึงแค่ของตัวเอง
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const canViewAll = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('password_view_all'));
+    let query = appDB.from('user_passwords').select(`*, users(username)`);
+
+    if(!canViewAll) {
+        // ไม่มีสิทธิ์ดูทุกคน → ดึงแค่ของตัวเอง
         query = query.eq('user_id', currentUser.id);
     } else {
-        // แอดมิน ดึงตามที่ Filter ไว้
+        // มีสิทธิ์ดูทุกคน → ดึงตามที่ Filter ไว้
         const filterId = document.getElementById('pwdUserFilter').value;
         if(filterId && filterId !== 'all') query = query.eq('user_id', filterId);
     }
@@ -59,8 +61,9 @@ window.fetchPasswords = async function() {
     // วาดการ์ดแสดงรหัสผ่านโดยใช้ Template
     grid.innerHTML = data.map(item => {
         const ownerName = item.users ? item.users.username : 'Unknown';
-        const ownerBadge = isAdmin ? `<div class="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1"><span class="material-icons text-[10px]">person</span> ${ownerName}</div>` : '';
-        const delBtn = (isAdmin || item.user_id === currentUser.id) ? `<button onclick="deletePassword(${item.id})" class="text-red-400 hover:text-red-600 text-xs font-bold flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"><span class="material-icons text-sm">delete</span> ลบ</button>` : '';
+        const ownerBadge = canViewAll ? `<div class="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1"><span class="material-icons text-[10px]">person</span> ${ownerName}</div>` : '';
+        // ลบได้ถ้าเป็น admin/manager หรือเป็นเจ้าของรหัสนั้น (ไม่ให้คนที่มีแค่สิทธิ์ "ดูทุกคน" ลบได้)
+        const delBtn = (isGlobalAdmin || item.user_id === currentUser.id) ? `<button onclick="deletePassword(${item.id})" class="text-red-400 hover:text-red-600 text-xs font-bold flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"><span class="material-icons text-sm">delete</span> ลบ</button>` : '';
         const urlHtml = item.site_url ? `<a href="${item.site_url}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block">${item.site_url}</a>` : '';
 
         // ส่งข้อมูลเข้า Template

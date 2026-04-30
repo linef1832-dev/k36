@@ -2173,7 +2173,8 @@ const PERM_GROUPS = [
     {
         id: 'page_password', name: 'รหัสผ่าน', icon: 'vpn_key', theme: 'amber',
         items: [
-            {id: 'password', name: 'เข้าหน้าจัดการรหัสผ่าน', isSub: false}
+            {id: 'password', name: 'เข้าหน้าจัดการรหัสผ่าน', isSub: false},
+            {id: 'password_view_all', name: 'ดูรหัสผ่านของพนักงานทุกคน', isSub: true}
         ]
     },
     {
