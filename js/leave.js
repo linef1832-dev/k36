@@ -139,8 +139,7 @@ if(forceOpenCb) forceOpenCb.addEventListener('change', (e) => { toggleTimeInputs
 
 window.initLeaveTable = async function() {
     if(typeof updateMonthPicker === 'function') updateMonthPicker();
-    await loadLeaveSettings();
-    
+
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     const canManage = isGlobalAdmin || window.hasUserPerm('leave_manage');
     const canExport = isGlobalAdmin || window.hasUserPerm('leave_export');
@@ -209,14 +208,18 @@ window.initLeaveTable = async function() {
         else btnHistory.classList.add('hidden'); 
     }
 
+    // 🚀 ดึง 3 ชุดข้อมูล (settings + users + leave/swap) แบบขนาน แล้ว render ครั้งเดียว
+    const fetchTasks = [loadLeaveSettings(true), fetchLeaveData(true)];
     if (GLOBAL_USER_LIST.length === 0 && typeof fetchUsers === 'function') {
-        Swal.fire({title: 'โหลดรายชื่อ...', didOpen: () => Swal.showLoading()});
-        await fetchUsers(); 
-        Swal.close();
+        fetchTasks.push(fetchUsers());
     }
-    
-    await fetchLeaveData(); 
-    subscribeLeaveChanges(); 
+    await Promise.all(fetchTasks);
+
+    if (typeof updateAdminInputs === 'function') updateAdminInputs();
+    renderLeaveTable();
+    if (typeof checkBookingWindow === 'function') checkBookingWindow();
+
+    subscribeLeaveChanges();
     subscribeSettingsChanges();
     subscribeScheduledTasksChanges(); // 🌟 NEW: สั่งให้ฟังการเปลี่ยนกะแบบเรียลไทม์
     
@@ -246,7 +249,7 @@ window.initLeaveTable = async function() {
     }, 1000);
 }
 
-async function loadLeaveSettings() {
+async function loadLeaveSettings(skipRender = false) {
     const { data, error } = await appDB.from('settings')
         .select('key, value')
         .not('key', 'like', 'duty_roster_%')
@@ -286,9 +289,11 @@ async function loadLeaveSettings() {
         const specialGrpRow = data.find(d => d.key === 'leave_special_users');
         window.specialGroupUserIds = specialGrpRow && specialGrpRow.value ? JSON.parse(specialGrpRow.value) : [];
     }
-    updateAdminInputs();
-    renderLeaveTable(); 
-    checkBookingWindow();
+    if (!skipRender) {
+        updateAdminInputs();
+        renderLeaveTable();
+        checkBookingWindow();
+    }
 }
 
 window.checkBookingWindow = function(targetShift) {
@@ -345,31 +350,25 @@ window.checkBookingWindow = function(targetShift) {
     return true;
 }
 
-async function fetchLeaveData() {
+async function fetchLeaveData(skipRender = false) {
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth() + 1;
     const daysInMonth = new Date(year, month, 0).getDate();
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(month).padStart(2, '0')}-${daysInMonth}`;
-    
-    const { data } = await appDB.from('leave_requests').select('*').gte('leave_date', startDate).lte('leave_date', endDate);
-    if(data) {
-        allLeaveData = data;
-    }
 
-    // 🌟 NEW: ดึงข้อมูลประวัติการสลับกะมาทำไฮไลต์สีพื้นหลัง (ดึงเผื่อไปเดือนหน้าด้วย)
     const fetchStart = new Date(year, month - 2, 1).toISOString();
     const fetchEnd = new Date(year, month + 1, 0).toISOString() + "T23:59:59";
-    const { data: swaps } = await appDB.from('scheduled_tasks')
-        .select('*')
-        .eq('task_type', 'individual_shift_update')
-        .gte('scheduled_for', fetchStart)
-        .lte('scheduled_for', fetchEnd);
-        
-    if (swaps) allSwapData = swaps;
-    else allSwapData = [];
 
-    renderLeaveTable();
+    const [leaveRes, swapRes] = await Promise.all([
+        appDB.from('leave_requests').select('*').gte('leave_date', startDate).lte('leave_date', endDate),
+        appDB.from('scheduled_tasks').select('*').eq('task_type', 'individual_shift_update').gte('scheduled_for', fetchStart).lte('scheduled_for', fetchEnd)
+    ]);
+
+    if (leaveRes && leaveRes.data) allLeaveData = leaveRes.data;
+    allSwapData = (swapRes && swapRes.data) ? swapRes.data : [];
+
+    if (!skipRender) renderLeaveTable();
 }
 
 function subscribeLeaveChanges() {
