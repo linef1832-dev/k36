@@ -177,8 +177,10 @@ async function showPage(pageName) {
         };
 
         // ใช้ View Transitions สลับหน้าแบบสมูท (ถ้าบราวเซอร์รองรับ)
+        // 🟢 ต้อง await ให้ DOM อัปเดตเสร็จก่อน return ไม่งั้น caller จะหา element ที่เพิ่งใส่ไม่เจอ
         if (document.startViewTransition) {
-            document.startViewTransition(() => updateDOM());
+            const transition = document.startViewTransition(() => updateDOM());
+            try { await transition.updateCallbackDone; } catch (e) { /* ignore */ }
         } else {
             updateDOM();
         }
