@@ -145,6 +145,8 @@ window.subscribeSummaryChanges = function() {
             await window.fetchHistoricalSummary(true);
         }
     }).subscribe();
+
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(summarySubscription);
 };
 
 window.loadWebLogos = async function() {

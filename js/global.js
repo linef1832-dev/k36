@@ -65,9 +65,33 @@ async function showLogin() {
 // 1. สร้างตัวแปรเก็บ Cache สำหรับ HTML String
 const pageCache = {};
 
+// ==========================================
+// 🧹 ระบบจัดการ Realtime Subscriptions ตามหน้า (กัน memory leak)
+// ==========================================
+// แต่ละหน้าที่ subscribe ต้องเรียก window.registerPageSubscription(channel)
+// ตอนเปลี่ยนหน้า showPage จะ cleanup ให้อัตโนมัติ
+window._pageSubscriptions = window._pageSubscriptions || new Set();
+
+window.registerPageSubscription = function(channel) {
+    if (!channel) return channel;
+    window._pageSubscriptions.add(channel);
+    return channel;
+};
+
+window.cleanupPageSubscriptions = function() {
+    if (!appDB || !window._pageSubscriptions || window._pageSubscriptions.size === 0) return;
+    window._pageSubscriptions.forEach(ch => {
+        try { appDB.removeChannel(ch); } catch (e) { /* ignore */ }
+    });
+    window._pageSubscriptions.clear();
+};
+
 async function showPage(pageName) {
     const loading = document.getElementById('loading');
-    
+
+    // 🧹 ก่อนเปลี่ยนหน้า: เคลียร์ subscription ของหน้าเดิมเพื่อกัน leak
+    window.cleanupPageSubscriptions();
+
     try {
         if (!pageCache[pageName] && loading) loading.classList.remove('hidden');
         

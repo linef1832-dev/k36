@@ -394,7 +394,10 @@ window.fetchLogs = async function() {
 let dashboardSubscription = null;
 
 window.subscribeDashboardChanges = function() {
-    if (dashboardSubscription) return;
+    if (dashboardSubscription) {
+        try { appDB.removeChannel(dashboardSubscription); } catch (e) {}
+        dashboardSubscription = null;
+    }
 
     dashboardSubscription = appDB.channel('dashboard-schedules')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, (payload) => {
@@ -455,6 +458,8 @@ window.subscribeDashboardChanges = function() {
                 }, 200);
             }
         }).subscribe();
+
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dashboardSubscription);
 };
 
 setTimeout(() => {

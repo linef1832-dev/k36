@@ -7,7 +7,10 @@ let globalFineNotes = [];
 let finesSubscription = null;
 
 window.subscribeFinesChanges = function() {
-    if (finesSubscription) return;
+    if (finesSubscription) {
+        try { appDB.removeChannel(finesSubscription); } catch (e) {}
+        finesSubscription = null;
+    }
 
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const hasViewAllPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_view_all') : false;
@@ -41,6 +44,8 @@ window.subscribeFinesChanges = function() {
             }
         })
         .subscribe();
+
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(finesSubscription);
 };
 
 const defaultNotes = [

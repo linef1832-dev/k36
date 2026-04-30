@@ -148,6 +148,7 @@ window.subscribeDutyChanges = function() {
     dutySubscription = appDB.channel('duty-updates').on('broadcast', { event: 'force_reload' }, () => {
         if (!document.getElementById('dutyApp').classList.contains('hidden')) window.refreshDutyData();
     }).subscribe();
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dutySubscription);
 }
 
 window.applyDutyRoleUI = function() {

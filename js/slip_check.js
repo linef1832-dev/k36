@@ -79,6 +79,8 @@ window.initRealtimeSync = function() {
             }
         })
         .subscribe();
+
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window.syncChannel);
 };
 
 window.initSlipCheck = async function() {

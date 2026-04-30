@@ -423,6 +423,7 @@ function subscribeLeaveChanges() {
             }
             }
     }).subscribe();
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(leaveSubscription);
 }
 
 function subscribeSettingsChanges() {
@@ -457,6 +458,7 @@ function subscribeSettingsChanges() {
         }
     })
     .subscribe();
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(settingsSubscription);
 }
 
 function flashRealtimeDot() {
@@ -1598,6 +1600,7 @@ window.subscribeScheduledTasksChanges = function() {
             if (typeof fetchLeaveData === 'function') fetchLeaveData();
         }
     }).subscribe();
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window.scheduledTasksSubscription);
 };
 
 // ผูกฟังก์ชันเข้ากับ window ป้องกัน error หาไม่เจอ
