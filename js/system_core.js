@@ -2152,6 +2152,7 @@ const PERM_GROUPS = [
             {id: 'leave_request', name: 'กดจอง/ยกเลิก', isSub: true},
             {id: 'leave_history', name: 'ดูประวัติ', isSub: true},
             {id: 'leave_export', name: 'โหลด Excel', isSub: true},
+            {id: 'leave_view_any_month', name: 'ดูข้ามเดือน (ไม่ถูกล็อกเดือน)', isSub: true},
             {id: 'leave_am', name: '[ดูหน้า] แท็บ AM', isSub: true},
             {id: 'leave_od', name: '[ดูหน้า] แท็บ OD', isSub: true},
             {id: 'leave_new', name: '[ดูหน้า] พนักงานใหม่', isSub: true},

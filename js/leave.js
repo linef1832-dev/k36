@@ -578,15 +578,16 @@ window.renderLeaveTable = function() {
     // 🌟 แก้บั๊กเส้นตารางหาย: ลบคลาสที่ทำให้เส้นขอบชนกันออก
     tbody.classList.remove('divide-y', 'divide-gray-100', 'dark:divide-slate-700');
 
-    const s = deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 }; 
+    const s = deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 };
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     const isAdmin = isGlobalAdmin || window.hasUserPerm('leave_manage');
+    const canViewAnyMonth = isAdmin || window.hasUserPerm('leave_view_any_month');
     const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request') || currentViewDept === 'SPECIAL';
     const picker = document.getElementById('viewMonthPicker');
     const btnPrev = document.getElementById('btnPrevMonth');
     const btnNext = document.getElementById('btnNextMonth');
 
-    if (!isAdmin && s.viewMonth) {
+    if (!canViewAnyMonth && s.viewMonth) {
         if(picker) { picker.disabled = true; picker.classList.add('opacity-50', 'cursor-not-allowed'); }
         if(btnPrev) btnPrev.classList.add('hidden');
         if(btnNext) btnNext.classList.add('hidden');
