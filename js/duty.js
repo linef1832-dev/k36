@@ -767,7 +767,7 @@ window.renderRosterGrid = async function(rosterData) {
             const isMissing = a.username.includes('ขาดคน');
             const canDrag = !isMissing && a.id && isAdmin;
             const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${a.username}', '${team}')"` : '';
-            const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing hover:scale-[1.02] hover:shadow-lg' : 'cursor-default';
+            const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing hover:shadow-md' : 'cursor-default';
 
             // 🌟 NEW: สร้างป้ายโชว์เวลากินข้าว (อัปเดตให้ดึงมาทั้งหมด 2 ช่วง และปรับขนาดใหญ่ขึ้น)
             let breakTimeHtml = '';
@@ -778,9 +778,9 @@ window.renderRosterGrid = async function(rosterData) {
                     const timeSlotsText = mySchedules.map(s => s.time_slot).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
                     
                     // ปรับ text-[10px] เป็น text-xs (ใหญ่ขึ้น), เพิ่มช่องว่าง gap-1.5, ขยายไอคอนเป็น text-[14px], ปรับ Padding px-2.5 py-1
-                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-400 px-2.5 py-1 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm transition hover:scale-105 cursor-default"><span class="material-icons text-[14px]">restaurant</span> พัก: ${timeSlotsText}</div>`;
+                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-400 px-2.5 py-1 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm cursor-default"><span class="material-icons text-[14px]">restaurant</span> พัก: ${timeSlotsText}</div>`;
                 } else {
-                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 px-2.5 py-1 rounded-md border border-red-200 dark:border-red-800/50 w-fit shadow-sm animate-pulse"><span class="material-icons text-[14px]">warning</span> ยังไม่ลงเวลา</div>`;
+                    breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 px-2.5 py-1 rounded-md border border-red-200 dark:border-red-800/50 w-fit shadow-sm"><span class="material-icons text-[14px]">warning</span> ยังไม่ลงเวลา</div>`;
                 }
             }
             // 🌟 -----------------------------------
@@ -789,10 +789,10 @@ window.renderRosterGrid = async function(rosterData) {
             if (a.secondary_team && !isMissing) {
                 const secTeamColors = TEAM_COLORS[a.secondary_team] || TEAM_COLORS['DEFAULT'];
                 const actionClick = isAdmin ? `onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${a.username}')"` : '';
-                const hoverFx = isAdmin ? 'hover:border-transparent hover:shadow-md cursor-pointer hover:scale-[1.03]' : 'border-gray-200 dark:border-slate-600';
+                const hoverFx = isAdmin ? 'hover:border-transparent hover:shadow-md cursor-pointer' : 'border-gray-200 dark:border-slate-600';
 
                 secHtml = `
-                <div ${actionClick} title="${isAdmin ? 'คลิกเพื่อเปลี่ยนงานรอง' : 'นี่คืองานรองของคุณ'}" class="mt-2.5 flex items-stretch w-full bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 shadow-inner transition ${hoverFx} overflow-hidden group/sec">
+                <div ${actionClick} title="${isAdmin ? 'คลิกเพื่อเปลี่ยนงานรอง' : 'นี่คืองานรองของคุณ'}" class="mt-2.5 flex items-stretch w-full bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 shadow-inner ${hoverFx} overflow-hidden group/sec">
                     <div class="w-1.5 ${secTeamColors.bg} ${secTeamColors.border} border-r shadow-inner"></div>
                     <div class="flex-1 p-2 flex items-center justify-between gap-2">
                         <div class="flex items-center gap-1.5">
@@ -814,7 +814,7 @@ window.renderRosterGrid = async function(rosterData) {
             }
 
             return `
-            <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition shrink-0 group ${cursorClass}" data-name="${(a.username || '').toLowerCase()}" ${dragAttrs}>
+            <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0 group ${cursorClass}" data-name="${(a.username || '').toLowerCase()}" ${dragAttrs}>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
                         <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span> 
