@@ -569,14 +569,18 @@ async function fetchLogs() {
 }
 
 async function refreshAdminData() {
-    const btn = document.querySelector('button[onclick="refreshAdminData()"] span'); 
+    const btn = document.querySelector('button[onclick="refreshAdminData()"] span');
     if(btn) btn.classList.add('animate-spin');
-    await fetchUsers(); await fetchTasks(); await fetchIndividualTasks(); await loadSettings(); 
-    if(typeof renderQuotaSettings === 'function') renderQuotaSettings(); 
-    if(typeof populateTeamSelects === 'function') populateTeamSelects(); 
+
+    const isAdmin = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const tasks = [fetchUsers(), loadSettings()];
+    if (isAdmin) tasks.push(fetchTasks(), fetchIndividualTasks());
+    await Promise.all(tasks);
+
+    if(typeof renderQuotaSettings === 'function') renderQuotaSettings();
+    if(typeof populateTeamSelects === 'function') populateTeamSelects();
     if(typeof renderOperatingHours === 'function') renderOperatingHours();
     setTimeout(() => { if(btn) btn.classList.remove('animate-spin'); }, 800);
-    //const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 }); Toast.fire({ icon: 'success', title: 'รีเฟรชข้อมูลแล้ว' });
 }
 
 window.updateUserRole = async function(selectEl, id, newRole) {

@@ -1,15 +1,18 @@
 window.initDashboard = async function() {
-    // 1. รอระบบโหลดข้อมูล user (เผื่อเน็ตช้า)
-    let retry = 0;
-    while (!window.currentUser && retry < 10) {
-        await new Promise(r => setTimeout(r, 200));
-        retry++;
-    }
-
+    // ลองดึงจาก sessionStorage ก่อนเลย ไม่ต้องรอ
     if (!window.currentUser) {
         const savedUser = sessionStorage.getItem('user_platinum_plus');
-        if (savedUser) window.currentUser = JSON.parse(savedUser);
-        else return;
+        if (savedUser) {
+            window.currentUser = JSON.parse(savedUser);
+        } else {
+            // fallback: รอสั้นๆ เผื่อกำลังโหลดอยู่
+            let retry = 0;
+            while (!window.currentUser && retry < 10) {
+                await new Promise(r => setTimeout(r, 100));
+                retry++;
+            }
+            if (!window.currentUser) return;
+        }
     }
 
     // อัปเดตข้อมูลพนักงานที่แถบด้านบน
