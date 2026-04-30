@@ -1,16 +1,18 @@
 let withdrawalReportData = [];
 let staffDutyMap = {}; 
 
-// 🟢 ตัวแปรสำหรับ Pagination
 let withdrawalCurrentPage = 1;
 const WITHDRAWAL_PAGE_SIZE = 50;
 
-// 🟢 วันที่ที่เลือกดู (รูปแบบ YYYY-MM-DD ตามเวลาไทย) — null = วันนี้
 let withdrawalSelectedDate = null;
+let withdrawalSelectedSite = 'ALL'; // 🟢 เว็บที่กรอง — ALL = ทั้งหมด
 
 const W_SUPABASE_LOGS_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/rest/v1/staff_withdrawal_logs';
 const W_SUPABASE_SETTING_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/rest/v1/settings';
 const W_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplZGJidGp4dWlkZnVicGlhdXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MjQ2ODgsImV4cCI6MjA4MzIwMDY4OH0.4orJyfFcOwnZcnHFjLOTLXaqFNeapCVe9yCxj3rLMBM';
+
+// 🟢 รายชื่อเว็บทั้งหมด
+const ALL_SITES = ['JUN88', 'MK8', 'BT678', 'K188', 'VV72', 'TH26', 'F168', 'PG688', 'JL69', 'NM9'];
 
 window.initWithdrawalReport = async function() {
     const tbody = document.getElementById('withdrawalReportBody');
@@ -18,27 +20,22 @@ window.initWithdrawalReport = async function() {
     
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><span class="material-icons animate-spin text-emerald-500">sync</span> กำลังประมวลผลข้อมูลและตารางงาน...</td></tr>';
     
-    // Reset หน้าเป็น 1 ทุกครั้งที่รีเฟรช
     withdrawalCurrentPage = 1;
-    
-    // อัปเดต date picker ให้ตรงกับวันที่ที่ดูอยู่
     updateWithdrawalDatePickerUI();
+    updateWithdrawalSiteFilterUI();
     
     try {
-        // 🟢 คำนวณช่วงเวลาตาม "วันที่ที่เลือก" หรือ "วันนี้" (เวลาไทย UTC+7)
-        const thOffsetMs = 7 * 60 * 60 * 1000; // +7 ชั่วโมง
+        const thOffsetMs = 7 * 60 * 60 * 1000;
         
         let yyyy, mmNum, ddNum, todayDateStr;
         
         if (withdrawalSelectedDate) {
-            // ใช้วันที่ที่ผู้ใช้เลือก (รูปแบบ YYYY-MM-DD)
             const parts = withdrawalSelectedDate.split('-');
             yyyy = parseInt(parts[0], 10);
-            mmNum = parseInt(parts[1], 10) - 1; // เดือนใน JS เริ่ม 0
+            mmNum = parseInt(parts[1], 10) - 1;
             ddNum = parseInt(parts[2], 10);
             todayDateStr = withdrawalSelectedDate;
         } else {
-            // ใช้วันนี้ตามเวลาไทย
             const nowInTh = new Date(Date.now() + thOffsetMs);
             yyyy = nowInTh.getUTCFullYear();
             mmNum = nowInTh.getUTCMonth();
@@ -48,15 +45,12 @@ window.initWithdrawalReport = async function() {
             todayDateStr = `${yyyy}-${mm}-${dd}`;
         }
         
-        // จุดเริ่มต้นของวันไทย แปลงกลับเป็น UTC ISO เพื่อ query
         const startOfDayThUtc = new Date(Date.UTC(yyyy, mmNum, ddNum, 0, 0, 0));
         const startUtcIso = new Date(startOfDayThUtc.getTime() - thOffsetMs).toISOString();
         
-        // จุดสิ้นสุดของวันไทย (เริ่มต้นของวันถัดไป)
         const endOfDayThUtc = new Date(Date.UTC(yyyy, mmNum, ddNum + 1, 0, 0, 0));
         const endUtcIso = new Date(endOfDayThUtc.getTime() - thOffsetMs).toISOString();
 
-        // 🟢 ดึงตารางจัดงานของวันนี้
         staffDutyMap = {};
         const rosterRes = await fetch(`${W_SUPABASE_SETTING_URL}?select=value,key&key=ilike.*duty_roster_*${todayDateStr}*`, {
             method: 'GET', headers: { 'apikey': W_SUPABASE_KEY, 'Authorization': `Bearer ${W_SUPABASE_KEY}` }
@@ -81,7 +75,6 @@ window.initWithdrawalReport = async function() {
             });
         }
 
-        // 🟢 ดึงเฉพาะรายการที่อยู่ในวันนี้ (เวลาไทย) - กรองทั้ง gte และ lt
         const logRes = await fetch(`${W_SUPABASE_LOGS_URL}?select=*&created_at=gte.${startUtcIso}&created_at=lt.${endUtcIso}&order=created_at.desc`, {
             method: 'GET', headers: { 'apikey': W_SUPABASE_KEY, 'Authorization': `Bearer ${W_SUPABASE_KEY}` }
         });
@@ -99,13 +92,27 @@ window.initWithdrawalReport = async function() {
     }
 };
 
+// 🟢 กรองข้อมูลตามเว็บที่เลือก (เฉพาะคนที่ทำเว็บนั้นเป็น "งานหลัก")
+function getFilteredData() {
+    if (withdrawalSelectedSite === 'ALL') {
+        return withdrawalReportData;
+    }
+    return withdrawalReportData.filter(row => {
+        const sName = (row.staff_username || '').toLowerCase();
+        const dutyInfo = staffDutyMap[sName];
+        // คนที่มี "งานหลัก" ตรงกับเว็บที่เลือก เท่านั้น
+        return dutyInfo && dutyInfo.primary === withdrawalSelectedSite;
+    });
+}
+
 window.renderWithdrawalDashboard = function() {
-    let total = withdrawalReportData.length;
+    const filteredData = getFilteredData();
+    let total = filteredData.length;
     let primaryTotalCount = 0;
     let secondaryTotalCount = 0;
     let staffStats = {};
 
-    withdrawalReportData.forEach(row => {
+    filteredData.forEach(row => {
         let sys = row.backend_system;
         let rawName = row.staff_username || 'ไม่ระบุตัวตน';
         let sName = rawName.toLowerCase();
@@ -139,7 +146,10 @@ window.renderWithdrawalDashboard = function() {
 
     const staffGrid = document.getElementById('staffSummaryGrid');
     if (total === 0) {
-        staffGrid.innerHTML = '<div class="col-span-full text-center text-gray-500 text-xs py-4">ยังไม่มีพนักงานทำรายการในกะนี้</div>';
+        const msg = withdrawalSelectedSite === 'ALL' 
+            ? 'ยังไม่มีพนักงานทำรายการในกะนี้' 
+            : `ไม่มีพนักงานที่มีงานหลักเป็น ${withdrawalSelectedSite}`;
+        staffGrid.innerHTML = `<div class="col-span-full text-center text-gray-500 text-xs py-4">${msg}</div>`;
     } else {
         let staffHtml = '';
         let sortedStaff = Object.entries(staffStats).sort((a,b) => b[1].total - a[1].total);
@@ -175,20 +185,21 @@ window.renderWithdrawalTable = function() {
     const tbody = document.getElementById('withdrawalReportBody');
     if (!tbody) return;
     
-    if (withdrawalReportData.length === 0) {
+    const filteredData = getFilteredData();
+    
+    if (filteredData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-500">ไม่มีประวัติการกดในวันนี้</td></tr>';
         renderWithdrawalPagination(0);
         return;
     }
 
-    // 🟢 คำนวณ Pagination
-    const totalRecords = withdrawalReportData.length;
+    const totalRecords = filteredData.length;
     const totalPages = Math.max(1, Math.ceil(totalRecords / WITHDRAWAL_PAGE_SIZE));
     if (withdrawalCurrentPage > totalPages) withdrawalCurrentPage = totalPages;
     
     const startIdx = (withdrawalCurrentPage - 1) * WITHDRAWAL_PAGE_SIZE;
     const endIdx = Math.min(startIdx + WITHDRAWAL_PAGE_SIZE, totalRecords);
-    const pageData = withdrawalReportData.slice(startIdx, endIdx);
+    const pageData = filteredData.slice(startIdx, endIdx);
     
     tbody.innerHTML = pageData.map((row, index) => {
         const dateObj = new Date(row.created_at);
@@ -224,7 +235,6 @@ window.renderWithdrawalTable = function() {
     renderWithdrawalPagination(totalRecords);
 };
 
-// 🟢 ฟังก์ชันใหม่: สร้าง UI Pagination
 window.renderWithdrawalPagination = function(totalRecords) {
     const container = document.getElementById('withdrawalPagination');
     if (!container) return;
@@ -238,7 +248,6 @@ window.renderWithdrawalPagination = function(totalRecords) {
     const startIdx = (withdrawalCurrentPage - 1) * WITHDRAWAL_PAGE_SIZE;
     const endIdx = Math.min(startIdx + WITHDRAWAL_PAGE_SIZE, totalRecords);
     
-    // สร้างปุ่มเลขหน้า (แสดงไม่เกิน 7 ปุ่ม)
     let pageButtons = '';
     let startPage = Math.max(1, withdrawalCurrentPage - 3);
     let endPage = Math.min(totalPages, startPage + 6);
@@ -280,19 +289,17 @@ window.renderWithdrawalPagination = function(totalRecords) {
     `;
 };
 
-// 🟢 ฟังก์ชันใหม่: เปลี่ยนหน้า
 window.goToWithdrawalPage = function(page) {
-    const totalPages = Math.max(1, Math.ceil(withdrawalReportData.length / WITHDRAWAL_PAGE_SIZE));
+    const filteredData = getFilteredData();
+    const totalPages = Math.max(1, Math.ceil(filteredData.length / WITHDRAWAL_PAGE_SIZE));
     if (page < 1 || page > totalPages) return;
     withdrawalCurrentPage = page;
     renderWithdrawalTable();
     
-    // Scroll ตารางขึ้นบนสุด
     const tableWrap = document.getElementById('withdrawalTableWrap');
     if (tableWrap) tableWrap.scrollTop = 0;
 };
 
-// 🟢 ฟังก์ชันใหม่: เปลี่ยนวันที่ที่ดู
 window.onWithdrawalDateChange = function(dateValue) {
     if (!dateValue) return;
     withdrawalSelectedDate = dateValue;
@@ -300,14 +307,20 @@ window.onWithdrawalDateChange = function(dateValue) {
     initWithdrawalReport();
 };
 
-// 🟢 ฟังก์ชันใหม่: กลับไปดูวันนี้
 window.resetWithdrawalDateToday = function() {
     withdrawalSelectedDate = null;
     updateWithdrawalDatePickerUI();
     initWithdrawalReport();
 };
 
-// 🟢 ฟังก์ชันใหม่: อัปเดตช่อง date picker ให้แสดงวันที่ปัจจุบัน
+// 🟢 ฟังก์ชันใหม่: เปลี่ยนเว็บที่เลือก
+window.onWithdrawalSiteChange = function(site) {
+    withdrawalSelectedSite = site;
+    withdrawalCurrentPage = 1;
+    renderWithdrawalDashboard();
+    renderWithdrawalTable();
+};
+
 function updateWithdrawalDatePickerUI() {
     const picker = document.getElementById('withdrawalDatePicker');
     if (!picker) return;
@@ -315,7 +328,6 @@ function updateWithdrawalDatePickerUI() {
     if (withdrawalSelectedDate) {
         picker.value = withdrawalSelectedDate;
     } else {
-        // ตั้งเป็นวันนี้ตามเวลาไทย
         const thOffsetMs = 7 * 60 * 60 * 1000;
         const nowInTh = new Date(Date.now() + thOffsetMs);
         const yyyy = nowInTh.getUTCFullYear();
@@ -325,8 +337,18 @@ function updateWithdrawalDatePickerUI() {
     }
 }
 
+// 🟢 ฟังก์ชันใหม่: อัปเดต UI dropdown เลือกเว็บ
+function updateWithdrawalSiteFilterUI() {
+    const select = document.getElementById('withdrawalSiteFilter');
+    if (!select) return;
+    if (select.value !== withdrawalSelectedSite) {
+        select.value = withdrawalSelectedSite;
+    }
+}
+
 window.exportWithdrawalToExcel = function() {
-    if (withdrawalReportData.length === 0) {
+    const filteredData = getFilteredData();
+    if (filteredData.length === 0) {
         Swal.fire('แจ้งเตือน', 'ไม่มีข้อมูลสำหรับดาวน์โหลด', 'warning'); return;
     }
     
@@ -341,7 +363,7 @@ window.exportWithdrawalToExcel = function() {
 
     function processExcel() {
         Swal.fire({ title: 'กำลังโหลด Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        const excelData = withdrawalReportData.map((row, index) => {
+        const excelData = filteredData.map((row, index) => {
             let sName = (row.staff_username || '').toLowerCase();
             let dutyInfo = staffDutyMap[sName];
             let dutyType = 'นอกหน้าที่';
@@ -366,7 +388,8 @@ window.exportWithdrawalToExcel = function() {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Withdrawal_Logs");
         
         const dateStr = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(workbook, `Staff_Withdrawal_Report_${dateStr}.xlsx`);
+        const siteStr = withdrawalSelectedSite === 'ALL' ? 'ALL' : withdrawalSelectedSite;
+        XLSX.writeFile(workbook, `Staff_Withdrawal_Report_${siteStr}_${dateStr}.xlsx`);
         Swal.fire({ icon: 'success', title: 'ดาวน์โหลดสำเร็จ', timer: 1500, showConfirmButton: false });
     }
 };
