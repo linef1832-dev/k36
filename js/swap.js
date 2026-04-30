@@ -1041,7 +1041,27 @@ window.changeSavedSwapDate = async function(taskId) {
     try {
         const newScheduledFor = new Date(`${newDate}T05:00:00+07:00`).toISOString();
 
-        const { error: updErr } = await appDB.from('scheduled_tasks').update({ scheduled_for: newScheduledFor }).eq('id', taskId);
+        // 🟢 สร้าง display_desc ใหม่ตามวันที่ใหม่ (ไม่งั้นจะแสดงวันเก่า)
+        const newDateDisplay = new Date(newDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+        let newDesc;
+        if (p.target_shift === 'กะดึก') {
+            // MtoN: วันสลับคือวันเริ่มเข้าดึก
+            newDesc = `เริ่มเข้าดึกคืนแรก: ${newDateDisplay}`;
+        } else if (p.target_shift === 'กะเช้า') {
+            // NtoM: วันสลับคือวันเริ่มเข้าเช้า; วันก่อนหน้าคือวันพัก
+            const prevDate = getSafeDateStr(newDate, -1);
+            const prevDateDisplay = new Date(prevDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            newDesc = `ออกกะเช้าวันที่: ${prevDateDisplay} (ได้พัก 1 วัน) | เริ่มเข้าเช้าวันที่: ${newDateDisplay}`;
+        } else {
+            newDesc = p.display_desc || '';
+        }
+
+        const newPayload = { ...p, display_desc: newDesc };
+
+        const { error: updErr } = await appDB.from('scheduled_tasks').update({
+            scheduled_for: newScheduledFor,
+            payload: newPayload
+        }).eq('id', taskId);
         if (updErr) throw updErr;
 
         // กะเช้า (NtoM): XX อยู่ก่อน 1 วัน, กะดึก (MtoN): XX วันเดียวกัน
