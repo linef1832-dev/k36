@@ -814,6 +814,150 @@ window.moveSwapUserToExclude = function(userId, fromDayIndex, direction) {
 };
 
 // ==========================================
+// ➕ เพิ่มพนักงานที่ตกหล่นเข้าตารางสลับกะ (Admin Only)
+// ==========================================
+window.openAddMissingSwap = async function() {
+    const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
+    if (!canManageSwap) {
+        Swal.fire({ icon: 'error', title: 'ไม่มีสิทธิ์', text: 'เฉพาะ Admin เท่านั้นที่ใช้ได้', confirmButtonColor: '#ef4444' });
+        return;
+    }
+
+    if (!GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) {
+        if (typeof fetchUsers === 'function') await fetchUsers();
+    }
+
+    // หา user_id ที่มีรายการอยู่แล้วในตารางปัจจุบัน เพื่อจะได้ไม่ให้ซ้ำ
+    const existingUserIds = new Set();
+    for (const id in (window._swapScheduleTasks || {})) {
+        const task = window._swapScheduleTasks[id];
+        if (task.status === 'completed') continue;
+        let p = {}; try { p = typeof task.payload === 'string' ? JSON.parse(task.payload) : (task.payload || {}); } catch(e) {}
+        if (p.user_id) existingUserIds.add(String(p.user_id));
+    }
+
+    const eligibleUsers = GLOBAL_USER_LIST.filter(u => {
+        if (existingUserIds.has(String(u.id))) return false;
+        if (!['กะเช้า', 'กะดึก'].includes(u.allowed_shift)) return false;
+        if (u.role !== 'staff' && u.role !== 'trainer') return false;
+        const uDept = u.department || 'AM';
+        if (activeSwapDeptFilter === 'TRAINER') return uDept !== 'AM' && uDept !== 'OD';
+        if (activeSwapDeptFilter !== 'ALL') return uDept === activeSwapDeptFilter;
+        return true;
+    });
+
+    if (eligibleUsers.length === 0) {
+        return Swal.fire({ icon: 'info', title: 'ไม่มีพนักงานให้เพิ่ม', text: 'พนักงานทุกคนในแผนกนี้มีรายการสลับกะอยู่แล้ว' });
+    }
+
+    eligibleUsers.sort((a, b) => a.username.localeCompare(b.username));
+    const today = new Date().toISOString().split('T')[0];
+
+    const userOpts = eligibleUsers.map(u => {
+        const dept = u.department || 'AM';
+        const shiftShort = (u.allowed_shift || '').replace('กะ', '');
+        return `<option value="${u.id}">${u.username} [${dept} | ${shiftShort}]</option>`;
+    }).join('');
+
+    const result = await Swal.fire({
+        title: 'เพิ่มพนักงานที่ตกหล่น',
+        html: `
+            <div style="text-align:left">
+                <label style="font-size:12px; font-weight:bold; color:#475569; display:block; margin-bottom:4px;">เลือกพนักงาน:</label>
+                <select id="addSwapUser" class="swal2-select" style="width:100%; margin: 0 0 12px; display:block;">
+                    <option value="">-- กรุณาเลือก --</option>
+                    ${userOpts}
+                </select>
+
+                <label style="font-size:12px; font-weight:bold; color:#475569; display:block; margin-bottom:4px;">ประเภท:</label>
+                <select id="addSwapAction" class="swal2-select" style="width:100%; margin: 0 0 12px; display:block;">
+                    <option value="swap">✨ สลับกะ (เช้า↔ดึก)</option>
+                    <option value="stay">⏸️ ไม่สลับ (อยู่กะเดิม)</option>
+                </select>
+
+                <label style="font-size:12px; font-weight:bold; color:#475569; display:block; margin-bottom:4px;">วันที่:</label>
+                <input id="addSwapDate" type="date" value="${today}" class="swal2-input" style="width:100%; margin: 0; display:block;">
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'เพิ่ม',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#10b981',
+        focusConfirm: false,
+        preConfirm: () => {
+            const userId = document.getElementById('addSwapUser').value;
+            const action = document.getElementById('addSwapAction').value;
+            const date = document.getElementById('addSwapDate').value;
+            if (!userId) { Swal.showValidationMessage('กรุณาเลือกพนักงาน'); return false; }
+            if (!action) { Swal.showValidationMessage('กรุณาเลือกประเภท'); return false; }
+            if (!date) { Swal.showValidationMessage('กรุณาเลือกวันที่'); return false; }
+            return { userId, action, date };
+        }
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+    const { userId, action, date } = result.value;
+    const user = GLOBAL_USER_LIST.find(u => String(u.id) === String(userId));
+    if (!user) return;
+
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+
+    try {
+        let payload, scheduledFor, status;
+        let leaveRequest = null;
+
+        if (action === 'swap') {
+            const targetShift = user.allowed_shift === 'กะเช้า' ? 'กะดึก' : 'กะเช้า';
+            const dispDate = new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            const desc = targetShift === 'กะดึก'
+                ? `เริ่มเข้าดึกคืนแรก: ${dispDate}`
+                : `เริ่มเข้าเช้าวันที่: ${dispDate}`;
+
+            payload = { user_id: user.id, user_name: user.username, target_shift: targetShift, display_desc: desc };
+            scheduledFor = new Date(`${date}T05:00:00+07:00`).toISOString();
+            status = 'pending';
+
+            // กะดึก (MtoN): XX วันเดียวกัน, กะเช้า (NtoM): XX วันก่อน 1 วัน
+            const offset = targetShift === 'กะเช้า' ? -1 : 0;
+            const xxDate = getSafeDateStr(date, offset);
+            leaveRequest = { user_id: user.id, user_name: user.username, leave_date: xxDate, reason: 'XX', status: 'approved' };
+        } else {
+            // stay
+            const originalShift = user.allowed_shift;
+            const desc = originalShift === 'กะเช้า' ? 'อยู่กะเช้าตามเดิม' : 'อยู่กะดึกตามเดิม';
+            payload = { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: originalShift, display_desc: desc };
+            scheduledFor = `${date}T00:00:00`;
+            status = 'info_only';
+        }
+
+        const { error } = await appDB.from('scheduled_tasks').insert({
+            task_type: 'individual_shift_update',
+            payload: payload,
+            scheduled_for: scheduledFor,
+            status: status
+        });
+        if (error) throw error;
+
+        if (leaveRequest) {
+            await appDB.from('leave_requests').delete().eq('user_id', user.id).eq('leave_date', leaveRequest.leave_date);
+            await appDB.from('leave_requests').insert(leaveRequest);
+        }
+
+        if (typeof logAction === 'function') {
+            const actionDesc = action === 'swap' ? 'สลับกะ' : 'ไม่สลับ (อยู่กะเดิม)';
+            await logAction('Add Missing Swap', `เพิ่ม ${user.username} เข้าตาราง: ${actionDesc} วันที่ ${date}`);
+        }
+
+        Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', text: `เพิ่ม ${user.username} เข้าตารางแล้ว`, timer: 1800, showConfirmButton: false });
+        fetchPublicSwapSchedule();
+        if (typeof fetchLeaveData === 'function') fetchLeaveData();
+    } catch (err) {
+        Swal.fire('Error', 'ไม่สามารถบันทึกได้: ' + err.message, 'error');
+    }
+};
+
+// ==========================================
 // 🛠️ เมนูจัดการรายการสลับกะที่บันทึกแล้ว (Admin Only)
 // ==========================================
 window._swapScheduleTasks = window._swapScheduleTasks || {};
