@@ -973,17 +973,32 @@ window.changeSecondaryTeam = async function(primaryTeam, userId, username) {
     if (isConfirmed) {
         const selectedSec = document.getElementById('swal-sec-val').value;
         let userIndex = currentRosterData[primaryTeam].findIndex(u => String(u.id) === String(userId));
-        
+
         if(userIndex > -1) {
-            currentRosterData[primaryTeam][userIndex].secondary_team = selectedSec === 'none' ? null : selectedSec;
+            const prevSec = currentRosterData[primaryTeam][userIndex].secondary_team || null;
+            const newSec = selectedSec === 'none' ? null : selectedSec;
+            currentRosterData[primaryTeam][userIndex].secondary_team = newSec;
             const targetDate = document.getElementById('dutyDate').value; const shiftFilter = document.getElementById('dutyShiftSelect').value;
             const saveKey = `duty_roster_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-            
+
             Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen:()=>Swal.showLoading()});
             await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
-            
-            window.renderRosterGrid(currentRosterData); 
-            if(appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' }); 
+
+            // 🟢 บันทึก log การเปลี่ยนงานรอง (สแตนด์บาย)
+            let logDetail;
+            if (!prevSec && newSec) logDetail = `แจกงานรองให้ ${username} (เว็บหลัก: ${primaryTeam}) → สแตนด์บายช่วย [${newSec}]`;
+            else if (prevSec && !newSec) logDetail = `ปลดงานรอง ${username} (ออกจากการสแตนด์บายช่วย [${prevSec}])`;
+            else if (prevSec !== newSec) logDetail = `เปลี่ยนงานรอง ${username}: [${prevSec}] → [${newSec}]`;
+            if (logDetail) {
+                await appDB.from('system_logs').insert([{
+                    action_type: 'ย้ายหน้าที่',
+                    performed_by: currentUser.username,
+                    target_details: `${logDetail} (กะ: ${shiftFilter}, วันที่: ${targetDate})`
+                }]);
+            }
+
+            window.renderRosterGrid(currentRosterData);
+            if(appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
             Swal.fire({icon: 'success', title: 'อัปเดตงานรองแล้ว!', timer: 1200, showConfirmButton: false});
         }
     }
@@ -1260,15 +1275,22 @@ window.handleDrop = async function(event, toTeam) {
         const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (error) throw error;
 
+        // 🟢 บันทึก log การย้ายระหว่างเว็บ
+        await appDB.from('system_logs').insert([{
+            action_type: 'ย้ายหน้าที่',
+            performed_by: currentUser.username,
+            target_details: `ย้าย ${username} จากเว็บ [${fromTeam}] → [${toTeam}] (กะ: ${shiftFilter}, วันที่: ${targetDate})`
+        }]);
+
         window.renderRosterGrid(currentRosterData);
-        if (typeof window.updateDutyStats === 'function') window.updateDutyStats(); 
-        
+        if (typeof window.updateDutyStats === 'function') window.updateDutyStats();
+
         appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
         Swal.fire({icon: 'success', title: 'ย้ายสำเร็จ', timer: 1000, showConfirmButton: false});
     } catch (e) {
         console.error(e);
         Swal.fire('Error', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
-        window.refreshDutyData(); 
+        window.refreshDutyData();
     }
     draggedUser = null;
 };
@@ -2628,13 +2650,25 @@ window.assignImportantTask = async function(taskName) {
     });
     
     if (selectedUser) {
+        const prevAssignee = window.currentImportantAssigns[taskName] || null;
         window.currentImportantAssigns[taskName] = selectedUser;
         Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
-        
+
         const targetDate = document.getElementById('dutyDate').value;
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-        
+
         await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
+
+        // 🟢 บันทึก log การมอบหมายงานสำคัญ
+        const logDetail = prevAssignee && prevAssignee !== selectedUser
+            ? `เปลี่ยนผู้รับผิดชอบงาน "${taskName}": ${prevAssignee} → ${selectedUser}`
+            : `มอบหมายงาน "${taskName}" ให้ ${selectedUser}`;
+        await appDB.from('system_logs').insert([{
+            action_type: 'ย้ายหน้าที่',
+            performed_by: currentUser.username,
+            target_details: `${logDetail} (กะ: ${shiftFilter}, วันที่: ${targetDate})`
+        }]);
+
         window.renderImportantTasksPanel();
         Swal.close();
         appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
@@ -2642,23 +2676,33 @@ window.assignImportantTask = async function(taskName) {
 };
 
 window.unassignImportantTask = async function(taskName) {
+    const prevAssignee = window.currentImportantAssigns[taskName] || null;
     delete window.currentImportantAssigns[taskName];
-    
+
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
     const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
-    
+
     let keysToUpdate = [ { key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) } ];
-    
+
     if (window.lockedImportantTasks && window.lockedImportantTasks[taskName]) {
-        delete window.lockedImportantTasks[taskName]; 
+        delete window.lockedImportantTasks[taskName];
         keysToUpdate.push({ key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) });
     }
-    
+
     Swal.fire({title: 'กำลังปลดคน...', didOpen: () => Swal.showLoading()});
     await appDB.from('settings').upsert(keysToUpdate);
-    
+
+    // 🟢 บันทึก log การปลดคนออกจากงานสำคัญ
+    if (prevAssignee) {
+        await appDB.from('system_logs').insert([{
+            action_type: 'ย้ายหน้าที่',
+            performed_by: currentUser.username,
+            target_details: `ปลด ${prevAssignee} ออกจากงาน "${taskName}" (กะ: ${shiftFilter}, วันที่: ${targetDate})`
+        }]);
+    }
+
     window.renderImportantTasksPanel();
     Swal.close();
     appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
