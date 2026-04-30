@@ -162,9 +162,8 @@ window.initFineApp = async function() {
         }
     }
 
-    await loadFineRules();
-    await loadFineNotes(); 
-    await fetchFinesData(); 
+    // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (rules + notes + fines) เพราะอิสระต่อกัน
+    await Promise.all([loadFineRules(), loadFineNotes(), fetchFinesData()]);
     subscribeFinesChanges();
 };
 

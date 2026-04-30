@@ -344,9 +344,10 @@ async function fetchData() {
     if(tBody) tBody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-400"><span class="animate-spin material-icons text-3xl text-blue-500 mb-2">sync</span><br><b>กำลังดึงข้อมูล...</b></td></tr>`;
 
     let query = appDB.from('schedules').select('id, work_date, staff_name, team, shift_name, time_slot, department').eq('work_date', dateVal);
-    if (tableTeam !== 'all') { query = query.eq('team', tableTeam); } 
-    if (!['manager', 'admin'].includes(currentUser.role)) { 
-        if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) { query = query.eq('shift_name', currentUser.allowed_shift); } 
+    if (tableTeam !== 'all') { query = query.eq('team', tableTeam); }
+    const canViewAllShifts = ['manager', 'admin'].includes(currentUser.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
+    if (!canViewAllShifts) {
+        if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) { query = query.eq('shift_name', currentUser.allowed_shift); }
     }
 
    const { data } = await query;
@@ -465,10 +466,11 @@ function updateTableSummary(data) {
     });
     
     let shiftsToShow = ACTIVE_SHIFTS_CONFIG;
-    if (!['manager', 'admin'].includes(currentUser.role)) { 
-        if (shiftsToShow.includes(currentUser.allowed_shift)) { 
-            shiftsToShow = [currentUser.allowed_shift]; 
-        } 
+    const canViewAllShifts = ['manager', 'admin'].includes(currentUser.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
+    if (!canViewAllShifts) {
+        if (shiftsToShow.includes(currentUser.allowed_shift)) {
+            shiftsToShow = [currentUser.allowed_shift];
+        }
     }
 
     const pColors = { 'ช่วงที่ 1': 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700', 'ช่วงที่ 2': 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700', 'ช่วงที่ 3': 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-700' };
@@ -2142,7 +2144,8 @@ const PERM_GROUPS = [
     {
         id: 'page_dashboard', name: 'หน้าหลักลงเวลา', icon: 'home', theme: 'blue',
         items: [
-            {id: 'dashboard', name: 'เข้าหน้าหลักลงเวลา', isSub: false}
+            {id: 'dashboard', name: 'เข้าหน้าหลักลงเวลา', isSub: false},
+            {id: 'dashboard_view_all_shifts', name: 'ลงเวลาได้ทุกกะ (เห็นทั้ง 3 กะ)', isSub: true}
         ]
     },
     {

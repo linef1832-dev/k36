@@ -123,10 +123,12 @@ window.renderShiftButtons = function(allowedShift) {
     const userRole = window.currentUser?.role || 'staff';
     const shiftRight = allowedShift || 'all';
     const isAdmin = window.hasUserPerm('ds_manage') || window.hasUserPerm('admin');
+    // 🟢 มีสิทธิ์ "ลงเวลาได้ทุกกะ" → ไม่ถูกล็อกแค่กะของตัวเอง
+    const canViewAllShifts = isAdmin || window.hasUserPerm('dashboard_view_all_shifts');
 
     shifts.forEach((s, index) => {
-        // 🌟 จุดสำคัญ: ถ้าไม่ใช่แอดมิน และกะนี้ไม่ใช่กะของพนักงานคนนี้ ให้ "ข้าม (return)" ไปเลย (คือไม่สร้างปุ่มนี้ขึ้นมา)
-        if (!isAdmin && shiftRight !== 'all' && shiftRight !== s) {
+        // 🌟 จุดสำคัญ: ถ้าไม่มีสิทธิ์เห็นทุกกะ และกะนี้ไม่ใช่กะของพนักงานคนนี้ ให้ "ข้าม (return)" ไปเลย
+        if (!canViewAllShifts && shiftRight !== 'all' && shiftRight !== s) {
             return;
         }
 
