@@ -82,8 +82,12 @@ window.initDutyApp = async function() {
             dateInput.value = (new Date(today - offset)).toISOString().slice(0, 10);
         }
 
-        if(GLOBAL_USER_LIST.length === 0 && typeof fetchUsers === 'function') await fetchUsers();
-        await window.loadDutyAccessAndRoles();
+        // 🚀 ดึง users + access matrix/roles ขนานกัน (อิสระต่อกัน)
+        const initFetches = [window.loadDutyAccessAndRoles()];
+        if (GLOBAL_USER_LIST.length === 0 && typeof fetchUsers === 'function') {
+            initFetches.push(fetchUsers());
+        }
+        await Promise.all(initFetches);
         
         const teamSelect = document.getElementById('roleEditorTeam');
         if(teamSelect) {
