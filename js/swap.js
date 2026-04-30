@@ -910,9 +910,12 @@ window.openAddMissingSwap = async function() {
         if (action === 'swap') {
             const targetShift = user.allowed_shift === 'กะเช้า' ? 'กะดึก' : 'กะเช้า';
             const dispDate = new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            const prevDate = getSafeDateStr(date, -1);
+            const prevDispDate = new Date(prevDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            // 🟢 format ให้ครบ 2 ส่วน เหมือนตอน auto-generate
             const desc = targetShift === 'กะดึก'
-                ? `เริ่มเข้าดึกคืนแรก: ${dispDate}`
-                : `เริ่มเข้าเช้าวันที่: ${dispDate}`;
+                ? `ทำเช้าวันสุดท้าย: ${prevDispDate} | เริ่มเข้าดึกคืนแรก: ${dispDate}`
+                : `ออกกะเช้าวันที่: ${prevDispDate} (ได้พัก 1 วัน) | เริ่มเข้าเช้าวันที่: ${dispDate}`;
 
             payload = { user_id: user.id, user_name: user.username, target_shift: targetShift, display_desc: desc };
             scheduledFor = new Date(`${date}T05:00:00+07:00`).toISOString();
@@ -1041,16 +1044,16 @@ window.changeSavedSwapDate = async function(taskId) {
     try {
         const newScheduledFor = new Date(`${newDate}T05:00:00+07:00`).toISOString();
 
-        // 🟢 สร้าง display_desc ใหม่ตามวันที่ใหม่ (ไม่งั้นจะแสดงวันเก่า)
+        // 🟢 สร้าง display_desc ใหม่ให้ครบ 2 ส่วน (ไม่งั้นจะแสดงไม่ครบ)
         const newDateDisplay = new Date(newDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+        const prevDate = getSafeDateStr(newDate, -1);
+        const prevDateDisplay = new Date(prevDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
         let newDesc;
         if (p.target_shift === 'กะดึก') {
-            // MtoN: วันสลับคือวันเริ่มเข้าดึก
-            newDesc = `เริ่มเข้าดึกคืนแรก: ${newDateDisplay}`;
+            // MtoN: prev = วันสุดท้ายทำเช้า, new = วันเริ่มเข้าดึก
+            newDesc = `ทำเช้าวันสุดท้าย: ${prevDateDisplay} | เริ่มเข้าดึกคืนแรก: ${newDateDisplay}`;
         } else if (p.target_shift === 'กะเช้า') {
-            // NtoM: วันสลับคือวันเริ่มเข้าเช้า; วันก่อนหน้าคือวันพัก
-            const prevDate = getSafeDateStr(newDate, -1);
-            const prevDateDisplay = new Date(prevDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            // NtoM: prev = วันพัก, new = วันเริ่มเข้าเช้า
             newDesc = `ออกกะเช้าวันที่: ${prevDateDisplay} (ได้พัก 1 วัน) | เริ่มเข้าเช้าวันที่: ${newDateDisplay}`;
         } else {
             newDesc = p.display_desc || '';
@@ -1168,9 +1171,12 @@ window.reactivateSavedSwap = async function(taskId) {
     try {
         const newScheduledFor = new Date(`${swapDate}T05:00:00+07:00`).toISOString();
         const swapDateDisplay = new Date(swapDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+        const prevDate = getSafeDateStr(swapDate, -1);
+        const prevDateDisplay = new Date(prevDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+        // 🟢 format ให้ครบ 2 ส่วน
         const newDesc = newTargetShift === 'กะดึก'
-            ? `เริ่มเข้าดึกคืนแรก: ${swapDateDisplay}`
-            : `เริ่มเข้าเช้าวันที่: ${swapDateDisplay}`;
+            ? `ทำเช้าวันสุดท้าย: ${prevDateDisplay} | เริ่มเข้าดึกคืนแรก: ${swapDateDisplay}`
+            : `ออกกะเช้าวันที่: ${prevDateDisplay} (ได้พัก 1 วัน) | เริ่มเข้าเช้าวันที่: ${swapDateDisplay}`;
 
         const newPayload = {
             user_id: p.user_id,
