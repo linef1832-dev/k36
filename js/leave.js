@@ -247,7 +247,8 @@ window.initLeaveTable = async function() {
         const leaveAppEl = document.getElementById('leaveApp');
         if(!leaveAppEl || leaveAppEl.classList.contains('hidden')) return;
         checkBookingWindow();
-    }, 1000);
+    }, 5000);  // 🟢 ลดความถี่จาก 1 วิ → 5 วิ (สถานะเปิด/ปิดจองไม่ได้เปลี่ยนถี่ขนาดนั้น)
+    if (typeof window.registerPageInterval === 'function') window.registerPageInterval(window.leaveCheckInterval);
 }
 
 async function loadLeaveSettings(skipRender = false) {

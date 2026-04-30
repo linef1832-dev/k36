@@ -141,7 +141,8 @@ window.switchDiscordTab = function(tabName) {
                 activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.5)] flex items-center gap-1";
                 ds_fetchSpy(); 
                 ds_fetchChannelsSilently();
-                spyInterval = setInterval(ds_fetchSpy, 3000); 
+                spyInterval = setInterval(ds_fetchSpy, 3000);
+                if (typeof window.registerPageInterval === 'function') window.registerPageInterval(spyInterval);
             } 
             else if (tabName === 'move') {
                 activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)] flex items-center gap-1";
@@ -178,6 +179,7 @@ window.switchDiscordTab = function(tabName) {
                 logInterval = setInterval(() => {
                     ds_fetchVoiceLogs(false, window.dsCurrentPage);
                 }, 15000);
+                if (typeof window.registerPageInterval === 'function') window.registerPageInterval(logInterval);
             }
             else if (tabName === 'actionlog') {
                 activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.5)] flex items-center gap-1";

@@ -166,14 +166,16 @@ window.addBotLog = function(message, status = 'info') {
 };
 window.clearBotLog = () => { document.getElementById('botLogArea').innerHTML = ''; };
 
+// 🟢 bail-early เมื่อไม่ได้อยู่หน้า bot + ยิงน้อยลงเป็น 2 วิ (ลด CPU เยอะมาก)
 setInterval(() => {
     const list = document.getElementById('savedBotsList');
-    if (list && !list.hasAttribute('data-loaded')) {
-        if (typeof window.renderSavedBots === 'function') {
-            window.renderSavedBots(); window.renderBotQueue();
-            list.setAttribute('data-loaded', 'true');
-            window.removeEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
-            window.addEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
-        }
+    if (!list) return;                                 // ไม่อยู่ในหน้านี้ → ไม่ทำอะไร
+    if (list.hasAttribute('data-loaded')) return;      // โหลดแล้ว → ไม่ทำซ้ำ
+
+    if (typeof window.renderSavedBots === 'function') {
+        window.renderSavedBots(); window.renderBotQueue();
+        list.setAttribute('data-loaded', 'true');
+        window.removeEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
+        window.addEventListener('BOT_STATUS_UPDATE', handleBotStatusUpdate);
     }
-}, 500);
+}, 2000);

@@ -86,11 +86,31 @@ window.cleanupPageSubscriptions = function() {
     window._pageSubscriptions.clear();
 };
 
+// ==========================================
+// 🧹 ระบบจัดการ setInterval / setTimeout ตามหน้า (กัน CPU drain)
+// ==========================================
+window._pageIntervals = window._pageIntervals || new Set();
+
+window.registerPageInterval = function(intervalId) {
+    if (!intervalId) return intervalId;
+    window._pageIntervals.add(intervalId);
+    return intervalId;
+};
+
+window.cleanupPageIntervals = function() {
+    if (!window._pageIntervals || window._pageIntervals.size === 0) return;
+    window._pageIntervals.forEach(id => {
+        try { clearInterval(id); } catch (e) { /* ignore */ }
+    });
+    window._pageIntervals.clear();
+};
+
 async function showPage(pageName) {
     const loading = document.getElementById('loading');
 
-    // 🧹 ก่อนเปลี่ยนหน้า: เคลียร์ subscription ของหน้าเดิมเพื่อกัน leak
+    // 🧹 ก่อนเปลี่ยนหน้า: เคลียร์ subscription + intervals ของหน้าเดิมเพื่อกัน leak
     window.cleanupPageSubscriptions();
+    window.cleanupPageIntervals();
 
     try {
         if (!pageCache[pageName] && loading) loading.classList.remove('hidden');

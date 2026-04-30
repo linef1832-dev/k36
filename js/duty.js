@@ -2818,17 +2818,22 @@ window.quickAssignBackups = async function() {
 // 🌟 โค้ดเสกปุ่ม "⚡ จัดรองด่วน (AI)" ให้โผล่ขึ้นมาข้างปุ่มล้างตาราง
 // ==========================================
 setInterval(() => {
+    // 🟢 bail-early ถ้าไม่ได้อยู่หน้า duty (กัน CPU ทำงานทิ้งทุกหน้าทุกๆ 1 วิ)
+    const dutyApp = document.getElementById('dutyApp');
+    if (!dutyApp || dutyApp.classList.contains('hidden')) return;
+    if (document.getElementById('btnQuickBackup')) return; // ปุ่มมีแล้ว ไม่ต้องเช็คอีก
+
     const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
-    if (clearBtn && !document.getElementById('btnQuickBackup')) {
+    if (clearBtn) {
         const btn = document.createElement('button');
         btn.id = 'btnQuickBackup';
         btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
         btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
         btn.onclick = window.quickAssignBackups;
-        
+
         clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
     }
-}, 1000);
+}, 2000);
 
 // ==========================================
 // 🌟 ฟังก์ชันกู้คืนตารางงาน (จากที่กดล้างไป)
