@@ -5,6 +5,9 @@ let staffDutyMap = {};
 let withdrawalCurrentPage = 1;
 const WITHDRAWAL_PAGE_SIZE = 50;
 
+// 🟢 วันที่ที่เลือกดู (รูปแบบ YYYY-MM-DD ตามเวลาไทย) — null = วันนี้
+let withdrawalSelectedDate = null;
+
 const W_SUPABASE_LOGS_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/rest/v1/staff_withdrawal_logs';
 const W_SUPABASE_SETTING_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/rest/v1/settings';
 const W_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplZGJidGp4dWlkZnVicGlhdXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MjQ2ODgsImV4cCI6MjA4MzIwMDY4OH0.4orJyfFcOwnZcnHFjLOTLXaqFNeapCVe9yCxj3rLMBM';
@@ -18,25 +21,39 @@ window.initWithdrawalReport = async function() {
     // Reset หน้าเป็น 1 ทุกครั้งที่รีเฟรช
     withdrawalCurrentPage = 1;
     
+    // อัปเดต date picker ให้ตรงกับวันที่ที่ดูอยู่
+    updateWithdrawalDatePickerUI();
+    
     try {
-        // 🟢 คำนวณช่วงเวลา "วันนี้ตามเวลาไทย" (UTC+7)
-        // 00:00:00 ของวันนี้ที่ไทย = 17:00:00 UTC ของเมื่อวาน
-        const now = new Date();
+        // 🟢 คำนวณช่วงเวลาตาม "วันที่ที่เลือก" หรือ "วันนี้" (เวลาไทย UTC+7)
         const thOffsetMs = 7 * 60 * 60 * 1000; // +7 ชั่วโมง
         
-        // เวลา "ตอนนี้" ในไทย (ใช้คำนวณวันที่ไทย)
-        const nowInTh = new Date(now.getTime() + thOffsetMs);
-        const yyyy = nowInTh.getUTCFullYear();
-        const mm = String(nowInTh.getUTCMonth() + 1).padStart(2, '0');
-        const dd = String(nowInTh.getUTCDate()).padStart(2, '0');
-        const todayDateStr = `${yyyy}-${mm}-${dd}`; // ใช้ค้นหา duty roster
+        let yyyy, mmNum, ddNum, todayDateStr;
+        
+        if (withdrawalSelectedDate) {
+            // ใช้วันที่ที่ผู้ใช้เลือก (รูปแบบ YYYY-MM-DD)
+            const parts = withdrawalSelectedDate.split('-');
+            yyyy = parseInt(parts[0], 10);
+            mmNum = parseInt(parts[1], 10) - 1; // เดือนใน JS เริ่ม 0
+            ddNum = parseInt(parts[2], 10);
+            todayDateStr = withdrawalSelectedDate;
+        } else {
+            // ใช้วันนี้ตามเวลาไทย
+            const nowInTh = new Date(Date.now() + thOffsetMs);
+            yyyy = nowInTh.getUTCFullYear();
+            mmNum = nowInTh.getUTCMonth();
+            ddNum = nowInTh.getUTCDate();
+            const mm = String(mmNum + 1).padStart(2, '0');
+            const dd = String(ddNum).padStart(2, '0');
+            todayDateStr = `${yyyy}-${mm}-${dd}`;
+        }
         
         // จุดเริ่มต้นของวันไทย แปลงกลับเป็น UTC ISO เพื่อ query
-        const startOfDayThUtc = new Date(Date.UTC(yyyy, nowInTh.getUTCMonth(), nowInTh.getUTCDate(), 0, 0, 0));
+        const startOfDayThUtc = new Date(Date.UTC(yyyy, mmNum, ddNum, 0, 0, 0));
         const startUtcIso = new Date(startOfDayThUtc.getTime() - thOffsetMs).toISOString();
         
         // จุดสิ้นสุดของวันไทย (เริ่มต้นของวันถัดไป)
-        const endOfDayThUtc = new Date(Date.UTC(yyyy, nowInTh.getUTCMonth(), nowInTh.getUTCDate() + 1, 0, 0, 0));
+        const endOfDayThUtc = new Date(Date.UTC(yyyy, mmNum, ddNum + 1, 0, 0, 0));
         const endUtcIso = new Date(endOfDayThUtc.getTime() - thOffsetMs).toISOString();
 
         // 🟢 ดึงตารางจัดงานของวันนี้
@@ -274,6 +291,39 @@ window.goToWithdrawalPage = function(page) {
     const tableWrap = document.getElementById('withdrawalTableWrap');
     if (tableWrap) tableWrap.scrollTop = 0;
 };
+
+// 🟢 ฟังก์ชันใหม่: เปลี่ยนวันที่ที่ดู
+window.onWithdrawalDateChange = function(dateValue) {
+    if (!dateValue) return;
+    withdrawalSelectedDate = dateValue;
+    updateWithdrawalDatePickerUI();
+    initWithdrawalReport();
+};
+
+// 🟢 ฟังก์ชันใหม่: กลับไปดูวันนี้
+window.resetWithdrawalDateToday = function() {
+    withdrawalSelectedDate = null;
+    updateWithdrawalDatePickerUI();
+    initWithdrawalReport();
+};
+
+// 🟢 ฟังก์ชันใหม่: อัปเดตช่อง date picker ให้แสดงวันที่ปัจจุบัน
+function updateWithdrawalDatePickerUI() {
+    const picker = document.getElementById('withdrawalDatePicker');
+    if (!picker) return;
+    
+    if (withdrawalSelectedDate) {
+        picker.value = withdrawalSelectedDate;
+    } else {
+        // ตั้งเป็นวันนี้ตามเวลาไทย
+        const thOffsetMs = 7 * 60 * 60 * 1000;
+        const nowInTh = new Date(Date.now() + thOffsetMs);
+        const yyyy = nowInTh.getUTCFullYear();
+        const mm = String(nowInTh.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(nowInTh.getUTCDate()).padStart(2, '0');
+        picker.value = `${yyyy}-${mm}-${dd}`;
+    }
+}
 
 window.exportWithdrawalToExcel = function() {
     if (withdrawalReportData.length === 0) {
