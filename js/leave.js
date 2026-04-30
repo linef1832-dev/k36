@@ -614,19 +614,52 @@ window.renderLeaveTable = function() {
     if(currentViewDept === 'TRAINER') displayDeptText = 'ผู้สอน';
     if(currentViewDept === 'SPECIAL') displayDeptText = 'จัดกลุ่มเอง';
 
+    // 🟢 นับจำนวนพนักงานทั้งหมดในแผนกนี้ แยกตามกะ (ใช้คำนวณ "มาทำงาน")
+    const totalByShift = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0 };
+    allDeptUsers.forEach(u => {
+        if (totalByShift[u.allowed_shift] !== undefined) totalByShift[u.allowed_shift]++;
+    });
+
+    let workingRowHtml = `<tr id="tableWorkingRow">
+        <th colspan="2" class="p-1.5 sticky left-0 z-30 bg-emerald-50 dark:bg-emerald-950/40 border-b border-r dark:border-slate-700 text-left pl-4 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400">
+            <span class="material-icons text-[12px] align-middle">groups</span> มาทำงาน (เหลือ/ทั้งหมด)
+        </th>
+    `;
+
     let headerHtml = `
         <th class="p-2 sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[40px] min-w-[40px] max-w-[40px] text-center">No.</th>
         <th class="p-2 sticky left-[39px] z-30 bg-slate-50 dark:bg-slate-800 border-b border-r dark:border-slate-700 w-[140px] min-w-[140px] max-w-[140px] text-left pl-4">
             รายชื่อ (${displayDeptText})
         </th>
     `;
-    
+
     for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        
+
         const countM = shiftDailyCounts[`${dateStr}_กะเช้า`] || 0;
         const countA = shiftDailyCounts[`${dateStr}_กะกลาง`] || 0;
         const countN = shiftDailyCounts[`${dateStr}_กะดึก`] || 0;
+
+        const workM = Math.max(0, totalByShift['กะเช้า'] - countM);
+        const workA = Math.max(0, totalByShift['กะกลาง'] - countA);
+        const workN = Math.max(0, totalByShift['กะดึก'] - countN);
+
+        workingRowHtml += `<th class="p-1 border-b border-r dark:border-slate-700 align-middle bg-emerald-50/70 dark:bg-emerald-950/30 min-w-[75px]">
+            <div class="flex flex-col gap-0.5">
+                <div class="flex justify-between items-center">
+                    <span class="text-[9px] font-bold text-orange-500">เช้า</span>
+                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workM}/${totalByShift['กะเช้า']}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[9px] font-bold text-blue-500">กลาง</span>
+                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workA}/${totalByShift['กะกลาง']}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[9px] font-bold text-purple-400">ดึก</span>
+                    <span class="text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-300">${workN}/${totalByShift['กะดึก']}</span>
+                </div>
+            </div>
+        </th>`;
 
         const isFullM = countM >= (s.quotaM || 0);
         const isFullA = countA >= (s.quotaA || 0);
@@ -660,6 +693,13 @@ window.renderLeaveTable = function() {
             </div>
         </th>`;
     }
+    workingRowHtml += `</tr>`;
+
+    // ลบแถว "มาทำงาน" เก่าทิ้ง (ถ้ามี) แล้ววาดใหม่ก่อนแถววันที่
+    const oldWorkingRow = document.getElementById('tableWorkingRow');
+    if (oldWorkingRow) oldWorkingRow.remove();
+    if (thead) thead.insertAdjacentHTML('beforebegin', workingRowHtml);
+
     thead.innerHTML = headerHtml;
 
     let bodyHtml = '';
