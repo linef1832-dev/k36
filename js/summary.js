@@ -118,22 +118,19 @@ window.initSummaryDate = async function() {
             const offset = today.getTimezoneOffset() * 60000;
             dateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
         }
-        
-        await loadWebLogos();
-        if (typeof fetchAvailableDates === 'function') await fetchAvailableDates();
-        
-        // รอโหลดรายชื่อพนักงานให้เสร็จ 100%
-        if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
-            if (typeof appDB !== 'undefined') {
-                const { data } = await appDB.from('users').select('*');
-                if (data && data.length > 0) window.GLOBAL_USER_LIST = data;
-            }
+
+        // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (web logos + available dates + users) เพราะอิสระต่อกัน
+        const initFetches = [loadWebLogos()];
+        if (typeof fetchAvailableDates === 'function') initFetches.push(fetchAvailableDates());
+        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+            initFetches.push(fetchUsers());
         }
+        await Promise.all(initFetches);
 
         await window.fetchHistoricalSummary(true);
         if (typeof window.subscribeSummaryChanges === 'function') window.subscribeSummaryChanges();
-        
-    } catch(e) { console.error("Init Summary Error:", e); } 
+
+    } catch(e) { console.error("Init Summary Error:", e); }
     finally { Swal.close(); }
 }
 
