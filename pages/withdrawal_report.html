@@ -42,18 +42,33 @@
 
         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5 mb-6">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">
-    <h3 class="text-sm font-bold text-slate-700 dark:text-gray-300 flex items-center gap-2">
-        <span class="material-icons text-emerald-500">people</span> ยอดพนักงานแต่ละคน (เรียงตามคนทำเยอะสุด)
-    </h3>
-    <div class="flex items-center gap-2">
-        <span class="material-icons text-emerald-500 text-sm">event</span>
-        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">เลือกวันที่:</label>
-        <input type="date" id="withdrawalDatePicker" onchange="onWithdrawalDateChange(this.value)" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-emerald-500 focus:outline-none transition" />
-        <button onclick="resetWithdrawalDateToday()" class="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30 px-2 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1" title="กลับไปวันนี้">
-            <span class="material-icons text-sm">today</span> วันนี้
-        </button>
-    </div>
-</div>
+                <h3 class="text-sm font-bold text-slate-700 dark:text-gray-300 flex items-center gap-2">
+                    <span class="material-icons text-emerald-500">people</span> ยอดพนักงานแต่ละคน (เรียงตามคนทำเยอะสุด)
+                </h3>
+                <div class="flex items-center flex-wrap gap-2">
+                    <span class="material-icons text-emerald-500 text-sm">language</span>
+                    <label class="text-xs font-bold text-gray-500 dark:text-gray-400">เว็บหลัก:</label>
+                    <select id="withdrawalSiteFilter" onchange="onWithdrawalSiteChange(this.value)" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-emerald-500 focus:outline-none transition cursor-pointer">
+                        <option value="ALL">ทั้งหมด</option>
+                        <option value="JUN88">JUN88</option>
+                        <option value="MK8">MK8</option>
+                        <option value="BT678">BT678</option>
+                        <option value="K188">K188</option>
+                        <option value="VV72">VV72</option>
+                        <option value="TH26">TH26</option>
+                        <option value="F168">F168</option>
+                        <option value="PG688">PG688</option>
+                        <option value="JL69">JL69</option>
+                        <option value="NM9">NM9</option>
+                    </select>
+                    <span class="material-icons text-emerald-500 text-sm ml-2">event</span>
+                    <label class="text-xs font-bold text-gray-500 dark:text-gray-400">วันที่:</label>
+                    <input type="date" id="withdrawalDatePicker" onchange="onWithdrawalDateChange(this.value)" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-emerald-500 focus:outline-none transition" />
+                    <button onclick="resetWithdrawalDateToday()" class="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30 px-2 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1" title="กลับไปวันนี้">
+                        <span class="material-icons text-sm">today</span> วันนี้
+                    </button>
+                </div>
+            </div>
             <div id="staffSummaryGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 <div class="col-span-full text-center text-xs text-gray-500 py-4"><span class="animate-spin material-icons">sync</span> กำลังคำนวณยอด...</div>
             </div>
@@ -65,23 +80,23 @@
                 <span class="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">ประวัติการกดปุ่ม (ล่าสุด)</span>
             </div>
             <div id="withdrawalTableWrap" class="overflow-x-auto custom-scrollbar">
-    <table class="w-full text-left text-sm whitespace-nowrap">
-        <thead class="bg-slate-900 text-gray-400 text-[10px] uppercase sticky top-0 shadow-sm z-10 border-b border-slate-700">
-            <tr>
-                <th class="p-3 font-bold text-center w-16">ลำดับ</th>
-                <th class="p-3 font-bold">วัน-เวลาที่ทำรายการ</th>
-                <th class="p-3 font-bold">พนักงาน</th>
-                <th class="p-3 font-bold">ระบบที่กด</th>
-                <th class="p-3 font-bold">สถานะหน้าที่</th>
-                <th class="p-3 font-bold text-center">การดำเนินการ</th>
-            </tr>
-        </thead>
-        <tbody id="withdrawalReportBody" class="text-slate-700 dark:text-gray-200 divide-y divide-slate-700/50">
-            <tr><td colspan="6" class="text-center py-10">กำลังโหลด...</td></tr>
-        </tbody>
-    </table>
-</div>
-<div id="withdrawalPagination"></div>
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-slate-900 text-gray-400 text-[10px] uppercase sticky top-0 shadow-sm z-10 border-b border-slate-700">
+                        <tr>
+                            <th class="p-3 font-bold text-center w-16">ลำดับ</th>
+                            <th class="p-3 font-bold">วัน-เวลาที่ทำรายการ</th>
+                            <th class="p-3 font-bold">พนักงาน</th>
+                            <th class="p-3 font-bold">ระบบที่กด</th>
+                            <th class="p-3 font-bold">สถานะหน้าที่</th>
+                            <th class="p-3 font-bold text-center">การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="withdrawalReportBody" class="text-slate-700 dark:text-gray-200 divide-y divide-slate-700/50">
+                        <tr><td colspan="6" class="text-center py-10">กำลังโหลด...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="withdrawalPagination"></div>
         </div>
 
     </div>
