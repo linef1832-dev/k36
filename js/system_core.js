@@ -886,6 +886,12 @@ async function manualRefreshIndiv() {
 }
 
 async function fetchIndividualTasks() {
+     // 🌟 [FIX] ก่อนดึงข้อมูลมาแสดง ให้ลองประมวลผลคิวที่เลยเวลาก่อน
+     // เพื่อให้สถานะ pending → completed อัตโนมัติเมื่อถึงเวลา (ไม่ต้องรอแอดมิน commit คิวใหม่)
+     try {
+         if (typeof processPendingTasks === 'function') await processPendingTasks();
+     } catch(e) { console.warn('[fetchIndividualTasks] processPendingTasks error:', e); }
+
      const {data} = await appDB.from('scheduled_tasks')
         .select('*')
         .eq('task_type', 'individual_shift_update')
@@ -1022,7 +1028,8 @@ window.processPendingTasks = async function() {
             
             // 🌟 [ปรับใหม่] ยิงคำสั่งอัปเดตสถานะ 'completed' รวดเดียวจบ! (ลดภาระเซิร์ฟเวอร์มหาศาล)
             if (completedTaskIds.length > 0) {
-                await appDB.from('scheduled_tasks').update({status:'completed'}).in('id', completedTaskIds);
+                const { error: bulkErr } = await appDB.from('scheduled_tasks').update({status:'completed'}).in('id', completedTaskIds);
+                if (bulkErr) console.error('[processPendingTasks] อัปเดต status=completed ไม่สำเร็จ:', bulkErr);
             }
             
             if(typeof fetchTasks === 'function') fetchTasks(); 
@@ -1972,6 +1979,16 @@ setInterval(() => {
             }
         }
     }
+}, 60000);
+
+// 🌟 [FIX] ตัวเช็คคิวเปลี่ยนกะอัตโนมัติทุก 60 วิ เฉพาะแอดมิน (กันคิวค้างอย่าง 1/5/2569 05:00:00)
+setInterval(() => {
+    if (typeof currentUser === 'undefined' || !currentUser.id) return;
+    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    if (!isAdmin) return;
+    if (typeof processPendingTasks !== 'function') return;
+    // เรียกแบบเงียบๆ ถ้าไม่มีคิวที่ถึงเวลา ฟังก์ชันก็จะ no-op อยู่แล้ว
+    processPendingTasks().catch(e => console.warn('[autoRunPending] error:', e));
 }, 60000);
 
 // =========================================================
