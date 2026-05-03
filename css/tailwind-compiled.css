@@ -7304,6 +7304,11 @@ video {
   background-color: rgb(234 179 8 / var(--tw-bg-opacity, 1));
 }
 
+.hover\:bg-rose-50:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 241 242 / var(--tw-bg-opacity, 1));
+}
+
 .hover\:from-amber-200:hover {
   --tw-gradient-from: #fde68a var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(253 230 138 / 0) var(--tw-gradient-to-position);
@@ -8921,6 +8926,11 @@ video {
 .dark\:text-slate-200:is(.dark *) {
   --tw-text-opacity: 1;
   color: rgb(226 232 240 / var(--tw-text-opacity, 1));
+}
+
+.dark\:text-rose-200:is(.dark *) {
+  --tw-text-opacity: 1;
+  color: rgb(254 205 211 / var(--tw-text-opacity, 1));
 }
 
 .dark\:shadow-\[0_-10px_15px_-3px_rgba\(0\2c 0\2c 0\2c 0\.5\)\]:is(.dark *) {

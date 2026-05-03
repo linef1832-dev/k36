@@ -1,5 +1,5 @@
 <!-- ==========================================
-     🌐 หน้าตรวจสอบ IP พนักงาน
+     🌐 หน้าตรวจสอบ IP พนักงาน V2
      ========================================== -->
 <div class="p-4 md:p-6 max-w-[1600px] mx-auto">
 
@@ -9,7 +9,7 @@
             <span class="material-icons text-4xl">public</span>
             <div>
                 <h1 class="text-xl md:text-2xl font-black">ตรวจสอบ IP พนักงาน</h1>
-                <p class="text-xs md:text-sm opacity-90">ตรวจจับการแชร์บัญชี / Login จากที่ตั้งผิดปกติ</p>
+                <p class="text-xs md:text-sm opacity-90">ตรวจจับการแชร์บัญชี / VPN / IP เปลี่ยนกลางคัน</p>
             </div>
         </div>
         <div class="flex gap-2 flex-wrap">
@@ -25,7 +25,7 @@
     <!-- การ์ดสรุป 4 ใบ -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-sky-500">
-            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">รายการ Login ทั้งหมด</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">รายการทั้งหมด</div>
             <div id="ipStatTotal" class="text-3xl font-black text-sky-600 dark:text-sky-400 mt-1">0</div>
         </div>
         <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-emerald-500">
@@ -36,9 +36,9 @@
             <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">จำนวน IP ทั้งหมด</div>
             <div id="ipStatIps" class="text-3xl font-black text-purple-600 dark:text-purple-400 mt-1">0</div>
         </div>
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-amber-500">
-            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">⚠ IP ที่ใช้ร่วมกัน</div>
-            <div id="ipStatShared" class="text-3xl font-black text-amber-600 dark:text-amber-400 mt-1">0</div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-rose-500">
+            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">⚠ IP เปลี่ยนกลางคัน</div>
+            <div id="ipStatChanges" class="text-3xl font-black text-rose-600 dark:text-rose-400 mt-1">0</div>
         </div>
     </div>
 
@@ -48,8 +48,11 @@
             <button id="ipTab_all" onclick="switchIpTab('all')" class="ip-tab-btn bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
                 <span class="material-icons text-base">list</span> ประวัติทั้งหมด
             </button>
+            <button id="ipTab_changes" onclick="switchIpTab('changes')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-rose-50">
+                <span class="material-icons text-base">swap_horiz</span> 🚨 IP เปลี่ยนกลางคัน
+            </button>
             <button id="ipTab_duplicates" onclick="switchIpTab('duplicates')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-amber-50">
-                <span class="material-icons text-base">warning</span> ⚠ IP ซ้ำ (น่าสงสัย)
+                <span class="material-icons text-base">warning</span> ⚠ IP ซ้ำ
             </button>
             <button id="ipTab_by_user" onclick="switchIpTab('by_user')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-emerald-50">
                 <span class="material-icons text-base">groups</span> สรุปต่อพนักงาน
