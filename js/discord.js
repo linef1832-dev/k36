@@ -439,7 +439,9 @@ window.openDuplicateModal = function() {
 
 // 🌟 [NEW] เปลี่ยนชื่อแสดงผลของ Discord (Custom Name) — เก็บลง Supabase
 window.editCustomName = async function(staffId, currentName) {
-    const { value: newName } = await Swal.fire({
+    const hasOverride = !!(window.customDiscordNames && window.customDiscordNames[staffId]);
+    
+    const result = await Swal.fire({
         title: 'เปลี่ยนชื่อแสดงผล',
         html: `
             <div class="text-left text-xs text-gray-400 mb-2">
@@ -458,40 +460,48 @@ window.editCustomName = async function(staffId, currentName) {
         confirmButtonText: 'บันทึก',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#f59e0b',
-        showDenyButton: !!(window.customDiscordNames && window.customDiscordNames[staffId]),
+        showDenyButton: hasOverride,
         denyButtonText: '↩ คืนชื่อเดิม',
         denyButtonColor: '#64748b',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
         inputValidator: (value) => {
             if (!value || !value.trim()) return 'กรุณากรอกชื่อ';
         }
-    }).then(async (result) => {
-        // 🌟 ถ้ากด "คืนชื่อเดิม" → ลบ override ออก
-        if (result.isDenied) {
-            if (window.customDiscordNames) delete window.customDiscordNames[staffId];
-            await saveCustomNamesToDb();
-            // หาชื่อจริงจาก Discord กลับมาใส่
-            const idx = extStaffList.findIndex(s => s.id === staffId);
-            if (idx !== -1) {
-                // ดึงชื่อต้นฉบับจาก Discord API
-                try {
-                    const tStamp = Date.now();
-                    const sRes = await fetch(`${DISCORD_API_URL}/api/staff-list?t=${tStamp}`, { headers: { 'Cache-Control': 'no-cache' } });
-                    const sData = await sRes.json().catch(() => []);
-                    const rawList = Array.isArray(sData) ? sData : (sData.data || []);
-                    const original = rawList.find(s => s.id === staffId);
-                    if (original) extStaffList[idx].name = original.name;
-                } catch(e) {}
-            }
-            Swal.fire({icon: 'success', title: 'คืนชื่อเดิมแล้ว', timer: 1200, showConfirmButton: false});
-            if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
-            return null;
-        }
-        return result.value;
     });
     
-    if (!newName) return;
-    const cleanName = newName.trim();
+    // 🌟 ผู้ใช้กด "ยกเลิก" หรือกดปิด → จบเลย
+    if (result.dismiss) return;
+    
+    // 🌟 กด "คืนชื่อเดิม" → ลบ override
+    if (result.isDenied) {
+        Swal.fire({title: 'กำลังคืนชื่อเดิม...', didOpen: () => Swal.showLoading(), allowOutsideClick: false});
+        try {
+            if (window.customDiscordNames) delete window.customDiscordNames[staffId];
+            await saveCustomNamesToDb();
+            
+            // ดึงชื่อจริงจาก Discord มาแทน
+            try {
+                const tStamp = Date.now();
+                const sRes = await fetch(`${DISCORD_API_URL}/api/staff-list?t=${tStamp}`, { headers: { 'Cache-Control': 'no-cache' } });
+                const sData = await sRes.json().catch(() => []);
+                const rawList = Array.isArray(sData) ? sData : (sData.data || []);
+                const original = rawList.find(s => s.id === staffId);
+                const idx = extStaffList.findIndex(s => s.id === staffId);
+                if (original && idx !== -1) extStaffList[idx].name = original.name;
+            } catch(e) { /* ใช้ชื่อปัจจุบันต่อไป */ }
+            
+            Swal.fire({icon: 'success', title: 'คืนชื่อเดิมแล้ว', timer: 1200, showConfirmButton: false});
+            if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
+            if (typeof renderGroupList === 'function') renderGroupList();
+        } catch (err) {
+            Swal.fire('Error', 'คืนชื่อไม่สำเร็จ: ' + err.message, 'error');
+        }
+        return;
+    }
+    
+    // 🌟 กด "บันทึก" → ตั้งชื่อใหม่
+    if (!result.isConfirmed || !result.value) return;
+    const cleanName = result.value.trim();
     if (cleanName === currentName) return; // ไม่เปลี่ยน
     
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading(), allowOutsideClick: false});
@@ -501,7 +511,7 @@ window.editCustomName = async function(staffId, currentName) {
         if (!window.customDiscordNames) window.customDiscordNames = {};
         window.customDiscordNames[staffId] = cleanName;
         
-        // อัปเดตใน extStaffList ทันที (เพื่อไม่ต้องโหลด Discord ใหม่)
+        // อัปเดตใน extStaffList ทันที
         const idx = extStaffList.findIndex(s => s.id === staffId);
         if (idx !== -1) extStaffList[idx].name = cleanName;
         
@@ -510,7 +520,6 @@ window.editCustomName = async function(staffId, currentName) {
         
         Swal.fire({icon: 'success', title: 'บันทึกแล้ว', text: `เปลี่ยนชื่อเป็น "${cleanName}"`, timer: 1500, showConfirmButton: false});
         
-        // Refresh UI
         if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
         if (typeof renderGroupList === 'function') renderGroupList();
     } catch (err) {
