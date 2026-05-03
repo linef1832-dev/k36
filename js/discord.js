@@ -463,15 +463,16 @@ window.confirmDeleteDuplicate = async function(staffId, staffName) {
     Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
     
     try {
-        // ใช้ API เดียวกับ spy_kickUser
-        const res = await fetch(DISCORD_API_URL + '/api/kick', {
+        // 🌟 ใช้ endpoint เดียวกับ spy_kickUser
+        const res = await fetch(DISCORD_API_URL + '/api/kick-user', {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ userId: staffId })
         });
         
-        if (!res.ok) {
-            const text = await res.text().catch(() => '');
-            throw new Error('API failed: ' + res.status + ' ' + text);
+        const result = await res.json().catch(() => ({}));
+        
+        if (!res.ok || result.success === false) {
+            throw new Error(result.error || `API returned ${res.status}`);
         }
         
         // เอาออกจาก local state ทันที (ไม่ต้องรอ refresh)
@@ -480,7 +481,7 @@ window.confirmDeleteDuplicate = async function(staffId, staffName) {
             extStaffGroups[g] = extStaffGroups[g].filter(id => id !== staffId);
         }
         
-        Swal.fire({icon: 'success', title: 'ลบเรียบร้อย', timer: 1500, showConfirmButton: false});
+        Swal.fire({icon: 'success', title: 'ลบเรียบร้อย', text: `Kick ${staffName} ออกจาก Discord แล้ว`, timer: 1500, showConfirmButton: false});
         
         // Refresh UI
         if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
