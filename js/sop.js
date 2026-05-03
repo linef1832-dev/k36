@@ -866,3 +866,84 @@ function sop_copyFallback(text) {
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
     Toast.fire({ icon: 'success', title: 'ก๊อปแล้ว!' });
 }
+
+// ==========================================
+// 🖼️ LIGHTBOX (ดูรูปขยายในหน้าเดียวกัน)
+// ==========================================
+let sopLightboxImages = [];
+let sopLightboxIndex = 0;
+
+window.sop_openLightbox = function(url) {
+    // รวบรวมรูปทั้งหมดของกฎที่กำลังอ่านอยู่ เพื่อให้กดถัดไป/ก่อนหน้าได้
+    const item = globalSOPData.find(x => String(x.id) === String(currentSopId));
+    if (item && item.attachments) {
+        sopLightboxImages = item.attachments
+            .filter(a => a.type !== 'pdf' && !(a.url || '').toLowerCase().includes('.pdf'))
+            .map(a => a.url);
+    } else {
+        sopLightboxImages = [url];
+    }
+    sopLightboxIndex = sopLightboxImages.indexOf(url);
+    if (sopLightboxIndex < 0) sopLightboxIndex = 0;
+
+    sop_showLightboxImage();
+
+    const lb = document.getElementById('sopLightbox');
+    if (lb) {
+        lb.classList.remove('hidden');
+        lb.classList.add('flex');
+        document.body.style.overflow = 'hidden'; // กันสกอลล์ขณะเปิด
+    }
+
+    // ผูก keyboard
+    document.addEventListener('keydown', sop_lightboxKeydown);
+};
+
+window.sop_closeLightbox = function(event) {
+    // ถ้ากดที่รูปเอง ไม่ปิด
+    if (event && event.target && event.target.tagName === 'IMG') return;
+
+    const lb = document.getElementById('sopLightbox');
+    if (lb) {
+        lb.classList.add('hidden');
+        lb.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+    document.removeEventListener('keydown', sop_lightboxKeydown);
+};
+
+window.sop_lightboxNav = function(dir) {
+    if (sopLightboxImages.length === 0) return;
+    sopLightboxIndex = (sopLightboxIndex + dir + sopLightboxImages.length) % sopLightboxImages.length;
+    sop_showLightboxImage();
+};
+
+function sop_showLightboxImage() {
+    const img = document.getElementById('sopLightboxImg');
+    const prevBtn = document.getElementById('sopLightboxPrev');
+    const nextBtn = document.getElementById('sopLightboxNext');
+    const counter = document.getElementById('sopLightboxCounter');
+
+    if (!img) return;
+    img.src = sopLightboxImages[sopLightboxIndex] || '';
+
+    // โชว์ปุ่มก่อนหน้า/ถัดไป เฉพาะกรณีมีรูปมากกว่า 1
+    if (sopLightboxImages.length > 1) {
+        if (prevBtn) { prevBtn.classList.remove('hidden'); prevBtn.classList.add('flex'); }
+        if (nextBtn) { nextBtn.classList.remove('hidden'); nextBtn.classList.add('flex'); }
+        if (counter) {
+            counter.classList.remove('hidden');
+            counter.innerText = `${sopLightboxIndex + 1} / ${sopLightboxImages.length}`;
+        }
+    } else {
+        if (prevBtn) prevBtn.classList.add('hidden');
+        if (nextBtn) nextBtn.classList.add('hidden');
+        if (counter) counter.classList.add('hidden');
+    }
+}
+
+function sop_lightboxKeydown(e) {
+    if (e.key === 'Escape') sop_closeLightbox();
+    else if (e.key === 'ArrowLeft') sop_lightboxNav(-1);
+    else if (e.key === 'ArrowRight') sop_lightboxNav(1);
+}
