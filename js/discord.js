@@ -48,6 +48,39 @@ function getDbUserFromDiscordName(discordName) {
     return null;
 }
 
+// 🌟 [NEW] แปลชื่อกลุ่ม Discord เช่น "AM กะดึก" → { dept: "AM", shift: "กะดึก" }
+// ใช้สำหรับเทียบกับฐานข้อมูล (Supabase) เพื่อให้ระบบเช็คชื่อตรงกับระบบลงเวลา
+function parseDiscordGroupName(groupName) {
+    if (!groupName || groupName === 'ALL') return { dept: null, shift: null };
+    const tokens = String(groupName).split(/\s+/);
+    let dept = null, shift = null;
+    for (const t of tokens) {
+        if (t.startsWith('กะ')) shift = t;
+        else if (/^[A-Z]+$/.test(t)) dept = t;
+    }
+    return { dept, shift };
+}
+
+// 🌟 [NEW] เช็คว่าพนักงานนี้ "ผ่าน" Filter กลุ่มหรือไม่
+// ใช้ฐานข้อมูล (Supabase) เป็นต้นฉบับ ถ้าชื่อกลุ่มมีคำว่า "กะ"
+function passGroupFilter(staff, groupName) {
+    if (!groupName || groupName === 'ALL') return true;
+    
+    const { dept: groupDept, shift: groupShift } = parseDiscordGroupName(groupName);
+    
+    // 🟢 ถ้าชื่อกลุ่มมีคำว่า "กะ" → ใช้ DB เป็นต้นฉบับ
+    if (groupShift) {
+        const dbUser = getDbUserFromDiscordName(staff.name);
+        if (!dbUser) return false; // ไม่อยู่ในฐานข้อมูล → ไม่แสดง
+        if (dbUser.allowed_shift !== groupShift) return false;
+        if (groupDept && (dbUser.department || 'AM') !== groupDept) return false;
+        return true;
+    }
+    
+    // 🟡 ถ้าเป็นกลุ่มทั่วไปที่ไม่ใช่กะ → ใช้ Discord Group เหมือนเดิม
+    return extStaffGroups[groupName] && extStaffGroups[groupName].includes(staff.id);
+}
+
 window.applyDiscordPermissions = function() {
     const tabs = [
         { btnId: 'tabDsSpy', viewId: 'spy', reqPerm: 'ds_spy' },
@@ -516,7 +549,7 @@ window._doRenderCheckinTable = function() {
     let counts = { '✅':0, '🏖️':0, '🤒':0, '📝':0, '❌':0, 'TOTAL':0 };
     
     const filteredStaff = extStaffList.filter(s => {
-        const passGroup = group === 'ALL' || (extStaffGroups[group] && extStaffGroups[group].includes(s.id));
+        const passGroup = passGroupFilter(s, group);
         const passSearch = search === '' || s.name.toLowerCase().includes(search);
         return passGroup && passSearch;
     });
