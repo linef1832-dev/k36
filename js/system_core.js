@@ -2296,6 +2296,13 @@ const PERM_GROUPS = [
         ]
     },
     {
+        id: 'page_ip_check', name: 'ตรวจสอบ IP พนักงาน', icon: 'public', theme: 'cyan',
+        items: [
+            {id: 'ip_check', name: 'เข้าหน้าตรวจสอบ IP พนักงาน', isSub: false},
+            {id: 'ip_view',  name: 'ดู IP พนักงานคนอื่น', isSub: true}
+        ]
+    },
+    {
         id: 'page_discord', name: 'เครื่องมือ DISCORD', icon: 'discord', theme: 'indigo',
         items: [
             {id: 'discord', name: 'เข้าหน้าต่างระบบ DISCORD', isSub: false},

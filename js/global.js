@@ -220,6 +220,9 @@ async function showPage(pageName) {
                 else if (pageName === 'swap') {
                     if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
                 }
+                else if (pageName === 'ip_check') {
+                    if (typeof initIpCheckApp === 'function') await initIpCheckApp();
+                }
             });
         };
 
