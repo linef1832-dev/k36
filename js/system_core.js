@@ -2199,6 +2199,13 @@ const PERM_GROUPS = [
         ]
     },
     {
+    id: 'page_sop', name: 'คู่มือการทำงาน (SOP)', icon: 'rule_folder', theme: 'rose',
+    items: [
+        {id: 'sop', name: 'เข้าหน้าคู่มือ SOP', isSub: false},
+        {id: 'sop_manage', name: 'เพิ่ม/แก้/ลบ กฎ', isSub: true}
+    ]
+    },
+    {
         id: 'page_kb', name: 'คลังความรู้', icon: 'menu_book', theme: 'amber',
         items: [
             {id: 'kb', name: 'เข้าหน้าคลังความรู้', isSub: false},
