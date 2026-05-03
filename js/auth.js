@@ -68,6 +68,49 @@ function checkAutoSubmit() {
     }
 }
 
+// ==========================================
+// 🌐 [ใหม่] ฟังก์ชันบันทึก IP เข้าฐานข้อมูล หลังจาก Login สำเร็จ
+// ==========================================
+async function recordUserLoginIP(user) {
+    if (!user || !user.id || !appDB) return;
+    try {
+        // 🌟 ใช้ ipapi.co เพราะให้ทั้ง IP + ประเทศ + เมือง + ISP ในการเรียกครั้งเดียว ฟรี ไม่ต้อง API Key
+        let ipInfo = { ip: 'unknown', country: '-', city: '-', isp: '-' };
+        try {
+            const res = await fetch('https://ipapi.co/json/');
+            if (res.ok) {
+                const data = await res.json();
+                ipInfo = {
+                    ip:      data.ip || 'unknown',
+                    country: data.country_name || '-',
+                    city:    data.city || '-',
+                    isp:     data.org || '-'
+                };
+            }
+        } catch (e) {
+            // 🌟 ถ้าตัวแรกใช้ไม่ได้ ลองตัวสำรอง (เอาเฉพาะ IP)
+            try {
+                const r2 = await fetch('https://api.ipify.org?format=json');
+                const d2 = await r2.json();
+                ipInfo.ip = d2.ip || 'unknown';
+            } catch(_) { /* ปล่อยเป็น unknown */ }
+        }
+
+        await appDB.from('user_ip_logs').insert([{
+            user_id:    user.id,
+            username:   user.username,
+            ip_address: ipInfo.ip,
+            user_agent: navigator.userAgent,
+            country:    ipInfo.country,
+            city:       ipInfo.city,
+            isp:        ipInfo.isp
+        }]);
+    } catch (err) {
+        // ไม่ต้อง alert คนใช้งาน เพราะ Login ปกติเสร็จไปแล้ว แค่ log เก็บไว้ดู
+        console.warn('IP log error:', err);
+    }
+}
+
 async function handleLogin(e) {
     if(e) e.preventDefault(); 
     const name = document.getElementById('loginName').value.trim(); 
@@ -118,7 +161,10 @@ async function handleLogin(e) {
         currentUser = user; 
         sessionStorage.setItem('user_platinum_plus', JSON.stringify(user));
 
-        // 🌟 [เติมบรรทัดนี้] อัปเดตเมนูให้ตรงกับสิทธิ์พนักงานคนนี้
+        // 🌐 [ใหม่] บันทึก IP แบบเงียบๆ ไม่ block UI (ส่งไปแล้วไปต่อเลย ไม่ต้องรอ)
+        recordUserLoginIP(user);
+
+        // 🌟 อัปเดตเมนูให้ตรงกับสิทธิ์พนักงานคนนี้
         if (typeof applySidebarPermissions === 'function') applySidebarPermissions();
         
         document.getElementById('login-container').innerHTML = ''; // ลบหน้า login ทิ้ง
@@ -139,16 +185,14 @@ function logout() {
 }
 
 // ==========================================
-// 🔄 ดึงชื่อที่จำไว้มาแสดงตอนโหลดหน้าเว็บ (วางไว้ล่างสุดของไฟล์ auth.js)
+// 🔄 ดึงชื่อที่จำไว้มาแสดงตอนโหลดหน้าเว็บ
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    // ใช้ setTimeout ช่วยหน่วงเวลานิดนึง เผื่อระบบกำลังวาดหน้า Login ลงใน <div id="login-container">
     setTimeout(() => {
         const savedName = localStorage.getItem('remember_me_name');
         const nameInput = document.getElementById('loginName');
         const rememberCheckbox = document.getElementById('rememberMe');
 
-        // ถ้ามีชื่อเซฟไว้ และหาช่องกรอกเจอ ให้เอาชื่อไปใส่และติ๊กถูก
         if (savedName && nameInput && rememberCheckbox) {
             nameInput.value = savedName;
             rememberCheckbox.checked = true;

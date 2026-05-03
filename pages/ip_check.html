@@ -1,0 +1,81 @@
+<!-- ==========================================
+     🌐 หน้าตรวจสอบ IP พนักงาน
+     ========================================== -->
+<div class="p-4 md:p-6 max-w-[1600px] mx-auto">
+
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-sky-600 to-cyan-500 text-white rounded-2xl p-5 mb-5 shadow-lg flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+            <span class="material-icons text-4xl">public</span>
+            <div>
+                <h1 class="text-xl md:text-2xl font-black">ตรวจสอบ IP พนักงาน</h1>
+                <p class="text-xs md:text-sm opacity-90">ตรวจจับการแชร์บัญชี / Login จากที่ตั้งผิดปกติ</p>
+            </div>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+            <button onclick="exportIpLogsCSV()" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
+                <span class="material-icons text-base">download</span> Export CSV
+            </button>
+            <button onclick="cleanOldIpLogs()" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
+                <span class="material-icons text-base">cleaning_services</span> ลบ Log เก่า
+            </button>
+        </div>
+    </div>
+
+    <!-- การ์ดสรุป 4 ใบ -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-sky-500">
+            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">รายการ Login ทั้งหมด</div>
+            <div id="ipStatTotal" class="text-3xl font-black text-sky-600 dark:text-sky-400 mt-1">0</div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-emerald-500">
+            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">พนักงานที่เข้าระบบ</div>
+            <div id="ipStatUsers" class="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1">0</div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-purple-500">
+            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">จำนวน IP ทั้งหมด</div>
+            <div id="ipStatIps" class="text-3xl font-black text-purple-600 dark:text-purple-400 mt-1">0</div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-amber-500">
+            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">⚠ IP ที่ใช้ร่วมกัน</div>
+            <div id="ipStatShared" class="text-3xl font-black text-amber-600 dark:text-amber-400 mt-1">0</div>
+        </div>
+    </div>
+
+    <!-- Tabs + Search -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex gap-2 flex-wrap">
+            <button id="ipTab_all" onclick="switchIpTab('all')" class="ip-tab-btn bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
+                <span class="material-icons text-base">list</span> ประวัติทั้งหมด
+            </button>
+            <button id="ipTab_duplicates" onclick="switchIpTab('duplicates')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-amber-50">
+                <span class="material-icons text-base">warning</span> ⚠ IP ซ้ำ (น่าสงสัย)
+            </button>
+            <button id="ipTab_by_user" onclick="switchIpTab('by_user')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-emerald-50">
+                <span class="material-icons text-base">groups</span> สรุปต่อพนักงาน
+            </button>
+        </div>
+
+        <div class="flex gap-2 items-center flex-wrap">
+            <select id="ipUserFilter" onchange="filterIpLogs()" class="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white">
+                <option value="all">-- ดูทั้งหมด --</option>
+            </select>
+            <div class="relative">
+                <span class="material-icons absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-base">search</span>
+                <input id="ipSearchInput" oninput="filterIpLogs(); if(currentIpTab==='all') renderIpView();" type="text" placeholder="ค้นหา ชื่อ / IP / ประเทศ..." class="pl-8 pr-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg text-sm text-slate-800 dark:text-white w-56">
+            </div>
+            <button onclick="fetchIpLogs()" class="bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition" title="รีเฟรชข้อมูล">
+                <span class="material-icons text-base">refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- พื้นที่แสดงข้อมูล -->
+    <div id="ipLogsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div class="col-span-full text-center py-10">
+            <span class="material-icons animate-spin text-sky-500 text-4xl">sync</span>
+            <p class="text-gray-400 mt-2 font-bold">กำลังโหลดข้อมูล IP...</p>
+        </div>
+    </div>
+
+</div>
