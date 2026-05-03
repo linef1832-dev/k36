@@ -1,6 +1,12 @@
 // ==========================================
-// 🔐 ระบบจัดการ PIN 6 หลัก และ Login (V2 - มี IP Heartbeat)
+// 🔐 ระบบจัดการ PIN 6 หลัก และ Login (V3 Optimized)
 // ==========================================
+// 🌟 V3 Strategy:
+//   1. Heartbeat ใช้ ipify.org (ฟรี ไม่จำกัด) เช็คแค่ IP เร็วๆ
+//   2. ถ้า IP เปลี่ยน → ค่อยเรียก ipapi.co ดึงข้อมูล Geo + ISP
+//   3. Insert Supabase เฉพาะตอนเปลี่ยนเท่านั้น
+// ==========================================
+
 function setupPinInputs() {
     const inputs = document.querySelectorAll('.pin-box');
     if(inputs.length === 0) return;
@@ -69,39 +75,106 @@ function checkAutoSubmit() {
 }
 
 // ==========================================================
-// 🌐 [V2] ระบบเก็บประวัติ IP + ตรวจ IP เปลี่ยนระหว่างใช้งาน
+// 🌐 [V3] ระบบเก็บประวัติ IP - แยก 2 จังหวะ
 // ==========================================================
 
-// 🔑 ตัวแปรกลางสำหรับ Heartbeat
+// ⚙️ ตั้งค่า
+const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000;   // เช็คทุก 5 นาที (ผู้ใช้เลือก)
+const PROBE_TIMEOUT_MS      = 5000;             // timeout API 5 วินาที
+
+// 🔑 ตัวแปรกลาง
 window._ipHeartbeatInterval = null;
 window._lastKnownIp = null;
+window._ipFailCount = 0;
 window._ipVisibilityHandlerAttached = false;
 
-// 🌐 ดึงข้อมูล IP จาก API ภายนอก (ipapi.co เป็นตัวหลัก, ipify เป็นสำรอง)
-async function fetchCurrentIpInfo() {
-    let ipInfo = { ip: 'unknown', country: '-', city: '-', isp: '-' };
-    try {
-        const res = await fetch('https://ipapi.co/json/');
-        if (res.ok) {
-            const data = await res.json();
-            ipInfo = {
-                ip:      data.ip || 'unknown',
-                country: data.country_name || '-',
-                city:    data.city || '-',
-                isp:     data.org || '-'
-            };
+// 🚀 [Step 1] เช็ค IP เร็วๆ — ใช้หลาย API หมุนกัน เพื่อกัน rate limit
+async function probeCurrentIp() {
+    // 🌟 ลำดับการลอง: ipify (ไม่จำกัด) → cloudflare (ไม่จำกัด) → ipapi (สำรอง)
+    const probes = [
+        async () => {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+            try {
+                const r = await fetch('https://api.ipify.org?format=json', { signal: ctrl.signal });
+                const d = await r.json();
+                return d.ip || null;
+            } finally { clearTimeout(t); }
+        },
+        async () => {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+            try {
+                const r = await fetch('https://www.cloudflare.com/cdn-cgi/trace', { signal: ctrl.signal });
+                const txt = await r.text();
+                const m = txt.match(/ip=([^\s]+)/);
+                return m ? m[1] : null;
+            } finally { clearTimeout(t); }
+        },
+        async () => {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+            try {
+                const r = await fetch('https://api64.ipify.org?format=json', { signal: ctrl.signal });
+                const d = await r.json();
+                return d.ip || null;
+            } finally { clearTimeout(t); }
         }
-    } catch (e) {
+    ];
+
+    for (const probe of probes) {
         try {
-            const r2 = await fetch('https://api.ipify.org?format=json');
-            const d2 = await r2.json();
-            ipInfo.ip = d2.ip || 'unknown';
-        } catch(_) { /* ปล่อยเป็น unknown */ }
+            const ip = await probe();
+            if (ip) return ip;
+        } catch (e) { /* ลองตัวต่อไป */ }
     }
-    return ipInfo;
+    return null;
 }
 
-// 💾 บันทึก Log ลงฐานข้อมูล
+// 🌍 [Step 2] ดึงข้อมูลละเอียด — เรียกเฉพาะตอน IP เปลี่ยน
+async function fetchIpDetails(ip) {
+    const fallback = { ip: ip || 'unknown', country: '-', city: '-', isp: '-' };
+    
+    try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+        // 🌟 ipapi.co รับ IP เฉพาะตัวเลย ไม่ต้อง /json/
+        const r = await fetch(`https://ipapi.co/${ip}/json/`, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (r.ok) {
+            const d = await r.json();
+            return {
+                ip:      d.ip || ip,
+                country: d.country_name || '-',
+                city:    d.city || '-',
+                isp:     d.org || '-'
+            };
+        }
+    } catch (e) { /* ใช้ fallback */ }
+    
+    // 🌟 ตัวสำรอง (ipwho.is - ฟรี ไม่จำกัด)
+    try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+        const r = await fetch(`https://ipwho.is/${ip}`, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (r.ok) {
+            const d = await r.json();
+            if (d.success !== false) {
+                return {
+                    ip:      d.ip || ip,
+                    country: d.country || '-',
+                    city:    d.city || '-',
+                    isp:     (d.connection && d.connection.isp) || '-'
+                };
+            }
+        }
+    } catch (e) {}
+    
+    return fallback;
+}
+
+// 💾 บันทึก Log ลง Supabase
 async function writeIpLog(user, ipInfo, eventType) {
     if (!user || !user.id || !appDB) return;
     try {
@@ -113,29 +186,36 @@ async function writeIpLog(user, ipInfo, eventType) {
             country:    ipInfo.country,
             city:       ipInfo.city,
             isp:        ipInfo.isp,
-            event_type: eventType   // 🌟 'login' หรือ 'ip_change'
+            event_type: eventType
         }]);
     } catch (err) {
         console.warn('IP log error:', err);
     }
 }
 
-// 🚀 เรียกตอน Login สำเร็จ
+// 🚀 เรียกตอน Login สำเร็จ — ดึงข้อมูลครบและบันทึกเป็น 'login'
 async function recordUserLoginIP(user) {
     if (!user || !user.id || !appDB) return;
-    const ipInfo = await fetchCurrentIpInfo();
-    await writeIpLog(user, ipInfo, 'login');
+    
+    const ip = await probeCurrentIp();
+    if (!ip) {
+        // 🌟 ดึง IP ไม่ได้เลย → log แบบไม่มีข้อมูล แต่ยังให้ Login ผ่าน
+        await writeIpLog(user, { ip: 'unknown', country: '-', city: '-', isp: '-' }, 'login');
+        return;
+    }
+
+    const details = await fetchIpDetails(ip);
+    await writeIpLog(user, details, 'login');
 
     // 🌟 จำ IP นี้ไว้สำหรับเปรียบเทียบใน Heartbeat
-    window._lastKnownIp = ipInfo.ip;
-    sessionStorage.setItem('last_known_ip', ipInfo.ip);
+    window._lastKnownIp = ip;
+    sessionStorage.setItem('last_known_ip', ip);
 }
 
-// ⏰ Heartbeat - ตรวจ IP ทุก 5 นาที ขณะใช้งาน
+// ⏰ Heartbeat - ทุก 5 นาที (ใช้ ipify เร็วๆ ไม่กิน quota)
 async function checkIpHeartbeat() {
     const userStr = sessionStorage.getItem('user_platinum_plus');
     if (!userStr) {
-        // ไม่มี user แล้ว → หยุด Heartbeat
         stopIpHeartbeat();
         return;
     }
@@ -144,41 +224,49 @@ async function checkIpHeartbeat() {
     try { user = JSON.parse(userStr); } catch(e) { return; }
     if (!user || !user.id) return;
 
-    // 🌟 อย่าวิ่งถ้าหน้าเว็บไม่ได้เปิดอยู่ (ประหยัด API call)
+    // 🌟 อย่าเช็คถ้าหน้าเว็บถูกซ่อน (Tab ปิด / Minimize) → ประหยัด API
     if (document.hidden) return;
 
-    try {
-        const ipInfo = await fetchCurrentIpInfo();
-        if (!ipInfo.ip || ipInfo.ip === 'unknown') return;
-
-        // ดึง IP เดิมที่จำไว้ (จากตัวแปรกลาง หรือ sessionStorage)
-        const lastIp = window._lastKnownIp || sessionStorage.getItem('last_known_ip');
-
-        if (lastIp && lastIp !== ipInfo.ip) {
-            // 🚨 IP เปลี่ยน! บันทึกเป็น ip_change
-            console.log(`[IP Watch] IP changed: ${lastIp} → ${ipInfo.ip}`);
-            await writeIpLog(user, ipInfo, 'ip_change');
-            window._lastKnownIp = ipInfo.ip;
-            sessionStorage.setItem('last_known_ip', ipInfo.ip);
-        } else if (!lastIp) {
-            // ไม่เคยมี IP เก็บไว้ (เช่น เปิดเว็บค้างจาก Login เก่า) → จำ IP ปัจจุบันไว้
-            window._lastKnownIp = ipInfo.ip;
-            sessionStorage.setItem('last_known_ip', ipInfo.ip);
+    // 🌟 [Step 1] เช็ค IP เร็วๆ (ฟรี ไม่จำกัด)
+    const ip = await probeCurrentIp();
+    if (!ip) {
+        window._ipFailCount++;
+        if (window._ipFailCount >= 3) {
+            console.warn('[IP Watch] เช็ค IP ล้มเหลว 3 ครั้งติดต่อกัน');
+            window._ipFailCount = 0;
         }
-    } catch(e) {
-        console.warn('Heartbeat error:', e);
+        return;
     }
+    window._ipFailCount = 0;
+
+    const lastIp = window._lastKnownIp || sessionStorage.getItem('last_known_ip');
+
+    // 🟢 IP เหมือนเดิม → ไม่ต้องทำอะไร (ไม่เขียน DB เลย ✅)
+    if (lastIp === ip) return;
+
+    // 🟡 ไม่เคยมี IP เก็บไว้ → จำไว้ก่อน ไม่ต้อง log (กรณี F5 reload)
+    if (!lastIp) {
+        window._lastKnownIp = ip;
+        sessionStorage.setItem('last_known_ip', ip);
+        return;
+    }
+
+    // 🚨 [Step 2] IP เปลี่ยน! → ค่อยเรียก API ละเอียด + บันทึก DB
+    console.log(`[IP Watch] IP changed: ${lastIp} → ${ip}`);
+    const details = await fetchIpDetails(ip);
+    await writeIpLog(user, details, 'ip_change');
+    
+    window._lastKnownIp = ip;
+    sessionStorage.setItem('last_known_ip', ip);
 }
 
-// ▶️ เริ่ม Heartbeat (เรียกตอน Login เสร็จ และตอนเปิดเว็บใหม่ที่ยังมี Session)
+// ▶️ เริ่ม Heartbeat
 window.startIpHeartbeat = function() {
-    // ป้องกันสร้างซ้ำ
-    if (window._ipHeartbeatInterval) return;
+    if (window._ipHeartbeatInterval) return; // ป้องกันสร้างซ้ำ
     
-    // ⏰ ตรวจทุก 5 นาที (300,000 ms)
-    window._ipHeartbeatInterval = setInterval(checkIpHeartbeat, 5 * 60 * 1000);
+    window._ipHeartbeatInterval = setInterval(checkIpHeartbeat, HEARTBEAT_INTERVAL_MS);
     
-    // 🌟 ตรวจทันทีตอนกลับมาที่หน้าเว็บ (เผื่อพึ่งสลับ network กลับมา)
+    // 🌟 ตรวจทันทีตอนกลับมาที่ Tab (เผื่อพึ่งสลับ network)
     if (!window._ipVisibilityHandlerAttached) {
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) checkIpHeartbeat();
@@ -186,10 +274,10 @@ window.startIpHeartbeat = function() {
         window._ipVisibilityHandlerAttached = true;
     }
     
-    console.log('[IP Watch] Heartbeat started (every 5 min)');
+    console.log(`[IP Watch] Heartbeat started (every ${HEARTBEAT_INTERVAL_MS/60000} min)`);
 };
 
-// ⏸️ หยุด Heartbeat (ตอน Logout)
+// ⏸️ หยุด Heartbeat
 window.stopIpHeartbeat = function() {
     if (window._ipHeartbeatInterval) {
         clearInterval(window._ipHeartbeatInterval);
@@ -246,14 +334,13 @@ async function handleLogin(e) {
         clearPinInputs();
         Swal.close();
         
-        // 🌟 ล็อกอินสำเร็จ เข้าสู่ระบบเลย
+        // 🌟 ล็อกอินสำเร็จ
         currentUser = user; 
         sessionStorage.setItem('user_platinum_plus', JSON.stringify(user));
 
-        // 🌐 [V2] บันทึก IP ตอน Login + เริ่ม Heartbeat ตามไป (ไม่ block UI)
+        // 🌐 [V3] บันทึก IP + เริ่ม Heartbeat (ไม่ block UI)
         recordUserLoginIP(user).then(() => window.startIpHeartbeat());
 
-        // 🌟 อัปเดตเมนูให้ตรงกับสิทธิ์พนักงานคนนี้
         if (typeof applySidebarPermissions === 'function') applySidebarPermissions();
         
         document.getElementById('login-container').innerHTML = ''; 
@@ -268,7 +355,6 @@ async function handleLogin(e) {
 }
 
 function logout() { 
-    // 🌐 [V2] หยุด Heartbeat ก่อน Logout
     if (typeof window.stopIpHeartbeat === 'function') window.stopIpHeartbeat();
     
     sessionStorage.removeItem('user_platinum_plus'); 
@@ -278,7 +364,7 @@ function logout() {
 }
 
 // ==========================================
-// 🔄 ดึงชื่อที่จำไว้ + เริ่ม Heartbeat ถ้ามี Session อยู่
+// 🔄 ดึงชื่อที่จำไว้ + เริ่ม Heartbeat ถ้ามี Session
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
@@ -291,20 +377,18 @@ document.addEventListener('DOMContentLoaded', () => {
             rememberCheckbox.checked = true;
         }
 
-        // 🌐 [V2] ถ้ามีคน Login ค้างไว้ (Refresh หน้า) → เริ่ม Heartbeat ต่อ
+        // 🌐 [V3] ถ้ามีคน Login ค้างไว้ (Refresh) → เริ่ม Heartbeat ต่อ
         const savedUser = sessionStorage.getItem('user_platinum_plus');
         if (savedUser && typeof window.startIpHeartbeat === 'function') {
-            // 🌟 รอให้ appDB พร้อม (init ใน global.js) ก่อนค่อยเริ่ม
             const startTimer = setInterval(() => {
                 if (typeof appDB !== 'undefined' && appDB) {
                     clearInterval(startTimer);
-                    // ตรวจ IP ครั้งแรกเลยทันที (เผื่อ IP เปลี่ยนระหว่างปิดเปิดเบราว์เซอร์)
+                    // ตรวจ IP ครั้งแรกทันที (เผื่อ IP เปลี่ยนระหว่างปิดเปิดเบราว์เซอร์)
                     checkIpHeartbeat();
                     window.startIpHeartbeat();
                 }
             }, 500);
             
-            // กันไว้: หยุดพยายามหลัง 30 วินาที
             setTimeout(() => clearInterval(startTimer), 30000);
         }
     }, 200); 
