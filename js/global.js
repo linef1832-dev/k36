@@ -154,6 +154,9 @@ async function showPage(pageName) {
                 else if (pageName === 'kb') {
                     if (typeof initKbApp === 'function') await initKbApp();
                 }
+                else if (pageName === 'sop') {
+                if (typeof initSopApp === 'function') await initSopApp();
+                }
                 else if (pageName === 'leave') {
                     if (typeof initLeaveTable === 'function') await initLeaveTable();
                 }
