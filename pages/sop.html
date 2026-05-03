@@ -156,17 +156,19 @@
             </div>
 
             <!-- Main Content Blocks -->
-            <div class="p-6 md:p-8 space-y-5">
+            <div class="p-6 md:p-8 space-y-5 bg-slate-100 dark:bg-slate-900/50">
+
+                {{readReceiptsBlock}}
 
                 {{rulesBlock}}
 
                 <!-- BLOCK: รายละเอียด -->
-                <div class="bg-white dark:bg-slate-800/40 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
                     <div class="bg-gradient-to-r from-rose-500 to-pink-500 px-5 py-3 flex items-center gap-2">
                         <div class="bg-white/20 p-1.5 rounded-lg"><span class="material-icons text-white text-[18px]">description</span></div>
                         <h3 class="text-white font-black text-sm tracking-wide">รายละเอียด / ขั้นตอน</h3>
                     </div>
-                    <div class="p-5 text-slate-800 dark:text-white text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">{{formattedContent}}</div>
+                    <div class="p-5 bg-rose-50/40 dark:bg-slate-800/80 text-slate-800 dark:text-white text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">{{formattedContent}}</div>
                 </div>
 
                 {{examplesBlock}}
@@ -182,13 +184,13 @@
 
     <!-- BLOCK: กติกา -->
     <template id="tpl-sop-rules">
-        <div class="bg-white dark:bg-slate-800/40 rounded-2xl border-2 border-orange-300 dark:border-orange-700/50 shadow-md overflow-hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border-2 border-orange-300 dark:border-orange-700/50 shadow-md overflow-hidden">
             <div class="bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-3 flex items-center gap-2">
                 <div class="bg-white/20 p-1.5 rounded-lg"><span class="material-icons text-white text-[18px]">gavel</span></div>
                 <h3 class="text-white font-black text-sm tracking-wide">กติกา / ข้อบังคับ</h3>
                 <span class="ml-auto bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full backdrop-blur-sm">{{rulesCount}} ข้อ</span>
             </div>
-            <div class="p-5 space-y-2.5">{{rulesItemsHtml}}</div>
+            <div class="p-5 space-y-2.5 bg-orange-50/40 dark:bg-slate-800/80">{{rulesItemsHtml}}</div>
         </div>
     </template>
 
@@ -199,26 +201,46 @@
         </div>
     </template>
 
+    <!-- BLOCK: ผู้รับทราบ (V3.1) -->
+    <template id="tpl-sop-read-receipts">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
+            <div class="bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 flex items-center gap-2">
+                <div class="bg-white/20 p-1.5 rounded-lg"><span class="material-icons text-white text-[18px]">verified</span></div>
+                <h3 class="text-white font-black text-sm tracking-wide">ผู้รับทราบกฎนี้</h3>
+                <span class="ml-auto bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full backdrop-blur-sm">{{count}} คน</span>
+            </div>
+            <div class="p-5 bg-emerald-50/40 dark:bg-slate-800/80">{{readReceiptsContent}}</div>
+        </div>
+    </template>
+
+    <template id="tpl-sop-read-receipt-chip">
+        <div class="inline-flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-full pl-1 pr-3 py-1 shadow-sm hover:shadow-md transition">
+            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-black text-[10px] shadow-inner">{{initials}}</div>
+            <span class="text-xs font-bold text-slate-700 dark:text-gray-200">{{username}}</span>
+            <span class="material-icons text-[12px] text-emerald-500">check_circle</span>
+        </div>
+    </template>
+
     <!-- BLOCK: ตัวอย่างเคส -->
     <template id="tpl-sop-examples">
-        <div class="bg-white dark:bg-slate-800/40 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
             <div class="bg-gradient-to-r from-blue-500 to-cyan-500 px-5 py-3 flex items-center gap-2">
                 <div class="bg-white/20 p-1.5 rounded-lg"><span class="material-icons text-white text-[18px]">lightbulb</span></div>
                 <h3 class="text-white font-black text-sm tracking-wide">ตัวอย่างเคส / สถานการณ์</h3>
             </div>
-            <div class="p-5 text-slate-800 dark:text-white text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">{{formattedExamples}}</div>
+            <div class="p-5 bg-blue-50/40 dark:bg-slate-800/80 text-slate-800 dark:text-white text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">{{formattedExamples}}</div>
         </div>
     </template>
 
     <!-- BLOCK: ไฟล์แนบ -->
     <template id="tpl-sop-attachments">
-        <div class="bg-white dark:bg-slate-800/40 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
             <div class="bg-gradient-to-r from-amber-500 to-yellow-500 px-5 py-3 flex items-center gap-2">
                 <div class="bg-white/20 p-1.5 rounded-lg"><span class="material-icons text-white text-[18px]">attach_file</span></div>
                 <h3 class="text-white font-black text-sm tracking-wide">ไฟล์ประกอบ</h3>
                 <span class="ml-auto bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full backdrop-blur-sm">{{count}} ไฟล์</span>
             </div>
-            <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">{{attachmentsHtml}}</div>
+            <div class="p-5 bg-amber-50/40 dark:bg-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-3">{{attachmentsHtml}}</div>
         </div>
     </template>
 
@@ -244,14 +266,14 @@
 
     <!-- BLOCK: ประวัติแก้ไข -->
     <template id="tpl-sop-history">
-        <details class="bg-white dark:bg-slate-800/40 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden group">
+        <details class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden group">
             <summary class="cursor-pointer bg-gradient-to-r from-purple-500 to-violet-500 px-5 py-3 flex items-center gap-2 list-none">
                 <div class="bg-white/20 p-1.5 rounded-lg"><span class="material-icons text-white text-[18px]">history</span></div>
                 <h3 class="text-white font-black text-sm tracking-wide">ประวัติการแก้ไข</h3>
                 <span class="ml-auto bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full backdrop-blur-sm">{{count}} ครั้ง</span>
                 <span class="material-icons text-white group-open:rotate-180 transition text-[18px]">expand_more</span>
             </summary>
-            <div class="p-5 space-y-2 text-xs">{{historyItemsHtml}}</div>
+            <div class="p-5 space-y-2 text-xs bg-purple-50/40 dark:bg-slate-800/80">{{historyItemsHtml}}</div>
         </details>
     </template>
 
