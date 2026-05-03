@@ -4,7 +4,7 @@
 let globalKbizBots = [];
 let globalOcrKeys = [];
 
-// 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล
+// ตัวช่วยดึง HTML Template
 function getKbizTpl(templateId, data = {}) {
     const tpl = document.getElementById(templateId);
     if (!tpl) return '';
@@ -24,7 +24,6 @@ async function fetchKbizData() {
         const { data } = await appDB.from('settings').select('value').eq('key', 'kbiz_bots_data').single();
         if (data && data.value) {
             globalKbizBots = JSON.parse(data.value);
-            
             let needSave = false;
             globalKbizBots = globalKbizBots.map(b => {
                 if (!b.id) {
@@ -40,7 +39,6 @@ async function fetchKbizData() {
             globalKbizBots = [];
         }
         renderKbizGrid();
-        // 🔑 โหลด OCR keys หลังโหลดบอทเสร็จ
         fetchOcrKeysData();
     } catch(e) { 
         globalKbizBots = []; 
@@ -53,7 +51,6 @@ window.renderKbizGrid = function() {
     const grid = document.getElementById('kbizGrid');
     if(!grid) return;
     const term = document.getElementById('kbizSearchInput') ? document.getElementById('kbizSearchInput').value.toLowerCase() : '';
-    
     const filtered = globalKbizBots.filter(b => b.machine_id.toLowerCase().includes(term) || (b.display_name && b.display_name.toLowerCase().includes(term)));
 
     if (filtered.length === 0) {
@@ -90,7 +87,6 @@ window.editKbizBot = function(id) {
     document.getElementById('kbizUser').value = b.username;
     document.getElementById('kbizPass').value = b.password;
     document.getElementById('kbizIsActive').checked = b.is_active;
-
     document.getElementById('kbizModalTitle').innerHTML = '<span class="material-icons text-amber-400">edit</span> แก้ไขข้อมูลบอท';
     document.getElementById('kbizModal').classList.remove('hidden');
 };
@@ -145,16 +141,24 @@ window.deleteKbizBot = async function(id) {
 
 
 // ==========================================
-// 🔑 ระบบจัดการ OCR API KEYS
+// 🔑 ระบบจัดการ OCR API KEYS + โควต้า
 // ==========================================
 
-// ฟังก์ชันซ่อน API key (โชว์แค่ 4 ตัวแรก + ดอท + 4 ตัวสุดท้าย)
+const OCR_DAILY_QUOTA = 500;
+
+// ดึง "วันที่ปัจจุบัน" ตาม UTC (เพราะ OCR.space รีเซ็ตตามเวลา UTC = 7 โมงเช้าไทย)
+function getTodayKey() {
+    const now = new Date();
+    return now.getUTCFullYear() + '-' + 
+           String(now.getUTCMonth() + 1).padStart(2, '0') + '-' + 
+           String(now.getUTCDate()).padStart(2, '0');
+}
+
 function maskOcrKey(key) {
     if (!key || key.length < 8) return key || '';
     return key.substring(0, 4) + '••••••••' + key.substring(key.length - 4);
 }
 
-// อัพเดทป้ายสถานะใน modal เมื่อกดสวิตช์
 window.updateOcrKeyStatusLabel = function() {
     const checkbox = document.getElementById('ocrKeyIsActive');
     const label = document.getElementById('ocrKeyStatusLabel');
@@ -168,6 +172,21 @@ window.updateOcrKeyStatusLabel = function() {
     }
 };
 
+// 🔄 ตรวจสอบและรีเซ็ตโควต้าถ้าเปลี่ยนวันใหม่
+function autoResetIfNewDay(keys) {
+    const today = getTodayKey();
+    let needSave = false;
+    keys.forEach(k => {
+        if (k.last_used_date !== today) {
+            // วันใหม่ → รีเซ็ตเป็น 0
+            k.used_count = 0;
+            k.last_used_date = today;
+            needSave = true;
+        }
+    });
+    return needSave;
+}
+
 async function fetchOcrKeysData() {
     const grid = document.getElementById('ocrKeysGrid');
     if(!grid) return;
@@ -176,6 +195,19 @@ async function fetchOcrKeysData() {
         const { data } = await appDB.from('settings').select('value').eq('key', 'ocr_api_keys_data').single();
         if (data && data.value) {
             globalOcrKeys = JSON.parse(data.value);
+            
+            // 🌟 ตรวจว่าวันใหม่แล้วหรือยัง — ถ้าใช่ รีเซ็ตทุก key
+            const needSave = autoResetIfNewDay(globalOcrKeys);
+            
+            // ตรวจ key ที่ไม่มีฟิลด์ used_count → เติมให้
+            globalOcrKeys.forEach(k => {
+                if (typeof k.used_count !== 'number') { k.used_count = 0; k.last_used_date = getTodayKey(); }
+                if (!k.last_used_date) k.last_used_date = getTodayKey();
+            });
+            
+            if (needSave) {
+                await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+            }
         } else {
             globalOcrKeys = [];
         }
@@ -190,6 +222,20 @@ window.renderOcrKeysGrid = function() {
     const grid = document.getElementById('ocrKeysGrid');
     if(!grid) return;
 
+    // อัพเดทยอดรวมโควต้าด้านบน
+    const totalEl = document.getElementById('ocrTotalQuota');
+    if (totalEl) {
+        if (globalOcrKeys.length > 0) {
+            const totalUsed = globalOcrKeys.reduce((s, k) => s + (k.used_count || 0), 0);
+            const totalQuota = globalOcrKeys.length * OCR_DAILY_QUOTA;
+            const totalRemaining = totalQuota - totalUsed;
+            totalEl.classList.remove('hidden');
+            totalEl.innerHTML = `📊 รวม: ${totalUsed}/${totalQuota} (เหลือ <b class="text-emerald-200">${totalRemaining}</b>)`;
+        } else {
+            totalEl.classList.add('hidden');
+        }
+    }
+
     if (globalOcrKeys.length === 0) {
         grid.innerHTML = `
             <div class="col-span-full flex flex-col items-center justify-center py-12 text-gray-400 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700">
@@ -201,12 +247,37 @@ window.renderOcrKeysGrid = function() {
     }
 
     grid.innerHTML = globalOcrKeys.map(k => {
+        const used = k.used_count || 0;
+        const remaining = Math.max(0, OCR_DAILY_QUOTA - used);
+        const percentUsed = Math.min(100, Math.round((used / OCR_DAILY_QUOTA) * 100));
+        
+        // กำหนดสีตามการใช้งาน
+        let progressBarColor, quotaColor;
+        if (percentUsed >= 90) {
+            progressBarColor = 'bg-red-500';
+            quotaColor = 'text-red-600 dark:text-red-400';
+        } else if (percentUsed >= 70) {
+            progressBarColor = 'bg-orange-500';
+            quotaColor = 'text-orange-600 dark:text-orange-400';
+        } else if (percentUsed >= 40) {
+            progressBarColor = 'bg-amber-500';
+            quotaColor = 'text-amber-600 dark:text-amber-400';
+        } else {
+            progressBarColor = 'bg-emerald-500';
+            quotaColor = 'text-emerald-600 dark:text-emerald-400';
+        }
+
         return getKbizTpl('tpl-ocr-key-card', {
             id: k.id,
             key_name: k.key_name,
             api_key: k.api_key,
             statusColor: k.is_active ? 'bg-emerald-500' : 'bg-gray-500',
-            statusText: k.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'
+            statusText: k.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน',
+            usedCount: used,
+            remaining: remaining,
+            percentUsed: percentUsed,
+            progressBarColor: progressBarColor,
+            quotaColor: quotaColor
         });
     }).join('');
 };
@@ -230,7 +301,6 @@ window.editOcrKey = function(id) {
     document.getElementById('ocrKeyName').value = k.key_name;
     document.getElementById('ocrKeyValue').value = k.api_key;
     document.getElementById('ocrKeyIsActive').checked = k.is_active;
-
     document.getElementById('ocrKeyModalTitle').innerHTML = '<span class="material-icons text-amber-400">edit</span> แก้ไข API Key';
     document.getElementById('ocrKeyModal').classList.remove('hidden');
     updateOcrKeyStatusLabel();
@@ -243,39 +313,25 @@ window.saveOcrKey = async function(e) {
     const keyValue = document.getElementById('ocrKeyValue').value.trim();
     const isActive = document.getElementById('ocrKeyIsActive').checked;
 
-    if (!keyName) {
-        return Swal.fire('กรอกข้อมูลไม่ครบ', 'กรุณาตั้งชื่อ Key', 'warning');
-    }
+    if (!keyName) return Swal.fire('กรอกข้อมูลไม่ครบ', 'กรุณาตั้งชื่อ Key', 'warning');
+    if (keyValue.length < 10) return Swal.fire('Key สั้นเกินไป', 'API key ดูสั้นผิดปกติ', 'warning');
 
-    if (keyValue.length < 10) {
-        return Swal.fire('Key สั้นเกินไป', 'API key ดูสั้นผิดปกติ ตรวจสอบให้แน่ใจว่าก๊อปมาครบ', 'warning');
-    }
-
-    // เช็ค key ซ้ำ — เฉพาะกับ key อื่น (ไม่ใช่ตัวเอง)
-    const isDuplicate = globalOcrKeys.some(k => 
-        k.api_key === keyValue && String(k.id) !== String(id)
-    );
-    if (isDuplicate) {
-        return Swal.fire('Key ซ้ำ', 'API key นี้มีในระบบแล้วครับ', 'warning');
-    }
+    const isDuplicate = globalOcrKeys.some(k => k.api_key === keyValue && String(k.id) !== String(id));
+    if (isDuplicate) return Swal.fire('Key ซ้ำ', 'API key นี้มีในระบบแล้วครับ', 'warning');
 
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
 
     if (id && id.trim() !== '') {
-        // 🟢 โหมดแก้ไข
         const index = globalOcrKeys.findIndex(x => String(x.id) === String(id));
         if(index !== -1) {
             globalOcrKeys[index] = { 
-                id: globalOcrKeys[index].id, 
+                ...globalOcrKeys[index],
                 key_name: keyName, 
                 api_key: keyValue, 
                 is_active: isActive 
             };
-        } else {
-            globalOcrKeys.push({ id, key_name: keyName, api_key: keyValue, is_active: isActive });
         }
     } else {
-        // 🟢 โหมดเพิ่มใหม่
         if (globalOcrKeys.length >= 5) {
             Swal.close();
             return Swal.fire('ครบแล้ว', 'ใส่ key ได้สูงสุด 5 อัน', 'warning');
@@ -284,7 +340,9 @@ window.saveOcrKey = async function(e) {
             id: 'key_' + Date.now(), 
             key_name: keyName, 
             api_key: keyValue, 
-            is_active: isActive 
+            is_active: isActive,
+            used_count: 0,
+            last_used_date: getTodayKey()
         });
     }
 
@@ -292,12 +350,7 @@ window.saveOcrKey = async function(e) {
         await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
         document.getElementById('ocrKeyModal').classList.add('hidden');
         renderOcrKeysGrid();
-        Swal.fire({
-            icon: 'success', 
-            title: id ? 'แก้ไขสำเร็จ!' : 'เพิ่ม Key สำเร็จ!', 
-            timer: 1500, 
-            showConfirmButton: false
-        });
+        Swal.fire({icon: 'success', title: id ? 'แก้ไขสำเร็จ!' : 'เพิ่ม Key สำเร็จ!', timer: 1500, showConfirmButton: false});
     } catch (err) { 
         Swal.fire('Error', err.message, 'error'); 
     }
@@ -321,3 +374,32 @@ window.deleteOcrKey = async function(id) {
         }
     });
 };
+
+// 🔄 ปุ่มรีเซ็ตโควต้า key ตัวเดียว (เผื่ออยากรีเซ็ตเอง)
+window.resetOcrKeyUsage = async function(id) {
+    Swal.fire({
+        title: 'รีเซ็ตโควต้า Key นี้?',
+        text: 'เริ่มนับใหม่จาก 0/500 ทันที',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3498db',
+        confirmButtonText: 'รีเซ็ตเลย'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            const k = globalOcrKeys.find(x => String(x.id) === String(id));
+            if (!k) return;
+            k.used_count = 0;
+            k.last_used_date = getTodayKey();
+            await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+            renderOcrKeysGrid();
+            Swal.fire({icon: 'success', title: 'รีเซ็ตแล้ว!', timer: 1200, showConfirmButton: false});
+        }
+    });
+};
+
+// 🔄 อัพเดทหน้าทุก 30 วินาที (รีเฟรชโควต้าจาก DB)
+setInterval(() => {
+    if (document.getElementById('ocrKeysGrid')) {
+        fetchOcrKeysData();
+    }
+}, 30000);
