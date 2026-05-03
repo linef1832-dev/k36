@@ -437,7 +437,98 @@ window.openDuplicateModal = function() {
     });
 };
 
-// 🌟 [NEW] Confirm + Kick Discord ที่ซ้ำ
+// 🌟 [NEW] เปลี่ยนชื่อแสดงผลของ Discord (Custom Name) — เก็บลง Supabase
+window.editCustomName = async function(staffId, currentName) {
+    const { value: newName } = await Swal.fire({
+        title: 'เปลี่ยนชื่อแสดงผล',
+        html: `
+            <div class="text-left text-xs text-gray-400 mb-2">
+                <span class="material-icons text-amber-400 text-[14px] align-middle">info</span>
+                <span class="align-middle">เปลี่ยนเฉพาะชื่อที่แสดงในระบบ ไม่กระทบ Discord จริง</span>
+            </div>
+            <div class="text-left text-xs">
+                <div class="text-gray-500 mb-1">ชื่อปัจจุบัน:</div>
+                <div class="font-bold text-white bg-slate-700/50 px-3 py-1.5 rounded-lg">${currentName}</div>
+            </div>`,
+        input: 'text',
+        inputValue: currentName,
+        inputPlaceholder: 'พิมพ์ชื่อใหม่...',
+        inputAttributes: { autocapitalize: 'off' },
+        showCancelButton: true,
+        confirmButtonText: 'บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        showDenyButton: !!(window.customDiscordNames && window.customDiscordNames[staffId]),
+        denyButtonText: '↩ คืนชื่อเดิม',
+        denyButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+        inputValidator: (value) => {
+            if (!value || !value.trim()) return 'กรุณากรอกชื่อ';
+        }
+    }).then(async (result) => {
+        // 🌟 ถ้ากด "คืนชื่อเดิม" → ลบ override ออก
+        if (result.isDenied) {
+            if (window.customDiscordNames) delete window.customDiscordNames[staffId];
+            await saveCustomNamesToDb();
+            // หาชื่อจริงจาก Discord กลับมาใส่
+            const idx = extStaffList.findIndex(s => s.id === staffId);
+            if (idx !== -1) {
+                // ดึงชื่อต้นฉบับจาก Discord API
+                try {
+                    const tStamp = Date.now();
+                    const sRes = await fetch(`${DISCORD_API_URL}/api/staff-list?t=${tStamp}`, { headers: { 'Cache-Control': 'no-cache' } });
+                    const sData = await sRes.json().catch(() => []);
+                    const rawList = Array.isArray(sData) ? sData : (sData.data || []);
+                    const original = rawList.find(s => s.id === staffId);
+                    if (original) extStaffList[idx].name = original.name;
+                } catch(e) {}
+            }
+            Swal.fire({icon: 'success', title: 'คืนชื่อเดิมแล้ว', timer: 1200, showConfirmButton: false});
+            if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
+            return null;
+        }
+        return result.value;
+    });
+    
+    if (!newName) return;
+    const cleanName = newName.trim();
+    if (cleanName === currentName) return; // ไม่เปลี่ยน
+    
+    Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading(), allowOutsideClick: false});
+    
+    try {
+        // อัปเดต local state
+        if (!window.customDiscordNames) window.customDiscordNames = {};
+        window.customDiscordNames[staffId] = cleanName;
+        
+        // อัปเดตใน extStaffList ทันที (เพื่อไม่ต้องโหลด Discord ใหม่)
+        const idx = extStaffList.findIndex(s => s.id === staffId);
+        if (idx !== -1) extStaffList[idx].name = cleanName;
+        
+        // บันทึกลง Supabase
+        await saveCustomNamesToDb();
+        
+        Swal.fire({icon: 'success', title: 'บันทึกแล้ว', text: `เปลี่ยนชื่อเป็น "${cleanName}"`, timer: 1500, showConfirmButton: false});
+        
+        // Refresh UI
+        if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
+        if (typeof renderGroupList === 'function') renderGroupList();
+    } catch (err) {
+        Swal.fire('Error', 'บันทึกไม่สำเร็จ: ' + err.message, 'error');
+    }
+};
+
+// 🌟 [NEW] Helper: บันทึก customDiscordNames ลง Supabase settings
+async function saveCustomNamesToDb() {
+    if (typeof appDB === 'undefined' || !appDB) return;
+    const namesObj = window.customDiscordNames || {};
+    await appDB.from('settings').upsert([{
+        key: 'discord_custom_names',
+        value: JSON.stringify(namesObj)
+    }]);
+}
+
+// 🌟 [NEW] ฟังก์ชัน Confirm + Kick Discord ที่ซ้ำ
 window.confirmDeleteDuplicate = async function(staffId, staffName) {
     const confirm = await Swal.fire({
         title: 'ยืนยันการลบ?',
