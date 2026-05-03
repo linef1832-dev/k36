@@ -454,6 +454,27 @@ window.sop_readRule = async function(id, skipIncrement) {
         historyBlock = window.renderTemplate('tpl-sop-history', { count: item.history.length, historyItemsHtml: histItems });
     }
 
+    // read receipts (V3.1) - แสดงรายชื่อคนที่อ่านแล้ว
+    let readReceiptsBlock = '';
+    const readByList = item.read_by || [];
+    if (readByList.length > 0) {
+        const chipsHtml = readByList.map(uname => {
+            const initials = (uname || '?').substring(0, 2).toUpperCase();
+            return window.renderTemplate('tpl-sop-read-receipt-chip', { initials, username: uname });
+        }).join('');
+        const content = `<div class="flex flex-wrap gap-2">${chipsHtml}</div>`;
+        readReceiptsBlock = window.renderTemplate('tpl-sop-read-receipts', { count: readByList.length, readReceiptsContent: content });
+    } else {
+        const emptyContent = `
+            <div class="flex flex-col items-center text-center py-4 text-gray-400 dark:text-gray-500">
+                <span class="material-icons text-3xl mb-1 opacity-40">person_off</span>
+                <span class="text-xs font-bold">ยังไม่มีพนักงานกดรับทราบกฎนี้</span>
+                <span class="text-[10px] mt-1 italic">เมื่ออ่านเสร็จกดปุ่ม "✅ กดเมื่ออ่านแล้ว" ด้านบน</span>
+            </div>
+        `;
+        readReceiptsBlock = window.renderTemplate('tpl-sop-read-receipts', { count: 0, readReceiptsContent: emptyContent });
+    }
+
     reader.innerHTML = window.renderTemplate('tpl-sop-read', {
         id: item.id,
         displayCat,
@@ -464,6 +485,7 @@ window.sop_readRule = async function(id, skipIncrement) {
         readBtn, adminBtns,
         formattedContent,
         rulesBlock,
+        readReceiptsBlock,
         attachmentsBlock,
         examplesBlock,
         historyBlock,
