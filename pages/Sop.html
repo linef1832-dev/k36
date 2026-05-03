@@ -1,0 +1,135 @@
+<div id="sopApp" class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
+    <div class="bg-gradient-to-r from-rose-600 to-orange-600 text-white p-4 shadow-lg shrink-0 flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl">rule_folder</span></div>
+            <div>
+                <h1 class="font-black text-xl tracking-wide">คู่มือการทำงาน (SOP)</h1>
+                <p class="text-xs text-rose-100 opacity-90">กฎกลาง — กะเช้า/กะดึก ใช้กฎเดียวกัน</p>
+            </div>
+        </div>
+        <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm">
+            <span class="material-icons text-sm">arrow_back</span> กลับเมนูหลัก
+        </button>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 p-4 border-b dark:border-slate-700 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10 shrink-0">
+        <div class="flex items-center gap-3 w-full md:w-auto">
+            <div class="relative flex-1 md:w-64">
+                <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[18px]">search</span>
+                <input type="text" id="sopSearch" onkeyup="sop_renderList()" placeholder="ค้นหากฎ..." class="w-full pl-9 pr-3 py-2 bg-slate-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl text-sm outline-none focus:border-rose-500 transition shadow-inner">
+            </div>
+            <select id="sopCategory" onchange="sop_renderList()" class="bg-slate-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white px-3 py-2 rounded-xl outline-none focus:border-rose-500 font-bold text-sm cursor-pointer shadow-inner">
+                <option value="ALL">📂 ทุกหมวดหมู่</option>
+            </select>
+        </div>
+        <div id="sopAdminControls" class="hidden w-full md:w-auto flex justify-end gap-2">
+            <button onclick="sop_manageCategories()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow transition border border-slate-500">
+                <span class="material-icons text-sm">category</span> จัดการหมวดหมู่
+            </button>
+            <button onclick="sop_openAddModal()" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-lg transition transform active:scale-95 border border-rose-400">
+                <span class="material-icons text-sm">add_circle</span> เพิ่มกฎใหม่
+            </button>
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-hidden p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50">
+        <div class="max-w-[1600px] mx-auto h-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-4 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-lg p-5 flex flex-col h-full overflow-hidden">
+                <h3 class="text-slate-800 dark:text-white font-black mb-4 flex items-center gap-2 border-b pb-3 text-lg"><span class="material-icons text-rose-500">list_alt</span> สารบัญกฎ <span id="sopCount" class="ml-auto text-xs font-bold text-gray-400 bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded-md border border-gray-200 dark:border-slate-700"></span></h3>
+                <div id="sopListContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2"></div>
+            </div>
+            <div class="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl p-6 md:p-8 flex flex-col h-full overflow-y-auto custom-scrollbar">
+                <div id="sopReaderContent" class="max-w-4xl w-full mx-auto"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="sop-templates" class="hidden">
+
+    <template id="tpl-sop-list-item">
+        <div onclick="sop_readRule('{{id}}')" class="cursor-pointer p-3.5 rounded-xl border {{activeBg}} transition flex gap-3 group shadow-sm">
+            <div class="mt-1 shrink-0"><span class="material-icons {{iconColor}} text-[22px] bg-white dark:bg-slate-800 p-2 rounded-lg shadow-sm border border-gray-100 dark:border-slate-600 group-hover:scale-110 transition">{{icon}}</span></div>
+            <div class="flex-1 min-w-0">
+                <h4 class="text-slate-800 dark:text-white font-bold text-sm truncate group-hover:text-rose-600 dark:group-hover:text-rose-400 transition">{{title}}</h4>
+                <div class="flex items-center gap-2 mt-1.5 text-[10px] font-bold text-gray-500">
+                    <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-slate-600 shadow-sm flex items-center gap-1">{{displayCat}}</span>
+                    <span class="flex items-center gap-0.5"><span class="material-icons text-[12px]">update</span> {{date}}</span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-sop-read">
+        <div class="fade-in">
+            <div class="flex justify-between items-start mb-6 pb-6 border-b border-gray-200 dark:border-slate-700">
+                <div class="flex-1 min-w-0">
+                    <span class="bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-400 px-3 py-1 rounded-full text-[11px] font-black border border-rose-200 dark:border-rose-500/50 shadow-sm mb-3 inline-block">{{displayCat}}</span>
+                    <h1 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-white leading-tight break-words">{{title}}</h1>
+                    <div class="flex items-center gap-3 mt-4 text-xs font-bold text-gray-500 dark:text-gray-400 flex-wrap">
+                        <span class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-gray-200 dark:border-slate-700"><span class="material-icons text-[14px]">person</span> สร้างโดย: {{author_name}}</span>
+                        <span class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-gray-200 dark:border-slate-700"><span class="material-icons text-[14px]">edit</span> อัปเดตล่าสุด: {{updateDateStr}}</span>
+                        {{lastEditorBadge}}
+                    </div>
+                </div>
+                {{adminBtns}}
+            </div>
+
+            <div class="bg-rose-50 dark:bg-rose-900/10 border-l-4 border-rose-400 dark:border-rose-500 rounded-r-xl p-5 mb-6">
+                <div class="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <span class="material-icons text-[14px]">checklist</span> รายละเอียด / ขั้นตอน
+                </div>
+                <div class="text-slate-700 dark:text-gray-200 text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">{{formattedContent}}</div>
+            </div>
+
+            {{examplesBlock}}
+
+            <div class="h-10"></div>
+        </div>
+    </template>
+
+    <template id="tpl-sop-examples">
+        <div class="bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-400 dark:border-blue-500 rounded-r-xl p-5 mb-6">
+            <div class="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <span class="material-icons text-[14px]">lightbulb</span> ตัวอย่างเคส / สถานการณ์
+            </div>
+            <div class="text-slate-700 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-medium">{{formattedExamples}}</div>
+        </div>
+    </template>
+
+    <template id="tpl-sop-empty">
+        <div class="text-center text-gray-400 dark:text-gray-600 mt-[15vh] flex flex-col items-center select-none">
+            <span class="material-icons text-[100px] mb-6 opacity-30">menu_book</span>
+            <h2 class="text-2xl font-black text-gray-500">เลือกกฎเพื่อเริ่มอ่าน</h2>
+            <p class="text-sm mt-2 font-bold">คลิกที่รายการด้านซ้ายมือเพื่อเปิดดูเนื้อหา</p>
+        </div>
+    </template>
+
+    <template id="tpl-sop-no-rules">
+        <div class="text-center text-gray-400 dark:text-gray-600 mt-[15vh] flex flex-col items-center select-none">
+            <span class="material-icons text-[100px] mb-6 opacity-30">post_add</span>
+            <h2 class="text-2xl font-black text-gray-500">ยังไม่มีกฎในระบบ</h2>
+            <p class="text-sm mt-2 font-bold">{{hint}}</p>
+        </div>
+    </template>
+
+    <template id="tpl-sop-manage-cat">
+        <div class="text-left mt-4">
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="newSopCatName" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่ (เช่น 💰 โปรโมชั่น)..." class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-3 text-sm outline-none focus:border-rose-500 shadow-inner font-bold">
+                <button onclick="sop_addCategory()" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-3 rounded-xl font-bold shadow-md transition active:scale-95 flex items-center gap-1 border border-rose-500"><span class="material-icons text-sm">add</span> เพิ่ม</button>
+            </div>
+            <div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-2 border-b border-gray-200 dark:border-slate-700 pb-1">หมวดหมู่ที่มีอยู่</div>
+            <div id="sopCatListContainer" class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
+                {{catListHtml}}
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-sop-manage-cat-item">
+        <div class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl mb-2 shadow-sm">
+            <span class="text-slate-800 dark:text-white font-bold text-sm">{{catName}}</span>
+            <button onclick="sop_deleteCategory({{index}})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 px-2 py-1.5 rounded-lg transition shadow-sm border border-gray-200 dark:border-slate-700" title="ลบหมวดหมู่"><span class="material-icons text-[16px]">delete</span></button>
+        </div>
+    </template>
+</div>
