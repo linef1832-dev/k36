@@ -158,9 +158,9 @@
             <!-- Main Content Blocks -->
             <div class="p-6 md:p-8 space-y-5 bg-slate-100 dark:bg-slate-900/50">
 
-                {{readReceiptsBlock}}
+                {{attachmentsBlock}}
 
-                {{rulesBlock}}
+                {{examplesBlock}}
 
                 <!-- BLOCK: รายละเอียด -->
                 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
@@ -171,9 +171,9 @@
                     <div class="p-5 bg-rose-50/40 dark:bg-slate-800/80 text-slate-800 dark:text-white text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">{{formattedContent}}</div>
                 </div>
 
-                {{examplesBlock}}
+                {{rulesBlock}}
 
-                {{attachmentsBlock}}
+                {{readReceiptsBlock}}
 
                 {{historyBlock}}
 
@@ -201,16 +201,17 @@
         </div>
     </template>
 
-    <!-- BLOCK: ผู้รับทราบ (V3.1) -->
+    <!-- BLOCK: ผู้รับทราบ (V3.2 — แบบพับเก็บได้) -->
     <template id="tpl-sop-read-receipts">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
-            <div class="bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 flex items-center gap-2">
+        <details class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden group">
+            <summary class="cursor-pointer bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 flex items-center gap-2 list-none">
                 <div class="bg-white/20 p-1.5 rounded-lg"><span class="material-icons text-white text-[18px]">verified</span></div>
                 <h3 class="text-white font-black text-sm tracking-wide">ผู้รับทราบกฎนี้</h3>
                 <span class="ml-auto bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full backdrop-blur-sm">{{count}} คน</span>
-            </div>
+                <span class="material-icons text-white group-open:rotate-180 transition text-[18px]">expand_more</span>
+            </summary>
             <div class="p-5 bg-emerald-50/40 dark:bg-slate-800/80">{{readReceiptsContent}}</div>
-        </div>
+        </details>
     </template>
 
     <template id="tpl-sop-read-receipt-chip">
