@@ -118,11 +118,11 @@
                 <span class="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-700"><span class="material-icons text-[12px]">verified</span>{{readCount}} คนอ่านแล้ว</span>
             </div>
 
-            <div class="bg-rose-50 dark:bg-rose-900/10 border-l-4 border-rose-400 dark:border-rose-500 rounded-r-xl p-5 mb-5">
-                <div class="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+            <div class="bg-rose-50 dark:bg-rose-900/20 border-l-4 border-rose-400 dark:border-rose-500 rounded-r-xl p-5 mb-5">
+                <div class="text-[10px] font-black text-rose-600 dark:text-rose-300 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <span class="material-icons text-[14px]">checklist</span> รายละเอียด / ขั้นตอน
                 </div>
-                <div class="text-slate-700 dark:text-gray-200 text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">{{formattedContent}}</div>
+                <div class="text-slate-800 dark:text-white text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">{{formattedContent}}</div>
             </div>
 
             {{attachmentsBlock}}
@@ -136,11 +136,11 @@
     </template>
 
     <template id="tpl-sop-examples">
-        <div class="bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-400 dark:border-blue-500 rounded-r-xl p-5 mb-5">
-            <div class="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+        <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-500 rounded-r-xl p-5 mb-5">
+            <div class="text-[10px] font-black text-blue-600 dark:text-blue-300 uppercase tracking-wider mb-2 flex items-center gap-1">
                 <span class="material-icons text-[14px]">lightbulb</span> ตัวอย่างเคส / สถานการณ์
             </div>
-            <div class="text-slate-700 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-medium">{{formattedExamples}}</div>
+            <div class="text-slate-800 dark:text-white text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">{{formattedExamples}}</div>
         </div>
     </template>
 
@@ -154,10 +154,10 @@
     </template>
 
     <template id="tpl-sop-attach-img">
-        <a href="{{url}}" target="_blank" class="block group rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition overflow-hidden bg-white dark:bg-slate-900 relative">
-            <img src="{{url}}" class="w-full h-48 object-cover transition duration-300 group-hover:scale-105 cursor-zoom-in">
-            <div class="absolute top-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-sm flex items-center gap-1"><span class="material-icons text-[12px]">image</span>รูป</div>
-        </a>
+        <div onclick="sop_openLightbox('{{url}}')" class="block group rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition overflow-hidden bg-white dark:bg-slate-900 relative cursor-zoom-in">
+            <img src="{{url}}" class="w-full h-48 object-cover transition duration-300 group-hover:scale-105">
+            <div class="absolute top-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-sm flex items-center gap-1"><span class="material-icons text-[12px]">zoom_in</span>คลิกเพื่อขยาย</div>
+        </div>
     </template>
 
     <template id="tpl-sop-attach-pdf">
@@ -228,4 +228,21 @@
             <button onclick="sop_deleteCategory({{index}})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 px-2 py-1.5 rounded-lg transition shadow-sm border border-gray-200 dark:border-slate-700" title="ลบหมวดหมู่"><span class="material-icons text-[16px]">delete</span></button>
         </div>
     </template>
+</div>
+
+<!-- 🖼️ Lightbox สำหรับขยายดูรูปในหน้าเดียวกัน -->
+<div id="sopLightbox" class="hidden fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 fade-in" onclick="sop_closeLightbox(event)">
+    <button onclick="sop_closeLightbox()" class="absolute top-4 right-4 bg-white/10 hover:bg-red-500 text-white w-12 h-12 rounded-full flex items-center justify-center transition border border-white/20 backdrop-blur-sm shadow-lg z-10" title="ปิด">
+        <span class="material-icons text-2xl">close</span>
+    </button>
+    <button id="sopLightboxPrev" onclick="event.stopPropagation(); sop_lightboxNav(-1)" class="hidden absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white w-12 h-12 rounded-full items-center justify-center transition border border-white/20 backdrop-blur-sm shadow-lg z-10" title="ก่อนหน้า">
+        <span class="material-icons text-2xl">chevron_left</span>
+    </button>
+    <button id="sopLightboxNext" onclick="event.stopPropagation(); sop_lightboxNav(1)" class="hidden absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/30 text-white w-12 h-12 rounded-full items-center justify-center transition border border-white/20 backdrop-blur-sm shadow-lg z-10" title="ถัดไป">
+        <span class="material-icons text-2xl">chevron_right</span>
+    </button>
+    <div class="max-w-[95vw] max-h-[95vh] flex items-center justify-center" onclick="event.stopPropagation()">
+        <img id="sopLightboxImg" src="" class="max-w-full max-h-[95vh] object-contain rounded-xl shadow-2xl" alt="">
+    </div>
+    <div id="sopLightboxCounter" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm font-bold px-4 py-2 rounded-full backdrop-blur-sm border border-white/20"></div>
 </div>
