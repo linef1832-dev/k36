@@ -257,6 +257,247 @@ window.autoFixAllMismatches = async function() {
     if (typeof renderGroupList === 'function') renderGroupList();
 };
 
+// 🌟 [NEW] เพิ่ม Toolbar ที่ด้านบนหน้า Manage — Filter "เฉพาะกลุ่มผิด" + ปุ่มย้ายทั้งหมด
+function injectMismatchToolbar() {
+    if (document.getElementById('mgrMismatchToolbar')) {
+        // มีอยู่แล้ว → แค่อัปเดตจำนวน
+        const cnt = extStaffList.filter(s => getDiscordGroupMismatch(s)).length;
+        const cntEl = document.getElementById('mgrMismatchCount');
+        if (cntEl) cntEl.innerText = cnt;
+        
+        // 🌟 อัปเดตจำนวน Discord ซ้ำด้วย
+        const dupes = findDiscordDuplicates();
+        const dupeCntEl = document.getElementById('mgrDuplicateCount');
+        const dupeUserCntEl = document.getElementById('mgrDuplicateUserCount');
+        if (dupeCntEl) dupeCntEl.innerText = dupes.totalAccounts;
+        if (dupeUserCntEl) dupeUserCntEl.innerText = dupes.totalUsers;
+        return;
+    }
+    
+    const container = document.getElementById('manageStaffList');
+    if (!container || !container.parentNode) return;
+    
+    const totalMismatch = extStaffList.filter(s => getDiscordGroupMismatch(s)).length;
+    const dupes = findDiscordDuplicates();
+    
+    const toolbar = document.createElement('div');
+    toolbar.id = 'mgrMismatchToolbar';
+    toolbar.className = 'mb-3 space-y-2';
+    toolbar.innerHTML = `
+        <!-- แถบ 1: กลุ่มผิด (เทียบกับ DB) -->
+        <div class="p-3 bg-gradient-to-r from-rose-500/10 to-amber-500/10 border border-rose-500/30 rounded-xl flex items-center justify-between gap-3 flex-wrap">
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+                <span class="material-icons text-rose-400">rule</span>
+                <div class="text-xs">
+                    <div class="font-bold text-rose-300">ตรวจสอบกลุ่ม Discord กับฐานข้อมูล</div>
+                    <div class="text-gray-400 text-[10px]">พนักงานที่กลุ่มไม่ตรงกับกะในระบบลงเวลา: <b id="mgrMismatchCount" class="text-rose-400">${totalMismatch}</b> คน</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-gray-300 bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-600 transition">
+                    <input type="checkbox" id="mgrOnlyMismatchCb" onchange="_doRenderManagerList()" class="cursor-pointer">
+                    <span>🚨 เฉพาะกลุ่มผิด</span>
+                </label>
+                <button onclick="autoFixAllMismatches()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-md active:scale-95">
+                    <span class="material-icons text-[14px]">auto_fix_high</span> ย้ายอัตโนมัติทั้งหมด
+                </button>
+            </div>
+        </div>
+
+        <!-- แถบ 2: Discord ซ้ำ (หลาย account match user เดียวกัน) -->
+        <div class="p-3 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/30 rounded-xl flex items-center justify-between gap-3 flex-wrap">
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+                <span class="material-icons text-purple-400">people_alt</span>
+                <div class="text-xs">
+                    <div class="font-bold text-purple-300">ตรวจหา Discord ซ้ำซ้อน</div>
+                    <div class="text-gray-400 text-[10px]">พบ <b id="mgrDuplicateUserCount" class="text-purple-400">${dupes.totalUsers}</b> User ที่มี Discord มากกว่า 1 account: <b id="mgrDuplicateCount" class="text-purple-400">${dupes.totalAccounts}</b> รายการ</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-gray-300 bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-600 transition">
+                    <input type="checkbox" id="mgrOnlyDuplicateCb" onchange="_doRenderManagerList()" class="cursor-pointer">
+                    <span>🔍 เฉพาะ Discord ซ้ำ</span>
+                </label>
+                <button onclick="openDuplicateModal()" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-md active:scale-95" ${dupes.totalAccounts === 0 ? 'disabled' : ''}>
+                    <span class="material-icons text-[14px]">manage_search</span> ดูรายการซ้ำ
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.parentNode.insertBefore(toolbar, container);
+}
+
+// 🌟 [NEW] หา Discord accounts ที่ match กับ DB user เดียวกัน (ซ้ำซ้อน)
+function findDiscordDuplicates() {
+    const groups = {}; // dbUserId → [staff1, staff2, ...]
+    const noMatch = []; // Discord ที่ไม่มีใน DB
+    
+    extStaffList.forEach(s => {
+        const dbUser = getDbUserFromDiscordName(s.name);
+        if (!dbUser) {
+            noMatch.push(s);
+            return;
+        }
+        const key = dbUser.id;
+        if (!groups[key]) groups[key] = { dbUser: dbUser, staffs: [] };
+        groups[key].staffs.push(s);
+    });
+    
+    // เอาเฉพาะ DB user ที่มี Discord >= 2 ตัว
+    const duplicates = {};
+    let totalAccounts = 0;
+    let totalUsers = 0;
+    Object.keys(groups).forEach(k => {
+        if (groups[k].staffs.length >= 2) {
+            duplicates[k] = groups[k];
+            totalAccounts += groups[k].staffs.length;
+            totalUsers++;
+        }
+    });
+    
+    return { duplicates, totalAccounts, totalUsers, noMatch };
+}
+
+// 🌟 [NEW] เช็คว่าพนักงานนี้เป็นส่วนหนึ่งของ Discord ที่ซ้ำหรือไม่
+function isDiscordDuplicate(staff) {
+    const dbUser = getDbUserFromDiscordName(staff.name);
+    if (!dbUser) return false;
+    const sameUserCount = extStaffList.filter(s => {
+        const u = getDbUserFromDiscordName(s.name);
+        return u && u.id === dbUser.id;
+    }).length;
+    return sameUserCount >= 2;
+}
+
+// 🌟 [NEW] เปิด Modal แสดง Discord ที่ซ้ำซ้อน
+window.openDuplicateModal = function() {
+    const { duplicates, totalAccounts, totalUsers } = findDiscordDuplicates();
+    
+    if (totalAccounts === 0) {
+        return Swal.fire('OK', 'ไม่พบ Discord ที่ซ้ำซ้อน 🎉', 'success');
+    }
+    
+    const groupHtml = Object.values(duplicates).map(grp => {
+        const u = grp.dbUser;
+        const tag = `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-700/50">${u.department || 'AM'} | ${(u.allowed_shift || '').replace('กะ','')}</span>`;
+        
+        const accountsHtml = grp.staffs.map(s => {
+            // หากลุ่มที่อยู่
+            const groupsIn = [];
+            for (const g in extStaffGroups) {
+                if (extStaffGroups[g].includes(s.id)) groupsIn.push(g);
+            }
+            const gTags = groupsIn.length > 0 
+                ? groupsIn.map(g => `<span class="bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded text-[9px]">${g}</span>`).join(' ')
+                : '<span class="text-gray-500 text-[9px]">- ไม่มีกลุ่ม -</span>';
+            
+            return `
+                <div class="flex items-center justify-between gap-2 p-2.5 bg-slate-800/60 rounded-lg border border-slate-700">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-sm text-slate-100 truncate">${s.name}</div>
+                        <div class="text-[10px] text-gray-500 mt-0.5">Discord ID: <span class="font-mono">${s.id}</span></div>
+                        <div class="mt-1 flex flex-wrap gap-1">${gTags}</div>
+                    </div>
+                    <button onclick="confirmDeleteDuplicate('${s.id}', '${s.name.replace(/'/g, "\\'")}')" 
+                        class="bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition shrink-0">
+                        <span class="material-icons text-[14px]">delete_forever</span> ลบ
+                    </button>
+                </div>`;
+        }).join('');
+        
+        return `
+            <div class="border border-purple-500/30 bg-purple-500/5 rounded-xl p-3 mb-3">
+                <div class="flex items-center justify-between mb-2 pb-2 border-b border-purple-500/20">
+                    <div class="flex items-center gap-2">
+                        <span class="material-icons text-purple-400 text-[20px]">person</span>
+                        <span class="font-bold text-purple-200">${u.username}</span>
+                        ${tag}
+                    </div>
+                    <span class="bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${grp.staffs.length} accounts</span>
+                </div>
+                <div class="space-y-2">${accountsHtml}</div>
+            </div>`;
+    }).join('');
+    
+    Swal.fire({
+        title: `<span class="text-purple-400">🔍 Discord ซ้ำซ้อน</span>`,
+        html: `
+            <div class="text-left">
+                <div class="text-xs text-gray-400 mb-3 bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-lg">
+                    <span class="material-icons text-amber-400 text-[14px] align-middle">info</span>
+                    <span class="align-middle ml-1">พบ User <b class="text-amber-300">${totalUsers}</b> คนที่มี Discord มากกว่า 1 account รวม <b class="text-amber-300">${totalAccounts}</b> รายการ — กดปุ่ม "ลบ" เพื่อ Kick Discord ที่ตกค้างออก</span>
+                </div>
+                <div class="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">${groupHtml}</div>
+            </div>`,
+        width: '700px',
+        showConfirmButton: false,
+        showCloseButton: true,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
+    });
+};
+
+// 🌟 [NEW] Confirm + Kick Discord ที่ซ้ำ
+window.confirmDeleteDuplicate = async function(staffId, staffName) {
+    const confirm = await Swal.fire({
+        title: 'ยืนยันการลบ?',
+        html: `
+            <div class="text-left text-sm">
+                <p class="mb-2">จะ <b class="text-red-500">Kick</b> Discord account นี้ออก:</p>
+                <div class="bg-slate-700/50 p-2.5 rounded-lg border border-slate-600">
+                    <div class="font-bold text-white">${staffName}</div>
+                    <div class="text-[10px] text-gray-400 mt-0.5">ID: ${staffId}</div>
+                </div>
+                <p class="text-[10px] text-amber-400 mt-2">⚠ Discord account จะถูกเตะออกจาก Server หากต้องการให้กลับมาต้องส่งคำเชิญใหม่</p>
+            </div>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ลบเลย',
+        confirmButtonColor: '#dc2626',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    
+    if (!confirm.isConfirmed) return;
+    
+    Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    
+    try {
+        // ใช้ API เดียวกับ spy_kickUser
+        const res = await fetch(DISCORD_API_URL + '/api/kick', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ userId: staffId })
+        });
+        
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error('API failed: ' + res.status + ' ' + text);
+        }
+        
+        // เอาออกจาก local state ทันที (ไม่ต้องรอ refresh)
+        extStaffList = extStaffList.filter(s => s.id !== staffId);
+        for (const g in extStaffGroups) {
+            extStaffGroups[g] = extStaffGroups[g].filter(id => id !== staffId);
+        }
+        
+        Swal.fire({icon: 'success', title: 'ลบเรียบร้อย', timer: 1500, showConfirmButton: false});
+        
+        // Refresh UI
+        if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
+        if (typeof renderGroupList === 'function') renderGroupList();
+        
+        // เปิด Modal ใหม่ ถ้ายังมีรายการเหลือ
+        setTimeout(() => {
+            const dupes = findDiscordDuplicates();
+            if (dupes.totalAccounts > 0) {
+                openDuplicateModal();
+            }
+        }, 1600);
+    } catch (err) {
+        Swal.fire('Error', 'ลบไม่สำเร็จ: ' + err.message, 'error');
+    }
+};
+
 window.applyDiscordPermissions = function() {
     const tabs = [
         { btnId: 'tabDsSpy', viewId: 'spy', reqPerm: 'ds_spy' },
@@ -1571,9 +1812,11 @@ window._doRenderManagerList = function() {
     const deptFilter = document.getElementById('filterStaffDept').value;
     const shiftFilter = document.getElementById('filterStaffShift').value;
     
-    // 🌟 [NEW] อ่านสถานะ checkbox "เฉพาะกลุ่มผิด" (ถ้ามี)
+    // 🌟 [NEW] อ่านสถานะ checkbox "เฉพาะกลุ่มผิด" และ "เฉพาะ Discord ซ้ำ"
     const onlyMismatchCb = document.getElementById('mgrOnlyMismatchCb');
     const onlyMismatch = onlyMismatchCb ? onlyMismatchCb.checked : false;
+    const onlyDuplicateCb = document.getElementById('mgrOnlyDuplicateCb');
+    const onlyDuplicate = onlyDuplicateCb ? onlyDuplicateCb.checked : false;
 
     const filtered = extStaffList.filter(s => {
         const matchName = s.name.toLowerCase().includes(search);
@@ -1590,6 +1833,9 @@ window._doRenderManagerList = function() {
         // 🌟 [NEW] ถ้าติ๊ก "เฉพาะกลุ่มผิด" → ตัดคนที่อยู่ถูกออก
         if (onlyMismatch && !getDiscordGroupMismatch(s)) return false;
         
+        // 🌟 [NEW] ถ้าติ๊ก "เฉพาะ Discord ซ้ำ" → ตัดคนที่ไม่ซ้ำออก
+        if (onlyDuplicate && !isDiscordDuplicate(s)) return false;
+        
         return matchName && matchGroup && matchDept && matchShift;
     });
 
@@ -1604,6 +1850,15 @@ window._doRenderManagerList = function() {
     container.innerHTML = filtered.map(s => {
         const dbUser = getDbUserFromDiscordName(s.name);
         let tagHtml = dbUser ? `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-700/50 ml-2 shadow-sm">${dbUser.department || 'AM'} | ${dbUser.allowed_shift.replace('กะ','')}</span>` : `<span class="bg-slate-700 text-gray-400 px-2 py-0.5 rounded text-[10px] font-bold ml-2">ไม่พบในระบบลงเวลา</span>`;
+        
+        // 🌟 [NEW] Badge "ซ้ำ" — ถ้ามี Discord อื่นที่ match กับ DB user เดียวกัน
+        if (isDiscordDuplicate(s)) {
+            tagHtml += `<button onclick="openDuplicateModal()" 
+                class="ml-2 inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-md border border-purple-400"
+                title="มี Discord ซ้ำกับชื่อนี้ - กดเพื่อดูรายการ">
+                <span class="material-icons text-[12px]">people_alt</span> ซ้ำ
+            </button>`;
+        }
         
         // 🌟 [NEW] เช็ค mismatch — ถ้ามี: เพิ่ม warning badge + ปุ่ม Auto-fix
         const mismatch = getDiscordGroupMismatch(s);
@@ -1635,46 +1890,6 @@ window._doRenderManagerList = function() {
         });
     }).join('');
 };
-
-// 🌟 [NEW] เพิ่ม Toolbar ที่ด้านบนหน้า Manage — Filter "เฉพาะกลุ่มผิด" + ปุ่มย้ายทั้งหมด
-function injectMismatchToolbar() {
-    if (document.getElementById('mgrMismatchToolbar')) {
-        // มีอยู่แล้ว → แค่อัปเดตจำนวน
-        const cnt = extStaffList.filter(s => getDiscordGroupMismatch(s)).length;
-        const cntEl = document.getElementById('mgrMismatchCount');
-        if (cntEl) cntEl.innerText = cnt;
-        return;
-    }
-    
-    const container = document.getElementById('manageStaffList');
-    if (!container || !container.parentNode) return;
-    
-    const totalMismatch = extStaffList.filter(s => getDiscordGroupMismatch(s)).length;
-    
-    const toolbar = document.createElement('div');
-    toolbar.id = 'mgrMismatchToolbar';
-    toolbar.className = 'mb-3 p-3 bg-gradient-to-r from-rose-500/10 to-amber-500/10 border border-rose-500/30 rounded-xl flex items-center justify-between gap-3 flex-wrap';
-    toolbar.innerHTML = `
-        <div class="flex items-center gap-2 flex-1 min-w-0">
-            <span class="material-icons text-rose-400">rule</span>
-            <div class="text-xs">
-                <div class="font-bold text-rose-300">ตรวจสอบกลุ่ม Discord กับฐานข้อมูล</div>
-                <div class="text-gray-400 text-[10px]">พนักงานที่กลุ่มไม่ตรงกับกะในระบบลงเวลา: <b id="mgrMismatchCount" class="text-rose-400">${totalMismatch}</b> คน</div>
-            </div>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-gray-300 bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-600 transition">
-                <input type="checkbox" id="mgrOnlyMismatchCb" onchange="_doRenderManagerList()" class="cursor-pointer">
-                <span>🚨 เฉพาะกลุ่มผิด</span>
-            </label>
-            <button onclick="autoFixAllMismatches()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-md active:scale-95">
-                <span class="material-icons text-[14px]">auto_fix_high</span> ย้ายอัตโนมัติทั้งหมด
-            </button>
-        </div>
-    `;
-    
-    container.parentNode.insertBefore(toolbar, container);
-}
 
 window.renderGroupList = function() {
     const container = document.getElementById('groupList');
