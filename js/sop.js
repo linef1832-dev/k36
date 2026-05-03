@@ -12,6 +12,7 @@ let globalSOPCategories = [];
 let currentSopId = null;
 let sopPinFilterActive = false;
 let sopAttachmentsBuffer = []; // ไฟล์ที่กำลังเตรียมอัพโหลด
+let sopRulesBuffer = [];       // กติกา (V3) ที่กำลังแก้ในฟอร์ม
 
 const SOP_PRIORITY_OPTIONS = [
     { id: 'high',   label: '🔴 สำคัญมาก',  color: 'red',    border: 'border-red-500',    bg: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700' },
@@ -145,7 +146,7 @@ window.sop_fetchData = async function() {
         } else {
             globalSOPData = [];
         }
-        // ทำ default field ที่อาจไม่มีใน V1
+        // ทำ default field ที่อาจไม่มีใน V1/V2
         globalSOPData.forEach(r => {
             if (!r.priority) r.priority = 'medium';
             if (typeof r.pinned !== 'boolean') r.pinned = false;
@@ -155,6 +156,7 @@ window.sop_fetchData = async function() {
             if (typeof r.view_count !== 'number') r.view_count = 0;
             if (!Array.isArray(r.read_by)) r.read_by = [];
             if (!Array.isArray(r.history)) r.history = [];
+            if (!Array.isArray(r.rules)) r.rules = []; // V3: บล็อกกติกา [{type, text}]
         });
         sop_sortData();
         sop_renderList();
@@ -298,6 +300,12 @@ window.sop_renderList = function() {
             ? `<span class="flex items-center gap-0.5 text-amber-600 dark:text-amber-400"><span class="material-icons text-[11px]">attach_file</span>${attCount}</span>`
             : '';
 
+        // rules count badge (V3)
+        const rulesCount = (item.rules || []).length;
+        const rulesCountBadge = rulesCount > 0
+            ? `<span class="flex items-center gap-0.5 text-orange-600 dark:text-orange-400"><span class="material-icons text-[11px]">gavel</span>${rulesCount}</span>`
+            : '';
+
         const activeBg = currentSopId === item.id
             ? 'bg-rose-50 dark:bg-rose-900/20 border border-rose-400 ring-2 ring-rose-300 dark:ring-rose-700'
             : 'bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-rose-400 dark:hover:border-rose-500/50 hover:bg-white dark:hover:bg-slate-800';
@@ -312,7 +320,8 @@ window.sop_renderList = function() {
             shiftBadges, readIndicator, tagsHtml,
             date,
             viewCount: item.view_count || 0,
-            attachmentIcon
+            attachmentIcon,
+            rulesCountBadge
         });
     }).join('');
 };
@@ -405,6 +414,29 @@ window.sop_readRule = async function(id, skipIncrement) {
         attachmentsBlock = window.renderTemplate('tpl-sop-attachments', { attachmentsHtml: attHtml, count: item.attachments.length });
     }
 
+    // rules block (V3)
+    let rulesBlock = '';
+    if (item.rules && item.rules.length > 0) {
+        const ruleItemsHtml = item.rules.map(r => {
+            const t = r.type || 'do'; // do, dont, must, info
+            let style = { ruleIcon: 'check_circle', ruleIconColor: 'text-emerald-500',
+                          ruleItemBg: 'bg-emerald-50 dark:bg-emerald-900/20',
+                          ruleItemBorder: 'border-emerald-200 dark:border-emerald-700/50' };
+            if (t === 'dont')   style = { ruleIcon: 'block',          ruleIconColor: 'text-red-500',
+                                          ruleItemBg: 'bg-red-50 dark:bg-red-900/20',
+                                          ruleItemBorder: 'border-red-200 dark:border-red-700/50' };
+            else if (t === 'must')  style = { ruleIcon: 'priority_high', ruleIconColor: 'text-orange-500',
+                                          ruleItemBg: 'bg-orange-50 dark:bg-orange-900/20',
+                                          ruleItemBorder: 'border-orange-200 dark:border-orange-700/50' };
+            else if (t === 'info')  style = { ruleIcon: 'info',           ruleIconColor: 'text-blue-500',
+                                          ruleItemBg: 'bg-blue-50 dark:bg-blue-900/20',
+                                          ruleItemBorder: 'border-blue-200 dark:border-blue-700/50' };
+            const safeText = (r.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+            return window.renderTemplate('tpl-sop-rule-item', { ...style, ruleText: safeText });
+        }).join('');
+        rulesBlock = window.renderTemplate('tpl-sop-rules', { rulesItemsHtml: ruleItemsHtml, rulesCount: item.rules.length });
+    }
+
     // examples
     let examplesBlock = '';
     if (item.examples && item.examples.trim()) {
@@ -431,12 +463,15 @@ window.sop_readRule = async function(id, skipIncrement) {
         priorityBigBadge, pinnedBigBadge, shiftBigBadges, tagsBigHtml,
         readBtn, adminBtns,
         formattedContent,
+        rulesBlock,
         attachmentsBlock,
         examplesBlock,
         historyBlock,
         lastEditorBadge,
         viewCount: item.view_count || 0,
-        readCount: (item.read_by || []).length
+        readCount: (item.read_by || []).length,
+        attachmentCount: (item.attachments || []).length,
+        historyCount: (item.history || []).length
     });
 };
 
@@ -463,9 +498,11 @@ function sop_openEditModal(existing) {
     const pinnedVal = isEdit ? !!existing.pinned : false;
     const shiftsVal = isEdit ? (existing.shifts || ['all']) : ['all'];
     const tagsVal = isEdit ? (existing.tags || []) : [];
+    const rulesVal = isEdit ? (existing.rules || []) : [];
 
     // โหลดไฟล์เดิมเข้า buffer (clone)
     sopAttachmentsBuffer = isEdit ? JSON.parse(JSON.stringify(existing.attachments || [])) : [];
+    sopRulesBuffer = JSON.parse(JSON.stringify(rulesVal));
 
     const categoryOptions = globalSOPCategories.map(c =>
         `<option value="${c.id}" ${c.id === categoryVal ? 'selected' : ''}>${c.name}</option>`
@@ -523,9 +560,27 @@ function sop_openEditModal(existing) {
                 </label>
             </div>
 
+            <div class="border-t-2 border-dashed border-gray-200 dark:border-slate-700 pt-3"></div>
+
             <div>
                 <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">รายละเอียด / ขั้นตอน <span class="text-red-500">*</span></label>
-                <textarea id="sopFormContent" rows="6" placeholder="พิมพ์รายละเอียดของกฎ..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none text-sm whitespace-pre-wrap font-medium leading-relaxed">${contentVal}</textarea>
+                <textarea id="sopFormContent" rows="5" placeholder="พิมพ์รายละเอียดของกฎ — บอกภาพรวมของขั้นตอนที่ต้องทำ..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none text-sm whitespace-pre-wrap font-medium leading-relaxed">${contentVal}</textarea>
+            </div>
+
+            <!-- ⚖️ กติกา (NEW V3) -->
+            <div class="border-2 border-orange-300 dark:border-orange-700/50 rounded-2xl p-4 bg-orange-50/50 dark:bg-orange-900/10">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-icons text-orange-500">gavel</span>
+                    <span class="text-sm font-black text-orange-700 dark:text-orange-300 uppercase tracking-wider">กติกา / ข้อบังคับ</span>
+                    <span class="ml-auto text-[10px] text-gray-500 italic">เพิ่มกติกาแบบเป็นข้อๆ</span>
+                </div>
+                <div id="sopRulesEditor" class="space-y-2 mb-3"></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+                    <button type="button" onclick="sop_addRuleItem('do')" class="bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold px-3 py-2 rounded-lg transition active:scale-95 flex items-center justify-center gap-1 shadow-sm"><span class="material-icons text-[14px]">check_circle</span>+ ทำได้</button>
+                    <button type="button" onclick="sop_addRuleItem('must')" class="bg-orange-500 hover:bg-orange-400 text-white text-xs font-bold px-3 py-2 rounded-lg transition active:scale-95 flex items-center justify-center gap-1 shadow-sm"><span class="material-icons text-[14px]">priority_high</span>+ ต้องทำ</button>
+                    <button type="button" onclick="sop_addRuleItem('dont')" class="bg-red-500 hover:bg-red-400 text-white text-xs font-bold px-3 py-2 rounded-lg transition active:scale-95 flex items-center justify-center gap-1 shadow-sm"><span class="material-icons text-[14px]">block</span>+ ห้ามทำ</button>
+                    <button type="button" onclick="sop_addRuleItem('info')" class="bg-blue-500 hover:bg-blue-400 text-white text-xs font-bold px-3 py-2 rounded-lg transition active:scale-95 flex items-center justify-center gap-1 shadow-sm"><span class="material-icons text-[14px]">info</span>+ หมายเหตุ</button>
+                </div>
             </div>
 
             <div>
@@ -552,7 +607,7 @@ function sop_openEditModal(existing) {
     Swal.fire({
         title: `<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-rose-500">${isEdit ? 'edit' : 'post_add'}</span> ${isEdit ? 'แก้ไขกฎ' : 'เพิ่มกฎใหม่'}</div>`,
         html: formHtml,
-        width: '720px',
+        width: '760px',
         showCancelButton: true,
         confirmButtonText: '<span class="material-icons text-sm align-middle mr-1">save</span> บันทึก',
         cancelButtonText: 'ยกเลิก',
@@ -562,7 +617,7 @@ function sop_openEditModal(existing) {
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
         didOpen: () => {
             sop_renderAttachmentPreview();
-            // ทำ logic ให้ "ทุกกะ" ถ้าติ๊ก จะ uncheck อันอื่น
+            sop_renderRulesEditor();
             const allCb = document.getElementById('sopShift_all');
             const otherCbs = document.querySelectorAll('.sop-shift-cb:not(#sopShift_all)');
             if (allCb) {
@@ -587,14 +642,19 @@ function sop_openEditModal(existing) {
             const checkedShifts = Array.from(document.querySelectorAll('.sop-shift-cb:checked')).map(c => c.value);
             const shifts = checkedShifts.length > 0 ? checkedShifts : ['all'];
 
+            // sync rules from inputs
+            sop_syncRulesFromInputs();
+            const rules = sopRulesBuffer.filter(r => r.text && r.text.trim());
+
             if (!title)    { Swal.showValidationMessage('กรุณาใส่ชื่อกฎ'); return false; }
             if (!content)  { Swal.showValidationMessage('กรุณาใส่รายละเอียด'); return false; }
             if (!category) { Swal.showValidationMessage('กรุณาเลือกหมวด'); return false; }
-            return { title, content, category, priority, pinned, examples, tags, shifts };
+            return { title, content, category, priority, pinned, examples, tags, shifts, rules };
         }
     }).then(async (result) => {
         if (!result.isConfirmed || !result.value) {
             sopAttachmentsBuffer = [];
+            sopRulesBuffer = [];
             return;
         }
         await sop_saveRule(existing, result.value);
@@ -676,7 +736,6 @@ window.sop_saveRule = async function(existing, formData) {
         if (existing) {
             const idx = globalSOPData.findIndex(x => String(x.id) === String(existing.id));
             if (idx !== -1) {
-                // เก็บประวัติเก่าไว้ (เก็บแค่ 5 ครั้งล่าสุด)
                 const newHistory = (globalSOPData[idx].history || []).slice();
                 newHistory.push({
                     timestamp: nowIso,
@@ -695,6 +754,7 @@ window.sop_saveRule = async function(existing, formData) {
                     pinned: formData.pinned,
                     shifts: formData.shifts,
                     tags: formData.tags,
+                    rules: formData.rules || [],
                     attachments: sopAttachmentsBuffer,
                     updated_at: nowIso,
                     last_editor: authorName,
@@ -712,6 +772,7 @@ window.sop_saveRule = async function(existing, formData) {
                 pinned: formData.pinned,
                 shifts: formData.shifts,
                 tags: formData.tags,
+                rules: formData.rules || [],
                 attachments: sopAttachmentsBuffer,
                 view_count: 0,
                 read_by: [],
@@ -724,6 +785,7 @@ window.sop_saveRule = async function(existing, formData) {
         }
 
         sopAttachmentsBuffer = [];
+        sopRulesBuffer = [];
         await sop_saveAllData();
         sop_sortData();
         sop_renderList();
@@ -739,6 +801,75 @@ window.sop_saveRule = async function(existing, formData) {
         console.error('sop_saveRule error:', e);
         Swal.fire('Error', e.message || 'บันทึกไม่สำเร็จ', 'error');
     }
+};
+
+// ==========================================
+// ⚖️ RULES EDITOR (V3)
+// ==========================================
+window.sop_addRuleItem = function(type) {
+    sop_syncRulesFromInputs();
+    sopRulesBuffer.push({ type: type, text: '' });
+    sop_renderRulesEditor();
+    // โฟกัสที่ช่องที่เพิ่มใหม่
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('.sop-rule-input');
+        if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 50);
+};
+
+window.sop_removeRuleItem = function(idx) {
+    sop_syncRulesFromInputs();
+    sopRulesBuffer.splice(idx, 1);
+    sop_renderRulesEditor();
+};
+
+window.sop_moveRuleItem = function(idx, dir) {
+    sop_syncRulesFromInputs();
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= sopRulesBuffer.length) return;
+    [sopRulesBuffer[idx], sopRulesBuffer[newIdx]] = [sopRulesBuffer[newIdx], sopRulesBuffer[idx]];
+    sop_renderRulesEditor();
+};
+
+window.sop_syncRulesFromInputs = function() {
+    document.querySelectorAll('.sop-rule-input').forEach(inp => {
+        const idx = parseInt(inp.dataset.idx);
+        if (!isNaN(idx) && sopRulesBuffer[idx]) {
+            sopRulesBuffer[idx].text = inp.value;
+        }
+    });
+};
+
+window.sop_renderRulesEditor = function() {
+    const container = document.getElementById('sopRulesEditor');
+    if (!container) return;
+    if (sopRulesBuffer.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 dark:text-gray-500 text-xs py-3 italic border border-dashed border-gray-300 dark:border-slate-600 rounded-lg">ยังไม่มีกติกา — กดปุ่มด้านล่างเพื่อเพิ่ม</div>';
+        return;
+    }
+    container.innerHTML = sopRulesBuffer.map((r, idx) => {
+        const t = r.type || 'do';
+        let bg = 'bg-emerald-50 dark:bg-emerald-900/20', border = 'border-emerald-300 dark:border-emerald-700', icon = 'check_circle', iconColor = 'text-emerald-500', label = 'ทำได้';
+        if (t === 'dont') { bg = 'bg-red-50 dark:bg-red-900/20'; border = 'border-red-300 dark:border-red-700'; icon = 'block'; iconColor = 'text-red-500'; label = 'ห้ามทำ'; }
+        else if (t === 'must') { bg = 'bg-orange-50 dark:bg-orange-900/20'; border = 'border-orange-300 dark:border-orange-700'; icon = 'priority_high'; iconColor = 'text-orange-500'; label = 'ต้องทำ'; }
+        else if (t === 'info') { bg = 'bg-blue-50 dark:bg-blue-900/20'; border = 'border-blue-300 dark:border-blue-700'; icon = 'info'; iconColor = 'text-blue-500'; label = 'หมายเหตุ'; }
+
+        const safeText = (r.text || '').replace(/"/g, '&quot;');
+        return `
+            <div class="${bg} border ${border} rounded-xl p-2 flex items-start gap-2">
+                <div class="flex flex-col items-center gap-0.5 shrink-0 mt-1">
+                    <span class="material-icons ${iconColor} text-[20px]">${icon}</span>
+                    <span class="text-[8px] font-black ${iconColor} uppercase tracking-wider">${label}</span>
+                </div>
+                <textarea class="sop-rule-input flex-1 p-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-rose-400 resize-none" rows="2" data-idx="${idx}" placeholder="พิมพ์เนื้อหากติกา...">${safeText}</textarea>
+                <div class="flex flex-col gap-0.5 shrink-0">
+                    <button type="button" onclick="sop_moveRuleItem(${idx}, -1)" class="text-gray-400 hover:text-blue-500 p-1 rounded transition disabled:opacity-30" ${idx === 0 ? 'disabled' : ''}><span class="material-icons text-[16px]">arrow_upward</span></button>
+                    <button type="button" onclick="sop_moveRuleItem(${idx}, 1)" class="text-gray-400 hover:text-blue-500 p-1 rounded transition disabled:opacity-30" ${idx === sopRulesBuffer.length - 1 ? 'disabled' : ''}><span class="material-icons text-[16px]">arrow_downward</span></button>
+                    <button type="button" onclick="sop_removeRuleItem(${idx})" class="text-gray-400 hover:text-red-500 p-1 rounded transition"><span class="material-icons text-[16px]">close</span></button>
+                </div>
+            </div>
+        `;
+    }).join('');
 };
 
 // ==========================================
@@ -840,6 +971,18 @@ window.sop_copyRule = function(id) {
     if (item.tags && item.tags.length > 0) text += `Tag: ${item.tags.map(t => '#' + t).join(' ')}\n`;
     text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     text += `📌 รายละเอียด:\n${item.content || '-'}\n`;
+
+    if (item.rules && item.rules.length > 0) {
+        text += `\n⚖️ กติกา / ข้อบังคับ:\n`;
+        item.rules.forEach(r => {
+            let prefix = '✅';
+            if (r.type === 'dont') prefix = '❌';
+            else if (r.type === 'must') prefix = '⚠️';
+            else if (r.type === 'info') prefix = 'ℹ️';
+            text += `${prefix} ${r.text}\n`;
+        });
+    }
+
     if (item.examples && item.examples.trim()) {
         text += `\n💡 ตัวอย่างเคส:\n${item.examples}\n`;
     }
