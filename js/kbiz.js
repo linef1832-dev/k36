@@ -154,6 +154,20 @@ function maskOcrKey(key) {
     return key.substring(0, 4) + '••••••••' + key.substring(key.length - 4);
 }
 
+// อัพเดทป้ายสถานะใน modal เมื่อกดสวิตช์
+window.updateOcrKeyStatusLabel = function() {
+    const checkbox = document.getElementById('ocrKeyIsActive');
+    const label = document.getElementById('ocrKeyStatusLabel');
+    if (!checkbox || !label) return;
+    if (checkbox.checked) {
+        label.textContent = 'เปิดใช้';
+        label.className = 'text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-500 text-white';
+    } else {
+        label.textContent = 'ปิดอยู่';
+        label.className = 'text-xs font-bold px-2 py-0.5 rounded-md bg-red-500 text-white';
+    }
+};
+
 async function fetchOcrKeysData() {
     const grid = document.getElementById('ocrKeysGrid');
     if(!grid) return;
@@ -190,8 +204,7 @@ window.renderOcrKeysGrid = function() {
         return getKbizTpl('tpl-ocr-key-card', {
             id: k.id,
             key_name: k.key_name,
-            api_key: k.api_key, // โชว์เต็ม แต่ blur ด้วย CSS
-            masked_key: maskOcrKey(k.api_key),
+            api_key: k.api_key,
             statusColor: k.is_active ? 'bg-emerald-500' : 'bg-gray-500',
             statusText: k.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'
         });
@@ -207,6 +220,7 @@ window.openOcrKeyModal = function() {
     ['ocrKeyEditId','ocrKeyName','ocrKeyValue'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('ocrKeyIsActive').checked = true;
     document.getElementById('ocrKeyModalTitle').innerHTML = '<span class="material-icons">vpn_key</span> เพิ่ม API Key';
+    updateOcrKeyStatusLabel();
 };
 
 window.editOcrKey = function(id) {
@@ -219,6 +233,7 @@ window.editOcrKey = function(id) {
 
     document.getElementById('ocrKeyModalTitle').innerHTML = '<span class="material-icons text-amber-400">edit</span> แก้ไข API Key';
     document.getElementById('ocrKeyModal').classList.remove('hidden');
+    updateOcrKeyStatusLabel();
 };
 
 window.saveOcrKey = async function(e) {
@@ -228,24 +243,41 @@ window.saveOcrKey = async function(e) {
     const keyValue = document.getElementById('ocrKeyValue').value.trim();
     const isActive = document.getElementById('ocrKeyIsActive').checked;
 
+    if (!keyName) {
+        return Swal.fire('กรอกข้อมูลไม่ครบ', 'กรุณาตั้งชื่อ Key', 'warning');
+    }
+
     if (keyValue.length < 10) {
         return Swal.fire('Key สั้นเกินไป', 'API key ดูสั้นผิดปกติ ตรวจสอบให้แน่ใจว่าก๊อปมาครบ', 'warning');
     }
 
-    // เช็คซ้ำเฉพาะตอนสร้างใหม่
-    if (!id && globalOcrKeys.some(k => k.api_key === keyValue)) {
+    // เช็ค key ซ้ำ — เฉพาะกับ key อื่น (ไม่ใช่ตัวเอง)
+    const isDuplicate = globalOcrKeys.some(k => 
+        k.api_key === keyValue && String(k.id) !== String(id)
+    );
+    if (isDuplicate) {
         return Swal.fire('Key ซ้ำ', 'API key นี้มีในระบบแล้วครับ', 'warning');
     }
 
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
 
     if (id && id.trim() !== '') {
+        // 🟢 โหมดแก้ไข
         const index = globalOcrKeys.findIndex(x => String(x.id) === String(id));
         if(index !== -1) {
-            globalOcrKeys[index] = { id, key_name: keyName, api_key: keyValue, is_active: isActive };
+            globalOcrKeys[index] = { 
+                id: globalOcrKeys[index].id, 
+                key_name: keyName, 
+                api_key: keyValue, 
+                is_active: isActive 
+            };
+        } else {
+            globalOcrKeys.push({ id, key_name: keyName, api_key: keyValue, is_active: isActive });
         }
     } else {
+        // 🟢 โหมดเพิ่มใหม่
         if (globalOcrKeys.length >= 5) {
+            Swal.close();
             return Swal.fire('ครบแล้ว', 'ใส่ key ได้สูงสุด 5 อัน', 'warning');
         }
         globalOcrKeys.push({ 
@@ -260,7 +292,12 @@ window.saveOcrKey = async function(e) {
         await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
         document.getElementById('ocrKeyModal').classList.add('hidden');
         renderOcrKeysGrid();
-        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1500, showConfirmButton: false});
+        Swal.fire({
+            icon: 'success', 
+            title: id ? 'แก้ไขสำเร็จ!' : 'เพิ่ม Key สำเร็จ!', 
+            timer: 1500, 
+            showConfirmButton: false
+        });
     } catch (err) { 
         Swal.fire('Error', err.message, 'error'); 
     }
