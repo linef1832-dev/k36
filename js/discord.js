@@ -81,6 +81,182 @@ function passGroupFilter(staff, groupName) {
     return extStaffGroups[groupName] && extStaffGroups[groupName].includes(staff.id);
 }
 
+// 🌟 [NEW] เช็คว่าพนักงานนี้อยู่ในกลุ่ม Discord ที่ตรงกับฐานข้อมูลไหม
+// คืน null ถ้าตรง, คืน object บอกรายละเอียดถ้าไม่ตรง
+function getDiscordGroupMismatch(staff) {
+    const dbUser = getDbUserFromDiscordName(staff.name);
+    if (!dbUser || !dbUser.allowed_shift || !dbUser.allowed_shift.startsWith('กะ')) return null;
+    
+    const expectedShift = dbUser.allowed_shift;             // เช่น "กะดึก"
+    const expectedDept  = dbUser.department || 'AM';        // เช่น "AM"
+    
+    // หากลุ่มที่พนักงานอยู่
+    const inGroups = [];
+    for (const g in extStaffGroups) {
+        if (extStaffGroups[g].includes(staff.id)) inGroups.push(g);
+    }
+    
+    // เอาเฉพาะกลุ่มที่มีคำว่า "กะ" (กลุ่มกะ) ตัวอื่นไม่เกี่ยว
+    const shiftGroups = inGroups.filter(g => /กะ(เช้า|กลาง|ดึก)/.test(g));
+    if (shiftGroups.length === 0) return null; // ไม่อยู่ในกลุ่มกะเลย → ไม่ตัดสิน
+    
+    // หากลุ่ม "ที่ถูกต้อง" — คือกลุ่มที่ dept+shift ตรงกับฐานข้อมูล
+    const correctGroup = shiftGroups.find(g => {
+        const { dept, shift } = parseDiscordGroupName(g);
+        return dept === expectedDept && shift === expectedShift;
+    });
+    
+    if (correctGroup) return null; // อยู่ในกลุ่มที่ถูกแล้ว ไม่มีปัญหา
+    
+    // 🚨 ไม่อยู่ในกลุ่มที่ถูก → ดูว่ามีกลุ่ม "ผิดกะ" ไหม (กะไม่ตรง)
+    const wrongShiftGroups = shiftGroups.filter(g => {
+        const { shift } = parseDiscordGroupName(g);
+        return shift && shift !== expectedShift;
+    });
+    
+    if (wrongShiftGroups.length === 0) return null;
+    
+    return {
+        wrongGroups: wrongShiftGroups,
+        expectedGroup: `${expectedDept} ${expectedShift}`,
+        dbDept: expectedDept,
+        dbShift: expectedShift
+    };
+}
+
+// 🌟 [NEW] ย้ายพนักงาน 1 คน ไปกลุ่ม Discord ที่ถูกต้องตามฐานข้อมูล
+window.autoFixStaffGroup = async function(staffId) {
+    const staff = extStaffList.find(s => s.id === staffId);
+    if (!staff) return Swal.fire('Error', 'ไม่พบพนักงานคนนี้', 'error');
+    
+    const mismatch = getDiscordGroupMismatch(staff);
+    if (!mismatch) return Swal.fire('OK', 'พนักงานคนนี้อยู่ในกลุ่มที่ถูกต้องแล้ว', 'success');
+    
+    // เช็คว่ากลุ่มปลายทางมีอยู่จริงไหม
+    if (!extStaffGroups[mismatch.expectedGroup]) {
+        return Swal.fire('Error', `ไม่พบกลุ่ม "${mismatch.expectedGroup}" ใน Discord<br>กรุณาสร้างกลุ่มก่อน`, 'error');
+    }
+    
+    const confirm = await Swal.fire({
+        title: 'ย้ายกลุ่มอัตโนมัติ?',
+        html: `
+            <div class="text-left text-sm">
+                <p class="mb-2"><b>${staff.name}</b></p>
+                <p class="text-gray-500">ระบบจะ:</p>
+                <ul class="text-xs text-gray-400 list-disc pl-5 mt-1">
+                    <li>เอาออกจาก: <span class="text-red-500 font-bold">${mismatch.wrongGroups.join(', ')}</span></li>
+                    <li>เพิ่มเข้า: <span class="text-emerald-500 font-bold">${mismatch.expectedGroup}</span></li>
+                </ul>
+            </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ย้ายเลย',
+        confirmButtonColor: '#10b981',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    
+    if (!confirm.isConfirmed) return;
+    
+    Swal.fire({title: 'กำลังย้าย...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    
+    try {
+        // 1. เอาออกจากกลุ่มผิดทุกกลุ่ม
+        for (const wrongG of mismatch.wrongGroups) {
+            await fetch(DISCORD_API_URL + '/api/groups/remove-member', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ groupName: wrongG, staffId: staff.id })
+            });
+            extStaffGroups[wrongG] = (extStaffGroups[wrongG] || []).filter(id => id !== staff.id);
+        }
+        // 2. เพิ่มเข้ากลุ่มที่ถูก
+        await fetch(DISCORD_API_URL + '/api/groups/assign', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupName: mismatch.expectedGroup, staffIds: [staff.id] })
+        });
+        if (!extStaffGroups[mismatch.expectedGroup]) extStaffGroups[mismatch.expectedGroup] = [];
+        if (!extStaffGroups[mismatch.expectedGroup].includes(staff.id)) {
+            extStaffGroups[mismatch.expectedGroup].push(staff.id);
+        }
+        
+        Swal.fire({icon: 'success', title: 'ย้ายเรียบร้อย!', timer: 1500, showConfirmButton: false});
+        if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
+        if (typeof renderGroupList === 'function') renderGroupList();
+    } catch (err) {
+        Swal.fire('Error', 'เกิดข้อผิดพลาด: ' + err.message, 'error');
+    }
+};
+
+// 🌟 [NEW] ย้ายทุกคนที่กลุ่มผิดให้ถูกพร้อมกัน (Batch Auto-fix)
+window.autoFixAllMismatches = async function() {
+    const mismatches = extStaffList
+        .map(s => ({ staff: s, info: getDiscordGroupMismatch(s) }))
+        .filter(x => x.info !== null);
+    
+    if (mismatches.length === 0) return Swal.fire('OK', 'ทุกคนอยู่ในกลุ่มที่ถูกต้องแล้ว 🎉', 'success');
+    
+    const confirm = await Swal.fire({
+        title: `ย้ายอัตโนมัติทั้งหมด ${mismatches.length} คน?`,
+        html: `<div class="text-left text-xs text-gray-500 max-h-60 overflow-y-auto">
+            ${mismatches.map(m => `
+                <div class="border-b border-slate-200 dark:border-slate-700 py-1.5">
+                    <div class="font-bold text-slate-700 dark:text-white text-sm">${m.staff.name}</div>
+                    <div class="text-[10px]"><span class="text-red-500">${m.info.wrongGroups.join(', ')}</span> → <span class="text-emerald-500">${m.info.expectedGroup}</span></div>
+                </div>`).join('')}
+        </div>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ย้ายทั้งหมด',
+        confirmButtonColor: '#10b981',
+        cancelButtonText: 'ยกเลิก',
+        width: '600px',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    
+    if (!confirm.isConfirmed) return;
+    
+    Swal.fire({title: `กำลังย้าย 0 / ${mismatches.length}`, allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    
+    let success = 0, fail = 0;
+    for (let i = 0; i < mismatches.length; i++) {
+        const { staff, info } = mismatches[i];
+        try {
+            // เช็คว่ามีกลุ่มปลายทางไหม
+            if (!extStaffGroups[info.expectedGroup]) { fail++; continue; }
+            
+            for (const wrongG of info.wrongGroups) {
+                await fetch(DISCORD_API_URL + '/api/groups/remove-member', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ groupName: wrongG, staffId: staff.id })
+                });
+                extStaffGroups[wrongG] = (extStaffGroups[wrongG] || []).filter(id => id !== staff.id);
+            }
+            await fetch(DISCORD_API_URL + '/api/groups/assign', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ groupName: info.expectedGroup, staffIds: [staff.id] })
+            });
+            if (!extStaffGroups[info.expectedGroup]) extStaffGroups[info.expectedGroup] = [];
+            if (!extStaffGroups[info.expectedGroup].includes(staff.id)) {
+                extStaffGroups[info.expectedGroup].push(staff.id);
+            }
+            success++;
+        } catch (e) { fail++; }
+        
+        // อัปเดต progress
+        Swal.update({ title: `กำลังย้าย ${i+1} / ${mismatches.length}` });
+    }
+    
+    Swal.fire({
+        icon: success > 0 ? 'success' : 'warning',
+        title: 'เสร็จสิ้น',
+        html: `✅ สำเร็จ: <b class="text-emerald-500">${success}</b> คน<br>❌ ล้มเหลว: <b class="text-red-500">${fail}</b> คน`,
+        timer: 3000
+    });
+    
+    if (typeof _doRenderManagerList === 'function') _doRenderManagerList();
+    if (typeof renderGroupList === 'function') renderGroupList();
+};
+
 window.applyDiscordPermissions = function() {
     const tabs = [
         { btnId: 'tabDsSpy', viewId: 'spy', reqPerm: 'ds_spy' },
@@ -1394,6 +1570,10 @@ window._doRenderManagerList = function() {
     const group = document.getElementById('filterStaffGroup').value;
     const deptFilter = document.getElementById('filterStaffDept').value;
     const shiftFilter = document.getElementById('filterStaffShift').value;
+    
+    // 🌟 [NEW] อ่านสถานะ checkbox "เฉพาะกลุ่มผิด" (ถ้ามี)
+    const onlyMismatchCb = document.getElementById('mgrOnlyMismatchCb');
+    const onlyMismatch = onlyMismatchCb ? onlyMismatchCb.checked : false;
 
     const filtered = extStaffList.filter(s => {
         const matchName = s.name.toLowerCase().includes(search);
@@ -1406,8 +1586,15 @@ window._doRenderManagerList = function() {
             if (deptFilter !== 'ALL' && (dbUser.department || 'AM') !== deptFilter) matchDept = false;
             if (shiftFilter !== 'ALL' && dbUser.allowed_shift !== shiftFilter) matchShift = false;
         }
+        
+        // 🌟 [NEW] ถ้าติ๊ก "เฉพาะกลุ่มผิด" → ตัดคนที่อยู่ถูกออก
+        if (onlyMismatch && !getDiscordGroupMismatch(s)) return false;
+        
         return matchName && matchGroup && matchDept && matchShift;
     });
+
+    // 🌟 [NEW] ใส่ Toolbar ตรวจสอบ + ย้ายอัตโนมัติ ที่ด้านบน (ถ้ายังไม่มี)
+    injectMismatchToolbar();
 
     if (filtered.length === 0) {
         container.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">ไม่พบรายชื่อ</div>';
@@ -1417,9 +1604,28 @@ window._doRenderManagerList = function() {
     container.innerHTML = filtered.map(s => {
         const dbUser = getDbUserFromDiscordName(s.name);
         let tagHtml = dbUser ? `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-700/50 ml-2 shadow-sm">${dbUser.department || 'AM'} | ${dbUser.allowed_shift.replace('กะ','')}</span>` : `<span class="bg-slate-700 text-gray-400 px-2 py-0.5 rounded text-[10px] font-bold ml-2">ไม่พบในระบบลงเวลา</span>`;
+        
+        // 🌟 [NEW] เช็ค mismatch — ถ้ามี: เพิ่ม warning badge + ปุ่ม Auto-fix
+        const mismatch = getDiscordGroupMismatch(s);
+        if (mismatch) {
+            tagHtml += `<button onclick="autoFixStaffGroup('${s.id}')" 
+                class="ml-2 inline-flex items-center gap-1 bg-rose-500 hover:bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-md border border-rose-400 animate-pulse"
+                title="กลุ่ม Discord ไม่ตรงกับฐานข้อมูล - กดเพื่อย้ายอัตโนมัติ">
+                <span class="material-icons text-[12px]">warning</span> กลุ่มผิด → ${mismatch.expectedGroup}
+            </button>`;
+        }
+        
+        // 🌟 [NEW] วาดกลุ่มที่อยู่ — ถ้ากลุ่มผิด ให้แสดงเป็นสีแดง
         let groupsIn = [];
         for(let g in extStaffGroups) { if(extStaffGroups[g].includes(s.id)) groupsIn.push(g); }
-        const gTags = groupsIn.map(g => `<span class="bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded text-[9px] mr-1">${g}</span>`).join('');
+        const wrongSet = mismatch ? new Set(mismatch.wrongGroups) : new Set();
+        const gTags = groupsIn.map(g => {
+            const isWrong = wrongSet.has(g);
+            const cls = isWrong 
+                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50 px-1.5 py-0.5 rounded text-[9px] mr-1 font-bold'
+                : 'bg-slate-700 text-gray-300 px-1.5 py-0.5 rounded text-[9px] mr-1';
+            return `<span class="${cls}">${isWrong ? '⚠ ' : ''}${g}</span>`;
+        }).join('');
         
         return window.renderTemplate('tpl-ds-manager-row', {
             id: s.id,
@@ -1429,6 +1635,46 @@ window._doRenderManagerList = function() {
         });
     }).join('');
 };
+
+// 🌟 [NEW] เพิ่ม Toolbar ที่ด้านบนหน้า Manage — Filter "เฉพาะกลุ่มผิด" + ปุ่มย้ายทั้งหมด
+function injectMismatchToolbar() {
+    if (document.getElementById('mgrMismatchToolbar')) {
+        // มีอยู่แล้ว → แค่อัปเดตจำนวน
+        const cnt = extStaffList.filter(s => getDiscordGroupMismatch(s)).length;
+        const cntEl = document.getElementById('mgrMismatchCount');
+        if (cntEl) cntEl.innerText = cnt;
+        return;
+    }
+    
+    const container = document.getElementById('manageStaffList');
+    if (!container || !container.parentNode) return;
+    
+    const totalMismatch = extStaffList.filter(s => getDiscordGroupMismatch(s)).length;
+    
+    const toolbar = document.createElement('div');
+    toolbar.id = 'mgrMismatchToolbar';
+    toolbar.className = 'mb-3 p-3 bg-gradient-to-r from-rose-500/10 to-amber-500/10 border border-rose-500/30 rounded-xl flex items-center justify-between gap-3 flex-wrap';
+    toolbar.innerHTML = `
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+            <span class="material-icons text-rose-400">rule</span>
+            <div class="text-xs">
+                <div class="font-bold text-rose-300">ตรวจสอบกลุ่ม Discord กับฐานข้อมูล</div>
+                <div class="text-gray-400 text-[10px]">พนักงานที่กลุ่มไม่ตรงกับกะในระบบลงเวลา: <b id="mgrMismatchCount" class="text-rose-400">${totalMismatch}</b> คน</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-gray-300 bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-600 transition">
+                <input type="checkbox" id="mgrOnlyMismatchCb" onchange="_doRenderManagerList()" class="cursor-pointer">
+                <span>🚨 เฉพาะกลุ่มผิด</span>
+            </label>
+            <button onclick="autoFixAllMismatches()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-md active:scale-95">
+                <span class="material-icons text-[14px]">auto_fix_high</span> ย้ายอัตโนมัติทั้งหมด
+            </button>
+        </div>
+    `;
+    
+    container.parentNode.insertBefore(toolbar, container);
+}
 
 window.renderGroupList = function() {
     const container = document.getElementById('groupList');
