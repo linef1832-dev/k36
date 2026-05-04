@@ -9,10 +9,12 @@
 
 let globalSOPData = [];
 let globalSOPCategories = [];
+let globalStandaloneRules = [];      // V4: กติกาแบบ standalone (Tab 1)
 let currentSopId = null;
 let sopPinFilterActive = false;
-let sopAttachmentsBuffer = []; // ไฟล์ที่กำลังเตรียมอัพโหลด
-let sopRulesBuffer = [];       // กติกา (V3) ที่กำลังแก้ในฟอร์ม
+let sopAttachmentsBuffer = [];
+let sopRulesBuffer = [];
+let sopActiveTab = 'rules';
 
 const SOP_PRIORITY_OPTIONS = [
     { id: 'high',   label: '🔴 สำคัญมาก',  color: 'red',    border: 'border-red-500',    bg: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700' },
@@ -38,6 +40,11 @@ window.initSopApp = async function() {
         if (isAdmin) adminControls.classList.remove('hidden');
         else adminControls.classList.add('hidden');
     }
+    const rulesAdminControls = document.getElementById('sopRulesAdminControls');
+    if (rulesAdminControls) {
+        if (isAdmin) rulesAdminControls.classList.remove('hidden');
+        else rulesAdminControls.classList.add('hidden');
+    }
 
     currentSopId = null;
     sopPinFilterActive = false;
@@ -46,6 +53,48 @@ window.initSopApp = async function() {
 
     await sop_loadCategories();
     await sop_fetchData();
+
+    // V3.4: ตั้ง tab default = "กติกา"
+    sopActiveTab = 'rules';
+    sop_switchTab('rules');
+};
+
+// ==========================================
+// 🆕 V3.4: TAB SWITCHER
+// ==========================================
+window.sop_switchTab = function(tabName) {
+    sopActiveTab = tabName;
+
+    const tabRules = document.getElementById('sopTab_rules');
+    const tabSop = document.getElementById('sopTab_sop');
+    const btnRules = document.getElementById('sopTabBtn_rules');
+    const btnSop = document.getElementById('sopTabBtn_sop');
+
+    if (tabName === 'rules') {
+        if (tabRules) { tabRules.classList.remove('hidden'); tabRules.classList.add('flex'); }
+        if (tabSop)   { tabSop.classList.add('hidden');     tabSop.classList.remove('flex'); }
+        if (btnRules) {
+            btnRules.classList.remove('bg-slate-100', 'dark:bg-slate-900', 'text-slate-600', 'dark:text-gray-400', 'border-gray-300', 'dark:border-slate-600', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+            btnRules.classList.add('bg-gradient-to-b', 'from-orange-500', 'to-amber-500', 'text-white', 'border-orange-400', '-mb-px');
+        }
+        if (btnSop) {
+            btnSop.classList.add('bg-slate-100', 'dark:bg-slate-900', 'text-slate-600', 'dark:text-gray-400', 'border-gray-300', 'dark:border-slate-600', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+            btnSop.classList.remove('bg-gradient-to-b', 'from-rose-500', 'to-pink-500', 'text-white', 'border-rose-400', '-mb-px');
+        }
+        sop_renderRulesCategoryDropdown();
+        sop_renderAllRulesPage();
+    } else {
+        if (tabRules) { tabRules.classList.add('hidden');     tabRules.classList.remove('flex'); }
+        if (tabSop)   { tabSop.classList.remove('hidden');   tabSop.classList.add('flex'); }
+        if (btnSop) {
+            btnSop.classList.remove('bg-slate-100', 'dark:bg-slate-900', 'text-slate-600', 'dark:text-gray-400', 'border-gray-300', 'dark:border-slate-600', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+            btnSop.classList.add('bg-gradient-to-b', 'from-rose-500', 'to-pink-500', 'text-white', 'border-rose-400', '-mb-px');
+        }
+        if (btnRules) {
+            btnRules.classList.add('bg-slate-100', 'dark:bg-slate-900', 'text-slate-600', 'dark:text-gray-400', 'border-gray-300', 'dark:border-slate-600', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+            btnRules.classList.remove('bg-gradient-to-b', 'from-orange-500', 'to-amber-500', 'text-white', 'border-orange-400', '-mb-px');
+        }
+    }
 };
 
 // ==========================================
@@ -58,14 +107,22 @@ window.sop_loadCategories = async function() {
             globalSOPCategories = JSON.parse(data.value);
         } else {
             globalSOPCategories = [
-                { id: 'การฝาก',    name: '💰 การฝาก' },
-                { id: 'การถอน',    name: '💸 การถอน' },
-                { id: 'เครดิต',    name: '🪙 เครดิต' },
-                { id: 'เคสพิเศษ',  name: '⚠️ เคสพิเศษ' },
-                { id: 'กฎทั่วไป',  name: '📌 กฎทั่วไป' }
+                { id: 'การฝาก',    name: '💰 การฝาก',    color: '#10b981' }, // เขียว
+                { id: 'การถอน',    name: '💸 การถอน',    color: '#f97316' }, // ส้ม
+                { id: 'เครดิต',    name: '🪙 เครดิต',    color: '#eab308' }, // เหลือง
+                { id: 'เคสพิเศษ',  name: '⚠️ เคสพิเศษ',  color: '#ef4444' }, // แดง
+                { id: 'กฎทั่วไป',  name: '📌 กฎทั่วไป',  color: '#3b82f6' }  // ฟ้า
             ];
             await appDB.from('settings').upsert([{ key: 'sop_categories', value: JSON.stringify(globalSOPCategories) }]);
         }
+        // ทำ default field สำหรับหมวดเก่าที่ไม่มี color
+        let needsSave = false;
+        const defaultColors = ['#10b981', '#f97316', '#eab308', '#ef4444', '#3b82f6', '#a855f7', '#ec4899'];
+        globalSOPCategories.forEach((c, i) => {
+            if (!c.color) { c.color = defaultColors[i % defaultColors.length]; needsSave = true; }
+        });
+        if (needsSave) await appDB.from('settings').upsert([{ key: 'sop_categories', value: JSON.stringify(globalSOPCategories) }]);
+
         sop_renderCategoryDropdowns();
     } catch (e) {
         console.error('sop_loadCategories error:', e);
@@ -75,6 +132,19 @@ window.sop_loadCategories = async function() {
 
 window.sop_renderCategoryDropdowns = function() {
     const filterSelect = document.getElementById('sopCategory');
+    if (filterSelect) {
+        const currentVal = filterSelect.value;
+        let html = '<option value="ALL">📂 ทุกหมวดหมู่</option>';
+        globalSOPCategories.forEach(c => html += `<option value="${c.id}">${c.name}</option>`);
+        filterSelect.innerHTML = html;
+        if (currentVal && (currentVal === 'ALL' || globalSOPCategories.some(c => c.id === currentVal))) filterSelect.value = currentVal;
+        else filterSelect.value = 'ALL';
+    }
+    sop_renderRulesCategoryDropdown();
+};
+
+window.sop_renderRulesCategoryDropdown = function() {
+    const filterSelect = document.getElementById('sopRulesCatFilter');
     if (!filterSelect) return;
     const currentVal = filterSelect.value;
     let html = '<option value="ALL">📂 ทุกหมวดหมู่</option>';
@@ -85,18 +155,92 @@ window.sop_renderCategoryDropdowns = function() {
 };
 
 window.sop_manageCategories = function() {
-    window.renderSopManageCatHtml = function() {
+    const palette = [
+        { val: '#10b981', name: 'เขียว' },
+        { val: '#22c55e', name: 'เขียวสด' },
+        { val: '#06b6d4', name: 'ฟ้าอมเขียว' },
+        { val: '#3b82f6', name: 'ฟ้า' },
+        { val: '#6366f1', name: 'น้ำเงิน' },
+        { val: '#8b5cf6', name: 'ม่วง' },
+        { val: '#a855f7', name: 'ม่วงสด' },
+        { val: '#ec4899', name: 'ชมพู' },
+        { val: '#ef4444', name: 'แดง' },
+        { val: '#f97316', name: 'ส้ม' },
+        { val: '#f59e0b', name: 'ส้มทอง' },
+        { val: '#eab308', name: 'เหลือง' },
+        { val: '#84cc16', name: 'เขียวมะนาว' },
+        { val: '#64748b', name: 'เทา' }
+    ];
+
+    function buildPalette(currentColor, attr) {
+        return palette.map(c => `
+            <button type="button" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('ring-2','ring-slate-900','dark:ring-white','scale-110')); this.classList.add('ring-2','ring-slate-900','dark:ring-white','scale-110'); this.parentNode.dataset.${attr} = '${c.val}';"
+                class="w-6 h-6 rounded-md border border-gray-300 dark:border-slate-600 shadow-sm transition ${currentColor === c.val ? 'ring-2 ring-slate-900 dark:ring-white scale-110' : ''}"
+                style="background-color: ${c.val};" title="${c.name}"></button>
+        `).join('');
+    }
+
+    function buildList() {
         if (globalSOPCategories.length === 0) return '<div class="text-center text-gray-500 text-sm py-4">ไม่มีหมวดหมู่</div>';
-        return globalSOPCategories.map((c, idx) => window.renderTemplate('tpl-sop-manage-cat-item', { catName: c.name, index: idx })).join('');
-    };
-    const htmlContent = window.renderTemplate('tpl-sop-manage-cat', { catListHtml: window.renderSopManageCatHtml() });
+        return globalSOPCategories.map((c, idx) => `
+            <div class="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl mb-2 shadow-sm overflow-hidden">
+                <div class="px-3 py-2 flex justify-between items-center gap-2" style="border-left: 6px solid ${c.color || '#f97316'};">
+                    <span class="text-slate-800 dark:text-white font-bold text-sm flex-1 truncate">${c.name}</span>
+                    <button onclick="document.getElementById('sopCatPalette_${idx}').classList.toggle('hidden')" class="text-blue-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-blue-500 px-2 py-1.5 rounded-lg transition shadow-sm border border-gray-200 dark:border-slate-700" title="เปลี่ยนสี"><span class="material-icons text-[16px]">palette</span></button>
+                    <button onclick="sop_deleteCategory(${idx})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 px-2 py-1.5 rounded-lg transition shadow-sm border border-gray-200 dark:border-slate-700" title="ลบหมวดหมู่"><span class="material-icons text-[16px]">delete</span></button>
+                </div>
+                <div id="sopCatPalette_${idx}" class="hidden px-3 py-2 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
+                    <div class="text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">เลือกสีหมวด</div>
+                    <div class="flex flex-wrap gap-1.5" data-color="${c.color || '#f97316'}" id="sopCatPaletteBtns_${idx}">
+                        ${buildPalette(c.color || '#f97316', 'color')}
+                    </div>
+                    <button onclick="sop_saveCategoryColor(${idx})" class="mt-2 w-full bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded-lg text-xs font-bold transition active:scale-95 shadow-sm flex items-center justify-center gap-1"><span class="material-icons text-[14px]">check</span>บันทึกสี</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    window.renderSopManageCatHtml = buildList;
+
+    const initialPaletteHtml = buildPalette('#f97316', 'newcatcolor');
+
+    const htmlContent = `
+        <div class="text-left mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 mb-4">
+                <div class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">เพิ่มหมวดหมู่ใหม่</div>
+                <input type="text" id="newSopCatName" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่..." class="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-sm outline-none focus:border-rose-500 shadow-inner font-bold mb-2">
+                <div class="text-[10px] font-bold text-gray-500 mb-1.5">เลือกสี:</div>
+                <div class="flex flex-wrap gap-1.5 mb-2" data-newcatcolor="#f97316" id="sopNewCatPalette">${initialPaletteHtml}</div>
+                <button onclick="sop_addCategory()" class="w-full bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl font-bold shadow-md transition active:scale-95 flex items-center justify-center gap-1 border border-rose-500"><span class="material-icons text-sm">add</span> เพิ่มหมวดหมู่</button>
+            </div>
+            <div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-2 border-b border-gray-200 dark:border-slate-700 pb-1">หมวดหมู่ที่มีอยู่</div>
+            <div id="sopCatListContainer" class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
+                ${buildList()}
+            </div>
+        </div>
+    `;
+
     Swal.fire({
         title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-rose-500">category</span> จัดการหมวดหมู่</div>',
         html: htmlContent,
         showConfirmButton: false,
         showCloseButton: true,
+        width: '560px',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' }
     });
+};
+
+window.sop_saveCategoryColor = async function(idx) {
+    const palette = document.getElementById(`sopCatPaletteBtns_${idx}`);
+    if (!palette) return;
+    const newColor = palette.dataset.color;
+    if (!newColor || !globalSOPCategories[idx]) return;
+    globalSOPCategories[idx].color = newColor;
+    await appDB.from('settings').upsert([{ key: 'sop_categories', value: JSON.stringify(globalSOPCategories) }]);
+    document.getElementById('sopCatListContainer').innerHTML = window.renderSopManageCatHtml();
+    sop_renderAllRulesPage();
+    sop_renderList();
+    sop_showInlineToast('เปลี่ยนสีหมวดแล้ว ✅', 'success');
 };
 
 window.sop_addCategory = async function() {
@@ -108,11 +252,15 @@ window.sop_addCategory = async function() {
         Swal.showValidationMessage('มีหมวดหมู่นี้ในระบบแล้วครับ'); return;
     }
     Swal.resetValidationMessage();
-    globalSOPCategories.push({ id, name: val });
+    // ดึงสีจาก palette
+    const palette = document.getElementById('sopNewCatPalette');
+    const color = (palette && palette.dataset.newcatcolor) || '#f97316';
+    globalSOPCategories.push({ id, name: val, color });
     input.value = '';
     document.getElementById('sopCatListContainer').innerHTML = window.renderSopManageCatHtml();
     await appDB.from('settings').upsert([{ key: 'sop_categories', value: JSON.stringify(globalSOPCategories) }]);
     sop_renderCategoryDropdowns();
+    sop_renderAllRulesPage();
 };
 
 window.sop_deleteCategory = async function(idx) {
@@ -146,7 +294,7 @@ window.sop_fetchData = async function() {
         } else {
             globalSOPData = [];
         }
-        // ทำ default field ที่อาจไม่มีใน V1/V2
+        // ทำ default field ที่อาจไม่มีใน V1/V2/V3
         globalSOPData.forEach(r => {
             if (!r.priority) r.priority = 'medium';
             if (typeof r.pinned !== 'boolean') r.pinned = false;
@@ -156,16 +304,53 @@ window.sop_fetchData = async function() {
             if (typeof r.view_count !== 'number') r.view_count = 0;
             if (!Array.isArray(r.read_by)) r.read_by = [];
             if (!Array.isArray(r.history)) r.history = [];
-            if (!Array.isArray(r.rules)) r.rules = []; // V3: บล็อกกติกา [{type, text}]
+            if (!Array.isArray(r.rules)) r.rules = [];
+            r.rules.forEach(rule => {
+                if (!rule.color) rule.color = '';
+                if (!rule.subgroup) rule.subgroup = '';
+                if (!Array.isArray(rule.images)) rule.images = [];
+            });
         });
         sop_sortData();
         sop_renderList();
         if (currentSopId) sop_readRule(currentSopId, true);
+
+        // V4: โหลด standalone rules (Tab 1)
+        await sop_fetchStandaloneRules();
     } catch (e) {
         console.error('sop_fetchData error:', e);
         globalSOPData = [];
         sop_renderList();
     }
+};
+
+// V4: โหลด/บันทึก standalone rules (กติกาที่อยู่ใน Tab "กติกาขั้นตอน" — ไม่ผูกกับ SOP)
+window.sop_fetchStandaloneRules = async function() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'sop_rules_standalone').single();
+        if (data && data.value) {
+            globalStandaloneRules = JSON.parse(data.value);
+        } else {
+            globalStandaloneRules = [];
+        }
+        // default fields
+        globalStandaloneRules.forEach(r => {
+            if (!r.color) r.color = '';
+            if (!r.subgroup) r.subgroup = '';
+            if (!Array.isArray(r.images)) r.images = [];
+            if (!r.type) r.type = 'do';
+            if (!r.title) r.title = '';
+            if (!r.text) r.text = '';
+            if (typeof r.pinned !== 'boolean') r.pinned = false;
+        });
+    } catch (e) {
+        console.warn('sop_fetchStandaloneRules error (treating as empty):', e);
+        globalStandaloneRules = [];
+    }
+};
+
+window.sop_saveStandaloneRules = async function() {
+    await appDB.from('settings').upsert([{ key: 'sop_rules_standalone', value: JSON.stringify(globalStandaloneRules) }]);
 };
 
 window.sop_saveAllData = async function() {
@@ -233,6 +418,9 @@ window.sop_renderList = function() {
 
     if (countEl) countEl.innerText = `${filtered.length}/${globalSOPData.length}`;
 
+    // V3.4: อัพเดทเลขแท็บ
+    sop_updateTabCounters();
+
     if (globalSOPData.length === 0) {
         const isAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
         const hint = isAdmin ? 'กดปุ่ม "เพิ่มกฎใหม่" เพื่อเริ่ม' : 'รอผู้ดูแลเพิ่มกฎ';
@@ -246,14 +434,27 @@ window.sop_renderList = function() {
 
     const myUsername = (currentUser && currentUser.username) || '';
 
-    container.innerHTML = filtered.map(item => {
+    // V4.2: จัดกลุ่มตามหมวดหมู่
+    const groupedByCategory = {};
+    filtered.forEach(item => {
+        const catKey = item.category || '__uncat__';
+        if (!groupedByCategory[catKey]) groupedByCategory[catKey] = [];
+        groupedByCategory[catKey].push(item);
+    });
+
+    // เรียงลำดับหมวด: ตาม globalSOPCategories ก่อน → unmatched ท้าย
+    const orderedCatKeys = [];
+    globalSOPCategories.forEach(c => { if (groupedByCategory[c.id]) orderedCatKeys.push(c.id); });
+    Object.keys(groupedByCategory).forEach(k => { if (!orderedCatKeys.includes(k)) orderedCatKeys.push(k); });
+
+    function buildItemHtml(item) {
         let icon = 'rule', iconColor = 'text-gray-500 dark:text-gray-400';
-        const c = item.category || '';
-        if (c.includes('ฝาก'))     { icon = 'savings';        iconColor = 'text-emerald-500 dark:text-emerald-400'; }
-        else if (c.includes('ถอน')) { icon = 'payments';       iconColor = 'text-blue-500 dark:text-blue-400'; }
-        else if (c.includes('เครดิต')) { icon = 'monetization_on'; iconColor = 'text-amber-500 dark:text-amber-400'; }
-        else if (c.includes('พิเศษ')) { icon = 'warning';        iconColor = 'text-rose-500 dark:text-rose-400'; }
-        else if (c.includes('ทั่วไป')) { icon = 'menu_book';      iconColor = 'text-purple-500 dark:text-purple-400'; }
+        const cs = item.category || '';
+        if (cs.includes('ฝาก'))     { icon = 'savings';        iconColor = 'text-emerald-500 dark:text-emerald-400'; }
+        else if (cs.includes('ถอน')) { icon = 'payments';       iconColor = 'text-blue-500 dark:text-blue-400'; }
+        else if (cs.includes('เครดิต')) { icon = 'monetization_on'; iconColor = 'text-amber-500 dark:text-amber-400'; }
+        else if (cs.includes('พิเศษ')) { icon = 'warning';        iconColor = 'text-rose-500 dark:text-rose-400'; }
+        else if (cs.includes('ทั่วไป')) { icon = 'menu_book';      iconColor = 'text-purple-500 dark:text-purple-400'; }
 
         const displayCat = globalSOPCategories.find(x => x.id === item.category)?.name || item.category;
         const dateRaw = item.updated_at || item.created_at;
@@ -267,7 +468,6 @@ window.sop_renderList = function() {
 
         const pinIcon = item.pinned ? '<span class="absolute top-1.5 right-1.5 material-icons text-amber-500 text-[16px]" title="ปักหมุด">push_pin</span>' : '';
 
-        // shift badges
         const shifts = item.shifts || ['all'];
         let shiftBadges = '';
         if (!shifts.includes('all')) {
@@ -279,36 +479,35 @@ window.sop_renderList = function() {
             shiftBadges = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">ทุกกะ</span>';
         }
 
-        // read indicator
-        const isRead = (item.read_by || []).includes(myUsername);
-        const readIndicator = isRead
-            ? '<span class="text-[9px] flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-bold"><span class="material-icons text-[11px]">check_circle</span>อ่านแล้ว</span>'
-            : '';
-
-        // tags
-        let tagsHtml = '';
-        if (item.tags && item.tags.length > 0) {
-            tagsHtml = '<div class="flex flex-wrap gap-1 mt-1.5">' +
-                item.tags.slice(0, 4).map(t => `<span class="text-[9px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-700/50">#${t}</span>`).join('') +
-                (item.tags.length > 4 ? `<span class="text-[9px] text-gray-400">+${item.tags.length - 4}</span>` : '') +
-                '</div>';
+        const readBy = item.read_by || [];
+        const isReadByMe = readBy.includes(myUsername);
+        let readIndicator = '';
+        if (readBy.length > 0) {
+            readIndicator = isReadByMe
+                ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 flex items-center gap-0.5"><span class="material-icons text-[10px]">verified</span>อ่านแล้ว</span>`
+                : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-slate-600 flex items-center gap-0.5"><span class="material-icons text-[10px]">groups</span>${readBy.length} คน</span>`;
         }
 
-        // attachments icon
+        let tagsHtml = '';
+        if (item.tags && item.tags.length > 0) {
+            tagsHtml = '<div class="flex flex-wrap gap-1 mt-1.5">' + item.tags.slice(0, 4).map(t => `<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700">#${t}</span>`).join('') + (item.tags.length > 4 ? `<span class="text-[9px] px-1 text-gray-500">+${item.tags.length - 4}</span>` : '') + '</div>';
+        }
+
         const attCount = (item.attachments || []).length;
         const attachmentIcon = attCount > 0
             ? `<span class="flex items-center gap-0.5 text-amber-600 dark:text-amber-400"><span class="material-icons text-[11px]">attach_file</span>${attCount}</span>`
             : '';
 
-        // rules count badge (V3)
-        const rulesCount = (item.rules || []).length;
-        const rulesCountBadge = rulesCount > 0
-            ? `<span class="flex items-center gap-0.5 text-orange-600 dark:text-orange-400"><span class="material-icons text-[11px]">gavel</span>${rulesCount}</span>`
-            : '';
-
         const activeBg = currentSopId === item.id
             ? 'bg-rose-50 dark:bg-rose-900/20 border border-rose-400 ring-2 ring-rose-300 dark:ring-rose-700'
             : 'bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-rose-400 dark:hover:border-rose-500/50 hover:bg-white dark:hover:bg-slate-800';
+
+        // V4.3: ปุ่มย้ายหมวดเร็ว (เฉพาะ admin)
+        const hasManagePermLi = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
+        const isAdminLi = hasManagePermLi || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+        const moveCategoryBtn = isAdminLi
+            ? `<button onclick="event.stopPropagation(); sop_quickMoveCategory('${item.id}')" class="ml-auto bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-400 hover:text-blue-500 px-2 py-1 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-1" title="ย้ายไปหมวดอื่น"><span class="material-icons text-[12px]">drive_file_move</span>ย้ายหมวด</button>`
+            : '';
 
         return window.renderTemplate('tpl-sop-list-item', {
             id: item.id,
@@ -321,9 +520,426 @@ window.sop_renderList = function() {
             date,
             viewCount: item.view_count || 0,
             attachmentIcon,
-            rulesCountBadge
+            rulesCountBadge: '',
+            moveCategoryBtn
         });
+    }
+
+    if (!window._sopCollapsedCats) window._sopCollapsedCats = new Set();
+
+    let listHtml = '';
+    orderedCatKeys.forEach(catKey => {
+        const items = groupedByCategory[catKey];
+        const catObj = globalSOPCategories.find(c => c.id === catKey);
+        const catLabel = catKey === '__uncat__' ? '(ไม่ระบุหมวด)' : (catObj ? catObj.name : catKey);
+        const catColor = catObj?.color || '#64748b';
+        const isCollapsed = window._sopCollapsedCats.has(catKey);
+
+        let catIcon = 'rule';
+        if (catLabel.includes('ฝาก'))     catIcon = 'savings';
+        else if (catLabel.includes('ถอน')) catIcon = 'payments';
+        else if (catLabel.includes('เครดิต')) catIcon = 'monetization_on';
+        else if (catLabel.includes('พิเศษ')) catIcon = 'warning';
+        else if (catLabel.includes('ทั่วไป')) catIcon = 'menu_book';
+
+        const itemsHtml = items.map(buildItemHtml).join('');
+        const safeCatKey = (catKey || '').replace(/'/g, '');
+        listHtml += `
+            <div class="rounded-xl overflow-hidden shadow-sm mb-3 border border-gray-200 dark:border-slate-700">
+                <div onclick="sop_toggleCatFolder('${safeCatKey}')" class="cursor-pointer text-white px-3 py-2 flex items-center gap-2 transition" style="background: ${catColor};">
+                    <span class="material-icons text-[18px]">${catIcon}</span>
+                    <span class="font-black text-sm tracking-wide flex-1 truncate">${(catLabel).replace(/</g, '&lt;')}</span>
+                    <span class="bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full">${items.length}</span>
+                    <span class="material-icons text-white transition ${isCollapsed ? '' : 'rotate-180'} text-[18px]">expand_more</span>
+                </div>
+                ${isCollapsed ? '' : `<div class="bg-slate-50 dark:bg-slate-900/30 p-2 space-y-2">${itemsHtml}</div>`}
+            </div>
+        `;
+    });
+
+    container.innerHTML = listHtml;
+};
+
+// V4.2: toggle category folder
+window.sop_toggleCatFolder = function(catKey) {
+    if (!window._sopCollapsedCats) window._sopCollapsedCats = new Set();
+    if (window._sopCollapsedCats.has(catKey)) window._sopCollapsedCats.delete(catKey);
+    else window._sopCollapsedCats.add(catKey);
+    sop_renderList();
+};
+
+// V4.3: ย้ายกฎไปหมวดอื่นแบบรวดเร็ว
+window.sop_quickMoveCategory = async function(ruleId) {
+    const item = globalSOPData.find(r => String(r.id) === String(ruleId));
+    if (!item) return;
+
+    const currentCatLabel = globalSOPCategories.find(c => c.id === item.category)?.name || item.category || 'ไม่ระบุ';
+
+    const optionsHtml = globalSOPCategories.map(c => {
+        const isCurrent = c.id === item.category;
+        const color = c.color || '#64748b';
+        return `
+            <button type="button" data-catid="${c.id}" onclick="document.querySelectorAll('.qmCatBtn').forEach(b=>b.classList.remove('ring-2','ring-blue-500','scale-[1.02]')); this.classList.add('ring-2','ring-blue-500','scale-[1.02]'); document.getElementById('qmSelected').value='${c.id}';" 
+                class="qmCatBtn w-full text-left p-3 rounded-xl border-2 ${isCurrent ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 opacity-60' : 'border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-blue-400'} transition flex items-center gap-3 mb-2 shadow-sm" ${isCurrent ? 'disabled' : ''}>
+                <div class="w-5 h-5 rounded-md shrink-0" style="background-color: ${color};"></div>
+                <span class="text-sm font-bold text-slate-800 dark:text-white flex-1">${c.name}</span>
+                ${isCurrent ? '<span class="text-[10px] font-bold text-amber-600 dark:text-amber-400">หมวดปัจจุบัน</span>' : ''}
+            </button>
+        `;
     }).join('');
+
+    const formHtml = `
+        <div class="text-left">
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-xl p-3 mb-4 text-sm">
+                <div class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-1">กฎที่จะย้าย</div>
+                <div class="font-bold text-slate-800 dark:text-white">${(item.title || '(ไม่มีชื่อ)').replace(/</g, '&lt;')}</div>
+                <div class="text-xs text-gray-500 mt-1">หมวดปัจจุบัน: <span class="font-bold">${currentCatLabel}</span></div>
+            </div>
+            <div class="text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-2">เลือกหมวดใหม่</div>
+            <div class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">${optionsHtml}</div>
+            <input type="hidden" id="qmSelected" value="">
+        </div>
+    `;
+
+    const result = await Swal.fire({
+        title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-blue-500">drive_file_move</span> ย้ายไปหมวดอื่น</div>',
+        html: formHtml,
+        width: '500px',
+        showCancelButton: true,
+        confirmButtonText: '<span class="material-icons text-sm align-middle mr-1">check</span> ย้าย',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#64748b',
+        focusConfirm: false,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
+        preConfirm: () => {
+            const newCat = document.getElementById('qmSelected').value;
+            if (!newCat) { Swal.showValidationMessage('กรุณาเลือกหมวดใหม่'); return false; }
+            if (newCat === item.category) { Swal.showValidationMessage('นี่คือหมวดเดิมอยู่แล้ว'); return false; }
+            return { newCat };
+        }
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    Swal.fire({ title: 'กำลังย้าย...', didOpen: () => Swal.showLoading() });
+    try {
+        const oldCat = currentCatLabel;
+        const newCatLabel = globalSOPCategories.find(c => c.id === result.value.newCat)?.name || result.value.newCat;
+        const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
+        const nowIso = new Date().toISOString();
+
+        const idx = globalSOPData.findIndex(x => String(x.id) === String(ruleId));
+        if (idx !== -1) {
+            globalSOPData[idx].category = result.value.newCat;
+            globalSOPData[idx].updated_at = nowIso;
+            globalSOPData[idx].last_editor = authorName;
+            if (!Array.isArray(globalSOPData[idx].history)) globalSOPData[idx].history = [];
+            globalSOPData[idx].history.push({
+                timestamp: nowIso,
+                editor: authorName,
+                title_before: globalSOPData[idx].title,
+                action: `ย้ายหมวด: ${oldCat} → ${newCatLabel}`
+            });
+            while (globalSOPData[idx].history.length > 5) globalSOPData[idx].history.shift();
+        }
+
+        await sop_saveAllData();
+        sop_sortData();
+        sop_renderList();
+        sop_updateTabCounters();
+        Swal.fire({ icon: 'success', title: `ย้ายไป "${newCatLabel}" แล้ว!`, timer: 1200, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message || 'ย้ายไม่สำเร็จ', 'error');
+    }
+};
+
+
+// ==========================================
+// 🔢 V3.4: TAB COUNTERS
+// ==========================================
+window.sop_updateTabCounters = function() {
+    const sopBadge = document.getElementById('sopTabSopCount');
+    const rulesBadge = document.getElementById('sopTabRulesCount');
+
+    if (sopBadge) sopBadge.innerText = globalSOPData.length;
+    if (rulesBadge) rulesBadge.innerText = (globalStandaloneRules || []).length;
+};
+
+// ==========================================
+// 🟠 V3.7: หน้ากติกาทั้งหมด (Tab Rules) — Dropdown + Subgroup + Custom Color + Images
+// ==========================================
+
+// ตัวเก็บสถานะ accordion (เปิด/ปิด แต่ละข้อ) ในหน้าแสดงผล
+window._sopOpenRules = window._sopOpenRules || new Set();
+
+window.sop_toggleRuleAccordion = function(ruleId, idx) {
+    const key = `${ruleId}::${idx}`;
+    if (window._sopOpenRules.has(key)) window._sopOpenRules.delete(key);
+    else window._sopOpenRules.add(key);
+    sop_renderAllRulesPage();
+};
+
+// ดีไซน์ตามประเภท (ไอคอน/สีเริ่มต้น)
+function sop_getRuleTypeStyle(t) {
+    let cfg = {
+        defaultColor: '#10b981', // emerald
+        ic: 'check_circle',
+        lbl: 'ทำได้'
+    };
+    if (t === 'dont')      cfg = { defaultColor: '#ef4444', ic: 'block',          lbl: 'ห้ามทำ' };
+    else if (t === 'must') cfg = { defaultColor: '#f97316', ic: 'priority_high',  lbl: 'ต้องทำ' };
+    else if (t === 'info') cfg = { defaultColor: '#3b82f6', ic: 'info',           lbl: 'หมายเหตุ' };
+    return cfg;
+}
+
+// ==========================================
+// 🟠 V5: หน้ากติกาขั้นตอน (Tab Rules) — Layout 2 คอลัมน์
+// ==========================================
+
+// state: หมวดที่กำลังเลือกในสารบัญ (default = หมวดแรกที่มีกติกา หรือ ALL)
+window._sopSelectedCat = window._sopSelectedCat || null;
+
+// คลิกหมวดในสารบัญ → render เนื้อหาของหมวดนั้นด้านขวา
+window.sop_selectRulesCategory = function(catKey) {
+    window._sopSelectedCat = catKey;
+    sop_renderAllRulesPage();
+};
+
+// helper: lighten hex color
+function sop_lightenHex(hex, amt) {
+    if (!hex || !hex.startsWith('#')) return hex;
+    const c = hex.replace('#', '');
+    const r = Math.min(255, parseInt(c.substr(0,2), 16) + amt);
+    const g = Math.min(255, parseInt(c.substr(2,2), 16) + amt);
+    const b = Math.min(255, parseInt(c.substr(4,2), 16) + amt);
+    return `rgb(${r},${g},${b})`;
+}
+
+window.sop_renderAllRulesPage = function() {
+    const tocContainer = document.getElementById('sopAllRulesTocContainer');
+    const container = document.getElementById('sopAllRulesContainer');
+    const countEl = document.getElementById('sopRulesCount');
+    if (!tocContainer || !container) return;
+
+    const term = document.getElementById('sopRulesSearch') ? document.getElementById('sopRulesSearch').value.toLowerCase() : '';
+    const catF = document.getElementById('sopRulesCatFilter') ? document.getElementById('sopRulesCatFilter').value : 'ALL';
+    const typeF = document.getElementById('sopRulesTypeFilter') ? document.getElementById('sopRulesTypeFilter').value : 'ALL';
+
+    // กรองตาม filter
+    let filtered = (globalStandaloneRules || []).slice();
+    if (catF !== 'ALL') filtered = filtered.filter(r => r.category === catF);
+    if (typeF !== 'ALL') filtered = filtered.filter(r => (r.type || 'do') === typeF);
+    if (term) filtered = filtered.filter(r =>
+        (r.title || '').toLowerCase().includes(term) ||
+        (r.text || '').toLowerCase().includes(term) ||
+        (r.subgroup || '').toLowerCase().includes(term)
+    );
+
+    // เรียง: pinned ก่อน → ใหม่ก่อน
+    filtered.sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0);
+    });
+
+    if (countEl) countEl.innerText = `${filtered.length}/${(globalStandaloneRules || []).length}`;
+
+    if (!filtered.length) {
+        if (!globalStandaloneRules || globalStandaloneRules.length === 0) {
+            tocContainer.innerHTML = '<div class="text-center text-gray-400 dark:text-gray-500 text-xs py-8 italic">ยังไม่มีกติกา</div>';
+            container.innerHTML = `
+                <div class="text-center text-gray-400 dark:text-gray-600 mt-[15vh] flex flex-col items-center select-none p-8">
+                    <span class="material-icons text-[100px] mb-6 opacity-30">gavel</span>
+                    <h2 class="text-2xl font-black text-gray-500">ยังไม่มีกติกาขั้นตอน</h2>
+                    <p class="text-sm mt-2 font-bold">กดปุ่ม "+ เพิ่มกติกาใหม่" ด้านบนเพื่อสร้าง</p>
+                </div>`;
+        } else {
+            tocContainer.innerHTML = '<div class="text-center text-gray-400 dark:text-gray-500 text-xs py-8 italic">ไม่พบกติกา</div>';
+            container.innerHTML = `
+                <div class="text-center text-gray-400 dark:text-gray-600 mt-[15vh] flex flex-col items-center select-none p-8">
+                    <span class="material-icons text-[100px] mb-6 opacity-30">search_off</span>
+                    <h2 class="text-2xl font-black text-gray-500">ไม่พบกติกาตามเงื่อนไข</h2>
+                    <p class="text-sm mt-2 font-bold">ลองเปลี่ยนคำค้นหาหรือ filter</p>
+                </div>`;
+        }
+        return;
+    }
+
+    const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
+    const isAdmin = hasManagePerm || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+
+    // จัดกลุ่มตามหมวด
+    const groupedByCat = {};
+    filtered.forEach(r => {
+        const c = r.category || '__uncat__';
+        if (!groupedByCat[c]) groupedByCat[c] = [];
+        groupedByCat[c].push({ r, idx: globalStandaloneRules.indexOf(r) });
+    });
+
+    // เรียงหมวดตาม globalSOPCategories
+    const orderedCatKeys = [];
+    globalSOPCategories.forEach(c => { if (groupedByCat[c.id]) orderedCatKeys.push(c.id); });
+    Object.keys(groupedByCat).forEach(k => { if (!orderedCatKeys.includes(k)) orderedCatKeys.push(k); });
+
+    // ถ้ายังไม่มี selected หรือ selected ไม่อยู่ในรายการ → เลือกตัวแรก
+    let selectedCat = window._sopSelectedCat;
+    if (!selectedCat || !groupedByCat[selectedCat]) {
+        selectedCat = orderedCatKeys[0];
+        window._sopSelectedCat = selectedCat;
+    }
+
+    // ============= 1) RENDER TOC (สารบัญซ้าย) =============
+    let tocHtml = '';
+    orderedCatKeys.forEach(catKey => {
+        const items = groupedByCat[catKey];
+        const catObj = globalSOPCategories.find(c => c.id === catKey);
+        const catLabel = catKey === '__uncat__' ? '(ไม่ระบุหมวด)' : (catObj ? catObj.name : catKey);
+        const catColor = catObj?.color || '#64748b';
+
+        let catIcon = 'rule';
+        if (catLabel.includes('ฝาก'))     catIcon = 'savings';
+        else if (catLabel.includes('ถอน')) catIcon = 'payments';
+        else if (catLabel.includes('เครดิต')) catIcon = 'monetization_on';
+        else if (catLabel.includes('พิเศษ')) catIcon = 'warning';
+        else if (catLabel.includes('ทั่วไป')) catIcon = 'menu_book';
+
+        const isSelected = catKey === selectedCat;
+        const safeCatKey = (catKey || '').replace(/'/g, '');
+
+        tocHtml += `
+            <div onclick="sop_selectRulesCategory('${safeCatKey}')" class="cursor-pointer rounded-xl border-l-4 ${isSelected ? 'ring-2 ring-orange-300 dark:ring-orange-700 bg-orange-50 dark:bg-orange-900/20 border-orange-400' : 'bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-orange-400 dark:hover:border-orange-500/50 hover:bg-white dark:hover:bg-slate-800'} transition group shadow-sm relative overflow-hidden mb-2.5" style="border-left-color: ${catColor};">
+                <div class="p-3 flex gap-3 items-center">
+                    <div class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-inner" style="background-color: ${catColor};">
+                        <span class="material-icons text-[20px]">${catIcon}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-slate-800 dark:text-white font-bold text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition leading-snug">${(catLabel).replace(/</g, '&lt;')}</h4>
+                        <div class="text-[10px] font-bold text-gray-500 mt-0.5">${items.length} ข้อ</div>
+                    </div>
+                    ${isSelected ? '<span class="material-icons text-orange-500 text-[18px]">arrow_forward</span>' : ''}
+                </div>
+            </div>
+        `;
+    });
+    tocContainer.innerHTML = tocHtml;
+
+    // ============= 2) RENDER เนื้อหาขวา (กติกาในหมวดที่เลือก) =============
+    const selectedItems = groupedByCat[selectedCat] || [];
+    const selectedCatObj = globalSOPCategories.find(c => c.id === selectedCat);
+    const selectedLabel = selectedCat === '__uncat__' ? '(ไม่ระบุหมวด)' : (selectedCatObj ? selectedCatObj.name : selectedCat);
+    const selectedColor = selectedCatObj?.color || '#64748b';
+    const selectedColorLight = sop_lightenHex(selectedColor, 30);
+
+    let selectedIcon = 'rule';
+    if (selectedLabel.includes('ฝาก'))     selectedIcon = 'savings';
+    else if (selectedLabel.includes('ถอน')) selectedIcon = 'payments';
+    else if (selectedLabel.includes('เครดิต')) selectedIcon = 'monetization_on';
+    else if (selectedLabel.includes('พิเศษ')) selectedIcon = 'warning';
+    else if (selectedLabel.includes('ทั่วไป')) selectedIcon = 'menu_book';
+
+    // จัดกลุ่มย่อย (subgroup)
+    const subgroupMap = {};
+    selectedItems.forEach(({ r, idx }) => {
+        const g = (r.subgroup || '').trim() || '__no_sub__';
+        if (!subgroupMap[g]) subgroupMap[g] = [];
+        subgroupMap[g].push({ r, idx });
+    });
+    const subgroupNames = Object.keys(subgroupMap).sort((a, b) => {
+        if (a === '__no_sub__') return 1;
+        if (b === '__no_sub__') return -1;
+        return a.localeCompare(b, 'th');
+    });
+
+    let bodyHtml = '';
+    subgroupNames.forEach(gName => {
+        if (gName !== '__no_sub__') {
+            bodyHtml += `
+                <div class="flex items-center gap-2 mt-3 mb-2 px-1">
+                    <span class="material-icons text-orange-500 text-[16px]">folder</span>
+                    <span class="text-xs font-black text-slate-700 dark:text-gray-200 uppercase tracking-wider">${(gName).replace(/</g, '&lt;')}</span>
+                    <div class="flex-1 border-t border-dashed border-orange-300 dark:border-orange-700/50 ml-1"></div>
+                    <span class="text-[10px] font-bold text-gray-500 bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-full">${subgroupMap[gName].length} ข้อ</span>
+                </div>`;
+        }
+
+        subgroupMap[gName].forEach(({ r, idx }) => {
+            const t = r.type || 'do';
+            const cfg = sop_getRuleTypeStyle(t);
+            const usedColor = (r.color && r.color.trim()) ? r.color : cfg.defaultColor;
+
+            const safeTitle = (r.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const safeText = (r.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+            const hasContent = (r.text || '').trim().length > 0;
+
+            const accordionKey = `standalone::${idx}`;
+            const isOpen = window._sopOpenRules.has(accordionKey);
+
+            const imgs = Array.isArray(r.images) ? r.images : [];
+            let imagesHtml = '';
+            if (imgs.length > 0) {
+                imagesHtml = `<div class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">` +
+                    imgs.map(img => `
+                        <div onclick="event.stopPropagation(); sop_openLightbox('${img.url}')" class="cursor-zoom-in rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 hover:opacity-90 transition relative group shadow-sm">
+                            <img src="${img.url}" class="w-full h-32 object-cover">
+                            <div class="absolute top-1 right-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm flex items-center gap-0.5"><span class="material-icons text-[10px]">zoom_in</span></div>
+                        </div>
+                    `).join('') +
+                    `</div>`;
+            }
+
+            const adminBtns = isAdmin ? `
+                <button onclick="event.stopPropagation(); sop_editStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไข"><span class="material-icons text-[16px]">edit</span></button>
+                <button onclick="event.stopPropagation(); sop_toggleStandalonePin(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 ${r.pinned ? 'text-amber-500' : 'text-gray-400'} hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="${r.pinned ? 'เลิกปักหมุด' : 'ปักหมุด'}"><span class="material-icons text-[16px]">push_pin</span></button>
+                <button onclick="event.stopPropagation(); sop_deleteStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบ"><span class="material-icons text-[16px]">delete</span></button>
+            ` : '';
+            const pinIcon = r.pinned ? '<span class="material-icons text-amber-500 text-[14px]" title="ปักหมุด">push_pin</span>' : '';
+
+            bodyHtml += `
+                <div class="bg-white dark:bg-slate-800 rounded-xl border-l-[6px] border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-2.5 hover:shadow-md transition" style="border-left-color: ${usedColor};">
+                    <div onclick="sop_toggleRuleAccordion('standalone', ${idx})" class="flex items-center gap-3 px-4 py-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                        <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-inner" style="background-color: ${usedColor};">
+                            <span class="material-icons text-[22px]">${cfg.ic}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap mb-1">
+                                <span class="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded text-white" style="background-color: ${usedColor};">${cfg.lbl}</span>
+                                ${pinIcon}
+                                ${imgs.length > 0 ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[10px]">image</span>${imgs.length} รูป</span>` : ''}
+                                ${hasContent ? '<span class="text-[9px] text-blue-500 font-bold">📝 มีรายละเอียด</span>' : ''}
+                            </div>
+                            <div class="text-base md:text-lg font-black text-slate-800 dark:text-white truncate leading-snug">${safeTitle || '(ไม่มีหัวข้อ)'}</div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">${adminBtns}
+                            <span class="material-icons text-gray-400 transition ${isOpen ? 'rotate-180' : ''} text-[20px]">expand_more</span>
+                        </div>
+                    </div>
+                    ${isOpen ? `
+                        <div class="px-4 pb-4 pt-3 border-t border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                            ${imagesHtml}
+                            ${hasContent ? `<div class="text-sm md:text-base text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>` : '<div class="text-sm text-gray-400 italic">ไม่มีรายละเอียดเพิ่มเติม</div>'}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+    });
+
+    // header ของหมวดที่เลือก
+    const headerHtml = `
+        <div class="text-white px-5 py-3 rounded-2xl shadow-md flex items-center gap-2 flex-wrap mb-4 sticky top-0 z-10" style="background: linear-gradient(to right, ${selectedColor}, ${selectedColorLight});">
+            <div class="bg-white/20 p-1.5 rounded-lg shrink-0"><span class="material-icons text-[18px]">${selectedIcon}</span></div>
+            <h3 class="text-white font-black text-sm md:text-base tracking-wide truncate flex-1">${(selectedLabel).replace(/</g, '&lt;')}</h3>
+            <span class="bg-white/20 text-white text-[11px] font-black px-2 py-0.5 rounded-full">${selectedItems.length} ข้อ</span>
+        </div>
+    `;
+
+    container.innerHTML = headerHtml + bodyHtml;
+};
+
+// V3.4: กระโดดจากแท็บกติกา → ไปแท็บ SOP เปิดกฎตัวนั้น
+window.sop_jumpToSopFromRules = function(ruleId) {
+    sop_switchTab('sop');
+    setTimeout(() => sop_readRule(ruleId, false), 100);
 };
 
 // ==========================================
@@ -414,28 +1030,8 @@ window.sop_readRule = async function(id, skipIncrement) {
         attachmentsBlock = window.renderTemplate('tpl-sop-attachments', { attachmentsHtml: attHtml, count: item.attachments.length });
     }
 
-    // rules block (V3)
+    // V4: ไม่มี rules block ใน SOP detail แล้ว — กติกาแยกอยู่แท็บของตัวเอง
     let rulesBlock = '';
-    if (item.rules && item.rules.length > 0) {
-        const ruleItemsHtml = item.rules.map(r => {
-            const t = r.type || 'do'; // do, dont, must, info
-            let style = { ruleIcon: 'check_circle', ruleIconColor: 'text-emerald-500',
-                          ruleItemBg: 'bg-emerald-50 dark:bg-emerald-900/20',
-                          ruleItemBorder: 'border-emerald-200 dark:border-emerald-700/50' };
-            if (t === 'dont')   style = { ruleIcon: 'block',          ruleIconColor: 'text-red-500',
-                                          ruleItemBg: 'bg-red-50 dark:bg-red-900/20',
-                                          ruleItemBorder: 'border-red-200 dark:border-red-700/50' };
-            else if (t === 'must')  style = { ruleIcon: 'priority_high', ruleIconColor: 'text-orange-500',
-                                          ruleItemBg: 'bg-orange-50 dark:bg-orange-900/20',
-                                          ruleItemBorder: 'border-orange-200 dark:border-orange-700/50' };
-            else if (t === 'info')  style = { ruleIcon: 'info',           ruleIconColor: 'text-blue-500',
-                                          ruleItemBg: 'bg-blue-50 dark:bg-blue-900/20',
-                                          ruleItemBorder: 'border-blue-200 dark:border-blue-700/50' };
-            const safeText = (r.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
-            return window.renderTemplate('tpl-sop-rule-item', { ...style, ruleText: safeText });
-        }).join('');
-        rulesBlock = window.renderTemplate('tpl-sop-rules', { rulesItemsHtml: ruleItemsHtml, rulesCount: item.rules.length });
-    }
 
     // examples
     let examplesBlock = '';
@@ -614,14 +1210,16 @@ function sop_openEditModal(existing) {
 
             <div>
                 <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider flex items-center gap-1">
-                    <span class="material-icons text-[14px] text-amber-500">attach_file</span>ไฟล์ประกอบ (รูปภาพ / PDF)
+                    <span class="material-icons text-[14px] text-amber-500">attach_file</span>ไฟล์ประกอบ (รูปภาพ / PDF) — ก๊อปวาง / ลาก / กดเลือก
                 </label>
-                <div class="flex gap-2 mb-2">
-                    <input type="file" id="sopFormFiles" multiple accept="image/*,.pdf" class="hidden" onchange="sop_handleFileSelect(event)">
-                    <button type="button" onclick="document.getElementById('sopFormFiles').click()" class="bg-amber-500 hover:bg-amber-400 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-md transition active:scale-95"><span class="material-icons text-sm">upload</span>เลือกไฟล์</button>
-                    <span class="text-[11px] text-gray-500 self-center">รองรับ JPG, PNG, PDF — เลือกได้หลายไฟล์</span>
+                <div id="sopFormPasteZone" class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50 dark:bg-slate-900 transition focus-within:border-amber-500 hover:border-amber-400" tabindex="0">
+                    <div class="flex gap-2 mb-2 items-center">
+                        <input type="file" id="sopFormFiles" multiple accept="image/*,.pdf" class="hidden" onchange="sop_handleFileSelect(event)">
+                        <button type="button" onclick="document.getElementById('sopFormFiles').click()" class="bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-md transition active:scale-95"><span class="material-icons text-[14px]">upload</span>เลือกไฟล์</button>
+                        <span class="text-[11px] text-gray-500 italic">รองรับ JPG, PNG, PDF / Ctrl+V วางจาก clipboard / ลากไฟล์มาทิ้ง</span>
+                    </div>
+                    <div id="sopAttachmentPreview" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar"></div>
                 </div>
-                <div id="sopAttachmentPreview" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar"></div>
             </div>
         </div>
     `;
@@ -650,6 +1248,51 @@ function sop_openEditModal(existing) {
             otherCbs.forEach(c => c.addEventListener('change', () => {
                 if (c.checked && allCb) allCb.checked = false;
             }));
+
+            // V4.3: Paste + Drag&Drop สำหรับ attachments
+            const pasteZone = document.getElementById('sopFormPasteZone');
+            const swalPopup = Swal.getPopup();
+
+            const pasteHandler = async (e) => {
+                const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+                if (!items) return;
+                for (const item of items) {
+                    if (item.type && item.type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = item.getAsFile();
+                        if (file) {
+                            sop_showInlineToast('กำลังอัพรูปจาก clipboard...', 'info');
+                            const ok = await sop_uploadAttachmentFile(file);
+                            if (ok) {
+                                sop_renderAttachmentPreview();
+                                sop_showInlineToast('แนบรูปจาก clipboard แล้ว ✅', 'success');
+                            } else {
+                                sop_showInlineToast('อัพไม่สำเร็จ', 'error');
+                            }
+                        }
+                    }
+                }
+            };
+            // ผูกที่ zone + popup เท่านั้น (ห้ามผูก document)
+            if (pasteZone) pasteZone.addEventListener('paste', pasteHandler);
+            if (swalPopup) swalPopup.addEventListener('paste', pasteHandler);
+
+            // Drag & Drop
+            if (pasteZone) {
+                pasteZone.addEventListener('dragover', (e) => { e.preventDefault(); pasteZone.classList.add('border-amber-500'); });
+                pasteZone.addEventListener('dragleave', () => pasteZone.classList.remove('border-amber-500'));
+                pasteZone.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    pasteZone.classList.remove('border-amber-500');
+                    const files = Array.from(e.dataTransfer?.files || []);
+                    if (files.length === 0) return;
+                    sop_showInlineToast(`กำลังอัพ ${files.length} ไฟล์...`, 'info');
+                    for (const f of files) await sop_uploadAttachmentFile(f);
+                    sop_renderAttachmentPreview();
+                    sop_showInlineToast('อัพไฟล์เสร็จ ✅', 'success');
+                });
+            }
         },
         preConfirm: () => {
             const title = document.getElementById('sopFormTitle').value.trim();
@@ -686,43 +1329,52 @@ function sop_openEditModal(existing) {
 // ==========================================
 // 📎 ATTACHMENTS BUFFER
 // ==========================================
+// Helper: อัพ 1 ไฟล์ขึ้น Supabase แล้ว push เข้า buffer
+window.sop_uploadAttachmentFile = async function(file) {
+    if (!file) return false;
+    try {
+        let ext = (file.name && file.name.split('.').pop().toLowerCase()) || '';
+        if (!ext || ext.length > 5) {
+            // เคส paste image (มัก type เป็น 'image/png' แต่ไม่มีนามสกุล)
+            if (file.type && file.type.startsWith('image/')) {
+                ext = file.type.split('/')[1] || 'png';
+            } else {
+                ext = 'bin';
+            }
+        }
+        const fileName = `sop/${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
+        const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
+        if (upErr) throw new Error(upErr.message);
+        const { data: pubData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
+        sopAttachmentsBuffer.push({
+            url: pubData.publicUrl,
+            name: file.name || `clipboard.${ext}`,
+            type: ext === 'pdf' ? 'pdf' : 'image',
+            path: fileName
+        });
+        return true;
+    } catch (e) {
+        console.error('upload attachment error:', e);
+        return false;
+    }
+};
+
 window.sop_handleFileSelect = async function(event) {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    // อัพโหลดทีละไฟล์ขึ้น Supabase Storage
-    Swal.update({ title: 'กำลังอัพโหลดไฟล์...' });
     const submitBtn = Swal.getConfirmButton();
     if (submitBtn) submitBtn.disabled = true;
+    sop_showInlineToast(`กำลังอัพ ${files.length} ไฟล์...`, 'info');
 
     for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        try {
-            const ext = file.name.split('.').pop().toLowerCase();
-            const fileName = `sop/${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
-
-            const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
-            if (upErr) throw new Error(upErr.message);
-
-            const { data: pubData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
-            sopAttachmentsBuffer.push({
-                url: pubData.publicUrl,
-                name: file.name,
-                type: ext === 'pdf' ? 'pdf' : 'image',
-                path: fileName
-            });
-        } catch (e) {
-            console.error('upload error:', e);
-            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-            Toast.fire({ icon: 'error', title: `อัพ ${file.name} ไม่สำเร็จ` });
-        }
+        const ok = await sop_uploadAttachmentFile(files[i]);
+        if (!ok) sop_showInlineToast(`อัพ ${files[i].name} ไม่สำเร็จ`, 'error');
     }
 
     sop_renderAttachmentPreview();
     if (submitBtn) submitBtn.disabled = false;
-    Swal.update({ title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-rose-500">post_add</span> เพิ่มกฎใหม่</div>' });
-
-    // เคลียร์ input เพื่อให้เลือกซ้ำได้
+    sop_showInlineToast('อัพไฟล์เสร็จ ✅', 'success');
     event.target.value = '';
 };
 
@@ -730,15 +1382,31 @@ window.sop_renderAttachmentPreview = function() {
     const container = document.getElementById('sopAttachmentPreview');
     if (!container) return;
     if (sopAttachmentsBuffer.length === 0) {
-        container.innerHTML = '<div class="text-[11px] text-gray-400 italic text-center py-2">ยังไม่มีไฟล์แนบ</div>';
+        container.innerHTML = '<div class="text-[11px] text-gray-400 italic text-center py-2">ยังไม่มีไฟล์แนบ — เลือกไฟล์ / Ctrl+V / ลากมาทิ้ง</div>';
         return;
     }
-    container.innerHTML = sopAttachmentsBuffer.map((att, idx) => {
-        if (att.type === 'pdf' || (att.url || '').toLowerCase().includes('.pdf')) {
-            return window.renderTemplate('tpl-sop-attach-preview-pdf', { name: att.name, index: idx });
-        }
-        return window.renderTemplate('tpl-sop-attach-preview-img', { url: att.url, name: att.name, index: idx });
-    }).join('');
+    container.innerHTML = '<div class="grid grid-cols-2 md:grid-cols-3 gap-2">' +
+        sopAttachmentsBuffer.map((att, idx) => {
+            const isPdf = (att.type === 'pdf' || (att.url || '').toLowerCase().includes('.pdf'));
+            if (isPdf) {
+                return `
+                    <div class="relative group rounded-lg overflow-hidden border border-red-300 dark:border-red-700/50 shadow-sm bg-red-50 dark:bg-red-900/20 p-3 flex items-center gap-2">
+                        <span class="material-icons text-red-500 text-2xl shrink-0">picture_as_pdf</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-bold text-slate-800 dark:text-white truncate">${(att.name || 'PDF').replace(/</g, '&lt;')}</div>
+                            <div class="text-[10px] text-gray-500">PDF</div>
+                        </div>
+                        <button type="button" onclick="sop_removeAttachment(${idx})" class="bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-90 hover:opacity-100 transition shadow shrink-0" title="ลบไฟล์"><span class="material-icons text-[14px]">close</span></button>
+                    </div>
+                `;
+            }
+            return `
+                <div class="relative group rounded-lg overflow-hidden border border-gray-300 dark:border-slate-600 shadow-sm">
+                    <img src="${att.url}" class="w-full h-20 object-cover">
+                    <button type="button" onclick="sop_removeAttachment(${idx})" class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-90 hover:opacity-100 transition shadow z-10" title="ลบรูป"><span class="material-icons text-[14px]">close</span></button>
+                </div>
+            `;
+        }).join('') + '</div>';
 };
 
 window.sop_removeAttachment = function(idx) {
@@ -1031,6 +1699,439 @@ function sop_copyFallback(text) {
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
     Toast.fire({ icon: 'success', title: 'ก๊อปแล้ว!' });
 }
+
+// ==========================================
+// 🆕 V3.7: เพิ่ม/แก้/ลบ กติกา (Premium — รองรับ subgroup, สีเอง, รูปภาพ, paste)
+// ==========================================
+
+// 🎨 พาเล็ทสี (เลือกสีเองได้)
+const SOP_COLOR_PALETTE = [
+    { val: '',         name: 'อัตโนมัติ',  preview: 'linear-gradient(135deg,#10b981,#ef4444,#f97316,#3b82f6)' },
+    { val: '#10b981',  name: 'เขียว',       preview: '#10b981' },
+    { val: '#22c55e',  name: 'เขียวสด',     preview: '#22c55e' },
+    { val: '#06b6d4',  name: 'ฟ้าอมเขียว',  preview: '#06b6d4' },
+    { val: '#3b82f6',  name: 'ฟ้า',         preview: '#3b82f6' },
+    { val: '#6366f1',  name: 'น้ำเงิน',     preview: '#6366f1' },
+    { val: '#8b5cf6',  name: 'ม่วง',        preview: '#8b5cf6' },
+    { val: '#a855f7',  name: 'ม่วงสด',      preview: '#a855f7' },
+    { val: '#ec4899',  name: 'ชมพู',        preview: '#ec4899' },
+    { val: '#f43f5e',  name: 'แดงชมพู',     preview: '#f43f5e' },
+    { val: '#ef4444',  name: 'แดง',         preview: '#ef4444' },
+    { val: '#f97316',  name: 'ส้ม',         preview: '#f97316' },
+    { val: '#f59e0b',  name: 'ส้มทอง',      preview: '#f59e0b' },
+    { val: '#eab308',  name: 'เหลือง',      preview: '#eab308' },
+    { val: '#84cc16',  name: 'เขียวมะนาว',  preview: '#84cc16' },
+    { val: '#64748b',  name: 'เทา',         preview: '#64748b' },
+    { val: '#475569',  name: 'เทาเข้ม',     preview: '#475569' }
+];
+
+// buffer สำหรับรูปแนบกติกา (ใช้ตอนเปิดฟอร์ม)
+let sopRuleImagesBuffer = [];
+
+window.sop_renderRuleImagesPreview = function() {
+    const container = document.getElementById('qaRuleImagesPreview');
+    if (!container) return;
+    if (sopRuleImagesBuffer.length === 0) {
+        container.innerHTML = '<div class="text-[11px] text-gray-400 italic text-center py-2">ยังไม่มีรูป — ลาก/ก็อปวาง/อัพได้</div>';
+        return;
+    }
+    container.innerHTML = sopRuleImagesBuffer.map((img, idx) => `
+        <div class="relative group rounded-lg overflow-hidden border border-gray-300 dark:border-slate-600 shadow-sm">
+            <img src="${img.url}" class="w-full h-20 object-cover">
+            <button type="button" onclick="sop_removeRuleImage(${idx})" class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-90 hover:opacity-100 transition shadow"><span class="material-icons text-[14px]">close</span></button>
+        </div>
+    `).join('');
+};
+
+window.sop_removeRuleImage = function(idx) {
+    sopRuleImagesBuffer.splice(idx, 1);
+    sop_renderRuleImagesPreview();
+};
+
+window.sop_uploadRuleImageFile = async function(file) {
+    if (!file || !file.type || !file.type.startsWith('image/')) return null;
+    try {
+        const ext = (file.name && file.name.split('.').pop()) || 'png';
+        const fileName = `sop/rule_${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
+        const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
+        if (upErr) throw new Error(upErr.message);
+        const { data: pubData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
+        return { url: pubData.publicUrl, name: file.name || 'image.png', path: fileName };
+    } catch (e) {
+        console.error('upload rule image error:', e);
+        return null;
+    }
+};
+
+window.sop_handleRuleFilesSelect = async function(event) {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+    const submitBtn = Swal.getConfirmButton();
+    if (submitBtn) submitBtn.disabled = true;
+    sop_showInlineToast(`กำลังอัพโหลด ${files.length} รูป...`, 'info');
+    for (const f of files) {
+        const obj = await sop_uploadRuleImageFile(f);
+        if (obj) sopRuleImagesBuffer.push(obj);
+    }
+    sop_renderRuleImagesPreview();
+    if (submitBtn) submitBtn.disabled = false;
+    event.target.value = '';
+    sop_showInlineToast(`อัพ ${files.length} รูปเสร็จ ✅`, 'success');
+};
+
+// ==========================================
+// 🟠 V4: STANDALONE RULES CRUD (Tab 1 — กติกาขั้นตอน)
+// ==========================================
+
+// Toast เล็กๆ ที่ใช้ DOM ธรรมดา — ปลอดภัยกว่าการเรียก Swal.mixin ขณะมี Swal popup เปิดอยู่
+window.sop_showInlineToast = function(msg, type) {
+    type = type || 'info';
+    let t = document.getElementById('sopInlineToast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'sopInlineToast';
+        t.style.cssText = 'position:fixed;top:20px;right:20px;z-index:99999;padding:10px 16px;border-radius:12px;font-weight:bold;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,0.25);pointer-events:none;transition:opacity 0.2s;';
+        document.body.appendChild(t);
+    }
+    let bg = '#3b82f6', color = 'white';
+    if (type === 'success') bg = '#10b981';
+    else if (type === 'error') bg = '#ef4444';
+    else if (type === 'info') bg = '#0ea5e9';
+    t.style.background = bg;
+    t.style.color = color;
+    t.innerText = msg;
+    t.style.opacity = '1';
+
+    if (window._sopToastTimer) clearTimeout(window._sopToastTimer);
+    window._sopToastTimer = setTimeout(() => {
+        if (t) {
+            t.style.opacity = '0';
+            setTimeout(() => { if (t && t.parentNode) t.remove(); }, 250);
+        }
+    }, 1800);
+};
+
+async function sop_openStandaloneRuleForm(editIdx) {
+    const isEdit = (typeof editIdx === 'number');
+    const existing = isEdit ? globalStandaloneRules[editIdx] : null;
+    if (isEdit && !existing) return;
+
+    sopRuleImagesBuffer = isEdit ? JSON.parse(JSON.stringify(existing.images || [])) : [];
+
+    const titleVal     = isEdit ? (existing.title || '')     : '';
+    const textVal      = isEdit ? (existing.text || '')      : '';
+    const typeVal      = isEdit ? (existing.type || 'do')    : 'do';
+    const colorVal     = isEdit ? (existing.color || '')     : '';
+    const subgroupVal  = isEdit ? (existing.subgroup || '')  : '';
+    const categoryVal  = isEdit ? (existing.category || '')  : (globalSOPCategories[0]?.id || '');
+    const pinnedVal    = isEdit ? !!existing.pinned          : false;
+
+    // หมวดหมู่
+    const categoryOptions = `
+        <option value="">-- ไม่ระบุหมวด --</option>
+        ${globalSOPCategories.map(c => `<option value="${c.id}" ${c.id === categoryVal ? 'selected' : ''}>${c.name}</option>`).join('')}
+    `;
+
+    // subgroup ที่มีอยู่
+    const existingSubgroups = new Set();
+    (globalStandaloneRules || []).forEach(r => { if (r.subgroup && r.subgroup.trim()) existingSubgroups.add(r.subgroup.trim()); });
+    const subgroupOpts = `
+        <option value="">-- ไม่จัดกลุ่ม --</option>
+        ${Array.from(existingSubgroups).map(g => `<option value="${g}" ${g === subgroupVal ? 'selected' : ''}>${g}</option>`).join('')}
+        <option value="__new__">+ เพิ่มกลุ่มใหม่...</option>
+    `;
+
+    const colorPaletteHtml = SOP_COLOR_PALETTE.map(c => `
+        <label class="cursor-pointer relative" title="${c.name}">
+            <input type="radio" name="qaRuleColor" value="${c.val}" class="sr-only peer" ${colorVal === c.val ? 'checked' : ''}>
+            <div class="w-8 h-8 rounded-lg border-2 border-gray-300 dark:border-slate-600 peer-checked:border-slate-900 dark:peer-checked:border-white peer-checked:scale-110 transition shadow-sm" style="background: ${c.preview};"></div>
+            ${c.val === '' ? '<span class="absolute inset-0 flex items-center justify-center text-white font-black text-[8px] pointer-events-none drop-shadow">AUTO</span>' : ''}
+        </label>
+    `).join('');
+
+    const formHtml = `
+        <div class="text-left space-y-3">
+            <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded-xl p-3 text-xs text-slate-700 dark:text-gray-200 flex gap-2 items-start">
+                <span class="material-icons text-orange-500 text-[18px]">info</span>
+                <div>กรอกหัวข้อ → เลือกประเภท/สี/หมวด → เนื้อหา → แนบรูป (ก๊อปวาง/ลาก/อัพ) → บันทึก</div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หัวข้อกติกา <span class="text-red-500">*</span></label>
+                <input type="text" id="qaRuleTitle" value="${titleVal.replace(/"/g, '&quot;')}" placeholder="เช่น ตรวจสลิปก่อนเติม..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none font-bold text-sm">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ประเภท <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <label class="flex items-center gap-1 cursor-pointer p-2 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 hover:border-emerald-500 transition has-[:checked]:bg-emerald-200 dark:has-[:checked]:bg-emerald-900/50 has-[:checked]:border-emerald-500">
+                            <input type="radio" name="qaRuleType" value="do" class="w-3 h-3 accent-emerald-500" ${typeVal === 'do' ? 'checked' : ''}>
+                            <span class="material-icons text-emerald-500 text-[14px]">check_circle</span>
+                            <span class="text-xs font-bold">ทำได้</span>
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer p-2 rounded-lg border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 hover:border-orange-500 transition has-[:checked]:bg-orange-200 dark:has-[:checked]:bg-orange-900/50 has-[:checked]:border-orange-500">
+                            <input type="radio" name="qaRuleType" value="must" class="w-3 h-3 accent-orange-500" ${typeVal === 'must' ? 'checked' : ''}>
+                            <span class="material-icons text-orange-500 text-[14px]">priority_high</span>
+                            <span class="text-xs font-bold">ต้องทำ</span>
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer p-2 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:border-red-500 transition has-[:checked]:bg-red-200 dark:has-[:checked]:bg-red-900/50 has-[:checked]:border-red-500">
+                            <input type="radio" name="qaRuleType" value="dont" class="w-3 h-3 accent-red-500" ${typeVal === 'dont' ? 'checked' : ''}>
+                            <span class="material-icons text-red-500 text-[14px]">block</span>
+                            <span class="text-xs font-bold">ห้ามทำ</span>
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer p-2 rounded-lg border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 hover:border-blue-500 transition has-[:checked]:bg-blue-200 dark:has-[:checked]:bg-blue-900/50 has-[:checked]:border-blue-500">
+                            <input type="radio" name="qaRuleType" value="info" class="w-3 h-3 accent-blue-500" ${typeVal === 'info' ? 'checked' : ''}>
+                            <span class="material-icons text-blue-500 text-[14px]">info</span>
+                            <span class="text-xs font-bold">หมายเหตุ</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หมวดหมู่</label>
+                    <select id="qaRuleCategory" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none font-bold text-sm">${categoryOptions}</select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หมวดหมู่ย่อย (ไม่บังคับ)</label>
+                <select id="qaRuleSubgroup" onchange="sop_onSubgroupChange(this)" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none font-bold text-sm">${subgroupOpts}</select>
+                <input type="text" id="qaRuleSubgroupNew" placeholder="พิมพ์ชื่อกลุ่มใหม่..." class="hidden w-full mt-1.5 p-2.5 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none text-sm">
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">สีแถบของกติกา</label>
+                <div class="flex flex-wrap gap-1.5 p-3 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl">${colorPaletteHtml}</div>
+                <div class="text-[10px] text-gray-500 mt-1">เลือก "AUTO" = ใช้สีตามประเภท</div>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="qaRulePinned" class="w-4 h-4 accent-amber-500" ${pinnedVal ? 'checked' : ''}>
+                    <span class="text-sm font-bold text-slate-700 dark:text-gray-200 flex items-center gap-1"><span class="material-icons text-amber-500 text-[16px]">push_pin</span>ปักหมุด — ให้เด้งบนสุด</span>
+                </label>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">รายละเอียด (ไม่บังคับ — กดที่หัวข้อเพื่อขยาย)</label>
+                <textarea id="qaRuleText" rows="5" placeholder="พิมพ์รายละเอียดเพิ่มเติม..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none text-sm whitespace-pre-wrap font-medium leading-relaxed">${textVal}</textarea>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">รูปภาพประกอบ <span class="text-gray-400 normal-case ml-2">(ก๊อปวาง / ลากไฟล์ / กดปุ่มเลือก)</span></label>
+                <div id="qaRulePasteZone" class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50 dark:bg-slate-900 transition focus-within:border-orange-500 hover:border-orange-400" tabindex="0">
+                    <div class="flex gap-2 items-center mb-2">
+                        <input type="file" id="qaRuleFiles" multiple accept="image/*" class="hidden" onchange="sop_handleRuleFilesSelect(event)">
+                        <button type="button" onclick="document.getElementById('qaRuleFiles').click()" class="bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition active:scale-95"><span class="material-icons text-[14px]">upload</span>เลือกรูปจากคอม</button>
+                        <span class="text-[11px] text-gray-500 italic">หรือกด Ctrl+V เพื่อวางจาก clipboard / ลากรูปมาทิ้งในกล่อง</span>
+                    </div>
+                    <div id="qaRuleImagesPreview" class="grid grid-cols-3 md:grid-cols-4 gap-1.5 min-h-[60px]"></div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const result = await Swal.fire({
+        title: `<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-${isEdit ? 'amber' : 'orange'}-500">${isEdit ? 'edit' : 'add_circle'}</span> ${isEdit ? 'แก้ไขกติกา' : 'เพิ่มกติกาใหม่'}</div>`,
+        html: formHtml,
+        width: '720px',
+        showCancelButton: true,
+        confirmButtonText: '<span class="material-icons text-sm align-middle mr-1">save</span> บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: isEdit ? '#f59e0b' : '#f97316',
+        cancelButtonColor: '#64748b',
+        focusConfirm: false,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
+        didOpen: () => {
+            sop_renderRuleImagesPreview();
+            const zone = document.getElementById('qaRulePasteZone');
+            const textarea = document.getElementById('qaRuleText');
+            const titleInput = document.getElementById('qaRuleTitle');
+
+            const pasteHandler = async (e) => {
+                const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+                if (!items) return;
+                let foundImage = false;
+                for (const item of items) {
+                    if (item.type && item.type.indexOf('image') !== -1) {
+                        foundImage = true;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = item.getAsFile();
+                        if (file) {
+                            sop_showInlineToast('กำลังอัพรูป...', 'info');
+                            const obj = await sop_uploadRuleImageFile(file);
+                            if (obj) {
+                                sopRuleImagesBuffer.push(obj);
+                                sop_renderRuleImagesPreview();
+                                sop_showInlineToast('แนบรูปจาก clipboard แล้ว ✅', 'success');
+                            } else {
+                                sop_showInlineToast('อัพไม่สำเร็จ', 'error');
+                            }
+                        }
+                    }
+                }
+                return foundImage;
+            };
+            // ผูกกับ element ใน popup เท่านั้น — ห้ามผูกกับ document (จะทำให้ Swal ปิด)
+            if (zone) zone.addEventListener('paste', pasteHandler);
+            if (textarea) textarea.addEventListener('paste', pasteHandler);
+            if (titleInput) titleInput.addEventListener('paste', pasteHandler);
+            // ผูกกับ swal container เพื่อให้ paste จากที่ไหนก็ได้ในฟอร์ม
+            const swalContainer = Swal.getPopup();
+            if (swalContainer) swalContainer.addEventListener('paste', pasteHandler);
+
+            if (zone) {
+                zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('border-orange-500'); });
+                zone.addEventListener('dragleave', () => zone.classList.remove('border-orange-500'));
+                zone.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('border-orange-500');
+                    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
+                    if (files.length === 0) return;
+                    sop_showInlineToast(`กำลังอัพ ${files.length} รูป...`, 'info');
+                    for (const f of files) {
+                        const obj = await sop_uploadRuleImageFile(f);
+                        if (obj) sopRuleImagesBuffer.push(obj);
+                    }
+                    sop_renderRuleImagesPreview();
+                    sop_showInlineToast('แนบรูปแล้ว ✅', 'success');
+                });
+            }
+
+            if (titleInput && !isEdit) titleInput.focus();
+        },
+        willClose: () => {
+            // เคลียร์ inline toast ถ้ามี
+            const t = document.getElementById('sopInlineToast');
+            if (t) t.remove();
+        },
+        preConfirm: () => {
+            const title = document.getElementById('qaRuleTitle').value.trim();
+            const text = document.getElementById('qaRuleText').value.trim();
+            const typeEl = document.querySelector('input[name="qaRuleType"]:checked');
+            const ruleType = typeEl ? typeEl.value : 'do';
+            const colorEl = document.querySelector('input[name="qaRuleColor"]:checked');
+            const color = colorEl ? colorEl.value : '';
+            let subgroup = document.getElementById('qaRuleSubgroup').value;
+            if (subgroup === '__new__') subgroup = (document.getElementById('qaRuleSubgroupNew').value || '').trim();
+            const category = document.getElementById('qaRuleCategory').value;
+            const pinned = document.getElementById('qaRulePinned').checked;
+
+            if (!title) { Swal.showValidationMessage('กรุณาใส่หัวข้อกติกา'); return false; }
+            return { title, text, type: ruleType, color, subgroup, category, pinned, images: [...sopRuleImagesBuffer] };
+        }
+    });
+
+    sopRuleImagesBuffer = [];
+    if (!result.isConfirmed || !result.value) return;
+
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    try {
+        const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
+        const nowIso = new Date().toISOString();
+
+        if (isEdit) {
+            globalStandaloneRules[editIdx] = {
+                ...globalStandaloneRules[editIdx],
+                title: result.value.title,
+                text: result.value.text,
+                type: result.value.type,
+                color: result.value.color,
+                subgroup: result.value.subgroup,
+                category: result.value.category,
+                pinned: result.value.pinned,
+                images: result.value.images,
+                updated_at: nowIso,
+                last_editor: authorName
+            };
+        } else {
+            globalStandaloneRules.unshift({
+                id: 'srule_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                title: result.value.title,
+                text: result.value.text,
+                type: result.value.type,
+                color: result.value.color,
+                subgroup: result.value.subgroup,
+                category: result.value.category,
+                pinned: result.value.pinned,
+                images: result.value.images,
+                author_name: authorName,
+                last_editor: authorName,
+                created_at: nowIso,
+                updated_at: nowIso
+            });
+        }
+
+        await sop_saveStandaloneRules();
+        sop_renderAllRulesPage();
+        sop_updateTabCounters();
+        Swal.fire({ icon: 'success', title: isEdit ? 'แก้ไขสำเร็จ!' : 'เพิ่มกติกาสำเร็จ!', timer: 1100, showConfirmButton: false });
+    } catch (e) {
+        console.error('saveStandaloneRule error:', e);
+        Swal.fire('Error', e.message || 'บันทึกไม่สำเร็จ', 'error');
+    }
+}
+
+// onChange ของ subgroup dropdown
+window.sop_onSubgroupChange = function(sel) {
+    const newInput = document.getElementById('qaRuleSubgroupNew');
+    if (!newInput) return;
+    if (sel.value === '__new__') {
+        newInput.classList.remove('hidden');
+        newInput.focus();
+    } else {
+        newInput.classList.add('hidden');
+        newInput.value = '';
+    }
+};
+
+// Public APIs สำหรับ Tab "กติกาขั้นตอน" (V4)
+window.sop_quickAddRule = function() { sop_openStandaloneRuleForm(); };
+window.sop_editStandaloneRule = function(idx) { sop_openStandaloneRuleForm(idx); };
+
+window.sop_toggleStandalonePin = async function(idx) {
+    if (!globalStandaloneRules[idx]) return;
+    globalStandaloneRules[idx].pinned = !globalStandaloneRules[idx].pinned;
+    globalStandaloneRules[idx].updated_at = new Date().toISOString();
+    try {
+        await sop_saveStandaloneRules();
+        sop_renderAllRulesPage();
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
+        Toast.fire({ icon: 'success', title: globalStandaloneRules[idx].pinned ? '📌 ปักหมุดแล้ว' : 'เลิกปักหมุดแล้ว' });
+    } catch (e) {
+        Swal.fire('Error', e.message || 'บันทึกไม่สำเร็จ', 'error');
+    }
+};
+
+window.sop_deleteStandaloneRule = async function(idx) {
+    const r = globalStandaloneRules[idx];
+    if (!r) return;
+
+    const confirm = await Swal.fire({
+        title: 'ยืนยันลบกติกาข้อนี้?',
+        html: `<div class="text-left text-sm">
+                  <div class="font-bold text-slate-700 dark:text-gray-200 bg-slate-100 dark:bg-slate-900 p-3 rounded-lg border border-gray-200 dark:border-slate-700">${(r.title || '(ไม่มีหัวข้อ)').replace(/</g, '&lt;')}</div>
+                  <div class="text-gray-500 text-xs mt-2">ลบแล้วจะไม่สามารถกู้คืนได้</div>
+               </div>`,
+        icon: 'warning', showCancelButton: true,
+        confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b',
+        confirmButtonText: 'ลบทิ้ง', cancelButtonText: 'ยกเลิก'
+    });
+    if (!confirm.isConfirmed) return;
+
+    Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
+    try {
+        globalStandaloneRules.splice(idx, 1);
+        await sop_saveStandaloneRules();
+        sop_renderAllRulesPage();
+        sop_updateTabCounters();
+        Swal.fire({ icon: 'success', title: 'ลบสำเร็จ!', timer: 1000, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message || 'ลบไม่สำเร็จ', 'error');
+    }
+};
 
 // ==========================================
 // 🖼️ LIGHTBOX (ดูรูปขยายในหน้าเดียวกัน)

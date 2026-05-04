@@ -2252,7 +2252,7 @@ const PERM_GROUPS = [
         ]
     },
     {
-    id: 'page_sop', name: 'คู่มือการทำงาน (SOP)', icon: 'rule_folder', theme: 'rose',
+    id: 'page_sop', name: 'คู่มือการทำงาน (OD)', icon: 'rule_folder', theme: 'rose',
     items: [
         {id: 'sop', name: 'เข้าหน้าคู่มือ SOP', isSub: false},
         {id: 'sop_manage', name: 'เพิ่ม/แก้/ลบ กฎ', isSub: true}
