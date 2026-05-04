@@ -9,11 +9,12 @@
 
 let globalSOPData = [];
 let globalSOPCategories = [];
+let globalStandaloneRules = [];      // V4: กติกาแบบ standalone (Tab 1)
 let currentSopId = null;
 let sopPinFilterActive = false;
-let sopAttachmentsBuffer = []; // ไฟล์ที่กำลังเตรียมอัพโหลด
-let sopRulesBuffer = [];       // กติกา (V3) ที่กำลังแก้ในฟอร์ม
-let sopActiveTab = 'rules';    // V3.4: 'rules' | 'sop'
+let sopAttachmentsBuffer = [];
+let sopRulesBuffer = [];
+let sopActiveTab = 'rules';
 
 const SOP_PRIORITY_OPTIONS = [
     { id: 'high',   label: '🔴 สำคัญมาก',  color: 'red',    border: 'border-red-500',    bg: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700' },
@@ -217,22 +218,53 @@ window.sop_fetchData = async function() {
             if (typeof r.view_count !== 'number') r.view_count = 0;
             if (!Array.isArray(r.read_by)) r.read_by = [];
             if (!Array.isArray(r.history)) r.history = [];
-            if (!Array.isArray(r.rules)) r.rules = []; // V3: บล็อกกติกา
-            // V3.7: ทำ default ของแต่ละกติกา (color, subgroup, images)
+            if (!Array.isArray(r.rules)) r.rules = [];
             r.rules.forEach(rule => {
-                if (!rule.color) rule.color = ''; // ว่าง = ใช้สีตามประเภท
-                if (!rule.subgroup) rule.subgroup = ''; // ว่าง = ไม่จัดกลุ่ม
-                if (!Array.isArray(rule.images)) rule.images = []; // [{url, name, path}]
+                if (!rule.color) rule.color = '';
+                if (!rule.subgroup) rule.subgroup = '';
+                if (!Array.isArray(rule.images)) rule.images = [];
             });
         });
         sop_sortData();
         sop_renderList();
         if (currentSopId) sop_readRule(currentSopId, true);
+
+        // V4: โหลด standalone rules (Tab 1)
+        await sop_fetchStandaloneRules();
     } catch (e) {
         console.error('sop_fetchData error:', e);
         globalSOPData = [];
         sop_renderList();
     }
+};
+
+// V4: โหลด/บันทึก standalone rules (กติกาที่อยู่ใน Tab "กติกาขั้นตอน" — ไม่ผูกกับ SOP)
+window.sop_fetchStandaloneRules = async function() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'sop_rules_standalone').single();
+        if (data && data.value) {
+            globalStandaloneRules = JSON.parse(data.value);
+        } else {
+            globalStandaloneRules = [];
+        }
+        // default fields
+        globalStandaloneRules.forEach(r => {
+            if (!r.color) r.color = '';
+            if (!r.subgroup) r.subgroup = '';
+            if (!Array.isArray(r.images)) r.images = [];
+            if (!r.type) r.type = 'do';
+            if (!r.title) r.title = '';
+            if (!r.text) r.text = '';
+            if (typeof r.pinned !== 'boolean') r.pinned = false;
+        });
+    } catch (e) {
+        console.warn('sop_fetchStandaloneRules error (treating as empty):', e);
+        globalStandaloneRules = [];
+    }
+};
+
+window.sop_saveStandaloneRules = async function() {
+    await appDB.from('settings').upsert([{ key: 'sop_rules_standalone', value: JSON.stringify(globalStandaloneRules) }]);
 };
 
 window.sop_saveAllData = async function() {
@@ -404,10 +436,7 @@ window.sop_updateTabCounters = function() {
     const rulesBadge = document.getElementById('sopTabRulesCount');
 
     if (sopBadge) sopBadge.innerText = globalSOPData.length;
-
-    let totalRules = 0;
-    globalSOPData.forEach(r => totalRules += (r.rules || []).length);
-    if (rulesBadge) rulesBadge.innerText = totalRules;
+    if (rulesBadge) rulesBadge.innerText = (globalStandaloneRules || []).length;
 };
 
 // ==========================================
@@ -437,122 +466,125 @@ function sop_getRuleTypeStyle(t) {
     return cfg;
 }
 
+// ==========================================
+// 🟠 V4: หน้ากติกาขั้นตอน (Tab Rules) — ใช้ standalone data
+// ==========================================
 window.sop_renderAllRulesPage = function() {
     const container = document.getElementById('sopAllRulesContainer');
     if (!container) return;
 
     const term = document.getElementById('sopRulesSearch') ? document.getElementById('sopRulesSearch').value.toLowerCase() : '';
-    const cat = document.getElementById('sopRulesCatFilter') ? document.getElementById('sopRulesCatFilter').value : 'ALL';
+    const catF = document.getElementById('sopRulesCatFilter') ? document.getElementById('sopRulesCatFilter').value : 'ALL';
     const typeF = document.getElementById('sopRulesTypeFilter') ? document.getElementById('sopRulesTypeFilter').value : 'ALL';
 
-    let candidates = globalSOPData.filter(r => Array.isArray(r.rules) && r.rules.length > 0);
-    if (cat !== 'ALL') candidates = candidates.filter(r => r.category === cat);
+    // กรอง
+    let filtered = (globalStandaloneRules || []).slice();
+    if (catF !== 'ALL') filtered = filtered.filter(r => r.category === catF);
+    if (typeF !== 'ALL') filtered = filtered.filter(r => (r.type || 'do') === typeF);
+    if (term) filtered = filtered.filter(r =>
+        (r.title || '').toLowerCase().includes(term) ||
+        (r.text || '').toLowerCase().includes(term) ||
+        (r.subgroup || '').toLowerCase().includes(term)
+    );
 
-    const priorityOrder = { high: 0, medium: 1, low: 2 };
-    candidates.sort((a, b) => {
+    // เรียง: pinned ก่อน → ใหม่ก่อน
+    filtered.sort((a, b) => {
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-        const pa = priorityOrder[a.priority] ?? 1;
-        const pb = priorityOrder[b.priority] ?? 1;
-        if (pa !== pb) return pa - pb;
-        return new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
+        return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0);
     });
 
-    if (candidates.length === 0) {
-        container.innerHTML = `
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md p-10 text-center">
-                <span class="material-icons text-6xl opacity-30 mb-3 text-gray-400">gavel</span>
-                <h3 class="text-lg font-black text-gray-500 dark:text-gray-400">ยังไม่มีกติกา</h3>
-                <p class="text-sm text-gray-400 mt-1">กดปุ่ม "เพิ่มกติกาใหม่" เพื่อเริ่ม</p>
-            </div>`;
+    if (!filtered.length) {
+        if (!globalStandaloneRules || globalStandaloneRules.length === 0) {
+            container.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md p-10 text-center">
+                    <span class="material-icons text-6xl opacity-30 mb-3 text-gray-400">gavel</span>
+                    <h3 class="text-lg font-black text-gray-500 dark:text-gray-400">ยังไม่มีกติกาขั้นตอน</h3>
+                    <p class="text-sm text-gray-400 mt-1">กดปุ่ม "+ เพิ่มกติกาใหม่" ด้านบนเพื่อสร้าง</p>
+                </div>`;
+        } else {
+            container.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md p-10 text-center">
+                    <span class="material-icons text-6xl opacity-30 mb-3 text-gray-400">search_off</span>
+                    <h3 class="text-lg font-black text-gray-500 dark:text-gray-400">ไม่พบกติกาตามเงื่อนไข</h3>
+                    <p class="text-sm text-gray-400 mt-1">ลองเปลี่ยนคำค้นหาหรือ filter</p>
+                </div>`;
+        }
         return;
     }
 
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
     const isAdmin = hasManagePerm || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
 
+    // จัดกลุ่มตาม category → subgroup
+    const groupedByCat = {};
+    filtered.forEach((r, idx) => {
+        // หา actualIdx ใน global array
+        const actualIdx = globalStandaloneRules.indexOf(r);
+        const c = r.category || '__uncat__';
+        if (!groupedByCat[c]) groupedByCat[c] = [];
+        groupedByCat[c].push({ r, idx: actualIdx });
+    });
+
+    // เรียงหมวดให้คุ้นตา
+    const catOrder = Object.keys(groupedByCat).sort((a, b) => {
+        if (a === '__uncat__') return 1;
+        if (b === '__uncat__') return -1;
+        return 0;
+    });
+
     let html = '';
-    let foundAny = false;
 
-    candidates.forEach(rule => {
-        // 1) คัดกรองกติกาตาม search/type
-        const filteredRules = (rule.rules || []).map((r, idx) => ({ r, idx })).filter(({ r }) => {
-            if (typeF !== 'ALL' && (r.type || 'do') !== typeF) return false;
-            if (term && !(r.text || '').toLowerCase().includes(term) &&
-                       !(r.subgroup || '').toLowerCase().includes(term) &&
-                       !(rule.title || '').toLowerCase().includes(term)) return false;
-            return true;
+    catOrder.forEach(catKey => {
+        const items = groupedByCat[catKey];
+        const catObj = globalSOPCategories.find(c => c.id === catKey);
+        const catLabel = catKey === '__uncat__' ? '(ไม่ระบุหมวด)' : (catObj ? catObj.name : catKey);
+
+        // ไอคอนหมวด
+        let catIcon = 'rule';
+        if (catLabel.includes('ฝาก'))     catIcon = 'savings';
+        else if (catLabel.includes('ถอน')) catIcon = 'payments';
+        else if (catLabel.includes('เครดิต')) catIcon = 'monetization_on';
+        else if (catLabel.includes('พิเศษ')) catIcon = 'warning';
+        else if (catLabel.includes('ทั่วไป')) catIcon = 'menu_book';
+
+        // จัดกลุ่มย่อย (subgroup) ภายในหมวด
+        const subgroupMap = {};
+        items.forEach(({ r, idx }) => {
+            const g = (r.subgroup || '').trim() || '__no_sub__';
+            if (!subgroupMap[g]) subgroupMap[g] = [];
+            subgroupMap[g].push({ r, idx });
         });
-        if (filteredRules.length === 0) return;
-        foundAny = true;
 
-        // 2) จัดกลุ่มตาม subgroup
-        const groups = {};
-        filteredRules.forEach(({ r, idx }) => {
-            const g = (r.subgroup || '').trim() || '__no_group__';
-            if (!groups[g]) groups[g] = [];
-            groups[g].push({ r, idx });
-        });
-
-        // 3) ไอคอน + label
-        let icon = 'rule';
-        const c = rule.category || '';
-        if (c.includes('ฝาก'))     icon = 'savings';
-        else if (c.includes('ถอน')) icon = 'payments';
-        else if (c.includes('เครดิต')) icon = 'monetization_on';
-        else if (c.includes('พิเศษ')) icon = 'warning';
-        else if (c.includes('ทั่วไป')) icon = 'menu_book';
-
-        const categoryLabel = globalSOPCategories.find(x => x.id === rule.category)?.name || rule.category || 'ไม่ระบุ';
-
-        const shifts = rule.shifts || ['all'];
-        let shiftLabels = '';
-        if (shifts.includes('all')) {
-            shiftLabels = '<span class="bg-white/20 px-1.5 py-0.5 rounded">🌐 ทุกกะ</span>';
-        } else {
-            shifts.forEach(s => {
-                const sOpt = SOP_SHIFT_OPTIONS.find(x => x.id === s);
-                if (sOpt) shiftLabels += `<span class="bg-white/20 px-1.5 py-0.5 rounded">${sOpt.label}</span>`;
-            });
-        }
-        const pinBadge = rule.pinned ? '<span class="bg-white/20 px-1.5 py-0.5 rounded flex items-center gap-0.5"><span class="material-icons text-[10px]">push_pin</span>ปักหมุด</span>' : '';
-
-        // 4) สร้างเนื้อหาทุกกลุ่ม
-        let groupsHtml = '';
-        const groupNames = Object.keys(groups).sort((a, b) => {
-            if (a === '__no_group__') return 1;
-            if (b === '__no_group__') return -1;
+        const subgroupNames = Object.keys(subgroupMap).sort((a, b) => {
+            if (a === '__no_sub__') return 1;
+            if (b === '__no_sub__') return -1;
             return a.localeCompare(b, 'th');
         });
 
-        groupNames.forEach(gName => {
-            const items = groups[gName];
-
-            // หัวกลุ่ม
-            if (gName !== '__no_group__') {
+        let groupsHtml = '';
+        subgroupNames.forEach(gName => {
+            if (gName !== '__no_sub__') {
                 groupsHtml += `
                     <div class="flex items-center gap-2 mt-3 mb-2 px-1">
                         <span class="material-icons text-orange-500 text-[16px]">folder</span>
                         <span class="text-xs font-black text-slate-700 dark:text-gray-200 uppercase tracking-wider">${(gName).replace(/</g, '&lt;')}</span>
                         <div class="flex-1 border-t border-dashed border-orange-300 dark:border-orange-700/50 ml-1"></div>
-                        <span class="text-[10px] font-bold text-gray-500 bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-full">${items.length} ข้อ</span>
+                        <span class="text-[10px] font-bold text-gray-500 bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-full">${subgroupMap[gName].length} ข้อ</span>
                     </div>`;
             }
 
-            // กติกาทุกข้อในกลุ่ม
-            items.forEach(({ r, idx }) => {
+            subgroupMap[gName].forEach(({ r, idx }) => {
                 const t = r.type || 'do';
                 const cfg = sop_getRuleTypeStyle(t);
                 const usedColor = (r.color && r.color.trim()) ? r.color : cfg.defaultColor;
 
+                const safeTitle = (r.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 const safeText = (r.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
-                const headline = (r.text || '').split('\n')[0].slice(0, 100);
-                const safeHeadline = headline.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                const hasMore = (r.text || '').length > headline.length;
+                const hasContent = (r.text || '').trim().length > 0;
 
-                const accordionKey = `${rule.id}::${idx}`;
+                const accordionKey = `standalone::${idx}`;
                 const isOpen = window._sopOpenRules.has(accordionKey);
 
-                // รูปแนบ
                 const imgs = Array.isArray(r.images) ? r.images : [];
                 let imagesHtml = '';
                 if (imgs.length > 0) {
@@ -566,25 +598,28 @@ window.sop_renderAllRulesPage = function() {
                         `</div>`;
                 }
 
-                // ปุ่ม edit/delete
                 const adminBtns = isAdmin ? `
-                    <button onclick="event.stopPropagation(); sop_editSingleRule('${rule.id}', ${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไขกติกาข้อนี้"><span class="material-icons text-[16px]">edit</span></button>
-                    <button onclick="event.stopPropagation(); sop_deleteSingleRule('${rule.id}', ${idx})" class="bg-white dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบกติกาข้อนี้"><span class="material-icons text-[16px]">delete</span></button>
+                    <button onclick="event.stopPropagation(); sop_editStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไข"><span class="material-icons text-[16px]">edit</span></button>
+                    <button onclick="event.stopPropagation(); sop_toggleStandalonePin(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 ${r.pinned ? 'text-amber-500' : 'text-gray-400'} hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="${r.pinned ? 'เลิกปักหมุด' : 'ปักหมุด'}"><span class="material-icons text-[16px]">push_pin</span></button>
+                    <button onclick="event.stopPropagation(); sop_deleteStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบ"><span class="material-icons text-[16px]">delete</span></button>
                 ` : '';
+
+                const pinIcon = r.pinned ? '<span class="material-icons text-amber-500 text-[14px]" title="ปักหมุด">push_pin</span>' : '';
 
                 groupsHtml += `
                     <div class="bg-white dark:bg-slate-900 rounded-xl border-l-[6px] border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-2 hover:shadow-md transition" style="border-left-color: ${usedColor};">
-                        <div onclick="sop_toggleRuleAccordion('${rule.id}', ${idx})" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                        <div onclick="sop_toggleRuleAccordion('standalone', ${idx})" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
                             <div class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-inner" style="background-color: ${usedColor};">
                                 <span class="material-icons text-[20px]">${cfg.ic}</span>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded" style="background-color: ${usedColor}; color: white;">${cfg.lbl}</span>
-                                    ${hasMore ? '<span class="text-[9px] text-gray-400 font-bold">📜 ยาว</span>' : ''}
+                                <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                    <span class="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded text-white" style="background-color: ${usedColor};">${cfg.lbl}</span>
+                                    ${pinIcon}
                                     ${imgs.length > 0 ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[10px]">image</span>${imgs.length} รูป</span>` : ''}
+                                    ${hasContent ? '<span class="text-[9px] text-blue-500 font-bold">📝 มีรายละเอียด</span>' : ''}
                                 </div>
-                                <div class="text-sm md:text-base font-medium text-slate-800 dark:text-white truncate mt-0.5">${safeHeadline}${hasMore && !isOpen ? '...' : ''}</div>
+                                <div class="text-sm md:text-base font-bold text-slate-800 dark:text-white truncate">${safeTitle || '(ไม่มีหัวข้อ)'}</div>
                             </div>
                             <div class="flex items-center gap-1 shrink-0">${adminBtns}
                                 <span class="material-icons text-gray-400 transition ${isOpen ? 'rotate-180' : ''} text-[20px]">expand_more</span>
@@ -592,7 +627,7 @@ window.sop_renderAllRulesPage = function() {
                         </div>
                         ${isOpen ? `
                             <div class="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                <div class="text-sm md:text-base text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>
+                                ${hasContent ? `<div class="text-sm md:text-base text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>` : '<div class="text-sm text-gray-400 italic">ไม่มีรายละเอียดเพิ่มเติม</div>'}
                                 ${imagesHtml}
                             </div>
                         ` : ''}
@@ -601,42 +636,21 @@ window.sop_renderAllRulesPage = function() {
             });
         });
 
-        const safeRuleTitle = (rule.title || '(ไม่มีชื่อ)').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
         html += `
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
                 <div class="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-3 flex items-center gap-2 flex-wrap">
-                    <div class="bg-white/20 p-1.5 rounded-lg shrink-0"><span class="material-icons text-[18px]">${icon}</span></div>
-                    <div class="flex-1 min-w-0">
-                        <h3 class="text-white font-black text-sm md:text-base tracking-wide truncate">${safeRuleTitle}</h3>
-                        <div class="flex items-center gap-1.5 text-[10px] font-bold opacity-95 mt-1 flex-wrap">
-                            ${pinBadge}
-                            <span class="bg-white/20 px-1.5 py-0.5 rounded">${categoryLabel}</span>
-                            ${shiftLabels}
-                            <span class="bg-white/20 px-1.5 py-0.5 rounded">${filteredRules.length} ข้อ</span>
-                        </div>
-                    </div>
-                    <button onclick="sop_jumpToSopFromRules('${rule.id}')" class="bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1 shrink-0" title="ดูรายละเอียดเต็ม">
-                        <span class="material-icons text-[14px]">open_in_new</span> ดู SOP
-                    </button>
+                    <div class="bg-white/20 p-1.5 rounded-lg shrink-0"><span class="material-icons text-[18px]">${catIcon}</span></div>
+                    <h3 class="text-white font-black text-sm md:text-base tracking-wide truncate flex-1">${(catLabel).replace(/</g, '&lt;')}</h3>
+                    <span class="bg-white/20 text-white text-[11px] font-black px-2 py-0.5 rounded-full">${items.length} ข้อ</span>
                 </div>
                 <div class="p-4 bg-orange-50/30 dark:bg-slate-800/80">${groupsHtml}</div>
             </div>
         `;
     });
 
-    if (!foundAny) {
-        container.innerHTML = `
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md p-10 text-center">
-                <span class="material-icons text-6xl opacity-30 mb-3 text-gray-400">search_off</span>
-                <h3 class="text-lg font-black text-gray-500 dark:text-gray-400">ไม่พบกติกาตามเงื่อนไข</h3>
-                <p class="text-sm text-gray-400 mt-1">ลองเปลี่ยนคำค้นหาหรือ filter</p>
-            </div>`;
-        return;
-    }
-
     container.innerHTML = html;
 };
+
 // V3.4: กระโดดจากแท็บกติกา → ไปแท็บ SOP เปิดกฎตัวนั้น
 window.sop_jumpToSopFromRules = function(ruleId) {
     sop_switchTab('sop');
@@ -731,25 +745,8 @@ window.sop_readRule = async function(id, skipIncrement) {
         attachmentsBlock = window.renderTemplate('tpl-sop-attachments', { attachmentsHtml: attHtml, count: item.attachments.length });
     }
 
-    // rules block (V3.4) — ปุ่มลิงก์ไปแท็บกติกา
+    // V4: ไม่มี rules block ใน SOP detail แล้ว — กติกาแยกอยู่แท็บของตัวเอง
     let rulesBlock = '';
-    if (item.rules && item.rules.length > 0) {
-        rulesBlock = `
-            <button onclick="sop_switchTab('rules')" class="w-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 hover:from-orange-600 hover:via-amber-600 hover:to-orange-600 text-white rounded-2xl shadow-lg transition transform hover:scale-[1.01] active:scale-[0.99] overflow-hidden border-2 border-orange-400 dark:border-orange-600 group">
-                <div class="px-6 py-4 flex items-center gap-4">
-                    <div class="bg-white/20 p-3 rounded-2xl shadow-inner backdrop-blur-sm border border-white/20">
-                        <span class="material-icons text-3xl">gavel</span>
-                    </div>
-                    <div class="flex-1 text-left">
-                        <div class="text-xs font-bold opacity-80 uppercase tracking-wider mb-0.5">⚖️ กฎนี้มีกติกา</div>
-                        <div class="text-lg md:text-xl font-black tracking-wide drop-shadow-sm">ดูกติกาทั้งหมด (${item.rules.length} ข้อ)</div>
-                    </div>
-                    <div class="bg-white/20 p-2 rounded-xl group-hover:bg-white/30 transition">
-                        <span class="material-icons text-xl group-hover:translate-x-1 transition">arrow_forward</span>
-                    </div>
-                </div>
-            </button>`;
-    }
 
     // examples
     let examplesBlock = '';
@@ -1425,112 +1422,81 @@ window.sop_handleRuleFilesSelect = async function(event) {
     event.target.value = '';
 };
 
-// เปิดฟอร์มเพิ่ม/แก้กติกา (ฟอร์มเดียวกัน)
-async function sop_openRuleForm(mode, ruleId, ruleIdx) {
-    const isEdit = (mode === 'edit');
-    let sop = null, existing = null;
+// ==========================================
+// 🟠 V4: STANDALONE RULES CRUD (Tab 1 — กติกาขั้นตอน)
+// ==========================================
 
-    if (isEdit) {
-        sop = globalSOPData.find(x => String(x.id) === String(ruleId));
-        if (!sop || !sop.rules || !sop.rules[ruleIdx]) return;
-        existing = sop.rules[ruleIdx];
-    }
+async function sop_openStandaloneRuleForm(editIdx) {
+    const isEdit = (typeof editIdx === 'number');
+    const existing = isEdit ? globalStandaloneRules[editIdx] : null;
+    if (isEdit && !existing) return;
 
-    if (globalSOPData.length === 0) {
-        Swal.fire({
-            icon: 'info', title: 'ยังไม่มีกฎในระบบ',
-            text: 'กรุณาไปที่แท็บ "รายละเอียด SOP" แล้วกด "เพิ่มกฎใหม่" ก่อนครับ',
-            confirmButtonColor: '#f97316'
-        });
-        return;
-    }
-
-    // เตรียมรูปสำหรับ edit mode
     sopRuleImagesBuffer = isEdit ? JSON.parse(JSON.stringify(existing.images || [])) : [];
 
-    // dropdown กฎ
-    const sortedRules = [...globalSOPData].sort((a, b) => {
-        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-        return new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
-    });
-    const initialRuleId = isEdit ? sop.id : sortedRules[0].id;
-    const ruleOptions = sortedRules.map(r => {
-        const cat = globalSOPCategories.find(c => c.id === r.category)?.name || r.category || '';
-        const pin = r.pinned ? '📌 ' : '';
-        const count = (r.rules || []).length;
-        const safeTitle = (r.title || '(ไม่มีชื่อ)').replace(/"/g, '&quot;');
-        return `<option value="${r.id}" ${r.id === initialRuleId ? 'selected' : ''}>${pin}${safeTitle} — ${cat} (${count} ข้อ)</option>`;
-    }).join('');
+    const titleVal     = isEdit ? (existing.title || '')     : '';
+    const textVal      = isEdit ? (existing.text || '')      : '';
+    const typeVal      = isEdit ? (existing.type || 'do')    : 'do';
+    const colorVal     = isEdit ? (existing.color || '')     : '';
+    const subgroupVal  = isEdit ? (existing.subgroup || '')  : '';
+    const categoryVal  = isEdit ? (existing.category || '')  : (globalSOPCategories[0]?.id || '');
+    const pinnedVal    = isEdit ? !!existing.pinned          : false;
 
-    // dropdown subgroup ที่มีอยู่แล้วในกฎ + ตัวเลือก "(ไม่จัดกลุ่ม)" + "(เพิ่มใหม่)"
-    function getSubgroupsOfRule(rId) {
-        const r = globalSOPData.find(x => String(x.id) === String(rId));
-        if (!r) return [];
-        const set = new Set();
-        (r.rules || []).forEach(rl => { if (rl.subgroup && rl.subgroup.trim()) set.add(rl.subgroup.trim()); });
-        return Array.from(set);
-    }
-    const initialSubgroups = getSubgroupsOfRule(initialRuleId);
-    const initialSubgroup = isEdit ? (existing.subgroup || '') : '';
+    // หมวดหมู่
+    const categoryOptions = `
+        <option value="">-- ไม่ระบุหมวด --</option>
+        ${globalSOPCategories.map(c => `<option value="${c.id}" ${c.id === categoryVal ? 'selected' : ''}>${c.name}</option>`).join('')}
+    `;
+
+    // subgroup ที่มีอยู่
+    const existingSubgroups = new Set();
+    (globalStandaloneRules || []).forEach(r => { if (r.subgroup && r.subgroup.trim()) existingSubgroups.add(r.subgroup.trim()); });
     const subgroupOpts = `
         <option value="">-- ไม่จัดกลุ่ม --</option>
-        ${initialSubgroups.map(g => `<option value="${g}" ${g === initialSubgroup ? 'selected' : ''}>${g}</option>`).join('')}
+        ${Array.from(existingSubgroups).map(g => `<option value="${g}" ${g === subgroupVal ? 'selected' : ''}>${g}</option>`).join('')}
         <option value="__new__">+ เพิ่มกลุ่มใหม่...</option>
     `;
 
-    // Type radio
-    const currentType = isEdit ? (existing.type || 'do') : 'do';
-
-    // Color palette
-    const currentColor = isEdit ? (existing.color || '') : '';
     const colorPaletteHtml = SOP_COLOR_PALETTE.map(c => `
         <label class="cursor-pointer relative" title="${c.name}">
-            <input type="radio" name="qaRuleColor" value="${c.val}" class="sr-only peer" ${currentColor === c.val ? 'checked' : ''}>
+            <input type="radio" name="qaRuleColor" value="${c.val}" class="sr-only peer" ${colorVal === c.val ? 'checked' : ''}>
             <div class="w-8 h-8 rounded-lg border-2 border-gray-300 dark:border-slate-600 peer-checked:border-slate-900 dark:peer-checked:border-white peer-checked:scale-110 transition shadow-sm" style="background: ${c.preview};"></div>
             ${c.val === '' ? '<span class="absolute inset-0 flex items-center justify-center text-white font-black text-[8px] pointer-events-none drop-shadow">AUTO</span>' : ''}
         </label>
     `).join('');
 
     const formHtml = `
-        <div class="text-left space-y-3" id="qaRuleForm">
-            ${!isEdit ? `
-                <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded-xl p-3 text-sm flex gap-2 items-start">
-                    <span class="material-icons text-orange-500 text-[18px] mt-0.5">info</span>
-                    <div class="text-slate-700 dark:text-gray-200 text-xs">เลือกกฎ → เลือกประเภท → กลุ่ม → สี → พิมพ์เนื้อหา → แนบรูป (ก๊อปวาง/ลาก/อัพ) → บันทึก</div>
-                </div>` : `
-                <div class="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 text-xs">
-                    <div class="text-gray-500 dark:text-gray-400 mb-0.5">กฎ:</div>
-                    <div class="font-bold text-slate-800 dark:text-white">${(sop.title || '(ไม่มีชื่อ)').replace(/</g, '&lt;')}</div>
-                </div>
-            `}
+        <div class="text-left space-y-3">
+            <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded-xl p-3 text-xs text-slate-700 dark:text-gray-200 flex gap-2 items-start">
+                <span class="material-icons text-orange-500 text-[18px]">info</span>
+                <div>กรอกหัวข้อ → เลือกประเภท/สี/หมวด → เนื้อหา → แนบรูป (ก๊อปวาง/ลาก/อัพ) → บันทึก</div>
+            </div>
 
-            ${!isEdit ? `
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">เลือกกฎที่จะเพิ่มกติกา <span class="text-red-500">*</span></label>
-                    <select id="qaRuleSelect" onchange="sop_onRuleSelectChange()" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none font-bold text-sm">${ruleOptions}</select>
-                </div>` : ''}
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หัวข้อกติกา <span class="text-red-500">*</span></label>
+                <input type="text" id="qaRuleTitle" value="${titleVal.replace(/"/g, '&quot;')}" placeholder="เช่น ตรวจสลิปก่อนเติม..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none font-bold text-sm">
+            </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ประเภท <span class="text-red-500">*</span></label>
                     <div class="grid grid-cols-2 gap-1.5">
                         <label class="flex items-center gap-1 cursor-pointer p-2 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 hover:border-emerald-500 transition has-[:checked]:bg-emerald-200 dark:has-[:checked]:bg-emerald-900/50 has-[:checked]:border-emerald-500">
-                            <input type="radio" name="qaRuleType" value="do" class="w-3 h-3 accent-emerald-500" ${currentType === 'do' ? 'checked' : ''}>
+                            <input type="radio" name="qaRuleType" value="do" class="w-3 h-3 accent-emerald-500" ${typeVal === 'do' ? 'checked' : ''}>
                             <span class="material-icons text-emerald-500 text-[14px]">check_circle</span>
                             <span class="text-xs font-bold">ทำได้</span>
                         </label>
                         <label class="flex items-center gap-1 cursor-pointer p-2 rounded-lg border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 hover:border-orange-500 transition has-[:checked]:bg-orange-200 dark:has-[:checked]:bg-orange-900/50 has-[:checked]:border-orange-500">
-                            <input type="radio" name="qaRuleType" value="must" class="w-3 h-3 accent-orange-500" ${currentType === 'must' ? 'checked' : ''}>
+                            <input type="radio" name="qaRuleType" value="must" class="w-3 h-3 accent-orange-500" ${typeVal === 'must' ? 'checked' : ''}>
                             <span class="material-icons text-orange-500 text-[14px]">priority_high</span>
                             <span class="text-xs font-bold">ต้องทำ</span>
                         </label>
                         <label class="flex items-center gap-1 cursor-pointer p-2 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:border-red-500 transition has-[:checked]:bg-red-200 dark:has-[:checked]:bg-red-900/50 has-[:checked]:border-red-500">
-                            <input type="radio" name="qaRuleType" value="dont" class="w-3 h-3 accent-red-500" ${currentType === 'dont' ? 'checked' : ''}>
+                            <input type="radio" name="qaRuleType" value="dont" class="w-3 h-3 accent-red-500" ${typeVal === 'dont' ? 'checked' : ''}>
                             <span class="material-icons text-red-500 text-[14px]">block</span>
                             <span class="text-xs font-bold">ห้ามทำ</span>
                         </label>
                         <label class="flex items-center gap-1 cursor-pointer p-2 rounded-lg border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 hover:border-blue-500 transition has-[:checked]:bg-blue-200 dark:has-[:checked]:bg-blue-900/50 has-[:checked]:border-blue-500">
-                            <input type="radio" name="qaRuleType" value="info" class="w-3 h-3 accent-blue-500" ${currentType === 'info' ? 'checked' : ''}>
+                            <input type="radio" name="qaRuleType" value="info" class="w-3 h-3 accent-blue-500" ${typeVal === 'info' ? 'checked' : ''}>
                             <span class="material-icons text-blue-500 text-[14px]">info</span>
                             <span class="text-xs font-bold">หมายเหตุ</span>
                         </label>
@@ -1538,27 +1504,37 @@ async function sop_openRuleForm(mode, ruleId, ruleIdx) {
                 </div>
 
                 <div>
-                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หมวดหมู่ย่อย</label>
-                    <select id="qaRuleSubgroup" onchange="sop_onSubgroupChange(this)" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none font-bold text-sm">
-                        ${subgroupOpts}
-                    </select>
-                    <input type="text" id="qaRuleSubgroupNew" placeholder="พิมพ์ชื่อกลุ่มใหม่..." class="hidden w-full mt-1.5 p-2.5 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none text-sm">
+                    <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หมวดหมู่</label>
+                    <select id="qaRuleCategory" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none font-bold text-sm">${categoryOptions}</select>
                 </div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">หมวดหมู่ย่อย (ไม่บังคับ)</label>
+                <select id="qaRuleSubgroup" onchange="sop_onSubgroupChange(this)" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none font-bold text-sm">${subgroupOpts}</select>
+                <input type="text" id="qaRuleSubgroupNew" placeholder="พิมพ์ชื่อกลุ่มใหม่..." class="hidden w-full mt-1.5 p-2.5 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none text-sm">
             </div>
 
             <div>
                 <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">สีแถบของกติกา</label>
                 <div class="flex flex-wrap gap-1.5 p-3 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-xl">${colorPaletteHtml}</div>
-                <div class="text-[10px] text-gray-500 mt-1">เลือก "AUTO" = ใช้สีตามประเภท (ทำได้=เขียว, ต้องทำ=ส้ม...)</div>
+                <div class="text-[10px] text-gray-500 mt-1">เลือก "AUTO" = ใช้สีตามประเภท</div>
             </div>
 
             <div>
-                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">เนื้อหากติกา <span class="text-red-500">*</span> <span class="text-gray-400 normal-case ml-2">(บรรทัดแรก = หัวข้อที่จะแสดงตอนหุบ)</span></label>
-                <textarea id="qaRuleText" rows="5" placeholder="พิมพ์เนื้อหากติกา..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none text-sm whitespace-pre-wrap font-medium leading-relaxed">${isEdit ? (existing.text || '').replace(/</g, '&lt;') : ''}</textarea>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="qaRulePinned" class="w-4 h-4 accent-amber-500" ${pinnedVal ? 'checked' : ''}>
+                    <span class="text-sm font-bold text-slate-700 dark:text-gray-200 flex items-center gap-1"><span class="material-icons text-amber-500 text-[16px]">push_pin</span>ปักหมุด — ให้เด้งบนสุด</span>
+                </label>
             </div>
 
             <div>
-                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">รูปภาพประกอบ <span class="text-gray-400 normal-case ml-2">(วางในกล่องเพื่อ ก๊อปวาง / ลากไฟล์ / กดปุ่มเลือก)</span></label>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">รายละเอียด (ไม่บังคับ — กดที่หัวข้อเพื่อขยาย)</label>
+                <textarea id="qaRuleText" rows="5" placeholder="พิมพ์รายละเอียดเพิ่มเติม..." class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none text-sm whitespace-pre-wrap font-medium leading-relaxed">${textVal}</textarea>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">รูปภาพประกอบ <span class="text-gray-400 normal-case ml-2">(ก๊อปวาง / ลากไฟล์ / กดปุ่มเลือก)</span></label>
                 <div id="qaRulePasteZone" class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50 dark:bg-slate-900 transition focus-within:border-orange-500 hover:border-orange-400" tabindex="0">
                     <div class="flex gap-2 items-center mb-2">
                         <input type="file" id="qaRuleFiles" multiple accept="image/*" class="hidden" onchange="sop_handleRuleFilesSelect(event)">
@@ -1584,21 +1560,18 @@ async function sop_openRuleForm(mode, ruleId, ruleIdx) {
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
         didOpen: () => {
             sop_renderRuleImagesPreview();
-
-            // Paste handler
             const zone = document.getElementById('qaRulePasteZone');
             const textarea = document.getElementById('qaRuleText');
+            const titleInput = document.getElementById('qaRuleTitle');
 
             const pasteHandler = async (e) => {
                 const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
                 if (!items) return;
-                let pastedImage = false;
                 for (const item of items) {
                     if (item.type && item.type.indexOf('image') !== -1) {
                         e.preventDefault();
                         const file = item.getAsFile();
                         if (file) {
-                            pastedImage = true;
                             const obj = await sop_uploadRuleImageFile(file);
                             if (obj) {
                                 sopRuleImagesBuffer.push(obj);
@@ -1612,17 +1585,16 @@ async function sop_openRuleForm(mode, ruleId, ruleIdx) {
             };
             if (zone) zone.addEventListener('paste', pasteHandler);
             if (textarea) textarea.addEventListener('paste', pasteHandler);
-            // ฟังที่ document level เผื่อ focus หลุด
+            if (titleInput) titleInput.addEventListener('paste', pasteHandler);
             document.addEventListener('paste', pasteHandler);
             window._sopActivePasteHandler = pasteHandler;
 
-            // Drag & Drop
             if (zone) {
-                zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('border-orange-500', 'bg-orange-50'); });
-                zone.addEventListener('dragleave', () => { zone.classList.remove('border-orange-500', 'bg-orange-50'); });
+                zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('border-orange-500'); });
+                zone.addEventListener('dragleave', () => zone.classList.remove('border-orange-500'));
                 zone.addEventListener('drop', async (e) => {
                     e.preventDefault();
-                    zone.classList.remove('border-orange-500', 'bg-orange-50');
+                    zone.classList.remove('border-orange-500');
                     const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
                     if (files.length === 0) return;
                     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
@@ -1634,6 +1606,8 @@ async function sop_openRuleForm(mode, ruleId, ruleIdx) {
                     sop_renderRuleImagesPreview();
                 });
             }
+
+            if (titleInput && !isEdit) titleInput.focus();
         },
         willClose: () => {
             if (window._sopActivePasteHandler) {
@@ -1642,18 +1616,19 @@ async function sop_openRuleForm(mode, ruleId, ruleIdx) {
             }
         },
         preConfirm: () => {
-            const ruleId = isEdit ? sop.id : document.getElementById('qaRuleSelect').value;
+            const title = document.getElementById('qaRuleTitle').value.trim();
+            const text = document.getElementById('qaRuleText').value.trim();
             const typeEl = document.querySelector('input[name="qaRuleType"]:checked');
             const ruleType = typeEl ? typeEl.value : 'do';
-            const text = document.getElementById('qaRuleText').value.trim();
             const colorEl = document.querySelector('input[name="qaRuleColor"]:checked');
             const color = colorEl ? colorEl.value : '';
             let subgroup = document.getElementById('qaRuleSubgroup').value;
             if (subgroup === '__new__') subgroup = (document.getElementById('qaRuleSubgroupNew').value || '').trim();
+            const category = document.getElementById('qaRuleCategory').value;
+            const pinned = document.getElementById('qaRulePinned').checked;
 
-            if (!ruleId)  { Swal.showValidationMessage('กรุณาเลือกกฎ'); return false; }
-            if (!text)    { Swal.showValidationMessage('กรุณาพิมพ์เนื้อหากติกา'); return false; }
-            return { ruleId, ruleType, text, color, subgroup, images: [...sopRuleImagesBuffer] };
+            if (!title) { Swal.showValidationMessage('กรุณาใส่หัวข้อกติกา'); return false; }
+            return { title, text, type: ruleType, color, subgroup, category, pinned, images: [...sopRuleImagesBuffer] };
         }
     });
 
@@ -1662,51 +1637,52 @@ async function sop_openRuleForm(mode, ruleId, ruleIdx) {
 
     Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
     try {
-        const targetSop = globalSOPData.find(x => String(x.id) === String(result.value.ruleId));
-        if (!targetSop) throw new Error('ไม่พบกฎ');
-        if (!Array.isArray(targetSop.rules)) targetSop.rules = [];
+        const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
+        const nowIso = new Date().toISOString();
 
         if (isEdit) {
-            // ถ้าย้ายไปกฎอื่น (เคสนี้ไม่อนุญาต — แต่ป้องกันไว้)
-            targetSop.rules[ruleIdx] = {
-                type: result.value.ruleType,
+            globalStandaloneRules[editIdx] = {
+                ...globalStandaloneRules[editIdx],
+                title: result.value.title,
                 text: result.value.text,
+                type: result.value.type,
                 color: result.value.color,
                 subgroup: result.value.subgroup,
-                images: result.value.images
+                category: result.value.category,
+                pinned: result.value.pinned,
+                images: result.value.images,
+                updated_at: nowIso,
+                last_editor: authorName
             };
         } else {
-            targetSop.rules.push({
-                type: result.value.ruleType,
+            globalStandaloneRules.unshift({
+                id: 'srule_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                title: result.value.title,
                 text: result.value.text,
+                type: result.value.type,
                 color: result.value.color,
                 subgroup: result.value.subgroup,
-                images: result.value.images
+                category: result.value.category,
+                pinned: result.value.pinned,
+                images: result.value.images,
+                author_name: authorName,
+                last_editor: authorName,
+                created_at: nowIso,
+                updated_at: nowIso
             });
         }
 
-        const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
-        const nowIso = new Date().toISOString();
-        targetSop.updated_at = nowIso;
-        targetSop.last_editor = authorName;
-        if (!Array.isArray(targetSop.history)) targetSop.history = [];
-        targetSop.history.push({ timestamp: nowIso, editor: authorName, title_before: targetSop.title });
-        while (targetSop.history.length > 5) targetSop.history.shift();
-
-        await sop_saveAllData();
-        sop_sortData();
+        await sop_saveStandaloneRules();
         sop_renderAllRulesPage();
-        sop_renderList();
         sop_updateTabCounters();
-
         Swal.fire({ icon: 'success', title: isEdit ? 'แก้ไขสำเร็จ!' : 'เพิ่มกติกาสำเร็จ!', timer: 1100, showConfirmButton: false });
     } catch (e) {
-        console.error('saveRule error:', e);
+        console.error('saveStandaloneRule error:', e);
         Swal.fire('Error', e.message || 'บันทึกไม่สำเร็จ', 'error');
     }
 }
 
-// onChange ของ subgroup dropdown — โชว์ช่อง "พิมพ์ชื่อใหม่"
+// onChange ของ subgroup dropdown
 window.sop_onSubgroupChange = function(sel) {
     const newInput = document.getElementById('qaRuleSubgroupNew');
     if (!newInput) return;
@@ -1719,41 +1695,32 @@ window.sop_onSubgroupChange = function(sel) {
     }
 };
 
-// onChange ของ rule dropdown — refresh subgroup options ให้ตรงกับกฎที่เลือก
-window.sop_onRuleSelectChange = function() {
-    const sel = document.getElementById('qaRuleSelect');
-    const subgroupSel = document.getElementById('qaRuleSubgroup');
-    if (!sel || !subgroupSel) return;
-    const r = globalSOPData.find(x => String(x.id) === String(sel.value));
-    const set = new Set();
-    (r && r.rules || []).forEach(rl => { if (rl.subgroup && rl.subgroup.trim()) set.add(rl.subgroup.trim()); });
-    let html = '<option value="">-- ไม่จัดกลุ่ม --</option>';
-    Array.from(set).forEach(g => html += `<option value="${g}">${g}</option>`);
-    html += '<option value="__new__">+ เพิ่มกลุ่มใหม่...</option>';
-    subgroupSel.innerHTML = html;
-    // reset
-    const newInput = document.getElementById('qaRuleSubgroupNew');
-    if (newInput) { newInput.classList.add('hidden'); newInput.value = ''; }
+// Public APIs สำหรับ Tab "กติกาขั้นตอน" (V4)
+window.sop_quickAddRule = function() { sop_openStandaloneRuleForm(); };
+window.sop_editStandaloneRule = function(idx) { sop_openStandaloneRuleForm(idx); };
+
+window.sop_toggleStandalonePin = async function(idx) {
+    if (!globalStandaloneRules[idx]) return;
+    globalStandaloneRules[idx].pinned = !globalStandaloneRules[idx].pinned;
+    globalStandaloneRules[idx].updated_at = new Date().toISOString();
+    try {
+        await sop_saveStandaloneRules();
+        sop_renderAllRulesPage();
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
+        Toast.fire({ icon: 'success', title: globalStandaloneRules[idx].pinned ? '📌 ปักหมุดแล้ว' : 'เลิกปักหมุดแล้ว' });
+    } catch (e) {
+        Swal.fire('Error', e.message || 'บันทึกไม่สำเร็จ', 'error');
+    }
 };
 
-// Public APIs
-window.sop_quickAddRule = function() { sop_openRuleForm('add'); };
-window.sop_editSingleRule = function(ruleId, ruleIdx) { sop_openRuleForm('edit', ruleId, ruleIdx); };
-
-window.sop_deleteSingleRule = async function(ruleId, ruleIdx) {
-    const sop = globalSOPData.find(x => String(x.id) === String(ruleId));
-    if (!sop || !sop.rules || !sop.rules[ruleIdx]) return;
-    const r = sop.rules[ruleIdx];
-    let typeLabel = 'ทำได้';
-    if (r.type === 'dont') typeLabel = 'ห้ามทำ';
-    else if (r.type === 'must') typeLabel = 'ต้องทำ';
-    else if (r.type === 'info') typeLabel = 'หมายเหตุ';
+window.sop_deleteStandaloneRule = async function(idx) {
+    const r = globalStandaloneRules[idx];
+    if (!r) return;
 
     const confirm = await Swal.fire({
         title: 'ยืนยันลบกติกาข้อนี้?',
         html: `<div class="text-left text-sm">
-                  <div class="text-gray-500 dark:text-gray-400 mb-1 text-xs">ประเภท: <span class="font-bold">${typeLabel}</span></div>
-                  <div class="font-bold text-slate-700 dark:text-gray-200 bg-slate-100 dark:bg-slate-900 p-3 rounded-lg border border-gray-200 dark:border-slate-700">${(r.text || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>')}</div>
+                  <div class="font-bold text-slate-700 dark:text-gray-200 bg-slate-100 dark:bg-slate-900 p-3 rounded-lg border border-gray-200 dark:border-slate-700">${(r.title || '(ไม่มีหัวข้อ)').replace(/</g, '&lt;')}</div>
                   <div class="text-gray-500 text-xs mt-2">ลบแล้วจะไม่สามารถกู้คืนได้</div>
                </div>`,
         icon: 'warning', showCancelButton: true,
@@ -1764,18 +1731,9 @@ window.sop_deleteSingleRule = async function(ruleId, ruleIdx) {
 
     Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
     try {
-        sop.rules.splice(ruleIdx, 1);
-        const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
-        const nowIso = new Date().toISOString();
-        sop.updated_at = nowIso;
-        sop.last_editor = authorName;
-        if (!Array.isArray(sop.history)) sop.history = [];
-        sop.history.push({ timestamp: nowIso, editor: authorName, title_before: sop.title });
-        while (sop.history.length > 5) sop.history.shift();
-
-        await sop_saveAllData();
+        globalStandaloneRules.splice(idx, 1);
+        await sop_saveStandaloneRules();
         sop_renderAllRulesPage();
-        sop_renderList();
         sop_updateTabCounters();
         Swal.fire({ icon: 'success', title: 'ลบสำเร็จ!', timer: 1000, showConfirmButton: false });
     } catch (e) {
