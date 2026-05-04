@@ -588,7 +588,7 @@ window.sop_renderAllRulesPage = function() {
                 const imgs = Array.isArray(r.images) ? r.images : [];
                 let imagesHtml = '';
                 if (imgs.length > 0) {
-                    imagesHtml = `<div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3">` +
+                    imagesHtml = `<div class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">` +
                         imgs.map(img => `
                             <div onclick="event.stopPropagation(); sop_openLightbox('${img.url}')" class="cursor-zoom-in rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 hover:opacity-90 transition relative group shadow-sm">
                                 <img src="${img.url}" class="w-full h-32 object-cover">
@@ -626,9 +626,9 @@ window.sop_renderAllRulesPage = function() {
                             </div>
                         </div>
                         ${isOpen ? `
-                            <div class="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                ${hasContent ? `<div class="text-sm md:text-base text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>` : '<div class="text-sm text-gray-400 italic">ไม่มีรายละเอียดเพิ่มเติม</div>'}
+                            <div class="px-4 pb-4 pt-3 border-t border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                                 ${imagesHtml}
+                                ${hasContent ? `<div class="text-sm md:text-base text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>` : '<div class="text-sm text-gray-400 italic">ไม่มีรายละเอียดเพิ่มเติม</div>'}
                             </div>
                         ` : ''}
                     </div>
