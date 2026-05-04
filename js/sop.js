@@ -895,19 +895,19 @@ window.sop_renderAllRulesPage = function() {
             const pinIcon = r.pinned ? '<span class="material-icons text-amber-500 text-[14px]" title="ปักหมุด">push_pin</span>' : '';
 
             bodyHtml += `
-                <div class="bg-white dark:bg-slate-800 rounded-xl border-l-[6px] border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-2 hover:shadow-md transition" style="border-left-color: ${usedColor};">
-                    <div onclick="sop_toggleRuleAccordion('standalone', ${idx})" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
-                        <div class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-inner" style="background-color: ${usedColor};">
-                            <span class="material-icons text-[20px]">${cfg.ic}</span>
+                <div class="bg-white dark:bg-slate-800 rounded-xl border-l-[6px] border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-2.5 hover:shadow-md transition" style="border-left-color: ${usedColor};">
+                    <div onclick="sop_toggleRuleAccordion('standalone', ${idx})" class="flex items-center gap-3 px-4 py-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                        <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-inner" style="background-color: ${usedColor};">
+                            <span class="material-icons text-[22px]">${cfg.ic}</span>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                            <div class="flex items-center gap-1.5 flex-wrap mb-1">
                                 <span class="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded text-white" style="background-color: ${usedColor};">${cfg.lbl}</span>
                                 ${pinIcon}
                                 ${imgs.length > 0 ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[10px]">image</span>${imgs.length} รูป</span>` : ''}
                                 ${hasContent ? '<span class="text-[9px] text-blue-500 font-bold">📝 มีรายละเอียด</span>' : ''}
                             </div>
-                            <div class="text-sm md:text-base font-bold text-slate-800 dark:text-white truncate">${safeTitle || '(ไม่มีหัวข้อ)'}</div>
+                            <div class="text-base md:text-lg font-black text-slate-800 dark:text-white truncate leading-snug">${safeTitle || '(ไม่มีหัวข้อ)'}</div>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">${adminBtns}
                             <span class="material-icons text-gray-400 transition ${isOpen ? 'rotate-180' : ''} text-[20px]">expand_more</span>
@@ -1382,15 +1382,31 @@ window.sop_renderAttachmentPreview = function() {
     const container = document.getElementById('sopAttachmentPreview');
     if (!container) return;
     if (sopAttachmentsBuffer.length === 0) {
-        container.innerHTML = '<div class="text-[11px] text-gray-400 italic text-center py-2">ยังไม่มีไฟล์แนบ</div>';
+        container.innerHTML = '<div class="text-[11px] text-gray-400 italic text-center py-2">ยังไม่มีไฟล์แนบ — เลือกไฟล์ / Ctrl+V / ลากมาทิ้ง</div>';
         return;
     }
-    container.innerHTML = sopAttachmentsBuffer.map((att, idx) => {
-        if (att.type === 'pdf' || (att.url || '').toLowerCase().includes('.pdf')) {
-            return window.renderTemplate('tpl-sop-attach-preview-pdf', { name: att.name, index: idx });
-        }
-        return window.renderTemplate('tpl-sop-attach-preview-img', { url: att.url, name: att.name, index: idx });
-    }).join('');
+    container.innerHTML = '<div class="grid grid-cols-2 md:grid-cols-3 gap-2">' +
+        sopAttachmentsBuffer.map((att, idx) => {
+            const isPdf = (att.type === 'pdf' || (att.url || '').toLowerCase().includes('.pdf'));
+            if (isPdf) {
+                return `
+                    <div class="relative group rounded-lg overflow-hidden border border-red-300 dark:border-red-700/50 shadow-sm bg-red-50 dark:bg-red-900/20 p-3 flex items-center gap-2">
+                        <span class="material-icons text-red-500 text-2xl shrink-0">picture_as_pdf</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-bold text-slate-800 dark:text-white truncate">${(att.name || 'PDF').replace(/</g, '&lt;')}</div>
+                            <div class="text-[10px] text-gray-500">PDF</div>
+                        </div>
+                        <button type="button" onclick="sop_removeAttachment(${idx})" class="bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-90 hover:opacity-100 transition shadow shrink-0" title="ลบไฟล์"><span class="material-icons text-[14px]">close</span></button>
+                    </div>
+                `;
+            }
+            return `
+                <div class="relative group rounded-lg overflow-hidden border border-gray-300 dark:border-slate-600 shadow-sm">
+                    <img src="${att.url}" class="w-full h-20 object-cover">
+                    <button type="button" onclick="sop_removeAttachment(${idx})" class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-90 hover:opacity-100 transition shadow z-10" title="ลบรูป"><span class="material-icons text-[14px]">close</span></button>
+                </div>
+            `;
+        }).join('') + '</div>';
 };
 
 window.sop_removeAttachment = function(idx) {
