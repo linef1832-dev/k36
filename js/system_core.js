@@ -231,7 +231,7 @@ window.saveData = async function(e) {
             if (dateVal === realYesterdayStr) {
                 isAllowedDate = true;
             } else if (dateVal === realTodayStr) {
-                blockTitle = 'ยังเป็นกะเดิมของคุณอยู่!';
+                   let blockTitle = 'ไม่ได้ห้ามลงล่วงหน้านะจ๊ะ';
                 blockMsg = `ตอนนี้กะของคุณคร่อมมาจากเมื่อวาน (${realYesterdayStr}) กรุณาเลือกวันที่ <b>${realYesterdayStr}</b> แทน<br><span class="text-xs text-gray-500">วันใหม่ (${realTodayStr}) ยังไม่ใช่กะของคุณ จะลงได้หลัง ${NIGHT_START_HOUR}:00 น. เป็นต้นไป</span>`;
             } else {
                 blockMsg = `กรุณาเลือกวันที่ <b>${realYesterdayStr}</b> (วันที่กะของคุณเริ่ม)`;
