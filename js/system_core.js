@@ -183,26 +183,51 @@ window.saveData = async function(e) {
     
     // 🌟 --- โค้ดดักลงเวลาล่วงหน้า (ล็อกไม่ให้จองข้ามวัน) --- 🌟
     const todayObj = new Date();
-    const currentHour = todayObj.getHours(); 
-    
+    const currentHour = todayObj.getHours();
+
     const realTodayStr = new Date(todayObj.getTime() - (todayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     const yesterdayObj = new Date(todayObj);
     yesterdayObj.setDate(yesterdayObj.getDate() - 1);
     const realYesterdayStr = new Date(yesterdayObj.getTime() - (yesterdayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
+    const isStaff = !['manager', 'admin'].includes(currentUser.role);
+
+    // 🚨 ด่านที่ 1: บล็อกการลงของ "วันในอนาคต" สำหรับพนักงานทุกกะ (เด็ดขาด!)
+    if (isStaff && dateVal > realTodayStr) {
+        window.resetBtn();
+        return Swal.fire(
+            'ห้ามลงล่วงหน้า!',
+            'ไม่สามารถลงเวลาของ "วันในอนาคต" ได้ครับ<br><span class="text-xs text-gray-500">กรุณาเลือกเฉพาะวันที่ทำงานของวันนี้เท่านั้น</span>',
+            'error'
+        );
+    }
+
+    // ตรวจสอบว่าพนักงานคนนี้เป็น "กะดึก" หรือไม่ (เช็คทั้งกะที่เลือก และกะที่ระบบกำหนดให้)
+    const isNightShiftStaff = (sName === 'กะดึก') || (currentUser.allowed_shift === 'กะดึก');
+
     let isAllowedDate = (dateVal === realTodayStr);
-    
-    // อนุโลมให้กะดึกลงเวลาของเมื่อวานได้ถึง 07:59 น.
-    if (currentHour >= 0 && currentHour < 8) {
+
+    // 🌙 ด่านที่ 2: อนุโลมเฉพาะ "พนักงานกะดึก" เท่านั้น ที่ลงของเมื่อวานได้ในช่วง 00:00 - 07:59
+    // (เพราะกะดึกทำงานคร่อมวัน เริ่มก่อนเที่ยงคืน เลิกหลังเที่ยงคืน)
+    if (isNightShiftStaff && currentHour >= 0 && currentHour < 8) {
         if (dateVal === realYesterdayStr) {
             isAllowedDate = true;
         }
     }
 
-    // 🛑 ตรวจสอบสิทธิ์: ถ้าไม่ใช่แอดมิน และเลือกวันที่ไม่ใช่วันนี้ บล็อกทันที!
-    if (!['manager', 'admin'].includes(currentUser.role) && !isAllowedDate) {
+    // 🛑 ด่านสุดท้าย: ถ้าวันที่ไม่อยู่ในเงื่อนไขที่อนุญาต บล็อกทันที
+    if (isStaff && !isAllowedDate) {
         window.resetBtn();
-        return Swal.fire('ไม่อนุญาต', 'ลงเวลาได้เฉพาะของ "วันนี้" เท่านั้น<br><span class="text-xs text-gray-500">(เลือกตามวันที่ตัวเองทำงานเท่านั้นนะจ๊ะ)</span>', 'error');
+        let errMsg = 'ลงเวลาได้เฉพาะของ "วันนี้" เท่านั้น';
+        // ถ้าเป็นกะดึกแต่พ้นช่วงอนุโลม ให้แสดงข้อความที่ตรงเคสมากขึ้น
+        if (dateVal === realYesterdayStr) {
+            if (isNightShiftStaff) {
+                errMsg = 'พ้นช่วงเวลาอนุโลมแล้ว!<br><span class="text-xs text-gray-500">กะดึกย้อนลงของเมื่อวานได้ถึง 07:59 น. เท่านั้น</span>';
+            } else {
+                errMsg = 'กะของคุณไม่อนุญาตให้ย้อนลงเมื่อวาน<br><span class="text-xs text-gray-500">เฉพาะพนักงาน "กะดึก" เท่านั้นที่ย้อนได้ (เพราะคร่อมวัน)</span>';
+            }
+        }
+        return Swal.fire('ไม่อนุญาต', errMsg, 'error');
     }
     // 🌟 --------------------------------------------------- 🌟
 
