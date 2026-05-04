@@ -117,9 +117,9 @@
 <div id="sop-templates" class="hidden">
 
     <template id="tpl-sop-list-item">
-        <div onclick="sop_readRule('{{id}}')" class="cursor-pointer rounded-2xl border-l-4 {{priorityBorder}} {{activeBg}} transition group shadow-sm relative overflow-hidden">
+        <div class="cursor-pointer rounded-2xl border-l-4 {{priorityBorder}} {{activeBg}} transition group shadow-sm relative overflow-hidden">
             {{pinIcon}}
-            <div class="p-3.5 flex gap-3">
+            <div onclick="sop_readRule('{{id}}')" class="p-3.5 flex gap-3">
                 <div class="mt-0.5 shrink-0">
                     <span class="material-icons {{iconColor}} text-[22px] bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-gray-100 dark:border-slate-600 group-hover:scale-110 transition">{{icon}}</span>
                 </div>
@@ -136,11 +136,12 @@
                     {{tagsHtml}}
                 </div>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-700 px-3.5 py-1.5 flex items-center gap-3 text-[9px] text-gray-500 dark:text-gray-400 font-bold">
+            <div onclick="sop_readRule('{{id}}')" class="bg-slate-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-700 px-3.5 py-1.5 flex items-center gap-3 text-[9px] text-gray-500 dark:text-gray-400 font-bold">
                 <span class="flex items-center gap-0.5"><span class="material-icons text-[11px]">update</span>{{date}}</span>
                 <span class="flex items-center gap-0.5"><span class="material-icons text-[11px]">visibility</span>{{viewCount}}</span>
                 {{rulesCountBadge}}
                 {{attachmentIcon}}
+                {{moveCategoryBtn}}
             </div>
         </div>
     </template>
