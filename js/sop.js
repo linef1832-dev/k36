@@ -474,6 +474,10 @@ window.sop_renderAllRulesPage = function() {
         // ปักหมุด badge
         const pinBadge = rule.pinned ? '<span class="bg-white/20 px-1.5 py-0.5 rounded flex items-center gap-0.5"><span class="material-icons text-[10px]">push_pin</span>ปักหมุด</span>' : '';
 
+        // เช็คสิทธิ์ admin
+        const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
+        const isAdmin = hasManagePerm || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+
         let rulesItemsHtml = '';
         rs.forEach(r => {
             const t = r.type || 'do';
@@ -490,6 +494,17 @@ window.sop_renderAllRulesPage = function() {
 
             const safeText = (r.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
 
+            // หาตำแหน่งจริงของกติกาข้อนี้ใน rule.rules (เพราะ rs คือ filter)
+            const actualIdx = rule.rules.indexOf(r);
+
+            // ปุ่ม edit/delete (เฉพาะ admin)
+            const adminBtns = isAdmin ? `
+                <div class="flex flex-col gap-1 p-2 shrink-0 border-l ${cfg.border}">
+                    <button onclick="sop_editSingleRule('${rule.id}', ${actualIdx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไขกติกาข้อนี้"><span class="material-icons text-[16px]">edit</span></button>
+                    <button onclick="sop_deleteSingleRule('${rule.id}', ${actualIdx})" class="bg-white dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบกติกาข้อนี้"><span class="material-icons text-[16px]">delete</span></button>
+                </div>
+            ` : '';
+
             rulesItemsHtml += `
                 <div class="${cfg.bg} border ${cfg.border} rounded-xl flex items-stretch overflow-hidden">
                     <div class="${cfg.labelBg} text-white py-2 px-3 flex flex-col items-center justify-center shrink-0 w-16 md:w-20">
@@ -497,6 +512,7 @@ window.sop_renderAllRulesPage = function() {
                         <span class="text-[9px] font-black uppercase tracking-wider mt-0.5 drop-shadow-sm">${cfg.lbl}</span>
                     </div>
                     <div class="flex-1 p-3 text-slate-800 dark:text-white text-sm leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>
+                    ${adminBtns}
                 </div>
             `;
         });
@@ -1383,6 +1399,152 @@ window.sop_quickAddRule = async function() {
     } catch (e) {
         console.error('quickAddRule error:', e);
         Swal.fire('Error', e.message || 'บันทึกไม่สำเร็จ', 'error');
+    }
+};
+
+// ==========================================
+// 🆕 V3.6: แก้/ลบ กติกาทีละข้อ (จากแท็บกติกา)
+// ==========================================
+window.sop_editSingleRule = async function(ruleId, ruleIdx) {
+    const sop = globalSOPData.find(x => String(x.id) === String(ruleId));
+    if (!sop || !sop.rules || !sop.rules[ruleIdx]) return;
+
+    const r = sop.rules[ruleIdx];
+    const currentType = r.type || 'do';
+    const currentText = r.text || '';
+
+    const formHtml = `
+        <div class="text-left space-y-3">
+            <div class="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 text-xs">
+                <div class="text-gray-500 dark:text-gray-400 mb-0.5">กฎ:</div>
+                <div class="font-bold text-slate-800 dark:text-white">${(sop.title || '(ไม่มีชื่อ)').replace(/</g, '&lt;')}</div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">ประเภทกติกา <span class="text-red-500">*</span></label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 hover:border-emerald-500 transition has-[:checked]:bg-emerald-200 dark:has-[:checked]:bg-emerald-900/50 has-[:checked]:border-emerald-500">
+                        <input type="radio" name="qaRuleType" value="do" class="w-4 h-4 accent-emerald-500" ${currentType === 'do' ? 'checked' : ''}>
+                        <span class="material-icons text-emerald-500 text-[18px]">check_circle</span>
+                        <span class="text-sm font-bold text-slate-800 dark:text-white">ทำได้</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 hover:border-orange-500 transition has-[:checked]:bg-orange-200 dark:has-[:checked]:bg-orange-900/50 has-[:checked]:border-orange-500">
+                        <input type="radio" name="qaRuleType" value="must" class="w-4 h-4 accent-orange-500" ${currentType === 'must' ? 'checked' : ''}>
+                        <span class="material-icons text-orange-500 text-[18px]">priority_high</span>
+                        <span class="text-sm font-bold text-slate-800 dark:text-white">ต้องทำ</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:border-red-500 transition has-[:checked]:bg-red-200 dark:has-[:checked]:bg-red-900/50 has-[:checked]:border-red-500">
+                        <input type="radio" name="qaRuleType" value="dont" class="w-4 h-4 accent-red-500" ${currentType === 'dont' ? 'checked' : ''}>
+                        <span class="material-icons text-red-500 text-[18px]">block</span>
+                        <span class="text-sm font-bold text-slate-800 dark:text-white">ห้ามทำ</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 hover:border-blue-500 transition has-[:checked]:bg-blue-200 dark:has-[:checked]:bg-blue-900/50 has-[:checked]:border-blue-500">
+                        <input type="radio" name="qaRuleType" value="info" class="w-4 h-4 accent-blue-500" ${currentType === 'info' ? 'checked' : ''}>
+                        <span class="material-icons text-blue-500 text-[18px]">info</span>
+                        <span class="text-sm font-bold text-slate-800 dark:text-white">หมายเหตุ</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">เนื้อหากติกา <span class="text-red-500">*</span></label>
+                <textarea id="qaRuleText" rows="4" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none text-sm whitespace-pre-wrap font-medium leading-relaxed">${currentText}</textarea>
+            </div>
+        </div>
+    `;
+
+    const result = await Swal.fire({
+        title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-amber-500">edit</span> แก้ไขกติกา</div>',
+        html: formHtml,
+        width: '600px',
+        showCancelButton: true,
+        confirmButtonText: '<span class="material-icons text-sm align-middle mr-1">save</span> บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#64748b',
+        focusConfirm: false,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
+        preConfirm: () => {
+            const typeEl = document.querySelector('input[name="qaRuleType"]:checked');
+            const ruleType = typeEl ? typeEl.value : 'do';
+            const text = document.getElementById('qaRuleText').value.trim();
+            if (!text) { Swal.showValidationMessage('กรุณาพิมพ์เนื้อหากติกา'); return false; }
+            return { ruleType, text };
+        }
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    try {
+        sop.rules[ruleIdx].type = result.value.ruleType;
+        sop.rules[ruleIdx].text = result.value.text;
+
+        const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
+        const nowIso = new Date().toISOString();
+        sop.updated_at = nowIso;
+        sop.last_editor = authorName;
+
+        if (!Array.isArray(sop.history)) sop.history = [];
+        sop.history.push({ timestamp: nowIso, editor: authorName, title_before: sop.title });
+        while (sop.history.length > 5) sop.history.shift();
+
+        await sop_saveAllData();
+        sop_renderAllRulesPage();
+        sop_renderList();
+        sop_updateTabCounters();
+
+        Swal.fire({ icon: 'success', title: 'แก้ไขสำเร็จ!', timer: 1200, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message || 'บันทึกไม่สำเร็จ', 'error');
+    }
+};
+
+window.sop_deleteSingleRule = async function(ruleId, ruleIdx) {
+    const sop = globalSOPData.find(x => String(x.id) === String(ruleId));
+    if (!sop || !sop.rules || !sop.rules[ruleIdx]) return;
+
+    const r = sop.rules[ruleIdx];
+    let typeLabel = 'ทำได้';
+    if (r.type === 'dont') typeLabel = 'ห้ามทำ';
+    else if (r.type === 'must') typeLabel = 'ต้องทำ';
+    else if (r.type === 'info') typeLabel = 'หมายเหตุ';
+
+    const confirm = await Swal.fire({
+        title: 'ยืนยันลบกติกาข้อนี้?',
+        html: `<div class="text-left text-sm">
+                  <div class="text-gray-500 dark:text-gray-400 mb-1 text-xs">ประเภท: <span class="font-bold">${typeLabel}</span></div>
+                  <div class="font-bold text-slate-700 dark:text-gray-200 bg-slate-100 dark:bg-slate-900 p-3 rounded-lg border border-gray-200 dark:border-slate-700">${(r.text || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>')}</div>
+                  <div class="text-gray-500 text-xs mt-2">ลบแล้วจะไม่สามารถกู้คืนได้</div>
+               </div>`,
+        icon: 'warning', showCancelButton: true,
+        confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b',
+        confirmButtonText: 'ลบทิ้ง', cancelButtonText: 'ยกเลิก'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
+    try {
+        sop.rules.splice(ruleIdx, 1);
+
+        const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
+        const nowIso = new Date().toISOString();
+        sop.updated_at = nowIso;
+        sop.last_editor = authorName;
+
+        if (!Array.isArray(sop.history)) sop.history = [];
+        sop.history.push({ timestamp: nowIso, editor: authorName, title_before: sop.title });
+        while (sop.history.length > 5) sop.history.shift();
+
+        await sop_saveAllData();
+        sop_renderAllRulesPage();
+        sop_renderList();
+        sop_updateTabCounters();
+
+        Swal.fire({ icon: 'success', title: 'ลบสำเร็จ!', timer: 1000, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message || 'ลบไม่สำเร็จ', 'error');
     }
 };
 
