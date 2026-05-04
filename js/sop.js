@@ -13,6 +13,7 @@ let currentSopId = null;
 let sopPinFilterActive = false;
 let sopAttachmentsBuffer = []; // ไฟล์ที่กำลังเตรียมอัพโหลด
 let sopRulesBuffer = [];       // กติกา (V3) ที่กำลังแก้ในฟอร์ม
+let sopActiveTab = 'rules';    // V3.4: 'rules' | 'sop'
 
 const SOP_PRIORITY_OPTIONS = [
     { id: 'high',   label: '🔴 สำคัญมาก',  color: 'red',    border: 'border-red-500',    bg: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700' },
@@ -46,6 +47,48 @@ window.initSopApp = async function() {
 
     await sop_loadCategories();
     await sop_fetchData();
+
+    // V3.4: ตั้ง tab default = "กติกา"
+    sopActiveTab = 'rules';
+    sop_switchTab('rules');
+};
+
+// ==========================================
+// 🆕 V3.4: TAB SWITCHER
+// ==========================================
+window.sop_switchTab = function(tabName) {
+    sopActiveTab = tabName;
+
+    const tabRules = document.getElementById('sopTab_rules');
+    const tabSop = document.getElementById('sopTab_sop');
+    const btnRules = document.getElementById('sopTabBtn_rules');
+    const btnSop = document.getElementById('sopTabBtn_sop');
+
+    if (tabName === 'rules') {
+        if (tabRules) { tabRules.classList.remove('hidden'); tabRules.classList.add('flex'); }
+        if (tabSop)   { tabSop.classList.add('hidden');     tabSop.classList.remove('flex'); }
+        if (btnRules) {
+            btnRules.classList.remove('bg-slate-100', 'dark:bg-slate-900', 'text-slate-600', 'dark:text-gray-400', 'border-gray-300', 'dark:border-slate-600', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+            btnRules.classList.add('bg-gradient-to-b', 'from-orange-500', 'to-amber-500', 'text-white', 'border-orange-400', '-mb-px');
+        }
+        if (btnSop) {
+            btnSop.classList.add('bg-slate-100', 'dark:bg-slate-900', 'text-slate-600', 'dark:text-gray-400', 'border-gray-300', 'dark:border-slate-600', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+            btnSop.classList.remove('bg-gradient-to-b', 'from-rose-500', 'to-pink-500', 'text-white', 'border-rose-400', '-mb-px');
+        }
+        sop_renderRulesCategoryDropdown();
+        sop_renderAllRulesPage();
+    } else {
+        if (tabRules) { tabRules.classList.add('hidden');     tabRules.classList.remove('flex'); }
+        if (tabSop)   { tabSop.classList.remove('hidden');   tabSop.classList.add('flex'); }
+        if (btnSop) {
+            btnSop.classList.remove('bg-slate-100', 'dark:bg-slate-900', 'text-slate-600', 'dark:text-gray-400', 'border-gray-300', 'dark:border-slate-600', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+            btnSop.classList.add('bg-gradient-to-b', 'from-rose-500', 'to-pink-500', 'text-white', 'border-rose-400', '-mb-px');
+        }
+        if (btnRules) {
+            btnRules.classList.add('bg-slate-100', 'dark:bg-slate-900', 'text-slate-600', 'dark:text-gray-400', 'border-gray-300', 'dark:border-slate-600', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+            btnRules.classList.remove('bg-gradient-to-b', 'from-orange-500', 'to-amber-500', 'text-white', 'border-orange-400', '-mb-px');
+        }
+    }
 };
 
 // ==========================================
@@ -75,6 +118,19 @@ window.sop_loadCategories = async function() {
 
 window.sop_renderCategoryDropdowns = function() {
     const filterSelect = document.getElementById('sopCategory');
+    if (filterSelect) {
+        const currentVal = filterSelect.value;
+        let html = '<option value="ALL">📂 ทุกหมวดหมู่</option>';
+        globalSOPCategories.forEach(c => html += `<option value="${c.id}">${c.name}</option>`);
+        filterSelect.innerHTML = html;
+        if (currentVal && (currentVal === 'ALL' || globalSOPCategories.some(c => c.id === currentVal))) filterSelect.value = currentVal;
+        else filterSelect.value = 'ALL';
+    }
+    sop_renderRulesCategoryDropdown();
+};
+
+window.sop_renderRulesCategoryDropdown = function() {
+    const filterSelect = document.getElementById('sopRulesCatFilter');
     if (!filterSelect) return;
     const currentVal = filterSelect.value;
     let html = '<option value="ALL">📂 ทุกหมวดหมู่</option>';
@@ -233,6 +289,9 @@ window.sop_renderList = function() {
 
     if (countEl) countEl.innerText = `${filtered.length}/${globalSOPData.length}`;
 
+    // V3.4: อัพเดทเลขแท็บ
+    sop_updateTabCounters();
+
     if (globalSOPData.length === 0) {
         const isAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
         const hint = isAdmin ? 'กดปุ่ม "เพิ่มกฎใหม่" เพื่อเริ่ม' : 'รอผู้ดูแลเพิ่มกฎ';
@@ -327,6 +386,160 @@ window.sop_renderList = function() {
 };
 
 // ==========================================
+// 🔢 V3.4: TAB COUNTERS
+// ==========================================
+window.sop_updateTabCounters = function() {
+    const sopBadge = document.getElementById('sopTabSopCount');
+    const rulesBadge = document.getElementById('sopTabRulesCount');
+
+    if (sopBadge) sopBadge.innerText = globalSOPData.length;
+
+    let totalRules = 0;
+    globalSOPData.forEach(r => totalRules += (r.rules || []).length);
+    if (rulesBadge) rulesBadge.innerText = totalRules;
+};
+
+// ==========================================
+// 🟠 V3.4: หน้ากติกาทั้งหมด (Tab Rules)
+// ==========================================
+window.sop_renderAllRulesPage = function() {
+    const container = document.getElementById('sopAllRulesContainer');
+    if (!container) return;
+
+    const term = document.getElementById('sopRulesSearch') ? document.getElementById('sopRulesSearch').value.toLowerCase() : '';
+    const cat = document.getElementById('sopRulesCatFilter') ? document.getElementById('sopRulesCatFilter').value : 'ALL';
+    const typeF = document.getElementById('sopRulesTypeFilter') ? document.getElementById('sopRulesTypeFilter').value : 'ALL';
+
+    let candidates = globalSOPData.filter(r => Array.isArray(r.rules) && r.rules.length > 0);
+    if (cat !== 'ALL') candidates = candidates.filter(r => r.category === cat);
+
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    candidates.sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        const pa = priorityOrder[a.priority] ?? 1;
+        const pb = priorityOrder[b.priority] ?? 1;
+        if (pa !== pb) return pa - pb;
+        return new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
+    });
+
+    if (candidates.length === 0) {
+        container.innerHTML = `
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md p-10 text-center">
+                <span class="material-icons text-6xl opacity-30 mb-3 text-gray-400">gavel</span>
+                <h3 class="text-lg font-black text-gray-500 dark:text-gray-400">ยังไม่มีกติกา</h3>
+                <p class="text-sm text-gray-400 mt-1">ไปหน้า "รายละเอียด SOP" เพื่อเพิ่มกติกาในกฎต่างๆ</p>
+            </div>`;
+        return;
+    }
+
+    let html = '';
+    let foundAny = false;
+
+    candidates.forEach(rule => {
+        let rs = (rule.rules || []).filter(r => {
+            if (typeF !== 'ALL' && (r.type || 'do') !== typeF) return false;
+            if (term && !(r.text || '').toLowerCase().includes(term) &&
+                       !(rule.title || '').toLowerCase().includes(term)) return false;
+            return true;
+        });
+        if (rs.length === 0) return;
+        foundAny = true;
+
+        let icon = 'rule';
+        const c = rule.category || '';
+        if (c.includes('ฝาก'))     icon = 'savings';
+        else if (c.includes('ถอน')) icon = 'payments';
+        else if (c.includes('เครดิต')) icon = 'monetization_on';
+        else if (c.includes('พิเศษ')) icon = 'warning';
+        else if (c.includes('ทั่วไป')) icon = 'menu_book';
+
+        const categoryLabel = globalSOPCategories.find(x => x.id === rule.category)?.name || rule.category || 'ไม่ระบุ';
+
+        const shifts = rule.shifts || ['all'];
+        let shiftLabels = '';
+        if (shifts.includes('all')) {
+            shiftLabels = '<span class="bg-white/20 px-1.5 py-0.5 rounded">🌐 ทุกกะ</span>';
+        } else {
+            shifts.forEach(s => {
+                const sOpt = SOP_SHIFT_OPTIONS.find(x => x.id === s);
+                if (sOpt) shiftLabels += `<span class="bg-white/20 px-1.5 py-0.5 rounded">${sOpt.label}</span>`;
+            });
+        }
+
+        // ปักหมุด badge
+        const pinBadge = rule.pinned ? '<span class="bg-white/20 px-1.5 py-0.5 rounded flex items-center gap-0.5"><span class="material-icons text-[10px]">push_pin</span>ปักหมุด</span>' : '';
+
+        let rulesItemsHtml = '';
+        rs.forEach(r => {
+            const t = r.type || 'do';
+            let cfg = {
+                bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+                border: 'border-emerald-300 dark:border-emerald-700',
+                labelBg: 'bg-emerald-500',
+                ic: 'check_circle',
+                lbl: 'ทำได้'
+            };
+            if (t === 'dont')      cfg = { bg: 'bg-red-50 dark:bg-red-900/20',         border: 'border-red-300 dark:border-red-700',         labelBg: 'bg-red-500',     ic: 'block',           lbl: 'ห้ามทำ' };
+            else if (t === 'must') cfg = { bg: 'bg-orange-50 dark:bg-orange-900/20',   border: 'border-orange-300 dark:border-orange-700',   labelBg: 'bg-orange-500',  ic: 'priority_high',   lbl: 'ต้องทำ' };
+            else if (t === 'info') cfg = { bg: 'bg-blue-50 dark:bg-blue-900/20',       border: 'border-blue-300 dark:border-blue-700',       labelBg: 'bg-blue-500',    ic: 'info',            lbl: 'หมายเหตุ' };
+
+            const safeText = (r.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+
+            rulesItemsHtml += `
+                <div class="${cfg.bg} border ${cfg.border} rounded-xl flex items-stretch overflow-hidden">
+                    <div class="${cfg.labelBg} text-white py-2 px-3 flex flex-col items-center justify-center shrink-0 w-16 md:w-20">
+                        <span class="material-icons text-xl drop-shadow-sm">${cfg.ic}</span>
+                        <span class="text-[9px] font-black uppercase tracking-wider mt-0.5 drop-shadow-sm">${cfg.lbl}</span>
+                    </div>
+                    <div class="flex-1 p-3 text-slate-800 dark:text-white text-sm leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>
+                </div>
+            `;
+        });
+
+        const safeRuleTitle = (rule.title || '(ไม่มีชื่อ)').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        html += `
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
+                <div class="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-3 flex items-center gap-2 flex-wrap">
+                    <div class="bg-white/20 p-1.5 rounded-lg shrink-0"><span class="material-icons text-[18px]">${icon}</span></div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-white font-black text-sm md:text-base tracking-wide truncate">${safeRuleTitle}</h3>
+                        <div class="flex items-center gap-1.5 text-[10px] font-bold opacity-95 mt-1 flex-wrap">
+                            ${pinBadge}
+                            <span class="bg-white/20 px-1.5 py-0.5 rounded">${categoryLabel}</span>
+                            ${shiftLabels}
+                            <span class="bg-white/20 px-1.5 py-0.5 rounded">${rs.length} ข้อ</span>
+                        </div>
+                    </div>
+                    <button onclick="sop_jumpToSopFromRules('${rule.id}')" class="bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1 shrink-0" title="ดูรายละเอียดเต็ม">
+                        <span class="material-icons text-[14px]">open_in_new</span> ดู SOP
+                    </button>
+                </div>
+                <div class="p-4 space-y-2 bg-orange-50/40 dark:bg-slate-800/80">${rulesItemsHtml}</div>
+            </div>
+        `;
+    });
+
+    if (!foundAny) {
+        container.innerHTML = `
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md p-10 text-center">
+                <span class="material-icons text-6xl opacity-30 mb-3 text-gray-400">search_off</span>
+                <h3 class="text-lg font-black text-gray-500 dark:text-gray-400">ไม่พบกติกาตามเงื่อนไข</h3>
+                <p class="text-sm text-gray-400 mt-1">ลองเปลี่ยนคำค้นหาหรือ filter</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = html;
+};
+
+// V3.4: กระโดดจากแท็บกติกา → ไปแท็บ SOP เปิดกฎตัวนั้น
+window.sop_jumpToSopFromRules = function(ruleId) {
+    sop_switchTab('sop');
+    setTimeout(() => sop_readRule(ruleId, false), 100);
+};
+
+// ==========================================
 // 📖 READ RULE  (ส่ง skipIncrement=true เวลา re-render หลัง save เพื่อไม่ให้บวก view ซ้ำ)
 // ==========================================
 window.sop_readRule = async function(id, skipIncrement) {
@@ -414,27 +627,24 @@ window.sop_readRule = async function(id, skipIncrement) {
         attachmentsBlock = window.renderTemplate('tpl-sop-attachments', { attachmentsHtml: attHtml, count: item.attachments.length });
     }
 
-    // rules block (V3)
+    // rules block (V3.4) — ปุ่มลิงก์ไปแท็บกติกา
     let rulesBlock = '';
     if (item.rules && item.rules.length > 0) {
-        const ruleItemsHtml = item.rules.map(r => {
-            const t = r.type || 'do'; // do, dont, must, info
-            let style = { ruleIcon: 'check_circle', ruleIconColor: 'text-emerald-500',
-                          ruleItemBg: 'bg-emerald-50 dark:bg-emerald-900/20',
-                          ruleItemBorder: 'border-emerald-200 dark:border-emerald-700/50' };
-            if (t === 'dont')   style = { ruleIcon: 'block',          ruleIconColor: 'text-red-500',
-                                          ruleItemBg: 'bg-red-50 dark:bg-red-900/20',
-                                          ruleItemBorder: 'border-red-200 dark:border-red-700/50' };
-            else if (t === 'must')  style = { ruleIcon: 'priority_high', ruleIconColor: 'text-orange-500',
-                                          ruleItemBg: 'bg-orange-50 dark:bg-orange-900/20',
-                                          ruleItemBorder: 'border-orange-200 dark:border-orange-700/50' };
-            else if (t === 'info')  style = { ruleIcon: 'info',           ruleIconColor: 'text-blue-500',
-                                          ruleItemBg: 'bg-blue-50 dark:bg-blue-900/20',
-                                          ruleItemBorder: 'border-blue-200 dark:border-blue-700/50' };
-            const safeText = (r.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
-            return window.renderTemplate('tpl-sop-rule-item', { ...style, ruleText: safeText });
-        }).join('');
-        rulesBlock = window.renderTemplate('tpl-sop-rules', { rulesItemsHtml: ruleItemsHtml, rulesCount: item.rules.length });
+        rulesBlock = `
+            <button onclick="sop_switchTab('rules')" class="w-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 hover:from-orange-600 hover:via-amber-600 hover:to-orange-600 text-white rounded-2xl shadow-lg transition transform hover:scale-[1.01] active:scale-[0.99] overflow-hidden border-2 border-orange-400 dark:border-orange-600 group">
+                <div class="px-6 py-4 flex items-center gap-4">
+                    <div class="bg-white/20 p-3 rounded-2xl shadow-inner backdrop-blur-sm border border-white/20">
+                        <span class="material-icons text-3xl">gavel</span>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <div class="text-xs font-bold opacity-80 uppercase tracking-wider mb-0.5">⚖️ กฎนี้มีกติกา</div>
+                        <div class="text-lg md:text-xl font-black tracking-wide drop-shadow-sm">ดูกติกาทั้งหมด (${item.rules.length} ข้อ)</div>
+                    </div>
+                    <div class="bg-white/20 p-2 rounded-xl group-hover:bg-white/30 transition">
+                        <span class="material-icons text-xl group-hover:translate-x-1 transition">arrow_forward</span>
+                    </div>
+                </div>
+            </button>`;
     }
 
     // examples
