@@ -502,6 +502,13 @@ window.sop_renderList = function() {
             ? 'bg-rose-50 dark:bg-rose-900/20 border border-rose-400 ring-2 ring-rose-300 dark:ring-rose-700'
             : 'bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-rose-400 dark:hover:border-rose-500/50 hover:bg-white dark:hover:bg-slate-800';
 
+        // V4.3: ปุ่มย้ายหมวดเร็ว (เฉพาะ admin)
+        const hasManagePermLi = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
+        const isAdminLi = hasManagePermLi || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+        const moveCategoryBtn = isAdminLi
+            ? `<button onclick="event.stopPropagation(); sop_quickMoveCategory('${item.id}')" class="ml-auto bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-400 hover:text-blue-500 px-2 py-1 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-1" title="ย้ายไปหมวดอื่น"><span class="material-icons text-[12px]">drive_file_move</span>ย้ายหมวด</button>`
+            : '';
+
         return window.renderTemplate('tpl-sop-list-item', {
             id: item.id,
             activeBg, iconColor, icon,
@@ -513,7 +520,8 @@ window.sop_renderList = function() {
             date,
             viewCount: item.view_count || 0,
             attachmentIcon,
-            rulesCountBadge: ''
+            rulesCountBadge: '',
+            moveCategoryBtn
         });
     }
 
@@ -558,6 +566,92 @@ window.sop_toggleCatFolder = function(catKey) {
     if (window._sopCollapsedCats.has(catKey)) window._sopCollapsedCats.delete(catKey);
     else window._sopCollapsedCats.add(catKey);
     sop_renderList();
+};
+
+// V4.3: ย้ายกฎไปหมวดอื่นแบบรวดเร็ว
+window.sop_quickMoveCategory = async function(ruleId) {
+    const item = globalSOPData.find(r => String(r.id) === String(ruleId));
+    if (!item) return;
+
+    const currentCatLabel = globalSOPCategories.find(c => c.id === item.category)?.name || item.category || 'ไม่ระบุ';
+
+    const optionsHtml = globalSOPCategories.map(c => {
+        const isCurrent = c.id === item.category;
+        const color = c.color || '#64748b';
+        return `
+            <button type="button" data-catid="${c.id}" onclick="document.querySelectorAll('.qmCatBtn').forEach(b=>b.classList.remove('ring-2','ring-blue-500','scale-[1.02]')); this.classList.add('ring-2','ring-blue-500','scale-[1.02]'); document.getElementById('qmSelected').value='${c.id}';" 
+                class="qmCatBtn w-full text-left p-3 rounded-xl border-2 ${isCurrent ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 opacity-60' : 'border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-blue-400'} transition flex items-center gap-3 mb-2 shadow-sm" ${isCurrent ? 'disabled' : ''}>
+                <div class="w-5 h-5 rounded-md shrink-0" style="background-color: ${color};"></div>
+                <span class="text-sm font-bold text-slate-800 dark:text-white flex-1">${c.name}</span>
+                ${isCurrent ? '<span class="text-[10px] font-bold text-amber-600 dark:text-amber-400">หมวดปัจจุบัน</span>' : ''}
+            </button>
+        `;
+    }).join('');
+
+    const formHtml = `
+        <div class="text-left">
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-xl p-3 mb-4 text-sm">
+                <div class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-1">กฎที่จะย้าย</div>
+                <div class="font-bold text-slate-800 dark:text-white">${(item.title || '(ไม่มีชื่อ)').replace(/</g, '&lt;')}</div>
+                <div class="text-xs text-gray-500 mt-1">หมวดปัจจุบัน: <span class="font-bold">${currentCatLabel}</span></div>
+            </div>
+            <div class="text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-2">เลือกหมวดใหม่</div>
+            <div class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">${optionsHtml}</div>
+            <input type="hidden" id="qmSelected" value="">
+        </div>
+    `;
+
+    const result = await Swal.fire({
+        title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-blue-500">drive_file_move</span> ย้ายไปหมวดอื่น</div>',
+        html: formHtml,
+        width: '500px',
+        showCancelButton: true,
+        confirmButtonText: '<span class="material-icons text-sm align-middle mr-1">check</span> ย้าย',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#64748b',
+        focusConfirm: false,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
+        preConfirm: () => {
+            const newCat = document.getElementById('qmSelected').value;
+            if (!newCat) { Swal.showValidationMessage('กรุณาเลือกหมวดใหม่'); return false; }
+            if (newCat === item.category) { Swal.showValidationMessage('นี่คือหมวดเดิมอยู่แล้ว'); return false; }
+            return { newCat };
+        }
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    Swal.fire({ title: 'กำลังย้าย...', didOpen: () => Swal.showLoading() });
+    try {
+        const oldCat = currentCatLabel;
+        const newCatLabel = globalSOPCategories.find(c => c.id === result.value.newCat)?.name || result.value.newCat;
+        const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
+        const nowIso = new Date().toISOString();
+
+        const idx = globalSOPData.findIndex(x => String(x.id) === String(ruleId));
+        if (idx !== -1) {
+            globalSOPData[idx].category = result.value.newCat;
+            globalSOPData[idx].updated_at = nowIso;
+            globalSOPData[idx].last_editor = authorName;
+            if (!Array.isArray(globalSOPData[idx].history)) globalSOPData[idx].history = [];
+            globalSOPData[idx].history.push({
+                timestamp: nowIso,
+                editor: authorName,
+                title_before: globalSOPData[idx].title,
+                action: `ย้ายหมวด: ${oldCat} → ${newCatLabel}`
+            });
+            while (globalSOPData[idx].history.length > 5) globalSOPData[idx].history.shift();
+        }
+
+        await sop_saveAllData();
+        sop_sortData();
+        sop_renderList();
+        sop_updateTabCounters();
+        Swal.fire({ icon: 'success', title: `ย้ายไป "${newCatLabel}" แล้ว!`, timer: 1200, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message || 'ย้ายไม่สำเร็จ', 'error');
+    }
 };
 
 
