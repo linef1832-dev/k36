@@ -201,8 +201,9 @@ window.saveData = async function(e) {
     // 🚨 ด่านที่ 1: บล็อกการลงของ "วันในอนาคต" สำหรับพนักงานทุกกะ (เด็ดขาด!)
     if (isStaff && dateVal > realTodayStr) {
         window.resetBtn();
+        let blockTitle = 'ไม่ได้ห้ามลงล่วงหน้านะจ๊ะ';
         return Swal.fire(
-            'ห้ามลงล่วงหน้า!',
+            blockTitle,
             'ไม่สามารถลงเวลาของ "วันในอนาคต" ได้ครับ<br><span class="text-xs text-gray-500">กรุณาเลือกเฉพาะวันที่ทำงานของคุณเท่านั้น</span>',
             'error'
         );
