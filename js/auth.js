@@ -1,10 +1,102 @@
 // ==========================================
-// 🔐 ระบบจัดการ PIN 6 หลัก และ Login (V3 Optimized)
+// 🔐 ระบบจัดการ PIN 6 หลัก และ Login (V4 + Fingerprint)
 // ==========================================
-// 🌟 V3 Strategy:
-//   1. Heartbeat ใช้ ipify.org (ฟรี ไม่จำกัด) เช็คแค่ IP เร็วๆ
+// 🌟 V4 Strategy:
+//   1. Heartbeat ใช้ ipify.org (ฟรี ไม่จำกัด) เช็ค IP + FP
 //   2. ถ้า IP เปลี่ยน → ค่อยเรียก ipapi.co ดึงข้อมูล Geo + ISP
-//   3. Insert Supabase เฉพาะตอนเปลี่ยนเท่านั้น
+//   3. ถ้า FP เปลี่ยน → บันทึกแยกเป็น event 'fp_change' (สลับเครื่อง!)
+//   4. Insert Supabase เฉพาะตอนเปลี่ยนเท่านั้น
+// ==========================================
+
+// ==========================================================
+// 🆔 [V4] Browser Fingerprint Module (Inline - Self-contained)
+// ==========================================================
+
+// 🎨 Canvas Fingerprint (ค่าจะต่างกันตาม GPU/Driver/OS)
+function _fpCanvas() {
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 280; canvas.height = 60;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return 'no-canvas';
+        ctx.textBaseline = 'top';
+        ctx.font = '14px "Arial"';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = '#f60';
+        ctx.fillRect(125, 1, 62, 20);
+        ctx.fillStyle = '#069';
+        ctx.fillText('FP-Check 🌐 ตรวจสอบ', 2, 15);
+        ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+        ctx.fillText('FP-Check 🌐 ตรวจสอบ', 4, 17);
+        return canvas.toDataURL();
+    } catch (e) { return 'canvas-err'; }
+}
+
+// 🎮 WebGL Fingerprint (GPU vendor/renderer)
+function _fpWebGL() {
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) return 'no-webgl';
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        const vendor = ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : '';
+        const renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '';
+        return `${vendor}|${renderer}`;
+    } catch (e) { return 'webgl-err'; }
+}
+
+// 🔤 SHA-256 → ตัด 16 ตัวอักษรแรก
+async function _fpHash(text) {
+    try {
+        const buf = new TextEncoder().encode(text);
+        const hash = await crypto.subtle.digest('SHA-256', buf);
+        return Array.from(new Uint8Array(hash))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('').substring(0, 16);
+    } catch (e) {
+        // Fallback simple hash
+        let h = 0;
+        for (let i = 0; i < text.length; i++) {
+            h = ((h << 5) - h) + text.charCodeAt(i); h |= 0;
+        }
+        return Math.abs(h).toString(16).padStart(16, '0').substring(0, 16);
+    }
+}
+
+// 🆔 ฟังก์ชันหลัก: สร้าง Browser Fingerprint
+window.getBrowserFingerprint = async function() {
+    const parts = [
+        navigator.userAgent || '',
+        navigator.language || '',
+        (navigator.languages || []).join(','),
+        navigator.platform || '',
+        `${screen.width}x${screen.height}x${screen.colorDepth}`,
+        `${screen.availWidth}x${screen.availHeight}`,
+        window.devicePixelRatio || 1,
+        (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e){ return ''; }})(),
+        new Date().getTimezoneOffset(),
+        navigator.hardwareConcurrency || 0,
+        navigator.deviceMemory || 0,
+        navigator.maxTouchPoints || 0,
+        _fpCanvas(),
+        _fpWebGL(),
+        navigator.cookieEnabled ? 1 : 0,
+        'ontouchstart' in window ? 1 : 0
+    ];
+    return await _fpHash(parts.join('||'));
+};
+
+// 💾 Cache ใน sessionStorage (ไม่คำนวณซ้ำ)
+window.getBrowserFingerprintCached = async function() {
+    const cached = sessionStorage.getItem('__device_fp');
+    if (cached && cached.length === 16) return cached;
+    const fp = await window.getBrowserFingerprint();
+    sessionStorage.setItem('__device_fp', fp);
+    return fp;
+};
+
+// ==========================================
+// 🔢 ระบบ PIN
 // ==========================================
 
 function setupPinInputs() {
@@ -75,22 +167,22 @@ function checkAutoSubmit() {
 }
 
 // ==========================================================
-// 🌐 [V3] ระบบเก็บประวัติ IP - แยก 2 จังหวะ
+// 🌐 [V4] ระบบเก็บประวัติ IP + FP - แยก 2 จังหวะ
 // ==========================================================
 
 // ⚙️ ตั้งค่า
-const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000;   // เช็คทุก 5 นาที (ผู้ใช้เลือก)
+const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000;   // เช็คทุก 5 นาที
 const PROBE_TIMEOUT_MS      = 5000;             // timeout API 5 วินาที
 
 // 🔑 ตัวแปรกลาง
 window._ipHeartbeatInterval = null;
 window._lastKnownIp = null;
+window._lastKnownFp = null;
 window._ipFailCount = 0;
 window._ipVisibilityHandlerAttached = false;
 
 // 🚀 [Step 1] เช็ค IP เร็วๆ — ใช้หลาย API หมุนกัน เพื่อกัน rate limit
 async function probeCurrentIp() {
-    // 🌟 ลำดับการลอง: ipify (ไม่จำกัด) → cloudflare (ไม่จำกัด) → ipapi (สำรอง)
     const probes = [
         async () => {
             const ctrl = new AbortController();
@@ -138,7 +230,6 @@ async function fetchIpDetails(ip) {
     try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
-        // 🌟 ipapi.co รับ IP เฉพาะตัวเลย ไม่ต้อง /json/
         const r = await fetch(`https://ipapi.co/${ip}/json/`, { signal: ctrl.signal });
         clearTimeout(t);
         if (r.ok) {
@@ -152,7 +243,6 @@ async function fetchIpDetails(ip) {
         }
     } catch (e) { /* ใช้ fallback */ }
     
-    // 🌟 ตัวสำรอง (ipwho.is - ฟรี ไม่จำกัด)
     try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
@@ -174,19 +264,20 @@ async function fetchIpDetails(ip) {
     return fallback;
 }
 
-// 💾 บันทึก Log ลง Supabase
-async function writeIpLog(user, ipInfo, eventType) {
+// 💾 บันทึก Log ลง Supabase (เพิ่ม fingerprint)
+async function writeIpLog(user, ipInfo, eventType, fingerprint) {
     if (!user || !user.id || !appDB) return;
     try {
         await appDB.from('user_ip_logs').insert([{
-            user_id:    user.id,
-            username:   user.username,
-            ip_address: ipInfo.ip,
-            user_agent: navigator.userAgent,
-            country:    ipInfo.country,
-            city:       ipInfo.city,
-            isp:        ipInfo.isp,
-            event_type: eventType
+            user_id:     user.id,
+            username:    user.username,
+            ip_address:  ipInfo.ip,
+            user_agent:  navigator.userAgent,
+            country:     ipInfo.country,
+            city:        ipInfo.city,
+            isp:         ipInfo.isp,
+            event_type:  eventType,
+            fingerprint: fingerprint || null   // 🆔 เพิ่ม FP
         }]);
     } catch (err) {
         console.warn('IP log error:', err);
@@ -197,19 +288,29 @@ async function writeIpLog(user, ipInfo, eventType) {
 async function recordUserLoginIP(user) {
     if (!user || !user.id || !appDB) return;
     
-    const ip = await probeCurrentIp();
+    // 🆔 สร้าง FP (parallel กับการดึง IP เพื่อความเร็ว)
+    const [ip, fp] = await Promise.all([
+        probeCurrentIp(),
+        window.getBrowserFingerprintCached()
+    ]);
+    
     if (!ip) {
         // 🌟 ดึง IP ไม่ได้เลย → log แบบไม่มีข้อมูล แต่ยังให้ Login ผ่าน
-        await writeIpLog(user, { ip: 'unknown', country: '-', city: '-', isp: '-' }, 'login');
+        await writeIpLog(user, { ip: 'unknown', country: '-', city: '-', isp: '-' }, 'login', fp);
+        // 🆔 จำ FP ไว้แม้ไม่มี IP
+        window._lastKnownFp = fp;
+        sessionStorage.setItem('last_known_fp', fp);
         return;
     }
 
     const details = await fetchIpDetails(ip);
-    await writeIpLog(user, details, 'login');
+    await writeIpLog(user, details, 'login', fp);
 
-    // 🌟 จำ IP นี้ไว้สำหรับเปรียบเทียบใน Heartbeat
+    // 🌟 จำ IP + FP ไว้สำหรับเปรียบเทียบใน Heartbeat
     window._lastKnownIp = ip;
+    window._lastKnownFp = fp;
     sessionStorage.setItem('last_known_ip', ip);
+    sessionStorage.setItem('last_known_fp', fp);
 }
 
 // ⏰ Heartbeat - ทุก 5 นาที (ใช้ ipify เร็วๆ ไม่กิน quota)
@@ -227,8 +328,12 @@ async function checkIpHeartbeat() {
     // 🌟 อย่าเช็คถ้าหน้าเว็บถูกซ่อน (Tab ปิด / Minimize) → ประหยัด API
     if (document.hidden) return;
 
-    // 🌟 [Step 1] เช็ค IP เร็วๆ (ฟรี ไม่จำกัด)
-    const ip = await probeCurrentIp();
+    // 🌟 [Step 1] เช็ค IP + FP เร็วๆ (ทำพร้อมกัน)
+    const [ip, fp] = await Promise.all([
+        probeCurrentIp(),
+        window.getBrowserFingerprintCached()
+    ]);
+    
     if (!ip) {
         window._ipFailCount++;
         if (window._ipFailCount >= 3) {
@@ -240,24 +345,43 @@ async function checkIpHeartbeat() {
     window._ipFailCount = 0;
 
     const lastIp = window._lastKnownIp || sessionStorage.getItem('last_known_ip');
+    const lastFp = window._lastKnownFp || sessionStorage.getItem('last_known_fp');
 
-    // 🟢 IP เหมือนเดิม → ไม่ต้องทำอะไร (ไม่เขียน DB เลย ✅)
-    if (lastIp === ip) return;
+    const ipChanged = lastIp && lastIp !== ip;
+    const fpChanged = lastFp && lastFp !== fp;
 
-    // 🟡 ไม่เคยมี IP เก็บไว้ → จำไว้ก่อน ไม่ต้อง log (กรณี F5 reload)
-    if (!lastIp) {
+    // 🟢 ทั้ง IP และ FP เหมือนเดิม → ไม่ต้องทำอะไร (ไม่เขียน DB เลย ✅)
+    if (!ipChanged && !fpChanged && lastIp && lastFp) return;
+
+    // 🟡 ไม่เคยมีข้อมูลเก็บไว้ → จำไว้ก่อน ไม่ต้อง log (กรณี F5 reload)
+    if (!lastIp || !lastFp) {
         window._lastKnownIp = ip;
+        window._lastKnownFp = fp;
         sessionStorage.setItem('last_known_ip', ip);
+        sessionStorage.setItem('last_known_fp', fp);
         return;
     }
 
-    // 🚨 [Step 2] IP เปลี่ยน! → ค่อยเรียก API ละเอียด + บันทึก DB
-    console.log(`[IP Watch] IP changed: ${lastIp} → ${ip}`);
-    const details = await fetchIpDetails(ip);
-    await writeIpLog(user, details, 'ip_change');
-    
-    window._lastKnownIp = ip;
-    sessionStorage.setItem('last_known_ip', ip);
+    // 🌍 ดึงรายละเอียด IP เฉพาะตอน IP เปลี่ยน
+    const details = ipChanged
+        ? await fetchIpDetails(ip)
+        : { ip: ip, country: '-', city: '-', isp: '-' };
+
+    // 🚨 IP เปลี่ยน → บันทึก ip_change
+    if (ipChanged) {
+        console.log(`[IP Watch] IP changed: ${lastIp} → ${ip}`);
+        await writeIpLog(user, details, 'ip_change', fp);
+        window._lastKnownIp = ip;
+        sessionStorage.setItem('last_known_ip', ip);
+    }
+
+    // 🚨 FP เปลี่ยน → บันทึก fp_change (สลับเครื่อง! สำคัญมาก)
+    if (fpChanged) {
+        console.warn(`[FP Watch] Fingerprint changed: ${lastFp} → ${fp} - อาจมีการสลับเครื่อง!`);
+        await writeIpLog(user, details, 'fp_change', fp);
+        window._lastKnownFp = fp;
+        sessionStorage.setItem('last_known_fp', fp);
+    }
 }
 
 // ▶️ เริ่ม Heartbeat
@@ -274,7 +398,7 @@ window.startIpHeartbeat = function() {
         window._ipVisibilityHandlerAttached = true;
     }
     
-    console.log(`[IP Watch] Heartbeat started (every ${HEARTBEAT_INTERVAL_MS/60000} min)`);
+    console.log(`[IP+FP Watch] Heartbeat started (every ${HEARTBEAT_INTERVAL_MS/60000} min)`);
 };
 
 // ⏸️ หยุด Heartbeat
@@ -338,7 +462,7 @@ async function handleLogin(e) {
         currentUser = user; 
         sessionStorage.setItem('user_platinum_plus', JSON.stringify(user));
 
-        // 🌐 [V3] บันทึก IP + เริ่ม Heartbeat (ไม่ block UI)
+        // 🌐 [V4] บันทึก IP + FP + เริ่ม Heartbeat (ไม่ block UI)
         recordUserLoginIP(user).then(() => window.startIpHeartbeat());
 
         if (typeof applySidebarPermissions === 'function') applySidebarPermissions();
@@ -359,6 +483,8 @@ function logout() {
     
     sessionStorage.removeItem('user_platinum_plus'); 
     sessionStorage.removeItem('last_known_ip');
+    sessionStorage.removeItem('last_known_fp');     // 🆔 ลบ FP cache ด้วย
+    sessionStorage.removeItem('__device_fp');       // 🆔 ลบ FP cache device
     localStorage.removeItem('cached_menu_rules');
     location.reload(); 
 }
@@ -377,13 +503,13 @@ document.addEventListener('DOMContentLoaded', () => {
             rememberCheckbox.checked = true;
         }
 
-        // 🌐 [V3] ถ้ามีคน Login ค้างไว้ (Refresh) → เริ่ม Heartbeat ต่อ
+        // 🌐 [V4] ถ้ามีคน Login ค้างไว้ (Refresh) → เริ่ม Heartbeat ต่อ
         const savedUser = sessionStorage.getItem('user_platinum_plus');
         if (savedUser && typeof window.startIpHeartbeat === 'function') {
             const startTimer = setInterval(() => {
                 if (typeof appDB !== 'undefined' && appDB) {
                     clearInterval(startTimer);
-                    // ตรวจ IP ครั้งแรกทันที (เผื่อ IP เปลี่ยนระหว่างปิดเปิดเบราว์เซอร์)
+                    // ตรวจ IP + FP ครั้งแรกทันที (เผื่อมีการเปลี่ยนระหว่างปิดเปิดเบราว์เซอร์)
                     checkIpHeartbeat();
                     window.startIpHeartbeat();
                 }
