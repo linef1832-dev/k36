@@ -107,14 +107,22 @@ window.sop_loadCategories = async function() {
             globalSOPCategories = JSON.parse(data.value);
         } else {
             globalSOPCategories = [
-                { id: 'การฝาก',    name: '💰 การฝาก' },
-                { id: 'การถอน',    name: '💸 การถอน' },
-                { id: 'เครดิต',    name: '🪙 เครดิต' },
-                { id: 'เคสพิเศษ',  name: '⚠️ เคสพิเศษ' },
-                { id: 'กฎทั่วไป',  name: '📌 กฎทั่วไป' }
+                { id: 'การฝาก',    name: '💰 การฝาก',    color: '#10b981' }, // เขียว
+                { id: 'การถอน',    name: '💸 การถอน',    color: '#f97316' }, // ส้ม
+                { id: 'เครดิต',    name: '🪙 เครดิต',    color: '#eab308' }, // เหลือง
+                { id: 'เคสพิเศษ',  name: '⚠️ เคสพิเศษ',  color: '#ef4444' }, // แดง
+                { id: 'กฎทั่วไป',  name: '📌 กฎทั่วไป',  color: '#3b82f6' }  // ฟ้า
             ];
             await appDB.from('settings').upsert([{ key: 'sop_categories', value: JSON.stringify(globalSOPCategories) }]);
         }
+        // ทำ default field สำหรับหมวดเก่าที่ไม่มี color
+        let needsSave = false;
+        const defaultColors = ['#10b981', '#f97316', '#eab308', '#ef4444', '#3b82f6', '#a855f7', '#ec4899'];
+        globalSOPCategories.forEach((c, i) => {
+            if (!c.color) { c.color = defaultColors[i % defaultColors.length]; needsSave = true; }
+        });
+        if (needsSave) await appDB.from('settings').upsert([{ key: 'sop_categories', value: JSON.stringify(globalSOPCategories) }]);
+
         sop_renderCategoryDropdowns();
     } catch (e) {
         console.error('sop_loadCategories error:', e);
@@ -147,18 +155,92 @@ window.sop_renderRulesCategoryDropdown = function() {
 };
 
 window.sop_manageCategories = function() {
-    window.renderSopManageCatHtml = function() {
+    const palette = [
+        { val: '#10b981', name: 'เขียว' },
+        { val: '#22c55e', name: 'เขียวสด' },
+        { val: '#06b6d4', name: 'ฟ้าอมเขียว' },
+        { val: '#3b82f6', name: 'ฟ้า' },
+        { val: '#6366f1', name: 'น้ำเงิน' },
+        { val: '#8b5cf6', name: 'ม่วง' },
+        { val: '#a855f7', name: 'ม่วงสด' },
+        { val: '#ec4899', name: 'ชมพู' },
+        { val: '#ef4444', name: 'แดง' },
+        { val: '#f97316', name: 'ส้ม' },
+        { val: '#f59e0b', name: 'ส้มทอง' },
+        { val: '#eab308', name: 'เหลือง' },
+        { val: '#84cc16', name: 'เขียวมะนาว' },
+        { val: '#64748b', name: 'เทา' }
+    ];
+
+    function buildPalette(currentColor, attr) {
+        return palette.map(c => `
+            <button type="button" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('ring-2','ring-slate-900','dark:ring-white','scale-110')); this.classList.add('ring-2','ring-slate-900','dark:ring-white','scale-110'); this.parentNode.dataset.${attr} = '${c.val}';"
+                class="w-6 h-6 rounded-md border border-gray-300 dark:border-slate-600 shadow-sm transition ${currentColor === c.val ? 'ring-2 ring-slate-900 dark:ring-white scale-110' : ''}"
+                style="background-color: ${c.val};" title="${c.name}"></button>
+        `).join('');
+    }
+
+    function buildList() {
         if (globalSOPCategories.length === 0) return '<div class="text-center text-gray-500 text-sm py-4">ไม่มีหมวดหมู่</div>';
-        return globalSOPCategories.map((c, idx) => window.renderTemplate('tpl-sop-manage-cat-item', { catName: c.name, index: idx })).join('');
-    };
-    const htmlContent = window.renderTemplate('tpl-sop-manage-cat', { catListHtml: window.renderSopManageCatHtml() });
+        return globalSOPCategories.map((c, idx) => `
+            <div class="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl mb-2 shadow-sm overflow-hidden">
+                <div class="px-3 py-2 flex justify-between items-center gap-2" style="border-left: 6px solid ${c.color || '#f97316'};">
+                    <span class="text-slate-800 dark:text-white font-bold text-sm flex-1 truncate">${c.name}</span>
+                    <button onclick="document.getElementById('sopCatPalette_${idx}').classList.toggle('hidden')" class="text-blue-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-blue-500 px-2 py-1.5 rounded-lg transition shadow-sm border border-gray-200 dark:border-slate-700" title="เปลี่ยนสี"><span class="material-icons text-[16px]">palette</span></button>
+                    <button onclick="sop_deleteCategory(${idx})" class="text-red-400 hover:text-white bg-white dark:bg-slate-800 hover:bg-red-500 px-2 py-1.5 rounded-lg transition shadow-sm border border-gray-200 dark:border-slate-700" title="ลบหมวดหมู่"><span class="material-icons text-[16px]">delete</span></button>
+                </div>
+                <div id="sopCatPalette_${idx}" class="hidden px-3 py-2 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
+                    <div class="text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">เลือกสีหมวด</div>
+                    <div class="flex flex-wrap gap-1.5" data-color="${c.color || '#f97316'}" id="sopCatPaletteBtns_${idx}">
+                        ${buildPalette(c.color || '#f97316', 'color')}
+                    </div>
+                    <button onclick="sop_saveCategoryColor(${idx})" class="mt-2 w-full bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded-lg text-xs font-bold transition active:scale-95 shadow-sm flex items-center justify-center gap-1"><span class="material-icons text-[14px]">check</span>บันทึกสี</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    window.renderSopManageCatHtml = buildList;
+
+    const initialPaletteHtml = buildPalette('#f97316', 'newcatcolor');
+
+    const htmlContent = `
+        <div class="text-left mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 mb-4">
+                <div class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">เพิ่มหมวดหมู่ใหม่</div>
+                <input type="text" id="newSopCatName" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่..." class="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-sm outline-none focus:border-rose-500 shadow-inner font-bold mb-2">
+                <div class="text-[10px] font-bold text-gray-500 mb-1.5">เลือกสี:</div>
+                <div class="flex flex-wrap gap-1.5 mb-2" data-newcatcolor="#f97316" id="sopNewCatPalette">${initialPaletteHtml}</div>
+                <button onclick="sop_addCategory()" class="w-full bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl font-bold shadow-md transition active:scale-95 flex items-center justify-center gap-1 border border-rose-500"><span class="material-icons text-sm">add</span> เพิ่มหมวดหมู่</button>
+            </div>
+            <div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-2 border-b border-gray-200 dark:border-slate-700 pb-1">หมวดหมู่ที่มีอยู่</div>
+            <div id="sopCatListContainer" class="max-h-[40vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
+                ${buildList()}
+            </div>
+        </div>
+    `;
+
     Swal.fire({
         title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-rose-500">category</span> จัดการหมวดหมู่</div>',
         html: htmlContent,
         showConfirmButton: false,
         showCloseButton: true,
+        width: '560px',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' }
     });
+};
+
+window.sop_saveCategoryColor = async function(idx) {
+    const palette = document.getElementById(`sopCatPaletteBtns_${idx}`);
+    if (!palette) return;
+    const newColor = palette.dataset.color;
+    if (!newColor || !globalSOPCategories[idx]) return;
+    globalSOPCategories[idx].color = newColor;
+    await appDB.from('settings').upsert([{ key: 'sop_categories', value: JSON.stringify(globalSOPCategories) }]);
+    document.getElementById('sopCatListContainer').innerHTML = window.renderSopManageCatHtml();
+    sop_renderAllRulesPage();
+    sop_renderList();
+    sop_showInlineToast('เปลี่ยนสีหมวดแล้ว ✅', 'success');
 };
 
 window.sop_addCategory = async function() {
@@ -170,11 +252,15 @@ window.sop_addCategory = async function() {
         Swal.showValidationMessage('มีหมวดหมู่นี้ในระบบแล้วครับ'); return;
     }
     Swal.resetValidationMessage();
-    globalSOPCategories.push({ id, name: val });
+    // ดึงสีจาก palette
+    const palette = document.getElementById('sopNewCatPalette');
+    const color = (palette && palette.dataset.newcatcolor) || '#f97316';
+    globalSOPCategories.push({ id, name: val, color });
     input.value = '';
     document.getElementById('sopCatListContainer').innerHTML = window.renderSopManageCatHtml();
     await appDB.from('settings').upsert([{ key: 'sop_categories', value: JSON.stringify(globalSOPCategories) }]);
     sop_renderCategoryDropdowns();
+    sop_renderAllRulesPage();
 };
 
 window.sop_deleteCategory = async function(idx) {
@@ -636,14 +722,26 @@ window.sop_renderAllRulesPage = function() {
             });
         });
 
+        // V4.1: ดึงสีของหมวดมาใช้ที่แถบ header
+        const catColor = catObj?.color || '#f97316'; // default ส้ม
+        // สร้างสีอ่อนกว่าสำหรับ gradient end
+        function lightenColor(hex, amt) {
+            const c = hex.replace('#', '');
+            const r = Math.min(255, parseInt(c.substr(0,2), 16) + amt);
+            const g = Math.min(255, parseInt(c.substr(2,2), 16) + amt);
+            const b = Math.min(255, parseInt(c.substr(4,2), 16) + amt);
+            return `rgb(${r},${g},${b})`;
+        }
+        const catColorLight = lightenColor(catColor, 30);
+
         html += `
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
-                <div class="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-3 flex items-center gap-2 flex-wrap">
+                <div class="text-white px-5 py-3 flex items-center gap-2 flex-wrap" style="background: linear-gradient(to right, ${catColor}, ${catColorLight});">
                     <div class="bg-white/20 p-1.5 rounded-lg shrink-0"><span class="material-icons text-[18px]">${catIcon}</span></div>
                     <h3 class="text-white font-black text-sm md:text-base tracking-wide truncate flex-1">${(catLabel).replace(/</g, '&lt;')}</h3>
                     <span class="bg-white/20 text-white text-[11px] font-black px-2 py-0.5 rounded-full">${items.length} ข้อ</span>
                 </div>
-                <div class="p-4 bg-orange-50/30 dark:bg-slate-800/80">${groupsHtml}</div>
+                <div class="p-4 bg-slate-50 dark:bg-slate-800/80">${groupsHtml}</div>
             </div>
         `;
     });
