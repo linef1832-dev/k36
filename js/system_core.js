@@ -192,42 +192,69 @@ window.saveData = async function(e) {
 
     const isStaff = !['manager', 'admin'].includes(currentUser.role);
 
+    // 🌙 ค่าตั้งของกะดึก (ปรับเลขตรงนี้ได้ตามต้องการ)
+    const NIGHT_START_HOUR = 20; // กะดึกเริ่มลงของวันนี้ได้ตั้งแต่ 20:00
+    const NIGHT_END_HOUR = 8;    // ย้อนลงของเมื่อวานได้ถึงก่อน 08:00 (ของวันถัดไป)
+
+    const isNightShiftStaff = (sName === 'กะดึก') || (currentUser.allowed_shift === 'กะดึก');
+
     // 🚨 ด่านที่ 1: บล็อกการลงของ "วันในอนาคต" สำหรับพนักงานทุกกะ (เด็ดขาด!)
     if (isStaff && dateVal > realTodayStr) {
         window.resetBtn();
         return Swal.fire(
             'ห้ามลงล่วงหน้า!',
-            'ไม่สามารถลงเวลาของ "วันในอนาคต" ได้ครับ<br><span class="text-xs text-gray-500">กรุณาเลือกเฉพาะวันที่ทำงานของวันนี้เท่านั้น</span>',
+            'ไม่สามารถลงเวลาของ "วันในอนาคต" ได้ครับ<br><span class="text-xs text-gray-500">กรุณาเลือกเฉพาะวันที่ทำงานของคุณเท่านั้น</span>',
             'error'
         );
     }
 
-    // ตรวจสอบว่าพนักงานคนนี้เป็น "กะดึก" หรือไม่ (เช็คทั้งกะที่เลือก และกะที่ระบบกำหนดให้)
-    const isNightShiftStaff = (sName === 'กะดึก') || (currentUser.allowed_shift === 'กะดึก');
+    // ด่านที่ 2: ตรรกะหลัก - แยกพิจารณาตามกะ และช่วงเวลาปัจจุบัน
+    let isAllowedDate = false;
+    let blockTitle = 'ไม่อนุญาต';
+    let blockMsg = '';
 
-    let isAllowedDate = (dateVal === realTodayStr);
-
-    // 🌙 ด่านที่ 2: อนุโลมเฉพาะ "พนักงานกะดึก" เท่านั้น ที่ลงของเมื่อวานได้ในช่วง 00:00 - 07:59
-    // (เพราะกะดึกทำงานคร่อมวัน เริ่มก่อนเที่ยงคืน เลิกหลังเที่ยงคืน)
-    if (isNightShiftStaff && currentHour >= 0 && currentHour < 8) {
-        if (dateVal === realYesterdayStr) {
+    if (isNightShiftStaff) {
+        // 🌙 พนักงานกะดึก - แยกเงื่อนไขตาม "ช่วงเวลาปัจจุบัน"
+        if (currentHour >= NIGHT_START_HOUR) {
+            // 🟢 ช่วง 20:00 - 23:59 (เริ่มกะคืนนี้) → ลงได้แค่ "วันนี้" เท่านั้น
+            if (dateVal === realTodayStr) {
+                isAllowedDate = true;
+            } else if (dateVal === realYesterdayStr) {
+                blockMsg = `กะของคุณเริ่มแล้ว กรุณาเลือกวันที่ <b>${realTodayStr}</b> (วันนี้)<br><span class="text-xs text-gray-500">เมื่อวานเป็นกะของพนักงานคนก่อน ไม่ใช่กะของคุณ</span>`;
+            } else {
+                blockMsg = `กรุณาเลือกวันที่ <b>${realTodayStr}</b> (วันนี้) เท่านั้น`;
+            }
+        } else if (currentHour < NIGHT_END_HOUR) {
+            // 🟢 ช่วง 00:00 - 07:59 (กะคืนเก่าคร่อมเข้าวันใหม่) → ลงได้แค่ "เมื่อวาน" เท่านั้น
+            // ⚠️ ห้ามลง "วันนี้" เพราะนั่นคือกะของคืนถัดไป (พนักงานคนใหม่)
+            if (dateVal === realYesterdayStr) {
+                isAllowedDate = true;
+            } else if (dateVal === realTodayStr) {
+                blockTitle = 'ยังเป็นกะเดิมของคุณอยู่!';
+                blockMsg = `ตอนนี้กะของคุณคร่อมมาจากเมื่อวาน (${realYesterdayStr}) กรุณาเลือกวันที่ <b>${realYesterdayStr}</b> แทน<br><span class="text-xs text-gray-500">วันใหม่ (${realTodayStr}) ยังไม่ใช่กะของคุณ จะลงได้หลัง ${NIGHT_START_HOUR}:00 น. เป็นต้นไป</span>`;
+            } else {
+                blockMsg = `กรุณาเลือกวันที่ <b>${realYesterdayStr}</b> (วันที่กะของคุณเริ่ม)`;
+            }
+        } else {
+            // 🔴 ช่วง 08:00 - 19:59 - นอกเวลากะดึก ห้ามลงทุกกรณี
+            blockTitle = 'ยังไม่ถึงเวลากะดึก';
+            blockMsg = `กะดึกเริ่มลงเวลาได้ตั้งแต่ <b>${NIGHT_START_HOUR}:00 น.</b> เป็นต้นไป<br><span class="text-xs text-gray-500">กรุณากลับมาใหม่อีกครั้งเมื่อถึงเวลากะของคุณ</span>`;
+        }
+    } else {
+        // 🌞 กะอื่น (เช้า / กลาง) - ลงได้แค่ "วันนี้" เท่านั้น
+        if (dateVal === realTodayStr) {
             isAllowedDate = true;
+        } else if (dateVal === realYesterdayStr) {
+            blockMsg = `กะของคุณไม่อนุญาตให้ย้อนลงเมื่อวาน<br><span class="text-xs text-gray-500">เฉพาะพนักงาน "กะดึก" เท่านั้นที่ย้อนได้ (เพราะคร่อมวัน)</span>`;
+        } else {
+            blockMsg = `ลงเวลาได้เฉพาะของ "วันนี้" (${realTodayStr}) เท่านั้น`;
         }
     }
 
-    // 🛑 ด่านสุดท้าย: ถ้าวันที่ไม่อยู่ในเงื่อนไขที่อนุญาต บล็อกทันที
+    // 🛑 ด่านสุดท้าย: ถ้าไม่ผ่านเงื่อนไขใดๆ บล็อกพร้อมแจ้งเหตุผลที่ตรงเคส
     if (isStaff && !isAllowedDate) {
         window.resetBtn();
-        let errMsg = 'ลงเวลาได้เฉพาะของ "วันนี้" เท่านั้น';
-        // ถ้าเป็นกะดึกแต่พ้นช่วงอนุโลม ให้แสดงข้อความที่ตรงเคสมากขึ้น
-        if (dateVal === realYesterdayStr) {
-            if (isNightShiftStaff) {
-                errMsg = 'พ้นช่วงเวลาอนุโลมแล้ว!<br><span class="text-xs text-gray-500">กะดึกย้อนลงของเมื่อวานได้ถึง 07:59 น. เท่านั้น</span>';
-            } else {
-                errMsg = 'กะของคุณไม่อนุญาตให้ย้อนลงเมื่อวาน<br><span class="text-xs text-gray-500">เฉพาะพนักงาน "กะดึก" เท่านั้นที่ย้อนได้ (เพราะคร่อมวัน)</span>';
-            }
-        }
-        return Swal.fire('ไม่อนุญาต', errMsg, 'error');
+        return Swal.fire(blockTitle, blockMsg, 'error');
     }
     // 🌟 --------------------------------------------------- 🌟
 
