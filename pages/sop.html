@@ -26,7 +26,7 @@
         </button>
     </div>
 
-    <!-- 🟠 TAB 1: หน้ากติกาทั้งหมด -->
+    <!-- 🟠 TAB 1: หน้ากติกาขั้นตอน — Layout 2 คอลัมน์ -->
     <div id="sopTab_rules" class="flex-1 overflow-hidden flex flex-col">
         <div class="bg-white dark:bg-slate-800 p-4 border-b dark:border-slate-700 shadow-sm shrink-0">
             <div class="flex flex-wrap gap-2.5 items-center">
@@ -54,8 +54,24 @@
                 </div>
             </div>
         </div>
-        <div class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50">
-            <div id="sopAllRulesContainer" class="max-w-5xl mx-auto space-y-5"></div>
+
+        <!-- 2-column layout เหมือนหน้า SOP -->
+        <div class="flex-1 overflow-hidden p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50">
+            <div class="max-w-[1600px] mx-auto h-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- ซ้าย: สารบัญ (หมวดหมู่ + กติกาในหมวด) -->
+                <div class="lg:col-span-4 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-lg p-5 flex flex-col h-full overflow-hidden">
+                    <h3 class="text-slate-800 dark:text-white font-black mb-4 flex items-center gap-2 border-b dark:border-slate-700 pb-3 text-lg">
+                        <span class="material-icons text-orange-500">list_alt</span>
+                        สารบัญกติกา
+                        <span id="sopRulesCount" class="ml-auto text-xs font-bold text-gray-400 bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded-md border border-gray-200 dark:border-slate-700"></span>
+                    </h3>
+                    <div id="sopAllRulesTocContainer" class="flex-1 overflow-y-auto custom-scrollbar pr-2"></div>
+                </div>
+                <!-- ขวา: เนื้อหาของหมวดที่เลือก -->
+                <div class="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col h-full overflow-hidden">
+                    <div id="sopAllRulesContainer" class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6"></div>
+                </div>
+            </div>
         </div>
     </div>
 
