@@ -434,14 +434,27 @@ window.sop_renderList = function() {
 
     const myUsername = (currentUser && currentUser.username) || '';
 
-    container.innerHTML = filtered.map(item => {
+    // V4.2: จัดกลุ่มตามหมวดหมู่
+    const groupedByCategory = {};
+    filtered.forEach(item => {
+        const catKey = item.category || '__uncat__';
+        if (!groupedByCategory[catKey]) groupedByCategory[catKey] = [];
+        groupedByCategory[catKey].push(item);
+    });
+
+    // เรียงลำดับหมวด: ตาม globalSOPCategories ก่อน → unmatched ท้าย
+    const orderedCatKeys = [];
+    globalSOPCategories.forEach(c => { if (groupedByCategory[c.id]) orderedCatKeys.push(c.id); });
+    Object.keys(groupedByCategory).forEach(k => { if (!orderedCatKeys.includes(k)) orderedCatKeys.push(k); });
+
+    function buildItemHtml(item) {
         let icon = 'rule', iconColor = 'text-gray-500 dark:text-gray-400';
-        const c = item.category || '';
-        if (c.includes('ฝาก'))     { icon = 'savings';        iconColor = 'text-emerald-500 dark:text-emerald-400'; }
-        else if (c.includes('ถอน')) { icon = 'payments';       iconColor = 'text-blue-500 dark:text-blue-400'; }
-        else if (c.includes('เครดิต')) { icon = 'monetization_on'; iconColor = 'text-amber-500 dark:text-amber-400'; }
-        else if (c.includes('พิเศษ')) { icon = 'warning';        iconColor = 'text-rose-500 dark:text-rose-400'; }
-        else if (c.includes('ทั่วไป')) { icon = 'menu_book';      iconColor = 'text-purple-500 dark:text-purple-400'; }
+        const cs = item.category || '';
+        if (cs.includes('ฝาก'))     { icon = 'savings';        iconColor = 'text-emerald-500 dark:text-emerald-400'; }
+        else if (cs.includes('ถอน')) { icon = 'payments';       iconColor = 'text-blue-500 dark:text-blue-400'; }
+        else if (cs.includes('เครดิต')) { icon = 'monetization_on'; iconColor = 'text-amber-500 dark:text-amber-400'; }
+        else if (cs.includes('พิเศษ')) { icon = 'warning';        iconColor = 'text-rose-500 dark:text-rose-400'; }
+        else if (cs.includes('ทั่วไป')) { icon = 'menu_book';      iconColor = 'text-purple-500 dark:text-purple-400'; }
 
         const displayCat = globalSOPCategories.find(x => x.id === item.category)?.name || item.category;
         const dateRaw = item.updated_at || item.created_at;
@@ -455,7 +468,6 @@ window.sop_renderList = function() {
 
         const pinIcon = item.pinned ? '<span class="absolute top-1.5 right-1.5 material-icons text-amber-500 text-[16px]" title="ปักหมุด">push_pin</span>' : '';
 
-        // shift badges
         const shifts = item.shifts || ['all'];
         let shiftBadges = '';
         if (!shifts.includes('all')) {
@@ -467,31 +479,23 @@ window.sop_renderList = function() {
             shiftBadges = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">ทุกกะ</span>';
         }
 
-        // read indicator
-        const isRead = (item.read_by || []).includes(myUsername);
-        const readIndicator = isRead
-            ? '<span class="text-[9px] flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-bold"><span class="material-icons text-[11px]">check_circle</span>อ่านแล้ว</span>'
-            : '';
-
-        // tags
-        let tagsHtml = '';
-        if (item.tags && item.tags.length > 0) {
-            tagsHtml = '<div class="flex flex-wrap gap-1 mt-1.5">' +
-                item.tags.slice(0, 4).map(t => `<span class="text-[9px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-700/50">#${t}</span>`).join('') +
-                (item.tags.length > 4 ? `<span class="text-[9px] text-gray-400">+${item.tags.length - 4}</span>` : '') +
-                '</div>';
+        const readBy = item.read_by || [];
+        const isReadByMe = readBy.includes(myUsername);
+        let readIndicator = '';
+        if (readBy.length > 0) {
+            readIndicator = isReadByMe
+                ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 flex items-center gap-0.5"><span class="material-icons text-[10px]">verified</span>อ่านแล้ว</span>`
+                : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-slate-600 flex items-center gap-0.5"><span class="material-icons text-[10px]">groups</span>${readBy.length} คน</span>`;
         }
 
-        // attachments icon
+        let tagsHtml = '';
+        if (item.tags && item.tags.length > 0) {
+            tagsHtml = '<div class="flex flex-wrap gap-1 mt-1.5">' + item.tags.slice(0, 4).map(t => `<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700">#${t}</span>`).join('') + (item.tags.length > 4 ? `<span class="text-[9px] px-1 text-gray-500">+${item.tags.length - 4}</span>` : '') + '</div>';
+        }
+
         const attCount = (item.attachments || []).length;
         const attachmentIcon = attCount > 0
             ? `<span class="flex items-center gap-0.5 text-amber-600 dark:text-amber-400"><span class="material-icons text-[11px]">attach_file</span>${attCount}</span>`
-            : '';
-
-        // rules count badge (V3)
-        const rulesCount = (item.rules || []).length;
-        const rulesCountBadge = rulesCount > 0
-            ? `<span class="flex items-center gap-0.5 text-orange-600 dark:text-orange-400"><span class="material-icons text-[11px]">gavel</span>${rulesCount}</span>`
             : '';
 
         const activeBg = currentSopId === item.id
@@ -509,10 +513,53 @@ window.sop_renderList = function() {
             date,
             viewCount: item.view_count || 0,
             attachmentIcon,
-            rulesCountBadge
+            rulesCountBadge: ''
         });
-    }).join('');
+    }
+
+    if (!window._sopCollapsedCats) window._sopCollapsedCats = new Set();
+
+    let listHtml = '';
+    orderedCatKeys.forEach(catKey => {
+        const items = groupedByCategory[catKey];
+        const catObj = globalSOPCategories.find(c => c.id === catKey);
+        const catLabel = catKey === '__uncat__' ? '(ไม่ระบุหมวด)' : (catObj ? catObj.name : catKey);
+        const catColor = catObj?.color || '#64748b';
+        const isCollapsed = window._sopCollapsedCats.has(catKey);
+
+        let catIcon = 'rule';
+        if (catLabel.includes('ฝาก'))     catIcon = 'savings';
+        else if (catLabel.includes('ถอน')) catIcon = 'payments';
+        else if (catLabel.includes('เครดิต')) catIcon = 'monetization_on';
+        else if (catLabel.includes('พิเศษ')) catIcon = 'warning';
+        else if (catLabel.includes('ทั่วไป')) catIcon = 'menu_book';
+
+        const itemsHtml = items.map(buildItemHtml).join('');
+        const safeCatKey = (catKey || '').replace(/'/g, '');
+        listHtml += `
+            <div class="rounded-xl overflow-hidden shadow-sm mb-3 border border-gray-200 dark:border-slate-700">
+                <div onclick="sop_toggleCatFolder('${safeCatKey}')" class="cursor-pointer text-white px-3 py-2 flex items-center gap-2 transition" style="background: ${catColor};">
+                    <span class="material-icons text-[18px]">${catIcon}</span>
+                    <span class="font-black text-sm tracking-wide flex-1 truncate">${(catLabel).replace(/</g, '&lt;')}</span>
+                    <span class="bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full">${items.length}</span>
+                    <span class="material-icons text-white transition ${isCollapsed ? '' : 'rotate-180'} text-[18px]">expand_more</span>
+                </div>
+                ${isCollapsed ? '' : `<div class="bg-slate-50 dark:bg-slate-900/30 p-2 space-y-2">${itemsHtml}</div>`}
+            </div>
+        `;
+    });
+
+    container.innerHTML = listHtml;
 };
+
+// V4.2: toggle category folder
+window.sop_toggleCatFolder = function(catKey) {
+    if (!window._sopCollapsedCats) window._sopCollapsedCats = new Set();
+    if (window._sopCollapsedCats.has(catKey)) window._sopCollapsedCats.delete(catKey);
+    else window._sopCollapsedCats.add(catKey);
+    sop_renderList();
+};
+
 
 // ==========================================
 // 🔢 V3.4: TAB COUNTERS
@@ -1023,14 +1070,16 @@ function sop_openEditModal(existing) {
 
             <div>
                 <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider flex items-center gap-1">
-                    <span class="material-icons text-[14px] text-amber-500">attach_file</span>ไฟล์ประกอบ (รูปภาพ / PDF)
+                    <span class="material-icons text-[14px] text-amber-500">attach_file</span>ไฟล์ประกอบ (รูปภาพ / PDF) — ก๊อปวาง / ลาก / กดเลือก
                 </label>
-                <div class="flex gap-2 mb-2">
-                    <input type="file" id="sopFormFiles" multiple accept="image/*,.pdf" class="hidden" onchange="sop_handleFileSelect(event)">
-                    <button type="button" onclick="document.getElementById('sopFormFiles').click()" class="bg-amber-500 hover:bg-amber-400 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-md transition active:scale-95"><span class="material-icons text-sm">upload</span>เลือกไฟล์</button>
-                    <span class="text-[11px] text-gray-500 self-center">รองรับ JPG, PNG, PDF — เลือกได้หลายไฟล์</span>
+                <div id="sopFormPasteZone" class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50 dark:bg-slate-900 transition focus-within:border-amber-500 hover:border-amber-400" tabindex="0">
+                    <div class="flex gap-2 mb-2 items-center">
+                        <input type="file" id="sopFormFiles" multiple accept="image/*,.pdf" class="hidden" onchange="sop_handleFileSelect(event)">
+                        <button type="button" onclick="document.getElementById('sopFormFiles').click()" class="bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-md transition active:scale-95"><span class="material-icons text-[14px]">upload</span>เลือกไฟล์</button>
+                        <span class="text-[11px] text-gray-500 italic">รองรับ JPG, PNG, PDF / Ctrl+V วางจาก clipboard / ลากไฟล์มาทิ้ง</span>
+                    </div>
+                    <div id="sopAttachmentPreview" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar"></div>
                 </div>
-                <div id="sopAttachmentPreview" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar"></div>
             </div>
         </div>
     `;
@@ -1059,6 +1108,51 @@ function sop_openEditModal(existing) {
             otherCbs.forEach(c => c.addEventListener('change', () => {
                 if (c.checked && allCb) allCb.checked = false;
             }));
+
+            // V4.3: Paste + Drag&Drop สำหรับ attachments
+            const pasteZone = document.getElementById('sopFormPasteZone');
+            const swalPopup = Swal.getPopup();
+
+            const pasteHandler = async (e) => {
+                const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+                if (!items) return;
+                for (const item of items) {
+                    if (item.type && item.type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = item.getAsFile();
+                        if (file) {
+                            sop_showInlineToast('กำลังอัพรูปจาก clipboard...', 'info');
+                            const ok = await sop_uploadAttachmentFile(file);
+                            if (ok) {
+                                sop_renderAttachmentPreview();
+                                sop_showInlineToast('แนบรูปจาก clipboard แล้ว ✅', 'success');
+                            } else {
+                                sop_showInlineToast('อัพไม่สำเร็จ', 'error');
+                            }
+                        }
+                    }
+                }
+            };
+            // ผูกที่ zone + popup เท่านั้น (ห้ามผูก document)
+            if (pasteZone) pasteZone.addEventListener('paste', pasteHandler);
+            if (swalPopup) swalPopup.addEventListener('paste', pasteHandler);
+
+            // Drag & Drop
+            if (pasteZone) {
+                pasteZone.addEventListener('dragover', (e) => { e.preventDefault(); pasteZone.classList.add('border-amber-500'); });
+                pasteZone.addEventListener('dragleave', () => pasteZone.classList.remove('border-amber-500'));
+                pasteZone.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    pasteZone.classList.remove('border-amber-500');
+                    const files = Array.from(e.dataTransfer?.files || []);
+                    if (files.length === 0) return;
+                    sop_showInlineToast(`กำลังอัพ ${files.length} ไฟล์...`, 'info');
+                    for (const f of files) await sop_uploadAttachmentFile(f);
+                    sop_renderAttachmentPreview();
+                    sop_showInlineToast('อัพไฟล์เสร็จ ✅', 'success');
+                });
+            }
         },
         preConfirm: () => {
             const title = document.getElementById('sopFormTitle').value.trim();
@@ -1095,43 +1189,52 @@ function sop_openEditModal(existing) {
 // ==========================================
 // 📎 ATTACHMENTS BUFFER
 // ==========================================
+// Helper: อัพ 1 ไฟล์ขึ้น Supabase แล้ว push เข้า buffer
+window.sop_uploadAttachmentFile = async function(file) {
+    if (!file) return false;
+    try {
+        let ext = (file.name && file.name.split('.').pop().toLowerCase()) || '';
+        if (!ext || ext.length > 5) {
+            // เคส paste image (มัก type เป็น 'image/png' แต่ไม่มีนามสกุล)
+            if (file.type && file.type.startsWith('image/')) {
+                ext = file.type.split('/')[1] || 'png';
+            } else {
+                ext = 'bin';
+            }
+        }
+        const fileName = `sop/${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
+        const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
+        if (upErr) throw new Error(upErr.message);
+        const { data: pubData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
+        sopAttachmentsBuffer.push({
+            url: pubData.publicUrl,
+            name: file.name || `clipboard.${ext}`,
+            type: ext === 'pdf' ? 'pdf' : 'image',
+            path: fileName
+        });
+        return true;
+    } catch (e) {
+        console.error('upload attachment error:', e);
+        return false;
+    }
+};
+
 window.sop_handleFileSelect = async function(event) {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    // อัพโหลดทีละไฟล์ขึ้น Supabase Storage
-    Swal.update({ title: 'กำลังอัพโหลดไฟล์...' });
     const submitBtn = Swal.getConfirmButton();
     if (submitBtn) submitBtn.disabled = true;
+    sop_showInlineToast(`กำลังอัพ ${files.length} ไฟล์...`, 'info');
 
     for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        try {
-            const ext = file.name.split('.').pop().toLowerCase();
-            const fileName = `sop/${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
-
-            const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
-            if (upErr) throw new Error(upErr.message);
-
-            const { data: pubData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
-            sopAttachmentsBuffer.push({
-                url: pubData.publicUrl,
-                name: file.name,
-                type: ext === 'pdf' ? 'pdf' : 'image',
-                path: fileName
-            });
-        } catch (e) {
-            console.error('upload error:', e);
-            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-            Toast.fire({ icon: 'error', title: `อัพ ${file.name} ไม่สำเร็จ` });
-        }
+        const ok = await sop_uploadAttachmentFile(files[i]);
+        if (!ok) sop_showInlineToast(`อัพ ${files[i].name} ไม่สำเร็จ`, 'error');
     }
 
     sop_renderAttachmentPreview();
     if (submitBtn) submitBtn.disabled = false;
-    Swal.update({ title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-rose-500">post_add</span> เพิ่มกฎใหม่</div>' });
-
-    // เคลียร์ input เพื่อให้เลือกซ้ำได้
+    sop_showInlineToast('อัพไฟล์เสร็จ ✅', 'success');
     event.target.value = '';
 };
 
