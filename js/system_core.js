@@ -183,79 +183,26 @@ window.saveData = async function(e) {
     
     // 🌟 --- โค้ดดักลงเวลาล่วงหน้า (ล็อกไม่ให้จองข้ามวัน) --- 🌟
     const todayObj = new Date();
-    const currentHour = todayObj.getHours();
-
+    const currentHour = todayObj.getHours(); 
+    
     const realTodayStr = new Date(todayObj.getTime() - (todayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     const yesterdayObj = new Date(todayObj);
     yesterdayObj.setDate(yesterdayObj.getDate() - 1);
     const realYesterdayStr = new Date(yesterdayObj.getTime() - (yesterdayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
-    const isStaff = !['manager', 'admin'].includes(currentUser.role);
-
-    // 🌙 ค่าตั้งของกะดึก (ปรับเลขตรงนี้ได้ตามต้องการ)
-    const NIGHT_START_HOUR = 20; // กะดึกเริ่มลงของวันนี้ได้ตั้งแต่ 20:00
-    const NIGHT_END_HOUR = 8;    // ย้อนลงของเมื่อวานได้ถึงก่อน 08:00 (ของวันถัดไป)
-
-    const isNightShiftStaff = (sName === 'กะดึก') || (currentUser.allowed_shift === 'กะดึก');
-
-    // 🚨 ด่านที่ 1: บล็อกการลงของ "วันในอนาคต" สำหรับพนักงานทุกกะ (เด็ดขาด!)
-    if (isStaff && dateVal > realTodayStr) {
-        window.resetBtn();
-        let blockTitle = 'ไม่ได้ห้ามลงล่วงหน้านะจ๊ะ';
-        return Swal.fire(
-            blockTitle,
-            'ไม่สามารถลงเวลาของ "วันในอนาคต" ได้ครับ<br><span class="text-xs text-gray-500">กรุณาเลือกเฉพาะวันที่ทำงานของคุณเท่านั้น</span>',
-            'error'
-        );
-    }
-
-    // ด่านที่ 2: ตรรกะหลัก - แยกพิจารณาตามกะ และช่วงเวลาปัจจุบัน
-    let isAllowedDate = false;
-    let blockTitle = 'ไม่อนุญาต';
-    let blockMsg = '';
-
-    if (isNightShiftStaff) {
-        // 🌙 พนักงานกะดึก - แยกเงื่อนไขตาม "ช่วงเวลาปัจจุบัน"
-        if (currentHour >= NIGHT_START_HOUR) {
-            // 🟢 ช่วง 20:00 - 23:59 (เริ่มกะคืนนี้) → ลงได้แค่ "วันนี้" เท่านั้น
-            if (dateVal === realTodayStr) {
-                isAllowedDate = true;
-            } else if (dateVal === realYesterdayStr) {
-                blockMsg = `กะของคุณเริ่มแล้ว กรุณาเลือกวันที่ <b>${realTodayStr}</b> (วันนี้)<br><span class="text-xs text-gray-500">เมื่อวานเป็นกะของพนักงานคนก่อน ไม่ใช่กะของคุณ</span>`;
-            } else {
-                blockMsg = `กรุณาเลือกวันที่ <b>${realTodayStr}</b> (วันนี้) เท่านั้น`;
-            }
-        } else if (currentHour < NIGHT_END_HOUR) {
-            // 🟢 ช่วง 00:00 - 07:59 (กะคืนเก่าคร่อมเข้าวันใหม่) → ลงได้แค่ "เมื่อวาน" เท่านั้น
-            // ⚠️ ห้ามลง "วันนี้" เพราะนั่นคือกะของคืนถัดไป (พนักงานคนใหม่)
-            if (dateVal === realYesterdayStr) {
-                isAllowedDate = true;
-            } else if (dateVal === realTodayStr) {
-                blockTitle = 'ไม่ได้ห้ามลงล่วงหน้านะจ๊ะ';
-                blockMsg = `ตอนนี้กะของคุณคร่อมมาจากเมื่อวาน (${realYesterdayStr}) กรุณาเลือกวันที่ <b>${realYesterdayStr}</b> แทน<br><span class="text-xs text-gray-500">วันใหม่ (${realTodayStr}) ยังไม่ใช่กะของคุณ จะลงได้หลัง ${NIGHT_START_HOUR}:00 น. เป็นต้นไป</span>`;
-            } else {
-                blockMsg = `กรุณาเลือกวันที่ <b>${realYesterdayStr}</b> (วันที่กะของคุณเริ่ม)`;
-            }
-        } else {
-            // 🔴 ช่วง 08:00 - 19:59 - นอกเวลากะดึก ห้ามลงทุกกรณี
-            blockTitle = 'ยังไม่ถึงเวลากะดึก';
-            blockMsg = `กะดึกเริ่มลงเวลาได้ตั้งแต่ <b>${NIGHT_START_HOUR}:00 น.</b> เป็นต้นไป<br><span class="text-xs text-gray-500">กรุณากลับมาใหม่อีกครั้งเมื่อถึงเวลากะของคุณ</span>`;
-        }
-    } else {
-        // 🌞 กะอื่น (เช้า / กลาง) - ลงได้แค่ "วันนี้" เท่านั้น
-        if (dateVal === realTodayStr) {
+    let isAllowedDate = (dateVal === realTodayStr);
+    
+    // อนุโลมให้กะดึกลงเวลาของเมื่อวานได้ถึง 07:59 น.
+    if (currentHour >= 0 && currentHour < 8) {
+        if (dateVal === realYesterdayStr) {
             isAllowedDate = true;
-        } else if (dateVal === realYesterdayStr) {
-            blockMsg = `กะของคุณไม่อนุญาตให้ย้อนลงเมื่อวาน<br><span class="text-xs text-gray-500">เฉพาะพนักงาน "กะดึก" เท่านั้นที่ย้อนได้ (เพราะคร่อมวัน)</span>`;
-        } else {
-            blockMsg = `ลงเวลาได้เฉพาะของ "วันนี้" (${realTodayStr}) เท่านั้น`;
         }
     }
 
-    // 🛑 ด่านสุดท้าย: ถ้าไม่ผ่านเงื่อนไขใดๆ บล็อกพร้อมแจ้งเหตุผลที่ตรงเคส
-    if (isStaff && !isAllowedDate) {
+    // 🛑 ตรวจสอบสิทธิ์: ถ้าไม่ใช่แอดมิน และเลือกวันที่ไม่ใช่วันนี้ บล็อกทันที!
+    if (!['manager', 'admin'].includes(currentUser.role) && !isAllowedDate) {
         window.resetBtn();
-        return Swal.fire(blockTitle, blockMsg, 'error');
+        return Swal.fire('ไม่อนุญาต', 'ลงเวลาได้เฉพาะของ "วันนี้" เท่านั้น<br><span class="text-xs text-gray-500">(เลือกตามวันที่ตัวเองทำงานเท่านั้นนะจ๊ะ)</span>', 'error');
     }
     // 🌟 --------------------------------------------------- 🌟
 
@@ -2252,17 +2199,17 @@ const PERM_GROUPS = [
         ]
     },
     {
-    id: 'page_sop', name: 'คู่มือการทำงาน (SOP)', icon: 'rule_folder', theme: 'rose',
-    items: [
-        {id: 'sop', name: 'เข้าหน้าคู่มือ SOP', isSub: false},
-        {id: 'sop_manage', name: 'เพิ่ม/แก้/ลบ กฎ', isSub: true}
-    ]
-    },
-    {
         id: 'page_kb', name: 'คลังความรู้', icon: 'menu_book', theme: 'amber',
         items: [
             {id: 'kb', name: 'เข้าหน้าคลังความรู้', isSub: false},
             {id: 'kb_manage', name: 'เขียน/ลบบทความ', isSub: true}
+        ]
+    },
+    {
+        id: 'page_sop', name: 'คู่มือการทำงาน (OD)', icon: 'rule_folder', theme: 'rose',
+        items: [
+            {id: 'sop', name: 'เข้าหน้าคู่มือ SOP', isSub: false},
+            {id: 'sop_manage', name: 'เพิ่ม/แก้/ลบ กฎ', isSub: true}
         ]
     },
     {
@@ -2346,13 +2293,6 @@ const PERM_GROUPS = [
         id: 'page_kbiz', name: 'จัดการบอท K BIZ', icon: 'smart_toy', theme: 'emerald',
         items: [
             {id: 'kbiz', name: 'เข้าหน้าจัดการบอท K BIZ', isSub: false}
-        ]
-    },
-    {
-        id: 'page_ip_check', name: 'ตรวจสอบ IP พนักงาน', icon: 'public', theme: 'cyan',
-        items: [
-            {id: 'ip_check', name: 'เข้าหน้าตรวจสอบ IP พนักงาน', isSub: false},
-            {id: 'ip_view',  name: 'ดู IP พนักงานคนอื่น', isSub: true}
         ]
     },
     {
