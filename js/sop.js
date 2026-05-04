@@ -1411,8 +1411,7 @@ window.sop_handleRuleFilesSelect = async function(event) {
     if (files.length === 0) return;
     const submitBtn = Swal.getConfirmButton();
     if (submitBtn) submitBtn.disabled = true;
-    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-    Toast.fire({ icon: 'info', title: `กำลังอัพโหลด ${files.length} รูป...` });
+    sop_showInlineToast(`กำลังอัพโหลด ${files.length} รูป...`, 'info');
     for (const f of files) {
         const obj = await sop_uploadRuleImageFile(f);
         if (obj) sopRuleImagesBuffer.push(obj);
@@ -1420,11 +1419,40 @@ window.sop_handleRuleFilesSelect = async function(event) {
     sop_renderRuleImagesPreview();
     if (submitBtn) submitBtn.disabled = false;
     event.target.value = '';
+    sop_showInlineToast(`อัพ ${files.length} รูปเสร็จ ✅`, 'success');
 };
 
 // ==========================================
 // 🟠 V4: STANDALONE RULES CRUD (Tab 1 — กติกาขั้นตอน)
 // ==========================================
+
+// Toast เล็กๆ ที่ใช้ DOM ธรรมดา — ปลอดภัยกว่าการเรียก Swal.mixin ขณะมี Swal popup เปิดอยู่
+window.sop_showInlineToast = function(msg, type) {
+    type = type || 'info';
+    let t = document.getElementById('sopInlineToast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'sopInlineToast';
+        t.style.cssText = 'position:fixed;top:20px;right:20px;z-index:99999;padding:10px 16px;border-radius:12px;font-weight:bold;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,0.25);pointer-events:none;transition:opacity 0.2s;';
+        document.body.appendChild(t);
+    }
+    let bg = '#3b82f6', color = 'white';
+    if (type === 'success') bg = '#10b981';
+    else if (type === 'error') bg = '#ef4444';
+    else if (type === 'info') bg = '#0ea5e9';
+    t.style.background = bg;
+    t.style.color = color;
+    t.innerText = msg;
+    t.style.opacity = '1';
+
+    if (window._sopToastTimer) clearTimeout(window._sopToastTimer);
+    window._sopToastTimer = setTimeout(() => {
+        if (t) {
+            t.style.opacity = '0';
+            setTimeout(() => { if (t && t.parentNode) t.remove(); }, 250);
+        }
+    }, 1800);
+};
 
 async function sop_openStandaloneRuleForm(editIdx) {
     const isEdit = (typeof editIdx === 'number');
@@ -1567,27 +1595,35 @@ async function sop_openStandaloneRuleForm(editIdx) {
             const pasteHandler = async (e) => {
                 const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
                 if (!items) return;
+                let foundImage = false;
                 for (const item of items) {
                     if (item.type && item.type.indexOf('image') !== -1) {
+                        foundImage = true;
                         e.preventDefault();
+                        e.stopPropagation();
                         const file = item.getAsFile();
                         if (file) {
+                            sop_showInlineToast('กำลังอัพรูป...', 'info');
                             const obj = await sop_uploadRuleImageFile(file);
                             if (obj) {
                                 sopRuleImagesBuffer.push(obj);
                                 sop_renderRuleImagesPreview();
-                                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
-                                Toast.fire({ icon: 'success', title: 'แนบรูปจาก clipboard แล้ว' });
+                                sop_showInlineToast('แนบรูปจาก clipboard แล้ว ✅', 'success');
+                            } else {
+                                sop_showInlineToast('อัพไม่สำเร็จ', 'error');
                             }
                         }
                     }
                 }
+                return foundImage;
             };
+            // ผูกกับ element ใน popup เท่านั้น — ห้ามผูกกับ document (จะทำให้ Swal ปิด)
             if (zone) zone.addEventListener('paste', pasteHandler);
             if (textarea) textarea.addEventListener('paste', pasteHandler);
             if (titleInput) titleInput.addEventListener('paste', pasteHandler);
-            document.addEventListener('paste', pasteHandler);
-            window._sopActivePasteHandler = pasteHandler;
+            // ผูกกับ swal container เพื่อให้ paste จากที่ไหนก็ได้ในฟอร์ม
+            const swalContainer = Swal.getPopup();
+            if (swalContainer) swalContainer.addEventListener('paste', pasteHandler);
 
             if (zone) {
                 zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('border-orange-500'); });
@@ -1597,23 +1633,22 @@ async function sop_openStandaloneRuleForm(editIdx) {
                     zone.classList.remove('border-orange-500');
                     const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
                     if (files.length === 0) return;
-                    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
-                    Toast.fire({ icon: 'info', title: `กำลังอัพ ${files.length} รูป...` });
+                    sop_showInlineToast(`กำลังอัพ ${files.length} รูป...`, 'info');
                     for (const f of files) {
                         const obj = await sop_uploadRuleImageFile(f);
                         if (obj) sopRuleImagesBuffer.push(obj);
                     }
                     sop_renderRuleImagesPreview();
+                    sop_showInlineToast('แนบรูปแล้ว ✅', 'success');
                 });
             }
 
             if (titleInput && !isEdit) titleInput.focus();
         },
         willClose: () => {
-            if (window._sopActivePasteHandler) {
-                document.removeEventListener('paste', window._sopActivePasteHandler);
-                window._sopActivePasteHandler = null;
-            }
+            // เคลียร์ inline toast ถ้ามี
+            const t = document.getElementById('sopInlineToast');
+            if (t) t.remove();
         },
         preConfirm: () => {
             const title = document.getElementById('qaRuleTitle').value.trim();
