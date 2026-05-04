@@ -694,17 +694,39 @@ function sop_getRuleTypeStyle(t) {
 }
 
 // ==========================================
-// 🟠 V4: หน้ากติกาขั้นตอน (Tab Rules) — ใช้ standalone data
+// 🟠 V5: หน้ากติกาขั้นตอน (Tab Rules) — Layout 2 คอลัมน์
 // ==========================================
+
+// state: หมวดที่กำลังเลือกในสารบัญ (default = หมวดแรกที่มีกติกา หรือ ALL)
+window._sopSelectedCat = window._sopSelectedCat || null;
+
+// คลิกหมวดในสารบัญ → render เนื้อหาของหมวดนั้นด้านขวา
+window.sop_selectRulesCategory = function(catKey) {
+    window._sopSelectedCat = catKey;
+    sop_renderAllRulesPage();
+};
+
+// helper: lighten hex color
+function sop_lightenHex(hex, amt) {
+    if (!hex || !hex.startsWith('#')) return hex;
+    const c = hex.replace('#', '');
+    const r = Math.min(255, parseInt(c.substr(0,2), 16) + amt);
+    const g = Math.min(255, parseInt(c.substr(2,2), 16) + amt);
+    const b = Math.min(255, parseInt(c.substr(4,2), 16) + amt);
+    return `rgb(${r},${g},${b})`;
+}
+
 window.sop_renderAllRulesPage = function() {
+    const tocContainer = document.getElementById('sopAllRulesTocContainer');
     const container = document.getElementById('sopAllRulesContainer');
-    if (!container) return;
+    const countEl = document.getElementById('sopRulesCount');
+    if (!tocContainer || !container) return;
 
     const term = document.getElementById('sopRulesSearch') ? document.getElementById('sopRulesSearch').value.toLowerCase() : '';
     const catF = document.getElementById('sopRulesCatFilter') ? document.getElementById('sopRulesCatFilter').value : 'ALL';
     const typeF = document.getElementById('sopRulesTypeFilter') ? document.getElementById('sopRulesTypeFilter').value : 'ALL';
 
-    // กรอง
+    // กรองตาม filter
     let filtered = (globalStandaloneRules || []).slice();
     if (catF !== 'ALL') filtered = filtered.filter(r => r.category === catF);
     if (typeF !== 'ALL') filtered = filtered.filter(r => (r.type || 'do') === typeF);
@@ -720,20 +742,24 @@ window.sop_renderAllRulesPage = function() {
         return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0);
     });
 
+    if (countEl) countEl.innerText = `${filtered.length}/${(globalStandaloneRules || []).length}`;
+
     if (!filtered.length) {
         if (!globalStandaloneRules || globalStandaloneRules.length === 0) {
+            tocContainer.innerHTML = '<div class="text-center text-gray-400 dark:text-gray-500 text-xs py-8 italic">ยังไม่มีกติกา</div>';
             container.innerHTML = `
-                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md p-10 text-center">
-                    <span class="material-icons text-6xl opacity-30 mb-3 text-gray-400">gavel</span>
-                    <h3 class="text-lg font-black text-gray-500 dark:text-gray-400">ยังไม่มีกติกาขั้นตอน</h3>
-                    <p class="text-sm text-gray-400 mt-1">กดปุ่ม "+ เพิ่มกติกาใหม่" ด้านบนเพื่อสร้าง</p>
+                <div class="text-center text-gray-400 dark:text-gray-600 mt-[15vh] flex flex-col items-center select-none p-8">
+                    <span class="material-icons text-[100px] mb-6 opacity-30">gavel</span>
+                    <h2 class="text-2xl font-black text-gray-500">ยังไม่มีกติกาขั้นตอน</h2>
+                    <p class="text-sm mt-2 font-bold">กดปุ่ม "+ เพิ่มกติกาใหม่" ด้านบนเพื่อสร้าง</p>
                 </div>`;
         } else {
+            tocContainer.innerHTML = '<div class="text-center text-gray-400 dark:text-gray-500 text-xs py-8 italic">ไม่พบกติกา</div>';
             container.innerHTML = `
-                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md p-10 text-center">
-                    <span class="material-icons text-6xl opacity-30 mb-3 text-gray-400">search_off</span>
-                    <h3 class="text-lg font-black text-gray-500 dark:text-gray-400">ไม่พบกติกาตามเงื่อนไข</h3>
-                    <p class="text-sm text-gray-400 mt-1">ลองเปลี่ยนคำค้นหาหรือ filter</p>
+                <div class="text-center text-gray-400 dark:text-gray-600 mt-[15vh] flex flex-col items-center select-none p-8">
+                    <span class="material-icons text-[100px] mb-6 opacity-30">search_off</span>
+                    <h2 class="text-2xl font-black text-gray-500">ไม่พบกติกาตามเงื่อนไข</h2>
+                    <p class="text-sm mt-2 font-bold">ลองเปลี่ยนคำค้นหาหรือ filter</p>
                 </div>`;
         }
         return;
@@ -742,31 +768,34 @@ window.sop_renderAllRulesPage = function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
     const isAdmin = hasManagePerm || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
 
-    // จัดกลุ่มตาม category → subgroup
+    // จัดกลุ่มตามหมวด
     const groupedByCat = {};
-    filtered.forEach((r, idx) => {
-        // หา actualIdx ใน global array
-        const actualIdx = globalStandaloneRules.indexOf(r);
+    filtered.forEach(r => {
         const c = r.category || '__uncat__';
         if (!groupedByCat[c]) groupedByCat[c] = [];
-        groupedByCat[c].push({ r, idx: actualIdx });
+        groupedByCat[c].push({ r, idx: globalStandaloneRules.indexOf(r) });
     });
 
-    // เรียงหมวดให้คุ้นตา
-    const catOrder = Object.keys(groupedByCat).sort((a, b) => {
-        if (a === '__uncat__') return 1;
-        if (b === '__uncat__') return -1;
-        return 0;
-    });
+    // เรียงหมวดตาม globalSOPCategories
+    const orderedCatKeys = [];
+    globalSOPCategories.forEach(c => { if (groupedByCat[c.id]) orderedCatKeys.push(c.id); });
+    Object.keys(groupedByCat).forEach(k => { if (!orderedCatKeys.includes(k)) orderedCatKeys.push(k); });
 
-    let html = '';
+    // ถ้ายังไม่มี selected หรือ selected ไม่อยู่ในรายการ → เลือกตัวแรก
+    let selectedCat = window._sopSelectedCat;
+    if (!selectedCat || !groupedByCat[selectedCat]) {
+        selectedCat = orderedCatKeys[0];
+        window._sopSelectedCat = selectedCat;
+    }
 
-    catOrder.forEach(catKey => {
+    // ============= 1) RENDER TOC (สารบัญซ้าย) =============
+    let tocHtml = '';
+    orderedCatKeys.forEach(catKey => {
         const items = groupedByCat[catKey];
         const catObj = globalSOPCategories.find(c => c.id === catKey);
         const catLabel = catKey === '__uncat__' ? '(ไม่ระบุหมวด)' : (catObj ? catObj.name : catKey);
+        const catColor = catObj?.color || '#64748b';
 
-        // ไอคอนหมวด
         let catIcon = 'rule';
         if (catLabel.includes('ฝาก'))     catIcon = 'savings';
         else if (catLabel.includes('ถอน')) catIcon = 'payments';
@@ -774,120 +803,137 @@ window.sop_renderAllRulesPage = function() {
         else if (catLabel.includes('พิเศษ')) catIcon = 'warning';
         else if (catLabel.includes('ทั่วไป')) catIcon = 'menu_book';
 
-        // จัดกลุ่มย่อย (subgroup) ภายในหมวด
-        const subgroupMap = {};
-        items.forEach(({ r, idx }) => {
-            const g = (r.subgroup || '').trim() || '__no_sub__';
-            if (!subgroupMap[g]) subgroupMap[g] = [];
-            subgroupMap[g].push({ r, idx });
-        });
+        const isSelected = catKey === selectedCat;
+        const safeCatKey = (catKey || '').replace(/'/g, '');
 
-        const subgroupNames = Object.keys(subgroupMap).sort((a, b) => {
-            if (a === '__no_sub__') return 1;
-            if (b === '__no_sub__') return -1;
-            return a.localeCompare(b, 'th');
-        });
-
-        let groupsHtml = '';
-        subgroupNames.forEach(gName => {
-            if (gName !== '__no_sub__') {
-                groupsHtml += `
-                    <div class="flex items-center gap-2 mt-3 mb-2 px-1">
-                        <span class="material-icons text-orange-500 text-[16px]">folder</span>
-                        <span class="text-xs font-black text-slate-700 dark:text-gray-200 uppercase tracking-wider">${(gName).replace(/</g, '&lt;')}</span>
-                        <div class="flex-1 border-t border-dashed border-orange-300 dark:border-orange-700/50 ml-1"></div>
-                        <span class="text-[10px] font-bold text-gray-500 bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-full">${subgroupMap[gName].length} ข้อ</span>
-                    </div>`;
-            }
-
-            subgroupMap[gName].forEach(({ r, idx }) => {
-                const t = r.type || 'do';
-                const cfg = sop_getRuleTypeStyle(t);
-                const usedColor = (r.color && r.color.trim()) ? r.color : cfg.defaultColor;
-
-                const safeTitle = (r.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                const safeText = (r.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
-                const hasContent = (r.text || '').trim().length > 0;
-
-                const accordionKey = `standalone::${idx}`;
-                const isOpen = window._sopOpenRules.has(accordionKey);
-
-                const imgs = Array.isArray(r.images) ? r.images : [];
-                let imagesHtml = '';
-                if (imgs.length > 0) {
-                    imagesHtml = `<div class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">` +
-                        imgs.map(img => `
-                            <div onclick="event.stopPropagation(); sop_openLightbox('${img.url}')" class="cursor-zoom-in rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 hover:opacity-90 transition relative group shadow-sm">
-                                <img src="${img.url}" class="w-full h-32 object-cover">
-                                <div class="absolute top-1 right-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm flex items-center gap-0.5"><span class="material-icons text-[10px]">zoom_in</span></div>
-                            </div>
-                        `).join('') +
-                        `</div>`;
-                }
-
-                const adminBtns = isAdmin ? `
-                    <button onclick="event.stopPropagation(); sop_editStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไข"><span class="material-icons text-[16px]">edit</span></button>
-                    <button onclick="event.stopPropagation(); sop_toggleStandalonePin(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 ${r.pinned ? 'text-amber-500' : 'text-gray-400'} hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="${r.pinned ? 'เลิกปักหมุด' : 'ปักหมุด'}"><span class="material-icons text-[16px]">push_pin</span></button>
-                    <button onclick="event.stopPropagation(); sop_deleteStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบ"><span class="material-icons text-[16px]">delete</span></button>
-                ` : '';
-
-                const pinIcon = r.pinned ? '<span class="material-icons text-amber-500 text-[14px]" title="ปักหมุด">push_pin</span>' : '';
-
-                groupsHtml += `
-                    <div class="bg-white dark:bg-slate-900 rounded-xl border-l-[6px] border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-2 hover:shadow-md transition" style="border-left-color: ${usedColor};">
-                        <div onclick="sop_toggleRuleAccordion('standalone', ${idx})" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-                            <div class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-inner" style="background-color: ${usedColor};">
-                                <span class="material-icons text-[20px]">${cfg.ic}</span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
-                                    <span class="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded text-white" style="background-color: ${usedColor};">${cfg.lbl}</span>
-                                    ${pinIcon}
-                                    ${imgs.length > 0 ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[10px]">image</span>${imgs.length} รูป</span>` : ''}
-                                    ${hasContent ? '<span class="text-[9px] text-blue-500 font-bold">📝 มีรายละเอียด</span>' : ''}
-                                </div>
-                                <div class="text-sm md:text-base font-bold text-slate-800 dark:text-white truncate">${safeTitle || '(ไม่มีหัวข้อ)'}</div>
-                            </div>
-                            <div class="flex items-center gap-1 shrink-0">${adminBtns}
-                                <span class="material-icons text-gray-400 transition ${isOpen ? 'rotate-180' : ''} text-[20px]">expand_more</span>
-                            </div>
-                        </div>
-                        ${isOpen ? `
-                            <div class="px-4 pb-4 pt-3 border-t border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                ${imagesHtml}
-                                ${hasContent ? `<div class="text-sm md:text-base text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>` : '<div class="text-sm text-gray-400 italic">ไม่มีรายละเอียดเพิ่มเติม</div>'}
-                            </div>
-                        ` : ''}
+        tocHtml += `
+            <div onclick="sop_selectRulesCategory('${safeCatKey}')" class="cursor-pointer rounded-xl border-l-4 ${isSelected ? 'ring-2 ring-orange-300 dark:ring-orange-700 bg-orange-50 dark:bg-orange-900/20 border-orange-400' : 'bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-orange-400 dark:hover:border-orange-500/50 hover:bg-white dark:hover:bg-slate-800'} transition group shadow-sm relative overflow-hidden mb-2.5" style="border-left-color: ${catColor};">
+                <div class="p-3 flex gap-3 items-center">
+                    <div class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-inner" style="background-color: ${catColor};">
+                        <span class="material-icons text-[20px]">${catIcon}</span>
                     </div>
-                `;
-            });
-        });
-
-        // V4.1: ดึงสีของหมวดมาใช้ที่แถบ header
-        const catColor = catObj?.color || '#f97316'; // default ส้ม
-        // สร้างสีอ่อนกว่าสำหรับ gradient end
-        function lightenColor(hex, amt) {
-            const c = hex.replace('#', '');
-            const r = Math.min(255, parseInt(c.substr(0,2), 16) + amt);
-            const g = Math.min(255, parseInt(c.substr(2,2), 16) + amt);
-            const b = Math.min(255, parseInt(c.substr(4,2), 16) + amt);
-            return `rgb(${r},${g},${b})`;
-        }
-        const catColorLight = lightenColor(catColor, 30);
-
-        html += `
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-md overflow-hidden">
-                <div class="text-white px-5 py-3 flex items-center gap-2 flex-wrap" style="background: linear-gradient(to right, ${catColor}, ${catColorLight});">
-                    <div class="bg-white/20 p-1.5 rounded-lg shrink-0"><span class="material-icons text-[18px]">${catIcon}</span></div>
-                    <h3 class="text-white font-black text-sm md:text-base tracking-wide truncate flex-1">${(catLabel).replace(/</g, '&lt;')}</h3>
-                    <span class="bg-white/20 text-white text-[11px] font-black px-2 py-0.5 rounded-full">${items.length} ข้อ</span>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-slate-800 dark:text-white font-bold text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition leading-snug">${(catLabel).replace(/</g, '&lt;')}</h4>
+                        <div class="text-[10px] font-bold text-gray-500 mt-0.5">${items.length} ข้อ</div>
+                    </div>
+                    ${isSelected ? '<span class="material-icons text-orange-500 text-[18px]">arrow_forward</span>' : ''}
                 </div>
-                <div class="p-4 bg-slate-50 dark:bg-slate-800/80">${groupsHtml}</div>
             </div>
         `;
     });
+    tocContainer.innerHTML = tocHtml;
 
-    container.innerHTML = html;
+    // ============= 2) RENDER เนื้อหาขวา (กติกาในหมวดที่เลือก) =============
+    const selectedItems = groupedByCat[selectedCat] || [];
+    const selectedCatObj = globalSOPCategories.find(c => c.id === selectedCat);
+    const selectedLabel = selectedCat === '__uncat__' ? '(ไม่ระบุหมวด)' : (selectedCatObj ? selectedCatObj.name : selectedCat);
+    const selectedColor = selectedCatObj?.color || '#64748b';
+    const selectedColorLight = sop_lightenHex(selectedColor, 30);
+
+    let selectedIcon = 'rule';
+    if (selectedLabel.includes('ฝาก'))     selectedIcon = 'savings';
+    else if (selectedLabel.includes('ถอน')) selectedIcon = 'payments';
+    else if (selectedLabel.includes('เครดิต')) selectedIcon = 'monetization_on';
+    else if (selectedLabel.includes('พิเศษ')) selectedIcon = 'warning';
+    else if (selectedLabel.includes('ทั่วไป')) selectedIcon = 'menu_book';
+
+    // จัดกลุ่มย่อย (subgroup)
+    const subgroupMap = {};
+    selectedItems.forEach(({ r, idx }) => {
+        const g = (r.subgroup || '').trim() || '__no_sub__';
+        if (!subgroupMap[g]) subgroupMap[g] = [];
+        subgroupMap[g].push({ r, idx });
+    });
+    const subgroupNames = Object.keys(subgroupMap).sort((a, b) => {
+        if (a === '__no_sub__') return 1;
+        if (b === '__no_sub__') return -1;
+        return a.localeCompare(b, 'th');
+    });
+
+    let bodyHtml = '';
+    subgroupNames.forEach(gName => {
+        if (gName !== '__no_sub__') {
+            bodyHtml += `
+                <div class="flex items-center gap-2 mt-3 mb-2 px-1">
+                    <span class="material-icons text-orange-500 text-[16px]">folder</span>
+                    <span class="text-xs font-black text-slate-700 dark:text-gray-200 uppercase tracking-wider">${(gName).replace(/</g, '&lt;')}</span>
+                    <div class="flex-1 border-t border-dashed border-orange-300 dark:border-orange-700/50 ml-1"></div>
+                    <span class="text-[10px] font-bold text-gray-500 bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-full">${subgroupMap[gName].length} ข้อ</span>
+                </div>`;
+        }
+
+        subgroupMap[gName].forEach(({ r, idx }) => {
+            const t = r.type || 'do';
+            const cfg = sop_getRuleTypeStyle(t);
+            const usedColor = (r.color && r.color.trim()) ? r.color : cfg.defaultColor;
+
+            const safeTitle = (r.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const safeText = (r.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+            const hasContent = (r.text || '').trim().length > 0;
+
+            const accordionKey = `standalone::${idx}`;
+            const isOpen = window._sopOpenRules.has(accordionKey);
+
+            const imgs = Array.isArray(r.images) ? r.images : [];
+            let imagesHtml = '';
+            if (imgs.length > 0) {
+                imagesHtml = `<div class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">` +
+                    imgs.map(img => `
+                        <div onclick="event.stopPropagation(); sop_openLightbox('${img.url}')" class="cursor-zoom-in rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 hover:opacity-90 transition relative group shadow-sm">
+                            <img src="${img.url}" class="w-full h-32 object-cover">
+                            <div class="absolute top-1 right-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm flex items-center gap-0.5"><span class="material-icons text-[10px]">zoom_in</span></div>
+                        </div>
+                    `).join('') +
+                    `</div>`;
+            }
+
+            const adminBtns = isAdmin ? `
+                <button onclick="event.stopPropagation(); sop_editStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไข"><span class="material-icons text-[16px]">edit</span></button>
+                <button onclick="event.stopPropagation(); sop_toggleStandalonePin(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 ${r.pinned ? 'text-amber-500' : 'text-gray-400'} hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="${r.pinned ? 'เลิกปักหมุด' : 'ปักหมุด'}"><span class="material-icons text-[16px]">push_pin</span></button>
+                <button onclick="event.stopPropagation(); sop_deleteStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบ"><span class="material-icons text-[16px]">delete</span></button>
+            ` : '';
+            const pinIcon = r.pinned ? '<span class="material-icons text-amber-500 text-[14px]" title="ปักหมุด">push_pin</span>' : '';
+
+            bodyHtml += `
+                <div class="bg-white dark:bg-slate-800 rounded-xl border-l-[6px] border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-2 hover:shadow-md transition" style="border-left-color: ${usedColor};">
+                    <div onclick="sop_toggleRuleAccordion('standalone', ${idx})" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                        <div class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-inner" style="background-color: ${usedColor};">
+                            <span class="material-icons text-[20px]">${cfg.ic}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                <span class="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded text-white" style="background-color: ${usedColor};">${cfg.lbl}</span>
+                                ${pinIcon}
+                                ${imgs.length > 0 ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[10px]">image</span>${imgs.length} รูป</span>` : ''}
+                                ${hasContent ? '<span class="text-[9px] text-blue-500 font-bold">📝 มีรายละเอียด</span>' : ''}
+                            </div>
+                            <div class="text-sm md:text-base font-bold text-slate-800 dark:text-white truncate">${safeTitle || '(ไม่มีหัวข้อ)'}</div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">${adminBtns}
+                            <span class="material-icons text-gray-400 transition ${isOpen ? 'rotate-180' : ''} text-[20px]">expand_more</span>
+                        </div>
+                    </div>
+                    ${isOpen ? `
+                        <div class="px-4 pb-4 pt-3 border-t border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                            ${imagesHtml}
+                            ${hasContent ? `<div class="text-sm md:text-base text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>` : '<div class="text-sm text-gray-400 italic">ไม่มีรายละเอียดเพิ่มเติม</div>'}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+    });
+
+    // header ของหมวดที่เลือก
+    const headerHtml = `
+        <div class="text-white px-5 py-3 rounded-2xl shadow-md flex items-center gap-2 flex-wrap mb-4 sticky top-0 z-10" style="background: linear-gradient(to right, ${selectedColor}, ${selectedColorLight});">
+            <div class="bg-white/20 p-1.5 rounded-lg shrink-0"><span class="material-icons text-[18px]">${selectedIcon}</span></div>
+            <h3 class="text-white font-black text-sm md:text-base tracking-wide truncate flex-1">${(selectedLabel).replace(/</g, '&lt;')}</h3>
+            <span class="bg-white/20 text-white text-[11px] font-black px-2 py-0.5 rounded-full">${selectedItems.length} ข้อ</span>
+        </div>
+    `;
+
+    container.innerHTML = headerHtml + bodyHtml;
 };
 
 // V3.4: กระโดดจากแท็บกติกา → ไปแท็บ SOP เปิดกฎตัวนั้น
