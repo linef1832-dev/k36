@@ -514,6 +514,151 @@ window.restoreFromLeave = async function(userId, username) {
     }
 };
 
+window.addStaffToRoster = async function() {
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    if (!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
+
+    if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) {
+        return Swal.fire('!', 'ยังโหลดรายชื่อพนักงานไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่', 'warning');
+    }
+
+    // 1. หาคนที่อยู่ใน roster อยู่แล้ว (ไม่ต้องโชว์ในรายการให้เลือก)
+    const alreadyAssignedIds = new Set();
+    for (const team in currentRosterData) {
+        (currentRosterData[team] || []).forEach(u => {
+            if (u && u.id) alreadyAssignedIds.add(String(u.id));
+        });
+    }
+
+    // 2. คัดกรองพนักงานที่:
+    //    - แผนกตรงกับ currentDutyDept (สำหรับ AMQL/ODQL ผ่อนเงื่อนไข)
+    //    - กะตรงกับ shiftFilter (หรือ allowed_shift = 'all')
+    //    - ไม่ลาหยุด
+    //    - ไม่อยู่ใน roster อยู่แล้ว
+    //    - ไม่ใช่ admin/manager/trainer
+    const candidates = GLOBAL_USER_LIST.filter(u => {
+        if (!u || !u.username) return false;
+        if (alreadyAssignedIds.has(String(u.id))) return false;
+        if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
+
+        const role = (u.role || 'staff').toLowerCase();
+        if (['admin', 'manager'].includes(role)) return false;
+
+        // เช็คแผนก
+        let uDept = u.department || 'AM';
+        if (uDept === 'TRAINER') uDept = 'AMQL';
+        if (uDept !== currentDutyDept) return false;
+
+        // เช็คกะ
+        const allowedShift = u.allowed_shift || 'all';
+        if (allowedShift !== 'all' && allowedShift !== shiftFilter) return false;
+
+        return true;
+    }).sort((a, b) => a.username.localeCompare(b.username, 'th'));
+
+    if (candidates.length === 0) {
+        return Swal.fire({
+            icon: 'info',
+            title: 'ไม่มีพนักงานให้เพิ่ม',
+            html: `ไม่พบพนักงานที่:<br>• แผนก <b>${currentDutyDept}</b><br>• กะ <b>${shiftFilter}</b><br>• ยังไม่อยู่ในตาราง / ไม่ลาหยุด`,
+            customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+        });
+    }
+
+    // 3. เตรียม dropdown เว็บ (เรียง A-Z)
+    const allTeams = (typeof TEAM_LIST !== 'undefined' ? [...TEAM_LIST] : Object.keys(currentRosterData));
+    const sortedTeams = allTeams.sort((a, b) => a.localeCompare(b));
+    if (sortedTeams.length === 0) {
+        return Swal.fire('!', 'ไม่มีรายชื่อเว็บ/ทีมในระบบ', 'warning');
+    }
+
+    let userOptionsHtml = '<option value="" disabled selected>-- เลือกพนักงาน --</option>';
+    candidates.forEach(u => {
+        const shiftTag = (u.allowed_shift && u.allowed_shift !== 'all') ? ` [${u.allowed_shift.replace('กะ','')}]` : ' [อิสระ]';
+        userOptionsHtml += `<option value="${u.id}">${u.username}${shiftTag}</option>`;
+    });
+
+    let teamOptionsHtml = '<option value="" disabled selected>-- เลือกเว็บที่จะใส่ --</option>';
+    sortedTeams.forEach(t => {
+        const cnt = (currentRosterData[t] || []).length;
+        teamOptionsHtml += `<option value="${t}">${t} (${cnt} คน)</option>`;
+    });
+
+    // 4. เปิด Modal ให้เลือก
+    const result = await Swal.fire({
+        title: `<div class="text-xl font-black text-emerald-500 mt-2">เพิ่มพนักงานเข้าตาราง</div>`,
+        html: `
+            <div class="text-left text-xs text-gray-500 dark:text-gray-400 mb-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg">
+                <span class="material-icons text-[14px] align-middle text-emerald-500">info</span>
+                <span class="align-middle">วันที่: <b class="text-slate-800 dark:text-white">${targetDate}</b> | กะ: <b class="text-slate-800 dark:text-white">${shiftFilter}</b> | แผนก: <b class="text-slate-800 dark:text-white">${currentDutyDept}</b></span>
+            </div>
+            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">พนักงาน (ที่ยังไม่อยู่ในตาราง):</label></div>
+            <select id="swal-add-user" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">
+                ${userOptionsHtml}
+            </select>
+            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">ใส่เข้าเว็บ:</label></div>
+            <select id="swal-add-team" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm">
+                ${teamOptionsHtml}
+            </select>
+        `,
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'เพิ่มเข้าตาราง',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-700 shadow-2xl' },
+        preConfirm: () => {
+            const userId = document.getElementById('swal-add-user').value;
+            const team = document.getElementById('swal-add-team').value;
+            if (!userId) { Swal.showValidationMessage('กรุณาเลือกพนักงาน'); return false; }
+            if (!team) { Swal.showValidationMessage('กรุณาเลือกเว็บปลายทาง'); return false; }
+            return { userId, team };
+        }
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+    const { userId, team } = result.value;
+
+    // 5. ทำการ save
+    Swal.fire({title: 'กำลังเพิ่ม...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    try {
+        const fullUserObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(userId));
+        if (!fullUserObj) throw new Error('ไม่พบข้อมูลพนักงาน');
+
+        if (!currentRosterData[team]) currentRosterData[team] = [];
+        const isExist = currentRosterData[team].some(u => String(u.id) === String(userId));
+        if (isExist) {
+            return Swal.fire('ซ้ำ!', `${fullUserObj.username} อยู่ในเว็บ ${team} อยู่แล้ว`, 'info');
+        }
+        currentRosterData[team].push(fullUserObj);
+
+        const saveKey = getDutySaveKey(targetDate, shiftFilter);
+        const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+        if (error) throw error;
+
+        await appDB.from('system_logs').insert([{
+            action_type: 'ย้ายหน้าที่',
+            performed_by: currentUser.username,
+            target_details: `เพิ่ม ${fullUserObj.username} เข้าเว็บ [${team}] (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+        }]);
+
+        try { appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' }); } catch(e) {}
+        await window.refreshDutyData();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'เพิ่มสำเร็จ!',
+            text: `${fullUserObj.username} ถูกใส่เข้าเว็บ ${team} แล้ว`,
+            timer: 1500,
+            showConfirmButton: false
+        });
+    } catch (err) {
+        console.error('addStaffToRoster error:', err);
+        Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+    }
+};
+
 window.clearDutyRoster = async function() {
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
