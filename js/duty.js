@@ -790,11 +790,21 @@ window.generateDutyRoster = async function() {
             if (teamsNeedingPeople.length === 0) break; 
 
             let teamStats = teamsNeedingPeople.map(team => {
+                // 🌟 หาคนที่ "ไม่ได้ทำเว็บนี้เมื่อวาน" และมีสิทธิ์เข้า — กฎเข้ม
                 let eligible = unassignedPool.filter(u => {
                     const access = dutyAccessMatrix[u.id] || [];
-                    return access.includes(team);
+                    if (!access.includes(team)) return false;
+                    if (yestTeamMap[u.id] === team) return false; // ❌ ห้ามทำเว็บเดิมซ้ำกับเมื่อวาน
+                    return true;
                 });
-                return { team: team, eligibleCount: eligible.length, eligibleUsers: eligible };
+
+                // 🛟 Fallback: ถ้าไม่มีคนที่ผ่านเงื่อนไขเลย → ผ่อนกฎ (ยอมให้ทำซ้ำ) เพื่อไม่ให้ตารางขาด
+                let relaxed = false;
+                if (eligible.length === 0) {
+                    eligible = unassignedPool.filter(u => (dutyAccessMatrix[u.id] || []).includes(team));
+                    relaxed = true;
+                }
+                return { team: team, eligibleCount: eligible.length, eligibleUsers: eligible, relaxed };
             });
 
             teamStats.sort((a, b) => a.eligibleCount - b.eligibleCount);
