@@ -2854,7 +2854,9 @@ window.unassignImportantTask = async function(taskName) {
 };
 
 // ==========================================
-// 🌟 ระบบแจกงานรองด่วน (AI จับคู่ 1 ต่อ 1 ไม่ให้เวลาพักชนกัน)
+// 🌟 ระบบแจกงานรองด่วน (AI จับคู่ 1 ต่อ 1) — V2: 2-Pass System
+// Pass 1: เข้มงวด (เวลาพักไม่ชน)
+// Pass 2: ผ่อนเงื่อนไขเวลาพัก (เก็บตกคนที่ตกหล่น)
 // ==========================================
 window.quickAssignBackups = async function() {
     const targetDate = document.getElementById('dutyDate').value;
@@ -2875,7 +2877,7 @@ window.quickAssignBackups = async function() {
 
     Swal.fire({
         title: 'กำลังจับคู่งานรอง...', 
-        html: '<span class="text-sm text-gray-500">AI กำลังจับคู่ 1-ต่อ-1 ไม่ให้เวลาพักชนกัน...</span>', 
+        html: '<span class="text-sm text-gray-500">🔍 รอบที่ 1: ตรวจหาคู่ที่เวลาพักไม่ชน...</span>', 
         allowOutsideClick: false, 
         didOpen: () => Swal.showLoading()
     });
@@ -2899,64 +2901,146 @@ window.quickAssignBackups = async function() {
         });
     }
 
-    let successCount = 0;
+    // 🌟 ฟังก์ชันช่วยจับคู่ (V3) — เดิน "คน" ไปลองทุก "เว็บ" ที่เข้าได้
+    // strict = true → เช็คเวลากินข้าวห้ามซ้ำกับ primary ในเว็บปลายทาง (รอบที่ 1)
+    // strict = false → ข้ามเงื่อนไขเวลาพัก (รอบที่ 2)
+    const tryAssign = (strict) => {
+        let count = 0;
 
-    // 3. วนลูปหา "คนช่วย (รอง)" ให้ทีละเว็บ
-    sortedTeams.forEach(teamToSupport => {
-        let primaries = (roster[teamToSupport] || []).filter(u => !u.username.includes('ขาดคน'));
-        if (primaries.length === 0) return;
+        // เลือกคนที่ยังไม่มีงานรอง — สลับลำดับสุ่มเพื่อกระจายงาน
+        const peopleToAssign = availableForBackup
+            .filter(c => !c.secondary_team)
+            .sort(() => Math.random() - 0.5);
 
-        // 🌟 แก้ไข: วนลูปจับคู่ "หลัก 1 คน" ต่อ "รอง 1 คน" 
-        primaries.forEach(p => {
-            let primaryBreaks = breakTimes[p.username] || [];
+        peopleToAssign.forEach(c => {
+            const cBreaks = breakTimes[c.username] || [];
+            const access = dutyAccessMatrix[c.id] || [];
 
-            let candidates = availableForBackup.filter(c => {
-                if (c.primaryTeam === teamToSupport) return false; // ห้ามอยู่เว็บเดียวกัน
-                if (c.secondary_team) return false; // มีงานรองแล้ว ห้ามรับซ้อน
-                
-                let access = dutyAccessMatrix[c.id] || [];
-                if (!access.includes(teamToSupport)) return false; // ไม่มีสิทธิ์หลังบ้าน
+            // หาทุกเว็บที่คนนี้ "เข้าได้"
+            let validTeams = sortedTeams.filter(t => {
+                if (t === c.primaryTeam) return false; // ห้ามเว็บเดียวกับตัวเอง
+                if (!access.includes(t)) return false; // ไม่มีสิทธิ์หลังบ้าน
 
-                // 🔥 เช็คเวลาพัก: ต้องไม่ตรงกับตำแหน่งหลัก "คนนี้"
-                let cBreaks = breakTimes[c.username] || [];
-                let hasOverlap = cBreaks.some(time => primaryBreaks.includes(time));
-                return !hasOverlap; 
+                // เว็บปลายทางต้องมี primary อย่างน้อย 1 คน (ที่ไม่ใช่ "ขาดคน")
+                const primaries = (roster[t] || []).filter(u => !u.username.includes('ขาดคน'));
+                if (primaries.length === 0) return false;
+
+                if (strict) {
+                    // 🔥 เวลากินข้าวห้ามซ้ำกับ primary คนใดคนหนึ่งในเว็บนี้
+                    const allPrimaryBreaks = new Set();
+                    primaries.forEach(p => {
+                        (breakTimes[p.username] || []).forEach(time => allPrimaryBreaks.add(time));
+                    });
+                    const hasOverlap = cBreaks.some(time => allPrimaryBreaks.has(time));
+                    if (hasOverlap) return false;
+                }
+
+                return true;
             });
 
-            // สุ่มรายชื่อเพื่อกระจายงาน
-            candidates.sort(() => Math.random() - 0.5);
+            if (validTeams.length === 0) return; // คนนี้เข้าเว็บไหนไม่ได้เลย
 
-            if (candidates.length > 0) {
-                let chosen = candidates[0];
-                
-                // อัปเดตข้อมูลให้คนคนนั้นว่าต้องไปสแตนด์บายช่วยเว็บนี้นะ
-                let userInRoster = roster[chosen.primaryTeam].find(u => u.id === chosen.id);
-                if (userInRoster) {
-                    userInRoster.secondary_team = teamToSupport;
-                    
-                    // ตัดชื่อออกจากลิสต์ว่าง
-                    let availIndex = availableForBackup.findIndex(a => a.id === chosen.id);
-                    if (availIndex > -1) availableForBackup[availIndex].secondary_team = teamToSupport;
-                    
-                    successCount++;
+            // เลือกเว็บที่มีรองน้อยที่สุดก่อน (กระจายโหลดให้สมดุล) ถ้าเสมอกันสุ่ม
+            validTeams.sort((a, b) => {
+                let countA = 0, countB = 0;
+                for (const t in roster) {
+                    roster[t].forEach(u => {
+                        if (u.secondary_team === a) countA++;
+                        if (u.secondary_team === b) countB++;
+                    });
                 }
+                if (countA !== countB) return countA - countB;
+                return Math.random() - 0.5;
+            });
+
+            const chosenTeam = validTeams[0];
+            const userInRoster = roster[c.primaryTeam].find(u => u.id === c.id);
+            if (userInRoster && !userInRoster.secondary_team) {
+                userInRoster.secondary_team = chosenTeam;
+                const availIndex = availableForBackup.findIndex(a => a.id === c.id);
+                if (availIndex > -1) availableForBackup[availIndex].secondary_team = chosenTeam;
+                count++;
             }
         });
-    });
 
-    // 4. บันทึกและวาดตารางขึ้นมาใหม่
+        return count;
+    };
+
+    // 🟢 PASS 1: เข้มงวด (เวลาพักไม่ชน)
+    const pass1Count = tryAssign(true);
+
+    // 🟡 PASS 2: ผ่อนเงื่อนไขเวลาพัก (เก็บตกคนที่ตกหล่น)
+    Swal.update({ html: '<span class="text-sm text-gray-500">⚡ รอบที่ 2: เก็บตกตำแหน่งที่ยังว่าง (ยอมให้เวลาพักชน)...</span>' });
+    await new Promise(r => setTimeout(r, 200)); // ให้ UI อัปเดต
+    const pass2Count = tryAssign(false);
+
+    // นับคนที่ยังไม่มีงานรองเลย (ทั้งที่ลองทุกเว็บแล้ว)
+    let totalUnassignedSlots = 0;
+    for (const team in roster) {
+        roster[team].forEach(u => {
+            if (!u.username.includes('ขาดคน') && !u.secondary_team) totalUnassignedSlots++;
+        });
+    }
+
+    // 3. บันทึกและวาดตารางใหม่
     await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(roster) }]);
     window.renderRosterGrid(roster);
-    
-    if (appDB.channel) {
-        appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+
+    try {
+        if (appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+    } catch(e) {}
+
+    // เขียน log
+    try {
+        await appDB.from('system_logs').insert([{
+            action_type: 'แจกงานรอง',
+            performed_by: currentUser.username,
+            target_details: `แจกงานรอง 2 รอบ (${currentDutyDept}, ${shiftFilter}, ${targetDate}) → รอบ1: ${pass1Count} คน, รอบ2: ${pass2Count} คน, ไม่ได้: ${totalUnassignedSlots} คน`
+        }]);
+    } catch(e) {}
+
+    // 4. แสดงผลลัพธ์แบบละเอียด
+    const totalSuccess = pass1Count + pass2Count;
+    let resultHtml = `
+        <div class="text-left text-sm space-y-2 mt-2">
+            <div class="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg shadow-sm">
+                <span class="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                    <span class="material-icons text-[16px]">verified</span> รอบที่ 1 (เวลาพักไม่ชน):
+                </span>
+                <span class="font-black text-emerald-600 dark:text-emerald-400 text-base">${pass1Count} คน</span>
+            </div>
+            <div class="flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-2.5 rounded-lg shadow-sm">
+                <span class="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                    <span class="material-icons text-[16px]">warning</span> รอบที่ 2 (เวลาพักชน):
+                </span>
+                <span class="font-black text-amber-600 dark:text-amber-400 text-base">${pass2Count} คน</span>
+            </div>`;
+
+    if (totalUnassignedSlots > 0) {
+        resultHtml += `
+            <div class="flex justify-between items-center bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-2.5 rounded-lg shadow-sm">
+                <span class="font-bold text-red-700 dark:text-red-300 flex items-center gap-1.5">
+                    <span class="material-icons text-[16px]">block</span> ยังไม่มีงานรอง:
+                </span>
+                <span class="font-black text-red-600 dark:text-red-400 text-base">${totalUnassignedSlots} คน</span>
+            </div>
+            <div class="text-[11px] text-gray-500 dark:text-gray-400 italic px-2 pt-1 border-t border-gray-200 dark:border-slate-700 mt-2">
+                💡 <b>คนที่เหลือ</b> ไม่มีสิทธิ์หลังบ้านเว็บอื่นเลย — แอดมินคลิกที่การ์ดของแต่ละคนเพื่อจัดงานรองเองได้ หรือไปเปิดสิทธิ์เพิ่มในหน้า "ตั้งค่าสิทธิ์ & หัวข้อ"
+            </div>`;
     }
 
-    if (successCount > 0) {
-        Swal.fire({ icon: 'success', title: 'แจกงานรองสำเร็จ!', text: `จ่ายงานรองได้ครบ ${successCount} ตำแหน่งแล้วครับ!`, timer: 2500, showConfirmButton: false });
-    } else {
-        Swal.fire('ข้อมูลครบถ้วน', 'สแตนด์บายถูกจัดเต็มหมดแล้ว หรือไม่สามารถหาคนที่เวลาพักไม่ชนกันได้ครับ', 'info');
-    }
+    resultHtml += `</div>`;
+    
+    Swal.fire({
+        icon: totalUnassignedSlots === 0 ? 'success' : 'info',
+        title: totalUnassignedSlots === 0 
+            ? `<div class="text-emerald-500 font-black">🎉 พนักงานทุกคนได้งานรองครบ!</div>` 
+            : `<div class="text-amber-500 font-black">แจกได้ ${totalSuccess} คน</div>`,
+        html: resultHtml,
+        confirmButtonText: 'ตกลง',
+        confirmButtonColor: totalUnassignedSlots === 0 ? '#10b981' : '#f59e0b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-700 shadow-2xl' }
+    });
 };
 
 // ==========================================

@@ -8645,6 +8645,11 @@ video {
   border-color: rgb(190 18 60 / 0.5);
 }
 
+.dark\:border-amber-800:is(.dark *) {
+  --tw-border-opacity: 1;
+  border-color: rgb(146 64 14 / var(--tw-border-opacity, 1));
+}
+
 .dark\:bg-\[\#0b1120\]:is(.dark *) {
   --tw-bg-opacity: 1;
   background-color: rgb(11 17 32 / var(--tw-bg-opacity, 1));
