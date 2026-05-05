@@ -837,7 +837,22 @@ window.generateDutyRoster = async function() {
         if (error) throw error;
 
         try {
-            await appDB.from('system_logs').insert([{ action_type: 'สุ่มจัดหน้าที่', performed_by: currentUser.username, target_details: `จัดเวรแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate})` }]);
+            // 🌟 สร้าง summary ของผู้ที่ถูกจัดเข้าแต่ละเว็บ
+            const summaryParts = [];
+            let totalAssigned = 0;
+            for (const team of Object.keys(rosterResult).sort((a,b) => a.localeCompare(b))) {
+                const names = (rosterResult[team] || [])
+                    .filter(u => !u.username.includes('ขาดคน'))
+                    .map(u => u.username);
+                if (names.length > 0) {
+                    summaryParts.push(`[${team}] ${names.join(', ')}`);
+                    totalAssigned += names.length;
+                }
+            }
+            const detailText = `จัดเวรแผนก ${currentDutyDept} (กะ: ${shiftFilter}, วันที่: ${targetDate}) — รวม ${totalAssigned} คน
+${summaryParts.join(' | ')}`;
+
+            await appDB.from('system_logs').insert([{ action_type: 'สุ่มจัดหน้าที่', performed_by: currentUser.username, target_details: detailText }]);
             if(appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
         } catch(logError) {}
 
@@ -1685,7 +1700,7 @@ document.addEventListener('paste', function(e) {
 window.openDutyHistoryModal = async function() {
     Swal.fire({title: 'กำลังโหลดประวัติ...', didOpen: () => Swal.showLoading()});
     try {
-        const { data, error } = await appDB.from('system_logs').select('*').in('action_type', ['จัดหน้าที่', 'ล้างตารางงาน', 'ประเมินงานผู้สอน', 'ย้ายหน้าที่', 'กู้คืนตารางงาน']).order('created_at', { ascending: false }).limit(50);
+        const { data, error } = await appDB.from('system_logs').select('*').in('action_type', ['จัดหน้าที่', 'สุ่มจัดหน้าที่', 'แจกงานรอง', 'ล้างตารางงาน', 'ประเมินงานผู้สอน', 'ย้ายหน้าที่', 'กู้คืนตารางงาน']).order('created_at', { ascending: false }).limit(50);
         if (error) throw error;
 
         let rows = '';
@@ -1698,6 +1713,9 @@ window.openDutyHistoryModal = async function() {
                 if (log.action_type === 'ล้างตารางงาน') badgeColor = 'text-red-600 bg-red-100 border-red-200';
                 if (log.action_type === 'ประเมินงานผู้สอน') badgeColor = 'text-amber-600 bg-amber-100 border-amber-200';
                 if (log.action_type === 'ย้ายหน้าที่') badgeColor = 'text-purple-600 bg-purple-100 border-purple-200';
+                if (log.action_type === 'สุ่มจัดหน้าที่') badgeColor = 'text-emerald-600 bg-emerald-100 border-emerald-200';
+                if (log.action_type === 'แจกงานรอง') badgeColor = 'text-cyan-600 bg-cyan-100 border-cyan-200';
+                if (log.action_type === 'กู้คืนตารางงาน') badgeColor = 'text-indigo-600 bg-indigo-100 border-indigo-200';
                 if (log.action_type === 'กู้คืนตารางงาน') badgeColor = 'text-emerald-600 bg-emerald-100 border-emerald-200';
 
                 rows += `
