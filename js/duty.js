@@ -499,7 +499,11 @@ window.restoreFromLeave = async function(userId, username) {
             if (fullUserObj) {
                 if(!currentRosterData[selectedTeam]) currentRosterData[selectedTeam] = [];
                 const isExist = currentRosterData[selectedTeam].some(u => String(u.id) === String(userId));
-                if (!isExist) currentRosterData[selectedTeam].push(fullUserObj);
+                if (!isExist) currentRosterData[selectedTeam].push({
+                    ...fullUserObj,
+                    assigned_by: currentUser.username,
+                    assigned_at: new Date().toISOString()
+                });
                 
                 const saveKey = getDutySaveKey(targetDate, shiftFilter);
                 await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
@@ -631,7 +635,11 @@ window.addStaffToRoster = async function() {
         if (isExist) {
             return Swal.fire('ซ้ำ!', `${fullUserObj.username} อยู่ในเว็บ ${team} อยู่แล้ว`, 'info');
         }
-        currentRosterData[team].push(fullUserObj);
+        currentRosterData[team].push({
+            ...fullUserObj,
+            assigned_by: currentUser.username,
+            assigned_at: new Date().toISOString()
+        });
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
         const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
@@ -816,6 +824,8 @@ window.generateDutyRoster = async function() {
             // 🌟 พระเอกอยู่ตรงนี้: ตอนดึงคนมาลง เราบังคับเคลียร์งานรอง (ความจำเก่า) ทิ้งให้เป็น null เสมอ!
             let pickedUser = { ...userOptions[0].user }; 
             pickedUser.secondary_team = null; 
+            pickedUser.assigned_by = currentUser.username;
+            pickedUser.assigned_at = new Date().toISOString();
             
             rosterResult[teamToFill].push(pickedUser);
             remainingReqs[teamToFill]--;
@@ -1404,12 +1414,20 @@ window.handleDrop = async function(event, toTeam) {
         draggedUser = null; return;
     }
 
+    // 🌟 NEW: เก็บ "ใครเป็นคนจัดเข้า fromTeam ตั้งแต่แรก" ก่อนที่จะ filter ออก
+    const originalUserInFromTeam = currentRosterData[fromTeam].find(u => String(u.id) === String(id));
+    const originalAssignedBy = originalUserInFromTeam?.assigned_by || 'ไม่ทราบ';
+
     currentRosterData[fromTeam] = currentRosterData[fromTeam].filter(u => String(u.id) !== String(id));
 
     const fullUserObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(id));
     if (fullUserObj) {
         if(!currentRosterData[toTeam]) currentRosterData[toTeam] = [];
-        currentRosterData[toTeam].push(fullUserObj);
+        currentRosterData[toTeam].push({
+            ...fullUserObj,
+            assigned_by: currentUser.username,        // คนล่าสุดที่ย้าย
+            assigned_at: new Date().toISOString()
+        });
     }
 
     const saveKey = typeof getDutySaveKey === 'function' ? getDutySaveKey(targetDate, shiftFilter) : `duty_roster_${currentDutyDept}_${targetDate}_${shiftFilter}`;
@@ -1420,11 +1438,11 @@ window.handleDrop = async function(event, toTeam) {
         const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (error) throw error;
 
-        // 🟢 บันทึก log การย้ายระหว่างเว็บ
+        // 🟢 บันทึก log การย้ายระหว่างเว็บ — แสดงทั้ง "คนจัดเดิม" และ "คนย้าย"
         await appDB.from('system_logs').insert([{
             action_type: 'ย้ายหน้าที่',
             performed_by: currentUser.username,
-            target_details: `ย้าย ${username} จากเว็บ [${fromTeam}] → [${toTeam}] (กะ: ${shiftFilter}, วันที่: ${targetDate})`
+            target_details: `ย้าย ${username} จากเว็บ [${fromTeam}] (จัดโดย ${originalAssignedBy}) → [${toTeam}] (กะ: ${shiftFilter}, วันที่: ${targetDate})`
         }]);
 
         window.renderRosterGrid(currentRosterData);
