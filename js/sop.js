@@ -53,6 +53,7 @@ window.initSopApp = async function() {
 
     await sop_loadCategories();
     await sop_fetchData();
+    await sop_loadTelegramConfig();
 
     // V3.4: ตั้ง tab default = "กติกา"
     sopActiveTab = 'rules';
@@ -310,6 +311,7 @@ window.sop_fetchData = async function() {
                 if (!rule.subgroup) rule.subgroup = '';
                 if (!Array.isArray(rule.images)) rule.images = [];
             });
+            if (!r.voice_url) r.voice_url = ''; // V6: voice note
         });
         sop_sortData();
         sop_renderList();
@@ -342,19 +344,52 @@ window.sop_fetchStandaloneRules = async function() {
             if (!r.title) r.title = '';
             if (!r.text) r.text = '';
             if (typeof r.pinned !== 'boolean') r.pinned = false;
+            if (!Array.isArray(r.read_by)) r.read_by = []; // V6: เก็บ username คนที่อ่าน
+            if (!r.voice_url) r.voice_url = ''; // V6: voice note URL
         });
+        sop_updateUnreadBadge();
     } catch (e) {
         console.warn('sop_fetchStandaloneRules error (treating as empty):', e);
         globalStandaloneRules = [];
+        sop_updateUnreadBadge();
     }
 };
 
 window.sop_saveStandaloneRules = async function() {
     await appDB.from('settings').upsert([{ key: 'sop_rules_standalone', value: JSON.stringify(globalStandaloneRules) }]);
+    sop_updateUnreadBadge();
+};
+
+// V6: นับ OD/กติกา ที่ผู้ใช้ปัจจุบันยังไม่อ่าน → แสดงที่ Bell badge
+window.sop_updateUnreadBadge = function() {
+    const badge = document.getElementById('sopUnreadBadge');
+    if (!badge) return;
+    const myUsername = (currentUser && currentUser.username) || '';
+    if (!myUsername) { badge.classList.add('hidden'); return; }
+
+    let count = 0;
+    // ขั้นตอน (SOP) - ใช้ read_by
+    (globalSOPData || []).forEach(r => {
+        const readBy = r.read_by || [];
+        if (!readBy.includes(myUsername)) count++;
+    });
+    // กติกา (Standalone) - ใช้ read_by
+    (globalStandaloneRules || []).forEach(r => {
+        const readBy = r.read_by || [];
+        if (!readBy.includes(myUsername)) count++;
+    });
+
+    if (count > 0) {
+        badge.classList.remove('hidden');
+        badge.innerText = count > 99 ? '99+' : count;
+    } else {
+        badge.classList.add('hidden');
+    }
 };
 
 window.sop_saveAllData = async function() {
     await appDB.from('settings').upsert([{ key: 'sop_data', value: JSON.stringify(globalSOPData) }]);
+    sop_updateUnreadBadge();
 };
 
 function sop_sortData() {
@@ -900,8 +935,36 @@ window.sop_renderAllRulesPage = function() {
             const isUpdated = r.updated_at && r.created_at && r.updated_at !== r.created_at;
             const lastEditor = r.last_editor || r.author_name || '';
 
+            // V6: read status
+            const myUsername = (currentUser && currentUser.username) || '';
+            const readBy = r.read_by || [];
+            const isReadByMe = myUsername && readBy.includes(myUsername);
+            const newBadge = !isReadByMe
+                ? '<span class="text-[9px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded animate-pulse" title="ยังไม่อ่าน">ใหม่!</span>'
+                : '';
+            const voiceBadge = r.voice_url
+                ? '<span class="text-[9px] text-rose-600 dark:text-rose-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[10px]">mic</span>เสียง</span>'
+                : '';
+
+            // ปุ่ม "ทำเครื่องหมายว่าอ่านแล้ว" (เห็นเฉพาะตอน expand)
+            const readBtn = myUsername
+                ? (isReadByMe
+                    ? `<button onclick="event.stopPropagation(); sop_markStandaloneRead(${idx})" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition active:scale-95"><span class="material-icons text-[14px]">verified</span>อ่านแล้ว (กดเพื่อยกเลิก)</button>`
+                    : `<button onclick="event.stopPropagation(); sop_markStandaloneRead(${idx})" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition active:scale-95"><span class="material-icons text-[14px]">check_circle</span>กดเมื่ออ่านแล้ว</button>`)
+                : '';
+
+            const voicePlayer = r.voice_url
+                ? `<div class="mb-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700/50 rounded-lg flex items-center gap-3">
+                       <span class="material-icons text-rose-500 text-2xl">mic</span>
+                       <div class="flex-1 min-w-0">
+                           <div class="text-[10px] font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wider mb-1">เสียงอธิบาย</div>
+                           <audio src="${r.voice_url}" controls class="w-full h-9"></audio>
+                       </div>
+                   </div>`
+                : '';
+
             bodyHtml += `
-                <div class="bg-white dark:bg-slate-800 rounded-xl border-l-[6px] border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-2.5 hover:shadow-md transition" style="border-left-color: ${usedColor};">
+                <div class="bg-white dark:bg-slate-800 rounded-xl border-l-[6px] border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-2.5 hover:shadow-md transition ${!isReadByMe ? 'ring-1 ring-red-300 dark:ring-red-700/50' : ''}" style="border-left-color: ${usedColor};">
                     <div onclick="sop_toggleRuleAccordion('standalone', ${idx})" class="flex items-center gap-3 px-4 py-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
                         <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-inner" style="background-color: ${usedColor};">
                             <span class="material-icons text-[22px]">${cfg.ic}</span>
@@ -909,7 +972,9 @@ window.sop_renderAllRulesPage = function() {
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-1.5 flex-wrap mb-1">
                                 <span class="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded text-white" style="background-color: ${usedColor};">${cfg.lbl}</span>
+                                ${newBadge}
                                 ${pinIcon}
+                                ${voiceBadge}
                                 ${imgs.length > 0 ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[10px]">image</span>${imgs.length} รูป</span>` : ''}
                                 ${hasContent ? '<span class="text-[9px] text-blue-500 font-bold">📝 มีรายละเอียด</span>' : ''}
                             </div>
@@ -919,16 +984,19 @@ window.sop_renderAllRulesPage = function() {
                             <span class="material-icons text-gray-400 transition ${isOpen ? 'rotate-180' : ''} text-[20px]">expand_more</span>
                         </div>
                     </div>
-                    <!-- แถวข้อมูลวันที่ -->
+                    <!-- แถวข้อมูลวันที่ + read count -->
                     <div class="bg-slate-50 dark:bg-slate-900/50 border-t border-gray-100 dark:border-slate-700 px-4 py-1.5 flex items-center gap-3 text-[10px] text-gray-500 dark:text-gray-400 font-bold flex-wrap">
                         <span class="flex items-center gap-1" title="วันที่สร้าง"><span class="material-icons text-[12px] text-emerald-500">add_circle</span>สร้าง: ${createdDate}</span>
                         ${isUpdated ? `<span class="flex items-center gap-1" title="อัพเดทล่าสุด"><span class="material-icons text-[12px] text-amber-500">update</span>อัพเดท: ${updatedDate}</span>` : ''}
+                        ${readBy.length > 0 ? `<span class="flex items-center gap-1" title="คนอ่านแล้ว"><span class="material-icons text-[12px] text-emerald-600">verified</span>${readBy.length} คนอ่าน</span>` : ''}
                         ${lastEditor ? `<span class="flex items-center gap-1 ml-auto" title="แก้ไขล่าสุดโดย"><span class="material-icons text-[12px] text-blue-500">person</span>${lastEditor}</span>` : ''}
                     </div>
                     ${isOpen ? `
                         <div class="px-4 pb-4 pt-3 border-t border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                            ${voicePlayer}
                             ${imagesHtml}
-                            ${hasContent ? `<div class="text-sm md:text-base text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap font-medium">${safeText}</div>` : '<div class="text-sm text-gray-400 italic">ไม่มีรายละเอียดเพิ่มเติม</div>'}
+                            ${hasContent ? `<div class="text-sm md:text-base text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap font-medium mb-3">${safeText}</div>` : '<div class="text-sm text-gray-400 italic mb-3">ไม่มีรายละเอียดเพิ่มเติม</div>'}
+                            ${readBtn ? `<div class="flex justify-end pt-2 border-t border-gray-200 dark:border-slate-700">${readBtn}</div>` : ''}
                         </div>
                     ` : ''}
                 </div>
@@ -1498,6 +1566,10 @@ window.sop_saveRule = async function(existing, formData) {
             if (currentSopId) sop_readRule(currentSopId, true);
         }
 
+        // V6: Telegram notify
+        const catLabel = globalSOPCategories.find(c => c.id === formData.category)?.name || formData.category || '';
+        sop_sendTelegramNotify(existing ? 'edit' : 'add', 'sop', formData.title, catLabel);
+
         Swal.fire({ icon: 'success', title: existing ? 'แก้ไขสำเร็จ!' : 'เพิ่มกฎสำเร็จ!', timer: 1200, showConfirmButton: false });
     } catch (e) {
         console.error('sop_saveRule error:', e);
@@ -1829,6 +1901,7 @@ async function sop_openStandaloneRuleForm(editIdx) {
     if (isEdit && !existing) return;
 
     sopRuleImagesBuffer = isEdit ? JSON.parse(JSON.stringify(existing.images || [])) : [];
+    window._sopVoiceUrl = isEdit ? (existing.voice_url || '') : '';
 
     const titleVal     = isEdit ? (existing.title || '')     : '';
     const textVal      = isEdit ? (existing.text || '')      : '';
@@ -1941,6 +2014,18 @@ async function sop_openStandaloneRuleForm(editIdx) {
                     <div id="qaRuleImagesPreview" class="grid grid-cols-3 md:grid-cols-4 gap-1.5 min-h-[60px]"></div>
                 </div>
             </div>
+
+            <!-- 🎤 Voice Note (V6) -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider flex items-center gap-1">
+                    <span class="material-icons text-[14px] text-rose-500">mic</span>เสียงอธิบาย (Voice Note) — ไม่บังคับ
+                </label>
+                <div class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50 dark:bg-slate-900">
+                    <div id="voiceRecorderUI">
+                        <!-- จะ render โดย sop_initVoiceRecorder() -->
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
@@ -1957,6 +2042,7 @@ async function sop_openStandaloneRuleForm(editIdx) {
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
         didOpen: () => {
             sop_renderRuleImagesPreview();
+            sop_initVoiceRecorder('voiceRecorderUI');
             const zone = document.getElementById('qaRulePasteZone');
             const textarea = document.getElementById('qaRuleText');
             const titleInput = document.getElementById('qaRuleTitle');
@@ -2032,7 +2118,7 @@ async function sop_openStandaloneRuleForm(editIdx) {
             const pinned = document.getElementById('qaRulePinned').checked;
 
             if (!title) { Swal.showValidationMessage('กรุณาใส่หัวข้อกติกา'); return false; }
-            return { title, text, type: ruleType, color, subgroup, category, pinned, images: [...sopRuleImagesBuffer] };
+            return { title, text, type: ruleType, color, subgroup, category, pinned, images: [...sopRuleImagesBuffer], voice_url: window._sopVoiceUrl || '' };
         }
     });
 
@@ -2055,8 +2141,10 @@ async function sop_openStandaloneRuleForm(editIdx) {
                 category: result.value.category,
                 pinned: result.value.pinned,
                 images: result.value.images,
+                voice_url: result.value.voice_url || '',
                 updated_at: nowIso,
-                last_editor: authorName
+                last_editor: authorName,
+                read_by: [] // V6: reset read_by เมื่อแก้ → ให้ทุกคนอ่านใหม่
             };
         } else {
             globalStandaloneRules.unshift({
@@ -2069,6 +2157,8 @@ async function sop_openStandaloneRuleForm(editIdx) {
                 category: result.value.category,
                 pinned: result.value.pinned,
                 images: result.value.images,
+                voice_url: result.value.voice_url || '',
+                read_by: [],
                 author_name: authorName,
                 last_editor: authorName,
                 created_at: nowIso,
@@ -2079,6 +2169,11 @@ async function sop_openStandaloneRuleForm(editIdx) {
         await sop_saveStandaloneRules();
         sop_renderAllRulesPage();
         sop_updateTabCounters();
+
+        // V6: Telegram notify
+        const catLabel = globalSOPCategories.find(c => c.id === result.value.category)?.name || result.value.category || '';
+        sop_sendTelegramNotify(isEdit ? 'edit' : 'add', 'rule', result.value.title, catLabel, result.value.type);
+
         Swal.fire({ icon: 'success', title: isEdit ? 'แก้ไขสำเร็จ!' : 'เพิ่มกติกาสำเร็จ!', timer: 1100, showConfirmButton: false });
     } catch (e) {
         console.error('saveStandaloneRule error:', e);
@@ -2225,3 +2320,552 @@ function sop_lightboxKeydown(e) {
     else if (e.key === 'ArrowLeft') sop_lightboxNav(-1);
     else if (e.key === 'ArrowRight') sop_lightboxNav(1);
 }
+
+// ==========================================
+// 🎤 V6: VOICE RECORDER (อัดเสียงในเบราเซอร์ → อัพ Supabase)
+// ==========================================
+window._sopVoiceUrl = '';
+let _sopMediaRecorder = null;
+let _sopAudioChunks = [];
+let _sopRecordTimer = null;
+let _sopRecordSeconds = 0;
+
+window.sop_initVoiceRecorder = function(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const renderUI = () => {
+        const hasVoice = !!window._sopVoiceUrl;
+        if (hasVoice) {
+            container.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <audio src="${window._sopVoiceUrl}" controls class="flex-1 h-10"></audio>
+                    <button type="button" onclick="sop_removeVoice()" class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition shadow-sm" title="ลบเสียง"><span class="material-icons text-[16px]">delete</span></button>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <button type="button" id="sopVoiceRecBtn" onclick="sop_toggleVoiceRecord()" class="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition active:scale-95">
+                        <span class="material-icons text-[14px]">mic</span> เริ่มอัดเสียง
+                    </button>
+                    <span id="sopVoiceTimer" class="text-xs font-bold text-gray-500 hidden">00:00</span>
+                    <span class="text-[10px] text-gray-500 italic">เริ่มอัด → พูด → กดหยุด → อัพอัตโนมัติ</span>
+                </div>
+            `;
+        }
+    };
+
+    window._sopVoiceRender = renderUI;
+    renderUI();
+};
+
+window.sop_removeVoice = function() {
+    window._sopVoiceUrl = '';
+    if (window._sopVoiceRender) window._sopVoiceRender();
+};
+
+window.sop_toggleVoiceRecord = async function() {
+    const btn = document.getElementById('sopVoiceRecBtn');
+    const timer = document.getElementById('sopVoiceTimer');
+
+    // ถ้ากำลังอัดอยู่ → หยุด
+    if (_sopMediaRecorder && _sopMediaRecorder.state === 'recording') {
+        _sopMediaRecorder.stop();
+        return;
+    }
+
+    // เริ่มอัด
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        _sopAudioChunks = [];
+        _sopMediaRecorder = new MediaRecorder(stream);
+
+        _sopMediaRecorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) _sopAudioChunks.push(e.data);
+        };
+
+        _sopMediaRecorder.onstop = async () => {
+            stream.getTracks().forEach(t => t.stop());
+            clearInterval(_sopRecordTimer);
+            _sopRecordTimer = null;
+            _sopRecordSeconds = 0;
+
+            const blob = new Blob(_sopAudioChunks, { type: 'audio/webm' });
+            sop_showInlineToast('กำลังอัพเสียง...', 'info');
+
+            try {
+                const fileName = `sop/voice_${Date.now()}_${Math.floor(Math.random() * 10000)}.webm`;
+                const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, blob, { cacheControl: '3600', upsert: false, contentType: 'audio/webm' });
+                if (upErr) throw new Error(upErr.message);
+                const { data: pubData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
+                window._sopVoiceUrl = pubData.publicUrl;
+                if (window._sopVoiceRender) window._sopVoiceRender();
+                sop_showInlineToast('อัดเสียงเสร็จ ✅', 'success');
+            } catch (e) {
+                console.error('upload voice error:', e);
+                sop_showInlineToast('อัพเสียงไม่สำเร็จ', 'error');
+            }
+        };
+
+        _sopMediaRecorder.start();
+        _sopRecordSeconds = 0;
+        if (timer) {
+            timer.classList.remove('hidden');
+            timer.innerText = '00:00';
+        }
+        if (btn) {
+            btn.classList.remove('bg-rose-500', 'hover:bg-rose-600');
+            btn.classList.add('bg-red-600', 'hover:bg-red-700', 'animate-pulse');
+            btn.innerHTML = '<span class="material-icons text-[14px]">stop</span> หยุดอัด';
+        }
+        _sopRecordTimer = setInterval(() => {
+            _sopRecordSeconds++;
+            const mm = String(Math.floor(_sopRecordSeconds / 60)).padStart(2, '0');
+            const ss = String(_sopRecordSeconds % 60).padStart(2, '0');
+            const t = document.getElementById('sopVoiceTimer');
+            if (t) t.innerText = `${mm}:${ss}`;
+        }, 1000);
+    } catch (e) {
+        console.error('mic error:', e);
+        Swal.fire('ไม่สามารถเข้าถึงไมค์ได้', 'กรุณาอนุญาต permission ไมโครโฟนในเบราว์เซอร์', 'error');
+    }
+};
+
+// ==========================================
+// 📖 V6: MARK READ สำหรับกติกาขั้นตอน (standalone)
+// ==========================================
+window.sop_markStandaloneRead = async function(idx) {
+    const r = globalStandaloneRules[idx];
+    if (!r) return;
+    const myUsername = (currentUser && currentUser.username) || '';
+    if (!myUsername) return;
+    if (!Array.isArray(r.read_by)) r.read_by = [];
+    if (r.read_by.includes(myUsername)) {
+        // ถอน
+        r.read_by = r.read_by.filter(u => u !== myUsername);
+    } else {
+        r.read_by.push(myUsername);
+    }
+    await sop_saveStandaloneRules();
+    sop_renderAllRulesPage();
+};
+
+// ==========================================
+// 📄 V6: EXPORT PDF
+// ==========================================
+window.sop_exportPDF = async function() {
+    // ถาม user ว่าจะ export อะไร
+    const result = await Swal.fire({
+        title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-blue-500">picture_as_pdf</span> Export PDF</div>',
+        html: `
+            <div class="text-left space-y-3">
+                <div class="text-sm text-slate-700 dark:text-gray-200 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-xl p-3">
+                    เลือกเนื้อหาที่จะส่งออกเป็น PDF
+                </div>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 cursor-pointer p-3 rounded-xl border-2 border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/20 hover:border-rose-500 transition has-[:checked]:bg-rose-200 dark:has-[:checked]:bg-rose-900/50 has-[:checked]:border-rose-500">
+                        <input type="radio" name="exportMode" value="all" class="w-4 h-4 accent-rose-500" checked>
+                        <div class="flex-1">
+                            <div class="font-bold text-sm">ทั้งหมด</div>
+                            <div class="text-xs text-gray-500">กติกาขั้นตอน + ขั้นตอนต่างๆ (SOP)</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer p-3 rounded-xl border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 hover:border-orange-500 transition has-[:checked]:bg-orange-200 dark:has-[:checked]:bg-orange-900/50 has-[:checked]:border-orange-500">
+                        <input type="radio" name="exportMode" value="rules" class="w-4 h-4 accent-orange-500">
+                        <div class="flex-1">
+                            <div class="font-bold text-sm">เฉพาะกติกาขั้นตอน</div>
+                            <div class="text-xs text-gray-500">${(globalStandaloneRules || []).length} ข้อ</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer p-3 rounded-xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 hover:border-blue-500 transition has-[:checked]:bg-blue-200 dark:has-[:checked]:bg-blue-900/50 has-[:checked]:border-blue-500">
+                        <input type="radio" name="exportMode" value="sop" class="w-4 h-4 accent-blue-500">
+                        <div class="flex-1">
+                            <div class="font-bold text-sm">เฉพาะขั้นตอน (SOP)</div>
+                            <div class="text-xs text-gray-500">${globalSOPData.length} กฎ</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<span class="material-icons text-sm align-middle mr-1">file_download</span> สร้าง PDF',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#64748b',
+        focusConfirm: false,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
+        preConfirm: () => {
+            const m = document.querySelector('input[name="exportMode"]:checked');
+            return m ? m.value : 'all';
+        }
+    });
+
+    if (!result.isConfirmed) return;
+    sop_doExportPDF(result.value);
+};
+
+window.sop_doExportPDF = function(mode) {
+    // Build HTML แยกหน้าเปิด print dialog
+    const dateStr = new Date().toLocaleDateString('th-TH', { day: '2-digit', month: 'long', year: 'numeric' });
+    const companyName = 'คู่มือการทำงาน (OD)';
+
+    let body = '';
+
+    // หน้าปก
+    body += `
+        <div class="page cover">
+            <div class="cover-inner">
+                <h1>${companyName}</h1>
+                <h2>${mode === 'rules' ? 'กติกาขั้นตอน' : (mode === 'sop' ? 'ขั้นตอนต่างๆ (SOP)' : 'ฉบับเต็ม')}</h2>
+                <div class="meta">สร้าง: ${dateStr}</div>
+                <div class="meta">โดย: ${(currentUser && (currentUser.username || currentUser.name)) || 'admin'}</div>
+            </div>
+        </div>
+    `;
+
+    // กติกาขั้นตอน
+    if (mode === 'all' || mode === 'rules') {
+        body += `<div class="section-header"><h2>📜 กติกาขั้นตอน</h2></div>`;
+        // จัดกลุ่มตาม category
+        const groupedR = {};
+        (globalStandaloneRules || []).forEach(r => {
+            const c = r.category || '__uncat__';
+            if (!groupedR[c]) groupedR[c] = [];
+            groupedR[c].push(r);
+        });
+        const orderR = [];
+        globalSOPCategories.forEach(c => { if (groupedR[c.id]) orderR.push(c.id); });
+        Object.keys(groupedR).forEach(k => { if (!orderR.includes(k)) orderR.push(k); });
+
+        if (orderR.length === 0) {
+            body += `<div class="empty">ยังไม่มีกติกา</div>`;
+        }
+
+        orderR.forEach(catKey => {
+            const catObj = globalSOPCategories.find(c => c.id === catKey);
+            const catName = catKey === '__uncat__' ? '(ไม่ระบุหมวด)' : (catObj ? catObj.name : catKey);
+            const catColor = catObj?.color || '#64748b';
+
+            body += `<div class="cat-block"><div class="cat-title" style="background:${catColor};">${catName} (${groupedR[catKey].length} ข้อ)</div>`;
+            groupedR[catKey].forEach((r, i) => {
+                const t = r.type || 'do';
+                let typeLabel = 'ทำได้', typeColor = '#10b981';
+                if (t === 'dont')      { typeLabel = 'ห้ามทำ';     typeColor = '#ef4444'; }
+                else if (t === 'must') { typeLabel = 'ต้องทำ';     typeColor = '#f97316'; }
+                else if (t === 'info') { typeLabel = 'หมายเหตุ';   typeColor = '#3b82f6'; }
+                const usedColor = r.color || typeColor;
+
+                const safeTitle = (r.title || '').replace(/</g, '&lt;');
+                const safeText = (r.text || '').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+                const subgroupBadge = r.subgroup ? `<span class="subgroup">📁 ${r.subgroup.replace(/</g, '&lt;')}</span>` : '';
+
+                let imgsHtml = '';
+                if (Array.isArray(r.images) && r.images.length > 0) {
+                    imgsHtml = '<div class="imgs">' + r.images.map(im => `<img src="${im.url}" />`).join('') + '</div>';
+                }
+
+                body += `
+                    <div class="rule-item" style="border-left-color:${usedColor};">
+                        <div class="rule-head">
+                            <span class="type-badge" style="background:${usedColor};">${typeLabel}</span>
+                            ${subgroupBadge}
+                            <strong>${i + 1}. ${safeTitle}</strong>
+                        </div>
+                        ${safeText ? `<div class="rule-text">${safeText}</div>` : ''}
+                        ${imgsHtml}
+                    </div>
+                `;
+            });
+            body += `</div>`;
+        });
+    }
+
+    // SOP / ขั้นตอนต่างๆ
+    if (mode === 'all' || mode === 'sop') {
+        body += `<div class="section-header"><h2>📚 ขั้นตอนต่างๆ (SOP)</h2></div>`;
+
+        const groupedS = {};
+        (globalSOPData || []).forEach(s => {
+            const c = s.category || '__uncat__';
+            if (!groupedS[c]) groupedS[c] = [];
+            groupedS[c].push(s);
+        });
+        const orderS = [];
+        globalSOPCategories.forEach(c => { if (groupedS[c.id]) orderS.push(c.id); });
+        Object.keys(groupedS).forEach(k => { if (!orderS.includes(k)) orderS.push(k); });
+
+        if (orderS.length === 0) {
+            body += `<div class="empty">ยังไม่มี SOP</div>`;
+        }
+
+        orderS.forEach(catKey => {
+            const catObj = globalSOPCategories.find(c => c.id === catKey);
+            const catName = catKey === '__uncat__' ? '(ไม่ระบุหมวด)' : (catObj ? catObj.name : catKey);
+            const catColor = catObj?.color || '#64748b';
+
+            body += `<div class="cat-block"><div class="cat-title" style="background:${catColor};">${catName} (${groupedS[catKey].length} กฎ)</div>`;
+
+            groupedS[catKey].forEach(item => {
+                const safeTitle = (item.title || '').replace(/</g, '&lt;');
+                const safeContent = (item.content || '').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+                const safeExamples = (item.examples || '').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+
+                let attHtml = '';
+                if (Array.isArray(item.attachments) && item.attachments.length > 0) {
+                    const imgs = item.attachments.filter(a => !(a.url || '').toLowerCase().includes('.pdf') && a.type !== 'pdf');
+                    if (imgs.length > 0) attHtml = '<div class="imgs">' + imgs.map(a => `<img src="${a.url}" />`).join('') + '</div>';
+                }
+
+                body += `
+                    <div class="sop-item">
+                        <h3>${safeTitle}</h3>
+                        ${safeContent ? `<div class="block-label">📋 รายละเอียด/ขั้นตอน</div><div class="block-body">${safeContent}</div>` : ''}
+                        ${safeExamples ? `<div class="block-label">💡 ตัวอย่าง</div><div class="block-body">${safeExamples}</div>` : ''}
+                        ${attHtml}
+                    </div>
+                `;
+            });
+
+            body += `</div>`;
+        });
+    }
+
+    const fullHtml = `
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>${companyName} — ${dateStr}</title>
+<style>
+@page { size: A4; margin: 1.5cm; }
+body { font-family: 'Sarabun','Tahoma',sans-serif; color:#0f172a; line-height:1.55; font-size:13px; margin:0; padding:0; }
+.page { page-break-after: always; }
+.cover { display:flex; align-items:center; justify-content:center; height:90vh; }
+.cover-inner { text-align:center; padding:40px; border:4px double #e11d48; border-radius:20px; background: linear-gradient(135deg,#fff1f2,#fef3c7); }
+.cover h1 { font-size:38px; color:#e11d48; margin:0 0 12px; }
+.cover h2 { font-size:22px; color:#475569; font-weight:normal; margin:0 0 24px; }
+.cover .meta { font-size:14px; color:#64748b; margin-top:8px; }
+.section-header { background: linear-gradient(135deg,#e11d48,#f97316); color:#fff; padding:16px 24px; border-radius:14px; margin:24px 0 16px; }
+.section-header h2 { margin:0; font-size:20px; }
+.cat-block { margin-bottom:18px; page-break-inside: avoid; }
+.cat-title { color:#fff; padding:10px 16px; border-radius:10px 10px 0 0; font-weight:bold; font-size:15px; }
+.rule-item { padding:12px 14px; border-left:6px solid; border:1px solid #e5e7eb; border-left-width:6px; margin-bottom:6px; background:#fafafa; border-radius:0 8px 8px 0; page-break-inside: avoid; }
+.rule-head { margin-bottom:6px; }
+.type-badge { display:inline-block; color:#fff; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; margin-right:8px; }
+.subgroup { display:inline-block; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px; font-size:10px; margin-right:8px; }
+.rule-text { color:#334155; font-size:13px; padding-left:6px; margin-top:4px; }
+.sop-item { padding:14px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:10px; background:#fff; page-break-inside: avoid; }
+.sop-item h3 { margin:0 0 10px; font-size:17px; color:#0f172a; border-bottom:2px solid #e11d48; padding-bottom:6px; }
+.block-label { font-weight:bold; color:#475569; margin:8px 0 4px; font-size:12px; text-transform:uppercase; }
+.block-body { color:#0f172a; padding:6px 10px; background:#f8fafc; border-radius:6px; }
+.imgs { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.imgs img { max-width:48%; max-height:200px; border:1px solid #e5e7eb; border-radius:6px; }
+.empty { padding:30px; text-align:center; color:#94a3b8; font-style:italic; }
+@media print {
+  body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+${body}
+<script>
+window.addEventListener('load', () => {
+  setTimeout(() => window.print(), 600);
+});
+</script>
+</body>
+</html>
+    `;
+
+    const w = window.open('', '_blank');
+    if (!w) {
+        Swal.fire('ไม่สามารถเปิดหน้าต่างใหม่', 'กรุณาอนุญาต popup ในเบราเซอร์', 'error');
+        return;
+    }
+    w.document.open();
+    w.document.write(fullHtml);
+    w.document.close();
+};
+
+// ==========================================
+// 🔔 V6: TELEGRAM NOTIFICATION
+// ==========================================
+
+// โหลดการตั้งค่าจาก Supabase
+window._sopTelegramConfig = { enabled: false, bot_token: '', chat_id: '' };
+
+window.sop_loadTelegramConfig = async function() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'sop_telegram_config').single();
+        if (data && data.value) {
+            window._sopTelegramConfig = JSON.parse(data.value);
+        }
+    } catch (e) {
+        console.warn('No telegram config yet');
+    }
+};
+
+window.sop_saveTelegramConfig = async function() {
+    await appDB.from('settings').upsert([{ key: 'sop_telegram_config', value: JSON.stringify(window._sopTelegramConfig) }]);
+};
+
+window.sop_telegramSettings = async function() {
+    await sop_loadTelegramConfig();
+    const cfg = window._sopTelegramConfig;
+
+    const formHtml = `
+        <div class="text-left space-y-3">
+            <div class="bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-300 dark:border-cyan-700 rounded-xl p-3 text-sm">
+                <div class="font-bold text-cyan-700 dark:text-cyan-300 flex items-center gap-1 mb-2">
+                    <span class="material-icons text-[16px]">info</span>วิธีตั้งค่า Telegram Bot
+                </div>
+                <ol class="text-xs text-slate-700 dark:text-gray-200 ml-4 space-y-1 list-decimal">
+                    <li>เปิด Telegram → ค้นหา <b>@BotFather</b> → พิมพ์ <code class="bg-slate-200 dark:bg-slate-700 px-1 rounded">/newbot</code></li>
+                    <li>ตั้งชื่อ bot → จะได้ <b>Bot Token</b> มา (ใส่ในช่องล่าง)</li>
+                    <li>สร้างกลุ่ม Telegram → เพิ่ม bot เข้ากลุ่ม → ตั้งเป็น admin</li>
+                    <li>ในกลุ่มพิมพ์อะไรก็ได้ → ไปที่ <code class="bg-slate-200 dark:bg-slate-700 px-1 rounded">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code></li>
+                    <li>คัดลอก <b>chat.id</b> (ปกติเป็นเลขลบ เช่น <code>-1234567890</code>) → ใส่ในช่องล่าง</li>
+                    <li>กดปุ่ม <b>ทดสอบ</b> เพื่อตรวจสอบ → กด <b>บันทึก</b></li>
+                </ol>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Bot Token <span class="text-red-500">*</span></label>
+                <input type="text" id="tgBotToken" value="${(cfg.bot_token || '').replace(/"/g, '&quot;')}" placeholder="1234567890:ABCdefGHIjklMNOpqrSTUvwxyz" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 outline-none font-mono text-xs">
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Chat ID (กลุ่ม) <span class="text-red-500">*</span></label>
+                <input type="text" id="tgChatId" value="${(cfg.chat_id || '').replace(/"/g, '&quot;')}" placeholder="-1234567890" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 outline-none font-mono text-xs">
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 hover:border-emerald-500 transition has-[:checked]:bg-emerald-100 dark:has-[:checked]:bg-emerald-900/40">
+                    <input type="checkbox" id="tgEnabled" ${cfg.enabled ? 'checked' : ''} class="w-4 h-4 accent-emerald-500">
+                    <span class="material-icons text-emerald-500 text-[18px]">notifications_active</span>
+                    <span class="text-sm font-bold text-slate-800 dark:text-white">เปิดการแจ้งเตือน — ส่งทุกครั้งที่เพิ่ม/แก้ OD</span>
+                </label>
+            </div>
+
+            <div class="flex gap-2">
+                <button type="button" onclick="sop_telegramTest()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1 shadow-md transition active:scale-95">
+                    <span class="material-icons text-sm">send</span>ทดสอบส่งข้อความ
+                </button>
+            </div>
+            <div id="tgTestResult" class="text-xs text-center min-h-[18px]"></div>
+        </div>
+    `;
+
+    const result = await Swal.fire({
+        title: '<div class="text-xl font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-cyan-500">notifications</span> ตั้งค่า Telegram</div>',
+        html: formHtml,
+        width: '700px',
+        showCancelButton: true,
+        confirmButtonText: '<span class="material-icons text-sm align-middle mr-1">save</span> บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#06b6d4',
+        cancelButtonColor: '#64748b',
+        focusConfirm: false,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
+        preConfirm: () => {
+            const bot_token = document.getElementById('tgBotToken').value.trim();
+            const chat_id = document.getElementById('tgChatId').value.trim();
+            const enabled = document.getElementById('tgEnabled').checked;
+            if (enabled && (!bot_token || !chat_id)) {
+                Swal.showValidationMessage('ต้องใส่ Bot Token และ Chat ID เมื่อเปิดการแจ้งเตือน');
+                return false;
+            }
+            return { bot_token, chat_id, enabled };
+        }
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    try {
+        window._sopTelegramConfig = result.value;
+        await sop_saveTelegramConfig();
+        Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1100, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message || 'บันทึกไม่สำเร็จ', 'error');
+    }
+};
+
+window.sop_telegramTest = async function() {
+    const tokenEl = document.getElementById('tgBotToken');
+    const chatEl = document.getElementById('tgChatId');
+    const resultEl = document.getElementById('tgTestResult');
+    if (!tokenEl || !chatEl || !resultEl) return;
+
+    const token = tokenEl.value.trim();
+    const chatId = chatEl.value.trim();
+    if (!token || !chatId) {
+        resultEl.innerHTML = '<span class="text-red-500 font-bold">กรุณาใส่ Bot Token และ Chat ID ก่อน</span>';
+        return;
+    }
+
+    resultEl.innerHTML = '<span class="text-blue-500 font-bold">กำลังส่ง...</span>';
+
+    try {
+        const msg = `🤖 <b>ทดสอบการแจ้งเตือน</b>\n\nระบบ K36 OD เชื่อมต่อสำเร็จ ✅\nเวลา: ${new Date().toLocaleString('th-TH')}`;
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' })
+        });
+        const json = await res.json();
+        if (json.ok) {
+            resultEl.innerHTML = '<span class="text-emerald-500 font-bold">✅ ส่งสำเร็จ! เช็คในกลุ่ม Telegram</span>';
+        } else {
+            resultEl.innerHTML = `<span class="text-red-500 font-bold">❌ ส่งไม่สำเร็จ: ${json.description || 'ไม่ทราบสาเหตุ'}</span>`;
+        }
+    } catch (e) {
+        resultEl.innerHTML = `<span class="text-red-500 font-bold">❌ Error: ${e.message}</span>`;
+    }
+};
+
+// ส่งแจ้งเตือนเมื่อเพิ่ม/แก้ OD (เรียกจาก saveRule และ saveStandaloneRule)
+window.sop_sendTelegramNotify = async function(action, type, title, category, ruleType) {
+    const cfg = window._sopTelegramConfig;
+    if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) return;
+
+    const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'admin';
+
+    let actionEmoji = '➕', actionText = 'เพิ่มใหม่';
+    if (action === 'edit') { actionEmoji = '✏️'; actionText = 'แก้ไข'; }
+    else if (action === 'delete') { actionEmoji = '🗑️'; actionText = 'ลบ'; }
+
+    let typeEmoji = '📚', typeText = 'ขั้นตอน (SOP)';
+    if (type === 'rule') { typeEmoji = '⚖️'; typeText = 'กติกาขั้นตอน'; }
+
+    let ruleTypeText = '';
+    if (ruleType) {
+        if (ruleType === 'do') ruleTypeText = '\n🟢 ประเภท: ทำได้';
+        else if (ruleType === 'must') ruleTypeText = '\n🟠 ประเภท: ต้องทำ';
+        else if (ruleType === 'dont') ruleTypeText = '\n🔴 ประเภท: ห้ามทำ';
+        else if (ruleType === 'info') ruleTypeText = '\n🔵 ประเภท: หมายเหตุ';
+    }
+
+    const safeTitle = (title || '(ไม่มีหัวข้อ)').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+    const safeCategory = (category || 'ไม่ระบุ').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+
+    const msg = `${actionEmoji} <b>${actionText}${typeEmoji} ${typeText}</b>\n\n` +
+                `📋 <b>หัวข้อ:</b> ${safeTitle}\n` +
+                `📁 <b>หมวด:</b> ${safeCategory}` +
+                ruleTypeText + `\n\n` +
+                `👤 <b>โดย:</b> ${authorName}\n` +
+                `🕐 ${new Date().toLocaleString('th-TH')}`;
+
+    try {
+        const url = `https://api.telegram.org/bot${cfg.bot_token}/sendMessage`;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: cfg.chat_id, text: msg, parse_mode: 'HTML' })
+        });
+    } catch (e) {
+        console.warn('Telegram notify failed:', e);
+    }
+};
