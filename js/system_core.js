@@ -15,7 +15,43 @@ let SETTINGS = {
 let SHIFT_GROUPS = {};
 let currentSpecificTimeFilter = null; 
 let globalScheduleData = [];
+let globalAssignmentMap = {}; // 🌟 NEW: { "username|shift" -> [allowedTeams] } สำหรับวันที่ปัจจุบัน
 let pendingSchedules = []; 
+
+// 🌟 NEW: โหลดตารางจัดหน้าที่ของวันที่ระบุมาเก็บไว้เป็น Map ใช้ตอน render และเช็ค off-roster
+async function loadAssignmentMapForDate(dateVal) {
+    globalAssignmentMap = {};
+    if (!dateVal) return;
+    try {
+        const { data: rosters } = await appDB.from('settings')
+            .select('key, value')
+            .like('key', `duty_roster_%_${dateVal}_%`);
+
+        if (!rosters) return;
+        rosters.forEach(r => {
+            // key format: duty_roster_{dept}_{YYYY-MM-DD}_{shift}
+            const parts = r.key.split('_');
+            if (parts.length < 5) return;
+            const shift = parts[parts.length - 1];
+
+            try {
+                const roster = typeof r.value === 'string' ? JSON.parse(r.value) : r.value;
+                for (const team in roster) {
+                    (roster[team] || []).forEach(u => {
+                        if (!u || !u.username) return;
+                        const k = `${u.username}|${shift}`;
+                        if (!globalAssignmentMap[k]) globalAssignmentMap[k] = [];
+                        if (!globalAssignmentMap[k].includes(team)) globalAssignmentMap[k].push(team);
+                        if (u.secondary_team && !globalAssignmentMap[k].includes(u.secondary_team)) {
+                            globalAssignmentMap[k].push(u.secondary_team);
+                        }
+                    });
+                }
+            } catch(e) { /* skip bad rows */ }
+        });
+    } catch(e) { console.error('loadAssignmentMap:', e); }
+}
+
 let GLOBAL_INDIV_TASKS = [];
 let ACTIVE_SHIFTS_CONFIG = ['กะเช้า', 'กะกลาง', 'กะดึก']; 
 
@@ -265,11 +301,13 @@ window.saveData = async function(e) {
 
     const myDep = currentUser.department || 'AM';
 
-    // 🌟 NEW: ล็อคการบันทึกให้ตรงกับตารางจัดหน้าที่ (Backend Check) 🌟
+    // 🌟 NEW V2: เช็ค off-roster แต่ไม่บล็อก (แค่เก็บ flag ไว้เขียน log)
+    let isOffRoster = false;
+    let assignedTeamsStr = '';
     if (!['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
         const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
-        
+
         if (rosterData && rosterData.value) {
             const roster = JSON.parse(rosterData.value);
             let allowedTeams = [];
@@ -281,15 +319,18 @@ window.saveData = async function(e) {
                     }
                 });
             }
-            
-            if (allowedTeams.length > 0 && !allowedTeams.includes(activeTeam)) {
-                window.resetBtn();
-                return Swal.fire('ผิดเว็บ!', `แอดมินจัดหน้าที่ให้คุณลงเว็บ <b>${allowedTeams.join(' หรือ ')}</b> ในกะนี้<br>กรุณาลงเวลาให้ตรงกับหน้าที่ครับ`, 'error');
-            } else if (allowedTeams.length === 0) {
-                window.resetBtn();
-                return Swal.fire('ไม่มีหน้าที่!', `คุณไม่มีรายชื่อจัดหน้าที่ในกะนี้ ไม่สามารถลงเวลาได้ครับ`, 'error');
+
+            if (allowedTeams.length === 0) {
+                // ไม่มีในตารางจัดหน้าที่เลย → flag แต่ปล่อยลงได้
+                isOffRoster = true;
+                assignedTeamsStr = '(ไม่มีในตารางจัดหน้าที่)';
+            } else if (!allowedTeams.includes(activeTeam)) {
+                // มีในตาราง แต่เลือกผิดเว็บ → flag
+                isOffRoster = true;
+                assignedTeamsStr = allowedTeams.join('/');
             }
         }
+        // ถ้า rosterData ไม่มีเลย → ไม่ flag (ยังไม่ได้จัดเวร)
     }
     // 🌟 --------------------------------------------------- 🌟
 
@@ -337,11 +378,20 @@ window.saveData = async function(e) {
         department: myDep 
     }]);
     
-    if (error) { window.resetBtn(); Swal.fire('Error', error.message, 'error'); } 
-    else { 
-        if(typeof logAction === 'function') await logAction('ลงเวลา', `ลงเวลา ${sName} ${timeVal} (${activeTeam}) [${myDep}]`);
-        Swal.fire({icon:'success', title:'บันทึกสำเร็จ', timer:800, showConfirmButton:false}); 
-        if(typeof refreshTimeSlots === 'function') await refreshTimeSlots(); 
+    if (error) { window.resetBtn(); Swal.fire('Error', error.message, 'error'); }
+    else {
+        if (typeof logAction === 'function') {
+            if (isOffRoster) {
+                await logAction('ลงผิดเว็บ',
+                    `⚠️ ${currentUser.username} ลง "${activeTeam}" แต่หน้าที่จริง = "${assignedTeamsStr}" (${sName} ${timeVal}) [${myDep}]`
+                );
+            } else {
+                await logAction('ลงเวลา', `ลงเวลา ${sName} ${timeVal} (${activeTeam}) [${myDep}]`);
+            }
+        }
+        Swal.fire({ icon:'success', title:'บันทึกสำเร็จ', timer:800, showConfirmButton:false });
+        if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
+        if (typeof fetchData === 'function') await fetchData(); // โหลดใหม่ให้ขึ้น ⚠️
         window.resetBtn();
     }
 };
@@ -391,6 +441,7 @@ async function fetchData() {
     const dateVal = dateEl.value;
     const tableTeam = teamEl.value;
     if(!dateVal) return;
+    await loadAssignmentMapForDate(dateVal); // 🌟 NEW: โหลดตารางจัดหน้าที่ก่อน render
 
     updateTableSummary([]); 
     const tBody = document.getElementById('dataTableBody');
@@ -493,9 +544,18 @@ function renderTableRows(data) {
         htmlContent += `<tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
             <td class="px-6 py-4 w-32 text-center"><div class="flex justify-center"><span class="${pClass} font-extrabold text-sm border px-2 py-0.5 rounded-full whitespace-nowrap flex items-center justify-center min-w-[60px] min-h-[28px]">${displayPeriod}</span></div></td>
             <td class="px-6 py-4 font-bold text-slate-700 dark:text-gray-200">${i.staff_name}</td>
-            <td class="px-6 py-4 flex items-center gap-1">
-                <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span>
-                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>
+            <td class="px-6 py-4">
+                <div class="flex items-center gap-1 flex-wrap">
+                    <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>
+                    ${(() => {
+                        // 🌟 NEW: เช็ค off-roster ตอน render — ใช้ map ที่โหลดมาแล้ว
+                        const assigned = globalAssignmentMap[`${i.staff_name}|${i.shift_name}`];
+                        if (!assigned) return ''; // ไม่มีในตาราง roster → ไม่ flag
+                        if (assigned.includes(i.team)) return ''; // ตรงเว็บ → ไม่ flag
+                        return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse shadow-sm" title="ควรลง: ${assigned.join('/')}">⚠️ ผิดเว็บ! (ควร: ${assigned.join('/')})</span>`;
+                    })()}
+                </div>
             </td>
             <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white">${i.shift_name}</span></td>
             <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300">${i.time_slot}</td>

@@ -175,37 +175,45 @@ window.refreshTimeSlots = async function() {
     const shiftName = shiftEl.value;
     const myDep = window.currentUser?.department || 'AM';
 
-    // 🌟 NEW: อัปเดต Dropdown เลือกทีมให้เหลือแค่ทีมที่ถูกจัดเวร 🌟
+    // 🌟 NEW V2: แสดงทุกเว็บใน Dropdown แต่ทำเครื่องหมาย ⭐ เว็บที่ถูกจัดเวร
     if (teamSelect && !['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal.value}_${shiftName}`;
+        let assignedTeams = [];
         try {
             const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
             if (rosterData && rosterData.value) {
                 const roster = JSON.parse(rosterData.value);
-                let allowedTeams = [];
                 for (const team in roster) {
                     (roster[team] || []).forEach(u => {
                         if (String(u.id) === String(currentUser.id)) {
-                            if (!allowedTeams.includes(team)) allowedTeams.push(team);
-                            if (u.secondary_team && !allowedTeams.includes(u.secondary_team)) allowedTeams.push(u.secondary_team);
+                            if (!assignedTeams.includes(team)) assignedTeams.push(team);
+                            if (u.secondary_team && !assignedTeams.includes(u.secondary_team)) assignedTeams.push(u.secondary_team);
                         }
                     });
                 }
-
-                if (allowedTeams.length > 0) {
-                    let html = '';
-                    allowedTeams.forEach(t => html += `<option value="${t}">${t}</option>`);
-                    teamSelect.innerHTML = html;
-                } else {
-                    teamSelect.innerHTML = '<option value="">-- ไม่มีรายชื่อในเวรนี้ --</option>';
-                }
-            } else {
-                // คืนค่า Dropdown เดิมถ้ายังไม่มีเวร
-                let html = '';
-                TEAM_LIST.sort((a,b) => a.localeCompare(b)).forEach(t => html += `<option value="${t}">${t}</option>`);
-                teamSelect.innerHTML = html;
             }
         } catch(e) { console.error(e); }
+
+        // เก็บไว้ใช้อ้างอิง
+        window._myAssignedTeams = assignedTeams;
+
+        // วาด Dropdown ใหม่ — ทุกเว็บ + ⭐ ทีมที่ถูกจัด
+        const oldVal = teamSelect.value;
+        const sortedTeams = [...TEAM_LIST].sort((a,b) => a.localeCompare(b));
+        let html = '';
+        sortedTeams.forEach(t => {
+            const isAssigned = assignedTeams.includes(t);
+            const label = isAssigned ? `⭐ ${t} (หน้าที่ของคุณ)` : t;
+            html += `<option value="${t}">${label}</option>`;
+        });
+        teamSelect.innerHTML = html;
+
+        // ตั้งค่าเริ่มต้น: คงค่าเดิม → หรือทีมที่ถูกจัด → หรือทีมแรก
+        if (oldVal && sortedTeams.includes(oldVal)) {
+            teamSelect.value = oldVal;
+        } else if (assignedTeams.length > 0) {
+            teamSelect.value = assignedTeams[0];
+        }
     }
 
     // 🌟 1. ดึงข้อมูล "เว็บ/ทีม" ที่พนักงานกำลังเลือกอยู่จาก Dropdown
