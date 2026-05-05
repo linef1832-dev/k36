@@ -894,6 +894,12 @@ window.sop_renderAllRulesPage = function() {
             ` : '';
             const pinIcon = r.pinned ? '<span class="material-icons text-amber-500 text-[14px]" title="ปักหมุด">push_pin</span>' : '';
 
+            // วันที่ลงและอัพเดทล่าสุด
+            const createdDate = r.created_at ? new Date(r.created_at).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+            const updatedDate = r.updated_at ? new Date(r.updated_at).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+            const isUpdated = r.updated_at && r.created_at && r.updated_at !== r.created_at;
+            const lastEditor = r.last_editor || r.author_name || '';
+
             bodyHtml += `
                 <div class="bg-white dark:bg-slate-800 rounded-xl border-l-[6px] border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-2.5 hover:shadow-md transition" style="border-left-color: ${usedColor};">
                     <div onclick="sop_toggleRuleAccordion('standalone', ${idx})" class="flex items-center gap-3 px-4 py-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
@@ -912,6 +918,12 @@ window.sop_renderAllRulesPage = function() {
                         <div class="flex items-center gap-1 shrink-0">${adminBtns}
                             <span class="material-icons text-gray-400 transition ${isOpen ? 'rotate-180' : ''} text-[20px]">expand_more</span>
                         </div>
+                    </div>
+                    <!-- แถวข้อมูลวันที่ -->
+                    <div class="bg-slate-50 dark:bg-slate-900/50 border-t border-gray-100 dark:border-slate-700 px-4 py-1.5 flex items-center gap-3 text-[10px] text-gray-500 dark:text-gray-400 font-bold flex-wrap">
+                        <span class="flex items-center gap-1" title="วันที่สร้าง"><span class="material-icons text-[12px] text-emerald-500">add_circle</span>สร้าง: ${createdDate}</span>
+                        ${isUpdated ? `<span class="flex items-center gap-1" title="อัพเดทล่าสุด"><span class="material-icons text-[12px] text-amber-500">update</span>อัพเดท: ${updatedDate}</span>` : ''}
+                        ${lastEditor ? `<span class="flex items-center gap-1 ml-auto" title="แก้ไขล่าสุดโดย"><span class="material-icons text-[12px] text-blue-500">person</span>${lastEditor}</span>` : ''}
                     </div>
                     ${isOpen ? `
                         <div class="px-4 pb-4 pt-3 border-t border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
