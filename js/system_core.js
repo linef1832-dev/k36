@@ -16,11 +16,13 @@ let SHIFT_GROUPS = {};
 let currentSpecificTimeFilter = null; 
 let globalScheduleData = [];
 let globalAssignmentMap = {}; // 🌟 NEW: { "username|shift" -> [allowedTeams] } สำหรับวันที่ปัจจุบัน
+let globalRosterDeptShiftSet = new Set(); // 🌟 NEW: เก็บ "dept|shift" ที่มี roster ในวันนั้นๆ (เช่น "AM|กะเช้า")
 let pendingSchedules = []; 
 
 // 🌟 NEW: โหลดตารางจัดหน้าที่ของวันที่ระบุมาเก็บไว้เป็น Map ใช้ตอน render และเช็ค off-roster
 async function loadAssignmentMapForDate(dateVal) {
     globalAssignmentMap = {};
+    globalRosterDeptShiftSet = new Set();
     if (!dateVal) return;
     try {
         const { data: rosters } = await appDB.from('settings')
@@ -32,13 +34,17 @@ async function loadAssignmentMapForDate(dateVal) {
             // key format: duty_roster_{dept}_{YYYY-MM-DD}_{shift}
             const parts = r.key.split('_');
             if (parts.length < 5) return;
+            const dept = parts[2];
             const shift = parts[parts.length - 1];
 
             try {
                 const roster = typeof r.value === 'string' ? JSON.parse(r.value) : r.value;
+                // ตรวจว่า roster มีคนอย่างน้อย 1 คนไหม — ถ้ามีถือว่ามีจัดเวรแล้ว
+                let hasAnyone = false;
                 for (const team in roster) {
                     (roster[team] || []).forEach(u => {
                         if (!u || !u.username) return;
+                        hasAnyone = true;
                         const k = `${u.username}|${shift}`;
                         if (!globalAssignmentMap[k]) globalAssignmentMap[k] = [];
                         if (!globalAssignmentMap[k].includes(team)) globalAssignmentMap[k].push(team);
@@ -47,6 +53,7 @@ async function loadAssignmentMapForDate(dateVal) {
                         }
                     });
                 }
+                if (hasAnyone) globalRosterDeptShiftSet.add(`${dept}|${shift}`);
             } catch(e) { /* skip bad rows */ }
         });
     } catch(e) { console.error('loadAssignmentMap:', e); }
@@ -549,11 +556,22 @@ function renderTableRows(data) {
                     <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span>
                     <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>
                     ${(() => {
-                        // 🌟 NEW: เช็ค off-roster ตอน render — ใช้ map ที่โหลดมาแล้ว
+                        // 🌟 เช็ค off-roster ตอน render — ใช้ map ที่โหลดมาแล้ว
                         const assigned = globalAssignmentMap[`${i.staff_name}|${i.shift_name}`];
-                        if (!assigned) return ''; // ไม่มีในตาราง roster → ไม่ flag
-                        if (assigned.includes(i.team)) return ''; // ตรงเว็บ → ไม่ flag
-                        return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse shadow-sm" title="ควรลง: ${assigned.join('/')}">⚠️ ผิดเว็บ! (ควร: ${assigned.join('/')})</span>`;
+                        if (assigned) {
+                            // มีในตาราง → เช็คว่าตรงเว็บไหม
+                            if (assigned.includes(i.team)) return ''; // ตรง OK
+                            return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse shadow-sm" title="ควรลง: ${assigned.join('/')}">⚠️ ผิดเว็บ! (ควร: ${assigned.join('/')})</span>`;
+                        }
+                        // ไม่มีใน map → เช็คว่ากะ+แผนกนี้มีจัดเวรไหม
+                        const dept = i.department || 'AM';
+                        const deptShiftKey = `${dept}|${i.shift_name}`;
+                        if (globalRosterDeptShiftSet.has(deptShiftKey)) {
+                            // มีจัดเวรในกะ+แผนกนี้ แต่คนนี้ไม่อยู่ใน roster → flag
+                            return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-orange-500 text-white animate-pulse shadow-sm" title="ไม่มีรายชื่อในตารางจัดหน้าที่กะนี้">⚠️ ไม่มีในตารางหน้าที่!</span>`;
+                        }
+                        // ยังไม่ได้จัดเวรในกะนี้ → ไม่ flag
+                        return '';
                     })()}
                 </div>
             </td>
