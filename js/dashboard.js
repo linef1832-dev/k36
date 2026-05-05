@@ -150,7 +150,7 @@ window.renderShiftButtons = function(allowedShift) {
 
         container.innerHTML += `
             <label class="relative flex flex-col items-center p-3 rounded-xl border-2 ${borderClass} ${bgClass} transition shadow-sm">
-                <input type="radio" name="shift" value="${s}" class="peer hidden" onchange="refreshTimeSlots()" ${isChecked ? 'checked' : ''}>
+                <input type="radio" name="shift" value="${s}" class="peer hidden" onchange="refreshTimeSlots(); if(typeof fetchData==='function') fetchData();" ${isChecked ? 'checked' : ''}>
                 <span class="material-icons ${color} mb-1 peer-checked:scale-125 transition-transform">${icon}</span>
                 <span class="font-bold ${textClass} text-sm">${s}</span>
                 <div class="absolute inset-0 border-2 border-transparent peer-checked:border-blue-500 rounded-xl pointer-events-none transition-colors"></div>

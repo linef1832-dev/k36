@@ -458,7 +458,16 @@ async function fetchData() {
     if (tableTeam !== 'all') { query = query.eq('team', tableTeam); }
     const canViewAllShifts = ['manager', 'admin'].includes(currentUser.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
     if (!canViewAllShifts) {
-        if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) { query = query.eq('shift_name', currentUser.allowed_shift); }
+        const userShift = currentUser.allowed_shift;
+        if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(userShift)) {
+            query = query.eq('shift_name', userShift);
+        } else if (!userShift || userShift === 'all') {
+            // 🌟 ถ้าเป็น 'all' หรือไม่ระบุ → กรองตามกะที่เลือกอยู่ในปุ่มกะ
+            const checkedShift = document.querySelector('input[name="shift"]:checked');
+            if (checkedShift && ['กะเช้า', 'กะกลาง', 'กะดึก'].includes(checkedShift.value)) {
+                query = query.eq('shift_name', checkedShift.value);
+            }
+        }
     }
 
    const { data } = await query;
@@ -599,8 +608,16 @@ function updateTableSummary(data) {
     let shiftsToShow = ACTIVE_SHIFTS_CONFIG;
     const canViewAllShifts = ['manager', 'admin'].includes(currentUser.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
     if (!canViewAllShifts) {
-        if (shiftsToShow.includes(currentUser.allowed_shift)) {
-            shiftsToShow = [currentUser.allowed_shift];
+        const userShift = currentUser.allowed_shift;
+        // 🌟 ถ้า allowed_shift เป็น 'all' หรือไม่ระบุ → ใช้กะที่กำลังเลือกอยู่ในปัจจุบันแทน (จากปุ่ม shift)
+        if (!userShift || userShift === 'all') {
+            const checkedShift = document.querySelector('input[name="shift"]:checked');
+            if (checkedShift && ACTIVE_SHIFTS_CONFIG.includes(checkedShift.value)) {
+                shiftsToShow = [checkedShift.value];
+            }
+        } else if (ACTIVE_SHIFTS_CONFIG.includes(userShift)) {
+            // ถ้าระบุกะชัดเจน (กะเช้า/กะกลาง/กะดึก) → โชว์เฉพาะกะนั้น
+            shiftsToShow = [userShift];
         }
     }
 
