@@ -2877,7 +2877,7 @@ window.quickAssignBackups = async function() {
 
     Swal.fire({
         title: 'กำลังจับคู่งานรอง...', 
-        html: '<span class="text-sm text-gray-500">🔍 รอบที่ 1: ตรวจหาคู่ที่เวลาพักไม่ชน...</span>', 
+        html: '<span class="text-sm text-gray-500">🌱 Phase 1: เติมเว็บที่ยังไม่มีรองให้ครบก่อน...</span>', 
         allowOutsideClick: false, 
         didOpen: () => Swal.showLoading()
     });
@@ -2901,32 +2901,52 @@ window.quickAssignBackups = async function() {
         });
     }
 
-    // 🌟 ฟังก์ชันช่วยจับคู่ (V3) — เดิน "คน" ไปลองทุก "เว็บ" ที่เข้าได้
-    // strict = true → เช็คเวลากินข้าวห้ามซ้ำกับ primary ในเว็บปลายทาง (รอบที่ 1)
-    // strict = false → ข้ามเงื่อนไขเวลาพัก (รอบที่ 2)
-    const tryAssign = (strict) => {
+    // 🌟 V5 — 2 Phase System (เน้นกระจายให้ครบทุกเว็บก่อน)
+    //
+    // Phase 1: บังคับให้ทุกเว็บได้รองอย่างน้อย 1 คน (เดิน "ทีม" ไปหา "คน")
+    //   - 1a: เช็คเวลาพัก + เช็คสิทธิ์
+    //   - 1b: ผ่อนเวลาพัก + เช็คสิทธิ์
+    // Phase 2: คนที่เหลือกระจายเข้าเว็บรองน้อยสุด (เดิน "คน" ไปหา "ทีม")
+    //   - 2a: เช็คเวลาพัก + เช็คสิทธิ์
+    //   - 2b: ผ่อนเวลาพัก + เช็คสิทธิ์
+
+    // ฟังก์ชันช่วย: ดูว่าทีมนี้มีรองกี่คนแล้ว
+    const countBackupsForTeam = (team) => {
+        let n = 0;
+        for (const t in roster) {
+            roster[t].forEach(u => { if (u.secondary_team === team) n++; });
+        }
+        return n;
+    };
+
+    // 🟢 Phase 1: ให้ทุกเว็บได้รองอย่างน้อย 1 คน
+    // mode = 'strict' หรือ 'relaxBreak'
+    const phase1FillEmptyTeams = (mode) => {
         let count = 0;
 
-        // เลือกคนที่ยังไม่มีงานรอง — สลับลำดับสุ่มเพื่อกระจายงาน
-        const peopleToAssign = availableForBackup
-            .filter(c => !c.secondary_team)
-            .sort(() => Math.random() - 0.5);
+        // หาเฉพาะเว็บที่ "มี primary แต่ยังไม่มีรองเลย"
+        const emptyTeams = sortedTeams.filter(t => {
+            const primaries = (roster[t] || []).filter(u => !u.username.includes('ขาดคน'));
+            if (primaries.length === 0) return false;
+            return countBackupsForTeam(t) === 0;
+        });
 
-        peopleToAssign.forEach(c => {
-            const cBreaks = breakTimes[c.username] || [];
-            const access = dutyAccessMatrix[c.id] || [];
+        // สลับลำดับเพื่อกระจายงาน
+        emptyTeams.sort(() => Math.random() - 0.5);
 
-            // หาทุกเว็บที่คนนี้ "เข้าได้"
-            let validTeams = sortedTeams.filter(t => {
-                if (t === c.primaryTeam) return false; // ห้ามเว็บเดียวกับตัวเอง
-                if (!access.includes(t)) return false; // ไม่มีสิทธิ์หลังบ้าน
+        emptyTeams.forEach(targetTeam => {
+            const primaries = (roster[targetTeam] || []).filter(u => !u.username.includes('ขาดคน'));
 
-                // เว็บปลายทางต้องมี primary อย่างน้อย 1 คน (ที่ไม่ใช่ "ขาดคน")
-                const primaries = (roster[t] || []).filter(u => !u.username.includes('ขาดคน'));
-                if (primaries.length === 0) return false;
+            // คนที่ใส่ได้ — ต้องเข้าเว็บนี้ได้ + ยังไม่มีงานรอง
+            let candidates = availableForBackup.filter(c => {
+                if (c.secondary_team) return false;
+                if (c.primaryTeam === targetTeam) return false;
 
-                if (strict) {
-                    // 🔥 เวลากินข้าวห้ามซ้ำกับ primary คนใดคนหนึ่งในเว็บนี้
+                const access = dutyAccessMatrix[c.id] || [];
+                if (!access.includes(targetTeam)) return false;
+
+                if (mode === 'strict') {
+                    const cBreaks = breakTimes[c.username] || [];
                     const allPrimaryBreaks = new Set();
                     primaries.forEach(p => {
                         (breakTimes[p.username] || []).forEach(time => allPrimaryBreaks.add(time));
@@ -2938,18 +2958,67 @@ window.quickAssignBackups = async function() {
                 return true;
             });
 
-            if (validTeams.length === 0) return; // คนนี้เข้าเว็บไหนไม่ได้เลย
+            if (candidates.length === 0) return;
 
-            // เลือกเว็บที่มีรองน้อยที่สุดก่อน (กระจายโหลดให้สมดุล) ถ้าเสมอกันสุ่ม
-            validTeams.sort((a, b) => {
-                let countA = 0, countB = 0;
-                for (const t in roster) {
-                    roster[t].forEach(u => {
-                        if (u.secondary_team === a) countA++;
-                        if (u.secondary_team === b) countB++;
+            // เลือกคนแบบ "ใครเข้าได้น้อยสุด ใส่ก่อน" (กันคนที่เลือกได้แต่เว็บนี้ไม่หลุด)
+            candidates.sort((a, b) => {
+                const accessA = (dutyAccessMatrix[a.id] || []).length;
+                const accessB = (dutyAccessMatrix[b.id] || []).length;
+                if (accessA !== accessB) return accessA - accessB;
+                return Math.random() - 0.5;
+            });
+
+            const chosen = candidates[0];
+            const userInRoster = roster[chosen.primaryTeam].find(u => u.id === chosen.id);
+            if (userInRoster && !userInRoster.secondary_team) {
+                userInRoster.secondary_team = targetTeam;
+                const availIndex = availableForBackup.findIndex(a => a.id === chosen.id);
+                if (availIndex > -1) availableForBackup[availIndex].secondary_team = targetTeam;
+                count++;
+            }
+        });
+
+        return count;
+    };
+
+    // 🟡 Phase 2: คนที่เหลือกระจายเข้าเว็บรองน้อยสุด
+    // mode = 'strict' หรือ 'relaxBreak'
+    const phase2DistributeRest = (mode) => {
+        let count = 0;
+
+        const peopleToAssign = availableForBackup
+            .filter(c => !c.secondary_team)
+            .sort(() => Math.random() - 0.5);
+
+        peopleToAssign.forEach(c => {
+            const cBreaks = breakTimes[c.username] || [];
+            const access = dutyAccessMatrix[c.id] || [];
+
+            let validTeams = sortedTeams.filter(t => {
+                if (t === c.primaryTeam) return false;
+                if (!access.includes(t)) return false;
+
+                const primaries = (roster[t] || []).filter(u => !u.username.includes('ขาดคน'));
+                if (primaries.length === 0) return false;
+
+                if (mode === 'strict') {
+                    const allPrimaryBreaks = new Set();
+                    primaries.forEach(p => {
+                        (breakTimes[p.username] || []).forEach(time => allPrimaryBreaks.add(time));
                     });
+                    const hasOverlap = cBreaks.some(time => allPrimaryBreaks.has(time));
+                    if (hasOverlap) return false;
                 }
-                if (countA !== countB) return countA - countB;
+                return true;
+            });
+
+            if (validTeams.length === 0) return;
+
+            // เลือกเว็บที่มีรองน้อยที่สุด (load balance)
+            validTeams.sort((a, b) => {
+                const cA = countBackupsForTeam(a);
+                const cB = countBackupsForTeam(b);
+                if (cA !== cB) return cA - cB;
                 return Math.random() - 0.5;
             });
 
@@ -2966,13 +3035,24 @@ window.quickAssignBackups = async function() {
         return count;
     };
 
-    // 🟢 PASS 1: เข้มงวด (เวลาพักไม่ชน)
-    const pass1Count = tryAssign(true);
+    // 🟢 Phase 1a: บังคับเว็บว่างให้ได้รอง (เช็คเวลาพัก)
+    const phase1aCount = phase1FillEmptyTeams('strict');
 
-    // 🟡 PASS 2: ผ่อนเงื่อนไขเวลาพัก (เก็บตกคนที่ตกหล่น)
-    Swal.update({ html: '<span class="text-sm text-gray-500">⚡ รอบที่ 2: เก็บตกตำแหน่งที่ยังว่าง (ยอมให้เวลาพักชน)...</span>' });
-    await new Promise(r => setTimeout(r, 200)); // ให้ UI อัปเดต
-    const pass2Count = tryAssign(false);
+    // 🟡 Phase 1b: บังคับเว็บว่างที่ยังเหลือ (ผ่อนเวลาพัก)
+    Swal.update({ html: '<span class="text-sm text-gray-500">⚡ Phase 1b: เก็บเว็บที่ยังว่างอยู่ (ผ่อนเวลาพัก)...</span>' });
+    await new Promise(r => setTimeout(r, 200));
+    const phase1bCount = phase1FillEmptyTeams('relaxBreak');
+
+    // 🟢 Phase 2a: คนที่เหลือกระจายเข้าเว็บรองน้อยสุด (เช็คเวลาพัก)
+    Swal.update({ html: '<span class="text-sm text-gray-500">📊 Phase 2: กระจายคนที่เหลือเข้าเว็บรองน้อยสุด...</span>' });
+    await new Promise(r => setTimeout(r, 200));
+    const phase2aCount = phase2DistributeRest('strict');
+
+    // 🟡 Phase 2b: เก็บตกขั้นสุดท้าย (ผ่อนเวลาพัก)
+    const phase2bCount = phase2DistributeRest('relaxBreak');
+
+    const pass1Count = phase1aCount + phase1bCount;  // คนที่ Phase 1 จัดได้ (เน้นกระจาย)
+    const pass2Count = phase2aCount + phase2bCount;  // คนที่ Phase 2 จัดได้ (load balance)
 
     // นับคนที่ยังไม่มีงานรองเลย (ทั้งที่ลองทุกเว็บแล้ว)
     let totalUnassignedSlots = 0;
@@ -2995,47 +3075,67 @@ window.quickAssignBackups = async function() {
         await appDB.from('system_logs').insert([{
             action_type: 'แจกงานรอง',
             performed_by: currentUser.username,
-            target_details: `แจกงานรอง 2 รอบ (${currentDutyDept}, ${shiftFilter}, ${targetDate}) → รอบ1: ${pass1Count} คน, รอบ2: ${pass2Count} คน, ไม่ได้: ${totalUnassignedSlots} คน`
+            target_details: `แจกงานรอง (${currentDutyDept}, ${shiftFilter}, ${targetDate}) → กระจายให้ครบ: ${pass1Count} คน, เก็บตก: ${pass2Count} คน, ไม่ได้: ${totalUnassignedSlots} คน`
         }]);
     } catch(e) {}
 
     // 4. แสดงผลลัพธ์แบบละเอียด
     const totalSuccess = pass1Count + pass2Count;
+
+    // นับเว็บที่ยังไม่มีรองเลย
+    let emptyTeamCount = 0;
+    sortedTeams.forEach(t => {
+        const primaries = (roster[t] || []).filter(u => !u.username.includes('ขาดคน'));
+        if (primaries.length > 0 && countBackupsForTeam(t) === 0) emptyTeamCount++;
+    });
+
     let resultHtml = `
         <div class="text-left text-sm space-y-2 mt-2">
             <div class="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg shadow-sm">
                 <span class="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                    <span class="material-icons text-[16px]">verified</span> รอบที่ 1 (เวลาพักไม่ชน):
+                    <span class="material-icons text-[16px]">spa</span> Phase 1 — กระจายให้ครบทุกเว็บ:
                 </span>
                 <span class="font-black text-emerald-600 dark:text-emerald-400 text-base">${pass1Count} คน</span>
             </div>
-            <div class="flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-2.5 rounded-lg shadow-sm">
-                <span class="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                    <span class="material-icons text-[16px]">warning</span> รอบที่ 2 (เวลาพักชน):
+            <div class="flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-2.5 rounded-lg shadow-sm">
+                <span class="font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                    <span class="material-icons text-[16px]">balance</span> Phase 2 — เก็บตก/Load balance:
                 </span>
-                <span class="font-black text-amber-600 dark:text-amber-400 text-base">${pass2Count} คน</span>
+                <span class="font-black text-blue-600 dark:text-blue-400 text-base">${pass2Count} คน</span>
             </div>`;
 
-    if (totalUnassignedSlots > 0) {
+    if (emptyTeamCount > 0) {
         resultHtml += `
             <div class="flex justify-between items-center bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-2.5 rounded-lg shadow-sm">
                 <span class="font-bold text-red-700 dark:text-red-300 flex items-center gap-1.5">
-                    <span class="material-icons text-[16px]">block</span> ยังไม่มีงานรอง:
+                    <span class="material-icons text-[16px]">warning</span> เว็บที่ยังว่าง:
                 </span>
-                <span class="font-black text-red-600 dark:text-red-400 text-base">${totalUnassignedSlots} คน</span>
+                <span class="font-black text-red-600 dark:text-red-400 text-base">${emptyTeamCount} เว็บ</span>
+            </div>`;
+    }
+
+    if (totalUnassignedSlots > 0) {
+        resultHtml += `
+            <div class="flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-2.5 rounded-lg shadow-sm">
+                <span class="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                    <span class="material-icons text-[16px]">person_off</span> คนที่ไม่มีงานรอง:
+                </span>
+                <span class="font-black text-amber-600 dark:text-amber-400 text-base">${totalUnassignedSlots} คน</span>
             </div>
             <div class="text-[11px] text-gray-500 dark:text-gray-400 italic px-2 pt-1 border-t border-gray-200 dark:border-slate-700 mt-2">
-                💡 <b>คนที่เหลือ</b> ไม่มีสิทธิ์หลังบ้านเว็บอื่นเลย — แอดมินคลิกที่การ์ดของแต่ละคนเพื่อจัดงานรองเองได้ หรือไปเปิดสิทธิ์เพิ่มในหน้า "ตั้งค่าสิทธิ์ & หัวข้อ"
+                💡 <b>คนที่ไม่มีรอง</b> ไม่มีสิทธิ์หลังบ้านเว็บอื่นเลย — ตรวจสอบที่ "ตั้งค่าสิทธิ์ & หัวข้อ"
             </div>`;
     }
 
     resultHtml += `</div>`;
     
     Swal.fire({
-        icon: totalUnassignedSlots === 0 ? 'success' : 'info',
-        title: totalUnassignedSlots === 0 
-            ? `<div class="text-emerald-500 font-black">🎉 พนักงานทุกคนได้งานรองครบ!</div>` 
-            : `<div class="text-amber-500 font-black">แจกได้ ${totalSuccess} คน</div>`,
+        icon: emptyTeamCount === 0 && totalUnassignedSlots === 0 ? 'success' : 'info',
+        title: emptyTeamCount === 0 && totalUnassignedSlots === 0
+            ? `<div class="text-emerald-500 font-black">🎉 กระจายครบทุกเว็บ + ทุกคนได้งานรอง!</div>`
+            : emptyTeamCount === 0
+                ? `<div class="text-emerald-500 font-black">✅ ทุกเว็บมีรองครบแล้ว</div>`
+                : `<div class="text-amber-500 font-black">แจกได้ ${totalSuccess} คน</div>`,
         html: resultHtml,
         confirmButtonText: 'ตกลง',
         confirmButtonColor: totalUnassignedSlots === 0 ? '#10b981' : '#f59e0b',
