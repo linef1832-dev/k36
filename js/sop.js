@@ -533,6 +533,11 @@ window.sop_renderList = function() {
             ? `<span class="flex items-center gap-0.5 text-amber-600 dark:text-amber-400"><span class="material-icons text-[11px]">attach_file</span>${attCount}</span>`
             : '';
 
+        // V6: voice icon
+        const voiceIcon = item.voice_url
+            ? `<span class="flex items-center gap-0.5 text-rose-600 dark:text-rose-400" title="มีเสียงอธิบาย"><span class="material-icons text-[11px]">mic</span></span>`
+            : '';
+
         const activeBg = currentSopId === item.id
             ? 'bg-rose-50 dark:bg-rose-900/20 border border-rose-400 ring-2 ring-rose-300 dark:ring-rose-700'
             : 'bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-rose-400 dark:hover:border-rose-500/50 hover:bg-white dark:hover:bg-slate-800';
@@ -555,6 +560,7 @@ window.sop_renderList = function() {
             date,
             viewCount: item.view_count || 0,
             attachmentIcon,
+            voiceIcon,
             rulesCountBadge: '',
             moveCategoryBtn
         });
@@ -1113,6 +1119,20 @@ window.sop_readRule = async function(id, skipIncrement) {
     // V4: ไม่มี rules block ใน SOP detail แล้ว — กติกาแยกอยู่แท็บของตัวเอง
     let rulesBlock = '';
 
+    // V6: voice note block
+    let voiceBlock = '';
+    if (item.voice_url) {
+        voiceBlock = `
+            <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700/50 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+                <span class="material-icons text-rose-500 text-3xl shrink-0">mic</span>
+                <div class="flex-1 min-w-0">
+                    <div class="text-[10px] font-black text-rose-700 dark:text-rose-300 uppercase tracking-wider mb-2">🎤 เสียงอธิบายจากแอดมิน</div>
+                    <audio src="${item.voice_url}" controls class="w-full h-10"></audio>
+                </div>
+            </div>
+        `;
+    }
+
     // examples
     let examplesBlock = '';
     if (item.examples && item.examples.trim()) {
@@ -1161,6 +1181,7 @@ window.sop_readRule = async function(id, skipIncrement) {
         readBtn, adminBtns,
         formattedContent,
         rulesBlock,
+        voiceBlock,
         readReceiptsBlock,
         attachmentsBlock,
         examplesBlock,
@@ -1200,6 +1221,7 @@ function sop_openEditModal(existing) {
 
     // โหลดไฟล์เดิมเข้า buffer (clone)
     sopAttachmentsBuffer = isEdit ? JSON.parse(JSON.stringify(existing.attachments || [])) : [];
+    window._sopVoiceUrl = isEdit ? (existing.voice_url || '') : '';
     sopRulesBuffer = JSON.parse(JSON.stringify(rulesVal));
 
     const categoryOptions = globalSOPCategories.map(c =>
@@ -1301,6 +1323,18 @@ function sop_openEditModal(existing) {
                     <div id="sopAttachmentPreview" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar"></div>
                 </div>
             </div>
+
+            <!-- 🎤 Voice Note สำหรับ SOP (V6) -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider flex items-center gap-1">
+                    <span class="material-icons text-[14px] text-rose-500">mic</span>เสียงอธิบาย (Voice Note) — ไม่บังคับ
+                </label>
+                <div class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50 dark:bg-slate-900">
+                    <div id="voiceRecorderUI">
+                        <!-- จะ render โดย sop_initVoiceRecorder() -->
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
@@ -1318,6 +1352,7 @@ function sop_openEditModal(existing) {
         didOpen: () => {
             sop_renderAttachmentPreview();
             sop_renderRulesEditor();
+            sop_initVoiceRecorder('voiceRecorderUI');
             const allCb = document.getElementById('sopShift_all');
             const otherCbs = document.querySelectorAll('.sop-shift-cb:not(#sopShift_all)');
             if (allCb) {
@@ -1394,7 +1429,7 @@ function sop_openEditModal(existing) {
             if (!title)    { Swal.showValidationMessage('กรุณาใส่ชื่อกฎ'); return false; }
             if (!content)  { Swal.showValidationMessage('กรุณาใส่รายละเอียด'); return false; }
             if (!category) { Swal.showValidationMessage('กรุณาเลือกหมวด'); return false; }
-            return { title, content, category, priority, pinned, examples, tags, shifts, rules };
+            return { title, content, category, priority, pinned, examples, tags, shifts, rules, voice_url: window._sopVoiceUrl || '' };
         }
     }).then(async (result) => {
         if (!result.isConfirmed || !result.value) {
@@ -1526,9 +1561,11 @@ window.sop_saveRule = async function(existing, formData) {
                     tags: formData.tags,
                     rules: formData.rules || [],
                     attachments: sopAttachmentsBuffer,
+                    voice_url: formData.voice_url || '',
                     updated_at: nowIso,
                     last_editor: authorName,
-                    history: newHistory
+                    history: newHistory,
+                    read_by: [] // V6: reset เมื่อแก้
                 };
             }
         } else {
@@ -1544,6 +1581,7 @@ window.sop_saveRule = async function(existing, formData) {
                 tags: formData.tags,
                 rules: formData.rules || [],
                 attachments: sopAttachmentsBuffer,
+                voice_url: formData.voice_url || '',
                 view_count: 0,
                 read_by: [],
                 history: [],
