@@ -1612,7 +1612,7 @@ window.sop_saveRule = async function(existing, formData) {
             const imgUrls = (newSop?.attachments || [])
                 .filter(a => !(a.url || '').toLowerCase().includes('.pdf') && a.type !== 'pdf')
                 .map(a => a.url);
-            sop_sendTelegramNotify('add', 'sop', formData.title, catLabel, null, imgUrls);
+            sop_sendTelegramNotify('add', 'sop', formData.title, catLabel, null, imgUrls, formData.content);
         }
 
         Swal.fire({ icon: 'success', title: existing ? 'แก้ไขสำเร็จ!' : 'เพิ่มกฎสำเร็จ!', timer: 1200, showConfirmButton: false });
@@ -2220,7 +2220,7 @@ async function sop_openStandaloneRuleForm(editIdx) {
             const catLabel = globalSOPCategories.find(c => c.id === result.value.category)?.name || result.value.category || '';
             // ดึง URL รูปจากข้อมูลที่บันทึก
             const imgUrls = (result.value.images || []).map(im => im.url).filter(u => u);
-            sop_sendTelegramNotify('add', 'rule', result.value.title, catLabel, result.value.type, imgUrls);
+            sop_sendTelegramNotify('add', 'rule', result.value.title, catLabel, result.value.type, imgUrls, result.value.text);
         }
 
         Swal.fire({ icon: 'success', title: isEdit ? 'แก้ไขสำเร็จ!' : 'เพิ่มกติกาสำเร็จ!', timer: 1100, showConfirmButton: false });
@@ -2876,17 +2876,14 @@ window.sop_telegramTest = async function() {
 };
 
 // ส่งแจ้งเตือนเมื่อเพิ่ม OD ใหม่ (เฉพาะตอน add — ไม่ส่งตอน edit)
-// imgUrls = array ของ public URL รูป (ไม่ใช่ pdf)
-window.sop_sendTelegramNotify = async function(action, type, title, category, ruleType, imgUrls) {
+// imgUrls = array ของ public URL รูป, content = เนื้อหา/รายละเอียด
+window.sop_sendTelegramNotify = async function(action, type, title, category, ruleType, imgUrls, content) {
     const cfg = window._sopTelegramConfig;
     if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) return;
 
     const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'admin';
 
-    let actionEmoji = '➕', actionText = 'เพิ่มใหม่';
-    if (action === 'edit') { actionEmoji = '✏️'; actionText = 'แก้ไข'; }
-    else if (action === 'delete') { actionEmoji = '🗑️'; actionText = 'ลบ'; }
-
+    // type heading (ไม่มี "เพิ่มใหม่" แล้ว)
     let typeEmoji = '📚', typeText = 'ขั้นตอน (SOP)';
     if (type === 'rule') { typeEmoji = '⚖️'; typeText = 'กติกาขั้นตอน'; }
 
@@ -2898,44 +2895,61 @@ window.sop_sendTelegramNotify = async function(action, type, title, category, ru
         else if (ruleType === 'info') ruleTypeText = '\n🔵 ประเภท: หมายเหตุ';
     }
 
-    const safeTitle = (title || '(ไม่มีหัวข้อ)').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
-    const safeCategory = (category || 'ไม่ระบุ').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+    // helper escape สำหรับ HTML mode ของ Telegram
+    const esc = (s) => (s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 
-    const caption = `${actionEmoji} <b>${actionText}${typeEmoji} ${typeText}</b>\n\n` +
-                    `📋 <b>หัวข้อ:</b> ${safeTitle}\n` +
-                    `📁 <b>หมวด:</b> ${safeCategory}` +
-                    ruleTypeText + `\n\n` +
-                    `👤 <b>โดย:</b> ${authorName}\n` +
-                    `🕐 ${new Date().toLocaleString('th-TH')}`;
+    const safeTitle = esc(title || '(ไม่มีหัวข้อ)');
+    const safeCategory = esc(category || 'ไม่ระบุ');
 
-    const validImgs = (imgUrls || []).filter(u => u && typeof u === 'string').slice(0, 10); // Telegram จำกัด 10 รูป
+    // เนื้อหา — ตัดให้ไม่ยาวเกินไป (Telegram caption max 1024 chars, message max 4096)
+    let safeContent = '';
+    if (content && content.trim()) {
+        let raw = content.trim();
+        // ตัดถ้ายาวเกิน 800 ตัว เพื่อเผื่อ caption
+        if (raw.length > 800) raw = raw.substring(0, 800) + '...';
+        safeContent = '\n\n📝 <b>เนื้อหา:</b>\n' + esc(raw);
+    }
+
+    let caption = `${typeEmoji} <b>${typeText}</b>\n\n` +
+                  `📋 <b>หัวข้อ:</b> ${safeTitle}\n` +
+                  `📁 <b>หมวด:</b> ${safeCategory}` +
+                  ruleTypeText +
+                  safeContent +
+                  `\n\n👤 <b>โดย:</b> ${esc(authorName)}\n` +
+                  `🕐 ${new Date().toLocaleString('th-TH')}`;
+
+    // เผื่อ caption ของรูปยาวเกิน 1024 → ตัดเหลือ 1020
+    let captionForPhoto = caption;
+    if (captionForPhoto.length > 1020) {
+        captionForPhoto = captionForPhoto.substring(0, 1020) + '...';
+    }
+
+    const validImgs = (imgUrls || []).filter(u => u && typeof u === 'string').slice(0, 10);
 
     try {
         if (validImgs.length === 0) {
-            // ไม่มีรูป → ส่งแค่ข้อความ
+            // ไม่มีรูป → ส่งแค่ข้อความ (รองรับยาวกว่า)
             await fetch(`https://api.telegram.org/bot${cfg.bot_token}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ chat_id: cfg.chat_id, text: caption, parse_mode: 'HTML' })
             });
         } else if (validImgs.length === 1) {
-            // 1 รูป → ใช้ sendPhoto (caption ส่งพร้อมรูปได้)
             await fetch(`https://api.telegram.org/bot${cfg.bot_token}/sendPhoto`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chat_id: cfg.chat_id,
                     photo: validImgs[0],
-                    caption: caption,
+                    caption: captionForPhoto,
                     parse_mode: 'HTML'
                 })
             });
         } else {
-            // หลายรูป → ใช้ sendMediaGroup (รูปแรกใส่ caption ได้ ที่เหลือไม่ต้อง)
             const media = validImgs.map((url, idx) => ({
                 type: 'photo',
                 media: url,
-                ...(idx === 0 ? { caption: caption, parse_mode: 'HTML' } : {})
+                ...(idx === 0 ? { caption: captionForPhoto, parse_mode: 'HTML' } : {})
             }));
             await fetch(`https://api.telegram.org/bot${cfg.bot_token}/sendMediaGroup`, {
                 method: 'POST',
