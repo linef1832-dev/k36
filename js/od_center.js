@@ -239,7 +239,56 @@ window.odc_setManualResult = async function(webId, linkKey, ok) {
 };
 
 // ==========================================
-// SHOW QR CODE สำหรับลิงก์ APK
+// 👁️ VIEW IN IFRAME (ฝังเว็บมาดูในระบบ)
+// ==========================================
+window.odc_viewInline = async function(webId, linkKey) {
+    const w = odcWebsites.find(w => w.id === webId);
+    if (!w) return;
+    const url = w.links[linkKey];
+    if (!url) {
+        Swal.fire('ไม่มีลิงก์', 'กรุณาเพิ่มลิงก์ในหน้า "จัดการเว็บ" ก่อน', 'info');
+        return;
+    }
+    const meta = ODC_LINK_TYPES[linkKey];
+
+    // กำหนดขนาด popup ให้ใหญ่เกือบเต็มจอ
+    await Swal.fire({
+        title: `<div class="text-base font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-blue-500">visibility</span> ${w.emoji || ''} ${w.name} — ${meta.label}</div>`,
+        html: `
+            <div class="text-left">
+                <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-xl p-2.5 mb-2 text-xs flex items-center gap-2 flex-wrap">
+                    <span class="material-icons text-blue-500 text-[16px]">info</span>
+                    <span class="flex-1">เลื่อน/คลิกในกล่องด้านล่างได้ — เช็คทางเข้า 1-5 ได้ในนี้เลย</span>
+                    <a href="${url}" target="_blank" rel="noopener" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition"><span class="material-icons text-[12px]">open_in_new</span>เปิดแท็บใหม่</a>
+                </div>
+                <div class="font-mono text-[10px] text-gray-500 mb-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded truncate">${url}</div>
+                <div class="relative bg-slate-100 dark:bg-slate-900 rounded-xl overflow-hidden border-2 border-gray-300 dark:border-slate-600" style="height: 65vh;">
+                    <div id="odcIframeLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 z-10">
+                        <span class="material-icons animate-spin text-blue-500 text-3xl mb-2">sync</span>
+                        <p class="text-sm font-bold text-slate-600 dark:text-gray-300">กำลังโหลดเว็บ...</p>
+                        <p class="text-[10px] text-gray-500 mt-1">ถ้าโหลดไม่ขึ้น = เว็บนี้ block iframe → กด "เปิดแท็บใหม่" แทน</p>
+                    </div>
+                    <iframe src="${url}" id="odcIframe" class="w-full h-full bg-white" onload="document.getElementById('odcIframeLoading').style.display='none'" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-popups allow-same-origin allow-popups-to-escape-sandbox"></iframe>
+                </div>
+                <div class="flex gap-2 justify-center pt-3">
+                    <button onclick="odc_setManualResult('${webId}', '${linkKey}', true); Swal.close();" class="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-1 shadow-md transition active:scale-95">
+                        <span class="material-icons text-[18px]">check_circle</span> ปกติ ใช้ได้
+                    </button>
+                    <button onclick="odc_setManualResult('${webId}', '${linkKey}', false); Swal.close();" class="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-1 shadow-md transition active:scale-95">
+                        <span class="material-icons text-[18px]">cancel</span> ผิดปกติ
+                    </button>
+                </div>
+            </div>
+        `,
+        width: '90vw',
+        showConfirmButton: false,
+        showCloseButton: true,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[1.5rem] border border-slate-200 dark:border-slate-700 shadow-2xl' }
+    });
+};
+
+// ==========================================
+// 📱 SHOW QR CODE สำหรับลิงก์ APK
 // ==========================================
 window.odc_showQrCode = async function(webId, linkKey) {
     const w = odcWebsites.find(w => w.id === webId);
@@ -345,14 +394,22 @@ window.odc_renderWebsites = function() {
             // Action buttons
             let actions = '';
             if (url) {
-                actions += `<a href="${url}" target="_blank" rel="noopener" class="bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-400 hover:text-blue-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-1" title="เปิดลิงก์"><span class="material-icons text-[14px]">open_in_new</span></a>`;
+                // ปุ่ม "ดูในระบบ" (iframe popup) — สำหรับลิงก์ที่ไม่ใช่ APK
+                if (meta.type !== 'manual') {
+                    actions += `<button onclick="odc_viewInline('${w.id}', '${linkKey}')" class="bg-blue-500 hover:bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95" title="ดูเว็บในระบบ"><span class="material-icons text-[14px]">visibility</span>ดู</button>`;
+                }
+
+                // ปุ่มเปิดแท็บใหม่ (สำรอง)
+                actions += `<a href="${url}" target="_blank" rel="noopener" class="bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-400 hover:text-blue-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-1" title="เปิดแท็บใหม่"><span class="material-icons text-[14px]">open_in_new</span></a>`;
 
                 if (meta.type === 'manual') {
                     // APK: QR code + Manual buttons
                     actions += `<button onclick="odc_showQrCode('${w.id}', '${linkKey}')" class="bg-white dark:bg-slate-800 hover:bg-purple-100 dark:hover:bg-purple-500/20 text-gray-400 hover:text-purple-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-1" title="QR สแกนมือถือ"><span class="material-icons text-[14px]">qr_code_2</span></button>`;
-                    actions += `<button onclick="odc_setManualResult('${w.id}', '${linkKey}', true)" class="bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 shadow-sm flex items-center gap-0.5" title="ใช้ได้"><span class="material-icons text-[12px]">check</span></button>`;
-                    actions += `<button onclick="odc_setManualResult('${w.id}', '${linkKey}', false)" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 shadow-sm flex items-center gap-0.5" title="ใช้ไม่ได้"><span class="material-icons text-[12px]">close</span></button>`;
                 }
+
+                // ปุ่ม ✅/🔴 manual check — มีให้ทุกลิงก์
+                actions += `<button onclick="odc_setManualResult('${w.id}', '${linkKey}', true)" class="bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 shadow-sm flex items-center gap-0.5" title="ใช้ได้"><span class="material-icons text-[12px]">check</span></button>`;
+                actions += `<button onclick="odc_setManualResult('${w.id}', '${linkKey}', false)" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 shadow-sm flex items-center gap-0.5" title="ใช้ไม่ได้"><span class="material-icons text-[12px]">close</span></button>`;
             } else {
                 actions += `<span class="text-[10px] text-amber-600 italic">⚠️ ยังไม่ได้ใส่ลิงก์</span>`;
             }
