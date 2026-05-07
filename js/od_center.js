@@ -6,27 +6,364 @@ let odcWebsites = [];   // [{ id, name, emoji, color, links: [{key, label, url, 
 let odcResults = {};    // { 'webId.linkKey': { status: 'ok'|'fail'|'manual_ok'|'manual_fail'|'pending', time, detail } }
 let odcCurrentRound = null; // { date, time, assignee, started_at }
 
-// LINK_TYPES: 'auto' = ตรวจอัตโนมัติได้, 'manual' = ต้องมือถือเช็ค (เช่น APK)
+// LINK_TYPES: 'auto' = ตรวจอัตโนมัติได้, 'manual' = ต้องมือถือเช็ค (เช่น APK), 'speculator' = ตรวจไฟล์ CSV
 const ODC_LINK_TYPES = {
-    'login':    { label: 'ลิ้งค์เข้าสู่ระบบ',           type: 'auto',   icon: 'login' },
-    'referral': { label: 'ลิ้งค์ แนะนำเพื่อน',           type: 'auto',   icon: 'group_add' },
-    'apk':      { label: 'ลิ้งค์ดาวน์โหลดแอปพลิเคชัน',  type: 'manual', icon: 'phone_android' },
-    'group':    { label: 'ตรวจสอบกลุ่มเก็งกำไร',         type: 'auto',   icon: 'forum' }
+    'login':    { label: 'ลิ้งค์เข้าสู่ระบบ',           type: 'auto',       icon: 'login' },
+    'referral': { label: 'ลิ้งค์ แนะนำเพื่อน',           type: 'auto',       icon: 'group_add' },
+    'apk':      { label: 'ลิ้งค์ดาวน์โหลดแอปพลิเคชัน',  type: 'manual',     icon: 'phone_android' },
+    'group':    { label: 'ตรวจสอบกลุ่มเก็งกำไร',         type: 'speculator', icon: 'forum' }
+};
+
+// หลังบ้านที่รองรับ — แต่ละหลังบ้านมี mapping column ต่างกัน
+const ODC_BACKEND_TYPES = {
+    'k36': {
+        label: 'K36',
+        usernameCol: 'Player ID',
+        depositCountCol: 'Total Deposit Count',
+        depositSumCol: 'Total Deposit'
+    },
+    'tcg': {
+        label: 'TCG',
+        usernameCol: 'Player ID',           // ปรับได้ภายหลัง
+        depositCountCol: 'Total Deposit Count',
+        depositSumCol: 'Total Deposit'
+    },
+    'wg': {
+        label: 'WG',
+        usernameCol: 'Player ID',           // ปรับได้ภายหลัง
+        depositCountCol: 'Total Deposit Count',
+        depositSumCol: 'Total Deposit'
+    }
 };
 
 // default websites — admin แก้ได้ทีหลัง
+// backend: หลังบ้านของเว็บนี้ใช้อะไร (k36/tcg/wg) สำหรับตรวจกลุ่มเก็งกำไร
 const ODC_DEFAULT_WEBSITES = [
-    { id: 'jun88', name: 'Jun88', emoji: '🔵', color: '#3b82f6', links: { login: '', referral: '', apk: '', group: '' } },
-    { id: 'mk8',   name: 'MK8',   emoji: '⚫️', color: '#0f172a', links: { login: '', referral: '', apk: '', group: '' } },
-    { id: 'f168',  name: 'F168',  emoji: '🟠', color: '#f97316', links: { login: '', referral: '', apk: '', group: '' } },
-    { id: 'pg688', name: 'PG688', emoji: '🟣', color: '#a855f7', links: { login: '', referral: '', apk: '', group: '' } },
-    { id: 'jl69',  name: 'JL69',  emoji: '🟡', color: '#eab308', links: { login: '', referral: '', apk: '', group: '' } },
-    { id: 'nm9',   name: 'NM9',   emoji: '🔴', color: '#ef4444', links: { login: '', referral: '', apk: '', group: '' } },
-    { id: 'vv72',  name: 'VV72',  emoji: '🔘', color: '#64748b', links: { login: '', referral: '', apk: '', group: '' } },
-    { id: 'th26',  name: 'TH26',  emoji: '🟤', color: '#92400e', links: { login: '', referral: '', apk: '', group: '' } },
-    { id: 'k188',  name: 'K188',  emoji: '🩷', color: '#ec4899', links: { login: '', referral: '', apk: '', group: '' } },
-    { id: 'bt678', name: 'BT678', emoji: '⚪️', color: '#94a3b8', links: { login: '', referral: '', apk: '', group: '' } }
+    { id: 'jun88', name: 'Jun88', emoji: '🔵', color: '#3b82f6', backend: 'k36', links: { login: '', referral: '', apk: '', group: '' } },
+    { id: 'mk8',   name: 'MK8',   emoji: '⚫️', color: '#0f172a', backend: 'k36', links: { login: '', referral: '', apk: '', group: '' } },
+    { id: 'f168',  name: 'F168',  emoji: '🟠', color: '#f97316', backend: 'k36', links: { login: '', referral: '', apk: '', group: '' } },
+    { id: 'pg688', name: 'PG688', emoji: '🟣', color: '#a855f7', backend: 'k36', links: { login: '', referral: '', apk: '', group: '' } },
+    { id: 'jl69',  name: 'JL69',  emoji: '🟡', color: '#eab308', backend: 'k36', links: { login: '', referral: '', apk: '', group: '' } },
+    { id: 'nm9',   name: 'NM9',   emoji: '🔴', color: '#ef4444', backend: 'k36', links: { login: '', referral: '', apk: '', group: '' } },
+    { id: 'vv72',  name: 'VV72',  emoji: '🔘', color: '#64748b', backend: 'tcg', links: { login: '', referral: '', apk: '', group: '' } },
+    { id: 'th26',  name: 'TH26',  emoji: '🟤', color: '#92400e', backend: 'tcg', links: { login: '', referral: '', apk: '', group: '' } },
+    { id: 'k188',  name: 'K188',  emoji: '🩷', color: '#ec4899', backend: 'wg',  links: { login: '', referral: '', apk: '', group: '' } },
+    { id: 'bt678', name: 'BT678', emoji: '⚪️', color: '#94a3b8', backend: 'wg',  links: { login: '', referral: '', apk: '', group: '' } }
 ];
+
+// เก็บผลการตรวจกลุ่มเก็งกำไรของแต่ละเว็บ (ในรอบปัจจุบัน)
+let odcSpeculatorData = {}; // { webId: [{username, count, deposit}, ...] }
+
+// ==========================================
+// 🔍 SPECULATOR CHECK — ตรวจกลุ่มเก็งกำไร (อัพ CSV → filter ฝาก ≥ 2)
+// ==========================================
+
+// helper: parse CSV (รองรับ quoted, comma in quotes, =""xxx"" pattern)
+function odc_parseCSV(text) {
+    text = text.replace(/^\uFEFF/, '');
+    const lines = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (c === '"') { inQuotes = !inQuotes; cur += c; }
+        else if (c === '\n' && !inQuotes) { lines.push(cur); cur = ''; }
+        else if (c === '\r' && !inQuotes) { /* skip */ }
+        else { cur += c; }
+    }
+    if (cur) lines.push(cur);
+
+    function parseLine(line) {
+        const cells = [];
+        let cell = '';
+        let q = false;
+        for (let i = 0; i < line.length; i++) {
+            const c = line[i];
+            if (c === '"') {
+                if (q && line[i+1] === '"') { cell += '"'; i++; continue; }
+                q = !q;
+            } else if (c === ',' && !q) { cells.push(cell); cell = ''; }
+            else { cell += c; }
+        }
+        cells.push(cell);
+        return cells.map(v => {
+            v = v.trim();
+            if (v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1);
+            const m = v.match(/^=\s*"(.*)"$/);
+            if (m) v = m[1];
+            return v;
+        });
+    }
+
+    const rows = lines.filter(l => l.trim()).map(parseLine);
+    if (rows.length === 0) return { headers: [], data: [] };
+    const headers = rows[0];
+    const data = rows.slice(1).map(row => {
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = row[i] || ''; });
+        return obj;
+    });
+    return { headers, data };
+}
+
+window.odc_openSpeculatorCheck = async function(webId) {
+    const w = odcWebsites.find(w => w.id === webId);
+    if (!w) return;
+
+    const backendKey = w.backend || 'k36';
+    const backend = ODC_BACKEND_TYPES[backendKey] || ODC_BACKEND_TYPES['k36'];
+    const savedResults = odcSpeculatorData[webId] || [];
+
+    function buildResultsHTML(results) {
+        if (!results || results.length === 0) {
+            return `<div class="bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center">
+                <span class="material-icons text-gray-400 text-[48px] opacity-50">cloud_upload</span>
+                <p class="text-sm font-bold text-gray-500 mt-2">อัพโหลดไฟล์ CSV เพื่อตรวจ</p>
+                <p class="text-[11px] text-gray-400 mt-1">ระบบจะกรอง User ที่ฝาก ≥ 2 ครั้งให้</p>
+            </div>`;
+        }
+        const sorted = [...results].sort((a, b) => b.count - a.count);
+        const itemsHtml = sorted.map((r, i) => {
+            const warnIcon = r.count >= 5 ? '⚠️' : (r.count >= 3 ? '🟠' : '🟡');
+            const safeUsername = (r.username || '').replace(/</g, '&lt;');
+            return `<div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+                <div class="bg-amber-100 dark:bg-amber-900/40 rounded-lg w-8 h-8 flex items-center justify-center shrink-0 text-sm font-black text-amber-700 dark:text-amber-300">${i+1}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="font-mono font-bold text-sm text-slate-800 dark:text-white truncate">${safeUsername}</div>
+                    ${r.deposit ? `<div class="text-[10px] text-gray-500">ยอดรวม: ${r.deposit}</div>` : ''}
+                </div>
+                <div class="flex flex-col items-end shrink-0">
+                    <div class="text-base font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">${warnIcon} ${r.count}</div>
+                    <div class="text-[9px] text-gray-500">ครั้ง</div>
+                </div>
+            </div>`;
+        }).join('');
+        return `<div class="space-y-1.5 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">${itemsHtml}</div>`;
+    }
+
+    const formHtml = `
+        <div class="text-left space-y-3">
+            <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-3 text-sm">
+                <div class="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1 mb-1">
+                    <span class="material-icons text-[16px]">info</span>วิธีใช้งาน
+                </div>
+                <ol class="text-xs text-slate-700 dark:text-gray-200 ml-4 space-y-0.5 list-decimal">
+                    <li>ดึงข้อมูล Player List จากหลังบ้าน <b>${backend.label}</b> (ล็อคช่วงเวลาที่ต้องการก่อน export)</li>
+                    <li>กดปุ่ม "เลือกไฟล์ CSV" → ระบบกรอง User ฝาก ≥ 2 ครั้งให้</li>
+                    <li>ดูรายชื่อ → ส่ง Telegram ได้</li>
+                </ol>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <label class="text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">หลังบ้าน:</label>
+                <select id="odcSpecBackend" class="bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white px-3 py-1.5 rounded-lg text-sm font-bold outline-none focus:border-amber-500">
+                    ${Object.keys(ODC_BACKEND_TYPES).map(k => `<option value="${k}" ${k === backendKey ? 'selected' : ''}>${ODC_BACKEND_TYPES[k].label}</option>`).join('')}
+                </select>
+                <span class="text-[10px] text-gray-500 italic">เปลี่ยนหลังบ้านได้ → จะจดจำไว้</span>
+            </div>
+
+            <div class="bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-4 text-center">
+                <input type="file" id="odcSpecFile" accept=".csv" class="hidden" onchange="odc_handleSpeculatorFile(event, '${webId}')">
+                <button type="button" onclick="document.getElementById('odcSpecFile').click()" class="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md transition active:scale-95 mx-auto">
+                    <span class="material-icons">upload_file</span>เลือกไฟล์ CSV
+                </button>
+                <p class="text-[10px] text-gray-500 mt-2">รองรับ CSV จากหลังบ้าน K36 / TCG / WG</p>
+            </div>
+
+            <div id="odcSpecStats" class="${savedResults.length > 0 ? '' : 'hidden'} grid grid-cols-3 gap-2">
+                <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-2 text-center">
+                    <div class="text-[9px] font-bold text-amber-600 uppercase">ทั้งหมด</div>
+                    <div class="text-lg font-black text-amber-700 dark:text-amber-300" id="odcSpecTotal">${savedResults.length}</div>
+                </div>
+                <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded-lg p-2 text-center">
+                    <div class="text-[9px] font-bold text-orange-600 uppercase">ฝาก 3+ ครั้ง</div>
+                    <div class="text-lg font-black text-orange-700 dark:text-orange-300" id="odcSpec3plus">${savedResults.filter(r => r.count >= 3).length}</div>
+                </div>
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg p-2 text-center">
+                    <div class="text-[9px] font-bold text-red-600 uppercase">ฝาก 5+ ครั้ง</div>
+                    <div class="text-lg font-black text-red-700 dark:text-red-300" id="odcSpec5plus">${savedResults.filter(r => r.count >= 5).length}</div>
+                </div>
+            </div>
+
+            <div id="odcSpecResults">${buildResultsHTML(savedResults)}</div>
+
+            <div id="odcSpecActions" class="${savedResults.length > 0 ? '' : 'hidden'} flex gap-2 justify-center pt-2 border-t border-gray-200 dark:border-slate-700">
+                <button type="button" onclick="odc_speculatorCopy('${webId}')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 shadow-sm transition active:scale-95">
+                    <span class="material-icons text-[16px]">content_copy</span>คัดลอก
+                </button>
+                <button type="button" onclick="odc_speculatorSendTelegram('${webId}')" class="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 shadow-sm transition active:scale-95">
+                    <span class="material-icons text-[16px]">send</span>ส่ง Telegram
+                </button>
+            </div>
+        </div>
+    `;
+
+    window._odcSpecBuildHTML = buildResultsHTML;
+
+    await Swal.fire({
+        title: `<div class="text-base font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-amber-500">forum</span> ${w.emoji || ''} ${w.name} — กลุ่มเก็งกำไร</div>`,
+        html: formHtml,
+        width: '700px',
+        showCancelButton: true,
+        confirmButtonText: '<span class="material-icons text-sm align-middle mr-1">check</span> ตรวจสอบเรียบร้อย',
+        cancelButtonText: 'ปิด',
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[1.5rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
+        didOpen: () => {
+            const sel = document.getElementById('odcSpecBackend');
+            if (sel) {
+                sel.addEventListener('change', async () => {
+                    const idx = odcWebsites.findIndex(x => x.id === webId);
+                    if (idx !== -1) {
+                        odcWebsites[idx].backend = sel.value;
+                        await odc_saveWebsites();
+                        sop_showInlineToast(`เปลี่ยนหลังบ้านเป็น ${ODC_BACKEND_TYPES[sel.value].label}`, 'success');
+                    }
+                });
+            }
+        }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            await odc_setManualResult(webId, 'group', true);
+        }
+    });
+};
+
+window.odc_handleSpeculatorFile = async function(event, webId) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const w = odcWebsites.find(w => w.id === webId);
+    const backendKey = (document.getElementById('odcSpecBackend')?.value) || w?.backend || 'k36';
+    const backend = ODC_BACKEND_TYPES[backendKey] || ODC_BACKEND_TYPES['k36'];
+
+    sop_showInlineToast('กำลังอ่านไฟล์...', 'info');
+
+    try {
+        const text = await file.text();
+        const { headers, data } = odc_parseCSV(text);
+
+        if (data.length === 0) {
+            sop_showInlineToast('ไฟล์ว่างหรืออ่านไม่ได้', 'error');
+            return;
+        }
+
+        if (!headers.includes(backend.usernameCol) || !headers.includes(backend.depositCountCol)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'ไฟล์ไม่ตรงกับ format',
+                html: `<div class="text-left text-sm">
+                    ต้องมีคอลัมน์: <br>
+                    • <code class="bg-slate-100 dark:bg-slate-900 px-1 rounded">${backend.usernameCol}</code><br>
+                    • <code class="bg-slate-100 dark:bg-slate-900 px-1 rounded">${backend.depositCountCol}</code><br><br>
+                    <b>คอลัมน์ที่พบในไฟล์:</b><br>
+                    <div class="text-xs text-gray-500 mt-1 max-h-32 overflow-y-auto">${headers.join(', ')}</div>
+                </div>`,
+                confirmButtonColor: '#3b82f6'
+            });
+            event.target.value = '';
+            return;
+        }
+
+        const filtered = data
+            .map(r => ({
+                username: r[backend.usernameCol] || '',
+                count: parseInt(r[backend.depositCountCol] || '0', 10) || 0,
+                deposit: r[backend.depositSumCol] || ''
+            }))
+            .filter(r => r.username && r.count >= 2);
+
+        odcSpeculatorData[webId] = filtered;
+        sop_showInlineToast(`พบ ${filtered.length} ยูสเซอร์ ✅`, 'success');
+
+        const statsEl = document.getElementById('odcSpecStats');
+        const actionsEl = document.getElementById('odcSpecActions');
+        const resultsEl = document.getElementById('odcSpecResults');
+        const totalEl = document.getElementById('odcSpecTotal');
+        const c3 = document.getElementById('odcSpec3plus');
+        const c5 = document.getElementById('odcSpec5plus');
+
+        if (statsEl) statsEl.classList.remove('hidden');
+        if (actionsEl) actionsEl.classList.remove('hidden');
+        if (totalEl) totalEl.innerText = filtered.length;
+        if (c3) c3.innerText = filtered.filter(r => r.count >= 3).length;
+        if (c5) c5.innerText = filtered.filter(r => r.count >= 5).length;
+
+        if (resultsEl) {
+            if (filtered.length === 0) {
+                resultsEl.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 rounded-xl p-6 text-center">
+                    <span class="material-icons text-emerald-500 text-[48px]">check_circle</span>
+                    <p class="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-2">เรียบร้อย — ไม่พบ User ฝาก ≥ 2 ครั้ง</p>
+                </div>`;
+            } else if (window._odcSpecBuildHTML) {
+                resultsEl.innerHTML = window._odcSpecBuildHTML(filtered);
+            }
+        }
+    } catch (e) {
+        console.error('parse csv error:', e);
+        Swal.fire('Error', 'อ่านไฟล์ไม่ได้: ' + e.message, 'error');
+    }
+    event.target.value = '';
+};
+
+window.odc_speculatorCopy = function(webId) {
+    const w = odcWebsites.find(w => w.id === webId);
+    const results = odcSpeculatorData[webId] || [];
+    if (results.length === 0) { sop_showInlineToast('ไม่มีข้อมูลให้คัดลอก', 'info'); return; }
+    const sorted = [...results].sort((a, b) => b.count - a.count);
+    let text = `🔍 ลูกค้าฝาก 2+ ครั้ง — ${w.name}\n📅 ${new Date().toLocaleDateString('th-TH')}\n👥 พบ ${sorted.length} ยูสเซอร์\n\n`;
+    sorted.forEach((r, i) => { text += `${i+1}. ${r.username} → ฝาก ${r.count} ครั้ง\n`; });
+    if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(() => sop_showInlineToast('คัดลอกแล้ว ✅', 'success'));
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        sop_showInlineToast('คัดลอกแล้ว ✅', 'success');
+    }
+};
+
+window.odc_speculatorSendTelegram = async function(webId) {
+    const w = odcWebsites.find(w => w.id === webId);
+    const results = odcSpeculatorData[webId] || [];
+    if (results.length === 0) { sop_showInlineToast('ไม่มีข้อมูลให้ส่ง', 'info'); return; }
+
+    if (typeof sop_loadTelegramConfig === 'function') await sop_loadTelegramConfig();
+    const cfg = window._sopTelegramConfig;
+    if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) {
+        Swal.fire('ยังไม่ได้ตั้งค่า Telegram', 'กรุณาไปตั้งค่า Bot Token ในหน้า OD ก่อน', 'warning');
+        return;
+    }
+
+    const sorted = [...results].sort((a, b) => b.count - a.count);
+    const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'admin';
+
+    let msg = `🔍 <b>ลูกค้าฝาก 2+ ครั้ง — ${w.name}</b>\n📅 ${new Date().toLocaleDateString('th-TH')}\n👤 ผู้ตรวจ: ${authorName}\n👥 พบ <b>${sorted.length}</b> ยูสเซอร์\n\n`;
+    sorted.forEach((r, i) => {
+        const warn = r.count >= 5 ? '⚠️' : (r.count >= 3 ? '🟠' : '🟡');
+        msg += `${i+1}. <code>${r.username}</code> → ${warn} <b>${r.count}</b> ครั้ง\n`;
+    });
+
+    if (msg.length > 4000) {
+        const top = sorted.slice(0, 50);
+        msg = `🔍 <b>ลูกค้าฝาก 2+ ครั้ง — ${w.name}</b>\n📅 ${new Date().toLocaleDateString('th-TH')}\n👤 ผู้ตรวจ: ${authorName}\n👥 พบ <b>${sorted.length}</b> ยูสเซอร์ (แสดง top 50)\n\n`;
+        top.forEach((r, i) => {
+            const warn = r.count >= 5 ? '⚠️' : (r.count >= 3 ? '🟠' : '🟡');
+            msg += `${i+1}. <code>${r.username}</code> → ${warn} <b>${r.count}</b>\n`;
+        });
+    }
+
+    Swal.fire({ title: 'กำลังส่ง...', didOpen: () => Swal.showLoading() });
+    try {
+        const res = await fetch(`https://api.telegram.org/bot${cfg.bot_token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: cfg.chat_id, text: msg, parse_mode: 'HTML' })
+        });
+        const json = await res.json();
+        if (json.ok) Swal.fire({ icon: 'success', title: 'ส่งสำเร็จ! ✅', timer: 1500, showConfirmButton: false });
+        else Swal.fire('ส่งไม่สำเร็จ', json.description || 'ไม่ทราบสาเหตุ', 'error');
+    } catch (e) { Swal.fire('Error', e.message, 'error'); }
+};
 
 // ==========================================
 // INIT
@@ -635,7 +972,19 @@ window.odc_renderWebsites = function() {
 
             // Action buttons
             let actions = '';
-            if (url) {
+
+            // 🔍 SPECULATOR (กลุ่มเก็งกำไร) — ไม่ใช้ลิงก์, ใช้การอัพ CSV
+            if (meta.type === 'speculator') {
+                const specCount = (odcSpeculatorData[w.id] || []).length;
+                const specBadge = specCount > 0
+                    ? `<span class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700">พบ ${specCount} ยูส</span>`
+                    : '';
+                actions += `<button onclick="odc_openSpeculatorCheck('${w.id}')" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95" title="อัพไฟล์ CSV ตรวจกลุ่มเก็งกำไร"><span class="material-icons text-[14px]">cloud_upload</span>ตรวจ</button>`;
+                actions += specBadge;
+                // ปุ่ม manual check
+                actions += `<button onclick="odc_setManualResult('${w.id}', '${linkKey}', true)" class="bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 shadow-sm flex items-center gap-0.5" title="เรียบร้อย"><span class="material-icons text-[12px]">check</span></button>`;
+                actions += `<button onclick="odc_setManualResult('${w.id}', '${linkKey}', false)" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 shadow-sm flex items-center gap-0.5" title="พบเก็งกำไร"><span class="material-icons text-[12px]">close</span></button>`;
+            } else if (url) {
                 // ปุ่ม "ดูในระบบ" (iframe popup) — สำหรับลิงก์ที่ไม่ใช่ APK
                 if (meta.type !== 'manual') {
                     actions += `<button onclick="odc_viewInline('${w.id}', '${linkKey}')" class="bg-blue-500 hover:bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95" title="ดูเว็บในระบบ"><span class="material-icons text-[14px]">visibility</span>ดู</button>`;
@@ -665,12 +1014,13 @@ window.odc_renderWebsites = function() {
                 <div class="flex items-center gap-3 p-3 rounded-xl border-l-4 ${statusBorderClass} bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition">
                     <span class="material-icons text-[22px] ${statusIconClass}">${statusIcon}</span>
                     <div class="flex-1 min-w-0">
-                        <div class="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                        <div class="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2 flex-wrap">
                             <span class="material-icons text-[16px] text-gray-500">${meta.icon}</span>
                             ${meta.label}
                             ${meta.type === 'manual' ? '<span class="text-[9px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold">📱 มือถือ</span>' : ''}
+                            ${meta.type === 'speculator' ? `<span class="text-[9px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded font-bold">📊 หลังบ้าน ${ODC_BACKEND_TYPES[w.backend || 'k36']?.label || 'K36'}</span>` : ''}
                         </div>
-                        <div class="text-[10px] text-gray-500 dark:text-gray-400 truncate font-mono">${url || '(ไม่มีลิงก์)'}</div>
+                        <div class="text-[10px] text-gray-500 dark:text-gray-400 truncate font-mono">${meta.type === 'speculator' ? 'อัพ CSV จากหลังบ้าน → ระบบกรอง User ฝาก ≥ 2 ครั้ง' : (url || '(ไม่มีลิงก์)')}</div>
                         ${statusDetail}
                     </div>
                     <div class="flex items-center gap-1 shrink-0 flex-wrap justify-end">${actions}</div>
