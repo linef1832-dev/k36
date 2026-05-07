@@ -369,6 +369,160 @@ window.odc_showQrCode = async function(webId, linkKey) {
 };
 
 // ==========================================
+// 🌪️ เปิด 5 แท็บพร้อมกัน — ลองอ่านหน้า OK VIP หาทางเข้า 1-5
+// ==========================================
+window.odc_openAllEntries = async function(webId, linkKey) {
+    const w = odcWebsites.find(w => w.id === webId);
+    if (!w) return;
+    const url = w.links[linkKey];
+    if (!url) {
+        Swal.fire('ไม่มีลิงก์', 'กรุณาเพิ่มลิงก์ในหน้า "จัดการเว็บ" ก่อน', 'info');
+        return;
+    }
+    const meta = ODC_LINK_TYPES[linkKey];
+
+    // popup confirm + แสดง progress
+    const confirmRes = await Swal.fire({
+        title: `<div class="text-base font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-purple-500">tab</span> เปิดทางเข้า 1-5 พร้อมกัน</div>`,
+        html: `
+            <div class="text-left space-y-3">
+                <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-300 dark:border-purple-700 rounded-xl p-3 text-sm">
+                    <div class="font-bold text-purple-700 dark:text-purple-300 mb-1">💡 วิธีทำงาน</div>
+                    <ol class="text-xs text-slate-700 dark:text-gray-200 ml-4 space-y-0.5 list-decimal">
+                        <li>ระบบจะลองอ่านหน้า ${w.name} หาลิงก์ "ทางเข้า 1-5"</li>
+                        <li>ถ้าหาเจอ → เปิดทุกแท็บพร้อมกัน → คุณดูแว็บๆ ได้</li>
+                        <li>ถ้าหาไม่เจอ → เปิดเฉพาะหน้า OK VIP เดียว</li>
+                        <li>หลังตรวจเสร็จ → ปิดแท็บทั้งหมด → กลับมากด ✅/🔴 ที่นี่</li>
+                    </ol>
+                </div>
+                <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-2.5 text-xs text-slate-700 dark:text-gray-200 flex items-center gap-2">
+                    <span class="material-icons text-amber-500 text-[16px]">warning</span>
+                    <span>เบราว์เซอร์อาจ block popup → ถ้าโดนถาม กด "อนุญาต popup จากเว็บนี้"</span>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<span class="material-icons text-sm align-middle mr-1">launch</span> เปิดทุกแท็บ',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#a855f7',
+        cancelButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[1.5rem] border border-slate-200 dark:border-slate-700 shadow-2xl' }
+    });
+
+    if (!confirmRes.isConfirmed) return;
+
+    Swal.fire({
+        title: 'กำลังหาทางเข้า 1-5...',
+        html: '<div class="text-xs text-gray-500 mt-2">กำลังอ่านหน้า ' + w.name + '</div>',
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false
+    });
+
+    let entryUrls = [];
+    let parsedSuccessfully = false;
+
+    try {
+        // ลองอ่านหน้า OK VIP โดยใช้ fetch (อาจติด CORS)
+        const resp = await fetch(url, { mode: 'cors', cache: 'no-store' }).catch(() => null);
+
+        if (resp && resp.ok) {
+            const html = await resp.text();
+            // parse HTML หาลิงก์
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // หา <a> ทุกอันที่มีคำว่า "ทางเข้า" หรือเป็นลิงก์ภายนอก
+            const allLinks = Array.from(doc.querySelectorAll('a'));
+            const entries = [];
+
+            allLinks.forEach(a => {
+                const href = a.href || a.getAttribute('href') || '';
+                const text = (a.innerText || a.textContent || '').trim();
+
+                // ถ้าข้อความมีคำว่า "ทางเข้า" หรือ "เข้าเล่น" หรือ "คลิก" และมี URL
+                if (href && (text.includes('ทางเข้า') || text.includes('เข้าเล่น') || text.includes('คลิก') || text.match(/^\d+$/))) {
+                    if (href.startsWith('http') && !entries.includes(href)) {
+                        entries.push(href);
+                    }
+                }
+            });
+
+            // ถ้ายังไม่เจอ → หา link ภายนอกทั้งหมด (ที่ไม่ใช่ domain เดียวกัน)
+            if (entries.length === 0) {
+                const baseHost = new URL(url).hostname;
+                allLinks.forEach(a => {
+                    const href = a.href || a.getAttribute('href') || '';
+                    if (href.startsWith('http')) {
+                        try {
+                            const linkHost = new URL(href).hostname;
+                            if (linkHost !== baseHost && !entries.includes(href)) {
+                                entries.push(href);
+                            }
+                        } catch (_) {}
+                    }
+                });
+            }
+
+            entryUrls = entries.slice(0, 5); // เอาแค่ 5 แรก
+            if (entryUrls.length > 0) parsedSuccessfully = true;
+        }
+    } catch (e) {
+        console.warn('Cannot parse page (CORS or error):', e);
+    }
+
+    // ถ้า parse ไม่ได้ → fallback ใช้ url หลักเปิดแท็บเดียว
+    if (!parsedSuccessfully || entryUrls.length === 0) {
+        Swal.close();
+        const fallback = await Swal.fire({
+            title: 'อ่านหน้าไม่ได้ (CORS block)',
+            html: `<div class="text-sm text-left">
+                <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-3 mb-3">
+                    เบราว์เซอร์ block ไม่ให้อ่านเนื้อหาเว็บ ${w.name} เนื่องจาก CORS<br><br>
+                    <b>แนะนำ:</b> เปิดหน้า OK VIP แท็บเดียว → คุณคลิก "ทางเข้า 1-5" ในแท็บนั้น
+                </div>
+            </div>`,
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: 'เปิดหน้า OK VIP',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#3b82f6'
+        });
+        if (fallback.isConfirmed) {
+            window.open(url, '_blank', 'noopener');
+        }
+        return;
+    }
+
+    // เจอลิงก์ → เปิดทุกแท็บ
+    Swal.close();
+
+    let openedCount = 0;
+    let blockedCount = 0;
+    entryUrls.forEach((u, i) => {
+        // delay เล็กน้อยป้องกัน browser block
+        setTimeout(() => {
+            const win = window.open(u, '_blank', 'noopener');
+            if (win) openedCount++;
+            else blockedCount++;
+        }, i * 100);
+    });
+
+    // แสดงผลหลังเปิดเสร็จ
+    setTimeout(() => {
+        Swal.fire({
+            icon: blockedCount === entryUrls.length ? 'warning' : 'success',
+            title: blockedCount === entryUrls.length ? 'เบราว์เซอร์ block popup ทั้งหมด!' : `เปิด ${entryUrls.length} แท็บแล้ว`,
+            html: blockedCount === entryUrls.length
+                ? '<div class="text-xs text-left bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">กรุณากด "อนุญาต popup" ที่ icon ด้านบน address bar (มีรูปกากบาท) → ลองใหม่</div>'
+                : `<div class="text-xs text-left text-gray-500">หลังตรวจเสร็จ → ปิดแท็บทั้งหมด → กลับมากด ✅/🔴 ที่นี่</div>${blockedCount > 0 ? `<div class="text-xs text-amber-500 mt-2">⚠️ ${blockedCount} แท็บถูก block</div>` : ''}`,
+            timer: blockedCount === entryUrls.length ? 0 : 3500,
+            showConfirmButton: blockedCount === entryUrls.length,
+            confirmButtonColor: '#3b82f6'
+        });
+    }, entryUrls.length * 110 + 200);
+};
+
+// ==========================================
 // RENDER
 // ==========================================
 function odc_lightenHex(hex, amt) {
@@ -431,6 +585,11 @@ window.odc_renderWebsites = function() {
                 // ปุ่ม "ดูในระบบ" (iframe popup) — สำหรับลิงก์ที่ไม่ใช่ APK
                 if (meta.type !== 'manual') {
                     actions += `<button onclick="odc_viewInline('${w.id}', '${linkKey}')" class="bg-blue-500 hover:bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95" title="ดูเว็บในระบบ"><span class="material-icons text-[14px]">visibility</span>ดู</button>`;
+
+                    // 🌪️ ปุ่มเปิด 5 แท็บพร้อมกัน — เฉพาะลิงก์ที่เป็น OK VIP (login/referral)
+                    if (linkKey === 'login' || linkKey === 'referral') {
+                        actions += `<button onclick="odc_openAllEntries('${w.id}', '${linkKey}')" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95" title="เปิดทางเข้า 1-5 พร้อมกัน"><span class="material-icons text-[14px]">tab</span>เปิด 5 แท็บ</button>`;
+                    }
                 }
 
                 // ปุ่มเปิดแท็บใหม่ (สำรอง)
