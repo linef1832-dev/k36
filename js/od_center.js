@@ -20,19 +20,25 @@ const ODC_BACKEND_TYPES = {
         label: 'K36',
         usernameCol: 'Player ID',
         depositCountCol: 'Total Deposit Count',
-        depositSumCol: 'Total Deposit'
+        depositSumCol: 'Total Deposit',
+        levelGroupCol: 'Level & Group',
+        kgiKeyword: 'KGI'
     },
     'tcg': {
         label: 'TCG',
-        usernameCol: 'Player ID',           // ปรับได้ภายหลัง
+        usernameCol: 'Player ID',
         depositCountCol: 'Total Deposit Count',
-        depositSumCol: 'Total Deposit'
+        depositSumCol: 'Total Deposit',
+        levelGroupCol: 'Level & Group',
+        kgiKeyword: 'KGI'
     },
     'wg': {
         label: 'WG',
-        usernameCol: 'Player ID',           // ปรับได้ภายหลัง
+        usernameCol: 'Player ID',
         depositCountCol: 'Total Deposit Count',
-        depositSumCol: 'Total Deposit'
+        depositSumCol: 'Total Deposit',
+        levelGroupCol: 'Level & Group',
+        kgiKeyword: 'KGI'
     }
 };
 
@@ -119,26 +125,43 @@ window.odc_openSpeculatorCheck = async function(webId) {
             return `<div class="bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center">
                 <span class="material-icons text-gray-400 text-[48px] opacity-50">cloud_upload</span>
                 <p class="text-sm font-bold text-gray-500 mt-2">อัพโหลดไฟล์ CSV เพื่อตรวจ</p>
-                <p class="text-[11px] text-gray-400 mt-1">ระบบจะกรอง User ที่ฝาก ≥ 2 ครั้งให้</p>
+                <p class="text-[11px] text-gray-400 mt-1">ระบบจะกรองเฉพาะ <b class="text-red-500">【KGI】-ชั้นเก็งกำไร</b> ที่ฝาก ≥ 2 ครั้ง</p>
             </div>`;
         }
+
+        // เรียงตาม count มาก→น้อย
         const sorted = [...results].sort((a, b) => b.count - a.count);
+
         const itemsHtml = sorted.map((r, i) => {
             const warnIcon = r.count >= 5 ? '⚠️' : (r.count >= 3 ? '🟠' : '🟡');
             const safeUsername = (r.username || '').replace(/</g, '&lt;');
-            return `<div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-3 flex items-center gap-3 shadow-sm">
-                <div class="bg-amber-100 dark:bg-amber-900/40 rounded-lg w-8 h-8 flex items-center justify-center shrink-0 text-sm font-black text-amber-700 dark:text-amber-300">${i+1}</div>
+            const safeLvl = (r.levelGroup || '').replace(/</g, '&lt;');
+            return `<div class="bg-red-50 dark:bg-red-900/30 border-2 border-red-400 dark:border-red-600 ring-1 ring-red-300 dark:ring-red-700 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+                <div class="bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-100 rounded-lg w-8 h-8 flex items-center justify-center shrink-0 text-sm font-black">${i+1}</div>
                 <div class="flex-1 min-w-0">
-                    <div class="font-mono font-bold text-sm text-slate-800 dark:text-white truncate">${safeUsername}</div>
-                    ${r.deposit ? `<div class="text-[10px] text-gray-500">ยอดรวม: ${r.deposit}</div>` : ''}
+                    <div class="font-mono font-bold text-sm text-slate-800 dark:text-white truncate flex items-center gap-1.5 flex-wrap">
+                        ${safeUsername}
+                        <span class="inline-flex items-center gap-0.5 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">⚠️ KGI</span>
+                    </div>
+                    <div class="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-2 flex-wrap">
+                        ${r.deposit ? `<span>ยอดรวม: ${r.deposit}</span>` : ''}
+                        ${safeLvl ? `<span class="text-red-600 dark:text-red-300 font-bold">📊 ${safeLvl}</span>` : ''}
+                    </div>
                 </div>
                 <div class="flex flex-col items-end shrink-0">
-                    <div class="text-base font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">${warnIcon} ${r.count}</div>
+                    <div class="text-base font-black text-red-600 dark:text-red-400 flex items-center gap-1">${warnIcon} ${r.count}</div>
                     <div class="text-[9px] text-gray-500">ครั้ง</div>
                 </div>
             </div>`;
         }).join('');
-        return `<div class="space-y-1.5 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">${itemsHtml}</div>`;
+
+        return `<div class="space-y-1.5 max-h-[45vh] overflow-y-auto custom-scrollbar pr-1">
+            <div class="bg-gradient-to-r from-red-500 to-orange-500 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-md mb-2">
+                <span class="material-icons text-[16px]">warning</span>
+                🚨 ชั้นเก็งกำไร KGI ฝาก ≥ 2 ครั้ง — ${sorted.length} ยูสเซอร์
+            </div>
+            ${itemsHtml}
+        </div>`;
     }
 
     const formHtml = `
@@ -149,7 +172,7 @@ window.odc_openSpeculatorCheck = async function(webId) {
                 </div>
                 <ol class="text-xs text-slate-700 dark:text-gray-200 ml-4 space-y-0.5 list-decimal">
                     <li>ดึงข้อมูล Player List จากหลังบ้าน <b>${backend.label}</b> (ล็อคช่วงเวลาที่ต้องการก่อน export)</li>
-                    <li>กดปุ่ม "เลือกไฟล์ CSV" → ระบบกรอง User ฝาก ≥ 2 ครั้งให้</li>
+                    <li>กดปุ่ม "เลือกไฟล์ CSV" → ระบบกรองเฉพาะ <b class="text-red-500">【KGI】-ชั้นเก็งกำไร</b> ที่ฝาก ≥ 2 ครั้ง</li>
                     <li>ดูรายชื่อ → ส่ง Telegram ได้</li>
                 </ol>
             </div>
@@ -171,17 +194,17 @@ window.odc_openSpeculatorCheck = async function(webId) {
             </div>
 
             <div id="odcSpecStats" class="${savedResults.length > 0 ? '' : 'hidden'} grid grid-cols-3 gap-2">
-                <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-2 text-center">
-                    <div class="text-[9px] font-bold text-amber-600 uppercase">ทั้งหมด</div>
-                    <div class="text-lg font-black text-amber-700 dark:text-amber-300" id="odcSpecTotal">${savedResults.length}</div>
+                <div class="bg-red-100 dark:bg-red-900/30 border-2 border-red-400 dark:border-red-600 rounded-lg p-2 text-center ring-1 ring-red-300 dark:ring-red-700">
+                    <div class="text-[9px] font-bold text-red-700 dark:text-red-300 uppercase">⚠️ KGI ฝาก ≥ 2</div>
+                    <div class="text-lg font-black text-red-700 dark:text-red-300" id="odcSpecTotal">${savedResults.length}</div>
                 </div>
                 <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded-lg p-2 text-center">
                     <div class="text-[9px] font-bold text-orange-600 uppercase">ฝาก 3+ ครั้ง</div>
                     <div class="text-lg font-black text-orange-700 dark:text-orange-300" id="odcSpec3plus">${savedResults.filter(r => r.count >= 3).length}</div>
                 </div>
-                <div class="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg p-2 text-center">
-                    <div class="text-[9px] font-bold text-red-600 uppercase">ฝาก 5+ ครั้ง</div>
-                    <div class="text-lg font-black text-red-700 dark:text-red-300" id="odcSpec5plus">${savedResults.filter(r => r.count >= 5).length}</div>
+                <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-300 dark:border-rose-700 rounded-lg p-2 text-center">
+                    <div class="text-[9px] font-bold text-rose-600 uppercase">ฝาก 5+ ครั้ง</div>
+                    <div class="text-lg font-black text-rose-700 dark:text-rose-300" id="odcSpecKgi">${savedResults.filter(r => r.count >= 5).length}</div>
                 </div>
             </div>
 
@@ -266,34 +289,43 @@ window.odc_handleSpeculatorFile = async function(event, webId) {
         }
 
         const filtered = data
-            .map(r => ({
-                username: r[backend.usernameCol] || '',
-                count: parseInt(r[backend.depositCountCol] || '0', 10) || 0,
-                deposit: r[backend.depositSumCol] || ''
-            }))
-            .filter(r => r.username && r.count >= 2);
+            .map(r => {
+                const lvl = r[backend.levelGroupCol] || '';
+                const isKgi = backend.kgiKeyword && lvl.includes(backend.kgiKeyword);
+                return {
+                    username: r[backend.usernameCol] || '',
+                    count: parseInt(r[backend.depositCountCol] || '0', 10) || 0,
+                    deposit: r[backend.depositSumCol] || '',
+                    levelGroup: lvl,
+                    isKgi: isKgi
+                };
+            })
+            .filter(r => r.username && r.count >= 2 && r.isKgi);
 
         odcSpeculatorData[webId] = filtered;
-        sop_showInlineToast(`พบ ${filtered.length} ยูสเซอร์ ✅`, 'success');
+        const toastMsg = filtered.length > 0
+            ? `พบ ${filtered.length} ยูส KGI ฝาก ≥ 2 ⚠️`
+            : `ไม่พบ User KGI ฝาก ≥ 2 ครั้ง ✅`;
+        sop_showInlineToast(toastMsg, filtered.length > 0 ? 'warning' : 'success');
 
         const statsEl = document.getElementById('odcSpecStats');
         const actionsEl = document.getElementById('odcSpecActions');
         const resultsEl = document.getElementById('odcSpecResults');
         const totalEl = document.getElementById('odcSpecTotal');
         const c3 = document.getElementById('odcSpec3plus');
-        const c5 = document.getElementById('odcSpec5plus');
+        const cKgi = document.getElementById('odcSpecKgi');
 
         if (statsEl) statsEl.classList.remove('hidden');
         if (actionsEl) actionsEl.classList.remove('hidden');
         if (totalEl) totalEl.innerText = filtered.length;
         if (c3) c3.innerText = filtered.filter(r => r.count >= 3).length;
-        if (c5) c5.innerText = filtered.filter(r => r.count >= 5).length;
+        if (cKgi) cKgi.innerText = filtered.filter(r => r.count >= 5).length;
 
         if (resultsEl) {
             if (filtered.length === 0) {
                 resultsEl.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 rounded-xl p-6 text-center">
                     <span class="material-icons text-emerald-500 text-[48px]">check_circle</span>
-                    <p class="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-2">เรียบร้อย — ไม่พบ User ฝาก ≥ 2 ครั้ง</p>
+                    <p class="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-2">เรียบร้อย — ไม่พบ User ชั้นเก็งกำไร KGI ฝาก ≥ 2 ครั้ง</p>
                 </div>`;
             } else if (window._odcSpecBuildHTML) {
                 resultsEl.innerHTML = window._odcSpecBuildHTML(filtered);
@@ -310,9 +342,16 @@ window.odc_speculatorCopy = function(webId) {
     const w = odcWebsites.find(w => w.id === webId);
     const results = odcSpeculatorData[webId] || [];
     if (results.length === 0) { sop_showInlineToast('ไม่มีข้อมูลให้คัดลอก', 'info'); return; }
+
     const sorted = [...results].sort((a, b) => b.count - a.count);
-    let text = `🔍 ลูกค้าฝาก 2+ ครั้ง — ${w.name}\n📅 ${new Date().toLocaleDateString('th-TH')}\n👥 พบ ${sorted.length} ยูสเซอร์\n\n`;
-    sorted.forEach((r, i) => { text += `${i+1}. ${r.username} → ฝาก ${r.count} ครั้ง\n`; });
+
+    let text = `🚨 ชั้นเก็งกำไร KGI ฝาก 2+ ครั้ง — ${w.name}\n`;
+    text += `📅 ${new Date().toLocaleDateString('th-TH')}\n`;
+    text += `👥 พบ ${sorted.length} ยูสเซอร์ ⚠️\n\n`;
+    sorted.forEach((r, i) => {
+        text += `${i+1}. ${r.username} → ฝาก ${r.count} ครั้ง [KGI]\n`;
+    });
+
     if (navigator.clipboard?.writeText) {
         navigator.clipboard.writeText(text).then(() => sop_showInlineToast('คัดลอกแล้ว ✅', 'success'));
     } else {
@@ -337,19 +376,23 @@ window.odc_speculatorSendTelegram = async function(webId) {
     const sorted = [...results].sort((a, b) => b.count - a.count);
     const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'admin';
 
-    let msg = `🔍 <b>ลูกค้าฝาก 2+ ครั้ง — ${w.name}</b>\n📅 ${new Date().toLocaleDateString('th-TH')}\n👤 ผู้ตรวจ: ${authorName}\n👥 พบ <b>${sorted.length}</b> ยูสเซอร์\n\n`;
-    sorted.forEach((r, i) => {
-        const warn = r.count >= 5 ? '⚠️' : (r.count >= 3 ? '🟠' : '🟡');
-        msg += `${i+1}. <code>${r.username}</code> → ${warn} <b>${r.count}</b> ครั้ง\n`;
-    });
+    function buildMsg(list, truncated) {
+        let m = `🚨 <b>ชั้นเก็งกำไร KGI ฝาก 2+ ครั้ง — ${w.name}</b> ⚠️\n`;
+        m += `📅 ${new Date().toLocaleDateString('th-TH')}\n`;
+        m += `👤 ผู้ตรวจ: ${authorName}\n`;
+        m += `👥 พบ <b>${results.length}</b> ยูสเซอร์\n\n`;
+        list.forEach((r, i) => {
+            const warn = r.count >= 5 ? '⚠️' : (r.count >= 3 ? '🟠' : '🟡');
+            m += `${i+1}. <code>${r.username}</code> → ${warn} <b>${r.count}</b> ครั้ง\n`;
+        });
+        if (truncated) m += `\n<i>(แสดง top — กด "คัดลอก" เพื่อดูทั้งหมด)</i>`;
+        return m;
+    }
 
+    let msg = buildMsg(sorted, false);
     if (msg.length > 4000) {
         const top = sorted.slice(0, 50);
-        msg = `🔍 <b>ลูกค้าฝาก 2+ ครั้ง — ${w.name}</b>\n📅 ${new Date().toLocaleDateString('th-TH')}\n👤 ผู้ตรวจ: ${authorName}\n👥 พบ <b>${sorted.length}</b> ยูสเซอร์ (แสดง top 50)\n\n`;
-        top.forEach((r, i) => {
-            const warn = r.count >= 5 ? '⚠️' : (r.count >= 3 ? '🟠' : '🟡');
-            msg += `${i+1}. <code>${r.username}</code> → ${warn} <b>${r.count}</b>\n`;
-        });
+        msg = buildMsg(top, sorted.length > 50);
     }
 
     Swal.fire({ title: 'กำลังส่ง...', didOpen: () => Swal.showLoading() });
@@ -975,10 +1018,12 @@ window.odc_renderWebsites = function() {
 
             // 🔍 SPECULATOR (กลุ่มเก็งกำไร) — ไม่ใช้ลิงก์, ใช้การอัพ CSV
             if (meta.type === 'speculator') {
-                const specCount = (odcSpeculatorData[w.id] || []).length;
-                const specBadge = specCount > 0
-                    ? `<span class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700">พบ ${specCount} ยูส</span>`
-                    : '';
+                const specData = odcSpeculatorData[w.id] || [];
+                const specCount = specData.length;
+                let specBadge = '';
+                if (specCount > 0) {
+                    specBadge = `<span class="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm animate-pulse" title="ชั้นเก็งกำไร KGI ฝาก ≥ 2">⚠️ KGI ${specCount} ยูส</span>`;
+                }
                 actions += `<button onclick="odc_openSpeculatorCheck('${w.id}')" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95" title="อัพไฟล์ CSV ตรวจกลุ่มเก็งกำไร"><span class="material-icons text-[14px]">cloud_upload</span>ตรวจ</button>`;
                 actions += specBadge;
                 // ปุ่ม manual check
@@ -1020,7 +1065,7 @@ window.odc_renderWebsites = function() {
                             ${meta.type === 'manual' ? '<span class="text-[9px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold">📱 มือถือ</span>' : ''}
                             ${meta.type === 'speculator' ? `<span class="text-[9px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded font-bold">📊 หลังบ้าน ${ODC_BACKEND_TYPES[w.backend || 'k36']?.label || 'K36'}</span>` : ''}
                         </div>
-                        <div class="text-[10px] text-gray-500 dark:text-gray-400 truncate font-mono">${meta.type === 'speculator' ? 'อัพ CSV จากหลังบ้าน → ระบบกรอง User ฝาก ≥ 2 ครั้ง' : (url || '(ไม่มีลิงก์)')}</div>
+                        <div class="text-[10px] text-gray-500 dark:text-gray-400 truncate font-mono">${meta.type === 'speculator' ? 'อัพ CSV จากหลังบ้าน → กรองเฉพาะ KGI ฝาก ≥ 2 ครั้ง' : (url || '(ไม่มีลิงก์)')}</div>
                         ${statusDetail}
                     </div>
                     <div class="flex items-center gap-1 shrink-0 flex-wrap justify-end">${actions}</div>
