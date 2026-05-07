@@ -690,7 +690,7 @@ window.renderLeaveTable = function() {
 
     let displayDeptText = currentViewDept;
     if(currentViewDept === 'TRAINER') displayDeptText = 'ผู้สอน';
-    if(currentViewDept === 'SPECIAL') displayDeptText = 'จัดกลุ่มเอง';
+    if(currentViewDept === 'SPECIAL') displayDeptText = 'พนักงานใหม่';
 
     // 🟢 นับจำนวนพนักงานทั้งหมดในแผนกนี้ แยกตามกะ (ใช้คำนวณ "มาทำงาน")
     const totalByShift = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0 };
@@ -1522,7 +1522,7 @@ window.openManageSpecialModal = async function() {
     html += '</div></div>';
 
     const { value: selectedIds } = await Swal.fire({
-        title: 'จัดการรายชื่อ (จัดกลุ่มเอง)', html: html, showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#f59e0b', cancelButtonText: 'ยกเลิก', width: '400px',
+        title: 'จัดการรายชื่อ (พนักงานใหม่)', html: html, showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#f59e0b', cancelButtonText: 'ยกเลิก', width: '400px',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white' },
         preConfirm: () => {
             const checkboxes = document.querySelectorAll('.special-cb:checked');
