@@ -88,37 +88,17 @@ window.odc_saveCurrentRound = async function() {
     await appDB.from('settings').upsert([{ key: 'odc_current_round', value: JSON.stringify(odcCurrentRound) }]);
 };
 
-// ==========================================
-// CLAIM ROUND (รับงานตรวจรอบนี้)
-// ==========================================
-window.odc_claimRound = async function() {
+// V2: เริ่ม/ใช้รอบของวันนี้อัตโนมัติ — ไม่ต้องกดรับงาน
+// ทุกครั้งที่ทำการตรวจ → ระบบเซ็ตชื่อคนทำให้เลย
+window.odc_ensureRound = async function() {
     const myUsername = (currentUser && (currentUser.username || currentUser.name)) || '';
-    if (!myUsername) {
-        Swal.fire('Error', 'ไม่พบข้อมูลผู้ใช้', 'error');
-        return;
-    }
+    if (!myUsername) return false;
 
     const today = new Date().toISOString().split('T')[0];
     const isNewRound = !odcCurrentRound || odcCurrentRound.date !== today;
 
-    if (!isNewRound && odcCurrentRound.assignee && odcCurrentRound.assignee === myUsername) {
-        Swal.fire({ icon: 'info', title: 'คุณรับงานรอบนี้อยู่แล้ว', timer: 1500, showConfirmButton: false });
-        return;
-    }
-
-    if (!isNewRound && odcCurrentRound.assignee && odcCurrentRound.assignee !== myUsername) {
-        const confirm = await Swal.fire({
-            title: 'รอบนี้มีคนรับแล้ว',
-            html: `<div class="text-sm">ผู้ตรวจปัจจุบัน: <b>${odcCurrentRound.assignee}</b><br>คุณต้องการรับงานต่อแทนไหม?</div>`,
-            icon: 'question', showCancelButton: true,
-            confirmButtonText: 'รับต่อ', cancelButtonText: 'ยกเลิก',
-            confirmButtonColor: '#10b981', cancelButtonColor: '#64748b'
-        });
-        if (!confirm.isConfirmed) return;
-    }
-
     if (isNewRound) {
-        // เริ่มรอบใหม่
+        // เริ่มรอบใหม่อัตโนมัติ
         odcCurrentRound = {
             date: today,
             time: '12:00',
@@ -127,30 +107,26 @@ window.odc_claimRound = async function() {
             results: {}
         };
         odcResults = {};
-    } else {
+    } else if (!odcCurrentRound.assignee || odcCurrentRound.assignee !== myUsername) {
+        // ถ้ายังไม่มีชื่อ หรือคนอื่นมาตรวจต่อ → ใช้ชื่อล่าสุด
         odcCurrentRound.assignee = myUsername;
     }
 
-    await odc_saveCurrentRound();
-    odc_updateStatusBar();
-    odc_renderWebsites();
-    Swal.fire({ icon: 'success', title: `รับงานรอบ ${today} แล้ว ✅`, timer: 1500, showConfirmButton: false });
+    return true;
 };
+
+// (เก็บ claimRound ไว้เผื่อ backward compat แต่ไม่ใช้แล้ว)
+window.odc_claimRound = window.odc_ensureRound;
 
 // ==========================================
 // AUTO CHECK (ลิงก์ปกติ — ไม่ใช่ APK)
 // ==========================================
 window.odc_runAllChecks = async function() {
-    if (!odcCurrentRound || odcCurrentRound.date !== new Date().toISOString().split('T')[0]) {
-        const confirm = await Swal.fire({
-            title: 'ยังไม่ได้รับงานรอบนี้',
-            html: 'กรุณากด "รับงานรอบนี้" ก่อน หรือเริ่มรอบใหม่ตอนนี้?',
-            icon: 'question', showCancelButton: true,
-            confirmButtonText: 'เริ่มรอบใหม่', cancelButtonText: 'ยกเลิก',
-            confirmButtonColor: '#10b981'
-        });
-        if (!confirm.isConfirmed) return;
-        await odc_claimRound();
+    // V2: auto ensure round — ไม่ต้องถาม
+    const ok = await odc_ensureRound();
+    if (!ok) {
+        Swal.fire('Error', 'ไม่พบข้อมูลผู้ใช้ กรุณา login ใหม่', 'error');
+        return;
     }
 
     // เก็บ list ลิงก์ที่ตรวจอัตโนมัติได้
@@ -223,10 +199,8 @@ window.odc_runAllChecks = async function() {
 // MANUAL CHECK (สำหรับ APK)
 // ==========================================
 window.odc_setManualResult = async function(webId, linkKey, ok) {
-    if (!odcCurrentRound || odcCurrentRound.date !== new Date().toISOString().split('T')[0]) {
-        await odc_claimRound();
-        if (!odcCurrentRound) return;
-    }
+    const ready = await odc_ensureRound();
+    if (!ready) return;
     odcResults[`${webId}.${linkKey}`] = {
         status: ok ? 'manual_ok' : 'manual_fail',
         checked_at: new Date().toISOString(),
@@ -268,7 +242,7 @@ window.odc_viewInline = async function(webId, linkKey) {
                 <!-- Tip -->
                 <div class="bg-blue-50 dark:bg-blue-900/20 border-x-2 border-blue-300 dark:border-blue-700 px-2.5 py-1 text-[11px] flex items-center gap-1.5">
                     <span class="material-icons text-blue-500 text-[14px]">touch_app</span>
-                    <span>คลิกทางเข้า 1-5 ในกรอบได้เลย — จะเปิดในกรอบนี้ ไม่เด้งแท็บใหม่</span>
+                    <span>เห็นเว็บในกรอบ → ตรวจดูว่าเว็บโหลดได้ครบ → กด ✅/🔴 ด้านล่าง (ทางเข้า 1-5 จะเปิดแท็บใหม่ — ปิดแท็บแล้วกลับมาที่นี่)</span>
                 </div>
 
                 <!-- Iframe container -->
@@ -278,7 +252,7 @@ window.odc_viewInline = async function(webId, linkKey) {
                         <p class="text-sm font-bold text-slate-600 dark:text-gray-300">กำลังโหลดเว็บ...</p>
                         <p class="text-[10px] text-gray-500 mt-1">ถ้าโหลดไม่ขึ้น = เว็บนี้ block iframe → กด <span class="material-icons text-[12px] align-middle">open_in_new</span> เพื่อเปิดแท็บใหม่</p>
                     </div>
-                    <iframe src="${url}" id="odcIframe" class="w-full h-full bg-white" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+                    <iframe src="${url}" id="odcIframe" class="w-full h-full bg-white" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
                 </div>
 
                 <!-- ปุ่มบันทึกผล -->
@@ -529,7 +503,6 @@ window.odc_updateStatusBar = function() {
     const okEl = document.getElementById('odcOkCount');
     const errEl = document.getElementById('odcErrCount');
     const assignedEl = document.getElementById('odcAssignedTo');
-    const claimText = document.getElementById('odcClaimText');
 
     let okCount = 0, errCount = 0;
     Object.values(odcResults).forEach(r => {
@@ -539,28 +512,28 @@ window.odc_updateStatusBar = function() {
     if (okEl) okEl.innerText = okCount;
     if (errEl) errEl.innerText = errCount;
 
+    // V2: ใช้ชื่อ user ที่ login อยู่เลย
+    const myUsername = (currentUser && (currentUser.username || currentUser.name)) || '-';
+
     if (odcCurrentRound) {
         const today = new Date().toISOString().split('T')[0];
         if (odcCurrentRound.date === today) {
-            if (assignedEl) assignedEl.innerText = odcCurrentRound.assignee || '-';
+            // วันนี้ — โชว์ชื่อ assignee (ถ้ามี) หรือ user ปัจจุบัน
+            if (assignedEl) assignedEl.innerText = odcCurrentRound.assignee || myUsername;
             if (lastCheck && odcCurrentRound.updated_at) {
                 lastCheck.innerText = `รอบ ${odcCurrentRound.date} ${odcCurrentRound.time} — อัพเดทล่าสุด ${new Date(odcCurrentRound.updated_at).toLocaleTimeString('th-TH')}`;
             } else if (lastCheck) {
                 lastCheck.innerText = `รอบ ${odcCurrentRound.date} ${odcCurrentRound.time}`;
             }
-            const myUsername = (currentUser && (currentUser.username || currentUser.name)) || '';
-            if (claimText) {
-                claimText.innerText = (odcCurrentRound.assignee === myUsername) ? '✅ คุณรับแล้ว' : 'รับงานรอบนี้';
-            }
         } else {
-            if (assignedEl) assignedEl.innerText = '-';
-            if (lastCheck) lastCheck.innerText = `รอบเก่า: ${odcCurrentRound.date}`;
-            if (claimText) claimText.innerText = 'รับงานรอบใหม่';
+            // รอบเก่า — โชว์ชื่อ user ปัจจุบัน เพราะรอบใหม่จะเริ่ม
+            if (assignedEl) assignedEl.innerText = myUsername;
+            if (lastCheck) lastCheck.innerText = `รอบใหม่ ${new Date().toISOString().split('T')[0]} (รอบเก่า: ${odcCurrentRound.date})`;
         }
     } else {
-        if (assignedEl) assignedEl.innerText = '-';
-        if (lastCheck) lastCheck.innerText = 'ยังไม่เคยตรวจ';
-        if (claimText) claimText.innerText = 'รับงานรอบนี้';
+        // ยังไม่มีรอบ — โชว์ชื่อ user ปัจจุบัน
+        if (assignedEl) assignedEl.innerText = myUsername;
+        if (lastCheck) lastCheck.innerText = 'พร้อมตรวจ — กดปุ่ม "ตรวจอัตโนมัติทั้งหมด"';
     }
 };
 
