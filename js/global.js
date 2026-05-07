@@ -157,6 +157,9 @@ async function showPage(pageName) {
                 else if (pageName === 'sop') {
                 if (typeof initSopApp === 'function') await initSopApp();
                 }
+                else if (pageName === 'od_center') {
+                    if (typeof initOdCenterApp === 'function') await initOdCenterApp();
+                }
                 else if (pageName === 'leave') {
                     if (typeof initLeaveTable === 'function') await initLeaveTable();
                 }

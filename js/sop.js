@@ -533,6 +533,11 @@ window.sop_renderList = function() {
             ? `<span class="flex items-center gap-0.5 text-amber-600 dark:text-amber-400"><span class="material-icons text-[11px]">attach_file</span>${attCount}</span>`
             : '';
 
+        // V6: voice icon
+        const voiceIcon = item.voice_url
+            ? `<span class="flex items-center gap-0.5 text-rose-600 dark:text-rose-400" title="มีเสียงอธิบาย"><span class="material-icons text-[11px]">mic</span></span>`
+            : '';
+
         const activeBg = currentSopId === item.id
             ? 'bg-rose-50 dark:bg-rose-900/20 border border-rose-400 ring-2 ring-rose-300 dark:ring-rose-700'
             : 'bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-rose-400 dark:hover:border-rose-500/50 hover:bg-white dark:hover:bg-slate-800';
@@ -555,6 +560,7 @@ window.sop_renderList = function() {
             date,
             viewCount: item.view_count || 0,
             attachmentIcon,
+            voiceIcon,
             rulesCountBadge: '',
             moveCategoryBtn
         });
@@ -1113,6 +1119,20 @@ window.sop_readRule = async function(id, skipIncrement) {
     // V4: ไม่มี rules block ใน SOP detail แล้ว — กติกาแยกอยู่แท็บของตัวเอง
     let rulesBlock = '';
 
+    // V6: voice note block
+    let voiceBlock = '';
+    if (item.voice_url) {
+        voiceBlock = `
+            <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700/50 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+                <span class="material-icons text-rose-500 text-3xl shrink-0">mic</span>
+                <div class="flex-1 min-w-0">
+                    <div class="text-[10px] font-black text-rose-700 dark:text-rose-300 uppercase tracking-wider mb-2">🎤 เสียงอธิบายจากแอดมิน</div>
+                    <audio src="${item.voice_url}" controls class="w-full h-10"></audio>
+                </div>
+            </div>
+        `;
+    }
+
     // examples
     let examplesBlock = '';
     if (item.examples && item.examples.trim()) {
@@ -1161,6 +1181,7 @@ window.sop_readRule = async function(id, skipIncrement) {
         readBtn, adminBtns,
         formattedContent,
         rulesBlock,
+        voiceBlock,
         readReceiptsBlock,
         attachmentsBlock,
         examplesBlock,
@@ -1200,6 +1221,7 @@ function sop_openEditModal(existing) {
 
     // โหลดไฟล์เดิมเข้า buffer (clone)
     sopAttachmentsBuffer = isEdit ? JSON.parse(JSON.stringify(existing.attachments || [])) : [];
+    window._sopVoiceUrl = isEdit ? (existing.voice_url || '') : '';
     sopRulesBuffer = JSON.parse(JSON.stringify(rulesVal));
 
     const categoryOptions = globalSOPCategories.map(c =>
@@ -1301,6 +1323,18 @@ function sop_openEditModal(existing) {
                     <div id="sopAttachmentPreview" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar"></div>
                 </div>
             </div>
+
+            <!-- 🎤 Voice Note สำหรับ SOP (V6) -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider flex items-center gap-1">
+                    <span class="material-icons text-[14px] text-rose-500">mic</span>เสียงอธิบาย (Voice Note) — ไม่บังคับ
+                </label>
+                <div class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-3 bg-slate-50 dark:bg-slate-900">
+                    <div id="voiceRecorderUI">
+                        <!-- จะ render โดย sop_initVoiceRecorder() -->
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
@@ -1318,6 +1352,7 @@ function sop_openEditModal(existing) {
         didOpen: () => {
             sop_renderAttachmentPreview();
             sop_renderRulesEditor();
+            sop_initVoiceRecorder('voiceRecorderUI');
             const allCb = document.getElementById('sopShift_all');
             const otherCbs = document.querySelectorAll('.sop-shift-cb:not(#sopShift_all)');
             if (allCb) {
@@ -1394,7 +1429,7 @@ function sop_openEditModal(existing) {
             if (!title)    { Swal.showValidationMessage('กรุณาใส่ชื่อกฎ'); return false; }
             if (!content)  { Swal.showValidationMessage('กรุณาใส่รายละเอียด'); return false; }
             if (!category) { Swal.showValidationMessage('กรุณาเลือกหมวด'); return false; }
-            return { title, content, category, priority, pinned, examples, tags, shifts, rules };
+            return { title, content, category, priority, pinned, examples, tags, shifts, rules, voice_url: window._sopVoiceUrl || '' };
         }
     }).then(async (result) => {
         if (!result.isConfirmed || !result.value) {
@@ -1526,9 +1561,11 @@ window.sop_saveRule = async function(existing, formData) {
                     tags: formData.tags,
                     rules: formData.rules || [],
                     attachments: sopAttachmentsBuffer,
+                    voice_url: formData.voice_url || '',
                     updated_at: nowIso,
                     last_editor: authorName,
-                    history: newHistory
+                    history: newHistory,
+                    read_by: [] // V6: reset เมื่อแก้
                 };
             }
         } else {
@@ -1544,6 +1581,7 @@ window.sop_saveRule = async function(existing, formData) {
                 tags: formData.tags,
                 rules: formData.rules || [],
                 attachments: sopAttachmentsBuffer,
+                voice_url: formData.voice_url || '',
                 view_count: 0,
                 read_by: [],
                 history: [],
@@ -1566,9 +1604,16 @@ window.sop_saveRule = async function(existing, formData) {
             if (currentSopId) sop_readRule(currentSopId, true);
         }
 
-        // V6: Telegram notify
-        const catLabel = globalSOPCategories.find(c => c.id === formData.category)?.name || formData.category || '';
-        sop_sendTelegramNotify(existing ? 'edit' : 'add', 'sop', formData.title, catLabel);
+        // V6: Telegram notify - ส่งเฉพาะตอนสร้างใหม่ (ไม่ส่งตอนแก้ไข)
+        if (!existing) {
+            const catLabel = globalSOPCategories.find(c => c.id === formData.category)?.name || formData.category || '';
+            // ดึง URL รูปจากข้อมูลที่บันทึกแล้ว (ไม่ใช่ pdf)
+            const newSop = globalSOPData[0]; // ตัวที่เพิ่งเพิ่ม (unshift)
+            const imgUrls = (newSop?.attachments || [])
+                .filter(a => !(a.url || '').toLowerCase().includes('.pdf') && a.type !== 'pdf')
+                .map(a => a.url);
+            sop_sendTelegramNotify('add', 'sop', formData.title, catLabel, null, imgUrls, formData.content);
+        }
 
         Swal.fire({ icon: 'success', title: existing ? 'แก้ไขสำเร็จ!' : 'เพิ่มกฎสำเร็จ!', timer: 1200, showConfirmButton: false });
     } catch (e) {
@@ -2170,9 +2215,13 @@ async function sop_openStandaloneRuleForm(editIdx) {
         sop_renderAllRulesPage();
         sop_updateTabCounters();
 
-        // V6: Telegram notify
-        const catLabel = globalSOPCategories.find(c => c.id === result.value.category)?.name || result.value.category || '';
-        sop_sendTelegramNotify(isEdit ? 'edit' : 'add', 'rule', result.value.title, catLabel, result.value.type);
+        // V6: Telegram notify - ส่งเฉพาะตอนสร้างใหม่ (ไม่ส่งตอนแก้ไข)
+        if (!isEdit) {
+            const catLabel = globalSOPCategories.find(c => c.id === result.value.category)?.name || result.value.category || '';
+            // ดึง URL รูปจากข้อมูลที่บันทึก
+            const imgUrls = (result.value.images || []).map(im => im.url).filter(u => u);
+            sop_sendTelegramNotify('add', 'rule', result.value.title, catLabel, result.value.type, imgUrls, result.value.text);
+        }
 
         Swal.fire({ icon: 'success', title: isEdit ? 'แก้ไขสำเร็จ!' : 'เพิ่มกติกาสำเร็จ!', timer: 1100, showConfirmButton: false });
     } catch (e) {
@@ -2826,17 +2875,15 @@ window.sop_telegramTest = async function() {
     }
 };
 
-// ส่งแจ้งเตือนเมื่อเพิ่ม/แก้ OD (เรียกจาก saveRule และ saveStandaloneRule)
-window.sop_sendTelegramNotify = async function(action, type, title, category, ruleType) {
+// ส่งแจ้งเตือนเมื่อเพิ่ม OD ใหม่ (เฉพาะตอน add — ไม่ส่งตอน edit)
+// imgUrls = array ของ public URL รูป, content = เนื้อหา/รายละเอียด
+window.sop_sendTelegramNotify = async function(action, type, title, category, ruleType, imgUrls, content) {
     const cfg = window._sopTelegramConfig;
     if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) return;
 
     const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'admin';
 
-    let actionEmoji = '➕', actionText = 'เพิ่มใหม่';
-    if (action === 'edit') { actionEmoji = '✏️'; actionText = 'แก้ไข'; }
-    else if (action === 'delete') { actionEmoji = '🗑️'; actionText = 'ลบ'; }
-
+    // type heading (ไม่มี "เพิ่มใหม่" แล้ว)
     let typeEmoji = '📚', typeText = 'ขั้นตอน (SOP)';
     if (type === 'rule') { typeEmoji = '⚖️'; typeText = 'กติกาขั้นตอน'; }
 
@@ -2848,23 +2895,68 @@ window.sop_sendTelegramNotify = async function(action, type, title, category, ru
         else if (ruleType === 'info') ruleTypeText = '\n🔵 ประเภท: หมายเหตุ';
     }
 
-    const safeTitle = (title || '(ไม่มีหัวข้อ)').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
-    const safeCategory = (category || 'ไม่ระบุ').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+    // helper escape สำหรับ HTML mode ของ Telegram
+    const esc = (s) => (s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 
-    const msg = `${actionEmoji} <b>${actionText}${typeEmoji} ${typeText}</b>\n\n` +
-                `📋 <b>หัวข้อ:</b> ${safeTitle}\n` +
-                `📁 <b>หมวด:</b> ${safeCategory}` +
-                ruleTypeText + `\n\n` +
-                `👤 <b>โดย:</b> ${authorName}\n` +
-                `🕐 ${new Date().toLocaleString('th-TH')}`;
+    const safeTitle = esc(title || '(ไม่มีหัวข้อ)');
+    const safeCategory = esc(category || 'ไม่ระบุ');
+
+    // เนื้อหา — ตัดให้ไม่ยาวเกินไป (Telegram caption max 1024 chars, message max 4096)
+    let safeContent = '';
+    if (content && content.trim()) {
+        let raw = content.trim();
+        // ตัดถ้ายาวเกิน 800 ตัว เพื่อเผื่อ caption
+        if (raw.length > 800) raw = raw.substring(0, 800) + '...';
+        safeContent = '\n\n📝 <b>เนื้อหา:</b>\n' + esc(raw);
+    }
+
+    let caption = `${typeEmoji} <b>${typeText}</b>\n\n` +
+                  `📋 <b>หัวข้อ:</b> ${safeTitle}\n` +
+                  `📁 <b>หมวด:</b> ${safeCategory}` +
+                  ruleTypeText +
+                  safeContent +
+                  `\n\n👤 <b>โดย:</b> ${esc(authorName)}\n` +
+                  `🕐 ${new Date().toLocaleString('th-TH')}`;
+
+    // เผื่อ caption ของรูปยาวเกิน 1024 → ตัดเหลือ 1020
+    let captionForPhoto = caption;
+    if (captionForPhoto.length > 1020) {
+        captionForPhoto = captionForPhoto.substring(0, 1020) + '...';
+    }
+
+    const validImgs = (imgUrls || []).filter(u => u && typeof u === 'string').slice(0, 10);
 
     try {
-        const url = `https://api.telegram.org/bot${cfg.bot_token}/sendMessage`;
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: cfg.chat_id, text: msg, parse_mode: 'HTML' })
-        });
+        if (validImgs.length === 0) {
+            // ไม่มีรูป → ส่งแค่ข้อความ (รองรับยาวกว่า)
+            await fetch(`https://api.telegram.org/bot${cfg.bot_token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: cfg.chat_id, text: caption, parse_mode: 'HTML' })
+            });
+        } else if (validImgs.length === 1) {
+            await fetch(`https://api.telegram.org/bot${cfg.bot_token}/sendPhoto`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: cfg.chat_id,
+                    photo: validImgs[0],
+                    caption: captionForPhoto,
+                    parse_mode: 'HTML'
+                })
+            });
+        } else {
+            const media = validImgs.map((url, idx) => ({
+                type: 'photo',
+                media: url,
+                ...(idx === 0 ? { caption: captionForPhoto, parse_mode: 'HTML' } : {})
+            }));
+            await fetch(`https://api.telegram.org/bot${cfg.bot_token}/sendMediaGroup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: cfg.chat_id, media: media })
+            });
+        }
     } catch (e) {
         console.warn('Telegram notify failed:', e);
     }
