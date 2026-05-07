@@ -256,20 +256,32 @@ window.odc_viewInline = async function(webId, linkKey) {
         title: `<div class="text-base font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-blue-500">visibility</span> ${w.emoji || ''} ${w.name} — ${meta.label}</div>`,
         html: `
             <div class="text-left">
-                <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-xl p-2.5 mb-2 text-xs flex items-center gap-2 flex-wrap">
-                    <span class="material-icons text-blue-500 text-[16px]">info</span>
-                    <span class="flex-1">เลื่อน/คลิกในกล่องด้านล่างได้ — เช็คทางเข้า 1-5 ได้ในนี้เลย</span>
-                    <a href="${url}" target="_blank" rel="noopener" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition"><span class="material-icons text-[12px]">open_in_new</span>เปิดแท็บใหม่</a>
+                <!-- Toolbar เหมือน browser -->
+                <div class="bg-slate-100 dark:bg-slate-900 rounded-t-xl border-2 border-b-0 border-gray-300 dark:border-slate-600 px-2 py-1.5 flex items-center gap-1.5 flex-wrap">
+                    <button onclick="odc_iframeBack()" class="bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-600 dark:text-gray-300 hover:text-blue-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ย้อนกลับ"><span class="material-icons text-[16px]">arrow_back</span></button>
+                    <button onclick="odc_iframeReload()" class="bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-600 dark:text-gray-300 hover:text-blue-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="รีโหลด"><span class="material-icons text-[16px]">refresh</span></button>
+                    <button onclick="odc_iframeHome('${url}')" class="bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-600 dark:text-gray-300 hover:text-blue-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="กลับหน้าหลัก"><span class="material-icons text-[16px]">home</span></button>
+                    <div class="flex-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg px-2 py-1 text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate" id="odcIframeUrlBar">${url}</div>
+                    <a href="${url}" target="_blank" rel="noopener" class="bg-blue-500 hover:bg-blue-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition" title="เปิดในแท็บใหม่"><span class="material-icons text-[12px]">open_in_new</span></a>
                 </div>
-                <div class="font-mono text-[10px] text-gray-500 mb-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded truncate">${url}</div>
-                <div class="relative bg-slate-100 dark:bg-slate-900 rounded-xl overflow-hidden border-2 border-gray-300 dark:border-slate-600" style="height: 65vh;">
+
+                <!-- Tip -->
+                <div class="bg-blue-50 dark:bg-blue-900/20 border-x-2 border-blue-300 dark:border-blue-700 px-2.5 py-1 text-[11px] flex items-center gap-1.5">
+                    <span class="material-icons text-blue-500 text-[14px]">touch_app</span>
+                    <span>คลิกทางเข้า 1-5 ในกรอบได้เลย — จะเปิดในกรอบนี้ ไม่เด้งแท็บใหม่</span>
+                </div>
+
+                <!-- Iframe container -->
+                <div class="relative bg-slate-100 dark:bg-slate-900 rounded-b-xl overflow-hidden border-2 border-t-0 border-gray-300 dark:border-slate-600" style="height: 62vh;">
                     <div id="odcIframeLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 z-10">
                         <span class="material-icons animate-spin text-blue-500 text-3xl mb-2">sync</span>
                         <p class="text-sm font-bold text-slate-600 dark:text-gray-300">กำลังโหลดเว็บ...</p>
-                        <p class="text-[10px] text-gray-500 mt-1">ถ้าโหลดไม่ขึ้น = เว็บนี้ block iframe → กด "เปิดแท็บใหม่" แทน</p>
+                        <p class="text-[10px] text-gray-500 mt-1">ถ้าโหลดไม่ขึ้น = เว็บนี้ block iframe → กด <span class="material-icons text-[12px] align-middle">open_in_new</span> เพื่อเปิดแท็บใหม่</p>
                     </div>
-                    <iframe src="${url}" id="odcIframe" class="w-full h-full bg-white" onload="document.getElementById('odcIframeLoading').style.display='none'" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-popups allow-same-origin allow-popups-to-escape-sandbox"></iframe>
+                    <iframe src="${url}" id="odcIframe" class="w-full h-full bg-white" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
                 </div>
+
+                <!-- ปุ่มบันทึกผล -->
                 <div class="flex gap-2 justify-center pt-3">
                     <button onclick="odc_setManualResult('${webId}', '${linkKey}', true); Swal.close();" class="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-1 shadow-md transition active:scale-95">
                         <span class="material-icons text-[18px]">check_circle</span> ปกติ ใช้ได้
@@ -280,11 +292,59 @@ window.odc_viewInline = async function(webId, linkKey) {
                 </div>
             </div>
         `,
-        width: '90vw',
+        width: '92vw',
         showConfirmButton: false,
         showCloseButton: true,
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[1.5rem] border border-slate-200 dark:border-slate-700 shadow-2xl' }
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[1.5rem] border border-slate-200 dark:border-slate-700 shadow-2xl' },
+        didOpen: () => {
+            const iframe = document.getElementById('odcIframe');
+            if (!iframe) return;
+
+            iframe.addEventListener('load', () => {
+                const loading = document.getElementById('odcIframeLoading');
+                if (loading) loading.style.display = 'none';
+
+                // อัพเดท URL bar (อาจอ่านไม่ได้ถ้า cross-origin — fallback เงียบๆ)
+                try {
+                    const newUrl = iframe.contentWindow.location.href;
+                    const bar = document.getElementById('odcIframeUrlBar');
+                    if (bar && newUrl) bar.innerText = newUrl;
+
+                    // ดักการคลิกในเว็บ (ถ้าเป็น same-origin) — แก้ target="_blank" เป็น _self
+                    try {
+                        const links = iframe.contentDocument.querySelectorAll('a[target="_blank"]');
+                        links.forEach(a => a.target = '_self');
+                    } catch (_) { /* cross-origin — skip */ }
+                } catch (e) { /* cross-origin — silent */ }
+            });
+        }
     });
+};
+
+// ฟังก์ชันควบคุม iframe
+window.odc_iframeBack = function() {
+    try {
+        const iframe = document.getElementById('odcIframe');
+        if (iframe && iframe.contentWindow) iframe.contentWindow.history.back();
+    } catch (e) { console.warn('Cannot go back:', e); }
+};
+
+window.odc_iframeReload = function() {
+    const iframe = document.getElementById('odcIframe');
+    if (iframe) {
+        const loading = document.getElementById('odcIframeLoading');
+        if (loading) loading.style.display = 'flex';
+        iframe.src = iframe.src;
+    }
+};
+
+window.odc_iframeHome = function(homeUrl) {
+    const iframe = document.getElementById('odcIframe');
+    if (iframe) {
+        const loading = document.getElementById('odcIframeLoading');
+        if (loading) loading.style.display = 'flex';
+        iframe.src = homeUrl;
+    }
 };
 
 // ==========================================
