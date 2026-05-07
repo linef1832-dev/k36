@@ -605,10 +605,7 @@ window.odc_viewInline = async function(webId, linkKey) {
     }
     const meta = ODC_LINK_TYPES[linkKey];
 
-    // โหมดการดู
-    // direct = ใส่ url ตรง (ลิงก์ในเว็บจะเปิดแท็บใหม่ — เพราะ casino ใส่ target=_blank)
-    // proxy = ใช้ CORS proxy ห่อ → ทำให้ทุกลิงก์อยู่ใน same-origin → ดักได้
-    window._odcViewState = { url, webId, linkKey, mode: 'direct', history: [url] };
+    window._odcViewState = { url, webId, linkKey, history: [url] };
 
     await Swal.fire({
         title: `<div class="text-base font-black text-slate-800 dark:text-white flex items-center justify-center gap-2"><span class="material-icons text-blue-500">visibility</span> ${w.emoji || ''} ${w.name} — ${meta.label}</div>`,
@@ -619,15 +616,25 @@ window.odc_viewInline = async function(webId, linkKey) {
                     <button onclick="odc_iframeBack()" class="bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-600 dark:text-gray-300 hover:text-blue-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ย้อนกลับ"><span class="material-icons text-[16px]">arrow_back</span></button>
                     <button onclick="odc_iframeReload()" class="bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-600 dark:text-gray-300 hover:text-blue-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="รีโหลด"><span class="material-icons text-[16px]">refresh</span></button>
                     <button onclick="odc_iframeHome('${url}')" class="bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-600 dark:text-gray-300 hover:text-blue-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="กลับหน้าหลัก"><span class="material-icons text-[16px]">home</span></button>
-                    <button id="odcProxyToggle" onclick="odc_toggleProxyMode()" class="bg-purple-500 hover:bg-purple-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition" title="โหมด Proxy: ลิงก์ทางเข้าจะเปิดในกรอบนี้ (ไม่เด้งแท็บใหม่)"><span class="material-icons text-[12px]">vpn_lock</span><span id="odcProxyLabel">เปิดโหมด Proxy</span></button>
+                    <button onclick="odc_findEntryLinks()" class="bg-cyan-500 hover:bg-cyan-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition" title="ค้นหาลิงก์ทางเข้าจากหน้าเว็บ"><span class="material-icons text-[12px]">search</span>หาทางเข้า</button>
                     <div class="flex-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg px-2 py-1 text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate" id="odcIframeUrlBar">${url}</div>
                     <a href="${url}" target="_blank" rel="noopener" class="bg-blue-500 hover:bg-blue-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm transition" title="เปิดในแท็บใหม่"><span class="material-icons text-[12px]">open_in_new</span></a>
                 </div>
 
+                <!-- Entry Links ทางเข้า 1-5 (ถ้าหาเจอ) -->
+                <div id="odcEntryLinks" class="hidden bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 border-x-2 border-cyan-300 dark:border-cyan-700 px-3 py-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[11px] font-bold text-cyan-700 dark:text-cyan-300 flex items-center gap-1">
+                            <span class="material-icons text-[14px]">link</span>🎮 ทางเข้าทั้งหมด:
+                        </span>
+                        <div id="odcEntryButtons" class="flex gap-1"></div>
+                    </div>
+                </div>
+
                 <!-- Tip -->
-                <div class="bg-blue-50 dark:bg-blue-900/20 border-x-2 border-blue-300 dark:border-blue-700 px-2.5 py-1 text-[11px] flex items-center gap-1.5" id="odcViewTip">
-                    <span class="material-icons text-blue-500 text-[14px]">touch_app</span>
-                    <span id="odcViewTipText"><b>ลิงก์ทางเข้า 1-5 เด้งแท็บใหม่?</b> → กดปุ่ม <b>"เปิดโหมด Proxy"</b> สีม่วงด้านบน → จะเปิดในกรอบนี้</span>
+                <div class="bg-blue-50 dark:bg-blue-900/20 border-x-2 border-blue-300 dark:border-blue-700 px-2.5 py-1 text-[11px] flex items-center gap-1.5">
+                    <span class="material-icons text-blue-500 text-[14px]">info</span>
+                    <span><b>💡 ทิป:</b> กดปุ่ม "หาทางเข้า" → ระบบจะหาลิงก์ทางเข้า 1-5 แล้วทำเป็นปุ่มให้คลิก (เปิดในกรอบนี้ ไม่เด้งแท็บใหม่)</span>
                 </div>
 
                 <!-- Iframe container -->
@@ -666,66 +673,135 @@ window.odc_viewInline = async function(webId, linkKey) {
                     const newUrl = iframe.contentWindow.location.href;
                     const bar = document.getElementById('odcIframeUrlBar');
                     if (bar && newUrl && newUrl !== 'about:blank') bar.innerText = newUrl;
-
-                    // ดักการคลิกในเว็บ (ถ้าเป็น same-origin) — แก้ target="_blank" เป็น _self
-                    try {
-                        const doc = iframe.contentDocument;
-                        if (doc) {
-                            // เพิ่ม <base target="_self"> ใน head — บังคับลิงก์เปิดในกรอบ
-                            let baseTag = doc.querySelector('base[target]');
-                            if (!baseTag) {
-                                baseTag = doc.createElement('base');
-                                baseTag.setAttribute('target', '_self');
-                                doc.head.appendChild(baseTag);
-                            } else {
-                                baseTag.setAttribute('target', '_self');
-                            }
-                            // แก้ target="_blank" ของ <a> ทุกอัน
-                            doc.querySelectorAll('a[target="_blank"]').forEach(a => a.target = '_self');
-                        }
-                    } catch (_) { /* cross-origin */ }
                 } catch (e) { /* cross-origin */ }
             });
         }
     });
 };
 
-// 🌐 toggle โหมด Proxy
-window.odc_toggleProxyMode = function() {
-    const state = window._odcViewState;
-    if (!state) return;
-
+// 🔍 หาลิงก์ทางเข้า 1-5 จากหน้าเว็บ
+window.odc_findEntryLinks = async function() {
     const iframe = document.getElementById('odcIframe');
-    const loading = document.getElementById('odcIframeLoading');
-    const label = document.getElementById('odcProxyLabel');
-    const tipText = document.getElementById('odcViewTipText');
-    const toggleBtn = document.getElementById('odcProxyToggle');
     if (!iframe) return;
 
-    if (loading) loading.style.display = 'flex';
+    const currentUrl = iframe.src;
+    if (!currentUrl || currentUrl === 'about:blank') {
+        sop_showInlineToast('รอให้โหลดเว็บเสร็จก่อน', 'info');
+        return;
+    }
 
-    if (state.mode === 'direct') {
-        // เปลี่ยนเป็น proxy
-        state.mode = 'proxy';
-        // ใช้ CORS proxy ฟรี — wrap URL → ลิงก์ในเว็บจะอยู่ใน same-origin → ดักได้
-        const proxiedUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(state.url)}`;
-        iframe.src = proxiedUrl;
-        if (label) label.innerText = 'ปิดโหมด Proxy';
-        if (toggleBtn) {
-            toggleBtn.classList.remove('bg-purple-500', 'hover:bg-purple-600');
-            toggleBtn.classList.add('bg-emerald-500', 'hover:bg-emerald-600');
+    sop_showInlineToast('กำลังค้นหาทางเข้า...', 'info');
+
+    try {
+        // วิธี 1: ลอง fetch ตรงๆ
+        const resp = await fetch(currentUrl, { 
+            mode: 'cors', 
+            cache: 'no-store',
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        }).catch(() => null);
+
+        let entryUrls = [];
+        if (resp && resp.ok) {
+            const html = await resp.text();
+            entryUrls = odc_parseEntryLinksFromHTML(html);
         }
-        if (tipText) tipText.innerHTML = '<b>โหมด Proxy เปิดอยู่</b> ✅ — ทางเข้า 1-5 จะเปิดในกรอบนี้ ไม่เด้งแท็บใหม่ <span class="text-amber-500">(ภาพอาจไม่ขึ้นบางส่วน เพราะผ่าน proxy)</span>';
-    } else {
-        // กลับ direct
-        state.mode = 'direct';
-        iframe.src = state.url;
-        if (label) label.innerText = 'เปิดโหมด Proxy';
-        if (toggleBtn) {
-            toggleBtn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
-            toggleBtn.classList.add('bg-purple-500', 'hover:bg-purple-600');
+
+        // วิธี 2: ถ้า fetch ไม่ได้ → ใช้ hardcoded pattern (ทาง JL69 มักจะเป็น subdomain)
+        if (entryUrls.length === 0) {
+            try {
+                const url = new URL(currentUrl);
+                const baseDomain = url.hostname.replace(/^[^.]+\./, ''); // jl691111.vip → 91111.vip
+                const baseNum = url.hostname.match(/(\d+)/)?.[1] || '1111';
+                
+                // สร้างลิงก์คาดเดา JL69: jl691111.vip, jl691112.vip, ...
+                for (let i = 1; i <= 5; i++) {
+                    const guessUrl = `${url.protocol}//jl69${baseNum.slice(0, -1)}${i}.vip${url.pathname}`;
+                    entryUrls.push(guessUrl);
+                }
+                sop_showInlineToast('ใช้ลิงก์คาดเดา (เพราะ CORS block)', 'warning');
+            } catch (_) {
+                sop_showInlineToast('หาทางเข้าไม่ได้ - ลองคลิกในเว็บเอง', 'error');
+                return;
+            }
+        } else {
+            sop_showInlineToast(`พบ ${entryUrls.length} ทางเข้า ✅`, 'success');
         }
-        if (tipText) tipText.innerHTML = '<b>ลิงก์ทางเข้า 1-5 เด้งแท็บใหม่?</b> → กดปุ่ม <b>"เปิดโหมด Proxy"</b> สีม่วงด้านบน → จะเปิดในกรอบนี้';
+
+        // แสดงปุ่มทางเข้า
+        const container = document.getElementById('odcEntryLinks');
+        const buttonsDiv = document.getElementById('odcEntryButtons');
+        if (container && buttonsDiv) {
+            container.classList.remove('hidden');
+            buttonsDiv.innerHTML = '';
+            
+            entryUrls.forEach((url, i) => {
+                const btn = document.createElement('button');
+                btn.innerHTML = `${i + 1}`;
+                btn.className = 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold text-[11px] w-8 h-8 rounded-lg shadow-sm transition active:scale-95';
+                btn.title = `ทางเข้า ${i + 1}: ${url}`;
+                btn.onclick = () => odc_navigateToEntry(url);
+                buttonsDiv.appendChild(btn);
+            });
+        }
+    } catch (e) {
+        console.error('findEntryLinks error:', e);
+        sop_showInlineToast('เกิดข้อผิดพลาดในการค้นหา', 'error');
+    }
+};
+
+// helper: แยกลิงก์ทางเข้าจาก HTML
+function odc_parseEntryLinksFromHTML(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const entries = [];
+
+    // หา <a> ที่มีคำว่า "ทางเข้า" หรือ "คลิก" หรือตัวเลข 1-5
+    const allLinks = Array.from(doc.querySelectorAll('a[href]'));
+    allLinks.forEach(a => {
+        const href = a.href || a.getAttribute('href') || '';
+        const text = (a.innerText || a.textContent || '').trim();
+
+        if (href.startsWith('http')) {
+            // ลิงก์ที่มีข้อความ "ทางเข้า", "เข้าเล่น", "คลิก" หรือตัวเลข
+            if (text.includes('ทางเข้า') || text.includes('เข้าเล่น') || 
+                text.includes('คลิก') || text.match(/^(ทาง\s*)?[1-5]$/)) {
+                if (!entries.includes(href)) {
+                    entries.push(href);
+                }
+            }
+        }
+    });
+
+    // ถ้าไม่เจอ → หา link ภายนอกที่ไม่ใช่ domain เดียวกัน
+    if (entries.length === 0) {
+        const baseHost = new URL(window.location.href).hostname;
+        allLinks.forEach(a => {
+            const href = a.href || a.getAttribute('href') || '';
+            if (href.startsWith('http')) {
+                try {
+                    const linkHost = new URL(href).hostname;
+                    if (linkHost !== baseHost && !entries.includes(href)) {
+                        entries.push(href);
+                    }
+                } catch (_) {}
+            }
+        });
+    }
+
+    return entries.slice(0, 5); // เอาแค่ 5 แรก
+}
+
+// เปลี่ยนหน้าใน iframe
+window.odc_navigateToEntry = function(url) {
+    const iframe = document.getElementById('odcIframe');
+    const urlBar = document.getElementById('odcIframeUrlBar');
+    const loading = document.getElementById('odcIframeLoading');
+
+    if (iframe) {
+        if (loading) loading.style.display = 'flex';
+        iframe.src = url;
+        if (urlBar) urlBar.innerText = url;
+        sop_showInlineToast('เปลี่ยนเป็นทางเข้าใหม่...', 'info');
     }
 };
 
