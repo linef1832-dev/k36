@@ -163,22 +163,9 @@ window.initLeaveTable = async function() {
     const btnTRAINER = document.getElementById('btnTRAINER');
     if (btnTRAINER) { if(canViewTRAINER) btnTRAINER.classList.remove('hidden'); else btnTRAINER.classList.add('hidden'); }
 
-    // 🌟 ควบคุมแท็บ จัดกลุ่มเอง (ให้เห็นเฉพาะแอดมิน, คนที่ถูกดึงชื่อเข้ามา และ ผู้สอน)
-    const btnSPECIAL = document.getElementById('btnSPECIAL');
-    if (btnSPECIAL) {
-        window.specialGroupUserIds = window.specialGroupUserIds || [];
-        const isInSpecialGroup = window.specialGroupUserIds.includes(String(currentUser.id));
-        
-        // เช็คว่าบัญชีที่ล็อกอินอยู่เป็น "ผู้สอน" หรือไม่
-        const isTrainerUser = (currentUser.role && currentUser.role.toLowerCase() === 'trainer') || currentUser.department === 'TRAINER';
-        
-        // ถ้าเป็น แอดมิน หรือ มีชื่อในกลุ่ม หรือ เป็นผู้สอน = ให้มองเห็นแท็บนี้ได้
-        if (isGlobalAdmin || isInSpecialGroup || isTrainerUser) {
-            btnSPECIAL.classList.remove('hidden');
-        } else {
-            btnSPECIAL.classList.add('hidden');
-        }
-    }
+    // 🌟 ควบคุมแท็บ จัดกลุ่มเอง — ⚠️ ต้องเลื่อนไปทำหลัง loadLeaveSettings เพราะ
+    // ตอนนี้ window.specialGroupUserIds ยังว่างอยู่ (ยังไม่โหลดจาก DB)
+    // โค้ดเช็คย้ายลงไปหลัง await Promise.all แล้ว
 
     // 1. แถบจัดการของแอดมิน (ตั้งค่าต่างๆ)
     const controls = document.getElementById('leaveManagerControls');
@@ -214,6 +201,21 @@ window.initLeaveTable = async function() {
         fetchTasks.push(fetchUsers());
     }
     await Promise.all(fetchTasks);
+
+    // 🌟 ควบคุมแท็บ จัดกลุ่มเอง — ทำหลังโหลด setting เสร็จ (specialGroupUserIds พร้อมแล้ว)
+    const btnSPECIAL = document.getElementById('btnSPECIAL');
+    if (btnSPECIAL) {
+        window.specialGroupUserIds = window.specialGroupUserIds || [];
+        const isInSpecialGroup = window.specialGroupUserIds.includes(String(currentUser.id));
+        const isTrainerUser = (currentUser.role && currentUser.role.toLowerCase() === 'trainer') || currentUser.department === 'TRAINER';
+
+        // แอดมิน / ผู้สอน / คนที่ถูกดึงชื่อเข้ากลุ่ม = เห็นแท็บนี้
+        if (isGlobalAdmin || isInSpecialGroup || isTrainerUser) {
+            btnSPECIAL.classList.remove('hidden');
+        } else {
+            btnSPECIAL.classList.add('hidden');
+        }
+    }
 
     if (typeof updateAdminInputs === 'function') updateAdminInputs();
     renderLeaveTable();
