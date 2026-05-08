@@ -6,6 +6,7 @@
 let brk_employees = [];     // cache พนักงานทั้งหมด
 let brk_activeSessions = []; // cache active sessions
 let brk_historyData = [];    // cache history
+let brk_teams = [];          // cache team webhooks
 
 let brk_clockInterval = null; // อัปเดตเวลาที่ผ่านไปทุกวินาที
 
@@ -54,9 +55,11 @@ async function initBreaksApp() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'break_employees' }, () => {
             brk_loadEmployees();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'break_team_webhooks' }, () => {
+            brk_loadTeams();
+        })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'break_activity_log' }, () => {
             brk_loadStatToday();
-            // ถ้าอยู่ tab history ของวันนี้ ก็โหลดใหม่
             const histDate = document.getElementById('brk_histDate')?.value;
             const today = new Date().toISOString().split('T')[0];
             if (histDate === today) brk_loadHistory();
@@ -83,7 +86,7 @@ window.initBreaksApp = initBreaksApp;
 // 🔁 สลับ Tab
 // ==========================================================
 window.brk_switchTab = function(tab) {
-    const tabs = ['live', 'employees', 'history'];
+    const tabs = ['live', 'teams', 'employees', 'history'];
     tabs.forEach(t => {
         const btn = document.getElementById(`brk_tab${t.charAt(0).toUpperCase() + t.slice(1)}`);
         const pane = document.getElementById(`brk_pane${t.charAt(0).toUpperCase() + t.slice(1)}`);
@@ -104,6 +107,7 @@ window.brk_switchTab = function(tab) {
     // โหลดข้อมูลของ tab ที่เพิ่งเปิด
     if (tab === 'employees') brk_renderEmployees();
     else if (tab === 'history') brk_loadHistory();
+    else if (tab === 'teams') brk_renderTeams();
 };
 
 
@@ -111,8 +115,8 @@ window.brk_switchTab = function(tab) {
 // 📥 โหลดข้อมูลทั้งหมด
 // ==========================================================
 async function brk_loadAll() {
-    // โหลด employees ก่อน เพราะ active_sessions ต้องใช้ข้อมูลพนักงานมา map
-    await brk_loadEmployees();
+    // โหลด teams + employees ก่อน เพราะ active_sessions ต้องใช้ map
+    await Promise.all([brk_loadTeams(), brk_loadEmployees()]);
     await Promise.all([
         brk_loadActiveSessions(),
         brk_loadStatToday(),
@@ -134,6 +138,121 @@ function brk_showError(title, error) {
         });
     }
 }
+
+
+// ==========================================================
+// 👥 Tab: Teams / Discord Webhooks
+// ==========================================================
+async function brk_loadTeams() {
+    const { data, error } = await appDB
+        .from('break_team_webhooks')
+        .select('*')
+        .order('team');
+    if (error) {
+        console.error('[breaks] loadTeams error:', error);
+        brk_showError('โหลดข้อมูลทีมไม่สำเร็จ', error);
+        brk_teams = [];
+    } else {
+        brk_teams = data || [];
+    }
+    if (!document.getElementById('brk_paneTeams').classList.contains('hidden')) {
+        brk_renderTeams();
+    }
+}
+
+
+window.brk_renderTeams = function() {
+    const tbody = document.getElementById('brk_teamsBody');
+    if (!tbody) return;
+
+    // รวมทีมจาก TEAM_LIST + ทีมที่อยู่ใน DB
+    const teamSet = new Set();
+    if (typeof TEAM_LIST !== 'undefined') TEAM_LIST.forEach(t => teamSet.add(t));
+    brk_teams.forEach(t => teamSet.add(t.team));
+    const allTeams = Array.from(teamSet).sort();
+
+    if (allTeams.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center p-10 text-gray-500">ไม่มีทีม</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = allTeams.map(team => {
+        const t = brk_teams.find(x => x.team === team) || {};
+        const empCount = brk_employees.filter(e => e.team === team).length;
+        const hasWebhook = !!t.discord_webhook_url;
+        const statusBadge = hasWebhook
+            ? '<span class="px-2 py-0.5 bg-emerald-900/50 text-emerald-400 text-[10px] rounded-full font-bold border border-emerald-700">🟢 ตั้งค่าแล้ว</span>'
+            : '<span class="px-2 py-0.5 bg-amber-900/50 text-amber-400 text-[10px] rounded-full font-bold border border-amber-700">⚠️ ยังไม่ตั้งค่า</span>';
+
+        return `
+            <tr class="hover:bg-slate-700/50 transition">
+                <td class="p-3 font-bold text-white">
+                    <span class="px-2 py-1 bg-indigo-900/50 text-indigo-300 rounded font-bold">${team}</span>
+                </td>
+                <td class="p-3 text-xs">${statusBadge}</td>
+                <td class="p-3 text-cyan-300">${t.discord_room_name || '<span class="text-gray-500">—</span>'}</td>
+                <td class="p-3 text-gray-400">${empCount} คน</td>
+                <td class="p-3 text-center">
+                    <button onclick="brk_openTeamModal('${team}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition active:scale-95">
+                        <span class="material-icons text-sm align-middle">edit</span> ตั้งค่า
+                    </button>
+                </td>
+            </tr>`;
+    }).join('');
+};
+
+
+window.brk_openTeamModal = function(teamName) {
+    const t = brk_teams.find(x => x.team === teamName) || {};
+    document.getElementById('brk_teamModalName').textContent = teamName;
+    document.getElementById('brk_teamId').value = teamName;
+    document.getElementById('brk_teamWebhook').value = t.discord_webhook_url || '';
+    document.getElementById('brk_teamRoomName').value = t.discord_room_name || '';
+    document.getElementById('brk_teamNotes').value = t.notes || '';
+
+    const modal = document.getElementById('brk_teamModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};
+
+
+window.brk_closeTeamModal = function() {
+    const modal = document.getElementById('brk_teamModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+};
+
+
+window.brk_saveTeam = async function(event) {
+    event.preventDefault();
+    const team = document.getElementById('brk_teamId').value;
+    const webhook = document.getElementById('brk_teamWebhook').value.trim();
+
+    if (webhook && !webhook.startsWith('https://discord.com/api/webhooks/')) {
+        Swal.fire({ icon: 'error', title: 'URL ไม่ถูกต้อง',
+            text: 'Webhook URL ต้องขึ้นต้นด้วย https://discord.com/api/webhooks/' });
+        return;
+    }
+
+    const data = {
+        team,
+        discord_webhook_url: webhook || null,
+        discord_room_name: document.getElementById('brk_teamRoomName').value.trim() || null,
+        notes: document.getElementById('brk_teamNotes').value.trim() || null,
+        updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await appDB.from('break_team_webhooks').upsert(data, { onConflict: 'team' });
+    if (error) {
+        Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: error.message });
+        return;
+    }
+
+    Swal.fire({ icon: 'success', title: `บันทึกทีม ${team} แล้ว`,
+        timer: 1200, showConfirmButton: false });
+    brk_closeTeamModal();
+    await brk_loadTeams();
+};
 
 async function brk_loadEmployees() {
     const { data, error } = await appDB
