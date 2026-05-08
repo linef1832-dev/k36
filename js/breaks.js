@@ -6,9 +6,8 @@
 let brk_employees = [];     // cache พนักงานทั้งหมด
 let brk_activeSessions = []; // cache active sessions
 let brk_historyData = [];    // cache history
-let brk_teams = [];          // cache team webhooks
 
-let brk_clockInterval = null; // อัปเดตเวลาที่ผ่านไปทุกวินาที
+let brk_clockInterval = null;
 
 
 // ==========================================================
@@ -55,9 +54,6 @@ async function initBreaksApp() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'break_employees' }, () => {
             brk_loadEmployees();
         })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'break_team_webhooks' }, () => {
-            brk_loadTeams();
-        })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'break_activity_log' }, () => {
             brk_loadStatToday();
             const histDate = document.getElementById('brk_histDate')?.value;
@@ -86,7 +82,7 @@ window.initBreaksApp = initBreaksApp;
 // 🔁 สลับ Tab
 // ==========================================================
 window.brk_switchTab = function(tab) {
-    const tabs = ['live', 'teams', 'employees', 'history'];
+    const tabs = ['live', 'employees', 'history'];
     tabs.forEach(t => {
         const btn = document.getElementById(`brk_tab${t.charAt(0).toUpperCase() + t.slice(1)}`);
         const pane = document.getElementById(`brk_pane${t.charAt(0).toUpperCase() + t.slice(1)}`);
@@ -104,10 +100,8 @@ window.brk_switchTab = function(tab) {
         }
     });
 
-    // โหลดข้อมูลของ tab ที่เพิ่งเปิด
     if (tab === 'employees') brk_renderEmployees();
     else if (tab === 'history') brk_loadHistory();
-    else if (tab === 'teams') brk_renderTeams();
 };
 
 
@@ -115,8 +109,7 @@ window.brk_switchTab = function(tab) {
 // 📥 โหลดข้อมูลทั้งหมด
 // ==========================================================
 async function brk_loadAll() {
-    // โหลด teams + employees ก่อน เพราะ active_sessions ต้องใช้ map
-    await Promise.all([brk_loadTeams(), brk_loadEmployees()]);
+    await brk_loadEmployees();
     await Promise.all([
         brk_loadActiveSessions(),
         brk_loadStatToday(),
@@ -141,117 +134,55 @@ function brk_showError(title, error) {
 
 
 // ==========================================================
-// 👥 Tab: Teams / Discord Webhooks
+// 🔍 Auto-match พนักงาน Telegram → Discord User ID
+// ดึงรายชื่อพนักงาน Discord จาก k36 backend (/api/staff-list)
 // ==========================================================
-async function brk_loadTeams() {
-    const { data, error } = await appDB
-        .from('break_team_webhooks')
-        .select('*')
-        .order('team');
-    if (error) {
-        console.error('[breaks] loadTeams error:', error);
-        brk_showError('โหลดข้อมูลทีมไม่สำเร็จ', error);
-        brk_teams = [];
-    } else {
-        brk_teams = data || [];
-    }
-    if (!document.getElementById('brk_paneTeams').classList.contains('hidden')) {
-        brk_renderTeams();
-    }
-}
+const K36_DISCORD_API_URL = 'https://my-discord-production-9382.up.railway.app';
 
-
-window.brk_renderTeams = function() {
-    const tbody = document.getElementById('brk_teamsBody');
-    if (!tbody) return;
-
-    // รวมทีมจาก TEAM_LIST + ทีมที่อยู่ใน DB
-    const teamSet = new Set();
-    if (typeof TEAM_LIST !== 'undefined') TEAM_LIST.forEach(t => teamSet.add(t));
-    brk_teams.forEach(t => teamSet.add(t.team));
-    const allTeams = Array.from(teamSet).sort();
-
-    if (allTeams.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center p-10 text-gray-500">ไม่มีทีม</td></tr>`;
+window.brk_autoMatchDiscord = async function() {
+    const currentName = document.getElementById('brk_empName').value.trim();
+    if (!currentName) {
+        Swal.fire({ icon: 'info', title: 'กรอกชื่อพนักงานก่อน',
+            text: 'ระบบจะหา Discord User ที่ชื่อใกล้เคียงให้' });
         return;
     }
 
-    tbody.innerHTML = allTeams.map(team => {
-        const t = brk_teams.find(x => x.team === team) || {};
-        const empCount = brk_employees.filter(e => e.team === team).length;
-        const hasWebhook = !!t.discord_webhook_url;
-        const statusBadge = hasWebhook
-            ? '<span class="px-2 py-0.5 bg-emerald-900/50 text-emerald-400 text-[10px] rounded-full font-bold border border-emerald-700">🟢 ตั้งค่าแล้ว</span>'
-            : '<span class="px-2 py-0.5 bg-amber-900/50 text-amber-400 text-[10px] rounded-full font-bold border border-amber-700">⚠️ ยังไม่ตั้งค่า</span>';
+    Swal.fire({ title: 'กำลังโหลด...', didOpen: () => Swal.showLoading() });
+    try {
+        const res = await fetch(`${K36_DISCORD_API_URL}/api/staff-list?t=${Date.now()}`);
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.data || []);
+        Swal.close();
 
-        return `
-            <tr class="hover:bg-slate-700/50 transition">
-                <td class="p-3 font-bold text-white">
-                    <span class="px-2 py-1 bg-indigo-900/50 text-indigo-300 rounded font-bold">${team}</span>
-                </td>
-                <td class="p-3 text-xs">${statusBadge}</td>
-                <td class="p-3 text-cyan-300">${t.discord_room_name || '<span class="text-gray-500">—</span>'}</td>
-                <td class="p-3 text-gray-400">${empCount} คน</td>
-                <td class="p-3 text-center">
-                    <button onclick="brk_openTeamModal('${team}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition active:scale-95">
-                        <span class="material-icons text-sm align-middle">edit</span> ตั้งค่า
-                    </button>
-                </td>
-            </tr>`;
-    }).join('');
-};
+        if (list.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'ไม่มีรายชื่อจาก Discord backend' });
+            return;
+        }
 
+        // ให้ user เลือกจาก list ทั้งหมด (filter ได้)
+        const opts = {};
+        list.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+        list.forEach(s => { opts[s.id] = `${s.name} (${s.id})`; });
 
-window.brk_openTeamModal = function(teamName) {
-    const t = brk_teams.find(x => x.team === teamName) || {};
-    document.getElementById('brk_teamModalName').textContent = teamName;
-    document.getElementById('brk_teamId').value = teamName;
-    document.getElementById('brk_teamWebhook').value = t.discord_webhook_url || '';
-    document.getElementById('brk_teamRoomName').value = t.discord_room_name || '';
-    document.getElementById('brk_teamNotes').value = t.notes || '';
+        const { value: chosenId } = await Swal.fire({
+            title: 'เลือกพนักงาน Discord',
+            input: 'select',
+            inputOptions: opts,
+            inputPlaceholder: 'พิมพ์ชื่อค้นหา...',
+            showCancelButton: true,
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonText: 'เลือก',
+        });
 
-    const modal = document.getElementById('brk_teamModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-};
-
-
-window.brk_closeTeamModal = function() {
-    const modal = document.getElementById('brk_teamModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-};
-
-
-window.brk_saveTeam = async function(event) {
-    event.preventDefault();
-    const team = document.getElementById('brk_teamId').value;
-    const webhook = document.getElementById('brk_teamWebhook').value.trim();
-
-    if (webhook && !webhook.startsWith('https://discord.com/api/webhooks/')) {
-        Swal.fire({ icon: 'error', title: 'URL ไม่ถูกต้อง',
-            text: 'Webhook URL ต้องขึ้นต้นด้วย https://discord.com/api/webhooks/' });
-        return;
+        if (chosenId) {
+            document.getElementById('brk_empDiscordUid').value = chosenId;
+            Swal.fire({ icon: 'success', toast: true, position: 'top-end',
+                title: 'เลือกแล้ว — กดบันทึก', timer: 1500, showConfirmButton: false });
+        }
+    } catch (e) {
+        Swal.fire({ icon: 'error', title: 'ดึงข้อมูลล้มเหลว',
+            text: 'k36 Discord backend อาจหลับ หรือ network ติด' });
     }
-
-    const data = {
-        team,
-        discord_webhook_url: webhook || null,
-        discord_room_name: document.getElementById('brk_teamRoomName').value.trim() || null,
-        notes: document.getElementById('brk_teamNotes').value.trim() || null,
-        updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await appDB.from('break_team_webhooks').upsert(data, { onConflict: 'team' });
-    if (error) {
-        Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: error.message });
-        return;
-    }
-
-    Swal.fire({ icon: 'success', title: `บันทึกทีม ${team} แล้ว`,
-        timer: 1200, showConfirmButton: false });
-    brk_closeTeamModal();
-    await brk_loadTeams();
 };
 
 async function brk_loadEmployees() {
@@ -350,7 +281,7 @@ function brk_renderLiveSessions() {
                 <td class="p-3"><span class="text-lg">${activityIcon}</span> ${activityLabel}</td>
                 <td class="p-3 font-mono text-gray-300">${started.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</td>
                 <td class="p-3 ${timeClass} font-mono text-base">${elapsedStr} / ${s.time_limit_minutes}:00 ${overBadge}</td>
-                <td class="p-3 text-gray-400 text-xs">${emp.discord_room_name || '<span class="text-amber-400">ยังไม่ตั้งค่า</span>'}</td>
+                <td class="p-3 text-gray-400 text-xs">${emp.discord_user_id ? `<span class="text-emerald-400" title="${emp.discord_user_id}">🟢 ตั้งแล้ว</span>` : '<span class="text-amber-400">⚠️ ยังไม่ตั้ง</span>'}</td>
             </tr>`;
     }).join('');
 
@@ -400,7 +331,7 @@ window.brk_renderEmployees = function() {
     }
 
     tbody.innerHTML = filtered.map(e => {
-        const hasWebhook = !!e.discord_webhook_url;
+        const hasDiscord = !!e.discord_user_id;
         const hasTeam = !!e.team;
         const statusBadge = e.is_active
             ? '<span class="px-2 py-0.5 bg-emerald-900/50 text-emerald-400 text-[10px] rounded-full font-bold border border-emerald-700">ใช้งาน</span>'
@@ -410,9 +341,9 @@ window.brk_renderEmployees = function() {
         configBadges += hasTeam
             ? '<span class="text-emerald-400" title="ตั้งทีมแล้ว">🟢</span>'
             : '<span class="text-amber-400" title="ยังไม่ตั้งทีม">🟡</span>';
-        configBadges += hasWebhook
-            ? ' <span class="text-emerald-400" title="ตั้ง Discord แล้ว">🟢</span>'
-            : ' <span class="text-amber-400" title="ยังไม่ตั้ง Discord">🟡</span>';
+        configBadges += hasDiscord
+            ? ' <span class="text-emerald-400" title="ตั้ง Discord ID แล้ว">🟢</span>'
+            : ' <span class="text-amber-400" title="ยังไม่ตั้ง Discord ID">🟡</span>';
 
         return `
             <tr class="hover:bg-slate-700/50 transition">
@@ -420,7 +351,7 @@ window.brk_renderEmployees = function() {
                 <td class="p-3 text-gray-400 text-xs">${e.telegram_username ? '@' + e.telegram_username : '—'}</td>
                 <td class="p-3 text-gray-400 font-mono text-xs">${e.telegram_id}</td>
                 <td class="p-3">${e.team ? `<span class="px-2 py-1 bg-indigo-900/50 text-indigo-300 rounded font-bold text-xs">${e.team}</span>` : '<span class="text-amber-400 text-xs">—</span>'}</td>
-                <td class="p-3 text-xs ${hasWebhook ? 'text-cyan-300' : 'text-amber-400'}">${e.discord_room_name || (hasWebhook ? 'ตั้งแล้ว' : 'ยังไม่ตั้ง')}</td>
+                <td class="p-3 text-xs ${hasDiscord ? 'text-cyan-300 font-mono' : 'text-amber-400'}">${e.discord_user_id || 'ยังไม่ตั้ง'}</td>
                 <td class="p-3">${statusBadge} ${configBadges}</td>
                 <td class="p-3 text-center">
                     <button onclick="brk_openEmpModal(${e.id})" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition active:scale-95">
@@ -450,8 +381,7 @@ window.brk_openEmpModal = function(empId) {
     tgIdInput.disabled = true;
 
     document.getElementById('brk_empTeam').value = emp.team || '';
-    document.getElementById('brk_empWebhook').value = emp.discord_webhook_url || '';
-    document.getElementById('brk_empRoomName').value = emp.discord_room_name || '';
+    document.getElementById('brk_empDiscordUid').value = emp.discord_user_id || '';
     document.getElementById('brk_empActive').checked = emp.is_active !== false;
 
     const modal = document.getElementById('brk_empModal');
@@ -474,8 +404,7 @@ window.brk_openAddEmpModal = function() {
     tgIdInput.disabled = false;
 
     document.getElementById('brk_empTeam').value = '';
-    document.getElementById('brk_empWebhook').value = '';
-    document.getElementById('brk_empRoomName').value = '';
+    document.getElementById('brk_empDiscordUid').value = '';
     document.getElementById('brk_empActive').checked = true;
 
     const modal = document.getElementById('brk_empModal');
@@ -495,11 +424,10 @@ window.brk_saveEmp = async function(event) {
     event.preventDefault();
     const idStr = document.getElementById('brk_empId').value;
     const isEdit = !!idStr;
-    const webhook = document.getElementById('brk_empWebhook').value.trim();
+    const discordUid = document.getElementById('brk_empDiscordUid').value.trim();
     const displayName = document.getElementById('brk_empName').value.trim();
     const telegramIdStr = document.getElementById('brk_empTelegramId').value.trim();
 
-    // validate
     if (!displayName) {
         Swal.fire({ icon: 'error', title: 'กรุณาใส่ชื่อพนักงาน' });
         return;
@@ -508,27 +436,24 @@ window.brk_saveEmp = async function(event) {
         Swal.fire({ icon: 'error', title: 'Telegram ID ต้องเป็นตัวเลข' });
         return;
     }
-    if (webhook && !webhook.startsWith('https://discord.com/api/webhooks/')) {
-        Swal.fire({ icon: 'error', title: 'URL ไม่ถูกต้อง',
-            text: 'Webhook URL ต้องขึ้นต้นด้วย https://discord.com/api/webhooks/' });
+    if (discordUid && !/^\d+$/.test(discordUid)) {
+        Swal.fire({ icon: 'error', title: 'Discord User ID ไม่ถูกต้อง',
+            text: 'ต้องเป็นตัวเลขล้วน (เช่น 123456789012345678)' });
         return;
     }
 
     const data = {
         display_name: displayName,
         team: document.getElementById('brk_empTeam').value || null,
-        discord_webhook_url: webhook || null,
-        discord_room_name: document.getElementById('brk_empRoomName').value.trim() || null,
+        discord_user_id: discordUid || null,
         is_active: document.getElementById('brk_empActive').checked,
     };
 
     let error;
     if (isEdit) {
-        // UPDATE
         const id = parseInt(idStr);
         ({ error } = await appDB.from('break_employees').update(data).eq('id', id));
     } else {
-        // INSERT — ต้องมี telegram_id
         data.telegram_id = parseInt(telegramIdStr);
         ({ error } = await appDB.from('break_employees').insert(data));
     }
