@@ -2394,6 +2394,14 @@ const PERM_GROUPS = [
         ]
     },
     {
+    id: 'page_breaks', name: 'ห้องน้ำ / สูบบุหรี่', icon: 'wc', theme: 'cyan',
+    items: [
+        {id: 'breaks',         name: 'เข้าหน้าระบบลงเวลาห้องน้ำ', isSub: false},
+        {id: 'breaks_manage',  name: 'แก้ไขพนักงาน + Discord webhook', isSub: true},
+        {id: 'breaks_history', name: 'ดูประวัติย้อนหลัง', isSub: true}
+    ]
+    },
+    {
         id: 'page_slip_check', name: 'ตรวจสอบสลิป', icon: 'qr_code_scanner', theme: 'blue',
         items: [
             {id: 'slip_check', name: 'เข้าหน้าตรวจสอบสลิป', isSub: false}
