@@ -2354,13 +2354,6 @@ const PERM_GROUPS = [
     ]
     },
     {
-        id: 'page_od_center', name: 'OD Center', icon: 'link', theme: 'cyan',
-        items: [
-            {id: 'od_center', name: 'เข้าหน้า OD Center', isSub: false},
-            {id: 'odcenter_manage', name: 'จัดการเว็บ/ลิงก์', isSub: true}
-        ]
-    },
-    {
         id: 'page_kb', name: 'คลังความรู้', icon: 'menu_book', theme: 'amber',
         items: [
             {id: 'kb', name: 'เข้าหน้าคลังความรู้', isSub: false},
@@ -2392,14 +2385,6 @@ const PERM_GROUPS = [
         items: [
             {id: 'usdt_calc', name: 'เข้าหน้าคำนวณ USDT', isSub: false}
         ]
-    },
-    {
-    id: 'page_breaks', name: 'ห้องน้ำ / สูบบุหรี่', icon: 'wc', theme: 'cyan',
-    items: [
-        {id: 'breaks',         name: 'เข้าหน้าระบบลงเวลาห้องน้ำ', isSub: false},
-        {id: 'breaks_manage',  name: 'แก้ไขพนักงาน + Discord webhook', isSub: true},
-        {id: 'breaks_history', name: 'ดูประวัติย้อนหลัง', isSub: true}
-    ]
     },
     {
         id: 'page_slip_check', name: 'ตรวจสอบสลิป', icon: 'qr_code_scanner', theme: 'blue',
