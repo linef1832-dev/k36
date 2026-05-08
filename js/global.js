@@ -175,6 +175,9 @@ async function showPage(pageName) {
                 else if (pageName === 'withdrawal_report') {
                     if (typeof initWithdrawalReport === 'function') await initWithdrawalReport();
                 }
+                else if (pageName === 'breaks') {
+                    if (typeof initBreaksApp === 'function') await initBreaksApp();
+                }  
                 else if (pageName === 'summary') {
                     if (typeof initSummaryDate === 'function') initSummaryDate();
                     if (typeof fetchAvailableDates === 'function') fetchAvailableDates(); 
