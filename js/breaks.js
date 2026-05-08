@@ -111,11 +111,28 @@ window.brk_switchTab = function(tab) {
 // 📥 โหลดข้อมูลทั้งหมด
 // ==========================================================
 async function brk_loadAll() {
+    // โหลด employees ก่อน เพราะ active_sessions ต้องใช้ข้อมูลพนักงานมา map
+    await brk_loadEmployees();
     await Promise.all([
-        brk_loadEmployees(),
         brk_loadActiveSessions(),
         brk_loadStatToday(),
     ]);
+}
+
+// ฟังก์ชันแสดง error เป็น toast (ใช้ SweetAlert2 ถ้ามี)
+function brk_showError(title, error) {
+    const msg = error?.message || error?.code || 'ไม่ทราบสาเหตุ';
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'error',
+            title,
+            text: msg,
+            toast: true,
+            position: 'top-end',
+            timer: 5000,
+            showConfirmButton: false,
+        });
+    }
 }
 
 async function brk_loadEmployees() {
@@ -123,23 +140,38 @@ async function brk_loadEmployees() {
         .from('break_employees')
         .select('*')
         .order('display_name');
-    if (error) { console.error(error); return; }
+    if (error) {
+        console.error('[breaks] loadEmployees error:', error);
+        brk_showError('โหลดข้อมูลพนักงานไม่สำเร็จ', error);
+    }
     brk_employees = data || [];
-    document.getElementById('brk_statTotalEmp').textContent = brk_employees.length;
+    const totalEl = document.getElementById('brk_statTotalEmp');
+    if (totalEl) totalEl.textContent = brk_employees.length;
     if (!document.getElementById('brk_paneEmployees').classList.contains('hidden')) {
         brk_renderEmployees();
     }
-    brk_renderLiveSessions(); // เพื่ออัปเดต join ข้อมูล
+    brk_renderLiveSessions();
 }
 
 async function brk_loadActiveSessions() {
+    // ดึง active_sessions ก่อน — ไม่ join เพื่อกัน FK error
     const { data, error } = await appDB
         .from('break_active_sessions')
-        .select('*, break_employees(display_name, team, telegram_username, discord_room_name)')
+        .select('*')
         .order('started_at');
-    if (error) { console.error(error); return; }
-    brk_activeSessions = data || [];
-    document.getElementById('brk_statActive').textContent = brk_activeSessions.length;
+    if (error) {
+        console.error('[breaks] loadActiveSessions error:', error);
+        brk_showError('โหลดสถานะปัจจุบันไม่สำเร็จ', error);
+        brk_activeSessions = [];
+    } else {
+        // map employee data จาก cache (brk_employees) แทนการ join
+        brk_activeSessions = (data || []).map(s => ({
+            ...s,
+            break_employees: brk_employees.find(e => e.id === s.employee_id) || {}
+        }));
+    }
+    const activeEl = document.getElementById('brk_statActive');
+    if (activeEl) activeEl.textContent = brk_activeSessions.length;
     brk_renderLiveSessions();
 }
 
@@ -185,8 +217,7 @@ function brk_renderLiveSessions() {
         const sec = elapsedSec % 60;
         const elapsedStr = `${min}:${String(sec).padStart(2, '0')}`;
 
-        const activityIcon = s.activity === 'toilet' ? '🚽' : '🚬';
-        const activityLabel = s.activity === 'toilet' ? 'ห้องน้ำ' : 'สูบบุหรี่';
+        const { icon: activityIcon, label: activityLabel } = brk_activityDisplay(s.activity);
         const rowBg = isOver ? 'bg-red-900/30 hover:bg-red-900/40' : 'hover:bg-slate-700/50';
         const timeClass = isOver ? 'text-red-400 font-black' : 'text-cyan-300 font-bold';
         const overBadge = isOver
@@ -205,6 +236,22 @@ function brk_renderLiveSessions() {
     }).join('');
 
     document.getElementById('brk_statOverTime').textContent = overTimeCount;
+}
+
+
+// ==========================================================
+// 🎨 Map activity name → icon + label
+// ==========================================================
+function brk_activityDisplay(activity) {
+    const a = (activity || '').toLowerCase();
+    if (a.includes('สูบบุหรี่')) return { icon: '🚬', label: activity };
+    if (a.includes('ปวดน้อย') || a.includes('ปวดหนัก') || a.includes('ห้องน้ำ') || a.includes('toilet')) {
+        return { icon: '🚽', label: activity };
+    }
+    if (a.includes('กินข้าว') || a.includes('ทาน') || a.includes('อาหาร')) {
+        return { icon: '🍱', label: activity };
+    }
+    return { icon: '⏸️', label: activity || '—' };
 }
 
 
@@ -365,7 +412,15 @@ window.brk_renderHistory = function() {
     const search = (document.getElementById('brk_histSearch')?.value || '').toLowerCase().trim();
 
     let rows = brk_historyData;
-    if (filterAct !== 'all') rows = rows.filter(r => r.activity === filterAct);
+    if (filterAct !== 'all') {
+        rows = rows.filter(r => {
+            const a = (r.activity || '').toLowerCase();
+            if (filterAct === 'toilet') return a.includes('ปวด') || a.includes('ห้องน้ำ') || a.includes('toilet');
+            if (filterAct === 'smoke')  return a.includes('สูบบุหรี่');
+            if (filterAct === 'eat')    return a.includes('กินข้าว') || a.includes('ทาน');
+            return true;
+        });
+    }
     if (filterExc === 'exceeded') rows = rows.filter(r => r.exceeded_limit);
     if (search) rows = rows.filter(r => (r.employee_name || '').toLowerCase().includes(search));
 
@@ -384,8 +439,7 @@ window.brk_renderHistory = function() {
         const sec = r.duration_seconds % 60;
         const durationStr = `${min}:${String(sec).padStart(2,'0')}`;
 
-        const activityIcon = r.activity === 'toilet' ? '🚽' : '🚬';
-        const activityLabel = r.activity === 'toilet' ? 'ห้องน้ำ' : 'สูบบุหรี่';
+        const { icon: activityIcon, label: activityLabel } = brk_activityDisplay(r.activity);
         const statusBadge = r.exceeded_limit
             ? '<span class="px-2 py-0.5 bg-red-900/50 text-red-400 text-[10px] rounded-full font-bold border border-red-700">⚠️ เกินเวลา</span>'
             : '<span class="px-2 py-0.5 bg-emerald-900/50 text-emerald-400 text-[10px] rounded-full font-bold border border-emerald-700">✅ ปกติ</span>';
