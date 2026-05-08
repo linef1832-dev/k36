@@ -230,6 +230,48 @@ function parseAmount(val) {
     return parseFloat(cleanVal) || 0;
 }
 
+// 🌟 ตารางจับคู่ชื่อแบรนด์ (รวมชื่อค่ายเกมจริง) → รหัสเว็บมาตรฐาน
+// ใช้ตอนอ่านคอลัมน์ "แบรนด์" จากไฟล์ TCG ที่อาจขึ้นเป็น "Jili", "PGSoft" ฯลฯ
+const BRAND_ALIASES = {
+    'PG688':  ['pg688', 'pg', 'pgsoft', 'pg soft', 'pg-soft', 'pgslot', 'pg slot'],
+    'JL69':   ['jl69', 'jl', 'jili', 'jiligames', 'jili games', 'jili gaming'],
+    'NM9':    ['nm9', 'nm'],
+    'VV72':   ['vv72', 'vv'],
+    'Jun88':  ['jun88', 'jun'],
+    'MK8':    ['mk8', 'mk'],
+    'TH26':   ['th26'],
+    'BT678':  ['bt678', 'bt'],
+    'K188':   ['k188'],
+    'F168':   ['f168']
+};
+
+// 🌟 พยายามจับคู่ค่าในคอลัมน์ "แบรนด์" → รหัสเว็บมาตรฐาน
+function matchBrandToWeb(rawWeb) {
+    if (!rawWeb) return '';
+    const normalized = String(rawWeb).trim().toLowerCase().replace(/[\s_\-]+/g, '');
+    if (!normalized) return '';
+
+    // 1. exact match กับ alias ก่อน (แม่นที่สุด)
+    for (const [webCode, aliases] of Object.entries(BRAND_ALIASES)) {
+       for (const alias of aliases) {
+          const normAlias = alias.replace(/[\s_\-]+/g, '');
+          if (normalized === normAlias) return webCode;
+       }
+    }
+
+    // 2. startsWith / includes (เผื่อมีคำต่อท้าย)
+    for (const [webCode, aliases] of Object.entries(BRAND_ALIASES)) {
+       for (const alias of aliases) {
+          const normAlias = alias.replace(/[\s_\-]+/g, '');
+          if (normAlias.length >= 2 && (normalized.startsWith(normAlias) || normalized.includes(normAlias))) {
+             return webCode;
+          }
+       }
+    }
+
+    return '';
+}
+
 window.clearSummaryData = async function() {
     pendingSummaryData = [];
     viewMode = 'preview';
@@ -347,6 +389,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
         try {
             let totalExtracted = 0; let skippedFiles = []; let errorFiles = [];
+            window._unknownTcgBrands = new Set(); // 🌟 เริ่มนับแบรนด์แปลกใหม่ทุกรอบการดึง
             let savedFilesList = [];
             
             if (typeof appDB !== 'undefined') {
@@ -429,11 +472,17 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                             let cEmp = rowClean.findIndex(c => c.includes('ข้อมูลการอนุมัติครั้งแรก'));
                             let cStat = rowClean.findIndex(c => c === 'สถานะ' || c === 'status');
                             let cAmt = rowClean.findIndex(c => c.includes('จำนวนที่จ่ายจริง'));
-                            let cWeb = rowClean.findIndex(c => c === 'แบรนด์' || c === 'brand');
+                            // 🌟 แก้บัค: ใช้ .includes() ให้ยืดหยุ่นเหมือนคอลัมน์อื่น + รองรับชื่อหัวคอลัมน์หลายแบบ
+                            let cWeb = rowClean.findIndex(c => c.includes('แบรนด์') || c.includes('brand') || c.includes('แพลตฟอร์ม') || c.includes('platform') || c.includes('ผลิตภัณฑ์') || c.includes('product'));
 
                             if (cEmp !== -1 && cStat !== -1 && cAmt !== -1) {
                                 colMap = { emp: cEmp, status: cStat, amount: cAmt, web: cWeb !== -1 ? cWeb : -1 };
-                                headerFound = true; startDataRow = r + 1; break;
+                                headerFound = true; startDataRow = r + 1;
+                                // 🌟 แจ้งเตือนถ้าหา column แบรนด์ไม่เจอ (จะทำให้ทุกรายการเข้า default web)
+                                if (cWeb === -1) {
+                                    console.warn(`[TCG] ไม่พบคอลัมน์แบรนด์ในไฟล์ "${file.name}" — รายการทั้งหมดจะถูกจัดเป็น default web (${fileName})`);
+                                }
+                                break;
                             }
                         } else { 
                             let cEmp = rowClean.findIndex(c => c.includes('riskverification'));
@@ -462,7 +511,10 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                             if (!parsedRowsData[r]) continue;
                             if (fileSystem === 'TCG') {
                                 let rawWeb = colMap.web !== -1 ? String(parsedRowsData[r][colMap.web] || '').trim().toLowerCase() : '';
-                                for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { defaultWeb = webNameMap[w]; break; } }
+                                defaultWeb = matchBrandToWeb(rawWeb);
+                                if (!defaultWeb) {
+                                    for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { defaultWeb = webNameMap[w]; break; } }
+                                }
                             } else {
                                 let rawApp = colMap.emp !== -1 ? String(parsedRowsData[r][colMap.emp] || '').trim().toLowerCase() : '';
                                 let fw = rawApp.split(/[\s\r\n]+/)[0] || '';
@@ -515,7 +567,17 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
                         if (fileSystem === 'TCG' && colMap.web !== -1) {
                             let rawWeb = String(cellData[colMap.web] || '').trim().toLowerCase();
-                            for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { webName = webNameMap[w]; break; } }
+                            // 🌟 ใช้ alias map ก่อน เผื่อรองรับชื่อค่ายเกม (Jili, PGSoft ฯลฯ)
+                            webName = matchBrandToWeb(rawWeb);
+                            // fallback: ใช้ logic เดิม (เผื่อ alias ไม่ครอบ)
+                            if (!webName) {
+                                for (let w of Object.keys(webNameMap)) { if (rawWeb.startsWith(w.substring(0, 2)) || rawWeb.includes(w)) { webName = webNameMap[w]; break; } }
+                            }
+                            // เก็บแบรนด์แปลกๆ ที่จับคู่ไม่ได้ → log ให้ดู
+                            if (!webName && rawWeb) {
+                                if (!window._unknownTcgBrands) window._unknownTcgBrands = new Set();
+                                window._unknownTcgBrands.add(rawWeb);
+                            }
                         }
 
                         if (rawStatus.includes('REJECT') || rawStatus.includes('DECLINE') || rawStatus.includes('CANCEL') || rawStatus.includes('FAIL') || rawStatus.includes('REFUND') || rawStatus.includes('ปฏิเสธ') || rawStatus.includes('ยกเลิก')) {
@@ -637,6 +699,11 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
             viewMode = 'preview';
             renderSummaryDashboard();
             fetchLeaderboardData();
+
+            // 🌟 แจ้งแบรนด์ TCG ที่จับคู่ไม่ได้ (จะตกไป default web ทำให้ยอดเพี้ยน)
+            if (window._unknownTcgBrands && window._unknownTcgBrands.size > 0) {
+                console.warn('[TCG] พบแบรนด์ที่ระบบยังไม่รู้จัก (รายการเหล่านี้ถูกจัดเป็น default web):', Array.from(window._unknownTcgBrands));
+            }
 
             let resultHtml = `ดึงข้อมูลมาได้ <b>${totalExtracted}</b> รายการ (เฉพาะ OD)<br><span class="text-sm text-green-600 font-bold">(ยอดถูกบวกทบกันเรียบร้อยแล้ว)</span>`;
             if (skippedFiles.length > 0) resultHtml += `<br><br><span class="text-xs text-orange-500"><b>ข้ามไฟล์ซ้ำ:</b><br>${skippedFiles.join('<br>')}</span>`;
