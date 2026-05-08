@@ -1537,6 +1537,7 @@ window.sop_saveRule = async function(existing, formData) {
     try {
         const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
         const nowIso = new Date().toISOString();
+        let newSopRecord = null; // 🆕 เก็บ reference ของ OD ที่เพิ่งเพิ่ม — ไม่ต้องพึ่ง index หลัง sort
 
         if (existing) {
             const idx = globalSOPData.findIndex(x => String(x.id) === String(existing.id));
@@ -1569,7 +1570,7 @@ window.sop_saveRule = async function(existing, formData) {
                 };
             }
         } else {
-            globalSOPData.unshift({
+            newSopRecord = {
                 id: 'sop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
                 title: formData.title,
                 content: formData.content,
@@ -1589,7 +1590,8 @@ window.sop_saveRule = async function(existing, formData) {
                 last_editor: authorName,
                 created_at: nowIso,
                 updated_at: nowIso
-            });
+            };
+            globalSOPData.unshift(newSopRecord);
         }
 
         sopAttachmentsBuffer = [];
@@ -1599,17 +1601,16 @@ window.sop_saveRule = async function(existing, formData) {
         sop_renderList();
 
         if (existing) sop_readRule(existing.id, true);
-        else {
-            currentSopId = globalSOPData[0]?.id;
-            if (currentSopId) sop_readRule(currentSopId, true);
+        else if (newSopRecord) {
+            currentSopId = newSopRecord.id; // 🆕 ใช้ id จริงของ OD ที่เพิ่งเพิ่ม ไม่ใช่ [0]
+            sop_readRule(currentSopId, true);
         }
 
         // V6: Telegram notify - ส่งเฉพาะตอนสร้างใหม่ (ไม่ส่งตอนแก้ไข)
-        if (!existing) {
+        if (!existing && newSopRecord) {
             const catLabel = globalSOPCategories.find(c => c.id === formData.category)?.name || formData.category || '';
-            // ดึง URL รูปจากข้อมูลที่บันทึกแล้ว (ไม่ใช่ pdf)
-            const newSop = globalSOPData[0]; // ตัวที่เพิ่งเพิ่ม (unshift)
-            const imgUrls = (newSop?.attachments || [])
+            // 🆕 ใช้ newSopRecord ตรงๆ — ไม่ต้องไปอ่าน globalSOPData[0] ที่อาจถูก sort เปลี่ยนตำแหน่ง
+            const imgUrls = (newSopRecord.attachments || [])
                 .filter(a => !(a.url || '').toLowerCase().includes('.pdf') && a.type !== 'pdf')
                 .map(a => a.url);
             sop_sendTelegramNotify('add', 'sop', formData.title, catLabel, null, imgUrls, formData.content);
