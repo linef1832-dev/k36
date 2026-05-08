@@ -1,233 +1,458 @@
-<div id="breaksApp" class="fade-in flex flex-col h-full bg-[#0f172a] rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
+// ==========================================================
+// 🧴 ระบบลงเวลาห้องน้ำ / สูบบุหรี่ — Frontend
+// ใช้ Supabase ร่วมกับ Telegram Bot
+// ==========================================================
 
-    <!-- ╔══════════════════════════ Header ══════════════════════════╗ -->
-    <div class="bg-gradient-to-r from-cyan-700 to-teal-700 text-white p-4 shadow-md shrink-0 flex flex-col md:flex-row justify-between items-center gap-3">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2 rounded-full"><span class="material-icons text-3xl">wc</span></div>
-            <div>
-                <h1 class="font-bold text-xl leading-tight">ระบบลงเวลาห้องน้ำ / สูบบุหรี่</h1>
-                <p class="text-xs text-cyan-100 opacity-80">เชื่อมต่อกับ Telegram Bot + แจ้งเตือน Discord อัตโนมัติ</p>
-            </div>
-        </div>
-        <div class="flex flex-wrap gap-2 items-center justify-end">
-            <div class="flex bg-black/20 rounded-lg p-1">
-                <button onclick="brk_switchTab('live')" id="brk_tabLive" class="px-3 py-1.5 rounded-md text-xs font-bold bg-white text-cyan-700 shadow transition flex items-center gap-1">
-                    <span class="material-icons text-sm">visibility</span> สถานะปัจจุบัน
-                </button>
-                <button onclick="brk_switchTab('employees')" id="brk_tabEmployees" class="px-3 py-1.5 rounded-md text-xs font-bold text-white/80 hover:text-white transition flex items-center gap-1">
-                    <span class="material-icons text-sm">manage_accounts</span> พนักงาน
-                </button>
-                <button onclick="brk_switchTab('history')" id="brk_tabHistory" class="px-3 py-1.5 rounded-md text-xs font-bold text-white/80 hover:text-white transition flex items-center gap-1">
-                    <span class="material-icons text-sm">history</span> ประวัติ
-                </button>
-            </div>
-            <button onclick="showPage('dashboard')" class="bg-black/20 hover:bg-black/40 text-white px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 text-xs shadow-sm border border-white/20 backdrop-blur-sm shrink-0">
-                <span class="material-icons text-sm">arrow_back</span> กลับ
-            </button>
-        </div>
-    </div>
+let brk_employees = [];     // cache พนักงานทั้งหมด
+let brk_activeSessions = []; // cache active sessions
+let brk_historyData = [];    // cache history
 
-    <!-- ╔══════════════════════════ Tab: Live Monitor ══════════════════════════╗ -->
-    <div id="brk_paneLive" class="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+let brk_clockInterval = null; // อัปเดตเวลาที่ผ่านไปทุกวินาที
 
-        <!-- สรุปยอด -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5 max-w-7xl mx-auto">
-            <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 shadow">
-                <div class="flex items-center gap-2 text-cyan-400 text-xs font-bold mb-1">
-                    <span class="material-icons text-base">groups</span> กำลังออกตอนนี้
-                </div>
-                <div class="text-3xl font-black text-white" id="brk_statActive">0</div>
-            </div>
-            <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 shadow">
-                <div class="flex items-center gap-2 text-amber-400 text-xs font-bold mb-1">
-                    <span class="material-icons text-base">warning</span> เกินเวลา
-                </div>
-                <div class="text-3xl font-black text-amber-300" id="brk_statOverTime">0</div>
-            </div>
-            <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 shadow">
-                <div class="flex items-center gap-2 text-emerald-400 text-xs font-bold mb-1">
-                    <span class="material-icons text-base">today</span> ครั้งวันนี้
-                </div>
-                <div class="text-3xl font-black text-white" id="brk_statToday">0</div>
-            </div>
-            <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 shadow">
-                <div class="flex items-center gap-2 text-purple-400 text-xs font-bold mb-1">
-                    <span class="material-icons text-base">people</span> พนักงานทั้งหมด
-                </div>
-                <div class="text-3xl font-black text-white" id="brk_statTotalEmp">0</div>
-            </div>
-        </div>
 
-        <!-- ตาราง Live Sessions -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden max-w-7xl mx-auto">
-            <div class="p-4 bg-slate-900 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4">
-                <h2 class="text-white font-bold flex items-center gap-2 text-lg">
-                    <span class="material-icons text-cyan-400">policy</span>
-                    คนที่กำลังออกจากที่นั่ง
-                </h2>
-                <span class="text-xs text-gray-400 flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    Realtime — อัปเดตอัตโนมัติ
-                </span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-900 text-gray-400 font-bold border-b border-slate-700">
-                        <tr>
-                            <th class="p-3">พนักงาน</th>
-                            <th class="p-3">ทีม</th>
-                            <th class="p-3">กิจกรรม</th>
-                            <th class="p-3">เริ่มเมื่อ</th>
-                            <th class="p-3">เวลาที่ใช้</th>
-                            <th class="p-3">ห้อง Discord</th>
-                        </tr>
-                    </thead>
-                    <tbody id="brk_liveBody" class="divide-y divide-slate-700 text-gray-200">
-                        <tr><td colspan="6" class="text-center p-10 text-gray-500">
-                            <span class="material-icons animate-spin text-4xl mb-2 block">sync</span>
-                            กำลังโหลดข้อมูล...
-                        </td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+// ==========================================================
+// 🚀 Init — เรียกตอนเข้าหน้านี้
+// ==========================================================
+async function initBreaksApp() {
+    // ตรวจสิทธิ์ — เฉพาะ admin/manager
+    if (currentUser.role !== 'manager' && currentUser.role !== 'admin') {
+        document.getElementById('breaksApp').innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-gray-400 p-10">
+                <span class="material-icons text-6xl mb-3 opacity-30">lock</span>
+                <p class="font-bold text-xl">เฉพาะ Admin / Manager เท่านั้น</p>
+            </div>`;
+        return;
+    }
 
-    <!-- ╔══════════════════════════ Tab: Employees ══════════════════════════╗ -->
-    <div id="brk_paneEmployees" class="hidden flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-        <div class="max-w-7xl mx-auto">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-                <div class="p-4 bg-slate-900 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4">
-                    <h2 class="text-white font-bold flex items-center gap-2 text-lg">
-                        <span class="material-icons text-cyan-400">badge</span>
-                        ทะเบียนพนักงาน
-                    </h2>
-                    <div class="flex gap-2 items-center">
-                        <input type="text" id="brk_empSearch" oninput="brk_renderEmployees()" placeholder="🔍 ค้นหาชื่อ/ทีม..." class="bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-cyan-500 w-full sm:w-64">
-                    </div>
-                </div>
-                <div class="p-3 bg-slate-900/60 border-b border-slate-700 text-xs text-gray-400">
-                    💡 พนักงานต้อง <b>พิมพ์ /start ใน Telegram กับบอท</b> ก่อน — ระบบถึงจะมีชื่อให้แมปกับ Discord ห้องของเขา
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-slate-900 text-gray-400 font-bold border-b border-slate-700">
-                            <tr>
-                                <th class="p-3">ชื่อพนักงาน</th>
-                                <th class="p-3">@username</th>
-                                <th class="p-3">Telegram ID</th>
-                                <th class="p-3">ทีม</th>
-                                <th class="p-3">ห้อง Discord</th>
-                                <th class="p-3">สถานะ</th>
-                                <th class="p-3 text-center">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="brk_empBody" class="divide-y divide-slate-700 text-gray-200">
-                            <tr><td colspan="7" class="text-center p-10 text-gray-500">
-                                <span class="material-icons animate-spin text-4xl mb-2 block">sync</span>
-                                กำลังโหลด...
-                            </td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+    // ตั้งค่าวันที่ default = วันนี้
+    const dateInput = document.getElementById('brk_histDate');
+    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-    <!-- ╔══════════════════════════ Tab: History ══════════════════════════╗ -->
-    <div id="brk_paneHistory" class="hidden flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-        <div class="max-w-7xl mx-auto">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-                <div class="p-4 bg-slate-900 border-b border-slate-700 flex flex-wrap justify-between items-center gap-3">
-                    <h2 class="text-white font-bold flex items-center gap-2 text-lg">
-                        <span class="material-icons text-cyan-400">history</span>
-                        ประวัติการเข้า-ออก
-                    </h2>
-                    <div class="flex flex-wrap gap-2 items-center">
-                        <input type="date" id="brk_histDate" onchange="brk_loadHistory()" class="bg-slate-800 border border-slate-600 text-white px-2 py-1.5 rounded-lg text-sm outline-none">
-                        <select id="brk_histActivity" onchange="brk_renderHistory()" class="bg-slate-800 border border-slate-600 text-white px-2 py-1.5 rounded-lg text-sm outline-none cursor-pointer">
-                            <option value="all">ทุกกิจกรรม</option>
-                            <option value="toilet">🚽 ห้องน้ำ</option>
-                            <option value="smoke">🚬 สูบบุหรี่</option>
-                        </select>
-                        <select id="brk_histExceeded" onchange="brk_renderHistory()" class="bg-slate-800 border border-slate-600 text-white px-2 py-1.5 rounded-lg text-sm outline-none cursor-pointer">
-                            <option value="all">ทั้งหมด</option>
-                            <option value="exceeded">⚠️ เกินเวลาเท่านั้น</option>
-                        </select>
-                        <input type="text" id="brk_histSearch" oninput="brk_renderHistory()" placeholder="🔍 ค้นหาชื่อ..." class="bg-slate-800 border border-slate-600 text-white px-3 py-1.5 rounded-lg text-sm outline-none focus:border-cyan-500 w-full sm:w-48">
-                    </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-slate-900 text-gray-400 font-bold border-b border-slate-700">
-                            <tr>
-                                <th class="p-3">เวลาเริ่ม</th>
-                                <th class="p-3">เวลากลับ</th>
-                                <th class="p-3">พนักงาน</th>
-                                <th class="p-3">ทีม</th>
-                                <th class="p-3">กิจกรรม</th>
-                                <th class="p-3">ใช้เวลา</th>
-                                <th class="p-3">สถานะ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="brk_histBody" class="divide-y divide-slate-700 text-gray-200">
-                            <tr><td colspan="7" class="text-center p-10 text-gray-500">เลือกวันที่เพื่อดูประวัติ</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+    // เติม TEAM_LIST ลงใน dropdown ทีม
+    const teamSelect = document.getElementById('brk_empTeam');
+    if (teamSelect && typeof TEAM_LIST !== 'undefined') {
+        TEAM_LIST.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            teamSelect.appendChild(opt);
+        });
+    }
 
-</div>
+    // เริ่มที่ tab live
+    brk_switchTab('live');
 
-<!-- ╔══════════════════════════ Modal: แก้ไขพนักงาน ══════════════════════════╗ -->
-<div id="brk_empModal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center p-4 fade-in backdrop-blur-sm">
-    <div class="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-700">
-        <div class="bg-gradient-to-r from-cyan-700 to-teal-700 p-4 flex justify-between items-center text-white">
-            <h3 class="font-bold text-lg flex items-center gap-2"><span class="material-icons">edit</span> แก้ไขข้อมูลพนักงาน</h3>
-            <button type="button" onclick="brk_closeEmpModal()" class="text-white/80 hover:text-white p-1 rounded-full bg-white/10 hover:bg-white/20 transition"><span class="material-icons text-sm block">close</span></button>
-        </div>
-        <form onsubmit="brk_saveEmp(event)" class="p-6 space-y-4 text-left text-gray-200">
-            <input type="hidden" id="brk_empId">
+    // โหลดข้อมูลครั้งแรก
+    await brk_loadAll();
 
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase tracking-wider">ชื่อ (จาก Telegram)</label>
-                    <input type="text" id="brk_empName" disabled class="w-full p-3 border border-slate-600 rounded-xl bg-slate-900 text-gray-400 text-sm font-mono">
-                </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase tracking-wider">Telegram ID</label>
-                    <input type="text" id="brk_empTelegramId" disabled class="w-full p-3 border border-slate-600 rounded-xl bg-slate-900 text-gray-400 text-sm font-mono">
-                </div>
-            </div>
+    // Subscribe realtime — อัปเดตอัตโนมัติเมื่อมี checkin/checkout
+    const channel = appDB
+        .channel('breaks-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'break_active_sessions' }, () => {
+            brk_loadActiveSessions();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'break_employees' }, () => {
+            brk_loadEmployees();
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'break_activity_log' }, () => {
+            brk_loadStatToday();
+            // ถ้าอยู่ tab history ของวันนี้ ก็โหลดใหม่
+            const histDate = document.getElementById('brk_histDate')?.value;
+            const today = new Date().toISOString().split('T')[0];
+            if (histDate === today) brk_loadHistory();
+        })
+        .subscribe();
+    if (typeof window.registerPageSubscription === 'function') {
+        window.registerPageSubscription(channel);
+    }
 
-            <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase tracking-wider">ทีม</label>
-                <select id="brk_empTeam" class="w-full p-3 border border-slate-600 rounded-xl bg-slate-900 text-white focus:ring-2 focus:ring-cyan-500 outline-none text-sm cursor-pointer">
-                    <option value="">— ไม่ระบุทีม —</option>
-                </select>
-            </div>
+    // อัปเดตเวลาที่ผ่านไปทุก 1 วินาที
+    brk_clockInterval = setInterval(() => {
+        brk_renderLiveSessions();  // วาดใหม่ทั้งตาราง (จะอัปเดตคอลัมน์ "เวลาที่ใช้")
+    }, 1000);
+    if (typeof window.registerPageInterval === 'function') {
+        window.registerPageInterval(brk_clockInterval);
+    }
+}
 
-            <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase tracking-wider">Discord Webhook URL</label>
-                <input type="text" id="brk_empWebhook" placeholder="https://discord.com/api/webhooks/..." class="w-full p-3 border border-slate-600 rounded-xl bg-slate-900 text-white focus:ring-2 focus:ring-cyan-500 outline-none font-mono text-xs">
-                <p class="text-[10px] text-gray-500 mt-1">วิธีหา: เข้าห้อง Discord → Edit Channel → Integrations → Webhooks → New Webhook → Copy URL</p>
-            </div>
+// ทำให้ window เห็น (สำหรับเรียกจาก global.js showPage)
+window.initBreaksApp = initBreaksApp;
 
-            <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase tracking-wider">ชื่อห้อง Discord (สำหรับแสดง)</label>
-                <input type="text" id="brk_empRoomName" placeholder="เช่น ห้อง A, ห้อง OD-Center" class="w-full p-3 border border-slate-600 rounded-xl bg-slate-900 text-white focus:ring-2 focus:ring-cyan-500 outline-none text-sm">
-            </div>
 
-            <div class="flex items-center gap-2 pt-2">
-                <input type="checkbox" id="brk_empActive" checked class="w-4 h-4 rounded cursor-pointer">
-                <label for="brk_empActive" class="text-sm cursor-pointer">เปิดใช้งานพนักงานคนนี้</label>
-            </div>
+// ==========================================================
+// 🔁 สลับ Tab
+// ==========================================================
+window.brk_switchTab = function(tab) {
+    const tabs = ['live', 'employees', 'history'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`brk_tab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        const pane = document.getElementById(`brk_pane${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (!btn || !pane) return;
+        if (t === tab) {
+            btn.classList.add('bg-white', 'text-cyan-700', 'shadow');
+            btn.classList.remove('text-white/80');
+            pane.classList.remove('hidden');
+            pane.classList.add('flex');
+        } else {
+            btn.classList.remove('bg-white', 'text-cyan-700', 'shadow');
+            btn.classList.add('text-white/80');
+            pane.classList.add('hidden');
+            pane.classList.remove('flex');
+        }
+    });
 
-            <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3.5 rounded-xl shadow-lg mt-4 transition transform active:scale-95 flex items-center justify-center gap-2 text-base">
-                <span class="material-icons">save</span> บันทึกข้อมูล
-            </button>
-        </form>
-    </div>
-</div>
+    // โหลดข้อมูลของ tab ที่เพิ่งเปิด
+    if (tab === 'employees') brk_renderEmployees();
+    else if (tab === 'history') brk_loadHistory();
+};
+
+
+// ==========================================================
+// 📥 โหลดข้อมูลทั้งหมด
+// ==========================================================
+async function brk_loadAll() {
+    // โหลด employees ก่อน เพราะ active_sessions ต้องใช้ข้อมูลพนักงานมา map
+    await brk_loadEmployees();
+    await Promise.all([
+        brk_loadActiveSessions(),
+        brk_loadStatToday(),
+    ]);
+}
+
+// ฟังก์ชันแสดง error เป็น toast (ใช้ SweetAlert2 ถ้ามี)
+function brk_showError(title, error) {
+    const msg = error?.message || error?.code || 'ไม่ทราบสาเหตุ';
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'error',
+            title,
+            text: msg,
+            toast: true,
+            position: 'top-end',
+            timer: 5000,
+            showConfirmButton: false,
+        });
+    }
+}
+
+async function brk_loadEmployees() {
+    const { data, error } = await appDB
+        .from('break_employees')
+        .select('*')
+        .order('display_name');
+    if (error) {
+        console.error('[breaks] loadEmployees error:', error);
+        brk_showError('โหลดข้อมูลพนักงานไม่สำเร็จ', error);
+    }
+    brk_employees = data || [];
+    const totalEl = document.getElementById('brk_statTotalEmp');
+    if (totalEl) totalEl.textContent = brk_employees.length;
+    if (!document.getElementById('brk_paneEmployees').classList.contains('hidden')) {
+        brk_renderEmployees();
+    }
+    brk_renderLiveSessions();
+}
+
+async function brk_loadActiveSessions() {
+    // ดึง active_sessions ก่อน — ไม่ join เพื่อกัน FK error
+    const { data, error } = await appDB
+        .from('break_active_sessions')
+        .select('*')
+        .order('started_at');
+    if (error) {
+        console.error('[breaks] loadActiveSessions error:', error);
+        brk_showError('โหลดสถานะปัจจุบันไม่สำเร็จ', error);
+        brk_activeSessions = [];
+    } else {
+        // map employee data จาก cache (brk_employees) แทนการ join
+        brk_activeSessions = (data || []).map(s => ({
+            ...s,
+            break_employees: brk_employees.find(e => e.id === s.employee_id) || {}
+        }));
+    }
+    const activeEl = document.getElementById('brk_statActive');
+    if (activeEl) activeEl.textContent = brk_activeSessions.length;
+    brk_renderLiveSessions();
+}
+
+async function brk_loadStatToday() {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const { count, error } = await appDB
+        .from('break_activity_log')
+        .select('*', { count: 'exact', head: true })
+        .gte('started_at', start.toISOString());
+    if (!error) document.getElementById('brk_statToday').textContent = count || 0;
+}
+
+
+// ==========================================================
+// 🔴 Tab: Live Monitor
+// ==========================================================
+function brk_renderLiveSessions() {
+    const tbody = document.getElementById('brk_liveBody');
+    if (!tbody) return;
+
+    if (brk_activeSessions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center p-10 text-gray-500">
+            <span class="material-icons text-5xl block mb-2 opacity-30">check_circle</span>
+            ✅ ตอนนี้ไม่มีใครออกจากที่นั่ง
+        </td></tr>`;
+        document.getElementById('brk_statOverTime').textContent = '0';
+        return;
+    }
+
+    let overTimeCount = 0;
+    const now = Date.now();
+
+    tbody.innerHTML = brk_activeSessions.map(s => {
+        const emp = s.break_employees || {};
+        const started = new Date(s.started_at);
+        const elapsedSec = Math.floor((now - started.getTime()) / 1000);
+        const limitSec = s.time_limit_minutes * 60;
+        const isOver = elapsedSec > limitSec;
+        if (isOver) overTimeCount++;
+
+        const min = Math.floor(elapsedSec / 60);
+        const sec = elapsedSec % 60;
+        const elapsedStr = `${min}:${String(sec).padStart(2, '0')}`;
+
+        const { icon: activityIcon, label: activityLabel } = brk_activityDisplay(s.activity);
+        const rowBg = isOver ? 'bg-red-900/30 hover:bg-red-900/40' : 'hover:bg-slate-700/50';
+        const timeClass = isOver ? 'text-red-400 font-black' : 'text-cyan-300 font-bold';
+        const overBadge = isOver
+            ? `<span class="ml-2 px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full font-black animate-pulse">เกิน!</span>`
+            : '';
+
+        return `
+            <tr class="${rowBg} transition">
+                <td class="p-3 font-bold text-white">${emp.display_name || '—'}</td>
+                <td class="p-3 text-gray-400">${emp.team || '—'}</td>
+                <td class="p-3"><span class="text-lg">${activityIcon}</span> ${activityLabel}</td>
+                <td class="p-3 font-mono text-gray-300">${started.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</td>
+                <td class="p-3 ${timeClass} font-mono text-base">${elapsedStr} / ${s.time_limit_minutes}:00 ${overBadge}</td>
+                <td class="p-3 text-gray-400 text-xs">${emp.discord_room_name || '<span class="text-amber-400">ยังไม่ตั้งค่า</span>'}</td>
+            </tr>`;
+    }).join('');
+
+    document.getElementById('brk_statOverTime').textContent = overTimeCount;
+}
+
+
+// ==========================================================
+// 🎨 Map activity name → icon + label
+// ==========================================================
+function brk_activityDisplay(activity) {
+    const a = (activity || '').toLowerCase();
+    if (a.includes('สูบบุหรี่')) return { icon: '🚬', label: activity };
+    if (a.includes('ปวดน้อย') || a.includes('ปวดหนัก') || a.includes('ห้องน้ำ') || a.includes('toilet')) {
+        return { icon: '🚽', label: activity };
+    }
+    if (a.includes('กินข้าว') || a.includes('ทาน') || a.includes('อาหาร')) {
+        return { icon: '🍱', label: activity };
+    }
+    return { icon: '⏸️', label: activity || '—' };
+}
+
+
+// ==========================================================
+// 👥 Tab: Employees
+// ==========================================================
+window.brk_renderEmployees = function() {
+    const tbody = document.getElementById('brk_empBody');
+    if (!tbody) return;
+
+    const search = (document.getElementById('brk_empSearch')?.value || '').toLowerCase().trim();
+    const filtered = brk_employees.filter(e => {
+        if (!search) return true;
+        return (e.display_name || '').toLowerCase().includes(search)
+            || (e.team || '').toLowerCase().includes(search)
+            || (e.telegram_username || '').toLowerCase().includes(search);
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-10 text-gray-500">
+            <span class="material-icons text-5xl block mb-2 opacity-30">person_off</span>
+            ${brk_employees.length === 0
+                ? 'ยังไม่มีพนักงานลงทะเบียน — ให้พนักงานพิมพ์ /start ใน Telegram'
+                : 'ไม่พบพนักงานที่ค้นหา'}
+        </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(e => {
+        const hasWebhook = !!e.discord_webhook_url;
+        const hasTeam = !!e.team;
+        const statusBadge = e.is_active
+            ? '<span class="px-2 py-0.5 bg-emerald-900/50 text-emerald-400 text-[10px] rounded-full font-bold border border-emerald-700">ใช้งาน</span>'
+            : '<span class="px-2 py-0.5 bg-gray-700 text-gray-400 text-[10px] rounded-full font-bold">ปิด</span>';
+
+        let configBadges = '';
+        configBadges += hasTeam
+            ? '<span class="text-emerald-400" title="ตั้งทีมแล้ว">🟢</span>'
+            : '<span class="text-amber-400" title="ยังไม่ตั้งทีม">🟡</span>';
+        configBadges += hasWebhook
+            ? ' <span class="text-emerald-400" title="ตั้ง Discord แล้ว">🟢</span>'
+            : ' <span class="text-amber-400" title="ยังไม่ตั้ง Discord">🟡</span>';
+
+        return `
+            <tr class="hover:bg-slate-700/50 transition">
+                <td class="p-3 font-bold text-white">${e.display_name}</td>
+                <td class="p-3 text-gray-400 text-xs">${e.telegram_username ? '@' + e.telegram_username : '—'}</td>
+                <td class="p-3 text-gray-400 font-mono text-xs">${e.telegram_id}</td>
+                <td class="p-3">${e.team ? `<span class="px-2 py-1 bg-indigo-900/50 text-indigo-300 rounded font-bold text-xs">${e.team}</span>` : '<span class="text-amber-400 text-xs">—</span>'}</td>
+                <td class="p-3 text-xs ${hasWebhook ? 'text-cyan-300' : 'text-amber-400'}">${e.discord_room_name || (hasWebhook ? 'ตั้งแล้ว' : 'ยังไม่ตั้ง')}</td>
+                <td class="p-3">${statusBadge} ${configBadges}</td>
+                <td class="p-3 text-center">
+                    <button onclick="brk_openEmpModal(${e.id})" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition active:scale-95">
+                        <span class="material-icons text-sm align-middle">edit</span> แก้ไข
+                    </button>
+                </td>
+            </tr>`;
+    }).join('');
+};
+
+
+window.brk_openEmpModal = function(empId) {
+    const emp = brk_employees.find(e => e.id === empId);
+    if (!emp) return;
+
+    document.getElementById('brk_empId').value = emp.id;
+    document.getElementById('brk_empName').value = emp.display_name;
+    document.getElementById('brk_empTelegramId').value = emp.telegram_id;
+    document.getElementById('brk_empTeam').value = emp.team || '';
+    document.getElementById('brk_empWebhook').value = emp.discord_webhook_url || '';
+    document.getElementById('brk_empRoomName').value = emp.discord_room_name || '';
+    document.getElementById('brk_empActive').checked = emp.is_active !== false;
+
+    const modal = document.getElementById('brk_empModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};
+
+
+window.brk_closeEmpModal = function() {
+    const modal = document.getElementById('brk_empModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+};
+
+
+window.brk_saveEmp = async function(event) {
+    event.preventDefault();
+    const id = parseInt(document.getElementById('brk_empId').value);
+    const webhook = document.getElementById('brk_empWebhook').value.trim();
+
+    // validate webhook URL
+    if (webhook && !webhook.startsWith('https://discord.com/api/webhooks/')) {
+        Swal.fire({ icon: 'error', title: 'URL ไม่ถูกต้อง',
+            text: 'Webhook URL ต้องขึ้นต้นด้วย https://discord.com/api/webhooks/' });
+        return;
+    }
+
+    const updateData = {
+        team: document.getElementById('brk_empTeam').value || null,
+        discord_webhook_url: webhook || null,
+        discord_room_name: document.getElementById('brk_empRoomName').value.trim() || null,
+        is_active: document.getElementById('brk_empActive').checked,
+    };
+
+    const { error } = await appDB.from('break_employees').update(updateData).eq('id', id);
+    if (error) {
+        Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: error.message });
+        return;
+    }
+
+    Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', timer: 1200, showConfirmButton: false });
+    brk_closeEmpModal();
+    await brk_loadEmployees();
+};
+
+
+// ==========================================================
+// 📚 Tab: History
+// ==========================================================
+window.brk_loadHistory = async function() {
+    const dateStr = document.getElementById('brk_histDate')?.value;
+    if (!dateStr) return;
+
+    const tbody = document.getElementById('brk_histBody');
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-10 text-gray-500">
+        <span class="material-icons animate-spin text-4xl mb-2 block">sync</span>
+        กำลังโหลด...
+    </td></tr>`;
+
+    const startOfDay = new Date(dateStr + 'T00:00:00').toISOString();
+    const endOfDay = new Date(dateStr + 'T23:59:59').toISOString();
+
+    const { data, error } = await appDB
+        .from('break_activity_log')
+        .select('*')
+        .gte('started_at', startOfDay)
+        .lte('started_at', endOfDay)
+        .order('started_at', { ascending: false })
+        .limit(500);
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-10 text-red-400">โหลดผิดพลาด: ${error.message}</td></tr>`;
+        return;
+    }
+
+    brk_historyData = data || [];
+    brk_renderHistory();
+};
+
+
+window.brk_renderHistory = function() {
+    const tbody = document.getElementById('brk_histBody');
+    if (!tbody) return;
+
+    const filterAct = document.getElementById('brk_histActivity')?.value || 'all';
+    const filterExc = document.getElementById('brk_histExceeded')?.value || 'all';
+    const search = (document.getElementById('brk_histSearch')?.value || '').toLowerCase().trim();
+
+    let rows = brk_historyData;
+    if (filterAct !== 'all') {
+        rows = rows.filter(r => {
+            const a = (r.activity || '').toLowerCase();
+            if (filterAct === 'toilet') return a.includes('ปวด') || a.includes('ห้องน้ำ') || a.includes('toilet');
+            if (filterAct === 'smoke')  return a.includes('สูบบุหรี่');
+            if (filterAct === 'eat')    return a.includes('กินข้าว') || a.includes('ทาน');
+            return true;
+        });
+    }
+    if (filterExc === 'exceeded') rows = rows.filter(r => r.exceeded_limit);
+    if (search) rows = rows.filter(r => (r.employee_name || '').toLowerCase().includes(search));
+
+    if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-10 text-gray-500">
+            <span class="material-icons text-5xl block mb-2 opacity-30">inbox</span>
+            ไม่มีข้อมูลในวันที่เลือก
+        </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+        const started = new Date(r.started_at);
+        const ended = new Date(r.ended_at);
+        const min = Math.floor(r.duration_seconds / 60);
+        const sec = r.duration_seconds % 60;
+        const durationStr = `${min}:${String(sec).padStart(2,'0')}`;
+
+        const { icon: activityIcon, label: activityLabel } = brk_activityDisplay(r.activity);
+        const statusBadge = r.exceeded_limit
+            ? '<span class="px-2 py-0.5 bg-red-900/50 text-red-400 text-[10px] rounded-full font-bold border border-red-700">⚠️ เกินเวลา</span>'
+            : '<span class="px-2 py-0.5 bg-emerald-900/50 text-emerald-400 text-[10px] rounded-full font-bold border border-emerald-700">✅ ปกติ</span>';
+
+        return `
+            <tr class="hover:bg-slate-700/50 transition">
+                <td class="p-3 font-mono text-xs text-gray-300">${started.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</td>
+                <td class="p-3 font-mono text-xs text-gray-300">${ended.toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</td>
+                <td class="p-3 font-bold text-white">${r.employee_name}</td>
+                <td class="p-3 text-gray-400 text-xs">${r.team || '—'}</td>
+                <td class="p-3"><span class="text-lg">${activityIcon}</span> ${activityLabel}</td>
+                <td class="p-3 font-mono ${r.exceeded_limit ? 'text-red-400 font-black' : 'text-cyan-300 font-bold'}">${durationStr}</td>
+                <td class="p-3">${statusBadge}</td>
+            </tr>`;
+    }).join('');
+};
