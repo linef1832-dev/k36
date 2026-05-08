@@ -22,6 +22,87 @@
     <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
         <div id="kbizGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1600px] mx-auto pb-10"></div>
 
+        <!-- 🤖 TELEGRAM BOT CONFIG (เพิ่มใหม่ — ของเดิมไม่แตะ) -->
+        <div class="max-w-[1600px] mx-auto mt-8">
+            <div class="bg-gradient-to-br from-sky-600 to-blue-700 dark:from-sky-700 dark:to-blue-900 text-white p-4 rounded-t-2xl flex justify-between items-center shadow-lg">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-sky-100">smart_toy</span></div>
+                    <div>
+                        <h2 class="font-black text-lg tracking-wide">ตั้งค่า Telegram Bot</h2>
+                        <p class="text-xs text-sky-100 opacity-90">เช็คเลขบัญชีผ่าน Telegram chat — ใช้บอท K BIZ เดียวกับ extension</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div id="telegramBotStatusBadge" class="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold border border-white/30">⏳ กำลังโหลด...</div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-b-2xl border border-t-0 border-slate-200 dark:border-slate-700 shadow-sm">
+                <form onsubmit="saveTelegramConfig(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Bot Token (จาก @BotFather)</label>
+                            <div class="relative">
+                                <input type="password" id="telegramBotToken" placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz" class="w-full p-3 pr-12 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none font-mono text-sm shadow-inner transition">
+                                <button type="button" onclick="toggleTelegramTokenVisibility()" class="absolute right-2 top-2.5 text-gray-400 hover:text-sky-500 p-1.5 rounded-lg transition" title="แสดง/ซ่อน">
+                                    <span id="telegramTokenEyeIcon" class="material-icons text-[18px]">visibility</span>
+                                </button>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-1">📌 ขอ token: เปิด Telegram → @BotFather → /newbot → คัดลอก token</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">เลือกบอท K BIZ ที่ Telegram จะใช้</label>
+                            <select id="telegramPreferredMachine" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm cursor-pointer shadow-inner transition">
+                                <option value="">🎲 อัตโนมัติ (สลับใช้ทุกตัวที่ active)</option>
+                            </select>
+                            <p class="text-[10px] text-gray-400 mt-1">ค่าว่าง = ใช้บอททุกตัวที่เปิดด้านบน</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">วิธีเลือกบอท (ถ้าเป็นอัตโนมัติ)</label>
+                            <select id="telegramPickStrategy" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none text-sm cursor-pointer shadow-inner transition">
+                                <option value="random">🎲 สลับใช้ (กระจายโหลด)</option>
+                                <option value="first">1️⃣ ใช้ตัวแรกที่ active</option>
+                            </select>
+                            <p class="text-[10px] text-gray-400 mt-1">แนะนำ: สลับใช้ ถ้ามีหลายบอท</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-gray-300 dark:border-slate-600 shadow-inner">
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons text-sky-500 text-[20px]">power_settings_new</span>
+                            <div>
+                                <span class="text-sm font-bold text-slate-700 dark:text-gray-300">เปิดใช้งาน Telegram Bot</span>
+                                <p class="text-[10px] text-gray-400">ปิดไว้ = บอทบน VPS จะหยุดรับคำสั่ง (รีสตาร์ท bot ก่อน)</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="telegramEnabled" class="sr-only peer" checked>
+                            <div class="w-16 h-7 bg-red-400 dark:bg-red-600 rounded-full peer peer-checked:bg-sky-500 transition-all shadow-inner relative after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:shadow-md after:transition-all peer-checked:after:translate-x-9"></div>
+                            <span class="absolute left-2 text-[10px] font-black text-white peer-checked:opacity-0 transition pointer-events-none">OFF</span>
+                            <span class="absolute right-2 text-[10px] font-black text-white opacity-0 peer-checked:opacity-100 transition pointer-events-none">ON</span>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <button type="submit" class="bg-sky-600 hover:bg-sky-500 text-white font-black py-3 rounded-xl shadow-lg transition transform active:scale-95 border border-sky-400 flex items-center justify-center gap-2">
+                            <span class="material-icons">save</span> บันทึกการตั้งค่า
+                        </button>
+                        <button type="button" onclick="testTelegramBotInfo()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-3 rounded-xl shadow-sm transition border border-slate-300 dark:border-slate-600 flex items-center justify-center gap-2">
+                            <span class="material-icons text-sky-500">verified</span> ทดสอบ Token
+                        </button>
+                    </div>
+
+                    <div class="p-3 bg-sky-50 dark:bg-sky-900/20 border-l-4 border-sky-400 rounded-r-lg text-xs text-sky-800 dark:text-sky-200 space-y-1">
+                        <div>💡 <b>หลังจากเปลี่ยน token หรือ enabled</b> → ต้องไปรีสตาร์ท bot บน VPS:</div>
+                        <div class="font-mono pl-5">ปิดหน้าต่าง CMD ที่เปิดไว้ → double-click <code class="bg-sky-100 dark:bg-sky-800 px-1 rounded">2-start-bot.bat</code> ใหม่</div>
+                        <div>🔒 <b>Token เก็บใน Supabase</b> — ปลอดภัยกว่าใส่ใน .env บน VPS</div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- 🔑 OCR API KEYS MANAGER -->
         <div class="max-w-[1600px] mx-auto mt-8">
             <div class="bg-gradient-to-br from-amber-600 to-orange-700 dark:from-amber-700 dark:to-orange-900 text-white p-4 rounded-t-2xl flex justify-between items-center shadow-lg">
