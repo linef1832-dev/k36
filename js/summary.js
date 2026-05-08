@@ -525,6 +525,40 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
                     }
                     if (!defaultWeb) defaultWeb = fileSystem === 'TCG' ? 'PG688' : 'Jun88'; 
 
+                    // 🌟 แก้บัค: บางไฟล์ TCG (เช่น NM9, JL69) export ออกมาแล้วข้อมูลเลื่อนจาก header หลายคอลัมน์
+                    // ตรวจจับโดยเทียบค่าที่ตำแหน่ง status ว่าตรงกับคำสถานะจริงไหม ถ้าไม่ → หาตำแหน่งจริงแล้วเลื่อน colMap ทั้งชุด
+                    if (fileSystem === 'TCG' && headerFound && colMap.status !== -1 && parsedRowsData.length > startDataRow) {
+                        const STATUS_WORDS = ['จ่าย', 'paid', 'success', 'approved', 'reject', 'cancel', 'fail', 'ปฏิเสธ', 'ยกเลิก', 'pending'];
+                        // หาแถวตัวอย่างที่ไม่ว่าง
+                        let sampleRow = null;
+                        for (let i = startDataRow; i < Math.min(startDataRow + 10, parsedRowsData.length); i++) {
+                            if (parsedRowsData[i] && parsedRowsData[i].length >= colMap.status + 1) {
+                                const v = String(parsedRowsData[i][colMap.status] || '').trim();
+                                if (v) { sampleRow = parsedRowsData[i]; break; }
+                            }
+                        }
+                        if (sampleRow) {
+                            const headerStatusVal = String(sampleRow[colMap.status] || '').trim().toLowerCase();
+                            const isValidStatus = STATUS_WORDS.some(w => headerStatusVal === w || headerStatusVal.includes(w));
+                            if (!isValidStatus) {
+                                // หาตำแหน่งจริงของ status ใน data row (ไล่จากซ้ายไปขวา)
+                                let realStatusCol = -1;
+                                for (let c = colMap.status; c < sampleRow.length; c++) {
+                                    const val = String(sampleRow[c] || '').trim().toLowerCase();
+                                    if (STATUS_WORDS.some(w => val === w)) { realStatusCol = c; break; }
+                                }
+                                if (realStatusCol !== -1 && realStatusCol > colMap.status) {
+                                    const shift = realStatusCol - colMap.status;
+                                    console.warn(`[TCG] ข้อมูลในไฟล์ "${file.name}" เลื่อนจาก header +${shift} คอลัมน์ — ปรับตำแหน่งอัตโนมัติ`);
+                                    colMap.status += shift;
+                                    colMap.amount += shift;
+                                    if (colMap.web !== -1) colMap.web += shift;
+                                    colMap.emp += shift;
+                                }
+                            }
+                        }
+                    }
+
                     let extractedRows = []; let detectedDate = null;
 
                     for (let i = startDataRow; i < parsedRowsData.length; i++) {
