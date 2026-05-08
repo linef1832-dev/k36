@@ -274,7 +274,7 @@ window.brk_renderEmployees = function() {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center p-10 text-gray-500">
             <span class="material-icons text-5xl block mb-2 opacity-30">person_off</span>
             ${brk_employees.length === 0
-                ? 'ยังไม่มีพนักงานลงทะเบียน — ให้พนักงานพิมพ์ /start ใน Telegram'
+                ? 'ยังไม่มีพนักงาน — กดปุ่ม <b class="text-emerald-400">+ เพิ่มพนักงาน</b> ด้านบนขวา หรือรอ userbot ตรวจพบกิจกรรม'
                 : 'ไม่พบพนักงานที่ค้นหา'}
         </td></tr>`;
         return;
@@ -317,13 +317,47 @@ window.brk_openEmpModal = function(empId) {
     const emp = brk_employees.find(e => e.id === empId);
     if (!emp) return;
 
+    document.getElementById('brk_empModalTitle').textContent = 'แก้ไขข้อมูลพนักงาน';
+    document.getElementById('brk_empModalIcon').textContent = 'edit';
+    document.getElementById('brk_empNameHint').textContent = '(จาก Telegram)';
+
     document.getElementById('brk_empId').value = emp.id;
-    document.getElementById('brk_empName').value = emp.display_name;
-    document.getElementById('brk_empTelegramId').value = emp.telegram_id;
+    const nameInput = document.getElementById('brk_empName');
+    const tgIdInput = document.getElementById('brk_empTelegramId');
+    nameInput.value = emp.display_name;
+    tgIdInput.value = emp.telegram_id;
+    // อนุญาตแก้ชื่อได้ แต่ telegram_id ห้ามแก้ (เป็น primary key)
+    nameInput.disabled = false;
+    tgIdInput.disabled = true;
+
     document.getElementById('brk_empTeam').value = emp.team || '';
     document.getElementById('brk_empWebhook').value = emp.discord_webhook_url || '';
     document.getElementById('brk_empRoomName').value = emp.discord_room_name || '';
     document.getElementById('brk_empActive').checked = emp.is_active !== false;
+
+    const modal = document.getElementById('brk_empModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};
+
+
+window.brk_openAddEmpModal = function() {
+    document.getElementById('brk_empModalTitle').textContent = 'เพิ่มพนักงานใหม่';
+    document.getElementById('brk_empModalIcon').textContent = 'person_add';
+    document.getElementById('brk_empNameHint').textContent = '(พิมพ์เอง)';
+
+    document.getElementById('brk_empId').value = '';  // ว่าง = add mode
+    const nameInput = document.getElementById('brk_empName');
+    const tgIdInput = document.getElementById('brk_empTelegramId');
+    nameInput.value = '';
+    tgIdInput.value = '';
+    nameInput.disabled = false;
+    tgIdInput.disabled = false;
+
+    document.getElementById('brk_empTeam').value = '';
+    document.getElementById('brk_empWebhook').value = '';
+    document.getElementById('brk_empRoomName').value = '';
+    document.getElementById('brk_empActive').checked = true;
 
     const modal = document.getElementById('brk_empModal');
     modal.classList.remove('hidden');
@@ -340,30 +374,56 @@ window.brk_closeEmpModal = function() {
 
 window.brk_saveEmp = async function(event) {
     event.preventDefault();
-    const id = parseInt(document.getElementById('brk_empId').value);
+    const idStr = document.getElementById('brk_empId').value;
+    const isEdit = !!idStr;
     const webhook = document.getElementById('brk_empWebhook').value.trim();
+    const displayName = document.getElementById('brk_empName').value.trim();
+    const telegramIdStr = document.getElementById('brk_empTelegramId').value.trim();
 
-    // validate webhook URL
+    // validate
+    if (!displayName) {
+        Swal.fire({ icon: 'error', title: 'กรุณาใส่ชื่อพนักงาน' });
+        return;
+    }
+    if (!telegramIdStr || isNaN(parseInt(telegramIdStr))) {
+        Swal.fire({ icon: 'error', title: 'Telegram ID ต้องเป็นตัวเลข' });
+        return;
+    }
     if (webhook && !webhook.startsWith('https://discord.com/api/webhooks/')) {
         Swal.fire({ icon: 'error', title: 'URL ไม่ถูกต้อง',
             text: 'Webhook URL ต้องขึ้นต้นด้วย https://discord.com/api/webhooks/' });
         return;
     }
 
-    const updateData = {
+    const data = {
+        display_name: displayName,
         team: document.getElementById('brk_empTeam').value || null,
         discord_webhook_url: webhook || null,
         discord_room_name: document.getElementById('brk_empRoomName').value.trim() || null,
         is_active: document.getElementById('brk_empActive').checked,
     };
 
-    const { error } = await appDB.from('break_employees').update(updateData).eq('id', id);
+    let error;
+    if (isEdit) {
+        // UPDATE
+        const id = parseInt(idStr);
+        ({ error } = await appDB.from('break_employees').update(data).eq('id', id));
+    } else {
+        // INSERT — ต้องมี telegram_id
+        data.telegram_id = parseInt(telegramIdStr);
+        ({ error } = await appDB.from('break_employees').insert(data));
+    }
+
     if (error) {
-        Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: error.message });
+        const msg = (error.code === '23505')
+            ? 'Telegram ID นี้มีอยู่ในระบบแล้ว'
+            : error.message;
+        Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: msg });
         return;
     }
 
-    Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', timer: 1200, showConfirmButton: false });
+    Swal.fire({ icon: 'success', title: isEdit ? 'แก้ไขแล้ว' : 'เพิ่มแล้ว',
+        timer: 1200, showConfirmButton: false });
     brk_closeEmpModal();
     await brk_loadEmployees();
 };
