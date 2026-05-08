@@ -40,10 +40,12 @@ async function fetchKbizData() {
         }
         renderKbizGrid();
         fetchOcrKeysData();
+        fetchTelegramBotConfig();
     } catch(e) { 
         globalKbizBots = []; 
         renderKbizGrid(); 
         fetchOcrKeysData();
+        fetchTelegramBotConfig();
     }
 }
 
@@ -403,3 +405,162 @@ setInterval(() => {
         fetchOcrKeysData();
     }
 }, 30000);
+
+
+// ==========================================
+// 🤖 ระบบจัดการ Telegram Bot Config (เพิ่มใหม่ — ของเดิมไม่แตะ)
+// ==========================================
+let globalTelegramConfig = {};
+
+async function fetchTelegramBotConfig() {
+    if (!document.getElementById('telegramBotToken')) return; // ไม่อยู่หน้านี้
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'telegram_bot_config').single();
+        if (data && data.value) {
+            globalTelegramConfig = JSON.parse(data.value);
+        } else {
+            globalTelegramConfig = {};
+        }
+    } catch(e) {
+        globalTelegramConfig = {};
+    }
+
+    // ถ้ายังไม่มี globalKbizBots (อยู่หน้า kbiz_bot.html ที่ไม่ได้เรียก fetchKbizData)
+    // ดึงเฉพาะ machine_id เพื่อ populate dropdown
+    if (!globalKbizBots || globalKbizBots.length === 0) {
+        try {
+            const { data: bd } = await appDB.from('settings').select('value').eq('key', 'kbiz_bots_data').single();
+            if (bd && bd.value) {
+                globalKbizBots = JSON.parse(bd.value);
+            }
+        } catch(e) { /* ignore */ }
+    }
+
+    renderTelegramBotConfig();
+}
+
+function renderTelegramBotConfig() {
+    const tokenInput = document.getElementById('telegramBotToken');
+    if (!tokenInput) return;
+
+    // กรอกค่าปัจจุบัน
+    tokenInput.value = globalTelegramConfig.token || '';
+    document.getElementById('telegramPickStrategy').value = globalTelegramConfig.pick_strategy || 'random';
+    document.getElementById('telegramEnabled').checked = globalTelegramConfig.enabled !== false;
+
+    // populate dropdown ของบอท K BIZ ที่ active
+    const select = document.getElementById('telegramPreferredMachine');
+    const activeBots = (globalKbizBots || []).filter(b => b.is_active);
+    let optionsHtml = '<option value="">🎲 อัตโนมัติ (สลับใช้ทุกตัวที่ active)</option>';
+    optionsHtml += activeBots.map(b => 
+        `<option value="${b.machine_id}">${b.machine_id}${b.display_name ? ' — ' + b.display_name : ''}</option>`
+    ).join('');
+    select.innerHTML = optionsHtml;
+    select.value = globalTelegramConfig.preferred_machine || '';
+
+    // อัพเดท badge
+    const badge = document.getElementById('telegramBotStatusBadge');
+    if (badge) {
+        const hasToken = !!globalTelegramConfig.token;
+        const isEnabled = globalTelegramConfig.enabled !== false;
+        if (!hasToken) {
+            badge.textContent = '⚠ ยังไม่ตั้ง Token';
+            badge.className = 'bg-amber-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-amber-300/50';
+        } else if (!isEnabled) {
+            badge.textContent = '⏸ ปิดใช้งาน';
+            badge.className = 'bg-red-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-red-300/50';
+        } else {
+            badge.textContent = '✅ พร้อมใช้งาน';
+            badge.className = 'bg-emerald-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-emerald-300/50';
+        }
+    }
+}
+
+window.toggleTelegramTokenVisibility = function() {
+    const input = document.getElementById('telegramBotToken');
+    const icon = document.getElementById('telegramTokenEyeIcon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.textContent = 'visibility_off';
+    } else {
+        input.type = 'password';
+        icon.textContent = 'visibility';
+    }
+};
+
+window.saveTelegramConfig = async function(e) {
+    if (e) e.preventDefault();
+    const token = document.getElementById('telegramBotToken').value.trim();
+    const preferred = document.getElementById('telegramPreferredMachine').value;
+    const strategy = document.getElementById('telegramPickStrategy').value;
+    const enabled = document.getElementById('telegramEnabled').checked;
+
+    // ตรวจ token format คร่าวๆ
+    if (token && !/^\d+:[A-Za-z0-9_-]+$/.test(token)) {
+        return Swal.fire('Token รูปแบบไม่ถูกต้อง', 'Token ของ Telegram ต้องเป็นแบบ <b>123456789:ABCdef...</b>', 'warning');
+    }
+
+    const config = {
+        token: token,
+        preferred_machine: preferred,
+        pick_strategy: strategy,
+        enabled: enabled,
+        updated_at: new Date().toISOString()
+    };
+
+    Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+    try {
+        await appDB.from('settings').upsert([{ key: 'telegram_bot_config', value: JSON.stringify(config) }]);
+        globalTelegramConfig = config;
+        renderTelegramBotConfig();
+        Swal.fire({
+            icon: 'success',
+            title: 'บันทึกสำเร็จ!',
+            html: '⚠ <b>อย่าลืมรีสตาร์ท bot บน VPS</b><br><span class="text-xs">ปิดหน้าต่าง CMD แล้ว double-click <code>2-start-bot.bat</code> ใหม่</span>',
+            timer: 3500,
+            showConfirmButton: false
+        });
+    } catch(err) {
+        Swal.fire('Error', err.message, 'error');
+    }
+};
+
+// 🧪 ทดสอบ token โดยเรียก Telegram API getMe
+window.testTelegramBotInfo = async function() {
+    const token = document.getElementById('telegramBotToken').value.trim();
+    if (!token) return Swal.fire('ไม่มี Token', 'กรอก token ก่อน', 'warning');
+
+    Swal.fire({title: 'กำลังทดสอบ...', didOpen: () => Swal.showLoading()});
+    try {
+        const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+        const data = await res.json();
+        if (data.ok) {
+            const b = data.result;
+            Swal.fire({
+                icon: 'success',
+                title: 'Token ใช้งานได้!',
+                html: `
+                    <div class="text-left text-sm space-y-1 mt-2">
+                        <div>🤖 ชื่อบอท: <b>${b.first_name}</b></div>
+                        <div>📛 Username: <code>@${b.username}</code></div>
+                        <div>🔗 Link: <a href="https://t.me/${b.username}" target="_blank" class="text-sky-500 underline">t.me/${b.username}</a></div>
+                    </div>
+                `
+            });
+        } else {
+            Swal.fire('Token ใช้ไม่ได้', data.description || 'Telegram API ปฏิเสธ token นี้', 'error');
+        }
+    } catch(err) {
+        Swal.fire('เชื่อมไม่ได้', err.message, 'error');
+    }
+};
+
+// 🔁 auto-detect element appear (ใช้ได้กับทุกหน้าที่มี telegramBotToken)
+// เผื่อกรณี user เปิดหน้า kbiz_bot.html (ไม่ trigger fetchKbizData)
+setInterval(() => {
+    const tokenEl = document.getElementById('telegramBotToken');
+    if (tokenEl && tokenEl.dataset.telegramLoaded !== 'true') {
+        tokenEl.dataset.telegramLoaded = 'true';
+        fetchTelegramBotConfig();
+    }
+}, 2000);
