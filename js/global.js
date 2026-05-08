@@ -154,6 +154,12 @@ async function showPage(pageName) {
                 else if (pageName === 'kb') {
                     if (typeof initKbApp === 'function') await initKbApp();
                 }
+                else if (pageName === 'sop') {
+                if (typeof initSopApp === 'function') await initSopApp();
+                }
+                else if (pageName === 'od_center') {
+                    if (typeof initOdCenterApp === 'function') await initOdCenterApp();
+                }
                 else if (pageName === 'leave') {
                     if (typeof initLeaveTable === 'function') await initLeaveTable();
                 }
@@ -214,11 +220,11 @@ async function showPage(pageName) {
                         if(document.getElementById('adminAnnouncementControls')) document.getElementById('adminAnnouncementControls').classList.remove('hidden');
                     }
                 }
-                else if (pageName === 'breaks') {
-                    if (typeof initBreaksApp === 'function') await initBreaksApp();
-                }
                 else if (pageName === 'swap') {
                     if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
+                }
+                else if (pageName === 'ip_check') {
+                    if (typeof initIpCheckApp === 'function') await initIpCheckApp();
                 }
             });
         };
