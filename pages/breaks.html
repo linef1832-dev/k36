@@ -104,10 +104,13 @@
                     </h2>
                     <div class="flex gap-2 items-center">
                         <input type="text" id="brk_empSearch" oninput="brk_renderEmployees()" placeholder="🔍 ค้นหาชื่อ/ทีม..." class="bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-cyan-500 w-full sm:w-64">
+                        <button onclick="brk_openAddEmpModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow transition active:scale-95 whitespace-nowrap">
+                            <span class="material-icons text-base">person_add</span> เพิ่มพนักงาน
+                        </button>
                     </div>
                 </div>
                 <div class="p-3 bg-slate-900/60 border-b border-slate-700 text-xs text-gray-400">
-                    💡 พนักงานต้อง <b>พิมพ์ /start ใน Telegram กับบอท</b> ก่อน — ระบบถึงจะมีชื่อให้แมปกับ Discord ห้องของเขา
+                    💡 พนักงานจะถูกเพิ่มอัตโนมัติเมื่อ userbot ตรวจพบกิจกรรมในกลุ่ม — หรือเพิ่มเองล่วงหน้าด้วยปุ่ม <b class="text-emerald-400">+ เพิ่มพนักงาน</b>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm">
@@ -185,7 +188,7 @@
 <div id="brk_empModal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center p-4 fade-in backdrop-blur-sm">
     <div class="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-700">
         <div class="bg-gradient-to-r from-cyan-700 to-teal-700 p-4 flex justify-between items-center text-white">
-            <h3 class="font-bold text-lg flex items-center gap-2"><span class="material-icons">edit</span> แก้ไขข้อมูลพนักงาน</h3>
+            <h3 class="font-bold text-lg flex items-center gap-2"><span class="material-icons" id="brk_empModalIcon">edit</span> <span id="brk_empModalTitle">แก้ไขข้อมูลพนักงาน</span></h3>
             <button type="button" onclick="brk_closeEmpModal()" class="text-white/80 hover:text-white p-1 rounded-full bg-white/10 hover:bg-white/20 transition"><span class="material-icons text-sm block">close</span></button>
         </div>
         <form onsubmit="brk_saveEmp(event)" class="p-6 space-y-4 text-left text-gray-200">
@@ -193,12 +196,12 @@
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase tracking-wider">ชื่อ (จาก Telegram)</label>
-                    <input type="text" id="brk_empName" disabled class="w-full p-3 border border-slate-600 rounded-xl bg-slate-900 text-gray-400 text-sm font-mono">
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase tracking-wider">ชื่อ <span id="brk_empNameHint" class="text-cyan-400 normal-case">(พิมพ์เอง)</span></label>
+                    <input type="text" id="brk_empName" placeholder="เช่น OD-CENTER-Jun88" class="w-full p-3 border border-slate-600 rounded-xl bg-slate-900 text-white text-sm">
                 </div>
                 <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase tracking-wider">Telegram ID</label>
-                    <input type="text" id="brk_empTelegramId" disabled class="w-full p-3 border border-slate-600 rounded-xl bg-slate-900 text-gray-400 text-sm font-mono">
+                    <label class="block text-[11px] font-bold text-gray-400 mb-1 uppercase tracking-wider">Telegram ID <span class="text-amber-400 normal-case">(จำเป็น)</span></label>
+                    <input type="number" id="brk_empTelegramId" placeholder="เช่น 8553411539" class="w-full p-3 border border-slate-600 rounded-xl bg-slate-900 text-white text-sm font-mono">
                 </div>
             </div>
 
