@@ -4,7 +4,6 @@
 let globalKbizBots = [];
 let globalOcrKeys = [];
 
-// ตัวช่วยดึง HTML Template
 function getKbizTpl(templateId, data = {}) {
     const tpl = document.getElementById(templateId);
     if (!tpl) return '';
@@ -150,7 +149,6 @@ window.deleteKbizBot = async function(id) {
 
 const OCR_DAILY_QUOTA = 500;
 
-// ดึง "วันที่ปัจจุบัน" ตาม UTC (เพราะ OCR.space รีเซ็ตตามเวลา UTC = 7 โมงเช้าไทย)
 function getTodayKey() {
     const now = new Date();
     return now.getUTCFullYear() + '-' + 
@@ -176,13 +174,11 @@ window.updateOcrKeyStatusLabel = function() {
     }
 };
 
-// 🔄 ตรวจสอบและรีเซ็ตโควต้าถ้าเปลี่ยนวันใหม่
 function autoResetIfNewDay(keys) {
     const today = getTodayKey();
     let needSave = false;
     keys.forEach(k => {
         if (k.last_used_date !== today) {
-            // วันใหม่ → รีเซ็ตเป็น 0
             k.used_count = 0;
             k.last_used_date = today;
             needSave = true;
@@ -199,16 +195,11 @@ async function fetchOcrKeysData() {
         const { data } = await appDB.from('settings').select('value').eq('key', 'ocr_api_keys_data').single();
         if (data && data.value) {
             globalOcrKeys = JSON.parse(data.value);
-            
-            // 🌟 ตรวจว่าวันใหม่แล้วหรือยัง — ถ้าใช่ รีเซ็ตทุก key
             const needSave = autoResetIfNewDay(globalOcrKeys);
-            
-            // ตรวจ key ที่ไม่มีฟิลด์ used_count → เติมให้
             globalOcrKeys.forEach(k => {
                 if (typeof k.used_count !== 'number') { k.used_count = 0; k.last_used_date = getTodayKey(); }
                 if (!k.last_used_date) k.last_used_date = getTodayKey();
             });
-            
             if (needSave) {
                 await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
             }
@@ -226,7 +217,6 @@ window.renderOcrKeysGrid = function() {
     const grid = document.getElementById('ocrKeysGrid');
     if(!grid) return;
 
-    // อัพเดทยอดรวมโควต้าด้านบน
     const totalEl = document.getElementById('ocrTotalQuota');
     if (totalEl) {
         if (globalOcrKeys.length > 0) {
@@ -255,7 +245,6 @@ window.renderOcrKeysGrid = function() {
         const remaining = Math.max(0, OCR_DAILY_QUOTA - used);
         const percentUsed = Math.min(100, Math.round((used / OCR_DAILY_QUOTA) * 100));
         
-        // กำหนดสีตามการใช้งาน
         let progressBarColor, quotaColor;
         if (percentUsed >= 90) {
             progressBarColor = 'bg-red-500';
@@ -379,7 +368,6 @@ window.deleteOcrKey = async function(id) {
     });
 };
 
-// 🔄 ปุ่มรีเซ็ตโควต้า key ตัวเดียว (เผื่ออยากรีเซ็ตเอง)
 window.resetOcrKeyUsage = async function(id) {
     Swal.fire({
         title: 'รีเซ็ตโควต้า Key นี้?',
@@ -401,7 +389,6 @@ window.resetOcrKeyUsage = async function(id) {
     });
 };
 
-// 🔄 อัพเดทหน้าทุก 30 วินาที (รีเฟรชโควต้าจาก DB)
 setInterval(() => {
     if (document.getElementById('ocrKeysGrid')) {
         fetchOcrKeysData();
@@ -410,12 +397,12 @@ setInterval(() => {
 
 
 // ==========================================
-// 🤖 ระบบจัดการ Telegram Bot Config (เพิ่มใหม่ — ของเดิมไม่แตะ)
+// 🤖 ระบบจัดการ Telegram Bot Config
 // ==========================================
 let globalTelegramConfig = {};
 
 async function fetchTelegramBotConfig() {
-    if (!document.getElementById('telegramBotToken')) return; // ไม่อยู่หน้านี้
+    if (!document.getElementById('telegramBotToken')) return;
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'telegram_bot_config').single();
         if (data && data.value) {
@@ -433,12 +420,10 @@ function renderTelegramBotConfig() {
     const tokenInput = document.getElementById('telegramBotToken');
     if (!tokenInput) return;
 
-    // กรอกค่าปัจจุบัน
     tokenInput.value = globalTelegramConfig.token || '';
     document.getElementById('telegramPickStrategy').value = globalTelegramConfig.pick_strategy || 'random';
     document.getElementById('telegramEnabled').checked = globalTelegramConfig.enabled !== false;
 
-    // populate dropdown ของบอท K BIZ ที่ active
     const select = document.getElementById('telegramPreferredMachine');
     const activeBots = (globalKbizBots || []).filter(b => b.is_active);
     let optionsHtml = '<option value="">🎲 อัตโนมัติ (สลับใช้ทุกตัวที่ active)</option>';
@@ -448,7 +433,6 @@ function renderTelegramBotConfig() {
     select.innerHTML = optionsHtml;
     select.value = globalTelegramConfig.preferred_machine || '';
 
-    // อัพเดท badge
     const badge = document.getElementById('telegramBotStatusBadge');
     if (badge) {
         const hasToken = !!globalTelegramConfig.token;
@@ -485,7 +469,6 @@ window.saveTelegramConfig = async function(e) {
     const strategy = document.getElementById('telegramPickStrategy').value;
     const enabled = document.getElementById('telegramEnabled').checked;
 
-    // ตรวจ token format คร่าวๆ
     if (token && !/^\d+:[A-Za-z0-9_-]+$/.test(token)) {
         return Swal.fire('Token รูปแบบไม่ถูกต้อง', 'Token ของ Telegram ต้องเป็นแบบ <b>123456789:ABCdef...</b>', 'warning');
     }
@@ -515,7 +498,6 @@ window.saveTelegramConfig = async function(e) {
     }
 };
 
-// 🧪 ทดสอบ token โดยเรียก Telegram API getMe
 window.testTelegramBotInfo = async function() {
     const token = document.getElementById('telegramBotToken').value.trim();
     if (!token) return Swal.fire('ไม่มี Token', 'กรอก token ก่อน', 'warning');
@@ -544,14 +526,19 @@ window.testTelegramBotInfo = async function() {
         Swal.fire('เชื่อมไม่ได้', err.message, 'error');
     }
 };
+
+
 // ==========================================
-// 📊 VPS STATS DASHBOARD (เพิ่มใหม่)
+// 📊 VPS STATS DASHBOARD
 // ==========================================
 let _vpsStatsTimer = null;
-let _vpsStatsLastUpdate = 0;
 
-async function fetchVpsStats() {
-    if (!document.getElementById('vpsStatsCard')) return; // ไม่อยู่หน้านี้
+window.fetchVpsStats = async function(manual = false) {
+    if (!document.getElementById('vpsStatsCard')) return;
+
+    const btnIcon = manual ? document.querySelector('#vpsStatsRefreshBtn .material-icons') : null;
+    if (btnIcon) btnIcon.classList.add('animate-spin');
+
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'vps_stats').single();
         if (data && data.value) {
@@ -562,8 +549,12 @@ async function fetchVpsStats() {
         }
     } catch(e) {
         setVpsStatsOffline();
+    } finally {
+        if (btnIcon) {
+            setTimeout(() => btnIcon.classList.remove('animate-spin'), 600);
+        }
     }
-}
+};
 
 function formatUptime(sec) {
     if (!sec || sec < 0) return '—';
@@ -598,7 +589,6 @@ function colorByPercent(percent) {
 function renderVpsStats(stats) {
     if (!stats) return setVpsStatsOffline();
 
-    // ตรวจว่า stats สด/ค้าง — ถ้าไม่ได้อัปเดต > 90 วิ ถือว่า offline
     const updatedAt = stats.updated_at;
     if (updatedAt) {
         const ageSec = (Date.now() - new Date(updatedAt).getTime()) / 1000;
@@ -608,7 +598,6 @@ function renderVpsStats(stats) {
         }
     }
 
-    // CPU
     const cpu = stats.cpu_percent ?? 0;
     const cpuColor = colorByPercent(cpu);
     document.getElementById('vpsStatsCpu').textContent = `${cpu.toFixed(1)}%`;
@@ -617,7 +606,6 @@ function renderVpsStats(stats) {
     cpuBar.style.width = `${Math.min(100, cpu)}%`;
     cpuBar.className = `h-full transition-all ${cpuColor.bar}`;
 
-    // RAM
     const ramPct = stats.ram_percent ?? 0;
     const ramColor = colorByPercent(ramPct);
     document.getElementById('vpsStatsRam').textContent = `${ramPct.toFixed(1)}%`;
@@ -628,7 +616,6 @@ function renderVpsStats(stats) {
     document.getElementById('vpsStatsRamDetail').textContent =
         `${stats.ram_used_gb?.toFixed(2) || 0} / ${stats.ram_total_gb?.toFixed(2) || 0} GB`;
 
-    // Disk
     const diskPct = stats.disk_percent ?? 0;
     const diskColor = colorByPercent(diskPct);
     document.getElementById('vpsStatsDisk').textContent = `${diskPct.toFixed(1)}%`;
@@ -639,20 +626,21 @@ function renderVpsStats(stats) {
     document.getElementById('vpsStatsDiskDetail').textContent =
         `${stats.disk_used_gb?.toFixed(1) || 0} / ${stats.disk_total_gb?.toFixed(1) || 0} GB`;
 
-    // Uptime
     document.getElementById('vpsStatsUptime').textContent = formatUptime(stats.system_uptime_sec);
     document.getElementById('vpsStatsBotUptime').textContent = `Bot: ${formatUptime(stats.bot_uptime_sec)}`;
 
-    // Footer
     document.getElementById('vpsStatsUpdatedAt').textContent = timeAgo(updatedAt);
     document.getElementById('vpsStatsBotMem').textContent =
         `Bot RAM: ${stats.bot_mem_mb?.toFixed(1) || 0} MB`;
 
-    // Status badge
+    // จุดเขียวกระพริบ
     const statusEl = document.getElementById('vpsStatsStatus');
     if (statusEl) {
         statusEl.innerHTML = `
-            <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_5px_currentColor]"></span>
+            <span class="relative flex h-2.5 w-2.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+            </span>
             <span class="font-bold text-emerald-300">Online</span>
         `;
     }
@@ -669,7 +657,6 @@ function setVpsStatsOffline() {
 }
 
 function setVpsStatsStale(stats) {
-    // แสดงค่าเดิมแต่ระบุว่า bot ไม่ได้รายงานนานแล้ว
     if (stats) renderVpsStatsValuesOnly(stats);
     const statusEl = document.getElementById('vpsStatsStatus');
     if (statusEl) {
@@ -689,17 +676,9 @@ function renderVpsStatsValuesOnly(stats) {
     document.getElementById('vpsStatsUpdatedAt').textContent = timeAgo(stats.updated_at);
 }
 
-// auto refresh ทุก 5 วินาที
+// auto refresh ทุก 5 นาที (300,000 ms)
 function startVpsStatsPolling() {
     if (_vpsStatsTimer) clearInterval(_vpsStatsTimer);
-    fetchVpsStats(); // load ครั้งแรกทันที
-    _vpsStatsTimer = setInterval(fetchVpsStats, 5000);
-}
-
-// stop เวลาออกจากหน้า
-function stopVpsStatsPolling() {
-    if (_vpsStatsTimer) {
-        clearInterval(_vpsStatsTimer);
-        _vpsStatsTimer = null;
-    }
+    fetchVpsStats();
+    _vpsStatsTimer = setInterval(fetchVpsStats, 5 * 60 * 1000);
 }
