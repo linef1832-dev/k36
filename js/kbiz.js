@@ -40,12 +40,14 @@ async function fetchKbizData() {
         renderKbizGrid();
         fetchOcrKeysData();
         fetchTelegramBotConfig();
+        fetchChromeRefreshConfig();
         startVpsStatsPolling();
     } catch(e) { 
         globalKbizBots = []; 
         renderKbizGrid(); 
         fetchOcrKeysData();
         fetchTelegramBotConfig();
+        fetchChromeRefreshConfig();
         startVpsStatsPolling();
     }
 }
@@ -767,6 +769,91 @@ window.clearVpsRam = async function() {
                 text: cmdResult.error || 'ไม่ทราบสาเหตุ',
             });
         }
+    } catch(err) {
+        Swal.fire('Error', err.message, 'error');
+    }
+};
+
+
+// ==========================================
+// 🔄 CHROME AUTO-REFRESH CONFIG
+// ==========================================
+let globalChromeRefreshConfig = {};
+
+async function fetchChromeRefreshConfig() {
+    if (!document.getElementById('chromeRefreshHours')) return;
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'chrome_refresh_config').single();
+        if (data && data.value) {
+            globalChromeRefreshConfig = JSON.parse(data.value);
+        } else {
+            globalChromeRefreshConfig = { enabled: false, interval_seconds: 7200, stagger: true };
+        }
+    } catch(e) {
+        globalChromeRefreshConfig = { enabled: false, interval_seconds: 7200, stagger: true };
+    }
+    renderChromeRefreshConfig();
+}
+
+function renderChromeRefreshConfig() {
+    const hoursEl = document.getElementById('chromeRefreshHours');
+    if (!hoursEl) return;
+
+    const totalSec = globalChromeRefreshConfig.interval_seconds || 7200;
+    const hours = Math.floor(totalSec / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+
+    hoursEl.value = hours;
+    document.getElementById('chromeRefreshMinutes').value = minutes;
+    document.getElementById('chromeRefreshEnabled').checked = globalChromeRefreshConfig.enabled === true;
+
+    const badge = document.getElementById('chromeRefreshBadge');
+    if (badge) {
+        if (globalChromeRefreshConfig.enabled) {
+            badge.textContent = `✅ เปิด — ทุก ${hours} ชม ${minutes} นาที`;
+            badge.className = 'bg-emerald-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-emerald-300/50';
+        } else {
+            badge.textContent = '⏸ ปิดใช้งาน';
+            badge.className = 'bg-red-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-red-300/50';
+        }
+    }
+}
+
+window.saveChromeRefreshConfig = async function(e) {
+    if (e) e.preventDefault();
+    const hours = parseInt(document.getElementById('chromeRefreshHours').value) || 0;
+    const minutes = parseInt(document.getElementById('chromeRefreshMinutes').value) || 0;
+    const enabled = document.getElementById('chromeRefreshEnabled').checked;
+    const totalSec = hours * 3600 + minutes * 60;
+
+    if (enabled && totalSec < 300) {
+        return Swal.fire('ตั้งสั้นเกินไป', 'ต้องอย่างน้อย 5 นาที (กัน KBIZ block)', 'warning');
+    }
+    if (totalSec > 24 * 3600) {
+        return Swal.fire('ตั้งนานเกินไป', 'ไม่ควรเกิน 24 ชม (session อาจหมดก่อน)', 'warning');
+    }
+
+    const config = {
+        enabled: enabled,
+        interval_seconds: totalSec,
+        stagger: true,  // รีเฟรชทีละ tab เสมอ
+        updated_at: new Date().toISOString()
+    };
+
+    Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+    try {
+        await appDB.from('settings').upsert([{ key: 'chrome_refresh_config', value: JSON.stringify(config) }]);
+        globalChromeRefreshConfig = config;
+        renderChromeRefreshConfig();
+        Swal.fire({
+            icon: 'success',
+            title: 'บันทึกสำเร็จ!',
+            html: enabled
+                ? `Chrome จะรีเฟรชทุก <b>${hours} ชม ${minutes} นาที</b><br><span class="text-xs">มีผลภายใน 60 วินาที</span>`
+                : `<b>ปิด</b>การรีเฟรชอัตโนมัติแล้ว`,
+            timer: 3000,
+            showConfirmButton: false
+        });
     } catch(err) {
         Swal.fire('Error', err.message, 'error');
     }
