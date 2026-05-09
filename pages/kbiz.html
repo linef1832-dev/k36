@@ -20,6 +20,84 @@
     </div>
 
     <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
+        <!-- ========================================================== -->
+        <!-- 📊 VPS STATS CARD                                           -->
+        <!-- ========================================================== -->
+        <div id="vpsStatsCard" class="max-w-[1600px] mx-auto mb-6">
+            <div class="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 text-white rounded-2xl shadow-xl border border-slate-700 overflow-hidden">
+
+                <!-- หัวกล่อง -->
+                <div class="bg-gradient-to-r from-indigo-700 to-purple-700 p-3 flex justify-between items-center border-b border-slate-700">
+                    <div class="flex items-center gap-2">
+                        <span class="material-icons text-white">monitor_heart</span>
+                        <h3 class="font-black text-sm tracking-wide">📊 สถานะ VPS (Real-time)</h3>
+                    </div>
+                    <div id="vpsStatsStatus" class="flex items-center gap-2 text-xs">
+                        <span class="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></span>
+                        <span class="font-bold">กำลังโหลด...</span>
+                    </div>
+                </div>
+
+                <!-- ข้อมูล -->
+                <div id="vpsStatsBody" class="p-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+                        <!-- CPU -->
+                        <div class="bg-slate-800/50 dark:bg-black/30 p-3 rounded-xl border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">⚡ CPU</span>
+                                <span id="vpsStatsCpu" class="text-base font-black text-cyan-300">—</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                                <div id="vpsStatsCpuBar" class="h-full bg-cyan-500 transition-all" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- RAM -->
+                        <div class="bg-slate-800/50 dark:bg-black/30 p-3 rounded-xl border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">💾 RAM</span>
+                                <span id="vpsStatsRam" class="text-base font-black text-emerald-300">—</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                                <div id="vpsStatsRamBar" class="h-full bg-emerald-500 transition-all" style="width: 0%"></div>
+                            </div>
+                            <div id="vpsStatsRamDetail" class="text-[10px] text-slate-400 mt-1">—</div>
+                        </div>
+
+                        <!-- Disk -->
+                        <div class="bg-slate-800/50 dark:bg-black/30 p-3 rounded-xl border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">💿 Disk</span>
+                                <span id="vpsStatsDisk" class="text-base font-black text-amber-300">—</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                                <div id="vpsStatsDiskBar" class="h-full bg-amber-500 transition-all" style="width: 0%"></div>
+                            </div>
+                            <div id="vpsStatsDiskDetail" class="text-[10px] text-slate-400 mt-1">—</div>
+                        </div>
+
+                        <!-- Uptime -->
+                        <div class="bg-slate-800/50 dark:bg-black/30 p-3 rounded-xl border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">⏱ Uptime</span>
+                                <span class="material-icons text-purple-300 text-[18px]">schedule</span>
+                            </div>
+                            <div id="vpsStatsUptime" class="text-base font-black text-purple-300">—</div>
+                            <div id="vpsStatsBotUptime" class="text-[10px] text-slate-400 mt-1">Bot: —</div>
+                        </div>
+
+                    </div>
+
+                    <!-- footer: อัปเดตล่าสุด -->
+                    <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700/50 text-[10px] text-slate-500">
+                        <span>📡 อัปเดตล่าสุด: <span id="vpsStatsUpdatedAt" class="text-slate-300 font-bold">—</span></span>
+                        <span id="vpsStatsBotMem">Bot RAM: —</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="kbizGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1600px] mx-auto pb-10"></div>
 
         <!-- 🤖 TELEGRAM BOT CONFIG (เพิ่มใหม่ — ของเดิมไม่แตะ) -->
