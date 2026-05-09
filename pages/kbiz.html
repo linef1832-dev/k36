@@ -37,6 +37,10 @@
                             <span class="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></span>
                             <span class="font-bold">กำลังโหลด...</span>
                         </div>
+                        <button onclick="clearVpsRam()" id="vpsClearRamBtn" class="bg-red-500/30 hover:bg-red-500/50 active:scale-95 transition rounded-lg px-2 py-1 border border-red-300/40 flex items-center gap-1" title="เคลียร์ RAM cache (ปลอดภัย ไม่กระทบ Chrome)">
+                            <span class="material-icons text-white text-[14px]">cleaning_services</span>
+                            <span class="text-[10px] font-bold text-white">เคลียร์ RAM</span>
+                        </button>
                         <button onclick="fetchVpsStats(true)" id="vpsStatsRefreshBtn" class="bg-white/15 hover:bg-white/25 active:scale-95 transition rounded-lg p-1.5 border border-white/20" title="รีเฟรชข้อมูล">
                             <span class="material-icons text-white text-[16px]">refresh</span>
                         </button>
