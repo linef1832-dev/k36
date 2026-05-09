@@ -1710,7 +1710,7 @@ document.addEventListener('paste', function(e) {
 window.openDutyHistoryModal = async function() {
     Swal.fire({title: 'กำลังโหลดประวัติ...', didOpen: () => Swal.showLoading()});
     try {
-        const { data, error } = await appDB.from('system_logs').select('*').in('action_type', ['จัดหน้าที่', 'สุ่มจัดหน้าที่', 'แจกงานรอง', 'ล้างตารางงาน', 'ประเมินงานผู้สอน', 'ย้ายหน้าที่', 'กู้คืนตารางงาน']).order('created_at', { ascending: false }).limit(50);
+        const { data, error } = await appDB.from('system_logs').select('*').in('action_type', ['จัดหน้าที่', 'สุ่มจัดหน้าที่', 'แจกงานรอง', 'ล้างงานรอง', 'ล้างตารางงาน', 'ประเมินงานผู้สอน', 'ย้ายหน้าที่', 'กู้คืนตารางงาน']).order('created_at', { ascending: false }).limit(50);
         if (error) throw error;
 
         let rows = '';
@@ -1725,6 +1725,7 @@ window.openDutyHistoryModal = async function() {
                 if (log.action_type === 'ย้ายหน้าที่') badgeColor = 'text-purple-600 bg-purple-100 border-purple-200';
                 if (log.action_type === 'สุ่มจัดหน้าที่') badgeColor = 'text-emerald-600 bg-emerald-100 border-emerald-200';
                 if (log.action_type === 'แจกงานรอง') badgeColor = 'text-cyan-600 bg-cyan-100 border-cyan-200';
+                if (log.action_type === 'ล้างงานรอง') badgeColor = 'text-sky-700 bg-sky-100 border-sky-300';
                 if (log.action_type === 'กู้คืนตารางงาน') badgeColor = 'text-indigo-600 bg-indigo-100 border-indigo-200';
                 if (log.action_type === 'กู้คืนตารางงาน') badgeColor = 'text-emerald-600 bg-emerald-100 border-emerald-200';
 
@@ -2900,6 +2901,112 @@ window.unassignImportantTask = async function(taskName) {
 };
 
 // ==========================================
+// 🌟 ฟังก์ชันล้างเฉพาะงานรอง (ไม่แตะงานหลัก)
+// ใช้กับปุ่ม "ล้างงานรอง" บนแถบเครื่องมือ
+// ==========================================
+window.clearSecondaryDuties = async function() {
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    if (!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
+
+    const saveKey = typeof getDutySaveKey === 'function'
+        ? getDutySaveKey(targetDate, shiftFilter)
+        : `duty_roster_${currentDutyDept}_${targetDate}_${shiftFilter}`;
+
+    let currentDataVal = null;
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', saveKey);
+        if (data && data.length > 0) currentDataVal = data[0].value;
+    } catch(e) {}
+
+    if (!currentDataVal) {
+        return Swal.fire('ไม่มีตาราง', 'ยังไม่มีตารางงานในวัน/กะนี้ ไม่มีอะไรให้ล้างครับ', 'info');
+    }
+
+    let roster;
+    try {
+        roster = JSON.parse(currentDataVal);
+    } catch(e) {
+        return Swal.fire('Error', 'อ่านข้อมูลตารางไม่สำเร็จ', 'error');
+    }
+
+    // นับจำนวนคนที่มีงานรองอยู่ตอนนี้
+    let countHasSecondary = 0;
+    for (const team in roster) {
+        (roster[team] || []).forEach(u => {
+            if (u && u.secondary_team && !u.username.includes('ขาดคน')) countHasSecondary++;
+        });
+    }
+
+    if (countHasSecondary === 0) {
+        return Swal.fire('ไม่มีงานรอง', 'ยังไม่มีใครได้รับงานรองในวัน/กะนี้ครับ', 'info');
+    }
+
+    const confirmRes = await Swal.fire({
+        title: 'ยืนยันล้างเฉพาะงานรอง?',
+        html: `จะปลดงานรอง (สแตนด์บาย) ของพนักงาน <b class="text-cyan-600">${countHasSecondary} คน</b><br>วันที่ <b>${targetDate}</b> (${shiftFilter})<br><span class="text-[12px] text-gray-500 italic">⚠️ งานหลักจะไม่กระทบ</span>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#0ea5e9',
+        cancelButtonColor: '#64748b',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonText: 'ล้างงานรองเลย',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white' }
+    });
+
+    if (!confirmRes.isConfirmed) return;
+
+    Swal.fire({title: 'กำลังล้างงานรอง...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+    try {
+        // ล้าง secondary_team ของทุกคน (ไม่ยุ่งกับ field อื่น)
+        let cleared = 0;
+        for (const team in roster) {
+            (roster[team] || []).forEach(u => {
+                if (u && u.secondary_team) {
+                    u.secondary_team = null;
+                    cleared++;
+                }
+            });
+        }
+
+        // บันทึกกลับ DB
+        await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(roster) }]);
+
+        // เขียน log
+        try {
+            await appDB.from('system_logs').insert([{
+                action_type: 'ล้างงานรอง',
+                performed_by: currentUser.username,
+                target_details: `ล้างงานรอง (${currentDutyDept}, ${shiftFilter}, ${targetDate}) → ปลดสแตนด์บาย ${cleared} คน`
+            }]);
+        } catch(e) {}
+
+        // แจ้ง client อื่นให้รีโหลด
+        try {
+            if (appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+        } catch(e) {}
+
+        // วาดใหม่
+        if (typeof window.renderRosterGrid === 'function') {
+            window.renderRosterGrid(roster);
+        } else if (typeof window.refreshDutyData === 'function') {
+            window.refreshDutyData();
+        }
+
+        Swal.fire({
+            icon: 'success',
+            title: 'ล้างงานรองเรียบร้อย',
+            text: `ปลดงานรองออกแล้ว ${cleared} คน`,
+            timer: 1500,
+            showConfirmButton: false
+        });
+    } catch (e) {
+        Swal.fire('Error', e.message, 'error');
+    }
+};
+
+// ==========================================
 // 🌟 ระบบแจกงานรองด่วน (AI จับคู่ 1 ต่อ 1) — V2: 2-Pass System
 // Pass 1: เข้มงวด (เวลาพักไม่ชน)
 // Pass 2: ผ่อนเงื่อนไขเวลาพัก (เก็บตกคนที่ตกหล่น)
@@ -3190,23 +3297,40 @@ window.quickAssignBackups = async function() {
 };
 
 // ==========================================
-// 🌟 โค้ดเสกปุ่ม "⚡ จัดรองด่วน (AI)" ให้โผล่ขึ้นมาข้างปุ่มล้างตาราง
+// 🌟 โค้ดเสกปุ่ม "⚡ จัดรองด่วน (AI)" + "🧹 ล้างงานรอง" ให้โผล่ขึ้นมา
 // ==========================================
 setInterval(() => {
     // 🟢 bail-early ถ้าไม่ได้อยู่หน้า duty (กัน CPU ทำงานทิ้งทุกหน้าทุกๆ 1 วิ)
     const dutyApp = document.getElementById('dutyApp');
     if (!dutyApp || dutyApp.classList.contains('hidden')) return;
-    if (document.getElementById('btnQuickBackup')) return; // ปุ่มมีแล้ว ไม่ต้องเช็คอีก
 
-    const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
-    if (clearBtn) {
-        const btn = document.createElement('button');
-        btn.id = 'btnQuickBackup';
-        btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
-        btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
-        btn.onclick = window.quickAssignBackups;
+    // ─── ปุ่ม "จัดรองด่วน (AI)" — วางต่อจากปุ่มล้างตาราง ───
+    if (!document.getElementById('btnQuickBackup')) {
+        const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
+        if (clearBtn) {
+            const btn = document.createElement('button');
+            btn.id = 'btnQuickBackup';
+            btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
+            btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
+            btn.onclick = window.quickAssignBackups;
 
-        clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
+            clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
+        }
+    }
+
+    // ─── 🆕 ปุ่ม "ล้างงานรอง" — วางต่อจากปุ่มเพิ่มพนักงาน ───
+    if (!document.getElementById('btnClearSecondary')) {
+        const addStaffBtn = document.querySelector('button[onclick*="addStaffToRoster"]');
+        if (addStaffBtn) {
+            const btn = document.createElement('button');
+            btn.id = 'btnClearSecondary';
+            btn.className = 'duty-admin-only bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-cyan-400';
+            btn.innerHTML = '<span class="material-icons text-base">layers_clear</span> ล้างงานรอง';
+            btn.title = 'ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ';
+            btn.onclick = window.clearSecondaryDuties;
+
+            addStaffBtn.parentNode.insertBefore(btn, addStaffBtn.nextSibling);
+        }
     }
 }, 2000);
 
