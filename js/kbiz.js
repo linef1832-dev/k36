@@ -41,11 +41,13 @@ async function fetchKbizData() {
         renderKbizGrid();
         fetchOcrKeysData();
         fetchTelegramBotConfig();
+        startVpsStatsPolling();
     } catch(e) { 
         globalKbizBots = []; 
         renderKbizGrid(); 
         fetchOcrKeysData();
         fetchTelegramBotConfig();
+        startVpsStatsPolling();
     }
 }
 
@@ -542,3 +544,162 @@ window.testTelegramBotInfo = async function() {
         Swal.fire('เชื่อมไม่ได้', err.message, 'error');
     }
 };
+// ==========================================
+// 📊 VPS STATS DASHBOARD (เพิ่มใหม่)
+// ==========================================
+let _vpsStatsTimer = null;
+let _vpsStatsLastUpdate = 0;
+
+async function fetchVpsStats() {
+    if (!document.getElementById('vpsStatsCard')) return; // ไม่อยู่หน้านี้
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'vps_stats').single();
+        if (data && data.value) {
+            const stats = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+            renderVpsStats(stats);
+        } else {
+            setVpsStatsOffline();
+        }
+    } catch(e) {
+        setVpsStatsOffline();
+    }
+}
+
+function formatUptime(sec) {
+    if (!sec || sec < 0) return '—';
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    if (d > 0) return `${d} วัน ${h} ชม`;
+    if (h > 0) return `${h} ชม ${m} นาที`;
+    return `${m} นาที`;
+}
+
+function timeAgo(isoString) {
+    if (!isoString) return '—';
+    const past = new Date(isoString);
+    const now = new Date();
+    const diffSec = Math.floor((now - past) / 1000);
+    if (isNaN(diffSec)) return '—';
+    if (diffSec < 5) return 'เมื่อสักครู่';
+    if (diffSec < 60) return `${diffSec} วินาทีก่อน`;
+    if (diffSec < 3600) return `${Math.floor(diffSec/60)} นาทีก่อน`;
+    if (diffSec < 86400) return `${Math.floor(diffSec/3600)} ชม.ก่อน`;
+    return `${Math.floor(diffSec/86400)} วันก่อน`;
+}
+
+function colorByPercent(percent) {
+    if (percent >= 90) return { bar: 'bg-red-500', text: 'text-red-300' };
+    if (percent >= 75) return { bar: 'bg-orange-500', text: 'text-orange-300' };
+    if (percent >= 50) return { bar: 'bg-amber-500', text: 'text-amber-300' };
+    return { bar: 'bg-emerald-500', text: 'text-emerald-300' };
+}
+
+function renderVpsStats(stats) {
+    if (!stats) return setVpsStatsOffline();
+
+    // ตรวจว่า stats สด/ค้าง — ถ้าไม่ได้อัปเดต > 90 วิ ถือว่า offline
+    const updatedAt = stats.updated_at;
+    if (updatedAt) {
+        const ageSec = (Date.now() - new Date(updatedAt).getTime()) / 1000;
+        if (ageSec > 90) {
+            setVpsStatsStale(stats);
+            return;
+        }
+    }
+
+    // CPU
+    const cpu = stats.cpu_percent ?? 0;
+    const cpuColor = colorByPercent(cpu);
+    document.getElementById('vpsStatsCpu').textContent = `${cpu.toFixed(1)}%`;
+    document.getElementById('vpsStatsCpu').className = `text-base font-black ${cpuColor.text}`;
+    const cpuBar = document.getElementById('vpsStatsCpuBar');
+    cpuBar.style.width = `${Math.min(100, cpu)}%`;
+    cpuBar.className = `h-full transition-all ${cpuColor.bar}`;
+
+    // RAM
+    const ramPct = stats.ram_percent ?? 0;
+    const ramColor = colorByPercent(ramPct);
+    document.getElementById('vpsStatsRam').textContent = `${ramPct.toFixed(1)}%`;
+    document.getElementById('vpsStatsRam').className = `text-base font-black ${ramColor.text}`;
+    const ramBar = document.getElementById('vpsStatsRamBar');
+    ramBar.style.width = `${ramPct}%`;
+    ramBar.className = `h-full transition-all ${ramColor.bar}`;
+    document.getElementById('vpsStatsRamDetail').textContent =
+        `${stats.ram_used_gb?.toFixed(2) || 0} / ${stats.ram_total_gb?.toFixed(2) || 0} GB`;
+
+    // Disk
+    const diskPct = stats.disk_percent ?? 0;
+    const diskColor = colorByPercent(diskPct);
+    document.getElementById('vpsStatsDisk').textContent = `${diskPct.toFixed(1)}%`;
+    document.getElementById('vpsStatsDisk').className = `text-base font-black ${diskColor.text}`;
+    const diskBar = document.getElementById('vpsStatsDiskBar');
+    diskBar.style.width = `${diskPct}%`;
+    diskBar.className = `h-full transition-all ${diskColor.bar}`;
+    document.getElementById('vpsStatsDiskDetail').textContent =
+        `${stats.disk_used_gb?.toFixed(1) || 0} / ${stats.disk_total_gb?.toFixed(1) || 0} GB`;
+
+    // Uptime
+    document.getElementById('vpsStatsUptime').textContent = formatUptime(stats.system_uptime_sec);
+    document.getElementById('vpsStatsBotUptime').textContent = `Bot: ${formatUptime(stats.bot_uptime_sec)}`;
+
+    // Footer
+    document.getElementById('vpsStatsUpdatedAt').textContent = timeAgo(updatedAt);
+    document.getElementById('vpsStatsBotMem').textContent =
+        `Bot RAM: ${stats.bot_mem_mb?.toFixed(1) || 0} MB`;
+
+    // Status badge
+    const statusEl = document.getElementById('vpsStatsStatus');
+    if (statusEl) {
+        statusEl.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_5px_currentColor]"></span>
+            <span class="font-bold text-emerald-300">Online</span>
+        `;
+    }
+}
+
+function setVpsStatsOffline() {
+    const statusEl = document.getElementById('vpsStatsStatus');
+    if (statusEl) {
+        statusEl.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-red-500"></span>
+            <span class="font-bold text-red-300">ยังไม่มีข้อมูล</span>
+        `;
+    }
+}
+
+function setVpsStatsStale(stats) {
+    // แสดงค่าเดิมแต่ระบุว่า bot ไม่ได้รายงานนานแล้ว
+    if (stats) renderVpsStatsValuesOnly(stats);
+    const statusEl = document.getElementById('vpsStatsStatus');
+    if (statusEl) {
+        const updatedAt = stats?.updated_at;
+        statusEl.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+            <span class="font-bold text-orange-300">ข้อมูลค้าง (${timeAgo(updatedAt)})</span>
+        `;
+    }
+}
+
+function renderVpsStatsValuesOnly(stats) {
+    document.getElementById('vpsStatsCpu').textContent = `${(stats.cpu_percent ?? 0).toFixed(1)}%`;
+    document.getElementById('vpsStatsRam').textContent = `${(stats.ram_percent ?? 0).toFixed(1)}%`;
+    document.getElementById('vpsStatsDisk').textContent = `${(stats.disk_percent ?? 0).toFixed(1)}%`;
+    document.getElementById('vpsStatsUptime').textContent = formatUptime(stats.system_uptime_sec);
+    document.getElementById('vpsStatsUpdatedAt').textContent = timeAgo(stats.updated_at);
+}
+
+// auto refresh ทุก 5 วินาที
+function startVpsStatsPolling() {
+    if (_vpsStatsTimer) clearInterval(_vpsStatsTimer);
+    fetchVpsStats(); // load ครั้งแรกทันที
+    _vpsStatsTimer = setInterval(fetchVpsStats, 5000);
+}
+
+// stop เวลาออกจากหน้า
+function stopVpsStatsPolling() {
+    if (_vpsStatsTimer) {
+        clearInterval(_vpsStatsTimer);
+        _vpsStatsTimer = null;
+    }
+}
