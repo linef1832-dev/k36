@@ -190,6 +190,66 @@
             </div>
         </div>
 
+        <!-- 🔄 CHROME AUTO-REFRESH -->
+        <div class="max-w-[1600px] mx-auto mt-8">
+            <div class="bg-gradient-to-br from-purple-600 to-fuchsia-700 dark:from-purple-700 dark:to-fuchsia-900 text-white p-4 rounded-t-2xl flex justify-between items-center shadow-lg">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-fuchsia-100">refresh</span></div>
+                    <div>
+                        <h2 class="font-black text-lg tracking-wide">รีเฟรช Chrome อัตโนมัติ</h2>
+                        <p class="text-xs text-fuchsia-100 opacity-90">รีเฟรช tab KBIZ ทุก ๆ ช่วงเวลา — ป้องกัน session timeout / RAM leak</p>
+                    </div>
+                </div>
+                <div id="chromeRefreshBadge" class="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold border border-white/30">⏳ กำลังโหลด...</div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-b-2xl border border-t-0 border-slate-200 dark:border-slate-700 shadow-sm">
+                <form onsubmit="saveChromeRefreshConfig(event)" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">⏰ ทุก ๆ (ชั่วโมง)</label>
+                            <input type="number" id="chromeRefreshHours" min="0" max="24" value="2" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-fuchsia-500 outline-none font-bold text-sm shadow-inner transition">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 dark:text-gray-400 mb-1 uppercase tracking-wider">⏰ และ (นาที)</label>
+                            <input type="number" id="chromeRefreshMinutes" min="0" max="59" value="0" class="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-fuchsia-500 outline-none font-bold text-sm shadow-inner transition">
+                        </div>
+                    </div>
+
+                    <div class="bg-fuchsia-50 dark:bg-fuchsia-900/20 border border-fuchsia-200 dark:border-fuchsia-700 rounded-xl p-3 text-xs text-fuchsia-800 dark:text-fuchsia-200">
+                        <div class="font-bold mb-1">📋 รีเฟรชทีละ tab (ห่างกัน 30 วินาที)</div>
+                        <div>ระบบจะรีเฟรช tab KBIZ <b>ทีละตัว ห่างกัน 30 วิ</b> เพื่อกระจายโหลด — ไม่ให้บอททุกตัวเข้า KBIZ web พร้อมกัน</div>
+                    </div>
+
+                    <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-gray-300 dark:border-slate-600 shadow-inner">
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons text-fuchsia-500 text-[20px]">power_settings_new</span>
+                            <div>
+                                <span class="text-sm font-bold text-slate-700 dark:text-gray-300">เปิดใช้งาน Auto-refresh</span>
+                                <p class="text-[10px] text-gray-400">ปิดไว้ = Chrome จะไม่รีเฟรชเอง</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="chromeRefreshEnabled" class="sr-only peer" checked>
+                            <div class="w-16 h-7 bg-red-400 dark:bg-red-600 rounded-full peer peer-checked:bg-fuchsia-500 transition-all shadow-inner relative after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:shadow-md after:transition-all peer-checked:after:translate-x-9"></div>
+                            <span class="absolute left-2 text-[10px] font-black text-white peer-checked:opacity-0 transition pointer-events-none">OFF</span>
+                            <span class="absolute right-2 text-[10px] font-black text-white opacity-0 peer-checked:opacity-100 transition pointer-events-none">ON</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="w-full bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black py-3 rounded-xl shadow-lg transition transform active:scale-95 border border-fuchsia-400 flex items-center justify-center gap-2">
+                        <span class="material-icons">save</span> บันทึกการตั้งค่า
+                    </button>
+
+                    <div class="p-3 bg-purple-50 dark:bg-purple-900/20 border-l-4 border-purple-400 rounded-r-lg text-xs text-purple-800 dark:text-purple-200 space-y-1">
+                        <div>💡 บันทึกแล้ว Chrome ทุกเครื่องจะอ่าน config ใหม่ <b>ภายใน 60 วิ</b></div>
+                        <div>🔄 หลังครบเวลา — tab KBIZ จะ <code class="bg-purple-100 dark:bg-purple-800 px-1 rounded">reload</code> เอง → extension login ต่อให้อัตโนมัติ</div>
+                        <div>⚠ <b>ห้ามตั้งต่ำกว่า 5 นาที</b> — KBIZ web อาจ block</div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- 🔑 OCR API KEYS MANAGER -->
         <div class="max-w-[1600px] mx-auto mt-8">
             <div class="bg-gradient-to-br from-amber-600 to-orange-700 dark:from-amber-700 dark:to-orange-900 text-white p-4 rounded-t-2xl flex justify-between items-center shadow-lg">
