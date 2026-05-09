@@ -682,3 +682,92 @@ function startVpsStatsPolling() {
     fetchVpsStats();
     _vpsStatsTimer = setInterval(fetchVpsStats, 5 * 60 * 1000);
 }
+
+
+// ==========================================
+// 🧹 ปุ่มเคลียร์ RAM
+// ==========================================
+window.clearVpsRam = async function() {
+    const result = await Swal.fire({
+        title: '🧹 เคลียร์ RAM cache?',
+        html: 'ระบบจะล้าง <b>OS cache</b> เพื่อคืน RAM<br><span class="text-xs text-gray-500">✅ ปลอดภัย — Chrome ไม่ปิด<br>⏱ ใช้เวลา ~5 วินาที</span>',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: '🧹 เคลียร์เลย',
+        cancelButtonText: 'ยกเลิก',
+    });
+    if (!result.isConfirmed) return;
+
+    Swal.fire({
+        title: 'กำลังส่งคำสั่ง...',
+        html: '<span class="text-xs">รอ bot บน VPS รับคำสั่ง — สูงสุด 10 วินาที</span>',
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false,
+    });
+
+    try {
+        // ส่ง command ขึ้น Supabase
+        const cmdPayload = {
+            action: 'clear_ram',
+            requested_at: new Date().toISOString()
+        };
+        await appDB.from('settings').upsert([{
+            key: 'vps_command',
+            value: JSON.stringify(cmdPayload)
+        }]);
+
+        // รอ bot ทำเสร็จ — poll ผลลัพธ์ทุก 1 วินาที (max 15s)
+        const startTime = Date.now();
+        let cmdResult = null;
+        while (Date.now() - startTime < 15000) {
+            await new Promise(r => setTimeout(r, 1500));
+            try {
+                const { data } = await appDB.from('settings').select('value').eq('key', 'vps_command_result').single();
+                if (data && data.value) {
+                    const r = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+                    if (r && r.executed_at) {
+                        const execTime = new Date(r.executed_at).getTime();
+                        if (execTime > startTime - 5000) {
+                            cmdResult = r;
+                            break;
+                        }
+                    }
+                }
+            } catch(e) { /* ignore */ }
+        }
+
+        if (!cmdResult) {
+            return Swal.fire({
+                icon: 'warning',
+                title: 'ไม่ได้รับคำตอบ',
+                html: 'Bot ไม่ตอบกลับใน 15 วินาที<br><span class="text-xs">ลองอีกครั้งหรือเช็คสถานะ bot</span>',
+            });
+        }
+
+        if (cmdResult.success) {
+            await fetchVpsStats(true); // refresh stats ทันที
+            Swal.fire({
+                icon: 'success',
+                title: '✅ เคลียร์ RAM สำเร็จ!',
+                html: `
+                    <div class="text-left text-sm space-y-1 mt-2">
+                        <div>🆓 คืน RAM: <b class="text-emerald-600">${cmdResult.freed_mb} MB</b></div>
+                        <div>📊 ก่อน: ${cmdResult.before_mb} MB (${cmdResult.before_percent}%)</div>
+                        <div>📊 หลัง: ${cmdResult.after_mb} MB (${cmdResult.after_percent}%)</div>
+                    </div>
+                `,
+                timer: 5000,
+                showConfirmButton: true,
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'เคลียร์ไม่ได้',
+                text: cmdResult.error || 'ไม่ทราบสาเหตุ',
+            });
+        }
+    } catch(err) {
+        Swal.fire('Error', err.message, 'error');
+    }
+};
