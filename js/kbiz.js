@@ -793,6 +793,11 @@ async function fetchChromeRefreshConfig() {
         globalChromeRefreshConfig = { enabled: false, interval_seconds: 7200, stagger: true };
     }
     renderChromeRefreshConfig();
+    fetchChromeRefreshHistory();
+
+    // auto refresh ประวัติทุก 30 วิ
+    if (_refreshHistoryTimer) clearInterval(_refreshHistoryTimer);
+    _refreshHistoryTimer = setInterval(fetchChromeRefreshHistory, 30 * 1000);
 }
 
 function renderChromeRefreshConfig() {
@@ -826,8 +831,8 @@ window.saveChromeRefreshConfig = async function(e) {
     const enabled = document.getElementById('chromeRefreshEnabled').checked;
     const totalSec = hours * 3600 + minutes * 60;
 
-    if (enabled && totalSec < 300) {
-        return Swal.fire('ตั้งสั้นเกินไป', 'ต้องอย่างน้อย 5 นาที (กัน KBIZ block)', 'warning');
+    if (enabled && totalSec < 60) {
+        return Swal.fire('ตั้งสั้นเกินไป', 'ต้องอย่างน้อย 1 นาที', 'warning');
     }
     if (totalSec > 24 * 3600) {
         return Swal.fire('ตั้งนานเกินไป', 'ไม่ควรเกิน 24 ชม (session อาจหมดก่อน)', 'warning');
@@ -836,7 +841,7 @@ window.saveChromeRefreshConfig = async function(e) {
     const config = {
         enabled: enabled,
         interval_seconds: totalSec,
-        stagger: true,  // รีเฟรชทีละ tab เสมอ
+        stagger: true,
         updated_at: new Date().toISOString()
     };
 
@@ -858,3 +863,72 @@ window.saveChromeRefreshConfig = async function(e) {
         Swal.fire('Error', err.message, 'error');
     }
 };
+
+
+// ─── 📜 ประวัติการรีเฟรช ────────────────────────────────────────
+let _refreshHistoryTimer = null;
+
+window.fetchChromeRefreshHistory = async function(manual = false) {
+    const listEl = document.getElementById('chromeRefreshHistoryList');
+    if (!listEl) return;
+
+    const btn = manual ? document.querySelector('#refreshHistoryBtn .material-icons') : null;
+    if (btn) btn.classList.add('animate-spin');
+
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'chrome_refresh_history').single();
+        let history = [];
+        if (data && data.value) {
+            history = JSON.parse(data.value);
+        }
+        renderRefreshHistory(history);
+    } catch(e) {
+        renderRefreshHistory([]);
+    } finally {
+        if (btn) setTimeout(() => btn.classList.remove('animate-spin'), 600);
+    }
+};
+
+function renderRefreshHistory(history) {
+    const listEl = document.getElementById('chromeRefreshHistoryList');
+    if (!listEl) return;
+
+    if (!Array.isArray(history) || history.length === 0) {
+        listEl.innerHTML = `
+            <div class="text-center py-6 text-gray-400 text-xs flex flex-col items-center gap-2">
+                <span class="material-icons opacity-30 text-3xl">history</span>
+                <span>ยังไม่มีประวัติการรีเฟรช</span>
+            </div>
+        `;
+        return;
+    }
+
+    // แสดง 10 ตัวล่าสุด (เรียงใหม่ → เก่า)
+    const recent = history.slice(-10).reverse();
+    listEl.innerHTML = recent.map(h => {
+        const at = h.refreshed_at ? new Date(h.refreshed_at) : null;
+        const timeText = at ? `${String(at.getHours()).padStart(2,'0')}:${String(at.getMinutes()).padStart(2,'0')}:${String(at.getSeconds()).padStart(2,'0')}` : '—';
+        const dateText = at ? `${at.getDate()}/${at.getMonth()+1}` : '';
+        const ago = at ? timeAgoShort(at) : '';
+        return `
+            <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="material-icons text-fuchsia-500 text-[16px]">refresh</span>
+                    <div>
+                        <div class="font-black text-slate-700 dark:text-gray-200">${h.machine_id || '—'}</div>
+                        <div class="text-[10px] text-gray-500">${dateText} · ${timeText}</div>
+                    </div>
+                </div>
+                <span class="text-[10px] text-gray-400 font-bold">${ago}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function timeAgoShort(date) {
+    const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (diffSec < 60) return `${diffSec} วิ`;
+    if (diffSec < 3600) return `${Math.floor(diffSec/60)} นาที`;
+    if (diffSec < 86400) return `${Math.floor(diffSec/3600)} ชม.`;
+    return `${Math.floor(diffSec/86400)} วัน`;
+}
