@@ -2,11 +2,11 @@
 // 📊 ลอจิกหน้าสรุปยอดทำรายการ (V. สมบูรณ์ แยกหน้า HTML ชัดเจน + แก้บัคกะ)
 // ====================================================
 
-let pendingSummaryData = []; 
-let viewMode = 'preview'; 
+let pendingSummaryData = []; 
+let viewMode = 'preview'; 
 let summaryActiveWebFilter = 'ALL';
 window.uploadedFileDates = window.uploadedFileDates || new Set();
-window.pendingFileNames = window.pendingFileNames || []; 
+window.pendingFileNames = window.pendingFileNames || []; 
 window.availableSummaryDates = [];
 window.selectedSummaryDates = window.selectedSummaryDates || new Set();
 let summaryRenderTimer;
@@ -39,42 +39,42 @@ window.loadExcelLibrary = function(callback) {
 
 // 🌟 ตัวช่วยคำนวณ "วันที่เมื่อวาน" ที่แม่นยำที่สุด
 window.getYesterdayDateStr = function(dateStr) {
-    if (!dateStr) return '';
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) return '';
-    const dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
-    dt.setDate(dt.getDate() - 1);
-    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return '';
+    const dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+    dt.setDate(dt.getDate() - 1);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 };
 
 // 🌟 ฟังก์ชันทำความสะอาดคีย์เพื่อเทียบยอดแบบไม่แคร์พิมพ์เล็ก/ใหญ่
 window.cleanKeyStr = function(empName, website) {
-    let n = (empName || '').toLowerCase().trim();
-    let w = (website || '').toLowerCase().trim();
-    return `${n}_${w}`;
+    let n = (empName || '').toLowerCase().trim();
+    let w = (website || '').toLowerCase().trim();
+    return `${n}_${w}`;
 };
 
 // 🌟 ตัวช่วยสร้างป้ายส่วนต่างขึ้น-ลง
 function buildDiffBadge(diffValue, extraClasses = '') {
-    if (diffValue > 0) return `<span class="text-emerald-400 font-bold bg-emerald-900/30 px-1.5 py-0.5 rounded flex items-center border border-emerald-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_up</span>+${diffValue}</span>`;
-    if (diffValue < 0) return `<span class="text-red-400 font-bold bg-red-900/30 px-1.5 py-0.5 rounded flex items-center border border-red-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_down</span>${diffValue}</span>`;
-    return `<span class="text-gray-400 bg-gray-800 px-2 py-0.5 rounded text-[10px] border border-gray-600 shadow-sm ${extraClasses}">คงที่</span>`;
+    if (diffValue > 0) return `<span class="text-emerald-400 font-bold bg-emerald-900/30 px-1.5 py-0.5 rounded flex items-center border border-emerald-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_up</span>+${diffValue}</span>`;
+    if (diffValue < 0) return `<span class="text-red-400 font-bold bg-red-900/30 px-1.5 py-0.5 rounded flex items-center border border-red-800/50 text-[10px] shadow-sm ${extraClasses}"><span class="material-icons text-[10px]">trending_down</span>${diffValue}</span>`;
+    return `<span class="text-gray-400 bg-gray-800 px-2 py-0.5 rounded text-[10px] border border-gray-600 shadow-sm ${extraClasses}">คงที่</span>`;
 }
 
 // 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล
 function getTpl(templateId, data = {}) {
-    const tpl = document.getElementById(templateId);
-    if (!tpl) {
-        if (templateId === 'tpl-no-data') return `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
-        if (templateId === 'tpl-emp-not-found') return `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${data.keyword}" ในวันนี้</div>`;
-        return ''; 
-    }
-    let html = tpl.innerHTML;
-    for (const key in data) {
-        const val = data[key] !== undefined && data[key] !== null ? data[key] : '';
-        html = html.split(`{{${key}}}`).join(val);
-    }
-    return html;
+    const tpl = document.getElementById(templateId);
+    if (!tpl) {
+        if (templateId === 'tpl-no-data') return `<div class="text-center py-20 text-gray-400 font-bold flex flex-col items-center"><span class="material-icons text-7xl mb-4 opacity-20">search_off</span>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
+        if (templateId === 'tpl-emp-not-found') return `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบพนักงานชื่อ "${data.keyword}" ในวันนี้</div>`;
+        return ''; 
+    }
+    let html = tpl.innerHTML;
+    for (const key in data) {
+        const val = data[key] !== undefined && data[key] !== null ? data[key] : '';
+        html = html.split(`{{${key}}}`).join(val);
+    }
+    return html;
 }
 
 // 🌟 ตัวช่วยแปลงชื่อกะให้เป็นมาตรฐานเดียวกัน
@@ -102,6 +102,13 @@ window.getShiftBadgeHtml = function(shift) {
 };
 
 window.initSummaryDate = async function() {
+    // 🌟 [แก้บัคกะ] บังคับรีเฟรชรายชื่อพนักงาน + ล้าง cache กะ ทุกครั้งที่เข้าหน้านี้
+    // เพื่อให้กะที่แอดมินเพิ่งแก้ในระบบจัดการพนักงานสะท้อนทันทีในหน้าสรุปยอด
+    if (typeof window.invalidateSummaryUserCache === 'function') window.invalidateSummaryUserCache();
+    if (typeof fetchUsers === 'function') {
+        try { await fetchUsers(true); } catch(e) { console.warn('fetchUsers refresh failed', e); }
+    }
+
     // 🌟 1. เช็คความจำ: ถ้ามีข้อมูลที่ดูค้างไว้ (ไฟล์ Excel หรือดูย้อนหลัง) ให้ "คงไว้" ห้ามล้างทิ้ง!
     if (pendingSummaryData && pendingSummaryData.length > 0) {
         if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();
@@ -119,12 +126,9 @@ window.initSummaryDate = async function() {
             dateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
         }
 
-        // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (web logos + available dates + users) เพราะอิสระต่อกัน
+        // 🚀 ดึงข้อมูลขนานกัน (web logos + available dates) — รายชื่อพนักงานรีเฟรชไปแล้วด้านบน
         const initFetches = [loadWebLogos()];
         if (typeof fetchAvailableDates === 'function') initFetches.push(fetchAvailableDates());
-        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
-            initFetches.push(fetchUsers());
-        }
         await Promise.all(initFetches);
 
         await window.fetchHistoricalSummary(true);
@@ -135,43 +139,51 @@ window.initSummaryDate = async function() {
 }
 
 window.subscribeSummaryChanges = function() {
-    if (!window.appDB) return;
-    if (summarySubscription) window.appDB.removeChannel(summarySubscription);
+    if (!window.appDB) return;
+    if (summarySubscription) window.appDB.removeChannel(summarySubscription);
 
-    summarySubscription = window.appDB.channel('summary-updates')
-    .on('broadcast', { event: 'force_summary_reload' }, async (payload) => {
-        const currentDate = document.getElementById('summaryDateFilter') ? document.getElementById('summaryDateFilter').value : '';
-        if (viewMode === 'history' && payload?.payload?.date === currentDate) {
-            await window.fetchHistoricalSummary(true);
-        }
-    }).subscribe();
+    summarySubscription = window.appDB.channel('summary-updates')
+    .on('broadcast', { event: 'force_summary_reload' }, async (payload) => {
+        const currentDate = document.getElementById('summaryDateFilter') ? document.getElementById('summaryDateFilter').value : '';
+        if (viewMode === 'history' && payload?.payload?.date === currentDate) {
+            await window.fetchHistoricalSummary(true);
+        }
+    }).subscribe();
 
-    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(summarySubscription);
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(summarySubscription);
 };
 
 window.loadWebLogos = async function() {
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'summary_web_logos').single();
-        if (data && data.value) {
-            window.summaryWebLogos = JSON.parse(data.value);
-            if (typeof SETTINGS !== 'undefined') SETTINGS['summary_web_logos'] = data.value;
-        } else window.summaryWebLogos = {};
-    } catch (e) { window.summaryWebLogos = {}; }
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'summary_web_logos').single();
+        if (data && data.value) {
+            window.summaryWebLogos = JSON.parse(data.value);
+            if (typeof SETTINGS !== 'undefined') SETTINGS['summary_web_logos'] = data.value;
+        } else window.summaryWebLogos = {};
+    } catch (e) { window.summaryWebLogos = {}; }
 }
 
 window.fetchAvailableDates = async function(forceRender = false) {
-    try {
-        const { data } = await appDB.from('transaction_daily_summary').select('date').order('date', {ascending: false}).limit(1000);
-        if (data) {
-            window.availableSummaryDates = [...new Set(data.map(item => item.date))].slice(0, 15);
-            if (forceRender || !pendingSummaryData || pendingSummaryData.length === 0) window.renderSummaryDashboard();
-        }
-    } catch(e) { console.error("Fetch dates error:", e); }
+    try {
+        const { data } = await appDB.from('transaction_daily_summary').select('date').order('date', {ascending: false}).limit(1000);
+        if (data) {
+            window.availableSummaryDates = [...new Set(data.map(item => item.date))].slice(0, 15);
+            if (forceRender || !pendingSummaryData || pendingSummaryData.length === 0) window.renderSummaryDashboard();
+        }
+    } catch(e) { console.error("Fetch dates error:", e); }
 }
 
 // 🌟 เพิ่มตัวแปรเก็บ Cache พจนานุกรมชื่อ เพื่อลดการวนลูปซ้ำซ้อน
 let summaryUserCacheMap = null;
 let summarySortedUserCache = null;
+let summaryUserCacheRef = null; // 🌟 [แก้บัคกะ] เก็บ reference ของ GLOBAL_USER_LIST ตอนสร้าง cache เพื่อตรวจว่ามีการรีเฟรชใหม่หรือยัง
+
+// 🌟 [แก้บัคกะ] ตัวช่วยล้าง Cache บังคับ ใช้ตอนรีเฟรชรายชื่อพนักงาน (กรณีแอดมินแก้กะใหม่)
+window.invalidateSummaryUserCache = function() {
+    summaryUserCacheMap = null;
+    summarySortedUserCache = null;
+    summaryUserCacheRef = null;
+};
 
 function buildSummaryUserCache() {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return;
@@ -182,6 +194,8 @@ function buildSummaryUserCache() {
     });
     // เรียงลำดับแค่ครั้งเดียวพอ
     summarySortedUserCache = [...window.GLOBAL_USER_LIST].sort((a, b) => (b.username || '').length - (a.username || '').length);
+    // 🌟 [แก้บัคกะ] เก็บ reference ของ array ปัจจุบันไว้ — ถ้า fetchUsers(true) ทำงาน array จะกลายเป็นชุดใหม่ (reference เปลี่ยน) → cache จะถูก rebuild อัตโนมัติ
+    summaryUserCacheRef = window.GLOBAL_USER_LIST;
 }
 
 // 🌟 ระบบอ่านกะที่ฉลาดและทำงานไวขึ้น (O(1) Lookup)
@@ -191,8 +205,11 @@ function getShiftFromName(name) {
 
     // 1. พยายามหาจากฐานข้อมูลก่อน
     if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
-        // ถ้าพจนานุกรมยังไม่ถูกสร้าง หรือจำนวนพนักงานเปลี่ยน ให้สร้างใหม่
-        if (!summaryUserCacheMap || summaryUserCacheMap.size !== window.GLOBAL_USER_LIST.length) {
+        // ถ้าพจนานุกรมยังไม่ถูกสร้าง / จำนวนพนักงานเปลี่ยน / array ถูกรีเฟรชใหม่ → สร้างใหม่
+        // 🌟 [แก้บัคกะ] เพิ่มเช็ค reference ด้วย เพื่อจับกรณีแอดมินอัปเดตกะของพนักงานคนเดิม (จำนวนเท่าเดิมแต่ข้อมูลใหม่)
+        if (!summaryUserCacheMap
+            || summaryUserCacheMap.size !== window.GLOBAL_USER_LIST.length
+            || summaryUserCacheRef !== window.GLOBAL_USER_LIST) {
             buildSummaryUserCache();
         }
 
@@ -224,131 +241,133 @@ function getShiftFromName(name) {
 // 🌟 ฟังก์ชันบังคับดึงรายชื่อพนักงาน (อุดรอยรั่วตอนเปิดหน้าเว็บครั้งแรก)
 
 function parseAmount(val) {
-    if(!val) return 0;
-    if(typeof val === 'number') return val;
-    let cleanVal = String(val).replace(/[^0-9.-]+/g, ''); 
-    return parseFloat(cleanVal) || 0;
+    if(!val) return 0;
+    if(typeof val === 'number') return val;
+    let cleanVal = String(val).replace(/[^0-9.-]+/g, ''); 
+    return parseFloat(cleanVal) || 0;
 }
 
 // 🌟 ตารางจับคู่ชื่อแบรนด์ (รวมชื่อค่ายเกมจริง) → รหัสเว็บมาตรฐาน
 // ใช้ตอนอ่านคอลัมน์ "แบรนด์" จากไฟล์ TCG ที่อาจขึ้นเป็น "Jili", "PGSoft" ฯลฯ
 const BRAND_ALIASES = {
-    'PG688':  ['pg688', 'pg', 'pgsoft', 'pg soft', 'pg-soft', 'pgslot', 'pg slot'],
-    'JL69':   ['jl69', 'jl', 'jili', 'jiligames', 'jili games', 'jili gaming'],
-    'NM9':    ['nm9', 'nm'],
-    'VV72':   ['vv72', 'vv'],
-    'Jun88':  ['jun88', 'jun'],
-    'MK8':    ['mk8', 'mk'],
-    'TH26':   ['th26'],
-    'BT678':  ['bt678', 'bt'],
-    'K188':   ['k188'],
-    'F168':   ['f168']
+    'PG688':  ['pg688', 'pg', 'pgsoft', 'pg soft', 'pg-soft', 'pgslot', 'pg slot'],
+    'JL69':   ['jl69', 'jl', 'jili', 'jiligames', 'jili games', 'jili gaming'],
+    'NM9':    ['nm9', 'nm'],
+    'VV72':   ['vv72', 'vv'],
+    'Jun88':  ['jun88', 'jun'],
+    'MK8':    ['mk8', 'mk'],
+    'TH26':   ['th26'],
+    'BT678':  ['bt678', 'bt'],
+    'K188':   ['k188'],
+    'F168':   ['f168']
 };
 
 // 🌟 พยายามจับคู่ค่าในคอลัมน์ "แบรนด์" → รหัสเว็บมาตรฐาน
 function matchBrandToWeb(rawWeb) {
-    if (!rawWeb) return '';
-    const normalized = String(rawWeb).trim().toLowerCase().replace(/[\s_\-]+/g, '');
-    if (!normalized) return '';
+    if (!rawWeb) return '';
+    const normalized = String(rawWeb).trim().toLowerCase().replace(/[\s_\-]+/g, '');
+    if (!normalized) return '';
 
-    // 1. exact match กับ alias ก่อน (แม่นที่สุด)
-    for (const [webCode, aliases] of Object.entries(BRAND_ALIASES)) {
-       for (const alias of aliases) {
-          const normAlias = alias.replace(/[\s_\-]+/g, '');
-          if (normalized === normAlias) return webCode;
-       }
-    }
+    // 1. exact match กับ alias ก่อน (แม่นที่สุด)
+    for (const [webCode, aliases] of Object.entries(BRAND_ALIASES)) {
+       for (const alias of aliases) {
+          const normAlias = alias.replace(/[\s_\-]+/g, '');
+          if (normalized === normAlias) return webCode;
+       }
+    }
 
-    // 2. startsWith / includes (เผื่อมีคำต่อท้าย)
-    for (const [webCode, aliases] of Object.entries(BRAND_ALIASES)) {
-       for (const alias of aliases) {
-          const normAlias = alias.replace(/[\s_\-]+/g, '');
-          if (normAlias.length >= 2 && (normalized.startsWith(normAlias) || normalized.includes(normAlias))) {
-             return webCode;
-          }
-       }
-    }
+    // 2. startsWith / includes (เผื่อมีคำต่อท้าย)
+    for (const [webCode, aliases] of Object.entries(BRAND_ALIASES)) {
+       for (const alias of aliases) {
+          const normAlias = alias.replace(/[\s_\-]+/g, '');
+          if (normAlias.length >= 2 && (normalized.startsWith(normAlias) || normalized.includes(normAlias))) {
+             return webCode;
+          }
+       }
+    }
 
-    return '';
+    return '';
 }
 
 window.clearSummaryData = async function() {
-    pendingSummaryData = [];
-    viewMode = 'preview';
-    if (window.uploadedFileDates) window.uploadedFileDates.clear();
-    window.pendingFileNames = [];
-    if (window.selectedSummaryDates) window.selectedSummaryDates.clear();
+    pendingSummaryData = [];
+    viewMode = 'preview';
+    if (window.uploadedFileDates) window.uploadedFileDates.clear();
+    window.pendingFileNames = [];
+    if (window.selectedSummaryDates) window.selectedSummaryDates.clear();
 
-    const dateFilter = document.getElementById('summaryDateFilter');
-    if (dateFilter) dateFilter.value = '';
+    const dateFilter = document.getElementById('summaryDateFilter');
+    if (dateFilter) dateFilter.value = '';
 
-    const dateSpan = document.getElementById('summaryFileDates');
-    if (dateSpan) { dateSpan.innerText = '-'; dateSpan.className = "text-sky-500"; }
+    const dateSpan = document.getElementById('summaryFileDates');
+    if (dateSpan) { dateSpan.innerText = '-'; dateSpan.className = "text-sky-500"; }
 
-    const lbMode = document.getElementById('leaderboardMode');
-    if (lbMode) lbMode.value = 'monthly';
-    
-    summaryActiveWebFilter = 'ALL';
+    const lbMode = document.getElementById('leaderboardMode');
+    if (lbMode) lbMode.value = 'monthly';
+    
+    summaryActiveWebFilter = 'ALL';
 
-    if (typeof fetchAvailableDates === 'function') await fetchAvailableDates(true); 
-    else renderSummaryDashboard();
+    if (typeof fetchAvailableDates === 'function') await fetchAvailableDates(true); 
+    else renderSummaryDashboard();
 
-    if (typeof fetchLeaderboardData === 'function') fetchLeaderboardData();
+    if (typeof fetchLeaderboardData === 'function') fetchLeaderboardData();
 };
 
 window.toggleSummaryWebFilter = function(webName) {
-    if (summaryActiveWebFilter === webName) summaryActiveWebFilter = 'ALL';
-    else summaryActiveWebFilter = webName;
-    renderSummaryDashboard();
+    if (summaryActiveWebFilter === webName) summaryActiveWebFilter = 'ALL';
+    else summaryActiveWebFilter = webName;
+    renderSummaryDashboard();
 };
 
 window.filterSummaryLeaderboard = function() {
-    const term = document.getElementById('leaderboardSearch') ? document.getElementById('leaderboardSearch').value.toLowerCase() : '';
-    const items = document.querySelectorAll('.leaderboard-item');
-    
-    items.forEach((item, index) => {
-        const name = item.getAttribute('data-name').toLowerCase();
-        
-        if (term === '') {
-            // 🌟 ถ้าไม่ได้พิมพ์ค้นหา ให้โชว์แค่ 10 อันดับแรก (ซ่อนคนที่เหลือ)
-            if (index < 10) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
-        } else {
-            // 🌟 ถ้าพิมพ์ค้นหา ให้โชว์คนที่ชื่อตรง (แม้จะอยู่อันดับ 95 ก็จะโผล่ขึ้นมาพร้อมอันดับ)
-            if (name.includes(term)) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
-        }
-    });
+    const term = document.getElementById('leaderboardSearch') ? document.getElementById('leaderboardSearch').value.toLowerCase() : '';
+    const items = document.querySelectorAll('.leaderboard-item');
+    
+    items.forEach((item, index) => {
+        const name = item.getAttribute('data-name').toLowerCase();
+        
+        if (term === '') {
+            // 🌟 ถ้าไม่ได้พิมพ์ค้นหา ให้โชว์แค่ 10 อันดับแรก (ซ่อนคนที่เหลือ)
+            if (index < 10) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        } else {
+            // 🌟 ถ้าพิมพ์ค้นหา ให้โชว์คนที่ชื่อตรง (แม้จะอยู่อันดับ 95 ก็จะโผล่ขึ้นมาพร้อมอันดับ)
+            if (name.includes(term)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        }
+    });
 };
 
 window.handleDragOverExcel = function(e) {
-    e.preventDefault(); e.stopPropagation();
-    e.currentTarget.classList.add('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
+    e.preventDefault(); e.stopPropagation();
+    e.currentTarget.classList.add('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
 };
 
 window.handleDragLeaveExcel = function(e) {
-    e.preventDefault(); e.stopPropagation();
-    e.currentTarget.classList.remove('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
+    e.preventDefault(); e.stopPropagation();
+    e.currentTarget.classList.remove('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
 };
 
 window.handleDropExcel = function(e, systemName) {
-    e.preventDefault(); e.stopPropagation();
-    e.currentTarget.classList.remove('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
-    if (e.dataTransfer && e.dataTransfer.files.length > 0) window.processExcelUpload(e, systemName);
+    e.preventDefault(); e.stopPropagation();
+    e.currentTarget.classList.remove('scale-[1.03]', 'bg-slate-100', 'dark:bg-slate-700');
+    if (e.dataTransfer && e.dataTransfer.files.length > 0) window.processExcelUpload(e, systemName);
 };
 
 // 🌟 ฟังก์ชันดึงชื่อพนักงานจริงจากระบบ (อัปเกรดให้ทำงานไวขึ้นด้วย Cache)
 function getRealDbUser(rawName) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return null;
     
-    // เรียกใช้พจนานุกรม
-    if (!summaryUserCacheMap || summaryUserCacheMap.size !== window.GLOBAL_USER_LIST.length) {
+    // เรียกใช้พจนานุกรม (ใช้เกณฑ์เช็ค reference เดียวกับ getShiftFromName)
+    if (!summaryUserCacheMap
+        || summaryUserCacheMap.size !== window.GLOBAL_USER_LIST.length
+        || summaryUserCacheRef !== window.GLOBAL_USER_LIST) {
         buildSummaryUserCache();
     }
     
@@ -379,6 +398,13 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
     else if (event.target && event.target.files.length > 0) files = Array.from(event.target.files);
 
     if (files.length === 0) return;
+
+    // 🌟 [แก้บัคกะ] บังคับรีเฟรชรายชื่อพนักงาน + ล้าง cache กะ ก่อนประมวลผลไฟล์
+    // เพื่อให้กะที่แอดมินเพิ่งแก้สะท้อนทันทีตอนคำนวณยอดจาก Excel
+    if (typeof window.invalidateSummaryUserCache === 'function') window.invalidateSummaryUserCache();
+    if (typeof fetchUsers === 'function') {
+        try { await fetchUsers(true); } catch(e) { console.warn('fetchUsers refresh failed', e); }
+    }
 
     // 🌟 เพิ่มบรรทัดนี้: บังคับโหลด ExcelJS ให้เสร็จก่อนเริ่มประมวลผล
     window.loadExcelLibrary(async () => {
@@ -752,591 +778,594 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 };
 
 window.debounceRenderSummary = function() {
-    clearTimeout(summaryRenderTimer);
-    summaryRenderTimer = setTimeout(() => { window.renderSummaryDashboard(); }, 200);
+    clearTimeout(summaryRenderTimer);
+    summaryRenderTimer = setTimeout(() => { window.renderSummaryDashboard(); }, 200);
 };
 
 window.renderSummaryDashboard = function() {
-    if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
-        try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
-        catch(e) { window.summaryWebLogos = {}; }
-    } else if (typeof window.summaryWebLogos === 'undefined') { window.summaryWebLogos = {}; }
-    const safeWebLogos = window.summaryWebLogos;
+    if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
+        try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
+        catch(e) { window.summaryWebLogos = {}; }
+    } else if (typeof window.summaryWebLogos === 'undefined') { window.summaryWebLogos = {}; }
+    const safeWebLogos = window.summaryWebLogos;
 
-    const mainBox = document.getElementById('summaryTableBody');
-    const webBox = document.getElementById('summaryWebGrid');
-    const statsBox = document.getElementById('shiftSummaryStats');
-    
-    const shiftFilter = document.getElementById('summaryShiftFilter') ? document.getElementById('summaryShiftFilter').value : 'ALL';
-    const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
-    const searchKeyword = document.getElementById('summarySearch') ? document.getElementById('summarySearch').value.toLowerCase().trim() : '';
+    const mainBox = document.getElementById('summaryTableBody');
+    const webBox = document.getElementById('summaryWebGrid');
+    const statsBox = document.getElementById('shiftSummaryStats');
+    
+    const shiftFilter = document.getElementById('summaryShiftFilter') ? document.getElementById('summaryShiftFilter').value : 'ALL';
+    const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
+    const searchKeyword = document.getElementById('summarySearch') ? document.getElementById('summarySearch').value.toLowerCase().trim() : '';
 
-    if (webBox) webBox.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 p-1";
-    if (mainBox) mainBox.className = "flex-1 overflow-y-auto custom-scrollbar pr-2 content-start";
+    if (webBox) webBox.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 p-1";
+    if (mainBox) mainBox.className = "flex-1 overflow-y-auto custom-scrollbar pr-2 content-start";
 
-    const hasData = typeof pendingSummaryData !== 'undefined' && pendingSummaryData.length > 0;
+    const hasData = typeof pendingSummaryData !== 'undefined' && pendingSummaryData.length > 0;
 
-    if (!hasData) {
-        let datesHtml = '';
-        if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
-            let btns = window.availableSummaryDates.map(d => {
-                const [y, m, day] = d.split('-');
-                return getTpl('tpl-date-button', { 
-                    d: d, day: day, m: m, year: y, 
-                    cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
-                    iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
-                    textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
-                    checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
-                });
-            }).join('');
-            datesHtml = getTpl('tpl-date-selector-container', { 
-                datesHtml: btns, 
-                selectedCount: window.selectedSummaryDates.size,
-                disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
-            });
-        }
+    if (!hasData) {
+        let datesHtml = '';
+        if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
+            let btns = window.availableSummaryDates.map(d => {
+                const [y, m, day] = d.split('-');
+                return getTpl('tpl-date-button', { 
+                    d: d, day: day, m: m, year: y, 
+                    cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
+                    iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
+                    textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
+                    checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
+                });
+            }).join('');
+            datesHtml = getTpl('tpl-date-selector-container', { 
+                datesHtml: btns, 
+                selectedCount: window.selectedSummaryDates.size,
+                disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
+            });
+        }
 
-        if(mainBox) mainBox.innerHTML = getTpl('tpl-no-data') + `<div class="text-center py-2 w-full">${datesHtml}</div>`;
-        if(statsBox) statsBox.innerHTML = '<div class="text-center text-gray-400 text-sm py-2 w-full">ยังไม่มีข้อมูลยอดรวม</div>';
-        
-    } else {
-        let shiftStats = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0, 'UNKNOWN': 0, 'TOTAL': 0, 'TOTAL_YEST': 0, 'APPROVED': 0, 'REJECT': 0 };
-        
-        let filteredData = pendingSummaryData;
-        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && (item.shift==='กะอิสระ' || item.shift==='UNKNOWN')));
-        if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
-        if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
+        if(mainBox) mainBox.innerHTML = getTpl('tpl-no-data') + `<div class="text-center py-2 w-full">${datesHtml}</div>`;
+        if(statsBox) statsBox.innerHTML = '<div class="text-center text-gray-400 text-sm py-2 w-full">ยังไม่มีข้อมูลยอดรวม</div>';
+        
+    } else {
+        let shiftStats = { 'กะเช้า': 0, 'กะกลาง': 0, 'กะดึก': 0, 'UNKNOWN': 0, 'TOTAL': 0, 'TOTAL_YEST': 0, 'APPROVED': 0, 'REJECT': 0 };
+        
+        let filteredData = pendingSummaryData;
+        if (shiftFilter !== 'ALL') filteredData = filteredData.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && (item.shift==='กะอิสระ' || item.shift==='UNKNOWN')));
+        if (odFilter !== 'ALL') filteredData = filteredData.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
+        if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
 
-        filteredData = filteredData.filter(item => !item.empName.toLowerCase().includes('system') && !item.empName.toLowerCase().includes('auto'));
+        filteredData = filteredData.filter(item => !item.empName.toLowerCase().includes('system') && !item.empName.toLowerCase().includes('auto'));
 
-        filteredData.forEach(item => {
-            shiftStats.TOTAL += item.count;
-            shiftStats.TOTAL_YEST += item.yestCount || 0; 
-            shiftStats.APPROVED += (item.approvedCount || 0);
-            shiftStats.REJECT += (item.rejectCount || 0);
-            if(shiftStats[item.shift] !== undefined) shiftStats[item.shift] += item.count;
-            else shiftStats['UNKNOWN'] += item.count;
-        });
+        filteredData.forEach(item => {
+            shiftStats.TOTAL += item.count;
+            shiftStats.TOTAL_YEST += item.yestCount || 0; 
+            shiftStats.APPROVED += (item.approvedCount || 0);
+            shiftStats.REJECT += (item.rejectCount || 0);
+            if(shiftStats[item.shift] !== undefined) shiftStats[item.shift] += item.count;
+            else shiftStats['UNKNOWN'] += item.count;
+        });
 
-        let grandDiff = shiftStats.TOTAL - shiftStats.TOTAL_YEST;
-        let grandDiffHtml = '';
-        if (grandDiff !== 0) grandDiffHtml = buildDiffBadge(grandDiff, 'ml-2 bg-slate-900 border-none scale-110');
+        let grandDiff = shiftStats.TOTAL - shiftStats.TOTAL_YEST;
+        let grandDiffHtml = '';
+        if (grandDiff !== 0) grandDiffHtml = buildDiffBadge(grandDiff, 'ml-2 bg-slate-900 border-none scale-110');
 
-        if (statsBox) {
-            statsBox.innerHTML = getTpl('tpl-shift-stats', {
-                total: shiftStats.TOTAL.toLocaleString(),
-                totalDiffHtml: grandDiffHtml,
-                approved: shiftStats.APPROVED.toLocaleString(),
-                reject: shiftStats.REJECT.toLocaleString(),
-                morning: shiftStats['กะเช้า'].toLocaleString(),
-                afternoon: shiftStats['กะกลาง'].toLocaleString(),
-                night: shiftStats['กะดึก'].toLocaleString()
-            });
-        }
+        if (statsBox) {
+            statsBox.innerHTML = getTpl('tpl-shift-stats', {
+                total: shiftStats.TOTAL.toLocaleString(),
+                totalDiffHtml: grandDiffHtml,
+                approved: shiftStats.APPROVED.toLocaleString(),
+                reject: shiftStats.REJECT.toLocaleString(),
+                morning: shiftStats['กะเช้า'].toLocaleString(),
+                afternoon: shiftStats['กะกลาง'].toLocaleString(),
+                night: shiftStats['กะดึก'].toLocaleString()
+            });
+        }
 
-        if (mainBox) {
-            if (filteredData.length === 0) {
-                mainBox.innerHTML = getTpl('tpl-no-data');
-            } else {
-                let htmlArr = [];
-                
-                if (viewMode === 'history' || viewMode === 'monthly_history') {
-                    htmlArr.push(getTpl('tpl-history-header'));
-                }
+        if (mainBox) {
+            if (filteredData.length === 0) {
+                mainBox.innerHTML = getTpl('tpl-no-data');
+            } else {
+                let htmlArr = [];
+                
+                if (viewMode === 'history' || viewMode === 'monthly_history') {
+                    htmlArr.push(getTpl('tpl-history-header'));
+                }
 
-                let dateGroups = {};
-                filteredData.forEach(item => {
-                    let itemDate = item.date || document.getElementById('summaryDateFilter').value || 'ไม่ระบุวันที่';
-                    if(!dateGroups[itemDate]) {
-                        dateGroups[itemDate] = { totalCount: 0, totalYestCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, emps: {} };
-                    }
-                    let dGroup = dateGroups[itemDate];
-                    dGroup.totalCount += item.count;
-                    dGroup.totalYestCount += item.yestCount || 0; 
-                    dGroup.totalMoney += item.totalAmount;
-                    dGroup.totalApproved += (item.approvedCount || 0);
-                    dGroup.totalReject += (item.rejectCount || 0);
+                let dateGroups = {};
+                filteredData.forEach(item => {
+                    let itemDate = item.date || document.getElementById('summaryDateFilter').value || 'ไม่ระบุวันที่';
+                    if(!dateGroups[itemDate]) {
+                        dateGroups[itemDate] = { totalCount: 0, totalYestCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, emps: {} };
+                    }
+                    let dGroup = dateGroups[itemDate];
+                    dGroup.totalCount += item.count;
+                    dGroup.totalYestCount += item.yestCount || 0; 
+                    dGroup.totalMoney += item.totalAmount;
+                    dGroup.totalApproved += (item.approvedCount || 0);
+                    dGroup.totalReject += (item.rejectCount || 0);
 
-                    if(!dGroup.emps[item.empName]) {
-                        dGroup.emps[item.empName] = { totalCount: 0, totalYestCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, webs: [], shift: item.shift, odType: item.odType || 'ปกติ' };
-                    }
-                    dGroup.emps[item.empName].totalCount += item.count;
-                    dGroup.emps[item.empName].totalYestCount += item.yestCount || 0; 
-                    dGroup.emps[item.empName].totalApproved += (item.approvedCount || 0);
-                    dGroup.emps[item.empName].totalReject += (item.rejectCount || 0);
-                    dGroup.emps[item.empName].totalMoney += item.totalAmount;
-                    dGroup.emps[item.empName].webs.push(item);
-                });
+                    if(!dGroup.emps[item.empName]) {
+                        dGroup.emps[item.empName] = { totalCount: 0, totalYestCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, webs: [], shift: item.shift, odType: item.odType || 'ปกติ' };
+                    }
+                    dGroup.emps[item.empName].totalCount += item.count;
+                    dGroup.emps[item.empName].totalYestCount += item.yestCount || 0; 
+                    dGroup.emps[item.empName].totalApproved += (item.approvedCount || 0);
+                    dGroup.emps[item.empName].totalReject += (item.rejectCount || 0);
+                    dGroup.emps[item.empName].totalMoney += item.totalAmount;
+                    dGroup.emps[item.empName].webs.push(item);
+                });
 
-                const sortedDates = Object.keys(dateGroups).sort((a, b) => new Date(b) - new Date(a));
+                const sortedDates = Object.keys(dateGroups).sort((a, b) => new Date(b) - new Date(a));
 
-                sortedDates.forEach((dateStr) => {
-                    const dGroup = dateGroups[dateStr];
-                    let displayDate = dateStr;
-                    if(dateStr.includes('-')) {
-                        const [y, m, d] = dateStr.split('-');
-                        const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
-                        displayDate = `วันที่ ${parseInt(d)} ${monthNames[parseInt(m)-1]} ${parseInt(y)+543}`;
-                    }
+                sortedDates.forEach((dateStr) => {
+                    const dGroup = dateGroups[dateStr];
+                    let displayDate = dateStr;
+                    if(dateStr.includes('-')) {
+                        const [y, m, d] = dateStr.split('-');
+                        const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+                        displayDate = `วันที่ ${parseInt(d)} ${monthNames[parseInt(m)-1]} ${parseInt(y)+543}`;
+                    }
 
-                    let groupDiff = dGroup.totalCount - dGroup.totalYestCount;
-                    let groupDiffHtml = buildDiffBadge(groupDiff);
+                    let groupDiff = dGroup.totalCount - dGroup.totalYestCount;
+                    let groupDiffHtml = buildDiffBadge(groupDiff);
 
-                    htmlArr.push(getTpl('tpl-date-group-start', {
-                        displayDate: displayDate,
-                        empCount: Object.keys(dGroup.emps).length,
-                        totalCount: dGroup.totalCount.toLocaleString(),
-                        totalDiffHtml: groupDiffHtml,
-                        totalApproved: dGroup.totalApproved,
-                        totalReject: dGroup.totalReject,
-                        hiddenClass: sortedDates.length === 1 ? '' : 'hidden'
-                    }));
+                    htmlArr.push(getTpl('tpl-date-group-start', {
+                        displayDate: displayDate,
+                        empCount: Object.keys(dGroup.emps).length,
+                        totalCount: dGroup.totalCount.toLocaleString(),
+                        totalDiffHtml: groupDiffHtml,
+                        totalApproved: dGroup.totalApproved,
+                        totalReject: dGroup.totalReject,
+                        hiddenClass: sortedDates.length === 1 ? '' : 'hidden'
+                    }));
 
-                    let sortedEmps = Object.keys(dGroup.emps).sort((a, b) => dGroup.emps[b].totalCount - dGroup.emps[a].totalCount);
-                    if (searchKeyword !== '') sortedEmps = sortedEmps.filter(name => name.toLowerCase().includes(searchKeyword));
+                    let sortedEmps = Object.keys(dGroup.emps).sort((a, b) => dGroup.emps[b].totalCount - dGroup.emps[a].totalCount);
+                    if (searchKeyword !== '') sortedEmps = sortedEmps.filter(name => name.toLowerCase().includes(searchKeyword));
 
-                    if (sortedEmps.length === 0) {
-                        htmlArr.push(getTpl('tpl-emp-not-found', { keyword: searchKeyword }));
-                    } else {
-                        sortedEmps.forEach((name, index) => {
-                            const data = dGroup.emps[name];
-                            
-                            let shiftBadgeHtml = window.getShiftBadgeHtml(data.shift);
+                    if (sortedEmps.length === 0) {
+                        htmlArr.push(getTpl('tpl-emp-not-found', { keyword: searchKeyword }));
+                    } else {
+                        sortedEmps.forEach((name, index) => {
+                            const data = dGroup.emps[name];
+                            
+                            let shiftBadgeHtml = window.getShiftBadgeHtml(data.shift);
 
-                            let odBadge = '';
-                            if (data.odType === 'OD') odBadge = '<span class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">OD</span>';
-                            if (data.odType === 'ODOL') odBadge = '<span class="text-[9px] bg-pink-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">ODOL</span>';
+                            let odBadge = '';
+                            if (data.odType === 'OD') odBadge = '<span class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">OD</span>';
+                            if (data.odType === 'ODOL') odBadge = '<span class="text-[9px] bg-pink-600 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold shadow">ODOL</span>';
 
-                            let webTags = data.webs.map(w => {
-                                let diffNum = w.count - (w.yestCount || 0);
-                                let diffHtml = buildDiffBadge(diffNum, '');
+                            let webTags = data.webs.map(w => {
+                                let diffNum = w.count - (w.yestCount || 0);
+                                let diffHtml = buildDiffBadge(diffNum, '');
 
-                                return getTpl('tpl-web-subcard', {
-                                    website: w.website, diffHtml: diffHtml,
-                                    yestCount: w.yestCount || 0, count: w.count,
-                                    approvedCount: w.approvedCount || 0, rejectCount: w.rejectCount || 0,
-                                    totalAmount: w.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2})
-                                });
-                            }).join('');
+                                return getTpl('tpl-web-subcard', {
+                                    website: w.website, diffHtml: diffHtml,
+                                    yestCount: w.yestCount || 0, count: w.count,
+                                    approvedCount: w.approvedCount || 0, rejectCount: w.rejectCount || 0,
+                                    totalAmount: w.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2})
+                                });
+                            }).join('');
 
-                            let quickWebBadges = data.webs.map(w => `<span class="bg-slate-900 border border-slate-600 px-1.5 py-0.5 rounded text-[10px] text-gray-300 whitespace-nowrap shadow-sm"><b class="text-sky-400">${w.website}:</b> ${w.count}</span>`).join('');
+                            let quickWebBadges = data.webs.map(w => `<span class="bg-slate-900 border border-slate-600 px-1.5 py-0.5 rounded text-[10px] text-gray-300 whitespace-nowrap shadow-sm"><b class="text-sky-400">${w.website}:</b> ${w.count}</span>`).join('');
 
-                            let empDiff = data.totalCount - data.totalYestCount;
-                            let empDiffHtml = buildDiffBadge(empDiff, 'mt-1');
+                            let empDiff = data.totalCount - data.totalYestCount;
+                            let empDiffHtml = buildDiffBadge(empDiff, 'mt-1');
 
-                            htmlArr.push(getTpl('tpl-emp-row', {
-                                index: index + 1, name: name, odBadge: odBadge, shiftBadge: shiftBadgeHtml,
-                                quickWebBadges: quickWebBadges, totalCount: data.totalCount, 
-                                totalDiffHtml: empDiffHtml,
-                                webTagsHtml: webTags
-                            }));
-                        });
-                    }
-                    htmlArr.push(getTpl('tpl-date-group-end'));
-                });
+                            htmlArr.push(getTpl('tpl-emp-row', {
+                                index: index + 1, name: name, odBadge: odBadge, shiftBadge: shiftBadgeHtml,
+                                quickWebBadges: quickWebBadges, totalCount: data.totalCount, 
+                                totalDiffHtml: empDiffHtml,
+                                webTagsHtml: webTags
+                            }));
+                        });
+                    }
+                    htmlArr.push(getTpl('tpl-date-group-end'));
+                });
 
-                if (viewMode === 'history' || viewMode === 'monthly_history') {
-                    let datesHtml = '';
-                    if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
-                        let btns = window.availableSummaryDates.map(d => {
-                            const [y, m, day] = d.split('-');
-                            return getTpl('tpl-date-button', { 
-                                d: d, day: day, m: m, year: y, 
-                                cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
-                                iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
-                                textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
-                                checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
-                            });
-                        }).join('');
-                        datesHtml = getTpl('tpl-date-selector-container', { 
-                            datesHtml: btns, 
-                            selectedCount: window.selectedSummaryDates.size,
-                            disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
-                        });
-                    }
-                    htmlArr.push(getTpl('tpl-history-footer', { datesHtml: datesHtml }));
-                }
+                if (viewMode === 'history' || viewMode === 'monthly_history') {
+                    let datesHtml = '';
+                    if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
+                        let btns = window.availableSummaryDates.map(d => {
+                            const [y, m, day] = d.split('-');
+                            return getTpl('tpl-date-button', { 
+                                d: d, day: day, m: m, year: y, 
+                                cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
+                                iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
+                                textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
+                                checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
+                            });
+                        }).join('');
+                        datesHtml = getTpl('tpl-date-selector-container', { 
+                            datesHtml: btns, 
+                            selectedCount: window.selectedSummaryDates.size,
+                            disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
+                        });
+                    }
+                    htmlArr.push(getTpl('tpl-history-footer', { datesHtml: datesHtml }));
+                }
 
-                mainBox.innerHTML = htmlArr.join('');
-            }
-        }
-    }
+                mainBox.innerHTML = htmlArr.join('');
+            }
+        }
+    }
 
-    if (webBox) {
-        let webAgg = {};
-        let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188']; 
-        let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
+    if (webBox) {
+        let webAgg = {};
+        let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188']; 
+        let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
 
-        defaultWebList.forEach(web => {
-            let sysLabel = 'SYSTEM';
-            if (customSystems[web]) sysLabel = customSystems[web];
-            else {
-                if(['Jun88', 'MK8', 'VV72', 'TH26', 'BT678', 'K188'].includes(web)) sysLabel = 'K36';
-                else if(['F168'].includes(web)) sysLabel = 'WG';
-                else if(['PG688', 'JL69', 'NM9'].includes(web)) sysLabel = 'TCG';
-            }
-            webAgg[web] = { count: 0, amount: 0, sys: sysLabel };
-        });
+        defaultWebList.forEach(web => {
+            let sysLabel = 'SYSTEM';
+            if (customSystems[web]) sysLabel = customSystems[web];
+            else {
+                if(['Jun88', 'MK8', 'VV72', 'TH26', 'BT678', 'K188'].includes(web)) sysLabel = 'K36';
+                else if(['F168'].includes(web)) sysLabel = 'WG';
+                else if(['PG688', 'JL69', 'NM9'].includes(web)) sysLabel = 'TCG';
+            }
+            webAgg[web] = { count: 0, amount: 0, sys: sysLabel };
+        });
 
-        if (hasData) {
-            let dataForWebCards = pendingSummaryData;
-            if (shiftFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
-            if (odFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
+        if (hasData) {
+            let dataForWebCards = pendingSummaryData;
+            if (shiftFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.shift === shiftFilter || (shiftFilter==='UNKNOWN' && item.shift==='กะอิสระ'));
+            if (odFilter !== 'ALL') dataForWebCards = dataForWebCards.filter(item => item.odType === odFilter || (item.odType === undefined && odFilter === 'ปกติ'));
 
-            dataForWebCards.forEach(item => {
-                if (!webAgg[item.website]) webAgg[item.website] = { count: 0, amount: 0, sys: item.system || 'SYSTEM' };
-                webAgg[item.website].count += item.count;
-                webAgg[item.website].amount += item.totalAmount;
-                if (item.system) webAgg[item.website].sys = item.system;
-            });
-        }
+            dataForWebCards.forEach(item => {
+                if (!webAgg[item.website]) webAgg[item.website] = { count: 0, amount: 0, sys: item.system || 'SYSTEM' };
+                webAgg[item.website].count += item.count;
+                webAgg[item.website].amount += item.totalAmount;
+                if (item.system) webAgg[item.website].sys = item.system;
+            });
+        }
 
-        if (Object.keys(webAgg).length > 0) {
-            webBox.innerHTML = Object.keys(webAgg).map(web => {
-                const w = webAgg[web];
-                const defaultImg = `https://ui-avatars.com/api/?name=${web}&background=random&color=fff&size=256`;
-                const imgUrl = safeWebLogos[web] ? safeWebLogos[web] : defaultImg;
-                const isActive = (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter === web);
-                
-                return getTpl('tpl-web-card', {
-                    cardStyle: isActive ? 'ring-2 ring-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] z-20 scale-[1.02]' : 'hover:border-sky-500 hover:shadow-lg opacity-95 hover:opacity-100',
-                    web: web, imgUrl: imgUrl, sys: w.sys,
-                    filterBadge: isActive ? '<div class="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-30 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> กำลังดู</div>' : '',
-                    countColor: w.count > 0 ? 'text-sky-400' : 'text-gray-500',
-                    count: w.count.toLocaleString(),
-                    amountColor: w.amount > 0 ? 'text-emerald-400 bg-[#0b1120] border-emerald-900/50' : 'text-gray-500 bg-slate-800 border-slate-700',
-                    amount: w.amount.toLocaleString('en-US', {minimumFractionDigits: 2})
-                });
-            }).join('');
-        }
-    }
+        if (Object.keys(webAgg).length > 0) {
+            webBox.innerHTML = Object.keys(webAgg).map(web => {
+                const w = webAgg[web];
+                const defaultImg = `https://ui-avatars.com/api/?name=${web}&background=random&color=fff&size=256`;
+                const imgUrl = safeWebLogos[web] ? safeWebLogos[web] : defaultImg;
+                const isActive = (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter === web);
+                
+                return getTpl('tpl-web-card', {
+                    cardStyle: isActive ? 'ring-2 ring-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] z-20 scale-[1.02]' : 'hover:border-sky-500 hover:shadow-lg opacity-95 hover:opacity-100',
+                    web: web, imgUrl: imgUrl, sys: w.sys,
+                    filterBadge: isActive ? '<div class="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-30 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> กำลังดู</div>' : '',
+                    countColor: w.count > 0 ? 'text-sky-400' : 'text-gray-500',
+                    count: w.count.toLocaleString(),
+                    amountColor: w.amount > 0 ? 'text-emerald-400 bg-[#0b1120] border-emerald-900/50' : 'text-gray-500 bg-slate-800 border-slate-700',
+                    amount: w.amount.toLocaleString('en-US', {minimumFractionDigits: 2})
+                });
+            }).join('');
+        }
+    }
 };
 
 window.fetchLeaderboardData = async function() {
-    const lbBox = document.getElementById('summaryLeaderboard');
-    const modeEl = document.getElementById('leaderboardMode');
-    const monthInput = document.getElementById('leaderboardMonth');
-    const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
-    
-    if(!lbBox) return;
+    const lbBox = document.getElementById('summaryLeaderboard');
+    const modeEl = document.getElementById('leaderboardMode');
+    const monthInput = document.getElementById('leaderboardMonth');
+    const odFilter = document.getElementById('summaryOdFilter') ? document.getElementById('summaryOdFilter').value : 'ALL';
+    
+    if(!lbBox) return;
 
-    let lbShiftFilter = document.getElementById('leaderboardShiftFilter');
-    let lbWebFilter = document.getElementById('leaderboardWebFilter');
-    
-    if (!lbWebFilter && modeEl) {
-        let webOptions = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
-        const filterHtml = `
-            <select id="leaderboardShiftFilter" onchange="fetchLeaderboardData()" class="bg-transparent text-sky-400 text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-600 mr-2">
-                <option value="ALL" class="bg-slate-800 text-white">⏱️ รวมทุกกะ</option>
-                <option value="กะเช้า" class="bg-slate-800 text-white">☀️ เช้า</option>
-                <option value="กะกลาง" class="bg-slate-800 text-white">🌤️ กลาง</option>
-                <option value="กะดึก" class="bg-slate-800 text-white">🌙 ดึก</option>
-                <option value="UNKNOWN" class="bg-slate-800 text-gray-400">❓ ไม่ระบุกะ</option>
-            </select>
-            <select id="leaderboardWebFilter" onchange="fetchLeaderboardData()" class="bg-transparent text-emerald-400 text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-600 mr-2">
-                <option value="ALL" class="bg-slate-800 text-white">🏆 รวมทุกเว็บ</option>
-                ${webOptions.map(w => `<option value="${w}" class="bg-slate-800 text-white">${w}</option>`).join('')}
-            </select>
-        `;
-        modeEl.insertAdjacentHTML('beforebegin', filterHtml);
-        lbShiftFilter = document.getElementById('leaderboardShiftFilter');
-        lbWebFilter = document.getElementById('leaderboardWebFilter');
-    }
+    let lbShiftFilter = document.getElementById('leaderboardShiftFilter');
+    let lbWebFilter = document.getElementById('leaderboardWebFilter');
+    
+    if (!lbWebFilter && modeEl) {
+        let webOptions = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
+        const filterHtml = `
+            <select id="leaderboardShiftFilter" onchange="fetchLeaderboardData()" class="bg-transparent text-sky-400 text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-600 mr-2">
+                <option value="ALL" class="bg-slate-800 text-white">⏱️ รวมทุกกะ</option>
+                <option value="กะเช้า" class="bg-slate-800 text-white">☀️ เช้า</option>
+                <option value="กะกลาง" class="bg-slate-800 text-white">🌤️ กลาง</option>
+                <option value="กะดึก" class="bg-slate-800 text-white">🌙 ดึก</option>
+                <option value="UNKNOWN" class="bg-slate-800 text-gray-400">❓ ไม่ระบุกะ</option>
+            </select>
+            <select id="leaderboardWebFilter" onchange="fetchLeaderboardData()" class="bg-transparent text-emerald-400 text-[10px] font-bold outline-none cursor-pointer pr-1 border-r border-gray-600 mr-2">
+                <option value="ALL" class="bg-slate-800 text-white">🏆 รวมทุกเว็บ</option>
+                ${webOptions.map(w => `<option value="${w}" class="bg-slate-800 text-white">${w}</option>`).join('')}
+            </select>
+        `;
+        modeEl.insertAdjacentHTML('beforebegin', filterHtml);
+        lbShiftFilter = document.getElementById('leaderboardShiftFilter');
+        lbWebFilter = document.getElementById('leaderboardWebFilter');
+    }
 
-    let mode = 'monthly';
-    if(modeEl) mode = modeEl.value;
-    const selectedWeb = lbWebFilter ? lbWebFilter.value : 'ALL';
-    const shiftFilter = lbShiftFilter ? lbShiftFilter.value : 'ALL';
+    let mode = 'monthly';
+    if(modeEl) mode = modeEl.value;
+    const selectedWeb = lbWebFilter ? lbWebFilter.value : 'ALL';
+    const shiftFilter = lbShiftFilter ? lbShiftFilter.value : 'ALL';
 
-    if (monthInput) {
-        if (mode === 'monthly') {
-            monthInput.classList.remove('hidden');
-            if(!monthInput.value) {
-                const d = new Date();
-                monthInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            }
-        } else {
-            monthInput.classList.add('hidden');
-        }
-    }
+    if (monthInput) {
+        if (mode === 'monthly') {
+            monthInput.classList.remove('hidden');
+            if(!monthInput.value) {
+                const d = new Date();
+                monthInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            }
+        } else {
+            monthInput.classList.add('hidden');
+        }
+    }
 
-    lbBox.innerHTML = '<div class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-3xl mb-2">sync</span><br>กำลังคำนวณอันดับ...</div>';
+    lbBox.innerHTML = '<div class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-3xl mb-2">sync</span><br>กำลังคำนวณอันดับ...</div>';
 
-    if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
-        await fetchUsers();
-    }
+    if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
+        await fetchUsers();
+    }
 
-    if (viewMode === 'preview' && pendingSummaryData.length > 0) {
-        let aggMap = {};
-        let targetData = pendingSummaryData;
-        
-        if (shiftFilter !== 'ALL') {
-            targetData = targetData.filter(i => {
-                let s = i.shift;
-                if (!s || s === 'UNKNOWN') {
-                    if (i.empName.includes('เช้า')) s = 'กะเช้า';
-                    else if (i.empName.includes('กลาง')) s = 'กะกลาง';
-                    else if (i.empName.includes('ดึก')) s = 'กะดึก';
-                    else s = 'UNKNOWN';
-                }
-                return s === shiftFilter || (shiftFilter === 'UNKNOWN' && s === 'กะอิสระ');
-            });
-        }
-        
-        if (odFilter !== 'ALL') targetData = targetData.filter(i => i.odType === odFilter || (i.odType === undefined && odFilter === 'ปกติ'));
-        if (selectedWeb !== 'ALL') targetData = targetData.filter(i => i.website === selectedWeb); 
+    if (viewMode === 'preview' && pendingSummaryData.length > 0) {
+        let aggMap = {};
+        let targetData = pendingSummaryData;
+        
+        if (shiftFilter !== 'ALL') {
+            targetData = targetData.filter(i => {
+                let s = i.shift;
+                if (!s || s === 'UNKNOWN') {
+                    if (i.empName.includes('เช้า')) s = 'กะเช้า';
+                    else if (i.empName.includes('กลาง')) s = 'กะกลาง';
+                    else if (i.empName.includes('ดึก')) s = 'กะดึก';
+                    else s = 'UNKNOWN';
+                }
+                return s === shiftFilter || (shiftFilter === 'UNKNOWN' && s === 'กะอิสระ');
+            });
+        }
+        
+        if (odFilter !== 'ALL') targetData = targetData.filter(i => i.odType === odFilter || (i.odType === undefined && odFilter === 'ปกติ'));
+        if (selectedWeb !== 'ALL') targetData = targetData.filter(i => i.website === selectedWeb); 
 
-        targetData.forEach(r => {
-            const name = r.empName;
-            if (!name || name.toLowerCase().includes('system') || name.toLowerCase().includes('auto')) return;
+        targetData.forEach(r => {
+            const name = r.empName;
+            if (!name || name.toLowerCase().includes('system') || name.toLowerCase().includes('auto')) return;
 
-            if (!aggMap[name]) aggMap[name] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, shift: r.shift };
-            aggMap[name].totalCount += r.count;
-            aggMap[name].totalMoney += r.totalAmount;
-            aggMap[name].totalApproved += (r.approvedCount || 0);
-            aggMap[name].totalReject += (r.rejectCount || 0);
-        });
+            if (!aggMap[name]) aggMap[name] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, shift: r.shift };
+            aggMap[name].totalCount += r.count;
+            aggMap[name].totalMoney += r.totalAmount;
+            aggMap[name].totalApproved += (r.approvedCount || 0);
+            aggMap[name].totalReject += (r.rejectCount || 0);
+        });
 
-        drawLeaderboardFromMap(aggMap, lbBox);
-        return;
-    }
+        drawLeaderboardFromMap(aggMap, lbBox);
+        return;
+    }
 
-    try {
-        let query = appDB.from('transaction_daily_summary').select('*');
-        
-        if (mode === 'monthly' && monthInput && monthInput.value) {
-            const [year, month] = monthInput.value.split('-');
-            const startDate = `${year}-${month}-01`;
-            const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-            query = query.gte('date', startDate).lte('date', endDate);
-        }
-        
-        if (selectedWeb !== 'ALL') {
-            query = query.eq('website', selectedWeb);
-        }
+    try {
+        let query = appDB.from('transaction_daily_summary').select('*');
+        
+        if (mode === 'monthly' && monthInput && monthInput.value) {
+            const [year, month] = monthInput.value.split('-');
+            const startDate = `${year}-${month}-01`;
+            const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+            query = query.gte('date', startDate).lte('date', endDate);
+        }
+        
+        if (selectedWeb !== 'ALL') {
+            query = query.eq('website', selectedWeb);
+        }
 
-        const { data, error } = await query;
-        if (error) throw error;
+        const { data, error } = await query;
+        if (error) throw error;
 
-        if (!data || data.length === 0) {
-            lbBox.innerHTML = '<div class="text-center py-10 text-gray-400 font-bold">ไม่มีข้อมูลจัดอันดับ</div>';
-            return;
-        }
+        if (!data || data.length === 0) {
+            lbBox.innerHTML = '<div class="text-center py-10 text-gray-400 font-bold">ไม่มีข้อมูลจัดอันดับ</div>';
+            return;
+        }
 
-        let aggMap = {};
-        data.forEach(r => {
-            const name = r.employee_name;
-            if (!name || name.toLowerCase().includes('system') || name.toLowerCase().includes('auto')) return;
+        let aggMap = {};
+        data.forEach(r => {
+            const name = r.employee_name;
+            if (!name || name.toLowerCase().includes('system') || name.toLowerCase().includes('auto')) return;
 
-            let shift = typeof getShiftFromName === 'function' ? getShiftFromName(name) : 'UNKNOWN';
-            
-            if (shift === 'UNKNOWN') {
-                if (name.includes('เช้า')) shift = 'กะเช้า';
-                else if (name.includes('กลาง')) shift = 'กะกลาง';
-                else if (name.includes('ดึก')) shift = 'กะดึก';
-            }
+            let shift = typeof getShiftFromName === 'function' ? getShiftFromName(name) : 'UNKNOWN';
+            
+            if (shift === 'UNKNOWN') {
+                if (name.includes('เช้า')) shift = 'กะเช้า';
+                else if (name.includes('กลาง')) shift = 'กะกลาง';
+                else if (name.includes('ดึก')) shift = 'กะดึก';
+            }
 
-            // ยอมให้โชว์ถ้ากะตรงกับที่เลือก หรือเลือกหาคนไม่ระบุกะ
-            if (shiftFilter !== 'ALL' && shift !== shiftFilter && !(shiftFilter === 'UNKNOWN' && shift === 'กะอิสระ')) return;
-            
-            if (!aggMap[name]) aggMap[name] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, shift: shift };
-            aggMap[name].totalCount += parseInt(r.count) || 0;
-            aggMap[name].totalMoney += parseFloat(r.total_amount) || 0;
-            
-            const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : parseInt(r.count) || 0;
-            const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
+            // ยอมให้โชว์ถ้ากะตรงกับที่เลือก หรือเลือกหาคนไม่ระบุกะ
+            if (shiftFilter !== 'ALL' && shift !== shiftFilter && !(shiftFilter === 'UNKNOWN' && shift === 'กะอิสระ')) return;
+            
+            if (!aggMap[name]) aggMap[name] = { totalCount: 0, totalMoney: 0, totalApproved: 0, totalReject: 0, shift: shift };
+            aggMap[name].totalCount += parseInt(r.count) || 0;
+            aggMap[name].totalMoney += parseFloat(r.total_amount) || 0;
+            
+            const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : parseInt(r.count) || 0;
+            const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
-            aggMap[name].totalApproved += appCount;
-            aggMap[name].totalReject += rejCount;
-        });
+            aggMap[name].totalApproved += appCount;
+            aggMap[name].totalReject += rejCount;
+        });
 
-        drawLeaderboardFromMap(aggMap, lbBox);
+        drawLeaderboardFromMap(aggMap, lbBox);
 
-    } catch (e) {
-        lbBox.innerHTML = '<div class="text-center py-10 text-red-500 font-bold">โหลดข้อมูลผิดพลาด</div>';
-    }
+    } catch (e) {
+        lbBox.innerHTML = '<div class="text-center py-10 text-red-500 font-bold">โหลดข้อมูลผิดพลาด</div>';
+    }
 };
 
 function drawLeaderboardFromMap(aggMap, lbBox) {
-    const sortedEmps = Object.keys(aggMap).sort((a, b) => {
-        if (aggMap[b].totalCount !== aggMap[a].totalCount) {
-            return aggMap[b].totalCount - aggMap[a].totalCount; 
-        }
-        return aggMap[b].totalApproved - aggMap[a].totalApproved; 
-    });
+    const sortedEmps = Object.keys(aggMap).sort((a, b) => {
+        if (aggMap[b].totalCount !== aggMap[a].totalCount) {
+            return aggMap[b].totalCount - aggMap[a].totalCount; 
+        }
+        return aggMap[b].totalApproved - aggMap[a].totalApproved; 
+    });
 
-    if(sortedEmps.length === 0) {
-        lbBox.innerHTML = `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบข้อมูล</div>`;
-        return;
-    }
+    if(sortedEmps.length === 0) {
+        lbBox.innerHTML = `<div class="text-center py-10 text-gray-400 font-bold">ไม่พบข้อมูล</div>`;
+        return;
+    }
 
-    // 🌟 เอา .slice ออก เพื่อวาดทุกคนลงไป แต่เดี๋ยวเราจะให้ฟังก์ชันค้นหาช่วยซ่อนให้
-    lbBox.innerHTML = sortedEmps.map((name, i) => {
-        const d = aggMap[name];
-        let medalClass = ''; let medalText = i + 1;
-        if (i === 0) medalClass = 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.6)]';
-        else if (i === 1) medalClass = 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800 scale-105 shadow-md'; 
-        else if (i === 2) medalClass = 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-50 scale-105 shadow-md'; 
-        else medalClass = 'bg-slate-700 text-slate-400 border border-slate-600'; 
+    // 🌟 เอา .slice ออก เพื่อวาดทุกคนลงไป แต่เดี๋ยวเราจะให้ฟังก์ชันค้นหาช่วยซ่อนให้
+    lbBox.innerHTML = sortedEmps.map((name, i) => {
+        const d = aggMap[name];
+        let medalClass = ''; let medalText = i + 1;
+        if (i === 0) medalClass = 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-950 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.6)]';
+        else if (i === 1) medalClass = 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800 scale-105 shadow-md'; 
+        else if (i === 2) medalClass = 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-50 scale-105 shadow-md'; 
+        else medalClass = 'bg-slate-700 text-slate-400 border border-slate-600'; 
 
-        return getTpl('tpl-leaderboard-item', {
-            name: name, medalClass: medalClass, medalText: medalText,
-            totalCount: d.totalCount, totalApproved: d.totalApproved, totalReject: d.totalReject,
-            totalMoney: d.totalMoney.toLocaleString('en-US', {minimumFractionDigits: 2})
-        });
-    }).join('');
+        return getTpl('tpl-leaderboard-item', {
+            name: name, medalClass: medalClass, medalText: medalText,
+            totalCount: d.totalCount, totalApproved: d.totalApproved, totalReject: d.totalReject,
+            totalMoney: d.totalMoney.toLocaleString('en-US', {minimumFractionDigits: 2})
+        });
+    }).join('');
 
-    if(typeof window.filterSummaryLeaderboard === 'function') window.filterSummaryLeaderboard();
+    if(typeof window.filterSummaryLeaderboard === 'function') window.filterSummaryLeaderboard();
 }
 
 window.saveSummaryToSupabase = async function() {
-    if (viewMode === 'monthly_history') return Swal.fire('ข้อมูลรายเดือน', 'นี่คือข้อมูลสรุปรวมทั้งเดือนจากฐานข้อมูล ไม่สามารถบันทึกซ้ำได้ครับ', 'info');
-    if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'กรุณาอัปโหลดไฟล์ให้เรียบร้อยก่อนบันทึก', 'warning');
+    if (viewMode === 'monthly_history') return Swal.fire('ข้อมูลรายเดือน', 'นี่คือข้อมูลสรุปรวมทั้งเดือนจากฐานข้อมูล ไม่สามารถบันทึกซ้ำได้ครับ', 'info');
+    if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'กรุณาอัปโหลดไฟล์ให้เรียบร้อยก่อนบันทึก', 'warning');
 
-    Swal.fire({title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
-    try {
-        const fallbackDate = document.getElementById('summaryDateFilter').value;
-        const groupedData = {};
-        
-        pendingSummaryData.forEach(item => {
-            const dateVal = item.date || fallbackDate;
-            const empName = (item.empName || '').trim();
-            const web = (item.website || '').trim();
-            
-            const key = `${dateVal}_${empName.toLowerCase()}_${web.toLowerCase()}`;
+    try {
+        const fallbackDate = document.getElementById('summaryDateFilter').value;
+        const groupedData = {};
+        
+        pendingSummaryData.forEach(item => {
+            const dateVal = item.date || fallbackDate;
+            const empName = (item.empName || '').trim();
+            const web = (item.website || '').trim();
+            
+            const key = `${dateVal}_${empName.toLowerCase()}_${web.toLowerCase()}`;
 
-            if (!groupedData[key]) {
-                groupedData[key] = {
-                    date: dateVal, employee_name: empName, website: web, system: item.system || 'UNKNOWN',
-                    count: item.count || 0, total_amount: item.totalAmount || 0,
-                    approved_count: item.approvedCount || 0, reject_count: item.rejectCount || 0
-                };
-            } else {
-                groupedData[key].count += (item.count || 0);
-                groupedData[key].total_amount += (item.totalAmount || 0);
-                groupedData[key].approved_count += (item.approvedCount || 0);
-                groupedData[key].reject_count += (item.rejectCount || 0);
-            }
-        });
+            if (!groupedData[key]) {
+                groupedData[key] = {
+                    date: dateVal, employee_name: empName, website: web, system: item.system || 'UNKNOWN',
+                    count: item.count || 0, total_amount: item.totalAmount || 0,
+                    approved_count: item.approvedCount || 0, reject_count: item.rejectCount || 0
+                };
+            } else {
+                groupedData[key].count += (item.count || 0);
+                groupedData[key].total_amount += (item.totalAmount || 0);
+                groupedData[key].approved_count += (item.approvedCount || 0);
+                groupedData[key].reject_count += (item.rejectCount || 0);
+            }
+        });
 
-        const finalInsertData = Object.values(groupedData);
+        const finalInsertData = Object.values(groupedData);
 
-        const chunkSize = 500;
-        for (let i = 0; i < finalInsertData.length; i += chunkSize) {
-            const chunk = finalInsertData.slice(i, i + chunkSize);
-            const { error } = await appDB.from('transaction_daily_summary').upsert(chunk, { onConflict: 'date,employee_name,website' });
-            if (error) throw error;
-        }
+        const chunkSize = 500;
+        for (let i = 0; i < finalInsertData.length; i += chunkSize) {
+            const chunk = finalInsertData.slice(i, i + chunkSize);
+            const { error } = await appDB.from('transaction_daily_summary').upsert(chunk, { onConflict: 'date,employee_name,website' });
+            if (error) throw error;
+        }
 
-        if (window.pendingFileNames && window.pendingFileNames.length > 0) {
-            const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
-            let savedFilesList = savedFilesData && savedFilesData.value ? JSON.parse(savedFilesData.value) : [];
-            savedFilesList = [...new Set([...savedFilesList, ...window.pendingFileNames])];
-            await appDB.from('settings').upsert([{ key: 'saved_excel_files', value: JSON.stringify(savedFilesList) }]);
-            window.pendingFileNames = []; 
-        }
+        if (window.pendingFileNames && window.pendingFileNames.length > 0) {
+            const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
+            let savedFilesList = savedFilesData && savedFilesData.value ? JSON.parse(savedFilesData.value) : [];
+            savedFilesList = [...new Set([...savedFilesList, ...window.pendingFileNames])];
+            await appDB.from('settings').upsert([{ key: 'saved_excel_files', value: JSON.stringify(savedFilesList) }]);
+            window.pendingFileNames = []; 
+        }
 
-        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false});
-        
-        viewMode = 'history';
-        await fetchAvailableDates(); 
-        document.getElementById('summaryDateFilter').value = fallbackDate; 
-        await window.fetchHistoricalSummary(true); 
+        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false});
+        
+        viewMode = 'history';
+        await fetchAvailableDates(); 
+        document.getElementById('summaryDateFilter').value = fallbackDate; 
+        await window.fetchHistoricalSummary(true); 
 
-        if (window.appDB && window.appDB.channel) {
-            window.appDB.channel('summary-updates').send({
-                type: 'broadcast', event: 'force_summary_reload', payload: { date: fallbackDate }
-            });
-        }
-    } catch(e) {
-        Swal.fire('Error', e.message, 'error');
-    }
+        if (window.appDB && window.appDB.channel) {
+            window.appDB.channel('summary-updates').send({
+                type: 'broadcast', event: 'force_summary_reload', payload: { date: fallbackDate }
+            });
+        }
+    } catch(e) {
+        Swal.fire('Error', e.message, 'error');
+    }
 };
 
 window.fetchHistoricalSummary = async function(silent = false) {
-    const dateVal = document.getElementById('summaryDateFilter') ? document.getElementById('summaryDateFilter').value : '';
-    if (!dateVal) return;
+    const dateVal = document.getElementById('summaryDateFilter') ? document.getElementById('summaryDateFilter').value : '';
+    if (!dateVal) return;
 
-    if (!silent) Swal.fire({ title: 'กำลังดึงข้อมูลรายวัน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    if (!silent) Swal.fire({ title: 'กำลังดึงข้อมูลรายวัน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-    try {
-        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
-            await fetchUsers();
-        }
+    try {
+        // 🌟 [แก้บัคกะ] บังคับรีเฟรชรายชื่อพนักงาน + ล้าง cache กะ ทุกครั้งที่เปลี่ยนวัน
+        // เพื่อให้กะที่แอดมินเพิ่งแก้สะท้อนกลับทันทีในข้อมูลย้อนหลัง
+        if (typeof window.invalidateSummaryUserCache === 'function') window.invalidateSummaryUserCache();
+        if (typeof fetchUsers === 'function') {
+            try { await fetchUsers(true); } catch(e) { console.warn('fetchUsers refresh failed', e); }
+        }
 
-        // 🌟 แก้ไข: บังคับคำนวณหาวันที่เมื่อวานให้ถูกต้องที่สุด
-        const yesterdayDateObj = new Date(dateVal);
-        yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
-        const yesterdayStr = `${yesterdayDateObj.getFullYear()}-${String(yesterdayDateObj.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDateObj.getDate()).padStart(2, '0')}`;
+        // 🌟 แก้ไข: บังคับคำนวณหาวันที่เมื่อวานให้ถูกต้องที่สุด
+        const yesterdayDateObj = new Date(dateVal);
+        yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+        const yesterdayStr = `${yesterdayDateObj.getFullYear()}-${String(yesterdayDateObj.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDateObj.getDate()).padStart(2, '0')}`;
 
-        const [todayRes, yestRes, schedulesRes] = await Promise.all([
-            appDB.from('transaction_daily_summary').select('*').eq('date', dateVal),
-            appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr), // ดึงเฉพาะของเมื่อวาน
-            appDB.from('schedules').select('staff_name, shift_name').eq('work_date', dateVal)
-        ]);
+        const [todayRes, yestRes, schedulesRes] = await Promise.all([
+            appDB.from('transaction_daily_summary').select('*').eq('date', dateVal),
+            appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr), // ดึงเฉพาะของเมื่อวาน
+            appDB.from('schedules').select('staff_name, shift_name').eq('work_date', dateVal)
+        ]);
 
-        if (todayRes.error) throw todayRes.error;
+        if (todayRes.error) throw todayRes.error;
 
-        let yestMap = {};
-        if (yestRes.data) {
-            // 🌟 แก้ไข: จัดเก็บข้อมูลของเมื่อวานให้แม่นยำ
-            yestRes.data.forEach(r => yestMap[`${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
-        }
+        let yestMap = {};
+        if (yestRes.data) {
+            // 🌟 แก้ไข: จัดเก็บข้อมูลของเมื่อวานให้แม่นยำ
+            yestRes.data.forEach(r => yestMap[`${window.cleanKeyStr(r.employee_name, r.website)}`] = parseInt(r.count) || 0);
+        }
 
-        let schMap = {};
-        if (schedulesRes && schedulesRes.data) {
-            schedulesRes.data.forEach(s => schMap[`${s.work_date}_${(s.staff_name || '').toLowerCase().trim()}`] = s.shift_name);
-        }
+        let schMap = {};
+        if (schedulesRes && schedulesRes.data) {
+            schedulesRes.data.forEach(s => schMap[`${s.work_date}_${(s.staff_name || '').toLowerCase().trim()}`] = s.shift_name);
+        }
 
-        if (todayRes.data && todayRes.data.length > 0) {
-            let mappedData = todayRes.data.map(r => {
-                const todayCount = parseInt(r.count) || 0;
-                
-                // 🌟 ดึงข้อมูลของเมื่อวานมาเทียบ (ถ้าไม่มีให้เป็น 0)
-                const yestCount = yestMap[window.cleanKeyStr(r.employee_name, r.website)] || 0;
-                
-                const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : todayCount;
-                const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
+        if (todayRes.data && todayRes.data.length > 0) {
+            let mappedData = todayRes.data.map(r => {
+                const todayCount = parseInt(r.count) || 0;
+                
+                // 🌟 ดึงข้อมูลของเมื่อวานมาเทียบ (ถ้าไม่มีให้เป็น 0)
+                const yestCount = yestMap[window.cleanKeyStr(r.employee_name, r.website)] || 0;
+                
+                const appCount = (r.approved_count !== undefined && r.approved_count !== null) ? parseInt(r.approved_count) : todayCount;
+                const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
-                let empKey = (r.employee_name || '').toLowerCase().trim();
-                let actualShift = schMap[`${r.date}_${empKey}`];
-                if (!actualShift) {
-                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
-                }
-                
-                actualShift = window.normalizeShiftName(actualShift);
+                let empKey = (r.employee_name || '').toLowerCase().trim();
+                let actualShift = schMap[`${r.date}_${empKey}`];
+                if (!actualShift) {
+                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                }
+                
+                actualShift = window.normalizeShiftName(actualShift);
 
-                return {
-                    empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
-                    shift: actualShift, 
-                    yestCount: yestCount, // 🌟 กำหนดค่าที่นี่ให้ชัดเจน
-                    diffFromYesterday: todayCount - yestCount, // 🌟 คำนวณส่วนต่าง
-                    approvedCount: appCount, rejectCount: rejCount
-                };
-            });
-            
-            pendingSummaryData = mappedData; 
-            viewMode = 'history';
-            
-            renderSummaryDashboard(); 
-            fetchLeaderboardData();
-            
-            if (!silent) {
-                Swal.fire({ icon: 'success', title: 'ดึงข้อมูลสำเร็จ', timer: 1000, showConfirmButton: false });
-            } else {
-                Swal.close(); 
-            }
-        } else {
-            pendingSummaryData = []; 
-            renderSummaryDashboard(); 
-            fetchLeaderboardData();
-            if (!silent) Swal.fire('ไม่มีข้อมูล', `ไม่มีข้อมูลสรุปยอดของวันที่ ${dateVal}`, 'info');
-        }
-    } catch (e) { 
-        if (!silent) Swal.fire('Error', e.message, 'error'); 
-        console.error("Fetch Summary Error:", e);
-    }
+                return {
+                    empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
+                    shift: actualShift, 
+                    yestCount: yestCount, // 🌟 กำหนดค่าที่นี่ให้ชัดเจน
+                    diffFromYesterday: todayCount - yestCount, // 🌟 คำนวณส่วนต่าง
+                    approvedCount: appCount, rejectCount: rejCount
+                };
+            });
+            
+            pendingSummaryData = mappedData; 
+            viewMode = 'history';
+            
+            renderSummaryDashboard(); 
+            fetchLeaderboardData();
+            
+            if (!silent) {
+                Swal.fire({ icon: 'success', title: 'ดึงข้อมูลสำเร็จ', timer: 1000, showConfirmButton: false });
+            } else {
+                Swal.close(); 
+            }
+        } else {
+            pendingSummaryData = []; 
+            renderSummaryDashboard(); 
+            fetchLeaderboardData();
+            if (!silent) Swal.fire('ไม่มีข้อมูล', `ไม่มีข้อมูลสรุปยอดของวันที่ ${dateVal}`, 'info');
+        }
+    } catch (e) { 
+        if (!silent) Swal.fire('Error', e.message, 'error'); 
+        console.error("Fetch Summary Error:", e);
+    }
 };
 
 window.exportSummaryToExcel = async function() {
@@ -1545,263 +1574,265 @@ window.exportSummaryToExcel = async function() {
 };
 
 window.openManageSystemModal = async function() {
-    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
-    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26'];
+    let customSystems = JSON.parse(localStorage.getItem('custom_web_systems') || '{}');
+    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26'];
 
-    let html = '<div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto p-1 custom-scrollbar text-sm">';
-    defaultWebList.forEach(web => {
-        let currentSys = customSystems[web];
-        if (!currentSys) {
-            if(['Jun88', 'MK8', 'VV72', 'TH26'].includes(web)) currentSys = 'K36';
-            else if(['F168'].includes(web)) currentSys = 'WG';
-            else if(['PG688', 'JL69', 'NM9'].includes(web)) currentSys = 'TCG';
-            else currentSys = 'SYSTEM';
-        }
-        
-        html += getTpl('tpl-manage-system-item', {
-            web: web,
-            selSystem: currentSys === 'SYSTEM' ? 'selected' : '',
-            selK36: currentSys === 'K36' ? 'selected' : '',
-            selWg: currentSys === 'WG' ? 'selected' : '',
-            selTcg: currentSys === 'TCG' ? 'selected' : ''
-        });
-    });
-    html += '</div>';
+    let html = '<div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto p-1 custom-scrollbar text-sm">';
+    defaultWebList.forEach(web => {
+        let currentSys = customSystems[web];
+        if (!currentSys) {
+            if(['Jun88', 'MK8', 'VV72', 'TH26'].includes(web)) currentSys = 'K36';
+            else if(['F168'].includes(web)) currentSys = 'WG';
+            else if(['PG688', 'JL69', 'NM9'].includes(web)) currentSys = 'TCG';
+            else currentSys = 'SYSTEM';
+        }
+        
+        html += getTpl('tpl-manage-system-item', {
+            web: web,
+            selSystem: currentSys === 'SYSTEM' ? 'selected' : '',
+            selK36: currentSys === 'K36' ? 'selected' : '',
+            selWg: currentSys === 'WG' ? 'selected' : '',
+            selTcg: currentSys === 'TCG' ? 'selected' : ''
+        });
+    });
+    html += '</div>';
 
-    const { isConfirmed } = await Swal.fire({
-        title: '<div class="text-xl font-black text-sky-400 flex items-center justify-center gap-2"><span class="material-icons">settings_applications</span> ตั้งค่าหลังบ้านให้เว็บไซต์</div>',
-        html: `<p class="text-xs text-gray-400 mb-3">ตั้งค่าตรงนี้ก่อนอัปโหลดไฟล์ Excel ข้อมูลจะได้เข้าถูกกล่อง</p>${html}`,
-        showCancelButton: true, confirmButtonText: 'บันทึกการตั้งค่า', cancelButtonText: 'ปิด', confirmButtonColor: '#0ea5e9', cancelButtonColor: '#64748b',
-        customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl' }
-    });
+    const { isConfirmed } = await Swal.fire({
+        title: '<div class="text-xl font-black text-sky-400 flex items-center justify-center gap-2"><span class="material-icons">settings_applications</span> ตั้งค่าหลังบ้านให้เว็บไซต์</div>',
+        html: `<p class="text-xs text-gray-400 mb-3">ตั้งค่าตรงนี้ก่อนอัปโหลดไฟล์ Excel ข้อมูลจะได้เข้าถูกกล่อง</p>${html}`,
+        showCancelButton: true, confirmButtonText: 'บันทึกการตั้งค่า', cancelButtonText: 'ปิด', confirmButtonColor: '#0ea5e9', cancelButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl' }
+    });
 
-    if (isConfirmed) {
-        defaultWebList.forEach(web => {
-            const sel = document.getElementById(`sys_select_modal_${web}`);
-            if(sel) customSystems[web] = sel.value;
-        });
-        localStorage.setItem('custom_web_systems', JSON.stringify(customSystems));
+    if (isConfirmed) {
+        defaultWebList.forEach(web => {
+            const sel = document.getElementById(`sys_select_modal_${web}`);
+            if(sel) customSystems[web] = sel.value;
+        });
+        localStorage.setItem('custom_web_systems', JSON.stringify(customSystems));
 
-        if (typeof pendingSummaryData !== 'undefined') {
-            pendingSummaryData.forEach(item => {
-                if (customSystems[item.website]) item.system = customSystems[item.website];
-            });
-        }
-        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'คราวหน้าอัปโหลด Excel ระบบจะดึงเข้ากล่องให้ถูกต้องเลย', timer: 2000, showConfirmButton: false});
-        if (typeof debounceRenderSummary === 'function') debounceRenderSummary();
-    }
+        if (typeof pendingSummaryData !== 'undefined') {
+            pendingSummaryData.forEach(item => {
+                if (customSystems[item.website]) item.system = customSystems[item.website];
+            });
+        }
+        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'คราวหน้าอัปโหลด Excel ระบบจะดึงเข้ากล่องให้ถูกต้องเลย', timer: 2000, showConfirmButton: false});
+        if (typeof debounceRenderSummary === 'function') debounceRenderSummary();
+    }
 };
 
 window.openManageLogoModal = async function() {
-    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
-    let optionsHtml = defaultWebList.map(w => `<option value="${w}">${w}</option>`).join('');
+    let defaultWebList = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length > 0) ? TEAM_LIST : ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
+    let optionsHtml = defaultWebList.map(w => `<option value="${w}">${w}</option>`).join('');
 
-    const { value: selectedWeb } = await Swal.fire({
-        title: 'เลือกเว็บไซต์',
-        html: `
-            <p class="text-sm text-gray-400 mb-4">ต้องการเปลี่ยนโลโก้ของเว็บไหนครับ?</p>
-            <select id="swal-web-select" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-inner">
-                <option value="">-- เลือกเว็บไซต์ --</option>
-                ${optionsHtml}
-            </select>
-        `,
-        showCancelButton: true, confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b', confirmButtonText: 'ถัดไป', cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
-        preConfirm: () => {
-            const val = document.getElementById('swal-web-select').value;
-            if (!val) { Swal.showValidationMessage('กรุณาเลือกเว็บไซต์ก่อนครับ'); return false; }
-            return val;
-        }
-    });
+    const { value: selectedWeb } = await Swal.fire({
+        title: 'เลือกเว็บไซต์',
+        html: `
+            <p class="text-sm text-gray-400 mb-4">ต้องการเปลี่ยนโลโก้ของเว็บไหนครับ?</p>
+            <select id="swal-web-select" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-inner">
+                <option value="">-- เลือกเว็บไซต์ --</option>
+                ${optionsHtml}
+            </select>
+        `,
+        showCancelButton: true, confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b', confirmButtonText: 'ถัดไป', cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+        preConfirm: () => {
+            const val = document.getElementById('swal-web-select').value;
+            if (!val) { Swal.showValidationMessage('กรุณาเลือกเว็บไซต์ก่อนครับ'); return false; }
+            return val;
+        }
+    });
 
-    if (selectedWeb) {
-        document.getElementById('webLogoKey').value = selectedWeb;
-        document.getElementById('webLogoTargetName').innerText = selectedWeb;
-        document.getElementById('webLogoUrlInput').value = '';
-        document.getElementById('webLogoFileInput').value = '';
-        
-        const currentLogo = window.summaryWebLogos && window.summaryWebLogos[selectedWeb];
-        const previewBox = document.getElementById('currentWebLogoPreviewBox');
-        const previewImg = document.getElementById('currentWebLogoPreview');
-        
-        if (currentLogo) { previewImg.src = currentLogo; previewBox.classList.remove('hidden'); } 
-        else { previewBox.classList.add('hidden'); }
-        document.getElementById('webLogoModal').classList.remove('hidden');
-    }
+    if (selectedWeb) {
+        document.getElementById('webLogoKey').value = selectedWeb;
+        document.getElementById('webLogoTargetName').innerText = selectedWeb;
+        document.getElementById('webLogoUrlInput').value = '';
+        document.getElementById('webLogoFileInput').value = '';
+        
+        const currentLogo = window.summaryWebLogos && window.summaryWebLogos[selectedWeb];
+        const previewBox = document.getElementById('currentWebLogoPreviewBox');
+        const previewImg = document.getElementById('currentWebLogoPreview');
+        
+        if (currentLogo) { previewImg.src = currentLogo; previewBox.classList.remove('hidden'); } 
+        else { previewBox.classList.add('hidden'); }
+        document.getElementById('webLogoModal').classList.remove('hidden');
+    }
 };
 
 window.fetchMultipleHistoricalSummary = async function() {
-    const dates = Array.from(window.selectedSummaryDates);
-    if (dates.length === 0) return Swal.fire('เตือน', 'กรุณาเลือกวันที่อย่างน้อย 1 วัน', 'warning');
+    const dates = Array.from(window.selectedSummaryDates);
+    if (dates.length === 0) return Swal.fire('เตือน', 'กรุณาเลือกวันที่อย่างน้อย 1 วัน', 'warning');
 
-    Swal.fire({ title: 'กำลังรวมข้อมูล...', text: `ดึงข้อมูล ${dates.length} วันมาบวกทบกัน`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'กำลังรวมข้อมูล...', text: `ดึงข้อมูล ${dates.length} วันมาบวกทบกัน`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-    try {
-        if (typeof fetchUsers === 'function' && (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0)) {
-            await fetchUsers();
-        }
+    try {
+        // 🌟 [แก้บัคกะ] บังคับรีเฟรชรายชื่อพนักงาน + ล้าง cache กะ ก่อนรวมยอดหลายวัน
+        if (typeof window.invalidateSummaryUserCache === 'function') window.invalidateSummaryUserCache();
+        if (typeof fetchUsers === 'function') {
+            try { await fetchUsers(true); } catch(e) { console.warn('fetchUsers refresh failed', e); }
+        }
 
-        // 🌟 สร้าง Array ของวันที่เมื่อวานให้ตรงกับทุกวันที่เลือก
-        const yesterdayDates = dates.map(d => {
-            const dt = new Date(d);
-            dt.setDate(dt.getDate() - 1);
-            return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-        });
+        // 🌟 สร้าง Array ของวันที่เมื่อวานให้ตรงกับทุกวันที่เลือก
+        const yesterdayDates = dates.map(d => {
+            const dt = new Date(d);
+            dt.setDate(dt.getDate() - 1);
+            return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        });
 
-        const [mainRes, schRes, yestRes] = await Promise.all([
-            appDB.from('transaction_daily_summary').select('*').in('date', dates),
-            appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
-            appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates) // 🌟 ดึงข้อมูลของวันที่ก่อนหน้าทั้งหมด
-        ]);
-        
-        if (mainRes.error) throw mainRes.error;
-        
-        const data = mainRes.data || [];
-        const schData = schRes.data || [];
-        const yestData = yestRes.data || [];
+        const [mainRes, schRes, yestRes] = await Promise.all([
+            appDB.from('transaction_daily_summary').select('*').in('date', dates),
+            appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
+            appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates) // 🌟 ดึงข้อมูลของวันที่ก่อนหน้าทั้งหมด
+        ]);
+        
+        if (mainRes.error) throw mainRes.error;
+        
+        const data = mainRes.data || [];
+        const schData = schRes.data || [];
+        const yestData = yestRes.data || [];
 
-        let schMap = {};
-        schData.forEach(s => schMap[`${s.work_date}_${(s.staff_name || '').toLowerCase().trim()}`] = s.shift_name);
+        let schMap = {};
+        schData.forEach(s => schMap[`${s.work_date}_${(s.staff_name || '').toLowerCase().trim()}`] = s.shift_name);
 
-        let yestMap = {};
-        // 🌟 รวมยอดของเมื่อวานทั้งหมด
-        yestData.forEach(r => {
-            const key = window.cleanKeyStr(r.employee_name, r.website);
-            if (!yestMap[key]) yestMap[key] = 0;
-            yestMap[key] += parseInt(r.count) || 0;
-        });
+        let yestMap = {};
+        // 🌟 รวมยอดของเมื่อวานทั้งหมด
+        yestData.forEach(r => {
+            const key = window.cleanKeyStr(r.employee_name, r.website);
+            if (!yestMap[key]) yestMap[key] = 0;
+            yestMap[key] += parseInt(r.count) || 0;
+        });
 
-        let groupedData = {};
-        const sortedDatesForTitle = dates.sort((a, b) => new Date(b) - new Date(a)).map(d => {
-            const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`;
-        }).join(', ');
-        const combinedDateLabel = `ข้อมูลรวมหลายวัน: ${sortedDatesForTitle}`;
+        let groupedData = {};
+        const sortedDatesForTitle = dates.sort((a, b) => new Date(b) - new Date(a)).map(d => {
+            const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`;
+        }).join(', ');
+        const combinedDateLabel = `ข้อมูลรวมหลายวัน: ${sortedDatesForTitle}`;
 
-        if (data && data.length > 0) {
-            data.forEach(r => {
-                const key = window.cleanKeyStr(r.employee_name, r.website);
-                
-                let empKey = (r.employee_name || '').toLowerCase().trim();
-                let actualShift = schMap[`${r.date}_${empKey}`];
-                if (!actualShift) {
-                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
-                }
-                
-                actualShift = window.normalizeShiftName(actualShift);
+        if (data && data.length > 0) {
+            data.forEach(r => {
+                const key = window.cleanKeyStr(r.employee_name, r.website);
+                
+                let empKey = (r.employee_name || '').toLowerCase().trim();
+                let actualShift = schMap[`${r.date}_${empKey}`];
+                if (!actualShift) {
+                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                }
+                
+                actualShift = window.normalizeShiftName(actualShift);
 
-                if (!groupedData[key]) {
-                    groupedData[key] = {
-                        date: combinedDateLabel, empName: r.employee_name, website: r.website, system: r.system || 'UNKNOWN',
-                        count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
-                        shift: actualShift, 
-                        yestCount: yestMap[key] || 0, // 🌟 ดึงค่ายอดของเมื่อวานมาใช้
-                        diffFromYesterday: 0
-                    };
-                }
-                groupedData[key].count += parseInt(r.count) || 0;
-                groupedData[key].totalAmount += parseFloat(r.total_amount) || 0;
-                groupedData[key].approvedCount += (r.approved_count !== null ? parseInt(r.approved_count) : (parseInt(r.count) || 0));
-                groupedData[key].rejectCount += parseInt(r.reject_count) || 0;
-                
-                // 🌟 คำนวณส่วนต่างหลังจากบวกทบยอดของวันนี้เสร็จแล้ว
-                groupedData[key].diffFromYesterday = groupedData[key].count - groupedData[key].yestCount;
-            });
-        }
+                if (!groupedData[key]) {
+                    groupedData[key] = {
+                        date: combinedDateLabel, empName: r.employee_name, website: r.website, system: r.system || 'UNKNOWN',
+                        count: 0, totalAmount: 0, approvedCount: 0, rejectCount: 0,
+                        shift: actualShift, 
+                        yestCount: yestMap[key] || 0, // 🌟 ดึงค่ายอดของเมื่อวานมาใช้
+                        diffFromYesterday: 0
+                    };
+                }
+                groupedData[key].count += parseInt(r.count) || 0;
+                groupedData[key].totalAmount += parseFloat(r.total_amount) || 0;
+                groupedData[key].approvedCount += (r.approved_count !== null ? parseInt(r.approved_count) : (parseInt(r.count) || 0));
+                groupedData[key].rejectCount += parseInt(r.reject_count) || 0;
+                
+                // 🌟 คำนวณส่วนต่างหลังจากบวกทบยอดของวันนี้เสร็จแล้ว
+                groupedData[key].diffFromYesterday = groupedData[key].count - groupedData[key].yestCount;
+            });
+        }
 
-        pendingSummaryData = Object.values(groupedData);
-        viewMode = 'monthly_history'; 
-        window.uploadedFileDates = new Set(dates);
+        pendingSummaryData = Object.values(groupedData);
+        viewMode = 'monthly_history'; 
+        window.uploadedFileDates = new Set(dates);
 
-        renderSummaryDashboard();
-        fetchLeaderboardData();
-        Swal.close();
-    } catch (e) { Swal.fire('Error', e.message, 'error'); }
+        renderSummaryDashboard();
+        fetchLeaderboardData();
+        Swal.close();
+    } catch (e) { Swal.fire('Error', e.message, 'error'); }
 };
 
 const _originalClearSummaryDataForMulti = window.clearSummaryData;
 window.clearSummaryData = function() {
-    window.selectedSummaryDates.clear(); 
-    _originalClearSummaryDataForMulti();
+    window.selectedSummaryDates.clear(); 
+    _originalClearSummaryDataForMulti();
 };
 
 window.deleteSummaryDate = function(dateStr) {
-    const [y, m, day] = dateStr.split('-');
-    const displayDate = `${day}/${m}/${y}`;
+    const [y, m, day] = dateStr.split('-');
+    const displayDate = `${day}/${m}/${y}`;
 
-    Swal.fire({
-        title: `ลบข้อมูลวันที่ ${displayDate}?`, text: "ข้อมูลสรุปยอดของวันนี้จะถูกลบทิ้งอย่างถาวร!", icon: 'warning',
-        showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'ลบทิ้งเลย', cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            try {
-                await appDB.from('transaction_daily_summary').delete().eq('date', dateStr);
-                await appDB.from('settings').update({ value: '[]' }).eq('key', 'saved_excel_files');
-                
-                window.selectedSummaryDates.delete(dateStr);
-                window.pendingFileNames = []; 
-                window.uploadedFileDates.clear(); 
-                
-                if (typeof fetchAvailableDates === 'function') await fetchAvailableDates(true);
-                
-                if (pendingSummaryData.length === 0) {
-                    renderSummaryDashboard();
-                    Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1500, showConfirmButton: false });
-                } else {
-                    clearSummaryData(); Swal.close();
-                }
-            } catch (e) { Swal.fire('Error', e.message, 'error'); }
-        }
-    });
+    Swal.fire({
+        title: `ลบข้อมูลวันที่ ${displayDate}?`, text: "ข้อมูลสรุปยอดของวันนี้จะถูกลบทิ้งอย่างถาวร!", icon: 'warning',
+        showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'ลบทิ้งเลย', cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                await appDB.from('transaction_daily_summary').delete().eq('date', dateStr);
+                await appDB.from('settings').update({ value: '[]' }).eq('key', 'saved_excel_files');
+                
+                window.selectedSummaryDates.delete(dateStr);
+                window.pendingFileNames = []; 
+                window.uploadedFileDates.clear(); 
+                
+                if (typeof fetchAvailableDates === 'function') await fetchAvailableDates(true);
+                
+                if (pendingSummaryData.length === 0) {
+                    renderSummaryDashboard();
+                    Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1500, showConfirmButton: false });
+                } else {
+                    clearSummaryData(); Swal.close();
+                }
+            } catch (e) { Swal.fire('Error', e.message, 'error'); }
+        }
+    });
 };
 
 window.toggleSummaryDate = function(dateStr) {
-    if (window.selectedSummaryDates.has(dateStr)) window.selectedSummaryDates.delete(dateStr);
-    else window.selectedSummaryDates.add(dateStr);
-    renderSummaryDashboard();
+    if (window.selectedSummaryDates.has(dateStr)) window.selectedSummaryDates.delete(dateStr);
+    else window.selectedSummaryDates.add(dateStr);
+    renderSummaryDashboard();
 };
 
 window.saveWebLogo = async function() {
-    const web = document.getElementById('webLogoKey').value;
-    const urlInput = document.getElementById('webLogoUrlInput').value.trim();
-    const fileInput = document.getElementById('webLogoFileInput');
-    
-    if (!urlInput && (!fileInput.files || fileInput.files.length === 0)) {
-        return Swal.fire('เตือน', 'กรุณาใส่ลิงก์ URL หรือ อัปโหลดรูปภาพ', 'warning');
-    }
+    const web = document.getElementById('webLogoKey').value;
+    const urlInput = document.getElementById('webLogoUrlInput').value.trim();
+    const fileInput = document.getElementById('webLogoFileInput');
+    
+    if (!urlInput && (!fileInput.files || fileInput.files.length === 0)) {
+        return Swal.fire('เตือน', 'กรุณาใส่ลิงก์ URL หรือ อัปโหลดรูปภาพ', 'warning');
+    }
 
-    Swal.fire({title: 'กำลังบันทึกโลโก้...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'กำลังบันทึกโลโก้...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
-    let finalUrl = urlInput;
+    let finalUrl = urlInput;
 
-    try {
-        if (fileInput.files && fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `logo_${web}_${Date.now()}.${fileExt}`;
+    try {
+        if (fileInput.files && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `logo_${web}_${Date.now()}.${fileExt}`;
 
-            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, file, { cacheControl: '3600', upsert: true });
-            if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ: ' + uploadError.message);
-            const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`logos/${fileName}`);
-            finalUrl = publicUrlData.publicUrl;
-        }
+            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, file, { cacheControl: '3600', upsert: true });
+            if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ: ' + uploadError.message);
+            const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`logos/${fileName}`);
+            finalUrl = publicUrlData.publicUrl;
+        }
 
-        window.summaryWebLogos = window.summaryWebLogos || {};
-        window.summaryWebLogos[web] = finalUrl;
-        
-        if (typeof SETTINGS !== 'undefined') {
-            SETTINGS['summary_web_logos'] = JSON.stringify(window.summaryWebLogos);
-        }
+        window.summaryWebLogos = window.summaryWebLogos || {};
+        window.summaryWebLogos[web] = finalUrl;
+        
+        if (typeof SETTINGS !== 'undefined') {
+            SETTINGS['summary_web_logos'] = JSON.stringify(window.summaryWebLogos);
+        }
 
-        await appDB.from('settings').upsert([{ key: 'summary_web_logos', value: JSON.stringify(window.summaryWebLogos) }]);
+        await appDB.from('settings').upsert([{ key: 'summary_web_logos', value: JSON.stringify(window.summaryWebLogos) }]);
 
-        document.getElementById('webLogoModal').classList.add('hidden');
-        if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();
-        
-        Swal.fire({icon: 'success', title: 'บันทึกโลโก้สำเร็จ!', timer: 1500, showConfirmButton: false});
+        document.getElementById('webLogoModal').classList.add('hidden');
+        if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();
+        
+        Swal.fire({icon: 'success', title: 'บันทึกโลโก้สำเร็จ!', timer: 1500, showConfirmButton: false});
 
-    } catch (err) {
-        Swal.fire('Error', err.message, 'error');
-    }
+    } catch (err) {
+        Swal.fire('Error', err.message, 'error');
+    }
 };
