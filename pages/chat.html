@@ -6,15 +6,27 @@
 .chat-conv-item:hover{background:#f1f5f9}.dark .chat-conv-item:hover{background:#1e293b}
 .chat-conv-item.active{background:#ecfeff;border-left-color:#06b6d4}
 .dark .chat-conv-item.active{background:#0c4a6e;border-left-color:#06b6d4}
-.chat-bubble{max-width:75%;padding:8px 12px;border-radius:14px;font-size:14px;word-break:break-word;white-space:pre-wrap}
-.chat-bubble.in{background:#fff;border:1px solid #e2e8f0;color:#0f172a;border-bottom-left-radius:4px}
+.chat-bubble{max-width:100%;min-width:40px;padding:9px 13px;border-radius:18px;font-size:14px;word-break:break-word;white-space:pre-wrap;line-height:1.45;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+.chat-bubble.in{background:#fff;border:1px solid #e2e8f0;color:#0f172a;border-bottom-left-radius:6px}
 .dark .chat-bubble.in{background:#334155;border-color:#475569;color:#f1f5f9}
-.chat-bubble.out{background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff;border-bottom-right-radius:4px}
-.chat-bubble.system{background:#fef3c7;color:#92400e;border:1px dashed #fbbf24;text-align:center;font-size:12px;max-width:100%}
+.chat-bubble.out{background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff;border-bottom-right-radius:6px}
+.chat-bubble.system{background:#fef3c7;color:#92400e;border:1px dashed #fbbf24;text-align:center;font-size:12px;border-radius:10px}
 .dark .chat-bubble.system{background:#451a03;color:#fde68a;border-color:#92400e}
-.chat-msg-row{display:flex;gap:8px;margin-bottom:6px;align-items:flex-end}
+.chat-bubble.media{background:transparent !important;border:none !important;padding:0;box-shadow:none}
+.chat-msg-row{display:flex;gap:6px;margin-bottom:6px;align-items:flex-end}
+.chat-msg-row.in{justify-content:flex-start}
 .chat-msg-row.out{justify-content:flex-end}
-.chat-msg-time{font-size:10px;color:#94a3b8;margin-top:2px}
+.chat-msg-row.system{justify-content:center;margin:12px 0}
+.chat-msg-avatar{width:28px;height:28px;border-radius:50%;background:#cbd5e1;flex-shrink:0;margin-bottom:18px;object-fit:cover}
+.chat-msg-stack{display:flex;flex-direction:column;max-width:75%;min-width:0}
+.chat-msg-row.out .chat-msg-stack{align-items:flex-end}
+.chat-msg-meta{font-size:10px;color:#94a3b8;margin-top:3px;padding:0 6px}
+.chat-msg-row.out .chat-msg-meta{text-align:right}
+.chat-date-divider{text-align:center;margin:14px 0 6px;position:relative}
+.chat-date-divider span{background:#f1f5f9;color:#64748b;padding:3px 12px;border-radius:999px;font-size:11px;font-weight:600;display:inline-block}
+.dark .chat-date-divider span{background:#1e293b;color:#94a3b8}
+.chat-img{max-width:240px;max-height:280px;border-radius:12px;cursor:pointer;display:block;background:#e2e8f0}
+.chat-sticker{width:130px;height:130px}
 .chat-conv-unread{background:#ef4444;color:#fff;font-size:10px;font-weight:900;padding:2px 6px;border-radius:9999px;min-width:18px;text-align:center}
 .chat-channel-pill{font-size:10px;font-weight:700;color:#fff;padding:2px 6px;border-radius:4px;display:inline-block}
 </style>
@@ -120,7 +132,9 @@
           กดรับเคสก่อนถึงจะตอบลูกค้าได้
         </div>
         <div id="chatInputArea" class="flex items-end gap-2">
-          <textarea id="chatInputText" rows="2" placeholder="พิมพ์ข้อความ... (Enter ส่ง / Shift+Enter ขึ้นบรรทัดใหม่)"
+          <textarea id="chatInputText" rows="2"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();window.chatSendMessage&&window.chatSendMessage();}"
+                    placeholder="พิมพ์ข้อความ... (Enter ส่ง / Shift+Enter ขึ้นบรรทัดใหม่)"
                     class="flex-1 bg-slate-100 dark:bg-slate-700 dark:text-white rounded-lg p-2 text-sm border border-slate-200 dark:border-slate-600 outline-none focus:ring-2 focus:ring-emerald-300 resize-none"></textarea>
           <button id="chatBtnSend" onclick="chatSendMessage()"
                   class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg font-bold text-sm flex items-center gap-1 transition active:scale-95 disabled:opacity-40">
