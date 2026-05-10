@@ -11,8 +11,10 @@ function chatGetWebhookUrl() {
 
 // ── Modal: หน้าจัดการ OA ทั้งหมด ─────────────────────────
 window.openChatChannelManager = async function () {
-  if (currentUser?.role !== 'admin' && currentUser?.role !== 'manager') {
-    return Swal.fire('!', 'ต้องเป็น admin/manager', 'warning');
+  const canManage = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('chat_manage_channels'))
+                 || ['admin','manager'].includes((currentUser?.role || '').toLowerCase());
+  if (!canManage) {
+    return Swal.fire('!', 'ต้องมีสิทธิ์ "ตั้งค่า OA"', 'warning');
   }
 
   // ⚠️ admin ต้องใช้ service_role key เพื่ออ่าน secret/token
