@@ -183,9 +183,6 @@ async function showPage(pageName) {
                 else if (pageName === 'telegram') {
                     if (typeof initTelegramApp === 'function') await initTelegramApp();
                 }
-                else if (pageName === 'chat') {
-                    if (typeof initChatApp === 'function') await initChatApp();
-                }
                 else if (pageName === 'password') {
                     if (typeof initPasswordApp === 'function') await initPasswordApp();
                 }
