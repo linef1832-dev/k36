@@ -2410,6 +2410,19 @@ const PERM_GROUPS = [
         ]
     },
     {
+        id: 'page_chat', name: 'ตอบลูกค้า LINE', icon: 'chat', theme: 'emerald',
+        items: [
+            {id: 'chat', name: 'เข้าหน้าตอบลูกค้า LINE', isSub: false},
+            {id: 'chat_send', name: 'ตอบข้อความลูกค้า', isSub: true},
+            {id: 'chat_claim', name: 'รับเคส', isSub: true},
+            {id: 'chat_release', name: 'ปล่อยเคสกลับ pool', isSub: true},
+            {id: 'chat_close', name: 'ปิดเคส', isSub: true},
+            {id: 'chat_view_all_oa', name: 'เห็นทุก OA (ไม่ถูก filter)', isSub: true},
+            {id: 'chat_view_history', name: 'ดูประวัติมอบหมาย', isSub: true},
+            {id: 'chat_manage_channels', name: '⚙️ ตั้งค่า OA (เพิ่ม/แก้/ลบ)', isSub: true}
+        ]
+    },
+    {
         id: 'page_files', name: 'คลังไฟล์ / โปรแกรม', icon: 'folder_zip', theme: 'teal',
         items: [
             {id: 'files', name: 'เข้าหน้าคลังไฟล์ / โปรแกรม', isSub: false},
