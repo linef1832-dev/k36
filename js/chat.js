@@ -49,6 +49,14 @@ function chatChannelName(channelId) {
   return ch?.channel_name || '—';
 }
 
+// ตรวจสิทธิ์: admin/manager → true เสมอ, นอกนั้นเช็ค hasUserPerm
+function chatHasPerm(permId) {
+  const role = (currentUser?.role || '').toLowerCase();
+  if (role === 'admin' || role === 'manager') return true;
+  if (typeof window.hasUserPerm === 'function') return window.hasUserPerm(permId);
+  return false;
+}
+
 // ── Init: เรียกตอนเข้าหน้า chat ────────────────────────────
 window.initChatApp = async function () {
   if (!appDB) return;
@@ -56,8 +64,10 @@ window.initChatApp = async function () {
   // 1. โหลดรายการ OA
   await chatLoadChannels();
 
-  // 2. Admin only: แสดงปุ่มตั้งค่า OA
-  if (currentUser?.role === 'admin' || currentUser?.role === 'manager') {
+  // 2. แสดงปุ่มตั้งค่า OA ตามสิทธิ์
+  const canManage = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('chat_manage_channels'))
+                 || ['admin','manager'].includes((currentUser?.role || '').toLowerCase());
+  if (canManage) {
     document.getElementById('chatAdminBtn')?.classList.remove('hidden');
   }
 
@@ -281,12 +291,17 @@ function chatRenderHeader(conv) {
 
   const isOwner = conv.assigned_to === currentUser.username;
   const isUnassigned = conv.status === 'unassigned';
-  document.getElementById('chatBtnClaim').classList.toggle('hidden', !isUnassigned);
-  document.getElementById('chatBtnRelease').classList.toggle('hidden', !isOwner || conv.status === 'closed');
-  document.getElementById('chatBtnClose').classList.toggle('hidden', !isOwner || conv.status === 'closed');
+  const canClaim   = chatHasPerm('chat_claim');
+  const canRelease = chatHasPerm('chat_release');
+  const canClose   = chatHasPerm('chat_close');
+  const canSend    = chatHasPerm('chat_send');
 
-  document.getElementById('chatInputArea').classList.toggle('hidden', !isOwner || conv.status === 'closed');
-  document.getElementById('chatInputDisabled').classList.toggle('hidden', isOwner && conv.status !== 'closed');
+  document.getElementById('chatBtnClaim').classList.toggle('hidden', !isUnassigned || !canClaim);
+  document.getElementById('chatBtnRelease').classList.toggle('hidden', !isOwner || conv.status === 'closed' || !canRelease);
+  document.getElementById('chatBtnClose').classList.toggle('hidden', !isOwner || conv.status === 'closed' || !canClose);
+
+  document.getElementById('chatInputArea').classList.toggle('hidden', !isOwner || conv.status === 'closed' || !canSend);
+  document.getElementById('chatInputDisabled').classList.toggle('hidden', isOwner && conv.status !== 'closed' && canSend);
 
   chatRenderProfile(c, conv);
 }
