@@ -1,0 +1,143 @@
+<div id="chatApp" class="bg-slate-100 dark:bg-[#020813] min-h-screen p-2">
+<style>
+.chat-tab{color:#64748b}.chat-tab.active{background:linear-gradient(90deg,#10b981,#06b6d4);color:#fff}
+.dark .chat-tab{color:#94a3b8}
+.chat-conv-item{transition:all .15s;cursor:pointer;border-left:3px solid transparent}
+.chat-conv-item:hover{background:#f1f5f9}.dark .chat-conv-item:hover{background:#1e293b}
+.chat-conv-item.active{background:#ecfeff;border-left-color:#06b6d4}
+.dark .chat-conv-item.active{background:#0c4a6e;border-left-color:#06b6d4}
+.chat-bubble{max-width:75%;padding:8px 12px;border-radius:14px;font-size:14px;word-break:break-word;white-space:pre-wrap}
+.chat-bubble.in{background:#fff;border:1px solid #e2e8f0;color:#0f172a;border-bottom-left-radius:4px}
+.dark .chat-bubble.in{background:#334155;border-color:#475569;color:#f1f5f9}
+.chat-bubble.out{background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff;border-bottom-right-radius:4px}
+.chat-bubble.system{background:#fef3c7;color:#92400e;border:1px dashed #fbbf24;text-align:center;font-size:12px;max-width:100%}
+.dark .chat-bubble.system{background:#451a03;color:#fde68a;border-color:#92400e}
+.chat-msg-row{display:flex;gap:8px;margin-bottom:6px;align-items:flex-end}
+.chat-msg-row.out{justify-content:flex-end}
+.chat-msg-time{font-size:10px;color:#94a3b8;margin-top:2px}
+.chat-conv-unread{background:#ef4444;color:#fff;font-size:10px;font-weight:900;padding:2px 6px;border-radius:9999px;min-width:18px;text-align:center}
+.chat-channel-pill{font-size:10px;font-weight:700;color:#fff;padding:2px 6px;border-radius:4px;display:inline-block}
+</style>
+
+<!-- Header -->
+<div class="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white rounded-2xl p-3 mb-2 shadow-lg flex items-center justify-between flex-wrap gap-2">
+  <div class="flex items-center gap-3">
+    <span class="material-icons text-3xl">chat</span>
+    <div>
+      <h1 class="font-bold text-lg leading-tight flex items-center gap-2">กล่องข้อความ LINE
+        <span id="chatTotalUnreadBadge" class="hidden text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full font-black animate-pulse"></span>
+      </h1>
+      <p class="text-[10px] text-emerald-100">ตอบลูกค้าจากทุก OA — รับเคสได้พร้อมกัน</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2 text-[11px]">
+    <span id="chatConnStatus" class="bg-emerald-700 px-2 py-1 rounded-full flex items-center gap-1">
+      <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Online
+    </span>
+    <button id="chatAdminBtn" onclick="openChatChannelManager()"
+            class="hidden bg-white/20 hover:bg-white/30 px-3 py-1 rounded-md font-bold transition flex items-center gap-1">
+      <span class="material-icons text-sm">settings</span> ตั้งค่า OA
+    </button>
+  </div>
+</div>
+
+<!-- Main 3-column layout -->
+<div class="flex gap-2 h-[calc(100vh-110px)]">
+
+  <!-- Column 1: filter + conversation list -->
+  <aside class="w-[300px] flex flex-col gap-2 shrink-0">
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-2 shadow">
+      <label class="text-[10px] text-gray-500 dark:text-gray-400 font-bold">เลือก OA:</label>
+      <select id="chatChannelSelect" class="w-full text-sm bg-slate-100 dark:bg-slate-700 dark:text-white rounded-md px-2 py-1.5 mt-1 font-bold">
+        <option value="all">— ทุก OA —</option>
+      </select>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-1 shadow flex gap-1">
+      <button onclick="chatSetStatusFilter('unassigned')" data-chat-tab="unassigned"
+              class="chat-tab active flex-1 text-xs font-bold py-1.5 rounded-md transition">
+        ใหม่ <span id="chatBadgeUnassigned" class="ml-1 bg-red-500 text-white px-1.5 rounded-full text-[10px]">0</span>
+      </button>
+      <button onclick="chatSetStatusFilter('mine')" data-chat-tab="mine" class="chat-tab flex-1 text-xs font-bold py-1.5 rounded-md transition">
+        ของฉัน <span id="chatBadgeMine" class="ml-1 bg-emerald-500 text-white px-1.5 rounded-full text-[10px]">0</span>
+      </button>
+      <button onclick="chatSetStatusFilter('all')" data-chat-tab="all" class="chat-tab flex-1 text-xs font-bold py-1.5 rounded-md transition">
+        ทั้งหมด
+      </button>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-xl px-2 py-1 shadow flex items-center gap-1">
+      <span class="material-icons text-gray-400 text-base">search</span>
+      <input id="chatSearch" type="text" placeholder="ค้นหาลูกค้า / ข้อความ..."
+             class="flex-1 bg-transparent border-none outline-none text-sm dark:text-white">
+    </div>
+
+    <div id="chatConvList" class="flex-1 overflow-y-auto bg-white dark:bg-slate-800 rounded-xl shadow divide-y divide-slate-100 dark:divide-slate-700">
+      <div class="p-6 text-center text-gray-400 text-sm">
+        <span class="material-icons text-3xl text-gray-300">forum</span>
+        <p class="mt-2">กำลังโหลด...</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Column 2: Chat room -->
+  <main class="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow flex flex-col">
+    <div id="chatEmptyState" class="flex-1 flex items-center justify-center text-gray-300">
+      <div class="text-center">
+        <span class="material-icons text-6xl">chat_bubble_outline</span>
+        <p class="mt-2 text-sm">เลือกเคสจากรายการด้านซ้าย</p>
+      </div>
+    </div>
+
+    <div id="chatRoom" class="hidden flex-1 flex-col">
+      <header class="border-b border-slate-200 dark:border-slate-700 p-3 flex items-center gap-3">
+        <img id="chatHeaderAvatar" src="" class="w-10 h-10 rounded-full bg-slate-200 object-cover">
+        <div class="flex-1 min-w-0">
+          <div id="chatHeaderName" class="font-bold dark:text-white truncate">—</div>
+          <div class="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
+            <span id="chatHeaderChannel" class="chat-channel-pill" style="background:#06b6d4">—</span>
+            <span id="chatHeaderStatus">—</span>
+          </div>
+        </div>
+        <div class="flex gap-1">
+          <button id="chatBtnClaim" onclick="chatClaim()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-md flex items-center gap-1">
+            <span class="material-icons text-sm">how_to_reg</span> รับเคส
+          </button>
+          <button id="chatBtnRelease" onclick="chatRelease()" class="hidden bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold px-3 py-1.5 rounded-md flex items-center gap-1">
+            <span class="material-icons text-sm">person_off</span> ปล่อย
+          </button>
+          <button id="chatBtnClose" onclick="chatClose()" class="hidden bg-slate-500 hover:bg-slate-400 text-white text-xs font-bold px-3 py-1.5 rounded-md flex items-center gap-1">
+            <span class="material-icons text-sm">check_circle</span> ปิดเคส
+          </button>
+        </div>
+      </header>
+
+      <div id="chatMessages" class="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-900/40"></div>
+
+      <div class="border-t border-slate-200 dark:border-slate-700 p-2">
+        <div id="chatInputDisabled" class="hidden text-center text-xs text-amber-600 dark:text-amber-400 py-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+          <span class="material-icons text-base align-middle">lock</span>
+          กดรับเคสก่อนถึงจะตอบลูกค้าได้
+        </div>
+        <div id="chatInputArea" class="flex items-end gap-2">
+          <textarea id="chatInputText" rows="2" placeholder="พิมพ์ข้อความ... (Enter ส่ง / Shift+Enter ขึ้นบรรทัดใหม่)"
+                    class="flex-1 bg-slate-100 dark:bg-slate-700 dark:text-white rounded-lg p-2 text-sm border border-slate-200 dark:border-slate-600 outline-none focus:ring-2 focus:ring-emerald-300 resize-none"></textarea>
+          <button id="chatBtnSend" onclick="chatSendMessage()"
+                  class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg font-bold text-sm flex items-center gap-1 transition active:scale-95 disabled:opacity-40">
+            <span class="material-icons text-sm">send</span> ส่ง
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Column 3: Customer profile -->
+  <aside id="chatProfilePanel" class="w-[260px] bg-white dark:bg-slate-800 rounded-xl shadow p-3 hidden xl:block shrink-0 overflow-y-auto">
+    <div id="chatProfileEmpty" class="text-center text-gray-300 mt-12">
+      <span class="material-icons text-5xl">account_circle</span>
+      <p class="text-sm mt-2">ข้อมูลลูกค้า</p>
+    </div>
+    <div id="chatProfileContent" class="hidden space-y-3"></div>
+  </aside>
+</div>
+</div>
