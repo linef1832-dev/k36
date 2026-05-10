@@ -1329,9 +1329,18 @@ window.fetchHistoricalSummary = async function(silent = false) {
                 const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
                 let empKey = (r.employee_name || '').toLowerCase().trim();
-                let actualShift = schMap[`${r.date}_${empKey}`];
-                if (!actualShift) {
-                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                // 🌟 [แก้บัคกะ v2] ลำดับใหม่: ใช้ allowed_shift จาก users ก่อน (ค่าปัจจุบันที่แอดมินตั้ง)
+                // ใช้ schedules ของวันนั้นเฉพาะกับพนักงาน "กะอิสระ" (allowed_shift='all') เท่านั้น
+                // เหตุผล: ตาราง schedules เก็บค่าตอนจัดเวรของวันนั้น ถ้าแอดมินมาแก้กะของพนักงานทีหลัง
+                // ตารางนั้นจะยังเป็นค่าเก่า ทำให้หน้านี้โชว์กะผิด
+                let userShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                let actualShift;
+                if (userShift && userShift !== 'กะอิสระ' && userShift !== 'UNKNOWN') {
+                    // พนักงานมีกะถาวรในระบบ (เช้า/กลาง/ดึก) → ใช้ค่าล่าสุดเสมอ
+                    actualShift = userShift;
+                } else {
+                    // พนักงานกะอิสระ หรือไม่รู้จัก → ค่อยดู schedules ของวันนั้น
+                    actualShift = schMap[`${r.date}_${empKey}`] || userShift;
                 }
                 
                 actualShift = window.normalizeShiftName(actualShift);
@@ -1713,9 +1722,13 @@ window.fetchMultipleHistoricalSummary = async function() {
                 const key = window.cleanKeyStr(r.employee_name, r.website);
                 
                 let empKey = (r.employee_name || '').toLowerCase().trim();
-                let actualShift = schMap[`${r.date}_${empKey}`];
-                if (!actualShift) {
-                    actualShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                // 🌟 [แก้บัคกะ v2] ใช้ allowed_shift จาก users ก่อน (ดูคอมเมนต์ใน fetchHistoricalSummary)
+                let userShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                let actualShift;
+                if (userShift && userShift !== 'กะอิสระ' && userShift !== 'UNKNOWN') {
+                    actualShift = userShift;
+                } else {
+                    actualShift = schMap[`${r.date}_${empKey}`] || userShift;
                 }
                 
                 actualShift = window.normalizeShiftName(actualShift);
