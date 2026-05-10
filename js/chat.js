@@ -339,27 +339,86 @@ function chatRenderMessages() {
   const box = document.getElementById('chatMessages');
   if (!box) return;
   if (chatState.messages.length === 0) {
-    box.innerHTML = '<div class="text-center text-gray-300 mt-8 text-sm">ยังไม่มีข้อความ</div>';
+    box.innerHTML = '<div class="text-center text-gray-300 mt-8 text-sm">ยังไม่มีข้อความ — ทักไปก่อนได้เลย 👋</div>';
     return;
   }
-  box.innerHTML = chatState.messages.map(m => {
-    const time = chatFmtTime(m.created_at);
-    if (m.direction === 'system')
-      return `<div class="chat-msg-row" style="justify-content:center"><div class="chat-bubble system">${chatEscapeHtml(m.content)}</div></div>`;
+
+  const cust = chatState.selectedConv?.customer || {};
+  const custAvatar = chatEscapeHtml(cust.picture_url || '');
+  const fallback = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' fill='%23cbd5e1'/%3E%3C/svg%3E";
+
+  // helper สร้าง URL ดึง content จาก LINE ผ่าน proxy
+  const proxyUrl = (msgId) =>
+    msgId ? `${DB_URL}/functions/v1/line-content?msg_id=${encodeURIComponent(msgId)}` : '';
+
+  let lastDateStr = '';
+  const out = [];
+
+  for (const m of chatState.messages) {
+    const d = new Date(m.created_at);
+    const dateStr = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (dateStr !== lastDateStr) {
+      out.push(`<div class="chat-date-divider"><span>${dateStr}</span></div>`);
+      lastDateStr = dateStr;
+    }
+    const time = d.toTimeString().substring(0, 5);
+
+    if (m.direction === 'system') {
+      out.push(`<div class="chat-msg-row system"><div class="chat-bubble system">${chatEscapeHtml(m.content)}</div></div>`);
+      continue;
+    }
+
     const cls = m.direction === 'out' ? 'out' : 'in';
-    let body = chatEscapeHtml(m.content || '');
-    if (m.message_type === 'image' && m.preview_url)
-      body = `<img src="${chatEscapeHtml(m.preview_url)}" class="max-w-[200px] rounded-lg">`;
-    else if (m.message_type === 'sticker' && m.preview_url)
-      body = `<img src="${chatEscapeHtml(m.preview_url)}" class="w-24 h-24">`;
-    const sender = m.direction === 'out' ? `<div class="chat-msg-time">${chatEscapeHtml(m.sender_id)}</div>` : '';
-    return `<div class="chat-msg-row ${cls}">
-      <div>
-        <div class="chat-bubble ${cls}">${body}</div>
-        <div class="chat-msg-time" style="text-align:${cls === 'out' ? 'right' : 'left'}">${time}</div>
-        ${sender}
-      </div></div>`;
-  }).join('');
+    const isMedia = ['image', 'sticker', 'video'].includes(m.message_type);
+    let body = '';
+
+    if (m.message_type === 'image') {
+      const url = m.preview_url || proxyUrl(m.line_message_id);
+      body = url
+        ? `<img src="${url}" class="chat-img" loading="lazy" onclick="window.open('${url}','_blank')" onerror="this.outerHTML='<span class=&quot;text-xs italic text-gray-400&quot;>[โหลดรูปไม่ได้ — อาจเก่ากว่า 14 วัน]</span>'">`
+        : '<span class="text-xs italic text-gray-400">[รูปภาพ]</span>';
+    } else if (m.message_type === 'sticker') {
+      body = m.preview_url
+        ? `<img src="${chatEscapeHtml(m.preview_url)}" class="chat-sticker" loading="lazy">`
+        : '<span class="text-xs italic">[Sticker]</span>';
+    } else if (m.message_type === 'video') {
+      const url = proxyUrl(m.line_message_id);
+      body = url
+        ? `<video src="${url}" controls class="chat-img"></video>`
+        : '<span class="text-xs italic">[วิดีโอ]</span>';
+    } else if (m.message_type === 'audio') {
+      const url = proxyUrl(m.line_message_id);
+      body = url
+        ? `<audio src="${url}" controls class="max-w-[240px]"></audio>`
+        : '<span class="text-xs italic">[เสียง]</span>';
+    } else if (m.message_type === 'file') {
+      const url = proxyUrl(m.line_message_id);
+      body = url
+        ? `<a href="${url}" target="_blank" class="text-blue-600 underline">${chatEscapeHtml(m.content || '[ไฟล์]')}</a>`
+        : chatEscapeHtml(m.content || '[ไฟล์]');
+    } else {
+      body = chatEscapeHtml(m.content || '');
+    }
+
+    const bubbleClasses = `chat-bubble ${cls}${isMedia ? ' media' : ''}`;
+    const meta = m.direction === 'out'
+      ? `<div class="chat-msg-meta">${chatEscapeHtml(m.sender_id || 'แอดมิน')} · ${time}${m.delivered === false ? ' · <span class="text-red-500">⚠️ ส่งไม่สำเร็จ</span>' : ''}</div>`
+      : `<div class="chat-msg-meta">${time}</div>`;
+
+    const avatar = m.direction === 'in'
+      ? `<img src="${custAvatar}" class="chat-msg-avatar" onerror="this.src='${fallback}'">`
+      : '';
+
+    out.push(`<div class="chat-msg-row ${cls}">
+      ${avatar}
+      <div class="chat-msg-stack">
+        <div class="${bubbleClasses}">${body}</div>
+        ${meta}
+      </div>
+    </div>`);
+  }
+
+  box.innerHTML = out.join('');
   box.scrollTop = box.scrollHeight;
 }
 
