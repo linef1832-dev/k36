@@ -104,8 +104,9 @@ window.getShiftBadgeHtml = function(shift) {
 window.initSummaryDate = async function() {
     // 🌟 [แก้บัคกะ] บังคับรีเฟรชรายชื่อพนักงาน + ล้าง cache กะ ทุกครั้งที่เข้าหน้านี้
     // เพื่อให้กะที่แอดมินเพิ่งแก้ในระบบจัดการพนักงานสะท้อนทันทีในหน้าสรุปยอด
-    if (typeof window.invalidateSummaryUserCache === 'function') window.invalidateSummaryUserCache();
-    if (typeof fetchUsers === 'function') {
+    if (typeof window.refreshUserListForSummary === 'function') {
+        await window.refreshUserListForSummary();
+    } else if (typeof fetchUsers === 'function') {
         try { await fetchUsers(true); } catch(e) { console.warn('fetchUsers refresh failed', e); }
     }
 
@@ -183,6 +184,38 @@ window.invalidateSummaryUserCache = function() {
     summaryUserCacheMap = null;
     summarySortedUserCache = null;
     summaryUserCacheRef = null;
+};
+
+// 🌟 [แก้บัคกะ v3] บังคับรีเฟรชรายชื่อพนักงานแบบ "ปลอดภัยที่สุด"
+// ลำดับการพยายาม:
+//   1. fetchUsers(true) ของ system_core (ถ้า implementation รับ forceRefresh)
+//   2. fetchUsers() แบบไม่ส่ง parameter (เผื่อเวอร์ชันเก่า)
+//   3. ดึงตรงจาก DB ทั้งตาราง users (fallback สุดท้าย)
+window.refreshUserListForSummary = async function() {
+    let oldRef = window.GLOBAL_USER_LIST;
+    
+    if (typeof fetchUsers === 'function') {
+        try {
+            await fetchUsers(true);
+            // ถ้า reference ไม่เปลี่ยน แสดงว่า fetchUsers(true) ไม่ได้รีเฟรชจริง → ลองวิธี 3
+            if (window.GLOBAL_USER_LIST === oldRef) {
+                if (typeof appDB !== 'undefined') {
+                    try {
+                        const { data, error } = await appDB.from('users').select('*');
+                        if (!error && data && data.length > 0) {
+                            window.GLOBAL_USER_LIST = data;
+                            console.log('[Summary] รีเฟรช users ตรงจาก DB:', data.length, 'คน');
+                        }
+                    } catch (e) { console.warn('[Summary] Direct fetch fallback failed:', e); }
+                }
+            }
+        } catch (e) {
+            console.warn('[Summary] fetchUsers(true) failed:', e);
+        }
+    }
+    
+    // ล้าง cache ของหน้านี้เสมอหลังรีเฟรช
+    window.invalidateSummaryUserCache();
 };
 
 function buildSummaryUserCache() {
@@ -401,8 +434,9 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
 
     // 🌟 [แก้บัคกะ] บังคับรีเฟรชรายชื่อพนักงาน + ล้าง cache กะ ก่อนประมวลผลไฟล์
     // เพื่อให้กะที่แอดมินเพิ่งแก้สะท้อนทันทีตอนคำนวณยอดจาก Excel
-    if (typeof window.invalidateSummaryUserCache === 'function') window.invalidateSummaryUserCache();
-    if (typeof fetchUsers === 'function') {
+    if (typeof window.refreshUserListForSummary === 'function') {
+        await window.refreshUserListForSummary();
+    } else if (typeof fetchUsers === 'function') {
         try { await fetchUsers(true); } catch(e) { console.warn('fetchUsers refresh failed', e); }
     }
 
@@ -1289,8 +1323,9 @@ window.fetchHistoricalSummary = async function(silent = false) {
     try {
         // 🌟 [แก้บัคกะ] บังคับรีเฟรชรายชื่อพนักงาน + ล้าง cache กะ ทุกครั้งที่เปลี่ยนวัน
         // เพื่อให้กะที่แอดมินเพิ่งแก้สะท้อนกลับทันทีในข้อมูลย้อนหลัง
-        if (typeof window.invalidateSummaryUserCache === 'function') window.invalidateSummaryUserCache();
-        if (typeof fetchUsers === 'function') {
+        if (typeof window.refreshUserListForSummary === 'function') {
+            await window.refreshUserListForSummary();
+        } else if (typeof fetchUsers === 'function') {
             try { await fetchUsers(true); } catch(e) { console.warn('fetchUsers refresh failed', e); }
         }
 
@@ -1329,21 +1364,38 @@ window.fetchHistoricalSummary = async function(silent = false) {
                 const rejCount = (r.reject_count !== undefined && r.reject_count !== null) ? parseInt(r.reject_count) : 0;
 
                 let empKey = (r.employee_name || '').toLowerCase().trim();
-                // 🌟 [แก้บัคกะ v2] ลำดับใหม่: ใช้ allowed_shift จาก users ก่อน (ค่าปัจจุบันที่แอดมินตั้ง)
-                // ใช้ schedules ของวันนั้นเฉพาะกับพนักงาน "กะอิสระ" (allowed_shift='all') เท่านั้น
-                // เหตุผล: ตาราง schedules เก็บค่าตอนจัดเวรของวันนั้น ถ้าแอดมินมาแก้กะของพนักงานทีหลัง
-                // ตารางนั้นจะยังเป็นค่าเก่า ทำให้หน้านี้โชว์กะผิด
-                let userShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                // 🌟 [แก้บัคกะ v3] ดึง user object ออกมาตรงๆ แล้วใช้ allowed_shift ที่ raw
+                // เหตุผล: getShiftFromName ผ่าน normalize อีกชั้น ถ้า DB เก็บ format แปลกๆ
+                // (เช่น 'morning' หรือเว้นวรรค) จะคืน UNKNOWN แล้วตกไปใช้ schedules วันเก่า
+                const realUser = typeof getRealDbUser === 'function' ? getRealDbUser(r.employee_name) : null;
                 let actualShift;
-                if (userShift && userShift !== 'กะอิสระ' && userShift !== 'UNKNOWN') {
-                    // พนักงานมีกะถาวรในระบบ (เช้า/กลาง/ดึก) → ใช้ค่าล่าสุดเสมอ
-                    actualShift = userShift;
+                
+                if (realUser && realUser.allowed_shift) {
+                    const rawShift = String(realUser.allowed_shift).trim().toLowerCase();
+                    // ถ้าพนักงานมีกะถาวรในระบบ (ไม่ใช่ 'all'/'อิสระ') → ใช้ค่าล่าสุดจาก users เลย
+                    if (rawShift && rawShift !== 'all' && rawShift !== 'กะอิสระ' && rawShift !== 'อิสระ') {
+                        actualShift = realUser.allowed_shift; // ใช้ค่า raw ส่งให้ normalize ทีหลัง
+                    } else {
+                        // พนักงานกะอิสระ → ค่อยดู schedules ของวันนั้น
+                        actualShift = schMap[`${r.date}_${empKey}`] || realUser.allowed_shift;
+                    }
                 } else {
-                    // พนักงานกะอิสระ หรือไม่รู้จัก → ค่อยดู schedules ของวันนั้น
-                    actualShift = schMap[`${r.date}_${empKey}`] || userShift;
+                    // ไม่เจอ user ในระบบ → ดู schedules ก่อน, ถ้าไม่มีค่อย fallback การเดาจากชื่อ
+                    actualShift = schMap[`${r.date}_${empKey}`] 
+                        || (typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN');
                 }
                 
                 actualShift = window.normalizeShiftName(actualShift);
+
+                // 🌟 [Debug] ถ้ายังโชว์กะผิดให้เปิด F12 → console ดู log นี้แล้วส่งกลับให้ดู
+                if (window._debugSummaryShift) {
+                    console.log('[Shift Debug]', r.employee_name, {
+                        foundInUserList: !!realUser,
+                        rawAllowedShift: realUser ? realUser.allowed_shift : null,
+                        schedulesShift: schMap[`${r.date}_${empKey}`] || null,
+                        finalShift: actualShift
+                    });
+                }
 
                 return {
                     empName: r.employee_name, website: r.website, system: r.system, count: todayCount, totalAmount: parseFloat(r.total_amount) || 0,
@@ -1676,8 +1728,9 @@ window.fetchMultipleHistoricalSummary = async function() {
 
     try {
         // 🌟 [แก้บัคกะ] บังคับรีเฟรชรายชื่อพนักงาน + ล้าง cache กะ ก่อนรวมยอดหลายวัน
-        if (typeof window.invalidateSummaryUserCache === 'function') window.invalidateSummaryUserCache();
-        if (typeof fetchUsers === 'function') {
+        if (typeof window.refreshUserListForSummary === 'function') {
+            await window.refreshUserListForSummary();
+        } else if (typeof fetchUsers === 'function') {
             try { await fetchUsers(true); } catch(e) { console.warn('fetchUsers refresh failed', e); }
         }
 
@@ -1722,13 +1775,20 @@ window.fetchMultipleHistoricalSummary = async function() {
                 const key = window.cleanKeyStr(r.employee_name, r.website);
                 
                 let empKey = (r.employee_name || '').toLowerCase().trim();
-                // 🌟 [แก้บัคกะ v2] ใช้ allowed_shift จาก users ก่อน (ดูคอมเมนต์ใน fetchHistoricalSummary)
-                let userShift = typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN';
+                // 🌟 [แก้บัคกะ v3] ใช้ raw allowed_shift จาก user object โดยตรง
+                const realUser = typeof getRealDbUser === 'function' ? getRealDbUser(r.employee_name) : null;
                 let actualShift;
-                if (userShift && userShift !== 'กะอิสระ' && userShift !== 'UNKNOWN') {
-                    actualShift = userShift;
+                
+                if (realUser && realUser.allowed_shift) {
+                    const rawShift = String(realUser.allowed_shift).trim().toLowerCase();
+                    if (rawShift && rawShift !== 'all' && rawShift !== 'กะอิสระ' && rawShift !== 'อิสระ') {
+                        actualShift = realUser.allowed_shift;
+                    } else {
+                        actualShift = schMap[`${r.date}_${empKey}`] || realUser.allowed_shift;
+                    }
                 } else {
-                    actualShift = schMap[`${r.date}_${empKey}`] || userShift;
+                    actualShift = schMap[`${r.date}_${empKey}`] 
+                        || (typeof getShiftFromName === 'function' ? getShiftFromName(r.employee_name) : 'UNKNOWN');
                 }
                 
                 actualShift = window.normalizeShiftName(actualShift);
