@@ -85,6 +85,11 @@
                     <button onclick="showPage('telegram')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-sky-400">near_me</span> กลุ่มงาน (Telegram)</div>
                     </button>
+                    <button onclick="showPage('chat')" class="nm-menu-title border-b border-[#1a273a]">
+                        <div class="flex items-center w-full"><span class="material-icons nm-menu-icon text-emerald-400">chat</span> ตอบลูกค้า LINE
+                            <span id="chatTotalUnreadSidebar" class="hidden ml-auto bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse" title="ข้อความใหม่">0</span>
+                        </div>
+                    </button>
                     <button onclick="showPage('files')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-emerald-400">folder_zip</span> คลังไฟล์ / โปรแกรม</div>
                     </button>
@@ -167,6 +172,8 @@
     <script src="./js/discord.js" defer></script>
     <script src="./js/summary.js" defer></script>
     <script src="./js/Telegram.js" defer></script>
+    <script src="./js/chat.js" defer></script>
+    <script src="./js/chat_admin.js" defer></script>
     <script src="./js/Password.js" defer></script>
     <script src="./js/FilesApp.js" defer></script>
     <script src="./js/sheet.js" defer></script>
