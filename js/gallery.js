@@ -13,6 +13,31 @@ function getGalleryTpl(templateId, data = {}) {
     return html;
 }
 
+// 🌟 [คลังรูป] กำหนด suffix ของแต่ละ mode → เก็บใน DB เป็น category เช่น "Jun88_BONUS", "MK8_REACH"
+// mode 'general' → ไม่มี suffix (ใช้ category ตรงๆ)
+const GALLERY_MODE_SUFFIX = {
+    general: '',
+    bonus:   '_BONUS',
+    reach:   '_REACH',
+    card:    '_CARD'
+};
+
+// label สำหรับ "ไม่มีรูปใน mode นี้"
+const GALLERY_MODE_LABEL = {
+    general: 'ไม่พบรูปภาพ',
+    bonus:   'ยังไม่มีรูปโบนัสไทม์',
+    reach:   'ยังไม่มีรูปรีชเมนู',
+    card:    'ยังไม่มีรูปการ์ดเมนู'
+};
+
+// คำเรียกใน Swal ตอนอัปโหลด
+const GALLERY_MODE_UPLOAD_TEXT = {
+    general: '',
+    bonus:   '🎁 โบนัสไทม์ ',
+    reach:   '📣 รีชเมนู ',
+    card:    '🃏 การ์ดเมนู '
+};
+
 window.initGalleryApp = function() {
     switchGalleryMode('general');
 
@@ -54,16 +79,27 @@ window.initGalleryApp = function() {
 
 window.switchGalleryMode = function(mode) {
     currentGalleryMode = mode;
-    const btnGen = document.getElementById('tabGeneral');
-    const btnBonus = document.getElementById('tabBonus');
     
-    if (mode === 'general') {
-        if(btnGen) btnGen.className = "flex-1 py-2 rounded-lg font-bold text-sm transition bg-blue-600 text-white shadow-lg border border-blue-400 transform scale-105";
-        if(btnBonus) btnBonus.className = "flex-1 py-2 rounded-lg font-bold text-sm transition bg-slate-700 text-gray-400 hover:text-white border border-transparent";
-    } else {
-        if(btnGen) btnGen.className = "flex-1 py-2 rounded-lg font-bold text-sm transition bg-slate-700 text-gray-400 hover:text-white border border-transparent";
-        if(btnBonus) btnBonus.className = "flex-1 py-2 rounded-lg font-bold text-sm transition bg-gradient-to-r from-yellow-600 to-amber-500 text-white shadow-lg border border-yellow-400 transform scale-105";
-    }
+    // ปิดปุ่มทุก tab → เปิดเฉพาะที่ active
+    const tabs = {
+        general: { btn: 'tabGeneral', activeStyle: 'bg-blue-600 text-white shadow-lg border border-blue-400' },
+        bonus:   { btn: 'tabBonus',   activeStyle: 'bg-gradient-to-r from-yellow-600 to-amber-500 text-white shadow-lg border border-yellow-400' },
+        reach:   { btn: 'tabReach',   activeStyle: 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow-lg border border-fuchsia-400' },
+        card:    { btn: 'tabCard',    activeStyle: 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-lg border border-emerald-400' }
+    };
+    const inactiveStyle = 'bg-slate-700 text-gray-400 hover:text-white border border-transparent';
+    
+    Object.keys(tabs).forEach(k => {
+        const el = document.getElementById(tabs[k].btn);
+        if (!el) return;
+        const base = 'flex-1 min-w-[110px] py-2 rounded-lg font-bold text-sm transition';
+        if (k === mode) {
+            el.className = `${base} ${tabs[k].activeStyle} transform scale-105`;
+        } else {
+            el.className = `${base} ${inactiveStyle}`;
+        }
+    });
+    
     fetchGalleryImages();
 }
 
@@ -91,18 +127,25 @@ window.fetchGalleryImages = async function() {
         return;
     }
 
+    // 🌟 [คลังรูป] ตัวช่วยเช็คว่า category ตรงกับ mode ปัจจุบันไหม
+    const currentSuffix = GALLERY_MODE_SUFFIX[currentGalleryMode] || '';
+    const allSuffixes = Object.values(GALLERY_MODE_SUFFIX).filter(s => s !== '');
+
     let filteredData = data.filter(img => {
         const cat = img.category || '';
-        const isBonusImg = cat.endsWith('_BONUS'); 
         
         if (currentGalleryMode === 'general') {
-            if (isBonusImg) return false;
+            // โหมดทั่วไป → ตัด suffix ของ mode อื่นๆ ออก (ไม่โชว์รูป BONUS/REACH/CARD)
+            for (const suf of allSuffixes) {
+                if (cat.endsWith(suf)) return false;
+            }
         } else {
-            if (!isBonusImg) return false;
+            // โหมดอื่น → โชว์เฉพาะที่ลงท้ายด้วย suffix นี้
+            if (!cat.endsWith(currentSuffix)) return false;
         }
 
         if (filterVal !== 'all') {
-            const targetCat = currentGalleryMode === 'bonus' ? `${filterVal}_BONUS` : filterVal;
+            const targetCat = filterVal + currentSuffix; // ใช้ suffix ตาม mode ปัจจุบัน
             if (cat !== targetCat) return false;
         }
 
@@ -114,7 +157,7 @@ window.fetchGalleryImages = async function() {
     if(countSpan) countSpan.innerText = filteredData.length;
 
     if (filteredData.length === 0) {
-        const msg = currentGalleryMode === 'bonus' ? 'ยังไม่มีรูปโบนัสไทม์' : 'ไม่พบรูปภาพ';
+        const msg = GALLERY_MODE_LABEL[currentGalleryMode] || 'ไม่พบรูปภาพ';
         grid.innerHTML = `<div class="col-span-full text-center text-gray-500 pt-20">${msg}</div>`;
         return;
     }
@@ -131,12 +174,19 @@ window.fetchGalleryImages = async function() {
         const newBadge = isNew ? `<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded shadow-lg font-bold animate-pulse z-30 border border-white/50">NEW</span>` : '';
         const adminCheckbox = isAdmin ? `<div class="absolute top-2 left-2 z-30" onclick="event.stopPropagation()"><input type="checkbox" class="gallery-check w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm bg-white" value="${img.id}" onchange="updateBulkDeleteButton()"></div>` : '';
 
+        // 🌟 [คลังรูป] สีของ badge ตาม suffix
         let catColor = "bg-black/60 text-white border-white/20";
         let showCatName = img.category;
         
         if (showCatName.endsWith('_BONUS')) {
             showCatName = showCatName.replace('_BONUS', '');
             catColor = "bg-yellow-600/90 text-white border-yellow-300 shadow-yellow-500/50";
+        } else if (showCatName.endsWith('_REACH')) {
+            showCatName = showCatName.replace('_REACH', '');
+            catColor = "bg-purple-600/90 text-white border-fuchsia-300 shadow-fuchsia-500/50";
+        } else if (showCatName.endsWith('_CARD')) {
+            showCatName = showCatName.replace('_CARD', '');
+            catColor = "bg-emerald-600/90 text-white border-teal-300 shadow-teal-500/50";
         }
 
         const catBadge = `<span class="absolute bottom-2 left-2 ${catColor} text-[10px] px-2 py-0.5 rounded border z-20 backdrop-blur-sm font-bold shadow-sm">${showCatName}</span>`;
@@ -157,10 +207,13 @@ window.handleImageUpload = async function(input) {
     const files = input.files;
     let category = document.getElementById('galleryFilter').value;
     if (category === 'all' || !category) category = 'ทั่วไป';
-    if (currentGalleryMode === 'bonus') category += '_BONUS'; 
     
-    const displayCategory = category.replace('_BONUS', '');
-    const modeText = (category.endsWith('_BONUS')) ? '🎁 โบนัสไทม์ ' : '';
+    // 🌟 [คลังรูป] เพิ่ม suffix ตาม mode ปัจจุบัน
+    const currentSuffix = GALLERY_MODE_SUFFIX[currentGalleryMode] || '';
+    category += currentSuffix;
+    
+    const displayCategory = category.replace(currentSuffix, '');
+    const modeText = GALLERY_MODE_UPLOAD_TEXT[currentGalleryMode] || '';
     
     if (!files || files.length === 0) return;
 
@@ -196,7 +249,8 @@ window.handleImageUpload = async function(input) {
     }
 
     input.value = ''; 
-    document.getElementById('galleryFilter').value = category.replace('_BONUS', '');
+    // 🌟 [คลังรูป] reset filter เป็นค่าก่อน suffix
+    document.getElementById('galleryFilter').value = category.replace(currentSuffix, '');
     fetchGalleryImages();
 
     if (failCount === 0) Swal.fire({ icon: 'success', title: 'เสร็จสิ้น', text: `อัปโหลด ${successCount} รูป เข้าหมวด ${modeText}${displayCategory} เรียบร้อย`, timer: 1500, showConfirmButton: false });
@@ -253,7 +307,10 @@ window.downloadAllInFilter = async function() {
 
     let categoryName = document.getElementById('galleryFilter').value;
     let folderName = categoryName === 'all' ? 'รวมรูปภาพทั้งหมด' : categoryName;
-    if (currentGalleryMode === 'bonus') folderName += '_BonusTime';
+    
+    // 🌟 [คลังรูป] เพิ่ม suffix ของ mode ในชื่อ folder zip
+    const folderSuffixMap = { general: '', bonus: '_BonusTime', reach: '_ReachMenu', card: '_CardMenu' };
+    folderName += (folderSuffixMap[currentGalleryMode] || '');
 
     const confirm = await Swal.fire({ title: `โหลด ${currentGalleryData.length} รูป?`, text: `ระบบจะรวบรวมไฟล์ใส่โฟลเดอร์ชื่อ "${folderName}.zip"`, icon: 'question', showCancelButton: true, confirmButtonText: 'เริ่มดาวน์โหลด', confirmButtonColor: '#2563eb' });
 
