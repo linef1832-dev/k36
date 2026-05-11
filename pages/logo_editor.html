@@ -196,6 +196,14 @@
                     <span class="material-icons">auto_fix_high</span>
                     <span>ลบโลโก้</span>
                 </button>
+                <button onclick="leSwitchTab('aibg')" id="leTabAibg" class="le-tab-btn">
+                    <span class="material-icons">smart_toy</span>
+                    <span>AI ลบพื้น</span>
+                </button>
+                <button onclick="leSwitchTab('template')" id="leTabTemplate" class="le-tab-btn">
+                    <span class="material-icons">dashboard_customize</span>
+                    <span>Template</span>
+                </button>
                 <button onclick="leSwitchTab('text')" id="leTabText" class="le-tab-btn">
                     <span class="material-icons">text_fields</span>
                     <span>ข้อความ</span>
@@ -207,6 +215,10 @@
                 <button onclick="leSwitchTab('sticker')" id="leTabSticker" class="le-tab-btn">
                     <span class="material-icons">emoji_emotions</span>
                     <span>สติกเกอร์</span>
+                </button>
+                <button onclick="leSwitchTab('layer')" id="leTabLayer" class="le-tab-btn">
+                    <span class="material-icons">layers</span>
+                    <span>Layer</span>
                 </button>
                 <button onclick="leSwitchTab('color')" id="leTabColor" class="le-tab-btn">
                     <span class="material-icons">palette</span>
@@ -424,6 +436,157 @@
                     </div>
                 </div>
 
+                <!-- ═══════════ TAB: AI Background Remover ═══════════ -->
+                <div id="leTabContent_aibg" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-icons text-violet-400">smart_toy</span>
+                            <h3 class="font-black text-sm">AI ลบพื้นหลังอัตโนมัติ</h3>
+                            <span class="text-[8px] bg-violet-500/20 border border-violet-400/40 text-violet-300 px-1.5 py-0.5 rounded-full font-black">AI</span>
+                        </div>
+                        
+                        <p class="text-[10px] text-violet-200/80 bg-violet-950/30 border border-violet-900/40 rounded-lg p-2 mb-3 leading-relaxed">
+                            🤖 ใช้ AI ลบพื้นหลังของรูปคน/สินค้า/วัตถุ — แม่นยำกว่าวิธีดูสีมุมแบบเดิม
+                            <br><b>ครั้งแรก:</b> ต้องโหลด AI model ~30 MB (ใช้เวลา 10-30 วินาที)
+                            <br><b>ครั้งต่อๆ ไป:</b> เร็ว ไม่ต้องโหลดอีก
+                        </p>
+                        
+                        <button onclick="leAiRemoveBg()" id="leAiBgBtn" class="le-btn-primary w-full text-white px-3 py-3 rounded-lg font-black text-sm shadow border border-white/10 active:scale-95">
+                            <span class="material-icons text-base align-middle">auto_fix_high</span> ลบพื้นหลังด้วย AI
+                        </button>
+                        
+                        <div id="leAiBgProgress" class="hidden mt-3 bg-violet-950/40 border border-violet-900/40 rounded-lg p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-icons animate-spin text-violet-400 text-base">sync</span>
+                                <span id="leAiBgStatus" class="text-[11px] font-bold text-violet-200">กำลังโหลด AI model...</span>
+                            </div>
+                            <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                <div id="leAiBgBar" class="bg-gradient-to-r from-violet-500 to-pink-500 h-full transition-all" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 space-y-2">
+                            <button onclick="leAiBgKeepSubject()" id="leAiKeepBtn" class="hidden le-btn-success w-full text-white px-3 py-2 rounded-lg font-bold text-xs shadow border border-white/10">
+                                <span class="material-icons text-sm align-middle">person</span> เก็บไว้ (พื้นโปร่งใส)
+                            </button>
+                            <button onclick="leAiBgChangeBg('white')" id="leAiBgWhiteBtn" class="hidden bg-white text-slate-800 w-full px-3 py-2 rounded-lg font-bold text-xs border border-white/30">
+                                <span class="material-icons text-sm align-middle">format_color_reset</span> เปลี่ยนพื้นเป็นขาว
+                            </button>
+                            <button onclick="leAiBgChangeBg('black')" id="leAiBgBlackBtn" class="hidden bg-slate-900 text-white w-full px-3 py-2 rounded-lg font-bold text-xs border border-white/10">
+                                <span class="material-icons text-sm align-middle">format_color_reset</span> เปลี่ยนพื้นเป็นดำ
+                            </button>
+                            <input type="color" id="leAiBgCustomColor" value="#ec4899" onchange="leAiBgChangeBg(this.value)" class="hidden w-full h-10 rounded-lg cursor-pointer border border-white/10">
+                            <label id="leAiBgCustomLabel" class="hidden text-[10px] text-violet-300 text-center block">หรือเลือกสีพื้นเอง ↑</label>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 border-b border-white/5">
+                        <h4 class="font-black text-xs text-slate-300 mb-2 flex items-center gap-1">
+                            <span class="material-icons text-base text-violet-400">tips_and_updates</span> เคล็ดลับ
+                        </h4>
+                        <ul class="text-[10px] text-slate-400 space-y-1 list-disc pl-4">
+                            <li>เหมาะกับ: รูปคน, รูปสินค้า, รูปวัตถุที่มีพื้นหลังชัดเจน</li>
+                            <li>ไม่เหมาะ: ภาพ collage ที่มีหลาย object</li>
+                            <li>ทำงาน 100% ในเบราว์เซอร์ — ไม่ส่งรูปไปไหน</li>
+                            <li>ครั้งแรกอาจช้า — เพราะ download AI model</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- ═══════════ TAB: Template สำเร็จรูป ═══════════ -->
+                <div id="leTabContent_template" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-icons text-indigo-400">dashboard_customize</span>
+                            <h3 class="font-black text-sm">Template สำเร็จรูป</h3>
+                        </div>
+                        <p class="text-[10px] text-indigo-200/80 bg-indigo-950/30 border border-indigo-900/40 rounded-lg p-2 mb-3 leading-relaxed">
+                            ✨ คลิก template เพื่อสร้างรูปใหม่จาก preset — รูปปัจจุบันจะถูกแทนที่
+                        </p>
+                        
+                        <h4 class="text-[10px] font-black text-indigo-300 uppercase mb-2">📱 Social Media</h4>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <button onclick="leApplyTemplate('promo_square')" class="le-shape-btn rounded-lg p-3 flex flex-col items-center gap-1 text-left">
+                                <div class="w-full h-12 rounded bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center">
+                                    <span class="text-white text-xs font-black">PROMO 🔥</span>
+                                </div>
+                                <div class="text-[10px] font-bold mt-1">โปรโมชั่น 1:1</div>
+                                <div class="text-[9px] text-slate-400">1080×1080</div>
+                            </button>
+                            <button onclick="leApplyTemplate('story_vertical')" class="le-shape-btn rounded-lg p-3 flex flex-col items-center gap-1 text-left">
+                                <div class="w-full h-12 rounded bg-gradient-to-b from-amber-500 to-rose-600 flex items-center justify-center">
+                                    <span class="text-white text-xs font-black">STORY</span>
+                                </div>
+                                <div class="text-[10px] font-bold mt-1">Story / Reels</div>
+                                <div class="text-[9px] text-slate-400">1080×1920</div>
+                            </button>
+                            <button onclick="leApplyTemplate('fb_post')" class="le-shape-btn rounded-lg p-3 flex flex-col items-center gap-1 text-left">
+                                <div class="w-full h-12 rounded bg-gradient-to-r from-blue-500 to-cyan-600 flex items-center justify-center">
+                                    <span class="text-white text-xs font-black">FACEBOOK</span>
+                                </div>
+                                <div class="text-[10px] font-bold mt-1">FB Post 4:5</div>
+                                <div class="text-[9px] text-slate-400">1200×1500</div>
+                            </button>
+                            <button onclick="leApplyTemplate('yt_thumb')" class="le-shape-btn rounded-lg p-3 flex flex-col items-center gap-1 text-left">
+                                <div class="w-full h-12 rounded bg-gradient-to-r from-red-500 to-rose-700 flex items-center justify-center">
+                                    <span class="text-white text-xs font-black">▶ YT</span>
+                                </div>
+                                <div class="text-[10px] font-bold mt-1">YouTube Thumb</div>
+                                <div class="text-[9px] text-slate-400">1280×720</div>
+                            </button>
+                        </div>
+
+                        <h4 class="text-[10px] font-black text-indigo-300 uppercase mb-2">💼 OK VIP Templates</h4>
+                        <div class="grid grid-cols-1 gap-2 mb-3">
+                            <button onclick="leApplyTemplate('deposit_alert')" class="le-shape-btn rounded-lg p-3 flex items-center gap-2 text-left">
+                                <span class="material-icons text-rose-400">notifications_active</span>
+                                <div class="flex-1">
+                                    <div class="text-[11px] font-bold">⚠️ แจ้งเตือนยอดฝาก</div>
+                                    <div class="text-[9px] text-slate-400">รูปแจ้งลูกค้ายอดไม่เข้า</div>
+                                </div>
+                            </button>
+                            <button onclick="leApplyTemplate('promo_credit')" class="le-shape-btn rounded-lg p-3 flex items-center gap-2 text-left">
+                                <span class="material-icons text-amber-400">redeem</span>
+                                <div class="flex-1">
+                                    <div class="text-[11px] font-bold">🎁 โปรเครดิตฟรี</div>
+                                    <div class="text-[9px] text-slate-400">รูปโปรโมชั่นรับโบนัส</div>
+                                </div>
+                            </button>
+                            <button onclick="leApplyTemplate('how_to_3step')" class="le-shape-btn rounded-lg p-3 flex items-center gap-2 text-left">
+                                <span class="material-icons text-emerald-400">format_list_numbered</span>
+                                <div class="flex-1">
+                                    <div class="text-[11px] font-bold">📋 คู่มือ 3 ขั้นตอน</div>
+                                    <div class="text-[9px] text-slate-400">รูปสอนใช้งานเป็น step</div>
+                                </div>
+                            </button>
+                            <button onclick="leApplyTemplate('qr_template')" class="le-shape-btn rounded-lg p-3 flex items-center gap-2 text-left">
+                                <span class="material-icons text-cyan-400">qr_code_2</span>
+                                <div class="flex-1">
+                                    <div class="text-[11px] font-bold">📱 QR Code Template</div>
+                                    <div class="text-[9px] text-slate-400">รูปสำหรับ QR Code</div>
+                                </div>
+                            </button>
+                            <button onclick="leApplyTemplate('warning')" class="le-shape-btn rounded-lg p-3 flex items-center gap-2 text-left">
+                                <span class="material-icons text-orange-400">warning</span>
+                                <div class="flex-1">
+                                    <div class="text-[11px] font-bold">🚨 แจ้งเตือนสำคัญ</div>
+                                    <div class="text-[9px] text-slate-400">พื้นหลังลายแถบเตือน</div>
+                                </div>
+                            </button>
+                        </div>
+
+                        <h4 class="text-[10px] font-black text-indigo-300 uppercase mb-2">🎨 พื้นหลังเปล่า</h4>
+                        <div class="grid grid-cols-3 gap-2 mb-2">
+                            <button onclick="leApplyTemplate('bg_purple')" class="h-14 rounded-lg bg-gradient-to-br from-fuchsia-600 to-purple-800 border border-white/10 hover:scale-105 transition" title="ม่วง"></button>
+                            <button onclick="leApplyTemplate('bg_blue')" class="h-14 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-800 border border-white/10 hover:scale-105 transition" title="น้ำเงิน"></button>
+                            <button onclick="leApplyTemplate('bg_orange')" class="h-14 rounded-lg bg-gradient-to-br from-amber-500 to-red-600 border border-white/10 hover:scale-105 transition" title="ส้ม"></button>
+                            <button onclick="leApplyTemplate('bg_green')" class="h-14 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 border border-white/10 hover:scale-105 transition" title="เขียว"></button>
+                            <button onclick="leApplyTemplate('bg_pink')" class="h-14 rounded-lg bg-gradient-to-br from-pink-400 to-rose-600 border border-white/10 hover:scale-105 transition" title="ชมพู"></button>
+                            <button onclick="leApplyTemplate('bg_dark')" class="h-14 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 border border-white/10 hover:scale-105 transition" title="ดำ"></button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ═══════════ TAB: ใส่ข้อความ ═══════════ -->
                 <div id="leTabContent_text" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
@@ -610,6 +773,45 @@
                     <div id="leStickerList" class="p-3 border-b border-white/5 hidden">
                         <h4 class="font-black text-xs text-slate-300 mb-2">สติกเกอร์บนรูป (<span id="leStickerCount">0</span>)</h4>
                         <div id="leStickerItems" class="space-y-1"></div>
+                    </div>
+                </div>
+
+                <!-- ═══════════ TAB: Layer System ═══════════ -->
+                <div id="leTabContent_layer" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-icons text-teal-400">layers</span>
+                            <h3 class="font-black text-sm">จัดการ Layer</h3>
+                        </div>
+                        <p class="text-[10px] text-teal-200/80 bg-teal-950/30 border border-teal-900/40 rounded-lg p-2 mb-3 leading-relaxed">
+                            📎 แสดงทุก layer ที่ซ้อนบนรูป — เปิด/ปิด/ลำดับ/ลบได้
+                        </p>
+                        
+                        <div id="leLayerListContainer" class="space-y-2">
+                            <div class="text-center py-8 text-slate-500 text-xs">
+                                <span class="material-icons text-3xl opacity-50">layers_clear</span>
+                                <p class="mt-1">ยังไม่มี layer</p>
+                                <p class="text-[10px] text-slate-600 mt-1">เพิ่มข้อความ/สติกเกอร์/โลโก้จะเห็นที่นี่</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 border-b border-white/5">
+                        <h4 class="font-black text-xs text-slate-300 mb-2">⚡ Quick Actions</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="leLayerClearAll()" class="bg-rose-900/40 hover:bg-rose-900/60 text-rose-200 px-2 py-2 rounded-lg font-bold text-[10px] border border-rose-900/40">
+                                <span class="material-icons text-xs align-middle">delete_sweep</span> ลบทุก layer
+                            </button>
+                            <button onclick="leLayerHideAll()" class="bg-slate-700/40 hover:bg-slate-700/60 text-slate-200 px-2 py-2 rounded-lg font-bold text-[10px] border border-white/10">
+                                <span class="material-icons text-xs align-middle">visibility_off</span> ซ่อนทั้งหมด
+                            </button>
+                            <button onclick="leLayerShowAll()" class="bg-emerald-900/40 hover:bg-emerald-900/60 text-emerald-200 px-2 py-2 rounded-lg font-bold text-[10px] border border-emerald-900/40">
+                                <span class="material-icons text-xs align-middle">visibility</span> โชว์ทั้งหมด
+                            </button>
+                            <button onclick="leLayerRefresh()" class="bg-slate-700/40 hover:bg-slate-700/60 text-slate-200 px-2 py-2 rounded-lg font-bold text-[10px] border border-white/10">
+                                <span class="material-icons text-xs align-middle">refresh</span> รีเฟรช
+                            </button>
+                        </div>
                     </div>
                 </div>
 
