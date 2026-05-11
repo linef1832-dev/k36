@@ -450,32 +450,141 @@ window.leApplyErase = async function() {
     const mode = document.getElementById('leFillMode').value;
     const color = document.getElementById('leFillColor').value;
     const bbox = leGetBBox(sel);
-    let fillStyle = mode === 'solid' ? color : leComputeAvgEdgeColor(bbox);
     
-    s.ctx.save();
-    leClipToShape(s.ctx, sel);
-    s.ctx.fillStyle = fillStyle;
-    s.ctx.fillRect(bbox.x, bbox.y, bbox.w, bbox.h);
-    
-    if (mode === 'blur' || mode === 'auto') {
+    if (mode === 'solid') {
+        // โหมดสีทึบ — ใช้สีที่ผู้ใช้เลือก
+        s.ctx.save();
+        leClipToShape(s.ctx, sel);
+        s.ctx.fillStyle = color;
+        s.ctx.fillRect(bbox.x, bbox.y, bbox.w, bbox.h);
+        s.ctx.restore();
+    } else if (mode === 'blur') {
+        // โหมด blur — เติม content-aware ก่อน แล้วเบลอ
+        leContentAwareFill(sel, bbox);
         try {
             const imgData = s.ctx.getImageData(bbox.x, bbox.y, bbox.w, bbox.h);
-            if (mode === 'blur') {
-                const blurred = leBoxBlur(imgData, 3);
-                s.ctx.putImageData(blurred, bbox.x, bbox.y);
-            } else {
-                for (let i = 0; i < imgData.data.length; i += 4) {
-                    const n = (Math.random() - 0.5) * 12;
-                    imgData.data[i]   = Math.max(0, Math.min(255, imgData.data[i] + n));
-                    imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + n));
-                    imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + n));
-                }
-                s.ctx.putImageData(imgData, bbox.x, bbox.y);
-            }
+            const blurred = leBoxBlur(imgData, 3);
+            s.ctx.putImageData(blurred, bbox.x, bbox.y);
         } catch(e) {}
+    } else {
+        // 🌟 โหมด auto — ใช้ content-aware fill (ลากสีจากขอบทุกด้านมาใช้)
+        leContentAwareFill(sel, bbox);
     }
-    s.ctx.restore();
 };
+
+// ==========================================
+// 🪄 Content-Aware Fill v2 — รองรับพื้นหลังหลายสี
+// หลักการ: สำหรับแต่ละ pixel ในกรอบ → คำนวณสีจาก 4 ขอบ (บน/ล่าง/ซ้าย/ขวา)
+// โดยใช้ weighted average ตามระยะห่าง — pixel ฝั่งซ้ายได้สีจากขอบซ้ายเยอะ ฯลฯ
+// ==========================================
+function leContentAwareFill(sel, bbox) {
+    const s = window.leState;
+    const ctx = s.ctx;
+    const W = s.canvas.width;
+    const H = s.canvas.height;
+    
+    const x0 = Math.max(0, Math.floor(bbox.x));
+    const y0 = Math.max(0, Math.floor(bbox.y));
+    const x1 = Math.min(W, Math.ceil(bbox.x + bbox.w));
+    const y1 = Math.min(H, Math.ceil(bbox.y + bbox.h));
+    const bw = x1 - x0;
+    const bh = y1 - y0;
+    if (bw < 2 || bh < 2) return;
+    
+    // ดึงสีจาก 4 ขอบเป็น array
+    // ขอบบน: สีของแถวที่อยู่เหนือ bbox (y0 - 1 หรือใกล้สุด) ทุกคอลัมน์ x0..x1
+    // ขอบล่าง: y1 (หรือใกล้สุด)
+    // ขอบซ้าย: x0 - 1 (หรือใกล้สุด) ทุกแถว
+    // ขอบขวา: x1
+    
+    const sampleRow = (y) => {
+        const safeY = Math.max(0, Math.min(H - 1, y));
+        try { return ctx.getImageData(x0, safeY, bw, 1).data; } 
+        catch(e) { return null; }
+    };
+    const sampleCol = (x) => {
+        const safeX = Math.max(0, Math.min(W - 1, x));
+        try { return ctx.getImageData(safeX, y0, 1, bh).data; }
+        catch(e) { return null; }
+    };
+    
+    const topRow    = sampleRow(y0 - 1);  // แถวเหนือกรอบ (สีพื้นด้านบน)
+    const bottomRow = sampleRow(y1);       // แถวใต้กรอบ
+    const leftCol   = sampleCol(x0 - 1);   // คอลัมน์ซ้าย
+    const rightCol  = sampleCol(x1);       // คอลัมน์ขวา
+    
+    if (!topRow || !bottomRow || !leftCol || !rightCol) {
+        // กรณีกรอบติดขอบรูป — fallback ใช้วิธีเดิม
+        const fillStyle = leComputeAvgEdgeColor(bbox);
+        ctx.save();
+        leClipToShape(ctx, sel);
+        ctx.fillStyle = fillStyle;
+        ctx.fillRect(bbox.x, bbox.y, bbox.w, bbox.h);
+        ctx.restore();
+        return;
+    }
+    
+    // สร้าง imageData ของกรอบ
+    const fillData = ctx.createImageData(bw, bh);
+    const d = fillData.data;
+    
+    // สำหรับ pixel แต่ละตัว → คำนวณสีจาก 4 ทิศ
+    for (let py = 0; py < bh; py++) {
+        for (let px = 0; px < bw; px++) {
+            // ระยะห่างปกติ (0..1) จากแต่ละขอบ
+            const tx = px / (bw - 1 || 1);          // 0=ซ้าย, 1=ขวา
+            const ty = py / (bh - 1 || 1);          // 0=บน, 1=ล่าง
+            
+            // สีจากขอบบน (ที่คอลัมน์เดียวกับ px) และล่าง
+            const tIdx = px * 4;
+            const bIdx = px * 4;
+            const lIdx = py * 4;
+            const rIdx = py * 4;
+            
+            const tR = topRow[tIdx], tG = topRow[tIdx+1], tB = topRow[tIdx+2];
+            const bR = bottomRow[bIdx], bG = bottomRow[bIdx+1], bB = bottomRow[bIdx+2];
+            const lR = leftCol[lIdx], lG = leftCol[lIdx+1], lB = leftCol[lIdx+2];
+            const rR = rightCol[rIdx], rG = rightCol[rIdx+1], rB = rightCol[rIdx+2];
+            
+            // ผสมแนวตั้ง (บน-ล่าง)
+            const vR = tR * (1 - ty) + bR * ty;
+            const vG = tG * (1 - ty) + bG * ty;
+            const vB = tB * (1 - ty) + bB * ty;
+            
+            // ผสมแนวนอน (ซ้าย-ขวา)
+            const hR = lR * (1 - tx) + rR * tx;
+            const hG = lG * (1 - tx) + rG * tx;
+            const hB = lB * (1 - tx) + rB * tx;
+            
+            // ผสมแนวตั้ง+แนวนอน (เฉลี่ย 50/50)
+            const i = (py * bw + px) * 4;
+            d[i]   = Math.round((vR + hR) / 2);
+            d[i+1] = Math.round((vG + hG) / 2);
+            d[i+2] = Math.round((vB + hB) / 2);
+            d[i+3] = 255;
+        }
+    }
+    
+    // ใส่ noise เล็กน้อยกลืน (1-3% เพื่อให้ดูเป็นธรรมชาติ)
+    for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random() - 0.5) * 6;
+        d[i]   = Math.max(0, Math.min(255, d[i] + n));
+        d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
+        d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
+    }
+    
+    // วาดลง canvas โดย clip ตาม shape
+    // ต้องวาด imageData ลง offscreen canvas ก่อน แล้ว drawImage พร้อม clip
+    const off = document.createElement('canvas');
+    off.width = bw; off.height = bh;
+    off.getContext('2d').putImageData(fillData, 0, 0);
+    
+    ctx.save();
+    leClipToShape(ctx, sel);
+    ctx.drawImage(off, x0, y0);
+    ctx.restore();
+}
+
 
 function leGetBBox(sel) {
     if (sel.type === 'rect') return { x: sel.x, y: sel.y, w: sel.w, h: sel.h };
