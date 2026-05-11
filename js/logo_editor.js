@@ -42,7 +42,13 @@ window.leState = {
     drawStart: null,              // จุดเริ่มของ shape
     drawSnapshot: null,           // snapshot ก่อนวาด shape (สำหรับ preview)
     stickerObjects: [],           // [{id, emoji, x, y, size}]
-    selectedStickerId: null
+    selectedStickerId: null,
+    
+    // 🌟 v7 — Logo Splitter
+    splitSource: null,            // Image ต้นฉบับที่จะแยก
+    splitParts: [],               // [{id, color, mask: ImageData, bbox, scale, dx, dy, replaceText, visible}]
+    selectedPartId: null,
+    splitMode: false              // อยู่ในโหมดแยกชิ้นไหม
 };
 
 function leTotalScale() { return window.leState.zoom || 1; }
@@ -213,7 +219,7 @@ function leSetupKeyboardShortcuts() {
 // ==========================================
 window.leSwitchTab = function(tab) {
     window.leState.currentTab = tab;
-    const allTabs = ['replace','aibg','template','text','draw','sticker','layer','color','adjust','resize','watermark'];
+    const allTabs = ['replace','aibg','split','template','text','draw','sticker','layer','color','adjust','resize','watermark'];
     allTabs.forEach(t => {
         const btn = document.getElementById('leTab' + t.charAt(0).toUpperCase() + t.slice(1));
         const content = document.getElementById('leTabContent_' + t);
@@ -224,6 +230,7 @@ window.leSwitchTab = function(tab) {
     if (tab === 'resize') leUpdateResizeInfo();
     if (tab === 'sticker') leRenderEmojiPickers();
     if (tab === 'layer') leLayerRefresh();
+    if (tab === 'split') leSplitRefresh();
 };
 
 window.leSetMode = function(mode) {
@@ -397,6 +404,13 @@ function leSetupCanvasEvents() {
         if (!window.leState.baseImage) return;
         if (window.leState.cropMode) return leStartCropDraw(e);
         
+        // 🎨 Split mode — ใช้แท็บ split และมีชิ้นแยกอยู่
+        if (window.leState.currentTab === 'split' && window.leState.splitMode && window.leState.splitParts.length > 0) {
+            e.preventDefault();
+            leSplitHandleCanvasMouseDown(e);
+            return;
+        }
+        
         // 🌟 โหมดวาด (มี priority สูงสุด ใช้ได้ทุกแท็บที่เปิด drawMode)
         if (window.leState.drawMode) return leStartDraw(e, getCoords(e));
         
@@ -424,6 +438,12 @@ function leSetupCanvasEvents() {
     
     const moveSel = (e) => {
         if (window.leState.cropMode) return leMoveCropDraw(e);
+        
+        // split drag
+        if (window.leState._splitDragging) {
+            return leSplitHandleCanvasMouseMove(e);
+        }
+        
         if (window.leState.drawMode) return leMoveDraw(e, getCoords(e));
         
         // brush eraser
@@ -446,6 +466,12 @@ function leSetupCanvasEvents() {
     
     const endSel = async (e) => {
         if (window.leState.cropMode) return leEndCropDraw(e);
+        
+        // split drag end
+        if (window.leState._splitDragging) {
+            return leSplitHandleCanvasMouseUp();
+        }
+        
         if (window.leState.drawMode) return leEndDraw(e);
         
         // brush eraser
@@ -2182,8 +2208,607 @@ window.leApplyResize = function() {
 };
 
 // ==========================================
-// 🤖 AI BACKGROUND REMOVER
+// 🎨 LOGO SPLITTER — แยกโลโก้เป็นชิ้น แก้ไขทีละชิ้น
 // ==========================================
+
+window.leLoadLogoForSplit = function(event) {
+    const file = event && event.target && event.target.files ? event.target.files[0] : null;
+    
+    // ถ้ายังไม่ได้เลือกไฟล์ (กดปุ่ม label) → ให้ trigger click ที่ input
+    if (!file) {
+        if (event && event.target && event.target.querySelector) {
+            const input = event.target.querySelector('input[type="file"]') || 
+                          event.target.closest('label')?.querySelector('input[type="file"]');
+            if (input) input.click();
+        }
+        return;
+    }
+    
+    if (!file.type || !file.type.startsWith('image/')) {
+        Swal.fire('ไฟล์ไม่ถูกต้อง', 'กรุณาเลือกไฟล์รูป', 'warning');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            window.leState.splitSource = img;
+            window.leState.splitParts = [];
+            window.leState.selectedPartId = null;
+            window.leState.splitMode = true;
+            
+            // ใส่รูปลง canvas เป็น base
+            const s = window.leState;
+            s.baseImage = img;
+            s.canvas.width = img.width;
+            s.canvas.height = img.height;
+            s.ctx.clearRect(0, 0, s.canvas.width, s.canvas.height);
+            s.ctx.drawImage(img, 0, 0);
+            
+            document.getElementById('leEmptyState')?.classList.add('hidden');
+            document.getElementById('leCanvasWrapper')?.classList.remove('hidden');
+            document.getElementById('leZoomControls')?.classList.remove('hidden');
+            document.getElementById('leSplitSettings')?.classList.remove('hidden');
+            
+            leFitScreen();
+            leShowTip('💡 ปรับค่าแล้วกด "แยกชิ้นเลย"', 3500);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.leSplitLogoNow = async function() {
+    const s = window.leState;
+    if (!s.splitSource) return Swal.fire('!', 'กรุณาเลือกโลโก้ก่อน', 'warning');
+    
+    const progress = document.getElementById('leSplitProgress');
+    const status = document.getElementById('leSplitStatus');
+    progress?.classList.remove('hidden');
+    
+    if (status) status.innerText = 'กำลังอ่านสีในรูป...';
+    
+    // ใช้ setTimeout เพื่อให้ UI update ก่อนทำงานหนัก
+    await new Promise(r => setTimeout(r, 50));
+    
+    try {
+        const tolerance = parseInt(document.getElementById('leSplitTolerance').value);
+        const minSize = parseInt(document.getElementById('leSplitMinSize').value);
+        const ignoreBg = document.getElementById('leSplitIgnoreBg').checked;
+        
+        if (status) status.innerText = 'กำลังแยกชิ้นด้วย flood-fill...';
+        await new Promise(r => setTimeout(r, 50));
+        
+        const parts = leSplitImageIntoParts(s.splitSource, tolerance, minSize, ignoreBg);
+        
+        if (parts.length === 0) {
+            progress?.classList.add('hidden');
+            return Swal.fire('!', 'แยกชิ้นไม่ได้ — ลองลด "ขนาดชิ้นขั้นต่ำ" หรือเพิ่ม "ความใกล้เคียงสี"', 'info');
+        }
+        
+        s.splitParts = parts;
+        
+        // วาด canvas ใหม่ — ใส่ทุกชิ้นกลับเข้าไป
+        leSplitRenderToCanvas();
+        leSplitRefresh();
+        
+        progress?.classList.add('hidden');
+        document.getElementById('leSplitPartsContainer')?.classList.remove('hidden');
+        document.getElementById('leSplitMerge')?.classList.remove('hidden');
+        
+        Swal.fire({ icon: 'success', title: `แยกได้ ${parts.length} ชิ้น`, text: 'คลิกที่ชิ้นบนรูปเพื่อแก้ไข', timer: 2000, showConfirmButton: false });
+        leShowTip('🎯 คลิกที่ชิ้นบนรูปหรือเลือกจากรายการเพื่อแก้ไข', 4000);
+    } catch(err) {
+        console.error('Split error:', err);
+        progress?.classList.add('hidden');
+        Swal.fire('ผิดพลาด', err.message || 'แยกชิ้นไม่สำเร็จ', 'error');
+    }
+};
+
+// ==========================================
+// Algorithm หลัก: flood-fill แยกชิ้น
+// ==========================================
+function leSplitImageIntoParts(img, tolerance, minSize, ignoreBg) {
+    const W = img.width, H = img.height;
+    const tmp = document.createElement('canvas');
+    tmp.width = W; tmp.height = H;
+    const tctx = tmp.getContext('2d', { willReadFrequently: true });
+    tctx.drawImage(img, 0, 0);
+    const imgData = tctx.getImageData(0, 0, W, H);
+    const data = imgData.data;
+    
+    // หา bg color จากมุม (ถ้า ignoreBg)
+    let bgR = -1, bgG = -1, bgB = -1;
+    if (ignoreBg) {
+        const corners = [[0,0], [W-1,0], [0,H-1], [W-1,H-1]];
+        let r=0, g=0, b=0;
+        corners.forEach(([x,y]) => {
+            const i = (y * W + x) * 4;
+            r += data[i]; g += data[i+1]; b += data[i+2];
+        });
+        bgR = r / 4; bgG = g / 4; bgB = b / 4;
+    }
+    
+    const visited = new Uint8Array(W * H);
+    const parts = [];
+    
+    // Helper: เช็คว่า pixel นี้เป็นพื้นหลังไหม
+    const isBg = (idx) => {
+        if (data[idx+3] < 30) return true; // โปร่งใส = bg
+        if (!ignoreBg) return false;
+        const dr = data[idx] - bgR;
+        const dg = data[idx+1] - bgG;
+        const db = data[idx+2] - bgB;
+        return Math.sqrt(dr*dr + dg*dg + db*db) < tolerance;
+    };
+    
+    // เช็คว่า 2 pixel สีใกล้กันไหม
+    const sameColor = (i1, i2) => {
+        const dr = data[i1] - data[i2];
+        const dg = data[i1+1] - data[i2+1];
+        const db = data[i1+2] - data[i2+2];
+        return Math.sqrt(dr*dr + dg*dg + db*db) < tolerance;
+    };
+    
+    // BFS flood-fill จาก seed
+    function floodFill(startX, startY) {
+        const startIdx = (startY * W + startX) * 4;
+        const startR = data[startIdx], startG = data[startIdx+1], startB = data[startIdx+2];
+        
+        const queue = [[startX, startY]];
+        const pixels = [];  // [{x, y}]
+        let minX = startX, maxX = startX, minY = startY, maxY = startY;
+        
+        while (queue.length > 0) {
+            const [x, y] = queue.pop();
+            if (x < 0 || x >= W || y < 0 || y >= H) continue;
+            const vIdx = y * W + x;
+            if (visited[vIdx]) continue;
+            const dIdx = vIdx * 4;
+            if (isBg(dIdx)) continue;
+            
+            // เช็คสีใกล้เคียง seed
+            const dr = data[dIdx] - startR;
+            const dg = data[dIdx+1] - startG;
+            const db = data[dIdx+2] - startB;
+            if (Math.sqrt(dr*dr + dg*dg + db*db) > tolerance) continue;
+            
+            visited[vIdx] = 1;
+            pixels.push([x, y]);
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+            
+            // 4-connected neighbors
+            queue.push([x+1, y]);
+            queue.push([x-1, y]);
+            queue.push([x, y+1]);
+            queue.push([x, y-1]);
+        }
+        
+        return { pixels, minX, maxX, minY, maxY, color: { r: startR, g: startG, b: startB } };
+    }
+    
+    // Scan ทั้งรูป — เจอ pixel ที่ยังไม่ได้เยี่ยม + ไม่ใช่ bg → flood-fill
+    for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+            const vIdx = y * W + x;
+            if (visited[vIdx]) continue;
+            const dIdx = vIdx * 4;
+            if (isBg(dIdx)) {
+                visited[vIdx] = 1;
+                continue;
+            }
+            
+            const result = floodFill(x, y);
+            if (result.pixels.length < minSize) continue;
+            
+            // สร้าง mask ImageData (ขนาดเท่า bbox)
+            const bw = result.maxX - result.minX + 1;
+            const bh = result.maxY - result.minY + 1;
+            const maskData = new Uint8ClampedArray(bw * bh * 4);
+            
+            // pixel ใน part = สีนั้น (alpha 255), pixel นอก = โปร่งใส (alpha 0)
+            result.pixels.forEach(([px, py]) => {
+                const lx = px - result.minX;
+                const ly = py - result.minY;
+                const lIdx = (ly * bw + lx) * 4;
+                const oIdx = (py * W + px) * 4;
+                maskData[lIdx]   = data[oIdx];
+                maskData[lIdx+1] = data[oIdx+1];
+                maskData[lIdx+2] = data[oIdx+2];
+                maskData[lIdx+3] = 255;
+            });
+            
+            parts.push({
+                id: 'p_' + Date.now() + '_' + parts.length,
+                originalColor: '#' + [result.color.r, result.color.g, result.color.b]
+                    .map(c => Math.round(c).toString(16).padStart(2, '0')).join(''),
+                currentColor: '#' + [result.color.r, result.color.g, result.color.b]
+                    .map(c => Math.round(c).toString(16).padStart(2, '0')).join(''),
+                originalMask: maskData,    // mask ดั้งเดิม (มีสีต้นฉบับ)
+                bbox: { x: result.minX, y: result.minY, w: bw, h: bh },
+                originalBbox: { x: result.minX, y: result.minY, w: bw, h: bh },
+                scale: 1,
+                dx: 0,                      // offset ย้ายตำแหน่ง
+                dy: 0,
+                replaceText: null,          // ถ้าตั้งค่า = ใช้ตัวอักษรแทน
+                visible: true,
+                pixelCount: result.pixels.length
+            });
+        }
+    }
+    
+    // เรียงจากชิ้นใหญ่ → เล็ก
+    parts.sort((a, b) => b.pixelCount - a.pixelCount);
+    return parts;
+}
+
+// ==========================================
+// วาดทุก part ลง canvas
+// ==========================================
+function leSplitRenderToCanvas() {
+    const s = window.leState;
+    if (!s.splitSource) return;
+    
+    const ctx = s.ctx;
+    ctx.clearRect(0, 0, s.canvas.width, s.canvas.height);
+    
+    // วาดพื้นหลัง (สีพื้น/transparent)
+    // ใช้สีมุมของรูปต้นฉบับเป็นพื้น
+    const tmp = document.createElement('canvas');
+    tmp.width = s.splitSource.width;
+    tmp.height = s.splitSource.height;
+    const tctx = tmp.getContext('2d', { willReadFrequently: true });
+    tctx.drawImage(s.splitSource, 0, 0);
+    try {
+        const corner = tctx.getImageData(0, 0, 1, 1).data;
+        ctx.fillStyle = `rgba(${corner[0]},${corner[1]},${corner[2]},${corner[3]/255})`;
+        ctx.fillRect(0, 0, s.canvas.width, s.canvas.height);
+    } catch(e) {}
+    
+    // วาดแต่ละ part
+    s.splitParts.forEach(part => {
+        if (!part.visible) return;
+        leDrawPart(ctx, part);
+    });
+    
+    // highlight ชิ้นที่เลือก
+    if (s.selectedPartId) {
+        const p = s.splitParts.find(x => x.id === s.selectedPartId);
+        if (p) {
+            ctx.save();
+            ctx.strokeStyle = '#ec4899';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 4]);
+            const bx = p.originalBbox.x + p.dx;
+            const by = p.originalBbox.y + p.dy;
+            const bw = p.originalBbox.w * p.scale;
+            const bh = p.originalBbox.h * p.scale;
+            ctx.strokeRect(bx - 5, by - 5, bw + 10, bh + 10);
+            ctx.restore();
+        }
+    }
+}
+
+function leDrawPart(ctx, part) {
+    // ถ้ามี replaceText → วาดเป็นตัวอักษร
+    if (part.replaceText) {
+        ctx.save();
+        const bx = part.originalBbox.x + part.dx;
+        const by = part.originalBbox.y + part.dy;
+        const bw = part.originalBbox.w * part.scale;
+        const bh = part.originalBbox.h * part.scale;
+        
+        // ใช้ฟอนต์หนา สีตาม currentColor
+        const fontSize = bh * 0.95;
+        ctx.font = `900 ${fontSize}px Arial, sans-serif`;
+        ctx.fillStyle = part.currentColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(part.replaceText, bx + bw / 2, by + bh / 2);
+        ctx.restore();
+        return;
+    }
+    
+    // สร้าง offscreen canvas จาก mask
+    const off = document.createElement('canvas');
+    off.width = part.originalBbox.w;
+    off.height = part.originalBbox.h;
+    const octx = off.getContext('2d');
+    
+    // ถ้าเปลี่ยนสี → ใช้ mask แล้วเปลี่ยนสีก่อนวาด
+    if (part.currentColor !== part.originalColor) {
+        // สร้าง mask ใหม่ที่มีสี currentColor
+        const newR = parseInt(part.currentColor.slice(1, 3), 16);
+        const newG = parseInt(part.currentColor.slice(3, 5), 16);
+        const newB = parseInt(part.currentColor.slice(5, 7), 16);
+        const recolored = new Uint8ClampedArray(part.originalMask.length);
+        for (let i = 0; i < part.originalMask.length; i += 4) {
+            if (part.originalMask[i+3] > 0) {
+                recolored[i]   = newR;
+                recolored[i+1] = newG;
+                recolored[i+2] = newB;
+                recolored[i+3] = part.originalMask[i+3];
+            }
+        }
+        const imgData = new ImageData(recolored, part.originalBbox.w, part.originalBbox.h);
+        octx.putImageData(imgData, 0, 0);
+    } else {
+        const imgData = new ImageData(
+            new Uint8ClampedArray(part.originalMask), 
+            part.originalBbox.w, 
+            part.originalBbox.h
+        );
+        octx.putImageData(imgData, 0, 0);
+    }
+    
+    // วาดลง main canvas พร้อม scale + offset
+    const bx = part.originalBbox.x + part.dx;
+    const by = part.originalBbox.y + part.dy;
+    const bw = part.originalBbox.w * part.scale;
+    const bh = part.originalBbox.h * part.scale;
+    
+    // ใช้ smoothing เพื่อให้ scale แล้วไม่แตก
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(off, bx, by, bw, bh);
+}
+
+// ==========================================
+// UI: รายการ parts
+// ==========================================
+function leSplitRefresh() {
+    const container = document.getElementById('leSplitPartsList');
+    const countEl = document.getElementById('leSplitCount');
+    if (!container) return;
+    
+    const parts = window.leState.splitParts;
+    if (countEl) countEl.innerText = parts.length;
+    
+    if (parts.length === 0) {
+        container.innerHTML = '<div class="text-center py-4 text-slate-500 text-xs">ยังไม่ได้แยกชิ้น</div>';
+        return;
+    }
+    
+    container.innerHTML = parts.map((p, idx) => {
+        const isSel = p.id === window.leState.selectedPartId;
+        return `
+        <div onclick="leSplitSelectPart('${p.id}')" class="cursor-pointer bg-slate-800/50 hover:bg-pink-950/40 ${isSel ? 'ring-2 ring-pink-500 bg-pink-950/50' : ''} border border-white/10 rounded-lg p-2 flex items-center gap-2 transition">
+            <div class="w-8 h-8 rounded border border-white/20 flex-shrink-0" style="background:${p.currentColor}"></div>
+            <div class="flex-1 min-w-0">
+                <div class="text-[11px] font-bold text-white">ชิ้นที่ ${idx + 1}${p.replaceText ? ' "' + p.replaceText + '"' : ''}</div>
+                <div class="text-[9px] text-slate-400">${p.originalBbox.w}×${p.originalBbox.h}px • ${p.pixelCount.toLocaleString()} pixels</div>
+            </div>
+            <div class="flex gap-0.5">
+                <button onclick="event.stopPropagation(); leSplitToggleVisible('${p.id}')" class="${p.visible ? 'text-emerald-400' : 'text-slate-500'} hover:bg-white/10 p-1 rounded">
+                    <span class="material-icons text-sm">${p.visible ? 'visibility' : 'visibility_off'}</span>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+window.leSplitSelectPart = function(id) {
+    window.leState.selectedPartId = id;
+    const part = window.leState.splitParts.find(p => p.id === id);
+    if (!part) return;
+    
+    // โชว์ editor
+    document.getElementById('leSplitEditor')?.classList.remove('hidden');
+    
+    // sync UI
+    const colorInput = document.getElementById('leSplitColor');
+    if (colorInput) colorInput.value = part.currentColor;
+    document.getElementById('leSplitColorLabel').innerText = part.currentColor;
+    document.getElementById('leSplitScale').value = Math.round(part.scale * 100);
+    document.getElementById('leSplitScaleLabel').innerText = Math.round(part.scale * 100) + '%';
+    document.getElementById('leSplitReplaceText').value = part.replaceText || '';
+    
+    leSplitRenderToCanvas();
+    leSplitRefresh();
+};
+
+window.leSplitChangeColor = function(color) {
+    const s = window.leState;
+    const part = s.splitParts.find(p => p.id === s.selectedPartId);
+    if (!part) return;
+    part.currentColor = color;
+    document.getElementById('leSplitColor').value = color;
+    document.getElementById('leSplitColorLabel').innerText = color;
+    leSplitRenderToCanvas();
+    leSplitRefresh();
+};
+
+window.leSplitChangeScale = function(val) {
+    const s = window.leState;
+    const part = s.splitParts.find(p => p.id === s.selectedPartId);
+    if (!part) return;
+    part.scale = parseInt(val) / 100;
+    document.getElementById('leSplitScaleLabel').innerText = val + '%';
+    leSplitRenderToCanvas();
+};
+
+window.leSplitReplaceWithText = function() {
+    const s = window.leState;
+    const part = s.splitParts.find(p => p.id === s.selectedPartId);
+    if (!part) return;
+    const text = document.getElementById('leSplitReplaceText').value;
+    part.replaceText = text || null;
+    leSplitRenderToCanvas();
+    leSplitRefresh();
+};
+
+window.leSplitDuplicate = function() {
+    const s = window.leState;
+    const part = s.splitParts.find(p => p.id === s.selectedPartId);
+    if (!part) return;
+    const dup = JSON.parse(JSON.stringify(part));
+    dup.id = 'p_' + Date.now();
+    dup.dx = part.dx + 30;
+    dup.dy = part.dy + 30;
+    // clone mask
+    dup.originalMask = new Uint8ClampedArray(part.originalMask);
+    s.splitParts.push(dup);
+    s.selectedPartId = dup.id;
+    leSplitRenderToCanvas();
+    leSplitRefresh();
+};
+
+window.leSplitDeletePart = function() {
+    const s = window.leState;
+    s.splitParts = s.splitParts.filter(p => p.id !== s.selectedPartId);
+    s.selectedPartId = null;
+    document.getElementById('leSplitEditor')?.classList.add('hidden');
+    leSplitRenderToCanvas();
+    leSplitRefresh();
+};
+
+window.leSplitToggleVisible = function(id) {
+    const part = window.leState.splitParts.find(p => p.id === id);
+    if (part) {
+        part.visible = !part.visible;
+        leSplitRenderToCanvas();
+        leSplitRefresh();
+    }
+};
+
+// คลิกที่ canvas → เลือกชิ้น (ใช้เฉพาะแท็บ split)
+function leSplitHandleCanvasClick(e) {
+    const s = window.leState;
+    if (s.currentTab !== 'split' || !s.splitMode || s.splitParts.length === 0) return false;
+    
+    const rect = s.canvas.getBoundingClientRect();
+    const scale = leTotalScale();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const px = (cx - rect.left) / scale;
+    const py = (cy - rect.top) / scale;
+    
+    // หา part ที่อยู่ตรงนั้น (ค้นจากบนสุดลงล่าง)
+    for (let i = s.splitParts.length - 1; i >= 0; i--) {
+        const p = s.splitParts[i];
+        if (!p.visible) continue;
+        const bx = p.originalBbox.x + p.dx;
+        const by = p.originalBbox.y + p.dy;
+        const bw = p.originalBbox.w * p.scale;
+        const bh = p.originalBbox.h * p.scale;
+        if (px >= bx && px <= bx + bw && py >= by && py <= by + bh) {
+            // เช็คให้แม่นขึ้น — เป็น pixel ของ part จริงๆ ไหม
+            if (p.replaceText) {
+                leSplitSelectPart(p.id);
+                return true;
+            }
+            const localX = Math.floor((px - bx) / p.scale);
+            const localY = Math.floor((py - by) / p.scale);
+            if (localX >= 0 && localX < p.originalBbox.w && localY >= 0 && localY < p.originalBbox.h) {
+                const idx = (localY * p.originalBbox.w + localX) * 4;
+                if (p.originalMask[idx + 3] > 30) {
+                    leSplitSelectPart(p.id);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// ==========================================
+// Drag/Move ชิ้นที่เลือก
+// ==========================================
+function leSplitHandleCanvasMouseDown(e) {
+    const s = window.leState;
+    if (s.currentTab !== 'split' || !s.splitMode) return false;
+    
+    // เช็คก่อนว่าคลิกที่ชิ้นไหน
+    if (!leSplitHandleCanvasClick(e)) return false;
+    
+    // ถ้าคลิกเลือกชิ้นได้แล้ว → เตรียม drag
+    s._splitDragging = true;
+    const rect = s.canvas.getBoundingClientRect();
+    const scale = leTotalScale();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    s._splitDragStart = {
+        mouseX: (cx - rect.left) / scale,
+        mouseY: (cy - rect.top) / scale
+    };
+    const part = s.splitParts.find(p => p.id === s.selectedPartId);
+    if (part) {
+        s._splitDragStart.dx = part.dx;
+        s._splitDragStart.dy = part.dy;
+    }
+    return true;
+}
+
+function leSplitHandleCanvasMouseMove(e) {
+    const s = window.leState;
+    if (!s._splitDragging) return false;
+    e.preventDefault();
+    const part = s.splitParts.find(p => p.id === s.selectedPartId);
+    if (!part) return false;
+    
+    const rect = s.canvas.getBoundingClientRect();
+    const scale = leTotalScale();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const newX = (cx - rect.left) / scale;
+    const newY = (cy - rect.top) / scale;
+    
+    part.dx = s._splitDragStart.dx + (newX - s._splitDragStart.mouseX);
+    part.dy = s._splitDragStart.dy + (newY - s._splitDragStart.mouseY);
+    leSplitRenderToCanvas();
+    return true;
+}
+
+function leSplitHandleCanvasMouseUp() {
+    window.leState._splitDragging = false;
+}
+
+// ==========================================
+// Finalize — รวมทุก part เป็นรูปเดียว ออกจาก split mode
+// ==========================================
+window.leSplitFinalize = async function() {
+    const s = window.leState;
+    if (s.splitParts.length === 0) return Swal.fire('!', 'ยังไม่มีชิ้นให้รวม', 'warning');
+    
+    const ok = await Swal.fire({
+        title: 'รวมเป็นโลโก้ใหม่?',
+        text: 'ทุกชิ้นจะถูกรวมเป็นรูปเดียว — แก้ทีละชิ้นไม่ได้อีก',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ใช่ รวมเลย',
+        cancelButtonText: 'ยกเลิก'
+    });
+    if (!ok.isConfirmed) return;
+    
+    // วาดทุก part ลง canvas (ยกเลิก highlight)
+    s.selectedPartId = null;
+    leSplitRenderToCanvas();
+    
+    // เก็บ canvas เป็น Image ใหม่
+    const dataUrl = s.canvas.toDataURL('image/png');
+    const newImg = new Image();
+    newImg.onload = () => {
+        s.baseImage = newImg;
+        s.splitMode = false;
+        s.splitParts = [];
+        s.splitSource = null;
+        s.selectedPartId = null;
+        
+        document.getElementById('leSplitPartsContainer')?.classList.add('hidden');
+        document.getElementById('leSplitEditor')?.classList.add('hidden');
+        document.getElementById('leSplitMerge')?.classList.add('hidden');
+        document.getElementById('leSplitSettings')?.classList.add('hidden');
+        
+        Swal.fire({ icon: 'success', title: '✓ รวมเป็นรูปเดียวแล้ว', text: 'ใช้งานเหมือนรูปทั่วไปได้แล้ว', timer: 1500, showConfirmButton: false });
+    };
+    newImg.src = dataUrl;
+};
+
+
 window._leAiBgModule = null;
 
 async function leLoadAiBgLibrary() {
