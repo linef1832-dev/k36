@@ -166,6 +166,9 @@ async function showPage(pageName) {
                 else if (pageName === 'gallery') {
                     if (typeof initGalleryApp === 'function') initGalleryApp();
                 }
+                else if (pageName === 'logo_editor') {
+                    if (typeof initLogoEditorApp === 'function') initLogoEditorApp();
+                }
                 else if (pageName === 'duty') {
                     if (typeof initDutyApp === 'function') await initDutyApp();
                 }
