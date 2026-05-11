@@ -515,14 +515,27 @@ window.leLoadNewLogo = function(event) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
+            // 🌟 [Auto-remove background] ตรวจ + ลบพื้นหลังโลโก้ก่อนใช้
+            const removeBg = document.getElementById('leAutoRemoveBg');
+            const shouldRemove = !removeBg || removeBg.checked; // default = true
+            
+            let finalImg = img;
+            if (shouldRemove) {
+                try {
+                    finalImg = await leRemoveBgFromLogo(img);
+                } catch (e) {
+                    console.warn('Remove bg failed:', e);
+                    finalImg = img;
+                }
+            }
+            
             if (window.leState.mode === 'magic') {
-                // 🌟 โหมดเร็ว: เก็บไว้รอ
-                window.leState.pendingLogo = img;
+                window.leState.pendingLogo = finalImg;
                 const preview = document.getElementById('leLogoPreview');
                 const previewImg = document.getElementById('leLogoPreviewImg');
                 const badge = document.getElementById('leLogoReadyBadge');
-                if (previewImg) previewImg.src = e.target.result;
+                if (previewImg) previewImg.src = finalImg.src;
                 if (preview) preview.classList.remove('hidden');
                 if (badge) badge.classList.remove('hidden');
                 
@@ -532,22 +545,21 @@ window.leLoadNewLogo = function(event) {
                     leShowTip('💡 ตอนนี้เลือกรูปต้นฉบับก่อน', 3500);
                 }
             } else {
-                // โหมดเดิม: วางที่มุมรูป
                 if (!window.leState.baseImage) {
                     Swal.fire('!', 'กรุณาเลือกรูปต้นฉบับก่อน', 'warning');
                     if (event.target) event.target.value = '';
                     return;
                 }
-                window.leState.newLogo = img;
+                window.leState.newLogo = finalImg;
                 const baseW = window.leState.baseImage.width;
                 const w0 = baseW * 0.15;
-                const ratio = img.height / img.width;
+                const ratio = finalImg.height / finalImg.width;
                 window.leState.logoOverlay = {
                     x: baseW * 0.05,
                     y: window.leState.baseImage.height * 0.05,
                     w: w0, h: w0 * ratio, opacity: 1
                 };
-                document.getElementById('leLogoImg').src = e.target.result;
+                document.getElementById('leLogoImg').src = finalImg.src;
                 document.getElementById('leLogoOverlay').classList.remove('hidden');
                 document.getElementById('leLogoControls').classList.remove('hidden');
                 document.getElementById('leLogoSize').value = 100;
@@ -561,6 +573,78 @@ window.leLoadNewLogo = function(event) {
     reader.readAsDataURL(file);
     if (event.target) event.target.value = '';
 };
+
+// ==========================================
+// 🪄 ลบพื้นหลังโลโก้อัตโนมัติ (ตรวจสีมุม → ทำให้โปร่งใส)
+// ==========================================
+async function leRemoveBgFromLogo(img) {
+    return new Promise((resolve, reject) => {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0);
+            
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            const w = canvas.width, h = canvas.height;
+            
+            // 1. หาสีพื้นหลังจาก 4 มุม (เฉลี่ย)
+            const corners = [
+                [0, 0], [w-1, 0], [0, h-1], [w-1, h-1],
+                [Math.floor(w/4), 0], [Math.floor(w*3/4), 0],
+                [0, Math.floor(h/4)], [0, Math.floor(h*3/4)]
+            ];
+            let bgR = 0, bgG = 0, bgB = 0;
+            corners.forEach(([x, y]) => {
+                const idx = (y * w + x) * 4;
+                bgR += data[idx];
+                bgG += data[idx+1];
+                bgB += data[idx+2];
+            });
+            bgR = Math.round(bgR / corners.length);
+            bgG = Math.round(bgG / corners.length);
+            bgB = Math.round(bgB / corners.length);
+            
+            // 2. ถ้าสีมุมไม่สอดคล้องกัน (variance สูง) = โลโก้นี้พื้นหลังโปร่งใสอยู่แล้ว ไม่ต้องทำ
+            let variance = 0;
+            corners.forEach(([x, y]) => {
+                const idx = (y * w + x) * 4;
+                variance += Math.abs(data[idx] - bgR) + Math.abs(data[idx+1] - bgG) + Math.abs(data[idx+2] - bgB);
+            });
+            variance = variance / corners.length;
+            
+            if (variance > 50) {
+                // สีมุมไม่เป็นพื้นเดียวกัน → คืนรูปเดิม
+                return resolve(img);
+            }
+            
+            // 3. ลบ pixel ที่ใกล้เคียงสีพื้นหลัง (threshold 60)
+            const threshold = 60;
+            for (let i = 0; i < data.length; i += 4) {
+                const dr = data[i] - bgR;
+                const dg = data[i+1] - bgG;
+                const db = data[i+2] - bgB;
+                const dist = Math.sqrt(dr*dr + dg*dg + db*db);
+                if (dist < threshold) {
+                    // ลด alpha ตามระยะ (ทำขอบนุ่ม)
+                    data[i+3] = Math.round((dist / threshold) * 255);
+                }
+            }
+            
+            ctx.putImageData(imgData, 0, 0);
+            
+            // 4. สร้าง Image object ใหม่จาก canvas
+            const newImg = new Image();
+            newImg.onload = () => resolve(newImg);
+            newImg.onerror = reject;
+            newImg.src = canvas.toDataURL('image/png');
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
 
 window.leClearPendingLogo = function() {
     window.leState.pendingLogo = null;
