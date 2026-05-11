@@ -25,6 +25,21 @@ window.initLogoEditorApp = function() {
     window.leState.canvas = cvs;
     window.leState.ctx = cvs.getContext('2d');
 
+    // 🌟 [สิทธิ์] ซ่อนปุ่มที่ไม่มีสิทธิ์ — admin/manager เห็นทุกปุ่ม
+    const isAdminOrMgr = (currentUser.role === 'admin' || currentUser.role === 'manager');
+    const can = (perm) => isAdminOrMgr || (typeof window.hasUserPerm === 'function' && window.hasUserPerm(perm));
+    window.leCanErase    = can('logo_editor_erase');
+    window.leCanAddLogo  = can('logo_editor_add_logo');
+    window.leCanDownload = can('logo_editor_download');
+
+    // ซ่อน section ที่ไม่มีสิทธิ์
+    const eraseSection    = document.getElementById('leEraseSection');
+    const addLogoSection  = document.getElementById('leAddLogoSection');
+    const downloadBtn     = document.getElementById('leDownloadBtn');
+    if (eraseSection)   eraseSection.style.display    = window.leCanErase    ? '' : 'none';
+    if (addLogoSection) addLogoSection.style.display  = window.leCanAddLogo  ? '' : 'none';
+    if (downloadBtn)    downloadBtn.style.display     = window.leCanDownload ? '' : 'none';
+
     leSetupCanvasEvents();
     leSetupLogoOverlayEvents();
     leSetupDragDropFile();
@@ -196,6 +211,9 @@ function leSetupCanvasEvents() {
 // 🩹 เติมพื้นที่ที่เลือก (ลบโลโก้)
 // ==========================================
 window.leApplyErase = function() {
+    if (window.leCanErase === false) {
+        return Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ลบโลโก้เดิม', 'warning');
+    }
     const s = window.leState;
     if (!s.selBox || s.selBox.w < 4 || s.selBox.h < 4) {
         return Swal.fire('!', 'ลากกรอบทับโลโก้ก่อน แล้วค่อยกดเติมพื้นที่', 'warning');
@@ -330,6 +348,10 @@ function leBoxBlur(imgData, radius) {
 // 🏷️ ใส่โลโก้ใหม่
 // ==========================================
 window.leLoadNewLogo = function(event) {
+    if (window.leCanAddLogo === false) {
+        if (event.target) event.target.value = '';
+        return Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ใส่โลโก้ใหม่', 'warning');
+    }
     const file = event.target ? event.target.files[0] : event;
     if (!file) return;
     if (!window.leState.baseImage) {
@@ -503,6 +525,9 @@ window.leResetAll = async function() {
 // 💾 ดาวน์โหลด — รวม base canvas + โลโก้ใหม่ลงไฟล์เดียว
 // ==========================================
 window.leDownload = function() {
+    if (window.leCanDownload === false) {
+        return Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ดาวน์โหลดรูป', 'warning');
+    }
     const s = window.leState;
     if (!s.baseImage) return Swal.fire('!', 'ยังไม่มีรูป', 'warning');
     
