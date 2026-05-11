@@ -39,6 +39,22 @@ const GALLERY_MODE_UPLOAD_TEXT = {
 };
 
 window.initGalleryApp = function() {
+    // 🌟 [สิทธิ์ tab] ซ่อนแท็บที่ไม่มีสิทธิ์ดู — admin/manager เห็นทุกแท็บ
+    const isAdminOrManager = (currentUser.role === 'admin' || currentUser.role === 'manager');
+    const tabPermMap = {
+        tabBonus: 'gallery_tab_bonus',
+        tabReach: 'gallery_tab_reach',
+        tabCard:  'gallery_tab_card'
+    };
+    Object.keys(tabPermMap).forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        const permId = tabPermMap[btnId];
+        const canSee = isAdminOrManager || (typeof window.hasUserPerm === 'function' && window.hasUserPerm(permId));
+        if (canSee) btn.classList.remove('hidden');
+        else btn.classList.add('hidden');
+    });
+
     switchGalleryMode('general');
 
     const adminControls = document.getElementById('adminUploadControls');
@@ -78,6 +94,17 @@ window.initGalleryApp = function() {
 }
 
 window.switchGalleryMode = function(mode) {
+    // 🌟 [สิทธิ์ tab] กันเปิด mode ที่ไม่มีสิทธิ์ (เผื่อ user ลอง bypass ด้วย console)
+    const isAdminOrManager = (currentUser.role === 'admin' || currentUser.role === 'manager');
+    const modePerm = { bonus: 'gallery_tab_bonus', reach: 'gallery_tab_reach', card: 'gallery_tab_card' };
+    if (modePerm[mode] && !isAdminOrManager) {
+        const allowed = (typeof window.hasUserPerm === 'function' && window.hasUserPerm(modePerm[mode]));
+        if (!allowed) {
+            Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์เข้าดูแท็บนี้ครับ', 'warning');
+            return;
+        }
+    }
+
     currentGalleryMode = mode;
     
     // ปิดปุ่มทุก tab → เปิดเฉพาะที่ active
