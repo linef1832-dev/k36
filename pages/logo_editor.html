@@ -1,5 +1,29 @@
 <style>
   #logoEditorApp { font-family: inherit; }
+  
+  /* 🌟 บังคับ sidebar scroll ทำงานแน่นอน */
+  #logoEditorApp aside { 
+    height: 100% !important; 
+    min-height: 0 !important; 
+    max-height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  #logoEditorApp aside > div:first-of-type {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  /* scrollbar ให้เห็นชัดเลย */
+  #logoEditorApp aside ::-webkit-scrollbar { width: 8px; }
+  #logoEditorApp aside ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+  #logoEditorApp aside ::-webkit-scrollbar-thumb { 
+    background: rgba(168, 85, 247, 0.5); 
+    border-radius: 4px;
+  }
+  #logoEditorApp aside ::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
+  
   #leCanvasArea {
     background-color: #1a1a1a;
     background-image:
@@ -157,10 +181,10 @@
         </button>
     </div>
 
-    <div class="flex-1 min-h-0 flex relative">
+    <div class="flex-1 flex relative" style="min-height:0; height:100%; max-height:100%;">
 
         <!-- Sidebar -->
-        <aside class="le-tool-panel w-72 shrink-0 flex flex-col text-white">
+        <aside class="le-tool-panel w-72 shrink-0 flex flex-col text-white" style="height:100%; min-height:0; max-height:100%;">
             
             <!-- ───── Tab Navigation ───── -->
             <div class="le-tab-nav flex">
@@ -187,7 +211,7 @@
             </div>
             
             <!-- Content แต่ละ tab -->
-            <div class="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+            <div class="flex-1 overflow-y-auto custom-scrollbar" style="min-height:0; overflow-y:auto !important; overscroll-behavior: contain;">
                 
                 <!-- Step 1: เลือกรูป (โชว์ทุก tab) -->
                 <div class="p-3 border-b border-white/5 bg-fuchsia-950/10">
