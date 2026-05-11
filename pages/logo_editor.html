@@ -292,6 +292,38 @@
                                 </div>
                                 <input type="range" id="leLogoOpacity" min="0" max="100" value="100" oninput="leUpdateLogoOpacity()" class="w-full le-slider accent-emerald-500">
                             </div>
+                            
+                            <!-- 🌟 ใหม่: เปลี่ยนสีตัวอักษรในโลโก้ -->
+                            <div class="border-t border-emerald-900/40 pt-2">
+                                <label class="flex items-center justify-between text-[10px] font-black text-emerald-300 uppercase mb-1.5 cursor-pointer">
+                                    <span class="flex items-center gap-1">
+                                        <span class="material-icons text-[12px]">format_color_fill</span> เปลี่ยนสีโลโก้
+                                    </span>
+                                    <input type="checkbox" id="leLogoRecolor" onchange="leUpdateLogoRecolor()" class="w-4 h-4 accent-emerald-500">
+                                </label>
+                                <div id="leLogoRecolorControls" class="hidden space-y-2 mt-1">
+                                    <div class="flex gap-2 items-center">
+                                        <input type="color" id="leLogoNewColor" value="#ec4899" onchange="leUpdateLogoRecolor()" class="w-12 h-9 rounded-lg cursor-pointer border border-white/10">
+                                        <div class="flex-1 text-[10px] text-emerald-200/70">สีใหม่ที่ต้องการเปลี่ยน</div>
+                                    </div>
+                                    <!-- preset สี -->
+                                    <div class="grid grid-cols-6 gap-1">
+                                        <button onclick="leSetLogoColor('#ffffff')" style="background:#ffffff" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ขาว"></button>
+                                        <button onclick="leSetLogoColor('#000000')" style="background:#000000" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ดำ"></button>
+                                        <button onclick="leSetLogoColor('#ec4899')" style="background:#ec4899" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ชมพู"></button>
+                                        <button onclick="leSetLogoColor('#a855f7')" style="background:#a855f7" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ม่วง"></button>
+                                        <button onclick="leSetLogoColor('#f59e0b')" style="background:#f59e0b" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ส้ม"></button>
+                                        <button onclick="leSetLogoColor('#10b981')" style="background:#10b981" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="เขียว"></button>
+                                        <button onclick="leSetLogoColor('#ef4444')" style="background:#ef4444" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="แดง"></button>
+                                        <button onclick="leSetLogoColor('#3b82f6')" style="background:#3b82f6" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="น้ำเงิน"></button>
+                                        <button onclick="leSetLogoColor('#06b6d4')" style="background:#06b6d4" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ฟ้าน้ำทะเล"></button>
+                                        <button onclick="leSetLogoColor('#facc15')" style="background:#facc15" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="เหลือง"></button>
+                                        <button onclick="leSetLogoColor('#dc2626')" style="background:#dc2626" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="แดงเข้ม"></button>
+                                        <button onclick="leSetLogoColor('#1e293b')" style="background:#1e293b" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="กรมท่า"></button>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <button onclick="leRemoveLogo()" class="w-full bg-rose-900/30 hover:bg-rose-900/50 text-rose-300 px-2 py-1.5 rounded-lg font-bold text-[10px] border border-rose-900/40">
                                 <span class="material-icons text-xs align-middle">delete_outline</span> ลบโลโก้นี้
                             </button>
