@@ -1,8 +1,6 @@
 // ====================================================
-// 🎨 เครื่องมือแต่งรูป v3
-// - Shape: rectangle, ellipse, circle, lasso
-// - คลุมแล้วเติมพื้นที่อัตโนมัติ (ไม่ต้องกดปุ่ม)
-// - ขนาดเริ่มต้น 100% (ขนาดจริงของรูป)
+// 🎨 เครื่องมือแต่งรูป v4 - Smart Replace
+// โหมดเร็ว: โหลดโลโก้ใหม่ก่อน → ลากคลุมโลโก้เก่า → ลบ + วางทันที
 // ====================================================
 
 window.leState = {
@@ -10,20 +8,19 @@ window.leState = {
     ctx: null,
     baseImage: null,
     newLogo: null,
+    pendingLogo: null,     // โลโก้ที่เลือกไว้ใน "โหมดเร็ว" (ยังไม่วาง)
     history: [],
-    shape: 'rect',           // 'rect' | 'ellipse' | 'circle' | 'lasso'
+    mode: 'magic',         // 'magic' = คลุมแล้วเสร็จ | 'manual' = แยกขั้น
+    shape: 'rect',
     isDrawingSelection: false,
     selStart: null,
-    lassoPoints: [],         // สำหรับ lasso
-    selBox: null,            // กรอบหรือ path ที่เลือกอยู่ (คอ-ordinates)
+    lassoPoints: [],
+    selBox: null,
     zoom: 1,
-    fitScale: 1,             // ไม่ใช้ fit auto แล้ว — แสดง 1:1 เป็นค่าเริ่มต้น
     logoOverlay: { x: 50, y: 50, w: 120, h: 120, opacity: 1 }
 };
 
-function leTotalScale() {
-    return window.leState.zoom || 1;
-}
+function leTotalScale() { return window.leState.zoom || 1; }
 
 function leEnsureInit() {
     if (window.leState.canvas && window.leState.ctx) return true;
@@ -34,6 +31,7 @@ function leEnsureInit() {
     leSetupCanvasEvents();
     leSetupLogoOverlayEvents();
     leSetupDragDropFile();
+    leSetMode('magic'); // ตั้ง mode เริ่มต้น
     return true;
 }
 
@@ -55,13 +53,36 @@ window.initLogoEditorApp = function() {
 };
 
 // ==========================================
+// 🎯 Mode Toggle - ⚡ คลุมแล้วเสร็จ vs แยกขั้นตอน
+// ==========================================
+window.leSetMode = function(mode) {
+    window.leState.mode = mode;
+    const magicTab = document.getElementById('leModeMagic');
+    const manualTab = document.getElementById('leModeManual');
+    const hint = document.getElementById('leModeHint');
+    const eraseSection = document.getElementById('leEraseSection');
+    const logoBtnText = document.getElementById('leLogoBtnText');
+    
+    if (mode === 'magic') {
+        magicTab?.classList.add('active');
+        manualTab?.classList.remove('active');
+        if (hint) hint.innerHTML = '⚡ <b>โหมดเร็ว:</b> โหลดโลโก้ใหม่ก่อน → ลากคลุมโลโก้เก่า → ระบบลบ + วางทันที';
+        if (eraseSection) eraseSection.style.display = window.leCanErase ? '' : 'none';
+        if (logoBtnText) logoBtnText.innerText = 'เลือกโลโก้ใหม่ (วางอัตโนมัติ)';
+    } else {
+        magicTab?.classList.remove('active');
+        manualTab?.classList.add('active');
+        if (hint) hint.innerHTML = '🔧 <b>โหมดแยกขั้น:</b> ลบโลโก้ → แล้วเพิ่มโลโก้ใหม่ทีหลัง ปรับขนาด/ตำแหน่งเองได้';
+        if (eraseSection) eraseSection.style.display = window.leCanErase ? '' : 'none';
+        if (logoBtnText) logoBtnText.innerText = 'เลือกโลโก้ใหม่';
+    }
+};
+
+// ==========================================
 // 📥 โหลดรูปต้นฉบับ
 // ==========================================
 window.leLoadBaseImage = function(event) {
-    if (!leEnsureInit()) {
-        Swal.fire('ผิดพลาด', 'รีเฟรชหน้าใหม่ลองอีกครั้ง', 'error');
-        return;
-    }
+    if (!leEnsureInit()) return;
     const file = event.target ? event.target.files[0] : event;
     if (!file) return;
     if (!file.type || !file.type.startsWith('image/')) {
@@ -78,20 +99,21 @@ window.leLoadBaseImage = function(event) {
             window.leState.newLogo = null;
             window.leState.selBox = null;
             window.leState.lassoPoints = [];
-            
-            // 🌟 [แก้บัค] เริ่มต้นที่ "พอดีจอ" เสมอ — ใครอยากดู 100% กดปุ่มซูม
             leRenderBase();
             leFitScreen();
             leRemoveLogo();
             
-            const empty = document.getElementById('leEmptyState');
-            const wrapper = document.getElementById('leCanvasWrapper');
-            const zoomCtl = document.getElementById('leZoomControls');
-            if (empty) empty.classList.add('hidden');
-            if (wrapper) wrapper.classList.remove('hidden');
-            if (zoomCtl) zoomCtl.classList.remove('hidden');
+            document.getElementById('leEmptyState')?.classList.add('hidden');
+            document.getElementById('leCanvasWrapper')?.classList.remove('hidden');
+            document.getElementById('leZoomControls')?.classList.remove('hidden');
             
-            leShowTip('ลากเมาส์ทับโลโก้บนรูป — ปล่อยเมาส์จะลบทันที', 3500);
+            if (window.leState.mode === 'magic' && window.leState.pendingLogo) {
+                leShowTip('⚡ ลากคลุมโลโก้เก่า — โลโก้ใหม่จะวางลงทันที', 4000);
+            } else if (window.leState.mode === 'magic') {
+                leShowTip('💡 เลือกโลโก้ใหม่ก่อน แล้วค่อยลากคลุมโลโก้เก่า', 4000);
+            } else {
+                leShowTip('ลากเมาส์ทับโลโก้บนรูป — ปล่อยเมาส์จะลบทันที', 3500);
+            }
         };
         img.onerror = () => Swal.fire('Error', 'โหลดรูปไม่ได้', 'error');
         img.src = e.target.result;
@@ -112,33 +134,24 @@ function leApplyCanvasScale() {
     const s = window.leState;
     const wrapper = document.getElementById('leCanvasWrapper');
     if (!wrapper || !s.canvas) return;
-    
     const scale = leTotalScale();
     const w = s.canvas.width * scale;
     const h = s.canvas.height * scale;
-    
     wrapper.style.width = w + 'px';
     wrapper.style.height = h + 'px';
     s.canvas.style.width = w + 'px';
     s.canvas.style.height = h + 'px';
-    
-    // อัปเดต SVG overlay viewBox ให้ตรงกับ canvas
     const svg = document.getElementById('leSelectionSvg');
     if (svg) {
         svg.setAttribute('viewBox', `0 0 ${s.canvas.width} ${s.canvas.height}`);
         svg.style.width = w + 'px';
         svg.style.height = h + 'px';
     }
-    
     const label = document.getElementById('leZoomLabel');
     if (label) label.innerText = Math.round(scale * 100) + '%';
-    
     if (s.newLogo) leUpdateLogoOverlayPosition();
 }
 
-// ==========================================
-// 🔍 Zoom
-// ==========================================
 window.leZoomIn = function() {
     window.leState.zoom = Math.min(5, window.leState.zoom * 1.25);
     leApplyCanvasScale();
@@ -175,9 +188,6 @@ function leShowTip(text, duration) {
     }
 }
 
-// ==========================================
-// 🎯 เปลี่ยน shape
-// ==========================================
 window.leSetShape = function(shape) {
     window.leState.shape = shape;
     ['rect','ellipse','circle','lasso'].forEach(name => {
@@ -187,21 +197,8 @@ window.leSetShape = function(shape) {
             else el.classList.remove('active');
         }
     });
-    const hint = document.getElementById('leShapeHint');
-    if (hint) {
-        const hints = {
-            rect: 'ลากเมาส์เป็นกรอบสี่เหลี่ยม',
-            ellipse: 'ลากเมาส์เป็นวงรี',
-            circle: 'ลากเมาส์เป็นวงกลม',
-            lasso: 'ลากเส้นรอบโลโก้ (ไม่ต้องวนปิด)'
-        };
-        hint.innerText = hints[shape] || '';
-    }
 };
 
-// ==========================================
-// 🖼️ Drag & Drop file
-// ==========================================
 function leSetupDragDropFile() {
     const area = document.getElementById('leCanvasArea');
     if (!area || area._dropSetup) return;
@@ -216,13 +213,12 @@ function leSetupDragDropFile() {
 }
 
 // ==========================================
-// ✂️ Selection (รองรับทุก shape) — เติมอัตโนมัติเมื่อปล่อยเมาส์
+// ✂️ Selection — เติมอัตโนมัติ + วางโลโก้ใหม่อัตโนมัติ (magic mode)
 // ==========================================
 function leSetupCanvasEvents() {
     const cvs = window.leState.canvas;
     if (!cvs || cvs._eventsSetup) return;
     cvs._eventsSetup = true;
-    
     const svg = document.getElementById('leSelectionSvg');
     
     const getCoords = (e) => {
@@ -230,10 +226,7 @@ function leSetupCanvasEvents() {
         const scale = leTotalScale();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        return {
-            x: (cx - rect.left) / scale,
-            y: (cy - rect.top) / scale
-        };
+        return { x: (cx - rect.left) / scale, y: (cy - rect.top) / scale };
     };
     
     const startSel = (e) => {
@@ -264,9 +257,22 @@ function leSetupCanvasEvents() {
         if (!window.leState.isDrawingSelection) return;
         window.leState.isDrawingSelection = false;
         
-        // 🌟 [แก้บัค] เติมพื้นที่ทันทีเมื่อปล่อยเมาส์
-        if (window.leState.selBox || (window.leState.shape === 'lasso' && window.leState.lassoPoints.length > 5)) {
+        const sel = window.leState.selBox;
+        const hasValid = sel && ((sel.type === 'rect' && sel.w >= 4 && sel.h >= 4) ||
+                                  (sel.type === 'ellipse' && sel.rx >= 2 && sel.ry >= 2) ||
+                                  (sel.type === 'lasso' && sel.points && sel.points.length >= 5));
+        
+        if (hasValid) {
+            // เก็บ bbox ก่อน — จะใช้วางโลโก้
+            const bbox = leGetBBox(sel);
+            
+            // ลบ (เติมพื้นที่)
             await leApplyErase();
+            
+            // 🌟 โหมด magic + มีโลโก้รออยู่ → วางอัตโนมัติ
+            if (window.leState.mode === 'magic' && window.leState.pendingLogo) {
+                leAutoPlaceLogo(bbox);
+            }
         }
         
         svg.classList.add('hidden');
@@ -283,11 +289,9 @@ function leSetupCanvasEvents() {
     window.addEventListener('touchend', endSel);
 }
 
-// วาด SVG shape ขึ้นบน canvas (มองเห็น)
 function leDrawSelectionShape(start, end) {
     const svg = document.getElementById('leSelectionSvg');
     if (!svg) return;
-    
     const x1 = Math.min(start.x, end.x);
     const y1 = Math.min(start.y, end.y);
     const w = Math.abs(end.x - start.x);
@@ -298,14 +302,12 @@ function leDrawSelectionShape(start, end) {
         svg.innerHTML = `<rect x="${x1}" y="${y1}" width="${w}" height="${h}"/>`;
         window.leState.selBox = { type: 'rect', x: x1, y: y1, w: w, h: h };
     } else if (shape === 'ellipse') {
-        const cx = x1 + w/2, cy = y1 + h/2, rx = w/2, ry = h/2;
-        svg.innerHTML = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/>`;
-        window.leState.selBox = { type: 'ellipse', cx, cy, rx, ry };
+        svg.innerHTML = `<ellipse cx="${x1 + w/2}" cy="${y1 + h/2}" rx="${w/2}" ry="${h/2}"/>`;
+        window.leState.selBox = { type: 'ellipse', cx: x1 + w/2, cy: y1 + h/2, rx: w/2, ry: h/2 };
     } else if (shape === 'circle') {
-        const cx = start.x, cy = start.y;
         const r = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
-        svg.innerHTML = `<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r}"/>`;
-        window.leState.selBox = { type: 'ellipse', cx, cy, rx: r, ry: r };
+        svg.innerHTML = `<ellipse cx="${start.x}" cy="${start.y}" rx="${r}" ry="${r}"/>`;
+        window.leState.selBox = { type: 'ellipse', cx: start.x, cy: start.y, rx: r, ry: r };
     }
 }
 
@@ -313,56 +315,41 @@ function leDrawLassoPath(points) {
     const svg = document.getElementById('leSelectionSvg');
     if (!svg || points.length < 2) return;
     let d = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-        d += ` L ${points[i].x} ${points[i].y}`;
-    }
+    for (let i = 1; i < points.length; i++) d += ` L ${points[i].x} ${points[i].y}`;
     d += ' Z';
     svg.innerHTML = `<path d="${d}"/>`;
     window.leState.selBox = { type: 'lasso', points: [...points] };
 }
 
 // ==========================================
-// 🩹 เติมพื้นที่ — รองรับทุก shape
+// 🩹 เติมพื้นที่
 // ==========================================
 window.leApplyErase = async function() {
-    if (window.leCanErase === false) {
-        Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ลบโลโก้เดิม', 'warning');
-        return;
-    }
+    if (window.leCanErase === false) return;
     const s = window.leState;
     const sel = s.selBox;
     if (!sel) return;
     
-    // กรอบเล็กเกิน
     if (sel.type === 'rect' && (sel.w < 4 || sel.h < 4)) return;
     if (sel.type === 'ellipse' && (sel.rx < 2 || sel.ry < 2)) return;
     if (sel.type === 'lasso' && sel.points.length < 5) return;
     
-    // เก็บ history
     s.history.push(s.ctx.getImageData(0, 0, s.canvas.width, s.canvas.height));
     if (s.history.length > 20) s.history.shift();
     
     const mode = document.getElementById('leFillMode').value;
     const color = document.getElementById('leFillColor').value;
-    
-    // คำนวณ bounding box
     const bbox = leGetBBox(sel);
     
-    // คำนวณสีที่จะเติม (auto = เดาจากขอบ)
     let fillStyle;
-    if (mode === 'solid') {
-        fillStyle = color;
-    } else {
-        fillStyle = leComputeAvgEdgeColor(bbox);
-    }
+    if (mode === 'solid') fillStyle = color;
+    else fillStyle = leComputeAvgEdgeColor(bbox);
     
-    // สร้าง path → เติมเฉพาะภายใน shape
     s.ctx.save();
     leClipToShape(s.ctx, sel);
     s.ctx.fillStyle = fillStyle;
     s.ctx.fillRect(bbox.x, bbox.y, bbox.w, bbox.h);
     
-    // ถ้า mode = blur → เบลอเฉพาะภายใน clip
     if (mode === 'blur' || mode === 'auto') {
         try {
             const imgData = s.ctx.getImageData(bbox.x, bbox.y, bbox.w, bbox.h);
@@ -370,7 +357,6 @@ window.leApplyErase = async function() {
                 const blurred = leBoxBlur(imgData, 3);
                 s.ctx.putImageData(blurred, bbox.x, bbox.y);
             } else {
-                // auto: noise เล็กน้อยกลืน
                 for (let i = 0; i < imgData.data.length; i += 4) {
                     const n = (Math.random() - 0.5) * 12;
                     imgData.data[i]   = Math.max(0, Math.min(255, imgData.data[i] + n));
@@ -381,16 +367,13 @@ window.leApplyErase = async function() {
             }
         } catch(e) {}
     }
-    
     s.ctx.restore();
 };
 
-// คำนวณ bounding box ของ shape
 function leGetBBox(sel) {
     if (sel.type === 'rect') return { x: sel.x, y: sel.y, w: sel.w, h: sel.h };
     if (sel.type === 'ellipse') return {
-        x: sel.cx - sel.rx, y: sel.cy - sel.ry,
-        w: sel.rx * 2, h: sel.ry * 2
+        x: sel.cx - sel.rx, y: sel.cy - sel.ry, w: sel.rx * 2, h: sel.ry * 2
     };
     if (sel.type === 'lasso') {
         let xs = sel.points.map(p => p.x), ys = sel.points.map(p => p.y);
@@ -400,14 +383,11 @@ function leGetBBox(sel) {
     }
 }
 
-// สร้าง clip path ตาม shape
 function leClipToShape(ctx, sel) {
     ctx.beginPath();
-    if (sel.type === 'rect') {
-        ctx.rect(sel.x, sel.y, sel.w, sel.h);
-    } else if (sel.type === 'ellipse') {
-        ctx.ellipse(sel.cx, sel.cy, sel.rx, sel.ry, 0, 0, Math.PI * 2);
-    } else if (sel.type === 'lasso') {
+    if (sel.type === 'rect') ctx.rect(sel.x, sel.y, sel.w, sel.h);
+    else if (sel.type === 'ellipse') ctx.ellipse(sel.cx, sel.cy, sel.rx, sel.ry, 0, 0, Math.PI * 2);
+    else if (sel.type === 'lasso') {
         ctx.moveTo(sel.points[0].x, sel.points[0].y);
         for (let i = 1; i < sel.points.length; i++) ctx.lineTo(sel.points[i].x, sel.points[i].y);
         ctx.closePath();
@@ -415,13 +395,11 @@ function leClipToShape(ctx, sel) {
     ctx.clip();
 }
 
-// คำนวณสีเฉลี่ยรอบขอบ
 function leComputeAvgEdgeColor(bbox) {
     const s = window.leState;
     const ctx = s.ctx;
     const samples = [];
     const pad = 5;
-    
     const sampleEdge = (sx, sy, w, h) => {
         try {
             const safeSx = Math.max(0, Math.floor(sx));
@@ -430,17 +408,13 @@ function leComputeAvgEdgeColor(bbox) {
             const safeH = Math.min(Math.floor(h), s.canvas.height - safeSy);
             if (safeW <= 0 || safeH <= 0) return;
             const d = ctx.getImageData(safeSx, safeSy, safeW, safeH);
-            for (let i = 0; i < d.data.length; i += 16) {
-                samples.push([d.data[i], d.data[i+1], d.data[i+2]]);
-            }
+            for (let i = 0; i < d.data.length; i += 16) samples.push([d.data[i], d.data[i+1], d.data[i+2]]);
         } catch(e) {}
     };
-    
     sampleEdge(bbox.x - pad, bbox.y - pad, bbox.w + pad*2, pad);
     sampleEdge(bbox.x - pad, bbox.y + bbox.h, bbox.w + pad*2, pad);
     sampleEdge(bbox.x - pad, bbox.y, pad, bbox.h);
     sampleEdge(bbox.x + bbox.w, bbox.y, pad, bbox.h);
-    
     if (samples.length === 0) return '#ffffff';
     let r = 0, g = 0, b = 0;
     samples.forEach(s => { r += s[0]; g += s[1]; b += s[2]; });
@@ -473,7 +447,62 @@ function leBoxBlur(imgData, radius) {
 }
 
 // ==========================================
-// 🏷️ ใส่โลโก้ใหม่
+// 🪄 วางโลโก้ใหม่อัตโนมัติให้พอดี bounding box
+// ==========================================
+function leAutoPlaceLogo(bbox) {
+    const s = window.leState;
+    const logo = s.pendingLogo;
+    if (!logo || !bbox) return;
+    
+    // ใช้โลโก้ใน pendingLogo เป็น newLogo
+    s.newLogo = logo;
+    
+    // คำนวณขนาดให้ fit ใน bbox โดยรักษาอัตราส่วน
+    const logoRatio = logo.height / logo.width;
+    const bboxRatio = bbox.h / bbox.w;
+    
+    let w, h;
+    if (logoRatio > bboxRatio) {
+        // โลโก้สูงกว่ากรอบ → ใช้ความสูงเป็นหลัก
+        h = bbox.h;
+        w = h / logoRatio;
+    } else {
+        // โลโก้กว้างกว่ากรอบ → ใช้ความกว้างเป็นหลัก
+        w = bbox.w;
+        h = w * logoRatio;
+    }
+    
+    // วางตรงกลาง bbox
+    s.logoOverlay = {
+        x: bbox.x + (bbox.w - w) / 2,
+        y: bbox.y + (bbox.h - h) / 2,
+        w: w, h: h, opacity: 1
+    };
+    
+    // แสดง overlay
+    const overlay = document.getElementById('leLogoOverlay');
+    const img = document.getElementById('leLogoImg');
+    const controls = document.getElementById('leLogoControls');
+    
+    img.src = logo.src;
+    overlay.classList.remove('hidden');
+    if (controls) controls.classList.remove('hidden');
+    document.getElementById('leLogoSize').value = 100;
+    document.getElementById('leLogoOpacity').value = 100;
+    leUpdateLogoOverlayPosition();
+    
+    // คำนวณ % เริ่มต้นให้ slider sync กับขนาดที่วาง
+    const baseW = s.baseImage.width;
+    const startPct = Math.round(w / (baseW * 0.15) * 100);
+    const clamped = Math.min(300, Math.max(10, startPct));
+    document.getElementById('leLogoSize').value = clamped;
+    document.getElementById('leLogoSizeLabel').innerText = clamped + '%';
+    
+    leShowTip('⚡ วางโลโก้ใหม่เรียบร้อย! ลากย้าย/ปรับขนาดได้', 3000);
+}
+
+// ==========================================
+// 🏷️ โหลดโลโก้ใหม่
 // ==========================================
 window.leLoadNewLogo = function(event) {
     if (window.leCanAddLogo === false) {
@@ -482,37 +511,61 @@ window.leLoadNewLogo = function(event) {
     }
     const file = event.target ? event.target.files[0] : event;
     if (!file) return;
-    if (!window.leState.baseImage) {
-        Swal.fire('!', 'กรุณาเลือกรูปต้นฉบับก่อน', 'warning');
-        if (event.target) event.target.value = '';
-        return;
-    }
     
     const reader = new FileReader();
     reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-            window.leState.newLogo = img;
-            const baseW = window.leState.baseImage.width;
-            const w0 = baseW * 0.15;
-            const ratio = img.height / img.width;
-            window.leState.logoOverlay = {
-                x: baseW * 0.05,
-                y: window.leState.baseImage.height * 0.05,
-                w: w0, h: w0 * ratio, opacity: 1
-            };
-            document.getElementById('leLogoImg').src = e.target.result;
-            document.getElementById('leLogoOverlay').classList.remove('hidden');
-            document.getElementById('leLogoControls').classList.remove('hidden');
-            document.getElementById('leLogoSize').value = 100;
-            document.getElementById('leLogoOpacity').value = 100;
-            leUpdateLogoOverlayPosition();
-            leShowTip('ลากย้ายตำแหน่ง หรือดึงมุมเขียวเพื่อปรับขนาด', 3500);
+            if (window.leState.mode === 'magic') {
+                // 🌟 โหมดเร็ว: เก็บไว้รอ
+                window.leState.pendingLogo = img;
+                const preview = document.getElementById('leLogoPreview');
+                const previewImg = document.getElementById('leLogoPreviewImg');
+                const badge = document.getElementById('leLogoReadyBadge');
+                if (previewImg) previewImg.src = e.target.result;
+                if (preview) preview.classList.remove('hidden');
+                if (badge) badge.classList.remove('hidden');
+                
+                if (window.leState.baseImage) {
+                    leShowTip('⚡ พร้อมแล้ว! ลากคลุมโลโก้เก่าได้เลย', 3500);
+                } else {
+                    leShowTip('💡 ตอนนี้เลือกรูปต้นฉบับก่อน', 3500);
+                }
+            } else {
+                // โหมดเดิม: วางที่มุมรูป
+                if (!window.leState.baseImage) {
+                    Swal.fire('!', 'กรุณาเลือกรูปต้นฉบับก่อน', 'warning');
+                    if (event.target) event.target.value = '';
+                    return;
+                }
+                window.leState.newLogo = img;
+                const baseW = window.leState.baseImage.width;
+                const w0 = baseW * 0.15;
+                const ratio = img.height / img.width;
+                window.leState.logoOverlay = {
+                    x: baseW * 0.05,
+                    y: window.leState.baseImage.height * 0.05,
+                    w: w0, h: w0 * ratio, opacity: 1
+                };
+                document.getElementById('leLogoImg').src = e.target.result;
+                document.getElementById('leLogoOverlay').classList.remove('hidden');
+                document.getElementById('leLogoControls').classList.remove('hidden');
+                document.getElementById('leLogoSize').value = 100;
+                document.getElementById('leLogoOpacity').value = 100;
+                leUpdateLogoOverlayPosition();
+                leShowTip('ลากย้ายตำแหน่ง หรือดึงมุมเขียวเพื่อปรับขนาด', 3500);
+            }
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
     if (event.target) event.target.value = '';
+};
+
+window.leClearPendingLogo = function() {
+    window.leState.pendingLogo = null;
+    document.getElementById('leLogoPreview')?.classList.add('hidden');
+    document.getElementById('leLogoReadyBadge')?.classList.add('hidden');
 };
 
 function leUpdateLogoOverlayPosition() {
@@ -533,8 +586,10 @@ window.leUpdateLogoSize = function() {
     document.getElementById('leLogoSizeLabel').innerText = val + '%';
     if (!window.leState.newLogo) return;
     const baseW = window.leState.baseImage.width;
-    const newW = baseW * 0.15 * (val / 100);
+    // ใช้ขนาดปัจจุบันเป็น 100% เพื่อรองรับการ scale หลังวางอัตโนมัติ
+    const currentW = window.leState.logoOverlay.w;
     const ratio = window.leState.newLogo.height / window.leState.newLogo.width;
+    const newW = baseW * 0.15 * (val / 100);
     window.leState.logoOverlay.w = newW;
     window.leState.logoOverlay.h = newW * ratio;
     leUpdateLogoOverlayPosition();
@@ -549,11 +604,9 @@ window.leUpdateLogoOpacity = function() {
 
 window.leRemoveLogo = function() {
     window.leState.newLogo = null;
-    const overlay = document.getElementById('leLogoOverlay');
-    const controls = document.getElementById('leLogoControls');
+    document.getElementById('leLogoOverlay')?.classList.add('hidden');
+    document.getElementById('leLogoControls')?.classList.add('hidden');
     const img = document.getElementById('leLogoImg');
-    if (overlay) overlay.classList.add('hidden');
-    if (controls) controls.classList.add('hidden');
     if (img) img.src = '';
 };
 
@@ -562,7 +615,6 @@ function leSetupLogoOverlayEvents() {
     const handle = document.getElementById('leLogoHandle');
     if (!overlay || overlay._eventsSetup) return;
     overlay._eventsSetup = true;
-    
     let isDragging = false, isResizing = false;
     let dragStart = null;
     
@@ -610,43 +662,30 @@ function leSetupLogoOverlayEvents() {
     window.addEventListener('touchend', onUp);
 }
 
-// ==========================================
-// ⏪ Undo + Reset
-// ==========================================
 window.leUndoLast = function() {
     const s = window.leState;
-    if (s.history.length === 0) {
-        return Swal.fire('!', 'ไม่มีขั้นตอนให้ย้อนกลับ', 'info');
-    }
+    if (s.history.length === 0) return Swal.fire('!', 'ไม่มีขั้นตอนให้ย้อนกลับ', 'info');
     const last = s.history.pop();
     s.ctx.putImageData(last, 0, 0);
 };
 
 window.leResetAll = async function() {
     const ok = await Swal.fire({
-        title: 'เริ่มใหม่ทั้งหมด?',
-        text: 'การแก้ไขทั้งหมดจะหายไป',
+        title: 'เริ่มใหม่ทั้งหมด?', text: 'การแก้ไขทั้งหมดจะหายไป',
         icon: 'warning', showCancelButton: true,
         confirmButtonText: 'ใช่', cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#dc2626'
     });
     if (!ok.isConfirmed) return;
     const s = window.leState;
-    if (s.baseImage) {
-        s.history = [];
-        leRenderBase();
-    }
+    if (s.baseImage) { s.history = []; leRenderBase(); }
     leRemoveLogo();
+    leClearPendingLogo();
     s.selBox = null;
 };
 
-// ==========================================
-// 💾 ดาวน์โหลด
-// ==========================================
 window.leDownload = function() {
-    if (window.leCanDownload === false) {
-        return Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ดาวน์โหลดรูป', 'warning');
-    }
+    if (window.leCanDownload === false) return Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ดาวน์โหลดรูป', 'warning');
     const s = window.leState;
     if (!s.baseImage) return Swal.fire('!', 'ยังไม่มีรูป', 'warning');
     
@@ -655,7 +694,6 @@ window.leDownload = function() {
     out.height = s.canvas.height;
     const octx = out.getContext('2d');
     octx.drawImage(s.canvas, 0, 0);
-    
     if (s.newLogo) {
         octx.globalAlpha = s.logoOverlay.opacity;
         octx.drawImage(s.newLogo, s.logoOverlay.x, s.logoOverlay.y, s.logoOverlay.w, s.logoOverlay.h);
@@ -665,11 +703,8 @@ window.leDownload = function() {
     out.toBlob((blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `edited_${Date.now()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        a.href = url; a.download = `edited_${Date.now()}.png`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
         Swal.fire({ icon: 'success', title: 'ดาวน์โหลดแล้ว', timer: 1200, showConfirmButton: false });
     }, 'image/png');
