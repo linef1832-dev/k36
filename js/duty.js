@@ -2277,7 +2277,13 @@ window.onDutySearch = function() {
 };
 
 // 🟢 อัปเดตตาราง OD เพิ่มกฎ "แบนงานหลักข้ามกะ" เด็ดขาด (เช้าห้ามแนะนำเพื่อน, ดึกห้ามคำขอโปร)
-window.renderTrainerOdMatrix = function(rosterData) {
+// 🌟 [แก้บัค Realtime ผู้สอน] Key สำหรับเก็บการเปลี่ยน role ใน DB
+// แยกตาม วันที่ + กะ + แผนก (เพื่อให้แต่ละกะของแต่ละวันมีค่าของตัวเอง)
+window.getTrainerMatrixRoleKey = function(dept, dateStr, shift) {
+    return `trainer_matrix_roles_${dept}_${dateStr}_${shift}`;
+};
+
+window.renderTrainerOdMatrix = async function(rosterData) {
     const matrixGrid = document.getElementById('dutyMatrixGrid');
     if (!matrixGrid) return;
 
@@ -2291,6 +2297,18 @@ window.renderTrainerOdMatrix = function(rosterData) {
     
     let disableAttr = canEdit ? '' : 'disabled';
     let cursorClass = canEdit ? 'cursor-pointer hover:shadow-md' : 'cursor-default pointer-events-none appearance-none opacity-100'; 
+
+    // 🌟 [แก้บัค Realtime ผู้สอน] โหลด override role ที่บันทึกไว้จาก DB
+    const targetDate = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '';
+    const shiftFilterForKey = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
+    const matrixRoleKey = window.getTrainerMatrixRoleKey(currentDutyDept, targetDate, shiftFilterForKey);
+    let savedRoleOverrides = {};
+    try {
+        if (targetDate) {
+            const { data } = await appDB.from('settings').select('value').eq('key', matrixRoleKey).maybeSingle();
+            if (data && data.value) savedRoleOverrides = JSON.parse(data.value);
+        }
+    } catch(e) { console.warn('Load trainer matrix roles failed:', e); savedRoleOverrides = {}; }
 
     const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
 
@@ -2576,6 +2594,12 @@ window.renderTrainerOdMatrix = function(rosterData) {
                             role = userTaskRoles[user.id][web][tIdx];
                         }
 
+                        // 🌟 [แก้บัค Realtime ผู้สอน] ใช้ค่าที่บันทึกใน DB ทับค่าจาก algorithm สุ่ม
+                        const overrideKey = `${user.id}_${web}_${tIdx}`;
+                        if (savedRoleOverrides[overrideKey] !== undefined) {
+                            role = savedRoleOverrides[overrideKey];
+                        }
+
                         let selNot = role === 'not' ? 'selected' : '';
                         let selJob = role === 'job' ? 'selected' : '';
                         let selSup = role === 'sup' ? 'selected' : '';
@@ -2587,7 +2611,8 @@ window.renderTrainerOdMatrix = function(rosterData) {
                         else if (role === 'off') selectClass += "bg-gray-100 dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
                         else selectClass += "bg-white dark:bg-slate-800 text-gray-500 border-gray-300 dark:border-slate-600";
 
-                        let onChangeAttr = canEdit ? `onchange="this.className = this.options[this.selectedIndex].className + ' text-[13px] p-1.5 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm transition'"` : '';
+                        // 🌟 [แก้บัค Realtime ผู้สอน] เมื่อ user เปลี่ยน → บันทึกลง DB ทันที + broadcast
+                        let onChangeAttr = canEdit ? `onchange="window.saveTrainerMatrixRole('${user.id}', '${web}', ${tIdx}, this.value); this.className = this.options[this.selectedIndex].className + ' text-[13px] p-1.5 rounded outline-none ${cursorClass} border font-bold focus:ring-2 focus:ring-blue-500 w-full min-w-[90px] text-center shadow-sm transition'"` : '';
 
                         html += `<td class="border border-slate-300 dark:border-slate-700 p-1.5 ${dividerClass}">
                             <select class="${selectClass}" ${disableAttr} ${onChangeAttr}>
@@ -2606,6 +2631,54 @@ window.renderTrainerOdMatrix = function(rosterData) {
 
     html += `</tbody></table></div>`;
     matrixGrid.innerHTML = html;
+};
+
+// 🌟 [แก้บัค Realtime ผู้สอน] บันทึกการเปลี่ยน role ของช่องใดช่องหนึ่งลง DB + broadcast
+// เรียกจาก onchange ของ <select> แต่ละช่อง — บันทึกแบบ incremental ไม่ต้องส่งทั้งตาราง
+window.saveTrainerMatrixRole = async function(userId, web, taskIdx, newRole) {
+    try {
+        const targetDate = document.getElementById('dutyDate') ? document.getElementById('dutyDate').value : '';
+        const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
+        if (!targetDate) {
+            Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
+            return;
+        }
+
+        const matrixRoleKey = window.getTrainerMatrixRoleKey(currentDutyDept, targetDate, shiftFilter);
+        const overrideKey = `${userId}_${web}_${taskIdx}`;
+
+        // โหลดค่าเก่าก่อน (เพื่อ merge ไม่ใช่ทับ)
+        let current = {};
+        try {
+            const { data } = await appDB.from('settings').select('value').eq('key', matrixRoleKey).maybeSingle();
+            if (data && data.value) current = JSON.parse(data.value);
+        } catch(e) {}
+
+        current[overrideKey] = newRole;
+
+        const { error } = await appDB.from('settings').upsert([{ key: matrixRoleKey, value: JSON.stringify(current) }]);
+        if (error) {
+            Swal.fire('Error', 'บันทึกไม่สำเร็จ: ' + error.message, 'error');
+            return;
+        }
+
+        // log
+        try {
+            const user = (window.GLOBAL_USER_LIST || []).find(u => String(u.id) === String(userId));
+            const userName = user ? user.username : userId;
+            await appDB.from('system_logs').insert([{
+                action_type: 'จัดหน้าที่',
+                performed_by: currentUser.username,
+                target_details: `เปลี่ยน role ของ ${userName} ที่ [${web}] หัวข้อ #${taskIdx} → ${newRole} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+            }]);
+        } catch(e) {}
+
+        // broadcast ให้เครื่องอื่นรู้
+        try { appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' }); } catch(e) {}
+    } catch (err) {
+        console.error('saveTrainerMatrixRole error:', err);
+        Swal.fire('Error', err.message, 'error');
+    }
 };
 
 // ==========================================
