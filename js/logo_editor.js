@@ -16,7 +16,14 @@ window.leState = {
     selBox: null,
     zoom: 1,
     logoOverlay: { x: 50, y: 50, w: 120, h: 120, opacity: 1 },
-    logoRecolor: { enabled: false, color: '#ec4899' },  // 🌟 ใหม่
+    logoRecolor: { 
+        enabled: false, 
+        color: '#ec4899',
+        mode: 'all',                  // 'all' หรือ 'selective'
+        sourceColor: '#ffffff',       // สีต้นทาง (สำหรับ selective)
+        tolerance: 50,                // ความใกล้เคียง
+        pickMode: false               // กำลังรอ click ที่ canvas เพื่อ pick สี
+    },
     
     textObjects: [],
     selectedTextId: null,
@@ -672,17 +679,86 @@ window.leUpdateLogoRecolor = function() {
     const cb = document.getElementById('leLogoRecolor');
     const enabled = cb && cb.checked;
     const controls = document.getElementById('leLogoRecolorControls');
-    
     if (enabled) controls?.classList.remove('hidden');
     else controls?.classList.add('hidden');
-    
     window.leState.logoRecolor.enabled = enabled;
     window.leState.logoRecolor.color = document.getElementById('leLogoNewColor')?.value || '#ec4899';
-    
     leApplyLogoRecolor();
 };
 
-// ทำการเปลี่ยนสีโลโก้
+window.leUpdateRecolorMode = function() {
+    const mode = document.getElementById('leRecolorMode')?.value || 'all';
+    window.leState.logoRecolor.mode = mode;
+    const selCtl = document.getElementById('leSelectiveControls');
+    if (mode === 'selective') selCtl?.classList.remove('hidden');
+    else selCtl?.classList.add('hidden');
+    leApplyLogoRecolor();
+};
+
+// 🌟 โหมด pick สีจากโลโก้ — ผู้ใช้คลิกบนโลโก้แล้วระบบดูดสีออกมา
+window.lePickColorMode = function() {
+    window.leState.logoRecolor.pickMode = true;
+    const btn = document.getElementById('lePickBtn');
+    if (btn) {
+        btn.innerHTML = '<span class="material-icons text-[12px] align-middle">touch_app</span> คลิกที่สีบนโลโก้...';
+        btn.classList.add('animate-pulse');
+    }
+    const img = document.getElementById('leLogoImg');
+    if (img) img.style.cursor = 'crosshair';
+    leShowTip('🎯 คลิกที่สีบนโลโก้ที่ต้องการเปลี่ยน', 5000);
+};
+
+function leExitPickMode() {
+    window.leState.logoRecolor.pickMode = false;
+    const btn = document.getElementById('lePickBtn');
+    if (btn) {
+        btn.innerHTML = '<span class="material-icons text-[12px] align-middle">colorize</span> คลิกเลือกบนโลโก้';
+        btn.classList.remove('animate-pulse');
+    }
+    const img = document.getElementById('leLogoImg');
+    if (img) img.style.cursor = '';
+}
+
+// คลิกที่ overlay → ถ้าอยู่ใน pickMode ดูดสี
+document.addEventListener('click', (e) => {
+    if (!window.leState.logoRecolor.pickMode) return;
+    const img = e.target.closest('#leLogoImg');
+    if (!img) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = img.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // คำนวณตำแหน่งใน originalLogo
+    const origLogo = window.leState.originalLogo;
+    if (!origLogo) return;
+    const sx = Math.floor(x / rect.width * origLogo.width);
+    const sy = Math.floor(y / rect.height * origLogo.height);
+    
+    // สร้าง canvas ชั่วคราวเพื่ออ่านสี
+    const tmp = document.createElement('canvas');
+    tmp.width = origLogo.width;
+    tmp.height = origLogo.height;
+    const tctx = tmp.getContext('2d', { willReadFrequently: true });
+    tctx.drawImage(origLogo, 0, 0);
+    try {
+        const pixel = tctx.getImageData(sx, sy, 1, 1).data;
+        if (pixel[3] < 30) {
+            leShowTip('⚠️ คลิกตรงพื้นโปร่งใส กรุณาคลิกที่สีโลโก้', 2500);
+            return;
+        }
+        const hex = '#' + [pixel[0], pixel[1], pixel[2]].map(c => c.toString(16).padStart(2, '0')).join('');
+        document.getElementById('leSourceColor').value = hex;
+        leShowTip('🎯 เลือกสี ' + hex + ' แล้ว', 2000);
+        leApplyLogoRecolor();
+    } catch(err) {
+        console.warn('pick color failed:', err);
+    }
+    leExitPickMode();
+}, true);
+
 function leApplyLogoRecolor() {
     const s = window.leState;
     if (!s.originalLogo) return;
@@ -694,25 +770,64 @@ function leApplyLogoRecolor() {
         return;
     }
     
-    // ถ้าเปิด → ระบายสีใหม่ทับ
+    const newColor = document.getElementById('leLogoNewColor')?.value || '#ec4899';
+    const mode = document.getElementById('leRecolorMode')?.value || 'all';
+    s.logoRecolor.color = newColor;
+    s.logoRecolor.mode = mode;
+    
     const tmp = document.createElement('canvas');
     tmp.width = s.originalLogo.width;
     tmp.height = s.originalLogo.height;
     const tctx = tmp.getContext('2d', { willReadFrequently: true });
     tctx.drawImage(s.originalLogo, 0, 0);
     
-    // ใช้ globalCompositeOperation 'source-in' = ระบายสีทับเฉพาะส่วนที่ทึบ (ไม่โปร่งใส)
-    tctx.globalCompositeOperation = 'source-in';
-    tctx.fillStyle = s.logoRecolor.color;
-    tctx.fillRect(0, 0, tmp.width, tmp.height);
-    tctx.globalCompositeOperation = 'source-over';
+    if (mode === 'all') {
+        // โหมดเปลี่ยนทั้งหมด: ใช้ source-in
+        tctx.globalCompositeOperation = 'source-in';
+        tctx.fillStyle = newColor;
+        tctx.fillRect(0, 0, tmp.width, tmp.height);
+        tctx.globalCompositeOperation = 'source-over';
+    } else {
+        // โหมด selective: เปลี่ยนเฉพาะสีใกล้เคียงกับ sourceColor
+        const sourceHex = document.getElementById('leSourceColor')?.value || '#ffffff';
+        const tolerance = parseInt(document.getElementById('leRecolorTolerance')?.value || 50);
+        document.getElementById('leTolLabel') && (document.getElementById('leTolLabel').innerText = tolerance);
+        
+        s.logoRecolor.sourceColor = sourceHex;
+        s.logoRecolor.tolerance = tolerance;
+        
+        const srcR = parseInt(sourceHex.slice(1, 3), 16);
+        const srcG = parseInt(sourceHex.slice(3, 5), 16);
+        const srcB = parseInt(sourceHex.slice(5, 7), 16);
+        const newR = parseInt(newColor.slice(1, 3), 16);
+        const newG = parseInt(newColor.slice(3, 5), 16);
+        const newB = parseInt(newColor.slice(5, 7), 16);
+        
+        const imgData = tctx.getImageData(0, 0, tmp.width, tmp.height);
+        const data = imgData.data;
+        
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i+3] < 10) continue; // ข้าม pixel โปร่งใส
+            const dr = data[i] - srcR;
+            const dg = data[i+1] - srcG;
+            const db = data[i+2] - srcB;
+            const dist = Math.sqrt(dr*dr + dg*dg + db*db);
+            
+            if (dist < tolerance) {
+                // เปลี่ยนสีโดย smooth (fade เข้ากันที่ขอบ)
+                const ratio = 1 - (dist / tolerance);
+                data[i]   = Math.round(data[i]   * (1 - ratio) + newR * ratio);
+                data[i+1] = Math.round(data[i+1] * (1 - ratio) + newG * ratio);
+                data[i+2] = Math.round(data[i+2] * (1 - ratio) + newB * ratio);
+            }
+        }
+        tctx.putImageData(imgData, 0, 0);
+    }
     
-    // สร้าง Image ใหม่
     const recolored = new Image();
     recolored.onload = () => {
         s.newLogo = recolored;
         document.getElementById('leLogoImg').src = recolored.src;
-        // update preview ใน sidebar ด้วย
         if (s.mode === 'magic') {
             const prev = document.getElementById('leLogoPreviewImg');
             if (prev) prev.src = recolored.src;
