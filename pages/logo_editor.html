@@ -18,24 +18,39 @@
   }
   .le-btn-primary { background: linear-gradient(135deg, #ec4899, #a855f7); transition: all 0.2s; }
   .le-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(168, 85, 247, 0.4); }
-  .le-btn-magic { 
-    background: linear-gradient(135deg, #f59e0b, #ec4899, #a855f7);
-    background-size: 200% 200%;
-    animation: leMagicGradient 3s ease infinite;
-    transition: all 0.2s;
-  }
-  @keyframes leMagicGradient {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-  }
-  .le-btn-magic:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(236, 72, 153, 0.5); }
   .le-btn-danger { background: linear-gradient(135deg, #f43f5e, #dc2626); }
   .le-btn-success { background: linear-gradient(135deg, #10b981, #14b8a6); }
   .le-btn-download { background: linear-gradient(135deg, #6366f1, #06b6d4); }
-  .le-step-num { background: linear-gradient(135deg, #ec4899, #a855f7); box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4); }
-  .le-step-2 { background: linear-gradient(135deg, #f43f5e, #dc2626); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4); }
-  .le-step-3 { background: linear-gradient(135deg, #10b981, #14b8a6); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
-  .le-step-magic { background: linear-gradient(135deg, #f59e0b, #ec4899); box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4); }
+  .le-btn-amber { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .le-btn-cyan { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+  
+  /* Tab nav แนวนอน */
+  .le-tab-nav {
+    background: rgba(0,0,0,0.4);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .le-tab-btn {
+    flex: 1;
+    padding: 10px 4px;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 800;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .le-tab-btn:hover { background: rgba(255,255,255,0.04); color: #cbd5e1; }
+  .le-tab-btn.active {
+    color: #fff;
+    background: linear-gradient(180deg, rgba(168, 85, 247, 0.15), transparent);
+    border-bottom-color: #a855f7;
+  }
+  .le-tab-btn .material-icons { font-size: 18px; }
+  
   .le-zoom-btn { background: rgba(255,255,255,0.08); transition: all 0.15s; }
   .le-zoom-btn:hover { background: rgba(255,255,255,0.18); }
   .le-floating-toolbar {
@@ -44,28 +59,21 @@
     border: 1px solid rgba(255,255,255,0.1);
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
   }
-  .le-shape-btn {
+  .le-shape-btn, .le-filter-btn {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
     transition: all 0.15s;
+    cursor: pointer;
   }
-  .le-shape-btn:hover { background: rgba(255,255,255,0.1); }
+  .le-shape-btn:hover, .le-filter-btn:hover { background: rgba(255,255,255,0.1); }
   .le-shape-btn.active {
     background: linear-gradient(135deg, rgba(244, 63, 94, 0.3), rgba(220, 38, 38, 0.3));
     border-color: rgba(244, 63, 94, 0.6);
     box-shadow: 0 0 12px rgba(244, 63, 94, 0.3);
   }
-  .le-mode-tab {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    transition: all 0.2s;
-    cursor: pointer;
-  }
-  .le-mode-tab:hover { background: rgba(255,255,255,0.08); }
-  .le-mode-tab.active {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(236, 72, 153, 0.25));
-    border-color: rgba(236, 72, 153, 0.6);
-    box-shadow: 0 0 15px rgba(236, 72, 153, 0.3);
+  .le-filter-btn.active {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.3));
+    border-color: rgba(168, 85, 247, 0.6);
   }
   .le-svg-overlay {
     position: absolute;
@@ -84,12 +92,45 @@
   }
   @keyframes leDash { to { stroke-dashoffset: -16; } }
   
-  /* Badge แสดงว่าโลโก้ใหม่พร้อม */
   .le-logo-preview {
     background: rgba(16, 185, 129, 0.1);
     border: 2px solid rgba(16, 185, 129, 0.4);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
   }
+  
+  /* Slider แบบสวย */
+  .le-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+  }
+  .le-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  
+  /* Text overlay draggable */
+  .le-text-overlay {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+    white-space: nowrap;
+    border: 2px dashed transparent;
+    padding: 4px;
+    transition: border-color 0.2s;
+  }
+  .le-text-overlay:hover, .le-text-overlay.selected {
+    border-color: #06b6d4;
+  }
+  .le-text-overlay.selected { box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.3); }
 </style>
 
 <div id="logoEditorApp" class="fixed inset-0 z-50 bg-slate-950 fade-in flex flex-col">
@@ -101,7 +142,7 @@
             </div>
             <div>
                 <h1 class="font-black text-base tracking-wide flex items-center gap-2">เครื่องมือแต่งรูป <span class="text-[9px] bg-white/20 px-1.5 py-0.5 rounded-full border border-white/30 font-bold tracking-widest">PRO</span></h1>
-                <p class="text-[10px] text-pink-200/80">ลบโลโก้เดิม → ใส่โลโก้ใหม่ → ดาวน์โหลด</p>
+                <p class="text-[10px] text-pink-200/80">แต่งรูปครบเครื่อง — ลบโลโก้ / ใส่ข้อความ / ปรับสี / Watermark</p>
             </div>
         </div>
         <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1.5 border border-white/20">
@@ -113,12 +154,38 @@
 
         <!-- Sidebar -->
         <aside class="le-tool-panel w-72 shrink-0 flex flex-col text-white">
+            
+            <!-- ───── Tab Navigation ───── -->
+            <div class="le-tab-nav flex">
+                <button onclick="leSwitchTab('replace')" id="leTabReplace" class="le-tab-btn active">
+                    <span class="material-icons">auto_fix_high</span>
+                    <span>ลบโลโก้</span>
+                </button>
+                <button onclick="leSwitchTab('text')" id="leTabText" class="le-tab-btn">
+                    <span class="material-icons">text_fields</span>
+                    <span>ข้อความ</span>
+                </button>
+                <button onclick="leSwitchTab('color')" id="leTabColor" class="le-tab-btn">
+                    <span class="material-icons">palette</span>
+                    <span>ปรับสี</span>
+                </button>
+                <button onclick="leSwitchTab('adjust')" id="leTabAdjust" class="le-tab-btn">
+                    <span class="material-icons">crop_rotate</span>
+                    <span>จัดการ</span>
+                </button>
+                <button onclick="leSwitchTab('watermark')" id="leTabWatermark" class="le-tab-btn">
+                    <span class="material-icons">branding_watermark</span>
+                    <span>Watermark</span>
+                </button>
+            </div>
+            
+            <!-- Content แต่ละ tab -->
             <div class="flex-1 overflow-y-auto custom-scrollbar min-h-0">
                 
-                <!-- Step 1: เลือกรูป -->
-                <div class="p-3 border-b border-white/5">
+                <!-- Step 1: เลือกรูป (โชว์ทุก tab) -->
+                <div class="p-3 border-b border-white/5 bg-fuchsia-950/10">
                     <div class="flex items-center gap-2 mb-2">
-                        <span class="le-step-num text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black">1</span>
+                        <span class="bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shadow">1</span>
                         <h3 class="font-black text-sm">เลือกรูปต้นฉบับ</h3>
                     </div>
                     <label class="le-btn-primary block w-full cursor-pointer text-white text-center px-3 py-2 rounded-lg font-bold text-xs border border-white/10 shadow active:scale-95">
@@ -127,120 +194,370 @@
                     </label>
                 </div>
 
-                <!-- ───── MODE TOGGLE ───── -->
-                <div class="p-3 border-b border-white/5 bg-gradient-to-br from-fuchsia-950/20 to-amber-950/20">
-                    <label class="block text-[10px] font-black text-fuchsia-300 uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <span class="material-icons text-sm">tune</span> โหมดการทำงาน
-                    </label>
-                    <div class="grid grid-cols-2 gap-1.5">
-                        <div onclick="leSetMode('magic')" id="leModeMagic" class="le-mode-tab active rounded-lg p-2 flex flex-col items-center gap-0.5">
-                            <span class="material-icons text-base">auto_awesome</span>
-                            <span class="text-[10px] font-bold">⚡ คลุมแล้วเสร็จ</span>
-                        </div>
-                        <div onclick="leSetMode('manual')" id="leModeManual" class="le-mode-tab rounded-lg p-2 flex flex-col items-center gap-0.5">
-                            <span class="material-icons text-base">handyman</span>
-                            <span class="text-[10px] font-bold">แยกขั้นตอน</span>
+                <!-- ═══════════ TAB: ลบโลโก้ ═══════════ -->
+                <div id="leTabContent_replace" class="le-tab-content">
+                    <!-- Mode toggle -->
+                    <div class="p-3 border-b border-white/5 bg-fuchsia-950/10">
+                        <label class="block text-[10px] font-black text-fuchsia-300 uppercase mb-2 flex items-center gap-1">
+                            <span class="material-icons text-sm">tune</span> โหมด
+                        </label>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <div onclick="leSetMode('magic')" id="leModeMagic" class="le-filter-btn active rounded-lg p-2 flex flex-col items-center gap-0.5">
+                                <span class="material-icons text-base">auto_awesome</span>
+                                <span class="text-[10px] font-bold">⚡ คลุมแล้วเสร็จ</span>
+                            </div>
+                            <div onclick="leSetMode('manual')" id="leModeManual" class="le-filter-btn rounded-lg p-2 flex flex-col items-center gap-0.5">
+                                <span class="material-icons text-base">handyman</span>
+                                <span class="text-[10px] font-bold">แยกขั้นตอน</span>
+                            </div>
                         </div>
                     </div>
-                    <p class="text-[9px] text-fuchsia-200/70 mt-2 text-center leading-relaxed" id="leModeHint">
-                        ⚡ <b>โหมดเร็ว:</b> โหลดโลโก้ใหม่ก่อน → ลากคลุมโลโก้เก่า → ระบบลบ + วางทันที
-                    </p>
+
+                    <!-- ลบโลโก้ -->
+                    <div id="leEraseSection" class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="bg-gradient-to-br from-rose-500 to-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shadow">2</span>
+                            <h3 class="font-black text-sm">ลบโลโก้เดิม</h3>
+                        </div>
+                        
+                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1.5">รูปทรงคลุม</label>
+                        <div class="grid grid-cols-4 gap-1.5 mb-2.5">
+                            <button onclick="leSetShape('rect')" id="leShapeRect" class="le-shape-btn active rounded-lg p-1.5 flex flex-col items-center gap-0.5">
+                                <span class="material-icons text-sm">crop_square</span><span class="text-[8px] font-bold">เหลี่ยม</span>
+                            </button>
+                            <button onclick="leSetShape('ellipse')" id="leShapeEllipse" class="le-shape-btn rounded-lg p-1.5 flex flex-col items-center gap-0.5">
+                                <span class="material-icons text-sm">panorama_fish_eye</span><span class="text-[8px] font-bold">วงรี</span>
+                            </button>
+                            <button onclick="leSetShape('circle')" id="leShapeCircle" class="le-shape-btn rounded-lg p-1.5 flex flex-col items-center gap-0.5">
+                                <span class="material-icons text-sm">radio_button_unchecked</span><span class="text-[8px] font-bold">วงกลม</span>
+                            </button>
+                            <button onclick="leSetShape('lasso')" id="leShapeLasso" class="le-shape-btn rounded-lg p-1.5 flex flex-col items-center gap-0.5">
+                                <span class="material-icons text-sm">gesture</span><span class="text-[8px] font-bold">อิสระ</span>
+                            </button>
+                        </div>
+                        
+                        <select id="leFillMode" class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none mb-2">
+                            <option value="auto">✨ เดาสีรอบๆ (auto)</option>
+                            <option value="blur">🌫️ เบลอกลืนพื้น</option>
+                            <option value="solid">🎨 สีทึบที่เลือก</option>
+                        </select>
+                        <div class="flex gap-2 items-center">
+                            <input type="color" id="leFillColor" value="#ffffff" class="w-10 h-9 rounded-lg cursor-pointer border border-white/10">
+                            <span class="text-[10px] text-slate-400 flex-1">สี (โหมดทึบ)</span>
+                        </div>
+                    </div>
+
+                    <!-- ใส่โลโก้ใหม่ -->
+                    <div id="leAddLogoSection" class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="bg-gradient-to-br from-emerald-500 to-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shadow">3</span>
+                            <h3 class="font-black text-sm">โลโก้ใหม่</h3>
+                            <span id="leLogoReadyBadge" class="hidden ml-auto bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[9px] font-black px-2 py-0.5 rounded-full">✓ พร้อม</span>
+                        </div>
+                        <label class="le-btn-success block w-full cursor-pointer text-white text-center px-3 py-2 rounded-lg font-bold text-xs border border-white/10 shadow active:scale-95">
+                            <span class="material-icons text-sm align-middle">add_photo_alternate</span> <span id="leLogoBtnText">เลือกโลโก้ใหม่</span>
+                            <input type="file" accept="image/*" class="hidden" onchange="leLoadNewLogo(event)">
+                        </label>
+                        <label class="flex items-center gap-2 mt-2 cursor-pointer bg-emerald-950/30 rounded-lg p-2 border border-emerald-900/30">
+                            <input type="checkbox" id="leAutoRemoveBg" checked class="w-4 h-4 accent-emerald-500">
+                            <div class="flex-1">
+                                <div class="text-[11px] font-black text-emerald-300">🪄 ลบพื้นหลังอัตโนมัติ</div>
+                                <div class="text-[9px] text-emerald-200/60">ลบพื้นดำ/ขาวของโลโก้</div>
+                            </div>
+                        </label>
+                        
+                        <div id="leLogoPreview" class="hidden mt-2 le-logo-preview rounded-lg p-2 flex items-center gap-2">
+                            <img id="leLogoPreviewImg" src="" class="w-12 h-12 object-contain bg-white/10 rounded">
+                            <div class="flex-1 min-w-0">
+                                <div class="text-[11px] font-bold text-emerald-300">โลโก้พร้อมใช้งาน</div>
+                                <div class="text-[9px] text-emerald-200/70">ลากคลุมโลโก้เก่าได้เลย</div>
+                            </div>
+                            <button onclick="leClearPendingLogo()" class="text-rose-300 hover:bg-rose-500/20 p-1 rounded">
+                                <span class="material-icons text-sm">close</span>
+                            </button>
+                        </div>
+
+                        <div id="leLogoControls" class="hidden mt-3 bg-emerald-950/40 border border-emerald-900/40 rounded-lg p-2.5 space-y-2.5">
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-emerald-300">ขนาด</span>
+                                    <span id="leLogoSizeLabel" class="text-emerald-200 bg-emerald-950/60 px-1.5 rounded">100%</span>
+                                </div>
+                                <input type="range" id="leLogoSize" min="10" max="300" value="100" oninput="leUpdateLogoSize()" class="w-full le-slider accent-emerald-500">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-emerald-300">ความโปร่งใส</span>
+                                    <span id="leLogoOpacityLabel" class="text-emerald-200 bg-emerald-950/60 px-1.5 rounded">100%</span>
+                                </div>
+                                <input type="range" id="leLogoOpacity" min="0" max="100" value="100" oninput="leUpdateLogoOpacity()" class="w-full le-slider accent-emerald-500">
+                            </div>
+                            <button onclick="leRemoveLogo()" class="w-full bg-rose-900/30 hover:bg-rose-900/50 text-rose-300 px-2 py-1.5 rounded-lg font-bold text-[10px] border border-rose-900/40">
+                                <span class="material-icons text-xs align-middle">delete_outline</span> ลบโลโก้นี้
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Step 2: ลบโลโก้ (Mode Manual) -->
-                <div id="leEraseSection" class="p-3 border-b border-white/5">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="le-step-2 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black">2</span>
-                        <h3 class="font-black text-sm">ลบโลโก้เดิม</h3>
+                <!-- ═══════════ TAB: ใส่ข้อความ ═══════════ -->
+                <div id="leTabContent_text" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-icons text-cyan-400">text_fields</span>
+                            <h3 class="font-black text-sm">เพิ่มข้อความบนรูป</h3>
+                        </div>
+                        
+                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1.5">ข้อความ</label>
+                        <textarea id="leTextInput" rows="2" placeholder="พิมพ์ข้อความที่ต้องการ..." class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none mb-2 resize-none focus:border-cyan-400"></textarea>
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">ฟอนต์</label>
+                                <select id="leTextFont" class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none">
+                                    <option value="'Sarabun', sans-serif">Sarabun (ไทย)</option>
+                                    <option value="'Prompt', sans-serif">Prompt</option>
+                                    <option value="'Kanit', sans-serif">Kanit</option>
+                                    <option value="Arial, sans-serif">Arial</option>
+                                    <option value="'Times New Roman', serif">Times</option>
+                                    <option value="Impact, sans-serif">Impact</option>
+                                    <option value="'Courier New', monospace">Courier</option>
+                                    <option value="Georgia, serif">Georgia</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">น้ำหนัก</label>
+                                <select id="leTextWeight" class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none">
+                                    <option value="400">ปกติ</option>
+                                    <option value="700" selected>หนา</option>
+                                    <option value="900">หนามาก</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                <span class="text-slate-400">ขนาดฟอนต์</span>
+                                <span id="leTextSizeLabel" class="text-cyan-300 bg-cyan-950/60 px-1.5 rounded">48px</span>
+                            </div>
+                            <input type="range" id="leTextSize" min="12" max="200" value="48" class="w-full le-slider mb-2">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">สีตัวอักษร</label>
+                                <input type="color" id="leTextColor" value="#ffffff" class="w-full h-9 rounded-lg cursor-pointer border border-white/10">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">สีขอบ</label>
+                                <input type="color" id="leTextStrokeColor" value="#000000" class="w-full h-9 rounded-lg cursor-pointer border border-white/10">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                <span class="text-slate-400">ความหนาขอบ</span>
+                                <span id="leTextStrokeLabel" class="text-cyan-300 bg-cyan-950/60 px-1.5 rounded">0</span>
+                            </div>
+                            <input type="range" id="leTextStroke" min="0" max="20" value="0" class="w-full le-slider mb-2">
+                        </div>
+                        
+                        <!-- Shadow -->
+                        <label class="flex items-center gap-2 cursor-pointer bg-cyan-950/30 rounded-lg p-2 border border-cyan-900/30 mb-2">
+                            <input type="checkbox" id="leTextShadow" class="w-4 h-4 accent-cyan-500">
+                            <div class="text-[11px] font-black text-cyan-300">เพิ่มเงา</div>
+                        </label>
+                        
+                        <button onclick="leAddText()" class="le-btn-cyan w-full text-white px-3 py-2.5 rounded-lg font-black text-xs shadow border border-white/10 active:scale-95">
+                            <span class="material-icons text-sm align-middle">add</span> เพิ่มข้อความลงบนรูป
+                        </button>
                     </div>
                     
-                    <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">รูปทรงคลุม</label>
-                    <div class="grid grid-cols-4 gap-1.5 mb-2.5">
-                        <button onclick="leSetShape('rect')" id="leShapeRect" class="le-shape-btn active rounded-lg p-1.5 flex flex-col items-center gap-0.5" title="สี่เหลี่ยม">
-                            <span class="material-icons text-sm">crop_square</span>
-                            <span class="text-[8px] font-bold">เหลี่ยม</span>
-                        </button>
-                        <button onclick="leSetShape('ellipse')" id="leShapeEllipse" class="le-shape-btn rounded-lg p-1.5 flex flex-col items-center gap-0.5" title="วงรี">
-                            <span class="material-icons text-sm">panorama_fish_eye</span>
-                            <span class="text-[8px] font-bold">วงรี</span>
-                        </button>
-                        <button onclick="leSetShape('circle')" id="leShapeCircle" class="le-shape-btn rounded-lg p-1.5 flex flex-col items-center gap-0.5" title="วงกลม">
-                            <span class="material-icons text-sm">radio_button_unchecked</span>
-                            <span class="text-[8px] font-bold">วงกลม</span>
-                        </button>
-                        <button onclick="leSetShape('lasso')" id="leShapeLasso" class="le-shape-btn rounded-lg p-1.5 flex flex-col items-center gap-0.5" title="ลากอิสระ">
-                            <span class="material-icons text-sm">gesture</span>
-                            <span class="text-[8px] font-bold">อิสระ</span>
-                        </button>
-                    </div>
-                    
-                    <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">วิธีเติม</label>
-                    <select id="leFillMode" class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none mb-2">
-                        <option value="auto">✨ เดาสีรอบๆ (auto)</option>
-                        <option value="blur">🌫️ เบลอกลืนพื้น</option>
-                        <option value="solid">🎨 สีทึบที่เลือก</option>
-                    </select>
-                    
-                    <div class="flex gap-2 items-center">
-                        <input type="color" id="leFillColor" value="#ffffff" class="w-10 h-9 rounded-lg cursor-pointer border border-white/10">
-                        <span class="text-[10px] text-slate-400 flex-1">สี (ใช้เมื่อเลือกทึบ)</span>
+                    <!-- รายการข้อความที่มี -->
+                    <div id="leTextList" class="p-3 border-b border-white/5 hidden">
+                        <h4 class="font-black text-xs text-slate-300 mb-2">ข้อความบนรูป (<span id="leTextCount">0</span>)</h4>
+                        <div id="leTextItems" class="space-y-1"></div>
                     </div>
                 </div>
 
-                <!-- Step 3: ใส่โลโก้ใหม่ -->
-                <div id="leAddLogoSection" class="p-3 border-b border-white/5">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="le-step-3 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black">3</span>
-                        <h3 class="font-black text-sm">เลือกโลโก้ใหม่</h3>
-                        <span id="leLogoReadyBadge" class="hidden ml-auto bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[9px] font-black px-2 py-0.5 rounded-full">✓ พร้อม</span>
-                    </div>
-                    <label class="le-btn-success block w-full cursor-pointer text-white text-center px-3 py-2 rounded-lg font-bold text-xs border border-white/10 shadow active:scale-95">
-                        <span class="material-icons text-sm align-middle">add_photo_alternate</span> <span id="leLogoBtnText">เลือกโลโก้ใหม่</span>
-                        <input type="file" accept="image/*" class="hidden" onchange="leLoadNewLogo(event)">
-                    </label>
-                    <p class="text-[10px] text-slate-400 mt-1.5 text-center">💡 แนะนำ PNG พื้นโปร่งใส</p>
-                    
-                    <!-- 🌟 ลบพื้นหลังอัตโนมัติ -->
-                    <label class="flex items-center gap-2 mt-2 cursor-pointer bg-emerald-950/30 hover:bg-emerald-950/50 rounded-lg p-2 border border-emerald-900/30 transition">
-                        <input type="checkbox" id="leAutoRemoveBg" checked class="w-4 h-4 accent-emerald-500 cursor-pointer">
-                        <div class="flex-1">
-                            <div class="text-[11px] font-black text-emerald-300 flex items-center gap-1">
-                                <span class="material-icons text-[12px]">auto_fix_high</span> ลบพื้นหลังอัตโนมัติ
+                <!-- ═══════════ TAB: ปรับสี ═══════════ -->
+                <div id="leTabContent_color" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-icons text-purple-400">palette</span>
+                            <h3 class="font-black text-sm">ปรับสีรูป</h3>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-slate-400">☀️ ความสว่าง</span>
+                                    <span id="leBrightnessLabel" class="text-purple-300 bg-purple-950/60 px-1.5 rounded">100%</span>
+                                </div>
+                                <input type="range" id="leBrightness" min="0" max="200" value="100" oninput="leApplyFilters()" class="w-full le-slider">
                             </div>
-                            <div class="text-[9px] text-emerald-200/60">ลบพื้นสีดำ/ขาวของโลโก้ออกให้</div>
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-slate-400">🌓 คอนทราสต์</span>
+                                    <span id="leContrastLabel" class="text-purple-300 bg-purple-950/60 px-1.5 rounded">100%</span>
+                                </div>
+                                <input type="range" id="leContrast" min="0" max="200" value="100" oninput="leApplyFilters()" class="w-full le-slider">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-slate-400">🎨 อิ่มสี</span>
+                                    <span id="leSaturateLabel" class="text-purple-300 bg-purple-950/60 px-1.5 rounded">100%</span>
+                                </div>
+                                <input type="range" id="leSaturate" min="0" max="200" value="100" oninput="leApplyFilters()" class="w-full le-slider">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-slate-400">🌡️ อุณหภูมิสี</span>
+                                    <span id="leHueLabel" class="text-purple-300 bg-purple-950/60 px-1.5 rounded">0°</span>
+                                </div>
+                                <input type="range" id="leHue" min="-180" max="180" value="0" oninput="leApplyFilters()" class="w-full le-slider">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-slate-400">🔍 ความคม</span>
+                                    <span id="leBlurLabel" class="text-purple-300 bg-purple-950/60 px-1.5 rounded">0</span>
+                                </div>
+                                <input type="range" id="leBlur" min="0" max="20" value="0" oninput="leApplyFilters()" class="w-full le-slider">
+                            </div>
                         </div>
-                    </label>
-
-                    <!-- Preview โลโก้ที่เลือก (โหมดเร็ว) -->
-                    <div id="leLogoPreview" class="hidden mt-2 le-logo-preview rounded-lg p-2 flex items-center gap-2">
-                        <img id="leLogoPreviewImg" src="" class="w-12 h-12 object-contain bg-white rounded">
-                        <div class="flex-1 min-w-0">
-                            <div class="text-[11px] font-bold text-emerald-300 truncate">โลโก้พร้อมใช้งาน</div>
-                            <div class="text-[9px] text-emerald-200/70">ลากคลุมโลโก้เก่าได้เลย</div>
-                        </div>
-                        <button onclick="leClearPendingLogo()" class="text-rose-300 hover:bg-rose-500/20 p-1 rounded" title="ลบโลโก้ที่เลือก">
-                            <span class="material-icons text-sm">close</span>
+                        
+                        <button onclick="leResetFilters()" class="w-full mt-3 bg-white/5 hover:bg-white/10 text-white px-3 py-2 rounded-lg font-bold text-xs border border-white/10">
+                            <span class="material-icons text-sm align-middle">restart_alt</span> รีเซ็ตค่าสี
                         </button>
                     </div>
+                    
+                    <!-- Filter presets -->
+                    <div class="p-3 border-b border-white/5">
+                        <h4 class="font-black text-xs text-slate-300 mb-2">🎬 ฟิลเตอร์สำเร็จรูป</h4>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button onclick="leApplyPreset('none')" class="le-filter-btn rounded-lg p-2 text-[10px] font-bold">ปกติ</button>
+                            <button onclick="leApplyPreset('warm')" class="le-filter-btn rounded-lg p-2 text-[10px] font-bold">อบอุ่น</button>
+                            <button onclick="leApplyPreset('cool')" class="le-filter-btn rounded-lg p-2 text-[10px] font-bold">เย็น</button>
+                            <button onclick="leApplyPreset('vivid')" class="le-filter-btn rounded-lg p-2 text-[10px] font-bold">สดใส</button>
+                            <button onclick="leApplyPreset('vintage')" class="le-filter-btn rounded-lg p-2 text-[10px] font-bold">วินเทจ</button>
+                            <button onclick="leApplyPreset('bw')" class="le-filter-btn rounded-lg p-2 text-[10px] font-bold">ขาวดำ</button>
+                            <button onclick="leApplyPreset('sepia')" class="le-filter-btn rounded-lg p-2 text-[10px] font-bold">ซีเปีย</button>
+                            <button onclick="leApplyPreset('bright')" class="le-filter-btn rounded-lg p-2 text-[10px] font-bold">สว่าง</button>
+                            <button onclick="leApplyPreset('dramatic')" class="le-filter-btn rounded-lg p-2 text-[10px] font-bold">ดรามา</button>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 border-b border-white/5">
+                        <button onclick="leCommitFilters()" class="le-btn-amber w-full text-white px-3 py-2.5 rounded-lg font-black text-xs shadow border border-white/10 active:scale-95">
+                            <span class="material-icons text-sm align-middle">check</span> ยืนยันการปรับสี (เขียนลงรูป)
+                        </button>
+                        <p class="text-[9px] text-slate-400 mt-1.5 text-center">💡 กดเพื่อบันทึกผลก่อนทำขั้นถัดไป</p>
+                    </div>
+                </div>
 
-                    <!-- Manual controls (โหมดแยกขั้น) -->
-                    <div id="leLogoControls" class="hidden mt-3 bg-emerald-950/40 border border-emerald-900/40 rounded-lg p-2.5 space-y-2.5">
+                <!-- ═══════════ TAB: จัดการรูป ═══════════ -->
+                <div id="leTabContent_adjust" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <h3 class="font-black text-sm mb-3 flex items-center gap-1">
+                            <span class="material-icons text-amber-400 text-base">crop_rotate</span> หมุนและพลิก
+                        </h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="leRotate(-90)" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-1">
+                                <span class="material-icons text-base">rotate_left</span>
+                                <span class="text-[10px] font-bold">หมุนซ้าย 90°</span>
+                            </button>
+                            <button onclick="leRotate(90)" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-1">
+                                <span class="material-icons text-base">rotate_right</span>
+                                <span class="text-[10px] font-bold">หมุนขวา 90°</span>
+                            </button>
+                            <button onclick="leFlipImage('h')" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-1">
+                                <span class="material-icons text-base">flip</span>
+                                <span class="text-[10px] font-bold">พลิกแนวนอน</span>
+                            </button>
+                            <button onclick="leFlipImage('v')" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-1">
+                                <span class="material-icons text-base" style="transform: rotate(90deg)">flip</span>
+                                <span class="text-[10px] font-bold">พลิกแนวตั้ง</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 border-b border-white/5">
+                        <h3 class="font-black text-sm mb-3 flex items-center gap-1">
+                            <span class="material-icons text-amber-400 text-base">crop</span> ครอบ (Crop)
+                        </h3>
+                        <p class="text-[10px] text-slate-400 mb-2">เลือกอัตราส่วนแล้วลากกรอบที่รูป</p>
+                        <select id="leCropRatio" class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none mb-2">
+                            <option value="free">อิสระ (ลากได้อย่างใจ)</option>
+                            <option value="1:1">1:1 — Instagram Square</option>
+                            <option value="4:5">4:5 — Instagram Portrait</option>
+                            <option value="9:16">9:16 — Story/Reels</option>
+                            <option value="16:9">16:9 — YouTube/Widescreen</option>
+                            <option value="3:4">3:4 — Portrait</option>
+                            <option value="4:3">4:3 — Landscape</option>
+                        </select>
+                        <button onclick="leStartCrop()" id="leStartCropBtn" class="le-btn-amber w-full text-white px-3 py-2 rounded-lg font-bold text-xs shadow border border-white/10 mb-2">
+                            <span class="material-icons text-sm align-middle">crop</span> เริ่มครอบรูป
+                        </button>
+                        <div id="leCropControls" class="hidden grid grid-cols-2 gap-2">
+                            <button onclick="leApplyCrop()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-2 rounded-lg font-bold text-xs">
+                                ✓ ครอบเลย
+                            </button>
+                            <button onclick="leCancelCrop()" class="bg-rose-600 hover:bg-rose-500 text-white px-2 py-2 rounded-lg font-bold text-xs">
+                                ✗ ยกเลิก
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════ TAB: Watermark ═══════════ -->
+                <div id="leTabContent_watermark" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <h3 class="font-black text-sm mb-3 flex items-center gap-1">
+                            <span class="material-icons text-amber-400 text-base">branding_watermark</span> ใส่ลายน้ำ
+                        </h3>
+                        <p class="text-[10px] text-amber-200/70 bg-amber-950/30 border border-amber-900/30 rounded-lg p-2 mb-3 leading-relaxed">
+                            💡 ลายน้ำใช้กันรูปถูกขโมย — ระบบจะใส่ข้อความหรือโลโก้ซ้ำๆ ทั่วรูปอย่างจางๆ
+                        </p>
+                        
+                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">ข้อความลายน้ำ</label>
+                        <input type="text" id="leWatermarkText" value="OKVIP" placeholder="ชื่อบริษัท..." class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none mb-2 focus:border-amber-400">
+                        
+                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">รูปแบบ</label>
+                        <select id="leWatermarkPattern" class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none mb-2">
+                            <option value="tile">ทั่วรูป (เรียงทแยง)</option>
+                            <option value="single">มุมเดียว (ขวาล่าง)</option>
+                            <option value="corners">4 มุม</option>
+                            <option value="center">ตรงกลางใหญ่</option>
+                        </select>
+                        
                         <div>
-                            <div class="flex justify-between text-[9px] font-black uppercase tracking-wider mb-1">
-                                <span class="text-emerald-300">ขนาด</span>
-                                <span id="leLogoSizeLabel" class="text-emerald-200 bg-emerald-950/60 px-1.5 rounded">100%</span>
+                            <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                <span class="text-slate-400">ความโปร่งใส</span>
+                                <span id="leWmOpacityLabel" class="text-amber-300 bg-amber-950/60 px-1.5 rounded">30%</span>
                             </div>
-                            <input type="range" id="leLogoSize" min="10" max="300" value="100" oninput="leUpdateLogoSize()" class="w-full accent-emerald-500">
+                            <input type="range" id="leWmOpacity" min="5" max="80" value="30" class="w-full le-slider mb-2">
                         </div>
                         <div>
-                            <div class="flex justify-between text-[9px] font-black uppercase tracking-wider mb-1">
-                                <span class="text-emerald-300">ความโปร่งใส</span>
-                                <span id="leLogoOpacityLabel" class="text-emerald-200 bg-emerald-950/60 px-1.5 rounded">100%</span>
+                            <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                <span class="text-slate-400">ขนาด</span>
+                                <span id="leWmSizeLabel" class="text-amber-300 bg-amber-950/60 px-1.5 rounded">40</span>
                             </div>
-                            <input type="range" id="leLogoOpacity" min="0" max="100" value="100" oninput="leUpdateLogoOpacity()" class="w-full accent-emerald-500">
+                            <input type="range" id="leWmSize" min="12" max="120" value="40" class="w-full le-slider mb-2">
                         </div>
-                        <button onclick="leRemoveLogo()" class="w-full bg-rose-900/30 hover:bg-rose-900/50 text-rose-300 px-2 py-1.5 rounded-lg font-bold text-[10px] border border-rose-900/40">
-                            <span class="material-icons text-xs align-middle">delete_outline</span> ลบโลโก้นี้
+                        
+                        <input type="color" id="leWmColor" value="#ffffff" class="w-full h-9 rounded-lg cursor-pointer border border-white/10 mb-2">
+                        
+                        <button onclick="leApplyWatermark()" class="le-btn-amber w-full text-white px-3 py-2.5 rounded-lg font-black text-xs shadow border border-white/10 active:scale-95">
+                            <span class="material-icons text-sm align-middle">branding_watermark</span> ใส่ลายน้ำเลย
+                        </button>
+                    </div>
+                    
+                    <div class="p-3 border-b border-white/5">
+                        <h3 class="font-black text-sm mb-3 flex items-center gap-1">
+                            <span class="material-icons text-rose-400 text-base">layers_clear</span> ลบลายน้ำเดิม
+                        </h3>
+                        <p class="text-[10px] text-slate-400 mb-2">ใช้เครื่องมือ "ลบโลโก้" → คลุมลายน้ำที่ต้องการลบ</p>
+                        <button onclick="leSwitchTab('replace')" class="le-btn-danger w-full text-white px-3 py-2 rounded-lg font-bold text-xs shadow border border-white/10">
+                            <span class="material-icons text-sm align-middle">auto_fix_high</span> ไปแท็บลบโลโก้
                         </button>
                     </div>
                 </div>
@@ -284,6 +601,10 @@
                         <img id="leLogoImg" src="" class="block pointer-events-none" draggable="false">
                         <div id="leLogoHandle" class="absolute -bottom-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white cursor-se-resize shadow-lg ring-2 ring-emerald-500/30"></div>
                     </div>
+                    <!-- Text overlays จะถูกสร้าง dynamic ที่นี่ -->
+                    <div id="leTextOverlayContainer" class="absolute inset-0 pointer-events-none"></div>
+                    <!-- Crop overlay -->
+                    <div id="leCropOverlay" class="hidden absolute border-2 border-amber-400 bg-amber-500/10 pointer-events-none" style="box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);"></div>
                 </div>
             </div>
 
