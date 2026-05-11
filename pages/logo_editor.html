@@ -200,6 +200,14 @@
                     <span class="material-icons">text_fields</span>
                     <span>ข้อความ</span>
                 </button>
+                <button onclick="leSwitchTab('draw')" id="leTabDraw" class="le-tab-btn">
+                    <span class="material-icons">edit</span>
+                    <span>วาด</span>
+                </button>
+                <button onclick="leSwitchTab('sticker')" id="leTabSticker" class="le-tab-btn">
+                    <span class="material-icons">emoji_emotions</span>
+                    <span>สติกเกอร์</span>
+                </button>
                 <button onclick="leSwitchTab('color')" id="leTabColor" class="le-tab-btn">
                     <span class="material-icons">palette</span>
                     <span>ปรับสี</span>
@@ -207,6 +215,10 @@
                 <button onclick="leSwitchTab('adjust')" id="leTabAdjust" class="le-tab-btn">
                     <span class="material-icons">crop_rotate</span>
                     <span>จัดการ</span>
+                </button>
+                <button onclick="leSwitchTab('resize')" id="leTabResize" class="le-tab-btn">
+                    <span class="material-icons">aspect_ratio</span>
+                    <span>ขยาย</span>
                 </button>
                 <button onclick="leSwitchTab('watermark')" id="leTabWatermark" class="le-tab-btn">
                     <span class="material-icons">branding_watermark</span>
@@ -236,16 +248,35 @@
                         <label class="block text-[10px] font-black text-fuchsia-300 uppercase mb-2 flex items-center gap-1">
                             <span class="material-icons text-sm">tune</span> โหมด
                         </label>
-                        <div class="grid grid-cols-2 gap-1.5">
+                        <div class="grid grid-cols-3 gap-1.5">
                             <div onclick="leSetMode('magic')" id="leModeMagic" class="le-filter-btn active rounded-lg p-2 flex flex-col items-center gap-0.5">
                                 <span class="material-icons text-base">auto_awesome</span>
-                                <span class="text-[10px] font-bold">⚡ คลุมแล้วเสร็จ</span>
+                                <span class="text-[9px] font-bold">⚡ คลุม</span>
                             </div>
                             <div onclick="leSetMode('manual')" id="leModeManual" class="le-filter-btn rounded-lg p-2 flex flex-col items-center gap-0.5">
                                 <span class="material-icons text-base">handyman</span>
-                                <span class="text-[10px] font-bold">แยกขั้นตอน</span>
+                                <span class="text-[9px] font-bold">แยกขั้น</span>
+                            </div>
+                            <div onclick="leSetMode('brush')" id="leModeBrush" class="le-filter-btn rounded-lg p-2 flex flex-col items-center gap-0.5">
+                                <span class="material-icons text-base">brush</span>
+                                <span class="text-[9px] font-bold">🪶 แปรง</span>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- 🪶 Brush Eraser controls (โหมดแปรง) -->
+                    <div id="leBrushSection" class="hidden p-3 border-b border-white/5 bg-rose-950/10">
+                        <h4 class="text-[11px] font-black text-rose-300 mb-2 flex items-center gap-1">
+                            <span class="material-icons text-sm">brush</span> ขนาดแปรงทาสี
+                        </h4>
+                        <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                            <span class="text-slate-400">ขนาด</span>
+                            <span id="leBrushSizeLabel" class="text-rose-300 bg-rose-950/60 px-1.5 rounded">40px</span>
+                        </div>
+                        <input type="range" id="leBrushSize" min="5" max="200" value="40" class="w-full le-slider mb-2">
+                        <p class="text-[10px] text-rose-300/80 bg-rose-950/40 border border-rose-900/40 rounded-lg p-2 leading-relaxed">
+                            🎨 ลากแปรงทับสิ่งที่อยากลบ — ระบบลบให้ทันที (เหมือนทาสี)
+                        </p>
                     </div>
 
                     <!-- ลบโลโก้ -->
@@ -473,7 +504,115 @@
                     </div>
                 </div>
 
-                <!-- ═══════════ TAB: ปรับสี ═══════════ -->
+                <!-- ═══════════ TAB: วาดฟรีมือ ═══════════ -->
+                <div id="leTabContent_draw" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-icons text-orange-400">edit</span>
+                            <h3 class="font-black text-sm">วาดฟรีมือ</h3>
+                        </div>
+                        
+                        <!-- เครื่องมือ -->
+                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1.5">เครื่องมือ</label>
+                        <div class="grid grid-cols-4 gap-1.5 mb-3">
+                            <button onclick="leSetDrawTool('pen')" id="leDrawPen" class="le-shape-btn active rounded-lg p-2 flex flex-col items-center gap-0.5" title="ปากกา">
+                                <span class="material-icons text-sm">edit</span>
+                                <span class="text-[9px] font-bold">ปากกา</span>
+                            </button>
+                            <button onclick="leSetDrawTool('highlighter')" id="leDrawHighlight" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="ไฮไลต์">
+                                <span class="material-icons text-sm">format_color_fill</span>
+                                <span class="text-[9px] font-bold">ไฮไลต์</span>
+                            </button>
+                            <button onclick="leSetDrawTool('marker')" id="leDrawMarker" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="เมจิก">
+                                <span class="material-icons text-sm">brush</span>
+                                <span class="text-[9px] font-bold">เมจิก</span>
+                            </button>
+                            <button onclick="leSetDrawTool('arrow')" id="leDrawArrow" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="ลูกศร">
+                                <span class="material-icons text-sm">arrow_forward</span>
+                                <span class="text-[9px] font-bold">ลูกศร</span>
+                            </button>
+                            <button onclick="leSetDrawTool('line')" id="leDrawLine" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="เส้นตรง">
+                                <span class="material-icons text-sm">horizontal_rule</span>
+                                <span class="text-[9px] font-bold">เส้นตรง</span>
+                            </button>
+                            <button onclick="leSetDrawTool('rect-shape')" id="leDrawRect" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="กรอบสี่เหลี่ยม">
+                                <span class="material-icons text-sm">crop_square</span>
+                                <span class="text-[9px] font-bold">กรอบ</span>
+                            </button>
+                            <button onclick="leSetDrawTool('circle-shape')" id="leDrawCircle" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="วงกลม">
+                                <span class="material-icons text-sm">radio_button_unchecked</span>
+                                <span class="text-[9px] font-bold">วงกลม</span>
+                            </button>
+                            <button onclick="leSetDrawTool('eraser')" id="leDrawEraser" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="ยางลบ">
+                                <span class="material-icons text-sm">backspace</span>
+                                <span class="text-[9px] font-bold">ยางลบ</span>
+                            </button>
+                        </div>
+                        
+                        <!-- สี -->
+                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">สี</label>
+                        <div class="flex gap-2 items-center mb-2">
+                            <input type="color" id="leDrawColor" value="#ef4444" class="w-12 h-9 rounded-lg cursor-pointer border border-white/10">
+                            <div class="grid grid-cols-6 gap-1 flex-1">
+                                <button onclick="leSetDrawColor('#ef4444')" style="background:#ef4444" class="h-6 rounded border border-white/20"></button>
+                                <button onclick="leSetDrawColor('#f59e0b')" style="background:#f59e0b" class="h-6 rounded border border-white/20"></button>
+                                <button onclick="leSetDrawColor('#facc15')" style="background:#facc15" class="h-6 rounded border border-white/20"></button>
+                                <button onclick="leSetDrawColor('#10b981')" style="background:#10b981" class="h-6 rounded border border-white/20"></button>
+                                <button onclick="leSetDrawColor('#3b82f6')" style="background:#3b82f6" class="h-6 rounded border border-white/20"></button>
+                                <button onclick="leSetDrawColor('#000000')" style="background:#000000" class="h-6 rounded border border-white/20"></button>
+                            </div>
+                        </div>
+                        
+                        <!-- ความหนา -->
+                        <div>
+                            <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                <span class="text-slate-400">ความหนา</span>
+                                <span id="leDrawSizeLabel" class="text-orange-300 bg-orange-950/60 px-1.5 rounded">8px</span>
+                            </div>
+                            <input type="range" id="leDrawSize" min="1" max="50" value="8" class="w-full le-slider mb-2">
+                        </div>
+                        
+                        <!-- เปิด/ปิด โหมดวาด -->
+                        <button onclick="leToggleDrawMode()" id="leDrawToggleBtn" class="le-btn-amber w-full text-white px-3 py-2.5 rounded-lg font-black text-xs shadow border border-white/10">
+                            <span class="material-icons text-sm align-middle">play_arrow</span> เริ่มวาด
+                        </button>
+                        <p class="text-[10px] text-orange-200/70 mt-2 text-center">💡 กดเริ่มแล้วลากเมาส์บนรูปได้เลย</p>
+                    </div>
+                </div>
+
+                <!-- ═══════════ TAB: สติกเกอร์ ═══════════ -->
+                <div id="leTabContent_sticker" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-icons text-yellow-400">emoji_emotions</span>
+                            <h3 class="font-black text-sm">สติกเกอร์ / อีโมจิ</h3>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mb-2">คลิกที่สติกเกอร์เพื่อวางลงบนรูป (ลากย้ายได้)</p>
+                        
+                        <!-- หมวด emoji -->
+                        <h4 class="text-[10px] font-black text-yellow-300 uppercase mb-1.5 mt-2">🎉 ทั่วไป</h4>
+                        <div class="grid grid-cols-6 gap-1 mb-3" id="leEmojiGeneral"></div>
+                        
+                        <h4 class="text-[10px] font-black text-yellow-300 uppercase mb-1.5">⭐ ฮอต / โปรโมชั่น</h4>
+                        <div class="grid grid-cols-6 gap-1 mb-3" id="leEmojiPromo"></div>
+                        
+                        <h4 class="text-[10px] font-black text-yellow-300 uppercase mb-1.5">➡️ ลูกศร</h4>
+                        <div class="grid grid-cols-6 gap-1 mb-3" id="leEmojiArrows"></div>
+                        
+                        <h4 class="text-[10px] font-black text-yellow-300 uppercase mb-1.5">✅ Status</h4>
+                        <div class="grid grid-cols-6 gap-1 mb-3" id="leEmojiStatus"></div>
+                        
+                        <h4 class="text-[10px] font-black text-yellow-300 uppercase mb-1.5">💰 เงิน / รางวัล</h4>
+                        <div class="grid grid-cols-6 gap-1 mb-3" id="leEmojiMoney"></div>
+                    </div>
+                    
+                    <!-- รายการสติกเกอร์ที่วางบนรูป -->
+                    <div id="leStickerList" class="p-3 border-b border-white/5 hidden">
+                        <h4 class="font-black text-xs text-slate-300 mb-2">สติกเกอร์บนรูป (<span id="leStickerCount">0</span>)</h4>
+                        <div id="leStickerItems" class="space-y-1"></div>
+                    </div>
+                </div>
+
                 <div id="leTabContent_color" class="le-tab-content hidden">
                     <div class="p-3 border-b border-white/5">
                         <div class="flex items-center gap-2 mb-3">
@@ -599,6 +738,51 @@
                                 ✗ ยกเลิก
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════ TAB: ขยาย/รีไซส์ ═══════════ -->
+                <div id="leTabContent_resize" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-icons text-cyan-400">aspect_ratio</span>
+                            <h3 class="font-black text-sm">ขยาย / ลดขนาดรูป</h3>
+                        </div>
+                        
+                        <div id="leResizeInfo" class="bg-cyan-950/30 border border-cyan-900/40 rounded-lg p-2 mb-3 text-[10px] text-cyan-200">
+                            <div>ขนาดปัจจุบัน: <span id="leCurrentSize" class="font-bold text-cyan-300">-</span></div>
+                            <div>ขนาดใหม่: <span id="leNewSize" class="font-bold text-emerald-300">-</span></div>
+                        </div>
+                        
+                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1.5">ปรับขนาด (เปอร์เซ็นต์)</label>
+                        <div class="grid grid-cols-4 gap-1 mb-2">
+                            <button onclick="leSetResizePercent(50)" class="le-shape-btn rounded p-1.5 text-[10px] font-bold">50%</button>
+                            <button onclick="leSetResizePercent(75)" class="le-shape-btn rounded p-1.5 text-[10px] font-bold">75%</button>
+                            <button onclick="leSetResizePercent(150)" class="le-shape-btn rounded p-1.5 text-[10px] font-bold">150%</button>
+                            <button onclick="leSetResizePercent(200)" class="le-shape-btn rounded p-1.5 text-[10px] font-bold">200%</button>
+                            <button onclick="leSetResizePercent(300)" class="le-shape-btn rounded p-1.5 text-[10px] font-bold">300%</button>
+                            <button onclick="leSetResizePercent(400)" class="le-shape-btn rounded p-1.5 text-[10px] font-bold">400%</button>
+                            <button onclick="leSetResizePercent(500)" class="le-shape-btn rounded p-1.5 text-[10px] font-bold">500%</button>
+                            <button onclick="leSetResizePercent(100)" class="le-shape-btn rounded p-1.5 text-[10px] font-bold">รีเซ็ต</button>
+                        </div>
+                        
+                        <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                            <span class="text-slate-400">ขนาดที่ต้องการ</span>
+                            <span id="leResizePercentLabel" class="text-cyan-300 bg-cyan-950/60 px-1.5 rounded">100%</span>
+                        </div>
+                        <input type="range" id="leResizePercent" min="10" max="500" value="100" oninput="leUpdateResizePreview()" class="w-full le-slider mb-3">
+                        
+                        <label class="flex items-center gap-2 cursor-pointer bg-cyan-950/30 rounded-lg p-2 border border-cyan-900/30 mb-3">
+                            <input type="checkbox" id="leSmoothResize" checked class="w-4 h-4 accent-cyan-500">
+                            <div class="flex-1">
+                                <div class="text-[11px] font-black text-cyan-300">🔍 Smooth (ลดความแตก)</div>
+                                <div class="text-[9px] text-cyan-200/60">ใช้ bilinear interpolation</div>
+                            </div>
+                        </label>
+                        
+                        <button onclick="leApplyResize()" class="le-btn-cyan w-full text-white px-3 py-2.5 rounded-lg font-black text-xs shadow border border-white/10 active:scale-95">
+                            <span class="material-icons text-sm align-middle">aspect_ratio</span> ปรับขนาดเลย
+                        </button>
                     </div>
                 </div>
 
