@@ -1,5 +1,4 @@
 <style>
-  /* CSS เฉพาะหน้าแต่งรูป */
   #logoEditorApp { font-family: inherit; }
   #leCanvasArea {
     background-color: #1a1a1a;
@@ -11,31 +10,25 @@
     background-size: 20px 20px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0;
   }
-  #leCanvas { box-shadow: 0 25px 60px rgba(0,0,0,0.5); }
+  #leCanvas { 
+    box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    /* ภาพยังคมตอนซูม */
+    image-rendering: -webkit-optimize-contrast;
+  }
   .le-tool-panel {
-    background: rgba(15, 23, 42, 0.95);
+    background: rgba(15, 23, 42, 0.97);
     backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255,255,255,0.08);
   }
-  .le-btn-primary {
-    background: linear-gradient(135deg, #ec4899, #a855f7);
-    transition: all 0.2s;
-  }
+  .le-btn-primary { background: linear-gradient(135deg, #ec4899, #a855f7); transition: all 0.2s; }
   .le-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(168, 85, 247, 0.4); }
   .le-btn-danger { background: linear-gradient(135deg, #f43f5e, #dc2626); }
   .le-btn-success { background: linear-gradient(135deg, #10b981, #14b8a6); }
   .le-btn-download { background: linear-gradient(135deg, #6366f1, #06b6d4); }
-  .le-step-num {
-    background: linear-gradient(135deg, #ec4899, #a855f7);
-    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
-  }
+  .le-step-num { background: linear-gradient(135deg, #ec4899, #a855f7); box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4); }
   .le-step-2 { background: linear-gradient(135deg, #f43f5e, #dc2626); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4); }
   .le-step-3 { background: linear-gradient(135deg, #10b981, #14b8a6); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
-  .le-zoom-btn { 
-    background: rgba(255,255,255,0.08);
-    transition: all 0.15s;
-  }
+  .le-zoom-btn { background: rgba(255,255,255,0.08); transition: all 0.15s; }
   .le-zoom-btn:hover { background: rgba(255,255,255,0.18); }
   .le-floating-toolbar {
     background: rgba(15, 23, 42, 0.92);
@@ -43,11 +36,42 @@
     border: 1px solid rgba(255,255,255,0.1);
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
   }
+  /* Shape selector buttons */
+  .le-shape-btn {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: all 0.15s;
+  }
+  .le-shape-btn:hover { background: rgba(255,255,255,0.1); }
+  .le-shape-btn.active {
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.3), rgba(220, 38, 38, 0.3));
+    border-color: rgba(244, 63, 94, 0.6);
+    box-shadow: 0 0 12px rgba(244, 63, 94, 0.3);
+  }
+  /* SVG overlay สำหรับ selection */
+  .le-svg-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .le-svg-overlay path, .le-svg-overlay rect, .le-svg-overlay ellipse {
+    stroke: #f43f5e;
+    stroke-width: 2;
+    stroke-dasharray: 5,3;
+    fill: rgba(244, 63, 94, 0.2);
+    filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.4));
+    animation: leDash 0.5s linear infinite;
+  }
+  @keyframes leDash {
+    to { stroke-dashoffset: -16; }
+  }
 </style>
 
 <div id="logoEditorApp" class="fixed inset-0 z-50 bg-slate-950 fade-in flex flex-col">
-    <!-- ────── Header (บาง) ────── -->
-    <div class="bg-gradient-to-r from-fuchsia-800 via-purple-800 to-indigo-900 text-white px-4 py-2.5 shadow-lg shrink-0 flex justify-between items-center z-30 relative">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-fuchsia-800 via-purple-800 to-indigo-900 text-white px-4 py-2 shadow-lg shrink-0 flex justify-between items-center z-30 relative">
         <div class="flex items-center gap-3">
             <div class="bg-white/15 p-1.5 rounded-xl border border-white/20">
                 <span class="material-icons text-xl text-pink-200">photo_filter</span>
@@ -62,88 +86,111 @@
         </button>
     </div>
 
-    <!-- ────── Layout 3 ส่วน: Sidebar + Canvas + Right Panel ────── -->
     <div class="flex-1 min-h-0 flex relative">
 
-        <!-- ═══ Sidebar ซ้าย (เครื่องมือ) ═══ -->
-        <aside class="le-tool-panel w-72 shrink-0 flex flex-col overflow-y-auto custom-scrollbar text-white">
+        <!-- ═══ Sidebar ซ้าย: แบ่งเป็น 2 ส่วน (เครื่องมือ scroll + ปุ่มล่างคงที่) ═══ -->
+        <aside class="le-tool-panel w-72 shrink-0 flex flex-col text-white">
             
-            <!-- Step 1: เลือกรูป -->
-            <div class="p-3 border-b border-white/5">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="le-step-num text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black">1</span>
-                    <h3 class="font-black text-sm">เลือกรูปต้นฉบับ</h3>
-                </div>
-                <label class="le-btn-primary block w-full cursor-pointer text-white text-center px-3 py-2 rounded-lg font-bold text-xs border border-white/10 shadow active:scale-95">
-                    <span class="material-icons text-sm align-middle">image</span> เลือกรูปจากเครื่อง
-                    <input type="file" accept="image/*" class="hidden" onchange="leLoadBaseImage(event)">
-                </label>
-                <p class="text-[10px] text-slate-400 mt-1.5 text-center">หรือลากไฟล์ลงพื้นที่ทำงาน</p>
-            </div>
-
-            <!-- Step 2: ลบโลโก้ -->
-            <div id="leEraseSection" class="p-3 border-b border-white/5">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="le-step-2 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black">2</span>
-                    <h3 class="font-black text-sm">ลบโลโก้เดิม</h3>
-                </div>
-                <p class="text-[10px] text-rose-300/80 bg-rose-950/40 border border-rose-900/40 rounded-lg p-2 mb-2 leading-relaxed">
-                    💡 ลากเมาส์ทับโลโก้บนรูป → กด "เติมพื้นที่"
-                </p>
+            <!-- ส่วนเลื่อน -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar min-h-0">
                 
-                <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">วิธีเติม</label>
-                <select id="leFillMode" class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none mb-2 focus:border-rose-400">
-                    <option value="auto">✨ เดาสีรอบๆ (auto)</option>
-                    <option value="blur">🌫️ เบลอกลืนพื้น</option>
-                    <option value="solid">🎨 สีทึบที่เลือก</option>
-                </select>
-                
-                <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">สี (โหมดทึบ)</label>
-                <div class="flex gap-2 items-center mb-2">
-                    <input type="color" id="leFillColor" value="#ffffff" class="w-10 h-9 rounded-lg cursor-pointer border border-white/10">
-                    <span class="text-[10px] text-slate-400 flex-1">เลือกให้ตรงพื้นรูป</span>
-                </div>
-                
-                <button onclick="leApplyErase()" class="le-btn-danger w-full text-white px-3 py-2.5 rounded-lg font-black text-xs shadow border border-white/10 flex items-center justify-center gap-1.5 active:scale-95">
-                    <span class="material-icons text-sm">auto_fix_high</span> เติมพื้นที่ที่เลือก
-                </button>
-            </div>
-
-            <!-- Step 3: ใส่โลโก้ใหม่ -->
-            <div id="leAddLogoSection" class="p-3 border-b border-white/5">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="le-step-3 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black">3</span>
-                    <h3 class="font-black text-sm">ใส่โลโก้ใหม่</h3>
-                </div>
-                <label class="le-btn-success block w-full cursor-pointer text-white text-center px-3 py-2 rounded-lg font-bold text-xs border border-white/10 shadow active:scale-95">
-                    <span class="material-icons text-sm align-middle">add_photo_alternate</span> เลือกโลโก้ใหม่
-                    <input type="file" accept="image/*" class="hidden" onchange="leLoadNewLogo(event)">
-                </label>
-                <p class="text-[10px] text-slate-400 mt-1.5 text-center">💡 แนะนำ PNG พื้นโปร่งใส</p>
-
-                <div id="leLogoControls" class="hidden mt-3 bg-emerald-950/40 border border-emerald-900/40 rounded-lg p-2.5 space-y-2.5">
-                    <div>
-                        <div class="flex justify-between text-[9px] font-black uppercase tracking-wider mb-1">
-                            <span class="text-emerald-300">ขนาด</span>
-                            <span id="leLogoSizeLabel" class="text-emerald-200 bg-emerald-950/60 px-1.5 rounded">100%</span>
-                        </div>
-                        <input type="range" id="leLogoSize" min="10" max="300" value="100" oninput="leUpdateLogoSize()" class="w-full accent-emerald-500 cursor-pointer">
+                <!-- Step 1 -->
+                <div class="p-3 border-b border-white/5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="le-step-num text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black">1</span>
+                        <h3 class="font-black text-sm">เลือกรูปต้นฉบับ</h3>
                     </div>
-                    <div>
-                        <div class="flex justify-between text-[9px] font-black uppercase tracking-wider mb-1">
-                            <span class="text-emerald-300">ความโปร่งใส</span>
-                            <span id="leLogoOpacityLabel" class="text-emerald-200 bg-emerald-950/60 px-1.5 rounded">100%</span>
-                        </div>
-                        <input type="range" id="leLogoOpacity" min="0" max="100" value="100" oninput="leUpdateLogoOpacity()" class="w-full accent-emerald-500 cursor-pointer">
-                    </div>
-                    <button onclick="leRemoveLogo()" class="w-full bg-rose-900/30 hover:bg-rose-900/50 text-rose-300 px-2 py-1.5 rounded-lg font-bold text-[10px] border border-rose-900/40 transition">
-                        <span class="material-icons text-xs align-middle">delete_outline</span> ลบโลโก้นี้
-                    </button>
+                    <label class="le-btn-primary block w-full cursor-pointer text-white text-center px-3 py-2 rounded-lg font-bold text-xs border border-white/10 shadow active:scale-95">
+                        <span class="material-icons text-sm align-middle">image</span> เลือกรูปจากเครื่อง
+                        <input type="file" accept="image/*" class="hidden" onchange="leLoadBaseImage(event)">
+                    </label>
                 </div>
+
+                <!-- Step 2: ลบโลโก้ -->
+                <div id="leEraseSection" class="p-3 border-b border-white/5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="le-step-2 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black">2</span>
+                        <h3 class="font-black text-sm">ลบโลโก้เดิม</h3>
+                    </div>
+                    
+                    <!-- รูปทรงที่ใช้คลุม -->
+                    <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">รูปทรงที่ใช้คลุม</label>
+                    <div class="grid grid-cols-4 gap-1.5 mb-3">
+                        <button onclick="leSetShape('rect')" id="leShapeRect" class="le-shape-btn active rounded-lg p-2 flex flex-col items-center gap-0.5" title="สี่เหลี่ยม">
+                            <span class="material-icons text-base">crop_square</span>
+                            <span class="text-[9px] font-bold">เหลี่ยม</span>
+                        </button>
+                        <button onclick="leSetShape('ellipse')" id="leShapeEllipse" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="วงรี">
+                            <span class="material-icons text-base">panorama_fish_eye</span>
+                            <span class="text-[9px] font-bold">วงรี</span>
+                        </button>
+                        <button onclick="leSetShape('circle')" id="leShapeCircle" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="วงกลม">
+                            <span class="material-icons text-base">radio_button_unchecked</span>
+                            <span class="text-[9px] font-bold">วงกลม</span>
+                        </button>
+                        <button onclick="leSetShape('lasso')" id="leShapeLasso" class="le-shape-btn rounded-lg p-2 flex flex-col items-center gap-0.5" title="ลากอิสระ">
+                            <span class="material-icons text-base">gesture</span>
+                            <span class="text-[9px] font-bold">อิสระ</span>
+                        </button>
+                    </div>
+                    
+                    <p class="text-[10px] text-rose-300/80 bg-rose-950/40 border border-rose-900/40 rounded-lg p-2 mb-2 leading-relaxed">
+                        💡 <b id="leShapeHint">ลากเมาส์เป็นกรอบสี่เหลี่ยม</b> ทับโลโก้ → ปล่อยเมาส์แล้วลบทันที
+                    </p>
+                    
+                    <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">วิธีเติม</label>
+                    <select id="leFillMode" class="w-full text-xs p-2 rounded-lg bg-slate-800 text-white border border-white/10 outline-none mb-2 focus:border-rose-400">
+                        <option value="auto">✨ เดาสีรอบๆ (auto)</option>
+                        <option value="blur">🌫️ เบลอกลืนพื้น</option>
+                        <option value="solid">🎨 สีทึบที่เลือก</option>
+                    </select>
+                    
+                    <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">สี (โหมดทึบ)</label>
+                    <div class="flex gap-2 items-center mb-1">
+                        <input type="color" id="leFillColor" value="#ffffff" class="w-10 h-9 rounded-lg cursor-pointer border border-white/10">
+                        <span class="text-[10px] text-slate-400 flex-1">ใช้เมื่อเลือก "สีทึบ"</span>
+                    </div>
+                </div>
+
+                <!-- Step 3: ใส่โลโก้ใหม่ -->
+                <div id="leAddLogoSection" class="p-3 border-b border-white/5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="le-step-3 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black">3</span>
+                        <h3 class="font-black text-sm">ใส่โลโก้ใหม่</h3>
+                    </div>
+                    <label class="le-btn-success block w-full cursor-pointer text-white text-center px-3 py-2 rounded-lg font-bold text-xs border border-white/10 shadow active:scale-95">
+                        <span class="material-icons text-sm align-middle">add_photo_alternate</span> เลือกโลโก้ใหม่
+                        <input type="file" accept="image/*" class="hidden" onchange="leLoadNewLogo(event)">
+                    </label>
+                    <p class="text-[10px] text-slate-400 mt-1.5 text-center">💡 แนะนำ PNG พื้นโปร่งใส</p>
+
+                    <div id="leLogoControls" class="hidden mt-3 bg-emerald-950/40 border border-emerald-900/40 rounded-lg p-2.5 space-y-2.5">
+                        <div>
+                            <div class="flex justify-between text-[9px] font-black uppercase tracking-wider mb-1">
+                                <span class="text-emerald-300">ขนาด</span>
+                                <span id="leLogoSizeLabel" class="text-emerald-200 bg-emerald-950/60 px-1.5 rounded">100%</span>
+                            </div>
+                            <input type="range" id="leLogoSize" min="10" max="300" value="100" oninput="leUpdateLogoSize()" class="w-full accent-emerald-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[9px] font-black uppercase tracking-wider mb-1">
+                                <span class="text-emerald-300">ความโปร่งใส</span>
+                                <span id="leLogoOpacityLabel" class="text-emerald-200 bg-emerald-950/60 px-1.5 rounded">100%</span>
+                            </div>
+                            <input type="range" id="leLogoOpacity" min="0" max="100" value="100" oninput="leUpdateLogoOpacity()" class="w-full accent-emerald-500">
+                        </div>
+                        <button onclick="leRemoveLogo()" class="w-full bg-rose-900/30 hover:bg-rose-900/50 text-rose-300 px-2 py-1.5 rounded-lg font-bold text-[10px] border border-rose-900/40 transition">
+                            <span class="material-icons text-xs align-middle">delete_outline</span> ลบโลโก้นี้
+                        </button>
+                    </div>
+                </div>
+
+                <!-- พื้นที่ว่างกันชน scroll -->
+                <div class="h-4"></div>
             </div>
 
-            <!-- Bottom buttons -->
-            <div class="p-3 mt-auto bg-black/30 border-t border-white/5 space-y-2">
+            <!-- ═══ ปุ่มล่างคงที่ (sticky bottom) ═══ -->
+            <div class="shrink-0 p-3 bg-black/40 border-t-2 border-white/10 space-y-2">
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="leUndoLast()" class="bg-white/5 hover:bg-white/10 text-white px-2 py-2 rounded-lg font-bold text-[11px] border border-white/10 flex items-center justify-center gap-1 transition">
                         <span class="material-icons text-sm">undo</span> ย้อนกลับ
@@ -152,16 +199,15 @@
                         <span class="material-icons text-sm">refresh</span> เริ่มใหม่
                     </button>
                 </div>
-                <button id="leDownloadBtn" onclick="leDownload()" class="le-btn-download w-full text-white px-3 py-2.5 rounded-lg font-black text-sm shadow-lg flex items-center justify-center gap-2 border border-white/10 active:scale-95">
+                <button id="leDownloadBtn" onclick="leDownload()" class="le-btn-download w-full text-white px-3 py-3 rounded-lg font-black text-sm shadow-lg flex items-center justify-center gap-2 border border-white/10 active:scale-95">
                     <span class="material-icons">download</span> ดาวน์โหลดรูป
                 </button>
             </div>
         </aside>
 
-        <!-- ═══ Canvas Workspace (กลาง) ═══ -->
+        <!-- ═══ Canvas Workspace ═══ -->
         <main id="leCanvasArea" class="flex-1 relative overflow-auto custom-scrollbar">
             
-            <!-- Empty state -->
             <div id="leEmptyState" class="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div class="text-center px-6">
                     <div class="inline-flex items-center justify-center w-28 h-28 rounded-3xl bg-slate-900/80 backdrop-blur-sm shadow-2xl mb-4 border border-white/10">
@@ -172,11 +218,12 @@
                 </div>
             </div>
             
-            <!-- Canvas container -->
             <div id="leCanvasScroller" class="min-h-full w-full flex items-center justify-center p-4">
-                <div id="leCanvasWrapper" class="hidden relative bg-white rounded-md overflow-visible" style="touch-action: none; transform-origin: center;">
+                <div id="leCanvasWrapper" class="hidden relative bg-white rounded-md" style="touch-action: none;">
                     <canvas id="leCanvas" class="block cursor-crosshair rounded-md"></canvas>
-                    <div id="leSelectionBox" class="hidden absolute border-2 border-dashed border-rose-400 bg-rose-500/20 pointer-events-none rounded shadow-xl shadow-rose-500/40"></div>
+                    <!-- SVG overlay สำหรับ shape selection -->
+                    <svg id="leSelectionSvg" class="le-svg-overlay hidden" xmlns="http://www.w3.org/2000/svg"></svg>
+                    <!-- Logo overlay -->
                     <div id="leLogoOverlay" class="hidden absolute cursor-move border-2 border-dashed border-emerald-400 select-none rounded shadow-xl shadow-emerald-500/40" style="touch-action: none;">
                         <img id="leLogoImg" src="" class="block pointer-events-none" draggable="false">
                         <div id="leLogoHandle" class="absolute -bottom-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white cursor-se-resize shadow-lg ring-2 ring-emerald-500/30"></div>
@@ -184,21 +231,18 @@
                 </div>
             </div>
 
-            <!-- Floating zoom controls -->
+            <!-- Floating zoom toolbar -->
             <div id="leZoomControls" class="hidden absolute bottom-4 right-4 le-floating-toolbar rounded-2xl p-1.5 flex items-center gap-1 z-20 text-white">
                 <button onclick="leZoomOut()" title="ซูมออก" class="le-zoom-btn w-9 h-9 rounded-lg flex items-center justify-center">
                     <span class="material-icons text-base">remove</span>
                 </button>
-                <button onclick="leFitScreen()" title="พอดีจอ" class="le-zoom-btn px-3 h-9 rounded-lg flex items-center justify-center text-[11px] font-black">
+                <button onclick="leFitScreen()" title="พอดีจอ" class="le-zoom-btn px-3 h-9 rounded-lg flex items-center text-[11px] font-black">
                     <span id="leZoomLabel">100%</span>
                 </button>
                 <button onclick="leZoomIn()" title="ซูมเข้า" class="le-zoom-btn w-9 h-9 rounded-lg flex items-center justify-center">
                     <span class="material-icons text-base">add</span>
                 </button>
                 <div class="w-px h-6 bg-white/10 mx-1"></div>
-                <button onclick="leZoomReset()" title="ขนาดจริง 100%" class="le-zoom-btn w-9 h-9 rounded-lg flex items-center justify-center">
-                    <span class="material-icons text-base">crop_free</span>
-                </button>
                 <button onclick="leFitScreen()" title="พอดีจอ" class="le-zoom-btn w-9 h-9 rounded-lg flex items-center justify-center">
                     <span class="material-icons text-base">fit_screen</span>
                 </button>
@@ -206,8 +250,8 @@
 
             <!-- Floating tip top-center -->
             <div id="leTipBar" class="hidden absolute top-4 left-1/2 -translate-x-1/2 le-floating-toolbar rounded-full px-4 py-2 text-white text-xs font-bold flex items-center gap-2 z-20">
-                <span class="material-icons text-rose-400 text-sm">crop_free</span>
-                <span id="leTipText">ลากเมาส์ทับโลโก้เพื่อเลือกพื้นที่ลบ</span>
+                <span class="material-icons text-rose-400 text-sm">info</span>
+                <span id="leTipText"></span>
             </div>
         </main>
 
