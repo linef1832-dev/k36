@@ -65,7 +65,79 @@ window.initLogoEditorApp = function() {
     
     // 🌟 Keyboard shortcuts
     leSetupKeyboardShortcuts();
+    
+    // 🌟 [แก้บัค scroll] บังคับ layout ของ sidebar — ใช้ JS เพราะ CSS อาจถูก override
+    leForceLayoutFix();
 };
+
+// ==========================================
+// 🔧 บังคับ layout ของ sidebar/canvas ให้ scroll ทำงานแน่นอน
+// ==========================================
+function leForceLayoutFix() {
+    requestAnimationFrame(() => {
+        const app = document.getElementById('logoEditorApp');
+        if (!app) return;
+        
+        // root: fixed inset-0 (เต็มจอ)
+        app.style.height = '100vh';
+        app.style.maxHeight = '100vh';
+        app.style.display = 'flex';
+        app.style.flexDirection = 'column';
+        
+        // header
+        const header = app.querySelector(':scope > div:first-of-type');
+        if (header) header.style.flexShrink = '0';
+        
+        // body (flex container ใหญ่)
+        const body = app.querySelector(':scope > div:last-of-type');
+        if (body) {
+            body.style.flex = '1 1 0%';
+            body.style.minHeight = '0';
+            body.style.height = 'auto';
+            body.style.overflow = 'hidden';
+            body.style.display = 'flex';
+        }
+        
+        // sidebar
+        const aside = app.querySelector('aside');
+        if (aside) {
+            aside.style.height = '100%';
+            aside.style.minHeight = '0';
+            aside.style.maxHeight = '100%';
+            aside.style.display = 'flex';
+            aside.style.flexDirection = 'column';
+            aside.style.flexShrink = '0';
+        }
+        
+        // scroll container ใน sidebar
+        if (aside) {
+            const scrollDiv = aside.querySelector(':scope > div.flex-1, :scope > div[class*="overflow-y-auto"]');
+            if (scrollDiv) {
+                scrollDiv.style.flex = '1 1 0%';
+                scrollDiv.style.minHeight = '0';
+                scrollDiv.style.overflowY = 'auto';
+                scrollDiv.style.overflowX = 'hidden';
+            }
+            
+            // sticky bottom — shrink-0
+            const bottomSection = aside.querySelector(':scope > div:last-of-type');
+            if (bottomSection) bottomSection.style.flexShrink = '0';
+        }
+        
+        // canvas area
+        const canvasArea = document.getElementById('leCanvasArea');
+        if (canvasArea) {
+            canvasArea.style.flex = '1 1 0%';
+            canvasArea.style.minHeight = '0';
+            canvasArea.style.overflow = 'auto';
+        }
+    });
+}
+
+// re-fix layout ทุกครั้งที่ resize
+window.addEventListener('resize', () => {
+    if (document.getElementById('logoEditorApp')) leForceLayoutFix();
+});
 
 // ==========================================
 // ⌨️ Keyboard shortcuts (Ctrl+Z = undo, Ctrl+S = download, Esc = ยกเลิก crop)
