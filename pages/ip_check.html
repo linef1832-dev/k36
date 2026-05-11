@@ -94,5 +94,42 @@
             <p class="text-gray-400 mt-2 font-bold">กำลังโหลดข้อมูล IP &amp; FP...</p>
         </div>
     </div>
+</div>
+
+<!-- 🛡️ Safety Check: ตรวจว่าไฟล์ ip_check.js โหลดสำเร็จไหม -->
+<script>
+(function() {
+    // รอ 2 วินาทีหลัง DOM พร้อม แล้วเช็คว่าฟังก์ชันมีอยู่จริงไหม
+    setTimeout(function() {
+        if (typeof window.fetchIpLogs !== 'function' || typeof window.switchIpTab !== 'function') {
+            const container = document.getElementById('ipLogsContainer');
+            if (container && !window._ipCheckErrorShown) {
+                window._ipCheckErrorShown = true;
+                container.innerHTML = `
+                    <div class="col-span-full bg-rose-50 dark:bg-rose-900/20 border-2 border-rose-300 dark:border-rose-700 rounded-2xl p-6 text-center">
+                        <span class="material-icons text-6xl text-rose-500 mb-3">error_outline</span>
+                        <h3 class="font-black text-lg text-rose-700 dark:text-rose-300 mb-2">ไฟล์ระบบโหลดไม่สำเร็จ</h3>
+                        <p class="text-sm text-rose-600 dark:text-rose-400 mb-4">
+                            ไฟล์ <code class="bg-rose-100 dark:bg-rose-900/50 px-2 py-0.5 rounded font-mono text-xs">js/ip_check.js</code> 
+                            ไม่ได้ถูกโหลดเข้าระบบ
+                        </p>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 text-left text-xs text-gray-600 dark:text-gray-300 max-w-lg mx-auto">
+                            <div class="font-black text-sky-600 dark:text-sky-400 mb-2">วิธีแก้:</div>
+                            <ol class="list-decimal ml-5 space-y-1">
+                                <li>กด <b>Ctrl + Shift + R</b> (รีเฟรชหนัก) เพื่อล้าง cache</li>
+                                <li>ถ้ายังไม่ได้ — ตรวจสอบใน Cloudflare Pages ว่าไฟล์ <code>js/ip_check.js</code> ถูกอัปโหลดขึ้นไหม</li>
+                                <li>ลองเข้า URL <code>/js/ip_check.js</code> ตรงๆ → ถ้าเห็นโค้ด = ไฟล์มี / ถ้าเห็น 404 = ต้องอัปไฟล์ใหม่</li>
+                                <li>ตรวจสอบ encoding ไฟล์ต้องเป็น <b>UTF-8</b> (ไม่ใช่ ANSI / Windows-874)</li>
+                            </ol>
+                        </div>
+                        <button onclick="location.reload()" class="mt-4 bg-sky-500 hover:bg-sky-600 text-white px-5 py-2 rounded-lg text-sm font-bold">
+                            <span class="material-icons text-sm align-middle">refresh</span> ลองรีโหลดอีกครั้ง
+                        </button>
+                    </div>`;
+            }
+        }
+    }, 2000);
+})();
+</script>
 
 </div>
