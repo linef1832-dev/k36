@@ -105,6 +105,10 @@ window.initDutyApp = async function() {
         window.renderRoleEditorList();
 
         window.subscribeDutyChanges(); 
+        
+        // 🌟 [แก้บัค Realtime] reset flag เพราะเพิ่ง refresh ไป
+        window._dutyPendingReload = false;
+        window._dutyLastReloadTime = Date.now();
     } catch (err) { console.error("Init Duty Error:", err); } 
     finally { Swal.close(); }
 }
@@ -143,12 +147,55 @@ window.loadDutyAccessAndRoles = async function() {
     } catch(e) { dutyAccessMatrix = {}; customDutyRoles = {}; }
 }
 
+// 🌟 [แก้บัค Realtime] flag บอกว่ามีการเปลี่ยนตอนไม่อยู่หน้านี้ (ตอนเข้ามาจะ reload ทันที)
+window._dutyPendingReload = false;
+window._dutyLastReloadTime = 0;
+
 window.subscribeDutyChanges = function() {
-    if(dutySubscription) appDB.removeChannel(dutySubscription);
+    if(dutySubscription) { 
+        try { appDB.removeChannel(dutySubscription); } catch(e) {}
+        dutySubscription = null;
+    }
+    
     dutySubscription = appDB.channel('duty-updates').on('broadcast', { event: 'force_reload' }, () => {
-        if (!document.getElementById('dutyApp').classList.contains('hidden')) window.refreshDutyData();
+        const dutyApp = document.getElementById('dutyApp');
+        const isOnDutyPage = dutyApp && !dutyApp.classList.contains('hidden');
+        
+        if (isOnDutyPage) {
+            // กัน reload ถี่เกิน (debounce 800ms) เผื่อ broadcast มาหลายครั้งติดกัน
+            const now = Date.now();
+            if (now - window._dutyLastReloadTime < 800) {
+                window._dutyPendingReload = true;
+                setTimeout(() => {
+                    if (window._dutyPendingReload && !document.getElementById('dutyApp').classList.contains('hidden')) {
+                        window._dutyPendingReload = false;
+                        window._dutyLastReloadTime = Date.now();
+                        window.refreshDutyData();
+                    }
+                }, 1000);
+                return;
+            }
+            window._dutyLastReloadTime = now;
+            window.refreshDutyData();
+        } else {
+            // ไม่ได้อยู่หน้านี้ → จำไว้ก่อน ตอนกลับมาเข้าจะ reload
+            window._dutyPendingReload = true;
+        }
     }).subscribe();
+    
     if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dutySubscription);
+    
+    // 🌟 [แก้บัค Realtime] Polling fallback ทุก 30 วิ — เผื่อ broadcast หลุด/เน็ตกระตุก
+    if (window._dutyPollingTimer) clearInterval(window._dutyPollingTimer);
+    window._dutyPollingTimer = setInterval(() => {
+        const dutyApp = document.getElementById('dutyApp');
+        if (dutyApp && !dutyApp.classList.contains('hidden')) {
+            // เช็คทุก 30 วิว่ามีของใหม่ไหม
+            if (typeof window.refreshDutyData === 'function') {
+                window.refreshDutyData();
+            }
+        }
+    }, 30000);
 }
 
 window.applyDutyRoleUI = function() {
@@ -1611,6 +1658,10 @@ window.openTrainerReportModal = async function(team) {
                 Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1000, showConfirmButton: false });
                 window.refreshDutyData();
                 appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+                // 🌟 [แก้บัค Realtime] เรียก helper เพื่อ insert log + broadcast (แทน monkey-patch เดิมที่ไม่ทำงาน)
+                if (typeof window.broadcastTrainerReportChange === 'function') {
+                    window.broadcastTrainerReportChange(reportKey);
+                }
             }
         });
     }
@@ -2195,30 +2246,27 @@ window.updateDutyStats = function() {
     statusBar.innerHTML = statusHTML;
 }
 
-if (window.appDB && appDB.from) {
-    const originalDbUpsert = appDB.from('settings').upsert;
-    appDB.from('settings').upsert = async function(payload) {
-        const result = await originalDbUpsert.call(this, payload);
-        try {
-            if (payload && payload[0] && payload[0].key && payload[0].key.startsWith('report_')) {
-                const parts = payload[0].key.split('_');
-                if (parts[1] === 'AMQL' || parts[1] === 'ODQL' || parts[1].startsWith('TRAINER')) {
-                    const dateStr = parts[parts.length - 2];
-                    const shiftStr = parts[parts.length - 1];
-                    
-                    await appDB.from('system_logs').insert([{ 
-                        action_type: 'ประเมินงานผู้สอน', 
-                        performed_by: currentUser.username, 
-                        target_details: `ลงข้อมูลประเมินการทำงาน (กะ: ${shiftStr}, วันที่: ${dateStr})` 
-                    }]);
-                    
-                    appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
-                }
-            }
-        } catch(e) {}
-        return result;
-    };
-}
+// 🌟 [แก้บัค Realtime] Helper สำหรับ broadcast การเปลี่ยนแปลงและ log
+// ใช้แทน monkey-patch เดิมที่ไม่ทำงาน (เพราะ appDB.from() คืน object ใหม่ทุกครั้ง)
+// เรียกฟังก์ชันนี้หลังจาก upsert report สำเร็จ
+window.broadcastTrainerReportChange = async function(reportKey) {
+    try {
+        const parts = reportKey.split('_');
+        if (parts[1] === 'AMQL' || parts[1] === 'ODQL' || parts[1].startsWith('TRAINER')) {
+            const dateStr = parts[parts.length - 2];
+            const shiftStr = parts[parts.length - 1];
+            
+            await appDB.from('system_logs').insert([{ 
+                action_type: 'ประเมินงานผู้สอน', 
+                performed_by: currentUser.username, 
+                target_details: `ลงข้อมูลประเมินการทำงาน (กะ: ${shiftStr}, วันที่: ${dateStr})` 
+            }]);
+            
+            appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+        }
+    } catch(e) { console.warn('broadcastTrainerReportChange error:', e); }
+};
+
 
 let dutySearchTimeout = null;
 window.onDutySearch = function() {
