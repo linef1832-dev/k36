@@ -200,6 +200,10 @@
                     <span class="material-icons">smart_toy</span>
                     <span>AI ลบพื้น</span>
                 </button>
+                <button onclick="leSwitchTab('split')" id="leTabSplit" class="le-tab-btn">
+                    <span class="material-icons">auto_awesome_motion</span>
+                    <span>แยกชิ้น</span>
+                </button>
                 <button onclick="leSwitchTab('template')" id="leTabTemplate" class="le-tab-btn">
                     <span class="material-icons">dashboard_customize</span>
                     <span>Template</span>
@@ -490,6 +494,155 @@
                             <li>ทำงาน 100% ในเบราว์เซอร์ — ไม่ส่งรูปไปไหน</li>
                             <li>ครั้งแรกอาจช้า — เพราะ download AI model</li>
                         </ul>
+                    </div>
+                </div>
+
+                <!-- ═══════════ TAB: แยกชิ้นโลโก้ (Logo Splitter) ═══════════ -->
+                <div id="leTabContent_split" class="le-tab-content hidden">
+                    <div class="p-3 border-b border-white/5">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-icons text-pink-400">auto_awesome_motion</span>
+                            <h3 class="font-black text-sm">แยกชิ้นโลโก้</h3>
+                            <span class="text-[8px] bg-pink-500/20 border border-pink-400/40 text-pink-300 px-1.5 py-0.5 rounded-full font-black">PRO</span>
+                        </div>
+                        
+                        <p class="text-[10px] text-pink-200/80 bg-pink-950/30 border border-pink-900/40 rounded-lg p-2 mb-3 leading-relaxed">
+                            🪄 แยกโลโก้เป็นชิ้นๆ → คลิกชิ้นไหนแก้ชิ้นนั้นได้:<br>
+                            • <b>เปลี่ยนสี</b> ของชิ้นนั้น<br>
+                            • <b>ย้าย/ปรับขนาด</b> ชิ้น<br>
+                            • <b>แทนตัวอักษร</b> (P → O, G → K)
+                        </p>
+                        
+                        <button onclick="leLoadLogoForSplit()" class="le-btn-primary w-full text-white px-3 py-2.5 rounded-lg font-bold text-xs shadow border border-white/10 active:scale-95 mb-2">
+                            <label class="block cursor-pointer">
+                                <span class="material-icons text-sm align-middle">file_upload</span> เลือกโลโก้ที่จะแยก
+                                <input type="file" accept="image/*" class="hidden" onchange="leLoadLogoForSplit(event)">
+                            </label>
+                        </button>
+                        
+                        <!-- ตั้งค่าการแยก -->
+                        <div id="leSplitSettings" class="hidden bg-slate-800/40 border border-white/10 rounded-lg p-2 mb-2 space-y-2">
+                            <h4 class="text-[10px] font-black text-pink-300 uppercase">⚙️ ตั้งค่าการแยก</h4>
+                            
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-slate-400">ความใกล้เคียงสี</span>
+                                    <span id="leSplitTolLabel" class="text-pink-300 bg-pink-950/60 px-1.5 rounded">30</span>
+                                </div>
+                                <input type="range" id="leSplitTolerance" min="5" max="100" value="30" oninput="document.getElementById('leSplitTolLabel').innerText=this.value" class="w-full le-slider">
+                                <p class="text-[9px] text-slate-500 mt-0.5">น้อย=เข้มงวด มาก=รวมสีใกล้เคียง</p>
+                            </div>
+                            
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-slate-400">ขนาดชิ้นขั้นต่ำ</span>
+                                    <span id="leSplitMinLabel" class="text-pink-300 bg-pink-950/60 px-1.5 rounded">100 px</span>
+                                </div>
+                                <input type="range" id="leSplitMinSize" min="20" max="2000" value="100" oninput="document.getElementById('leSplitMinLabel').innerText=this.value + ' px'" class="w-full le-slider">
+                                <p class="text-[9px] text-slate-500 mt-0.5">ชิ้นเล็กกว่านี้จะถูกข้าม</p>
+                            </div>
+                            
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="leSplitIgnoreBg" checked class="w-4 h-4 accent-pink-500">
+                                <span class="text-[10px] text-pink-200">ข้ามพื้นหลัง (สีมุม)</span>
+                            </label>
+                            
+                            <button onclick="leSplitLogoNow()" class="le-btn-success w-full text-white px-3 py-2 rounded-lg font-black text-xs shadow border border-white/10">
+                                <span class="material-icons text-sm align-middle">auto_awesome</span> แยกชิ้นเลย
+                            </button>
+                        </div>
+                        
+                        <!-- Progress -->
+                        <div id="leSplitProgress" class="hidden bg-pink-950/40 border border-pink-900/40 rounded-lg p-2 mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="material-icons animate-spin text-pink-400 text-sm">sync</span>
+                                <span id="leSplitStatus" class="text-[10px] font-bold text-pink-200">กำลังวิเคราะห์รูป...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- รายการชิ้นที่แยกได้ -->
+                    <div id="leSplitPartsContainer" class="p-3 border-b border-white/5 hidden">
+                        <h4 class="font-black text-xs text-pink-300 mb-2 flex items-center gap-1">
+                            <span class="material-icons text-base">layers</span>
+                            ชิ้นที่แยกได้ (<span id="leSplitCount">0</span>)
+                        </h4>
+                        <p class="text-[10px] text-slate-400 mb-2">คลิกชิ้นบนรูปเพื่อแก้ไข หรือเลือกจากรายการ</p>
+                        <div id="leSplitPartsList" class="space-y-1.5"></div>
+                    </div>
+                    
+                    <!-- Editor ของชิ้นที่เลือก -->
+                    <div id="leSplitEditor" class="hidden p-3 border-b border-white/5 bg-pink-950/10">
+                        <h4 class="font-black text-xs text-pink-300 mb-2 flex items-center gap-1">
+                            <span class="material-icons text-base">edit</span>
+                            แก้ไขชิ้นที่เลือก
+                        </h4>
+                        
+                        <!-- เปลี่ยนสี -->
+                        <div class="mb-3">
+                            <label class="block text-[9px] font-black text-pink-200 uppercase mb-1.5">🎨 สี</label>
+                            <div class="flex gap-2 items-center mb-1.5">
+                                <input type="color" id="leSplitColor" onchange="leSplitChangeColor(this.value)" class="w-12 h-9 rounded-lg cursor-pointer border border-white/10">
+                                <span id="leSplitColorLabel" class="flex-1 text-[10px] font-mono text-pink-200">#000000</span>
+                            </div>
+                            <div class="grid grid-cols-6 gap-1">
+                                <button onclick="leSplitChangeColor('#ffffff')" style="background:#ffffff" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#000000')" style="background:#000000" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#ec4899')" style="background:#ec4899" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#a855f7')" style="background:#a855f7" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#f59e0b')" style="background:#f59e0b" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#10b981')" style="background:#10b981" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#ef4444')" style="background:#ef4444" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#3b82f6')" style="background:#3b82f6" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#06b6d4')" style="background:#06b6d4" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#facc15')" style="background:#facc15" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#dc2626')" style="background:#dc2626" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#1e293b')" style="background:#1e293b" class="h-5 rounded border border-white/30"></button>
+                            </div>
+                        </div>
+                        
+                        <!-- ขนาด/ตำแหน่ง -->
+                        <div class="mb-3">
+                            <label class="block text-[9px] font-black text-pink-200 uppercase mb-1.5">📐 ขนาด</label>
+                            <div>
+                                <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                    <span class="text-slate-400">ขนาด</span>
+                                    <span id="leSplitScaleLabel" class="text-pink-300 bg-pink-950/60 px-1.5 rounded">100%</span>
+                                </div>
+                                <input type="range" id="leSplitScale" min="20" max="300" value="100" oninput="leSplitChangeScale(this.value)" class="w-full le-slider">
+                            </div>
+                        </div>
+                        
+                        <!-- แทนตัวอักษร -->
+                        <div class="mb-3">
+                            <label class="block text-[9px] font-black text-pink-200 uppercase mb-1.5">✏️ แทนด้วยตัวอักษร</label>
+                            <p class="text-[9px] text-slate-400 mb-1">ลบชิ้นนี้แล้วใส่ตัวอักษรแทน (เช่น P → O)</p>
+                            <div class="flex gap-1.5">
+                                <input type="text" id="leSplitReplaceText" placeholder="ตัวอักษร" maxlength="3" class="flex-1 text-xs p-1.5 rounded bg-slate-800 text-white border border-white/10 outline-none focus:border-pink-400">
+                                <button onclick="leSplitReplaceWithText()" class="bg-pink-600 hover:bg-pink-500 text-white px-3 py-1.5 rounded font-bold text-[10px]">
+                                    แทนที่
+                                </button>
+                            </div>
+                            <p class="text-[9px] text-slate-500 mt-1">💡 พิมพ์ตัวอักษรใหม่ (ใช้สี+ขนาดเดียวกับชิ้นเดิม)</p>
+                        </div>
+                        
+                        <!-- ปุ่มเสริม -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="leSplitDuplicate()" class="bg-blue-600 hover:bg-blue-500 text-white px-2 py-1.5 rounded-lg font-bold text-[10px]">
+                                <span class="material-icons text-xs align-middle">content_copy</span> Copy
+                            </button>
+                            <button onclick="leSplitDeletePart()" class="bg-rose-600 hover:bg-rose-500 text-white px-2 py-1.5 rounded-lg font-bold text-[10px]">
+                                <span class="material-icons text-xs align-middle">delete</span> ลบชิ้น
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Merge & ส่งออก -->
+                    <div id="leSplitMerge" class="hidden p-3 border-b border-white/5">
+                        <button onclick="leSplitFinalize()" class="le-btn-download w-full text-white px-3 py-2.5 rounded-lg font-black text-xs shadow border border-white/10">
+                            <span class="material-icons text-sm align-middle">check_circle</span> ยืนยัน — รวมเป็นโลโก้ใหม่
+                        </button>
+                        <p class="text-[9px] text-slate-400 mt-1.5 text-center">💡 รวมทุกชิ้นเป็นรูปเดียวเพื่อนำไปใช้ต่อ</p>
                     </div>
                 </div>
 
