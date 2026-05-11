@@ -2335,6 +2335,9 @@ const PERM_GROUPS = [
         id: 'page_gallery', name: 'คลังรูปภาพ', icon: 'photo_library', theme: 'pink',
         items: [
             {id: 'gallery', name: 'เข้าหน้าคลังรูปภาพ', isSub: false},
+            {id: 'gallery_tab_bonus', name: 'ดูแท็บ "โบนัสไทม์"', isSub: true},
+            {id: 'gallery_tab_reach', name: 'ดูแท็บ "รีชเมนู"', isSub: true},
+            {id: 'gallery_tab_card', name: 'ดูแท็บ "การ์ดเมนู"', isSub: true},
             {id: 'gallery_upload', name: 'อัปโหลดรูปภาพ', isSub: true},
             {id: 'gallery_delete', name: 'ลบรูปภาพ', isSub: true}
         ]
