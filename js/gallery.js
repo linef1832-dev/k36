@@ -63,10 +63,11 @@ window.initGalleryApp = function() {
     if (bulkDeleteBtn) bulkDeleteBtn.classList.add('hidden');
     document.querySelectorAll('.gallery-check').forEach(cb => cb.checked = false);
 
-    if (currentUser.role === 'manager' || currentUser.role === 'admin') {
-        if(adminControls) adminControls.classList.remove('hidden');
-    } else {
-        if(adminControls) adminControls.classList.add('hidden');
+    // 🌟 [แก้บัค] เช็คสิทธิ์อัปโหลดแบบ permission ด้วย ไม่ใช่แค่ role
+    const canUpload = isAdminOrManager || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('gallery_upload'));
+    if (adminControls) {
+        if (canUpload) adminControls.classList.remove('hidden');
+        else adminControls.classList.add('hidden');
     }
 
     const filterSelect = document.getElementById('galleryFilter');
@@ -189,7 +190,9 @@ window.fetchGalleryImages = async function() {
         return;
     }
 
-    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    // 🌟 [แก้บัค] เช็คสิทธิ์ลบแบบ permission ด้วย ไม่ใช่แค่ role
+    const isAdminOrMgr = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const canDelete = isAdminOrMgr || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('gallery_delete'));
     const lastViewKey = `gallery_last_view_${currentUser.username}`;
     const lastViewedTime = new Date(localStorage.getItem(lastViewKey) || '2000-01-01T00:00:00');
 
@@ -199,7 +202,7 @@ window.fetchGalleryImages = async function() {
         const isNew = imgDate > lastViewedTime;
         
         const newBadge = isNew ? `<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded shadow-lg font-bold animate-pulse z-30 border border-white/50">NEW</span>` : '';
-        const adminCheckbox = isAdmin ? `<div class="absolute top-2 left-2 z-30" onclick="event.stopPropagation()"><input type="checkbox" class="gallery-check w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm bg-white" value="${img.id}" onchange="updateBulkDeleteButton()"></div>` : '';
+        const adminCheckbox = canDelete ? `<div class="absolute top-2 left-2 z-30" onclick="event.stopPropagation()"><input type="checkbox" class="gallery-check w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm bg-white" value="${img.id}" onchange="updateBulkDeleteButton()"></div>` : '';
 
         // 🌟 [คลังรูป] สีของ badge ตาม suffix
         let catColor = "bg-black/60 text-white border-white/20";
