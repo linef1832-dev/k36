@@ -213,19 +213,17 @@ function leSetupKeyboardShortcuts() {
 // ==========================================
 window.leSwitchTab = function(tab) {
     window.leState.currentTab = tab;
-    const allTabs = ['replace','text','draw','sticker','color','adjust','resize','watermark'];
+    const allTabs = ['replace','aibg','template','text','draw','sticker','layer','color','adjust','resize','watermark'];
     allTabs.forEach(t => {
         const btn = document.getElementById('leTab' + t.charAt(0).toUpperCase() + t.slice(1));
         const content = document.getElementById('leTabContent_' + t);
         if (btn) btn.classList.toggle('active', t === tab);
         if (content) content.classList.toggle('hidden', t !== tab);
     });
-    // ถ้าเปลี่ยน tab ออกจาก draw → ปิดโหมดวาด
     if (tab !== 'draw' && window.leState.drawMode) leToggleDrawMode();
-    // ถ้าเข้าแท็บ resize → update info
     if (tab === 'resize') leUpdateResizeInfo();
-    // ถ้าเข้าแท็บ sticker → render emoji
     if (tab === 'sticker') leRenderEmojiPickers();
+    if (tab === 'layer') leLayerRefresh();
 };
 
 window.leSetMode = function(mode) {
@@ -1313,6 +1311,7 @@ function leRenderAllTextOverlays() {
     container.style.pointerEvents = 'none';
     const scale = leTotalScale();
     window.leState.textObjects.forEach(obj => {
+        if (obj.visible === false) return;  // ซ่อนจาก layer panel
         const div = document.createElement('div');
         div.className = 'le-text-overlay' + (obj.id === window.leState.selectedTextId ? ' selected' : '');
         div.dataset.id = obj.id;
@@ -1333,6 +1332,8 @@ function leRenderAllTextOverlays() {
         div.innerText = obj.text;
         container.appendChild(div);
     });
+    // re-render stickers ด้วย (เพราะ innerHTML='' ลบ sticker ไปด้วย)
+    leRenderAllStickers();
 }
 
 function leSetupTextDragging() {
@@ -1382,23 +1383,26 @@ function leUpdateTextList() {
     const wrap = document.getElementById('leTextList');
     const list = document.getElementById('leTextItems');
     const count = document.getElementById('leTextCount');
-    if (!wrap || !list) return;
-    const items = window.leState.textObjects;
-    if (items.length === 0) {
-        wrap.classList.add('hidden');
-        return;
+    if (wrap && list) {
+        const items = window.leState.textObjects;
+        if (items.length === 0) {
+            wrap.classList.add('hidden');
+        } else {
+            wrap.classList.remove('hidden');
+            if (count) count.innerText = items.length;
+            list.innerHTML = items.map(o => `
+                <div class="flex items-center gap-1 bg-cyan-950/30 border border-cyan-900/40 rounded p-1.5 hover:bg-cyan-950/50 transition">
+                    <span class="material-icons text-xs text-cyan-400">text_fields</span>
+                    <span class="flex-1 text-[11px] text-cyan-200 truncate">${o.text}</span>
+                    <button onclick="leDeleteText('${o.id}')" class="text-rose-400 hover:bg-rose-500/20 p-0.5 rounded">
+                        <span class="material-icons text-xs">close</span>
+                    </button>
+                </div>
+            `).join('');
+        }
     }
-    wrap.classList.remove('hidden');
-    if (count) count.innerText = items.length;
-    list.innerHTML = items.map(o => `
-        <div class="flex items-center gap-1 bg-cyan-950/30 border border-cyan-900/40 rounded p-1.5 hover:bg-cyan-950/50 transition">
-            <span class="material-icons text-xs text-cyan-400">text_fields</span>
-            <span class="flex-1 text-[11px] text-cyan-200 truncate">${o.text}</span>
-            <button onclick="leDeleteText('${o.id}')" class="text-rose-400 hover:bg-rose-500/20 p-0.5 rounded">
-                <span class="material-icons text-xs">close</span>
-            </button>
-        </div>
-    `).join('');
+    // refresh layer panel ด้วย
+    if (typeof leLayerRefresh === 'function') leLayerRefresh();
 }
 
 window.leDeleteText = function(id) {
@@ -1981,15 +1985,12 @@ window.leAddSticker = function(emoji) {
 };
 
 function leRenderAllStickers() {
-    // วาดสติกเกอร์เป็น draggable overlay ใน text overlay container เดิม
     const container = document.getElementById('leTextOverlayContainer');
     if (!container) return;
-    
-    // ลบ sticker overlays เดิม
     container.querySelectorAll('.le-sticker-overlay').forEach(e => e.remove());
-    
     const scale = leTotalScale();
     window.leState.stickerObjects.forEach(obj => {
+        if (obj.visible === false) return;
         const div = document.createElement('div');
         div.className = 'le-sticker-overlay le-text-overlay' + (obj.id === window.leState.selectedStickerId ? ' selected' : '');
         div.dataset.id = obj.id;
@@ -2009,22 +2010,27 @@ function leUpdateStickerList() {
     const wrap = document.getElementById('leStickerList');
     const list = document.getElementById('leStickerItems');
     const count = document.getElementById('leStickerCount');
-    if (!wrap || !list) return;
-    const items = window.leState.stickerObjects;
-    if (items.length === 0) { wrap.classList.add('hidden'); return; }
-    wrap.classList.remove('hidden');
-    if (count) count.innerText = items.length;
-    list.innerHTML = items.map(o => `
-        <div class="flex items-center gap-2 bg-yellow-950/30 border border-yellow-900/40 rounded p-1.5">
-            <span class="text-lg">${o.emoji}</span>
-            <div class="flex-1 text-[10px] text-yellow-200">
-                <input type="range" min="20" max="500" value="${o.size}" oninput="leUpdateStickerSize('${o.id}', this.value)" class="w-full le-slider">
-            </div>
-            <button onclick="leDeleteSticker('${o.id}')" class="text-rose-400 hover:bg-rose-500/20 p-0.5 rounded">
-                <span class="material-icons text-xs">close</span>
-            </button>
-        </div>
-    `).join('');
+    if (wrap && list) {
+        const items = window.leState.stickerObjects;
+        if (items.length === 0) {
+            wrap.classList.add('hidden');
+        } else {
+            wrap.classList.remove('hidden');
+            if (count) count.innerText = items.length;
+            list.innerHTML = items.map(o => `
+                <div class="flex items-center gap-2 bg-yellow-950/30 border border-yellow-900/40 rounded p-1.5">
+                    <span class="text-lg">${o.emoji}</span>
+                    <div class="flex-1 text-[10px] text-yellow-200">
+                        <input type="range" min="20" max="500" value="${o.size}" oninput="leUpdateStickerSize('${o.id}', this.value)" class="w-full le-slider">
+                    </div>
+                    <button onclick="leDeleteSticker('${o.id}')" class="text-rose-400 hover:bg-rose-500/20 p-0.5 rounded">
+                        <span class="material-icons text-xs">close</span>
+                    </button>
+                </div>
+            `).join('');
+        }
+    }
+    if (typeof leLayerRefresh === 'function') leLayerRefresh();
 }
 
 window.leUpdateStickerSize = function(id, val) {
@@ -2175,6 +2181,387 @@ window.leApplyResize = function() {
     newImg.src = tmp.toDataURL('image/png');
 };
 
+// ==========================================
+// 🤖 AI BACKGROUND REMOVER
+// ==========================================
+window._leAiBgModule = null;
+
+async function leLoadAiBgLibrary() {
+    if (window._leAiBgModule) return window._leAiBgModule;
+    leUpdateAiProgress(5, 'กำลังโหลด AI library...');
+    try {
+        const mod = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
+        window._leAiBgModule = mod;
+        return mod;
+    } catch (e) {
+        console.error('โหลด AI lib ไม่ได้:', e);
+        throw new Error('โหลด AI library ไม่สำเร็จ — ตรวจสอบเน็ต');
+    }
+}
+
+function leUpdateAiProgress(pct, text) {
+    document.getElementById('leAiBgProgress')?.classList.remove('hidden');
+    const bar = document.getElementById('leAiBgBar');
+    const status = document.getElementById('leAiBgStatus');
+    if (bar) bar.style.width = pct + '%';
+    if (status) status.innerText = text;
+}
+
+function leHideAiProgress() {
+    document.getElementById('leAiBgProgress')?.classList.add('hidden');
+}
+
+window.leAiRemoveBg = async function() {
+    const s = window.leState;
+    if (!s.baseImage) return Swal.fire('!', 'กรุณาเลือกรูปก่อน', 'warning');
+    
+    const btn = document.getElementById('leAiBgBtn');
+    if (btn) btn.disabled = true;
+    
+    try {
+        leSaveHistory();
+        const mod = await leLoadAiBgLibrary();
+        leUpdateAiProgress(15, 'เตรียมข้อมูลรูปภาพ...');
+        const blob = await new Promise(r => s.canvas.toBlob(r, 'image/png'));
+        leUpdateAiProgress(30, 'AI กำลังประมวลผล... (10-30 วินาที)');
+        
+        const config = {
+            progress: (key, current, total) => {
+                const p = 30 + (current / total) * 60;
+                leUpdateAiProgress(Math.min(90, p), 'AI: ' + key);
+            }
+        };
+        
+        const resultBlob = await mod.removeBackground(blob, config);
+        leUpdateAiProgress(95, 'กำลังวาดผลลัพธ์...');
+        
+        const url = URL.createObjectURL(resultBlob);
+        const img = new Image();
+        img.onload = () => {
+            s.canvas.width = img.width;
+            s.canvas.height = img.height;
+            s.ctx.clearRect(0, 0, s.canvas.width, s.canvas.height);
+            s.ctx.drawImage(img, 0, 0);
+            s._aiBgResultImg = img;
+            URL.revokeObjectURL(url);
+            leUpdateAiProgress(100, '✓ เสร็จแล้ว!');
+            
+            document.getElementById('leAiKeepBtn')?.classList.remove('hidden');
+            document.getElementById('leAiBgWhiteBtn')?.classList.remove('hidden');
+            document.getElementById('leAiBgBlackBtn')?.classList.remove('hidden');
+            document.getElementById('leAiBgCustomColor')?.classList.remove('hidden');
+            document.getElementById('leAiBgCustomLabel')?.classList.remove('hidden');
+            
+            setTimeout(() => leHideAiProgress(), 1500);
+            Swal.fire({ icon: 'success', title: 'ลบพื้นหลังสำเร็จ', timer: 1500, showConfirmButton: false });
+        };
+        img.src = url;
+    } catch (err) {
+        console.error('AI BG error:', err);
+        leHideAiProgress();
+        Swal.fire('ผิดพลาด', err.message || 'AI ลบพื้นหลังไม่สำเร็จ', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+
+window.leAiBgKeepSubject = function() {
+    Swal.fire({ icon: 'success', title: 'พื้นโปร่งใสพร้อมใช้งาน', timer: 1000, showConfirmButton: false });
+};
+
+window.leAiBgChangeBg = function(color) {
+    const s = window.leState;
+    if (!s._aiBgResultImg) return Swal.fire('!', 'ต้องลบพื้นด้วย AI ก่อน', 'warning');
+    leSaveHistory();
+    s.ctx.clearRect(0, 0, s.canvas.width, s.canvas.height);
+    s.ctx.fillStyle = color;
+    s.ctx.fillRect(0, 0, s.canvas.width, s.canvas.height);
+    s.ctx.drawImage(s._aiBgResultImg, 0, 0);
+    Swal.fire({ icon: 'success', title: 'เปลี่ยนพื้นแล้ว', timer: 800, showConfirmButton: false });
+};
+
+// ==========================================
+// 📦 TEMPLATE SYSTEM
+// ==========================================
+window.leApplyTemplate = async function(templateId) {
+    const s = window.leState;
+    const confirmed = await Swal.fire({
+        title: 'เริ่มจาก Template นี้?',
+        text: 'รูปปัจจุบันและ layer ทั้งหมดจะถูกแทนที่',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ใช่ เริ่มเลย',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#a855f7'
+    });
+    if (!confirmed.isConfirmed) return;
+    
+    s.history = [];
+    s.textObjects = [];
+    s.stickerObjects = [];
+    leRemoveLogo();
+    leClearPendingLogo();
+    leRenderAllTextOverlays();
+    leRenderAllStickers();
+    leUpdateTextList();
+    leUpdateStickerList();
+    
+    const templates = {
+        promo_square:   { w: 1080, h: 1080, bg: 'gradient', c1: '#a855f7', c2: '#ec4899' },
+        story_vertical: { w: 1080, h: 1920, bg: 'gradient', c1: '#f59e0b', c2: '#dc2626' },
+        fb_post:        { w: 1200, h: 1500, bg: 'gradient', c1: '#3b82f6', c2: '#0891b2' },
+        yt_thumb:       { w: 1280, h: 720,  bg: 'gradient', c1: '#dc2626', c2: '#7f1d1d' },
+        deposit_alert:  { w: 1080, h: 1080, bg: 'gradient', c1: '#1e293b', c2: '#0f172a', preset: 'deposit_alert' },
+        promo_credit:   { w: 1080, h: 1080, bg: 'gradient', c1: '#f59e0b', c2: '#dc2626', preset: 'promo_credit' },
+        how_to_3step:   { w: 1920, h: 1080, bg: 'gradient', c1: '#0f172a', c2: '#1e293b', preset: 'how_to' },
+        qr_template:    { w: 1080, h: 1080, bg: 'solid',    c1: '#ffffff', preset: 'qr_template' },
+        warning:        { w: 1080, h: 1080, bg: 'gradient', c1: '#f59e0b', c2: '#dc2626', preset: 'warning' },
+        bg_purple:      { w: 1080, h: 1080, bg: 'gradient', c1: '#a21caf', c2: '#581c87' },
+        bg_blue:        { w: 1080, h: 1080, bg: 'gradient', c1: '#3b82f6', c2: '#1e3a8a' },
+        bg_orange:      { w: 1080, h: 1080, bg: 'gradient', c1: '#f59e0b', c2: '#dc2626' },
+        bg_green:       { w: 1080, h: 1080, bg: 'gradient', c1: '#10b981', c2: '#0f766e' },
+        bg_pink:        { w: 1080, h: 1080, bg: 'gradient', c1: '#f472b6', c2: '#be185d' },
+        bg_dark:        { w: 1080, h: 1080, bg: 'gradient', c1: '#475569', c2: '#0f172a' }
+    };
+    
+    const tpl = templates[templateId];
+    if (!tpl) return;
+    
+    const tmp = document.createElement('canvas');
+    tmp.width = tpl.w;
+    tmp.height = tpl.h;
+    const tctx = tmp.getContext('2d');
+    
+    if (tpl.bg === 'gradient') {
+        const grad = tctx.createLinearGradient(0, 0, tpl.w, tpl.h);
+        grad.addColorStop(0, tpl.c1);
+        grad.addColorStop(1, tpl.c2);
+        tctx.fillStyle = grad;
+    } else {
+        tctx.fillStyle = tpl.c1;
+    }
+    tctx.fillRect(0, 0, tpl.w, tpl.h);
+    
+    if (tpl.preset === 'warning') {
+        tctx.save();
+        tctx.fillStyle = 'rgba(0,0,0,0.3)';
+        const stripeW = 60;
+        for (let i = -tpl.h; i < tpl.w; i += stripeW * 2) {
+            tctx.beginPath();
+            tctx.moveTo(i, tpl.h);
+            tctx.lineTo(i + stripeW, tpl.h);
+            tctx.lineTo(i + tpl.h + stripeW, 0);
+            tctx.lineTo(i + tpl.h, 0);
+            tctx.closePath();
+            tctx.fill();
+        }
+        tctx.restore();
+    }
+    
+    const newImg = new Image();
+    newImg.onload = () => {
+        s.baseImage = newImg;
+        s.canvas.width = tpl.w;
+        s.canvas.height = tpl.h;
+        s.ctx.clearRect(0, 0, tpl.w, tpl.h);
+        s.ctx.drawImage(newImg, 0, 0);
+        
+        const ts = Date.now();
+        if (tpl.preset === 'deposit_alert') {
+            s.textObjects.push({ id: 't_'+ts+'_1', text: '⚠️ แจ้งเตือน', x: tpl.w/2, y: tpl.h*0.2, fontSize: 80, font: "'Kanit', sans-serif", color: '#ef4444', weight: '900', stroke: 4, strokeColor: '#ffffff', shadow: true });
+            s.textObjects.push({ id: 't_'+ts+'_2', text: 'ยอดฝากไม่เข้าระบบ', x: tpl.w/2, y: tpl.h*0.4, fontSize: 56, font: "'Sarabun', sans-serif", color: '#ffffff', weight: '700', stroke: 0, strokeColor: '#000', shadow: true });
+            s.textObjects.push({ id: 't_'+ts+'_3', text: 'กรุณาส่งสลิปให้แอดมิน', x: tpl.w/2, y: tpl.h*0.55, fontSize: 40, font: "'Sarabun', sans-serif", color: '#fbbf24', weight: '700', stroke: 0, strokeColor: '#000', shadow: false });
+        } else if (tpl.preset === 'promo_credit') {
+            s.textObjects.push({ id: 't_'+ts+'_1', text: '🎁 รับเครดิตฟรี', x: tpl.w/2, y: tpl.h*0.25, fontSize: 84, font: "'Kanit', sans-serif", color: '#ffffff', weight: '900', stroke: 5, strokeColor: '#7c2d12', shadow: true });
+            s.textObjects.push({ id: 't_'+ts+'_2', text: '36.8 บาท', x: tpl.w/2, y: tpl.h*0.5, fontSize: 140, font: "'Kanit', sans-serif", color: '#fbbf24', weight: '900', stroke: 6, strokeColor: '#7c2d12', shadow: true });
+            s.textObjects.push({ id: 't_'+ts+'_3', text: 'สำหรับสมาชิกใหม่', x: tpl.w/2, y: tpl.h*0.7, fontSize: 50, font: "'Sarabun', sans-serif", color: '#ffffff', weight: '700', stroke: 0, strokeColor: '#000', shadow: false });
+        } else if (tpl.preset === 'how_to') {
+            for (let i = 1; i <= 3; i++) {
+                const x = tpl.w * (i / 4);
+                s.textObjects.push({ id: 't_'+ts+'_n'+i, text: i+'', x, y: tpl.h*0.35, fontSize: 180, font: "'Kanit', sans-serif", color: '#fbbf24', weight: '900', stroke: 8, strokeColor: '#ffffff', shadow: true });
+                s.textObjects.push({ id: 't_'+ts+'_s'+i, text: 'ขั้นตอนที่ '+i, x, y: tpl.h*0.65, fontSize: 40, font: "'Sarabun', sans-serif", color: '#ffffff', weight: '700', stroke: 0, strokeColor: '#000', shadow: true });
+            }
+        } else if (tpl.preset === 'qr_template') {
+            s.textObjects.push({ id: 't_'+ts+'_1', text: 'สแกน QR เพื่อชำระ', x: tpl.w/2, y: 100, fontSize: 56, font: "'Kanit', sans-serif", color: '#1e293b', weight: '900', stroke: 0, strokeColor: '#000', shadow: false });
+            s.textObjects.push({ id: 't_'+ts+'_2', text: '[วาง QR ตรงนี้]', x: tpl.w/2, y: tpl.h/2, fontSize: 40, font: "'Sarabun', sans-serif", color: '#94a3b8', weight: '400', stroke: 0, strokeColor: '#000', shadow: false });
+        } else if (tpl.preset === 'warning') {
+            s.textObjects.push({ id: 't_'+ts+'_1', text: '🚨 แจ้งสำคัญ 🚨', x: tpl.w/2, y: tpl.h*0.3, fontSize: 90, font: "'Kanit', sans-serif", color: '#ffffff', weight: '900', stroke: 6, strokeColor: '#7c2d12', shadow: true });
+            s.textObjects.push({ id: 't_'+ts+'_2', text: 'พิมพ์ข้อความที่นี่', x: tpl.w/2, y: tpl.h*0.55, fontSize: 50, font: "'Sarabun', sans-serif", color: '#fef3c7', weight: '700', stroke: 0, strokeColor: '#000', shadow: true });
+        }
+        
+        document.getElementById('leEmptyState')?.classList.add('hidden');
+        document.getElementById('leCanvasWrapper')?.classList.remove('hidden');
+        document.getElementById('leZoomControls')?.classList.remove('hidden');
+        
+        leFitScreen();
+        leRenderAllTextOverlays();
+        leUpdateTextList();
+        leLayerRefresh();
+        
+        Swal.fire({ icon: 'success', title: '✨ Template พร้อม!', timer: 1200, showConfirmButton: false });
+    };
+    newImg.src = tmp.toDataURL('image/png');
+};
+
+// ==========================================
+// 📎 LAYER SYSTEM
+// ==========================================
+function leGetAllLayers() {
+    const s = window.leState;
+    const layers = [];
+    if (s.baseImage) {
+        layers.push({ id: 'base', type: 'base', name: 'รูปต้นฉบับ', icon: 'image', iconColor: 'text-fuchsia-400', visible: true, locked: true });
+    }
+    s.textObjects.forEach(t => {
+        layers.push({ id: t.id, type: 'text', name: t.text.length > 25 ? t.text.substring(0, 25) + '...' : t.text, icon: 'text_fields', iconColor: 'text-cyan-400', visible: t.visible !== false, locked: false });
+    });
+    s.stickerObjects.forEach(st => {
+        layers.push({ id: st.id, type: 'sticker', name: 'สติกเกอร์ ' + st.emoji, icon: 'emoji_emotions', iconColor: 'text-yellow-400', visible: st.visible !== false, locked: false });
+    });
+    if (s.newLogo) {
+        layers.push({ id: 'newlogo', type: 'logo', name: 'โลโก้ใหม่', icon: 'add_photo_alternate', iconColor: 'text-emerald-400', visible: s.logoOverlay.opacity > 0, locked: false });
+    }
+    return layers;
+}
+
+window.leLayerRefresh = function() {
+    const container = document.getElementById('leLayerListContainer');
+    if (!container) return;
+    const layers = leGetAllLayers();
+    if (layers.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs"><span class="material-icons text-3xl opacity-50">layers_clear</span><p class="mt-1">ยังไม่มี layer</p></div>`;
+        return;
+    }
+    container.innerHTML = layers.slice().reverse().map((l) => {
+        const visIcon = l.visible ? 'visibility' : 'visibility_off';
+        const visClass = l.visible ? 'text-emerald-400' : 'text-slate-500';
+        return `
+        <div class="bg-slate-800/50 hover:bg-slate-800/80 border border-white/10 rounded-lg p-2 flex items-center gap-2 transition">
+            <span class="material-icons ${l.iconColor} text-base">${l.icon}</span>
+            <div class="flex-1 min-w-0">
+                <div class="text-[11px] font-bold text-white truncate">${l.name}</div>
+                <div class="text-[9px] text-slate-400">${l.type}${l.locked ? ' • locked' : ''}</div>
+            </div>
+            <div class="flex gap-0.5">
+                <button onclick="leLayerToggleVisibility('${l.id}', '${l.type}')" class="${visClass} hover:bg-white/10 p-1 rounded"><span class="material-icons text-sm">${visIcon}</span></button>
+                ${!l.locked ? `
+                    <button onclick="leLayerMoveUp('${l.id}', '${l.type}')" class="text-slate-400 hover:bg-white/10 p-1 rounded"><span class="material-icons text-sm">arrow_upward</span></button>
+                    <button onclick="leLayerMoveDown('${l.id}', '${l.type}')" class="text-slate-400 hover:bg-white/10 p-1 rounded"><span class="material-icons text-sm">arrow_downward</span></button>
+                    <button onclick="leLayerDuplicate('${l.id}', '${l.type}')" class="text-blue-400 hover:bg-blue-500/20 p-1 rounded"><span class="material-icons text-sm">content_copy</span></button>
+                    <button onclick="leLayerDelete('${l.id}', '${l.type}')" class="text-rose-400 hover:bg-rose-500/20 p-1 rounded"><span class="material-icons text-sm">delete</span></button>
+                ` : `<span class="text-slate-600 p-1"><span class="material-icons text-sm">lock</span></span>`}
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.leLayerToggleVisibility = function(id, type) {
+    const s = window.leState;
+    if (type === 'text') {
+        const obj = s.textObjects.find(o => o.id === id);
+        if (obj) obj.visible = obj.visible === false ? true : false;
+    } else if (type === 'sticker') {
+        const obj = s.stickerObjects.find(o => o.id === id);
+        if (obj) obj.visible = obj.visible === false ? true : false;
+    } else if (type === 'logo' && id === 'newlogo') {
+        s.logoOverlay.opacity = s.logoOverlay.opacity > 0 ? 0 : 1;
+        leUpdateLogoOverlayPosition();
+    }
+    leRenderAllTextOverlays();
+    leRenderAllStickers();
+    leLayerRefresh();
+};
+
+window.leLayerMoveUp = function(id, type) {
+    const s = window.leState;
+    const arr = type === 'text' ? s.textObjects : (type === 'sticker' ? s.stickerObjects : null);
+    if (!arr) return;
+    const i = arr.findIndex(o => o.id === id);
+    if (i >= 0 && i < arr.length - 1) [arr[i], arr[i+1]] = [arr[i+1], arr[i]];
+    leRenderAllTextOverlays();
+    leRenderAllStickers();
+    leLayerRefresh();
+};
+
+window.leLayerMoveDown = function(id, type) {
+    const s = window.leState;
+    const arr = type === 'text' ? s.textObjects : (type === 'sticker' ? s.stickerObjects : null);
+    if (!arr) return;
+    const i = arr.findIndex(o => o.id === id);
+    if (i > 0) [arr[i], arr[i-1]] = [arr[i-1], arr[i]];
+    leRenderAllTextOverlays();
+    leRenderAllStickers();
+    leLayerRefresh();
+};
+
+window.leLayerDuplicate = function(id, type) {
+    const s = window.leState;
+    if (type === 'text') {
+        const obj = s.textObjects.find(o => o.id === id);
+        if (obj) s.textObjects.push({ ...obj, id: 't_' + Date.now(), x: obj.x + 30, y: obj.y + 30 });
+    } else if (type === 'sticker') {
+        const obj = s.stickerObjects.find(o => o.id === id);
+        if (obj) s.stickerObjects.push({ ...obj, id: 'st_' + Date.now(), x: obj.x + 30, y: obj.y + 30 });
+    }
+    leRenderAllTextOverlays();
+    leRenderAllStickers();
+    leUpdateTextList();
+    leUpdateStickerList();
+    leLayerRefresh();
+};
+
+window.leLayerDelete = function(id, type) {
+    const s = window.leState;
+    if (type === 'text') s.textObjects = s.textObjects.filter(o => o.id !== id);
+    else if (type === 'sticker') s.stickerObjects = s.stickerObjects.filter(o => o.id !== id);
+    else if (type === 'logo' && id === 'newlogo') leRemoveLogo();
+    leRenderAllTextOverlays();
+    leRenderAllStickers();
+    leUpdateTextList();
+    leUpdateStickerList();
+    leLayerRefresh();
+};
+
+window.leLayerClearAll = async function() {
+    const ok = await Swal.fire({ title: 'ลบ layer ทั้งหมด?', text: 'ข้อความ/สติกเกอร์/โลโก้ใหม่ จะถูกลบ', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc2626' });
+    if (!ok.isConfirmed) return;
+    const s = window.leState;
+    s.textObjects = [];
+    s.stickerObjects = [];
+    leRemoveLogo();
+    leRenderAllTextOverlays();
+    leRenderAllStickers();
+    leUpdateTextList();
+    leUpdateStickerList();
+    leLayerRefresh();
+};
+
+window.leLayerHideAll = function() {
+    const s = window.leState;
+    s.textObjects.forEach(o => o.visible = false);
+    s.stickerObjects.forEach(o => o.visible = false);
+    if (s.newLogo) s.logoOverlay.opacity = 0;
+    leRenderAllTextOverlays();
+    leRenderAllStickers();
+    leUpdateLogoOverlayPosition();
+    leLayerRefresh();
+};
+
+window.leLayerShowAll = function() {
+    const s = window.leState;
+    s.textObjects.forEach(o => o.visible = true);
+    s.stickerObjects.forEach(o => o.visible = true);
+    if (s.newLogo && s.logoOverlay.opacity === 0) {
+        s.logoOverlay.opacity = 1;
+        const slider = document.getElementById('leLogoOpacity');
+        if (slider) slider.value = 100;
+    }
+    leRenderAllTextOverlays();
+    leRenderAllStickers();
+    leUpdateLogoOverlayPosition();
+    leLayerRefresh();
+};
+
 
 window.leDownload = function() {
     if (window.leCanDownload === false) return Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ดาวน์โหลดรูป', 'warning');
@@ -2200,6 +2587,7 @@ window.leDownload = function() {
     
     // 3. text overlays
     s.textObjects.forEach(obj => {
+        if (obj.visible === false) return;
         octx.save();
         octx.font = `${obj.weight} ${obj.fontSize}px ${obj.font}`;
         octx.textAlign = 'center';
@@ -2223,6 +2611,7 @@ window.leDownload = function() {
     
     // 4. sticker overlays
     s.stickerObjects.forEach(obj => {
+        if (obj.visible === false) return;
         octx.save();
         octx.font = `${obj.size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
         octx.textAlign = 'center';
