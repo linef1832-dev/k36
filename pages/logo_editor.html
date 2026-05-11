@@ -199,6 +199,17 @@
                         <input type="file" accept="image/*" class="hidden" onchange="leLoadNewLogo(event)">
                     </label>
                     <p class="text-[10px] text-slate-400 mt-1.5 text-center">💡 แนะนำ PNG พื้นโปร่งใส</p>
+                    
+                    <!-- 🌟 ลบพื้นหลังอัตโนมัติ -->
+                    <label class="flex items-center gap-2 mt-2 cursor-pointer bg-emerald-950/30 hover:bg-emerald-950/50 rounded-lg p-2 border border-emerald-900/30 transition">
+                        <input type="checkbox" id="leAutoRemoveBg" checked class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                        <div class="flex-1">
+                            <div class="text-[11px] font-black text-emerald-300 flex items-center gap-1">
+                                <span class="material-icons text-[12px]">auto_fix_high</span> ลบพื้นหลังอัตโนมัติ
+                            </div>
+                            <div class="text-[9px] text-emerald-200/60">ลบพื้นสีดำ/ขาวของโลโก้ออกให้</div>
+                        </div>
+                    </label>
 
                     <!-- Preview โลโก้ที่เลือก (โหมดเร็ว) -->
                     <div id="leLogoPreview" class="hidden mt-2 le-logo-preview rounded-lg p-2 flex items-center gap-2">
