@@ -111,7 +111,16 @@ function leForceLayoutFix() {
         
         // scroll container ใน sidebar
         if (aside) {
-            const scrollDiv = aside.querySelector(':scope > div.flex-1, :scope > div[class*="overflow-y-auto"]');
+            // 🌟 tab nav (ตัวแรก) ต้องไม่ขยาย
+            const tabNav = aside.querySelector('.le-tab-nav');
+            if (tabNav) {
+                tabNav.style.flex = '0 0 auto';
+                tabNav.style.flexShrink = '0';
+                tabNav.style.height = 'auto';
+            }
+            
+            // scroll div — ต้องเป็นตัวที่ยาวที่สุด ขยายเต็มที่
+            const scrollDiv = aside.querySelector('[class*="overflow-y-auto"]');
             if (scrollDiv) {
                 scrollDiv.style.flex = '1 1 0%';
                 scrollDiv.style.minHeight = '0';
@@ -121,7 +130,10 @@ function leForceLayoutFix() {
             
             // sticky bottom — shrink-0
             const bottomSection = aside.querySelector(':scope > div:last-of-type');
-            if (bottomSection) bottomSection.style.flexShrink = '0';
+            if (bottomSection) {
+                bottomSection.style.flexShrink = '0';
+                bottomSection.style.flex = '0 0 auto';
+            }
         }
         
         // canvas area
