@@ -28,10 +28,16 @@
   .le-tab-nav {
     background: rgba(0,0,0,0.4);
     border-bottom: 1px solid rgba(255,255,255,0.08);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .le-tab-nav::-webkit-scrollbar { display: none; }
   .le-tab-btn {
-    flex: 1;
-    padding: 10px 4px;
+    flex: 0 0 auto;
+    min-width: 72px;
+    padding: 10px 8px;
     color: #94a3b8;
     cursor: pointer;
     font-size: 10px;
@@ -42,6 +48,7 @@
     flex-direction: column;
     align-items: center;
     gap: 2px;
+    white-space: nowrap;
   }
   .le-tab-btn:hover { background: rgba(255,255,255,0.04); color: #cbd5e1; }
   .le-tab-btn.active {
@@ -302,9 +309,36 @@
                                     <input type="checkbox" id="leLogoRecolor" onchange="leUpdateLogoRecolor()" class="w-4 h-4 accent-emerald-500">
                                 </label>
                                 <div id="leLogoRecolorControls" class="hidden space-y-2 mt-1">
+                                    <!-- โหมด -->
+                                    <label class="block text-[9px] font-black text-emerald-300/70 uppercase mb-1">โหมด</label>
+                                    <select id="leRecolorMode" onchange="leUpdateRecolorMode()" class="w-full text-[11px] p-1.5 rounded bg-slate-800 text-white border border-white/10 outline-none mb-2">
+                                        <option value="all">🎨 เปลี่ยนสีทั้งหมด</option>
+                                        <option value="selective">🎯 เปลี่ยนเฉพาะสีที่เลือก</option>
+                                    </select>
+                                    
+                                    <!-- โหมด selective: เลือกสีต้นทาง -->
+                                    <div id="leSelectiveControls" class="hidden mb-2 bg-slate-900/50 rounded p-2 border border-white/5">
+                                        <label class="block text-[9px] font-black text-amber-300 uppercase mb-1">1. สีที่จะถูกเปลี่ยน</label>
+                                        <div class="flex gap-2 items-center mb-1.5">
+                                            <input type="color" id="leSourceColor" value="#ffffff" onchange="leApplyLogoRecolor()" class="w-10 h-8 rounded cursor-pointer border border-white/10">
+                                            <button onclick="lePickColorMode()" id="lePickBtn" class="flex-1 bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 text-[10px] py-1.5 rounded border border-amber-900/40 font-bold">
+                                                <span class="material-icons text-[12px] align-middle">colorize</span> คลิกเลือกบนโลโก้
+                                            </button>
+                                        </div>
+                                        <div>
+                                            <div class="flex justify-between text-[9px] font-black uppercase mb-1">
+                                                <span class="text-amber-300">ความใกล้เคียง</span>
+                                                <span id="leTolLabel" class="text-amber-200 bg-amber-950/60 px-1.5 rounded">50</span>
+                                            </div>
+                                            <input type="range" id="leRecolorTolerance" min="5" max="150" value="50" oninput="leApplyLogoRecolor()" class="w-full le-slider">
+                                            <p class="text-[9px] text-slate-400 mt-0.5">น้อย = แม่นยำ / มาก = เปลี่ยนสีใกล้เคียงไปด้วย</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <label class="block text-[9px] font-black text-emerald-300/70 uppercase mb-1">2. สีใหม่</label>
                                     <div class="flex gap-2 items-center">
-                                        <input type="color" id="leLogoNewColor" value="#ec4899" onchange="leUpdateLogoRecolor()" class="w-12 h-9 rounded-lg cursor-pointer border border-white/10">
-                                        <div class="flex-1 text-[10px] text-emerald-200/70">สีใหม่ที่ต้องการเปลี่ยน</div>
+                                        <input type="color" id="leLogoNewColor" value="#ec4899" onchange="leApplyLogoRecolor()" class="w-12 h-9 rounded-lg cursor-pointer border border-white/10">
+                                        <div class="flex-1 text-[10px] text-emerald-200/70">เลือกสีที่ต้องการ</div>
                                     </div>
                                     <!-- preset สี -->
                                     <div class="grid grid-cols-6 gap-1">
@@ -316,7 +350,7 @@
                                         <button onclick="leSetLogoColor('#10b981')" style="background:#10b981" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="เขียว"></button>
                                         <button onclick="leSetLogoColor('#ef4444')" style="background:#ef4444" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="แดง"></button>
                                         <button onclick="leSetLogoColor('#3b82f6')" style="background:#3b82f6" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="น้ำเงิน"></button>
-                                        <button onclick="leSetLogoColor('#06b6d4')" style="background:#06b6d4" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ฟ้าน้ำทะเล"></button>
+                                        <button onclick="leSetLogoColor('#06b6d4')" style="background:#06b6d4" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ฟ้า"></button>
                                         <button onclick="leSetLogoColor('#facc15')" style="background:#facc15" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="เหลือง"></button>
                                         <button onclick="leSetLogoColor('#dc2626')" style="background:#dc2626" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="แดงเข้ม"></button>
                                         <button onclick="leSetLogoColor('#1e293b')" style="background:#1e293b" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="กรมท่า"></button>
