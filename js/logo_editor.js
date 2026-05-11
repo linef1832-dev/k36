@@ -30,7 +30,19 @@ window.leState = {
     filtersBaked: { brightness: 100, contrast: 100, saturate: 100, hue: 0, blur: 0 },
     cropMode: false,
     cropBox: null,
-    cropRatio: 'free'
+    cropRatio: 'free',
+    
+    // 🌟 v6 ใหม่
+    isBrushing: false,            // กำลังลากแปรง Magic Eraser
+    drawMode: false,              // โหมดวาดเปิดอยู่ไหม
+    drawTool: 'pen',              // 'pen','highlighter','marker','arrow','line','rect-shape','circle-shape','eraser'
+    drawColor: '#ef4444',
+    drawSize: 8,
+    drawingShape: false,          // กำลังลากวาด shape (เส้น/ลูกศร/กรอบ)
+    drawStart: null,              // จุดเริ่มของ shape
+    drawSnapshot: null,           // snapshot ก่อนวาด shape (สำหรับ preview)
+    stickerObjects: [],           // [{id, emoji, x, y, size}]
+    selectedStickerId: null
 };
 
 function leTotalScale() { return window.leState.zoom || 1; }
@@ -46,6 +58,7 @@ function leEnsureInit() {
     leSetupDragDropFile();
     leSetMode('magic');
     leSetupTextDragging();
+    leSetupStickerDragging();
     return true;
 }
 
@@ -200,18 +213,38 @@ function leSetupKeyboardShortcuts() {
 // ==========================================
 window.leSwitchTab = function(tab) {
     window.leState.currentTab = tab;
-    ['replace','text','color','adjust','watermark'].forEach(t => {
+    const allTabs = ['replace','text','draw','sticker','color','adjust','resize','watermark'];
+    allTabs.forEach(t => {
         const btn = document.getElementById('leTab' + t.charAt(0).toUpperCase() + t.slice(1));
         const content = document.getElementById('leTabContent_' + t);
         if (btn) btn.classList.toggle('active', t === tab);
         if (content) content.classList.toggle('hidden', t !== tab);
     });
+    // ถ้าเปลี่ยน tab ออกจาก draw → ปิดโหมดวาด
+    if (tab !== 'draw' && window.leState.drawMode) leToggleDrawMode();
+    // ถ้าเข้าแท็บ resize → update info
+    if (tab === 'resize') leUpdateResizeInfo();
+    // ถ้าเข้าแท็บ sticker → render emoji
+    if (tab === 'sticker') leRenderEmojiPickers();
 };
 
 window.leSetMode = function(mode) {
     window.leState.mode = mode;
     document.getElementById('leModeMagic')?.classList.toggle('active', mode === 'magic');
     document.getElementById('leModeManual')?.classList.toggle('active', mode === 'manual');
+    document.getElementById('leModeBrush')?.classList.toggle('active', mode === 'brush');
+    
+    // โหมด brush → แสดง brush controls + เปลี่ยน cursor
+    const brushSection = document.getElementById('leBrushSection');
+    if (mode === 'brush') {
+        brushSection?.classList.remove('hidden');
+        const cvs = document.getElementById('leCanvas');
+        if (cvs) cvs.style.cursor = 'crosshair';
+        leShowTip('🪶 ลากแปรงทับสิ่งที่อยากลบ — ระบบลบให้ทันที', 3500);
+    } else {
+        brushSection?.classList.add('hidden');
+    }
+    
     const logoBtnText = document.getElementById('leLogoBtnText');
     if (logoBtnText) {
         logoBtnText.innerText = mode === 'magic' ? 'เลือกโลโก้ใหม่ (วางอัตโนมัติ)' : 'เลือกโลโก้ใหม่';
@@ -244,6 +277,7 @@ window.leLoadBaseImage = function(event) {
             leFitScreen();
             leRemoveLogo();
             leClearAllText();
+            leClearAllStickers();
             document.getElementById('leEmptyState')?.classList.add('hidden');
             document.getElementById('leCanvasWrapper')?.classList.remove('hidden');
             document.getElementById('leZoomControls')?.classList.remove('hidden');
@@ -363,8 +397,22 @@ function leSetupCanvasEvents() {
     
     const startSel = (e) => {
         if (!window.leState.baseImage) return;
-        // ทำงานในแท็บ replace, watermark หรือ crop mode
         if (window.leState.cropMode) return leStartCropDraw(e);
+        
+        // 🌟 โหมดวาด (มี priority สูงสุด ใช้ได้ทุกแท็บที่เปิด drawMode)
+        if (window.leState.drawMode) return leStartDraw(e, getCoords(e));
+        
+        // 🪶 Magic Eraser Brush — ใช้ในแท็บ replace + mode = brush
+        if (window.leState.currentTab === 'replace' && window.leState.mode === 'brush') {
+            if (window.leCanErase === false) return;
+            e.preventDefault();
+            leSaveHistory();
+            window.leState.isBrushing = true;
+            leBrushErase(getCoords(e));
+            return;
+        }
+        
+        // โหมดคลุมเป็นกรอบ (rect/ellipse/circle/lasso)
         if (window.leState.currentTab !== 'replace') return;
         if (window.leCanErase === false) return;
         e.preventDefault();
@@ -378,6 +426,15 @@ function leSetupCanvasEvents() {
     
     const moveSel = (e) => {
         if (window.leState.cropMode) return leMoveCropDraw(e);
+        if (window.leState.drawMode) return leMoveDraw(e, getCoords(e));
+        
+        // brush eraser
+        if (window.leState.isBrushing) {
+            e.preventDefault();
+            leBrushErase(getCoords(e));
+            return;
+        }
+        
         if (!window.leState.isDrawingSelection) return;
         e.preventDefault();
         const p = getCoords(e);
@@ -391,6 +448,14 @@ function leSetupCanvasEvents() {
     
     const endSel = async (e) => {
         if (window.leState.cropMode) return leEndCropDraw(e);
+        if (window.leState.drawMode) return leEndDraw(e);
+        
+        // brush eraser
+        if (window.leState.isBrushing) {
+            window.leState.isBrushing = false;
+            return;
+        }
+        
         if (!window.leState.isDrawingSelection) return;
         window.leState.isDrawingSelection = false;
         const sel = window.leState.selBox;
@@ -416,7 +481,48 @@ function leSetupCanvasEvents() {
     cvs.addEventListener('touchstart', startSel, {passive: false});
     cvs.addEventListener('touchmove', moveSel, {passive: false});
     window.addEventListener('touchend', endSel);
+    
+    // brush size label update
+    document.addEventListener('input', (e) => {
+        if (e.target.id === 'leBrushSize') {
+            document.getElementById('leBrushSizeLabel').innerText = e.target.value + 'px';
+        }
+        if (e.target.id === 'leDrawSize') {
+            document.getElementById('leDrawSizeLabel').innerText = e.target.value + 'px';
+            window.leState.drawSize = parseInt(e.target.value);
+        }
+        if (e.target.id === 'leResizePercent') {
+            leUpdateResizePreview();
+        }
+        if (e.target.id === 'leDrawColor') {
+            window.leState.drawColor = e.target.value;
+        }
+    });
 }
+
+// ==========================================
+// 🪶 Magic Eraser Brush — ระบายลบเป็นแปรง
+// ==========================================
+function leBrushErase(p) {
+    const s = window.leState;
+    if (!s.baseImage) return;
+    const size = parseInt(document.getElementById('leBrushSize')?.value || 40);
+    const radius = size / 2;
+    
+    // ใช้ content-aware fill กับ bounding box ของแปรง (วงกลม)
+    const sel = {
+        type: 'ellipse',
+        cx: p.x,
+        cy: p.y,
+        rx: radius,
+        ry: radius
+    };
+    const bbox = leGetBBox(sel);
+    
+    // ใช้ algorithm content-aware fill เดิม
+    leContentAwareFill(sel, bbox);
+}
+
 
 function leDrawSelectionShape(start, end) {
     const svg = document.getElementById('leSelectionSvg');
@@ -1636,13 +1742,440 @@ window.leResetAll = async function() {
     leRemoveLogo();
     leClearPendingLogo();
     leClearAllText();
+    leClearAllStickers();
     leResetFilters(false);
     s.selBox = null;
 };
 
 // ==========================================
-// 💾 DOWNLOAD - merge ทุก layer
+// ✏️ DRAW TOOLS — วาดฟรีมือ
 // ==========================================
+window.leSetDrawTool = function(tool) {
+    window.leState.drawTool = tool;
+    ['pen','highlighter','marker','arrow','line','rect-shape','circle-shape','eraser'].forEach(t => {
+        const id = 'leDraw' + (
+            t === 'pen' ? 'Pen' :
+            t === 'highlighter' ? 'Highlight' :
+            t === 'marker' ? 'Marker' :
+            t === 'arrow' ? 'Arrow' :
+            t === 'line' ? 'Line' :
+            t === 'rect-shape' ? 'Rect' :
+            t === 'circle-shape' ? 'Circle' :
+            'Eraser'
+        );
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active', t === tool);
+    });
+};
+
+window.leSetDrawColor = function(color) {
+    window.leState.drawColor = color;
+    const input = document.getElementById('leDrawColor');
+    if (input) input.value = color;
+};
+
+window.leToggleDrawMode = function() {
+    const s = window.leState;
+    s.drawMode = !s.drawMode;
+    const btn = document.getElementById('leDrawToggleBtn');
+    const cvs = document.getElementById('leCanvas');
+    if (s.drawMode) {
+        if (!s.baseImage) {
+            s.drawMode = false;
+            Swal.fire('!', 'กรุณาเลือกรูปก่อน', 'warning');
+            return;
+        }
+        if (btn) {
+            btn.innerHTML = '<span class="material-icons text-sm align-middle">stop</span> หยุดวาด';
+            btn.classList.remove('le-btn-amber');
+            btn.classList.add('le-btn-danger');
+        }
+        if (cvs) cvs.style.cursor = 'crosshair';
+        leShowTip('✏️ ลากเมาส์บนรูปเพื่อวาด — กดหยุดวาดเมื่อเสร็จ', 3500);
+    } else {
+        if (btn) {
+            btn.innerHTML = '<span class="material-icons text-sm align-middle">play_arrow</span> เริ่มวาด';
+            btn.classList.remove('le-btn-danger');
+            btn.classList.add('le-btn-amber');
+        }
+        if (cvs) cvs.style.cursor = '';
+    }
+};
+
+function leStartDraw(e, p) {
+    const s = window.leState;
+    if (!s.baseImage) return;
+    e.preventDefault();
+    e.stopPropagation();
+    leSaveHistory();
+    
+    const tool = s.drawTool;
+    const ctx = s.ctx;
+    
+    // เครื่องมือ shape (line/arrow/rect/circle) — เก็บ snapshot สำหรับ preview
+    if (['line', 'arrow', 'rect-shape', 'circle-shape'].includes(tool)) {
+        s.drawingShape = true;
+        s.drawStart = p;
+        try {
+            s.drawSnapshot = ctx.getImageData(0, 0, s.canvas.width, s.canvas.height);
+        } catch(err) {}
+        return;
+    }
+    
+    // freehand: pen/highlighter/marker/eraser
+    s.drawStart = p;
+    leDrawPath(p, p);
+}
+
+function leMoveDraw(e, p) {
+    const s = window.leState;
+    if (!s.drawStart) return;
+    e.preventDefault();
+    
+    const tool = s.drawTool;
+    
+    // Shape: preview - restore snapshot แล้ววาดใหม่
+    if (s.drawingShape && s.drawSnapshot) {
+        s.ctx.putImageData(s.drawSnapshot, 0, 0);
+        leDrawShape(s.drawStart, p);
+        return;
+    }
+    
+    // Freehand: ลากเส้นต่อเนื่อง
+    leDrawPath(s.drawStart, p);
+    s.drawStart = p;
+}
+
+function leEndDraw(e) {
+    const s = window.leState;
+    s.drawingShape = false;
+    s.drawStart = null;
+    s.drawSnapshot = null;
+}
+
+function leDrawPath(from, to) {
+    const s = window.leState;
+    const ctx = s.ctx;
+    const tool = s.drawTool;
+    
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = s.drawSize;
+    
+    if (tool === 'pen') {
+        ctx.strokeStyle = s.drawColor;
+        ctx.globalAlpha = 1;
+    } else if (tool === 'highlighter') {
+        ctx.strokeStyle = s.drawColor;
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = s.drawSize * 2;
+    } else if (tool === 'marker') {
+        ctx.strokeStyle = s.drawColor;
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = s.drawSize * 1.5;
+    } else if (tool === 'eraser') {
+        // ยางลบ — วาดบนรูปจะลบสิ่งที่วาดไว้ (ทำเป็นสีพื้น) — ใช้ destination-out
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = s.drawSize * 1.5;
+    }
+    
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function leDrawShape(from, to) {
+    const s = window.leState;
+    const ctx = s.ctx;
+    const tool = s.drawTool;
+    
+    ctx.save();
+    ctx.strokeStyle = s.drawColor;
+    ctx.lineWidth = s.drawSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    if (tool === 'line') {
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+    } else if (tool === 'arrow') {
+        // วาดเส้นตรง + หัวลูกศร
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+        
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const headSize = s.drawSize * 4;
+        ctx.beginPath();
+        ctx.moveTo(to.x, to.y);
+        ctx.lineTo(to.x - headSize * Math.cos(angle - Math.PI / 6),
+                   to.y - headSize * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(to.x, to.y);
+        ctx.lineTo(to.x - headSize * Math.cos(angle + Math.PI / 6),
+                   to.y - headSize * Math.sin(angle + Math.PI / 6));
+        ctx.stroke();
+    } else if (tool === 'rect-shape') {
+        ctx.strokeRect(
+            Math.min(from.x, to.x), Math.min(from.y, to.y),
+            Math.abs(to.x - from.x), Math.abs(to.y - from.y)
+        );
+    } else if (tool === 'circle-shape') {
+        const cx = (from.x + to.x) / 2;
+        const cy = (from.y + to.y) / 2;
+        const rx = Math.abs(to.x - from.x) / 2;
+        const ry = Math.abs(to.y - from.y) / 2;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    
+    ctx.restore();
+}
+
+// ==========================================
+// 🌟 STICKER / EMOJI
+// ==========================================
+const LE_EMOJI_CATEGORIES = {
+    general: ['🎉','🎊','🔥','💯','⭐','✨','💫','⚡','💥','🎁','🎯','🎪','🎨','🎭','🎬','🎮','🏆','🏅','🥇','🏵️','🎀','🎈','🎂','💝'],
+    promo:   ['🆕','🆓','💎','👑','🏷️','🛍️','🛒','💸','💵','💴','💷','💶','🤑','💲','🎟️','🎫','🆙','🔝','📢','📣','📯','🔔','🚨','⚠️'],
+    arrows:  ['⬆️','⬇️','⬅️','➡️','↗️','↘️','↙️','↖️','🔼','🔽','◀️','▶️','🔄','🔃','🔁','🔂','↩️','↪️','⤴️','⤵️','➰','➿','➕','➖'],
+    status:  ['✅','❌','✔️','❎','☑️','🆗','🆖','🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🟤','💚','💛','🧡','❤️','💙','💜','🖤','🤍'],
+    money:   ['💰','💴','💵','💶','💷','💸','💳','🪙','🤑','💹','📈','📉','📊','💎','🏦','🪪','🧾','🎰','🎲','🎴','♠️','♥️','♦️','♣️']
+};
+
+function leRenderEmojiPickers() {
+    Object.entries(LE_EMOJI_CATEGORIES).forEach(([cat, emojis]) => {
+        const containerId = 'leEmoji' + cat.charAt(0).toUpperCase() + cat.slice(1);
+        const container = document.getElementById(containerId);
+        if (!container || container._rendered) return;
+        container._rendered = true;
+        container.innerHTML = emojis.map(e => `
+            <button onclick="leAddSticker('${e}')" class="le-shape-btn rounded p-1.5 text-xl hover:scale-110 transition" title="${e}">${e}</button>
+        `).join('');
+    });
+}
+
+window.leAddSticker = function(emoji) {
+    const s = window.leState;
+    if (!s.baseImage) return Swal.fire('!', 'กรุณาเลือกรูปก่อน', 'warning');
+    
+    const size = Math.min(s.canvas.width, s.canvas.height) * 0.1;
+    const obj = {
+        id: 'st_' + Date.now(),
+        emoji,
+        x: s.canvas.width / 2,
+        y: s.canvas.height / 2,
+        size
+    };
+    s.stickerObjects.push(obj);
+    leRenderAllStickers();
+    leUpdateStickerList();
+    leShowTip('🌟 วางสติกเกอร์แล้ว — ลากย้ายตำแหน่งได้', 2500);
+};
+
+function leRenderAllStickers() {
+    // วาดสติกเกอร์เป็น draggable overlay ใน text overlay container เดิม
+    const container = document.getElementById('leTextOverlayContainer');
+    if (!container) return;
+    
+    // ลบ sticker overlays เดิม
+    container.querySelectorAll('.le-sticker-overlay').forEach(e => e.remove());
+    
+    const scale = leTotalScale();
+    window.leState.stickerObjects.forEach(obj => {
+        const div = document.createElement('div');
+        div.className = 'le-sticker-overlay le-text-overlay' + (obj.id === window.leState.selectedStickerId ? ' selected' : '');
+        div.dataset.id = obj.id;
+        div.dataset.type = 'sticker';
+        div.style.left = (obj.x * scale) + 'px';
+        div.style.top = (obj.y * scale) + 'px';
+        div.style.transform = 'translate(-50%, -50%)';
+        div.style.fontSize = (obj.size * scale) + 'px';
+        div.style.lineHeight = '1';
+        div.style.pointerEvents = 'auto';
+        div.innerText = obj.emoji;
+        container.appendChild(div);
+    });
+}
+
+function leUpdateStickerList() {
+    const wrap = document.getElementById('leStickerList');
+    const list = document.getElementById('leStickerItems');
+    const count = document.getElementById('leStickerCount');
+    if (!wrap || !list) return;
+    const items = window.leState.stickerObjects;
+    if (items.length === 0) { wrap.classList.add('hidden'); return; }
+    wrap.classList.remove('hidden');
+    if (count) count.innerText = items.length;
+    list.innerHTML = items.map(o => `
+        <div class="flex items-center gap-2 bg-yellow-950/30 border border-yellow-900/40 rounded p-1.5">
+            <span class="text-lg">${o.emoji}</span>
+            <div class="flex-1 text-[10px] text-yellow-200">
+                <input type="range" min="20" max="500" value="${o.size}" oninput="leUpdateStickerSize('${o.id}', this.value)" class="w-full le-slider">
+            </div>
+            <button onclick="leDeleteSticker('${o.id}')" class="text-rose-400 hover:bg-rose-500/20 p-0.5 rounded">
+                <span class="material-icons text-xs">close</span>
+            </button>
+        </div>
+    `).join('');
+}
+
+window.leUpdateStickerSize = function(id, val) {
+    const obj = window.leState.stickerObjects.find(o => o.id === id);
+    if (obj) {
+        obj.size = parseInt(val);
+        leRenderAllStickers();
+    }
+};
+
+window.leDeleteSticker = function(id) {
+    window.leState.stickerObjects = window.leState.stickerObjects.filter(o => o.id !== id);
+    leRenderAllStickers();
+    leUpdateStickerList();
+};
+
+function leClearAllStickers() {
+    window.leState.stickerObjects = [];
+    leRenderAllStickers();
+    leUpdateStickerList();
+}
+
+// แก้ text drag handler ให้รองรับ sticker ด้วย
+function leSetupStickerDragging() {
+    // sticker ใช้ container เดียวกับ text — drag handler เดิมรองรับเฉพาะ text 
+    // เราจะเพิ่ม handler ที่เช็ค dataset.type
+    const container = document.getElementById('leTextOverlayContainer');
+    if (!container || container._stickerSetup) return;
+    container._stickerSetup = true;
+    
+    let dragId = null, dragType = null, dragStart = null, startPos = null;
+    
+    const onDown = (e) => {
+        const el = e.target.closest('.le-text-overlay');
+        if (!el) return;
+        dragId = el.dataset.id;
+        dragType = el.dataset.type === 'sticker' ? 'sticker' : 'text';
+        
+        let obj;
+        if (dragType === 'sticker') {
+            obj = window.leState.stickerObjects.find(o => o.id === dragId);
+            window.leState.selectedStickerId = dragId;
+        } else {
+            obj = window.leState.textObjects.find(o => o.id === dragId);
+            window.leState.selectedTextId = dragId;
+        }
+        if (!obj) return;
+        
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        dragStart = { x: cx, y: cy };
+        startPos = { x: obj.x, y: obj.y };
+        
+        if (dragType === 'sticker') leRenderAllStickers();
+        else leRenderAllTextOverlays();
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    const onMove = (e) => {
+        if (!dragId) return;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const scale = leTotalScale();
+        let obj;
+        if (dragType === 'sticker') obj = window.leState.stickerObjects.find(o => o.id === dragId);
+        else obj = window.leState.textObjects.find(o => o.id === dragId);
+        if (!obj) return;
+        obj.x = startPos.x + (cx - dragStart.x) / scale;
+        obj.y = startPos.y + (cy - dragStart.y) / scale;
+        if (dragType === 'sticker') leRenderAllStickers();
+        else leRenderAllTextOverlays();
+        e.preventDefault();
+    };
+    const onUp = () => { dragId = null; dragType = null; };
+    
+    container.addEventListener('mousedown', onDown, true);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    container.addEventListener('touchstart', onDown, {passive: false});
+    window.addEventListener('touchmove', onMove, {passive: false});
+    window.addEventListener('touchend', onUp);
+}
+
+// ==========================================
+// 🔍 RESIZE IMAGE
+// ==========================================
+function leUpdateResizeInfo() {
+    const s = window.leState;
+    const current = document.getElementById('leCurrentSize');
+    if (current && s.canvas) {
+        current.innerText = `${s.canvas.width} × ${s.canvas.height} px`;
+    }
+    leUpdateResizePreview();
+}
+
+window.leSetResizePercent = function(pct) {
+    document.getElementById('leResizePercent').value = pct;
+    leUpdateResizePreview();
+};
+
+window.leUpdateResizePreview = function() {
+    const s = window.leState;
+    const pct = parseInt(document.getElementById('leResizePercent')?.value || 100);
+    const label = document.getElementById('leResizePercentLabel');
+    const newSize = document.getElementById('leNewSize');
+    if (label) label.innerText = pct + '%';
+    if (newSize && s.canvas) {
+        const nw = Math.round(s.canvas.width * pct / 100);
+        const nh = Math.round(s.canvas.height * pct / 100);
+        newSize.innerText = `${nw} × ${nh} px`;
+    }
+};
+
+window.leApplyResize = function() {
+    const s = window.leState;
+    if (!s.baseImage) return Swal.fire('!', 'ยังไม่มีรูป', 'warning');
+    const pct = parseInt(document.getElementById('leResizePercent')?.value || 100);
+    if (pct === 100) return Swal.fire('!', 'ขนาดเท่าเดิม ไม่ต้องปรับ', 'info');
+    
+    const newW = Math.round(s.canvas.width * pct / 100);
+    const newH = Math.round(s.canvas.height * pct / 100);
+    
+    if (newW > 8000 || newH > 8000) {
+        return Swal.fire('!', 'ขนาดใหญ่เกินไป (max 8000px)', 'warning');
+    }
+    
+    leSaveHistory();
+    
+    const smooth = document.getElementById('leSmoothResize')?.checked !== false;
+    const tmp = document.createElement('canvas');
+    tmp.width = newW;
+    tmp.height = newH;
+    const tctx = tmp.getContext('2d');
+    tctx.imageSmoothingEnabled = smooth;
+    tctx.imageSmoothingQuality = 'high';
+    tctx.drawImage(s.canvas, 0, 0, newW, newH);
+    
+    const newImg = new Image();
+    newImg.onload = () => {
+        s.baseImage = newImg;
+        s.canvas.width = newW;
+        s.canvas.height = newH;
+        s.ctx.drawImage(newImg, 0, 0);
+        leFitScreen();
+        leUpdateResizeInfo();
+        Swal.fire({ icon: 'success', title: `ปรับขนาดเป็น ${newW}×${newH}`, timer: 1200, showConfirmButton: false });
+    };
+    newImg.src = tmp.toDataURL('image/png');
+};
+
+
 window.leDownload = function() {
     if (window.leCanDownload === false) return Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ดาวน์โหลดรูป', 'warning');
     const s = window.leState;
@@ -1685,6 +2218,16 @@ window.leDownload = function() {
         }
         octx.fillStyle = obj.color;
         octx.fillText(obj.text, obj.x, obj.y);
+        octx.restore();
+    });
+    
+    // 4. sticker overlays
+    s.stickerObjects.forEach(obj => {
+        octx.save();
+        octx.font = `${obj.size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+        octx.textAlign = 'center';
+        octx.textBaseline = 'middle';
+        octx.fillText(obj.emoji, obj.x, obj.y);
         octx.restore();
     });
     
