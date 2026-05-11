@@ -45,12 +45,39 @@ window.initLogoEditorApp = function() {
     leSetupDragDropFile();
 };
 
+// 🌟 ตัวช่วยตรวจให้แน่ใจว่า canvas + ctx ถูก setup แล้ว
+function leEnsureInit() {
+    if (window.leState.canvas && window.leState.ctx) return true;
+    const cvs = document.getElementById('leCanvas');
+    if (!cvs) {
+        console.error('[Logo Editor] หาไม่เจอ element #leCanvas — ตรวจสอบว่า HTML โหลดถูกไหม');
+        return false;
+    }
+    window.leState.canvas = cvs;
+    window.leState.ctx = cvs.getContext('2d');
+    leSetupCanvasEvents();
+    leSetupLogoOverlayEvents();
+    leSetupDragDropFile();
+    return true;
+}
+
 // ==========================================
 // 📥 โหลดรูปต้นฉบับ
 // ==========================================
 window.leLoadBaseImage = function(event) {
+    // 🌟 ถ้า init ยังไม่ทำ (เช่น showPage ไม่ได้เรียก initLogoEditorApp) → init ให้ก่อน
+    if (!leEnsureInit()) {
+        Swal.fire('ผิดพลาด', 'หน้านี้ยังโหลดไม่เสร็จ ลองรีเฟรชหน้าใหม่', 'error');
+        return;
+    }
+    
     const file = event.target ? event.target.files[0] : event;
     if (!file) return;
+    
+    if (!file.type || !file.type.startsWith('image/')) {
+        Swal.fire('ไฟล์ไม่ถูกต้อง', 'กรุณาเลือกไฟล์รูปภาพ (jpg/png/gif)', 'warning');
+        return;
+    }
     
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -62,12 +89,15 @@ window.leLoadBaseImage = function(event) {
             window.leState.selBox = null;
             leRenderBase();
             leRemoveLogo();
-            document.getElementById('leEmptyState').classList.add('hidden');
-            document.getElementById('leCanvasWrapper').classList.remove('hidden');
+            const empty = document.getElementById('leEmptyState');
+            const wrapper = document.getElementById('leCanvasWrapper');
+            if (empty) empty.classList.add('hidden');
+            if (wrapper) wrapper.classList.remove('hidden');
         };
-        img.onerror = () => Swal.fire('Error', 'โหลดรูปไม่ได้', 'error');
+        img.onerror = () => Swal.fire('Error', 'โหลดรูปไม่ได้ — ไฟล์อาจเสียหาย', 'error');
         img.src = e.target.result;
     };
+    reader.onerror = () => Swal.fire('Error', 'อ่านไฟล์ไม่สำเร็จ', 'error');
     reader.readAsDataURL(file);
     
     if (event.target && event.target.value !== undefined) event.target.value = '';
