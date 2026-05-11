@@ -6,6 +6,7 @@
 window.leState = {
     canvas: null, ctx: null,
     baseImage: null, newLogo: null, pendingLogo: null,
+    originalLogo: null,      // 🌟 เก็บโลโก้ต้นฉบับ (สำหรับ recolor)
     history: [],
     mode: 'magic',
     currentTab: 'replace',
@@ -15,11 +16,11 @@ window.leState = {
     selBox: null,
     zoom: 1,
     logoOverlay: { x: 50, y: 50, w: 120, h: 120, opacity: 1 },
+    logoRecolor: { enabled: false, color: '#ec4899' },  // 🌟 ใหม่
     
-    // ใหม่ใน v5
-    textObjects: [],          // [{id, text, x, y, fontSize, font, color, weight, stroke, strokeColor, shadow}]
+    textObjects: [],
     selectedTextId: null,
-    filtersBaked: { brightness: 100, contrast: 100, saturate: 100, hue: 0, blur: 0 }, // ค่าที่ commit แล้ว
+    filtersBaked: { brightness: 100, contrast: 100, saturate: 100, hue: 0, blur: 0 },
     cropMode: false,
     cropBox: null,
     cropRatio: 'free'
@@ -54,7 +55,54 @@ window.initLogoEditorApp = function() {
     if (eraseSection) eraseSection.style.display = window.leCanErase ? '' : 'none';
     if (addLogoSection) addLogoSection.style.display = window.leCanAddLogo ? '' : 'none';
     if (downloadBtn) downloadBtn.style.display = window.leCanDownload ? '' : 'none';
+    
+    // 🌟 Keyboard shortcuts
+    leSetupKeyboardShortcuts();
 };
+
+// ==========================================
+// ⌨️ Keyboard shortcuts (Ctrl+Z = undo, Ctrl+S = download, Esc = ยกเลิก crop)
+// ==========================================
+function leSetupKeyboardShortcuts() {
+    if (window._leShortcutsSetup) return;
+    window._leShortcutsSetup = true;
+    
+    document.addEventListener('keydown', (e) => {
+        // ถ้าหน้านี้ไม่ active ไม่ทำอะไร
+        const app = document.getElementById('logoEditorApp');
+        if (!app || app.classList.contains('hidden')) return;
+        
+        // ถ้ากำลังพิมพ์ใน textarea/input ปล่อยให้ทำงานปกติ
+        const target = e.target;
+        const isTyping = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+        
+        // Ctrl+Z = Undo (ใช้ได้แม้กำลังพิมพ์อยู่ก็ตาม แต่ถ้าใน text input ปล่อยให้ default ทำ undo ของ input เอง)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            if (!isTyping) {
+                e.preventDefault();
+                if (typeof window.leUndoLast === 'function') window.leUndoLast();
+            }
+        }
+        // Ctrl+S = Download
+        else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            if (typeof window.leDownload === 'function') window.leDownload();
+        }
+        // Esc = ยกเลิก crop
+        else if (e.key === 'Escape') {
+            if (window.leState.cropMode) {
+                e.preventDefault();
+                if (typeof window.leCancelCrop === 'function') window.leCancelCrop();
+            }
+        }
+        // Delete = ลบข้อความที่ selected
+        else if (e.key === 'Delete' && window.leState.selectedTextId && !isTyping) {
+            e.preventDefault();
+            window.leDeleteText(window.leState.selectedTextId);
+            window.leState.selectedTextId = null;
+        }
+    });
+}
 
 // ==========================================
 // 🗂️ Tab Navigation
@@ -429,6 +477,7 @@ function leAutoPlaceLogo(bbox) {
     const logo = s.pendingLogo;
     if (!logo || !bbox) return;
     s.newLogo = logo;
+    s.originalLogo = logo;  // 🌟 เก็บไว้ recolor
     const logoRatio = logo.height / logo.width;
     const bboxRatio = bbox.h / bbox.w;
     let w, h;
@@ -448,7 +497,9 @@ function leAutoPlaceLogo(bbox) {
     document.getElementById('leLogoSize').value = 100;
     document.getElementById('leLogoOpacity').value = 100;
     leUpdateLogoOverlayPosition();
-    leShowTip('⚡ วางโลโก้ใหม่เรียบร้อย!', 2500);
+    // ถ้าเปิด recolor อยู่ → apply เลย
+    if (s.logoRecolor.enabled) leApplyLogoRecolor();
+    leShowTip('⚡ วางโลโก้ใหม่เรียบร้อย! ใช้ "เปลี่ยนสี" ได้ในแผงควบคุม', 3000);
 }
 
 async function leRemoveBgFromLogo(img) {
@@ -520,6 +571,7 @@ window.leLoadNewLogo = function(event) {
             }
             if (window.leState.mode === 'magic') {
                 window.leState.pendingLogo = finalImg;
+                window.leState.originalLogo = finalImg;  // 🌟 เก็บไว้ recolor
                 const preview = document.getElementById('leLogoPreview');
                 const previewImg = document.getElementById('leLogoPreviewImg');
                 const badge = document.getElementById('leLogoReadyBadge');
@@ -534,6 +586,7 @@ window.leLoadNewLogo = function(event) {
                     return;
                 }
                 window.leState.newLogo = finalImg;
+                window.leState.originalLogo = finalImg;  // 🌟 เก็บไว้ recolor
                 const baseW = window.leState.baseImage.width;
                 const w0 = baseW * 0.15;
                 const ratio = finalImg.height / finalImg.width;
@@ -590,11 +643,83 @@ window.leUpdateLogoOpacity = function() {
 
 window.leRemoveLogo = function() {
     window.leState.newLogo = null;
+    window.leState.originalLogo = null;
     document.getElementById('leLogoOverlay')?.classList.add('hidden');
     document.getElementById('leLogoControls')?.classList.add('hidden');
     const img = document.getElementById('leLogoImg');
     if (img) img.src = '';
+    // reset recolor
+    const recolorCb = document.getElementById('leLogoRecolor');
+    if (recolorCb) recolorCb.checked = false;
+    document.getElementById('leLogoRecolorControls')?.classList.add('hidden');
+    window.leState.logoRecolor.enabled = false;
 };
+
+// ==========================================
+// 🎨 เปลี่ยนสีตัวอักษรในโลโก้
+// ==========================================
+window.leSetLogoColor = function(color) {
+    // คลิกที่ preset → ใส่ในช่อง color picker แล้ว apply
+    const colorInput = document.getElementById('leLogoNewColor');
+    if (colorInput) colorInput.value = color;
+    // เปิด checkbox อัตโนมัติ
+    const cb = document.getElementById('leLogoRecolor');
+    if (cb && !cb.checked) cb.checked = true;
+    leUpdateLogoRecolor();
+};
+
+window.leUpdateLogoRecolor = function() {
+    const cb = document.getElementById('leLogoRecolor');
+    const enabled = cb && cb.checked;
+    const controls = document.getElementById('leLogoRecolorControls');
+    
+    if (enabled) controls?.classList.remove('hidden');
+    else controls?.classList.add('hidden');
+    
+    window.leState.logoRecolor.enabled = enabled;
+    window.leState.logoRecolor.color = document.getElementById('leLogoNewColor')?.value || '#ec4899';
+    
+    leApplyLogoRecolor();
+};
+
+// ทำการเปลี่ยนสีโลโก้
+function leApplyLogoRecolor() {
+    const s = window.leState;
+    if (!s.originalLogo) return;
+    
+    // ถ้าปิด recolor → ใช้ originalLogo เลย
+    if (!s.logoRecolor.enabled) {
+        s.newLogo = s.originalLogo;
+        document.getElementById('leLogoImg').src = s.originalLogo.src;
+        return;
+    }
+    
+    // ถ้าเปิด → ระบายสีใหม่ทับ
+    const tmp = document.createElement('canvas');
+    tmp.width = s.originalLogo.width;
+    tmp.height = s.originalLogo.height;
+    const tctx = tmp.getContext('2d', { willReadFrequently: true });
+    tctx.drawImage(s.originalLogo, 0, 0);
+    
+    // ใช้ globalCompositeOperation 'source-in' = ระบายสีทับเฉพาะส่วนที่ทึบ (ไม่โปร่งใส)
+    tctx.globalCompositeOperation = 'source-in';
+    tctx.fillStyle = s.logoRecolor.color;
+    tctx.fillRect(0, 0, tmp.width, tmp.height);
+    tctx.globalCompositeOperation = 'source-over';
+    
+    // สร้าง Image ใหม่
+    const recolored = new Image();
+    recolored.onload = () => {
+        s.newLogo = recolored;
+        document.getElementById('leLogoImg').src = recolored.src;
+        // update preview ใน sidebar ด้วย
+        if (s.mode === 'magic') {
+            const prev = document.getElementById('leLogoPreviewImg');
+            if (prev) prev.src = recolored.src;
+        }
+    };
+    recolored.src = tmp.toDataURL('image/png');
+}
 
 function leSetupLogoOverlayEvents() {
     const overlay = document.getElementById('leLogoOverlay');
