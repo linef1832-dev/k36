@@ -485,9 +485,9 @@ window.leApplyErase = async function() {
 };
 
 // ==========================================
-// 🪄 Content-Aware Fill v2 — รองรับพื้นหลังหลายสี
-// หลักการ: สำหรับแต่ละ pixel ในกรอบ → คำนวณสีจาก 4 ขอบ (บน/ล่าง/ซ้าย/ขวา)
-// โดยใช้ weighted average ตามระยะห่าง — pixel ฝั่งซ้ายได้สีจากขอบซ้ายเยอะ ฯลฯ
+// 🪄 Content-Aware Fill v3 — Patch-based (Mirror/Reflect)
+// หลักการ: ขยายขอบรอบๆ กรอบ → mirror reflect เข้าไปแทนที่ภายในกรอบ
+// ทำให้ texture/pattern ของพื้นหลังต่อเนื่องเหมือนของจริง
 // ==========================================
 function leContentAwareFill(sel, bbox) {
     const s = window.leState;
@@ -503,99 +503,137 @@ function leContentAwareFill(sel, bbox) {
     const bh = y1 - y0;
     if (bw < 2 || bh < 2) return;
     
-    // ดึงสีจาก 4 ขอบเป็น array
-    // ขอบบน: สีของแถวที่อยู่เหนือ bbox (y0 - 1 หรือใกล้สุด) ทุกคอลัมน์ x0..x1
-    // ขอบล่าง: y1 (หรือใกล้สุด)
-    // ขอบซ้าย: x0 - 1 (หรือใกล้สุด) ทุกแถว
-    // ขอบขวา: x1
+    // padding รอบๆ กรอบ — ใช้สำหรับ source patches
+    // ใช้ขนาด = max(bw, bh) เพื่อให้มี source เพียงพอ
+    const pad = Math.max(20, Math.min(Math.max(bw, bh), 200));
     
-    const sampleRow = (y) => {
-        const safeY = Math.max(0, Math.min(H - 1, y));
-        try { return ctx.getImageData(x0, safeY, bw, 1).data; } 
-        catch(e) { return null; }
-    };
-    const sampleCol = (x) => {
-        const safeX = Math.max(0, Math.min(W - 1, x));
-        try { return ctx.getImageData(safeX, y0, 1, bh).data; }
-        catch(e) { return null; }
-    };
+    // คำนวณ pad จริง (ระวังขอบรูป)
+    const padT = Math.min(pad, y0);            // มีกี่ pixel เหนือกรอบ
+    const padB = Math.min(pad, H - y1);        // ใต้กรอบ
+    const padL = Math.min(pad, x0);            // ซ้าย
+    const padR = Math.min(pad, W - x1);        // ขวา
     
-    const topRow    = sampleRow(y0 - 1);  // แถวเหนือกรอบ (สีพื้นด้านบน)
-    const bottomRow = sampleRow(y1);       // แถวใต้กรอบ
-    const leftCol   = sampleCol(x0 - 1);   // คอลัมน์ซ้าย
-    const rightCol  = sampleCol(x1);       // คอลัมน์ขวา
-    
-    if (!topRow || !bottomRow || !leftCol || !rightCol) {
-        // กรณีกรอบติดขอบรูป — fallback ใช้วิธีเดิม
-        const fillStyle = leComputeAvgEdgeColor(bbox);
-        ctx.save();
-        leClipToShape(ctx, sel);
-        ctx.fillStyle = fillStyle;
-        ctx.fillRect(bbox.x, bbox.y, bbox.w, bbox.h);
-        ctx.restore();
+    // ต้องมี source อย่างน้อย 1 ทิศ
+    if (padT === 0 && padB === 0 && padL === 0 && padR === 0) {
+        // กรอบกินเต็มรูปแล้ว — ทำอะไรไม่ได้
         return;
     }
     
-    // สร้าง imageData ของกรอบ
-    const fillData = ctx.createImageData(bw, bh);
-    const d = fillData.data;
+    // วิธี: สร้าง offscreen canvas เท่ากับ bbox + pad ทั้ง 4 ทิศ
+    // แล้วใช้ "edge replicate + mirror blend" เติมพื้นที่ตรงกลาง
     
-    // สำหรับ pixel แต่ละตัว → คำนวณสีจาก 4 ทิศ
+    // อ่านพื้นที่รอบกรอบทั้งหมด (รวม padding)
+    const srcX = x0 - padL;
+    const srcY = y0 - padT;
+    const srcW = bw + padL + padR;
+    const srcH = bh + padT + padB;
+    
+    let srcData;
+    try {
+        srcData = ctx.getImageData(srcX, srcY, srcW, srcH);
+    } catch(e) {
+        return;
+    }
+    const src = srcData.data;
+    
+    // สร้าง output (เท่ากับ bbox)
+    const outImg = ctx.createImageData(bw, bh);
+    const out = outImg.data;
+    
+    // สำหรับ pixel แต่ละตัวในกรอบ — หาสีจาก 4 ทิศ โดย "reflect" จากขอบเข้าไปใน source
+    // ตำแหน่งของ pixel ในกรอบ (local): (px, py) ; ใน source: (px + padL, py + padT)
+    
     for (let py = 0; py < bh; py++) {
         for (let px = 0; px < bw; px++) {
-            // ระยะห่างปกติ (0..1) จากแต่ละขอบ
-            const tx = px / (bw - 1 || 1);          // 0=ซ้าย, 1=ขวา
-            const ty = py / (bh - 1 || 1);          // 0=บน, 1=ล่าง
+            // ระยะถึงขอบของกรอบ (ใน local coordinates)
+            const distT = py + 1;          // ระยะถึงขอบบน
+            const distB = bh - py;          // ขอบล่าง
+            const distL = px + 1;           // ซ้าย
+            const distR = bw - px;          // ขวา
             
-            // สีจากขอบบน (ที่คอลัมน์เดียวกับ px) และล่าง
-            const tIdx = px * 4;
-            const bIdx = px * 4;
-            const lIdx = py * 4;
-            const rIdx = py * 4;
+            // เลือก source pixel โดย "reflect" — ขยายจากขอบใกล้สุดที่มี padding
+            // ถ้าใกล้ขอบบน → ดูที่ source ฝั่งบน reflect ขึ้น
+            // ตัวอย่าง: py=2 (ใกล้ขอบบน) → ใช้ source pixel ที่อยู่เหนือ y0 = (y0 - distT) ใน original = (padT - distT) ใน src
             
-            const tR = topRow[tIdx], tG = topRow[tIdx+1], tB = topRow[tIdx+2];
-            const bR = bottomRow[bIdx], bG = bottomRow[bIdx+1], bB = bottomRow[bIdx+2];
-            const lR = leftCol[lIdx], lG = leftCol[lIdx+1], lB = leftCol[lIdx+2];
-            const rR = rightCol[rIdx], rG = rightCol[rIdx+1], rB = rightCol[rIdx+2];
+            // คะแนนแต่ละทิศ (น้ำหนัก = 1 / ระยะ)
+            const samples = [];
             
-            // ผสมแนวตั้ง (บน-ล่าง)
-            const vR = tR * (1 - ty) + bR * ty;
-            const vG = tG * (1 - ty) + bG * ty;
-            const vB = tB * (1 - ty) + bB * ty;
+            // ทิศบน: reflect ขึ้นไปใน padT
+            if (padT > 0) {
+                const refSrcY = padT - distT;  // padT - 1, padT - 2, ...
+                if (refSrcY >= 0 && refSrcY < padT) {
+                    const idx = (refSrcY * srcW + (px + padL)) * 4;
+                    samples.push({ r: src[idx], g: src[idx+1], b: src[idx+2], w: 1 / (distT * distT) });
+                }
+            }
+            // ทิศล่าง: reflect ลงไป
+            if (padB > 0) {
+                const refSrcY = padT + bh + (distB - 1);  // padT + bh, +1, +2
+                if (refSrcY < srcH) {
+                    const idx = (refSrcY * srcW + (px + padL)) * 4;
+                    samples.push({ r: src[idx], g: src[idx+1], b: src[idx+2], w: 1 / (distB * distB) });
+                }
+            }
+            // ทิศซ้าย: reflect ไปทางซ้าย
+            if (padL > 0) {
+                const refSrcX = padL - distL;
+                if (refSrcX >= 0 && refSrcX < padL) {
+                    const idx = ((py + padT) * srcW + refSrcX) * 4;
+                    samples.push({ r: src[idx], g: src[idx+1], b: src[idx+2], w: 1 / (distL * distL) });
+                }
+            }
+            // ทิศขวา
+            if (padR > 0) {
+                const refSrcX = padL + bw + (distR - 1);
+                if (refSrcX < srcW) {
+                    const idx = ((py + padT) * srcW + refSrcX) * 4;
+                    samples.push({ r: src[idx], g: src[idx+1], b: src[idx+2], w: 1 / (distR * distR) });
+                }
+            }
             
-            // ผสมแนวนอน (ซ้าย-ขวา)
-            const hR = lR * (1 - tx) + rR * tx;
-            const hG = lG * (1 - tx) + rG * tx;
-            const hB = lB * (1 - tx) + rB * tx;
+            // ถ้าไม่มี sample เลย (ไม่น่าจะเกิด) ใช้สีดำ
+            if (samples.length === 0) {
+                const i = (py * bw + px) * 4;
+                out[i] = 0; out[i+1] = 0; out[i+2] = 0; out[i+3] = 255;
+                continue;
+            }
             
-            // ผสมแนวตั้ง+แนวนอน (เฉลี่ย 50/50)
+            // weighted average ของทุก sample
+            let totalW = 0, sumR = 0, sumG = 0, sumB = 0;
+            samples.forEach(sm => {
+                totalW += sm.w;
+                sumR += sm.r * sm.w;
+                sumG += sm.g * sm.w;
+                sumB += sm.b * sm.w;
+            });
+            
             const i = (py * bw + px) * 4;
-            d[i]   = Math.round((vR + hR) / 2);
-            d[i+1] = Math.round((vG + hG) / 2);
-            d[i+2] = Math.round((vB + hB) / 2);
-            d[i+3] = 255;
+            out[i]   = Math.round(sumR / totalW);
+            out[i+1] = Math.round(sumG / totalW);
+            out[i+2] = Math.round(sumB / totalW);
+            out[i+3] = 255;
         }
     }
     
-    // ใส่ noise เล็กน้อยกลืน (1-3% เพื่อให้ดูเป็นธรรมชาติ)
-    for (let i = 0; i < d.length; i += 4) {
-        const n = (Math.random() - 0.5) * 6;
-        d[i]   = Math.max(0, Math.min(255, d[i] + n));
-        d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
-        d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
+    // ใส่ noise นิดหน่อย ให้ texture ดูธรรมชาติ
+    for (let i = 0; i < out.length; i += 4) {
+        const n = (Math.random() - 0.5) * 8;
+        out[i]   = Math.max(0, Math.min(255, out[i] + n));
+        out[i+1] = Math.max(0, Math.min(255, out[i+1] + n));
+        out[i+2] = Math.max(0, Math.min(255, out[i+2] + n));
     }
     
     // วาดลง canvas โดย clip ตาม shape
-    // ต้องวาด imageData ลง offscreen canvas ก่อน แล้ว drawImage พร้อม clip
     const off = document.createElement('canvas');
     off.width = bw; off.height = bh;
-    off.getContext('2d').putImageData(fillData, 0, 0);
+    off.getContext('2d').putImageData(outImg, 0, 0);
     
     ctx.save();
     leClipToShape(ctx, sel);
     ctx.drawImage(off, x0, y0);
     ctx.restore();
 }
+
 
 
 function leGetBBox(sel) {
