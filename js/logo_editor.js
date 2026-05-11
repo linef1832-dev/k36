@@ -485,9 +485,11 @@ window.leApplyErase = async function() {
 };
 
 // ==========================================
-// 🪄 Content-Aware Fill v3 — Patch-based (Mirror/Reflect)
-// หลักการ: ขยายขอบรอบๆ กรอบ → mirror reflect เข้าไปแทนที่ภายในกรอบ
-// ทำให้ texture/pattern ของพื้นหลังต่อเนื่องเหมือนของจริง
+// 🪄 Content-Aware Fill v4 — Adaptive
+// เลือกวิธีเติมตามความซับซ้อนของพื้นที่:
+// - ขอบเรียบ (variance ต่ำ) → สีเฉลี่ย + noise
+// - ขอบมี gradient → interpolation จากขอบ
+// ไม่ใช้ mirror เพราะอาจสะท้อน object ที่อยู่นอกกรอบเข้ามา
 // ==========================================
 function leContentAwareFill(sel, bbox) {
     const s = window.leState;
@@ -503,121 +505,111 @@ function leContentAwareFill(sel, bbox) {
     const bh = y1 - y0;
     if (bw < 2 || bh < 2) return;
     
-    // padding รอบๆ กรอบ — ใช้สำหรับ source patches
-    // ใช้ขนาด = max(bw, bh) เพื่อให้มี source เพียงพอ
-    const pad = Math.max(20, Math.min(Math.max(bw, bh), 200));
+    // อ่านสีของขอบทั้ง 4 ด้าน (1 pixel ติดกับกรอบ)
+    const sampleRow = (y) => {
+        const safeY = Math.max(0, Math.min(H - 1, y));
+        try { return ctx.getImageData(x0, safeY, bw, 1).data; } 
+        catch(e) { return null; }
+    };
+    const sampleCol = (x) => {
+        const safeX = Math.max(0, Math.min(W - 1, x));
+        try { return ctx.getImageData(safeX, y0, 1, bh).data; }
+        catch(e) { return null; }
+    };
     
-    // คำนวณ pad จริง (ระวังขอบรูป)
-    const padT = Math.min(pad, y0);            // มีกี่ pixel เหนือกรอบ
-    const padB = Math.min(pad, H - y1);        // ใต้กรอบ
-    const padL = Math.min(pad, x0);            // ซ้าย
-    const padR = Math.min(pad, W - x1);        // ขวา
+    // ใช้ขอบที่อยู่ "นอกกรอบ" 1 pixel — ถ้าติดขอบรูปก็ใช้ขอบในของกรอบ
+    const topRow    = (y0 > 0)   ? sampleRow(y0 - 1) : sampleRow(y0);
+    const bottomRow = (y1 < H)   ? sampleRow(y1)     : sampleRow(y1 - 1);
+    const leftCol   = (x0 > 0)   ? sampleCol(x0 - 1) : sampleCol(x0);
+    const rightCol  = (x1 < W)   ? sampleCol(x1)     : sampleCol(x1 - 1);
     
-    // ต้องมี source อย่างน้อย 1 ทิศ
-    if (padT === 0 && padB === 0 && padL === 0 && padR === 0) {
-        // กรอบกินเต็มรูปแล้ว — ทำอะไรไม่ได้
-        return;
+    if (!topRow || !bottomRow || !leftCol || !rightCol) return;
+    
+    // คำนวณค่าเฉลี่ยและ variance ของแต่ละขอบ — ใช้ตัดสินใจว่าเป็นพื้นเรียบหรือไม่
+    function statsOf(arr) {
+        let n = 0, sumR = 0, sumG = 0, sumB = 0;
+        for (let i = 0; i < arr.length; i += 4) {
+            sumR += arr[i]; sumG += arr[i+1]; sumB += arr[i+2]; n++;
+        }
+        const avgR = sumR / n, avgG = sumG / n, avgB = sumB / n;
+        let varSum = 0;
+        for (let i = 0; i < arr.length; i += 4) {
+            varSum += Math.abs(arr[i] - avgR) + Math.abs(arr[i+1] - avgG) + Math.abs(arr[i+2] - avgB);
+        }
+        return { avgR, avgG, avgB, variance: varSum / n };
     }
     
-    // วิธี: สร้าง offscreen canvas เท่ากับ bbox + pad ทั้ง 4 ทิศ
-    // แล้วใช้ "edge replicate + mirror blend" เติมพื้นที่ตรงกลาง
+    const sT = statsOf(topRow);
+    const sB = statsOf(bottomRow);
+    const sL = statsOf(leftCol);
+    const sR = statsOf(rightCol);
     
-    // อ่านพื้นที่รอบกรอบทั้งหมด (รวม padding)
-    const srcX = x0 - padL;
-    const srcY = y0 - padT;
-    const srcW = bw + padL + padR;
-    const srcH = bh + padT + padB;
+    // variance รวม — ถ้าน้อย = ขอบเรียบ ปลอดภัยที่จะใช้ gradient
+    const maxVariance = Math.max(sT.variance, sB.variance, sL.variance, sR.variance);
     
-    let srcData;
-    try {
-        srcData = ctx.getImageData(srcX, srcY, srcW, srcH);
-    } catch(e) {
-        return;
-    }
-    const src = srcData.data;
-    
-    // สร้าง output (เท่ากับ bbox)
     const outImg = ctx.createImageData(bw, bh);
     const out = outImg.data;
     
-    // สำหรับ pixel แต่ละตัวในกรอบ — หาสีจาก 4 ทิศ โดย "reflect" จากขอบเข้าไปใน source
-    // ตำแหน่งของ pixel ในกรอบ (local): (px, py) ; ใน source: (px + padL, py + padT)
+    // ตัดสินใจวิธีเติม:
+    // - variance < 25 → พื้นเรียบ ใช้ interpolation
+    // - variance >= 25 → พื้นซับซ้อน ใช้สีเฉลี่ยรวม + noise (ดีกว่าเสี่ยง mirror)
     
-    for (let py = 0; py < bh; py++) {
-        for (let px = 0; px < bw; px++) {
-            // ระยะถึงขอบของกรอบ (ใน local coordinates)
-            const distT = py + 1;          // ระยะถึงขอบบน
-            const distB = bh - py;          // ขอบล่าง
-            const distL = px + 1;           // ซ้าย
-            const distR = bw - px;          // ขวา
-            
-            // เลือก source pixel โดย "reflect" — ขยายจากขอบใกล้สุดที่มี padding
-            // ถ้าใกล้ขอบบน → ดูที่ source ฝั่งบน reflect ขึ้น
-            // ตัวอย่าง: py=2 (ใกล้ขอบบน) → ใช้ source pixel ที่อยู่เหนือ y0 = (y0 - distT) ใน original = (padT - distT) ใน src
-            
-            // คะแนนแต่ละทิศ (น้ำหนัก = 1 / ระยะ)
-            const samples = [];
-            
-            // ทิศบน: reflect ขึ้นไปใน padT
-            if (padT > 0) {
-                const refSrcY = padT - distT;  // padT - 1, padT - 2, ...
-                if (refSrcY >= 0 && refSrcY < padT) {
-                    const idx = (refSrcY * srcW + (px + padL)) * 4;
-                    samples.push({ r: src[idx], g: src[idx+1], b: src[idx+2], w: 1 / (distT * distT) });
-                }
-            }
-            // ทิศล่าง: reflect ลงไป
-            if (padB > 0) {
-                const refSrcY = padT + bh + (distB - 1);  // padT + bh, +1, +2
-                if (refSrcY < srcH) {
-                    const idx = (refSrcY * srcW + (px + padL)) * 4;
-                    samples.push({ r: src[idx], g: src[idx+1], b: src[idx+2], w: 1 / (distB * distB) });
-                }
-            }
-            // ทิศซ้าย: reflect ไปทางซ้าย
-            if (padL > 0) {
-                const refSrcX = padL - distL;
-                if (refSrcX >= 0 && refSrcX < padL) {
-                    const idx = ((py + padT) * srcW + refSrcX) * 4;
-                    samples.push({ r: src[idx], g: src[idx+1], b: src[idx+2], w: 1 / (distL * distL) });
-                }
-            }
-            // ทิศขวา
-            if (padR > 0) {
-                const refSrcX = padL + bw + (distR - 1);
-                if (refSrcX < srcW) {
-                    const idx = ((py + padT) * srcW + refSrcX) * 4;
-                    samples.push({ r: src[idx], g: src[idx+1], b: src[idx+2], w: 1 / (distR * distR) });
-                }
-            }
-            
-            // ถ้าไม่มี sample เลย (ไม่น่าจะเกิด) ใช้สีดำ
-            if (samples.length === 0) {
+    if (maxVariance < 25) {
+        // 🌟 พื้นเรียบ — ใช้ bilinear interpolation จาก 4 ขอบ
+        for (let py = 0; py < bh; py++) {
+            for (let px = 0; px < bw; px++) {
+                const tx = px / (bw - 1 || 1);
+                const ty = py / (bh - 1 || 1);
+                
+                const tIdx = px * 4, bIdx = px * 4;
+                const lIdx = py * 4, rIdx = py * 4;
+                
+                const tR = topRow[tIdx], tG = topRow[tIdx+1], tB = topRow[tIdx+2];
+                const bR = bottomRow[bIdx], bG = bottomRow[bIdx+1], bB = bottomRow[bIdx+2];
+                const lR = leftCol[lIdx], lG = leftCol[lIdx+1], lB = leftCol[lIdx+2];
+                const rR = rightCol[rIdx], rG = rightCol[rIdx+1], rB = rightCol[rIdx+2];
+                
+                // ผสมแนวตั้ง
+                const vR = tR * (1 - ty) + bR * ty;
+                const vG = tG * (1 - ty) + bG * ty;
+                const vB = tB * (1 - ty) + bB * ty;
+                // ผสมแนวนอน
+                const hR = lR * (1 - tx) + rR * tx;
+                const hG = lG * (1 - tx) + rG * tx;
+                const hB = lB * (1 - tx) + rB * tx;
+                
                 const i = (py * bw + px) * 4;
-                out[i] = 0; out[i+1] = 0; out[i+2] = 0; out[i+3] = 255;
-                continue;
+                out[i]   = Math.round((vR + hR) / 2);
+                out[i+1] = Math.round((vG + hG) / 2);
+                out[i+2] = Math.round((vB + hB) / 2);
+                out[i+3] = 255;
             }
-            
-            // weighted average ของทุก sample
-            let totalW = 0, sumR = 0, sumG = 0, sumB = 0;
-            samples.forEach(sm => {
-                totalW += sm.w;
-                sumR += sm.r * sm.w;
-                sumG += sm.g * sm.w;
-                sumB += sm.b * sm.w;
-            });
-            
-            const i = (py * bw + px) * 4;
-            out[i]   = Math.round(sumR / totalW);
-            out[i+1] = Math.round(sumG / totalW);
-            out[i+2] = Math.round(sumB / totalW);
+        }
+    } else {
+        // 🌟 พื้นซับซ้อน (มี text/object รอบๆ) — ใช้ "สีเฉลี่ยถ่วงน้ำหนัก"
+        // โดยให้น้ำหนักขอบที่ variance ต่ำสุด (ขอบเรียบสุด) มากที่สุด
+        const weights = [
+            { s: sT, weight: 1 / (sT.variance + 1) },
+            { s: sB, weight: 1 / (sB.variance + 1) },
+            { s: sL, weight: 1 / (sL.variance + 1) },
+            { s: sR, weight: 1 / (sR.variance + 1) }
+        ];
+        const totalW = weights.reduce((a, w) => a + w.weight, 0);
+        const finalR = weights.reduce((a, w) => a + w.s.avgR * w.weight, 0) / totalW;
+        const finalG = weights.reduce((a, w) => a + w.s.avgG * w.weight, 0) / totalW;
+        const finalB = weights.reduce((a, w) => a + w.s.avgB * w.weight, 0) / totalW;
+        
+        for (let i = 0; i < out.length; i += 4) {
+            out[i]   = finalR;
+            out[i+1] = finalG;
+            out[i+2] = finalB;
             out[i+3] = 255;
         }
     }
     
-    // ใส่ noise นิดหน่อย ให้ texture ดูธรรมชาติ
+    // ใส่ noise นิดหน่อย
     for (let i = 0; i < out.length; i += 4) {
-        const n = (Math.random() - 0.5) * 8;
+        const n = (Math.random() - 0.5) * 6;
         out[i]   = Math.max(0, Math.min(255, out[i] + n));
         out[i+1] = Math.max(0, Math.min(255, out[i+1] + n));
         out[i+2] = Math.max(0, Math.min(255, out[i+2] + n));
@@ -633,6 +625,7 @@ function leContentAwareFill(sel, bbox) {
     ctx.drawImage(off, x0, y0);
     ctx.restore();
 }
+
 
 
 
