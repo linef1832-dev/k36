@@ -1,5 +1,8 @@
 // ====================================================
-// 🎨 เครื่องมือแต่งรูป: ลบโลโก้เดิม → ใส่โลโก้ใหม่
+// 🎨 เครื่องมือแต่งรูป v3
+// - Shape: rectangle, ellipse, circle, lasso
+// - คลุมแล้วเติมพื้นที่อัตโนมัติ (ไม่ต้องกดปุ่ม)
+// - ขนาดเริ่มต้น 100% (ขนาดจริงของรูป)
 // ====================================================
 
 window.leState = {
@@ -8,30 +11,25 @@ window.leState = {
     baseImage: null,
     newLogo: null,
     history: [],
-    tool: 'erase',
+    shape: 'rect',           // 'rect' | 'ellipse' | 'circle' | 'lasso'
     isDrawingSelection: false,
     selStart: null,
-    selBox: null,
-    zoom: 1,              // ผู้ใช้ zoom ด้วยปุ่ม (1 = 100%)
-    fitScale: 1,          // อัตราพอดีจอ (คำนวณตอนโหลดรูป)
+    lassoPoints: [],         // สำหรับ lasso
+    selBox: null,            // กรอบหรือ path ที่เลือกอยู่ (คอ-ordinates)
+    zoom: 1,
+    fitScale: 1,             // ไม่ใช้ fit auto แล้ว — แสดง 1:1 เป็นค่าเริ่มต้น
     logoOverlay: { x: 50, y: 50, w: 120, h: 120, opacity: 1 }
 };
 
-// ตัวช่วย: scale รวม = fitScale * zoom
 function leTotalScale() {
-    return (window.leState.fitScale || 1) * (window.leState.zoom || 1);
+    return window.leState.zoom || 1;
 }
 
-// 🌟 ตัวช่วยตรวจให้แน่ใจว่า canvas + ctx ถูก setup แล้ว
 function leEnsureInit() {
     if (window.leState.canvas && window.leState.ctx) return true;
     const cvs = document.getElementById('leCanvas');
-    if (!cvs) {
-        console.error('[Logo Editor] หาไม่เจอ #leCanvas');
-        return false;
-    }
+    if (!cvs) { console.error('[Logo Editor] #leCanvas not found'); return false; }
     window.leState.canvas = cvs;
-    // ใช้ willReadFrequently เพื่อ fix Canvas2D warning
     window.leState.ctx = cvs.getContext('2d', { willReadFrequently: true });
     leSetupCanvasEvents();
     leSetupLogoOverlayEvents();
@@ -42,19 +40,18 @@ function leEnsureInit() {
 window.initLogoEditorApp = function() {
     if (!leEnsureInit()) return;
     
-    // 🌟 [สิทธิ์]
-    const isAdminOrMgr = (currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager'));
+    const isAdminOrMgr = (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager'));
     const can = (perm) => isAdminOrMgr || (typeof window.hasUserPerm === 'function' && window.hasUserPerm(perm));
     window.leCanErase    = can('logo_editor_erase');
     window.leCanAddLogo  = can('logo_editor_add_logo');
     window.leCanDownload = can('logo_editor_download');
 
-    const eraseSection    = document.getElementById('leEraseSection');
-    const addLogoSection  = document.getElementById('leAddLogoSection');
-    const downloadBtn     = document.getElementById('leDownloadBtn');
-    if (eraseSection)   eraseSection.style.display    = window.leCanErase    ? '' : 'none';
-    if (addLogoSection) addLogoSection.style.display  = window.leCanAddLogo  ? '' : 'none';
-    if (downloadBtn)    downloadBtn.style.display     = window.leCanDownload ? '' : 'none';
+    const eraseSection = document.getElementById('leEraseSection');
+    const addLogoSection = document.getElementById('leAddLogoSection');
+    const downloadBtn = document.getElementById('leDownloadBtn');
+    if (eraseSection) eraseSection.style.display = window.leCanErase ? '' : 'none';
+    if (addLogoSection) addLogoSection.style.display = window.leCanAddLogo ? '' : 'none';
+    if (downloadBtn) downloadBtn.style.display = window.leCanDownload ? '' : 'none';
 };
 
 // ==========================================
@@ -62,13 +59,11 @@ window.initLogoEditorApp = function() {
 // ==========================================
 window.leLoadBaseImage = function(event) {
     if (!leEnsureInit()) {
-        Swal.fire('ผิดพลาด', 'หน้านี้ยังโหลดไม่เสร็จ ลองรีเฟรชหน้าใหม่', 'error');
+        Swal.fire('ผิดพลาด', 'รีเฟรชหน้าใหม่ลองอีกครั้ง', 'error');
         return;
     }
-    
     const file = event.target ? event.target.files[0] : event;
     if (!file) return;
-    
     if (!file.type || !file.type.startsWith('image/')) {
         Swal.fire('ไฟล์ไม่ถูกต้อง', 'กรุณาเลือกไฟล์รูปภาพ', 'warning');
         return;
@@ -82,9 +77,11 @@ window.leLoadBaseImage = function(event) {
             window.leState.history = [];
             window.leState.newLogo = null;
             window.leState.selBox = null;
-            window.leState.zoom = 1;
+            window.leState.lassoPoints = [];
             
+            // 🌟 [แก้บัค] เริ่มต้นที่ "พอดีจอ" เสมอ — ใครอยากดู 100% กดปุ่มซูม
             leRenderBase();
+            leFitScreen();
             leRemoveLogo();
             
             const empty = document.getElementById('leEmptyState');
@@ -94,96 +91,78 @@ window.leLoadBaseImage = function(event) {
             if (wrapper) wrapper.classList.remove('hidden');
             if (zoomCtl) zoomCtl.classList.remove('hidden');
             
-            leShowTip('ลากเมาส์ทับโลโก้เพื่อเลือกพื้นที่ลบ', 3500);
+            leShowTip('ลากเมาส์ทับโลโก้บนรูป — ปล่อยเมาส์จะลบทันที', 3500);
         };
-        img.onerror = () => Swal.fire('Error', 'โหลดรูปไม่ได้ — ไฟล์อาจเสียหาย', 'error');
+        img.onerror = () => Swal.fire('Error', 'โหลดรูปไม่ได้', 'error');
         img.src = e.target.result;
     };
-    reader.onerror = () => Swal.fire('Error', 'อ่านไฟล์ไม่สำเร็จ', 'error');
     reader.readAsDataURL(file);
-    
     if (event.target && event.target.value !== undefined) event.target.value = '';
 };
 
 function leRenderBase() {
     const s = window.leState;
     if (!s.baseImage) return;
-    
     s.canvas.width = s.baseImage.width;
     s.canvas.height = s.baseImage.height;
     s.ctx.drawImage(s.baseImage, 0, 0);
-    leFitCanvasToScreen();
 }
 
-// คำนวณอัตราพอดีจอ
-function leFitCanvasToScreen() {
-    const s = window.leState;
-    const area = document.getElementById('leCanvasArea');
-    if (!area || !s.baseImage) return;
-    
-    const maxW = area.clientWidth - 48;
-    const maxH = area.clientHeight - 48;
-    const imgW = s.canvas.width;
-    const imgH = s.canvas.height;
-    
-    s.fitScale = Math.min(maxW / imgW, maxH / imgH, 1);
-    leApplyCanvasScale();
-}
-
-// ใส่ขนาดจริงให้ wrapper ตาม scale
 function leApplyCanvasScale() {
     const s = window.leState;
     const wrapper = document.getElementById('leCanvasWrapper');
     if (!wrapper || !s.canvas) return;
     
-    const totalScale = leTotalScale();
-    const w = s.canvas.width * totalScale;
-    const h = s.canvas.height * totalScale;
+    const scale = leTotalScale();
+    const w = s.canvas.width * scale;
+    const h = s.canvas.height * scale;
     
     wrapper.style.width = w + 'px';
     wrapper.style.height = h + 'px';
     s.canvas.style.width = w + 'px';
     s.canvas.style.height = h + 'px';
     
-    // อัปเดต zoom label
-    const label = document.getElementById('leZoomLabel');
-    if (label) label.innerText = Math.round(totalScale * 100) + '%';
+    // อัปเดต SVG overlay viewBox ให้ตรงกับ canvas
+    const svg = document.getElementById('leSelectionSvg');
+    if (svg) {
+        svg.setAttribute('viewBox', `0 0 ${s.canvas.width} ${s.canvas.height}`);
+        svg.style.width = w + 'px';
+        svg.style.height = h + 'px';
+    }
     
-    // อัปเดตตำแหน่งโลโก้ overlay
+    const label = document.getElementById('leZoomLabel');
+    if (label) label.innerText = Math.round(scale * 100) + '%';
+    
     if (s.newLogo) leUpdateLogoOverlayPosition();
 }
 
 // ==========================================
-// 🔍 Zoom controls
+// 🔍 Zoom
 // ==========================================
 window.leZoomIn = function() {
     window.leState.zoom = Math.min(5, window.leState.zoom * 1.25);
     leApplyCanvasScale();
 };
 window.leZoomOut = function() {
-    window.leState.zoom = Math.max(0.2, window.leState.zoom / 1.25);
+    window.leState.zoom = Math.max(0.1, window.leState.zoom / 1.25);
     leApplyCanvasScale();
 };
 window.leFitScreen = function() {
-    window.leState.zoom = 1;
-    leFitCanvasToScreen();
-};
-window.leZoomReset = function() {
-    // แสดงขนาดจริง 100%
     const s = window.leState;
     if (!s.baseImage) return;
-    s.zoom = 1 / (s.fitScale || 1);  // ลบเอ็ฟเฟกต์ fit
+    const area = document.getElementById('leCanvasArea');
+    if (!area) return;
+    const maxW = area.clientWidth - 48;
+    const maxH = area.clientHeight - 48;
+    s.zoom = Math.min(maxW / s.canvas.width, maxH / s.canvas.height, 1);
+    if (s.zoom < 0.1) s.zoom = 0.1;
     leApplyCanvasScale();
 };
 
 window.addEventListener('resize', () => { 
-    if (window.leState && window.leState.baseImage) {
-        window.leState.zoom = 1;
-        leFitCanvasToScreen();
-    }
+    if (window.leState && window.leState.baseImage) leApplyCanvasScale();
 });
 
-// แสดง tip ลอย
 function leShowTip(text, duration) {
     const bar = document.getElementById('leTipBar');
     const txt = document.getElementById('leTipText');
@@ -197,17 +176,37 @@ function leShowTip(text, duration) {
 }
 
 // ==========================================
-// 🖼️ Drag & Drop ไฟล์ลง canvas area
+// 🎯 เปลี่ยน shape
+// ==========================================
+window.leSetShape = function(shape) {
+    window.leState.shape = shape;
+    ['rect','ellipse','circle','lasso'].forEach(name => {
+        const el = document.getElementById('leShape' + name.charAt(0).toUpperCase() + name.slice(1));
+        if (el) {
+            if (name === shape) el.classList.add('active');
+            else el.classList.remove('active');
+        }
+    });
+    const hint = document.getElementById('leShapeHint');
+    if (hint) {
+        const hints = {
+            rect: 'ลากเมาส์เป็นกรอบสี่เหลี่ยม',
+            ellipse: 'ลากเมาส์เป็นวงรี',
+            circle: 'ลากเมาส์เป็นวงกลม',
+            lasso: 'ลากเส้นรอบโลโก้ (ไม่ต้องวนปิด)'
+        };
+        hint.innerText = hints[shape] || '';
+    }
+};
+
+// ==========================================
+// 🖼️ Drag & Drop file
 // ==========================================
 function leSetupDragDropFile() {
     const area = document.getElementById('leCanvasArea');
     if (!area || area._dropSetup) return;
     area._dropSetup = true;
-    
-    area.addEventListener('dragover', (e) => { 
-        e.preventDefault(); 
-        area.classList.add('ring-4', 'ring-fuchsia-400/50'); 
-    });
+    area.addEventListener('dragover', (e) => { e.preventDefault(); area.classList.add('ring-4', 'ring-fuchsia-400/50'); });
     area.addEventListener('dragleave', () => area.classList.remove('ring-4', 'ring-fuchsia-400/50'));
     area.addEventListener('drop', (e) => {
         e.preventDefault();
@@ -217,25 +216,23 @@ function leSetupDragDropFile() {
 }
 
 // ==========================================
-// ✂️ เครื่องมือเลือกพื้นที่ลบโลโก้
+// ✂️ Selection (รองรับทุก shape) — เติมอัตโนมัติเมื่อปล่อยเมาส์
 // ==========================================
 function leSetupCanvasEvents() {
     const cvs = window.leState.canvas;
     if (!cvs || cvs._eventsSetup) return;
     cvs._eventsSetup = true;
     
-    const box = document.getElementById('leSelectionBox');
+    const svg = document.getElementById('leSelectionSvg');
     
     const getCoords = (e) => {
         const rect = cvs.getBoundingClientRect();
-        const totalScale = leTotalScale();
+        const scale = leTotalScale();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
         return {
-            x: (cx - rect.left) / totalScale,
-            y: (cy - rect.top) / totalScale,
-            screenX: cx - rect.left,
-            screenY: cy - rect.top
+            x: (cx - rect.left) / scale,
+            y: (cy - rect.top) / scale
         };
     };
     
@@ -246,36 +243,37 @@ function leSetupCanvasEvents() {
         const p = getCoords(e);
         window.leState.isDrawingSelection = true;
         window.leState.selStart = p;
-        box.style.left = p.screenX + 'px';
-        box.style.top = p.screenY + 'px';
-        box.style.width = '0px';
-        box.style.height = '0px';
-        box.classList.remove('hidden');
+        window.leState.lassoPoints = [p];
+        svg.classList.remove('hidden');
+        leDrawSelectionShape(p, p);
     };
     
     const moveSel = (e) => {
         if (!window.leState.isDrawingSelection) return;
         e.preventDefault();
         const p = getCoords(e);
-        const sx = Math.min(window.leState.selStart.screenX, p.screenX);
-        const sy = Math.min(window.leState.selStart.screenY, p.screenY);
-        const sw = Math.abs(p.screenX - window.leState.selStart.screenX);
-        const sh = Math.abs(p.screenY - window.leState.selStart.screenY);
-        box.style.left = sx + 'px';
-        box.style.top = sy + 'px';
-        box.style.width = sw + 'px';
-        box.style.height = sh + 'px';
-        
-        const totalScale = leTotalScale();
-        window.leState.selBox = {
-            x: sx / totalScale,
-            y: sy / totalScale,
-            w: sw / totalScale,
-            h: sh / totalScale
-        };
+        if (window.leState.shape === 'lasso') {
+            window.leState.lassoPoints.push(p);
+            leDrawLassoPath(window.leState.lassoPoints);
+        } else {
+            leDrawSelectionShape(window.leState.selStart, p);
+        }
     };
     
-    const endSel = () => { window.leState.isDrawingSelection = false; };
+    const endSel = async (e) => {
+        if (!window.leState.isDrawingSelection) return;
+        window.leState.isDrawingSelection = false;
+        
+        // 🌟 [แก้บัค] เติมพื้นที่ทันทีเมื่อปล่อยเมาส์
+        if (window.leState.selBox || (window.leState.shape === 'lasso' && window.leState.lassoPoints.length > 5)) {
+            await leApplyErase();
+        }
+        
+        svg.classList.add('hidden');
+        svg.innerHTML = '';
+        window.leState.selBox = null;
+        window.leState.lassoPoints = [];
+    };
     
     cvs.addEventListener('mousedown', startSel);
     cvs.addEventListener('mousemove', moveSel);
@@ -285,40 +283,140 @@ function leSetupCanvasEvents() {
     window.addEventListener('touchend', endSel);
 }
 
+// วาด SVG shape ขึ้นบน canvas (มองเห็น)
+function leDrawSelectionShape(start, end) {
+    const svg = document.getElementById('leSelectionSvg');
+    if (!svg) return;
+    
+    const x1 = Math.min(start.x, end.x);
+    const y1 = Math.min(start.y, end.y);
+    const w = Math.abs(end.x - start.x);
+    const h = Math.abs(end.y - start.y);
+    const shape = window.leState.shape;
+    
+    if (shape === 'rect') {
+        svg.innerHTML = `<rect x="${x1}" y="${y1}" width="${w}" height="${h}"/>`;
+        window.leState.selBox = { type: 'rect', x: x1, y: y1, w: w, h: h };
+    } else if (shape === 'ellipse') {
+        const cx = x1 + w/2, cy = y1 + h/2, rx = w/2, ry = h/2;
+        svg.innerHTML = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/>`;
+        window.leState.selBox = { type: 'ellipse', cx, cy, rx, ry };
+    } else if (shape === 'circle') {
+        const cx = start.x, cy = start.y;
+        const r = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+        svg.innerHTML = `<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r}"/>`;
+        window.leState.selBox = { type: 'ellipse', cx, cy, rx: r, ry: r };
+    }
+}
+
+function leDrawLassoPath(points) {
+    const svg = document.getElementById('leSelectionSvg');
+    if (!svg || points.length < 2) return;
+    let d = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+        d += ` L ${points[i].x} ${points[i].y}`;
+    }
+    d += ' Z';
+    svg.innerHTML = `<path d="${d}"/>`;
+    window.leState.selBox = { type: 'lasso', points: [...points] };
+}
+
 // ==========================================
-// 🩹 เติมพื้นที่ที่เลือก (ลบโลโก้)
+// 🩹 เติมพื้นที่ — รองรับทุก shape
 // ==========================================
-window.leApplyErase = function() {
+window.leApplyErase = async function() {
     if (window.leCanErase === false) {
-        return Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ลบโลโก้เดิม', 'warning');
+        Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ลบโลโก้เดิม', 'warning');
+        return;
     }
     const s = window.leState;
-    if (!s.baseImage) return Swal.fire('!', 'ยังไม่มีรูป', 'warning');
-    if (!s.selBox || s.selBox.w < 4 || s.selBox.h < 4) {
-        return Swal.fire('!', 'ลากกรอบทับโลโก้ก่อน แล้วค่อยกดเติมพื้นที่', 'warning');
-    }
+    const sel = s.selBox;
+    if (!sel) return;
     
+    // กรอบเล็กเกิน
+    if (sel.type === 'rect' && (sel.w < 4 || sel.h < 4)) return;
+    if (sel.type === 'ellipse' && (sel.rx < 2 || sel.ry < 2)) return;
+    if (sel.type === 'lasso' && sel.points.length < 5) return;
+    
+    // เก็บ history
     s.history.push(s.ctx.getImageData(0, 0, s.canvas.width, s.canvas.height));
     if (s.history.length > 20) s.history.shift();
     
     const mode = document.getElementById('leFillMode').value;
     const color = document.getElementById('leFillColor').value;
-    const box = s.selBox;
     
+    // คำนวณ bounding box
+    const bbox = leGetBBox(sel);
+    
+    // คำนวณสีที่จะเติม (auto = เดาจากขอบ)
+    let fillStyle;
     if (mode === 'solid') {
-        s.ctx.fillStyle = color;
-        s.ctx.fillRect(box.x, box.y, box.w, box.h);
-    } else if (mode === 'blur') {
-        leApplyBlurFill(box);
+        fillStyle = color;
     } else {
-        leApplyAutoFill(box);
+        fillStyle = leComputeAvgEdgeColor(bbox);
     }
     
-    document.getElementById('leSelectionBox').classList.add('hidden');
-    s.selBox = null;
+    // สร้าง path → เติมเฉพาะภายใน shape
+    s.ctx.save();
+    leClipToShape(s.ctx, sel);
+    s.ctx.fillStyle = fillStyle;
+    s.ctx.fillRect(bbox.x, bbox.y, bbox.w, bbox.h);
+    
+    // ถ้า mode = blur → เบลอเฉพาะภายใน clip
+    if (mode === 'blur' || mode === 'auto') {
+        try {
+            const imgData = s.ctx.getImageData(bbox.x, bbox.y, bbox.w, bbox.h);
+            if (mode === 'blur') {
+                const blurred = leBoxBlur(imgData, 3);
+                s.ctx.putImageData(blurred, bbox.x, bbox.y);
+            } else {
+                // auto: noise เล็กน้อยกลืน
+                for (let i = 0; i < imgData.data.length; i += 4) {
+                    const n = (Math.random() - 0.5) * 12;
+                    imgData.data[i]   = Math.max(0, Math.min(255, imgData.data[i] + n));
+                    imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + n));
+                    imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + n));
+                }
+                s.ctx.putImageData(imgData, bbox.x, bbox.y);
+            }
+        } catch(e) {}
+    }
+    
+    s.ctx.restore();
 };
 
-function leApplyAutoFill(box) {
+// คำนวณ bounding box ของ shape
+function leGetBBox(sel) {
+    if (sel.type === 'rect') return { x: sel.x, y: sel.y, w: sel.w, h: sel.h };
+    if (sel.type === 'ellipse') return {
+        x: sel.cx - sel.rx, y: sel.cy - sel.ry,
+        w: sel.rx * 2, h: sel.ry * 2
+    };
+    if (sel.type === 'lasso') {
+        let xs = sel.points.map(p => p.x), ys = sel.points.map(p => p.y);
+        const x1 = Math.min(...xs), y1 = Math.min(...ys);
+        const x2 = Math.max(...xs), y2 = Math.max(...ys);
+        return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+    }
+}
+
+// สร้าง clip path ตาม shape
+function leClipToShape(ctx, sel) {
+    ctx.beginPath();
+    if (sel.type === 'rect') {
+        ctx.rect(sel.x, sel.y, sel.w, sel.h);
+    } else if (sel.type === 'ellipse') {
+        ctx.ellipse(sel.cx, sel.cy, sel.rx, sel.ry, 0, 0, Math.PI * 2);
+    } else if (sel.type === 'lasso') {
+        ctx.moveTo(sel.points[0].x, sel.points[0].y);
+        for (let i = 1; i < sel.points.length; i++) ctx.lineTo(sel.points[i].x, sel.points[i].y);
+        ctx.closePath();
+    }
+    ctx.clip();
+}
+
+// คำนวณสีเฉลี่ยรอบขอบ
+function leComputeAvgEdgeColor(bbox) {
     const s = window.leState;
     const ctx = s.ctx;
     const samples = [];
@@ -338,44 +436,15 @@ function leApplyAutoFill(box) {
         } catch(e) {}
     };
     
-    sampleEdge(box.x - pad, box.y - pad, box.w + pad*2, pad);
-    sampleEdge(box.x - pad, box.y + box.h, box.w + pad*2, pad);
-    sampleEdge(box.x - pad, box.y, pad, box.h);
-    sampleEdge(box.x + box.w, box.y, pad, box.h);
+    sampleEdge(bbox.x - pad, bbox.y - pad, bbox.w + pad*2, pad);
+    sampleEdge(bbox.x - pad, bbox.y + bbox.h, bbox.w + pad*2, pad);
+    sampleEdge(bbox.x - pad, bbox.y, pad, bbox.h);
+    sampleEdge(bbox.x + bbox.w, bbox.y, pad, bbox.h);
     
-    if (samples.length === 0) {
-        ctx.fillStyle = '#ffffff';
-    } else {
-        let r = 0, g = 0, b = 0;
-        samples.forEach(s => { r += s[0]; g += s[1]; b += s[2]; });
-        r = Math.round(r / samples.length);
-        g = Math.round(g / samples.length);
-        b = Math.round(b / samples.length);
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
-    }
-    ctx.fillRect(box.x, box.y, box.w, box.h);
-    
-    try {
-        const imgData = ctx.getImageData(box.x, box.y, box.w, box.h);
-        for (let i = 0; i < imgData.data.length; i += 4) {
-            const n = (Math.random() - 0.5) * 12;
-            imgData.data[i]   = Math.max(0, Math.min(255, imgData.data[i] + n));
-            imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + n));
-            imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + n));
-        }
-        ctx.putImageData(imgData, box.x, box.y);
-    } catch(e) {}
-}
-
-function leApplyBlurFill(box) {
-    const s = window.leState;
-    const ctx = s.ctx;
-    leApplyAutoFill(box);
-    try {
-        const imgData = ctx.getImageData(box.x, box.y, box.w, box.h);
-        const blurred = leBoxBlur(imgData, 3);
-        ctx.putImageData(blurred, box.x, box.y);
-    } catch(e) {}
+    if (samples.length === 0) return '#ffffff';
+    let r = 0, g = 0, b = 0;
+    samples.forEach(s => { r += s[0]; g += s[1]; b += s[2]; });
+    return `rgb(${Math.round(r/samples.length)},${Math.round(g/samples.length)},${Math.round(b/samples.length)})`;
 }
 
 function leBoxBlur(imgData, radius) {
@@ -383,7 +452,6 @@ function leBoxBlur(imgData, radius) {
     const src = imgData.data;
     const out = new Uint8ClampedArray(src.length);
     const r = radius;
-    
     for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
             let cr = 0, cg = 0, cb = 0, ca = 0, count = 0;
@@ -397,10 +465,8 @@ function leBoxBlur(imgData, radius) {
                 }
             }
             const idx = (y * w + x) * 4;
-            out[idx] = cr / count;
-            out[idx+1] = cg / count;
-            out[idx+2] = cb / count;
-            out[idx+3] = ca / count;
+            out[idx] = cr / count; out[idx+1] = cg / count;
+            out[idx+2] = cb / count; out[idx+3] = ca / count;
         }
     }
     return new ImageData(out, w, h);
@@ -433,10 +499,8 @@ window.leLoadNewLogo = function(event) {
             window.leState.logoOverlay = {
                 x: baseW * 0.05,
                 y: window.leState.baseImage.height * 0.05,
-                w: w0, h: w0 * ratio,
-                opacity: 1
+                w: w0, h: w0 * ratio, opacity: 1
             };
-            
             document.getElementById('leLogoImg').src = e.target.result;
             document.getElementById('leLogoOverlay').classList.remove('hidden');
             document.getElementById('leLogoControls').classList.remove('hidden');
@@ -456,7 +520,6 @@ function leUpdateLogoOverlayPosition() {
     const overlay = document.getElementById('leLogoOverlay');
     const img = document.getElementById('leLogoImg');
     if (!overlay || !img) return;
-    
     const scale = leTotalScale();
     overlay.style.left = (s.logoOverlay.x * scale) + 'px';
     overlay.style.top = (s.logoOverlay.y * scale) + 'px';
@@ -520,7 +583,6 @@ function leSetupLogoOverlayEvents() {
         const dx = cx - dragStart.x;
         const dy = cy - dragStart.y;
         const scale = leTotalScale();
-        
         if (isDragging) {
             window.leState.logoOverlay.x = dragStart.lo.x + dx / scale;
             window.leState.logoOverlay.y = dragStart.lo.y + dy / scale;
@@ -530,12 +592,10 @@ function leSetupLogoOverlayEvents() {
             window.leState.logoOverlay.w = newW;
             window.leState.logoOverlay.h = newW * ratio;
             const baseW = window.leState.baseImage.width;
-            const pct = Math.round(newW / (baseW * 0.15) * 100);
-            const clamped = Math.min(300, Math.max(10, pct));
-            document.getElementById('leLogoSize').value = clamped;
-            document.getElementById('leLogoSizeLabel').innerText = clamped + '%';
+            const pct = Math.min(300, Math.max(10, Math.round(newW / (baseW * 0.15) * 100)));
+            document.getElementById('leLogoSize').value = pct;
+            document.getElementById('leLogoSizeLabel').innerText = pct + '%';
         }
-        
         leUpdateLogoOverlayPosition();
         e.preventDefault();
     };
@@ -571,14 +631,12 @@ window.leResetAll = async function() {
         confirmButtonColor: '#dc2626'
     });
     if (!ok.isConfirmed) return;
-    
     const s = window.leState;
     if (s.baseImage) {
         s.history = [];
         leRenderBase();
     }
     leRemoveLogo();
-    document.getElementById('leSelectionBox').classList.add('hidden');
     s.selBox = null;
 };
 
