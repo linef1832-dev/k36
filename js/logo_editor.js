@@ -5,67 +5,62 @@
 window.leState = {
     canvas: null,
     ctx: null,
-    baseImage: null,          // รูปต้นฉบับ (HTMLImageElement)
-    newLogo: null,            // โลโก้ใหม่ (HTMLImageElement)
-    history: [],              // เก็บ ImageData ก่อนทำ erase (undo)
+    baseImage: null,
+    newLogo: null,
+    history: [],
     tool: 'erase',
     isDrawingSelection: false,
     selStart: null,
-    selBox: null,             // {x,y,w,h} ในพิกัด canvas
-    canvasScale: 1,           // อัตราย่อ canvas เพื่อให้พอดีจอ
+    selBox: null,
+    zoom: 1,              // ผู้ใช้ zoom ด้วยปุ่ม (1 = 100%)
+    fitScale: 1,          // อัตราพอดีจอ (คำนวณตอนโหลดรูป)
     logoOverlay: { x: 50, y: 50, w: 120, h: 120, opacity: 1 }
 };
 
-// ==========================================
-// 🚀 เริ่มต้นเมื่อเข้าหน้า
-// ==========================================
-window.initLogoEditorApp = function() {
-    const cvs = document.getElementById('leCanvas');
-    if (!cvs) return;
-    window.leState.canvas = cvs;
-    window.leState.ctx = cvs.getContext('2d');
-
-    // 🌟 [สิทธิ์] ซ่อนปุ่มที่ไม่มีสิทธิ์ — admin/manager เห็นทุกปุ่ม
-    const isAdminOrMgr = (currentUser.role === 'admin' || currentUser.role === 'manager');
-    const can = (perm) => isAdminOrMgr || (typeof window.hasUserPerm === 'function' && window.hasUserPerm(perm));
-    window.leCanErase    = can('logo_editor_erase');
-    window.leCanAddLogo  = can('logo_editor_add_logo');
-    window.leCanDownload = can('logo_editor_download');
-
-    // ซ่อน section ที่ไม่มีสิทธิ์
-    const eraseSection    = document.getElementById('leEraseSection');
-    const addLogoSection  = document.getElementById('leAddLogoSection');
-    const downloadBtn     = document.getElementById('leDownloadBtn');
-    if (eraseSection)   eraseSection.style.display    = window.leCanErase    ? '' : 'none';
-    if (addLogoSection) addLogoSection.style.display  = window.leCanAddLogo  ? '' : 'none';
-    if (downloadBtn)    downloadBtn.style.display     = window.leCanDownload ? '' : 'none';
-
-    leSetupCanvasEvents();
-    leSetupLogoOverlayEvents();
-    leSetupDragDropFile();
-};
+// ตัวช่วย: scale รวม = fitScale * zoom
+function leTotalScale() {
+    return (window.leState.fitScale || 1) * (window.leState.zoom || 1);
+}
 
 // 🌟 ตัวช่วยตรวจให้แน่ใจว่า canvas + ctx ถูก setup แล้ว
 function leEnsureInit() {
     if (window.leState.canvas && window.leState.ctx) return true;
     const cvs = document.getElementById('leCanvas');
     if (!cvs) {
-        console.error('[Logo Editor] หาไม่เจอ element #leCanvas — ตรวจสอบว่า HTML โหลดถูกไหม');
+        console.error('[Logo Editor] หาไม่เจอ #leCanvas');
         return false;
     }
     window.leState.canvas = cvs;
-    window.leState.ctx = cvs.getContext('2d');
+    // ใช้ willReadFrequently เพื่อ fix Canvas2D warning
+    window.leState.ctx = cvs.getContext('2d', { willReadFrequently: true });
     leSetupCanvasEvents();
     leSetupLogoOverlayEvents();
     leSetupDragDropFile();
     return true;
 }
 
+window.initLogoEditorApp = function() {
+    if (!leEnsureInit()) return;
+    
+    // 🌟 [สิทธิ์]
+    const isAdminOrMgr = (currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager'));
+    const can = (perm) => isAdminOrMgr || (typeof window.hasUserPerm === 'function' && window.hasUserPerm(perm));
+    window.leCanErase    = can('logo_editor_erase');
+    window.leCanAddLogo  = can('logo_editor_add_logo');
+    window.leCanDownload = can('logo_editor_download');
+
+    const eraseSection    = document.getElementById('leEraseSection');
+    const addLogoSection  = document.getElementById('leAddLogoSection');
+    const downloadBtn     = document.getElementById('leDownloadBtn');
+    if (eraseSection)   eraseSection.style.display    = window.leCanErase    ? '' : 'none';
+    if (addLogoSection) addLogoSection.style.display  = window.leCanAddLogo  ? '' : 'none';
+    if (downloadBtn)    downloadBtn.style.display     = window.leCanDownload ? '' : 'none';
+};
+
 // ==========================================
 // 📥 โหลดรูปต้นฉบับ
 // ==========================================
 window.leLoadBaseImage = function(event) {
-    // 🌟 ถ้า init ยังไม่ทำ (เช่น showPage ไม่ได้เรียก initLogoEditorApp) → init ให้ก่อน
     if (!leEnsureInit()) {
         Swal.fire('ผิดพลาด', 'หน้านี้ยังโหลดไม่เสร็จ ลองรีเฟรชหน้าใหม่', 'error');
         return;
@@ -75,7 +70,7 @@ window.leLoadBaseImage = function(event) {
     if (!file) return;
     
     if (!file.type || !file.type.startsWith('image/')) {
-        Swal.fire('ไฟล์ไม่ถูกต้อง', 'กรุณาเลือกไฟล์รูปภาพ (jpg/png/gif)', 'warning');
+        Swal.fire('ไฟล์ไม่ถูกต้อง', 'กรุณาเลือกไฟล์รูปภาพ', 'warning');
         return;
     }
     
@@ -87,12 +82,19 @@ window.leLoadBaseImage = function(event) {
             window.leState.history = [];
             window.leState.newLogo = null;
             window.leState.selBox = null;
+            window.leState.zoom = 1;
+            
             leRenderBase();
             leRemoveLogo();
+            
             const empty = document.getElementById('leEmptyState');
             const wrapper = document.getElementById('leCanvasWrapper');
+            const zoomCtl = document.getElementById('leZoomControls');
             if (empty) empty.classList.add('hidden');
             if (wrapper) wrapper.classList.remove('hidden');
+            if (zoomCtl) zoomCtl.classList.remove('hidden');
+            
+            leShowTip('ลากเมาส์ทับโลโก้เพื่อเลือกพื้นที่ลบ', 3500);
         };
         img.onerror = () => Swal.fire('Error', 'โหลดรูปไม่ได้ — ไฟล์อาจเสียหาย', 'error');
         img.src = e.target.result;
@@ -110,88 +112,138 @@ function leRenderBase() {
     s.canvas.width = s.baseImage.width;
     s.canvas.height = s.baseImage.height;
     s.ctx.drawImage(s.baseImage, 0, 0);
-    
-    // ย่อให้พอดีจอ (ผ่าน CSS) — แต่ canvas resolution ยังเป็น original
     leFitCanvasToScreen();
 }
 
+// คำนวณอัตราพอดีจอ
 function leFitCanvasToScreen() {
     const s = window.leState;
-    const wrapper = document.getElementById('leCanvasWrapper');
     const area = document.getElementById('leCanvasArea');
-    if (!wrapper || !area || !s.baseImage) return;
+    if (!area || !s.baseImage) return;
     
-    const maxW = area.clientWidth - 32;
-    const maxH = area.clientHeight - 32;
+    const maxW = area.clientWidth - 48;
+    const maxH = area.clientHeight - 48;
     const imgW = s.canvas.width;
     const imgH = s.canvas.height;
     
-    let scale = Math.min(maxW / imgW, maxH / imgH, 1);
-    s.canvasScale = scale;
-    
-    wrapper.style.width = (imgW * scale) + 'px';
-    wrapper.style.height = (imgH * scale) + 'px';
-    s.canvas.style.width = (imgW * scale) + 'px';
-    s.canvas.style.height = (imgH * scale) + 'px';
+    s.fitScale = Math.min(maxW / imgW, maxH / imgH, 1);
+    leApplyCanvasScale();
 }
-window.addEventListener('resize', () => { if (window.leState && window.leState.baseImage) leFitCanvasToScreen(); });
+
+// ใส่ขนาดจริงให้ wrapper ตาม scale
+function leApplyCanvasScale() {
+    const s = window.leState;
+    const wrapper = document.getElementById('leCanvasWrapper');
+    if (!wrapper || !s.canvas) return;
+    
+    const totalScale = leTotalScale();
+    const w = s.canvas.width * totalScale;
+    const h = s.canvas.height * totalScale;
+    
+    wrapper.style.width = w + 'px';
+    wrapper.style.height = h + 'px';
+    s.canvas.style.width = w + 'px';
+    s.canvas.style.height = h + 'px';
+    
+    // อัปเดต zoom label
+    const label = document.getElementById('leZoomLabel');
+    if (label) label.innerText = Math.round(totalScale * 100) + '%';
+    
+    // อัปเดตตำแหน่งโลโก้ overlay
+    if (s.newLogo) leUpdateLogoOverlayPosition();
+}
 
 // ==========================================
-// 🖼️ Drag & Drop ไฟล์รูปลง canvas
+// 🔍 Zoom controls
+// ==========================================
+window.leZoomIn = function() {
+    window.leState.zoom = Math.min(5, window.leState.zoom * 1.25);
+    leApplyCanvasScale();
+};
+window.leZoomOut = function() {
+    window.leState.zoom = Math.max(0.2, window.leState.zoom / 1.25);
+    leApplyCanvasScale();
+};
+window.leFitScreen = function() {
+    window.leState.zoom = 1;
+    leFitCanvasToScreen();
+};
+window.leZoomReset = function() {
+    // แสดงขนาดจริง 100%
+    const s = window.leState;
+    if (!s.baseImage) return;
+    s.zoom = 1 / (s.fitScale || 1);  // ลบเอ็ฟเฟกต์ fit
+    leApplyCanvasScale();
+};
+
+window.addEventListener('resize', () => { 
+    if (window.leState && window.leState.baseImage) {
+        window.leState.zoom = 1;
+        leFitCanvasToScreen();
+    }
+});
+
+// แสดง tip ลอย
+function leShowTip(text, duration) {
+    const bar = document.getElementById('leTipBar');
+    const txt = document.getElementById('leTipText');
+    if (!bar || !txt) return;
+    txt.innerText = text;
+    bar.classList.remove('hidden');
+    if (duration) {
+        clearTimeout(window._leTipTimer);
+        window._leTipTimer = setTimeout(() => bar.classList.add('hidden'), duration);
+    }
+}
+
+// ==========================================
+// 🖼️ Drag & Drop ไฟล์ลง canvas area
 // ==========================================
 function leSetupDragDropFile() {
     const area = document.getElementById('leCanvasArea');
-    if (!area) return;
+    if (!area || area._dropSetup) return;
+    area._dropSetup = true;
     
-    area.addEventListener('dragover', (e) => { e.preventDefault(); area.classList.add('ring-4', 'ring-fuchsia-400'); });
-    area.addEventListener('dragleave', (e) => { area.classList.remove('ring-4', 'ring-fuchsia-400'); });
+    area.addEventListener('dragover', (e) => { 
+        e.preventDefault(); 
+        area.classList.add('ring-4', 'ring-fuchsia-400/50'); 
+    });
+    area.addEventListener('dragleave', () => area.classList.remove('ring-4', 'ring-fuchsia-400/50'));
     area.addEventListener('drop', (e) => {
         e.preventDefault();
-        area.classList.remove('ring-4', 'ring-fuchsia-400');
-        if (e.dataTransfer.files.length > 0) {
-            leLoadBaseImage(e.dataTransfer.files[0]);
-        }
+        area.classList.remove('ring-4', 'ring-fuchsia-400/50');
+        if (e.dataTransfer.files.length > 0) leLoadBaseImage(e.dataTransfer.files[0]);
     });
 }
 
 // ==========================================
 // ✂️ เครื่องมือเลือกพื้นที่ลบโลโก้
 // ==========================================
-window.leSetTool = function(tool) {
-    window.leState.tool = tool;
-    const btn = document.getElementById('leToolEraseBtn');
-    if (btn) {
-        if (tool === 'erase') {
-            btn.classList.remove('bg-slate-100', 'dark:bg-slate-700');
-            btn.classList.add('bg-rose-500', 'text-white');
-        } else {
-            btn.classList.add('bg-slate-100', 'dark:bg-slate-700');
-            btn.classList.remove('bg-rose-500', 'text-white');
-        }
-    }
-};
-
 function leSetupCanvasEvents() {
     const cvs = window.leState.canvas;
+    if (!cvs || cvs._eventsSetup) return;
+    cvs._eventsSetup = true;
+    
     const box = document.getElementById('leSelectionBox');
     
-    const getCanvasCoords = (e) => {
+    const getCoords = (e) => {
         const rect = cvs.getBoundingClientRect();
-        const scale = window.leState.canvasScale || 1;
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const totalScale = leTotalScale();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
         return {
-            x: (clientX - rect.left) / scale,
-            y: (clientY - rect.top) / scale,
-            screenX: clientX - rect.left,
-            screenY: clientY - rect.top
+            x: (cx - rect.left) / totalScale,
+            y: (cy - rect.top) / totalScale,
+            screenX: cx - rect.left,
+            screenY: cy - rect.top
         };
     };
     
     const startSel = (e) => {
-        if (window.leState.tool !== 'erase' || !window.leState.baseImage) return;
+        if (!window.leState.baseImage) return;
+        if (window.leCanErase === false) return;
         e.preventDefault();
-        const p = getCanvasCoords(e);
+        const p = getCoords(e);
         window.leState.isDrawingSelection = true;
         window.leState.selStart = p;
         box.style.left = p.screenX + 'px';
@@ -204,7 +256,7 @@ function leSetupCanvasEvents() {
     const moveSel = (e) => {
         if (!window.leState.isDrawingSelection) return;
         e.preventDefault();
-        const p = getCanvasCoords(e);
+        const p = getCoords(e);
         const sx = Math.min(window.leState.selStart.screenX, p.screenX);
         const sy = Math.min(window.leState.selStart.screenY, p.screenY);
         const sw = Math.abs(p.screenX - window.leState.selStart.screenX);
@@ -214,20 +266,16 @@ function leSetupCanvasEvents() {
         box.style.width = sw + 'px';
         box.style.height = sh + 'px';
         
-        // เก็บใน canvas coords
-        const scale = window.leState.canvasScale || 1;
+        const totalScale = leTotalScale();
         window.leState.selBox = {
-            x: sx / scale,
-            y: sy / scale,
-            w: sw / scale,
-            h: sh / scale
+            x: sx / totalScale,
+            y: sy / totalScale,
+            w: sw / totalScale,
+            h: sh / totalScale
         };
     };
     
-    const endSel = (e) => {
-        if (!window.leState.isDrawingSelection) return;
-        window.leState.isDrawingSelection = false;
-    };
+    const endSel = () => { window.leState.isDrawingSelection = false; };
     
     cvs.addEventListener('mousedown', startSel);
     cvs.addEventListener('mousemove', moveSel);
@@ -245,11 +293,11 @@ window.leApplyErase = function() {
         return Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ลบโลโก้เดิม', 'warning');
     }
     const s = window.leState;
+    if (!s.baseImage) return Swal.fire('!', 'ยังไม่มีรูป', 'warning');
     if (!s.selBox || s.selBox.w < 4 || s.selBox.h < 4) {
         return Swal.fire('!', 'ลากกรอบทับโลโก้ก่อน แล้วค่อยกดเติมพื้นที่', 'warning');
     }
     
-    // เก็บ history ก่อนแก้
     s.history.push(s.ctx.getImageData(0, 0, s.canvas.width, s.canvas.height));
     if (s.history.length > 20) s.history.shift();
     
@@ -263,41 +311,41 @@ window.leApplyErase = function() {
     } else if (mode === 'blur') {
         leApplyBlurFill(box);
     } else {
-        // auto: เดาสีจาก sample ขอบรอบๆ แล้วเติม + เบลอเล็กน้อยกลืน
         leApplyAutoFill(box);
     }
     
-    // ซ่อนกรอบ
     document.getElementById('leSelectionBox').classList.add('hidden');
     s.selBox = null;
 };
 
-// เติมสีโดยเดาจากขอบ
 function leApplyAutoFill(box) {
     const s = window.leState;
     const ctx = s.ctx;
-    
-    // สุ่ม sample จาก 4 ขอบของกรอบ (นอกกรอบ 5px)
     const samples = [];
     const pad = 5;
+    
     const sampleEdge = (sx, sy, w, h) => {
         try {
-            const d = ctx.getImageData(Math.max(0, sx), Math.max(0, sy), Math.min(w, s.canvas.width - sx), Math.min(h, s.canvas.height - sy));
+            const safeSx = Math.max(0, Math.floor(sx));
+            const safeSy = Math.max(0, Math.floor(sy));
+            const safeW = Math.min(Math.floor(w), s.canvas.width - safeSx);
+            const safeH = Math.min(Math.floor(h), s.canvas.height - safeSy);
+            if (safeW <= 0 || safeH <= 0) return;
+            const d = ctx.getImageData(safeSx, safeSy, safeW, safeH);
             for (let i = 0; i < d.data.length; i += 16) {
                 samples.push([d.data[i], d.data[i+1], d.data[i+2]]);
             }
         } catch(e) {}
     };
     
-    sampleEdge(box.x - pad, box.y - pad, box.w + pad*2, pad); // top
-    sampleEdge(box.x - pad, box.y + box.h, box.w + pad*2, pad); // bottom
-    sampleEdge(box.x - pad, box.y, pad, box.h); // left
-    sampleEdge(box.x + box.w, box.y, pad, box.h); // right
+    sampleEdge(box.x - pad, box.y - pad, box.w + pad*2, pad);
+    sampleEdge(box.x - pad, box.y + box.h, box.w + pad*2, pad);
+    sampleEdge(box.x - pad, box.y, pad, box.h);
+    sampleEdge(box.x + box.w, box.y, pad, box.h);
     
     if (samples.length === 0) {
         ctx.fillStyle = '#ffffff';
     } else {
-        // เฉลี่ยสี
         let r = 0, g = 0, b = 0;
         samples.forEach(s => { r += s[0]; g += s[1]; b += s[2]; });
         r = Math.round(r / samples.length);
@@ -307,7 +355,6 @@ function leApplyAutoFill(box) {
     }
     ctx.fillRect(box.x, box.y, box.w, box.h);
     
-    // เพิ่ม noise เล็กน้อยกลืน
     try {
         const imgData = ctx.getImageData(box.x, box.y, box.w, box.h);
         for (let i = 0; i < imgData.data.length; i += 4) {
@@ -320,21 +367,10 @@ function leApplyAutoFill(box) {
     } catch(e) {}
 }
 
-// เติมแบบ blur สีรอบๆ
 function leApplyBlurFill(box) {
     const s = window.leState;
     const ctx = s.ctx;
-    // วิธีง่ายๆ: เอาส่วนที่ใหญ่กว่า → ย่อ → ขยายกลับ (กลืน)
-    const pad = Math.max(20, Math.floor(Math.max(box.w, box.h) * 0.3));
-    const sx = Math.max(0, box.x - pad);
-    const sy = Math.max(0, box.y - pad);
-    const sw = Math.min(s.canvas.width - sx, box.w + pad*2);
-    const sh = Math.min(s.canvas.height - sy, box.h + pad*2);
-    
-    // ก่อนอื่น เติมสี auto ก่อน เพื่อกลบโลโก้
     leApplyAutoFill(box);
-    
-    // เบลอเพิ่มอีกขั้นด้วยการสุ่มเฉลี่ย
     try {
         const imgData = ctx.getImageData(box.x, box.y, box.w, box.h);
         const blurred = leBoxBlur(imgData, 3);
@@ -342,7 +378,6 @@ function leApplyBlurFill(box) {
     } catch(e) {}
 }
 
-// Box blur แบบง่ายๆ
 function leBoxBlur(imgData, radius) {
     const w = imgData.width, h = imgData.height;
     const src = imgData.data;
@@ -357,15 +392,12 @@ function leBoxBlur(imgData, radius) {
                     const nx = x + dx, ny = y + dy;
                     if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
                     const idx = (ny * w + nx) * 4;
-                    cr += src[idx];
-                    cg += src[idx+1];
-                    cb += src[idx+2];
-                    ca += src[idx+3];
+                    cr += src[idx]; cg += src[idx+1]; cb += src[idx+2]; ca += src[idx+3];
                     count++;
                 }
             }
             const idx = (y * w + x) * 4;
-            out[idx]   = cr / count;
+            out[idx] = cr / count;
             out[idx+1] = cg / count;
             out[idx+2] = cb / count;
             out[idx+3] = ca / count;
@@ -395,16 +427,13 @@ window.leLoadNewLogo = function(event) {
         const img = new Image();
         img.onload = () => {
             window.leState.newLogo = img;
-            
-            // ตั้งขนาดเริ่มต้น (15% ของความกว้างรูปต้นฉบับ)
             const baseW = window.leState.baseImage.width;
             const w0 = baseW * 0.15;
             const ratio = img.height / img.width;
             window.leState.logoOverlay = {
                 x: baseW * 0.05,
                 y: window.leState.baseImage.height * 0.05,
-                w: w0,
-                h: w0 * ratio,
+                w: w0, h: w0 * ratio,
                 opacity: 1
             };
             
@@ -414,6 +443,7 @@ window.leLoadNewLogo = function(event) {
             document.getElementById('leLogoSize').value = 100;
             document.getElementById('leLogoOpacity').value = 100;
             leUpdateLogoOverlayPosition();
+            leShowTip('ลากย้ายตำแหน่ง หรือดึงมุมเขียวเพื่อปรับขนาด', 3500);
         };
         img.src = e.target.result;
     };
@@ -425,8 +455,9 @@ function leUpdateLogoOverlayPosition() {
     const s = window.leState;
     const overlay = document.getElementById('leLogoOverlay');
     const img = document.getElementById('leLogoImg');
-    const scale = s.canvasScale || 1;
+    if (!overlay || !img) return;
     
+    const scale = leTotalScale();
     overlay.style.left = (s.logoOverlay.x * scale) + 'px';
     overlay.style.top = (s.logoOverlay.y * scale) + 'px';
     img.style.width = (s.logoOverlay.w * scale) + 'px';
@@ -438,7 +469,6 @@ window.leUpdateLogoSize = function() {
     const val = parseInt(document.getElementById('leLogoSize').value);
     document.getElementById('leLogoSizeLabel').innerText = val + '%';
     if (!window.leState.newLogo) return;
-    
     const baseW = window.leState.baseImage.width;
     const newW = baseW * 0.15 * (val / 100);
     const ratio = window.leState.newLogo.height / window.leState.newLogo.width;
@@ -456,25 +486,26 @@ window.leUpdateLogoOpacity = function() {
 
 window.leRemoveLogo = function() {
     window.leState.newLogo = null;
-    document.getElementById('leLogoOverlay').classList.add('hidden');
-    document.getElementById('leLogoControls').classList.add('hidden');
-    document.getElementById('leLogoImg').src = '';
+    const overlay = document.getElementById('leLogoOverlay');
+    const controls = document.getElementById('leLogoControls');
+    const img = document.getElementById('leLogoImg');
+    if (overlay) overlay.classList.add('hidden');
+    if (controls) controls.classList.add('hidden');
+    if (img) img.src = '';
 };
 
-// Drag overlay
 function leSetupLogoOverlayEvents() {
     const overlay = document.getElementById('leLogoOverlay');
     const handle = document.getElementById('leLogoHandle');
+    if (!overlay || overlay._eventsSetup) return;
+    overlay._eventsSetup = true;
     
     let isDragging = false, isResizing = false;
     let dragStart = null;
     
     const onDown = (e) => {
-        if (e.target === handle) {
-            isResizing = true;
-        } else {
-            isDragging = true;
-        }
+        if (e.target === handle) isResizing = true;
+        else isDragging = true;
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
         dragStart = { x: cx, y: cy, lo: { ...window.leState.logoOverlay } };
@@ -488,7 +519,7 @@ function leSetupLogoOverlayEvents() {
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
         const dx = cx - dragStart.x;
         const dy = cy - dragStart.y;
-        const scale = window.leState.canvasScale || 1;
+        const scale = leTotalScale();
         
         if (isDragging) {
             window.leState.logoOverlay.x = dragStart.lo.x + dx / scale;
@@ -498,11 +529,11 @@ function leSetupLogoOverlayEvents() {
             const newW = Math.max(10, dragStart.lo.w + dx / scale);
             window.leState.logoOverlay.w = newW;
             window.leState.logoOverlay.h = newW * ratio;
-            // sync size slider
             const baseW = window.leState.baseImage.width;
             const pct = Math.round(newW / (baseW * 0.15) * 100);
-            document.getElementById('leLogoSize').value = Math.min(300, Math.max(10, pct));
-            document.getElementById('leLogoSizeLabel').innerText = Math.min(300, Math.max(10, pct)) + '%';
+            const clamped = Math.min(300, Math.max(10, pct));
+            document.getElementById('leLogoSize').value = clamped;
+            document.getElementById('leLogoSizeLabel').innerText = clamped + '%';
         }
         
         leUpdateLogoOverlayPosition();
@@ -552,7 +583,7 @@ window.leResetAll = async function() {
 };
 
 // ==========================================
-// 💾 ดาวน์โหลด — รวม base canvas + โลโก้ใหม่ลงไฟล์เดียว
+// 💾 ดาวน์โหลด
 // ==========================================
 window.leDownload = function() {
     if (window.leCanDownload === false) {
@@ -561,14 +592,12 @@ window.leDownload = function() {
     const s = window.leState;
     if (!s.baseImage) return Swal.fire('!', 'ยังไม่มีรูป', 'warning');
     
-    // สร้าง canvas ใหม่สำหรับ output (เพื่อไม่เขียนทับ canvas หลัก)
     const out = document.createElement('canvas');
     out.width = s.canvas.width;
     out.height = s.canvas.height;
     const octx = out.getContext('2d');
     octx.drawImage(s.canvas, 0, 0);
     
-    // วาดโลโก้ใหม่ทับ (ถ้ามี)
     if (s.newLogo) {
         octx.globalAlpha = s.logoOverlay.opacity;
         octx.drawImage(s.newLogo, s.logoOverlay.x, s.logoOverlay.y, s.logoOverlay.w, s.logoOverlay.h);
