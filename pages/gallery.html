@@ -1,9 +1,11 @@
 <div id="galleryApp" class="fade-in flex flex-col h-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-0">
     <div class="bg-gray-800 text-white p-4 shrink-0 border-b border-gray-600">
         <div class="flex justify-between items-center mb-4 border-b border-gray-600 pb-3 gap-4">
-            <div class="flex gap-2 flex-1 max-w-sm">
-                <button id="tabGeneral" onclick="switchGalleryMode('general')" class="flex-1 py-2 rounded-lg font-bold text-sm transition bg-blue-600 text-white shadow-lg border border-blue-400 transform scale-105">🖼️ รูปทั่วไป</button>
-                <button id="tabBonus" onclick="switchGalleryMode('bonus')" class="flex-1 py-2 rounded-lg font-bold text-sm transition bg-slate-700 text-gray-400 hover:text-white border border-transparent">🎁 โบนัสไทม์</button>
+            <div class="flex gap-2 flex-1 max-w-3xl flex-wrap">
+                <button id="tabGeneral" onclick="switchGalleryMode('general')" class="flex-1 min-w-[110px] py-2 rounded-lg font-bold text-sm transition bg-blue-600 text-white shadow-lg border border-blue-400 transform scale-105">🖼️ รูปทั่วไป</button>
+                <button id="tabBonus" onclick="switchGalleryMode('bonus')" class="flex-1 min-w-[110px] py-2 rounded-lg font-bold text-sm transition bg-slate-700 text-gray-400 hover:text-white border border-transparent">🎁 โบนัสไทม์</button>
+                <button id="tabReach" onclick="switchGalleryMode('reach')" class="flex-1 min-w-[110px] py-2 rounded-lg font-bold text-sm transition bg-slate-700 text-gray-400 hover:text-white border border-transparent">📣 รีชเมนู</button>
+                <button id="tabCard" onclick="switchGalleryMode('card')" class="flex-1 min-w-[110px] py-2 rounded-lg font-bold text-sm transition bg-slate-700 text-gray-400 hover:text-white border border-transparent">🃏 การ์ดเมนู</button>
             </div>
             <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm shrink-0">
                 <span class="material-icons text-sm">arrow_back</span> กลับเมนูหลัก
