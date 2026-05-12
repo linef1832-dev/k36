@@ -266,7 +266,7 @@ window.switchDutyTab = function(tabName) {
     } else if (tabName === 'standby') {
         document.getElementById('dutyTabStandby').classList.remove('hidden');
         if (btnStandby) btnStandby.className = activeClass + ' flex items-center gap-1';
-        if (typeof loadStandbySettings === 'function') loadStandbySettings();
+        if (typeof loadStandbyConfig === 'function') loadStandbyConfig();
     } else {
         document.getElementById('dutyTabSettings').classList.remove('hidden');
         document.getElementById('dutyTabSettings').classList.add('flex');
@@ -1039,18 +1039,29 @@ window.renderRosterGrid = async function(rosterData) {
                 const hoverFx = isAdmin ? 'hover:border-transparent hover:shadow-md cursor-pointer' : 'border-gray-200 dark:border-slate-600';
 
                 secHtml = `
-                <div ${actionClick} title="${isAdmin ? 'คลิกเพื่อเปลี่ยนงานรอง' : 'นี่คืองานรองของคุณ'}" class="mt-2.5 flex items-stretch w-full bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 shadow-inner ${hoverFx} overflow-hidden group/sec">
-                    <div class="w-1.5 ${secTeamColors.bg} ${secTeamColors.border} border-r shadow-inner"></div>
-                    <div class="flex-1 p-2 flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-1.5">
-                            <span class="material-icons text-[14px] text-gray-400 group-hover/sec:text-indigo-500 transition">transfer_within_a_station</span>
-                            <span class="text-[9.5px] font-bold text-gray-500 dark:text-gray-400 tracking-wide">สแตนด์บายช่วย :</span>
+                <div ${actionClick} title="${isAdmin ? 'คลิกเพื่อเปลี่ยนงานรอง' : 'นี่คืองานรองของคุณ'}" class="mt-2.5 flex flex-col w-full bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 shadow-inner ${hoverFx} overflow-hidden group/sec">
+                    <div class="flex items-stretch">
+                        <div class="w-1.5 ${secTeamColors.bg} ${secTeamColors.border} border-r shadow-inner"></div>
+                        <div class="flex-1 p-2 flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-icons text-[14px] text-gray-400 group-hover/sec:text-indigo-500 transition">transfer_within_a_station</span>
+                                <span class="text-[9.5px] font-bold text-gray-500 dark:text-gray-400 tracking-wide">สแตนด์บายช่วย :</span>
+                            </div>
+                            <span class="text-[11px] font-black ${secTeamColors.text} ${secTeamColors.bg} px-2.5 py-0.5 rounded-full shadow-sm border ${secTeamColors.border} flex items-center gap-1">
+                                ${a.secondary_team}
+                                ${isAdmin ? '<span class="material-icons text-[10px] opacity-70 ml-0.5">edit</span>' : ''}
+                            </span>
                         </div>
-                        <span class="text-[11px] font-black ${secTeamColors.text} ${secTeamColors.bg} px-2.5 py-0.5 rounded-full shadow-sm border ${secTeamColors.border} flex items-center gap-1">
-                            ${a.secondary_team}
-                            ${isAdmin ? '<span class="material-icons text-[10px] opacity-70 ml-0.5">edit</span>' : ''}
-                        </span>
                     </div>
+                    ${a.standby_task ? `
+                    <div class="px-2 pb-2 pt-0.5 border-t border-gray-100 dark:border-slate-700/50">
+                        <div class="flex items-center gap-1.5">
+                            <span class="material-icons text-[12px] text-purple-500">task_alt</span>
+                            <span class="text-[9px] font-bold text-gray-500 dark:text-gray-400">หัวข้องาน:</span>
+                            <span class="text-[10px] font-black text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800/50 flex-1 truncate">${a.standby_task}</span>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>`;
             } else if (!isMissing && isAdmin) {
                 secHtml = `
@@ -3356,6 +3367,13 @@ window.quickAssignBackups = async function() {
     }
 
     // 3. บันทึกและวาดตารางใหม่
+    // 🌟 NEW: สุ่มหัวข้องานรอง (จาก config ที่ตั้งใน "งานรอง") ให้แต่ละคนตามเว็บที่ไปสแตนบาย
+    if (typeof window.assignStandbyTasksAfterAI === 'function') {
+        try {
+            roster = await window.assignStandbyTasksAfterAI(roster);
+        } catch(e) { console.warn('assign standby tasks failed:', e); }
+    }
+    
     await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(roster) }]);
     window.renderRosterGrid(roster);
 
@@ -3518,75 +3536,54 @@ window.restoreDutyRoster = async function() {
 };
 
 // ========================================================================
-// 🌟 ระบบงานรอง (Standby Task System) — Hybrid
-// 
-// โครงสร้าง task: { name, type: 'general'|'web', web: 'K36' หรือ null }
-// 
+// 🌟 NEW: หน้าตั้งค่างานรอง (Config) — แยกตามเว็บ
+//
 // Supabase `settings`:
-// - key='standby_task_list_v2' → [ {name, type, web}, ... ]
-// - key='standby_assignments_{date}_{shift}' → { taskName: "username" }
-// - key='standby_history_{taskName}' → ["user1","user2"...] (ใครเคยทำงานนี้)
+//   key='standby_config_by_web' → { 'K36': ['เช็คโปร', 'ตอบแชต'], 'Jun88': ['เช็คโปร', 'ตอบสลิป'], ... }
+//
+// ใช้ตอน quickAssignBackups เพื่อสุ่ม "หัวข้องาน" ให้แต่ละคนตามเว็บที่ไปสแตนบาย
+// เก็บผลลัพธ์ใน roster: u.standby_task = 'เช็คโปร'
 // ========================================================================
 
-window._standbyTaskList = [];       // [{name, type, web}]
-window._standbyAssignments = {};
-window._standbyEmpList = [];        // พนักงานวันนี้ทุกคน
-window._standbyEmpByWeb = {};       // { 'Jun88': ['SALY','STORM'], 'PG688': [...] }
+window._standbyConfigByWeb = {};   // { 'K36': ['เช็คโปร', 'ตอบแชต'] }
+window._standbySelectedWeb = null; // เว็บที่กำลังเลือกใน UI
 
 // ─────────────────────────────────────────────
-// โหลดข้อมูล
+// โหลด config + render UI
 // ─────────────────────────────────────────────
-window.loadStandbySettings = async function() {
+window.loadStandbyConfig = async function() {
     if (typeof appDB === 'undefined') return;
     
     try {
-        // โหลด task list (v2 format - มี type+web)
-        const { data: taskData } = await appDB.from('settings').select('value')
-            .in('key', ['standby_task_list_v2', 'standby_task_list']);
-        
-        window._standbyTaskList = [];
-        if (taskData && taskData.length > 0) {
-            // ลอง v2 ก่อน
-            const v2 = taskData.find(r => r.value && r.value.includes('"type"'));
-            if (v2) {
-                try {
-                    const arr = JSON.parse(v2.value);
-                    if (Array.isArray(arr)) window._standbyTaskList = arr;
-                } catch(e) {}
-            } else {
-                // fallback v1: แปลง string → object
-                for (const row of taskData) {
-                    try {
-                        const arr = JSON.parse(row.value);
-                        if (Array.isArray(arr)) {
-                            window._standbyTaskList = arr.map(item => 
-                                typeof item === 'string' 
-                                    ? { name: item, type: 'general', web: null }
-                                    : item
-                            );
-                            break;
-                        }
-                    } catch(e) {}
-                }
-            }
+        const { data } = await appDB.from('settings').select('value').eq('key', 'standby_config_by_web');
+        window._standbyConfigByWeb = {};
+        if (data && data.length > 0 && data[0].value) {
+            try {
+                const obj = JSON.parse(data[0].value);
+                if (obj && typeof obj === 'object') window._standbyConfigByWeb = obj;
+            } catch(e) {}
         }
         
-        populateWebSelector();
-        renderStandbyTaskList();
-        await loadStandbyAssignments();
+        renderStandbyWebTabs();
+        if (window._standbySelectedWeb) {
+            renderStandbyWebContent(window._standbySelectedWeb);
+        }
     } catch(e) {
-        console.error('loadStandbySettings error:', e);
+        console.error('loadStandbyConfig error:', e);
     }
 };
 
 // ─────────────────────────────────────────────
-// เลือก web dropdown
+// แท็บเว็บ (ปุ่มเลือกเว็บ)
 // ─────────────────────────────────────────────
-function populateWebSelector() {
-    const sel = document.getElementById('newStandbyTaskWeb');
-    if (!sel) return;
-    
-    // หาเว็บทั้งหมดจาก dutyAccessMatrix หรือ default
+const STANDBY_WEB_COLORS_CFG = {
+    'Jun88':'#3b82f6','MK8':'#0f172a','F168':'#f59e0b','PG688':'#fde047',
+    'JL69':'#fed7aa','NM9':'#94a3b8','VV72':'#7f1d1d','TH26':'#a78bfa',
+    'BT678':'#0e7490','K188':'#16a34a','NM8':'#475569','K36':'#dc2626'
+};
+function getCfgWebColor(w) { return STANDBY_WEB_COLORS_CFG[w] || '#64748b'; }
+
+function getAllWebs() {
     let allWebs = [];
     if (typeof window.dutyAccessMatrix !== 'undefined' && window.dutyAccessMatrix) {
         Object.values(window.dutyAccessMatrix).forEach(deptMatrix => {
@@ -3600,7 +3597,6 @@ function populateWebSelector() {
     if (allWebs.length === 0) {
         allWebs = ['Jun88','MK8','F168','PG688','JL69','NM9','VV72','TH26','BT678','K188','NM8','K36'];
     }
-    
     const defaultOrder = ['Jun88','MK8','F168','PG688','JL69','NM9','VV72','TH26','BT678','K188','NM8','K36'];
     allWebs.sort((a, b) => {
         const ia = defaultOrder.indexOf(a);
@@ -3610,137 +3606,154 @@ function populateWebSelector() {
         if (ib === -1) return -1;
         return ia - ib;
     });
-    
-    sel.innerHTML = '<option value="">— เลือกเว็บ —</option>' + 
-        allWebs.map(w => `<option value="${w}">${w}</option>`).join('');
+    return allWebs;
 }
 
-window.onStandbyTypeChange = function() {
-    const type = document.getElementById('newStandbyTaskType').value;
-    const webSel = document.getElementById('newStandbyTaskWeb');
-    if (!webSel) return;
+function renderStandbyWebTabs() {
+    const wrap = document.getElementById('standbyWebTabs');
+    if (!wrap) return;
     
-    if (type === 'web') {
-        webSel.disabled = false;
-        webSel.classList.remove('opacity-50');
-        webSel.classList.remove('bg-slate-100', 'dark:bg-slate-800');
-        webSel.classList.add('bg-white', 'dark:bg-slate-900');
-    } else {
-        webSel.disabled = true;
-        webSel.classList.add('opacity-50');
-        webSel.value = '';
-        webSel.classList.add('bg-slate-100', 'dark:bg-slate-800');
-        webSel.classList.remove('bg-white', 'dark:bg-slate-900');
-    }
-};
-
-// ─────────────────────────────────────────────
-// 📋 รายการงาน
-// ─────────────────────────────────────────────
-const STANDBY_WEB_COLORS = {
-    'Jun88':'#3b82f6','MK8':'#0f172a','F168':'#f59e0b','PG688':'#fde047',
-    'JL69':'#fed7aa','NM9':'#94a3b8','VV72':'#7f1d1d','TH26':'#a78bfa',
-    'BT678':'#0e7490','K188':'#16a34a','NM8':'#475569','K36':'#dc2626'
-};
-function getWebColor(w) { return STANDBY_WEB_COLORS[w] || '#64748b'; }
-
-function renderStandbyTaskList() {
-    const list = document.getElementById('standbyTaskList');
-    if (!list) return;
-    const tasks = window._standbyTaskList || [];
+    const webs = getAllWebs();
     
-    if (tasks.length === 0) {
-        list.innerHTML = `
-            <div class="text-center py-8 text-slate-400">
-                <span class="material-icons text-4xl opacity-30">playlist_add</span>
-                <p class="font-bold text-sm mt-2">ยังไม่มีงานรอง</p>
-                <p class="text-[11px] mt-1">เพิ่มงานในช่องด้านบน</p>
-            </div>`;
+    if (webs.length === 0) {
+        wrap.innerHTML = '<div class="text-xs text-slate-400 py-2 px-3">ยังไม่มีเว็บในระบบ</div>';
         return;
     }
     
-    list.innerHTML = tasks.map((task, idx) => {
-        const isWeb = task.type === 'web' && task.web;
-        const badge = isWeb 
-            ? `<span class="px-2 py-0.5 rounded text-[9px] font-black text-white" style="background:${getWebColor(task.web)}">🎯 ${task.web}</span>`
-            : `<span class="px-2 py-0.5 rounded text-[9px] font-black bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">🌐 ทั่วไป</span>`;
+    // เลือก default ถ้ายังไม่เลือก
+    if (!window._standbySelectedWeb || !webs.includes(window._standbySelectedWeb)) {
+        window._standbySelectedWeb = webs[0];
+    }
+    
+    wrap.innerHTML = webs.map(w => {
+        const isActive = w === window._standbySelectedWeb;
+        const color = getCfgWebColor(w);
+        const taskCount = (window._standbyConfigByWeb[w] || []).length;
+        const txtColor = (color === '#fde047' || color === '#fed7aa') ? '#000' : '#fff';
+        
         return `
-        <div class="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg p-2.5 flex items-center gap-2 group hover:bg-blue-100 dark:hover:bg-blue-950/50 transition">
-            <span class="bg-blue-500 text-white font-black text-[10px] w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">${idx + 1}</span>
-            <input type="text" value="${escapeHtmlStandby(task.name)}" 
-                onchange="editStandbyTaskName(${idx}, this.value)"
-                class="flex-1 bg-transparent border-none outline-none text-sm font-bold text-slate-800 dark:text-white px-1 focus:bg-white dark:focus:bg-slate-900 rounded">
-            ${badge}
-            <button onclick="resetStandbyHistory('${escapeJsStr(task.name)}')" class="p-1 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded text-amber-600" title="ล้างประวัติ (เริ่มรอบใหม่)">
-                <span class="material-icons text-sm">restart_alt</span>
-            </button>
-            <button onclick="deleteStandbyTask(${idx})" class="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded text-rose-500" title="ลบงาน">
-                <span class="material-icons text-sm">delete</span>
-            </button>
-        </div>`;
+        <button onclick="selectStandbyWeb('${w}')" class="standby-web-tab flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${isActive ? 'shadow-md' : 'opacity-60 hover:opacity-100'}" 
+            style="background:${isActive ? color : 'transparent'};color:${isActive ? txtColor : color};border:1.5px solid ${color}">
+            ${w}
+            ${taskCount > 0 ? `<span class="bg-white/30 backdrop-blur-sm px-1.5 rounded-full text-[9px]">${taskCount}</span>` : ''}
+        </button>`;
     }).join('');
+    
+    renderStandbyWebContent(window._standbySelectedWeb);
 }
 
-window.addStandbyTask = async function() {
-    const input = document.getElementById('newStandbyTaskInput');
-    const typeSel = document.getElementById('newStandbyTaskType');
-    const webSel = document.getElementById('newStandbyTaskWeb');
-    if (!input) return;
-    
-    const name = input.value.trim();
-    if (!name) return Swal.fire('!', 'ระบุชื่องาน', 'warning');
-    const type = typeSel.value;
-    const web = type === 'web' ? webSel.value : null;
-    
-    if (type === 'web' && !web) {
-        return Swal.fire('!', 'โปรดเลือกเว็บ', 'warning');
-    }
-    
-    // เช็คชื่อซ้ำ
-    if (window._standbyTaskList.some(t => t.name === name)) {
-        return Swal.fire('!', 'มีงานชื่อนี้อยู่แล้ว', 'warning');
-    }
-    
-    window._standbyTaskList.push({ name, type, web });
-    input.value = '';
-    if (typeSel) typeSel.value = 'general';
-    if (webSel) webSel.value = '';
-    onStandbyTypeChange();
-    
-    renderStandbyTaskList();
-    await saveStandbyTaskList();
-    await loadStandbyAssignments();
+window.selectStandbyWeb = function(web) {
+    window._standbySelectedWeb = web;
+    renderStandbyWebTabs();
 };
 
-window.editStandbyTaskName = async function(idx, newName) {
-    newName = (newName || '').trim();
-    if (!newName) {
-        renderStandbyTaskList();
-        return Swal.fire('!', 'ต้องระบุชื่องาน', 'warning');
-    }
-    const oldName = window._standbyTaskList[idx].name;
-    if (oldName === newName) return;
+// ─────────────────────────────────────────────
+// เนื้อหาของเว็บที่เลือก (รายการหัวข้องาน)
+// ─────────────────────────────────────────────
+function renderStandbyWebContent(web) {
+    const wrap = document.getElementById('standbyWebContent');
+    if (!wrap) return;
     
-    window._standbyTaskList[idx].name = newName;
-    await saveStandbyTaskList();
+    const tasks = window._standbyConfigByWeb[web] || [];
+    const color = getCfgWebColor(web);
+    const txtColor = (color === '#fde047' || color === '#fed7aa') ? '#000' : '#fff';
     
-    // ย้าย history
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', `standby_history_${oldName}`);
-        if (data && data.length > 0) {
-            await appDB.from('settings').upsert([{ key: `standby_history_${newName}`, value: data[0].value }]);
-            await appDB.from('settings').delete().eq('key', `standby_history_${oldName}`);
+    wrap.innerHTML = `
+        <div class="flex items-center gap-2 mb-4">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm shadow" style="background:${color};color:${txtColor}">${web}</div>
+            <div class="flex-1">
+                <div class="font-black text-base text-slate-800 dark:text-white">หัวข้องานรองของ ${web}</div>
+                <div class="text-[11px] text-slate-500 dark:text-slate-400">${tasks.length} หัวข้อ • คนที่มาช่วยเว็บ ${web} จะถูกสุ่มหัวข้อจากนี้</div>
+            </div>
+        </div>
+        
+        <!-- เพิ่มหัวข้อใหม่ -->
+        <div class="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 mb-3">
+            <div class="flex gap-2">
+                <input type="text" id="newStandbyWebTask" placeholder="ชื่อหัวข้องาน เช่น เช็คคำขอโปรโมชั่น..." 
+                    onkeydown="if(event.key==='Enter') addStandbyWebTask('${web}')"
+                    class="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm outline-none focus:border-purple-500 dark:text-white">
+                <button onclick="addStandbyWebTask('${web}')" class="bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-600 hover:to-fuchsia-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-1">
+                    <span class="material-icons text-base">add</span> เพิ่ม
+                </button>
+            </div>
+        </div>
+        
+        <!-- รายการหัวข้อ -->
+        ${tasks.length === 0 
+            ? `<div class="text-center py-10 text-slate-400">
+                <span class="material-icons text-4xl opacity-30">playlist_add</span>
+                <p class="font-bold text-sm mt-2">ยังไม่มีหัวข้องานของ ${web}</p>
+                <p class="text-[11px] mt-1">เพิ่มหัวข้อในช่องด้านบน — กด Enter ก็ได้</p>
+              </div>`
+            : `<div class="space-y-2">
+                ${tasks.map((task, idx) => `
+                    <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 flex items-center gap-2 group hover:shadow-md transition">
+                        <span class="text-white font-black text-[10px] w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style="background:${color};color:${txtColor}">${idx + 1}</span>
+                        <input type="text" value="${escapeHtmlCfg(task)}" 
+                            onchange="editStandbyWebTask('${web}', ${idx}, this.value)"
+                            class="flex-1 bg-transparent border-none outline-none text-sm font-bold text-slate-800 dark:text-white px-1 focus:bg-slate-50 dark:focus:bg-slate-900 rounded">
+                        <button onclick="moveStandbyWebTask('${web}', ${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed" title="ขึ้น">
+                            <span class="material-icons text-sm">arrow_upward</span>
+                        </button>
+                        <button onclick="moveStandbyWebTask('${web}', ${idx}, 1)" ${idx === tasks.length-1 ? 'disabled' : ''} class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed" title="ลง">
+                            <span class="material-icons text-sm">arrow_downward</span>
+                        </button>
+                        <button onclick="deleteStandbyWebTask('${web}', ${idx})" class="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded text-rose-500" title="ลบ">
+                            <span class="material-icons text-sm">delete</span>
+                        </button>
+                    </div>
+                `).join('')}
+              </div>`
         }
-    } catch(e) {}
+    `;
+}
+
+window.addStandbyWebTask = async function(web) {
+    const input = document.getElementById('newStandbyWebTask');
+    if (!input) return;
+    const val = input.value.trim();
+    if (!val) return;
     
-    await loadStandbyAssignments();
+    if (!window._standbyConfigByWeb[web]) window._standbyConfigByWeb[web] = [];
+    if (window._standbyConfigByWeb[web].includes(val)) {
+        return Swal.fire('!', 'มีหัวข้อนี้อยู่แล้ว', 'warning');
+    }
+    
+    window._standbyConfigByWeb[web].push(val);
+    input.value = '';
+    renderStandbyWebTabs();
+    await saveStandbyConfig();
 };
 
-window.deleteStandbyTask = async function(idx) {
-    const task = window._standbyTaskList[idx];
+window.editStandbyWebTask = async function(web, idx, newVal) {
+    newVal = (newVal || '').trim();
+    if (!newVal) {
+        renderStandbyWebTabs();
+        return Swal.fire('!', 'ต้องระบุชื่อหัวข้อ', 'warning');
+    }
+    if (!window._standbyConfigByWeb[web]) return;
+    window._standbyConfigByWeb[web][idx] = newVal;
+    await saveStandbyConfig();
+};
+
+window.moveStandbyWebTask = async function(web, idx, dir) {
+    const arr = window._standbyConfigByWeb[web];
+    if (!arr) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= arr.length) return;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    renderStandbyWebTabs();
+    await saveStandbyConfig();
+};
+
+window.deleteStandbyWebTask = async function(web, idx) {
+    const arr = window._standbyConfigByWeb[web];
+    if (!arr) return;
+    const taskName = arr[idx];
     const ok = await Swal.fire({
-        title: 'ลบงานนี้?',
-        text: `"${task.name}" และประวัติการสุ่มทั้งหมดจะถูกลบ`,
+        title: 'ลบหัวข้อนี้?',
+        text: `"${taskName}" ของเว็บ ${web} จะถูกลบ`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'ลบ',
@@ -3749,373 +3762,78 @@ window.deleteStandbyTask = async function(idx) {
     });
     if (!ok.isConfirmed) return;
     
-    window._standbyTaskList.splice(idx, 1);
-    await saveStandbyTaskList();
-    try { await appDB.from('settings').delete().eq('key', `standby_history_${task.name}`); } catch(e) {}
-    renderStandbyTaskList();
-    await loadStandbyAssignments();
+    arr.splice(idx, 1);
+    renderStandbyWebTabs();
+    await saveStandbyConfig();
 };
 
-window.resetStandbyHistory = async function(taskName) {
-    const ok = await Swal.fire({
-        title: 'ล้างประวัติงานนี้?',
-        text: `"${taskName}" จะเริ่มรอบใหม่ — ทุกคนกลับมาสุ่มได้`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'ล้าง',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#f59e0b'
-    });
-    if (!ok.isConfirmed) return;
-    
-    try {
-        await appDB.from('settings').delete().eq('key', `standby_history_${taskName}`);
-        Swal.fire({ icon: 'success', title: 'ล้างประวัติแล้ว', timer: 1000, showConfirmButton: false, toast: true, position: 'top' });
-        await loadStandbyAssignments();
-    } catch(e) {
-        Swal.fire('Error', 'ล้างไม่สำเร็จ', 'error');
-    }
-};
-
-async function saveStandbyTaskList() {
+async function saveStandbyConfig() {
     if (typeof appDB === 'undefined') return;
     try {
         await appDB.from('settings').upsert([
-            { key: 'standby_task_list_v2', value: JSON.stringify(window._standbyTaskList) }
+            { key: 'standby_config_by_web', value: JSON.stringify(window._standbyConfigByWeb) }
         ]);
-    } catch(e) { console.error('save task list failed:', e); }
-}
-
-// ─────────────────────────────────────────────
-// 🎲 กล่องสุ่มประจำวัน
-// ─────────────────────────────────────────────
-window.loadStandbyAssignments = async function() {
-    if (typeof appDB === 'undefined') return;
-    
-    try {
-        const targetDate = document.getElementById('dutyDate')?.value;
-        const shiftFilter = document.getElementById('dutyShiftSelect')?.value || 'กะเช้า';
-        
-        document.getElementById('standbyCurDate').innerText = targetDate || '-';
-        document.getElementById('standbyCurShift').innerText = shiftFilter || '-';
-        
-        if (!targetDate) {
-            document.getElementById('standbyEmpCount').innerText = '0';
-            document.getElementById('standbyAssignmentList').innerHTML = '<div class="text-center py-10 text-slate-400 text-sm">กรุณาเลือกวันที่ในหน้าจัดเวร</div>';
-            return;
-        }
-        
-        // โหลด roster + แยกตามเว็บ
-        const rosterKey = getDutySaveKey(targetDate, shiftFilter);
-        const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey);
-        
-        window._standbyEmpList = [];
-        window._standbyEmpByWeb = {};
-        
-        if (rosterData && rosterData.length > 0 && rosterData[0].value) {
-            try {
-                const roster = JSON.parse(rosterData[0].value);
-                Object.entries(roster).forEach(([web, arr]) => {
-                    if (!Array.isArray(arr)) return;
-                    window._standbyEmpByWeb[web] = [];
-                    arr.forEach(u => {
-                        if (!u || !u.username) return;
-                        if (String(u.username).includes('ขาดคน')) return;
-                        if (!window._standbyEmpList.includes(u.username)) {
-                            window._standbyEmpList.push(u.username);
-                        }
-                        if (!window._standbyEmpByWeb[web].includes(u.username)) {
-                            window._standbyEmpByWeb[web].push(u.username);
-                        }
-                    });
-                });
-            } catch(e) {}
-        }
-        
-        document.getElementById('standbyEmpCount').innerText = window._standbyEmpList.length;
-        
-        // โหลด assignments
-        const assignKey = `standby_assignments_${targetDate}_${shiftFilter}`;
-        const { data: assignData } = await appDB.from('settings').select('value').eq('key', assignKey);
-        
-        window._standbyAssignments = {};
-        if (assignData && assignData.length > 0 && assignData[0].value) {
-            try { window._standbyAssignments = JSON.parse(assignData[0].value); } catch(e) {}
-        }
-        
-        renderStandbyAssignmentList();
-    } catch(e) {
-        console.error('loadStandbyAssignments error:', e);
-    }
-};
-
-function getCandidatesForTask(task) {
-    // ถ้างานเฉพาะเว็บ → ดึงคนจากเว็บนั้น
-    if (task.type === 'web' && task.web) {
-        return window._standbyEmpByWeb[task.web] || [];
-    }
-    // งานทั่วไป → ทุกคน
-    return window._standbyEmpList;
-}
-
-function renderStandbyAssignmentList() {
-    const list = document.getElementById('standbyAssignmentList');
-    if (!list) return;
-    
-    const tasks = window._standbyTaskList || [];
-    
-    if (tasks.length === 0) {
-        list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">โปรดเพิ่มงานรองในส่วนด้านบนก่อน</div>';
-        return;
-    }
-    
-    if (window._standbyEmpList.length === 0) {
-        list.innerHTML = `
-            <div class="text-center py-8 text-amber-600 dark:text-amber-400">
-                <span class="material-icons text-4xl opacity-50">event_busy</span>
-                <p class="font-bold text-sm mt-2">ยังไม่มีพนักงานที่จัดเวรวันนี้</p>
-                <p class="text-[11px] mt-1 text-slate-500">โปรดจัดเวรในหน้า "จัดเวร" ก่อน</p>
-            </div>`;
-        return;
-    }
-    
-    list.innerHTML = tasks.map(task => {
-        const assignee = window._standbyAssignments[task.name];
-        const candidates = getCandidatesForTask(task);
-        const isWeb = task.type === 'web' && task.web;
-        
-        const badge = isWeb 
-            ? `<span class="px-2 py-0.5 rounded text-[9px] font-black text-white" style="background:${getWebColor(task.web)}">🎯 ${task.web}</span>`
-            : `<span class="px-2 py-0.5 rounded text-[9px] font-black bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">🌐 ทั่วไป</span>`;
-        
-        // ถ้างานเฉพาะเว็บ แต่ไม่มีคนเว็บนั้น → เตือน
-        const noCandidate = candidates.length === 0;
-        
-        return `
-        <div class="bg-slate-50 dark:bg-slate-900 border-2 ${assignee ? 'border-emerald-300 dark:border-emerald-700' : (noCandidate ? 'border-rose-300 dark:border-rose-700' : 'border-dashed border-slate-300 dark:border-slate-700')} rounded-xl p-3 transition">
-            <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3 min-w-0 flex-1">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br ${assignee ? 'from-emerald-400 to-teal-600' : (noCandidate ? 'from-rose-400 to-red-600' : 'from-slate-400 to-slate-600')} flex items-center justify-center text-white shadow flex-shrink-0">
-                        <span class="material-icons text-lg">${assignee ? 'task_alt' : (noCandidate ? 'error_outline' : 'pending')}</span>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <div class="font-black text-sm text-slate-800 dark:text-white truncate">${escapeHtmlStandby(task.name)}</div>
-                            ${badge}
-                        </div>
-                        ${assignee 
-                            ? `<div class="flex items-center gap-1.5 mt-1">
-                                <span class="text-[11px] text-slate-500 dark:text-slate-400">ผู้รับ:</span>
-                                <span class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-2 py-0.5 rounded-md text-xs font-black shadow">${escapeHtmlStandby(assignee)}</span>
-                              </div>`
-                            : (noCandidate 
-                                ? `<div class="text-[11px] text-rose-600 dark:text-rose-400 font-bold mt-0.5 flex items-center gap-1">
-                                    <span class="material-icons text-xs">warning</span> ไม่มีคนจากเว็บ ${task.web} ในเวรวันนี้
-                                  </div>`
-                                : `<div class="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-0.5 flex items-center gap-1">
-                                    <span class="material-icons text-xs">help_outline</span> ยังไม่ได้สุ่ม • มี ${candidates.length} คนให้สุ่ม
-                                  </div>`)
-                        }
-                    </div>
-                </div>
-                <div class="flex gap-1.5">
-                    ${assignee 
-                        ? `<button onclick="clearStandbyAssignment('${escapeJsStr(task.name)}')" class="bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 px-3 py-2 rounded-lg font-bold text-xs flex items-center gap-1 transition" title="เคลียร์">
-                            <span class="material-icons text-sm">clear</span>
-                          </button>
-                          <button onclick="randomStandbyAssignment('${escapeJsStr(task.name)}')" ${noCandidate ? 'disabled' : ''} class="bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200 dark:hover:bg-orange-900/60 text-orange-600 dark:text-orange-300 px-3 py-2 rounded-lg font-bold text-xs flex items-center gap-1 transition disabled:opacity-30 disabled:cursor-not-allowed" title="สุ่มใหม่">
-                            <span class="material-icons text-sm">refresh</span>
-                          </button>`
-                        : `<button onclick="randomStandbyAssignment('${escapeJsStr(task.name)}')" ${noCandidate ? 'disabled' : ''} class="bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white px-4 py-2 rounded-lg font-black text-xs flex items-center gap-1 shadow transition disabled:opacity-40 disabled:cursor-not-allowed">
-                            <span class="material-icons text-sm">casino</span> สุ่มคน
-                          </button>`
-                    }
-                </div>
-            </div>
-        </div>`;
-    }).join('');
-    
-    const unassignedAvailable = tasks.filter(t => !window._standbyAssignments[t.name] && getCandidatesForTask(t).length > 0);
-    if (unassignedAvailable.length > 0) {
-        list.insertAdjacentHTML('beforeend', `
-            <div class="pt-2">
-                <button onclick="randomAllStandby()" class="w-full bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-600 hover:to-fuchsia-700 text-white px-4 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-lg transition">
-                    <span class="material-icons">auto_awesome</span>
-                    สุ่มทุกงานที่ยังว่าง (${unassignedAvailable.length} งาน)
-                </button>
-            </div>
-        `);
+    } catch(e) { 
+        console.error('save standby config failed:', e); 
+        Swal.fire('Error', 'บันทึกไม่สำเร็จ', 'error');
     }
 }
 
-// ─────────────────────────────────────────────
-// 🎲 Algorithm สุ่มยุติธรรม
-// ─────────────────────────────────────────────
-async function pickFairRandom(taskName, candidates) {
-    if (!candidates || candidates.length === 0) return null;
-    
-    let history = [];
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', `standby_history_${taskName}`);
-        if (data && data.length > 0 && data[0].value) {
-            history = JSON.parse(data[0].value);
-            if (!Array.isArray(history)) history = [];
-        }
-    } catch(e) { history = []; }
-    
-    let pool = candidates.filter(u => !history.includes(u));
-    if (pool.length === 0) {
-        history = [];
-        pool = [...candidates];
-    }
-    
-    const picked = pool[Math.floor(Math.random() * pool.length)];
-    history.push(picked);
-    
-    try {
-        await appDB.from('settings').upsert([{ key: `standby_history_${taskName}`, value: JSON.stringify(history) }]);
-    } catch(e) {}
-    
-    return picked;
-}
-
-window.randomStandbyAssignment = async function(taskName) {
-    const task = window._standbyTaskList.find(t => t.name === taskName);
-    if (!task) return;
-    
-    const candidates = getCandidatesForTask(task);
-    if (candidates.length === 0) {
-        return Swal.fire('!', task.type === 'web' ? `ไม่มีคนจากเว็บ ${task.web} ในเวรวันนี้` : 'ยังไม่มีพนักงานวันนี้', 'warning');
-    }
-    
-    const oldAssignee = window._standbyAssignments[taskName];
-    if (oldAssignee) {
-        // เอาออกจาก history เพื่อยุติธรรม
-        try {
-            const { data } = await appDB.from('settings').select('value').eq('key', `standby_history_${taskName}`);
-            if (data && data.length > 0 && data[0].value) {
-                let hist = JSON.parse(data[0].value);
-                if (Array.isArray(hist)) {
-                    const lastIdx = hist.lastIndexOf(oldAssignee);
-                    if (lastIdx >= 0) hist.splice(lastIdx, 1);
-                    await appDB.from('settings').upsert([{ key: `standby_history_${taskName}`, value: JSON.stringify(hist) }]);
-                }
-            }
-        } catch(e) {}
-    }
-    
-    let pickFrom = [...candidates];
-    if (oldAssignee && pickFrom.length > 1) {
-        pickFrom = pickFrom.filter(u => u !== oldAssignee);
-    }
-    
-    const picked = await pickFairRandom(taskName, pickFrom);
-    if (!picked) return;
-    
-    window._standbyAssignments[taskName] = picked;
-    await saveStandbyAssignments();
-    renderStandbyAssignmentList();
-    
-    Swal.fire({
-        icon: 'success',
-        title: '🎲 ' + picked,
-        text: `ได้รับงาน: ${taskName}`,
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top'
-    });
-};
-
-window.clearStandbyAssignment = async function(taskName) {
-    const oldAssignee = window._standbyAssignments[taskName];
-    if (!oldAssignee) return;
-    
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', `standby_history_${taskName}`);
-        if (data && data.length > 0 && data[0].value) {
-            let hist = JSON.parse(data[0].value);
-            if (Array.isArray(hist)) {
-                const lastIdx = hist.lastIndexOf(oldAssignee);
-                if (lastIdx >= 0) hist.splice(lastIdx, 1);
-                await appDB.from('settings').upsert([{ key: `standby_history_${taskName}`, value: JSON.stringify(hist) }]);
-            }
-        }
-    } catch(e) {}
-    
-    delete window._standbyAssignments[taskName];
-    await saveStandbyAssignments();
-    renderStandbyAssignmentList();
-};
-
-window.randomAllStandby = async function() {
-    if (window._standbyEmpList.length === 0) {
-        return Swal.fire('!', 'ยังไม่มีพนักงานวันนี้', 'warning');
-    }
-    
-    const ok = await Swal.fire({
-        title: 'สุ่มทุกงานที่ยังว่าง?',
-        text: 'ระบบจะสุ่มคนทำงานที่ยังไม่มีผู้รับและมีคนพอ',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: '🎲 สุ่มเลย',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#a855f7'
-    });
-    if (!ok.isConfirmed) return;
-    
-    const unassigned = window._standbyTaskList.filter(t => 
-        !window._standbyAssignments[t.name] && getCandidatesForTask(t).length > 0
-    );
-    let summary = [];
-    const usedThisRound = new Set(Object.values(window._standbyAssignments));
-    
-    for (const task of unassigned) {
-        const candidates = getCandidatesForTask(task);
-        // กระจาย — เลือกคนที่ยังไม่ได้รับงานในรอบนี้ก่อน
-        let pool = candidates.filter(u => !usedThisRound.has(u));
-        if (pool.length === 0) pool = [...candidates];
-        
-        const picked = await pickFairRandom(task.name, pool);
-        if (picked) {
-            window._standbyAssignments[task.name] = picked;
-            usedThisRound.add(picked);
-            const taskLabel = task.type === 'web' ? `${task.name} (${task.web})` : task.name;
-            summary.push(`${picked} → ${taskLabel}`);
-        }
-    }
-    
-    await saveStandbyAssignments();
-    renderStandbyAssignmentList();
-    
-    Swal.fire({
-        icon: 'success',
-        title: '🎉 สุ่มเสร็จแล้ว!',
-        html: summary.length 
-            ? '<div style="text-align:left;font-size:13px;line-height:1.6">' + summary.map(s => `• ${escapeHtmlStandby(s)}`).join('<br>') + '</div>'
-            : 'ไม่มีงานที่ต้องสุ่ม'
-    });
-};
-
-async function saveStandbyAssignments() {
-    if (typeof appDB === 'undefined') return;
-    const targetDate = document.getElementById('dutyDate')?.value;
-    const shiftFilter = document.getElementById('dutyShiftSelect')?.value || 'กะเช้า';
-    if (!targetDate) return;
-    
-    const key = `standby_assignments_${targetDate}_${shiftFilter}`;
-    try {
-        await appDB.from('settings').upsert([
-            { key, value: JSON.stringify(window._standbyAssignments) }
-        ]);
-    } catch(e) { console.error('save assignments failed:', e); }
-}
-
-function escapeHtmlStandby(s) {
+function escapeHtmlCfg(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     }[c]));
 }
-function escapeJsStr(s) {
-    return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-}
+
+// ========================================================================
+// 🎯 Helper สำหรับ quickAssignBackups: สุ่มหัวข้องานให้คนที่ไปสแตนบาย
+// เรียกหลัง AI assign secondary_team เสร็จ
+// ========================================================================
+window.assignStandbyTasksAfterAI = async function(roster) {
+    // โหลด config (จาก cache หรือ DB)
+    if (Object.keys(window._standbyConfigByWeb || {}).length === 0) {
+        try {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'standby_config_by_web');
+            if (data && data.length > 0 && data[0].value) {
+                window._standbyConfigByWeb = JSON.parse(data[0].value) || {};
+            }
+        } catch(e) {}
+    }
+    
+    const config = window._standbyConfigByWeb || {};
+    if (Object.keys(config).length === 0) return roster;  // ไม่มี config = ไม่ทำอะไร
+    
+    // นับ task ของแต่ละเว็บ — สำหรับสุ่มไม่ซ้ำในรอบเดียวกัน
+    const usedTaskByWeb = {};  // { 'K36': ['เช็คโปร'] }
+    
+    for (const team in roster) {
+        if (!Array.isArray(roster[team])) continue;
+        roster[team].forEach(u => {
+            // เฉพาะคนที่มี secondary_team (ไปสแตนบายเว็บอื่น)
+            if (!u || !u.secondary_team || String(u.username || '').includes('ขาดคน')) return;
+            
+            const targetWeb = u.secondary_team;
+            const tasks = config[targetWeb] || [];
+            if (tasks.length === 0) {
+                u.standby_task = null;  // ไม่มี config → ไม่มีหัวข้อ
+                return;
+            }
+            
+            // หา task ที่ยังไม่ถูกใช้ในเว็บนี้รอบนี้
+            if (!usedTaskByWeb[targetWeb]) usedTaskByWeb[targetWeb] = [];
+            let available = tasks.filter(t => !usedTaskByWeb[targetWeb].includes(t));
+            if (available.length === 0) {
+                // ถ้าทุกหัวข้อถูกใช้แล้ว → reset วนรอบใหม่
+                usedTaskByWeb[targetWeb] = [];
+                available = [...tasks];
+            }
+            
+            // สุ่ม
+            const picked = available[Math.floor(Math.random() * available.length)];
+            u.standby_task = picked;
+            usedTaskByWeb[targetWeb].push(picked);
+        });
+    }
+    
+    return roster;
+};
