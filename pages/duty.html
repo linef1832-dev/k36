@@ -20,6 +20,7 @@
 
                 <div class="flex bg-indigo-900 rounded-lg p-1 mr-2 duty-admin-only">
                     <button onclick="switchDutyTab('roster')" id="tabBtnRoster" class="px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition">📋 จัดเวร</button>
+                    <button onclick="switchDutyTab('standby')" id="tabBtnStandby" class="px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition flex items-center gap-1"><span class="material-icons text-sm">support_agent</span> งานรอง</button>
                     <button onclick="switchDutyTab('settings')" id="tabBtnSettings" class="px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition">⚙️ ตั้งค่าสิทธิ์ & หัวข้อ</button>
                     <button onclick="openDutyHistoryModal()" id="tabBtnHistory" class="px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติ</button>
                 </div>
@@ -180,6 +181,75 @@
                 </div>
                 <div id="roleEditorList" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2 bg-slate-50 dark:bg-slate-900"></div>
             </div>
+        </div>
+
+        <!-- 🌟 NEW: หน้างานรอง (สแตนบาย) - มุมมองอ่านอย่างเดียว -->
+        <div id="dutyTabStandby" class="flex-1 overflow-y-auto custom-scrollbar bg-gradient-to-br from-slate-50 to-purple-50 dark:from-slate-900 dark:to-purple-950/30 hidden mx-4 border-x border-b border-gray-200 dark:border-slate-700 rounded-b-xl shadow-sm w-auto">
+            
+            <!-- Header -->
+            <div class="sticky top-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-slate-700 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                <div class="flex items-center gap-2">
+                    <div class="bg-gradient-to-br from-purple-500 to-fuchsia-600 p-2 rounded-xl text-white">
+                        <span class="material-icons text-base">support_agent</span>
+                    </div>
+                    <div>
+                        <div class="font-black text-sm text-slate-800 dark:text-white">รายงานงานรอง (สแตนบาย)</div>
+                        <div class="text-[10px] text-slate-500 dark:text-slate-400">มุมมองดูอย่างเดียว • ไปแก้ที่หน้า "จัดเวร"</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="refreshStandbyView()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 transition">
+                        <span class="material-icons text-sm">refresh</span> รีเฟรช
+                    </button>
+                    <button onclick="switchDutyTab('roster')" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 transition">
+                        <span class="material-icons text-sm">edit_calendar</span> ไปแก้ที่จัดเวร
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-3 border-l-4 border-emerald-500">
+                    <div class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">มีงานรองแล้ว</div>
+                    <div class="text-2xl font-black text-slate-800 dark:text-white mt-1"><span id="standbyStatHasSecondary">0</span> <span class="text-xs text-slate-400">คน</span></div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-3 border-l-4 border-amber-500">
+                    <div class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase">ยังไม่มีงานรอง</div>
+                    <div class="text-2xl font-black text-slate-800 dark:text-white mt-1"><span id="standbyStatNoSecondary">0</span> <span class="text-xs text-slate-400">คน</span></div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-3 border-l-4 border-blue-500">
+                    <div class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">เว็บที่มีคนช่วย</div>
+                    <div class="text-2xl font-black text-slate-800 dark:text-white mt-1"><span id="standbyStatWebsCovered">0</span> <span class="text-xs text-slate-400">เว็บ</span></div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-3 border-l-4 border-rose-500">
+                    <div class="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">เว็บไม่มีคนช่วย</div>
+                    <div class="text-2xl font-black text-slate-800 dark:text-white mt-1"><span id="standbyStatWebsUncovered">0</span> <span class="text-xs text-slate-400">เว็บ</span></div>
+                </div>
+            </div>
+            
+            <!-- Tab buttons for view switch -->
+            <div class="flex gap-2 px-4 mb-3">
+                <button onclick="switchStandbyView('byperson')" id="standbyViewByPerson" class="standby-view-btn flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-indigo-500 text-white shadow transition flex items-center justify-center gap-1">
+                    <span class="material-icons text-sm">person</span> ตามพนักงาน
+                </button>
+                <button onclick="switchStandbyView('byweb')" id="standbyViewByWeb" class="standby-view-btn flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 transition flex items-center justify-center gap-1">
+                    <span class="material-icons text-sm">language</span> ตามเว็บ
+                </button>
+                <button onclick="switchStandbyView('table')" id="standbyViewTable" class="standby-view-btn flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 transition flex items-center justify-center gap-1">
+                    <span class="material-icons text-sm">table_chart</span> ตาราง
+                </button>
+            </div>
+            
+            <!-- Search -->
+            <div class="px-4 mb-3">
+                <div class="relative">
+                    <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
+                    <input type="text" id="standbySearchInput" oninput="renderStandbyView()" placeholder="ค้นหา ชื่อพนักงาน / เว็บ..." class="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm outline-none focus:border-indigo-400 dark:text-white">
+                </div>
+            </div>
+            
+            <!-- Content -->
+            <div id="standbyViewContent" class="px-4 pb-4"></div>
         </div>
     </div>
 </div>
