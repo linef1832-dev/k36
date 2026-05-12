@@ -1429,6 +1429,84 @@ window.fetchHistoricalSummary = async function(silent = false) {
     }
 };
 
+// ==========================================
+// 🌟 โหลด duty assignment (หลัก/รอง) สำหรับ export Excel
+// อ่านจาก settings ตาราง key = duty_roster_{dept}_{date}_{shift}
+// คืนค่า: { [username_lowercase]: { main: 'PG688', secondary: 'NM9' } }
+// ==========================================
+window.loadDutyAssignmentMap = async function(filteredData, shiftFilterUi) {
+    const map = {};
+    if (typeof appDB === 'undefined') return map;
+    
+    try {
+        // หาวันที่จากข้อมูลที่กำลังจะ export — โดยปกติเป็นวันเดียวกัน
+        const dates = [...new Set((filteredData || []).map(r => r.date).filter(Boolean))];
+        if (dates.length === 0) {
+            const dEl = document.getElementById('summaryDateFilter');
+            if (dEl && dEl.value) dates.push(dEl.value);
+        }
+        if (dates.length === 0) return map;
+        
+        // แผนกของ user — ปกติเป็น AM/OD (ใช้ currentUser หรือ default 'AM')
+        // ลองหลายๆ แผนกที่อาจเก็บข้อมูลไว้
+        const deptsToTry = ['AM', 'OD'];
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.dept) {
+            if (!deptsToTry.includes(currentUser.dept)) deptsToTry.unshift(currentUser.dept);
+        }
+        
+        // กะที่ใช้ — ถ้า shiftFilterUi = 'ALL' ลองทุกกะ
+        const shiftsToTry = (shiftFilterUi && shiftFilterUi !== 'ALL') 
+            ? [shiftFilterUi]
+            : ['กะเช้า', 'กะบ่าย', 'กะดึก'];
+        
+        // สร้าง keys ทั้งหมดที่จะ query
+        const keys = [];
+        dates.forEach(date => {
+            deptsToTry.forEach(dept => {
+                shiftsToTry.forEach(shift => {
+                    keys.push(`duty_roster_${dept}_${date}_${shift}`);
+                });
+            });
+        });
+        
+        if (keys.length === 0) return map;
+        
+        const { data, error } = await appDB.from('settings').select('key, value').in('key', keys);
+        if (error || !data) return map;
+        
+        // Parse roster data ทุกๆ key
+        data.forEach(row => {
+            if (!row.value) return;
+            try {
+                const rosterData = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+                // rosterData = { "Jun88": [ {username, secondary_team, ...}, ... ], "PG688": [...] }
+                Object.keys(rosterData).forEach(primaryTeam => {
+                    const arr = rosterData[primaryTeam];
+                    if (!Array.isArray(arr)) return;
+                    arr.forEach(u => {
+                        if (!u || !u.username) return;
+                        if (String(u.username).includes('ขาดคน')) return;
+                        const key = String(u.username).toLowerCase().trim();
+                        // ใส่ใน map (กรณีคนเดียวอยู่หลายกะ — ใช้ตัวแรกที่เจอ ไม่ทับ)
+                        if (!map[key]) {
+                            map[key] = {
+                                main: primaryTeam,
+                                secondary: u.secondary_team || null
+                            };
+                        }
+                    });
+                });
+            } catch(e) {
+                console.warn('parse roster failed:', row.key, e);
+            }
+        });
+    } catch(e) {
+        console.error('loadDutyAssignmentMap error:', e);
+    }
+    
+    return map;
+};
+
 window.exportSummaryToExcel = async function() {
     if (!pendingSummaryData || pendingSummaryData.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลสำหรับดาวน์โหลด กรุณาอัปโหลดไฟล์ให้เรียบร้อย', 'warning');
 
@@ -1446,6 +1524,9 @@ window.exportSummaryToExcel = async function() {
             if (typeof summaryActiveWebFilter !== 'undefined' && summaryActiveWebFilter !== 'ALL') filteredData = filteredData.filter(item => item.website === summaryActiveWebFilter);
 
             const targetWebOrder = ['Jun88', 'MK8', 'VV72', 'TH26', 'F168', 'PG688', 'JL69', 'NM9', 'BT678', 'K188'];
+
+            // 🌟 [NEW] โหลดข้อมูลจัดเวร (หลัก/รอง) ของวันที่นั้น
+            const dutyAssignmentMap = await window.loadDutyAssignmentMap(filteredData, shiftFilter);
 
             let empGroups = {};
             filteredData.forEach(item => {
@@ -1546,7 +1627,19 @@ window.exportSummaryToExcel = async function() {
 
             let rowIndex = 1;
             Object.values(empGroups).sort((a, b) => b.totalApproved - a.totalApproved).forEach((emp) => {
-                let rowData = [ rowIndex++, emp.name, emp.shift, emp.odType === 'ปกติ' ? 'UNKNOWN' : emp.odType ];
+                // 🌟 [NEW] ต่อชื่อพนักงานด้วย (หลัก XXX) (รอง YYY) จาก duty assignment
+                let displayName = emp.name;
+                const dutyInfo = dutyAssignmentMap[emp.name.toLowerCase()];
+                if (dutyInfo) {
+                    const parts = [];
+                    if (dutyInfo.main) parts.push(`หลัก ${dutyInfo.main}`);
+                    if (dutyInfo.secondary) parts.push(`รอง ${dutyInfo.secondary}`);
+                    if (parts.length > 0) {
+                        displayName = `${emp.name} (${parts.join(') (')})`;
+                    }
+                }
+                
+                let rowData = [ rowIndex++, displayName, emp.shift, emp.odType === 'ปกติ' ? 'UNKNOWN' : emp.odType ];
                 targetWebOrder.forEach(w => { rowData.push(emp.websData[w].approved); rowData.push(emp.websData[w].reject); rowData.push(emp.websData[w].total); });
                 rowData.push(emp.totalApproved); rowData.push(emp.totalReject); rowData.push(emp.grandTotal); 
                 
