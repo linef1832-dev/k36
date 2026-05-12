@@ -183,7 +183,7 @@
             </div>
         </div>
 
-        <!-- 🌟 NEW: หน้างานรอง (Standby Task Settings + Auto-Assign) -->
+        <!-- 🌟 หน้างานรอง — Hybrid (งานทั่วไป + งานเฉพาะเว็บ) -->
         <div id="dutyTabStandby" class="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-900 hidden mx-4 border-x border-b border-gray-200 dark:border-slate-700 rounded-b-xl shadow-sm w-auto p-4">
             
             <!-- Header -->
@@ -194,14 +194,12 @@
                     </div>
                     <div class="flex-1">
                         <div class="font-black text-lg text-white">งานรอง — สุ่มคนทำอัตโนมัติ</div>
-                        <div class="text-xs text-white/80">ระบบสุ่มยุติธรรม (ไม่ซ้ำจนวนครบทุกคน) • จากพนักงานที่จัดเวรวันนั้น</div>
+                        <div class="text-xs text-white/80">ระบบสุ่มยุติธรรม (ไม่ซ้ำจนวนครบทุกคน) • รองรับงานทั่วไป + งานเฉพาะเว็บ</div>
                     </div>
                 </div>
             </div>
             
-            <!-- ─────────────────────────────────────────────── -->
             <!-- 1. เพิ่มงานรอง -->
-            <!-- ─────────────────────────────────────────────── -->
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden mb-4">
                 <div class="bg-gradient-to-r from-blue-500 to-cyan-500 p-3 text-white">
                     <div class="flex items-center gap-2">
@@ -213,11 +211,32 @@
                     </div>
                 </div>
                 
+                <!-- ฟอร์มเพิ่มงาน -->
                 <div class="p-3 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/50">
-                    <div class="flex gap-2">
-                        <input type="text" id="newStandbyTaskInput" placeholder="พิมพ์ชื่องาน เช่น เช็คคำขอโปร K36..." 
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
+                        <!-- ชื่องาน -->
+                        <input type="text" id="newStandbyTaskInput" placeholder="ชื่องาน เช่น เช็คคำขอโปรโมชั่น" 
                             onkeydown="if(event.key==='Enter') addStandbyTask()"
-                            class="flex-1 px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-900 text-sm outline-none focus:border-blue-500 dark:text-white">
+                            class="md:col-span-6 px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-900 text-sm outline-none focus:border-blue-500 dark:text-white">
+                        
+                        <!-- ประเภท -->
+                        <select id="newStandbyTaskType" onchange="onStandbyTypeChange()" 
+                            class="md:col-span-3 px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-900 text-sm outline-none focus:border-blue-500 dark:text-white">
+                            <option value="general">🌐 งานทั่วไป (ทุกคน)</option>
+                            <option value="web">🎯 เฉพาะเว็บ</option>
+                        </select>
+                        
+                        <!-- เลือกเว็บ -->
+                        <select id="newStandbyTaskWeb" disabled
+                            class="md:col-span-3 px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-slate-100 dark:bg-slate-800 text-sm outline-none focus:border-blue-500 dark:text-white opacity-50">
+                            <option value="">— เลือกเว็บ —</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mt-2">
+                        <p class="text-[10px] text-blue-600 dark:text-blue-300">
+                            💡 <b>งานทั่วไป</b> = สุ่มทุกคน, <b>เฉพาะเว็บ</b> = สุ่มจากคนเว็บนั้นเท่านั้น
+                        </p>
                         <button onclick="addStandbyTask()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-1">
                             <span class="material-icons text-base">add</span> เพิ่มงาน
                         </button>
@@ -229,9 +248,7 @@
                 </div>
             </div>
             
-            <!-- ─────────────────────────────────────────────── -->
             <!-- 2. กล่องสุ่มประจำวัน -->
-            <!-- ─────────────────────────────────────────────── -->
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
                 <div class="bg-gradient-to-r from-orange-500 to-rose-500 p-3 text-white">
                     <div class="flex items-center justify-between">
@@ -248,12 +265,11 @@
                     </div>
                 </div>
                 
-                <!-- Info bar -->
                 <div class="px-3 py-2 bg-slate-100 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2 text-[11px]">
                     <div class="text-slate-600 dark:text-slate-300">
                         วันที่: <b id="standbyCurDate" class="text-slate-800 dark:text-white">-</b>
                         • กะ: <b id="standbyCurShift" class="text-slate-800 dark:text-white">-</b>
-                        • พนักงานที่จัดเวร: <b id="standbyEmpCount" class="text-emerald-600 dark:text-emerald-400">0</b> คน
+                        • พนักงาน: <b id="standbyEmpCount" class="text-emerald-600 dark:text-emerald-400">0</b> คน
                     </div>
                 </div>
                 
