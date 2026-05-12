@@ -240,18 +240,40 @@ window.applyDutyRoleUI = function() {
 }
 
 window.switchDutyTab = function(tabName) {
-    if(tabName === 'roster') {
-        document.getElementById('dutyTabRoster').classList.remove('hidden'); document.getElementById('dutyTabRoster').classList.add('flex');
-        document.getElementById('dutyTabSettings').classList.add('hidden'); document.getElementById('dutyTabSettings').classList.remove('flex');
-        document.getElementById('tabBtnRoster').className = 'px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition';
-        document.getElementById('tabBtnSettings').className = 'px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition';
+    // ✅ ซ่อนทุกแท็บก่อน
+    document.getElementById('dutyTabRoster')?.classList.add('hidden');
+    document.getElementById('dutyTabRoster')?.classList.remove('flex');
+    document.getElementById('dutyTabSettings')?.classList.add('hidden');
+    document.getElementById('dutyTabSettings')?.classList.remove('flex');
+    document.getElementById('dutyTabStandby')?.classList.add('hidden');
+    
+    // ✅ Reset ทุกปุ่ม (ทำสีเริ่มต้น)
+    const resetClass = 'px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition';
+    const activeClass = 'px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition';
+    
+    const btnRoster = document.getElementById('tabBtnRoster');
+    const btnSettings = document.getElementById('tabBtnSettings');
+    const btnStandby = document.getElementById('tabBtnStandby');
+    
+    if (btnRoster) btnRoster.className = resetClass;
+    if (btnSettings) btnSettings.className = resetClass;
+    if (btnStandby) btnStandby.className = resetClass + ' flex items-center gap-1';
+    
+    if (tabName === 'roster') {
+        document.getElementById('dutyTabRoster').classList.remove('hidden');
+        document.getElementById('dutyTabRoster').classList.add('flex');
+        if (btnRoster) btnRoster.className = activeClass;
         window.renderDutyRequirements();
         if(window.isDutyAdmin()) window.updateDutyStats();
+    } else if (tabName === 'standby') {
+        document.getElementById('dutyTabStandby').classList.remove('hidden');
+        if (btnStandby) btnStandby.className = activeClass + ' flex items-center gap-1';
+        renderStandbyView();
     } else {
-        document.getElementById('dutyTabSettings').classList.remove('hidden'); document.getElementById('dutyTabSettings').classList.add('flex');
-        document.getElementById('dutyTabRoster').classList.add('hidden'); document.getElementById('dutyTabRoster').classList.remove('flex');
-        document.getElementById('tabBtnSettings').className = 'px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition';
-        document.getElementById('tabBtnRoster').className = 'px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition';
+        // settings
+        document.getElementById('dutyTabSettings').classList.remove('hidden');
+        document.getElementById('dutyTabSettings').classList.add('flex');
+        if (btnSettings) btnSettings.className = activeClass;
     }
 }
 
@@ -3497,3 +3519,352 @@ window.restoreDutyRoster = async function() {
         }
     });
 };
+
+// ========================================================================
+// 🌟 NEW: ระบบงานรอง (สแตนบาย) — มุมมองอ่านอย่างเดียว
+// ========================================================================
+
+window._standbyCurrentView = 'byperson';  // byperson | byweb | table
+
+// Map สีของแต่ละเว็บ
+const STANDBY_WEB_COLORS = {
+    'Jun88':  { bg: '#3b82f6', text: '#fff', border: '#1d4ed8' },
+    'MK8':    { bg: '#0f172a', text: '#fff', border: '#000' },
+    'F168':   { bg: '#f59e0b', text: '#000', border: '#b45309' },
+    'PG688':  { bg: '#fde047', text: '#000', border: '#ca8a04' },
+    'JL69':   { bg: '#fed7aa', text: '#000', border: '#c2410c' },
+    'NM9':    { bg: '#94a3b8', text: '#fff', border: '#475569' },
+    'VV72':   { bg: '#7f1d1d', text: '#fff', border: '#450a0a' },
+    'TH26':   { bg: '#a78bfa', text: '#fff', border: '#6d28d9' },
+    'BT678':  { bg: '#0e7490', text: '#fff', border: '#155e75' },
+    'K188':   { bg: '#16a34a', text: '#fff', border: '#14532d' },
+    'NM8':    { bg: '#475569', text: '#fff', border: '#1e293b' }
+};
+
+function getStandbyWebStyle(web) {
+    const w = STANDBY_WEB_COLORS[web] || { bg: '#64748b', text: '#fff', border: '#334155' };
+    return `background:${w.bg};color:${w.text};border:1px solid ${w.border}`;
+}
+
+// ========================================================================
+// 📊 ดึงข้อมูลล่าสุดของวันที่+กะปัจจุบัน
+// ========================================================================
+async function loadStandbyData() {
+    try {
+        const targetDate = document.getElementById('dutyDate')?.value;
+        const shiftFilter = document.getElementById('dutyShiftSelect')?.value || 'กะเช้า';
+        if (!targetDate) return null;
+        
+        const saveKey = getDutySaveKey(targetDate, shiftFilter);
+        const { data, error } = await appDB.from('settings').select('value').eq('key', saveKey);
+        if (error || !data || data.length === 0) return null;
+        
+        const rosterData = JSON.parse(data[0].value || '{}');
+        return { rosterData, targetDate, shiftFilter };
+    } catch(e) {
+        console.error('loadStandbyData error:', e);
+        return null;
+    }
+}
+
+// ========================================================================
+// 🔄 รีเฟรชข้อมูล
+// ========================================================================
+window.refreshStandbyView = function() {
+    renderStandbyView();
+    Swal.fire({ icon: 'success', title: 'รีเฟรชแล้ว', timer: 800, showConfirmButton: false, toast: true, position: 'top' });
+};
+
+// ========================================================================
+// 🔀 สลับมุมมอง
+// ========================================================================
+window.switchStandbyView = function(viewType) {
+    window._standbyCurrentView = viewType;
+    
+    // Reset all buttons
+    ['ByPerson', 'ByWeb', 'Table'].forEach(v => {
+        const btn = document.getElementById('standbyView' + v);
+        if (btn) {
+            btn.className = 'standby-view-btn flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 transition flex items-center justify-center gap-1';
+        }
+    });
+    
+    // Activate current
+    const activeMap = { byperson: 'ByPerson', byweb: 'ByWeb', table: 'Table' };
+    const activeBtn = document.getElementById('standbyView' + activeMap[viewType]);
+    if (activeBtn) {
+        activeBtn.className = 'standby-view-btn flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-indigo-500 text-white shadow transition flex items-center justify-center gap-1';
+    }
+    
+    renderStandbyView();
+};
+
+// ========================================================================
+// 🎨 RENDER หลัก
+// ========================================================================
+window.renderStandbyView = async function() {
+    const container = document.getElementById('standbyViewContent');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center py-10 text-slate-400"><span class="material-icons text-3xl opacity-50 animate-spin">sync</span><div class="mt-2 text-sm">กำลังโหลด...</div></div>';
+    
+    const result = await loadStandbyData();
+    if (!result || !result.rosterData || Object.keys(result.rosterData).length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-16 text-slate-400">
+                <span class="material-icons text-6xl opacity-30">event_busy</span>
+                <h3 class="font-bold text-base mt-3">ยังไม่มีการจัดเวร</h3>
+                <p class="text-xs mt-1">เลือกวันที่ + กะ + แผนก แล้วจัดเวรในหน้า "จัดเวร" ก่อน</p>
+                <button onclick="switchDutyTab('roster')" class="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-xs">
+                    <span class="material-icons text-sm align-middle">arrow_back</span> ไปหน้าจัดเวร
+                </button>
+            </div>`;
+        // reset stats
+        ['HasSecondary', 'NoSecondary', 'WebsCovered', 'WebsUncovered'].forEach(k => {
+            const el = document.getElementById('standbyStat' + k);
+            if (el) el.innerText = '0';
+        });
+        return;
+    }
+    
+    const { rosterData } = result;
+    
+    // ✅ Build flat list ของพนักงานทั้งหมด พร้อม mainWeb / secondaryWeb
+    const allEmployees = [];
+    Object.keys(rosterData).forEach(primaryTeam => {
+        const arr = rosterData[primaryTeam];
+        if (!Array.isArray(arr)) return;
+        arr.forEach(u => {
+            if (!u || !u.username) return;
+            if (String(u.username).includes('ขาดคน')) return;
+            allEmployees.push({
+                username: u.username,
+                mainWeb: primaryTeam,
+                secondaryWeb: u.secondary_team || null,
+                breakTime: u.break_time || u.break || null,
+                role: u.role || null,
+                customRoles: u.custom_roles || []
+            });
+        });
+    });
+    
+    // ✅ Update stats
+    const hasSec = allEmployees.filter(e => e.secondaryWeb).length;
+    const noSec = allEmployees.filter(e => !e.secondaryWeb).length;
+    
+    // Calc webs covered (ที่เป็น secondary ของใครซักคน)
+    const allWebs = Object.keys(rosterData);
+    const webHelperMap = {};   // { 'NM9': [{username, fromTeam, breakTime}, ...] }
+    allWebs.forEach(w => { webHelperMap[w] = []; });
+    allEmployees.forEach(e => {
+        if (e.secondaryWeb && webHelperMap[e.secondaryWeb] !== undefined) {
+            webHelperMap[e.secondaryWeb].push(e);
+        }
+    });
+    const websCovered = Object.keys(webHelperMap).filter(w => webHelperMap[w].length > 0).length;
+    const websUncovered = allWebs.length - websCovered;
+    
+    document.getElementById('standbyStatHasSecondary').innerText = hasSec;
+    document.getElementById('standbyStatNoSecondary').innerText = noSec;
+    document.getElementById('standbyStatWebsCovered').innerText = websCovered;
+    document.getElementById('standbyStatWebsUncovered').innerText = websUncovered;
+    
+    // ✅ Filter by search
+    const searchVal = (document.getElementById('standbySearchInput')?.value || '').toLowerCase().trim();
+    let filteredEmps = allEmployees;
+    if (searchVal) {
+        filteredEmps = allEmployees.filter(e => 
+            e.username.toLowerCase().includes(searchVal) ||
+            (e.mainWeb || '').toLowerCase().includes(searchVal) ||
+            (e.secondaryWeb || '').toLowerCase().includes(searchVal)
+        );
+    }
+    
+    // ✅ Render ตามมุมมองที่เลือก
+    const view = window._standbyCurrentView;
+    if (view === 'byweb') {
+        renderStandbyByWeb(container, allWebs, webHelperMap, searchVal);
+    } else if (view === 'table') {
+        renderStandbyTable(container, filteredEmps);
+    } else {
+        renderStandbyByPerson(container, filteredEmps);
+    }
+};
+
+// ========================================================================
+// 👤 มุมมองที่ 1: ตามพนักงาน (card list)
+// ========================================================================
+function renderStandbyByPerson(container, emps) {
+    if (emps.length === 0) {
+        container.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm">ไม่พบพนักงานที่ค้นหา</div>';
+        return;
+    }
+    
+    // เรียง: คนที่มีรองก่อน
+    const sorted = [...emps].sort((a, b) => {
+        if (!!a.secondaryWeb !== !!b.secondaryWeb) return a.secondaryWeb ? -1 : 1;
+        return a.username.localeCompare(b.username);
+    });
+    
+    container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${sorted.map(e => `
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md transition p-3 border border-gray-200 dark:border-slate-700">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow">
+                            ${e.username.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-black text-sm text-slate-800 dark:text-white truncate">${e.username}</div>
+                            ${e.breakTime ? `<div class="text-[9px] text-slate-500 dark:text-slate-400">⏰ พัก: ${e.breakTime}</div>` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 w-12">หลัก:</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black" style="${getStandbyWebStyle(e.mainWeb)}">${e.mainWeb}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 w-12">รอง:</span>
+                            ${e.secondaryWeb 
+                                ? `<span class="px-2 py-0.5 rounded text-[10px] font-black" style="${getStandbyWebStyle(e.secondaryWeb)}">${e.secondaryWeb}</span>`
+                                : `<span class="text-[10px] text-amber-600 dark:text-amber-400 font-bold italic">⚠ ยังไม่มี</span>`
+                            }
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// ========================================================================
+// 🌐 มุมมองที่ 2: ตามเว็บ
+// ========================================================================
+function renderStandbyByWeb(container, webs, webHelperMap, searchVal) {
+    // เรียงเว็บที่มีคนช่วยก่อน
+    const sorted = [...webs].sort((a, b) => (webHelperMap[b]?.length || 0) - (webHelperMap[a]?.length || 0));
+    
+    // Filter ถ้ามี search
+    const filtered = searchVal 
+        ? sorted.filter(w => 
+            w.toLowerCase().includes(searchVal) ||
+            (webHelperMap[w] || []).some(h => h.username.toLowerCase().includes(searchVal))
+          )
+        : sorted;
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm">ไม่พบเว็บที่ค้นหา</div>';
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            ${filtered.map(web => {
+                const helpers = webHelperMap[web] || [];
+                const isUncovered = helpers.length === 0;
+                return `
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden border ${isUncovered ? 'border-rose-300 dark:border-rose-700' : 'border-gray-200 dark:border-slate-700'}">
+                    <div class="px-3 py-2 flex items-center justify-between" style="${getStandbyWebStyle(web)}">
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons text-base">language</span>
+                            <span class="font-black text-sm">${web}</span>
+                        </div>
+                        <span class="text-[10px] bg-black/30 px-2 py-0.5 rounded-full font-bold">${helpers.length} คน</span>
+                    </div>
+                    <div class="p-3">
+                        ${isUncovered 
+                            ? `<div class="text-center py-3 text-amber-600 dark:text-amber-400 text-xs font-bold">
+                                <span class="material-icons text-2xl block opacity-50">person_off</span>
+                                ยังไม่มีคนมาช่วย
+                              </div>`
+                            : `<div class="space-y-1.5">
+                                ${helpers.map(h => `
+                                    <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-900 rounded-lg p-2">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <div class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-black text-[10px]">
+                                                ${h.username.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <div class="min-w-0">
+                                                <div class="font-bold text-xs text-slate-800 dark:text-white truncate">${h.username}</div>
+                                                ${h.breakTime ? `<div class="text-[8px] text-slate-500">⏰ ${h.breakTime}</div>` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1 text-[9px] text-slate-500">
+                                            <span>จาก</span>
+                                            <span class="px-1.5 py-0.5 rounded font-black" style="${getStandbyWebStyle(h.mainWeb)}">${h.mainWeb}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                              </div>`
+                        }
+                    </div>
+                </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+// ========================================================================
+// 📋 มุมมองที่ 3: ตาราง
+// ========================================================================
+function renderStandbyTable(container, emps) {
+    if (emps.length === 0) {
+        container.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm">ไม่พบพนักงานที่ค้นหา</div>';
+        return;
+    }
+    
+    const sorted = [...emps].sort((a, b) => a.mainWeb.localeCompare(b.mainWeb) || a.username.localeCompare(b.username));
+    
+    container.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-slate-700">
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-black w-12">#</th>
+                            <th class="px-3 py-2 text-left font-black">พนักงาน</th>
+                            <th class="px-3 py-2 text-center font-black">หลัก</th>
+                            <th class="px-3 py-2 text-center font-black">รอง</th>
+                            <th class="px-3 py-2 text-center font-black">เวลาพัก</th>
+                            <th class="px-3 py-2 text-center font-black">สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+                        ${sorted.map((e, i) => `
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                                <td class="px-3 py-2 text-slate-500">${i + 1}</td>
+                                <td class="px-3 py-2 font-bold text-slate-800 dark:text-white">${e.username}</td>
+                                <td class="px-3 py-2 text-center">
+                                    <span class="inline-block px-2 py-0.5 rounded text-[10px] font-black" style="${getStandbyWebStyle(e.mainWeb)}">${e.mainWeb}</span>
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    ${e.secondaryWeb 
+                                        ? `<span class="inline-block px-2 py-0.5 rounded text-[10px] font-black" style="${getStandbyWebStyle(e.secondaryWeb)}">${e.secondaryWeb}</span>`
+                                        : `<span class="text-amber-600 dark:text-amber-400 text-[10px] italic">—</span>`
+                                    }
+                                </td>
+                                <td class="px-3 py-2 text-center text-[10px] text-slate-600 dark:text-slate-300">${e.breakTime || '—'}</td>
+                                <td class="px-3 py-2 text-center">
+                                    ${e.secondaryWeb 
+                                        ? `<span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                                            <span class="material-icons text-xs">check_circle</span> มีรอง
+                                          </span>`
+                                        : `<span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 text-[10px] font-bold">
+                                            <span class="material-icons text-xs">warning</span> ไม่มีรอง
+                                          </span>`
+                                    }
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-900 px-3 py-2 text-[10px] text-slate-500 dark:text-slate-400 font-bold">
+                รวม ${sorted.length} คน
+            </div>
+        </div>
+    `;
+}
