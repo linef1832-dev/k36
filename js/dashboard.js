@@ -781,26 +781,68 @@ window._chatSubscription = null;
 window._chatMessages     = [];
 window._chatUnreadCount  = 0;
 
+// ── สร้าง Modal ใน body (ครั้งแรกเท่านั้น) ──
+function ensureChatModal() {
+    if (document.getElementById('chatModal')) return;
+    const el = document.createElement('div');
+    el.id = 'chatModal';
+    el.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;align-items:flex-end;justify-content:center;padding:0;';
+    el.innerHTML = `
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);" onclick="window.closeChatModal()"></div>
+        <div style="position:relative;width:100%;max-width:560px;height:600px;background:#0b1120;border:1px solid #334155;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.7);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#1e293b;border-bottom:1px solid #334155;flex-shrink:0;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="position:relative;display:flex;width:10px;height:10px;">
+                        <span style="position:absolute;inset:0;border-radius:50%;background:#4ade80;opacity:0.75;animation:ping 1s cubic-bezier(0,0,0.2,1) infinite;"></span>
+                        <span style="position:relative;width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-flex;"></span>
+                    </span>
+                    <span style="font-weight:700;color:#fff;font-size:14px;">💬 แชทสด</span>
+                    <span style="color:#64748b;font-size:12px;">— ทุกคนเห็นพร้อมกัน</span>
+                </div>
+                <button onclick="window.closeChatModal()" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div id="chatMessagesBox" class="custom-scrollbar" style="flex:1;overflow-y:auto;padding:12px 16px;scroll-behavior:smooth;">
+                <div id="chatMsgsInner"></div>
+                <div id="chatEmptyState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#64748b;gap:8px;">
+                    <span class="material-icons" style="font-size:40px;">chat_bubble_outline</span>
+                    <span style="font-size:14px;">ยังไม่มีข้อความ...</span>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid #334155;background:#1e293b;flex-shrink:0;">
+                <input id="chatInput" type="text" maxlength="200" placeholder="พิมพ์ข้อความ... (Enter เพื่อส่ง)"
+                    style="flex:1;background:#334155;color:#fff;font-size:14px;border-radius:12px;padding:10px 16px;border:1px solid #475569;outline:none;font-family:inherit;"
+                    onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#475569'"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();window.sendChatMessage();}">
+                <button onclick="window.sendChatMessage()" style="background:#2563eb;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:4px;flex-shrink:0;font-size:14px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+                    <span class="material-icons" style="font-size:18px;">send</span>
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(el);
+}
+
 // ── เปิด Modal ──────────────────────────
 window.openChatModal = function() {
+    ensureChatModal();
     const modal = document.getElementById('chatModal');
-    if (!modal) return;
-    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
     // reset unread
     window._chatUnreadCount = 0;
     const badge = document.getElementById('chatUnreadBadge');
-    if (badge) badge.classList.add('hidden');
-    // scroll ลงล่าง
+    if (badge) badge.style.display = 'none';
+    // render ข้อความที่มีอยู่
+    renderChatMessages();
     const box = document.getElementById('chatMessagesBox');
     if (box) requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
-    // focus input
-    setTimeout(() => { const inp = document.getElementById('chatInput'); if(inp) inp.focus(); }, 100);
+    setTimeout(() => { const inp = document.getElementById('chatInput'); if (inp) inp.focus(); }, 100);
 };
 
 // ── ปิด Modal ───────────────────────────
 window.closeChatModal = function() {
     const modal = document.getElementById('chatModal');
-    if (modal) modal.classList.add('hidden');
+    if (modal) modal.style.display = 'none';
 };
 
 // ── โหลดข้อความล่าสุด 50 รายการ ──────
@@ -921,14 +963,14 @@ function subscribeLiveChat() {
 
             // แจ้งเตือนถ้า modal ปิดอยู่ และไม่ใช่ข้อความตัวเอง
             const modal  = document.getElementById('chatModal');
-            const isOpen = modal && !modal.classList.contains('hidden');
+            const isOpen = modal && modal.style.display !== 'none';
             const myName = (window.currentUser || {}).username || '';
             if (!isOpen && m.username !== myName) {
                 window._chatUnreadCount = (window._chatUnreadCount || 0) + 1;
                 const badge = document.getElementById('chatUnreadBadge');
                 if (badge) {
                     badge.innerText = window._chatUnreadCount > 9 ? '9+' : window._chatUnreadCount;
-                    badge.classList.remove('hidden');
+                    badge.style.display = 'flex';
                 }
             }
         })
