@@ -774,26 +774,16 @@ window.updateMissingLunchBadge = async function() {
 };
 
 // ==========================================
-// 💬 ระบบ Support Chat
-//    - พนักงาน : เห็นเฉพาะห้องตัวเอง
-//    - หัวหน้า : เห็นรายชื่อทุกห้อง + badge จำนวนห้องที่ยังไม่ได้อ่าน
-//    - Badge   : นับจาก unread_rooms (server-driven, realtime)
+// 💬 ระบบ Support Chat (rewrite)
 // ==========================================
 
-window._chatSub  = null;
-window._chatRoom = null;
+window._chatSub      = null;
+window._chatRoom     = null;
+window._chatMessages = [];
 
-// ─── helpers ─────────────────────────────
-function _isManager() {
-    return ['admin','manager'].includes((window.currentUser||{}).role||'');
-}
-function _myName() {
-    return (window.currentUser||{}).username||'';
-}
-function escChat(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
-                    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+function _isManager() { return ['admin','manager'].includes((window.currentUser||{}).role||''); }
+function _myName()    { return (window.currentUser||{}).username||''; }
+function escChat(s)   { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function _timeAgo(d) {
     const s = Math.floor((Date.now()-d.getTime())/1000);
     if(s<60)    return 'เมื่อกี้';
@@ -802,28 +792,14 @@ function _timeAgo(d) {
     return d.toLocaleDateString('th-TH',{day:'numeric',month:'short'});
 }
 
-// ─── Badge: อัปเดตตัวเลขบนปุ่ม ──────────
+// ── Badge ─────────────────────────────────
 async function _refreshChatBadge() {
     if (!appDB) return;
     try {
-        // นับจำนวน room ที่มีข้อความล่าสุด (จากพนักงาน) ที่ยังไม่ถูก mark read
-        const { data, error } = await appDB
-            .from('live_chat_rooms')
-            .select('id', { count: 'exact', head: true })
-            .eq('is_read', false);
-        if (error) throw error;
-
-        const count = data === null ? 0 : (error ? 0 : 0); // head:true returns count in header
-        // ดึง count จริงผ่าน count property
-    } catch(e) {}
-
-    // วิธีที่ใช้ได้จริงกับ supabase-js v2: ใช้ count option
-    try {
         const { count, error } = await appDB
             .from('live_chat_rooms')
-            .select('*', { count: 'exact', head: true })
+            .select('*', { count:'exact', head:true })
             .eq('is_read', false);
-
         const badge = document.getElementById('chatUnreadBadge');
         if (!badge) return;
         if (!error && count > 0) {
@@ -832,10 +808,10 @@ async function _refreshChatBadge() {
         } else {
             badge.style.display = 'none';
         }
-    } catch(e) { console.warn('badge:', e); }
+    } catch(e) {}
 }
 
-// ─── สร้าง Modal shell (ครั้งแรกครั้งเดียว) ─
+// ── Modal shell ───────────────────────────
 function _ensureChatShell() {
     if (document.getElementById('chatModal')) return;
     const el = document.createElement('div');
@@ -847,12 +823,11 @@ function _ensureChatShell() {
         <div style="position:relative;width:100%;max-width:580px;height:90vh;max-height:680px;
                     background:#0b1120;border:1px solid #1e3a5f;border-radius:18px 18px 0 0;
                     display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.8);">
-            <!-- Header -->
             <div style="display:flex;align-items:center;justify-content:space-between;
                  padding:14px 18px;background:#0f1f36;border-bottom:1px solid #1e3a5f;flex-shrink:0;">
                 <div style="display:flex;align-items:center;gap:10px;">
                     <span style="position:relative;display:flex;width:10px;height:10px;">
-                        <span style="position:absolute;inset:0;border-radius:50%;background:#4ade80;opacity:.75;animation:_ping 1s cubic-bezier(0,0,.2,1) infinite;"></span>
+                        <span style="position:absolute;inset:0;border-radius:50%;background:#4ade80;opacity:.75;animation:_cht_ping 1s cubic-bezier(0,0,.2,1) infinite;"></span>
                         <span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-flex;"></span>
                     </span>
                     <span id="chatHeaderTitle" style="font-weight:800;color:#fff;font-size:15px;">💬 แชทสด</span>
@@ -871,9 +846,7 @@ function _ensureChatShell() {
                     </button>
                 </div>
             </div>
-            <!-- Body -->
             <div id="chatBody" style="flex:1;overflow-y:auto;scroll-behavior:smooth;" class="custom-scrollbar"></div>
-            <!-- Input -->
             <div id="chatInputArea" style="display:none;align-items:center;gap:8px;
                  padding:12px 16px;border-top:1px solid #1e3a5f;background:#0f1f36;flex-shrink:0;">
                 <input id="chatInput" type="text" maxlength="200" placeholder="พิมพ์ข้อความ... (Enter เพื่อส่ง)"
@@ -890,128 +863,136 @@ function _ensureChatShell() {
             </div>
         </div>`;
     document.body.appendChild(el);
-
-    if (!document.getElementById('_chatPingKF')) {
+    if (!document.getElementById('_chtPingKF')) {
         const s = document.createElement('style');
-        s.id = '_chatPingKF';
-        s.textContent = `@keyframes _ping{75%,100%{transform:scale(2);opacity:0}}`;
+        s.id = '_chtPingKF';
+        s.textContent = `@keyframes _cht_ping{75%,100%{transform:scale(2);opacity:0}}`;
         document.head.appendChild(s);
     }
 }
 
-// ─── หน้า Inbox (หัวหน้า) ──────────────
+// ── Inbox (หัวหน้า) ───────────────────────
 window._chatShowInbox = async function() {
     _ensureChatShell();
     window._chatRoom = null;
     document.getElementById('chatHeaderTitle').textContent = '💬 กล่องข้อความพนักงาน';
-    document.getElementById('chatBtnBack').style.display = 'none';
+    document.getElementById('chatBtnBack').style.display   = 'none';
     document.getElementById('chatInputArea').style.display = 'none';
 
     const body = document.getElementById('chatBody');
     body.innerHTML = `<div style="padding:20px;text-align:center;color:#64748b;font-size:13px;">⏳ กำลังโหลด...</div>`;
 
     try {
-        // ดึงรายชื่อห้องทั้งหมดพร้อมสถานะ is_read
-        const { data: rooms, error } = await appDB
-            .from('live_chat_rooms')
-            .select('*')
-            .order('last_message_at', { ascending: false });
-        if (error) throw error;
+        // ดึงข้อความทั้งหมด แล้ว group by room เอาล่าสุดของแต่ละห้อง
+        const { data: msgs, error: e1 } = await appDB
+            .from('live_chat').select('*')
+            .order('created_at', { ascending: false }).limit(300);
+        if (e1) throw e1;
 
-        if (!rooms || rooms.length === 0) {
-            body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-                height:100%;color:#64748b;gap:10px;padding:40px;">
+        // map room → ข้อความล่าสุด
+        const roomMap = {};
+        (msgs||[]).forEach(m => { if (!roomMap[m.room]) roomMap[m.room] = m; });
+
+        // ดึงสถานะ is_read
+        const { data: rooms } = await appDB.from('live_chat_rooms').select('*');
+        const readMap = {};
+        (rooms||[]).forEach(r => { readMap[r.room_name] = r; });
+
+        const keys = Object.keys(roomMap);
+        if (keys.length === 0) {
+            body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;
+                justify-content:center;height:100%;color:#64748b;gap:10px;padding:40px;">
                 <span class="material-icons" style="font-size:48px;">inbox</span>
                 <span style="font-size:14px;">ยังไม่มีข้อความจากพนักงาน</span></div>`;
             return;
         }
 
-        body.innerHTML = rooms.map(r => {
-            const ago    = _timeAgo(new Date(r.last_message_at));
-            const unread = !r.is_read;
+        // เรียงล่าสุดก่อน
+        keys.sort((a,b)=>new Date(roomMap[b].created_at)-new Date(roomMap[a].created_at));
+
+        body.innerHTML = keys.map(room => {
+            const m      = roomMap[room];
+            const rInfo  = readMap[room] || {};
+            const unread = rInfo.is_read === false || rInfo.is_read === undefined;
+            const ago    = _timeAgo(new Date(m.created_at));
+            const dept   = rInfo.department || m.department || '-';
+            const isMgrMsg = ['admin','manager'].includes(m.role||'');
+            const preview  = isMgrMsg ? `↩ หัวหน้า: ${m.message}` : m.message;
+            const bg       = unread ? 'rgba(30,58,95,0.35)' : 'transparent';
             return `
-            <div onclick="window._chatOpenRoom('${r.room_name}')"
+            <div onclick="window._chatOpenRoom('${room}')"
                  style="display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;
-                        border-bottom:1px solid #1e293b;transition:background .15s;
-                        background:${unread ? 'rgba(30,58,95,0.4)' : 'transparent'};"
-                 onmouseover="this.style.background='#0f1f36'" onmouseout="this.style.background='${unread ? 'rgba(30,58,95,0.4)' : 'transparent'}'">
+                        border-bottom:1px solid #1e293b;transition:background .15s;background:${bg};"
+                 onmouseover="this.style.background='#0f1f36'"
+                 onmouseout="this.style.background='${bg}'">
                 <div style="position:relative;flex-shrink:0;">
                     <div style="width:44px;height:44px;border-radius:50%;
                                 background:linear-gradient(135deg,#1d4ed8,#7c3aed);
                                 display:flex;align-items:center;justify-content:center;
-                                font-weight:800;font-size:17px;color:#fff;">
-                        ${r.room_name.charAt(0).toUpperCase()}
+                                font-weight:800;font-size:18px;color:#fff;">
+                        ${room.charAt(0).toUpperCase()}
                     </div>
-                    ${unread ? `<span style="position:absolute;top:0;right:0;width:12px;height:12px;
-                        background:#ef4444;border-radius:50%;border:2px solid #0b1120;"></span>` : ''}
+                    ${unread?`<span style="position:absolute;top:0;right:0;width:12px;height:12px;
+                        background:#ef4444;border-radius:50%;border:2px solid #0b1120;"></span>`:''}
                 </div>
                 <div style="flex:1;min-width:0;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                        <span style="font-weight:${unread ? 800 : 600};color:${unread ? '#f1f5f9' : '#94a3b8'};font-size:14px;">
-                            ${r.room_name}
-                        </span>
-                        <span style="font-size:11px;color:${unread ? '#60a5fa' : '#475569'};">${ago}</span>
+                        <span style="font-weight:${unread?800:600};color:${unread?'#f1f5f9':'#94a3b8'};font-size:14px;">${room}</span>
+                        <span style="font-size:11px;color:${unread?'#60a5fa':'#475569'};">${ago}</span>
                     </div>
                     <div style="display:flex;gap:6px;align-items:center;">
-                        <span style="font-size:10px;background:#1e3a5f;color:#60a5fa;padding:2px 7px;border-radius:6px;font-weight:700;">${r.department||'-'}</span>
-                        <span style="font-size:12px;color:${unread ? '#94a3b8' : '#475569'};
-                                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;
-                                     font-weight:${unread ? 600 : 400};">
-                            ${escChat(r.last_message||'')}
-                        </span>
+                        <span style="font-size:10px;background:#1e3a5f;color:#60a5fa;
+                                     padding:2px 7px;border-radius:6px;font-weight:700;flex-shrink:0;">${dept}</span>
+                        <span style="font-size:12px;color:${unread?'#94a3b8':'#475569'};
+                                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                                     font-weight:${unread?600:400};">${escChat(preview)}</span>
                     </div>
                 </div>
-                <span class="material-icons" style="color:#334155;font-size:18px;">chevron_right</span>
+                <span class="material-icons" style="color:#334155;font-size:18px;flex-shrink:0;">chevron_right</span>
             </div>`;
         }).join('');
-
     } catch(e) {
         body.innerHTML = `<div style="padding:20px;color:#ef4444;font-size:13px;">Error: ${e.message}</div>`;
     }
 };
 
-// ─── เปิดห้องแชท ─────────────────────────
+// ── เปิดห้อง ──────────────────────────────
 window._chatOpenRoom = async function(targetUser) {
     _ensureChatShell();
-    window._chatRoom = targetUser;
+    window._chatRoom    = targetUser;
     window._chatMessages = [];
-
     const isMgr = _isManager();
-    document.getElementById('chatHeaderTitle').textContent = isMgr ? `💬 ${targetUser}` : `💬 แชทกับหัวหน้า`;
-    document.getElementById('chatBtnBack').style.display = isMgr ? 'flex' : 'none';
-    document.getElementById('chatInputArea').style.display = 'flex';
+    document.getElementById('chatHeaderTitle').textContent  = isMgr ? `💬 ${targetUser}` : `💬 แชทกับหัวหน้า`;
+    document.getElementById('chatBtnBack').style.display    = isMgr ? 'flex' : 'none';
+    document.getElementById('chatInputArea').style.display  = 'flex';
 
     const body = document.getElementById('chatBody');
     body.innerHTML = `<div style="padding:20px;text-align:center;color:#64748b;font-size:13px;">⏳ กำลังโหลด...</div>`;
 
     try {
         const { data, error } = await appDB
-            .from('live_chat')
-            .select('*')
+            .from('live_chat').select('*')
             .eq('room', targetUser)
-            .order('created_at', { ascending: true })
-            .limit(100);
+            .order('created_at', { ascending: true }).limit(100);
         if (error) throw error;
         window._chatMessages = data || [];
-        _renderRoomMessages();
+        _renderMsgs();
 
-        // ถ้าเป็นหัวหน้า → mark ว่าอ่านแล้ว
         if (isMgr) {
+            // mark อ่านแล้ว
             await appDB.from('live_chat_rooms')
-                .update({ is_read: true, read_by: _myName(), read_at: new Date().toISOString() })
+                .update({ is_read:true, read_by:_myName(), read_at:new Date().toISOString() })
                 .eq('room_name', targetUser);
-            // badge จะอัปเดตผ่าน realtime
+            _refreshChatBadge();
         }
     } catch(e) {
         body.innerHTML = `<div style="padding:20px;color:#ef4444;">Error: ${e.message}</div>`;
     }
-
-    setTimeout(() => { const i = document.getElementById('chatInput'); if(i) i.focus(); }, 100);
+    setTimeout(()=>{ const i=document.getElementById('chatInput'); if(i) i.focus(); },100);
 };
 
-// ─── วาดข้อความ ─────────────────────────
-window._chatMessages = [];
-function _renderRoomMessages() {
+// ── วาดข้อความ ───────────────────────────
+function _renderMsgs() {
     const body = document.getElementById('chatBody');
     if (!body) return;
     const msgs = window._chatMessages || [];
@@ -1019,7 +1000,7 @@ function _renderRoomMessages() {
         body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;
             justify-content:center;height:100%;color:#475569;gap:10px;padding:40px;">
             <span class="material-icons" style="font-size:48px;">chat_bubble_outline</span>
-            <span style="font-size:14px;">ยังไม่มีข้อความ...</span>
+            <span style="font-size:14px;">ยังไม่มีข้อความ</span>
             <span style="font-size:12px;color:#334155;">ส่งข้อความหาหัวหน้าได้เลย</span></div>`;
         return;
     }
@@ -1028,14 +1009,13 @@ function _renderRoomMessages() {
         msgs.map(m => {
             const isMe  = m.username === myName;
             const isMgr = ['admin','manager'].includes(m.role||'');
-            const ts    = new Date(m.created_at);
-            const t     = ts.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-            const badge = isMgr ? `<span style="font-size:10px;background:#78350f;color:#fcd34d;padding:1px 6px;border-radius:5px;font-weight:700;">⭐ หัวหน้า</span>` : '';
+            const t     = new Date(m.created_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+            const bdg   = isMgr ? `<span style="font-size:10px;background:#78350f;color:#fcd34d;padding:1px 6px;border-radius:5px;font-weight:700;">⭐ หัวหน้า</span>` : '';
             if (isMe) return `
                 <div style="display:flex;justify-content:flex-end;">
                   <div style="max-width:75%;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
                     <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;">
-                        <span>${t}</span><span style="font-weight:700;color:#60a5fa;">${m.username}</span>${badge}
+                        <span>${t}</span><span style="font-weight:700;color:#60a5fa;">${m.username}</span>${bdg}
                     </div>
                     <div style="background:#1d4ed8;color:#fff;font-size:14px;padding:10px 14px;
                                 border-radius:16px 16px 4px 16px;word-break:break-word;line-height:1.5;">
@@ -1046,7 +1026,7 @@ function _renderRoomMessages() {
                 <div style="display:flex;justify-content:flex-start;">
                   <div style="max-width:75%;display:flex;flex-direction:column;align-items:flex-start;gap:3px;">
                     <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;">
-                        ${badge}<span style="font-weight:700;color:${isMgr?'#fcd34d':'#34d399'};">${m.username}</span><span>${t}</span>
+                        ${bdg}<span style="font-weight:700;color:${isMgr?'#fcd34d':'#34d399'};">${m.username}</span><span>${t}</span>
                     </div>
                     <div style="background:${isMgr?'#1c1917;border:1px solid #78350f':'#1e293b'};
                                 color:#fff;font-size:14px;padding:10px 14px;
@@ -1058,70 +1038,58 @@ function _renderRoomMessages() {
     requestAnimationFrame(()=>{ body.scrollTop = body.scrollHeight; });
 }
 
-// ─── ส่งข้อความ ──────────────────────────
+// ── ส่งข้อความ ───────────────────────────
 window.sendChatMessage = async function() {
-    const input = document.getElementById('chatInput');
-    if (!input) return;
-    const msg = input.value.trim();
+    const inp = document.getElementById('chatInput');
+    if (!inp) return;
+    const msg = inp.value.trim();
     if (!msg) return;
     const room = _isManager() ? window._chatRoom : _myName();
     if (!room) return;
-    input.value = '';
-    input.disabled = true;
+    inp.value = ''; inp.disabled = true;
     try {
         const u = window.currentUser || {};
         const { error } = await appDB.from('live_chat').insert([{
-            room, message: msg,
-            username: u.username||'Unknown',
-            role: u.role||'user',
-            department: u.department||'-'
+            room, message:msg,
+            username:u.username||'Unknown', role:u.role||'user', department:u.department||'-'
         }]);
         if (error) throw error;
-        // อัปเดต live_chat_rooms: last_message, is_read
+
         const isMgr = _isManager();
         await appDB.from('live_chat_rooms').upsert([{
             room_name:       room,
             last_message:    msg,
             last_message_at: new Date().toISOString(),
             department:      u.department||'-',
-            // ถ้าหัวหน้าส่ง → ถือว่าอ่านแล้ว; ถ้าพนักงานส่ง → ยังไม่ได้อ่าน
-            is_read:  isMgr,
-            read_by:  isMgr ? _myName() : null,
-            read_at:  isMgr ? new Date().toISOString() : null
-        }], { onConflict: 'room_name' });
+            is_read:         isMgr,          // หัวหน้าส่ง = อ่านแล้ว, พนักงานส่ง = ยังไม่อ่าน
+            read_by:         isMgr ? _myName() : null,
+            read_at:         isMgr ? new Date().toISOString() : null
+        }], { onConflict:'room_name' });
     } catch(e) {
         Swal.fire('Error','ส่งข้อความไม่สำเร็จ: '+e.message,'error');
-    } finally {
-        input.disabled = false;
-        input.focus();
-    }
+    } finally { inp.disabled=false; inp.focus(); }
 };
 
-// ─── Realtime ────────────────────────────
+// ── Realtime ──────────────────────────────
 function _subscribeSupportChat() {
     if (!appDB) return;
     if (window._chatSub) { try { appDB.removeChannel(window._chatSub); } catch(e){} }
 
-    window._chatSub = appDB.channel('support-chat-rt')
-        .on('postgres_changes',{ event:'INSERT', schema:'public', table:'live_chat' }, payload => {
-            const m = payload.new;
-            if (!m) return;
-            // ถ้าห้องนี้เปิดอยู่ → append ข้อความ
+    window._chatSub = appDB.channel('support-chat-rt-v2')
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_chat'}, p => {
+            const m = p.new; if (!m) return;
             if (window._chatRoom === m.room) {
                 if (!(window._chatMessages||[]).some(x=>x.id===m.id)) {
                     window._chatMessages = [...(window._chatMessages||[]), m];
-                    _renderRoomMessages();
+                    _renderMsgs();
                 }
             }
         })
-        .on('postgres_changes',{ event:'*', schema:'public', table:'live_chat_rooms' }, payload => {
-            // ทุกครั้งที่ live_chat_rooms เปลี่ยน → อัปเดต badge + inbox ถ้าเปิดอยู่
+        .on('postgres_changes',{event:'*',schema:'public',table:'live_chat_rooms'}, () => {
             _refreshChatBadge();
             const modal  = document.getElementById('chatModal');
             const isOpen = modal && modal.style.display !== 'none';
-            if (isOpen && !window._chatRoom && _isManager()) {
-                window._chatShowInbox(); // refresh inbox realtime
-            }
+            if (isOpen && !window._chatRoom && _isManager()) window._chatShowInbox();
         })
         .subscribe();
 
@@ -1130,25 +1098,22 @@ function _subscribeSupportChat() {
     }
 }
 
-// ─── เปิด / ปิด Modal ────────────────────
+// ── เปิด/ปิด Modal ───────────────────────
 window.openChatModal = function() {
     _ensureChatShell();
     document.getElementById('chatModal').style.display = 'flex';
-    if (_isManager()) {
-        window._chatShowInbox();
-    } else {
-        window._chatOpenRoom(_myName());
-    }
+    if (_isManager()) window._chatShowInbox();
+    else window._chatOpenRoom(_myName());
 };
 window.closeChatModal = function() {
     const m = document.getElementById('chatModal');
     if (m) m.style.display = 'none';
 };
 
-// ─── Init ────────────────────────────────
+// ── Init ──────────────────────────────────
 window.initLiveChat = function() {
     window._chatMessages = [];
     window._chatRoom     = null;
     _subscribeSupportChat();
-    if (_isManager()) _refreshChatBadge(); // โหลด badge ทันที
+    if (_isManager()) _refreshChatBadge();
 };
