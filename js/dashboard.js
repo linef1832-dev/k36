@@ -772,18 +772,38 @@ window.updateMissingLunchBadge = async function() {
         console.error("Badge Update Error:", e);
     }
 };
+
 // ==========================================
-// 💬 ระบบแชทสด (Live Chat) - Dashboard
+// 💬 ระบบแชทสด (Live Chat) - Modal Version
 // ==========================================
 
 window._chatSubscription = null;
-window._chatMessages = [];
-window._chatExpanded = false;
-window._chatUnreadCount = 0;
-window._chatLastSeenAt = null;
-window._chatVisible = true; // tab visibility
+window._chatMessages     = [];
+window._chatUnreadCount  = 0;
 
-// 🔑 โหลดข้อความล่าสุด 30 รายการ
+// ── เปิด Modal ──────────────────────────
+window.openChatModal = function() {
+    const modal = document.getElementById('chatModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    // reset unread
+    window._chatUnreadCount = 0;
+    const badge = document.getElementById('chatUnreadBadge');
+    if (badge) badge.classList.add('hidden');
+    // scroll ลงล่าง
+    const box = document.getElementById('chatMessagesBox');
+    if (box) requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+    // focus input
+    setTimeout(() => { const inp = document.getElementById('chatInput'); if(inp) inp.focus(); }, 100);
+};
+
+// ── ปิด Modal ───────────────────────────
+window.closeChatModal = function() {
+    const modal = document.getElementById('chatModal');
+    if (modal) modal.classList.add('hidden');
+};
+
+// ── โหลดข้อความล่าสุด 50 รายการ ──────
 async function fetchChatMessages() {
     if (!appDB) return;
     try {
@@ -791,23 +811,20 @@ async function fetchChatMessages() {
             .from('live_chat')
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(30);
+            .limit(50);
         if (error) throw error;
         window._chatMessages = (data || []).reverse();
         renderChatMessages();
-    } catch (e) {
-        console.error('fetchChatMessages:', e);
-    }
+    } catch (e) { console.error('fetchChatMessages:', e); }
 }
 
-// 🖊️ วาดข้อความ
+// ── วาดข้อความ ──────────────────────────
 function renderChatMessages() {
     const inner = document.getElementById('chatMsgsInner');
     const empty = document.getElementById('chatEmptyState');
     if (!inner) return;
 
     const msgs = window._chatMessages || [];
-
     if (msgs.length === 0) {
         inner.innerHTML = '';
         if (empty) empty.classList.remove('hidden');
@@ -815,78 +832,71 @@ function renderChatMessages() {
     }
     if (empty) empty.classList.add('hidden');
 
-    const myName = (window.currentUser || {}).username || '';
+    const myName    = (window.currentUser || {}).username || '';
 
     inner.innerHTML = msgs.map(m => {
-        const isMe = m.username === myName;
+        const isMe      = m.username === myName;
         const isManager = ['admin', 'manager'].includes(m.role || '');
-        const ts = m.created_at ? new Date(m.created_at) : new Date();
-        const timeStr = ts.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        const roleTag = isManager
-            ? `<span class="text-[9px] font-black text-yellow-400 bg-yellow-900/30 px-1 rounded">⭐ หัวหน้า</span>`
+        const ts        = new Date(m.created_at);
+        const timeStr   = ts.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const roleBadge = isManager
+            ? `<span class="text-[10px] font-black text-yellow-400 bg-yellow-900/40 px-1.5 py-0.5 rounded-md">⭐ หัวหน้า</span>`
             : '';
 
-        const bubble = isMe
-            ? `<div class="flex justify-end">
-                <div class="max-w-[80%] flex flex-col items-end gap-0.5">
-                    <div class="flex items-center gap-1 text-[10px] text-gray-400">
-                        <span class="text-gray-500">${timeStr}</span>
+        if (isMe) return `
+            <div class="flex justify-end mb-1">
+                <div class="max-w-[75%] flex flex-col items-end gap-0.5">
+                    <div class="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        <span>${timeStr}</span>
                         <span class="font-bold text-blue-400">${m.username}</span>
-                        ${roleTag}
+                        ${roleBadge}
                     </div>
-                    <div class="bg-blue-600 text-white text-sm px-3 py-1.5 rounded-2xl rounded-tr-sm break-words max-w-full">${escChatHtml(m.message)}</div>
+                    <div class="bg-blue-600 text-white text-sm px-3 py-2 rounded-2xl rounded-tr-sm break-words">${escChat(m.message)}</div>
                 </div>
-               </div>`
-            : `<div class="flex justify-start">
-                <div class="max-w-[80%] flex flex-col items-start gap-0.5">
-                    <div class="flex items-center gap-1 text-[10px] text-gray-400">
-                        ${roleTag}
-                        <span class="font-bold ${isManager ? 'text-yellow-300' : 'text-green-400'}">${m.username}</span>
-                        <span class="text-gray-500">${timeStr}</span>
+            </div>`;
+
+        return `
+            <div class="flex justify-start mb-1">
+                <div class="max-w-[75%] flex flex-col items-start gap-0.5">
+                    <div class="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        ${roleBadge}
+                        <span class="font-bold ${isManager ? 'text-yellow-300' : 'text-emerald-400'}">${m.username}</span>
+                        <span>${timeStr}</span>
                     </div>
-                    <div class="${isManager ? 'bg-yellow-900/50 border border-yellow-700/40' : 'bg-slate-700'} text-white text-sm px-3 py-1.5 rounded-2xl rounded-tl-sm break-words max-w-full">${escChatHtml(m.message)}</div>
+                    <div class="${isManager ? 'bg-yellow-900/40 border border-yellow-700/50' : 'bg-slate-700'} text-white text-sm px-3 py-2 rounded-2xl rounded-tl-sm break-words">${escChat(m.message)}</div>
                 </div>
-               </div>`;
-        return bubble;
+            </div>`;
     }).join('');
 
-    // scroll ลงล่างสุด
     const box = document.getElementById('chatMessagesBox');
     if (box) requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
 }
 
-// 🧹 escape HTML
-function escChatHtml(str) {
+function escChat(str) {
     return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// 📤 ส่งข้อความ
+// ── ส่งข้อความ ──────────────────────────
 window.sendChatMessage = async function() {
     const input = document.getElementById('chatInput');
     if (!input) return;
     const msg = input.value.trim();
     if (!msg) return;
-    if (msg.length > 200) return Swal.fire('แจ้งเตือน', 'ข้อความยาวเกินไป (ไม่เกิน 200 ตัวอักษร)', 'warning');
 
-    input.value = '';
+    input.value    = '';
     input.disabled = true;
-
     try {
         const user = window.currentUser || {};
         const { error } = await appDB.from('live_chat').insert([{
-            username: user.username || 'Unknown',
-            role: user.role || 'user',
+            username:   user.username   || 'Unknown',
+            role:       user.role       || 'user',
             department: user.department || '-',
-            message: msg
+            message:    msg
         }]);
         if (error) throw error;
     } catch (e) {
-        console.error('sendChat:', e);
         Swal.fire('Error', 'ส่งข้อความไม่สำเร็จ: ' + e.message, 'error');
     } finally {
         input.disabled = false;
@@ -894,86 +904,45 @@ window.sendChatMessage = async function() {
     }
 };
 
-// 📏 ขยาย/ย่อ chat box
-window.toggleChatExpand = function() {
-    const box = document.getElementById('chatMessagesBox');
-    const icon = document.getElementById('chatExpandIcon');
-    if (!box) return;
-
-    window._chatExpanded = !window._chatExpanded;
-    if (window._chatExpanded) {
-        box.style.height = '280px';
-        if (icon) icon.innerText = 'close_fullscreen';
-    } else {
-        box.style.height = '90px';
-        if (icon) icon.innerText = 'open_in_full';
-    }
-    requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
-
-    // reset unread
-    window._chatUnreadCount = 0;
-    const badge = document.getElementById('chatUnreadBadge');
-    if (badge) badge.classList.add('hidden');
-};
-
-// 🔔 อัปเดต unread badge (เฉพาะกรณีย่อ)
-function updateChatUnread(newMsg) {
-    if (window._chatExpanded) return; // ขยายอยู่ ไม่นับ
-    const myName = (window.currentUser || {}).username || '';
-    if (newMsg.username === myName) return; // ข้อความตัวเอง ไม่นับ
-    window._chatUnreadCount = (window._chatUnreadCount || 0) + 1;
-    const badge = document.getElementById('chatUnreadBadge');
-    if (badge) {
-        badge.innerText = window._chatUnreadCount > 9 ? '9+' : window._chatUnreadCount;
-        badge.classList.remove('hidden');
-    }
-}
-
-// 🔁 Subscribe Realtime
+// ── Realtime Subscribe ───────────────────
 function subscribeLiveChat() {
     if (!appDB) return;
     if (window._chatSubscription) {
         try { appDB.removeChannel(window._chatSubscription); } catch(e) {}
     }
 
-    window._chatSubscription = appDB.channel('live-chat-channel')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'live_chat'
-        }, (payload) => {
-            const newMsg = payload.new;
-            if (!newMsg) return;
-            // เพิ่มใน array (ถ้าไม่มีซ้ำ)
-            const exists = (window._chatMessages || []).some(m => m.id === newMsg.id);
-            if (!exists) {
-                window._chatMessages = [...(window._chatMessages || []), newMsg];
-                // จำกัดไว้ 30 รายการ
-                if (window._chatMessages.length > 30) {
-                    window._chatMessages = window._chatMessages.slice(-30);
+    window._chatSubscription = appDB.channel('live-chat-realtime')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat' }, (payload) => {
+            const m = payload.new;
+            if (!m) return;
+            if ((window._chatMessages || []).some(x => x.id === m.id)) return;
+            window._chatMessages = [...(window._chatMessages || []), m].slice(-50);
+            renderChatMessages();
+
+            // แจ้งเตือนถ้า modal ปิดอยู่ และไม่ใช่ข้อความตัวเอง
+            const modal  = document.getElementById('chatModal');
+            const isOpen = modal && !modal.classList.contains('hidden');
+            const myName = (window.currentUser || {}).username || '';
+            if (!isOpen && m.username !== myName) {
+                window._chatUnreadCount = (window._chatUnreadCount || 0) + 1;
+                const badge = document.getElementById('chatUnreadBadge');
+                if (badge) {
+                    badge.innerText = window._chatUnreadCount > 9 ? '9+' : window._chatUnreadCount;
+                    badge.classList.remove('hidden');
                 }
-                renderChatMessages();
-                updateChatUnread(newMsg);
             }
         })
         .subscribe();
 
-    // register ให้ cleanup อัตโนมัติเมื่อออกจากหน้า
     if (typeof window.registerPageSubscription === 'function') {
         window.registerPageSubscription(window._chatSubscription);
     }
 }
 
-// 🚀 เริ่มระบบแชท (เรียกจาก initDashboard)
+// ── Init (เรียกจาก initDashboard) ───────
 window.initLiveChat = async function() {
-    // reset state
-    window._chatMessages = [];
-    window._chatExpanded = false;
+    window._chatMessages    = [];
     window._chatUnreadCount = 0;
-
-    const box = document.getElementById('chatMessagesBox');
-    if (box) box.style.height = '90px';
-
     await fetchChatMessages();
     subscribeLiveChat();
 };
