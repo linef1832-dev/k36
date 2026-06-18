@@ -72,6 +72,9 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
 
     // 🌟 เรียกใช้งานระบบ Realtime
     if (typeof subscribeDashboardChanges === 'function') subscribeDashboardChanges();
+
+    // 💬 เริ่มระบบแชทสด
+    if (typeof window.initLiveChat === 'function') window.initLiveChat();
 };
 
 window.updateDashboardUserInfo = function() {
@@ -768,4 +771,209 @@ window.updateMissingLunchBadge = async function() {
     } catch (e) {
         console.error("Badge Update Error:", e);
     }
+};
+// ==========================================
+// 💬 ระบบแชทสด (Live Chat) - Dashboard
+// ==========================================
+
+window._chatSubscription = null;
+window._chatMessages = [];
+window._chatExpanded = false;
+window._chatUnreadCount = 0;
+window._chatLastSeenAt = null;
+window._chatVisible = true; // tab visibility
+
+// 🔑 โหลดข้อความล่าสุด 30 รายการ
+async function fetchChatMessages() {
+    if (!appDB) return;
+    try {
+        const { data, error } = await appDB
+            .from('live_chat')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(30);
+        if (error) throw error;
+        window._chatMessages = (data || []).reverse();
+        renderChatMessages();
+    } catch (e) {
+        console.error('fetchChatMessages:', e);
+    }
+}
+
+// 🖊️ วาดข้อความ
+function renderChatMessages() {
+    const inner = document.getElementById('chatMsgsInner');
+    const empty = document.getElementById('chatEmptyState');
+    if (!inner) return;
+
+    const msgs = window._chatMessages || [];
+
+    if (msgs.length === 0) {
+        inner.innerHTML = '';
+        if (empty) empty.classList.remove('hidden');
+        return;
+    }
+    if (empty) empty.classList.add('hidden');
+
+    const myName = (window.currentUser || {}).username || '';
+
+    inner.innerHTML = msgs.map(m => {
+        const isMe = m.username === myName;
+        const isManager = ['admin', 'manager'].includes(m.role || '');
+        const ts = m.created_at ? new Date(m.created_at) : new Date();
+        const timeStr = ts.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const roleTag = isManager
+            ? `<span class="text-[9px] font-black text-yellow-400 bg-yellow-900/30 px-1 rounded">⭐ หัวหน้า</span>`
+            : '';
+
+        const bubble = isMe
+            ? `<div class="flex justify-end">
+                <div class="max-w-[80%] flex flex-col items-end gap-0.5">
+                    <div class="flex items-center gap-1 text-[10px] text-gray-400">
+                        <span class="text-gray-500">${timeStr}</span>
+                        <span class="font-bold text-blue-400">${m.username}</span>
+                        ${roleTag}
+                    </div>
+                    <div class="bg-blue-600 text-white text-sm px-3 py-1.5 rounded-2xl rounded-tr-sm break-words max-w-full">${escChatHtml(m.message)}</div>
+                </div>
+               </div>`
+            : `<div class="flex justify-start">
+                <div class="max-w-[80%] flex flex-col items-start gap-0.5">
+                    <div class="flex items-center gap-1 text-[10px] text-gray-400">
+                        ${roleTag}
+                        <span class="font-bold ${isManager ? 'text-yellow-300' : 'text-green-400'}">${m.username}</span>
+                        <span class="text-gray-500">${timeStr}</span>
+                    </div>
+                    <div class="${isManager ? 'bg-yellow-900/50 border border-yellow-700/40' : 'bg-slate-700'} text-white text-sm px-3 py-1.5 rounded-2xl rounded-tl-sm break-words max-w-full">${escChatHtml(m.message)}</div>
+                </div>
+               </div>`;
+        return bubble;
+    }).join('');
+
+    // scroll ลงล่างสุด
+    const box = document.getElementById('chatMessagesBox');
+    if (box) requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+}
+
+// 🧹 escape HTML
+function escChatHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// 📤 ส่งข้อความ
+window.sendChatMessage = async function() {
+    const input = document.getElementById('chatInput');
+    if (!input) return;
+    const msg = input.value.trim();
+    if (!msg) return;
+    if (msg.length > 200) return Swal.fire('แจ้งเตือน', 'ข้อความยาวเกินไป (ไม่เกิน 200 ตัวอักษร)', 'warning');
+
+    input.value = '';
+    input.disabled = true;
+
+    try {
+        const user = window.currentUser || {};
+        const { error } = await appDB.from('live_chat').insert([{
+            username: user.username || 'Unknown',
+            role: user.role || 'user',
+            department: user.department || '-',
+            message: msg
+        }]);
+        if (error) throw error;
+    } catch (e) {
+        console.error('sendChat:', e);
+        Swal.fire('Error', 'ส่งข้อความไม่สำเร็จ: ' + e.message, 'error');
+    } finally {
+        input.disabled = false;
+        input.focus();
+    }
+};
+
+// 📏 ขยาย/ย่อ chat box
+window.toggleChatExpand = function() {
+    const box = document.getElementById('chatMessagesBox');
+    const icon = document.getElementById('chatExpandIcon');
+    if (!box) return;
+
+    window._chatExpanded = !window._chatExpanded;
+    if (window._chatExpanded) {
+        box.style.height = '280px';
+        if (icon) icon.innerText = 'close_fullscreen';
+    } else {
+        box.style.height = '90px';
+        if (icon) icon.innerText = 'open_in_full';
+    }
+    requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+
+    // reset unread
+    window._chatUnreadCount = 0;
+    const badge = document.getElementById('chatUnreadBadge');
+    if (badge) badge.classList.add('hidden');
+};
+
+// 🔔 อัปเดต unread badge (เฉพาะกรณีย่อ)
+function updateChatUnread(newMsg) {
+    if (window._chatExpanded) return; // ขยายอยู่ ไม่นับ
+    const myName = (window.currentUser || {}).username || '';
+    if (newMsg.username === myName) return; // ข้อความตัวเอง ไม่นับ
+    window._chatUnreadCount = (window._chatUnreadCount || 0) + 1;
+    const badge = document.getElementById('chatUnreadBadge');
+    if (badge) {
+        badge.innerText = window._chatUnreadCount > 9 ? '9+' : window._chatUnreadCount;
+        badge.classList.remove('hidden');
+    }
+}
+
+// 🔁 Subscribe Realtime
+function subscribeLiveChat() {
+    if (!appDB) return;
+    if (window._chatSubscription) {
+        try { appDB.removeChannel(window._chatSubscription); } catch(e) {}
+    }
+
+    window._chatSubscription = appDB.channel('live-chat-channel')
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'live_chat'
+        }, (payload) => {
+            const newMsg = payload.new;
+            if (!newMsg) return;
+            // เพิ่มใน array (ถ้าไม่มีซ้ำ)
+            const exists = (window._chatMessages || []).some(m => m.id === newMsg.id);
+            if (!exists) {
+                window._chatMessages = [...(window._chatMessages || []), newMsg];
+                // จำกัดไว้ 30 รายการ
+                if (window._chatMessages.length > 30) {
+                    window._chatMessages = window._chatMessages.slice(-30);
+                }
+                renderChatMessages();
+                updateChatUnread(newMsg);
+            }
+        })
+        .subscribe();
+
+    // register ให้ cleanup อัตโนมัติเมื่อออกจากหน้า
+    if (typeof window.registerPageSubscription === 'function') {
+        window.registerPageSubscription(window._chatSubscription);
+    }
+}
+
+// 🚀 เริ่มระบบแชท (เรียกจาก initDashboard)
+window.initLiveChat = async function() {
+    // reset state
+    window._chatMessages = [];
+    window._chatExpanded = false;
+    window._chatUnreadCount = 0;
+
+    const box = document.getElementById('chatMessagesBox');
+    if (box) box.style.height = '90px';
+
+    await fetchChatMessages();
+    subscribeLiveChat();
 };
