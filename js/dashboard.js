@@ -774,76 +774,109 @@ window.updateMissingLunchBadge = async function() {
 };
 
 // ==========================================
-// 💬 ระบบแชทส่วนตัว (Support Chat)
-//    - พนักงาน: เห็นเฉพาะห้องตัวเอง
-//    - หัวหน้า/admin: เห็นรายชื่อทุกคน กดเข้าดู/ตอบได้
+// 💬 ระบบ Support Chat
+//    - พนักงาน : เห็นเฉพาะห้องตัวเอง
+//    - หัวหน้า : เห็นรายชื่อทุกห้อง + badge จำนวนห้องที่ยังไม่ได้อ่าน
+//    - Badge   : นับจาก unread_rooms (server-driven, realtime)
 // ==========================================
 
-window._chatSub        = null;   // realtime subscription
-window._chatRoom       = null;   // username ของห้องที่เปิดอยู่ (สำหรับหัวหน้า)
-window._chatUnreadCount = 0;
+window._chatSub  = null;
+window._chatRoom = null;
 
-// ─────────────────────────────────────────
-// 🔑 helper: ตรวจว่าเป็นหัวหน้าหรือเปล่า
-// ─────────────────────────────────────────
+// ─── helpers ─────────────────────────────
 function _isManager() {
-    const role = (window.currentUser || {}).role || '';
-    return ['admin', 'manager'].includes(role);
+    return ['admin','manager'].includes((window.currentUser||{}).role||'');
 }
 function _myName() {
-    return (window.currentUser || {}).username || '';
+    return (window.currentUser||{}).username||'';
+}
+function escChat(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function _timeAgo(d) {
+    const s = Math.floor((Date.now()-d.getTime())/1000);
+    if(s<60)    return 'เมื่อกี้';
+    if(s<3600)  return Math.floor(s/60)+' นาทีที่แล้ว';
+    if(s<86400) return Math.floor(s/3600)+' ชม.ที่แล้ว';
+    return d.toLocaleDateString('th-TH',{day:'numeric',month:'short'});
 }
 
-// ─────────────────────────────────────────
-// 🏗️ สร้าง Modal shell (ครั้งแรกครั้งเดียว)
-// ─────────────────────────────────────────
+// ─── Badge: อัปเดตตัวเลขบนปุ่ม ──────────
+async function _refreshChatBadge() {
+    if (!appDB) return;
+    try {
+        // นับจำนวน room ที่มีข้อความล่าสุด (จากพนักงาน) ที่ยังไม่ถูก mark read
+        const { data, error } = await appDB
+            .from('live_chat_rooms')
+            .select('id', { count: 'exact', head: true })
+            .eq('is_read', false);
+        if (error) throw error;
+
+        const count = data === null ? 0 : (error ? 0 : 0); // head:true returns count in header
+        // ดึง count จริงผ่าน count property
+    } catch(e) {}
+
+    // วิธีที่ใช้ได้จริงกับ supabase-js v2: ใช้ count option
+    try {
+        const { count, error } = await appDB
+            .from('live_chat_rooms')
+            .select('*', { count: 'exact', head: true })
+            .eq('is_read', false);
+
+        const badge = document.getElementById('chatUnreadBadge');
+        if (!badge) return;
+        if (!error && count > 0) {
+            badge.innerText = count > 99 ? '99+' : count;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch(e) { console.warn('badge:', e); }
+}
+
+// ─── สร้าง Modal shell (ครั้งแรกครั้งเดียว) ─
 function _ensureChatShell() {
     if (document.getElementById('chatModal')) return;
     const el = document.createElement('div');
     el.id = 'chatModal';
-    el.style.cssText = `
-        display:none;position:fixed;inset:0;z-index:9999;
-        align-items:flex-end;justify-content:center;
-        font-family:'Sarabun',sans-serif;
-    `;
+    el.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;align-items:flex-end;justify-content:center;font-family:"Sarabun",sans-serif;';
     el.innerHTML = `
-        <div id="chatBackdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);"
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);"
              onclick="window.closeChatModal()"></div>
         <div style="position:relative;width:100%;max-width:580px;height:90vh;max-height:680px;
                     background:#0b1120;border:1px solid #1e3a5f;border-radius:18px 18px 0 0;
                     display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.8);">
-
             <!-- Header -->
-            <div id="chatHeader" style="display:flex;align-items:center;justify-content:space-between;
+            <div style="display:flex;align-items:center;justify-content:space-between;
                  padding:14px 18px;background:#0f1f36;border-bottom:1px solid #1e3a5f;flex-shrink:0;">
                 <div style="display:flex;align-items:center;gap:10px;">
                     <span style="position:relative;display:flex;width:10px;height:10px;">
-                        <span style="position:absolute;inset:0;border-radius:50%;background:#4ade80;opacity:.75;
-                               animation:ping 1s cubic-bezier(0,0,.2,1) infinite;"></span>
-                        <span style="position:relative;width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-flex;"></span>
+                        <span style="position:absolute;inset:0;border-radius:50%;background:#4ade80;opacity:.75;animation:_ping 1s cubic-bezier(0,0,.2,1) infinite;"></span>
+                        <span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-flex;"></span>
                     </span>
                     <span id="chatHeaderTitle" style="font-weight:800;color:#fff;font-size:15px;">💬 แชทสด</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <button id="chatBtnBack" onclick="window._chatShowInbox()" style="display:none;background:#1e3a5f;border:none;border-radius:8px;
-                            padding:6px 12px;cursor:pointer;color:#93c5fd;font-size:12px;font-weight:700;align-items:center;gap:4px;">
+                    <button id="chatBtnBack" onclick="window._chatShowInbox()"
+                        style="display:none;background:#1e3a5f;border:none;border-radius:8px;
+                               padding:6px 12px;cursor:pointer;color:#93c5fd;font-size:12px;
+                               font-weight:700;align-items:center;gap:4px;">
                         <span class="material-icons" style="font-size:16px;vertical-align:middle;">arrow_back</span> กลับ
                     </button>
-                    <button onclick="window.closeChatModal()" style="background:none;border:none;cursor:pointer;color:#64748b;padding:4px;"
-                            onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#64748b'">
+                    <button onclick="window.closeChatModal()"
+                        style="background:none;border:none;cursor:pointer;color:#64748b;padding:4px;"
+                        onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#64748b'">
                         <span class="material-icons">close</span>
                     </button>
                 </div>
             </div>
-
-            <!-- Body (inbox หรือ messages) -->
+            <!-- Body -->
             <div id="chatBody" style="flex:1;overflow-y:auto;scroll-behavior:smooth;" class="custom-scrollbar"></div>
-
-            <!-- Input (ซ่อนเมื่ออยู่หน้า inbox) -->
+            <!-- Input -->
             <div id="chatInputArea" style="display:none;align-items:center;gap:8px;
                  padding:12px 16px;border-top:1px solid #1e3a5f;background:#0f1f36;flex-shrink:0;">
-                <input id="chatInput" type="text" maxlength="200"
-                    placeholder="พิมพ์ข้อความ... (Enter เพื่อส่ง)"
+                <input id="chatInput" type="text" maxlength="200" placeholder="พิมพ์ข้อความ... (Enter เพื่อส่ง)"
                     style="flex:1;background:#1e293b;color:#fff;font-size:14px;border-radius:12px;
                            padding:10px 16px;border:1px solid #334155;outline:none;font-family:inherit;"
                     onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#334155'"
@@ -858,18 +891,15 @@ function _ensureChatShell() {
         </div>`;
     document.body.appendChild(el);
 
-    // ping animation
-    if (!document.getElementById('chatPingStyle')) {
+    if (!document.getElementById('_chatPingKF')) {
         const s = document.createElement('style');
-        s.id = 'chatPingStyle';
-        s.textContent = `@keyframes ping{75%,100%{transform:scale(2);opacity:0}}`;
+        s.id = '_chatPingKF';
+        s.textContent = `@keyframes _ping{75%,100%{transform:scale(2);opacity:0}}`;
         document.head.appendChild(s);
     }
 }
 
-// ─────────────────────────────────────────
-// 📬 หน้า Inbox (เฉพาะหัวหน้า) — รายชื่อห้อง
-// ─────────────────────────────────────────
+// ─── หน้า Inbox (หัวหน้า) ──────────────
 window._chatShowInbox = async function() {
     _ensureChatShell();
     window._chatRoom = null;
@@ -881,52 +911,54 @@ window._chatShowInbox = async function() {
     body.innerHTML = `<div style="padding:20px;text-align:center;color:#64748b;font-size:13px;">⏳ กำลังโหลด...</div>`;
 
     try {
-        // ดึงข้อความล่าสุดของแต่ละ sender (group by username)
-        const { data, error } = await appDB
-            .from('live_chat')
-            .select('username, role, department, message, created_at')
-            .order('created_at', { ascending: false })
-            .limit(500);
+        // ดึงรายชื่อห้องทั้งหมดพร้อมสถานะ is_read
+        const { data: rooms, error } = await appDB
+            .from('live_chat_rooms')
+            .select('*')
+            .order('last_message_at', { ascending: false });
         if (error) throw error;
 
-        // หา message ล่าสุดของแต่ละ user (เฉพาะที่ไม่ใช่หัวหน้า)
-        const rooms = {};
-        (data || []).forEach(m => {
-            if (['admin','manager'].includes(m.role)) return; // ข้ามข้อความหัวหน้า
-            if (!rooms[m.username]) rooms[m.username] = m;
-        });
-
-        const keys = Object.keys(rooms);
-        if (keys.length === 0) {
-            body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#64748b;gap:10px;padding:40px;">
+        if (!rooms || rooms.length === 0) {
+            body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                height:100%;color:#64748b;gap:10px;padding:40px;">
                 <span class="material-icons" style="font-size:48px;">inbox</span>
                 <span style="font-size:14px;">ยังไม่มีข้อความจากพนักงาน</span></div>`;
             return;
         }
 
-        body.innerHTML = keys.map(uname => {
-            const m   = rooms[uname];
-            const ts  = new Date(m.created_at);
-            const ago = _timeAgo(ts);
-            const dept = m.department || '-';
+        body.innerHTML = rooms.map(r => {
+            const ago    = _timeAgo(new Date(r.last_message_at));
+            const unread = !r.is_read;
             return `
-            <div onclick="window._chatOpenRoom('${uname}')"
+            <div onclick="window._chatOpenRoom('${r.room_name}')"
                  style="display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;
-                        border-bottom:1px solid #1e293b;transition:background .15s;"
-                 onmouseover="this.style.background='#0f1f36'" onmouseout="this.style.background='transparent'">
-                <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#7c3aed);
-                            display:flex;align-items:center;justify-content:center;flex-shrink:0;
-                            font-weight:800;font-size:16px;color:#fff;">
-                    ${uname.charAt(0).toUpperCase()}
+                        border-bottom:1px solid #1e293b;transition:background .15s;
+                        background:${unread ? 'rgba(30,58,95,0.4)' : 'transparent'};"
+                 onmouseover="this.style.background='#0f1f36'" onmouseout="this.style.background='${unread ? 'rgba(30,58,95,0.4)' : 'transparent'}'">
+                <div style="position:relative;flex-shrink:0;">
+                    <div style="width:44px;height:44px;border-radius:50%;
+                                background:linear-gradient(135deg,#1d4ed8,#7c3aed);
+                                display:flex;align-items:center;justify-content:center;
+                                font-weight:800;font-size:17px;color:#fff;">
+                        ${r.room_name.charAt(0).toUpperCase()}
+                    </div>
+                    ${unread ? `<span style="position:absolute;top:0;right:0;width:12px;height:12px;
+                        background:#ef4444;border-radius:50%;border:2px solid #0b1120;"></span>` : ''}
                 </div>
                 <div style="flex:1;min-width:0;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                        <span style="font-weight:700;color:#e2e8f0;font-size:14px;">${uname}</span>
-                        <span style="font-size:11px;color:#475569;">${ago}</span>
+                        <span style="font-weight:${unread ? 800 : 600};color:${unread ? '#f1f5f9' : '#94a3b8'};font-size:14px;">
+                            ${r.room_name}
+                        </span>
+                        <span style="font-size:11px;color:${unread ? '#60a5fa' : '#475569'};">${ago}</span>
                     </div>
                     <div style="display:flex;gap:6px;align-items:center;">
-                        <span style="font-size:10px;background:#1e3a5f;color:#60a5fa;padding:2px 7px;border-radius:6px;font-weight:700;">${dept}</span>
-                        <span style="font-size:12px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">${escChat(m.message)}</span>
+                        <span style="font-size:10px;background:#1e3a5f;color:#60a5fa;padding:2px 7px;border-radius:6px;font-weight:700;">${r.department||'-'}</span>
+                        <span style="font-size:12px;color:${unread ? '#94a3b8' : '#475569'};
+                                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;
+                                     font-weight:${unread ? 600 : 400};">
+                            ${escChat(r.last_message||'')}
+                        </span>
                     </div>
                 </div>
                 <span class="material-icons" style="color:#334155;font-size:18px;">chevron_right</span>
@@ -938,28 +970,21 @@ window._chatShowInbox = async function() {
     }
 };
 
-// ─────────────────────────────────────────
-// 💬 เปิดห้องแชท (กำหนด username ของห้อง)
-// ─────────────────────────────────────────
+// ─── เปิดห้องแชท ─────────────────────────
 window._chatOpenRoom = async function(targetUser) {
     _ensureChatShell();
     window._chatRoom = targetUser;
+    window._chatMessages = [];
 
-    const isManager = _isManager();
-    const title = isManager
-        ? `💬 ${targetUser}`
-        : `💬 แชทกับหัวหน้า`;
-
-    document.getElementById('chatHeaderTitle').textContent = title;
-    document.getElementById('chatBtnBack').style.display = isManager ? 'flex' : 'none';
+    const isMgr = _isManager();
+    document.getElementById('chatHeaderTitle').textContent = isMgr ? `💬 ${targetUser}` : `💬 แชทกับหัวหน้า`;
+    document.getElementById('chatBtnBack').style.display = isMgr ? 'flex' : 'none';
     document.getElementById('chatInputArea').style.display = 'flex';
 
     const body = document.getElementById('chatBody');
     body.innerHTML = `<div style="padding:20px;text-align:center;color:#64748b;font-size:13px;">⏳ กำลังโหลด...</div>`;
 
     try {
-        // ดึงเฉพาะข้อความในห้องนี้
-        // ห้อง = ข้อความของพนักงานคนนี้ + ข้อความตอบกลับจากหัวหน้าที่ reply ห้องนี้
         const { data, error } = await appDB
             .from('live_chat')
             .select('*')
@@ -967,160 +992,135 @@ window._chatOpenRoom = async function(targetUser) {
             .order('created_at', { ascending: true })
             .limit(100);
         if (error) throw error;
-
         window._chatMessages = data || [];
         _renderRoomMessages();
+
+        // ถ้าเป็นหัวหน้า → mark ว่าอ่านแล้ว
+        if (isMgr) {
+            await appDB.from('live_chat_rooms')
+                .update({ is_read: true, read_by: _myName(), read_at: new Date().toISOString() })
+                .eq('room_name', targetUser);
+            // badge จะอัปเดตผ่าน realtime
+        }
     } catch(e) {
         body.innerHTML = `<div style="padding:20px;color:#ef4444;">Error: ${e.message}</div>`;
     }
 
-    setTimeout(() => {
-        const inp = document.getElementById('chatInput');
-        if (inp) inp.focus();
-    }, 100);
+    setTimeout(() => { const i = document.getElementById('chatInput'); if(i) i.focus(); }, 100);
 };
 
-// ─────────────────────────────────────────
-// 🖼️ วาดข้อความในห้อง
-// ─────────────────────────────────────────
+// ─── วาดข้อความ ─────────────────────────
+window._chatMessages = [];
 function _renderRoomMessages() {
     const body = document.getElementById('chatBody');
     if (!body) return;
-
     const msgs = window._chatMessages || [];
     if (msgs.length === 0) {
-        body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-            height:100%;color:#475569;gap:10px;padding:40px;">
+        body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;
+            justify-content:center;height:100%;color:#475569;gap:10px;padding:40px;">
             <span class="material-icons" style="font-size:48px;">chat_bubble_outline</span>
             <span style="font-size:14px;">ยังไม่มีข้อความ...</span>
             <span style="font-size:12px;color:#334155;">ส่งข้อความหาหัวหน้าได้เลย</span></div>`;
         return;
     }
-
     const myName = _myName();
     body.innerHTML = `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;">` +
         msgs.map(m => {
-            const isMe      = m.username === myName;
-            const isManager = ['admin','manager'].includes(m.role || '');
-            const ts        = new Date(m.created_at);
-            const timeStr   = ts.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
-
-            const nameBadge = isManager
-                ? `<span style="font-size:11px;background:#78350f;color:#fcd34d;padding:1px 6px;border-radius:5px;font-weight:700;">⭐ หัวหน้า</span>`
-                : '';
-
+            const isMe  = m.username === myName;
+            const isMgr = ['admin','manager'].includes(m.role||'');
+            const ts    = new Date(m.created_at);
+            const t     = ts.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+            const badge = isMgr ? `<span style="font-size:10px;background:#78350f;color:#fcd34d;padding:1px 6px;border-radius:5px;font-weight:700;">⭐ หัวหน้า</span>` : '';
             if (isMe) return `
                 <div style="display:flex;justify-content:flex-end;">
-                    <div style="max-width:75%;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
-                        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;">
-                            <span>${timeStr}</span>
-                            <span style="font-weight:700;color:#60a5fa;">${m.username}</span>
-                            ${nameBadge}
-                        </div>
-                        <div style="background:#1d4ed8;color:#fff;font-size:14px;padding:10px 14px;
-                                    border-radius:16px 16px 4px 16px;word-break:break-word;line-height:1.5;">
-                            ${escChat(m.message)}
-                        </div>
+                  <div style="max-width:75%;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+                    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;">
+                        <span>${t}</span><span style="font-weight:700;color:#60a5fa;">${m.username}</span>${badge}
                     </div>
+                    <div style="background:#1d4ed8;color:#fff;font-size:14px;padding:10px 14px;
+                                border-radius:16px 16px 4px 16px;word-break:break-word;line-height:1.5;">
+                        ${escChat(m.message)}</div>
+                  </div>
                 </div>`;
-
             return `
                 <div style="display:flex;justify-content:flex-start;">
-                    <div style="max-width:75%;display:flex;flex-direction:column;align-items:flex-start;gap:3px;">
-                        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;">
-                            ${nameBadge}
-                            <span style="font-weight:700;color:${isManager ? '#fcd34d' : '#34d399'};">${m.username}</span>
-                            <span>${timeStr}</span>
-                        </div>
-                        <div style="background:${isManager ? '#1c1917;border:1px solid #78350f' : '#1e293b'};
-                                    color:#fff;font-size:14px;padding:10px 14px;
-                                    border-radius:16px 16px 16px 4px;word-break:break-word;line-height:1.5;">
-                            ${escChat(m.message)}
-                        </div>
+                  <div style="max-width:75%;display:flex;flex-direction:column;align-items:flex-start;gap:3px;">
+                    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;">
+                        ${badge}<span style="font-weight:700;color:${isMgr?'#fcd34d':'#34d399'};">${m.username}</span><span>${t}</span>
                     </div>
+                    <div style="background:${isMgr?'#1c1917;border:1px solid #78350f':'#1e293b'};
+                                color:#fff;font-size:14px;padding:10px 14px;
+                                border-radius:16px 16px 16px 4px;word-break:break-word;line-height:1.5;">
+                        ${escChat(m.message)}</div>
+                  </div>
                 </div>`;
         }).join('') + `</div>`;
-
-    requestAnimationFrame(() => { body.scrollTop = body.scrollHeight; });
+    requestAnimationFrame(()=>{ body.scrollTop = body.scrollHeight; });
 }
 
-// ─────────────────────────────────────────
-// 📤 ส่งข้อความ
-// ─────────────────────────────────────────
+// ─── ส่งข้อความ ──────────────────────────
 window.sendChatMessage = async function() {
     const input = document.getElementById('chatInput');
     if (!input) return;
     const msg = input.value.trim();
     if (!msg) return;
-
-    // กำหนด room:
-    // - พนักงาน → room = username ตัวเอง
-    // - หัวหน้า → room = username ของห้องที่กำลังเปิด
     const room = _isManager() ? window._chatRoom : _myName();
     if (!room) return;
-
     input.value = '';
     input.disabled = true;
     try {
-        const user = window.currentUser || {};
+        const u = window.currentUser || {};
         const { error } = await appDB.from('live_chat').insert([{
-            room:       room,
-            username:   user.username   || 'Unknown',
-            role:       user.role       || 'user',
-            department: user.department || '-',
-            message:    msg
+            room, message: msg,
+            username: u.username||'Unknown',
+            role: u.role||'user',
+            department: u.department||'-'
         }]);
         if (error) throw error;
+        // อัปเดต live_chat_rooms: last_message, is_read
+        const isMgr = _isManager();
+        await appDB.from('live_chat_rooms').upsert([{
+            room_name:       room,
+            last_message:    msg,
+            last_message_at: new Date().toISOString(),
+            department:      u.department||'-',
+            // ถ้าหัวหน้าส่ง → ถือว่าอ่านแล้ว; ถ้าพนักงานส่ง → ยังไม่ได้อ่าน
+            is_read:  isMgr,
+            read_by:  isMgr ? _myName() : null,
+            read_at:  isMgr ? new Date().toISOString() : null
+        }], { onConflict: 'room_name' });
     } catch(e) {
-        Swal.fire('Error', 'ส่งข้อความไม่สำเร็จ: ' + e.message, 'error');
+        Swal.fire('Error','ส่งข้อความไม่สำเร็จ: '+e.message,'error');
     } finally {
         input.disabled = false;
         input.focus();
     }
 };
 
-// ─────────────────────────────────────────
-// 🔔 Realtime Subscribe
-// ─────────────────────────────────────────
+// ─── Realtime ────────────────────────────
 function _subscribeSupportChat() {
     if (!appDB) return;
-    if (window._chatSub) {
-        try { appDB.removeChannel(window._chatSub); } catch(e) {}
-    }
+    if (window._chatSub) { try { appDB.removeChannel(window._chatSub); } catch(e){} }
 
-    window._chatSub = appDB.channel('support-chat-realtime')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat' }, (payload) => {
+    window._chatSub = appDB.channel('support-chat-rt')
+        .on('postgres_changes',{ event:'INSERT', schema:'public', table:'live_chat' }, payload => {
             const m = payload.new;
             if (!m) return;
-
-            const modal   = document.getElementById('chatModal');
-            const isOpen  = modal && modal.style.display !== 'none';
-            const myName  = _myName();
-            const isMgr   = _isManager();
-
-            // อัปเดตข้อความในห้องที่เปิดอยู่
-            if (isOpen && window._chatRoom === m.room) {
-                if (!(window._chatMessages || []).some(x => x.id === m.id)) {
-                    window._chatMessages = [...(window._chatMessages || []), m];
+            // ถ้าห้องนี้เปิดอยู่ → append ข้อความ
+            if (window._chatRoom === m.room) {
+                if (!(window._chatMessages||[]).some(x=>x.id===m.id)) {
+                    window._chatMessages = [...(window._chatMessages||[]), m];
                     _renderRoomMessages();
                 }
-                return;
             }
-
-            // Badge แจ้งเตือน:
-            // - พนักงาน: เฉพาะข้อความในห้องตัวเอง ที่ไม่ใช่ตัวเอง
-            // - หัวหน้า: ข้อความจากพนักงาน (ไม่ใช่หัวหน้า)
-            const relevant = isMgr
-                ? !['admin','manager'].includes(m.role || '') // หัวหน้า: สนใจทุกห้อง ยกเว้น msg ของหัวหน้า
-                : (m.room === myName && m.username !== myName); // พนักงาน: เฉพาะห้องตัวเอง
-
-            if (relevant) {
-                window._chatUnreadCount = (window._chatUnreadCount || 0) + 1;
-                const badge = document.getElementById('chatUnreadBadge');
-                if (badge) {
-                    badge.innerText = window._chatUnreadCount > 9 ? '9+' : window._chatUnreadCount;
-                    badge.style.display = 'flex';
-                }
+        })
+        .on('postgres_changes',{ event:'*', schema:'public', table:'live_chat_rooms' }, payload => {
+            // ทุกครั้งที่ live_chat_rooms เปลี่ยน → อัปเดต badge + inbox ถ้าเปิดอยู่
+            _refreshChatBadge();
+            const modal  = document.getElementById('chatModal');
+            const isOpen = modal && modal.style.display !== 'none';
+            if (isOpen && !window._chatRoom && _isManager()) {
+                window._chatShowInbox(); // refresh inbox realtime
             }
         })
         .subscribe();
@@ -1130,52 +1130,25 @@ function _subscribeSupportChat() {
     }
 }
 
-// ─────────────────────────────────────────
-// 🚀 เปิด Modal (ปุ่มกด)
-// ─────────────────────────────────────────
+// ─── เปิด / ปิด Modal ────────────────────
 window.openChatModal = function() {
     _ensureChatShell();
-    const modal = document.getElementById('chatModal');
-    modal.style.display = 'flex';
-    window._chatUnreadCount = 0;
-    const badge = document.getElementById('chatUnreadBadge');
-    if (badge) badge.style.display = 'none';
-
+    document.getElementById('chatModal').style.display = 'flex';
     if (_isManager()) {
-        window._chatShowInbox();  // หัวหน้า → เห็นรายชื่อห้องทั้งหมด
+        window._chatShowInbox();
     } else {
-        window._chatOpenRoom(_myName()); // พนักงาน → เปิดห้องตัวเองเลย
+        window._chatOpenRoom(_myName());
     }
 };
-
 window.closeChatModal = function() {
-    const modal = document.getElementById('chatModal');
-    if (modal) modal.style.display = 'none';
+    const m = document.getElementById('chatModal');
+    if (m) m.style.display = 'none';
 };
 
-// ─────────────────────────────────────────
-// 🛠️ Helpers
-// ─────────────────────────────────────────
-function escChat(str) {
-    return String(str)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function _timeAgo(date) {
-    const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (diff < 60)   return 'เมื่อกี้';
-    if (diff < 3600) return `${Math.floor(diff/60)} นาทีที่แล้ว`;
-    if (diff < 86400) return `${Math.floor(diff/3600)} ชม.ที่แล้ว`;
-    return date.toLocaleDateString('th-TH', { day:'numeric', month:'short' });
-}
-
-// ─────────────────────────────────────────
-// 🚀 Init (เรียกจาก initDashboard)
-// ─────────────────────────────────────────
+// ─── Init ────────────────────────────────
 window.initLiveChat = function() {
-    window._chatMessages    = [];
-    window._chatUnreadCount = 0;
-    window._chatRoom        = null;
+    window._chatMessages = [];
+    window._chatRoom     = null;
     _subscribeSupportChat();
+    if (_isManager()) _refreshChatBadge(); // โหลด badge ทันที
 };
