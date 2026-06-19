@@ -119,6 +119,9 @@ window.applyFilters = function() {
 
 // ─── โหลดข้อมูลเคส ────────────────────────
 async function _loadCaseData() {
+    // อ่านวันที่จาก picker โดยตรง ไม่ใช้ _caseDate ที่อาจถูก override
+    const picker = document.getElementById('caseDatePicker');
+    if (picker && picker.value) _caseDate = picker.value;
     document.getElementById('caseStaffGrid').innerHTML =
         `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
     document.getElementById('caseLogBody').innerHTML =
