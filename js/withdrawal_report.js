@@ -1,395 +1,388 @@
-let withdrawalReportData = [];
-let staffDutyMap = {}; 
+// ==========================================
+// 📊 สถิติเคสพนักงาน + บอท Telegram Settings
+// ==========================================
 
-let withdrawalCurrentPage = 1;
-const WITHDRAWAL_PAGE_SIZE = 50;
+let _caseData       = [];
+let _casePage       = 1;
+const _casePageSize = 50;
+let _caseDate       = null;
+let _caseSite       = 'ALL';
+let _caseType       = 'ALL';
+let _caseTab        = 'stats';
 
-let withdrawalSelectedDate = null;
-let withdrawalSelectedSite = 'ALL'; // 🟢 เว็บที่กรอง — ALL = ทั้งหมด
-
-const W_SUPABASE_LOGS_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/rest/v1/staff_withdrawal_logs';
-const W_SUPABASE_SETTING_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/rest/v1/settings';
-const W_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplZGJidGp4dWlkZnVicGlhdXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MjQ2ODgsImV4cCI6MjA4MzIwMDY4OH0.4orJyfFcOwnZcnHFjLOTLXaqFNeapCVe9yCxj3rLMBM';
-
-// 🟢 รายชื่อเว็บทั้งหมด
-const ALL_SITES = ['JUN88', 'MK8', 'BT678', 'K188', 'VV72', 'TH26', 'F168', 'PG688', 'JL69', 'NM9'];
-
+// ─── Init ─────────────────────────────────
 window.initWithdrawalReport = async function() {
-    const tbody = document.getElementById('withdrawalReportBody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10"><span class="material-icons animate-spin text-emerald-500">sync</span> กำลังประมวลผลข้อมูลและตารางงาน...</td></tr>';
-    
-    withdrawalCurrentPage = 1;
-    updateWithdrawalDatePickerUI();
-    updateWithdrawalSiteFilterUI();
-    
-    try {
-        const thOffsetMs = 7 * 60 * 60 * 1000;
-        
-        let yyyy, mmNum, ddNum, todayDateStr;
-        
-        if (withdrawalSelectedDate) {
-            const parts = withdrawalSelectedDate.split('-');
-            yyyy = parseInt(parts[0], 10);
-            mmNum = parseInt(parts[1], 10) - 1;
-            ddNum = parseInt(parts[2], 10);
-            todayDateStr = withdrawalSelectedDate;
-        } else {
-            const nowInTh = new Date(Date.now() + thOffsetMs);
-            yyyy = nowInTh.getUTCFullYear();
-            mmNum = nowInTh.getUTCMonth();
-            ddNum = nowInTh.getUTCDate();
-            const mm = String(mmNum + 1).padStart(2, '0');
-            const dd = String(ddNum).padStart(2, '0');
-            todayDateStr = `${yyyy}-${mm}-${dd}`;
-        }
-        
-        const startOfDayThUtc = new Date(Date.UTC(yyyy, mmNum, ddNum, 0, 0, 0));
-        const startUtcIso = new Date(startOfDayThUtc.getTime() - thOffsetMs).toISOString();
-        
-        const endOfDayThUtc = new Date(Date.UTC(yyyy, mmNum, ddNum + 1, 0, 0, 0));
-        const endUtcIso = new Date(endOfDayThUtc.getTime() - thOffsetMs).toISOString();
-
-        staffDutyMap = {};
-        const rosterRes = await fetch(`${W_SUPABASE_SETTING_URL}?select=value,key&key=ilike.*duty_roster_*${todayDateStr}*`, {
-            method: 'GET', headers: { 'apikey': W_SUPABASE_KEY, 'Authorization': `Bearer ${W_SUPABASE_KEY}` }
-        });
-        
-        if (rosterRes.ok) {
-            const rosterRows = await rosterRes.json();
-            rosterRows.forEach(row => {
-                try {
-                    const rosterObj = JSON.parse(row.value);
-                    for (const primaryTeam in rosterObj) {
-                        rosterObj[primaryTeam].forEach(u => {
-                            if (!u.username.includes('ขาดคน')) {
-                                staffDutyMap[u.username.toLowerCase()] = {
-                                    primary: primaryTeam,
-                                    secondary: u.secondary_team || null
-                                };
-                            }
-                        });
-                    }
-                } catch(e) {}
-            });
-        }
-
-        const logRes = await fetch(`${W_SUPABASE_LOGS_URL}?select=*&created_at=gte.${startUtcIso}&created_at=lt.${endUtcIso}&order=created_at.desc`, {
-            method: 'GET', headers: { 'apikey': W_SUPABASE_KEY, 'Authorization': `Bearer ${W_SUPABASE_KEY}` }
-        });
-
-        if (logRes.ok) {
-            withdrawalReportData = await logRes.json();
-            renderWithdrawalDashboard(); 
-            renderWithdrawalTable();     
-        } else {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-red-500">ไม่สามารถดึงข้อมูลประวัติได้</td></tr>';
-        }
-    } catch (error) {
-        console.error('Withdrawal Report Error:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-red-500">เกิดข้อผิดพลาดในการเชื่อมต่อ</td></tr>';
-    }
+    _casePage = 1;
+    _setDefaultDate();
+    await _loadBotStatus();   // โหลดสถานะบอทก่อน
+    await _loadCaseData();
 };
+window.initCaseReport = window.initWithdrawalReport;
 
-// 🟢 กรองข้อมูลตามเว็บที่เลือก (เฉพาะคนที่ทำเว็บนั้นเป็น "งานหลัก")
-function getFilteredData() {
-    if (withdrawalSelectedSite === 'ALL') {
-        return withdrawalReportData;
-    }
-    return withdrawalReportData.filter(row => {
-        const sName = (row.staff_username || '').toLowerCase();
-        const dutyInfo = staffDutyMap[sName];
-        // คนที่มี "งานหลัก" ตรงกับเว็บที่เลือก เท่านั้น
-        return dutyInfo && dutyInfo.primary === withdrawalSelectedSite;
+// ─── Tab Switch ───────────────────────────
+window.switchCaseTab = function(tab) {
+    _caseTab = tab;
+    ['stats','log','settings'].forEach(t => {
+        const el  = document.getElementById(`caseTab-${t}`);
+        const btn = document.getElementById(`tab-${t}`);
+        if (!el || !btn) return;
+        el.classList.toggle('hidden', t !== tab);
+        btn.className = t === tab
+            ? 'tab-btn-active px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5'
+            : 'tab-btn-inactive px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5';
     });
-}
-
-window.renderWithdrawalDashboard = function() {
-    const filteredData = getFilteredData();
-    let total = filteredData.length;
-    let primaryTotalCount = 0;
-    let secondaryTotalCount = 0;
-    let staffStats = {};
-
-    filteredData.forEach(row => {
-        let sys = row.backend_system;
-        let rawName = row.staff_username || 'ไม่ระบุตัวตน';
-        let sName = rawName.toLowerCase();
-        
-        if (!staffStats[sName]) {
-            staffStats[sName] = { 
-                displayName: rawName,
-                total: 0, primaryCount: 0, secondaryCount: 0, otherCount: 0,
-                assignedPrimary: staffDutyMap[sName] ? staffDutyMap[sName].primary : 'ไม่มีงานหลัก',
-                assignedSecondary: staffDutyMap[sName] && staffDutyMap[sName].secondary ? staffDutyMap[sName].secondary : '-'
-            };
-        }
-
-        staffStats[sName].total++;
-
-        let dutyInfo = staffDutyMap[sName];
-        if (dutyInfo && sys === dutyInfo.primary) {
-            staffStats[sName].primaryCount++;
-            primaryTotalCount++;
-        } else if (dutyInfo && sys === dutyInfo.secondary) {
-            staffStats[sName].secondaryCount++;
-            secondaryTotalCount++;
-        } else {
-            staffStats[sName].otherCount++;
-        }
-    });
-
-    document.getElementById('sumTotal').innerText = total.toLocaleString();
-    document.getElementById('sumPrimary').innerText = primaryTotalCount.toLocaleString();
-    document.getElementById('sumSecondary').innerText = secondaryTotalCount.toLocaleString();
-
-    const staffGrid = document.getElementById('staffSummaryGrid');
-    if (total === 0) {
-        const msg = withdrawalSelectedSite === 'ALL' 
-            ? 'ยังไม่มีพนักงานทำรายการในกะนี้' 
-            : `ไม่มีพนักงานที่มีงานหลักเป็น ${withdrawalSelectedSite}`;
-        staffGrid.innerHTML = `<div class="col-span-full text-center text-gray-500 text-xs py-4">${msg}</div>`;
-    } else {
-        let staffHtml = '';
-        let sortedStaff = Object.entries(staffStats).sort((a,b) => b[1].total - a[1].total);
-
-        sortedStaff.forEach(([name, data]) => {
-            staffHtml += `
-                <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex justify-between items-center shadow-sm hover:border-emerald-500/50 transition">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-black text-sm shadow-inner shrink-0 border border-emerald-500/30">
-                            ${data.displayName.substring(0,2).toUpperCase()}
-                        </div>
-                        <div>
-                            <div class="font-bold text-slate-800 dark:text-white text-[15px] tracking-wide uppercase">${data.displayName}</div>
-                            <div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold mt-1 flex flex-wrap gap-1">
-                                <span class="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20">หลัก (${data.assignedPrimary}): ${data.primaryCount}</span>
-                                <span class="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">รอง (${data.assignedSecondary}): ${data.secondaryCount}</span>
-                                ${data.otherCount > 0 ? `<span class="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded border border-red-500/20">เว็บอื่น: ${data.otherCount}</span>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="text-right shrink-0 ml-2">
-                        <div class="text-3xl font-black text-slate-800 dark:text-white leading-none">${data.total}</div>
-                        <div class="text-[10px] text-emerald-500 font-bold">รายการ</div>
-                    </div>
-                </div>
-            `;
-        });
-        staffGrid.innerHTML = staffHtml;
-    }
 };
 
-window.renderWithdrawalTable = function() {
-    const tbody = document.getElementById('withdrawalReportBody');
-    if (!tbody) return;
-    
-    const filteredData = getFilteredData();
-    
-    if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-500">ไม่มีประวัติการกดในวันนี้</td></tr>';
-        renderWithdrawalPagination(0);
-        return;
-    }
-
-    const totalRecords = filteredData.length;
-    const totalPages = Math.max(1, Math.ceil(totalRecords / WITHDRAWAL_PAGE_SIZE));
-    if (withdrawalCurrentPage > totalPages) withdrawalCurrentPage = totalPages;
-    
-    const startIdx = (withdrawalCurrentPage - 1) * WITHDRAWAL_PAGE_SIZE;
-    const endIdx = Math.min(startIdx + WITHDRAWAL_PAGE_SIZE, totalRecords);
-    const pageData = filteredData.slice(startIdx, endIdx);
-    
-    tbody.innerHTML = pageData.map((row, index) => {
-        const dateObj = new Date(row.created_at);
-        const formattedDate = dateObj.toLocaleString('th-TH');
-        
-        let actionBadge = row.action_type === 'Approve' 
-            ? '<span class="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-bold">อนุมัติ</span>' 
-            : '<span class="bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded text-[10px] font-bold">ปฏิเสธ</span>';
-
-        let sName = (row.staff_username || '').toLowerCase();
-        let dutyInfo = staffDutyMap[sName];
-        let statusDutyBadge = '<span class="text-gray-400 font-bold text-[10px]">นอกหน้าที่ / ไม่ระบุ</span>';
-        
-        if (dutyInfo) {
-            if (row.backend_system === dutyInfo.primary) {
-                statusDutyBadge = '<span class="bg-blue-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">งานหลัก</span>';
-            } else if (row.backend_system === dutyInfo.secondary) {
-                statusDutyBadge = '<span class="bg-amber-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">งานรอง</span>';
-            }
-        }
-
-        return `
-            <tr class="hover:bg-slate-800 transition border-b border-slate-700/50">
-                <td class="p-3 text-center text-xs text-gray-500">${startIdx + index + 1}</td>
-                <td class="p-3 text-xs text-gray-400 font-mono">${formattedDate}</td>
-                <td class="p-3 font-bold text-white text-xs uppercase">${row.staff_username}</td>
-                <td class="p-3 text-emerald-400 font-bold text-xs">${row.backend_system}</td>
-                <td class="p-3">${statusDutyBadge}</td>
-                <td class="p-3 text-center">${actionBadge}</td>
-            </tr>`;
-    }).join('');
-    
-    renderWithdrawalPagination(totalRecords);
-};
-
-window.renderWithdrawalPagination = function(totalRecords) {
-    const container = document.getElementById('withdrawalPagination');
-    if (!container) return;
-    
-    if (totalRecords === 0) {
-        container.innerHTML = '';
-        return;
-    }
-    
-    const totalPages = Math.max(1, Math.ceil(totalRecords / WITHDRAWAL_PAGE_SIZE));
-    const startIdx = (withdrawalCurrentPage - 1) * WITHDRAWAL_PAGE_SIZE;
-    const endIdx = Math.min(startIdx + WITHDRAWAL_PAGE_SIZE, totalRecords);
-    
-    let pageButtons = '';
-    let startPage = Math.max(1, withdrawalCurrentPage - 3);
-    let endPage = Math.min(totalPages, startPage + 6);
-    if (endPage - startPage < 6) startPage = Math.max(1, endPage - 6);
-    
-    if (startPage > 1) {
-        pageButtons += `<button onclick="goToWithdrawalPage(1)" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-700 text-gray-300 hover:bg-slate-600 transition">1</button>`;
-        if (startPage > 2) pageButtons += `<span class="text-gray-500 px-1">...</span>`;
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-        const isActive = i === withdrawalCurrentPage;
-        pageButtons += `<button onclick="goToWithdrawalPage(${i})" class="px-3 py-1.5 text-xs font-bold rounded-lg transition ${isActive ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}">${i}</button>`;
-    }
-    
-    if (endPage < totalPages) {
-        if (endPage < totalPages - 1) pageButtons += `<span class="text-gray-500 px-1">...</span>`;
-        pageButtons += `<button onclick="goToWithdrawalPage(${totalPages})" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-700 text-gray-300 hover:bg-slate-600 transition">${totalPages}</button>`;
-    }
-    
-    const prevDisabled = withdrawalCurrentPage <= 1;
-    const nextDisabled = withdrawalCurrentPage >= totalPages;
-    
-    container.innerHTML = `
-        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-slate-700/50 bg-slate-900/50">
-            <div class="text-xs text-gray-400 font-bold">
-                แสดง <span class="text-emerald-400">${startIdx + 1}-${endIdx}</span> จากทั้งหมด <span class="text-emerald-400">${totalRecords.toLocaleString()}</span> รายการ
-            </div>
-            <div class="flex items-center gap-1.5 flex-wrap">
-                <button onclick="goToWithdrawalPage(${withdrawalCurrentPage - 1})" ${prevDisabled ? 'disabled' : ''} class="px-3 py-1.5 text-xs font-bold rounded-lg ${prevDisabled ? 'bg-slate-800 text-gray-600 cursor-not-allowed' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'} transition flex items-center gap-1">
-                    <span class="material-icons text-sm">chevron_left</span> ก่อนหน้า
-                </button>
-                ${pageButtons}
-                <button onclick="goToWithdrawalPage(${withdrawalCurrentPage + 1})" ${nextDisabled ? 'disabled' : ''} class="px-3 py-1.5 text-xs font-bold rounded-lg ${nextDisabled ? 'bg-slate-800 text-gray-600 cursor-not-allowed' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'} transition flex items-center gap-1">
-                    ถัดไป <span class="material-icons text-sm">chevron_right</span>
-                </button>
-            </div>
-        </div>
-    `;
-};
-
-window.goToWithdrawalPage = function(page) {
-    const filteredData = getFilteredData();
-    const totalPages = Math.max(1, Math.ceil(filteredData.length / WITHDRAWAL_PAGE_SIZE));
-    if (page < 1 || page > totalPages) return;
-    withdrawalCurrentPage = page;
-    renderWithdrawalTable();
-    
-    const tableWrap = document.getElementById('withdrawalTableWrap');
-    if (tableWrap) tableWrap.scrollTop = 0;
-};
-
-window.onWithdrawalDateChange = function(dateValue) {
-    if (!dateValue) return;
-    withdrawalSelectedDate = dateValue;
-    updateWithdrawalDatePickerUI();
-    initWithdrawalReport();
-};
-
-window.resetWithdrawalDateToday = function() {
-    withdrawalSelectedDate = null;
-    updateWithdrawalDatePickerUI();
-    initWithdrawalReport();
-};
-
-// 🟢 ฟังก์ชันใหม่: เปลี่ยนเว็บที่เลือก
-window.onWithdrawalSiteChange = function(site) {
-    withdrawalSelectedSite = site;
-    withdrawalCurrentPage = 1;
-    renderWithdrawalDashboard();
-    renderWithdrawalTable();
-};
-
-function updateWithdrawalDatePickerUI() {
-    const picker = document.getElementById('withdrawalDatePicker');
+// ─── Date helpers ─────────────────────────
+function _setDefaultDate() {
+    const picker = document.getElementById('caseDatePicker');
     if (!picker) return;
-    
-    if (withdrawalSelectedDate) {
-        picker.value = withdrawalSelectedDate;
-    } else {
-        const thOffsetMs = 7 * 60 * 60 * 1000;
-        const nowInTh = new Date(Date.now() + thOffsetMs);
-        const yyyy = nowInTh.getUTCFullYear();
-        const mm = String(nowInTh.getUTCMonth() + 1).padStart(2, '0');
-        const dd = String(nowInTh.getUTCDate()).padStart(2, '0');
-        picker.value = `${yyyy}-${mm}-${dd}`;
+    if (!_caseDate) {
+        const th = new Date(Date.now() + 7*60*60*1000);
+        _caseDate = th.toISOString().slice(0,10);
+    }
+    picker.value = _caseDate;
+}
+window.setCaseDateToday = function() {
+    const th = new Date(Date.now() + 7*60*60*1000);
+    _caseDate = th.toISOString().slice(0,10);
+    document.getElementById('caseDatePicker').value = _caseDate;
+    _loadCaseData();
+};
+window.applyFilters = function() {
+    _caseDate = document.getElementById('caseDatePicker').value || _caseDate;
+    _caseSite = document.getElementById('caseSiteFilter').value;
+    _caseType = document.getElementById('caseTypeFilter').value;
+    _casePage = 1;
+    _loadCaseData();
+};
+
+// ─── โหลดข้อมูลเคส ────────────────────────
+async function _loadCaseData() {
+    document.getElementById('caseStaffGrid').innerHTML =
+        `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
+    document.getElementById('caseLogBody').innerHTML =
+        `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
+    try {
+        let q = appDB.from('tg_case_logs').select('*')
+            .eq('msg_date', _caseDate)
+            .order('created_at', { ascending: false });
+        if (_caseSite !== 'ALL') q = q.eq('site', _caseSite);
+        if (_caseType !== 'ALL') q = q.eq('case_type', _caseType);
+        const { data, error } = await q;
+        if (error) throw error;
+        _caseData = data || [];
+        _renderSummary();
+        _renderStaffGrid();
+        _renderLogTable();
+    } catch(e) {
+        document.getElementById('caseLogBody').innerHTML =
+            `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
     }
 }
 
-// 🟢 ฟังก์ชันใหม่: อัปเดต UI dropdown เลือกเว็บ
-function updateWithdrawalSiteFilterUI() {
-    const select = document.getElementById('withdrawalSiteFilter');
-    if (!select) return;
-    if (select.value !== withdrawalSelectedSite) {
-        select.value = withdrawalSelectedSite;
+// ─── Summary Cards ─────────────────────────
+function _renderSummary() {
+    const total = _caseData.length;
+    const del   = _caseData.filter(d => (d.case_type||'').includes('ลบ')).length;
+    const chk   = _caseData.filter(d => (d.case_type||'').includes('เช็ค')).length;
+    const unb   = _caseData.filter(d => (d.case_type||'').includes('ปลด')).length;
+    document.getElementById('caseTotal').textContent      = total.toLocaleString();
+    document.getElementById('caseDeleteTurn').textContent = del.toLocaleString();
+    document.getElementById('caseCheckTurn').textContent  = chk.toLocaleString();
+    document.getElementById('caseUnblock').textContent    = unb.toLocaleString();
+}
+
+// ─── Staff Ranking ─────────────────────────
+function _renderStaffGrid() {
+    const grid = document.getElementById('caseStaffGrid');
+    if (!grid) return;
+    const counts = {};
+    _caseData.forEach(d => {
+        const k = d.sender_name;
+        if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0 };
+        counts[k].total++;
+        if ((d.case_type||'').includes('ลบ'))   counts[k].ลบ++;
+        else if ((d.case_type||'').includes('เช็ค')) counts[k].เช็ค++;
+        else if ((d.case_type||'').includes('ปลด'))  counts[k].ปลด++;
+        else counts[k].reply++;
+    });
+    const sorted = Object.entries(counts).sort((a,b)=>b[1].total-a[1].total);
+    if (sorted.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-400">
+            <span class="material-icons text-4xl">inbox</span>
+            <p class="mt-2 text-sm">ไม่พบข้อมูลในวันนี้</p></div>`;
+        return;
+    }
+    const max    = sorted[0][1].total || 1;
+    const medals = ['🥇','🥈','🥉'];
+    grid.innerHTML = sorted.map(([name, c], i) => {
+        const pct  = Math.round((c.total/max)*100);
+        const mdl  = medals[i] || `#${i+1}`;
+        const ring = i===0 ? 'ring-2 ring-yellow-400' : '';
+        const tags = [
+            c.ลบ   ? `<span class="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full text-[11px] font-bold">ลบ ${c.ลบ}</span>`:'',
+            c.เช็ค ? `<span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full text-[11px] font-bold">เช็ค ${c.เช็ค}</span>`:'',
+            c.ปลด  ? `<span class="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full text-[11px] font-bold">ปลด ${c.ปลด}</span>`:'',
+            c.reply ? `<span class="bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full text-[11px] font-bold">reply ${c.reply}</span>`:'',
+        ].filter(Boolean).join('');
+        return `
+        <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-4 border border-slate-200 dark:border-slate-700 ${ring}">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-xl flex-shrink-0">${mdl}</span>
+                    <span class="font-bold text-slate-800 dark:text-white text-sm truncate">${name}</span>
+                </div>
+                <span class="text-2xl font-black text-violet-400 flex-shrink-0">${c.total}</span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mb-2">
+                <div class="bg-violet-500 h-1.5 rounded-full" style="width:${pct}%"></div>
+            </div>
+            <div class="flex flex-wrap gap-1.5">${tags}</div>
+        </div>`;
+    }).join('');
+}
+
+// ─── Log Table ────────────────────────────
+function _renderLogTable() {
+    const tbody = document.getElementById('caseLogBody');
+    const total = _caseData.length;
+    const el    = document.getElementById('caseLogCount');
+    if (el) el.textContent = `ทั้งหมด ${total.toLocaleString()} รายการ`;
+    const start = (_casePage-1)*_casePageSize;
+    const page  = _caseData.slice(start, start+_casePageSize);
+    if (page.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">ไม่มีข้อมูล</td></tr>`;
+        _renderPagination(0); return;
+    }
+    const badge = t => {
+        if ((t||'').includes('ลบ'))   return `<span class="bg-blue-900/50 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${t}</span>`;
+        if ((t||'').includes('เช็ค')) return `<span class="bg-emerald-900/50 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${t}</span>`;
+        if ((t||'').includes('ปลด'))  return `<span class="bg-amber-900/50 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${t}</span>`;
+        return `<span class="bg-slate-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${t||'reply'}</span>`;
+    };
+    tbody.innerHTML = page.map((d,i) => {
+        const ts  = new Date(d.created_at);
+        const t   = ts.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        const msg = (d.message_text||'').slice(0,60) + ((d.message_text||'').length>60?'…':'');
+        return `<tr class="hover:bg-slate-800/30 transition">
+            <td class="p-3 text-center text-gray-500 text-xs">${start+i+1}</td>
+            <td class="p-3 text-xs text-gray-400 font-mono">${t}</td>
+            <td class="p-3 font-bold text-sm text-violet-300">${d.sender_name}</td>
+            <td class="p-3">${badge(d.case_type)}</td>
+            <td class="p-3 text-xs font-bold text-sky-400">${d.site||'—'}</td>
+            <td class="p-3 text-xs text-gray-500 font-mono">${d.quoted_from||'—'}</td>
+            <td class="p-3 text-xs text-gray-400 max-w-[200px] truncate" title="${d.message_text||''}">${msg||'—'}</td>
+        </tr>`;
+    }).join('');
+    _renderPagination(total);
+}
+function _renderPagination(total) {
+    const pages = Math.ceil(total/_casePageSize);
+    const el    = document.getElementById('casePagination');
+    if (!el) return;
+    if (pages <= 1) { el.innerHTML=''; return; }
+    const from = (_casePage-1)*_casePageSize+1;
+    const to   = Math.min(_casePage*_casePageSize, total);
+    el.innerHTML = `
+        <span>${from}–${to} จาก ${total.toLocaleString()}</span>
+        <div class="flex gap-2">
+            ${_casePage>1 ? `<button onclick="window._casePrev()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold">‹ ก่อนหน้า</button>` :''}
+            ${_casePage<pages ? `<button onclick="window._caseNext()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold">ถัดไป ›</button>` : ''}
+        </div>`;
+}
+window._casePrev = () => { _casePage--; _renderLogTable(); };
+window._caseNext = () => { _casePage++; _renderLogTable(); };
+
+// ==========================================
+// 🤖 BOT SETTINGS
+// ==========================================
+
+const BOT_SETTING_KEY      = 'tg_bot_token';
+const CHATID_SETTING_KEY   = 'tg_bot_chatid';
+
+window.toggleTokenVisibility = function() {
+    const inp  = document.getElementById('botTokenInput');
+    const icon = document.getElementById('tokenEyeIcon');
+    if (inp.type === 'password') { inp.type='text'; icon.textContent='visibility_off'; }
+    else                          { inp.type='password'; icon.textContent='visibility'; }
+};
+
+window.openBotSettings = function() { switchCaseTab('settings'); };
+
+// โหลดสถานะบอทจาก settings
+async function _loadBotStatus() {
+    try {
+        const { data } = await appDB.from('settings')
+            .select('key,value')
+            .in('key', [BOT_SETTING_KEY, CHATID_SETTING_KEY]);
+        const map = {};
+        (data||[]).forEach(r => { map[r.key] = r.value; });
+
+        const token  = map[BOT_SETTING_KEY]    || '';
+        const chatId = map[CHATID_SETTING_KEY] || '';
+
+        const inp1 = document.getElementById('botTokenInput');
+        const inp2 = document.getElementById('botChatIdInput');
+        if (inp1 && token)  inp1.value = token;
+        if (inp2 && chatId) inp2.value = chatId;
+
+        if (token) {
+            await _verifyBotToken(token, chatId, false); // เช็คเงียบๆ
+        } else {
+            _setBotStatusUI(false, null, chatId);
+        }
+    } catch(e) { console.warn('loadBotStatus:', e); }
+}
+
+// ทดสอบการเชื่อมต่อ
+window.testBotConnection = async function() {
+    const token  = (document.getElementById('botTokenInput')?.value||'').trim();
+    const chatId = (document.getElementById('botChatIdInput')?.value||'').trim();
+    if (!token) return _showTestResult(false, 'กรุณาใส่ Bot Token ก่อน');
+    const btn = document.getElementById('btnTestBot');
+    btn.innerHTML = `<span class="material-icons text-sm animate-spin">sync</span> กำลังทดสอบ...`;
+    btn.disabled  = true;
+    await _verifyBotToken(token, chatId, true);
+    btn.innerHTML = `<span class="material-icons text-sm">wifi_tethering</span> ทดสอบ`;
+    btn.disabled  = false;
+};
+
+async function _verifyBotToken(token, chatId, showResult) {
+    try {
+        const r    = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+        const json = await r.json();
+        if (!json.ok) throw new Error(json.description || 'Token ไม่ถูกต้อง');
+        const bot  = json.result;
+        _setBotStatusUI(true, bot, chatId);
+        if (showResult) _showTestResult(true, `เชื่อมต่อสำเร็จ! ชื่อบอท: ${bot.first_name} (@${bot.username})`);
+        return true;
+    } catch(e) {
+        _setBotStatusUI(false, null, chatId);
+        if (showResult) _showTestResult(false, e.message);
+        return false;
     }
 }
 
-window.exportWithdrawalToExcel = function() {
-    const filteredData = getFilteredData();
-    if (filteredData.length === 0) {
-        Swal.fire('แจ้งเตือน', 'ไม่มีข้อมูลสำหรับดาวน์โหลด', 'warning'); return;
-    }
-    
-    if (typeof window.loadExcelLibrary === 'function') {
-        window.loadExcelLibrary(processExcel);
-    } else {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-        script.onload = () => processExcel();
-        document.head.appendChild(script);
+function _setBotStatusUI(connected, botInfo, chatId) {
+    const dot    = document.getElementById('botStatusDot');
+    const txt    = document.getElementById('botStatusText');
+    const disc   = document.getElementById('btnDisconnect');
+
+    if (dot) dot.className = `w-2 h-2 rounded-full inline-block ${connected ? 'bg-emerald-400' : 'bg-gray-400'}`;
+    if (txt) txt.textContent = connected
+        ? `เชื่อมต่อแล้ว: @${botInfo?.username || '...'}`
+        : 'ยังไม่ได้เชื่อมต่อบอท';
+
+    const sName     = document.getElementById('sBot_name');
+    const sUser     = document.getElementById('sBot_username');
+    const sStatus   = document.getElementById('sBot_status');
+    const sChatId   = document.getElementById('sBot_chatid');
+
+    if (sStatus) sStatus.textContent = connected ? '✅ เชื่อมต่อแล้ว' : '❌ ไม่ได้เชื่อมต่อ';
+    if (sStatus) sStatus.className   = `font-bold ${connected ? 'text-emerald-400' : 'text-red-400'}`;
+    if (sName)   sName.textContent   = botInfo?.first_name || '—';
+    if (sUser)   sUser.textContent   = botInfo ? `@${botInfo.username}` : '—';
+    if (sChatId) sChatId.textContent = chatId || '—';
+    if (disc)    disc.classList.toggle('hidden', !connected);
+}
+
+function _showTestResult(ok, msg) {
+    const el = document.getElementById('botTestResult');
+    if (!el) return;
+    el.className = `mt-4 p-4 rounded-xl text-sm font-bold ${ok ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`;
+    el.textContent = (ok ? '✅ ' : '❌ ') + msg;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 5000);
+}
+
+// บันทึก settings
+window.saveBotSettings = async function() {
+    const token  = (document.getElementById('botTokenInput')?.value||'').trim();
+    const chatId = (document.getElementById('botChatIdInput')?.value||'').trim();
+    if (!token) return Swal.fire('แจ้งเตือน','กรุณาใส่ Bot Token','warning');
+
+    const btn = document.getElementById('btnSaveBot');
+    btn.innerHTML = `<span class="material-icons text-sm animate-spin">sync</span> กำลังบันทึก...`;
+    btn.disabled  = true;
+
+    // ทดสอบก่อนบันทึก
+    const ok = await _verifyBotToken(token, chatId, false);
+    if (!ok) {
+        btn.innerHTML = `<span class="material-icons text-sm">save</span> บันทึกและเชื่อมต่อ`;
+        btn.disabled  = false;
+        return Swal.fire('ผิดพลาด','Bot Token ไม่ถูกต้อง — กรุณาตรวจสอบใหม่','error');
     }
 
-    function processExcel() {
-        Swal.fire({ title: 'กำลังโหลด Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        const excelData = filteredData.map((row, index) => {
-            let sName = (row.staff_username || '').toLowerCase();
-            let dutyInfo = staffDutyMap[sName];
-            let dutyType = 'นอกหน้าที่';
-            
-            if (dutyInfo) {
-                if (row.backend_system === dutyInfo.primary) dutyType = 'งานหลัก';
-                else if (row.backend_system === dutyInfo.secondary) dutyType = 'งานรอง';
-            }
+    try {
+        await appDB.from('settings').upsert([
+            { key: BOT_SETTING_KEY,    value: token  },
+            { key: CHATID_SETTING_KEY, value: chatId },
+        ]);
 
-            return {
-                "ลำดับ": index + 1,
-                "วัน-เวลาที่ทำรายการ": new Date(row.created_at).toLocaleString('th-TH'),
-                "รหัสพนักงาน": row.staff_username,
-                "ระบบที่กดถอน": row.backend_system,
-                "ประเภทหน้าที่": dutyType,
-                "สถานะ (Approve/Reject)": row.action_type === 'Approve' ? 'อนุมัติ' : 'ปฏิเสธ'
-            };
-        });
+        // บันทึกเวลา
+        const now = new Date().toLocaleString('th-TH');
+        const sSaved = document.getElementById('sBot_saved');
+        if (sSaved) sSaved.textContent = now;
 
-        const worksheet = XLSX.utils.json_to_sheet(excelData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Withdrawal_Logs");
-        
-        const dateStr = new Date().toISOString().split('T')[0];
-        const siteStr = withdrawalSelectedSite === 'ALL' ? 'ALL' : withdrawalSelectedSite;
-        XLSX.writeFile(workbook, `Staff_Withdrawal_Report_${siteStr}_${dateStr}.xlsx`);
-        Swal.fire({ icon: 'success', title: 'ดาวน์โหลดสำเร็จ', timer: 1500, showConfirmButton: false });
+        Swal.fire({ icon:'success', title:'บันทึกแล้ว', text:'เชื่อมต่อบอทเรียบร้อย', timer:2000, showConfirmButton:false });
+    } catch(e) {
+        Swal.fire('Error', e.message, 'error');
+    } finally {
+        btn.innerHTML = `<span class="material-icons text-sm">save</span> บันทึกและเชื่อมต่อ`;
+        btn.disabled  = false;
     }
+};
+
+// ยกเลิกการเชื่อมต่อ
+window.disconnectBot = async function() {
+    const res = await Swal.fire({
+        title:'ยืนยันการยกเลิก?',
+        text:'จะลบ Token ออกจากระบบ',
+        icon:'warning',
+        showCancelButton:true,
+        confirmButtonText:'ยืนยัน',
+        cancelButtonText:'ยกเลิก',
+        confirmButtonColor:'#ef4444'
+    });
+    if (!res.isConfirmed) return;
+    await appDB.from('settings').delete().in('key',[BOT_SETTING_KEY, CHATID_SETTING_KEY]);
+    document.getElementById('botTokenInput').value  = '';
+    document.getElementById('botChatIdInput').value = '';
+    _setBotStatusUI(false, null, '');
+    Swal.fire({ icon:'success', title:'ยกเลิกแล้ว', timer:1500, showConfirmButton:false });
+};
+
+// วิธีหา Chat ID
+window.helpGetChatId = function() {
+    Swal.fire({
+        title: 'วิธีหา Chat ID',
+        html: `
+            <div class="text-left text-sm space-y-3">
+                <p>1. เพิ่ม <strong>@userinfobot</strong> เข้ากลุ่ม</p>
+                <p>2. พิมพ์ <strong>/start</strong> ในกลุ่ม</p>
+                <p>3. บอทจะตอบกลับพร้อม Chat ID (เริ่มด้วย -100...)</p>
+                <hr class="border-slate-600 my-2">
+                <p>หรือใช้วิธีนี้:</p>
+                <p>1. Forward ข้อความจากกลุ่มไปให้ <strong>@getidsbot</strong></p>
+                <p>2. บอทจะบอก Chat ID ให้</p>
+            </div>`,
+        confirmButtonText: 'เข้าใจแล้ว',
+        background: '#1e293b',
+        color: '#e2e8f0'
+    });
+};
+
+// ─── Export Excel ──────────────────────────
+window.exportCaseExcel = function() {
+    if (!_caseData.length) return Swal.fire('แจ้งเตือน','ไม่มีข้อมูล','warning');
+    const rows = [['#','เวลา','พนักงาน','ประเภท','เว็บ','ตอบใคร','ข้อความ']];
+    _caseData.forEach((d,i) => {
+        const t = new Date(d.created_at).toLocaleTimeString('th-TH');
+        rows.push([i+1, t, d.sender_name, d.case_type||'reply', d.site||'', d.quoted_from||'', d.message_text||'']);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cases');
+    XLSX.writeFile(wb, `tg_cases_${_caseDate}.xlsx`);
 };
