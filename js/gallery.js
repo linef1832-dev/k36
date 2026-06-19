@@ -19,23 +19,24 @@ const GALLERY_MODE_SUFFIX = {
     general: '',
     bonus:   '_BONUS',
     reach:   '_REACH',
-    card:    '_CARD'
+    card:    '_CARD',
+    logo:    '_LOGO'
 };
 
-// label สำหรับ "ไม่มีรูปใน mode นี้"
 const GALLERY_MODE_LABEL = {
     general: 'ไม่พบรูปภาพ',
     bonus:   'ยังไม่มีรูปโบนัสไทม์',
     reach:   'ยังไม่มีรูปรีชเมนู',
-    card:    'ยังไม่มีรูปการ์ดเมนู'
+    card:    'ยังไม่มีรูปการ์ดเมนู',
+    logo:    'ยังไม่มีรูป LOGO'
 };
 
-// คำเรียกใน Swal ตอนอัปโหลด
 const GALLERY_MODE_UPLOAD_TEXT = {
     general: '',
     bonus:   '🎁 โบนัสไทม์ ',
     reach:   '📣 รีชเมนู ',
-    card:    '🃏 การ์ดเมนู '
+    card:    '🃏 การ์ดเมนู ',
+    logo:    '🏷️ LOGO '
 };
 
 window.initGalleryApp = function() {
@@ -44,7 +45,8 @@ window.initGalleryApp = function() {
     const tabPermMap = {
         tabBonus: 'gallery_tab_bonus',
         tabReach: 'gallery_tab_reach',
-        tabCard:  'gallery_tab_card'
+        tabCard:  'gallery_tab_card',
+        tabLogo:  'gallery_tab_logo'
     };
     Object.keys(tabPermMap).forEach(btnId => {
         const btn = document.getElementById(btnId);
@@ -97,7 +99,7 @@ window.initGalleryApp = function() {
 window.switchGalleryMode = function(mode) {
     // 🌟 [สิทธิ์ tab] กันเปิด mode ที่ไม่มีสิทธิ์ (เผื่อ user ลอง bypass ด้วย console)
     const isAdminOrManager = (currentUser.role === 'admin' || currentUser.role === 'manager');
-    const modePerm = { bonus: 'gallery_tab_bonus', reach: 'gallery_tab_reach', card: 'gallery_tab_card' };
+    const modePerm = { bonus: 'gallery_tab_bonus', reach: 'gallery_tab_reach', card: 'gallery_tab_card', logo: 'gallery_tab_logo' };
     if (modePerm[mode] && !isAdminOrManager) {
         const allowed = (typeof window.hasUserPerm === 'function' && window.hasUserPerm(modePerm[mode]));
         if (!allowed) {
@@ -113,7 +115,8 @@ window.switchGalleryMode = function(mode) {
         general: { btn: 'tabGeneral', activeStyle: 'bg-blue-600 text-white shadow-lg border border-blue-400' },
         bonus:   { btn: 'tabBonus',   activeStyle: 'bg-gradient-to-r from-yellow-600 to-amber-500 text-white shadow-lg border border-yellow-400' },
         reach:   { btn: 'tabReach',   activeStyle: 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow-lg border border-fuchsia-400' },
-        card:    { btn: 'tabCard',    activeStyle: 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-lg border border-emerald-400' }
+        card:    { btn: 'tabCard',    activeStyle: 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-lg border border-emerald-400' },
+        logo:    { btn: 'tabLogo',    activeStyle: 'bg-gradient-to-r from-rose-600 to-pink-500 text-white shadow-lg border border-rose-400' }
     };
     const inactiveStyle = 'bg-slate-700 text-gray-400 hover:text-white border border-transparent';
     
