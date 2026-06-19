@@ -73,7 +73,8 @@
             <label class="text-xs font-bold text-gray-500 dark:text-gray-400">ประเภท:</label>
             <select id="caseTypeFilter" onchange="applyFilters()" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition cursor-pointer">
                 <option value="ALL">ทั้งหมด</option>
-                <option value="เช็คเทิร์น">เช็คเทิร์น / ลบ / ล้างเทิร์น</option>
+                <option value="ลบเทิร์น">ลบเทิร์น</option>
+                <option value="เช็คเทิร์น">เช็คเทิร์น</option>
                 <option value="ปลดบล็อค">ปลดบล็อค</option>
                 <option value="reply">reply ทั่วไป</option>
             </select>
@@ -92,8 +93,12 @@
                     <p class="text-gray-400 text-xs font-bold mb-1">เคสรวมทั้งหมด</p>
                     <h3 class="text-3xl font-black text-white" id="caseTotal">—</h3>
                 </div>
+                <div id="cardDel" onclick="filterByType('ลบ')" class="bg-gradient-to-br from-blue-900 to-blue-950 rounded-2xl p-4 shadow-lg border border-blue-800" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
+                    <p class="text-blue-300 text-xs font-bold mb-1">ลบเทิร์น</p>
+                    <h3 class="text-3xl font-black text-blue-100" id="caseDeleteTurn">—</h3>
+                </div>
                 <div id="cardChk" onclick="filterByType('เช็ค')" class="bg-gradient-to-br from-emerald-900 to-emerald-950 rounded-2xl p-4 shadow-lg border border-emerald-800" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
-                    <p class="text-emerald-300 text-xs font-bold mb-1">เช็คเทิร์น / ลบเทิร์น / ล้างเทิร์น</p>
+                    <p class="text-emerald-300 text-xs font-bold mb-1">เช็คเทิร์น</p>
                     <h3 class="text-3xl font-black text-emerald-100" id="caseCheckTurn">—</h3>
                 </div>
                 <div id="cardUnb" onclick="filterByType('ปลด')" class="bg-gradient-to-br from-amber-900 to-amber-950 rounded-2xl p-4 shadow-lg border border-amber-800" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
