@@ -25,7 +25,7 @@ window.initCaseReport = window.initWithdrawalReport;
 // ─── Tab Switch ───────────────────────────
 window.switchCaseTab = function(tab) {
     _caseTab = tab;
-    ['stats','log','settings'].forEach(t => {
+    ['stats','summary','log','settings'].forEach(t => {
         const el  = document.getElementById(`caseTab-${t}`);
         const btn = document.getElementById(`tab-${t}`);
         if (!el || !btn) return;
@@ -34,6 +34,7 @@ window.switchCaseTab = function(tab) {
             ? 'tab-btn-active px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5'
             : 'tab-btn-inactive px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5';
     });
+    if (tab === 'summary') loadSummary();
 };
 
 // ─── Date helpers ─────────────────────────
@@ -594,3 +595,141 @@ window.exportCaseExcel = async function() {
     XLSX.utils.book_append_sheet(wb, ws, 'Cases');
     XLSX.writeFile(wb, `tg_cases_${_caseDate}.xlsx`);
 };
+
+// ==========================================
+// 📊 สรุปรายการรวม (เดือน/สัปดาห์)
+// ==========================================
+
+window.loadSummary = async function() {
+    const period = document.getElementById('summaryPeriod')?.value || 'month';
+    const customDiv = document.getElementById('summaryCustomRange');
+
+    // แสดง/ซ่อน custom range
+    if (customDiv) customDiv.classList.toggle('hidden', period !== 'custom');
+
+    // คำนวณ date range
+    const now   = new Date();
+    const thNow = new Date(now.getTime() + 7*60*60*1000);
+    let fromDate, toDate;
+
+    if (period === 'week') {
+        const day = thNow.getDay() || 7;
+        const mon = new Date(thNow); mon.setDate(thNow.getDate() - day + 1);
+        fromDate  = mon.toISOString().slice(0,10);
+        toDate    = thNow.toISOString().slice(0,10);
+    } else if (period === 'last_week') {
+        const day = thNow.getDay() || 7;
+        const mon = new Date(thNow); mon.setDate(thNow.getDate() - day - 6);
+        const sun = new Date(mon);   sun.setDate(mon.getDate() + 6);
+        fromDate  = mon.toISOString().slice(0,10);
+        toDate    = sun.toISOString().slice(0,10);
+    } else if (period === 'month') {
+        fromDate  = `${thNow.getFullYear()}-${String(thNow.getMonth()+1).padStart(2,'0')}-01`;
+        toDate    = thNow.toISOString().slice(0,10);
+    } else if (period === 'last_month') {
+        const lm  = new Date(thNow.getFullYear(), thNow.getMonth()-1, 1);
+        const lme = new Date(thNow.getFullYear(), thNow.getMonth(), 0);
+        fromDate  = lm.toISOString().slice(0,10);
+        toDate    = lme.toISOString().slice(0,10);
+    } else {
+        fromDate = document.getElementById('summaryFrom')?.value;
+        toDate   = document.getElementById('summaryTo')?.value;
+        if (!fromDate || !toDate) return;
+    }
+
+    // แสดงช่วงวันที่
+    const rangeEl = document.getElementById('summaryDateRange');
+    if (rangeEl) rangeEl.textContent = `${fromDate} ถึง ${toDate}`;
+
+    // Loading
+    document.getElementById('summaryRanking').innerHTML =
+        `<div class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
+
+    try {
+        const { data, error } = await appDB
+            .from('tg_case_logs')
+            .select('sender_name, case_type, site, full_name')
+            .gte('msg_date', fromDate)
+            .lte('msg_date', toDate);
+        if (error) throw error;
+
+        const rows = data || [];
+
+        // summary cards
+        const total = rows.length;
+        const del   = rows.filter(d => (d.case_type||'').includes('ลบ')).length;
+        const unb   = rows.filter(d => (d.case_type||'').includes('ปลด')).length;
+        const other = rows.filter(d => { const t=d.case_type||''; return !t.includes('ลบ')&&!t.includes('เช็ค')&&!t.includes('ปลด'); }).length;
+        document.getElementById('sumTotal').textContent = total.toLocaleString();
+        document.getElementById('sumDel').textContent   = del.toLocaleString();
+        document.getElementById('sumUnb').textContent   = unb.toLocaleString();
+        document.getElementById('sumOther').textContent = other.toLocaleString();
+
+        // นับต่อคน
+        const counts = {};
+        rows.forEach(d => {
+            const k = d.sender_name;
+            if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, other:0,
+                shift: _getShift(k, d.full_name, _shiftMap),
+                display: (()=>{ const m=(k||'').match(/^[^-]+-([^-]+)-/); return m?m[1]:k; })()
+            };
+            counts[k].total++;
+            const t = d.case_type||'';
+            if (t.includes('ลบ'))        counts[k].ลบ++;
+            else if (t.includes('เช็ค')) counts[k].เช็ค++;
+            else if (t.includes('ปลด'))  counts[k].ปลด++;
+            else                          counts[k].other++;
+        });
+
+        const sorted = Object.entries(counts).sort((a,b) => b[1].total - a[1].total);
+        const max    = sorted[0]?.[1]?.total || 1;
+        const medals = ['🥇','🥈','🥉'];
+
+        const ranking = document.getElementById('summaryRanking');
+        if (sorted.length === 0) {
+            ranking.innerHTML = `<div class="text-center py-8 text-gray-400">ไม่มีข้อมูลในช่วงนี้</div>`;
+            return;
+        }
+
+        ranking.innerHTML = sorted.map(([name, c], i) => {
+            const pct   = Math.round((c.total/max)*100);
+            const mdl   = medals[i] || `#${i+1}`;
+            const shiftColor = c.shift==='กะเช้า'?'#fbbf24':c.shift==='กะดึก'?'#818cf8':'#64748b';
+            const shiftIcon  = c.shift==='กะเช้า'?'🌅':c.shift==='กะดึก'?'🌙':'❓';
+            const tags = [
+                c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
+                c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:#34d399;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>`:'',
+                c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:#fbbf24;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
+                c.other ? `<span style="background:rgba(100,116,139,0.2);color:#94a3b8;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.other}</span>`:'',
+            ].filter(Boolean).join('');
+
+            return `
+            <div style="background:#0f172a;border-radius:12px;padding:12px 16px;border:1px solid #1e293b;display:flex;align-items:center;gap:12px;">
+                <span style="font-size:22px;flex-shrink:0;width:32px;text-align:center;">${mdl}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <span style="font-weight:800;color:#f1f5f9;font-size:14px;">${c.display}</span>
+                        <span style="font-size:10px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:1px 7px;border-radius:999px;">${shiftIcon}${c.shift}</span>
+                    </div>
+                    <div style="width:100%;background:#1e293b;border-radius:999px;height:5px;margin-bottom:6px;">
+                        <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;transition:width .5s;"></div>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;">${tags}</div>
+                </div>
+                <span style="font-size:28px;font-weight:900;color:#a78bfa;flex-shrink:0;min-width:40px;text-align:right;">${c.total}</span>
+            </div>`;
+        }).join('');
+
+    } catch(e) {
+        document.getElementById('summaryRanking').innerHTML =
+            `<div class="text-center py-8 text-red-400">Error: ${e.message}</div>`;
+    }
+};
+
+// custom date range toggle
+document.addEventListener('change', e => {
+    if (e.target?.id === 'summaryPeriod') {
+        const show = e.target.value === 'custom';
+        document.getElementById('summaryCustomRange')?.classList.toggle('hidden', !show);
+    }
+});
