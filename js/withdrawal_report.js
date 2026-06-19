@@ -13,8 +13,11 @@ let _caseTab        = 'stats';
 // ─── Init ─────────────────────────────────
 window.initWithdrawalReport = async function() {
     _casePage = 1;
+    _activeTypeFilter  = 'ALL';
+    _activeShiftFilter = 'ALL';
     _setDefaultDate();
-    await _loadBotStatus();   // โหลดสถานะบอทก่อน
+    await _loadShiftMap();   // โหลดข้อมูลกะจาก users table
+    await _loadBotStatus();
     await _loadCaseData();
 };
 window.initCaseReport = window.initWithdrawalReport;
@@ -119,12 +122,28 @@ window.filterByType = function(type) {
 };
 
 // ─── Staff Grid ─────────────────────────────
-function _getShift(name, fullName) {
-    // ดึงกะจากชื่อเต็ม (full_name) ก่อน แล้วค่อย fallback ไป sender_name
+function _getShift(name, fullName, shiftMap) {
+    // 1. ดึงจาก shiftMap (users table) ก่อน
+    if (shiftMap && shiftMap[name]) return shiftMap[name];
+    // 2. fallback ดึงจากชื่อเต็ม
     const src = fullName || name || '';
-    if (/08.00-20.00|08:00-20:00/i.test(src)) return 'เช้า';
-    if (/20.00-08.00|20:00-08:00/i.test(src)) return 'ดึก';
+    if (/08.00-20.00|08:00-20:00/i.test(src)) return 'กะเช้า';
+    if (/20.00-08.00|20:00-08:00/i.test(src)) return 'กะดึก';
     return 'ไม่ระบุ';
+}
+
+let _shiftMap = {}; // { sender_name: 'กะเช้า'|'กะดึก' }
+
+async function _loadShiftMap() {
+    try {
+        const { data } = await appDB.from('users').select('username, allowed_shift');
+        _shiftMap = {};
+        (data||[]).forEach(u => {
+            if (u.username && u.allowed_shift) {
+                _shiftMap[u.username] = u.allowed_shift;
+            }
+        });
+    } catch(e) { console.warn('loadShiftMap:', e); }
 }
 
 let _activeShiftFilter = 'ALL';
@@ -132,7 +151,7 @@ let _activeShiftFilter = 'ALL';
 window.filterByShift = function(shift) {
     _activeShiftFilter = (_activeShiftFilter === shift) ? 'ALL' : shift;
     // อัปเดต UI ปุ่มกะ
-    ['ALL','เช้า','ดึก','ไม่ระบุ'].forEach(s => {
+    ['ALL','กะเช้า','กะดึก','ไม่ระบุ'].forEach(s => {
         const el = document.getElementById('shiftBtn-'+s);
         if (!el) return;
         el.style.background  = (_activeShiftFilter === s) ? '#7c3aed' : 'rgba(124,58,237,0.15)';
@@ -147,7 +166,7 @@ function _renderStaffGrid() {
     _caseData.forEach(d => {
         const k     = d.sender_name;
         const t     = d.case_type||'';
-        const shift = _getShift(k, d.full_name);
+        const shift = _getShift(k, d.full_name, _shiftMap);
 
         // กรองตามประเภท
         const matchType =
@@ -195,9 +214,9 @@ function _renderStaffCards(counts, search) {
         const pct   = Math.round((c.total/max)*100);
         const mdl   = medals[i] || `#${i+1}`;
         const ring  = i===0 ? 'outline:2px solid #facc15;' : '';
-        const shift = c.shift || _getShift(name, c.fullName);
-        const shiftColor = shift==='เช้า' ? '#fbbf24' : shift==='ดึก' ? '#818cf8' : '#64748b';
-        const shiftIcon  = shift==='เช้า' ? '🌅' : shift==='ดึก' ? '🌙' : '❓';
+        const shift = c.shift || _getShift(name, c.fullName, _shiftMap);
+        const shiftColor = shift==='กะเช้า' ? '#fbbf24' : shift==='กะดึก' ? '#818cf8' : '#64748b';
+        const shiftIcon  = shift==='กะเช้า' ? '🌅' : shift==='กะดึก' ? '🌙' : '❓';
 
         const typeTags = [
             c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
