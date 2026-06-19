@@ -24,39 +24,12 @@ window.initWithdrawalReport = async function() {
 };
 window.initCaseReport = window.initWithdrawalReport;
 
-// ─── Realtime: รับข้อมูลใหม่อัตโนมัติ ────
-let _realtimeCaseSub = null;
+// ─── Realtime: ปิดไว้ก่อน ใช้ปุ่มรีเฟรชแทน ────
+let _realtimeCaseSub  = null;
 let _realtimeDebounce = null;
-
 function _subscribeRealtimeCases() {
-    if (!appDB) return;
-    if (_realtimeCaseSub) {
-        try { appDB.removeChannel(_realtimeCaseSub); } catch(e) {}
-        _realtimeCaseSub = null;
-    }
-
-    _realtimeCaseSub = appDB.channel('tg-case-rt-' + Date.now())
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, (payload) => {
-            const m = payload.new;
-            if (!m || m.msg_date !== _caseDate) return;
-            if (_isLoadingCaseData) return;
-            // debounce 500ms ป้องกันยิงถี่เกินไป
-            clearTimeout(_realtimeDebounce);
-            _realtimeDebounce = setTimeout(() => {
-                if (!(_caseData||[]).some(x => x.id === m.id)) {
-                    _caseData = [m, ...(_caseData||[])];
-                    _renderSummary();
-                    _renderStaffGrid();
-                    _renderLogTable();
-                }
-                if (_caseTab === 'summary') loadSummary();
-            }, 500);
-        })
-        .subscribe();
-
-    if (typeof window.registerPageSubscription === 'function') {
-        window.registerPageSubscription(_realtimeCaseSub);
-    }
+    // ไม่ใช้ Realtime เพื่อป้องกัน spinner ค้าง
+    // ข้อมูลจะ refresh เมื่อกดปุ่มรีเฟรชหรือเปลี่ยนหน้า
 }
 
 
