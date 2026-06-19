@@ -365,7 +365,10 @@ window.openStaffDetail = function(name) {
 
     const html = rows.map((d,i) => {
         const t          = new Date(d.created_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Bangkok'});
-        const myMsg      = d.message_text || '—';
+        // กรอง message_text ที่เป็น timestamp ออก
+        const rawMsg     = d.message_text || '';
+        const isTimestamp = /^\d{4}-\d{2}-\d{2}/.test(rawMsg.trim());
+        const myMsg      = isTimestamp ? '—' : (rawMsg || '—');
         const quotedMsg  = d.quoted_text  || '';
         const qf         = d.quoted_from  || '—';
         return `
@@ -417,9 +420,10 @@ function _renderLogTable() {
         return `<span class="bg-slate-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${t||'reply'}</span>`;
     };
     tbody.innerHTML = page.map((d,i) => {
-        const ts  = new Date(d.created_at);
-        const t   = ts.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Bangkok'});
-        const msg = (d.message_text||'').slice(0,60) + ((d.message_text||'').length>60?'…':'');
+        const ts   = new Date(d.created_at);
+        const t    = ts.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Bangkok'});
+        const rawMsg2 = d.message_text || '';
+        const msg  = /^\d{4}-\d{2}-\d{2}/.test(rawMsg2.trim()) ? '—' : rawMsg2.slice(0,60) + (rawMsg2.length>60?'…':'');
         return `<tr class="hover:bg-slate-800/30 transition">
             <td class="p-3 text-center text-gray-500 text-xs">${start+i+1}</td>
             <td class="p-3 text-xs text-gray-400 font-mono">${t}</td>
