@@ -47,20 +47,18 @@
         </div>
     </div>
 
-    <!-- Filter Bar -->
+    <!-- Filter Bar — เว็บ + ประเภท เท่านั้น (วันที่ = วันนี้เสมอ) -->
+    <!-- hidden date picker สำหรับ JS ใช้งาน -->
+    <input type="date" id="caseDatePicker" style="display:none;">
     <div class="bg-white dark:bg-slate-800 px-4 py-3 border-b dark:border-slate-700 flex flex-wrap gap-3 items-center shadow-sm">
         <div class="flex items-center gap-2">
-            <span class="material-icons text-violet-500 text-sm">event</span>
-            <label class="text-xs font-bold text-gray-500 dark:text-gray-400">วันที่:</label>
-            <input type="date" id="caseDatePicker" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition">
-            <button onclick="setCaseDateToday()" class="bg-violet-500/10 text-violet-500 hover:bg-violet-500/20 border border-violet-500/30 px-2 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
-                <span class="material-icons text-sm">today</span> วันนี้
-            </button>
+            <span class="material-icons text-violet-500 text-sm">today</span>
+            <span id="caseTodayLabel" class="text-xs font-bold text-violet-400"></span>
         </div>
         <div class="flex items-center gap-2">
             <span class="material-icons text-violet-500 text-sm">language</span>
             <label class="text-xs font-bold text-gray-500 dark:text-gray-400">เว็บ:</label>
-            <select id="caseSiteFilter" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition cursor-pointer">
+            <select id="caseSiteFilter" onchange="applyFilters()" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition cursor-pointer">
                 <option value="ALL">ทั้งหมด</option>
                 <option value="JUN88">JUN88</option><option value="MK8">MK8</option>
                 <option value="BT678">BT678</option><option value="K188">K188</option>
@@ -73,7 +71,7 @@
         <div class="flex items-center gap-2">
             <span class="material-icons text-violet-500 text-sm">category</span>
             <label class="text-xs font-bold text-gray-500 dark:text-gray-400">ประเภท:</label>
-            <select id="caseTypeFilter" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition cursor-pointer">
+            <select id="caseTypeFilter" onchange="applyFilters()" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition cursor-pointer">
                 <option value="ALL">ทั้งหมด</option>
                 <option value="ลบเทิร์น">ลบเทิร์น</option>
                 <option value="เช็คเทิร์น">เช็คเทิร์น</option>
@@ -81,9 +79,6 @@
                 <option value="reply">reply ทั่วไป</option>
             </select>
         </div>
-        <button onclick="applyFilters()" class="bg-violet-600 hover:bg-violet-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 active:scale-95 ml-auto">
-            <span class="material-icons text-sm">search</span> กรอง
-        </button>
     </div>
 
     <!-- Content Area -->
