@@ -185,7 +185,27 @@
                     <input type="date" id="summaryTo" class="bg-slate-100 dark:bg-slate-900 border border-slate-600 text-white text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-violet-500">
                     <button onclick="loadSummary()" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">ค้นหา</button>
                 </div>
+                <!-- ตัวกรองกะ -->
+                <div class="flex items-center gap-2 ml-2">
+                    <span class="material-icons text-violet-500 text-sm">schedule</span>
+                    <span class="text-sm font-bold text-gray-400">กะ:</span>
+                    <select id="summaryShift" onchange="loadSummary()"
+                        class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-sm font-bold rounded-lg px-3 py-2 outline-none focus:border-violet-500 cursor-pointer">
+                        <option value="ALL">ทั้งหมด</option>
+                        <option value="กะเช้า">🌅 กะเช้า</option>
+                        <option value="กะดึก">🌙 กะดึก</option>
+                        <option value="ไม่ระบุ">❓ ไม่ระบุ</option>
+                    </select>
+                </div>
                 <span id="summaryDateRange" class="text-xs text-gray-500 ml-2"></span>
+                <!-- Realtime indicator -->
+                <div class="ml-auto flex items-center gap-2">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span class="text-xs text-green-400 font-bold">Realtime</span>
+                </div>
             </div>
 
             <!-- Summary total cards -->
