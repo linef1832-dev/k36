@@ -23,6 +23,13 @@ window.initWithdrawalReport = async function() {
 window.initCaseReport = window.initWithdrawalReport;
 
 // ─── Tab Switch ───────────────────────────
+const _TAB_COLORS = {
+    stats:    { active: '#4f46e5', shadow: 'rgba(79,70,229,0.4)',   icon: 'leaderboard' },
+    summary:  { active: '#7c3aed', shadow: 'rgba(124,58,237,0.4)', icon: 'bar_chart'   },
+    log:      { active: '#0369a1', shadow: 'rgba(3,105,161,0.4)',   icon: 'history'     },
+    settings: { active: '#047857', shadow: 'rgba(4,120,87,0.4)',    icon: 'smart_toy'   },
+};
+
 window.switchCaseTab = function(tab) {
     _caseTab = tab;
     ['stats','summary','log','settings'].forEach(t => {
@@ -30,9 +37,16 @@ window.switchCaseTab = function(tab) {
         const btn = document.getElementById(`tab-${t}`);
         if (!el || !btn) return;
         el.classList.toggle('hidden', t !== tab);
-        btn.className = t === tab
-            ? 'tab-btn-active px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5'
-            : 'tab-btn-inactive px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5';
+        const cfg = _TAB_COLORS[t] || {};
+        if (t === tab) {
+            btn.style.background  = cfg.active || '#4f46e5';
+            btn.style.color       = '#fff';
+            btn.style.boxShadow   = `0 2px 10px ${cfg.shadow||'rgba(79,70,229,0.4)'}`;
+        } else {
+            btn.style.background  = 'rgba(124,58,237,0.12)';
+            btn.style.color       = '#a78bfa';
+            btn.style.boxShadow   = 'none';
+        }
     });
     if (tab === 'summary') loadSummary();
 };
