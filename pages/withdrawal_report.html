@@ -31,6 +31,9 @@
             <button onclick="switchCaseTab('stats')" id="tab-stats" class="tab-btn-active px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5">
                 <span class="material-icons text-sm">leaderboard</span> สถิติ
             </button>
+            <button onclick="switchCaseTab('summary')" id="tab-summary" class="tab-btn-inactive px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5">
+                <span class="material-icons text-sm">bar_chart</span> สรุปรวม
+            </button>
             <button onclick="switchCaseTab('log')" id="tab-log" class="tab-btn-inactive px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5">
                 <span class="material-icons text-sm">history</span> Log
             </button>
@@ -158,6 +161,62 @@
         </div>
 
         <!-- ===== TAB: Log ===== -->
+        <!-- ===== TAB: สรุปรวม ===== -->
+        <div id="caseTab-summary" class="hidden p-4 sm:p-5 space-y-5">
+
+            <!-- Filter -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 flex flex-wrap gap-3 items-center">
+                <span class="material-icons text-violet-500">date_range</span>
+                <span class="text-sm font-bold text-gray-400">ดูสถิติ:</span>
+                <select id="summaryPeriod" onchange="loadSummary()" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-sm font-bold rounded-lg px-3 py-2 outline-none focus:border-violet-500 cursor-pointer">
+                    <option value="week">📅 สัปดาห์นี้</option>
+                    <option value="last_week">📅 สัปดาห์ที่แล้ว</option>
+                    <option value="month">📆 เดือนนี้</option>
+                    <option value="last_month">📆 เดือนที่แล้ว</option>
+                    <option value="custom">🗓️ กำหนดเอง</option>
+                </select>
+                <div id="summaryCustomRange" class="hidden flex items-center gap-2">
+                    <input type="date" id="summaryFrom" class="bg-slate-100 dark:bg-slate-900 border border-slate-600 text-white text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-violet-500">
+                    <span class="text-gray-400 text-xs">ถึง</span>
+                    <input type="date" id="summaryTo" class="bg-slate-100 dark:bg-slate-900 border border-slate-600 text-white text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-violet-500">
+                    <button onclick="loadSummary()" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">ค้นหา</button>
+                </div>
+                <span id="summaryDateRange" class="text-xs text-gray-500 ml-2"></span>
+            </div>
+
+            <!-- Summary total cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="summaryCards">
+                <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700">
+                    <p class="text-gray-400 text-xs font-bold mb-1">เคสรวม</p>
+                    <h3 class="text-3xl font-black text-white" id="sumTotal">—</h3>
+                </div>
+                <div class="bg-blue-900/50 rounded-2xl p-4 border border-blue-800">
+                    <p class="text-blue-300 text-xs font-bold mb-1">ลบเทิร์น</p>
+                    <h3 class="text-3xl font-black text-blue-100" id="sumDel">—</h3>
+                </div>
+                <div class="bg-amber-900/50 rounded-2xl p-4 border border-amber-800">
+                    <p class="text-amber-300 text-xs font-bold mb-1">ปลดบล็อค</p>
+                    <h3 class="text-3xl font-black text-amber-100" id="sumUnb">—</h3>
+                </div>
+                <div class="bg-slate-700/50 rounded-2xl p-4 border border-slate-600">
+                    <p class="text-slate-300 text-xs font-bold mb-1">อื่นๆ</p>
+                    <h3 class="text-3xl font-black text-slate-100" id="sumOther">—</h3>
+                </div>
+            </div>
+
+            <!-- Ranking -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
+                <h3 class="text-sm font-bold text-gray-300 flex items-center gap-2 mb-4 pb-3 border-b border-slate-700">
+                    <span class="material-icons text-violet-500">emoji_events</span> Ranking พนักงาน (เรียงเคสมากสุด)
+                </h3>
+                <div id="summaryRanking" class="space-y-2">
+                    <div class="text-center py-8 text-gray-400">
+                        <span class="material-icons animate-spin text-violet-400 text-3xl">sync</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="caseTab-log" class="hidden p-4 sm:p-5">
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div class="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
