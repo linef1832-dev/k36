@@ -115,6 +115,25 @@
                     <h3 style="font-size:14px;font-weight:700;color:#cbd5e1;display:flex;align-items:center;gap:8px;">
                         <span class="material-icons" style="color:#7c3aed;">leaderboard</span> จำนวนเคสแต่ละคน (เรียงมากสุด)
                     </h3>
+                    <!-- ปุ่มกรองกะ -->
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button id="shiftBtn-ALL" onclick="filterByShift('ALL')"
+                            style="background:#7c3aed;color:#fff;border:1px solid #7c3aed;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;">
+                            ทั้งหมด
+                        </button>
+                        <button id="shiftBtn-เช้า" onclick="filterByShift('เช้า')"
+                            style="background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;">
+                            🌅 กะเช้า
+                        </button>
+                        <button id="shiftBtn-ดึก" onclick="filterByShift('ดึก')"
+                            style="background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;">
+                            🌙 กะดึก
+                        </button>
+                        <button id="shiftBtn-ไม่ระบุ" onclick="filterByShift('ไม่ระบุ')"
+                            style="background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;">
+                            ❓ ไม่ระบุ
+                        </button>
+                    </div>
                     <div style="position:relative;">
                         <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:17px;">search</span>
                         <input type="text" placeholder="ค้นหาชื่อพนักงาน..." oninput="searchStaff(this.value)"
