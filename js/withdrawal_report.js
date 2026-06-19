@@ -119,19 +119,49 @@ window.filterByType = function(type) {
 };
 
 // ─── Staff Grid ─────────────────────────────
+function _getShift(name) {
+    // ดึงกะจากชื่อ เช่น (08.00-20.00) = เช้า, (20.00-08.00) = ดึก
+    if (!name) return 'unknown';
+    if (/08.00-20.00|08:00-20:00/i.test(name)) return 'เช้า';
+    if (/20.00-08.00|20:00-08:00/i.test(name)) return 'ดึก';
+    return 'ไม่ระบุ';
+}
+
+let _activeShiftFilter = 'ALL';
+
+window.filterByShift = function(shift) {
+    _activeShiftFilter = (_activeShiftFilter === shift) ? 'ALL' : shift;
+    // อัปเดต UI ปุ่มกะ
+    ['ALL','เช้า','ดึก','ไม่ระบุ'].forEach(s => {
+        const el = document.getElementById('shiftBtn-'+s);
+        if (!el) return;
+        el.style.background  = (_activeShiftFilter === s) ? '#7c3aed' : 'rgba(124,58,237,0.15)';
+        el.style.color       = (_activeShiftFilter === s) ? '#fff' : '#a78bfa';
+        el.style.borderColor = (_activeShiftFilter === s) ? '#7c3aed' : 'rgba(124,58,237,0.3)';
+    });
+    _renderStaffGrid();
+};
+
 function _renderStaffGrid() {
     const counts = {};
     _caseData.forEach(d => {
-        const k = d.sender_name;
-        const t = d.case_type||'';
+        const k     = d.sender_name;
+        const t     = d.case_type||'';
+        const shift = _getShift(k);
+
+        // กรองตามประเภท
         const matchType =
             _activeTypeFilter === 'ALL' ||
-            (_activeTypeFilter === 'ลบ'   && t.includes('ลบ')) ||
-            (_activeTypeFilter === 'เช็ค' && t.includes('เช็ค')) ||
-            (_activeTypeFilter === 'ปลด'  && t.includes('ปลด')) ||
+            (_activeTypeFilter === 'ลบ'    && t.includes('ลบ')) ||
+            (_activeTypeFilter === 'เช็ค'  && t.includes('เช็ค')) ||
+            (_activeTypeFilter === 'ปลด'   && t.includes('ปลด')) ||
             (_activeTypeFilter === 'other' && !t.includes('ลบ') && !t.includes('เช็ค') && !t.includes('ปลด'));
-        if (!matchType) return;
-        if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0, sites:{} };
+        // กรองตามกะ
+        const matchShift = _activeShiftFilter === 'ALL' || shift === _activeShiftFilter;
+
+        if (!matchType || !matchShift) return;
+
+        if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0, sites:{}, shift };
         counts[k].total++;
         if (t.includes('ลบ'))        counts[k].ลบ++;
         else if (t.includes('เช็ค')) counts[k].เช็ค++;
@@ -160,31 +190,43 @@ function _renderStaffCards(counts, search) {
     }
     const max    = sorted[0][1].total || 1;
     const medals = ['🥇','🥈','🥉'];
+
     grid.innerHTML = sorted.map(([name, c], i) => {
-        const pct  = Math.round((c.total/max)*100);
-        const mdl  = medals[i] || `#${i+1}`;
-        const ring = i===0 ? 'outline:2px solid #facc15;' : '';
+        const pct   = Math.round((c.total/max)*100);
+        const mdl   = medals[i] || `#${i+1}`;
+        const ring  = i===0 ? 'outline:2px solid #facc15;' : '';
+        const shift = c.shift || _getShift(name);
+        const shiftColor = shift==='เช้า' ? '#fbbf24' : shift==='ดึก' ? '#818cf8' : '#64748b';
+        const shiftIcon  = shift==='เช้า' ? '🌅' : shift==='ดึก' ? '🌙' : '❓';
+
         const typeTags = [
             c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
             c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:#34d399;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>`:'',
             c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:#fbbf24;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
             c.reply ? `<span style="background:rgba(100,116,139,0.2);color:#94a3b8;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.reply}</span>`:'',
         ].filter(Boolean).join('');
+
         const siteTags = Object.entries(c.sites).sort((a,b)=>b[1]-a[1])
             .map(([s,n]) => `<span style="background:rgba(14,165,233,0.15);color:#38bdf8;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${s}×${n}</span>`)
             .join('');
+
         const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         return `
         <div onclick="openStaffDetail('${safeName}')"
              style="cursor:pointer;background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;transition:all .15s;${ring}"
              onmouseover="this.style.background='#263548';this.style.borderColor='#7c3aed'"
              onmouseout="this.style.background='#1e293b';this.style.borderColor='#334155'">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                 <div style="display:flex;align-items:center;gap:8px;min-width:0;">
                     <span style="font-size:20px;flex-shrink:0;">${mdl}</span>
-                    <span style="font-weight:700;color:#f1f5f9;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</span>
+                    <span style="font-weight:700;color:#f1f5f9;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</span>
                 </div>
                 <span style="font-size:24px;font-weight:900;color:#a78bfa;flex-shrink:0;">${c.total}</span>
+            </div>
+            <div style="margin-bottom:8px;">
+                <span style="font-size:11px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:2px 8px;border-radius:999px;">
+                    ${shiftIcon} กะ${shift}
+                </span>
             </div>
             <div style="width:100%;background:#334155;border-radius:999px;height:5px;margin-bottom:8px;">
                 <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;"></div>
