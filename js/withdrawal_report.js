@@ -198,8 +198,6 @@ window.openStaffDetail = function(name) {
         width:           '600px',
     });
 };
-    }).join('');
-}
 
 // ─── Log Table ────────────────────────────
 function _renderLogTable() {
