@@ -262,6 +262,36 @@ window.searchStaff = function(val) {
     _renderStaffCards(window._staffCounts || {}, val);
 };
 
+// ─── ปุ่ม "ของฉัน" ───────────────────────
+let _myCaseOnly = false;
+window.toggleMyCase = function() {
+    _myCaseOnly = !_myCaseOnly;
+    const btn = document.getElementById('btnMyCase');
+    if (btn) {
+        btn.style.background   = _myCaseOnly ? '#059669' : 'rgba(16,185,129,0.15)';
+        btn.style.color        = _myCaseOnly ? '#fff' : '#34d399';
+        btn.style.borderColor  = _myCaseOnly ? '#059669' : 'rgba(16,185,129,0.3)';
+    }
+    if (_myCaseOnly) {
+        const myName = (window.currentUser||{}).username || '';
+        // ค้นหาชื่อตัวเองในแผนที่
+        const counts = window._staffCounts || {};
+        // ลอง match กับ sender_name โดยตรง หรือ match กับชื่อกลาง
+        const matched = Object.keys(counts).find(k => {
+            if (k === myName) return true;
+            const m = k.match(/^[^-]+-([^-]+)-/);
+            return m && m[1].toLowerCase() === myName.toLowerCase();
+        });
+        const inp = document.getElementById('staffSearchInput');
+        if (inp) inp.value = matched || myName;
+        _renderStaffCards(counts, matched || myName);
+    } else {
+        const inp = document.getElementById('staffSearchInput');
+        if (inp) inp.value = '';
+        _renderStaffCards(window._staffCounts || {}, '');
+    }
+};
+
 // ─── Popup รายละเอียดพนักงาน ─────────────
 window.openStaffDetail = function(name) {
     const rows = _caseData.filter(d => d.sender_name === name)
