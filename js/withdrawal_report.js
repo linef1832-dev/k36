@@ -229,7 +229,8 @@ function _renderStaffCards(counts, search) {
             .map(([s,n]) => `<span style="background:rgba(14,165,233,0.15);color:#38bdf8;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${s}×${n}</span>`)
             .join('');
 
-        const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const safeName    = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const displayName = (()=>{ const m = name.match(/^[^-]+-([^-]+)-/); return m ? m[1] : name; })();
         return `
         <div onclick="openStaffDetail('${safeName}')"
              style="cursor:pointer;background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;transition:all .15s;${ring}"
@@ -238,7 +239,7 @@ function _renderStaffCards(counts, search) {
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                 <div style="display:flex;align-items:center;gap:8px;min-width:0;">
                     <span style="font-size:20px;flex-shrink:0;">${mdl}</span>
-                    <span style="font-weight:700;color:#f1f5f9;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</span>
+                    <span style="font-weight:700;color:#f1f5f9;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${name}">${displayName}</span>
                 </div>
                 <span style="font-size:24px;font-weight:900;color:#a78bfa;flex-shrink:0;">${c.total}</span>
             </div>
