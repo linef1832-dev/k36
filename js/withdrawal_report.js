@@ -144,15 +144,27 @@ async function _loadCaseData() {
 }
 
 // ─── Summary Cards ─────────────────────────
+
+// ─── helper: จัดกลุ่มประเภทเคส ────────────
+function _caseGroup(d) {
+    const t   = (d.case_type || '').toLowerCase();
+    const msg = (d.message_text || '').toLowerCase();
+    const qt  = (d.quoted_text  || '').toLowerCase();
+    const combined = t + ' ' + msg + ' ' + qt;
+
+    // เช็คเทิร์น / ลบเทิร์น / ล้างเทิร์น
+    if (/เช็คเทิร์|เช็คเทิน|ลบเทิร์|ลบเทิน|ล้างเทิร์|ล้างเทิน|เช็คเทิร|ลบเทิร|ล้างเทิร/.test(combined)) return 'เช็ค';
+    // ปลดบล็อค
+    if (/ปลดบล็อค|ปลดบล็อก|ปลด/.test(combined)) return 'ปลด';
+    return 'other';
+}
+
 function _renderSummary() {
     const total = _caseData.length;
-    const del   = 0; // รวมเข้าเช็คเทิร์นแล้ว
-    const chk   = _caseData.filter(d => ['เช็คเทิร์น','ลบเทิร์น','ล้างเทิร์น'].includes(d.case_type||'')).length;
-    const unb   = _caseData.filter(d => (d.case_type||'').includes('ปลด')).length;
-    const other = _caseData.filter(d => {
-        const t = d.case_type||'';
-        return !t.includes('ลบ') && !t.includes('เช็ค') && !t.includes('ปลด');
-    }).length;
+    const del   = 0;
+    const chk   = _caseData.filter(d => _caseGroup(d) === 'เช็ค').length;
+    const unb   = _caseData.filter(d => _caseGroup(d) === 'ปลด').length;
+    const other = _caseData.filter(d => _caseGroup(d) === 'other').length;
     document.getElementById('caseTotal').textContent      = total.toLocaleString();
     document.getElementById('caseDeleteTurn').textContent = del.toLocaleString();
     document.getElementById('caseCheckTurn').textContent  = chk.toLocaleString();
@@ -231,9 +243,9 @@ function _renderStaffGrid() {
         const matchType =
             _activeTypeFilter === 'ALL' ||
             (_activeTypeFilter === 'ลบ'    && t.includes('ลบ')) ||
-            (_activeTypeFilter === 'เช็ค'  && t.includes('เช็ค')) ||
-            (_activeTypeFilter === 'ปลด'   && t.includes('ปลด')) ||
-            (_activeTypeFilter === 'other' && !t.includes('ลบ') && !t.includes('เช็ค') && !t.includes('ปลด'));
+            (_activeTypeFilter === 'เช็ค'  && _caseGroup(d) === 'เช็ค') ||
+            (_activeTypeFilter === 'ปลด'   && _caseGroup(d) === 'ปลด') ||
+            (_activeTypeFilter === 'other' && _caseGroup(d) === 'other');
         // กรองตามกะ
         const matchShift = _activeShiftFilter === 'ALL' || shift === _activeShiftFilter;
 
@@ -241,7 +253,8 @@ function _renderStaffGrid() {
 
         if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0, sites:{}, shift, fullName: d.full_name||'' };
         counts[k].total++;
-        if (['เช็คเทิร์น','ลบเทิร์น','ล้างเทิร์น'].includes(t)) counts[k].เช็ค++;
+        const grp = _caseGroup(d);
+        if (grp === 'เช็ค') counts[k].เช็ค++;
         else if (t.includes('ปลด'))  counts[k].ปลด++;
         else                          counts[k].reply++;
         const site = d.site||'OTHER';
@@ -723,8 +736,8 @@ window.loadSummary = async function() {
 
         // summary cards
         const total = rows.length;
-        const del   = 0; // รวมเข้าเช็คแล้ว
-        const unb   = rows.filter(d => (d.case_type||'').includes('ปลด')).length;
+        const del   = 0;
+        const unb   = rows.filter(d => _caseGroup(d) === 'ปลด').length;
         const other = rows.filter(d => { const t=d.case_type||''; return !t.includes('ลบ')&&!t.includes('เช็ค')&&!t.includes('ปลด'); }).length;
         document.getElementById('sumTotal').textContent = total.toLocaleString();
         document.getElementById('sumDel').textContent   = del.toLocaleString();
@@ -744,7 +757,8 @@ window.loadSummary = async function() {
             };
             counts[k].total++;
             const t = d.case_type||'';
-            if (['เช็คเทิร์น','ลบเทิร์น','ล้างเทิร์น'].includes(t)) counts[k].เช็ค++;
+            const grp = _caseGroup(d);
+        if (grp === 'เช็ค') counts[k].เช็ค++;
             else if (t.includes('ปลด'))  counts[k].ปลด++;
             else                          counts[k].other++;
         });
