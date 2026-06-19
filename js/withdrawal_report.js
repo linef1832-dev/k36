@@ -96,21 +96,23 @@ window.switchCaseTab = function(tab) {
 function _setDefaultDate() {
     const picker = document.getElementById('caseDatePicker');
     if (!picker) return;
-    // ใช้ค่าที่ user เลือกไว้ถ้ามี ไม่งั้นค่อย default เป็นวันนี้
     if (!_caseDate) {
-        const th = new Date(Date.now() + 7*60*60*1000);
+        const th  = new Date(Date.now() + 7*60*60*1000);
         _caseDate = th.toISOString().slice(0,10);
     }
     picker.value = _caseDate;
 }
 window.setCaseDateToday = function() {
-    const th = new Date(Date.now() + 7*60*60*1000);
+    const th  = new Date(Date.now() + 7*60*60*1000);
     _caseDate = th.toISOString().slice(0,10);
-    document.getElementById('caseDatePicker').value = _caseDate;
+    const picker = document.getElementById('caseDatePicker');
+    if (picker) picker.value = _caseDate;
     _loadCaseData();
 };
 window.applyFilters = function() {
-    _caseDate = document.getElementById('caseDatePicker').value || _caseDate;
+    // อ่านค่าจาก picker โดยตรงเสมอ
+    const picker = document.getElementById('caseDatePicker');
+    if (picker && picker.value) _caseDate = picker.value;
     _caseSite = document.getElementById('caseSiteFilter').value;
     _caseType = document.getElementById('caseTypeFilter').value;
     _casePage = 1;
