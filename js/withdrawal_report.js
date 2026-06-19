@@ -32,10 +32,8 @@ function _subscribeRealtimeCases() {
         try { appDB.removeChannel(_realtimeCaseSub); } catch(e) {}
     }
     _realtimeCaseSub = appDB.channel('tg-case-realtime')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, (payload) => {
-            const newDate = (payload.new?.msg_date || '').slice(0, 10);
-            // รีเฟรชเฉพาะถ้าข้อมูลใหม่ตรงกับวันที่กำลังดูอยู่
-            if (newDate && newDate !== _caseDate) return;
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, () => {
+            _setDefaultDate(); // อัปเดตวันที่วันนี้ก่อน
             _loadCaseData();
             if (_caseTab === 'summary') loadSummary();
         })
@@ -94,13 +92,18 @@ window.switchCaseTab = function(tab) {
 
 // ─── Date helpers ─────────────────────────
 function _setDefaultDate() {
+    // วันที่ = วันนี้เสมอ (TH timezone)
+    const th  = new Date(Date.now() + 7*60*60*1000);
+    _caseDate = th.toISOString().slice(0,10);
+    // set hidden picker
     const picker = document.getElementById('caseDatePicker');
-    if (!picker) return;
-    if (!_caseDate) {
-        const th  = new Date(Date.now() + 7*60*60*1000);
-        _caseDate = th.toISOString().slice(0,10);
+    if (picker) picker.value = _caseDate;
+    // แสดง label วันที่
+    const label = document.getElementById('caseTodayLabel');
+    if (label) {
+        const d = new Date(_caseDate);
+        label.textContent = `📅 วันที่ ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543}`;
     }
-    picker.value = _caseDate;
 }
 window.setCaseDateToday = function() {
     const th  = new Date(Date.now() + 7*60*60*1000);
@@ -110,9 +113,6 @@ window.setCaseDateToday = function() {
     _loadCaseData();
 };
 window.applyFilters = function() {
-    // อ่านค่าจาก picker โดยตรงเสมอ
-    const picker = document.getElementById('caseDatePicker');
-    if (picker && picker.value) _caseDate = picker.value;
     _caseSite = document.getElementById('caseSiteFilter').value;
     _caseType = document.getElementById('caseTypeFilter').value;
     _casePage = 1;
@@ -121,9 +121,6 @@ window.applyFilters = function() {
 
 // ─── โหลดข้อมูลเคส ────────────────────────
 async function _loadCaseData() {
-    // อ่านวันที่จาก picker โดยตรง ไม่ใช้ _caseDate ที่อาจถูก override
-    const picker = document.getElementById('caseDatePicker');
-    if (picker && picker.value) _caseDate = picker.value;
     document.getElementById('caseStaffGrid').innerHTML =
         `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
     document.getElementById('caseLogBody').innerHTML =
