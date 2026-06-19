@@ -374,8 +374,20 @@ window.helpGetChatId = function() {
 };
 
 // ─── Export Excel ──────────────────────────
-window.exportCaseExcel = function() {
+window.exportCaseExcel = async function() {
     if (!_caseData.length) return Swal.fire('แจ้งเตือน','ไม่มีข้อมูล','warning');
+
+    // โหลด SheetJS ถ้ายังไม่มี
+    if (typeof XLSX === 'undefined') {
+        await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
     const rows = [['#','เวลา','พนักงาน','ประเภท','เว็บ','ตอบใคร','ข้อความ']];
     _caseData.forEach((d,i) => {
         const t = new Date(d.created_at).toLocaleTimeString('th-TH');
