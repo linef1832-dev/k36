@@ -675,7 +675,12 @@ window.loadSummary = async function() {
     const thNow = new Date(now.getTime() + 7*60*60*1000);
     let fromDate, toDate;
 
-    if (period === 'week') {
+    if (period === 'today') {
+        fromDate = toDate = thNow.toISOString().slice(0,10);
+    } else if (period === 'yesterday') {
+        const yd = new Date(thNow); yd.setDate(thNow.getDate() - 1);
+        fromDate = toDate = yd.toISOString().slice(0,10);
+    } else if (period === 'week') {
         const day = thNow.getDay() || 7;
         const mon = new Date(thNow); mon.setDate(thNow.getDate() - day + 1);
         fromDate  = mon.toISOString().slice(0,10);
