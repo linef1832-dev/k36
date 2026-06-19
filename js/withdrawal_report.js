@@ -24,14 +24,25 @@ window.initWithdrawalReport = async function() {
 };
 window.initCaseReport = window.initWithdrawalReport;
 
-// ─── Realtime: ปิดไว้ก่อน ใช้ปุ่มรีเฟรชแทน ────
-let _realtimeCaseSub  = null;
-let _realtimeDebounce = null;
+// ─── Realtime: รับข้อมูลใหม่อัตโนมัติ ────
+let _realtimeCaseSub = null;
 function _subscribeRealtimeCases() {
-    // ไม่ใช้ Realtime เพื่อป้องกัน spinner ค้าง
-    // ข้อมูลจะ refresh เมื่อกดปุ่มรีเฟรชหรือเปลี่ยนหน้า
-}
+    if (!appDB) return;
+    if (_realtimeCaseSub) {
+        try { appDB.removeChannel(_realtimeCaseSub); } catch(e) {}
+    }
+    _realtimeCaseSub = appDB.channel('tg-case-realtime')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, () => {
+            _setDefaultDate(); // อัปเดตวันที่วันนี้ก่อน
+            _loadCaseData();
+            if (_caseTab === 'summary') loadSummary();
+        })
+        .subscribe();
 
+    if (typeof window.registerPageSubscription === 'function') {
+        window.registerPageSubscription(_realtimeCaseSub);
+    }
+}
 
 // ─── Tab Switch ───────────────────────────
 const _TAB_COLORS = {
@@ -109,18 +120,11 @@ window.applyFilters = function() {
 };
 
 // ─── โหลดข้อมูลเคส ────────────────────────
-let _isLoadingCaseData = false;
 async function _loadCaseData() {
-    if (_isLoadingCaseData) return;
-    _isLoadingCaseData = true;
-    // auto-unlock หลัง 10 วินาที ป้องกัน lock ค้าง
-    const unlockTimer = setTimeout(() => { _isLoadingCaseData = false; }, 10000);
-
-    const grid = document.getElementById('caseStaffGrid');
-    if (grid) grid.innerHTML = `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
-    const logBody = document.getElementById('caseLogBody');
-    if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
-
+    document.getElementById('caseStaffGrid').innerHTML =
+        `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
+    document.getElementById('caseLogBody').innerHTML =
+        `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
     try {
         let q = appDB.from('tg_case_logs').select('*')
             .eq('msg_date', _caseDate)
@@ -134,11 +138,8 @@ async function _loadCaseData() {
         _renderStaffGrid();
         _renderLogTable();
     } catch(e) {
-        const lb = document.getElementById('caseLogBody');
-        if (lb) lb.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
-    } finally {
-        clearTimeout(unlockTimer);
-        _isLoadingCaseData = false;
+        document.getElementById('caseLogBody').innerHTML =
+            `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
     }
 }
 
@@ -239,12 +240,12 @@ function _renderStaffGrid() {
         const shift = _getShift(k, d.full_name, _shiftMap);
 
         // กรองตามประเภท
-        const grp = _caseGroup(d);
         const matchType =
             _activeTypeFilter === 'ALL' ||
-            (_activeTypeFilter === 'เช็ค'  && grp === 'เช็ค') ||
-            (_activeTypeFilter === 'ปลด'   && grp === 'ปลด') ||
-            (_activeTypeFilter === 'other' && grp === 'other');
+            (_activeTypeFilter === 'ลบ'    && t.includes('ลบ')) ||
+            (_activeTypeFilter === 'เช็ค'  && _caseGroup(d) === 'เช็ค') ||
+            (_activeTypeFilter === 'ปลด'   && _caseGroup(d) === 'ปลด') ||
+            (_activeTypeFilter === 'other' && _caseGroup(d) === 'other');
         // กรองตามกะ
         const matchShift = _activeShiftFilter === 'ALL' || shift === _activeShiftFilter;
 
@@ -252,9 +253,10 @@ function _renderStaffGrid() {
 
         if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0, sites:{}, shift, fullName: d.full_name||'' };
         counts[k].total++;
-        if (grp === 'เช็ค')      counts[k].เช็ค++;
-        else if (grp === 'ปลด')  counts[k].ปลด++;
-        else                      counts[k].reply++;
+        const grp = _caseGroup(d);
+        if (grp === 'เช็ค') counts[k].เช็ค++;
+        else if (t.includes('ปลด'))  counts[k].ปลด++;
+        else                          counts[k].reply++;
         const site = d.site||'OTHER';
         counts[k].sites[site] = (counts[k].sites[site]||0) + 1;
     });
