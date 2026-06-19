@@ -127,7 +127,7 @@ function _renderStaffGrid() {
             c.reply ? `<span class="bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full text-[11px] font-bold">reply ${c.reply}</span>`:'',
         ].filter(Boolean).join('');
         return `
-        <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-4 border border-slate-200 dark:border-slate-700 ${ring}">
+        <div class="bg-slate-800 rounded-xl p-4 border border-slate-600 ${ring}">
             <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="text-xl flex-shrink-0">${mdl}</span>
