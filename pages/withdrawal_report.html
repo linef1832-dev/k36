@@ -107,9 +107,17 @@
 
             <!-- Staff Ranking -->
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
-                <h3 class="text-sm font-bold text-slate-700 dark:text-gray-300 flex items-center gap-2 mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">
-                    <span class="material-icons text-violet-500">leaderboard</span> จำนวนเคสแต่ละคน (เรียงมากสุด)
-                </h3>
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1e293b;">
+                    <h3 style="font-size:14px;font-weight:700;color:#cbd5e1;display:flex;align-items:center;gap:8px;">
+                        <span class="material-icons" style="color:#7c3aed;">leaderboard</span> จำนวนเคสแต่ละคน (เรียงมากสุด)
+                    </h3>
+                    <div style="position:relative;">
+                        <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:17px;">search</span>
+                        <input type="text" placeholder="ค้นหาชื่อพนักงาน..." oninput="searchStaff(this.value)"
+                            style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:7px 14px 7px 34px;color:#fff;font-size:13px;outline:none;font-family:inherit;width:220px;"
+                            onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#334155'">
+                    </div>
+                </div>
                 <div id="caseStaffGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                     <div class="col-span-full text-center py-8 text-gray-400">
                         <span class="material-icons animate-spin text-violet-400 text-3xl">sync</span>
