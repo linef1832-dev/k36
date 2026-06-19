@@ -1,103 +1,259 @@
 <div class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-    <div class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-4 shadow-md shrink-0 flex justify-between items-center z-10">
-        <div class="flex items-center gap-3">
-            <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl">receipt_long</span></div>
-            <div>
-                <h1 class="font-black text-xl tracking-wide">รายงานยอดถอนเงิน (Real-time)</h1>
-                <p class="text-xs text-emerald-100 opacity-90">ระบบแยกงานหลัก/งานรอง อัตโนมัติตามตารางจัดหน้าที่วันนี้</p>
+
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-violet-600 to-indigo-700 text-white p-4 shadow-md shrink-0 z-10">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 p-2 rounded-xl"><span class="material-icons text-3xl">analytics</span></div>
+                <div>
+                    <h1 class="font-black text-xl">สถิติเคสพนักงาน (Telegram)</h1>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span id="botStatusDot" class="w-2 h-2 rounded-full bg-gray-400 inline-block"></span>
+                        <span id="botStatusText" class="text-xs text-violet-200">ยังไม่ได้เชื่อมต่อบอท</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <button onclick="openBotSettings()" class="bg-white/15 hover:bg-white/25 text-white px-3 py-2 rounded-xl font-bold flex items-center gap-2 transition border border-white/20">
+                    <span class="material-icons text-sm">settings</span> ตั้งค่าบอท
+                </button>
+                <button onclick="initCaseReport()" class="bg-white/15 hover:bg-white/25 text-white px-3 py-2 rounded-xl font-bold flex items-center gap-2 transition border border-white/20">
+                    <span class="material-icons text-sm">refresh</span> รีเฟรช
+                </button>
+                <button onclick="exportCaseExcel()" class="bg-white text-violet-600 hover:bg-gray-100 px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm transition">
+                    <span class="material-icons text-sm">download</span> Excel
+                </button>
             </div>
         </div>
-        <div class="flex items-center gap-2">
-            <button onclick="initWithdrawalReport()" class="bg-slate-800/50 hover:bg-slate-700 text-white px-3 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm transition">
-                <span class="material-icons text-sm">refresh</span> รีเฟรชยอด
+
+        <!-- Tabs -->
+        <div class="flex gap-1 mt-4">
+            <button onclick="switchCaseTab('stats')" id="tab-stats" class="tab-btn-active px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5">
+                <span class="material-icons text-sm">leaderboard</span> สถิติ
             </button>
-            <button onclick="exportWithdrawalToExcel()" class="bg-white text-emerald-600 hover:bg-gray-100 px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm transition">
-                <span class="material-icons text-sm">download</span> โหลด Excel
+            <button onclick="switchCaseTab('log')" id="tab-log" class="tab-btn-inactive px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5">
+                <span class="material-icons text-sm">history</span> Log
+            </button>
+            <button onclick="switchCaseTab('settings')" id="tab-settings" class="tab-btn-inactive px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5">
+                <span class="material-icons text-sm">smart_toy</span> บอท
             </button>
         </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/50 custom-scrollbar">
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5" id="topDashboard">
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 shadow-lg border border-slate-700 relative overflow-hidden">
-                <div class="relative z-10 flex justify-between items-center">
-                    <div><p class="text-gray-400 text-xs font-bold mb-1">ยอดทำรายการรวมทั้งหมด</p><h3 class="text-3xl font-black text-white" id="sumTotal">0</h3></div>
-                    <span class="material-icons text-5xl text-white/10 absolute -right-2 -bottom-2">functions</span>
+    <!-- Filter Bar -->
+    <div class="bg-white dark:bg-slate-800 px-4 py-3 border-b dark:border-slate-700 flex flex-wrap gap-3 items-center shadow-sm">
+        <div class="flex items-center gap-2">
+            <span class="material-icons text-violet-500 text-sm">event</span>
+            <label class="text-xs font-bold text-gray-500 dark:text-gray-400">วันที่:</label>
+            <input type="date" id="caseDatePicker" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition">
+            <button onclick="setCaseDateToday()" class="bg-violet-500/10 text-violet-500 hover:bg-violet-500/20 border border-violet-500/30 px-2 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                <span class="material-icons text-sm">today</span> วันนี้
+            </button>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="material-icons text-violet-500 text-sm">language</span>
+            <label class="text-xs font-bold text-gray-500 dark:text-gray-400">เว็บ:</label>
+            <select id="caseSiteFilter" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition cursor-pointer">
+                <option value="ALL">ทั้งหมด</option>
+                <option value="JUN88">JUN88</option><option value="MK8">MK8</option>
+                <option value="BT678">BT678</option><option value="K188">K188</option>
+                <option value="VV72">VV72</option><option value="TH26">TH26</option>
+                <option value="F168">F168</option><option value="PG688">PG688</option>
+                <option value="JL69">JL69</option><option value="NM9">NM9</option>
+                <option value="OTHER">อื่นๆ</option>
+            </select>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="material-icons text-violet-500 text-sm">category</span>
+            <label class="text-xs font-bold text-gray-500 dark:text-gray-400">ประเภท:</label>
+            <select id="caseTypeFilter" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-violet-500 outline-none transition cursor-pointer">
+                <option value="ALL">ทั้งหมด</option>
+                <option value="ลบเทิร์น">ลบเทิร์น</option>
+                <option value="เช็คเทิร์น">เช็คเทิร์น</option>
+                <option value="ปลดบล็อค">ปลดบล็อค</option>
+                <option value="reply">reply ทั่วไป</option>
+            </select>
+        </div>
+        <button onclick="applyFilters()" class="bg-violet-600 hover:bg-violet-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 active:scale-95 ml-auto">
+            <span class="material-icons text-sm">search</span> กรอง
+        </button>
+    </div>
+
+    <!-- Content Area -->
+    <div class="flex-1 overflow-y-auto custom-scrollbar">
+
+        <!-- ===== TAB: สถิติ ===== -->
+        <div id="caseTab-stats" class="p-4 sm:p-5 space-y-5">
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 shadow-lg border border-slate-700">
+                    <p class="text-gray-400 text-xs font-bold mb-1">เคสรวมทั้งหมด</p>
+                    <h3 class="text-3xl font-black text-white" id="caseTotal">—</h3>
+                </div>
+                <div class="bg-gradient-to-br from-blue-900 to-blue-950 rounded-2xl p-4 shadow-lg border border-blue-800">
+                    <p class="text-blue-300 text-xs font-bold mb-1">ลบเทิร์น</p>
+                    <h3 class="text-3xl font-black text-blue-100" id="caseDeleteTurn">—</h3>
+                </div>
+                <div class="bg-gradient-to-br from-emerald-900 to-emerald-950 rounded-2xl p-4 shadow-lg border border-emerald-800">
+                    <p class="text-emerald-300 text-xs font-bold mb-1">เช็คเทิร์น</p>
+                    <h3 class="text-3xl font-black text-emerald-100" id="caseCheckTurn">—</h3>
+                </div>
+                <div class="bg-gradient-to-br from-amber-900 to-amber-950 rounded-2xl p-4 shadow-lg border border-amber-800">
+                    <p class="text-amber-300 text-xs font-bold mb-1">ปลดบล็อค</p>
+                    <h3 class="text-3xl font-black text-amber-100" id="caseUnblock">—</h3>
                 </div>
             </div>
-            <div class="bg-gradient-to-br from-blue-900 to-blue-950 rounded-2xl p-5 shadow-lg border border-blue-800 relative overflow-hidden">
-                <div class="relative z-10 flex justify-between items-center">
-                    <div><p class="text-blue-300 text-xs font-bold mb-1">ยอดรวมจาก งานหลัก</p><h3 class="text-3xl font-black text-blue-100" id="sumPrimary">0</h3></div>
-                    <span class="material-icons text-5xl text-white/10 absolute -right-2 -bottom-2">domain</span>
-                </div>
-            </div>
-            <div class="bg-gradient-to-br from-amber-900 to-amber-950 rounded-2xl p-5 shadow-lg border border-amber-800 relative overflow-hidden">
-                <div class="relative z-10 flex justify-between items-center">
-                    <div><p class="text-amber-300 text-xs font-bold mb-1">ยอดรวมจาก งานรอง</p><h3 class="text-3xl font-black text-amber-100" id="sumSecondary">0</h3></div>
-                    <span class="material-icons text-5xl text-white/10 absolute -right-2 -bottom-2">support_agent</span>
+
+            <!-- Staff Ranking -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
+                <h3 class="text-sm font-bold text-slate-700 dark:text-gray-300 flex items-center gap-2 mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">
+                    <span class="material-icons text-violet-500">leaderboard</span> จำนวนเคสแต่ละคน (เรียงมากสุด)
+                </h3>
+                <div id="caseStaffGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <div class="col-span-full text-center py-8 text-gray-400">
+                        <span class="material-icons animate-spin text-violet-400 text-3xl">sync</span>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5 mb-6">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">
-                <h3 class="text-sm font-bold text-slate-700 dark:text-gray-300 flex items-center gap-2">
-                    <span class="material-icons text-emerald-500">people</span> ยอดพนักงานแต่ละคน (เรียงตามคนทำเยอะสุด)
+        <!-- ===== TAB: Log ===== -->
+        <div id="caseTab-log" class="hidden p-4 sm:p-5">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div class="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="material-icons text-gray-400 text-[18px]">history</span>
+                        <span class="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Log ข้อความทั้งหมด</span>
+                    </div>
+                    <span id="caseLogCount" class="text-xs text-gray-400"></span>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-900 text-gray-400 text-[10px] uppercase sticky top-0 shadow-sm border-b border-slate-700">
+                            <tr>
+                                <th class="p-3 font-bold text-center w-12">#</th>
+                                <th class="p-3 font-bold">เวลา</th>
+                                <th class="p-3 font-bold">พนักงาน</th>
+                                <th class="p-3 font-bold">ประเภท</th>
+                                <th class="p-3 font-bold">เว็บ</th>
+                                <th class="p-3 font-bold">ตอบใคร</th>
+                                <th class="p-3 font-bold">ข้อความ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="caseLogBody" class="text-slate-700 dark:text-gray-200 divide-y divide-slate-700/50">
+                            <tr><td colspan="7" class="text-center py-10 text-gray-400">กำลังโหลด...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="casePagination" class="px-4 py-3 border-t border-slate-700 flex items-center justify-between text-xs text-gray-400"></div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: บอท ===== -->
+        <div id="caseTab-settings" class="hidden p-4 sm:p-5 space-y-5 max-w-2xl mx-auto">
+
+            <!-- สถานะการเชื่อมต่อ -->
+            <div id="botConnectCard" class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-6">
+                <h3 class="font-black text-slate-700 dark:text-white text-base flex items-center gap-2 mb-5">
+                    <span class="material-icons text-violet-500">smart_toy</span> เชื่อมต่อบอท Telegram
                 </h3>
-                <div class="flex items-center flex-wrap gap-2">
-                    <span class="material-icons text-emerald-500 text-sm">language</span>
-                    <label class="text-xs font-bold text-gray-500 dark:text-gray-400">เว็บหลัก:</label>
-                    <select id="withdrawalSiteFilter" onchange="onWithdrawalSiteChange(this.value)" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-emerald-500 focus:outline-none transition cursor-pointer">
-                        <option value="ALL">ทั้งหมด</option>
-                        <option value="JUN88">JUN88</option>
-                        <option value="MK8">MK8</option>
-                        <option value="BT678">BT678</option>
-                        <option value="K188">K188</option>
-                        <option value="VV72">VV72</option>
-                        <option value="TH26">TH26</option>
-                        <option value="F168">F168</option>
-                        <option value="PG688">PG688</option>
-                        <option value="JL69">JL69</option>
-                        <option value="NM9">NM9</option>
-                    </select>
-                    <span class="material-icons text-emerald-500 text-sm ml-2">event</span>
-                    <label class="text-xs font-bold text-gray-500 dark:text-gray-400">วันที่:</label>
-                    <input type="date" id="withdrawalDatePicker" onchange="onWithdrawalDateChange(this.value)" class="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:border-emerald-500 focus:outline-none transition" />
-                    <button onclick="resetWithdrawalDateToday()" class="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30 px-2 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1" title="กลับไปวันนี้">
-                        <span class="material-icons text-sm">today</span> วันนี้
+
+                <!-- Token Input -->
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Bot Token (จาก BotFather)</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="botTokenInput" placeholder="1234567890:ABCdef..."
+                            class="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-violet-500 transition font-mono">
+                        <button onclick="toggleTokenVisibility()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 px-3 rounded-xl transition text-gray-500 dark:text-gray-300">
+                            <span class="material-icons text-sm" id="tokenEyeIcon">visibility</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1.5">หาได้จาก <span class="text-blue-400 font-bold">@BotFather</span> → /newbot → copy token</p>
+                </div>
+
+                <!-- Chat ID -->
+                <div class="mb-5">
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Chat ID ของกลุ่ม</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="botChatIdInput" placeholder="-1001234567890"
+                            class="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-violet-500 transition font-mono">
+                        <button onclick="helpGetChatId()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 px-3 rounded-xl transition text-gray-500 dark:text-gray-300 text-xs font-bold whitespace-nowrap">
+                            วิธีหา?
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1.5">Chat ID ของกลุ่มที่บอทอยู่ (เริ่มด้วย -100...)</p>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="testBotConnection()" id="btnTestBot" class="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-600">
+                        <span class="material-icons text-sm">wifi_tethering</span> ทดสอบ
+                    </button>
+                    <button onclick="saveBotSettings()" id="btnSaveBot" class="flex-2 bg-violet-600 hover:bg-violet-500 text-white font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2 active:scale-95">
+                        <span class="material-icons text-sm">save</span> บันทึกและเชื่อมต่อ
                     </button>
                 </div>
-            </div>
-            <div id="staffSummaryGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                <div class="col-span-full text-center text-xs text-gray-500 py-4"><span class="animate-spin material-icons">sync</span> กำลังคำนวณยอด...</div>
-            </div>
-        </div>
 
-        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div class="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                <span class="material-icons text-gray-400 text-[18px]">history</span>
-                <span class="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">ประวัติการกดปุ่ม (ล่าสุด)</span>
+                <!-- Test Result -->
+                <div id="botTestResult" class="hidden mt-4 p-4 rounded-xl text-sm font-bold"></div>
             </div>
-            <div id="withdrawalTableWrap" class="overflow-x-auto custom-scrollbar">
-                <table class="w-full text-left text-sm whitespace-nowrap">
-                    <thead class="bg-slate-900 text-gray-400 text-[10px] uppercase sticky top-0 shadow-sm z-10 border-b border-slate-700">
-                        <tr>
-                            <th class="p-3 font-bold text-center w-16">ลำดับ</th>
-                            <th class="p-3 font-bold">วัน-เวลาที่ทำรายการ</th>
-                            <th class="p-3 font-bold">พนักงาน</th>
-                            <th class="p-3 font-bold">ระบบที่กด</th>
-                            <th class="p-3 font-bold">สถานะหน้าที่</th>
-                            <th class="p-3 font-bold text-center">การดำเนินการ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="withdrawalReportBody" class="text-slate-700 dark:text-gray-200 divide-y divide-slate-700/50">
-                        <tr><td colspan="6" class="text-center py-10">กำลังโหลด...</td></tr>
-                    </tbody>
-                </table>
+
+            <!-- สถานะบอทปัจจุบัน -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
+                <h3 class="font-bold text-slate-700 dark:text-white text-sm flex items-center gap-2 mb-4">
+                    <span class="material-icons text-emerald-500">info</span> สถานะบอทปัจจุบัน
+                </h3>
+                <div id="botCurrentStatus" class="space-y-2 text-sm">
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700">
+                        <span class="text-gray-500 dark:text-gray-400">สถานะ</span>
+                        <span id="sBot_status" class="font-bold text-gray-400">ยังไม่เชื่อมต่อ</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700">
+                        <span class="text-gray-500 dark:text-gray-400">ชื่อบอท</span>
+                        <span id="sBot_name" class="font-bold text-gray-400">—</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700">
+                        <span class="text-gray-500 dark:text-gray-400">Username</span>
+                        <span id="sBot_username" class="font-bold text-gray-400">—</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700">
+                        <span class="text-gray-500 dark:text-gray-400">Chat ID</span>
+                        <span id="sBot_chatid" class="font-bold text-gray-400">—</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2">
+                        <span class="text-gray-500 dark:text-gray-400">บันทึกล่าสุด</span>
+                        <span id="sBot_saved" class="font-bold text-gray-400">—</span>
+                    </div>
+                </div>
+                <button onclick="disconnectBot()" id="btnDisconnect" class="hidden w-full mt-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold py-2 rounded-xl transition text-sm flex items-center justify-center gap-2">
+                    <span class="material-icons text-sm">link_off</span> ยกเลิกการเชื่อมต่อ
+                </button>
             </div>
-            <div id="withdrawalPagination"></div>
+
+            <!-- คำแนะนำ -->
+            <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-5 text-sm space-y-3">
+                <h3 class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="material-icons text-sm">help_outline</span> วิธีตั้งค่าบอท
+                </h3>
+                <ol class="space-y-2 text-indigo-200 list-decimal list-inside text-xs">
+                    <li>เปิด Telegram → ค้นหา <strong>@BotFather</strong></li>
+                    <li>พิมพ์ <strong>/newbot</strong> → ตั้งชื่อบอท → รับ Token</li>
+                    <li>เพิ่มบอทเข้ากลุ่มที่ต้องการ และให้สิทธิ์ <strong>Admin</strong></li>
+                    <li>นำ Token มาใส่ในช่องด้านบน แล้วกดทดสอบ</li>
+                    <li>รัน <strong>tg_bot.py</strong> บน Server/VPS ของคุณ</li>
+                </ol>
+                <div class="bg-black/20 rounded-xl p-3 font-mono text-xs text-emerald-300 mt-2">
+                    pip install "python-telegram-bot==20.7" httpx<br>
+                    python3 tg_bot.py
+                </div>
+            </div>
         </div>
 
     </div>
 </div>
+
+<style>
+.tab-btn-active  { background: rgba(255,255,255,0.2); color: #fff; }
+.tab-btn-inactive { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.6); }
+.tab-btn-inactive:hover { background: rgba(255,255,255,0.13); color: #fff; }
+</style>
