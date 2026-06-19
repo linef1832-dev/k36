@@ -97,36 +97,65 @@ function _renderSummary() {
     document.getElementById('caseUnblock').textContent    = unb.toLocaleString();
     const otherEl = document.getElementById('caseOther');
     if (otherEl) otherEl.textContent = other.toLocaleString();
+    _updateCardActiveStyle();
 }
 
-// ─── Staff Ranking ─────────────────────────
+let _activeTypeFilter = 'ALL';
+
+function _updateCardActiveStyle() {
+    [['cardAll','ALL'],['cardDel','ลบ'],['cardChk','เช็ค'],['cardUnb','ปลด'],['cardOther','other']].forEach(([id,k]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.outline = (_activeTypeFilter === k) ? '2px solid #fff' : 'none';
+        el.style.opacity = (_activeTypeFilter === 'ALL' || _activeTypeFilter === k) ? '1' : '0.5';
+        el.style.cursor  = 'pointer';
+    });
+}
+
+window.filterByType = function(type) {
+    _activeTypeFilter = (_activeTypeFilter === type) ? 'ALL' : type;
+    _updateCardActiveStyle();
+    _renderStaffGrid();
+};
+
+// ─── Staff Grid ─────────────────────────────
 function _renderStaffGrid() {
-    const grid = document.getElementById('caseStaffGrid');
-    if (!grid) return;
     const counts = {};
     _caseData.forEach(d => {
         const k = d.sender_name;
-        if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0 };
+        const t = d.case_type||'';
+        const matchType =
+            _activeTypeFilter === 'ALL' ||
+            (_activeTypeFilter === 'ลบ'   && t.includes('ลบ')) ||
+            (_activeTypeFilter === 'เช็ค' && t.includes('เช็ค')) ||
+            (_activeTypeFilter === 'ปลด'  && t.includes('ปลด')) ||
+            (_activeTypeFilter === 'other' && !t.includes('ลบ') && !t.includes('เช็ค') && !t.includes('ปลด'));
+        if (!matchType) return;
+        if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0, sites:{} };
         counts[k].total++;
-        if ((d.case_type||'').includes('ลบ'))        counts[k].ลบ++;
-        else if ((d.case_type||'').includes('เช็ค')) counts[k].เช็ค++;
-        else if ((d.case_type||'').includes('ปลด'))  counts[k].ปลด++;
-        else counts[k].reply++;
+        if (t.includes('ลบ'))        counts[k].ลบ++;
+        else if (t.includes('เช็ค')) counts[k].เช็ค++;
+        else if (t.includes('ปลด'))  counts[k].ปลด++;
+        else                          counts[k].reply++;
+        const site = d.site||'OTHER';
+        counts[k].sites[site] = (counts[k].sites[site]||0) + 1;
     });
-    window._staffCounts = counts; // เก็บไว้ใช้ตอน search
-    _renderStaffCards(counts, '');
+    window._staffCounts = counts;
+    _renderStaffCards(counts, document.querySelector('input[oninput*="searchStaff"]')?.value||'');
 }
 
 function _renderStaffCards(counts, search) {
     const grid   = document.getElementById('caseStaffGrid');
+    if (!grid) return;
     const sorted = Object.entries(counts)
         .filter(([name]) => !search || name.toLowerCase().includes(search.toLowerCase()))
-        .sort((a,b)=>b[1].total-a[1].total);
+        .filter(([,c]) => c.total > 0)
+        .sort((a,b) => b[1].total - a[1].total);
 
     if (sorted.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-400">
             <span class="material-icons text-4xl">inbox</span>
-            <p class="mt-2 text-sm">${search ? 'ไม่พบชื่อที่ค้นหา' : 'ไม่พบข้อมูลในวันนี้'}</p></div>`;
+            <p class="mt-2 text-sm">${search ? 'ไม่พบชื่อที่ค้นหา' : 'ไม่พบข้อมูล'}</p></div>`;
         return;
     }
     const max    = sorted[0][1].total || 1;
@@ -134,16 +163,20 @@ function _renderStaffCards(counts, search) {
     grid.innerHTML = sorted.map(([name, c], i) => {
         const pct  = Math.round((c.total/max)*100);
         const mdl  = medals[i] || `#${i+1}`;
-        const ring = i===0 ? 'ring-2 ring-yellow-400' : '';
-        const tags = [
-            c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
-            c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:#34d399;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>`:'',
-            c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:#fbbf24;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
-            c.reply ? `<span style="background:rgba(100,116,139,0.2);color:#94a3b8;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">reply ${c.reply}</span>`:'',
+        const ring = i===0 ? 'outline:2px solid #facc15;' : '';
+        const typeTags = [
+            c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
+            c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:#34d399;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>`:'',
+            c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:#fbbf24;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
+            c.reply ? `<span style="background:rgba(100,116,139,0.2);color:#94a3b8;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.reply}</span>`:'',
         ].filter(Boolean).join('');
+        const siteTags = Object.entries(c.sites).sort((a,b)=>b[1]-a[1])
+            .map(([s,n]) => `<span style="background:rgba(14,165,233,0.15);color:#38bdf8;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${s}×${n}</span>`)
+            .join('');
+        const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         return `
-        <div onclick="openStaffDetail('${name.replace(/'/g,"\\'")}\')"
-             style="cursor:pointer;background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;transition:all .15s;${ring?'outline:2px solid #facc15;':''}"
+        <div onclick="openStaffDetail('${safeName}')"
+             style="cursor:pointer;background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;transition:all .15s;${ring}"
              onmouseover="this.style.background='#263548';this.style.borderColor='#7c3aed'"
              onmouseout="this.style.background='#1e293b';this.style.borderColor='#334155'">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -153,10 +186,11 @@ function _renderStaffCards(counts, search) {
                 </div>
                 <span style="font-size:24px;font-weight:900;color:#a78bfa;flex-shrink:0;">${c.total}</span>
             </div>
-            <div style="width:100%;background:#334155;border-radius:999px;height:6px;margin-bottom:8px;">
-                <div style="background:#7c3aed;height:6px;border-radius:999px;width:${pct}%;"></div>
+            <div style="width:100%;background:#334155;border-radius:999px;height:5px;margin-bottom:8px;">
+                <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;"></div>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;">${tags}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:${siteTags?'5px':'0'};">${typeTags}</div>
+            ${siteTags?`<div style="display:flex;flex-wrap:wrap;gap:4px;">${siteTags}</div>`:''}
         </div>`;
     }).join('');
 }
