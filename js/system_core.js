@@ -2380,9 +2380,9 @@ const PERM_GROUPS = [
         ]
     },
     {
-        id: 'page_withdrawal_report', name: 'รายงานการถอนเงิน', icon: 'receipt_long', theme: 'emerald',
+        id: 'page_withdrawal_report', name: 'รับเคส Telegram', icon: 'receipt_long', theme: 'emerald',
         items: [
-            {id: 'withdrawal_report', name: 'ตรวจสอบยอดพนักงานถอน', isSub: false}
+            {id: 'withdrawal_report', name: 'รับเคส Telegram', isSub: false}
         ]
     },
     {
