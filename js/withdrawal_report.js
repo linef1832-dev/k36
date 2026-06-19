@@ -87,10 +87,16 @@ function _renderSummary() {
     const del   = _caseData.filter(d => (d.case_type||'').includes('ลบ')).length;
     const chk   = _caseData.filter(d => (d.case_type||'').includes('เช็ค')).length;
     const unb   = _caseData.filter(d => (d.case_type||'').includes('ปลด')).length;
+    const other = _caseData.filter(d => {
+        const t = d.case_type||'';
+        return !t.includes('ลบ') && !t.includes('เช็ค') && !t.includes('ปลด');
+    }).length;
     document.getElementById('caseTotal').textContent      = total.toLocaleString();
     document.getElementById('caseDeleteTurn').textContent = del.toLocaleString();
     document.getElementById('caseCheckTurn').textContent  = chk.toLocaleString();
     document.getElementById('caseUnblock').textContent    = unb.toLocaleString();
+    const otherEl = document.getElementById('caseOther');
+    if (otherEl) otherEl.textContent = other.toLocaleString();
 }
 
 // ─── Staff Ranking ─────────────────────────
