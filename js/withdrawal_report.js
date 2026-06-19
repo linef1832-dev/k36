@@ -32,9 +32,20 @@ function _subscribeRealtimeCases() {
         try { appDB.removeChannel(_realtimeCaseSub); } catch(e) {}
     }
     _realtimeCaseSub = appDB.channel('tg-case-realtime')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, () => {
-            _setDefaultDate(); // อัปเดตวันที่วันนี้ก่อน
-            _loadCaseData();
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, (payload) => {
+            const m = payload.new;
+            if (!m) return;
+            // เฉพาะข้อมูลวันนี้
+            if (m.msg_date !== _caseDate) return;
+            // ถ้ากำลังโหลดอยู่ให้ข้าม
+            if (_isLoadingCaseData) return;
+            // append ข้อมูลใหม่เข้า array โดยไม่ reload ทั้งหมด
+            if (!(_caseData||[]).some(x => x.id === m.id)) {
+                _caseData = [m, ...(_caseData||[])];
+                _renderSummary();
+                _renderStaffGrid();
+                _renderLogTable();
+            }
             if (_caseTab === 'summary') loadSummary();
         })
         .subscribe();
@@ -120,7 +131,12 @@ window.applyFilters = function() {
 };
 
 // ─── โหลดข้อมูลเคส ────────────────────────
+let _isLoadingCaseData = false;
 async function _loadCaseData() {
+    // ป้องกันโหลดซ้อนกัน
+    if (_isLoadingCaseData) return;
+    _isLoadingCaseData = true;
+
     document.getElementById('caseStaffGrid').innerHTML =
         `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
     document.getElementById('caseLogBody').innerHTML =
@@ -140,6 +156,8 @@ async function _loadCaseData() {
     } catch(e) {
         document.getElementById('caseLogBody').innerHTML =
             `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
+    } finally {
+        _isLoadingCaseData = false;
     }
 }
 
