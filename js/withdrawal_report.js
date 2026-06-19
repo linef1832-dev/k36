@@ -138,14 +138,16 @@ window.applyFilters = function() {
 // ─── โหลดข้อมูลเคส ────────────────────────
 let _isLoadingCaseData = false;
 async function _loadCaseData() {
-    // ป้องกันโหลดซ้อนกัน
     if (_isLoadingCaseData) return;
     _isLoadingCaseData = true;
+    // auto-unlock หลัง 10 วินาที ป้องกัน lock ค้าง
+    const unlockTimer = setTimeout(() => { _isLoadingCaseData = false; }, 10000);
 
-    document.getElementById('caseStaffGrid').innerHTML =
-        `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
-    document.getElementById('caseLogBody').innerHTML =
-        `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
+    const grid = document.getElementById('caseStaffGrid');
+    if (grid) grid.innerHTML = `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
+    const logBody = document.getElementById('caseLogBody');
+    if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
+
     try {
         let q = appDB.from('tg_case_logs').select('*')
             .eq('msg_date', _caseDate)
@@ -159,9 +161,10 @@ async function _loadCaseData() {
         _renderStaffGrid();
         _renderLogTable();
     } catch(e) {
-        document.getElementById('caseLogBody').innerHTML =
-            `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
+        const lb = document.getElementById('caseLogBody');
+        if (lb) lb.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
     } finally {
+        clearTimeout(unlockTimer);
         _isLoadingCaseData = false;
     }
 }
