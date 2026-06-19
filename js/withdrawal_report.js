@@ -16,11 +16,32 @@ window.initWithdrawalReport = async function() {
     _activeTypeFilter  = 'ALL';
     _activeShiftFilter = 'ALL';
     _setDefaultDate();
-    await _loadShiftMap();   // โหลดข้อมูลกะจาก users table
+    await _loadShiftMap();
     await _loadBotStatus();
     await _loadCaseData();
+    _subscribeRealtimeCases(); // เริ่ม Realtime
 };
 window.initCaseReport = window.initWithdrawalReport;
+
+// ─── Realtime: รับข้อมูลใหม่อัตโนมัติ ────
+let _realtimeCaseSub = null;
+function _subscribeRealtimeCases() {
+    if (!appDB) return;
+    if (_realtimeCaseSub) {
+        try { appDB.removeChannel(_realtimeCaseSub); } catch(e) {}
+    }
+    _realtimeCaseSub = appDB.channel('tg-case-realtime')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, () => {
+            // รีเฟรชหน้าที่กำลังดูอยู่
+            _loadCaseData();
+            if (_caseTab === 'summary') loadSummary();
+        })
+        .subscribe();
+
+    if (typeof window.registerPageSubscription === 'function') {
+        window.registerPageSubscription(_realtimeCaseSub);
+    }
+}
 
 // ─── Tab Switch ───────────────────────────
 const _TAB_COLORS = {
@@ -632,8 +653,9 @@ window.exportCaseExcel = async function() {
 // ==========================================
 
 window.loadSummary = async function() {
-    const period = document.getElementById('summaryPeriod')?.value || 'month';
-    const customDiv = document.getElementById('summaryCustomRange');
+    const period     = document.getElementById('summaryPeriod')?.value || 'month';
+    const shiftFilter = document.getElementById('summaryShift')?.value || 'ALL';
+    const customDiv  = document.getElementById('summaryCustomRange');
 
     // แสดง/ซ่อน custom range
     if (customDiv) customDiv.classList.toggle('hidden', period !== 'custom');
@@ -696,10 +718,13 @@ window.loadSummary = async function() {
         document.getElementById('sumUnb').textContent   = unb.toLocaleString();
         document.getElementById('sumOther').textContent = other.toLocaleString();
 
-        // นับต่อคน
+        // นับต่อคน (กรองกะด้วย)
         const counts = {};
         rows.forEach(d => {
-            const k = d.sender_name;
+            const k     = d.sender_name;
+            const shift = _getShift(k, d.full_name, _shiftMap);
+            // กรองกะ
+            if (shiftFilter !== 'ALL' && shift !== shiftFilter) return;
             if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, other:0,
                 shift: _getShift(k, d.full_name, _shiftMap),
                 display: (()=>{ const m=(k||'').match(/^[^-]+-([^-]+)-/); return m?m[1]:k; })()
