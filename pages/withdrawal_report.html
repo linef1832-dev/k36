@@ -87,23 +87,23 @@
 
             <!-- Summary Cards -->
             <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 shadow-lg border border-slate-700">
+                <div id="cardAll" onclick="filterByType('ALL')" class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 shadow-lg border border-slate-700" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor=''">
                     <p class="text-gray-400 text-xs font-bold mb-1">เคสรวมทั้งหมด</p>
                     <h3 class="text-3xl font-black text-white" id="caseTotal">—</h3>
                 </div>
-                <div class="bg-gradient-to-br from-blue-900 to-blue-950 rounded-2xl p-4 shadow-lg border border-blue-800">
+                <div id="cardDel" onclick="filterByType('ลบ')" class="bg-gradient-to-br from-blue-900 to-blue-950 rounded-2xl p-4 shadow-lg border border-blue-800" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
                     <p class="text-blue-300 text-xs font-bold mb-1">ลบเทิร์น</p>
                     <h3 class="text-3xl font-black text-blue-100" id="caseDeleteTurn">—</h3>
                 </div>
-                <div class="bg-gradient-to-br from-emerald-900 to-emerald-950 rounded-2xl p-4 shadow-lg border border-emerald-800">
+                <div id="cardChk" onclick="filterByType('เช็ค')" class="bg-gradient-to-br from-emerald-900 to-emerald-950 rounded-2xl p-4 shadow-lg border border-emerald-800" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
                     <p class="text-emerald-300 text-xs font-bold mb-1">เช็คเทิร์น</p>
                     <h3 class="text-3xl font-black text-emerald-100" id="caseCheckTurn">—</h3>
                 </div>
-                <div class="bg-gradient-to-br from-amber-900 to-amber-950 rounded-2xl p-4 shadow-lg border border-amber-800">
+                <div id="cardUnb" onclick="filterByType('ปลด')" class="bg-gradient-to-br from-amber-900 to-amber-950 rounded-2xl p-4 shadow-lg border border-amber-800" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
                     <p class="text-amber-300 text-xs font-bold mb-1">ปลดบล็อค</p>
                     <h3 class="text-3xl font-black text-amber-100" id="caseUnblock">—</h3>
                 </div>
-                <div class="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-4 shadow-lg border border-slate-600">
+                <div id="cardOther" onclick="filterByType('other')" class="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-4 shadow-lg border border-slate-600" style="transition:all .2s;cursor:pointer;" onmouseover="this.style.borderColor='#fff'" onmouseout="this.style.borderColor=''">
                     <p class="text-slate-300 text-xs font-bold mb-1">อื่นๆ (reply)</p>
                     <h3 class="text-3xl font-black text-slate-100" id="caseOther">—</h3>
                 </div>
