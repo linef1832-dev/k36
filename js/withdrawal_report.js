@@ -24,13 +24,26 @@ window.initCaseReport = window.initWithdrawalReport;
 
 // ─── Tab Switch ───────────────────────────
 const _TAB_COLORS = {
-    stats:    { active: '#4f46e5', shadow: 'rgba(79,70,229,0.4)',   icon: 'leaderboard' },
-    summary:  { active: '#7c3aed', shadow: 'rgba(124,58,237,0.4)', icon: 'bar_chart'   },
-    log:      { active: '#0369a1', shadow: 'rgba(3,105,161,0.4)',   icon: 'history'     },
-    settings: { active: '#047857', shadow: 'rgba(4,120,87,0.4)',    icon: 'smart_toy'   },
+    stats:    { active: '#4f46e5', shadow: 'rgba(79,70,229,0.4)',   perm: 'withdrawal_report_stats'   },
+    summary:  { active: '#7c3aed', shadow: 'rgba(124,58,237,0.4)', perm: 'withdrawal_report_summary' },
+    log:      { active: '#0369a1', shadow: 'rgba(3,105,161,0.4)',   perm: 'withdrawal_report_log'     },
+    settings: { active: '#047857', shadow: 'rgba(4,120,87,0.4)',    perm: 'withdrawal_report_bot'     },
 };
 
+function _canViewTab(tab) {
+    const role = (window.currentUser||{}).role||'';
+    if (['admin','manager'].includes(role)) return true;
+    const cfg = _TAB_COLORS[tab];
+    if (!cfg?.perm) return true;
+    if (typeof window.hasUserPerm === 'function') return window.hasUserPerm(cfg.perm);
+    return false;
+}
+
 window.switchCaseTab = function(tab) {
+    if (!_canViewTab(tab)) {
+        Swal.fire({ icon:'warning', title:'ไม่มีสิทธิ์', text:'คุณไม่มีสิทธิ์เข้าถึงแท็บนี้', timer:2000, showConfirmButton:false });
+        return;
+    }
     _caseTab = tab;
     ['stats','summary','log','settings'].forEach(t => {
         const el  = document.getElementById(`caseTab-${t}`);
@@ -38,14 +51,18 @@ window.switchCaseTab = function(tab) {
         if (!el || !btn) return;
         el.classList.toggle('hidden', t !== tab);
         const cfg = _TAB_COLORS[t] || {};
+        const canView = _canViewTab(t);
         if (t === tab) {
             btn.style.background  = cfg.active || '#4f46e5';
             btn.style.color       = '#fff';
             btn.style.boxShadow   = `0 2px 10px ${cfg.shadow||'rgba(79,70,229,0.4)'}`;
+            btn.style.opacity     = '1';
         } else {
             btn.style.background  = 'rgba(124,58,237,0.12)';
-            btn.style.color       = '#a78bfa';
+            btn.style.color       = canView ? '#a78bfa' : '#4b5563';
             btn.style.boxShadow   = 'none';
+            btn.style.opacity     = canView ? '1' : '0.4';
+            btn.title             = canView ? '' : 'ไม่มีสิทธิ์เข้าถึง';
         }
     });
     if (tab === 'summary') loadSummary();
