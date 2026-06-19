@@ -358,7 +358,7 @@ window.openStaffDetail = function(name) {
     };
 
     const html = rows.map((d,i) => {
-        const t          = new Date(d.created_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+        const t          = new Date(d.created_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Bangkok'});
         const myMsg      = d.message_text || '—';
         const quotedMsg  = d.quoted_text  || '';
         const qf         = d.quoted_from  || '—';
@@ -412,7 +412,7 @@ function _renderLogTable() {
     };
     tbody.innerHTML = page.map((d,i) => {
         const ts  = new Date(d.created_at);
-        const t   = ts.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        const t   = ts.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Bangkok'});
         const msg = (d.message_text||'').slice(0,60) + ((d.message_text||'').length>60?'…':'');
         return `<tr class="hover:bg-slate-800/30 transition">
             <td class="p-3 text-center text-gray-500 text-xs">${start+i+1}</td>
@@ -639,7 +639,7 @@ window.exportCaseExcel = async function() {
 
     const rows = [['#','เวลา','พนักงาน','ประเภท','เว็บ','ตอบใคร','ข้อความ']];
     _caseData.forEach((d,i) => {
-        const t = new Date(d.created_at).toLocaleTimeString('th-TH');
+        const t = new Date(d.created_at).toLocaleTimeString('th-TH',{timeZone:'Asia/Bangkok'});
         rows.push([i+1, t, d.sender_name, d.case_type||'reply', d.site||'', d.quoted_from||'', d.message_text||'']);
     });
     const ws = XLSX.utils.aoa_to_sheet(rows);
