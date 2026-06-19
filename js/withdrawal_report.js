@@ -305,18 +305,26 @@ window.openStaffDetail = function(name) {
     };
 
     const html = rows.map((d,i) => {
-        const t   = new Date(d.created_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-        const msg = d.message_text || '—';
-        const qf  = d.quoted_from  || '—';
+        const t          = new Date(d.created_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+        const myMsg      = d.message_text || '—';
+        const quotedMsg  = d.quoted_text  || '';
+        const qf         = d.quoted_from  || '—';
         return `
         <div style="background:#0f172a;border-radius:10px;padding:12px 14px;border:1px solid #1e293b;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                 <span style="font-size:11px;color:#64748b;font-weight:700;font-family:monospace;">${i+1}. ${t}</span>
                 ${badge(d.case_type)}
                 <span style="font-size:11px;color:#38bdf8;font-weight:700;">${d.site||''}</span>
             </div>
-            <div style="font-size:13px;color:#e2e8f0;margin-bottom:4px;">${msg}</div>
-            <div style="font-size:11px;color:#64748b;">↩ ตอบ: <span style="color:#94a3b8;font-weight:600;">${qf}</span></div>
+            ${quotedMsg ? `
+            <div style="background:#1e293b;border-left:3px solid #475569;border-radius:6px;padding:8px 10px;margin-bottom:8px;">
+                <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:3px;">📌 ข้อความต้นทาง (จาก ${qf})</div>
+                <div style="font-size:12px;color:#94a3b8;line-height:1.5;">${quotedMsg}</div>
+            </div>` : ''}
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+                <span style="font-size:11px;color:#7c3aed;font-weight:700;flex-shrink:0;">↩ ตอบ:</span>
+                <div style="font-size:13px;color:#e2e8f0;line-height:1.5;">${myMsg}</div>
+            </div>
         </div>`;
     }).join('');
 
