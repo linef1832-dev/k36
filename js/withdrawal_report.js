@@ -119,11 +119,11 @@ window.filterByType = function(type) {
 };
 
 // ─── Staff Grid ─────────────────────────────
-function _getShift(name) {
-    // ดึงกะจากชื่อ เช่น (08.00-20.00) = เช้า, (20.00-08.00) = ดึก
-    if (!name) return 'unknown';
-    if (/08.00-20.00|08:00-20:00/i.test(name)) return 'เช้า';
-    if (/20.00-08.00|20:00-08:00/i.test(name)) return 'ดึก';
+function _getShift(name, fullName) {
+    // ดึงกะจากชื่อเต็ม (full_name) ก่อน แล้วค่อย fallback ไป sender_name
+    const src = fullName || name || '';
+    if (/08.00-20.00|08:00-20:00/i.test(src)) return 'เช้า';
+    if (/20.00-08.00|20:00-08:00/i.test(src)) return 'ดึก';
     return 'ไม่ระบุ';
 }
 
@@ -147,7 +147,7 @@ function _renderStaffGrid() {
     _caseData.forEach(d => {
         const k     = d.sender_name;
         const t     = d.case_type||'';
-        const shift = _getShift(k);
+        const shift = _getShift(k, d.full_name);
 
         // กรองตามประเภท
         const matchType =
@@ -161,7 +161,7 @@ function _renderStaffGrid() {
 
         if (!matchType || !matchShift) return;
 
-        if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0, sites:{}, shift };
+        if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0, sites:{}, shift, fullName: d.full_name||'' };
         counts[k].total++;
         if (t.includes('ลบ'))        counts[k].ลบ++;
         else if (t.includes('เช็ค')) counts[k].เช็ค++;
@@ -195,7 +195,7 @@ function _renderStaffCards(counts, search) {
         const pct   = Math.round((c.total/max)*100);
         const mdl   = medals[i] || `#${i+1}`;
         const ring  = i===0 ? 'outline:2px solid #facc15;' : '';
-        const shift = c.shift || _getShift(name);
+        const shift = c.shift || _getShift(name, c.fullName);
         const shiftColor = shift==='เช้า' ? '#fbbf24' : shift==='ดึก' ? '#818cf8' : '#64748b';
         const shiftIcon  = shift==='เช้า' ? '🌅' : shift==='ดึก' ? '🌙' : '❓';
 
