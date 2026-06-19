@@ -2382,7 +2382,11 @@ const PERM_GROUPS = [
     {
         id: 'page_withdrawal_report', name: 'รับเคส Telegram', icon: 'receipt_long', theme: 'emerald',
         items: [
-            {id: 'withdrawal_report', name: 'รับเคส Telegram', isSub: false}
+            {id: 'withdrawal_report',         name: 'เข้าหน้ารับเคส Telegram', isSub: false},
+            {id: 'withdrawal_report_stats',   name: 'ดูแท็บ สถิติ',            isSub: true},
+            {id: 'withdrawal_report_summary', name: 'ดูแท็บ สรุปรวม',          isSub: true},
+            {id: 'withdrawal_report_log',     name: 'ดูแท็บ Log',              isSub: true},
+            {id: 'withdrawal_report_bot',     name: 'ดูแท็บ บอท (ตั้งค่า)',    isSub: true},
         ]
     },
     {
