@@ -795,20 +795,40 @@ function _timeAgo(d) {
 // ── Badge ─────────────────────────────────
 async function _refreshChatBadge() {
     if (!appDB) return;
+    const badge = document.getElementById('chatUnreadBadge');
+    if (!badge) return;
+
     try {
-        const { count, error } = await appDB
-            .from('live_chat_rooms')
-            .select('*', { count:'exact', head:true })
-            .eq('is_read', false);
-        const badge = document.getElementById('chatUnreadBadge');
-        if (!badge) return;
-        if (!error && count > 0) {
-            badge.innerText = count > 99 ? '99+' : count;
-            badge.style.display = 'flex';
+        if (_isManager()) {
+            // หัวหน้า → นับห้องที่ is_read = false (พนักงานส่งมาแล้วยังไม่มีหัวหน้าอ่าน)
+            const { count, error } = await appDB
+                .from('live_chat_rooms')
+                .select('*', { count:'exact', head:true })
+                .eq('is_read', false);
+            if (!error && count > 0) {
+                badge.innerText = count > 99 ? '99+' : count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
         } else {
-            badge.style.display = 'none';
+            // พนักงาน → นับข้อความใหม่ของหัวหน้าในห้องตัวเองที่ยังไม่เคยเห็น
+            const myRoom = _myName();
+            const lastSeen = parseInt(sessionStorage.getItem('chat_last_seen_' + myRoom) || '0');
+            const { count, error } = await appDB
+                .from('live_chat')
+                .select('*', { count:'exact', head:true })
+                .eq('room', myRoom)
+                .in('role', ['admin', 'manager'])
+                .gt('id', lastSeen);
+            if (!error && count > 0) {
+                badge.innerText = count > 9 ? '9+' : count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
         }
-    } catch(e) {}
+    } catch(e) { console.warn('badge:', e); }
 }
 
 // ── Modal shell ───────────────────────────
@@ -984,6 +1004,15 @@ window._chatOpenRoom = async function(targetUser) {
                 .update({ is_read:true, read_by:_myName(), read_at:new Date().toISOString() })
                 .eq('room_name', targetUser);
             _refreshChatBadge();
+        } else {
+            // พนักงาน: จำ id ล่าสุดที่เห็นไว้ใน sessionStorage
+            const msgs = window._chatMessages || [];
+            const lastId = msgs.length > 0 ? msgs[msgs.length-1].id : 0;
+            sessionStorage.setItem('chat_last_seen_' + _myName(), String(lastId));
+            badge_clear: {
+                const badge = document.getElementById('chatUnreadBadge');
+                if (badge) badge.style.display = 'none';
+            }
         }
     } catch(e) {
         body.innerHTML = `<div style="padding:20px;color:#ef4444;">Error: ${e.message}</div>`;
@@ -1078,18 +1107,33 @@ function _subscribeSupportChat() {
     window._chatSub = appDB.channel('support-chat-rt-v2')
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_chat'}, p => {
             const m = p.new; if (!m) return;
+
+            // อัปเดตข้อความในห้องที่เปิดอยู่
             if (window._chatRoom === m.room) {
                 if (!(window._chatMessages||[]).some(x=>x.id===m.id)) {
                     window._chatMessages = [...(window._chatMessages||[]), m];
                     _renderMsgs();
+                    // อัปเดต last_seen ถ้าพนักงานกำลังดูอยู่
+                    if (!_isManager()) {
+                        sessionStorage.setItem('chat_last_seen_' + _myName(), String(m.id));
+                    }
                 }
+                return;
+            }
+
+            // Badge สำหรับพนักงาน: ถ้าหัวหน้าตอบในห้องของตัวเอง
+            if (!_isManager() && m.room === _myName() && ['admin','manager'].includes(m.role||'')) {
+                _refreshChatBadge();
             }
         })
         .on('postgres_changes',{event:'*',schema:'public',table:'live_chat_rooms'}, () => {
-            _refreshChatBadge();
-            const modal  = document.getElementById('chatModal');
-            const isOpen = modal && modal.style.display !== 'none';
-            if (isOpen && !window._chatRoom && _isManager()) window._chatShowInbox();
+            // Badge สำหรับหัวหน้า: เมื่อมีข้อความใหม่จากพนักงาน
+            if (_isManager()) {
+                _refreshChatBadge();
+                const modal  = document.getElementById('chatModal');
+                const isOpen = modal && modal.style.display !== 'none';
+                if (isOpen && !window._chatRoom) window._chatShowInbox();
+            }
         })
         .subscribe();
 
@@ -1115,5 +1159,5 @@ window.initLiveChat = function() {
     window._chatMessages = [];
     window._chatRoom     = null;
     _subscribeSupportChat();
-    if (_isManager()) _refreshChatBadge();
+    _refreshChatBadge(); // ทั้งหัวหน้าและพนักงานโหลด badge ตอนเริ่ม
 };
