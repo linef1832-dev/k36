@@ -102,16 +102,25 @@ function _renderStaffGrid() {
         const k = d.sender_name;
         if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0 };
         counts[k].total++;
-        if ((d.case_type||'').includes('ลบ'))   counts[k].ลบ++;
+        if ((d.case_type||'').includes('ลบ'))        counts[k].ลบ++;
         else if ((d.case_type||'').includes('เช็ค')) counts[k].เช็ค++;
         else if ((d.case_type||'').includes('ปลด'))  counts[k].ปลด++;
         else counts[k].reply++;
     });
-    const sorted = Object.entries(counts).sort((a,b)=>b[1].total-a[1].total);
+    window._staffCounts = counts; // เก็บไว้ใช้ตอน search
+    _renderStaffCards(counts, '');
+}
+
+function _renderStaffCards(counts, search) {
+    const grid   = document.getElementById('caseStaffGrid');
+    const sorted = Object.entries(counts)
+        .filter(([name]) => !search || name.toLowerCase().includes(search.toLowerCase()))
+        .sort((a,b)=>b[1].total-a[1].total);
+
     if (sorted.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-400">
             <span class="material-icons text-4xl">inbox</span>
-            <p class="mt-2 text-sm">ไม่พบข้อมูลในวันนี้</p></div>`;
+            <p class="mt-2 text-sm">${search ? 'ไม่พบชื่อที่ค้นหา' : 'ไม่พบข้อมูลในวันนี้'}</p></div>`;
         return;
     }
     const max    = sorted[0][1].total || 1;
@@ -121,25 +130,74 @@ function _renderStaffGrid() {
         const mdl  = medals[i] || `#${i+1}`;
         const ring = i===0 ? 'ring-2 ring-yellow-400' : '';
         const tags = [
-            c.ลบ   ? `<span class="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full text-[11px] font-bold">ลบ ${c.ลบ}</span>`:'',
-            c.เช็ค ? `<span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full text-[11px] font-bold">เช็ค ${c.เช็ค}</span>`:'',
-            c.ปลด  ? `<span class="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full text-[11px] font-bold">ปลด ${c.ปลด}</span>`:'',
-            c.reply ? `<span class="bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full text-[11px] font-bold">reply ${c.reply}</span>`:'',
+            c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
+            c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:#34d399;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>`:'',
+            c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:#fbbf24;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
+            c.reply ? `<span style="background:rgba(100,116,139,0.2);color:#94a3b8;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">reply ${c.reply}</span>`:'',
         ].filter(Boolean).join('');
         return `
-        <div class="bg-slate-800 rounded-xl p-4 border border-slate-600 ${ring}">
-            <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2 min-w-0">
-                    <span class="text-xl flex-shrink-0">${mdl}</span>
-                    <span class="font-bold text-slate-800 dark:text-white text-sm truncate">${name}</span>
+        <div onclick="openStaffDetail('${name.replace(/'/g,"\\'")}\')"
+             style="cursor:pointer;background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;transition:all .15s;${ring?'outline:2px solid #facc15;':''}"
+             onmouseover="this.style.background='#263548';this.style.borderColor='#7c3aed'"
+             onmouseout="this.style.background='#1e293b';this.style.borderColor='#334155'">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                    <span style="font-size:20px;flex-shrink:0;">${mdl}</span>
+                    <span style="font-weight:700;color:#f1f5f9;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</span>
                 </div>
-                <span class="text-2xl font-black text-violet-400 flex-shrink-0">${c.total}</span>
+                <span style="font-size:24px;font-weight:900;color:#a78bfa;flex-shrink:0;">${c.total}</span>
             </div>
-            <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mb-2">
-                <div class="bg-violet-500 h-1.5 rounded-full" style="width:${pct}%"></div>
+            <div style="width:100%;background:#334155;border-radius:999px;height:6px;margin-bottom:8px;">
+                <div style="background:#7c3aed;height:6px;border-radius:999px;width:${pct}%;"></div>
             </div>
-            <div class="flex flex-wrap gap-1.5">${tags}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">${tags}</div>
         </div>`;
+    }).join('');
+}
+
+// ─── ค้นหาชื่อพนักงาน ────────────────────
+window.searchStaff = function(val) {
+    _renderStaffCards(window._staffCounts || {}, val);
+};
+
+// ─── Popup รายละเอียดพนักงาน ─────────────
+window.openStaffDetail = function(name) {
+    const rows = _caseData.filter(d => d.sender_name === name)
+        .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+    const badge = t => {
+        if ((t||'').includes('ลบ'))   return `<span style="background:rgba(59,130,246,0.25);color:#93c5fd;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${t}</span>`;
+        if ((t||'').includes('เช็ค')) return `<span style="background:rgba(16,185,129,0.25);color:#6ee7b7;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${t}</span>`;
+        if ((t||'').includes('ปลด'))  return `<span style="background:rgba(245,158,11,0.25);color:#fde68a;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${t}</span>`;
+        return `<span style="background:rgba(100,116,139,0.25);color:#cbd5e1;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${t||'reply'}</span>`;
+    };
+
+    const html = rows.map((d,i) => {
+        const t   = new Date(d.created_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+        const msg = d.message_text || '—';
+        const qf  = d.quoted_from  || '—';
+        return `
+        <div style="background:#0f172a;border-radius:10px;padding:12px 14px;border:1px solid #1e293b;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span style="font-size:11px;color:#64748b;font-weight:700;font-family:monospace;">${i+1}. ${t}</span>
+                ${badge(d.case_type)}
+                <span style="font-size:11px;color:#38bdf8;font-weight:700;">${d.site||''}</span>
+            </div>
+            <div style="font-size:13px;color:#e2e8f0;margin-bottom:4px;">${msg}</div>
+            <div style="font-size:11px;color:#64748b;">↩ ตอบ: <span style="color:#94a3b8;font-weight:600;">${qf}</span></div>
+        </div>`;
+    }).join('');
+
+    Swal.fire({
+        title: `<span style="font-size:16px;">📋 ${name} — ${rows.length} เคส</span>`,
+        html:  `<div style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;text-align:left;">${html}</div>`,
+        background:      '#1e293b',
+        color:           '#e2e8f0',
+        confirmButtonText: 'ปิด',
+        confirmButtonColor: '#7c3aed',
+        width:           '600px',
+    });
+};
     }).join('');
 }
 
