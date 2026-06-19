@@ -26,27 +26,31 @@ window.initCaseReport = window.initWithdrawalReport;
 
 // ─── Realtime: รับข้อมูลใหม่อัตโนมัติ ────
 let _realtimeCaseSub = null;
+let _realtimeDebounce = null;
+
 function _subscribeRealtimeCases() {
     if (!appDB) return;
     if (_realtimeCaseSub) {
         try { appDB.removeChannel(_realtimeCaseSub); } catch(e) {}
+        _realtimeCaseSub = null;
     }
-    _realtimeCaseSub = appDB.channel('tg-case-realtime')
+
+    _realtimeCaseSub = appDB.channel('tg-case-rt-' + Date.now())
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, (payload) => {
             const m = payload.new;
-            if (!m) return;
-            // เฉพาะข้อมูลวันนี้
-            if (m.msg_date !== _caseDate) return;
-            // ถ้ากำลังโหลดอยู่ให้ข้าม
+            if (!m || m.msg_date !== _caseDate) return;
             if (_isLoadingCaseData) return;
-            // append ข้อมูลใหม่เข้า array โดยไม่ reload ทั้งหมด
-            if (!(_caseData||[]).some(x => x.id === m.id)) {
-                _caseData = [m, ...(_caseData||[])];
-                _renderSummary();
-                _renderStaffGrid();
-                _renderLogTable();
-            }
-            if (_caseTab === 'summary') loadSummary();
+            // debounce 500ms ป้องกันยิงถี่เกินไป
+            clearTimeout(_realtimeDebounce);
+            _realtimeDebounce = setTimeout(() => {
+                if (!(_caseData||[]).some(x => x.id === m.id)) {
+                    _caseData = [m, ...(_caseData||[])];
+                    _renderSummary();
+                    _renderStaffGrid();
+                    _renderLogTable();
+                }
+                if (_caseTab === 'summary') loadSummary();
+            }, 500);
         })
         .subscribe();
 
@@ -54,6 +58,7 @@ function _subscribeRealtimeCases() {
         window.registerPageSubscription(_realtimeCaseSub);
     }
 }
+
 
 // ─── Tab Switch ───────────────────────────
 const _TAB_COLORS = {
@@ -258,12 +263,12 @@ function _renderStaffGrid() {
         const shift = _getShift(k, d.full_name, _shiftMap);
 
         // กรองตามประเภท
+        const grp = _caseGroup(d);
         const matchType =
             _activeTypeFilter === 'ALL' ||
-            (_activeTypeFilter === 'ลบ'    && t.includes('ลบ')) ||
-            (_activeTypeFilter === 'เช็ค'  && _caseGroup(d) === 'เช็ค') ||
-            (_activeTypeFilter === 'ปลด'   && _caseGroup(d) === 'ปลด') ||
-            (_activeTypeFilter === 'other' && _caseGroup(d) === 'other');
+            (_activeTypeFilter === 'เช็ค'  && grp === 'เช็ค') ||
+            (_activeTypeFilter === 'ปลด'   && grp === 'ปลด') ||
+            (_activeTypeFilter === 'other' && grp === 'other');
         // กรองตามกะ
         const matchShift = _activeShiftFilter === 'ALL' || shift === _activeShiftFilter;
 
@@ -271,10 +276,9 @@ function _renderStaffGrid() {
 
         if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, reply:0, sites:{}, shift, fullName: d.full_name||'' };
         counts[k].total++;
-        const grp = _caseGroup(d);
-        if (grp === 'เช็ค') counts[k].เช็ค++;
-        else if (t.includes('ปลด'))  counts[k].ปลด++;
-        else                          counts[k].reply++;
+        if (grp === 'เช็ค')      counts[k].เช็ค++;
+        else if (grp === 'ปลด')  counts[k].ปลด++;
+        else                      counts[k].reply++;
         const site = d.site||'OTHER';
         counts[k].sites[site] = (counts[k].sites[site]||0) + 1;
     });
