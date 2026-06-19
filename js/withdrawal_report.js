@@ -15,11 +15,12 @@ window.initWithdrawalReport = async function() {
     _casePage = 1;
     _activeTypeFilter  = 'ALL';
     _activeShiftFilter = 'ALL';
+    _caseDate = null; // reset เป็นวันนี้เมื่อเข้าหน้าใหม่
     _setDefaultDate();
     await _loadShiftMap();
     await _loadBotStatus();
     await _loadCaseData();
-    _subscribeRealtimeCases(); // เริ่ม Realtime
+    _subscribeRealtimeCases();
 };
 window.initCaseReport = window.initWithdrawalReport;
 
@@ -31,8 +32,10 @@ function _subscribeRealtimeCases() {
         try { appDB.removeChannel(_realtimeCaseSub); } catch(e) {}
     }
     _realtimeCaseSub = appDB.channel('tg-case-realtime')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, () => {
-            // รีเฟรชหน้าที่กำลังดูอยู่
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tg_case_logs' }, (payload) => {
+            const newDate = (payload.new?.msg_date || '').slice(0, 10);
+            // รีเฟรชเฉพาะถ้าข้อมูลใหม่ตรงกับวันที่กำลังดูอยู่
+            if (newDate && newDate !== _caseDate) return;
             _loadCaseData();
             if (_caseTab === 'summary') loadSummary();
         })
@@ -93,6 +96,7 @@ window.switchCaseTab = function(tab) {
 function _setDefaultDate() {
     const picker = document.getElementById('caseDatePicker');
     if (!picker) return;
+    // ใช้ค่าที่ user เลือกไว้ถ้ามี ไม่งั้นค่อย default เป็นวันนี้
     if (!_caseDate) {
         const th = new Date(Date.now() + 7*60*60*1000);
         _caseDate = th.toISOString().slice(0,10);
