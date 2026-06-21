@@ -3995,9 +3995,6 @@ window.assignODProTelegramTasks = async function() {
     } catch(e) {
         Swal.fire('Error', e.message, 'error');
     }
-    } catch(e) {
-        Swal.fire('Error', e.message, 'error');
-    }
 };
 
 // ==========================================
