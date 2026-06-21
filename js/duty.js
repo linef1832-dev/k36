@@ -1177,7 +1177,7 @@ window.renderRosterGrid = async function(rosterData) {
                     </div>
                 </div>
                 <div class="p-2 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
-                    ${rolesTags || '<span class="text-[9px] text-gray-400">เหมาทุกตำแหน่ง</span>'}
+                    ${rolesTags || ''}
                 </div>
                 <div class="flex flex-col gap-2.5 flex-1 p-2 overflow-y-auto custom-scrollbar content-start drop-zone" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${team}')">
                     ${namesHtml}
