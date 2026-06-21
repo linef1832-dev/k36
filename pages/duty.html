@@ -50,6 +50,11 @@
                 <button id="btnGenerateRoster" onclick="generateDutyRoster()" class="duty-admin-only bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 disabled:bg-gray-500 disabled:cursor-not-allowed">
                     <span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่
                 </button>
+
+                <!-- ปุ่มแจกโปร/เคส Telegram เฉพาะแผนก OD -->
+                <button id="btnAssignODTasks" onclick="assignODProTelegramTasks()" class="duty-admin-only hidden bg-gradient-to-r from-sky-500 to-violet-500 hover:from-sky-600 hover:to-violet-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95">
+                    <span class="material-icons text-base">assignment_turned_in</span> แจกโปร/เคส TG
+                </button>
                 
                 <button onclick="clearDutyRoster()" class="duty-admin-only bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95">
                     <span class="material-icons text-base">delete_sweep</span> ล้างตาราง
