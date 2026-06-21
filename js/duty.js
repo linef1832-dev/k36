@@ -999,7 +999,12 @@ window.renderRosterGrid = async function(rosterData) {
         if (!rosterData[primaryTeam]) continue;
         rosterData[primaryTeam].forEach(u => {
             if (u.secondary_team && sortedTeams.includes(u.secondary_team) && !u.username.includes('ขาดคน')) {
-                standbyData[u.secondary_team].push({ name: u.username, fromTeam: primaryTeam });
+                standbyData[u.secondary_team].push({
+                    name:       u.username,
+                    fromTeam:   primaryTeam,
+                    od_pro_task: u.od_pro_task || null,
+                    od_tg_task:  u.od_tg_task  || null,
+                });
             }
         });
     }
@@ -1060,15 +1065,6 @@ window.renderRosterGrid = async function(rosterData) {
                             </span>
                         </div>
                     </div>
-                    ${a.standby_task ? `
-                    <div class="px-2 pb-2 pt-0.5 border-t border-gray-100 dark:border-slate-700/50">
-                        <div class="flex items-center gap-1.5">
-                            <span class="material-icons text-[12px] text-purple-500">task_alt</span>
-                            <span class="text-[9px] font-bold text-gray-500 dark:text-gray-400">หัวข้องาน:</span>
-                            <span class="text-[10px] font-black text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800/50 flex-1 truncate">${a.standby_task}</span>
-                        </div>
-                    </div>
-                    ` : ''}
                 </div>`;
             } else if (!isMissing && isAdmin) {
                 secHtml = `
@@ -1312,6 +1308,11 @@ window.viewStandbyList = function(team) {
                         <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">จากเว็บหลัก: <span class="font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/50">${item.fromTeam}</span></div>
                         ${breakTimeHtml}
                     </div>
+                    ${currentDutyDept === 'OD' && (item.od_pro_task || item.od_tg_task) ? `
+                    <div class="flex flex-wrap gap-1.5 mt-0.5">
+                        ${item.od_pro_task ? `<span class="text-[11px] font-bold text-violet-600 bg-violet-50 dark:bg-violet-900/30 dark:text-violet-300 px-2 py-0.5 rounded-md border border-violet-200 dark:border-violet-700 flex items-center gap-1"><span class="material-icons text-[12px]">card_giftcard</span> อนุมัติโปร: ${item.od_pro_task}</span>` : ''}
+                        ${item.od_tg_task  ? `<span class="text-[11px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-300 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-700 flex items-center gap-1"><span class="material-icons text-[12px]">telegram</span> เคส TG: ${item.od_tg_task}</span>` : ''}
+                    </div>` : ''}
                 </div>
             </div>
             <span class="material-icons text-amber-400 text-2xl opacity-40 group-hover:scale-110 transition shrink-0 ml-2">support_agent</span>
