@@ -285,6 +285,13 @@ window.switchDutyDept = function(dept) {
     document.getElementById('btnDutyTRAINER_OD')?.classList.remove('active');
     
     document.getElementById(`btnDuty${dept}`)?.classList.add('active');
+
+    // แสดง/ซ่อนปุ่มแจกโปร/เคส TG เฉพาะ OD
+    const btnODTask = document.getElementById('btnAssignODTasks');
+    if (btnODTask) {
+        if (dept === 'OD') btnODTask.classList.remove('hidden');
+        else btnODTask.classList.add('hidden');
+    }
     
     let labelText = dept;
     if (dept === 'AMQL') labelText = 'ผู้สอน AM';
@@ -1071,6 +1078,20 @@ window.renderRosterGrid = async function(rosterData) {
                 </div>`;
             }
 
+            let odTaskHtml = '';
+            if (currentDutyDept === 'OD' && !isMissing && (a.od_pro_task || a.od_tg_task)) {
+                if (a.od_pro_task) {
+                    odTaskHtml += `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-violet-600 bg-violet-50 dark:bg-violet-900/30 dark:text-violet-300 px-2.5 py-1 rounded-md border border-violet-200 dark:border-violet-800/50 w-fit shadow-sm">
+                        <span class="material-icons text-[14px]">card_giftcard</span> อนุมัติโปร: ${a.od_pro_task}
+                    </div>`;
+                }
+                if (a.od_tg_task) {
+                    odTaskHtml += `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-300 px-2.5 py-1 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm">
+                        <span class="material-icons text-[14px]">telegram</span> เคส TG: ${a.od_tg_task}
+                    </div>`;
+                }
+            }
+
             return `
             <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0 group ${cursorClass}" data-name="${(a.username || '').toLowerCase()}" ${dragAttrs}>
                 <div class="flex items-center justify-between">
@@ -1080,6 +1101,7 @@ window.renderRosterGrid = async function(rosterData) {
                     </div>
                 </div>
                 ${breakTimeHtml}
+                ${odTaskHtml}
                 ${secHtml}
             </div>`;
         }).join('');
@@ -3836,4 +3858,80 @@ window.assignStandbyTasksAfterAI = async function(roster) {
     }
     
     return roster;
+};
+
+// ==========================================
+// 🎯 แจกโปร/เคส Telegram สำหรับแผนก OD
+// กดหลังจัดหน้าที่หลักเสร็จแล้ว
+// ==========================================
+window.assignODProTelegramTasks = async function() {
+    // ตรวจว่ามีข้อมูล roster อยู่ไหม
+    if (!currentRosterData || Object.keys(currentRosterData).length === 0) {
+        return Swal.fire('แจ้งเตือน', 'กรุณาจัดหน้าที่หลักก่อน แล้วค่อยกดปุ่มนี้', 'warning');
+    }
+
+    // นับคนในแต่ละเว็บ
+    const webList = sortedTeams.filter(t => t !== 'หน้าที่ส่วนกลาง');
+    let preview = '';
+    let changeCount = 0;
+
+    webList.forEach(team => {
+        const members = (currentRosterData[team] || []).filter(u => !u.username?.includes('ขาดคน'));
+        const count = members.length;
+        if (count < 2) return; // 1 คน → ไม่แจก
+
+        // วนแจก: คนคู่ → โปร, คนคี่ → เคส TG
+        members.forEach((u, idx) => {
+            u.od_pro_task  = (idx % 2 === 0) ? team : null;
+            u.od_tg_task   = (idx % 2 === 1) ? team : null;
+            // ถ้ามี 3+ คน วนต่อ
+            if (idx >= 2) {
+                if (idx % 2 === 0) { u.od_pro_task = team; u.od_tg_task = null; }
+                else               { u.od_tg_task  = team; u.od_pro_task = null; }
+            }
+            changeCount++;
+        });
+
+        preview += `<div class="mb-2"><span class="font-black text-indigo-300">${team}</span> (${count} คน):<br>`;
+        members.forEach((u, idx) => {
+            const tag = u.od_pro_task ? '🟣 อนุมัติโปร' : '💬 เคส Telegram';
+            preview += `&nbsp;&nbsp;<span class="text-sm">${u.username}</span> → <span class="font-bold">${tag}</span><br>`;
+        });
+        preview += '</div>';
+    });
+
+    if (changeCount === 0) {
+        return Swal.fire('แจ้งเตือน', 'ไม่มีเว็บไหนที่มี 2 คนขึ้นไป ไม่มีอะไรต้องแจก', 'info');
+    }
+
+    const result = await Swal.fire({
+        title: '🎯 ยืนยันการแจกโปร/เคส Telegram',
+        html: `<div class="text-left text-sm max-h-64 overflow-y-auto">${preview}</div>`,
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยัน แจกเลย',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#7c3aed',
+        background: '#1e293b',
+        color: '#e2e8f0',
+    });
+
+    if (!result.isConfirmed) return;
+
+    // บันทึกลง DB
+    try {
+        const targetDate  = document.getElementById('dutyDate').value;
+        const shiftFilter = document.getElementById('dutyShiftSelect').value;
+        const saveKey     = getDutySaveKey(targetDate, shiftFilter);
+
+        const { error } = await appDB.from('settings').upsert([{
+            key:   saveKey,
+            value: JSON.stringify(currentRosterData)
+        }]);
+        if (error) throw error;
+
+        await window.refreshDutyData();
+        Swal.fire({ icon: 'success', title: 'แจกงานเรียบร้อย!', timer: 1500, showConfirmButton: false });
+    } catch(e) {
+        Swal.fire('Error', e.message, 'error');
+    }
 };
