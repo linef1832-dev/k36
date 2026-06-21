@@ -3865,38 +3865,61 @@ window.assignStandbyTasksAfterAI = async function(roster) {
 // 🎯 แจกโปร/เคส Telegram สำหรับแผนก OD
 // กดหลังจัดหน้าที่หลักเสร็จแล้ว
 // ==========================================
+
+// เว็บที่มีอนุมัติโปร (K36)
+const OD_K36_WEBS = ['Jun88', 'MK8', 'K188', 'VV72', 'BT678', 'TH26'];
+// เว็บที่มีแค่เคส TG (TCG)
+const OD_TCG_WEBS = ['PG688', 'JL69', 'NM9'];
+// F168 และอื่นๆ ไม่แจก
+
 window.assignODProTelegramTasks = async function() {
-    // ตรวจว่ามีข้อมูล roster อยู่ไหม
     if (!currentRosterData || Object.keys(currentRosterData).length === 0) {
         return Swal.fire('แจ้งเตือน', 'กรุณาจัดหน้าที่หลักก่อน แล้วค่อยกดปุ่มนี้', 'warning');
     }
 
-    // นับคนในแต่ละเว็บ
     const webList = sortedTeams.filter(t => t !== 'หน้าที่ส่วนกลาง');
     let preview = '';
     let changeCount = 0;
 
     webList.forEach(team => {
+        const isK36 = OD_K36_WEBS.includes(team);
+        const isTCG = OD_TCG_WEBS.includes(team);
+        if (!isK36 && !isTCG) return; // F168 และอื่นๆ ข้าม
+
         const members = (currentRosterData[team] || []).filter(u => !u.username?.includes('ขาดคน'));
         const count = members.length;
-        if (count < 2) return; // 1 คน → ไม่แจก
+        if (count < 2) {
+            // 1 คน → clear task
+            members.forEach(u => { u.od_pro_task = null; u.od_tg_task = null; });
+            return;
+        }
 
-        // วนแจก: คนคู่ → โปร, คนคี่ → เคส TG
+        // แจกตามประเภทเว็บ
         members.forEach((u, idx) => {
-            u.od_pro_task  = (idx % 2 === 0) ? team : null;
-            u.od_tg_task   = (idx % 2 === 1) ? team : null;
-            // ถ้ามี 3+ คน วนต่อ
-            if (idx >= 2) {
-                if (idx % 2 === 0) { u.od_pro_task = team; u.od_tg_task = null; }
-                else               { u.od_tg_task  = team; u.od_pro_task = null; }
+            u.od_pro_task = null;
+            u.od_tg_task  = null;
+
+            if (isK36) {
+                // K36: สลับ โปร / TG
+                if (idx % 2 === 0) u.od_pro_task = team;
+                else               u.od_tg_task  = team;
+            } else {
+                // TCG: ทุกคนรับเคส TG หมุนเวียน (ถ้ามี 2+ คน แบ่งกัน)
+                u.od_tg_task = team;
             }
             changeCount++;
         });
 
-        preview += `<div class="mb-2"><span class="font-black text-indigo-300">${team}</span> (${count} คน):<br>`;
-        members.forEach((u, idx) => {
-            const tag = u.od_pro_task ? '🟣 อนุมัติโปร' : '💬 เคส Telegram';
-            preview += `&nbsp;&nbsp;<span class="text-sm">${u.username}</span> → <span class="font-bold">${tag}</span><br>`;
+        preview += `<div style="margin-bottom:12px;">
+            <span style="font-weight:800;color:#a78bfa;">${team}</span>
+            <span style="font-size:11px;color:#64748b;margin-left:6px;">${isK36 ? '(K36)' : '(TCG)'} — ${count} คน</span><br>`;
+        members.forEach(u => {
+            const tag = u.od_pro_task
+                ? '🟣 อนุมัติโปร'
+                : u.od_tg_task
+                    ? '💬 เคส TG'
+                    : '—';
+            preview += `&nbsp;&nbsp;<span style="font-size:13px;">${u.username}</span> → <b>${tag}</b><br>`;
         });
         preview += '</div>';
     });
@@ -3906,8 +3929,8 @@ window.assignODProTelegramTasks = async function() {
     }
 
     const result = await Swal.fire({
-        title: '🎯 ยืนยันการแจกโปร/เคส Telegram',
-        html: `<div class="text-left text-sm max-h-64 overflow-y-auto">${preview}</div>`,
+        title: '🎯 ยืนยันการแจกโปร/เคส TG',
+        html: `<div style="text-align:left;font-size:13px;max-height:300px;overflow-y:auto;">${preview}</div>`,
         showCancelButton: true,
         confirmButtonText: 'ยืนยัน แจกเลย',
         cancelButtonText: 'ยกเลิก',
@@ -3918,7 +3941,6 @@ window.assignODProTelegramTasks = async function() {
 
     if (!result.isConfirmed) return;
 
-    // บันทึกลง DB
     try {
         const targetDate  = document.getElementById('dutyDate').value;
         const shiftFilter = document.getElementById('dutyShiftSelect').value;
