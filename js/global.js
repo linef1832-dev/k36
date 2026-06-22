@@ -10,49 +10,6 @@ let TEAM_LIST = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26',
 let GLOBAL_USER_LIST = [];
 
 // ==========================================
-// 🛡️ Safe localStorage — ป้องกัน crash ถ้า storage เต็ม
-// ==========================================
-window.safeSetItem = function(key, value) {
-    try {
-        localStorage.setItem(key, value);
-        return true;
-    } catch(e) {
-        // storage เต็ม → ลบ cache เก่าแล้วลองใหม่
-        console.warn('[Storage] เต็ม ลบ cache เก่า:', e.message);
-        try {
-            const keysToEvict = ['cached_menu_rules', 'slip_check_history', 'qr_check_history'];
-            keysToEvict.forEach(k => { try { localStorage.removeItem(k); } catch(_) {} });
-            localStorage.setItem(key, value);
-            return true;
-        } catch(e2) {
-            console.error('[Storage] บันทึกไม่ได้:', key, e2.message);
-            return false;
-        }
-    }
-};
-
-window.safeGetItem = function(key, fallback = null) {
-    try { return localStorage.getItem(key); }
-    catch(e) { return fallback; }
-};
-
-// ==========================================
-// 📡 Debounced broadcast — ป้องกัน force_reload ยิงถี่เกิน
-// ==========================================
-const _broadcastDebounceMap = {};
-window.debouncedBroadcast = function(channelName, event, delay = 800) {
-    if (_broadcastDebounceMap[channelName]) clearTimeout(_broadcastDebounceMap[channelName]);
-    _broadcastDebounceMap[channelName] = setTimeout(() => {
-        try {
-            if (appDB && appDB.channel) {
-                appDB.channel(channelName).send({ type: 'broadcast', event });
-            }
-        } catch(e) { console.warn('[Broadcast] error:', e); }
-        delete _broadcastDebounceMap[channelName];
-    }, delay);
-};
-
-// ==========================================
 // 🚀 เริ่มทำงานเมื่อเปิดเว็บ
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -523,3 +480,56 @@ window.renameCustomPermDept = async function(oldDept) {
         }
     }
 };
+
+// ==========================================
+// 🗄️ Settings Cache — ลด Supabase query
+// แทนที่จะดึง settings ทุกครั้ง cache ไว้ใน memory 5 นาที
+// ==========================================
+const _settingsCache = {};
+const _SETTINGS_TTL  = 5 * 60 * 1000; // 5 นาที
+
+window.getSettingCached = async function(key) {
+    const now = Date.now();
+    if (_settingsCache[key] && (now - _settingsCache[key].ts) < _SETTINGS_TTL) {
+        return _settingsCache[key].value; // ✅ ใช้ cache
+    }
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', key).maybeSingle();
+        const val = data?.value ?? null;
+        _settingsCache[key] = { value: val, ts: now };
+        return val;
+    } catch(e) {
+        return _settingsCache[key]?.value ?? null; // fallback cache เก่า
+    }
+};
+
+// เมื่อบันทึก settings ให้ล้าง cache ทันที
+window.clearSettingCache = function(key) {
+    if (key) delete _settingsCache[key];
+    else Object.keys(_settingsCache).forEach(k => delete _settingsCache[k]);
+};
+
+// ==========================================
+// 🗄️ Users Cache — ลด query users table
+// ==========================================
+let _usersCacheTs = 0;
+const _USERS_TTL  = 3 * 60 * 1000; // 3 นาที
+
+window.getUsersCached = async function() {
+    const now = Date.now();
+    if (GLOBAL_USER_LIST.length > 0 && (now - _usersCacheTs) < _USERS_TTL) {
+        return GLOBAL_USER_LIST; // ✅ ใช้ cache
+    }
+    try {
+        const { data } = await appDB.from('users').select('*');
+        if (data) {
+            GLOBAL_USER_LIST = data;
+            _usersCacheTs = now;
+        }
+        return GLOBAL_USER_LIST;
+    } catch(e) {
+        return GLOBAL_USER_LIST; // fallback cache เก่า
+    }
+};
+
+window.clearUsersCache = function() { _usersCacheTs = 0; };
