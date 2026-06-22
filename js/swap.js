@@ -658,7 +658,7 @@ window.deleteAllSwapSchedules = async function() {
                     });
 
                     if (idsToDelete.length > 0) {
-                        localStorage.setItem(`backup_swap_${activeSwapDeptFilter}`, JSON.stringify(tasksToBackup));
+                        window.safeSetItem(`backup_swap_${activeSwapDeptFilter}`, JSON.stringify(tasksToBackup));
                         await appDB.from('scheduled_tasks').delete().in('id', idsToDelete);
                     }
                 }
