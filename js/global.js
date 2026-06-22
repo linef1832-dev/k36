@@ -10,6 +10,49 @@ let TEAM_LIST = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26',
 let GLOBAL_USER_LIST = [];
 
 // ==========================================
+// 🛡️ Safe localStorage — ป้องกัน crash ถ้า storage เต็ม
+// ==========================================
+window.safeSetItem = function(key, value) {
+    try {
+        localStorage.setItem(key, value);
+        return true;
+    } catch(e) {
+        console.warn('[Storage] เต็ม ลบ cache เก่า:', e.message);
+        try {
+            ['cached_menu_rules','slip_check_history','qr_check_history'].forEach(k => {
+                try { localStorage.removeItem(k); } catch(_) {}
+            });
+            localStorage.setItem(key, value);
+            return true;
+        } catch(e2) {
+            console.error('[Storage] บันทึกไม่ได้:', key, e2.message);
+            return false;
+        }
+    }
+};
+
+window.safeGetItem = function(key, fallback = null) {
+    try { return localStorage.getItem(key); }
+    catch(e) { return fallback; }
+};
+
+// ==========================================
+// 📡 Debounced broadcast — ป้องกัน force_reload ยิงถี่เกิน
+// ==========================================
+const _broadcastDebounceMap = {};
+window.debouncedBroadcast = function(channelName, event, delay = 800) {
+    if (_broadcastDebounceMap[channelName]) clearTimeout(_broadcastDebounceMap[channelName]);
+    _broadcastDebounceMap[channelName] = setTimeout(() => {
+        try {
+            if (appDB && appDB.channel) {
+                appDB.channel(channelName).send({ type: 'broadcast', event });
+            }
+        } catch(e) { console.warn('[Broadcast] error:', e); }
+        delete _broadcastDebounceMap[channelName];
+    }, delay);
+};
+
+// ==========================================
 // 🚀 เริ่มทำงานเมื่อเปิดเว็บ
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
