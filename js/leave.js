@@ -79,18 +79,16 @@ window.switchDept = function(dept) {
         btnManage.classList.remove('hidden'); 
     }
 
+    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    let canManageThisDept = isGlobalAdmin;
+
+    if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
+    if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
+    if (dept === 'TRAINER' || dept === 'AMQL' || dept === 'ODQL') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
+    if (dept === 'SPECIAL') canManageThisDept = isGlobalAdmin || window.hasUserPerm('leave_manage_am');
+
     const controls = document.getElementById('leaveManagerControls');
     if(controls) {
-        const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
-        let canManageThisDept = isGlobalAdmin;
-        
-        if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
-        if (dept === 'OD') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_od');
-        if (dept === 'TRAINER' || dept === 'AMQL' || dept === 'ODQL') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
-        
-        // 🌟 แก้ตรงนี้: ให้เฉพาะผู้จัดการ หรือ แอดมิน หรือ คนที่มีสิทธิ์จัดการ AM เท่านั้นที่เห็นแถบตั้งค่า
-        if (dept === 'SPECIAL') canManageThisDept = isGlobalAdmin || window.hasUserPerm('leave_manage_am');
-
         if(canManageThisDept) controls.classList.remove('hidden');
         else controls.classList.add('hidden');
     }
@@ -174,10 +172,10 @@ window.initLeaveTable = async function() {
         else controls.classList.add('hidden'); 
     }
     
-    // 2. แถบเครื่องมือเลือกประเภทการลา
+    // 2. แถบเครื่องมือเลือกประเภทการลา — ใช้ canManageThisDept เพื่อรองรับ ODQL/AMQL
     const typeToolbar = document.getElementById('leaveTypeToolbar');
     if(typeToolbar) { 
-        if(canManage) typeToolbar.classList.remove('hidden'); 
+        if(canManageThisDept) typeToolbar.classList.remove('hidden'); 
         else typeToolbar.classList.add('hidden'); 
     }
 
