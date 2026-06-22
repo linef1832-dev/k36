@@ -715,7 +715,7 @@ window.addStaffToRoster = async function() {
         });
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
-        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+        window.clearSettingCache(); const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (error) throw error;
 
         await appDB.from('system_logs').insert([{
@@ -916,7 +916,7 @@ window.generateDutyRoster = async function() {
         }
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
-        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(rosterResult) }]);
+        window.clearSettingCache(); const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(rosterResult) }]);
         if (error) throw error;
 
         try {
@@ -1564,7 +1564,7 @@ window.handleDrop = async function(event, toTeam) {
     Swal.fire({title: 'กำลังอัปเดตตาราง...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
-        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+        window.clearSettingCache(); const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (error) throw error;
 
         // 🟢 บันทึก log การย้ายระหว่างเว็บ — แสดงทั้ง "คนจัดเดิม" และ "คนย้าย"
@@ -2713,7 +2713,7 @@ window.saveTrainerMatrixRole = async function(userId, web, taskIdx, newRole) {
 
         current[overrideKey] = newRole;
 
-        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{ key: matrixRoleKey, value: JSON.stringify(current) }]);
+        window.clearSettingCache(); const { error } = await appDB.from('settings').upsert([{ key: matrixRoleKey, value: JSON.stringify(current) }]);
         if (error) {
             Swal.fire('Error', 'บันทึกไม่สำเร็จ: ' + error.message, 'error');
             return;
@@ -3984,7 +3984,7 @@ window.assignODProTelegramTasks = async function() {
         const shiftFilter = document.getElementById('dutyShiftSelect').value;
         const saveKey     = getDutySaveKey(targetDate, shiftFilter);
 
-        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{
+        window.clearSettingCache(); const { error } = await appDB.from('settings').upsert([{
             key:   saveKey,
             value: JSON.stringify(currentRosterData)
         }]);
@@ -4067,7 +4067,7 @@ window.swapODTask = async function(team, userId, taskType) {
         const shiftFilter = document.getElementById('dutyShiftSelect').value;
         const saveKey     = getDutySaveKey(targetDate, shiftFilter);
 
-        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{
+        window.clearSettingCache(); const { error } = await appDB.from('settings').upsert([{
             key:   saveKey,
             value: JSON.stringify(currentRosterData)
         }]);
