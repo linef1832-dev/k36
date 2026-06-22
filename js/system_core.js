@@ -2348,15 +2348,6 @@ const PERM_GROUPS = [
         ]
     },
     {
-        id: 'page_logo_editor', name: 'แต่งรูป / เปลี่ยนโลโก้', icon: 'photo_filter', theme: 'fuchsia',
-        items: [
-            {id: 'logo_editor', name: 'เข้าหน้าแต่งรูป', isSub: false},
-            {id: 'logo_editor_erase', name: 'ลบโลโก้เดิม (เติมพื้นที่)', isSub: true},
-            {id: 'logo_editor_add_logo', name: 'ใส่โลโก้ใหม่', isSub: true},
-            {id: 'logo_editor_download', name: 'ดาวน์โหลดรูปที่แต่ง', isSub: true}
-        ]
-    },
-    {
         id: 'page_password', name: 'รหัสผ่าน', icon: 'vpn_key', theme: 'amber',
         items: [
             {id: 'password', name: 'เข้าหน้าจัดการรหัสผ่าน', isSub: false},
