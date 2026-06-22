@@ -1176,7 +1176,7 @@ window.executeSaveSettings = async function() {
             { key: `${dept}_lock_start`, value: String(sDay) }, { key: `${dept}_lock_end`, value: String(eDay) }       
         ];
 
-        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert(updates);
+        window.clearSettingCache(); const { error } = await appDB.from('settings').upsert(updates);
         if (error) throw error;
         appDB.channel('settings-updates').send({ type: 'broadcast', event: 'force_leave_reload' });
 
@@ -1380,7 +1380,7 @@ window.toggleLeaveStatus = async function(isChecked) {
     try {
         if (typeof appDB === 'undefined') throw new Error('ไม่พบตัวแปรเชื่อมต่อฐานข้อมูล');
 
-        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([
+        window.clearSettingCache(); const { error } = await appDB.from('settings').upsert([
             { key: `${currentViewDept}_is_open`, value: statusValue } 
         ]);
 
