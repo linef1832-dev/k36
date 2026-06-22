@@ -252,12 +252,19 @@ window.fetchGalleryImages = async function() {
         else if (catNameG.endsWith('_CARD'))  { catNameG = catNameG.replace('_CARD','');  catColorG = 'bg-emerald-600/90 text-white border-teal-300'; }
         const catBadgeG = `<span class="absolute bottom-2 left-2 ${catColorG} text-[10px] px-2 py-0.5 rounded border z-20 backdrop-blur-sm font-bold shadow-sm">${catNameG}</span>`;
 
+        const isAdminRename = (currentUser.role === 'manager' || currentUser.role === 'admin');
+        const renameBtn = isAdminRename
+            ? `<button data-img-id="${img.id}" data-img-name="${(img.name||'').replace(/"/g,'&quot;')}" onclick="event.stopPropagation(); renameGalleryImage(this.dataset.imgId, this.dataset.imgName)" class="text-amber-400 hover:text-amber-300 shrink-0 transition opacity-0 group-hover:opacity-100"><span class="material-icons text-[14px]">edit</span></button>`
+            : '';
+
         return getGalleryTpl('tpl-gallery-card', {
             url: img.url, name: img.name,
+            imgId: img.id,
+            renameBtn,
             newBadge: newBadgeG, adminCheckbox: adminCbG, catBadge: catBadgeG,
             uploadDate, uploadBy,
             lbIndex: realIdx,
-            lightboxClick: ''  // ไม่ใช้แล้ว ใช้ data-lb-index แทน
+            lightboxClick: ''
         });
     }).join('');
 
@@ -633,3 +640,40 @@ function _renderWebBadges(data) {
         </span>`;
     }).join('');
 }
+
+// ==========================================
+// ✏️ แก้ชื่อรูปจากหน้า card โดยตรง
+// ==========================================
+window.renameGalleryImage = async function(imgId, currentName) {
+    const isAdminG = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    if (!isAdminG) return;
+
+    const { value: newName } = await Swal.fire({
+        title: 'แก้ชื่อรูป',
+        input: 'text',
+        inputValue: currentName || '',
+        inputPlaceholder: 'ชื่อรูปใหม่...',
+        showCancelButton: true,
+        confirmButtonText: 'บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        background: '#1e293b', color: '#e2e8f0',
+        confirmButtonColor: '#d97706',
+        inputAttributes: { maxlength: 100 }
+    });
+
+    if (!newName || newName.trim() === currentName) return;
+
+    try {
+        const { error } = await appDB.from('image_gallery').update({ name: newName.trim() }).eq('id', imgId);
+        if (error) throw error;
+
+        // อัปเดต currentGalleryData ด้วย
+        const idx = currentGalleryData.findIndex(d => String(d.id) === String(imgId));
+        if (idx !== -1) currentGalleryData[idx].name = newName.trim();
+
+        Swal.fire({ icon: 'success', title: 'แก้ชื่อสำเร็จ!', timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
+        fetchGalleryImages();
+    } catch(e) {
+        Swal.fire('Error', e.message, 'error');
+    }
+};
