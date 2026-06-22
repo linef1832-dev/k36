@@ -172,7 +172,14 @@ window.initLeaveTable = async function() {
         else controls.classList.add('hidden'); 
     }
     
-    // 2. แถบเครื่องมือเลือกประเภทการลา — ใช้ canManageThisDept เพื่อรองรับ ODQL/AMQL
+    // 2. แถบเครื่องมือเลือกประเภทการลา — เช็คสิทธิ์จัดการแต่ละแผนก
+    const _dept = currentViewDept || 'AM';
+    const canManageThisDept = isGlobalAdmin
+        || (_dept === 'AM'      && window.hasUserPerm('leave_manage_am'))
+        || (_dept === 'OD'      && window.hasUserPerm('leave_manage_od'))
+        || (['TRAINER','AMQL','ODQL'].includes(_dept) && window.hasUserPerm('leave_manage_trainer'))
+        || (_dept === 'SPECIAL' && window.hasUserPerm('leave_manage_am'));
+
     const typeToolbar = document.getElementById('leaveTypeToolbar');
     if(typeToolbar) { 
         if(canManageThisDept) typeToolbar.classList.remove('hidden'); 
