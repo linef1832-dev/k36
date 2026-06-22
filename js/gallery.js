@@ -94,6 +94,9 @@ window.initGalleryApp = function() {
     
     const searchInput = document.getElementById('gallerySearch');
     if(searchInput) searchInput.value = '';
+
+    // เริ่ม Drag & Drop
+    setTimeout(() => initGalleryDragDrop(), 300);
 }
 
 window.switchGalleryMode = function(mode) {
@@ -187,11 +190,21 @@ window.fetchGalleryImages = async function() {
     currentGalleryData = filteredData;
     if(countSpan) countSpan.innerText = filteredData.length;
 
+    // แสดง badge จำนวนรูปต่อเว็บ
+    _renderWebBadges(filteredData);
+
     if (filteredData.length === 0) {
         const msg = GALLERY_MODE_LABEL[currentGalleryMode] || 'ไม่พบรูปภาพ';
         grid.innerHTML = `<div class="col-span-full text-center text-gray-500 pt-20">${msg}</div>`;
         return;
     }
+
+    // Sort
+    const sortVal = document.getElementById('gallerySort')?.value || 'newest';
+    if (sortVal === 'newest')    filteredData.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    else if (sortVal === 'oldest')   filteredData.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+    else if (sortVal === 'name_asc') filteredData.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+    else if (sortVal === 'name_desc')filteredData.sort((a,b) => (b.name||'').localeCompare(a.name||''));
 
     // 🌟 [แก้บัค] เช็คสิทธิ์ลบแบบ permission ด้วย ไม่ใช่แค่ role
     const isAdminOrMgr = (currentUser.role === 'manager' || currentUser.role === 'admin');
@@ -199,15 +212,13 @@ window.fetchGalleryImages = async function() {
     const lastViewKey = `gallery_last_view_${currentUser.username}`;
     const lastViewedTime = new Date(localStorage.getItem(lastViewKey) || '2000-01-01T00:00:00');
 
-    // 🌟 ดึงข้อมูลไปยัดใส่ Template ที่แยกไว้ใน HTML 🌟
-    grid.innerHTML = filteredData.map(img => {
+    grid.innerHTML = filteredData.map((img, idx) => {
         const imgDate = new Date(img.created_at);
         const isNew = imgDate > lastViewedTime;
         
         const newBadge = isNew ? `<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded shadow-lg font-bold animate-pulse z-30 border border-white/50">NEW</span>` : '';
         const adminCheckbox = canDelete ? `<div class="absolute top-2 left-2 z-30" onclick="event.stopPropagation()"><input type="checkbox" class="gallery-check w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm bg-white" value="${img.id}" onchange="updateBulkDeleteButton()"></div>` : '';
 
-        // 🌟 [คลังรูป] สีของ badge ตาม suffix
         let catColor = "bg-black/60 text-white border-white/20";
         let showCatName = img.category;
         
@@ -229,7 +240,8 @@ window.fetchGalleryImages = async function() {
             name: img.name,
             newBadge: newBadge,
             adminCheckbox: adminCheckbox,
-            catBadge: catBadge
+            catBadge: catBadge,
+            lightboxClick: `onclick="openLightbox(${idx})"`
         });
     }).join('');
     
@@ -449,3 +461,101 @@ window.filterGalleryImages = function() {
         fetchGalleryImages(true); 
     }, 300); // หน่วง 0.3 วินาที
 };
+
+// ==========================================
+// 🖼️ Lightbox
+// ==========================================
+let _lbIndex = 0;
+let _lbData  = [];
+
+window.openLightbox = function(index) {
+    _lbData  = currentGalleryData;
+    _lbIndex = index;
+    _updateLightbox();
+    document.getElementById('galleryLightbox').classList.remove('hidden');
+    document.addEventListener('keydown', _lbKeyHandler);
+};
+
+function _updateLightbox() {
+    const img  = _lbData[_lbIndex];
+    if (!img) return;
+    document.getElementById('lightboxImg').src         = img.url;
+    document.getElementById('lightboxName').textContent = img.name || '';
+    document.getElementById('lightboxCounter').textContent = `${_lbIndex + 1} / ${_lbData.length}`;
+    document.getElementById('lightboxDownload').href   = img.url;
+    document.getElementById('lightboxDownload').download = img.name || 'image';
+}
+
+window.moveLightbox = function(dir) {
+    _lbIndex = (_lbIndex + dir + _lbData.length) % _lbData.length;
+    _updateLightbox();
+};
+
+window.closeLightbox = function() {
+    document.getElementById('galleryLightbox').classList.add('hidden');
+    document.removeEventListener('keydown', _lbKeyHandler);
+};
+
+function _lbKeyHandler(e) {
+    if (e.key === 'ArrowRight') moveLightbox(1);
+    else if (e.key === 'ArrowLeft') moveLightbox(-1);
+    else if (e.key === 'Escape') closeLightbox();
+}
+
+// ==========================================
+// 📁 Drag & Drop Upload
+// ==========================================
+window.initGalleryDragDrop = function() {
+    const zone = document.getElementById('galleryDropZone');
+    const adminControls = document.getElementById('adminUploadControls');
+    if (!zone || !adminControls || adminControls.classList.contains('hidden')) return;
+
+    zone.classList.remove('hidden');
+
+    const galleryApp = document.getElementById('galleryApp');
+    if (!galleryApp) return;
+
+    galleryApp.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('border-pink-300', 'bg-pink-800/30');
+    });
+
+    galleryApp.addEventListener('dragleave', (e) => {
+        if (!galleryApp.contains(e.relatedTarget)) {
+            zone.classList.remove('border-pink-300', 'bg-pink-800/30');
+        }
+    });
+
+    galleryApp.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        zone.classList.remove('border-pink-300', 'bg-pink-800/30');
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+        // สร้าง input จำลอง
+        const fakeInput = { files };
+        await window.handleImageUpload(fakeInput);
+    });
+};
+
+// ==========================================
+// 📊 Badge count per web
+// ==========================================
+function _renderWebBadges(data) {
+    const badgeEl = document.getElementById('galleryWebBadges');
+    if (!badgeEl) return;
+
+    const counts = {};
+    data.forEach(img => {
+        const cat = img.category || 'ทั่วไป';
+        const webName = cat.replace(/_BONUS|_REACH|_CARD|_LOGO/g, '') || 'ทั่วไป';
+        counts[webName] = (counts[webName] || 0) + 1;
+    });
+
+    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+    badgeEl.innerHTML = sorted.map(([web, count]) =>
+        `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-700 text-gray-300 border border-slate-600 cursor-pointer hover:bg-pink-700 hover:text-white transition"
+              onclick="document.getElementById('galleryFilter').value='${web}'; fetchGalleryImages()">
+            ${web} <span class="text-pink-400">${count}</span>
+        </span>`
+    ).join('');
+}
