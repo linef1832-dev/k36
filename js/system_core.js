@@ -928,11 +928,6 @@ async function deleteSelectedUsers() {
     });
 }
 
-window.searchEmployee = function() {
-    userCurrentPage = 1; 
-    window.renderUserTableDirectly();
-};
-
 async function addScheduledTask() { 
     const f=document.getElementById('schFrom').value, t=document.getElementById('schTo').value, d=document.getElementById('schDate').value; 
     if(!d) return Swal.fire('!', 'กรุณาระบุวันเวลา', 'warning');
@@ -1544,7 +1539,12 @@ window.renderUserTableDirectly = function() {
         roleBadge += `</select>`;
 
         const pinDisplay = u.password 
-            ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs">${u.password}</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
+            ? `<div class="flex items-center justify-center gap-1 group">
+                <span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs pin-blur" style="filter:blur(4px);transition:filter .2s;">${u.password}</span>
+                <button onclick="const el=this.parentElement.querySelector('.pin-blur');const h=el.style.filter!=='none';el.style.filter=h?'none':'blur(4px)';this.querySelector('.material-icons').textContent=h?'visibility_off':'visibility';" class="text-slate-500 hover:text-blue-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="แสดง/ซ่อน"><span class="material-icons text-[14px]">visibility</span></button>
+                <button onclick="navigator.clipboard.writeText('${u.password}').then(()=>Swal.fire({toast:true,position:'top-end',icon:'success',title:'Copy PIN แล้ว!',timer:1000,showConfirmButton:false}))" class="text-slate-500 hover:text-emerald-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="Copy PIN"><span class="material-icons text-[14px]">content_copy</span></button>
+                <button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button>
+               </div>` 
             : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
 
         html += `
@@ -1553,7 +1553,8 @@ window.renderUserTableDirectly = function() {
                 <td class="p-3 text-gray-100 text-sm font-extrabold text-left border-b border-slate-700/50 flex items-center gap-2">
                     <span class="text-[10px] text-gray-500 w-5 text-right mr-1">${displayIndex}.</span>
                     <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-xs shadow-inner group-hover:text-white transition">${u.username.substring(0,2).toUpperCase()}</div>
-                    ${u.username}
+                    <span class="flex-1">${u.username}</span>
+                    <button onclick="navigator.clipboard.writeText('${u.username}').then(()=>Swal.fire({toast:true,position:'top-end',icon:'success',title:'Copy ชื่อแล้ว!',timer:1000,showConfirmButton:false}))" class="text-slate-600 hover:text-emerald-400 p-1 rounded-md transition opacity-0 group-hover:opacity-100 shrink-0" title="Copy username"><span class="material-icons text-[14px]">content_copy</span></button>
                 </td>
                 <td class="p-3 text-center border-b border-slate-700/50">${depBadge}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${teamBadge}</td>
