@@ -313,7 +313,7 @@ window.saveData = async function(e) {
     let assignedTeamsStr = '';
     if (!['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
-        const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
+        const { data: rosterData } = await window.getSettingCached(rosterKey);
 
         if (rosterData && rosterData.value) {
             const roster = JSON.parse(rosterData.value);
@@ -1278,7 +1278,7 @@ async function saveTimeSettings() {
         updates.push({key: `close_time_${suffix}`, value: closeVal});
     });
 
-    await appDB.from('settings').upsert(updates); 
+    window.clearSettingCache(); await appDB.from('settings').upsert(updates); 
     updates.forEach(u => SETTINGS[u.key] = u.value);
     Swal.fire('Saved','บันทึกเวลาเปิด-ปิดเรียบร้อย','success'); 
 }
@@ -1286,7 +1286,7 @@ async function saveTimeSettings() {
 async function saveDailyLimit() { 
     const dailyVal = document.getElementById('dailyLimitInput').value; 
     const periodVal = document.getElementById('periodLimitInput').value; 
-    await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }, { key: 'period_limit', value: periodVal }]); 
+    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }, { key: 'period_limit', value: periodVal }]); 
     SETTINGS.daily_limit = parseInt(dailyVal); SETTINGS.period_limit = parseInt(periodVal); 
     
     if(document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = dailyVal; 
@@ -1744,7 +1744,7 @@ async function renderAnnouncementUI() {
     displayBox.innerHTML = '<span class="material-icons animate-spin text-4xl text-yellow-500">sync</span>';
     
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'system_announcement').single();
+        const { data } = await window.getSettingCached('system_announcement');
         if (data && data.value) {
             globalAnnouncement = JSON.parse(data.value);
             
@@ -1837,7 +1837,7 @@ window.saveAnnouncement = async function() {
             timestamp: Date.now()
         };
 
-        await appDB.from('settings').upsert([{ key: 'system_announcement', value: JSON.stringify(payload) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'system_announcement', value: JSON.stringify(payload) }]);
         globalAnnouncement = payload;
         
         renderAnnouncementUI();
@@ -1867,7 +1867,7 @@ window.deleteAnnouncement = async function() {
                 title: '', text: '', image: '', isActive: false, scheduledTime: '', endTime: '', timestamp: Date.now()
             };
             
-            await appDB.from('settings').upsert([{ key: 'system_announcement', value: JSON.stringify(payload) }]);
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'system_announcement', value: JSON.stringify(payload) }]);
             globalAnnouncement = payload;
             
             if(document.getElementById('announceTitle')) {
@@ -1915,7 +1915,7 @@ window.addCustomPermDept = async function() {
         currentDepts.push(deptName);
         Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         
-        await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
         SETTINGS['custom_departments'] = JSON.stringify(currentDepts);
         
         inputEl.value = ''; 
@@ -1973,7 +1973,7 @@ window.renameAnyDept = async function(oldDept) {
             window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
 
             // 3. อัปเดตขึ้น Database (ตาราง settings)
-            await appDB.from('settings').upsert([
+            window.clearSettingCache(); await appDB.from('settings').upsert([
                 { key: 'custom_departments', value: JSON.stringify(currentDepts) },
                 { key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }
             ]);
@@ -2004,7 +2004,7 @@ window.renameAnyDept = async function(oldDept) {
 
 window.checkAndShowAnnouncementPopup = async function(isSilentCheck = false) {
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'system_announcement').single();
+        const { data } = await window.getSettingCached('system_announcement');
         if (data && data.value) {
             const announce = JSON.parse(data.value);
             
@@ -2071,7 +2071,7 @@ window.forceShowAnnouncementPopup = async function() {
     try {
         Swal.fire({title: 'กำลังดึงประกาศ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         
-        const { data } = await appDB.from('settings').select('value').eq('key', 'system_announcement').single();
+        const { data } = await window.getSettingCached('system_announcement');
         if (data && data.value) {
             const announce = JSON.parse(data.value);
             globalAnnouncement = announce; 
@@ -2296,7 +2296,7 @@ window.saveQuotaSettings = async function() {
         updates.push({key: `quota_team_${team}_${dept}_ดึก`, value: qN}); SETTINGS[`quota_team_${team}_${dept}_ดึก`] = qN;
     });
 
-    await appDB.from('settings').upsert(updates);
+    window.clearSettingCache(); await appDB.from('settings').upsert(updates);
     Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
 };
 
@@ -2760,7 +2760,7 @@ window.saveMenuPerms = async function() {
     SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
     window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
     
-    await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
+    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
     Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์การมองเห็นเมนูเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false});
     renderPermsTable(); 
 };
@@ -3027,7 +3027,7 @@ window.addManualTimeSlot = async function() {
     SETTINGS['custom_time_slots'] = JSON.stringify(SHIFT_GROUPS);
     
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
+    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
     
     renderManualTimeSlots();
     
@@ -3047,7 +3047,7 @@ window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
     SETTINGS['custom_time_slots'] = JSON.stringify(SHIFT_GROUPS);
     
     Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
+    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
     
     renderManualTimeSlots();
     Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
