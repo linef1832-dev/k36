@@ -207,47 +207,6 @@ window.fetchGalleryImages = async function() {
     else if (sortVal === 'name_asc') filteredData.sort((a,b) => (a.name||'').localeCompare(b.name||''));
     else if (sortVal === 'name_desc')filteredData.sort((a,b) => (b.name||'').localeCompare(a.name||''));
 
-    // 🌟 [แก้บัค] เช็คสิทธิ์ลบแบบ permission ด้วย ไม่ใช่แค่ role
-    const isAdminOrMgr = (currentUser.role === 'manager' || currentUser.role === 'admin');
-    const canDelete = isAdminOrMgr || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('gallery_delete'));
-    const lastViewKey = `gallery_last_view_${currentUser.username}`;
-    const lastViewedTime = new Date(localStorage.getItem(lastViewKey) || '2000-01-01T00:00:00');
-
-    grid.innerHTML = filteredData.map((img, idx) => {
-        const imgDate = new Date(img.created_at);
-        const isNew = imgDate > lastViewedTime;
-        
-        const newBadge = isNew ? `<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded shadow-lg font-bold animate-pulse z-30 border border-white/50">NEW</span>` : '';
-        const adminCheckbox = canDelete ? `<div class="absolute top-2 left-2 z-30" onclick="event.stopPropagation()"><input type="checkbox" class="gallery-check w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm bg-white" value="${img.id}" onchange="updateBulkDeleteButton()"></div>` : '';
-
-        let catColor = "bg-black/60 text-white border-white/20";
-        let showCatName = img.category;
-        
-        if (showCatName.endsWith('_BONUS')) {
-            showCatName = showCatName.replace('_BONUS', '');
-            catColor = "bg-yellow-600/90 text-white border-yellow-300 shadow-yellow-500/50";
-        } else if (showCatName.endsWith('_REACH')) {
-            showCatName = showCatName.replace('_REACH', '');
-            catColor = "bg-purple-600/90 text-white border-fuchsia-300 shadow-fuchsia-500/50";
-        } else if (showCatName.endsWith('_CARD')) {
-            showCatName = showCatName.replace('_CARD', '');
-            catColor = "bg-emerald-600/90 text-white border-teal-300 shadow-teal-500/50";
-        }
-
-        const catBadge = `<span class="absolute bottom-2 left-2 ${catColor} text-[10px] px-2 py-0.5 rounded border z-20 backdrop-blur-sm font-bold shadow-sm">${showCatName}</span>`;
-
-        return getGalleryTpl('tpl-gallery-card', {
-            url: img.url,
-            name: img.name,
-            newBadge: newBadge,
-            adminCheckbox: adminCheckbox,
-            catBadge: catBadge,
-            lightboxClick: `onclick="openLightbox(${idx})"`
-        });
-    }).join('');
-    
-    updateBulkDeleteButton();
-
     // Pagination
     const perPage  = parseInt(document.getElementById('galleryPerPage')?.value || '50');
     const maxPage  = Math.ceil(filteredData.length / perPage);
@@ -258,13 +217,17 @@ window.fetchGalleryImages = async function() {
     const pagEl = document.getElementById('galleryPagination');
     if (pagEl) {
         if (maxPage > 1) {
-            pagEl.innerHTML = Array.from({ length: maxPage }, (_, i) => {
-                const active = i + 1 === _galleryPage
-                    ? 'bg-pink-600 text-white border-pink-400'
+            let btns = '';
+            for (let i = 1; i <= maxPage; i++) {
+                const active = i === _galleryPage
+                    ? 'bg-pink-600 text-white border-pink-400 scale-110'
                     : 'bg-slate-700 text-gray-300 border-slate-600 hover:bg-pink-700 hover:text-white';
-                return `<button onclick="_galleryPage=${i+1}; fetchGalleryImages()" class="text-[11px] font-bold w-7 h-7 rounded-full border ${active} transition">${i+1}</button>`;
-            }).join('');
-        } else { pagEl.innerHTML = ''; }
+                btns += `<button onclick="_galleryPage=${i}; fetchGalleryImages()" class="text-xs font-bold min-w-[28px] h-7 px-2 rounded-lg border ${active} transition">${i}</button>`;
+            }
+            pagEl.innerHTML = `<span class="text-gray-400 text-xs mr-1">หน้า:</span>${btns}`;
+        } else {
+            pagEl.innerHTML = '';
+        }
     }
 
     // Re-render เฉพาะหน้าที่เลือก พร้อม hover date
