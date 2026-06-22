@@ -256,7 +256,8 @@ window.fetchGalleryImages = async function() {
             url: img.url, name: img.name,
             newBadge: newBadgeG, adminCheckbox: adminCbG, catBadge: catBadgeG,
             uploadDate, uploadBy,
-            lightboxClick: `onclick="openLightbox(${realIdx})"`
+            lbIndex: realIdx,
+            lightboxClick: ''  // ไม่ใช้แล้ว ใช้ data-lb-index แทน
         });
     }).join('');
 
