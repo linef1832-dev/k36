@@ -20,7 +20,7 @@ async function fetchKbizData() {
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดข้อมูลบอท...</span></div>';
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'kbiz_bots_data').single();
+        const { data } = await window.getSettingCached('kbiz_bots_data');
         if (data && data.value) {
             globalKbizBots = JSON.parse(data.value);
             let needSave = false;
@@ -32,7 +32,7 @@ async function fetchKbizData() {
                 return b;
             });
             if (needSave) {
-                await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
             }
         } else {
             globalKbizBots = [];
@@ -123,7 +123,7 @@ window.saveKbizBot = async function(e) {
     }
 
     try {
-        await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
         document.getElementById('kbizModal').classList.add('hidden');
         renderKbizGrid();
         Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1500, showConfirmButton: false});
@@ -137,7 +137,7 @@ window.deleteKbizBot = async function(id) {
         if (result.isConfirmed) {
             Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
             globalKbizBots = globalKbizBots.filter(b => String(b.id) !== String(id));
-            await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
             renderKbizGrid();
             Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false});
         }
@@ -194,7 +194,7 @@ async function fetchOcrKeysData() {
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl mb-2">sync</span><br><span class="text-gray-400 font-bold text-sm">กำลังโหลด API Keys...</span></div>';
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'ocr_api_keys_data').single();
+        const { data } = await window.getSettingCached('ocr_api_keys_data');
         if (data && data.value) {
             globalOcrKeys = JSON.parse(data.value);
             const needSave = autoResetIfNewDay(globalOcrKeys);
@@ -203,7 +203,7 @@ async function fetchOcrKeysData() {
                 if (!k.last_used_date) k.last_used_date = getTodayKey();
             });
             if (needSave) {
-                await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
             }
         } else {
             globalOcrKeys = [];
@@ -342,7 +342,7 @@ window.saveOcrKey = async function(e) {
     }
 
     try {
-        await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
         document.getElementById('ocrKeyModal').classList.add('hidden');
         renderOcrKeysGrid();
         Swal.fire({icon: 'success', title: id ? 'แก้ไขสำเร็จ!' : 'เพิ่ม Key สำเร็จ!', timer: 1500, showConfirmButton: false});
@@ -363,7 +363,7 @@ window.deleteOcrKey = async function(id) {
         if (result.isConfirmed) {
             Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
             globalOcrKeys = globalOcrKeys.filter(k => String(k.id) !== String(id));
-            await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
             renderOcrKeysGrid();
             Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false});
         }
@@ -384,7 +384,7 @@ window.resetOcrKeyUsage = async function(id) {
             if (!k) return;
             k.used_count = 0;
             k.last_used_date = getTodayKey();
-            await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
             renderOcrKeysGrid();
             Swal.fire({icon: 'success', title: 'รีเซ็ตแล้ว!', timer: 1200, showConfirmButton: false});
         }
@@ -407,7 +407,7 @@ let globalTelegramConfig = {};
 async function fetchTelegramBotConfig() {
     if (!document.getElementById('telegramBotToken')) return;
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'telegram_bot_config').single();
+        const { data } = await window.getSettingCached('telegram_bot_config');
         if (data && data.value) {
             globalTelegramConfig = JSON.parse(data.value);
         } else {
@@ -486,7 +486,7 @@ window.saveTelegramConfig = async function(e) {
 
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
     try {
-        await appDB.from('settings').upsert([{ key: 'telegram_bot_config', value: JSON.stringify(config) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'telegram_bot_config', value: JSON.stringify(config) }]);
         globalTelegramConfig = config;
         renderTelegramBotConfig();
         Swal.fire({
@@ -543,7 +543,7 @@ window.fetchVpsStats = async function(manual = false) {
     if (btnIcon) btnIcon.classList.add('animate-spin');
 
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'vps_stats').single();
+        const { data } = await window.getSettingCached('vps_stats');
         if (data && data.value) {
             const stats = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
             renderVpsStats(stats);
@@ -715,7 +715,7 @@ window.clearVpsRam = async function() {
             action: 'clear_ram',
             requested_at: new Date().toISOString()
         };
-        await appDB.from('settings').upsert([{
+        window.clearSettingCache(); await appDB.from('settings').upsert([{
             key: 'vps_command',
             value: JSON.stringify(cmdPayload)
         }]);
@@ -726,7 +726,7 @@ window.clearVpsRam = async function() {
         while (Date.now() - startTime < 15000) {
             await new Promise(r => setTimeout(r, 1500));
             try {
-                const { data } = await appDB.from('settings').select('value').eq('key', 'vps_command_result').single();
+                const { data } = await window.getSettingCached('vps_command_result');
                 if (data && data.value) {
                     const r = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
                     if (r && r.executed_at) {
@@ -784,7 +784,7 @@ let globalChromeRefreshConfig = {};
 async function fetchChromeRefreshConfig() {
     if (!document.getElementById('chromeRefreshHours')) return;
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'chrome_refresh_config').single();
+        const { data } = await window.getSettingCached('chrome_refresh_config');
         if (data && data.value) {
             globalChromeRefreshConfig = JSON.parse(data.value);
         } else {
@@ -848,7 +848,7 @@ window.saveChromeRefreshConfig = async function(e) {
 
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
     try {
-        await appDB.from('settings').upsert([{ key: 'chrome_refresh_config', value: JSON.stringify(config) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'chrome_refresh_config', value: JSON.stringify(config) }]);
         globalChromeRefreshConfig = config;
         renderChromeRefreshConfig();
         Swal.fire({
@@ -877,7 +877,7 @@ window.fetchChromeRefreshHistory = async function(manual = false) {
     if (btn) btn.classList.add('animate-spin');
 
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'chrome_refresh_history').single();
+        const { data } = await window.getSettingCached('chrome_refresh_history');
         let history = [];
         if (data && data.value) {
             history = JSON.parse(data.value);
