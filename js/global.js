@@ -116,7 +116,8 @@ async function showPage(pageName) {
         if (!pageCache[pageName] && loading) loading.classList.remove('hidden');
         
         if (!pageCache[pageName]) {
-            const response = await fetch(`./pages/${pageName}.html`);
+            const _v = window._APP_VERSION || Date.now();
+            const response = await fetch(`./pages/${pageName}.html?v=${_v}`);
             if (!response.ok) throw new Error('Page not found');
             pageCache[pageName] = await response.text();
         }
