@@ -121,10 +121,10 @@ window.applyFilters = function() {
 
 // ─── โหลดข้อมูลเคส ────────────────────────
 async function _loadCaseData() {
-    document.getElementById('caseStaffGrid').innerHTML =
-        `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
-    document.getElementById('caseLogBody').innerHTML =
-        `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
+    const grid    = document.getElementById('caseStaffGrid');
+    const logBody = document.getElementById('caseLogBody');
+    if (grid)    grid.innerHTML    = `<div class="col-span-full text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
+    if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-2xl">sync</span></td></tr>`;
     try {
         let q = appDB.from('tg_case_logs').select('*')
             .eq('msg_date', _caseDate)
@@ -138,8 +138,9 @@ async function _loadCaseData() {
         _renderStaffGrid();
         _renderLogTable();
     } catch(e) {
-        document.getElementById('caseLogBody').innerHTML =
-            `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
+        // ล้าง spinner เสมอ แม้จะ error
+        if (grid)    grid.innerHTML    = `<div class="col-span-full text-center py-8 text-red-400"><span class="material-icons text-3xl">error_outline</span><p class="mt-2 text-sm">โหลดข้อมูลไม่สำเร็จ: ${e.message}</p></div>`;
+        if (logBody) logBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">Error: ${e.message}</td></tr>`;
     }
 }
 
