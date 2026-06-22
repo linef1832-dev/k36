@@ -174,8 +174,15 @@ function subscribeUserChanges() {
         .subscribe();
 }
 
-function handleDateChange() { document.getElementById('displayDate').innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); refreshTimeSlots(); fetchData(); }
-function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) window.safeSetItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); fetchData(); }
+function handleDateChange() { document.getElementById('displayDate').innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); refreshTimeSlots(); _debounceFetch(); }
+function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) window.safeSetItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); _debounceFetch(); }
+
+// Debounce fetchData 300ms — ป้องกันยิงซ้ำตอนเปลี่ยนวัน/ทีม
+let _fetchDebounceTimer = null;
+function _debounceFetch() {
+    if (_fetchDebounceTimer) clearTimeout(_fetchDebounceTimer);
+    _fetchDebounceTimer = setTimeout(() => { fetchData(); }, 300);
+}
 function toggleRememberTeam() { const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) { const team = document.getElementById('dailyTeam').value; window.safeSetItem(`last_team_${currentUser.username}`, team); } else { localStorage.removeItem(`last_team_${currentUser.username}`); } }
 function getPeriodForTime(shift, time) { const groups = SHIFT_GROUPS[shift]; if(!groups) return null; for(const [p, ts] of Object.entries(groups)) { if(ts.includes(time)) return p; } return null; }
 
@@ -539,59 +546,72 @@ function renderTableRows(data) {
 
     if(filteredData.length === 0) { box.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>`; return; }
     
-    let htmlContent = ''; 
+    // ─── Virtual Scroll — render แค่ 25 แถวแรก แล้ว lazy load เพิ่มตอน scroll ───
+    const CHUNK = 25;
+    let rendered = 0;
 
-    filteredData.forEach(i => {
-        const periodName = getPeriodForTime(i.shift_name, i.time_slot);
-        
-        let displayPeriod = periodName || '<span class="material-icons text-[12px] animate-spin">sync</span>';
-        let pClass = 'text-gray-500 border-transparent'; 
-        
-        if (periodName === 'ช่วงที่ 1') pClass = 'text-green-600 dark:text-green-400 border-current'; 
-        else if (periodName === 'ช่วงที่ 2') pClass = 'text-orange-500 dark:text-orange-400 border-current'; 
-        else if (periodName === 'ช่วงที่ 3') pClass = 'text-purple-600 dark:text-purple-400 border-current';
-        else if (!periodName) pClass = 'text-gray-400 border-gray-400/50 border-dashed bg-gray-100 dark:bg-slate-800';
-        
-        const canDelete = ['manager', 'admin'].includes(currentUser.role) || i.staff_name === currentUser.username;
-        let delBtn = canDelete ? `<button onclick="delSch(${i.id}, '${i.shift_name}')" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-lg bg-red-50 dark:bg-red-900/30 transition"><span class="material-icons text-lg">delete</span></button>` : '';
-        
-        const deptColor = (i.department === 'OD') ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700';
+    function buildRows(items) {
+        return items.map(i => {
+            const periodName = getPeriodForTime(i.shift_name, i.time_slot);
+            let displayPeriod = periodName || '<span class="material-icons text-[12px] animate-spin">sync</span>';
+            let pClass = 'text-gray-500 border-transparent';
+            if (periodName === 'ช่วงที่ 1') pClass = 'text-green-600 dark:text-green-400 border-current';
+            else if (periodName === 'ช่วงที่ 2') pClass = 'text-orange-500 dark:text-orange-400 border-current';
+            else if (periodName === 'ช่วงที่ 3') pClass = 'text-purple-600 dark:text-purple-400 border-current';
+            else if (!periodName) pClass = 'text-gray-400 border-gray-400/50 border-dashed bg-gray-100 dark:bg-slate-800';
 
-        htmlContent += `<tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
-            <td class="px-6 py-4 w-32 text-center"><div class="flex justify-center"><span class="${pClass} font-extrabold text-sm border px-2 py-0.5 rounded-full whitespace-nowrap flex items-center justify-center min-w-[60px] min-h-[28px]">${displayPeriod}</span></div></td>
-            <td class="px-6 py-4 font-bold text-slate-700 dark:text-gray-200">${i.staff_name}</td>
-            <td class="px-6 py-4">
-                <div class="flex items-center gap-1 flex-wrap">
-                    <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span>
-                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>
-                    ${(() => {
-                        // 🌟 เช็ค off-roster ตอน render — ใช้ map ที่โหลดมาแล้ว
-                        const assigned = globalAssignmentMap[`${i.staff_name}|${i.shift_name}`];
-                        if (assigned) {
-                            // มีในตาราง → เช็คว่าตรงเว็บไหม
-                            if (assigned.includes(i.team)) return ''; // ตรง OK
-                            return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse shadow-sm" title="ควรลง: ${assigned.join('/')}">⚠️ ผิดเว็บ! (ควร: ${assigned.join('/')})</span>`;
-                        }
-                        // ไม่มีใน map → เช็คว่ากะ+แผนกนี้มีจัดเวรไหม
-                        const dept = i.department || 'AM';
-                        const deptShiftKey = `${dept}|${i.shift_name}`;
-                        if (globalRosterDeptShiftSet.has(deptShiftKey)) {
-                            // มีจัดเวรในกะ+แผนกนี้ แต่คนนี้ไม่อยู่ใน roster → flag
-                            return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-orange-500 text-white animate-pulse shadow-sm" title="ไม่มีรายชื่อในตารางจัดหน้าที่กะนี้">⚠️ ไม่มีในตารางหน้าที่!</span>`;
-                        }
-                        // ยังไม่ได้จัดเวรในกะนี้ → ไม่ flag
-                        return '';
-                    })()}
-                </div>
-            </td>
-            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white">${i.shift_name}</span></td>
-            <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300">${i.time_slot}</td>
-            <td class="px-6 py-4 text-center">${delBtn}</td>
-        </tr>`;
-    });
-    
-    // 🌟 แก้ไขจุดที่ 2: เช็คอีกรอบให้ชัวร์ก่อนสั่งยัดข้อมูล
-    if (box) box.innerHTML = htmlContent;
+            const canDelete = ['manager', 'admin'].includes(currentUser.role) || i.staff_name === currentUser.username;
+            let delBtn = canDelete ? `<button onclick="delSch(${i.id}, '${i.shift_name}')" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-lg bg-red-50 dark:bg-red-900/30 transition"><span class="material-icons text-lg">delete</span></button>` : '';
+
+            const deptColor = (i.department === 'OD') ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700';
+
+            const rosterTag = (() => {
+                const assigned = globalAssignmentMap[`${i.staff_name}|${i.shift_name}`];
+                if (assigned) {
+                    if (assigned.includes(i.team)) return '';
+                    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse shadow-sm" title="ควรลง: ${assigned.join('/')}">⚠️ ผิดเว็บ! (ควร: ${assigned.join('/')})</span>`;
+                }
+                const dept = i.department || 'AM';
+                const deptShiftKey = `${dept}|${i.shift_name}`;
+                if (globalRosterDeptShiftSet.has(deptShiftKey)) {
+                    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-orange-500 text-white animate-pulse shadow-sm" title="ไม่มีรายชื่อในตารางจัดหน้าที่กะนี้">⚠️ ไม่มีในตารางหน้าที่!</span>`;
+                }
+                return '';
+            })();
+
+            return `<tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                <td class="px-6 py-4 w-32 text-center"><div class="flex justify-center"><span class="${pClass} font-extrabold text-sm border px-2 py-0.5 rounded-full whitespace-nowrap flex items-center justify-center min-w-[60px] min-h-[28px]">${displayPeriod}</span></div></td>
+                <td class="px-6 py-4 font-bold text-slate-700 dark:text-gray-200">${i.staff_name}</td>
+                <td class="px-6 py-4"><div class="flex items-center gap-1 flex-wrap"><span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span><span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>${rosterTag}</div></td>
+                <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white">${i.shift_name}</span></td>
+                <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300">${i.time_slot}</td>
+                <td class="px-6 py-4 text-center">${delBtn}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // render chunk แรก
+    box.innerHTML = buildRows(filteredData.slice(0, CHUNK));
+    rendered = Math.min(CHUNK, filteredData.length);
+
+    // lazy load เพิ่มตอน scroll
+    const tableContainer = box.closest('.overflow-auto, .overflow-y-auto, [class*="overflow"]');
+    if (tableContainer && rendered < filteredData.length) {
+        const onScroll = () => {
+            const { scrollTop, scrollHeight, clientHeight } = tableContainer;
+            if (scrollTop + clientHeight >= scrollHeight - 100 && rendered < filteredData.length) {
+                const next = filteredData.slice(rendered, rendered + CHUNK);
+                box.insertAdjacentHTML('beforeend', buildRows(next));
+                rendered += next.length;
+                if (rendered >= filteredData.length) {
+                    tableContainer.removeEventListener('scroll', onScroll);
+                }
+            }
+        };
+        tableContainer.removeEventListener('scroll', tableContainer._vsScroll);
+        tableContainer._vsScroll = onScroll;
+        tableContainer.addEventListener('scroll', onScroll);
+    }
 }
 
 function updateTableSummary(data) {
