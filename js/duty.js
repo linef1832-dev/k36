@@ -579,7 +579,7 @@ window.restoreFromLeave = async function(userId, username) {
                 });
                 
                 const saveKey = getDutySaveKey(targetDate, shiftFilter);
-                await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
             }
 
             await appDB.from('system_logs').insert([{ action_type: 'ย้ายหน้าที่', performed_by: currentUser.username, target_details: `ดึง ${username} กลับจากการลา ไปใส่เว็บ [${selectedTeam}] วันที่: ${targetDate}` }]);
@@ -715,7 +715,7 @@ window.addStaffToRoster = async function() {
         });
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
-        const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (error) throw error;
 
         await appDB.from('system_logs').insert([{
@@ -777,7 +777,7 @@ window.clearDutyRoster = async function() {
                     if (window.globalImportantTasks.includes(k)) newAssigns[k] = v;
                 }
                 
-                await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(newAssigns) }]);
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(newAssigns) }]);
                 if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) await appDB.from('settings').delete().eq('key', reportKey);
                 
                 await appDB.from('system_logs').insert([{ action_type: 'ล้างตารางงาน', performed_by: currentUser.username, target_details: `ล้างตาราง ${currentDutyDept} (${shiftFilter}, ${targetDate})` }]);
@@ -916,7 +916,7 @@ window.generateDutyRoster = async function() {
         }
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
-        const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(rosterResult) }]);
+        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(rosterResult) }]);
         if (error) throw error;
 
         try {
@@ -1261,7 +1261,7 @@ window.changeSecondaryTeam = async function(primaryTeam, userId, username) {
             const saveKey = `duty_roster_${currentDutyDept}_${targetDate}_${shiftFilter}`;
 
             Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen:()=>Swal.showLoading()});
-            await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
 
             // 🟢 บันทึก log การเปลี่ยนงานรอง (สแตนด์บาย)
             let logDetail;
@@ -1520,7 +1520,7 @@ window.handleDrop = async function(event, toTeam) {
             if (currentRosterData[fromTeam]) {
                 currentRosterData[fromTeam] = currentRosterData[fromTeam].filter(u => String(u.id) !== String(id));
                 const saveKey = typeof getDutySaveKey === 'function' ? getDutySaveKey(targetDate, shiftFilter) : `duty_roster_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-                await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
             }
 
             const { error: leaveErr } = await appDB.from('leave_requests').insert([{ user_id: id, user_name: username, leave_date: targetDate, reason: leaveReason, status: 'approved' }]);
@@ -1564,7 +1564,7 @@ window.handleDrop = async function(event, toTeam) {
     Swal.fire({title: 'กำลังอัปเดตตาราง...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
-        const { error } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (error) throw error;
 
         // 🟢 บันทึก log การย้ายระหว่างเว็บ — แสดงทั้ง "คนจัดเดิม" และ "คนย้าย"
@@ -2061,7 +2061,7 @@ window.updateLocalDutyAccess = function(uid, team, isChecked) {
 window.saveDutyAccess = async function() {
     Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
     try {
-        await appDB.from('settings').upsert([{ key: 'duty_access_matrix', value: JSON.stringify(dutyAccessMatrix) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'duty_access_matrix', value: JSON.stringify(dutyAccessMatrix) }]);
         Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', timer: 1000, showConfirmButton: false});
     } catch(e) { Swal.fire('Error', e.message, 'error'); }
 }
@@ -2098,7 +2098,7 @@ window.removeDutyRole = async function(team, idx) {
     }
 }
 
-window.saveCustomRolesToDB = async function() { await appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]); }
+window.saveCustomRolesToDB = async function() { window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]); }
 
 window.renderDutyRequirements = function() {
     const container = document.getElementById('dutyRequirements');
@@ -2362,7 +2362,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     let savedRoleOverrides = {};
     try {
         if (targetDate) {
-            const { data } = await appDB.from('settings').select('value').eq('key', matrixRoleKey).maybeSingle();
+            const { data } = await window.getSettingCached(matrixRoleKey);
             if (data && data.value) savedRoleOverrides = JSON.parse(data.value);
         }
     } catch(e) { console.warn('Load trainer matrix roles failed:', e); savedRoleOverrides = {}; }
@@ -2707,13 +2707,13 @@ window.saveTrainerMatrixRole = async function(userId, web, taskIdx, newRole) {
         // โหลดค่าเก่าก่อน (เพื่อ merge ไม่ใช่ทับ)
         let current = {};
         try {
-            const { data } = await appDB.from('settings').select('value').eq('key', matrixRoleKey).maybeSingle();
+            const { data } = await window.getSettingCached(matrixRoleKey);
             if (data && data.value) current = JSON.parse(data.value);
         } catch(e) {}
 
         current[overrideKey] = newRole;
 
-        const { error } = await appDB.from('settings').upsert([{ key: matrixRoleKey, value: JSON.stringify(current) }]);
+        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{ key: matrixRoleKey, value: JSON.stringify(current) }]);
         if (error) {
             Swal.fire('Error', 'บันทึกไม่สำเร็จ: ' + error.message, 'error');
             return;
@@ -2877,7 +2877,7 @@ window.toggleLockImportantTask = async function(taskName) {
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ตั้งเป็นหน้าที่ประจำสำเร็จ!', showConfirmButton: false, timer: 1500 });
     }
     
-    await appDB.from('settings').upsert([{ key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) }]);
+    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impLockKey, value: JSON.stringify(window.lockedImportantTasks) }]);
     window.renderImportantTasksPanel();
 };
 
@@ -2918,7 +2918,7 @@ window.randomizeImportantTasks = async function() {
     Swal.fire({title: 'กำลังสุ่มและจัดเรียงงาน...', didOpen: () => Swal.showLoading()});
     
     const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
-    await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
+    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
     
     window.renderImportantTasksPanel();
     Swal.close();
@@ -2952,7 +2952,7 @@ window.addImportantTask = async function() {
         Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
         
         const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
-        await appDB.from('settings').upsert([{ key: impListKey, value: JSON.stringify(window.globalImportantTasks) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impListKey, value: JSON.stringify(window.globalImportantTasks) }]);
         
         window.renderImportantTasksPanel();
         Swal.close();
@@ -2983,7 +2983,7 @@ window.deleteImportantTask = async function(taskName) {
         const assignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         const lockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
         
-        await appDB.from('settings').upsert([
+        window.clearSettingCache(); await appDB.from('settings').upsert([
             { key: listKey, value: JSON.stringify(window.globalImportantTasks) },
             { key: assignKey, value: JSON.stringify(window.currentImportantAssigns) },
             { key: lockKey, value: JSON.stringify(window.lockedImportantTasks) }
@@ -3027,7 +3027,7 @@ window.assignImportantTask = async function(taskName) {
         const targetDate = document.getElementById('dutyDate').value;
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
 
-        await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: impAssignKey, value: JSON.stringify(window.currentImportantAssigns) }]);
 
         // 🟢 บันทึก log การมอบหมายงานสำคัญ
         const logDetail = prevAssignee && prevAssignee !== selectedUser
@@ -3062,7 +3062,7 @@ window.unassignImportantTask = async function(taskName) {
     }
 
     Swal.fire({title: 'กำลังปลดคน...', didOpen: () => Swal.showLoading()});
-    await appDB.from('settings').upsert(keysToUpdate);
+    window.clearSettingCache(); await appDB.from('settings').upsert(keysToUpdate);
 
     // 🟢 บันทึก log การปลดคนออกจากงานสำคัญ
     if (prevAssignee) {
@@ -3149,7 +3149,7 @@ window.clearSecondaryDuties = async function() {
         }
 
         // บันทึกกลับ DB
-        await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(roster) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(roster) }]);
 
         // เขียน log
         try {
@@ -3401,7 +3401,7 @@ window.quickAssignBackups = async function() {
         } catch(e) { console.warn('assign standby tasks failed:', e); }
     }
     
-    await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(roster) }]);
+    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(roster) }]);
     window.renderRosterGrid(roster);
 
     try {
@@ -3548,7 +3548,7 @@ window.restoreDutyRoster = async function() {
         if (result.isConfirmed) {
             Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
             try {
-                await appDB.from('settings').upsert([{ key: saveKey, value: backupData }]);
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: backupData }]);
                 await appDB.from('system_logs').insert([{ action_type: 'กู้คืนตารางงาน', performed_by: currentUser.username, target_details: `กู้คืนตาราง ${currentDutyDept} (${shiftFilter}, ${targetDate})` }]);
                 
                 if(appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
@@ -3797,7 +3797,7 @@ window.deleteStandbyWebTask = async function(web, idx) {
 async function saveStandbyConfig() {
     if (typeof appDB === 'undefined') return;
     try {
-        await appDB.from('settings').upsert([
+        window.clearSettingCache(); await appDB.from('settings').upsert([
             { key: 'standby_config_by_web', value: JSON.stringify(window._standbyConfigByWeb) }
         ]);
     } catch(e) { 
@@ -3984,7 +3984,7 @@ window.assignODProTelegramTasks = async function() {
         const shiftFilter = document.getElementById('dutyShiftSelect').value;
         const saveKey     = getDutySaveKey(targetDate, shiftFilter);
 
-        const { error } = await appDB.from('settings').upsert([{
+        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{
             key:   saveKey,
             value: JSON.stringify(currentRosterData)
         }]);
@@ -4067,7 +4067,7 @@ window.swapODTask = async function(team, userId, taskType) {
         const shiftFilter = document.getElementById('dutyShiftSelect').value;
         const saveKey     = getDutySaveKey(targetDate, shiftFilter);
 
-        const { error } = await appDB.from('settings').upsert([{
+        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([{
             key:   saveKey,
             value: JSON.stringify(currentRosterData)
         }]);
