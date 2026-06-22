@@ -149,7 +149,7 @@ window.togglePin = function(e, id) {
     let pinned = JSON.parse(localStorage.getItem('pinned_sheets') || '[]');
     if (pinned.includes(id)) pinned = pinned.filter(pid => pid !== id);
     else pinned.push(id);
-    localStorage.setItem('pinned_sheets', JSON.stringify(pinned));
+    window.safeSetItem('pinned_sheets', JSON.stringify(pinned));
     renderSheetMenu();
 };
 
@@ -227,7 +227,7 @@ window.loadCalcSettings = async function() {
     if (!selectElem) return;
     
     const team = selectElem.value;
-    localStorage.setItem('calc_saved_team', team); 
+    window.safeSetItem('calc_saved_team', team); 
     
     let savedVal = 0;
     try {
@@ -282,7 +282,7 @@ window.addNewCalcTeam = async function() {
         let localTeams = JSON.parse(localStorage.getItem(CALC_STORAGE_KEY) || '[]');
         if(!localTeams.includes(newTeam)) {
             localTeams.push(newTeam);
-            localStorage.setItem(CALC_STORAGE_KEY, JSON.stringify(localTeams));
+            window.safeSetItem(CALC_STORAGE_KEY, JSON.stringify(localTeams));
             await initCalculator();
             document.getElementById('calcTeamSelect').value = newTeam;
             loadCalcSettings();
@@ -298,7 +298,7 @@ window.deleteCalcTeam = async function() {
     if(result.isConfirmed) {
         let localTeams = JSON.parse(localStorage.getItem(CALC_STORAGE_KEY) || '[]');
         localTeams = localTeams.filter(t => t !== team);
-        localStorage.setItem(CALC_STORAGE_KEY, JSON.stringify(localTeams));
+        window.safeSetItem(CALC_STORAGE_KEY, JSON.stringify(localTeams));
         await initCalculator();
     }
 };
@@ -386,14 +386,14 @@ window.addToRecentTabs = function(sheet) {
     recentTabs = recentTabs.filter(t => t.id !== sheet.id);
     recentTabs.unshift(sheet);
     if (recentTabs.length > 10) recentTabs.pop();
-    localStorage.setItem('sheet_recent_tabs', JSON.stringify(recentTabs));
+    window.safeSetItem('sheet_recent_tabs', JSON.stringify(recentTabs));
     renderRecentTabs();
 };
 
 window.closeTab = function(e, id) {
     e.stopPropagation();
     recentTabs = recentTabs.filter(t => String(t.id) !== String(id));
-    localStorage.setItem('sheet_recent_tabs', JSON.stringify(recentTabs));
+    window.safeSetItem('sheet_recent_tabs', JSON.stringify(recentTabs));
     
     if (recentTabs.length === 0) {
         closeSheet(); 
@@ -408,7 +408,7 @@ window.closeTab = function(e, id) {
 
 window.clearAllTabs = function() {
     recentTabs = [];
-    localStorage.setItem('sheet_recent_tabs', '[]');
+    window.safeSetItem('sheet_recent_tabs', '[]');
     renderRecentTabs();
     closeSheet();
 };
