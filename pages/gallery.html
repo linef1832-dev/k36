@@ -89,12 +89,12 @@
 <div id="galleryTemplates" style="display: none;">
     <template id="tpl-gallery-card">
         <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 shadow-lg flex flex-col group relative hover:border-pink-500 transition-all h-full shrink-0">
-            <div class="h-56 w-full bg-black relative flex items-center justify-center cursor-zoom-in overflow-hidden shrink-0" {{lightboxClick}}>
+            <div class="h-56 w-full bg-black relative flex items-center justify-center cursor-zoom-in overflow-hidden shrink-0" data-lb-index="{{lbIndex}}" onclick="openLightbox(parseInt(this.dataset.lbIndex))">
                 {{newBadge}}
                 {{adminCheckbox}}
                 {{catBadge}}
                 <img src="{{url}}" class="w-full h-full object-contain transition duration-300 group-hover:scale-105" loading="lazy">
-                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex flex-col items-center justify-center">
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex flex-col items-center justify-center pointer-events-none">
                     <span class="material-icons text-white text-4xl opacity-0 group-hover:opacity-80 transition">zoom_in</span>
                     <span class="text-white text-[10px] font-bold opacity-0 group-hover:opacity-90 transition mt-1 bg-black/50 px-2 py-0.5 rounded">{{uploadDate}}</span>
                     <span class="text-gray-300 text-[9px] opacity-0 group-hover:opacity-80 transition bg-black/50 px-2 py-0.5 rounded mt-0.5">{{uploadBy}}</span>
