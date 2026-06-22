@@ -175,8 +175,8 @@ function subscribeUserChanges() {
 }
 
 function handleDateChange() { document.getElementById('displayDate').innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); refreshTimeSlots(); fetchData(); }
-function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) localStorage.setItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); fetchData(); }
-function toggleRememberTeam() { const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) { const team = document.getElementById('dailyTeam').value; localStorage.setItem(`last_team_${currentUser.username}`, team); } else { localStorage.removeItem(`last_team_${currentUser.username}`); } }
+function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) window.safeSetItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); fetchData(); }
+function toggleRememberTeam() { const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) { const team = document.getElementById('dailyTeam').value; window.safeSetItem(`last_team_${currentUser.username}`, team); } else { localStorage.removeItem(`last_team_${currentUser.username}`); } }
 function getPeriodForTime(shift, time) { const groups = SHIFT_GROUPS[shift]; if(!groups) return null; for(const [p, ts] of Object.entries(groups)) { if(ts.includes(time)) return p; } return null; }
 
 function checkBookingTime(shiftName) {
@@ -1970,7 +1970,7 @@ window.renameAnyDept = async function(oldDept) {
             });
             MENU_PERMS = newPerms;
             SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
-            localStorage.setItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
+            window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
 
             // 3. อัปเดตขึ้น Database (ตาราง settings)
             await appDB.from('settings').upsert([
@@ -2035,7 +2035,7 @@ window.checkAndShowAnnouncementPopup = async function(isSilentCheck = false) {
                     customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-3xl border border-slate-700 shadow-2xl' }
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        localStorage.setItem('seen_announcement_id', announce.id); 
+                        window.safeSetItem('seen_announcement_id', announce.id); 
                     }
                 });
             }
@@ -2086,7 +2086,7 @@ window.forceShowAnnouncementPopup = async function() {
                 });
             }
 
-            localStorage.setItem('seen_announcement_id', announce.id);
+            window.safeSetItem('seen_announcement_id', announce.id);
             if (typeof updateAnnounceBadge === 'function') updateAnnounceBadge();
 
             let imgHtml = announce.image ? `<img src="${announce.image}" style="max-width: 100%; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">` : '';
@@ -2758,7 +2758,7 @@ window.saveMenuPerms = async function() {
 
     MENU_PERMS = newPerms;
     SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
-    localStorage.setItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
+    window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
     
     await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
     Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์การมองเห็นเมนูเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false});
@@ -2901,7 +2901,7 @@ window.applySidebarPermissions = async function() {
         appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single().then(({data}) => {
             if (data && data.value && data.value !== cachedRules) {
                 SETTINGS['dept_menu_rules'] = data.value;
-                localStorage.setItem('cached_menu_rules', data.value);
+                window.safeSetItem('cached_menu_rules', data.value);
                 executeMenuUpdate(); 
             }
         }).catch(e => console.log(e));
