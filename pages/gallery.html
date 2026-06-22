@@ -101,7 +101,10 @@
                 </div>
             </div>
             <div class="p-2 bg-slate-900 border-t border-slate-700 flex flex-col gap-2 mt-auto">
-                <div class="text-white font-bold text-xs truncate text-center" title="{{name}}">{{name}}</div>
+                <div class="flex items-center gap-1 group/name">
+                    <span class="text-white font-bold text-xs truncate flex-1 text-center" title="{{name}}">{{name}}</span>
+                    {{renameBtn}}
+                </div>
                 <div class="mt-1 flex gap-2 w-full">
                     <button onclick="event.stopPropagation(); copyImageToClipboard('{{url}}')" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] py-2 rounded-lg shadow font-bold flex items-center justify-center gap-1 transition active:scale-95 border border-blue-500">
                         <span class="material-icons text-xs">content_copy</span> คัดลอก
