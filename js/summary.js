@@ -1763,7 +1763,7 @@ window.openManageSystemModal = async function() {
             const sel = document.getElementById(`sys_select_modal_${web}`);
             if(sel) customSystems[web] = sel.value;
         });
-        localStorage.setItem('custom_web_systems', JSON.stringify(customSystems));
+        window.safeSetItem('custom_web_systems', JSON.stringify(customSystems));
 
         if (typeof pendingSummaryData !== 'undefined') {
             pendingSummaryData.forEach(item => {
