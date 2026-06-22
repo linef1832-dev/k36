@@ -1,5 +1,6 @@
 let currentGalleryData = [];
 let currentGalleryMode = 'general';
+let _galleryPage = 1;
 
 // 🌟 ตัวช่วยดึง HTML Template และแทนที่ข้อมูล (เหมือนของหน้า Summary)
 function getGalleryTpl(templateId, data = {}) {
@@ -246,6 +247,57 @@ window.fetchGalleryImages = async function() {
     }).join('');
     
     updateBulkDeleteButton();
+
+    // Pagination
+    const perPage  = parseInt(document.getElementById('galleryPerPage')?.value || '50');
+    const maxPage  = Math.ceil(filteredData.length / perPage);
+    if (_galleryPage > maxPage) _galleryPage = 1;
+    const start    = (_galleryPage - 1) * perPage;
+    const pageData = filteredData.slice(start, start + perPage);
+
+    const pagEl = document.getElementById('galleryPagination');
+    if (pagEl) {
+        if (maxPage > 1) {
+            pagEl.innerHTML = Array.from({ length: maxPage }, (_, i) => {
+                const active = i + 1 === _galleryPage
+                    ? 'bg-pink-600 text-white border-pink-400'
+                    : 'bg-slate-700 text-gray-300 border-slate-600 hover:bg-pink-700 hover:text-white';
+                return `<button onclick="_galleryPage=${i+1}; fetchGalleryImages()" class="text-[11px] font-bold w-7 h-7 rounded-full border ${active} transition">${i+1}</button>`;
+            }).join('');
+        } else { pagEl.innerHTML = ''; }
+    }
+
+    // Re-render เฉพาะหน้าที่เลือก พร้อม hover date
+    const isAdminG = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const canDelG  = isAdminG || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('gallery_delete'));
+    const lastViewG = new Date(localStorage.getItem(`gallery_last_view_${currentUser.username}`) || '2000-01-01');
+
+    grid.innerHTML = pageData.map((img, i) => {
+        const realIdx   = start + i;
+        const imgDate   = new Date(img.created_at);
+        const isNewG    = imgDate > lastViewG;
+        const uploadDate = imgDate.toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' });
+        const uploadBy   = img.uploaded_by ? `โดย ${img.uploaded_by}` : '';
+
+        const newBadgeG  = isNewG ? `<span class="absolute top-2 right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded shadow-lg font-bold animate-pulse z-30 border border-white/50">NEW</span>` : '';
+        const adminCbG   = canDelG ? `<div class="absolute top-2 left-2 z-30" onclick="event.stopPropagation()"><input type="checkbox" class="gallery-check w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm bg-white" value="${img.id}" onchange="updateBulkDeleteButton()"></div>` : '';
+
+        let catColorG = 'bg-black/60 text-white border-white/20';
+        let catNameG  = img.category || '';
+        if (catNameG.endsWith('_BONUS'))      { catNameG = catNameG.replace('_BONUS',''); catColorG = 'bg-yellow-600/90 text-white border-yellow-300'; }
+        else if (catNameG.endsWith('_REACH')) { catNameG = catNameG.replace('_REACH',''); catColorG = 'bg-purple-600/90 text-white border-fuchsia-300'; }
+        else if (catNameG.endsWith('_CARD'))  { catNameG = catNameG.replace('_CARD','');  catColorG = 'bg-emerald-600/90 text-white border-teal-300'; }
+        const catBadgeG = `<span class="absolute bottom-2 left-2 ${catColorG} text-[10px] px-2 py-0.5 rounded border z-20 backdrop-blur-sm font-bold shadow-sm">${catNameG}</span>`;
+
+        return getGalleryTpl('tpl-gallery-card', {
+            url: img.url, name: img.name,
+            newBadge: newBadgeG, adminCheckbox: adminCbG, catBadge: catBadgeG,
+            uploadDate, uploadBy,
+            lightboxClick: `onclick="openLightbox(${realIdx})"`
+        });
+    }).join('');
+
+    updateBulkDeleteButton();
 }
 
 window.handleImageUpload = async function(input) {
@@ -467,6 +519,7 @@ window.filterGalleryImages = function() {
 // ==========================================
 let _lbIndex = 0;
 let _lbData  = [];
+const _isAdminGallery = () => currentUser.role === 'admin' || currentUser.role === 'manager';
 
 window.openLightbox = function(index) {
     _lbData  = currentGalleryData;
@@ -477,13 +530,27 @@ window.openLightbox = function(index) {
 };
 
 function _updateLightbox() {
-    const img  = _lbData[_lbIndex];
+    const img = _lbData[_lbIndex];
     if (!img) return;
-    document.getElementById('lightboxImg').src         = img.url;
-    document.getElementById('lightboxName').textContent = img.name || '';
-    document.getElementById('lightboxCounter').textContent = `${_lbIndex + 1} / ${_lbData.length}`;
-    document.getElementById('lightboxDownload').href   = img.url;
-    document.getElementById('lightboxDownload').download = img.name || 'image';
+    document.getElementById('lightboxImg').src              = img.url;
+    document.getElementById('lightboxName').textContent     = img.name || '';
+    document.getElementById('lightboxCounter').textContent  = `${_lbIndex + 1} / ${_lbData.length}`;
+    document.getElementById('lightboxDownload').href        = img.url;
+    document.getElementById('lightboxDownload').download    = img.name || 'image';
+
+    // วันที่อัปโหลด
+    const dateEl = document.getElementById('lightboxDate');
+    if (dateEl && img.created_at) {
+        const d = new Date(img.created_at);
+        dateEl.textContent = `📅 ${d.toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}`;
+    }
+
+    // ปุ่มแก้ชื่อ — เฉพาะ admin
+    const renameBtn = document.getElementById('lightboxRename');
+    if (renameBtn) {
+        if (_isAdminGallery()) renameBtn.classList.remove('hidden');
+        else renameBtn.classList.add('hidden');
+    }
 }
 
 window.moveLightbox = function(dir) {
@@ -501,6 +568,43 @@ function _lbKeyHandler(e) {
     else if (e.key === 'ArrowLeft') moveLightbox(-1);
     else if (e.key === 'Escape') closeLightbox();
 }
+
+// Copy URL
+window._copyLightboxUrl = function() {
+    const img = _lbData[_lbIndex];
+    if (!img) return;
+    navigator.clipboard.writeText(img.url).then(() => {
+        Swal.fire({ icon: 'success', title: 'Copy URL แล้ว!', timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
+    });
+};
+
+// แก้ชื่อรูป
+window._renameLightboxImg = async function() {
+    const img = _lbData[_lbIndex];
+    if (!img) return;
+    const { value: newName } = await Swal.fire({
+        title: 'แก้ชื่อรูป',
+        input: 'text',
+        inputValue: img.name || '',
+        inputPlaceholder: 'ชื่อรูปใหม่...',
+        showCancelButton: true,
+        confirmButtonText: 'บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        background: '#1e293b', color: '#e2e8f0',
+        confirmButtonColor: '#d97706',
+    });
+    if (!newName || newName.trim() === img.name) return;
+    try {
+        const { error } = await appDB.from('image_gallery').update({ name: newName.trim() }).eq('id', img.id);
+        if (error) throw error;
+        img.name = newName.trim();
+        document.getElementById('lightboxName').textContent = img.name;
+        Swal.fire({ icon: 'success', title: 'แก้ชื่อสำเร็จ!', timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
+        fetchGalleryImages(); // refresh grid
+    } catch(e) {
+        Swal.fire('Error', e.message, 'error');
+    }
+};
 
 // ==========================================
 // 📁 Drag & Drop Upload
