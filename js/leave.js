@@ -590,7 +590,14 @@ window.renderLeaveTable = function() {
 
     const s = deptSettings[currentViewDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 };
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
-    const isAdmin = isGlobalAdmin || window.hasUserPerm('leave_manage');
+    // isAdmin = global admin หรือ มีสิทธิ์จัดการแผนกที่กำลังดูอยู่
+    const _d = currentViewDept || 'AM';
+    const isAdmin = isGlobalAdmin
+        || window.hasUserPerm('leave_manage')
+        || (_d === 'AM'      && window.hasUserPerm('leave_manage_am'))
+        || (_d === 'OD'      && window.hasUserPerm('leave_manage_od'))
+        || (['TRAINER','AMQL','ODQL'].includes(_d) && window.hasUserPerm('leave_manage_trainer'))
+        || (_d === 'SPECIAL' && window.hasUserPerm('leave_manage_am'));
     const canViewAnyMonth = isAdmin || window.hasUserPerm('leave_view_any_month');
     const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request') || currentViewDept === 'SPECIAL';
     const picker = document.getElementById('viewMonthPicker');
