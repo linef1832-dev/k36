@@ -896,10 +896,14 @@ async function deleteSelectedUsers() {
     }).then(async (result) => {
         if (result.isConfirmed) {
             Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-            await appDB.from('users').delete().in('id', ids);
+            const { error } = await appDB.from('users').delete().in('id', ids);
+            if (error) return Swal.fire('Error', error.message, 'error');
             await logAction('ลบพนักงาน', `ลบพนักงาน ${ids.length} คน`);
-            fetchUsers(); 
-            Swal.fire('ลบสำเร็จ', 'ลบรายชื่อเรียบร้อยแล้ว', 'success');
+            // ล้าง cache แล้ว fetch ใหม่ก่อนแสดงผล
+            if (typeof window.clearUsersCache === 'function') window.clearUsersCache();
+            GLOBAL_USER_LIST = GLOBAL_USER_LIST.filter(u => !ids.includes(String(u.id)));
+            await fetchUsers(true);
+            Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', text: `ลบพนักงาน ${ids.length} คน เรียบร้อยแล้ว`, timer: 1500, showConfirmButton: false });
         }
     });
 }
