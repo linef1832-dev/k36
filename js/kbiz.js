@@ -391,11 +391,12 @@ window.resetOcrKeyUsage = async function(id) {
     });
 };
 
-setInterval(() => {
+const _kbizOcrTimer = setInterval(() => {
     if (document.getElementById('ocrKeysGrid')) {
         fetchOcrKeysData();
     }
 }, 30000);
+if (typeof window.registerPageInterval === 'function') window.registerPageInterval(_kbizOcrTimer);
 
 
 // ==========================================
