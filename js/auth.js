@@ -452,7 +452,7 @@ async function handleLogin(e) {
             return Swal.fire('ผิดพลาด', 'รหัส PIN ไม่ถูกต้อง', 'error');
         }
 
-        if (remember) localStorage.setItem('remember_me_name', user.username); 
+        if (remember) window.safeSetItem('remember_me_name', user.username); 
         else localStorage.removeItem('remember_me_name');
         
         clearPinInputs();
