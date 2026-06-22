@@ -154,7 +154,18 @@ window.generateSwapPlan = async function() {
     try { 
         const startDateVal = document.getElementById('swapStartDate').value;
         const endDateVal = document.getElementById('swapEndDate').value;
-        const targetDept = document.getElementById('swapDeptSelect').value; 
+        const targetDept = document.getElementById('swapDeptSelect').value;
+        const shiftPair = document.getElementById('swapShiftPair')?.value || 'M_N';
+
+        // กำหนดกะจาก dropdown
+        const SHIFT_MAP = {
+            'M_N':    { from: 'กะเช้า', to: 'กะดึก',  toLabel: 'ดึก',   fromLabel: 'เช้า',  bidirectional: true  },
+            'M_A':    { from: 'กะเช้า', to: 'กะกลาง', toLabel: 'กลาง',  fromLabel: 'เช้า',  bidirectional: true  },
+            'A_N':    { from: 'กะกลาง', to: 'กะดึก',  toLabel: 'ดึก',   fromLabel: 'กลาง',  bidirectional: true  },
+            'N_M':    { from: 'กะดึก',  to: 'กะเช้า', toLabel: 'เช้า',  fromLabel: 'ดึก',   bidirectional: false },
+            'M_only': { from: 'กะเช้า', to: 'กะดึก',  toLabel: 'ดึก',   fromLabel: 'เช้า',  bidirectional: false },
+        };
+        const pair = SHIFT_MAP[shiftPair] || SHIFT_MAP['M_N'];
         
         if (!startDateVal || !endDateVal) return Swal.fire('แจ้งเตือน', 'กรุณาระบุวันที่เริ่มต้นและสิ้นสุด', 'warning');
         const startDateObj = new Date(startDateVal); const endDateObj = new Date(endDateVal);
@@ -179,21 +190,21 @@ window.generateSwapPlan = async function() {
 
         let mStaff = GLOBAL_USER_LIST.filter(u => {
             const uDept = u.department || 'AM';
-            if (u.allowed_shift !== 'กะเช้า') return false;
-            if (targetDept === 'TRAINER') { if (uDept === 'AM' || uDept === 'OD') return false; } 
+            if (u.allowed_shift !== pair.from) return false;
+            if (targetDept === 'TRAINER') { if (uDept === 'AM' || uDept === 'OD') return false; }
             else if (targetDept !== 'ALL') { if (uDept !== targetDept) return false; }
             if (excludeMList.some(e => e.id === u.id)) return false;
             return true;
         });
 
-        let nStaff = GLOBAL_USER_LIST.filter(u => {
+        let nStaff = pair.bidirectional ? GLOBAL_USER_LIST.filter(u => {
             const uDept = u.department || 'AM';
-            if (u.allowed_shift !== 'กะดึก') return false;
-            if (targetDept === 'TRAINER') { if (uDept === 'AM' || uDept === 'OD') return false; } 
+            if (u.allowed_shift !== pair.to) return false;
+            if (targetDept === 'TRAINER') { if (uDept === 'AM' || uDept === 'OD') return false; }
             else if (targetDept !== 'ALL') { if (uDept !== targetDept) return false; }
             if (excludeNList.some(e => e.id === u.id)) return false;
             return true;
-        });
+        }) : [];
 
         if (mStaff.length === 0 && nStaff.length === 0) return Swal.fire('ไม่พบข้อมูล', `ไม่มีพนักงานให้สลับในแผนกที่เลือก`, 'error');
 
@@ -270,8 +281,8 @@ window.generateSwapPlan = async function() {
             generatedSwapPlan.push({
                 dayNumber: i + 1, targetDate: dateStr, targetNextDate: nextDateStr, 
                 morningToNight: mList, nightToMorning: nList,
-                descMtoN: `ทำเช้าวันสุดท้าย: ${prevDateDisplay} | เริ่มเข้าดึกคืนแรก: ${displayDate}`,
-                descNtoM: `ออกกะเช้าวันที่: ${displayDate} (ได้พัก 1 วัน) | เริ่มเข้าเช้าวันที่: ${nextDateDisplay}`
+                descMtoN: `ทำ${pair.fromLabel}วันสุดท้าย: ${prevDateDisplay} | เริ่มเข้า${pair.toLabel}คืนแรก: ${displayDate}`,
+                descNtoM: `ออกกะ${pair.toLabel}วันที่: ${displayDate} (ได้พัก 1 วัน) | เริ่มเข้า${pair.fromLabel}วันที่: ${nextDateDisplay}`
             });
         }
 
@@ -343,18 +354,18 @@ window.confirmAndSaveSwapPlan = async function() {
                 generatedSwapPlan.forEach(dayPlan => {
                     dayPlan.morningToNight.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetDate}T05:00:00+07:00`);
-                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'กะดึก', display_desc: dayPlan.descMtoN }, scheduled_for: exactTime.toISOString(), status: 'pending' });
+                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: pair.to, display_desc: dayPlan.descMtoN }, scheduled_for: exactTime.toISOString(), status: 'pending' });
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                     dayPlan.nightToMorning.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetNextDate}T05:00:00+07:00`);
-                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'กะเช้า', display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
+                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: pair.from, display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                 });
 
-                excludeMList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: 'กะเช้า', display_desc: 'อยู่กะเช้าตามเดิม' }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
-                excludeNList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: 'กะดึก', display_desc: 'อยู่กะดึกตามเดิม' }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
+                excludeMList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: pair.from, display_desc: `อยู่${pair.fromLabel}ตามเดิม` }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
+                excludeNList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: pair.to, display_desc: `อยู่${pair.toLabel}ตามเดิม` }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
 
                 if (tasksToInsert.length > 0) { 
                     const { error } = await appDB.from('scheduled_tasks').insert(tasksToInsert); 
