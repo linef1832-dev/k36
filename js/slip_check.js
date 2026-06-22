@@ -33,7 +33,7 @@ window.fetchSlipHistoryDB = async function() {
             const { data } = await appDB.from('settings').select('value').eq('key', 'slip_check_history').single();
             if (data && data.value) {
                 window.slipHistoryData = JSON.parse(data.value);
-                localStorage.setItem('slip_check_history', data.value);
+                window.safeSetItem('slip_check_history', data.value);
             }
         }
     } catch (e) { console.error('Fetch Slip DB Error:', e); }
@@ -45,7 +45,7 @@ window.fetchQRHistoryDB = async function() {
             const { data } = await appDB.from('settings').select('value').eq('key', 'qr_check_history').single();
             if (data && data.value) {
                 window.qrHistoryData = JSON.parse(data.value);
-                localStorage.setItem('qr_check_history', data.value);
+                window.safeSetItem('qr_check_history', data.value);
             }
         }
     } catch (e) { console.error('Fetch QR DB Error:', e); }
@@ -65,7 +65,7 @@ window.initRealtimeSync = function() {
             // เมื่อเครื่องอื่นสแกนสลิป เครื่องเราจะอัปเดตหน้าจอทันที
             if (payload.payload) {
                 window.slipHistoryData = payload.payload;
-                localStorage.setItem('slip_check_history', JSON.stringify(window.slipHistoryData));
+                window.safeSetItem('slip_check_history', JSON.stringify(window.slipHistoryData));
                 if (document.getElementById('slipHistoryBody')) window.renderSlipHistory();
                 if (document.getElementById('fakeHistoryBody') && typeof window.renderFakeHistory === 'function') window.renderFakeHistory();
             }
@@ -74,7 +74,7 @@ window.initRealtimeSync = function() {
             // เมื่อเครื่องอื่นสแกน QR เครื่องเราจะอัปเดตหน้าจอทันที
             if (payload.payload) {
                 window.qrHistoryData = payload.payload;
-                localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
+                window.safeSetItem('qr_check_history', JSON.stringify(window.qrHistoryData));
                 if (document.getElementById('qrHistoryBody')) window.renderQRHistory();
             }
         })
@@ -261,7 +261,7 @@ window.saveQRHistory = async function(data) {
     window.qrHistoryData.unshift(newEntry);
     if (window.qrHistoryData.length > 200) window.qrHistoryData.pop(); 
     
-    localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
+    window.safeSetItem('qr_check_history', JSON.stringify(window.qrHistoryData));
     
     // ซิงค์ขึ้นฐานข้อมูล
     if (typeof appDB !== 'undefined') {
@@ -333,7 +333,7 @@ window.deleteQRHistory = function(id, event) {
     }).then(async (result) => {
         if (result.isConfirmed) {
             window.qrHistoryData = window.qrHistoryData.filter(h => h.id !== id);
-            localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
+            window.safeSetItem('qr_check_history', JSON.stringify(window.qrHistoryData));
             
             if (typeof appDB !== 'undefined') {
                 await appDB.from('settings').upsert([{ key: 'qr_check_history', value: JSON.stringify(window.qrHistoryData) }]);
@@ -735,14 +735,14 @@ window.saveSlipHistory = async function(result, isSuccess) {
         window.slipHistoryData.unshift(newEntry);
         if (window.slipHistoryData.length > 200) window.slipHistoryData.pop(); 
         
-        localStorage.setItem('slip_check_history', JSON.stringify(window.slipHistoryData));
+        window.safeSetItem('slip_check_history', JSON.stringify(window.slipHistoryData));
         await appDB.from('settings').upsert([{ key: 'slip_check_history', value: JSON.stringify(window.slipHistoryData) }]);
         
         if (window.syncChannel) window.syncChannel.send({ type: 'broadcast', event: 'update_slip', payload: window.slipHistoryData });
     } else {
         window.slipHistoryData.unshift(newEntry);
         if (window.slipHistoryData.length > 200) window.slipHistoryData.pop(); 
-        localStorage.setItem('slip_check_history', JSON.stringify(window.slipHistoryData));
+        window.safeSetItem('slip_check_history', JSON.stringify(window.slipHistoryData));
     }
     
     window.renderSlipHistory();
@@ -777,7 +777,7 @@ window.deleteSlipHistory = function(id, event) {
             }
 
             window.slipHistoryData = window.slipHistoryData.filter(h => h.id !== id);
-            localStorage.setItem('slip_check_history', JSON.stringify(window.slipHistoryData));
+            window.safeSetItem('slip_check_history', JSON.stringify(window.slipHistoryData));
             
             if (typeof appDB !== 'undefined') {
                 await appDB.from('settings').upsert([{ key: 'slip_check_history', value: JSON.stringify(window.slipHistoryData) }]);
@@ -874,13 +874,13 @@ window.saveQRHistory = async function(data) {
         window.qrHistoryData.unshift(newEntry);
         if (window.qrHistoryData.length > 200) window.qrHistoryData.pop(); 
         
-        localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
+        window.safeSetItem('qr_check_history', JSON.stringify(window.qrHistoryData));
         await appDB.from('settings').upsert([{ key: 'qr_check_history', value: JSON.stringify(window.qrHistoryData) }]);
         if (window.syncChannel) window.syncChannel.send({ type: 'broadcast', event: 'update_qr', payload: window.qrHistoryData });
     } else {
         window.qrHistoryData.unshift(newEntry);
         if (window.qrHistoryData.length > 200) window.qrHistoryData.pop(); 
-        localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
+        window.safeSetItem('qr_check_history', JSON.stringify(window.qrHistoryData));
     }
     
     window.renderQRHistory();
@@ -902,7 +902,7 @@ window.deleteQRHistory = function(id, event) {
             }
 
             window.qrHistoryData = window.qrHistoryData.filter(h => h.id !== id);
-            localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
+            window.safeSetItem('qr_check_history', JSON.stringify(window.qrHistoryData));
             
             if (typeof appDB !== 'undefined') {
                 await appDB.from('settings').upsert([{ key: 'qr_check_history', value: JSON.stringify(window.qrHistoryData) }]);
