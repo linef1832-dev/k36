@@ -68,7 +68,7 @@ window.moveTeam = function(teamName, direction) {
     if(index === -1) return;
     if(direction === -1 && index > 0) { [sortedTeams[index - 1], sortedTeams[index]] = [sortedTeams[index], sortedTeams[index - 1]]; } 
     else if (direction === 1 && index < sortedTeams.length - 1) { [sortedTeams[index], sortedTeams[index + 1]] = [sortedTeams[index + 1], sortedTeams[index]]; }
-    localStorage.setItem('duty_team_order', JSON.stringify(sortedTeams));
+    window.safeSetItem('duty_team_order', JSON.stringify(sortedTeams));
     window.renderDutyRequirements();
     window.updateDutyStats(); 
 }
@@ -583,7 +583,7 @@ window.restoreFromLeave = async function(userId, username) {
             }
 
             await appDB.from('system_logs').insert([{ action_type: 'ย้ายหน้าที่', performed_by: currentUser.username, target_details: `ดึง ${username} กลับจากการลา ไปใส่เว็บ [${selectedTeam}] วันที่: ${targetDate}` }]);
-            appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+            window.debouncedBroadcast('duty-updates', 'force_reload');
             await window.refreshDutyData();
 
             Swal.fire({icon: 'success', title: 'ดึงกลับสำเร็จ!', text: `${username} ไปอยู่เว็บ ${selectedTeam} แล้ว`, timer: 1500, showConfirmButton: false});
@@ -724,7 +724,7 @@ window.addStaffToRoster = async function() {
             target_details: `เพิ่ม ${fullUserObj.username} เข้าเว็บ [${team}] (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
         }]);
 
-        try { appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' }); } catch(e) {}
+        try { window.debouncedBroadcast('duty-updates', 'force_reload'); } catch(e) {}
         await window.refreshDutyData();
 
         Swal.fire({
@@ -761,7 +761,7 @@ window.clearDutyRoster = async function() {
                 if (currentData && currentData.length > 0) currentDataVal = currentData[0].value;
                 
                 if (currentDataVal) {
-                    localStorage.setItem(`backup_${saveKey}`, currentDataVal);
+                    window.safeSetItem(`backup_${saveKey}`, currentDataVal);
                 }
                 
                 await appDB.from('settings').delete().eq('key', saveKey);
@@ -781,7 +781,7 @@ window.clearDutyRoster = async function() {
                 if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) await appDB.from('settings').delete().eq('key', reportKey);
                 
                 await appDB.from('system_logs').insert([{ action_type: 'ล้างตารางงาน', performed_by: currentUser.username, target_details: `ล้างตาราง ${currentDutyDept} (${shiftFilter}, ${targetDate})` }]);
-                appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+                window.debouncedBroadcast('duty-updates', 'force_reload');
                 
                 Swal.fire({ icon: 'success', title: 'ล้างตารางเรียบร้อย', showConfirmButton: false, timer: 1500 });
                 if(typeof window.refreshDutyData === 'function') window.refreshDutyData(); 
@@ -851,7 +851,7 @@ window.generateDutyRoster = async function() {
             const team = input.id.replace('req_', ''); const count = parseInt(input.value) || 0;
             requirements[team] = count; reqsToSave[input.id] = count;
         });
-        localStorage.setItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
+        window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
 
         let unassignedPool = [...activeStaff];
         const rosterResult = {}; 
@@ -936,7 +936,7 @@ window.generateDutyRoster = async function() {
 ${summaryParts.join(' | ')}`;
 
             await appDB.from('system_logs').insert([{ action_type: 'สุ่มจัดหน้าที่', performed_by: currentUser.username, target_details: detailText }]);
-            if(appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+            if(appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
         } catch(logError) {}
 
         window.refreshDutyData(); 
@@ -1277,7 +1277,7 @@ window.changeSecondaryTeam = async function(primaryTeam, userId, username) {
             }
 
             window.renderRosterGrid(currentRosterData);
-            if(appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+            if(appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
             Swal.fire({icon: 'success', title: 'อัปเดตงานรองแล้ว!', timer: 1200, showConfirmButton: false});
         }
     }
@@ -1527,7 +1527,7 @@ window.handleDrop = async function(event, toTeam) {
             if (leaveErr) throw leaveErr;
 
             await appDB.from('system_logs').insert([{ action_type: 'ย้ายหน้าที่', performed_by: currentUser.username, target_details: `ย้าย ${username} จากเว็บ ${fromTeam} ไปอยู่โซนลาหยุด (${leaveReason}) วันที่: ${targetDate}` }]);
-            appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+            window.debouncedBroadcast('duty-updates', 'force_reload');
             await window.refreshDutyData();
 
             Swal.fire({icon: 'success', title: 'อัปเดตสถานะสำเร็จ!', timer: 1500, showConfirmButton: false});
@@ -1577,7 +1577,7 @@ window.handleDrop = async function(event, toTeam) {
         window.renderRosterGrid(currentRosterData);
         if (typeof window.updateDutyStats === 'function') window.updateDutyStats();
 
-        appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+        window.debouncedBroadcast('duty-updates', 'force_reload');
         Swal.fire({icon: 'success', title: 'ย้ายสำเร็จ', timer: 1000, showConfirmButton: false});
     } catch (e) {
         console.error(e);
@@ -1714,7 +1714,7 @@ window.openTrainerReportModal = async function(team) {
             else {
                 Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1000, showConfirmButton: false });
                 window.refreshDutyData();
-                appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+                window.debouncedBroadcast('duty-updates', 'force_reload');
                 // 🌟 [แก้บัค Realtime] เรียก helper เพื่อ insert log + broadcast (แทน monkey-patch เดิมที่ไม่ทำงาน)
                 if (typeof window.broadcastTrainerReportChange === 'function') {
                     window.broadcastTrainerReportChange(reportKey);
@@ -2191,7 +2191,7 @@ window.manualAdjustReq = function(changedTeam) {
         reqsToSave[`req_${team}`] = reqs[team];
     });
     
-    localStorage.setItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
+    window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
     window.updateDutyStats();
 };
 
@@ -2244,7 +2244,7 @@ window.autoSuggestRequirements = function() {
 
     const reqsToSave = {};
     sortedTeams.forEach(team => reqsToSave[`req_${team}`] = suggestedReqs[team]);
-    localStorage.setItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
+    window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
 
     window.updateDutyStats();
 
@@ -2319,7 +2319,7 @@ window.broadcastTrainerReportChange = async function(reportKey) {
                 target_details: `ลงข้อมูลประเมินการทำงาน (กะ: ${shiftStr}, วันที่: ${dateStr})` 
             }]);
             
-            appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+            window.debouncedBroadcast('duty-updates', 'force_reload');
         }
     } catch(e) { console.warn('broadcastTrainerReportChange error:', e); }
 };
@@ -2731,7 +2731,7 @@ window.saveTrainerMatrixRole = async function(userId, web, taskIdx, newRole) {
         } catch(e) {}
 
         // broadcast ให้เครื่องอื่นรู้
-        try { appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' }); } catch(e) {}
+        try { window.debouncedBroadcast('duty-updates', 'force_reload'); } catch(e) {}
     } catch (err) {
         console.error('saveTrainerMatrixRole error:', err);
         Swal.fire('Error', err.message, 'error');
@@ -2922,7 +2922,7 @@ window.randomizeImportantTasks = async function() {
     
     window.renderImportantTasksPanel();
     Swal.close();
-    appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+    window.debouncedBroadcast('duty-updates', 'force_reload');
     
     if (assignedCount > 0) {
         Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: `สุ่มสำเร็จ ${assignedCount} หน้าที่` });
@@ -3041,7 +3041,7 @@ window.assignImportantTask = async function(taskName) {
 
         window.renderImportantTasksPanel();
         Swal.close();
-        appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+        window.debouncedBroadcast('duty-updates', 'force_reload');
     }
 };
 
@@ -3075,7 +3075,7 @@ window.unassignImportantTask = async function(taskName) {
 
     window.renderImportantTasksPanel();
     Swal.close();
-    appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+    window.debouncedBroadcast('duty-updates', 'force_reload');
 };
 
 // ==========================================
@@ -3162,7 +3162,7 @@ window.clearSecondaryDuties = async function() {
 
         // แจ้ง client อื่นให้รีโหลด
         try {
-            if (appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+            if (appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
         } catch(e) {}
 
         // วาดใหม่
@@ -3405,7 +3405,7 @@ window.quickAssignBackups = async function() {
     window.renderRosterGrid(roster);
 
     try {
-        if (appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+        if (appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
     } catch(e) {}
 
     // เขียน log
@@ -3484,49 +3484,40 @@ window.quickAssignBackups = async function() {
 // ==========================================
 // 🌟 โค้ดเสกปุ่ม "⚡ จัดรองด่วน (AI)" + "🧹 ล้างงานรอง" ให้โผล่ขึ้นมา
 // ==========================================
-(function() {
-    const _btnInjector = setInterval(() => {
-        const dutyApp = document.getElementById('dutyApp');
-        if (!dutyApp || dutyApp.classList.contains('hidden')) return;
+setInterval(() => {
+    // 🟢 bail-early ถ้าไม่ได้อยู่หน้า duty (กัน CPU ทำงานทิ้งทุกหน้าทุกๆ 1 วิ)
+    const dutyApp = document.getElementById('dutyApp');
+    if (!dutyApp || dutyApp.classList.contains('hidden')) return;
 
-        // ─── ปุ่ม "จัดรองด่วน (AI)" ───
-        if (!document.getElementById('btnQuickBackup')) {
-            const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
-            if (clearBtn) {
-                const btn = document.createElement('button');
-                btn.id = 'btnQuickBackup';
-                btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
-                btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
-                btn.onclick = window.quickAssignBackups;
-                clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
-            }
+    // ─── ปุ่ม "จัดรองด่วน (AI)" — วางต่อจากปุ่มล้างตาราง ───
+    if (!document.getElementById('btnQuickBackup')) {
+        const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
+        if (clearBtn) {
+            const btn = document.createElement('button');
+            btn.id = 'btnQuickBackup';
+            btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
+            btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
+            btn.onclick = window.quickAssignBackups;
+
+            clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
         }
-
-        // ─── ปุ่ม "ล้างงานรอง" ───
-        if (!document.getElementById('btnClearSecondary')) {
-            const addStaffBtn = document.querySelector('button[onclick*="addStaffToRoster"]');
-            if (addStaffBtn) {
-                const btn = document.createElement('button');
-                btn.id = 'btnClearSecondary';
-                btn.className = 'duty-admin-only bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-cyan-400';
-                btn.innerHTML = '<span class="material-icons text-base">layers_clear</span> ล้างงานรอง';
-                btn.title = 'ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ';
-                btn.onclick = window.clearSecondaryDuties;
-                addStaffBtn.parentNode.insertBefore(btn, addStaffBtn.nextSibling);
-            }
-        }
-
-        // ถ้าสร้างปุ่มครบแล้วหยุด interval
-        if (document.getElementById('btnQuickBackup') && document.getElementById('btnClearSecondary')) {
-            clearInterval(_btnInjector);
-        }
-    }, 2000);
-
-    // register ให้ cleanup ตอนออกจากหน้า
-    if (typeof window.registerPageInterval === 'function') {
-        window.registerPageInterval(_btnInjector);
     }
-})();
+
+    // ─── 🆕 ปุ่ม "ล้างงานรอง" — วางต่อจากปุ่มเพิ่มพนักงาน ───
+    if (!document.getElementById('btnClearSecondary')) {
+        const addStaffBtn = document.querySelector('button[onclick*="addStaffToRoster"]');
+        if (addStaffBtn) {
+            const btn = document.createElement('button');
+            btn.id = 'btnClearSecondary';
+            btn.className = 'duty-admin-only bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-cyan-400';
+            btn.innerHTML = '<span class="material-icons text-base">layers_clear</span> ล้างงานรอง';
+            btn.title = 'ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ';
+            btn.onclick = window.clearSecondaryDuties;
+
+            addStaffBtn.parentNode.insertBefore(btn, addStaffBtn.nextSibling);
+        }
+    }
+}, 2000);
 
 // ==========================================
 // 🌟 ฟังก์ชันกู้คืนตารางงาน (จากที่กดล้างไป)
@@ -3560,7 +3551,7 @@ window.restoreDutyRoster = async function() {
                 await appDB.from('settings').upsert([{ key: saveKey, value: backupData }]);
                 await appDB.from('system_logs').insert([{ action_type: 'กู้คืนตารางงาน', performed_by: currentUser.username, target_details: `กู้คืนตาราง ${currentDutyDept} (${shiftFilter}, ${targetDate})` }]);
                 
-                if(appDB.channel) appDB.channel('duty-updates').send({ type: 'broadcast', event: 'force_reload' });
+                if(appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
                 
                 Swal.fire({ icon: 'success', title: 'กู้คืนตารางเรียบร้อย', showConfirmButton: false, timer: 1500 });
                 if(typeof window.refreshDutyData === 'function') window.refreshDutyData(); 
