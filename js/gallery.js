@@ -552,10 +552,16 @@ function _renderWebBadges(data) {
     });
 
     const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
-    badgeEl.innerHTML = sorted.map(([web, count]) =>
-        `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-700 text-gray-300 border border-slate-600 cursor-pointer hover:bg-pink-700 hover:text-white transition"
+    const currentFilter = document.getElementById('galleryFilter')?.value || 'all';
+
+    badgeEl.innerHTML = sorted.map(([web, count]) => {
+        const isActive = currentFilter === web;
+        const activeClass = isActive
+            ? 'bg-pink-600 text-white border-pink-400'
+            : 'bg-slate-700 text-gray-300 border-slate-600 hover:bg-pink-700 hover:text-white';
+        return `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${activeClass} border cursor-pointer transition"
               onclick="document.getElementById('galleryFilter').value='${web}'; fetchGalleryImages()">
-            ${web} <span class="text-pink-400">${count}</span>
-        </span>`
-    ).join('');
+            ${web} <span class="${isActive ? 'text-pink-200' : 'text-pink-400'}">${count}</span>
+        </span>`;
+    }).join('');
 }
