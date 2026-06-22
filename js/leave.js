@@ -1415,8 +1415,14 @@ window.updateLeaveToggleUI = function() {
     }
 };
 
-setTimeout(() => {
-    if(typeof loadLeaveStatusConfig === 'function') loadLeaveStatusConfig();
+setTimeout(async () => {
+    // รอ appDB พร้อมก่อน (สูงสุด 5 วินาที)
+    let waited = 0;
+    while (typeof appDB === 'undefined' && waited < 5000) {
+        await new Promise(r => setTimeout(r, 200));
+        waited += 200;
+    }
+    if (typeof loadLeaveStatusConfig === 'function') loadLeaveStatusConfig();
 }, 500);
 
 setTimeout(() => {
