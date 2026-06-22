@@ -24,7 +24,7 @@ window.updateManualRate = function() {
     if (!input) return;
     
     // 🌟 บันทึกทุกอย่างที่คุณพิมพ์ลงเบราว์เซอร์แบบตรงๆ ทันที (พิมพ์ 45 ก็เซฟ 45)
-    localStorage.setItem('usdt_custom_rate_new', input.value); 
+    window.safeSetItem('usdt_custom_rate_new', input.value); 
 
     // ดักไว้ว่าถ้าลบจนช่องว่างเปล่า ไม่ต้องทำอะไร
     if (input.value === '') {
@@ -137,7 +137,7 @@ window.updateManualRate = function() {
     if (!isNaN(val) && val > 0) {
         window.currentUsdtRate = val;
         window.manualUsdtRateValue = val;
-        localStorage.setItem('manual_usdt_rate', val); // จำค่าไว้ในเครื่อง
+        window.safeSetItem('manual_usdt_rate', val); // จำค่าไว้ในเครื่อง
         window.calcUsdtToThb(); // สั่งให้ด้านล่างคำนวณใหม่
     } else {
         // ถ้าช่องกำหนดเองถูกลบจนว่างเปล่า ให้เคลียร์ยอดคำนวณด้านล่างด้วย
