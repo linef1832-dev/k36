@@ -1125,8 +1125,8 @@ window.loadTgConfigLocal = function() {
 window.saveTgConfigLocal = async function() {
     const token = document.getElementById('cfgToken').value.trim();
     const chatId = document.getElementById('cfgChatId').value.trim();
-    localStorage.setItem('tg_bot_token', token);
-    localStorage.setItem('tg_chat_id', chatId);
+    window.safeSetItem('tg_bot_token', token);
+    window.safeSetItem('tg_chat_id', chatId);
     try { await fetch(DISCORD_API_URL + '/api/save-tg-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ botToken: token, chatId: chatId }) }); } catch(e) {}
     Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'ระบบจะจำการตั้งค่านี้ไว้ในเบราว์เซอร์ของคุณ', timer: 2000, showConfirmButton: false});
     document.getElementById('tgSettingsBox').classList.add('hidden');
@@ -2418,7 +2418,7 @@ window.ds_updateSelectedChannelsLabel = function() {
     
     // บันทึกใส่เครื่อง เผื่อปิดเว็บเปิดใหม่ก็ยังจำได้ (Local Storage = ของพนักงานแต่ละคน)
     const selectedIds = Array.from(checkboxes).map(cb => cb.value);
-    localStorage.setItem('ds_last_selected_channels', JSON.stringify(selectedIds));
+    window.safeSetItem('ds_last_selected_channels', JSON.stringify(selectedIds));
 };
 
 // ปุ่มเลือกทั้งหมด / ยกเลิกทั้งหมด (เฉพาะที่มองเห็นจากการค้นหา)
