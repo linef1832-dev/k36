@@ -83,10 +83,27 @@ window.initRealtimeSync = function() {
     if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window.syncChannel);
 };
 
+// ─── Lazy Load หนัก ────────────────────────
+async function _loadSlipLibs() {
+    const load = (src) => new Promise((res, rej) => {
+        if (document.querySelector(`script[src="${src}"]`)) return res();
+        const s = document.createElement('script');
+        s.src = src; s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+    });
+    await Promise.all([
+        typeof jsQR      === 'undefined' ? load('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js') : Promise.resolve(),
+        typeof Tesseract === 'undefined' ? load('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js') : Promise.resolve(),
+    ]);
+}
+
 window.initSlipCheck = async function() {
     window.clearSlipUpload();
     window.clearQRReceiver();
-    
+
+    // โหลด jsQR + Tesseract แบบ lazy (ไม่กระทบหน้าอื่น)
+    await _loadSlipLibs();
+
     // 1. โหลดประวัติจาก DB กลาง (ทำแค่ครั้งแรกตอนเปิดหน้าเว็บ)
     await window.fetchSlipHistoryDB();
     await window.fetchQRHistoryDB();
