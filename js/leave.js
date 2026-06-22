@@ -1176,7 +1176,7 @@ window.executeSaveSettings = async function() {
             { key: `${dept}_lock_start`, value: String(sDay) }, { key: `${dept}_lock_end`, value: String(eDay) }       
         ];
 
-        const { error } = await appDB.from('settings').upsert(updates);
+        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert(updates);
         if (error) throw error;
         appDB.channel('settings-updates').send({ type: 'broadcast', event: 'force_leave_reload' });
 
@@ -1380,7 +1380,7 @@ window.toggleLeaveStatus = async function(isChecked) {
     try {
         if (typeof appDB === 'undefined') throw new Error('ไม่พบตัวแปรเชื่อมต่อฐานข้อมูล');
 
-        const { error } = await appDB.from('settings').upsert([
+        const { error } = window.clearSettingCache(); await appDB.from('settings').upsert([
             { key: `${currentViewDept}_is_open`, value: statusValue } 
         ]);
 
@@ -1553,7 +1553,7 @@ window.openManageSpecialModal = async function() {
         
         // 🌟 บันทึก ID ลงในตั้งค่าระบบ โดยไม่ไปแตะแผนกหลักของพนักงาน
         window.specialGroupUserIds = selectedIds;
-        await appDB.from('settings').upsert([{ key: 'leave_special_users', value: JSON.stringify(window.specialGroupUserIds) }]);
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'leave_special_users', value: JSON.stringify(window.specialGroupUserIds) }]);
 
         window.renderLeaveTable();
         Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'อัปเดตรายชื่อในกลุ่มเรียบร้อย', timer: 2000, showConfirmButton: false });
@@ -1588,7 +1588,7 @@ window.removeFromSpecialDept = async function(id, username) {
             
             // 🌟 ลบ ID ออกจาก Array แล้วบันทึกกลับลงไป
             window.specialGroupUserIds = window.specialGroupUserIds.filter(uid => String(uid) !== String(id));
-            await appDB.from('settings').upsert([{ key: 'leave_special_users', value: JSON.stringify(window.specialGroupUserIds) }]);
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'leave_special_users', value: JSON.stringify(window.specialGroupUserIds) }]);
             
             window.renderLeaveTable();
             Swal.fire({ icon: 'success', title: 'นำออกสำเร็จ', timer: 1500, showConfirmButton: false });
