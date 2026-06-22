@@ -66,8 +66,8 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
         }
     }
 
-    // โหลดข้อมูลรอบเวลาและตารางลงเวลา เพื่อเติมข้อมูลในหน้าจอที่สร้างใหม่
-    if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+    // โหลดข้อมูลรอบเวลาก่อน แล้วค่อย fetchData
+    if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
     if (typeof fetchData === 'function') fetchData();
 
     // 🌟 เรียกใช้งานระบบ Realtime
@@ -292,9 +292,6 @@ window.refreshTimeSlots = async function() {
     } finally {
         if(loadingIcon) loadingIcon.classList.add('hidden');
     }
-
-    // 🌟 สั่งอัปเดตตัวเลขแจ้งเตือนคนยังไม่ลงข้าว
-    if (typeof updateMissingLunchBadge === 'function') updateMissingLunchBadge();
 };
 
 window.openAdminPanel = async function() {
@@ -793,6 +790,12 @@ function _timeAgo(d) {
 }
 
 // ── Badge ─────────────────────────────────
+let _chatBadgeDebounce = null;
+function _debouncedRefreshChatBadge() {
+    if (_chatBadgeDebounce) clearTimeout(_chatBadgeDebounce);
+    _chatBadgeDebounce = setTimeout(() => _refreshChatBadge(), 600);
+}
+
 async function _refreshChatBadge() {
     if (!appDB) return;
     const badge = document.getElementById('chatUnreadBadge');
@@ -1003,7 +1006,7 @@ window._chatOpenRoom = async function(targetUser) {
             await appDB.from('live_chat_rooms')
                 .update({ is_read:true, read_by:_myName(), read_at:new Date().toISOString() })
                 .eq('room_name', targetUser);
-            _refreshChatBadge();
+            _debouncedRefreshChatBadge();
         } else {
             // พนักงาน: จำ id ล่าสุดที่เห็นไว้ใน sessionStorage
             const msgs = window._chatMessages || [];
@@ -1123,13 +1126,13 @@ function _subscribeSupportChat() {
 
             // Badge สำหรับพนักงาน: ถ้าหัวหน้าตอบในห้องของตัวเอง
             if (!_isManager() && m.room === _myName() && ['admin','manager'].includes(m.role||'')) {
-                _refreshChatBadge();
+                _debouncedRefreshChatBadge();
             }
         })
         .on('postgres_changes',{event:'*',schema:'public',table:'live_chat_rooms'}, () => {
             // Badge สำหรับหัวหน้า: เมื่อมีข้อความใหม่จากพนักงาน
             if (_isManager()) {
-                _refreshChatBadge();
+                _debouncedRefreshChatBadge();
                 const modal  = document.getElementById('chatModal');
                 const isOpen = modal && modal.style.display !== 'none';
                 if (isOpen && !window._chatRoom) window._chatShowInbox();
