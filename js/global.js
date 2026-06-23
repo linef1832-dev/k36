@@ -10,6 +10,29 @@ let TEAM_LIST = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26',
 let GLOBAL_USER_LIST = [];
 
 // ==========================================
+// 🔧 [FIX] safeSetItem / safeGetItem — ป้องกัน localStorage เต็มหรือ Private Mode
+// ฟังก์ชันนี้ถูกเรียกจาก auth.js, system_core.js, duty.js, discord.js ฯลฯ
+// แต่ไม่เคยถูก define ไว้ที่ไหน ทำให้ ReferenceError ทุกครั้งที่เรียก
+// ==========================================
+window.safeSetItem = function(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        console.warn('[safeSetItem] localStorage error:', e);
+    }
+};
+
+window.safeGetItem = function(key, fallback) {
+    try {
+        const val = localStorage.getItem(key);
+        return val !== null ? val : (fallback !== undefined ? fallback : null);
+    } catch (e) {
+        console.warn('[safeGetItem] localStorage error:', e);
+        return fallback !== undefined ? fallback : null;
+    }
+};
+
+// ==========================================
 // 🚀 เริ่มทำงานเมื่อเปิดเว็บ
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -31,6 +54,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentUser = JSON.parse(savedUser);
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('main-layout').classList.remove('hidden');
+
+        // [FIX] โหลด dept_menu_rules จาก DB ก่อนแสดงเมนู
+        // ปัญหาเดิม: applySidebarPermissions รันก่อน loadSettings เสร็จ
+        // ทำให้ SETTINGS['dept_menu_rules'] ยังว่าง → เมนูทุกอย่างถูกซ่อนหมด
+        // วิธีแก้: ดึง dept_menu_rules ตรงๆ ก่อน 1 ครั้ง แล้วค่อย showPage
+        if (appDB) {
+            try {
+                const { data } = await appDB
+                    .from('settings')
+                    .select('value')
+                    .eq('key', 'dept_menu_rules')
+                    .maybeSingle();
+                if (data && data.value) {
+                    // อัปเดตทั้ง SETTINGS และ cache ในคราวเดียว
+                    if (typeof SETTINGS !== 'undefined') {
+                        SETTINGS['dept_menu_rules'] = data.value;
+                    }
+                    window.safeSetItem('cached_menu_rules', data.value);
+                }
+            } catch(e) {
+                console.warn('[startup] dept_menu_rules fetch failed, falling back to cache', e);
+            }
+        }
+
         showPage('dashboard');
     } else {
         showLogin();
@@ -68,8 +115,6 @@ const pageCache = {};
 // ==========================================
 // 🧹 ระบบจัดการ Realtime Subscriptions ตามหน้า (กัน memory leak)
 // ==========================================
-// แต่ละหน้าที่ subscribe ต้องเรียก window.registerPageSubscription(channel)
-// ตอนเปลี่ยนหน้า showPage จะ cleanup ให้อัตโนมัติ
 window._pageSubscriptions = window._pageSubscriptions || new Set();
 
 window.registerPageSubscription = function(channel) {
@@ -124,11 +169,10 @@ async function showPage(pageName) {
         
         const htmlContent = pageCache[pageName];
 
-        // 🌟 ฟังก์ชันอัปเดตหน้าจอและการรันสคริปต์
         const updateDOM = () => {
             const appContent = document.getElementById('app-content');
             appContent.innerHTML = htmlContent;
-            appContent.classList.remove('hidden'); // ป้องกันหน้าจอดำ
+            appContent.classList.remove('hidden');
             
             document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
             const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
@@ -156,7 +200,7 @@ async function showPage(pageName) {
                     if (typeof initKbApp === 'function') await initKbApp();
                 }
                 else if (pageName === 'sop') {
-                if (typeof initSopApp === 'function') await initSopApp();
+                    if (typeof initSopApp === 'function') await initSopApp();
                 }
                 else if (pageName === 'od_center') {
                     if (typeof initOdCenterApp === 'function') await initOdCenterApp();
@@ -200,15 +244,11 @@ async function showPage(pageName) {
                     if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
                         if(document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
                     }
-                    
-                    // 🌟 เพิ่มโค้ดตรงนี้: เพื่อปลดล็อกให้กรอบตารางงาน (sheetApp) แสดงขึ้นมา
                     const sheetApp = document.getElementById('sheetApp');
                     if (sheetApp) {
                         sheetApp.classList.remove('hidden');
                         sheetApp.classList.add('flex');
                     }
-
-                    // โค้ดเดิม
                     if (document.getElementById('sheetMenu')) document.getElementById('sheetMenu').classList.remove('hidden');
                     if (document.getElementById('sheetViewer')) {
                         document.getElementById('sheetViewer').classList.add('hidden');
@@ -233,8 +273,6 @@ async function showPage(pageName) {
             });
         };
 
-        // ใช้ View Transitions สลับหน้าแบบสมูท (ถ้าบราวเซอร์รองรับ)
-        // 🟢 ต้อง await ให้ DOM อัปเดตเสร็จก่อน return ไม่งั้น caller จะหา element ที่เพิ่งใส่ไม่เจอ
         if (document.startViewTransition) {
             const transition = document.startViewTransition(() => updateDOM());
             try { await transition.updateCallbackDone; } catch (e) { /* ignore */ }
@@ -269,7 +307,7 @@ function toggleTheme() {
 }
 
 // ==========================================
-// 🧩 ระบบดึง HTML Template (ต้องอยู่ไฟล์ global.js)
+// 🧩 ระบบดึง HTML Template
 // ==========================================
 window.renderTemplate = function(templateId, data = {}) {
     const tpl = document.getElementById(templateId);
@@ -282,9 +320,8 @@ window.renderTemplate = function(templateId, data = {}) {
 };
 
 // ==========================================
-// 🛠️ ฟังก์ชันเพิ่มแผนก และ Role ลงฐานข้อมูล (ดึงจากช่อง Input)
+// 🛠️ ฟังก์ชันเพิ่มแผนก และ Role ลงฐานข้อมูล
 // ==========================================
-
 window.addCustomPermDept = async function() {
     const inputEl = document.getElementById('newDeptInput');
     if (!inputEl) return Swal.fire('Error', 'ไม่พบช่องกรอกชื่อแผนก', 'error');
@@ -292,7 +329,6 @@ window.addCustomPermDept = async function() {
     const deptName = inputEl.value.toUpperCase().trim();
     if (!deptName) return Swal.fire('แจ้งเตือน', 'กรุณาพิมพ์ชื่อแผนกก่อนกดเพิ่มครับ', 'warning');
 
-    // ดึงค่าเดิมจากระบบมาก่อน
     let currentDepts = [];
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'custom_departments').single();
@@ -305,8 +341,8 @@ window.addCustomPermDept = async function() {
         
         await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
         
-        inputEl.value = ''; // เคลียร์ช่องพิมพ์
-        await window.loadSettings(); // โหลดข้อมูลและวาดตารางใหม่
+        inputEl.value = '';
+        await window.loadSettings();
         
         Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มแผนก ${deptName} แล้ว`, timer: 1500, showConfirmButton: false});
     } else {
@@ -333,8 +369,8 @@ window.addCustomPermRole = async function() {
         
         await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(currentRoles) }]);
         
-        inputEl.value = ''; // เคลียร์ช่องพิมพ์
-        await window.loadSettings(); // โหลดข้อมูลและวาดตารางใหม่
+        inputEl.value = '';
+        await window.loadSettings();
         
         Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มตำแหน่ง ${roleName.toUpperCase()} แล้ว`, timer: 1500, showConfirmButton: false});
     } else {
@@ -345,7 +381,6 @@ window.addCustomPermRole = async function() {
 // ==========================================
 // 🗑️ ฟังก์ชันลบแผนก และ Role ที่สร้างเอง
 // ==========================================
-
 window.deleteCustomPermDept = async function(dept) {
     Swal.fire({
         title: `ลบแผนก ${dept}?`,
@@ -362,11 +397,11 @@ window.deleteCustomPermDept = async function(dept) {
             let dbDepts = [];
             try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
             
-            dbDepts = dbDepts.filter(d => d !== dept); // เอาแผนกนี้ออก
-            SETTINGS['custom_departments'] = JSON.stringify(dbDepts); // อัปเดตตัวแปรระบบ
+            dbDepts = dbDepts.filter(d => d !== dept);
+            SETTINGS['custom_departments'] = JSON.stringify(dbDepts);
             
             await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(dbDepts) }]);
-            window.renderPermsTable(); // วาดตารางใหม่
+            window.renderPermsTable();
             Swal.fire({icon: 'success', title: 'ลบแผนกสำเร็จ', timer: 1000, showConfirmButton: false});
         }
     });
@@ -378,7 +413,6 @@ window.deleteCustomPermRole = async function() {
     
     if (dbRoles.length === 0) return Swal.fire('ไม่มี Role ให้ลบ', 'มีแต่ Role มาตรฐานของระบบครับ', 'info');
 
-    // สร้างตัวเลือก Dropdown จาก Role ที่สร้างเอง
     let options = {};
     dbRoles.forEach(r => options[r] = r.toUpperCase());
 
@@ -395,11 +429,11 @@ window.deleteCustomPermRole = async function() {
 
     if (roleToDelete) {
         Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        dbRoles = dbRoles.filter(r => r !== roleToDelete); // เอา Role นี้ออก
+        dbRoles = dbRoles.filter(r => r !== roleToDelete);
         SETTINGS['custom_roles'] = JSON.stringify(dbRoles);
         
         await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(dbRoles) }]);
-        window.renderPermsTable(); // วาดตารางใหม่
+        window.renderPermsTable();
         Swal.fire({icon: 'success', title: 'ลบ Role สำเร็จ', timer: 1000, showConfirmButton: false});
     }
 };
@@ -422,12 +456,11 @@ window.renameCustomPermDept = async function(oldDept) {
 
     if (newDeptRaw) {
         const newDept = newDeptRaw.toUpperCase().trim();
-        if (!newDept || newDept === oldDept) return; // ถ้าชื่อว่าง หรือชื่อเดิม ไม่ต้องทำอะไร
+        if (!newDept || newDept === oldDept) return;
 
         let dbDepts = [];
         try { dbDepts = JSON.parse(SETTINGS['custom_departments'] || '[]'); } catch(e) {}
 
-        // เช็คว่าชื่อใหม่ไปซ้ำกับชาวบ้านไหม
         if (dbDepts.includes(newDept) || ['AM', 'OD', 'AMQL'].includes(newDept)) {
             return Swal.fire('เตือน', 'มีแผนกชื่อนี้อยู่ในระบบแล้วครับ', 'warning');
         }
@@ -435,40 +468,34 @@ window.renameCustomPermDept = async function(oldDept) {
         Swal.fire({title: 'กำลังอัปเดตข้อมูลทั้งระบบ...', text: 'โปรดรอสักครู่...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
         try {
-            // 1. เปลี่ยนชื่อใน List แผนก
             dbDepts = dbDepts.map(d => d === oldDept ? newDept : d);
             SETTINGS['custom_departments'] = JSON.stringify(dbDepts);
 
-            // 2. ย้ายสิทธิ์ (MENU_PERMS) ตามไปที่ชื่อใหม่
             let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
             Object.keys(newPerms).forEach(key => {
                 if (key.startsWith(oldDept + '_')) {
                     const newKey = key.replace(oldDept + '_', newDept + '_');
                     newPerms[newKey] = newPerms[key];
-                    delete newPerms[key]; // ลบกุญแจเก่าทิ้ง
+                    delete newPerms[key];
                 }
             });
             MENU_PERMS = newPerms;
             SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
-            localStorage.setItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
+            window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
 
-            // 3. อัปเดตขึ้น Database (ตาราง settings)
             await appDB.from('settings').upsert([
                 { key: 'custom_departments', value: JSON.stringify(dbDepts) },
                 { key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }
             ]);
 
-            // 4. 🔥 วิ่งไปเปลี่ยนแผนกให้ "พนักงานทุกคน" ในตาราง users อัตโนมัติ 🔥
             await appDB.from('users').update({ department: newDept }).eq('department', oldDept);
 
-            // 5. อัปเดตข้อมูลในหน้าเว็บปัจจุบันให้ตรงกัน
             if (typeof GLOBAL_USER_LIST !== 'undefined') {
                 GLOBAL_USER_LIST.forEach(u => {
                     if (u.department === oldDept) u.department = newDept;
                 });
             }
 
-            // 6. วาดตารางสิทธิ์ใหม่ และอัปเดต Dropdown ในหน้าอื่นๆ
             window.renderPermsTable();
             if (typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
 
@@ -483,15 +510,14 @@ window.renameCustomPermDept = async function(oldDept) {
 
 // ==========================================
 // 🗄️ Settings Cache — ลด Supabase query
-// แทนที่จะดึง settings ทุกครั้ง cache ไว้ใน memory 5 นาที
 // ==========================================
 const _settingsCache = {};
-const _SETTINGS_TTL  = 5 * 60 * 1000; // 5 นาที
+const _SETTINGS_TTL  = 5 * 60 * 1000;
 
 window.getSettingCached = async function(key) {
     const now = Date.now();
     if (_settingsCache[key] && (now - _settingsCache[key].ts) < _SETTINGS_TTL) {
-        return _settingsCache[key].value; // ✅ ใช้ cache
+        return _settingsCache[key].value;
     }
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', key).maybeSingle();
@@ -499,11 +525,10 @@ window.getSettingCached = async function(key) {
         _settingsCache[key] = { value: val, ts: now };
         return val;
     } catch(e) {
-        return _settingsCache[key]?.value ?? null; // fallback cache เก่า
+        return _settingsCache[key]?.value ?? null;
     }
 };
 
-// เมื่อบันทึก settings ให้ล้าง cache ทันที
 window.clearSettingCache = function(key) {
     if (key) delete _settingsCache[key];
     else Object.keys(_settingsCache).forEach(k => delete _settingsCache[k]);
@@ -513,12 +538,12 @@ window.clearSettingCache = function(key) {
 // 🗄️ Users Cache — ลด query users table
 // ==========================================
 let _usersCacheTs = 0;
-const _USERS_TTL  = 3 * 60 * 1000; // 3 นาที
+const _USERS_TTL  = 3 * 60 * 1000;
 
 window.getUsersCached = async function() {
     const now = Date.now();
     if (GLOBAL_USER_LIST.length > 0 && (now - _usersCacheTs) < _USERS_TTL) {
-        return GLOBAL_USER_LIST; // ✅ ใช้ cache
+        return GLOBAL_USER_LIST;
     }
     try {
         const { data } = await appDB.from('users').select('*');
@@ -528,7 +553,7 @@ window.getUsersCached = async function() {
         }
         return GLOBAL_USER_LIST;
     } catch(e) {
-        return GLOBAL_USER_LIST; // fallback cache เก่า
+        return GLOBAL_USER_LIST;
     }
 };
 
