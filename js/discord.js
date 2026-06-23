@@ -1487,7 +1487,9 @@ window.scheduleTransfer = async function() {
     _doRenderTransferUserList();
 };
 
-window.fetchTransfers = async function() {
+// debounce fetchTransfers ป้องกันยิงซ้ำ
+let _fetchTransfersTimer = null;
+const _origFetchTransfers = async function() {
     try {
         const [dsRes, webRes] = await Promise.all([
             fetch(DISCORD_API_URL + '/api/transfers').catch(() => ({json: () => ({pending:[], history:[]})})),
@@ -1637,6 +1639,11 @@ window.filterSummaryPopup = function() {
     }
 };
 
+window.fetchTransfers = function() {
+    if (_fetchTransfersTimer) clearTimeout(_fetchTransfersTimer);
+    _fetchTransfersTimer = setTimeout(() => _origFetchTransfers(), 400);
+};
+
 window.delTransfer = async function(id) {
     await fetch(DISCORD_API_URL + '/api/delete-transfer', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})});
     fetchTransfers();
@@ -1705,7 +1712,7 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
 
         // ดักจับกรณีค้นหาจนหน้าปัจจุบันเกินจำนวนหน้าทั้งหมด
         if (window.dsCurrentPage > window.dsTotalPages) {
-            window.dsCurrentPage = 1;
+            // window.dsCurrentPage reset removed (declared above)
             return ds_fetchVoiceLogs(forceRefresh, 1);
         }
 
@@ -2338,10 +2345,14 @@ window.ds_fetchChannelsForSendMsg = async function() {
 
     try {
         if (typeof appDB !== 'undefined') {
-            const [textRes, voiceRes] = await Promise.all([
-                appDB.from('settings').select('value').eq('key', 'discord_text_channels').single(),
-                appDB.from('settings').select('value').eq('key', 'discord_channels').single()
+            const [textVal, voiceVal] = await Promise.all([
+                window.getSettingCached('discord_text_channels'),
+                window.getSettingCached('discord_channels')
             ]);
+
+            // แปลงให้เป็น format เดิม
+            const textRes = { data: textVal ? { value: textVal } : null };
+            const voiceRes = { data: voiceVal ? { value: voiceVal } : null };
             
             let allChannels = [];
 
