@@ -1437,7 +1437,7 @@ async function fetchUsers(forceRefresh = false) {
     isFetchingUsers = true;
 
     try {
-        const { data } = await appDB.from('users').select('*').order('created_at', {ascending: false});
+        const data = await window.getUsersCached();
         const box = document.getElementById('userTableBody'); 
         if(box) box.innerHTML = '';
         GLOBAL_USER_LIST = data || [];
@@ -2923,7 +2923,7 @@ window.applySidebarPermissions = async function() {
 
     // 🌟 2. วิ่งไปเช็คฐานข้อมูลเงียบๆ (ถ้ามีการเปลี่ยนสิทธิ์ใหม่ เมนูจะอัปเดตให้อัตโนมัติ)
     if (typeof appDB !== 'undefined' && !['admin', 'manager'].includes(userRole)) {
-        appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single().then(({data}) => {
+        window.getSettingCached('dept_menu_rules').then(({data}) => {
             if (data && data.value && data.value !== cachedRules) {
                 SETTINGS['dept_menu_rules'] = data.value;
                 window.safeSetItem('cached_menu_rules', data.value);
