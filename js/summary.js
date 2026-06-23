@@ -156,7 +156,7 @@ window.subscribeSummaryChanges = function() {
 
 window.loadWebLogos = async function() {
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'summary_web_logos').single();
+        const { data } = await window.getSettingCached('summary_web_logos');
         if (data && data.value) {
             window.summaryWebLogos = JSON.parse(data.value);
             if (typeof SETTINGS !== 'undefined') SETTINGS['summary_web_logos'] = data.value;
@@ -453,7 +453,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
             let savedFilesList = [];
             
             if (typeof appDB !== 'undefined') {
-                const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
+                const { data: savedFilesData } = await window.getSettingCached('saved_excel_files');
                 if (savedFilesData && savedFilesData.value) savedFilesList = JSON.parse(savedFilesData.value);
             }
 
@@ -1290,7 +1290,7 @@ window.saveSummaryToSupabase = async function() {
         }
 
         if (window.pendingFileNames && window.pendingFileNames.length > 0) {
-            const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
+            const { data: savedFilesData } = await window.getSettingCached('saved_excel_files');
             let savedFilesList = savedFilesData && savedFilesData.value ? JSON.parse(savedFilesData.value) : [];
             savedFilesList = [...new Set([...savedFilesList, ...window.pendingFileNames])];
             await appDB.from('settings').upsert([{ key: 'saved_excel_files', value: JSON.stringify(savedFilesList) }]);
