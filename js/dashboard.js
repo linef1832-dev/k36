@@ -183,7 +183,7 @@ window.refreshTimeSlots = async function() {
         const rosterKey = `duty_roster_${myDep}_${dateVal.value}_${shiftName}`;
         let assignedTeams = [];
         try {
-            const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
+            const { data: rosterData } = await window.getSettingCached(rosterKey);
             if (rosterData && rosterData.value) {
                 const roster = JSON.parse(rosterData.value);
                 for (const team in roster) {
