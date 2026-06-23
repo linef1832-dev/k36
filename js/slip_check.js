@@ -30,7 +30,7 @@ window.syncChannel = null; // 🌟 เพิ่มตัวแปรเตรี
 window.fetchSlipHistoryDB = async function() {
     try {
         if (typeof appDB !== 'undefined') {
-            const { data } = await window.getSettingCached('slip_check_history');
+            const _dataVal = await window.getSettingCached('slip_check_history'); const data = _dataVal ? { value: _dataVal } : null;
             if (data && data.value) {
                 window.slipHistoryData = JSON.parse(data.value);
                 window.safeSetItem('slip_check_history', data.value);
@@ -42,7 +42,7 @@ window.fetchSlipHistoryDB = async function() {
 window.fetchQRHistoryDB = async function() {
     try {
         if (typeof appDB !== 'undefined') {
-            const { data } = await window.getSettingCached('qr_check_history');
+            const _dataVal = await window.getSettingCached('qr_check_history'); const data = _dataVal ? { value: _dataVal } : null;
             if (data && data.value) {
                 window.qrHistoryData = JSON.parse(data.value);
                 window.safeSetItem('qr_check_history', data.value);
@@ -728,7 +728,7 @@ window.saveSlipHistory = async function(result, isSuccess) {
     
     if (typeof appDB !== 'undefined') {
         try {
-            const { data } = await window.getSettingCached('slip_check_history');
+            const _dataVal = await window.getSettingCached('slip_check_history'); const data = _dataVal ? { value: _dataVal } : null;
             if (data && data.value) window.slipHistoryData = JSON.parse(data.value);
         } catch (e) { console.error("Error fetching before save:", e); }
         
@@ -771,7 +771,7 @@ window.deleteSlipHistory = function(id, event) {
 
             if (typeof appDB !== 'undefined') {
                 try {
-                    const { data } = await window.getSettingCached('slip_check_history');
+                    const _dataVal = await window.getSettingCached('slip_check_history'); const data = _dataVal ? { value: _dataVal } : null;
                     if (data && data.value) window.slipHistoryData = JSON.parse(data.value);
                 } catch(e) {}
             }
@@ -867,7 +867,7 @@ window.saveQRHistory = async function(data) {
     
     if (typeof appDB !== 'undefined') {
         try {
-            const { data: dbData } = await window.getSettingCached('qr_check_history');
+            const _dbDataVal = await window.getSettingCached('qr_check_history'); const dbData = _dbDataVal ? { value: _dbDataVal } : null;
             if (dbData && dbData.value) window.qrHistoryData = JSON.parse(dbData.value);
         } catch(e) {}
         
@@ -896,7 +896,7 @@ window.deleteQRHistory = function(id, event) {
         if (result.isConfirmed) {
             if (typeof appDB !== 'undefined') {
                 try {
-                    const { data } = await window.getSettingCached('qr_check_history');
+                    const _dataVal = await window.getSettingCached('qr_check_history'); const data = _dataVal ? { value: _dataVal } : null;
                     if (data && data.value) window.qrHistoryData = JSON.parse(data.value);
                 } catch(e) {}
             }
