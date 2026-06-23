@@ -383,7 +383,7 @@ document.addEventListener('click', function(e) {
 // ===============================================
 async function loadFineNotes() {
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'fine_notes_data').single();
+        const { data } = await window.getSettingCached('fine_notes_data');
         if (data && data.value) {
             let parsed = JSON.parse(data.value);
             // 🌟 Migration: ถ้าข้อมูลเดิมเป็นแค่ Array ของ String (ข้อมูลเก่า) ให้แปลงเป็น Object
@@ -628,7 +628,7 @@ window.removeFineNotePage = async function(idx) {
 // ===============================================
 async function loadFineRules() {
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'fine_rules_data').single();
+        const { data } = await window.getSettingCached('fine_rules_data');
         if (data && data.value) {
             globalFineRules = JSON.parse(data.value);
             if (globalFineRules.length < 5) {
