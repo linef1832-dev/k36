@@ -564,7 +564,7 @@ window.getUsersCached = async function() {
         return GLOBAL_USER_LIST; // ✅ ใช้ cache
     }
     try {
-        const data = await window.getUsersCached();
+        const { data } = await appDB.from('users').select('*');
         if (data) {
             GLOBAL_USER_LIST = data;
             _usersCacheTs = now;
