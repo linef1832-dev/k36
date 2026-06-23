@@ -156,7 +156,7 @@ window.subscribeSummaryChanges = function() {
 
 window.loadWebLogos = async function() {
     try {
-        const { data } = await window.getSettingCached('summary_web_logos');
+        const { data } = await appDB.from('settings').select('value').eq('key', 'summary_web_logos').single();
         if (data && data.value) {
             window.summaryWebLogos = JSON.parse(data.value);
             if (typeof SETTINGS !== 'undefined') SETTINGS['summary_web_logos'] = data.value;
@@ -201,7 +201,7 @@ window.refreshUserListForSummary = async function() {
             if (window.GLOBAL_USER_LIST === oldRef) {
                 if (typeof appDB !== 'undefined') {
                     try {
-                        const data = await window.getUsersCached(); const error = null;
+                        const { data, error } = await appDB.from('users').select('*');
                         if (!error && data && data.length > 0) {
                             window.GLOBAL_USER_LIST = data;
                             console.log('[Summary] รีเฟรช users ตรงจาก DB:', data.length, 'คน');
@@ -453,7 +453,7 @@ window.processExcelUpload = async function(event, fallbackSystemName) {
             let savedFilesList = [];
             
             if (typeof appDB !== 'undefined') {
-                const { data: savedFilesData } = await window.getSettingCached('saved_excel_files');
+                const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
                 if (savedFilesData && savedFilesData.value) savedFilesList = JSON.parse(savedFilesData.value);
             }
 
@@ -1290,7 +1290,7 @@ window.saveSummaryToSupabase = async function() {
         }
 
         if (window.pendingFileNames && window.pendingFileNames.length > 0) {
-            const { data: savedFilesData } = await window.getSettingCached('saved_excel_files');
+            const { data: savedFilesData } = await appDB.from('settings').select('value').eq('key', 'saved_excel_files').single();
             let savedFilesList = savedFilesData && savedFilesData.value ? JSON.parse(savedFilesData.value) : [];
             savedFilesList = [...new Set([...savedFilesList, ...window.pendingFileNames])];
             await appDB.from('settings').upsert([{ key: 'saved_excel_files', value: JSON.stringify(savedFilesList) }]);
