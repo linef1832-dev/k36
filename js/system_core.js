@@ -174,15 +174,8 @@ function subscribeUserChanges() {
         .subscribe();
 }
 
-function handleDateChange() { document.getElementById('displayDate').innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); refreshTimeSlots(); _debounceFetch(); }
-function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) window.safeSetItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); _debounceFetch(); }
-
-// Debounce fetchData 300ms — ป้องกันยิงซ้ำตอนเปลี่ยนวัน/ทีม
-let _fetchDebounceTimer = null;
-function _debounceFetch() {
-    if (_fetchDebounceTimer) clearTimeout(_fetchDebounceTimer);
-    _fetchDebounceTimer = setTimeout(() => { fetchData(); }, 300);
-}
+function handleDateChange() { document.getElementById('displayDate').innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); refreshTimeSlots(); fetchData(); }
+function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) window.safeSetItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); fetchData(); }
 function toggleRememberTeam() { const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) { const team = document.getElementById('dailyTeam').value; window.safeSetItem(`last_team_${currentUser.username}`, team); } else { localStorage.removeItem(`last_team_${currentUser.username}`); } }
 function getPeriodForTime(shift, time) { const groups = SHIFT_GROUPS[shift]; if(!groups) return null; for(const [p, ts] of Object.entries(groups)) { if(ts.includes(time)) return p; } return null; }
 
@@ -320,7 +313,7 @@ window.saveData = async function(e) {
     let assignedTeamsStr = '';
     if (!['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
-        const _rosterDataCached = await window.getSettingCached(rosterKey); const rosterData = _rosterDataCached !== null ? { value: _rosterDataCached } : null;
+        const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
 
         if (rosterData && rosterData.value) {
             const roster = JSON.parse(rosterData.value);
@@ -546,72 +539,59 @@ function renderTableRows(data) {
 
     if(filteredData.length === 0) { box.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>`; return; }
     
-    // ─── Virtual Scroll — render แค่ 25 แถวแรก แล้ว lazy load เพิ่มตอน scroll ───
-    const CHUNK = 25;
-    let rendered = 0;
+    let htmlContent = ''; 
 
-    function buildRows(items) {
-        return items.map(i => {
-            const periodName = getPeriodForTime(i.shift_name, i.time_slot);
-            let displayPeriod = periodName || '<span class="material-icons text-[12px] animate-spin">sync</span>';
-            let pClass = 'text-gray-500 border-transparent';
-            if (periodName === 'ช่วงที่ 1') pClass = 'text-green-600 dark:text-green-400 border-current';
-            else if (periodName === 'ช่วงที่ 2') pClass = 'text-orange-500 dark:text-orange-400 border-current';
-            else if (periodName === 'ช่วงที่ 3') pClass = 'text-purple-600 dark:text-purple-400 border-current';
-            else if (!periodName) pClass = 'text-gray-400 border-gray-400/50 border-dashed bg-gray-100 dark:bg-slate-800';
+    filteredData.forEach(i => {
+        const periodName = getPeriodForTime(i.shift_name, i.time_slot);
+        
+        let displayPeriod = periodName || '<span class="material-icons text-[12px] animate-spin">sync</span>';
+        let pClass = 'text-gray-500 border-transparent'; 
+        
+        if (periodName === 'ช่วงที่ 1') pClass = 'text-green-600 dark:text-green-400 border-current'; 
+        else if (periodName === 'ช่วงที่ 2') pClass = 'text-orange-500 dark:text-orange-400 border-current'; 
+        else if (periodName === 'ช่วงที่ 3') pClass = 'text-purple-600 dark:text-purple-400 border-current';
+        else if (!periodName) pClass = 'text-gray-400 border-gray-400/50 border-dashed bg-gray-100 dark:bg-slate-800';
+        
+        const canDelete = ['manager', 'admin'].includes(currentUser.role) || i.staff_name === currentUser.username;
+        let delBtn = canDelete ? `<button onclick="delSch(${i.id}, '${i.shift_name}')" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-lg bg-red-50 dark:bg-red-900/30 transition"><span class="material-icons text-lg">delete</span></button>` : '';
+        
+        const deptColor = (i.department === 'OD') ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700';
 
-            const canDelete = ['manager', 'admin'].includes(currentUser.role) || i.staff_name === currentUser.username;
-            let delBtn = canDelete ? `<button onclick="delSch(${i.id}, '${i.shift_name}')" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-lg bg-red-50 dark:bg-red-900/30 transition"><span class="material-icons text-lg">delete</span></button>` : '';
-
-            const deptColor = (i.department === 'OD') ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700';
-
-            const rosterTag = (() => {
-                const assigned = globalAssignmentMap[`${i.staff_name}|${i.shift_name}`];
-                if (assigned) {
-                    if (assigned.includes(i.team)) return '';
-                    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse shadow-sm" title="ควรลง: ${assigned.join('/')}">⚠️ ผิดเว็บ! (ควร: ${assigned.join('/')})</span>`;
-                }
-                const dept = i.department || 'AM';
-                const deptShiftKey = `${dept}|${i.shift_name}`;
-                if (globalRosterDeptShiftSet.has(deptShiftKey)) {
-                    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-orange-500 text-white animate-pulse shadow-sm" title="ไม่มีรายชื่อในตารางจัดหน้าที่กะนี้">⚠️ ไม่มีในตารางหน้าที่!</span>`;
-                }
-                return '';
-            })();
-
-            return `<tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                <td class="px-6 py-4 w-32 text-center"><div class="flex justify-center"><span class="${pClass} font-extrabold text-sm border px-2 py-0.5 rounded-full whitespace-nowrap flex items-center justify-center min-w-[60px] min-h-[28px]">${displayPeriod}</span></div></td>
-                <td class="px-6 py-4 font-bold text-slate-700 dark:text-gray-200">${i.staff_name}</td>
-                <td class="px-6 py-4"><div class="flex items-center gap-1 flex-wrap"><span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span><span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>${rosterTag}</div></td>
-                <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white">${i.shift_name}</span></td>
-                <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300">${i.time_slot}</td>
-                <td class="px-6 py-4 text-center">${delBtn}</td>
-            </tr>`;
-        }).join('');
-    }
-
-    // render chunk แรก
-    box.innerHTML = buildRows(filteredData.slice(0, CHUNK));
-    rendered = Math.min(CHUNK, filteredData.length);
-
-    // lazy load เพิ่มตอน scroll
-    const tableContainer = box.closest('.overflow-auto, .overflow-y-auto, [class*="overflow"]');
-    if (tableContainer && rendered < filteredData.length) {
-        const onScroll = () => {
-            const { scrollTop, scrollHeight, clientHeight } = tableContainer;
-            if (scrollTop + clientHeight >= scrollHeight - 100 && rendered < filteredData.length) {
-                const next = filteredData.slice(rendered, rendered + CHUNK);
-                box.insertAdjacentHTML('beforeend', buildRows(next));
-                rendered += next.length;
-                if (rendered >= filteredData.length) {
-                    tableContainer.removeEventListener('scroll', onScroll);
-                }
-            }
-        };
-        tableContainer.removeEventListener('scroll', tableContainer._vsScroll);
-        tableContainer._vsScroll = onScroll;
-        tableContainer.addEventListener('scroll', onScroll);
-    }
+        htmlContent += `<tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
+            <td class="px-6 py-4 w-32 text-center"><div class="flex justify-center"><span class="${pClass} font-extrabold text-sm border px-2 py-0.5 rounded-full whitespace-nowrap flex items-center justify-center min-w-[60px] min-h-[28px]">${displayPeriod}</span></div></td>
+            <td class="px-6 py-4 font-bold text-slate-700 dark:text-gray-200">${i.staff_name}</td>
+            <td class="px-6 py-4">
+                <div class="flex items-center gap-1 flex-wrap">
+                    <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>
+                    ${(() => {
+                        // 🌟 เช็ค off-roster ตอน render — ใช้ map ที่โหลดมาแล้ว
+                        const assigned = globalAssignmentMap[`${i.staff_name}|${i.shift_name}`];
+                        if (assigned) {
+                            // มีในตาราง → เช็คว่าตรงเว็บไหม
+                            if (assigned.includes(i.team)) return ''; // ตรง OK
+                            return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse shadow-sm" title="ควรลง: ${assigned.join('/')}">⚠️ ผิดเว็บ! (ควร: ${assigned.join('/')})</span>`;
+                        }
+                        // ไม่มีใน map → เช็คว่ากะ+แผนกนี้มีจัดเวรไหม
+                        const dept = i.department || 'AM';
+                        const deptShiftKey = `${dept}|${i.shift_name}`;
+                        if (globalRosterDeptShiftSet.has(deptShiftKey)) {
+                            // มีจัดเวรในกะ+แผนกนี้ แต่คนนี้ไม่อยู่ใน roster → flag
+                            return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-orange-500 text-white animate-pulse shadow-sm" title="ไม่มีรายชื่อในตารางจัดหน้าที่กะนี้">⚠️ ไม่มีในตารางหน้าที่!</span>`;
+                        }
+                        // ยังไม่ได้จัดเวรในกะนี้ → ไม่ flag
+                        return '';
+                    })()}
+                </div>
+            </td>
+            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white">${i.shift_name}</span></td>
+            <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300">${i.time_slot}</td>
+            <td class="px-6 py-4 text-center">${delBtn}</td>
+        </tr>`;
+    });
+    
+    // 🌟 แก้ไขจุดที่ 2: เช็คอีกรอบให้ชัวร์ก่อนสั่งยัดข้อมูล
+    if (box) box.innerHTML = htmlContent;
 }
 
 function updateTableSummary(data) {
@@ -916,17 +896,18 @@ async function deleteSelectedUsers() {
     }).then(async (result) => {
         if (result.isConfirmed) {
             Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-            const { error } = await appDB.from('users').delete().in('id', ids);
-            if (error) return Swal.fire('Error', error.message, 'error');
+            await appDB.from('users').delete().in('id', ids);
             await logAction('ลบพนักงาน', `ลบพนักงาน ${ids.length} คน`);
-            // ล้าง cache แล้ว fetch ใหม่ก่อนแสดงผล
-            if (typeof window.clearUsersCache === 'function') window.clearUsersCache();
-            GLOBAL_USER_LIST = GLOBAL_USER_LIST.filter(u => !ids.includes(String(u.id)));
-            await fetchUsers(true);
-            Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', text: `ลบพนักงาน ${ids.length} คน เรียบร้อยแล้ว`, timer: 1500, showConfirmButton: false });
+            fetchUsers(); 
+            Swal.fire('ลบสำเร็จ', 'ลบรายชื่อเรียบร้อยแล้ว', 'success');
         }
     });
 }
+
+window.searchEmployee = function() {
+    userCurrentPage = 1; 
+    window.renderUserTableDirectly();
+};
 
 async function addScheduledTask() { 
     const f=document.getElementById('schFrom').value, t=document.getElementById('schTo').value, d=document.getElementById('schDate').value; 
@@ -1297,7 +1278,7 @@ async function saveTimeSettings() {
         updates.push({key: `close_time_${suffix}`, value: closeVal});
     });
 
-    window.clearSettingCache(); await appDB.from('settings').upsert(updates); 
+    await appDB.from('settings').upsert(updates); 
     updates.forEach(u => SETTINGS[u.key] = u.value);
     Swal.fire('Saved','บันทึกเวลาเปิด-ปิดเรียบร้อย','success'); 
 }
@@ -1305,7 +1286,7 @@ async function saveTimeSettings() {
 async function saveDailyLimit() { 
     const dailyVal = document.getElementById('dailyLimitInput').value; 
     const periodVal = document.getElementById('periodLimitInput').value; 
-    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }, { key: 'period_limit', value: periodVal }]); 
+    await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }, { key: 'period_limit', value: periodVal }]); 
     SETTINGS.daily_limit = parseInt(dailyVal); SETTINGS.period_limit = parseInt(periodVal); 
     
     if(document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = dailyVal; 
@@ -1437,7 +1418,7 @@ async function fetchUsers(forceRefresh = false) {
     isFetchingUsers = true;
 
     try {
-        const data = await window.getUsersCached();
+        const { data } = await appDB.from('users').select('*').order('created_at', {ascending: false});
         const box = document.getElementById('userTableBody'); 
         if(box) box.innerHTML = '';
         GLOBAL_USER_LIST = data || [];
@@ -1539,12 +1520,7 @@ window.renderUserTableDirectly = function() {
         roleBadge += `</select>`;
 
         const pinDisplay = u.password 
-            ? `<div class="flex items-center justify-center gap-1 group">
-                <span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs pin-blur" style="filter:blur(4px);transition:filter .2s;">${u.password}</span>
-                <button onclick="const el=this.parentElement.querySelector('.pin-blur');const h=el.style.filter!=='none';el.style.filter=h?'none':'blur(4px)';this.querySelector('.material-icons').textContent=h?'visibility_off':'visibility';" class="text-slate-500 hover:text-blue-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="แสดง/ซ่อน"><span class="material-icons text-[14px]">visibility</span></button>
-                <button onclick="navigator.clipboard.writeText('${u.password}').then(()=>Swal.fire({toast:true,position:'top-end',icon:'success',title:'Copy PIN แล้ว!',timer:1000,showConfirmButton:false}))" class="text-slate-500 hover:text-emerald-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="Copy PIN"><span class="material-icons text-[14px]">content_copy</span></button>
-                <button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button>
-               </div>` 
+            ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs">${u.password}</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
             : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
 
         html += `
@@ -1553,8 +1529,7 @@ window.renderUserTableDirectly = function() {
                 <td class="p-3 text-gray-100 text-sm font-extrabold text-left border-b border-slate-700/50 flex items-center gap-2">
                     <span class="text-[10px] text-gray-500 w-5 text-right mr-1">${displayIndex}.</span>
                     <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-xs shadow-inner group-hover:text-white transition">${u.username.substring(0,2).toUpperCase()}</div>
-                    <span class="flex-1">${u.username}</span>
-                    <button onclick="navigator.clipboard.writeText('${u.username}').then(()=>Swal.fire({toast:true,position:'top-end',icon:'success',title:'Copy ชื่อแล้ว!',timer:1000,showConfirmButton:false}))" class="text-slate-600 hover:text-emerald-400 p-1 rounded-md transition opacity-0 group-hover:opacity-100 shrink-0" title="Copy username"><span class="material-icons text-[14px]">content_copy</span></button>
+                    ${u.username}
                 </td>
                 <td class="p-3 text-center border-b border-slate-700/50">${depBadge}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${teamBadge}</td>
@@ -1769,7 +1744,7 @@ async function renderAnnouncementUI() {
     displayBox.innerHTML = '<span class="material-icons animate-spin text-4xl text-yellow-500">sync</span>';
     
     try {
-        const _dataCached = await window.getSettingCached('system_announcement');
+        const { data } = await appDB.from('settings').select('value').eq('key', 'system_announcement').single();
         if (data && data.value) {
             globalAnnouncement = JSON.parse(data.value);
             
@@ -1862,7 +1837,7 @@ window.saveAnnouncement = async function() {
             timestamp: Date.now()
         };
 
-        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'system_announcement', value: JSON.stringify(payload) }]);
+        await appDB.from('settings').upsert([{ key: 'system_announcement', value: JSON.stringify(payload) }]);
         globalAnnouncement = payload;
         
         renderAnnouncementUI();
@@ -1892,7 +1867,7 @@ window.deleteAnnouncement = async function() {
                 title: '', text: '', image: '', isActive: false, scheduledTime: '', endTime: '', timestamp: Date.now()
             };
             
-            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'system_announcement', value: JSON.stringify(payload) }]);
+            await appDB.from('settings').upsert([{ key: 'system_announcement', value: JSON.stringify(payload) }]);
             globalAnnouncement = payload;
             
             if(document.getElementById('announceTitle')) {
@@ -1940,7 +1915,7 @@ window.addCustomPermDept = async function() {
         currentDepts.push(deptName);
         Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         
-        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
+        await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
         SETTINGS['custom_departments'] = JSON.stringify(currentDepts);
         
         inputEl.value = ''; 
@@ -1998,7 +1973,7 @@ window.renameAnyDept = async function(oldDept) {
             window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
 
             // 3. อัปเดตขึ้น Database (ตาราง settings)
-            window.clearSettingCache(); await appDB.from('settings').upsert([
+            await appDB.from('settings').upsert([
                 { key: 'custom_departments', value: JSON.stringify(currentDepts) },
                 { key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }
             ]);
@@ -2029,7 +2004,7 @@ window.renameAnyDept = async function(oldDept) {
 
 window.checkAndShowAnnouncementPopup = async function(isSilentCheck = false) {
     try {
-        const _dataCached = await window.getSettingCached('system_announcement');
+        const { data } = await appDB.from('settings').select('value').eq('key', 'system_announcement').single();
         if (data && data.value) {
             const announce = JSON.parse(data.value);
             
@@ -2096,7 +2071,7 @@ window.forceShowAnnouncementPopup = async function() {
     try {
         Swal.fire({title: 'กำลังดึงประกาศ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         
-        const _dataCached = await window.getSettingCached('system_announcement');
+        const { data } = await appDB.from('settings').select('value').eq('key', 'system_announcement').single();
         if (data && data.value) {
             const announce = JSON.parse(data.value);
             globalAnnouncement = announce; 
@@ -2170,20 +2145,11 @@ setInterval(() => {
 
 window.loadSettings = async function() {
     try {
-        // ใช้ cache ถ้ามีอยู่แล้ว ไม่งั้น fetch ใหม่
         const { data } = await appDB.from('settings').select('*')
             .not('key', 'like', 'duty_roster_%')
             .not('key', 'like', 'report_TRAINER_%');
             
-        if (data) { 
-            data.forEach(row => { 
-                SETTINGS[row.key] = row.value;
-                // อัปเดต settings cache ด้วย
-                if (window._settingsCache) {
-                    window._settingsCache[row.key] = { value: row.value, ts: Date.now() };
-                }
-            }); 
-        }
+        if (data) { data.forEach(row => { SETTINGS[row.key] = row.value; }); }
         
         if (document.getElementById('dailyLimitInput')) document.getElementById('dailyLimitInput').value = SETTINGS.daily_limit || 2;
         if (document.getElementById('periodLimitInput')) document.getElementById('periodLimitInput').value = SETTINGS.period_limit || 1;
@@ -2330,7 +2296,7 @@ window.saveQuotaSettings = async function() {
         updates.push({key: `quota_team_${team}_${dept}_ดึก`, value: qN}); SETTINGS[`quota_team_${team}_${dept}_ดึก`] = qN;
     });
 
-    window.clearSettingCache(); await appDB.from('settings').upsert(updates);
+    await appDB.from('settings').upsert(updates);
     Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
 };
 
@@ -2375,6 +2341,15 @@ const PERM_GROUPS = [
             {id: 'gallery_tab_logo',  name: 'ดูแท็บ "LOGO"', isSub: true},
             {id: 'gallery_upload', name: 'อัปโหลดรูปภาพ', isSub: true},
             {id: 'gallery_delete', name: 'ลบรูปภาพ', isSub: true}
+        ]
+    },
+    {
+        id: 'page_logo_editor', name: 'แต่งรูป / เปลี่ยนโลโก้', icon: 'photo_filter', theme: 'fuchsia',
+        items: [
+            {id: 'logo_editor', name: 'เข้าหน้าแต่งรูป', isSub: false},
+            {id: 'logo_editor_erase', name: 'ลบโลโก้เดิม (เติมพื้นที่)', isSub: true},
+            {id: 'logo_editor_add_logo', name: 'ใส่โลโก้ใหม่', isSub: true},
+            {id: 'logo_editor_download', name: 'ดาวน์โหลดรูปที่แต่ง', isSub: true}
         ]
     },
     {
@@ -2785,7 +2760,7 @@ window.saveMenuPerms = async function() {
     SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
     window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
     
-    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
+    await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
     Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์การมองเห็นเมนูเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false});
     renderPermsTable(); 
 };
@@ -2923,10 +2898,10 @@ window.applySidebarPermissions = async function() {
 
     // 🌟 2. วิ่งไปเช็คฐานข้อมูลเงียบๆ (ถ้ามีการเปลี่ยนสิทธิ์ใหม่ เมนูจะอัปเดตให้อัตโนมัติ)
     if (typeof appDB !== 'undefined' && !['admin', 'manager'].includes(userRole)) {
-        window.getSettingCached('dept_menu_rules').then(val => {
-            if (val && val !== cachedRules) {
-                SETTINGS['dept_menu_rules'] = val;
-                window.safeSetItem('cached_menu_rules', val);
+        appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single().then(({data}) => {
+            if (data && data.value && data.value !== cachedRules) {
+                SETTINGS['dept_menu_rules'] = data.value;
+                window.safeSetItem('cached_menu_rules', data.value);
                 executeMenuUpdate(); 
             }
         }).catch(e => console.log(e));
@@ -3052,7 +3027,7 @@ window.addManualTimeSlot = async function() {
     SETTINGS['custom_time_slots'] = JSON.stringify(SHIFT_GROUPS);
     
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
+    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
     
     renderManualTimeSlots();
     
@@ -3072,7 +3047,7 @@ window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
     SETTINGS['custom_time_slots'] = JSON.stringify(SHIFT_GROUPS);
     
     Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-    window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
+    await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(SHIFT_GROUPS) }]);
     
     renderManualTimeSlots();
     Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
