@@ -330,6 +330,8 @@ window.checkBookingWindow = function(targetShift) {
     };
 
     if (targetShift) {
+        // [FIX] ถ้า isOpen = true (เปิดตลอด) ให้คืน true เลย ไม่ต้องเช็คเวลา
+        if (s.isOpen) return true;
         let startStr = '', endStr = '';
         if (targetShift.includes('เช้า')) { startStr = s.startM; endStr = s.endM; }
         else if (targetShift.includes('กลาง')) { startStr = s.startA; endStr = s.endA; }
