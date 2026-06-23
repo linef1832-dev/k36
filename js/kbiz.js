@@ -20,7 +20,7 @@ async function fetchKbizData() {
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดข้อมูลบอท...</span></div>';
     try {
-        const { data } = await window.getSettingCached('kbiz_bots_data');
+        const _dataCached = await window.getSettingCached('kbiz_bots_data'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if (data && data.value) {
             globalKbizBots = JSON.parse(data.value);
             let needSave = false;
@@ -47,7 +47,6 @@ async function fetchKbizData() {
         renderKbizGrid(); 
         fetchOcrKeysData();
         fetchTelegramBotConfig();
-        fetchChromeRefreshConfig();
         startVpsStatsPolling();
     }
 }
@@ -194,7 +193,7 @@ async function fetchOcrKeysData() {
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl mb-2">sync</span><br><span class="text-gray-400 font-bold text-sm">กำลังโหลด API Keys...</span></div>';
     try {
-        const { data } = await window.getSettingCached('ocr_api_keys_data');
+        const _dataCached = await window.getSettingCached('ocr_api_keys_data'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if (data && data.value) {
             globalOcrKeys = JSON.parse(data.value);
             const needSave = autoResetIfNewDay(globalOcrKeys);
@@ -407,7 +406,7 @@ let globalTelegramConfig = {};
 async function fetchTelegramBotConfig() {
     if (!document.getElementById('telegramBotToken')) return;
     try {
-        const { data } = await window.getSettingCached('telegram_bot_config');
+        const _dataCached = await window.getSettingCached('telegram_bot_config'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if (data && data.value) {
             globalTelegramConfig = JSON.parse(data.value);
         } else {
@@ -543,7 +542,7 @@ window.fetchVpsStats = async function(manual = false) {
     if (btnIcon) btnIcon.classList.add('animate-spin');
 
     try {
-        const { data } = await window.getSettingCached('vps_stats');
+        const _dataCached = await window.getSettingCached('vps_stats'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if (data && data.value) {
             const stats = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
             renderVpsStats(stats);
@@ -726,7 +725,7 @@ window.clearVpsRam = async function() {
         while (Date.now() - startTime < 15000) {
             await new Promise(r => setTimeout(r, 1500));
             try {
-                const { data } = await window.getSettingCached('vps_command_result');
+                const _dataCached = await window.getSettingCached('vps_command_result'); const data = _dataCached !== null ? { value: _dataCached } : null;
                 if (data && data.value) {
                     const r = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
                     if (r && r.executed_at) {
@@ -784,7 +783,7 @@ let globalChromeRefreshConfig = {};
 async function fetchChromeRefreshConfig() {
     if (!document.getElementById('chromeRefreshHours')) return;
     try {
-        const { data } = await window.getSettingCached('chrome_refresh_config');
+        const _dataCached = await window.getSettingCached('chrome_refresh_config'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if (data && data.value) {
             globalChromeRefreshConfig = JSON.parse(data.value);
         } else {
@@ -877,7 +876,7 @@ window.fetchChromeRefreshHistory = async function(manual = false) {
     if (btn) btn.classList.add('animate-spin');
 
     try {
-        const { data } = await window.getSettingCached('chrome_refresh_history');
+        const _dataCached = await window.getSettingCached('chrome_refresh_history'); const data = _dataCached !== null ? { value: _dataCached } : null;
         let history = [];
         if (data && data.value) {
             history = JSON.parse(data.value);
