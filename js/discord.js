@@ -830,7 +830,7 @@ window.fetchSystemData = async function(forceSync = false, silent = false) {
             const { data: dbUsers } = await appDB.from('users').select('*');
             if (dbUsers && dbUsers.length > 0) window.GLOBAL_USER_LIST = dbUsers;
 
-            const { data: customNameData } = await window.getSettingCached('discord_custom_names');
+            const _customNameDataCached = await window.getSettingCached('discord_custom_names'); const customNameData = _customNameDataCached !== null ? { value: _customNameDataCached } : null;
             if (customNameData && customNameData.value) {
                 window.customDiscordNames = JSON.parse(customNameData.value);
             }
@@ -1042,7 +1042,7 @@ window.ds_fetchSpy = async function() {
 window.ds_fetchChannelsSilently = async function() {
     try {
         if(typeof appDB !== 'undefined') {
-            const { data } = await window.getSettingCached('discord_channels');
+            const _dataCached = await window.getSettingCached('discord_channels'); const data = _dataCached !== null ? { value: _dataCached } : null;
             if (data && data.value) {
                 dsRoomList = JSON.parse(data.value);
                 let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
@@ -1065,7 +1065,7 @@ window.filterSourceRooms = function() {
 window.ds_fetchChannels = async function() {
     try {
         if(typeof appDB !== 'undefined') {
-            const { data } = await window.getSettingCached('discord_channels');
+            const _dataCached = await window.getSettingCached('discord_channels'); const data = _dataCached !== null ? { value: _dataCached } : null;
             if (data && data.value) {
                 dsRoomList = JSON.parse(data.value);
                 let srcHtml = '';
@@ -2462,7 +2462,7 @@ window.ds_loadMsgTemplates = async function() {
     
     try {
         let templates = [];
-        const { data, error } = await window.getSettingCached('discord_msg_templates');
+        const _dataCached = await window.getSettingCached('discord_msg_templates'); const data = _dataCached !== null ? { value: _dataCached } : null;
         
         if (data && data.value) {
             templates = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
