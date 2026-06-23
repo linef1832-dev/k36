@@ -1769,7 +1769,7 @@ async function renderAnnouncementUI() {
     displayBox.innerHTML = '<span class="material-icons animate-spin text-4xl text-yellow-500">sync</span>';
     
     try {
-        const _dataCached = await window.getSettingCached('system_announcement'); const data = _dataCached !== null ? { value: _dataCached } : null;
+        const _dataCached = await window.getSettingCached('system_announcement');
         if (data && data.value) {
             globalAnnouncement = JSON.parse(data.value);
             
@@ -2029,7 +2029,7 @@ window.renameAnyDept = async function(oldDept) {
 
 window.checkAndShowAnnouncementPopup = async function(isSilentCheck = false) {
     try {
-        const _dataCached = await window.getSettingCached('system_announcement'); const data = _dataCached !== null ? { value: _dataCached } : null;
+        const _dataCached = await window.getSettingCached('system_announcement');
         if (data && data.value) {
             const announce = JSON.parse(data.value);
             
@@ -2096,7 +2096,7 @@ window.forceShowAnnouncementPopup = async function() {
     try {
         Swal.fire({title: 'กำลังดึงประกาศ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         
-        const _dataCached = await window.getSettingCached('system_announcement'); const data = _dataCached !== null ? { value: _dataCached } : null;
+        const _dataCached = await window.getSettingCached('system_announcement');
         if (data && data.value) {
             const announce = JSON.parse(data.value);
             globalAnnouncement = announce; 
@@ -2923,10 +2923,10 @@ window.applySidebarPermissions = async function() {
 
     // 🌟 2. วิ่งไปเช็คฐานข้อมูลเงียบๆ (ถ้ามีการเปลี่ยนสิทธิ์ใหม่ เมนูจะอัปเดตให้อัตโนมัติ)
     if (typeof appDB !== 'undefined' && !['admin', 'manager'].includes(userRole)) {
-        window.getSettingCached('dept_menu_rules').then(({data}) => {
-            if (data && data.value && data.value !== cachedRules) {
-                SETTINGS['dept_menu_rules'] = data.value;
-                window.safeSetItem('cached_menu_rules', data.value);
+        window.getSettingCached('dept_menu_rules').then(val => {
+            if (val && val !== cachedRules) {
+                SETTINGS['dept_menu_rules'] = val;
+                window.safeSetItem('cached_menu_rules', val);
                 executeMenuUpdate(); 
             }
         }).catch(e => console.log(e));
