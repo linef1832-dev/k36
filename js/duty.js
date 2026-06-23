@@ -2382,7 +2382,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     let savedRoleOverrides = {};
     try {
         if (targetDate) {
-            const { data } = await window.getSettingCached(matrixRoleKey);
+            const _dataCached = await window.getSettingCached(matrixRoleKey); const data = _dataCached !== null ? { value: _dataCached } : null;
             if (data && data.value) savedRoleOverrides = JSON.parse(data.value);
         }
     } catch(e) { console.warn('Load trainer matrix roles failed:', e); savedRoleOverrides = {}; }
@@ -2727,7 +2727,7 @@ window.saveTrainerMatrixRole = async function(userId, web, taskIdx, newRole) {
         // โหลดค่าเก่าก่อน (เพื่อ merge ไม่ใช่ทับ)
         let current = {};
         try {
-            const { data } = await window.getSettingCached(matrixRoleKey);
+            const _dataCached = await window.getSettingCached(matrixRoleKey); const data = _dataCached !== null ? { value: _dataCached } : null;
             if (data && data.value) current = JSON.parse(data.value);
         } catch(e) {}
 
