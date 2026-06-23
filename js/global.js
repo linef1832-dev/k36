@@ -338,7 +338,7 @@ window.addCustomPermDept = async function() {
     // ดึงค่าเดิมจากระบบมาก่อน
     let currentDepts = [];
     try {
-        const _dataCached = await window.getSettingCached('custom_departments'); const data = _dataCached !== null ? { value: _dataCached } : null;
+        const _dataCached = await window.getSettingCached('custom_departments');
         if(data && data.value) currentDepts = JSON.parse(data.value);
     } catch(e) {}
 
@@ -366,7 +366,7 @@ window.addCustomPermRole = async function() {
 
     let currentRoles = [];
     try {
-        const _dataCached = await window.getSettingCached('custom_roles'); const data = _dataCached !== null ? { value: _dataCached } : null;
+        const _dataCached = await window.getSettingCached('custom_roles');
         if(data && data.value) currentRoles = JSON.parse(data.value);
     } catch(e) {}
 
