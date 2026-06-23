@@ -115,7 +115,14 @@ window.initDutyApp = async function() {
 
 window.loadDutyAccessAndRoles = async function() {
     try {
-        const { data } = await appDB.from('settings').select('*').in('key', ['duty_access_matrix', 'duty_custom_roles']);
+        const [_v1, _v2] = await Promise.all([
+            window.getSettingCached('duty_access_matrix'),
+            window.getSettingCached('duty_custom_roles')
+        ]);
+        const data = [
+            _v1 !== null ? { key: 'duty_access_matrix', value: _v1 } : null,
+            _v2 !== null ? { key: 'duty_custom_roles', value: _v2 } : null
+        ].filter(Boolean);
         if(data) {
             const accessData = data.find(d => d.key === 'duty_access_matrix');
             if(accessData && accessData.value) dutyAccessMatrix = JSON.parse(accessData.value);
@@ -757,7 +764,7 @@ window.clearDutyRoster = async function() {
             
             try {
                 let currentDataVal = null;
-                const { data: currentData } = await appDB.from('settings').select('value').eq('key', saveKey);
+                const _cv = await window.getSettingCached(saveKey); const currentData = _cv !== null ? { value: _cv } : null;
                 if (currentData && currentData.length > 0) currentDataVal = currentData[0].value;
                 
                 if (currentDataVal) {
