@@ -607,7 +607,7 @@ window.editCustomName = async function(staffId, currentName) {
 async function saveCustomNamesToDb() {
     if (typeof appDB === 'undefined' || !appDB) return;
     const namesObj = window.customDiscordNames || {};
-    window.clearSettingCache(); await appDB.from('settings').upsert([{
+    await appDB.from('settings').upsert([{
         key: 'discord_custom_names',
         value: JSON.stringify(namesObj)
     }]);
@@ -830,7 +830,7 @@ window.fetchSystemData = async function(forceSync = false, silent = false) {
             const { data: dbUsers } = await appDB.from('users').select('*');
             if (dbUsers && dbUsers.length > 0) window.GLOBAL_USER_LIST = dbUsers;
 
-            const _customNameDataCached = await window.getSettingCached('discord_custom_names');
+            const { data: customNameData } = await appDB.from('settings').select('value').eq('key', 'discord_custom_names').single();
             if (customNameData && customNameData.value) {
                 window.customDiscordNames = JSON.parse(customNameData.value);
             }
@@ -1042,7 +1042,7 @@ window.ds_fetchSpy = async function() {
 window.ds_fetchChannelsSilently = async function() {
     try {
         if(typeof appDB !== 'undefined') {
-            const _dataCached = await window.getSettingCached('discord_channels');
+            const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').single();
             if (data && data.value) {
                 dsRoomList = JSON.parse(data.value);
                 let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
@@ -1065,7 +1065,7 @@ window.filterSourceRooms = function() {
 window.ds_fetchChannels = async function() {
     try {
         if(typeof appDB !== 'undefined') {
-            const _dataCached = await window.getSettingCached('discord_channels');
+            const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').single();
             if (data && data.value) {
                 dsRoomList = JSON.parse(data.value);
                 let srcHtml = '';
@@ -1487,9 +1487,7 @@ window.scheduleTransfer = async function() {
     _doRenderTransferUserList();
 };
 
-// debounce fetchTransfers ป้องกันยิงซ้ำ
-let _fetchTransfersTimer = null;
-const _origFetchTransfers = async function() {
+window.fetchTransfers = async function() {
     try {
         const [dsRes, webRes] = await Promise.all([
             fetch(DISCORD_API_URL + '/api/transfers').catch(() => ({json: () => ({pending:[], history:[]})})),
@@ -1639,11 +1637,6 @@ window.filterSummaryPopup = function() {
     }
 };
 
-window.fetchTransfers = function() {
-    if (_fetchTransfersTimer) clearTimeout(_fetchTransfersTimer);
-    _fetchTransfersTimer = setTimeout(() => _origFetchTransfers(), 400);
-};
-
 window.delTransfer = async function(id) {
     await fetch(DISCORD_API_URL + '/api/delete-transfer', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})});
     fetchTransfers();
@@ -1712,7 +1705,7 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
 
         // ดักจับกรณีค้นหาจนหน้าปัจจุบันเกินจำนวนหน้าทั้งหมด
         if (window.dsCurrentPage > window.dsTotalPages) {
-            // window.dsCurrentPage reset removed (declared above)
+            window.dsCurrentPage = 1;
             return ds_fetchVoiceLogs(forceRefresh, 1);
         }
 
@@ -2345,14 +2338,10 @@ window.ds_fetchChannelsForSendMsg = async function() {
 
     try {
         if (typeof appDB !== 'undefined') {
-            const [textVal, voiceVal] = await Promise.all([
-                window.getSettingCached('discord_text_channels'),
-                window.getSettingCached('discord_channels')
+            const [textRes, voiceRes] = await Promise.all([
+                appDB.from('settings').select('value').eq('key', 'discord_text_channels').single(),
+                appDB.from('settings').select('value').eq('key', 'discord_channels').single()
             ]);
-
-            // แปลงให้เป็น format เดิม
-            const textRes = { data: textVal ? { value: textVal } : null };
-            const voiceRes = { data: voiceVal ? { value: voiceVal } : null };
             
             let allChannels = [];
 
@@ -2462,7 +2451,7 @@ window.ds_loadMsgTemplates = async function() {
     
     try {
         let templates = [];
-        const _dataCached = await window.getSettingCached('discord_msg_templates');
+        const { data, error } = await appDB.from('settings').select('value').eq('key', 'discord_msg_templates').single();
         
         if (data && data.value) {
             templates = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
@@ -2505,7 +2494,7 @@ window.ds_saveMsgTemplate = async function() {
     templates.unshift(text); // เอาข้อความใหม่ไว้บนสุด
     
     try {
-        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'discord_msg_templates', value: JSON.stringify(templates) }]);
+        await appDB.from('settings').upsert([{ key: 'discord_msg_templates', value: JSON.stringify(templates) }]);
         window.globalDsMsgTemplates = templates;
         ds_loadMsgTemplates();
         Swal.fire({icon: 'success', title: 'บันทึกส่วนกลางสำเร็จ!', timer: 1500, showConfirmButton: false});
@@ -2541,7 +2530,7 @@ window.ds_deleteMsgTemplate = async function(idx) {
         Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         
         try {
-            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'discord_msg_templates', value: JSON.stringify(templates) }]);
+            await appDB.from('settings').upsert([{ key: 'discord_msg_templates', value: JSON.stringify(templates) }]);
             window.globalDsMsgTemplates = templates;
             ds_loadMsgTemplates();
             Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1000, showConfirmButton: false});
