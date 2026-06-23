@@ -338,7 +338,7 @@ window.addCustomPermDept = async function() {
     // ดึงค่าเดิมจากระบบมาก่อน
     let currentDepts = [];
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'custom_departments').single();
+        const { data } = await window.getSettingCached('custom_departments');
         if(data && data.value) currentDepts = JSON.parse(data.value);
     } catch(e) {}
 
@@ -366,7 +366,7 @@ window.addCustomPermRole = async function() {
 
     let currentRoles = [];
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'custom_roles').single();
+        const { data } = await window.getSettingCached('custom_roles');
         if(data && data.value) currentRoles = JSON.parse(data.value);
     } catch(e) {}
 
@@ -537,7 +537,7 @@ window.getSettingCached = async function(key) {
         return _settingsCache[key].value; // ✅ ใช้ cache
     }
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', key).maybeSingle();
+        const { data } = await window.getSettingCached(key);
         const val = data?.value ?? null;
         _settingsCache[key] = { value: val, ts: now };
         return val;
@@ -564,7 +564,7 @@ window.getUsersCached = async function() {
         return GLOBAL_USER_LIST; // ✅ ใช้ cache
     }
     try {
-        const { data } = await appDB.from('users').select('*');
+        const data = await window.getUsersCached();
         if (data) {
             GLOBAL_USER_LIST = data;
             _usersCacheTs = now;
