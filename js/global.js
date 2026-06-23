@@ -338,7 +338,7 @@ window.addCustomPermDept = async function() {
     // ดึงค่าเดิมจากระบบมาก่อน
     let currentDepts = [];
     try {
-        const { data } = await window.getSettingCached('custom_departments');
+        const _dataCached = await window.getSettingCached('custom_departments'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if(data && data.value) currentDepts = JSON.parse(data.value);
     } catch(e) {}
 
@@ -366,7 +366,7 @@ window.addCustomPermRole = async function() {
 
     let currentRoles = [];
     try {
-        const { data } = await window.getSettingCached('custom_roles');
+        const _dataCached = await window.getSettingCached('custom_roles'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if(data && data.value) currentRoles = JSON.parse(data.value);
     } catch(e) {}
 
@@ -537,7 +537,7 @@ window.getSettingCached = async function(key) {
         return _settingsCache[key].value; // ✅ ใช้ cache
     }
     try {
-        const { data } = await window.getSettingCached(key);
+        const _dataCached = await window.getSettingCached(key); const data = _dataCached !== null ? { value: _dataCached } : null;
         const val = data?.value ?? null;
         _settingsCache[key] = { value: val, ts: now };
         return val;
