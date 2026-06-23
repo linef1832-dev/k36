@@ -2170,11 +2170,20 @@ setInterval(() => {
 
 window.loadSettings = async function() {
     try {
+        // ใช้ cache ถ้ามีอยู่แล้ว ไม่งั้น fetch ใหม่
         const { data } = await appDB.from('settings').select('*')
             .not('key', 'like', 'duty_roster_%')
             .not('key', 'like', 'report_TRAINER_%');
             
-        if (data) { data.forEach(row => { SETTINGS[row.key] = row.value; }); }
+        if (data) { 
+            data.forEach(row => { 
+                SETTINGS[row.key] = row.value;
+                // อัปเดต settings cache ด้วย
+                if (window._settingsCache) {
+                    window._settingsCache[row.key] = { value: row.value, ts: Date.now() };
+                }
+            }); 
+        }
         
         if (document.getElementById('dailyLimitInput')) document.getElementById('dailyLimitInput').value = SETTINGS.daily_limit || 2;
         if (document.getElementById('periodLimitInput')) document.getElementById('periodLimitInput').value = SETTINGS.period_limit || 1;
