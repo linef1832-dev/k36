@@ -24,7 +24,7 @@ window.initKbApp = async function() {
 
 window.kb_loadCategories = async function() {
     try {
-        const { data } = await window.getSettingCached('kb_categories');
+        const { data } = await appDB.from('settings').select('value').eq('key', 'kb_categories').single();
         if (data && data.value) {
             globalKBCategories = JSON.parse(data.value);
         } else {
