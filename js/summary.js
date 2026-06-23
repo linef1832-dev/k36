@@ -201,7 +201,7 @@ window.refreshUserListForSummary = async function() {
             if (window.GLOBAL_USER_LIST === oldRef) {
                 if (typeof appDB !== 'undefined') {
                     try {
-                        const { data, error } = await appDB.from('users').select('*');
+                        const data = await window.getUsersCached(); const error = null;
                         if (!error && data && data.length > 0) {
                             window.GLOBAL_USER_LIST = data;
                             console.log('[Summary] รีเฟรช users ตรงจาก DB:', data.length, 'คน');
