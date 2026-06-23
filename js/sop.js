@@ -103,7 +103,7 @@ window.sop_switchTab = function(tabName) {
 // ==========================================
 window.sop_loadCategories = async function() {
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'sop_categories').single();
+        const { data } = await window.getSettingCached('sop_categories');
         if (data && data.value) {
             globalSOPCategories = JSON.parse(data.value);
         } else {
@@ -289,7 +289,7 @@ window.sop_fetchData = async function() {
     const container = document.getElementById('sopListContainer');
     if (container) container.innerHTML = '<div class="text-center text-gray-500 py-10"><span class="material-icons animate-spin mb-2">sync</span><br>กำลังโหลด...</div>';
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'sop_data').single();
+        const { data } = await window.getSettingCached('sop_data');
         if (data && data.value) {
             globalSOPData = JSON.parse(data.value);
         } else {
@@ -329,7 +329,7 @@ window.sop_fetchData = async function() {
 // V4: โหลด/บันทึก standalone rules (กติกาที่อยู่ใน Tab "กติกาขั้นตอน" — ไม่ผูกกับ SOP)
 window.sop_fetchStandaloneRules = async function() {
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'sop_rules_standalone').single();
+        const { data } = await window.getSettingCached('sop_rules_standalone');
         if (data && data.value) {
             globalStandaloneRules = JSON.parse(data.value);
         } else {
@@ -2747,7 +2747,7 @@ window._sopTelegramConfig = { enabled: false, bot_token: '', chat_id: '' };
 
 window.sop_loadTelegramConfig = async function() {
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'sop_telegram_config').single();
+        const { data } = await window.getSettingCached('sop_telegram_config');
         if (data && data.value) {
             window._sopTelegramConfig = JSON.parse(data.value);
         }
