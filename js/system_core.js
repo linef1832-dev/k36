@@ -320,7 +320,7 @@ window.saveData = async function(e) {
     let assignedTeamsStr = '';
     if (!['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
-        const { data: rosterData } = await window.getSettingCached(rosterKey);
+        const _rosterDataCached = await window.getSettingCached(rosterKey); const rosterData = _rosterDataCached !== null ? { value: _rosterDataCached } : null;
 
         if (rosterData && rosterData.value) {
             const roster = JSON.parse(rosterData.value);
@@ -1769,7 +1769,7 @@ async function renderAnnouncementUI() {
     displayBox.innerHTML = '<span class="material-icons animate-spin text-4xl text-yellow-500">sync</span>';
     
     try {
-        const { data } = await window.getSettingCached('system_announcement');
+        const _dataCached = await window.getSettingCached('system_announcement'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if (data && data.value) {
             globalAnnouncement = JSON.parse(data.value);
             
@@ -2029,7 +2029,7 @@ window.renameAnyDept = async function(oldDept) {
 
 window.checkAndShowAnnouncementPopup = async function(isSilentCheck = false) {
     try {
-        const { data } = await window.getSettingCached('system_announcement');
+        const _dataCached = await window.getSettingCached('system_announcement'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if (data && data.value) {
             const announce = JSON.parse(data.value);
             
@@ -2096,7 +2096,7 @@ window.forceShowAnnouncementPopup = async function() {
     try {
         Swal.fire({title: 'กำลังดึงประกาศ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         
-        const { data } = await window.getSettingCached('system_announcement');
+        const _dataCached = await window.getSettingCached('system_announcement'); const data = _dataCached !== null ? { value: _dataCached } : null;
         if (data && data.value) {
             const announce = JSON.parse(data.value);
             globalAnnouncement = announce; 
