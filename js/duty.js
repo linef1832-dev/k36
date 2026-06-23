@@ -360,7 +360,20 @@ window.refreshDutyData = async function() {
         const [leavesRes, schedulesRes, settingsRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey])
+            (async () => {
+                const [_sv, _ilv, _iav, _lkv] = await Promise.all([
+                    window.getSettingCached(saveKey),
+                    window.getSettingCached(impListKey),
+                    window.getSettingCached(impAssignKey),
+                    window.getSettingCached(impLockKey),
+                ]);
+                return { data: [
+                    { key: saveKey, value: _sv },
+                    { key: impListKey, value: _ilv },
+                    { key: impAssignKey, value: _iav },
+                    { key: impLockKey, value: _lkv },
+                ].filter(d => d.value !== null) };
+            })()
         ]);
 
         // ประมวลผล leaves
@@ -3491,40 +3504,46 @@ window.quickAssignBackups = async function() {
 // ==========================================
 // 🌟 โค้ดเสกปุ่ม "⚡ จัดรองด่วน (AI)" + "🧹 ล้างงานรอง" ให้โผล่ขึ้นมา
 // ==========================================
-setInterval(() => {
-    // 🟢 bail-early ถ้าไม่ได้อยู่หน้า duty (กัน CPU ทำงานทิ้งทุกหน้าทุกๆ 1 วิ)
-    const dutyApp = document.getElementById('dutyApp');
-    if (!dutyApp || dutyApp.classList.contains('hidden')) return;
+(function() {
+    const _btnTimer = setInterval(() => {
+        const dutyApp = document.getElementById('dutyApp');
+        if (!dutyApp || dutyApp.classList.contains('hidden')) return;
 
-    // ─── ปุ่ม "จัดรองด่วน (AI)" — วางต่อจากปุ่มล้างตาราง ───
-    if (!document.getElementById('btnQuickBackup')) {
-        const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
-        if (clearBtn) {
-            const btn = document.createElement('button');
-            btn.id = 'btnQuickBackup';
-            btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
-            btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
-            btn.onclick = window.quickAssignBackups;
-
-            clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
+        if (!document.getElementById('btnQuickBackup')) {
+            const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
+            if (clearBtn) {
+                const btn = document.createElement('button');
+                btn.id = 'btnQuickBackup';
+                btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
+                btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
+                btn.onclick = window.quickAssignBackups;
+                clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
+            }
         }
-    }
 
-    // ─── 🆕 ปุ่ม "ล้างงานรอง" — วางต่อจากปุ่มเพิ่มพนักงาน ───
-    if (!document.getElementById('btnClearSecondary')) {
-        const addStaffBtn = document.querySelector('button[onclick*="addStaffToRoster"]');
-        if (addStaffBtn) {
-            const btn = document.createElement('button');
-            btn.id = 'btnClearSecondary';
-            btn.className = 'duty-admin-only bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-cyan-400';
-            btn.innerHTML = '<span class="material-icons text-base">layers_clear</span> ล้างงานรอง';
-            btn.title = 'ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ';
-            btn.onclick = window.clearSecondaryDuties;
-
-            addStaffBtn.parentNode.insertBefore(btn, addStaffBtn.nextSibling);
+        if (!document.getElementById('btnClearSecondary')) {
+            const addStaffBtn = document.querySelector('button[onclick*="addStaffToRoster"]');
+            if (addStaffBtn) {
+                const btn = document.createElement('button');
+                btn.id = 'btnClearSecondary';
+                btn.className = 'duty-admin-only bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-cyan-400';
+                btn.innerHTML = '<span class="material-icons text-base">layers_clear</span> ล้างงานรอง';
+                btn.title = 'ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ';
+                btn.onclick = window.clearSecondaryDuties;
+                addStaffBtn.parentNode.insertBefore(btn, addStaffBtn.nextSibling);
+            }
         }
+
+        // หยุด interval เมื่อสร้างปุ่มครบแล้ว
+        if (document.getElementById('btnQuickBackup') && document.getElementById('btnClearSecondary')) {
+            clearInterval(_btnTimer);
+        }
+    }, 2000);
+
+    if (typeof window.registerPageInterval === 'function') {
+        window.registerPageInterval(_btnTimer);
     }
-}, 2000);
+})();
 
 // ==========================================
 // 🌟 ฟังก์ชันกู้คืนตารางงาน (จากที่กดล้างไป)
