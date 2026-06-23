@@ -25,9 +25,8 @@ window.fetchFilesData = async function() {
     grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดไฟล์...</span></div>';
     
     try {
-        const { data, error } = await window.getSettingCached('app_files_data');
-        if (error) throw error;
-        globalAppFiles = (data && data.value) ? JSON.parse(data.value) : [];
+        const _filesVal = await window.getSettingCached('app_files_data');
+        globalAppFiles = _filesVal ? JSON.parse(_filesVal) : [];
     } catch(e) { 
         console.error("Fetch files error:", e);
         globalAppFiles = []; 
