@@ -601,14 +601,16 @@ window.renderLeaveTable = function() {
     const isTrainerInThisPage =
         ((_d === 'AMQL') && (currentUser.department === 'AMQL' || (isTrainerRole && currentUser.department === 'AM')))
         || ((_d === 'ODQL') && (currentUser.department === 'ODQL' || (isTrainerRole && currentUser.department === 'OD')))
-        || ((_d === 'TRAINER') && isTrainerRole);
+        || ((_d === 'TRAINER') && isTrainerRole)
+        // [FIX] TRAINER เข้าหน้า AM/OD ปกติ → ลงได้แค่ของตัวเอง
+        || ((_d === 'AM') && isTrainerAM)
+        || ((_d === 'OD') && isTrainerOD);
+    // [FIX] หน้า AMQL/ODQL — leave_manage_trainer ไม่ให้เป็น isAdmin
+    // เพราะผู้สอนต้องลงได้แค่ของตัวเองเท่านั้น
     const isAdmin = isGlobalAdmin
         || window.hasUserPerm('leave_manage')
-        || (_d === 'AM'   && window.hasUserPerm('leave_manage_am'))
-        || (_d === 'AMQL' && (window.hasUserPerm('leave_manage_am') || window.hasUserPerm('leave_manage_trainer')))
-        || (_d === 'OD'   && window.hasUserPerm('leave_manage_od'))
-        || (_d === 'ODQL' && (window.hasUserPerm('leave_manage_od') || window.hasUserPerm('leave_manage_trainer')))
-        || (['TRAINER'].includes(_d) && window.hasUserPerm('leave_manage_trainer'))
+        || (_d === 'AM'      && window.hasUserPerm('leave_manage_am'))
+        || (_d === 'OD'      && window.hasUserPerm('leave_manage_od'))
         || (_d === 'SPECIAL' && window.hasUserPerm('leave_manage_am'));
     const canViewAnyMonth = isAdmin || window.hasUserPerm('leave_view_any_month');
     // ผู้สอนในหน้าของตัวเอง ลงได้แค่ isMe เท่านั้น (canRequest = true แต่ isAdmin = false)
