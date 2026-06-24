@@ -1412,7 +1412,7 @@ window.toggleLeaveStatus = async function(isChecked) {
 window.loadLeaveStatusConfig = async function() {
     try {
         // [FIX] อ่านจาก deptSettings ที่โหลดมาถูกต้องแล้ว
-        // ไม่ใช้ like('key','leave_status_%') เพราะ key จริงคือ AMQL_is_open ไม่ใช่ leave_status_AMQL
+        if (!window.leaveStatusConfig) window.leaveStatusConfig = {};
         ['AM','OD','TRAINER','AMQL','ODQL','SPECIAL','NEW'].forEach(dept => {
             if (deptSettings[dept]) {
                 window.leaveStatusConfig[dept] = deptSettings[dept].isOpen ? 'true' : 'false';
