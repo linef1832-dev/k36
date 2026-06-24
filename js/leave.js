@@ -596,15 +596,17 @@ window.renderLeaveTable = function() {
     const _d = currentViewDept || 'AM';
     // [FIX] ผู้สอนที่อยู่ในหน้า AMQL หรือ ODQL หรือ TRAINER — ลงได้แค่ของตัวเอง ไม่ใช่ admin
     const isTrainerRole = (currentUser.role === 'trainer');
-    const isTrainerAM = isTrainerRole && (currentUser.department === 'AM' || currentUser.department === 'AMQL');
-    const isTrainerOD = isTrainerRole && (currentUser.department === 'OD' || currentUser.department === 'ODQL');
+    // dept AMQL หรือ role trainer + dept AM = ผู้สอน AM
+    const isTrainerAM = currentUser.department === 'AMQL'
+        || (isTrainerRole && currentUser.department === 'AM');
+    // dept ODQL หรือ role trainer + dept OD = ผู้สอน OD
+    const isTrainerOD = currentUser.department === 'ODQL'
+        || (isTrainerRole && currentUser.department === 'OD');
+
     const isTrainerInThisPage =
-        ((_d === 'AMQL') && (currentUser.department === 'AMQL' || (isTrainerRole && currentUser.department === 'AM')))
-        || ((_d === 'ODQL') && (currentUser.department === 'ODQL' || (isTrainerRole && currentUser.department === 'OD')))
-        || ((_d === 'TRAINER') && isTrainerRole)
-        // [FIX] TRAINER เข้าหน้า AM/OD ปกติ → ลงได้แค่ของตัวเอง
-        || ((_d === 'AM') && isTrainerAM)
-        || ((_d === 'OD') && isTrainerOD);
+        (_d === 'AMQL' && isTrainerAM)
+        || (_d === 'ODQL' && isTrainerOD)
+        || (_d === 'TRAINER' && isTrainerRole);
     // [FIX] หน้า AMQL/ODQL — leave_manage_trainer ไม่ให้เป็น isAdmin
     // เพราะผู้สอนต้องลงได้แค่ของตัวเองเท่านั้น
     const isAdmin = isGlobalAdmin
