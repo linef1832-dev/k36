@@ -594,15 +594,15 @@ window.renderLeaveTable = function() {
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     // isAdmin = global admin หรือ มีสิทธิ์จัดการแผนกที่กำลังดูอยู่
     const _d = currentViewDept || 'AM';
-    // [FIX] ผู้สอน AM (role=trainer + dept=AM หรือ dept=AMQL) จัดการหน้า AM และ AMQL ได้
+    // ผู้สอน AM/OD — ลงได้แค่ของตัวเองเท่านั้น ไม่ใช่ admin
     const isTrainerAM = (currentUser.role === 'trainer' && (currentUser.department === 'AM' || currentUser.department === 'AMQL'));
     const isTrainerOD = (currentUser.role === 'trainer' && (currentUser.department === 'OD' || currentUser.department === 'ODQL'));
     const isAdmin = isGlobalAdmin
         || window.hasUserPerm('leave_manage')
-        || (_d === 'AM'      && (window.hasUserPerm('leave_manage_am') || isTrainerAM))
-        || (_d === 'AMQL'    && (window.hasUserPerm('leave_manage_am') || window.hasUserPerm('leave_manage_trainer') || isTrainerAM))
-        || (_d === 'OD'      && (window.hasUserPerm('leave_manage_od') || isTrainerOD))
-        || (_d === 'ODQL'    && (window.hasUserPerm('leave_manage_od') || window.hasUserPerm('leave_manage_trainer') || isTrainerOD))
+        || (_d === 'AM'   && window.hasUserPerm('leave_manage_am'))
+        || (_d === 'AMQL' && (window.hasUserPerm('leave_manage_am') || window.hasUserPerm('leave_manage_trainer')))
+        || (_d === 'OD'   && window.hasUserPerm('leave_manage_od'))
+        || (_d === 'ODQL' && (window.hasUserPerm('leave_manage_od') || window.hasUserPerm('leave_manage_trainer')))
         || (['TRAINER'].includes(_d) && window.hasUserPerm('leave_manage_trainer'))
         || (_d === 'SPECIAL' && window.hasUserPerm('leave_manage_am'));
     const canViewAnyMonth = isAdmin || window.hasUserPerm('leave_view_any_month');
