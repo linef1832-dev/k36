@@ -594,9 +594,14 @@ window.renderLeaveTable = function() {
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     // isAdmin = global admin หรือ มีสิทธิ์จัดการแผนกที่กำลังดูอยู่
     const _d = currentViewDept || 'AM';
-    // ผู้สอน AM/OD — ลงได้แค่ของตัวเองเท่านั้น ไม่ใช่ admin
-    const isTrainerAM = (currentUser.role === 'trainer' && (currentUser.department === 'AM' || currentUser.department === 'AMQL'));
-    const isTrainerOD = (currentUser.role === 'trainer' && (currentUser.department === 'OD' || currentUser.department === 'ODQL'));
+    // [FIX] ผู้สอนที่อยู่ในหน้า AMQL หรือ ODQL หรือ TRAINER — ลงได้แค่ของตัวเอง ไม่ใช่ admin
+    const isTrainerRole = (currentUser.role === 'trainer');
+    const isTrainerAM = isTrainerRole && (currentUser.department === 'AM' || currentUser.department === 'AMQL');
+    const isTrainerOD = isTrainerRole && (currentUser.department === 'OD' || currentUser.department === 'ODQL');
+    const isTrainerInThisPage =
+        ((_d === 'AMQL') && (currentUser.department === 'AMQL' || (isTrainerRole && currentUser.department === 'AM')))
+        || ((_d === 'ODQL') && (currentUser.department === 'ODQL' || (isTrainerRole && currentUser.department === 'OD')))
+        || ((_d === 'TRAINER') && isTrainerRole);
     const isAdmin = isGlobalAdmin
         || window.hasUserPerm('leave_manage')
         || (_d === 'AM'   && window.hasUserPerm('leave_manage_am'))
@@ -606,7 +611,8 @@ window.renderLeaveTable = function() {
         || (['TRAINER'].includes(_d) && window.hasUserPerm('leave_manage_trainer'))
         || (_d === 'SPECIAL' && window.hasUserPerm('leave_manage_am'));
     const canViewAnyMonth = isAdmin || window.hasUserPerm('leave_view_any_month');
-    const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request') || currentViewDept === 'SPECIAL';
+    // ผู้สอนในหน้าของตัวเอง ลงได้แค่ isMe เท่านั้น (canRequest = true แต่ isAdmin = false)
+    const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request') || currentViewDept === 'SPECIAL' || isTrainerInThisPage;
     const picker = document.getElementById('viewMonthPicker');
     const btnPrev = document.getElementById('btnPrevMonth');
     const btnNext = document.getElementById('btnNextMonth');
