@@ -1175,8 +1175,12 @@ window.executeSaveSettings = async function() {
             { key: `${dept}_is_open`, value: String(forceOpen) },
             { key: `${dept}_quota_m`, value: String(qM) }, { key: `${dept}_quota_a`, value: String(qA) }, { key: `${dept}_quota_n`, value: String(qN) },
             { key: `${dept}_view_month`, value: viewMonth },
-            { key: `${dept}_lock_start`, value: String(sDay) }, { key: `${dept}_lock_end`, value: String(eDay) }       
+            { key: `${dept}_lock_start`, value: String(sDay) }, { key: `${dept}_lock_end`, value: String(eDay) }
         ];
+
+        // [FIX] sync is_open ให้ AMQL/ODQL ตามไปด้วยเสมอ
+        if (dept === 'AM') updates.push({ key: 'AMQL_is_open', value: String(forceOpen) });
+        if (dept === 'OD') updates.push({ key: 'ODQL_is_open', value: String(forceOpen) });
 
         const { error } = await appDB.from('settings').upsert(updates);
         if (error) throw error;
@@ -1407,14 +1411,14 @@ window.toggleLeaveStatus = async function(isChecked) {
 
 window.loadLeaveStatusConfig = async function() {
     try {
-        const { data } = await appDB.from('settings').select('*').like('key', 'leave_status_%');
-        if (data) {
-            data.forEach(item => {
-                const dept = item.key.replace('leave_status_', '');
-                window.leaveStatusConfig[dept] = item.value;
-            });
-        }
-        updateLeaveToggleUI(); 
+        // [FIX] อ่านจาก deptSettings ที่โหลดมาถูกต้องแล้ว
+        // ไม่ใช้ like('key','leave_status_%') เพราะ key จริงคือ AMQL_is_open ไม่ใช่ leave_status_AMQL
+        ['AM','OD','TRAINER','AMQL','ODQL','SPECIAL','NEW'].forEach(dept => {
+            if (deptSettings[dept]) {
+                window.leaveStatusConfig[dept] = deptSettings[dept].isOpen ? 'true' : 'false';
+            }
+        });
+        updateLeaveToggleUI();
     } catch(e) { console.error('Load Leave Status Error:', e); }
 };
 
