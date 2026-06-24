@@ -87,6 +87,13 @@ window.switchDept = function(dept) {
     if (dept === 'TRAINER' || dept === 'AMQL' || dept === 'ODQL') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
     if (dept === 'SPECIAL') canManageThisDept = isGlobalAdmin || window.hasUserPerm('leave_manage_am');
 
+    // [FIX] ผู้สอน (role trainer) ที่ไม่ใช่ admin → ไม่ให้เห็นแถบตั้งค่า/toggle เปิด-ปิด
+    // ในหน้า AMQL/ODQL/TRAINER (เปิด-ปิดต้องทำจากหน้า AM/OD โดยแอดมินเท่านั้น)
+    const _isTrainerOnlyUser = (currentUser.role === 'trainer') && !isGlobalAdmin;
+    if (_isTrainerOnlyUser && (dept === 'AMQL' || dept === 'ODQL' || dept === 'TRAINER')) {
+        canManageThisDept = false;
+    }
+
     const controls = document.getElementById('leaveManagerControls');
     if(controls) {
         if(canManageThisDept) controls.classList.remove('hidden');
@@ -1409,26 +1416,34 @@ window.toggleLeaveStatus = async function(isChecked) {
     try {
         if (typeof appDB === 'undefined') throw new Error('ไม่พบตัวแปรเชื่อมต่อฐานข้อมูล');
 
-        const { error } = await appDB.from('settings').upsert([
-            { key: `${currentViewDept}_is_open`, value: statusValue } 
-        ]);
+        // [FIX] หน้า AMQL บันทึกลง AM, ODQL บันทึกลง OD เพราะระบบอ่านค่าจาก AM/OD
+        let _saveDept = currentViewDept;
+        if (currentViewDept === 'AMQL') _saveDept = 'AM';
+        else if (currentViewDept === 'ODQL') _saveDept = 'OD';
+
+        const upsertRows = [{ key: `${_saveDept}_is_open`, value: statusValue }];
+        // sync ค่ากลับให้ตัวเองด้วย กันสับสน
+        if (_saveDept !== currentViewDept) {
+            upsertRows.push({ key: `${currentViewDept}_is_open`, value: statusValue });
+        }
+
+        const { error } = await appDB.from('settings').upsert(upsertRows);
 
         if (error) throw error;
 
-        if(deptSettings[currentViewDept]) {
-            deptSettings[currentViewDept].isOpen = isChecked;
-        }
+        if(deptSettings[_saveDept]) deptSettings[_saveDept].isOpen = isChecked;
+        if(deptSettings[currentViewDept]) deptSettings[currentViewDept].isOpen = isChecked;
 
         Swal.fire({ 
             icon: 'success', title: 'บันทึกสำเร็จ!', 
-            text: `ระบบจองวันหยุดแผนก ${currentViewDept} ถูก ${isChecked ? 'เปิด' : 'ปิด'} แล้ว`, 
+            text: `ระบบจองวันหยุดถูก ${isChecked ? 'เปิด' : 'ปิด'} แล้ว`, 
             timer: 1500, showConfirmButton: false 
         });
 
     } catch (error) {
         console.error('Toggle Leave Error:', error);
         Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
-        document.getElementById('setForceOpen').checked = !isChecked; 
+        if(document.getElementById('setForceOpen')) document.getElementById('setForceOpen').checked = !isChecked; 
     }
 };
 
