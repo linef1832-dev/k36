@@ -121,12 +121,12 @@ window.loadDutyAccessAndRoles = async function() {
             } else { 
                 // ค่าเริ่มต้นสำหรับแต่ละเว็บ
                 customDutyRoles = {
-                    'Jun88': ['ถอนเงิน', 'ตรวจถอนเงิน', 'คำขอโปร', 'แนะนำเพื่อน'],
+                    'Jun88': ['ถอนเงิน', 'ตรวจถอนเงิน'],
                     'MK8': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'Vv72': ['ถอนเงิน', 'ตรวจถอนเงิน', 'คำขอโปร', 'แนะนำเพื่อน'],
-                    'VV72': ['ถอนเงิน', 'ตรวจถอนเงิน', 'คำขอโปร', 'แนะนำเพื่อน'],
+                    'Vv72': ['ถอนเงิน', 'ตรวจถอนเงิน'],
+                    'VV72': ['ถอนเงิน', 'ตรวจถอนเงิน'],
                     'TH26': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'K188': ['ถอนเงิน', 'ตรวจถอนเงิน', 'คำขอโปร', 'แนะนำเพื่อน'],
+                    'K188': ['ถอนเงิน', 'ตรวจถอนเงิน'],
                     'BT678': ['ถอนเงิน', 'ตรวจถอนเงิน'],
                     'PG688': ['ถอนเงิน', 'ตรวจถอนเงิน'],
                     'JL69': ['ถอนเงิน', 'ตรวจถอนเงิน'],
@@ -2326,7 +2326,6 @@ window.onDutySearch = function() {
     }, 300); 
 };
 
-// 🟢 อัปเดตตาราง OD เพิ่มกฎ "แบนงานหลักข้ามกะ" เด็ดขาด (เช้าห้ามแนะนำเพื่อน, ดึกห้ามคำขอโปร)
 // 🌟 [แก้บัค Realtime ผู้สอน] Key สำหรับเก็บการเปลี่ยน role ใน DB
 // แยกตาม วันที่ + กะ + แผนก (เพื่อให้แต่ละกะของแต่ละวันมีค่าของตัวเอง)
 window.getTrainerMatrixRoleKey = function(dept, dateStr, shift) {
@@ -2407,8 +2406,6 @@ window.renderTrainerOdMatrix = async function(rosterData) {
             
             webTasks.forEach((task, tIdx) => {
                 // 🌟 กฎเหล็ก: แบนงานหลักข้ามกะ
-                if (shiftFilter === 'กะเช้า' && task === 'แนะนำเพื่อน') return;
-                if (shiftFilter === 'กะดึก' && task === 'คำขอโปร') return;
 
                 if (pool.length > 0) {
                     if (false) { // removed หน้าที่ส่วนกลาง block
@@ -2455,8 +2452,6 @@ window.renderTrainerOdMatrix = async function(rosterData) {
             if (web === 'F168') {
                 webTasks.forEach((task, tIdx) => {
                     // 🌟 กฎเหล็ก: แบนงานหลักข้ามกะ
-                    if (shiftFilter === 'กะเช้า' && task === 'แนะนำเพื่อน') return;
-                    if (shiftFilter === 'กะดึก' && task === 'คำขอโปร') return;
 
                     if (primaryUsers.length > 0) {
                         let uJob1 = primaryUsers[tIdx % primaryUsers.length];
@@ -2492,8 +2487,6 @@ window.renderTrainerOdMatrix = async function(rosterData) {
                 // 🌟 เว็บปกติอื่นๆ: ดักจับและ "แบน" หัวข้อที่ไม่ตรงกะทิ้งไปเลย
                 let allowedTaskIndices = [];
                 webTasks.forEach((task, i) => {
-                    if (shiftFilter === 'กะเช้า' && task === 'แนะนำเพื่อน') return; 
-                    if (shiftFilter === 'กะดึก' && task === 'คำขอโปร') return; 
                     allowedTaskIndices.push(i);
                 });
 
@@ -2503,11 +2496,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
                     let taskB = webTasks[b];
                     const getScore = (task) => {
                         if (task === 'ถอนเงิน') return 100;
-                        if (shiftFilter === 'กะเช้า' && task === 'คำขอโปร') return 90;
-                        if (shiftFilter === 'กะดึก' && task === 'แนะนำเพื่อน') return 90;
                         if (task === 'ตรวจถอนเงิน') return 80;
-                        if (task === 'คำขอโปร') return 70;
-                        if (task === 'แนะนำเพื่อน') return 60;
                         return 50;
                     };
                     return getScore(taskB) - getScore(taskA);
