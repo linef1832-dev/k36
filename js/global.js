@@ -558,3 +558,28 @@ window.getUsersCached = async function() {
 };
 
 window.clearUsersCache = function() { _usersCacheTs = 0; };
+
+// ==========================================
+// 📡 debouncedBroadcast — broadcast realtime แบบ debounce กัน spam
+// ถูกเรียกจาก duty.js 16+ จุด แต่ไม่เคย define ไว้ที่ไหน
+// ==========================================
+(function() {
+    const _timers = {};
+    window.debouncedBroadcast = function(channel, event, delay) {
+        delay = delay || 800;
+        if (_timers[channel]) clearTimeout(_timers[channel]);
+        _timers[channel] = setTimeout(function() {
+            try {
+                if (typeof appDB !== 'undefined' && appDB.channel) {
+                    appDB.channel(channel).send({
+                        type: 'broadcast',
+                        event: event || 'force_reload'
+                    });
+                }
+            } catch(e) {
+                console.warn('[debouncedBroadcast] failed:', e);
+            }
+            delete _timers[channel];
+        }, delay);
+    };
+})();
