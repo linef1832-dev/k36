@@ -54,11 +54,6 @@ window.syncTeamOrder = function() {
     // ดึงเว็บมาตรฐานทั้งหมดมาใส่
     TEAM_LIST.forEach(t => { if(!validSaved.includes(t)) validSaved.push(t); });
     
-    // เติม หน้าที่ส่วนกลาง ต่อท้ายเสมอ
-    if (!validSaved.includes('หน้าที่ส่วนกลาง')) {
-        validSaved.push('หน้าที่ส่วนกลาง');
-    }
-    
     sortedTeams = validSaved;
 }
 
@@ -92,7 +87,6 @@ window.initDutyApp = async function() {
         const teamSelect = document.getElementById('roleEditorTeam');
         if(teamSelect) {
             let opts = TEAM_LIST.map(t => `<option value="${t}">${t}</option>`);
-            opts.push(`<option value="หน้าที่ส่วนกลาง" class="font-bold text-amber-500">📌 หน้าที่ส่วนกลาง</option>`);
             teamSelect.innerHTML = opts.join('');
         }
         
@@ -138,7 +132,6 @@ window.loadDutyAccessAndRoles = async function() {
                     'JL69': ['ถอนเงิน', 'ตรวจถอนเงิน'],
                     'NM9': ['ถอนเงิน', 'ตรวจถอนเงิน'],
                     'F168': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'หน้าที่ส่วนกลาง': ['เคสเทเลแกรม', 'ตรวจสอบหน้าเว็บ', 'ตรวจแนะนำเพื่อนกะดึก OD', 'เช็คส่งแก้ไขข้อมูล']
                 }; 
                 // บันทึกขึ้นฐานข้อมูลทันทีเพื่อให้แอดมินแก้ไขทีหลังได้
                 appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]);
@@ -1991,7 +1984,7 @@ window.renderDutyAccessTable = function() {
         }
     });
 
-    // 🌟 ดึงลิสต์รายชื่อเว็บมาตรฐาน (บวกหน้าที่ส่วนกลาง) มาใช้เลย ไม่ต้องมีเงื่อนไขพิเศษ
+    // 🌟 ดึงลิสต์รายชื่อเว็บมาตรฐานมาใช้
     let headHtml = `<tr><th class="p-2 bg-slate-200 dark:bg-slate-800 border-r dark:border-slate-700 min-w-[120px]">ชื่อพนักงาน</th>`;
     sortedTeams.forEach(team => { headHtml += `<th class="p-2 text-center text-[10px] font-extrabold truncate max-w-[50px] border-r dark:border-slate-700" title="${team}">${team}</th>`; });
     headHtml += `</tr>`;
@@ -2367,7 +2360,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
         }
     } catch(e) { console.warn('Load trainer matrix roles failed:', e); savedRoleOverrides = {}; }
 
-    const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168', 'หน้าที่ส่วนกลาง'];
+    const matrixWebsites = ['Jun88', 'MK8', 'VV72', 'TH26', 'K188', 'BT678', 'PG688', 'JL69', 'NM9', 'F168'];
 
     const webColors = {
         'Jun88': 'bg-blue-600 text-white',
@@ -2381,7 +2374,6 @@ window.renderTrainerOdMatrix = async function(rosterData) {
         'JL69': 'bg-slate-600 text-white',
         'NM9': 'bg-pink-600 text-white',
         'F168': 'bg-orange-600 text-white',
-        'หน้าที่ส่วนกลาง': 'bg-indigo-900 text-amber-400'
     };
 
     const shiftFilter = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : 'all';
@@ -2410,7 +2402,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
         
         let primaryUsers = (rosterData[web] || []).filter(u => !u.username.includes('ขาดคน'));
         
-        if (web === 'หน้าที่ส่วนกลาง' || (primaryUsers.length === 0 && activeTrainers.length > 0)) {
+        if (primaryUsers.length === 0 && activeTrainers.length > 0) {
             let pool = activeTrainers.length > 0 ? activeTrainers : primaryUsers;
             
             webTasks.forEach((task, tIdx) => {
@@ -2419,7 +2411,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
                 if (shiftFilter === 'กะดึก' && task === 'คำขอโปร') return;
 
                 if (pool.length > 0) {
-                    if (web === 'หน้าที่ส่วนกลาง' && task === 'เคสเทเลแกรม') {
+                    if (false) { // removed หน้าที่ส่วนกลาง block
                         let uJob1 = pool[globalPoolIndex % pool.length];
                         if (!userTaskRoles[uJob1.id]) userTaskRoles[uJob1.id] = {};
                         if (!userTaskRoles[uJob1.id][web]) userTaskRoles[uJob1.id][web] = {};
@@ -3892,7 +3884,7 @@ window.assignODProTelegramTasks = async function() {
         });
     }
 
-    const webList = sortedTeams.filter(t => t !== 'หน้าที่ส่วนกลาง');
+    const webList = [...sortedTeams];
     let preview = '';
     let changeCount = 0;
 
