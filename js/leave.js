@@ -594,11 +594,16 @@ window.renderLeaveTable = function() {
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     // isAdmin = global admin หรือ มีสิทธิ์จัดการแผนกที่กำลังดูอยู่
     const _d = currentViewDept || 'AM';
+    // [FIX] ผู้สอน AM (role=trainer + dept=AM หรือ dept=AMQL) จัดการหน้า AM และ AMQL ได้
+    const isTrainerAM = (currentUser.role === 'trainer' && (currentUser.department === 'AM' || currentUser.department === 'AMQL'));
+    const isTrainerOD = (currentUser.role === 'trainer' && (currentUser.department === 'OD' || currentUser.department === 'ODQL'));
     const isAdmin = isGlobalAdmin
         || window.hasUserPerm('leave_manage')
-        || (_d === 'AM'      && window.hasUserPerm('leave_manage_am'))
-        || (_d === 'OD'      && window.hasUserPerm('leave_manage_od'))
-        || (['TRAINER','AMQL','ODQL'].includes(_d) && window.hasUserPerm('leave_manage_trainer'))
+        || (_d === 'AM'      && (window.hasUserPerm('leave_manage_am') || isTrainerAM))
+        || (_d === 'AMQL'    && (window.hasUserPerm('leave_manage_am') || window.hasUserPerm('leave_manage_trainer') || isTrainerAM))
+        || (_d === 'OD'      && (window.hasUserPerm('leave_manage_od') || isTrainerOD))
+        || (_d === 'ODQL'    && (window.hasUserPerm('leave_manage_od') || window.hasUserPerm('leave_manage_trainer') || isTrainerOD))
+        || (['TRAINER'].includes(_d) && window.hasUserPerm('leave_manage_trainer'))
         || (_d === 'SPECIAL' && window.hasUserPerm('leave_manage_am'));
     const canViewAnyMonth = isAdmin || window.hasUserPerm('leave_view_any_month');
     const canRequest = isGlobalAdmin || window.hasUserPerm('leave_request') || currentViewDept === 'SPECIAL';
@@ -936,6 +941,15 @@ window.renderLeaveTable = function() {
         let isThisUserShiftOpen = true;
         if (typeof checkBookingWindow === 'function') {
             isThisUserShiftOpen = checkBookingWindow(u.allowed_shift);
+            // [FIX] AMQL/ODQL ถ้าตัวเองปิดอยู่ ให้ fallback เช็ค AM/OD ด้วย
+            if (!isThisUserShiftOpen && currentViewDept === 'AMQL') {
+                const amS = deptSettings['AM'] || {};
+                isThisUserShiftOpen = amS.isOpen || false;
+            }
+            if (!isThisUserShiftOpen && currentViewDept === 'ODQL') {
+                const odS = deptSettings['OD'] || {};
+                isThisUserShiftOpen = odS.isOpen || false;
+            }
         }
 
         for (let d = 1; d <= daysInMonth; d++) {
