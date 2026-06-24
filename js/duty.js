@@ -121,17 +121,17 @@ window.loadDutyAccessAndRoles = async function() {
             } else { 
                 // ค่าเริ่มต้นสำหรับแต่ละเว็บ
                 customDutyRoles = {
-                    'Jun88': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'MK8': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'Vv72': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'VV72': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'TH26': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'K188': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'BT678': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'PG688': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'JL69': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'NM9': ['ถอนเงิน', 'ตรวจถอนเงิน'],
-                    'F168': ['ถอนเงิน', 'ตรวจถอนเงิน'],
+                    'Jun88': [],
+                    'MK8': [],
+                    'Vv72': [],
+                    'VV72': [],
+                    'TH26': [],
+                    'K188': [],
+                    'BT678': [],
+                    'PG688': [],
+                    'JL69': [],
+                    'NM9': [],
+                    'F168': [],
                 }; 
                 // บันทึกขึ้นฐานข้อมูลทันทีเพื่อให้แอดมินแก้ไขทีหลังได้
                 appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]);
@@ -2495,8 +2495,6 @@ window.renderTrainerOdMatrix = async function(rosterData) {
                     let taskA = webTasks[a];
                     let taskB = webTasks[b];
                     const getScore = (task) => {
-                        if (task === 'ถอนเงิน') return 100;
-                        if (task === 'ตรวจถอนเงิน') return 80;
                         return 50;
                     };
                     return getScore(taskB) - getScore(taskA);
