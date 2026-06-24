@@ -307,7 +307,11 @@ async function loadLeaveSettings(skipRender = false) {
 
 window.checkBookingWindow = function(targetShift) {
     const now = new Date();
-    const s = deptSettings[currentViewDept] || {};
+    // [FIX] AMQL ใช้ค่าเปิด/ปิด + เวลา ของ AM, ODQL ใช้ของ OD
+    let _settingDept = currentViewDept;
+    if (currentViewDept === 'AMQL') _settingDept = 'AM';
+    else if (currentViewDept === 'ODQL') _settingDept = 'OD';
+    const s = deptSettings[_settingDept] || {};
 
     const getStatus = (name, startStr, endStr) => {
         let msg = "", isOpen = true;
@@ -951,15 +955,6 @@ window.renderLeaveTable = function() {
         let isThisUserShiftOpen = true;
         if (typeof checkBookingWindow === 'function') {
             isThisUserShiftOpen = checkBookingWindow(u.allowed_shift);
-            // [FIX] AMQL/ODQL ถ้าตัวเองปิดอยู่ ให้ fallback เช็ค AM/OD ด้วย
-            if (!isThisUserShiftOpen && currentViewDept === 'AMQL') {
-                const amS = deptSettings['AM'] || {};
-                isThisUserShiftOpen = amS.isOpen || false;
-            }
-            if (!isThisUserShiftOpen && currentViewDept === 'ODQL') {
-                const odS = deptSettings['OD'] || {};
-                isThisUserShiftOpen = odS.isOpen || false;
-            }
         }
 
         for (let d = 1; d <= daysInMonth; d++) {
