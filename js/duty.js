@@ -865,7 +865,7 @@ window.generateDutyRoster = async function() {
             let teamStats = teamsNeedingPeople.map(team => {
                 // 🌟 หาคนที่ "ไม่ได้ทำเว็บนี้เมื่อวาน" และมีสิทธิ์เข้า — กฎเข้ม
                 let eligible = unassignedPool.filter(u => {
-                    const access = dutyAccessMatrix[u.id] || [];
+                    const access = dutyAccessMatrix[String(u.id)] || [];
                     if (!access.includes(team)) return false;
                     if (yestTeamMap[u.id] === team) return false; // ❌ ห้ามทำเว็บเดิมซ้ำกับเมื่อวาน
                     return true;
@@ -874,7 +874,7 @@ window.generateDutyRoster = async function() {
                 // 🛟 Fallback: ถ้าไม่มีคนที่ผ่านเงื่อนไขเลย → ผ่อนกฎ (ยอมให้ทำซ้ำ) เพื่อไม่ให้ตารางขาด
                 let relaxed = false;
                 if (eligible.length === 0) {
-                    eligible = unassignedPool.filter(u => (dutyAccessMatrix[u.id] || []).includes(team));
+                    eligible = unassignedPool.filter(u => (dutyAccessMatrix[String(u.id)] || []).includes(team));
                     relaxed = true;
                 }
                 return { team: team, eligibleCount: eligible.length, eligibleUsers: eligible, relaxed };
@@ -891,7 +891,7 @@ window.generateDutyRoster = async function() {
             }
 
             let userOptions = target.eligibleUsers.map(u => {
-                let access = dutyAccessMatrix[u.id] || [];
+                let access = dutyAccessMatrix[String(u.id)] || [];
                 let viableTeamsCount = access.filter(t => remainingReqs[t] > 0).length;
                 let didThisTeamYesterday = (yestTeamMap[u.id] === teamToFill) ? 1 : 0;
                 
@@ -2017,7 +2017,7 @@ window.renderDutyAccessTable = function() {
             roleBadge = `<span class="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 shadow-sm ml-1">Manager</span>`;
         }
 
-        const userAccess = dutyAccessMatrix[u.id] || [];
+        const userAccess = dutyAccessMatrix[String(u.id)] || [];
         const validAccessCount = userAccess.filter(t => sortedTeams.includes(t)).length; 
 
         let noAccessWarning = '';
@@ -2050,7 +2050,7 @@ window.renderDutyAccessTable = function() {
 }
 
 window.updateLocalDutyAccess = function(uid, team, isChecked) {
-    if(!dutyAccessMatrix[uid]) dutyAccessMatrix[uid] = [];
+    uid = String(uid); if(!dutyAccessMatrix[uid]) dutyAccessMatrix[uid] = [];
     if(isChecked) { 
         if(!dutyAccessMatrix[uid].includes(team)) dutyAccessMatrix[uid].push(team); 
     } else { 
@@ -2219,7 +2219,7 @@ window.autoSuggestRequirements = function() {
     let unassignedUsers = []; 
 
     pool.forEach(u => {
-        const access = dutyAccessMatrix[u.id] || [];
+        const access = dutyAccessMatrix[String(u.id)] || [];
         const validAccess = access.filter(t => sortedTeams.includes(t));
 
         if (validAccess.length > 0) {
