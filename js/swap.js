@@ -8,6 +8,8 @@ let excludeNList = [];
 let activeSwapTypeFilter = 'all';
 let activeSwapDeptFilter = 'AM';
 let draggedSwapUser = null;
+// [FIX] เก็บ pair ไว้ระดับ module ให้ confirmAndSaveSwapPlan เข้าถึงได้
+let currentSwapPair = null;
 
 // ฟังก์ชันเปิดหน้าจอ
 window.openAutoSwapModal = async function() {
@@ -162,10 +164,11 @@ window.generateSwapPlan = async function() {
             'M_N':    { from: 'กะเช้า', to: 'กะดึก',  toLabel: 'ดึก',   fromLabel: 'เช้า',  bidirectional: true  },
             'M_A':    { from: 'กะเช้า', to: 'กะกลาง', toLabel: 'กลาง',  fromLabel: 'เช้า',  bidirectional: true  },
             'A_N':    { from: 'กะกลาง', to: 'กะดึก',  toLabel: 'ดึก',   fromLabel: 'กลาง',  bidirectional: true  },
-            'N_M':    { from: 'กะดึก',  to: 'กะเช้า', toLabel: 'เช้า',  fromLabel: 'ดึก',   bidirectional: false },
+            'N_M':    { from: 'กะดึก',  to: 'กะเช้า', toLabel: 'เช้า',  fromLabel: 'ดึก',   bidirectional: true  }, // [FIX] เปิด bidirectional ให้ฝั่งเช้าแสดงคนด้วย
             'M_only': { from: 'กะเช้า', to: 'กะดึก',  toLabel: 'ดึก',   fromLabel: 'เช้า',  bidirectional: false },
         };
         const pair = SHIFT_MAP[shiftPair] || SHIFT_MAP['M_N'];
+        currentSwapPair = pair; // [FIX] เก็บไว้ให้ confirmAndSaveSwapPlan ใช้
         
         if (!startDateVal || !endDateVal) return Swal.fire('แจ้งเตือน', 'กรุณาระบุวันที่เริ่มต้นและสิ้นสุด', 'warning');
         const startDateObj = new Date(startDateVal); const endDateObj = new Date(endDateVal);
@@ -352,20 +355,21 @@ window.confirmAndSaveSwapPlan = async function() {
                 const startDateStr = document.getElementById('swapStartDate').value;
 
                 generatedSwapPlan.forEach(dayPlan => {
+                    const _p = currentSwapPair || { to: 'กะดึก', from: 'กะเช้า', toLabel: 'ดึก', fromLabel: 'เช้า' };
                     dayPlan.morningToNight.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetDate}T05:00:00+07:00`);
-                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: pair.to, display_desc: dayPlan.descMtoN }, scheduled_for: exactTime.toISOString(), status: 'pending' });
+                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: _p.to, display_desc: dayPlan.descMtoN }, scheduled_for: exactTime.toISOString(), status: 'pending' });
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                     dayPlan.nightToMorning.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetNextDate}T05:00:00+07:00`);
-                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: pair.from, display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
+                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: _p.from, display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                 });
 
-                excludeMList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: pair.from, display_desc: `อยู่${pair.fromLabel}ตามเดิม` }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
-                excludeNList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: pair.to, display_desc: `อยู่${pair.toLabel}ตามเดิม` }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
+                excludeMList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: _p.from, display_desc: `อยู่${_p.fromLabel}ตามเดิม` }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
+                excludeNList.forEach(user => { tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: _p.to, display_desc: `อยู่${_p.toLabel}ตามเดิม` }, scheduled_for: `${startDateStr}T00:00:00`, status: 'info_only' }); });
 
                 if (tasksToInsert.length > 0) { 
                     const { error } = await appDB.from('scheduled_tasks').insert(tasksToInsert); 
