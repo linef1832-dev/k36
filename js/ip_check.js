@@ -18,12 +18,9 @@ let currentIpTab = 'all';
 // 📄 ระบบแบ่งหน้า (pagination) — ทุกแท็บ
 const IP_PAGE_SIZE = 30;
 let ipPages = {
-    all: 1,
-    changes: 1,
-    fp_changes: 1,
-    duplicates: 1,
-    fp_duplicates: 1,
-    by_user: 1
+    all: 1, changes: 1, fp_changes: 1,
+    duplicates: 1, fp_duplicates: 1, by_user: 1,
+    risk: 1, vpn: 1
 };
 // backward compat
 Object.defineProperty(window, 'ipCurrentPage', {
@@ -124,7 +121,12 @@ window.switchIpTab = function(tab) {
             fp_changes:    'bg-fuchsia-600',
             duplicates:    'bg-amber-500',
             fp_duplicates: 'bg-orange-500',
-            by_user:       'bg-emerald-600'
+            by_user:       'bg-emerald-600',
+            risk:          'bg-slate-700',
+            vpn:           'bg-purple-600',
+            travel:        'bg-red-600',
+            heatmap:       'bg-blue-600',
+            timeline:      'bg-indigo-600'
         };
         activeBtn.classList.add(colorMap[tab] || 'bg-sky-600', 'text-white');
     }
@@ -143,19 +145,17 @@ window.filterIpLogs = function() {
 // 🎨 วาดข้อมูลตาม Tab ที่เลือก
 // ==========================================
 function renderIpView() {
-    if (currentIpTab === 'changes') {
-        renderIpChanges();
-    } else if (currentIpTab === 'fp_changes') {
-        renderFpChanges();
-    } else if (currentIpTab === 'duplicates') {
-        renderDuplicateIps();
-    } else if (currentIpTab === 'fp_duplicates') {
-        renderDuplicateFps();
-    } else if (currentIpTab === 'by_user') {
-        renderByUser();
-    } else {
-        renderAllLogs();
-    }
+    if      (currentIpTab === 'changes')      renderIpChanges();
+    else if (currentIpTab === 'fp_changes')   renderFpChanges();
+    else if (currentIpTab === 'duplicates')   renderDuplicateIps();
+    else if (currentIpTab === 'fp_duplicates')renderDuplicateFps();
+    else if (currentIpTab === 'by_user')      renderByUser();
+    else if (currentIpTab === 'risk')         renderRiskBoard();
+    else if (currentIpTab === 'vpn')          renderVpnDetector();
+    else if (currentIpTab === 'travel')       renderImpossibleTravel();
+    else if (currentIpTab === 'heatmap')      renderLoginHeatmap();
+    else if (currentIpTab === 'timeline')     renderUserTimeline();
+    else                                      renderAllLogs();
 }
 
 // ==========================================
@@ -1024,3 +1024,451 @@ window.exportIpLogsCSV = function() {
 // 🛡️ ยืนยันว่าไฟล์นี้โหลดสำเร็จ (debug log)
 // ==========================================
 console.log('[ip_check.js] โหลดสำเร็จ — ฟังก์ชัน fetchIpLogs/switchIpTab พร้อมใช้งาน');
+
+// ==========================================
+// 🔥 ฟีเจอร์ใหม่ V5
+// ==========================================
+
+// ==========================================
+// 🏆 Risk Score — คะแนนความน่าสงสัยต่อคน
+// ==========================================
+const VPN_ISP_KEYWORDS = [
+    'vpn','proxy','hosting','datacenter','data center','digitalocean',
+    'linode','vultr','hetzner','ovh','cloudflare','amazon','google cloud',
+    'microsoft azure','fastly','leaseweb','choopa','as-choopa','multacom',
+    'psychz','quadranet','tzulo','buyvm','frantech','m247','mullvad',
+    'nordvpn','expressvpn','torguard','hidemyass','privateinternetaccess',
+    'surfshark','cyberghost'
+];
+
+function calcRiskScore(u) {
+    let score = 0;
+    const reasons = [];
+    const ipCount  = Object.keys(u.ips  || {}).length;
+    const fpCount  = Object.keys(u.fps  || {}).length;
+    const countries = new Set(Object.values(u.ips || {}).map(i => i.country).filter(c => c && c !== '-'));
+
+    if (u.fpChanges > 0)  { score += u.fpChanges  * 30; reasons.push(`🔴 สลับเครื่อง ${u.fpChanges} ครั้ง`); }
+    if (u.ipChanges > 0)  { score += u.ipChanges  * 15; reasons.push(`🟠 เปลี่ยน IP ${u.ipChanges} ครั้ง`); }
+    if (fpCount > 1)      { score += (fpCount-1)  * 20; reasons.push(`🟠 ใช้ ${fpCount} เครื่อง`); }
+    if (ipCount > 2)      { score += (ipCount-2)  * 8;  reasons.push(`🟡 ใช้ ${ipCount} IP`); }
+    if (countries.size > 1){ score += countries.size * 25; reasons.push(`🔴 ${countries.size} ประเทศ: ${[...countries].join(', ')}`); }
+
+    // VPN ISP check
+    const isps = Object.values(u.ips || {}).map(i => (i.isp || '').toLowerCase());
+    const vpnHits = isps.filter(isp => VPN_ISP_KEYWORDS.some(k => isp.includes(k)));
+    if (vpnHits.length > 0) { score += 40; reasons.push(`🔴 ISP น่าสงสัย (VPN/Datacenter)`); }
+
+    // ชั่วโมงผิดปกติ (ตี 1 - ตี 5)
+    const oddHour = (u.allTimes || []).filter(t => {
+        const h = new Date(t).getHours();
+        return h >= 1 && h <= 5;
+    }).length;
+    if (oddHour > 0) { score += oddHour * 5; reasons.push(`🟡 Login ดึก/ตี ${oddHour} ครั้ง`); }
+
+    let level = 'low';
+    if (score >= 60) level = 'critical';
+    else if (score >= 30) level = 'high';
+    else if (score >= 10) level = 'medium';
+
+    return { score, level, reasons };
+}
+
+window.renderRiskBoard = function() {
+    const container = document.getElementById('ipLogsContainer');
+    if (!container) return;
+
+    // สร้าง userMap
+    const userMap = {};
+    globalIpLogs.forEach(l => {
+        if (!l.user_id) return;
+        if (!userMap[l.user_id]) {
+            userMap[l.user_id] = {
+                user_id: l.user_id, username: l.username,
+                ips: {}, fps: {}, ipChanges: 0, fpChanges: 0,
+                allTimes: [], lastSeen: l.login_time
+            };
+        }
+        const u = userMap[l.user_id];
+        if (l.ip_address) u.ips[l.ip_address] = { country: l.country, isp: l.isp };
+        if (l.fingerprint) u.fps[l.fingerprint] = true;
+        if (l.event_type === 'ip_change') u.ipChanges++;
+        if (l.event_type === 'fp_change') u.fpChanges++;
+        if (l.login_time) u.allTimes.push(l.login_time);
+        if (l.login_time > u.lastSeen) u.lastSeen = l.login_time;
+    });
+
+    const term = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+    let users = Object.values(userMap);
+    if (term) users = users.filter(u => (u.username || '').toLowerCase().includes(term));
+
+    users = users.map(u => ({ ...u, ...calcRiskScore(u) }))
+                 .sort((a, b) => b.score - a.score);
+
+    const levelColor = {
+        critical: { bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-500', badge: 'bg-red-500', label: '🔴 วิกฤต' },
+        high:     { bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-500', badge: 'bg-orange-500', label: '🟠 สูง' },
+        medium:   { bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-500', badge: 'bg-yellow-500', label: '🟡 กลาง' },
+        low:      { bg: 'bg-slate-50 dark:bg-slate-800', border: 'border-slate-300', badge: 'bg-slate-400', label: '🟢 ปกติ' }
+    };
+
+    const _tc = Math.max(1, Math.ceil(users.length / IP_PAGE_SIZE));
+    const _p  = Math.min(Math.max(1, ipPages.risk || 1), _tc);
+    ipPages.risk = _p;
+    const paged = users.slice((_p-1)*IP_PAGE_SIZE, _p*IP_PAGE_SIZE);
+
+    const suspicious = users.filter(u => u.level !== 'low').length;
+
+    container.innerHTML = `
+        <div class="col-span-full mb-3 p-4 rounded-xl bg-gradient-to-r from-slate-800 to-slate-700 text-white flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <div class="font-black text-lg">🏆 Risk Score Board</div>
+                <div class="text-xs opacity-75">คำนวณจาก: FP เปลี่ยน × 30 | IP เปลี่ยน × 15 | หลายเครื่อง × 20 | VPN × 40 | หลายประเทศ × 25</div>
+            </div>
+            <div class="flex gap-3">
+                <div class="text-center"><div class="text-2xl font-black text-red-400">${users.filter(u=>u.level==='critical').length}</div><div class="text-[10px] opacity-75">วิกฤต</div></div>
+                <div class="text-center"><div class="text-2xl font-black text-orange-400">${users.filter(u=>u.level==='high').length}</div><div class="text-[10px] opacity-75">สูง</div></div>
+                <div class="text-center"><div class="text-2xl font-black text-yellow-400">${users.filter(u=>u.level==='medium').length}</div><div class="text-[10px] opacity-75">กลาง</div></div>
+                <div class="text-center"><div class="text-2xl font-black text-green-400">${users.filter(u=>u.level==='low').length}</div><div class="text-[10px] opacity-75">ปกติ</div></div>
+            </div>
+        </div>
+        ${paged.map((u, i) => {
+            const c = levelColor[u.level];
+            const rank = (_p-1)*IP_PAGE_SIZE + i + 1;
+            return `
+            <div class="col-span-full ${c.bg} rounded-2xl shadow p-4 border-l-4 ${c.border}">
+                <div class="flex items-start justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-3">
+                        <div class="text-2xl font-black text-slate-400 w-8">#${rank}</div>
+                        <div>
+                            <div class="font-black text-lg text-slate-800 dark:text-white">${u.username}</div>
+                            <div class="text-[10px] text-gray-500">เข้าล่าสุด: ${new Date(u.lastSeen).toLocaleString('th-TH')}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-3xl font-black ${u.level === 'critical' ? 'text-red-500' : u.level === 'high' ? 'text-orange-500' : u.level === 'medium' ? 'text-yellow-500' : 'text-slate-400'}">${u.score}</div>
+                        <span class="${c.badge} text-white text-xs font-bold px-3 py-1 rounded-full">${c.label}</span>
+                    </div>
+                </div>
+                ${u.reasons.length > 0 ? `
+                <div class="mt-3 flex flex-wrap gap-2">
+                    ${u.reasons.map(r => `<span class="text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2 py-1 rounded-lg font-bold">${r}</span>`).join('')}
+                </div>` : '<div class="mt-2 text-xs text-green-500 font-bold">✅ ไม่พบพฤติกรรมผิดปกติ</div>'}
+            </div>`;
+        }).join('')}
+        ${_tc > 1 ? renderIpPagination(_tc, users.length, 'risk') : ''}
+    `;
+};
+
+// ==========================================
+// 🛡️ VPN / Datacenter Detector
+// ==========================================
+window.renderVpnDetector = function() {
+    const container = document.getElementById('ipLogsContainer');
+    if (!container) return;
+
+    const term = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+    let suspects = globalIpLogs.filter(l => {
+        const isp = (l.isp || '').toLowerCase();
+        return VPN_ISP_KEYWORDS.some(k => isp.includes(k));
+    });
+    if (term) suspects = suspects.filter(l => (l.username||'').toLowerCase().includes(term) || (l.ip_address||'').toLowerCase().includes(term));
+
+    if (suspects.length === 0) {
+        container.innerHTML = `<div class="col-span-full flex flex-col items-center py-20 text-emerald-500">
+            <span class="material-icons text-6xl mb-2">verified_user</span>
+            <p class="font-bold">ไม่พบการใช้ VPN / Proxy / Datacenter IP 🎉</p></div>`;
+        return;
+    }
+
+    // Group by IP
+    const ipMap = {};
+    suspects.forEach(l => {
+        if (!ipMap[l.ip_address]) ipMap[l.ip_address] = { ip: l.ip_address, isp: l.isp, country: l.country, users: new Set(), logs: [] };
+        ipMap[l.ip_address].users.add(l.username);
+        ipMap[l.ip_address].logs.push(l);
+    });
+    const groups = Object.values(ipMap).sort((a,b) => b.users.size - a.users.size);
+
+    const _tc = Math.max(1, Math.ceil(groups.length / IP_PAGE_SIZE));
+    const _p  = Math.min(Math.max(1, ipPages.vpn || 1), _tc);
+    ipPages.vpn = _p;
+    const paged = groups.slice((_p-1)*IP_PAGE_SIZE, _p*IP_PAGE_SIZE);
+
+    container.innerHTML = `
+        <div class="col-span-full mb-3 bg-purple-50 dark:bg-purple-900/20 border-l-4 border-purple-500 p-4 rounded-xl">
+            <div class="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-bold">
+                <span class="material-icons">vpn_lock</span>
+                <span>พบ ${groups.length} IP ที่น่าสงสัย (VPN / Proxy / Datacenter)</span>
+            </div>
+            <p class="text-xs text-purple-600 dark:text-purple-400 mt-1">ตรวจจากชื่อ ISP ที่มักใช้ซ่อน IP จริง</p>
+        </div>
+        ${paged.map(g => `
+        <div class="col-span-full bg-white dark:bg-slate-800 rounded-2xl shadow p-4 border-l-4 border-purple-500">
+            <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <div>
+                    <div class="font-mono font-bold text-lg text-purple-700 dark:text-purple-300">${g.ip}</div>
+                    <div class="text-xs text-gray-500">${g.country || '-'} • ${g.isp}</div>
+                </div>
+                <span class="bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">⚠ VPN/Proxy • ${g.users.size} คน</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                ${[...g.users].map(u => `<span class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600">${u}</span>`).join('')}
+            </div>
+        </div>`).join('')}
+        ${_tc > 1 ? renderIpPagination(_tc, groups.length, 'vpn') : ''}
+    `;
+};
+
+// ==========================================
+// ✈️ Impossible Travel Detector
+// ==========================================
+function haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2-lat1) * Math.PI/180;
+    const dLon = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+window.renderImpossibleTravel = function() {
+    const container = document.getElementById('ipLogsContainer');
+    if (!container) return;
+
+    // จัดกลุ่มตาม user แล้วเรียงตามเวลา
+    const userLogs = {};
+    globalIpLogs.forEach(l => {
+        if (!l.latitude || !l.longitude) return;
+        if (!userLogs[l.user_id]) userLogs[l.user_id] = [];
+        userLogs[l.user_id].push(l);
+    });
+    Object.values(userLogs).forEach(arr => arr.sort((a,b) => new Date(a.login_time) - new Date(b.login_time)));
+
+    const alerts = [];
+    Object.values(userLogs).forEach(logs => {
+        for (let i = 1; i < logs.length; i++) {
+            const prev = logs[i-1], curr = logs[i];
+            const distKm = haversineKm(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
+            const diffHr = (new Date(curr.login_time) - new Date(prev.login_time)) / 3600000;
+            if (diffHr <= 0) continue;
+            const speedKmh = distKm / diffHr;
+            // ถ้าต้องเดินทางเกิน 900 km/h (เร็วกว่าเครื่องบินพาณิชย์) = ผิดปกติ
+            if (distKm > 100 && speedKmh > 900) {
+                alerts.push({ username: curr.username, prev, curr, distKm: Math.round(distKm), speedKmh: Math.round(speedKmh), diffHr: diffHr.toFixed(1) });
+            }
+        }
+    });
+
+    const hasLatLng = globalIpLogs.some(l => l.latitude && l.longitude);
+
+    if (!hasLatLng) {
+        container.innerHTML = `<div class="col-span-full flex flex-col items-center py-20 text-slate-400">
+            <span class="material-icons text-6xl mb-2 opacity-30">flight</span>
+            <p class="font-bold">ยังไม่มีข้อมูลพิกัด (lat/lng)</p>
+            <p class="text-xs mt-2 text-center max-w-sm">ข้อมูลพิกัดจะเริ่มเก็บจากนี้ไป หลังจาก login ใหม่ครั้งถัดไป<br>รอสัก 1-2 วันแล้วกลับมาเช็คใหม่</p>
+        </div>`;
+        return;
+    }
+
+    if (alerts.length === 0) {
+        container.innerHTML = `<div class="col-span-full flex flex-col items-center py-20 text-emerald-500">
+            <span class="material-icons text-6xl mb-2">flight_land</span>
+            <p class="font-bold">ไม่พบ Impossible Travel 🎉</p></div>`;
+        return;
+    }
+
+    const term = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+    let filtered = alerts;
+    if (term) filtered = filtered.filter(a => (a.username||'').toLowerCase().includes(term));
+
+    container.innerHTML = `
+        <div class="col-span-full mb-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-xl">
+            <div class="flex items-center gap-2 text-red-700 dark:text-red-300 font-bold">
+                <span class="material-icons">flight</span>
+                <span>พบ ${filtered.length} กรณี Impossible Travel (เดินทางเร็วเกินจริง)</span>
+            </div>
+            <p class="text-xs text-red-600 dark:text-red-400 mt-1">เกณฑ์: ระยะทาง > 100km และความเร็ว > 900 km/h ภายในเวลาเดียวกัน = ไม่ใช่คนเดียวกัน</p>
+        </div>
+        ${filtered.map(a => `
+        <div class="col-span-full bg-white dark:bg-slate-800 rounded-2xl shadow p-4 border-l-4 border-red-500">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div class="font-black text-lg text-slate-800 dark:text-white">${a.username}</div>
+                <div class="flex gap-2">
+                    <span class="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">🚀 ${a.speedKmh.toLocaleString()} km/h</span>
+                    <span class="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">📍 ${a.distKm.toLocaleString()} km</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3">
+                    <div class="text-[10px] font-bold text-gray-500 uppercase mb-1">จุดเดิม</div>
+                    <div class="font-bold text-slate-800 dark:text-white">${a.prev.country} • ${a.prev.city}</div>
+                    <div class="font-mono text-xs text-slate-500">${a.prev.ip_address}</div>
+                    <div class="text-xs text-gray-400 mt-1">${new Date(a.prev.login_time).toLocaleString('th-TH')}</div>
+                </div>
+                <div class="bg-red-50 dark:bg-red-900/30 rounded-xl p-3 border border-red-200 dark:border-red-700">
+                    <div class="text-[10px] font-bold text-red-500 uppercase mb-1">⚡ จุดใหม่ (${a.diffHr} ชม.ต่อมา)</div>
+                    <div class="font-bold text-red-700 dark:text-red-300">${a.curr.country} • ${a.curr.city}</div>
+                    <div class="font-mono text-xs text-red-500">${a.curr.ip_address}</div>
+                    <div class="text-xs text-red-400 mt-1">${new Date(a.curr.login_time).toLocaleString('th-TH')}</div>
+                </div>
+            </div>
+        </div>`).join('')}
+    `;
+};
+
+// ==========================================
+// ⏰ Login Heatmap (7 วัน × 24 ชม.)
+// ==========================================
+window.renderLoginHeatmap = function() {
+    const container = document.getElementById('ipLogsContainer');
+    if (!container) return;
+
+    const grid = {};
+    const days = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+    for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) grid[`${d}_${h}`] = 0;
+
+    const term = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+    let logs = globalIpLogs;
+    if (term) logs = logs.filter(l => (l.username||'').toLowerCase().includes(term));
+
+    let maxCount = 0;
+    logs.forEach(l => {
+        if (!l.login_time) return;
+        const d = new Date(l.login_time);
+        const key = `${d.getDay()}_${d.getHours()}`;
+        grid[key] = (grid[key] || 0) + 1;
+        if (grid[key] > maxCount) maxCount = grid[key];
+    });
+
+    const cellColor = (count) => {
+        if (count === 0) return 'bg-slate-100 dark:bg-slate-700';
+        const ratio = count / maxCount;
+        if (ratio >= 0.8) return 'bg-red-500';
+        if (ratio >= 0.6) return 'bg-orange-400';
+        if (ratio >= 0.4) return 'bg-yellow-400';
+        if (ratio >= 0.2) return 'bg-green-400';
+        return 'bg-green-200';
+    };
+
+    let html = `
+        <div class="col-span-full bg-white dark:bg-slate-800 rounded-2xl shadow p-5">
+            <div class="font-black text-lg mb-1 text-slate-800 dark:text-white">⏰ Login Heatmap</div>
+            <div class="text-xs text-gray-500 mb-4">ความหนาแน่นของ login ตามวัน × ชั่วโมง — สีแดง = บ่อยที่สุด</div>
+            <div class="overflow-x-auto">
+                <table class="text-[10px] border-separate border-spacing-1">
+                    <thead><tr>
+                        <th class="w-6 text-gray-400"></th>
+                        ${Array.from({length:24},(_,h) => `<th class="w-7 text-center text-gray-400 font-normal">${h}</th>`).join('')}
+                    </tr></thead>
+                    <tbody>
+                        ${days.map((day, d) => `
+                        <tr>
+                            <td class="text-gray-500 font-bold pr-1">${day}</td>
+                            ${Array.from({length:24},(_,h) => {
+                                const count = grid[`${d}_${h}`] || 0;
+                                const isOdd = h >= 1 && h <= 5;
+                                return `<td title="${day} ${h}:00 — ${count} ครั้ง ${isOdd && count > 0 ? '⚠️ ผิดปกติ' : ''}" class="w-7 h-7 rounded ${cellColor(count)} ${isOdd && count > 0 ? 'ring-2 ring-red-400' : ''} cursor-pointer transition hover:opacity-80"></td>`;
+                            }).join('')}
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex items-center gap-2 mt-3 text-[10px] text-gray-500">
+                <span>น้อย</span>
+                <div class="flex gap-1">
+                    <div class="w-4 h-4 rounded bg-green-200"></div>
+                    <div class="w-4 h-4 rounded bg-green-400"></div>
+                    <div class="w-4 h-4 rounded bg-yellow-400"></div>
+                    <div class="w-4 h-4 rounded bg-orange-400"></div>
+                    <div class="w-4 h-4 rounded bg-red-500"></div>
+                </div>
+                <span>มาก</span>
+                <span class="ml-4">⭕ = ตี 1-5 (น่าสงสัย)</span>
+            </div>
+        </div>`;
+
+    // odd hour suspects
+    const oddUsers = {};
+    logs.forEach(l => {
+        if (!l.login_time) return;
+        const h = new Date(l.login_time).getHours();
+        if (h >= 1 && h <= 5) {
+            if (!oddUsers[l.username]) oddUsers[l.username] = [];
+            oddUsers[l.username].push({ h, time: l.login_time });
+        }
+    });
+    const oddList = Object.entries(oddUsers).sort((a,b) => b[1].length - a[1].length);
+
+    if (oddList.length > 0) {
+        html += `
+        <div class="col-span-full bg-red-50 dark:bg-red-900/20 rounded-2xl shadow p-4 border-l-4 border-red-400 mt-0">
+            <div class="font-bold text-red-700 dark:text-red-300 mb-2">⚠️ พนักงานที่ Login ช่วงเวลาผิดปกติ (ตี 1-5)</div>
+            <div class="flex flex-wrap gap-2">
+                ${oddList.map(([name, times]) => `
+                <div class="bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-red-200 dark:border-red-700 text-sm">
+                    <span class="font-bold text-slate-800 dark:text-white">${name}</span>
+                    <span class="ml-2 text-red-500 font-bold">${times.length} ครั้ง</span>
+                </div>`).join('')}
+            </div>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+};
+
+// ==========================================
+// 👤 Timeline ต่อพนักงาน
+// ==========================================
+window.renderUserTimeline = function() {
+    const container = document.getElementById('ipLogsContainer');
+    if (!container) return;
+
+    const term = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+
+    if (!term) {
+        container.innerHTML = `<div class="col-span-full flex flex-col items-center py-20 text-slate-400">
+            <span class="material-icons text-6xl mb-2 opacity-30">manage_search</span>
+            <p class="font-bold">พิมพ์ชื่อพนักงานในช่องค้นหาเพื่อดู Timeline</p>
+        </div>`;
+        return;
+    }
+
+    const logs = globalIpLogs
+        .filter(l => (l.username||'').toLowerCase().includes(term))
+        .sort((a,b) => new Date(b.login_time) - new Date(a.login_time));
+
+    if (logs.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center py-20 text-gray-400"><p class="font-bold">ไม่พบข้อมูลของ "${term}"</p></div>`;
+        return;
+    }
+
+    const evColor = { login: 'bg-emerald-500', ip_change: 'bg-rose-500', fp_change: 'bg-fuchsia-500' };
+    const evLabel = { login: '🟢 Login', ip_change: '🔴 IP เปลี่ยน', fp_change: '🟣 สลับเครื่อง' };
+
+    container.innerHTML = `
+        <div class="col-span-full bg-white dark:bg-slate-800 rounded-2xl shadow p-5">
+            <div class="font-black text-lg mb-4 text-slate-800 dark:text-white">👤 Timeline: ${logs[0]?.username} (${logs.length} events)</div>
+            <div class="relative">
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-600"></div>
+                <div class="space-y-4">
+                    ${logs.map(l => `
+                    <div class="flex gap-4 pl-10 relative">
+                        <div class="absolute left-2.5 w-3 h-3 rounded-full ${evColor[l.event_type] || 'bg-slate-400'} mt-1 ring-2 ring-white dark:ring-slate-800"></div>
+                        <div class="flex-1 bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3">
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <span class="text-sm font-bold text-slate-800 dark:text-white">${evLabel[l.event_type] || l.event_type}</span>
+                                <span class="text-xs text-gray-400">${new Date(l.login_time).toLocaleString('th-TH')}</span>
+                            </div>
+                            <div class="mt-1 text-xs text-gray-500 space-y-0.5">
+                                <div>🌐 <span class="font-mono">${l.ip_address || '-'}</span> — ${l.country || '-'} / ${l.city || '-'}</div>
+                                <div>🏢 ${l.isp || '-'}</div>
+                                ${l.fingerprint ? `<div>📱 FP: <span class="font-mono">${shortFp(l.fingerprint)}</span></div>` : ''}
+                                ${l.timezone ? `<div>🕐 Timezone: ${l.timezone}</div>` : ''}
+                                ${l.asn ? `<div>🔌 ASN: ${l.asn}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>`).join('')}
+                </div>
+            </div>
+        </div>`;
+};
