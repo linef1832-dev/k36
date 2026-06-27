@@ -223,9 +223,9 @@ async function probeCurrentIp() {
     return null;
 }
 
-// 🌍 [Step 2] ดึงข้อมูลละเอียด — เรียกเฉพาะตอน IP เปลี่ยน
+// 🌍 [Step 2] ดึงข้อมูลละเอียด — เรียกเฉพาะตอน IP เปลี่ยน (V5: เพิ่ม lat/lng/timezone/asn)
 async function fetchIpDetails(ip) {
-    const fallback = { ip: ip || 'unknown', country: '-', city: '-', isp: '-' };
+    const fallback = { ip: ip || 'unknown', country: '-', city: '-', isp: '-', latitude: null, longitude: null, timezone: null, asn: null };
     
     try {
         const ctrl = new AbortController();
@@ -234,12 +234,18 @@ async function fetchIpDetails(ip) {
         clearTimeout(t);
         if (r.ok) {
             const d = await r.json();
-            return {
-                ip:      d.ip || ip,
-                country: d.country_name || '-',
-                city:    d.city || '-',
-                isp:     d.org || '-'
-            };
+            if (!d.error) {
+                return {
+                    ip:        d.ip || ip,
+                    country:   d.country_name || '-',
+                    city:      d.city || '-',
+                    isp:       d.org || '-',
+                    latitude:  d.latitude  || null,
+                    longitude: d.longitude || null,
+                    timezone:  d.timezone  || null,
+                    asn:       d.asn       || null
+                };
+            }
         }
     } catch (e) { /* ใช้ fallback */ }
     
@@ -252,10 +258,14 @@ async function fetchIpDetails(ip) {
             const d = await r.json();
             if (d.success !== false) {
                 return {
-                    ip:      d.ip || ip,
-                    country: d.country || '-',
-                    city:    d.city || '-',
-                    isp:     (d.connection && d.connection.isp) || '-'
+                    ip:        d.ip || ip,
+                    country:   d.country || '-',
+                    city:      d.city || '-',
+                    isp:       (d.connection && d.connection.isp) || '-',
+                    latitude:  d.latitude  || null,
+                    longitude: d.longitude || null,
+                    timezone:  d.timezone  || null,
+                    asn:       (d.connection && d.connection.asn) ? String(d.connection.asn) : null
                 };
             }
         }
@@ -264,7 +274,7 @@ async function fetchIpDetails(ip) {
     return fallback;
 }
 
-// 💾 บันทึก Log ลง Supabase (เพิ่ม fingerprint)
+// 💾 บันทึก Log ลง Supabase (V5: เพิ่ม lat/lng/timezone/asn)
 async function writeIpLog(user, ipInfo, eventType, fingerprint) {
     if (!user || !user.id || !appDB) return;
     try {
@@ -277,7 +287,11 @@ async function writeIpLog(user, ipInfo, eventType, fingerprint) {
             city:        ipInfo.city,
             isp:         ipInfo.isp,
             event_type:  eventType,
-            fingerprint: fingerprint || null   // 🆔 เพิ่ม FP
+            fingerprint: fingerprint || null,
+            latitude:    ipInfo.latitude  || null,
+            longitude:   ipInfo.longitude || null,
+            timezone:    ipInfo.timezone  || null,
+            asn:         ipInfo.asn       || null
         }]);
     } catch (err) {
         console.warn('IP log error:', err);
