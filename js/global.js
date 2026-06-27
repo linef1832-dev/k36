@@ -258,12 +258,7 @@ async function showPage(pageName) {
                 else if (pageName === 'kbiz') {
                     if (typeof fetchKbizData === 'function') await fetchKbizData();
                 }
-                else if (pageName === 'announcement') {
-                    if (typeof renderAnnouncementUI === 'function') renderAnnouncementUI();
-                    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
-                        if(document.getElementById('adminAnnouncementControls')) document.getElementById('adminAnnouncementControls').classList.remove('hidden');
-                    }
-                }
+
                 else if (pageName === 'swap') {
                     if (typeof openAutoSwapModal === 'function') await openAutoSwapModal();
                 }
