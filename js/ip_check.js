@@ -15,6 +15,10 @@ let globalIpLogs = [];
 let currentIpFilterUser = 'all';
 let currentIpTab = 'all';
 
+// 📄 ระบบแบ่งหน้า (pagination) สำหรับแท็บประวัติทั้งหมด
+let ipCurrentPage = 1;
+const IP_PAGE_SIZE = 50;
+
 // ==========================================
 // 🚀 เริ่มต้นเมื่อเข้าหน้านี้
 // ==========================================
@@ -92,6 +96,7 @@ function populateIpUserFilter() {
 // ==========================================
 window.switchIpTab = function(tab) {
     currentIpTab = tab;
+    ipCurrentPage = 1; // รีเซ็ตกลับหน้าแรกเมื่อเปลี่ยนแท็บ
 
     document.querySelectorAll('.ip-tab-btn').forEach(b => {
         b.classList.remove('bg-sky-600', 'bg-rose-600', 'bg-fuchsia-600', 'bg-amber-500', 'bg-orange-500', 'bg-emerald-600', 'text-white');
@@ -118,6 +123,7 @@ window.switchIpTab = function(tab) {
 window.filterIpLogs = function() {
     const sel = document.getElementById('ipUserFilter');
     currentIpFilterUser = sel ? sel.value : 'all';
+    ipCurrentPage = 1; // รีเซ็ตกลับหน้าแรกเมื่อกรอง
     renderIpView();
 };
 
@@ -216,6 +222,13 @@ function renderAllLogs() {
         }
     });
 
+    // 📄 แบ่งหน้า: คำนวณจำนวนหน้า + ตัดข้อมูลเฉพาะหน้าปัจจุบัน
+    const totalPages = Math.max(1, Math.ceil(logs.length / IP_PAGE_SIZE));
+    if (ipCurrentPage > totalPages) ipCurrentPage = totalPages;
+    if (ipCurrentPage < 1) ipCurrentPage = 1;
+    const startIdx = (ipCurrentPage - 1) * IP_PAGE_SIZE;
+    const pagedLogs = logs.slice(startIdx, startIdx + IP_PAGE_SIZE);
+
     container.innerHTML = `
         <div class="col-span-full overflow-x-auto rounded-xl shadow-md">
             <table class="min-w-full bg-white dark:bg-slate-800 text-sm">
@@ -233,7 +246,7 @@ function renderAllLogs() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${logs.map(l => {
+                    ${pagedLogs.map(l => {
                         const sharedIpCount = (ipUserMap[l.ip_address] || new Set()).size;
                         const sharedFpCount = (fpUserMap[l.fingerprint] || new Set()).size;
                         const isSharedIp = sharedIpCount > 1;
@@ -275,8 +288,63 @@ function renderAllLogs() {
                     }).join('')}
                 </tbody>
             </table>
+        </div>
+        ${totalPages > 1 ? renderIpPagination(totalPages, logs.length) : ''}`;
+}
+
+// ==========================================
+// 📄 แถบปุ่มเลื่อนหน้า 1 2 3 4 ...
+// ==========================================
+function renderIpPagination(totalPages, totalItems) {
+    const cur = ipCurrentPage;
+    let pages = [];
+
+    // แสดงหน้าแบบ: 1 ... (cur-1) cur (cur+1) ... last
+    const addPage = (p) => {
+        const active = p === cur;
+        pages.push(`<button onclick="gotoIpPage(${p})" class="min-w-[36px] h-9 px-2 rounded-lg text-sm font-bold transition ${active ? 'bg-sky-600 text-white shadow' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-gray-200 dark:border-slate-600 hover:bg-sky-50 dark:hover:bg-slate-600'}">${p}</button>`);
+    };
+    const addDots = () => pages.push(`<span class="px-1 text-gray-400">...</span>`);
+
+    if (totalPages <= 7) {
+        for (let p = 1; p <= totalPages; p++) addPage(p);
+    } else {
+        addPage(1);
+        if (cur > 3) addDots();
+        const from = Math.max(2, cur - 1);
+        const to = Math.min(totalPages - 1, cur + 1);
+        for (let p = from; p <= to; p++) addPage(p);
+        if (cur < totalPages - 2) addDots();
+        addPage(totalPages);
+    }
+
+    const prevDisabled = cur <= 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-sky-50 dark:hover:bg-slate-600';
+    const nextDisabled = cur >= totalPages ? 'opacity-40 cursor-not-allowed' : 'hover:bg-sky-50 dark:hover:bg-slate-600';
+
+    return `
+        <div class="col-span-full flex items-center justify-between flex-wrap gap-3 mt-2 px-1">
+            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">
+                หน้า ${cur} / ${totalPages} (ทั้งหมด ${totalItems} รายการ)
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="gotoIpPage(${cur - 1})" ${cur <= 1 ? 'disabled' : ''} class="h-9 px-3 rounded-lg text-sm font-bold bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-gray-200 dark:border-slate-600 transition ${prevDisabled} flex items-center gap-1">
+                    <span class="material-icons text-base">chevron_left</span> ก่อนหน้า
+                </button>
+                ${pages.join('')}
+                <button onclick="gotoIpPage(${cur + 1})" ${cur >= totalPages ? 'disabled' : ''} class="h-9 px-3 rounded-lg text-sm font-bold bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-gray-200 dark:border-slate-600 transition ${nextDisabled} flex items-center gap-1">
+                    ถัดไป <span class="material-icons text-base">chevron_right</span>
+                </button>
+            </div>
         </div>`;
 }
+
+window.gotoIpPage = function(page) {
+    ipCurrentPage = page;
+    renderAllLogs();
+    // เลื่อนขึ้นบนสุดของตาราง
+    const container = document.getElementById('ipLogsContainer');
+    if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 
 // ==========================================
 // 🚨 Tab 2: IP เปลี่ยนกลางคัน
@@ -859,3 +927,7 @@ window.exportIpLogsCSV = function() {
     a.click();
     URL.revokeObjectURL(url);
 };
+// ==========================================
+// 🛡️ ยืนยันว่าไฟล์นี้โหลดสำเร็จ (debug log)
+// ==========================================
+console.log('[ip_check.js] โหลดสำเร็จ — ฟังก์ชัน fetchIpLogs/switchIpTab พร้อมใช้งาน');
