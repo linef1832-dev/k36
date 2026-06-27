@@ -15,9 +15,21 @@ let globalIpLogs = [];
 let currentIpFilterUser = 'all';
 let currentIpTab = 'all';
 
-// 📄 ระบบแบ่งหน้า (pagination) สำหรับแท็บประวัติทั้งหมด
-let ipCurrentPage = 1;
-const IP_PAGE_SIZE = 50;
+// 📄 ระบบแบ่งหน้า (pagination) — ทุกแท็บ
+const IP_PAGE_SIZE = 30;
+let ipPages = {
+    all: 1,
+    changes: 1,
+    fp_changes: 1,
+    duplicates: 1,
+    fp_duplicates: 1,
+    by_user: 1
+};
+// backward compat
+Object.defineProperty(window, 'ipCurrentPage', {
+    get: () => ipPages[currentIpTab] || 1,
+    set: (v) => { ipPages[currentIpTab] = v; }
+});
 
 // ==========================================
 // 🚀 เริ่มต้นเมื่อเข้าหน้านี้
@@ -96,7 +108,7 @@ function populateIpUserFilter() {
 // ==========================================
 window.switchIpTab = function(tab) {
     currentIpTab = tab;
-    ipCurrentPage = 1; // รีเซ็ตกลับหน้าแรกเมื่อเปลี่ยนแท็บ
+    ipPages[tab] = 1; // รีเซ็ตกลับหน้าแรกเมื่อเปลี่ยนแท็บ
 
     document.querySelectorAll('.ip-tab-btn').forEach(b => {
         b.classList.remove('bg-sky-600', 'bg-rose-600', 'bg-fuchsia-600', 'bg-amber-500', 'bg-orange-500', 'bg-emerald-600', 'text-white');
@@ -295,14 +307,15 @@ function renderAllLogs() {
 // ==========================================
 // 📄 แถบปุ่มเลื่อนหน้า 1 2 3 4 ...
 // ==========================================
-function renderIpPagination(totalPages, totalItems) {
-    const cur = ipCurrentPage;
+function renderIpPagination(totalPages, totalItems, tabKey) {
+    tabKey = tabKey || currentIpTab;
+    const cur = ipPages[tabKey] || 1;
     let pages = [];
 
     // แสดงหน้าแบบ: 1 ... (cur-1) cur (cur+1) ... last
     const addPage = (p) => {
         const active = p === cur;
-        pages.push(`<button onclick="gotoIpPage(${p})" class="min-w-[36px] h-9 px-2 rounded-lg text-sm font-bold transition ${active ? 'bg-sky-600 text-white shadow' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-gray-200 dark:border-slate-600 hover:bg-sky-50 dark:hover:bg-slate-600'}">${p}</button>`);
+        pages.push(`<button onclick="gotoIpPage(${p},'${tabKey}')" class="min-w-[36px] h-9 px-2 rounded-lg text-sm font-bold transition ${active ? 'bg-sky-600 text-white shadow' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-gray-200 dark:border-slate-600 hover:bg-sky-50 dark:hover:bg-slate-600'}">${p}</button>`);
     };
     const addDots = () => pages.push(`<span class="px-1 text-gray-400">...</span>`);
 
@@ -327,20 +340,21 @@ function renderIpPagination(totalPages, totalItems) {
                 หน้า ${cur} / ${totalPages} (ทั้งหมด ${totalItems} รายการ)
             </div>
             <div class="flex items-center gap-1">
-                <button onclick="gotoIpPage(${cur - 1})" ${cur <= 1 ? 'disabled' : ''} class="h-9 px-3 rounded-lg text-sm font-bold bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-gray-200 dark:border-slate-600 transition ${prevDisabled} flex items-center gap-1">
+                <button onclick="gotoIpPage(${cur - 1},'${tabKey}')" ${cur <= 1 ? 'disabled' : ''} class="h-9 px-3 rounded-lg text-sm font-bold bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-gray-200 dark:border-slate-600 transition ${prevDisabled} flex items-center gap-1">
                     <span class="material-icons text-base">chevron_left</span> ก่อนหน้า
                 </button>
                 ${pages.join('')}
-                <button onclick="gotoIpPage(${cur + 1})" ${cur >= totalPages ? 'disabled' : ''} class="h-9 px-3 rounded-lg text-sm font-bold bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-gray-200 dark:border-slate-600 transition ${nextDisabled} flex items-center gap-1">
+                <button onclick="gotoIpPage(${cur + 1},'${tabKey}')" ${cur >= totalPages ? 'disabled' : ''} class="h-9 px-3 rounded-lg text-sm font-bold bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-gray-200 dark:border-slate-600 transition ${nextDisabled} flex items-center gap-1">
                     ถัดไป <span class="material-icons text-base">chevron_right</span>
                 </button>
             </div>
         </div>`;
 }
 
-window.gotoIpPage = function(page) {
-    ipCurrentPage = page;
-    renderAllLogs();
+window.gotoIpPage = function(page, tabKey) {
+    tabKey = tabKey || currentIpTab;
+    ipPages[tabKey] = page;
+    renderIpView();
     // เลื่อนขึ้นบนสุดของตาราง
     const container = document.getElementById('ipLogsContainer');
     if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -357,6 +371,17 @@ function renderIpChanges() {
 
     if (currentIpFilterUser !== 'all') {
         changes = changes.filter(l => String(l.user_id) === String(currentIpFilterUser));
+    }
+
+    // search filter
+    const _term1 = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+    if (_term1) {
+        changes = changes.filter(l =>
+            (l.username || '').toLowerCase().includes(_term1) ||
+            (l.ip_address || '').toLowerCase().includes(_term1) ||
+            (l.fingerprint || '').toLowerCase().includes(_term1) ||
+            (l.country || '').toLowerCase().includes(_term1)
+        );
     }
 
     if (changes.length === 0) {
@@ -377,6 +402,11 @@ function renderIpChanges() {
     });
     Object.values(userLogs).forEach(arr => arr.sort((a, b) => new Date(a.login_time) - new Date(b.login_time)));
 
+    const _tc1 = Math.max(1, Math.ceil(changes.length / IP_PAGE_SIZE));
+    const _p1 = Math.min(Math.max(1, ipPages.changes), _tc1);
+    ipPages.changes = _p1;
+    const _pagedChanges = changes.slice((_p1-1)*IP_PAGE_SIZE, _p1*IP_PAGE_SIZE);
+
     container.innerHTML = `
         <div class="col-span-full mb-3 bg-rose-50 dark:bg-rose-900/20 border-l-4 border-rose-500 p-4 rounded-lg">
             <div class="flex items-center gap-2 text-rose-700 dark:text-rose-300 font-bold">
@@ -387,7 +417,7 @@ function renderIpChanges() {
                 การเปลี่ยน IP โดยไม่ Login ใหม่ มักเกิดจาก: 🔸 เปิด/ปิด VPN  🔸 สลับเครือข่าย WiFi-Mobile  🔸 ใช้ Proxy
             </p>
         </div>
-        ${changes.map(l => {
+        ${_pagedChanges.map(l => {
             const userArr = userLogs[l.user_id] || [];
             const idx = userArr.findIndex(x => x.id === l.id);
             const prevLog = idx > 0 ? userArr.slice(0, idx).reverse().find(x => x.ip_address && x.ip_address !== l.ip_address) : null;
@@ -430,6 +460,7 @@ function renderIpChanges() {
                     </div>
                 </div>`;
         }).join('')}
+        ${_tc1 > 1 ? renderIpPagination(_tc1, changes.length, 'changes') : ''}
     `;
 }
 
@@ -444,6 +475,17 @@ function renderFpChanges() {
 
     if (currentIpFilterUser !== 'all') {
         changes = changes.filter(l => String(l.user_id) === String(currentIpFilterUser));
+    }
+
+    // search filter
+    const _term2 = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+    if (_term2) {
+        changes = changes.filter(l =>
+            (l.username || '').toLowerCase().includes(_term2) ||
+            (l.ip_address || '').toLowerCase().includes(_term2) ||
+            (l.fingerprint || '').toLowerCase().includes(_term2) ||
+            (l.country || '').toLowerCase().includes(_term2)
+        );
     }
 
     if (changes.length === 0) {
@@ -464,6 +506,11 @@ function renderFpChanges() {
     });
     Object.values(userLogs).forEach(arr => arr.sort((a, b) => new Date(a.login_time) - new Date(b.login_time)));
 
+    const _tc2 = Math.max(1, Math.ceil(changes.length / IP_PAGE_SIZE));
+    const _p2 = Math.min(Math.max(1, ipPages.fp_changes), _tc2);
+    ipPages.fp_changes = _p2;
+    const _pagedFpChanges = changes.slice((_p2-1)*IP_PAGE_SIZE, _p2*IP_PAGE_SIZE);
+
     container.innerHTML = `
         <div class="col-span-full mb-3 bg-fuchsia-50 dark:bg-fuchsia-900/20 border-l-4 border-fuchsia-500 p-4 rounded-lg">
             <div class="flex items-center gap-2 text-fuchsia-700 dark:text-fuchsia-300 font-bold">
@@ -475,7 +522,7 @@ function renderFpChanges() {
                 🔸 ส่งบัญชีให้คนอื่นใช้  🔸 แชร์ Session  🔸 เปลี่ยน browser/incognito
             </p>
         </div>
-        ${changes.map(l => {
+        ${_pagedFpChanges.map(l => {
             const userArr = userLogs[l.user_id] || [];
             const idx = userArr.findIndex(x => x.id === l.id);
             const prevLog = idx > 0 ? userArr.slice(0, idx).reverse().find(x => x.fingerprint && x.fingerprint !== l.fingerprint) : null;
@@ -520,6 +567,7 @@ function renderFpChanges() {
                     </div>
                 </div>`;
         }).join('')}
+        ${_tc2 > 1 ? renderIpPagination(_tc2, changes.length, 'fp_changes') : ''}
     `;
 }
 
@@ -543,8 +591,19 @@ function renderDuplicateIps() {
         }
     });
 
-    const duplicates = Object.values(ipMap).filter(g => Object.keys(g.users).length >= 2);
+    let duplicates = Object.values(ipMap).filter(g => Object.keys(g.users).length >= 2);
     duplicates.sort((a, b) => Object.keys(b.users).length - Object.keys(a.users).length);
+
+    // search filter
+    const _term3 = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+    if (_term3) {
+        duplicates = duplicates.filter(g =>
+            g.ip.toLowerCase().includes(_term3) ||
+            (g.country || '').toLowerCase().includes(_term3) ||
+            (g.isp || '').toLowerCase().includes(_term3) ||
+            Object.values(g.users).some(u => (u.username || '').toLowerCase().includes(_term3))
+        );
+    }
 
     if (duplicates.length === 0) {
         container.innerHTML = `
@@ -556,7 +615,12 @@ function renderDuplicateIps() {
         return;
     }
 
-    container.innerHTML = duplicates.map(g => {
+    const _tc3 = Math.max(1, Math.ceil(duplicates.length / IP_PAGE_SIZE));
+    const _p3 = Math.min(Math.max(1, ipPages.duplicates), _tc3);
+    ipPages.duplicates = _p3;
+    const _pagedDupIps = duplicates.slice((_p3-1)*IP_PAGE_SIZE, _p3*IP_PAGE_SIZE);
+
+    container.innerHTML = _pagedDupIps.map(g => {
         const userCount = Object.keys(g.users).length;
         const userList = Object.values(g.users)
             .sort((a, b) => b.count - a.count)
@@ -585,7 +649,7 @@ function renderDuplicateIps() {
                     ${userList}
                 </div>
             </div>`;
-    }).join('');
+    }).join('') + (_tc3 > 1 ? renderIpPagination(_tc3, duplicates.length, 'duplicates') : '');
 }
 
 // ==========================================
@@ -621,8 +685,17 @@ function renderDuplicateFps() {
         }
     });
 
-    const duplicates = Object.values(fpMap).filter(g => Object.keys(g.users).length >= 2);
+    let duplicates = Object.values(fpMap).filter(g => Object.keys(g.users).length >= 2);
     duplicates.sort((a, b) => Object.keys(b.users).length - Object.keys(a.users).length);
+
+    // search filter
+    const _term4 = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+    if (_term4) {
+        duplicates = duplicates.filter(g =>
+            g.fp.toLowerCase().includes(_term4) ||
+            Object.values(g.users).some(u => (u.username || '').toLowerCase().includes(_term4))
+        );
+    }
 
     if (duplicates.length === 0) {
         container.innerHTML = `
@@ -633,6 +706,11 @@ function renderDuplicateFps() {
             </div>`;
         return;
     }
+
+    const _tc4 = Math.max(1, Math.ceil(duplicates.length / IP_PAGE_SIZE));
+    const _p4 = Math.min(Math.max(1, ipPages.fp_duplicates), _tc4);
+    ipPages.fp_duplicates = _p4;
+    const _pagedDupFps = duplicates.slice((_p4-1)*IP_PAGE_SIZE, _p4*IP_PAGE_SIZE);
 
     container.innerHTML = `
         <div class="col-span-full mb-3 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 p-4 rounded-lg">
@@ -645,7 +723,7 @@ function renderDuplicateFps() {
                 (FP ซ้ำมีน้ำหนักกว่า IP ซ้ำมาก เพราะ IP ซ้ำได้จากการอยู่บ้าน/ออฟฟิศเดียวกัน)
             </p>
         </div>
-        ${duplicates.map(g => {
+        ${_pagedDupFps.map(g => {
             const userCount = Object.keys(g.users).length;
             const device = parseUserAgent(g.user_agent || '');
             const userList = Object.values(g.users)
@@ -677,6 +755,7 @@ function renderDuplicateFps() {
                     </div>
                 </div>`;
         }).join('')}
+        ${_tc4 > 1 ? renderIpPagination(_tc4, fpDuplicates.length, 'fp_duplicates') : ''}
     `;
 }
 
@@ -721,18 +800,32 @@ function renderByUser() {
     });
 
     // 🌟 เรียงตามจำนวน FP มาก → น้อย (FP เยอะ = น่าสงสัยมาก)
-    const users = Object.values(userMap).sort((a, b) => {
+    let users = Object.values(userMap).sort((a, b) => {
         const fpDiff = Object.keys(b.fps).length - Object.keys(a.fps).length;
         if (fpDiff !== 0) return fpDiff;
         return Object.keys(b.ips).length - Object.keys(a.ips).length;
     });
+
+    // search filter
+    const _term5 = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
+    if (_term5) {
+        users = users.filter(u =>
+            (u.username || '').toLowerCase().includes(_term5) ||
+            Object.keys(u.ips).some(ip => ip.toLowerCase().includes(_term5))
+        );
+    }
 
     if (users.length === 0) {
         container.innerHTML = `<div class="col-span-full text-center py-20 text-gray-400">ยังไม่มีข้อมูล</div>`;
         return;
     }
 
-    container.innerHTML = users.map(u => {
+    const _tc5 = Math.max(1, Math.ceil(users.length / IP_PAGE_SIZE));
+    const _p5 = Math.min(Math.max(1, ipPages.by_user), _tc5);
+    ipPages.by_user = _p5;
+    const _pagedUsers = users.slice((_p5-1)*IP_PAGE_SIZE, _p5*IP_PAGE_SIZE);
+
+    container.innerHTML = _pagedUsers.map(u => {
         const ipCount = Object.keys(u.ips).length;
         const fpCount = Object.keys(u.fps).length;
         // 🚨 ระดับความน่าสงสัย: FP ≥ 2 = น่าสงสัยมาก, IP ≥ 3 = น่าสงสัยพอควร
@@ -802,7 +895,7 @@ function renderByUser() {
                     </div>
                 </div>
             </div>`;
-    }).join('');
+    }).join('') + (_tc5 > 1 ? renderIpPagination(_tc5, users.length, 'by_user') : '');
 }
 
 // ==========================================
