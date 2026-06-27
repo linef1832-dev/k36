@@ -1086,16 +1086,28 @@ window.renderRiskBoard = function() {
             userMap[l.user_id] = {
                 user_id: l.user_id, username: l.username,
                 ips: {}, fps: {}, ipChanges: 0, fpChanges: 0,
-                allTimes: [], lastSeen: l.login_time
+                allTimes: [], lastSeen: l.login_time, logs: []
             };
         }
         const u = userMap[l.user_id];
-        if (l.ip_address) u.ips[l.ip_address] = { country: l.country, isp: l.isp };
-        if (l.fingerprint) u.fps[l.fingerprint] = true;
+        if (l.ip_address) {
+            if (!u.ips[l.ip_address]) {
+                u.ips[l.ip_address] = { country: l.country, city: l.city, isp: l.isp, asn: l.asn, timezone: l.timezone, firstSeen: l.login_time, lastSeen: l.login_time, count: 0 };
+            }
+            u.ips[l.ip_address].count++;
+            if (l.login_time > u.ips[l.ip_address].lastSeen) u.ips[l.ip_address].lastSeen = l.login_time;
+        }
+        if (l.fingerprint) {
+            if (!u.fps[l.fingerprint]) {
+                u.fps[l.fingerprint] = { fp: l.fingerprint, device: parseUserAgent(l.user_agent || ''), ua: l.user_agent, firstSeen: l.login_time, count: 0 };
+            }
+            u.fps[l.fingerprint].count++;
+        }
         if (l.event_type === 'ip_change') u.ipChanges++;
         if (l.event_type === 'fp_change') u.fpChanges++;
         if (l.login_time) u.allTimes.push(l.login_time);
         if (l.login_time > u.lastSeen) u.lastSeen = l.login_time;
+        u.logs.push(l);
     });
 
     const term = (document.getElementById('ipSearchInput')?.value || '').toLowerCase().trim();
@@ -1135,25 +1147,42 @@ window.renderRiskBoard = function() {
         ${paged.map((u, i) => {
             const c = levelColor[u.level];
             const rank = (_p-1)*IP_PAGE_SIZE + i + 1;
+            const ipList = Object.entries(u.ips).slice(0, 3);
+            const fpList = Object.entries(u.fps).slice(0, 3);
             return `
             <div class="col-span-full ${c.bg} rounded-2xl shadow p-4 border-l-4 ${c.border}">
                 <div class="flex items-start justify-between gap-3 flex-wrap">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition" onclick="showRiskDetail('${u.user_id}')">
                         <div class="text-2xl font-black text-slate-400 w-8">#${rank}</div>
                         <div>
-                            <div class="font-black text-lg text-slate-800 dark:text-white">${u.username}</div>
-                            <div class="text-[10px] text-gray-500">เข้าล่าสุด: ${new Date(u.lastSeen).toLocaleString('th-TH')}</div>
+                            <div class="font-black text-lg text-slate-800 dark:text-white underline decoration-dotted">${u.username}</div>
+                            <div class="text-[10px] text-gray-500">เข้าล่าสุด: ${new Date(u.lastSeen).toLocaleString('th-TH')} • ${u.allTimes.length} ครั้ง</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
                         <div class="text-3xl font-black ${u.level === 'critical' ? 'text-red-500' : u.level === 'high' ? 'text-orange-500' : u.level === 'medium' ? 'text-yellow-500' : 'text-slate-400'}">${u.score}</div>
                         <span class="${c.badge} text-white text-xs font-bold px-3 py-1 rounded-full">${c.label}</span>
+                        <button onclick="showRiskDetail('${u.user_id}')" class="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition flex items-center gap-1">
+                            <span class="material-icons text-base">open_in_new</span> รายละเอียด
+                        </button>
                     </div>
                 </div>
                 ${u.reasons.length > 0 ? `
                 <div class="mt-3 flex flex-wrap gap-2">
                     ${u.reasons.map(r => `<span class="text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2 py-1 rounded-lg font-bold">${r}</span>`).join('')}
                 </div>` : '<div class="mt-2 text-xs text-green-500 font-bold">✅ ไม่พบพฤติกรรมผิดปกติ</div>'}
+                <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="bg-white/60 dark:bg-slate-700/40 rounded-xl p-3">
+                        <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">🌐 IP ที่ใช้ (${Object.keys(u.ips).length} รายการ)</div>
+                        ${ipList.map(([ip, d]) => `<div class="text-xs mb-1 flex items-center justify-between"><span class="font-mono font-bold text-sky-600 dark:text-sky-400">${ip}</span><span class="text-gray-400">${d.country || '-'} • ${d.count}ครั้ง</span></div>`).join('')}
+                        ${Object.keys(u.ips).length > 3 ? `<div class="text-[10px] text-gray-400 mt-1">+${Object.keys(u.ips).length-3} รายการ...</div>` : ''}
+                    </div>
+                    <div class="bg-white/60 dark:bg-slate-700/40 rounded-xl p-3">
+                        <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">📱 เครื่องที่ใช้ (${Object.keys(u.fps).length} เครื่อง)</div>
+                        ${fpList.map(([fp, d]) => `<div class="text-xs mb-1"><span class="font-bold text-indigo-600 dark:text-indigo-400">${d.device}</span> <span class="text-gray-400 font-mono">(${shortFp(fp)})</span></div>`).join('')}
+                        ${Object.keys(u.fps).length > 3 ? `<div class="text-[10px] text-gray-400 mt-1">+${Object.keys(u.fps).length-3} เครื่อง...</div>` : ''}
+                    </div>
+                </div>
             </div>`;
         }).join('')}
         ${_tc > 1 ? renderIpPagination(_tc, users.length, 'risk') : ''}
@@ -1471,4 +1500,177 @@ window.renderUserTimeline = function() {
                 </div>
             </div>
         </div>`;
+};
+
+// ==========================================
+// 🔍 Risk Detail Modal — กดชื่อเพื่อดูรายละเอียดครบ
+// ==========================================
+window.showRiskDetail = function(userId) {
+    // สร้าง userMap สำหรับคนนี้
+    const logs = globalIpLogs.filter(l => String(l.user_id) === String(userId))
+                             .sort((a,b) => new Date(b.login_time) - new Date(a.login_time));
+    if (!logs.length) return;
+
+    const u = { user_id: userId, username: logs[0].username, ips: {}, fps: {}, ipChanges: 0, fpChanges: 0, allTimes: [], lastSeen: logs[0].login_time };
+    logs.forEach(l => {
+        if (l.ip_address && !u.ips[l.ip_address]) {
+            u.ips[l.ip_address] = { country: l.country, city: l.city, isp: l.isp, asn: l.asn, timezone: l.timezone, count: 0, lastSeen: l.login_time };
+        }
+        if (l.ip_address) { u.ips[l.ip_address].count++; }
+        if (l.fingerprint && !u.fps[l.fingerprint]) {
+            u.fps[l.fingerprint] = { fp: l.fingerprint, device: parseUserAgent(l.user_agent || ''), ua: l.user_agent || '-', count: 0, firstSeen: l.login_time };
+        }
+        if (l.fingerprint) u.fps[l.fingerprint].count++;
+        if (l.event_type === 'ip_change') u.ipChanges++;
+        if (l.event_type === 'fp_change') u.fpChanges++;
+        if (l.login_time) u.allTimes.push(l.login_time);
+    });
+    Object.assign(u, calcRiskScore(u));
+
+    const levelColor = { critical:'#ef4444', high:'#f97316', medium:'#eab308', low:'#22c55e' };
+    const levelLabel = { critical:'🔴 วิกฤต', high:'🟠 สูง', medium:'🟡 กลาง', low:'🟢 ปกติ' };
+    const isVpn = Object.values(u.ips).some(d => VPN_ISP_KEYWORDS.some(k => (d.isp||'').toLowerCase().includes(k)));
+
+    // IP table
+    const ipRows = Object.entries(u.ips).sort((a,b) => b[1].count - a[1].count).map(([ip, d]) => {
+        const isVpnIp = VPN_ISP_KEYWORDS.some(k => (d.isp||'').toLowerCase().includes(k));
+        return `<tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px;font-family:monospace;font-size:12px;color:#0369a1;font-weight:700">${ip}</td>
+            <td style="padding:8px;font-size:12px">${d.country || '-'} / ${d.city || '-'}</td>
+            <td style="padding:8px;font-size:12px;max-width:180px;word-break:break-word">${isVpnIp ? '<span style="background:#7e22ce;color:#fff;padding:1px 6px;border-radius:99px;font-size:10px;font-weight:700">⚠ VPN</span> ' : ''}${d.isp || '-'}</td>
+            <td style="padding:8px;font-size:11px;color:#64748b">${d.asn || '-'}</td>
+            <td style="padding:8px;font-size:11px;color:#64748b">${d.timezone || '-'}</td>
+            <td style="padding:8px;text-align:center;font-weight:700;color:#0f172a">${d.count}</td>
+        </tr>`;
+    }).join('');
+
+    // FP / Device table
+    const fpRows = Object.entries(u.fps).sort((a,b) => b[1].count - a[1].count).map(([fp, d], i) => {
+        return `<tr style="border-bottom:1px solid #e2e8f0">
+            <td style="padding:8px;font-size:12px;font-weight:700;color:#4f46e5">${d.device}</td>
+            <td style="padding:8px;font-family:monospace;font-size:11px;color:#64748b">${fp}</td>
+            <td style="padding:8px;font-size:11px;color:#64748b;max-width:200px;word-break:break-word">${d.ua}</td>
+            <td style="padding:8px;text-align:center;font-weight:700;color:#0f172a">${d.count}</td>
+        </tr>`;
+    }).join('');
+
+    // Event log (10 ล่าสุด)
+    const evColor = { login:'#22c55e', ip_change:'#ef4444', fp_change:'#a855f7' };
+    const evLabel = { login:'🟢 Login', ip_change:'🔴 IP เปลี่ยน', fp_change:'🟣 สลับเครื่อง' };
+    const recentLogs = logs.slice(0, 15).map(l => `
+        <tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:6px 8px;font-size:11px;color:#64748b;white-space:nowrap">${new Date(l.login_time).toLocaleString('th-TH')}</td>
+            <td style="padding:6px 8px"><span style="background:${evColor[l.event_type]}22;color:${evColor[l.event_type]};font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px">${evLabel[l.event_type]||l.event_type}</span></td>
+            <td style="padding:6px 8px;font-family:monospace;font-size:11px;color:#0369a1">${l.ip_address||'-'}</td>
+            <td style="padding:6px 8px;font-size:11px;color:#64748b">${l.country||'-'} / ${l.city||'-'}</td>
+            <td style="padding:6px 8px;font-size:11px;color:#64748b">${l.fingerprint ? shortFp(l.fingerprint) : '-'}</td>
+        </tr>`).join('');
+
+    const html = `
+    <div style="text-align:left;font-family:sans-serif">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+            <div>
+                <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Risk Score</div>
+                <div style="font-size:36px;font-weight:900;color:${levelColor[u.level]};line-height:1">${u.score}</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
+                    <div style="font-size:20px;font-weight:900;color:#0ea5e9">${Object.keys(u.ips).length}</div>
+                    <div style="font-size:10px;color:#64748b">IP ที่ใช้</div>
+                </div>
+                <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
+                    <div style="font-size:20px;font-weight:900;color:#6366f1">${Object.keys(u.fps).length}</div>
+                    <div style="font-size:10px;color:#64748b">เครื่องที่ใช้</div>
+                </div>
+                <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
+                    <div style="font-size:20px;font-weight:900;color:#f97316">${u.ipChanges}</div>
+                    <div style="font-size:10px;color:#64748b">IP เปลี่ยน</div>
+                </div>
+                <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
+                    <div style="font-size:20px;font-weight:900;color:#a855f7">${u.fpChanges}</div>
+                    <div style="font-size:10px;color:#64748b">สลับเครื่อง</div>
+                </div>
+                <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
+                    <div style="font-size:20px;font-weight:900;color:#10b981">${u.allTimes.length}</div>
+                    <div style="font-size:10px;color:#64748b">Login ทั้งหมด</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reasons -->
+        ${u.reasons.length > 0 ? `
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;margin-bottom:16px">
+            <div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:8px">⚠️ สาเหตุที่น่าสงสัย</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+                ${u.reasons.map(r => `<span style="background:#fff;border:1px solid #fca5a5;color:#dc2626;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px">${r}</span>`).join('')}
+            </div>
+        </div>` : ''}
+
+        <!-- IP Table -->
+        <div style="margin-bottom:16px">
+            <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px">🌐 IP Address ทั้งหมด (${Object.keys(u.ips).length} รายการ)</div>
+            <div style="overflow-x:auto;border-radius:10px;border:1px solid #e2e8f0">
+                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <thead style="background:#f8fafc">
+                        <tr>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">IP</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ประเทศ/เมือง</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ISP</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ASN</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">Timezone</th>
+                            <th style="padding:8px;text-align:center;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ครั้ง</th>
+                        </tr>
+                    </thead>
+                    <tbody>${ipRows}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Device Table -->
+        <div style="margin-bottom:16px">
+            <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px">📱 อุปกรณ์/เครื่องที่ใช้ (${Object.keys(u.fps).length} เครื่อง)</div>
+            <div style="overflow-x:auto;border-radius:10px;border:1px solid #e2e8f0">
+                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <thead style="background:#f8fafc">
+                        <tr>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">รุ่น/ระบบ</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">Device FP</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">User Agent</th>
+                            <th style="padding:8px;text-align:center;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ครั้ง</th>
+                        </tr>
+                    </thead>
+                    <tbody>${fpRows}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Event Log -->
+        <div>
+            <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px">📋 ประวัติล่าสุด (15 รายการ)</div>
+            <div style="overflow-x:auto;border-radius:10px;border:1px solid #e2e8f0;max-height:280px;overflow-y:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <thead style="background:#f8fafc;position:sticky;top:0">
+                        <tr>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">เวลา</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">ประเภท</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">IP</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">สถานที่</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">FP</th>
+                        </tr>
+                    </thead>
+                    <tbody>${recentLogs}</tbody>
+                </table>
+            </div>
+        </div>
+    </div>`;
+
+    Swal.fire({
+        title: `<div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">👤</span> ${u.username} <span style="font-size:12px;background:${levelColor[u.level]}22;color:${levelColor[u.level]};padding:2px 10px;border-radius:99px;font-weight:700">${levelLabel[u.level]}</span></div>`,
+        html,
+        width: '900px',
+        showConfirmButton: false,
+        showCloseButton: true,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl', htmlContainer: 'text-left' }
+    });
 };
