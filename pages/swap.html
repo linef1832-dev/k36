@@ -133,7 +133,7 @@
                         </label>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
                             <div class="flex flex-col bg-orange-50/50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-900/30 p-3">
-                                <h5 class="text-xs font-extrabold text-orange-600 dark:text-orange-400 mb-2 flex items-center gap-1"><span class="material-icons text-sm">wb_sunny</span> อยู่เช้าต่อ (ไม่ไปดึก)</h5>
+                                <h5 id="excludeMLabel" class="text-xs font-extrabold text-orange-600 dark:text-orange-400 mb-2 flex items-center gap-1"><span class="material-icons text-sm">wb_sunny</span> อยู่เช้าต่อ (ไม่ไปดึก)</h5>
                                 <div class="relative mb-2">
                                     <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-sm">search</span>
                                     <input type="text" id="searchExcludeM" onkeyup="searchExcludeStaff('กะเช้า')" onclick="searchExcludeStaff('กะเช้า')" placeholder="พิมพ์ชื่อเพื่อค้นหา..." autocomplete="off" class="w-full pl-9 pr-3 py-2 rounded-lg border border-orange-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-white text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition shadow-sm">
@@ -143,7 +143,7 @@
                                     <span class="text-gray-400 text-[10px] italic w-full text-center py-2">ยังไม่มีรายชื่อ</span>
                                 </div>
                             </div>
-                            <div class="flex flex-col bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/30 p-3">
+                            <div id="excludeNBlock" class="flex flex-col bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/30 p-3">
                                 <h5 class="text-xs font-extrabold text-purple-600 dark:text-purple-400 mb-2 flex items-center gap-1"><span class="material-icons text-sm">dark_mode</span> อยู่ดึกต่อ (ไม่ไปเช้า)</h5>
                                 <div class="relative mb-2">
                                     <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-sm">search</span>
