@@ -1369,50 +1369,58 @@ window.renderLoginHeatmap = function() {
         if (grid[key] > maxCount) maxCount = grid[key];
     });
 
-    const cellColor = (count) => {
-        if (count === 0) return 'bg-slate-100 dark:bg-slate-700';
+    // [FIX] ใช้ inline style ทั้งหมด ไม่ใช้ Tailwind class (ถูก purge ออก)
+    const cellBg = (count) => {
+        if (count === 0) return '#e2e8f0';
         const ratio = count / maxCount;
-        if (ratio >= 0.8) return 'bg-red-500';
-        if (ratio >= 0.6) return 'bg-orange-400';
-        if (ratio >= 0.4) return 'bg-yellow-400';
-        if (ratio >= 0.2) return 'bg-green-400';
-        return 'bg-green-200';
+        if (ratio >= 0.8) return '#ef4444';
+        if (ratio >= 0.6) return '#fb923c';
+        if (ratio >= 0.4) return '#facc15';
+        if (ratio >= 0.2) return '#4ade80';
+        return '#bbf7d0';
     };
 
+    const isDark = document.documentElement.classList.contains('dark');
+    const emptyBg = isDark ? '#334155' : '#e2e8f0';
+    const cardBg  = isDark ? '#1e293b' : '#ffffff';
+    const textColor = isDark ? '#e2e8f0' : '#1e293b';
+    const subColor  = isDark ? '#94a3b8' : '#64748b';
+
     let html = `
-        <div class="col-span-full bg-white dark:bg-slate-800 rounded-2xl shadow p-5">
-            <div class="font-black text-lg mb-1 text-slate-800 dark:text-white">⏰ Login Heatmap</div>
-            <div class="text-xs text-gray-500 mb-4">ความหนาแน่นของ login ตามวัน × ชั่วโมง — สีแดง = บ่อยที่สุด</div>
-            <div class="overflow-x-auto">
-                <table class="text-[10px] border-separate border-spacing-1">
+        <div class="col-span-full rounded-2xl shadow p-5" style="background:${cardBg}">
+            <div style="font-size:18px;font-weight:900;margin-bottom:4px;color:${textColor}">⏰ Login Heatmap</div>
+            <div style="font-size:12px;color:${subColor};margin-bottom:16px">ความหนาแน่นของ login ตามวัน × ชั่วโมง — สีแดง = บ่อยที่สุด</div>
+            <div style="overflow-x:auto">
+                <table style="border-collapse:separate;border-spacing:3px;font-size:10px">
                     <thead><tr>
-                        <th class="w-6 text-gray-400"></th>
-                        ${Array.from({length:24},(_,h) => `<th class="w-7 text-center text-gray-400 font-normal">${h}</th>`).join('')}
+                        <th style="width:24px;color:${subColor}"></th>
+                        ${Array.from({length:24},(_,h) => `<th style="width:26px;text-align:center;color:${subColor};font-weight:400;font-size:10px">${h}</th>`).join('')}
                     </tr></thead>
                     <tbody>
                         ${days.map((day, d) => `
                         <tr>
-                            <td class="text-gray-500 font-bold pr-1">${day}</td>
+                            <td style="color:${subColor};font-weight:700;padding-right:4px;font-size:11px">${day}</td>
                             ${Array.from({length:24},(_,h) => {
                                 const count = grid[`${d}_${h}`] || 0;
                                 const isOdd = h >= 1 && h <= 5;
-                                return `<td title="${day} ${h}:00 — ${count} ครั้ง ${isOdd && count > 0 ? '⚠️ ผิดปกติ' : ''}" class="w-7 h-7 rounded ${cellColor(count)} ${isOdd && count > 0 ? 'ring-2 ring-red-400' : ''} cursor-pointer transition hover:opacity-80"></td>`;
+                                const bg = count === 0 ? emptyBg : cellBg(count);
+                                const outline = isOdd && count > 0 ? 'outline:2px solid #f87171;outline-offset:1px' : '';
+                                return `<td title="${day} ${h}:00 — ${count} ครั้ง${isOdd && count > 0 ? ' ⚠️ ผิดปกติ' : ''}"
+                                    style="width:26px;height:26px;border-radius:4px;background:${bg};${outline};cursor:pointer;transition:opacity .15s"
+                                    onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'"></td>`;
                             }).join('')}
                         </tr>`).join('')}
                     </tbody>
                 </table>
             </div>
-            <div class="flex items-center gap-2 mt-3 text-[10px] text-gray-500">
+            <div style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:10px;color:${subColor}">
                 <span>น้อย</span>
-                <div class="flex gap-1">
-                    <div class="w-4 h-4 rounded bg-green-200"></div>
-                    <div class="w-4 h-4 rounded bg-green-400"></div>
-                    <div class="w-4 h-4 rounded bg-yellow-400"></div>
-                    <div class="w-4 h-4 rounded bg-orange-400"></div>
-                    <div class="w-4 h-4 rounded bg-red-500"></div>
+                <div style="display:flex;gap:3px">
+                    ${['#bbf7d0','#4ade80','#facc15','#fb923c','#ef4444'].map(c => `<div style="width:16px;height:16px;border-radius:3px;background:${c}"></div>`).join('')}
                 </div>
                 <span>มาก</span>
-                <span class="ml-4">⭕ = ตี 1-5 (น่าสงสัย)</span>
+                <span style="margin-left:12px">⭕ = ตี 1-5 (น่าสงสัย)</span>
+                <span style="margin-left:auto;font-weight:700">รวม ${logs.length} login</span>
             </div>
         </div>`;
 
@@ -1429,14 +1437,17 @@ window.renderLoginHeatmap = function() {
     const oddList = Object.entries(oddUsers).sort((a,b) => b[1].length - a[1].length);
 
     if (oddList.length > 0) {
+        const warnBg  = isDark ? 'rgba(153,27,27,0.2)' : '#fef2f2';
+        const warnBorder = '#f87171';
+        const warnText   = isDark ? '#fca5a5' : '#dc2626';
         html += `
-        <div class="col-span-full bg-red-50 dark:bg-red-900/20 rounded-2xl shadow p-4 border-l-4 border-red-400 mt-0">
-            <div class="font-bold text-red-700 dark:text-red-300 mb-2">⚠️ พนักงานที่ Login ช่วงเวลาผิดปกติ (ตี 1-5)</div>
-            <div class="flex flex-wrap gap-2">
+        <div class="col-span-full rounded-2xl shadow p-4" style="background:${warnBg};border-left:4px solid ${warnBorder}">
+            <div style="font-weight:700;color:${warnText};margin-bottom:10px">⚠️ พนักงานที่ Login ช่วงเวลาผิดปกติ (ตี 1-5)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
                 ${oddList.map(([name, times]) => `
-                <div class="bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-red-200 dark:border-red-700 text-sm">
-                    <span class="font-bold text-slate-800 dark:text-white">${name}</span>
-                    <span class="ml-2 text-red-500 font-bold">${times.length} ครั้ง</span>
+                <div style="background:${cardBg};border:1px solid ${warnBorder};border-radius:8px;padding:6px 12px;font-size:13px">
+                    <span style="font-weight:700;color:${textColor}">${name}</span>
+                    <span style="margin-left:8px;color:#ef4444;font-weight:700">${times.length} ครั้ง</span>
                 </div>`).join('')}
             </div>
         </div>`;
