@@ -281,11 +281,11 @@ window.generateSwapPlan = async function() {
             if (bestDayIndex !== -1) nBuckets[bestDayIndex].push(u); else failedNStaff.push(u); 
         }
 
+        // [FIX] ไม่ดันเข้า exclude อัตโนมัติ — แค่แจ้งเตือนให้รู้ว่ามีใครชนวันหยุด
         if (failedMStaff.length > 0 || failedNStaff.length > 0) {
-            failedMStaff.forEach(u => { if(!excludeMList.some(e=>e.id===u.id)) excludeMList.push(u); });
-            failedNStaff.forEach(u => { if(!excludeNList.some(e=>e.id===u.id)) excludeNList.push(u); });
-            renderExcludeTags('กะเช้า'); renderExcludeTags('กะดึก');
-            Swal.fire({ icon: 'info', title: 'จัดตารางเสร็จสิ้น (มีคนติดวันหยุด)', text: `พบพนักงาน ${failedMStaff.length + failedNStaff.length} คน ที่คิวสลับชนกับวันหยุดพอดี ระบบได้ดันไปอยู่กล่อง "ไม่ต้องสลับกะ" ให้อัตโนมัติครับ`, confirmButtonText: 'รับทราบ' });
+            const allFailed = [...failedMStaff, ...failedNStaff];
+            const nameList = allFailed.map(u => u.username).join(', ');
+            Swal.fire({ icon: 'warning', title: `⚠️ พบ ${allFailed.length} คน ที่ชนวันหยุด`, html: `<div class="text-left text-sm"><p class="mb-2">พนักงานต่อไปนี้คิวสลับชนกับวันหยุดพอดี ระบบยังคงจัดให้สลับกะตามปกติ</p><p class="font-bold text-orange-600">${nameList}</p><p class="mt-2 text-xs text-gray-500">ถ้าต้องการให้ใครอยู่กะเดิม ให้เลือกเองที่ช่อง "ล็อกพนักงาน" แล้วคำนวณใหม่</p></div>`, confirmButtonText: 'รับทราบ' });
         } else { Swal.close(); }
 
         window.globalUserLeaves = userLeaves;
