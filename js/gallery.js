@@ -371,6 +371,22 @@ window.downloadGalleryUrl = async function(url, fileName) {
 
 window.downloadAllInFilter = async function() {
     if (!currentGalleryData || currentGalleryData.length === 0) return Swal.fire('ไม่มีรูป', '', 'warning');
+
+    // [FIX] โหลด JSZip แบบ lazy load ตอนกดปุ่ม (ไม่ถ่วงหน้าเว็บตอนเปิด)
+    if (typeof JSZip === 'undefined') {
+        try {
+            Swal.fire({ title: 'กำลังเตรียมระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('โหลด JSZip ไม่สำเร็จ'));
+                document.head.appendChild(script);
+            });
+        } catch (e) {
+            return Swal.fire('Error', 'ไม่สามารถโหลดระบบสร้างโฟลเดอร์ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่', 'error');
+        }
+    }
     if (typeof JSZip === 'undefined') return Swal.fire('Error', 'ไม่พบระบบสร้างโฟลเดอร์ กรุณาแจ้งผู้ดูแลระบบ', 'error');
 
     let categoryName = document.getElementById('galleryFilter').value;
