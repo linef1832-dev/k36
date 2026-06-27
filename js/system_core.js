@@ -363,18 +363,28 @@ window.saveData = async function(e) {
     }
     
     let limitTeam = 5;
-    if (SETTINGS[`quota_team_${activeTeam}_${myDep}_${shiftSuffix}`] !== undefined) {
+    let hasTeamQuota = false;
+    if (SETTINGS[`quota_team_${activeTeam}_${myDep}_${shiftSuffix}`] !== undefined && SETTINGS[`quota_team_${activeTeam}_${myDep}_${shiftSuffix}`] !== '') {
         limitTeam = parseInt(SETTINGS[`quota_team_${activeTeam}_${myDep}_${shiftSuffix}`]);
-    } else if (SETTINGS[`quota_team_${activeTeam}_${shiftSuffix}`] !== undefined) {
+        hasTeamQuota = true;
+    } else if (SETTINGS[`quota_team_${activeTeam}_${shiftSuffix}`] !== undefined && SETTINGS[`quota_team_${activeTeam}_${shiftSuffix}`] !== '') {
         limitTeam = parseInt(SETTINGS[`quota_team_${activeTeam}_${shiftSuffix}`]);
+        hasTeamQuota = true;
     }
 
     const useTeamLogic = (currentUser.check_type !== 'shift');
-    const countTotal = slotBookings.filter(b => (b.department || 'AM') === myDep).length;
+    // [FIX] นับเฉพาะแผนก + ทีมเดียวกัน ให้ตรงกับ dropdown ที่แสดง "ว่าง: x"
+    // เดิม countTotal นับทุกทีมรวมกัน ทำให้ OD ที่ลงเว็บเดียวกันถูกนับ → ขึ้นเต็มทั้งที่ dropdown ว่าง
+    const countTotalDept = slotBookings.filter(b => (b.department || 'AM') === myDep).length;
     const countTeam = slotBookings.filter(b => b.team === activeTeam && (b.department || 'AM') === myDep).length;
 
-    if (countTotal >= limitTotal) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาแผนก ${myDep} เต็มแล้ว`, 'error'); }
-    if (useTeamLogic && countTeam >= limitTeam) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาทีม ${activeTeam} (${shiftSuffix}) เต็มแล้ว`, 'error'); }
+    // ถ้ามีตั้งโควตาทีมไว้ ให้ยึดโควตาทีมเป็นหลัก (ตรงกับ dropdown) ไม่เช็คโควตารวมแผนกซ้ำ
+    if (hasTeamQuota) {
+        if (useTeamLogic && countTeam >= limitTeam) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาทีม ${activeTeam} (${shiftSuffix}) เต็มแล้ว`, 'error'); }
+    } else {
+        if (countTotalDept >= limitTotal) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาแผนก ${myDep} เต็มแล้ว`, 'error'); }
+        if (useTeamLogic && countTeam >= limitTeam) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาทีม ${activeTeam} (${shiftSuffix}) เต็มแล้ว`, 'error'); }
+    }
 
     const { error } = await appDB.from('schedules').insert([{ 
         work_date: dateVal, 
