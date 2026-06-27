@@ -305,7 +305,7 @@ window.generateSwapPlan = async function() {
             generatedSwapPlan.push({
                 dayNumber: i + 1, targetDate: dateStr, targetNextDate: nextDateStr, 
                 morningToNight: mList, nightToMorning: nList,
-                descMtoN: `ทำ${pair.fromLabel}วันสุดท้าย: ${prevDateDisplay} | เริ่มเข้า${pair.toLabel}คืนแรก: ${displayDate}`,
+                descMtoN: `ทำ${pair.fromLabel}วันสุดท้าย: ${prevDateDisplay} | เริ่มเข้า${pair.toLabel}วันแรก: ${displayDate}`,
                 descNtoM: `ออกกะ${pair.toLabel}วันที่: ${displayDate} (ได้พัก 1 วัน) | เริ่มเข้า${pair.fromLabel}วันที่: ${nextDateDisplay}`
             });
         }
@@ -519,12 +519,31 @@ window.fetchPublicSwapSchedule = async function() {
                 } 
                 else if (targetShift === 'กะดึก') {
                     icon = 'dark_mode'; bgClass = 'bg-[#1e1b4b] border-purple-900/50'; txtClass = 'text-purple-400'; actionTitle = 'สลับไปดึก';
-                    detailHtml = `<span class="text-gray-400">${p.display_desc || `เริ่มเข้าดึกคืนวันที่: <b class="text-gray-200">${dateStr}</b>`}</span>`;
+                    if (p.display_desc) {
+                        // แยกข้อความ 2 ส่วน: ก่อน | และหลัง |
+                        const parts = p.display_desc.split(' | ');
+                        if (parts.length === 2) {
+                            detailHtml = `<span class="block text-xs leading-tight"><span class="text-orange-400 font-bold">${parts[0]}</span></span><span class="block text-xs leading-tight mt-0.5"><span class="text-purple-400 font-bold">${parts[1]}</span></span>`;
+                        } else {
+                            detailHtml = `<span class="text-purple-400 font-bold text-xs">${p.display_desc}</span>`;
+                        }
+                    } else {
+                        detailHtml = `<span class="text-purple-400 font-bold text-xs">เริ่มเข้าดึกวันที่: <b class="text-gray-200">${dateStr}</b></span>`;
+                    }
                     swapTypeForFilter = 'night'; countNight++; 
                 } 
                 else if (targetShift === 'กะเช้า') {
                     icon = 'wb_sunny'; bgClass = 'bg-[#422006] border-orange-900/50'; txtClass = 'text-orange-500'; actionTitle = 'สลับไปเช้า';
-                    detailHtml = `<span class="text-gray-400">${p.display_desc || `<span class="block leading-tight">หยุดพัก: <b class="text-gray-200">${prevDateStr}</b></span><span class="block leading-tight">เริ่มเข้าเช้าวันที่: <b class="text-green-500">${dateStr}</b></span>`}</span>`;
+                    if (p.display_desc) {
+                        const parts = p.display_desc.split(' | ');
+                        if (parts.length === 2) {
+                            detailHtml = `<span class="block text-xs leading-tight"><span class="text-purple-400 font-bold">${parts[0]}</span></span><span class="block text-xs leading-tight mt-0.5"><span class="text-orange-400 font-bold">${parts[1]}</span></span>`;
+                        } else {
+                            detailHtml = `<span class="text-orange-400 font-bold text-xs">${p.display_desc}</span>`;
+                        }
+                    } else {
+                        detailHtml = `<span class="block text-xs leading-tight text-gray-400">หยุดพัก: <b class="text-gray-200">${prevDateStr}</b></span><span class="block text-xs leading-tight mt-0.5 text-orange-400 font-bold">เริ่มเข้าเช้าวันที่: <b class="text-green-400">${dateStr}</b></span>`;
+                    }
                     swapTypeForFilter = 'morning'; countMorning++; 
                 }
 
@@ -950,7 +969,7 @@ window.openAddMissingSwap = async function() {
             const prevDispDate = new Date(prevDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
             // 🟢 format ให้ครบ 2 ส่วน เหมือนตอน auto-generate
             const desc = targetShift === 'กะดึก'
-                ? `ทำเช้าวันสุดท้าย: ${prevDispDate} | เริ่มเข้าดึกคืนแรก: ${dispDate}`
+                ? `ทำเช้าวันสุดท้าย: ${prevDispDate} | เริ่มเข้าดึกวันแรก: ${dispDate}`
                 : `ออกกะเช้าวันที่: ${prevDispDate} (ได้พัก 1 วัน) | เริ่มเข้าเช้าวันที่: ${dispDate}`;
 
             payload = { user_id: user.id, user_name: user.username, target_shift: targetShift, display_desc: desc };
@@ -1087,7 +1106,7 @@ window.changeSavedSwapDate = async function(taskId) {
         let newDesc;
         if (p.target_shift === 'กะดึก') {
             // MtoN: prev = วันสุดท้ายทำเช้า, new = วันเริ่มเข้าดึก
-            newDesc = `ทำเช้าวันสุดท้าย: ${prevDateDisplay} | เริ่มเข้าดึกคืนแรก: ${newDateDisplay}`;
+            newDesc = `ทำเช้าวันสุดท้าย: ${prevDateDisplay} | เริ่มเข้าดึกวันแรก: ${newDateDisplay}`;
         } else if (p.target_shift === 'กะเช้า') {
             // NtoM: prev = วันพัก, new = วันเริ่มเข้าเช้า
             newDesc = `ออกกะเช้าวันที่: ${prevDateDisplay} (ได้พัก 1 วัน) | เริ่มเข้าเช้าวันที่: ${newDateDisplay}`;
@@ -1211,7 +1230,7 @@ window.reactivateSavedSwap = async function(taskId) {
         const prevDateDisplay = new Date(prevDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
         // 🟢 format ให้ครบ 2 ส่วน
         const newDesc = newTargetShift === 'กะดึก'
-            ? `ทำเช้าวันสุดท้าย: ${prevDateDisplay} | เริ่มเข้าดึกคืนแรก: ${swapDateDisplay}`
+            ? `ทำเช้าวันสุดท้าย: ${prevDateDisplay} | เริ่มเข้าดึกวันแรก: ${swapDateDisplay}`
             : `ออกกะเช้าวันที่: ${prevDateDisplay} (ได้พัก 1 วัน) | เริ่มเข้าเช้าวันที่: ${swapDateDisplay}`;
 
         const newPayload = {
