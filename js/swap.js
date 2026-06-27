@@ -65,6 +65,25 @@ window.clearExcludeStaff = function() {
     excludeMList = []; excludeNList = [];
     renderExcludeTags('กะเช้า'); renderExcludeTags('กะดึก');
     document.getElementById('swapPlanPreview').style.display = 'none';
+
+    // [FIX] ซ่อน/แสดงช่อง "อยู่ดึกต่อ" ตามว่า bidirectional หรือไม่
+    const SHIFT_MAP_CHECK = {
+        'M_N': true, 'M_A': true, 'A_N': true,
+        'N_M': false, 'M_only': false
+    };
+    const shiftPairVal = document.getElementById('swapShiftPair')?.value || 'M_N';
+    const isBidi = SHIFT_MAP_CHECK[shiftPairVal] !== false;
+    const excludeNBlock = document.getElementById('excludeNBlock');
+    if (excludeNBlock) {
+        excludeNBlock.style.display = isBidi ? '' : 'none';
+    }
+    // แก้ label ฝั่งเช้าให้ตรงกับทิศทางที่เลือก
+    const excludeMLabel = document.getElementById('excludeMLabel');
+    if (excludeMLabel) {
+        if (shiftPairVal === 'N_M') excludeMLabel.innerHTML = '<span class="material-icons text-sm">dark_mode</span> อยู่ดึกต่อ (ไม่ไปเช้า)';
+        else if (shiftPairVal === 'M_only') excludeMLabel.innerHTML = '<span class="material-icons text-sm">wb_sunny</span> อยู่เช้าต่อ (ไม่ไปดึก)';
+        else excludeMLabel.innerHTML = '<span class="material-icons text-sm">wb_sunny</span> อยู่เช้าต่อ (ไม่ไปดึก)';
+    }
 }
 
 window.searchExcludeStaff = function(shiftType) {
@@ -161,10 +180,12 @@ window.generateSwapPlan = async function() {
 
         // กำหนดกะจาก dropdown
         const SHIFT_MAP = {
+            // ↔ แบบ 2 ทาง (สลับสับเปลี่ยนกัน)
             'M_N':    { from: 'กะเช้า', to: 'กะดึก',  toLabel: 'ดึก',   fromLabel: 'เช้า',  bidirectional: true  },
             'M_A':    { from: 'กะเช้า', to: 'กะกลาง', toLabel: 'กลาง',  fromLabel: 'เช้า',  bidirectional: true  },
             'A_N':    { from: 'กะกลาง', to: 'กะดึก',  toLabel: 'ดึก',   fromLabel: 'กลาง',  bidirectional: true  },
-            'N_M':    { from: 'กะดึก',  to: 'กะเช้า', toLabel: 'เช้า',  fromLabel: 'ดึก',   bidirectional: true  }, // [FIX] เปิด bidirectional ให้ฝั่งเช้าแสดงคนด้วย
+            // → แบบ 1 ทาง (เฉพาะ from ย้ายไป to ฝ่ายเดียว ไม่มีสลับกลับ)
+            'N_M':    { from: 'กะดึก',  to: 'กะเช้า', toLabel: 'เช้า',  fromLabel: 'ดึก',   bidirectional: false },
             'M_only': { from: 'กะเช้า', to: 'กะดึก',  toLabel: 'ดึก',   fromLabel: 'เช้า',  bidirectional: false },
         };
         const pair = SHIFT_MAP[shiftPair] || SHIFT_MAP['M_N'];
