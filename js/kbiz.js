@@ -21,8 +21,9 @@ async function fetchKbizData() {
     grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดข้อมูลบอท...</span></div>';
     try {
         const _dataCached = await window.getSettingCached('kbiz_bots_data');
-        if (data && data.value) {
-            globalKbizBots = JSON.parse(data.value);
+        // [FIX] getSettingCached คืนค่า value ตรงๆ ไม่ใช่ { key, value }
+        if (_dataCached) {
+            globalKbizBots = JSON.parse(_dataCached);
             let needSave = false;
             globalKbizBots = globalKbizBots.map(b => {
                 if (!b.id) {
