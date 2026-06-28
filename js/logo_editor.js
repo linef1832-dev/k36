@@ -191,13 +191,16 @@ window.leLoadBaseImage = function(event) {
             window.leState.textObjects = [];
             leResetFilters(false);
             leRenderBase();
-            leFitScreen();
             leRemoveLogo();
             leClearAllText();
             leClearAllStickers();
             document.getElementById('leEmptyState')?.classList.add('hidden');
             document.getElementById('leCanvasWrapper')?.classList.remove('hidden');
             document.getElementById('leZoomControls')?.classList.remove('hidden');
+            // [FIX] รอ DOM render ก่อน leFitScreen ไม่งั้น clientWidth/Height = 0
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => { leFitScreen(); });
+            });
             leShowTip('💡 เริ่มแต่งรูปได้แล้ว เลือกแท็บที่ต้องการบน sidebar', 3500);
         };
         img.src = e.target.result;
