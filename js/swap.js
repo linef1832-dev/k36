@@ -124,9 +124,6 @@
                         </div>
                         <button onclick="generateSwapPlan()" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-blue-500/30 transition transform active:scale-95 flex justify-center items-center gap-2 text-base">
                             <span class="material-icons">auto_fix_high</span> ✨ คำนวณตารางสลับกะ
-                        </button>
-                        <button onclick="exportSwapReport()" class="mt-2 w-full bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-xl font-bold shadow transition flex justify-center items-center gap-2">
-                            <span class="material-icons">table_chart</span> 📊 Export รีพอร์ทสลับกะ (Excel)
                         </button>center gap-2 text-base">
                             <span class="material-icons">auto_awesome</span> คำนวณตารางสลับกะ
                         </button>
@@ -178,14 +175,9 @@
                     </div>
                     <div id="planDaysContainer" class="space-y-4 mb-6"></div>
                     <div class="sticky bottom-0 bg-white dark:bg-slate-800 p-4 border-t border-slate-200 dark:border-slate-700 -mx-6 -mb-6 pb-6 mt-6 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.5)] z-10">
-                        <div class="flex gap-3">
-                            <button onclick="confirmAndSaveSwapPlan()" class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white py-4 rounded-xl font-extrabold shadow-lg shadow-green-500/30 transition transform active:scale-95 flex justify-center items-center gap-2 text-lg">
-                                <span class="material-icons">task_alt</span> ยืนยันและบันทึกตารางเข้าระบบ
-                            </button>
-                            <button onclick="exportSwapReport()" class="bg-sky-600 hover:bg-sky-700 text-white px-5 py-4 rounded-xl font-bold shadow transition flex items-center gap-2 whitespace-nowrap">
-                                <span class="material-icons">download</span> Export Excel
-                            </button>
-                        </div>
+                        <button onclick="confirmAndSaveSwapPlan()" class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white py-4 rounded-xl font-extrabold shadow-lg shadow-green-500/30 transition transform active:scale-95 flex justify-center items-center gap-2 text-lg">
+                            <span class="material-icons">task_alt</span> ยืนยันและบันทึกตารางเข้าระบบ
+                        </button>
                     </div>
                 </div>
             </div>
