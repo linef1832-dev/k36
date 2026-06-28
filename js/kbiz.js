@@ -20,10 +20,15 @@ async function fetchKbizData() {
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดข้อมูลบอท...</span></div>';
     try {
-        const _dataCached = await window.getSettingCached('kbiz_bots_data');
+        let rawData = await window.getSettingCached('kbiz_bots_data');
+        // [FIX] fallback ดึงตรงจาก DB ถ้า cache ว่าง
+        if (!rawData) {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'kbiz_bots_data').maybeSingle();
+            rawData = data?.value ?? null;
+        }
         // [FIX] getSettingCached คืนค่า value ตรงๆ ไม่ใช่ { key, value }
-        if (_dataCached) {
-            globalKbizBots = JSON.parse(_dataCached);
+        if (rawData) {
+            globalKbizBots = JSON.parse(rawData);
             let needSave = false;
             globalKbizBots = globalKbizBots.map(b => {
                 if (!b.id) {
