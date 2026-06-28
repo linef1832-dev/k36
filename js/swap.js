@@ -1352,3 +1352,228 @@ window.swapDrop = function(event, toDayIndex, shiftType) {
     draggedSwapUser = null;
     window.renderSwapPlanPreviewUI(); 
 };
+
+
+// ==========================================
+// 📊 Export รีพอร์ทสลับกะ — รูปแบบตาราง (ชื่อ × วันที่)
+// ==========================================
+window.exportSwapReport = async function() {
+    if (typeof ExcelJS === 'undefined') {
+        try {
+            Swal.fire({ title: 'กำลังเตรียม Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            await new Promise((res, rej) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+                s.onload = res; s.onerror = () => rej(new Error('โหลด ExcelJS ไม่ได้'));
+                document.head.appendChild(s);
+            });
+        } catch(e) { return Swal.fire('Error', e.message, 'error'); }
+    }
+
+    Swal.fire({ title: 'กำลังดึงข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    // ดึง scheduled_tasks
+    const { data: tasks, error } = await appDB
+        .from('scheduled_tasks')
+        .select('*')
+        .eq('task_type', 'individual_shift_update')
+        .in('status', ['pending', 'completed', 'info_only'])
+        .order('scheduled_for', { ascending: true });
+
+    if (error || !tasks || tasks.length === 0) {
+        return Swal.fire('ไม่พบข้อมูล', 'ยังไม่มีตารางสลับกะ', 'warning');
+    }
+
+    // parse payload
+    const parsedTasks = tasks.map(t => {
+        let p = t.payload;
+        if (typeof p === 'string') { try { p = JSON.parse(p); } catch(e) { p = {}; } }
+        return {
+            userId: p.user_id,
+            username: p.user_name || p.username || '-',
+            targetShift: p.target_shift || '-',
+            status: t.status,
+            date: new Date(t.scheduled_for)
+        };
+    }).filter(t => t.status !== 'info_only' || t.targetShift === 'คงเดิม');
+
+    // หาช่วงวันที่ทั้งหมด
+    const allDates = [...new Set(parsedTasks.map(t => t.date.toISOString().slice(0,10)))].sort();
+    if (allDates.length === 0) return Swal.fire('ไม่พบข้อมูล', '', 'warning');
+
+    const dateStart = new Date(allDates[0]);
+    const dateEnd   = new Date(allDates[allDates.length-1]);
+    const month     = dateStart.getMonth();
+    const year      = dateStart.getFullYear();
+
+    // สร้าง array วันที่ทั้งเดือน (หรือตาม range)
+    const dayNumbers = [];
+    for (let d = new Date(dateStart); d <= dateEnd; d.setDate(d.getDate()+1)) {
+        dayNumbers.push(new Date(d).getDate());
+    }
+
+    // จัดกลุ่มข้อมูลตาม userId+date → shift
+    const shiftMap = {}; // { 'username': { day: shiftLabel } }
+    const userInfo = {}; // { 'username': { dept, allowedShift } }
+
+    parsedTasks.forEach(t => {
+        const day = t.date.getDate();
+        if (!shiftMap[t.username]) shiftMap[t.username] = {};
+        const label = t.targetShift === 'กะเช้า' ? 'เช้า'
+                    : t.targetShift === 'กะดึก'  ? 'ดึก'
+                    : t.targetShift === 'กะกลาง' ? 'กลาง'
+                    : t.targetShift === 'คงเดิม' ? '-'
+                    : t.targetShift;
+        shiftMap[t.username][day] = label;
+    });
+
+    // หา userInfo จาก GLOBAL_USER_LIST
+    if (typeof GLOBAL_USER_LIST !== 'undefined') {
+        GLOBAL_USER_LIST.forEach(u => {
+            if (shiftMap[u.username]) {
+                userInfo[u.username] = { dept: u.department || '-', allowedShift: u.allowed_shift || '-' };
+            }
+        });
+    }
+
+    // แบ่งกลุ่มตามกะหลัก
+    const morningUsers = Object.keys(shiftMap).filter(name => {
+        const info = userInfo[name];
+        return info && info.allowedShift === 'กะเช้า';
+    }).sort();
+    const nightUsers = Object.keys(shiftMap).filter(name => {
+        const info = userInfo[name];
+        return info && info.allowedShift === 'กะดึก';
+    }).sort();
+    const otherUsers = Object.keys(shiftMap).filter(name =>
+        !morningUsers.includes(name) && !nightUsers.includes(name)
+    ).sort();
+
+    // =========== สร้าง Excel ===========
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('ตารางสลับกะ');
+
+    const thaiMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const monthLabel = `${thaiMonths[month]} ${year + 543}`;
+
+    // กำหนด columns: ลำดับ | ชื่อ | เว็บหลัก | กะหลัก | วันที่ 1...31
+    const cols = [
+        { header: 'ลำดับ',   key: 'no',    width: 7  },
+        { header: 'ชื่อ',    key: 'name',  width: 14 },
+        { header: 'เว็บหลัก',key: 'dept',  width: 10 },
+        { header: 'กะหลัก',  key: 'shift', width: 10 },
+        ...dayNumbers.map(d => ({ header: String(d), key: `d${d}`, width: 5 }))
+    ];
+    ws.columns = cols;
+
+    // helper: style ตาม shift label
+    const shiftStyle = (label) => {
+        if (label === 'เช้า')    return { bg: 'FFFFF3E0', font: 'FFE65100', bold: true };
+        if (label === 'ดึก')     return { bg: 'FFEDE7F6', font: 'FF4527A0', bold: true };
+        if (label === 'กลาง')   return { bg: 'FFE3F2FD', font: 'FF0D47A1', bold: true };
+        if (label === 'เปลี่ยน') return { bg: 'FFF1F8E9', font: 'FF33691E', bold: true };
+        if (label === 'X')       return { bg: 'FFFCE4EC', font: 'FFC62828', bold: true };
+        if (label === 'KL')      return { bg: 'FFE8F5E9', font: 'FF2E7D32', bold: false };
+        if (label === 'TX')      return { bg: 'FFFEF9C3', font: 'FF78350F', bold: false };
+        return { bg: 'FFFFFFFF', font: 'FF9E9E9E', bold: false };
+    };
+
+    const addHeaderRow = (label) => {
+        const r = ws.addRow([label]);
+        r.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 11 };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+        ws.mergeCells(`A${r.number}:${String.fromCharCode(65 + cols.length - 1)}${r.number}`);
+        r.height = 20;
+        return r;
+    };
+
+    const addColHeaderRow = () => {
+        const r = ws.addRow(['ลำดับ', 'ชื่อ', 'เว็บหลัก', 'กะหลัก', ...dayNumbers.map(d => d)]);
+        r.eachCell((cell, colNum) => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 10 };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = { bottom: { style: 'thin', color: { argb: 'FF475569' } } };
+        });
+        r.height = 18;
+    };
+
+    const addUserRows = (userList, sectionLabel) => {
+        if (userList.length === 0) return;
+        addHeaderRow(sectionLabel);
+        addColHeaderRow();
+
+        userList.forEach((username, idx) => {
+            const info = userInfo[username] || { dept: '-', allowedShift: '-' };
+            const days = shiftMap[username] || {};
+            const rowData = [
+                idx + 1,
+                username,
+                info.dept,
+                info.allowedShift === 'กะเช้า' ? 'เช้า' : info.allowedShift === 'กะดึก' ? 'ดึก' : info.allowedShift,
+                ...dayNumbers.map(d => days[d] || '')
+            ];
+            const row = ws.addRow(rowData);
+            const isEven = idx % 2 === 0;
+
+            row.eachCell((cell, colNum) => {
+                cell.font = { size: 10 };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isEven ? 'FFFAFAFA' : 'FFFFFFFF' } };
+                cell.border = {
+                    bottom: { style: 'hair', color: { argb: 'FFE2E8F0' } },
+                    right:  { style: 'hair', color: { argb: 'FFE2E8F0' } }
+                };
+            });
+
+            // สีพิเศษคอลัมน์ชื่อ
+            row.getCell(1).font = { size: 9, color: { argb: 'FF94A3B8' } };
+            row.getCell(2).font = { size: 10, bold: true };
+            row.getCell(3).font = { size: 9, color: { argb: 'FF64748B' } };
+
+            // สีช่องวันที่ตาม shift
+            dayNumbers.forEach((d, i) => {
+                const label = days[d] || '';
+                if (!label) return;
+                const cell = row.getCell(5 + i);
+                const s = shiftStyle(label);
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: s.bg } };
+                cell.font = { size: 9, color: { argb: s.font }, bold: s.bold };
+            });
+
+            row.height = 16;
+        });
+        ws.addRow([]); // เว้นบรรทัด
+    };
+
+    // row 1: ชื่อเดือน
+    const titleRow = ws.addRow([`ตารางสลับกะ — ${monthLabel}`]);
+    titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF1E293B' } };
+    ws.mergeCells(`A1:${String.fromCharCode(65 + cols.length - 1)}1`);
+    titleRow.height = 24;
+    ws.addRow([]);
+
+    // เพิ่ม section ตามกะ
+    addUserRows(morningUsers, `☀️  กะเช้า (08:00 - 20:00)`);
+    addUserRows(nightUsers,   `🌙  กะดึก (20:00 - 08:00)`);
+    if (otherUsers.length > 0) addUserRows(otherUsers, `👥  กะอื่น / ไม่ระบุ`);
+
+    // freeze header
+    ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 3 }];
+
+    // ดาวน์โหลด
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `รีพอร์ทสลับกะ_${monthLabel.replace(' ','_')}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    const total = morningUsers.length + nightUsers.length + otherUsers.length;
+    Swal.fire({ icon: 'success', title: 'ดาวน์โหลดสำเร็จ!', text: `${total} คน × ${dayNumbers.length} วัน`, timer: 1800, showConfirmButton: false });
+};
