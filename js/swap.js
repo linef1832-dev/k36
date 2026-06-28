@@ -374,9 +374,10 @@ window.confirmAndSaveSwapPlan = async function() {
             try {
                 let tasksToInsert = []; let leaveRequestsToInsert = []; 
                 const startDateStr = document.getElementById('swapStartDate').value;
+                // [FIX] declare _p ก่อน forEach เพื่อให้ excludeMList/excludeNList ใช้ได้ด้วย
+                const _p = currentSwapPair || { to: 'กะดึก', from: 'กะเช้า', toLabel: 'ดึก', fromLabel: 'เช้า' };
 
                 generatedSwapPlan.forEach(dayPlan => {
-                    const _p = currentSwapPair || { to: 'กะดึก', from: 'กะเช้า', toLabel: 'ดึก', fromLabel: 'เช้า' };
                     dayPlan.morningToNight.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetDate}T05:00:00+07:00`);
                         tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: _p.to, display_desc: dayPlan.descMtoN }, scheduled_for: exactTime.toISOString(), status: 'pending' });
