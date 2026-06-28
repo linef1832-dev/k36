@@ -1355,8 +1355,10 @@ window.swapDrop = function(event, toDayIndex, shiftType) {
 };
 
 
+
+
 // ==========================================
-// 📊 Export รีพอร์ทสลับกะ — รูปแบบตาราง (ชื่อ × วันที่)
+// 📊 Export ตารางสลับกะ — รูปแบบ AMOL
 // ==========================================
 window.exportSwapReport = async function() {
     if (typeof ExcelJS === 'undefined') {
@@ -1373,7 +1375,6 @@ window.exportSwapReport = async function() {
 
     Swal.fire({ title: 'กำลังดึงข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-    // ดึง scheduled_tasks
     const { data: tasks, error } = await appDB
         .from('scheduled_tasks')
         .select('*')
@@ -1385,196 +1386,197 @@ window.exportSwapReport = async function() {
         return Swal.fire('ไม่พบข้อมูล', 'ยังไม่มีตารางสลับกะ', 'warning');
     }
 
-    // parse payload
-    const parsedTasks = tasks.map(t => {
+    // parse
+    const shiftMap = {}, userMeta = {};
+    let minDate = null;
+
+    tasks.filter(t => t.status !== 'info_only').forEach(t => {
         let p = t.payload;
         if (typeof p === 'string') { try { p = JSON.parse(p); } catch(e) { p = {}; } }
-        return {
-            userId: p.user_id,
-            username: p.user_name || p.username || '-',
-            targetShift: p.target_shift || '-',
-            status: t.status,
-            date: new Date(t.scheduled_for)
-        };
-    }).filter(t => t.status !== 'info_only' || t.targetShift === 'คงเดิม');
+        const name = p.user_name || p.username || '-';
+        if (!name || name === '-') return;
 
-    // หาช่วงวันที่ทั้งหมด
-    const allDates = [...new Set(parsedTasks.map(t => t.date.toISOString().slice(0,10)))].sort();
-    if (allDates.length === 0) return Swal.fire('ไม่พบข้อมูล', '', 'warning');
+        const d = new Date(t.scheduled_for);
+        const day = d.getDate();
+        if (!minDate || d < minDate) minDate = new Date(d.getFullYear(), d.getMonth(), 1);
 
-    const dateStart = new Date(allDates[0]);
-    const dateEnd   = new Date(allDates[allDates.length-1]);
-    const month     = dateStart.getMonth();
-    const year      = dateStart.getFullYear();
+        const label = p.target_shift === 'กะเช้า' ? 'เช้า'
+                    : p.target_shift === 'กะดึก'  ? 'ดึก'
+                    : p.target_shift === 'กะกลาง' ? 'กลาง'
+                    : (p.target_shift || '');
 
-    // สร้าง array วันที่ทั้งเดือน (หรือตาม range)
-    const dayNumbers = [];
-    for (let d = new Date(dateStart); d <= dateEnd; d.setDate(d.getDate()+1)) {
-        dayNumbers.push(new Date(d).getDate());
-    }
+        if (!shiftMap[name]) shiftMap[name] = {};
+        shiftMap[name][day] = label;
 
-    // จัดกลุ่มข้อมูลตาม userId+date → shift
-    const shiftMap = {}; // { 'username': { day: shiftLabel } }
-    const userInfo = {}; // { 'username': { dept, allowedShift } }
-
-    parsedTasks.forEach(t => {
-        const day = t.date.getDate();
-        if (!shiftMap[t.username]) shiftMap[t.username] = {};
-        const label = t.targetShift === 'กะเช้า' ? 'เช้า'
-                    : t.targetShift === 'กะดึก'  ? 'ดึก'
-                    : t.targetShift === 'กะกลาง' ? 'กลาง'
-                    : t.targetShift === 'คงเดิม' ? '-'
-                    : t.targetShift;
-        shiftMap[t.username][day] = label;
+        if (!userMeta[name]) {
+            const u = typeof GLOBAL_USER_LIST !== 'undefined' ? GLOBAL_USER_LIST.find(x => x.username === name) : null;
+            userMeta[name] = {
+                web:   u?.team || u?.department || '-',
+                dept:  u?.department || '-',
+                shift: u?.allowed_shift === 'กะเช้า' ? 'เช้า' : u?.allowed_shift === 'กะดึก' ? 'ดึก' : (u?.allowed_shift || '-'),
+                pos:   u?.role || 'NV'
+            };
+        }
     });
 
-    // หา userInfo จาก GLOBAL_USER_LIST
-    if (typeof GLOBAL_USER_LIST !== 'undefined') {
-        GLOBAL_USER_LIST.forEach(u => {
-            if (shiftMap[u.username]) {
-                userInfo[u.username] = { dept: u.department || '-', allowedShift: u.allowed_shift || '-' };
-            }
-        });
-    }
+    if (!minDate) return Swal.fire('ไม่พบข้อมูล', '', 'warning');
 
-    // แบ่งกลุ่มตามกะหลัก
-    const morningUsers = Object.keys(shiftMap).filter(name => {
-        const info = userInfo[name];
-        return info && info.allowedShift === 'กะเช้า';
-    }).sort();
-    const nightUsers = Object.keys(shiftMap).filter(name => {
-        const info = userInfo[name];
-        return info && info.allowedShift === 'กะดึก';
-    }).sort();
-    const otherUsers = Object.keys(shiftMap).filter(name =>
-        !morningUsers.includes(name) && !nightUsers.includes(name)
-    ).sort();
+    const YEAR = minDate.getFullYear();
+    const MONTH = minDate.getMonth();
+    const daysInMonth = new Date(YEAR, MONTH + 1, 0).getDate();
+    const thaiMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                        'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    const monthThai = `${thaiMonths[MONTH]} ${YEAR + 543}`;
 
-    // =========== สร้าง Excel ===========
+    // สีตรงแบบ AMOL
+    const C = {
+        title:   'FFE2EFD9', header:  'FFFFC000', daySun:  'FFFFD966',
+        morning: 'FFB6D7A8', night:   'FFB6D7A8',
+        secAm:   'FFFFD966', secNt:   'FF6FA8DC',
+        X:       'FFFB9DAD', KL:      'FF548135', TX:      'FF00B0F0',
+        change:  'FFFFFF00', am_cell: 'FFFFC000', nt_cell: 'FF9FC5E8',
+    };
+
+    const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+    const font = (color='FF000000', bold=false, size=10) => ({ name: 'Arial', color: { argb: color }, bold, size });
+    const align = (h='center', v='middle') => ({ horizontal: h, vertical: v });
+    const border = () => {
+        const s = { style: 'thin', color: { argb: 'FFCCCCCC' } };
+        return { left: s, right: s, top: s, bottom: s };
+    };
+
+    const getCellStyle = (label, rowBg) => {
+        let bg = rowBg, fc = 'FF000000', bold = false;
+        if (label === 'X')       { bg = C.X; }
+        else if (label === 'KL') { bg = C.KL; fc = 'FFFFFFFF'; bold = true; }
+        else if (label === 'TX') { bg = C.TX; fc = 'FFFFFFFF'; }
+        else if (label === 'เปลี่ยน') { bg = C.change; bold = true; }
+        else if (label === 'เช้า')    { bg = C.am_cell; }
+        else if (label === 'ดึก')     { bg = C.nt_cell; }
+        return { bg, fc, bold };
+    };
+
+    const COL_STT=2, COL_NAME=3, COL_WEB=4, COL_DEPT=5, COL_SHFT=6, COL_POS=7, COL_D1=8;
+    const lastCol = COL_D1 + daysInMonth - 1;
+
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('ตารางสลับกะ');
 
-    const thaiMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-    const monthLabel = `${thaiMonths[month]} ${year + 543}`;
+    // col widths
+    ws.getColumn(1).width = 2.5;
+    ws.getColumn(2).width = 5;
+    ws.getColumn(3).width = 14;
+    ws.getColumn(4).width = 8;
+    ws.getColumn(5).width = 7;
+    ws.getColumn(6).width = 6;
+    ws.getColumn(7).width = 7;
+    for (let d = 1; d <= daysInMonth; d++) ws.getColumn(COL_D1+d-1).width = 4.5;
 
-    // กำหนด columns: ลำดับ | ชื่อ | เว็บหลัก | กะหลัก | วันที่ 1...31
-    const cols = [
-        { header: 'ลำดับ',   key: 'no',    width: 7  },
-        { header: 'ชื่อ',    key: 'name',  width: 14 },
-        { header: 'เว็บหลัก',key: 'dept',  width: 10 },
-        { header: 'กะหลัก',  key: 'shift', width: 10 },
-        ...dayNumbers.map(d => ({ header: String(d), key: `d${d}`, width: 5 }))
-    ];
-    ws.columns = cols;
+    // ROW 1: Title
+    ws.getRow(1).height = 22;
+    const r1 = ws.getCell(1, 1);
+    r1.value = `ตารางสลับกะ  ${monthThai}`;
+    r1.fill = fill(C.title); r1.font = font('FF000000', true, 13);
+    r1.alignment = align('center');
+    ws.mergeCells(1, 1, 1, lastCol);
 
-    // helper: style ตาม shift label
-    const shiftStyle = (label) => {
-        if (label === 'เช้า')    return { bg: 'FFFFF3E0', font: 'FFE65100', bold: true };
-        if (label === 'ดึก')     return { bg: 'FFEDE7F6', font: 'FF4527A0', bold: true };
-        if (label === 'กลาง')   return { bg: 'FFE3F2FD', font: 'FF0D47A1', bold: true };
-        if (label === 'เปลี่ยน') return { bg: 'FFF1F8E9', font: 'FF33691E', bold: true };
-        if (label === 'X')       return { bg: 'FFFCE4EC', font: 'FFC62828', bold: true };
-        if (label === 'KL')      return { bg: 'FFE8F5E9', font: 'FF2E7D32', bold: false };
-        if (label === 'TX')      return { bg: 'FFFEF9C3', font: 'FF78350F', bold: false };
-        return { bg: 'FFFFFFFF', font: 'FF9E9E9E', bold: false };
+    // ROW 2-3: เว้น
+    ws.getRow(2).height = 4; ws.getRow(3).height = 4;
+
+    // ROW 4: Header
+    ws.getRow(4).height = 20;
+    [[COL_STT,'STT'],[COL_NAME,'ชื่อ'],[COL_WEB,'เว็บ'],[COL_DEPT,'แผนก'],[COL_SHFT,'เข้ากะ'],[COL_POS,'ตำแหน่ง']].forEach(([col,h]) => {
+        const c = ws.getCell(4, col);
+        c.value = h; c.fill = fill(C.header);
+        c.font = font('FF000000', true, 10);
+        c.alignment = align(); c.border = border();
+    });
+    for (let d = 1; d <= daysInMonth; d++) {
+        const c = ws.getCell(4, COL_D1+d-1);
+        c.value = d; c.fill = fill(C.header);
+        c.font = font('FF000000', true, 9);
+        c.alignment = align(); c.border = border();
+    }
+
+    // ROW 5: วันในสัปดาห์
+    ws.getRow(5).height = 13;
+    const thaiDays = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dt = new Date(YEAR, MONTH, d);
+        const dow = (dt.getDay()); // 0=อา
+        const c = ws.getCell(5, COL_D1+d-1);
+        c.value = thaiDays[dow];
+        c.fill = fill(dow === 0 ? C.daySun : C.header);
+        c.font = font('FF000000', false, 8);
+        c.alignment = align(); c.border = border();
+    }
+
+    // แบ่ง user ตามกะ
+    const morning = Object.keys(shiftMap).filter(n => userMeta[n]?.shift === 'เช้า').sort();
+    const night   = Object.keys(shiftMap).filter(n => userMeta[n]?.shift === 'ดึก').sort();
+    const others  = Object.keys(shiftMap).filter(n => !morning.includes(n) && !night.includes(n)).sort();
+
+    let rowNum = 6;
+
+    const addSection = (label, bg) => {
+        ws.getRow(rowNum).height = 15;
+        const c = ws.getCell(rowNum, 1);
+        c.value = label; c.fill = fill(bg);
+        c.font = font('FF000000', true, 10);
+        c.alignment = align('left');
+        ws.mergeCells(rowNum, 1, rowNum, lastCol);
+        rowNum++;
     };
 
-    const addHeaderRow = (label) => {
-        const r = ws.addRow([label]);
-        r.eachCell(cell => {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 11 };
-            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    const addUserRow = (name, idx) => {
+        ws.getRow(rowNum).height = 16;
+        const meta = userMeta[name] || {};
+        const days = shiftMap[name] || {};
+        const rowBg = meta.shift === 'ดึก' ? C.night : C.morning;
+
+        [[1,''],[COL_STT,idx+1],[COL_NAME,name],[COL_WEB,meta.web||'-'],[COL_DEPT,meta.dept||'-'],[COL_SHFT,meta.shift||'-'],[COL_POS,meta.pos||'NV']].forEach(([col,val]) => {
+            const c = ws.getCell(rowNum, col);
+            c.value = val; c.fill = fill(rowBg);
+            c.font = font('FF000000', col===COL_NAME, col===COL_STT?9:10);
+            c.alignment = align(col===COL_NAME?'left':'center');
+            c.border = border();
         });
-        ws.mergeCells(`A${r.number}:${String.fromCharCode(65 + cols.length - 1)}${r.number}`);
-        r.height = 20;
-        return r;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const label = days[d] || '';
+            const c = ws.getCell(rowNum, COL_D1+d-1);
+            const { bg, fc, bold } = getCellStyle(label, rowBg);
+            c.value = label;
+            c.fill = fill(bg); c.font = font(fc, bold, 9);
+            c.alignment = align(); c.border = border();
+        }
+        rowNum++;
     };
 
-    const addColHeaderRow = () => {
-        const r = ws.addRow(['ลำดับ', 'ชื่อ', 'เว็บหลัก', 'กะหลัก', ...dayNumbers.map(d => d)]);
-        r.eachCell((cell, colNum) => {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
-            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 10 };
-            cell.alignment = { horizontal: 'center', vertical: 'middle' };
-            cell.border = { bottom: { style: 'thin', color: { argb: 'FF475569' } } };
-        });
-        r.height = 18;
-    };
+    if (morning.length > 0) {
+        addSection('☀  กะเช้า', C.secAm);
+        morning.forEach((n, i) => addUserRow(n, i));
+    }
+    if (night.length > 0) {
+        ws.getRow(rowNum).height = 4; rowNum++;
+        addSection('🌙  กะดึก', C.secNt);
+        night.forEach((n, i) => addUserRow(n, i));
+    }
+    if (others.length > 0) {
+        ws.getRow(rowNum).height = 4; rowNum++;
+        addSection('👥  อื่น', 'FFCCCCCC');
+        others.forEach((n, i) => addUserRow(n, i));
+    }
 
-    const addUserRows = (userList, sectionLabel) => {
-        if (userList.length === 0) return;
-        addHeaderRow(sectionLabel);
-        addColHeaderRow();
+    ws.views = [{ state: 'frozen', xSplit: 7, ySplit: 5 }];
 
-        userList.forEach((username, idx) => {
-            const info = userInfo[username] || { dept: '-', allowedShift: '-' };
-            const days = shiftMap[username] || {};
-            const rowData = [
-                idx + 1,
-                username,
-                info.dept,
-                info.allowedShift === 'กะเช้า' ? 'เช้า' : info.allowedShift === 'กะดึก' ? 'ดึก' : info.allowedShift,
-                ...dayNumbers.map(d => days[d] || '')
-            ];
-            const row = ws.addRow(rowData);
-            const isEven = idx % 2 === 0;
-
-            row.eachCell((cell, colNum) => {
-                cell.font = { size: 10 };
-                cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isEven ? 'FFFAFAFA' : 'FFFFFFFF' } };
-                cell.border = {
-                    bottom: { style: 'hair', color: { argb: 'FFE2E8F0' } },
-                    right:  { style: 'hair', color: { argb: 'FFE2E8F0' } }
-                };
-            });
-
-            // สีพิเศษคอลัมน์ชื่อ
-            row.getCell(1).font = { size: 9, color: { argb: 'FF94A3B8' } };
-            row.getCell(2).font = { size: 10, bold: true };
-            row.getCell(3).font = { size: 9, color: { argb: 'FF64748B' } };
-
-            // สีช่องวันที่ตาม shift
-            dayNumbers.forEach((d, i) => {
-                const label = days[d] || '';
-                if (!label) return;
-                const cell = row.getCell(5 + i);
-                const s = shiftStyle(label);
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: s.bg } };
-                cell.font = { size: 9, color: { argb: s.font }, bold: s.bold };
-            });
-
-            row.height = 16;
-        });
-        ws.addRow([]); // เว้นบรรทัด
-    };
-
-    // row 1: ชื่อเดือน
-    const titleRow = ws.addRow([`ตารางสลับกะ — ${monthLabel}`]);
-    titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF1E293B' } };
-    ws.mergeCells(`A1:${String.fromCharCode(65 + cols.length - 1)}1`);
-    titleRow.height = 24;
-    ws.addRow([]);
-
-    // เพิ่ม section ตามกะ
-    addUserRows(morningUsers, `☀️  กะเช้า (08:00 - 20:00)`);
-    addUserRows(nightUsers,   `🌙  กะดึก (20:00 - 08:00)`);
-    if (otherUsers.length > 0) addUserRows(otherUsers, `👥  กะอื่น / ไม่ระบุ`);
-
-    // freeze header
-    ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 3 }];
-
-    // ดาวน์โหลด
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `รีพอร์ทสลับกะ_${monthLabel.replace(' ','_')}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `ตารางสลับกะ_${monthThai}.xlsx`;
+    a.click(); URL.revokeObjectURL(url);
 
-    const total = morningUsers.length + nightUsers.length + otherUsers.length;
-    Swal.fire({ icon: 'success', title: 'ดาวน์โหลดสำเร็จ!', text: `${total} คน × ${dayNumbers.length} วัน`, timer: 1800, showConfirmButton: false });
+    const total = morning.length + night.length + others.length;
+    Swal.fire({ icon: 'success', title: 'ดาวน์โหลดสำเร็จ!', text: `${total} คน × ${daysInMonth} วัน`, timer: 1800, showConfirmButton: false });
 };
