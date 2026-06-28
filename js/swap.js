@@ -538,38 +538,34 @@ window.fetchPublicSwapSchedule = async function() {
                 else if (targetShift === 'กะดึก') {
                     icon = 'dark_mode'; bgClass = 'bg-[#1e1b4b] border-purple-900/50'; txtClass = 'text-purple-400'; actionTitle = 'สลับไปดึก';
                     if (p.display_desc) {
-                        const parts = p.display_desc.split(' → ');
+                        const sep = p.display_desc.includes(' → ') ? ' → ' : ' | ';
+                        const parts = p.display_desc.split(sep);
                         if (parts.length >= 2) {
-                            const colors = ['text-purple-400', 'text-purple-300'];
-                            detailHtml = parts.map((part, i) => {
-                                const color = colors[i] || 'text-purple-400';
-                                return `<span class="block text-xs font-bold mt-0.5 ${color}">${part}</span>`;
-                            }).join('');
-                        } else {
-                            detailHtml = `<span class="text-purple-400 font-bold text-xs">${p.display_desc}</span>`;
-                        }
-                    } else {
-                        detailHtml = `<span class="text-purple-400 font-bold text-xs">เริ่มเข้าดึกวันที่: <b class="text-gray-200">${dateStr}</b></span>`;
-                    }
-                    swapTypeForFilter = 'night'; countNight++; 
-                } 
-                else if (targetShift === 'กะเช้า') {
-                    icon = 'wb_sunny'; bgClass = 'bg-[#422006] border-orange-900/50'; txtClass = 'text-orange-500'; actionTitle = 'สลับไปเช้า';
-                    if (p.display_desc) {
-                        const parts = p.display_desc.split(' → ');
-                        if (parts.length >= 2) {
-                            const colors = ['text-orange-400', 'text-yellow-400', 'text-green-400'];
-                            detailHtml = parts.map((part, i) => {
-                                const color = colors[i] || 'text-orange-400';
-                                return `<span class="block text-xs font-bold mt-0.5 ${color}">${part}</span>`;
-                            }).join('');
+                            const colors = ['text-orange-400', 'text-purple-400', 'text-purple-300'];
+                            detailHtml = parts.map((part, i) => `<span class="block text-xs font-bold mt-0.5 ${colors[i]||'text-purple-400'}">${part}</span>`).join('');
                         } else {
                             detailHtml = `<span class="text-orange-400 font-bold text-xs">${p.display_desc}</span>`;
                         }
                     } else {
-                        detailHtml = `<span class="block text-xs leading-tight text-gray-400">หยุดพัก: <b class="text-gray-200">${prevDateStr}</b></span><span class="block text-xs leading-tight mt-0.5 text-orange-400 font-bold">เริ่มเข้าเช้าวันที่: <b class="text-green-400">${dateStr}</b></span>`;
+                        detailHtml = `<span class="text-purple-400 font-bold text-xs">เริ่มเข้าดึกวันที่: <b class="text-gray-200">${dateStr}</b></span>`;
                     }
-                    swapTypeForFilter = 'morning'; countMorning++; 
+                    swapTypeForFilter = 'night'; countNight++;
+                }
+                else if (targetShift === 'กะเช้า') {
+                    icon = 'wb_sunny'; bgClass = 'bg-[#422006] border-orange-900/50'; txtClass = 'text-orange-500'; actionTitle = 'สลับไปเช้า';
+                    if (p.display_desc) {
+                        const sep = p.display_desc.includes(' → ') ? ' → ' : ' | ';
+                        const parts = p.display_desc.split(sep);
+                        if (parts.length >= 2) {
+                            const colors = ['text-purple-400', 'text-yellow-400', 'text-green-400'];
+                            detailHtml = parts.map((part, i) => `<span class="block text-xs font-bold mt-0.5 ${colors[i]||'text-purple-400'}">${part}</span>`).join('');
+                        } else {
+                            detailHtml = `<span class="text-purple-400 font-bold text-xs">${p.display_desc}</span>`;
+                        }
+                    } else {
+                        detailHtml = `<span class="text-purple-400 font-bold text-xs">เริ่มเข้าเช้าวันที่: <b class="text-green-400">${dateStr}</b></span>`;
+                    }
+                    swapTypeForFilter = 'morning'; countMorning++;
                 }
 
                 let completedBadge = '';
