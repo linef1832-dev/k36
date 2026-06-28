@@ -35,7 +35,10 @@ window.leState = {
     stickerObjects: [],           // [{id, emoji, x, y, size}]
     selectedStickerId: null,
     
-    splitMode: false
+    splitMode: false,
+    // [compat] dummy logoRecolor เพื่อป้องกัน crash จาก code เดิม
+    logoRecolor: { enabled: false, pickMode: false },
+    originalLogo: null
 };
 
 function leTotalScale() { return window.leState.zoom || 1; }
@@ -833,7 +836,7 @@ function leAutoPlaceLogo(bbox) {
     document.getElementById('leLogoOpacity').value = 100;
     leUpdateLogoOverlayPosition();
     // ถ้าเปิด recolor อยู่ → apply เลย
-    if (s.logoRecolor.enabled) leApplyLogoRecolor();
+    // [removed] leApplyLogoRecolor removed
     leShowTip('⚡ วางโลโก้ใหม่เรียบร้อย! ใช้ "เปลี่ยนสี" ได้ในแผงควบคุม', 3000);
 }
 
@@ -938,7 +941,7 @@ window.leRemoveLogo = function() {
     const recolorCb = document.getElementById('leLogoRecolor');
     if (recolorCb) recolorCb.checked = false;
     document.getElementById('leLogoRecolorControls')?.classList.add('hidden');
-    window.leState.logoRecolor.enabled = false;
+    // [removed] logoRecolor state removed
 };
 
 // ==========================================
@@ -950,45 +953,7 @@ window.leRemoveLogo = function() {
 // 🌟 โหมด pick สีจากโลโก้ — ผู้ใช้คลิกบนโลโก้แล้วระบบดูดสีออกมา
 
 
-// คลิกที่ overlay → ถ้าอยู่ใน pickMode ดูดสี
-document.addEventListener('click', (e) => {
-    if (!window.leState.logoRecolor.pickMode) return;
-    const img = e.target.closest('#leLogoImg');
-    if (!img) return;
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const rect = img.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // คำนวณตำแหน่งใน originalLogo
-    const origLogo = window.leState.originalLogo;
-    if (!origLogo) return;
-    const sx = Math.floor(x / rect.width * origLogo.width);
-    const sy = Math.floor(y / rect.height * origLogo.height);
-    
-    // สร้าง canvas ชั่วคราวเพื่ออ่านสี
-    const tmp = document.createElement('canvas');
-    tmp.width = origLogo.width;
-    tmp.height = origLogo.height;
-    const tctx = tmp.getContext('2d', { willReadFrequently: true });
-    tctx.drawImage(origLogo, 0, 0);
-    try {
-        const pixel = tctx.getImageData(sx, sy, 1, 1).data;
-        if (pixel[3] < 30) {
-            leShowTip('⚠️ คลิกตรงพื้นโปร่งใส กรุณาคลิกที่สีโลโก้', 2500);
-            return;
-        }
-        const hex = '#' + [pixel[0], pixel[1], pixel[2]].map(c => c.toString(16).padStart(2, '0')).join('');
-        document.getElementById('leSourceColor').value = hex;
-        leShowTip('🎯 เลือกสี ' + hex + ' แล้ว', 2000);
-        leApplyLogoRecolor();
-    } catch(err) {
-        console.warn('pick color failed:', err);
-    }
-    leExitPickMode();
-}, true);
+
 
 
 function leSetupLogoOverlayEvents() {
