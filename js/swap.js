@@ -540,8 +540,9 @@ window.fetchPublicSwapSchedule = async function() {
                     if (p.display_desc) {
                         const parts = p.display_desc.split(' → ');
                         if (parts.length >= 2) {
+                            const colors = ['text-purple-400', 'text-purple-300'];
                             detailHtml = parts.map((part, i) => {
-                                const color = i === 0 ? 'text-orange-400' : 'text-purple-400';
+                                const color = colors[i] || 'text-purple-400';
                                 return `<span class="block text-xs font-bold mt-0.5 ${color}">${part}</span>`;
                             }).join('');
                         } else {
