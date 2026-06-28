@@ -538,10 +538,12 @@ window.fetchPublicSwapSchedule = async function() {
                 else if (targetShift === 'กะดึก') {
                     icon = 'dark_mode'; bgClass = 'bg-[#1e1b4b] border-purple-900/50'; txtClass = 'text-purple-400'; actionTitle = 'สลับไปดึก';
                     if (p.display_desc) {
-                        // แยกข้อความ 2 ส่วน: ก่อน | และหลัง |
-                        const parts = p.display_desc.split(' | ');
-                        if (parts.length === 2) {
-                            detailHtml = `<span class="block text-xs leading-tight"><span class="text-orange-400 font-bold">${parts[0]}</span></span><span class="block text-xs leading-tight mt-0.5"><span class="text-purple-400 font-bold">${parts[1]}</span></span>`;
+                        const parts = p.display_desc.split(' → ');
+                        if (parts.length >= 2) {
+                            detailHtml = parts.map((part, i) => {
+                                const color = i === 0 ? 'text-orange-400' : 'text-purple-400';
+                                return `<span class="block text-xs font-bold mt-0.5 ${color}">${part}</span>`;
+                            }).join('');
                         } else {
                             detailHtml = `<span class="text-purple-400 font-bold text-xs">${p.display_desc}</span>`;
                         }
@@ -553,9 +555,13 @@ window.fetchPublicSwapSchedule = async function() {
                 else if (targetShift === 'กะเช้า') {
                     icon = 'wb_sunny'; bgClass = 'bg-[#422006] border-orange-900/50'; txtClass = 'text-orange-500'; actionTitle = 'สลับไปเช้า';
                     if (p.display_desc) {
-                        const parts = p.display_desc.split(' | ');
-                        if (parts.length === 2) {
-                            detailHtml = `<span class="block text-xs leading-tight"><span class="text-purple-400 font-bold">${parts[0]}</span></span><span class="block text-xs leading-tight mt-0.5"><span class="text-orange-400 font-bold">${parts[1]}</span></span>`;
+                        const parts = p.display_desc.split(' → ');
+                        if (parts.length >= 2) {
+                            const colors = ['text-orange-400', 'text-yellow-400', 'text-green-400'];
+                            detailHtml = parts.map((part, i) => {
+                                const color = colors[i] || 'text-orange-400';
+                                return `<span class="block text-xs font-bold mt-0.5 ${color}">${part}</span>`;
+                            }).join('');
                         } else {
                             detailHtml = `<span class="text-orange-400 font-bold text-xs">${p.display_desc}</span>`;
                         }
