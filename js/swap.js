@@ -299,15 +299,25 @@ window.generateSwapPlan = async function() {
             const prevDateDisplay = new Date(prevDateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
             const nextDateStr = getSafeDateStr(dateStr, 1);
             const nextDateDisplay = new Date(nextDateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            // [FIX] ดึก→เช้า: ทำดึกวันสุดท้าย (dateStr) เลิก 08.00 วันถัดไป
+            // ต้องพัก 1 วันก่อน = dateStr+1 คือวันพัก, dateStr+2 คือวันเริ่มเช้า
+            const restDateStr = getSafeDateStr(dateStr, 1);   // วันพัก
+            const startMornStr = getSafeDateStr(dateStr, 2);   // วันเริ่มเช้า
+            const restDateDisplay = new Date(restDateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            const startMornDisplay = new Date(startMornStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 
             const mList = mBuckets[i] || []; const nList = nBuckets[i] || [];
             if (mList.length === 0 && nList.length === 0) continue;
 
             generatedSwapPlan.push({
-                dayNumber: i + 1, targetDate: dateStr, targetNextDate: nextDateStr, 
+                dayNumber: i + 1, targetDate: dateStr,
+                // M→N: เริ่มเข้าดึกวันถัดไป (targetDate+1)
+                targetNextDate: nextDateStr,
+                // N→M: เริ่มเข้าเช้าหลังพัก 1 วัน (targetDate+2)
+                targetMornDate: startMornStr,
                 morningToNight: mList, nightToMorning: nList,
-                descMtoN: `ทำ${pair.fromLabel}วันสุดท้าย: ${prevDateDisplay} | เริ่มเข้า${pair.toLabel}วันแรก: ${displayDate}`,
-                descNtoM: `ออกกะ${pair.toLabel}วันที่: ${displayDate} (ได้พัก 1 วัน) | เริ่มเข้า${pair.fromLabel}วันที่: ${nextDateDisplay}`
+                descMtoN: `ทำเช้าวันสุดท้าย: ${prevDateDisplay} → เริ่มเข้าดึกวันแรก: ${displayDate}`,
+                descNtoM: `ทำดึกวันสุดท้าย: ${displayDate} → หยุดพัก 1 วัน (${restDateDisplay}) → เริ่มเข้าเช้า: ${startMornDisplay}`
             });
         }
 
@@ -385,9 +395,15 @@ window.confirmAndSaveSwapPlan = async function() {
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                     dayPlan.nightToMorning.forEach(user => {
-                        let exactTime = new Date(`${dayPlan.targetNextDate}T05:00:00+07:00`);
+                        // [FIX] ดึก→เช้า: เริ่มเช้าหลังพัก 1 วัน = targetMornDate (targetDate+2)
+                        const mornDate = dayPlan.targetMornDate || dayPlan.targetNextDate;
+                        let exactTime = new Date(`${mornDate}T05:00:00+07:00`);
                         tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: _p.from, display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
-                        leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
+                        // พักวันที่ targetDate (วันที่ยังทำดึกอยู่) และ targetNextDate (วันพัก)
+                        leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' });
+                        if (dayPlan.targetNextDate) {
+                            leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetNextDate, reason: 'XX', status: 'approved' });
+                        }
                     });
                 });
 
