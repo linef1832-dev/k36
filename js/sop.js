@@ -54,6 +54,7 @@ window.initSopApp = async function() {
     await sop_loadCategories();
     await sop_fetchData();
     await sop_loadTelegramConfig();
+    await sop_loadGroups();
 
     // V3.4: ตั้ง tab default = "กติกา"
     sopActiveTab = 'rules';
@@ -700,11 +701,35 @@ window.sop_quickMoveCategory = async function(ruleId) {
 // 🔢 V3.4: TAB COUNTERS
 // ==========================================
 window.sop_updateTabCounters = function() {
-    const sopBadge = document.getElementById('sopTabSopCount');
+    const sopBadge   = document.getElementById('sopTabSopCount');
     const rulesBadge = document.getElementById('sopTabRulesCount');
+    const myUsername = (currentUser && currentUser.username) || '';
 
     if (sopBadge) sopBadge.innerText = globalSOPData.length;
-    if (rulesBadge) rulesBadge.innerText = (globalStandaloneRules || []).length;
+
+    if (rulesBadge) {
+        const total   = (globalStandaloneRules || []).length;
+        const unread  = (globalStandaloneRules || []).filter(r => {
+            const readBy = r.read_by || [];
+            return !readBy.includes(myUsername);
+        }).length;
+        rulesBadge.innerText = total;
+        // ถ้ามีที่ยังไม่อ่าน — ขึ้น badge แดงบน tab
+        const tabBtn = document.getElementById('sopTabBtn_rules');
+        let newBadge = document.getElementById('sopRulesNewBadge');
+        if (unread > 0) {
+            if (!newBadge) {
+                newBadge = document.createElement('span');
+                newBadge.id = 'sopRulesNewBadge';
+                newBadge.className = 'bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full';
+                if (tabBtn) tabBtn.appendChild(newBadge);
+            }
+            newBadge.innerText = unread > 99 ? '99+' : unread;
+            newBadge.style.display = '';
+        } else if (newBadge) {
+            newBadge.style.display = 'none';
+        }
+    }
 };
 
 // ==========================================
@@ -716,8 +741,21 @@ window._sopOpenRules = window._sopOpenRules || new Set();
 
 window.sop_toggleRuleAccordion = function(ruleId, idx) {
     const key = `${ruleId}::${idx}`;
-    if (window._sopOpenRules.has(key)) window._sopOpenRules.delete(key);
-    else window._sopOpenRules.add(key);
+    if (window._sopOpenRules.has(key)) {
+        window._sopOpenRules.delete(key);
+    } else {
+        window._sopOpenRules.add(key);
+        // [FIX] auto mark read ตอนกดเปิดดู
+        const r = (globalStandaloneRules || [])[idx];
+        const myUsername = (currentUser && currentUser.username) || '';
+        if (r && myUsername && !((r.read_by || []).includes(myUsername))) {
+            if (!Array.isArray(r.read_by)) r.read_by = [];
+            r.read_by.push(myUsername);
+            sop_saveStandaloneRules();
+            sop_updateTabCounters();
+            sop_updateUnreadBadge();
+        }
+    }
     sop_renderAllRulesPage();
 };
 
@@ -766,9 +804,11 @@ window.sop_renderAllRulesPage = function() {
     const term = document.getElementById('sopRulesSearch') ? document.getElementById('sopRulesSearch').value.toLowerCase() : '';
     const catF = document.getElementById('sopRulesCatFilter') ? document.getElementById('sopRulesCatFilter').value : 'ALL';
     const typeF = document.getElementById('sopRulesTypeFilter') ? document.getElementById('sopRulesTypeFilter').value : 'ALL';
+    const groupF = document.getElementById('sopRulesGroupFilter') ? document.getElementById('sopRulesGroupFilter').value : 'ALL';
 
     // กรองตาม filter
     let filtered = (globalStandaloneRules || []).slice();
+    if (groupF !== 'ALL') filtered = filtered.filter(r => (r.group || '') === groupF);
     if (catF !== 'ALL') filtered = filtered.filter(r => r.category === catF);
     if (typeF !== 'ALL') filtered = filtered.filter(r => (r.type || 'do') === typeF);
     if (term) filtered = filtered.filter(r =>
@@ -930,7 +970,10 @@ window.sop_renderAllRulesPage = function() {
 
             const canSendTgSA = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'trainer');
             const tgBtnSA = canSendTgSA ? `<button onclick="event.stopPropagation(); sop_sendStandaloneToTelegram(${idx})" class="bg-white dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ส่งลง Telegram"><span class="material-icons text-[16px]">send</span></button>` : '';
+            const moveBtnSA = isAdmin ? `<button onclick="event.stopPropagation(); sop_moveToGroup(${idx})" class="bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 text-gray-400 hover:text-indigo-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="โยกเข้ากลุ่ม"><span class="material-icons text-[16px]">drive_file_move</span></button>` : '';
+            const groupBadgeSA = r.group ? `<span class="inline-flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-700 ml-1"><span class="material-icons text-[10px]">folder</span>${r.group}</span>` : '';
             const adminBtns = isAdmin ? `
+                ${moveBtnSA}
                 ${tgBtnSA}
                 <button onclick="event.stopPropagation(); sop_editStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไข"><span class="material-icons text-[16px]">edit</span></button>
                 <button onclick="event.stopPropagation(); sop_toggleStandalonePin(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 ${r.pinned ? 'text-amber-500' : 'text-gray-400'} hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="${r.pinned ? 'เลิกปักหมุด' : 'ปักหมุด'}"><span class="material-icons text-[16px]">push_pin</span></button>
@@ -3039,4 +3082,131 @@ window.sop_sendStandaloneToTelegram = async function(idx) {
         await sop_sendTelegramNotify('manual', 'rule', r.title || r.text || '(ไม่มีหัวข้อ)', catName, r.type || null, r.images || [], r.content || r.text || '');
         Swal.fire({ icon: 'success', title: 'ส่งลง Telegram แล้ว!', timer: 1500, showConfirmButton: false });
     } catch(e) { Swal.fire('ส่งไม่สำเร็จ', e.message, 'error'); }
+};
+
+// ==========================================
+// 📁 ระบบกลุ่ม (Group/Folder) สำหรับกติกาขั้นตอน
+// ==========================================
+let globalSopGroups = []; // ['K36', 'Jun88', ...]
+
+// โหลดกลุ่มจาก DB
+async function sop_loadGroups() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'sop_groups').maybeSingle();
+        globalSopGroups = data?.value ? JSON.parse(data.value) : [];
+    } catch(e) { globalSopGroups = []; }
+    sop_updateGroupDropdown();
+}
+
+// บันทึกกลุ่มลง DB
+async function sop_saveGroups() {
+    await appDB.from('settings').upsert([{ key: 'sop_groups', value: JSON.stringify(globalSopGroups) }]);
+    sop_updateGroupDropdown();
+}
+
+// อัปเดต dropdown กลุ่ม
+window.sop_updateGroupDropdown = function() {
+    const sel = document.getElementById('sopRulesGroupFilter');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="ALL">📁 ทุกกลุ่ม</option>';
+    globalSopGroups.forEach(g => {
+        sel.innerHTML += `<option value="${g}">${g}</option>`;
+    });
+    sel.value = cur;
+};
+
+// จัดการกลุ่ม (สร้าง/ลบ)
+window.sop_manageGroups = async function() {
+    await sop_loadGroups();
+
+    const listHtml = globalSopGroups.length > 0
+        ? globalSopGroups.map((g, i) => `
+            <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 border border-gray-200 dark:border-slate-700">
+                <span class="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
+                    <span class="material-icons text-indigo-500 text-[18px]">folder</span>${g}
+                </span>
+                <button onclick="sop_deleteGroup(${i})" class="text-red-400 hover:text-red-600 p-1 rounded transition" title="ลบกลุ่ม">
+                    <span class="material-icons text-[16px]">delete</span>
+                </button>
+            </div>`).join('')
+        : '<div class="text-center text-gray-400 py-4 text-sm">ยังไม่มีกลุ่ม</div>';
+
+    const { value: newName } = await Swal.fire({
+        title: '<div class="flex items-center gap-2"><span class="material-icons text-indigo-500">folder</span> จัดการกลุ่ม</div>',
+        html: `
+            <div class="text-left space-y-3">
+                <div class="space-y-2 max-h-48 overflow-y-auto">${listHtml}</div>
+                <hr class="border-gray-200 dark:border-slate-700">
+                <div class="font-bold text-sm text-slate-700 dark:text-slate-200">➕ สร้างกลุ่มใหม่</div>
+                <input id="sopNewGroupName" type="text" placeholder="ชื่อกลุ่ม เช่น K36, Jun88..." 
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-white text-sm outline-none focus:border-indigo-500">
+            </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'สร้างกลุ่ม',
+        cancelButtonText: 'ปิด',
+        confirmButtonColor: '#6366f1',
+        didOpen: () => {
+            // ให้ปุ่มลบทำงานได้ใน Swal
+            document.querySelectorAll('[onclick^="sop_deleteGroup"]').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const idx = parseInt(btn.getAttribute('onclick').match(/\d+/)[0]);
+                    globalSopGroups.splice(idx, 1);
+                    await sop_saveGroups();
+                    Swal.close();
+                    sop_manageGroups();
+                });
+            });
+        },
+        preConfirm: () => {
+            return document.getElementById('sopNewGroupName')?.value?.trim() || null;
+        }
+    });
+
+    if (newName) {
+        if (globalSopGroups.includes(newName)) {
+            return Swal.fire('มีกลุ่มนี้แล้ว', '', 'warning');
+        }
+        globalSopGroups.push(newName);
+        await sop_saveGroups();
+        Swal.fire({ icon: 'success', title: `สร้างกลุ่ม "${newName}" แล้ว!`, timer: 1200, showConfirmButton: false });
+        sop_renderAllRulesPage();
+    }
+};
+
+window.sop_deleteGroup = async function(idx) {
+    globalSopGroups.splice(idx, 1);
+    await sop_saveGroups();
+};
+
+// โยกข้อเข้ากลุ่ม
+window.sop_moveToGroup = async function(idx) {
+    await sop_loadGroups();
+    const r = globalStandaloneRules[idx];
+    if (!r) return;
+
+    if (globalSopGroups.length === 0) {
+        return Swal.fire('ยังไม่มีกลุ่ม', 'กรุณาสร้างกลุ่มก่อน โดยกดปุ่ม "จัดการกลุ่ม"', 'info');
+    }
+
+    const options = { '': '— ไม่อยู่กลุ่มไหน —' };
+    globalSopGroups.forEach(g => { options[g] = `📁 ${g}`; });
+
+    const { value: selectedGroup } = await Swal.fire({
+        title: `<div class="flex items-center gap-2 text-base"><span class="material-icons text-indigo-500">drive_file_move</span> โยก "${r.title || r.text || '(ไม่มีหัวข้อ)'}"</div>`,
+        input: 'select',
+        inputOptions: options,
+        inputValue: r.group || '',
+        showCancelButton: true,
+        confirmButtonText: 'ย้ายเข้ากลุ่ม',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#6366f1',
+    });
+
+    if (selectedGroup !== undefined) {
+        r.group = selectedGroup || '';
+        await sop_saveStandaloneRules();
+        sop_renderAllRulesPage();
+        Swal.fire({ icon: 'success', title: selectedGroup ? `ย้ายเข้ากลุ่ม "${selectedGroup}" แล้ว!` : 'นำออกจากกลุ่มแล้ว', timer: 1200, showConfirmButton: false });
+    }
 };
