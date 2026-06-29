@@ -1094,13 +1094,18 @@ window.sop_readRule = async function(id, skipIncrement) {
 
     // admin buttons (pin toggle + edit + delete)
     let adminBtns = '';
+    // ปุ่มส่ง Telegram — ทุกคนกดได้ถ้า config เปิดไว้
+    const tgBtn = `<button onclick="event.stopPropagation(); sop_sendItemToTelegram('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ส่งลง Telegram"><span class="material-icons">send</span></button>`;
     if (isAdmin) {
         const pinTitle = item.pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด';
         const pinClass = item.pinned ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-400 bg-white dark:bg-slate-800';
         adminBtns = `
+            ${tgBtn}
             <button onclick="sop_togglePin('${item.id}')" class="${pinClass} hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:text-amber-600 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="${pinTitle}"><span class="material-icons">push_pin</span></button>
             <button onclick="sop_editRule('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไข"><span class="material-icons">edit</span></button>
             <button onclick="sop_deleteRule('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบ"><span class="material-icons">delete</span></button>`;
+    } else {
+        adminBtns = tgBtn;
     }
 
     const displayCat = globalSOPCategories.find(c => c.id === item.category)?.name || item.category || 'ไม่ระบุหมวด';
@@ -2878,13 +2883,50 @@ window.sop_telegramTest = async function() {
 
 // ส่งแจ้งเตือนเมื่อเพิ่ม OD ใหม่ (เฉพาะตอน add — ไม่ส่งตอน edit)
 // imgUrls = array ของ public URL รูป, content = เนื้อหา/รายละเอียด
+// helper: ส่งข้อความยาวโดยแบ่ง chunk (Telegram max 4096)
+async function sop_sendChunkedMessage(botToken, chatId, text, parseMode = 'HTML') {
+    const MAX = 4000;
+    if (text.length <= MAX) {
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text, parse_mode: parseMode })
+        });
+        return;
+    }
+    // แบ่งตาม newline เพื่อไม่ตัดกลางบรรทัด
+    const lines = text.split('\n');
+    let chunk = '';
+    for (const line of lines) {
+        if ((chunk + '\n' + line).length > MAX) {
+            if (chunk) {
+                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, text: chunk, parse_mode: parseMode })
+                });
+                await new Promise(r => setTimeout(r, 500));
+            }
+            chunk = line;
+        } else {
+            chunk = chunk ? chunk + '\n' + line : line;
+        }
+    }
+    if (chunk) {
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: chunk, parse_mode: parseMode })
+        });
+    }
+}
+
 window.sop_sendTelegramNotify = async function(action, type, title, category, ruleType, imgUrls, content) {
     const cfg = window._sopTelegramConfig;
     if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) return;
 
     const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'admin';
 
-    // type heading (ไม่มี "เพิ่มใหม่" แล้ว)
     let typeEmoji = '📚', typeText = 'ขั้นตอน (SOP)';
     if (type === 'rule') { typeEmoji = '⚖️'; typeText = 'กติกาขั้นตอน'; }
 
@@ -2896,31 +2938,28 @@ window.sop_sendTelegramNotify = async function(action, type, title, category, ru
         else if (ruleType === 'info') ruleTypeText = '\n🔵 ประเภท: หมายเหตุ';
     }
 
-    // helper escape สำหรับ HTML mode ของ Telegram
     const esc = (s) => (s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 
-    const safeTitle = esc(title || '(ไม่มีหัวข้อ)');
+    const safeTitle    = esc(title    || '(ไม่มีหัวข้อ)');
     const safeCategory = esc(category || 'ไม่ระบุ');
 
-    // เนื้อหา — ตัดให้ไม่ยาวเกินไป (Telegram caption max 1024 chars, message max 4096)
+    // [FIX] ไม่ตัดเนื้อหา — ส่งแบบ chunked แทน
     let safeContent = '';
     if (content && content.trim()) {
-        let raw = content.trim();
-        // ตัดถ้ายาวเกิน 800 ตัว เพื่อเผื่อ caption
-        if (raw.length > 800) raw = raw.substring(0, 800) + '...';
-        safeContent = '\n\n📝 <b>เนื้อหา:</b>\n' + esc(raw);
+        safeContent = '\n\n📝 <b>เนื้อหา:</b>\n' + esc(content.trim());
     }
 
-    let caption = `${typeEmoji} <b>${typeText}</b>\n\n` +
-                  `📋 <b>หัวข้อ:</b> ${safeTitle}\n` +
-                  `📁 <b>หมวด:</b> ${safeCategory}` +
-                  ruleTypeText +
-                  safeContent +
-                  `\n\n👤 <b>โดย:</b> ${esc(authorName)}\n` +
-                  `🕐 ${new Date().toLocaleString('th-TH')}`;
+    const header = `${typeEmoji} <b>${typeText}</b>\n\n` +
+                   `📋 <b>หัวข้อ:</b> ${safeTitle}\n` +
+                   `📁 <b>หมวด:</b> ${safeCategory}` +
+                   ruleTypeText;
+    const footer = `\n\n👤 <b>โดย:</b> ${esc(authorName)}\n` +
+                   `🕐 ${new Date().toLocaleString('th-TH')}`;
 
-    // เผื่อ caption ของรูปยาวเกิน 1024 → ตัดเหลือ 1020
-    let captionForPhoto = caption;
+    const caption = header + safeContent + footer;
+
+    // สำหรับรูป caption max 1024 → ตัดแค่ส่วน caption แล้วส่ง content แยก
+    let captionForPhoto = header + footer;
     if (captionForPhoto.length > 1020) {
         captionForPhoto = captionForPhoto.substring(0, 1020) + '...';
     }
@@ -2929,12 +2968,8 @@ window.sop_sendTelegramNotify = async function(action, type, title, category, ru
 
     try {
         if (validImgs.length === 0) {
-            // ไม่มีรูป → ส่งแค่ข้อความ (รองรับยาวกว่า)
-            await fetch(`https://api.telegram.org/bot${cfg.bot_token}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: cfg.chat_id, text: caption, parse_mode: 'HTML' })
-            });
+            // [FIX] ส่งแบบ chunked รองรับข้อความยาว
+            await sop_sendChunkedMessage(cfg.bot_token, cfg.chat_id, caption, 'HTML');
         } else if (validImgs.length === 1) {
             await fetch(`https://api.telegram.org/bot${cfg.bot_token}/sendPhoto`, {
                 method: 'POST',
@@ -2960,5 +2995,52 @@ window.sop_sendTelegramNotify = async function(action, type, title, category, ru
         }
     } catch (e) {
         console.warn('Telegram notify failed:', e);
+    }
+};
+
+// ==========================================
+// 📤 ส่งข้อแต่ละข้อลง Telegram (กดปุ่มในการ์ด)
+// ==========================================
+window.sop_sendItemToTelegram = async function(itemId) {
+    const cfg = window._sopTelegramConfig;
+    if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) {
+        return Swal.fire('ยังไม่ตั้งค่า Telegram', 'กรุณาไปตั้งค่า Telegram ก่อน (ปุ่ม Telegram ด้านบน)', 'warning');
+    }
+
+    // หา item จาก globalSOP หรือ standalone rules
+    let item = null;
+    let type = 'sop';
+
+    // หาใน SOP
+    for (const cat of (globalSOPData || [])) {
+        const found = (cat.items || []).find(i => i.id === itemId);
+        if (found) { item = found; break; }
+    }
+    // หาใน standalone rules
+    if (!item) {
+        item = (globalStandaloneRules || []).find(r => r.id === itemId);
+        if (item) type = 'rule';
+    }
+    if (!item) return Swal.fire('ไม่พบข้อมูล', '', 'error');
+
+    const catName = type === 'rule'
+        ? (globalSOPCategories?.find(c => c.id === item.category)?.name || 'ไม่ระบุ')
+        : (globalSOPCategories?.find(c => c.id === item.category)?.name || 'ไม่ระบุ');
+
+    Swal.fire({ title: 'กำลังส่ง...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    try {
+        await sop_sendTelegramNotify(
+            'manual',
+            type,
+            item.title || item.text || '(ไม่มีหัวข้อ)',
+            catName,
+            item.type || null,
+            item.images || [],
+            item.content || item.text || ''
+        );
+        Swal.fire({ icon: 'success', title: 'ส่งลง Telegram แล้ว!', timer: 1500, showConfirmButton: false });
+    } catch(e) {
+        Swal.fire('ส่งไม่สำเร็จ', e.message, 'error');
     }
 };
