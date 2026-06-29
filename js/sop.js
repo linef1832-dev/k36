@@ -870,8 +870,17 @@ window.sop_renderAllRulesPage = function() {
     }
 
     // ============= 1) RENDER TOC (สารบัญซ้าย) =============
+    // กรองตามกลุ่มที่เลือกใน dropdown
+    const activeGroupFilter = document.getElementById('sopRulesGroupFilter')?.value || 'ALL';
+    const filteredCatKeys = activeGroupFilter === 'ALL'
+        ? orderedCatKeys
+        : orderedCatKeys.filter(k => {
+            const c = globalSOPCategories.find(x => x.id === k);
+            return (c?.group || '') === activeGroupFilter;
+        });
+
     let tocHtml = '';
-    orderedCatKeys.forEach(catKey => {
+    filteredCatKeys.forEach(catKey => {
         const items = groupedByCat[catKey];
         const catObj = globalSOPCategories.find(c => c.id === catKey);
         const catLabel = catKey === '__uncat__' ? '(ไม่ระบุหมวด)' : (catObj ? catObj.name : catKey);
@@ -887,6 +896,11 @@ window.sop_renderAllRulesPage = function() {
         const isSelected = catKey === selectedCat;
         const safeCatKey = (catKey || '').replace(/'/g, '');
 
+        const catGroupName = catObj?.group || '';
+        const catGroupBadge = catGroupName ? `<span class="inline-flex items-center gap-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-0.5"><span class="material-icons text-[9px]">folder</span>${catGroupName}</span>` : '';
+        const isAdminForToc = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin');
+        const moveCatBtn = isAdminForToc ? `<button onclick="event.stopPropagation(); sop_moveCategoryToGroup('${safeCatKey}')" class="opacity-0 group-hover:opacity-100 ml-auto shrink-0 p-1.5 rounded-lg bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-400 hover:text-indigo-500 hover:border-indigo-400 transition" title="โยกเข้ากลุ่ม"><span class="material-icons text-[14px]">drive_file_move</span></button>` : '';
+
         tocHtml += `
             <div onclick="sop_selectRulesCategory('${safeCatKey}')" class="cursor-pointer rounded-xl border-l-4 ${isSelected ? 'ring-2 ring-orange-300 dark:ring-orange-700 bg-orange-50 dark:bg-orange-900/20 border-orange-400' : 'bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-orange-400 dark:hover:border-orange-500/50 hover:bg-white dark:hover:bg-slate-800'} transition group shadow-sm relative overflow-hidden mb-2.5" style="border-left-color: ${catColor};">
                 <div class="p-3 flex gap-3 items-center">
@@ -895,9 +909,12 @@ window.sop_renderAllRulesPage = function() {
                     </div>
                     <div class="flex-1 min-w-0">
                         <h4 class="text-slate-800 dark:text-white font-bold text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition leading-snug">${(catLabel).replace(/</g, '&lt;')}</h4>
-                        <div class="text-[10px] font-bold text-gray-500 mt-0.5">${items.length} ข้อ</div>
+                        <div class="flex items-center gap-1 mt-0.5">
+                            <span class="text-[10px] font-bold text-gray-500">${items.length} ข้อ</span>
+                            ${catGroupBadge}
+                        </div>
                     </div>
-                    ${isSelected ? '<span class="material-icons text-orange-500 text-[18px]">arrow_forward</span>' : ''}
+                    ${isSelected ? '<span class="material-icons text-orange-500 text-[18px]">arrow_forward</span>' : moveCatBtn}
                 </div>
             </div>
         `;
@@ -3208,5 +3225,46 @@ window.sop_moveToGroup = async function(idx) {
         await sop_saveStandaloneRules();
         sop_renderAllRulesPage();
         Swal.fire({ icon: 'success', title: selectedGroup ? `ย้ายเข้ากลุ่ม "${selectedGroup}" แล้ว!` : 'นำออกจากกลุ่มแล้ว', timer: 1200, showConfirmButton: false });
+    }
+};
+
+// ==========================================
+// 📁 โยกหมวดหมู่เข้ากลุ่ม
+// ==========================================
+window.sop_moveCategoryToGroup = async function(catId) {
+    await sop_loadGroups();
+
+    const cat = globalSOPCategories.find(c => c.id === catId);
+    if (!cat) return;
+
+    if (globalSopGroups.length === 0) {
+        return Swal.fire('ยังไม่มีกลุ่ม', 'กรุณาสร้างกลุ่มก่อน โดยกดปุ่ม "จัดการกลุ่ม"', 'info');
+    }
+
+    const options = { '': '— ไม่อยู่กลุ่มไหน —' };
+    globalSopGroups.forEach(g => { options[g] = `📁 ${g}`; });
+
+    const { value: selectedGroup } = await Swal.fire({
+        title: `<div class="flex items-center gap-2 text-base"><span class="material-icons text-indigo-500">drive_file_move</span> โยกหมวด "${cat.name}"</div>`,
+        input: 'select',
+        inputOptions: options,
+        inputValue: cat.group || '',
+        showCancelButton: true,
+        confirmButtonText: 'ย้ายเข้ากลุ่ม',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#6366f1',
+    });
+
+    if (selectedGroup !== undefined) {
+        cat.group = selectedGroup || '';
+        // บันทึกลง DB
+        await appDB.from('settings').upsert([{ key: 'sop_categories', value: JSON.stringify(globalSOPCategories) }]);
+        sop_renderAllRulesPage();
+        Swal.fire({
+            icon: 'success',
+            title: selectedGroup ? `ย้ายหมวด "${cat.name}" เข้ากลุ่ม "${selectedGroup}" แล้ว!` : `นำหมวด "${cat.name}" ออกจากกลุ่มแล้ว`,
+            timer: 1500,
+            showConfirmButton: false
+        });
     }
 };
