@@ -928,11 +928,14 @@ window.sop_renderAllRulesPage = function() {
                     `</div>`;
             }
 
+            const canSendTgSA = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'trainer');
+            const tgBtnSA = canSendTgSA ? `<button onclick="event.stopPropagation(); sop_sendStandaloneToTelegram(${idx})" class="bg-white dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ส่งลง Telegram"><span class="material-icons text-[16px]">send</span></button>` : '';
             const adminBtns = isAdmin ? `
+                ${tgBtnSA}
                 <button onclick="event.stopPropagation(); sop_editStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไข"><span class="material-icons text-[16px]">edit</span></button>
                 <button onclick="event.stopPropagation(); sop_toggleStandalonePin(${idx})" class="bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-500/20 ${r.pinned ? 'text-amber-500' : 'text-gray-400'} hover:text-amber-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="${r.pinned ? 'เลิกปักหมุด' : 'ปักหมุด'}"><span class="material-icons text-[16px]">push_pin</span></button>
                 <button onclick="event.stopPropagation(); sop_deleteStandaloneRule(${idx})" class="bg-white dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบ"><span class="material-icons text-[16px]">delete</span></button>
-            ` : '';
+            ` : tgBtnSA;
             const pinIcon = r.pinned ? '<span class="material-icons text-amber-500 text-[14px]" title="ปักหมุด">push_pin</span>' : '';
 
             // วันที่ลงและอัพเดทล่าสุด
@@ -1094,19 +1097,16 @@ window.sop_readRule = async function(id, skipIncrement) {
 
     // admin buttons (pin toggle + edit + delete)
     let adminBtns = '';
-    // ปุ่มส่ง Telegram — เฉพาะ manager และ trainer
     const canSendTg = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'trainer');
     const tgBtn = canSendTg ? `<button onclick="event.stopPropagation(); sop_sendItemToTelegram('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ส่งลง Telegram"><span class="material-icons">send</span></button>` : '';
-    if (isAdmin) {
+    if (isAdmin || canSendTg) {
         const pinTitle = item.pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด';
         const pinClass = item.pinned ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-400 bg-white dark:bg-slate-800';
-        adminBtns = `
+        const editDeleteBtns = isAdmin ? `
             <button onclick="sop_togglePin('${item.id}')" class="${pinClass} hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:text-amber-600 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="${pinTitle}"><span class="material-icons">push_pin</span></button>
-            ${tgBtn}
             <button onclick="sop_editRule('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไข"><span class="material-icons">edit</span></button>
-            <button onclick="sop_deleteRule('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบ"><span class="material-icons">delete</span></button>`;
-    } else {
-        adminBtns = tgBtn;
+            <button onclick="sop_deleteRule('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบ"><span class="material-icons">delete</span></button>` : '';
+        adminBtns = tgBtn + editDeleteBtns;
     }
 
     const displayCat = globalSOPCategories.find(c => c.id === item.category)?.name || item.category || 'ไม่ระบุหมวด';
@@ -3008,40 +3008,35 @@ window.sop_sendItemToTelegram = async function(itemId) {
         return Swal.fire('ยังไม่ตั้งค่า Telegram', 'กรุณาไปตั้งค่า Telegram ก่อน (ปุ่ม Telegram ด้านบน)', 'warning');
     }
 
-    // หา item จาก globalSOP หรือ standalone rules
+    // หา item จาก globalSOPData (ขั้นตอนต่างๆ)
     let item = null;
-    let type = 'sop';
-
-    // หาใน SOP
     for (const cat of (globalSOPData || [])) {
         const found = (cat.items || []).find(i => i.id === itemId);
-        if (found) { item = found; break; }
-    }
-    // หาใน standalone rules
-    if (!item) {
-        item = (globalStandaloneRules || []).find(r => r.id === itemId);
-        if (item) type = 'rule';
+        if (found) { item = { ...found, catName: cat.name || cat.title || 'ไม่ระบุ' }; break; }
     }
     if (!item) return Swal.fire('ไม่พบข้อมูล', '', 'error');
 
-    const catName = type === 'rule'
-        ? (globalSOPCategories?.find(c => c.id === item.category)?.name || 'ไม่ระบุ')
-        : (globalSOPCategories?.find(c => c.id === item.category)?.name || 'ไม่ระบุ');
+    Swal.fire({ title: 'กำลังส่ง...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        await sop_sendTelegramNotify('manual', 'sop', item.title || '(ไม่มีหัวข้อ)', item.catName, null, item.images || [], item.content || '');
+        Swal.fire({ icon: 'success', title: 'ส่งลง Telegram แล้ว!', timer: 1500, showConfirmButton: false });
+    } catch(e) { Swal.fire('ส่งไม่สำเร็จ', e.message, 'error'); }
+};
+
+window.sop_sendStandaloneToTelegram = async function(idx) {
+    const cfg = window._sopTelegramConfig;
+    if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) {
+        return Swal.fire('ยังไม่ตั้งค่า Telegram', 'กรุณาไปตั้งค่า Telegram ก่อน (ปุ่ม Telegram ด้านบน)', 'warning');
+    }
+
+    const r = (globalStandaloneRules || [])[idx];
+    if (!r) return Swal.fire('ไม่พบข้อมูล', '', 'error');
+
+    const catName = globalSOPCategories?.find(c => c.id === r.category)?.name || 'ไม่ระบุ';
 
     Swal.fire({ title: 'กำลังส่ง...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
     try {
-        await sop_sendTelegramNotify(
-            'manual',
-            type,
-            item.title || item.text || '(ไม่มีหัวข้อ)',
-            catName,
-            item.type || null,
-            item.images || [],
-            item.content || item.text || ''
-        );
+        await sop_sendTelegramNotify('manual', 'rule', r.title || r.text || '(ไม่มีหัวข้อ)', catName, r.type || null, r.images || [], r.content || r.text || '');
         Swal.fire({ icon: 'success', title: 'ส่งลง Telegram แล้ว!', timer: 1500, showConfirmButton: false });
-    } catch(e) {
-        Swal.fire('ส่งไม่สำเร็จ', e.message, 'error');
-    }
+    } catch(e) { Swal.fire('ส่งไม่สำเร็จ', e.message, 'error'); }
 };
