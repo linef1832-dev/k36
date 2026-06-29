@@ -1094,14 +1094,15 @@ window.sop_readRule = async function(id, skipIncrement) {
 
     // admin buttons (pin toggle + edit + delete)
     let adminBtns = '';
-    // ปุ่มส่ง Telegram — ทุกคนกดได้ถ้า config เปิดไว้
-    const tgBtn = `<button onclick="event.stopPropagation(); sop_sendItemToTelegram('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ส่งลง Telegram"><span class="material-icons">send</span></button>`;
+    // ปุ่มส่ง Telegram — เฉพาะ manager และ trainer
+    const canSendTg = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'trainer');
+    const tgBtn = canSendTg ? `<button onclick="event.stopPropagation(); sop_sendItemToTelegram('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ส่งลง Telegram"><span class="material-icons">send</span></button>` : '';
     if (isAdmin) {
         const pinTitle = item.pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด';
         const pinClass = item.pinned ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-400 bg-white dark:bg-slate-800';
         adminBtns = `
-            ${tgBtn}
             <button onclick="sop_togglePin('${item.id}')" class="${pinClass} hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:text-amber-600 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="${pinTitle}"><span class="material-icons">push_pin</span></button>
+            ${tgBtn}
             <button onclick="sop_editRule('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-500/20 text-gray-400 hover:text-amber-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="แก้ไข"><span class="material-icons">edit</span></button>
             <button onclick="sop_deleteRule('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ลบ"><span class="material-icons">delete</span></button>`;
     } else {
