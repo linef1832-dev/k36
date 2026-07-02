@@ -1540,29 +1540,28 @@ window.renderUserTableDirectly = function() {
             ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs">${u.password}</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
             : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
 
+        const disBadge = `<span style="font-size:9px;font-weight:500;color:var(--text-pro);background:var(--bg-pro);border:0.5px solid var(--border-pro);padding:1px 4px;border-radius:3px;letter-spacing:.3px;flex-shrink:0;">DIS</span>`;
+        const telBadge = `<span style="font-size:9px;font-weight:500;color:var(--text-accent);background:var(--bg-accent);border:0.5px solid var(--border-accent);padding:1px 4px;border-radius:3px;letter-spacing:.3px;flex-shrink:0;">TEL</span>`;
         const discordLine = u.discord_id
-            ? `<span class="inline-flex items-center gap-1 mt-1"><span class="text-[8px] font-black text-indigo-400 bg-indigo-950 border border-indigo-800/60 px-1 py-0.5 rounded">DIS</span><span class="font-mono text-[10px] text-slate-400" title="${u.discord_id}">${u.discord_id}</span></span>`
-            : `<span class="inline-flex items-center gap-1 mt-1"><span class="text-[8px] font-black text-indigo-400/40 bg-indigo-950/40 border border-indigo-800/20 px-1 py-0.5 rounded">DIS</span><span class="text-[10px] text-slate-600">—</span></span>`;
+            ? `<div style="display:flex;align-items:center;gap:4px;margin-top:3px;">${disBadge}<span style="font-size:11px;color:var(--text-secondary);font-family:monospace;" title="${u.discord_id}">${u.discord_id}</span></div>`
+            : `<div style="display:flex;align-items:center;gap:4px;margin-top:3px;">${disBadge}<span style="font-size:11px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></div>`;
         const telegramLine = u.telegram_id
-            ? `<span class="inline-flex items-center gap-1 mt-0.5"><span class="text-[8px] font-black text-sky-400 bg-sky-950 border border-sky-800/60 px-1 py-0.5 rounded">TEL</span><span class="font-mono text-[10px] text-slate-400" title="${u.telegram_id}">${u.telegram_id}</span></span>`
-            : `<span class="inline-flex items-center gap-1 mt-0.5"><span class="text-[8px] font-black text-sky-400/40 bg-sky-950/40 border border-sky-800/20 px-1 py-0.5 rounded">TEL</span><span class="text-[10px] text-slate-600">—</span></span>`;
+            ? `<div style="display:flex;align-items:center;gap:4px;margin-top:2px;">${telBadge}<span style="font-size:11px;color:var(--text-secondary);font-family:monospace;" title="${u.telegram_id}">${u.telegram_id}</span></div>`
+            : `<div style="display:flex;align-items:center;gap:4px;margin-top:2px;">${telBadge}<span style="font-size:11px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></div>`;
 
         html += `
-            <tr class="hover:bg-slate-700/30 transition duration-200 group">
+            <tr class="hover:bg-slate-700/30 transition duration-200 group" onmouseenter="this.querySelectorAll('.edit-btn').forEach(b=>b.style.opacity='1')" onmouseleave="this.querySelectorAll('.edit-btn').forEach(b=>b.style.opacity='0')">
                 <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
                 <td class="p-3 text-left border-b border-slate-700/50">
-                    <div class="flex items-start gap-2">
-                        <span class="text-[10px] text-gray-600 w-5 text-right shrink-0 mt-2">${displayIndex}.</span>
-                        <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-[10px] font-bold shadow-inner group-hover:bg-slate-600 transition shrink-0 mt-1">${u.username.substring(0,2).toUpperCase()}</div>
-                        <div class="flex flex-col min-w-0">
-                            <div class="flex items-center gap-1">
-                                <span class="text-gray-100 text-sm font-bold leading-tight">${u.username}</span>
-                                <button onclick="openEditUserModal(${u.id})" class="text-slate-600 hover:text-blue-400 transition opacity-0 group-hover:opacity-100 shrink-0" title="แก้ไข"><span class="material-icons text-[13px]">edit</span></button>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:32px;height:32px;border-radius:50%;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--text-accent);flex-shrink:0;">${u.username.substring(0,2).toUpperCase()}</div>
+                        <div style="min-width:0;">
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${u.username}</span>
+                                <button class="edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:2px;cursor:pointer;color:var(--text-muted);line-height:1;border-radius:4px;opacity:0;transition:opacity .15s;" title="แก้ไข" onmouseenter="this.style.color='var(--text-pro)'" onmouseleave="this.style.color='var(--text-muted)'"><span class="material-icons" style="font-size:13px;">edit</span></button>
                             </div>
-                            <div class="flex flex-col gap-0.5 mt-0.5">
-                                ${discordLine}
-                                ${telegramLine}
-                            </div>
+                            ${discordLine}
+                            ${telegramLine}
                         </div>
                     </div>
                 </td>
@@ -2961,14 +2960,14 @@ window.openEditUserModal = function(id) {
     document.getElementById('editDiscordId').value = user.discord_id || '';
     document.getElementById('editTelegramId').value = user.telegram_id || '';
     const modal = document.getElementById('editUserModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    if (!modal) return;
+    modal.style.display = 'flex';
 };
 
 window.closeEditUserModal = function() {
     const modal = document.getElementById('editUserModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    if (!modal) return;
+    modal.style.display = 'none';
 };
 
 window.saveEditUser = async function() {
