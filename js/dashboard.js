@@ -79,7 +79,11 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
 
 window.updateDashboardUserInfo = function() {
     if (!window.currentUser) return;
-    if(document.getElementById('uName')) document.getElementById('uName').innerText = window.currentUser.username || 'Unknown';
+    if(document.getElementById('uName')) {
+        const _tag = window.currentUser.tag;
+        const _tagBadge = (window.getTagBadge && _tag) ? window.getTagBadge(_tag) : '';
+        document.getElementById('uName').innerHTML = (window.currentUser.username || 'Unknown') + _tagBadge;
+    }
     if(document.getElementById('checkTypeDisplay')) document.getElementById('checkTypeDisplay').innerText = (window.currentUser.check_type === 'shift') ? 'เช็คโควตากะ' : 'เช็คโควตาทีม';
     if(document.getElementById('quotaDisplay')) document.getElementById('quotaDisplay').innerText = window.currentUser.department || 'AM';
 
