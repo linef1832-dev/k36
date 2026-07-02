@@ -476,7 +476,13 @@
                     <span class="material-icons bg-green-500/20 p-2 rounded-xl">person_add</span> 
                     <span>เพิ่มรายชื่อ</span>
                 </div>
-                <textarea id="newUsersArea" rows="1" class="flex-1 w-full bg-slate-900 border border-slate-600 rounded-xl p-3.5 text-white text-sm font-bold focus:border-green-500 outline-none transition custom-scrollbar" placeholder="พิมพ์ชื่อพนักงาน (ขึ้นบรรทัดใหม่เพื่อเพิ่มทีละหลายคน)"></textarea>
+                <div class="flex flex-col gap-2 flex-1 w-full">
+                    <textarea id="newUsersArea" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3.5 text-white text-sm font-bold focus:border-green-500 outline-none transition custom-scrollbar" placeholder="พิมพ์ชื่อพนักงาน (ขึ้นบรรทัดใหม่เพื่อเพิ่มทีละหลายคน)"></textarea>
+                    <div class="flex gap-2">
+                        <input id="newDiscordId" type="text" placeholder="🔷 Discord ID (ไม่บังคับ)" class="flex-1 bg-slate-900 border border-slate-700 text-indigo-300 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500 transition placeholder-slate-600">
+                        <input id="newTelegramId" type="text" placeholder="✈️ Telegram ID (ไม่บังคับ)" class="flex-1 bg-slate-900 border border-slate-700 text-sky-300 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-sky-500 transition placeholder-slate-600">
+                    </div>
+                </div>
                 
                 <div class="flex flex-wrap gap-3 shrink-0 w-full xl:w-auto">
                     <div class="flex flex-col gap-1.5 w-full sm:w-auto">
@@ -519,7 +525,7 @@
                         <thead class="bg-slate-900 text-gray-400 sticky top-0 z-20 shadow-md">
                             <tr>
                                 <th class="p-4 w-10 text-center"><input type="checkbox" onchange="toggleSelectAll(this)" class="w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600"></th>
-                                <th class="p-4 font-bold">พนักงาน</th><th class="p-4 text-center">แผนก</th><th class="p-4 text-center">ทีม</th><th class="p-4 text-center">กะ</th><th class="p-4 text-center">รหัส PIN</th><th class="p-4 text-center">ระบบเช็ค</th><th class="p-4 text-center">สิทธิ์</th>
+                                <th class="p-4 font-bold">พนักงาน</th><th class="p-4 text-center">แผนก</th><th class="p-4 text-center">ทีม</th><th class="p-4 text-center">กะ</th><th class="p-4 text-center">รหัส PIN</th><th class="p-4 text-center">Discord / Telegram</th><th class="p-4 text-center">ระบบเช็ค</th><th class="p-4 text-center">สิทธิ์</th><th class="p-4 text-center">แก้ไข</th>
                             </tr>
                         </thead>
                         <tbody id="userTableBody" class="divide-y divide-slate-700/50"></tbody>
@@ -684,5 +690,43 @@
             </button>
         </form>
     </div>
+
+    <!-- ====== Modal แก้ไข Discord/Telegram ID ====== -->
+    <div id="editUserModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                    <span class="material-icons text-blue-400">edit</span> แก้ไขข้อมูลพนักงาน
+                </h3>
+                <button onclick="closeEditUserModal()" class="text-slate-400 hover:text-white transition">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <input type="hidden" id="editUserId">
+            <div class="flex flex-col gap-1">
+                <label class="text-slate-400 text-xs font-bold">ชื่อพนักงาน</label>
+                <input id="editUserName" type="text" class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:border-blue-500 transition">
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="text-slate-400 text-xs font-bold flex items-center gap-1">
+                    <span class="material-icons text-indigo-400 text-sm">tag</span> Discord ID
+                </label>
+                <input id="editDiscordId" type="text" placeholder="เช่น 937663612766548028" class="bg-slate-900 border border-slate-600 text-indigo-300 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-indigo-500 transition">
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="text-slate-400 text-xs font-bold flex items-center gap-1">
+                    <span class="material-icons text-sky-400 text-sm">send</span> Telegram ID
+                </label>
+                <input id="editTelegramId" type="text" placeholder="เช่น 8046888446" class="bg-slate-900 border border-slate-600 text-sky-300 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-sky-500 transition">
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeEditUserModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2.5 rounded-xl font-bold transition">ยกเลิก</button>
+                <button onclick="saveEditUser()" class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:opacity-90 text-white px-4 py-2.5 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-1">
+                    <span class="material-icons text-sm">save</span> บันทึก
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ====== จบ Modal ====== -->
 
 </div>
