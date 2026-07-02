@@ -1549,14 +1549,15 @@ window.renderUserTableDirectly = function() {
         ];
         const ac = avatarColors[displayIndex % avatarColors.length];
 
-        const disBadge = `<span style="font-size:9px;font-weight:600;color:var(--text-pro);background:var(--bg-pro);border:0.5px solid var(--border-pro);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">DIS</span>`;
-        const telBadge = `<span style="font-size:9px;font-weight:600;color:var(--text-accent);background:var(--bg-accent);border:0.5px solid var(--border-accent);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">TEL</span>`;
-        const discordLine = u.discord_id
-            ? `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;">${disBadge}<span style="font-size:10.5px;color:var(--text-secondary);font-family:monospace;letter-spacing:.2px;" title="${u.discord_id}">${u.discord_id}</span></div>`
-            : `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;">${disBadge}<span style="font-size:10.5px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></div>`;
-        const telegramLine = u.telegram_id
-            ? `<div style="display:flex;align-items:center;gap:5px;margin-top:2px;">${telBadge}<span style="font-size:10.5px;color:var(--text-secondary);font-family:monospace;letter-spacing:.2px;" title="${u.telegram_id}">${u.telegram_id}</span></div>`
-            : `<div style="display:flex;align-items:center;gap:5px;margin-top:2px;">${telBadge}<span style="font-size:10.5px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></div>`;
+        const disBadge = `<span style="font-size:8.5px;font-weight:700;color:var(--text-pro);background:var(--bg-pro);border:0.5px solid var(--border-pro);padding:1px 4px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">DIS</span>`;
+        const telBadge = `<span style="font-size:8.5px;font-weight:700;color:var(--text-accent);background:var(--bg-accent);border:0.5px solid var(--border-accent);padding:1px 4px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">TEL</span>`;
+        const discordChip = u.discord_id
+            ? `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:var(--text-secondary);font-family:monospace;" title="${u.discord_id}">${u.discord_id}</span></span>`
+            : `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></span>`;
+        const telegramChip = u.telegram_id
+            ? `<span style="display:inline-flex;align-items:center;gap:4px;">${telBadge}<span style="font-size:10px;color:var(--text-secondary);font-family:monospace;" title="${u.telegram_id}">${u.telegram_id}</span></span>`
+            : `<span style="display:inline-flex;align-items:center;gap:4px;">${telBadge}<span style="font-size:10px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></span>`;
+        const idRow = `<div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${discordChip}${telegramChip}</div>`;
 
         html += `
             <tr class="staff-row hover:bg-slate-700/30 transition duration-200">
@@ -1566,11 +1567,10 @@ window.renderUserTableDirectly = function() {
                         <div style="width:34px;height:34px;border-radius:50%;background:${ac.bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${ac.color};flex-shrink:0;letter-spacing:.5px;">${u.username.substring(0,2).toUpperCase()}</div>
                         <div style="min-width:0;flex:1;">
                             <div style="display:flex;align-items:center;gap:5px;">
-                                <span style="font-weight:600;color:var(--text-primary);font-size:13px;">${u.username}</span>
-                                <button class="row-edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:1px;cursor:pointer;color:var(--text-muted);line-height:1;border-radius:3px;" title="แก้ไข"><span class="material-icons" style="font-size:13px;">edit</span></button>
+                                <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${u.username}</span>
+                                <button class="row-edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:1px;cursor:pointer;color:var(--text-muted);line-height:1;border-radius:3px;opacity:0;transition:opacity .12s;" title="แก้ไข"><span class="material-icons" style="font-size:13px;">edit</span></button>
                             </div>
-                            ${discordLine}
-                            ${telegramLine}
+                            ${idRow}
                         </div>
                     </div>
                 </td>
