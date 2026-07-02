@@ -1557,14 +1557,14 @@ window.renderUserTableDirectly = function() {
         const telegramChip = u.telegram_id
             ? `<span style="display:inline-flex;align-items:center;gap:4px;">${telBadge}<span style="font-size:10px;color:var(--text-secondary);font-family:monospace;" title="${u.telegram_id}">${u.telegram_id}</span></span>`
             : `<span style="display:inline-flex;align-items:center;gap:4px;">${telBadge}<span style="font-size:10px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></span>`;
-        const idRow = `<div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${discordChip}${telegramChip}</div>`;
+        const idRow = `<div style="margin-top:3px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">${discordChip}${telegramChip}</div>`;
 
         html += `
             <tr class="staff-row">
-                <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
-                <td class="p-3 text-left border-b border-slate-700/50">
+                <td class="px-3 py-2 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
+                <td class="px-3 py-2 text-left border-b border-slate-700/50">
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:34px;height:34px;border-radius:50%;background:${ac.bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${ac.color};flex-shrink:0;letter-spacing:.5px;">${u.username.substring(0,2).toUpperCase()}</div>
+                        <div style="width:30px;height:30px;border-radius:50%;background:${ac.bg};display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:${ac.color};flex-shrink:0;letter-spacing:.5px;">${u.username.substring(0,2).toUpperCase()}</div>
                         <div style="min-width:0;flex:1;">
                             <div style="display:flex;align-items:center;gap:5px;">
                                 <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${u.username}</span>
@@ -1574,12 +1574,12 @@ window.renderUserTableDirectly = function() {
                         </div>
                     </div>
                 </td>
-                <td class="p-3 text-center border-b border-slate-700/50">${depBadge}</td>
-                <td class="p-3 text-center border-b border-slate-700/50">${teamBadge}</td>
-                <td class="p-3 text-center border-b border-slate-700/50">${shiftSelect}</td>
-                <td class="p-3 text-center border-b border-slate-700/50 bg-black/10">${pinDisplay}</td>
-                <td class="p-3 text-center border-b border-slate-700/50">${typeBadge}</td> 
-                <td class="p-3 text-center border-b border-slate-700/50">${roleBadge}</td>
+                <td class="px-3 py-2 text-center border-b border-slate-700/50">${depBadge}</td>
+                <td class="px-3 py-2 text-center border-b border-slate-700/50">${teamBadge}</td>
+                <td class="px-3 py-2 text-center border-b border-slate-700/50">${shiftSelect}</td>
+                <td class="px-3 py-2 text-center border-b border-slate-700/50 bg-black/10">${pinDisplay}</td>
+                <td class="px-3 py-2 text-center border-b border-slate-700/50">${typeBadge}</td> 
+                <td class="px-3 py-2 text-center border-b border-slate-700/50">${roleBadge}</td>
             </tr>`;
     });
     
