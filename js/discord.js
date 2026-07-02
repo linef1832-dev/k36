@@ -200,7 +200,7 @@ window.autoFixAllMismatches = async function() {
         html: `<div class="text-left text-xs text-gray-500 max-h-60 overflow-y-auto">
             ${mismatches.map(m => `
                 <div class="border-b border-slate-200 dark:border-slate-700 py-1.5">
-                    <div class="font-bold text-slate-700 dark:text-white text-sm">${m.staff.name}</div>
+                    <div class="font-bold text-slate-700 dark:text-white text-sm">${m.staff.name}${window.getTagBadgeByName ? window.getTagBadgeByName(m.staff.name) : ""}</div>
                     <div class="text-[10px]"><span class="text-red-500">${m.info.wrongGroups.join(', ')}</span> → <span class="text-emerald-500">${m.info.expectedGroup}</span></div>
                 </div>`).join('')}
         </div>`,
@@ -471,7 +471,7 @@ window.openDuplicateModal = function() {
             return `
                 <div class="flex items-center justify-between gap-2 p-2.5 bg-slate-800/60 rounded-lg border border-slate-700">
                     <div class="flex-1 min-w-0">
-                        <div class="font-bold text-sm text-slate-100 truncate">${s.name}</div>
+                        <div class="font-bold text-sm text-slate-100 truncate">${s.name}${window.getTagBadgeByName ? window.getTagBadgeByName(s.name) : ""}</div>
                         <div class="text-[10px] text-gray-500 mt-0.5">Discord ID: <span class="font-mono">${s.id}</span></div>
                         <div class="mt-1 flex flex-wrap gap-1">${gTags}</div>
                     </div>
@@ -487,7 +487,7 @@ window.openDuplicateModal = function() {
                 <div class="flex items-center justify-between mb-2 pb-2 border-b border-purple-500/20">
                     <div class="flex items-center gap-2">
                         <span class="material-icons text-purple-400 text-[20px]">person</span>
-                        <span class="font-bold text-purple-200">${u.username}</span>
+                        <span class="font-bold text-purple-200">${u.username}</span>${window.getTagBadge ? window.getTagBadge(u.tag) : ""}
                         ${tag}
                     </div>
                     <span class="bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${grp.staffs.length} accounts</span>
@@ -2116,7 +2116,7 @@ window.openGroupManagerModal = function(groupName) {
             <div class="flex justify-between items-center p-3 bg-slate-800 rounded-xl border border-slate-700 shadow-sm mb-2 hover:bg-slate-700/50 transition">
                 <div class="flex items-center gap-3">
                     <div class="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-gray-400 border border-slate-600 shadow-inner">${idx + 1}</div>
-                    <span class="font-bold text-sm text-white tracking-wide">${m.name}</span>
+                    <span class="font-bold text-sm text-white tracking-wide">${m.name}</span>${window.getTagBadgeByName ? window.getTagBadgeByName(m.name) : ""}
                 </div>
                 <button onclick="removeUserFromGroup('${gName}', '${m.id}')" class="text-red-400 hover:text-white transition p-1.5 bg-slate-900 hover:bg-red-500 rounded-lg border border-slate-700" title="นำออกจากกลุ่ม"><span class="material-icons text-[16px]">person_remove</span></button>
             </div>
