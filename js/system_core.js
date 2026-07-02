@@ -1354,6 +1354,7 @@ async function addUsersBulk() {
     
     const discordId = (document.getElementById('newDiscordId')?.value || '').trim();
     const telegramId = (document.getElementById('newTelegramId')?.value || '').trim();
+    const newTag = (document.getElementById('newTag')?.value || '').trim();
 
     const { error } = await appDB.from('users').insert(names.map(n => ({ 
         username: n, 
@@ -1363,13 +1364,15 @@ async function addUsersBulk() {
         check_type: cType,
         department: dept,
         discord_id: discordId || null,
-        telegram_id: telegramId || null
+        telegram_id: telegramId || null,
+        tag: newTag || null
     })));
     
     if(!error) { 
         document.getElementById('newUsersArea').value='';
         if(document.getElementById('newDiscordId')) document.getElementById('newDiscordId').value = '';
         if(document.getElementById('newTelegramId')) document.getElementById('newTelegramId').value = '';
+        if(document.getElementById('newTag')) document.getElementById('newTag').value = '';
         if(typeof fetchUsers === 'function') fetchUsers(); 
         Swal.fire('สำเร็จ', `เพิ่มพนักงาน ${names.length} คน ลงแผนก ${dept} เรียบร้อย`, 'success'); 
     } else {
@@ -1394,7 +1397,7 @@ function populateIndivUserSelect(filter = "") {
             itemDiv.innerHTML = `
                 <input type="checkbox" class="indiv-user-cb w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer" value="${u.id}" data-name="${u.username}">
                 <div class="flex-1 text-xs flex justify-between items-center">
-                    <span class="font-bold text-slate-700">${u.username}</span>
+                    <span class="font-bold text-slate-700">${u.username}</span>${window.getTagBadge ? window.getTagBadge(u.tag) : ""}
                     <span class="text-[9px] ${shiftColor} bg-gray-100 px-1.5 py-0.5 rounded ml-1 font-bold">${u.allowed_shift}</span>
                 </div>
             `;
@@ -1567,7 +1570,7 @@ window.renderUserTableDirectly = function() {
                         <div style="width:34px;height:34px;border-radius:50%;background:${ac.bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${ac.color};flex-shrink:0;letter-spacing:.5px;">${u.username.substring(0,2).toUpperCase()}</div>
                         <div style="min-width:0;flex:1;">
                             <div style="display:flex;align-items:center;gap:5px;">
-                                <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${u.username}</span>
+                                <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${u.username}</span>${window.getTagBadge ? window.getTagBadge(u.tag) : ""}
                                 <button class="row-edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:3px;cursor:pointer;color:#475569;line-height:1;border-radius:5px;opacity:0;transition:opacity .15s,color .15s,background .15s;display:inline-flex;align-items:center;justify-content:center;" title="แก้ไข" onmouseenter="this.style.color='#c084fc';this.style.background='rgba(192,132,252,.12)'" onmouseleave="this.style.color='#475569';this.style.background='none'"><span class="material-icons" style="font-size:14px;">edit</span></button>
                             </div>
                             ${idRow}
@@ -2968,6 +2971,7 @@ window.openEditUserModal = function(id) {
     document.getElementById('editUserName').value = user.username || '';
     document.getElementById('editDiscordId').value = user.discord_id || '';
     document.getElementById('editTelegramId').value = user.telegram_id || '';
+    if(document.getElementById('editTag')) document.getElementById('editTag').value = user.tag || '';
     const modal = document.getElementById('editUserModal');
     if (!modal) return;
     modal.style.display = 'flex';
@@ -2984,6 +2988,7 @@ window.saveEditUser = async function() {
     const username = document.getElementById('editUserName').value.trim();
     const discordId = document.getElementById('editDiscordId').value.trim();
     const telegramId = document.getElementById('editTelegramId').value.trim();
+    const tag = document.getElementById('editTag')?.value.trim() || null;
 
     if (!username) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาใส่ชื่อพนักงาน', 'warning');
 
@@ -2992,7 +2997,8 @@ window.saveEditUser = async function() {
     const { error } = await appDB.from('users').update({
         username: username,
         discord_id: discordId || null,
-        telegram_id: telegramId || null
+        telegram_id: telegramId || null,
+        tag: tag || null
     }).eq('id', id);
 
     if (error) return Swal.fire('Error', error.message, 'error');
@@ -3002,6 +3008,7 @@ window.saveEditUser = async function() {
         GLOBAL_USER_LIST[idx].username = username;
         GLOBAL_USER_LIST[idx].discord_id = discordId || null;
         GLOBAL_USER_LIST[idx].telegram_id = telegramId || null;
+        GLOBAL_USER_LIST[idx].tag = tag || null;
     }
 
     closeEditUserModal();
