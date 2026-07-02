@@ -1540,36 +1540,41 @@ window.renderUserTableDirectly = function() {
             ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs">${u.password}</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
             : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
 
-        const discordDisplay = u.discord_id
-            ? `<span class="font-mono text-indigo-400 text-[10px] bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-800/40 block truncate max-w-[120px]" title="${u.discord_id}">${u.discord_id}</span>`
-            : `<span class="text-slate-600 text-[10px]">-</span>`;
-        const telegramDisplay = u.telegram_id
-            ? `<span class="font-mono text-sky-400 text-[10px] bg-sky-900/20 px-1.5 py-0.5 rounded border border-sky-800/40 block truncate max-w-[120px]" title="${u.telegram_id}">${u.telegram_id}</span>`
-            : `<span class="text-slate-600 text-[10px]">-</span>`;
-        const idBadge = `<div class="flex flex-col gap-1 items-start">${discordDisplay}${telegramDisplay}</div>`;
-        const editBtn = `<button onclick="openEditUserModal(${u.id})" class="text-slate-400 hover:text-blue-400 p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg transition border border-slate-700 hover:border-blue-500" title="แก้ไขชื่อและ ID"><span class="material-icons text-[16px]">edit</span></button>`;
+        const discordLine = u.discord_id
+            ? `<div class="flex items-center gap-1 mt-1"><span class="text-[9px] text-indigo-400 font-bold">DIS</span><span class="font-mono text-indigo-300 text-[10px] bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-800/40 truncate max-w-[140px]" title="${u.discord_id}">${u.discord_id}</span></div>`
+            : `<div class="flex items-center gap-1 mt-1"><span class="text-[9px] text-indigo-400 font-bold">DIS</span><span class="text-slate-600 text-[10px]">-</span></div>`;
+        const telegramLine = u.telegram_id
+            ? `<div class="flex items-center gap-1 mt-0.5"><span class="text-[9px] text-sky-400 font-bold">TEL</span><span class="font-mono text-sky-300 text-[10px] bg-sky-900/20 px-1.5 py-0.5 rounded border border-sky-800/40 truncate max-w-[140px]" title="${u.telegram_id}">${u.telegram_id}</span></div>`
+            : `<div class="flex items-center gap-1 mt-0.5"><span class="text-[9px] text-sky-400 font-bold">TEL</span><span class="text-slate-600 text-[10px]">-</span></div>`;
 
         html += `
             <tr class="hover:bg-slate-700/30 transition duration-200 group">
                 <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
-                <td class="p-3 text-gray-100 text-sm font-extrabold text-left border-b border-slate-700/50 flex items-center gap-2">
-                    <span class="text-[10px] text-gray-500 w-5 text-right mr-1">${displayIndex}.</span>
-                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-xs shadow-inner group-hover:text-white transition">${u.username.substring(0,2).toUpperCase()}</div>
-                    ${u.username}
+                <td class="p-3 text-left border-b border-slate-700/50">
+                    <div class="flex items-start gap-2">
+                        <span class="text-[10px] text-gray-500 w-5 text-right mr-1 mt-1">${displayIndex}.</span>
+                        <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-xs shadow-inner group-hover:text-white transition shrink-0 mt-0.5">${u.username.substring(0,2).toUpperCase()}</div>
+                        <div class="flex flex-col min-w-0">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-gray-100 text-sm font-extrabold">${u.username}</span>
+                                <button onclick="openEditUserModal(${u.id})" class="text-slate-500 hover:text-blue-400 p-0.5 rounded transition opacity-0 group-hover:opacity-100" title="แก้ไขชื่อและ ID"><span class="material-icons text-[15px]">edit</span></button>
+                            </div>
+                            ${discordLine}
+                            ${telegramLine}
+                        </div>
+                    </div>
                 </td>
                 <td class="p-3 text-center border-b border-slate-700/50">${depBadge}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${teamBadge}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${shiftSelect}</td>
                 <td class="p-3 text-center border-b border-slate-700/50 bg-black/10">${pinDisplay}</td>
-                <td class="p-3 border-b border-slate-700/50">${idBadge}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${typeBadge}</td> 
                 <td class="p-3 text-center border-b border-slate-700/50">${roleBadge}</td>
-                <td class="p-3 text-center border-b border-slate-700/50">${editBtn}</td>
             </tr>`;
     });
     
     if (paginatedUsers.length === 0) {
-        html = `<tr><td colspan="10" class="text-center p-10 text-gray-400">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่ค้นหา</td></tr>`;
+        html = `<tr><td colspan="8" class="text-center p-10 text-gray-400">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่ค้นหา</td></tr>`;
     }
 
     box.innerHTML = html;
