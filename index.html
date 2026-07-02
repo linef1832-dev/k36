@@ -185,40 +185,77 @@
     
     <!-- ลบ lazy load: <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script> -->
 
+    
     <!-- ====== Modal แก้ไข Discord/Telegram ID ====== -->
-    <div id="editUserModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this)window.closeEditUserModal()">
-        <div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1.25rem;width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px;" onclick="event.stopPropagation()">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-                <span style="font-weight:500;font-size:14px;color:var(--text-primary);display:flex;align-items:center;gap:6px;">
-                    <span class="material-icons" style="font-size:16px;color:var(--text-pro);">edit</span> แก้ไขข้อมูลพนักงาน
-                </span>
-                <button onclick="window.closeEditUserModal()" style="border:none;background:none;cursor:pointer;color:var(--text-muted);padding:4px;border-radius:4px;line-height:1;">
-                    <span class="material-icons" style="font-size:16px;">close</span>
+    <div id="editUserModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.65);align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this)window.closeEditUserModal()">
+        <div style="width:100%;max-width:360px;background:#0f172a;border-radius:16px;border:1px solid #1e293b;overflow:hidden;" onclick="event.stopPropagation()">
+
+            <div style="padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1e293b;">
+                <div style="width:32px;height:32px;border-radius:9px;background:#3b0764;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <span class="material-icons" style="font-size:15px;color:#a78bfa;">edit</span>
+                </div>
+                <div>
+                    <div style="font-weight:700;font-size:13px;color:#f1f5f9;line-height:1.3;">แก้ไขข้อมูลพนักงาน</div>
+                    <div style="font-size:11px;color:#475569;margin-top:1px;">อัปเดตชื่อและ ID การเชื่อมต่อ</div>
+                </div>
+            </div>
+
+            <div style="padding:20px;display:flex;flex-direction:column;gap:16px;">
+                <input type="hidden" id="editUserId">
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <label style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#64748b;display:flex;align-items:center;gap:6px;">
+                        <span class="material-icons" style="font-size:12px;">person</span> ชื่อพนักงาน
+                    </label>
+                    <input id="editUserName" type="text"
+                        style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;border:1.5px solid #1e293b;background:#020617;color:#e2e8f0;font-size:13px;outline:none;font-family:inherit;transition:border-color .2s,box-shadow .2s;"
+                        onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 4px rgba(139,92,246,.12)'"
+                        onblur="this.style.borderColor='#1e293b';this.style.boxShadow='none'"
+                        onmouseenter="if(document.activeElement!==this)this.style.borderColor='#334155'"
+                        onmouseleave="if(document.activeElement!==this)this.style.borderColor='#1e293b'">
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <label style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#a78bfa;display:flex;align-items:center;gap:6px;">
+                        <span style="background:#3b0764;color:#c084fc;border:1px solid rgba(139,92,246,.3);padding:2px 5px;border-radius:4px;font-size:8.5px;font-weight:800;letter-spacing:.6px;">DIS</span>
+                        Discord ID
+                    </label>
+                    <input id="editDiscordId" type="text" placeholder="เช่น 937663612766548028"
+                        style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;border:1.5px solid #1e293b;background:#020617;color:#c084fc;font-family:monospace;font-size:11.5px;letter-spacing:.3px;outline:none;transition:border-color .2s,box-shadow .2s;"
+                        onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 4px rgba(192,132,252,.12)'"
+                        onblur="this.style.borderColor='#1e293b';this.style.boxShadow='none'"
+                        onmouseenter="if(document.activeElement!==this)this.style.borderColor='#334155'"
+                        onmouseleave="if(document.activeElement!==this)this.style.borderColor='#1e293b'">
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <label style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#7dd3fc;display:flex;align-items:center;gap:6px;">
+                        <span style="background:#082f49;color:#38bdf8;border:1px solid rgba(14,165,233,.3);padding:2px 5px;border-radius:4px;font-size:8.5px;font-weight:800;letter-spacing:.6px;">TEL</span>
+                        Telegram ID
+                    </label>
+                    <input id="editTelegramId" type="text" placeholder="เช่น 8046888446"
+                        style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;border:1.5px solid #1e293b;background:#020617;color:#38bdf8;font-family:monospace;font-size:11.5px;letter-spacing:.3px;outline:none;transition:border-color .2s,box-shadow .2s;"
+                        onfocus="this.style.borderColor='#0ea5e9';this.style.boxShadow='0 0 0 4px rgba(56,189,248,.12)'"
+                        onblur="this.style.borderColor='#1e293b';this.style.boxShadow='none'"
+                        onmouseenter="if(document.activeElement!==this)this.style.borderColor='#334155'"
+                        onmouseleave="if(document.activeElement!==this)this.style.borderColor='#1e293b'">
+                </div>
+            </div>
+
+            <div style="padding:16px 20px;display:flex;gap:10px;border-top:1px solid #1e293b;">
+                <button onclick="window.closeEditUserModal()"
+                    style="flex:1;padding:11px;border-radius:10px;border:1.5px solid #1e293b;background:transparent;color:#64748b;font-size:13px;font-weight:500;cursor:pointer;transition:border-color .2s,background .2s,color .2s;"
+                    onmouseenter="this.style.borderColor='#ef4444';this.style.background='rgba(239,68,68,.1)';this.style.color='#f87171'"
+                    onmouseleave="this.style.borderColor='#1e293b';this.style.background='transparent';this.style.color='#64748b'">
+                    ยกเลิก
+                </button>
+                <button onclick="window.saveEditUser()"
+                    style="flex:2;padding:11px;border-radius:10px;border:none;background:#7c3aed;color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .2s,transform .1s;"
+                    onmouseenter="this.style.background='#6d28d9'"
+                    onmouseleave="this.style.background='#7c3aed'"
+                    onmousedown="this.style.transform='scale(.97)'"
+                    onmouseup="this.style.transform='scale(1)'">
+                    <span class="material-icons" style="font-size:15px;">save</span> บันทึก
                 </button>
             </div>
-            <input type="hidden" id="editUserId">
-            <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:11px;font-weight:500;color:var(--text-muted);">ชื่อพนักงาน</label>
-                <input id="editUserName" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-primary);font-size:13px;outline:none;">
-            </div>
-            <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:11px;font-weight:500;color:var(--text-pro);display:flex;align-items:center;gap:4px;">
-                    <span class="material-icons" style="font-size:13px;">tag</span> Discord ID
-                </label>
-                <input id="editDiscordId" type="text" placeholder="เช่น 937663612766548028" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--border-pro);background:var(--surface-1);color:var(--text-primary);font-family:monospace;font-size:12px;outline:none;">
-            </div>
-            <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:11px;font-weight:500;color:var(--text-accent);display:flex;align-items:center;gap:4px;">
-                    <span class="material-icons" style="font-size:13px;">send</span> Telegram ID
-                </label>
-                <input id="editTelegramId" type="text" placeholder="เช่น 8046888446" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--border-accent);background:var(--surface-1);color:var(--text-primary);font-family:monospace;font-size:12px;outline:none;">
-            </div>
-            <div style="display:flex;gap:8px;margin-top:4px;">
-                <button onclick="window.closeEditUserModal()" style="flex:1;padding:9px;border-radius:var(--radius);border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-secondary);font-size:13px;cursor:pointer;font-weight:500;">ยกเลิก</button>
-                <button onclick="window.saveEditUser()" style="flex:1;padding:9px;border-radius:var(--radius);border:0.5px solid var(--border-accent);background:var(--bg-accent);color:var(--text-accent);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
-                    <span class="material-icons" style="font-size:14px;">save</span> บันทึก
-                </button>
-            </div>
+
         </div>
     </div>
     <script>
