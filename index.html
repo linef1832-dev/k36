@@ -184,5 +184,51 @@
     <script src="./js/wrapped.js?v=2026062215" defer></script>
     
     <!-- ลบ lazy load: <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script> -->
+
+    <!-- ====== Modal แก้ไข Discord/Telegram ID ====== -->
+    <div id="editUserModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this)window.closeEditUserModal()">
+        <div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1.25rem;width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px;" onclick="event.stopPropagation()">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-weight:500;font-size:14px;color:var(--text-primary);display:flex;align-items:center;gap:6px;">
+                    <span class="material-icons" style="font-size:16px;color:var(--text-pro);">edit</span> แก้ไขข้อมูลพนักงาน
+                </span>
+                <button onclick="window.closeEditUserModal()" style="border:none;background:none;cursor:pointer;color:var(--text-muted);padding:4px;border-radius:4px;line-height:1;">
+                    <span class="material-icons" style="font-size:16px;">close</span>
+                </button>
+            </div>
+            <input type="hidden" id="editUserId">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;font-weight:500;color:var(--text-muted);">ชื่อพนักงาน</label>
+                <input id="editUserName" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-primary);font-size:13px;outline:none;">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;font-weight:500;color:var(--text-pro);display:flex;align-items:center;gap:4px;">
+                    <span class="material-icons" style="font-size:13px;">tag</span> Discord ID
+                </label>
+                <input id="editDiscordId" type="text" placeholder="เช่น 937663612766548028" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--border-pro);background:var(--surface-1);color:var(--text-primary);font-family:monospace;font-size:12px;outline:none;">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;font-weight:500;color:var(--text-accent);display:flex;align-items:center;gap:4px;">
+                    <span class="material-icons" style="font-size:13px;">send</span> Telegram ID
+                </label>
+                <input id="editTelegramId" type="text" placeholder="เช่น 8046888446" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:var(--radius);border:0.5px solid var(--border-accent);background:var(--surface-1);color:var(--text-primary);font-family:monospace;font-size:12px;outline:none;">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+                <button onclick="window.closeEditUserModal()" style="flex:1;padding:9px;border-radius:var(--radius);border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-secondary);font-size:13px;cursor:pointer;font-weight:500;">ยกเลิก</button>
+                <button onclick="window.saveEditUser()" style="flex:1;padding:9px;border-radius:var(--radius);border:0.5px solid var(--border-accent);background:var(--bg-accent);color:var(--text-accent);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">
+                    <span class="material-icons" style="font-size:14px;">save</span> บันทึก
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const m = document.getElementById('editUserModal');
+                if (m && m.style.display !== 'none') window.closeEditUserModal();
+            }
+        });
+    </script>
+    <!-- ====== จบ Modal ====== -->
 </body>
 </html>
