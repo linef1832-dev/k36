@@ -1549,8 +1549,8 @@ window.renderUserTableDirectly = function() {
         ];
         const ac = avatarColors[displayIndex % avatarColors.length];
 
-        const disBadge = `<span style="font-size:8.5px;font-weight:700;color:#c084fc;background:#2d1f3d;border:0.5px solid #7c3aed55;padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">DIS</span>`;
-        const telBadge = `<span style="font-size:8.5px;font-weight:700;color:#38bdf8;background:#0c2a3d;border:0.5px solid #0284c755;padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">TEL</span>`;
+        const disBadge = `<span style="font-size:8.5px;font-weight:700;color:#c084fc;background:#2d1f3d;border:0.5px solid rgba(124,58,237,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">DIS</span>`;
+        const telBadge = `<span style="font-size:8.5px;font-weight:700;color:#38bdf8;background:#0c2a3d;border:0.5px solid rgba(2,132,199,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">TEL</span>`;
         const discordChip = u.discord_id
             ? `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:#94a3b8;font-family:monospace;letter-spacing:.2px;" title="${u.discord_id}">${u.discord_id}</span></span>`
             : `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:#475569;font-style:italic;">ยังไม่มี</span></span>`;
@@ -1568,7 +1568,7 @@ window.renderUserTableDirectly = function() {
                         <div style="min-width:0;flex:1;">
                             <div style="display:flex;align-items:center;gap:5px;">
                                 <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${u.username}</span>
-                                <button class="row-edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:1px;cursor:pointer;color:var(--text-muted);line-height:1;border-radius:3px;opacity:0;transition:opacity .12s;" title="แก้ไข"><span class="material-icons" style="font-size:13px;">edit</span></button>
+                                <button class="row-edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:3px;cursor:pointer;color:#475569;line-height:1;border-radius:5px;opacity:0;transition:opacity .15s,color .15s,background .15s;display:inline-flex;align-items:center;justify-content:center;" title="แก้ไข" onmouseenter="this.style.color='#c084fc';this.style.background='rgba(192,132,252,.12)'" onmouseleave="this.style.color='#475569';this.style.background='none'"><span class="material-icons" style="font-size:14px;">edit</span></button>
                             </div>
                             ${idRow}
                         </div>
