@@ -1047,7 +1047,7 @@ function _renderMsgs() {
                 <div style="display:flex;justify-content:flex-end;">
                   <div style="max-width:75%;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
                     <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;">
-                        <span>${t}</span><span style="font-weight:700;color:#60a5fa;">${m.username}</span>${bdg}
+                        <span>${t}</span><span style="font-weight:700;color:#60a5fa;">${m.username}</span>${window.getTagBadge ? window.getTagBadge(m.tag) : ""}${bdg}
                     </div>
                     <div style="background:#1d4ed8;color:#fff;font-size:14px;padding:10px 14px;
                                 border-radius:16px 16px 4px 16px;word-break:break-word;line-height:1.5;">
@@ -1058,7 +1058,7 @@ function _renderMsgs() {
                 <div style="display:flex;justify-content:flex-start;">
                   <div style="max-width:75%;display:flex;flex-direction:column;align-items:flex-start;gap:3px;">
                     <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;">
-                        ${bdg}<span style="font-weight:700;color:${isMgr?'#fcd34d':'#34d399'};">${m.username}</span><span>${t}</span>
+                        ${bdg}<span style="font-weight:700;color:${isMgr?'#fcd34d':'#34d399'};">${m.username}</span>${window.getTagBadge ? window.getTagBadge(m.tag) : ""}<span>${t}</span>
                     </div>
                     <div style="background:${isMgr?'#1c1917;border:1px solid #78350f':'#1e293b'};
                                 color:#fff;font-size:14px;padding:10px 14px;
