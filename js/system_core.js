@@ -1560,7 +1560,7 @@ window.renderUserTableDirectly = function() {
         const idRow = `<div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${discordChip}${telegramChip}</div>`;
 
         html += `
-            <tr class="staff-row hover:bg-slate-700/30 transition duration-200">
+            <tr class="staff-row">
                 <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
                 <td class="p-3 text-left border-b border-slate-700/50">
                     <div style="display:flex;align-items:center;gap:10px;">
