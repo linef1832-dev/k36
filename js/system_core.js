@@ -1352,17 +1352,24 @@ async function addUsersBulk() {
     
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
     
+    const discordId = (document.getElementById('newDiscordId')?.value || '').trim();
+    const telegramId = (document.getElementById('newTelegramId')?.value || '').trim();
+
     const { error } = await appDB.from('users').insert(names.map(n => ({ 
         username: n, 
         allowed_shift: s, 
         team: tm || null, 
         role: 'staff', 
         check_type: cType,
-        department: dept 
+        department: dept,
+        discord_id: discordId || null,
+        telegram_id: telegramId || null
     })));
     
     if(!error) { 
-        document.getElementById('newUsersArea').value=''; 
+        document.getElementById('newUsersArea').value='';
+        if(document.getElementById('newDiscordId')) document.getElementById('newDiscordId').value = '';
+        if(document.getElementById('newTelegramId')) document.getElementById('newTelegramId').value = '';
         if(typeof fetchUsers === 'function') fetchUsers(); 
         Swal.fire('สำเร็จ', `เพิ่มพนักงาน ${names.length} คน ลงแผนก ${dept} เรียบร้อย`, 'success'); 
     } else {
@@ -1533,6 +1540,15 @@ window.renderUserTableDirectly = function() {
             ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs">${u.password}</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
             : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
 
+        const discordDisplay = u.discord_id
+            ? `<span class="font-mono text-indigo-400 text-[10px] bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-800/40 block truncate max-w-[120px]" title="${u.discord_id}">${u.discord_id}</span>`
+            : `<span class="text-slate-600 text-[10px]">-</span>`;
+        const telegramDisplay = u.telegram_id
+            ? `<span class="font-mono text-sky-400 text-[10px] bg-sky-900/20 px-1.5 py-0.5 rounded border border-sky-800/40 block truncate max-w-[120px]" title="${u.telegram_id}">${u.telegram_id}</span>`
+            : `<span class="text-slate-600 text-[10px]">-</span>`;
+        const idBadge = `<div class="flex flex-col gap-1 items-start">${discordDisplay}${telegramDisplay}</div>`;
+        const editBtn = `<button onclick="openEditUserModal(${u.id})" class="text-slate-400 hover:text-blue-400 p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg transition border border-slate-700 hover:border-blue-500" title="แก้ไขชื่อและ ID"><span class="material-icons text-[16px]">edit</span></button>`;
+
         html += `
             <tr class="hover:bg-slate-700/30 transition duration-200 group">
                 <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
@@ -1545,13 +1561,15 @@ window.renderUserTableDirectly = function() {
                 <td class="p-3 text-center border-b border-slate-700/50">${teamBadge}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${shiftSelect}</td>
                 <td class="p-3 text-center border-b border-slate-700/50 bg-black/10">${pinDisplay}</td>
+                <td class="p-3 border-b border-slate-700/50">${idBadge}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${typeBadge}</td> 
-                <td class="p-3 text-center border-b border-slate-700/50">${roleBadge}</td> 
+                <td class="p-3 text-center border-b border-slate-700/50">${roleBadge}</td>
+                <td class="p-3 text-center border-b border-slate-700/50">${editBtn}</td>
             </tr>`;
     });
     
     if (paginatedUsers.length === 0) {
-        html = `<tr><td colspan="8" class="text-center p-10 text-gray-400">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่ค้นหา</td></tr>`;
+        html = `<tr><td colspan="10" class="text-center p-10 text-gray-400">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่ค้นหา</td></tr>`;
     }
 
     box.innerHTML = html;
@@ -2924,4 +2942,54 @@ window.undoClearSchedules = async function() {
             Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนได้: ' + e.message, 'error');
         }
     }
+};
+
+// ====== Modal แก้ไข Discord/Telegram ID ======
+
+window.openEditUserModal = function(id) {
+    const user = GLOBAL_USER_LIST.find(u => String(u.id) === String(id));
+    if (!user) return;
+    document.getElementById('editUserId').value = id;
+    document.getElementById('editUserName').value = user.username || '';
+    document.getElementById('editDiscordId').value = user.discord_id || '';
+    document.getElementById('editTelegramId').value = user.telegram_id || '';
+    const modal = document.getElementById('editUserModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};
+
+window.closeEditUserModal = function() {
+    const modal = document.getElementById('editUserModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+};
+
+window.saveEditUser = async function() {
+    const id = document.getElementById('editUserId').value;
+    const username = document.getElementById('editUserName').value.trim();
+    const discordId = document.getElementById('editDiscordId').value.trim();
+    const telegramId = document.getElementById('editTelegramId').value.trim();
+
+    if (!username) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาใส่ชื่อพนักงาน', 'warning');
+
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+
+    const { error } = await appDB.from('users').update({
+        username: username,
+        discord_id: discordId || null,
+        telegram_id: telegramId || null
+    }).eq('id', id);
+
+    if (error) return Swal.fire('Error', error.message, 'error');
+
+    const idx = GLOBAL_USER_LIST.findIndex(u => String(u.id) === String(id));
+    if (idx !== -1) {
+        GLOBAL_USER_LIST[idx].username = username;
+        GLOBAL_USER_LIST[idx].discord_id = discordId || null;
+        GLOBAL_USER_LIST[idx].telegram_id = telegramId || null;
+    }
+
+    closeEditUserModal();
+    window.renderUserTableDirectly();
+    Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
 };
