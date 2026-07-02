@@ -1090,7 +1090,7 @@ window.renderRosterGrid = async function(rosterData) {
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
                         <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span> 
-                        <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>${window.getTagBadge ? window.getTagBadge(a.tag) : ""}
+                        <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
                     </div>
                 </div>
                 ${breakTimeHtml}
@@ -1484,7 +1484,7 @@ window.handleDrop = async function(event, toTeam) {
             title: '<div class="text-red-500 font-black">ระบุสถานะการหยุด</div>',
             html: `
                 <div class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-4">
-                    พนักงาน: <span class="text-xl text-slate-800 dark:text-white uppercase tracking-wider">${username}</span>${window.getTagBadgeByName ? window.getTagBadgeByName(username) : ""}
+                    พนักงาน: <span class="text-xl text-slate-800 dark:text-white uppercase tracking-wider">${username}</span>
                 </div>
                 <select id="leaveReasonSelect" class="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-red-500 shadow-inner cursor-pointer appearance-none transition">
                     <option value="" disabled selected>-- เลือกสาเหตุการหยุด --</option>
