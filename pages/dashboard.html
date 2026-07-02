@@ -692,13 +692,13 @@
     </div>
 
     <!-- ====== Modal แก้ไข Discord/Telegram ID ====== -->
-    <div id="editUserModal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div id="editUserModal" class="hidden fixed inset-0 z-[999] items-center justify-center bg-black/70 backdrop-blur-sm p-4" onclick="if(event.target===this)window.closeEditUserModal()">
         <div class="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
             <div class="flex items-center justify-between">
                 <h3 class="text-white font-bold text-lg flex items-center gap-2">
                     <span class="material-icons text-blue-400">edit</span> แก้ไขข้อมูลพนักงาน
                 </h3>
-                <button id="btnCloseEditModal" class="text-slate-400 hover:text-white transition">
+                <button onclick="window.closeEditUserModal()" class="text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-slate-700">
                     <span class="material-icons">close</span>
                 </button>
             </div>
@@ -720,39 +720,13 @@
                 <input id="editTelegramId" type="text" placeholder="เช่น 8046888446" class="bg-slate-900 border border-slate-600 text-sky-300 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-sky-500 transition">
             </div>
             <div class="flex gap-3 pt-2">
-                <button id="btnCancelEditModal" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2.5 rounded-xl font-bold transition">ยกเลิก</button>
-                <button id="btnSaveEditModal" class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:opacity-90 text-white px-4 py-2.5 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-1">
+                <button onclick="window.closeEditUserModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2.5 rounded-xl font-bold transition">ยกเลิก</button>
+                <button onclick="window.saveEditUser()" class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:opacity-90 text-white px-4 py-2.5 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-1">
                     <span class="material-icons text-sm">save</span> บันทึก
                 </button>
             </div>
         </div>
     </div>
     <!-- ====== จบ Modal ====== -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const modal = document.getElementById('editUserModal');
-        document.getElementById('btnCloseEditModal')?.addEventListener('click', function() {
-            if(typeof closeEditUserModal === 'function') closeEditUserModal();
-        });
-        document.getElementById('btnCancelEditModal')?.addEventListener('click', function() {
-            if(typeof closeEditUserModal === 'function') closeEditUserModal();
-        });
-        document.getElementById('btnSaveEditModal')?.addEventListener('click', function() {
-            if(typeof saveEditUser === 'function') saveEditUser();
-        });
-        // กด ESC ปิด modal
-        document.addEventListener('keydown', function(e) {
-            if(e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-                if(typeof closeEditUserModal === 'function') closeEditUserModal();
-            }
-        });
-        // กดพื้นหลังปิด modal
-        modal?.addEventListener('click', function(e) {
-            if(e.target === modal) {
-                if(typeof closeEditUserModal === 'function') closeEditUserModal();
-            }
-        });
-    });
-    </script>
 
 </div>
