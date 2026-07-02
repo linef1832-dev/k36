@@ -576,3 +576,26 @@ window.clearUsersCache = function() { _usersCacheTs = 0; };
         }, delay);
     };
 })();
+
+// ====== TAG Badge Helper ======
+window.getTagBadge = function(tag) {
+    const map = {
+        'AM':   { bg:'#1e3a5f', color:'#60a5fa', border:'rgba(96,165,250,.35)' },
+        'AMOL': { bg:'#14301a', color:'#4ade80', border:'rgba(74,222,128,.35)' },
+        'OD':   { bg:'#3b0764', color:'#e879f9', border:'rgba(232,121,249,.35)' },
+        'ODOL': { bg:'#431407', color:'#fb923c', border:'rgba(251,146,60,.35)' },
+    };
+    const s = map[tag];
+    if (!s) return '';
+    return `<span style="font-size:9px;font-weight:800;letter-spacing:.6px;padding:1px 5px;border-radius:4px;background:${s.bg};color:${s.color};border:1px solid ${s.border};flex-shrink:0;display:inline-block;margin-left:4px;vertical-align:middle;">${tag}</span>`;
+};
+
+// lookup tag จาก GLOBAL_USER_LIST โดยใช้ชื่อ (สำหรับ discord.js ที่ไม่มี u.tag โดยตรง)
+window.getTagBadgeByName = function(name) {
+    if (!window.GLOBAL_USER_LIST || !name) return '';
+    const u = window.GLOBAL_USER_LIST.find(x =>
+        x.username && x.username.toLowerCase() === name.toLowerCase()
+    );
+    return u ? window.getTagBadge(u.tag) : '';
+};
+// ====== จบ TAG Badge Helper ======
