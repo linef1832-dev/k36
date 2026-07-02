@@ -1540,25 +1540,34 @@ window.renderUserTableDirectly = function() {
             ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs">${u.password}</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
             : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
 
-        const disBadge = `<span style="font-size:9px;font-weight:500;color:var(--text-pro);background:var(--bg-pro);border:0.5px solid var(--border-pro);padding:1px 4px;border-radius:3px;letter-spacing:.3px;flex-shrink:0;">DIS</span>`;
-        const telBadge = `<span style="font-size:9px;font-weight:500;color:var(--text-accent);background:var(--bg-accent);border:0.5px solid var(--border-accent);padding:1px 4px;border-radius:3px;letter-spacing:.3px;flex-shrink:0;">TEL</span>`;
+        // avatar สีสลับตาม index
+        const avatarColors = [
+            {bg:'#1e3a5f',color:'#60a5fa'},{bg:'#1a2e1a',color:'#4ade80'},
+            {bg:'#3b1f1f',color:'#f87171'},{bg:'#2d1f3d',color:'#c084fc'},
+            {bg:'#1f2d3d',color:'#38bdf8'},{bg:'#3d2d1f',color:'#fb923c'},
+            {bg:'#1f3d2d',color:'#34d399'},{bg:'#3d1f2d',color:'#f472b6'},
+        ];
+        const ac = avatarColors[displayIndex % avatarColors.length];
+
+        const disBadge = `<span style="font-size:9px;font-weight:600;color:var(--text-pro);background:var(--bg-pro);border:0.5px solid var(--border-pro);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">DIS</span>`;
+        const telBadge = `<span style="font-size:9px;font-weight:600;color:var(--text-accent);background:var(--bg-accent);border:0.5px solid var(--border-accent);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">TEL</span>`;
         const discordLine = u.discord_id
-            ? `<div style="display:flex;align-items:center;gap:4px;margin-top:3px;">${disBadge}<span style="font-size:11px;color:var(--text-secondary);font-family:monospace;" title="${u.discord_id}">${u.discord_id}</span></div>`
-            : `<div style="display:flex;align-items:center;gap:4px;margin-top:3px;">${disBadge}<span style="font-size:11px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></div>`;
+            ? `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;">${disBadge}<span style="font-size:10.5px;color:var(--text-secondary);font-family:monospace;letter-spacing:.2px;" title="${u.discord_id}">${u.discord_id}</span></div>`
+            : `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;">${disBadge}<span style="font-size:10.5px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></div>`;
         const telegramLine = u.telegram_id
-            ? `<div style="display:flex;align-items:center;gap:4px;margin-top:2px;">${telBadge}<span style="font-size:11px;color:var(--text-secondary);font-family:monospace;" title="${u.telegram_id}">${u.telegram_id}</span></div>`
-            : `<div style="display:flex;align-items:center;gap:4px;margin-top:2px;">${telBadge}<span style="font-size:11px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></div>`;
+            ? `<div style="display:flex;align-items:center;gap:5px;margin-top:2px;">${telBadge}<span style="font-size:10.5px;color:var(--text-secondary);font-family:monospace;letter-spacing:.2px;" title="${u.telegram_id}">${u.telegram_id}</span></div>`
+            : `<div style="display:flex;align-items:center;gap:5px;margin-top:2px;">${telBadge}<span style="font-size:10.5px;color:var(--text-muted);font-style:italic;">ยังไม่มี</span></div>`;
 
         html += `
-            <tr class="hover:bg-slate-700/30 transition duration-200 group" onmouseenter="this.querySelectorAll('.edit-btn').forEach(b=>b.style.opacity='1')" onmouseleave="this.querySelectorAll('.edit-btn').forEach(b=>b.style.opacity='0')">
+            <tr class="staff-row hover:bg-slate-700/30 transition duration-200">
                 <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
                 <td class="p-3 text-left border-b border-slate-700/50">
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:32px;height:32px;border-radius:50%;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--text-accent);flex-shrink:0;">${u.username.substring(0,2).toUpperCase()}</div>
-                        <div style="min-width:0;">
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${u.username}</span>
-                                <button class="edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:2px;cursor:pointer;color:var(--text-muted);line-height:1;border-radius:4px;opacity:0;transition:opacity .15s;" title="แก้ไข" onmouseenter="this.style.color='var(--text-pro)'" onmouseleave="this.style.color='var(--text-muted)'"><span class="material-icons" style="font-size:13px;">edit</span></button>
+                        <div style="width:34px;height:34px;border-radius:50%;background:${ac.bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${ac.color};flex-shrink:0;letter-spacing:.5px;">${u.username.substring(0,2).toUpperCase()}</div>
+                        <div style="min-width:0;flex:1;">
+                            <div style="display:flex;align-items:center;gap:5px;">
+                                <span style="font-weight:600;color:var(--text-primary);font-size:13px;">${u.username}</span>
+                                <button class="row-edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:1px;cursor:pointer;color:var(--text-muted);line-height:1;border-radius:3px;" title="แก้ไข"><span class="material-icons" style="font-size:13px;">edit</span></button>
                             </div>
                             ${discordLine}
                             ${telegramLine}
