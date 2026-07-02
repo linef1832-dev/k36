@@ -1541,26 +1541,28 @@ window.renderUserTableDirectly = function() {
             : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
 
         const discordLine = u.discord_id
-            ? `<div class="flex items-center gap-1 mt-1"><span class="text-[9px] text-indigo-400 font-bold">DIS</span><span class="font-mono text-indigo-300 text-[10px] bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-800/40 truncate max-w-[140px]" title="${u.discord_id}">${u.discord_id}</span></div>`
-            : `<div class="flex items-center gap-1 mt-1"><span class="text-[9px] text-indigo-400 font-bold">DIS</span><span class="text-slate-600 text-[10px]">-</span></div>`;
+            ? `<span class="inline-flex items-center gap-1 mt-1"><span class="text-[8px] font-black text-indigo-400 bg-indigo-950 border border-indigo-800/60 px-1 py-0.5 rounded">DIS</span><span class="font-mono text-[10px] text-slate-400" title="${u.discord_id}">${u.discord_id}</span></span>`
+            : `<span class="inline-flex items-center gap-1 mt-1"><span class="text-[8px] font-black text-indigo-400/40 bg-indigo-950/40 border border-indigo-800/20 px-1 py-0.5 rounded">DIS</span><span class="text-[10px] text-slate-600">—</span></span>`;
         const telegramLine = u.telegram_id
-            ? `<div class="flex items-center gap-1 mt-0.5"><span class="text-[9px] text-sky-400 font-bold">TEL</span><span class="font-mono text-sky-300 text-[10px] bg-sky-900/20 px-1.5 py-0.5 rounded border border-sky-800/40 truncate max-w-[140px]" title="${u.telegram_id}">${u.telegram_id}</span></div>`
-            : `<div class="flex items-center gap-1 mt-0.5"><span class="text-[9px] text-sky-400 font-bold">TEL</span><span class="text-slate-600 text-[10px]">-</span></div>`;
+            ? `<span class="inline-flex items-center gap-1 mt-0.5"><span class="text-[8px] font-black text-sky-400 bg-sky-950 border border-sky-800/60 px-1 py-0.5 rounded">TEL</span><span class="font-mono text-[10px] text-slate-400" title="${u.telegram_id}">${u.telegram_id}</span></span>`
+            : `<span class="inline-flex items-center gap-1 mt-0.5"><span class="text-[8px] font-black text-sky-400/40 bg-sky-950/40 border border-sky-800/20 px-1 py-0.5 rounded">TEL</span><span class="text-[10px] text-slate-600">—</span></span>`;
 
         html += `
             <tr class="hover:bg-slate-700/30 transition duration-200 group">
                 <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
                 <td class="p-3 text-left border-b border-slate-700/50">
                     <div class="flex items-start gap-2">
-                        <span class="text-[10px] text-gray-500 w-5 text-right mr-1 mt-1">${displayIndex}.</span>
-                        <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-xs shadow-inner group-hover:text-white transition shrink-0 mt-0.5">${u.username.substring(0,2).toUpperCase()}</div>
+                        <span class="text-[10px] text-gray-600 w-5 text-right shrink-0 mt-2">${displayIndex}.</span>
+                        <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-[10px] font-bold shadow-inner group-hover:bg-slate-600 transition shrink-0 mt-1">${u.username.substring(0,2).toUpperCase()}</div>
                         <div class="flex flex-col min-w-0">
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-gray-100 text-sm font-extrabold">${u.username}</span>
-                                <button onclick="openEditUserModal(${u.id})" class="text-slate-500 hover:text-blue-400 p-0.5 rounded transition opacity-0 group-hover:opacity-100" title="แก้ไขชื่อและ ID"><span class="material-icons text-[15px]">edit</span></button>
+                            <div class="flex items-center gap-1">
+                                <span class="text-gray-100 text-sm font-bold leading-tight">${u.username}</span>
+                                <button onclick="openEditUserModal(${u.id})" class="text-slate-600 hover:text-blue-400 transition opacity-0 group-hover:opacity-100 shrink-0" title="แก้ไข"><span class="material-icons text-[13px]">edit</span></button>
                             </div>
-                            ${discordLine}
-                            ${telegramLine}
+                            <div class="flex flex-col gap-0.5 mt-0.5">
+                                ${discordLine}
+                                ${telegramLine}
+                            </div>
                         </div>
                     </div>
                 </td>
