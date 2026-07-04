@@ -391,14 +391,14 @@ window.confirmAndSaveSwapPlan = async function() {
                 generatedSwapPlan.forEach(dayPlan => {
                     dayPlan.morningToNight.forEach(user => {
                         let exactTime = new Date(`${dayPlan.targetDate}T05:00:00+07:00`);
-                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: _p.to, display_desc: dayPlan.descMtoN }, scheduled_for: exactTime.toISOString(), status: 'pending' });
+                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: _p.to, from_shift: _p.from, display_desc: dayPlan.descMtoN }, scheduled_for: exactTime.toISOString(), status: 'pending' });
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                     dayPlan.nightToMorning.forEach(user => {
                         // [FIX] ดึก→เช้า: เริ่มเช้าหลังพัก 1 วัน = targetMornDate (targetDate+2)
                         const mornDate = dayPlan.targetMornDate || dayPlan.targetNextDate;
                         let exactTime = new Date(`${mornDate}T05:00:00+07:00`);
-                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: _p.from, display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
+                        tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: _p.from, from_shift: _p.to, display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
                         // พักวันที่ targetDate (วันที่ยังทำดึกอยู่) และ targetNextDate (วันพัก)
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' });
                         if (dayPlan.targetNextDate) {
@@ -993,7 +993,7 @@ window.openAddMissingSwap = async function() {
                 ? `ทำเช้าวันสุดท้าย: ${prevDispDate} | เริ่มเข้าดึกวันแรก: ${dispDate}`
                 : `ออกกะเช้าวันที่: ${prevDispDate} (ได้พัก 1 วัน) | เริ่มเข้าเช้าวันที่: ${dispDate}`;
 
-            payload = { user_id: user.id, user_name: user.username, target_shift: targetShift, display_desc: desc };
+            payload = { user_id: user.id, user_name: user.username, target_shift: targetShift, from_shift: originalShift, display_desc: desc };
             scheduledFor = new Date(`${date}T05:00:00+07:00`).toISOString();
             status = 'pending';
 
