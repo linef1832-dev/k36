@@ -2936,6 +2936,9 @@ window.renderImportantTasksPanel = function() {
     html += `</div></div>`;
     // แท็บ AM แสดงแค่ส่วนรวมห้อง ไม่มีงานพิเศษ
     panel.innerHTML = isAMDept ? mergeHtml : (html + mergeHtml);
+
+    // แท็บ AM เพิ่มส่วนคำนวณช่วยเว็บต่อท้าย
+    if (isAMDept) window.renderHelpCalcPanel();
 };
 
 window.toggleLockImportantTask = async function(taskName) {
@@ -4408,4 +4411,227 @@ window.mergeRoomDropInline = function(e, targetRoomId) {
     tgtRoom.teams.push(team);
     mergeRoomDragSource = null;
     window.renderImportantTasksPanel();
+};
+
+// ============================================================
+// ⏱️ ระบบคำนวณเวลาช่วยเว็บ (AM เท่านั้น)
+// ============================================================
+
+// เวลาเริ่ม-สิ้นสุดของแต่ละกะ (นาที นับจาก 00:00)
+const SHIFT_CONFIG = {
+    'กะเช้า': { start: 8 * 60, end: 20 * 60 },   // 08:00-20:00
+    'กะดึก':  { start: 20 * 60, end: 32 * 60 },   // 20:00-08:00 (วันถัดไป = +24h)
+};
+
+// แปลงเวลา "HH:MM" → นาทีนับจาก 00:00
+function timeToMin(t) {
+    if (!t) return null;
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+}
+
+// แปลงนาที → "HH:MM"
+function minToTime(m) {
+    // รองรับข้ามเที่ยงคืน
+    const total = ((m % (24 * 60)) + 24 * 60) % (24 * 60);
+    const hh = String(Math.floor(total / 60)).padStart(2, '0');
+    const mm = String(total % 60).padStart(2, '0');
+    return `${hh}:${mm}`;
+}
+
+// คำนวณช่วงเวลาว่าง (ลบ break) ของคนนึง → คืน array [{start, end}] เป็นนาที
+function getFreeSlots(shiftStart, shiftEnd, breakSlots) {
+    // breakSlots = ["02:00-02:30", "07:00-07:30"]
+    const breaks = breakSlots.map(b => {
+        const [s, e] = b.split('-').map(timeToMin);
+        // กะดึก: ถ้า break เช้า (เช่น 07:00) ให้ +24h
+        if (shiftStart >= 20 * 60 && s < 12 * 60) return { s: s + 24 * 60, e: e + 24 * 60 };
+        return { s, e };
+    }).sort((a, b) => a.s - b.s);
+
+    let free = [{ start: shiftStart, end: shiftEnd }];
+    breaks.forEach(br => {
+        const next = [];
+        free.forEach(slot => {
+            if (br.e <= slot.start || br.s >= slot.end) {
+                next.push(slot); // break อยู่นอก slot นี้
+            } else {
+                if (br.s > slot.start) next.push({ start: slot.start, end: br.s });
+                if (br.e < slot.end)   next.push({ start: br.e, end: slot.end });
+            }
+        });
+        free = next;
+    });
+    return free;
+}
+
+// รวมนาทีว่างทั้งหมด
+function totalFreeMin(freeSlots) {
+    return freeSlots.reduce((sum, s) => sum + (s.end - s.start), 0);
+}
+
+// render ส่วนคำนวณช่วยเว็บใน panel AM
+window.renderHelpCalcPanel = function() {
+    const panel = document.getElementById('importantTasksPanel');
+    if (!panel || currentDutyDept !== 'AM') return;
+
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const cfg = SHIFT_CONFIG[shiftFilter];
+    if (!cfg) return; // กะที่ไม่รองรับ
+
+    const roster = window.currentRosterData || {};
+    const schedules = window.currentDutySchedules || [];
+
+    // สร้าง dropdown เลือกเว็บเป้าหมาย
+    const allTeams = sortedTeams || TEAM_LIST;
+    const teamOptions = allTeams.map(t =>
+        `<option value="${t}" ${t === window.helpCalcTarget ? 'selected' : ''}>${t}</option>`
+    ).join('');
+
+    // ถ้ายังไม่ได้คำนวณ แสดงแค่ UI เลือกเว็บ
+    let resultHtml = `<div class="text-center text-[11px] text-slate-500 py-2">เลือกเว็บแล้วกดคำนวณ</div>`;
+
+    if (window.helpCalcResult && window.helpCalcResult.length > 0) {
+        resultHtml = window.helpCalcResult.map((item, i) => `
+            <div class="flex items-start gap-2 py-1.5 border-b border-slate-700/50 last:border-0">
+                <span class="w-5 h-5 rounded-full bg-sky-600 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">${i + 1}</span>
+                <div class="flex-1">
+                    <div class="text-[12px] font-black text-white">${item.name}
+                        <span class="text-[10px] font-normal text-slate-400 ml-1">(${item.fromTeam})</span>
+                    </div>
+                    <div class="text-[11px] text-sky-400 font-bold mt-0.5 flex items-center gap-1">
+                        <span class="material-icons text-[12px]">schedule</span>
+                        ${minToTime(item.helpStart)} – ${minToTime(item.helpEnd)}
+                        <span class="text-slate-500 font-normal">(${Math.round((item.helpEnd - item.helpStart))} นาที)</span>
+                    </div>
+                </div>
+            </div>`).join('');
+
+        if (window.helpCalcNoSlot && window.helpCalcNoSlot.length > 0) {
+            resultHtml += `<div class="mt-1.5 text-[10px] text-red-400 font-bold">⚠️ ไม่มีเวลาว่าง: ${window.helpCalcNoSlot.join(', ')}</div>`;
+        }
+    }
+
+    const calcHtml = `
+        <div class="bg-[#151f32] border border-sky-700/60 rounded-2xl shadow-lg overflow-hidden mt-3">
+            <div class="bg-gradient-to-r from-sky-700 to-cyan-600 text-white px-3 py-2 flex items-center gap-2">
+                <span class="material-icons text-[16px]">calculate</span>
+                <h4 class="font-black text-xs tracking-wide">คำนวณเวลาช่วยเว็บ</h4>
+            </div>
+            <div class="p-2.5 flex flex-col gap-2">
+                <div class="flex gap-2 items-center">
+                    <select id="helpCalcTargetSelect" onchange="window.helpCalcTarget=this.value; window.helpCalcResult=null; window.renderHelpCalcPanel();"
+                        class="flex-1 bg-slate-800 border border-slate-600 text-white text-xs rounded-lg px-2 py-1.5 outline-none focus:border-sky-500">
+                        <option value="">-- เลือกเว็บที่ต้องการช่วย --</option>
+                        ${teamOptions}
+                    </select>
+                    <button onclick="window.calcHelpTime()" class="bg-sky-600 hover:bg-sky-500 text-white text-[11px] px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 active:scale-95 whitespace-nowrap">
+                        <span class="material-icons text-[13px]">play_arrow</span> คำนวณ
+                    </button>
+                </div>
+                <div class="flex flex-col">${resultHtml}</div>
+            </div>
+        </div>`;
+
+    // append ต่อท้าย panel (หลัง mergeHtml)
+    const existing = panel.querySelector('#helpCalcSection');
+    if (existing) existing.remove();
+    const div = document.createElement('div');
+    div.id = 'helpCalcSection';
+    div.innerHTML = calcHtml;
+    panel.appendChild(div);
+};
+
+// คำนวณเวลาช่วยเว็บ
+window.calcHelpTime = function() {
+    const target = window.helpCalcTarget || document.getElementById('helpCalcTargetSelect')?.value;
+    if (!target) return Swal.fire('เตือน', 'กรุณาเลือกเว็บก่อนครับ', 'warning');
+
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const cfg = SHIFT_CONFIG[shiftFilter];
+    if (!cfg) return Swal.fire('เตือน', 'ระบบรองรับแค่กะเช้าและกะดึกครับ', 'warning');
+
+    const roster = window.currentRosterData || {};
+    const schedules = window.currentDutySchedules || [];
+
+    // รวบรวม AM ทุกคนจากทุกเว็บ ยกเว้นเว็บเป้าหมาย
+    let allStaff = [];
+    Object.keys(roster).forEach(team => {
+        if (team === target) return;
+        (roster[team] || []).forEach(u => {
+            if (!u.username?.includes('ขาดคน')) {
+                allStaff.push({ name: u.username, fromTeam: team });
+            }
+        });
+    });
+
+    if (allStaff.length === 0) {
+        return Swal.fire('ไม่มีข้อมูล', 'ไม่พบพนักงาน AM จากเว็บอื่นเลยครับ', 'info');
+    }
+
+    // คำนวณเวลาว่างของแต่ละคน
+    const staffFree = allStaff.map(s => {
+        const myBreaks = schedules
+            .filter(sc => sc.staff_name === s.name)
+            .map(sc => sc.time_slot)
+            .filter(Boolean);
+        const freeSlots = getFreeSlots(cfg.start, cfg.end, myBreaks);
+        const freeMin = totalFreeMin(freeSlots);
+        return { ...s, freeSlots, freeMin };
+    });
+
+    const staffWithTime = staffFree.filter(s => s.freeMin > 0);
+    const noSlot = staffFree.filter(s => s.freeMin === 0).map(s => s.name);
+
+    if (staffWithTime.length === 0) {
+        window.helpCalcResult = [];
+        window.helpCalcNoSlot = noSlot;
+        window.renderHelpCalcPanel();
+        return;
+    }
+
+    // รวมเวลาว่างทั้งหมด หารจำนวนคน = เวลาเฉลี่ยต่อคน
+    const totalFree = staffWithTime.reduce((s, u) => s + u.freeMin, 0);
+    const avgMin = Math.floor(totalFree / staffWithTime.length);
+
+    // จัดคิวเข้าช่วย ต่อเนื่องกัน เริ่มจาก shiftStart
+    // แต่ข้ามช่วงที่แต่ละคนพักอยู่
+    const results = [];
+    let cursor = cfg.start; // เวลาปัจจุบันที่รอจัดคิว
+
+    staffWithTime.forEach(staff => {
+        let remain = avgMin;
+        let helpStart = null;
+        let helpEnd = null;
+
+        // วนหา free slot ของคนนี้ที่ cursor อยู่
+        for (const slot of staff.freeSlots) {
+            if (slot.end <= cursor) continue; // slot นี้ผ่านมาแล้ว
+            const slotStart = Math.max(slot.start, cursor);
+            const available = slot.end - slotStart;
+
+            if (available <= 0) continue;
+
+            if (helpStart === null) helpStart = slotStart;
+
+            if (available >= remain) {
+                helpEnd = slotStart + remain;
+                cursor = helpEnd;
+                remain = 0;
+                break;
+            } else {
+                remain -= available;
+                cursor = slot.end;
+            }
+        }
+
+        if (helpStart !== null && helpEnd !== null) {
+            results.push({ ...staff, helpStart, helpEnd });
+        }
+    });
+
+    window.helpCalcTarget = target;
+    window.helpCalcResult = results;
+    window.helpCalcNoSlot = noSlot;
+    window.renderHelpCalcPanel();
 };
