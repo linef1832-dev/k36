@@ -4543,7 +4543,7 @@ window.renderHelpCalcPanel = function() {
 };
 
 // คำนวณเวลาช่วยเว็บ
-window.calcHelpTime = function() {
+window.calcHelpTime = async function() {
     const target = window.helpCalcTarget || document.getElementById('helpCalcTargetSelect')?.value;
     if (!target) return Swal.fire('เตือน', 'กรุณาเลือกเว็บก่อนครับ', 'warning');
 
@@ -4551,8 +4551,23 @@ window.calcHelpTime = function() {
     const cfg = SHIFT_CONFIG[shiftFilter];
     if (!cfg) return Swal.fire('เตือน', 'ระบบรองรับแค่กะเช้าและกะดึกครับ', 'warning');
 
+    const targetDate = document.getElementById('dutyDate').value;
     const schedules = window.currentDutySchedules || [];
-    const combinedRoster = window.currentRosterData || {};
+
+    // ดึง roster ของกะที่เลือกจาก DB โดยตรง
+    let roster = {};
+    try {
+        const key = `duty_roster_AM_${targetDate}_${shiftFilter}`;
+        const { data } = await appDB.from('settings').select('value').eq('key', key);
+        if (data && data.length > 0 && data[0].value) {
+            roster = JSON.parse(data[0].value);
+        }
+    } catch(e) {}
+
+    // fallback ใช้ currentRosterData ถ้าดึง DB ไม่ได้
+    if (Object.keys(roster).length === 0) roster = window.currentRosterData || {};
+
+    const combinedRoster = roster;
 
     // รวบรวม AM ทุกคนจากทุกเว็บ ยกเว้นเว็บเป้าหมาย
     let allStaff = [];
