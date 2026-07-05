@@ -4095,24 +4095,42 @@ window.closeMergeRoomModal = function() {
 
 // สุ่มจัดกลุ่มเว็บเข้าห้อง
 window.shuffleMergeRooms = function() {
-    const teams = [...sortedTeams]; // เว็บทั้งหมด
+    const rosterData = window.currentRosterData || {};
 
-    // สุ่มลำดับเว็บ
-    for (let i = teams.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [teams[i], teams[j]] = [teams[j], teams[i]];
+    // แยกเว็บที่มี AMQL กับไม่มี AMQL
+    const teamsWithAMQL = [];
+    const teamsWithoutAMQL = [];
+
+    sortedTeams.forEach(team => {
+        const assignees = (rosterData[team] || []).filter(u => !u.username?.includes('ขาดคน'));
+        if (assignees.length > 0) teamsWithAMQL.push(team);
+        else teamsWithoutAMQL.push(team);
+    });
+
+    // สุ่มลำดับทั้งสองกลุ่ม
+    const shuffle = arr => {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    };
+    shuffle(teamsWithAMQL);
+    shuffle(teamsWithoutAMQL);
+
+    // จับคู่เว็บที่มี AMQL ห้องละ 2
+    const rooms = [];
+    for (let i = 0; i < teamsWithAMQL.length; i += 2) {
+        const roomTeams = [teamsWithAMQL[i]];
+        if (teamsWithAMQL[i + 1]) roomTeams.push(teamsWithAMQL[i + 1]);
+        rooms.push({ id: rooms.length + 1, teams: roomTeams });
     }
 
-    // คำนวณจำนวนห้อง: เฉลี่ย 2-3 เว็บต่อห้อง
-    const total = teams.length;
-    let numRooms;
-    if (total <= 3) numRooms = 1;
-    else if (total <= 6) numRooms = Math.ceil(total / 3);
-    else numRooms = Math.ceil(total / 2.5);
-
-    // แบ่งเว็บลงห้อง
-    const rooms = Array.from({ length: numRooms }, (_, i) => ({ id: i + 1, teams: [] }));
-    teams.forEach((team, i) => rooms[i % numRooms].teams.push(team));
+    // กระจายเว็บที่ไม่มี AMQL ยัดเข้าห้องที่มีอยู่ ห้องละ 1
+    teamsWithoutAMQL.forEach((team, i) => {
+        const targetRoom = rooms[i % rooms.length];
+        if (targetRoom) targetRoom.teams.push(team);
+    });
 
     window.currentMergeRooms = rooms;
     window.renderMergeRoomPanel();
@@ -4129,21 +4147,15 @@ window.renderMergeRoomPanel = function() {
     let html = '';
     rooms.forEach(room => {
         const teamsHtml = room.teams.map(team => {
-            const assignees = (rosterData[team] || []).filter(u => !u.username?.includes('ขาดคน'));
-            const hasStaff = assignees.length > 0;
-            const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
-            const staffBadge = hasStaff
-                ? `<span class="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[11px]">people</span>${assignees.length}</span>`
-                : `<span class="text-[10px] text-red-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[11px]">person_off</span>ว่าง</span>`;
+        const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
 
             return `
-                <div class="merge-team-pill flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border ${colorClass.border} ${colorClass.lightBg} cursor-grab active:cursor-grabbing select-none"
+                <div class="merge-team-pill flex items-center px-2.5 py-1.5 rounded-lg border ${colorClass.border} ${colorClass.lightBg} cursor-grab active:cursor-grabbing select-none"
                      draggable="true"
                      ondragstart="window.mergeRoomDragStart(event, ${room.id}, '${team}')"
                      ondragend="window.mergeRoomDragEnd(event)"
                      title="ลากเพื่อย้ายห้อง">
                     <span class="text-xs font-black ${colorClass.lightText}">${team}</span>
-                    ${staffBadge}
                 </div>`;
         }).join('');
 
