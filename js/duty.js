@@ -4606,36 +4606,39 @@ window.calcHelpTime = async function() {
     }
 
     // รวมเวลาว่างทั้งหมด หารจำนวนคน = เวลาเฉลี่ยต่อคน
-    const totalFree = staffWithTime.reduce((s, u) => s + u.freeMin, 0);
-    const avgMin = Math.floor(totalFree / staffWithTime.length);
+    const totalFreeAll = staffWithTime.reduce((s, u) => s + u.freeMin, 0);
+    const avgMin = Math.floor(totalFreeAll / staffWithTime.length);
 
-    // จัดคิวเข้าช่วย ต่อเนื่องกัน เริ่มจาก shiftStart
-    // แต่ข้ามช่วงที่แต่ละคนพักอยู่
+    // จัดคิวเข้าช่วยต่อเนื่องกัน
+    // แต่ละคนจะช่วยช่วง avgMin นาที โดยข้ามเวลาพักของตัวเอง
+    // cursor เดินไปข้างหน้าเรื่อยๆ ต่อจากคนก่อน
     const results = [];
-    let cursor = cfg.start; // เวลาปัจจุบันที่รอจัดคิว
+    let cursor = cfg.start;
 
-    staffWithTime.forEach(staff => {
+    for (const staff of staffWithTime) {
         let remain = avgMin;
         let helpStart = null;
         let helpEnd = null;
 
-        // วนหา free slot ของคนนี้ที่ cursor อยู่
-        for (const slot of staff.freeSlots) {
-            if (slot.end <= cursor) continue; // slot นี้ผ่านมาแล้ว
-            const slotStart = Math.max(slot.start, cursor);
-            const available = slot.end - slotStart;
+        // สร้าง free slots ของคนนี้ แต่เริ่มจาก cursor เท่านั้น
+        const effectiveSlots = staff.freeSlots
+            .map(s => ({ start: Math.max(s.start, cursor), end: s.end }))
+            .filter(s => s.end > s.start);
 
+        for (const slot of effectiveSlots) {
+            if (remain <= 0) break;
+            const available = slot.end - slot.start;
             if (available <= 0) continue;
 
-            if (helpStart === null) helpStart = slotStart;
+            if (helpStart === null) helpStart = slot.start;
 
             if (available >= remain) {
-                helpEnd = slotStart + remain;
+                helpEnd = slot.start + remain;
                 cursor = helpEnd;
                 remain = 0;
-                break;
             } else {
                 remain -= available;
+                helpEnd = slot.end;
                 cursor = slot.end;
             }
         }
@@ -4643,7 +4646,10 @@ window.calcHelpTime = async function() {
         if (helpStart !== null && helpEnd !== null) {
             results.push({ ...staff, helpStart, helpEnd });
         }
-    });
+
+        // ถ้าหาเวลาไม่ครบ (remain > 0) cursor ยังอยู่ที่ helpEnd ซึ่ง ok
+        if (cursor >= cfg.end) break; // หมดเวลากะแล้ว
+    }
 
     window.helpCalcTarget = target;
     window.helpCalcResult = results;
