@@ -285,6 +285,13 @@ window.switchDutyDept = function(dept) {
         if (dept === 'OD') btnODTask.classList.remove('hidden');
         else btnODTask.classList.add('hidden');
     }
+
+    // แสดง/ซ่อนปุ่มรวมห้อง Discord เฉพาะ AMQL
+    const btnMerge = document.getElementById('btnMergeRoom');
+    if (btnMerge) {
+        if (dept === 'AMQL') btnMerge.classList.remove('hidden');
+        else btnMerge.classList.add('hidden');
+    }
     
     let labelText = dept;
     if (dept === 'AMQL') labelText = 'ผู้สอน AM';
@@ -4062,4 +4069,164 @@ window.swapODTask = async function(team, userId, taskType) {
     } catch(e) {
         Swal.fire('Error', e.message, 'error');
     }
+};
+
+// ============================================================
+// 🏠 ระบบรวมห้อง Discord (AMQL เท่านั้น)
+// ============================================================
+
+// เก็บสถานะห้องปัจจุบัน
+window.currentMergeRooms = []; // [{id, teams:[]}]
+let mergeRoomDragSource = null; // {roomId, team}
+
+// เปิด panel รวมห้อง
+window.openMergeRoomPanel = function() {
+    // สุ่มห้องครั้งแรกทันที แล้วแสดง modal
+    window.shuffleMergeRooms();
+    const modal = document.getElementById('mergeRoomModal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+// ปิด modal
+window.closeMergeRoomModal = function() {
+    const modal = document.getElementById('mergeRoomModal');
+    if (modal) modal.classList.add('hidden');
+};
+
+// สุ่มจัดกลุ่มเว็บเข้าห้อง
+window.shuffleMergeRooms = function() {
+    const teams = [...sortedTeams]; // เว็บทั้งหมด
+
+    // สุ่มลำดับเว็บ
+    for (let i = teams.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [teams[i], teams[j]] = [teams[j], teams[i]];
+    }
+
+    // คำนวณจำนวนห้อง: เฉลี่ย 2-3 เว็บต่อห้อง
+    const total = teams.length;
+    let numRooms;
+    if (total <= 3) numRooms = 1;
+    else if (total <= 6) numRooms = Math.ceil(total / 3);
+    else numRooms = Math.ceil(total / 2.5);
+
+    // แบ่งเว็บลงห้อง
+    const rooms = Array.from({ length: numRooms }, (_, i) => ({ id: i + 1, teams: [] }));
+    teams.forEach((team, i) => rooms[i % numRooms].teams.push(team));
+
+    window.currentMergeRooms = rooms;
+    window.renderMergeRoomPanel();
+};
+
+// render panel รวมห้อง
+window.renderMergeRoomPanel = function() {
+    const container = document.getElementById('mergeRoomContainer');
+    if (!container) return;
+
+    const rooms = window.currentMergeRooms;
+    const rosterData = window.currentRosterData || {};
+
+    let html = '';
+    rooms.forEach(room => {
+        const teamsHtml = room.teams.map(team => {
+            const assignees = (rosterData[team] || []).filter(u => !u.username?.includes('ขาดคน'));
+            const hasStaff = assignees.length > 0;
+            const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
+            const staffBadge = hasStaff
+                ? `<span class="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[11px]">people</span>${assignees.length}</span>`
+                : `<span class="text-[10px] text-red-400 font-bold flex items-center gap-0.5"><span class="material-icons text-[11px]">person_off</span>ว่าง</span>`;
+
+            return `
+                <div class="merge-team-pill flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border ${colorClass.border} ${colorClass.lightBg} cursor-grab active:cursor-grabbing select-none"
+                     draggable="true"
+                     ondragstart="window.mergeRoomDragStart(event, ${room.id}, '${team}')"
+                     ondragend="window.mergeRoomDragEnd(event)"
+                     title="ลากเพื่อย้ายห้อง">
+                    <span class="text-xs font-black ${colorClass.lightText}">${team}</span>
+                    ${staffBadge}
+                </div>`;
+        }).join('');
+
+        html += `
+            <div class="merge-room-card bg-slate-800 border-2 border-slate-600 rounded-xl p-3 flex flex-col gap-2 min-h-[120px] transition-colors"
+                 id="mergeRoom_${room.id}"
+                 ondragover="window.mergeRoomDragOver(event)"
+                 ondrop="window.mergeRoomDrop(event, ${room.id})">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center shadow">${room.id}</span>
+                        <span class="text-xs font-bold text-white">ห้องที่ ${room.id}</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400 font-bold">${room.teams.length} เว็บ</span>
+                </div>
+                <div class="flex flex-col gap-1.5 flex-1 min-h-[60px]" id="mergeRoomTeams_${room.id}">
+                    ${teamsHtml || '<div class="text-[10px] text-slate-500 italic text-center py-2">ยังไม่มีเว็บ</div>'}
+                </div>
+            </div>`;
+    });
+
+    container.innerHTML = html;
+
+    // อัปเดตจำนวนเว็บใน toolbar
+    const countEl = document.getElementById('mergeRoomTeamCount');
+    if (countEl) countEl.textContent = sortedTeams.length;
+};
+
+// Drag & Drop handlers
+window.mergeRoomDragStart = function(e, roomId, team) {
+    mergeRoomDragSource = { roomId, team };
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.style.opacity = '0.5';
+};
+
+window.mergeRoomDragEnd = function(e) {
+    e.currentTarget.style.opacity = '1';
+    document.querySelectorAll('.merge-room-card').forEach(el => el.classList.remove('border-violet-400', 'bg-violet-900/20'));
+};
+
+window.mergeRoomDragOver = function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const card = e.currentTarget;
+    card.classList.add('border-violet-400', 'bg-violet-900/20');
+};
+
+window.mergeRoomDrop = function(e, targetRoomId) {
+    e.preventDefault();
+    document.querySelectorAll('.merge-room-card').forEach(el => el.classList.remove('border-violet-400', 'bg-violet-900/20'));
+    if (!mergeRoomDragSource) return;
+    const { roomId: srcRoomId, team } = mergeRoomDragSource;
+    if (srcRoomId === targetRoomId) return;
+
+    // ย้ายเว็บจากห้องเก่าไปห้องใหม่
+    const rooms = window.currentMergeRooms;
+    const srcRoom = rooms.find(r => r.id === srcRoomId);
+    const tgtRoom = rooms.find(r => r.id === targetRoomId);
+    if (!srcRoom || !tgtRoom) return;
+
+    srcRoom.teams = srcRoom.teams.filter(t => t !== team);
+    tgtRoom.teams.push(team);
+
+    mergeRoomDragSource = null;
+    window.renderMergeRoomPanel();
+};
+
+// บันทึกผลรวมห้องลง localStorage (ไม่กระทบตาราง roster)
+window.saveMergeRooms = function() {
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const key = `duty_merge_rooms_${targetDate}_${shiftFilter}`;
+    localStorage.setItem(key, JSON.stringify(window.currentMergeRooms));
+
+    Swal.fire({
+        icon: 'success',
+        title: 'บันทึกการรวมห้องแล้ว!',
+        html: window.currentMergeRooms.map(r =>
+            `<div class="text-sm"><b>ห้อง ${r.id}:</b> ${r.teams.join(', ') || '-'}</div>`
+        ).join(''),
+        timer: 2500,
+        showConfirmButton: false
+    });
+
+    window.closeMergeRoomModal();
 };
