@@ -4094,20 +4094,19 @@ window.closeMergeRoomModal = function() {
 };
 
 // สุ่มจัดกลุ่มเว็บเข้าห้อง
-window.shuffleMergeRooms = function() {
-    const rosterData = window.currentRosterData || {};
+window.shuffleMergeRooms = async function() {
+    // ต้องดึงตาราง AM (ไม่ใช่ AMQL) เพื่อเช็คว่าเว็บไหนมีผู้สอนอยู่
+    // เพราะตอนอยู่แท็บ AMQL, currentRosterData = ตาราง AMQL ไม่ใช่ AM
+    const targetDate = document.getElementById('dutyDate').value;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const amqlSaveKey = `duty_roster_AMQL_${targetDate}_${shiftFilter}`;
 
-    // แยกเว็บที่มี AMQL กับไม่มี AMQL
-    const teamsWithAMQL = [];
-    const teamsWithoutAMQL = [];
+    let amqlRoster = {};
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', amqlSaveKey).single();
+        if (data && data.value) amqlRoster = JSON.parse(data.value);
+    } catch(e) { /* ยังไม่มีตาราง AMQL */ }
 
-    sortedTeams.forEach(team => {
-        const assignees = (rosterData[team] || []).filter(u => !u.username?.includes('ขาดคน'));
-        if (assignees.length > 0) teamsWithAMQL.push(team);
-        else teamsWithoutAMQL.push(team);
-    });
-
-    // สุ่มลำดับทั้งสองกลุ่ม
     const shuffle = arr => {
         for (let i = arr.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -4115,6 +4114,17 @@ window.shuffleMergeRooms = function() {
         }
         return arr;
     };
+
+    // แยกเว็บที่มี AMQL จัดอยู่ vs ไม่มี
+    const teamsWithAMQL = [];
+    const teamsWithoutAMQL = [];
+
+    sortedTeams.forEach(team => {
+        const assignees = (amqlRoster[team] || []).filter(u => !u.username?.includes('ขาดคน'));
+        if (assignees.length > 0) teamsWithAMQL.push(team);
+        else teamsWithoutAMQL.push(team);
+    });
+
     shuffle(teamsWithAMQL);
     shuffle(teamsWithoutAMQL);
 
@@ -4126,10 +4136,22 @@ window.shuffleMergeRooms = function() {
         rooms.push({ id: rooms.length + 1, teams: roomTeams });
     }
 
+    // ถ้าไม่มีห้องเลย (ยังไม่จัด AMQL) ให้สุ่มแบบธรรมดา ห้องละ 2
+    if (rooms.length === 0) {
+        const allTeams = shuffle([...sortedTeams]);
+        for (let i = 0; i < allTeams.length; i += 2) {
+            const roomTeams = [allTeams[i]];
+            if (allTeams[i + 1]) roomTeams.push(allTeams[i + 1]);
+            rooms.push({ id: rooms.length + 1, teams: roomTeams });
+        }
+        window.currentMergeRooms = rooms;
+        window.renderMergeRoomPanel();
+        return;
+    }
+
     // กระจายเว็บที่ไม่มี AMQL ยัดเข้าห้องที่มีอยู่ ห้องละ 1
     teamsWithoutAMQL.forEach((team, i) => {
-        const targetRoom = rooms[i % rooms.length];
-        if (targetRoom) targetRoom.teams.push(team);
+        rooms[i % rooms.length].teams.push(team);
     });
 
     window.currentMergeRooms = rooms;
