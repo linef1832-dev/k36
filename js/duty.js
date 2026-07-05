@@ -2768,8 +2768,11 @@ window.renderImportantTasksPanel = function() {
     if (!panel) return;
     
     const isTrainerDept = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER'));
-    if (!isTrainerDept) { panel.classList.add('hidden'); return; }
-    
+    const isAMDept = (currentDutyDept === 'AM');
+
+    // แท็บที่ไม่ใช่ AMQL และไม่ใช่ AM → ซ่อน panel ทั้งหมด
+    if (!isTrainerDept && !isAMDept) { panel.classList.add('hidden'); return; }
+
     panel.classList.remove('hidden');
     const isAdmin = window.isDutyAdmin();
 
@@ -2838,7 +2841,7 @@ window.renderImportantTasksPanel = function() {
                     <h4 class="font-black text-xs tracking-wide">การรวมห้อง Discord</h4>
                 </div>
                 <div class="flex gap-1">
-                    ${isSaved ? `
+                    ${isAMDept ? '' : isSaved ? `
                         <button onclick="window.deleteMergeRooms()" class="bg-red-600/80 hover:bg-red-600 px-2 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 border border-red-400/50 active:scale-95">
                             <span class="material-icons text-[11px]">delete</span> ลบ
                         </button>` : `
@@ -2931,7 +2934,8 @@ window.renderImportantTasksPanel = function() {
         });
     }
     html += `</div></div>`;
-    panel.innerHTML = html + mergeHtml;
+    // แท็บ AM แสดงแค่ส่วนรวมห้อง ไม่มีงานพิเศษ
+    panel.innerHTML = isAMDept ? mergeHtml : (html + mergeHtml);
 };
 
 window.toggleLockImportantTask = async function(taskName) {
