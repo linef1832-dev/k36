@@ -4125,22 +4125,55 @@ window.shuffleMergeRooms = async function() {
     shuffle(teamsWithAMQL);
     shuffle(teamsWithoutAMQL);
 
-    // จับคู่เฉพาะเว็บที่มี AMQL ห้องละ 2
-    const rooms = [];
-    for (let i = 0; i + 1 < teamsWithAMQL.length; i += 2) {
-        rooms.push({ id: rooms.length + 1, teams: [teamsWithAMQL[i], teamsWithAMQL[i + 1]] });
-    }
+    const totalTeams = sortedTeams.length;
+    const numRooms = Math.floor(totalTeams / 2); // ห้องละ 2 เว็บเป็นหลัก
+    const extraSlots = totalTeams % 2; // เศษ = จำนวนห้องที่ต้องรับเว็บที่ 3
 
-    // ถ้าเว็บที่มี AMQL เป็นเลขคี่ → เหลือ 1 เว็บ ให้ยัดเข้าห้องที่มีอยู่แล้ว
-    if (teamsWithAMQL.length % 2 !== 0) {
-        const lastAMQL = teamsWithAMQL[teamsWithAMQL.length - 1];
-        const targetRoom = rooms[Math.floor(Math.random() * rooms.length)];
-        if (targetRoom) targetRoom.teams.push(lastAMQL);
-    }
+    // สร้างห้องเปล่าก่อน
+    const rooms = Array.from({ length: numRooms }, (_, i) => ({ id: i + 1, teams: [] }));
 
-    // เว็บที่ไม่มี AMQL → ยัดเข้าห้องที่มีอยู่แล้ว ห้องละ 1 เท่านั้น ห้ามจับคู่กันเอง
-    teamsWithoutAMQL.forEach((team, i) => {
-        if (rooms.length > 0) rooms[i % rooms.length].teams.push(team);
+    // ใส่เว็บที่มี AMQL ก่อน — กระจายทีละห้อง
+    const amqlQueue = [...teamsWithAMQL];
+    const noAmqlQueue = [...teamsWithoutAMQL];
+
+    // รอบที่ 1: ใส่เว็บแรกของแต่ละห้อง (ให้มี AMQL ก่อนถ้ามีพอ)
+    rooms.forEach(room => {
+        if (amqlQueue.length > 0) room.teams.push(amqlQueue.shift());
+        else if (noAmqlQueue.length > 0) room.teams.push(noAmqlQueue.shift());
+    });
+
+    // รอบที่ 2: ใส่เว็บที่ 2 ของแต่ละห้อง — ถ้าห้องนั้นมี AMQL แล้ว ใส่อะไรก็ได้
+    // ถ้าห้องนั้นยังไม่มี AMQL ต้องใส่เว็บที่มี AMQL เท่านั้น
+    rooms.forEach(room => {
+        const hasAMQL = room.teams.some(t => teamsWithAMQL.includes(t));
+        if (hasAMQL) {
+            // ใส่เว็บที่เหลือ ไม่ว่าจะมีหรือไม่มี AMQL
+            if (amqlQueue.length > 0) room.teams.push(amqlQueue.shift());
+            else if (noAmqlQueue.length > 0) room.teams.push(noAmqlQueue.shift());
+        } else {
+            // ห้องนี้ยังไม่มี AMQL เลย ต้องใส่เว็บที่มี AMQL เท่านั้น
+            if (amqlQueue.length > 0) room.teams.push(amqlQueue.shift());
+        }
+    });
+
+    // เศษที่เหลือ → ยัดเข้าห้องที่มี AMQL อย่างน้อย 2 เว็บก่อน ถ้าไม่มีค่อยใช้ห้องที่มี AMQL 1 เว็บ
+    const remaining = [...amqlQueue, ...noAmqlQueue];
+    remaining.forEach(team => {
+        // หาห้องที่มี AMQL 2+ ก่อน
+        let eligibleRooms = rooms.filter(r => {
+            const amqlCount = r.teams.filter(t => teamsWithAMQL.includes(t)).length;
+            return amqlCount >= 2;
+        });
+        // ถ้าไม่มีห้องที่มี AMQL 2+ ใช้ห้องที่มี AMQL 1+ แทน
+        if (eligibleRooms.length === 0) {
+            eligibleRooms = rooms.filter(r => r.teams.some(t => teamsWithAMQL.includes(t)));
+        }
+        // ถ้ายังไม่มีเลย ยัดห้องแรกที่เจอ
+        if (eligibleRooms.length === 0) eligibleRooms = rooms;
+
+        // เลือกห้องที่มีเว็บน้อยที่สุด
+        eligibleRooms.sort((a, b) => a.teams.length - b.teams.length);
+        eligibleRooms[0].teams.push(team);
     });
 
     window.currentMergeRooms = rooms;
