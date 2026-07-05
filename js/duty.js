@@ -4101,8 +4101,8 @@ window.shuffleMergeRooms = async function() {
 
     let amqlRoster = {};
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', amqlSaveKey).single();
-        if (data && data.value) amqlRoster = JSON.parse(data.value);
+        const { data } = await appDB.from('settings').select('value').eq('key', amqlSaveKey);
+        if (data && data.length > 0 && data[0].value) amqlRoster = JSON.parse(data[0].value);
     } catch(e) {}
 
     const shuffle = arr => {
