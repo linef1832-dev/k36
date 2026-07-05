@@ -2772,6 +2772,60 @@ window.renderImportantTasksPanel = function() {
     
     panel.classList.remove('hidden');
     const isAdmin = window.isDutyAdmin();
+
+    // ===== โหลดผลรวมห้องที่บันทึกไว้ =====
+    let savedRooms = [];
+    try {
+        const targetDate = document.getElementById('dutyDate').value;
+        const shiftFilter = document.getElementById('dutyShiftSelect').value;
+        const key = `duty_merge_rooms_${targetDate}_${shiftFilter}`;
+        const raw = localStorage.getItem(key);
+        if (raw) savedRooms = JSON.parse(raw);
+    } catch(e) {}
+
+    // ===== render ส่วนรวมห้อง =====
+    let mergeHtml = '';
+    if (savedRooms.length > 0) {
+        const roomsHtml = savedRooms.map(room => {
+            const teamsHtml = room.teams.map(team => {
+                const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
+                return `<span class="text-[11px] font-black px-2 py-0.5 rounded-lg border ${colorClass.border} ${colorClass.lightBg} ${colorClass.lightText}">${team}</span>`;
+            }).join('');
+            return `
+                <div class="flex items-start gap-2 py-1.5 border-b border-slate-700/50 last:border-0">
+                    <span class="w-5 h-5 rounded-full bg-violet-600 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">${room.id}</span>
+                    <div class="flex flex-wrap gap-1">${teamsHtml}</div>
+                </div>`;
+        }).join('');
+
+        mergeHtml = `
+            <div class="bg-[#151f32] border border-violet-700/60 rounded-2xl shadow-lg overflow-hidden mt-3">
+                <div class="bg-gradient-to-r from-violet-700 to-purple-600 text-white px-3 py-2.5 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="material-icons text-[18px]">meeting_room</span>
+                        <h4 class="font-black text-sm tracking-wide">การรวมห้อง Discord</h4>
+                    </div>
+                    <button onclick="window.openMergeRoomPanel()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 border border-white/20 active:scale-95">
+                        <span class="material-icons text-[12px]">edit</span> แก้ไข
+                    </button>
+                </div>
+                <div class="p-3 flex flex-col">${roomsHtml}</div>
+            </div>`;
+    } else {
+        mergeHtml = `
+            <div class="bg-[#151f32] border border-violet-700/40 rounded-2xl shadow-lg overflow-hidden mt-3">
+                <div class="bg-gradient-to-r from-violet-700 to-purple-600 text-white px-3 py-2.5 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="material-icons text-[18px]">meeting_room</span>
+                        <h4 class="font-black text-sm tracking-wide">การรวมห้อง Discord</h4>
+                    </div>
+                    <button onclick="window.openMergeRoomPanel()" class="bg-black/20 hover:bg-black/30 px-2 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 border border-white/20 active:scale-95">
+                        <span class="material-icons text-[12px]">shuffle</span> สุ่มรวมห้อง
+                    </button>
+                </div>
+                <div class="p-3 text-center text-[11px] text-slate-500 font-bold">ยังไม่ได้รวมห้อง</div>
+            </div>`;
+    }
     
     let html = `
         <div class="bg-[#151f32] border border-slate-700/80 rounded-2xl shadow-lg flex flex-col max-h-[750px] overflow-hidden">
@@ -2849,7 +2903,7 @@ window.renderImportantTasksPanel = function() {
         });
     }
     html += `</div></div>`;
-    panel.innerHTML = html;
+    panel.innerHTML = html + mergeHtml;
 };
 
 window.toggleLockImportantTask = async function(taskName) {
@@ -4267,22 +4321,20 @@ window.mergeRoomDrop = function(e, targetRoomId) {
     window.renderMergeRoomPanel();
 };
 
-// บันทึกผลรวมห้องลง localStorage (ไม่กระทบตาราง roster)
+// บันทึกผลรวมห้องลง localStorage แล้ว re-render panel ซ้าย
 window.saveMergeRooms = function() {
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const key = `duty_merge_rooms_${targetDate}_${shiftFilter}`;
     localStorage.setItem(key, JSON.stringify(window.currentMergeRooms));
 
+    window.closeMergeRoomModal();
+    window.renderImportantTasksPanel(); // re-render panel ซ้ายทันที
+
     Swal.fire({
         icon: 'success',
         title: 'บันทึกการรวมห้องแล้ว!',
-        html: window.currentMergeRooms.map(r =>
-            `<div class="text-sm"><b>ห้อง ${r.id}:</b> ${r.teams.join(', ') || '-'}</div>`
-        ).join(''),
-        timer: 2500,
+        timer: 1500,
         showConfirmButton: false
     });
-
-    window.closeMergeRoomModal();
 };
