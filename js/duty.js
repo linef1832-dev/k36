@@ -4125,21 +4125,23 @@ window.shuffleMergeRooms = async function() {
     shuffle(teamsWithAMQL);
     shuffle(teamsWithoutAMQL);
 
-    // รวมเว็บทั้งหมด: มี AMQL ก่อน ตามด้วยไม่มี
-    const allTeams = [...teamsWithAMQL, ...teamsWithoutAMQL];
-
-    // จับคู่ห้องละ 2 ก่อน
+    // จับคู่เฉพาะเว็บที่มี AMQL ห้องละ 2
     const rooms = [];
-    for (let i = 0; i + 1 < allTeams.length; i += 2) {
-        rooms.push({ id: rooms.length + 1, teams: [allTeams[i], allTeams[i + 1]] });
+    for (let i = 0; i + 1 < teamsWithAMQL.length; i += 2) {
+        rooms.push({ id: rooms.length + 1, teams: [teamsWithAMQL[i], teamsWithAMQL[i + 1]] });
     }
 
-    // ถ้าเหลือเศษ 1 เว็บ → ยัดเข้าห้องใดห้องหนึ่งแบบสุ่ม (กลายเป็น 3)
-    if (allTeams.length % 2 !== 0) {
-        const lastTeam = allTeams[allTeams.length - 1];
+    // ถ้าเว็บที่มี AMQL เป็นเลขคี่ → เหลือ 1 เว็บ ให้ยัดเข้าห้องที่มีอยู่แล้ว
+    if (teamsWithAMQL.length % 2 !== 0) {
+        const lastAMQL = teamsWithAMQL[teamsWithAMQL.length - 1];
         const targetRoom = rooms[Math.floor(Math.random() * rooms.length)];
-        if (targetRoom) targetRoom.teams.push(lastTeam);
+        if (targetRoom) targetRoom.teams.push(lastAMQL);
     }
+
+    // เว็บที่ไม่มี AMQL → ยัดเข้าห้องที่มีอยู่แล้ว ห้องละ 1 เท่านั้น ห้ามจับคู่กันเอง
+    teamsWithoutAMQL.forEach((team, i) => {
+        if (rooms.length > 0) rooms[i % rooms.length].teams.push(team);
+    });
 
     window.currentMergeRooms = rooms;
     window.renderMergeRoomPanel();
