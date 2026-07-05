@@ -12,6 +12,7 @@ window.isDutyAdmin = function() {
     let deptCheck = currentDutyDept;
     if (deptCheck === 'TRAINER_AM') deptCheck = 'AMQL';
     if (deptCheck === 'TRAINER_OD') deptCheck = 'ODQL';
+    if (deptCheck === 'AMTT') deptCheck = 'AM'; // AMTT ใช้สิทธิ์เดียวกับ AM
     
     // ดึงค่าสิทธิ์ตามแท็บที่เปิดดูอยู่ เช่น duty_manage_am, duty_manage_od
     const reqPerm = 'duty_manage_' + deptCheck.toLowerCase();
@@ -206,6 +207,7 @@ window.applyDutyRoleUI = function() {
             canManageDuty = false; 
         }
     }
+    // AMTT: หัวหน้าที่มี dept AMTT ยังสามารถดูได้ แต่จัดการได้ต้องมีสิทธิ์ duty_manage_am หรือ duty_manage
     
     const adminElements = document.querySelectorAll('.duty-admin-only');
     const trainerBtn = document.getElementById('btnDutyTRAINER'); 
@@ -272,6 +274,7 @@ window.switchDutyDept = function(dept) {
     
     document.getElementById('btnDutyAM')?.classList.remove('active'); 
     document.getElementById('btnDutyOD')?.classList.remove('active');
+    document.getElementById('btnDutyAMTT')?.classList.remove('active');
     document.getElementById('btnDutyAMQL')?.classList.remove('active'); 
     document.getElementById('btnDutyODQL')?.classList.remove('active');
     document.getElementById('btnDutyTRAINER_AM')?.classList.remove('active'); 
@@ -287,7 +290,8 @@ window.switchDutyDept = function(dept) {
     }
     
     let labelText = dept;
-    if (dept === 'AMQL') labelText = 'ผู้สอน AM';
+    if (dept === 'AMTT') labelText = 'หัวหน้า (AMTT)';
+    else if (dept === 'AMQL') labelText = 'ผู้สอน AM';
     else if (dept === 'ODQL') labelText = 'ผู้สอน OD';
     else if (dept.startsWith('TRAINER')) {
         labelText = dept.replace('TRAINER_', 'ผู้สอน '); 
@@ -343,10 +347,12 @@ window.refreshDutyData = async function() {
         const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
 
         // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (leaves + schedules + settings) ลด latency 3 เท่า
+        // รวมถึง AMTT roster สำหรับแสดงช่องหัวหน้าในแต่ละ card
+        const amttSaveKey = `duty_roster_AMTT_${targetDate}_${shiftFilter}`;
         const [leavesRes, schedulesRes, settingsRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey])
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, amttSaveKey])
         ]);
 
         // ประมวลผล leaves
@@ -364,6 +370,7 @@ window.refreshDutyData = async function() {
                 if (userObj) {
                     let uDept = userObj.department || 'AM';
                     if (uDept === 'TRAINER') uDept = 'AMQL';
+                    // เช็ค dept ตรงกับ currentDutyDept (รวม AMTT)
                     if (uDept === currentDutyDept) {
                         relevantLeaves.push({ user_id: userObj.id, username: userObj.username, reason: l.reason, originalShift: userObj.allowed_shift || 'all' });
                     }
@@ -383,6 +390,10 @@ window.refreshDutyData = async function() {
             if (data && data.length > 0) {
                 const rosterRow = data.find(d => d.key === saveKey);
                 if (rosterRow && rosterRow.value) savedRoster = rosterRow;
+
+                // 🌟 AMTT: ดึงตาราง AMTT มาเก็บไว้ระดับ global เพื่อแสดงในแต่ละ card
+                const amttRow = data.find(d => d.key === amttSaveKey);
+                window.currentAMTTRosterData = (amttRow && amttRow.value) ? JSON.parse(amttRow.value) : {};
 
                 const listRow = data.find(d => d.key === impListKey);
                 if (listRow && listRow.value) window.globalImportantTasks = JSON.parse(listRow.value);
@@ -613,7 +624,8 @@ window.addStaffToRoster = async function() {
         if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
 
         const role = (u.role || 'staff').toLowerCase();
-        if (['admin', 'manager'].includes(role)) return false;
+        // AMTT: ไม่บล็อก manager ออก เพราะหัวหน้าอาจมี role manager/admin
+        if (currentDutyDept !== 'AMTT' && ['admin', 'manager'].includes(role)) return false;
 
         // เช็คแผนก
         let uDept = u.department || 'AM';
@@ -806,7 +818,8 @@ window.generateDutyRoster = async function() {
         if (uDept === 'TRAINER') uDept = 'AMQL'; 
         
         const isCorrectDept = uDept === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
+        // AMTT: ยอมรับทั้ง role staff, manager, trainer ที่เป็น dept AMTT
+        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER') || currentDutyDept === 'AMTT') ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -1005,7 +1018,7 @@ window.renderRosterGrid = async function(rosterData) {
 
     sortedTeams.forEach(team => {
         let assignees = rosterData[team] || [];
-        if(assignees.length === 0) return; 
+        // 🌟 ไม่ return ถ้าไม่มีคน — card เว็บต้องแสดงอยู่เสมอแม้ว่างอยู่
         
         if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
             if (subFilter !== 'ALL') assignees = assignees.filter(a => true);
@@ -1154,6 +1167,32 @@ window.renderRosterGrid = async function(rosterData) {
         const standbyList = standbyData[team] || [];
         const standbyCount = standbyList.length;
 
+        // 🌟 AMTT: หาหัวหน้า (AMTT) ที่ถูกจัดอยู่ในเว็บนี้
+        const amttRosterForTeam = (window.currentAMTTRosterData && window.currentAMTTRosterData[team]) || [];
+        const amttNames = amttRosterForTeam.filter(u => !u.username?.includes('ขาดคน')).map(u => u.username);
+        let amttHeaderHtml = '';
+        if (currentDutyDept !== 'AMTT') {
+            // แสดงช่องหัวหน้าเฉพาะตอนดูแท็บ AM / OD (ไม่แสดงซ้ำตอนอยู่แท็บ AMTT)
+            if (amttNames.length > 0) {
+                const amttNamesHtml = amttNames.map(name => `
+                    <span class="inline-flex items-center gap-1 bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 font-extrabold text-[11px] px-2 py-0.5 rounded-full border border-purple-300 dark:border-purple-700 shadow-sm">
+                        <span class="material-icons text-[12px]">star</span>${name}
+                    </span>`).join('');
+                amttHeaderHtml = `
+                    <div class="px-2.5 py-1.5 border-b border-purple-200 dark:border-purple-900/50 bg-purple-50 dark:bg-purple-900/20 shrink-0 flex items-center gap-2 flex-wrap">
+                        <span class="material-icons text-purple-500 text-[14px] shrink-0">manage_accounts</span>
+                        <span class="text-[10px] font-extrabold text-purple-700 dark:text-purple-400 shrink-0 whitespace-nowrap">หัวหน้า:</span>
+                        <div class="flex flex-wrap gap-1">${amttNamesHtml}</div>
+                    </div>`;
+            } else {
+                amttHeaderHtml = `
+                    <div class="px-2.5 py-1.5 border-b border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 shrink-0 flex items-center gap-1.5">
+                        <span class="material-icons text-slate-300 dark:text-slate-600 text-[14px]">manage_accounts</span>
+                        <span class="text-[10px] font-bold text-slate-400 dark:text-slate-600">หัวหน้า: <span class="italic font-normal">ยังไม่ได้จัด</span></span>
+                    </div>`;
+            }
+        }
+
         finalGridHtml += `
             <div class="duty-site-card bg-slate-50 dark:bg-slate-900 border-2 ${colorClass.border} rounded-2xl shadow-md flex flex-col h-[500px] overflow-hidden w-full">
                 <div class="flex justify-between items-center ${colorClass.bg} ${colorClass.text} p-3 shadow-sm shrink-0">
@@ -1169,11 +1208,17 @@ window.renderRosterGrid = async function(rosterData) {
                         </div>
                     </div>
                 </div>
+                ${amttHeaderHtml}
                 <div class="p-2 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
                     ${rolesTags || ''}
                 </div>
                 <div class="flex flex-col gap-2.5 flex-1 p-2 overflow-y-auto custom-scrollbar content-start drop-zone" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${team}')">
-                    ${namesHtml}
+                    ${namesHtml || `
+                        <div class="flex flex-col items-center justify-center h-full py-6 pointer-events-none select-none opacity-40">
+                            <span class="material-icons text-3xl text-gray-400 mb-1">person_off</span>
+                            <span class="text-xs font-bold text-gray-400">ไม่มีพนักงาน</span>
+                            <span class="text-[10px] text-gray-400 mt-0.5">ลากคนมาวางได้เลย</span>
+                        </div>`}
                 </div>
                 ${trainerReportHtml}
             </div>
@@ -1979,6 +2024,9 @@ window.renderDutyAccessTable = function() {
 
         if (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) {
             return uDept === currentDutyDept; 
+        } else if (currentDutyDept === 'AMTT') {
+            // AMTT: รับทุก role (staff, manager, trainer) ที่ dept เป็น AMTT
+            return uDept === 'AMTT';
         } else {
             return u.role === 'staff' && uDept === currentDutyDept;
         }
@@ -2125,7 +2173,7 @@ window.manualAdjustReq = function(changedTeam) {
         if (uDept === 'TRAINER') uDept = 'AMQL';
 
         const isCorrectDept = uDept === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
+        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER') || currentDutyDept === 'AMTT') ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all'); 
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -2198,7 +2246,7 @@ window.autoSuggestRequirements = function() {
         if (uDept === 'TRAINER') uDept = 'AMQL';
 
         const isCorrectDept = uDept === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
+        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER') || currentDutyDept === 'AMTT') ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
@@ -2263,7 +2311,7 @@ window.updateDutyStats = function() {
         if (uDept === 'TRAINER') uDept = 'AMQL'; 
 
         const isCorrectDept = uDept === currentDutyDept;
-        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER')) ? true : (u.role === 'staff');
+        const hasValidRole = (currentDutyDept === 'AMQL' || currentDutyDept === 'ODQL' || currentDutyDept.startsWith('TRAINER') || currentDutyDept === 'AMTT') ? true : (u.role === 'staff');
         const isShiftMatch = (u.allowed_shift === shiftFilter || u.allowed_shift === 'all');
         return hasValidRole && isCorrectDept && isShiftMatch && !currentDutyLeaves.has(String(u.id));
     });
