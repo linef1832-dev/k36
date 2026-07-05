@@ -4552,20 +4552,27 @@ window.calcHelpTime = async function() {
     if (!cfg) return Swal.fire('เตือน', 'ระบบรองรับแค่กะเช้าและกะดึกครับ', 'warning');
 
     const targetDate = document.getElementById('dutyDate').value;
-    const schedules = window.currentDutySchedules || [];
 
     // ดึง roster ของกะที่เลือกจาก DB โดยตรง
     let roster = {};
+    let schedules = [];
     try {
         const key = `duty_roster_AM_${targetDate}_${shiftFilter}`;
-        const { data } = await appDB.from('settings').select('value').eq('key', key);
-        if (data && data.length > 0 && data[0].value) {
-            roster = JSON.parse(data[0].value);
+        const [rosterRes, schedRes] = await Promise.all([
+            appDB.from('settings').select('value').eq('key', key),
+            appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter)
+        ]);
+        if (rosterRes.data && rosterRes.data.length > 0 && rosterRes.data[0].value) {
+            roster = JSON.parse(rosterRes.data[0].value);
+        }
+        if (schedRes.data && schedRes.data.length > 0) {
+            schedules = schedRes.data;
         }
     } catch(e) {}
 
-    // fallback ใช้ currentRosterData ถ้าดึง DB ไม่ได้
+    // fallback
     if (Object.keys(roster).length === 0) roster = window.currentRosterData || {};
+    if (schedules.length === 0) schedules = window.currentDutySchedules || [];
 
     const combinedRoster = roster;
 
@@ -4586,9 +4593,10 @@ window.calcHelpTime = async function() {
 
     // คำนวณเวลาว่างของแต่ละคน
     const staffFree = allStaff.map(s => {
+        // time_slot อาจเป็น "02:00-02:30, 07:00-07:30" ในช่องเดียว ต้องแยกก่อน
         const myBreaks = schedules
             .filter(sc => sc.staff_name === s.name)
-            .map(sc => sc.time_slot)
+            .flatMap(sc => (sc.time_slot || '').split(',').map(t => t.trim()))
             .filter(Boolean);
         const freeSlots = getFreeSlots(cfg.start, cfg.end, myBreaks);
         const freeMin = totalFreeMin(freeSlots);
