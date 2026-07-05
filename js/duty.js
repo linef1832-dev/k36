@@ -2854,7 +2854,6 @@ window.renderImportantTasksPanel = function() {
             </div>
             <div class="p-2.5 flex flex-col">${mergeBodyHtml}</div>
         </div>`;
-    }
     
     let html = `
         <div class="bg-[#151f32] border border-slate-700/80 rounded-2xl shadow-lg flex flex-col max-h-[750px] overflow-hidden">
@@ -4405,19 +4404,4 @@ window.mergeRoomDropInline = function(e, targetRoomId) {
     tgtRoom.teams.push(team);
     mergeRoomDragSource = null;
     window.renderImportantTasksPanel();
-};
-    const targetDate = document.getElementById('dutyDate').value;
-    const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    const key = `duty_merge_rooms_${targetDate}_${shiftFilter}`;
-    localStorage.setItem(key, JSON.stringify(window.currentMergeRooms));
-
-    window.closeMergeRoomModal();
-    window.renderImportantTasksPanel(); // re-render panel ซ้ายทันที
-
-    Swal.fire({
-        icon: 'success',
-        title: 'บันทึกการรวมห้องแล้ว!',
-        timer: 1500,
-        showConfirmButton: false
-    });
 };
