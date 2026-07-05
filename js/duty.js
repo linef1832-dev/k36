@@ -4551,15 +4551,15 @@ window.calcHelpTime = function() {
     const cfg = SHIFT_CONFIG[shiftFilter];
     if (!cfg) return Swal.fire('เตือน', 'ระบบรองรับแค่กะเช้าและกะดึกครับ', 'warning');
 
-    const roster = window.currentRosterData || {};
     const schedules = window.currentDutySchedules || [];
+    const combinedRoster = window.currentRosterData || {};
 
     // รวบรวม AM ทุกคนจากทุกเว็บ ยกเว้นเว็บเป้าหมาย
     let allStaff = [];
-    Object.keys(roster).forEach(team => {
+    Object.keys(combinedRoster).forEach(team => {
         if (team === target) return;
-        (roster[team] || []).forEach(u => {
-            if (!u.username?.includes('ขาดคน')) {
+        (combinedRoster[team] || []).forEach(u => {
+            if (!u.username?.includes('ขาดคน') && !allStaff.find(s => s.name === u.username)) {
                 allStaff.push({ name: u.username, fromTeam: team });
             }
         });
