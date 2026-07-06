@@ -3568,11 +3568,7 @@ setInterval(() => {
     const dutyApp = document.getElementById('dutyApp');
     if (!dutyApp || dutyApp.classList.contains('hidden')) return;
 
-    // เฉพาะแท็บ AMQL, AMTT, ODQL, ODTT เท่านั้น
-    const allowedDepts = ['AMQL', 'AMTT', 'ODQL', 'ODTT'];
-    const isAllowed = allowedDepts.includes(currentDutyDept);
-
-    // ─── ปุ่ม "จัดรองด่วน (AI)" ───
+    // ─── ปุ่ม "จัดรองด่วน (AI)" — วางต่อจากปุ่มล้างตาราง ───
     if (!document.getElementById('btnQuickBackup')) {
         const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
         if (clearBtn) {
@@ -3584,10 +3580,8 @@ setInterval(() => {
             clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
         }
     }
-    const quickBtn = document.getElementById('btnQuickBackup');
-    if (quickBtn) quickBtn.style.display = isAllowed ? '' : 'none';
 
-    // ─── ปุ่ม "ล้างงานรอง" ───
+    // ─── ปุ่ม "ล้างงานรอง" — วางต่อจากปุ่มเพิ่มพนักงาน ───
     if (!document.getElementById('btnClearSecondary')) {
         const addStaffBtn = document.querySelector('button[onclick*="addStaffToRoster"]');
         if (addStaffBtn) {
@@ -3600,8 +3594,6 @@ setInterval(() => {
             addStaffBtn.parentNode.insertBefore(btn, addStaffBtn.nextSibling);
         }
     }
-    const clearSecBtn = document.getElementById('btnClearSecondary');
-    if (clearSecBtn) clearSecBtn.style.display = isAllowed ? '' : 'none';
 }, 2000);
 
 // ==========================================
