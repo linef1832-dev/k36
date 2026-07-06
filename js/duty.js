@@ -4526,23 +4526,16 @@ window.renderHelpCalcPanel = function() {
 
     const calcHtml = `
         <div class="bg-[#151f32] border border-sky-700/60 rounded-2xl shadow-lg overflow-hidden mt-3">
-            <div class="bg-gradient-to-r from-sky-700 to-cyan-600 text-white px-3 py-2 flex items-center gap-2">
-                <span class="material-icons text-[16px]">calculate</span>
-                <h4 class="font-black text-xs tracking-wide">คำนวณเวลาช่วยเว็บ</h4>
-            </div>
-            <div class="p-2.5 flex flex-col gap-2">
-                <div class="flex gap-2 items-center">
-                    <select id="helpCalcTargetSelect" onchange="window.helpCalcTarget=this.value; window.helpCalcResult=null; window.renderHelpCalcPanel();"
-                        class="flex-1 bg-slate-800 border border-slate-600 text-white text-xs rounded-lg px-2 py-1.5 outline-none focus:border-sky-500">
-                        <option value="">-- เลือกเว็บที่ต้องการช่วย --</option>
-                        ${teamOptions}
-                    </select>
-                    <button onclick="window.calcHelpTime()" class="bg-sky-600 hover:bg-sky-500 text-white text-[11px] px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 active:scale-95 whitespace-nowrap">
-                        <span class="material-icons text-[13px]">play_arrow</span> คำนวณ
-                    </button>
+            <div class="bg-gradient-to-r from-sky-700 to-cyan-600 text-white px-3 py-2 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-icons text-[16px]">support_agent</span>
+                    <h4 class="font-black text-xs tracking-wide">ตารางซัพพอร์ต</h4>
                 </div>
-                <div class="flex flex-col">${resultHtml}</div>
+                <button onclick="window.calcHelpTime()" class="bg-black/20 hover:bg-black/30 text-white text-[11px] px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 active:scale-95 border border-white/20">
+                    <span class="material-icons text-[13px]">play_arrow</span> คำนวณ
+                </button>
             </div>
+            <div class="flex flex-col p-2.5 gap-1">${resultHtml}</div>
         </div>`;
 
     // append ต่อท้าย panel (หลัง mergeHtml)
@@ -4554,11 +4547,8 @@ window.renderHelpCalcPanel = function() {
     panel.appendChild(div);
 };
 
-// คำนวณเวลาช่วยเว็บ
+// คำนวณตารางซัพพอร์ต
 window.calcHelpTime = async function() {
-    const target = window.helpCalcTarget || document.getElementById('helpCalcTargetSelect')?.value;
-    if (!target) return Swal.fire('เตือน', 'กรุณาเลือกเว็บก่อนครับ', 'warning');
-
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const cfg = SHIFT_CONFIG[shiftFilter];
     if (!cfg) return Swal.fire('เตือน', 'ระบบรองรับแค่กะเช้าและกะดึกครับ', 'warning');
@@ -4582,14 +4572,13 @@ window.calcHelpTime = async function() {
     if (Object.keys(roster).length === 0) roster = window.currentRosterData || {};
     if (schedules.length === 0) schedules = window.currentDutySchedules || [];
 
-    // สร้าง map เวลาพักของแต่ละคน → array ของ {s, e} เป็นนาที
+    // สร้าง map เวลาพักของแต่ละคน
     const breakMap = {};
     schedules.forEach(sc => {
         if (!breakMap[sc.staff_name]) breakMap[sc.staff_name] = [];
         (sc.time_slot || '').split(',').map(t => t.trim()).filter(Boolean).forEach(slot => {
             const [s, e] = slot.split('-').map(timeToMin);
             if (s == null || e == null) return;
-            // กะดึก: break เช้า (เช่น 07:00) ให้ +24h
             if (cfg.start >= 20*60 && s < 12*60) {
                 breakMap[sc.staff_name].push({ s: s + 24*60, e: e + 24*60 });
             } else {
@@ -4598,10 +4587,9 @@ window.calcHelpTime = async function() {
         });
     });
 
-    // คำนวณว่าถ้าคนนี้อยู่ช่วง [slotStart, slotEnd] จะโดนพักกี่นาที
+    // คำนวณนาทีที่โดนพักในช่วง [slotStart, slotEnd]
     function breakOverlap(name, slotStart, slotEnd) {
-        const breaks = breakMap[name] || [];
-        return breaks.reduce((total, br) => {
+        return (breakMap[name] || []).reduce((total, br) => {
             const overlap = Math.min(br.e, slotEnd) - Math.max(br.s, slotStart);
             return total + Math.max(0, overlap);
         }, 0);
@@ -4609,35 +4597,31 @@ window.calcHelpTime = async function() {
 
     const results = [];
 
-    // คำนวณแยกแต่ละเว็บ
+    // คำนวณแยกแต่ละเว็บ — ทุกเว็บ ไม่ต้องเลือก
     Object.keys(roster).forEach(team => {
-        if (team === target) return;
-
         const members = (roster[team] || []).filter(u => !u.username?.includes('ขาดคน'));
         if (members.length === 0) return;
 
         const n = members.length;
-        const slotMin = Math.floor(shiftDuration / n); // นาทีต่อช่วง
+        const slotMin = Math.floor(shiftDuration / n);
 
         // สร้างช่วงเวลา N ช่วง
         const slots = Array.from({ length: n }, (_, i) => ({
             start: cfg.start + i * slotMin,
             end: cfg.start + (i + 1) * slotMin
         }));
-        // ช่วงสุดท้ายให้ถึงสิ้นสุดกะพอดี
         slots[n - 1].end = cfg.end;
 
-        // สร้าง cost matrix [คน][ช่วง] = นาทีที่โดนพักถ้าอยู่ช่วงนั้น
+        // cost matrix [คน][ช่วง]
         const cost = members.map(u =>
             slots.map(slot => breakOverlap(u.username, slot.start, slot.end))
         );
 
-        // Greedy assignment: วนจับคู่คนกับช่วงที่ cost น้อยที่สุดที่ยังไม่ถูกใช้
+        // Greedy: จับคู่คนกับช่วงที่โดนพักน้อยที่สุด
         const usedSlots = new Set();
         const usedMembers = new Set();
-        const pairs = []; // {memberIdx, slotIdx, cost}
+        const pairs = [];
 
-        // สร้าง list คู่ทั้งหมดเรียงตาม cost
         const allPairs = [];
         members.forEach((_, mi) => slots.forEach((_, si) => {
             allPairs.push({ mi, si, cost: cost[mi][si] });
@@ -4651,24 +4635,20 @@ window.calcHelpTime = async function() {
             pairs.push({ mi, si, breakMin: c });
         });
 
-        // เรียงผลตามลำดับช่วงเวลา
         pairs.sort((a, b) => a.si - b.si);
 
         pairs.forEach(({ mi, si, breakMin }) => {
-            const u = members[mi];
-            const slot = slots[si];
             results.push({
                 team,
-                name: u.username,
-                helpStart: slot.start,
-                helpEnd: slot.end,
-                breakMin, // นาทีที่โดนพักในช่วงนี้
-                slotMin   // ความยาวช่วงทั้งหมด
+                name: members[mi].username,
+                helpStart: slots[si].start,
+                helpEnd: slots[si].end,
+                breakMin,
+                slotMin
             });
         });
     });
 
-    window.helpCalcTarget = target;
     window.helpCalcResult = results;
     window.renderHelpCalcPanel();
 };
