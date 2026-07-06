@@ -4492,7 +4492,6 @@ window.renderHelpCalcPanel = function() {
     let resultHtml = `<div class="text-center text-[11px] text-slate-500 py-2">เลือกเว็บแล้วกดคำนวณ</div>`;
 
     if (window.helpCalcResult && window.helpCalcResult.length > 0) {
-        // จัดกลุ่มตามเว็บ
         const grouped = {};
         window.helpCalcResult.forEach(item => {
             if (!grouped[item.team]) grouped[item.team] = [];
@@ -4501,19 +4500,25 @@ window.renderHelpCalcPanel = function() {
 
         resultHtml = Object.keys(grouped).map(team => {
             const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
-            const membersHtml = grouped[team].map((item, i) => `
+            const membersHtml = grouped[team].map((item, i) => {
+                const netMin = item.slotMin - item.breakMin;
+                const breakNote = item.breakMin > 0
+                    ? `<span class="text-[9px] text-amber-400 ml-1">(พักใน ${item.breakMin}น.)</span>`
+                    : `<span class="text-[9px] text-emerald-400 ml-1">(ไม่มีพัก)</span>`;
+                return `
                 <div class="flex items-center gap-2 py-1 border-b border-slate-700/30 last:border-0">
                     <span class="w-4 h-4 rounded-full bg-sky-700 text-white text-[9px] font-black flex items-center justify-center shrink-0">${i+1}</span>
-                    <div class="flex-1">
-                        <span class="text-[12px] font-black text-white">${item.name}</span>
-                        <span class="text-[11px] text-sky-400 font-bold ml-1.5">${minToTime(item.helpStart)}–${minToTime(item.helpEnd)}</span>
-                        <span class="text-[10px] text-slate-500 ml-1">(${item.helpEnd - item.helpStart}น.)</span>
+                    <div class="flex-1 min-w-0">
+                        <span class="text-[11px] font-black text-white">${item.name}</span>
+                        <span class="text-[10px] text-sky-400 font-bold ml-1.5">${minToTime(item.helpStart)}–${minToTime(item.helpEnd)}</span>
+                        ${breakNote}
                     </div>
-                </div>`).join('');
+                </div>`;
+            }).join('');
 
             return `
                 <div class="mb-2 last:mb-0">
-                    <div class="text-[10px] font-black px-2 py-0.5 rounded mb-1 inline-block border ${colorClass.border} ${colorClass.lightBg} ${colorClass.lightText}">${team}</div>
+                    <div class="text-[10px] font-black px-2 py-0.5 rounded mb-1 inline-block border ${colorClass.border} ${colorClass.lightBg} ${colorClass.lightText}">${team} · ${grouped[team].length} คน · คนละ ${Math.floor(720/grouped[team].length)} นาที</div>
                     <div class="bg-slate-800/50 rounded-lg px-2 py-1">${membersHtml}</div>
                 </div>`;
         }).join('');
@@ -4577,66 +4582,93 @@ window.calcHelpTime = async function() {
     if (Object.keys(roster).length === 0) roster = window.currentRosterData || {};
     if (schedules.length === 0) schedules = window.currentDutySchedules || [];
 
-    // สร้าง map เวลาพักของแต่ละคน
+    // สร้าง map เวลาพักของแต่ละคน → array ของ {s, e} เป็นนาที
     const breakMap = {};
     schedules.forEach(sc => {
         if (!breakMap[sc.staff_name]) breakMap[sc.staff_name] = [];
-        (sc.time_slot || '').split(',').map(t => t.trim()).filter(Boolean).forEach(t => {
-            breakMap[sc.staff_name].push(t);
+        (sc.time_slot || '').split(',').map(t => t.trim()).filter(Boolean).forEach(slot => {
+            const [s, e] = slot.split('-').map(timeToMin);
+            if (s == null || e == null) return;
+            // กะดึก: break เช้า (เช่น 07:00) ให้ +24h
+            if (cfg.start >= 20*60 && s < 12*60) {
+                breakMap[sc.staff_name].push({ s: s + 24*60, e: e + 24*60 });
+            } else {
+                breakMap[sc.staff_name].push({ s, e });
+            }
         });
     });
 
-    // คำนวณแยกแต่ละเว็บ
-    const results = []; // { team, name, helpStart, helpEnd }
+    // คำนวณว่าถ้าคนนี้อยู่ช่วง [slotStart, slotEnd] จะโดนพักกี่นาที
+    function breakOverlap(name, slotStart, slotEnd) {
+        const breaks = breakMap[name] || [];
+        return breaks.reduce((total, br) => {
+            const overlap = Math.min(br.e, slotEnd) - Math.max(br.s, slotStart);
+            return total + Math.max(0, overlap);
+        }, 0);
+    }
 
+    const results = [];
+
+    // คำนวณแยกแต่ละเว็บ
     Object.keys(roster).forEach(team => {
-        if (team === target) return; // ข้ามเว็บที่ต้องการช่วย
+        if (team === target) return;
 
         const members = (roster[team] || []).filter(u => !u.username?.includes('ขาดคน'));
         if (members.length === 0) return;
 
-        const avgMin = Math.floor(shiftDuration / members.length); // 12ชม ÷ จำนวนคน
-        let cursor = cfg.start;
+        const n = members.length;
+        const slotMin = Math.floor(shiftDuration / n); // นาทีต่อช่วง
 
-        members.forEach(u => {
-            const myBreaks = breakMap[u.username] || [];
-            const freeSlots = getFreeSlots(cfg.start, cfg.end, myBreaks);
+        // สร้างช่วงเวลา N ช่วง
+        const slots = Array.from({ length: n }, (_, i) => ({
+            start: cfg.start + i * slotMin,
+            end: cfg.start + (i + 1) * slotMin
+        }));
+        // ช่วงสุดท้ายให้ถึงสิ้นสุดกะพอดี
+        slots[n - 1].end = cfg.end;
 
-            // หาช่วงเวลาที่คนนี้ว่าง และต่อจาก cursor
-            let remain = avgMin;
-            let helpStart = null;
-            let helpEnd = null;
+        // สร้าง cost matrix [คน][ช่วง] = นาทีที่โดนพักถ้าอยู่ช่วงนั้น
+        const cost = members.map(u =>
+            slots.map(slot => breakOverlap(u.username, slot.start, slot.end))
+        );
 
-            const effectiveSlots = freeSlots
-                .map(s => ({ start: Math.max(s.start, cursor), end: s.end }))
-                .filter(s => s.end > s.start);
+        // Greedy assignment: วนจับคู่คนกับช่วงที่ cost น้อยที่สุดที่ยังไม่ถูกใช้
+        const usedSlots = new Set();
+        const usedMembers = new Set();
+        const pairs = []; // {memberIdx, slotIdx, cost}
 
-            for (const slot of effectiveSlots) {
-                if (remain <= 0) break;
-                const available = slot.end - slot.start;
-                if (available <= 0) continue;
-                if (helpStart === null) helpStart = slot.start;
-                if (available >= remain) {
-                    helpEnd = slot.start + remain;
-                    cursor = helpEnd;
-                    remain = 0;
-                } else {
-                    remain -= available;
-                    helpEnd = slot.end;
-                    cursor = slot.end;
-                }
-            }
+        // สร้าง list คู่ทั้งหมดเรียงตาม cost
+        const allPairs = [];
+        members.forEach((_, mi) => slots.forEach((_, si) => {
+            allPairs.push({ mi, si, cost: cost[mi][si] });
+        }));
+        allPairs.sort((a, b) => a.cost - b.cost);
 
-            if (helpStart !== null && helpEnd !== null) {
-                results.push({ team, name: u.username, helpStart, helpEnd });
-            }
+        allPairs.forEach(({ mi, si, cost: c }) => {
+            if (usedMembers.has(mi) || usedSlots.has(si)) return;
+            usedMembers.add(mi);
+            usedSlots.add(si);
+            pairs.push({ mi, si, breakMin: c });
+        });
 
-            if (cursor >= cfg.end) cursor = cfg.start; // reset cursor เมื่อเกินกะ
+        // เรียงผลตามลำดับช่วงเวลา
+        pairs.sort((a, b) => a.si - b.si);
+
+        pairs.forEach(({ mi, si, breakMin }) => {
+            const u = members[mi];
+            const slot = slots[si];
+            results.push({
+                team,
+                name: u.username,
+                helpStart: slot.start,
+                helpEnd: slot.end,
+                breakMin, // นาทีที่โดนพักในช่วงนี้
+                slotMin   // ความยาวช่วงทั้งหมด
+            });
         });
     });
 
     window.helpCalcTarget = target;
     window.helpCalcResult = results;
-    window.helpCalcNoSlot = [];
     window.renderHelpCalcPanel();
 };
