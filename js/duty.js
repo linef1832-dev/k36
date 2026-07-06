@@ -3565,11 +3565,14 @@ window.quickAssignBackups = async function() {
 // 🌟 โค้ดเสกปุ่ม "⚡ จัดรองด่วน (AI)" + "🧹 ล้างงานรอง" ให้โผล่ขึ้นมา
 // ==========================================
 setInterval(() => {
-    // 🟢 bail-early ถ้าไม่ได้อยู่หน้า duty (กัน CPU ทำงานทิ้งทุกหน้าทุกๆ 1 วิ)
     const dutyApp = document.getElementById('dutyApp');
     if (!dutyApp || dutyApp.classList.contains('hidden')) return;
 
-    // ─── ปุ่ม "จัดรองด่วน (AI)" — วางต่อจากปุ่มล้างตาราง ───
+    // เฉพาะแท็บ AMQL, AMTT, ODQL, ODTT เท่านั้น
+    const allowedDepts = ['AMQL', 'AMTT', 'ODQL', 'ODTT'];
+    const isAllowed = allowedDepts.includes(currentDutyDept);
+
+    // ─── ปุ่ม "จัดรองด่วน (AI)" ───
     if (!document.getElementById('btnQuickBackup')) {
         const clearBtn = document.querySelector('button[onclick*="clearDutyRoster"]');
         if (clearBtn) {
@@ -3578,12 +3581,13 @@ setInterval(() => {
             btn.className = 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition flex items-center gap-1 active:scale-95 ml-3 border border-fuchsia-400';
             btn.innerHTML = '<span class="material-icons text-[14px]">bolt</span> จัดรองด่วน (AI)';
             btn.onclick = window.quickAssignBackups;
-
             clearBtn.parentNode.insertBefore(btn, clearBtn.nextSibling);
         }
     }
+    const quickBtn = document.getElementById('btnQuickBackup');
+    if (quickBtn) quickBtn.style.display = isAllowed ? '' : 'none';
 
-    // ─── 🆕 ปุ่ม "ล้างงานรอง" — วางต่อจากปุ่มเพิ่มพนักงาน ───
+    // ─── ปุ่ม "ล้างงานรอง" ───
     if (!document.getElementById('btnClearSecondary')) {
         const addStaffBtn = document.querySelector('button[onclick*="addStaffToRoster"]');
         if (addStaffBtn) {
@@ -3593,10 +3597,11 @@ setInterval(() => {
             btn.innerHTML = '<span class="material-icons text-base">layers_clear</span> ล้างงานรอง';
             btn.title = 'ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ';
             btn.onclick = window.clearSecondaryDuties;
-
             addStaffBtn.parentNode.insertBefore(btn, addStaffBtn.nextSibling);
         }
     }
+    const clearSecBtn = document.getElementById('btnClearSecondary');
+    if (clearSecBtn) clearSecBtn.style.display = isAllowed ? '' : 'none';
 }, 2000);
 
 // ==========================================
@@ -4531,9 +4536,15 @@ window.renderHelpCalcPanel = function() {
                     <span class="material-icons text-[16px]">support_agent</span>
                     <h4 class="font-black text-xs tracking-wide">ตารางซัพพอร์ต</h4>
                 </div>
-                <button onclick="window.calcHelpTime()" class="bg-black/20 hover:bg-black/30 text-white text-[11px] px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 active:scale-95 border border-white/20">
-                    <span class="material-icons text-[13px]">play_arrow</span> คำนวณ
-                </button>
+                <div class="flex gap-1">
+                    ${(window.helpCalcResult && window.helpCalcResult.length > 0) ? `
+                    <button onclick="window.clearHelpCalc()" class="bg-red-600/80 hover:bg-red-600 px-2 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 border border-red-400/50 active:scale-95">
+                        <span class="material-icons text-[11px]">delete</span> ลบ
+                    </button>` : ''}
+                    <button onclick="window.calcHelpTime()" class="bg-black/20 hover:bg-black/30 text-white text-[11px] px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 active:scale-95 border border-white/20">
+                        <span class="material-icons text-[13px]">play_arrow</span> คำนวณ
+                    </button>
+                </div>
             </div>
             <div class="flex flex-col p-2.5 gap-1">${resultHtml}</div>
         </div>`;
@@ -4545,6 +4556,12 @@ window.renderHelpCalcPanel = function() {
     div.id = 'helpCalcSection';
     div.innerHTML = calcHtml;
     panel.appendChild(div);
+};
+
+// ลบผลตารางซัพพอร์ต
+window.clearHelpCalc = function() {
+    window.helpCalcResult = null;
+    window.renderHelpCalcPanel();
 };
 
 // คำนวณตารางซัพพอร์ต
