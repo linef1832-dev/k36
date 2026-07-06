@@ -4492,24 +4492,31 @@ window.renderHelpCalcPanel = function() {
     let resultHtml = `<div class="text-center text-[11px] text-slate-500 py-2">เลือกเว็บแล้วกดคำนวณ</div>`;
 
     if (window.helpCalcResult && window.helpCalcResult.length > 0) {
-        resultHtml = window.helpCalcResult.map((item, i) => `
-            <div class="flex items-start gap-2 py-1.5 border-b border-slate-700/50 last:border-0">
-                <span class="w-5 h-5 rounded-full bg-sky-600 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">${i + 1}</span>
-                <div class="flex-1">
-                    <div class="text-[12px] font-black text-white">${item.name}
-                        <span class="text-[10px] font-normal text-slate-400 ml-1">(${item.fromTeam})</span>
-                    </div>
-                    <div class="text-[11px] text-sky-400 font-bold mt-0.5 flex items-center gap-1">
-                        <span class="material-icons text-[12px]">schedule</span>
-                        ${minToTime(item.helpStart)} – ${minToTime(item.helpEnd)}
-                        <span class="text-slate-500 font-normal">(${Math.round((item.helpEnd - item.helpStart))} นาที)</span>
-                    </div>
-                </div>
-            </div>`).join('');
+        // จัดกลุ่มตามเว็บ
+        const grouped = {};
+        window.helpCalcResult.forEach(item => {
+            if (!grouped[item.team]) grouped[item.team] = [];
+            grouped[item.team].push(item);
+        });
 
-        if (window.helpCalcNoSlot && window.helpCalcNoSlot.length > 0) {
-            resultHtml += `<div class="mt-1.5 text-[10px] text-red-400 font-bold">⚠️ ไม่มีเวลาว่าง: ${window.helpCalcNoSlot.join(', ')}</div>`;
-        }
+        resultHtml = Object.keys(grouped).map(team => {
+            const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
+            const membersHtml = grouped[team].map((item, i) => `
+                <div class="flex items-center gap-2 py-1 border-b border-slate-700/30 last:border-0">
+                    <span class="w-4 h-4 rounded-full bg-sky-700 text-white text-[9px] font-black flex items-center justify-center shrink-0">${i+1}</span>
+                    <div class="flex-1">
+                        <span class="text-[12px] font-black text-white">${item.name}</span>
+                        <span class="text-[11px] text-sky-400 font-bold ml-1.5">${minToTime(item.helpStart)}–${minToTime(item.helpEnd)}</span>
+                        <span class="text-[10px] text-slate-500 ml-1">(${item.helpEnd - item.helpStart}น.)</span>
+                    </div>
+                </div>`).join('');
+
+            return `
+                <div class="mb-2 last:mb-0">
+                    <div class="text-[10px] font-black px-2 py-0.5 rounded mb-1 inline-block border ${colorClass.border} ${colorClass.lightBg} ${colorClass.lightText}">${team}</div>
+                    <div class="bg-slate-800/50 rounded-lg px-2 py-1">${membersHtml}</div>
+                </div>`;
+        }).join('');
     }
 
     const calcHtml = `
@@ -4552,8 +4559,9 @@ window.calcHelpTime = async function() {
     if (!cfg) return Swal.fire('เตือน', 'ระบบรองรับแค่กะเช้าและกะดึกครับ', 'warning');
 
     const targetDate = document.getElementById('dutyDate').value;
+    const shiftDuration = cfg.end - cfg.start; // 720 นาที
 
-    // ดึง roster ของกะที่เลือกจาก DB โดยตรง
+    // ดึง roster และ schedules จาก DB
     let roster = {};
     let schedules = [];
     try {
@@ -4562,105 +4570,73 @@ window.calcHelpTime = async function() {
             appDB.from('settings').select('value').eq('key', key),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter)
         ]);
-        if (rosterRes.data && rosterRes.data.length > 0 && rosterRes.data[0].value) {
-            roster = JSON.parse(rosterRes.data[0].value);
-        }
-        if (schedRes.data && schedRes.data.length > 0) {
-            schedules = schedRes.data;
-        }
+        if (rosterRes.data?.[0]?.value) roster = JSON.parse(rosterRes.data[0].value);
+        if (schedRes.data?.length > 0) schedules = schedRes.data;
     } catch(e) {}
 
-    // fallback
     if (Object.keys(roster).length === 0) roster = window.currentRosterData || {};
     if (schedules.length === 0) schedules = window.currentDutySchedules || [];
 
-    const combinedRoster = roster;
-
-    // รวบรวม AM ทุกคนจากทุกเว็บ ยกเว้นเว็บเป้าหมาย
-    let allStaff = [];
-    Object.keys(combinedRoster).forEach(team => {
-        if (team === target) return;
-        (combinedRoster[team] || []).forEach(u => {
-            if (!u.username?.includes('ขาดคน') && !allStaff.find(s => s.name === u.username)) {
-                allStaff.push({ name: u.username, fromTeam: team });
-            }
+    // สร้าง map เวลาพักของแต่ละคน
+    const breakMap = {};
+    schedules.forEach(sc => {
+        if (!breakMap[sc.staff_name]) breakMap[sc.staff_name] = [];
+        (sc.time_slot || '').split(',').map(t => t.trim()).filter(Boolean).forEach(t => {
+            breakMap[sc.staff_name].push(t);
         });
     });
 
-    if (allStaff.length === 0) {
-        return Swal.fire('ไม่มีข้อมูล', 'ไม่พบพนักงาน AM จากเว็บอื่นเลยครับ', 'info');
-    }
+    // คำนวณแยกแต่ละเว็บ
+    const results = []; // { team, name, helpStart, helpEnd }
 
-    // คำนวณเวลาว่างของแต่ละคน
-    const staffFree = allStaff.map(s => {
-        // time_slot อาจเป็น "02:00-02:30, 07:00-07:30" ในช่องเดียว ต้องแยกก่อน
-        const myBreaks = schedules
-            .filter(sc => sc.staff_name === s.name)
-            .flatMap(sc => (sc.time_slot || '').split(',').map(t => t.trim()))
-            .filter(Boolean);
-        const freeSlots = getFreeSlots(cfg.start, cfg.end, myBreaks);
-        const freeMin = totalFreeMin(freeSlots);
-        return { ...s, freeSlots, freeMin };
-    });
+    Object.keys(roster).forEach(team => {
+        if (team === target) return; // ข้ามเว็บที่ต้องการช่วย
 
-    const staffWithTime = staffFree.filter(s => s.freeMin > 0);
-    const noSlot = staffFree.filter(s => s.freeMin === 0).map(s => s.name);
+        const members = (roster[team] || []).filter(u => !u.username?.includes('ขาดคน'));
+        if (members.length === 0) return;
 
-    if (staffWithTime.length === 0) {
-        window.helpCalcResult = [];
-        window.helpCalcNoSlot = noSlot;
-        window.renderHelpCalcPanel();
-        return;
-    }
+        const avgMin = Math.floor(shiftDuration / members.length); // 12ชม ÷ จำนวนคน
+        let cursor = cfg.start;
 
-    // รวมเวลาว่างทั้งหมด หารจำนวนคน = เวลาเฉลี่ยต่อคน
-    const totalFreeAll = staffWithTime.reduce((s, u) => s + u.freeMin, 0);
-    const avgMin = Math.floor(totalFreeAll / staffWithTime.length);
+        members.forEach(u => {
+            const myBreaks = breakMap[u.username] || [];
+            const freeSlots = getFreeSlots(cfg.start, cfg.end, myBreaks);
 
-    // จัดคิวเข้าช่วยต่อเนื่องกัน
-    // แต่ละคนจะช่วยช่วง avgMin นาที โดยข้ามเวลาพักของตัวเอง
-    // cursor เดินไปข้างหน้าเรื่อยๆ ต่อจากคนก่อน
-    const results = [];
-    let cursor = cfg.start;
+            // หาช่วงเวลาที่คนนี้ว่าง และต่อจาก cursor
+            let remain = avgMin;
+            let helpStart = null;
+            let helpEnd = null;
 
-    for (const staff of staffWithTime) {
-        let remain = avgMin;
-        let helpStart = null;
-        let helpEnd = null;
+            const effectiveSlots = freeSlots
+                .map(s => ({ start: Math.max(s.start, cursor), end: s.end }))
+                .filter(s => s.end > s.start);
 
-        // สร้าง free slots ของคนนี้ แต่เริ่มจาก cursor เท่านั้น
-        const effectiveSlots = staff.freeSlots
-            .map(s => ({ start: Math.max(s.start, cursor), end: s.end }))
-            .filter(s => s.end > s.start);
-
-        for (const slot of effectiveSlots) {
-            if (remain <= 0) break;
-            const available = slot.end - slot.start;
-            if (available <= 0) continue;
-
-            if (helpStart === null) helpStart = slot.start;
-
-            if (available >= remain) {
-                helpEnd = slot.start + remain;
-                cursor = helpEnd;
-                remain = 0;
-            } else {
-                remain -= available;
-                helpEnd = slot.end;
-                cursor = slot.end;
+            for (const slot of effectiveSlots) {
+                if (remain <= 0) break;
+                const available = slot.end - slot.start;
+                if (available <= 0) continue;
+                if (helpStart === null) helpStart = slot.start;
+                if (available >= remain) {
+                    helpEnd = slot.start + remain;
+                    cursor = helpEnd;
+                    remain = 0;
+                } else {
+                    remain -= available;
+                    helpEnd = slot.end;
+                    cursor = slot.end;
+                }
             }
-        }
 
-        if (helpStart !== null && helpEnd !== null) {
-            results.push({ ...staff, helpStart, helpEnd });
-        }
+            if (helpStart !== null && helpEnd !== null) {
+                results.push({ team, name: u.username, helpStart, helpEnd });
+            }
 
-        // ถ้าหาเวลาไม่ครบ (remain > 0) cursor ยังอยู่ที่ helpEnd ซึ่ง ok
-        if (cursor >= cfg.end) break; // หมดเวลากะแล้ว
-    }
+            if (cursor >= cfg.end) cursor = cfg.start; // reset cursor เมื่อเกินกะ
+        });
+    });
 
     window.helpCalcTarget = target;
     window.helpCalcResult = results;
-    window.helpCalcNoSlot = noSlot;
+    window.helpCalcNoSlot = [];
     window.renderHelpCalcPanel();
 };
