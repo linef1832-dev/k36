@@ -2839,3 +2839,100 @@ window.openBreaktrackDetail = function(staffName) {
     document.getElementById('breaktrackModalBody').innerHTML = rows || '<p class="text-gray-500 text-center">ไม่มีข้อมูล</p>';
     document.getElementById('breaktrackModal').classList.remove('hidden');
 };
+
+// ============================================================
+// ⚙️ ระบบตั้งค่ากลุ่ม Telegram (checkin_groups)
+// ============================================================
+
+window.toggleCheckinGroupsPanel = function() {
+    const panel = document.getElementById('checkinGroupsPanel');
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        window.loadCheckinGroups();
+    } else {
+        panel.classList.add('hidden');
+    }
+};
+
+window.loadCheckinGroups = async function() {
+    const list = document.getElementById('checkinGroupsList');
+    if (!list) return;
+    list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">กำลังโหลด...</div>';
+    try {
+        const { data, error } = await appDB
+            .from('checkin_groups')
+            .select('*')
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
+            return;
+        }
+        list.innerHTML = data.map(g => `
+            <div class="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2 gap-2">
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <span class="w-2 h-2 rounded-full shrink-0 ${g.active ? 'bg-emerald-400' : 'bg-gray-500'}"></span>
+                    <span class="text-white text-xs font-bold truncate">${g.group_name}</span>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="window.toggleCheckinGroup('${g.id}', ${g.active})" 
+                        class="text-xs px-2 py-1 rounded-lg font-bold transition ${g.active ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}">
+                        ${g.active ? 'ปิด' : 'เปิด'}
+                    </button>
+                    <button onclick="window.deleteCheckinGroup('${g.id}', '${g.group_name.replace(/'/g, "\\'")}')"
+                        class="text-xs px-2 py-1 rounded-lg font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">
+                        ลบ
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) {
+        list.innerHTML = '<div class="text-red-400 text-xs text-center py-2">โหลดไม่ได้ครับ</div>';
+    }
+};
+
+window.addCheckinGroup = async function() {
+    const input = document.getElementById('newGroupName');
+    const name = input?.value.trim();
+    if (!name) return Swal.fire('แจ้งเตือน', 'กรุณาใส่ชื่อกลุ่มก่อนครับ', 'warning');
+    try {
+        const { error } = await appDB.from('checkin_groups').insert({ group_name: name, active: true });
+        if (error) throw error;
+        input.value = '';
+        await window.loadCheckinGroups();
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'เพิ่มกลุ่มสำเร็จ', showConfirmButton: false, timer: 1500 });
+    } catch(e) {
+        Swal.fire('ผิดพลาด', 'เพิ่มกลุ่มไม่ได้ครับ: ' + e.message, 'error');
+    }
+};
+
+window.toggleCheckinGroup = async function(id, currentActive) {
+    try {
+        const { error } = await appDB.from('checkin_groups').update({ active: !currentActive }).eq('id', id);
+        if (error) throw error;
+        await window.loadCheckinGroups();
+    } catch(e) {
+        Swal.fire('ผิดพลาด', 'แก้ไขไม่ได้ครับ', 'error');
+    }
+};
+
+window.deleteCheckinGroup = async function(id, name) {
+    const confirm = await Swal.fire({
+        title: 'ลบกลุ่มนี้?',
+        text: name,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ลบ',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#ef4444'
+    });
+    if (!confirm.isConfirmed) return;
+    try {
+        const { error } = await appDB.from('checkin_groups').delete().eq('id', id);
+        if (error) throw error;
+        await window.loadCheckinGroups();
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ลบกลุ่มสำเร็จ', showConfirmButton: false, timer: 1500 });
+    } catch(e) {
+        Swal.fire('ผิดพลาด', 'ลบไม่ได้ครับ', 'error');
+    }
+};
