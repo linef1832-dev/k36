@@ -777,7 +777,7 @@ window.switchDiscordTab = function(tabName) {
                 ds_fetchChannels(); 
             }
             else if (tabName === 'checkin') {
-                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-sky-500 text-white shadow-[0_0_10px_rgba(14,165,233,0.5)] flex items-center gap-1";
+                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-violet-500 text-white shadow-[0_0_10px_rgba(139,92,246,0.5)] flex items-center gap-1";
                 const d = new Date();
                 const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0');
                 if(document.getElementById('tgDate')) document.getElementById('tgDate').value = `${y}-${m}-${day}`;
@@ -2855,48 +2855,49 @@ window.toggleCheckinGroupsPanel = function() {
 };
 
 window.loadCheckinGroups = async function() {
-    const list = document.getElementById('checkinGroupsList');
-    if (!list) return;
-    list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">กำลังโหลด...</div>';
+    const listCheckin = document.getElementById('checkinGroupsList_checkin');
+    const listShift = document.getElementById('checkinGroupsList_shift');
+    if (!listCheckin || !listShift) return;
+    listCheckin.innerHTML = listShift.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">กำลังโหลด...</div>';
     try {
         const { data, error } = await appDB
             .from('checkin_groups')
             .select('*')
             .order('created_at', { ascending: true });
         if (error) throw error;
-        if (!data || data.length === 0) {
-            list.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
-            return;
-        }
-        list.innerHTML = data.map(g => `
+
+        const renderGroup = (g) => `
             <div class="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2 gap-2">
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                     <span class="w-2 h-2 rounded-full shrink-0 ${g.active ? 'bg-emerald-400' : 'bg-gray-500'}"></span>
                     <span class="text-white text-xs font-bold truncate">${g.group_name}</span>
                 </div>
                 <div class="flex gap-1 shrink-0">
-                    <button onclick="window.toggleCheckinGroup('${g.id}', ${g.active})" 
+                    <button onclick="window.toggleCheckinGroup('${g.id}', ${g.active})"
                         class="text-xs px-2 py-1 rounded-lg font-bold transition ${g.active ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}">
                         ${g.active ? 'ปิด' : 'เปิด'}
                     </button>
-                    <button onclick="window.deleteCheckinGroup('${g.id}', '${g.group_name.replace(/'/g, "\\'")}')"
-                        class="text-xs px-2 py-1 rounded-lg font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">
-                        ลบ
-                    </button>
+                    <button onclick="window.deleteCheckinGroup('${g.id}', '${g.group_name.replace(/'/g, "\'")}')"
+                        class="text-xs px-2 py-1 rounded-lg font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">ลบ</button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+
+        const checkinData = (data || []).filter(g => g.group_type === 'checkin');
+        const shiftData = (data || []).filter(g => g.group_type === 'shift');
+
+        listCheckin.innerHTML = checkinData.length ? checkinData.map(renderGroup).join('') : '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
+        listShift.innerHTML = shiftData.length ? shiftData.map(renderGroup).join('') : '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
     } catch(e) {
-        list.innerHTML = '<div class="text-red-400 text-xs text-center py-2">โหลดไม่ได้ครับ</div>';
+        listCheckin.innerHTML = listShift.innerHTML = '<div class="text-red-400 text-xs text-center py-2">โหลดไม่ได้ครับ</div>';
     }
 };
 
-window.addCheckinGroup = async function() {
-    const input = document.getElementById('newGroupName');
+window.addCheckinGroup = async function(type) {
+    const input = document.getElementById('newGroupName_' + type);
     const name = input?.value.trim();
     if (!name) return Swal.fire('แจ้งเตือน', 'กรุณาใส่ชื่อกลุ่มก่อนครับ', 'warning');
     try {
-        const { error } = await appDB.from('checkin_groups').insert({ group_name: name, active: true });
+        const { error } = await appDB.from('checkin_groups').insert({ group_name: name, active: true, group_type: type });
         if (error) throw error;
         input.value = '';
         await window.loadCheckinGroups();
@@ -2905,6 +2906,7 @@ window.addCheckinGroup = async function() {
         Swal.fire('ผิดพลาด', 'เพิ่มกลุ่มไม่ได้ครับ: ' + e.message, 'error');
     }
 };
+
 
 window.toggleCheckinGroup = async function(id, currentActive) {
     try {
