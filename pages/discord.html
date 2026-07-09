@@ -9,6 +9,7 @@
             <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติเข้า/ออกดิส</button>
             <button onclick="switchDiscordTab('actionlog')" id="tabDsActionlog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">list_alt</span> ประวัติกดคำสั่ง</button>
             <button onclick="switchDiscordTab('sendmsg')" id="tabDsSendmsg" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">send</span> ส่งข้อความ</button>
+            <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">coffee</span> เช็คอิน</button>
         </div>
         <button onclick="showPage('dashboard')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition flex items-center gap-1 text-sm shrink-0 border border-slate-600"><span class="material-icons text-sm">close</span> ปิดหน้าต่าง</button>
     </div>
@@ -332,6 +333,72 @@
                 </div>
             </div>
         </div>
+
+      <!-- ===== TAB เช็คอิน ===== -->
+      <div id="dsContent_breaktrack" class="max-w-6xl mx-auto hidden fade-in pb-10">
+        <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+          <!-- Header -->
+          <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+            <h2 class="text-emerald-400 font-black flex items-center gap-2 text-xl">
+              <span class="material-icons">coffee</span> ติดตามการพัก (เช็คอิน)
+            </h2>
+            <div class="flex gap-2 flex-wrap">
+              <input type="date" id="breaktrackDate" class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" onchange="window.loadBreaktrack()">
+              <select id="breaktrackShift" class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" onchange="window.loadBreaktrack()">
+                <option value="all">-- ทุกกะ --</option>
+                <option value="กะเช้า">กะเช้า</option>
+                <option value="กะดึก">กะดึก</option>
+              </select>
+              <input type="text" id="breaktrackSearch" placeholder="🔍 ค้นหาชื่อ..." class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" oninput="window.renderBreaktrackTable()">
+              <button onclick="window.loadBreaktrack()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-1 active:scale-95">
+                <span class="material-icons text-sm">refresh</span> รีเฟรช
+              </button>
+            </div>
+          </div>
+
+          <!-- สรุปตัวเลข -->
+          <div id="breaktrackSummary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+
+          <!-- ตารางรายชื่อ -->
+          <div class="overflow-x-auto rounded-2xl border border-slate-700">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-slate-900 text-gray-400 text-xs uppercase tracking-wider">
+                  <th class="px-4 py-3 text-left">พนักงาน</th>
+                  <th class="px-4 py-3 text-left">กะ</th>
+                  <th class="px-4 py-3 text-left">กิจกรรม</th>
+                  <th class="px-4 py-3 text-center">จำนวนครั้ง</th>
+                  <th class="px-4 py-3 text-center">เวลารวม</th>
+                  <th class="px-4 py-3 text-center">เกินเวลา</th>
+                  <th class="px-4 py-3 text-center">ไม่กดกลับ</th>
+                  <th class="px-4 py-3 text-center">ดูรายละเอียด</th>
+                </tr>
+              </thead>
+              <tbody id="breaktrackTableBody" class="divide-y divide-slate-700/50"></tbody>
+            </table>
+          </div>
+
+          <!-- Loading -->
+          <div id="breaktrackLoading" class="hidden text-center py-12 text-gray-400">
+            <div class="animate-spin h-8 w-8 border-2 border-emerald-500 rounded-full border-t-transparent mx-auto mb-3"></div>
+            <p class="font-bold">กำลังโหลด...</p>
+          </div>
+        </div>
+
+        <!-- Modal รายละเอียด -->
+        <div id="breaktrackModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+          <div class="bg-slate-800 rounded-3xl border border-slate-600 shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+              <h3 id="breaktrackModalTitle" class="text-white font-black text-lg"></h3>
+              <button onclick="document.getElementById('breaktrackModal').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
+                <span class="material-icons">close</span>
+              </button>
+            </div>
+            <div id="breaktrackModalBody" class="overflow-y-auto p-6 flex flex-col gap-3"></div>
+          </div>
+        </div>
+      </div>
+      <!-- ===== จบ TAB เช็คอิน ===== -->
 
       <div id="dsContent_sendmsg" class="max-w-5xl mx-auto hidden fade-in pb-10">
             <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
