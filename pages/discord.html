@@ -4,12 +4,12 @@
             <div class="bg-indigo-600 p-2 rounded-lg text-white mr-2 shadow"><span class="material-icons">discord</span></div>
             <button onclick="switchDiscordTab('spy')" id="tabDsSpy" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-sm flex items-center gap-1"><span class="material-icons text-sm">visibility</span> Spy Monitor</button>
             <button onclick="switchDiscordTab('move')" id="tabDsMove" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">move_up</span> ย้ายห้อง (Mass Move)</button>
-            <button onclick="switchDiscordTab('checkin')" id="tabDsCheckin" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">fact_check</span> เช็คชื่อ</button>
+            <button onclick="switchDiscordTab('checkin')" id="tabDsCheckin" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">photo_camera</span> ถ่ายรูป</button>
             <button onclick="switchDiscordTab('manage')" id="tabDsManage" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">manage_accounts</span> ฐานข้อมูล</button>
             <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติเข้า/ออกดิส</button>
             <button onclick="switchDiscordTab('actionlog')" id="tabDsActionlog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">list_alt</span> ประวัติกดคำสั่ง</button>
             <button onclick="switchDiscordTab('sendmsg')" id="tabDsSendmsg" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">send</span> ส่งข้อความ</button>
-            <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">coffee</span> เช็คอิน/ถ่ายรูป</button>
+            <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">coffee</span> เช็คอิน</button>
         </div>
         <button onclick="showPage('dashboard')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition flex items-center gap-1 text-sm shrink-0 border border-slate-600"><span class="material-icons text-sm">close</span> ปิดหน้าต่าง</button>
     </div>
@@ -89,7 +89,7 @@
         <div id="dsContent_checkin" class="max-w-6xl mx-auto hidden fade-in pb-10">
             <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-sky-400 font-black flex items-center gap-2 text-xl"><span class="material-icons">telegram</span> ระบบเช็คชื่อเข้างาน</h2>
+                    <h2 class="text-violet-400 font-black flex items-center gap-2 text-xl"><span class="material-icons">photo_camera</span> ถ่ายรูปเช็คชื่อเข้างาน</h2>
                     <button onclick="document.getElementById('tgSettingsBox').classList.toggle('hidden')" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 transition">
                         <span class="material-icons text-sm">settings</span> ตั้งค่า Bot
                     </button>
@@ -340,7 +340,7 @@
           <!-- Header -->
           <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
             <h2 class="text-emerald-400 font-black flex items-center gap-2 text-xl">
-              <span class="material-icons">coffee</span> เช็คอิน/ถ่ายรูป
+              <span class="material-icons">coffee</span> เช็คอิน
             </h2>
             <div class="flex gap-2 flex-wrap">
               <input type="date" id="breaktrackDate" class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" onchange="window.loadBreaktrack()">
@@ -361,20 +361,45 @@
 
           <!-- Settings กลุ่ม Telegram -->
           <div id="checkinGroupsPanel" class="bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-6 hidden">
-            <div class="flex justify-between items-center mb-3">
+            <div class="flex justify-between items-center mb-4">
               <h3 class="text-white font-black text-sm flex items-center gap-2">
-                <span class="material-icons text-emerald-400 text-sm">settings</span> ตั้งค่ากลุ่ม Telegram ที่ดักจับ
+                <span class="material-icons text-emerald-400 text-sm">settings</span> ตั้งค่ากลุ่ม Telegram
               </h3>
               <button onclick="document.getElementById('checkinGroupsPanel').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
                 <span class="material-icons text-sm">close</span>
               </button>
             </div>
-            <div id="checkinGroupsList" class="flex flex-col gap-2 mb-3 max-h-48 overflow-y-auto custom-scrollbar"></div>
-            <div class="flex gap-2">
-              <input type="text" id="newGroupName" placeholder="ชื่อกลุ่ม Telegram เช่น Jun88-กลุ่มเช็คอิน打卡群" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500">
-              <button onclick="window.addCheckinGroup()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-1 active:scale-95">
-                <span class="material-icons text-sm">add</span> เพิ่ม
-              </button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- กลุ่มเช็คอิน -->
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="material-icons text-sky-400 text-sm">coffee</span>
+                  <span class="text-sky-400 font-black text-xs uppercase tracking-wider">กลุ่มเช็คอิน</span>
+                  <span class="text-gray-500 text-xs">(แจ้งพัก)</span>
+                </div>
+                <div id="checkinGroupsList_checkin" class="flex flex-col gap-1.5 mb-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
+                <div class="flex gap-2">
+                  <input type="text" id="newGroupName_checkin" placeholder="ชื่อกลุ่มเช็คอิน..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-sky-500">
+                  <button onclick="window.addCheckinGroup('checkin')" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                    <span class="material-icons text-xs">add</span>
+                  </button>
+                </div>
+              </div>
+              <!-- กลุ่มเช็คชื่อ -->
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="material-icons text-violet-400 text-sm">photo_camera</span>
+                  <span class="text-violet-400 font-black text-xs uppercase tracking-wider">กลุ่มเช็คชื่อ</span>
+                  <span class="text-gray-500 text-xs">(ถ่ายรูป/กะ)</span>
+                </div>
+                <div id="checkinGroupsList_shift" class="flex flex-col gap-1.5 mb-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
+                <div class="flex gap-2">
+                  <input type="text" id="newGroupName_shift" placeholder="ชื่อกลุ่มเช็คชื่อ..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500">
+                  <button onclick="window.addCheckinGroup('shift')" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                    <span class="material-icons text-xs">add</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
