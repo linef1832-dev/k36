@@ -704,7 +704,7 @@ window.applyDiscordPermissions = function() {
 
     if (firstAllowedTab) {
         document.getElementById('discordNoAccessMessage')?.remove();
-        const activeTabs = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog', 'sendmsg'];
+        const activeTabs = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog', 'sendmsg', 'breaktrack'];
         let isCurrentTabValid = false;
         
         activeTabs.forEach(t => {
