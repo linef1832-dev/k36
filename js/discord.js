@@ -683,7 +683,8 @@ window.applyDiscordPermissions = function() {
         { btnId: 'tabDsManage', viewId: 'manage', reqPerm: 'ds_manage' },
         { btnId: 'tabDsVoicelog', viewId: 'voicelog', reqPerm: 'ds_log' },
         { btnId: 'tabDsActionlog', viewId: 'actionlog', reqPerm: 'ds_log' },
-        { btnId: 'tabDsSendmsg', viewId: 'sendmsg', reqPerm: 'ds_sendmsg' }
+        { btnId: 'tabDsSendmsg', viewId: 'sendmsg', reqPerm: 'ds_sendmsg' },
+        { btnId: 'tabDsBreaktrack', viewId: 'breaktrack', reqPerm: 'ds_checkin' }
     ];
 
     let firstAllowedTab = null;
@@ -748,7 +749,7 @@ window.applyDiscordPermissions = function() {
 
 window.switchDiscordTab = function(tabName) {
     try {
-        const allViews = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog', 'sendmsg'];
+        const allViews = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog', 'sendmsg', 'breaktrack'];
         allViews.forEach(view => {
             const el = document.getElementById('dsContent_' + view);
             if (el) el.classList.add('hidden');
@@ -816,6 +817,10 @@ window.switchDiscordTab = function(tabName) {
                 activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)] flex items-center gap-1";
                 if(typeof ds_fetchChannelsForSendMsg === 'function') ds_fetchChannelsForSendMsg();
                 if(typeof ds_loadMsgTemplates === 'function') ds_loadMsgTemplates();
+            }
+            else if (tabName === 'breaktrack') {
+                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-emerald-600 text-white shadow-[0_0_10px_rgba(5,150,105,0.5)] flex items-center gap-1";
+                window.initBreaktrack();
             }
         }
     } catch(err) { console.error("Tab Switch Error:", err); }
@@ -2609,4 +2614,228 @@ window.ds_sendMessage = async function() {
     } else {
         Swal.fire('เกิดข้อผิดพลาด', `ส่งข้อความไม่สำเร็จเลย<br><br><span class="text-sm font-bold text-red-500">สาเหตุที่แท้จริง:<br>${realErrorMsg}</span>`, 'error');
     }
+};
+
+// ============================================================
+// ☕ ระบบติดตามการพัก (Breaktrack) — ดึงจาก break_sessions
+// ============================================================
+
+let _breaktrackData = []; // raw data จาก Supabase
+
+// กำหนดเวลาสูงสุดแต่ละประเภท (นาที)
+const BREAK_LIMITS = {
+    'กินข้าว': 60, 'ทานข้าว': 60,
+    'ปวดหนัก': 15, 'ห้องน้ำใหญ่': 15,
+    'ปวดน้อย': 10, 'ห้องน้ำเล็ก': 10,
+    'พัก': 15,
+};
+
+function getBreakLimit(reason) {
+    if (!reason) return null;
+    for (const [key, limit] of Object.entries(BREAK_LIMITS)) {
+        if (reason.includes(key)) return limit;
+    }
+    return null;
+}
+
+function breakDurationMin(start, end) {
+    if (!start) return null;
+    const s = new Date(start);
+    const e = end ? new Date(end) : new Date();
+    return Math.round((e - s) / 60000);
+}
+
+function formatMin(min) {
+    if (min === null || min === undefined) return '-';
+    if (min < 60) return `${min} นาที`;
+    return `${Math.floor(min / 60)} ชม. ${min % 60} นาที`;
+}
+
+window.initBreaktrack = function() {
+    // ตั้งวันที่วันนี้
+    const dateInput = document.getElementById('breaktrackDate');
+    if (dateInput && !dateInput.value) {
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        dateInput.value = new Date(now - offset).toISOString().slice(0, 10);
+    }
+    window.loadBreaktrack();
+};
+
+window.loadBreaktrack = async function() {
+    const dateInput = document.getElementById('breaktrackDate');
+    const date = dateInput ? dateInput.value : '';
+    if (!date) return;
+
+    document.getElementById('breaktrackLoading').classList.remove('hidden');
+    document.getElementById('breaktrackTableBody').innerHTML = '';
+    document.getElementById('breaktrackSummary').innerHTML = '';
+
+    try {
+        const { data, error } = await appDB
+            .from('break_sessions')
+            .select('*')
+            .eq('break_date', date)
+            .order('break_start', { ascending: true });
+
+        if (error) throw error;
+        _breaktrackData = data || [];
+        window.renderBreaktrackTable();
+    } catch(e) {
+        console.error('[Breaktrack] load error:', e);
+        document.getElementById('breaktrackTableBody').innerHTML = `
+            <tr><td colspan="8" class="text-center py-8 text-red-400 font-bold">โหลดข้อมูลไม่ได้ครับ</td></tr>`;
+    } finally {
+        document.getElementById('breaktrackLoading').classList.add('hidden');
+    }
+};
+
+window.renderBreaktrackTable = function() {
+    const shiftFilter = document.getElementById('breaktrackShift')?.value || 'all';
+    const search = (document.getElementById('breaktrackSearch')?.value || '').toLowerCase();
+
+    // กลุ่มข้อมูลตามชื่อพนักงาน
+    const grouped = {};
+    _breaktrackData.forEach(row => {
+        if (!grouped[row.staff_name]) grouped[row.staff_name] = [];
+        grouped[row.staff_name].push(row);
+    });
+
+    // เอา user info จาก GLOBAL_USER_LIST
+    const rows = Object.entries(grouped).map(([name, sessions]) => {
+        const user = (window.GLOBAL_USER_LIST || []).find(u =>
+            u.username && u.username.toLowerCase() === name.toLowerCase()
+        );
+        const shift = user?.allowed_shift || '-';
+        const dept = user?.department || '-';
+
+        // filter กะ
+        if (shiftFilter !== 'all' && shift !== shiftFilter) return null;
+        // filter search
+        if (search && !name.toLowerCase().includes(search)) return null;
+
+        let totalMin = 0;
+        let overCount = 0;
+        let noReturnCount = 0;
+        const activityCount = {};
+
+        sessions.forEach(s => {
+            const dur = breakDurationMin(s.break_start, s.break_end);
+            if (dur !== null) totalMin += dur;
+            if (!s.break_end) noReturnCount++;
+
+            // นับประเภท
+            const reason = s.break_reason || 'อื่นๆ';
+            activityCount[reason] = (activityCount[reason] || 0) + 1;
+
+            // เช็คเกินเวลา
+            if (s.break_end) {
+                const limit = getBreakLimit(s.break_reason);
+                if (limit && dur > limit) overCount++;
+            }
+        });
+
+        const activitySummary = Object.entries(activityCount)
+            .map(([r, c]) => `${r} (${c})`)
+            .join(', ');
+
+        return { name, shift, dept, sessions, totalMin, overCount, noReturnCount, activitySummary, count: sessions.length };
+    }).filter(Boolean);
+
+    // Summary
+    const totalStaff = rows.length;
+    const totalBreaks = rows.reduce((a, r) => a + r.count, 0);
+    const totalOver = rows.reduce((a, r) => a + r.overCount, 0);
+    const totalNoReturn = rows.reduce((a, r) => a + r.noReturnCount, 0);
+
+    document.getElementById('breaktrackSummary').innerHTML = `
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 text-center">
+            <div class="text-2xl font-black text-white">${totalStaff}</div>
+            <div class="text-xs text-gray-400 font-bold mt-1">พนักงานทั้งหมด</div>
+        </div>
+        <div class="bg-sky-500/10 border border-sky-500/30 rounded-2xl p-4 text-center">
+            <div class="text-2xl font-black text-sky-400">${totalBreaks}</div>
+            <div class="text-xs text-sky-400 font-bold mt-1">ครั้งรวม</div>
+        </div>
+        <div class="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-center">
+            <div class="text-2xl font-black text-red-400">${totalOver}</div>
+            <div class="text-xs text-red-400 font-bold mt-1">เกินเวลา</div>
+        </div>
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-center">
+            <div class="text-2xl font-black text-amber-400">${totalNoReturn}</div>
+            <div class="text-xs text-amber-400 font-bold mt-1">ไม่กดกลับ</div>
+        </div>`;
+
+    if (rows.length === 0) {
+        document.getElementById('breaktrackTableBody').innerHTML = `
+            <tr><td colspan="8" class="text-center py-10 text-gray-500 font-bold">ไม่พบข้อมูลครับ</td></tr>`;
+        return;
+    }
+
+    document.getElementById('breaktrackTableBody').innerHTML = rows.map(r => `
+        <tr class="hover:bg-slate-700/30 transition">
+            <td class="px-4 py-3 font-bold text-white">${r.name}</td>
+            <td class="px-4 py-3">
+                <span class="text-xs px-2 py-1 rounded-full font-bold ${r.shift === 'กะเช้า' ? 'bg-yellow-500/20 text-yellow-400' : r.shift === 'กะดึก' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-700 text-gray-400'}">${r.shift}</span>
+            </td>
+            <td class="px-4 py-3 text-gray-300 text-xs">${r.activitySummary}</td>
+            <td class="px-4 py-3 text-center font-bold text-sky-400">${r.count}</td>
+            <td class="px-4 py-3 text-center font-bold text-white">${formatMin(r.totalMin)}</td>
+            <td class="px-4 py-3 text-center">
+                ${r.overCount > 0
+                    ? `<span class="bg-red-500/20 text-red-400 font-black text-xs px-2 py-1 rounded-full">${r.overCount} ครั้ง</span>`
+                    : `<span class="text-emerald-400 font-bold text-xs">✅ ปกติ</span>`}
+            </td>
+            <td class="px-4 py-3 text-center">
+                ${r.noReturnCount > 0
+                    ? `<span class="bg-amber-500/20 text-amber-400 font-black text-xs px-2 py-1 rounded-full">⚠️ ${r.noReturnCount} ครั้ง</span>`
+                    : `<span class="text-emerald-400 font-bold text-xs">✅ ครบ</span>`}
+            </td>
+            <td class="px-4 py-3 text-center">
+                <button onclick="window.openBreaktrackDetail('${r.name}')" class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95">
+                    <span class="material-icons text-xs">list</span> ดู
+                </button>
+            </td>
+        </tr>
+    `).join('');
+};
+
+window.openBreaktrackDetail = function(staffName) {
+    const sessions = _breaktrackData.filter(s => s.staff_name === staffName);
+    const user = (window.GLOBAL_USER_LIST || []).find(u =>
+        u.username && u.username.toLowerCase() === staffName.toLowerCase()
+    );
+    const shift = user?.allowed_shift || '-';
+
+    document.getElementById('breaktrackModalTitle').textContent = `${staffName} (${shift}) — รายละเอียดการพัก`;
+
+    const rows = sessions.map(s => {
+        const dur = breakDurationMin(s.break_start, s.break_end);
+        const limit = getBreakLimit(s.break_reason);
+        const isOver = s.break_end && limit && dur > limit;
+        const noReturn = !s.break_end;
+
+        const startTime = s.break_start ? new Date(s.break_start).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-';
+        const endTime = s.break_end ? new Date(s.break_end).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : null;
+
+        return `
+            <div class="bg-slate-900 border ${isOver ? 'border-red-500/50' : noReturn ? 'border-amber-500/50' : 'border-slate-700'} rounded-2xl p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="font-black text-white">${s.break_reason || 'ไม่ระบุ'}</span>
+                    <div class="flex gap-2">
+                        ${isOver ? `<span class="bg-red-500/20 text-red-400 text-xs font-bold px-2 py-1 rounded-full">เกินเวลา</span>` : ''}
+                        ${noReturn ? `<span class="bg-amber-500/20 text-amber-400 text-xs font-bold px-2 py-1 rounded-full">ไม่กดกลับ</span>` : ''}
+                        ${!isOver && !noReturn ? `<span class="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-1 rounded-full">ปกติ</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex gap-4 text-sm text-gray-400">
+                    <span>🕐 ออก: <b class="text-white">${startTime}</b></span>
+                    <span>🕐 กลับ: <b class="${noReturn ? 'text-amber-400' : 'text-white'}">${endTime || '⚠️ ยังไม่กลับ'}</b></span>
+                    <span>⏱️ ใช้เวลา: <b class="${isOver ? 'text-red-400' : 'text-white'}">${dur !== null ? formatMin(dur) : '-'}${limit ? ` / ${limit} นาที` : ''}</b></span>
+                </div>
+            </div>`;
+    }).join('');
+
+    document.getElementById('breaktrackModalBody').innerHTML = rows || '<p class="text-gray-500 text-center">ไม่มีข้อมูล</p>';
+    document.getElementById('breaktrackModal').classList.remove('hidden');
 };
