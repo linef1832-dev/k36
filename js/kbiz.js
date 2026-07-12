@@ -199,9 +199,13 @@ async function fetchOcrKeysData() {
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl mb-2">sync</span><br><span class="text-gray-400 font-bold text-sm">กำลังโหลด API Keys...</span></div>';
     try {
-        const _dataCached = await window.getSettingCached('ocr_api_keys_data');
-        if (data && data.value) {
-            globalOcrKeys = JSON.parse(data.value);
+        let _ocrRaw = await window.getSettingCached('ocr_api_keys_data');
+        if (!_ocrRaw) {
+            const { data: _dbOcr } = await appDB.from('settings').select('value').eq('key', 'ocr_api_keys_data').maybeSingle();
+            _ocrRaw = _dbOcr?.value ?? null;
+        }
+        if (_ocrRaw) {
+            globalOcrKeys = JSON.parse(_ocrRaw);
             const needSave = autoResetIfNewDay(globalOcrKeys);
             globalOcrKeys.forEach(k => {
                 if (typeof k.used_count !== 'number') { k.used_count = 0; k.last_used_date = getTodayKey(); }
@@ -412,9 +416,13 @@ let globalTelegramConfig = {};
 async function fetchTelegramBotConfig() {
     if (!document.getElementById('telegramBotToken')) return;
     try {
-        const _dataCached = await window.getSettingCached('telegram_bot_config');
-        if (data && data.value) {
-            globalTelegramConfig = JSON.parse(data.value);
+        let _tgRaw = await window.getSettingCached('telegram_bot_config');
+        if (!_tgRaw) {
+            const { data: _dbTg } = await appDB.from('settings').select('value').eq('key', 'telegram_bot_config').maybeSingle();
+            _tgRaw = _dbTg?.value ?? null;
+        }
+        if (_tgRaw) {
+            globalTelegramConfig = JSON.parse(_tgRaw);
         } else {
             globalTelegramConfig = {};
         }
@@ -548,9 +556,13 @@ window.fetchVpsStats = async function(manual = false) {
     if (btnIcon) btnIcon.classList.add('animate-spin');
 
     try {
-        const _dataCached = await window.getSettingCached('vps_stats');
-        if (data && data.value) {
-            const stats = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+        let _vpsRaw = await window.getSettingCached('vps_stats');
+        if (!_vpsRaw) {
+            const { data: _dbVps } = await appDB.from('settings').select('value').eq('key', 'vps_stats').maybeSingle();
+            _vpsRaw = _dbVps?.value ?? null;
+        }
+        if (_vpsRaw) {
+            const stats = typeof data.value === 'string' ? JSON.parse(_tgRaw) : data.value;
             renderVpsStats(stats);
         } else {
             setVpsStatsOffline();
@@ -731,9 +743,9 @@ window.clearVpsRam = async function() {
         while (Date.now() - startTime < 15000) {
             await new Promise(r => setTimeout(r, 1500));
             try {
-                const _dataCached = await window.getSettingCached('vps_command_result');
-                if (data && data.value) {
-                    const r = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+                let _vcRaw = await window.getSettingCached('vps_command_result');
+                if (_vcRaw) {
+                    const r = typeof _vcRaw === 'string' ? JSON.parse(_vcRaw) : _vcRaw;
                     if (r && r.executed_at) {
                         const execTime = new Date(r.executed_at).getTime();
                         if (execTime > startTime - 5000) {
@@ -789,9 +801,13 @@ let globalChromeRefreshConfig = {};
 async function fetchChromeRefreshConfig() {
     if (!document.getElementById('chromeRefreshHours')) return;
     try {
-        const _dataCached = await window.getSettingCached('chrome_refresh_config');
-        if (data && data.value) {
-            globalChromeRefreshConfig = JSON.parse(data.value);
+        let _chromeRaw = await window.getSettingCached('chrome_refresh_config');
+        if (!_chromeRaw) {
+            const { data: _dbChrome } = await appDB.from('settings').select('value').eq('key', 'chrome_refresh_config').maybeSingle();
+            _chromeRaw = _dbChrome?.value ?? null;
+        }
+        if (_chromeRaw) {
+            globalChromeRefreshConfig = JSON.parse(_tgRaw);
         } else {
             globalChromeRefreshConfig = { enabled: false, interval_seconds: 7200, stagger: true };
         }
@@ -882,10 +898,14 @@ window.fetchChromeRefreshHistory = async function(manual = false) {
     if (btn) btn.classList.add('animate-spin');
 
     try {
-        const _dataCached = await window.getSettingCached('chrome_refresh_history');
+        let _histRaw = await window.getSettingCached('chrome_refresh_history');
+        if (!_histRaw) {
+            const { data: _dbHist } = await appDB.from('settings').select('value').eq('key', 'chrome_refresh_history').maybeSingle();
+            _histRaw = _dbHist?.value ?? null;
+        }
         let history = [];
-        if (data && data.value) {
-            history = JSON.parse(data.value);
+        if (_histRaw) {
+            history = JSON.parse(_histRaw);
         }
         renderRefreshHistory(history);
     } catch(e) {
