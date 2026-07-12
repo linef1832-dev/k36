@@ -468,7 +468,23 @@ async function handleLogin(e) {
 
         if (!users || users.length === 0) { 
             Swal.close(); clearPinInputs(); 
-            return Swal.fire('Error', 'ไม่พบชื่อพนักงานนี้ในระบบ (โปรดเช็คตัวสะกด)', 'error'); 
+            return Swal.fire({
+                html: `
+                    <div style="padding:16px 8px">
+                        <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(234,179,8,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(234,179,8,0.3)">
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        </div>
+                        <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">ไม่พบชื่อพนักงาน</div>
+                        <div style="font-size:13px;color:#94a3b8">โปรดตรวจสอบตัวสะกดแล้วลองใหม่</div>
+                    </div>
+                `,
+                background: '#0b1120',
+                backdrop: 'rgba(0,0,0,0.75)',
+                showConfirmButton: true,
+                confirmButtonText: 'ลองใหม่',
+                confirmButtonColor: '#854d0e',
+                customClass: { popup: 'rounded-3xl border border-yellow-900/40', confirmButton: 'rounded-xl font-bold px-6' }
+            }); 
         }
 
         const user = users[0];
@@ -484,7 +500,23 @@ async function handleLogin(e) {
         } 
         else if (user.password !== pinInput) {
             Swal.close(); clearPinInputs(); 
-            return Swal.fire('ผิดพลาด', 'รหัส PIN ไม่ถูกต้อง', 'error');
+            return Swal.fire({
+                html: `
+                    <div style="padding:16px 8px">
+                        <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(220,38,38,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(220,38,38,0.3)">
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </div>
+                        <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">รหัส PIN ไม่ถูกต้อง</div>
+                        <div style="font-size:13px;color:#94a3b8">กรุณาตรวจสอบรหัส PIN แล้วลองใหม่อีกครั้ง</div>
+                    </div>
+                `,
+                background: '#0b1120',
+                backdrop: 'rgba(0,0,0,0.75)',
+                showConfirmButton: true,
+                confirmButtonText: 'ลองใหม่',
+                confirmButtonColor: '#cc0000',
+                customClass: { popup: 'rounded-3xl border border-red-900/40', confirmButton: 'rounded-xl font-bold px-6' }
+            });
         }
 
         if (remember) window.safeSetItem('remember_me_name', user.username); 
@@ -509,7 +541,23 @@ async function handleLogin(e) {
     } catch (err) {
         console.error("Login Exception:", err);
         Swal.close(); clearPinInputs();
-        Swal.fire('Error', 'เกิดข้อผิดพลาดในการเชื่อมต่อระบบ', 'error');
+        Swal.fire({
+                html: `
+                    <div style="padding:16px 8px">
+                        <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(220,38,38,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(220,38,38,0.3)">
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        </div>
+                        <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">เชื่อมต่อไม่สำเร็จ</div>
+                        <div style="font-size:13px;color:#94a3b8">เกิดข้อผิดพลาดในการเชื่อมต่อระบบ</div>
+                    </div>
+                `,
+                background: '#0b1120',
+                backdrop: 'rgba(0,0,0,0.75)',
+                showConfirmButton: true,
+                confirmButtonText: 'ตกลง',
+                confirmButtonColor: '#cc0000',
+                customClass: { popup: 'rounded-3xl border border-red-900/40', confirmButton: 'rounded-xl font-bold px-6' }
+            });
     }
 }
 
