@@ -501,6 +501,7 @@ async function handleLogin(e) {
         else if (user.password !== pinInput) {
             Swal.close(); clearPinInputs(); 
             if(typeof window.shakeLoginCard==='function') window.shakeLoginCard();
+            if(typeof window._loginBeepError==='function') window._loginBeepError();
             return Swal.fire({
                 html: `
                     <div style="padding:16px 8px">
@@ -524,6 +525,7 @@ async function handleLogin(e) {
         else localStorage.removeItem('remember_me_name');
         
         if(typeof window.pinSuccessAnim==='function') window.pinSuccessAnim();
+        if(typeof window._loginBeepSuccess==='function') window._loginBeepSuccess();
         await new Promise(r=>setTimeout(r,350));
         clearPinInputs();
         Swal.close();
