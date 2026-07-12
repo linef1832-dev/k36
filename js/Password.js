@@ -10,9 +10,25 @@ async function initPasswordApp() {
         document.getElementById('pwdManagerControls')?.classList.remove('hidden');
         document.getElementById('pwdStaffLabel')?.classList.add('hidden');
 
-        // [FIX] ถ้า GLOBAL_USER_LIST ยังว่าง → รอ fetchUsers ก่อน
+        // [FIX] รอ GLOBAL_USER_LIST ให้มีข้อมูลก่อน — retry สูงสุด 20 ครั้ง (10 วิ)
         if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
-            if (typeof fetchUsers === 'function') await fetchUsers();
+            // ลอง fetchUsers โดยตรงก่อน
+            if (typeof fetchUsers === 'function') {
+                try { await fetchUsers(); } catch(e) {}
+            }
+            // ถ้ายังไม่มี ให้ poll รอ
+            if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
+                await new Promise(resolve => {
+                    let tries = 0;
+                    const t = setInterval(() => {
+                        tries++;
+                        if ((window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) || tries >= 20) {
+                            clearInterval(t);
+                            resolve();
+                        }
+                    }, 500);
+                });
+            }
         }
 
         _pwdPopulateUserDropdown();
