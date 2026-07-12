@@ -384,6 +384,8 @@ window.copyImageToClipboard = async function(imageUrl) {
                 const item = new ClipboardItem({ "image/png": blob });
                 await navigator.clipboard.write([item]);
                 // Success popup — สวยขึ้น
+                // Ripple effect บน card ที่ copy
+                _galleryRipple(imageUrl);
                 Swal.fire({
                     html: `
                         <div style="padding:14px 8px">
@@ -603,3 +605,138 @@ window.renameGalleryImage = async function(imgId, currentName) {
         Swal.fire('Error', e.message, 'error');
     }
 };
+
+// ==========================================
+// ✨ Ripple Effect บน card ที่เพิ่งคัดลอก
+// ==========================================
+function _galleryRipple(imageUrl) {
+    // หา card ที่มี url นี้
+    const grid = document.getElementById('galleryGrid');
+    if (!grid) return;
+    const cards = grid.querySelectorAll('[data-lb-index]');
+    cards.forEach(card => {
+        const btn = card.closest('.bg-slate-800');
+        if (!btn) return;
+        const img = btn.querySelector('img');
+        if (!img || !img.src.includes(imageUrl.split('/').pop())) return;
+
+        // สร้าง ripple overlay
+        const ripple = document.createElement('div');
+        ripple.style.cssText = `
+            position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:40;
+            background:radial-gradient(circle at center,rgba(34,197,94,0.35),rgba(34,197,94,0.08) 60%,transparent 80%);
+            animation:_gRipple 0.7s ease-out forwards;
+        `;
+        btn.style.position = 'relative';
+        btn.appendChild(ripple);
+
+        // badge "✓ คัดลอกแล้ว"
+        const badge = document.createElement('div');
+        badge.style.cssText = `
+            position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+            background:rgba(34,197,94,0.95);color:#fff;font-size:12px;font-weight:800;
+            padding:6px 14px;border-radius:20px;z-index:41;pointer-events:none;
+            box-shadow:0 4px 15px rgba(34,197,94,0.4);
+            animation:_gBadge 0.7s ease-out forwards;
+        `;
+        badge.textContent = '✓ คัดลอกแล้ว';
+        btn.appendChild(badge);
+
+        setTimeout(() => { ripple.remove(); badge.remove(); }, 700);
+    });
+}
+
+// inject keyframes
+(function(){
+    if (document.getElementById('_galleryStyles')) return;
+    const s = document.createElement('style');
+    s.id = '_galleryStyles';
+    s.textContent = `
+        @keyframes _gRipple{0%{opacity:1;transform:scale(0.8)}100%{opacity:0;transform:scale(1.05)}}
+        @keyframes _gBadge{0%{opacity:0;transform:translate(-50%,-50%) scale(0.7)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(0.9)}}
+        @keyframes _gSkeleton{0%,100%{opacity:0.5}50%{opacity:1}}
+        ._gallery-ctx-menu{position:fixed;z-index:9999;background:#1e293b;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:4px;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.05);min-width:180px;animation:_gBadge2 0.15s ease-out}
+        @keyframes _gBadge2{from{opacity:0;transform:scale(0.95) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)}}
+        ._gallery-ctx-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#e2e8f0;transition:background 0.15s}
+        ._gallery-ctx-item:hover{background:rgba(255,255,255,0.08)}
+        ._gallery-ctx-item .material-icons{font-size:16px;opacity:0.7}
+        ._gallery-ctx-sep{height:1px;background:rgba(255,255,255,0.07);margin:3px 0}
+    `;
+    document.head.appendChild(s);
+})();
+
+// ==========================================
+// 🖱️ Right-click Context Menu
+// ==========================================
+(function setupGalleryContextMenu(){
+    let _ctxMenu = null;
+    function removeCtx(){ if(_ctxMenu){ _ctxMenu.remove(); _ctxMenu=null; } }
+    document.addEventListener('click', removeCtx);
+    document.addEventListener('contextmenu', (e) => {
+        removeCtx();
+        // หา card ที่ถูก right-click
+        const card = e.target.closest('.bg-slate-800');
+        if (!card) return;
+        const imgEl = card.querySelector('img');
+        const nameEl = card.querySelector('.text-white.font-bold.text-xs');
+        if (!imgEl) return;
+
+        e.preventDefault();
+        const url  = imgEl.src;
+        const name = nameEl ? nameEl.textContent.trim() : 'image';
+
+        const menu = document.createElement('div');
+        menu.className = '_gallery-ctx-menu';
+        menu.innerHTML = `
+            <div class="_gallery-ctx-item" id="_ctxCopy"><span class="material-icons">content_copy</span> คัดลอกรูป</div>
+            <div class="_gallery-ctx-item" id="_ctxDl"><span class="material-icons">download</span> ดาวน์โหลด</div>
+            <div class="_gallery-ctx-sep"></div>
+            <div class="_gallery-ctx-item" id="_ctxOpen"><span class="material-icons">open_in_new</span> เปิดในแท็บใหม่</div>
+            <div class="_gallery-ctx-item" id="_ctxUrl"><span class="material-icons">link</span> Copy URL</div>
+        `;
+
+        // วาง menu ให้ไม่เกินขอบหน้าจอ
+        const mx = Math.min(e.clientX, window.innerWidth - 200);
+        const my = Math.min(e.clientY, window.innerHeight - 180);
+        menu.style.left = mx + 'px';
+        menu.style.top  = my + 'px';
+        document.body.appendChild(menu);
+        _ctxMenu = menu;
+
+        menu.querySelector('#_ctxCopy').onclick = (ev) => { ev.stopPropagation(); removeCtx(); copyImageToClipboard(url); };
+        menu.querySelector('#_ctxDl').onclick   = (ev) => { ev.stopPropagation(); removeCtx(); downloadGalleryUrl(url, name); };
+        menu.querySelector('#_ctxOpen').onclick = (ev) => { ev.stopPropagation(); removeCtx(); window.open(url,'_blank'); };
+        menu.querySelector('#_ctxUrl').onclick  = (ev) => {
+            ev.stopPropagation(); removeCtx();
+            navigator.clipboard.writeText(url).then(() =>
+                Swal.fire({ icon:'success', title:'Copy URL แล้ว!', timer:1200, showConfirmButton:false, toast:true, position:'top-end' })
+            );
+        };
+    });
+})();
+
+// ==========================================
+// 💀 Skeleton loading สำหรับรูปที่ยังโหลดไม่เสร็จ
+// ==========================================
+(function setupGalleryImageSkeleton(){
+    const observer = new MutationObserver(() => {
+        document.querySelectorAll('#galleryGrid img:not([data-sk])').forEach(img => {
+            img.setAttribute('data-sk','1');
+            const wrap = img.parentElement;
+            if (!wrap) return;
+            // ใส่ skeleton พื้นหลังก่อนโหลด
+            img.style.opacity = '0';
+            img.style.transition = 'opacity 0.4s ease';
+            wrap.style.background = 'linear-gradient(90deg,#1e293b 25%,#273449 50%,#1e293b 75%)';
+            wrap.style.backgroundSize = '200% 100%';
+            wrap.style.animation = '_gSkeleton 1.5s ease-in-out infinite';
+            img.onload = () => {
+                img.style.opacity = '1';
+                wrap.style.background = '';
+                wrap.style.animation = '';
+            };
+        });
+    });
+    const grid = document.getElementById('galleryGrid');
+    if (grid) observer.observe(grid, { childList: true, subtree: true });
+})();
