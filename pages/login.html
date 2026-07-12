@@ -8,6 +8,7 @@
 @keyframes line-move{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 @keyframes fade-in{from{opacity:0}to{opacity:1}}
 @keyframes grid-fade{0%,100%{opacity:0.03}50%{opacity:0.07}}
+@keyframes drift-up{0%{transform:translateY(0);opacity:0}10%{opacity:0.6}90%{opacity:0.3}100%{transform:translateY(-100vh);opacity:0}}
 
 #loginScreen{background:#080c14;overflow:hidden}
 
@@ -23,8 +24,22 @@
     <!-- Base gradient -->
     <div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(135deg,#060a12 0%,#0a0f1e 40%,#080c18 70%,#060810 100%)"></div>
 
-    <!-- Subtle grid -->
-    <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);background-size:60px 60px;animation:grid-fade 8s ease-in-out infinite"></div>
+    <!-- Grid -->
+    <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:60px 60px"></div>
+
+    <!-- Floating geometric shapes -->
+    <div class="absolute pointer-events-none" style="width:300px;height:300px;top:-80px;left:-80px;border:1px solid rgba(220,0,0,0.08);border-radius:50%;animation:spin-slow 30s linear infinite"></div>
+    <div class="absolute pointer-events-none" style="width:200px;height:200px;top:-30px;left:-30px;border:1px solid rgba(220,0,0,0.05);border-radius:50%;animation:spin-rev 20s linear infinite"></div>
+    <div class="absolute pointer-events-none" style="width:400px;height:400px;bottom:-150px;right:-150px;border:1px solid rgba(60,100,255,0.07);border-radius:50%;animation:spin-slow 40s linear infinite reverse"></div>
+    <div class="absolute pointer-events-none" style="width:250px;height:250px;bottom:-80px;right:-80px;border:1px solid rgba(60,100,255,0.05);border-radius:50%;animation:spin-rev 25s linear infinite"></div>
+
+    <!-- Dot particles -->
+    <div id="dotParticles" class="absolute inset-0 pointer-events-none"></div>
+
+    <!-- Red accent blob top-left -->
+    <div class="absolute pointer-events-none" style="width:600px;height:400px;top:-200px;left:-200px;background:radial-gradient(ellipse,rgba(180,0,0,0.07),transparent 65%);filter:blur(40px)"></div>
+    <!-- Blue accent blob bottom-right -->
+    <div class="absolute pointer-events-none" style="width:500px;height:400px;bottom:-200px;right:-200px;background:radial-gradient(ellipse,rgba(30,60,200,0.07),transparent 65%);filter:blur(40px)"></div>
 
     <!-- Corner gradient overlays (hide grid edges) -->
     <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 60% 60% at 0% 0%,rgba(6,9,18,0.95),transparent),radial-gradient(ellipse 60% 60% at 100% 100%,rgba(6,9,18,0.95),transparent),radial-gradient(ellipse 50% 50% at 100% 0%,rgba(6,9,18,0.9),transparent),radial-gradient(ellipse 50% 50% at 0% 100%,rgba(6,9,18,0.9),transparent)"></div>
@@ -133,12 +148,12 @@
                             <div style="height:1px;flex:1;background:linear-gradient(90deg,rgba(255,255,255,0.06),transparent)"></div>
                         </div>
                         <div id="pinInputs" class="flex justify-center gap-2" onpaste="handlePinPaste(event)">
-                            <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
-                            <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
-                            <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
-                            <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
-                            <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
-                            <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
                         </div>
                         <p style="font-size:10px;color:rgba(255,255,255,0.14);text-align:center;margin-top:12px;letter-spacing:0.04em">* พิมพ์ครบ 6 หลัก ระบบจะเข้าสู่หน้าหลักอัตโนมัติ</p>
                     </div>
@@ -164,6 +179,18 @@
 </div>
 
 <script>
+// Floating dots
+(function(){
+    const c = document.getElementById('dotParticles');
+    if(!c) return;
+    for(let i=0;i<25;i++){
+        const d = document.createElement('div');
+        const size = Math.random()*2+1;
+        d.style.cssText = `position:absolute;border-radius:50%;width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:rgba(${Math.random()<0.5?'220,0,0':'60,100,220'},${Math.random()*0.3+0.1});animation:drift-up ${8+Math.random()*12}s linear ${Math.random()*8}s infinite`;
+        c.appendChild(d);
+    }
+})();
+
 document.getElementById('rememberMe')?.addEventListener('change',function(){
     const icon=document.getElementById('checkIcon'),box=document.getElementById('rememberBox');
     if(this.checked){icon.style.opacity='1';box.style.background='rgba(200,0,0,0.45)';box.style.borderColor='rgba(220,0,0,0.6)'}
