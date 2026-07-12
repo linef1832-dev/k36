@@ -1,21 +1,26 @@
 <div id="loginScreen" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-4 transition-all duration-300">
     <div class="relative w-full max-w-md transform transition-all duration-500 ease-out" id="loginModalContainer">
         
-        <div class="absolute -inset-0.5 bg-gradient-to-b from-blue-500/40 to-indigo-600/10 rounded-[2rem] blur-2xl opacity-80 animate-pulse"></div>
+        <div class="absolute -inset-0.5 bg-gradient-to-b from-red-700/30 to-slate-900/10 rounded-[2rem] blur-2xl opacity-80 animate-pulse"></div>
         
         <div class="relative bg-[#0b1120]/95 border border-slate-700/50 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 md:p-10 backdrop-blur-xl">
             
             <div class="text-center mb-8 relative">
                 <div class="relative inline-flex items-center justify-center w-24 h-24 mb-2 group">
-                    <div class="absolute inset-0 bg-blue-500/30 rounded-full blur-[25px] group-hover:bg-blue-400/50 transition duration-700 pointer-events-none"></div>
+                    <div class="absolute inset-0 bg-red-600/20 rounded-full blur-[25px] group-hover:bg-red-500/30 transition duration-700 pointer-events-none"></div>
                     <div class="relative w-16 h-16 bg-gradient-to-b from-slate-700 to-[#0b1120] rounded-2xl border border-blue-400/40 flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)]">
                         <span class="material-icons text-[40px] text-blue-300 drop-shadow-[0_0_12px_rgba(147,197,253,0.9)]">enhanced_encryption</span>
                     </div>
                 </div>
                 
-                <h2 class="text-4xl font-black tracking-widest flex items-center justify-center gap-2.5 mb-2 relative z-10">
-                    <span class="text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)]">OK</span>
-                    <span class="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.7)]">VIP</span>
+                <h2 class="text-4xl font-black tracking-widest flex items-center justify-center gap-2 mb-2 relative z-10">
+                    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 0 8px rgba(220,0,0,0.7))">
+                        <rect width="36" height="36" rx="8" fill="#111"/>
+                        <polygon points="7,9 12,4 21,18 12,32 7,27 15,18" fill="#cc0000"/>
+                        <polygon points="15,18 21,18 23,23 18,28 12,28" fill="#ff4444" opacity="0.85"/>
+                    </svg>
+                    <span class="text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]">PG</span>
+                    <span class="text-red-500 drop-shadow-[0_0_16px_rgba(220,0,0,1)]">SG</span>
                 </h2>
                 
                 <p class="text-slate-400 text-sm font-medium">กรุณายืนยันตัวตนเพื่อเข้าใช้งาน</p>
