@@ -42,6 +42,16 @@
 .login-input:focus{border-color:rgba(220,0,0,0.5);background:rgba(220,0,0,0.04);box-shadow:0 0 0 3px rgba(220,0,0,0.1)}
 
 .shake{animation:shake 0.5s ease}
+@keyframes holo-scan{0%{top:-100%}100%{top:200%}}
+@keyframes holo-glow{0%,100%{opacity:0}20%,80%{opacity:1}}
+
+/* 3D tilt card */
+#loginCard{transform-style:preserve-3d;will-change:transform;transition:transform 0.08s ease}
+#loginCard .card-shine{
+    position:absolute;inset:0;border-radius:1.5rem;pointer-events:none;
+    background:radial-gradient(circle at 50% 50%,rgba(255,255,255,0),rgba(255,255,255,0));
+    transition:background 0.1s ease;z-index:30;mix-blend-mode:overlay
+}
 
 /* Glitch logo */
 .glitch-wrap{position:relative;display:inline-block}
@@ -107,8 +117,17 @@
         <!-- Border gradient -->
         <div class="absolute pointer-events-none" style="inset:-1px;border-radius:1.6rem;background:linear-gradient(145deg,rgba(220,0,0,0.3),rgba(255,255,255,0.05),rgba(40,70,200,0.15),rgba(220,0,0,0.25))"></div>
 
+        <!-- Shine layer (3D tilt) -->
+        <div class="card-shine" id="cardShine"></div>
+
         <!-- Card body -->
         <div class="relative rounded-[1.5rem] overflow-hidden" style="background:linear-gradient(160deg,rgba(9,13,24,0.99),rgba(6,9,18,1));box-shadow:0 32px 80px rgba(0,0,0,0.75),inset 0 1px 0 rgba(255,255,255,0.05)">
+
+            <!-- Hologram scan line -->
+            <div id="holoScan" style="position:absolute;left:0;right:0;height:2px;pointer-events:none;z-index:25;top:-100%;animation:holo-scan 4s ease-in-out infinite 2s,holo-glow 4s ease-in-out infinite 2s">
+                <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,220,255,0.8),rgba(255,255,255,0.9),rgba(0,220,255,0.8),transparent)"></div>
+                <div style="height:40px;background:linear-gradient(180deg,rgba(0,200,255,0.08),transparent);margin-top:0"></div>
+            </div>
 
             <!-- Shimmer line top -->
             <div style="position:absolute;top:0;left:0;right:0;height:2px;overflow:hidden">
@@ -313,5 +332,465 @@ window.pinSuccessAnim = function(){
     document.querySelectorAll('.pin-box').forEach(p=>{
         p.classList.add('success');
     });
+
+// ========== 3D Tilt Card ==========
+(function(){
+    const card = document.getElementById('loginCard');
+    const shine = document.getElementById('cardShine');
+    if(!card) return;
+    const MAX_TILT = 10;
+    let cx=0,cy=0,raf=null;
+
+    document.addEventListener('mousemove', e=>{
+        const rect = card.getBoundingClientRect();
+        const cx_card = rect.left + rect.width/2;
+        const cy_card = rect.top + rect.height/2;
+        const dx = (e.clientX - cx_card) / (window.innerWidth/2);
+        const dy = (e.clientY - cy_card) / (window.innerHeight/2);
+        cx = dx; cy = dy;
+
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=>{
+            const rx = -dy * MAX_TILT;
+            const ry = dx * MAX_TILT;
+            const dist = Math.sqrt(dx*dx+dy*dy);
+            card.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.02,1.02,1.02)`;
+            // shine highlight
+            const sx = ((e.clientX-rect.left)/rect.width)*100;
+            const sy = ((e.clientY-rect.top)/rect.height)*100;
+            if(shine) shine.style.background = `radial-gradient(circle at ${sx}% ${sy}%,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.03) 40%,transparent 70%)`;
+        });
+    });
+
+    document.addEventListener('mouseleave', ()=>{
+        cancelAnimationFrame(raf);
+        card.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale3d(1,1,1)';
+        if(shine) shine.style.background = 'radial-gradient(circle at 50% 50%,rgba(255,255,255,0),rgba(255,255,255,0))';
+    });
+})();
+
+// ========== PIN Sound Effect ==========
+(function(){
+    let audioCtx = null;
+    function getCtx(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+    function beep(freq=880, dur=0.06, vol=0.12, type='sine'){
+        try{
+            const ctx=getCtx();
+            const osc=ctx.createOscillator();
+            const gain=ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type=type; osc.frequency.value=freq;
+            gain.gain.setValueAtTime(vol,ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+            osc.start(ctx.currentTime); osc.stop(ctx.currentTime+dur);
+        }catch(e){}
+    }
+    // เสียงกด PIN
+    document.querySelectorAll('.pin-box').forEach((inp,i)=>{
+        inp.addEventListener('input',()=>{ if(inp.value) beep(600+i*40,0.05,0.1,'sine'); });
+        inp.addEventListener('keydown',e=>{ if(e.key==='Backspace') beep(300,0.04,0.08,'sine'); });
+    });
+    // expose สำหรับ auth.js
+    window._loginBeepError = ()=>{ beep(200,0.3,0.15,'sawtooth'); };
+    window._loginBeepSuccess = ()=>{
+        [600,800,1000].forEach((f,i)=>setTimeout(()=>beep(f,0.12,0.12,'sine'),i*80));
+    };
+})();
+</script@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes spin-slow{to{transform:rotate(360deg)}}
+@keyframes spin-rev{to{transform:rotate(-360deg)}}
+@keyframes pulse-ring{0%{transform:scale(0.9);opacity:0.6}100%{transform:scale(1.5);opacity:0}}
+@keyframes slide-up{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
+@keyframes line-move{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-8px)}30%{transform:translateX(8px)}45%{transform:translateX(-6px)}60%{transform:translateX(6px)}75%{transform:translateX(-3px)}90%{transform:translateX(3px)}}
+@keyframes glitch1{0%,100%{clip-path:inset(0 0 95% 0);transform:translate(-2px,0)}25%{clip-path:inset(30% 0 50% 0);transform:translate(2px,0)}50%{clip-path:inset(60% 0 20% 0);transform:translate(-1px,0)}75%{clip-path:inset(80% 0 5% 0);transform:translate(1px,0)}}
+@keyframes glitch2{0%,100%{clip-path:inset(50% 0 30% 0);transform:translate(2px,0)}25%{clip-path:inset(10% 0 80% 0);transform:translate(-2px,0)}50%{clip-path:inset(70% 0 10% 0);transform:translate(1px,0)}75%{clip-path:inset(20% 0 60% 0);transform:translate(-1px,0)}}
+@keyframes pin-success{0%{transform:scale(1)}30%{transform:scale(1.08)}60%{transform:scale(0.97)}100%{transform:scale(1)}}
+@keyframes counter-tick{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+#loginScreen{background:#060810;overflow:hidden}
+
+/* Particle canvas */
+#particleCanvas{position:absolute;inset:0;pointer-events:none}
+
+.pin-epic{
+    width:50px;height:58px;
+    background:rgba(255,255,255,0.03);
+    border:1.5px solid rgba(255,255,255,0.08);
+    border-radius:12px;color:#fff;font-size:26px;font-weight:900;
+    text-align:center;outline:none;transition:all 0.18s;caret-color:transparent;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),0 2px 8px rgba(0,0,0,0.3)
+}
+.pin-epic:focus{
+    border-color:rgba(220,0,0,0.85);background:rgba(220,0,0,0.07);
+    box-shadow:0 0 0 3px rgba(220,0,0,0.18),0 0 18px rgba(220,0,0,0.25);
+    transform:translateY(-2px) scale(1.07)
+}
+.pin-epic.filled{border-color:rgba(220,0,0,0.4);background:rgba(220,0,0,0.05)}
+.pin-epic.success{border-color:rgba(34,197,94,0.7)!important;background:rgba(34,197,94,0.08)!important;box-shadow:0 0 0 3px rgba(34,197,94,0.2)!important;animation:pin-success 0.4s ease}
+
+.login-input{
+    width:100%;padding:14px 14px 14px 46px;
+    background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
+    border-radius:12px;color:#fff;font-weight:600;font-size:14px;outline:none;transition:all 0.25s
+}
+.login-input::placeholder{color:rgba(255,255,255,0.2)}
+.login-input:focus{border-color:rgba(220,0,0,0.5);background:rgba(220,0,0,0.04);box-shadow:0 0 0 3px rgba(220,0,0,0.1)}
+
+.shake{animation:shake 0.5s ease}
+@keyframes holo-scan{0%{top:-100%}100%{top:200%}}
+@keyframes holo-glow{0%,100%{opacity:0}20%,80%{opacity:1}}
+
+/* 3D tilt card */
+#loginCard{transform-style:preserve-3d;will-change:transform;transition:transform 0.08s ease}
+#loginCard .card-shine{
+    position:absolute;inset:0;border-radius:1.5rem;pointer-events:none;
+    background:radial-gradient(circle at 50% 50%,rgba(255,255,255,0),rgba(255,255,255,0));
+    transition:background 0.1s ease;z-index:30;mix-blend-mode:overlay
+}
+
+/* Glitch logo */
+.glitch-wrap{position:relative;display:inline-block}
+.glitch-wrap .g1,.glitch-wrap .g2{position:absolute;top:0;left:0;width:100%;opacity:0}
+.glitch-wrap.glitching .g1{animation:glitch1 0.3s steps(1) forwards;opacity:0.8;color:#ff0000}
+.glitch-wrap.glitching .g2{animation:glitch2 0.3s steps(1) 0.05s forwards;opacity:0.6;color:#0044ff}
+</style>
+
+<div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+
+    <!-- Particle network canvas -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- Dark base -->
+    <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 100% 80% at 50% 0%,#0a0d1a,#060810 60%)"></div>
+
+    <!-- Grid -->
+    <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);background-size:60px 60px"></div>
+
+    <!-- Red top-left glow -->
+    <div class="absolute pointer-events-none" style="width:700px;height:500px;top:-300px;left:-300px;background:radial-gradient(ellipse,rgba(180,0,0,0.07),transparent 65%);filter:blur(30px)"></div>
+    <!-- Blue bottom-right glow -->
+    <div class="absolute pointer-events-none" style="width:700px;height:600px;bottom:-300px;right:-300px;background:radial-gradient(ellipse,rgba(20,50,200,0.07),transparent 65%);filter:blur(30px)"></div>
+
+    <!-- Corner brackets -->
+    <div class="absolute top-6 left-6 pointer-events-none">
+        <div style="width:48px;height:1.5px;background:linear-gradient(90deg,rgba(220,0,0,0.7),transparent)"></div>
+        <div style="width:1.5px;height:48px;background:linear-gradient(180deg,rgba(220,0,0,0.7),transparent);margin-top:-1.5px"></div>
+    </div>
+    <div class="absolute top-6 right-6 pointer-events-none" style="display:flex;flex-direction:column;align-items:flex-end">
+        <div style="width:48px;height:1.5px;background:linear-gradient(270deg,rgba(220,0,0,0.7),transparent)"></div>
+        <div style="width:1.5px;height:48px;background:linear-gradient(180deg,rgba(220,0,0,0.7),transparent)"></div>
+    </div>
+    <div class="absolute bottom-6 left-6 pointer-events-none">
+        <div style="width:1.5px;height:48px;background:linear-gradient(0deg,rgba(220,0,0,0.5),transparent)"></div>
+        <div style="width:48px;height:1.5px;background:linear-gradient(90deg,rgba(220,0,0,0.5),transparent);margin-top:-1.5px"></div>
+    </div>
+    <div class="absolute bottom-6 right-6 pointer-events-none" style="display:flex;flex-direction:column;align-items:flex-end">
+        <div style="width:1.5px;height:48px;background:linear-gradient(0deg,rgba(220,0,0,0.5),transparent)"></div>
+        <div style="width:48px;height:1.5px;background:linear-gradient(270deg,rgba(220,0,0,0.5),transparent);margin-top:-1.5px"></div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="absolute bottom-5 left-0 right-0 flex items-center justify-center gap-5 pointer-events-none" style="animation:fade-in 1.2s ease 0.6s both">
+        <div class="flex items-center gap-1.5">
+            <div style="width:5px;height:5px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.9)"></div>
+            <span style="font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,0.18);font-weight:700">SYSTEM ONLINE</span>
+        </div>
+        <div style="width:1px;height:10px;background:rgba(255,255,255,0.08)"></div>
+        <div class="flex items-center gap-1.5">
+            <span class="material-icons" style="font-size:10px;color:rgba(255,255,255,0.18)">lock</span>
+            <span style="font-size:9.5px;letter-spacing:0.18em;color:rgba(255,255,255,0.18);font-weight:700">SSL ENCRYPTED</span>
+        </div>
+        <div style="width:1px;height:10px;background:rgba(255,255,255,0.08)"></div>
+        <span style="font-size:9.5px;letter-spacing:0.12em;color:rgba(255,255,255,0.12);font-weight:600">v2.6.0</span>
+    </div>
+
+    <!-- CARD -->
+    <div class="relative w-full max-w-sm" id="loginCard" style="animation:slide-up 0.65s cubic-bezier(0.16,1,0.3,1);z-index:20">
+
+        <!-- Glow aura -->
+        <div class="absolute pointer-events-none" style="inset:-16px;border-radius:2rem;background:radial-gradient(ellipse,rgba(220,0,0,0.07),transparent 70%);filter:blur(20px)"></div>
+        <!-- Border gradient -->
+        <div class="absolute pointer-events-none" style="inset:-1px;border-radius:1.6rem;background:linear-gradient(145deg,rgba(220,0,0,0.3),rgba(255,255,255,0.05),rgba(40,70,200,0.15),rgba(220,0,0,0.25))"></div>
+
+        <!-- Shine layer (3D tilt) -->
+        <div class="card-shine" id="cardShine"></div>
+
+        <!-- Card body -->
+        <div class="relative rounded-[1.5rem] overflow-hidden" style="background:linear-gradient(160deg,rgba(9,13,24,0.99),rgba(6,9,18,1));box-shadow:0 32px 80px rgba(0,0,0,0.75),inset 0 1px 0 rgba(255,255,255,0.05)">
+
+            <!-- Hologram scan line -->
+            <div id="holoScan" style="position:absolute;left:0;right:0;height:2px;pointer-events:none;z-index:25;top:-100%;animation:holo-scan 4s ease-in-out infinite 2s,holo-glow 4s ease-in-out infinite 2s">
+                <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,220,255,0.8),rgba(255,255,255,0.9),rgba(0,220,255,0.8),transparent)"></div>
+                <div style="height:40px;background:linear-gradient(180deg,rgba(0,200,255,0.08),transparent);margin-top:0"></div>
+            </div>
+
+            <!-- Shimmer line top -->
+            <div style="position:absolute;top:0;left:0;right:0;height:2px;overflow:hidden">
+                <div style="position:absolute;top:0;height:2px;width:35%;background:linear-gradient(90deg,transparent,rgba(220,0,0,0.9),transparent);animation:line-move 4.5s ease-in-out infinite"></div>
+            </div>
+
+            <div class="p-8">
+                <!-- Header -->
+                <div class="text-center mb-7" style="animation:slide-up 0.65s ease-out 0.1s both">
+
+                    <!-- Spinning rings -->
+                    <div class="relative inline-flex items-center justify-center mb-5" style="width:90px;height:90px">
+                        <div style="position:absolute;inset:0;border-radius:50%;border:1px solid rgba(220,0,0,0.08)"></div>
+                        <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid transparent;border-top-color:rgba(220,0,0,0.9);border-right-color:rgba(220,0,0,0.18);animation:spin-slow 3.8s linear infinite"></div>
+                        <div style="position:absolute;inset:4px;border-radius:50%;border:1px solid transparent;border-bottom-color:rgba(80,40,255,0.45);animation:spin-rev 2.8s linear infinite"></div>
+                        <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(220,0,0,0.18);animation:pulse-ring 2.5s ease-out infinite"></div>
+                        <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(220,0,0,0.1);animation:pulse-ring 2.5s ease-out 0.8s infinite"></div>
+                        <div style="position:relative;width:54px;height:54px;border-radius:14px;background:linear-gradient(145deg,#160206,#05000e);border:1px solid rgba(220,0,0,0.32);box-shadow:0 0 28px rgba(220,0,0,0.28),inset 0 1px 0 rgba(255,80,80,0.07);animation:float 4s ease-in-out infinite;display:flex;align-items:center;justify-content:center">
+                            <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
+                                <polygon points="6,9 12,3 22,18 12,33 6,27 15,18" fill="#dd0000"/>
+                                <polygon points="15,18 22,18 25,23 19,30 12,30" fill="#ff4444" opacity="0.85"/>
+                                <polygon points="6,9 12,3 14,8 9,12" fill="#ff3333" opacity="0.4"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Brand with glitch -->
+                    <div class="font-black flex items-center justify-center gap-1 mb-2" style="font-size:36px;letter-spacing:0.12em">
+                        <span class="glitch-wrap" id="glitchPG">
+                            <span style="color:#f0f0f0;text-shadow:0 0 18px rgba(255,255,255,0.12)">PG</span>
+                            <span class="g1" style="color:#f0f0f0">PG</span>
+                            <span class="g2" style="color:#f0f0f0">PG</span>
+                        </span>
+                        <span class="glitch-wrap" id="glitchSG">
+                            <span style="color:#dd0000;text-shadow:0 0 18px rgba(220,0,0,0.95),0 0 35px rgba(220,0,0,0.45)">SG</span>
+                            <span class="g1" style="color:#dd0000">SG</span>
+                            <span class="g2" style="color:#dd0000">SG</span>
+                        </span>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px">
+                        <div style="height:1px;width:32px;background:linear-gradient(90deg,transparent,rgba(220,0,0,0.35))"></div>
+                        <span style="font-size:8px;letter-spacing:0.5em;font-weight:800;color:rgba(140,50,255,0.5)">SECURE SYSTEM</span>
+                        <div style="height:1px;width:32px;background:linear-gradient(90deg,rgba(220,0,0,0.35),transparent)"></div>
+                    </div>
+                    <p style="color:rgba(255,255,255,0.22);font-size:12px;font-weight:500">กรุณายืนยันตัวตนเพื่อเข้าใช้งาน</p>
+                </div>
+
+                <!-- Form -->
+                <form id="loginForm" onsubmit="handleLogin(event)" style="animation:slide-up 0.65s ease-out 0.2s both" class="space-y-5">
+                    <div class="relative">
+                        <span class="material-icons absolute left-4 top-1/2 -translate-y-1/2" style="font-size:17px;color:rgba(200,0,0,0.55)">person</span>
+                        <input type="text" id="loginName" name="username" required placeholder="ชื่อพนักงาน" autocomplete="username" class="login-input">
+                    </div>
+
+                    <div>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                            <div style="height:1px;flex:1;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06))"></div>
+                            <span style="font-size:10px;font-weight:700;letter-spacing:0.2em;color:rgba(255,255,255,0.16)">รหัส PIN 6 หลัก</span>
+                            <div style="height:1px;flex:1;background:linear-gradient(90deg,rgba(255,255,255,0.06),transparent)"></div>
+                        </div>
+                        <div id="pinInputs" style="display:flex;justify-content:center;gap:8px" onpaste="handlePinPaste(event)">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                            <input type="password" maxlength="1" inputmode="numeric" class="pin-box pin-epic">
+                        </div>
+                        <p style="font-size:10px;color:rgba(255,255,255,0.13);text-align:center;margin-top:10px;letter-spacing:0.04em">* พิมพ์ครบ 6 หลัก ระบบจะเข้าสู่หน้าหลักอัตโนมัติ</p>
+                    </div>
+
+                    <label style="display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;color:rgba(255,255,255,0.22);font-size:13px;font-weight:600;user-select:none">
+                        <input type="checkbox" id="rememberMe" class="sr-only">
+                        <div id="rememberBox" style="width:18px;height:18px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);border:1.5px solid rgba(255,255,255,0.09);transition:all 0.2s">
+                            <span class="material-icons text-white" id="checkIcon" style="font-size:12px;opacity:0;transition:opacity 0.2s">check</span>
+                        </div>
+                        จำชื่อฉันไว้ในเครื่องนี้
+                    </label>
+
+                    <button type="submit" id="hiddenSubmitBtn" class="hidden">Submit</button>
+                </form>
+            </div>
+
+            <!-- Bottom line -->
+            <div style="position:absolute;bottom:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,rgba(220,0,0,0.2),rgba(80,60,200,0.18),transparent)"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ========== Particle Network ==========
+(function(){
+    const canvas = document.getElementById('particleCanvas');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W, H, particles=[], mouse={x:-999,y:-999};
+    const NUM=55, CONNECT_DIST=130, MOUSE_DIST=160;
+
+    function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight}
+    resize();
+    window.addEventListener('resize',resize);
+    document.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});
+
+    for(let i=0;i<NUM;i++) particles.push({
+        x:Math.random()*1920, y:Math.random()*1080,
+        vx:(Math.random()-.5)*.35, vy:(Math.random()-.5)*.35,
+        r:Math.random()*1.5+.8,
+        color:Math.random()<.6?'rgba(220,0,0,':'rgba(60,100,220,'
+    });
+
+    function draw(){
+        ctx.clearRect(0,0,W,H);
+        // update
+        particles.forEach(p=>{
+            p.x+=p.vx; p.y+=p.vy;
+            if(p.x<0||p.x>W) p.vx*=-1;
+            if(p.y<0||p.y>H) p.vy*=-1;
+        });
+        // connect
+        for(let i=0;i<particles.length;i++){
+            const a=particles[i];
+            // mouse influence
+            const mdx=mouse.x-a.x, mdy=mouse.y-a.y;
+            const md=Math.sqrt(mdx*mdx+mdy*mdy);
+            if(md<MOUSE_DIST){
+                const force=(MOUSE_DIST-md)/MOUSE_DIST*.6;
+                a.x-=mdx/md*force*.8;
+                a.y-=mdy/md*force*.8;
+            }
+            for(let j=i+1;j<particles.length;j++){
+                const b=particles[j];
+                const dx=a.x-b.x, dy=a.y-b.y;
+                const dist=Math.sqrt(dx*dx+dy*dy);
+                if(dist<CONNECT_DIST){
+                    const alpha=(1-dist/CONNECT_DIST)*.35;
+                    ctx.beginPath();
+                    ctx.moveTo(a.x,a.y);
+                    ctx.lineTo(b.x,b.y);
+                    ctx.strokeStyle=`rgba(180,40,40,${alpha})`;
+                    ctx.lineWidth=.6;
+                    ctx.stroke();
+                }
+            }
+            // dot
+            ctx.beginPath();
+            ctx.arc(a.x,a.y,a.r,0,Math.PI*2);
+            ctx.fillStyle=a.color+'0.5)';
+            ctx.fill();
+        }
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
+
+// ========== Glitch Effect ==========
+(function(){
+    const targets=['glitchPG','glitchSG'];
+    function doGlitch(){
+        const el=document.getElementById(targets[Math.random()<.5?0:1]);
+        if(!el) return;
+        el.classList.add('glitching');
+        setTimeout(()=>el.classList.remove('glitching'),320);
+    }
+    setInterval(doGlitch, 4000+Math.random()*3000);
+})();
+
+// ========== PIN visual fill ==========
+document.querySelectorAll('.pin-box').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+        if(inp.value) inp.classList.add('filled');
+        else inp.classList.remove('filled');
+    });
+});
+
+// ========== Remember me ==========
+document.getElementById('rememberMe')?.addEventListener('change',function(){
+    const icon=document.getElementById('checkIcon'),box=document.getElementById('rememberBox');
+    if(this.checked){icon.style.opacity='1';box.style.background='rgba(200,0,0,0.45)';box.style.borderColor='rgba(220,0,0,0.6)'}
+    else{icon.style.opacity='0';box.style.background='rgba(255,255,255,0.03)';box.style.borderColor='rgba(255,255,255,0.09)'}
+});
+
+// ========== Shake on error (intercept Swal) ==========
+const _origHandleLogin = window.handleLogin;
+window.shakeLoginCard = function(){
+    const card=document.getElementById('loginCard');
+    if(!card) return;
+    card.classList.remove('shake');
+    void card.offsetWidth;
+    card.classList.add('shake');
+    setTimeout(()=>card.classList.remove('shake'),500);
+    // flash PIN red
+    document.querySelectorAll('.pin-box').forEach(p=>{
+        p.style.borderColor='rgba(220,0,0,0.8)';
+        p.style.background='rgba(220,0,0,0.08)';
+        setTimeout(()=>{p.style.borderColor='';p.style.background=''},600);
+    });
 };
+
+// ========== PIN success glow ==========
+window.pinSuccessAnim = function(){
+    document.querySelectorAll('.pin-box').forEach(p=>{
+        p.classList.add('success');
+    });
+
+// ========== 3D Tilt Card ==========
+(function(){
+    const card = document.getElementById('loginCard');
+    const shine = document.getElementById('cardShine');
+    if(!card) return;
+    const MAX_TILT = 10;
+    let cx=0,cy=0,raf=null;
+
+    document.addEventListener('mousemove', e=>{
+        const rect = card.getBoundingClientRect();
+        const cx_card = rect.left + rect.width/2;
+        const cy_card = rect.top + rect.height/2;
+        const dx = (e.clientX - cx_card) / (window.innerWidth/2);
+        const dy = (e.clientY - cy_card) / (window.innerHeight/2);
+        cx = dx; cy = dy;
+
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=>{
+            const rx = -dy * MAX_TILT;
+            const ry = dx * MAX_TILT;
+            const dist = Math.sqrt(dx*dx+dy*dy);
+            card.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.02,1.02,1.02)`;
+            // shine highlight
+            const sx = ((e.clientX-rect.left)/rect.width)*100;
+            const sy = ((e.clientY-rect.top)/rect.height)*100;
+            if(shine) shine.style.background = `radial-gradient(circle at ${sx}% ${sy}%,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.03) 40%,transparent 70%)`;
+        });
+    });
+
+    document.addEventListener('mouseleave', ()=>{
+        cancelAnimationFrame(raf);
+        card.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale3d(1,1,1)';
+        if(shine) shine.style.background = 'radial-gradient(circle at 50% 50%,rgba(255,255,255,0),rgba(255,255,255,0))';
+    });
+})();
+
+// ========== PIN Sound Effect ==========
+(function(){
+    let audioCtx = null;
+    function getCtx(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+    function beep(freq=880, dur=0.06, vol=0.12, type='sine'){
+        try{
+            const ctx=getCtx();
+            const osc=ctx.createOscillator();
+            const gain=ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type=type; osc.frequency.value=freq;
+            gain.gain.setValueAtTime(vol,ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+            osc.start(ctx.currentTime); osc.stop(ctx.currentTime+dur);
+        }catch(e){}
+    }
+    // เสียงกด PIN
+    document.querySelectorAll('.pin-box').forEach((inp,i)=>{
+        inp.addEventListener('input',()=>{ if(inp.value) beep(600+i*40,0.05,0.1,'sine'); });
+        inp.addEventListener('keydown',e=>{ if(e.key==='Backspace') beep(300,0.04,0.08,'sine'); });
+    });
+    // expose สำหรับ auth.js
+    window._loginBeepError = ()=>{ beep(200,0.3,0.15,'sawtooth'); };
+    window._loginBeepSuccess = ()=>{
+        [600,800,1000].forEach((f,i)=>setTimeout(()=>beep(f,0.12,0.12,'sine'),i*80));
+    };
+})();
 </script>
