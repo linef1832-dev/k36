@@ -35,7 +35,7 @@ function _pwdPopulateUserDropdown(users) {
         .filter(u => u && u.username)
         .sort((a, b) => String(a.username).localeCompare(String(b.username)))
         .forEach(u => {
-            userSelect.innerHTML += `<option value="${u.id}">${u.username}</option>`;
+            userSelect.innerHTML += `<option value="${u.id}" style="background:#1e293b;color:#fff">${u.username}</option>`;
         });
     if (oldVal) userSelect.value = oldVal;
 }
