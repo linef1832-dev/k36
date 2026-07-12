@@ -44,12 +44,16 @@
 
             <div class="w-full md:w-[260px] bg-[#0b1727] rounded-xl shadow-2xl border border-[#1a273a] flex flex-col shrink-0 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar z-40">
                 <div class="p-5 border-b border-[#1a273a] text-center bg-[#020813] sticky top-0 z-10 overflow-hidden relative shrink-0">
-                    <div class="absolute inset-0 bg-yellow-500/10 blur-[30px] rounded-full pointer-events-none"></div>
+                    <div class="absolute inset-0 bg-red-900/20 blur-[30px] rounded-full pointer-events-none"></div>
                     <h2 class="font-black text-2xl tracking-[0.15em] flex items-center justify-center gap-2 relative z-10">
-                        <span class="material-icons text-yellow-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.8)] text-3xl">admin_panel_settings</span> 
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,1)]">OK</span>
-                            <span class="text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.9)]">VIP</span>
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" rx="6" fill="#111111"/>
+                            <polygon points="6,8 10,4 18,16 10,28 6,24 13,16" fill="#cc0000"/>
+                            <polygon points="13,16 18,16 20,20 16,24 10,24" fill="#ff3333" opacity="0.8"/>
+                        </svg>
+                        <div class="flex items-center gap-0.5">
+                            <span class="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">PG</span>
+                            <span class="text-red-500 drop-shadow-[0_0_12px_rgba(220,0,0,0.9)]">SG</span>
                         </div>
                     </h2>
                 </div>
