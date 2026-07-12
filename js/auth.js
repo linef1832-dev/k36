@@ -435,7 +435,28 @@ async function handleLogin(e) {
     if(!name) return Swal.fire('แจ้งเตือน', 'กรุณากรอกชื่อพนักงาน', 'warning');
     if(pinInput.length !== 6) return; 
 
-    Swal.fire({title: 'กำลังตรวจสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    Swal.fire({
+        html: `
+            <div style="padding:20px 10px">
+                <div style="position:relative;width:60px;height:60px;margin:0 auto 16px">
+                    <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(220,0,0,0.15)"></div>
+                    <div style="position:absolute;inset:0;border-radius:50%;border:3px solid transparent;border-top-color:#cc0000;animation:spin .8s linear infinite"></div>
+                    <div style="position:absolute;inset:8px;border-radius:50%;border:2px solid transparent;border-top-color:#ff6666;animation:spin .6s linear infinite reverse"></div>
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+                        <svg width="22" height="22" viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="8" fill="#111"/><polygon points="7,9 12,4 21,18 12,32 7,27 15,18" fill="#cc0000"/><polygon points="15,18 21,18 23,23 18,28 12,28" fill="#ff4444" opacity="0.85"/></svg>
+                    </div>
+                </div>
+                <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:4px">กำลังตรวจสอบ</div>
+                <div style="font-size:12px;color:#94a3b8">กรุณารอสักครู่...</div>
+            </div>
+            <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+        `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        background: '#0b1120',
+        backdrop: 'rgba(0,0,0,0.7)',
+        customClass: { popup: 'rounded-3xl border border-slate-700/50' }
+    });
 
     try {
         const { data: users, error } = await appDB.from('users').select('*').ilike('username', name);
