@@ -10,28 +10,13 @@ async function initPasswordApp() {
         document.getElementById('pwdManagerControls')?.classList.remove('hidden');
         document.getElementById('pwdStaffLabel')?.classList.add('hidden');
 
-        // [FIX] รอ GLOBAL_USER_LIST ให้มีข้อมูลก่อน — retry สูงสุด 20 ครั้ง (10 วิ)
-        if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
-            // ลอง fetchUsers โดยตรงก่อน
-            if (typeof fetchUsers === 'function') {
-                try { await fetchUsers(); } catch(e) {}
-            }
-            // ถ้ายังไม่มี ให้ poll รอ
-            if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
-                await new Promise(resolve => {
-                    let tries = 0;
-                    const t = setInterval(() => {
-                        tries++;
-                        if ((window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) || tries >= 20) {
-                            clearInterval(t);
-                            resolve();
-                        }
-                    }, 500);
-                });
-            }
+        // [FIX] ดึง user list จาก getUsersCached() โดยตรง
+        try {
+            const users = await window.getUsersCached();
+            _pwdPopulateUserDropdown(users);
+        } catch(e) {
+            _pwdPopulateUserDropdown([]);
         }
-
-        _pwdPopulateUserDropdown();
     } else {
         document.getElementById('pwdManagerControls')?.classList.add('hidden');
         document.getElementById('pwdStaffLabel')?.classList.remove('hidden');
@@ -39,13 +24,14 @@ async function initPasswordApp() {
     fetchPasswords();
 }
 
-// แยกฟังก์ชัน populate dropdown ออกมา — ใช้ซ้ำได้
-function _pwdPopulateUserDropdown() {
+// แยกฟังก์ชัน populate dropdown ออกมา — รับ users array โดยตรง
+function _pwdPopulateUserDropdown(users) {
     const userSelect = document.getElementById('pwdUserFilter');
-    if (!userSelect || !window.GLOBAL_USER_LIST) return;
+    if (!userSelect) return;
+    const list = users || window.GLOBAL_USER_LIST || [];
     const oldVal = userSelect.value;
     userSelect.innerHTML = `<option value="all">-- ดูทั้งหมด --</option>`;
-    window.GLOBAL_USER_LIST
+    list
         .filter(u => u && u.username)
         .sort((a, b) => String(a.username).localeCompare(String(b.username)))
         .forEach(u => {
