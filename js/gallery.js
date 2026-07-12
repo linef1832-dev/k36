@@ -500,15 +500,40 @@ window._renameLightboxImg = async function() {
     const img = _lbData[_lbIndex];
     if (!img) return;
     const { value: newName } = await Swal.fire({
-        title: 'แก้ชื่อรูป',
-        input: 'text',
-        inputValue: img.name || '',
-        inputPlaceholder: 'ชื่อรูปใหม่...',
+        html: `
+            <div style="padding:8px 4px 4px">
+                <div style="width:48px;height:48px;margin:0 auto 14px;background:rgba(251,191,36,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(251,191,36,0.3)">
+                    <span class="material-icons" style="color:#fbbf24;font-size:22px">edit</span>
+                </div>
+                <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:14px">แก้ชื่อรูป</div>
+                <input id="_renameInput" type="text" maxlength="100" placeholder="ชื่อรูปใหม่..."
+                    style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:14px;font-weight:600;outline:none;transition:border 0.2s"
+                    onfocus="this.style.borderColor='rgba(251,191,36,0.6)'"
+                    onblur="this.style.borderColor='rgba(255,255,255,0.12)'"
+                >
+            </div>
+        `,
+        background: '#0f172a',
+        backdrop: 'rgba(0,0,0,0.7)',
         showCancelButton: true,
         confirmButtonText: 'บันทึก',
         cancelButtonText: 'ยกเลิก',
-        background: '#1e293b', color: '#e2e8f0',
         confirmButtonColor: '#d97706',
+        cancelButtonColor: '#374151',
+        customClass: {
+            popup: 'rounded-2xl border border-amber-900/40',
+            confirmButton: 'rounded-xl font-bold px-5',
+            cancelButton: 'rounded-xl font-bold px-5'
+        },
+        didOpen: () => {
+            const inp = document.getElementById('_renameInput');
+            if (inp) { inp.value = (typeof img !== 'undefined' ? (img.name||'') : (currentName||'')); inp.focus(); inp.select(); }
+        },
+        preConfirm: () => {
+            const val = document.getElementById('_renameInput')?.value?.trim();
+            if (!val) { Swal.showValidationMessage('กรุณากรอกชื่อ'); return false; }
+            return val;
+        }
     });
     if (!newName || newName.trim() === img.name) return;
     try {
@@ -516,7 +541,17 @@ window._renameLightboxImg = async function() {
         if (error) throw error;
         img.name = newName.trim();
         document.getElementById('lightboxName').textContent = img.name;
-        Swal.fire({ icon: 'success', title: 'แก้ชื่อสำเร็จ!', timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
+        Swal.fire({
+            html: `<div style="display:flex;align-items:center;gap:10px;padding:4px 2px">
+                <div style="width:28px;height:28px;background:rgba(34,197,94,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <span style="font-size:13px;font-weight:700;color:#fff">แก้ชื่อสำเร็จ!</span>
+            </div>`,
+            background: '#0f172a', toast: true, position: 'top-end',
+            timer: 1500, showConfirmButton: false,
+            customClass: { popup: 'rounded-xl border border-green-900/50 shadow-xl' }
+        });
         fetchGalleryImages();
     } catch(e) {
         Swal.fire('Error', e.message, 'error');
@@ -582,16 +617,40 @@ window.renameGalleryImage = async function(imgId, currentName) {
     const isAdminG = (currentUser.role === 'manager' || currentUser.role === 'admin');
     if (!isAdminG) return;
     const { value: newName } = await Swal.fire({
-        title: 'แก้ชื่อรูป',
-        input: 'text',
-        inputValue: currentName || '',
-        inputPlaceholder: 'ชื่อรูปใหม่...',
+        html: `
+            <div style="padding:8px 4px 4px">
+                <div style="width:48px;height:48px;margin:0 auto 14px;background:rgba(251,191,36,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(251,191,36,0.3)">
+                    <span class="material-icons" style="color:#fbbf24;font-size:22px">edit</span>
+                </div>
+                <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:14px">แก้ชื่อรูป</div>
+                <input id="_renameInput" type="text" maxlength="100" placeholder="ชื่อรูปใหม่..."
+                    style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:14px;font-weight:600;outline:none;transition:border 0.2s"
+                    onfocus="this.style.borderColor='rgba(251,191,36,0.6)'"
+                    onblur="this.style.borderColor='rgba(255,255,255,0.12)'"
+                >
+            </div>
+        `,
+        background: '#0f172a',
+        backdrop: 'rgba(0,0,0,0.7)',
         showCancelButton: true,
         confirmButtonText: 'บันทึก',
         cancelButtonText: 'ยกเลิก',
-        background: '#1e293b', color: '#e2e8f0',
         confirmButtonColor: '#d97706',
-        inputAttributes: { maxlength: 100 }
+        cancelButtonColor: '#374151',
+        customClass: {
+            popup: 'rounded-2xl border border-amber-900/40',
+            confirmButton: 'rounded-xl font-bold px-5',
+            cancelButton: 'rounded-xl font-bold px-5'
+        },
+        didOpen: () => {
+            const inp = document.getElementById('_renameInput');
+            if (inp) { inp.value = (typeof img !== 'undefined' ? (img.name||'') : (currentName||'')); inp.focus(); inp.select(); }
+        },
+        preConfirm: () => {
+            const val = document.getElementById('_renameInput')?.value?.trim();
+            if (!val) { Swal.showValidationMessage('กรุณากรอกชื่อ'); return false; }
+            return val;
+        }
     });
     if (!newName || newName.trim() === currentName) return;
     try {
@@ -599,7 +658,17 @@ window.renameGalleryImage = async function(imgId, currentName) {
         if (error) throw error;
         const idx = currentGalleryData.findIndex(d => String(d.id) === String(imgId));
         if (idx !== -1) currentGalleryData[idx].name = newName.trim();
-        Swal.fire({ icon: 'success', title: 'แก้ชื่อสำเร็จ!', timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
+        Swal.fire({
+            html: `<div style="display:flex;align-items:center;gap:10px;padding:4px 2px">
+                <div style="width:28px;height:28px;background:rgba(34,197,94,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <span style="font-size:13px;font-weight:700;color:#fff">แก้ชื่อสำเร็จ!</span>
+            </div>`,
+            background: '#0f172a', toast: true, position: 'top-end',
+            timer: 1500, showConfirmButton: false,
+            customClass: { popup: 'rounded-xl border border-green-900/50 shadow-xl' }
+        });
         fetchGalleryImages();
     } catch(e) {
         Swal.fire('Error', e.message, 'error');
