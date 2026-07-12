@@ -1,62 +1,216 @@
-<div id="loginScreen" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-4 transition-all duration-300">
-    <div class="relative w-full max-w-md transform transition-all duration-500 ease-out" id="loginModalContainer">
-        
-        <div class="absolute -inset-0.5 bg-gradient-to-b from-red-700/30 to-slate-900/10 rounded-[2rem] blur-2xl opacity-80 animate-pulse"></div>
-        
-        <div class="relative bg-[#0b1120]/95 border border-slate-700/50 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 md:p-10 backdrop-blur-xl">
-            
-            <div class="text-center mb-8 relative">
-                <div class="relative inline-flex items-center justify-center w-24 h-24 mb-2 group">
-                    <div class="absolute inset-0 bg-red-600/20 rounded-full blur-[25px] group-hover:bg-red-500/30 transition duration-700 pointer-events-none"></div>
-                    <div class="relative w-16 h-16 bg-gradient-to-b from-slate-700 to-[#0b1120] rounded-2xl border border-blue-400/40 flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)]">
-                        <span class="material-icons text-[40px] text-blue-300 drop-shadow-[0_0_12px_rgba(147,197,253,0.9)]">enhanced_encryption</span>
+<style>
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+@keyframes spin-slow { to{transform:rotate(360deg)} }
+@keyframes spin-rev { to{transform:rotate(-360deg)} }
+@keyframes pulse-ring { 0%{transform:scale(0.9);opacity:0.6} 100%{transform:scale(1.4);opacity:0} }
+@keyframes glow-pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+@keyframes slide-up { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+@keyframes twinkle { 0%,100%{opacity:0.2;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
+@keyframes nebula-drift { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(20px,-15px) scale(1.05)} 66%{transform:translate(-15px,10px) scale(0.97)} }
+@keyframes meteor { 0%{transform:translateX(0) translateY(0);opacity:1} 100%{transform:translateX(-400px) translateY(400px);opacity:0} }
+@keyframes orbit { from{transform:rotate(0deg) translateX(38px) rotate(0deg)} to{transform:rotate(360deg) translateX(38px) rotate(-360deg)} }
+
+#loginScreen { background:#000510; overflow:hidden; }
+
+/* stars */
+.star { position:absolute; border-radius:50%; background:#fff; animation:twinkle ease-in-out infinite; }
+
+/* nebula layers */
+.nebula { position:absolute; border-radius:50%; filter:blur(60px); pointer-events:none; animation:nebula-drift ease-in-out infinite; }
+
+/* meteor */
+.meteor { position:absolute; height:1.5px; background:linear-gradient(90deg,rgba(255,255,255,0),#fff,rgba(255,255,255,0)); border-radius:99px; animation:meteor linear infinite; pointer-events:none; }
+
+/* planet */
+.planet { position:absolute; border-radius:50%; pointer-events:none; }
+
+.pin-epic {
+    width:52px; height:60px; background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1);
+    border-radius:14px; color:#fff; font-size:28px; font-weight:900; text-align:center;
+    outline:none; transition:all 0.2s; caret-color:transparent;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 4px 12px rgba(0,0,0,0.4);
+}
+.pin-epic:focus {
+    border-color:rgba(220,0,0,0.8); background:rgba(220,0,0,0.08);
+    box-shadow:0 0 0 3px rgba(220,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.06),0 4px 20px rgba(220,0,0,0.3);
+    transform:translateY(-2px) scale(1.05);
+}
+.login-input-epic {
+    width:100%; padding:14px 14px 14px 48px;
+    background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.08);
+    border-radius:16px; color:#fff; font-weight:700; font-size:15px; outline:none; transition:all 0.25s;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.login-input-epic::placeholder { color:rgba(255,255,255,0.25); }
+.login-input-epic:focus {
+    border-color:rgba(220,0,0,0.6); background:rgba(220,0,0,0.06);
+    box-shadow:0 0 0 3px rgba(220,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.05);
+}
+</style>
+
+<div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+
+    <!-- ===== SPACE BACKGROUND ===== -->
+
+    <!-- Deep space gradient -->
+    <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse at 30% 40%,#0a0a2e 0%,#000510 50%,#000000 100%)"></div>
+
+    <!-- Nebula clouds -->
+    <div class="nebula" style="width:500px;height:500px;top:-100px;left:-100px;background:radial-gradient(circle,rgba(80,0,120,0.25),transparent 70%);animation-duration:18s"></div>
+    <div class="nebula" style="width:600px;height:400px;bottom:-150px;right:-150px;background:radial-gradient(circle,rgba(0,40,120,0.2),transparent 70%);animation-duration:22s;animation-delay:-5s"></div>
+    <div class="nebula" style="width:400px;height:400px;top:30%;left:30%;background:radial-gradient(circle,rgba(120,0,60,0.12),transparent 70%);animation-duration:15s;animation-delay:-8s"></div>
+    <div class="nebula" style="width:300px;height:300px;top:10%;right:20%;background:radial-gradient(circle,rgba(0,80,160,0.15),transparent 70%);animation-duration:20s;animation-delay:-3s"></div>
+
+    <!-- Stars layer 1 (small dim) -->
+    <div id="starsContainer" class="absolute inset-0 pointer-events-none"></div>
+
+    <!-- Milky way band -->
+    <div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(105deg,transparent 20%,rgba(180,180,255,0.025) 40%,rgba(200,200,255,0.04) 50%,rgba(180,180,255,0.025) 60%,transparent 80%);filter:blur(2px)"></div>
+
+    <!-- Planet 1 — big blue/purple -->
+    <div class="planet" style="width:180px;height:180px;top:-60px;right:-40px;background:radial-gradient(circle at 35% 35%,#1a3080,#0a0a40 60%,#000020);box-shadow:0 0 40px rgba(30,60,180,0.3),inset -20px -20px 40px rgba(0,0,0,0.6)">
+        <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,rgba(100,150,255,0.15) 0%,transparent 50%);border-top:1px solid rgba(100,150,255,0.2)"></div>
+        <!-- ring -->
+        <div style="position:absolute;top:50%;left:-30px;right:-30px;height:16px;margin-top:-8px;border-radius:50%;border:3px solid rgba(100,150,255,0.15);transform:rotateX(70deg);pointer-events:none"></div>
+    </div>
+
+    <!-- Planet 2 — small red -->
+    <div class="planet" style="width:60px;height:60px;bottom:80px;left:60px;background:radial-gradient(circle at 35% 30%,#8b1a00,#3d0800 60%,#1a0400);box-shadow:0 0 20px rgba(180,40,0,0.4),inset -8px -8px 20px rgba(0,0,0,0.5)">
+        <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,rgba(255,100,50,0.2) 0%,transparent 50%)"></div>
+    </div>
+
+    <!-- Planet 3 — tiny teal far away -->
+    <div class="planet" style="width:28px;height:28px;top:20%;left:10%;background:radial-gradient(circle at 35% 30%,#004040,#001515);box-shadow:0 0 12px rgba(0,150,150,0.3);opacity:0.7"></div>
+
+    <!-- Orbiting moon around planet 1 -->
+    <div style="position:absolute;top:-60px;right:-40px;width:180px;height:180px;pointer-events:none">
+        <div style="position:absolute;top:50%;left:50%;width:8px;height:8px;margin:-4px;border-radius:50%;background:#c8d8ff;box-shadow:0 0 6px rgba(200,216,255,0.8);animation:orbit 8s linear infinite"></div>
+    </div>
+
+    <!-- Meteors -->
+    <div class="meteor" style="width:120px;top:15%;right:10%;animation-duration:6s;animation-delay:0s;opacity:0.6"></div>
+    <div class="meteor" style="width:80px;top:35%;right:30%;animation-duration:9s;animation-delay:3s;opacity:0.4"></div>
+    <div class="meteor" style="width:150px;top:60%;right:5%;animation-duration:7s;animation-delay:5s;opacity:0.5"></div>
+    <div class="meteor" style="width:60px;top:5%;right:50%;animation-duration:11s;animation-delay:2s;opacity:0.3"></div>
+
+    <!-- ===== LOGIN CARD ===== -->
+    <div class="relative w-full max-w-sm" style="animation:slide-up 0.7s ease-out;z-index:10">
+
+        <!-- Card glow -->
+        <div class="absolute -inset-1 rounded-[2.5rem] pointer-events-none" style="background:linear-gradient(135deg,rgba(220,0,0,0.35),rgba(60,0,100,0.2),rgba(220,0,0,0.25));filter:blur(14px);animation:glow-pulse 3s ease-in-out infinite"></div>
+        <div class="absolute -inset-px rounded-[2.5rem] pointer-events-none" style="background:linear-gradient(135deg,rgba(220,0,0,0.5),rgba(80,0,120,0.3),rgba(220,0,0,0.4))"></div>
+
+        <!-- Card body -->
+        <div class="relative rounded-[2.5rem] p-8 overflow-hidden" style="background:linear-gradient(145deg,rgba(10,10,30,0.97),rgba(5,5,20,0.98));border:1px solid rgba(220,0,0,0.2);box-shadow:0 30px 80px rgba(0,0,0,0.8),inset 0 1px 0 rgba(255,255,255,0.05)">
+
+            <!-- Top shimmer -->
+            <div class="absolute top-0 left-8 right-8 h-px" style="background:linear-gradient(90deg,transparent,rgba(220,0,0,0.5),transparent)"></div>
+
+            <!-- Header -->
+            <div class="text-center mb-7" style="animation:slide-up 0.7s ease-out 0.1s both">
+                <!-- Spinning rings + icon -->
+                <div class="relative inline-flex items-center justify-center mb-4" style="width:96px;height:96px">
+                    <div class="absolute inset-0 rounded-full" style="border:1.5px solid rgba(220,0,0,0.12)"></div>
+                    <div class="absolute inset-0 rounded-full" style="border:1.5px solid transparent;border-top-color:rgba(220,0,0,0.9);border-right-color:rgba(220,0,0,0.3);animation:spin-slow 4s linear infinite"></div>
+                    <div class="absolute inset-3 rounded-full" style="border:1px solid transparent;border-bottom-color:rgba(150,0,200,0.5);animation:spin-rev 2.5s linear infinite"></div>
+                    <div class="absolute inset-0 rounded-full" style="border:2px solid rgba(220,0,0,0.3);animation:pulse-ring 2s ease-out infinite"></div>
+                    <div class="relative w-14 h-14 rounded-2xl flex items-center justify-center" style="background:linear-gradient(145deg,#150005,#080010);border:1px solid rgba(220,0,0,0.4);box-shadow:0 0 25px rgba(220,0,0,0.3),inset 0 1px 0 rgba(255,100,100,0.1);animation:float 4s ease-in-out infinite">
+                        <svg width="30" height="30" viewBox="0 0 36 36" fill="none">
+                            <polygon points="6,9 12,3 22,18 12,33 6,27 15,18" fill="#cc0000"/>
+                            <polygon points="15,18 22,18 25,23 19,30 12,30" fill="#ff5555" opacity="0.9"/>
+                        </svg>
                     </div>
                 </div>
-                
-                <h2 class="text-4xl font-black tracking-widest flex items-center justify-center gap-2 mb-2 relative z-10">
-                    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 0 8px rgba(220,0,0,0.7))">
-                        <rect width="36" height="36" rx="8" fill="#111"/>
-                        <polygon points="7,9 12,4 21,18 12,32 7,27 15,18" fill="#cc0000"/>
-                        <polygon points="15,18 21,18 23,23 18,28 12,28" fill="#ff4444" opacity="0.85"/>
-                    </svg>
-                    <span class="text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]">PG</span>
-                    <span class="text-red-500 drop-shadow-[0_0_16px_rgba(220,0,0,1)]">SG</span>
-                </h2>
-                
-                <p class="text-slate-400 text-sm font-medium">กรุณายืนยันตัวตนเพื่อเข้าใช้งาน</p>
+
+                <h1 class="font-black tracking-[0.2em] flex items-center justify-center gap-1 mb-1" style="font-size:34px">
+                    <span style="color:#fff;text-shadow:0 0 20px rgba(255,255,255,0.3)">PG</span>
+                    <span style="color:#cc0000;text-shadow:0 0 25px rgba(220,0,0,1),0 0 50px rgba(220,0,0,0.5)">SG</span>
+                </h1>
+                <div class="flex items-center justify-center gap-2 mb-2">
+                    <div class="h-px w-10" style="background:linear-gradient(90deg,transparent,rgba(220,0,0,0.4))"></div>
+                    <span style="font-size:9px;letter-spacing:0.3em;color:rgba(150,80,255,0.7);font-weight:700">SECURE SYSTEM</span>
+                    <div class="h-px w-10" style="background:linear-gradient(90deg,rgba(220,0,0,0.4),transparent)"></div>
+                </div>
+                <p style="color:rgba(255,255,255,0.3);font-size:12px;font-weight:500">กรุณายืนยันตัวตนเพื่อเข้าใช้งาน</p>
             </div>
 
-            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-6">
-                <div class="relative group">
-                    <span class="material-icons absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors">person</span>
-                    <input type="text" id="loginName" name="username" required placeholder="ชื่อพนักงาน" autocomplete="username" class="w-full py-4 pl-12 pr-4 bg-slate-800/50 border border-slate-700 rounded-2xl text-white font-bold placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all">
-                </div>
-                
-                <div>
-                    <label class="block text-slate-400 text-sm font-bold mb-4 text-center">รหัส PIN 6 หลัก</label>
-                    <div id="pinInputs" class="flex justify-center gap-3 sm:gap-4" onpaste="handlePinPaste(event)">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                        <input type="password" maxlength="1" inputmode="numeric" class="pin-box w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-extrabold bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 focus:bg-slate-800 outline-none transition-all caret-transparent">
-                    </div>
-                    <p class="text-[11px] text-slate-500 mt-4 text-center font-medium">* พิมพ์ครบ 6 หลัก ระบบจะเข้าสู่หน้าหลักอัตโนมัติ</p>
+            <!-- Form -->
+            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-5" style="animation:slide-up 0.7s ease-out 0.2s both">
+                <div class="relative">
+                    <span class="material-icons absolute left-4 top-1/2 -translate-y-1/2 text-[18px]" style="color:rgba(220,0,0,0.6)">person</span>
+                    <input type="text" id="loginName" name="username" required placeholder="ชื่อพนักงาน" autocomplete="username" class="login-input-epic">
                 </div>
 
-                <label class="flex items-center justify-center gap-3 text-sm font-bold text-slate-400 cursor-pointer hover:text-blue-300 transition select-none py-2">
+                <div>
+                    <div class="flex items-center justify-center gap-2 mb-4">
+                        <div class="h-px flex-1" style="background:linear-gradient(90deg,transparent,rgba(255,255,255,0.07))"></div>
+                        <span style="font-size:10px;font-weight:700;letter-spacing:0.15em;color:rgba(255,255,255,0.25)">รหัส PIN 6 หลัก</span>
+                        <div class="h-px flex-1" style="background:linear-gradient(90deg,rgba(255,255,255,0.07),transparent)"></div>
+                    </div>
+                    <div id="pinInputs" class="flex justify-center gap-2" onpaste="handlePinPaste(event)">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
+                        <input type="password" maxlength="1" inputmode="numeric" class="pin-epic">
+                    </div>
+                    <p style="font-size:10px;color:rgba(255,255,255,0.18);text-align:center;margin-top:12px;letter-spacing:0.05em">* พิมพ์ครบ 6 หลัก ระบบจะเข้าสู่หน้าหลักอัตโนมัติ</p>
+                </div>
+
+                <label class="flex items-center justify-center gap-3 cursor-pointer select-none py-1" style="color:rgba(255,255,255,0.28);font-size:13px;font-weight:600">
                     <div class="relative">
                         <input type="checkbox" id="rememberMe" class="peer sr-only">
-                        <div class="w-6 h-6 bg-slate-800 border-2 border-slate-600 rounded-lg peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-cyan-500 peer-checked:border-transparent transition-all relative flex items-center justify-center">
-                            <span class="material-icons text-white text-sm opacity-0 peer-checked:opacity-100 transition-opacity scale-0 peer-checked:scale-100">check</span>
+                        <div class="w-5 h-5 rounded-md flex items-center justify-center transition-all" style="background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.1)" id="rememberBox">
+                            <span class="material-icons text-white" style="font-size:13px;opacity:0;transition:opacity 0.2s" id="checkIcon">check</span>
                         </div>
                     </div>
                     จำชื่อฉันไว้ในเครื่องนี้
                 </label>
-                
-                <button type="submit" id="hiddenSubmitBtn" class="hidden">Hidden Submit</button>
+
+                <button type="submit" id="hiddenSubmitBtn" class="hidden">Submit</button>
             </form>
+
+            <div class="absolute bottom-0 left-8 right-8 h-px" style="background:linear-gradient(90deg,transparent,rgba(100,0,200,0.3),transparent)"></div>
         </div>
     </div>
 </div>
+
+<script>
+// Generate stars
+(function(){
+    const c = document.getElementById('starsContainer');
+    if(!c) return;
+    const count = 200;
+    for(let i=0;i<count;i++){
+        const s = document.createElement('div');
+        s.className = 'star';
+        const size = Math.random() < 0.85 ? Math.random()*1.5+0.5 : Math.random()*2.5+1.5;
+        const bright = Math.random();
+        s.style.cssText = `
+            width:${size}px;height:${size}px;
+            top:${Math.random()*100}%;left:${Math.random()*100}%;
+            opacity:${bright*0.7+0.1};
+            animation-duration:${2+Math.random()*5}s;
+            animation-delay:${Math.random()*5}s;
+            ${bright>0.9?'box-shadow:0 0 3px #fff':''};
+        `;
+        c.appendChild(s);
+    }
+})();
+
+// Remember me
+document.getElementById('rememberMe')?.addEventListener('change',function(){
+    const icon=document.getElementById('checkIcon');
+    const box=document.getElementById('rememberBox');
+    if(this.checked){
+        icon.style.opacity='1';
+        box.style.background='rgba(220,0,0,0.5)';
+        box.style.borderColor='rgba(220,0,0,0.7)';
+    } else {
+        icon.style.opacity='0';
+        box.style.background='rgba(255,255,255,0.04)';
+        box.style.borderColor='rgba(255,255,255,0.1)';
+    }
+});
+</script>
