@@ -661,61 +661,102 @@ window.verifyThunderSlip = async function() {
             let fakeReasons = []; // เก็บเหตุผลความผิดปกติทั้งหมด
             let ocrDetectedAmount = actualAmount;
 
-            if (ocrText.trim() !== "") {
-                // 1. ตรวจสอบยอดเงิน (Amount)
-                const amountStr1 = actualAmount.toFixed(2); 
-                const amountStr2 = actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
-                const hasRealAmount = ocrText.includes(amountStr1) || ocrText.includes(amountStr2);
+            // ── helper: normalize ตัดช่องว่าง + lowercase ──
+            const normalizeText = (text) => text.replace(/\s+/g, '').toLowerCase();
 
-                if (!hasRealAmount) {
-                    const numberMatches = ocrText.replace(/,/g, '').match(/\d+\.\d{2}/g) || [];
-                    const extractedNumbers = numberMatches.map(n => parseFloat(n));
+            // ── helper: เทียบชื่อแบบมี tolerance (Tesseract อ่านผิดได้บ้าง) ──
+            // คืน true = พบชื่อ (ผ่าน), false = ไม่พบ (น่าสงสัย)
+            const nameFoundInOcr = (name, ocr) => {
+                const normOcr = normalizeText(ocr);
+                const normName = normalizeText(name);
+                if (normOcr.includes(normName)) return true;
 
-                    if (extractedNumbers.length > 0) {
-                        ocrDetectedAmount = Math.max(...extractedNumbers); 
-                        if (ocrDetectedAmount !== actualAmount && ocrDetectedAmount > actualAmount) {
-                            isFakeSlip = true; 
-                            isFakeAmount = true;
-                            fakeReasons.push(`<b>ยอดเงินไม่ตรง:</b> ตรวจพบ ฿${ocrDetectedAmount.toLocaleString('en-US', {minimumFractionDigits: 2})} แต่ QR คือ ฿${actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
-                        }
-                    }
+                // ลอง substring ย่อย: ถ้าชื่อยาว >= 4 ตัด 70% แรกก็พอ
+                if (normName.length >= 4) {
+                    const partial = normName.substring(0, Math.ceil(normName.length * 0.7));
+                    if (normOcr.includes(partial)) return true;
                 }
 
-                // ฟังก์ชันช่วยเคลียร์ช่องว่างเพื่อให้เปรียบเทียบชื่อได้แม่นยำขึ้น
-                const normalizeText = (text) => text.replace(/\s+/g, '').toLowerCase();
-                const normalizedOcr = normalizeText(ocrText);
+                // ลอง fuzzy: นับตัวอักษรที่ตรงกัน (OCR บางตัวอาจเพี้ยน 1-2 ตัว)
+                // ถ้าตรงกัน >= 75% ถือว่าผ่าน
+                let matchCount = 0;
+                const chars = normName.split('');
+                chars.forEach(c => { if (normOcr.includes(c)) matchCount++; });
+                const matchRatio = matchCount / normName.length;
+                if (matchRatio >= 0.75) return true;
 
-                // 2. ตรวจสอบชื่อผู้โอน (Sender)
-                // ข้ามการตรวจถ้าชื่อมีเครื่องหมายดอกจัน (*) เซ็นเซอร์มาจากธนาคาร
+                return false;
+            };
+
+            // ── helper: ตรวจยอดเงินแบบ fuzzy ±1 บาท (OCR กับ comma บางทีผิด) ──
+            const amountFoundInOcr = (amount, ocr) => {
+                const s1 = amount.toFixed(2);
+                const s2 = amount.toLocaleString('en-US', {minimumFractionDigits: 2});
+                if (ocr.includes(s1) || ocr.includes(s2)) return true;
+                // ลอง ±0.01 เผื่อ OCR อ่าน .00 เป็น .0O หรืออื่นๆ
+                for (let delta = -1; delta <= 1; delta += 0.01) {
+                    const v = (amount + delta).toFixed(2);
+                    if (ocr.includes(v)) return true;
+                }
+                return false;
+            };
+
+            if (ocrText.trim().length > 20) { // OCR ต้องอ่านได้อย่างน้อย 20 ตัวอักษร ไม่งั้น skip
+                // ── 1. ตรวจยอดเงิน ──
+                if (!amountFoundInOcr(actualAmount, ocrText)) {
+                    // กรองเฉพาะตัวเลขที่น่าจะเป็น "ยอดโอน" (ไม่ใช่เลขบัญชี/เวลา)
+                    // เลขบัญชีมักยาว > 10 หลัก, เวลามักเป็น HH:MM ไม่มี .xx
+                    const numberMatches = ocrText.replace(/,/g, '').match(/\b\d{1,8}\.\d{2}\b/g) || [];
+                    const candidates = numberMatches
+                        .map(n => parseFloat(n))
+                        .filter(n => n > 0 && n < 10000000); // กรองเลขแปลกๆ ออก
+
+                    if (candidates.length > 0) {
+                        // เอาตัวเลขที่ใกล้กับ actualAmount มากสุด
+                        const closest = candidates.reduce((a, b) =>
+                            Math.abs(b - actualAmount) < Math.abs(a - actualAmount) ? b : a
+                        );
+                        // ถือว่าปลอมเมื่อ: ตัวเลขที่อ่านได้ > actualAmount AND ห่างกันเกิน 1 บาท
+                        if (closest > actualAmount && (closest - actualAmount) > 1) {
+                            isFakeSlip = true;
+                            isFakeAmount = true;
+                            fakeReasons.push(`<b>ยอดเงินไม่ตรง:</b> รูปแสดง ฿${closest.toLocaleString('en-US', {minimumFractionDigits: 2})} แต่ QR บันทึกไว้ ฿${actualAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
+                        }
+                    }
+                    // ถ้าหาตัวเลขไม่เจอเลย = OCR อ่านไม่ได้ → ไม่ตัดสิน (ไม่ใช่ปลอม)
+                }
+
+                // ── 2. ตรวจชื่อผู้โอน ──
                 if (senderName !== 'ไม่ระบุ' && senderName !== '-' && !window._isMasked(senderName)) {
-                    // ตัดคำนำหน้าออกป้องกัน OCR ผิดเพี้ยน
                     let cleanSender = senderName.replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.|Miss\.)\s*/i, '').trim();
-                    let senderParts = cleanSender.split(/\s+/);
-                    // หยิบเฉพาะชื่อแรก (ความยาว > 2) ไปค้นหาในสลิป
-                    if (senderParts.length > 0 && senderParts[0].length > 2) {
-                        let firstPart = normalizeText(senderParts[0]);
-                        if (!normalizedOcr.includes(firstPart)) {
+                    let parts = cleanSender.split(/\s+/).filter(p => p.length >= 3);
+                    // ต้องหาชื่อไม่เจอ "ทุก" ส่วน จึงจะถือว่าปลอม
+                    // ถ้าหาเจออย่างน้อย 1 ส่วน = ผ่าน
+                    if (parts.length > 0) {
+                        const anyFound = parts.some(p => nameFoundInOcr(p, ocrText));
+                        if (!anyFound) {
                             isFakeSlip = true;
                             isFakeName = true;
-                            fakeReasons.push(`<b>ชื่อผู้โอนไม่ตรง:</b> ไม่พบคำว่า "${senderParts[0]}" บนสลิป`);
+                            fakeReasons.push(`<b>ชื่อผู้โอนไม่ตรง:</b> ไม่พบ "${cleanSender}" บนสลิป (OCR อ่านได้: ${ocrText.substring(0,80).replace(/\n/g,' ')}...)`);
                         }
                     }
                 }
 
-                // 3. ตรวจสอบชื่อผู้รับ (Receiver)
+                // ── 3. ตรวจชื่อผู้รับ ──
                 if (receiverName !== 'ไม่ระบุ' && receiverName !== '-' && !window._isMasked(receiverName)) {
                     let cleanReceiver = receiverName.replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.|Miss\.)\s*/i, '').trim();
-                    let receiverParts = cleanReceiver.split(/\s+/);
-                    if (receiverParts.length > 0 && receiverParts[0].length > 2) {
-                        let firstPart = normalizeText(receiverParts[0]);
-                        if (!normalizedOcr.includes(firstPart)) {
+                    let parts = cleanReceiver.split(/\s+/).filter(p => p.length >= 3);
+                    if (parts.length > 0) {
+                        const anyFound = parts.some(p => nameFoundInOcr(p, ocrText));
+                        if (!anyFound) {
                             isFakeSlip = true;
                             isFakeName = true;
-                            fakeReasons.push(`<b>ชื่อผู้รับไม่ตรง:</b> ไม่พบคำว่า "${receiverParts[0]}" บนสลิป`);
+                            fakeReasons.push(`<b>ชื่อผู้รับไม่ตรง:</b> ไม่พบ "${cleanReceiver}" บนสลิป`);
                         }
                     }
                 }
             }
+            // ถ้า OCR อ่านได้น้อยกว่า 20 ตัวอักษร = ข้ามการตรวจชื่อ/ยอดทั้งหมด ไม่ตัดสินผิดพลาด
 
             // 🔴 เพิ่มป้ายสถานะแบบละเอียด (ปกติ / ปลอมชื่อ / ปลอมจำนวนเงิน)
             let detailBadge = document.getElementById('slipDetailBadge');
