@@ -1161,7 +1161,7 @@ window.fetchLeaderboardData = async function() {
     }
 
     try {
-        let query = appDB.from('transaction_daily_summary').select('*');
+        let query = appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount');
         
         if (mode === 'monthly' && monthInput && monthInput.value) {
             const [year, month] = monthInput.value.split('-');
@@ -1334,7 +1334,7 @@ window.fetchHistoricalSummary = async function(silent = false) {
         const yesterdayStr = `${yesterdayDateObj.getFullYear()}-${String(yesterdayDateObj.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDateObj.getDate()).padStart(2, '0')}`;
 
         const [todayRes, yestRes, schedulesRes] = await Promise.all([
-            appDB.from('transaction_daily_summary').select('*').eq('date', dateVal),
+            appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').eq('date', dateVal),
             appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr), // ดึงเฉพาะของเมื่อวาน
             appDB.from('schedules').select('staff_name, shift_name').eq('work_date', dateVal)
         ]);
@@ -1834,7 +1834,7 @@ window.fetchMultipleHistoricalSummary = async function() {
         });
 
         const [mainRes, schRes, yestRes] = await Promise.all([
-            appDB.from('transaction_daily_summary').select('*').in('date', dates),
+            appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').in('date', dates),
             appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
             appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates) // 🌟 ดึงข้อมูลของวันที่ก่อนหน้าทั้งหมด
         ]);
