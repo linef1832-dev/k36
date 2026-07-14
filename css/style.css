@@ -29,10 +29,10 @@ body { transition: background-color 0.15s ease; }
 ::-webkit-scrollbar-thumb:hover { background: #555; }
 
 .btn-slot-active { box-shadow: 0 0 0 2px #3b82f6; background-color: #2563eb !important; color: white !important; border-color: #2563eb !important; }
-.btn-slot-empty { background-color: #d1fae5; color: #065f46; border-color: #6ee7b7; }
-.dark .btn-slot-empty { background-color: rgba(6, 78, 59, 0.20); color: #6ee7b7; border-color: rgba(52,211,153,0.3); }
-.btn-slot-filled { background-color: #ffffff; color: #334155; border-color: #cbd5e1; }
-.dark .btn-slot-filled { background-color: #0f172a; color: #e2e8f0; border-color: #334155; }
+.btn-slot-empty { background-color: #d1fae5 !important; color: #065f46 !important; border-color: #6ee7b7 !important; }
+html.dark .btn-slot-empty { background-color: rgba(6, 78, 59, 0.20) !important; color: #6ee7b7 !important; border-color: rgba(52,211,153,0.3) !important; }
+.btn-slot-filled { background-color: #ffffff !important; color: #334155 !important; border-color: #cbd5e1 !important; }
+html.dark .btn-slot-filled { background-color: #0f172a !important; color: #e2e8f0 !important; border-color: #334155 !important; }
 
 .sidebar-scroll { max-height: 95vh; overflow-y: auto; }
 th.sticky-header { position: sticky; top: 0; z-index: 20; }
