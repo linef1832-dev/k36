@@ -170,89 +170,97 @@ window.renderShiftButtons = function(allowedShift) {
     });
 };
 
+// debounce timer สำหรับ refreshTimeSlots
+let _refreshSlotsTimer = null;
 window.refreshTimeSlots = async function() {
-    const shiftEl = document.querySelector('input[name="shift"]:checked');
+    // debounce 80ms — ถ้าถูกเรียกซ้ำในเวลาสั้น ให้รอแล้วรันครั้งเดียว
+    clearTimeout(_refreshSlotsTimer);
+    await new Promise(r => { _refreshSlotsTimer = setTimeout(r, 80); });
+
+    const shiftEl    = document.querySelector('input[name="shift"]:checked');
     const slotSelect = document.getElementById('tSlot');
-    const dateVal = document.getElementById('wDate');
+    const dateEl     = document.getElementById('wDate');
     const teamSelect = document.getElementById('dailyTeam');
 
     if (!slotSelect) return;
-    if (!shiftEl || !dateVal || !dateVal.value) {
+    if (!shiftEl || !dateEl || !dateEl.value) {
         slotSelect.innerHTML = '<option value="">-- กรุณาเลือกกะ/วันทีก่อน --</option>';
         return;
     }
 
     const shiftName = shiftEl.value;
-    const myDep = window.currentUser?.department || 'AM';
+    const myDep     = window.currentUser?.department || 'AM';
+    const dateVal   = dateEl.value;
+    const now       = Date.now();
 
-    // 🌟 NEW V2: แสดงทุกเว็บใน Dropdown แต่ทำเครื่องหมาย ⭐ เว็บที่ถูกจัดเวร
+    // ── Roster (⭐ ทีมที่ถูกจัด) — cache 90 วิ ──
     if (teamSelect && !['manager', 'admin'].includes(currentUser.role)) {
-        const rosterKey = `duty_roster_${myDep}_${dateVal.value}_${shiftName}`;
+        const rosterKey = `duty_roster_${myDep}_${dateVal}_${shiftName}`;
         let assignedTeams = [];
-        try {
-            const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
-            if (rosterData && rosterData.value) {
-                const roster = JSON.parse(rosterData.value);
-                for (const team in roster) {
-                    (roster[team] || []).forEach(u => {
-                        if (String(u.id) === String(currentUser.id)) {
-                            if (!assignedTeams.includes(team)) assignedTeams.push(team);
-                            if (u.secondary_team && !assignedTeams.includes(u.secondary_team)) assignedTeams.push(u.secondary_team);
-                        }
-                    });
-                }
-            }
-        } catch(e) { console.error(e); }
 
-        // เก็บไว้ใช้อ้างอิง
+        // ใช้ cache ถ้ายัง fresh
+        if (_rosterCache[rosterKey] && (now - _rosterCache[rosterKey].ts) < _SLOT_TTL) {
+            assignedTeams = _rosterCache[rosterKey].data;
+        } else {
+            try {
+                const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
+                if (rosterData && rosterData.value) {
+                    const roster = JSON.parse(rosterData.value);
+                    for (const team in roster) {
+                        (roster[team] || []).forEach(u => {
+                            if (String(u.id) === String(currentUser.id)) {
+                                if (!assignedTeams.includes(team)) assignedTeams.push(team);
+                                if (u.secondary_team && !assignedTeams.includes(u.secondary_team)) assignedTeams.push(u.secondary_team);
+                            }
+                        });
+                    }
+                }
+                _rosterCache[rosterKey] = { data: assignedTeams, ts: now };
+            } catch(e) { console.error(e); }
+        }
+
         window._myAssignedTeams = assignedTeams;
 
-        // วาด Dropdown ใหม่ — ทุกเว็บ + ⭐ ทีมที่ถูกจัด
         const oldVal = teamSelect.value;
         const sortedTeams = [...TEAM_LIST].sort((a,b) => a.localeCompare(b));
-        let html = '';
+        let tHtml = '';
         sortedTeams.forEach(t => {
             const isAssigned = assignedTeams.includes(t);
-            const label = isAssigned ? `⭐ ${t} (หน้าที่ของคุณ)` : t;
-            html += `<option value="${t}">${label}</option>`;
+            tHtml += `<option value="${t}">${isAssigned ? `⭐ ${t} (หน้าที่ของคุณ)` : t}</option>`;
         });
-        teamSelect.innerHTML = html;
+        teamSelect.innerHTML = tHtml;
 
-        // ตั้งค่าเริ่มต้น: คงค่าเดิม → หรือทีมที่ถูกจัด → หรือทีมแรก
-        if (oldVal && sortedTeams.includes(oldVal)) {
-            teamSelect.value = oldVal;
-        } else if (assignedTeams.length > 0) {
-            teamSelect.value = assignedTeams[0];
-        }
+        if (oldVal && sortedTeams.includes(oldVal)) teamSelect.value = oldVal;
+        else if (assignedTeams.length > 0) teamSelect.value = assignedTeams[0];
     }
 
-    // 🌟 1. ดึงข้อมูล "เว็บ/ทีม" ที่พนักงานกำลังเลือกอยู่จาก Dropdown
     const selectedTeam = teamSelect ? teamSelect.value : (window.currentUser?.team || '');
-
-    // 💡 [เพิ่มใหม่] ให้ระบบ "จดจำ" ค่าที่พนักงานกำลังเลือกค้างไว้ก่อน
     const previousSelectedSlot = slotSelect.value;
 
     const loadingIcon = document.getElementById('slotLoading');
-    if(loadingIcon) loadingIcon.classList.remove('hidden');
+    if (loadingIcon) loadingIcon.classList.remove('hidden');
 
     try {
-        // 🌟 2. เพิ่มการดึงคอลัมน์ 'team' มาจากฐานข้อมูลด้วย
-        const { data: bookings } = await appDB.from('schedules')
-            .select('time_slot, department, team')
-            .eq('work_date', dateVal.value)
-            .eq('shift_name', shiftName);
+        // ── Slot bookings — cache 90 วิ ──
+        const slotCacheKey = `${dateVal}|${shiftName}`;
+        let bookings;
+        if (_slotCache[slotCacheKey] && (now - _slotCache[slotCacheKey].ts) < _SLOT_TTL) {
+            bookings = _slotCache[slotCacheKey].data;
+        } else {
+            const { data } = await appDB.from('schedules')
+                .select('time_slot, department, team')
+                .eq('work_date', dateVal)
+                .eq('shift_name', shiftName);
+            bookings = data;
+            _slotCache[slotCacheKey] = { data: bookings, ts: now };
+        }
 
         const periods = (typeof SHIFT_GROUPS !== 'undefined' ? SHIFT_GROUPS[shiftName] : {}) || {};
-
         let html = '<option value="">-- เลือกช่วงเวลา --</option>';
 
         for (const [periodName, times] of Object.entries(periods)) {
             html += `<optgroup label="--- ${periodName} ---">`;
-
             times.forEach(time => {
-                const myDep = window.currentUser?.department || 'AM';
-
-                // 🌟 3. กรองให้นับเฉพาะคนที่จองใน "เว็บเดียวกัน" เท่านั้น! (b.team === selectedTeam)
                 const count = bookings ? bookings.filter(b =>
                     b.time_slot === time &&
                     (b.department || 'AM') === myDep &&
@@ -260,44 +268,33 @@ window.refreshTimeSlots = async function() {
                 ).length : 0;
 
                 const suffix = shiftName.replace('กะ', '');
-                let maxQuota = 50; // ค่าเริ่มต้นกันเหนียว
-                if(typeof SETTINGS !== 'undefined') {
-                    // 🌟 สร้าง Key ค้นหาให้ตรงกับฐานข้อมูล (เช่น quota_team_Jun88_AM_เช้า)
+                let maxQuota = 50;
+                if (typeof SETTINGS !== 'undefined') {
                     const teamQuotaKey = `quota_team_${selectedTeam}_${myDep}_${suffix}`;
-
-                    // 🌟 เช็คว่ามีโควตาทีมนี้ตั้งไว้ไหม ถ้ามีให้ใช้ตัวเลขของทีมนั้นเลย!
                     if (SETTINGS[teamQuotaKey] !== undefined && SETTINGS[teamQuotaKey] !== '') {
                         maxQuota = parseInt(SETTINGS[teamQuotaKey]);
                     } else {
-                        // แต่ถ้าไม่ได้ตั้งโควตาทีมไว้ ค่อยดึงโควตารวมแผนกมาใช้แทน
                         maxQuota = myDep === 'OD' ? parseInt(SETTINGS[`quota_od_${suffix}`] || 5) : parseInt(SETTINGS[`quota_total_${suffix}`] || 50);
                     }
                 }
 
                 const isFull = count >= maxQuota;
                 const statusText = isFull ? '(เต็มแล้ว)' : `(ว่าง: ${maxQuota - count})`;
-
-                html += `<option value="${time}" data-period="${periodName}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>
-                            ${time} ${statusText}
-                         </option>`;
+                html += `<option value="${time}" data-period="${periodName}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
             });
-
-            html += `</optgroup>`;
+            html += '</optgroup>';
         }
         slotSelect.innerHTML = html;
 
-        // 💡 [เพิ่มใหม่] พอกระดานรีเฟรชยอดเสร็จปุ๊บ ก็ยัดค่าเดิมที่จำไว้กลับไปให้ทันที (ถ้าช่องนั้นยังไม่เต็ม)
         if (previousSelectedSlot) {
-            const optionToCheck = slotSelect.querySelector(`option[value="${previousSelectedSlot}"]`);
-            if (optionToCheck && !optionToCheck.disabled) {
-                slotSelect.value = previousSelectedSlot;
-            }
+            const opt = slotSelect.querySelector(`option[value="${previousSelectedSlot}"]`);
+            if (opt && !opt.disabled) slotSelect.value = previousSelectedSlot;
         }
 
     } catch (e) {
         console.error("Refresh Slots Error:", e);
     } finally {
-        if(loadingIcon) loadingIcon.classList.add('hidden');
+        if (loadingIcon) loadingIcon.classList.add('hidden');
     }
 };
 
@@ -410,6 +407,11 @@ window.fetchLogs = async function() {
 
 let dashboardSubscription = null;
 
+// Cache สำหรับ roster และ slot bookings — TTL 90 วินาที
+const _rosterCache = {};  // key → { data, ts }
+const _slotCache   = {};  // "date|shift" → { data, ts }
+const _SLOT_TTL    = 90 * 1000;
+
 window.subscribeDashboardChanges = function() {
     if (dashboardSubscription) {
         try { appDB.removeChannel(dashboardSubscription); } catch (e) {}
@@ -428,6 +430,14 @@ window.subscribeDashboardChanges = function() {
                 if (payload.eventType !== 'DELETE' && payload.new.work_date !== dateVal) return;
 
                 // 🌟 อัปเดตข้อมูลแบบแทรกแถว (ไม่ต้องเรียก fetchData() ให้หมุนๆ แล้ว)
+                // ล้าง slot cache เมื่อมีการเปลี่ยนแปลงจาก realtime
+                const _rtDate  = payload.new?.work_date || payload.old?.work_date;
+                const _rtShift = payload.new?.shift_name || payload.old?.shift_name;
+                if (_rtDate && _rtShift) {
+                    const _rtKey = `${_rtDate}|${_rtShift}`;
+                    if (_slotCache[_rtKey]) delete _slotCache[_rtKey];
+                }
+
                 if (payload.eventType === 'INSERT') {
                     const isExist = globalScheduleData.some(item => String(item.id) === String(payload.new.id));
                     if (!isExist) globalScheduleData.push(payload.new);
