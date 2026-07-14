@@ -419,6 +419,11 @@ window.updateSlipBadge = function(type, text) {
     else badge.className += "bg-slate-800 text-gray-400 border-slate-600";
 };
 
+// ==========================================
+// PATCH: แก้ไขระบบสแกน QR + OCR + ตรวจปลอม
+// ==========================================
+
+// ── 1. extractQrPayload ใหม่: ลอง resize หลายขนาด + enhance contrast ──
 window.extractQrPayload = function(file) {
     return new Promise((resolve, reject) => {
         if (typeof jsQR === 'undefined') return reject(new Error('ไม่พบระบบอ่าน QR Code (jsQR)'));
@@ -427,21 +432,54 @@ window.extractQrPayload = function(file) {
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d', { willReadFrequently: true });
-                const maxSize = 800;
-                let width = img.width, height = img.height;
-                if (width > height && width > maxSize) { height *= maxSize / width; width = maxSize; }
-                else if (height > maxSize) { width *= maxSize / height; height = maxSize; }
-                canvas.width = width; canvas.height = height;
-                context.drawImage(img, 0, 0, width, height);
-                const imageData = context.getImageData(0, 0, width, height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
-                
-                if (code) resolve(code.data);
-                else reject(new Error('ไม่พบรหัส QR Code บนสลิปนี้'));
+                // ลอง 4 ขนาด: ต้นฉบับ, 1600, 1200, 800
+                const sizes = [
+                    Math.max(img.width, img.height),
+                    1600, 1200, 800
+                ].filter((v, i, a) => a.indexOf(v) === i);
+
+                const trySize = (sizeIdx) => {
+                    if (sizeIdx >= sizes.length) return reject(new Error('ไม่พบ QR Code บนสลิปนี้'));
+
+                    const maxSize = sizes[sizeIdx];
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    let w = img.width, h = img.height;
+                    if (w > maxSize || h > maxSize) {
+                        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+                        else { w = Math.round(w * maxSize / h); h = maxSize; }
+                    }
+                    canvas.width = w; canvas.height = h;
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    // enhance: เพิ่ม contrast ก่อน scan
+                    const imageData = ctx.getImageData(0, 0, w, h);
+                    const d = imageData.data;
+                    for (let i = 0; i < d.length; i += 4) {
+                        // grayscale + threshold เพื่อช่วย QR
+                        const avg = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+                        const v = avg > 128 ? 255 : 0;
+                        d[i] = d[i+1] = d[i+2] = v;
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+
+                    // scan ทั้ง 2 โหมด: normal + inverted
+                    let code = jsQR(imageData.data, w, h, { inversionAttempts: 'attemptBoth' });
+                    if (code) return resolve(code.data);
+
+                    // ลองไม่ threshold
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const raw = ctx.getImageData(0, 0, w, h);
+                    code = jsQR(raw.data, w, h, { inversionAttempts: 'attemptBoth' });
+                    if (code) return resolve(code.data);
+
+                    // ลองขนาดถัดไป
+                    trySize(sizeIdx + 1);
+                };
+
+                trySize(0);
             };
-            img.onerror = () => reject(new Error('รูปภาพเสียหาย หรือโหลดไม่สำเร็จ'));
+            img.onerror = () => reject(new Error('รูปภาพเสียหาย'));
             img.src = e.target.result;
         };
         reader.onerror = () => reject(new Error('อ่านไฟล์ไม่สำเร็จ'));
@@ -449,24 +487,99 @@ window.extractQrPayload = function(file) {
     });
 };
 
+// ── 2. performOCR ใหม่: pre-process รูปก่อน + ลด noise ──
 window.performOCR = async function(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = async () => {
             try {
-                // 🔴 อัปเดตให้อ่านทั้งภาษาไทยและอังกฤษ เพื่อเช็คชื่อในสลิป
-                const worker = await Tesseract.createWorker('tha+eng');
-                const ret = await worker.recognize(reader.result);
-                await worker.terminate();
-                resolve(ret.data.text);
+                const img = new Image();
+                img.onload = async () => {
+                    // scale รูปให้ใหญ่พอ (OCR ต้องการ ~150dpi ขึ้นไป)
+                    const scale = Math.max(1, Math.min(3, 2000 / Math.max(img.width, img.height)));
+                    const canvas = document.createElement('canvas');
+                    canvas.width  = Math.round(img.width  * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+                    // ใช้ imageSmoothingQuality สูงสุดก่อน scale
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // เพิ่ม contrast ง่ายๆ ด้วย CSS filter ผ่าน offscreen canvas
+                    const offscreen = document.createElement('canvas');
+                    offscreen.width  = canvas.width;
+                    offscreen.height = canvas.height;
+                    const octx = offscreen.getContext('2d');
+                    octx.filter = 'contrast(1.5) brightness(1.1) grayscale(1)';
+                    octx.drawImage(canvas, 0, 0);
+
+                    const dataUrl = offscreen.toDataURL('image/png');
+
+                    const worker = await Tesseract.createWorker(['tha', 'eng']);
+                    await worker.setParameters({
+                        tessedit_pageseg_mode: '6',  // single block
+                        preserve_interword_spaces: '1',
+                    });
+                    const ret = await worker.recognize(dataUrl);
+                    await worker.terminate();
+                    resolve(ret.data.text);
+                };
+                img.onerror = () => resolve('');
+                img.src = reader.result;
             } catch (e) {
-                console.error("OCR Error:", e);
-                resolve("");
+                console.error('OCR Error:', e);
+                resolve('');
             }
         };
+        reader.onerror = () => resolve('');
         reader.readAsDataURL(file);
     });
 };
+
+// ── 3. ตรวจสอบชื่อแม่นขึ้น: รับ *, x, X, ---, masked ──
+window._isMasked = function(name) {
+    if (!name || name === '-' || name === 'ไม่ระบุ') return true;
+    // ธนาคารมักเซ็นเซอร์ชื่อด้วย * . x X -
+    return /[*xX]{2,}|[-]{3,}|\.{3,}|\bx+\b/.test(name);
+};
+
+// ── 4. ฟังก์ชันดูรายละเอียดประวัติ (ที่หายไป) ──
+window.viewHistoryDetail = function(id) {
+    const h = window.slipHistoryData.find(x => x.id === id);
+    if (!h) return;
+    const timeStr = new Date(h.timestamp).toLocaleString('th-TH');
+    const statusHtml = h.isFake
+        ? `<span class="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-black">สลิปปลอม ❌</span>`
+        : `<span class="bg-emerald-600 text-white px-3 py-1 rounded-full text-sm font-black">สลิปจริง ✅</span>`;
+    const imgHtml = h.imageUrl
+        ? `<div class="mt-4"><img src="${h.imageUrl}" class="w-full rounded-xl border border-slate-600 max-h-72 object-contain bg-slate-900 cursor-pointer" onclick="window.viewSlipImage('${h.imageUrl}', event)"></div>`
+        : '';
+    Swal.fire({
+        html: `
+        <div class="text-left space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-3">
+                <span class="font-black text-white text-lg">รายละเอียดสลิป</span>
+                ${statusHtml}
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="bg-slate-900 p-3 rounded-xl"><div class="text-gray-400 text-[10px] mb-1">เวลา</div><div class="text-white font-bold">${timeStr}</div></div>
+                <div class="bg-slate-900 p-3 rounded-xl"><div class="text-gray-400 text-[10px] mb-1">ผู้ตรวจ</div><div class="text-amber-400 font-bold">${h.checkerName || '-'}</div></div>
+                <div class="bg-slate-900 p-3 rounded-xl"><div class="text-gray-400 text-[10px] mb-1">ผู้โอน</div><div class="text-white font-bold">${h.senderName || '-'}</div></div>
+                <div class="bg-slate-900 p-3 rounded-xl"><div class="text-gray-400 text-[10px] mb-1">ผู้รับ</div><div class="text-gray-300 font-bold">${h.receiverName || '-'}</div></div>
+                <div class="bg-slate-900 p-3 rounded-xl col-span-2"><div class="text-gray-400 text-[10px] mb-1">ยอดเงิน</div><div class="text-${h.isFake ? 'red' : 'emerald'}-400 font-black text-xl">฿${parseFloat(h.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</div></div>
+                <div class="bg-slate-900 p-3 rounded-xl col-span-2"><div class="text-gray-400 text-[10px] mb-1">เลขอ้างอิง</div><div class="text-sky-400 font-mono text-sm select-all">${h.ref || '-'}</div></div>
+            </div>
+            ${imgHtml}
+        </div>`,
+        showCloseButton: true,
+        showConfirmButton: false,
+        width: '480px',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
+    });
+};
+
 
 const findDeep = (obj, key) => {
     if (typeof obj !== 'object' || obj === null) return undefined;
@@ -574,7 +687,7 @@ window.verifyThunderSlip = async function() {
 
                 // 2. ตรวจสอบชื่อผู้โอน (Sender)
                 // ข้ามการตรวจถ้าชื่อมีเครื่องหมายดอกจัน (*) เซ็นเซอร์มาจากธนาคาร
-                if (senderName !== 'ไม่ระบุ' && senderName !== '-' && !senderName.includes('*') && !senderName.includes('x')) {
+                if (senderName !== 'ไม่ระบุ' && senderName !== '-' && !window._isMasked(senderName)) {
                     // ตัดคำนำหน้าออกป้องกัน OCR ผิดเพี้ยน
                     let cleanSender = senderName.replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.|Miss\.)\s*/i, '').trim();
                     let senderParts = cleanSender.split(/\s+/);
@@ -590,7 +703,7 @@ window.verifyThunderSlip = async function() {
                 }
 
                 // 3. ตรวจสอบชื่อผู้รับ (Receiver)
-                if (receiverName !== 'ไม่ระบุ' && receiverName !== '-' && !receiverName.includes('*') && !receiverName.includes('x')) {
+                if (receiverName !== 'ไม่ระบุ' && receiverName !== '-' && !window._isMasked(receiverName)) {
                     let cleanReceiver = receiverName.replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.|Miss\.)\s*/i, '').trim();
                     let receiverParts = cleanReceiver.split(/\s+/);
                     if (receiverParts.length > 0 && receiverParts[0].length > 2) {
