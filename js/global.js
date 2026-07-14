@@ -61,20 +61,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         // วิธีแก้: ดึง dept_menu_rules ตรงๆ ก่อน 1 ครั้ง แล้วค่อย showPage
         if (appDB) {
             try {
-                const { data } = await appDB
-                    .from('settings')
-                    .select('value')
-                    .eq('key', 'dept_menu_rules')
-                    .maybeSingle();
-                if (data && data.value) {
-                    // อัปเดตทั้ง SETTINGS และ cache ในคราวเดียว
-                    if (typeof SETTINGS !== 'undefined') {
-                        SETTINGS['dept_menu_rules'] = data.value;
-                    }
-                    window.safeSetItem('cached_menu_rules', data.value);
+                // ใช้ getSettingCached (TTL 5 นาที) แทน query ตรง
+                const val = await window.getSettingCached('dept_menu_rules');
+                if (val) {
+                    if (typeof SETTINGS !== 'undefined') SETTINGS['dept_menu_rules'] = val;
+                    window.safeSetItem('cached_menu_rules', val);
                 }
             } catch(e) {
-                console.warn('[startup] dept_menu_rules fetch failed, falling back to cache', e);
+                console.warn('[startup] dept_menu_rules fetch failed', e);
             }
         }
 
