@@ -660,7 +660,7 @@ function updateTableSummary(data) {
                 const count = counts[`${shift}|${t}`] || 0; 
                 const isActive = currentSpecificTimeFilter && currentSpecificTimeFilter.time === t && currentSpecificTimeFilter.shift === shift;
                 const btnClass = count === 0 ? 'btn-slot-empty' : (isActive ? 'btn-slot-active' : 'btn-slot-filled');
-                html += `<button onclick="filterTableBySpecificTime('${t}', '${shift}')" class="text-[12px] px-3 py-1.5 rounded border transition flex justify-between items-center shadow-sm w-full group ${btnClass}"><span class="font-mono">${t}</span><span class="font-bold text-[11px]">${count}</span></button>`;
+                html += `<button onclick="filterTableBySpecificTime('${t}', '${shift}')" class="text-[12px] px-3 py-1.5 rounded border flex justify-between items-center w-full ${btnClass}"><span class="font-mono">${t}</span><span class="font-bold text-[11px]">${count}</span></button>`;
             }); 
             html += `</div>`;
         } 
