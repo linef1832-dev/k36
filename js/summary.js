@@ -101,23 +101,28 @@ window.getShiftBadgeHtml = function(shift) {
     return `<span class="text-[10px] ${style.colorClass} border px-1.5 py-0.5 rounded shadow-sm ml-2">${style.text}</span>`;
 };
 
+// cache วันที่ใช้ได้ — หมดอายุทุก 5 นาที
+let _summaryDatesCacheTs = 0;
+const _SUMMARY_DATES_TTL = 5 * 60 * 1000;
+
 window.initSummaryDate = async function() {
-    // 🌟 [แก้บัคกะ] บังคับรีเฟรชรายชื่อพนักงาน + ล้าง cache กะ ทุกครั้งที่เข้าหน้านี้
-    // เพื่อให้กะที่แอดมินเพิ่งแก้ในระบบจัดการพนักงานสะท้อนทันทีในหน้าสรุปยอด
-    if (typeof window.refreshUserListForSummary === 'function') {
-        await window.refreshUserListForSummary();
-    } else if (typeof fetchUsers === 'function') {
-        try { await fetchUsers(true); } catch(e) { console.warn('fetchUsers refresh failed', e); }
+    // ใช้ getUsersCached (TTL 3 นาที) แทนการ fetchUsers(true) ทุกครั้ง
+    // ถ้ายัง fresh อยู่ return ทันทีไม่ hit DB — ประหยัดเวลา ~300-800ms
+    if (typeof window.getUsersCached === 'function') {
+        const users = await window.getUsersCached();
+        if (users && users.length > 0) {
+            window.GLOBAL_USER_LIST = users;
+            window.invalidateSummaryUserCache?.();
+        }
     }
 
-    // 🌟 1. เช็คความจำ: ถ้ามีข้อมูลที่ดูค้างไว้ (ไฟล์ Excel หรือดูย้อนหลัง) ให้ "คงไว้" ห้ามล้างทิ้ง!
+    // ถ้ามีข้อมูลค้างไว้ render ทันทีไม่ต้อง fetch ใหม่
     if (pendingSummaryData && pendingSummaryData.length > 0) {
         if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();
         if (typeof window.fetchLeaderboardData === 'function') window.fetchLeaderboardData();
-        return; // 🛑 สั่งหยุดการทำงานตรงนี้เลย ข้อมูลจะได้ไม่หายตอนสลับหน้าเว็บ
+        return;
     }
 
-    // 🌟 2. ถ้าหน้าจอว่างเปล่าจริงๆ (เปิดเว็บครั้งแรก) ค่อยเริ่มกระบวนการดึงข้อมูลใหม่
     Swal.fire({title: 'กำลังเตรียมข้อมูลสรุปยอด...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
     try {
         const dateInput = document.getElementById('summaryDateFilter');
@@ -127,9 +132,15 @@ window.initSummaryDate = async function() {
             dateInput.value = (new Date(today - offset)).toISOString().split('T')[0];
         }
 
-        // 🚀 ดึงข้อมูลขนานกัน (web logos + available dates) — รายชื่อพนักงานรีเฟรชไปแล้วด้านบน
+        // ดึงขนานกัน — logos + dates (dates ใช้ cache ถ้ายัง fresh)
+        const now = Date.now();
         const initFetches = [loadWebLogos()];
-        if (typeof fetchAvailableDates === 'function') initFetches.push(fetchAvailableDates());
+        if (typeof fetchAvailableDates === 'function' && (now - _summaryDatesCacheTs) > _SUMMARY_DATES_TTL) {
+            initFetches.push(fetchAvailableDates().then(() => { _summaryDatesCacheTs = Date.now(); }));
+        } else if (typeof fetchAvailableDates === 'function' && window.availableSummaryDates?.length > 0) {
+            // dates ยัง fresh — render จาก cache โดยไม่ hit DB
+            if (typeof window.renderDateSelector === 'function') window.renderDateSelector();
+        }
         await Promise.all(initFetches);
 
         await window.fetchHistoricalSummary(true);
@@ -192,30 +203,18 @@ window.invalidateSummaryUserCache = function() {
 //   2. fetchUsers() แบบไม่ส่ง parameter (เผื่อเวอร์ชันเก่า)
 //   3. ดึงตรงจาก DB ทั้งตาราง users (fallback สุดท้าย)
 window.refreshUserListForSummary = async function() {
-    let oldRef = window.GLOBAL_USER_LIST;
-    
-    if (typeof fetchUsers === 'function') {
+    // ใช้ getUsersCached (TTL 3 นาที) แทน fetchUsers(true) ทุกครั้ง
+    // ถ้า cache ยัง fresh จะไม่ hit DB เลย — เร็วขึ้น ~300-800ms
+    if (typeof window.getUsersCached === 'function') {
+        const users = await window.getUsersCached();
+        if (users && users.length > 0) window.GLOBAL_USER_LIST = users;
+    } else if (typeof appDB !== 'undefined') {
         try {
-            await fetchUsers(true);
-            // ถ้า reference ไม่เปลี่ยน แสดงว่า fetchUsers(true) ไม่ได้รีเฟรชจริง → ลองวิธี 3
-            if (window.GLOBAL_USER_LIST === oldRef) {
-                if (typeof appDB !== 'undefined') {
-                    try {
-                        const { data, error } = await appDB.from('users').select('*');
-                        if (!error && data && data.length > 0) {
-                            window.GLOBAL_USER_LIST = data;
-                            console.log('[Summary] รีเฟรช users ตรงจาก DB:', data.length, 'คน');
-                        }
-                    } catch (e) { console.warn('[Summary] Direct fetch fallback failed:', e); }
-                }
-            }
-        } catch (e) {
-            console.warn('[Summary] fetchUsers(true) failed:', e);
-        }
+            const { data, error } = await appDB.from('users').select('*');
+            if (!error && data && data.length > 0) window.GLOBAL_USER_LIST = data;
+        } catch(e) { console.warn('[Summary] fallback fetch users failed:', e); }
     }
-    
-    // ล้าง cache ของหน้านี้เสมอหลังรีเฟรช
-    window.invalidateSummaryUserCache();
+    window.invalidateSummaryUserCache?.();
 };
 
 function buildSummaryUserCache() {
