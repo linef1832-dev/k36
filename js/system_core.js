@@ -631,8 +631,8 @@ function updateTableSummary(data) {
         }
     }
 
-    const pColors = { 'ช่วงที่ 1': 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700', 'ช่วงที่ 2': 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700', 'ช่วงที่ 3': 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-700' };
-    const pTextColors = { 'ช่วงที่ 1': 'text-green-700 dark:text-green-300', 'ช่วงที่ 2': 'text-orange-700 dark:text-orange-300', 'ช่วงที่ 3': 'text-purple-700 dark:text-purple-300' };
+    const pColors = { 'ช่วงที่ 1': 'bg-green-50 dark:bg-green-950/60 border-green-300 dark:border-green-500', 'ช่วงที่ 2': 'bg-orange-50 dark:bg-orange-950/60 border-orange-300 dark:border-orange-500', 'ช่วงที่ 3': 'bg-purple-50 dark:bg-purple-950/60 border-purple-300 dark:border-purple-500' };
+    const pTextColors = { 'ช่วงที่ 1': 'text-green-700 dark:text-green-400', 'ช่วงที่ 2': 'text-orange-700 dark:text-orange-400', 'ช่วงที่ 3': 'text-purple-700 dark:text-purple-400' };
     
     let html = '<div class="flex flex-col gap-6 w-full">';
     
@@ -643,7 +643,7 @@ function updateTableSummary(data) {
         const uniquePeople = new Set(shiftSpecificData.map(item => item.staff_name));
         const shiftTotal = uniquePeople.size;
 
-        html += `<div class="bg-white/50 dark:bg-slate-700/50 rounded-lg p-3 border border-slate-200 dark:border-slate-600">
+        html += `<div class="bg-white/70 dark:bg-slate-800/80 rounded-lg p-3 border border-slate-200 dark:border-slate-600">
             <div class="font-bold text-sm text-blue-600 dark:text-blue-300 mb-3 border-b border-slate-300 dark:border-slate-500 pb-1 flex justify-between items-center">
                 <span>${shift}</span>
                 <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full text-xs border border-blue-200 dark:border-blue-800 shadow-sm text-slate-600 dark:text-slate-300">
@@ -733,7 +733,8 @@ async function refreshAdminData() {
     if(btn) btn.classList.add('animate-spin');
 
     const isAdmin = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin');
-    const tasks = [fetchUsers(), loadSettings()];
+    // ใช้ getUsersCached แทน fetchUsers() เพื่อไม่ hit DB ซ้ำถ้า cache ยัง fresh
+    const tasks = [(typeof window.getUsersCached === 'function' ? window.getUsersCached() : fetchUsers()), loadSettings()];
     if (isAdmin) tasks.push(fetchTasks(), fetchIndividualTasks());
     await Promise.all(tasks);
 
@@ -1898,15 +1899,8 @@ window.loadSettings = async function() {
         if (typeof applyCustomTimeSlots === 'function') applyCustomTimeSlots();
         if (typeof renderManualTimeSlots === 'function') renderManualTimeSlots(); 
         
-        // 🌟 เพิ่มบรรทัดนี้: บังคับให้โหลดช่วงเวลาใส่ Dropdown ทันทีหลังดึงข้อมูลเสร็จ
-        if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-        
-        if (typeof fetchData === 'function') {
-            const mainArea = document.getElementById('mainContentArea') || document.getElementById('app-content');
-            if (mainArea && !mainArea.classList.contains('hidden')) {
-                fetchData();
-            }
-        }
+        // refreshTimeSlots และ fetchData ถูกเรียกจาก initDashboard แล้ว
+        // ไม่เรียกซ้ำที่นี่ เพื่อลด queries ที่ไม่จำเป็น
         
     } catch (e) { console.error("Load Settings Error:", e); }
 };
