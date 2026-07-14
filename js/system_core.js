@@ -631,8 +631,19 @@ function updateTableSummary(data) {
         }
     }
 
-    const pColors = { 'ช่วงที่ 1': 'bg-green-50 dark:bg-green-950/60 border-green-300 dark:border-green-500', 'ช่วงที่ 2': 'bg-orange-50 dark:bg-orange-950/60 border-orange-300 dark:border-orange-500', 'ช่วงที่ 3': 'bg-purple-50 dark:bg-purple-950/60 border-purple-300 dark:border-purple-500' };
-    const pTextColors = { 'ช่วงที่ 1': 'text-green-700 dark:text-green-400', 'ช่วงที่ 2': 'text-orange-700 dark:text-orange-400', 'ช่วงที่ 3': 'text-purple-700 dark:text-purple-400' };
+    const _isDark = document.documentElement.classList.contains('dark');
+    // pColors ใช้ inline style แทน Tailwind dark: เพราะ hex custom ไม่ compile
+    const pStyles = {
+        'ช่วงที่ 1': _isDark ? 'background:#0d2015;border:1.5px solid #166534;' : 'background:#f0fdf4;border:1.5px solid #86efac;',
+        'ช่วงที่ 2': _isDark ? 'background:#1c1006;border:1.5px solid #92400e;' : 'background:#fff7ed;border:1.5px solid #fdba74;',
+        'ช่วงที่ 3': _isDark ? 'background:#160d2a;border:1.5px solid #6b21a8;' : 'background:#faf5ff;border:1.5px solid #d8b4fe;',
+    };
+    const pTextStyles = {
+        'ช่วงที่ 1': _isDark ? 'color:#4ade80;' : 'color:#15803d;',
+        'ช่วงที่ 2': _isDark ? 'color:#fb923c;' : 'color:#c2410c;',
+        'ช่วงที่ 3': _isDark ? 'color:#c084fc;' : 'color:#7e22ce;',
+    };
+    const pColors = {}; const pTextColors = {};
     
     let html = '<div class="flex flex-col gap-6 w-full">';
     
@@ -653,9 +664,9 @@ function updateTableSummary(data) {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">`;
             
         for (const [periodName, timeSlots] of Object.entries(SHIFT_GROUPS[shift])) {
-            const colClass = pColors[periodName] || 'bg-gray-50 dark:bg-gray-800'; 
-            const textClass = pTextColors[periodName] || 'text-gray-500';
-            html += `<div class="flex flex-col gap-2 p-2 rounded border ${colClass}"><span class="text-[11px] font-extrabold uppercase text-center ${textClass} mb-1">${periodName}</span>`;
+            const colStyle = pStyles[periodName] || (_isDark ? 'background:#1e293b;border:1.5px solid #334155;' : 'background:#f8fafc;border:1.5px solid #e2e8f0;');
+            const txtStyle = pTextStyles[periodName] || 'color:#6b7280;';
+            html += `<div style="${colStyle}" class="flex flex-col gap-2 p-2 rounded"><span style="${txtStyle}" class="text-[11px] font-extrabold uppercase text-center mb-1">${periodName}</span>`;
             timeSlots.forEach(t => {
                 const count = counts[`${shift}|${t}`] || 0; 
                 const isActive = currentSpecificTimeFilter && currentSpecificTimeFilter.time === t && currentSpecificTimeFilter.shift === shift;
