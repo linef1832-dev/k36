@@ -203,7 +203,10 @@ window.generateSwapPlan = async function() {
         const targetMonthStr = startDateObj.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
         Swal.fire({ title: 'กำลังคำนวณแผน...', text: `ระบบกำลังดึงข้อมูลวันหยุดของเดือน "${targetMonthStr}" มาคำนวณ`, didOpen: () => Swal.showLoading() });
 
-        await fetchUsers(); 
+        if (typeof window.getUsersCached === 'function') {
+            const users = await window.getUsersCached();
+            if (users && users.length > 0) window.GLOBAL_USER_LIST = users;
+        } else { await fetchUsers(); }
         let userLeaves = {};
         try {
             const bufferStart = getSafeDateStr(startDateVal, -7); const bufferEnd = getSafeDateStr(endDateVal, 7);
@@ -484,7 +487,7 @@ window.fetchPublicSwapSchedule = async function() {
         const statusMode = statusFilterEl ? statusFilterEl.value : 'pending';
         let statusesToFetch = statusMode === 'pending' ? ['pending', 'info_only'] : ['completed'];
 
-        let query = appDB.from('scheduled_tasks').select('*').eq('task_type', 'individual_shift_update').in('status', statusesToFetch);
+        let query = appDB.from('scheduled_tasks').select('id, task_type, payload, scheduled_for, status, created_at').eq('task_type', 'individual_shift_update').in('status', statusesToFetch);
         if (statusMode === 'pending') query = query.order('status', { ascending: false }).order('scheduled_for', { ascending: true });
         else query = query.order('scheduled_for', { ascending: false }).limit(200);
 
@@ -716,7 +719,7 @@ window.deleteAllSwapSchedules = async function() {
         if (result.isConfirmed) {
             Swal.fire({ title: 'กำลังลบข้อมูล...', didOpen: () => Swal.showLoading() });
             try {
-                const { data } = await appDB.from('scheduled_tasks').select('*').eq('task_type', 'individual_shift_update');
+                const { data } = await appDB.from('scheduled_tasks').select('id, task_type, payload, scheduled_for, status').eq('task_type', 'individual_shift_update');
                 if (data && data.length > 0) {
                     const idsToDelete = []; const tasksToBackup = [];
                     const safeUserList = (typeof GLOBAL_USER_LIST !== 'undefined') ? GLOBAL_USER_LIST : [];
@@ -983,8 +986,9 @@ window.openAddMissingSwap = async function() {
         let payload, scheduledFor, status;
         let leaveRequest = null;
 
+        const originalShift = user.allowed_shift;
         if (action === 'swap') {
-            const targetShift = user.allowed_shift === 'กะเช้า' ? 'กะดึก' : 'กะเช้า';
+            const targetShift = originalShift === 'กะเช้า' ? 'กะดึก' : 'กะเช้า';
             const dispDate = new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
             const prevDate = getSafeDateStr(date, -1);
             const prevDispDate = new Date(prevDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
@@ -1003,7 +1007,6 @@ window.openAddMissingSwap = async function() {
             leaveRequest = { user_id: user.id, user_name: user.username, leave_date: xxDate, reason: 'XX', status: 'approved' };
         } else {
             // stay
-            const originalShift = user.allowed_shift;
             const desc = originalShift === 'กะเช้า' ? 'อยู่กะเช้าตามเดิม' : 'อยู่กะดึกตามเดิม';
             payload = { user_id: user.id, user_name: user.username, target_shift: 'คงเดิม', original_shift: originalShift, display_desc: desc };
             scheduledFor = `${date}T00:00:00`;
@@ -1396,7 +1399,7 @@ window.exportSwapReport = async function() {
 
     const { data: tasks, error } = await appDB
         .from('scheduled_tasks')
-        .select('*')
+        .select('id, payload, scheduled_for, status')
         .eq('task_type', 'individual_shift_update')
         .in('status', ['pending', 'completed', 'info_only'])
         .order('scheduled_for', { ascending: true });
