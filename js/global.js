@@ -285,6 +285,9 @@ async function showPage(pageName) {
 // 🎨 ระบบเปลี่ยนโหมดสี
 // ==========================================
 function toggleTheme() {
+    // บล็อก transition ทุกตัวชั่วคราว → สลับธีมทันทีไม่มีหน่วง
+    document.documentElement.classList.add('theme-switching');
+
     const cb = document.getElementById('themeToggleCb');
     if (document.documentElement.classList.contains('dark')) {
         document.documentElement.classList.remove('dark');
@@ -297,6 +300,13 @@ function toggleTheme() {
         localStorage.setItem('theme', 'dark');
         if(cb) cb.checked = true;
     }
+
+    // คืน transition กลับหลัง 1 frame (ให้ browser repaint ก่อน)
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove('theme-switching');
+        });
+    });
 }
 
 // ==========================================
