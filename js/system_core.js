@@ -1935,9 +1935,9 @@ window.renderQuotaSettings = function() {
         <div class="flex items-center gap-2 quota-row-team group min-w-max">
             <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="AM">
             <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 shrink-0 text-xs shadow-sm truncate text-center">${team}</div>
-            <input type="number" id="quota_team_${team}_AM_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
-            <input type="number" id="quota_team_${team}_AM_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
-            <input type="number" id="quota_team_${team}_AM_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
+            <input type="number" id="quota_team_${team}_AM_เช้า" class="val-m w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
+            <input type="number" id="quota_team_${team}_AM_กลาง" class="val-a w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
+            <input type="number" id="quota_team_${team}_AM_ดึก" class="val-n w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
             <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
         </div>`;
     });
@@ -1951,18 +1951,18 @@ window.renderQuotaSettings = function() {
         <div class="flex items-center gap-2 quota-row-team group min-w-max">
             <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="OD">
             <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 shrink-0 text-xs shadow-sm truncate text-center">${team}</div>
-            <input type="number" id="quota_team_${team}_OD_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
-            <input type="number" id="quota_team_${team}_OD_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
-            <input type="number" id="quota_team_${team}_OD_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
+            <input type="number" id="quota_team_${team}_OD_เช้า" class="val-m w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
+            <input type="number" id="quota_team_${team}_OD_กลาง" class="val-a w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
+            <input type="number" id="quota_team_${team}_OD_ดึก" class="val-n w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
             <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
         </div>`;
     });
 
     container.innerHTML = `
         <div class="flex flex-col gap-6 w-full mt-2">
-            <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-5 w-full">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-700/50 pb-2">
-                    <h5 class="text-white font-bold text-sm tracking-wide">รวมทั้งกะ (ภาพรวม):</h5>
+            <div class="bg-white dark:bg-[#151f32] rounded-xl border border-gray-200 dark:border-slate-700/80 shadow-inner p-5 w-full">
+                <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-slate-700/50 pb-2">
+                    <h5 class="text-slate-800 dark:text-white font-bold text-sm tracking-wide">รวมทั้งกะ (ภาพรวม):</h5>
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1986,8 +1986,8 @@ window.renderQuotaSettings = function() {
             </div>
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
-                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
-                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2 shrink-0">
+                <div class="bg-white dark:bg-[#151f32] rounded-xl border border-gray-200 dark:border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
+                    <div class="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-slate-700/50 pb-2 shrink-0">
                         <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">domain</span> รายทีม (AM):</h5>
                         <button onclick="addTeamManual('AM')" class="text-[10px] text-blue-400 border border-blue-500/50 px-2 py-1 rounded hover:bg-blue-900/30 transition">+ เพิ่มทีม AM</button>
                     </div>
@@ -2001,8 +2001,8 @@ window.renderQuotaSettings = function() {
                     <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto custom-scrollbar pr-1">${amHtml}</div>
                 </div>
 
-                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
-                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2 shrink-0">
+                <div class="bg-white dark:bg-[#151f32] rounded-xl border border-gray-200 dark:border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
+                    <div class="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-slate-700/50 pb-2 shrink-0">
                         <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">groups</span> รายทีม (OD):</h5>
                         <button onclick="addTeamManual('OD')" class="text-[10px] text-pink-400 border border-pink-500/50 px-2 py-1 rounded hover:bg-pink-900/30 transition">+ เพิ่มทีม OD</button>
                     </div>
@@ -2023,21 +2023,50 @@ window.renderQuotaSettings = function() {
 window.saveQuotaSettings = async function() {
     Swal.fire({title: 'กำลังบันทึกโควตา...', didOpen: () => Swal.showLoading()});
     const updates = [];
+
+    // 1. รวบรวมค่าทั้งหมด + อัปเดต SETTINGS ใน memory พร้อมกัน
     ['เช้า', 'กลาง', 'ดึก'].forEach(shift => {
-        let val = document.getElementById(`quota_total_${shift}`).value; updates.push({key: `quota_total_${shift}`, value: val}); SETTINGS[`quota_total_${shift}`] = val;
-        let odVal = document.getElementById(`quota_od_${shift}`).value; updates.push({key: `quota_od_${shift}`, value: odVal}); SETTINGS[`quota_od_${shift}`] = odVal;
+        const val = document.getElementById(`quota_total_${shift}`)?.value || '0';
+        updates.push({key: `quota_total_${shift}`, value: val});
+        SETTINGS[`quota_total_${shift}`] = val;
+
+        const odVal = document.getElementById(`quota_od_${shift}`)?.value || '0';
+        updates.push({key: `quota_od_${shift}`, value: odVal});
+        SETTINGS[`quota_od_${shift}`] = odVal;
     });
 
     document.querySelectorAll('.quota-row-team').forEach(row => {
-        let team = row.querySelector('.key-input').value; let dept = row.querySelector('.dept-input').value;
-        let qM = row.querySelector('.val-m').value; let qA = row.querySelector('.val-a').value; let qN = row.querySelector('.val-n').value;
-        updates.push({key: `quota_team_${team}_${dept}_เช้า`, value: qM}); SETTINGS[`quota_team_${team}_${dept}_เช้า`] = qM;
-        updates.push({key: `quota_team_${team}_${dept}_กลาง`, value: qA}); SETTINGS[`quota_team_${team}_${dept}_กลาง`] = qA;
-        updates.push({key: `quota_team_${team}_${dept}_ดึก`, value: qN}); SETTINGS[`quota_team_${team}_${dept}_ดึก`] = qN;
+        const team = row.querySelector('.key-input')?.value?.trim();
+        const dept = row.querySelector('.dept-input')?.value?.trim();
+        if (!team || !dept) return;
+        const qM = row.querySelector('.val-m')?.value || '0';
+        const qA = row.querySelector('.val-a')?.value || '0';
+        const qN = row.querySelector('.val-n')?.value || '0';
+        updates.push({key: `quota_team_${team}_${dept}_เช้า`, value: qM});
+        updates.push({key: `quota_team_${team}_${dept}_กลาง`, value: qA});
+        updates.push({key: `quota_team_${team}_${dept}_ดึก`, value: qN});
+        SETTINGS[`quota_team_${team}_${dept}_เช้า`] = qM;
+        SETTINGS[`quota_team_${team}_${dept}_กลาง`] = qA;
+        SETTINGS[`quota_team_${team}_${dept}_ดึก`] = qN;
     });
 
-    await appDB.from('settings').upsert(updates);
-    Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
+    try {
+        // 2. upsert ทีละ batch 50 rows เพื่อไม่ให้ timeout ถ้ามีหลายทีม
+        const batchSize = 50;
+        for (let i = 0; i < updates.length; i += batchSize) {
+            const batch = updates.slice(i, i + batchSize);
+            const { error } = await appDB.from('settings').upsert(batch);
+            if (error) throw error;
+        }
+
+        // 3. ล้าง setting cache เพื่อให้ loadSettings ครั้งถัดไปดึงค่าใหม่จาก DB
+        if (typeof window.clearSettingCache === 'function') window.clearSettingCache();
+
+        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', text: 'โควตาการเข้างานถูกบันทึกเรียบร้อยแล้ว', timer: 2000, showConfirmButton: false});
+    } catch(e) {
+        console.error('saveQuotaSettings error:', e);
+        Swal.fire('Error', 'บันทึกไม่สำเร็จ: ' + e.message, 'error');
+    }
 };
 
 // =========================================================
