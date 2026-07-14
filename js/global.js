@@ -299,6 +299,10 @@ function toggleTheme() {
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             document.documentElement.classList.remove('theme-switching');
+            // re-render ตารางเวลาเพื่ออัปเดตสีตาม theme ใหม่
+            if (typeof window.renderTableRows === 'function' && window.globalScheduleData) {
+                window.renderTableRows(window.globalScheduleData);
+            }
         });
     });
 }
