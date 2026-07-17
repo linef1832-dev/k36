@@ -562,7 +562,8 @@ window.fetchVpsStats = async function(manual = false) {
             _vpsRaw = _dbVps?.value ?? null;
         }
         if (_vpsRaw) {
-            const stats = typeof data.value === 'string' ? JSON.parse(_tgRaw) : data.value;
+            // [FIX] แก้บัค: ใช้ _vpsRaw แทน _tgRaw และ data.value ที่ไม่มีอยู่
+            const stats = typeof _vpsRaw === 'string' ? JSON.parse(_vpsRaw) : _vpsRaw;
             renderVpsStats(stats);
         } else {
             setVpsStatsOffline();
@@ -807,7 +808,8 @@ async function fetchChromeRefreshConfig() {
             _chromeRaw = _dbChrome?.value ?? null;
         }
         if (_chromeRaw) {
-            globalChromeRefreshConfig = JSON.parse(_tgRaw);
+            // [FIX] แก้บัค: ใช้ _chromeRaw แทน _tgRaw ที่ไม่มีอยู่ใน scope นี้
+            globalChromeRefreshConfig = JSON.parse(_chromeRaw);
         } else {
             globalChromeRefreshConfig = { enabled: false, interval_seconds: 7200, stagger: true };
         }
