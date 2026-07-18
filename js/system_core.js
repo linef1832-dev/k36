@@ -631,19 +631,8 @@ function updateTableSummary(data) {
         }
     }
 
-    const _isDark = document.documentElement.classList.contains('dark');
-    // pColors ใช้ inline style แทน Tailwind dark: เพราะ hex custom ไม่ compile
-    const pStyles = {
-        'ช่วงที่ 1': _isDark ? 'background:#0d2015;border:1.5px solid #166534;' : 'background:#f0fdf4;border:1.5px solid #86efac;',
-        'ช่วงที่ 2': _isDark ? 'background:#1c1006;border:1.5px solid #92400e;' : 'background:#fff7ed;border:1.5px solid #fdba74;',
-        'ช่วงที่ 3': _isDark ? 'background:#160d2a;border:1.5px solid #6b21a8;' : 'background:#faf5ff;border:1.5px solid #d8b4fe;',
-    };
-    const pTextStyles = {
-        'ช่วงที่ 1': _isDark ? 'color:#4ade80;' : 'color:#15803d;',
-        'ช่วงที่ 2': _isDark ? 'color:#fb923c;' : 'color:#c2410c;',
-        'ช่วงที่ 3': _isDark ? 'color:#c084fc;' : 'color:#7e22ce;',
-    };
-    const pColors = {}; const pTextColors = {};
+    const pColors = { 'ช่วงที่ 1': 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700', 'ช่วงที่ 2': 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700', 'ช่วงที่ 3': 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-700' };
+    const pTextColors = { 'ช่วงที่ 1': 'text-green-700 dark:text-green-300', 'ช่วงที่ 2': 'text-orange-700 dark:text-orange-300', 'ช่วงที่ 3': 'text-purple-700 dark:text-purple-300' };
     
     let html = '<div class="flex flex-col gap-6 w-full">';
     
@@ -654,7 +643,7 @@ function updateTableSummary(data) {
         const uniquePeople = new Set(shiftSpecificData.map(item => item.staff_name));
         const shiftTotal = uniquePeople.size;
 
-        html += `<div class="bg-white/70 dark:bg-slate-800/80 rounded-lg p-3 border border-slate-200 dark:border-slate-600">
+        html += `<div class="bg-white/50 dark:bg-slate-700/50 rounded-lg p-3 border border-slate-200 dark:border-slate-600">
             <div class="font-bold text-sm text-blue-600 dark:text-blue-300 mb-3 border-b border-slate-300 dark:border-slate-500 pb-1 flex justify-between items-center">
                 <span>${shift}</span>
                 <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full text-xs border border-blue-200 dark:border-blue-800 shadow-sm text-slate-600 dark:text-slate-300">
@@ -664,14 +653,14 @@ function updateTableSummary(data) {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">`;
             
         for (const [periodName, timeSlots] of Object.entries(SHIFT_GROUPS[shift])) {
-            const colStyle = pStyles[periodName] || (_isDark ? 'background:#1e293b;border:1.5px solid #334155;' : 'background:#f8fafc;border:1.5px solid #e2e8f0;');
-            const txtStyle = pTextStyles[periodName] || 'color:#6b7280;';
-            html += `<div style="${colStyle}" class="flex flex-col gap-2 p-2 rounded"><span style="${txtStyle}" class="text-[11px] font-extrabold uppercase text-center mb-1">${periodName}</span>`;
+            const colClass = pColors[periodName] || 'bg-gray-50 dark:bg-gray-800'; 
+            const textClass = pTextColors[periodName] || 'text-gray-500';
+            html += `<div class="flex flex-col gap-2 p-2 rounded border ${colClass}"><span class="text-[11px] font-extrabold uppercase text-center ${textClass} mb-1">${periodName}</span>`;
             timeSlots.forEach(t => {
                 const count = counts[`${shift}|${t}`] || 0; 
                 const isActive = currentSpecificTimeFilter && currentSpecificTimeFilter.time === t && currentSpecificTimeFilter.shift === shift;
                 const btnClass = count === 0 ? 'btn-slot-empty' : (isActive ? 'btn-slot-active' : 'btn-slot-filled');
-                html += `<button onclick="filterTableBySpecificTime('${t}', '${shift}')" class="text-[12px] px-3 py-1.5 rounded border flex justify-between items-center w-full ${btnClass}"><span class="font-mono">${t}</span><span class="font-bold text-[11px]">${count}</span></button>`;
+                html += `<button onclick="filterTableBySpecificTime('${t}', '${shift}')" class="text-[12px] px-3 py-1.5 rounded border transition flex justify-between items-center shadow-sm w-full group ${btnClass}"><span class="font-mono">${t}</span><span class="font-bold text-[11px]">${count}</span></button>`;
             }); 
             html += `</div>`;
         } 
@@ -744,8 +733,7 @@ async function refreshAdminData() {
     if(btn) btn.classList.add('animate-spin');
 
     const isAdmin = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin');
-    // ใช้ getUsersCached แทน fetchUsers() เพื่อไม่ hit DB ซ้ำถ้า cache ยัง fresh
-    const tasks = [(typeof window.getUsersCached === 'function' ? window.getUsersCached() : fetchUsers()), loadSettings()];
+    const tasks = [fetchUsers(), loadSettings()];
     if (isAdmin) tasks.push(fetchTasks(), fetchIndividualTasks());
     await Promise.all(tasks);
 
@@ -1910,8 +1898,15 @@ window.loadSettings = async function() {
         if (typeof applyCustomTimeSlots === 'function') applyCustomTimeSlots();
         if (typeof renderManualTimeSlots === 'function') renderManualTimeSlots(); 
         
-        // refreshTimeSlots และ fetchData ถูกเรียกจาก initDashboard แล้ว
-        // ไม่เรียกซ้ำที่นี่ เพื่อลด queries ที่ไม่จำเป็น
+        // 🌟 เพิ่มบรรทัดนี้: บังคับให้โหลดช่วงเวลาใส่ Dropdown ทันทีหลังดึงข้อมูลเสร็จ
+        if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+        
+        if (typeof fetchData === 'function') {
+            const mainArea = document.getElementById('mainContentArea') || document.getElementById('app-content');
+            if (mainArea && !mainArea.classList.contains('hidden')) {
+                fetchData();
+            }
+        }
         
     } catch (e) { console.error("Load Settings Error:", e); }
 };
@@ -1935,9 +1930,9 @@ window.renderQuotaSettings = function() {
         <div class="flex items-center gap-2 quota-row-team group min-w-max">
             <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="AM">
             <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 shrink-0 text-xs shadow-sm truncate text-center">${team}</div>
-            <input type="number" id="quota_team_${team}_AM_เช้า" class="val-m w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
-            <input type="number" id="quota_team_${team}_AM_กลาง" class="val-a w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
-            <input type="number" id="quota_team_${team}_AM_ดึก" class="val-n w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
+            <input type="number" id="quota_team_${team}_AM_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
+            <input type="number" id="quota_team_${team}_AM_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
+            <input type="number" id="quota_team_${team}_AM_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
             <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
         </div>`;
     });
@@ -1951,18 +1946,18 @@ window.renderQuotaSettings = function() {
         <div class="flex items-center gap-2 quota-row-team group min-w-max">
             <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="OD">
             <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 shrink-0 text-xs shadow-sm truncate text-center">${team}</div>
-            <input type="number" id="quota_team_${team}_OD_เช้า" class="val-m w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
-            <input type="number" id="quota_team_${team}_OD_กลาง" class="val-a w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
-            <input type="number" id="quota_team_${team}_OD_ดึก" class="val-n w-16 shrink-0 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
+            <input type="number" id="quota_team_${team}_OD_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
+            <input type="number" id="quota_team_${team}_OD_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
+            <input type="number" id="quota_team_${team}_OD_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
             <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
         </div>`;
     });
 
     container.innerHTML = `
         <div class="flex flex-col gap-6 w-full mt-2">
-            <div class="bg-white dark:bg-[#151f32] rounded-xl border border-gray-200 dark:border-slate-700/80 shadow-inner p-5 w-full">
-                <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-slate-700/50 pb-2">
-                    <h5 class="text-slate-800 dark:text-white font-bold text-sm tracking-wide">รวมทั้งกะ (ภาพรวม):</h5>
+            <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-5 w-full">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-700/50 pb-2">
+                    <h5 class="text-white font-bold text-sm tracking-wide">รวมทั้งกะ (ภาพรวม):</h5>
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1986,8 +1981,8 @@ window.renderQuotaSettings = function() {
             </div>
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
-                <div class="bg-white dark:bg-[#151f32] rounded-xl border border-gray-200 dark:border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
-                    <div class="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-slate-700/50 pb-2 shrink-0">
+                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2 shrink-0">
                         <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">domain</span> รายทีม (AM):</h5>
                         <button onclick="addTeamManual('AM')" class="text-[10px] text-blue-400 border border-blue-500/50 px-2 py-1 rounded hover:bg-blue-900/30 transition">+ เพิ่มทีม AM</button>
                     </div>
@@ -2001,8 +1996,8 @@ window.renderQuotaSettings = function() {
                     <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto custom-scrollbar pr-1">${amHtml}</div>
                 </div>
 
-                <div class="bg-white dark:bg-[#151f32] rounded-xl border border-gray-200 dark:border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
-                    <div class="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-slate-700/50 pb-2 shrink-0">
+                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2 shrink-0">
                         <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">groups</span> รายทีม (OD):</h5>
                         <button onclick="addTeamManual('OD')" class="text-[10px] text-pink-400 border border-pink-500/50 px-2 py-1 rounded hover:bg-pink-900/30 transition">+ เพิ่มทีม OD</button>
                     </div>
@@ -2023,50 +2018,21 @@ window.renderQuotaSettings = function() {
 window.saveQuotaSettings = async function() {
     Swal.fire({title: 'กำลังบันทึกโควตา...', didOpen: () => Swal.showLoading()});
     const updates = [];
-
-    // 1. รวบรวมค่าทั้งหมด + อัปเดต SETTINGS ใน memory พร้อมกัน
     ['เช้า', 'กลาง', 'ดึก'].forEach(shift => {
-        const val = document.getElementById(`quota_total_${shift}`)?.value || '0';
-        updates.push({key: `quota_total_${shift}`, value: val});
-        SETTINGS[`quota_total_${shift}`] = val;
-
-        const odVal = document.getElementById(`quota_od_${shift}`)?.value || '0';
-        updates.push({key: `quota_od_${shift}`, value: odVal});
-        SETTINGS[`quota_od_${shift}`] = odVal;
+        let val = document.getElementById(`quota_total_${shift}`).value; updates.push({key: `quota_total_${shift}`, value: val}); SETTINGS[`quota_total_${shift}`] = val;
+        let odVal = document.getElementById(`quota_od_${shift}`).value; updates.push({key: `quota_od_${shift}`, value: odVal}); SETTINGS[`quota_od_${shift}`] = odVal;
     });
 
     document.querySelectorAll('.quota-row-team').forEach(row => {
-        const team = row.querySelector('.key-input')?.value?.trim();
-        const dept = row.querySelector('.dept-input')?.value?.trim();
-        if (!team || !dept) return;
-        const qM = row.querySelector('.val-m')?.value || '0';
-        const qA = row.querySelector('.val-a')?.value || '0';
-        const qN = row.querySelector('.val-n')?.value || '0';
-        updates.push({key: `quota_team_${team}_${dept}_เช้า`, value: qM});
-        updates.push({key: `quota_team_${team}_${dept}_กลาง`, value: qA});
-        updates.push({key: `quota_team_${team}_${dept}_ดึก`, value: qN});
-        SETTINGS[`quota_team_${team}_${dept}_เช้า`] = qM;
-        SETTINGS[`quota_team_${team}_${dept}_กลาง`] = qA;
-        SETTINGS[`quota_team_${team}_${dept}_ดึก`] = qN;
+        let team = row.querySelector('.key-input').value; let dept = row.querySelector('.dept-input').value;
+        let qM = row.querySelector('.val-m').value; let qA = row.querySelector('.val-a').value; let qN = row.querySelector('.val-n').value;
+        updates.push({key: `quota_team_${team}_${dept}_เช้า`, value: qM}); SETTINGS[`quota_team_${team}_${dept}_เช้า`] = qM;
+        updates.push({key: `quota_team_${team}_${dept}_กลาง`, value: qA}); SETTINGS[`quota_team_${team}_${dept}_กลาง`] = qA;
+        updates.push({key: `quota_team_${team}_${dept}_ดึก`, value: qN}); SETTINGS[`quota_team_${team}_${dept}_ดึก`] = qN;
     });
 
-    try {
-        // 2. upsert ทีละ batch 50 rows เพื่อไม่ให้ timeout ถ้ามีหลายทีม
-        const batchSize = 50;
-        for (let i = 0; i < updates.length; i += batchSize) {
-            const batch = updates.slice(i, i + batchSize);
-            const { error } = await appDB.from('settings').upsert(batch);
-            if (error) throw error;
-        }
-
-        // 3. ล้าง setting cache เพื่อให้ loadSettings ครั้งถัดไปดึงค่าใหม่จาก DB
-        if (typeof window.clearSettingCache === 'function') window.clearSettingCache();
-
-        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', text: 'โควตาการเข้างานถูกบันทึกเรียบร้อยแล้ว', timer: 2000, showConfirmButton: false});
-    } catch(e) {
-        console.error('saveQuotaSettings error:', e);
-        Swal.fire('Error', 'บันทึกไม่สำเร็จ: ' + e.message, 'error');
-    }
+    await appDB.from('settings').upsert(updates);
+    Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
 };
 
 // =========================================================
@@ -2193,6 +2159,12 @@ const PERM_GROUPS = [
         items: [
             {id: 'files', name: 'เข้าหน้าคลังไฟล์ / โปรแกรม', isSub: false},
             {id: 'files_manage', name: 'แอดมินคลังไฟล์', isSub: true}
+        ]
+    },
+    {
+        id: 'page_od_config', name: 'OD Form Bot (ตั้งค่าส่วนขยาย)', icon: 'extension', theme: 'indigo',
+        items: [
+            {id: 'od_config', name: 'เข้าหน้าตั้งค่า OD Form Bot', isSub: false},
         ]
     },
     {
