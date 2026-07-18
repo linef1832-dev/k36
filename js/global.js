@@ -61,14 +61,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         // วิธีแก้: ดึง dept_menu_rules ตรงๆ ก่อน 1 ครั้ง แล้วค่อย showPage
         if (appDB) {
             try {
-                // ใช้ getSettingCached (TTL 5 นาที) แทน query ตรง
-                const val = await window.getSettingCached('dept_menu_rules');
-                if (val) {
-                    if (typeof SETTINGS !== 'undefined') SETTINGS['dept_menu_rules'] = val;
-                    window.safeSetItem('cached_menu_rules', val);
+                const { data } = await appDB
+                    .from('settings')
+                    .select('value')
+                    .eq('key', 'dept_menu_rules')
+                    .maybeSingle();
+                if (data && data.value) {
+                    // อัปเดตทั้ง SETTINGS และ cache ในคราวเดียว
+                    if (typeof SETTINGS !== 'undefined') {
+                        SETTINGS['dept_menu_rules'] = data.value;
+                    }
+                    window.safeSetItem('cached_menu_rules', data.value);
                 }
             } catch(e) {
-                console.warn('[startup] dept_menu_rules fetch failed', e);
+                console.warn('[startup] dept_menu_rules fetch failed, falling back to cache', e);
             }
         }
 
@@ -229,6 +235,9 @@ async function showPage(pageName) {
                 else if (pageName === 'files') {
                     if (typeof initFilesApp === 'function') await initFilesApp(); 
                 }
+                else if (pageName === 'od_config') {
+                    if (typeof initOdConfig === 'function') await initOdConfig();
+                }
                 else if (pageName === 'sheet') {
                     if (typeof fetchSheets === 'function') await fetchSheets(); 
                     if (typeof renderSheetMenu === 'function') renderSheetMenu();
@@ -279,9 +288,6 @@ async function showPage(pageName) {
 // 🎨 ระบบเปลี่ยนโหมดสี
 // ==========================================
 function toggleTheme() {
-    // บล็อก transition ทุกตัวชั่วคราว → สลับธีมทันทีไม่มีหน่วง
-    document.documentElement.classList.add('theme-switching');
-
     const cb = document.getElementById('themeToggleCb');
     if (document.documentElement.classList.contains('dark')) {
         document.documentElement.classList.remove('dark');
@@ -294,17 +300,6 @@ function toggleTheme() {
         localStorage.setItem('theme', 'dark');
         if(cb) cb.checked = true;
     }
-
-    // คืน transition กลับหลัง 1 frame (ให้ browser repaint ก่อน)
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            document.documentElement.classList.remove('theme-switching');
-            // re-render ตารางเวลาเพื่ออัปเดตสีตาม theme ใหม่
-            if (typeof window.renderTableRows === 'function' && window.globalScheduleData) {
-                window.renderTableRows(window.globalScheduleData);
-            }
-        });
-    });
 }
 
 // ==========================================
