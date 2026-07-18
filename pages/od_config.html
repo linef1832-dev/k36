@@ -1,0 +1,107 @@
+<div id="odConfigApp" class="fade-in flex flex-col min-h-full bg-slate-50 dark:bg-slate-900 pb-10">
+
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-blue-700 to-indigo-700 text-white p-4 shadow-md shrink-0 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="bg-white/20 p-2 rounded-full"><span class="material-icons text-2xl">extension</span></div>
+            <div>
+                <h1 class="font-bold text-lg">ตั้งค่าส่วนขยาย OD Form Bot</h1>
+                <p class="text-xs text-blue-100">แก้ไขรหัสโปร / เว็บ / สาเหตุ — มีผลทันทีเมื่อพนักงานเปิดส่วนขยาย</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="odCfg_save()" class="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
+                <span class="material-icons text-sm">save</span> บันทึกทั้งหมด
+            </button>
+        </div>
+    </div>
+
+    <!-- Status bar -->
+    <div id="odCfgStatus" class="hidden mx-4 mt-3 p-3 rounded-xl text-sm font-bold text-center"></div>
+
+    <div class="p-4 max-w-6xl mx-auto w-full">
+
+        <!-- แถว 1: เว็บ + สาเหตุ -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+            <!-- เว็บ -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                        <span class="material-icons text-blue-500 text-sm">language</span> รายชื่อเว็บ
+                    </h2>
+                    <button onclick="odCfg_addWeb()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มเว็บ</button>
+                </div>
+                <div class="p-3 space-y-2 max-h-72 overflow-y-auto custom-scrollbar" id="odCfgWebList"></div>
+            </div>
+
+            <!-- สาเหตุ -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                        <span class="material-icons text-amber-500 text-sm">report_problem</span> สาเหตุการตัด OD
+                    </h2>
+                    <button onclick="odCfg_addReason()" class="bg-amber-500 hover:bg-amber-400 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มสาเหตุ</button>
+                </div>
+                <div class="p-3 space-y-2 max-h-72 overflow-y-auto custom-scrollbar" id="odCfgReasonList"></div>
+            </div>
+        </div>
+
+        <!-- แถว 2: รหัสโปรแยกตามเว็บ -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-yellow-500 text-sm">star</span> รหัสโปรโมชั่น แยกตามเว็บ
+                </h2>
+                <div class="flex items-center gap-2">
+                    <select id="odCfgPromoWebSel" onchange="odCfg_renderPromos()" class="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500">
+                        <option value="">-- เลือกเว็บ --</option>
+                    </select>
+                    <button onclick="odCfg_addPromo()" class="bg-yellow-500 hover:bg-yellow-400 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มโปร</button>
+                </div>
+            </div>
+            <div class="p-3">
+                <div id="odCfgPromoList" class="flex flex-wrap gap-2 min-h-16">
+                    <div class="text-gray-400 text-sm m-auto">เลือกเว็บเพื่อดูรหัสโปร</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- แถว 3: ตั้งค่า Telegram Bot -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-sky-500 text-sm">send</span> ตั้งค่า Telegram Bot (Railway)
+                </h2>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Railway API URL</label>
+                    <input type="text" id="odCfgServerUrl" placeholder="https://od-form-bot-production.up.railway.app"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                    <p class="text-xs text-gray-400 mt-1">URL ของ Railway server ที่รับส่งข้อความ</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Group Chat ID (Telegram)</label>
+                    <input type="text" id="odCfgChatId" placeholder="-100XXXXXXXXXX"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                    <p class="text-xs text-gray-400 mt-1">ID กลุ่ม Telegram ที่จะส่งข้อความไป</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview JSON -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-gray-400 text-sm">code</span> Preview JSON (ที่ส่วนขยายจะดึงไป)
+                </h2>
+                <button onclick="odCfg_refreshPreview()" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-3 py-1 rounded-lg transition">รีเฟรช</button>
+            </div>
+            <pre id="odCfgPreview" class="p-4 text-xs text-green-400 bg-slate-950 overflow-x-auto max-h-40 custom-scrollbar rounded-b-2xl"></pre>
+        </div>
+
+    </div>
+</div>
+
+<script src="./js/od_config.js"></script>
