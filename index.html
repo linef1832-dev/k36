@@ -42,8 +42,8 @@
     <div id="main-layout" class="w-full mx-auto p-2 md:p-4 hidden fade-in min-h-screen">
         <div class="flex flex-col md:flex-row gap-4 md:gap-6 h-full items-start">
 
-            <div class="w-full md:w-[260px] rounded-xl shadow-2xl flex flex-col shrink-0 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar z-40 nm-sidebar-wrap">
-                <div class="p-5 sticky top-0 z-10 overflow-hidden relative shrink-0 nm-sidebar-header">
+            <div class="w-full md:w-[260px] bg-[#0b1727] rounded-xl shadow-2xl border border-[#1a273a] flex flex-col shrink-0 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar z-40">
+                <div class="p-5 border-b border-[#1a273a] text-center bg-[#020813] sticky top-0 z-10 overflow-hidden relative shrink-0">
                     <div class="absolute inset-0 bg-red-900/20 blur-[30px] rounded-full pointer-events-none"></div>
                     <h2 class="font-black text-2xl tracking-[0.15em] flex items-center justify-center gap-2 relative z-10">
                         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -59,86 +59,89 @@
                 </div>
 
                 <div class="flex flex-col py-2" id="menu-list">
-                    <button onclick="showPage('dashboard'); setTimeout(() => { if(typeof initDashboard === 'function') initDashboard(); }, 200);" class="nm-menu-title active border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('dashboard'); setTimeout(() => { if(typeof initDashboard === 'function') initDashboard(); }, 200);" class="nm-menu-title active border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-blue-400">home</span> หน้าหลักลงเวลา</div>
                     </button>
-                    <button onclick="showPage('leave')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('leave')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-rose-500">event_busy</span> วันหยุด / ลางาน</div>
                     </button>
-                    <button onclick="showPage('gallery')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('gallery')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-pink-500">photo_library</span> คลังรูปภาพ</div>
                     </button>
-                    <button onclick="showPage('logo_editor')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('logo_editor')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-fuchsia-400">photo_filter</span> แต่งรูป / โลโก้</div>
                     </button>
-                    <button onclick="showPage('password')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('password')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-yellow-500">vpn_key</span> รหัสผ่าน</div>
                     </button>
 
-                    <button onclick="showPage('sheet')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('sheet')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-green-500">table_view</span> ตารางงาน (Sheets)</div>
                     </button>
-                    <button onclick="showPage('slip_check'); setTimeout(() => { if(typeof window.initSlipCheck === 'function') window.initSlipCheck(); }, 200);" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('slip_check'); setTimeout(() => { if(typeof window.initSlipCheck === 'function') window.initSlipCheck(); }, 200);" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-blue-500">qr_code_scanner</span> ตรวจสอบสลิป </div>
                     </button>
-                    <button onclick="showPage('swap')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('swap')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-orange-500">swap_horiz</span> สลับกะการทำงาน</div>
                     </button>
-                    <button onclick="showPage('duty')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('duty')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-indigo-400">assignment_ind</span> จัดหน้าที่ / เวร</div>
                     </button>
-                    <button onclick="showPage('telegram')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('telegram')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-sky-400">near_me</span> กลุ่มงาน (Telegram)</div>
                     </button>
-                    <button onclick="showPage('files')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('files')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-emerald-400">folder_zip</span> คลังไฟล์ / โปรแกรม</div>
                     </button>
-                    <button onclick="showPage('summary')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button id="menuOdConfig" onclick="showPage('od_config'); setTimeout(()=>{ if(typeof initOdConfig==='function') initOdConfig(); },200);" class="nm-menu-title border-b border-[#1a273a] no-perm-hidden" style="display:none">
+                        <div class="flex items-center"><span class="material-icons nm-menu-icon text-indigo-400">extension</span> OD Form Bot</div>
+                    </button>
+                    <button onclick="showPage('summary')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-purple-400">query_stats</span> สรุปยอดทำรายการ</div>
                     </button>
-                    <button onclick="showPage('fine')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('fine')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-red-500">gavel</span> ระบบใบปรับ</div>
                     </button>
-                    <button onclick="showPage('withdrawal_report')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('withdrawal_report')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-emerald-400">receipt_long</span> รับเคส Telegram</div>
                     </button>
-                    <button onclick="showPage('sop')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('sop')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center w-full"><span class="material-icons nm-menu-icon text-rose-400">rule_folder</span> คู่มือการทำงาน (OD)
                             <span id="sopUnreadBadge" class="hidden ml-auto bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse" title="OD ใหม่ที่ยังไม่อ่าน">0</span>
                         </div>
                     </button>
-                    <button id="sidebarKbizMenu" onclick="showPage('kbiz')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button id="sidebarKbizMenu" onclick="showPage('kbiz')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-teal-400">smart_toy</span> จัดการบอท K BIZ</div>
                     </button>
-                    <button onclick="showPage('ip_check')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a]">
+                    <button onclick="showPage('ip_check')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-cyan-400">public</span> ตรวจสอบ IP พนักงาน</div>
                     </button>
 
-                    <button onclick="toggleSubMenu('menu-discord', 'icon-discord')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a] justify-between">
+                    <button onclick="toggleSubMenu('menu-discord', 'icon-discord')" class="nm-menu-title border-b border-[#1a273a] justify-between">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-indigo-500">discord</span> เครื่องมือ DISCORD</div>
                         <span class="material-icons text-sm transition-transform duration-200" id="icon-discord">chevron_right</span>
                     </button>
-                    <div id="menu-discord" class="hidden flex-col nm-submenu shadow-inner">
-                        <button onclick="showPage('discord')" class="w-full text-left py-3 pl-12 pr-4 text-sm text-gray-400 hover:text-white hover:bg-[#0a192f] transition border-b border-gray-200 dark:border-[#1a273a]/50">เปิดหน้าต่างระบบ</button>
+                    <div id="menu-discord" class="hidden flex-col bg-[#020813] shadow-inner">
+                        <button onclick="showPage('discord')" class="w-full text-left py-3 pl-12 pr-4 text-sm text-gray-400 hover:text-white hover:bg-[#0a192f] transition border-b border-[#1a273a]/50">เปิดหน้าต่างระบบ</button>
                     </div>
 
-                    <button onclick="toggleSubMenu('menu-admin', 'icon-admin')" class="nm-menu-title border-b border-gray-200 dark:border-[#1a273a] justify-between">
+                    <button onclick="toggleSubMenu('menu-admin', 'icon-admin')" class="nm-menu-title border-b border-[#1a273a] justify-between">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-yellow-500">manage_accounts</span> เครื่องมือผู้จัดการ</div>
                         <span class="material-icons text-sm transition-transform duration-200" id="icon-admin">chevron_right</span>
                     </button>
-                    <div id="menu-admin" class="hidden flex-col nm-submenu shadow-inner">
-                        <button onclick="openAdminPanel()" class="w-full text-left py-3 pl-12 pr-4 text-sm text-gray-400 hover:text-white hover:bg-[#0a192f] transition border-b border-gray-200 dark:border-[#1a273a]/50">ตั้งค่าระบบ (สลับหน้า)</button>
+                    <div id="menu-admin" class="hidden flex-col bg-[#020813] shadow-inner">
+                        <button onclick="openAdminPanel()" class="w-full text-left py-3 pl-12 pr-4 text-sm text-gray-400 hover:text-white hover:bg-[#0a192f] transition border-b border-[#1a273a]/50">ตั้งค่าระบบ (สลับหน้า)</button>
                     </div>
                 </div> 
 
-                <div class="mt-auto sticky bottom-0 z-10 p-5 shrink-0 nm-sidebar-footer">
+                <div class="mt-auto border-t border-[#1a273a] bg-[#020813] sticky bottom-0 z-10 p-5 shrink-0">
                     
                     <button onclick="openLogsPage()" class="flex items-center w-full px-2 py-2 mb-4 hover:bg-blue-900/40 text-blue-400 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-blue-900/50">
                         <span class="material-icons mr-3 text-[18px]">history</span> <span class="text-sm font-bold flex-1">ประวัติระบบ</span>
                     </button>
 
                     <div class="flex items-center justify-between mb-4 px-2">
-                        <div class="flex items-center text-slate-500 dark:text-[#8b9bb4] text-sm font-bold">
+                        <div class="flex items-center text-[#8b9bb4] text-sm font-bold">
                             <span id="themeIcon" class="material-icons text-yellow-500 mr-3 text-[18px]">dark_mode</span> โหมดสี
                         </div>
                         <label class="theme-switch">
