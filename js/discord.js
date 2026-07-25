@@ -2841,8 +2841,12 @@ window.openBreaktrackDetail = function(staffName) {
 };
 
 // ============================================================
-// ⚙️ ระบบตั้งค่ากลุ่ม Telegram (checkin_groups)
 // ============================================================
+// ⚙️ ระบบตั้งค่ากลุ่ม Telegram (ตาราง telegram_groups)
+// จับคู่กลุ่มด้วย chat_id ไม่ใช่ชื่อ — ชื่อเป็นแค่ป้ายให้คนอ่าน
+// ============================================================
+
+window._tgGroupsCache = [];
 
 window.toggleBreakGroupsPanel = function() {
     const panel = document.getElementById('breakGroupsPanel');
@@ -2857,6 +2861,7 @@ window.toggleBreakGroupsPanel = function() {
 
 window.toggleCheckinGroupsPanel = function() {
     const panel = document.getElementById('checkinGroupsPanel');
+    if (!panel) return;
     if (panel.classList.contains('hidden')) {
         panel.classList.remove('hidden');
         window.loadCheckinGroups();
@@ -2865,41 +2870,69 @@ window.toggleCheckinGroupsPanel = function() {
     }
 };
 
+// normalize chat id ให้ตรงกับฝั่งบอท (-1001234567890 กับ 1234567890 = กลุ่มเดียวกัน)
+window.normChatId = function(v) {
+    let s = String(v == null ? '' : v).trim();
+    if (!s) return '';
+    s = s.replace(/^-+/, '');
+    if (!/^\d+$/.test(s)) return '';
+    if (s.startsWith('100') && s.length > 10) s = s.slice(3);
+    return s;
+};
+
 window.loadCheckinGroups = async function() {
     const listCheckin = document.getElementById('checkinGroupsList_checkin');
     const listShift = document.getElementById('checkinGroupsList_shift');
     if (!listCheckin && !listShift) return;
+
     const _loadingHtml = '<div class="text-gray-500 text-xs text-center py-2">กำลังโหลด...</div>';
     if (listCheckin) listCheckin.innerHTML = _loadingHtml;
     if (listShift) listShift.innerHTML = _loadingHtml;
+
     try {
         const { data, error } = await appDB
-            .from('checkin_groups')
+            .from('telegram_groups')
             .select('*')
             .order('created_at', { ascending: true });
         if (error) throw error;
 
-        const renderGroup = (g) => `
+        window._tgGroupsCache = data || [];
+
+        const renderGroup = (g) => {
+            const cid = window.normChatId(g.chat_id);
+            const idLine = cid
+                ? `<span class="text-gray-500">ID: ${g.chat_id}</span>`
+                : `<span class="text-amber-400">ยังไม่ได้ใส่ Chat ID — บอทจะข้ามกลุ่มนี้</span>`;
+            const soundLine = (g.group_type === 'shift' && g.sound_id)
+                ? `<span class="text-gray-600"> · เสียง ${g.sound_id}</span>` : '';
+            return `
             <div class="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2 gap-2">
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                     <span class="w-2 h-2 rounded-full shrink-0 ${g.active ? 'bg-emerald-400' : 'bg-gray-500'}"></span>
-                    <span class="text-white text-xs font-bold truncate">${g.group_name}</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-white text-xs font-bold truncate">${g.group_name || '(ไม่มีชื่อ)'}</div>
+                        <div class="text-[10px] truncate font-mono">${idLine}${soundLine}</div>
+                    </div>
                 </div>
                 <div class="flex gap-1 shrink-0">
+                    <button onclick="window.editTelegramGroup('${g.id}')"
+                        class="text-xs px-2 py-1 rounded-lg font-bold bg-slate-600 text-gray-200 hover:bg-slate-500 transition">แก้ไข</button>
                     <button onclick="window.toggleCheckinGroup('${g.id}', ${g.active})"
                         class="text-xs px-2 py-1 rounded-lg font-bold transition ${g.active ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}">
                         ${g.active ? 'ปิด' : 'เปิด'}
                     </button>
-                    <button onclick="window.deleteCheckinGroup('${g.id}', '${g.group_name.replace(/'/g, "\'")}')"
+                    <button onclick="window.deleteCheckinGroup('${g.id}')"
                         class="text-xs px-2 py-1 rounded-lg font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">ลบ</button>
                 </div>
             </div>`;
+        };
 
-        const checkinData = (data || []).filter(g => g.group_type === 'checkin');
-        const shiftData = (data || []).filter(g => g.group_type === 'shift');
+        const empty = '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
+        const checkinData = window._tgGroupsCache.filter(g => g.group_type === 'checkin');
+        const shiftData = window._tgGroupsCache.filter(g => g.group_type === 'shift');
 
-        if (listCheckin) listCheckin.innerHTML = checkinData.length ? checkinData.map(renderGroup).join('') : '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
-        if (listShift) listShift.innerHTML = shiftData.length ? shiftData.map(renderGroup).join('') : '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
+        if (listCheckin) listCheckin.innerHTML = checkinData.length ? checkinData.map(renderGroup).join('') : empty;
+        if (listShift) listShift.innerHTML = shiftData.length ? shiftData.map(renderGroup).join('') : empty;
     } catch(e) {
         const _errHtml = '<div class="text-red-400 text-xs text-center py-2">โหลดไม่ได้ครับ</div>';
         if (listCheckin) listCheckin.innerHTML = _errHtml;
@@ -2908,13 +2941,21 @@ window.loadCheckinGroups = async function() {
 };
 
 window.addCheckinGroup = async function(type) {
-    const input = document.getElementById('newGroupName_' + type);
-    const name = input?.value.trim();
+    const nameEl = document.getElementById('newGroupName_' + type);
+    const idEl = document.getElementById('newGroupChatId_' + type);
+    const name = nameEl ? nameEl.value.trim() : '';
+    const rawId = idEl ? idEl.value.trim() : '';
+
     if (!name) return Swal.fire('แจ้งเตือน', 'กรุณาใส่ชื่อกลุ่มก่อนครับ', 'warning');
+    if (!rawId) return Swal.fire('แจ้งเตือน', 'กรุณาใส่ Chat ID ด้วยครับ ไม่งั้นบอทจะไม่ดักกลุ่มนี้', 'warning');
+    if (!window.normChatId(rawId)) return Swal.fire('Chat ID ไม่ถูกต้อง', 'ต้องเป็นตัวเลขเท่านั้น เช่น -1001234567890', 'error');
+
     try {
-        const { error } = await appDB.from('checkin_groups').insert({ group_name: name, active: true, group_type: type });
+        const row = { group_name: name, active: true, group_type: type, chat_id: rawId };
+        const { error } = await appDB.from('telegram_groups').insert(row);
         if (error) throw error;
-        input.value = '';
+        if (nameEl) nameEl.value = '';
+        if (idEl) idEl.value = '';
         await window.loadCheckinGroups();
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'เพิ่มกลุ่มสำเร็จ', showConfirmButton: false, timer: 1500 });
     } catch(e) {
@@ -2922,10 +2963,101 @@ window.addCheckinGroup = async function(type) {
     }
 };
 
+window.editTelegramGroup = async function(id) {
+    const g = (window._tgGroupsCache || []).find(x => String(x.id) === String(id));
+    if (!g) return;
+
+    const isShift = g.group_type === 'shift';
+    const esc = (v) => String(v == null ? '' : v).replace(/"/g, '&quot;');
+
+    let pairedNow = [];
+    try { pairedNow = Array.isArray(g.paired_chat_ids) ? g.paired_chat_ids : JSON.parse(g.paired_chat_ids || '[]'); } catch(e) { pairedNow = []; }
+    const pairedNorm = pairedNow.map(window.normChatId);
+
+    const checkinGroups = (window._tgGroupsCache || []).filter(x => x.group_type === 'checkin');
+    const pairHtml = !isShift ? '' : `
+        <div style="text-align:left;margin-top:12px">
+            <label style="font-size:12px;color:#94a3b8;font-weight:bold">จับคู่กับกลุ่มเช็คอิน</label>
+            <div style="font-size:11px;color:#64748b;margin-bottom:6px">เลือกกลุ่มที่ใช้คู่กับกะนี้ ถ้าไม่เลือกเลย = นับทุกกลุ่ม</div>
+            <div style="max-height:120px;overflow-y:auto;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:8px">
+                ${checkinGroups.length ? checkinGroups.map(c => {
+                    const ccid = window.normChatId(c.chat_id);
+                    const checked = ccid && pairedNorm.includes(ccid) ? 'checked' : '';
+                    const disabled = ccid ? '' : 'disabled';
+                    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;color:#e2e8f0;cursor:pointer">
+                        <input type="checkbox" class="tgPairCb" value="${esc(c.chat_id || '')}" ${checked} ${disabled}>
+                        <span>${esc(c.group_name)}${ccid ? '' : ' (ยังไม่มี Chat ID)'}</span>
+                    </label>`;
+                }).join('') : '<div style="font-size:12px;color:#64748b">ยังไม่มีกลุ่มเช็คอิน</div>'}
+            </div>
+        </div>`;
+
+    const soundHtml = !isShift ? '' : `
+        <div style="display:flex;gap:8px;margin-top:12px">
+            <div style="flex:1;text-align:left">
+                <label style="font-size:12px;color:#94a3b8;font-weight:bold">Sound ID</label>
+                <input id="tgEditSound" class="swal2-input" style="margin:4px 0 0;width:100%" value="${esc(g.sound_id)}" placeholder="1518570639886389378">
+            </div>
+            <div style="width:110px;text-align:left">
+                <label style="font-size:12px;color:#94a3b8;font-weight:bold">ความยาว (วิ)</label>
+                <input id="tgEditDuration" class="swal2-input" style="margin:4px 0 0;width:100%" value="${esc(g.sound_duration)}" placeholder="3.5">
+            </div>
+        </div>`;
+
+    const result = await Swal.fire({
+        title: 'แก้ไขกลุ่ม',
+        html: `
+            <div style="text-align:left">
+                <label style="font-size:12px;color:#94a3b8;font-weight:bold">ชื่อกลุ่ม (แค่ป้ายชื่อ ไม่ได้ใช้จับคู่)</label>
+                <input id="tgEditName" class="swal2-input" style="margin:4px 0 0;width:100%" value="${esc(g.group_name)}">
+            </div>
+            <div style="text-align:left;margin-top:12px">
+                <label style="font-size:12px;color:#94a3b8;font-weight:bold">Chat ID</label>
+                <input id="tgEditChatId" class="swal2-input" style="margin:4px 0 0;width:100%" value="${esc(g.chat_id)}" placeholder="-1001234567890">
+            </div>
+            ${soundHtml}
+            ${pairHtml}`,
+        background: '#1e293b',
+        color: '#fff',
+        showCancelButton: true,
+        confirmButtonText: 'บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#10b981',
+        focusConfirm: false,
+        preConfirm: () => {
+            const name = document.getElementById('tgEditName').value.trim();
+            const chatId = document.getElementById('tgEditChatId').value.trim();
+            if (!name) { Swal.showValidationMessage('กรุณาใส่ชื่อกลุ่ม'); return false; }
+            if (chatId && !window.normChatId(chatId)) { Swal.showValidationMessage('Chat ID ต้องเป็นตัวเลข'); return false; }
+            const out = { group_name: name, chat_id: chatId || null };
+            if (isShift) {
+                const sid = document.getElementById('tgEditSound').value.trim();
+                const dur = document.getElementById('tgEditDuration').value.trim();
+                if (dur && isNaN(Number(dur))) { Swal.showValidationMessage('ความยาวเสียงต้องเป็นตัวเลข'); return false; }
+                out.sound_id = sid || null;
+                out.sound_duration = dur ? Number(dur) : null;
+                out.paired_chat_ids = Array.from(document.querySelectorAll('.tgPairCb'))
+                    .filter(cb => cb.checked).map(cb => cb.value);
+            }
+            return out;
+        }
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    try {
+        const { error } = await appDB.from('telegram_groups').update(result.value).eq('id', id);
+        if (error) throw error;
+        await window.loadCheckinGroups();
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกแล้ว', showConfirmButton: false, timer: 1500 });
+    } catch(e) {
+        Swal.fire('ผิดพลาด', 'บันทึกไม่ได้ครับ: ' + e.message, 'error');
+    }
+};
 
 window.toggleCheckinGroup = async function(id, currentActive) {
     try {
-        const { error } = await appDB.from('checkin_groups').update({ active: !currentActive }).eq('id', id);
+        const { error } = await appDB.from('telegram_groups').update({ active: !currentActive }).eq('id', id);
         if (error) throw error;
         await window.loadCheckinGroups();
     } catch(e) {
@@ -2933,10 +3065,11 @@ window.toggleCheckinGroup = async function(id, currentActive) {
     }
 };
 
-window.deleteCheckinGroup = async function(id, name) {
+window.deleteCheckinGroup = async function(id) {
+    const g = (window._tgGroupsCache || []).find(x => String(x.id) === String(id));
     const confirm = await Swal.fire({
         title: 'ลบกลุ่มนี้?',
-        text: name,
+        text: g ? g.group_name : '',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'ลบ',
@@ -2945,7 +3078,7 @@ window.deleteCheckinGroup = async function(id, name) {
     });
     if (!confirm.isConfirmed) return;
     try {
-        const { error } = await appDB.from('checkin_groups').delete().eq('id', id);
+        const { error } = await appDB.from('telegram_groups').delete().eq('id', id);
         if (error) throw error;
         await window.loadCheckinGroups();
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ลบกลุ่มสำเร็จ', showConfirmButton: false, timer: 1500 });
