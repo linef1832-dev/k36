@@ -2844,6 +2844,17 @@ window.openBreaktrackDetail = function(staffName) {
 // ⚙️ ระบบตั้งค่ากลุ่ม Telegram (checkin_groups)
 // ============================================================
 
+window.toggleBreakGroupsPanel = function() {
+    const panel = document.getElementById('breakGroupsPanel');
+    if (!panel) return;
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        window.loadCheckinGroups();
+    } else {
+        panel.classList.add('hidden');
+    }
+};
+
 window.toggleCheckinGroupsPanel = function() {
     const panel = document.getElementById('checkinGroupsPanel');
     if (panel.classList.contains('hidden')) {
@@ -2857,8 +2868,10 @@ window.toggleCheckinGroupsPanel = function() {
 window.loadCheckinGroups = async function() {
     const listCheckin = document.getElementById('checkinGroupsList_checkin');
     const listShift = document.getElementById('checkinGroupsList_shift');
-    if (!listCheckin || !listShift) return;
-    listCheckin.innerHTML = listShift.innerHTML = '<div class="text-gray-500 text-xs text-center py-2">กำลังโหลด...</div>';
+    if (!listCheckin && !listShift) return;
+    const _loadingHtml = '<div class="text-gray-500 text-xs text-center py-2">กำลังโหลด...</div>';
+    if (listCheckin) listCheckin.innerHTML = _loadingHtml;
+    if (listShift) listShift.innerHTML = _loadingHtml;
     try {
         const { data, error } = await appDB
             .from('checkin_groups')
@@ -2885,10 +2898,12 @@ window.loadCheckinGroups = async function() {
         const checkinData = (data || []).filter(g => g.group_type === 'checkin');
         const shiftData = (data || []).filter(g => g.group_type === 'shift');
 
-        listCheckin.innerHTML = checkinData.length ? checkinData.map(renderGroup).join('') : '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
-        listShift.innerHTML = shiftData.length ? shiftData.map(renderGroup).join('') : '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
+        if (listCheckin) listCheckin.innerHTML = checkinData.length ? checkinData.map(renderGroup).join('') : '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
+        if (listShift) listShift.innerHTML = shiftData.length ? shiftData.map(renderGroup).join('') : '<div class="text-gray-500 text-xs text-center py-2">ยังไม่มีกลุ่ม</div>';
     } catch(e) {
-        listCheckin.innerHTML = listShift.innerHTML = '<div class="text-red-400 text-xs text-center py-2">โหลดไม่ได้ครับ</div>';
+        const _errHtml = '<div class="text-red-400 text-xs text-center py-2">โหลดไม่ได้ครับ</div>';
+        if (listCheckin) listCheckin.innerHTML = _errHtml;
+        if (listShift) listShift.innerHTML = _errHtml;
     }
 };
 
