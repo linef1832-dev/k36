@@ -275,7 +275,7 @@ window.generateSwapPlan = async function() {
                 const dPlus3 = getSafeDateStr(gapDate, 3);
                 
                 // ล็อคเด็ดขาด: ต้องไม่มีวันหยุดในระยะ -2 ถึง +3 วัน (เนื่องจากกะดึกไปเช้ามีวันพักคั่น)
-                if (!hasLeave(u.id, dMinus2) && !hasLeave(u.id, dMinus1) && !hasLeave(u.id, gapDate) && !hasLeave(u.id, dPlus1) && !hasLeave(u.id, dPlus2) && !hasLeave(u.id, dPlus3)) {
+                if (!hasLeave(u.id, dMinus2) && !hasLeave(u.id, dMinus1) && !hasLeave(u.id, gapDate) && !hasLeave(u.id, dPlus1) && !hasLeave(u.id, dPlus2)) {
                     validDaysStrict.push(i);
                 }
             }
@@ -302,12 +302,15 @@ window.generateSwapPlan = async function() {
             const prevDateDisplay = new Date(prevDateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
             const nextDateStr = getSafeDateStr(dateStr, 1);
             const nextDateDisplay = new Date(nextDateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
-            // [FIX] ดึก→เช้า: ทำดึกวันสุดท้าย (dateStr) เลิก 08.00 วันถัดไป
-            // ต้องพัก 1 วันก่อน = dateStr+1 คือวันพัก, dateStr+2 คือวันเริ่มเช้า
-            const restDateStr = getSafeDateStr(dateStr, 1);   // วันพัก
-            const startMornStr = getSafeDateStr(dateStr, 2);   // วันเริ่มเช้า
+            // [FIX] ดึก→เช้า: วันที่เลือกในแผน = วันหยุดพัก (XX)
+            // ทำดึกคืนสุดท้าย = dateStr-1 (เลิก 08:00 เช้าของ dateStr)
+            // dateStr คือวันพัก, dateStr+1 คือวันเริ่มเข้าเช้า
+            const restDateStr = dateStr;                       // วันพัก = วันที่เลือก
+            const startMornStr = getSafeDateStr(dateStr, 1);   // วันเริ่มเช้า
+            const lastNightStr = getSafeDateStr(dateStr, -1);  // คืนสุดท้ายที่ทำดึก
             const restDateDisplay = new Date(restDateStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
             const startMornDisplay = new Date(startMornStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            const lastNightDisplay = new Date(lastNightStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 
             const mList = mBuckets[i] || []; const nList = nBuckets[i] || [];
             if (mList.length === 0 && nList.length === 0) continue;
@@ -316,11 +319,11 @@ window.generateSwapPlan = async function() {
                 dayNumber: i + 1, targetDate: dateStr,
                 // M→N: เริ่มเข้าดึกวันถัดไป (targetDate+1)
                 targetNextDate: nextDateStr,
-                // N→M: เริ่มเข้าเช้าหลังพัก 1 วัน (targetDate+2)
+                // N→M: วันที่เลือก = วันพัก, เริ่มเข้าเช้าวันถัดไป (targetDate+1)
                 targetMornDate: startMornStr,
                 morningToNight: mList, nightToMorning: nList,
                 descMtoN: `ทำเช้าวันสุดท้าย: ${prevDateDisplay} → เริ่มเข้าดึกวันแรก: ${displayDate}`,
-                descNtoM: `ทำดึกวันสุดท้าย: ${displayDate} → หยุดพัก 1 วัน (${restDateDisplay}) → เริ่มเข้าเช้า: ${startMornDisplay}`
+                descNtoM: `ทำดึกคืนสุดท้าย: ${lastNightDisplay} → หยุดพัก 1 วัน (${restDateDisplay}) → เริ่มเข้าเช้า: ${startMornDisplay}`
             });
         }
 
@@ -398,15 +401,15 @@ window.confirmAndSaveSwapPlan = async function() {
                         leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' }); 
                     });
                     dayPlan.nightToMorning.forEach(user => {
-                        // [FIX] ดึก→เช้า: เริ่มเช้าหลังพัก 1 วัน = targetMornDate (targetDate+2)
+                        // [FIX] ดึก→เช้า: เริ่มเข้าเช้าวันถัดจากวันพัก = targetMornDate (targetDate+1)
                         const mornDate = dayPlan.targetMornDate || dayPlan.targetNextDate;
                         let exactTime = new Date(`${mornDate}T05:00:00+07:00`);
                         tasksToInsert.push({ task_type: 'individual_shift_update', payload: { user_id: user.id, user_name: user.username, target_shift: _p.from, from_shift: _p.to, display_desc: dayPlan.descNtoM }, scheduled_for: exactTime.toISOString(), status: 'pending' });
-                        // พักวันที่ targetDate (วันที่ยังทำดึกอยู่) และ targetNextDate (วันพัก)
-                        leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetDate, reason: 'XX', status: 'approved' });
-                        if (dayPlan.targetNextDate) {
-                            leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: dayPlan.targetNextDate, reason: 'XX', status: 'approved' });
-                        }
+                        // [FIX] ลง XX "วันเดียว" = วันพักก่อนเข้าเช้า 1 วัน (mornDate - 1 = วันที่เลือกในแผน)
+                        // ใช้กติกาเดียวกับ addSwapUser / changeSavedSwapDate / reactivateSavedSwap (offset -1)
+                        // เดิมลง 2 วัน ทำให้ตารางขึ้นเหลืองซ้อน และกินโควตาวันลาส่วนตัว + โควตาวันหยุดรายวันของกะไปฟรีๆ 1 วัน
+                        const restDate = getSafeDateStr(mornDate, -1);
+                        leaveRequestsToInsert.push({ user_id: user.id, user_name: user.username, leave_date: restDate, reason: 'XX', status: 'approved' });
                     });
                 });
 
@@ -851,7 +854,7 @@ window.moveSwapUserToDay = function(userId, fromDayIndex, toDayIndex, direction)
     if (direction === 'MtoN') {
         if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2)) hasConflict = true;
     } else {
-        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2) || userLeaves.has(dPlus3)) hasConflict = true;
+        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2)) hasConflict = true;
     }
 
     if (hasConflict) {
@@ -1349,7 +1352,7 @@ window.swapDrop = function(event, toDayIndex, shiftType) {
             conflictMsg = `พนักงานมีวันหยุดใกล้กับช่วงสลับกะ (ต้องห่างจากวันหยุดอย่างน้อย 1 วัน)`;
         }
     } else {
-        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2) || userLeaves.has(dPlus3)) {
+        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2)) {
             hasConflict = true;
             conflictMsg = `พนักงานมีวันหยุดใกล้กับช่วงสลับกะ (ต้องห่างจากวันหยุดอย่างน้อย 1 วัน)`;
         }
