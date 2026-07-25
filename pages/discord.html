@@ -119,8 +119,10 @@
                                 <span class="text-gray-500 text-xs">(เช็คชื่อ/กะ)</span>
                             </div>
                             <div id="checkinGroupsList_shift" class="flex flex-col gap-1.5 mb-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
+                            <p class="text-gray-500 text-xs mb-2">เพิ่มกลุ่มแล้วกด <b class="text-gray-400">แก้ไข</b> เพื่อใส่ Sound ID และจับคู่กลุ่มเช็คอิน</p>
                             <div class="flex gap-2">
-                                <input type="text" id="newGroupName_shift" placeholder="ชื่อกลุ่มถ่ายรูป..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500">
+                                <input type="text" id="newGroupName_shift" placeholder="ชื่อกลุ่ม (ป้ายชื่อ)" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500">
+                                <input type="text" id="newGroupChatId_shift" placeholder="Chat ID เช่น -1001234567890" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-violet-500">
                                 <button onclick="window.addCheckinGroup('shift')" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
                                     <span class="material-icons text-xs">add</span>
                                 </button>
@@ -406,10 +408,11 @@
                 <span class="material-icons text-sm">close</span>
               </button>
             </div>
-            <p class="text-gray-500 text-xs mb-3">บอทจะดักข้อความแจ้งพัก/กลับ เฉพาะกลุ่มที่เปิดไว้ในรายการนี้</p>
+            <p class="text-gray-500 text-xs mb-3">บอทจับกลุ่มด้วย <b class="text-gray-400">Chat ID</b> ไม่ใช่ชื่อ — กลุ่มที่ยังไม่ใส่ ID จะถูกข้าม ดู ID ได้จาก log ของบอท</p>
             <div id="checkinGroupsList_checkin" class="flex flex-col gap-1.5 mb-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
             <div class="flex gap-2">
-              <input type="text" id="newGroupName_checkin" placeholder="ชื่อกลุ่มเช็คอิน..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500">
+              <input type="text" id="newGroupName_checkin" placeholder="ชื่อกลุ่ม (ป้ายชื่อ)" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500">
+              <input type="text" id="newGroupChatId_checkin" placeholder="Chat ID เช่น -1001234567890" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-emerald-500">
               <button onclick="window.addCheckinGroup('checkin')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
                 <span class="material-icons text-xs">add</span>
               </button>
