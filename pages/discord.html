@@ -104,28 +104,13 @@
                 <div id="checkinGroupsPanel" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-4">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-white font-black text-sm flex items-center gap-2">
-                            <span class="material-icons text-violet-400 text-sm">settings</span> ตั้งค่ากลุ่ม Telegram
+                            <span class="material-icons text-violet-400 text-sm">settings</span> ตั้งค่ากลุ่มถ่ายรูป (เช็คชื่อ/กะ)
                         </h3>
                         <button onclick="document.getElementById('checkinGroupsPanel').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
                             <span class="material-icons text-sm">close</span>
                         </button>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- กลุ่มเช็คอิน -->
-                        <div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="material-icons text-sky-400 text-sm">coffee</span>
-                                <span class="text-sky-400 font-black text-xs uppercase tracking-wider">กลุ่มเช็คอิน</span>
-                                <span class="text-gray-500 text-xs">(แจ้งพัก)</span>
-                            </div>
-                            <div id="checkinGroupsList_checkin" class="flex flex-col gap-1.5 mb-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
-                            <div class="flex gap-2">
-                                <input type="text" id="newGroupName_checkin" placeholder="ชื่อกลุ่มเช็คอิน..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-sky-500">
-                                <button onclick="window.addCheckinGroup('checkin')" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
-                                    <span class="material-icons text-xs">add</span>
-                                </button>
-                            </div>
-                        </div>
+                    <div>
                         <!-- กลุ่มเช็คชื่อ/ถ่ายรูป -->
                         <div>
                             <div class="flex items-center gap-2 mb-2">
@@ -402,11 +387,34 @@
               <button onclick="window.loadBreaktrack()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-1 active:scale-95">
                 <span class="material-icons text-sm">refresh</span> รีเฟรช
               </button>
+              <button onclick="window.toggleBreakGroupsPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
+                <span class="material-icons text-sm">group</span> ตั้งค่ากลุ่ม
+              </button>
 
             </div>
           </div>
 
 
+
+          <!-- ตั้งค่ากลุ่มเช็คอิน (แจ้งพัก) -->
+          <div id="breakGroupsPanel" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-6">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-white font-black text-sm flex items-center gap-2">
+                <span class="material-icons text-emerald-400 text-sm">settings</span> ตั้งค่ากลุ่มเช็คอิน (แจ้งพัก)
+              </h3>
+              <button onclick="document.getElementById('breakGroupsPanel').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
+                <span class="material-icons text-sm">close</span>
+              </button>
+            </div>
+            <p class="text-gray-500 text-xs mb-3">บอทจะดักข้อความแจ้งพัก/กลับ เฉพาะกลุ่มที่เปิดไว้ในรายการนี้</p>
+            <div id="checkinGroupsList_checkin" class="flex flex-col gap-1.5 mb-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
+            <div class="flex gap-2">
+              <input type="text" id="newGroupName_checkin" placeholder="ชื่อกลุ่มเช็คอิน..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500">
+              <button onclick="window.addCheckinGroup('checkin')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs">add</span>
+              </button>
+            </div>
+          </div>
 
           <!-- สรุปตัวเลข -->
           <div id="breaktrackSummary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
