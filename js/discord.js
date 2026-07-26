@@ -2970,28 +2970,6 @@ window.editTelegramGroup = async function(id) {
     const isShift = g.group_type === 'shift';
     const esc = (v) => String(v == null ? '' : v).replace(/"/g, '&quot;');
 
-    let pairedNow = [];
-    try { pairedNow = Array.isArray(g.paired_chat_ids) ? g.paired_chat_ids : JSON.parse(g.paired_chat_ids || '[]'); } catch(e) { pairedNow = []; }
-    const pairedNorm = pairedNow.map(window.normChatId);
-
-    const checkinGroups = (window._tgGroupsCache || []).filter(x => x.group_type === 'checkin');
-    const pairHtml = !isShift ? '' : `
-        <div style="text-align:left;margin-top:12px">
-            <label style="font-size:12px;color:#94a3b8;font-weight:bold">จับคู่กับกลุ่มเช็คอิน</label>
-            <div style="font-size:11px;color:#64748b;margin-bottom:6px">เลือกกลุ่มที่ใช้คู่กับกะนี้ ถ้าไม่เลือกเลย = นับทุกกลุ่ม</div>
-            <div style="max-height:120px;overflow-y:auto;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:8px">
-                ${checkinGroups.length ? checkinGroups.map(c => {
-                    const ccid = window.normChatId(c.chat_id);
-                    const checked = ccid && pairedNorm.includes(ccid) ? 'checked' : '';
-                    const disabled = ccid ? '' : 'disabled';
-                    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;color:#e2e8f0;cursor:pointer">
-                        <input type="checkbox" class="tgPairCb" value="${esc(c.chat_id || '')}" ${checked} ${disabled}>
-                        <span>${esc(c.group_name)}${ccid ? '' : ' (ยังไม่มี Chat ID)'}</span>
-                    </label>`;
-                }).join('') : '<div style="font-size:12px;color:#64748b">ยังไม่มีกลุ่มเช็คอิน</div>'}
-            </div>
-        </div>`;
-
     const soundHtml = !isShift ? '' : `
         <div style="display:flex;gap:8px;margin-top:12px">
             <div style="flex:1;text-align:left">
@@ -3008,15 +2986,14 @@ window.editTelegramGroup = async function(id) {
         title: 'แก้ไขกลุ่ม',
         html: `
             <div style="text-align:left">
-                <label style="font-size:12px;color:#94a3b8;font-weight:bold">ชื่อกลุ่ม (แค่ป้ายชื่อ ไม่ได้ใช้จับคู่)</label>
+                <label style="font-size:12px;color:#94a3b8;font-weight:bold">ชื่อกลุ่ม (แค่ป้ายชื่อ ระบบใช้ Chat ID จับ)</label>
                 <input id="tgEditName" class="swal2-input" style="margin:4px 0 0;width:100%" value="${esc(g.group_name)}">
             </div>
             <div style="text-align:left;margin-top:12px">
                 <label style="font-size:12px;color:#94a3b8;font-weight:bold">Chat ID</label>
                 <input id="tgEditChatId" class="swal2-input" style="margin:4px 0 0;width:100%" value="${esc(g.chat_id)}" placeholder="-1001234567890">
             </div>
-            ${soundHtml}
-            ${pairHtml}`,
+            ${soundHtml}`,
         background: '#1e293b',
         color: '#fff',
         showCancelButton: true,
@@ -3036,8 +3013,6 @@ window.editTelegramGroup = async function(id) {
                 if (dur && isNaN(Number(dur))) { Swal.showValidationMessage('ความยาวเสียงต้องเป็นตัวเลข'); return false; }
                 out.sound_id = sid || null;
                 out.sound_duration = dur ? Number(dur) : null;
-                out.paired_chat_ids = Array.from(document.querySelectorAll('.tgPairCb'))
-                    .filter(cb => cb.checked).map(cb => cb.value);
             }
             return out;
         }
