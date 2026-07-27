@@ -172,6 +172,53 @@ function getSafeDateStr(baseDateStr, offsetDays) {
     const d = new Date(baseDateStr + 'T12:00:00'); d.setDate(d.getDate() + offsetDays); return d.toISOString().split('T')[0];
 }
 
+// ─────────────────────────────────────────────────────────────
+// [FIX] เกณฑ์วันหยุดที่ห้ามชนกับวันสลับกะ — แยกตามทิศทาง
+//
+// เดิมทั้งสองทิศใช้ช่วงเดียวกันคือ D-2 ถึง D+2 (5 วัน) ซึ่งกว้างเกินจำเป็น
+// ทำให้คนถูกตัดออกจากแผนทั้งที่ตารางงานจริงไม่ได้มีปัญหาอะไร
+//
+// ดึก→เช้า (NtoM) — สลับวันที่ D:
+//     D-1  ทำดึกคืนสุดท้าย (เลิก 08:00 เช้าวันที่ D)
+//     D    หยุดทั้งวัน (XX)
+//     D+1  เข้าเช้า
+//   → ห้ามหยุด D-1, D, D+1 ไม่งั้นจะกลายเป็นหยุดยาวติดกับ XX
+//
+// เช้า→ดึก (MtoN) — สลับวันที่ D:
+//     D-1  ทำเช้าวันสุดท้าย เลิก 20:00
+//     D    20:00 เข้าดึกคืนแรก
+//     D+1  เลิก 08:00 แล้ว 20:00 เข้าดึกคืนที่สอง
+//   → ห้ามหยุด D, D+1 เท่านั้น
+//     D-1 หยุดได้ เพราะยังเป็นกะเช้า ไม่กระทบการเข้าดึกคืนวันที่ D
+//
+// หมายเหตุ: วันหยุดของกะดึก = คืนที่เริ่ม 20:00 ของวันนั้น
+// ─────────────────────────────────────────────────────────────
+const SWAP_LEAVE_OFFSETS = {
+    NtoM: [-1, 0, 1],
+    MtoN: [0, 1]
+};
+
+function getSwapBlockDates(targetDateStr, direction) {
+    const offsets = SWAP_LEAVE_OFFSETS[direction] || SWAP_LEAVE_OFFSETS.NtoM;
+    return offsets.map(o => o === 0 ? targetDateStr : getSafeDateStr(targetDateStr, o));
+}
+
+// leaveLookup: จะเป็น Set (มี .has) หรือฟังก์ชัน (dateStr) => bool ก็ได้
+function hasSwapLeaveConflict(targetDateStr, direction, leaveLookup) {
+    const dates = getSwapBlockDates(targetDateStr, direction);
+    const check = (typeof leaveLookup === 'function')
+        ? leaveLookup
+        : (d) => !!(leaveLookup && leaveLookup.has && leaveLookup.has(d));
+    return dates.some(check);
+}
+
+// ข้อความเตือนที่ตรงกับเกณฑ์จริงของแต่ละทิศทาง
+function getSwapConflictMsg(direction) {
+    return direction === 'MtoN'
+        ? 'พนักงานมีวันหยุดชนกับช่วงเข้าดึก (วันสลับกะ หรือวันถัดไป)'
+        : 'พนักงานมีวันหยุดติดกับวันสลับกะ (วันก่อนหน้า วันสลับ หรือวันถัดไป) จะกลายเป็นหยุดติดกันหลายวัน';
+}
+
 window.generateSwapPlan = async function() {
     try { 
         const startDateVal = document.getElementById('swapStartDate').value;
@@ -246,14 +293,10 @@ window.generateSwapPlan = async function() {
         for (let u of mStaff) {
             let bestDayIndex = -1; let minCount = Infinity; let validDaysStrict = [];
             for (let i = 0; i < daysToDistribute; i++) {
-                const targetDate = getSafeDateStr(startDateVal, i); 
-                const dMinus2 = getSafeDateStr(targetDate, -2);
-                const dMinus1 = getSafeDateStr(targetDate, -1);
-                const dPlus1 = getSafeDateStr(targetDate, 1);
-                const dPlus2 = getSafeDateStr(targetDate, 2);
-                
-                // ล็อคเด็ดขาด: ต้องไม่มีวันหยุดในระยะ -2 ถึง +2 วันจากวันสลับกะ
-                if (!hasLeave(u.id, dMinus2) && !hasLeave(u.id, dMinus1) && !hasLeave(u.id, targetDate) && !hasLeave(u.id, dPlus1) && !hasLeave(u.id, dPlus2)) {
+                const targetDate = getSafeDateStr(startDateVal, i);
+
+                // เช้า→ดึก: ห้ามหยุดวันสลับ (คืนแรกที่เข้าดึก) และวันถัดไป
+                if (!hasSwapLeaveConflict(targetDate, 'MtoN', (d) => hasLeave(u.id, d))) {
                     validDaysStrict.push(i);
                 }
             }
@@ -267,15 +310,10 @@ window.generateSwapPlan = async function() {
         for (let u of nStaff) {
             let bestDayIndex = -1; let minCount = Infinity; let validDaysStrict = [];
             for (let i = 0; i < daysToDistribute; i++) {
-                const gapDate = getSafeDateStr(startDateVal, i); 
-                const dMinus2 = getSafeDateStr(gapDate, -2);
-                const dMinus1 = getSafeDateStr(gapDate, -1);
-                const dPlus1 = getSafeDateStr(gapDate, 1);
-                const dPlus2 = getSafeDateStr(gapDate, 2);
-                const dPlus3 = getSafeDateStr(gapDate, 3);
-                
-                // ล็อคเด็ดขาด: ต้องไม่มีวันหยุดในระยะ -2 ถึง +3 วัน (เนื่องจากกะดึกไปเช้ามีวันพักคั่น)
-                if (!hasLeave(u.id, dMinus2) && !hasLeave(u.id, dMinus1) && !hasLeave(u.id, gapDate) && !hasLeave(u.id, dPlus1) && !hasLeave(u.id, dPlus2)) {
+                const gapDate = getSafeDateStr(startDateVal, i);
+
+                // ดึก→เช้า: วันสลับเป็นวันหยุด XX อยู่แล้ว ห้ามหยุดวันก่อนหน้าและวันถัดไปด้วย
+                if (!hasSwapLeaveConflict(gapDate, 'NtoM', (d) => hasLeave(u.id, d))) {
                     validDaysStrict.push(i);
                 }
             }
@@ -844,21 +882,12 @@ window.moveSwapUserToDay = function(userId, fromDayIndex, toDayIndex, direction)
 
     const userLeaves = window.globalUserLeaves ? (window.globalUserLeaves[userId] || new Set()) : new Set();
     const targetDateStr = targetPlan.targetDate;
-    const dMinus2 = getSafeDateStr(targetDateStr, -2);
-    const dMinus1 = getSafeDateStr(targetDateStr, -1);
-    const dPlus1 = getSafeDateStr(targetDateStr, 1);
-    const dPlus2 = getSafeDateStr(targetDateStr, 2);
-    const dPlus3 = getSafeDateStr(targetDateStr, 3);
 
-    let hasConflict = false;
-    if (direction === 'MtoN') {
-        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2)) hasConflict = true;
-    } else {
-        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2)) hasConflict = true;
-    }
+    // ใช้เกณฑ์เดียวกับตอนกดคำนวณ (แยกตามทิศทาง)
+    const hasConflict = hasSwapLeaveConflict(targetDateStr, direction, userLeaves);
 
     if (hasConflict) {
-        Swal.fire({ icon: 'warning', title: 'ย้ายไม่ได้!', text: 'พนักงานมีวันหยุดใกล้กับช่วงสลับกะ (ต้องห่างจากวันหยุดอย่างน้อย 1 วัน)', confirmButtonColor: '#f59e0b' });
+        Swal.fire({ icon: 'warning', title: 'ย้ายไม่ได้!', text: getSwapConflictMsg(direction), confirmButtonColor: '#f59e0b' });
         return;
     }
 
@@ -1339,23 +1368,11 @@ window.swapDrop = function(event, toDayIndex, shiftType) {
     let conflictMsg = '';
 
     const targetDateStr = targetPlan.targetDate;
-    const dMinus2 = getSafeDateStr(targetDateStr, -2);
-    const dMinus1 = getSafeDateStr(targetDateStr, -1);
-    const dPlus1 = getSafeDateStr(targetDateStr, 1);
-    const dPlus2 = getSafeDateStr(targetDateStr, 2);
-    const dPlus3 = getSafeDateStr(targetDateStr, 3);
 
-    // 🌟 ดักจับการลากวาง: เช็คว่าติดวันหยุดไหม (ห่าง 1 วัน)
-    if (shiftType === 'MtoN') {
-        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2)) {
-            hasConflict = true;
-            conflictMsg = `พนักงานมีวันหยุดใกล้กับช่วงสลับกะ (ต้องห่างจากวันหยุดอย่างน้อย 1 วัน)`;
-        }
-    } else {
-        if (userLeaves.has(dMinus2) || userLeaves.has(dMinus1) || userLeaves.has(targetDateStr) || userLeaves.has(dPlus1) || userLeaves.has(dPlus2)) {
-            hasConflict = true;
-            conflictMsg = `พนักงานมีวันหยุดใกล้กับช่วงสลับกะ (ต้องห่างจากวันหยุดอย่างน้อย 1 วัน)`;
-        }
+    // 🌟 ดักจับการลากวาง: ใช้เกณฑ์เดียวกับตอนกดคำนวณ (แยกตามทิศทาง)
+    if (hasSwapLeaveConflict(targetDateStr, shiftType, userLeaves)) {
+        hasConflict = true;
+        conflictMsg = getSwapConflictMsg(shiftType);
     }
 
     if (hasConflict) {
