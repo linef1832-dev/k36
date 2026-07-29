@@ -172,6 +172,14 @@ function getSafeDateStr(baseDateStr, offsetDays) {
     const d = new Date(baseDateStr + 'T12:00:00'); d.setDate(d.getDate() + offsetDays); return d.toISOString().split('T')[0];
 }
 
+// [FIX เวลา] คืนค่า "วันนี้" ตามนาฬิกาเครื่อง (เวลาไทย) ไม่ใช่เวลา UTC
+// เดิมใช้ new Date().toISOString().split('T')[0] ซึ่งเป็นวันที่ UTC (+0)
+// ช่วงเที่ยงคืน–07:00 น. ของไทย จะได้วันที่ของ "เมื่อวาน" ซึ่งผิด
+function getTodayStrLocal() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ─────────────────────────────────────────────────────────────
 // [FIX] เกณฑ์วันหยุดที่ห้ามชนกับวันสลับกะ — แยกตามทิศทาง
 //
@@ -963,7 +971,7 @@ window.openAddMissingSwap = async function() {
     }
 
     eligibleUsers.sort((a, b) => a.username.localeCompare(b.username));
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStrLocal(); // [FIX เวลา] เดิมเป็นวันที่ UTC ทำให้ช่วงดึก-เช้าตรู่ได้วันที่เมื่อวาน
 
     const userOpts = eligibleUsers.map(u => {
         const dept = u.department || 'AM';
@@ -1263,7 +1271,7 @@ window.reactivateSavedSwap = async function(taskId) {
     const newTargetShift = originalShift === 'กะเช้า' ? 'กะดึก' : 'กะเช้า';
     const directionLabel = originalShift === 'กะเช้า' ? '☀️ → 🌙 เช้าไปดึก' : '🌙 → ☀️ ดึกไปเช้า';
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStrLocal(); // [FIX เวลา] เดิมเป็นวันที่ UTC ทำให้ช่วงดึก-เช้าตรู่ได้วันที่เมื่อวาน
     const result = await Swal.fire({
         title: `เปิดให้ ${p.user_name} สลับกะ`,
         text: `จะให้สลับเป็น: ${directionLabel}`,
