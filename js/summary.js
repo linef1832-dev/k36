@@ -1166,7 +1166,12 @@ window.fetchLeaderboardData = async function() {
         if (mode === 'monthly' && monthInput && monthInput.value) {
             const [year, month] = monthInput.value.split('-');
             const startDate = `${year}-${month}-01`;
-            const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+            // [FIX เวลา] เดิมใช้ .toISOString() ซึ่งแปลงเป็นเวลา UTC (+0)
+            // ทำให้ "วันสุดท้ายของเดือน เที่ยงคืนเวลาไทย" กลายเป็นวันก่อนหน้า
+            // ผลคือยอดของวันสุดท้ายของทุกเดือนหายไปจากอันดับ
+            // แก้เป็น: เอาเฉพาะ "เลขวัน" มาประกอบข้อความเอง ไม่ผ่าน UTC
+            const lastDay = new Date(Number(year), Number(month), 0).getDate();
+            const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
             query = query.gte('date', startDate).lte('date', endDate);
         }
         
