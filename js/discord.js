@@ -2734,8 +2734,13 @@ window.btToggleSort = function(key) {
 window.btSetPage = function(n) {
     _btPage = Math.max(1, Number(n) || 1);
     window.renderBreaktrackTable();
+    // เลื่อนขึ้นเฉพาะตอนหัวตารางหลุดออกนอกจอ — กันหน้าจอกระโดดโดยไม่จำเป็น
     const el = document.getElementById('breaktrackTableBody');
-    if (el) el.closest('table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const tb = el ? el.closest('table') : null;
+    if (tb) {
+        const top = tb.getBoundingClientRect().top;
+        if (top < 0) tb.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 };
 
 window.btSetPageSize = function(n) {
@@ -2851,11 +2856,11 @@ window.renderBreaktrackTable = function() {
 
     document.getElementById('breaktrackTableBody').innerHTML = pageRows.map(r => `
         <tr class="hover:bg-slate-700/30 transition">
-            <td class="px-4 py-3 font-bold text-white">${r.name}</td>
+            <td class="px-4 py-3 font-bold text-white truncate" title="${r.name}">${r.name}</td>
             <td class="px-4 py-3">
                 <span class="text-xs px-2 py-1 rounded-full font-bold ${r.shift === 'กะเช้า' ? 'bg-yellow-500/20 text-yellow-400' : r.shift === 'กะดึก' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-700 text-gray-400'}">${r.shift}</span>
             </td>
-            <td class="px-4 py-3 text-gray-300 text-xs">${r.activitySummary}</td>
+            <td class="px-4 py-3 text-gray-300 text-xs break-words" title="${r.activitySummary}">${r.activitySummary}</td>
             <td class="px-4 py-3 text-center font-bold text-sky-400">${r.count}</td>
             <td class="px-4 py-3 text-center font-bold text-white">${formatMin(r.totalMin)}</td>
             <td class="px-4 py-3 text-center">
@@ -3222,6 +3227,18 @@ window._btRenderSortHeaders = function() {
     const ths = table.querySelectorAll('thead th');
     if (!ths.length) return;
 
+    // ── ล็อกความกว้างคอลัมน์ ──────────────────────────────────────────
+    // ปกติเบราว์เซอร์คำนวณความกว้างจากข้อความข้างใน พอเปลี่ยนหน้า/เรียงใหม่
+    // ข้อความยาวไม่เท่าเดิม คอลัมน์เลยขยับไปมา
+    // table-layout: fixed ทำให้ยึดตามค่าที่กำหนดอย่างเดียว ไม่สนใจข้างใน
+    if (!table.dataset.btFixed) {
+        table.style.tableLayout = 'fixed';
+        table.style.minWidth = '980px';   // แคบกว่านี้ให้เลื่อนแนวนอนแทนการบีบ
+        const widths = ['14%', '9%', '24%', '11%', '12%', '10%', '10%', '10%'];
+        widths.forEach((w, i) => { if (ths[i]) ths[i].style.width = w; });
+        table.dataset.btFixed = '1';
+    }
+
     // คอลัมน์ที่ 4 = จำนวนครั้ง, คอลัมน์ที่ 5 = เวลารวม (นับจาก 0)
     const cols = [
         { idx: 3, key: 'count',    label: 'จำนวนครั้ง' },
@@ -3235,7 +3252,7 @@ window._btRenderSortHeaders = function() {
         // ลูกศร: จางทั้งคู่เมื่อยังไม่ได้เรียง · เน้นข้างที่ใช้อยู่
         const upCls   = active && _btSortDir === 'asc'  ? 'text-emerald-400' : 'text-slate-600';
         const downCls = active && _btSortDir === 'desc' ? 'text-emerald-400' : 'text-slate-600';
-        th.className = 'px-4 py-3 text-center cursor-pointer select-none hover:bg-slate-800 transition';
+        th.className = 'px-4 py-3 text-center cursor-pointer select-none hover:bg-slate-800 transition whitespace-nowrap';
         th.setAttribute('onclick', `window.btToggleSort('${key}')`);
         th.setAttribute('title', 'กดเพื่อเรียง · กดซ้ำสลับมาก-น้อย · กดอีกครั้งยกเลิก');
         th.innerHTML = `
