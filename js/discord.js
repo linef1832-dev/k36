@@ -2671,6 +2671,15 @@ window.loadBreaktrack = async function() {
     document.getElementById('breaktrackSummary').innerHTML = '';
 
     try {
+        // [FIX] โหลดรายชื่อพนักงานก่อนเสมอ — คอลัมน์ "กะ" กับตัวกรองกะดึงค่าจาก
+        // GLOBAL_USER_LIST ถ้าเข้าหน้านี้ตรง ๆ โดยยังไม่มีหน้าไหนโหลดไว้ ตัวแปรจะว่าง
+        // ทำให้ทุกคนได้กะเป็น '-' และกรองกะแล้วตารางว่างเปล่า
+        // getUsersCached มีแคชในตัว (TTL) เรียกซ้ำไม่เปลืองโหลด
+        if (typeof window.getUsersCached === 'function') {
+            try { await window.getUsersCached(); }
+            catch(e) { console.warn('[Breaktrack] โหลดรายชื่อพนักงานไม่สำเร็จ — คอลัมน์กะจะแสดงเป็น -', e); }
+        }
+
         const { data, error } = await appDB
             .from('break_sessions')
             .select('*')
