@@ -2719,6 +2719,17 @@ window.loadBreaktrack = async function() {
 let _btPage = 1;              // หน้าปัจจุบัน
 let _btPageSize = 20;         // จำนวนต่อหน้า
 let _btLastSig = '';          // ลายเซ็นตัวกรอง — ถ้าเปลี่ยนให้เด้งกลับหน้า 1
+let _btSortKey = '';          // '' = ไม่เรียง (เรียงตามเดิม) | 'count' | 'totalMin'
+let _btSortDir = 'desc';      // 'desc' = มากไปน้อย | 'asc' = น้อยไปมาก
+
+// กดหัวคอลัมน์เพื่อเรียง — กดซ้ำสลับทิศ กดรอบที่ 3 ยกเลิกการเรียง
+window.btToggleSort = function(key) {
+    if (_btSortKey !== key) { _btSortKey = key; _btSortDir = 'desc'; }
+    else if (_btSortDir === 'desc') { _btSortDir = 'asc'; }
+    else { _btSortKey = ''; _btSortDir = 'desc'; }
+    _btPage = 1;
+    window.renderBreaktrackTable();
+};
 
 window.btSetPage = function(n) {
     _btPage = Math.max(1, Number(n) || 1);
@@ -2808,6 +2819,17 @@ window.renderBreaktrackTable = function() {
             <div class="text-2xl font-black text-amber-400">${totalNoReturn}</div>
             <div class="text-xs text-amber-400 font-bold mt-1">ไม่กดกลับ</div>
         </div>`;
+
+    // ── เรียงลำดับตามคอลัมน์ที่กด ──────────────────────────────────────
+    if (_btSortKey) {
+        const dir = _btSortDir === 'asc' ? 1 : -1;
+        rows.sort((a, b) => {
+            const diff = ((a[_btSortKey] || 0) - (b[_btSortKey] || 0)) * dir;
+            // ถ้าเท่ากัน เรียงตามชื่อ เพื่อให้ลำดับคงที่ไม่สลับไปมา
+            return diff !== 0 ? diff : String(a.name).localeCompare(String(b.name));
+        });
+    }
+    window._btRenderSortHeaders();
 
     // ── แบ่งหน้า ──────────────────────────────────────────────────────
     // ถ้าตัวกรอง (วันที่ / กะ / คำค้น) เปลี่ยน ให้เด้งกลับหน้า 1 อัตโนมัติ
@@ -3187,4 +3209,42 @@ window._btRenderPager = function(totalRows, totalPages, startIdx, shownCount) {
           ${navBtn('ถัดไป ›', _btPage + 1, _btPage >= totalPages)}
         </div>
       </div>`;
+};
+
+// ============================================================
+// ↕️ ทำหัวคอลัมน์ "จำนวนครั้ง" กับ "เวลารวม" ให้กดเรียงได้
+// ใส่ลูกศรและ onclick ให้ <th> เดิมด้วย JS จึงไม่ต้องแก้ pages/discord.html
+// ============================================================
+window._btRenderSortHeaders = function() {
+    const tbody = document.getElementById('breaktrackTableBody');
+    const table = tbody ? tbody.closest('table') : null;
+    if (!table) return;
+    const ths = table.querySelectorAll('thead th');
+    if (!ths.length) return;
+
+    // คอลัมน์ที่ 4 = จำนวนครั้ง, คอลัมน์ที่ 5 = เวลารวม (นับจาก 0)
+    const cols = [
+        { idx: 3, key: 'count',    label: 'จำนวนครั้ง' },
+        { idx: 4, key: 'totalMin', label: 'เวลารวม'    },
+    ];
+
+    cols.forEach(({ idx, key, label }) => {
+        const th = ths[idx];
+        if (!th) return;
+        const active = _btSortKey === key;
+        // ลูกศร: จางทั้งคู่เมื่อยังไม่ได้เรียง · เน้นข้างที่ใช้อยู่
+        const upCls   = active && _btSortDir === 'asc'  ? 'text-emerald-400' : 'text-slate-600';
+        const downCls = active && _btSortDir === 'desc' ? 'text-emerald-400' : 'text-slate-600';
+        th.className = 'px-4 py-3 text-center cursor-pointer select-none hover:bg-slate-800 transition';
+        th.setAttribute('onclick', `window.btToggleSort('${key}')`);
+        th.setAttribute('title', 'กดเพื่อเรียง · กดซ้ำสลับมาก-น้อย · กดอีกครั้งยกเลิก');
+        th.innerHTML = `
+            <span class="inline-flex items-center justify-center gap-1 ${active ? 'text-emerald-400' : ''}">
+                ${label}
+                <span class="inline-flex flex-col leading-none" style="font-size:8px">
+                    <span class="${upCls}">▲</span>
+                    <span class="${downCls}">▼</span>
+                </span>
+            </span>`;
+    });
 };
