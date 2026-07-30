@@ -2675,9 +2675,26 @@ window.loadBreaktrack = async function() {
         // GLOBAL_USER_LIST ถ้าเข้าหน้านี้ตรง ๆ โดยยังไม่มีหน้าไหนโหลดไว้ ตัวแปรจะว่าง
         // ทำให้ทุกคนได้กะเป็น '-' และกรองกะแล้วตารางว่างเปล่า
         // getUsersCached มีแคชในตัว (TTL) เรียกซ้ำไม่เปลืองโหลด
+        // [สำคัญ] global.js ประกาศ GLOBAL_USER_LIST ด้วย let ซึ่งตามกฎ JavaScript
+        // จะ "ไม่" ผูกกับ window ส่วนไฟล์นี้อ่านผ่าน window.GLOBAL_USER_LIST
+        // สองตัวนี้จึงคนละตัวกัน ทำให้ window.GLOBAL_USER_LIST เป็น undefined ตลอด
+        // → ต้องรับค่าที่ getUsersCached คืนมา แล้วเซ็ตลง window เองด้วย
         if (typeof window.getUsersCached === 'function') {
-            try { await window.getUsersCached(); }
-            catch(e) { console.warn('[Breaktrack] โหลดรายชื่อพนักงานไม่สำเร็จ — คอลัมน์กะจะแสดงเป็น -', e); }
+            try {
+                const _users = await window.getUsersCached();
+                if (Array.isArray(_users) && _users.length > 0) {
+                    window.GLOBAL_USER_LIST = _users;
+                }
+            } catch(e) {
+                console.warn('[Breaktrack] โหลดรายชื่อพนักงานไม่สำเร็จ — คอลัมน์กะจะแสดงเป็น -', e);
+            }
+        }
+        // สำรอง: ถ้ายังว่างอยู่ (getUsersCached ไม่มี/ล้มเหลว) ดึงตรงจากฐานข้อมูล
+        if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
+            try {
+                const { data: _u } = await appDB.from('users').select('*');
+                if (_u && _u.length) window.GLOBAL_USER_LIST = _u;
+            } catch(e) { console.warn('[Breaktrack] ดึงรายชื่อสำรองไม่สำเร็จ', e); }
         }
 
         const { data, error } = await appDB
