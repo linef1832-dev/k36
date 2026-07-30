@@ -2856,11 +2856,11 @@ window.renderBreaktrackTable = function() {
 
     document.getElementById('breaktrackTableBody').innerHTML = pageRows.map(r => `
         <tr class="hover:bg-slate-700/30 transition">
-            <td class="px-4 py-3 font-bold text-white truncate" title="${r.name}">${r.name}</td>
-            <td class="px-4 py-3">
+            <td class="px-4 py-3 font-bold text-white text-center truncate" title="${r.name}">${r.name}</td>
+            <td class="px-4 py-3 text-center">
                 <span class="text-xs px-2 py-1 rounded-full font-bold ${r.shift === 'กะเช้า' ? 'bg-yellow-500/20 text-yellow-400' : r.shift === 'กะดึก' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-700 text-gray-400'}">${r.shift}</span>
             </td>
-            <td class="px-4 py-3 text-gray-300 text-xs break-words" title="${r.activitySummary}">${r.activitySummary}</td>
+            <td class="px-4 py-3 text-gray-300 text-xs text-center break-words" title="${r.activitySummary}">${r.activitySummary}</td>
             <td class="px-4 py-3 text-center font-bold text-sky-400">${r.count}</td>
             <td class="px-4 py-3 text-center font-bold text-white">${formatMin(r.totalMin)}</td>
             <td class="px-4 py-3 text-center">
@@ -3236,6 +3236,8 @@ window._btRenderSortHeaders = function() {
         table.style.minWidth = '980px';   // แคบกว่านี้ให้เลื่อนแนวนอนแทนการบีบ
         const widths = ['14%', '9%', '24%', '11%', '12%', '10%', '10%', '10%'];
         widths.forEach((w, i) => { if (ths[i]) ths[i].style.width = w; });
+        // จัดหัวตารางให้อยู่กึ่งกลางทุกคอลัมน์ ให้ตรงกับเนื้อหาข้างล่าง
+        ths.forEach(th => { th.classList.remove('text-left'); th.classList.add('text-center'); });
         table.dataset.btFixed = '1';
     }
 
