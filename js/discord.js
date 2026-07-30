@@ -2715,6 +2715,24 @@ window.loadBreaktrack = async function() {
     }
 };
 
+// ── แบ่งหน้าตารางเช็คอิน ────────────────────────────────────────────────
+let _btPage = 1;              // หน้าปัจจุบัน
+let _btPageSize = 20;         // จำนวนต่อหน้า
+let _btLastSig = '';          // ลายเซ็นตัวกรอง — ถ้าเปลี่ยนให้เด้งกลับหน้า 1
+
+window.btSetPage = function(n) {
+    _btPage = Math.max(1, Number(n) || 1);
+    window.renderBreaktrackTable();
+    const el = document.getElementById('breaktrackTableBody');
+    if (el) el.closest('table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+window.btSetPageSize = function(n) {
+    _btPageSize = Number(n) || 20;
+    _btPage = 1;
+    window.renderBreaktrackTable();
+};
+
 window.renderBreaktrackTable = function() {
     const shiftFilter = document.getElementById('breaktrackShift')?.value || 'all';
     const search = (document.getElementById('breaktrackSearch')?.value || '').toLowerCase();
@@ -2791,13 +2809,25 @@ window.renderBreaktrackTable = function() {
             <div class="text-xs text-amber-400 font-bold mt-1">ไม่กดกลับ</div>
         </div>`;
 
+    // ── แบ่งหน้า ──────────────────────────────────────────────────────
+    // ถ้าตัวกรอง (วันที่ / กะ / คำค้น) เปลี่ยน ให้เด้งกลับหน้า 1 อัตโนมัติ
+    const _sig = `${document.getElementById('breaktrackDate')?.value || ''}|${shiftFilter}|${search}`;
+    if (_sig !== _btLastSig) { _btLastSig = _sig; _btPage = 1; }
+
+    const totalPages = Math.max(1, Math.ceil(rows.length / _btPageSize));
+    if (_btPage > totalPages) _btPage = totalPages;
+    const startIdx = (_btPage - 1) * _btPageSize;
+    const pageRows = rows.slice(startIdx, startIdx + _btPageSize);
+
+    window._btRenderPager(rows.length, totalPages, startIdx, pageRows.length);
+
     if (rows.length === 0) {
         document.getElementById('breaktrackTableBody').innerHTML = `
             <tr><td colspan="8" class="text-center py-10 text-gray-500 font-bold">ไม่พบข้อมูลครับ</td></tr>`;
         return;
     }
 
-    document.getElementById('breaktrackTableBody').innerHTML = rows.map(r => `
+    document.getElementById('breaktrackTableBody').innerHTML = pageRows.map(r => `
         <tr class="hover:bg-slate-700/30 transition">
             <td class="px-4 py-3 font-bold text-white">${r.name}</td>
             <td class="px-4 py-3">
@@ -3085,4 +3115,76 @@ window.deleteCheckinGroup = async function(id) {
     } catch(e) {
         Swal.fire('ผิดพลาด', 'ลบไม่ได้ครับ', 'error');
     }
+};
+
+// ============================================================
+// 📄 แถบแบ่งหน้าของตารางเช็คอิน
+// สร้างตัวเองด้วย JS ต่อท้ายกล่องตาราง จึงไม่ต้องแก้ pages/discord.html
+// ============================================================
+window._btRenderPager = function(totalRows, totalPages, startIdx, shownCount) {
+    const tbody = document.getElementById('breaktrackTableBody');
+    if (!tbody) return;
+    const table = tbody.closest('table');
+    if (!table) return;
+    const wrapper = table.parentElement;   // กล่องที่ครอบตาราง (overflow-x-auto)
+
+    let pager = document.getElementById('breaktrackPager');
+    if (!pager) {
+        pager = document.createElement('div');
+        pager.id = 'breaktrackPager';
+        wrapper.insertAdjacentElement('afterend', pager);
+    }
+
+    if (totalRows === 0) { pager.innerHTML = ''; return; }
+
+    const from = startIdx + 1;
+    const to = startIdx + shownCount;
+
+    // ปุ่มเลขหน้า — ถ้าหน้าเยอะจะย่อด้วย ... เหลือเฉพาะหน้าใกล้ ๆ กับหน้าแรก/สุดท้าย
+    const nums = [];
+    const push = (n) => {
+        const active = n === _btPage;
+        nums.push(`<button onclick="window.btSetPage(${n})"
+            class="min-w-[34px] h-[34px] px-2 rounded-lg text-xs font-bold transition active:scale-95 ${
+                active ? 'bg-emerald-600 text-white border border-emerald-400'
+                       : 'bg-slate-800 text-gray-300 border border-slate-600 hover:bg-slate-700'}">${n}</button>`);
+    };
+    const dots = () => nums.push(`<span class="text-gray-600 px-1 select-none">…</span>`);
+
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) push(i);
+    } else {
+        push(1);
+        if (_btPage > 3) dots();
+        for (let i = Math.max(2, _btPage - 1); i <= Math.min(totalPages - 1, _btPage + 1); i++) push(i);
+        if (_btPage < totalPages - 2) dots();
+        push(totalPages);
+    }
+
+    const navBtn = (label, target, disabled) => `
+        <button onclick="window.btSetPage(${target})" ${disabled ? 'disabled' : ''}
+            class="h-[34px] px-3 rounded-lg text-xs font-bold transition active:scale-95 ${
+                disabled ? 'bg-slate-800/40 text-gray-600 border border-slate-700 cursor-not-allowed'
+                         : 'bg-slate-800 text-gray-300 border border-slate-600 hover:bg-slate-700'}">${label}</button>`;
+
+    const sizeOpt = (n) => `<option value="${n}"${_btPageSize === n ? ' selected' : ''}>${n}</option>`;
+
+    pager.innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-3 mt-4">
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+          <span>แสดง</span>
+          <select onchange="window.btSetPageSize(this.value)"
+            class="bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-xs outline-none focus:border-emerald-500">
+            ${[10, 20, 50, 100].map(sizeOpt).join('')}
+          </select>
+          <span>คนต่อหน้า</span>
+          <span class="text-gray-600 mx-1">·</span>
+          <span><b class="text-white">${from}-${to}</b> จาก <b class="text-white">${totalRows}</b> คน</span>
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          ${navBtn('‹ ก่อนหน้า', _btPage - 1, _btPage <= 1)}
+          ${nums.join('')}
+          ${navBtn('ถัดไป ›', _btPage + 1, _btPage >= totalPages)}
+        </div>
+      </div>`;
 };
