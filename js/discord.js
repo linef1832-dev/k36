@@ -1128,13 +1128,17 @@ window.loadTgConfigLocal = function() {
 };
 
 window.saveTgConfigLocal = async function() {
-    const token = document.getElementById('cfgToken').value.trim();
-    const chatId = document.getElementById('cfgChatId').value.trim();
+    // [เปลี่ยน] แผงตั้งค่าถูกเอาออกจากหน้าแล้ว — กันไว้ไม่ให้พังถ้ามีอะไรเรียกฟังก์ชันนี้
+    const _t = document.getElementById('cfgToken');
+    const _c = document.getElementById('cfgChatId');
+    if (!_t || !_c) return;
+    const token = _t.value.trim();
+    const chatId = _c.value.trim();
     window.safeSetItem('tg_bot_token', token);
     window.safeSetItem('tg_chat_id', chatId);
     try { await fetch(DISCORD_API_URL + '/api/save-tg-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ botToken: token, chatId: chatId }) }); } catch(e) {}
     Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'ระบบจะจำการตั้งค่านี้ไว้ในเบราว์เซอร์ของคุณ', timer: 2000, showConfirmButton: false});
-    document.getElementById('tgSettingsBox').classList.add('hidden');
+    document.getElementById('tgSettingsBox')?.classList.add('hidden');
 };
 
 window.renderCheckinTable = function() { dsDebounce('checkin', _doRenderCheckinTable, 200); };
@@ -1249,12 +1253,12 @@ window.removeUploadImage = function(idx) { uploadFiles.splice(idx, 1); document.
 window.sendToTelegram = async function() {
     if(uploadFiles.length === 0) return Swal.fire('แจ้งเตือน', 'กรุณากด Ctrl+V เพื่อวางรูปภาพหลักฐานก่อนครับ', 'warning');
     
-    const botToken = localStorage.getItem('tg_bot_token') || document.getElementById('cfgToken').value;
-    const chatId = localStorage.getItem('tg_chat_id') || document.getElementById('cfgChatId').value;
+    // [เปลี่ยน] เอาแผงตั้งค่า Bot ออกจากหน้าแล้ว จึงอ่านค่าจากที่เก็บในเบราว์เซอร์อย่างเดียว
+    const botToken = localStorage.getItem('tg_bot_token') || '';
+    const chatId = localStorage.getItem('tg_chat_id') || '';
     
     if (!botToken || !chatId) {
-        document.getElementById('tgSettingsBox').classList.remove('hidden');
-        return Swal.fire('ตั้งค่าก่อน', 'กรุณาใส่ Token บอท และ Chat ID ที่ปุ่มตั้งค่าด้านบนให้เรียบร้อยก่อนส่งครับ', 'info');
+        return Swal.fire('ยังตั้งค่าบอทไม่ครบ', 'ไม่พบ Token หรือ Chat ID ของบอทในเครื่องนี้ ติดต่อผู้ดูแลระบบเพื่อตั้งค่าให้ก่อนครับ', 'info');
     }
 
     const title = document.getElementById('tgTitle').value;
@@ -2947,6 +2951,7 @@ window.toggleCheckinGroupsPanel = function() {
     if (panel.classList.contains('hidden')) {
         panel.classList.remove('hidden');
         window.loadCheckinGroups();
+        if (typeof window.loadTagGroupMap === 'function') window.loadTagGroupMap();
     } else {
         panel.classList.add('hidden');
     }
@@ -2979,6 +2984,8 @@ window.loadCheckinGroups = async function() {
         if (error) throw error;
 
         window._tgGroupsCache = data || [];
+        // อัปเดตตารางจับคู่ TAG↔กลุ่ม ให้ดรอปดาวน์มีรายการล่าสุด
+        if (typeof window.renderTagGroupMap === 'function') window.renderTagGroupMap();
 
         const renderGroup = (g) => {
             const cid = window.normChatId(g.chat_id);
@@ -3266,4 +3273,110 @@ window._btRenderSortHeaders = function() {
                 </span>
             </span>`;
     });
+};
+
+// ============================================================
+// 🔗 จับคู่ TAG กับกลุ่มถ่ายรูป
+// เก็บใน settings key = 'tag_photo_group_map'
+// รูปแบบ { "ONLINE": "<chat_id>", "TEMP": "<chat_id>", "ONSITE": "" }
+// ค่าว่าง = ไม่ต้องถ่ายรูป
+// ============================================================
+const TAG_GROUP_MAP_KEY = 'tag_photo_group_map';
+window.TAG_GROUP_MAP = {};
+
+// รายการ TAG — ถ้า global.js โหลดแล้วใช้ของกลาง ไม่งั้นใช้ค่าสำรอง
+function tgmTagOptions() {
+    return window.TAG_OPTIONS || [
+        { value: 'ONLINE', label: 'ONLINE', desc: 'ออนไลน์ — ถ่ายรูปเช็คชื่อ' },
+        { value: 'TEMP',   label: 'TEMP',   desc: 'ออนไลน์ชั่วคราว — ถ่ายรูปอีกกลุ่ม' },
+        { value: 'ONSITE', label: 'ONSITE', desc: 'หน้างาน — ไม่ต้องถ่ายรูป' },
+    ];
+}
+
+window.loadTagGroupMap = async function() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', TAG_GROUP_MAP_KEY).maybeSingle();
+        let raw = null;
+        if (data && data.value) {
+            try { raw = typeof data.value === 'string' ? JSON.parse(data.value) : data.value; }
+            catch(e) { console.warn('[TagGroupMap] JSON เสีย', e); }
+        }
+        window.TAG_GROUP_MAP = (raw && typeof raw === 'object') ? raw : {};
+    } catch(e) {
+        console.error('[TagGroupMap] โหลดไม่สำเร็จ', e);
+        window.TAG_GROUP_MAP = {};
+    }
+    window.renderTagGroupMap();
+    return window.TAG_GROUP_MAP;
+};
+
+window.renderTagGroupMap = function() {
+    const box = document.getElementById('tagGroupMapList');
+    if (!box) return;
+
+    // กลุ่มที่เลือกได้ = กลุ่มประเภท "กะ" ที่ตั้งไว้แล้ว
+    const groups = (window._tgGroupsCache || []).filter(g => (g.group_type || 'checkin') === 'shift');
+
+    if (!groups.length) {
+        box.innerHTML = `<div class="text-amber-400 text-xs font-bold py-2">
+            ⚠️ ยังไม่มีกลุ่มถ่ายรูป — เพิ่มกลุ่มด้านบนก่อน แล้วค่อยกลับมาจับคู่</div>`;
+        return;
+    }
+
+    const esc = (x) => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    box.innerHTML = tgmTagOptions().map(t => {
+        const cur = window.TAG_GROUP_MAP[t.value] || '';
+        const opts = ['<option value="">— ไม่ต้องถ่ายรูป —</option>']
+            .concat(groups.map(g =>
+                `<option value="${esc(g.chat_id)}"${String(g.chat_id) === String(cur) ? ' selected' : ''}>${esc(g.group_name)}</option>`))
+            .join('');
+        return `
+        <div class="flex flex-wrap items-center gap-2 bg-slate-800 rounded-xl px-3 py-2 border border-slate-700">
+            <div class="min-w-[130px]">
+                <div class="text-white font-black text-xs">${esc(t.label)}</div>
+                <div class="text-gray-500 text-[10px]">${esc(t.desc)}</div>
+            </div>
+            <span class="material-icons text-gray-600 text-sm">arrow_forward</span>
+            <select data-tag="${esc(t.value)}"
+                class="flex-1 min-w-[180px] bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-xs outline-none focus:border-emerald-500">
+                ${opts}
+            </select>
+        </div>`;
+    }).join('');
+};
+
+window.saveTagGroupMap = async function() {
+    const box = document.getElementById('tagGroupMapList');
+    if (!box) return;
+    const map = {};
+    box.querySelectorAll('select[data-tag]').forEach(sel => { map[sel.dataset.tag] = sel.value || ''; });
+
+    // เตือนถ้ามี TAG มากกว่าหนึ่งอันชี้ไปกลุ่มเดียวกัน
+    const used = {};
+    let dupMsg = '';
+    for (const [tag, cid] of Object.entries(map)) {
+        if (!cid) continue;
+        if (used[cid]) dupMsg = `${used[cid]} กับ ${tag} ชี้ไปกลุ่มเดียวกัน`;
+        used[cid] = tag;
+    }
+    if (dupMsg) {
+        const c = await Swal.fire({
+            icon: 'warning', title: 'TAG ซ้ำกลุ่ม',
+            html: `${dupMsg}<br><br>ยังบันทึกได้ แต่ทั้งสอง TAG จะถูกเช็คในกลุ่มเดียวกัน`,
+            showCancelButton: true, confirmButtonText: 'บันทึกเลย', cancelButtonText: 'กลับไปแก้'
+        });
+        if (!c.isConfirmed) return;
+    }
+
+    try {
+        const { error } = await appDB.from('settings').upsert([{ key: TAG_GROUP_MAP_KEY, value: JSON.stringify(map) }]);
+        if (error) throw error;
+        window.TAG_GROUP_MAP = map;
+        if (typeof logAction === 'function') logAction('แก้ไขการจับคู่ TAG กับกลุ่มถ่ายรูป', 'discord');
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกแล้ว', showConfirmButton: false, timer: 1800 });
+    } catch(e) {
+        Swal.fire('บันทึกไม่สำเร็จ', e.message || 'ไม่ทราบสาเหตุ', 'error');
+    }
 };
