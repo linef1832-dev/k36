@@ -601,16 +601,36 @@ window.getDeptPrefix = function(department) {
 
 window.getTagBadge = function(tag, department) {
     if (!tag) return '';
-    // สีแยกตาม "สายงาน" อย่างเดียว (AM / OD) ไม่ได้แยกตามรูปแบบการทำงาน
-    // เพราะสายงานคือสิ่งที่ต้องแยกออกจากกันเร็วที่สุดเวลากวาดตาดู
-    const deptColors = {
-        'AM': { bg:'#1e3a5f', color:'#60a5fa', border:'rgba(96,165,250,.35)' },  // ฟ้า
-        'OD': { bg:'#3b0764', color:'#e879f9', border:'rgba(232,121,249,.35)' }, // ม่วง
+    // ป้ายสองโทน — ครึ่งซ้ายคือ "สายงาน" (สีเป็นตัวบอก) ครึ่งขวาคือ "รูปแบบการทำงาน"
+    // แยกเป็นสองช่องจริง ๆ แทนการใช้จุดคั่น เพราะสองค่านี้มาจากคนละช่องข้อมูล
+    // ตาจะจับสีก่อน (AM/OD) แล้วค่อยอ่านข้อความ (ONLINE/TEMP/ONSITE)
+    const palette = {
+        'AM': { solid:'#16a34a', tint:'#86efac', glow:'rgba(22,163,74,.45)' },   // เขียว
+        'OD': { solid:'#ea580c', tint:'#fdba74', glow:'rgba(234,88,12,.45)' },   // ส้ม
     };
     const prefix = window.getDeptPrefix(department);
-    const s = deptColors[prefix] || { bg:'#1e293b', color:'#94a3b8', border:'rgba(148,163,184,.35)' };
-    const text = prefix ? `${prefix} · ${tag}` : tag;
-    return `<span style="font-size:9px;font-weight:800;letter-spacing:.6px;padding:1px 5px;border-radius:4px;background:${s.bg};color:${s.color};border:1px solid ${s.border};flex-shrink:0;display:inline-block;margin-left:4px;vertical-align:middle;white-space:nowrap;">${text}</span>`;
+    const p = palette[prefix] || { solid:'#475569', tint:'#cbd5e1', glow:'rgba(71,85,105,.4)' };
+
+    // ── หมายเหตุเรื่องการจัดกึ่งกลาง ────────────────────────────────────
+    // 1) แนวนอน: letter-spacing เติมช่องว่างท้ายตัวอักษรตัวสุดท้ายด้วย
+    //    ข้อความจึงดูเบี้ยวไปทางซ้าย → ลด padding ขวาลงเท่ากับ letter-spacing
+    // 2) แนวตั้ง: ตัวพิมพ์ใหญ่ล้วนไม่มีหางล่าง กล่องตัวอักษรจึงเหลือที่ว่าง
+    //    ด้านล่างมากกว่าด้านบน ตาเลยเห็นว่าลอยสูง → ดันลงครึ่งพิกเซล
+    const H = 18;
+    const wrap = `display:inline-flex;align-items:stretch;margin-left:7px;vertical-align:middle;`
+        + `border-radius:999px;overflow:hidden;font-size:9px;line-height:1;`
+        + `white-space:nowrap;flex-shrink:0;height:${H}px;`
+        + `box-shadow:0 1px 3px ${p.glow}, inset 0 0 0 1px ${p.solid}66;`;
+    const cell = `display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:100%;`;
+    const left = cell + `background:${p.solid};color:#fff;padding:0 8.1px 0 9px;`
+        + `font-weight:900;letter-spacing:.9px;text-shadow:0 1px 1px rgba(0,0,0,.28);`;
+    const right = cell + `background:#0f172a;color:${p.tint};padding:0 9px 0 10px;`
+        + `font-weight:800;letter-spacing:1px;border-left:1px solid rgba(255,255,255,.14);`;
+    const nudge = `position:relative;top:.5px;display:block;`;
+
+    const cellHtml = (style, txt) => `<span style="${style}"><span style="${nudge}">${txt}</span></span>`;
+    if (!prefix) return `<span style="${wrap}">${cellHtml(right, tag)}</span>`;
+    return `<span style="${wrap}">${cellHtml(left, prefix)}${cellHtml(right, tag)}</span>`;
 };
 
 window.getTagBadgeByName = function(name) {
