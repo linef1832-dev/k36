@@ -2951,7 +2951,6 @@ window.toggleCheckinGroupsPanel = function() {
     if (panel.classList.contains('hidden')) {
         panel.classList.remove('hidden');
         window.loadCheckinGroups();
-        if (typeof window.loadTagGroupMap === 'function') window.loadTagGroupMap();
     } else {
         panel.classList.add('hidden');
     }
@@ -2984,8 +2983,6 @@ window.loadCheckinGroups = async function() {
         if (error) throw error;
 
         window._tgGroupsCache = data || [];
-        // อัปเดตตารางจับคู่ TAG↔กลุ่ม ให้ดรอปดาวน์มีรายการล่าสุด
-        if (typeof window.renderTagGroupMap === 'function') window.renderTagGroupMap();
 
         const renderGroup = (g) => {
             const cid = window.normChatId(g.chat_id);
@@ -2994,12 +2991,16 @@ window.loadCheckinGroups = async function() {
                 : `<span class="text-amber-400">ยังไม่ได้ใส่ Chat ID — บอทจะข้ามกลุ่มนี้</span>`;
             const soundLine = (g.group_type === 'shift' && g.sound_id)
                 ? `<span class="text-gray-600"> · เสียง ${g.sound_id}</span>` : '';
+            const tagLine = (g.group_type === 'shift')
+                ? (g.tag ? window.groupTagBadge(g.tag)
+                         : '<span style="font-size:9px;font-weight:700;color:#fbbf24;margin-left:6px;">ยังไม่ได้ตั้ง TAG</span>')
+                : '';
             return `
             <div class="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2 gap-2">
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                     <span class="w-2 h-2 rounded-full shrink-0 ${g.active ? 'bg-emerald-400' : 'bg-gray-500'}"></span>
                     <div class="min-w-0 flex-1">
-                        <div class="text-white text-xs font-bold truncate">${g.group_name || '(ไม่มีชื่อ)'}</div>
+                        <div class="text-white text-xs font-bold truncate">${g.group_name || '(ไม่มีชื่อ)'}${tagLine}</div>
                         <div class="text-[10px] truncate font-mono">${idLine}${soundLine}</div>
                     </div>
                 </div>
@@ -3032,8 +3033,10 @@ window.loadCheckinGroups = async function() {
 window.addCheckinGroup = async function(type) {
     const nameEl = document.getElementById('newGroupName_' + type);
     const idEl = document.getElementById('newGroupChatId_' + type);
+    const tagEl = document.getElementById('newGroupTag_' + type);
     const name = nameEl ? nameEl.value.trim() : '';
     const rawId = idEl ? idEl.value.trim() : '';
+    const tag = tagEl ? tagEl.value.trim() : '';
 
     if (!name) return Swal.fire('แจ้งเตือน', 'กรุณาใส่ชื่อกลุ่มก่อนครับ', 'warning');
     if (!rawId) return Swal.fire('แจ้งเตือน', 'กรุณาใส่ Chat ID ด้วยครับ ไม่งั้นบอทจะไม่ดักกลุ่มนี้', 'warning');
@@ -3041,10 +3044,12 @@ window.addCheckinGroup = async function(type) {
 
     try {
         const row = { group_name: name, active: true, group_type: type, chat_id: rawId };
+        if (type === 'shift') row.tag = tag || null;
         const { error } = await appDB.from('telegram_groups').insert(row);
         if (error) throw error;
         if (nameEl) nameEl.value = '';
         if (idEl) idEl.value = '';
+        if (tagEl) tagEl.value = '';
         await window.loadCheckinGroups();
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'เพิ่มกลุ่มสำเร็จ', showConfirmButton: false, timer: 1500 });
     } catch(e) {
@@ -3058,6 +3063,14 @@ window.editTelegramGroup = async function(id) {
 
     const isShift = g.group_type === 'shift';
     const esc = (v) => String(v == null ? '' : v).replace(/"/g, '&quot;');
+
+    const tagHtml = !isShift ? '' : `
+        <div style="text-align:left;margin-top:12px">
+            <label style="font-size:12px;color:#94a3b8;font-weight:bold">TAG ที่ต้องถ่ายรูปในกลุ่มนี้</label>
+            <select id="tgEditTag" class="swal2-input" style="margin:4px 0 0;width:100%">
+                ${groupTagOptionsHtml(g.tag)}
+            </select>
+        </div>`;
 
     const soundHtml = !isShift ? '' : `
         <div style="display:flex;gap:8px;margin-top:12px">
@@ -3082,6 +3095,7 @@ window.editTelegramGroup = async function(id) {
                 <label style="font-size:12px;color:#94a3b8;font-weight:bold">Chat ID</label>
                 <input id="tgEditChatId" class="swal2-input" style="margin:4px 0 0;width:100%" value="${esc(g.chat_id)}" placeholder="-1001234567890">
             </div>
+            ${tagHtml}
             ${soundHtml}`,
         background: '#1e293b',
         color: '#fff',
@@ -3097,6 +3111,7 @@ window.editTelegramGroup = async function(id) {
             if (chatId && !window.normChatId(chatId)) { Swal.showValidationMessage('Chat ID ต้องเป็นตัวเลข'); return false; }
             const out = { group_name: name, chat_id: chatId || null };
             if (isShift) {
+                out.tag = document.getElementById('tgEditTag').value.trim() || null;
                 const sid = document.getElementById('tgEditSound').value.trim();
                 const dur = document.getElementById('tgEditDuration').value.trim();
                 if (dur && isNaN(Number(dur))) { Swal.showValidationMessage('ความยาวเสียงต้องเป็นตัวเลข'); return false; }
@@ -3276,107 +3291,22 @@ window._btRenderSortHeaders = function() {
 };
 
 // ============================================================
-// 🔗 จับคู่ TAG กับกลุ่มถ่ายรูป
-// เก็บใน settings key = 'tag_photo_group_map'
-// รูปแบบ { "ONLINE": "<chat_id>", "TEMP": "<chat_id>", "ONSITE": "" }
-// ค่าว่าง = ไม่ต้องถ่ายรูป
+// 🏷️ TAG ของกลุ่มถ่ายรูป
+// เก็บในคอลัมน์ tag ของตาราง telegram_groups (1 กลุ่ม = 1 TAG)
+// พนักงานที่ติด TAG ไหน ต้องถ่ายรูปในกลุ่มที่ตั้ง TAG นั้นไว้
 // ============================================================
-const TAG_GROUP_MAP_KEY = 'tag_photo_group_map';
-window.TAG_GROUP_MAP = {};
+const GROUP_TAG_OPTIONS = ['ONLINE', 'TEMP', 'ONSITE'];
 
-// รายการ TAG — ถ้า global.js โหลดแล้วใช้ของกลาง ไม่งั้นใช้ค่าสำรอง
-function tgmTagOptions() {
-    return window.TAG_OPTIONS || [
-        { value: 'ONLINE', label: 'ONLINE', desc: 'ออนไลน์ — ถ่ายรูปเช็คชื่อ' },
-        { value: 'TEMP',   label: 'TEMP',   desc: 'ออนไลน์ชั่วคราว — ถ่ายรูปอีกกลุ่ม' },
-        { value: 'ONSITE', label: 'ONSITE', desc: 'หน้างาน — ไม่ต้องถ่ายรูป' },
-    ];
+function groupTagOptionsHtml(selected) {
+    return ['<option value="">— ไม่ระบุ —</option>']
+        .concat(GROUP_TAG_OPTIONS.map(t =>
+            `<option value="${t}"${String(selected || '') === t ? ' selected' : ''}>${t}</option>`))
+        .join('');
 }
 
-window.loadTagGroupMap = async function() {
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', TAG_GROUP_MAP_KEY).maybeSingle();
-        let raw = null;
-        if (data && data.value) {
-            try { raw = typeof data.value === 'string' ? JSON.parse(data.value) : data.value; }
-            catch(e) { console.warn('[TagGroupMap] JSON เสีย', e); }
-        }
-        window.TAG_GROUP_MAP = (raw && typeof raw === 'object') ? raw : {};
-    } catch(e) {
-        console.error('[TagGroupMap] โหลดไม่สำเร็จ', e);
-        window.TAG_GROUP_MAP = {};
-    }
-    window.renderTagGroupMap();
-    return window.TAG_GROUP_MAP;
-};
-
-window.renderTagGroupMap = function() {
-    const box = document.getElementById('tagGroupMapList');
-    if (!box) return;
-
-    // กลุ่มที่เลือกได้ = กลุ่มประเภท "กะ" ที่ตั้งไว้แล้ว
-    const groups = (window._tgGroupsCache || []).filter(g => (g.group_type || 'checkin') === 'shift');
-
-    if (!groups.length) {
-        box.innerHTML = `<div class="text-amber-400 text-xs font-bold py-2">
-            ⚠️ ยังไม่มีกลุ่มถ่ายรูป — เพิ่มกลุ่มด้านบนก่อน แล้วค่อยกลับมาจับคู่</div>`;
-        return;
-    }
-
-    const esc = (x) => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-    box.innerHTML = tgmTagOptions().map(t => {
-        const cur = window.TAG_GROUP_MAP[t.value] || '';
-        const opts = ['<option value="">— ไม่ต้องถ่ายรูป —</option>']
-            .concat(groups.map(g =>
-                `<option value="${esc(g.chat_id)}"${String(g.chat_id) === String(cur) ? ' selected' : ''}>${esc(g.group_name)}</option>`))
-            .join('');
-        return `
-        <div class="flex flex-wrap items-center gap-2 bg-slate-800 rounded-xl px-3 py-2 border border-slate-700">
-            <div class="min-w-[130px]">
-                <div class="text-white font-black text-xs">${esc(t.label)}</div>
-                <div class="text-gray-500 text-[10px]">${esc(t.desc)}</div>
-            </div>
-            <span class="material-icons text-gray-600 text-sm">arrow_forward</span>
-            <select data-tag="${esc(t.value)}"
-                class="flex-1 min-w-[180px] bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-xs outline-none focus:border-emerald-500">
-                ${opts}
-            </select>
-        </div>`;
-    }).join('');
-};
-
-window.saveTagGroupMap = async function() {
-    const box = document.getElementById('tagGroupMapList');
-    if (!box) return;
-    const map = {};
-    box.querySelectorAll('select[data-tag]').forEach(sel => { map[sel.dataset.tag] = sel.value || ''; });
-
-    // เตือนถ้ามี TAG มากกว่าหนึ่งอันชี้ไปกลุ่มเดียวกัน
-    const used = {};
-    let dupMsg = '';
-    for (const [tag, cid] of Object.entries(map)) {
-        if (!cid) continue;
-        if (used[cid]) dupMsg = `${used[cid]} กับ ${tag} ชี้ไปกลุ่มเดียวกัน`;
-        used[cid] = tag;
-    }
-    if (dupMsg) {
-        const c = await Swal.fire({
-            icon: 'warning', title: 'TAG ซ้ำกลุ่ม',
-            html: `${dupMsg}<br><br>ยังบันทึกได้ แต่ทั้งสอง TAG จะถูกเช็คในกลุ่มเดียวกัน`,
-            showCancelButton: true, confirmButtonText: 'บันทึกเลย', cancelButtonText: 'กลับไปแก้'
-        });
-        if (!c.isConfirmed) return;
-    }
-
-    try {
-        const { error } = await appDB.from('settings').upsert([{ key: TAG_GROUP_MAP_KEY, value: JSON.stringify(map) }]);
-        if (error) throw error;
-        window.TAG_GROUP_MAP = map;
-        if (typeof logAction === 'function') logAction('แก้ไขการจับคู่ TAG กับกลุ่มถ่ายรูป', 'discord');
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกแล้ว', showConfirmButton: false, timer: 1800 });
-    } catch(e) {
-        Swal.fire('บันทึกไม่สำเร็จ', e.message || 'ไม่ทราบสาเหตุ', 'error');
-    }
+// ป้าย TAG เล็ก ๆ แสดงข้างชื่อกลุ่มในรายการ
+window.groupTagBadge = function(tag) {
+    if (!tag) return '';
+    const c = { ONLINE:'#4ade80', TEMP:'#fbbf24', ONSITE:'#94a3b8' }[tag] || '#94a3b8';
+    return `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;padding:1px 5px;border-radius:4px;background:rgba(148,163,184,.12);color:${c};border:1px solid ${c}55;margin-left:6px;white-space:nowrap;">${tag}</span>`;
 };
