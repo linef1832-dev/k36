@@ -581,24 +581,43 @@ window.clearUsersCache = function() { _usersCacheTs = 0; };
 })();
 
 // ====== TAG Badge Helper ======
-window.getTagBadge = function(tag) {
-    const map = {
-        'AM':   { bg:'#1e3a5f', color:'#60a5fa', border:'rgba(96,165,250,.35)' },
-        'AMOL': { bg:'#14301a', color:'#4ade80', border:'rgba(74,222,128,.35)' },
-        'OD':   { bg:'#3b0764', color:'#e879f9', border:'rgba(232,121,249,.35)' },
-        'ODOL': { bg:'#431407', color:'#fb923c', border:'rgba(251,146,60,.35)' },
-    };
-    const s = map[tag];
-    if (!s) return '';
-    return `<span style="font-size:9px;font-weight:800;letter-spacing:.6px;padding:1px 5px;border-radius:4px;background:${s.bg};color:${s.color};border:1px solid ${s.border};flex-shrink:0;display:inline-block;margin-left:4px;vertical-align:middle;">${tag}</span>`;
+// ── ป้าย TAG ────────────────────────────────────────────────────────────
+// TAG บอก "รูปแบบการทำงาน" อย่างเดียว: ONLINE / TEMP / ONSITE
+// ส่วน "แผนก" (AM / OD) มาจากช่อง department ซึ่งเป็นตัวคุมสิทธิ์ ไม่เกี่ยวกับ TAG
+// ป้ายที่แสดงจะประกอบสองอย่างเข้าด้วยกัน เช่น  AM · ONLINE
+window.TAG_OPTIONS = [
+    { value: 'ONLINE', label: 'ONLINE', desc: 'ออนไลน์ — ถ่ายรูปเช็คชื่อ' },
+    { value: 'TEMP',   label: 'TEMP',   desc: 'ออนไลน์ชั่วคราว — ถ่ายรูปอีกกลุ่ม' },
+    { value: 'ONSITE', label: 'ONSITE', desc: 'หน้างาน — ไม่ต้องถ่ายรูป' },
+];
+
+// ตัดแผนกให้เหลือสายหลัก: AMQL / AMTT / AM → AM · ODQL / OD → OD
+window.getDeptPrefix = function(department) {
+    const d = String(department || '').toUpperCase();
+    if (d.startsWith('AM')) return 'AM';
+    if (d.startsWith('OD')) return 'OD';
+    return d || '';
 };
 
-// lookup tag จาก GLOBAL_USER_LIST โดยใช้ชื่อ (สำหรับ discord.js ที่ไม่มี u.tag โดยตรง)
+window.getTagBadge = function(tag, department) {
+    if (!tag) return '';
+    // สีแยกตาม "สายงาน" อย่างเดียว (AM / OD) ไม่ได้แยกตามรูปแบบการทำงาน
+    // เพราะสายงานคือสิ่งที่ต้องแยกออกจากกันเร็วที่สุดเวลากวาดตาดู
+    const deptColors = {
+        'AM': { bg:'#1e3a5f', color:'#60a5fa', border:'rgba(96,165,250,.35)' },  // ฟ้า
+        'OD': { bg:'#3b0764', color:'#e879f9', border:'rgba(232,121,249,.35)' }, // ม่วง
+    };
+    const prefix = window.getDeptPrefix(department);
+    const s = deptColors[prefix] || { bg:'#1e293b', color:'#94a3b8', border:'rgba(148,163,184,.35)' };
+    const text = prefix ? `${prefix} · ${tag}` : tag;
+    return `<span style="font-size:9px;font-weight:800;letter-spacing:.6px;padding:1px 5px;border-radius:4px;background:${s.bg};color:${s.color};border:1px solid ${s.border};flex-shrink:0;display:inline-block;margin-left:4px;vertical-align:middle;white-space:nowrap;">${text}</span>`;
+};
+
 window.getTagBadgeByName = function(name) {
     if (!window.GLOBAL_USER_LIST || !name) return '';
     const u = window.GLOBAL_USER_LIST.find(x =>
         x.username && x.username.toLowerCase() === name.toLowerCase()
     );
-    return u ? window.getTagBadge(u.tag) : '';
+    return u ? window.getTagBadge(u.tag, u.department) : '';
 };
 // ====== จบ TAG Badge Helper ======
