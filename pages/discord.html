@@ -120,27 +120,18 @@
                             <div class="flex gap-2">
                                 <input type="text" id="newGroupName_shift" placeholder="ชื่อกลุ่ม (ป้ายชื่อ)" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500">
                                 <input type="text" id="newGroupChatId_shift" placeholder="Chat ID เช่น -1001234567890" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-violet-500">
+                                <select id="newGroupTag_shift" title="TAG ที่ต้องถ่ายรูปในกลุ่มนี้" class="bg-slate-800 border border-slate-600 text-white rounded-xl px-2 py-2 text-xs outline-none focus:border-violet-500">
+                                    <option value="">— TAG —</option>
+                                    <option value="ONLINE">ONLINE</option>
+                                    <option value="TEMP">TEMP</option>
+                                    <option value="ONSITE">ONSITE</option>
+                                </select>
                                 <button onclick="window.addCheckinGroup('shift')" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
                                     <span class="material-icons text-xs">add</span>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- จับคู่ TAG กับกลุ่มถ่ายรูป -->
-                        <div class="mt-5 pt-4 border-t border-slate-700">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="material-icons text-emerald-400 text-sm">link</span>
-                                <span class="text-emerald-400 font-black text-xs uppercase tracking-wider">TAG ไหน ถ่ายรูปกลุ่มไหน</span>
-                            </div>
-                            <p class="text-gray-500 text-xs mb-3 leading-relaxed">
-                                กำหนดว่าพนักงานที่ติด TAG แต่ละแบบ ต้องถ่ายรูปเช็คชื่อในกลุ่มไหน<br>
-                                เลือก <b class="text-gray-400">— ไม่ต้องถ่ายรูป —</b> สำหรับคนหน้างาน
-                            </p>
-                            <div id="tagGroupMapList" class="flex flex-col gap-2 mb-3"></div>
-                            <button onclick="window.saveTagGroupMap()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
-                                <span class="material-icons text-xs align-middle">save</span> บันทึกการจับคู่
-                            </button>
-                        </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-4">
