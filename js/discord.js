@@ -2991,10 +2991,7 @@ window.loadCheckinGroups = async function() {
                 : `<span class="text-amber-400">ยังไม่ได้ใส่ Chat ID — บอทจะข้ามกลุ่มนี้</span>`;
             const soundLine = (g.group_type === 'shift' && g.sound_id)
                 ? `<span class="text-gray-600"> · เสียง ${g.sound_id}</span>` : '';
-            const tagLine = (g.group_type === 'shift')
-                ? (g.tag ? window.groupTagBadge(g.tag)
-                         : '<span style="font-size:9px;font-weight:700;color:#fbbf24;margin-left:6px;">ยังไม่ได้ตั้ง TAG</span>')
-                : '';
+            const tagLine = (g.group_type === 'shift') ? window.groupTagBadge(g.tag) : '';
             return `
             <div class="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2 gap-2">
                 <div class="flex items-center gap-2 flex-1 min-w-0">
@@ -3064,10 +3061,17 @@ window.editTelegramGroup = async function(id) {
     const isShift = g.group_type === 'shift';
     const esc = (v) => String(v == null ? '' : v).replace(/"/g, '&quot;');
 
+    // ใช้สไตล์ของตัวเอง ไม่ใช้ swal2-input เพราะคลาสนั้นทำมาสำหรับ input ข้อความ
+    // พอเอามาใส่ select จะได้กล่องขาวสูงผิดปกติและตัวเลือกล้นออกนอกกรอบ
+    const selStyle = 'width:100%;box-sizing:border-box;margin:6px 0 0;padding:11px 36px 11px 14px;'
+        + 'border-radius:10px;border:1.5px solid #334155;background:#0f172a;color:#f1f5f9;'
+        + 'font-size:13px;font-weight:600;outline:none;cursor:pointer;appearance:none;'
+        + "background-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>\");"
+        + 'background-repeat:no-repeat;background-position:right 12px center;background-size:16px;';
     const tagHtml = !isShift ? '' : `
-        <div style="text-align:left;margin-top:12px">
+        <div style="text-align:left;margin-top:14px">
             <label style="font-size:12px;color:#94a3b8;font-weight:bold">TAG ที่ต้องถ่ายรูปในกลุ่มนี้</label>
-            <select id="tgEditTag" class="swal2-input" style="margin:4px 0 0;width:100%">
+            <select id="tgEditTag" style="${selStyle}">
                 ${groupTagOptionsHtml(g.tag)}
             </select>
         </div>`;
@@ -3298,15 +3302,23 @@ window._btRenderSortHeaders = function() {
 const GROUP_TAG_OPTIONS = ['ONLINE', 'TEMP', 'ONSITE'];
 
 function groupTagOptionsHtml(selected) {
-    return ['<option value="">— ไม่ระบุ —</option>']
+    const st = 'background:#0f172a;color:#f1f5f9;';
+    return [`<option value="" style="${st}">— ไม่ระบุ —</option>`]
         .concat(GROUP_TAG_OPTIONS.map(t =>
-            `<option value="${t}"${String(selected || '') === t ? ' selected' : ''}>${t}</option>`))
+            `<option value="${t}" style="${st}"${String(selected || '') === t ? ' selected' : ''}>${t}</option>`))
         .join('');
 }
 
 // ป้าย TAG เล็ก ๆ แสดงข้างชื่อกลุ่มในรายการ
 window.groupTagBadge = function(tag) {
-    if (!tag) return '';
+    const pill = (txt, color, solid) => `<span style="display:inline-flex;align-items:center;height:16px;`
+        + `padding:0 8px;margin-left:7px;border-radius:999px;font-size:9px;font-weight:800;`
+        + `letter-spacing:.8px;white-space:nowrap;vertical-align:middle;`
+        + `background:${solid ? color : 'transparent'};color:${solid ? '#0f172a' : color};`
+        + `border:1px solid ${color}${solid ? '' : '80'};">`
+        + `<span style="position:relative;top:.5px;display:block;">${txt}</span></span>`;
+
+    if (!tag) return pill('ยังไม่ได้ตั้ง TAG', '#f59e0b', false);
     const c = { ONLINE:'#4ade80', TEMP:'#fbbf24', ONSITE:'#94a3b8' }[tag] || '#94a3b8';
-    return `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;padding:1px 5px;border-radius:4px;background:rgba(148,163,184,.12);color:${c};border:1px solid ${c}55;margin-left:6px;white-space:nowrap;">${tag}</span>`;
+    return pill(tag, c, true);
 };
