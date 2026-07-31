@@ -120,11 +120,11 @@
                             <div class="flex gap-2">
                                 <input type="text" id="newGroupName_shift" placeholder="ชื่อกลุ่ม (ป้ายชื่อ)" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500">
                                 <input type="text" id="newGroupChatId_shift" placeholder="Chat ID เช่น -1001234567890" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-violet-500">
-                                <select id="newGroupTag_shift" title="TAG ที่ต้องถ่ายรูปในกลุ่มนี้" class="bg-slate-800 border border-slate-600 text-white rounded-xl px-2 py-2 text-xs outline-none focus:border-violet-500">
-                                    <option value="">— TAG —</option>
-                                    <option value="ONLINE">ONLINE</option>
-                                    <option value="TEMP">TEMP</option>
-                                    <option value="ONSITE">ONSITE</option>
+                                <select id="newGroupTag_shift" title="TAG ที่ต้องถ่ายรูปในกลุ่มนี้" class="w-28 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-violet-500 cursor-pointer">
+                                    <option value="" class="bg-slate-800">— TAG —</option>
+                                    <option value="ONLINE" class="bg-slate-800">ONLINE</option>
+                                    <option value="TEMP" class="bg-slate-800">TEMP</option>
+                                    <option value="ONSITE" class="bg-slate-800">ONSITE</option>
                                 </select>
                                 <button onclick="window.addCheckinGroup('shift')" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
                                     <span class="material-icons text-xs">add</span>
