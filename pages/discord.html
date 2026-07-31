@@ -94,9 +94,6 @@
                         <button onclick="window.toggleCheckinGroupsPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 transition">
                             <span class="material-icons text-sm">group</span> ตั้งค่ากลุ่ม
                         </button>
-                        <button onclick="document.getElementById('tgSettingsBox').classList.toggle('hidden')" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 transition">
-                            <span class="material-icons text-sm">settings</span> ตั้งค่า Bot
-                        </button>
                     </div>
                 </div>
 
@@ -128,21 +125,21 @@
                                 </button>
                             </div>
                         </div>
-                    </div>
-                </div>
-                <div id="tgSettingsBox" class="hidden bg-slate-900 border border-slate-600 rounded-xl p-4 mb-6">
-                    <h4 class="text-white font-bold text-sm mb-3">⚙️ ตั้งค่า Token & Chat ID</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-                        <div class="md:col-span-2">
-                            <label class="text-xs text-gray-400 font-bold mb-1 block">Bot Token</label>
-                            <input type="text" id="cfgToken" placeholder="8306266770:AAH..." class="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-white text-sm outline-none focus:border-sky-500">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="text-xs text-gray-400 font-bold mb-1 block">Chat ID</label>
-                            <input type="text" id="cfgChatId" placeholder="-100XXXXXXX" class="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-white text-sm outline-none focus:border-sky-500">
-                        </div>
-                        <div class="flex items-end">
-                            <button onclick="saveTgConfigLocal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition h-[42px] flex items-center justify-center gap-1"><span class="material-icons text-sm">save</span> บันทึก</button>
+
+                        <!-- จับคู่ TAG กับกลุ่มถ่ายรูป -->
+                        <div class="mt-5 pt-4 border-t border-slate-700">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="material-icons text-emerald-400 text-sm">link</span>
+                                <span class="text-emerald-400 font-black text-xs uppercase tracking-wider">TAG ไหน ถ่ายรูปกลุ่มไหน</span>
+                            </div>
+                            <p class="text-gray-500 text-xs mb-3 leading-relaxed">
+                                กำหนดว่าพนักงานที่ติด TAG แต่ละแบบ ต้องถ่ายรูปเช็คชื่อในกลุ่มไหน<br>
+                                เลือก <b class="text-gray-400">— ไม่ต้องถ่ายรูป —</b> สำหรับคนหน้างาน
+                            </p>
+                            <div id="tagGroupMapList" class="flex flex-col gap-2 mb-3"></div>
+                            <button onclick="window.saveTagGroupMap()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                                <span class="material-icons text-xs align-middle">save</span> บันทึกการจับคู่
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -392,6 +389,9 @@
               <button onclick="window.toggleBreakGroupsPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
                 <span class="material-icons text-sm">group</span> ตั้งค่ากลุ่ม
               </button>
+              <button onclick="window.toggleParseRulesPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
+                <span class="material-icons text-sm">manage_search</span> ตั้งค่าคำที่จับ
+              </button>
 
             </div>
           </div>
@@ -415,6 +415,101 @@
               <input type="text" id="newGroupChatId_checkin" placeholder="Chat ID เช่น -1001234567890" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-emerald-500">
               <button onclick="window.addCheckinGroup('checkin')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
                 <span class="material-icons text-xs">add</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ═══════════ ตั้งค่าคำที่บอทจับ (Parse Rules) ═══════════ -->
+          <div id="parseRulesPanel" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-6">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-white font-black text-sm flex items-center gap-2">
+                <span class="material-icons text-emerald-400 text-sm">manage_search</span> ตั้งค่าคำที่บอทจับ
+              </h3>
+              <button onclick="document.getElementById('parseRulesPanel').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
+                <span class="material-icons text-sm">close</span>
+              </button>
+            </div>
+
+            <p class="text-gray-500 text-xs mb-4 leading-relaxed">
+              ตั้งค่าว่าบอทจะแปลข้อความในกลุ่มเป็นกิจกรรมอะไร<br>
+              <b class="text-amber-400">แก้แล้วบอทรับรู้เองภายในไม่กี่วินาที ไม่ต้องรีสตาร์ท</b> — แนะนำให้ทดลองในช่องล่างสุดก่อนกดบันทึกทุกครั้ง
+            </p>
+
+            <!-- รายการกิจกรรม -->
+            <div class="mb-4">
+              <div class="text-emerald-400 font-bold text-xs mb-2 flex items-center gap-1">
+                <span class="material-icons text-xs">list</span> กิจกรรมที่จับ
+              </div>
+              <div id="prActivityList" class="flex flex-col gap-1.5 mb-2"></div>
+              <button onclick="window.pr_addActivity()" class="w-full bg-slate-800 hover:bg-slate-700 border border-dashed border-slate-600 text-gray-400 hover:text-white rounded-xl py-2 text-xs font-bold transition">
+                <span class="material-icons text-xs align-middle">add</span> เพิ่มกิจกรรมใหม่
+              </button>
+            </div>
+
+            <!-- คำว่ากลับที่นั่ง -->
+            <div class="mb-4">
+              <label class="text-emerald-400 font-bold text-xs mb-1 block">คำที่ถือว่า "กลับมาแล้ว" (คั่นด้วยเครื่องหมายจุลภาค)</label>
+              <input type="text" id="prReturnWords" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500">
+            </div>
+
+            <!-- โหมดผู้เชี่ยวชาญ -->
+            <details class="mb-4 bg-slate-800/50 rounded-xl border border-slate-700">
+              <summary class="cursor-pointer px-3 py-2 text-amber-400 font-bold text-xs select-none">
+                ⚠️ โครงประโยค (แก้เฉพาะเมื่อบอทอ่านไม่ออกแล้ว)
+              </summary>
+              <div class="p-3 pt-1 flex flex-col gap-3">
+                <p class="text-gray-500 text-[11px] leading-relaxed">
+                  ส่วนนี้คือรูปประโยคที่บอทใช้แกะข้อความ ถ้ากรอกผิดบอทจะอ่านไม่ออกทั้งหมด<br>
+                  ถ้าเผลอแก้พลาด กดปุ่ม <b class="text-gray-400">คืนค่าเริ่มต้น</b> ด้านล่างได้เลย
+                </p>
+                <div>
+                  <label class="text-gray-400 font-bold text-xs mb-1 block">คำด่านแรก — ไม่มีคำนี้ในข้อความ บอทจะข้ามทันที</label>
+                  <input type="text" id="prGateWord" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500">
+                </div>
+                <div>
+                  <label class="text-gray-400 font-bold text-xs mb-1 block">รูปประโยคที่ใช้หาชื่อกิจกรรม (บรรทัดละ 1 รูปแบบ ไล่จากบนลงล่าง)</label>
+                  <textarea id="prActivityPatterns" rows="4" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500"></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-gray-400 font-bold text-xs mb-1 block">รูปแบบเวลา</label>
+                    <input type="text" id="prTimestampPattern" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500">
+                  </div>
+                  <div>
+                    <label class="text-gray-400 font-bold text-xs mb-1 block">คำที่บ่งบอกว่า "กลับที่นั่งไม่สำเร็จ"</label>
+                    <input type="text" id="prFailedReturnWord" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500">
+                  </div>
+                </div>
+                <div>
+                  <label class="text-gray-400 font-bold text-xs mb-1 block">ประโยคเปลี่ยนกะ (บรรทัดละ 1 ประโยค — ต้องตรงเป๊ะทุกตัวอักษร)</label>
+                  <textarea id="prShiftKeywords" rows="4" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500"></textarea>
+                </div>
+              </div>
+            </details>
+
+            <!-- ช่องทดลอง -->
+            <div class="mb-4 bg-slate-800/50 rounded-xl border border-sky-500/30 p-3">
+              <div class="text-sky-400 font-bold text-xs mb-2 flex items-center gap-1">
+                <span class="material-icons text-xs">science</span> ทดลองก่อนบันทึก
+              </div>
+              <p class="text-gray-500 text-[11px] mb-2">ก๊อปข้อความจริงจากกลุ่ม Telegram มาวางที่นี่ แล้วดูว่าบอทจะแกะได้อะไร</p>
+              <textarea id="prTestInput" rows="5" placeholder="วางข้อความจากกลุ่มที่นี่..." class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-sky-500 mb-2"></textarea>
+              <button onclick="window.pr_testMessage()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs align-middle">play_arrow</span> ทดลองแกะ
+              </button>
+              <div id="prTestResult" class="mt-3"></div>
+            </div>
+
+            <!-- ปุ่มบันทึก -->
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="window.saveParseRules()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs align-middle">save</span> บันทึก
+              </button>
+              <button onclick="window.loadParseRules(true)" class="bg-slate-700 hover:bg-slate-600 text-gray-200 px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs align-middle">refresh</span> ยกเลิกที่แก้
+              </button>
+              <button onclick="window.pr_resetDefaults()" class="bg-amber-600/80 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs align-middle">restart_alt</span> คืนค่าเริ่มต้น
               </button>
             </div>
           </div>
