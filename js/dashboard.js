@@ -261,25 +261,39 @@ window.refreshTimeSlots = async function() {
         for (const [periodName, times] of Object.entries(periods)) {
             html += `<optgroup label="--- ${periodName} ---">`;
             times.forEach(time => {
-                const count = bookings ? bookings.filter(b =>
+                // [เปลี่ยน] นับสองชั้น ให้ตรงกับตอนกดบันทึกใน system_core.js
+                //   ทีม  = คนในทีมเดียวกัน · แผนก = ทุกทีมในแผนกรวมกัน
+                // ที่ว่างจริง = ชั้นที่เหลือน้อยกว่า
+                const countTeam = bookings ? bookings.filter(b =>
                     b.time_slot === time &&
                     (b.department || 'AM') === myDep &&
                     b.team === selectedTeam
                 ).length : 0;
+                const countDept = bookings ? bookings.filter(b =>
+                    b.time_slot === time &&
+                    (b.department || 'AM') === myDep
+                ).length : 0;
 
                 const suffix = shiftName.replace('กะ', '');
-                let maxQuota = 50;
+                let teamQuota = 50, deptQuota = 50;
                 if (typeof SETTINGS !== 'undefined') {
+                    deptQuota = myDep === 'OD'
+                        ? parseInt(SETTINGS[`quota_od_${suffix}`] || 5)
+                        : parseInt(SETTINGS[`quota_total_${suffix}`] || 50);
                     const teamQuotaKey = `quota_team_${selectedTeam}_${myDep}_${suffix}`;
-                    if (SETTINGS[teamQuotaKey] !== undefined && SETTINGS[teamQuotaKey] !== '') {
-                        maxQuota = parseInt(SETTINGS[teamQuotaKey]);
-                    } else {
-                        maxQuota = myDep === 'OD' ? parseInt(SETTINGS[`quota_od_${suffix}`] || 5) : parseInt(SETTINGS[`quota_total_${suffix}`] || 50);
-                    }
+                    teamQuota = (SETTINGS[teamQuotaKey] !== undefined && SETTINGS[teamQuotaKey] !== '')
+                        ? parseInt(SETTINGS[teamQuotaKey])
+                        : deptQuota;
                 }
 
-                const isFull = count >= maxQuota;
-                const statusText = isFull ? '(เต็มแล้ว)' : `(ว่าง: ${maxQuota - count})`;
+                const leftTeam = teamQuota - countTeam;
+                const leftDept = deptQuota - countDept;
+                const left = Math.min(leftTeam, leftDept);
+                const isFull = left <= 0;
+                // บอกด้วยว่าเต็มเพราะชั้นไหน จะได้ไม่งงว่าทีมยังว่างแต่กดไม่ได้
+                const statusText = isFull
+                    ? (leftDept <= 0 ? '(เต็มแล้ว - รวมทั้งแผนก)' : '(เต็มแล้ว - ทีมนี้)')
+                    : `(ว่าง: ${left})`;
                 html += `<option value="${time}" data-period="${periodName}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
             });
             html += '</optgroup>';
