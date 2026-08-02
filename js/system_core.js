@@ -378,12 +378,20 @@ window.saveData = async function(e) {
     const countTotalDept = slotBookings.filter(b => (b.department || 'AM') === myDep).length;
     const countTeam = slotBookings.filter(b => b.team === activeTeam && (b.department || 'AM') === myDep).length;
 
-    // ถ้ามีตั้งโควตาทีมไว้ ให้ยึดโควตาทีมเป็นหลัก (ตรงกับ dropdown) ไม่เช็คโควตารวมแผนกซ้ำ
-    if (hasTeamQuota) {
-        if (useTeamLogic && countTeam >= limitTeam) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาทีม ${activeTeam} (${shiftSuffix}) เต็มแล้ว`, 'error'); }
-    } else {
-        if (countTotalDept >= limitTotal) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาแผนก ${myDep} เต็มแล้ว`, 'error'); }
-        if (useTeamLogic && countTeam >= limitTeam) { window.resetBtn(); return Swal.fire('เต็มแล้ว', `โควตาทีม ${activeTeam} (${shiftSuffix}) เต็มแล้ว`, 'error'); }
+    // [เปลี่ยน] เช็คทั้งสองชั้นเสมอ — ชั้นไหนเต็มก่อนก็ลงไม่ได้
+    //
+    // เดิม: ถ้าทีมตั้งโควตาไว้ จะข้ามการเช็คโควตารวมทิ้งเลย
+    //       ผลคือตั้งรวมไว้ 5 แต่ 10 ทีม ทีมละ 1 → ลงได้ 10 คน เพดานรวมไม่มีผล
+    // ใหม่: โควตารวม = เพดานจริงของช่วงเวลานั้นทั้งแผนก
+    //       โควตาทีม = ที่จองของแต่ละทีม กันทีมใหญ่กินรวบ
+    //       ต้องผ่านทั้งคู่ถึงจะลงได้
+    if (countTotalDept >= limitTotal) {
+        window.resetBtn();
+        return Swal.fire('เต็มแล้ว', `ช่วง ${timeVal} ของแผนก ${myDep} เต็มแล้ว (รับได้ ${limitTotal} คน)`, 'error');
+    }
+    if (useTeamLogic && countTeam >= limitTeam) {
+        window.resetBtn();
+        return Swal.fire('เต็มแล้ว', `โควตาทีม ${activeTeam} (${shiftSuffix}) เต็มแล้ว (รับได้ ${limitTeam} คน)`, 'error');
     }
 
     const { error } = await appDB.from('schedules').insert([{ 
