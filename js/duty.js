@@ -363,6 +363,7 @@ window.refreshDutyData = async function() {
         const impListKey = `duty_important_tasks_list_${currentDutyDept}_${shiftFilter}`;
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
+        const stayPinKey = `duty_stay_pins_${currentDutyDept}`;   // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน
 
         // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (leaves + schedules + settings) ลด latency 3 เท่า
         // [FIX] ดึง scheduled_tasks ของวันนั้นมาด้วย เพื่อแยกทิศทางของ XX
@@ -377,7 +378,7 @@ window.refreshDutyData = async function() {
         const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey]),
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey]),
             appDB.from('scheduled_tasks').select('payload, scheduled_for, status')
                 .eq('task_type', 'individual_shift_update')
                 .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
@@ -432,6 +433,7 @@ window.refreshDutyData = async function() {
         window.globalImportantTasks = [];
         window.currentImportantAssigns = {};
         window.lockedImportantTasks = {};
+        window.dutyStayPins = {};
 
         try {
             const data = settingsRes && settingsRes.data;
@@ -454,6 +456,16 @@ window.refreshDutyData = async function() {
                     } else {
                         window.lockedImportantTasks = parsedLock || {};
                     }
+                }
+
+                // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน — ตัดตัวที่หมดอายุทิ้งตั้งแต่ตอนโหลด
+                const stayPinRow = data.find(d => d.key === stayPinKey);
+                if (stayPinRow && stayPinRow.value) {
+                    try {
+                        const parsedPins = JSON.parse(stayPinRow.value);
+                        window.dutyStayPins = (parsedPins && !Array.isArray(parsedPins)) ? parsedPins : {};
+                        window.prunePins(window.dutyStayPins);
+                    } catch (e) { window.dutyStayPins = {}; }
                 }
             }
             
@@ -516,6 +528,7 @@ window.refreshDutyData = async function() {
         }
 
         if (window.isDutyAdmin()) window.updateDutyStats();
+        window.updateStayPinButton();
     } catch (err) { console.error("Refresh Duty Data Error:", err); }
 };
 
@@ -901,9 +914,45 @@ window.generateDutyRoster = async function() {
         window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
 
         let unassignedPool = [...activeStaff];
-        const rosterResult = {}; 
-        sortedTeams.forEach(t => rosterResult[t] = []); 
+        const rosterResult = {};
+        sortedTeams.forEach(t => rosterResult[t] = []);
         let remainingReqs = { ...requirements };
+
+        // 📌 ขั้นที่ 0: วางคนที่ถูกล็อก "อยู่ต่อ" ลงเว็บเดิมก่อนสุ่ม
+        // ต้องมาก่อนลูปสุ่ม เพราะเป็นคำสั่งตรงจากแอดมิน — ถ้าปล่อยให้ลูปจัด
+        // กฎ "ห้ามทำเว็บเดิมซ้ำกับเมื่อวาน" (yestTeamMap) จะเขี่ยเขาออกจากเว็บนั้นทันที
+        // ดึง pin สดจาก DB อีกรอบ เผื่อแอดมินอีกคนเพิ่ง/เพิ่งยกเลิกการล็อกไประหว่างที่หน้านี้เปิดค้างอยู่
+        await window.loadStayPins();
+
+        const pinnedPlaced = [];
+        const pinnedSkipped = [];
+        const pinnedOverQuota = [];
+        Object.keys(window.dutyStayPins || {}).forEach(uid => {
+            // getActiveStayPin คุมกติกาช่วงวัน+กะไว้ที่เดียว จะได้ไม่หลุดกันคนละที่
+            const pin = window.getActiveStayPin(uid, targetDate, shiftFilter);
+            if (!pin || !pin.team) return;
+            if (!sortedTeams.includes(pin.team)) return;   // เว็บถูกลบไปแล้ว
+
+            const u = unassignedPool.find(x => String(x.id) === String(uid));
+            if (!u) {
+                // ติดลาหยุด / สลับกะ / ย้ายแผนก → ข้ามเฉพาะวันนี้ ตัว pin ยังอยู่ใช้วันถัดไปได้
+                pinnedSkipped.push(pin.username);
+                return;
+            }
+
+            if ((remainingReqs[pin.team] || 0) <= 0) pinnedOverQuota.push(`${pin.username} (${pin.team})`);
+
+            rosterResult[pin.team].push({
+                ...u,
+                secondary_team: null,
+                assigned_by: currentUser.username,
+                assigned_at: new Date().toISOString(),
+                stay_pinned: true
+            });
+            remainingReqs[pin.team] = Math.max(0, (remainingReqs[pin.team] || 0) - 1);
+            unassignedPool = unassignedPool.filter(x => String(x.id) !== String(uid));
+            pinnedPlaced.push(`${pin.username} → ${pin.team}`);
+        });
 
         while (true) {
             let teamsNeedingPeople = sortedTeams.filter(t => remainingReqs[t] > 0);
@@ -986,11 +1035,28 @@ ${summaryParts.join(' | ')}`;
             if(appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
         } catch(logError) {}
 
-        window.refreshDutyData(); 
-        
+        window.refreshDutyData();
+
+        // 📌 สรุปผลของคนที่ถูกล็อกอยู่ต่อ ให้แอดมินเห็นว่าระบบทำอะไรให้บ้าง
+        let pinSummary = '';
+        if (pinnedPlaced.length > 0) {
+            pinSummary += `<div style="margin-top:12px;text-align:left;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:#b45309">
+                <b>📌 อยู่ต่อจากที่ล็อกไว้ ${pinnedPlaced.length} คน</b><br>${pinnedPlaced.join('<br>')}</div>`;
+        }
+        if (pinnedOverQuota.length > 0) {
+            pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:#b91c1c">
+                ⚠️ เว็บเหล่านี้มีคนล็อกไว้เกินโควตาที่ตั้ง — ยอดคนจะเกินที่ระบุ:<br><b>${pinnedOverQuota.join(', ')}</b></div>`;
+        }
+        if (pinnedSkipped.length > 0) {
+            pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:#64748b">
+                ℹ️ ข้ามคนที่ล็อกไว้แต่วันนี้ไม่ได้ทำงาน (ลาหยุด/สลับกะ): <b>${pinnedSkipped.join(', ')}</b> — การล็อกยังอยู่ ใช้ต่อวันถัดไปได้</div>`;
+        }
+
         if (unassignedPool.length > 0) {
             const leftNames = unassignedPool.map(u => u.username).join(', ');
-            Swal.fire({ icon: 'warning', title: `จัดหลักสำเร็จ! (มีคนเหลือ)`, html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b> เพราะไม่ได้ติ๊กสิทธิ์หลังบ้านไว้:<br><br><span class="text-red-500 font-bold">${leftNames}</span>` });
+            Swal.fire({ icon: 'warning', title: `จัดหลักสำเร็จ! (มีคนเหลือ)`, html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b> เพราะไม่ได้ติ๊กสิทธิ์หลังบ้านไว้:<br><br><span class="text-red-500 font-bold">${leftNames}</span>${pinSummary}` });
+        } else if (pinSummary) {
+            Swal.fire({ icon: 'success', title: `จัดตำแหน่งหลักสำเร็จ!`, html: `กรุณากดปุ่มสายฟ้า (จัดตำแหน่งรองด่วน) เพื่อจับคู่เวลาพักครับ${pinSummary}` });
         } else {
             Swal.fire({ icon: 'success', title: `จัดตำแหน่งหลักสำเร็จ!`, text: 'กรุณากดปุ่มสายฟ้า (จัดตำแหน่งรองด่วน) เพื่อจับคู่เวลาพักครับ', timer: 2500, showConfirmButton: false });
         }
@@ -1139,14 +1205,18 @@ window.renderRosterGrid = async function(rosterData) {
                 }
             }
 
+            // 📌 ป้าย/ปุ่ม "อยู่ต่ออีกกี่วัน"
+            const stayPinHtml = isMissing ? '' : window.renderStayPinHtml(a, team, isAdmin);
+
             return `
             <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0 group ${cursorClass}" data-name="${(a.username || '').toLowerCase()}" ${dragAttrs}>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
-                        <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span> 
+                        <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span>
                         <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
                     </div>
                 </div>
+                ${stayPinHtml}
                 ${breakTimeHtml}
                 ${odTaskHtml}
                 ${secHtml}
@@ -1619,6 +1689,20 @@ window.handleDrop = async function(event, toTeam) {
         window.clearSettingCache(); const { error: _upsertErr } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (_upsertErr) throw _upsertErr;
 
+        // 📌 ถ้าคนนี้ถูกล็อก "อยู่ต่อ" ไว้ ให้ย้าย pin ตามไปเว็บใหม่ด้วย
+        // ไม่งั้นวันพรุ่งนี้ระบบจะดึงเขากลับไปเว็บเดิมสวนทางกับที่เพิ่งย้ายมา
+        let pinMovedNote = '';
+        const movedPin = window.getLiveStayPin(id, targetDate);
+        if (movedPin && movedPin.team !== toTeam) {
+            const oldTeam = movedPin.team;
+            movedPin.team = toTeam;
+            window.dutyStayPins[String(id)] = movedPin;
+            try {
+                await window.saveStayPins();
+                pinMovedNote = `<div style="margin-top:8px;font-size:11.5px;color:#b45309">📌 ย้ายการล็อก "อยู่ต่อ" จาก <b>${oldTeam}</b> ไป <b>${toTeam}</b> ให้แล้ว (ถึง ${window.dutyFmtShortDate(movedPin.until)})</div>`;
+            } catch (pinErr) { console.warn('[stayPin] move failed', pinErr); }
+        }
+
         // 🟢 บันทึก log การย้ายระหว่างเว็บ — แสดงทั้ง "คนจัดเดิม" และ "คนย้าย"
         await appDB.from('system_logs').insert([{
             action_type: 'ย้ายหน้าที่',
@@ -1630,7 +1714,8 @@ window.handleDrop = async function(event, toTeam) {
         if (typeof window.updateDutyStats === 'function') window.updateDutyStats();
 
         window.debouncedBroadcast('duty-updates', 'force_reload');
-        Swal.fire({icon: 'success', title: 'ย้ายสำเร็จ', timer: 1000, showConfirmButton: false});
+        if (pinMovedNote) Swal.fire({ icon: 'success', title: 'ย้ายสำเร็จ', html: pinMovedNote, timer: 2600, showConfirmButton: false });
+        else Swal.fire({icon: 'success', title: 'ย้ายสำเร็จ', timer: 1000, showConfirmButton: false});
     } catch (e) {
         console.error(e);
         Swal.fire('Error', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
@@ -4707,4 +4792,375 @@ window.calcHelpTime = async function() {
 
     window.helpCalcResult = results;
     window.renderHelpCalcPanel();
+};
+
+// ============================================================
+// 📌 ระบบ "อยู่ต่ออีกกี่วัน" — ล็อกพนักงานไว้เว็บเดิมข้ามวัน
+// ============================================================
+// เดิม generateDutyRoster บังคับหมุนเว็บทุกวัน (กันไม่ให้ซ้ำกับเมื่อวาน)
+// ฟีเจอร์นี้ให้แอดมินสั่งยกเว้นเป็นรายคนว่า "คนนี้อยู่เว็บนี้ต่ออีก N วัน"
+//
+// เก็บแยกจากตารางเวรรายวัน เพราะเป็น "กติกาข้ามวัน" ไม่ใช่ผลลัพธ์ของวันใดวันหนึ่ง
+// ถ้าไปฝังใน duty_roster_<date> จะต้องไล่เขียนล่วงหน้าทีละวัน และแก้ทีหลังไม่ได้
+//   settings key : duty_stay_pins_<dept>
+//   value        : { "<user_id>": {username, team, shift, from, until, days, by} }
+//   ขอบเขต       : ใช้กับวันที่  from < วันที่จัด <= until
+//                  (from คือวันที่กดตั้ง ซึ่งเขาอยู่เว็บนั้นอยู่แล้ว จึงไม่นับซ้ำ)
+// ============================================================
+
+window.dutyStayPins = {};
+
+window.getStayPinKey = function() {
+    return `duty_stay_pins_${currentDutyDept}`;
+};
+
+// ── ตัวช่วยเรื่องวันที่ ────────────────────────────────────────
+// ใช้ UTC ล้วนในการบวกวัน เพื่อไม่ให้ผลลัพธ์เพี้ยนตามโซนเวลาของเครื่อง
+// (เทียบวันที่ใช้ string 'YYYY-MM-DD' เทียบตรงๆ ได้เลย เพราะเรียงตามตัวอักษร = เรียงตามเวลา)
+window.dutyAddDays = function(dateStr, n) {
+    const [y, m, d] = String(dateStr).split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + n);
+    return dt.toISOString().slice(0, 10);
+};
+
+window.dutyDiffDays = function(fromStr, toStr) {
+    const p = s => { const [y, m, d] = String(s).split('-').map(Number); return Date.UTC(y, m - 1, d); };
+    return Math.round((p(toStr) - p(fromStr)) / 86400000);
+};
+
+window.dutyTodayStr = function() {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+};
+
+window.dutyFmtShortDate = function(dateStr) {
+    const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const [y, m, d] = String(dateStr).split('-').map(Number);
+    if (!y || !m || !d) return dateStr;
+    return `${d} ${TH_MONTHS[m - 1]} ${String((y + 543)).slice(-2)}`;
+};
+
+// ── อ่าน/เขียน pin ────────────────────────────────────────────
+window.loadStayPins = async function() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', window.getStayPinKey()).maybeSingle();
+        window.dutyStayPins = (data && data.value) ? JSON.parse(data.value) : {};
+    } catch (e) {
+        window.dutyStayPins = {};
+    }
+    return window.dutyStayPins;
+};
+
+// ล้าง pin ที่หมดอายุแล้วทิ้ง เพื่อไม่ให้ค่าเก่าค้างสะสมในตาราง settings
+// เขียนกลับเฉพาะตอนที่มีของหมดอายุจริง จะได้ไม่ยิง DB ทุกครั้งที่เปิดหน้า
+window.prunePins = function(pins) {
+    const today = window.dutyTodayStr();
+    let changed = false;
+    const kept = {};
+    Object.entries(pins || {}).forEach(([uid, p]) => {
+        if (p && p.until && p.until >= today) kept[uid] = p;
+        else changed = true;
+    });
+    if (changed) {
+        window.dutyStayPins = kept;
+        window.clearSettingCache();
+        appDB.from('settings').upsert([{ key: window.getStayPinKey(), value: JSON.stringify(kept) }])
+            .then(() => {}, e => console.warn('[stayPin] prune failed', e));
+    }
+    return kept;
+};
+
+window.saveStayPins = async function() {
+    window.clearSettingCache();
+    const { error } = await appDB.from('settings').upsert([
+        { key: window.getStayPinKey(), value: JSON.stringify(window.dutyStayPins) }
+    ]);
+    if (error) throw error;
+};
+
+// pin ที่ยัง "มีผล" กับวันที่+กะที่กำลังดูอยู่
+window.getActiveStayPin = function(userId, dateStr, shift) {
+    const p = (window.dutyStayPins || {})[String(userId)];
+    if (!p || !p.until || !p.from) return null;
+    if (shift && p.shift && p.shift !== shift) return null;
+    if (!(dateStr > p.from && dateStr <= p.until)) return null;
+    return p;
+};
+
+// pin ที่ "ครอบคลุมวันที่กำลังดู" รวมวันที่กดตั้งด้วย  → ช่วง [from, until]
+// ต่างจาก getActiveStayPin ตรงที่นับวัน from เข้ามาด้วย เพราะวันนั้นเขาอยู่เว็บนั้นอยู่แล้ว
+// จึงไม่ต้องบังคับจัด แต่ต้องโชว์ป้ายให้เห็นว่าล็อกไว้แล้ว
+window.getLiveStayPin = function(userId, dateStr) {
+    const p = (window.dutyStayPins || {})[String(userId)];
+    if (!p || !p.until || !p.from) return null;
+    const d = dateStr || window.dutyTodayStr();
+    if (d < p.from || d > p.until) return null;
+    return p;
+};
+
+// ── ป้ายบนการ์ดพนักงาน ────────────────────────────────────────
+window.renderStayPinHtml = function(a, team, isAdmin) {
+    if (!a || !a.id) return '';
+    const dateEl = document.getElementById('dutyDate');
+    const dateStr = dateEl ? dateEl.value : window.dutyTodayStr();
+    const pin = window.getLiveStayPin(a.id, dateStr);
+
+    const safeName = String(a.username || '').replace(/'/g, "\\'");
+
+    if (pin) {
+        // เหลืออีกกี่วันนับจากวันที่กำลังดู (อย่างน้อย 0)
+        const left = Math.max(0, window.dutyDiffDays(dateStr, pin.until));
+        const wrongTeam = pin.team !== team;
+        const click = isAdmin ? `onclick="event.stopPropagation(); openStayPinModal('${team}', '${a.id}', '${safeName}')"` : '';
+        const hover = isAdmin ? 'cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-800/40 transition' : '';
+        const warn = wrongTeam
+            ? `<span class="text-[9px] text-red-600 dark:text-red-400 font-bold ml-1" title="pin ชี้ไปเว็บ ${pin.team}">(≠ ${pin.team})</span>`
+            : '';
+        return `<div ${click} title="${isAdmin ? 'คลิกเพื่อแก้ไข / ยกเลิกการอยู่ต่อ' : 'ถูกล็อกให้อยู่เว็บนี้ต่อ'}"
+            class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300 px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-800/50 w-fit shadow-sm ${hover}">
+            <span class="material-icons text-[14px]">push_pin</span>
+            อยู่ต่อ ${left > 0 ? `อีก ${left} วัน` : 'วันสุดท้าย'} (ถึง ${window.dutyFmtShortDate(pin.until)})${warn}
+            ${isAdmin ? '<span class="material-icons text-[11px] opacity-50 ml-0.5">edit</span>' : ''}
+        </div>`;
+    }
+
+    if (!isAdmin) return '';
+    return `<div onclick="event.stopPropagation(); openStayPinModal('${team}', '${a.id}', '${safeName}')"
+        title="ล็อกให้อยู่เว็บนี้ต่ออีกหลายวัน"
+        class="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 bg-slate-50 dark:bg-slate-800/50 hover:bg-amber-50 dark:hover:bg-amber-900/20 px-2 py-0.5 rounded-md border border-dashed border-slate-300 dark:border-slate-600 hover:border-amber-400 w-fit transition cursor-pointer">
+        <span class="material-icons text-[13px]">push_pin</span> อยู่ต่อ...
+    </div>`;
+};
+
+// ── กล่องตั้งค่า "อยู่ต่อกี่วัน" ───────────────────────────────
+window.openStayPinModal = async function(team, userId, username) {
+    if (!window.isDutyAdmin()) return;
+
+    const dateStr = document.getElementById('dutyDate').value;
+    const shift   = document.getElementById('dutyShiftSelect').value;
+    if (!dateStr) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
+
+    const existing = window.getLiveStayPin(userId, dateStr);
+    // ตั้งใหม่ให้นับต่อจากวันที่กำลังดู ส่วนการแก้ของเดิมให้คงจุดตั้งต้นไว้ ไม่งั้นกดแก้ทีวันจะเลื่อนออกไปเรื่อยๆ
+    const baseDate = existing ? existing.from : dateStr;
+    const defaultDays = existing ? Math.max(1, window.dutyDiffDays(baseDate, existing.until)) : 3;
+
+    const chip = (n) => `<button type="button" data-days="${n}"
+        class="stay-day-chip px-3 py-2 rounded-lg border-2 font-black text-sm transition"
+        style="min-width:44px">${n}</button>`;
+
+    const { value: result } = await Swal.fire({
+        title: `<div class="text-base font-black">📌 ให้อยู่เว็บ <span style="color:#6366f1">${team}</span> ต่ออีกกี่วัน?</div>`,
+        html: `
+            <div style="text-align:left">
+                <div style="font-size:12px;color:#94a3b8;margin-bottom:14px">
+                    พนักงาน: <b style="color:#e2e8f0;font-size:14px">${username}</b>
+                    &nbsp;•&nbsp; กะ: <b style="color:#e2e8f0">${shift}</b>
+                </div>
+
+                <div style="font-size:11px;font-weight:800;color:#64748b;letter-spacing:.5px;margin-bottom:6px">เลือกจำนวนวัน</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+                    ${[1,2,3,4,5,7,14].map(chip).join('')}
+                </div>
+
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                    <span style="font-size:11px;font-weight:800;color:#64748b">หรือพิมพ์เอง</span>
+                    <input id="stayDaysInput" type="number" min="1" max="60" value="${defaultDays}"
+                        style="width:80px;padding:8px 10px;border-radius:10px;border:1.5px solid #334155;background:#0f172a;color:#f1f5f9;font-weight:800;text-align:center;outline:none">
+                    <span style="font-size:12px;color:#94a3b8">วัน</span>
+                </div>
+
+                <div id="stayPreview" style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:#c7d2fe;line-height:1.7"></div>
+
+                <div style="margin-top:10px;font-size:10.5px;color:#64748b;line-height:1.6">
+                    ℹ️ ระบบจะจัด <b>${username}</b> ลงเว็บ <b>${team}</b> ให้อัตโนมัติทุกครั้งที่กด "สุ่มจัดหน้าที่" ในช่วงวันดังกล่าว
+                    (ข้ามกฎห้ามซ้ำเว็บเดิม) — ถ้าวันไหนติดลาหยุด ระบบจะข้ามวันนั้นให้เอง
+                </div>
+            </div>
+        `,
+        background: '#0b1120',
+        showCancelButton: true,
+        showDenyButton: !!existing,
+        confirmButtonText: existing ? 'อัปเดต' : 'ยืนยัน',
+        denyButtonText: 'ยกเลิกการอยู่ต่อ',
+        cancelButtonText: 'ปิด',
+        confirmButtonColor: '#6366f1',
+        denyButtonColor: '#ef4444',
+        cancelButtonColor: '#475569',
+        customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' },
+        didOpen: () => {
+            const input   = document.getElementById('stayDaysInput');
+            const preview = document.getElementById('stayPreview');
+            const chips   = Array.from(document.querySelectorAll('.stay-day-chip'));
+
+            const paint = () => {
+                const n = parseInt(input.value) || 0;
+                chips.forEach(c => {
+                    const on = parseInt(c.dataset.days) === n;
+                    c.style.borderColor = on ? '#6366f1' : '#334155';
+                    c.style.background  = on ? 'rgba(99,102,241,.2)' : '#0f172a';
+                    c.style.color       = on ? '#c7d2fe' : '#94a3b8';
+                });
+                if (n < 1) { preview.innerHTML = '<span style="color:#f87171">กรุณาใส่จำนวนวันอย่างน้อย 1 วัน</span>'; return; }
+                const until = window.dutyAddDays(baseDate, n);
+                const start = window.dutyAddDays(baseDate, 1);
+                preview.innerHTML = `📅 อยู่เว็บ <b>${team}</b> ตั้งแต่ <b>${window.dutyFmtShortDate(start)}</b>`
+                    + ` ถึง <b>${window.dutyFmtShortDate(until)}</b> รวม <b>${n} วัน</b>`;
+            };
+
+            chips.forEach(c => c.addEventListener('click', () => { input.value = c.dataset.days; paint(); }));
+            input.addEventListener('input', paint);
+            paint();
+        },
+        preConfirm: () => {
+            const n = parseInt(document.getElementById('stayDaysInput').value) || 0;
+            if (n < 1)  { Swal.showValidationMessage('ใส่จำนวนวันอย่างน้อย 1 วันครับ'); return false; }
+            if (n > 60) { Swal.showValidationMessage('เกิน 60 วันไม่ได้ครับ'); return false; }
+            return { days: n };
+        }
+    });
+
+    // กด "ยกเลิกการอยู่ต่อ"
+    if (result === false) return window.removeStayPin(userId, username);
+    if (!result || !result.days) return;
+
+    const until = window.dutyAddDays(baseDate, result.days);
+
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        window.dutyStayPins[String(userId)] = {
+            username: username,
+            team:     team,
+            shift:    shift,
+            from:     baseDate,
+            until:    until,
+            days:     result.days,
+            by:       currentUser.username
+        };
+        await window.saveStayPins();
+
+        await appDB.from('system_logs').insert([{
+            action_type: 'ล็อกอยู่ต่อ',
+            performed_by: currentUser.username,
+            target_details: `ล็อก ${username} ให้อยู่เว็บ [${team}] ต่ออีก ${result.days} วัน `
+                + `(${window.dutyAddDays(baseDate, 1)} ถึง ${until}, แผนก ${currentDutyDept}, กะ ${shift})`
+        }]);
+
+        window.debouncedBroadcast('duty-updates', 'force_reload');
+        window.renderRosterGrid(currentRosterData);
+        window.updateStayPinButton();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'ล็อกเรียบร้อย!',
+            html: `<b>${username}</b> จะอยู่เว็บ <b>${team}</b> ถึงวันที่ <b>${window.dutyFmtShortDate(until)}</b>`,
+            timer: 2200, showConfirmButton: false
+        });
+    } catch (e) {
+        Swal.fire('Error', e.message, 'error');
+    }
+};
+
+window.removeStayPin = async function(userId, username) {
+    if (!window.isDutyAdmin()) return;
+    const pin = (window.dutyStayPins || {})[String(userId)];
+    if (!pin) return;
+
+    const ok = await Swal.fire({
+        icon: 'warning',
+        title: 'ยกเลิกการอยู่ต่อ?',
+        html: `<b>${username || pin.username}</b> จะกลับไปหมุนเว็บตามปกติ`,
+        showCancelButton: true,
+        confirmButtonText: 'ยกเลิกการล็อก',
+        cancelButtonText: 'ไม่',
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    if (!ok.isConfirmed) return;
+
+    try {
+        delete window.dutyStayPins[String(userId)];
+        await window.saveStayPins();
+
+        await appDB.from('system_logs').insert([{
+            action_type: 'ล็อกอยู่ต่อ',
+            performed_by: currentUser.username,
+            target_details: `ยกเลิกล็อก ${username || pin.username} (เดิมอยู่เว็บ [${pin.team}] ถึง ${pin.until}, แผนก ${currentDutyDept})`
+        }]);
+
+        window.debouncedBroadcast('duty-updates', 'force_reload');
+        window.renderRosterGrid(currentRosterData);
+        window.updateStayPinButton();
+        Swal.fire({ icon: 'success', title: 'ยกเลิกแล้ว', timer: 1200, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message, 'error');
+    }
+};
+
+// ── ปุ่ม + รายการรวมคนที่ถูกล็อก ──────────────────────────────
+window.updateStayPinButton = function() {
+    const btn = document.getElementById('btnStayPinList');
+    if (!btn) return;
+    const today = window.dutyTodayStr();
+    const n = Object.values(window.dutyStayPins || {}).filter(p => p && p.until >= today).length;
+    const badge = document.getElementById('stayPinCount');
+    if (badge) badge.innerText = n;
+    if (n > 0) btn.classList.remove('opacity-60');
+    else btn.classList.add('opacity-60');
+};
+
+window.openStayPinListModal = async function() {
+    const today = window.dutyTodayStr();
+    const shift = document.getElementById('dutyShiftSelect') ? document.getElementById('dutyShiftSelect').value : '';
+    const rows = Object.entries(window.dutyStayPins || {})
+        .filter(([, p]) => p && p.until >= today)
+        .sort((a, b) => a[1].until.localeCompare(b[1].until));
+
+    if (rows.length === 0) {
+        return Swal.fire({
+            icon: 'info',
+            title: 'ยังไม่มีใครถูกล็อก',
+            html: `<div style="font-size:13px;color:#94a3b8">กดปุ่ม <b>📌 อยู่ต่อ...</b> บนการ์ดพนักงานในตาราง เพื่อล็อกให้เขาอยู่เว็บเดิมข้ามวัน</div>`,
+            background: '#0b1120',
+            confirmButtonColor: '#6366f1',
+            customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
+        });
+    }
+
+    const isAdmin = window.isDutyAdmin();
+    const body = rows.map(([uid, p]) => {
+        const left  = Math.max(0, window.dutyDiffDays(today, p.until));
+        const dim   = (shift && p.shift && p.shift !== shift) ? 'opacity:.5' : '';
+        const safe  = String(p.username || '').replace(/'/g, "\\'");
+        return `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#0f172a;border:1px solid #1e293b;margin-bottom:8px;${dim}">
+            <span class="material-icons" style="font-size:16px;color:#fbbf24">push_pin</span>
+            <div style="flex:1;min-width:0;text-align:left">
+                <div style="font-weight:800;font-size:13px;color:#f1f5f9">${p.username}</div>
+                <div style="font-size:10.5px;color:#64748b;margin-top:2px">
+                    เว็บ <b style="color:#a5b4fc">${p.team}</b> • ${p.shift || '-'} • ถึง ${window.dutyFmtShortDate(p.until)}
+                    ${p.by ? ` • ตั้งโดย ${p.by}` : ''}
+                </div>
+            </div>
+            <span style="font-size:10px;font-weight:900;background:${left > 0 ? 'rgba(251,191,36,.15)' : 'rgba(148,163,184,.15)'};color:${left > 0 ? '#fbbf24' : '#94a3b8'};border:1px solid ${left > 0 ? 'rgba(251,191,36,.35)' : 'rgba(148,163,184,.3)'};padding:3px 8px;border-radius:999px;white-space:nowrap">
+                ${left > 0 ? `เหลือ ${left} วัน` : 'วันสุดท้าย'}
+            </span>
+            ${isAdmin ? `<button onclick="removeStayPin('${uid}', '${safe}')" title="ยกเลิก"
+                style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:9px;padding:5px 7px;cursor:pointer;display:flex;align-items:center">
+                <span class="material-icons" style="font-size:15px">delete</span></button>` : ''}
+        </div>`;
+    }).join('');
+
+    Swal.fire({
+        title: `<div style="font-size:16px;font-weight:900">📌 คนที่ถูกล็อกอยู่ต่อ (${rows.length})</div>`,
+        html: `<div style="max-height:55vh;overflow-y:auto;padding-right:4px">${body}</div>
+               <div style="font-size:10.5px;color:#64748b;margin-top:6px;text-align:left">รายการที่จางลง = คนละกะกับที่กำลังดูอยู่ • หมดอายุแล้วระบบลบให้เอง</div>`,
+        background: '#0b1120',
+        width: 560,
+        confirmButtonText: 'ปิด',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
+    });
 };
