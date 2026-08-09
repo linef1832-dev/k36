@@ -478,7 +478,9 @@ window.refreshDutyData = async function() {
                 if (supportRow && supportRow.value) {
                     try {
                         const parsed = JSON.parse(supportRow.value);
-                        window.currentSupportData = (parsed && !Array.isArray(parsed)) ? parsed : {};
+                        // ผ่าน normalize เสมอ เพื่อรองรับข้อมูลรูปแบบเก่าที่ key ด้วยเว็บเป้าหมาย
+                        window.currentSupportData = (parsed && !Array.isArray(parsed))
+                            ? window.normalizeSupportData(parsed) : {};
                     } catch (e) { window.currentSupportData = {}; }
                 }
             }
@@ -1329,16 +1331,16 @@ window.renderRosterGrid = async function(rosterData) {
             // 🤝 ถ้าคนนี้ถูกจัดไปช่วยเว็บอื่น ให้ขึ้นบนการ์ดว่าไปช่วยใคร ช่วงไหน
             let supportHtml = '';
             if (!isMissing && a.id) {
-                const sup = window.getSupportForUser(a.id);
-                if (sup) {
+                // คนเดียวอาจถูกจัดไปช่วยหลายเว็บคนละช่วง — โชว์ให้ครบทุกอัน
+                supportHtml = window.getSupportForUser(a.id).map(sup => {
                     const c = TEAM_COLORS[sup.target] || TEAM_COLORS['DEFAULT'];
-                    supportHtml = `<div title="ไปประจำเว็บ ${sup.target} ในช่วงเวลานี้"
+                    return `<div title="ไปประจำเว็บ ${sup.target} ในช่วงเวลานี้"
                         class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 dark:text-cyan-300 px-2.5 py-1 rounded-md border border-cyan-300 dark:border-cyan-800/50 w-fit shadow-sm">
                         <span class="material-icons text-[14px]">support_agent</span>
                         ช่วย <span class="${c.lightBg} ${c.lightText} px-1.5 rounded font-black">${sup.target}</span>
                         ${minToTime(sup.start)}–${minToTime(sup.end)}
                     </div>`;
-                }
+                }).join('');
             }
 
             return `
@@ -4784,7 +4786,8 @@ window.renderHelpCalcPanel = function() {
     const assigned = Object.entries(window.currentSupportData || {});
     const assignedHtml = assigned.length === 0
         ? `<div class="text-center text-[10.5px] text-slate-500 py-1.5">ยังไม่มีเว็บไหนได้รับซัพพอร์ต</div>`
-        : assigned.map(([target, info]) => {
+        : assigned.map(([entryKey, info]) => {
+            const target = info.target || entryKey;
             const c = TEAM_COLORS[target] || TEAM_COLORS['DEFAULT'];
             const rows = (info.slots || []).map((s, i) => `
                 <div class="flex items-center gap-2 py-1 border-b border-slate-700/30 last:border-0">
@@ -4798,7 +4801,7 @@ window.renderHelpCalcPanel = function() {
                     <div class="flex items-center gap-1 mb-1 flex-wrap">
                         <span class="text-[10px] font-black px-2 py-0.5 rounded border ${c.border} ${c.lightBg} ${c.lightText}">🤝 ${info.source} → ${target}</span>
                         ${info.win ? `<span class="text-[9px] font-bold text-cyan-300 bg-cyan-900/40 border border-cyan-700/50 px-1.5 py-0.5 rounded">${minToTime(info.win.start)}–${minToTime(info.win.end)}</span>` : ''}
-                        ${isAdmin ? `<button onclick="window.clearSupportForTarget('${target}')" title="ลบตารางนี้" class="ml-auto text-red-400 hover:text-red-300 flex items-center"><span class="material-icons text-[13px]">delete</span></button>` : ''}
+                        ${isAdmin ? `<button onclick="window.clearSupportForTarget('${entryKey}')" title="ลบตารางนี้" class="ml-auto text-red-400 hover:text-red-300 flex items-center"><span class="material-icons text-[13px]">delete</span></button>` : ''}
                     </div>
                     <div class="bg-slate-800/50 rounded-lg px-2 py-1">${rows}</div>
                 </div>`;
@@ -4923,6 +4926,28 @@ window.currentSupportData = {};
 
 window.getSupportKey = function(dateStr, shift) {
     return `duty_support_${currentDutyDept}_${dateStr}_${shift}`;
+};
+
+// key ของแต่ละรายการ = คู่ "ต้นทาง→เป้าหมาย"
+//
+// ⚠️ เดิมผมใช้แค่ชื่อเว็บเป้าหมายเป็น key ซึ่งผิด — พอจัด MK8→Jun88
+// ทับ VV72→Jun88 ที่มีอยู่ รายการเก่าหายเงียบๆ โดยไม่มีอะไรเตือน
+// เว็บหนึ่งรับซัพพอร์ตจากหลายเว็บพร้อมกันได้ จึงต้องแยกด้วยคู่
+window.supportEntryKey = function(source, target) {
+    return `${source}→${target}`;
+};
+
+// อ่านข้อมูลเก่าที่ยัง key ด้วยชื่อเว็บเป้าหมายอย่างเดียว ให้กลายเป็นรูปแบบใหม่
+// ไม่งั้นตารางที่บันทึกไว้ก่อนหน้านี้จะอ่านไม่ออกแล้วหายไปทั้งหมด
+window.normalizeSupportData = function(raw) {
+    const out = {};
+    Object.entries(raw || {}).forEach(([k, v]) => {
+        if (!v || !Array.isArray(v.slots)) return;
+        const target = v.target || k;        // ของเก่า: key คือเว็บเป้าหมาย
+        const source = v.source || '?';
+        out[window.supportEntryKey(source, target)] = { ...v, source, target };
+    });
+    return out;
 };
 
 // แปลงเวลาที่พิมพ์ในช่อง (เช่น "02:00") เป็นนาทีของกะนั้น
@@ -5106,6 +5131,20 @@ window.assignSupportTeam = async function() {
             <span style="font-size:9px;color:${s.breakMin > 0 ? '#fbbf24' : '#34d399'};min-width:56px;text-align:right">${s.breakMin > 0 ? `พักใน ${s.breakMin} น.` : 'ไม่ชนพัก'}</span>
         </div>`).join('');
 
+    // เตือนถ้าคนคนเดียวถูกจัดไปช่วยสองที่ในเวลาทับกัน — ตัวเขาไปอยู่สองที่พร้อมกันไม่ได้
+    const clashes = [];
+    slots.forEach(s => {
+        (window.getSupportForUser(s.id) || []).forEach(prev => {
+            if (prev.target === target && prev.source === source) return;   // รายการเดิมของคู่นี้ เดี๋ยวถูกทับอยู่แล้ว
+            if (s.start < prev.end && prev.start < s.end) {
+                clashes.push(`${s.name} — ช่วยเว็บ ${prev.target} อยู่แล้ว ${minToTime(prev.start)}–${minToTime(prev.end)}`);
+            }
+        });
+    });
+
+    const existingKey = window.supportEntryKey(source, target);
+    const isReplace = !!window.currentSupportData[existingKey];
+
     const confirm = await Swal.fire({
         title: `<div style="font-size:15px;font-weight:900">🤝 ${source} → ซัพพอร์ต ${target}</div>`,
         html: `<div style="font-size:11.5px;color:#94a3b8;margin-bottom:10px">
@@ -5113,6 +5152,10 @@ window.assignSupportTeam = async function() {
                    ${spanMin === (cfg.end - cfg.start) ? '<span style="opacity:.7">(เต็มกะ)</span>' : `<span style="opacity:.7">(${Math.floor(spanMin/60)} ชม. ${spanMin%60 ? spanMin%60 + ' น.' : ''})</span>`}
                    <br>${members.length} คน ผลัดกันคนละ <b style="color:#e2e8f0">${perSlot} นาที</b>
                </div>
+               ${isReplace ? `<div style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:7px 10px;font-size:11px;color:#fbbf24;margin-bottom:8px;text-align:left">
+                   ⚠️ มีตาราง <b>${source} → ${target}</b> อยู่แล้ว กดยืนยันจะเขียนทับของเดิม</div>` : ''}
+               ${clashes.length ? `<div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);border-radius:10px;padding:7px 10px;font-size:11px;color:#f87171;margin-bottom:8px;text-align:left;line-height:1.7">
+                   🚨 <b>เวลาชนกัน</b> — คนเหล่านี้ถูกจัดไปช่วยที่อื่นในเวลาเดียวกันอยู่แล้ว:<br>${clashes.join('<br>')}</div>` : ''}
                <div style="max-height:46vh;overflow-y:auto">${preview}</div>`,
         background: '#0b1120',
         width: 480,
@@ -5127,7 +5170,7 @@ window.assignSupportTeam = async function() {
 
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-        window.currentSupportData[target] = { source, slots, win: { start: winStart, end: winEnd } };
+        window.currentSupportData[existingKey] = { source, target, slots, win: { start: winStart, end: winEnd } };
         window.clearSettingCache();
         const { error } = await appDB.from('settings').upsert([{
             key: window.getSupportKey(targetDate, shiftFilter),
@@ -5152,13 +5195,18 @@ window.assignSupportTeam = async function() {
     }
 };
 
-window.clearSupportForTarget = async function(target) {
+window.clearSupportForTarget = async function(entryKey) {
     if (!window.isDutyAdmin()) return;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const targetDate  = document.getElementById('dutyDate').value;
 
+    const info = (window.currentSupportData || {})[entryKey];
+    if (!info) return;
+    const target = info.target || entryKey;
+
     const ok = await Swal.fire({
-        icon: 'warning', title: `ลบตารางซัพพอร์ตของ ${target}?`,
+        icon: 'warning', title: `ลบตาราง ${info.source} → ${target}?`,
+        text: 'ตารางซัพพอร์ตคู่อื่นจะไม่ถูกแตะ',
         showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ไม่',
         confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
@@ -5166,7 +5214,7 @@ window.clearSupportForTarget = async function(target) {
     if (!ok.isConfirmed) return;
 
     try {
-        delete window.currentSupportData[target];
+        delete window.currentSupportData[entryKey];
         window.clearSettingCache();
         await appDB.from('settings').upsert([{
             key: window.getSupportKey(targetDate, shiftFilter),
@@ -5175,7 +5223,7 @@ window.clearSupportForTarget = async function(target) {
         await appDB.from('system_logs').insert([{
             action_type: 'จัดซัพพอร์ต',
             performed_by: currentUser.username,
-            target_details: `ลบตารางซัพพอร์ตของเว็บ ${target} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+            target_details: `ลบตารางซัพพอร์ต ${info.source} → ${target} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
         }]);
         window.debouncedBroadcast('duty-updates', 'force_reload');
         window.renderRosterGrid(currentRosterData);
@@ -5184,13 +5232,15 @@ window.clearSupportForTarget = async function(target) {
     } catch (e) { Swal.fire('Error', e.message, 'error'); }
 };
 
-// หา "งานซัพพอร์ต" ของคนคนหนึ่ง เพื่อเอาไปโชว์บนการ์ด
+// หา "งานซัพพอร์ต" ของคนคนหนึ่ง — คืนเป็น array เพราะคนเดียวถูกจัดไปช่วยได้หลายเว็บ
+// (คนละช่วงเวลากัน) ถ้าคืนแค่ตัวแรกจะโชว์ไม่ครบและตรวจเวลาชนกันไม่เจอ
 window.getSupportForUser = function(userId) {
-    for (const [target, info] of Object.entries(window.currentSupportData || {})) {
+    const found = [];
+    Object.values(window.currentSupportData || {}).forEach(info => {
         const hit = (info.slots || []).find(s => String(s.id) === String(userId));
-        if (hit) return { target, source: info.source, ...hit };
-    }
-    return null;
+        if (hit) found.push({ target: info.target, source: info.source, ...hit });
+    });
+    return found.sort((a, b) => a.start - b.start);
 };
 
 window.calcHelpTime = async function() {
