@@ -2153,7 +2153,8 @@ const PERM_GROUPS = [
             {id: 'duty_manage_od', name: '⚙️ จัดการของ OD', isSub: true},
             {id: 'duty_manage_amql', name: '⚙️ จัดการของผู้สอน AM', isSub: true},
             {id: 'duty_manage_odql', name: '⚙️ จัดการของผู้สอน OD', isSub: true},
-            {id: 'duty_manage', name: 'สุ่มเวร & ตั้งค่าหัวข้อ (รวม)', isSub: true}
+            {id: 'duty_manage', name: 'สุ่มเวร & ตั้งค่าหัวข้อ (รวม)', isSub: true},
+            {id: 'duty_stay_pin', name: '📌 ล็อกให้อยู่เว็บเดิมข้ามวัน', isSub: true}
         ]
     },
     {

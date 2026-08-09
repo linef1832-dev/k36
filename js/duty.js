@@ -19,6 +19,9 @@ window.isDutyShiftMatch = function(u, shiftFilter) {
 };
 let dutySubscription = null;
 let sortedTeams = []; 
+// ⚠️ ตัวนี้ประกาศด้วย let ที่ระดับไฟล์ จึง "ไม่ได้อยู่บน window"
+// อ่านผ่าน window.currentRosterData จะได้ undefined เสมอ — ให้เรียกชื่อตรงๆ เท่านั้น
+// (เคยพลาดมาแล้ว ทำให้แผงซัพพอร์ตนับจำนวนคนได้ 0 ทุกเว็บทั้งที่ตารางมีคน)
 let currentRosterData = {};
 let window_currentAssignedStaff = [];
 
@@ -364,6 +367,7 @@ window.refreshDutyData = async function() {
         const impAssignKey = `duty_important_assign_${currentDutyDept}_${targetDate}_${shiftFilter}`;
         const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
         const stayPinKey = `duty_stay_pins_${currentDutyDept}`;   // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน
+        const supportKey = `duty_support_${currentDutyDept}_${targetDate}_${shiftFilter}`;  // 🤝 ตารางซัพพอร์ตข้ามเว็บ
 
         // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (leaves + schedules + settings) ลด latency 3 เท่า
         // [FIX] ดึง scheduled_tasks ของวันนั้นมาด้วย เพื่อแยกทิศทางของ XX
@@ -378,7 +382,7 @@ window.refreshDutyData = async function() {
         const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey]),
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey]),
             appDB.from('scheduled_tasks').select('payload, scheduled_for, status')
                 .eq('task_type', 'individual_shift_update')
                 .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
@@ -434,6 +438,7 @@ window.refreshDutyData = async function() {
         window.currentImportantAssigns = {};
         window.lockedImportantTasks = {};
         window.dutyStayPins = {};
+        window.currentSupportData = {};
 
         try {
             const data = settingsRes && settingsRes.data;
@@ -466,6 +471,15 @@ window.refreshDutyData = async function() {
                         window.dutyStayPins = (parsedPins && !Array.isArray(parsedPins)) ? parsedPins : {};
                         window.prunePins(window.dutyStayPins);
                     } catch (e) { window.dutyStayPins = {}; }
+                }
+
+                // 🤝 ตารางซัพพอร์ตข้ามเว็บของวัน+กะนี้
+                const supportRow = data.find(d => d.key === supportKey);
+                if (supportRow && supportRow.value) {
+                    try {
+                        const parsed = JSON.parse(supportRow.value);
+                        window.currentSupportData = (parsed && !Array.isArray(parsed)) ? parsed : {};
+                    } catch (e) { window.currentSupportData = {}; }
                 }
             }
             
@@ -530,6 +544,13 @@ window.refreshDutyData = async function() {
                 btnGen.disabled = false; btnGen.innerHTML = '<span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่';
                 btnGen.classList.replace('bg-gray-500', 'bg-indigo-600'); btnGen.classList.replace('hover:bg-gray-600', 'hover:bg-indigo-700');
             }
+        }
+
+        // 🤝 วาดแผงซัพพอร์ตซ้ำ "หลัง" ตารางถูกโหลดเข้า currentRosterData แล้ว
+        // renderImportantTasksPanel ด้านบนถูกเรียกก่อน renderRosterGrid
+        // แผงจึงนับจำนวนคนจากข้อมูลเก่า ทำให้ทุกเว็บขึ้นว่า "ว่าง"
+        if (currentDutyDept === 'AM' && typeof window.renderHelpCalcPanel === 'function') {
+            window.renderHelpCalcPanel();
         }
 
         const backupData = localStorage.getItem(`backup_${saveKey}`);
@@ -939,7 +960,8 @@ window.generateDutyRoster = async function() {
             const u = unassignedPool.find(x => String(x.id) === String(uid));
             if (!u) {
                 // ติดลาหยุด / สลับกะ / ย้ายแผนก → ข้ามเฉพาะวันนี้ ตัว pin ยังอยู่ใช้วันถัดไปได้
-                pinnedSkipped.push(pin.username);
+                // เก็บเว็บไว้ด้วย จะได้บอกแอดมินทีหลังว่าใครถูกดึงมาแทนที่เว็บนั้น
+                pinnedSkipped.push({ username: pin.username, team: pin.team });
                 return;
             }
 
@@ -1113,8 +1135,22 @@ ${summaryParts.join(' | ')}`;
                 ⚠️ เว็บเหล่านี้มีคนล็อกไว้เกินโควตาที่ตั้ง — ยอดคนจะเกินที่ระบุ:<br><b>${pinnedOverQuota.join(', ')}</b></div>`;
         }
         if (pinnedSkipped.length > 0) {
-            pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:#64748b">
-                ℹ️ ข้ามคนที่ล็อกไว้แต่วันนี้ไม่ได้ทำงาน (ลาหยุด/สลับกะ): <b>${pinnedSkipped.join(', ')}</b> — การล็อกยังอยู่ ใช้ต่อวันถัดไปได้</div>`;
+            // บอกให้รู้ว่าใครถูกดึงมาแทน แต่ไม่ไปบังคับล็อกคนแทนไว้
+            // "คนมาแทน" = คนที่วันนี้อยู่เว็บนั้น แต่เมื่อวานไม่ได้อยู่
+            const lines = pinnedSkipped.map(s => {
+                const newFaces = (rosterResult[s.team] || [])
+                    .filter(u => u && u.id && yestTeamMap[String(u.id)] !== s.team)
+                    .map(u => u.username);
+                return `• <b>${s.username}</b> (ล็อกไว้ที่ ${s.team}) → `
+                    + (newFaces.length
+                        ? `วันนี้ <b>${s.team}</b> ได้ <b>${newFaces.join(', ')}</b> มาแทน`
+                        : `วันนี้ <b>${s.team}</b> ใช้คนเดิมทั้งหมด`);
+            });
+            pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:#64748b;line-height:1.8">
+                ℹ️ <b>คนที่ถูกล็อกแต่วันนี้ไม่ได้ทำงาน</b> (ลาหยุด / สลับกะ) — การล็อกยังอยู่ ใช้ต่อวันถัดไปได้<br>
+                ${lines.join('<br>')}
+                <div style="margin-top:6px;opacity:.8">คนที่มาแทนไม่ได้ถูกล็อกไว้ พรุ่งนี้จะหมุนตามปกติ ถ้าอยากให้อยู่ต่อให้กด 📌 เอง</div>
+            </div>`;
         }
 
         if (unassignedPool.length > 0) {
@@ -1286,9 +1322,24 @@ window.renderRosterGrid = async function(rosterData) {
             }
 
             // 📌 ป้าย/ปุ่ม "อยู่ต่ออีกกี่วัน"
-            // ใช้สิทธิ์แอดมินตัวจริง ไม่ใช่ isAdmin ที่ถูกตัดในโหมดตัวอย่าง
+            // ใช้สิทธิ์ของฟีเจอร์นี้โดยเฉพาะ ไม่ใช่ isAdmin ที่ถูกตัดในโหมดตัวอย่าง
             // เพราะการแก้/ยกเลิกการล็อกไม่ได้ไปแตะตารางเวร ทำได้ตลอด
-            const stayPinHtml = isMissing ? '' : window.renderStayPinHtml(a, team, window.isDutyAdmin());
+            const stayPinHtml = isMissing ? '' : window.renderStayPinHtml(a, team, window.canManageStayPin());
+
+            // 🤝 ถ้าคนนี้ถูกจัดไปช่วยเว็บอื่น ให้ขึ้นบนการ์ดว่าไปช่วยใคร ช่วงไหน
+            let supportHtml = '';
+            if (!isMissing && a.id) {
+                const sup = window.getSupportForUser(a.id);
+                if (sup) {
+                    const c = TEAM_COLORS[sup.target] || TEAM_COLORS['DEFAULT'];
+                    supportHtml = `<div title="ไปประจำเว็บ ${sup.target} ในช่วงเวลานี้"
+                        class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 dark:text-cyan-300 px-2.5 py-1 rounded-md border border-cyan-300 dark:border-cyan-800/50 w-fit shadow-sm">
+                        <span class="material-icons text-[14px]">support_agent</span>
+                        ช่วย <span class="${c.lightBg} ${c.lightText} px-1.5 rounded font-black">${sup.target}</span>
+                        ${minToTime(sup.start)}–${minToTime(sup.end)}
+                    </div>`;
+                }
+            }
 
             return `
             <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0 group ${cursorClass}" data-name="${(a.username || '').toLowerCase()}" ${dragAttrs}>
@@ -1299,6 +1350,7 @@ window.renderRosterGrid = async function(rosterData) {
                     </div>
                 </div>
                 ${stayPinHtml}
+                ${supportHtml}
                 ${breakTimeHtml}
                 ${odTaskHtml}
                 ${secHtml}
@@ -4492,7 +4544,7 @@ window.renderMergeRoomPanel = function() {
     if (!container) return;
 
     const rooms = window.currentMergeRooms;
-    const rosterData = window.currentRosterData || {};
+    const rosterData = currentRosterData || {};
 
     let html = '';
     rooms.forEach(room => {
@@ -4690,23 +4742,100 @@ function totalFreeMin(freeSlots) {
 // render ส่วนคำนวณช่วยเว็บใน panel AM
 window.renderHelpCalcPanel = function() {
     const panel = document.getElementById('importantTasksPanel');
+    // เฉพาะแผนก AM เท่านั้น — OD ไม่ใช้ระบบซัพพอร์ต/แบ่งเวลานี้
     if (!panel || currentDutyDept !== 'AM') return;
 
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const cfg = SHIFT_CONFIG[shiftFilter];
     if (!cfg) return; // กะที่ไม่รองรับ
 
-    const roster = window.currentRosterData || {};
+    const roster = currentRosterData || {};
     const schedules = window.currentDutySchedules || [];
 
-    // สร้าง dropdown เลือกเว็บเป้าหมาย
     const allTeams = sortedTeams || TEAM_LIST;
-    const teamOptions = allTeams.map(t =>
-        `<option value="${t}" ${t === window.helpCalcTarget ? 'selected' : ''}>${t}</option>`
-    ).join('');
+    const isAdmin = window.isDutyAdmin();
+
+    // 🤝 แผงจัดคนไปซัพพอร์ตเว็บอื่น — เลือกต้นทาง → เป้าหมาย → กดปุ่มเดียวจบ
+    // เว็บที่ยังไม่มีคนในตารางวันนี้จะขึ้นวงเล็บบอก จะได้ไม่เลือกไปแล้วเจอ error
+    const roster0 = currentRosterData || {};
+    const headCount = t => (roster0[t] || []).filter(u => u && u.id && !String(u.username||'').includes('ขาดคน')).length;
+
+    // เว็บที่มีคนจริงเท่านั้นที่ส่งไปช่วยคนอื่นได้ — เอามาเป็นค่าตั้งต้นของช่องต้นทาง
+    // ไม่งั้นค่าเริ่มต้นอาจไปตกที่เว็บว่าง แล้วกดปุ่มทีก็เจอ error ทุกที
+    const staffedTeams = allTeams.filter(t => headCount(t) > 0);
+    const defSource = staffedTeams[0] || allTeams[0];
+    const defTarget = allTeams.find(t => t !== defSource) || allTeams[0];
+
+    // ช่วงเวลาที่จะซัพพอร์ต — เริ่มต้นเป็นเต็มกะ แต่ถ้าแอดมินเคยตั้งไว้ในกะนี้ก็ใช้ค่านั้น
+    const prefOk = window.supportWindowPref && window.supportWindowPref.shift === shiftFilter;
+    const fullStart = minToTime(cfg.start);
+    const fullEnd   = minToTime(cfg.end);
+    const winStart  = prefOk ? window.supportWindowPref.start : fullStart;
+    const winEnd    = prefOk ? window.supportWindowPref.end   : fullEnd;
+    const isCustomWin = (winStart !== fullStart || winEnd !== fullEnd);
+
+    const optsFor = (sel, srcMode) => allTeams.map(t => {
+        const n = headCount(t);
+        // ช่องต้นทาง: เว็บที่ไม่มีคนเลือกไม่ได้ (ไม่มีใครให้ส่งไปช่วย)
+        const dis = (srcMode && n === 0) ? 'disabled' : '';
+        return `<option value="${t}" ${t === sel ? 'selected' : ''} ${dis}>${t}${n ? ` (${n} คน)` : ' — ว่าง'}</option>`;
+    }).join('');
+
+    const assigned = Object.entries(window.currentSupportData || {});
+    const assignedHtml = assigned.length === 0
+        ? `<div class="text-center text-[10.5px] text-slate-500 py-1.5">ยังไม่มีเว็บไหนได้รับซัพพอร์ต</div>`
+        : assigned.map(([target, info]) => {
+            const c = TEAM_COLORS[target] || TEAM_COLORS['DEFAULT'];
+            const rows = (info.slots || []).map((s, i) => `
+                <div class="flex items-center gap-2 py-1 border-b border-slate-700/30 last:border-0">
+                    <span class="w-4 h-4 rounded-full bg-cyan-700 text-white text-[9px] font-black flex items-center justify-center shrink-0">${i+1}</span>
+                    <span class="flex-1 min-w-0 text-[11px] font-black text-white truncate">${s.name}</span>
+                    <span class="text-[10px] text-cyan-300 font-bold shrink-0">${minToTime(s.start)}–${minToTime(s.end)}</span>
+                    <span class="text-[9px] shrink-0 ${s.breakMin > 0 ? 'text-amber-400' : 'text-emerald-400'}">${s.breakMin > 0 ? `พัก ${s.breakMin}น.` : 'ว่าง'}</span>
+                </div>`).join('');
+            return `
+                <div class="mb-2 last:mb-0">
+                    <div class="flex items-center gap-1 mb-1 flex-wrap">
+                        <span class="text-[10px] font-black px-2 py-0.5 rounded border ${c.border} ${c.lightBg} ${c.lightText}">🤝 ${info.source} → ${target}</span>
+                        ${info.win ? `<span class="text-[9px] font-bold text-cyan-300 bg-cyan-900/40 border border-cyan-700/50 px-1.5 py-0.5 rounded">${minToTime(info.win.start)}–${minToTime(info.win.end)}</span>` : ''}
+                        ${isAdmin ? `<button onclick="window.clearSupportForTarget('${target}')" title="ลบตารางนี้" class="ml-auto text-red-400 hover:text-red-300 flex items-center"><span class="material-icons text-[13px]">delete</span></button>` : ''}
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg px-2 py-1">${rows}</div>
+                </div>`;
+        }).join('');
+
+    const supportPanelHtml = `
+        <div class="bg-[#151f32] border border-cyan-700/60 rounded-2xl shadow-lg overflow-hidden mt-3">
+            <div class="bg-gradient-to-r from-cyan-700 to-teal-600 text-white px-3 py-2 flex items-center gap-2">
+                <span class="material-icons text-[16px]">groups</span>
+                <h4 class="font-black text-xs tracking-wide">จัดคนซัพพอร์ตข้ามเว็บ</h4>
+            </div>
+            ${isAdmin ? `
+            <div class="p-2.5 border-b border-slate-700/50 flex flex-col gap-1.5">
+                <div class="flex items-center gap-1.5">
+                    <select id="supportSourceSel" class="flex-1 min-w-0 bg-slate-900 border border-slate-600 text-white text-[10.5px] font-bold rounded-lg px-1.5 py-1.5 outline-none focus:border-cyan-500">${optsFor(defSource, true)}</select>
+                    <span class="material-icons text-cyan-400 text-[15px] shrink-0">east</span>
+                    <select id="supportTargetSel" class="flex-1 min-w-0 bg-slate-900 border border-slate-600 text-white text-[10.5px] font-bold rounded-lg px-1.5 py-1.5 outline-none focus:border-cyan-500">${optsFor(defTarget, false)}</select>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="material-icons text-slate-500 text-[13px] shrink-0" title="ช่วงเวลาที่ต้องการซัพพอร์ต">schedule</span>
+                    <input id="supportStartTime" type="time" value="${winStart}" onchange="window.rememberSupportWindow()"
+                        class="flex-1 min-w-0 bg-slate-900 border border-slate-600 text-white text-[10.5px] font-bold rounded-lg px-1.5 py-1 outline-none focus:border-cyan-500">
+                    <span class="text-slate-500 text-[10px] shrink-0">ถึง</span>
+                    <input id="supportEndTime" type="time" value="${winEnd}" onchange="window.rememberSupportWindow()"
+                        class="flex-1 min-w-0 bg-slate-900 border border-slate-600 text-white text-[10.5px] font-bold rounded-lg px-1.5 py-1 outline-none focus:border-cyan-500">
+                    ${isCustomWin ? `<button onclick="window.resetSupportWindow()" title="กลับไปเต็มกะ" class="text-slate-400 hover:text-cyan-300 shrink-0 flex items-center"><span class="material-icons text-[14px]">restart_alt</span></button>` : ''}
+                </div>
+                <button onclick="window.assignSupportTeam()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-black py-1.5 rounded-lg transition flex items-center justify-center gap-1 active:scale-95 shadow">
+                    <span class="material-icons text-[14px]">bolt</span> จัดคนซัพพอร์ต
+                </button>
+                <div class="text-[9.5px] text-slate-500 leading-relaxed">คนของเว็บต้นทางจะผลัดกันไปประจำเว็บเป้าหมาย แบ่งช่วงเวลาที่กำหนดให้เท่าๆ กัน และเลี่ยงเวลาพักให้อัตโนมัติ${isCustomWin ? '' : ' — ตอนนี้ตั้งเป็นเต็มกะ'}</div>
+            </div>` : ''}
+            <div class="p-2.5">${assignedHtml}</div>
+        </div>`;
 
     // ถ้ายังไม่ได้คำนวณ แสดงแค่ UI เลือกเว็บ
-    let resultHtml = `<div class="text-center text-[11px] text-slate-500 py-2">เลือกเว็บแล้วกดคำนวณ</div>`;
+    let resultHtml = `<div class="text-center text-[11px] text-slate-500 py-2">กดคำนวณเพื่อแบ่งเวลาให้ทุกเว็บ</div>`;
 
     if (window.helpCalcResult && window.helpCalcResult.length > 0) {
         const grouped = {};
@@ -4766,7 +4895,7 @@ window.renderHelpCalcPanel = function() {
     if (existing) existing.remove();
     const div = document.createElement('div');
     div.id = 'helpCalcSection';
-    div.innerHTML = calcHtml;
+    div.innerHTML = supportPanelHtml + calcHtml;   // 🤝 แผงซัพพอร์ตข้ามเว็บมาก่อน ตารางแบ่งเวลารวมตามหลัง
     panel.appendChild(div);
 };
 
@@ -4777,6 +4906,293 @@ window.clearHelpCalc = function() {
 };
 
 // คำนวณตารางซัพพอร์ต
+// ============================================================
+// 🤝 ระบบซัพพอร์ตข้ามเว็บ — "เว็บ A เข้าช่วยเว็บ B ผลัดกันคนละช่วง"
+// ============================================================
+// ต่างจาก "ตารางซัพพอร์ต" เดิม ที่แบ่งเวลาให้ทุกเว็บพร้อมกันแต่ไม่ระบุว่าไปช่วยใคร
+// (ในโค้ดเดิมมีตัวแปร helpCalcTarget + dropdown เลือกเป้าหมายสร้างค้างไว้ แต่ไม่เคยถูกใช้)
+//
+// ตัวนี้: เลือกเว็บต้นทาง 1 เว็บ → คนของเว็บนั้นผลัดกันไปประจำเว็บเป้าหมาย
+// ซอยเวลากะออกเป็นช่วงเท่าๆ กันตามจำนวนคน แล้วจับคู่คนกับช่วงที่ชนเวลาพักน้อยที่สุด
+//
+//   settings key : duty_support_<dept>_<date>_<shift>
+//   value        : { "<เว็บเป้าหมาย>": { source, slots:[{id,name,start,end,breakMin}] } }
+// ============================================================
+
+window.currentSupportData = {};
+
+window.getSupportKey = function(dateStr, shift) {
+    return `duty_support_${currentDutyDept}_${dateStr}_${shift}`;
+};
+
+// แปลงเวลาที่พิมพ์ในช่อง (เช่น "02:00") เป็นนาทีของกะนั้น
+// กะดึก (20:00–08:00) เก็บท้ายกะเป็นนาทีที่ 1920 คือ 08:00 ของวันถัดไป
+// เลขที่น้อยกว่าจุดเริ่มกะจึงต้องบวก 24 ชม. เช่น 02:00 → 1560
+//
+// แต่ต้องทำเฉพาะกะที่ข้ามเที่ยงคืนจริงๆ เท่านั้น — ถ้าเหมาบวกทุกกะ
+// กะเช้าที่กรอก 06:00 (นอกกะ) จะกลายเป็น 06:00 ของวันถัดไปแล้วรอดด่านตรวจไปได้
+window.parseShiftTime = function(str, cfg) {
+    const m = timeToMin(str);
+    if (m == null || isNaN(m)) return null;
+    const crossesMidnight = cfg.end > 24 * 60;
+    return (crossesMidnight && m < cfg.start) ? m + 24 * 60 : m;
+};
+
+// จำช่วงเวลาที่แอดมินเลือกไว้ แยกตามกะ (แผงถูกวาดใหม่บ่อย ค่าจะได้ไม่เด้งกลับ)
+window.supportWindowPref = null;
+
+window.rememberSupportWindow = function() {
+    const s = document.getElementById('supportStartTime');
+    const e = document.getElementById('supportEndTime');
+    const shift = document.getElementById('dutyShiftSelect');
+    if (!s || !e || !shift) return;
+    window.supportWindowPref = { shift: shift.value, start: s.value, end: e.value };
+};
+
+window.resetSupportWindow = function() {
+    window.supportWindowPref = null;
+    window.renderHelpCalcPanel();
+};
+
+// สร้างแผนที่เวลาพักของแต่ละคน (นาทีจากเที่ยงคืน, กะดึกบวก 24 ชม.)
+window.buildBreakMap = function(schedules, cfg) {
+    const map = {};
+    (schedules || []).forEach(sc => {
+        if (!map[sc.staff_name]) map[sc.staff_name] = [];
+        (sc.time_slot || '').split(',').map(t => t.trim()).filter(Boolean).forEach(slot => {
+            const [s, e] = slot.split('-').map(timeToMin);
+            if (s == null || e == null) return;
+            // กะดึกเริ่ม 20:00 — ช่วงพักที่เป็นเลขเช้า (เช่น 03:00) คือของวันถัดไป ต้องบวก 24 ชม.
+            if (cfg.start >= 20 * 60 && s < 12 * 60) map[sc.staff_name].push({ s: s + 24 * 60, e: e + 24 * 60 });
+            else map[sc.staff_name].push({ s, e });
+        });
+    });
+    return map;
+};
+
+// ซอยกะเป็น n ช่วงเท่าๆ กัน แล้วจับคู่คนกับช่วงที่โดนเวลาพักกินน้อยที่สุด
+window.splitShiftAmong = function(members, cfg, breakMap) {
+    const n = members.length;
+    if (n === 0) return [];
+
+    const slotMin = Math.floor((cfg.end - cfg.start) / n);
+    const slots = Array.from({ length: n }, (_, i) => ({
+        start: cfg.start + i * slotMin,
+        end:   cfg.start + (i + 1) * slotMin
+    }));
+    slots[n - 1].end = cfg.end;   // ช่วงสุดท้ายกินเศษที่เหลือ ไม่ให้ขาดท้ายกะ
+
+    const overlap = (name, a, b) => (breakMap[name] || []).reduce(
+        (t, br) => t + Math.max(0, Math.min(br.e, b) - Math.max(br.s, a)), 0);
+    const cost = (mi, si) => overlap(members[mi].username, slots[si].start, slots[si].end);
+
+    // รอบที่ 1 — greedy: ไล่คู่ที่เสียเวลาพักน้อยสุดก่อน
+    const pairs = [];
+    members.forEach((_, mi) => slots.forEach((_, si) => pairs.push({ mi, si, c: cost(mi, si) })));
+    pairs.sort((a, b) => a.c - b.c);
+
+    const assign = new Array(n).fill(-1);   // assign[si] = mi
+    const usedM = new Set(), usedS = new Set();
+    pairs.forEach(p => {
+        if (usedM.has(p.mi) || usedS.has(p.si)) return;
+        usedM.add(p.mi); usedS.add(p.si);
+        assign[p.si] = p.mi;
+    });
+
+    // รอบที่ 2 — ขัดด้วยการสลับคู่
+    // greedy อย่างเดียวไม่พอ: มันแจกช่วงดีๆ ให้คนแรกๆ จนคนสุดท้ายเหลือแต่ช่วงที่ชนพัก
+    // ทั้งที่สลับกันแล้วไม่มีใครชนเลยก็มี — ไล่สลับจนไม่มีอะไรดีขึ้นแล้วค่อยหยุด
+    for (let pass = 0; pass < 5; pass++) {
+        let changed = false;
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                const mi = assign[i], mj = assign[j];
+                if (mi < 0 || mj < 0) continue;
+                if (cost(mi, j) + cost(mj, i) < cost(mi, i) + cost(mj, j)) {
+                    assign[i] = mj; assign[j] = mi;
+                    changed = true;
+                }
+            }
+        }
+        if (!changed) break;
+    }
+
+    return assign.map((mi, si) => ({
+        id:       members[mi].id,
+        name:     members[mi].username,
+        start:    slots[si].start,
+        end:      slots[si].end,
+        breakMin: cost(mi, si)
+    }));
+};
+
+// 🤝 ปุ่มหลัก — จัดคนเว็บต้นทางไปซัพพอร์ตเว็บเป้าหมาย
+window.assignSupportTeam = async function() {
+    if (window.blockIfPreview()) return;
+    if (!window.isDutyAdmin()) return;
+
+    // ตั้งใจให้ใช้เฉพาะแผนก AM — OD ไม่ใช้ระบบนี้ (เขามีแจกโปร/เคส TG ของตัวเองอยู่แล้ว)
+    // แผงก็ถูกซ่อนไว้อยู่แล้ว แต่ดักซ้ำตรงนี้กันถูกเรียกผ่าน console หรือปุ่มค้างจากแผนกอื่น
+    if (currentDutyDept !== 'AM') {
+        return Swal.fire('ใช้ได้เฉพาะ AM', 'ระบบซัพพอร์ตข้ามเว็บเปิดใช้เฉพาะแผนก AM ครับ', 'info');
+    }
+
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const targetDate  = document.getElementById('dutyDate').value;
+    const cfg = SHIFT_CONFIG[shiftFilter];
+    if (!cfg) return Swal.fire('เตือน', 'ระบบรองรับแค่กะเช้าและกะดึกครับ', 'warning');
+
+    const srcEl = document.getElementById('supportSourceSel');
+    const tgtEl = document.getElementById('supportTargetSel');
+    const source = srcEl ? srcEl.value : '';
+    const target = tgtEl ? tgtEl.value : '';
+
+    if (!source || !target) return Swal.fire('เตือน', 'เลือกเว็บต้นทางและเว็บเป้าหมายก่อนครับ', 'warning');
+    if (source === target)  return Swal.fire('เตือน', 'เว็บต้นทางกับเป้าหมายต้องคนละเว็บครับ', 'warning');
+
+    const roster = currentRosterData || {};
+    const hasStaff = t => (roster[t] || []).filter(u => u && u.id && !String(u.username || '').includes('ขาดคน'));
+    const members = hasStaff(source);
+    if (members.length === 0) {
+        // บอกไปเลยว่ามีเว็บไหนให้เลือกบ้าง จะได้ไม่ต้องไล่กดทีละอันเอง
+        const usable = (sortedTeams || []).filter(t => hasStaff(t).length > 0);
+        return Swal.fire({
+            icon: 'error',
+            title: `เว็บ ${source} ไม่มีคน`,
+            html: usable.length
+                ? `<div style="font-size:13px;color:#94a3b8;line-height:1.8">เว็บนี้ไม่มีพนักงานในตารางวันนี้ จึงส่งไปช่วยใครไม่ได้<br><br>
+                     เว็บที่ส่งคนไปช่วยได้:<br><b style="color:#38bdf8">${usable.map(t => `${t} (${hasStaff(t).length})`).join(' · ')}</b></div>`
+                : `<div style="font-size:13px;color:#94a3b8">ยังไม่ได้จัดเวรของวันนี้เลย — กด <b style="color:#818cf8">"สุ่มจัดหน้าที่"</b> ก่อนครับ</div>`,
+            background: '#0b1120',
+            confirmButtonColor: '#6366f1',
+            customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
+        });
+    }
+
+    // ── ช่วงเวลาที่จะให้ไปช่วย ── (ไม่กรอก = เต็มกะ)
+    const sEl = document.getElementById('supportStartTime');
+    const eEl = document.getElementById('supportEndTime');
+    const winStart = sEl && sEl.value ? window.parseShiftTime(sEl.value, cfg) : cfg.start;
+    const winEnd   = eEl && eEl.value ? window.parseShiftTime(eEl.value, cfg) : cfg.end;
+
+    const badTime = (msg) => Swal.fire({
+        icon: 'warning', title: 'ช่วงเวลาไม่ถูกต้อง',
+        html: `<div style="font-size:13px;color:#94a3b8;line-height:1.8">${msg}<br><br>
+                 กะ <b style="color:#e2e8f0">${shiftFilter}</b> อยู่ในช่วง
+                 <b style="color:#38bdf8">${minToTime(cfg.start)}–${minToTime(cfg.end)}</b></div>`,
+        background: '#0b1120', confirmButtonColor: '#6366f1',
+        customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
+    });
+
+    if (winStart == null || winEnd == null) return badTime('กรอกเวลาไม่ครบหรือรูปแบบไม่ถูกต้อง');
+    if (winStart >= winEnd) return badTime('เวลาเริ่มต้องมาก่อนเวลาสิ้นสุด');
+    if (winStart < cfg.start || winEnd > cfg.end) return badTime('ช่วงเวลาต้องอยู่ในกะนี้เท่านั้น');
+
+    // กันช่วงสั้นเกินจนแบ่งแล้วได้คนละไม่กี่นาที
+    const spanMin = winEnd - winStart;
+    if (spanMin < members.length * 15) {
+        return badTime(`ช่วงนี้ยาว ${spanMin} นาที แบ่งให้ ${members.length} คนแล้วได้คนละไม่ถึง 15 นาที`);
+    }
+
+    const breakMap = window.buildBreakMap(window.currentDutySchedules || [], cfg);
+    const slots = window.splitShiftAmong(members, { start: winStart, end: winEnd }, breakMap);
+    const perSlot = Math.floor(spanMin / members.length);
+
+    const preview = slots.map((s, i) =>
+        `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e293b">
+            <span style="width:18px;height:18px;border-radius:50%;background:#0369a1;color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i + 1}</span>
+            <span style="flex:1;text-align:left;font-weight:800;font-size:12px;color:#f1f5f9">${s.name}</span>
+            <span style="font-size:11px;font-weight:800;color:#38bdf8">${minToTime(s.start)}–${minToTime(s.end)}</span>
+            <span style="font-size:9px;color:${s.breakMin > 0 ? '#fbbf24' : '#34d399'};min-width:56px;text-align:right">${s.breakMin > 0 ? `พักใน ${s.breakMin} น.` : 'ไม่ชนพัก'}</span>
+        </div>`).join('');
+
+    const confirm = await Swal.fire({
+        title: `<div style="font-size:15px;font-weight:900">🤝 ${source} → ซัพพอร์ต ${target}</div>`,
+        html: `<div style="font-size:11.5px;color:#94a3b8;margin-bottom:10px">
+                   ช่วง <b style="color:#38bdf8">${minToTime(winStart)}–${minToTime(winEnd)}</b>
+                   ${spanMin === (cfg.end - cfg.start) ? '<span style="opacity:.7">(เต็มกะ)</span>' : `<span style="opacity:.7">(${Math.floor(spanMin/60)} ชม. ${spanMin%60 ? spanMin%60 + ' น.' : ''})</span>`}
+                   <br>${members.length} คน ผลัดกันคนละ <b style="color:#e2e8f0">${perSlot} นาที</b>
+               </div>
+               <div style="max-height:46vh;overflow-y:auto">${preview}</div>`,
+        background: '#0b1120',
+        width: 480,
+        showCancelButton: true,
+        confirmButtonText: 'บันทึกตารางนี้',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#0284c7',
+        cancelButtonColor: '#475569',
+        customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
+    });
+    if (!confirm.isConfirmed) return;
+
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        window.currentSupportData[target] = { source, slots, win: { start: winStart, end: winEnd } };
+        window.clearSettingCache();
+        const { error } = await appDB.from('settings').upsert([{
+            key: window.getSupportKey(targetDate, shiftFilter),
+            value: JSON.stringify(window.currentSupportData)
+        }]);
+        if (error) throw error;
+
+        await appDB.from('system_logs').insert([{
+            action_type: 'จัดซัพพอร์ต',
+            performed_by: currentUser.username,
+            target_details: `${source} → ซัพพอร์ต ${target} (${members.length} คน คนละ ${perSlot} นาที, `
+                + `${currentDutyDept}, ${shiftFilter}, ${targetDate}) — `
+                + slots.map(s => `${s.name} ${minToTime(s.start)}-${minToTime(s.end)}`).join(', ')
+        }]);
+
+        window.debouncedBroadcast('duty-updates', 'force_reload');
+        window.renderRosterGrid(currentRosterData);
+        window.renderHelpCalcPanel();
+        Swal.fire({ icon: 'success', title: 'บันทึกแล้ว!', text: `${source} จะช่วย ${target} ผลัดกันคนละ ${perSlot} นาที`, timer: 2200, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message, 'error');
+    }
+};
+
+window.clearSupportForTarget = async function(target) {
+    if (!window.isDutyAdmin()) return;
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const targetDate  = document.getElementById('dutyDate').value;
+
+    const ok = await Swal.fire({
+        icon: 'warning', title: `ลบตารางซัพพอร์ตของ ${target}?`,
+        showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ไม่',
+        confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
+    });
+    if (!ok.isConfirmed) return;
+
+    try {
+        delete window.currentSupportData[target];
+        window.clearSettingCache();
+        await appDB.from('settings').upsert([{
+            key: window.getSupportKey(targetDate, shiftFilter),
+            value: JSON.stringify(window.currentSupportData)
+        }]);
+        await appDB.from('system_logs').insert([{
+            action_type: 'จัดซัพพอร์ต',
+            performed_by: currentUser.username,
+            target_details: `ลบตารางซัพพอร์ตของเว็บ ${target} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+        }]);
+        window.debouncedBroadcast('duty-updates', 'force_reload');
+        window.renderRosterGrid(currentRosterData);
+        window.renderHelpCalcPanel();
+        Swal.fire({ icon: 'success', title: 'ลบแล้ว', timer: 1200, showConfirmButton: false });
+    } catch (e) { Swal.fire('Error', e.message, 'error'); }
+};
+
+// หา "งานซัพพอร์ต" ของคนคนหนึ่ง เพื่อเอาไปโชว์บนการ์ด
+window.getSupportForUser = function(userId) {
+    for (const [target, info] of Object.entries(window.currentSupportData || {})) {
+        const hit = (info.slots || []).find(s => String(s.id) === String(userId));
+        if (hit) return { target, source: info.source, ...hit };
+    }
+    return null;
+};
+
 window.calcHelpTime = async function() {
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const cfg = SHIFT_CONFIG[shiftFilter];
@@ -4798,7 +5214,7 @@ window.calcHelpTime = async function() {
         if (schedRes.data?.length > 0) schedules = schedRes.data;
     } catch(e) {}
 
-    if (Object.keys(roster).length === 0) roster = window.currentRosterData || {};
+    if (Object.keys(roster).length === 0) roster = currentRosterData || {};
     if (schedules.length === 0) schedules = window.currentDutySchedules || [];
 
     // สร้าง map เวลาพักของแต่ละคน
@@ -4900,6 +5316,15 @@ window.dutyStayPins = {};
 
 window.getStayPinKey = function() {
     return `duty_stay_pins_${currentDutyDept}`;
+};
+
+// ใครมีสิทธิ์ล็อก "อยู่ต่อ" ได้บ้าง
+// แยกจาก isDutyAdmin เพื่อให้เปิดให้ตำแหน่งอื่นใช้ได้ โดยไม่ต้องยกสิทธิ์
+// จัดการเวรทั้งก้อน (สุ่มเวร/ล้างตาราง/ตั้งค่าหัวข้อ) ให้เขาไปด้วย
+// ติ๊กได้ที่ ตั้งค่าระบบ → จัดการสิทธิ์ → จัดหน้าที่ / เวร → "📌 ล็อกให้อยู่เว็บเดิมข้ามวัน"
+window.canManageStayPin = function() {
+    if (window.isDutyAdmin()) return true;
+    return typeof window.hasUserPerm === 'function' && window.hasUserPerm('duty_stay_pin');
 };
 
 // ── ตัวช่วยเรื่องวันที่ ────────────────────────────────────────
@@ -5074,7 +5499,7 @@ window.blockIfPreview = function() {
 
 // ── กล่องตั้งค่า "อยู่ต่อกี่วัน" ───────────────────────────────
 window.openStayPinModal = async function(team, userId, username) {
-    if (!window.isDutyAdmin()) return;
+    if (!window.canManageStayPin()) return;
 
     const dateStr = document.getElementById('dutyDate').value;
     const shift   = document.getElementById('dutyShiftSelect').value;
@@ -5220,7 +5645,7 @@ window.openStayPinModal = async function(team, userId, username) {
 };
 
 window.removeStayPin = async function(userId, username) {
-    if (!window.isDutyAdmin()) return;
+    if (!window.canManageStayPin()) return;
     const pin = (window.dutyStayPins || {})[String(userId)];
     if (!pin) return;
 
@@ -5260,6 +5685,12 @@ window.removeStayPin = async function(userId, username) {
 window.updateStayPinButton = function() {
     const btn = document.getElementById('btnStayPinList');
     if (!btn) return;
+
+    // ปุ่มนี้คุมด้วยสิทธิ์ duty_stay_pin ของตัวเอง ไม่ได้ผูกกับ duty-admin-only
+    // จึงต้องสั่งซ่อน/โชว์เองตรงนี้ (applyDutyRoleUI จะไม่ยุ่งกับมัน)
+    if (!window.canManageStayPin()) { btn.style.display = 'none'; return; }
+    btn.style.display = 'flex';
+
     const today = window.dutyTodayStr();
     const n = Object.values(window.dutyStayPins || {}).filter(p => p && p.until >= today).length;
     const badge = document.getElementById('stayPinCount');
@@ -5416,20 +5847,27 @@ window.openStayPinListModal = async function() {
         });
     }
 
-    const isAdmin = window.isDutyAdmin();
+    const isAdmin = window.canManageStayPin();
     const body = rows.map(([uid, p]) => {
         const left  = Math.max(0, window.dutyDiffDays(today, p.until));
         const dim   = (shift && p.shift && p.shift !== shift) ? 'opacity:.5' : '';
         const safe  = String(p.username || '').replace(/'/g, "\\'");
+        // วันที่กำลังดูอยู่ เขาลาหยุดไหม — ถ้าลา ระบบจะข้ามเขาแล้วดึงคนอื่นมาแทน
+        // โชว์ไว้ให้แอดมินเห็นตั้งแต่ยังไม่กดสุ่ม จะได้ไม่งงว่าทำไมชื่อไม่ขึ้น
+        const onLeave = currentDutyLeaves && currentDutyLeaves.has(String(uid));
+        const leaveTag = onLeave
+            ? `<span style="font-size:9px;font-weight:900;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.35);padding:2px 6px;border-radius:999px;white-space:nowrap;margin-left:6px">ลาหยุดวันนี้</span>`
+            : '';
         return `
         <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#0f172a;border:1px solid #1e293b;margin-bottom:8px;${dim}">
             <span class="material-icons" style="font-size:16px;color:#fbbf24">push_pin</span>
             <div style="flex:1;min-width:0;text-align:left">
-                <div style="font-weight:800;font-size:13px;color:#f1f5f9">${p.username}</div>
+                <div style="font-weight:800;font-size:13px;color:#f1f5f9;display:flex;align-items:center;flex-wrap:wrap">${p.username}${leaveTag}</div>
                 <div style="font-size:10.5px;color:#64748b;margin-top:2px">
                     เว็บ <b style="color:#a5b4fc">${p.team}</b> • ${p.shift || '-'} • ถึง ${window.dutyFmtShortDate(p.until)}
                     ${p.by ? ` • ตั้งโดย ${p.by}` : ''}
                 </div>
+                ${onLeave ? `<div style="font-size:10px;color:#f87171;margin-top:3px">↳ วันนี้ระบบจะข้ามเขา แล้วดึงคนอื่นมาลง ${p.team} แทน — การล็อกยังอยู่ ใช้ต่อวันถัดไป</div>` : ''}
             </div>
             <span style="font-size:10px;font-weight:900;background:${left > 0 ? 'rgba(251,191,36,.15)' : 'rgba(148,163,184,.15)'};color:${left > 0 ? '#fbbf24' : '#94a3b8'};border:1px solid ${left > 0 ? 'rgba(251,191,36,.35)' : 'rgba(148,163,184,.3)'};padding:3px 8px;border-radius:999px;white-space:nowrap">
                 ${left > 0 ? `เหลือ ${left} วัน` : 'วันสุดท้าย'}

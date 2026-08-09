@@ -69,7 +69,9 @@
                 </button>
 
                 <!-- 📌 รายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน -->
-                <button id="btnStayPinList" onclick="openStayPinListModal()" title="ดูรายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมต่อ" class="duty-admin-only opacity-60 bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1.5 transform active:scale-95">
+                <!-- ไม่ใช้ duty-admin-only เพราะสิทธิ์ของปุ่มนี้แยกต่างหาก (duty_stay_pin)
+                     ให้ updateStayPinButton() เป็นคนตัดสินว่าจะโชว์ไหม -->
+                <button id="btnStayPinList" onclick="openStayPinListModal()" title="ดูรายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมต่อ" style="display:none" class="opacity-60 bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition items-center gap-1.5 transform active:scale-95">
                     <span class="material-icons text-base">push_pin</span> อยู่ต่อ
                     <span id="stayPinCount" class="bg-white/30 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center">0</span>
                 </button>
