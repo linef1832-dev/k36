@@ -5467,6 +5467,12 @@ window.getLiveStayPin = function(userId, dateStr) {
 // ── ป้ายบนการ์ดพนักงาน ────────────────────────────────────────
 window.renderStayPinHtml = function(a, team, isAdmin) {
     if (!a || !a.id) return '';
+
+    // ข้อมูลการล็อกเป็นเรื่องของฝ่ายจัดเวรเท่านั้น
+    // พนักงานทั่วไปไม่ต้องเห็นทั้งป้ายและปุ่ม แม้แต่ของตัวเอง
+    // (เดิมให้เห็นแบบอ่านอย่างเดียว แต่เจ้าของงานขอให้ซ่อน)
+    if (!isAdmin) return '';
+
     const dateEl = document.getElementById('dutyDate');
     const dateStr = dateEl ? dateEl.value : window.dutyTodayStr();
     const pin = window.getLiveStayPin(a.id, dateStr);
@@ -5476,21 +5482,18 @@ window.renderStayPinHtml = function(a, team, isAdmin) {
     if (pin) {
         // เหลืออีกกี่วันนับจากวันที่กำลังดู (อย่างน้อย 0)
         const left = Math.max(0, window.dutyDiffDays(dateStr, pin.until));
-        const wrongTeam = pin.team !== team;
-        const click = isAdmin ? `onclick="event.stopPropagation(); openStayPinModal('${team}', '${a.id}', '${safeName}')"` : '';
-        const hover = isAdmin ? 'cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-800/40 transition' : '';
-        const warn = wrongTeam
+        const warn = pin.team !== team
             ? `<span class="text-[9px] text-red-600 dark:text-red-400 font-bold ml-1" title="pin ชี้ไปเว็บ ${pin.team}">(≠ ${pin.team})</span>`
             : '';
-        return `<div ${click} title="${isAdmin ? 'คลิกเพื่อแก้ไข / ยกเลิกการอยู่ต่อ' : 'ถูกล็อกให้อยู่เว็บนี้ต่อ'}"
-            class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300 px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-800/50 w-fit shadow-sm ${hover}">
+        return `<div onclick="event.stopPropagation(); openStayPinModal('${team}', '${a.id}', '${safeName}')"
+            title="คลิกเพื่อแก้ไข / ยกเลิกการอยู่ต่อ"
+            class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300 px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-800/50 w-fit shadow-sm cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-800/40 transition">
             <span class="material-icons text-[14px]">push_pin</span>
             อยู่ต่อ ${left > 0 ? `อีก ${left} วัน` : 'วันสุดท้าย'} (ถึง ${window.dutyFmtShortDate(pin.until)})${warn}
-            ${isAdmin ? '<span class="material-icons text-[11px] opacity-50 ml-0.5">edit</span>' : ''}
+            <span class="material-icons text-[11px] opacity-50 ml-0.5">edit</span>
         </div>`;
     }
 
-    if (!isAdmin) return '';
     return `<div onclick="event.stopPropagation(); openStayPinModal('${team}', '${a.id}', '${safeName}')"
         title="ล็อกให้อยู่เว็บนี้ต่ออีกหลายวัน"
         class="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 bg-slate-50 dark:bg-slate-800/50 hover:bg-amber-50 dark:hover:bg-amber-900/20 px-2 py-0.5 rounded-md border border-dashed border-slate-300 dark:border-slate-600 hover:border-amber-400 w-fit transition cursor-pointer">
