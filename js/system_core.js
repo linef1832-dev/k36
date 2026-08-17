@@ -439,21 +439,22 @@ window.debounceDashboardSearch = function() {
     dashboardSearchTimer = setTimeout(() => {
         // ใช้ข้อมูลที่ดึงมาแล้ว (globalScheduleData) มากรองแทนการยิง DB ใหม่
         if (typeof renderTableRows === 'function' && globalScheduleData) {
-            renderTableRows(globalScheduleData);
+            // ค้นหาแล้วผลลัพธ์ชุดใหม่ ต้องเริ่มที่หน้า 1 เสมอ
+            window.resetSchedPage();
         }
     }, 300);
 };
 
-function filterTableBySpecificTime(time, shiftName) { 
-    currentSpecificTimeFilter = { time: time, shift: shiftName }; 
-    document.getElementById('clearFilterBtn').classList.remove('hidden'); 
-    renderTableRows(globalScheduleData); 
+function filterTableBySpecificTime(time, shiftName) {
+    currentSpecificTimeFilter = { time: time, shift: shiftName };
+    document.getElementById('clearFilterBtn').classList.remove('hidden');
+    window.resetSchedPage();
 }
 
-function clearSpecificTimeFilter() { 
-    currentSpecificTimeFilter = null; 
-    document.getElementById('clearFilterBtn').classList.add('hidden'); 
-    renderTableRows(globalScheduleData); 
+function clearSpecificTimeFilter() {
+    currentSpecificTimeFilter = null;
+    document.getElementById('clearFilterBtn').classList.add('hidden');
+    window.resetSchedPage();
 }
 
 async function fetchData() {
@@ -510,6 +511,87 @@ async function fetchData() {
     }
 }
 
+// ── แบ่งหน้าตารางลงเวลา ──────────────────────────────────────
+// ตารางนี้ยาวเป็นร้อยแถวเวลาคนลงเวลาครบทั้งกะ เลื่อนหาคนยาก
+// จึงตัดเป็นหน้าละ 20 คน (ปรับได้) — ตัวแปรอยู่นอกฟังก์ชันเพราะ
+// renderTableRows ถูกเรียกใหม่ทุกครั้งที่กรองหรือรีเฟรช
+let schedRowsPerPage = 20;
+let schedCurrentPage = 1;
+
+// เปลี่ยนตัวกรองแล้วต้องเด้งกลับหน้า 1 ไม่งั้นค้างอยู่หน้า 5 ของผลลัพธ์เดิม
+// แล้วจะเห็นตารางว่างทั้งที่มีข้อมูล
+window.resetSchedPage = function() {
+    schedCurrentPage = 1;
+    if (typeof globalScheduleData !== 'undefined') renderTableRows(globalScheduleData);
+};
+
+window.goSchedPage = function(p) {
+    schedCurrentPage = p;
+    if (typeof globalScheduleData !== 'undefined') renderTableRows(globalScheduleData);
+};
+
+window.setSchedRowsPerPage = function(v) {
+    schedRowsPerPage = (v === 'all') ? 'all' : parseInt(v);
+    schedCurrentPage = 1;
+    if (typeof globalScheduleData !== 'undefined') renderTableRows(globalScheduleData);
+};
+
+function renderSchedPagination(total, totalPages, from, to) {
+    let box = document.getElementById('schedPaginationControls');
+    if (!box) {
+        const tbody = document.getElementById('dataTableBody');
+        if (!tbody) return;
+        const wrap = tbody.closest('table') ? tbody.closest('table').parentElement : null;
+        if (!wrap) return;
+        wrap.insertAdjacentHTML('afterend',
+            `<div id="schedPaginationControls" class="px-4 pb-4 pt-1 flex flex-wrap justify-between items-center gap-3 text-sm text-gray-500 dark:text-gray-400"></div>`);
+        box = document.getElementById('schedPaginationControls');
+    }
+
+    if (total === 0) { box.innerHTML = ''; return; }
+
+    // โชว์เลขหน้าแบบมีจุดไข่ปลา ไม่งั้น 30 หน้าจะล้นออกนอกจอ
+    const nums = [];
+    const push = (p) => nums.push(
+        `<button onclick="goSchedPage(${p})" class="min-w-[32px] h-8 px-2 rounded-lg font-bold transition ${
+            p === schedCurrentPage
+                ? 'bg-indigo-600 text-white shadow'
+                : 'bg-gray-100 dark:bg-slate-700 text-slate-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+        }">${p}</button>`);
+    const gap = () => nums.push(`<span class="px-1 text-gray-400">…</span>`);
+
+    if (totalPages <= 7) {
+        for (let p = 1; p <= totalPages; p++) push(p);
+    } else {
+        push(1);
+        if (schedCurrentPage > 3) gap();
+        for (let p = Math.max(2, schedCurrentPage - 1); p <= Math.min(totalPages - 1, schedCurrentPage + 1); p++) push(p);
+        if (schedCurrentPage < totalPages - 2) gap();
+        push(totalPages);
+    }
+
+    const navBtn = (label, page, disabled) =>
+        `<button onclick="goSchedPage(${page})" ${disabled ? 'disabled' : ''}
+            class="px-3 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 text-slate-600 dark:text-gray-300 font-bold transition hover:bg-gray-200 dark:hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed">${label}</button>`;
+
+    box.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span class="font-bold">แสดง</span>
+            <select onchange="setSchedRowsPerPage(this.value)" class="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-700 dark:text-white rounded-lg px-2 py-1 outline-none font-bold cursor-pointer">
+                ${[20, 50, 100].map(n => `<option value="${n}" ${schedRowsPerPage === n ? 'selected' : ''}>${n}</option>`).join('')}
+                <option value="all" ${schedRowsPerPage === 'all' ? 'selected' : ''}>ทั้งหมด</option>
+            </select>
+            <span class="whitespace-nowrap">คน/หน้า · รายการที่ <b class="text-slate-700 dark:text-gray-200">${from}-${to}</b> จาก <b class="text-slate-700 dark:text-gray-200">${total}</b></span>
+        </div>
+        ${totalPages > 1 ? `
+        <div class="flex items-center gap-1.5 flex-wrap">
+            ${navBtn('◀', schedCurrentPage - 1, schedCurrentPage === 1)}
+            ${nums.join('')}
+            ${navBtn('▶', schedCurrentPage + 1, schedCurrentPage >= totalPages)}
+        </div>` : ''}
+    `;
+}
+
 function renderTableRows(data) {
     const periodEl = document.getElementById('periodFilter');
     const filterVal = periodEl ? periodEl.value : 'all';
@@ -555,11 +637,27 @@ function renderTableRows(data) {
         );
     }
 
-    if(filteredData.length === 0) { box.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>`; return; }
-    
-    let htmlContent = ''; 
+    if(filteredData.length === 0) {
+        box.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>`;
+        renderSchedPagination(0, 0, 0, 0);
+        return;
+    }
 
-    filteredData.forEach(i => {
+    // ── ตัดเป็นหน้า ──
+    const total = filteredData.length;
+    const perPage = (schedRowsPerPage === 'all') ? total : schedRowsPerPage;
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    // กันหน้าค้างเกินขอบ เช่น อยู่หน้า 5 แล้วกรองจนเหลือ 2 หน้า
+    if (schedCurrentPage > totalPages) schedCurrentPage = totalPages;
+    if (schedCurrentPage < 1) schedCurrentPage = 1;
+
+    const from = (schedCurrentPage - 1) * perPage;
+    const pageData = filteredData.slice(from, from + perPage);
+    renderSchedPagination(total, totalPages, from + 1, from + pageData.length);
+
+    let htmlContent = '';
+
+    pageData.forEach(i => {
         const periodName = getPeriodForTime(i.shift_name, i.time_slot);
         
         let displayPeriod = periodName || '<span class="material-icons text-[12px] animate-spin">sync</span>';
