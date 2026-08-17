@@ -531,7 +531,13 @@ window.refreshDutyData = async function() {
             // จะได้เห็นทันทีที่เลื่อนวันที่ ไม่ต้องรอกดสุ่ม
             // ตั้งใจ "ไม่บันทึก" ลง DB เพราะถ้าบันทึกปุ๊บ ปุ่มสุ่มจะถูกล็อกเป็น "จัดแล้ว"
             // แล้วจะจัดคนที่เหลือไม่ได้เลย — อันนี้เป็นแค่ภาพตัวอย่าง
-            const preview = window.buildStayPinPreview(targetDate, shiftFilter);
+            //
+            // ⚠️ เฉพาะฝ่ายจัดเวรเท่านั้น — ต่อให้ซ่อนป้าย 📌 บนการ์ดไปแล้ว
+            // ภาพตัวอย่างเองก็ยังฟ้อง เพราะพนักงานจะเห็นชื่อตัวเองโผล่อยู่ในเว็บ
+            // ของวันข้างหน้าที่ยังไม่ได้จัด ซึ่งเป็นไปได้ทางเดียวคือถูกล็อกไว้
+            const preview = window.canManageStayPin()
+                ? window.buildStayPinPreview(targetDate, shiftFilter)
+                : { roster: {}, count: 0 };
 
             if (preview.count > 0) {
                 window.isRosterPreview = true;
