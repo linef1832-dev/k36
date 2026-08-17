@@ -961,7 +961,7 @@ window.generateDutyRoster = async function() {
         const pinnedOverQuota = [];
         Object.keys(window.dutyStayPins || {}).forEach(uid => {
             // getActiveStayPin คุมกติกาช่วงวัน+กะไว้ที่เดียว จะได้ไม่หลุดกันคนละที่
-            const pin = window.getActiveStayPin(uid, targetDate, shiftFilter);
+            const pin = window.getActiveStayPin(uid, targetDate);
             if (!pin || !pin.team) return;
             if (!sortedTeams.includes(pin.team)) return;   // เว็บถูกลบไปแล้ว
 
@@ -5456,18 +5456,28 @@ window.saveStayPins = async function() {
 //    ระบบจะไม่รู้ว่าคนนี้ถูกล็อก แล้วสุ่มเขาไปลงเว็บอื่นทันที
 //    การนับวัน from ด้วยไม่มีผลเสีย เพราะถ้าวันนั้นมีตารางอยู่แล้ว
 //    ปุ่มสุ่มจะถูกล็อกเป็น "จัดแล้ว" ตั้งแต่แรก
-window.getActiveStayPin = function(userId, dateStr, shift) {
+// ⚠️ ตัดสินจาก "ช่วงวันที่" อย่างเดียว ไม่เอา p.shift มากรอง
+//
+// เดิมกรองด้วย p.shift (กะที่บังเอิญเลือกไว้ตอนกดล็อก) ซึ่งทำให้:
+//   1) ป้ายบนการ์ดกับภาพตัวอย่างไม่ตรงกัน เพราะป้ายส่ง shift = null
+//      วันที่กดล็อกจึงเห็นครบ แต่วันถัดไปหายไปบางคน
+//   2) ถ้าคนนั้นสลับกะ การล็อกจะหลุดทั้งที่ตัวคนยังทำงานอยู่
+//
+// กะที่ถูกต้องคือ "กะจริงของคนนั้นในวันนั้น" ซึ่งถูกกรองอยู่แล้วที่ต้นทาง:
+//   - ตอนสุ่ม: activeStaff กรองด้วย isDutyShiftMatch ไปแล้ว
+//   - ภาพตัวอย่าง: เช็ค isDutyShiftMatch ตรงนั้น
+// p.shift จึงเหลือไว้เป็นข้อมูลประกอบเท่านั้น
+window.getActiveStayPin = function(userId, dateStr) {
     const p = (window.dutyStayPins || {})[String(userId)];
     if (!p || !p.until || !p.from) return null;
-    if (shift && p.shift && p.shift !== shift) return null;
     if (dateStr < p.from || dateStr > p.until) return null;
     return p;
 };
 
-// เหมือน getActiveStayPin แต่ไม่สนกะ — ใช้ตอนโชว์ป้ายบนการ์ด
-// เรียกต่อจากตัวเดียวกัน จะได้ไม่มีกติกาช่วงวันสองชุดที่เพี้ยนออกจากกันทีหลัง
+// ใช้ตอนโชว์ป้ายบนการ์ด — เรียกต่อจากตัวเดียวกัน
+// จะได้ไม่มีกติกาสองชุดที่เพี้ยนออกจากกันทีหลัง (เคยพลาดมาแล้ว)
 window.getLiveStayPin = function(userId, dateStr) {
-    return window.getActiveStayPin(userId, dateStr || window.dutyTodayStr(), null);
+    return window.getActiveStayPin(userId, dateStr || window.dutyTodayStr());
 };
 
 // ── ป้ายบนการ์ดพนักงาน ────────────────────────────────────────
@@ -5517,7 +5527,7 @@ window.buildStayPinPreview = function(dateStr, shiftFilter) {
     let count = 0;
 
     Object.keys(window.dutyStayPins || {}).forEach(uid => {
-        const pin = window.getActiveStayPin(uid, dateStr, shiftFilter);
+        const pin = window.getActiveStayPin(uid, dateStr);
         if (!pin || !pin.team || !sortedTeams.includes(pin.team)) return;
 
         // วันนั้นลาหยุด → ไม่ต้องโชว์ ให้ตรงกับตอนกดสุ่มจริงที่จะข้ามเขาไป
@@ -5525,6 +5535,9 @@ window.buildStayPinPreview = function(dateStr, shiftFilter) {
 
         const u = (GLOBAL_USER_LIST || []).find(x => String(x.id) === String(uid));
         if (!u) return;
+
+        // ใช้กะจริงของเขาในวันนั้น (รองรับคนสลับกะด้วย) ให้ตรงกับตอนกดสุ่มจริง
+        if (!window.isDutyShiftMatch(u, shiftFilter)) return;
 
         let uDept = u.department || 'AM';
         if (uDept === 'TRAINER') uDept = 'AMQL';
@@ -5909,7 +5922,9 @@ window.openStayPinListModal = async function() {
     const isAdmin = window.canManageStayPin();
     const body = rows.map(([uid, p]) => {
         const left  = Math.max(0, window.dutyDiffDays(today, p.until));
-        const dim   = (shift && p.shift && p.shift !== shift) ? 'opacity:.5' : '';
+        // ไม่ทำให้จางตามกะที่บันทึกไว้แล้ว — กะที่ใช้จริงคือกะของคนนั้นในวันนั้น
+        // ทำจางตาม p.shift เคยทำให้เข้าใจผิดว่ารายการนั้นใช้ไม่ได้
+        const dim   = '';
         const safe  = String(p.username || '').replace(/'/g, "\\'");
         // วันที่กำลังดูอยู่ เขาลาหยุดไหม — ถ้าลา ระบบจะข้ามเขาแล้วดึงคนอื่นมาแทน
         // โชว์ไว้ให้แอดมินเห็นตั้งแต่ยังไม่กดสุ่ม จะได้ไม่งงว่าทำไมชื่อไม่ขึ้น
@@ -5940,7 +5955,7 @@ window.openStayPinListModal = async function() {
     Swal.fire({
         title: `<div style="font-size:16px;font-weight:900">📌 คนที่ถูกล็อกอยู่ต่อ (${rows.length})</div>`,
         html: `<div style="max-height:55vh;overflow-y:auto;padding-right:4px">${body}</div>
-               <div style="font-size:10.5px;color:#64748b;margin-top:6px;text-align:left">รายการที่จางลง = คนละกะกับที่กำลังดูอยู่ • หมดอายุแล้วระบบลบให้เอง</div>`,
+               <div style="font-size:10.5px;color:#64748b;margin-top:6px;text-align:left">กะที่แสดงคือกะตอนกดล็อก • เวลาจัดจริงระบบยึดกะของคนนั้นในวันนั้น • หมดอายุแล้วลบให้เอง</div>`,
         background: '#0b1120',
         width: 560,
         confirmButtonText: 'ปิด',
