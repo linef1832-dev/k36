@@ -12,6 +12,8 @@ let odCfgData = {
     reasons: [],   // [string]
     server_url: 'https://od-form-bot-production.up.railway.app',
     chat_id: '',
+    odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
+    bot:  { token: '', enabled: true },
 };
 
 // ── โหลด config จาก Supabase ──────────────────────────────────────
@@ -40,6 +42,8 @@ window.initOdConfig = async function() {
         if (data && data.value) {
             const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
             odCfgData = { ...odCfgData, ...parsed };
+            odCfgData.odol = { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '', ...(parsed.odol || {}) };
+            odCfgData.bot  = { token: '', enabled: true, ...(parsed.bot || {}) };
         } else {
             // ครั้งแรก — ใช้ค่า default
             odCfgData = {
@@ -65,6 +69,8 @@ window.initOdConfig = async function() {
                 reasons: ['ตรวจพบหลายยูสเซอร์รับโปรโมชั่น'],
                 server_url: 'https://od-form-bot-production.up.railway.app',
                 chat_id: '',
+                odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
+                bot:  { token: '', enabled: true },
             };
         }
 
@@ -84,6 +90,11 @@ window.odCfg_save = async function() {
         // เก็บค่าจาก input
         odCfgData.server_url = document.getElementById('odCfgServerUrl').value.trim();
         odCfgData.chat_id    = document.getElementById('odCfgChatId').value.trim();
+        odCfgData.odol.chat_id = document.getElementById('odCfgOdolChatId').value.trim();
+        odCfgData.bot.token    = document.getElementById('odCfgBotToken').value.trim();
+        if (odCfgData.odol.notes.length && !odCfgData.odol.notes.includes(odCfgData.odol.default_note)) {
+            odCfgData.odol.default_note = odCfgData.odol.notes[0];
+        }
 
         const { error } = await appDB.from('settings').upsert([{
             key: OD_CFG_KEY,
@@ -94,6 +105,7 @@ window.odCfg_save = async function() {
 
         odCfg_showStatus('✅ บันทึกสำเร็จ! ส่วนขยายจะดึงค่าใหม่เมื่อเปิดครั้งถัดไป', 'success');
         odCfg_refreshPreview();
+        odCfg_adminFetch('/admin/reload', 'POST').catch(() => {}); // ให้ server อ่านค่าใหม่ทันที (ถ้ามี admin key)
         setTimeout(() => odCfg_hideStatus(), 4000);
 
     } catch(e) {
@@ -113,7 +125,165 @@ function odCfg_renderAll() {
     const ci = document.getElementById('odCfgChatId');
     if (su) su.value = odCfgData.server_url || '';
     if (ci) ci.value = odCfgData.chat_id || '';
+    const oc = document.getElementById('odCfgOdolChatId');
+    const bt = document.getElementById('odCfgBotToken');
+    const ak = document.getElementById('odCfgAdminKey');
+    if (oc) oc.value = odCfgData.odol?.chat_id || '';
+    if (bt) bt.value = odCfgData.bot?.token || '';
+    if (ak) ak.value = localStorage.getItem('od_admin_key') || '';
+    odCfg_renderNotes();
+    odCfg_paintBotBadge(odCfgData.bot?.enabled !== false, null);
 }
+
+// ── หมายเหตุ (ฟอร์มหลายยูส) ──────────────────────────────────────
+function odCfg_renderNotes() {
+    const list = document.getElementById('odCfgNoteList');
+    if (!list) return;
+    const notes = odCfgData.odol.notes || [];
+    if (!notes.length) { list.innerHTML = '<div class="text-gray-400 text-sm py-2">ยังไม่มีหมายเหตุ</div>'; return; }
+    list.innerHTML = notes.map((n, i) => {
+        const isDef = n === odCfgData.odol.default_note;
+        return `
+        <div class="flex items-center gap-1.5 ${isDef ? 'bg-purple-100 dark:bg-purple-900/30 border-purple-400' : 'bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-slate-600'} border rounded-xl px-3 py-1.5">
+            <button onclick="odCfgData.odol.default_note='${n.replace(/'/g, "\\'")}'; odCfg_renderNotes(); odCfg_refreshPreview();" title="ตั้งเป็นค่าเริ่มต้น" class="${isDef ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'}">${isDef ? '★' : '☆'}</button>
+            <span class="font-bold text-sm text-slate-800 dark:text-white">${n}</span>
+            <button onclick="odCfg_editNote(${i})" class="text-xs text-sky-400 hover:text-sky-300 ml-1">✏️</button>
+            <button onclick="odCfg_delNote(${i})" class="text-xs text-red-400 hover:text-red-300">🗑️</button>
+        </div>`;
+    }).join('');
+}
+
+window.odCfg_addNote = async function() {
+    const { value } = await Swal.fire({
+        title: 'เพิ่มหมายเหตุ', input: 'text', inputPlaceholder: 'เช่น เก็งกำไร',
+        showCancelButton: true, confirmButtonText: 'เพิ่ม',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
+    });
+    if (!value) return;
+    odCfgData.odol.notes.push(value.trim());
+    if (!odCfgData.odol.default_note) odCfgData.odol.default_note = value.trim();
+    odCfg_renderNotes(); odCfg_refreshPreview();
+};
+window.odCfg_editNote = async function(i) {
+    const { value } = await Swal.fire({
+        title: 'แก้ไขหมายเหตุ', input: 'text', inputValue: odCfgData.odol.notes[i],
+        showCancelButton: true, confirmButtonText: 'บันทึก',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
+    });
+    if (!value) return;
+    if (odCfgData.odol.default_note === odCfgData.odol.notes[i]) odCfgData.odol.default_note = value.trim();
+    odCfgData.odol.notes[i] = value.trim();
+    odCfg_renderNotes(); odCfg_refreshPreview();
+};
+window.odCfg_delNote = async function(i) {
+    const { isConfirmed } = await Swal.fire({
+        title: `ลบ "${odCfgData.odol.notes[i]}"?`, icon: 'warning',
+        showCancelButton: true, confirmButtonText: 'ลบ', confirmButtonColor: '#ef4444',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
+    });
+    if (!isConfirmed) return;
+    odCfgData.odol.notes.splice(i, 1);
+    if (!odCfgData.odol.notes.includes(odCfgData.odol.default_note)) odCfgData.odol.default_note = odCfgData.odol.notes[0] || '';
+    odCfg_renderNotes(); odCfg_refreshPreview();
+};
+
+// ── ควบคุม Telegram Bot (ผ่าน Railway /admin/*) ───────────────────
+function odCfg_serverUrl() {
+    return (document.getElementById('odCfgServerUrl')?.value.trim() || odCfgData.server_url || '').replace(/\/+$/, '');
+}
+async function odCfg_adminFetch(path, method = 'GET', body = null) {
+    const key = (document.getElementById('odCfgAdminKey')?.value || localStorage.getItem('od_admin_key') || '').trim();
+    if (!key) throw new Error('กรุณาใส่ Admin Key ก่อน');
+    const res = await fetch(odCfg_serverUrl() + path, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+        body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+}
+function odCfg_paintBotBadge(enabled, live) {
+    const b = document.getElementById('odCfgBotBadge');
+    const t = document.getElementById('odCfgBtnToggle');
+    if (b) {
+        if (live === false)      { b.textContent = 'ติดต่อไม่ได้';  b.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400'; }
+        else if (!enabled)       { b.textContent = 'ปิดอยู่';       b.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400'; }
+        else if (live === true)  { b.textContent = 'ออนไลน์';      b.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400'; }
+        else                     { b.textContent = 'เปิดอยู่ (ยังไม่เช็ค)'; b.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-600'; }
+    }
+    if (t) {
+        t.innerHTML = enabled
+            ? '<span class="material-icons text-xs">stop_circle</span> หยุดบอท'
+            : '<span class="material-icons text-xs">play_circle</span> เริ่มบอท';
+        t.className = (enabled ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500') + ' text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1';
+    }
+}
+function odCfg_showBotInfo(obj) {
+    const el = document.getElementById('odCfgBotInfo');
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+}
+
+window.odCfg_botStatus = async function() {
+    odCfg_showStatus('กำลังเช็คสถานะบอท...', 'loading');
+    try {
+        const s = await odCfg_adminFetch('/admin/status');
+        odCfg_paintBotBadge(s.enabled, !s.bot_error);
+        odCfg_showBotInfo({
+            บอท: s.bot ? `@${s.bot.username} (${s.bot.name})` : ('❌ ' + (s.bot_error || 'ไม่ทราบ')),
+            สถานะ: s.enabled ? 'เปิด' : 'ปิด',
+            token_มาจาก: s.token_source,
+            ห้อง_OD: s.chat_id,
+            ห้อง_ODOL: s.odol_chat_id,
+            webhook: s.webhook || '-',
+        });
+        odCfg_showStatus(s.bot ? `✅ บอท @${s.bot.username} พร้อมใช้งาน` : '⚠️ ' + s.bot_error, s.bot ? 'success' : 'error');
+    } catch (e) {
+        odCfg_paintBotBadge(odCfgData.bot?.enabled !== false, false);
+        odCfg_showStatus('❌ ' + e.message, 'error');
+        odCfg_showBotInfo('❌ ' + e.message);
+    }
+    setTimeout(() => odCfg_hideStatus(), 4000);
+};
+
+window.odCfg_botToggle = async function() {
+    const next = !(odCfgData.bot?.enabled !== false);
+    const { isConfirmed } = await Swal.fire({
+        title: next ? 'เริ่มบอท?' : 'หยุดบอท?',
+        text: next ? 'พนักงานจะส่งข้อความผ่านส่วนขยายได้ตามปกติ' : 'ส่วนขยายจะส่งข้อความไม่ได้จนกว่าจะเปิดใหม่',
+        icon: 'question', showCancelButton: true, confirmButtonText: next ? 'เริ่ม' : 'หยุด',
+        confirmButtonColor: next ? '#10b981' : '#ef4444',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
+    });
+    if (!isConfirmed) return;
+    odCfgData.bot.enabled = next;
+    await odCfg_save();           // บันทึกลง Supabase + สั่ง server reload
+    odCfg_paintBotBadge(next, null);
+    odCfg_refreshPreview();
+};
+
+window.odCfg_botTest = async function(form) {
+    const defaultChat = form === 'odol'
+        ? (document.getElementById('odCfgOdolChatId').value.trim() || document.getElementById('odCfgChatId').value.trim())
+        : document.getElementById('odCfgChatId').value.trim();
+    const { value: chat, isConfirmed } = await Swal.fire({
+        title: `ยิงทดสอบ (${form.toUpperCase()})`, input: 'text', inputValue: defaultChat,
+        inputLabel: 'Chat ID ปลายทาง (แก้ได้ถ้าอยากยิงห้องอื่น)',
+        showCancelButton: true, confirmButtonText: 'ยิง',
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
+    });
+    if (!isConfirmed) return;
+    odCfg_showStatus('กำลังส่งข้อความทดสอบ...', 'loading');
+    try {
+        const r = await odCfg_adminFetch('/admin/test', 'POST', { chat_id: chat || undefined, form });
+        odCfg_showStatus(`✅ ส่งแล้ว → ห้อง ${r.chat_id} (msg #${r.message_id})`, 'success');
+    } catch (e) {
+        odCfg_showStatus('❌ ส่งไม่สำเร็จ: ' + e.message, 'error');
+    }
+    setTimeout(() => odCfg_hideStatus(), 5000);
+};
 
 // ── เว็บ ───────────────────────────────────────────────────────────
 function odCfg_renderWebs() {
@@ -293,6 +463,8 @@ window.odCfg_refreshPreview = function() {
         promos:  odCfgData.promos,
         reasons: odCfgData.reasons,
         chat_id: odCfgData.chat_id,
+        odol:    odCfgData.odol,
+        bot_enabled: odCfgData.bot?.enabled !== false,
     };
     el.textContent = JSON.stringify(preview, null, 2);
 };
