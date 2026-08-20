@@ -16,6 +16,22 @@ let sopAttachmentsBuffer = [];
 let sopRulesBuffer = [];
 let sopActiveTab = 'rules';
 
+// 🔒 [FIX] เช็คสิทธิ์ "ในฟังก์ชัน" — เดิมเช็คแค่ซ่อนปุ่ม ใครเปิด F12 ก็เรียกลบ/แก้ SOP ได้
+window.sopCanManage = function() {
+    if (typeof currentUser === 'undefined' || !currentUser) return false;
+    if (['manager', 'admin'].includes(currentUser.role)) return true;
+    return typeof window.hasUserPerm === 'function' && window.hasUserPerm('sop_manage');
+};
+window.sopCanSendTg = function() {
+    if (typeof currentUser === 'undefined' || !currentUser) return false;
+    return ['manager', 'admin', 'trainer'].includes(currentUser.role) || window.sopCanManage();
+};
+window.sopRequire = function(fn) {
+    if (fn()) return true;
+    Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ใช้งานส่วนนี้ครับ', 'error');
+    return false;
+};
+
 const SOP_PRIORITY_OPTIONS = [
     { id: 'high',   label: '🔴 สำคัญมาก',  color: 'red',    border: 'border-red-500',    bg: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700' },
     { id: 'medium', label: '🟡 ปานกลาง',   color: 'amber',  border: 'border-amber-400',  bg: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700' },
@@ -157,6 +173,8 @@ window.sop_renderRulesCategoryDropdown = function() {
 };
 
 window.sop_manageCategories = function() {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     const palette = [
         { val: '#10b981', name: 'เขียว' },
         { val: '#22c55e', name: 'เขียวสด' },
@@ -233,6 +251,8 @@ window.sop_manageCategories = function() {
 };
 
 window.sop_saveCategoryColor = async function(idx) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     const palette = document.getElementById(`sopCatPaletteBtns_${idx}`);
     if (!palette) return;
     const newColor = palette.dataset.color;
@@ -246,6 +266,8 @@ window.sop_saveCategoryColor = async function(idx) {
 };
 
 window.sop_addCategory = async function() {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     const input = document.getElementById('newSopCatName');
     const val = input.value.trim();
     if (!val) return;
@@ -266,6 +288,8 @@ window.sop_addCategory = async function() {
 };
 
 window.sop_deleteCategory = async function(idx) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     const cat = globalSOPCategories[idx];
     const usedCount = globalSOPData.filter(r => r.category === cat.id).length;
     let warnText = `ต้องการลบหมวด "${cat.name}" ใช่หรือไม่?`;
@@ -612,6 +636,8 @@ window.sop_toggleCatFolder = function(catKey) {
 
 // V4.3: ย้ายกฎไปหมวดอื่นแบบรวดเร็ว
 window.sop_quickMoveCategory = async function(ruleId) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     const item = globalSOPData.find(r => String(r.id) === String(ruleId));
     if (!item) return;
 
@@ -1264,10 +1290,14 @@ window.sop_readRule = async function(id, skipIncrement) {
 // ➕ ADD / EDIT MODAL
 // ==========================================
 window.sop_openAddModal = function() {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     sop_openEditModal(null);
 };
 
 window.sop_editRule = function(id) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     const item = globalSOPData.find(x => String(x.id) === String(id));
     if (!item) return;
     sop_openEditModal(item);
@@ -1599,6 +1629,8 @@ window.sop_removeAttachment = function(idx) {
 // 💾 SAVE RULE
 // ==========================================
 window.sop_saveRule = async function(existing, formData) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
     try {
         const authorName = (currentUser && (currentUser.username || currentUser.name)) || 'ผู้ใช้';
@@ -1762,6 +1794,8 @@ window.sop_renderRulesEditor = function() {
 // 🗑️ DELETE
 // ==========================================
 window.sop_deleteRule = async function(id) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     const item = globalSOPData.find(x => String(x.id) === String(id));
     if (!item) return;
     const confirm = await Swal.fire({
@@ -1794,6 +1828,8 @@ window.sop_deleteRule = async function(id) {
 // 📌 PIN / UNPIN
 // ==========================================
 window.sop_togglePin = async function(id) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     const item = globalSOPData.find(x => String(x.id) === String(id));
     if (!item) return;
     item.pinned = !item.pinned;
@@ -2311,10 +2347,12 @@ window.sop_onSubgroupChange = function(sel) {
 };
 
 // Public APIs สำหรับ Tab "กติกาขั้นตอน" (V4)
-window.sop_quickAddRule = function() { sop_openStandaloneRuleForm(); };
-window.sop_editStandaloneRule = function(idx) { sop_openStandaloneRuleForm(idx); };
+window.sop_quickAddRule = function() { if (!window.sopRequire(window.sopCanManage)) return; sop_openStandaloneRuleForm(); };
+window.sop_editStandaloneRule = function(idx) { if (!window.sopRequire(window.sopCanManage)) return; sop_openStandaloneRuleForm(idx); };
 
 window.sop_toggleStandalonePin = async function(idx) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     if (!globalStandaloneRules[idx]) return;
     globalStandaloneRules[idx].pinned = !globalStandaloneRules[idx].pinned;
     globalStandaloneRules[idx].updated_at = new Date().toISOString();
@@ -2329,6 +2367,8 @@ window.sop_toggleStandalonePin = async function(idx) {
 };
 
 window.sop_deleteStandaloneRule = async function(idx) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     const r = globalStandaloneRules[idx];
     if (!r) return;
 
@@ -2823,10 +2863,14 @@ window.sop_loadTelegramConfig = async function() {
 };
 
 window.sop_saveTelegramConfig = async function() {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     await appDB.from('settings').upsert([{ key: 'sop_telegram_config', value: JSON.stringify(window._sopTelegramConfig) }]);
 };
 
 window.sop_telegramSettings = async function() {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     await sop_loadTelegramConfig();
     const cfg = window._sopTelegramConfig;
 
@@ -2983,6 +3027,8 @@ async function sop_sendChunkedMessage(botToken, chatId, text, parseMode = 'HTML'
 }
 
 window.sop_sendTelegramNotify = async function(action, type, title, category, ruleType, imgUrls, content) {
+    if (!window.sopRequire(window.sopCanSendTg)) return;
+
     const cfg = window._sopTelegramConfig;
     if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) return;
 
@@ -3063,6 +3109,8 @@ window.sop_sendTelegramNotify = async function(action, type, title, category, ru
 // 📤 ส่งข้อแต่ละข้อลง Telegram (กดปุ่มในการ์ด)
 // ==========================================
 window.sop_sendItemToTelegram = async function(itemId) {
+    if (!window.sopRequire(window.sopCanSendTg)) return;
+
     const cfg = window._sopTelegramConfig;
     if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) {
         return Swal.fire('ยังไม่ตั้งค่า Telegram', 'กรุณาไปตั้งค่า Telegram ก่อน (ปุ่ม Telegram ด้านบน)', 'warning');
@@ -3084,6 +3132,8 @@ window.sop_sendItemToTelegram = async function(itemId) {
 };
 
 window.sop_sendStandaloneToTelegram = async function(idx) {
+    if (!window.sopRequire(window.sopCanSendTg)) return;
+
     const cfg = window._sopTelegramConfig;
     if (!cfg || !cfg.enabled || !cfg.bot_token || !cfg.chat_id) {
         return Swal.fire('ยังไม่ตั้งค่า Telegram', 'กรุณาไปตั้งค่า Telegram ก่อน (ปุ่ม Telegram ด้านบน)', 'warning');
@@ -3135,6 +3185,8 @@ window.sop_updateGroupDropdown = function() {
 
 // จัดการกลุ่ม (สร้าง/ลบ)
 window.sop_manageGroups = async function() {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     await sop_loadGroups();
 
     const listHtml = globalSopGroups.length > 0
@@ -3192,12 +3244,16 @@ window.sop_manageGroups = async function() {
 };
 
 window.sop_deleteGroup = async function(idx) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     globalSopGroups.splice(idx, 1);
     await sop_saveGroups();
 };
 
 // โยกข้อเข้ากลุ่ม
 window.sop_moveToGroup = async function(idx) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     await sop_loadGroups();
     const r = globalStandaloneRules[idx];
     if (!r) return;
@@ -3232,6 +3288,8 @@ window.sop_moveToGroup = async function(idx) {
 // 📁 โยกหมวดหมู่เข้ากลุ่ม
 // ==========================================
 window.sop_moveCategoryToGroup = async function(catId) {
+    if (!window.sopRequire(window.sopCanManage)) return;
+
     await sop_loadGroups();
 
     const cat = globalSOPCategories.find(c => c.id === catId);
