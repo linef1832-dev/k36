@@ -26,6 +26,24 @@ function dsDebounce(key, func, delay = 200) {
     dsTimers[key] = setTimeout(func, delay);
 }
 
+// 🔒 [FIX] เช็คสิทธิ์ "ในฟังก์ชัน" — เดิมเช็คแค่ซ่อนแท็บ ใครเปิด F12 ก็เรียกเตะ/ย้าย/ส่งข้อความได้
+// perm ตรงกับ applyDiscordPermissions: ds_spy, ds_move, ds_checkin, ds_manage, ds_log, ds_sendmsg
+window.dsCan = function(perm) {
+    if (typeof currentUser !== 'undefined' && currentUser && ['manager', 'admin'].includes(currentUser.role)) return true;
+    return typeof window.hasUserPerm === 'function' && window.hasUserPerm(perm);
+};
+window.dsRequire = function(perm) {
+    if (window.dsCan(perm)) return true;
+    Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์ใช้งานส่วนนี้ครับ', 'error');
+    return false;
+};
+
+// 🛡️ [FIX] ชื่อจาก Discord เป็นข้อมูลภายนอก — ต้อง escape ก่อนยัดลง HTML
+// (ใครตั้งชื่อ Discord เป็น <img onerror=...> จะรันสคริปต์ในเครื่องแอดมินได้)
+window.dsEsc = function(v) {
+    return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+};
+
 function getDbUserFromDiscordName(discordName) {
     if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) return null;
     const dsNameClean = discordName.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
@@ -126,6 +144,8 @@ function getDiscordGroupMismatch(staff) {
 
 // 🌟 [NEW] ย้ายพนักงาน 1 คน ไปกลุ่ม Discord ที่ถูกต้องตามฐานข้อมูล
 window.autoFixStaffGroup = async function(staffId) {
+    if (!window.dsRequire('ds_manage')) return;
+
     const staff = extStaffList.find(s => s.id === staffId);
     if (!staff) return Swal.fire('Error', 'ไม่พบพนักงานคนนี้', 'error');
     
@@ -141,7 +161,7 @@ window.autoFixStaffGroup = async function(staffId) {
         title: 'ย้ายกลุ่มอัตโนมัติ?',
         html: `
             <div class="text-left text-sm">
-                <p class="mb-2"><b>${staff.name}</b></p>
+                <p class="mb-2"><b>${dsEsc(staff.name)}</b></p>
                 <p class="text-gray-500">ระบบจะ:</p>
                 <ul class="text-xs text-gray-400 list-disc pl-5 mt-1">
                     <li>เอาออกจาก: <span class="text-red-500 font-bold">${mismatch.wrongGroups.join(', ')}</span></li>
@@ -189,6 +209,8 @@ window.autoFixStaffGroup = async function(staffId) {
 
 // 🌟 [NEW] ย้ายทุกคนที่กลุ่มผิดให้ถูกพร้อมกัน (Batch Auto-fix)
 window.autoFixAllMismatches = async function() {
+    if (!window.dsRequire('ds_manage')) return;
+
     const mismatches = extStaffList
         .map(s => ({ staff: s, info: getDiscordGroupMismatch(s) }))
         .filter(x => x.info !== null);
@@ -471,7 +493,7 @@ window.openDuplicateModal = function() {
             return `
                 <div class="flex items-center justify-between gap-2 p-2.5 bg-slate-800/60 rounded-lg border border-slate-700">
                     <div class="flex-1 min-w-0">
-                        <div class="font-bold text-sm text-slate-100 truncate">${s.name}</div>
+                        <div class="font-bold text-sm text-slate-100 truncate">${dsEsc(s.name)}</div>
                         <div class="text-[10px] text-gray-500 mt-0.5">Discord ID: <span class="font-mono">${s.id}</span></div>
                         <div class="mt-1 flex flex-wrap gap-1">${gTags}</div>
                     </div>
@@ -515,6 +537,8 @@ window.openDuplicateModal = function() {
 
 // 🌟 [NEW] เปลี่ยนชื่อแสดงผลของ Discord (Custom Name) — เก็บลง Supabase
 window.editCustomName = async function(staffId, currentName) {
+    if (!window.dsRequire('ds_manage')) return;
+
     const hasOverride = !!(window.customDiscordNames && window.customDiscordNames[staffId]);
     
     const result = await Swal.fire({
@@ -615,6 +639,8 @@ async function saveCustomNamesToDb() {
 
 // 🌟 [NEW] ฟังก์ชัน Confirm + Kick Discord ที่ซ้ำ
 window.confirmDeleteDuplicate = async function(staffId, staffName) {
+    if (!window.dsRequire('ds_manage')) return;
+
     const confirm = await Swal.fire({
         title: 'ยืนยันการลบ?',
         html: `
@@ -891,7 +917,7 @@ window.fetchSystemData = async function(forceSync = false, silent = false) {
     }
 };
 
-window.syncDiscord = async function() { 
+window.syncDiscord = async function() { if (!window.dsRequire('ds_manage')) return; 
     Swal.fire({title: 'กำลังสั่งบอทดึงรายชื่อ...', didOpen: () => Swal.showLoading()}); 
     try {
         const res = await fetch(DISCORD_API_URL + '/api/import-discord-members', { method:'POST', headers: { 'Cache-Control': 'no-cache' } }); 
@@ -920,6 +946,8 @@ window.spy_toggleSelectAll = function() {
 };
 
 window.spy_moveSelectedUsers = async function() {
+    if (!window.dsRequire('ds_spy')) return;
+
     const targetId = document.getElementById('bulkMoveTarget').value;
     const ids = Array.from(spySelectedUsers);
     if(ids.length === 0) return Swal.fire('เตือน', 'กรุณาติ๊กเลือกคนที่จะย้ายก่อน', 'warning');
@@ -944,6 +972,8 @@ window.spy_moveSelectedUsers = async function() {
 };
 
 window.spy_returnMove = async function() {
+    if (!window.dsRequire('ds_spy')) return;
+
     Swal.fire({title: 'กำลังย้ายกลับ...', didOpen: () => Swal.showLoading()});
     try {
         const res = await fetch(`${DISCORD_API_URL}/api/spy-return`, { method: 'POST' });
@@ -956,6 +986,8 @@ window.spy_returnMove = async function() {
 };
 
 window.spy_moveSingleUser = async function(uid, targetId) {
+    if (!window.dsRequire('ds_spy')) return;
+
     if(!targetId) return;
     try {
         await fetch(`${DISCORD_API_URL}/api/move-users`, {
@@ -975,7 +1007,7 @@ window.ds_renderSpyTable = function() {
     const now = Date.now();
     
     let roomOptionsHtml = '<option value="">⚡ ย้ายไป..</option>';
-    dsRoomList.forEach(c => { roomOptionsHtml += `<option value="${c.id}">${c.name}</option>`; });
+    dsRoomList.forEach(c => { roomOptionsHtml += `<option value="${c.id}">${dsEsc(c.name)}</option>`; });
 
     const filtered = globalSpyData.filter(u => term === '' || u.name.toLowerCase().includes(term));
     
@@ -1014,14 +1046,14 @@ window.ds_renderSpyTable = function() {
         }
         if(isDouble) devicesHTML += '<span class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold ml-2 animate-pulse">ซ้อน 2 จอ!</span>';
 
-        const roomBadge = u.currentRoom ? `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded border border-indigo-700/50 text-xs font-bold">${u.currentRoom}</span>` : '<span class="text-gray-600 text-xs">ออฟไลน์</span>';
+        const roomBadge = u.currentRoom ? `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded border border-indigo-700/50 text-xs font-bold">${dsEsc(u.currentRoom)}</span>` : '<span class="text-gray-600 text-xs">ออฟไลน์</span>';
         const nameColor = u.currentRoom ? 'text-white' : 'text-gray-500';
         const isChecked = spySelectedUsers.has(u.id) ? 'checked' : '';
 
         return window.renderTemplate('tpl-ds-spy-row', {
             id: u.id,
             nameColor: nameColor,
-            name: u.name,
+            name: dsEsc(u.name),
             roomBadge: roomBadge,
             devicesHTML: devicesHTML,
             statusBadges: statusBadges,
@@ -1051,7 +1083,7 @@ window.ds_fetchChannelsSilently = async function() {
             if (data && data.value) {
                 dsRoomList = JSON.parse(data.value);
                 let dropHtml = '<option value="">-- เลือกห้องปลายทาง --</option>';
-                dsRoomList.forEach(c => dropHtml += `<option value="${c.id}">${c.name}</option>`);
+                dsRoomList.forEach(c => dropHtml += `<option value="${c.id}">${dsEsc(c.name)}</option>`);
                 const targetSelect = document.getElementById('bulkMoveTarget');
                 if(targetSelect) targetSelect.innerHTML = dropHtml;
             }
@@ -1078,7 +1110,7 @@ window.ds_fetchChannels = async function() {
                 
                 dsRoomList.forEach(c => {
                     srcHtml += window.renderTemplate('tpl-ds-source-room', { id: c.id, name: c.name });
-                    targetHtml += `<option value="${c.id}">${c.name}</option>`;
+                    targetHtml += `<option value="${c.id}">${dsEsc(c.name)}</option>`;
                 });
                 document.getElementById('ds_sourceRooms').innerHTML = srcHtml;
                 document.getElementById('ds_targetRoom').innerHTML = targetHtml;
@@ -1090,6 +1122,8 @@ window.ds_fetchChannels = async function() {
 };
 
 window.ds_startMove = async function() {
+    if (!window.dsRequire('ds_move')) return;
+
     const srcIds = Array.from(document.querySelectorAll('input[name="ds_src"]:checked')).map(cb => cb.value);
     const target = document.getElementById('ds_targetRoom').value;
     if (!target || srcIds.length === 0) return Swal.fire('เตือน', 'เลือกห้องต้นทางและปลายทางก่อน', 'warning');
@@ -1109,6 +1143,8 @@ window.ds_startMove = async function() {
 };
 
 window.ds_returnMove = async function() {
+    if (!window.dsRequire('ds_move')) return;
+
     Swal.fire({title: 'กำลังย้ายกลับ...', didOpen: () => Swal.showLoading()});
     try {
         const res = await fetch(`${DISCORD_API_URL}/api/mass-return`, { method: 'POST' });
@@ -1229,7 +1265,7 @@ window._doRenderCheckinTable = function() {
 };
 
 window.updateCheckinStatus = function(uid, val) { checkinStatusMap[uid] = val; _doRenderCheckinTable(); };
-window.clearCheckinStatus = function() { if(confirm('ล้างสถานะทั้งหมด?')) { checkinStatusMap={}; _doRenderCheckinTable(); } };
+window.clearCheckinStatus = function() { if (!window.dsRequire('ds_checkin')) return; if(confirm('ล้างสถานะทั้งหมด?')) { checkinStatusMap={}; _doRenderCheckinTable(); } };
 
 document.addEventListener('paste', e => {
     const dsContentCheckin = document.getElementById('dsContent_checkin');
@@ -1251,6 +1287,8 @@ document.addEventListener('paste', e => {
 window.removeUploadImage = function(idx) { uploadFiles.splice(idx, 1); document.dispatchEvent(new Event('paste')); };
 
 window.sendToTelegram = async function() {
+    if (!window.dsRequire('ds_checkin')) return;
+
     if(uploadFiles.length === 0) return Swal.fire('แจ้งเตือน', 'กรุณากด Ctrl+V เพื่อวางรูปภาพหลักฐานก่อนครับ', 'warning');
     
     // [เปลี่ยน] เอาแผงตั้งค่า Bot ออกจากหน้าแล้ว จึงอ่านค่าจากที่เก็บในเบราว์เซอร์อย่างเดียว
@@ -1474,6 +1512,8 @@ window.selectAllVisibleTransfer = function() {
 };
 
 window.scheduleTransfer = async function() {
+    if (!window.dsRequire('ds_manage')) return;
+
     const ids = Array.from(selectedTransfer);
     const toGroup = document.getElementById('transferToGroup').value;
     const time = document.getElementById('transferTime').value;
@@ -1647,6 +1687,8 @@ window.filterSummaryPopup = function() {
 };
 
 window.delTransfer = async function(id) {
+    if (!window.dsRequire('ds_manage')) return;
+
     await fetch(DISCORD_API_URL + '/api/delete-transfer', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})});
     fetchTransfers();
 };
@@ -2135,7 +2177,7 @@ window.openGroupManagerModal = function(groupName) {
     const allUsersOptions = extStaffList
         .filter(s => !(extStaffGroups[groupName] || []).includes(s.id))
         .sort((a,b) => a.name.localeCompare(b.name))
-        .map(s => `<option value="${s.id}">${s.name}</option>`)
+        .map(s => `<option value="${s.id}">${dsEsc(s.name)}</option>`)
         .join('');
 
     let headerColor = 'text-emerald-400';
@@ -2183,6 +2225,8 @@ window.openGroupManagerModal = function(groupName) {
 };
 
 window.addUserToGroup = async function(groupName) {
+    if (!window.dsRequire('ds_manage')) return;
+
     const select = document.getElementById('addMemberSelect');
     const staffId = select.value;
     if(!staffId) return;
@@ -2217,6 +2261,8 @@ window.addUserToGroup = async function(groupName) {
 };
 
 window.removeUserFromGroup = async function(groupName, staffId) {
+    if (!window.dsRequire('ds_manage')) return;
+
     const listContainer = document.getElementById('modalMemberList');
     listContainer.style.opacity = '0.5';
 
@@ -2235,7 +2281,7 @@ window.removeUserFromGroup = async function(groupName, staffId) {
             const staff = extStaffList.find(s => s.id === staffId);
             if(staff) {
                 const select = document.getElementById('addMemberSelect');
-                select.innerHTML += `<option value="${staff.id}">${staff.name}</option>`;
+                select.innerHTML += `<option value="${staff.id}">${dsEsc(staff.name)}</option>`;
             }
             
             renderGroupList(); 
@@ -2250,6 +2296,8 @@ window.removeUserFromGroup = async function(groupName, staffId) {
 // 🟢 ฟังก์ชันสำหรับเตะคนออกจากเซิร์ฟเวอร์ดิสคอร์ด
 // ==========================================
 window.spy_kickUser = async function(uid, name) {
+    if (!window.dsRequire('ds_spy')) return;
+
     const confirm = await Swal.fire({
         title: 'ยืนยันการเตะ?',
         text: `คุณแน่ใจหรือไม่ที่จะเตะ "${name}" ออกจากเซิร์ฟเวอร์ดิสคอร์ด? (ต้องส่งคำเชิญใหม่หากต้องการให้เข้ามาอีก)`,
@@ -2288,6 +2336,8 @@ window.spy_kickUser = async function(uid, name) {
 // 🌟 ฟังก์ชันลบประวัติย้ายห้องที่เก่ากว่า 7 วัน (เก็บเข้า/ออก/สาย ไว้)
 // ==============================================================
 window.ds_clearOldMoveLogs = async function() {
+    if (!window.dsRequire('ds_log')) return;
+
     const res = await Swal.fire({
         title: 'ล้างประวัติการ "ย้ายห้อง"?',
         text: "ระบบจะลบประวัติการย้ายห้องที่เก่ากว่า 7 วันทิ้งเพื่อลดพื้นที่ (ระบบจะยังเก็บประวัติ 'เข้าห้อง', 'ออกห้อง' และสถิติ 'มาสาย' ไว้ตามปกติครับ)",
@@ -2385,7 +2435,7 @@ window.ds_fetchChannelsForSendMsg = async function() {
                     html += `
                         <label class="ds-channel-item flex items-center gap-3 p-2.5 hover:bg-slate-800 rounded-lg cursor-pointer border border-transparent hover:border-slate-700 transition" data-name="${c.name.toLowerCase()}">
                             <input type="checkbox" value="${c.id}" class="ds-send-channel-cb w-5 h-5 rounded border-gray-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-2 shadow-inner transition cursor-pointer" ${isChecked} onchange="ds_updateSelectedChannelsLabel()">
-                            <span class="text-gray-200 font-bold text-sm truncate">${c.name}</span>
+                            <span class="text-gray-200 font-bold text-sm truncate">${dsEsc(c.name)}</span>
                         </label>
                     `;
                 });
@@ -2489,6 +2539,8 @@ window.ds_loadMsgTemplates = async function() {
 
 // 🌟 บันทึกข้อความเก็บไว้เป็นเทมเพลต (ยิงขึ้นฐานข้อมูลส่วนกลาง)
 window.ds_saveMsgTemplate = async function() {
+    if (!window.dsRequire('ds_sendmsg')) return;
+
     const textEl = document.getElementById('dsSendMsgText');
     if (!textEl) return;
     const text = textEl.value.trim();
@@ -2523,6 +2575,8 @@ window.ds_useMsgTemplate = function(idx) {
 
 // 🌟 ลบข้อความเทมเพลต (ลบออกจากฐานข้อมูลส่วนกลาง)
 window.ds_deleteMsgTemplate = async function(idx) {
+    if (!window.dsRequire('ds_sendmsg')) return;
+
     const res = await Swal.fire({
         title: 'ยืนยันลบข้อความ?',
         text: 'ข้อความนี้จะถูกลบออก และพนักงานทุกคนจะไม่เห็นข้อความนี้อีก',
@@ -2551,6 +2605,8 @@ window.ds_deleteMsgTemplate = async function(idx) {
 
 // ฟังก์ชันยิงคำสั่งให้บอทส่งข้อความ
 window.ds_sendMessage = async function() {
+    if (!window.dsRequire('ds_sendmsg')) return;
+
     const checkboxes = document.querySelectorAll('.ds-send-channel-cb:checked');
     const selectedIds = Array.from(checkboxes).map(cb => cb.value);
     const messageEl = document.getElementById('dsSendMsgText');
