@@ -459,14 +459,18 @@ async function handleLogin(e) {
     });
 
     try {
-        const { data: users, error } = await appDB.from('users').select('*').ilike('username', name);
+        // 🔐 [SECURITY] เดิมดึง users ทั้งแถว (รวม PIN) มาเทียบในเบราว์เซอร์ → ใครเปิด F12 ก็เห็น PIN ทุกคน
+        // ตอนนี้เทียบ PIN ฝั่ง server ผ่าน function verify_login (PIN อยู่ในตาราง user_pins ที่ฝั่งเว็บอ่านไม่ได้)
+        const { data: loginRes, error } = await appDB.rpc('verify_login', { p_username: name, p_pin: pinInput });
+        const loginStatus = loginRes && loginRes.status;
+        const users = (loginStatus === 'ok' || loginStatus === 'first_set') ? [loginRes.user] : [];
         
         if (error) {
             Swal.close(); clearPinInputs();
             return Swal.fire('Database Error', error.message, 'error');
         }
 
-        if (!users || users.length === 0) { 
+        if (loginStatus === 'not_found') { 
             Swal.close(); clearPinInputs(); 
             return Swal.fire({
                 html: `
@@ -487,18 +491,13 @@ async function handleLogin(e) {
             }); 
         }
 
-        const user = users[0];
+        const user = users[0] || null;
 
-        if (!user.password) {
-            const { error: updateError } = await appDB.from('users').update({ password: pinInput }).eq('id', user.id);
-            if (updateError) { 
-                Swal.close(); clearPinInputs(); 
-                return Swal.fire('Error', 'ไม่สามารถบันทึกรหัส PIN ได้', 'error'); 
-            }
-            user.password = pinInput; 
+        if (loginStatus === 'first_set') {
+            // ยังไม่เคยตั้ง PIN → server ตั้งให้แล้วในคำสั่งเดียวกัน (พฤติกรรมเดิม)
             await Swal.fire({ icon: 'success', title: 'ตั้งรหัส PIN สำเร็จ!', timer: 2000 });
         } 
-        else if (user.password !== pinInput) {
+        else if (loginStatus !== 'ok') {
             Swal.close(); clearPinInputs(); 
             if(typeof window.shakeLoginCard==='function') window.shakeLoginCard();
             if(typeof window._loginBeepError==='function') window._loginBeepError();
