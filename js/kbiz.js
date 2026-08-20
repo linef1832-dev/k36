@@ -1,59 +1,4 @@
 // ==========================================
-// 🔐 [SECURITY] ตัวถาม PIN สำหรับหน้าที่มีข้อมูลลับ (ตู้รหัสผ่าน / K BIZ)
-// ถามครั้งเดียวต่อการเปิดเว็บ (จำไว้ในหน่วยความจำ ไม่เขียนลง storage) — refresh แล้วถามใหม่
-// ==========================================
-if (!window.askVaultPin) {
-    window._vaultPin = null;
-    window.askVaultPin = async function(force) {
-        if (window._vaultPin && !force) return window._vaultPin;
-        const { value: pin } = await Swal.fire({
-            title: '🔐 ยืนยันตัวตน',
-            text: 'กรอก PIN 6 หลักของคุณเพื่อเข้าถึงข้อมูลลับ',
-            input: 'password',
-            inputAttributes: { maxlength: 6, inputmode: 'numeric', autocomplete: 'off', pattern: '[0-9]*' },
-            showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#f59e0b',
-            allowOutsideClick: false,
-            customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
-            preConfirm: (v) => { if (!v || v.length !== 6) { Swal.showValidationMessage('PIN ต้องเป็นตัวเลข 6 หลัก'); return false; } return v; }
-        });
-        if (!pin) return null;
-        window._vaultPin = pin;
-        return pin;
-    };
-    // เรียก RPC ที่ต้องใช้ PIN — ถ้า PIN ผิด ล้างค่าที่จำไว้แล้วถามใหม่ 1 ครั้ง
-    window.vaultRpc = async function(fnName, params) {
-        for (let attempt = 0; attempt < 2; attempt++) {
-            const pin = await window.askVaultPin(attempt > 0);
-            if (!pin) return { data: null, error: { message: 'CANCELLED' }, cancelled: true };
-            const { data, error } = await appDB.rpc(fnName, { p_user_id: currentUser.id, p_pin: pin, ...params });
-            if (error && /WRONG_PIN/.test(error.message || '')) {
-                window._vaultPin = null;
-                await Swal.fire('PIN ไม่ถูกต้อง', 'กรุณาลองใหม่', 'error');
-                continue;
-            }
-            if (error && /NO_PERM/.test(error.message || '')) {
-                return { data: null, error: { message: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' } };
-            }
-            return { data, error };
-        }
-        return { data: null, error: { message: 'PIN ไม่ถูกต้อง' } };
-    };
-}
-
-// K BIZ: อ่าน/เขียนข้อมูลลับผ่าน secure_settings (ต้อง PIN + สิทธิ์ kbiz)
-async function kbizSecureGet(key) {
-    const { data, error, cancelled } = await window.vaultRpc('secure_get', { p_key: key });
-    if (cancelled) throw new Error('CANCELLED');
-    if (error) throw new Error(error.message);
-    return data ?? null;
-}
-async function kbizSecureSet(key, value) {
-    const { error, cancelled } = await window.vaultRpc('secure_set', { p_key: key, p_value: value });
-    if (cancelled) throw new Error('CANCELLED');
-    if (error) throw new Error(error.message);
-    return true;
-}
-// ==========================================
 // 🤖 ระบบจัดการบอท K BIZ (K BIZ APP)
 // ==========================================
 let globalKbizBots = [];
@@ -75,7 +20,12 @@ async function fetchKbizData() {
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดข้อมูลบอท...</span></div>';
     try {
-        let rawData = await kbizSecureGet('kbiz_bots_data');   // 🔐 ผ่าน function ต้อง PIN
+        let rawData = await window.getSettingCached('kbiz_bots_data');
+        // [FIX] fallback ดึงตรงจาก DB ถ้า cache ว่าง
+        if (!rawData) {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'kbiz_bots_data').maybeSingle();
+            rawData = data?.value ?? null;
+        }
         // [FIX] getSettingCached คืนค่า value ตรงๆ ไม่ใช่ { key, value }
         if (rawData) {
             globalKbizBots = JSON.parse(rawData);
@@ -88,7 +38,7 @@ async function fetchKbizData() {
                 return b;
             });
             if (needSave) {
-                await kbizSecureSet('kbiz_bots_data', JSON.stringify(globalKbizBots));
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
             }
         } else {
             globalKbizBots = [];
@@ -178,7 +128,7 @@ window.saveKbizBot = async function(e) {
     }
 
     try {
-        await kbizSecureSet('kbiz_bots_data', JSON.stringify(globalKbizBots));
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
         document.getElementById('kbizModal').classList.add('hidden');
         renderKbizGrid();
         Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1500, showConfirmButton: false});
@@ -192,7 +142,7 @@ window.deleteKbizBot = async function(id) {
         if (result.isConfirmed) {
             Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
             globalKbizBots = globalKbizBots.filter(b => String(b.id) !== String(id));
-            await kbizSecureSet('kbiz_bots_data', JSON.stringify(globalKbizBots));
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
             renderKbizGrid();
             Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false});
         }
@@ -249,7 +199,11 @@ async function fetchOcrKeysData() {
     if(!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl mb-2">sync</span><br><span class="text-gray-400 font-bold text-sm">กำลังโหลด API Keys...</span></div>';
     try {
-        let _ocrRaw = await kbizSecureGet('ocr_api_keys_data');   // 🔐
+        let _ocrRaw = await window.getSettingCached('ocr_api_keys_data');
+        if (!_ocrRaw) {
+            const { data: _dbOcr } = await appDB.from('settings').select('value').eq('key', 'ocr_api_keys_data').maybeSingle();
+            _ocrRaw = _dbOcr?.value ?? null;
+        }
         if (_ocrRaw) {
             globalOcrKeys = JSON.parse(_ocrRaw);
             const needSave = autoResetIfNewDay(globalOcrKeys);
@@ -258,7 +212,7 @@ async function fetchOcrKeysData() {
                 if (!k.last_used_date) k.last_used_date = getTodayKey();
             });
             if (needSave) {
-                await kbizSecureSet('ocr_api_keys_data', JSON.stringify(globalOcrKeys));
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
             }
         } else {
             globalOcrKeys = [];
@@ -397,7 +351,7 @@ window.saveOcrKey = async function(e) {
     }
 
     try {
-        await kbizSecureSet('ocr_api_keys_data', JSON.stringify(globalOcrKeys));
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
         document.getElementById('ocrKeyModal').classList.add('hidden');
         renderOcrKeysGrid();
         Swal.fire({icon: 'success', title: id ? 'แก้ไขสำเร็จ!' : 'เพิ่ม Key สำเร็จ!', timer: 1500, showConfirmButton: false});
@@ -418,7 +372,7 @@ window.deleteOcrKey = async function(id) {
         if (result.isConfirmed) {
             Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
             globalOcrKeys = globalOcrKeys.filter(k => String(k.id) !== String(id));
-            await kbizSecureSet('ocr_api_keys_data', JSON.stringify(globalOcrKeys));
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
             renderOcrKeysGrid();
             Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false});
         }
@@ -439,7 +393,7 @@ window.resetOcrKeyUsage = async function(id) {
             if (!k) return;
             k.used_count = 0;
             k.last_used_date = getTodayKey();
-            await kbizSecureSet('ocr_api_keys_data', JSON.stringify(globalOcrKeys));
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
             renderOcrKeysGrid();
             Swal.fire({icon: 'success', title: 'รีเซ็ตแล้ว!', timer: 1200, showConfirmButton: false});
         }
@@ -462,7 +416,11 @@ let globalTelegramConfig = {};
 async function fetchTelegramBotConfig() {
     if (!document.getElementById('telegramBotToken')) return;
     try {
-        let _tgRaw = await kbizSecureGet('telegram_bot_config');   // 🔐
+        let _tgRaw = await window.getSettingCached('telegram_bot_config');
+        if (!_tgRaw) {
+            const { data: _dbTg } = await appDB.from('settings').select('value').eq('key', 'telegram_bot_config').maybeSingle();
+            _tgRaw = _dbTg?.value ?? null;
+        }
         if (_tgRaw) {
             globalTelegramConfig = JSON.parse(_tgRaw);
         } else {
@@ -541,7 +499,7 @@ window.saveTelegramConfig = async function(e) {
 
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
     try {
-        await kbizSecureSet('telegram_bot_config', JSON.stringify(config));
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'telegram_bot_config', value: JSON.stringify(config) }]);
         globalTelegramConfig = config;
         renderTelegramBotConfig();
         Swal.fire({
