@@ -448,6 +448,7 @@ window.refreshDutyData = async function() {
         const stayPinKey = `duty_stay_pins_${currentDutyDept}`;   // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน
         const supportKey = `duty_support_${currentDutyDept}_${targetDate}_${shiftFilter}`;  // 🤝 ตารางซัพพอร์ตข้ามเว็บ
         const mergeKey = `duty_merge_rooms_${targetDate}_${shiftFilter}`;   // 🏠 ผลรวมห้อง Discord (ย้ายจาก localStorage มาเก็บ DB)
+        const backupKey = `backup_${saveKey}`;                               // 💾 สำเนาตารางก่อนล้าง (ย้ายจาก localStorage มาเก็บ DB)
 
         // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (leaves + schedules + settings) ลด latency 3 เท่า
         // [FIX] ดึง scheduled_tasks ของวันนั้นมาด้วย เพื่อแยกทิศทางของ XX
@@ -462,7 +463,7 @@ window.refreshDutyData = async function() {
         const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey, mergeKey]),
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey, mergeKey, backupKey]),
             appDB.from('scheduled_tasks').select('payload, scheduled_for, status')
                 .eq('task_type', 'individual_shift_update')
                 .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
@@ -662,7 +663,9 @@ window.refreshDutyData = async function() {
             window.renderHelpCalcPanel();
         }
 
-        const backupData = localStorage.getItem(`backup_${saveKey}`);
+        // 💾 [FIX] backup อ่านจาก DB ก่อน (กู้ได้จากทุกเครื่อง) ถ้าไม่มีค่อยดู localStorage ของเครื่องนี้
+        const backupRow = (settingsRes && settingsRes.data) ? settingsRes.data.find(d => d.key === backupKey) : null;
+        const backupData = (backupRow && backupRow.value) || window.safeGetItem(backupKey, null);
         const btnRestore = document.getElementById('btnRestoreRoster');
         if (btnRestore) {
             if (backupData && (!savedRoster || !savedRoster.value)) btnRestore.classList.remove('hidden');
@@ -966,7 +969,9 @@ window.clearDutyRoster = async function() {
                 if (currentData && currentData.length > 0) currentDataVal = currentData[0].value;
                 
                 if (currentDataVal) {
+                    // 💾 [FIX] เก็บสำเนาลง DB ด้วย (เดิม localStorage อย่างเดียว กู้ได้แค่เครื่องที่กดล้าง)
                     window.safeSetItem(`backup_${saveKey}`, currentDataVal);
+                    await appDB.from('settings').upsert([{ key: `backup_${saveKey}`, value: currentDataVal }]);
                 }
                 
                 await appDB.from('settings').delete().eq('key', saveKey);
@@ -3939,7 +3944,14 @@ window.restoreDutyRoster = async function() {
     if(!targetDate) return Swal.fire('!', 'กรุณาเลือกวันที่ก่อน', 'warning');
 
     const saveKey = getDutySaveKey(targetDate, shiftFilter);
-    const backupData = localStorage.getItem(`backup_${saveKey}`);
+
+    // 💾 [FIX] ดึง backup จาก DB ก่อน ถ้าไม่มีค่อยใช้ของเครื่องนี้
+    let backupData = null;
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', `backup_${saveKey}`);
+        if (data && data.length > 0 && data[0].value) backupData = data[0].value;
+    } catch (e) {}
+    if (!backupData) backupData = window.safeGetItem(`backup_${saveKey}`, null);
 
     if (!backupData) {
         return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลสำรองสำหรับกะและวันที่นี้ครับ', 'error');
