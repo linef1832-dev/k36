@@ -67,27 +67,71 @@
             </div>
         </div>
 
-        <!-- แถว 3: ตั้งค่า Telegram Bot -->
+        <!-- แถว 2.5: ฟอร์มหลายยูส (ODOL) -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
                 <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-sky-500 text-sm">send</span> ตั้งค่า Telegram Bot (Railway)
+                    <span class="material-icons text-purple-500 text-sm">groups</span> ฟอร์มหลายยูส (ODOL)
                 </h2>
+                <button onclick="odCfg_addNote()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มหมายเหตุ</button>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">ตัวเลือกหมายเหตุ (คลิก ★ เพื่อตั้งเป็นค่าเริ่มต้น)</label>
+                    <div id="odCfgNoteList" class="flex flex-wrap gap-2 min-h-12"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องสำหรับฟอร์มหลายยูส</label>
+                    <input type="text" id="odCfgOdolChatId" placeholder="เว้นว่าง = ใช้ห้องเดียวกับ OD"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                    <p class="text-xs text-gray-400 mt-1">ถ้าอยากให้ฟอร์มนี้ส่งไปอีกห้อง ใส่ -100… ที่นี่</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- แถว 3: ตั้งค่า + ควบคุม Telegram Bot -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-sky-500 text-sm">smart_toy</span> Telegram Bot (Railway)
+                    <span id="odCfgBotBadge" class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">ยังไม่เช็ค</span>
+                </h2>
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="odCfg_botStatus()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">refresh</span> เช็คสถานะ</button>
+                    <button id="odCfgBtnToggle" onclick="odCfg_botToggle()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">power_settings_new</span> เปิด/ปิดบอท</button>
+                    <button onclick="odCfg_botTest('od')" class="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ OD</button>
+                    <button onclick="odCfg_botTest('odol')" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ODOL</button>
+                </div>
             </div>
             <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Railway API URL</label>
                     <input type="text" id="odCfgServerUrl" placeholder="https://od-form-bot-production.up.railway.app"
                         class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
-                    <p class="text-xs text-gray-400 mt-1">URL ของ Railway server ที่รับส่งข้อความ</p>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Group Chat ID (Telegram)</label>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Group Chat ID (ห้องหลัก สำหรับ OD)</label>
                     <input type="text" id="odCfgChatId" placeholder="-100XXXXXXXXXX"
                         class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
-                    <p class="text-xs text-gray-400 mt-1">ID กลุ่ม Telegram ที่จะส่งข้อความไป</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Bot Token (จาก @BotFather)</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="odCfgBotToken" placeholder="เว้นว่าง = ใช้ BOT_TOKEN ใน Railway"
+                            class="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                        <button type="button" onclick="const i=document.getElementById('odCfgBotToken'); i.type=i.type==='password'?'text':'password'" class="px-3 rounded-xl border border-gray-300 dark:border-slate-600 text-gray-400 hover:text-white"><span class="material-icons text-sm">visibility</span></button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">เปลี่ยนบอทได้โดยไม่ต้อง redeploy — กดบันทึกแล้วเช็คสถานะ</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Admin Key (ตรงกับ ADMIN_KEY ใน Railway)</label>
+                    <input type="password" id="odCfgAdminKey" placeholder="ใช้ยืนยันตัวตอนสั่งบอท — เก็บเฉพาะในเครื่องนี้"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                        onchange="localStorage.setItem('od_admin_key', this.value.trim())">
+                    <p class="text-xs text-gray-400 mt-1">ไม่ถูกบันทึกลง Supabase</p>
                 </div>
             </div>
+            <div id="odCfgBotInfo" class="mx-4 mb-4 p-3 rounded-xl bg-slate-950 text-xs text-slate-300 font-mono whitespace-pre-wrap hidden"></div>
         </div>
 
         <!-- Preview JSON -->
