@@ -923,6 +923,23 @@ window.generateDutyRoster = async function() {
     let requiredCount = 0; document.querySelectorAll('.req-input').forEach(i => requiredCount += (parseInt(i.value) || 0));
 
     if(activeStaff.length === 0) return Swal.fire('ข้อมูลไม่พอ', `ไม่มีพนักงานมาทำงานในกะนี้เลย (ลองเช็คสิทธิ์หรือรายชื่ออีกครั้ง)`, 'error');
+
+    // 🔧 [FIX] ถ้ายังไม่ได้ระบุจำนวนคนต่อเว็บ (ทุกช่องเป็น 0) ระบบเดิมจะวนลูปไม่จัดใครเลย
+    // แล้วไปฟ้องว่า "ไม่ได้ติ๊กสิทธิ์" ทั้งที่สิทธิ์ครบ → ให้คำนวณยอดออโต้ให้ก่อน แล้วค่อยจัด
+    if (requiredCount === 0) {
+        const ask = await Swal.fire({
+            icon: 'question',
+            title: 'ยังไม่ได้ระบุจำนวนคนต่อเว็บ',
+            html: `ช่องจำนวนคนทุกเว็บเป็น <b>0</b> อยู่ ระบบจึงจัดใครลงเว็บไม่ได้<br><br>ให้ระบบ <b>คำนวณยอดคนออโต้</b> (${activeStaff.length} คน) แล้วจัดหน้าที่ต่อเลยไหมครับ?`,
+            showCancelButton: true,
+            confirmButtonText: '⚡ คำนวณออโต้แล้วจัดเลย',
+            cancelButtonText: 'ยกเลิก ไปกรอกเอง'
+        });
+        if (!ask.isConfirmed) return;
+        window.autoSuggestRequirements();
+        requiredCount = 0; document.querySelectorAll('.req-input').forEach(i => requiredCount += (parseInt(i.value) || 0));
+        if (requiredCount === 0) return; // autoSuggest ฟ้อง error ไปแล้ว (เช่น ไม่มีใครมีสิทธิ์เลย)
+    }
     if(requiredCount > activeStaff.length) return Swal.fire('ขาดคน!', `คุณจัดงาน ${requiredCount} คน แต่มีคนว่างแค่ ${activeStaff.length} คน (กรุณาลดจำนวน)`, 'error');
 
     Swal.fire({title: 'กำลังจัดตารางหลัก...', text: 'ระบบกำลังจัดหน้าที่หลัก โดยจะยังไม่แจกงานรอง...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
@@ -1162,8 +1179,17 @@ ${summaryParts.join(' | ')}`;
         }
 
         if (unassignedPool.length > 0) {
-            const leftNames = unassignedPool.map(u => u.username).join(', ');
-            Swal.fire({ icon: 'warning', title: `จัดหลักสำเร็จ! (มีคนเหลือ)`, html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b> เพราะไม่ได้ติ๊กสิทธิ์หลังบ้านไว้:<br><br><span class="text-red-500 font-bold">${leftNames}</span>${pinSummary}` });
+            // 🔧 [FIX] แยกสาเหตุให้ชัด: ไม่มีสิทธิ์เว็บไหนเลย vs มีสิทธิ์แต่โควตาเว็บเต็มแล้ว
+            const noAccess = unassignedPool.filter(u => !(dutyAccessMatrix[String(u.id)] || []).some(t => sortedTeams.includes(t)));
+            const quotaFull = unassignedPool.filter(u => !noAccess.includes(u));
+            let reasonHtml = '';
+            if (quotaFull.length > 0) {
+                reasonHtml += `<div style="margin-top:6px">มีสิทธิ์แต่<b>โควตาเว็บเต็ม</b> (ตั้งจำนวนรวม ${requiredCount} คน แต่มาทำ ${activeStaff.length} คน) <b>${quotaFull.length} คน</b>:<br><span class="text-amber-500 font-bold">${quotaFull.map(u => u.username).join(', ')}</span><br><span style="font-size:11px;opacity:.8">→ เพิ่มจำนวนคนต่อเว็บ หรือกด "คำนวณยอดคนออโต้" แล้วล้างตารางจัดใหม่</span></div>`;
+            }
+            if (noAccess.length > 0) {
+                reasonHtml += `<div style="margin-top:6px">ไม่ได้ติ๊กสิทธิ์หลังบ้านเว็บไหนเลย <b>${noAccess.length} คน</b>:<br><span class="text-red-500 font-bold">${noAccess.map(u => u.username).join(', ')}</span></div>`;
+            }
+            Swal.fire({ icon: 'warning', title: `จัดหลักสำเร็จ! (มีคนเหลือ)`, html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b>${reasonHtml}${pinSummary}` });
         } else if (pinSummary) {
             Swal.fire({ icon: 'success', title: `จัดตำแหน่งหลักสำเร็จ!`, html: `กรุณากดปุ่มสายฟ้า (จัดตำแหน่งรองด่วน) เพื่อจับคู่เวลาพักครับ${pinSummary}` });
         } else {
@@ -2385,7 +2411,7 @@ window.renderDutyRequirements = function() {
     const container = document.getElementById('dutyRequirements');
     if(!container) return;
     container.innerHTML = '';
-    const savedReqs = JSON.parse(localStorage.getItem(`duty_reqs_${currentDutyDept}`) || '{}');
+    const savedReqs = JSON.parse(window.safeGetItem(`duty_reqs_${currentDutyDept}`, '{}') || '{}');
 
     sortedTeams.forEach((team, index) => {
         const reqKey = `req_${team}`;
