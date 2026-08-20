@@ -90,7 +90,6 @@ const TEAM_COLORS = {
     'JL69': { bg: 'bg-slate-500', text: 'text-white', border: 'border-slate-700', lightBg: 'bg-slate-200', lightText: 'text-slate-800' },
     'TH26': { bg: 'bg-gray-700', text: 'text-white', border: 'border-gray-900', lightBg: 'bg-gray-200', lightText: 'text-gray-800' },
     'VV72': { bg: 'bg-red-800', text: 'text-white', border: 'border-red-950', lightBg: 'bg-red-100', lightText: 'text-red-800' },
-    'Vv72': { bg: 'bg-green-700', text: 'text-white', border: 'border-green-900', lightBg: 'bg-green-100', lightText: 'text-green-800' }, 
     'NM9': { bg: 'bg-pink-500', text: 'text-white', border: 'border-pink-700', lightBg: 'bg-pink-100', lightText: 'text-pink-800' },
     'สอนงาน': { bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-700', lightBg: 'bg-emerald-100', lightText: 'text-emerald-800' },
     'Telegram': { bg: 'bg-sky-500', text: 'text-white', border: 'border-sky-700', lightBg: 'bg-sky-100', lightText: 'text-sky-800' },
@@ -158,6 +157,37 @@ window.initDutyApp = async function() {
     finally { Swal.close(); }
 }
 
+// [FIX] ชื่อเว็บ VV72 เคยถูกพิมพ์เป็น 'Vv72' ในข้อมูลเก่า ทำให้มี 2 key ซ้อนกัน
+// (สีคนละสี / หัวข้อแยกกัน / ต้อง hack `web === 'VV72' ? 'Vv72' : web` ทุกจุด)
+// รวมให้เหลือ 'VV72' ตัวเดียวตอนโหลด — คืนค่า true ถ้ามีการแก้ (จะได้เขียนกลับ DB ทีเดียว)
+const TEAM_ALIASES = { 'Vv72': 'VV72' };
+window.normalizeTeamName = function(t) { return TEAM_ALIASES[t] || t; };
+
+function normalizeRolesObject(roles) {
+    let changed = false;
+    Object.keys(TEAM_ALIASES).forEach(oldKey => {
+        if (!(oldKey in roles)) return;
+        const newKey = TEAM_ALIASES[oldKey];
+        const merged = [...(roles[newKey] || [])];
+        (roles[oldKey] || []).forEach(r => { if (!merged.includes(r)) merged.push(r); });
+        roles[newKey] = merged;
+        delete roles[oldKey];
+        changed = true;
+    });
+    return changed;
+}
+function normalizeAccessMatrix(matrix) {
+    let changed = false;
+    Object.keys(matrix).forEach(uid => {
+        const arr = matrix[uid];
+        if (!Array.isArray(arr)) return;
+        const fixed = [];
+        arr.forEach(t => { const n = window.normalizeTeamName(t); if (!fixed.includes(n)) fixed.push(n); });
+        if (fixed.length !== arr.length || fixed.some((t, i) => t !== arr[i])) { matrix[uid] = fixed; changed = true; }
+    });
+    return changed;
+}
+
 window.loadDutyAccessAndRoles = async function() {
     try {
         const { data } = await appDB.from('settings').select('*').in('key', ['duty_access_matrix', 'duty_custom_roles']);
@@ -165,16 +195,23 @@ window.loadDutyAccessAndRoles = async function() {
             const accessData = data.find(d => d.key === 'duty_access_matrix');
             if(accessData && accessData.value) dutyAccessMatrix = JSON.parse(accessData.value);
             else dutyAccessMatrix = {};
+            if (normalizeAccessMatrix(dutyAccessMatrix)) {
+                window.clearSettingCache();
+                appDB.from('settings').upsert([{ key: 'duty_access_matrix', value: JSON.stringify(dutyAccessMatrix) }]).then(() => {}, () => {});
+            }
 
             const rolesData = data.find(d => d.key === 'duty_custom_roles');
             if(rolesData && rolesData.value && Object.keys(JSON.parse(rolesData.value)).length > 0) {
                 customDutyRoles = JSON.parse(rolesData.value);
+                if (normalizeRolesObject(customDutyRoles)) {
+                    window.clearSettingCache();
+                    appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]).then(() => {}, () => {});
+                }
             } else { 
                 // ค่าเริ่มต้นสำหรับแต่ละเว็บ
                 customDutyRoles = {
                     'Jun88': [],
                     'MK8': [],
-                    'Vv72': [],
                     'VV72': [],
                     'TH26': [],
                     'K188': [],
@@ -410,6 +447,7 @@ window.refreshDutyData = async function() {
         const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
         const stayPinKey = `duty_stay_pins_${currentDutyDept}`;   // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน
         const supportKey = `duty_support_${currentDutyDept}_${targetDate}_${shiftFilter}`;  // 🤝 ตารางซัพพอร์ตข้ามเว็บ
+        const mergeKey = `duty_merge_rooms_${targetDate}_${shiftFilter}`;   // 🏠 ผลรวมห้อง Discord (ย้ายจาก localStorage มาเก็บ DB)
 
         // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (leaves + schedules + settings) ลด latency 3 เท่า
         // [FIX] ดึง scheduled_tasks ของวันนั้นมาด้วย เพื่อแยกทิศทางของ XX
@@ -424,7 +462,7 @@ window.refreshDutyData = async function() {
         const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey]),
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey, mergeKey]),
             appDB.from('scheduled_tasks').select('payload, scheduled_for, status')
                 .eq('task_type', 'individual_shift_update')
                 .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
@@ -481,9 +519,30 @@ window.refreshDutyData = async function() {
         window.lockedImportantTasks = {};
         window.dutyStayPins = {};
         window.currentSupportData = {};
+        window.savedMergeRooms = [];
 
         try {
             const data = settingsRes && settingsRes.data;
+
+            // 🏠 ผลรวมห้อง Discord — เดิมเก็บ localStorage (เห็นแค่เครื่องเดียว) ย้ายมา DB
+            // ถ้า DB ยังไม่มีแต่เครื่องนี้เคยบันทึกไว้ใน localStorage ให้ย้ายขึ้น DB ให้อัตโนมัติครั้งเดียว
+            const mergeRow = data ? data.find(d => d.key === mergeKey) : null;
+            if (mergeRow && mergeRow.value) {
+                try { const m = JSON.parse(mergeRow.value); window.savedMergeRooms = Array.isArray(m) ? m : []; } catch (e) {}
+            } else {
+                const legacy = window.safeGetItem(mergeKey, null);
+                if (legacy) {
+                    try {
+                        const m = JSON.parse(legacy);
+                        if (Array.isArray(m) && m.length > 0) {
+                            window.savedMergeRooms = m;
+                            window.clearSettingCache();
+                            appDB.from('settings').upsert([{ key: mergeKey, value: legacy }]).then(() => { try { localStorage.removeItem(mergeKey); } catch (e) {} }, () => {});
+                        }
+                    } catch (e) {}
+                }
+            }
+
             if (data && data.length > 0) {
                 const rosterRow = data.find(d => d.key === saveKey);
                 if (rosterRow && rosterRow.value) savedRoster = rosterRow;
@@ -2157,7 +2216,7 @@ document.addEventListener('paste', function(e) {
 window.openDutyHistoryModal = async function() {
     Swal.fire({title: 'กำลังโหลดประวัติ...', didOpen: () => Swal.showLoading()});
     try {
-        const { data, error } = await appDB.from('system_logs').select('*').in('action_type', ['จัดหน้าที่', 'สุ่มจัดหน้าที่', 'แจกงานรอง', 'ล้างงานรอง', 'ล้างตารางงาน', 'ประเมินงานผู้สอน', 'ย้ายหน้าที่', 'กู้คืนตารางงาน']).order('created_at', { ascending: false }).limit(50);
+        const { data, error } = await appDB.from('system_logs').select('*').in('action_type', ['จัดหน้าที่', 'สุ่มจัดหน้าที่', 'แจกงานรอง', 'ล้างงานรอง', 'ล้างตารางงาน', 'ประเมินงานผู้สอน', 'ย้ายหน้าที่', 'กู้คืนตารางงาน', 'รวมห้อง Discord', 'จัดซัพพอร์ต', 'ล็อกอยู่ต่อ']).order('created_at', { ascending: false }).limit(50);
         if (error) throw error;
 
         let rows = '';
@@ -2174,6 +2233,9 @@ window.openDutyHistoryModal = async function() {
                 if (log.action_type === 'แจกงานรอง') badgeColor = 'text-cyan-600 bg-cyan-100 border-cyan-200';
                 if (log.action_type === 'ล้างงานรอง') badgeColor = 'text-sky-700 bg-sky-100 border-sky-300';
                 if (log.action_type === 'กู้คืนตารางงาน') badgeColor = 'text-emerald-600 bg-emerald-100 border-emerald-200';
+                if (log.action_type === 'รวมห้อง Discord') badgeColor = 'text-violet-600 bg-violet-100 border-violet-200';
+                if (log.action_type === 'จัดซัพพอร์ต') badgeColor = 'text-teal-700 bg-teal-100 border-teal-300';
+                if (log.action_type === 'ล็อกอยู่ต่อ') badgeColor = 'text-amber-700 bg-amber-100 border-amber-300';
 
                 rows += `
                     <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition text-xs">
@@ -2685,8 +2747,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     const webColors = {
         'Jun88': 'bg-blue-600 text-white',
         'MK8': 'bg-black text-yellow-400',
-        'VV72': 'bg-green-700 text-white',
-        'Vv72': 'bg-green-700 text-white',
+        'VV72': 'bg-red-800 text-white',     // [FIX] ให้ตรงกับ TEAM_COLORS (เดิมเขียว ไม่ตรงกับการ์ดหน้าหลัก)
         'TH26': 'bg-gray-700 text-white',
         'K188': 'bg-sky-500 text-white',
         'BT678': 'bg-red-600 text-white',
@@ -2717,7 +2778,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     let globalPoolIndex = 0; 
 
     matrixWebsites.forEach(web => {
-        let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
+        let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
         
         let primaryUsers = (rosterData[web] || []).filter(u => !u.username.includes('ขาดคน'));
@@ -2818,7 +2879,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
             if (!userTaskRoles[u.id]) userTaskRoles[u.id] = {};
             if (!userTaskRoles[u.id][sWeb]) userTaskRoles[u.id][sWeb] = {};
             
-            let sWebTasks = customDutyRoles[sWeb] || customDutyRoles[(sWeb === 'VV72' ? 'Vv72' : sWeb)] || ['ไม่มีหัวข้อ'];
+            let sWebTasks = customDutyRoles[sWeb] || ['ไม่มีหัวข้อ'];
             if(sWebTasks.length === 0) sWebTasks = ['-'];
             
             let sTaskIndex = (idx + 1) % sWebTasks.length;
@@ -2845,7 +2906,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     html += `<th rowspan="2" class="border border-slate-300 dark:border-slate-700 p-3 w-[180px] min-w-[180px] whitespace-nowrap text-[15px] od-divider">รายชื่อผู้ดูแล</th>`;
     
     matrixWebsites.forEach(web => {
-        let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
+        let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
 
         let bgColor = webColors[web] || 'bg-slate-700 text-white';
@@ -2854,7 +2915,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     html += `</tr><tr>`;
     
     matrixWebsites.forEach(web => {
-        let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
+        let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
         if (webTasks.length === 0) webTasks = ['-'];
         
         webTasks.forEach((task, tIdx) => {
@@ -2911,7 +2972,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
             </td>`;
             
             matrixWebsites.forEach(web => {
-                let webTasks = customDutyRoles[web] || customDutyRoles[(web === 'VV72' ? 'Vv72' : web)] || ['ไม่มีหัวข้อ'];
+                let webTasks = customDutyRoles[web] || ['ไม่มีหัวข้อ'];
                 if (webTasks.length === 0) webTasks = ['-'];
                 
                 webTasks.forEach((task, tIdx) => {
@@ -3064,12 +3125,8 @@ window.renderImportantTasksPanel = function() {
     // ===== โหลดผลรวมห้องที่บันทึกไว้ =====
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    const mergeKey = `duty_merge_rooms_${targetDate}_${shiftFilter}`;
-    let savedRooms = [];
-    try {
-        const raw = localStorage.getItem(mergeKey);
-        if (raw) savedRooms = JSON.parse(raw);
-    } catch(e) {}
+    // [FIX] อ่านจากค่าที่ refreshDutyData โหลดมาจาก DB (เดิมอ่าน localStorage เห็นแค่เครื่องเดียว)
+    const savedRooms = Array.isArray(window.savedMergeRooms) ? window.savedMergeRooms : [];
 
     const isSaved = savedRooms.length > 0;
     const isEditing = window.currentMergeRooms && window.currentMergeRooms.length > 0 && !isSaved;
@@ -4636,13 +4693,28 @@ window.shuffleMergeRoomsInline = async function() {
 };
 
 // บันทึกผลรวมห้อง
-window.saveMergeRooms = function() {
+window.saveMergeRooms = async function() {
+    if (!window.isDutyAdmin()) return;
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
     const key = `duty_merge_rooms_${targetDate}_${shiftFilter}`;
-    localStorage.setItem(key, JSON.stringify(window.currentMergeRooms));
-    window.renderImportantTasksPanel();
-    Swal.fire({ icon: 'success', title: 'บันทึกการรวมห้องแล้ว!', timer: 1500, showConfirmButton: false });
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        // [FIX] บันทึกลง DB ให้ทุกเครื่อง/ทุกแอดมินเห็นตรงกัน (เดิม localStorage)
+        window.clearSettingCache();
+        const { error } = await appDB.from('settings').upsert([{ key, value: JSON.stringify(window.currentMergeRooms) }]);
+        if (error) throw error;
+        window.savedMergeRooms = [...window.currentMergeRooms];
+        try {
+            await appDB.from('system_logs').insert([{
+                action_type: 'รวมห้อง Discord', performed_by: currentUser.username,
+                target_details: `บันทึกการรวมห้อง (${shiftFilter}, ${targetDate}) — ` + window.currentMergeRooms.map(r => `ห้อง ${r.id}: ${r.teams.join('+')}`).join(' | ')
+            }]);
+        } catch (e) {}
+        window.debouncedBroadcast('duty-updates', 'force_reload');
+        window.renderImportantTasksPanel();
+        Swal.fire({ icon: 'success', title: 'บันทึกการรวมห้องแล้ว!', timer: 1500, showConfirmButton: false });
+    } catch (e) { Swal.fire('Error', e.message, 'error'); }
 };
 
 // ลบผลรวมห้องที่บันทึกไว้
@@ -4655,12 +4727,21 @@ window.deleteMergeRooms = function() {
         confirmButtonColor: '#ef4444',
         confirmButtonText: 'ลบเลย',
         cancelButtonText: 'ยกเลิก'
-    }).then(result => {
+    }).then(async result => {
         if (result.isConfirmed) {
             const targetDate = document.getElementById('dutyDate').value;
             const shiftFilter = document.getElementById('dutyShiftSelect').value;
             const key = `duty_merge_rooms_${targetDate}_${shiftFilter}`;
-            localStorage.removeItem(key);
+            try {
+                window.clearSettingCache();
+                await appDB.from('settings').delete().eq('key', key);
+                try { localStorage.removeItem(key); } catch (e) {}
+                try {
+                    await appDB.from('system_logs').insert([{ action_type: 'รวมห้อง Discord', performed_by: currentUser.username, target_details: `ลบการรวมห้อง (${shiftFilter}, ${targetDate})` }]);
+                } catch (e) {}
+                window.debouncedBroadcast('duty-updates', 'force_reload');
+            } catch (e) { return Swal.fire('Error', e.message, 'error'); }
+            window.savedMergeRooms = [];
             window.currentMergeRooms = [];
             window.renderImportantTasksPanel();
         }
@@ -5269,80 +5350,17 @@ window.calcHelpTime = async function() {
     if (Object.keys(roster).length === 0) roster = currentRosterData || {};
     if (schedules.length === 0) schedules = window.currentDutySchedules || [];
 
-    // สร้าง map เวลาพักของแต่ละคน
-    const breakMap = {};
-    schedules.forEach(sc => {
-        if (!breakMap[sc.staff_name]) breakMap[sc.staff_name] = [];
-        (sc.time_slot || '').split(',').map(t => t.trim()).filter(Boolean).forEach(slot => {
-            const [s, e] = slot.split('-').map(timeToMin);
-            if (s == null || e == null) return;
-            if (cfg.start >= 20*60 && s < 12*60) {
-                breakMap[sc.staff_name].push({ s: s + 24*60, e: e + 24*60 });
-            } else {
-                breakMap[sc.staff_name].push({ s, e });
-            }
-        });
-    });
-
-    // คำนวณนาทีที่โดนพักในช่วง [slotStart, slotEnd]
-    function breakOverlap(name, slotStart, slotEnd) {
-        return (breakMap[name] || []).reduce((total, br) => {
-            const overlap = Math.min(br.e, slotEnd) - Math.max(br.s, slotStart);
-            return total + Math.max(0, overlap);
-        }, 0);
-    }
-
+    // [REFACTOR] เดิมเขียน breakMap + greedy ซ้ำกับ buildBreakMap/splitShiftAmong
+    // ใช้ตัวเดียวกับระบบซัพพอร์ตข้ามเว็บ (มีรอบสลับคู่ เลี่ยงเวลาพักได้ดีกว่า greedy อย่างเดียว)
+    const breakMap = window.buildBreakMap(schedules, cfg);
     const results = [];
 
-    // คำนวณแยกแต่ละเว็บ — ทุกเว็บ ไม่ต้องเลือก
     Object.keys(roster).forEach(team => {
-        const members = (roster[team] || []).filter(u => !u.username?.includes('ขาดคน'));
+        const members = (roster[team] || []).filter(u => u && !String(u.username || '').includes('ขาดคน'));
         if (members.length === 0) return;
-
-        const n = members.length;
-        const slotMin = Math.floor(shiftDuration / n);
-
-        // สร้างช่วงเวลา N ช่วง
-        const slots = Array.from({ length: n }, (_, i) => ({
-            start: cfg.start + i * slotMin,
-            end: cfg.start + (i + 1) * slotMin
-        }));
-        slots[n - 1].end = cfg.end;
-
-        // cost matrix [คน][ช่วง]
-        const cost = members.map(u =>
-            slots.map(slot => breakOverlap(u.username, slot.start, slot.end))
-        );
-
-        // Greedy: จับคู่คนกับช่วงที่โดนพักน้อยที่สุด
-        const usedSlots = new Set();
-        const usedMembers = new Set();
-        const pairs = [];
-
-        const allPairs = [];
-        members.forEach((_, mi) => slots.forEach((_, si) => {
-            allPairs.push({ mi, si, cost: cost[mi][si] });
-        }));
-        allPairs.sort((a, b) => a.cost - b.cost);
-
-        allPairs.forEach(({ mi, si, cost: c }) => {
-            if (usedMembers.has(mi) || usedSlots.has(si)) return;
-            usedMembers.add(mi);
-            usedSlots.add(si);
-            pairs.push({ mi, si, breakMin: c });
-        });
-
-        pairs.sort((a, b) => a.si - b.si);
-
-        pairs.forEach(({ mi, si, breakMin }) => {
-            results.push({
-                team,
-                name: members[mi].username,
-                helpStart: slots[si].start,
-                helpEnd: slots[si].end,
-                breakMin,
-                slotMin
-            });
+        const slotMin = Math.floor(shiftDuration / members.length);
+        window.splitShiftAmong(members, cfg, breakMap).forEach(sl => {
+            results.push({ team, name: sl.name, helpStart: sl.start, helpEnd: sl.end, breakMin: sl.breakMin, slotMin });
         });
     });
 
