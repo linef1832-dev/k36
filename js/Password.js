@@ -1,4 +1,46 @@
 // ==========================================
+// 🔐 [SECURITY] ตัวถาม PIN สำหรับหน้าที่มีข้อมูลลับ (ตู้รหัสผ่าน / K BIZ)
+// ถามครั้งเดียวต่อการเปิดเว็บ (จำไว้ในหน่วยความจำ ไม่เขียนลง storage) — refresh แล้วถามใหม่
+// ==========================================
+if (!window.askVaultPin) {
+    window._vaultPin = null;
+    window.askVaultPin = async function(force) {
+        if (window._vaultPin && !force) return window._vaultPin;
+        const { value: pin } = await Swal.fire({
+            title: '🔐 ยืนยันตัวตน',
+            text: 'กรอก PIN 6 หลักของคุณเพื่อเข้าถึงข้อมูลลับ',
+            input: 'password',
+            inputAttributes: { maxlength: 6, inputmode: 'numeric', autocomplete: 'off', pattern: '[0-9]*' },
+            showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#f59e0b',
+            allowOutsideClick: false,
+            customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+            preConfirm: (v) => { if (!v || v.length !== 6) { Swal.showValidationMessage('PIN ต้องเป็นตัวเลข 6 หลัก'); return false; } return v; }
+        });
+        if (!pin) return null;
+        window._vaultPin = pin;
+        return pin;
+    };
+    // เรียก RPC ที่ต้องใช้ PIN — ถ้า PIN ผิด ล้างค่าที่จำไว้แล้วถามใหม่ 1 ครั้ง
+    window.vaultRpc = async function(fnName, params) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const pin = await window.askVaultPin(attempt > 0);
+            if (!pin) return { data: null, error: { message: 'CANCELLED' }, cancelled: true };
+            const { data, error } = await appDB.rpc(fnName, { p_user_id: currentUser.id, p_pin: pin, ...params });
+            if (error && /WRONG_PIN/.test(error.message || '')) {
+                window._vaultPin = null;
+                await Swal.fire('PIN ไม่ถูกต้อง', 'กรุณาลองใหม่', 'error');
+                continue;
+            }
+            if (error && /NO_PERM/.test(error.message || '')) {
+                return { data: null, error: { message: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' } };
+            }
+            return { data, error };
+        }
+        return { data: null, error: { message: 'PIN ไม่ถูกต้อง' } };
+    };
+}
+
+// ==========================================
 // 🔐 ระบบจัดการรหัสผ่าน (PASSWORD MANAGER)
 // ==========================================
 async function initPasswordApp() {
@@ -47,14 +89,15 @@ window.fetchPasswords = async function() {
     grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl">sync</span></div>';
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     const canViewAll = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('password_view_all'));
-    let query = appDB.from('user_passwords').select(`*, users(username)`);
-    if (!canViewAll) {
-        query = query.eq('user_id', currentUser.id);
-    } else {
+    // 🔐 [SECURITY] อ่านผ่าน function ที่ต้องยืนยัน PIN (ตารางจริงฝั่งเว็บอ่านไม่ได้แล้ว)
+    let filterUser = null;
+    if (canViewAll) {
         const filterId = document.getElementById('pwdUserFilter')?.value;
-        if (filterId && filterId !== 'all') query = query.eq('user_id', filterId);
+        if (filterId && filterId !== 'all') filterUser = Number(filterId);
     }
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data: rawData, error, cancelled } = await window.vaultRpc('pwd_list', { p_filter_user: filterUser });
+    if (cancelled) { grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-10">ยกเลิกการยืนยัน PIN — <a href="#" onclick="fetchPasswords();return false;" class="text-amber-500 underline">ลองใหม่</a></div>'; return; }
+    const data = (rawData || []).map(r => ({ ...r, users: { username: r.owner_name } }));
     if (error) { grid.innerHTML = `<div class="col-span-full text-center text-red-500">โหลดข้อมูลไม่สำเร็จ: ${error.message}</div>`; return; }
     if (!data || data.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center text-gray-400 py-10 flex flex-col items-center gap-2"><span class="material-icons text-5xl opacity-20">no_encryption</span><span>ยังไม่มีรหัสผ่านที่บันทึกไว้</span></div>`;
@@ -88,10 +131,8 @@ window.savePassword = async function(e) {
     const user = document.getElementById('pwdUser').value;
     const pass = document.getElementById('pwdPass').value;
     Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
-    const { error } = await appDB.from('user_passwords').insert([{
-        user_id: currentUser.id, site_name: site,
-        site_url: url, login_user: user, login_pass: pass
-    }]);
+    const { error, cancelled } = await window.vaultRpc('pwd_add', { p_site: site, p_url: url, p_login_user: user, p_login_pass: pass });
+    if (cancelled) { Swal.close(); return; }
     if (error) {
         Swal.fire('Error', error.message, 'error');
     } else {
@@ -108,7 +149,9 @@ window.deletePassword = async function(id) {
         confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย'
     }).then(async (result) => {
         if (result.isConfirmed) {
-            await appDB.from('user_passwords').delete().eq('id', id);
+            const { error, cancelled } = await window.vaultRpc('pwd_delete', { p_id: id });
+            if (cancelled) return;
+            if (error) return Swal.fire('Error', error.message, 'error');
             fetchPasswords();
             Swal.fire('Deleted', '', 'success');
         }
