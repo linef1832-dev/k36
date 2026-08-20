@@ -1645,8 +1645,9 @@ window.renderUserTableDirectly = function() {
         roleOptions.forEach(opt => { roleBadge += `<option value="${opt.val}" ${currentRoleVal === opt.val ? 'selected' : ''} class="text-white">${opt.label}</option>`; });
         roleBadge += `</select>`;
 
-        const pinDisplay = u.password 
-            ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs">${u.password}</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
+        // 🔐 [SECURITY] ไม่โชว์ PIN จริงอีกต่อไป (PIN อยู่ฝั่ง server) — โชว์แค่ว่าตั้งแล้วหรือยัง
+        const pinDisplay = u.has_pin 
+            ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs" title="ตั้ง PIN แล้ว">••••••</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
             : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
 
         // avatar สีสลับตาม index
@@ -1800,6 +1801,7 @@ window.updateUserDepartment = async function(id, newDept) {
 window.openChangePinModal = function() {
     if(document.getElementById('newPin1')) document.getElementById('newPin1').value = '';
     if(document.getElementById('newPin2')) document.getElementById('newPin2').value = '';
+    if(document.getElementById('oldPin')) document.getElementById('oldPin').value = '';
     const modal = document.getElementById('changePinModal');
     if(modal) {
         modal.classList.remove('hidden');
@@ -1827,11 +1829,20 @@ window.submitChangePin = async function(e) {
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
-        const { error } = await appDB.from('users').update({ password: pin1 }).eq('id', currentUser.id);
+        // 🔐 [SECURITY] เปลี่ยน PIN ผ่าน function ฝั่ง server (ต้องยืนยัน PIN เดิม)
+        const oldPinEl = document.getElementById('oldPin');
+        const oldPin = oldPinEl ? oldPinEl.value : null;
+        const { data: res, error } = await appDB.rpc('set_user_pin', { p_user_id: currentUser.id, p_old_pin: oldPin, p_new_pin: pin1 });
         if (error) throw error;
+        if (!res || !res.ok) {
+            Swal.close();
+            if (res && res.reason === 'wrong_old_pin') return Swal.fire('ผิดพลาด', 'PIN เดิมไม่ถูกต้อง', 'error');
+            return Swal.fire('ผิดพลาด', 'เปลี่ยน PIN ไม่สำเร็จ', 'error');
+        }
 
-        currentUser.password = pin1;
+        currentUser.has_pin = true;
         sessionStorage.setItem('user_platinum_plus', JSON.stringify(currentUser));
+        if (oldPinEl) oldPinEl.value = '';
         
         closeChangePinModal();
         Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสสำเร็จ!', text: 'คราวหน้ากรุณาใช้รหัสผ่านใหม่นี้เข้าสู่ระบบครับ', timer: 2000, showConfirmButton: false });
@@ -1854,11 +1865,22 @@ window.resetUserPin = async function(id, username) {
         customClass: { popup: 'dark:bg-slate-800 dark:text-white' }
     }).then(async (result) => {
         if (result.isConfirmed) {
+            // 🔐 [SECURITY] ต้องยืนยันด้วย PIN ของ admin เอง กันคนอื่นเปิด F12 มารีเซ็ต
+            const { value: adminPin } = await Swal.fire({
+                title: 'ยืนยันตัวตน', text: 'กรอก PIN ของคุณเพื่อยืนยันการรีเซ็ต',
+                input: 'password', inputAttributes: { maxlength: 6, inputmode: 'numeric', autocomplete: 'off' },
+                showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#f59e0b',
+                customClass: { popup: 'dark:bg-slate-800 dark:text-white' }
+            });
+            if (!adminPin) return;
+
             Swal.fire({title: 'กำลังล้างรหัส...', didOpen: () => Swal.showLoading()});
-            const { error } = await appDB.from('users').update({ password: null }).eq('id', id);
+            const { data: res, error } = await appDB.rpc('reset_user_pin', { p_admin_id: currentUser.id, p_admin_pin: adminPin, p_target_id: id });
             
             if (error) {
                 Swal.fire('Error', error.message, 'error');
+            } else if (!res || !res.ok) {
+                Swal.fire('ไม่สำเร็จ', res && res.reason === 'wrong_admin_pin' ? 'PIN ของคุณไม่ถูกต้อง' : 'คุณไม่มีสิทธิ์รีเซ็ต PIN', 'error');
             } else {
                 if(typeof fetchUsers === 'function') fetchUsers(); 
                 Swal.fire({icon: 'success', title: 'สำเร็จ', text: `รีเซ็ตรหัสของ ${username} แล้ว`, timer: 1500, showConfirmButton: false});
