@@ -686,6 +686,14 @@
         </div>
         
         <form onsubmit="submitChangePin(event)" class="p-6 space-y-5">
+            <!-- 🔐 [SECURITY] ต้องกรอก PIN เดิมก่อนเปลี่ยน -->
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">รหัสผ่านเดิม</label>
+                <div class="relative">
+                    <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">vpn_key</span>
+                    <input type="password" id="oldPin" pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
+                </div>
+            </div>
             <div>
                 <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">รหัสผ่านใหม่</label>
                 <div class="relative">
