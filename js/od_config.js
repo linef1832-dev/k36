@@ -54,11 +54,28 @@ function odCfg_fillTpl(tpl, map) {
     Object.entries(map).forEach(([k, v]) => { out = out.split(k).join(v); });
     return out;
 }
+// หาตัวแปรที่พิมพ์ผิด / ไม่มีอยู่
+function odCfg_tplUnknown(k, tpl) {
+    const found = (tpl.match(/\{[^{}\n]*\}/g) || []);
+    return [...new Set(found.filter(v => !OD_TPL_VARS[k].includes(v)))];
+}
+function odCfg_tplWarn(k, list) {
+    const id = 'odCfgTplWarn' + (k==='od'?'Od':'Odol');
+    let el = document.getElementById(id);
+    const ta = document.getElementById(k==='od' ? 'odCfgTplOd' : 'odCfgTplOdol');
+    if (!el) { el = document.createElement('div'); el.id = id; el.className = 'text-xs mt-1'; ta.insertAdjacentElement('afterend', el); }
+    if (list.length) {
+        el.innerHTML = `⚠️ <span class="text-red-400 font-bold">ไม่รู้จักตัวแปร: ${list.join(' ')}</span> <span class="text-gray-400">— ใช้ได้เฉพาะปุ่มด้านบน</span>`;
+        ta.classList.add('border-red-500');
+    } else { el.innerHTML = ''; ta.classList.remove('border-red-500'); }
+}
 window.odCfg_tplPreview = function() {
     const od = document.getElementById('odCfgTplOd'), odol = document.getElementById('odCfgTplOdol');
     if (!od || !odol) return;
     document.getElementById('odCfgTplPrevOd').textContent   = odCfg_fillTpl(od.value   || OD_TPL_DEFAULT.od,   OD_TPL_SAMPLE.od);
     document.getElementById('odCfgTplPrevOdol').textContent = odCfg_fillTpl(odol.value || OD_TPL_DEFAULT.odol, OD_TPL_SAMPLE.odol);
+    odCfg_tplWarn('od',   odCfg_tplUnknown('od',   od.value));
+    odCfg_tplWarn('odol', odCfg_tplUnknown('odol', odol.value));
 };
 
 // ── โหลด config จาก Supabase ──────────────────────────────────────
@@ -141,6 +158,11 @@ window.odCfg_save = async function() {
         odCfgData.bot.token    = document.getElementById('odCfgBotToken').value.trim();
         // template: ถ้าเหมือนค่าเดิม เก็บเป็นว่าง (ให้ extension ใช้ default)
         const tOd = document.getElementById('odCfgTplOd').value, tOdol = document.getElementById('odCfgTplOdol').value;
+        const badOd = odCfg_tplUnknown('od', tOd), badOdol = odCfg_tplUnknown('odol', tOdol);
+        if (badOd.length || badOdol.length) {
+            odCfg_showStatus('❌ รูปแบบข้อความมีตัวแปรที่ไม่รู้จัก: ' + [...badOd, ...badOdol].join(' '), 'error');
+            return;
+        }
         odCfgData.templates = {
             od:   (tOd.trim()   && tOd   !== OD_TPL_DEFAULT.od)   ? tOd   : '',
             odol: (tOdol.trim() && tOdol !== OD_TPL_DEFAULT.odol) ? tOdol : '',
