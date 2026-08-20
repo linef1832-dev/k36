@@ -1,3 +1,18 @@
+// 🔒 [FIX] เช็คสิทธิ์ "ในฟังก์ชัน" ของหน้าจัดการระบบ — เดิมเช็คแค่ซ่อนเมนู
+// ใครเปิด F12 ก็เรียก updateUserRole(...,'admin') ยกสิทธิ์ตัวเองได้ / ลบพนักงานได้
+// เกณฑ์เดียวกับเมนู "จัดการระบบ": admin, manager หรือมีสิทธิ์ 'admin' ในตารางสิทธิ์
+window.sysIsAdmin = function() {
+    if (typeof currentUser === 'undefined' || !currentUser) return false;
+    const r = String(currentUser.role || '').toLowerCase();
+    if (r === 'admin' || r === 'manager') return true;
+    return typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin');
+};
+window.sysRequireAdmin = function() {
+    if (window.sysIsAdmin()) return true;
+    Swal.fire('ไม่มีสิทธิ์', 'เฉพาะผู้ดูแลระบบเท่านั้นครับ', 'error');
+    return false;
+};
+
 let userCurrentPage = 1;
 let userRowsPerPage = 5; // เปลี่ยนค่าเริ่มต้นเป็น 5 คน
 let allowedViewMonth = ''; 
@@ -77,6 +92,8 @@ async function fetchSheets() {
 }
 
 async function addSheet() {
+    if (!window.sysRequireAdmin()) return;
+
     const name = document.getElementById('newSheetName').value.trim();
     const group = document.getElementById('newSheetGroup').value.trim() || 'ทั่วไป';
     const url = document.getElementById('newSheetUrl').value.trim();
@@ -115,6 +132,8 @@ async function addSheet() {
 }
 
 async function deleteSheet(id) {
+    if (!window.sysRequireAdmin()) return;
+
     Swal.fire({
         title: 'ลบตาราง?', text: "ไม่สามารถกู้คืนได้", icon: 'warning',
         showCancelButton: true, confirmButtonText: 'ลบ', confirmButtonColor: '#d33'
@@ -776,7 +795,7 @@ function updateTableSummary(data) {
     container.innerHTML = html;
 }
 
-async function delSch(id, shiftName) { 
+async function delSch(id, shiftName) { if (!window.sysRequireAdmin()) return; 
     const timeCheck = checkBookingTime(shiftName);
     if (!timeCheck.allowed) { return Swal.fire('ลบไม่ได้', timeCheck.msg, 'error'); }
 
@@ -850,6 +869,8 @@ async function refreshAdminData() {
 }
 
 window.updateUserRole = async function(selectEl, id, newRole) {
+    if (!window.sysRequireAdmin()) return;
+
     const user = GLOBAL_USER_LIST.find(u => String(u.id) === String(id));
     if(user) user.role = newRole;
 
@@ -866,7 +887,7 @@ window.updateUserRole = async function(selectEl, id, newRole) {
     Toast.fire({ icon: 'success', title: `เปลี่ยนสิทธิ์เป็น ${newRole}` });
 }
         
-window.updateCheckType = async function(btn, id, currentType) { 
+window.updateCheckType = async function(btn, id, currentType) { if (!window.sysRequireAdmin()) return; 
     const newType = currentType === 'shift' ? 'team' : 'shift';
     
     const { error } = await appDB.from('users').update({ check_type: newType }).eq('id', id);
@@ -887,6 +908,8 @@ window.updateCheckType = async function(btn, id, currentType) {
 }
 
 window.updateUserTeam = async function(id, currentTeam) {
+    if (!window.sysRequireAdmin()) return;
+
     let options = {}; TEAM_LIST.forEach(t => options[t] = t); options[''] = 'อิสระ (ไม่สังกัดทีม)';
     const { value: team } = await Swal.fire({ 
         title: 'เปลี่ยนทีมสังกัด', 
@@ -909,6 +932,8 @@ window.updateUserTeam = async function(id, currentTeam) {
 }
 
 window.updateUserShift = async function(selectEl, id, newShift) {
+    if (!window.sysRequireAdmin()) return;
+
     selectEl.classList.remove('text-orange-400', 'text-blue-400', 'text-purple-400', 'text-gray-400');
     if(newShift === 'กะเช้า') selectEl.classList.add('text-orange-400');
     else if(newShift === 'กะกลาง') selectEl.classList.add('text-blue-400');
@@ -947,6 +972,8 @@ function toggleSelectAll(source) {
 }
         
 async function moveSelectedUsers() {
+    if (!window.sysRequireAdmin()) return;
+
     const target = document.getElementById('moveTargetShift').value; 
     if(!target) return Swal.fire('!', 'เลือกกะปลายทางก่อน', 'warning');
     
@@ -974,6 +1001,8 @@ async function moveSelectedUsers() {
 }
 
 async function moveSelectedUsersTeam() {
+    if (!window.sysRequireAdmin()) return;
+
     const target = document.getElementById('moveTargetTeam').value; if(!target) return Swal.fire('!', 'เลือกทีมปลายทางก่อน', 'warning');
     const ids = Array.from(document.querySelectorAll('.user-check:checked')).map(cb => cb.value); if(ids.length === 0) return Swal.fire('!', 'เลือกพนักงานก่อน', 'warning');
     
@@ -998,6 +1027,8 @@ async function moveSelectedUsersTeam() {
 }
 
 async function deleteSelectedUsers() {
+    if (!window.sysRequireAdmin()) return;
+
     const ids = Array.from(document.querySelectorAll('.user-check:checked')).map(cb => cb.value); 
     if(ids.length === 0) return Swal.fire('!', 'เลือกรายชื่อก่อน', 'warning');
     
@@ -1025,7 +1056,7 @@ window.searchEmployee = function() {
     window.renderUserTableDirectly();
 };
 
-async function addScheduledTask() { 
+async function addScheduledTask() { if (!window.sysRequireAdmin()) return; 
     const f=document.getElementById('schFrom').value, t=document.getElementById('schTo').value, d=document.getElementById('schDate').value; 
     if(!d) return Swal.fire('!', 'กรุณาระบุวันเวลา', 'warning');
     await appDB.from('scheduled_tasks').insert([{task_type:'move_shift', payload:{from:f, to:t}, scheduled_for:new Date(d).toISOString()}]); 
@@ -1033,6 +1064,8 @@ async function addScheduledTask() {
 }
 
 async function moveNowInstant() {
+    if (!window.sysRequireAdmin()) return;
+
     const f=document.getElementById('schFrom').value, t=document.getElementById('schTo').value; if(f===t) return Swal.fire('!', 'กะต้นทางและปลายทางเหมือนกัน', 'warning');
     Swal.fire({ title: `ย้ายทันที?`, text: `ย้ายทุกคนจาก "${f}" ไป "${t}" เดี๋ยวนี้เลยไหม?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ย้ายเลย!', cancelButtonText: 'ยกเลิก' }).then(async (result) => {
         if(result.isConfirmed) {
@@ -1118,6 +1151,8 @@ window.removeFromPendingList = function(index) {
 };
 
 async function commitIndividualSchedules() {
+    if (!window.sysRequireAdmin()) return;
+
     if(pendingSchedules.length === 0) return;
 
     Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
@@ -1229,7 +1264,7 @@ function filterIndivTaskLog(shiftFilter = "") {
     });
 }
 
-async function deleteTask(id) { 
+async function deleteTask(id) { if (!window.sysRequireAdmin()) return; 
     Swal.fire({
         title: 'ยืนยันลบ?', text: "ต้องการลบรายการนี้ออกจากประวัติใช่หรือไม่", icon: 'warning',
         showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ใช่, ลบเลย!', cancelButtonText: 'ยกเลิก'
@@ -1255,7 +1290,8 @@ async function fetchTasks() {
     }
 }
 
-window.processPendingTasks = async function() { 
+window.processPendingTasks = async function() { if (!window.sysIsAdmin()) return;   // ตัวประมวลผลเบื้องหลัง — เงียบ ไม่เด้ง popup
+   
     try {
         const now = new Date().toISOString(); 
         const {data} = await appDB.from('scheduled_tasks').select('*').eq('status','pending').lte('scheduled_for',now); 
@@ -1346,6 +1382,8 @@ function renderOperatingHours() {
 }
 
 async function addOperatingShift() {
+    if (!window.sysRequireAdmin()) return;
+
     const { value: name } = await Swal.fire({
         title: 'ชื่อกะใหม่ (เช่น เช้า, สาย, ดึก)',
         input: 'text',
@@ -1362,6 +1400,8 @@ async function addOperatingShift() {
 }
 
 async function deleteOperatingShift(suffix) {
+    if (!window.sysRequireAdmin()) return;
+
     Swal.fire({
         title: `ลบกะ "${suffix}"?`,
         text: "การลบนี้จะทำให้การเช็คเวลาสำหรับกะนี้หายไป (แต่ไม่ลบข้อมูลในตาราง)",
@@ -1380,7 +1420,7 @@ async function deleteOperatingShift(suffix) {
     });
 }
 
-async function saveTimeSettings() { 
+async function saveTimeSettings() { if (!window.sysRequireAdmin()) return; 
     const updates = [];
     const container = document.getElementById('operatingTimeContainer');
     const rows = container.querySelectorAll('.operating-row');
@@ -1399,7 +1439,7 @@ async function saveTimeSettings() {
     Swal.fire('Saved','บันทึกเวลาเปิด-ปิดเรียบร้อย','success'); 
 }
 
-async function saveDailyLimit() { 
+async function saveDailyLimit() { if (!window.sysRequireAdmin()) return; 
     const dailyVal = document.getElementById('dailyLimitInput').value; 
     const periodVal = document.getElementById('periodLimitInput').value; 
     await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }, { key: 'period_limit', value: periodVal }]); 
@@ -1446,6 +1486,8 @@ window.populateAdminDeptSelects = function() {
 };
 
 async function addUsersBulk() {
+    if (!window.sysRequireAdmin()) return;
+
     const text = document.getElementById('newUsersArea').value.trim(); 
     const s = document.getElementById('newAllowedShift').value; 
     const tm = document.getElementById('newTeam').value; 
@@ -1771,6 +1813,8 @@ function fastRecalculateStats() {
 }
 
 window.updateUserDepartment = async function(id, newDept) {
+    if (!window.sysRequireAdmin()) return;
+
     const user = GLOBAL_USER_LIST.find(u => String(u.id) === String(id));
     if(user) user.department = newDept;
     if(typeof fastRecalculateStats === 'function') fastRecalculateStats();
@@ -1853,6 +1897,8 @@ window.submitChangePin = async function(e) {
 };
 
 window.resetUserPin = async function(id, username) {
+    if (!window.sysRequireAdmin()) return;
+
     Swal.fire({
         title: `รีเซ็ต PIN ของ ${username}?`,
         text: "รหัสเดิมจะถูกล้าง พนักงานจะสามารถตั้ง PIN ใหม่ 6 หลักได้ตอนล็อกอินครั้งถัดไป",
@@ -1904,6 +1950,8 @@ window.getSystemDepts = function() {
 };
 
 window.addCustomPermDept = async function() {
+    if (!window.sysRequireAdmin()) return;
+
     const inputEl = document.getElementById('newDeptInput');
     if (!inputEl) return Swal.fire('Error', 'ไม่พบช่องกรอกชื่อแผนก', 'error');
     
@@ -1931,6 +1979,8 @@ window.addCustomPermDept = async function() {
 };
 
 window.renameAnyDept = async function(oldDept) {
+    if (!window.sysRequireAdmin()) return;
+
     const { value: newDeptRaw } = await Swal.fire({
         title: `เปลี่ยนชื่อแผนก ${oldDept}`,
         input: 'text',
@@ -2144,6 +2194,8 @@ window.renderQuotaSettings = function() {
 };
 
 window.saveQuotaSettings = async function() {
+    if (!window.sysRequireAdmin()) return;
+
     Swal.fire({title: 'กำลังบันทึกโควตา...', didOpen: () => Swal.showLoading()});
     const updates = [];
     ['เช้า', 'กลาง', 'ดึก'].forEach(shift => {
@@ -2592,6 +2644,8 @@ window.renderPermsTable = function() {
 };
 
 window.saveMenuPerms = async function() {
+    if (!window.sysRequireAdmin()) return;
+
     Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
     
     // คัดลอกสิทธิ์เดิมมาทั้งหมด เพื่อป้องกันการบันทึกทับข้อมูลของแผนกที่ไม่ได้โชว์อยู่
@@ -2644,6 +2698,8 @@ window.hasUserPerm = function(menuId) {
 
 // ฟังก์ชันสำหรับปุ่มกดเพิ่มทีมผ่านหน้าเว็บ
 window.addTeamManual = function(dept) {
+    if (!window.sysRequireAdmin()) return;
+
     Swal.fire({
         title: `เพิ่มทีมใหม่ (${dept})`,
         input: 'text',
@@ -2861,6 +2917,8 @@ window.renderManualTimeSlots = function() {
 };
 
 window.addManualTimeSlot = async function() {
+    if (!window.sysRequireAdmin()) return;
+
     const shiftSelect = document.getElementById('newTimeShift').value; 
     const periodSelect = document.getElementById('newTimePeriod').value; 
     const start = document.getElementById('newTimeStart').value;
@@ -2895,6 +2953,8 @@ window.addManualTimeSlot = async function() {
 };
 
 window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
+    if (!window.sysRequireAdmin()) return;
+
     if (SHIFT_GROUPS[shift] && SHIFT_GROUPS[shift][period]) {
         SHIFT_GROUPS[shift][period] = SHIFT_GROUPS[shift][period].filter(t => t !== timeSlot);
         if (SHIFT_GROUPS[shift][period].length === 0) delete SHIFT_GROUPS[shift][period];
@@ -2978,6 +3038,8 @@ window.openAdminPanel = async function() {
 // 🔴 ฟังก์ชันล้างกระดาน (เลือก ลบตามแผนก / ตามกะ ได้ + กู้คืนได้)
 // =========================================================
 window.clearAllSchedules = async function() {
+    if (!window.sysRequireAdmin()) return;
+
     const dateInput = document.getElementById('clearScheduleDate');
     const deptInput = document.getElementById('clearScheduleDept');
     const shiftInput = document.getElementById('clearScheduleShift');
@@ -3056,6 +3118,8 @@ window.clearAllSchedules = async function() {
 // 🟢 ฟังก์ชันกู้คืนข้อมูล (กรณีแอดมินมือลั่น)
 // =========================================================
 window.undoClearSchedules = async function() {
+    if (!window.sysRequireAdmin()) return;
+
     const backupStr = sessionStorage.getItem('temp_schedule_backup');
     if (!backupStr) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลให้กู้คืนแล้วครับ', 'error');
     
@@ -3100,6 +3164,8 @@ window.undoClearSchedules = async function() {
 // ====== Modal แก้ไข Discord/Telegram ID ======
 
 window.openEditUserModal = function(id) {
+    if (!window.sysRequireAdmin()) return;
+
     const user = GLOBAL_USER_LIST.find(u => String(u.id) === String(id));
     if (!user) return;
     document.getElementById('editUserId').value = id;
@@ -3119,6 +3185,8 @@ window.closeEditUserModal = function() {
 };
 
 window.saveEditUser = async function() {
+    if (!window.sysRequireAdmin()) return;
+
     const id = document.getElementById('editUserId').value;
     const username = document.getElementById('editUserName').value.trim();
     const discordId = document.getElementById('editDiscordId').value.trim();
