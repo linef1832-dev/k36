@@ -14,6 +14,51 @@ let odCfgData = {
     chat_id: '',
     odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
     bot:  { token: '', enabled: true },
+    templates: { od: '', odol: '' },
+};
+
+// ── Template ข้อความ ───────────────────────────────────────────────
+const OD_TPL_DEFAULT = {
+    od:   "❌ OD ตัดเครดิตผิดเงื่อนไข OD ❌\n\nเว็บ : {เว็บ}\n\nยูสเซอร์ : {ยูส}\n\nรหัสโปรโมชั่น : {โปร}\n\nสาเหตุ : {สาเหตุ}\n\nBY: {ผู้ส่ง}",
+    odol: "เว็บ : {เว็บ}\n\nยูส :\n{รายการยูส}\n\nชื่อ : {ชื่อ}\n\nหมายเหตุ : {หมายเหตุ}\n\nBY: {ผู้ส่ง}",
+};
+const OD_TPL_VARS = {
+    od:   ['{เว็บ}','{ยูส}','{โปร}','{สาเหตุ}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
+    odol: ['{เว็บ}','{รายการยูส}','{จำนวนยูส}','{ชื่อ}','{หมายเหตุ}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
+};
+const OD_TPL_SAMPLE = {
+    od:   { '{เว็บ}':'Jun88', '{ยูส}':'kaewoon1990', '{โปร}':'KM68', '{สาเหตุ}':'ตรวจพบหลายยูสเซอร์รับโปรโมชั่น', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
+    odol: { '{เว็บ}':'PG688', '{รายการยูส}':'1. 0993728365\n2. es181147\n3. es18112547', '{จำนวนยูส}':'3', '{ชื่อ}':'พีระพงศ์ ขวัญเกื้อ', '{หมายเหตุ}':'เก็งกำไร', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
+};
+function odCfg_renderTplVars() {
+    ['od','odol'].forEach(k => {
+        const box = document.getElementById('odCfgTplVars' + (k==='od'?'Od':'Odol'));
+        if (!box) return;
+        box.innerHTML = OD_TPL_VARS[k].map(v =>
+            `<button type="button" onclick="odCfg_insertVar('${k}','${v}')" class="text-xs px-2 py-0.5 rounded-md bg-blue-900/40 text-blue-300 border border-blue-700/40 hover:bg-blue-800/60">${v}</button>`).join('');
+    });
+}
+window.odCfg_insertVar = function(k, v) {
+    const ta = document.getElementById(k==='od' ? 'odCfgTplOd' : 'odCfgTplOdol');
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    ta.value = ta.value.slice(0, s) + v + ta.value.slice(e);
+    ta.selectionStart = ta.selectionEnd = s + v.length;
+    ta.focus(); odCfg_tplPreview();
+};
+window.odCfg_resetTpl = function(k) {
+    document.getElementById(k==='od' ? 'odCfgTplOd' : 'odCfgTplOdol').value = OD_TPL_DEFAULT[k];
+    odCfg_tplPreview();
+};
+function odCfg_fillTpl(tpl, map) {
+    let out = tpl || '';
+    Object.entries(map).forEach(([k, v]) => { out = out.split(k).join(v); });
+    return out;
+}
+window.odCfg_tplPreview = function() {
+    const od = document.getElementById('odCfgTplOd'), odol = document.getElementById('odCfgTplOdol');
+    if (!od || !odol) return;
+    document.getElementById('odCfgTplPrevOd').textContent   = odCfg_fillTpl(od.value   || OD_TPL_DEFAULT.od,   OD_TPL_SAMPLE.od);
+    document.getElementById('odCfgTplPrevOdol').textContent = odCfg_fillTpl(odol.value || OD_TPL_DEFAULT.odol, OD_TPL_SAMPLE.odol);
 };
 
 // ── โหลด config จาก Supabase ──────────────────────────────────────
@@ -44,6 +89,7 @@ window.initOdConfig = async function() {
             odCfgData = { ...odCfgData, ...parsed };
             odCfgData.odol = { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '', ...(parsed.odol || {}) };
             odCfgData.bot  = { token: '', enabled: true, ...(parsed.bot || {}) };
+            odCfgData.templates = { od: '', odol: '', ...(parsed.templates || {}) };
         } else {
             // ครั้งแรก — ใช้ค่า default
             odCfgData = {
@@ -71,6 +117,7 @@ window.initOdConfig = async function() {
                 chat_id: '',
                 odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
                 bot:  { token: '', enabled: true },
+                templates: { od: '', odol: '' },
             };
         }
 
@@ -92,6 +139,12 @@ window.odCfg_save = async function() {
         odCfgData.chat_id    = document.getElementById('odCfgChatId').value.trim();
         odCfgData.odol.chat_id = document.getElementById('odCfgOdolChatId').value.trim();
         odCfgData.bot.token    = document.getElementById('odCfgBotToken').value.trim();
+        // template: ถ้าเหมือนค่าเดิม เก็บเป็นว่าง (ให้ extension ใช้ default)
+        const tOd = document.getElementById('odCfgTplOd').value, tOdol = document.getElementById('odCfgTplOdol').value;
+        odCfgData.templates = {
+            od:   (tOd.trim()   && tOd   !== OD_TPL_DEFAULT.od)   ? tOd   : '',
+            odol: (tOdol.trim() && tOdol !== OD_TPL_DEFAULT.odol) ? tOdol : '',
+        };
         if (odCfgData.odol.notes.length && !odCfgData.odol.notes.includes(odCfgData.odol.default_note)) {
             odCfgData.odol.default_note = odCfgData.odol.notes[0];
         }
@@ -133,6 +186,10 @@ function odCfg_renderAll() {
     if (ak) ak.value = localStorage.getItem('od_admin_key') || '';
     odCfg_renderNotes();
     odCfg_paintBotBadge(odCfgData.bot?.enabled !== false, null);
+    const to = document.getElementById('odCfgTplOd'), tl = document.getElementById('odCfgTplOdol');
+    if (to) to.value = odCfgData.templates?.od   || OD_TPL_DEFAULT.od;
+    if (tl) tl.value = odCfgData.templates?.odol || OD_TPL_DEFAULT.odol;
+    odCfg_renderTplVars(); odCfg_tplPreview();
 }
 
 // ── หมายเหตุ (ฟอร์มหลายยูส) ──────────────────────────────────────
@@ -464,6 +521,7 @@ window.odCfg_refreshPreview = function() {
         reasons: odCfgData.reasons,
         chat_id: odCfgData.chat_id,
         odol:    odCfgData.odol,
+        templates: odCfgData.templates,
         bot_enabled: odCfgData.bot?.enabled !== false,
     };
     el.textContent = JSON.stringify(preview, null, 2);
