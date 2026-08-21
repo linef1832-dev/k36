@@ -2190,53 +2190,65 @@ window.renderQuotaHistory = async function() {
     c.innerHTML = '<div class="text-center py-10 text-gray-500"><span class="material-icons animate-spin mb-2 text-2xl">sync</span><br>กำลังโหลดประวัติ...</div>';
     try {
         const { data, error } = await appDB.from('system_logs').select('*')
-            .in('action_type', ['ตั้งค่าโควตา', 'สุ่มจัดหน้าที่', 'ย้ายหน้าที่', 'ล้างตารางงาน', 'กู้คืนตารางงาน'])
-            .order('created_at', { ascending: false }).limit(60);
+            .eq('action_type', 'ตั้งค่าโควตา')
+            .order('created_at', { ascending: false }).limit(80);
         if (error) throw error;
-        if (!data || data.length === 0) { c.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">ยังไม่มีประวัติ</div>'; return; }
+        if (!data || data.length === 0) { c.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">ยังไม่มีประวัติการเปลี่ยนโควตา</div>'; return; }
 
         const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const fmt = d => new Date(d).toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const fmt = d => new Date(d).toLocaleString('th-TH', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+        // "A 2→1 (4 คน), B -→1" → ป้ายสี
+        const chipsFromChanged = str => (str || '').split(',').map(x => x.trim()).filter(x => x && !x.startsWith('ไม่มี') && !x.startsWith('กดบันทึก')).map(x => {
+            const m = x.match(/^(.*?)\s(\S+)→(\S+)(.*)$/);
+            if (!m) return `<span class="text-[11px] px-2 py-1 rounded-lg border border-slate-700 bg-slate-800 text-slate-300">${esc(x)}</span>`;
+            const [, label, from, to, rest] = m;
+            const up = from === '-' || Number(to) > Number(from);
+            return `<span class="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg border ${up ? 'border-emerald-600/60 bg-emerald-900/30' : 'border-red-600/60 bg-red-900/30'}">
+                <b class="text-white">${esc(label)}</b>
+                <span class="text-slate-400 line-through">${esc(from)}</span>
+                <span class="material-icons text-[13px] ${up ? 'text-emerald-400' : 'text-red-400'}">${up ? 'trending_up' : 'trending_down'}</span>
+                <b class="${up ? 'text-emerald-300' : 'text-red-300'} text-[13px]">${esc(to)}</b>
+                <span class="text-[10px] text-slate-500">${esc(rest.trim())}</span></span>`;
+        }).join(' ');
+
         let html = '<div class="space-y-2">';
         data.forEach(log => {
             const t = fmt(log.created_at);
             const det = log.target_details || '';
-            if (log.action_type === 'ตั้งค่าโควตา' && det.startsWith('AUTOQUOTA|')) {
+            if (det.startsWith('AUTOQUOTA|')) {
                 const parts = det.split('|');
                 const dept = parts[1], suffix = parts[2], total = parts[3], reason = parts[4], changed = parts[5];
-                const all = parts.slice(6).join('|');
-                const chips = all.split(',').map(x => {
-                    const [team, n, prev, q] = x.split('|');
-                    if (!team) return '';
-                    const diff = prev !== '-' && String(prev) !== String(q);
-                    return `<span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border ${diff ? 'border-amber-500/60 bg-amber-900/30 text-amber-300' : 'border-slate-700 bg-slate-800 text-slate-400'}"><b>${esc(team)}</b> ${esc(n)} คน → <b>${esc(q)}</b>${diff ? ` <span class="opacity-70">(เดิม ${esc(prev)})</span>` : ''}</span>`;
-                }).join(' ');
-                const hasChange = changed && !changed.startsWith('ไม่มี');
+                const noChange = !changed || changed.startsWith('ไม่มี');
                 html += `
-                <div class="bg-slate-800/70 border ${hasChange ? 'border-amber-600/50' : 'border-emerald-700/40'} rounded-xl p-3">
+                <div class="bg-slate-800/60 border ${noChange ? 'border-slate-700' : 'border-emerald-700/50'} rounded-xl p-3 ${noChange ? 'opacity-60' : ''}">
                     <div class="flex flex-wrap items-center gap-2 text-[11px]">
                         <span class="font-mono text-gray-400">${t}</span>
-                        <span class="bg-emerald-900/40 text-emerald-300 border border-emerald-700/50 px-2 py-0.5 rounded font-bold">🔁 โควตาอัตโนมัติ</span>
+                        <span class="bg-emerald-900/50 text-emerald-300 border border-emerald-700/60 px-2 py-0.5 rounded-md font-bold flex items-center gap-1"><span class="material-icons text-[12px]">autorenew</span> ออโต้</span>
                         <span class="font-bold text-white">${esc(dept)} กะ${esc(suffix)}</span>
                         <span class="text-gray-400">รวม <b class="text-yellow-300">${esc(total)}</b></span>
-                        <span class="text-gray-500">โดย ${esc(log.performed_by)}</span>
+                        <span class="text-gray-500 ml-auto">จากการ: <span class="text-sky-300">${esc(reason)}</span> โดย ${esc(log.performed_by)}</span>
                     </div>
-                    <div class="text-[11px] text-sky-300 mt-1.5">สาเหตุ: ${esc(reason)}</div>
-                    <div class="text-[11px] mt-1 ${hasChange ? 'text-amber-300 font-bold' : 'text-gray-500'}">เปลี่ยน: ${esc(changed)}</div>
-                    <div class="flex flex-wrap gap-1 mt-2">${chips}</div>
+                    <div class="flex flex-wrap gap-1.5 mt-2">${noChange ? '<span class="text-[11px] text-gray-500">คำนวณใหม่แล้ว โควตาเท่าเดิม</span>' : chipsFromChanged(changed)}</div>
+                </div>`;
+            } else if (det.startsWith('MANUALQUOTA|')) {
+                const changed = det.slice('MANUALQUOTA|'.length);
+                const noChange = changed.startsWith('กดบันทึก');
+                html += `
+                <div class="bg-slate-800/60 border ${noChange ? 'border-slate-700' : 'border-amber-600/50'} rounded-xl p-3 ${noChange ? 'opacity-60' : ''}">
+                    <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span class="font-mono text-gray-400">${t}</span>
+                        <span class="bg-amber-900/50 text-amber-300 border border-amber-700/60 px-2 py-0.5 rounded-md font-bold flex items-center gap-1"><span class="material-icons text-[12px]">touch_app</span> กดมือ</span>
+                        <span class="text-gray-500 ml-auto">โดย <b class="text-white">${esc(log.performed_by)}</b></span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mt-2">${noChange ? '<span class="text-[11px] text-gray-500">กดบันทึกแต่ค่าไม่เปลี่ยน</span>' : chipsFromChanged(changed)}</div>
                 </div>`;
             } else {
-                let badge = 'bg-slate-700 text-slate-200 border-slate-600';
-                if (log.action_type === 'สุ่มจัดหน้าที่') badge = 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50';
-                else if (log.action_type === 'ย้ายหน้าที่') badge = 'bg-purple-900/40 text-purple-300 border-purple-700/50';
-                else if (log.action_type === 'ล้างตารางงาน') badge = 'bg-red-900/40 text-red-300 border-red-700/50';
-                else if (log.action_type === 'ตั้งค่าโควตา') badge = 'bg-yellow-900/40 text-yellow-300 border-yellow-700/50';
                 html += `
-                <div class="bg-slate-800/40 border border-slate-700 rounded-xl p-2.5 flex flex-wrap items-center gap-2 text-[11px]">
+                <div class="bg-slate-800/40 border border-slate-700 rounded-xl p-2.5 flex flex-wrap items-center gap-2 text-[11px] opacity-70">
                     <span class="font-mono text-gray-400">${t}</span>
-                    <span class="${badge} border px-2 py-0.5 rounded font-bold">${esc(log.action_type)}</span>
+                    <span class="bg-slate-700 text-slate-300 border border-slate-600 px-2 py-0.5 rounded-md font-bold">ตั้งค่าโควตา</span>
                     <span class="text-gray-500">${esc(log.performed_by)}</span>
-                    <span class="text-gray-300 w-full sm:w-auto sm:flex-1 truncate" title="${esc(det)}">${esc(det)}</span>
+                    <span class="text-gray-300">${esc(det)}</span>
                 </div>`;
             }
         });
@@ -2252,21 +2264,24 @@ window.saveQuotaSettings = async function() {
 
     Swal.fire({title: 'กำลังบันทึกโควตา...', didOpen: () => Swal.showLoading()});
     const updates = [];
+    const _changed = [];   // เก็บ "key เดิม→ใหม่" เฉพาะที่เปลี่ยน เพื่อลงประวัติ
+    const _track = (key, label, val) => { const prev = SETTINGS[key]; if (String(prev ?? '') !== String(val ?? '')) _changed.push(`${label} ${prev === undefined || prev === '' ? '-' : prev}→${val}`); };
     ['เช้า', 'กลาง', 'ดึก'].forEach(shift => {
-        let val = document.getElementById(`quota_total_${shift}`).value; updates.push({key: `quota_total_${shift}`, value: val}); SETTINGS[`quota_total_${shift}`] = val;
-        let odVal = document.getElementById(`quota_od_${shift}`).value; updates.push({key: `quota_od_${shift}`, value: odVal}); SETTINGS[`quota_od_${shift}`] = odVal;
+        let val = document.getElementById(`quota_total_${shift}`).value; _track(`quota_total_${shift}`, `AM รวม ${shift}`, val); updates.push({key: `quota_total_${shift}`, value: val}); SETTINGS[`quota_total_${shift}`] = val;
+        let odVal = document.getElementById(`quota_od_${shift}`).value; _track(`quota_od_${shift}`, `OD รวม ${shift}`, odVal); updates.push({key: `quota_od_${shift}`, value: odVal}); SETTINGS[`quota_od_${shift}`] = odVal;
     });
 
     document.querySelectorAll('.quota-row-team').forEach(row => {
         let team = row.querySelector('.key-input').value; let dept = row.querySelector('.dept-input').value;
         let qM = row.querySelector('.val-m').value; let qA = row.querySelector('.val-a').value; let qN = row.querySelector('.val-n').value;
+        _track(`quota_team_${team}_${dept}_เช้า`, `${team} ${dept} เช้า`, qM); _track(`quota_team_${team}_${dept}_กลาง`, `${team} ${dept} กลาง`, qA); _track(`quota_team_${team}_${dept}_ดึก`, `${team} ${dept} ดึก`, qN);
         updates.push({key: `quota_team_${team}_${dept}_เช้า`, value: qM}); SETTINGS[`quota_team_${team}_${dept}_เช้า`] = qM;
         updates.push({key: `quota_team_${team}_${dept}_กลาง`, value: qA}); SETTINGS[`quota_team_${team}_${dept}_กลาง`] = qA;
         updates.push({key: `quota_team_${team}_${dept}_ดึก`, value: qN}); SETTINGS[`quota_team_${team}_${dept}_ดึก`] = qN;
     });
 
     await appDB.from('settings').upsert(updates);
-    try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าโควตา', performed_by: currentUser.username, target_details: 'บันทึกโควตาด้วยมือจากหน้าจัดการระบบ' }]); } catch (e) {}
+    try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าโควตา', performed_by: currentUser.username, target_details: `MANUALQUOTA|${_changed.length ? _changed.join(', ') : 'กดบันทึกโดยไม่มีค่าเปลี่ยน'}` }]); } catch (e) {}
     Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
 };
 
@@ -2450,7 +2465,7 @@ const PERM_GROUPS = [
             {id: 'admin_settings', name: 'ตั้งค่าระบบ', isSub: true},
             {id: 'admin_users', name: 'จัดการพนักงาน', isSub: true},
             {id: 'admin_perms', name: 'สิทธิ์เมนู', isSub: true},
-            {id: 'admin_info', name: 'ประวัติโควตา/หน้าที่', isSub: true},
+            {id: 'admin_info', name: 'ประวัติโควตา', isSub: true},
             {id: 'admin_logs', name: 'ประวัติระบบ (ปุ่มซ้ายล่าง)', isSub: true}
         ]
     }
