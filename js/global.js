@@ -207,6 +207,43 @@ window.lazyStub('loadExcelLibrary', 'summary');         // leave.js → summary.
 window.lazyStub('initSlipCheck', 'slip_check');
 window.lazyStub('initOdConfig', 'od_config');
 
+// ==========================================
+// 🍽️ [กติกาพัก] หลัก-รองห้ามชนกัน
+// ตารางจัดหน้าที่ของวันนั้น → ใครเป็น "หลัก" เว็บไหน / "รอง" (สแตนด์บาย) เว็บไหน
+// คู่ที่ห้ามพักพร้อมกันในช่วงเดียวกัน = (หลักของเว็บ X) กับ (รองของเว็บ X)
+// เพราะถ้าหลักพัก รองต้องอยู่คุม — ถ้ารองพักด้วย เว็บ X ไม่มีใครดู
+// โควตาต่อทีมยังนับจาก "เว็บหลัก" อย่างเดียวเหมือนเดิม กติกานี้เป็นชั้นเสริม
+// ==========================================
+window.buildBreakRoleMap = function(roster) {
+    const primaryOf = {}, secondaryOf = {};
+    for (const team in (roster || {})) {
+        (roster[team] || []).forEach(u => {
+            if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
+            primaryOf[u.username] = team;
+            if (u.secondary_team) secondaryOf[u.username] = u.secondary_team;
+        });
+    }
+    return { primaryOf, secondaryOf };
+};
+// คืนรายชื่อคนที่ "ชน" กับ username ในช่วงนี้ (ไม่นับตัวเอง) — ว่างคือไม่ชน
+window.findBreakClashes = function(username, roleMap, slotBookings) {
+    if (!roleMap) return [];
+    const myP = roleMap.primaryOf[username];
+    const myS = roleMap.secondaryOf[username];
+    if (!myP && !myS) return [];   // ไม่อยู่ในตาราง → ไม่มีคู่ให้ชน
+    const out = [];
+    (slotBookings || []).forEach(b => {
+        const n = b.staff_name;
+        if (!n || n === username) return;
+        const p = roleMap.primaryOf[n], sec = roleMap.secondaryOf[n];
+        // ฉันเป็นรองของ myS และเขาเป็นหลักของ myS  → ชน
+        if (myS && p === myS) out.push(`${n} (หลัก ${myS})`);
+        // ฉันเป็นหลักของ myP และเขาเป็นรองของ myP  → ชน
+        else if (myP && sec === myP) out.push(`${n} (รอง ${myP})`);
+    });
+    return out;
+};
+
 async function showPage(pageName) {
     const loading = document.getElementById('loading');
 
