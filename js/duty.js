@@ -774,6 +774,7 @@ window.restoreFromLeave = async function(userId, username) {
                 
                 const saveKey = getDutySaveKey(targetDate, shiftFilter);
                 window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+                window.syncQuotaFromRoster(currentRosterData);   // 🔁
             }
 
             await appDB.from('system_logs').insert([{ action_type: 'ย้ายหน้าที่', performed_by: currentUser.username, target_details: `ดึง ${username} กลับจากการลา ไปใส่เว็บ [${selectedTeam}] วันที่: ${targetDate}` }]);
@@ -913,6 +914,7 @@ window.addStaffToRoster = async function() {
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
         window.clearSettingCache(); const { error: _upsertErr } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (_upsertErr) throw _upsertErr;
+        window.syncQuotaFromRoster(currentRosterData);   // 🔁
 
         await appDB.from('system_logs').insert([{
             action_type: 'ย้ายหน้าที่',
@@ -1195,6 +1197,7 @@ window.generateDutyRoster = async function() {
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
         window.clearSettingCache(); const { error: _upsertErr2 } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(rosterResult) }]);
         if (_upsertErr2) throw _upsertErr2;
+        await window.syncQuotaFromRoster(rosterResult, { silent: true });   // 🔁 โควตาพักตามจำนวนคนจริง
 
         try {
             // 🌟 สร้าง summary ของผู้ที่ถูกจัดเข้าแต่ละเว็บ
@@ -1897,6 +1900,7 @@ window.handleDrop = async function(event, toTeam) {
                 currentRosterData[fromTeam] = currentRosterData[fromTeam].filter(u => String(u.id) !== String(id));
                 const saveKey = getDutySaveKey(targetDate, shiftFilter);
                 window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
+                window.syncQuotaFromRoster(currentRosterData);   // 🔁
             }
 
             const { error: leaveErr } = await appDB.from('leave_requests').insert([{ user_id: id, user_name: username, leave_date: targetDate, reason: leaveReason, status: 'approved' }]);
@@ -1942,6 +1946,7 @@ window.handleDrop = async function(event, toTeam) {
     try {
         window.clearSettingCache(); const { error: _upsertErr } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (_upsertErr) throw _upsertErr;
+        window.syncQuotaFromRoster(currentRosterData);   // 🔁
 
         // 📌 ถ้าคนนี้ถูกล็อก "อยู่ต่อ" ไว้ ให้ย้าย pin ตามไปเว็บใหม่ด้วย
         // ไม่งั้นวันพรุ่งนี้ระบบจะดึงเขากลับไปเว็บเดิมสวนทางกับที่เพิ่งย้ายมา
@@ -2266,6 +2271,58 @@ function calculateQuotaByRule(totalStaff) {
     if (totalStaff <= 30) return 7; 
     return 8;                               
 }
+
+// ==========================================
+// 🔁 [AUTO] อัปเดตโควตาพักให้เองทุกครั้งที่ตารางหน้าที่เปลี่ยน
+// เดิมต้องไปกด "คำนวณออโต้" + "บันทึกโควตา" ในหน้าจัดการระบบทุกวัน
+// ตอนนี้: สุ่มจัด / ลากย้ายคน / เพิ่มคน / ดึงคนกลับจากลา / ล้างตาราง → คำนวณใหม่จากจำนวนคนจริงทันที
+// กติกาเดิม (calculateQuotaByRule): 1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5 ...
+// ปิดได้ด้วยการตั้ง settings key duty_auto_quota = 'off'
+// ==========================================
+window.syncQuotaFromRoster = async function(rosterData, opts) {
+    opts = opts || {};
+    try {
+        if (window.isTrainerDept()) return;                                   // เฉพาะ AM / OD
+        if (typeof SETTINGS !== 'undefined' && SETTINGS.duty_auto_quota === 'off') return;
+        const shiftEl = document.getElementById('dutyShiftSelect');
+        if (!shiftEl) return;
+        const suffix = shiftEl.value.replace('กะ', '');
+        if (!['เช้า', 'กลาง', 'ดึก'].includes(suffix)) return;
+        const dept = currentDutyDept;
+        const roster = rosterData || currentRosterData || {};
+
+        const updates = [];
+        let total = 0;
+        const lines = [];
+        sortedTeams.forEach(team => {
+            const n = (roster[team] || []).filter(u => u && u.id && !String(u.username || '').includes('ขาดคน')).length;
+            const q = calculateQuotaByRule(n);
+            total += q;
+            updates.push({ key: `quota_team_${team}_${dept}_${suffix}`, value: String(q) });
+            if (typeof SETTINGS !== 'undefined') SETTINGS[`quota_team_${team}_${dept}_${suffix}`] = String(q);
+            lines.push(`${team}:${n}คน→${q}`);
+        });
+        const totalKey = dept === 'OD' ? `quota_od_${suffix}` : `quota_total_${suffix}`;
+        updates.push({ key: totalKey, value: String(total) });
+        if (typeof SETTINGS !== 'undefined') SETTINGS[totalKey] = String(total);
+
+        window.clearSettingCache();
+        const { error } = await appDB.from('settings').upsert(updates);
+        if (error) throw error;
+
+        try {
+            await appDB.from('system_logs').insert([{
+                action_type: 'ตั้งค่าโควตา', performed_by: currentUser.username,
+                target_details: `อัตโนมัติจากตารางหน้าที่ ${dept} ${suffix} (รวม ${total}) — ${lines.join(', ')}`
+            }]);
+        } catch (e) {}
+
+        if (!opts.silent) {
+            Swal.mixin({ toast: true, position: 'bottom-end', showConfirmButton: false, timer: 2500 })
+                .fire({ icon: 'success', title: `อัปเดตโควตาพัก ${dept} ${suffix} ให้แล้ว (รวม ${total})` });
+        }
+    } catch (e) { console.warn('[autoQuota]', e); }
+};
 
 window.autoCalculateTeamQuotas = async function() {
     const rows = document.querySelectorAll('.quota-row-team');
@@ -3947,6 +4004,7 @@ window.restoreDutyRoster = async function() {
             Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
             try {
                 window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: backupData }]);
+                try { window.syncQuotaFromRoster(JSON.parse(backupData), { silent: true }); } catch (e) {}   // 🔁
                 await appDB.from('system_logs').insert([{ action_type: 'กู้คืนตารางงาน', performed_by: currentUser.username, target_details: `กู้คืนตาราง ${currentDutyDept} (${shiftFilter}, ${targetDate})` }]);
                 
                 if(appDB.channel) window.debouncedBroadcast('duty-updates', 'force_reload');
