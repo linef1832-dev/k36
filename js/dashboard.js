@@ -197,15 +197,18 @@ window.refreshTimeSlots = async function() {
     if (teamSelect && !['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${shiftName}`;
         let assignedTeams = [];
+        let breakRoleMap = null;
 
         // ใช้ cache ถ้ายัง fresh
         if (_rosterCache[rosterKey] && (now - _rosterCache[rosterKey].ts) < _SLOT_TTL) {
             assignedTeams = _rosterCache[rosterKey].data;
+            breakRoleMap = _rosterCache[rosterKey].roleMap || null;
         } else {
             try {
                 const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
                 if (rosterData && rosterData.value) {
                     const roster = JSON.parse(rosterData.value);
+                    breakRoleMap = window.buildBreakRoleMap(roster);
                     for (const team in roster) {
                         (roster[team] || []).forEach(u => {
                             if (String(u.id) === String(currentUser.id)) {
@@ -215,11 +218,12 @@ window.refreshTimeSlots = async function() {
                         });
                     }
                 }
-                _rosterCache[rosterKey] = { data: assignedTeams, ts: now };
+                _rosterCache[rosterKey] = { data: assignedTeams, roleMap: breakRoleMap, ts: now };
             } catch(e) { console.error(e); }
         }
 
         window._myAssignedTeams = assignedTeams;
+        window._myBreakRoleMap = breakRoleMap;
 
         const oldVal = teamSelect.value;
         const sortedTeams = [...TEAM_LIST].sort((a,b) => a.localeCompare(b));
@@ -248,7 +252,7 @@ window.refreshTimeSlots = async function() {
             bookings = _slotCache[slotCacheKey].data;
         } else {
             const { data } = await appDB.from('schedules')
-                .select('time_slot, department, team')
+                .select('time_slot, department, team, staff_name')
                 .eq('work_date', dateVal)
                 .eq('shift_name', shiftName);
             bookings = data;
@@ -289,11 +293,19 @@ window.refreshTimeSlots = async function() {
                 const leftTeam = teamQuota - countTeam;
                 const leftDept = deptQuota - countDept;
                 const left = Math.min(leftTeam, leftDept);
-                const isFull = left <= 0;
+                let isFull = left <= 0;
+
+                // 🍽️ [กติกาพัก] หลัก-รองเว็บเดียวกันห้ามพักช่วงเดียวกัน
+                const clashes = (!isFull && window._myBreakRoleMap && currentUser.check_type !== 'shift')
+                    ? window.findBreakClashes(currentUser.username, window._myBreakRoleMap, (bookings || []).filter(b => b.time_slot === time))
+                    : [];
+                if (clashes.length > 0) isFull = true;
                 // บอกด้วยว่าเต็มเพราะชั้นไหน จะได้ไม่งงว่าทีมยังว่างแต่กดไม่ได้
-                const statusText = isFull
-                    ? (leftDept <= 0 ? '(เต็มแล้ว - รวมทั้งแผนก)' : '(เต็มแล้ว - ทีมนี้)')
-                    : `(ว่าง: ${left})`;
+                const statusText = clashes.length > 0
+                    ? `(ชนกับ ${clashes.map(c => c.split(' (')[0]).join(', ')})`
+                    : isFull
+                        ? (leftDept <= 0 ? '(เต็มแล้ว - รวมทั้งแผนก)' : '(เต็มแล้ว - ทีมนี้)')
+                        : `(ว่าง: ${left})`;
                 html += `<option value="${time}" data-period="${periodName}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
             });
             html += '</optgroup>';
