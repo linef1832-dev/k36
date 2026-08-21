@@ -150,6 +150,63 @@ window.cleanupPageIntervals = function() {
     window._pageIntervals.clear();
 };
 
+// ==========================================
+// 📦 [PERF] โหลด JS เฉพาะหน้าที่เปิด
+// เดิม index.html โหลดทุกไฟล์ ~2 MB ตั้งแต่เปิดเว็บ ทั้งที่ใช้แค่ 1-2 หน้า
+// ตอนนี้โหลดแค่ global/auth/system_core/dashboard/sheet/wrapped ก่อน
+// ไฟล์ของแต่ละหน้าจะถูกดึงตอนกดเข้าหน้านั้นครั้งแรก (โหลดแล้วจำไว้ ไม่โหลดซ้ำ)
+// เปลี่ยน version ทีเดียวที่ window._APP_VERSION ใน index.html
+// ==========================================
+const PAGE_SCRIPTS = {
+    leave:             ['leave', 'swap'],
+    swap:              ['leave', 'swap'],
+    duty:              ['duty'],
+    discord:           ['discord'],
+    summary:           ['summary'],
+    telegram:          ['Telegram'],
+    password:          ['Password'],
+    files:             ['FilesApp'],
+    od_config:         ['od_config'],
+    kbiz:              ['kbiz'],
+    gallery:           ['gallery'],
+    logo_editor:       ['logo_editor'],
+    fine:              ['fine'],
+    withdrawal_report: ['withdrawal_report'],
+    sop:               ['sop'],
+    ip_check:          ['ip_check'],
+    slip_check:        ['slip_check'],
+};
+window._loadedScripts = {};
+window.loadScript = function(name) {
+    if (window._loadedScripts[name]) return window._loadedScripts[name];
+    window._loadedScripts[name] = new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = `./js/${name}.js?v=${window._APP_VERSION || Date.now()}`;
+        el.onload = () => resolve(name);
+        el.onerror = () => { delete window._loadedScripts[name]; reject(new Error(`โหลดไฟล์ ${name}.js ไม่สำเร็จ`)); };
+        document.head.appendChild(el);
+    });
+    return window._loadedScripts[name];
+};
+window.loadPageScripts = async function(pageName) {
+    const list = PAGE_SCRIPTS[pageName] || [];
+    for (const n of list) await window.loadScript(n);   // ตามลำดับ (leave ต้องมาก่อน swap)
+};
+// ฟังก์ชันที่ถูกเรียกข้ามหน้า (เช่น dashboard เรียกของ duty) — ตัวแทนจะโหลดไฟล์จริงก่อนแล้วค่อยเรียก
+window.lazyStub = function(fnName, scriptName) {
+    if (typeof window[fnName] === 'function') return;
+    const stub = async function(...args) {
+        await window.loadScript(scriptName);
+        if (typeof window[fnName] === 'function' && window[fnName] !== stub) return window[fnName](...args);
+        throw new Error(`${fnName} ไม่พบใน ${scriptName}.js`);
+    };
+    window[fnName] = stub;
+};
+window.lazyStub('autoCalculateTeamQuotas', 'duty');     // dashboard → duty.js
+window.lazyStub('loadExcelLibrary', 'summary');         // leave.js → summary.js
+window.lazyStub('initSlipCheck', 'slip_check');
+window.lazyStub('initOdConfig', 'od_config');
+
 async function showPage(pageName) {
     const loading = document.getElementById('loading');
 
@@ -166,6 +223,9 @@ async function showPage(pageName) {
             if (!response.ok) throw new Error('Page not found');
             pageCache[pageName] = await response.text();
         }
+        // 📦 โหลด JS ของหน้านี้ (ครั้งแรกเท่านั้น)
+        if (loading) loading.classList.remove('hidden');
+        await window.loadPageScripts(pageName);
         
         const htmlContent = pageCache[pageName];
 
@@ -265,6 +325,9 @@ async function showPage(pageName) {
                 }
                 else if (pageName === 'ip_check') {
                     if (typeof initIpCheckApp === 'function') await initIpCheckApp();
+                }
+                else if (pageName === 'slip_check') {
+                    if (typeof window.initSlipCheck === 'function') await window.initSlipCheck();
                 }
             });
         };
