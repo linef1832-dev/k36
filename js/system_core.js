@@ -2180,6 +2180,90 @@ window.renderQuotaSettings = function() {
     `;
 };
 
+// ==========================================
+// 🕘 ประวัติโควตา — ดูว่าโควตาถูกเปลี่ยนเมื่อไหร่ เพราะอะไร (อัตโนมัติจากตารางหน้าที่ / กดมือ)
+// ==========================================
+window.switchQuotaView = function(view) {
+    const setC = document.getElementById('quotaSettingsContainer');
+    const hisC = document.getElementById('quotaHistoryContainer');
+    const bS = document.getElementById('quotaTabBtn_settings');
+    const bH = document.getElementById('quotaTabBtn_history');
+    if (!setC || !hisC) return;
+    const on = 'text-[10px] px-3 py-1 rounded-md font-bold bg-slate-700 text-white transition';
+    const off = 'text-[10px] px-3 py-1 rounded-md font-bold text-slate-400 hover:text-white transition';
+    if (view === 'history') {
+        setC.classList.add('hidden'); hisC.classList.remove('hidden');
+        if (bS) bS.className = off; if (bH) bH.className = on;
+        window.renderQuotaHistory();
+    } else {
+        hisC.classList.add('hidden'); setC.classList.remove('hidden');
+        if (bS) bS.className = on; if (bH) bH.className = off;
+    }
+};
+
+window.renderQuotaHistory = async function() {
+    const c = document.getElementById('quotaHistoryContainer');
+    if (!c) return;
+    c.innerHTML = '<div class="text-center py-10 text-gray-500"><span class="material-icons animate-spin mb-2 text-2xl">sync</span><br>กำลังโหลดประวัติ...</div>';
+    try {
+        const { data, error } = await appDB.from('system_logs').select('*')
+            .in('action_type', ['ตั้งค่าโควตา', 'สุ่มจัดหน้าที่', 'ย้ายหน้าที่', 'ล้างตารางงาน', 'กู้คืนตารางงาน'])
+            .order('created_at', { ascending: false }).limit(60);
+        if (error) throw error;
+        if (!data || data.length === 0) { c.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">ยังไม่มีประวัติ</div>'; return; }
+
+        const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const fmt = d => new Date(d).toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        let html = '<div class="space-y-2">';
+        data.forEach(log => {
+            const t = fmt(log.created_at);
+            const det = log.target_details || '';
+            if (log.action_type === 'ตั้งค่าโควตา' && det.startsWith('AUTOQUOTA|')) {
+                const parts = det.split('|');
+                const dept = parts[1], suffix = parts[2], total = parts[3], reason = parts[4], changed = parts[5];
+                const all = parts.slice(6).join('|');
+                const chips = all.split(',').map(x => {
+                    const [team, n, prev, q] = x.split('|');
+                    if (!team) return '';
+                    const diff = prev !== '-' && String(prev) !== String(q);
+                    return `<span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border ${diff ? 'border-amber-500/60 bg-amber-900/30 text-amber-300' : 'border-slate-700 bg-slate-800 text-slate-400'}"><b>${esc(team)}</b> ${esc(n)} คน → <b>${esc(q)}</b>${diff ? ` <span class="opacity-70">(เดิม ${esc(prev)})</span>` : ''}</span>`;
+                }).join(' ');
+                const hasChange = changed && !changed.startsWith('ไม่มี');
+                html += `
+                <div class="bg-slate-800/70 border ${hasChange ? 'border-amber-600/50' : 'border-emerald-700/40'} rounded-xl p-3">
+                    <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span class="font-mono text-gray-400">${t}</span>
+                        <span class="bg-emerald-900/40 text-emerald-300 border border-emerald-700/50 px-2 py-0.5 rounded font-bold">🔁 โควตาอัตโนมัติ</span>
+                        <span class="font-bold text-white">${esc(dept)} กะ${esc(suffix)}</span>
+                        <span class="text-gray-400">รวม <b class="text-yellow-300">${esc(total)}</b></span>
+                        <span class="text-gray-500">โดย ${esc(log.performed_by)}</span>
+                    </div>
+                    <div class="text-[11px] text-sky-300 mt-1.5">สาเหตุ: ${esc(reason)}</div>
+                    <div class="text-[11px] mt-1 ${hasChange ? 'text-amber-300 font-bold' : 'text-gray-500'}">เปลี่ยน: ${esc(changed)}</div>
+                    <div class="flex flex-wrap gap-1 mt-2">${chips}</div>
+                </div>`;
+            } else {
+                let badge = 'bg-slate-700 text-slate-200 border-slate-600';
+                if (log.action_type === 'สุ่มจัดหน้าที่') badge = 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50';
+                else if (log.action_type === 'ย้ายหน้าที่') badge = 'bg-purple-900/40 text-purple-300 border-purple-700/50';
+                else if (log.action_type === 'ล้างตารางงาน') badge = 'bg-red-900/40 text-red-300 border-red-700/50';
+                else if (log.action_type === 'ตั้งค่าโควตา') badge = 'bg-yellow-900/40 text-yellow-300 border-yellow-700/50';
+                html += `
+                <div class="bg-slate-800/40 border border-slate-700 rounded-xl p-2.5 flex flex-wrap items-center gap-2 text-[11px]">
+                    <span class="font-mono text-gray-400">${t}</span>
+                    <span class="${badge} border px-2 py-0.5 rounded font-bold">${esc(log.action_type)}</span>
+                    <span class="text-gray-500">${esc(log.performed_by)}</span>
+                    <span class="text-gray-300 w-full sm:w-auto sm:flex-1 truncate" title="${esc(det)}">${esc(det)}</span>
+                </div>`;
+            }
+        });
+        html += '</div>';
+        c.innerHTML = html;
+    } catch (e) {
+        c.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">โหลดประวัติไม่สำเร็จ: ${e.message}</div>`;
+    }
+};
+
 window.saveQuotaSettings = async function() {
     if (!window.sysRequireAdmin()) return;
 
@@ -2199,6 +2283,7 @@ window.saveQuotaSettings = async function() {
     });
 
     await appDB.from('settings').upsert(updates);
+    try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าโควตา', performed_by: currentUser.username, target_details: 'บันทึกโควตาด้วยมือจากหน้าจัดการระบบ' }]); } catch (e) {}
     Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
 };
 
