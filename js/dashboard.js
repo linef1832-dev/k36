@@ -445,6 +445,18 @@ window.subscribeDashboardChanges = function() {
     }
 
     dashboardSubscription = appDB.channel('dashboard-schedules')
+        // 🔁 โควตาพัก / ตารางหน้าที่ เปลี่ยน (จากหน้าจัดหน้าที่) → โหลดค่าใหม่ให้ dropdown "ว่าง" ตรงกับจริง
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
+            const key = (payload.new && payload.new.key) || (payload.old && payload.old.key) || '';
+            if (!key) return;
+            if (key.startsWith('quota_')) {
+                if (typeof SETTINGS !== 'undefined') SETTINGS[key] = payload.new ? payload.new.value : undefined;
+                if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
+            } else if (key.startsWith('duty_roster_')) {
+                if (typeof _rosterCache !== 'undefined') delete _rosterCache[key];
+                if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
+            }
+        })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, (payload) => {
             const mainContent = document.getElementById('mainContentArea');
             if (mainContent && !mainContent.classList.contains('hidden')) {
