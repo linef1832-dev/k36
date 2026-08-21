@@ -20,7 +20,6 @@
 
                 <div class="flex bg-indigo-900 rounded-lg p-1 mr-2 duty-admin-only">
                     <button onclick="switchDutyTab('roster')" id="tabBtnRoster" class="px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition">📋 จัดเวร</button>
-                    <button onclick="switchDutyTab('standby')" id="tabBtnStandby" class="px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition flex items-center gap-1"><span class="material-icons text-sm">support_agent</span> งานรอง</button>
                     <button onclick="switchDutyTab('settings')" id="tabBtnSettings" class="px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition">⚙️ ตั้งค่าสิทธิ์ & หัวข้อ</button>
                     <button onclick="openDutyHistoryModal()" id="tabBtnHistory" class="px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติ</button>
                 </div>
@@ -59,9 +58,17 @@
                 <button onclick="clearDutyRoster()" class="duty-admin-only bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95">
                     <span class="material-icons text-base">delete_sweep</span> ล้างตาราง
                 </button>
+
+                <button id="btnQuickBackup" onclick="quickAssignBackups()" class="duty-admin-only bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-fuchsia-400">
+                    <span class="material-icons text-base">bolt</span> จัดรองด่วน (AI)
+                </button>
                 
                 <button onclick="addStaffToRoster()" class="duty-admin-only bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95">
                     <span class="material-icons text-base">person_add</span> เพิ่มพนักงาน
+                </button>
+
+                <button id="btnClearSecondary" onclick="clearSecondaryDuties()" title="ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ" class="duty-admin-only bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-cyan-400">
+                    <span class="material-icons text-base">layers_clear</span> ล้างงานรอง
                 </button>
                 
                 <button id="btnRestoreRoster" onclick="restoreDutyRoster()" class="hidden duty-admin-only bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 ml-2">
@@ -196,52 +203,7 @@
             </div>
         </div>
 
-        <!-- 🌟 หน้างานรอง — ตั้งค่าแยกตามเว็บ -->
-        <div id="dutyTabStandby" class="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-900 hidden mx-4 border-x border-b border-gray-200 dark:border-slate-700 rounded-b-xl shadow-sm w-auto p-4">
-            
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-2xl p-4 mb-4 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <div class="bg-white/20 backdrop-blur-sm p-2.5 rounded-xl">
-                        <span class="material-icons text-white text-2xl">support_agent</span>
-                    </div>
-                    <div class="flex-1">
-                        <div class="font-black text-lg text-white">ตั้งค่างานรอง</div>
-                        <div class="text-xs text-white/80">กำหนดหัวข้องานของแต่ละเว็บ • หน้า "จัดเวร" จะใช้ค่านี้ตอนกด "⚡ จัดรองด่วน"</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Info box -->
-            <div class="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500 rounded-lg p-3 mb-4 text-sm text-blue-800 dark:text-blue-200">
-                <div class="flex items-start gap-2">
-                    <span class="material-icons text-blue-500 text-base mt-0.5">info</span>
-                    <div class="flex-1">
-                        <div class="font-bold mb-1">💡 วิธีใช้งาน</div>
-                        <ol class="text-xs space-y-0.5 list-decimal list-inside opacity-90">
-                            <li>เลือกเว็บที่ต้องการตั้งค่า (Tab ด้านล่าง)</li>
-                            <li>เพิ่มหัวข้องานรองที่ต้องการของเว็บนั้น</li>
-                            <li>กลับไปหน้า "จัดเวร" → กด "⚡ จัดรองด่วน (AI)" → ระบบจะดึงค่าจากที่นี่</li>
-                        </ol>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Web tabs -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-                <div class="bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-700 dark:to-slate-800 border-b border-gray-200 dark:border-slate-700 p-2">
-                    <div id="standbyWebTabs" class="flex gap-1.5 overflow-x-auto custom-scrollbar">
-                        <div class="text-xs text-slate-400 py-2 px-3">กำลังโหลด...</div>
-                    </div>
-                </div>
-                
-                <!-- เนื้อหาของเว็บที่เลือก -->
-                <div id="standbyWebContent" class="p-4">
-                    <div class="text-center py-10 text-slate-400 text-sm">เลือกเว็บด้านบนเพื่อตั้งค่า</div>
-                </div>
-            </div>
-            
-        </div>
+        <!-- (ลบแท็บ "งานรอง" ออกแล้ว — ไม่ได้ใช้ หัวข้อที่สุ่มไม่ถูกแสดงผลที่ไหน) -->
     </div>
 
     <!-- ===== Modal รวมห้อง Discord ===== -->
