@@ -335,18 +335,15 @@ window.switchDutyTab = function(tabName) {
     document.getElementById('dutyTabRoster')?.classList.remove('flex');
     document.getElementById('dutyTabSettings')?.classList.add('hidden');
     document.getElementById('dutyTabSettings')?.classList.remove('flex');
-    document.getElementById('dutyTabStandby')?.classList.add('hidden');
     
     const resetClass = 'px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition';
     const activeClass = 'px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition';
     
     const btnRoster = document.getElementById('tabBtnRoster');
     const btnSettings = document.getElementById('tabBtnSettings');
-    const btnStandby = document.getElementById('tabBtnStandby');
     
     if (btnRoster) btnRoster.className = resetClass;
     if (btnSettings) btnSettings.className = resetClass;
-    if (btnStandby) btnStandby.className = resetClass + ' flex items-center gap-1';
     
     if (tabName === 'roster') {
         document.getElementById('dutyTabRoster').classList.remove('hidden');
@@ -354,10 +351,6 @@ window.switchDutyTab = function(tabName) {
         if (btnRoster) btnRoster.className = activeClass;
         window.renderDutyRequirements();
         if(window.isDutyAdmin()) window.updateDutyStats();
-    } else if (tabName === 'standby') {
-        document.getElementById('dutyTabStandby').classList.remove('hidden');
-        if (btnStandby) btnStandby.className = activeClass + ' flex items-center gap-1';
-        if (typeof loadStandbyConfig === 'function') loadStandbyConfig();
     } else {
         document.getElementById('dutyTabSettings').classList.remove('hidden');
         document.getElementById('dutyTabSettings').classList.add('flex');
@@ -384,12 +377,6 @@ window.switchDutyDept = function(dept) {
         else btnODTask.classList.add('hidden');
     }
 
-    // แสดง/ซ่อนปุ่มรวมห้อง Discord เฉพาะ AMQL
-    const btnMerge = document.getElementById('btnMergeRoom');
-    if (btnMerge) {
-        if (dept === 'AMQL') btnMerge.classList.remove('hidden');
-        else btnMerge.classList.add('hidden');
-    }
     
     let labelText = dept;
     if (dept === 'AMQL') labelText = 'ผู้สอน AM';
@@ -1996,17 +1983,7 @@ document.addEventListener('dragend', (e) => {
     cleanupDragEffects(); draggedUser = null;
 });
 
-window.filterTrainerList = function() {
-    const input = document.getElementById('trainerSearchInput'); const filter = input.value.toLowerCase();
-    const container = document.getElementById('trainerListContainer'); const labels = container.getElementsByTagName('label');
-    for (let i = 0; i < labels.length; i++) {
-        const nameSpan = labels[i].querySelector('.staff-name');
-        if (nameSpan) {
-            const txtValue = nameSpan.textContent || nameSpan.innerText;
-            labels[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "flex" : "none";
-        }
-    }
-};
+// (ลบโค้ดที่ไม่ได้ใช้ออก 11 บรรทัด — ไม่ถูกเรียก)
 
 window.openTrainerReportModal = async function(team) {
     const targetDate = document.getElementById('dutyDate').value;
@@ -3983,304 +3960,7 @@ window.restoreDutyRoster = async function() {
     });
 };
 
-// ========================================================================
-// 🌟 NEW: หน้าตั้งค่างานรอง (Config) — แยกตามเว็บ
-//
-// Supabase `settings`:
-//   key='standby_config_by_web' → { 'K36': ['เช็คโปร', 'ตอบแชต'], 'Jun88': ['เช็คโปร', 'ตอบสลิป'], ... }
-//
-// ใช้ตอน quickAssignBackups เพื่อสุ่ม "หัวข้องาน" ให้แต่ละคนตามเว็บที่ไปสแตนบาย
-// เก็บผลลัพธ์ใน roster: u.standby_task = 'เช็คโปร'
-// ========================================================================
-
-window._standbyConfigByWeb = {};   // { 'K36': ['เช็คโปร', 'ตอบแชต'] }
-window._standbySelectedWeb = null; // เว็บที่กำลังเลือกใน UI
-
-// ─────────────────────────────────────────────
-// โหลด config + render UI
-// ─────────────────────────────────────────────
-window.loadStandbyConfig = async function() {
-    if (typeof appDB === 'undefined') return;
-    
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'standby_config_by_web');
-        window._standbyConfigByWeb = {};
-        if (data && data.length > 0 && data[0].value) {
-            try {
-                const obj = JSON.parse(data[0].value);
-                if (obj && typeof obj === 'object') window._standbyConfigByWeb = obj;
-            } catch(e) {}
-        }
-        
-        renderStandbyWebTabs();
-        if (window._standbySelectedWeb) {
-            renderStandbyWebContent(window._standbySelectedWeb);
-        }
-    } catch(e) {
-        console.error('loadStandbyConfig error:', e);
-    }
-};
-
-// ─────────────────────────────────────────────
-// แท็บเว็บ (ปุ่มเลือกเว็บ)
-// ─────────────────────────────────────────────
-const STANDBY_WEB_COLORS_CFG = {
-    'Jun88':'#3b82f6','MK8':'#0f172a','F168':'#f59e0b','PG688':'#fde047',
-    'JL69':'#fed7aa','NM9':'#94a3b8','VV72':'#7f1d1d','TH26':'#a78bfa',
-    'BT678':'#0e7490','K188':'#16a34a','NM8':'#475569','K36':'#dc2626'
-};
-function getCfgWebColor(w) { return STANDBY_WEB_COLORS_CFG[w] || '#64748b'; }
-
-function getAllWebs() {
-    // [FIX] เดิมอ่าน window.dutyAccessMatrix (ซึ่ง undefined เพราะประกาศด้วย let)
-    // แล้ววนโครงสร้างผิด — ที่ไม่พังเพราะตกไปใช้ list hardcode โดยบังเอิญ
-    // ตอนนี้ใช้ TEAM_LIST จริง + เว็บที่เคยตั้ง config ไว้ (กันของเก่าหาย)
-    let allWebs = (typeof TEAM_LIST !== 'undefined' && TEAM_LIST.length) ? [...TEAM_LIST] : [];
-    Object.keys(window._standbyConfigByWeb || {}).forEach(w => { if (!allWebs.includes(w)) allWebs.push(w); });
-    if (allWebs.length === 0) {
-        allWebs = ['Jun88','MK8','F168','PG688','JL69','NM9','VV72','TH26','BT678','K188','NM8','K36'];
-    }
-    const defaultOrder = ['Jun88','MK8','F168','PG688','JL69','NM9','VV72','TH26','BT678','K188','NM8','K36'];
-    allWebs.sort((a, b) => {
-        const ia = defaultOrder.indexOf(a);
-        const ib = defaultOrder.indexOf(b);
-        if (ia === -1 && ib === -1) return a.localeCompare(b);
-        if (ia === -1) return 1;
-        if (ib === -1) return -1;
-        return ia - ib;
-    });
-    return allWebs;
-}
-
-
-function renderStandbyWebTabs() {
-    const wrap = document.getElementById('standbyWebTabs');
-    if (!wrap) return;
-    
-    const webs = getAllWebs();
-    
-    if (webs.length === 0) {
-        wrap.innerHTML = '<div class="text-xs text-slate-400 py-2 px-3">ยังไม่มีเว็บในระบบ</div>';
-        return;
-    }
-    
-    // เลือก default ถ้ายังไม่เลือก
-    if (!window._standbySelectedWeb || !webs.includes(window._standbySelectedWeb)) {
-        window._standbySelectedWeb = webs[0];
-    }
-    
-    wrap.innerHTML = webs.map(w => {
-        const isActive = w === window._standbySelectedWeb;
-        const color = getCfgWebColor(w);
-        const taskCount = (window._standbyConfigByWeb[w] || []).length;
-        const txtColor = (color === '#fde047' || color === '#fed7aa') ? '#000' : '#fff';
-        
-        return `
-        <button onclick="selectStandbyWeb('${w}')" class="standby-web-tab flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${isActive ? 'shadow-md' : 'opacity-60 hover:opacity-100'}" 
-            style="background:${isActive ? color : 'transparent'};color:${isActive ? txtColor : color};border:1.5px solid ${color}">
-            ${w}
-            ${taskCount > 0 ? `<span class="bg-white/30 backdrop-blur-sm px-1.5 rounded-full text-[9px]">${taskCount}</span>` : ''}
-        </button>`;
-    }).join('');
-    
-    renderStandbyWebContent(window._standbySelectedWeb);
-}
-
-window.selectStandbyWeb = function(web) {
-    window._standbySelectedWeb = web;
-    renderStandbyWebTabs();
-};
-
-// ─────────────────────────────────────────────
-// เนื้อหาของเว็บที่เลือก (รายการหัวข้องาน)
-// ─────────────────────────────────────────────
-function renderStandbyWebContent(web) {
-    const wrap = document.getElementById('standbyWebContent');
-    if (!wrap) return;
-    
-    const tasks = window._standbyConfigByWeb[web] || [];
-    const color = getCfgWebColor(web);
-    const txtColor = (color === '#fde047' || color === '#fed7aa') ? '#000' : '#fff';
-    
-    wrap.innerHTML = `
-        <div class="flex items-center gap-2 mb-4">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm shadow" style="background:${color};color:${txtColor}">${web}</div>
-            <div class="flex-1">
-                <div class="font-black text-base text-slate-800 dark:text-white">หัวข้องานรองของ ${web}</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400">${tasks.length} หัวข้อ • คนที่มาช่วยเว็บ ${web} จะถูกสุ่มหัวข้อจากนี้</div>
-            </div>
-        </div>
-        
-        <!-- เพิ่มหัวข้อใหม่ -->
-        <div class="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 mb-3">
-            <div class="flex gap-2">
-                <input type="text" id="newStandbyWebTask" placeholder="ชื่อหัวข้องาน เช่น เช็คคำขอโปรโมชั่น..." 
-                    onkeydown="if(event.key==='Enter') addStandbyWebTask('${web}')"
-                    class="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm outline-none focus:border-purple-500 dark:text-white">
-                <button onclick="addStandbyWebTask('${web}')" class="bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-600 hover:to-fuchsia-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-1">
-                    <span class="material-icons text-base">add</span> เพิ่ม
-                </button>
-            </div>
-        </div>
-        
-        <!-- รายการหัวข้อ -->
-        ${tasks.length === 0 
-            ? `<div class="text-center py-10 text-slate-400">
-                <span class="material-icons text-4xl opacity-30">playlist_add</span>
-                <p class="font-bold text-sm mt-2">ยังไม่มีหัวข้องานของ ${web}</p>
-                <p class="text-[11px] mt-1">เพิ่มหัวข้อในช่องด้านบน — กด Enter ก็ได้</p>
-              </div>`
-            : `<div class="space-y-2">
-                ${tasks.map((task, idx) => `
-                    <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 flex items-center gap-2 group hover:shadow-md transition">
-                        <span class="text-white font-black text-[10px] w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style="background:${color};color:${txtColor}">${idx + 1}</span>
-                        <input type="text" value="${escapeHtmlCfg(task)}" 
-                            onchange="editStandbyWebTask('${web}', ${idx}, this.value)"
-                            class="flex-1 bg-transparent border-none outline-none text-sm font-bold text-slate-800 dark:text-white px-1 focus:bg-slate-50 dark:focus:bg-slate-900 rounded">
-                        <button onclick="moveStandbyWebTask('${web}', ${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed" title="ขึ้น">
-                            <span class="material-icons text-sm">arrow_upward</span>
-                        </button>
-                        <button onclick="moveStandbyWebTask('${web}', ${idx}, 1)" ${idx === tasks.length-1 ? 'disabled' : ''} class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed" title="ลง">
-                            <span class="material-icons text-sm">arrow_downward</span>
-                        </button>
-                        <button onclick="deleteStandbyWebTask('${web}', ${idx})" class="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded text-rose-500" title="ลบ">
-                            <span class="material-icons text-sm">delete</span>
-                        </button>
-                    </div>
-                `).join('')}
-              </div>`
-        }
-    `;
-}
-
-window.addStandbyWebTask = async function(web) {
-    const input = document.getElementById('newStandbyWebTask');
-    if (!input) return;
-    const val = input.value.trim();
-    if (!val) return;
-    
-    if (!window._standbyConfigByWeb[web]) window._standbyConfigByWeb[web] = [];
-    if (window._standbyConfigByWeb[web].includes(val)) {
-        return Swal.fire('!', 'มีหัวข้อนี้อยู่แล้ว', 'warning');
-    }
-    
-    window._standbyConfigByWeb[web].push(val);
-    input.value = '';
-    renderStandbyWebTabs();
-    await saveStandbyConfig();
-};
-
-window.editStandbyWebTask = async function(web, idx, newVal) {
-    newVal = (newVal || '').trim();
-    if (!newVal) {
-        renderStandbyWebTabs();
-        return Swal.fire('!', 'ต้องระบุชื่อหัวข้อ', 'warning');
-    }
-    if (!window._standbyConfigByWeb[web]) return;
-    window._standbyConfigByWeb[web][idx] = newVal;
-    await saveStandbyConfig();
-};
-
-window.moveStandbyWebTask = async function(web, idx, dir) {
-    const arr = window._standbyConfigByWeb[web];
-    if (!arr) return;
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= arr.length) return;
-    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
-    renderStandbyWebTabs();
-    await saveStandbyConfig();
-};
-
-window.deleteStandbyWebTask = async function(web, idx) {
-    const arr = window._standbyConfigByWeb[web];
-    if (!arr) return;
-    const taskName = arr[idx];
-    const ok = await Swal.fire({
-        title: 'ลบหัวข้อนี้?',
-        text: `"${taskName}" ของเว็บ ${web} จะถูกลบ`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'ลบ',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#dc2626'
-    });
-    if (!ok.isConfirmed) return;
-    
-    arr.splice(idx, 1);
-    renderStandbyWebTabs();
-    await saveStandbyConfig();
-};
-
-async function saveStandbyConfig() {
-    if (typeof appDB === 'undefined') return;
-    try {
-        window.clearSettingCache(); await appDB.from('settings').upsert([
-            { key: 'standby_config_by_web', value: JSON.stringify(window._standbyConfigByWeb) }
-        ]);
-    } catch(e) { 
-        console.error('save standby config failed:', e); 
-        Swal.fire('Error', 'บันทึกไม่สำเร็จ', 'error');
-    }
-}
-
-function escapeHtmlCfg(s) {
-    return String(s || '').replace(/[&<>"']/g, c => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[c]));
-}
-
-// ========================================================================
-// 🎯 Helper สำหรับ quickAssignBackups: สุ่มหัวข้องานให้คนที่ไปสแตนบาย
-// เรียกหลัง AI assign secondary_team เสร็จ
-// ========================================================================
-window.assignStandbyTasksAfterAI = async function(roster) {
-    // โหลด config (จาก cache หรือ DB)
-    if (Object.keys(window._standbyConfigByWeb || {}).length === 0) {
-        try {
-            const { data } = await appDB.from('settings').select('value').eq('key', 'standby_config_by_web');
-            if (data && data.length > 0 && data[0].value) {
-                window._standbyConfigByWeb = JSON.parse(data[0].value) || {};
-            }
-        } catch(e) {}
-    }
-    
-    const config = window._standbyConfigByWeb || {};
-    if (Object.keys(config).length === 0) return roster;  // ไม่มี config = ไม่ทำอะไร
-    
-    // นับ task ของแต่ละเว็บ — สำหรับสุ่มไม่ซ้ำในรอบเดียวกัน
-    const usedTaskByWeb = {};  // { 'K36': ['เช็คโปร'] }
-    
-    for (const team in roster) {
-        if (!Array.isArray(roster[team])) continue;
-        roster[team].forEach(u => {
-            // เฉพาะคนที่มี secondary_team (ไปสแตนบายเว็บอื่น)
-            if (!u || !u.secondary_team || String(u.username || '').includes('ขาดคน')) return;
-            
-            const targetWeb = u.secondary_team;
-            const tasks = config[targetWeb] || [];
-            if (tasks.length === 0) {
-                u.standby_task = null;  // ไม่มี config → ไม่มีหัวข้อ
-                return;
-            }
-            
-            // หา task ที่ยังไม่ถูกใช้ในเว็บนี้รอบนี้
-            if (!usedTaskByWeb[targetWeb]) usedTaskByWeb[targetWeb] = [];
-            let available = tasks.filter(t => !usedTaskByWeb[targetWeb].includes(t));
-            if (available.length === 0) {
-                // ถ้าทุกหัวข้อถูกใช้แล้ว → reset วนรอบใหม่
-                usedTaskByWeb[targetWeb] = [];
-                available = [...tasks];
-            }
-            
-            // สุ่ม
-            const picked = available[Math.floor(Math.random() * available.length)];
-            u.standby_task = picked;
-            usedTaskByWeb[targetWeb].push(picked);
-        });
-    }
-    
-    return roster;
-};
+// (ลบโค้ดที่ไม่ได้ใช้ออก 298 บรรทัด — แท็บ 'ตั้งค่างานรอง' ถูกลบแล้ว)
 
 // ==========================================
 // 🎯 แจกโปร/เคส Telegram สำหรับแผนก OD
@@ -4508,19 +4188,9 @@ window.swapODTask = async function(team, userId, taskType) {
 window.currentMergeRooms = []; // [{id, teams:[]}]
 let mergeRoomDragSource = null; // {roomId, team}
 
-// เปิด panel รวมห้อง
-window.openMergeRoomPanel = function() {
-    // สุ่มห้องครั้งแรกทันที แล้วแสดง modal
-    window.shuffleMergeRooms();
-    const modal = document.getElementById('mergeRoomModal');
-    if (modal) modal.classList.remove('hidden');
-};
+// (ลบโค้ดที่ไม่ได้ใช้ออก 7 บรรทัด — modal รวมห้องแบบเก่า ไม่มีปุ่มเรียกแล้ว ใช้แผงซ้ายแทน)
 
-// ปิด modal
-window.closeMergeRoomModal = function() {
-    const modal = document.getElementById('mergeRoomModal');
-    if (modal) modal.classList.add('hidden');
-};
+// (ลบโค้ดที่ไม่ได้ใช้ออก 5 บรรทัด — modal รวมห้องแบบเก่า)
 
 // สุ่มจัดกลุ่มเว็บเข้าห้อง
 window.shuffleMergeRooms = async function() {
@@ -4609,53 +4279,7 @@ window.shuffleMergeRooms = async function() {
     window.renderMergeRoomPanel();
 };
 
-// render panel รวมห้อง
-window.renderMergeRoomPanel = function() {
-    const container = document.getElementById('mergeRoomContainer');
-    if (!container) return;
-
-    const rooms = window.currentMergeRooms;
-    const rosterData = currentRosterData || {};
-
-    let html = '';
-    rooms.forEach(room => {
-        const teamsHtml = room.teams.map(team => {
-        const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
-
-            return `
-                <div class="merge-team-pill flex items-center px-2.5 py-1.5 rounded-lg border ${colorClass.border} ${colorClass.lightBg} cursor-grab active:cursor-grabbing select-none"
-                     draggable="true"
-                     ondragstart="window.mergeRoomDragStart(event, ${room.id}, '${team}')"
-                     ondragend="window.mergeRoomDragEnd(event)"
-                     title="ลากเพื่อย้ายห้อง">
-                    <span class="text-xs font-black ${colorClass.lightText}">${team}</span>
-                </div>`;
-        }).join('');
-
-        html += `
-            <div class="merge-room-card bg-slate-800 border-2 border-slate-600 rounded-xl p-3 flex flex-col gap-2 min-h-[120px] transition-colors"
-                 id="mergeRoom_${room.id}"
-                 ondragover="window.mergeRoomDragOver(event)"
-                 ondrop="window.mergeRoomDrop(event, ${room.id})">
-                <div class="flex items-center justify-between mb-1">
-                    <div class="flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center shadow">${room.id}</span>
-                        <span class="text-xs font-bold text-white">ห้องที่ ${room.id}</span>
-                    </div>
-                    <span class="text-[10px] text-slate-400 font-bold">${room.teams.length} เว็บ</span>
-                </div>
-                <div class="flex flex-col gap-1.5 flex-1 min-h-[60px]" id="mergeRoomTeams_${room.id}">
-                    ${teamsHtml || '<div class="text-[10px] text-slate-500 italic text-center py-2">ยังไม่มีเว็บ</div>'}
-                </div>
-            </div>`;
-    });
-
-    container.innerHTML = html;
-
-    // อัปเดตจำนวนเว็บใน toolbar
-    const countEl = document.getElementById('mergeRoomTeamCount');
-    if (countEl) countEl.textContent = sortedTeams.length;
-};
+// (ลบโค้ดที่ไม่ได้ใช้ออก 47 บรรทัด — modal รวมห้องแบบเก่า)
 
 // Drag & Drop handlers
 window.mergeRoomDragStart = function(e, roomId, team) {
@@ -4676,25 +4300,7 @@ window.mergeRoomDragOver = function(e) {
     card.classList.add('border-violet-400', 'bg-violet-900/20');
 };
 
-window.mergeRoomDrop = function(e, targetRoomId) {
-    e.preventDefault();
-    document.querySelectorAll('.merge-room-card').forEach(el => el.classList.remove('border-violet-400', 'bg-violet-900/20'));
-    if (!mergeRoomDragSource) return;
-    const { roomId: srcRoomId, team } = mergeRoomDragSource;
-    if (srcRoomId === targetRoomId) return;
-
-    // ย้ายเว็บจากห้องเก่าไปห้องใหม่
-    const rooms = window.currentMergeRooms;
-    const srcRoom = rooms.find(r => r.id === srcRoomId);
-    const tgtRoom = rooms.find(r => r.id === targetRoomId);
-    if (!srcRoom || !tgtRoom) return;
-
-    srcRoom.teams = srcRoom.teams.filter(t => t !== team);
-    tgtRoom.teams.push(team);
-
-    mergeRoomDragSource = null;
-    window.renderMergeRoomPanel();
-};
+// (ลบโค้ดที่ไม่ได้ใช้ออก 19 บรรทัด — modal รวมห้องแบบเก่า)
 
 // สุ่มรวมห้องแบบ inline (ไม่ใช้ modal)
 window.shuffleMergeRoomsInline = async function() {
@@ -4803,36 +4409,9 @@ function minToTime(m) {
     return `${hh}:${mm}`;
 }
 
-// คำนวณช่วงเวลาว่าง (ลบ break) ของคนนึง → คืน array [{start, end}] เป็นนาที
-function getFreeSlots(shiftStart, shiftEnd, breakSlots) {
-    // breakSlots = ["02:00-02:30", "07:00-07:30"]
-    const breaks = breakSlots.map(b => {
-        const [s, e] = b.split('-').map(timeToMin);
-        // กะดึก: ถ้า break เช้า (เช่น 07:00) ให้ +24h
-        if (shiftStart >= 20 * 60 && s < 12 * 60) return { s: s + 24 * 60, e: e + 24 * 60 };
-        return { s, e };
-    }).sort((a, b) => a.s - b.s);
+// (ลบโค้ดที่ไม่ได้ใช้ออก 25 บรรทัด — ไม่ถูกเรียก)
 
-    let free = [{ start: shiftStart, end: shiftEnd }];
-    breaks.forEach(br => {
-        const next = [];
-        free.forEach(slot => {
-            if (br.e <= slot.start || br.s >= slot.end) {
-                next.push(slot); // break อยู่นอก slot นี้
-            } else {
-                if (br.s > slot.start) next.push({ start: slot.start, end: br.s });
-                if (br.e < slot.end)   next.push({ start: br.e, end: slot.end });
-            }
-        });
-        free = next;
-    });
-    return free;
-}
-
-// รวมนาทีว่างทั้งหมด
-function totalFreeMin(freeSlots) {
-    return freeSlots.reduce((sum, s) => sum + (s.end - s.start), 0);
-}
+// (ลบโค้ดที่ไม่ได้ใช้ออก 4 บรรทัด — ไม่ถูกเรียก)
 
 // render ส่วนคำนวณช่วยเว็บใน panel AM
 window.renderHelpCalcPanel = function() {
