@@ -3813,11 +3813,7 @@ window.quickAssignBackups = async function() {
 
     // 3. บันทึกและวาดตารางใหม่
     // 🌟 NEW: สุ่มหัวข้องานรอง (จาก config ที่ตั้งใน "งานรอง") ให้แต่ละคนตามเว็บที่ไปสแตนบาย
-    if (typeof window.assignStandbyTasksAfterAI === 'function') {
-        try {
-            roster = await window.assignStandbyTasksAfterAI(roster);
-        } catch(e) { console.warn('assign standby tasks failed:', e); }
-    }
+    // (ตัดการสุ่ม "หัวข้องานรอง" ออก — แท็บงานรองถูกลบแล้ว และค่าที่สุ่มไม่เคยถูกแสดงที่ไหน → ลด 1 query)
     
     window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(roster) }]);
     window.renderRosterGrid(roster);
