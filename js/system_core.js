@@ -826,45 +826,7 @@ async function delSch(id, shiftName) { if (!window.sysRequireAdmin()) return;
 
 async function logAction(action, detail) { await appDB.from('system_logs').insert([{ action_type: action, performed_by: currentUser.username, target_details: detail }]); }
 
-async function fetchLogs() {
-    const dateVal = document.getElementById('logDate') ? document.getElementById('logDate').value : ''; 
-    const actionVal = document.getElementById('logAction') ? document.getElementById('logAction').value : ''; 
-    const userVal = document.getElementById('logUser') ? document.getElementById('logUser').value.toLowerCase() : '';
-    
-    let query = appDB.from('system_logs').select('*').order('log_date', {ascending: false});
-    
-    if(dateVal) {
-        query = query.gte('log_date', dateVal + 'T00:00:00').lte('log_date', dateVal + 'T23:59:59');
-    } else {
-        query = query.limit(100); 
-    }
-
-    if(actionVal) query = query.eq('action_type', actionVal);
-    
-    const { data } = await query;
-    const box = document.getElementById('logTableBody'); 
-    if(!box) return;
-    box.innerHTML = '';
-    
-    if(data) {
-        const filtered = data.filter(log => { 
-            return (!userVal || log.performed_by.toLowerCase().includes(userVal)); 
-        });
-        
-        if(filtered.length === 0) { box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-400">ไม่พบประวัติ</td></tr>`; return; }
-        
-        let logsHtml = ''; // 🌟 [ปรับใหม่]
-        
-        filtered.forEach(log => {
-            const time = new Date(log.log_date).toLocaleString('th-TH'); const badgeColor = log.action_type === 'ลงเวลา' ? 'bg-green-100 text-green-800' : (log.action_type === 'ลบรายการ' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800');
-            // 🌟 [ปรับใหม่]
-            logsHtml += `<tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800"><td class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">${time}</td><td class="px-4 py-2 font-bold">${log.performed_by}</td><td class="px-4 py-2"><span class="px-2 py-1 rounded text-xs font-bold ${badgeColor}">${log.action_type}</span></td><td class="px-4 py-2 text-sm text-gray-600 dark:text-gray-300">${log.target_details}</td></tr>`;
-        });
-        
-        // 🌟 [ปรับใหม่]
-        box.innerHTML = logsHtml;
-    }
-}
+// (ลบ fetchLogs ตัวสั้นออก — ตัวจริงที่ใช้อยู่คือ window.fetchLogs ใน dashboard.js ซึ่งทับตัวนี้อยู่แล้ว)
 
 async function refreshAdminData() {
     const btn = document.querySelector('button[onclick="refreshAdminData()"] span');
@@ -2995,6 +2957,7 @@ window.deleteManualTimeSlot = async function(shift, period, timeSlot) {
 // 🟢 ควบคุมการสลับหน้า (แอดมิน / ประวัติ / หน้าหลัก)
 // ==========================================
 window.openAdminPanel = async function() {
+    if (!window.sysRequireAdmin()) return;   // 🔒
     // 🌟 1. เปิดวงกลมหมุนๆ บังคับให้เบราว์เซอร์รอก่อน
     Swal.fire({title: 'กำลังดึงรายชื่อพนักงาน...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
