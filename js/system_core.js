@@ -808,11 +808,15 @@ function updateTableSummary(data) {
     container.innerHTML = html;
 }
 
-async function delSch(id, shiftName) { if (!window.sysRequireAdmin()) return; 
+async function delSch(id, shiftName) {
     const timeCheck = checkBookingTime(shiftName);
     if (!timeCheck.allowed) { return Swal.fire('ลบไม่ได้', timeCheck.msg, 'error'); }
 
     const { data: item } = await appDB.from('schedules').select('*').eq('id', id).single();
+    // 🔒 ลบได้เฉพาะ "ของตัวเอง" หรือเป็นแอดมิน (เกณฑ์เดียวกับที่โชว์ปุ่มถังขยะ)
+    if (!item) return Swal.fire('ไม่พบรายการ', 'รายการนี้อาจถูกลบไปแล้ว', 'info');
+    const isOwn = item.staff_name === currentUser.username;
+    if (!isOwn && !window.sysIsAdmin()) return Swal.fire('ไม่มีสิทธิ์', 'ลบได้เฉพาะรายการของตัวเองครับ', 'error');
     Swal.fire({ title: 'ยืนยันการลบ?', text: "ต้องการลบรายการนี้ใช่ไหม", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย!', cancelButtonText: 'ยกเลิก' }).then(async (result) => {
         if (result.isConfirmed) {
             Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
