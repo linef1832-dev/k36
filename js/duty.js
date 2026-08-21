@@ -141,6 +141,7 @@ window.initDutyApp = async function() {
         }
         
         window.syncTeamOrder();
+        window.ensureDutyExtraButtons();
         window.applyDutyRoleUI(); 
 
         window.renderDutyAccessTable();
@@ -3899,11 +3900,12 @@ window.quickAssignBackups = async function() {
 };
 
 // ==========================================
-// 🌟 โค้ดเสกปุ่ม "⚡ จัดรองด่วน (AI)" + "🧹 ล้างงานรอง" ให้โผล่ขึ้นมา
+// 🌟 เสกปุ่ม "⚡ จัดรองด่วน (AI)" + "🧹 ล้างงานรอง"
+// ⚡ [PERF] เดิมเป็น setInterval ทุก 2 วิ วิ่งตลอดเวลาแม้ไม่ได้อยู่หน้านี้ → เปลี่ยนเป็นเรียกครั้งเดียวตอน initDutyApp
 // ==========================================
-setInterval(() => {
+window.ensureDutyExtraButtons = function() {
     const dutyApp = document.getElementById('dutyApp');
-    if (!dutyApp || dutyApp.classList.contains('hidden')) return;
+    if (!dutyApp) return;
 
     // ─── ปุ่ม "จัดรองด่วน (AI)" — วางต่อจากปุ่มล้างตาราง ───
     if (!document.getElementById('btnQuickBackup')) {
@@ -3933,7 +3935,7 @@ setInterval(() => {
             if (typeof window.applyDutyRoleUI === 'function') window.applyDutyRoleUI();
         }
     }
-}, 2000);
+};
 
 // ==========================================
 // 🌟 ฟังก์ชันกู้คืนตารางงาน (จากที่กดล้างไป)
