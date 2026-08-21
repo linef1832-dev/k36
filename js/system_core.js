@@ -2058,9 +2058,17 @@ window.renameAnyDept = async function(oldDept) {
 
 window.loadSettings = async function() {
     try {
-        const { data } = await appDB.from('settings').select('*')
-            .not('key', 'like', 'duty_roster_%')
-            .not('key', 'like', 'report_TRAINER_%');
+        // ⚡ [PERF] SETTINGS ใช้แค่ค่าระบบตัวเล็กๆ (เวลาเปิด-ปิด, โควตา, สิทธิ์เมนู, แผนก ฯลฯ)
+        // เดิมดึง "ทุกแถว" ของตาราง settings มาทุกครั้งที่เปิด dashboard รวมถึงก้อนใหญ่ที่หน้าอื่นดึงเองอยู่แล้ว
+        // (ตารางเวร, backup, ซัพพอร์ต, SOP, ค่าปรับ, ประวัติสลิป/QR, ไฟล์ ...) → ตัดออกให้เหลือเฉพาะที่ใช้
+        const EXCLUDE_PREFIXES = [
+            'duty_%', 'backup_%', 'report_%', 'trainer_matrix_roles_%', 'standby_config_by_web',
+            'sop_%', 'fine_%', 'kb_%', 'app_files_%', 'discord_%', 'qr_check_history', 'slip_check_history',
+            'saved_excel_files', 'od_form_config', 'chrome_refresh_%', 'vps_%', 'standby_%'
+        ];
+        let q = appDB.from('settings').select('*');
+        EXCLUDE_PREFIXES.forEach(pfx => { q = q.not('key', 'like', pfx); });
+        const { data } = await q;
             
         if (data) { data.forEach(row => { SETTINGS[row.key] = row.value; }); }
         
