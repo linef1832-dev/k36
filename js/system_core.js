@@ -330,12 +330,14 @@ window.saveData = async function(e) {
     // 🌟 NEW V2: เช็ค off-roster แต่ไม่บล็อก (แค่เก็บ flag ไว้เขียน log)
     let isOffRoster = false;
     let assignedTeamsStr = '';
+    let breakRoleMap = null;   // 🍽️ ใช้เช็คหลัก-รองชนกัน
     if (!['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
         const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
 
         if (rosterData && rosterData.value) {
             const roster = JSON.parse(rosterData.value);
+            breakRoleMap = window.buildBreakRoleMap(roster);
             let allowedTeams = [];
             for (const team in roster) {
                 (roster[team] || []).forEach(u => {
@@ -407,6 +409,17 @@ window.saveData = async function(e) {
     if (countTotalDept >= limitTotal) {
         window.resetBtn();
         return Swal.fire('เต็มแล้ว', `ช่วง ${timeVal} ของแผนก ${myDep} เต็มแล้ว (รับได้ ${limitTotal} คน)`, 'error');
+    }
+    // 🍽️ [กติกาพัก] หลักกับรองของเว็บเดียวกันห้ามพักช่วงเดียวกัน
+    if (useTeamLogic && breakRoleMap) {
+        const clashes = window.findBreakClashes(currentUser.username, breakRoleMap, slotBookings);
+        if (clashes.length > 0) {
+            window.resetBtn();
+            return Swal.fire({
+                icon: 'error', title: 'ช่วงนี้ชนกับคู่หลัก-รองของคุณ',
+                html: `ช่วง <b>${timeVal}</b> มีคนที่ต้องคุมเว็บแทนกันกับคุณลงพักไว้แล้ว:<br><br><b class="text-red-500">${clashes.join('<br>')}</b><br><br><span class="text-xs text-gray-500">หลักกับรองของเว็บเดียวกันต้องพักคนละช่วง เพื่อให้มีคนคุมเว็บตลอด</span>`
+            });
+        }
     }
     if (useTeamLogic && countTeam >= limitTeam) {
         window.resetBtn();
