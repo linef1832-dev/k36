@@ -2183,23 +2183,6 @@ window.renderQuotaSettings = function() {
 // ==========================================
 // 🕘 ประวัติโควตา — ดูว่าโควตาถูกเปลี่ยนเมื่อไหร่ เพราะอะไร (อัตโนมัติจากตารางหน้าที่ / กดมือ)
 // ==========================================
-window.switchQuotaView = function(view) {
-    const setC = document.getElementById('quotaSettingsContainer');
-    const hisC = document.getElementById('quotaHistoryContainer');
-    const bS = document.getElementById('quotaTabBtn_settings');
-    const bH = document.getElementById('quotaTabBtn_history');
-    if (!setC || !hisC) return;
-    const on = 'text-[10px] px-3 py-1 rounded-md font-bold bg-slate-700 text-white transition';
-    const off = 'text-[10px] px-3 py-1 rounded-md font-bold text-slate-400 hover:text-white transition';
-    if (view === 'history') {
-        setC.classList.add('hidden'); hisC.classList.remove('hidden');
-        if (bS) bS.className = off; if (bH) bH.className = on;
-        window.renderQuotaHistory();
-    } else {
-        hisC.classList.add('hidden'); setC.classList.remove('hidden');
-        if (bS) bS.className = on; if (bH) bH.className = off;
-    }
-};
 
 window.renderQuotaHistory = async function() {
     const c = document.getElementById('quotaHistoryContainer');
@@ -2467,7 +2450,7 @@ const PERM_GROUPS = [
             {id: 'admin_settings', name: 'ตั้งค่าระบบ', isSub: true},
             {id: 'admin_users', name: 'จัดการพนักงาน', isSub: true},
             {id: 'admin_perms', name: 'สิทธิ์เมนู', isSub: true},
-            {id: 'admin_info', name: 'คำอธิบายสิทธิ์', isSub: true},
+            {id: 'admin_info', name: 'ประวัติโควตา/หน้าที่', isSub: true},
             {id: 'admin_logs', name: 'ประวัติระบบ (ปุ่มซ้ายล่าง)', isSub: true}
         ]
     }
@@ -3088,7 +3071,7 @@ window.openAdminPanel = async function() {
     const btnSettings = document.getElementById('btnAdminTab_settings');
     const btnUsers = document.getElementById('btnAdminTab_users');
     const btnPerms = document.getElementById('btnAdminTab_perms');
-    const btnInfo = document.getElementById('btnAdminTab_info');
+    const btnInfo = document.getElementById('btnAdminTab_quotalog');
 
     if(btnSettings) btnSettings.style.display = canSeeSettings ? '' : 'none';
     if(btnUsers) btnUsers.style.display = canSeeUsers ? '' : 'none';
@@ -3100,7 +3083,7 @@ window.openAdminPanel = async function() {
         if (canSeeSettings) switchAdminTab('settings');
         else if (canSeeUsers) switchAdminTab('users');
         else if (canSeePerms) switchAdminTab('perms');
-        else if (canSeeInfo) switchAdminTab('info');
+        else if (canSeeInfo) switchAdminTab('quotalog');
     }
 
     // 🌟 6. ข้อมูลมาครบ วาดตารางเสร็จ สั่งปิดวงกลมหมุนๆ ได้
