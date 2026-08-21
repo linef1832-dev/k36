@@ -324,20 +324,9 @@ window.refreshTimeSlots = async function() {
     }
 };
 
-window.openAdminPanel = async function() {
-    if (!document.getElementById('adminPanel')) {
-        if(typeof showPage === 'function') await showPage('dashboard');
-    }
 
-    // ไม่ใช้ setTimeout แล้ว เพื่อให้ตอบสนองทันที
-    if(document.getElementById('mainContentArea')) document.getElementById('mainContentArea').classList.add('hidden');
-    if(document.getElementById('adminPanel')) {
-        document.getElementById('adminPanel').classList.remove('hidden');
-        document.getElementById('adminPanel').classList.add('flex');
-    }
-    switchAdminTab('settings');
-};
-
+// (ลบ openAdminPanel / undoClearSchedules ออกจากไฟล์นี้ — มีตัวเต็มอยู่ใน system_core.js อยู่แล้ว
+//  เดิมไฟล์นี้โหลดทีหลังเลย "เขียนทับ" ตัวเต็ม ทำให้การเช็คสิทธิ์แท็บแอดมินและด่านเช็ค admin ไม่เคยทำงาน)
 window.switchAdminTab = function(tab) {
     const tabs = ['settings', 'users', 'perms', 'info'];
 
@@ -546,44 +535,6 @@ setTimeout(() => {
     }
 }, 1000);
 
-window.undoClearSchedules = async function() {
-    const backupStr = sessionStorage.getItem('temp_schedule_backup');
-    if (!backupStr) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลให้กู้คืนแล้วครับ', 'error');
-
-    const backupData = JSON.parse(backupStr);
-    const confirm = await Swal.fire({
-        title: 'ยืนยันการกู้คืน?',
-        text: `คุณต้องการกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ ที่เพิ่งลบทิ้งไปใช่หรือไม่?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#10b981',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'ใช่, นำข้อมูลกลับมา!',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-600' }
-    });
-
-    if (confirm.isConfirmed) {
-        Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        try {
-            const { error } = await appDB.from('schedules').insert(backupData);
-            if (error) throw error;
-
-            sessionStorage.removeItem('temp_schedule_backup');
-            document.getElementById('undoScheduleBtn')?.classList.add('hidden');
-
-            if (typeof logAction === 'function') await logAction('กู้คืนข้อมูล', `แอดมินกู้คืนข้อมูลการลงเวลาจำนวน ${backupData.length} รายการ`);
-
-            Swal.fire('กู้คืนสำเร็จ!', 'ข้อมูลกลับมาอยู่ที่เดิมเรียบร้อยแล้วครับ', 'success');
-
-            if (typeof fetchData === 'function') fetchData();
-
-        } catch(e) {
-            console.error(e);
-            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนได้: ' + e.message, 'error');
-        }
-    }
-};
 
 window.openLogsPage = async function() {
     if (!document.getElementById('logsPage')) {
@@ -777,53 +728,6 @@ window.checkMissingLunch = async function() {
     }
 };
 
-window.updateMissingLunchBadge = async function() {
-    const badge = document.getElementById('missingLunchBadge');
-    const btn = document.getElementById('btnCheckMissingLunch');
-
-    if (!badge || !btn || btn.classList.contains('hidden')) return;
-
-    const dateVal = document.getElementById('wDate').value;
-    if (!dateVal) return;
-
-    try {
-        if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) return;
-
-        const { data: schedules } = await appDB.from('schedules').select('staff_name').eq('work_date', dateVal);
-        const bookingCounts = {};
-        if (schedules) schedules.forEach(s => { bookingCounts[s.staff_name] = (bookingCounts[s.staff_name] || 0) + 1; });
-
-        const { data: leaves } = await appDB.from('leave_requests').select('user_name').eq('leave_date', dateVal);
-        const onLeaveNames = (leaves || []).map(l => l.user_name);
-
-        const currentShiftEl = document.querySelector('input[name="shift"]:checked');
-        const targetShift = currentShiftEl ? currentShiftEl.value : (window.currentUser?.allowed_shift || 'กะเช้า');
-
-        const dailyQuota = (typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit) ? parseInt(SETTINGS.daily_limit) : 2;
-        let missingCount = 0;
-
-        GLOBAL_USER_LIST.forEach(u => {
-            if (['admin', 'manager', 'trainer'].includes(u.role) || u.department === 'TRAINER' || u.department === 'NEW') return;
-            if (onLeaveNames.includes(u.username)) return;
-
-            if (u.allowed_shift !== targetShift) return;
-
-            const userBookedTimes = bookingCounts[u.username] || 0;
-            if (userBookedTimes < dailyQuota) missingCount++;
-        });
-
-        if (missingCount > 0) {
-            badge.innerText = missingCount;
-            badge.classList.remove('hidden');
-            badge.classList.add('animate-pulse');
-        } else {
-            badge.classList.add('hidden');
-            badge.classList.remove('animate-pulse');
-        }
-    } catch (e) {
-        console.error("Badge Update Error:", e);
-    }
-};
 
 // ==========================================
 // 💬 ระบบ Support Chat (rewrite)
