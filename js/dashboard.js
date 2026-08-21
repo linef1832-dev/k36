@@ -328,7 +328,7 @@ window.refreshTimeSlots = async function() {
 // (ลบ openAdminPanel / undoClearSchedules ออกจากไฟล์นี้ — มีตัวเต็มอยู่ใน system_core.js อยู่แล้ว
 //  เดิมไฟล์นี้โหลดทีหลังเลย "เขียนทับ" ตัวเต็ม ทำให้การเช็คสิทธิ์แท็บแอดมินและด่านเช็ค admin ไม่เคยทำงาน)
 window.switchAdminTab = function(tab) {
-    const tabs = ['settings', 'users', 'perms', 'info'];
+    const tabs = ['settings', 'users', 'perms', 'quotalog'];
 
     tabs.forEach(t => {
         // 1. จัดการปุ่มเมนูด้านบน (เปลี่ยนสี)
@@ -353,6 +353,9 @@ window.switchAdminTab = function(tab) {
             }
         }
     });
+
+    // 🕘 แท็บประวัติโควตา/หน้าที่ → โหลดใหม่ทุกครั้งที่เปิด
+    if (tab === 'quotalog' && typeof window.renderQuotaHistory === 'function') window.renderQuotaHistory();
 
     // 🌟 เพิ่มโค้ดตรงนี้: บังคับวาดตารางรายชื่อใหม่เสมอเมื่อกดเข้าแท็บ "จัดการพนักงาน"
     if (tab === 'users') {
