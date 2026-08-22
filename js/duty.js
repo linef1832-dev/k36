@@ -1530,6 +1530,28 @@ window.renderRosterGrid = async function(rosterData) {
         const standbyList = standbyData[team] || [];
         const standbyCount = standbyList.length;
 
+        // 🍽️ [กติกาพัก] เตือนถ้าช่วงไหนคนของเว็บนี้ (หลัก+รอง) พักพร้อมกันเกินเพดาน
+        let breakWarnHtml = '';
+        if (typeof window.breakCapByRule === 'function') {
+            const members = assignees.filter(u => u.id && !u.username.includes('ขาดคน')).map(u => u.username);
+            standbyList.forEach(s => { if (!members.includes(s.name)) members.push(s.name); });
+            const cap = window.breakCapByRule(members.length);
+            const perSlot = {};
+            (window.currentDutySchedules || []).forEach(sc => {
+                if (!members.includes(sc.staff_name)) return;
+                String(sc.time_slot || '').split(',').map(x => x.trim()).filter(Boolean).forEach(slot => {
+                    (perSlot[slot] = perSlot[slot] || new Set()).add(sc.staff_name);
+                });
+            });
+            const over = Object.entries(perSlot).filter(([, set]) => set.size > cap).sort((a, b) => a[0].localeCompare(b[0]));
+            if (over.length > 0) {
+                breakWarnHtml = `<div class="mx-2 mt-2 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg px-2 py-1.5 text-[10px] font-bold text-red-600 dark:text-red-300 shrink-0">
+                    <div class="flex items-center gap-1"><span class="material-icons text-[13px]">warning</span> พักพร้อมกันเกินเพดาน (${members.length} คน พักได้ ${cap})</div>
+                    ${over.map(([slot, set]) => `<div class="ml-4 font-normal">${slot} → ${set.size}/${cap}: ${[...set].join(', ')}</div>`).join('')}
+                </div>`;
+            }
+        }
+
         finalGridHtml += `
             <div class="duty-site-card bg-slate-50 dark:bg-slate-900 border-2 ${colorClass.border} rounded-2xl shadow-md flex flex-col h-[500px] overflow-hidden w-full">
                 <div class="flex justify-between items-center ${colorClass.bg} ${colorClass.text} p-3 shadow-sm shrink-0">
@@ -1548,6 +1570,7 @@ window.renderRosterGrid = async function(rosterData) {
                 <div class="p-2 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
                     ${rolesTags || ''}
                 </div>
+                ${breakWarnHtml}
                 <div class="flex flex-col gap-2.5 flex-1 p-2 overflow-y-auto custom-scrollbar content-start drop-zone" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${team}')">
                     ${namesHtml || `
                         <div class="flex flex-col items-center justify-center h-full py-6 pointer-events-none select-none opacity-40">
@@ -3537,6 +3560,24 @@ window.quickAssignBackups = async function() {
     //   - 2a: เช็คเวลาพัก + เช็คสิทธิ์
     //   - 2b: ผ่อนเวลาพัก + เช็คสิทธิ์
 
+    // 🍽️ [กติกาพัก] ถ้าเอา c มาเป็นรองของ team แล้ว ช่วงพักไหนของ team จะเกินเพดานไหม
+    // สมาชิกของ team = หลัก + รองที่จัดไปแล้ว + c → เพดาน = breakCapByRule(จำนวนนั้น)
+    // เช็คทุกช่วงพักของ c: จำนวนสมาชิกอื่นที่พักช่วงเดียวกัน ต้อง < เพดาน
+    const wouldBreakCap = (c, team) => {
+        const members = [];
+        (roster[team] || []).forEach(u => { if (u && u.id && !String(u.username || '').includes('ขาดคน')) members.push(u.username); });
+        for (const t in roster) (roster[t] || []).forEach(u => { if (u && u.secondary_team === team && !members.includes(u.username)) members.push(u.username); });
+        if (!members.includes(c.username)) members.push(c.username);
+        const cap = window.breakCapByRule(members.length);
+        const cBreaks = breakTimes[c.username] || [];
+        for (const slot of cBreaks) {
+            let others = 0;
+            members.forEach(n => { if (n !== c.username && (breakTimes[n] || []).includes(slot)) others++; });
+            if (others >= cap) return { slot, others, cap };
+        }
+        return null;
+    };
+
     // ฟังก์ชันช่วย: ดูว่าทีมนี้มีรองกี่คนแล้ว
     const countBackupsForTeam = (team) => {
         let n = 0;
@@ -3547,7 +3588,8 @@ window.quickAssignBackups = async function() {
     };
 
     // 🟢 Phase 1: ให้ทุกเว็บได้รองอย่างน้อย 1 คน
-    // mode = 'strict' หรือ 'relaxBreak'
+    // (เหลือโหมดเดียว: เคารพเพดานพักเสมอ)
+    const noBackupReasons = {};   // เว็บที่หารองไม่ได้เพราะพักชน
     const phase1FillEmptyTeams = (mode) => {
         let count = 0;
 
@@ -3572,20 +3614,13 @@ window.quickAssignBackups = async function() {
                 const access = dutyAccessMatrix[c.id] || [];
                 if (!access.includes(targetTeam)) return false;
 
-                if (mode === 'strict') {
-                    const cBreaks = breakTimes[c.username] || [];
-                    const allPrimaryBreaks = new Set();
-                    primaries.forEach(p => {
-                        (breakTimes[p.username] || []).forEach(time => allPrimaryBreaks.add(time));
-                    });
-                    const hasOverlap = cBreaks.some(time => allPrimaryBreaks.has(time));
-                    if (hasOverlap) return false;
-                }
+                // 🍽️ ต้องไม่ทำให้ช่วงพักไหนของเว็บนี้เกินเพดาน (ไม่มีโหมดผ่อนปรนแล้ว)
+                if (wouldBreakCap(c, targetTeam)) return false;
 
                 return true;
             });
 
-            if (candidates.length === 0) return;
+            if (candidates.length === 0) { noBackupReasons[targetTeam] = 'ไม่มีใครที่พักไม่ชน'; return; }
 
             // เลือกคนแบบ "ใครเข้าได้น้อยสุด ใส่ก่อน" (กันคนที่เลือกได้แต่เว็บนี้ไม่หลุด)
             candidates.sort((a, b) => {
@@ -3609,7 +3644,7 @@ window.quickAssignBackups = async function() {
     };
 
     // 🟡 Phase 2: คนที่เหลือกระจายเข้าเว็บรองน้อยสุด
-    // mode = 'strict' หรือ 'relaxBreak'
+    // (เหลือโหมดเดียว: เคารพเพดานพักเสมอ)
     const phase2DistributeRest = (mode) => {
         let count = 0;
 
@@ -3628,14 +3663,7 @@ window.quickAssignBackups = async function() {
                 const primaries = (roster[t] || []).filter(u => !u.username.includes('ขาดคน'));
                 if (primaries.length === 0) return false;
 
-                if (mode === 'strict') {
-                    const allPrimaryBreaks = new Set();
-                    primaries.forEach(p => {
-                        (breakTimes[p.username] || []).forEach(time => allPrimaryBreaks.add(time));
-                    });
-                    const hasOverlap = cBreaks.some(time => allPrimaryBreaks.has(time));
-                    if (hasOverlap) return false;
-                }
+                if (wouldBreakCap(c, t)) return false;   // 🍽️ ไม่ทำให้เว็บนั้นพักเกินเพดาน
                 return true;
             });
 
@@ -3662,24 +3690,14 @@ window.quickAssignBackups = async function() {
         return count;
     };
 
-    // 🟢 Phase 1a: บังคับเว็บว่างให้ได้รอง (เช็คเวลาพัก)
-    const phase1aCount = phase1FillEmptyTeams('strict');
+    // 🟢 Phase 1: บังคับเว็บว่างให้ได้รอง — เฉพาะคนที่พักไม่ชนจนเกินเพดาน
+    const pass1Count = phase1FillEmptyTeams('strict');
 
-    // 🟡 Phase 1b: บังคับเว็บว่างที่ยังเหลือ (ผ่อนเวลาพัก)
-    Swal.update({ html: '<span class="text-sm text-gray-500">⚡ Phase 1b: เก็บเว็บที่ยังว่างอยู่ (ผ่อนเวลาพัก)...</span>' });
-    await new Promise(r => setTimeout(r, 200));
-    const phase1bCount = phase1FillEmptyTeams('relaxBreak');
-
-    // 🟢 Phase 2a: คนที่เหลือกระจายเข้าเว็บรองน้อยสุด (เช็คเวลาพัก)
+    // 🟢 Phase 2: คนที่เหลือกระจายเข้าเว็บรองน้อยสุด — กติกาเดียวกัน
     Swal.update({ html: '<span class="text-sm text-gray-500">📊 Phase 2: กระจายคนที่เหลือเข้าเว็บรองน้อยสุด...</span>' });
     await new Promise(r => setTimeout(r, 200));
-    const phase2aCount = phase2DistributeRest('strict');
-
-    // 🟡 Phase 2b: เก็บตกขั้นสุดท้าย (ผ่อนเวลาพัก)
-    const phase2bCount = phase2DistributeRest('relaxBreak');
-
-    const pass1Count = phase1aCount + phase1bCount;  // คนที่ Phase 1 จัดได้ (เน้นกระจาย)
-    const pass2Count = phase2aCount + phase2bCount;  // คนที่ Phase 2 จัดได้ (load balance)
+    const pass2Count = phase2DistributeRest('strict');
+    // (ตัดโหมด "ผ่อนเวลาพัก" ออก — เดิมมันยัดคนที่พักชนลงไปเงียบๆ ทำให้เว็บพักพร้อมกันเกินเพดาน)
 
     // นับคนที่ยังไม่มีงานรองเลย (ทั้งที่ลองทุกเว็บแล้ว)
     let totalUnassignedSlots = 0;
@@ -3734,7 +3752,19 @@ window.quickAssignBackups = async function() {
                 <span class="font-black text-blue-600 dark:text-blue-400 text-base">${pass2Count} คน</span>
             </div>`;
 
-    if (emptyTeamCount > 0) {
+    const noBackupList = sortedTeams.filter(t => {
+        const primaries = (roster[t] || []).filter(u => !u.username.includes('ขาดคน'));
+        return primaries.length > 0 && countBackupsForTeam(t) === 0;
+    });
+    if (noBackupList.length > 0) {
+        resultHtml += `
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-2.5 rounded-lg shadow-sm text-left">
+                <div class="font-bold text-red-700 dark:text-red-300 flex items-center gap-1.5 text-xs"><span class="material-icons text-[16px]">report</span> เว็บที่หารองไม่ได้ (ทุกคนที่เข้าได้ พักชนกับคนในเว็บจนเกินเพดาน):</div>
+                <div class="mt-1 text-[11px] text-red-600 dark:text-red-400 font-bold">${noBackupList.join(', ')}</div>
+                <div class="mt-1 text-[10px] text-gray-500">→ ปรับเวลาพักของคนในเว็บ หรือลากคนมาเป็นรองเอง (การ์ดจะเตือนถ้าพักชน)</div>
+            </div>`;
+    }
+    if (emptyTeamCount > 0 && noBackupList.length === 0) {
         resultHtml += `
             <div class="flex justify-between items-center bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-2.5 rounded-lg shadow-sm">
                 <span class="font-bold text-red-700 dark:text-red-300 flex items-center gap-1.5">
@@ -3753,7 +3783,7 @@ window.quickAssignBackups = async function() {
                 <span class="font-black text-amber-600 dark:text-amber-400 text-base">${totalUnassignedSlots} คน</span>
             </div>
             <div class="text-[11px] text-gray-500 dark:text-gray-400 italic px-2 pt-1 border-t border-gray-200 dark:border-slate-700 mt-2">
-                💡 <b>คนที่ไม่มีรอง</b> ไม่มีสิทธิ์หลังบ้านเว็บอื่นเลย — ตรวจสอบที่ "ตั้งค่าสิทธิ์ & หัวข้อ"
+                💡 <b>คนที่ไม่มีรอง</b> = ไม่มีสิทธิ์เว็บอื่น หรือเวลาพักชนกับทุกเว็บที่เข้าได้
             </div>`;
     }
 
