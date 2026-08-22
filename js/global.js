@@ -230,6 +230,27 @@ window.buildCoverageMap = function(roster) {
     }
     return { webs, websOf };
 };
+// 📏 กติกา "พักพร้อมกันได้ไม่เกินกี่คน" ของทั้งแผนกในกะนั้น — อิงจำนวนคนที่มาทำงานจริง (จากตารางหน้าที่)
+//   1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8
+window.breakCapByRule = function(total) {
+    if (!total || total <= 0) return 0;
+    if (total <= 4) return 1;
+    if (total <= 7) return 2;
+    if (total <= 10) return 3;
+    if (total <= 14) return 4;
+    if (total <= 20) return 5;
+    if (total <= 25) return 6;
+    if (total <= 30) return 7;
+    return 8;
+};
+// เช็คเพดานแผนก: คืน { total, cap, used, left }  (used = คนในแผนกที่พักช่วงนี้ ไม่นับตัวเอง)
+window.checkDeptCap = function(username, covMap, slotBookings, dept) {
+    const total = covMap ? Object.keys(covMap.websOf || {}).length : 0;
+    const cap = window.breakCapByRule(total);
+    const used = (slotBookings || []).filter(b => b.staff_name !== username && (b.department || 'AM') === dept).length;
+    return { total, cap, used, left: Math.max(0, cap - used) };
+};
+
 window.getMinCover = function(team, dept, suffix) {
     if (typeof SETTINGS === 'undefined') return 1;
     const v = SETTINGS[`mincover_${team}_${dept}_${suffix}`];
