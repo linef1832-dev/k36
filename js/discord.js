@@ -1703,6 +1703,30 @@ window.dsTotalPages = 1;
 // ==============================================================
 // 🌟 ฟังก์ชันดึงประวัติการเข้า-ออกห้อง (แบบแบ่งหน้า + ค้นหาจากฐานข้อมูล)
 // ==============================================================
+// 🔔 [FIX] realtime ประวัติเข้า-ออกห้อง — เดิมเรียก ds_subscribeVoiceLogs() แต่ "ไม่เคยมีฟังก์ชันนี้" รายการใหม่เลยไม่ขึ้นจนกว่าจะกดรีเฟรชเอง
+window._dsVoiceLogSub = null;
+window.ds_subscribeVoiceLogs = function() {
+    if (window._dsVoiceLogSub) return;
+    try {
+        window._dsVoiceLogSub = appDB.channel('discord-voice-logs-live')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'discord_voice_logs' }, () => {
+                const tab = document.getElementById('ds_voiceLogBody');
+                if (!tab) return;
+                // ดูวันนี้ + หน้าแรกอยู่ → โหลดใหม่ (กันรัว: หน่วง 800ms)
+                const dateInput = document.getElementById('voiceLogDate');
+                const today = new Date(); const todayStr = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                if (dateInput && dateInput.value && dateInput.value !== todayStr) return;
+                clearTimeout(window._dsVoiceLogTimer);
+                window._dsVoiceLogTimer = setTimeout(() => window.ds_fetchVoiceLogs(true, 1), 800);
+            })
+            .subscribe();
+        if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._dsVoiceLogSub);
+        // ถ้าหน้าเปลี่ยน subscription ถูกถอด → ให้สร้างใหม่ได้รอบหน้า
+        const orig = window._dsVoiceLogSub.unsubscribe && window._dsVoiceLogSub.unsubscribe.bind(window._dsVoiceLogSub);
+        if (orig) window._dsVoiceLogSub.unsubscribe = function() { window._dsVoiceLogSub = null; return orig.apply(this, arguments); };
+    } catch (e) { console.warn('voice log realtime', e); }
+};
+
 window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.dsCurrentPage) {
     if (typeof ds_subscribeVoiceLogs === 'function') ds_subscribeVoiceLogs();
 
@@ -1726,8 +1750,9 @@ window.ds_fetchVoiceLogs = async function(forceRefresh = false, page = window.ds
     if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-gray-400"><span class="material-icons animate-spin text-4xl mb-2 text-fuchsia-500">sync</span><br>กำลังดึงข้อมูลหน้า ${page}...</td></tr>`;
 
     try {
-        const startOfDay = `${targetDate}T00:00:00+00:00`;
-        const endOfDay = `${targetDate}T23:59:59+00:00`;
+        // [FIX] เดิมใช้ +00:00 (UTC) ทำให้ "วันนี้" เลื่อนไป 7 ชม. — รายการช่วง 00:00-06:59 ของวันไปโผล่วันก่อน และตอนใกล้เที่ยงคืนรายการล่าสุดหาย
+        const startOfDay = `${targetDate}T00:00:00+07:00`;
+        const endOfDay = `${targetDate}T23:59:59.999+07:00`;
 
         // 🌟 1. ดึงแบบ Server-Side แบ่งหน้า เพื่อทะลุขีดจำกัด 1000 รายการของระบบ
         let query = appDB.from('discord_voice_logs')
