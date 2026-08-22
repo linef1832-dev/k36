@@ -378,6 +378,13 @@ window.saveData = async function(e) {
 
     // 🍽️ [กติกาพัก] คนคุมขั้นต่ำต่อเว็บ — เช็คจากตารางหน้าที่จริง + คนที่พักอยู่ (แทนโควตาแบบเดิม)
     if (currentUser.check_type !== 'shift' && coverageMap) {
+        // ชั้นที่ 1: เพดานแผนก — พักพร้อมกันได้ไม่เกิน X คน (ตามจำนวนคนที่มาทำงานวันนั้น)
+        const cap = window.checkDeptCap(currentUser.username, coverageMap, slotBookings, myDep);
+        if (cap.left <= 0) {
+            window.resetBtn();
+            return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} เต็มแล้ว`, html: `แผนก ${myDep} มีคนทำงาน ${cap.total} คน พักพร้อมกันได้ไม่เกิน <b>${cap.cap}</b> คน<br>ตอนนี้ลงไว้แล้ว <b>${cap.used}</b> คน` });
+        }
+        // ชั้นที่ 2: คนคุมขั้นต่ำต่อเว็บ
         const cov = window.checkCoverage(currentUser.username, coverageMap, slotBookings, myDep, shiftSuffix);
         if (!cov.ok) {
             window.resetBtn();
@@ -2064,6 +2071,7 @@ window.renderQuotaSettings = function() {
             <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed">
                 <b>วิธีทำงาน:</b> ตัวเลข = จำนวนคนที่ <b>ต้องเหลือคุมเว็บ</b> ในทุกช่วงเวลา (นับหลัก+รอง รวมกัน) ระบบดูจากตารางจัดหน้าที่ของวันนั้นแล้วกันไม่ให้คนพักจนต่ำกว่านี้
                 — วันไหนเว็บมี 4 คน ตั้ง 2 = พักพร้อมกันได้ 2 / วันไหนมี 6 คน = พักได้ 4 <b>ไม่ต้องกดคำนวณทุกวัน</b> ตั้งครั้งเดียวใช้ตลอด (ค่าเริ่มต้น 1)
+                <br><b>เพดานแผนก (อัตโนมัติ):</b> ทั้งแผนกพักพร้อมกันได้ไม่เกิน — 1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8 (นับจากคนในตารางหน้าที่วันนั้น)
             </div>
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
                 <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[460px]">
