@@ -532,6 +532,7 @@ async function handleLogin(e) {
         // 🌟 ล็อกอินสำเร็จ
         currentUser = user; 
         sessionStorage.setItem('user_platinum_plus', JSON.stringify(user));
+        if (typeof window.subscribeUserChanges === 'function') window.subscribeUserChanges();   // 🔄 ฟังการเปลี่ยนข้อมูลตัวเอง
 
         // 🌐 [V4] บันทึก IP + FP + เริ่ม Heartbeat (ไม่ block UI)
         recordUserLoginIP(user).then(() => window.startIpHeartbeat());
