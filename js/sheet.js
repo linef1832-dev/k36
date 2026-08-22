@@ -658,7 +658,7 @@ window._noteCellStyle = function(c, editing) {
     return st.join(';');
 };
 const _nColName = (x) => { let n = x + 1, out = ''; while (n > 0) { const m = (n - 1) % 26; out = String.fromCharCode(65 + m) + out; n = Math.floor((n - 1) / 26); } return out; };
-const _nHdrCls = 'bg-[#e8eaed] text-black text-[12px] font-bold text-center border border-[#9aa0a6] select-none';
+const _nHdrCls = 'nt-hdr';   // สไตล์อยู่ใน sheet.html (.nt-hdr) — ห้ามใช้ class แบบ bg-[#xxx] เพราะ css ถูกคอมไพล์ไว้ล่วงหน้า
 const _nEsc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 window.renderNoteTable = function() {
@@ -673,8 +673,8 @@ window.renderNoteTable = function() {
     const cols = note.cols || []; const rowH = note.rowH || [];
     const colgroup = `<colgroup><col style="width:42px">${cols.map(w => `<col style="width:${Math.max(60, Math.round((w || 100) * 1.15))}px">`).join('')}<col style="width:36px"></colgroup>`;
     wrap.innerHTML = `
-        <div class="bg-white rounded-lg shadow-inner inline-block min-w-full">
-        <table class="border-collapse" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed">
+        <div class="bg-white rounded-lg shadow-inner inline-block" style="min-width:100%">
+        <table class="border-collapse" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed;width:${42 + 36 + cols.reduce((a, w) => a + Math.max(60, Math.round((w || 100) * 1.15)), 0)}px">
             ${colgroup}
             <thead class="sticky top-0 z-10"><tr><th class="${_nHdrCls} h-6"></th>${cols.map((_, x) => `<th class="${_nHdrCls} h-6">${_nColName(x)}</th>`).join('')}<th class="${_nHdrCls}"></th></tr></thead>
             <tbody>${rows.map((r, ri) => keep[ri] ? `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} align-middle">${ri + 1}</td>${r.map(c => c.h ? '' : `<td colspan="${c.cs || 1}" rowspan="${term ? 1 : (c.rs || 1)}" ${c.t ? `onclick="copyNoteCell(this)" data-v="${_nEsc(c.t)}" title="คลิกเพื่อก๊อปปี้"` : ''} class="px-3 py-2.5 align-middle whitespace-pre-wrap leading-snug ${c.b ? 'font-bold' : ''} ${c.t ? 'cursor-copy hover:outline hover:outline-2 hover:outline-purple-500 hover:-outline-offset-2' : ''}" style="${window._noteCellStyle(c, false)}">${hi(c.t)}</td>`).join('')}<td class="border border-[#cbd5e1] text-center align-middle bg-slate-50"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-400 hover:text-purple-600 p-1"><span class="material-icons text-[15px]">content_copy</span></button></td></tr>` : '').join('')}
@@ -773,11 +773,11 @@ window.renderNoteEditor = function() {
     const selCols = new Set(), selRows = new Set();
     if (window._noteSel) { for (let x = window._noteSel.x1; x <= window._noteSel.x2; x++) selCols.add(x); for (let r = window._noteSel.r1; r <= window._noteSel.r2; r++) selRows.add(r); }
     wrap.innerHTML = `
-        <div class="bg-white rounded-lg shadow-inner inline-block min-w-full select-none">
-        <table id="noteEditTable" class="border-collapse" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed">
+        <div class="bg-white rounded-lg shadow-inner inline-block select-none" style="min-width:100%">
+        <table id="noteEditTable" class="border-collapse" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed;width:${42 + cols.reduce((a, w) => a + Math.max(60, Math.round((w || 100) * 1.15)), 0)}px">
             ${colgroup}
-            <thead class="sticky top-0 z-10"><tr><th class="${_nHdrCls} h-6" onmousedown="noteSelectAll()" title="เลือกทั้งหมด"></th>${cols.map((_, x) => `<th class="${_nHdrCls} h-6 relative cursor-pointer ${selCols.has(x) ? 'bg-[#a8c7fa] text-black' : ''}" onmousedown="noteSelectCol(event,${x})">${_nColName(x)}<div class="nt-col-rs" onmousedown="noteResizeStart(event,'col',${x})" title="ลากเพื่อปรับความกว้าง"></div></th>`).join('')}</tr></thead>
-            <tbody>${note.rows.map((r, ri) => `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} align-middle relative cursor-pointer ${selRows.has(ri) ? 'bg-[#a8c7fa] text-black' : ''}" onmousedown="noteSelectRow(event,${ri})">${ri + 1}<div class="nt-row-rs" onmousedown="noteResizeStart(event,'row',${ri})" title="ลากเพื่อปรับความสูง"></div></td>${r.map((c, x) => c.h ? '' : `<td data-r="${ri}" data-x="${x}" colspan="${c.cs || 1}" rowspan="${c.rs || 1}" contenteditable="true" spellcheck="false"
+            <thead class="sticky top-0 z-10"><tr><th class="${_nHdrCls} h-6" onmousedown="noteSelectAll()" title="เลือกทั้งหมด"></th>${cols.map((_, x) => `<th class="${_nHdrCls} h-6 relative cursor-pointer ${selCols.has(x) ? 'nt-hdr-sel' : ''}" onmousedown="noteSelectCol(event,${x})">${_nColName(x)}<div class="nt-col-rs" onmousedown="noteResizeStart(event,'col',${x})" title="ลากเพื่อปรับความกว้าง"></div></th>`).join('')}</tr></thead>
+            <tbody>${note.rows.map((r, ri) => `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} align-middle relative cursor-pointer ${selRows.has(ri) ? 'nt-hdr-sel' : ''}" onmousedown="noteSelectRow(event,${ri})">${ri + 1}<div class="nt-row-rs" onmousedown="noteResizeStart(event,'row',${ri})" title="ลากเพื่อปรับความสูง"></div></td>${r.map((c, x) => c.h ? '' : `<td data-r="${ri}" data-x="${x}" colspan="${c.cs || 1}" rowspan="${c.rs || 1}" contenteditable="true" spellcheck="false"
                     onmousedown="noteCellDown(event,this)" onmouseenter="noteCellEnter(event,this)" onfocus="noteCellFocus(this)"
                     class="px-3 py-2.5 align-middle whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''} ${selSet.has(`${ri}:${x}`) ? 'note-sel' : ''}"
                     style="${window._noteCellStyle(c, true)}">${_nEsc(c.t)}</td>`).join('')}</tr>`).join('')}
@@ -839,7 +839,7 @@ window.noteResizeStart = function(e, kind, idx) {
     document.body.style.cursor = kind === 'col' ? 'col-resize' : 'row-resize';
     const move = (ev) => {
         const rs = window._noteRs; if (!rs) return;
-        if (rs.kind === 'col') { const w = Math.max(40, Math.round(rs.startVal + (ev.clientX - rs.startPx))); table.querySelectorAll('colgroup col')[rs.idx + 1].style.width = w + 'px'; rs.cur = w; }
+        if (rs.kind === 'col') { const w = Math.max(40, Math.round(rs.startVal + (ev.clientX - rs.startPx))); const col = table.querySelectorAll('colgroup col')[rs.idx + 1]; const prev = parseFloat(col.style.width) || rs.startVal; col.style.width = w + 'px'; table.style.width = (parseFloat(table.style.width) + (w - prev)) + 'px'; rs.cur = w; }
         else { const h = Math.max(24, Math.round(rs.startVal + (ev.clientY - rs.startPy))); table.querySelectorAll('tbody tr')[rs.idx].style.height = h + 'px'; rs.cur = h; }
     };
     const up = () => {
