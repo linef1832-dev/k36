@@ -822,6 +822,50 @@ window.noteCellFocus = function(td) {
     const t = _tdRect(td); const s0 = window._noteSel;
     if (!s0 || t.r < s0.r1 || t.r > s0.r2 || t.x2 < s0.x1 || t.x1 > s0.x2) { window._noteSel = { r1: t.r, r2: t.r2, x1: t.x1, x2: t.x2 }; window._notePaintSel(); }
 };
+// 🎨 จานสีแบบ Google Sheet (ตัวอักษร / พื้น)
+window.NOTE_PALETTE = {
+    base: ['#000000','#434343','#666666','#999999','#b7b7b7','#cccccc','#d9d9d9','#efefef','#f3f3f3','#ffffff'],
+    bright: ['#980000','#ff0000','#ff9900','#ffff00','#00ff00','#00ffff','#4a86e8','#0000ff','#9900ff','#ff00ff'],
+    shades: [
+        ['#e6b8af','#f4cccc','#fce5cd','#fff2cc','#d9ead3','#d0e0e3','#c9daf8','#cfe2f3','#d9d2e9','#ead1dc'],
+        ['#dd7e6b','#ea9999','#f9cb9c','#ffe599','#b6d7a8','#a2c4c9','#a4c2f4','#9fc5e8','#b4a7d6','#d5a6bd'],
+        ['#cc4125','#e06666','#f6b26b','#ffd966','#93c47d','#76a5af','#6d9eeb','#6fa8dc','#8e7cc3','#c27ba0'],
+        ['#a61c00','#cc0000','#e69138','#f1c232','#6aa84f','#45818e','#3c78d8','#3d85c6','#674ea7','#a64d79'],
+        ['#85200c','#990000','#b45f06','#bf9000','#38761d','#134f5c','#1155cc','#0b5394','#351c75','#741b47'],
+        ['#5b0f00','#660000','#783f04','#7f6000','#274e13','#0c343d','#1c4587','#073763','#20124d','#4c1130'],
+    ]
+};
+window._noteLastColor = { fg: '#000000', bg: '#fce5cd' };
+window.notePaletteToggle = function(kind) {
+    const el = document.getElementById('notePal_' + kind); if (!el) return;
+    document.querySelectorAll('.nt-palette').forEach(p => { if (p !== el) p.classList.add('hidden'); });
+    if (!el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
+    const P = window.NOTE_PALETTE;
+    const row = (arr) => `<div class="row">${arr.map(c => `<div class="sw" style="background:${c}" title="${c}" onclick="notePalettePick('${kind}','${c}')"></div>`).join('')}</div>`;
+    el.innerHTML = `
+        <div class="flex items-center justify-between mb-1">
+            <span class="lbl" style="margin:0">${kind === 'fg' ? 'สีตัวอักษร' : 'สีพื้นช่อง'}</span>
+            <button onclick="notePalettePick('${kind}',null)" class="text-[10px] font-bold text-red-500 hover:underline">${kind === 'fg' ? 'ดำ (ค่าเริ่มต้น)' : 'ไม่มีสี'}</button>
+        </div>
+        ${row(P.base)}${row(P.bright)}
+        <div class="lbl">โทนอ่อน → เข้ม</div>
+        ${P.shades.map(row).join('')}
+        <div class="lbl">กำหนดเอง</div>
+        <div class="flex items-center gap-2">
+            <label class="sw" style="width:28px;height:22px;background:linear-gradient(45deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f);position:relative"><input type="color" value="${window._noteLastColor[kind] || '#000000'}" onchange="notePalettePick('${kind}', this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+            <input type="text" placeholder="#rrggbb" maxlength="7" onkeydown="if(event.key==='Enter'){notePalettePick('${kind}', this.value)}" class="flex-1 text-[11px] px-2 py-1 border border-slate-300 rounded text-slate-800 outline-none focus:border-purple-500">
+            <span class="text-[10px] text-slate-400">Enter</span>
+        </div>`;
+    el.classList.remove('hidden');
+};
+window.notePalettePick = function(kind, color) {
+    if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) { Swal.mixin({ toast: true, position: 'top', timer: 1500, showConfirmButton: false }).fire({ icon: 'warning', title: 'รูปแบบสีต้องเป็น #rrggbb' }); return; }
+    if (color) window._noteLastColor[kind] = color;
+    const sw = document.getElementById(kind === 'fg' ? 'notePalSwFg' : 'notePalSwBg'); if (sw) sw.style.background = color || (kind === 'fg' ? '#000' : '#fff');
+    document.getElementById('notePal_' + kind)?.classList.add('hidden');
+    window.noteCmd(kind, color);
+};
+document.addEventListener('mousedown', e => { if (!e.target.closest('.nt-palette-wrap')) document.querySelectorAll('.nt-palette').forEach(p => p.classList.add('hidden')); });
 window.noteSelectCol = function(e, x) { if (e.target.classList.contains('nt-col-rs')) return; e.preventDefault(); const H = window._noteEdit.rows.length; const s0 = window._noteSel; window._noteSel = (e.shiftKey && s0) ? { r1: 0, r2: H - 1, x1: Math.min(s0.x1, x), x2: Math.max(s0.x2, x) } : { r1: 0, r2: H - 1, x1: x, x2: x }; window.renderNoteEditor(); };
 window.noteSelectRow = function(e, r) { if (e.target.classList.contains('nt-row-rs')) return; e.preventDefault(); const W = window._noteEdit.rows[0].length; const s0 = window._noteSel; window._noteSel = (e.shiftKey && s0) ? { r1: Math.min(s0.r1, r), r2: Math.max(s0.r2, r), x1: 0, x2: W - 1 } : { r1: r, r2: r, x1: 0, x2: W - 1 }; window.renderNoteEditor(); };
 window.noteSelectAll = function() { const n = window._noteEdit; window._noteSel = { r1: 0, r2: n.rows.length - 1, x1: 0, x2: n.rows[0].length - 1 }; window.renderNoteEditor(); };
