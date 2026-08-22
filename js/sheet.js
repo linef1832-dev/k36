@@ -889,7 +889,7 @@ window.onSheetSearch = function() {
 window._noteBorderStyle = function(c, editing) {
     const bd = c.bd || { t: true, b: true, l: true, r: true };
     const col = c.bc || '#cbd5e1';
-    const off = editing ? '1px dashed rgba(148,163,184,.35)' : '1px solid transparent';
+    const off = editing ? '1px dashed rgba(148,163,184,.45)' : '1px hidden transparent';   // hidden = ชนะเส้นของช่องข้างเคียงใน border-collapse
     return ['t', 'r', 'b', 'l'].map(side => `border-${{ t: 'top', r: 'right', b: 'bottom', l: 'left' }[side]}:${bd[side] ? `1px solid ${col}` : off}`).join(';');
 };
 window._noteEdit = null;          // สำเนาที่กำลังแก้
@@ -963,104 +963,150 @@ window._noteSyncText = function() {
 };
 const _nSnap = () => { window._noteSyncText(); window._noteUndo.push(_nClone(window._noteEdit)); if (window._noteUndo.length > 50) window._noteUndo.shift(); };
 
+// ---------- การเลือกช่อง: สี่เหลี่ยม {r1,r2,x1,x2} เป็น "คอลัมน์ภาพ" (รองรับช่องผสาน) ----------
+const _nX = (row, i) => { let x = 0; for (let k = 0; k < i; k++) x += row[k].cs || 1; return x; };
+// คืนรายการช่องที่อยู่ในกรอบเลือก: [{r, i, cell, x1, x2}]
+const _nSelCells = () => {
+    const sel = window._noteSel, note = window._noteEdit; if (!sel || !note) return [];
+    const out = [];
+    for (let r = sel.r1; r <= sel.r2; r++) {
+        const row = note.rows[r]; if (!row) continue;
+        let x = 0;
+        row.forEach((cell, i) => { const cs = cell.cs || 1; const a = x, b = x + cs - 1; if (b >= sel.x1 && a <= sel.x2) out.push({ r, i, cell, x1: a, x2: b }); x += cs; });
+    }
+    return out;
+};
+window._noteDrag = null;
+
 window.renderNoteEditor = function() {
     const wrap = document.getElementById('noteTableWrap'); const note = window._noteEdit; if (!wrap || !note) return;
     const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const cols = note.cols || [];
     const colgroup = `<colgroup>${cols.map(w => `<col style="width:${Math.max(90, Math.round((w || 100) * 1.15))}px">`).join('')}</colgroup>`;
-    const sel = window._noteSel;
+    const selSet = new Set(_nSelCells().map(o => `${o.r}:${o.i}`));
     wrap.innerHTML = `
-        <div class="bg-white rounded-lg shadow-inner inline-block min-w-full">
+        <div class="bg-white rounded-lg shadow-inner inline-block min-w-full select-none">
         <table id="noteEditTable" class="border-collapse text-[14px]" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed">
             ${colgroup}
-            <tbody>${note.rows.map((r, ri) => `<tr>${r.map((c, ci) => {
+            <tbody>${note.rows.map((r, ri) => { let x = 0; return `<tr>${r.map((c, ci) => {
                 const st = [`background:${c.bg || '#ffffff'}`, `color:${c.fg || '#111827'}`, window._noteBorderStyle(c, true)];
                 if (c.a === 'c') st.push('text-align:center'); else if (c.a === 'r') st.push('text-align:right');
-                const isSel = sel && sel.r === ri && ci >= sel.c1 && ci <= sel.c2;
-                return `<td data-r="${ri}" data-c="${ci}" colspan="${c.cs || 1}" contenteditable="true" spellcheck="false"
-                    onmousedown="noteCellDown(event,${ri},${ci})" onfocus="noteCellFocus(${ri},${ci})"
+                const isSel = selSet.has(`${ri}:${ci}`);
+                const html = `<td data-r="${ri}" data-c="${ci}" data-x="${x}" colspan="${c.cs || 1}" contenteditable="true" spellcheck="false"
+                    onmousedown="noteCellDown(event,this)" onmouseenter="noteCellEnter(event,this)" onfocus="noteCellFocus(this)"
                     class="px-3 py-2.5 align-middle whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''} ${isSel ? 'note-sel' : ''}"
-                    style="${st.join(';')}">${esc(c.t)}</td>`; }).join('')}</tr>`).join('')}
+                    style="${st.join(';')}">${esc(c.t)}</td>`;
+                x += c.cs || 1; return html; }).join('')}</tr>`; }).join('')}
             </tbody>
         </table></div>`;
-    const info = document.getElementById('noteSelInfo');
-    if (info) info.innerText = sel ? `แถว ${sel.r + 1} · ช่อง ${sel.c1 + 1}${sel.c2 > sel.c1 ? '-' + (sel.c2 + 1) : ''}` : 'คลิกช่องเพื่อเลือก · Shift+คลิก เลือกหลายช่อง';
+    window._noteUpdateSelInfo();
 };
-window.noteCellDown = function(e, r, c) {
-    if (e.shiftKey && window._noteSel && window._noteSel.r === r) {
+window._noteUpdateSelInfo = function() {
+    const info = document.getElementById('noteSelInfo'); const sel = window._noteSel; if (!info) return;
+    if (!sel) { info.innerText = 'คลิกช่อง · ลากเมาส์คลุมหลายช่อง · Shift+คลิก ขยายการเลือก'; return; }
+    const n = _nSelCells().length;
+    info.innerText = n > 1 ? `เลือก ${n} ช่อง (แถว ${sel.r1 + 1}${sel.r2 > sel.r1 ? '-' + (sel.r2 + 1) : ''})` : `แถว ${sel.r1 + 1} · คอลัมน์ ${sel.x1 + 1}`;
+};
+window._notePaintSel = function() {
+    const selSet = new Set(_nSelCells().map(o => `${o.r}:${o.i}`));
+    document.querySelectorAll('#noteTableWrap td[data-r]').forEach(td => td.classList.toggle('note-sel', selSet.has(`${td.dataset.r}:${td.dataset.c}`)));
+    window._noteUpdateSelInfo();
+};
+const _tdRect = (td) => { const r = +td.dataset.r, x1 = +td.dataset.x, x2 = x1 + (parseInt(td.getAttribute('colspan')) || 1) - 1; return { r, x1, x2 }; };
+window.noteCellDown = function(e, td) {
+    if (e.button !== 0) return;
+    const t = _tdRect(td);
+    if (e.shiftKey && window._noteSel) {
         e.preventDefault();
-        window._noteSel = { r, c1: Math.min(window._noteSel.c1, c), c2: Math.max(window._noteSel.c2, c) };
-        window._noteSyncText(); window.renderNoteEditor(); return;
+        const s0 = window._noteSel;
+        window._noteSel = { r1: Math.min(s0.r1, t.r), r2: Math.max(s0.r2, t.r), x1: Math.min(s0.x1, t.x1), x2: Math.max(s0.x2, t.x2) };
+        window._notePaintSel(); return;
     }
-    window._noteSel = { r, c1: c, c2: c };
-    document.querySelectorAll('#noteTableWrap td.note-sel').forEach(td => td.classList.remove('note-sel'));
-    e.currentTarget.classList.add('note-sel');
-    const info = document.getElementById('noteSelInfo'); if (info) info.innerText = `แถว ${r + 1} · ช่อง ${c + 1}`;
+    window._noteSel = { r1: t.r, r2: t.r, x1: t.x1, x2: t.x2 };
+    window._noteDrag = { start: t, td };
+    window._notePaintSel();
 };
-window.noteCellFocus = function(r, c) { if (!window._noteSel || window._noteSel.r !== r || c < window._noteSel.c1 || c > window._noteSel.c2) window._noteSel = { r, c1: c, c2: c }; };
+window.noteCellEnter = function(e, td) {
+    const d = window._noteDrag; if (!d || !(e.buttons & 1)) return;
+    if (td === d.td) return;
+    // ออกจากช่องเริ่มต้น = โหมดเลือกหลายช่อง → ยกเลิกการลากเลือกข้อความ
+    try { window.getSelection().removeAllRanges(); } catch (_) {}
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    const t = _tdRect(td), s0 = d.start;
+    window._noteSel = { r1: Math.min(s0.r, t.r), r2: Math.max(s0.r, t.r), x1: Math.min(s0.x1, t.x1), x2: Math.max(s0.x2, t.x2) };
+    window._notePaintSel();
+};
+document.addEventListener('mouseup', () => { window._noteDrag = null; });
+window.noteCellFocus = function(td) {
+    const t = _tdRect(td); const s0 = window._noteSel;
+    if (!s0 || t.r < s0.r1 || t.r > s0.r2 || t.x2 < s0.x1 || t.x1 > s0.x2) { window._noteSel = { r1: t.r, r2: t.r, x1: t.x1, x2: t.x2 }; window._notePaintSel(); }
+};
 
 window.noteCmd = async function(cmd, val) {
     const note = window._noteEdit; if (!note) return;
-    const sel = window._noteSel;
-    const need = () => { if (!sel) { Swal.mixin({ toast: true, position: 'top', timer: 1500, showConfirmButton: false }).fire({ icon: 'info', title: 'คลิกเลือกช่องก่อน' }); return false; } return true; };
-    const forSel = (fn) => { for (let c = sel.c1; c <= sel.c2; c++) fn(note.rows[sel.r][c]); };
-    if (cmd === 'undo') {
-        if (!window._noteUndo.length) return;
-        window._noteEdit = window._noteUndo.pop(); window._noteSel = null; window.renderNoteEditor(); return;
-    }
+    if (cmd === 'undo') { if (!window._noteUndo.length) return; window._noteEdit = window._noteUndo.pop(); window._noteSel = null; window.renderNoteEditor(); return; }
     if (cmd === 'trimEmpty') { _nSnap(); const t = window.trimNoteGrid(note); note.rows = t.rows; note.cols = t.cols; window._noteSel = null; _nNormalize(note); window.renderNoteEditor(); return; }
-    if (!need()) return;
+    const sel = window._noteSel;
+    if (!sel) { Swal.mixin({ toast: true, position: 'top', timer: 1500, showConfirmButton: false }).fire({ icon: 'info', title: 'คลิกเลือกช่องก่อน' }); return; }
     _nSnap();
-    const row = note.rows[sel.r];
+    const cells = _nSelCells();
+    const each = (fn) => cells.forEach(o => fn(o.cell, o));
+    const bdOf = (c) => c.bd || { t: true, b: true, l: true, r: true };
+    const abort = () => { window._noteUndo.pop(); };
     switch (cmd) {
-        case 'bold': { const allB = (() => { for (let c = sel.c1; c <= sel.c2; c++) if (!row[c].b) return false; return true; })(); forSel(cl => cl.b = !allB); break; }
-        case 'fg': forSel(cl => cl.fg = val); break;
-        case 'bg': forSel(cl => cl.bg = val); break;
-        case 'align': forSel(cl => cl.a = val === 'l' ? null : val); break;
-        case 'merge': {
-            if (sel.c2 === sel.c1) { const { value } = await Swal.fire({ title: 'ผสานกี่ช่องทางขวา?', input: 'number', inputValue: 2, inputAttributes: { min: 2 } }); if (!value) { window._noteUndo.pop(); return; } sel.c2 = Math.min(row.length - 1, sel.c1 + parseInt(value) - 1); }
-            const merged = { ...row[sel.c1], cs: 0, t: [] };
-            for (let c = sel.c1; c <= sel.c2; c++) { merged.cs += row[c].cs || 1; if (row[c].t) merged.t.push(row[c].t); }
-            merged.t = merged.t.join(' ');
-            row.splice(sel.c1, sel.c2 - sel.c1 + 1, merged);
-            window._noteSel = { r: sel.r, c1: sel.c1, c2: sel.c1 }; break;
+        case 'bold': { const allB = cells.every(o => o.cell.b); each(c => c.b = !allB); break; }
+        case 'fg': each(c => c.fg = val); break;
+        case 'bg': each(c => c.bg = val); break;
+        case 'align': each(c => c.a = val === 'l' ? null : val); break;
+        case 'border': {
+            if (val === 'all') each(c => c.bd = { t: true, b: true, l: true, r: true });
+            else if (val === 'none') each(c => c.bd = { t: false, b: false, l: false, r: false });
+            else if (val === 'outer') each((c, o) => c.bd = { ...bdOf(c), t: o.r === sel.r1, b: o.r === sel.r2, l: o.x1 <= sel.x1, r: o.x2 >= sel.x2 });
+            else if (val === 'inner') each((c, o) => c.bd = { ...bdOf(c), t: o.r !== sel.r1, b: o.r !== sel.r2, l: o.x1 > sel.x1, r: o.x2 < sel.x2 });
+            else { const allOn = cells.every(o => bdOf(o.cell)[val]); each(c => c.bd = { ...bdOf(c), [val]: !allOn }); }
+            document.getElementById('noteBorderMenu')?.classList.add('hidden'); break;
         }
-        case 'unmerge': { const cell = row[sel.c1]; const n = cell.cs || 1; if (n <= 1) { window._noteUndo.pop(); return; } cell.cs = 1; const extra = []; for (let k = 1; k < n; k++) extra.push({ t: '', bg: cell.bg, fg: cell.fg, b: cell.b, a: cell.a, cs: 1 }); row.splice(sel.c1 + 1, 0, ...extra); break; }
-        case 'rowAbove': case 'rowBelow': { const w = _nWidth(note.rows); const nr = Array.from({ length: w }, () => ({ t: '', cs: 1 })); note.rows.splice(cmd === 'rowAbove' ? sel.r : sel.r + 1, 0, nr); if (cmd === 'rowAbove') window._noteSel = null; break; }
-        case 'rowDel': { if (note.rows.length <= 1) { window._noteUndo.pop(); return; } note.rows.splice(sel.r, 1); window._noteSel = null; break; }
+        case 'borderColor': each(c => c.bc = val); document.getElementById('noteBorderMenu')?.classList.add('hidden'); break;
+        case 'merge': {
+            // รวมทีละแถวตามกรอบที่เลือก (โมเดลรองรับการผสานแนวนอน)
+            let did = false;
+            for (let r = sel.r1; r <= sel.r2; r++) {
+                const row = note.rows[r]; const idx = cells.filter(o => o.r === r).map(o => o.i);
+                if (idx.length < 2) continue;
+                const a = Math.min(...idx), b = Math.max(...idx);
+                const merged = { ...row[a], cs: 0, t: [] };
+                for (let c = a; c <= b; c++) { merged.cs += row[c].cs || 1; if (row[c].t) merged.t.push(row[c].t); }
+                merged.t = merged.t.join(' '); row.splice(a, b - a + 1, merged); did = true;
+            }
+            if (!did) { abort(); Swal.mixin({ toast: true, position: 'top', timer: 1800, showConfirmButton: false }).fire({ icon: 'info', title: 'ลากเลือกอย่างน้อย 2 ช่องในแถวเดียวกันก่อน' }); return; }
+            break;
+        }
+        case 'unmerge': {
+            let did = false;
+            cells.slice().reverse().forEach(o => { const c = o.cell, n = c.cs || 1; if (n <= 1) return; c.cs = 1; const extra = []; for (let k = 1; k < n; k++) extra.push({ t: '', bg: c.bg, fg: c.fg, b: c.b, a: c.a, bd: c.bd, bc: c.bc, cs: 1 }); note.rows[o.r].splice(o.i + 1, 0, ...extra); did = true; });
+            if (!did) { abort(); return; }
+            break;
+        }
+        case 'rowAbove': case 'rowBelow': { const w = _nWidth(note.rows); const at = cmd === 'rowAbove' ? sel.r1 : sel.r2 + 1; note.rows.splice(at, 0, Array.from({ length: w }, () => ({ t: '', cs: 1 }))); window._noteSel = null; break; }
+        case 'rowDel': { const n = sel.r2 - sel.r1 + 1; if (note.rows.length - n < 1) { abort(); return; } note.rows.splice(sel.r1, n); window._noteSel = null; break; }
         case 'colLeft': case 'colRight': {
-            const pos = _nCellAt(row, 0); let x = 0; for (let i = 0; i < sel.c1; i++) x += row[i].cs || 1;   // คอลัมน์ภาพของช่องที่เลือก
-            const insertX = cmd === 'colLeft' ? x : x + (row[sel.c1].cs || 1);
+            const insertX = cmd === 'colLeft' ? sel.x1 : sel.x2 + 1;
             note.rows.forEach(r => {
                 const hit = _nCellAt(r, insertX);
                 if (!hit) { r.push({ t: '', cs: 1 }); return; }
-                if (hit.start < insertX) r[hit.i].cs = (r[hit.i].cs || 1) + 1;   // แทรกกลางช่องผสาน → ขยาย
-                else r.splice(hit.i, 0, { t: '', cs: 1 });
+                if (hit.start < insertX) r[hit.i].cs = (r[hit.i].cs || 1) + 1; else r.splice(hit.i, 0, { t: '', cs: 1 });
             });
             note.cols.splice(insertX, 0, 160); window._noteSel = null; break;
         }
         case 'colDel': {
-            let x = 0; for (let i = 0; i < sel.c1; i++) x += row[i].cs || 1;
-            if (_nWidth(note.rows) <= 1) { window._noteUndo.pop(); return; }
-            note.rows.forEach(r => { const hit = _nCellAt(r, x); if (!hit) return; if ((r[hit.i].cs || 1) > 1) r[hit.i].cs--; else r.splice(hit.i, 1); });
-            note.cols.splice(x, 1); window._noteSel = null; break;
+            const n = sel.x2 - sel.x1 + 1; if (_nWidth(note.rows) - n < 1) { abort(); return; }
+            for (let k = 0; k < n; k++) { note.rows.forEach(r => { const hit = _nCellAt(r, sel.x1); if (!hit) return; if ((r[hit.i].cs || 1) > 1) r[hit.i].cs--; else r.splice(hit.i, 1); }); note.cols.splice(sel.x1, 1); }
+            window._noteSel = null; break;
         }
-        case 'border': {
-            const set = (cl, sides) => { cl.bd = { ...(cl.bd || { t: true, b: true, l: true, r: true }), ...sides }; };
-            if (val === 'all') forSel(cl => cl.bd = { t: true, b: true, l: true, r: true });
-            else if (val === 'none') forSel(cl => cl.bd = { t: false, b: false, l: false, r: false });
-            else if (val === 'outer') { for (let c = sel.c1; c <= sel.c2; c++) set(row[c], { t: true, b: true, l: c === sel.c1, r: c === sel.c2 }); }
-            else if (val === 'inner') { for (let c = sel.c1; c <= sel.c2; c++) set(row[c], { t: false, b: false, l: c !== sel.c1, r: c !== sel.c2 }); }
-            else { const allOn = (() => { for (let c = sel.c1; c <= sel.c2; c++) { const bd = row[c].bd || { t: true, b: true, l: true, r: true }; if (!bd[val]) return false; } return true; })(); forSel(cl => set(cl, { [val]: !allOn })); }
-            document.getElementById('noteBorderMenu')?.classList.add('hidden');
-            break;
-        }
-        case 'borderColor': forSel(cl => cl.bc = val); document.getElementById('noteBorderMenu')?.classList.add('hidden'); break;
         case 'colWidth': {
-            let x = 0; for (let i = 0; i < sel.c1; i++) x += row[i].cs || 1;
-            const { value } = await Swal.fire({ title: 'ความกว้างคอลัมน์ (px)', input: 'number', inputValue: note.cols[x] || 160, inputAttributes: { min: 60, max: 900 } });
-            if (!value) { window._noteUndo.pop(); return; }
-            note.cols[x] = parseInt(value); break;
+            const { value } = await Swal.fire({ title: `ความกว้างคอลัมน์ ${sel.x1 + 1}${sel.x2 > sel.x1 ? '-' + (sel.x2 + 1) : ''} (px)`, input: 'number', inputValue: note.cols[sel.x1] || 160, inputAttributes: { min: 60, max: 900 } });
+            if (!value) { abort(); return; }
+            for (let x = sel.x1; x <= sel.x2; x++) note.cols[x] = parseInt(value); break;
         }
     }
     _nNormalize(note);
