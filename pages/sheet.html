@@ -117,8 +117,47 @@
                         <input type="text" id="noteSearch" oninput="renderNoteTable()" placeholder="ค้นหาในหน้านี้..." class="w-full pl-10 pr-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm outline-none focus:border-purple-500">
                     </div>
                     <span id="noteCount" class="text-[11px] text-slate-500"></span>
-                    <span class="text-[11px] text-slate-500 ml-auto hidden md:inline">💡 คลิกช่องไหนก็ได้เพื่อก๊อปปี้</span>
+                    <span id="noteHint" class="text-[11px] text-slate-500 ml-auto hidden md:inline">💡 คลิกช่องไหนก็ได้เพื่อก๊อปปี้</span>
+                    <button id="btnNoteEdit" onclick="noteEditStart()" class="hidden ml-auto bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 shadow"><span class="material-icons text-sm">edit</span> แก้ไขหน้านี้</button>
                 </div>
+                <!-- 🛠️ แถบเครื่องมือแก้ไข (โชว์เฉพาะตอนกดแก้ไข) -->
+                <div id="noteToolbar" class="hidden items-center gap-1 flex-wrap px-3 py-2 bg-slate-800 border-b border-slate-700 shrink-0 text-white">
+                    <button onclick="noteCmd('undo')" title="เลิกทำ (Ctrl+Z)" class="nt-btn"><span class="material-icons text-[18px]">undo</span></button>
+                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
+                    <button onclick="noteCmd('bold')" title="ตัวหนา (Ctrl+B)" class="nt-btn font-black">B</button>
+                    <label title="สีตัวอักษร" class="nt-btn cursor-pointer relative"><span class="material-icons text-[18px]">format_color_text</span><input type="color" id="noteFgPick" onchange="noteCmd('fg', this.value)" class="absolute inset-0 opacity-0 cursor-pointer"></label>
+                    <label title="สีพื้นช่อง" class="nt-btn cursor-pointer relative"><span class="material-icons text-[18px]">format_color_fill</span><input type="color" id="noteBgPick" onchange="noteCmd('bg', this.value)" class="absolute inset-0 opacity-0 cursor-pointer"></label>
+                    <div class="flex gap-0.5 ml-1" title="สีพื้นด่วน">
+                        <button onclick="noteCmd('bg','#fce5cd')" class="w-5 h-5 rounded border border-slate-500" style="background:#fce5cd"></button>
+                        <button onclick="noteCmd('bg','#c9daf8')" class="w-5 h-5 rounded border border-slate-500" style="background:#c9daf8"></button>
+                        <button onclick="noteCmd('bg','#d9ead3')" class="w-5 h-5 rounded border border-slate-500" style="background:#d9ead3"></button>
+                        <button onclick="noteCmd('bg','#fff2cc')" class="w-5 h-5 rounded border border-slate-500" style="background:#fff2cc"></button>
+                        <button onclick="noteCmd('bg','#f4cccc')" class="w-5 h-5 rounded border border-slate-500" style="background:#f4cccc"></button>
+                        <button onclick="noteCmd('bg','#ff0000')" class="w-5 h-5 rounded border border-slate-500" style="background:#ff0000"></button>
+                        <button onclick="noteCmd('bg','#4dd0e1')" class="w-5 h-5 rounded border border-slate-500" style="background:#4dd0e1"></button>
+                        <button onclick="noteCmd('bg',null)" title="ล้างสีพื้น" class="w-5 h-5 rounded border border-slate-500 bg-white text-[10px] text-red-500 font-black">✕</button>
+                    </div>
+                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
+                    <button onclick="noteCmd('align','l')" title="ชิดซ้าย" class="nt-btn"><span class="material-icons text-[18px]">format_align_left</span></button>
+                    <button onclick="noteCmd('align','c')" title="กึ่งกลาง" class="nt-btn"><span class="material-icons text-[18px]">format_align_center</span></button>
+                    <button onclick="noteCmd('align','r')" title="ชิดขวา" class="nt-btn"><span class="material-icons text-[18px]">format_align_right</span></button>
+                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
+                    <button onclick="noteCmd('merge')" title="ผสานช่องที่เลือก (ในแถวเดียวกัน)" class="nt-btn"><span class="material-icons text-[18px]">call_merge</span></button>
+                    <button onclick="noteCmd('unmerge')" title="ยกเลิกผสาน" class="nt-btn"><span class="material-icons text-[18px]">call_split</span></button>
+                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
+                    <button onclick="noteCmd('rowAbove')" title="แทรกแถวด้านบน" class="nt-btn text-[11px] font-bold">↑แถว</button>
+                    <button onclick="noteCmd('rowBelow')" title="แทรกแถวด้านล่าง" class="nt-btn text-[11px] font-bold">↓แถว</button>
+                    <button onclick="noteCmd('rowDel')" title="ลบแถว" class="nt-btn text-[11px] font-bold text-red-300">✕แถว</button>
+                    <button onclick="noteCmd('colLeft')" title="แทรกคอลัมน์ซ้าย" class="nt-btn text-[11px] font-bold">←คอลัมน์</button>
+                    <button onclick="noteCmd('colRight')" title="แทรกคอลัมน์ขวา" class="nt-btn text-[11px] font-bold">→คอลัมน์</button>
+                    <button onclick="noteCmd('colDel')" title="ลบคอลัมน์" class="nt-btn text-[11px] font-bold text-red-300">✕คอลัมน์</button>
+                    <button onclick="noteCmd('colWidth')" title="ปรับความกว้างคอลัมน์" class="nt-btn text-[11px] font-bold">↔กว้าง</button>
+                    <span class="flex-1"></span>
+                    <span id="noteSelInfo" class="text-[11px] text-slate-400 mr-2"></span>
+                    <button onclick="noteEditCancel()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold">ยกเลิก</button>
+                    <button onclick="noteEditSave()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1"><span class="material-icons text-sm">save</span> บันทึก</button>
+                </div>
+                <style>.nt-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 6px;border-radius:6px;color:#e2e8f0}.nt-btn:hover{background:#334155}.note-sel{outline:2px solid #7c3aed !important;outline-offset:-2px;background-image:linear-gradient(rgba(124,58,237,.12),rgba(124,58,237,.12))}</style>
                 <div id="noteTableWrap" class="flex-1 overflow-auto custom-scrollbar p-3"></div>
             </div>
         </div>
