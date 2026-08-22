@@ -1,716 +1,736 @@
-<div class="fade-in pb-10">
-<style>
-.staff-row { transition: background .12s; }
-.staff-row:hover { background: rgba(100,116,139,.1); }
-.staff-row:hover .row-edit-btn { opacity: 1 !important; }
-.row-edit-btn { transition: opacity .12s, color .12s; }
-.row-edit-btn:hover { color: var(--text-pro) !important; }
-</style>
-<style>
-.staff-row { border-bottom: 0.5px solid rgba(100,116,139,.3); transition: background .12s; }
-.staff-row:hover { background: rgba(100,116,139,.08); }
-.staff-row:hover .row-edit-btn { opacity: 1 !important; }
-.row-edit-btn:hover { color: var(--text-pro) !important; }
-</style>
+<div class="fade-in flex flex-col h-full bg-[#0b1120] rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden">
+    <div class="bg-slate-900 p-4 border-b border-indigo-500/30 flex justify-between items-center shrink-0 shadow-md">
+        <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
+            <div class="bg-indigo-600 p-2 rounded-lg text-white mr-2 shadow"><span class="material-icons">discord</span></div>
+            <button onclick="switchDiscordTab('spy')" id="tabDsSpy" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-sm flex items-center gap-1"><span class="material-icons text-sm">visibility</span> Spy Monitor</button>
+            <button onclick="switchDiscordTab('move')" id="tabDsMove" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">move_up</span> ย้ายห้อง (Mass Move)</button>
+            <button onclick="switchDiscordTab('manage')" id="tabDsManage" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">manage_accounts</span> ฐานข้อมูล</button>
+            <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติเข้า/ออกดิส</button>
+            <button onclick="switchDiscordTab('actionlog')" id="tabDsActionlog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">list_alt</span> ประวัติกดคำสั่ง</button>
+            <button onclick="switchDiscordTab('sendmsg')" id="tabDsSendmsg" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">send</span> ส่งข้อความ</button>
+            <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">coffee</span> เช็คอิน</button>
+            <button onclick="switchDiscordTab('checkin')" id="tabDsCheckin" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">photo_camera</span> ถ่ายรูป</button>
+        </div>
+        <button onclick="showPage('dashboard')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition flex items-center gap-1 text-sm shrink-0 border border-slate-600"><span class="material-icons text-sm">close</span> ปิดหน้าต่าง</button>
+    </div>
 
-    
-    <div id="mainContentArea" class="block w-full">
-        <div class="bg-gray-50 dark:bg-slate-800 p-4 md:p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 mb-6 flex justify-between items-center shrink-0">
-            <div class="flex-1 min-w-0 pr-4">
-                <h1 class="font-bold text-xl md:text-2xl text-slate-800 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-blue-600">verified_user</span> ลงเวลาทำงาน
-                </h1>
-                <div class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-2 flex gap-2 md:gap-3 items-center flex-wrap">
-                    <span class="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 md:px-3 py-1 rounded border border-blue-100 dark:border-blue-800 flex items-center gap-1 font-bold">
-                        <span class="material-icons text-sm">person</span> <span id="uName">...</span>
-                    </span>
-                    <span id="uTagBadge"></span>
-                    <span class="bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 md:px-3 py-1 rounded border border-purple-100 dark:border-purple-800 flex items-center gap-1 font-bold">
-                        <span class="material-icons text-sm">settings_suggest</span> <span id="checkTypeDisplay">...</span>
-                    </span>
-                    <span class="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 md:px-3 py-1 rounded border border-green-100 dark:border-green-800 flex items-center gap-1 font-bold">
-                        <span class="material-icons text-sm">group</span> <span id="quotaDisplay">...</span>
-                    </span>
+    <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-[#0f172a] custom-scrollbar">
+        
+        <div id="dsContent_spy" class="max-w-[1400px] mx-auto block fade-in pb-10">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
+                <div class="p-4 bg-slate-900 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4">
+                    <h2 class="text-white font-bold flex items-center gap-2 text-lg"><span class="material-icons text-red-500">policy</span> ระบบดักจับการทำงาน (Spy Monitor)</h2>
+                    <input type="text" id="spySearchInput" placeholder="🔍 ค้นหาชื่อพนักงาน..." onkeyup="ds_renderSpyTable()" class="bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-red-500 w-full sm:w-64">
+                </div>
+                <div class="p-3 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center gap-3">
+                    <span class="text-sky-400 font-bold text-sm flex items-center gap-1"><span class="material-icons text-[16px]">flight_takeoff</span> ย้ายคนที่เลือกไปที่:</span>
+                    <select id="bulkMoveTarget" class="bg-slate-900 text-white p-2 rounded-lg border border-slate-600 outline-none focus:border-sky-500 text-sm w-48">
+                        <option value="">-- เลือกห้องปลายทาง --</option>
+                    </select>
+                    <button onclick="spy_moveSelectedUsers()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition shadow-md">
+                        🚀 ย้ายทันที (<span id="spySelectedCount">0</span>)
+                    </button>
+                    <button onclick="spy_returnMove()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 px-4 py-2 rounded-lg font-bold text-sm transition border border-amber-600 flex items-center gap-1 shadow-md">
+                        <span class="material-icons text-[16px]">keyboard_return</span> ดึงพนักงานกลับห้องเดิม
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap border-collapse">
+                        <thead class="bg-slate-900 text-gray-400 font-bold border-b border-slate-700">
+                            <tr>
+                                <th class="p-3 w-10 text-center"><input type="checkbox" id="spySelectAll" onchange="spy_toggleSelectAll()" class="w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600"></th>
+                                <th class="p-3">ชื่อพนักงาน</th>
+                                <th class="p-3">ห้องปัจจุบัน</th>
+                                <th class="p-3">อุปกรณ์ที่ใช้</th>
+                                <th class="p-3">สถานะขณะนี้</th>
+                                <th class="p-3 text-amber-400">ปิดไมค์</th>
+                                <th class="p-3 text-red-400">ปิดหูฟัง</th>
+                                <th class="p-3 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ds_spyBody" class="divide-y divide-slate-700 text-gray-200 bg-slate-800">
+                            <tr><td colspan="8" class="text-center p-10 text-gray-500 flex flex-col items-center"><span class="material-icons animate-spin text-4xl mb-2">sync</span>กำลังดึงข้อมูลจากดิสคอร์ด...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
+        </div>
 
-            <div class="flex items-center gap-2 shrink-0">
-                <button id="btnCheckMissingLunch" onclick="checkMissingLunch()" class="relative hidden bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-3 md:px-4 py-2 md:py-3 rounded-xl font-bold flex items-center gap-2 transition border border-indigo-200 dark:border-indigo-800/50 shadow-sm active:scale-95">
-                    <span class="material-icons">person_search</span> <span class="hidden md:block">เช็คคนยังไม่ลงข้าว</span>
-                    <span id="missingLunchBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-lg border border-white dark:border-slate-800 z-10">0</span>
-                </button>
-                <!-- 💬 ปุ่มแชทสด -->
-                <button onclick="openChatModal()" class="relative bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/50 px-3 md:px-4 py-2 md:py-3 rounded-xl font-bold flex items-center gap-2 transition border border-sky-200 dark:border-sky-800/50 shadow-sm active:scale-95">
-                    <span class="material-icons">chat</span> <span class="hidden md:block">แชทสด</span>
-                    <span id="chatUnreadBadge" style="display:none;position:absolute;top:-8px;right:-8px;background:#ef4444;color:#fff;font-size:11px;font-weight:900;padding:2px 6px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid #1e293b;min-width:20px;text-align:center;line-height:1.4;">0</span>
-                </button>
-                <button onclick="openEmployeeWrapped()" class="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white px-3 md:px-4 py-2 md:py-3 rounded-xl font-bold flex items-center gap-2 transition shadow-sm active:scale-95 border border-purple-400/50">
-                    <span class="material-icons text-yellow-300 drop-shadow-md">auto_awesome</span> <span class="hidden md:block">สรุปผลงาน</span>
-                </button>
-                <button onclick="openChangePinModal()" class="bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50 px-3 md:px-4 py-2 md:py-3 rounded-xl font-bold flex items-center gap-2 transition border border-orange-200 dark:border-orange-800/50 shadow-sm active:scale-95">
-                    <span class="material-icons">vpn_key</span> <span class="hidden md:block">เปลี่ยนรหัส</span>
+        <div id="dsContent_move" class="max-w-6xl mx-auto hidden fade-in pb-10">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg flex flex-col h-[600px]">
+                    <h3 class="text-red-400 font-black mb-3 flex items-center gap-2 text-lg"><span class="material-icons">group_remove</span> 1. เลือกห้องต้นทาง (ย้ายจาก)</h3>
+                    <div class="relative mb-3 shrink-0">
+                        <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-sm">search</span>
+                        <input type="text" id="searchSourceRoom" onkeyup="filterSourceRooms()" placeholder="ค้นหาชื่อห้อง..." class="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-600 text-white rounded-xl text-sm outline-none focus:border-red-500">
+                    </div>
+                    <div id="ds_sourceRooms" class="flex-1 overflow-y-auto custom-scrollbar bg-slate-900 rounded-xl p-2 border border-slate-700 space-y-1.5">
+                        <div class="text-center text-gray-500 py-10">กำลังโหลดรายชื่อห้อง...</div>
+                    </div>
+                </div>
+                <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg flex flex-col h-[600px]">
+                    <h3 class="text-green-400 font-black mb-4 flex items-center gap-2 text-lg"><span class="material-icons">login</span> 2. เลือกห้องปลายทาง (ย้ายไป)</h3>
+                    <select id="ds_targetRoom" class="w-full p-4 rounded-xl border border-slate-600 bg-slate-900 text-white font-bold mb-6 outline-none focus:border-green-500 transition text-base">
+                        <option value="">-- กำลังโหลดห้อง --</option>
+                    </select>
+                    <div class="mt-auto space-y-4 shrink-0">
+                        <button onclick="ds_startMove()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-extrabold shadow transition active:scale-95 flex items-center justify-center gap-2 text-lg">
+                            <span class="material-icons">flight_takeoff</span> 🚀 ดึงคนย้ายห้องทันที
+                        </button>
+                        <button onclick="ds_returnMove()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold shadow transition active:scale-95 flex items-center justify-center gap-2 border border-slate-600">
+                            <span class="material-icons">keyboard_return</span> ↩️ ย้ายทุกคนกลับห้องเดิม
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dsContent_checkin" class="max-w-6xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-violet-400 font-black flex items-center gap-2 text-xl"><span class="material-icons">photo_camera</span> ถ่ายรูปเช็คชื่อเข้างาน</h2>
+                    <div class="flex gap-2">
+                        <button onclick="window.toggleCheckinGroupsPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 transition">
+                            <span class="material-icons text-sm">group</span> ตั้งค่ากลุ่ม
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Settings กลุ่ม Telegram -->
+                <div id="checkinGroupsPanel" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-white font-black text-sm flex items-center gap-2">
+                            <span class="material-icons text-violet-400 text-sm">settings</span> ตั้งค่ากลุ่มถ่ายรูป (เช็คชื่อ/กะ)
+                        </h3>
+                        <button onclick="document.getElementById('checkinGroupsPanel').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
+                            <span class="material-icons text-sm">close</span>
+                        </button>
+                    </div>
+                    <div>
+                        <!-- กลุ่มเช็คชื่อ/ถ่ายรูป -->
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-icons text-violet-400 text-sm">photo_camera</span>
+                                <span class="text-violet-400 font-black text-xs uppercase tracking-wider">กลุ่มถ่ายรูป</span>
+                                <span class="text-gray-500 text-xs">(เช็คชื่อ/กะ)</span>
+                            </div>
+                            <div id="checkinGroupsList_shift" class="flex flex-col gap-1.5 mb-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
+                            <p class="text-gray-500 text-xs mb-2">เพิ่มกลุ่มแล้วกด <b class="text-gray-400">แก้ไข</b> เพื่อใส่ Sound ID</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="newGroupName_shift" placeholder="ชื่อกลุ่ม (ป้ายชื่อ)" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500">
+                                <input type="text" id="newGroupChatId_shift" placeholder="Chat ID เช่น -1001234567890" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-violet-500">
+                                <select id="newGroupTag_shift" title="TAG ที่ต้องถ่ายรูปในกลุ่มนี้" class="w-28 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-violet-500 cursor-pointer">
+                                    <option value="" class="bg-slate-800">— TAG —</option>
+                                    <option value="ONLINE" class="bg-slate-800">ONLINE</option>
+                                    <option value="TEMP" class="bg-slate-800">TEMP</option>
+                                    <option value="ONSITE" class="bg-slate-800">ONSITE</option>
+                                </select>
+                                <button onclick="window.addCheckinGroup('shift')" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                                    <span class="material-icons text-xs">add</span>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div><label class="text-gray-400 text-xs font-bold mb-1 block">หัวข้อ</label><input type="text" id="tgTitle" value="เช็คชื่อเข้างาน" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-sky-500"></div>
+                    <div><label class="text-gray-400 text-xs font-bold mb-1 block">วันที่</label><input type="date" id="tgDate" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-sky-500" onchange="fetchTodaysLeaves().then(_doRenderCheckinTable)"></div>
+                </div>
+                <div class="mb-4">
+                    <label class="text-gray-400 text-xs font-bold mb-1 block">ผู้ทำรายการ</label>
+                    <input type="text" id="reporterName" placeholder="ชื่อผู้ทำรายการ" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-sky-500">
+                </div>
+                <div class="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center text-gray-400 mb-4 cursor-pointer hover:bg-slate-700 transition flex flex-col items-center justify-center gap-2 bg-slate-900" id="pasteArea" tabindex="0">
+                    <span class="material-icons text-3xl opacity-50">content_paste</span>
+                    <span>คลิกที่นี่ แล้วกด <b>Ctrl + V</b> เพื่อวางรูปภาพหลักฐาน</span>
+                </div>
+                <div id="imgGallery" class="flex gap-2 flex-wrap mb-4"></div>
+                <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-white font-bold flex items-center gap-2"><span class="material-icons text-emerald-400 text-sm">checklist</span> รายชื่อพนักงาน</h3>
+                        <button onclick="clearCheckinStatus()" class="text-red-400 border border-red-500/50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/10 transition">ล้างสถานะทั้งหมด</button>
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <select id="groupFilter" onchange="renderCheckinTable()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-sky-500"><option value="ALL">-- ทุกกลุ่ม --</option></select>
+                        <select id="roundFilter" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-sky-500">
+                            <option value="">-- ไม่ระบุรอบ --</option><option value="รอบที่ 1">รอบที่ 1</option><option value="รอบที่ 2">รอบที่ 2</option>
+                        </select>
+                    </div>
+                    <input type="text" id="searchTable" placeholder="🔍 ค้นหาชื่อ..." onkeyup="renderCheckinTable()" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg p-2.5 text-sm outline-none focus:border-sky-500 mb-4">
+                    <div id="statusSummary" class="flex gap-3 mb-4"></div>
+                    <div id="checkinTableContainer" class="max-h-80 overflow-y-auto custom-scrollbar border border-slate-700 rounded-xl p-2 bg-slate-800 text-sm"></div>
+                </div>
+                <button onclick="sendToTelegram()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-black py-4 rounded-xl shadow transition active:scale-95 text-lg">
+                    <span class="material-icons">send</span> ส่งเข้ากลุ่ม Telegram
                 </button>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div class="lg:col-span-4 bg-gray-50 dark:bg-slate-800 p-6 rounded-2xl shadow-sm border-t-4 border-blue-600 sticky top-2 h-fit overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar pb-10">
-                <div class="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border border-amber-200 dark:border-amber-700/50 rounded-xl p-5 mb-6 text-slate-700 dark:text-amber-100 shadow-md relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-amber-500">gavel</span></div>
-                    <h4 class="font-extrabold text-xl text-amber-600 dark:text-amber-400 mb-4 flex items-center gap-2 relative z-10">
-                        <span class="material-icons">info</span> กฎระเบียบ (สรุป)
-                    </h4>
-                    
-                    <div class="bg-white/80 dark:bg-slate-800/80 p-4 rounded-lg border-l-4 border-purple-500 shadow-sm mb-4 backdrop-blur-sm">
-                        <p class="font-extrabold text-base text-purple-700 dark:text-purple-300 leading-relaxed">
-                            <span class="material-icons text-sm align-middle mr-1">schedule</span> 1 ช่วงเวลา ลงได้ <span id="periodLimitDisplay" class="underline text-lg text-purple-600 dark:text-purple-200">...</span> ครั้ง<br>
-                            <span class="material-icons text-sm align-middle mr-1">today</span> ลงได้สูงสุด <span id="limitDisplay" class="underline text-lg text-purple-600 dark:text-purple-200">...</span> ครั้ง/วัน
-                        </p>
+        <div id="dsContent_manage" class="max-w-6xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-4 md:p-6 rounded-3xl border border-slate-700 shadow-lg">
+                <h2 class="text-amber-500 font-black mb-6 flex items-center gap-2 text-xl"><span class="material-icons">manage_accounts</span> จัดการรายชื่อพนักงานและกลุ่ม</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col h-[650px] shadow-inner">
+                        <div class="flex justify-between items-center mb-4 shrink-0">
+                            <h3 class="text-sky-400 font-bold flex items-center gap-1.5"><span class="material-icons text-[18px]">person</span> พนักงานทั้งหมด (ดิสคอร์ด)</h3>
+                            <button onclick="syncDiscord()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-md">
+                                <span class="material-icons text-[14px]">sync</span> ดึงรายชื่อใหม่
+                            </button>
+                        </div>
+                        <div class="flex gap-2 mb-3 shrink-0">
+                            <input type="text" id="newStaffName" placeholder="พิมพ์ชื่อเพิ่มเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-sky-500">
+                            <button onclick="addStaff()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">เพิ่ม</button>
+                        </div>
+                        
+                        <div class="mb-3 flex flex-wrap gap-2 shrink-0">
+                            <select id="filterStaffGroup" onchange="renderManagerList()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-sky-500 font-bold text-sky-300">
+                                <option value="ALL">-- ดูทุกกลุ่ม --</option>
+                            </select>
+                            <select id="filterStaffDept" onchange="renderManagerList()" class="w-[85px] bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-xs outline-none focus:border-sky-500 font-bold">
+                                <option value="ALL">ทุกแผนก</option><option value="AM">AM</option><option value="OD">OD</option>
+                            </select>
+                            <select id="filterStaffShift" onchange="renderManagerList()" class="w-[85px] bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-xs outline-none focus:border-sky-500 font-bold">
+                                <option value="ALL">ทุกกะ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option>
+                            </select>
+                        </div>
+
+                        <div class="relative mb-3 shrink-0">
+                            <span class="material-icons absolute left-3 top-3 text-gray-400 text-[18px]">search</span>
+                            <input type="text" id="searchMgrStaff" placeholder="ค้นหาชื่อในดิสคอร์ด..." onkeyup="renderManagerList()" class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-800 border border-slate-600 text-white text-sm outline-none focus:border-sky-500">
+                        </div>
+                        <div id="manageStaffList" class="flex-1 overflow-y-auto custom-scrollbar border border-slate-700 rounded-xl bg-slate-800 p-2"></div>
                     </div>
-                    
-                    <div class="bg-white/50 dark:bg-black/20 p-4 rounded-lg border border-amber-100 dark:border-slate-700/50">
-                        <p class="font-bold text-sm underline mb-3 text-amber-800 dark:text-amber-300 flex items-center gap-1"><span class="material-icons text-sm">groups</span> โควตาพักพร้อมกัน:</p>
-                        <ul class="text-sm space-y-2 list-none text-slate-700 dark:text-slate-300 font-medium">
-                            <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold w-16">4 คน:</span> ห้ามพร้อม 2 (เว้น 15น.)</li>
-                            <li class="grid grid-cols-2 gap-x-2">
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">5-7 คน:</span> ≤ 2</span>
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">8-10 คน:</span> ≤ 3</span>
-                            </li>
-                            <li class="grid grid-cols-2 gap-x-2">
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">11-14:</span> ≤ 4</span>
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">15-20:</span> ≤ 5</span>
-                            </li>
-                            <li class="grid grid-cols-2 gap-x-2">
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">21-25:</span> ≤ 6</span>
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">26-30:</span> ≤ 7</span>
-                            </li>
-                            <li class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">31-35 คน:</span> ไม่เกิน 8 คน</li>
-                        </ul>
-                    </div>
-                    <div class="mt-4 text-center font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg text-sm shadow-sm border border-red-200 dark:border-red-900/50 flex flex-col gap-1">
-                        <span class="material-icons text-2xl">warning_amber</span>
-                        <span>คนที่กดไปหลังสุดจะถือว่า<br>"ไม่ปฎิบัติตามกระบวนการทำงาน"</span>
+
+                    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col h-[650px] shadow-inner">
+                        <div class="flex justify-between items-center mb-2 shrink-0">
+                            <h3 class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="material-icons text-[18px]">auto_awesome</span> จัดการกลุ่ม (กดดู/แก้ชื่อได้)</h3>
+                            <button onclick="autoBuildGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition flex items-center gap-1" title="ดึงข้อมูลจากเว็บมาจัดกลุ่มให้ใหม่">
+                                <span class="material-icons text-[14px]">bolt</span> จัดกลุ่มออโต้
+                            </button>
+                        </div>
+                        
+                        <div class="flex gap-2 mb-3 pb-3 border-b border-slate-700 shrink-0 mt-2">
+                            <input type="text" id="newGroupName" placeholder="พิมพ์ชื่อกลุ่มใหม่เพื่อสร้างเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500">
+                            <button onclick="createGroup()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">สร้างกลุ่ม</button>
+                        </div>
+
+                        <div id="groupList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2"></div>
                     </div>
                 </div>
 
-                <form onsubmit="saveData(event)" class="space-y-6">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">วันที่ทำงาน (Logical Date)</label>
-                        <input type="date" id="wDate" required class="w-full p-3 text-lg border rounded-lg bg-gray-100 dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-blue-500" onchange="handleDateChange()">
-                        <p class="text-[10px] text-gray-500 mt-1">* ระบบจะปรับวันที่ให้อัตโนมัติหากเข้างานช่วงดึก</p>
+                <div class="bg-slate-900 p-4 md:p-6 rounded-2xl border border-indigo-500/30 shadow-lg mt-6 shrink-0">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4">
+                        <h3 class="text-indigo-400 font-bold flex items-center gap-2 text-lg"><span class="material-icons">sync</span> ตารางย้ายกะ/โอนย้าย (รวมจากเว็บหลัก)</h3>
                     </div>
                     
-                    <div>
-                        <label class="block text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-1">เลือกทีมที่ทำวันนี้</label>
-                        <select id="dailyTeam" required onchange="handleTeamChange()" class="w-full p-3 text-lg border-2 border-indigo-200 rounded-lg bg-gray-100 dark:bg-slate-700 dark:border-indigo-900 dark:text-white outline-none font-bold text-indigo-700 dark:text-indigo-300 focus:ring-2 focus:ring-indigo-500">
-                        </select>
-                        <label class="flex items-center gap-2 mt-2 cursor-pointer text-sm text-gray-500 dark:text-gray-400 select-none hover:text-indigo-500 transition">
-                            <input type="checkbox" id="rememberTeam" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300" onchange="toggleRememberTeam()"> 
-                            <span>จำทีมนี้ไว้ตลอด (ไม่ต้องเลือกใหม่)</span>
-                        </label>
-                    </div>
+                    <div id="transferSummaryBoard" class="flex flex-wrap gap-2 mb-4 bg-slate-800 p-3 rounded-xl border border-slate-700"></div>
 
-                    <div id="shiftSection">
-                        <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">เลือกกะ</label>
-                        <div class="grid grid-cols-3 gap-2" id="shiftContainer"></div>
-                    </div>
-                    
-                    <div>
-                        <div class="flex justify-between items-end mb-1">
-                            <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase">
-                                รอบเวลา <span id="slotLoading" class="text-blue-500 hidden flex items-center gap-1 text-xs"><span class="animate-spin material-icons text-xs">sync</span> อัปเดต...</span>
-                            </label>
-                            <button type="button" onclick="refreshTimeSlots()" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 font-bold flex items-center gap-1 transition"><span class="material-icons text-xs">refresh</span> เช็คที่ว่าง</button>
-                        </div>
-                        <select id="tSlot" required class="w-full p-3 text-lg border rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none cursor-pointer disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:text-gray-400 focus:ring-2 focus:ring-blue-500">
-                            <option value="">-- กรุณาเลือกกะก่อน --</option>
-                        </select>
-                    </div>
-                    
-                    <button type="submit" id="btnSave" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95 flex justify-center items-center gap-2 text-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
-                        <span class="material-icons">save</span> บันทึกข้อมูล
-                    </button>
-                </form>
-            </div>
-
-            <div class="lg:col-span-8 flex flex-col gap-6">
-                <div class="bg-gray-50 dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden w-full h-full" id="timeTableSection">
-                    <div class="p-4 bg-gray-100 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
-                      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                            <h3 class="font-bold text-lg text-slate-700 dark:text-white flex items-center gap-2 whitespace-nowrap">
-                                <span class="material-icons text-blue-500">today</span> ตารางวันที่: <span id="displayDate" class="text-blue-400">...</span>
-                            </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="flex flex-col">
+                            <label class="text-gray-400 text-sm font-bold mb-2 shrink-0">1. เลือกพนักงานที่จะย้าย (เลือกหลายคนได้)</label>
                             
-                            <div class="flex gap-2 w-full md:w-auto">
-                                <select id="summaryDeptFilter" onchange="fetchData()" class="p-2 rounded-lg border border-slate-600 text-sm font-bold bg-gray-100 dark:bg-slate-700 text-slate-800 dark:text-white outline-none cursor-pointer focus:border-blue-500 transition shadow-sm">
-                                    <option value="all">🌐 รวมทุกแผนก</option>
-                                    <option value="AM">เฉพาะ AM</option>
-                                    <option value="OD">เฉพาะ OD</option>
+                            <div class="flex flex-wrap gap-2 mb-2 shrink-0">
+                                <select id="filterTransferGroup" onchange="renderTransferUserList()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2 text-xs outline-none focus:border-emerald-500 font-bold">
+                                    <option value="ALL">ทุกกลุ่ม</option>
                                 </select>
+                                <select id="filterTransferDept" onchange="renderTransferUserList()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2 text-xs outline-none focus:border-emerald-500 font-bold">
+                                    <option value="ALL">แผนก</option><option value="AM">AM</option><option value="OD">OD</option>
+                                </select>
+                                <select id="filterTransferShift" onchange="renderTransferUserList()" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2 text-xs outline-none focus:border-emerald-500 font-bold">
+                                    <option value="ALL">กะ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option>
+                                </select>
+                                <button onclick="selectAllVisibleTransfer()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-xl text-[10px] font-bold transition border border-slate-600 shadow-sm">เลือกทั้งหมด</button>
+                            </div>
 
-                                <div class="relative flex-1 md:w-64">
-                                    <span class="material-icons absolute left-2 top-2 text-gray-400 text-sm">search</span>
-                                    <input type="text" id="tableSearch" onkeyup="debounceDashboardSearch()" placeholder="ค้นหาชื่อในตาราง..." class="pl-8 pr-2 py-2 rounded-lg border border-slate-600 text-sm bg-gray-100 dark:bg-slate-700 text-slate-800 dark:text-white outline-none focus:border-blue-500 w-full transition shadow-sm">
+                            <input type="text" id="transferSearch" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหา..." onkeyup="renderTransferUserList()" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500 mb-2 shrink-0">
+                            
+                            <div id="transferSelectedTags" class="flex flex-wrap gap-1.5 mb-2 max-h-20 overflow-y-auto custom-scrollbar shrink-0"></div>
+                            <div id="transferUserList" class="h-80 overflow-y-auto custom-scrollbar flex flex-col gap-1.5 bg-slate-800 p-2 rounded-xl border border-slate-700 content-start"></div>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <label class="text-gray-400 text-sm font-bold mb-2 shrink-0">2. ปลายทาง & เวลา</label>
+                            <select id="transferToGroup" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500 mb-4 shrink-0">
+                                <option value="">-- เลือกกลุ่มปลายทาง --</option>
+                            </select>
+                            <label class="text-gray-400 text-sm font-bold mb-2 shrink-0">เวลาที่ให้ระบบย้ายให้อัตโนมัติ</label>
+                            <input type="datetime-local" id="transferTime" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500 mb-4 shrink-0">
+                            <button onclick="scheduleTransfer()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow transition active:scale-95 mb-4 shrink-0 flex justify-center items-center gap-1"><span class="material-icons text-sm">schedule_send</span> บันทึกตารางย้ายกลุ่ม</button>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 flex flex-col h-64">
+                                    <label class="text-amber-400 text-xs font-bold mb-2 block shrink-0 flex items-center justify-between">
+                                        <span class="flex items-center gap-1"><span class="material-icons text-sm">schedule</span> รอทำงาน</span>
+                                    </label>
+                                    <input type="text" id="searchPendingTransfer" onkeyup="renderTransferLists()" placeholder="🔍 ค้นหาชื่อ..." class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg p-1.5 text-xs outline-none focus:border-amber-500 mb-2 shrink-0">
+                                    <div id="transferList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1"></div>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 flex flex-col h-64">
+                                    <label class="text-emerald-400 text-xs font-bold mb-2 block shrink-0 flex items-center justify-between">
+                                        <span class="flex items-center gap-1"><span class="material-icons text-sm">check_circle</span> สำเร็จ</span>
+                                    </label>
+                                    <input type="text" id="searchHistoryTransfer" onkeyup="renderTransferLists()" placeholder="🔍 ค้นหาชื่อ..." class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg p-1.5 text-xs outline-none focus:border-emerald-500 mb-2 shrink-0">
+                                    <div id="transferHistoryList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1"></div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <div id="tableSummary" class="mb-4"></div>
-                        
-                        <div class="flex flex-wrap gap-2 justify-end items-center bg-gray-100 dark:bg-slate-900/50 p-2 rounded-lg border border-gray-200 dark:border-transparent">
-                            <span class="text-xs font-bold text-gray-500 uppercase">ตัวกรอง:</span>
-                            <button onclick="clearSpecificTimeFilter()" id="clearFilterBtn" class="hidden bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1.5 rounded flex items-center"><span class="material-icons text-sm mr-1">close</span> ล้างเวลากรอง</button>
-                            
-                            <select id="tableShiftFilter" onchange="resetSchedPage()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer">
-                                <option value="all">-- ทุกกะ --</option>
-                                <option value="กะเช้า">กะเช้า</option>
-                                <option value="กะกลาง">กะกลาง</option>
-                                <option value="กะดึก">กะดึก</option>
-                            </select>
-
-                            <select id="tableDeptFilter" onchange="resetSchedPage()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกแผนก --</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
-                            <select id="tableTeamFilter" onchange="fetchData()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกเว็บ --</option></select>
-                            <select id="periodFilter" onchange="resetSchedPage()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกช่วงเวลา --</option><option value="ช่วงที่ 1">ช่วงที่ 1</option><option value="ช่วงที่ 2">ช่วงที่ 2</option><option value="ช่วงที่ 3">ช่วงที่ 3</option></select>
-                            
-                            <button onclick="manualRefresh()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-3 py-1.5 rounded flex items-center transition shadow-sm"><span class="material-icons text-base">refresh</span></button>
-                        </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dsContent_voicelog" class="max-w-5xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-fuchsia-500 font-black flex items-center gap-2 text-xl"><span class="material-icons">history</span> ประวัติเข้า-ออกห้องดิสคอร์ด</h2>
                     
-                    <div class="overflow-x-auto p-4">
-                        <table class="w-full text-base text-left text-gray-300">
-                            <thead class="bg-gray-200 dark:bg-slate-700 uppercase text-sm font-bold text-slate-700 dark:text-gray-200">
-                                <tr><th class="px-6 py-4 w-32 text-center">ช่วง</th><th class="px-6 py-4">ชื่อ</th><th class="px-6 py-4">ทีม (ที่ทำ)</th><th class="px-6 py-4">กะ</th><th class="px-6 py-4">เวลา</th><th class="px-6 py-4 text-center">จัดการ</th></tr>
+                    <div class="flex items-center gap-2">
+                        <button onclick="ds_clearOldMoveLogs()" class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/50 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm">
+                            <span class="material-icons text-[14px]">auto_delete</span> ล้างประวัติย้ายห้อง (> 7 วัน)
+                        </button>
+                        <button onclick="ds_fetchVoiceLogs()" class="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-full transition shadow"><span class="material-icons text-sm">refresh</span></button>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-4 mb-6">
+                    <input type="date" id="voiceLogDate" onchange="ds_fetchVoiceLogs(true, 1)" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-fuchsia-500">
+                    
+                    <select id="voiceLogShiftFilter" onchange="ds_renderVoiceLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-fuchsia-500 font-bold">
+                        <option value="ALL">🌐 ทุกกะ</option>
+                        <option value="กะเช้า">☀️ กะเช้า</option>
+                        <option value="กะกลาง">🌤️ กะกลาง</option>
+                        <option value="กะดึก">🌙 กะดึก</option>
+                    </select>
+
+                    <select id="voiceLogLateFilter" onchange="ds_renderVoiceLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-fuchsia-500 font-bold">
+                        <option value="ALL">ดูทั้งหมด</option>
+                        <option value="late">🔴 กรองเฉพาะคนมาสาย</option>
+                        <option value="leave">🚪 กรองเฉพาะคนออกห้อง</option>
+                    </select>
+                    
+                    <div class="relative flex-1 min-w-[200px]">
+                        <span class="material-icons absolute left-3 top-3 text-gray-500 text-[18px]">search</span>
+                        <input type="text" id="dsLogSearch" onkeyup="ds_fetchVoiceLogs(true, 1)" placeholder="ค้นหาชื่อพนักงาน..." class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:border-fuchsia-500">
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-inner">
+                    <div class="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-800 text-gray-400 text-[10px] uppercase tracking-wider sticky top-0 z-10 shadow-sm">
+                                <tr><th class="p-4 font-bold">เวลา</th><th class="p-4 font-bold">พนักงาน</th><th class="p-4 font-bold">สถานะ</th><th class="p-4 font-bold">ห้อง</th></tr>
                             </thead>
-                            <tbody id="dataTableBody" class="divide-y divide-slate-700"></tbody>
+                            <tbody id="ds_voiceLogBody" class="text-sm"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    
+        <div id="dsContent_actionlog" class="max-w-5xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-orange-500 font-black flex items-center gap-2 text-xl"><span class="material-icons">manage_search</span> ประวัติการกดคำสั่ง (Admin Logs)</h2>
+                    <button onclick="ds_fetchActionLogs()" class="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-full transition shadow"><span class="material-icons text-sm">refresh</span></button>
+                </div>
+                
+                <div class="flex gap-4 mb-6">
+                    <input type="date" id="actionLogDate" onchange="ds_renderActionLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-orange-500">
+                    <div class="relative flex-1">
+                        <span class="material-icons absolute left-3 top-3 text-gray-500 text-[18px]">search</span>
+                        <input type="text" id="actionLogSearch" onkeyup="ds_renderActionLogs()" placeholder="ค้นหาชื่อแอดมิน หรือ คำสั่ง..." class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:border-orange-500">
+                    </div>
+                </div>
 
-    <div id="adminPanel" class="hidden flex-col gap-6 w-full animate-fade-in bg-[#0f172a] p-4 md:p-6 rounded-3xl border border-slate-700 shadow-2xl min-h-[80vh]">
-        
-        <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center bg-[#151f32] p-2 rounded-2xl border border-slate-700/80 shadow-md gap-4">
-            <div class="flex items-center gap-1 overflow-x-auto custom-scrollbar w-full xl:w-auto">
-                <button onclick="switchAdminTab('settings')" id="btnAdminTab_settings" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow-md">
-                    <span class="material-icons text-base">tune</span> ตั้งค่าระบบ
-                </button>
-                <button onclick="switchAdminTab('users')" id="btnAdminTab_users" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
-                    <span class="material-icons text-base">groups</span> จัดการพนักงาน
-                </button>
-                <button onclick="switchAdminTab('perms')" id="btnAdminTab_perms" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
-                    <span class="material-icons text-base">security</span> สิทธิ์เมนู
-                </button>
-                <button onclick="switchAdminTab('quotalog')" id="btnAdminTab_quotalog" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
-                    <span class="material-icons text-base">history</span> ประวัติโควตา
-                </button>
-            </div>
-            
-            <div class="flex gap-2 shrink-0 w-full xl:w-auto justify-end pr-2">
-                <button onclick="refreshAdminData()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-md active:scale-95 text-sm">
-                    <span class="material-icons text-sm">sync</span> อัปเดตข้อมูล
-                </button>
-                <button onclick="document.getElementById('adminPanel').classList.add('hidden'); document.getElementById('mainContentArea').classList.remove('hidden');" class="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-md active:scale-95 text-sm">
-                    <span class="material-icons text-sm">arrow_back</span> กลับหน้าหลัก
-                </button>
+                <div class="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-inner">
+                    <div class="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-800 text-gray-400 text-[10px] uppercase tracking-wider sticky top-0 z-10 shadow-sm">
+                                <tr><th class="p-4 font-bold">เวลา</th><th class="p-4 font-bold">แอดมินผู้สั่งการ</th><th class="p-4 font-bold">คำสั่ง</th><th class="p-4 font-bold">รายละเอียด</th></tr>
+                            </thead>
+                            <tbody id="ds_actionLogBody" class="text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div id="adminView_settings" class="hidden flex-col gap-6 w-full animate-fade-in">
-            <div class="flex items-center gap-3 bg-[#151f32] p-4 rounded-2xl border border-slate-700/50">
-                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center shadow-inner">
-                    <span class="material-icons text-3xl text-white drop-shadow-md">tune</span>
-                </div>
-                <div>
-                    <h3 class="font-extrabold text-xl text-white tracking-wide">ตั้งค่าระบบ (System Settings)</h3>
-                    <p class="text-xs text-gray-400">จัดการเวลาทำงาน ขีดจำกัด และโควตาพนักงาน</p>
-                </div>
+      <!-- ===== TAB เช็คอิน ===== -->
+      <div id="dsContent_breaktrack" class="max-w-6xl mx-auto hidden fade-in pb-10">
+        <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+          <!-- Header -->
+          <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+            <h2 class="text-emerald-400 font-black flex items-center gap-2 text-xl">
+              <span class="material-icons">coffee</span> เช็คอิน
+            </h2>
+            <div class="flex gap-2 flex-wrap">
+              <input type="date" id="breaktrackDate" class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" onchange="window.loadBreaktrack()">
+              <select id="breaktrackShift" class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" onchange="window.loadBreaktrack()">
+                <option value="all">-- ทุกกะ --</option>
+                <option value="กะเช้า">กะเช้า</option>
+                <option value="กะดึก">กะดึก</option>
+              </select>
+              <input type="text" id="breaktrackSearch" placeholder="🔍 ค้นหาชื่อ..." class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" oninput="window.renderBreaktrackTable()">
+              <button onclick="window.loadBreaktrack()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-1 active:scale-95">
+                <span class="material-icons text-sm">refresh</span> รีเฟรช
+              </button>
+              <button onclick="window.toggleBreakGroupsPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
+                <span class="material-icons text-sm">group</span> ตั้งค่ากลุ่ม
+              </button>
+              <button onclick="window.toggleParseRulesPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
+                <span class="material-icons text-sm">manage_search</span> ตั้งค่าคำที่จับ
+              </button>
+
+            </div>
+          </div>
+
+
+
+          <!-- ตั้งค่ากลุ่มเช็คอิน (แจ้งพัก) -->
+          <div id="breakGroupsPanel" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-6">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-white font-black text-sm flex items-center gap-2">
+                <span class="material-icons text-emerald-400 text-sm">settings</span> ตั้งค่ากลุ่มเช็คอิน (แจ้งพัก)
+              </h3>
+              <button onclick="document.getElementById('breakGroupsPanel').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
+                <span class="material-icons text-sm">close</span>
+              </button>
+            </div>
+            <p class="text-gray-500 text-xs mb-3">บอทจับกลุ่มด้วย <b class="text-gray-400">Chat ID</b> ไม่ใช่ชื่อ — กลุ่มที่ยังไม่ใส่ ID จะถูกข้าม ดู ID ได้จาก log ของบอท</p>
+            <div id="checkinGroupsList_checkin" class="flex flex-col gap-1.5 mb-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
+            <div class="flex gap-2">
+              <input type="text" id="newGroupName_checkin" placeholder="ชื่อกลุ่ม (ป้ายชื่อ)" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500">
+              <input type="text" id="newGroupChatId_checkin" placeholder="Chat ID เช่น -1001234567890" class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-emerald-500">
+              <button onclick="window.addCheckinGroup('checkin')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs">add</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ═══════════ ตั้งค่าคำที่บอทจับ (Parse Rules) ═══════════ -->
+          <div id="parseRulesPanel" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-6">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-white font-black text-sm flex items-center gap-2">
+                <span class="material-icons text-emerald-400 text-sm">manage_search</span> ตั้งค่าคำที่บอทจับ
+              </h3>
+              <button onclick="document.getElementById('parseRulesPanel').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
+                <span class="material-icons text-sm">close</span>
+              </button>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <p class="text-gray-500 text-xs mb-4 leading-relaxed">
+              ตั้งค่าว่าบอทจะแปลข้อความในกลุ่มเป็นกิจกรรมอะไร<br>
+              <b class="text-amber-400">แก้แล้วบอทรับรู้เองภายในไม่กี่วินาที ไม่ต้องรีสตาร์ท</b> — แนะนำให้ทดลองในช่องล่างสุดก่อนกดบันทึกทุกครั้ง
+            </p>
+
+            <!-- รายการกิจกรรม -->
+            <div class="mb-4">
+              <div class="text-emerald-400 font-bold text-xs mb-2 flex items-center gap-1">
+                <span class="material-icons text-xs">list</span> กิจกรรมที่จับ
+              </div>
+              <div id="prActivityList" class="flex flex-col gap-1.5 mb-2"></div>
+              <button onclick="window.pr_addActivity()" class="w-full bg-slate-800 hover:bg-slate-700 border border-dashed border-slate-600 text-gray-400 hover:text-white rounded-xl py-2 text-xs font-bold transition">
+                <span class="material-icons text-xs align-middle">add</span> เพิ่มกิจกรรมใหม่
+              </button>
+            </div>
+
+            <!-- คำว่ากลับที่นั่ง -->
+            <div class="mb-4">
+              <label class="text-emerald-400 font-bold text-xs mb-1 block">คำที่ถือว่า "กลับมาแล้ว" (คั่นด้วยเครื่องหมายจุลภาค)</label>
+              <input type="text" id="prReturnWords" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500">
+            </div>
+
+            <!-- โหมดผู้เชี่ยวชาญ -->
+            <details class="mb-4 bg-slate-800/50 rounded-xl border border-slate-700">
+              <summary class="cursor-pointer px-3 py-2 text-amber-400 font-bold text-xs select-none">
+                ⚠️ โครงประโยค (แก้เฉพาะเมื่อบอทอ่านไม่ออกแล้ว)
+              </summary>
+              <div class="p-3 pt-1 flex flex-col gap-3">
+                <p class="text-gray-500 text-[11px] leading-relaxed">
+                  ส่วนนี้คือรูปประโยคที่บอทใช้แกะข้อความ ถ้ากรอกผิดบอทจะอ่านไม่ออกทั้งหมด<br>
+                  ถ้าเผลอแก้พลาด กดปุ่ม <b class="text-gray-400">คืนค่าเริ่มต้น</b> ด้านล่างได้เลย
+                </p>
+                <div>
+                  <label class="text-gray-400 font-bold text-xs mb-1 block">คำด่านแรก — ไม่มีคำนี้ในข้อความ บอทจะข้ามทันที</label>
+                  <input type="text" id="prGateWord" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500">
+                </div>
+                <div>
+                  <label class="text-gray-400 font-bold text-xs mb-1 block">รูปประโยคที่ใช้หาชื่อกิจกรรม (บรรทัดละ 1 รูปแบบ ไล่จากบนลงล่าง)</label>
+                  <textarea id="prActivityPatterns" rows="4" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500"></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-gray-400 font-bold text-xs mb-1 block">รูปแบบเวลา</label>
+                    <input type="text" id="prTimestampPattern" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500">
+                  </div>
+                  <div>
+                    <label class="text-gray-400 font-bold text-xs mb-1 block">คำที่บ่งบอกว่า "กลับที่นั่งไม่สำเร็จ"</label>
+                    <input type="text" id="prFailedReturnWord" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500">
+                  </div>
+                </div>
+                <div>
+                  <label class="text-gray-400 font-bold text-xs mb-1 block">ประโยคเปลี่ยนกะ (บรรทัดละ 1 ประโยค — ต้องตรงเป๊ะทุกตัวอักษร)</label>
+                  <textarea id="prShiftKeywords" rows="4" class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-500"></textarea>
+                </div>
+              </div>
+            </details>
+
+            <!-- ช่องทดลอง -->
+            <div class="mb-4 bg-slate-800/50 rounded-xl border border-sky-500/30 p-3">
+              <div class="text-sky-400 font-bold text-xs mb-2 flex items-center gap-1">
+                <span class="material-icons text-xs">science</span> ทดลองก่อนบันทึก
+              </div>
+              <p class="text-gray-500 text-[11px] mb-2">ก๊อปข้อความจริงจากกลุ่ม Telegram มาวางที่นี่ แล้วดูว่าบอทจะแกะได้อะไร</p>
+              <textarea id="prTestInput" rows="5" placeholder="วางข้อความจากกลุ่มที่นี่..." class="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-3 py-2 text-xs outline-none focus:border-sky-500 mb-2"></textarea>
+              <button onclick="window.pr_testMessage()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs align-middle">play_arrow</span> ทดลองแกะ
+              </button>
+              <div id="prTestResult" class="mt-3"></div>
+            </div>
+
+            <!-- ปุ่มบันทึก -->
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="window.saveParseRules()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs align-middle">save</span> บันทึก
+              </button>
+              <button onclick="window.loadParseRules(true)" class="bg-slate-700 hover:bg-slate-600 text-gray-200 px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs align-middle">refresh</span> ยกเลิกที่แก้
+              </button>
+              <button onclick="window.pr_resetDefaults()" class="bg-amber-600/80 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-bold text-xs transition active:scale-95">
+                <span class="material-icons text-xs align-middle">restart_alt</span> คืนค่าเริ่มต้น
+              </button>
+            </div>
+          </div>
+
+          <!-- สรุปตัวเลข -->
+          <div id="breaktrackSummary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+
+          <!-- ตารางรายชื่อ -->
+          <div class="overflow-x-auto rounded-2xl border border-slate-700">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-slate-900 text-gray-400 text-xs uppercase tracking-wider">
+                  <th class="px-4 py-3 text-left">พนักงาน</th>
+                  <th class="px-4 py-3 text-left">กะ</th>
+                  <th class="px-4 py-3 text-left">กิจกรรม</th>
+                  <th class="px-4 py-3 text-center">จำนวนครั้ง</th>
+                  <th class="px-4 py-3 text-center">เวลารวม</th>
+                  <th class="px-4 py-3 text-center">เกินเวลา</th>
+                  <th class="px-4 py-3 text-center">ไม่กดกลับ</th>
+                  <th class="px-4 py-3 text-center">ดูรายละเอียด</th>
+                </tr>
+              </thead>
+              <tbody id="breaktrackTableBody" class="divide-y divide-slate-700/50"></tbody>
+            </table>
+          </div>
+
+          <!-- Loading -->
+          <div id="breaktrackLoading" class="hidden text-center py-12 text-gray-400">
+            <div class="animate-spin h-8 w-8 border-2 border-emerald-500 rounded-full border-t-transparent mx-auto mb-3"></div>
+            <p class="font-bold">กำลังโหลด...</p>
+          </div>
+        </div>
+
+        <!-- Modal รายละเอียด -->
+        <div id="breaktrackModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+          <div class="bg-slate-800 rounded-3xl border border-slate-600 shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+              <h3 id="breaktrackModalTitle" class="text-white font-black text-lg"></h3>
+              <button onclick="document.getElementById('breaktrackModal').classList.add('hidden')" class="text-gray-400 hover:text-white transition">
+                <span class="material-icons">close</span>
+              </button>
+            </div>
+            <div id="breaktrackModalBody" class="overflow-y-auto p-6 flex flex-col gap-3"></div>
+          </div>
+        </div>
+      </div>
+      <!-- ===== จบ TAB เช็คอิน ===== -->
+
+      <div id="dsContent_sendmsg" class="max-w-5xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                    <h2 class="text-emerald-400 font-black flex items-center gap-2 text-xl">
+                        <span class="material-icons">forum</span> ส่งข้อความเข้าห้องดิสคอร์ด (ผ่านบอท)
+                    </h2>
+                </div>
                 
-                <div class="flex flex-col gap-6">
-                    <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
-                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-                            <h4 class="text-emerald-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">schedule</span> เวลาเปิด-ปิดระบบ</h4>
-                            <button onclick="saveTimeSettings()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-3 py-1.5 rounded-lg shadow font-bold">บันทึกเวลา</button>
-                        </div>
-                        <div class="flex justify-between items-center mb-3">
-                            <span class="text-xs text-gray-500">เพิ่มกะใหม่:</span>
-                            <button onclick="addOperatingShift()" class="text-[10px] text-emerald-400 border border-emerald-500/50 hover:bg-emerald-900/30 px-3 py-1 rounded-lg transition flex items-center gap-1">+ เพิ่ม</button>
-                        </div>
-                        <div id="operatingTimeContainer" class="space-y-3 mb-4 min-h-[120px] max-h-[250px] overflow-y-auto custom-scrollbar pr-1 flex-1"></div>
-                        <p class="text-[10px] text-orange-400 mt-auto pt-3 border-t border-slate-700 flex items-center gap-1"><span class="material-icons text-[12px]">info</span> นอกเวลานี้ พนักงานจอง/ลบไม่ได้</p>
-                    </div>
-
-                    <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg">
-                        <h4 class="text-blue-400 font-bold mb-4 flex items-center gap-2 border-b border-slate-700 pb-3"><span class="material-icons text-lg">add_alarm</span> เพิ่มรอบเวลาเอง</h4>
-                        <div class="grid grid-cols-2 gap-3 mb-3">
-                            <div>
-                                <label class="text-[10px] text-gray-500 mb-1 block">กะ</label>
-                                <select id="newTimeShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500"><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-gray-500 mb-1 block">ช่วง</label>
-                                <select id="newTimePeriod" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500"><option value="ช่วงที่ 1">1</option><option value="ช่วงที่ 2">2</option><option value="ช่วงที่ 3">3</option></select>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 mb-4">
-                            <input type="time" id="newTimeStart" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500 text-center">
-                            <span class="text-gray-500">-</span>
-                            <input type="time" id="newTimeEnd" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500 text-center">
-                        </div>
-                        <button onclick="addManualTimeSlot()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 shadow-md mb-4"><span class="material-icons text-sm">add_circle</span> เพิ่มรอบเวลา</button>
-                        
-                        <div class="text-[10px] text-gray-500 mb-2">รอบเวลาที่เพิ่มไว้:</div>
-                        <div id="manualTimeSlotsContainer" class="max-h-[150px] overflow-y-auto custom-scrollbar space-y-1.5 bg-slate-900 p-2 rounded-lg border border-slate-700">
-                            <div class="text-center text-gray-600 text-xs py-4">ยังไม่มีการตั้งค่า</div>
-                        </div>
-                    </div> 
-
-                    <div class="bg-[#151f32] p-5 rounded-2xl border border-red-900/50 shadow-lg relative overflow-hidden flex flex-col">
-                        <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none"><span class="material-icons text-8xl text-red-500">delete_sweep</span></div>
-                        <h4 class="text-red-500 font-bold mb-3 flex items-center gap-2 border-b border-red-900/30 pb-2 relative z-10">
-                            <span class="material-icons text-xl">delete_sweep</span> ล้างกระดาน (ลบเวลา)
-                        </h4>
-                        <p class="text-[10px] text-gray-400 mb-4 relative z-10">เลือกลบข้อมูลการลงเวลา เพื่อให้พนักงานกลุ่มนั้นจองใหม่</p>
-                        
-                        <div class="flex flex-col gap-3 relative z-10">
-                            <div>
-                                <label class="block text-[10px] text-gray-500 mb-1">วันที่</label>
-                                <input type="date" id="clearScheduleDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner">
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-[10px] text-gray-500 mb-1">แผนก</label>
-                                    <select id="clearScheduleDept" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-[11px] font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
-                                        <option value="all">🌐 ทุกแผนก</option>
-                                        <option value="AM">เฉพาะ AM</option>
-                                        <option value="OD">เฉพาะ OD</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] text-gray-500 mb-1">กะ</label>
-                                    <select id="clearScheduleShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-[11px] font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
-                                        <option value="all">⏱️ ทุกกะ</option>
-                                        <option value="กะเช้า">เช้า</option>
-                                        <option value="กะกลาง">กลาง</option>
-                                        <option value="กะดึก">ดึก</option>
-                                    </select>
-                                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-[11px] font-bold text-gray-400">เลือกห้องปลายทาง (คลิกเลือกได้หลายห้อง)</label>
+                                <button onclick="ds_selectAllChannels()" class="text-[10px] text-emerald-400 bg-emerald-900/30 hover:bg-emerald-500 hover:text-white px-2 py-1 rounded transition font-bold border border-emerald-500/50 shadow-sm active:scale-95">
+                                    เลือกทั้งหมด / ยกเลิก
+                                </button>
                             </div>
                             
-                            <div class="mt-2 flex flex-col gap-2">
-                                <button type="button" onclick="clearAllSchedules()" class="w-full bg-red-600 hover:bg-red-500 text-white text-sm font-bold py-3 rounded-lg shadow-md transition flex items-center justify-center gap-1 active:scale-95 border border-red-500">
-                                    <span class="material-icons text-base">warning</span> ล้างข้อมูล
-                                </button>
-                               <button type="button" id="undoScheduleBtn" onclick="undoClearSchedules()" class="hidden w-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold py-3 rounded-lg shadow-md transition flex items-center justify-center gap-2 active:scale-95 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-                                    <span class="material-icons text-base">restore</span> กู้คืนข้อมูลล่าสุด
-                                </button>
+                            <div class="relative mb-2">
+                                <span class="material-icons absolute left-2 top-1.5 text-gray-400 text-sm">search</span>
+                                <input type="text" id="dsSearchChannelInput" onkeyup="ds_filterChannels()" placeholder="ค้นหาชื่อห้อง..." class="w-full pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-600 text-white rounded-lg text-xs outline-none focus:border-emerald-500 transition shadow-inner">
                             </div>
-                        </div>
-                    </div>
-
-                </div> 
-                
-                <div class="lg:col-span-2 flex flex-col gap-6">
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg">
-                            <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-                                <h4 class="text-red-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">block</span> ขีดจำกัดการจอง</h4>
+                            
+                            <div id="dsSendMsgChannelContainer" class="w-full bg-slate-900 border border-slate-600 text-white rounded-xl p-2 text-sm shadow-inner h-48 overflow-y-auto custom-scrollbar space-y-1">
+                                <div class="text-center text-gray-500 text-xs py-10">-- กำลังโหลดรายชื่อห้อง --</div>
                             </div>
-                            <div class="space-y-4 mt-2">
-                                <div class="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700/80">
-                                    <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-red-400">event</span> ต่อวัน (ครั้ง):</span>
-                                    <input type="number" id="dailyLimitInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-red-400">
-                                </div>
-                                <div class="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700/80">
-                                    <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-orange-400">view_day</span> ต่อช่วง (ครั้ง):</span>
-                                    <input type="number" id="periodLimitInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-orange-400">
-                                </div>
+                            <div class="flex justify-between items-center mt-1 px-1">
+                                <span class="text-[10px] text-gray-500">* ระบบจะจำห้องที่ติ๊กเลือกไว้ ของใครของมัน</span>
+                                <span id="dsSelectedChannelsLabel" class="text-[11px] text-emerald-400 font-bold bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-800">เลือกรอไว้ 0 ห้อง</span>
                             </div>
                         </div>
 
-                        <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col h-full">
-                            <h4 class="text-indigo-400 font-bold mb-4 flex items-center gap-2 border-b border-slate-700 pb-3"><span class="material-icons text-lg">groups</span> ย้ายกะทุกคน (Bulk)</h4>
-                            <div class="flex items-center gap-2 mb-4 mt-2">
-                                <select id="schFrom" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500">
-                                    <option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
-                                </select>
-                                <span class="material-icons text-gray-500">arrow_forward</span>
-                                <select id="schTo" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500">
-                                    <option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
-                                </select>
-                            </div>
-                            <input type="datetime-local" id="schDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500 mb-4">
-                            <div class="flex gap-2 mb-4">
-                                <button onclick="addScheduledTask()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-1 transition"><span class="material-icons text-sm">schedule</span> ตั้งเวลา</button>
-                                <button onclick="moveNowInstant()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-1 transition"><span class="material-icons text-sm">flash_on</span> ย้ายทันที</button>
-                            </div>
-                            <div class="text-[10px] text-gray-500 mb-1">ประวัติการย้าย (Bulk)</div>
-                            <div id="taskLog" class="flex-1 min-h-[60px] bg-slate-900 rounded-lg border border-slate-700 p-2 text-[10px] text-gray-400 overflow-y-auto custom-scrollbar"></div>
-                        </div>
-                    </div>
-
-                    <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex-1 flex flex-col">
-                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-                            <h4 class="text-yellow-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">group</span> โควตาการเข้างาน</h4>
-                            <div class="flex gap-2 items-center">
-                                <button onclick="autoCalculateTeamQuotas()" class="bg-teal-600 hover:bg-teal-500 text-white text-[10px] px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition"><span class="material-icons text-[12px]">auto_fix_high</span> คำนวณออโต้</button>
-                                <button onclick="saveQuotaSettings()" class="bg-yellow-600 hover:bg-yellow-500 text-slate-900 text-[10px] px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition"><span class="material-icons text-[12px]">save</span> บันทึกโควตา</button>
-                            </div>
-                        </div>
-
-                        <div id="quotaSettingsContainer" class="flex-1 overflow-y-auto custom-scrollbar p-1">
-                            <div class="text-center py-10 text-gray-500"><span class="material-icons animate-spin mb-2 text-2xl">sync</span><br>กำลังโหลดข้อมูลโควตา...</div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-            
-            <div class="bg-[#0f172a] p-1 rounded-2xl border border-teal-900/50 shadow-lg mt-6 overflow-hidden">
-                <div class="bg-teal-900/20 p-4 border-b border-teal-900/50 flex items-center gap-2">
-                    <span class="material-icons text-teal-400">person_add_alt</span>
-                    <h4 class="text-teal-400 font-bold text-sm">ตั้งเวลาเปลี่ยนกะรายบุคคล (ล่วงหน้า)</h4>
-                </div>
-                
-                <div class="p-4 grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <div class="md:col-span-6 bg-slate-900 p-3 rounded-xl border border-slate-700 flex flex-col h-[220px]">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-[10px] text-gray-400">เลือกพนักงาน (ติ๊กถูก):</span>
-                            <label class="text-[10px] text-white flex items-center gap-1 cursor-pointer"><input type="checkbox" onchange="toggleSelectAllIndiv(this)" class="rounded border-gray-500 bg-slate-800"> เลือกทั้งหมด</label>
-                        </div>
-                        <input type="text" id="indivSearchUser" onkeyup="filterIndivUserSelect()" placeholder="พิมพ์ชื่อเพื่อกรอง..." class="w-full bg-slate-800 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none mb-2 focus:border-teal-500 shadow-inner">
-                        <div id="indivUserListContainer" class="flex-1 overflow-y-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700"></div>
-                    </div>
-
-                    <div class="md:col-span-6 flex flex-col justify-start">
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="text-[10px] text-gray-400 mb-1 block">เปลี่ยนเป็นกะ</label>
-                                <select id="indivTargetShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-teal-500 font-bold shadow-inner">
-                                    <option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-gray-400 mb-1 block">วัน/เวลา ที่มีผล</label>
-                                <input type="datetime-local" id="indivDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-teal-500 shadow-inner">
-                            </div>
-                        </div>
-
-                        <button onclick="addToPendingList()" class="w-full bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold py-3 rounded-xl shadow-md transition active:scale-95 mb-4">
-                            = เพิ่มรายการตามที่เลือก
-                        </button>
-                        
-                        <div id="pendingListContainer" class="hidden flex-col flex-1 bg-slate-900 p-3 rounded-xl border border-slate-700 overflow-hidden">
-                            <h5 class="text-white font-bold text-[10px] mb-2 flex items-center justify-between">
-                                <span>รายการรอรัน (<span id="pendingCount">0</span>)</span>
-                                <button onclick="commitIndividualSchedules()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 text-[10px] rounded shadow transition">บันทึกคิว</button>
-                            </h5>
-                            <div class="flex-1 overflow-y-auto custom-scrollbar">
-                                <table class="w-full text-[10px] text-white text-left"><tbody id="pendingTableBody"></tbody></table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="w-full bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg mt-6">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
-                    <div class="flex items-center gap-4 flex-wrap">
-                        <h4 class="text-sky-400 font-bold flex items-center gap-2 text-sm"><span class="material-icons text-base">history</span> ประวัติและสถานะเปลี่ยนกะ <span class="text-gray-500 text-[10px]">(กดป้ายสีเพื่อกรอง):</span></h4>
-                        <div class="flex items-center gap-1.5 text-[10px] font-bold">
-                            <button onclick="filterIndivTaskLog('กะเช้า')" class="bg-orange-900/50 text-orange-400 border border-orange-700 px-2 py-1 rounded transition hover:bg-orange-900">เช้า: <span id="sumIndivM">0</span></button>
-                            <button onclick="filterIndivTaskLog('กะกลาง')" class="bg-blue-900/50 text-blue-400 border border-blue-700 px-2 py-1 rounded transition hover:bg-blue-900">กลาง: <span id="sumIndivA">0</span></button>
-                            <button onclick="filterIndivTaskLog('กะดึก')" class="bg-purple-900/50 text-purple-400 border border-purple-700 px-2 py-1 rounded transition hover:bg-purple-900">ดึก: <span id="sumIndivN">0</span></button>
-                            <button onclick="filterIndivTaskLog('')" class="bg-slate-700 text-white border border-slate-500 px-2 py-1 rounded hover:bg-slate-600 transition">แสดงทั้งหมด</button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-2 w-full md:w-auto">
-                        <input type="text" id="indivHistorySearch" onkeyup="filterIndivTaskLog()" placeholder="ค้นหาชื่อ..." class="bg-slate-900 border border-slate-600 text-white p-1.5 rounded-lg text-xs outline-none w-full md:w-48 focus:border-sky-500 shadow-inner transition">
-                        <button onclick="manualRefreshIndiv()" class="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1.5 rounded-lg text-[10px] shadow transition flex items-center gap-1 border border-slate-500"><span class="material-icons text-[14px]">refresh</span> รีเฟรช</button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="flex flex-col h-[250px]">
-                        <h5 class="text-amber-400 text-xs font-bold mb-2 flex items-center gap-1"><span class="material-icons text-[14px]">hourglass_top</span> รอการทำงาน (Pending)</h5>
-                        <div id="indivTaskLogPending" class="bg-slate-900 p-2 rounded-xl border border-slate-700 flex-1 overflow-y-auto custom-scrollbar text-[10px] text-gray-300 space-y-1 shadow-inner"></div>
-                    </div>
-                    <div class="flex flex-col h-[250px]">
-                        <h5 class="text-emerald-400 text-xs font-bold mb-2 flex items-center gap-1"><span class="material-icons text-[14px]">check_circle</span> สำเร็จแล้ว (Completed/History)</h5>
-                        <div id="indivTaskLogCompleted" class="bg-slate-900 p-2 rounded-xl border border-slate-700 flex-1 overflow-y-auto custom-scrollbar text-[10px] text-gray-300 space-y-1 shadow-inner"></div>
-                    </div>
-                </div>
-            </div>
-        </div> 
-
-        <div id="adminView_users" class="hidden flex-col gap-6 w-full animate-fade-in">
-            <div class="grid grid-cols-3 gap-4">
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-orange-500/30 shadow-lg relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-orange-500">wb_sunny</span></div>
-                    <div class="text-orange-400 text-xs font-bold uppercase mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> พนักงานกะเช้า</div>
-                    <div id="countShiftM" class="relative z-10 flex flex-col gap-1 mt-1">
-                        <div class="text-3xl font-black text-white leading-none stat-total">0</div>
-                        <div class="flex gap-3 text-xs font-bold mt-1">
-                            <span class="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/50">AM: <span class="stat-am">0</span></span>
-                            <span class="text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-800/50">OD: <span class="stat-od">0</span></span>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-blue-500/30 shadow-lg relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-blue-500">cloud</span></div>
-                    <div class="text-blue-400 text-xs font-bold uppercase mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> พนักงานกะกลาง</div>
-                    <div id="countShiftA" class="relative z-10 flex flex-col gap-1 mt-1">
-                        <div class="text-3xl font-black text-white leading-none stat-total">0</div>
-                        <div class="flex gap-3 text-xs font-bold mt-1">
-                            <span class="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/50">AM: <span class="stat-am">0</span></span>
-                            <span class="text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-800/50">OD: <span class="stat-od">0</span></span>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-purple-500/30 shadow-lg relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-purple-500">dark_mode</span></div>
-                    <div class="text-purple-400 text-xs font-bold uppercase mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span> พนักงานกะดึก</div>
-                    <div id="countShiftN" class="relative z-10 flex flex-col gap-1 mt-1">
-                        <div class="text-3xl font-black text-white leading-none stat-total">0</div>
-                        <div class="flex gap-3 text-xs font-bold mt-1">
-                            <span class="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/50">AM: <span class="stat-am">0</span></span>
-                            <span class="text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-800/50">OD: <span class="stat-od">0</span></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-[#151f32] rounded-2xl border border-slate-700 shadow-md p-5 flex flex-col xl:flex-row gap-5 items-center">
-                <div class="flex items-center gap-2 text-green-400 font-bold shrink-0 w-full xl:w-auto border-b xl:border-b-0 xl:border-r border-slate-700 pb-3 xl:pb-0 pr-5 text-lg">
-                    <span class="material-icons bg-green-500/20 p-2 rounded-xl">person_add</span> 
-                    <span>เพิ่มรายชื่อ</span>
-                </div>
-                <div class="flex flex-col gap-2 flex-1 w-full">
-                    <textarea id="newUsersArea" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3.5 text-white text-sm font-bold focus:border-green-500 outline-none transition custom-scrollbar" placeholder="พิมพ์ชื่อพนักงาน (ขึ้นบรรทัดใหม่เพื่อเพิ่มทีละหลายคน)"></textarea>
-                    <div class="flex gap-2">
-                        <input id="newDiscordId" type="text" placeholder="🔷 Discord ID (ไม่บังคับ)" class="flex-1 bg-slate-900 border border-slate-700 text-indigo-300 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500 transition placeholder-slate-600">
-                        <input id="newTelegramId" type="text" placeholder="✈️ Telegram ID (ไม่บังคับ)" class="flex-1 bg-slate-900 border border-slate-700 text-sky-300 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-sky-500 transition placeholder-slate-600">
-                    </div>
-                </div>
-                
-                <div class="flex flex-wrap gap-3 shrink-0 w-full xl:w-auto">
-                    <div class="flex flex-col gap-1.5 w-full sm:w-auto">
-                        <select id="newDept" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-blue-100 outline-none"><option value="AM">แผนก AM</option><option value="OD">แผนก OD</option></select>
-                        <select id="newTag" class="p-2 rounded-lg text-white text-xs font-bold bg-slate-700 outline-none border border-slate-600"><option value="">— TAG —</option><option value="ONLINE">ONLINE</option><option value="TEMP">TEMP</option><option value="ONSITE">ONSITE</option></select>
-                        <select id="newTeam" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-indigo-100 outline-none"></select>
-                    </div>
-                    <div class="flex flex-col gap-1.5 w-full sm:w-auto">
-                        <select id="newAllowedShift" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-gray-100 outline-none"><option value="all">กะอิสระ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
-                        <select id="newCheckType" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-purple-100 outline-none"><option value="team">☑ เช็คทีม+กะ</option><option value="shift">☐ เช็คกะอย่างเดียว</option></select>
-                    </div>
-                    <button onclick="addUsersBulk()" class="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 rounded-xl font-bold shadow-lg transition active:scale-95 flex items-center justify-center h-16 text-base">
-                        <span class="material-icons text-xl mr-1">add_task</span> เพิ่ม
-                    </button>
-                </div>
-            </div>
-
-            <div class="bg-[#151f32] p-4 rounded-2xl border border-slate-700 shadow-sm flex flex-col lg:flex-row justify-between items-center gap-4">
-                <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                    <select id="filterUserDept" onchange="searchEmployee()" class="p-2.5 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">🌐 ทุกแผนก</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
-                    <select id="filterUserShift" onchange="searchEmployee()" class="p-2.5 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">⏱️ ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option></select>
-                    <div class="relative flex-1 min-w-[200px]">
-                        <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[20px]">search</span>
-                        <input type="text" id="searchUser" onkeyup="searchEmployee()" placeholder="ค้นหาชื่อพนักงาน..." class="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-white text-sm font-bold outline-none focus:border-blue-500 transition shadow-inner">
-                    </div>
-                </div>
-                <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto bg-slate-900 p-2 rounded-xl border border-slate-700">
-                    <select id="moveTargetShift" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-orange-100 outline-none"><option value="">ย้ายกะไป...</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
-                    <button onclick="moveSelectedUsers()" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm">ยืนยัน</button>
-                    <div class="w-px h-8 bg-slate-600 mx-1"></div>
-                    <select id="moveTargetTeam" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-indigo-100 outline-none"><option value="">ย้ายทีมไป...</option></select>
-                    <button onclick="moveSelectedUsersTeam()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm">ยืนยัน</button>
-                    <div class="w-px h-8 bg-slate-600 mx-1"></div>
-                    <button onclick="deleteSelectedUsers()" class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1"><span class="material-icons text-[14px]">delete_sweep</span> ลบ</button>
-                </div>
-            </div>
-
-            <div class="bg-[#151f32] rounded-2xl border border-slate-700 shadow-xl overflow-hidden mt-2">
-                <div class="max-h-[500px] overflow-y-auto custom-scrollbar">
-                    <table class="w-full text-sm text-left border-collapse whitespace-nowrap">
-                        <thead class="bg-slate-900 text-gray-400 sticky top-0 z-20 shadow-md">
-                            <tr>
-                                <th class="p-4 w-10 text-center"><input type="checkbox" onchange="toggleSelectAll(this)" class="w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600"></th>
-                                <th class="p-4 font-bold">พนักงาน</th><th class="p-4 text-center">แผนก</th><th class="p-4 text-center">ทีม</th><th class="p-4 text-center">กะ</th><th class="p-4 text-center">รหัส PIN</th><th class="p-4 text-center">ระบบเช็ค</th><th class="p-4 text-center">สิทธิ์</th>
-                            </tr>
-                        </thead>
-                        <tbody id="userTableBody" class="divide-y divide-slate-700/50"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div id="adminView_perms" class="hidden flex-col gap-6 w-full animate-fade-in">
-            <div class="bg-[#151f32] rounded-2xl border border-slate-700 shadow-xl flex flex-col min-h-[600px]">
-                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center p-4 xl:p-5 border-b border-slate-700/80 bg-slate-800/30 rounded-t-2xl gap-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center border border-orange-500/30 shadow-inner">
-                            <span class="material-icons text-3xl">security</span>
-                        </div>
                         <div>
-                            <h4 class="text-white font-extrabold text-lg flex items-center gap-2">ตั้งค่าสิทธิ์การเข้าถึง <span class="bg-orange-900/50 text-orange-400 border border-orange-700 px-2 py-0.5 rounded text-[10px] shadow-sm">ระดับแผนก</span></h4>
-                            <p class="text-[10px] text-gray-400 mt-0.5 tracking-wide">กำหนดสิทธิ์ Role และ หน้าเมนูย่อย ให้แต่ละแผนกอย่างละเอียด</p>
+                            <div class="flex justify-between items-end mb-1">
+                                <label class="block text-[11px] font-bold text-gray-400">ข้อความที่ต้องการส่ง</label>
+                                <button onclick="ds_saveMsgTemplate()" class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/50 hover:bg-emerald-500 hover:text-white transition font-bold">
+                                    + บันทึกเป็นข้อความส่วนกลาง
+                                </button>
+                            </div>
+                            <textarea id="dsSendMsgText" rows="6" placeholder="พิมพ์ข้อความที่นี่... (ขึ้นบรรทัดใหม่ได้)" class="w-full bg-slate-900 border border-slate-600 text-white rounded-xl p-3 text-sm outline-none focus:border-emerald-500 shadow-inner custom-scrollbar resize-none transition"></textarea>
+                        </div>
+                        <button onclick="ds_sendMessage()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition active:scale-95 flex justify-center items-center gap-2 text-lg mt-2">
+                            <span class="material-icons">send</span> สั่งบอทส่งข้อความ
+                        </button>
+                    </div>
+
+                    <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-700 shadow-inner flex flex-col h-[400px]">
+                        <h3 class="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-1.5 border-b border-slate-700 pb-2 shrink-0">
+                            <span class="material-icons text-[18px]">bookmarks</span> ข้อความที่บันทึกไว้ (ทุกคนเห็นเหมือนกัน)
+                        </h3>
+                        <div id="dsMsgTemplatesList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 content-start pr-1">
+                            <div class="text-center text-gray-500 text-xs py-10">กำลังโหลดข้อมูล...</div>
                         </div>
                     </div>
-                    
-                    <div class="flex items-center justify-end gap-2 w-full">
-                        <input type="text" id="newDeptInput" placeholder="ชื่อแผนกใหม่..." class="bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 shadow-inner w-32 transition">
-                        <button onclick="addCustomPermDept()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-1 border border-blue-500 active:scale-95">
-                            <span class="material-icons text-[16px]">add</span> เพิ่มแผนก
-                        </button>
-                    
-                        <input type="text" id="newRoleInput" placeholder="ชื่อ Role ใหม่..." class="bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-fuchsia-500 shadow-inner w-32 transition ml-2">
-                        <button onclick="addCustomPermRole()" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-1 border border-fuchsia-500 active:scale-95">
-                            <span class="material-icons text-[16px]">add</span> เพิ่ม Role
-                        </button>
-                        
-                        <button onclick="deleteCustomPermRole()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-1 border border-red-500 active:scale-95 ml-2">
-                            <span class="material-icons text-[16px]">remove</span> ลบ Role
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="flex-1 overflow-x-auto pb-[400px]">
-                    <table class="w-full text-left text-sm whitespace-nowrap min-w-[900px] border-collapse">
-                        <thead class="text-[10px] text-gray-400 uppercase bg-slate-900/50 border-b border-slate-700 tracking-wider shadow-sm">
-                            <tr>
-                                <th class="px-6 py-4 font-bold w-48">แผนก (DEPT)</th>
-                                <th class="px-6 py-4 font-bold w-48">สิทธิ์ที่มองเห็น (ROLE)</th>
-                                <th class="px-6 py-4 font-bold">หน้าเมนูที่เข้าถึงได้ (MENUS)</th>
-                                <th class="px-6 py-4 font-bold text-center w-32 border-l border-slate-700">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="permTableBody" class="divide-y divide-slate-700"></tbody>
-                    </table>
                 </div>
             </div>
         </div>
 
-        <div id="adminView_quotalog" class="hidden flex-col gap-4 w-full animate-fade-in">
-            <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-                    <div>
-                        <h4 class="text-yellow-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">history</span> ประวัติการเปลี่ยนโควตา</h4>
-                        <p class="text-[11px] text-gray-500 mt-1">โควตาเปลี่ยนจากเท่าไหร่เป็นเท่าไหร่ เมื่อไหร่ — ระบบคำนวณให้ (ออโต้) หรือมีคนกดบันทึกเอง (กดมือ)</p>
-                    </div>
-                    <button onclick="renderQuotaHistory()" class="bg-slate-700 hover:bg-slate-600 text-white text-[10px] px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition"><span class="material-icons text-sm">refresh</span> รีเฟรช</button>
-                </div>
-                <div id="quotaHistoryContainer" class="overflow-y-auto custom-scrollbar p-1 max-h-[70vh]"></div>
+<div id="discordTemplates" class="hidden">
+    <template id="tpl-ds-spy-row">
+        <tr class="hover:bg-slate-800 transition border-b border-slate-700/50">
+            <td class="p-3 text-center"><input type="checkbox" value="{{id}}" class="spy-user-cb w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600" onchange="spy_toggleSelectUser('{{id}}')" {{isChecked}}></td>
+            <td class="p-3 font-bold {{nameColor}}">{{name}}</td>
+            <td class="p-3">{{roomBadge}}</td>
+            <td class="p-3 flex items-center gap-1">{{devicesHTML}}</td>
+            <td class="p-3">{{statusBadges}}</td>
+            <td class="p-3 text-amber-400 font-mono font-bold">{{mStr}}</td>
+            <td class="p-3 text-red-400 font-mono font-bold">{{dStr}}</td>
+            <td class="p-3 text-center flex items-center justify-center gap-1">
+    <select onfocus="window.isSpyDropdownFocused=true;" onblur="window.isSpyDropdownFocused=false;" onchange="window.isSpyDropdownFocused=false; spy_moveSingleUser('{{id}}', this.value)" class="bg-slate-900 text-white p-1.5 rounded border border-slate-600 outline-none text-xs w-28 cursor-pointer focus:ring-2 focus:ring-indigo-500 transition">
+        {{roomOptionsHtml}}
+    </select>
+    <button onclick="spy_kickUser('{{id}}', '{{name}}')" class="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white p-1.5 rounded border border-red-500/30 transition shadow-sm ml-1" title="เตะออกจากเซิร์ฟเวอร์">
+        <span class="material-icons text-[16px]">person_remove</span>
+    </button>
+</td>
+        </tr>
+    </template>
+    
+    <template id="tpl-ds-source-room">
+        <label class="ds-room-item flex items-center gap-3 p-3 bg-slate-900 border border-slate-700 rounded-xl cursor-pointer hover:border-indigo-500 transition group" data-name="{{name}}">
+            <input type="checkbox" name="ds_src" value="{{id}}" class="w-5 h-5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500">
+            <span class="font-bold text-gray-300 group-hover:text-white transition">{{name}}</span>
+        </label>
+    </template>
+    
+    <template id="tpl-ds-checkin-row">
+        <div class="flex justify-between items-center p-2.5 border-b border-slate-700/50 hover:bg-slate-700/30 transition">
+            <div class="font-bold text-sm flex items-center gap-2 {{onlineColorClass}}">
+                <span class="w-2.5 h-2.5 rounded-full {{onlineDotClass}}"></span>
+                {{name}} {{leaveBadgeHtml}}
             </div>
+            <select class="bg-slate-900 border border-slate-600 text-white p-1.5 rounded-lg text-xs outline-none focus:border-sky-500 cursor-pointer" onchange="updateCheckinStatus('{{id}}', this.value)">
+                <option value="✅" {{selA}}>✅ มา</option>
+                <option value="🏖️" {{selB}}>🏖️ หยุด</option>
+                <option value="🤒" {{selC}}>🤒 ป่วย</option>
+                <option value="📝" {{selD}}>📝 กิจ</option>
+                <option value="❌" {{selE}}>❌ ขาด</option>
+            </select>
         </div>
-        
-    </div>
+    </template>
 
-    <div id="logsPage" class="hidden flex-col gap-6 w-full animate-fade-in pb-10">
-        
-        <div class="bg-[#151f32] p-4 md:p-5 rounded-2xl shadow-sm border border-slate-700 flex justify-between items-center shrink-0">
-            <h1 class="font-bold text-xl md:text-2xl text-white flex items-center gap-2">
-                <span class="material-icons text-blue-400">manage_search</span> ประวัติการใช้งานระบบ (Audit Logs)
-            </h1>
-            <button onclick="backToDashboard()" class="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-sm text-sm active:scale-95">
-                <span class="material-icons text-sm">arrow_back</span> กลับหน้าหลัก
-            </button>
-        </div>
-
-        <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-xl flex flex-col min-h-[600px]">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 pb-4 border-b border-slate-700">
-                <div>
-                    <label class="block text-[10px] text-gray-400 mb-1">วันที่ (ไม่เลือก = ล่าสุด):</label>
-                    <input type="date" id="logDate" onchange="fetchLogs()" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-blue-500 shadow-inner">
-                </div>
-                <div>
-                    <label class="block text-[10px] text-gray-400 mb-1">ประเภท:</label>
-                    <select id="logAction" onchange="fetchLogs()" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-blue-500 shadow-inner cursor-pointer">
-                        <option value="">ทั้งหมด</option>
-                        <option value="ลงเวลา">ลงเวลา</option>
-                        <option value="ลบรายการ">ลบรายการ</option>
-                        <option value="ย้ายกะ">ย้ายกะ</option>
-                        <option value="ย้ายทีม">ย้ายทีม</option>
-                        <option value="ลบพนักงาน">ลบพนักงาน</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] text-gray-400 mb-1">ค้นหาคนทำ:</label>
-                    <div class="flex gap-2">
-                        <div class="relative flex-1">
-                            <span class="material-icons absolute left-2 top-2.5 text-gray-500 text-sm">search</span>
-                            <input type="text" id="logUser" onkeyup="if(event.key === 'Enter') fetchLogs()" placeholder="ชื่อพนักงาน..." class="w-full pl-8 pr-2 py-2.5 bg-slate-900 border border-slate-600 text-white rounded-lg text-xs outline-none focus:border-blue-500 shadow-inner">
-                        </div>
-                        <button onclick="fetchLogs()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-lg text-xs font-bold transition shadow-md">ค้นหา</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex-1 overflow-x-auto pb-[100px] custom-scrollbar">
-                <table class="w-full text-left text-sm whitespace-nowrap min-w-[800px] border-collapse">
-                    <thead class="text-[10px] text-gray-400 uppercase bg-slate-900/50 border-b border-slate-700 tracking-wider">
-                        <tr>
-                            <th class="px-4 py-3 font-bold w-48">เวลา</th>
-                            <th class="px-4 py-3 font-bold w-48">ผู้ทำรายการ</th>
-                            <th class="px-4 py-3 font-bold w-32">การกระทำ</th>
-                            <th class="px-4 py-3 font-bold">รายละเอียด</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logTableBody" class="divide-y divide-slate-700/50 text-gray-300 text-xs">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-<div id="changePinModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4 animate-fade-in">
-    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-sm overflow-hidden transform transition-all">
-        <div class="bg-gradient-to-r from-orange-500 to-amber-500 p-5 text-center relative">
-            <button type="button" onclick="closeChangePinModal()" class="absolute top-3 right-3 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full w-8 h-8 flex items-center justify-center transition">
-                <span class="material-icons text-sm">close</span>
-            </button>
-            <div class="w-16 h-16 bg-white/20 rounded-full mx-auto flex items-center justify-center mb-2 border-2 border-white/30 shadow-inner">
-                <span class="material-icons text-4xl text-white">vpn_key</span>
-            </div>
-            <h3 class="text-xl font-black text-white tracking-wide">เปลี่ยนรหัสผ่าน (PIN)</h3>
-            <p class="text-orange-100 text-xs mt-1">กรุณาตั้งรหัสผ่านเป็นตัวเลข 6 หลัก</p>
-        </div>
-        
-        <form onsubmit="submitChangePin(event)" class="p-6 space-y-5">
-            <!-- 🔐 [SECURITY] ต้องกรอก PIN เดิมก่อนเปลี่ยน -->
+    <template id="tpl-ds-manager-row">
+        <div class="flex justify-between items-center p-3 bg-slate-900 rounded-xl border border-slate-700 shadow-sm mb-2 hover:border-sky-500 transition">
             <div>
-                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">รหัสผ่านเดิม</label>
-                <div class="relative">
-                    <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">vpn_key</span>
-                    <input type="password" id="oldPin" pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
-                </div>
+                <div class="font-bold text-white text-sm flex items-center">{{name}} {{tagHtml}}</div>
+                <div class="text-[10px] text-gray-500 mt-1 flex items-center gap-1"><span class="material-icons text-[12px]">folder</span> {{gTags}}</div>
             </div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">รหัสผ่านใหม่</label>
-                <div class="relative">
-                    <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">lock</span>
-                    <input type="password" id="newPin1" required pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
-                </div>
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">ยืนยันรหัสผ่านอีกครั้ง</label>
-                <div class="relative">
-                    <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">lock_clock</span>
-                    <input type="password" id="newPin2" required pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
-                </div>
-            </div>
-            
-            <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black py-3.5 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2">
-                <span class="material-icons">save</span> บันทึกรหัสผ่านใหม่
-            </button>
-        </form>
-    </div>
+            <button onclick="editCustomName('{{id}}', '{{name}}')" class="text-sky-400 hover:text-white bg-slate-800 hover:bg-sky-600 px-2 py-1 rounded text-xs transition border border-slate-600 shadow-sm">เปลี่ยนชื่อ</button>
+        </div>
+    </template>
 
+    <template id="tpl-ds-group-row">
+        <div class="flex justify-between items-center p-3 rounded-xl border shadow-sm mb-2 transition cursor-pointer group/item {{bgClass}} {{colorClass}}" onclick="openGroupManagerModal('{{g}}')">
+            <div class="flex flex-col">
+                <div class="font-bold text-sm flex items-center gap-1">
+                    {{g}} <span class="material-icons text-[12px] opacity-0 group-hover/item:opacity-100 transition">edit</span>
+                </div>
+                <div class="text-[10px] text-gray-400 mt-0.5">สมาชิก {{count}} คน</div>
+            </div>
+            <button onclick="event.stopPropagation(); deleteGroup('{{g}}')" class="text-red-400 hover:text-white bg-slate-900 hover:bg-red-500 w-8 h-8 rounded-lg transition flex items-center justify-center border border-slate-700 shadow-sm opacity-0 group-hover/item:opacity-100" title="ลบกลุ่มนี้ทิ้ง"><span class="material-icons text-[14px]">delete</span></button>
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-user-row">
+        <div onclick="toggleTransfer('{{id}}')" class="px-4 py-3 rounded-xl cursor-pointer text-left text-sm font-bold transition flex justify-between items-center {{bgClass}}">
+            <span class="truncate">{{name}} {{tagHtml}}</span>
+            {{iconHtml}}
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-pending-row">
+        <div class="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs shadow-sm mb-1.5 hover:border-amber-500 transition">
+            <div class="flex-1 min-w-0 pr-2">
+                <div class="text-sky-400 font-bold truncate">{{name}}</div>
+                <div class="text-gray-400 text-[10px] truncate">{{fromGroup}} ➝ {{toGroup}}</div>
+                <div class="text-amber-400 text-[10px] mt-0.5 flex items-center gap-1"><span class="material-icons text-[10px]">timer</span> {{dateStr}}</div>
+            </div>
+            <button onclick="delTransfer('{{id}}')" class="text-red-400 hover:text-white hover:bg-red-500 p-1.5 rounded-lg transition shrink-0"><span class="material-icons text-sm">close</span></button>
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-history-row">
+        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs shadow-sm mb-1.5">
+            <div class="text-gray-300 font-bold truncate">{{name}}</div>
+            <div class="text-gray-500 text-[10px] truncate">{{fromGroup}} ➝ {{toGroup}}</div>
+            <div class="text-emerald-400 text-[10px] mt-0.5 flex items-center gap-1"><span class="material-icons text-[10px]">check_circle</span> {{dateStr}}</div>
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-summary-card">
+        <div onclick="showTransferSummaryDetail('{{k}}')" class="cursor-pointer hover:ring-2 hover:ring-emerald-500 bg-slate-900 border border-slate-600 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition shadow-sm" title="คลิกเพื่อดูรายชื่อพนักงาน">
+            <span class="text-gray-300 font-bold">{{k}}</span>
+            <span class="bg-emerald-500 text-slate-900 px-2 py-0.5 rounded-md font-black shadow-inner">{{count}}</span>
+        </div>
+    </template>
+
+    <template id="tpl-ds-transfer-detail-row">
+        <div class="p-3 bg-slate-800 rounded-xl border border-slate-600 shadow-sm flex items-center justify-between mb-2 hover:bg-slate-700 transition">
+            <div class="flex items-center gap-3 w-full overflow-hidden">
+                <div class="w-6 h-6 shrink-0 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-gray-400 border border-slate-700 shadow-inner">{{index}}</div>
+                <div class="font-bold text-sm text-sky-300 truncate" data-search-name="{{searchName}}">{{name}}</div>
+            </div>
+            <div class="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md border border-amber-400/20 whitespace-nowrap shadow-sm font-bold flex items-center gap-1"><span class="material-icons text-[12px]">schedule</span> {{dateStr}}</div>
+        </div>
+    </template>
+
+    <template id="tpl-ds-voice-log-row">
+        <tr class="{{rowClass}} transition border-b border-slate-700/50">
+            <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">{{timeStr}}</td>
+            <td class="p-3 font-bold text-white flex items-center">{{name}} {{shiftTag}} {{lateBadge}}</td>
+            <td class="p-3 whitespace-nowrap">{{badge}}</td>
+            <td class="p-3 font-bold text-indigo-300 truncate max-w-[150px]">{{room}}</td>
+        </tr>
+    </template>
+
+    <template id="tpl-ds-action-log-row">
+        <tr class="hover:bg-slate-700/50 transition border-b border-slate-700/50">
+            <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">{{timeStr}}</td>
+            <td class="p-3 font-bold text-amber-400 whitespace-nowrap">{{user}}</td>
+            <td class="p-3 whitespace-nowrap"><span class="bg-slate-900 text-white px-2 py-1 rounded text-[11px] font-bold border border-slate-600">{{action}}</span></td>
+            <td class="p-3 text-gray-300 text-xs">{{detail}}</td>
+        </tr>
+    </template>
 </div>
