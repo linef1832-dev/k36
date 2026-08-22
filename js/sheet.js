@@ -483,6 +483,11 @@ window.hideSheetLoading = function() {
 window._noteCache = {};
 window._currentNote = null;
 
+// ---------- รูปแบบข้อมูล ----------
+// v1 (พิมพ์เอง): { columns:[..], rows:[[..]] }
+// v2 (วางจาก Google Sheet): { v:2, rows:[[ {t:'ข้อความ', bg:'#fce5cd', fg:'#000', b:true, cs:3} ... ]] }  ← เก็บสี/ตัวหนา/ผสานช่องตามชีทจริง
+window._pendingRich = null;   // ตารางที่จับได้จากการวาง (HTML) รอบันทึก
+
 window.parseNoteText = function(text, firstRowHeader) {
     const lines = String(text || '').replace(/\r/g, '').split('\n').filter(l => l.trim() !== '');
     const sep = lines.some(l => l.includes('\t')) ? '\t' : (lines.some(l => l.includes('|')) ? '|' : null);
@@ -494,17 +499,97 @@ window.parseNoteText = function(text, firstRowHeader) {
     else columns = Array.from({ length: width }, (_, i) => `คอลัมน์ ${i + 1}`);
     return { columns, rows };
 };
+
+// แปลง HTML ที่ Google Sheet ใส่มาใน clipboard → v2 (เก็บสีพื้น/สีตัวอักษร/ตัวหนา/ผสานช่อง) + ตัดคอลัมน์/แถวว่างทิ้ง
+window.parseNoteHtml = function(html) {
+    try {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const table = doc.querySelector('table'); if (!table) return null;
+        const norm = (c) => {
+            if (!c) return null;
+            c = c.trim().toLowerCase();
+            if (c === 'transparent' || c === 'inherit' || c === 'initial') return null;
+            if (c === '#ffffff' || c === '#fff' || c === 'white' || c === 'rgb(255, 255, 255)') return null;
+            if (c === '#000000' || c === '#000' || c === 'black' || c === 'rgb(0, 0, 0)') return null;
+            return c;
+        };
+        const rows = [];
+        table.querySelectorAll('tr').forEach(tr => {
+            const cells = [];
+            tr.querySelectorAll('td,th').forEach(td => {
+                const st = td.getAttribute('style') || '';
+                const get = (prop) => { const m = st.match(new RegExp(prop + '\\s*:\\s*([^;]+)', 'i')); return m ? m[1] : null; };
+                const inner = td.innerText != null ? td.innerText : td.textContent;
+                cells.push({
+                    t: String(inner || '').replace(/\u00a0/g, ' ').trim(),
+                    bg: norm(get('background-color') || get('background')),
+                    fg: norm(get('color')),
+                    b: /font-weight\s*:\s*(bold|[6-9]00)/i.test(st) || !!td.querySelector('b,strong') || td.tagName === 'TH',
+                    cs: Math.max(1, parseInt(td.getAttribute('colspan') || '1')),
+                });
+            });
+            rows.push(cells);
+        });
+        return window.trimNoteGrid({ v: 2, rows });
+    } catch (e) { return null; }
+};
+
+// ตัดคอลัมน์/แถวที่ไม่มีข้อความเลย (เช่น คอลัมน์ A ว่าง หรือคอลัมน์ท้ายๆ ที่ก๊อปเกินมา)
+window.trimNoteGrid = function(note) {
+    const rows = (note.rows || []).map(r => r.map(c => typeof c === 'string' ? { t: c, cs: 1 } : c));
+    // ขยาย colspan เป็นช่องจริงก่อน เพื่อรู้ว่าคอลัมน์ไหนว่างจริง
+    const expanded = rows.map(r => { const out = []; r.forEach(c => { out.push({ ...c, _head: true }); for (let k = 1; k < (c.cs || 1); k++) out.push({ ...c, t: '', _head: false }); }); return out; });
+    const width = Math.max(0, ...expanded.map(r => r.length));
+    const keepCol = [];
+    for (let x = 0; x < width; x++) keepCol.push(expanded.some(r => r[x] && r[x].t));
+    const result = [];
+    expanded.forEach(r => {
+        if (!r.some(c => c && c.t)) return;          // แถวว่าง
+        const cells = [];
+        for (let x = 0; x < width; x++) {
+            if (!keepCol[x]) continue;
+            const c = r[x] || { t: '', cs: 1, _head: true };
+            if (c._head || !cells.length) cells.push({ t: c.t, bg: c.bg || null, fg: c.fg || null, b: !!c.b, cs: 1 });
+            else cells[cells.length - 1].cs++;      // ช่องที่ถูกผสานต่อจากช่องก่อนหน้า
+        }
+        result.push(cells);
+    });
+    return { v: 2, rows: result };
+};
+
 window.noteToText = function(note) {
     if (!note) return '';
+    if (note.v === 2) return (note.rows || []).map(r => r.map(c => c.t).join('\t')).join('\n');
     const all = [note.columns, ...(note.rows || [])];
     return all.map(r => (r || []).join('\t')).join('\n');
 };
 window.previewNote = function() {
     const el = document.getElementById('notePreview'); if (!el) return;
+    if (window._pendingRich) {
+        const n = window._pendingRich;
+        const w = Math.max(0, ...n.rows.map(r => r.reduce((a, c) => a + (c.cs || 1), 0)));
+        el.innerHTML = `<span class="text-emerald-400">✅ รับตารางจาก Google Sheet พร้อมสี/ผสานช่องแล้ว</span> — ${w} คอลัมน์ × ${n.rows.length} แถว (ตัดคอลัมน์ว่างออกให้แล้ว) <span class="text-slate-500">— ถ้าแก้ข้อความในช่องนี้ สีจะหายไป ให้วางใหม่แทน</span>`;
+        return;
+    }
     const n = window.parseNoteText(document.getElementById('newSheetNote').value, document.getElementById('newSheetNoteHeader').checked);
     el.innerText = n.rows.length ? `ตัวอย่าง: ${n.columns.length} คอลัมน์ × ${n.rows.length} แถว — หัวตาราง: ${n.columns.join(' | ')}` : '';
 };
-document.addEventListener('input', e => { if (e.target && e.target.id === 'newSheetNote') window.previewNote(); });
+
+// ดักตอน "วาง" ลงช่องเนื้อหา — ถ้ามี HTML (วางจาก Google Sheet) เก็บสีไว้ด้วย
+document.addEventListener('paste', e => {
+    const ta = e.target; if (!ta || ta.id !== 'newSheetNote') return;
+    const html = e.clipboardData && e.clipboardData.getData('text/html');
+    if (html && /<table/i.test(html)) {
+        const rich = window.parseNoteHtml(html);
+        if (rich && rich.rows.length) {
+            e.preventDefault();
+            window._pendingRich = rich;
+            ta.value = window.noteToText(rich);
+            window.previewNote();
+        }
+    }
+});
+document.addEventListener('input', e => { if (e.target && e.target.id === 'newSheetNote') { window._pendingRich = null; window.previewNote(); } });
 document.addEventListener('change', e => { if (e.target && e.target.id === 'newSheetNoteHeader') window.previewNote(); });
 window.setSheetType = function(type) {
     document.getElementById('newSheetType').value = type;
@@ -538,20 +623,29 @@ window.renderNoteTable = function() {
     if (!wrap || !note) return;
     const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const term = (document.getElementById('noteSearch')?.value || '').toLowerCase().trim();
-    const rows = (note.rows || []).filter(r => !term || r.some(c => String(c).toLowerCase().includes(term)));
-    const cnt = document.getElementById('noteCount'); if (cnt) cnt.innerText = `${rows.length}/${(note.rows || []).length} แถว`;
-    if ((note.rows || []).length === 0) { wrap.innerHTML = '<div class="text-center text-slate-500 py-16"><span class="material-icons text-4xl opacity-40">table_chart</span><p class="mt-2 text-sm">ยังไม่มีเนื้อหา — แอดมินแก้ไขได้ที่ "จัดการชีท"</p></div>'; return; }
     const hi = (txt) => { const e = esc(txt); if (!term) return e; return e.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark class="bg-yellow-400/40 text-inherit rounded px-0.5">${m}</mark>`); };
+
+    // แปลง v1 → v2 เพื่อวาดด้วยตัวเดียว
+    let rows;
+    if (note.v === 2) rows = note.rows || [];
+    else rows = [ (note.columns || []).map(c => ({ t: c, bg: '#fde7c8', b: true, cs: 1 })), ...(note.rows || []).map(r => r.map(c => ({ t: c, cs: 1 }))) ];
+    if (rows.length === 0) { wrap.innerHTML = '<div class="text-center text-slate-500 py-16"><span class="material-icons text-4xl opacity-40">table_chart</span><p class="mt-2 text-sm">ยังไม่มีเนื้อหา — แอดมินแก้ไขได้ที่ "จัดการชีท"</p></div>'; return; }
+
+    const shown = rows.filter(r => !term || r.some(c => String(c.t).toLowerCase().includes(term)));
+    const cnt = document.getElementById('noteCount'); if (cnt) cnt.innerText = `${shown.length}/${rows.length} แถว`;
+
+    const cellHtml = (c) => {
+        const styles = [];
+        if (c.bg) styles.push(`background:${c.bg}`);
+        if (c.fg) styles.push(`color:${c.fg}`);
+        const dark = !c.bg;   // ช่องไม่มีสี = พื้นเข้มของระบบ
+        const cls = `px-3 py-2 border border-slate-600/70 align-top whitespace-pre-wrap ${c.b ? 'font-bold' : ''} ${dark ? 'text-slate-100 hover:bg-purple-900/40' : 'text-slate-900 hover:brightness-95'} ${c.t ? 'cursor-copy' : ''} transition`;
+        return `<td colspan="${c.cs || 1}" ${c.t ? `onclick="copyNoteCell(this)" data-v="${esc(c.t)}" title="คลิกเพื่อก๊อปปี้"` : ''} class="${cls}" style="${styles.join(';')}">${hi(c.t)}</td>`;
+    };
     wrap.innerHTML = `
-        <table class="w-full border-collapse text-sm">
-            <thead class="sticky top-0 z-10">
-                <tr>${note.columns.map(c => `<th class="bg-amber-100 dark:bg-amber-900/60 text-slate-900 dark:text-amber-100 font-bold px-3 py-2.5 border border-amber-300 dark:border-amber-700 text-left whitespace-nowrap">${esc(c)}</th>`).join('')}<th class="bg-slate-800 border border-slate-700 w-10"></th></tr>
-            </thead>
+        <table class="border-collapse text-sm min-w-full">
             <tbody>
-                ${rows.map(r => `<tr class="hover:bg-slate-800/60">
-                    ${r.map(c => `<td onclick="copyNoteCell(this)" data-v="${esc(c)}" title="คลิกเพื่อก๊อปปี้" class="px-3 py-2.5 border border-slate-700 text-slate-100 cursor-copy hover:bg-purple-900/40 hover:text-white transition align-top whitespace-pre-wrap">${hi(c)}</td>`).join('')}
-                    <td class="border border-slate-700 text-center align-top"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-500 hover:text-white p-1"><span class="material-icons text-[16px]">content_copy</span></button></td>
-                </tr>`).join('')}
+                ${shown.map(r => `<tr>${r.map(cellHtml).join('')}<td class="border border-slate-700 text-center align-top w-9 bg-slate-900/40"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-500 hover:text-white p-1"><span class="material-icons text-[15px]">content_copy</span></button></td></tr>`).join('')}
             </tbody>
         </table>`;
 };
@@ -609,7 +703,7 @@ window.startEdit = function(id) {
     // 📝 ถ้าเป็นหน้าข้อความ โหลดเนื้อหามาใส่ช่องแก้ไข
     if ((sheet.sheet_id || '') === 'NOTE') {
         window.setSheetType('note');
-        const fill = (note) => { document.getElementById('newSheetNote').value = window.noteToText(note); document.getElementById('newSheetNoteHeader').checked = true; window.previewNote(); };
+        const fill = (note) => { window._pendingRich = (note && note.v === 2) ? note : null; document.getElementById('newSheetNote').value = window.noteToText(note); document.getElementById('newSheetNoteHeader').checked = true; window.previewNote(); };
         if (window._noteCache[sheet.id]) fill(window._noteCache[sheet.id]);
         else appDB.from('settings').select('value').eq('key', `sheet_note_${sheet.id}`).maybeSingle().then(({ data }) => { const n = data && data.value ? JSON.parse(data.value) : { columns: [], rows: [] }; window._noteCache[sheet.id] = n; fill(n); });
     } else {
@@ -649,6 +743,7 @@ window.startEdit = function(id) {
 };
 
 window.cancelEdit = function() {
+    window._pendingRich = null;
     if (document.getElementById('newSheetType')) { window.setSheetType('link'); document.getElementById('newSheetNote').value = ''; const pv = document.getElementById('notePreview'); if (pv) pv.innerText = ''; }
     ['editSheetId','newSheetName','newSheetGroup','newSheetUrl','newSheetCover'].forEach(id => document.getElementById(id).value = '');
     if(document.getElementById('newSheetCoverFile')) document.getElementById('newSheetCoverFile').value = ''; 
@@ -677,9 +772,9 @@ window.saveSheetData = async function() {
     const sheetType = (document.getElementById('newSheetType') || {}).value || 'link';
     let noteData = null;
     if (sheetType === 'note') {
-        noteData = window.parseNoteText(document.getElementById('newSheetNote').value, document.getElementById('newSheetNoteHeader').checked);
+        noteData = window._pendingRich || window.parseNoteText(document.getElementById('newSheetNote').value, document.getElementById('newSheetNoteHeader').checked);
         if (!name) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาใส่ชื่อเรียก', 'warning');
-        if (noteData.rows.length === 0) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาวางเนื้อหาตารางอย่างน้อย 1 แถว', 'warning');
+        if (!noteData.rows || noteData.rows.length === 0) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาวางเนื้อหาตารางอย่างน้อย 1 แถว', 'warning');
     } else
     if(!name || !url) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาใส่ชื่อและลิงก์', 'warning');
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
