@@ -197,18 +197,18 @@ window.refreshTimeSlots = async function() {
     if (teamSelect && !['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${shiftName}`;
         let assignedTeams = [];
-        let breakRoleMap = null;
+        let coverageMap = null;
 
         // ใช้ cache ถ้ายัง fresh
         if (_rosterCache[rosterKey] && (now - _rosterCache[rosterKey].ts) < _SLOT_TTL) {
             assignedTeams = _rosterCache[rosterKey].data;
-            breakRoleMap = _rosterCache[rosterKey].roleMap || null;
+            coverageMap = _rosterCache[rosterKey].covMap || null;
         } else {
             try {
                 const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
                 if (rosterData && rosterData.value) {
                     const roster = JSON.parse(rosterData.value);
-                    breakRoleMap = window.buildBreakRoleMap(roster);
+                    coverageMap = window.buildCoverageMap(roster);
                     for (const team in roster) {
                         (roster[team] || []).forEach(u => {
                             if (String(u.id) === String(currentUser.id)) {
@@ -218,12 +218,12 @@ window.refreshTimeSlots = async function() {
                         });
                     }
                 }
-                _rosterCache[rosterKey] = { data: assignedTeams, roleMap: breakRoleMap, ts: now };
+                _rosterCache[rosterKey] = { data: assignedTeams, covMap: coverageMap, ts: now };
             } catch(e) { console.error(e); }
         }
 
         window._myAssignedTeams = assignedTeams;
-        window._myBreakRoleMap = breakRoleMap;
+        window._myCoverageMap = coverageMap;
 
         const oldVal = teamSelect.value;
         const sortedTeams = [...TEAM_LIST].sort((a,b) => a.localeCompare(b));
@@ -265,47 +265,22 @@ window.refreshTimeSlots = async function() {
         for (const [periodName, times] of Object.entries(periods)) {
             html += `<optgroup label="--- ${periodName} ---">`;
             times.forEach(time => {
-                // [เปลี่ยน] นับสองชั้น ให้ตรงกับตอนกดบันทึกใน system_core.js
-                //   ทีม  = คนในทีมเดียวกัน · แผนก = ทุกทีมในแผนกรวมกัน
-                // ที่ว่างจริง = ชั้นที่เหลือน้อยกว่า
-                const countTeam = bookings ? bookings.filter(b =>
-                    b.time_slot === time &&
-                    (b.department || 'AM') === myDep &&
-                    b.team === selectedTeam
-                ).length : 0;
-                const countDept = bookings ? bookings.filter(b =>
-                    b.time_slot === time &&
-                    (b.department || 'AM') === myDep
-                ).length : 0;
-
+                // 🍽️ [กติกาพัก] คนคุมขั้นต่ำต่อเว็บ — คำนวณจากตารางหน้าที่ + คนที่พักช่วงนี้
                 const suffix = shiftName.replace('กะ', '');
-                let teamQuota = 50, deptQuota = 50;
-                if (typeof SETTINGS !== 'undefined') {
-                    deptQuota = myDep === 'OD'
-                        ? parseInt(SETTINGS[`quota_od_${suffix}`] || 5)
-                        : parseInt(SETTINGS[`quota_total_${suffix}`] || 50);
-                    const teamQuotaKey = `quota_team_${selectedTeam}_${myDep}_${suffix}`;
-                    teamQuota = (SETTINGS[teamQuotaKey] !== undefined && SETTINGS[teamQuotaKey] !== '')
-                        ? parseInt(SETTINGS[teamQuotaKey])
-                        : deptQuota;
+                const slotB = (bookings || []).filter(b => b.time_slot === time);
+                let isFull = false, statusText = '';
+                if (window._myCoverageMap && currentUser.check_type !== 'shift') {
+                    const cov = window.checkCoverage(currentUser.username, window._myCoverageMap, slotB, myDep, suffix);
+                    if (!cov.ok) {
+                        isFull = true;
+                        statusText = `(${cov.problems.map(pb => `${pb.team} เหลือคุม ${pb.remain}/${pb.min}`).join(', ')})`;
+                    } else {
+                        statusText = cov.canLeave === Infinity ? '' : `(พักได้อีก ${cov.canLeave})`;
+                    }
+                } else {
+                    // ไม่มีตารางหน้าที่ / ยังไม่ได้จัด / ผู้จัดการ → ไม่จำกัด
+                    statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;
                 }
-
-                const leftTeam = teamQuota - countTeam;
-                const leftDept = deptQuota - countDept;
-                const left = Math.min(leftTeam, leftDept);
-                let isFull = left <= 0;
-
-                // 🍽️ [กติกาพัก] หลัก-รองเว็บเดียวกันห้ามพักช่วงเดียวกัน
-                const clashes = (!isFull && window._myBreakRoleMap && currentUser.check_type !== 'shift')
-                    ? window.findBreakClashes(currentUser.username, window._myBreakRoleMap, (bookings || []).filter(b => b.time_slot === time))
-                    : [];
-                if (clashes.length > 0) isFull = true;
-                // บอกด้วยว่าเต็มเพราะชั้นไหน จะได้ไม่งงว่าทีมยังว่างแต่กดไม่ได้
-                const statusText = clashes.length > 0
-                    ? `(ชนกับ ${clashes.map(c => c.split(' (')[0]).join(', ')})`
-                    : isFull
-                        ? (leftDept <= 0 ? '(เต็มแล้ว - รวมทั้งแผนก)' : '(เต็มแล้ว - ทีมนี้)')
-                        : `(ว่าง: ${left})`;
                 html += `<option value="${time}" data-period="${periodName}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
             });
             html += '</optgroup>';
@@ -441,7 +416,7 @@ window.subscribeDashboardChanges = function() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
             const key = (payload.new && payload.new.key) || (payload.old && payload.old.key) || '';
             if (!key) return;
-            if (key.startsWith('quota_')) {
+            if (key.startsWith('quota_') || key.startsWith('mincover_')) {
                 if (typeof SETTINGS !== 'undefined') SETTINGS[key] = payload.new ? payload.new.value : undefined;
                 if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
             } else if (key.startsWith('duty_roster_')) {
