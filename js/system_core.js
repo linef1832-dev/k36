@@ -330,14 +330,14 @@ window.saveData = async function(e) {
     // 🌟 NEW V2: เช็ค off-roster แต่ไม่บล็อก (แค่เก็บ flag ไว้เขียน log)
     let isOffRoster = false;
     let assignedTeamsStr = '';
-    let breakRoleMap = null;   // 🍽️ ใช้เช็คหลัก-รองชนกัน
+    let coverageMap = null;   // 🍽️ ใช้เช็คคนคุมขั้นต่ำ
     if (!['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
         const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
 
         if (rosterData && rosterData.value) {
             const roster = JSON.parse(rosterData.value);
-            breakRoleMap = window.buildBreakRoleMap(roster);
+            coverageMap = window.buildCoverageMap(roster);
             let allowedTeams = [];
             for (const team in roster) {
                 (roster[team] || []).forEach(u => {
@@ -375,55 +375,15 @@ window.saveData = async function(e) {
 
     const shiftSuffix = sName.replace('กะ','');
     const { data: slotBookings } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', timeVal);
-    
-    let limitTotal = 0;
-    if (myDep === 'OD') {
-        limitTotal = parseInt(SETTINGS[`quota_od_${shiftSuffix}`] || 5);
-    } else {
-        limitTotal = parseInt(SETTINGS[`quota_total_${shiftSuffix}`] || SETTINGS[`quota_total_${sName}`] || 50);
-    }
-    
-    let limitTeam = 5;
-    let hasTeamQuota = false;
-    if (SETTINGS[`quota_team_${activeTeam}_${myDep}_${shiftSuffix}`] !== undefined && SETTINGS[`quota_team_${activeTeam}_${myDep}_${shiftSuffix}`] !== '') {
-        limitTeam = parseInt(SETTINGS[`quota_team_${activeTeam}_${myDep}_${shiftSuffix}`]);
-        hasTeamQuota = true;
-    } else if (SETTINGS[`quota_team_${activeTeam}_${shiftSuffix}`] !== undefined && SETTINGS[`quota_team_${activeTeam}_${shiftSuffix}`] !== '') {
-        limitTeam = parseInt(SETTINGS[`quota_team_${activeTeam}_${shiftSuffix}`]);
-        hasTeamQuota = true;
-    }
 
-    const useTeamLogic = (currentUser.check_type !== 'shift');
-    // [FIX] นับเฉพาะแผนก + ทีมเดียวกัน ให้ตรงกับ dropdown ที่แสดง "ว่าง: x"
-    // เดิม countTotal นับทุกทีมรวมกัน ทำให้ OD ที่ลงเว็บเดียวกันถูกนับ → ขึ้นเต็มทั้งที่ dropdown ว่าง
-    const countTotalDept = slotBookings.filter(b => (b.department || 'AM') === myDep).length;
-    const countTeam = slotBookings.filter(b => b.team === activeTeam && (b.department || 'AM') === myDep).length;
-
-    // [เปลี่ยน] เช็คทั้งสองชั้นเสมอ — ชั้นไหนเต็มก่อนก็ลงไม่ได้
-    //
-    // เดิม: ถ้าทีมตั้งโควตาไว้ จะข้ามการเช็คโควตารวมทิ้งเลย
-    //       ผลคือตั้งรวมไว้ 5 แต่ 10 ทีม ทีมละ 1 → ลงได้ 10 คน เพดานรวมไม่มีผล
-    // ใหม่: โควตารวม = เพดานจริงของช่วงเวลานั้นทั้งแผนก
-    //       โควตาทีม = ที่จองของแต่ละทีม กันทีมใหญ่กินรวบ
-    //       ต้องผ่านทั้งคู่ถึงจะลงได้
-    if (countTotalDept >= limitTotal) {
-        window.resetBtn();
-        return Swal.fire('เต็มแล้ว', `ช่วง ${timeVal} ของแผนก ${myDep} เต็มแล้ว (รับได้ ${limitTotal} คน)`, 'error');
-    }
-    // 🍽️ [กติกาพัก] หลักกับรองของเว็บเดียวกันห้ามพักช่วงเดียวกัน
-    if (useTeamLogic && breakRoleMap) {
-        const clashes = window.findBreakClashes(currentUser.username, breakRoleMap, slotBookings);
-        if (clashes.length > 0) {
+    // 🍽️ [กติกาพัก] คนคุมขั้นต่ำต่อเว็บ — เช็คจากตารางหน้าที่จริง + คนที่พักอยู่ (แทนโควตาแบบเดิม)
+    if (currentUser.check_type !== 'shift' && coverageMap) {
+        const cov = window.checkCoverage(currentUser.username, coverageMap, slotBookings, myDep, shiftSuffix);
+        if (!cov.ok) {
             window.resetBtn();
-            return Swal.fire({
-                icon: 'error', title: 'ช่วงนี้ชนกับคู่หลัก-รองของคุณ',
-                html: `ช่วง <b>${timeVal}</b> มีคนที่ต้องคุมเว็บแทนกันกับคุณลงพักไว้แล้ว:<br><br><b class="text-red-500">${clashes.join('<br>')}</b><br><br><span class="text-xs text-gray-500">หลักกับรองของเว็บเดียวกันต้องพักคนละช่วง เพื่อให้มีคนคุมเว็บตลอด</span>`
-            });
+            const lines = cov.problems.map(pb => `<b class="text-red-500">${pb.team}</b> จะเหลือคนคุม <b>${pb.remain}</b> (ต้องมีอย่างน้อย ${pb.min} จากทั้งหมด ${pb.total})`).join('<br>');
+            return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} พักไม่ได้`, html: `${lines}<br><br><span class="text-xs text-gray-500">เลือกช่วงอื่น หรือรอให้เพื่อนในเว็บกลับจากพักก่อน</span>` });
         }
-    }
-    if (useTeamLogic && countTeam >= limitTeam) {
-        window.resetBtn();
-        return Swal.fire('เต็มแล้ว', `โควตาทีม ${activeTeam} (${shiftSuffix}) เต็มแล้ว (รับได้ ${limitTeam} คน)`, 'error');
     }
 
     const { error } = await appDB.from('schedules').insert([{ 
@@ -2076,108 +2036,48 @@ window.loadSettings = async function() {
     } catch (e) { console.error("Load Settings Error:", e); }
 };
 
-// 🟢 คืนชีพดีไซน์หน้า "โควตาการเข้างาน" ดึงเว็บให้ครบ 10 เว็บตามฐานข้อมูล
+// 🟢 หน้า "คนคุมขั้นต่ำต่อเว็บ" (แทนโควตาแบบเดิม)
+//    ทุกช่วงเวลา เว็บต้องมีคน (หลัก+รอง) ที่ไม่ได้พัก อย่างน้อยเท่านี้ — ปรับตามจำนวนคนจริงในวันนั้นอัตโนมัติ
 window.renderQuotaSettings = function() {
     const container = document.getElementById('quotaSettingsContainer');
     if (!container) return;
-    
-    let amHtml = ''; let odHtml = '';
-    
-    // ดึงรายชื่อทีมทั้งหมด 10 ทีม และเรียงลำดับ A-Z
     const allTeams = [...TEAM_LIST].sort((a, b) => a.localeCompare(b));
-
-    // สร้างตารางให้แผนก AM
-    allTeams.forEach(team => {
-        const qM = SETTINGS[`quota_team_${team}_AM_เช้า`] || 1; 
-        const qA = SETTINGS[`quota_team_${team}_AM_กลาง`] || 0; 
-        const qN = SETTINGS[`quota_team_${team}_AM_ดึก`] || 1;
-        amHtml += `
-        <div class="flex items-center gap-2 quota-row-team group min-w-max">
-            <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="AM">
-            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 shrink-0 text-xs shadow-sm truncate text-center">${team}</div>
-            <input type="number" id="quota_team_${team}_AM_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
-            <input type="number" id="quota_team_${team}_AM_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
-            <input type="number" id="quota_team_${team}_AM_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
-            <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
+    const inp = (team, dept, sfx, color) => {
+        const key = `mincover_${team}_${dept}_${sfx}`;
+        const v = (SETTINGS[key] === undefined || SETTINGS[key] === '') ? 1 : SETTINGS[key];
+        return `<input type="number" min="0" id="${key}" data-team="${team}" data-dept="${dept}" data-sfx="${sfx}" class="mincover-input w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-center text-sm font-bold py-1.5 outline-none focus:border-${color}-400 dark:text-white ml-2" value="${v}">`;
+    };
+    const rows = (dept) => allTeams.map(team => `
+        <div class="flex items-center gap-0 min-w-max">
+            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-lg w-24 text-center text-xs shrink-0">${team}</div>
+            ${inp(team, dept, 'เช้า', 'orange')}${inp(team, dept, 'กลาง', 'blue')}${inp(team, dept, 'ดึก', 'purple')}
+        </div>`).join('');
+    const head = `
+        <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-0 min-w-max shrink-0">
+            <div class="w-24 shrink-0 text-center">เว็บ</div>
+            <div class="w-16 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
+            <div class="w-16 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
+            <div class="w-16 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
         </div>`;
-    });
-
-    // สร้างตารางให้แผนก OD
-    allTeams.forEach(team => {
-        const qM = SETTINGS[`quota_team_${team}_OD_เช้า`] || 1; 
-        const qA = SETTINGS[`quota_team_${team}_OD_กลาง`] || 0; 
-        const qN = SETTINGS[`quota_team_${team}_OD_ดึก`] || 1;
-        odHtml += `
-        <div class="flex items-center gap-2 quota-row-team group min-w-max">
-            <input type="hidden" class="key-input" value="${team}"><input type="hidden" class="dept-input" value="OD">
-            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-md w-24 shrink-0 text-xs shadow-sm truncate text-center">${team}</div>
-            <input type="number" id="quota_team_${team}_OD_เช้า" class="val-m w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qM}">
-            <input type="number" id="quota_team_${team}_OD_กลาง" class="val-a w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qA}">
-            <input type="number" id="quota_team_${team}_OD_ดึก" class="val-n w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-center font-bold text-sm rounded-md py-1.5 outline-none focus:border-amber-500" value="${qN}">
-            <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full w-6 h-6 shrink-0 flex items-center justify-center transition"><span class="material-icons text-[14px]">cancel</span></button>
-        </div>`;
-    });
-
     container.innerHTML = `
-        <div class="flex flex-col gap-6 w-full mt-2">
-            <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-5 w-full">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-700/50 pb-2">
-                    <h5 class="text-white font-bold text-sm tracking-wide">รวมทั้งกะ (ภาพรวม):</h5>
-                </div>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div>
-                        <div class="text-xs font-bold text-blue-400 mb-2 flex items-center gap-1.5"><div class="w-3 h-3 bg-blue-500 rounded-sm shadow-sm"></div> โควตา AM รวม:</div>
-                        <div class="space-y-2 pl-4">
-                            <div class="flex items-center justify-between gap-4 quota-row-total"><input type="hidden" class="key-input" value="เช้า"><div class="w-1/2 bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-600 text-slate-700 dark:text-gray-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">กะเช้า</div><input type="number" id="quota_total_เช้า" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-blue-500" value="${SETTINGS.quota_total_เช้า || 12}"></div>
-                            <div class="flex items-center justify-between gap-4 quota-row-total"><input type="hidden" class="key-input" value="กลาง"><div class="w-1/2 bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-600 text-slate-700 dark:text-gray-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">กะกลาง</div><input type="number" id="quota_total_กลาง" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-blue-500" value="${SETTINGS.quota_total_กลาง || 0}"></div>
-                            <div class="flex items-center justify-between gap-4 quota-row-total"><input type="hidden" class="key-input" value="ดึก"><div class="w-1/2 bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-600 text-slate-700 dark:text-gray-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">กะดึก</div><input type="number" id="quota_total_ดึก" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-blue-500" value="${SETTINGS.quota_total_ดึก || 16}"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-xs font-bold text-pink-400 mb-2 flex items-center gap-1.5"><div class="w-3 h-3 bg-pink-500 rounded-sm shadow-sm"></div> โควตา OD รวม:</div>
-                        <div class="space-y-2 pl-4">
-                            <div class="flex items-center justify-between gap-4 quota-row-od"><input type="hidden" class="key-input" value="เช้า"><div class="w-1/2 bg-pink-50 dark:bg-[#2b1b2e] border border-pink-100 dark:border-pink-900/50 text-pink-700 dark:text-pink-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">OD กะเช้า</div><input type="number" id="quota_od_เช้า" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-pink-500" value="${SETTINGS.quota_od_เช้า || 9}"></div>
-                            <div class="flex items-center justify-between gap-4 quota-row-od"><input type="hidden" class="key-input" value="กลาง"><div class="w-1/2 bg-pink-50 dark:bg-[#2b1b2e] border border-pink-100 dark:border-pink-900/50 text-pink-700 dark:text-pink-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">OD กะกลาง</div><input type="number" id="quota_od_กลาง" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-pink-500" value="${SETTINGS.quota_od_กลาง || 0}"></div>
-                            <div class="flex items-center justify-between gap-4 quota-row-od"><input type="hidden" class="key-input" value="ดึก"><div class="w-1/2 bg-pink-50 dark:bg-[#2b1b2e] border border-pink-100 dark:border-pink-900/50 text-pink-700 dark:text-pink-300 text-center rounded-md p-1.5 text-xs font-bold shadow-sm">OD กะดึก</div><input type="number" id="quota_od_ดึก" class="val-input w-1/2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white text-center rounded-md p-1.5 font-bold shadow-inner outline-none focus:ring-2 focus:ring-pink-500" value="${SETTINGS.quota_od_ดึก || 9}"></div>
-                        </div>
-                    </div>
-                </div>
+        <div class="flex flex-col gap-4 w-full mt-2">
+            <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed">
+                <b>วิธีทำงาน:</b> ตัวเลข = จำนวนคนที่ <b>ต้องเหลือคุมเว็บ</b> ในทุกช่วงเวลา (นับหลัก+รอง รวมกัน) ระบบดูจากตารางจัดหน้าที่ของวันนั้นแล้วกันไม่ให้คนพักจนต่ำกว่านี้
+                — วันไหนเว็บมี 4 คน ตั้ง 2 = พักพร้อมกันได้ 2 / วันไหนมี 6 คน = พักได้ 4 <b>ไม่ต้องกดคำนวณทุกวัน</b> ตั้งครั้งเดียวใช้ตลอด (ค่าเริ่มต้น 1)
             </div>
-
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
-                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
-                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2 shrink-0">
-                        <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">domain</span> รายทีม (AM):</h5>
-                        <button onclick="addTeamManual('AM')" class="text-[10px] text-blue-400 border border-blue-500/50 px-2 py-1 rounded hover:bg-blue-900/30 transition">+ เพิ่มทีม AM</button>
-                    </div>
-                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max shrink-0">
-                        <div class="w-24 shrink-0 text-center">ชื่อทีม</div>
-                        <div class="w-16 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
-                        <div class="w-16 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
-                        <div class="w-16 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
-                        <div class="w-6 shrink-0 ml-2"></div>
-                    </div>
-                    <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto custom-scrollbar pr-1">${amHtml}</div>
+                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[460px]">
+                    <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5 mb-3 border-b border-slate-700/50 pb-2 shrink-0"><span class="material-icons text-[14px]">domain</span> แผนก AM</h5>
+                    ${head}
+                    <div class="space-y-2 flex-1 overflow-auto custom-scrollbar pr-1">${rows('AM')}</div>
                 </div>
-
-                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[500px]">
-                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/50 pb-2 shrink-0">
-                        <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5"><span class="material-icons text-[14px]">groups</span> รายทีม (OD):</h5>
-                        <button onclick="addTeamManual('OD')" class="text-[10px] text-pink-400 border border-pink-500/50 px-2 py-1 rounded hover:bg-pink-900/30 transition">+ เพิ่มทีม OD</button>
-                    </div>
-                    <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-2 min-w-max shrink-0">
-                        <div class="w-24 shrink-0 text-center">ชื่อทีม</div>
-                        <div class="w-16 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
-                        <div class="w-16 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
-                        <div class="w-16 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
-                        <div class="w-6 shrink-0 ml-2"></div>
-                    </div>
-                    <div class="space-y-2 flex-1 overflow-x-auto overflow-y-auto custom-scrollbar pr-1">${odHtml}</div>
+                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[460px]">
+                    <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5 mb-3 border-b border-slate-700/50 pb-2 shrink-0"><span class="material-icons text-[14px]">groups</span> แผนก OD</h5>
+                    ${head}
+                    <div class="space-y-2 flex-1 overflow-auto custom-scrollbar pr-1">${rows('OD')}</div>
                 </div>
             </div>
-        </div>
-    `;
+        </div>`;
 };
 
 // ==========================================
@@ -2193,7 +2093,7 @@ window.renderQuotaHistory = async function() {
             .eq('action_type', 'ตั้งค่าโควตา')
             .order('created_at', { ascending: false }).limit(80);
         if (error) throw error;
-        if (!data || data.length === 0) { c.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">ยังไม่มีประวัติการเปลี่ยนโควตา</div>'; return; }
+        if (!data || data.length === 0) { c.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">ยังไม่มีประวัติการเปลี่ยนค่าคนคุมขั้นต่ำ</div>'; return; }
 
         const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const fmt = d => new Date(d).toLocaleString('th-TH', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -2261,28 +2161,24 @@ window.renderQuotaHistory = async function() {
 
 window.saveQuotaSettings = async function() {
     if (!window.sysRequireAdmin()) return;
-
-    Swal.fire({title: 'กำลังบันทึกโควตา...', didOpen: () => Swal.showLoading()});
+    Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
     const updates = [];
-    const _changed = [];   // เก็บ "key เดิม→ใหม่" เฉพาะที่เปลี่ยน เพื่อลงประวัติ
-    const _track = (key, label, val) => { const prev = SETTINGS[key]; if (String(prev ?? '') !== String(val ?? '')) _changed.push(`${label} ${prev === undefined || prev === '' ? '-' : prev}→${val}`); };
-    ['เช้า', 'กลาง', 'ดึก'].forEach(shift => {
-        let val = document.getElementById(`quota_total_${shift}`).value; _track(`quota_total_${shift}`, `AM รวม ${shift}`, val); updates.push({key: `quota_total_${shift}`, value: val}); SETTINGS[`quota_total_${shift}`] = val;
-        let odVal = document.getElementById(`quota_od_${shift}`).value; _track(`quota_od_${shift}`, `OD รวม ${shift}`, odVal); updates.push({key: `quota_od_${shift}`, value: odVal}); SETTINGS[`quota_od_${shift}`] = odVal;
+    const changed = [];
+    document.querySelectorAll('.mincover-input').forEach(el => {
+        const key = el.id;
+        let val = parseInt(el.value); if (isNaN(val) || val < 0) val = 0;
+        const prev = SETTINGS[key];
+        if (String(prev === undefined || prev === '' ? 1 : prev) !== String(val)) {
+            changed.push(`${el.dataset.team} ${el.dataset.dept} ${el.dataset.sfx} ${prev === undefined || prev === '' ? 1 : prev}→${val}`);
+        }
+        updates.push({ key, value: String(val) });
+        SETTINGS[key] = String(val);
     });
-
-    document.querySelectorAll('.quota-row-team').forEach(row => {
-        let team = row.querySelector('.key-input').value; let dept = row.querySelector('.dept-input').value;
-        let qM = row.querySelector('.val-m').value; let qA = row.querySelector('.val-a').value; let qN = row.querySelector('.val-n').value;
-        _track(`quota_team_${team}_${dept}_เช้า`, `${team} ${dept} เช้า`, qM); _track(`quota_team_${team}_${dept}_กลาง`, `${team} ${dept} กลาง`, qA); _track(`quota_team_${team}_${dept}_ดึก`, `${team} ${dept} ดึก`, qN);
-        updates.push({key: `quota_team_${team}_${dept}_เช้า`, value: qM}); SETTINGS[`quota_team_${team}_${dept}_เช้า`] = qM;
-        updates.push({key: `quota_team_${team}_${dept}_กลาง`, value: qA}); SETTINGS[`quota_team_${team}_${dept}_กลาง`] = qA;
-        updates.push({key: `quota_team_${team}_${dept}_ดึก`, value: qN}); SETTINGS[`quota_team_${team}_${dept}_ดึก`] = qN;
-    });
-
-    await appDB.from('settings').upsert(updates);
-    try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าโควตา', performed_by: currentUser.username, target_details: `MANUALQUOTA|${_changed.length ? _changed.join(', ') : 'กดบันทึกโดยไม่มีค่าเปลี่ยน'}` }]); } catch (e) {}
-    Swal.fire('สำเร็จ', 'บันทึกโควตาการเข้างานเรียบร้อยแล้ว', 'success');
+    window.clearSettingCache();
+    const { error } = await appDB.from('settings').upsert(updates);
+    if (error) return Swal.fire('Error', error.message, 'error');
+    try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าโควตา', performed_by: currentUser.username, target_details: `MANUALQUOTA|${changed.length ? changed.join(', ') : 'กดบันทึกโดยไม่มีค่าเปลี่ยน'}` }]); } catch (e) {}
+    Swal.fire('สำเร็จ', `บันทึกคนคุมขั้นต่ำแล้ว${changed.length ? ` (เปลี่ยน ${changed.length} ช่อง)` : ''}`, 'success');
 };
 
 // =========================================================
@@ -2767,36 +2663,6 @@ window.hasUserPerm = function(menuId) {
 };
 
 // ฟังก์ชันสำหรับปุ่มกดเพิ่มทีมผ่านหน้าเว็บ
-window.addTeamManual = function(dept) {
-    if (!window.sysRequireAdmin()) return;
-
-    Swal.fire({
-        title: `เพิ่มทีมใหม่ (${dept})`,
-        input: 'text',
-        inputPlaceholder: 'พิมพ์ชื่อทีม / เว็บไซต์...',
-        showCancelButton: true,
-        confirmButtonText: 'เพิ่มทีม',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: dept === 'AM' ? '#3b82f6' : '#ec4899',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            const newTeam = result.value.trim();
-            if (!TEAM_LIST.includes(newTeam)) {
-                TEAM_LIST.push(newTeam); // ดันชื่อเข้าตัวแปรระบบ
-                renderQuotaSettings(); // สั่งให้วาดตารางใหม่
-                Swal.fire({
-                    icon: 'success', 
-                    title: 'เพิ่มเข้าตารางชั่วคราวแล้ว!', 
-                    text: `อย่าลืมไปพิมพ์คำว่า '${newTeam}' ใส่ในไฟล์ js/global.js ด้วยนะครับ เพื่อให้มันอยู่ถาวรเวลาคนอื่นเปิดเว็บ`,
-                    confirmButtonColor: '#10b981'
-                });
-            } else {
-                Swal.fire('เตือน', 'มีชื่อทีมนี้ในระบบอยู่แล้วครับ', 'warning');
-            }
-        }
-    });
-};
 
 // =========================================================
 // 🟢 ระบบบังคับซ่อน/โชว์ เมนูด้านซ้าย (Sidebar) (V.8.1 แก้ไขกระพริบ + ซิงค์สิทธิ์เบื้องหลัง)
