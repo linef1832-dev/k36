@@ -658,7 +658,7 @@ window._noteCellStyle = function(c, editing) {
     return st.join(';');
 };
 const _nColName = (x) => { let n = x + 1, out = ''; while (n > 0) { const m = (n - 1) % 26; out = String.fromCharCode(65 + m) + out; n = Math.floor((n - 1) / 26); } return out; };
-const _nHdrCls = 'bg-[#f8f9fa] text-[#5f6368] text-[11px] font-bold text-center border border-[#c0c0c0] select-none';
+const _nHdrCls = 'bg-[#e8eaed] text-black text-[12px] font-bold text-center border border-[#9aa0a6] select-none';
 const _nEsc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 window.renderNoteTable = function() {
@@ -776,8 +776,8 @@ window.renderNoteEditor = function() {
         <div class="bg-white rounded-lg shadow-inner inline-block min-w-full select-none">
         <table id="noteEditTable" class="border-collapse" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed">
             ${colgroup}
-            <thead class="sticky top-0 z-10"><tr><th class="${_nHdrCls} h-6" onmousedown="noteSelectAll()" title="เลือกทั้งหมด"></th>${cols.map((_, x) => `<th class="${_nHdrCls} h-6 relative cursor-pointer ${selCols.has(x) ? 'bg-[#d3e3fd] text-[#1a73e8]' : ''}" onmousedown="noteSelectCol(event,${x})">${_nColName(x)}<div class="nt-col-rs" onmousedown="noteResizeStart(event,'col',${x})" title="ลากเพื่อปรับความกว้าง"></div></th>`).join('')}</tr></thead>
-            <tbody>${note.rows.map((r, ri) => `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} align-middle relative cursor-pointer ${selRows.has(ri) ? 'bg-[#d3e3fd] text-[#1a73e8]' : ''}" onmousedown="noteSelectRow(event,${ri})">${ri + 1}<div class="nt-row-rs" onmousedown="noteResizeStart(event,'row',${ri})" title="ลากเพื่อปรับความสูง"></div></td>${r.map((c, x) => c.h ? '' : `<td data-r="${ri}" data-x="${x}" colspan="${c.cs || 1}" rowspan="${c.rs || 1}" contenteditable="true" spellcheck="false"
+            <thead class="sticky top-0 z-10"><tr><th class="${_nHdrCls} h-6" onmousedown="noteSelectAll()" title="เลือกทั้งหมด"></th>${cols.map((_, x) => `<th class="${_nHdrCls} h-6 relative cursor-pointer ${selCols.has(x) ? 'bg-[#a8c7fa] text-black' : ''}" onmousedown="noteSelectCol(event,${x})">${_nColName(x)}<div class="nt-col-rs" onmousedown="noteResizeStart(event,'col',${x})" title="ลากเพื่อปรับความกว้าง"></div></th>`).join('')}</tr></thead>
+            <tbody>${note.rows.map((r, ri) => `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} align-middle relative cursor-pointer ${selRows.has(ri) ? 'bg-[#a8c7fa] text-black' : ''}" onmousedown="noteSelectRow(event,${ri})">${ri + 1}<div class="nt-row-rs" onmousedown="noteResizeStart(event,'row',${ri})" title="ลากเพื่อปรับความสูง"></div></td>${r.map((c, x) => c.h ? '' : `<td data-r="${ri}" data-x="${x}" colspan="${c.cs || 1}" rowspan="${c.rs || 1}" contenteditable="true" spellcheck="false"
                     onmousedown="noteCellDown(event,this)" onmouseenter="noteCellEnter(event,this)" onfocus="noteCellFocus(this)"
                     class="px-3 py-2.5 align-middle whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''} ${selSet.has(`${ri}:${x}`) ? 'note-sel' : ''}"
                     style="${window._noteCellStyle(c, true)}">${_nEsc(c.t)}</td>`).join('')}</tr>`).join('')}
