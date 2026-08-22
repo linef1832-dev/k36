@@ -429,6 +429,20 @@ window.openSheet = function(sheet) {
     addToRecentTabs(sheet);
 
     let url = sheet.sheet_id || sheet.url || '';
+
+    // 📝 หน้าข้อความที่สร้างในระบบ → ไม่ใช้ iframe โหลดทันที
+    const frameEl = document.getElementById('sheetFrame');
+    const noteEl = document.getElementById('noteViewer');
+    if (url === 'NOTE') {
+        if (frameEl) { frameEl.src = 'about:blank'; frameEl.classList.add('hidden'); }
+        if (noteEl) { noteEl.classList.remove('hidden'); noteEl.classList.add('flex'); }
+        const btnNT = document.getElementById('btnOpenNewTab'); if (btnNT) btnNT.classList.add('hidden');
+        window.openNoteSheet(sheet);
+        return;
+    }
+    if (frameEl) frameEl.classList.remove('hidden');
+    if (noteEl) { noteEl.classList.add('hidden'); noteEl.classList.remove('flex'); }
+    const btnNT2 = document.getElementById('btnOpenNewTab'); if (btnNT2) btnNT2.classList.remove('hidden');
     
     if (url.startsWith('http') || url.startsWith('www')) {
         url = url.startsWith('www') ? 'https://' + url : url;
@@ -461,6 +475,96 @@ window.closeSheet = function() {
 
 window.hideSheetLoading = function() {
     document.getElementById('sheetLoading')?.classList.add('hidden');
+};
+
+// ==========================================
+// 📝 3.5 หน้าข้อความที่สร้างในระบบ (ตารางแพทเทิร์น/หมายเหตุ) — เก็บใน settings key sheet_note_<id>
+// ==========================================
+window._noteCache = {};
+window._currentNote = null;
+
+window.parseNoteText = function(text, firstRowHeader) {
+    const lines = String(text || '').replace(/\r/g, '').split('\n').filter(l => l.trim() !== '');
+    const sep = lines.some(l => l.includes('\t')) ? '\t' : (lines.some(l => l.includes('|')) ? '|' : null);
+    const rows = lines.map(l => (sep ? l.split(sep) : [l]).map(c => c.trim()));
+    const width = Math.max(1, ...rows.map(r => r.length));
+    rows.forEach(r => { while (r.length < width) r.push(''); });
+    let columns = [];
+    if (firstRowHeader && rows.length > 0) columns = rows.shift();
+    else columns = Array.from({ length: width }, (_, i) => `คอลัมน์ ${i + 1}`);
+    return { columns, rows };
+};
+window.noteToText = function(note) {
+    if (!note) return '';
+    const all = [note.columns, ...(note.rows || [])];
+    return all.map(r => (r || []).join('\t')).join('\n');
+};
+window.previewNote = function() {
+    const el = document.getElementById('notePreview'); if (!el) return;
+    const n = window.parseNoteText(document.getElementById('newSheetNote').value, document.getElementById('newSheetNoteHeader').checked);
+    el.innerText = n.rows.length ? `ตัวอย่าง: ${n.columns.length} คอลัมน์ × ${n.rows.length} แถว — หัวตาราง: ${n.columns.join(' | ')}` : '';
+};
+document.addEventListener('input', e => { if (e.target && e.target.id === 'newSheetNote') window.previewNote(); });
+document.addEventListener('change', e => { if (e.target && e.target.id === 'newSheetNoteHeader') window.previewNote(); });
+window.setSheetType = function(type) {
+    document.getElementById('newSheetType').value = type;
+    const isNote = type === 'note';
+    document.getElementById('noteEditorBox').classList.toggle('hidden', !isNote);
+    document.getElementById('linkEditorBox').classList.toggle('hidden', isNote);
+    const on = 'flex-1 py-2.5 rounded-xl text-sm font-bold border transition bg-purple-600 border-purple-400 text-white';
+    const off = 'flex-1 py-2.5 rounded-xl text-sm font-bold border transition bg-slate-800 border-slate-600 text-slate-400 hover:text-white';
+    document.getElementById('sheetTypeBtn_link').className = isNote ? off : on;
+    document.getElementById('sheetTypeBtn_note').className = isNote ? on : off;
+};
+window.openNoteSheet = async function(sheet) {
+    const wrap = document.getElementById('noteTableWrap');
+    const search = document.getElementById('noteSearch'); if (search) search.value = '';
+    document.getElementById('sheetLoading')?.classList.add('hidden');
+    let note = window._noteCache[sheet.id];
+    if (!note) {
+        wrap.innerHTML = '<div class="text-center text-slate-500 py-10"><span class="material-icons animate-spin">sync</span></div>';
+        try {
+            const { data } = await appDB.from('settings').select('value').eq('key', `sheet_note_${sheet.id}`).maybeSingle();
+            note = data && data.value ? JSON.parse(data.value) : { columns: [], rows: [] };
+        } catch (e) { note = { columns: [], rows: [] }; }
+        window._noteCache[sheet.id] = note;
+    }
+    window._currentNote = note;
+    window.renderNoteTable();
+};
+window.renderNoteTable = function() {
+    const wrap = document.getElementById('noteTableWrap');
+    const note = window._currentNote;
+    if (!wrap || !note) return;
+    const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const term = (document.getElementById('noteSearch')?.value || '').toLowerCase().trim();
+    const rows = (note.rows || []).filter(r => !term || r.some(c => String(c).toLowerCase().includes(term)));
+    const cnt = document.getElementById('noteCount'); if (cnt) cnt.innerText = `${rows.length}/${(note.rows || []).length} แถว`;
+    if ((note.rows || []).length === 0) { wrap.innerHTML = '<div class="text-center text-slate-500 py-16"><span class="material-icons text-4xl opacity-40">table_chart</span><p class="mt-2 text-sm">ยังไม่มีเนื้อหา — แอดมินแก้ไขได้ที่ "จัดการชีท"</p></div>'; return; }
+    const hi = (txt) => { const e = esc(txt); if (!term) return e; return e.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark class="bg-yellow-400/40 text-inherit rounded px-0.5">${m}</mark>`); };
+    wrap.innerHTML = `
+        <table class="w-full border-collapse text-sm">
+            <thead class="sticky top-0 z-10">
+                <tr>${note.columns.map(c => `<th class="bg-amber-100 dark:bg-amber-900/60 text-slate-900 dark:text-amber-100 font-bold px-3 py-2.5 border border-amber-300 dark:border-amber-700 text-left whitespace-nowrap">${esc(c)}</th>`).join('')}<th class="bg-slate-800 border border-slate-700 w-10"></th></tr>
+            </thead>
+            <tbody>
+                ${rows.map(r => `<tr class="hover:bg-slate-800/60">
+                    ${r.map(c => `<td onclick="copyNoteCell(this)" data-v="${esc(c)}" title="คลิกเพื่อก๊อปปี้" class="px-3 py-2.5 border border-slate-700 text-slate-100 cursor-copy hover:bg-purple-900/40 hover:text-white transition align-top whitespace-pre-wrap">${hi(c)}</td>`).join('')}
+                    <td class="border border-slate-700 text-center align-top"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-500 hover:text-white p-1"><span class="material-icons text-[16px]">content_copy</span></button></td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+};
+window._copyText = async function(text, el) {
+    try { await navigator.clipboard.writeText(text); } catch (e) { if (typeof fallbackCopyText === 'function') fallbackCopyText(text); }
+    if (el) { const old = el.style.background; el.style.background = 'rgba(34,197,94,.35)'; setTimeout(() => el.style.background = old, 450); }
+    Swal.mixin({ toast: true, position: 'bottom-end', showConfirmButton: false, timer: 1000 }).fire({ icon: 'success', title: 'ก๊อปปี้แล้ว' });
+};
+window.copyNoteCell = function(td) { window._copyText(td.dataset.v || td.innerText, td); };
+window.copyNoteRow = function(btn) {
+    const tr = btn.closest('tr');
+    const cells = [...tr.querySelectorAll('td[data-v]')].map(td => td.dataset.v);
+    window._copyText(cells.join('\t'), tr);
 };
 
 // ==========================================
@@ -502,6 +606,16 @@ window.startEdit = function(id) {
 
     document.getElementById('editSheetId').value = sheet.id;
     document.getElementById('newSheetName').value = sheet.name || sheet.title;
+    // 📝 ถ้าเป็นหน้าข้อความ โหลดเนื้อหามาใส่ช่องแก้ไข
+    if ((sheet.sheet_id || '') === 'NOTE') {
+        window.setSheetType('note');
+        const fill = (note) => { document.getElementById('newSheetNote').value = window.noteToText(note); document.getElementById('newSheetNoteHeader').checked = true; window.previewNote(); };
+        if (window._noteCache[sheet.id]) fill(window._noteCache[sheet.id]);
+        else appDB.from('settings').select('value').eq('key', `sheet_note_${sheet.id}`).maybeSingle().then(({ data }) => { const n = data && data.value ? JSON.parse(data.value) : { columns: [], rows: [] }; window._noteCache[sheet.id] = n; fill(n); });
+    } else {
+        window.setSheetType('link');
+        document.getElementById('newSheetNote').value = '';
+    }
     document.getElementById('newSheetGroup').value = sheet.group_name || sheet.category || '';
     document.getElementById('newSheetCover').value = sheet.cover_url || sheet.bg_image || '';
     
@@ -535,6 +649,7 @@ window.startEdit = function(id) {
 };
 
 window.cancelEdit = function() {
+    if (document.getElementById('newSheetType')) { window.setSheetType('link'); document.getElementById('newSheetNote').value = ''; const pv = document.getElementById('notePreview'); if (pv) pv.innerText = ''; }
     ['editSheetId','newSheetName','newSheetGroup','newSheetUrl','newSheetCover'].forEach(id => document.getElementById(id).value = '');
     if(document.getElementById('newSheetCoverFile')) document.getElementById('newSheetCoverFile').value = ''; 
     if(document.getElementById('currentSheetCoverContainer')) document.getElementById('currentSheetCoverContainer').classList.add('hidden');
@@ -559,6 +674,13 @@ window.saveSheetData = async function() {
     const coverFileInput = document.getElementById('newSheetCoverFile');
     let finalCoverUrl = document.getElementById('newSheetCover').value.trim(); 
     
+    const sheetType = (document.getElementById('newSheetType') || {}).value || 'link';
+    let noteData = null;
+    if (sheetType === 'note') {
+        noteData = window.parseNoteText(document.getElementById('newSheetNote').value, document.getElementById('newSheetNoteHeader').checked);
+        if (!name) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาใส่ชื่อเรียก', 'warning');
+        if (noteData.rows.length === 0) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาวางเนื้อหาตารางอย่างน้อย 1 แถว', 'warning');
+    } else
     if(!name || !url) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาใส่ชื่อและลิงก์', 'warning');
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
@@ -584,24 +706,35 @@ window.saveSheetData = async function() {
         }
 
         let sheetId = url; let gid = null;
-        const idMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-        if(idMatch) {
-            sheetId = idMatch[1];
-            const gidMatch = url.match(/[?&#]gid=([0-9]+)/); 
-            if (gidMatch) gid = gidMatch[1];
-        } 
+        if (sheetType === 'note') { sheetId = 'NOTE'; }
+        else {
+            const idMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if(idMatch) {
+                sheetId = idMatch[1];
+                const gidMatch = url.match(/[?&#]gid=([0-9]+)/); 
+                if (gidMatch) gid = gidMatch[1];
+            }
+        }
         
         const payload = { name: name, group_name: group, sheet_id: sheetId, gid: gid, color: color, cover_url: finalCoverUrl };
 
+        let savedId = id;
         if (id) {
             const { error } = await appDB.from('external_sheets').update(payload).eq('id', id);
             if(error) throw error;
-            Swal.fire({icon: 'success', title: 'แก้ไขข้อมูลสำเร็จ', showConfirmButton: false, timer: 1000});
         } else {
-            const { error } = await appDB.from('external_sheets').insert([payload]);
+            const { data: ins, error } = await appDB.from('external_sheets').insert([payload]).select('id').single();
             if(error) throw error;
-            Swal.fire({icon: 'success', title: 'เพิ่มรายการสำเร็จ', showConfirmButton: false, timer: 1000});
+            savedId = ins.id;
         }
+        // 📝 เนื้อหาหน้าข้อความ → settings
+        if (sheetType === 'note' && savedId) {
+            window.clearSettingCache();
+            const { error: nErr } = await appDB.from('settings').upsert([{ key: `sheet_note_${savedId}`, value: JSON.stringify(noteData) }]);
+            if (nErr) throw nErr;
+            window._noteCache[savedId] = noteData;
+        }
+        Swal.fire({icon: 'success', title: id ? 'แก้ไขข้อมูลสำเร็จ' : 'เพิ่มรายการสำเร็จ', showConfirmButton: false, timer: 1000});
         
         window.cancelEdit();
         await fetchSheets();
@@ -614,6 +747,7 @@ window.deleteSheet = async function(id) {
 
     Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
     try {
+        try { await appDB.from('settings').delete().eq('key', `sheet_note_${id}`); delete window._noteCache[id]; } catch (e) {}
         const { error } = await appDB.from('external_sheets').delete().eq('id', id);
         if (error) throw error;
         Swal.fire({icon: 'success', title: 'ลบเรียบร้อย', showConfirmButton: false, timer: 1000});
