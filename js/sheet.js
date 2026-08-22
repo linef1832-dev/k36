@@ -556,7 +556,7 @@ window.trimNoteGrid = function(note) {
         for (let x = 0; x < width; x++) {
             if (!keepCol[x]) continue;
             const c = r[x] || { t: '', cs: 1, _head: true };
-            if (c._head || !cells.length) cells.push({ t: c.t, bg: c.bg || null, fg: c.fg || null, b: !!c.b, a: c.a || null, cs: 1 });
+            if (c._head || !cells.length) cells.push({ t: c.t, bg: c.bg || null, fg: c.fg || null, b: !!c.b, a: c.a || null, bd: c.bd, bc: c.bc, cs: 1 });
             else cells[cells.length - 1].cs++;      // ช่องที่ถูกผสานต่อจากช่องก่อนหน้า
         }
         result.push(cells);
@@ -652,7 +652,8 @@ window.renderNoteTable = function() {
         styles.push(`background:${c.bg || '#ffffff'}`);
         styles.push(`color:${c.fg || '#111827'}`);
         if (c.a === 'c') styles.push('text-align:center'); else if (c.a === 'r') styles.push('text-align:right');
-        const cls = `px-3 py-2.5 border border-[#cbd5e1] align-middle whitespace-pre-wrap leading-snug ${c.b ? 'font-bold' : ''} ${c.t ? 'cursor-copy hover:outline hover:outline-2 hover:outline-purple-500 hover:-outline-offset-2' : ''}`;
+        styles.push(window._noteBorderStyle(c, false));
+        const cls = `px-3 py-2.5 align-middle whitespace-pre-wrap leading-snug ${c.b ? 'font-bold' : ''} ${c.t ? 'cursor-copy hover:outline hover:outline-2 hover:outline-purple-500 hover:-outline-offset-2' : ''}`;
         return `<td colspan="${c.cs || 1}" ${c.t ? `onclick="copyNoteCell(this)" data-v="${esc(c.t)}" title="คลิกเพื่อก๊อปปี้"` : ''} class="${cls}" style="${styles.join(';')}">${hi(c.t)}</td>`;
     };
     wrap.innerHTML = `
@@ -884,6 +885,13 @@ window.onSheetSearch = function() {
 // 🛠️ แก้ไขหน้าข้อความในหน้าเลย — แถบเครื่องมือคล้าย Google Sheet
 // โมเดล: note.rows[r][c] = { t, bg, fg, b, a, cs }  (cs = ผสานไปทางขวากี่ช่อง)
 // ==========================================
+// เส้นตาราง: cell.bd = { t,b,l,r } (true=มีเส้น) ไม่ระบุ = มีทุกด้าน; cell.bc = สีเส้น
+window._noteBorderStyle = function(c, editing) {
+    const bd = c.bd || { t: true, b: true, l: true, r: true };
+    const col = c.bc || '#cbd5e1';
+    const off = editing ? '1px dashed rgba(148,163,184,.35)' : '1px solid transparent';
+    return ['t', 'r', 'b', 'l'].map(side => `border-${{ t: 'top', r: 'right', b: 'bottom', l: 'left' }[side]}:${bd[side] ? `1px solid ${col}` : off}`).join(';');
+};
 window._noteEdit = null;          // สำเนาที่กำลังแก้
 window._noteUndo = [];
 window._noteSel = null;           // { r, c1, c2 } ช่องที่เลือก (แถวเดียว)
@@ -966,12 +974,12 @@ window.renderNoteEditor = function() {
         <table id="noteEditTable" class="border-collapse text-[14px]" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed">
             ${colgroup}
             <tbody>${note.rows.map((r, ri) => `<tr>${r.map((c, ci) => {
-                const st = [`background:${c.bg || '#ffffff'}`, `color:${c.fg || '#111827'}`];
+                const st = [`background:${c.bg || '#ffffff'}`, `color:${c.fg || '#111827'}`, window._noteBorderStyle(c, true)];
                 if (c.a === 'c') st.push('text-align:center'); else if (c.a === 'r') st.push('text-align:right');
                 const isSel = sel && sel.r === ri && ci >= sel.c1 && ci <= sel.c2;
                 return `<td data-r="${ri}" data-c="${ci}" colspan="${c.cs || 1}" contenteditable="true" spellcheck="false"
                     onmousedown="noteCellDown(event,${ri},${ci})" onfocus="noteCellFocus(${ri},${ci})"
-                    class="px-3 py-2.5 border border-[#cbd5e1] align-middle whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''} ${isSel ? 'note-sel' : ''}"
+                    class="px-3 py-2.5 align-middle whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''} ${isSel ? 'note-sel' : ''}"
                     style="${st.join(';')}">${esc(c.t)}</td>`; }).join('')}</tr>`).join('')}
             </tbody>
         </table></div>`;
@@ -1000,6 +1008,7 @@ window.noteCmd = async function(cmd, val) {
         if (!window._noteUndo.length) return;
         window._noteEdit = window._noteUndo.pop(); window._noteSel = null; window.renderNoteEditor(); return;
     }
+    if (cmd === 'trimEmpty') { _nSnap(); const t = window.trimNoteGrid(note); note.rows = t.rows; note.cols = t.cols; window._noteSel = null; _nNormalize(note); window.renderNoteEditor(); return; }
     if (!need()) return;
     _nSnap();
     const row = note.rows[sel.r];
@@ -1036,6 +1045,17 @@ window.noteCmd = async function(cmd, val) {
             note.rows.forEach(r => { const hit = _nCellAt(r, x); if (!hit) return; if ((r[hit.i].cs || 1) > 1) r[hit.i].cs--; else r.splice(hit.i, 1); });
             note.cols.splice(x, 1); window._noteSel = null; break;
         }
+        case 'border': {
+            const set = (cl, sides) => { cl.bd = { ...(cl.bd || { t: true, b: true, l: true, r: true }), ...sides }; };
+            if (val === 'all') forSel(cl => cl.bd = { t: true, b: true, l: true, r: true });
+            else if (val === 'none') forSel(cl => cl.bd = { t: false, b: false, l: false, r: false });
+            else if (val === 'outer') { for (let c = sel.c1; c <= sel.c2; c++) set(row[c], { t: true, b: true, l: c === sel.c1, r: c === sel.c2 }); }
+            else if (val === 'inner') { for (let c = sel.c1; c <= sel.c2; c++) set(row[c], { t: false, b: false, l: c !== sel.c1, r: c !== sel.c2 }); }
+            else { const allOn = (() => { for (let c = sel.c1; c <= sel.c2; c++) { const bd = row[c].bd || { t: true, b: true, l: true, r: true }; if (!bd[val]) return false; } return true; })(); forSel(cl => set(cl, { [val]: !allOn })); }
+            document.getElementById('noteBorderMenu')?.classList.add('hidden');
+            break;
+        }
+        case 'borderColor': forSel(cl => cl.bc = val); document.getElementById('noteBorderMenu')?.classList.add('hidden'); break;
         case 'colWidth': {
             let x = 0; for (let i = 0; i < sel.c1; i++) x += row[i].cs || 1;
             const { value } = await Swal.fire({ title: 'ความกว้างคอลัมน์ (px)', input: 'number', inputValue: note.cols[x] || 160, inputAttributes: { min: 60, max: 900 } });
@@ -1046,6 +1066,7 @@ window.noteCmd = async function(cmd, val) {
     _nNormalize(note);
     window.renderNoteEditor();
 };
+document.addEventListener('mousedown', e => { const m = document.getElementById('noteBorderMenu'); if (m && !m.classList.contains('hidden') && !e.target.closest('#noteBorderMenuWrap')) m.classList.add('hidden'); });
 // คีย์ลัด
 document.addEventListener('keydown', e => {
     if (!window._noteEditing) return;
