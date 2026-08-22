@@ -270,15 +270,22 @@ window.refreshTimeSlots = async function() {
                 const slotB = (bookings || []).filter(b => b.time_slot === time);
                 let isFull = false, statusText = '';
                 if (window._myCoverageMap && currentUser.check_type !== 'shift') {
+                    // ชั้นที่ 1: เพดานแผนก (พักพร้อมกันได้ไม่เกิน X คน ตามจำนวนคนที่มาทำงาน)
+                    const cap = window.checkDeptCap(currentUser.username, window._myCoverageMap, slotB, myDep);
+                    // ชั้นที่ 2: คนคุมขั้นต่ำต่อเว็บ
                     const cov = window.checkCoverage(currentUser.username, window._myCoverageMap, slotB, myDep, suffix);
-                    if (!cov.ok) {
+                    const left = Math.min(cap.left, cov.canLeave === Infinity ? cap.left : cov.canLeave);
+                    if (cap.left <= 0) {
+                        isFull = true;
+                        statusText = `(เต็ม ${cap.used}/${cap.cap} คน)`;
+                    } else if (!cov.ok) {
                         isFull = true;
                         statusText = `(${cov.problems.map(pb => `${pb.team} เหลือคุม ${pb.remain}/${pb.min}`).join(', ')})`;
                     } else {
-                        statusText = cov.canLeave === Infinity ? '' : `(พักได้อีก ${cov.canLeave})`;
+                        statusText = `(ว่าง: ${left})`;
                     }
                 } else {
-                    // ไม่มีตารางหน้าที่ / ยังไม่ได้จัด / ผู้จัดการ → ไม่จำกัด
+                    // ยังไม่ได้จัดหน้าที่วันนี้ / ผู้จัดการ → ไม่จำกัด แสดงแค่จำนวนที่ลงแล้ว
                     statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;
                 }
                 html += `<option value="${time}" data-period="${periodName}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
