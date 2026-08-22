@@ -388,20 +388,13 @@ window.saveData = async function(e) {
     const shiftSuffix = sName.replace('กะ','');
     const { data: slotBookings } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', timeVal);
 
-    // 🍽️ [กติกาพัก] คนคุมขั้นต่ำต่อเว็บ — เช็คจากตารางหน้าที่จริง + คนที่พักอยู่ (แทนโควตาแบบเดิม)
+    // 🍽️ [กติกาพัก] เพดานพักต่อเว็บ (หลัก+รอง) อัตโนมัติจากตารางหน้าที่ — เช็คจาก DB สดเป็นด่านสุดท้าย
     if (currentUser.check_type !== 'shift' && coverageMap) {
-        // ชั้นที่ 1: เพดานแผนก — พักพร้อมกันได้ไม่เกิน X คน (ตามจำนวนคนที่มาทำงานวันนั้น)
-        const cap = window.checkDeptCap(currentUser.username, coverageMap, slotBookings, myDep);
-        if (cap.left <= 0) {
-            window.resetBtn();
-            return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} เต็มแล้ว`, html: `แผนก ${myDep} มีคนทำงาน ${cap.total} คน พักพร้อมกันได้ไม่เกิน <b>${cap.cap}</b> คน<br>ตอนนี้ลงไว้แล้ว <b>${cap.used}</b> คน` });
-        }
-        // ชั้นที่ 2: คนคุมขั้นต่ำต่อเว็บ
-        const cov = window.checkCoverage(currentUser.username, coverageMap, slotBookings, myDep, shiftSuffix);
+        const cov = window.checkCoverage(currentUser.username, coverageMap, slotBookings);
         if (!cov.ok) {
             window.resetBtn();
-            const lines = cov.problems.map(pb => `<b class="text-red-500">${pb.team}</b> จะเหลือคนคุม <b>${pb.remain}</b> (ต้องมีอย่างน้อย ${pb.min} จากทั้งหมด ${pb.total})`).join('<br>');
-            return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} พักไม่ได้`, html: `${lines}<br><br><span class="text-xs text-gray-500">เลือกช่วงอื่น หรือรอให้เพื่อนในเว็บกลับจากพักก่อน</span>` });
+            const lines = cov.problems.map(pb => `<b class="text-red-500">${pb.team}</b> มี ${pb.total} คน พักพร้อมกันได้ ${pb.cap} — ตอนนี้พักอยู่แล้ว <b>${pb.used}</b>`).join('<br>');
+            return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} เต็มแล้ว`, html: `${lines}<br><br><span class="text-xs text-gray-500">เลือกช่วงอื่น หรือรอให้เพื่อนในเว็บกลับจากพักก่อน</span>` });
         }
     }
 
@@ -2055,46 +2048,72 @@ window.loadSettings = async function() {
     } catch (e) { console.error("Load Settings Error:", e); }
 };
 
-// 🟢 หน้า "คนคุมขั้นต่ำต่อเว็บ" (แทนโควตาแบบเดิม)
-//    ทุกช่วงเวลา เว็บต้องมีคน (หลัก+รอง) ที่ไม่ได้พัก อย่างน้อยเท่านี้ — ปรับตามจำนวนคนจริงในวันนั้นอัตโนมัติ
-window.renderQuotaSettings = function() {
+// 🟢 หน้า "เพดานพักต่อเว็บ" — ไม่มีค่าให้ตั้ง แสดงผลที่ระบบคำนวณจากตารางหน้าที่ของวันที่เลือก (หลัก+รอง)
+window.renderQuotaSettings = async function() {
     const container = document.getElementById('quotaSettingsContainer');
     if (!container) return;
+    const dateEl = document.getElementById('capPreviewDate');
+    const t = new Date();
+    const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    const dateVal = (dateEl && dateEl.value) || today;
+
+    const shifts = ['กะเช้า', 'กะกลาง', 'กะดึก'];
+    const depts = ['AM', 'OD'];
+    const keys = [];
+    depts.forEach(d => shifts.forEach(sh => keys.push(`duty_roster_${d}_${dateVal}_${sh}`)));
+    let rows = {};
+    try {
+        const { data } = await appDB.from('settings').select('key, value').in('key', keys);
+        (data || []).forEach(r => { try { rows[r.key] = JSON.parse(r.value); } catch (e) {} });
+    } catch (e) {}
+
     const allTeams = [...TEAM_LIST].sort((a, b) => a.localeCompare(b));
-    const inp = (team, dept, sfx, color) => {
-        const key = `mincover_${team}_${dept}_${sfx}`;
-        const v = (SETTINGS[key] === undefined || SETTINGS[key] === '') ? 1 : SETTINGS[key];
-        return `<input type="number" min="0" id="${key}" data-team="${team}" data-dept="${dept}" data-sfx="${sfx}" class="mincover-input w-16 shrink-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-center text-sm font-bold py-1.5 outline-none focus:border-${color}-400 dark:text-white ml-2" value="${v}">`;
-    };
-    const rows = (dept) => allTeams.map(team => `
-        <div class="flex items-center gap-0 min-w-max">
-            <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-lg w-24 text-center text-xs shrink-0">${team}</div>
-            ${inp(team, dept, 'เช้า', 'orange')}${inp(team, dept, 'กลาง', 'blue')}${inp(team, dept, 'ดึก', 'purple')}
-        </div>`).join('');
-    const head = `
-        <div class="flex text-[10px] font-bold text-pink-400 mb-2 px-0 min-w-max shrink-0">
+    const table = (dept) => {
+        const maps = {};
+        shifts.forEach(sh => { const r = rows[`duty_roster_${dept}_${dateVal}_${sh}`]; maps[sh] = r ? window.buildCoverageMap(r) : null; });
+        const cell = (sh, team) => {
+            const m = maps[sh];
+            if (!m) return `<div class="w-24 shrink-0 text-center text-[10px] text-slate-600 ml-2">ยังไม่จัด</div>`;
+            const n = (m.webs[team] || new Set()).size;
+            const cap = window.breakCapByRule(n);
+            return `<div class="w-24 shrink-0 text-center ml-2 rounded-lg border ${n ? 'border-slate-600 bg-slate-900' : 'border-slate-800 bg-slate-900/40'} py-1.5">
+                <span class="text-[10px] text-slate-400">${n} คน →</span> <b class="text-sm ${n ? 'text-emerald-300' : 'text-slate-600'}">${cap}</b></div>`;
+        };
+        return `
+        <div class="flex text-[10px] font-bold text-pink-400 mb-2 min-w-max shrink-0">
             <div class="w-24 shrink-0 text-center">เว็บ</div>
-            <div class="w-16 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
-            <div class="w-16 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
-            <div class="w-16 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
+            <div class="w-24 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
+            <div class="w-24 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
+            <div class="w-24 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
+        </div>
+        <div class="space-y-2 flex-1 overflow-auto custom-scrollbar pr-1">
+            ${allTeams.map(team => `
+            <div class="flex items-center min-w-max">
+                <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-lg w-24 text-center text-xs shrink-0">${team}</div>
+                ${cell('กะเช้า', team)}${cell('กะกลาง', team)}${cell('กะดึก', team)}
+            </div>`).join('')}
         </div>`;
+    };
+
     container.innerHTML = `
         <div class="flex flex-col gap-4 w-full mt-2">
-            <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed">
-                <b>วิธีทำงาน:</b> ตัวเลข = จำนวนคนที่ <b>ต้องเหลือคุมเว็บ</b> ในทุกช่วงเวลา (นับหลัก+รอง รวมกัน) ระบบดูจากตารางจัดหน้าที่ของวันนั้นแล้วกันไม่ให้คนพักจนต่ำกว่านี้
-                — วันไหนเว็บมี 4 คน ตั้ง 2 = พักพร้อมกันได้ 2 / วันไหนมี 6 คน = พักได้ 4 <b>ไม่ต้องกดคำนวณทุกวัน</b> ตั้งครั้งเดียวใช้ตลอด (ค่าเริ่มต้น 1)
-                <br><b>เพดานแผนก (อัตโนมัติ):</b> ทั้งแผนกพักพร้อมกันได้ไม่เกิน — 1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8 (นับจากคนในตารางหน้าที่วันนั้น)
+            <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed flex flex-wrap items-center gap-3">
+                <div class="flex-1 min-w-[260px]">
+                    <b>กติกา (อัตโนมัติ ไม่มีค่าให้ตั้ง):</b> แต่ละเว็บพักพร้อมกันได้ไม่เกิน — นับคนของเว็บนั้น <b>หลัก+รอง</b> จากตารางจัดหน้าที่ →
+                    1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8 · แยก AM / OD ไม่ปนกัน
+                </div>
+                <label class="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">ดูของวันที่
+                    <input type="date" id="capPreviewDate" value="${dateVal}" onchange="renderQuotaSettings()" class="bg-slate-900 border border-slate-600 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500">
+                </label>
             </div>
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
                 <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[460px]">
-                    <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5 mb-3 border-b border-slate-700/50 pb-2 shrink-0"><span class="material-icons text-[14px]">domain</span> แผนก AM</h5>
-                    ${head}
-                    <div class="space-y-2 flex-1 overflow-auto custom-scrollbar pr-1">${rows('AM')}</div>
+                    <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5 mb-3 border-b border-slate-700/50 pb-2 shrink-0"><span class="material-icons text-[14px]">domain</span> แผนก AM — คน → พักพร้อมกันได้</h5>
+                    ${table('AM')}
                 </div>
                 <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[460px]">
-                    <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5 mb-3 border-b border-slate-700/50 pb-2 shrink-0"><span class="material-icons text-[14px]">groups</span> แผนก OD</h5>
-                    ${head}
-                    <div class="space-y-2 flex-1 overflow-auto custom-scrollbar pr-1">${rows('OD')}</div>
+                    <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5 mb-3 border-b border-slate-700/50 pb-2 shrink-0"><span class="material-icons text-[14px]">groups</span> แผนก OD — คน → พักพร้อมกันได้</h5>
+                    ${table('OD')}
                 </div>
             </div>
         </div>`;
@@ -2109,68 +2128,30 @@ window.renderQuotaHistory = async function() {
     if (!c) return;
     c.innerHTML = '<div class="text-center py-10 text-gray-500"><span class="material-icons animate-spin mb-2 text-2xl">sync</span><br>กำลังโหลดประวัติ...</div>';
     try {
+        // เพดานพักเปลี่ยนตามตารางหน้าที่ → ประวัติที่มีผล = การจัด/ย้าย/ล้าง/กู้คืน ตารางหน้าที่
         const { data, error } = await appDB.from('system_logs').select('*')
-            .eq('action_type', 'ตั้งค่าโควตา')
+            .in('action_type', ['สุ่มจัดหน้าที่', 'ย้ายหน้าที่', 'ล้างตารางงาน', 'กู้คืนตารางงาน'])
             .order('created_at', { ascending: false }).limit(80);
         if (error) throw error;
-        if (!data || data.length === 0) { c.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">ยังไม่มีประวัติการเปลี่ยนค่าคนคุมขั้นต่ำ</div>'; return; }
-
+        if (!data || data.length === 0) { c.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">ยังไม่มีประวัติ</div>'; return; }
         const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const fmt = d => new Date(d).toLocaleString('th-TH', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
-        // "A 2→1 (4 คน), B -→1" → ป้ายสี
-        const chipsFromChanged = str => (str || '').split(',').map(x => x.trim()).filter(x => x && !x.startsWith('ไม่มี') && !x.startsWith('กดบันทึก')).map(x => {
-            const m = x.match(/^(.*?)\s(\S+)→(\S+)(.*)$/);
-            if (!m) return `<span class="text-[11px] px-2 py-1 rounded-lg border border-slate-700 bg-slate-800 text-slate-300">${esc(x)}</span>`;
-            const [, label, from, to, rest] = m;
-            const up = from === '-' || Number(to) > Number(from);
-            return `<span class="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg border ${up ? 'border-emerald-600/60 bg-emerald-900/30' : 'border-red-600/60 bg-red-900/30'}">
-                <b class="text-white">${esc(label)}</b>
-                <span class="text-slate-400 line-through">${esc(from)}</span>
-                <span class="material-icons text-[13px] ${up ? 'text-emerald-400' : 'text-red-400'}">${up ? 'trending_up' : 'trending_down'}</span>
-                <b class="${up ? 'text-emerald-300' : 'text-red-300'} text-[13px]">${esc(to)}</b>
-                <span class="text-[10px] text-slate-500">${esc(rest.trim())}</span></span>`;
-        }).join(' ');
-
         let html = '<div class="space-y-2">';
         data.forEach(log => {
-            const t = fmt(log.created_at);
-            const det = log.target_details || '';
-            if (det.startsWith('AUTOQUOTA|')) {
-                const parts = det.split('|');
-                const dept = parts[1], suffix = parts[2], total = parts[3], reason = parts[4], changed = parts[5];
-                const noChange = !changed || changed.startsWith('ไม่มี');
-                html += `
-                <div class="bg-slate-800/60 border ${noChange ? 'border-slate-700' : 'border-emerald-700/50'} rounded-xl p-3 ${noChange ? 'opacity-60' : ''}">
-                    <div class="flex flex-wrap items-center gap-2 text-[11px]">
-                        <span class="font-mono text-gray-400">${t}</span>
-                        <span class="bg-emerald-900/50 text-emerald-300 border border-emerald-700/60 px-2 py-0.5 rounded-md font-bold flex items-center gap-1"><span class="material-icons text-[12px]">autorenew</span> ออโต้</span>
-                        <span class="font-bold text-white">${esc(dept)} กะ${esc(suffix)}</span>
-                        <span class="text-gray-400">รวม <b class="text-yellow-300">${esc(total)}</b></span>
-                        <span class="text-gray-500 ml-auto">จากการ: <span class="text-sky-300">${esc(reason)}</span> โดย ${esc(log.performed_by)}</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5 mt-2">${noChange ? '<span class="text-[11px] text-gray-500">คำนวณใหม่แล้ว โควตาเท่าเดิม</span>' : chipsFromChanged(changed)}</div>
-                </div>`;
-            } else if (det.startsWith('MANUALQUOTA|')) {
-                const changed = det.slice('MANUALQUOTA|'.length);
-                const noChange = changed.startsWith('กดบันทึก');
-                html += `
-                <div class="bg-slate-800/60 border ${noChange ? 'border-slate-700' : 'border-amber-600/50'} rounded-xl p-3 ${noChange ? 'opacity-60' : ''}">
-                    <div class="flex flex-wrap items-center gap-2 text-[11px]">
-                        <span class="font-mono text-gray-400">${t}</span>
-                        <span class="bg-amber-900/50 text-amber-300 border border-amber-700/60 px-2 py-0.5 rounded-md font-bold flex items-center gap-1"><span class="material-icons text-[12px]">touch_app</span> กดมือ</span>
-                        <span class="text-gray-500 ml-auto">โดย <b class="text-white">${esc(log.performed_by)}</b></span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5 mt-2">${noChange ? '<span class="text-[11px] text-gray-500">กดบันทึกแต่ค่าไม่เปลี่ยน</span>' : chipsFromChanged(changed)}</div>
-                </div>`;
-            } else {
-                html += `
-                <div class="bg-slate-800/40 border border-slate-700 rounded-xl p-2.5 flex flex-wrap items-center gap-2 text-[11px] opacity-70">
-                    <span class="font-mono text-gray-400">${t}</span>
-                    <span class="bg-slate-700 text-slate-300 border border-slate-600 px-2 py-0.5 rounded-md font-bold">ตั้งค่าโควตา</span>
-                    <span class="text-gray-500">${esc(log.performed_by)}</span>
-                    <span class="text-gray-300">${esc(det)}</span>
-                </div>`;
-            }
+            let badge = 'bg-slate-700 text-slate-200 border-slate-600';
+            if (log.action_type === 'สุ่มจัดหน้าที่') badge = 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50';
+            else if (log.action_type === 'ย้ายหน้าที่') badge = 'bg-purple-900/40 text-purple-300 border-purple-700/50';
+            else if (log.action_type === 'ล้างตารางงาน') badge = 'bg-red-900/40 text-red-300 border-red-700/50';
+            else if (log.action_type === 'กู้คืนตารางงาน') badge = 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50';
+            html += `
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-2.5 text-[11px]">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-mono text-gray-400">${fmt(log.created_at)}</span>
+                    <span class="${badge} border px-2 py-0.5 rounded-md font-bold">${esc(log.action_type)}</span>
+                    <span class="text-gray-500">โดย <b class="text-white">${esc(log.performed_by)}</b></span>
+                </div>
+                <div class="text-gray-300 mt-1 whitespace-pre-wrap break-words">${esc(log.target_details)}</div>
+            </div>`;
         });
         html += '</div>';
         c.innerHTML = html;
@@ -2180,25 +2161,7 @@ window.renderQuotaHistory = async function() {
 };
 
 window.saveQuotaSettings = async function() {
-    if (!window.sysRequireAdmin()) return;
-    Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
-    const updates = [];
-    const changed = [];
-    document.querySelectorAll('.mincover-input').forEach(el => {
-        const key = el.id;
-        let val = parseInt(el.value); if (isNaN(val) || val < 0) val = 0;
-        const prev = SETTINGS[key];
-        if (String(prev === undefined || prev === '' ? 1 : prev) !== String(val)) {
-            changed.push(`${el.dataset.team} ${el.dataset.dept} ${el.dataset.sfx} ${prev === undefined || prev === '' ? 1 : prev}→${val}`);
-        }
-        updates.push({ key, value: String(val) });
-        SETTINGS[key] = String(val);
-    });
-    window.clearSettingCache();
-    const { error } = await appDB.from('settings').upsert(updates);
-    if (error) return Swal.fire('Error', error.message, 'error');
-    try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าโควตา', performed_by: currentUser.username, target_details: `MANUALQUOTA|${changed.length ? changed.join(', ') : 'กดบันทึกโดยไม่มีค่าเปลี่ยน'}` }]); } catch (e) {}
-    Swal.fire('สำเร็จ', `บันทึกคนคุมขั้นต่ำแล้ว${changed.length ? ` (เปลี่ยน ${changed.length} ช่อง)` : ''}`, 'success');
+    Swal.fire('ไม่ต้องบันทึก', 'เพดานพักต่อเว็บคำนวณอัตโนมัติจากตารางจัดหน้าที่ ไม่มีค่าให้ตั้งครับ', 'info');
 };
 
 // =========================================================
@@ -2381,7 +2344,7 @@ const PERM_GROUPS = [
             {id: 'admin_settings', name: 'ตั้งค่าระบบ', isSub: true},
             {id: 'admin_users', name: 'จัดการพนักงาน', isSub: true},
             {id: 'admin_perms', name: 'สิทธิ์เมนู', isSub: true},
-            {id: 'admin_info', name: 'ประวัติโควตา', isSub: true},
+            {id: 'admin_info', name: 'ประวัติจัดหน้าที่', isSub: true},
             {id: 'admin_logs', name: 'ประวัติระบบ (ปุ่มซ้ายล่าง)', isSub: true}
         ]
     }
