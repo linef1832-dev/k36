@@ -109,6 +109,18 @@
                 <span class="text-purple-400 font-bold animate-pulse">กำลังโหลดข้อมูล...</span>
             </div>
             <iframe id="sheetFrame" class="absolute inset-0 w-full h-full border-0 bg-white" allow=""></iframe>
+            <!-- 📝 หน้าข้อความที่สร้างในระบบ (ไม่ใช่ลิงก์) — โหลดทันที ไม่ต้องรอ Google -->
+            <div id="noteViewer" class="hidden absolute inset-0 flex-col bg-[#0b1120] overflow-hidden">
+                <div class="p-3 border-b border-slate-700 flex items-center gap-3 shrink-0 bg-slate-900/60">
+                    <div class="relative flex-1 max-w-md">
+                        <span class="material-icons absolute left-3 top-2.5 text-slate-500 text-[18px]">search</span>
+                        <input type="text" id="noteSearch" oninput="renderNoteTable()" placeholder="ค้นหาในหน้านี้..." class="w-full pl-10 pr-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm outline-none focus:border-purple-500">
+                    </div>
+                    <span id="noteCount" class="text-[11px] text-slate-500"></span>
+                    <span class="text-[11px] text-slate-500 ml-auto hidden md:inline">💡 คลิกช่องไหนก็ได้เพื่อก๊อปปี้</span>
+                </div>
+                <div id="noteTableWrap" class="flex-1 overflow-auto custom-scrollbar p-3"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -142,8 +154,27 @@
                 </div>
             </div>
             <div>
+                <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ประเภทรายการ</label>
+                <div class="flex gap-2">
+                    <button type="button" id="sheetTypeBtn_link" onclick="setSheetType('link')" class="flex-1 py-2.5 rounded-xl text-sm font-bold border transition bg-purple-600 border-purple-400 text-white"><span class="material-icons text-sm align-middle">link</span> ลิงก์ (Google Sheet / เว็บ)</button>
+                    <button type="button" id="sheetTypeBtn_note" onclick="setSheetType('note')" class="flex-1 py-2.5 rounded-xl text-sm font-bold border transition bg-slate-800 border-slate-600 text-slate-400 hover:text-white"><span class="material-icons text-sm align-middle">table_chart</span> หน้าข้อความ (สร้างในระบบ)</button>
+                </div>
+                <input type="hidden" id="newSheetType" value="link">
+            </div>
+            <div id="noteEditorBox" class="hidden">
+                <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">เนื้อหาตาราง</label>
+                <div class="text-[11px] text-sky-300 bg-sky-900/20 border border-sky-700/40 rounded-lg p-2 mb-2 leading-relaxed">
+                    วิธีง่ายสุด: เปิด Google Sheet → ลากเลือกช่องที่ต้องการ (รวมหัวตาราง) → Ctrl+C → มาวาง (Ctrl+V) ในช่องด้านล่าง ระบบจะแปลงเป็นตารางให้เอง
+                    <br>หรือพิมพ์เอง: แต่ละแถวขึ้นบรรทัดใหม่ คั่นช่องด้วย <b>Tab</b> หรือ <b>|</b>
+                </div>
+                <textarea id="newSheetNote" rows="10" placeholder="เหตุผล&#9;หมายเหตุ (พนักงาน)&#9;หมายเหตุหน้าแพลตฟอร์ม (ลูกค้า)&#10;ชื่อ ผิด&#9;ชื่อลูกค้าไม่ถูกต้อง&#9;ชื่อไม่ถูกต้อง กรุณาติดต่อฝ่ายบริการค่ะ" class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm font-mono outline-none focus:border-purple-500 whitespace-pre"></textarea>
+                <label class="flex items-center gap-2 mt-2 text-[12px] text-slate-300 cursor-pointer"><input type="checkbox" id="newSheetNoteHeader" checked class="accent-purple-500"> แถวแรกเป็นหัวตาราง</label>
+                <div id="notePreview" class="mt-2 text-[11px] text-slate-400"></div>
+            </div>
+            <div id="linkEditorBox">
                 <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ลิงก์ (URL)</label>
                 <input type="text" id="newSheetUrl" placeholder="วางลิงก์ Google Sheet หรือ Link เว็บใดๆ ที่นี่..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm font-mono focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
+            </div>
             </div>
             <div class="flex flex-col md:flex-row gap-4 items-start">
                 <div class="flex-1 w-full">
