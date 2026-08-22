@@ -209,11 +209,23 @@ window.lazyStub('initSlipCheck', 'slip_check');
 window.lazyStub('initOdConfig', 'od_config');
 
 // ==========================================
-// 🍽️ [กติกาพัก] "คนคุมขั้นต่ำต่อเว็บ"
-// ทุกช่วงเวลา เว็บ X ต้องมีคนที่ไม่ได้พัก (หลัก+รอง รวมกัน) อย่างน้อย = mincover_<เว็บ>_<แผนก>_<กะ> (ค่าเริ่มต้น 1)
-// นับจากตารางจัดหน้าที่ของวันนั้น + ตารางลงพัก → ปรับตามจำนวนคนจริงอัตโนมัติ ไม่ต้องตั้งโควตาทุกวัน
+// 🍽️ [กติกาพัก] "พักพร้อมกันได้ไม่เกินกี่คน — ต่อเว็บ — อัตโนมัติตามตารางหน้าที่"
+// นับคนของแต่ละเว็บ (หลัก + รอง รวมกัน) จากตารางจัดหน้าที่ของวันนั้น แล้วใช้กติกา:
+//   1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8
+// แยก AM / OD เพราะแต่ละแผนกมีตารางหน้าที่ของตัวเอง ไม่ปนกัน — ไม่มีค่าให้ตั้ง ไม่ต้องกดคำนวณ
 // ==========================================
-// สร้างแผนที่จากตารางหน้าที่: ใครรับผิดชอบเว็บไหนบ้าง (หลัก+รอง) และแต่ละเว็บมีใครบ้าง
+window.breakCapByRule = function(total) {
+    if (!total || total <= 0) return 0;
+    if (total <= 4) return 1;
+    if (total <= 7) return 2;
+    if (total <= 10) return 3;
+    if (total <= 14) return 4;
+    if (total <= 20) return 5;
+    if (total <= 25) return 6;
+    if (total <= 30) return 7;
+    return 8;
+};
+// สร้างแผนที่จากตารางหน้าที่: แต่ละเว็บมีใครบ้าง (หลัก+รอง) และแต่ละคนรับผิดชอบเว็บไหนบ้าง
 window.buildCoverageMap = function(roster) {
     const webs = {};        // team -> Set(username)
     const websOf = {};      // username -> [team, ...]
@@ -232,35 +244,9 @@ window.buildCoverageMap = function(roster) {
     }
     return { webs, websOf };
 };
-// 📏 กติกา "พักพร้อมกันได้ไม่เกินกี่คน" ของทั้งแผนกในกะนั้น — อิงจำนวนคนที่มาทำงานจริง (จากตารางหน้าที่)
-//   1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8
-window.breakCapByRule = function(total) {
-    if (!total || total <= 0) return 0;
-    if (total <= 4) return 1;
-    if (total <= 7) return 2;
-    if (total <= 10) return 3;
-    if (total <= 14) return 4;
-    if (total <= 20) return 5;
-    if (total <= 25) return 6;
-    if (total <= 30) return 7;
-    return 8;
-};
-// เช็คเพดานแผนก: คืน { total, cap, used, left }  (used = คนในแผนกที่พักช่วงนี้ ไม่นับตัวเอง)
-window.checkDeptCap = function(username, covMap, slotBookings, dept) {
-    const total = covMap ? Object.keys(covMap.websOf || {}).length : 0;
-    const cap = window.breakCapByRule(total);
-    const used = (slotBookings || []).filter(b => b.staff_name !== username && (b.department || 'AM') === dept).length;
-    return { total, cap, used, left: Math.max(0, cap - used) };
-};
-
-window.getMinCover = function(team, dept, suffix) {
-    if (typeof SETTINGS === 'undefined') return 1;
-    const v = SETTINGS[`mincover_${team}_${dept}_${suffix}`];
-    return (v === undefined || v === '' || isNaN(parseInt(v))) ? 1 : parseInt(v);
-};
-// เช็คว่า username พักช่วงนี้ได้ไหม → { ok, problems:[{team, remain, min}], canLeave }
-// slotBookings = รายการจองของช่วงนี้ (มี staff_name)
-window.checkCoverage = function(username, covMap, slotBookings, dept, suffix) {
+// เช็คว่า username พักช่วงนี้ได้ไหม — ทุกเว็บที่เขารับผิดชอบต้องยังไม่เต็มเพดาน
+// → { ok, problems:[{team, used, cap, total}], canLeave }
+window.checkCoverage = function(username, covMap, slotBookings) {
     const myWebs = (covMap && covMap.websOf[username]) || [];
     if (myWebs.length === 0) return { ok: true, problems: [], canLeave: Infinity };
     const onBreak = new Set((slotBookings || []).map(b => b.staff_name).filter(Boolean));
@@ -268,12 +254,11 @@ window.checkCoverage = function(username, covMap, slotBookings, dept, suffix) {
     let canLeave = Infinity;
     myWebs.forEach(team => {
         const members = covMap.webs[team] || new Set();
-        let resting = 0;
-        members.forEach(n => { if (n !== username && onBreak.has(n)) resting++; });
-        const min = window.getMinCover(team, dept, suffix);
-        const remainIfLeave = members.size - resting - 1;   // ถ้าฉันพักด้วย จะเหลือคุมกี่คน
-        if (remainIfLeave < min) problems.push({ team, remain: remainIfLeave, min, total: members.size });
-        canLeave = Math.min(canLeave, Math.max(0, remainIfLeave - min + 1));
+        let used = 0;
+        members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
+        const cap = window.breakCapByRule(members.size);
+        if (used >= cap) problems.push({ team, used, cap, total: members.size });
+        canLeave = Math.min(canLeave, Math.max(0, cap - used));
     });
     return { ok: problems.length === 0, problems, canLeave };
 };
