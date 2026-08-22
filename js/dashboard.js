@@ -268,24 +268,18 @@ window.refreshTimeSlots = async function() {
         for (const [periodName, times] of Object.entries(periods)) {
             html += `<optgroup label="--- ${periodName} ---">`;
             times.forEach(time => {
-                // 🍽️ [กติกาพัก] คนคุมขั้นต่ำต่อเว็บ — คำนวณจากตารางหน้าที่ + คนที่พักช่วงนี้
-                const suffix = shiftName.replace('กะ', '');
+                // 🍽️ [กติกาพัก] เพดานพักต่อเว็บ — อัตโนมัติจากตารางหน้าที่ (หลัก+รอง) + คนที่พักช่วงนี้
                 const slotB = (bookings || []).filter(b => b.time_slot === time);
                 let isFull = false, statusText = '';
                 if (window._myCoverageMap && currentUser.check_type !== 'shift') {
-                    // ชั้นที่ 1: เพดานแผนก (พักพร้อมกันได้ไม่เกิน X คน ตามจำนวนคนที่มาทำงาน)
-                    const cap = window.checkDeptCap(currentUser.username, window._myCoverageMap, slotB, myDep);
-                    // ชั้นที่ 2: คนคุมขั้นต่ำต่อเว็บ
-                    const cov = window.checkCoverage(currentUser.username, window._myCoverageMap, slotB, myDep, suffix);
-                    const left = Math.min(cap.left, cov.canLeave === Infinity ? cap.left : cov.canLeave);
-                    if (cap.left <= 0) {
+                    const cov = window.checkCoverage(currentUser.username, window._myCoverageMap, slotB);
+                    if (!cov.ok) {
                         isFull = true;
-                        statusText = `(เต็ม ${cap.used}/${cap.cap} คน)`;
-                    } else if (!cov.ok) {
-                        isFull = true;
-                        statusText = `(${cov.problems.map(pb => `${pb.team} เหลือคุม ${pb.remain}/${pb.min}`).join(', ')})`;
+                        statusText = `(${cov.problems.map(pb => `${pb.team} เต็ม ${pb.used}/${pb.cap}`).join(', ')})`;
+                    } else if (cov.canLeave === Infinity) {
+                        statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;   // ไม่อยู่ในตารางหน้าที่ → ไม่จำกัด
                     } else {
-                        statusText = `(ว่าง: ${left})`;
+                        statusText = `(ว่าง: ${cov.canLeave})`;
                     }
                 } else {
                     // ยังไม่ได้จัดหน้าที่วันนี้ / ผู้จัดการ → ไม่จำกัด แสดงแค่จำนวนที่ลงแล้ว
@@ -426,7 +420,7 @@ window.subscribeDashboardChanges = function() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
             const key = (payload.new && payload.new.key) || (payload.old && payload.old.key) || '';
             if (!key) return;
-            if (key.startsWith('quota_') || key.startsWith('mincover_')) {
+            if (key.startsWith('quota_') || key.startsWith('mincover_')) {   // (เหลือไว้เผื่อค่าเก่า)
                 if (typeof SETTINGS !== 'undefined') SETTINGS[key] = payload.new ? payload.new.value : undefined;
                 if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
             } else if (key.startsWith('duty_roster_')) {
