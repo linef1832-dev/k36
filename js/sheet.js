@@ -653,7 +653,7 @@ window._noteCellStyle = function(c, editing) {
     const st = [`background:${c.bg || '#ffffff'}`, `color:${c.fg || '#111827'}`, `font-size:${c.fs || window.NOTE_DEF_FS}px`];
     if (c.a === 'c') st.push('text-align:center'); else if (c.a === 'r') st.push('text-align:right');
     const bd = c.bd || { t: true, b: true, l: true, r: true }; const col = c.bc || window.NOTE_DEF_BC;
-    const off = editing ? '1px dashed rgba(148,163,184,.45)' : '1px hidden transparent';
+    const off = editing ? '1px dashed rgba(148,163,184,.45)' : '1px none transparent';   // none = ถ้าช่องข้างเคียงอยากมีเส้น ให้มันวาดได้ (ลบเส้นจริงต้องปิดทั้งสองฝั่ง ซึ่ง _nSetEdge ทำให้)
     ['t', 'r', 'b', 'l'].forEach(side => st.push(`border-${{ t: 'top', r: 'right', b: 'bottom', l: 'left' }[side]}:${bd[side] ? `1px solid ${col}` : off}`));
     return st.join(';');
 };
@@ -677,7 +677,7 @@ window.renderNoteTable = function() {
         <table class="border-collapse" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed;width:${42 + 36 + cols.reduce((a, w) => a + Math.max(60, Math.round((w || 100) * 1.15)), 0)}px">
             ${colgroup}
             <thead><tr><th class="${_nHdrCls} nt-stick-tl"></th>${cols.map((_, x) => `<th class="${_nHdrCls} nt-stick-top">${_nColName(x)}</th>`).join('')}<th class="${_nHdrCls} nt-stick-top"></th></tr></thead>
-            <tbody>${rows.map((r, ri) => keep[ri] ? `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} nt-stick-left">${ri + 1}</td>${r.map(c => c.h ? '' : `<td colspan="${c.cs || 1}" rowspan="${term ? 1 : (c.rs || 1)}" ${c.t ? `onclick="copyNoteCell(this)" data-v="${_nEsc(c.t)}" title="คลิกเพื่อก๊อปปี้"` : ''} class="px-3 py-2.5 align-middle whitespace-pre-wrap leading-snug ${c.b ? 'font-bold' : ''} ${c.t ? 'cursor-copy hover:outline hover:outline-2 hover:outline-purple-500 hover:-outline-offset-2' : ''}" style="${window._noteCellStyle(c, false)}">${hi(c.t)}</td>`).join('')}<td class="border border-[#cbd5e1] text-center align-middle bg-slate-50"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-400 hover:text-purple-600 p-1"><span class="material-icons text-[15px]">content_copy</span></button></td></tr>` : '').join('')}
+            <tbody>${rows.map((r, ri) => keep[ri] ? `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} nt-stick-left">${ri + 1}</td>${r.map(c => c.h ? '' : `<td colspan="${c.cs || 1}" rowspan="${term ? 1 : (c.rs || 1)}" ${c.t ? `onclick="copyNoteCell(this)" data-v="${_nEsc(c.t)}" title="คลิกเพื่อก๊อปปี้"` : ''} class="px-3 py-2 align-top whitespace-pre-wrap leading-snug ${c.b ? 'font-bold' : ''} ${c.t ? 'cursor-copy hover:outline hover:outline-2 hover:outline-purple-500 hover:-outline-offset-2' : ''}" style="${window._noteCellStyle(c, false)}">${hi(c.t)}</td>`).join('')}<td class="border border-[#cbd5e1] text-center align-middle bg-slate-50"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-400 hover:text-purple-600 p-1"><span class="material-icons text-[15px]">content_copy</span></button></td></tr>` : '').join('')}
             </tbody>
         </table></div>`;
 };
@@ -718,7 +718,14 @@ const _nSetEdge = (note, o, side, on, color) => {
     if (side === 'b' && o.r2 < note.rows.length - 1) for (let x = o.x; x <= o.x2; x++) nbs.push(_nAnchor(note, o.r2 + 1, x));
     if (side === 'l' && o.x > 0) for (let r = o.r; r <= o.r2; r++) nbs.push(_nAnchor(note, r, o.x - 1));
     if (side === 'r' && o.x2 < note.rows[0].length - 1) for (let r = o.r; r <= o.r2; r++) nbs.push(_nAnchor(note, r, o.x2 + 1));
-    const done = new Set(); nbs.forEach(a => { if (!a) return; const k = `${a.r}:${a.x}`; if (done.has(k)) return; done.add(k); set(a.c, opp); });
+    const done = new Set(); nbs.forEach(a => {
+        if (!a) return; const k = `${a.r}:${a.x}`; if (done.has(k)) return; done.add(k);
+        // ช่องข้างเคียงที่ "ผสาน" ยาวเกินขอบที่เรากำลังตั้ง → ไม่ไปแตะมัน (ไม่งั้นเส้นจะลามไปตลอดความยาวของมัน)
+        const ar2 = a.r + (a.c.rs || 1) - 1, ax2 = a.x + (a.c.cs || 1) - 1;
+        if ((side === 'l' || side === 'r') && (a.r < o.r || ar2 > o.r2)) return;
+        if ((side === 't' || side === 'b') && (a.x < o.x || ax2 > o.x2)) return;
+        set(a.c, opp);
+    });
 };
 
 window.noteEditStart = function() {
@@ -779,7 +786,7 @@ window.renderNoteEditor = function() {
             <thead><tr><th class="${_nHdrCls} nt-stick-tl" onmousedown="noteSelectAll()" title="เลือกทั้งหมด"></th>${cols.map((_, x) => `<th class="${_nHdrCls} nt-stick-top relative cursor-pointer ${selCols.has(x) ? 'nt-hdr-sel' : ''}" onmousedown="noteSelectCol(event,${x})">${_nColName(x)}<div class="nt-col-rs" onmousedown="noteResizeStart(event,'col',${x})" title="ลากเพื่อปรับความกว้าง"></div></th>`).join('')}</tr></thead>
             <tbody>${note.rows.map((r, ri) => `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} nt-stick-left relative cursor-pointer ${selRows.has(ri) ? 'nt-hdr-sel' : ''}" onmousedown="noteSelectRow(event,${ri})">${ri + 1}<div class="nt-row-rs" onmousedown="noteResizeStart(event,'row',${ri})" title="ลากเพื่อปรับความสูง"></div></td>${r.map((c, x) => c.h ? '' : `<td data-r="${ri}" data-x="${x}" colspan="${c.cs || 1}" rowspan="${c.rs || 1}" contenteditable="true" spellcheck="false"
                     onmousedown="noteCellDown(event,this)" onmouseenter="noteCellEnter(event,this)" onfocus="noteCellFocus(this)"
-                    class="px-3 py-2.5 align-middle whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''} ${selSet.has(`${ri}:${x}`) ? 'note-sel' : ''}"
+                    class="px-3 py-2 align-top whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''} ${selSet.has(`${ri}:${x}`) ? 'note-sel' : ''}"
                     style="${window._noteCellStyle(c, true)}">${_nEsc(c.t)}</td>`).join('')}</tr>`).join('')}
             </tbody>
         </table></div>`;
@@ -983,6 +990,13 @@ window.noteCmd = async function(cmd, val) {
 document.addEventListener('mousedown', e => { const m = document.getElementById('noteBorderMenu'); if (m && !m.classList.contains('hidden') && !e.target.closest('#noteBorderMenuWrap')) m.classList.add('hidden'); });
 document.addEventListener('keydown', e => {
     if (!window._noteEditing) return;
+    // Delete = ล้างข้อความทุกช่องที่เลือก (ไม่ต้องลากคลุมตัวอักษร) — Backspace ยังลบทีละตัวตามปกติ
+    if (e.key === 'Delete' && window._noteSel) {
+        e.preventDefault(); _nSnap();
+        _nSelCells().forEach(o => { o.c.t = ''; });
+        window.renderNoteEditor(); return;
+    }
+    if (e.key === 'Escape') { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); window.noteCmd('bold'); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); window.noteCmd('undo'); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); window.noteEditSave(); }
