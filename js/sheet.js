@@ -464,6 +464,7 @@ window.openSheet = function(sheet) {
 };
 
 window.closeSheet = function() {
+    if (window._noteEditing) window.noteEditExit(false);
     const frame = document.getElementById('sheetFrame');
     if(frame) frame.src = 'about:blank';
     document.getElementById('sheetViewer')?.classList.add('hidden');
@@ -622,6 +623,10 @@ window.openNoteSheet = async function(sheet) {
         window._noteCache[sheet.id] = note;
     }
     window._currentNote = note;
+    window._currentNoteSheetId = sheet.id;
+    window.noteEditExit(false);
+    const canEdit = window.currentUser && ['admin', 'manager'].includes(window.currentUser.role);
+    document.getElementById('btnNoteEdit')?.classList.toggle('hidden', !canEdit);
     window.renderNoteTable();
 };
 window.renderNoteTable = function() {
@@ -873,3 +878,178 @@ window.onSheetSearch = function() {
         renderSheetMenu(); // สั่งวาดตารางเมื่อหยุดพิมพ์ไปแล้ว 300ms
     }, 300); 
 };
+
+
+// ==========================================
+// 🛠️ แก้ไขหน้าข้อความในหน้าเลย — แถบเครื่องมือคล้าย Google Sheet
+// โมเดล: note.rows[r][c] = { t, bg, fg, b, a, cs }  (cs = ผสานไปทางขวากี่ช่อง)
+// ==========================================
+window._noteEdit = null;          // สำเนาที่กำลังแก้
+window._noteUndo = [];
+window._noteSel = null;           // { r, c1, c2 } ช่องที่เลือก (แถวเดียว)
+window._noteEditing = false;
+
+const _nClone = (n) => JSON.parse(JSON.stringify(n));
+const _nToV2 = (note) => {
+    if (note.v === 2) return _nClone(note);
+    return { v: 2, rows: [ (note.columns || []).map(c => ({ t: c, bg: '#fce5cd', b: true, a: 'c', cs: 1 })), ...(note.rows || []).map(r => r.map(c => ({ t: c, cs: 1 }))) ], cols: [] };
+};
+const _nWidth = (rows) => Math.max(0, ...rows.map(r => r.reduce((a, c) => a + (c.cs || 1), 0)));
+// ทำให้ทุกแถวกว้างเท่ากัน
+const _nNormalize = (note) => {
+    const w = _nWidth(note.rows);
+    note.rows.forEach(r => { let cur = r.reduce((a, c) => a + (c.cs || 1), 0); while (cur < w) { r.push({ t: '', cs: 1 }); cur++; } });
+    if (!note.cols) note.cols = [];
+    while (note.cols.length < w) note.cols.push(note.cols.length ? note.cols[note.cols.length - 1] : 160);
+    note.cols.length = w;
+};
+// ช่องที่ c ครอบคลุมคอลัมน์ภาพ x → คืน index ของ cell และ offset
+const _nCellAt = (row, x) => { let pos = 0; for (let i = 0; i < row.length; i++) { const cs = row[i].cs || 1; if (x < pos + cs) return { i, start: pos }; pos += cs; } return null; };
+
+window.noteEditStart = function() {
+    if (!window._currentNote) return;
+    window._noteEdit = _nToV2(window._currentNote); _nNormalize(window._noteEdit);
+    window._noteUndo = []; window._noteSel = null; window._noteEditing = true;
+    document.getElementById('noteToolbar').classList.remove('hidden'); document.getElementById('noteToolbar').classList.add('flex');
+    document.getElementById('btnNoteEdit').classList.add('hidden');
+    document.getElementById('noteHint')?.classList.add('hidden');
+    const srch = document.getElementById('noteSearch'); if (srch) { srch.value = ''; srch.disabled = true; }
+    window.renderNoteEditor();
+};
+window.noteEditExit = function(rerender) {
+    window._noteEditing = false; window._noteEdit = null; window._noteSel = null;
+    const tb = document.getElementById('noteToolbar'); if (tb) { tb.classList.add('hidden'); tb.classList.remove('flex'); }
+    const srch = document.getElementById('noteSearch'); if (srch) srch.disabled = false;
+    document.getElementById('noteHint')?.classList.remove('hidden');
+    const canEdit = window.currentUser && ['admin', 'manager'].includes(window.currentUser.role);
+    document.getElementById('btnNoteEdit')?.classList.toggle('hidden', !canEdit);
+    if (rerender) window.renderNoteTable();
+};
+window.noteEditCancel = async function() {
+    const ok = await Swal.fire({ icon: 'question', title: 'ยกเลิกการแก้ไข?', text: 'สิ่งที่แก้ไว้จะหายไป', showCancelButton: true, confirmButtonText: 'ยกเลิกการแก้ไข', cancelButtonText: 'แก้ต่อ', confirmButtonColor: '#ef4444' });
+    if (ok.isConfirmed) window.noteEditExit(true);
+};
+window.noteEditSave = async function() {
+    window._noteSyncText();
+    const note = window._noteEdit; const id = window._currentNoteSheetId;
+    if (!note || !id) return;
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        window.clearSettingCache();
+        const { error } = await appDB.from('settings').upsert([{ key: `sheet_note_${id}`, value: JSON.stringify(note) }]);
+        if (error) throw error;
+        window._noteCache[id] = note; window._currentNote = note;
+        try { await appDB.from('system_logs').insert([{ action_type: 'แก้ไขชีท', performed_by: currentUser.username, target_details: `แก้ไขหน้าข้อความ #${id} (${note.rows.length} แถว)` }]); } catch (e) {}
+        window.noteEditExit(true);
+        Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', timer: 1200, showConfirmButton: false });
+    } catch (e) { Swal.fire('Error', e.message, 'error'); }
+};
+// ดึงข้อความจากช่องที่พิมพ์ (contenteditable) กลับเข้าโมเดล
+window._noteSyncText = function() {
+    if (!window._noteEdit) return;
+    document.querySelectorAll('#noteTableWrap td[data-r]').forEach(td => {
+        const r = +td.dataset.r, c = +td.dataset.c;
+        const cell = window._noteEdit.rows[r] && window._noteEdit.rows[r][c];
+        if (cell) cell.t = td.innerText.replace(/\u00a0/g, ' ').replace(/\n$/, '');
+    });
+};
+const _nSnap = () => { window._noteSyncText(); window._noteUndo.push(_nClone(window._noteEdit)); if (window._noteUndo.length > 50) window._noteUndo.shift(); };
+
+window.renderNoteEditor = function() {
+    const wrap = document.getElementById('noteTableWrap'); const note = window._noteEdit; if (!wrap || !note) return;
+    const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const cols = note.cols || [];
+    const colgroup = `<colgroup>${cols.map(w => `<col style="width:${Math.max(90, Math.round((w || 100) * 1.15))}px">`).join('')}</colgroup>`;
+    const sel = window._noteSel;
+    wrap.innerHTML = `
+        <div class="bg-white rounded-lg shadow-inner inline-block min-w-full">
+        <table id="noteEditTable" class="border-collapse text-[14px]" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed">
+            ${colgroup}
+            <tbody>${note.rows.map((r, ri) => `<tr>${r.map((c, ci) => {
+                const st = [`background:${c.bg || '#ffffff'}`, `color:${c.fg || '#111827'}`];
+                if (c.a === 'c') st.push('text-align:center'); else if (c.a === 'r') st.push('text-align:right');
+                const isSel = sel && sel.r === ri && ci >= sel.c1 && ci <= sel.c2;
+                return `<td data-r="${ri}" data-c="${ci}" colspan="${c.cs || 1}" contenteditable="true" spellcheck="false"
+                    onmousedown="noteCellDown(event,${ri},${ci})" onfocus="noteCellFocus(${ri},${ci})"
+                    class="px-3 py-2.5 border border-[#cbd5e1] align-middle whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''} ${isSel ? 'note-sel' : ''}"
+                    style="${st.join(';')}">${esc(c.t)}</td>`; }).join('')}</tr>`).join('')}
+            </tbody>
+        </table></div>`;
+    const info = document.getElementById('noteSelInfo');
+    if (info) info.innerText = sel ? `แถว ${sel.r + 1} · ช่อง ${sel.c1 + 1}${sel.c2 > sel.c1 ? '-' + (sel.c2 + 1) : ''}` : 'คลิกช่องเพื่อเลือก · Shift+คลิก เลือกหลายช่อง';
+};
+window.noteCellDown = function(e, r, c) {
+    if (e.shiftKey && window._noteSel && window._noteSel.r === r) {
+        e.preventDefault();
+        window._noteSel = { r, c1: Math.min(window._noteSel.c1, c), c2: Math.max(window._noteSel.c2, c) };
+        window._noteSyncText(); window.renderNoteEditor(); return;
+    }
+    window._noteSel = { r, c1: c, c2: c };
+    document.querySelectorAll('#noteTableWrap td.note-sel').forEach(td => td.classList.remove('note-sel'));
+    e.currentTarget.classList.add('note-sel');
+    const info = document.getElementById('noteSelInfo'); if (info) info.innerText = `แถว ${r + 1} · ช่อง ${c + 1}`;
+};
+window.noteCellFocus = function(r, c) { if (!window._noteSel || window._noteSel.r !== r || c < window._noteSel.c1 || c > window._noteSel.c2) window._noteSel = { r, c1: c, c2: c }; };
+
+window.noteCmd = async function(cmd, val) {
+    const note = window._noteEdit; if (!note) return;
+    const sel = window._noteSel;
+    const need = () => { if (!sel) { Swal.mixin({ toast: true, position: 'top', timer: 1500, showConfirmButton: false }).fire({ icon: 'info', title: 'คลิกเลือกช่องก่อน' }); return false; } return true; };
+    const forSel = (fn) => { for (let c = sel.c1; c <= sel.c2; c++) fn(note.rows[sel.r][c]); };
+    if (cmd === 'undo') {
+        if (!window._noteUndo.length) return;
+        window._noteEdit = window._noteUndo.pop(); window._noteSel = null; window.renderNoteEditor(); return;
+    }
+    if (!need()) return;
+    _nSnap();
+    const row = note.rows[sel.r];
+    switch (cmd) {
+        case 'bold': { const allB = (() => { for (let c = sel.c1; c <= sel.c2; c++) if (!row[c].b) return false; return true; })(); forSel(cl => cl.b = !allB); break; }
+        case 'fg': forSel(cl => cl.fg = val); break;
+        case 'bg': forSel(cl => cl.bg = val); break;
+        case 'align': forSel(cl => cl.a = val === 'l' ? null : val); break;
+        case 'merge': {
+            if (sel.c2 === sel.c1) { const { value } = await Swal.fire({ title: 'ผสานกี่ช่องทางขวา?', input: 'number', inputValue: 2, inputAttributes: { min: 2 } }); if (!value) { window._noteUndo.pop(); return; } sel.c2 = Math.min(row.length - 1, sel.c1 + parseInt(value) - 1); }
+            const merged = { ...row[sel.c1], cs: 0, t: [] };
+            for (let c = sel.c1; c <= sel.c2; c++) { merged.cs += row[c].cs || 1; if (row[c].t) merged.t.push(row[c].t); }
+            merged.t = merged.t.join(' ');
+            row.splice(sel.c1, sel.c2 - sel.c1 + 1, merged);
+            window._noteSel = { r: sel.r, c1: sel.c1, c2: sel.c1 }; break;
+        }
+        case 'unmerge': { const cell = row[sel.c1]; const n = cell.cs || 1; if (n <= 1) { window._noteUndo.pop(); return; } cell.cs = 1; const extra = []; for (let k = 1; k < n; k++) extra.push({ t: '', bg: cell.bg, fg: cell.fg, b: cell.b, a: cell.a, cs: 1 }); row.splice(sel.c1 + 1, 0, ...extra); break; }
+        case 'rowAbove': case 'rowBelow': { const w = _nWidth(note.rows); const nr = Array.from({ length: w }, () => ({ t: '', cs: 1 })); note.rows.splice(cmd === 'rowAbove' ? sel.r : sel.r + 1, 0, nr); if (cmd === 'rowAbove') window._noteSel = null; break; }
+        case 'rowDel': { if (note.rows.length <= 1) { window._noteUndo.pop(); return; } note.rows.splice(sel.r, 1); window._noteSel = null; break; }
+        case 'colLeft': case 'colRight': {
+            const pos = _nCellAt(row, 0); let x = 0; for (let i = 0; i < sel.c1; i++) x += row[i].cs || 1;   // คอลัมน์ภาพของช่องที่เลือก
+            const insertX = cmd === 'colLeft' ? x : x + (row[sel.c1].cs || 1);
+            note.rows.forEach(r => {
+                const hit = _nCellAt(r, insertX);
+                if (!hit) { r.push({ t: '', cs: 1 }); return; }
+                if (hit.start < insertX) r[hit.i].cs = (r[hit.i].cs || 1) + 1;   // แทรกกลางช่องผสาน → ขยาย
+                else r.splice(hit.i, 0, { t: '', cs: 1 });
+            });
+            note.cols.splice(insertX, 0, 160); window._noteSel = null; break;
+        }
+        case 'colDel': {
+            let x = 0; for (let i = 0; i < sel.c1; i++) x += row[i].cs || 1;
+            if (_nWidth(note.rows) <= 1) { window._noteUndo.pop(); return; }
+            note.rows.forEach(r => { const hit = _nCellAt(r, x); if (!hit) return; if ((r[hit.i].cs || 1) > 1) r[hit.i].cs--; else r.splice(hit.i, 1); });
+            note.cols.splice(x, 1); window._noteSel = null; break;
+        }
+        case 'colWidth': {
+            let x = 0; for (let i = 0; i < sel.c1; i++) x += row[i].cs || 1;
+            const { value } = await Swal.fire({ title: 'ความกว้างคอลัมน์ (px)', input: 'number', inputValue: note.cols[x] || 160, inputAttributes: { min: 60, max: 900 } });
+            if (!value) { window._noteUndo.pop(); return; }
+            note.cols[x] = parseInt(value); break;
+        }
+    }
+    _nNormalize(note);
+    window.renderNoteEditor();
+};
+// คีย์ลัด
+document.addEventListener('keydown', e => {
+    if (!window._noteEditing) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); window.noteCmd('bold'); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); window.noteCmd('undo'); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); window.noteEditSave(); }
+});
