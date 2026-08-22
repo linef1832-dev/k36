@@ -142,8 +142,30 @@
                     <button onclick="noteCmd('align','c')" title="กึ่งกลาง" class="nt-btn"><span class="material-icons text-[18px]">format_align_center</span></button>
                     <button onclick="noteCmd('align','r')" title="ชิดขวา" class="nt-btn"><span class="material-icons text-[18px]">format_align_right</span></button>
                     <span class="w-px h-6 bg-slate-600 mx-1"></span>
-                    <button onclick="noteCmd('merge')" title="ผสานช่องที่เลือก (ในแถวเดียวกัน)" class="nt-btn"><span class="material-icons text-[18px]">call_merge</span></button>
-                    <button onclick="noteCmd('unmerge')" title="ยกเลิกผสาน" class="nt-btn"><span class="material-icons text-[18px]">call_split</span></button>
+                    <button onclick="noteCmd('merge')" title="รวมช่องที่เลือก (Shift+คลิกเลือกหลายช่องในแถวเดียวกัน)" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">call_merge</span>รวมช่อง</button>
+                    <button onclick="noteCmd('unmerge')" title="แยกช่องที่รวมไว้" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">call_split</span>แยก</button>
+                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
+                    <div class="relative" id="noteBorderMenuWrap">
+                        <button onclick="document.getElementById('noteBorderMenu').classList.toggle('hidden')" title="เส้นตาราง" class="nt-btn gap-1"><span class="material-icons text-[18px]">border_all</span><span class="material-icons text-[14px]">arrow_drop_down</span></button>
+                        <div id="noteBorderMenu" class="hidden absolute left-0 top-8 z-30 bg-slate-800 border border-slate-600 rounded-lg shadow-xl p-2 grid grid-cols-4 gap-1">
+                            <button onclick="noteCmd('border','all')" title="ทุกเส้น" class="nt-btn"><span class="material-icons text-[18px]">border_all</span></button>
+                            <button onclick="noteCmd('border','outer')" title="เส้นรอบนอก" class="nt-btn"><span class="material-icons text-[18px]">border_outer</span></button>
+                            <button onclick="noteCmd('border','inner')" title="เส้นด้านใน" class="nt-btn"><span class="material-icons text-[18px]">border_inner</span></button>
+                            <button onclick="noteCmd('border','none')" title="ไม่มีเส้น" class="nt-btn"><span class="material-icons text-[18px]">border_clear</span></button>
+                            <button onclick="noteCmd('border','t')" title="เส้นบน" class="nt-btn"><span class="material-icons text-[18px]">border_top</span></button>
+                            <button onclick="noteCmd('border','b')" title="เส้นล่าง" class="nt-btn"><span class="material-icons text-[18px]">border_bottom</span></button>
+                            <button onclick="noteCmd('border','l')" title="เส้นซ้าย" class="nt-btn"><span class="material-icons text-[18px]">border_left</span></button>
+                            <button onclick="noteCmd('border','r')" title="เส้นขวา" class="nt-btn"><span class="material-icons text-[18px]">border_right</span></button>
+                            <div class="col-span-4 flex items-center gap-1 mt-1 pt-1 border-t border-slate-700">
+                                <span class="text-[10px] text-slate-400">สีเส้น</span>
+                                <button onclick="noteCmd('borderColor','#cbd5e1')" class="w-5 h-5 rounded border border-slate-500" style="background:#cbd5e1" title="เทาอ่อน"></button>
+                                <button onclick="noteCmd('borderColor','#64748b')" class="w-5 h-5 rounded border border-slate-500" style="background:#64748b" title="เทา"></button>
+                                <button onclick="noteCmd('borderColor','#000000')" class="w-5 h-5 rounded border border-slate-500" style="background:#000" title="ดำ"></button>
+                                <label class="w-5 h-5 rounded border border-slate-500 relative cursor-pointer" style="background:linear-gradient(45deg,#f00,#0f0,#00f)" title="เลือกสีเอง"><input type="color" onchange="noteCmd('borderColor', this.value)" class="absolute inset-0 opacity-0 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="noteCmd('trimEmpty')" title="ลบคอลัมน์/แถวที่ว่างทั้งหมดออก" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">cleaning_services</span>ลบช่องว่าง</button>
                     <span class="w-px h-6 bg-slate-600 mx-1"></span>
                     <button onclick="noteCmd('rowAbove')" title="แทรกแถวด้านบน" class="nt-btn text-[11px] font-bold">↑แถว</button>
                     <button onclick="noteCmd('rowBelow')" title="แทรกแถวด้านล่าง" class="nt-btn text-[11px] font-bold">↓แถว</button>
