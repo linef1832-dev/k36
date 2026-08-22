@@ -15,6 +15,9 @@ window.initDashboard = async function() {
         }
     }
 
+    // 🔄 ดึงข้อมูลตัวเองสดจาก DB ก่อน (เผื่อแอดมินเปลี่ยนกะ/แผนกไประหว่างที่ปิดหน้า)
+    if (typeof window.refreshCurrentUserFromDB === 'function') await window.refreshCurrentUserFromDB();
+
     // อัปเดตข้อมูลพนักงานที่แถบด้านบน
     if (typeof updateDashboardUserInfo === 'function') updateDashboardUserInfo();
 
