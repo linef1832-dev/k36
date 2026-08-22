@@ -513,24 +513,30 @@ window.parseNoteHtml = function(html) {
             if (c === '#000000' || c === '#000' || c === 'black' || c === 'rgb(0, 0, 0)') return null;
             return c;
         };
+        // ความกว้างคอลัมน์จากชีท (px)
+        const cols = [...table.querySelectorAll('colgroup col')].map(c => parseInt(c.getAttribute('width') || c.style.width || '0') || 0);
         const rows = [];
         table.querySelectorAll('tr').forEach(tr => {
             const cells = [];
             tr.querySelectorAll('td,th').forEach(td => {
                 const st = td.getAttribute('style') || '';
-                const get = (prop) => { const m = st.match(new RegExp(prop + '\\s*:\\s*([^;]+)', 'i')); return m ? m[1] : null; };
-                const inner = td.innerText != null ? td.innerText : td.textContent;
+                const get = (prop) => { const m = st.match(new RegExp('(?:^|;)\\s*' + prop + '\\s*:\\s*([^;]+)', 'i')); return m ? m[1] : null; };
+                // ข้อความ: แปลง <br> เป็นขึ้นบรรทัด
+                const clone = td.cloneNode(true); clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+                const inner = clone.textContent || '';
+                const ta = (get('text-align') || '').toLowerCase();
                 cells.push({
-                    t: String(inner || '').replace(/\u00a0/g, ' ').trim(),
+                    t: String(inner).replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').trim(),
                     bg: norm(get('background-color') || get('background')),
-                    fg: norm(get('color')),
+                    fg: (() => { const c = (get('color') || '').trim().toLowerCase(); return (!c || c === 'inherit' || c === 'initial' || c === 'transparent') ? null : c; })(),   // เก็บสีตัวอักษรทุกสี (ขาวบนพื้นสีก็ต้องอยู่)
                     b: /font-weight\s*:\s*(bold|[6-9]00)/i.test(st) || !!td.querySelector('b,strong') || td.tagName === 'TH',
+                    a: ta === 'center' ? 'c' : (ta === 'right' ? 'r' : null),
                     cs: Math.max(1, parseInt(td.getAttribute('colspan') || '1')),
                 });
             });
             rows.push(cells);
         });
-        return window.trimNoteGrid({ v: 2, rows });
+        return window.trimNoteGrid({ v: 2, rows, cols });
     } catch (e) { return null; }
 };
 
@@ -549,12 +555,13 @@ window.trimNoteGrid = function(note) {
         for (let x = 0; x < width; x++) {
             if (!keepCol[x]) continue;
             const c = r[x] || { t: '', cs: 1, _head: true };
-            if (c._head || !cells.length) cells.push({ t: c.t, bg: c.bg || null, fg: c.fg || null, b: !!c.b, cs: 1 });
+            if (c._head || !cells.length) cells.push({ t: c.t, bg: c.bg || null, fg: c.fg || null, b: !!c.b, a: c.a || null, cs: 1 });
             else cells[cells.length - 1].cs++;      // ช่องที่ถูกผสานต่อจากช่องก่อนหน้า
         }
         result.push(cells);
     });
-    return { v: 2, rows: result };
+    const cols = (note.cols || []).filter((_, x) => keepCol[x]);
+    return { v: 2, rows: result, cols };
 };
 
 window.noteToText = function(note) {
@@ -579,7 +586,7 @@ window.previewNote = function() {
 document.addEventListener('paste', e => {
     const ta = e.target; if (!ta || ta.id !== 'newSheetNote') return;
     const html = e.clipboardData && e.clipboardData.getData('text/html');
-    if (html && /<table/i.test(html)) {
+    if (html && /<t(able|d|r)\b/i.test(html)) {
         const rich = window.parseNoteHtml(html);
         if (rich && rich.rows.length) {
             e.preventDefault();
@@ -623,35 +630,39 @@ window.renderNoteTable = function() {
     if (!wrap || !note) return;
     const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const term = (document.getElementById('noteSearch')?.value || '').toLowerCase().trim();
-    const hi = (txt) => { const e = esc(txt); if (!term) return e; return e.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark class="bg-yellow-400/40 text-inherit rounded px-0.5">${m}</mark>`); };
+    const hi = (txt) => { const e = esc(txt); if (!term) return e; return e.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark class="bg-yellow-300 rounded px-0.5">${m}</mark>`); };
 
-    // แปลง v1 → v2 เพื่อวาดด้วยตัวเดียว
-    let rows;
-    if (note.v === 2) rows = note.rows || [];
-    else rows = [ (note.columns || []).map(c => ({ t: c, bg: '#fde7c8', b: true, cs: 1 })), ...(note.rows || []).map(r => r.map(c => ({ t: c, cs: 1 }))) ];
+    let rows, cols = [];
+    if (note.v === 2) { rows = note.rows || []; cols = note.cols || []; }
+    else rows = [ (note.columns || []).map(c => ({ t: c, bg: '#fce5cd', b: true, a: 'c', cs: 1 })), ...(note.rows || []).map(r => r.map(c => ({ t: c, cs: 1 }))) ];
     if (rows.length === 0) { wrap.innerHTML = '<div class="text-center text-slate-500 py-16"><span class="material-icons text-4xl opacity-40">table_chart</span><p class="mt-2 text-sm">ยังไม่มีเนื้อหา — แอดมินแก้ไขได้ที่ "จัดการชีท"</p></div>'; return; }
 
     const shown = rows.filter(r => !term || r.some(c => String(c.t).toLowerCase().includes(term)));
     const cnt = document.getElementById('noteCount'); if (cnt) cnt.innerText = `${shown.length}/${rows.length} แถว`;
 
+    // ความกว้างคอลัมน์: ใช้ของชีท (ขยาย 1.15 เท่าให้อ่านง่าย) ถ้าไม่มีให้เบราว์เซอร์จัดเอง
+    const colgroup = cols.length ? `<colgroup>${cols.map(w => `<col style="width:${Math.max(90, Math.round((w || 100) * 1.15))}px">`).join('')}<col style="width:36px"></colgroup>` : '';
     const cellHtml = (c) => {
         const styles = [];
-        if (c.bg) styles.push(`background:${c.bg}`);
-        if (c.fg) styles.push(`color:${c.fg}`);
-        const dark = !c.bg;   // ช่องไม่มีสี = พื้นเข้มของระบบ
-        const cls = `px-3 py-2 border border-slate-600/70 align-top whitespace-pre-wrap ${c.b ? 'font-bold' : ''} ${dark ? 'text-slate-100 hover:bg-purple-900/40' : 'text-slate-900 hover:brightness-95'} ${c.t ? 'cursor-copy' : ''} transition`;
+        styles.push(`background:${c.bg || '#ffffff'}`);
+        styles.push(`color:${c.fg || '#111827'}`);
+        if (c.a === 'c') styles.push('text-align:center'); else if (c.a === 'r') styles.push('text-align:right');
+        const cls = `px-3 py-2.5 border border-[#cbd5e1] align-middle whitespace-pre-wrap leading-snug ${c.b ? 'font-bold' : ''} ${c.t ? 'cursor-copy hover:outline hover:outline-2 hover:outline-purple-500 hover:-outline-offset-2' : ''}`;
         return `<td colspan="${c.cs || 1}" ${c.t ? `onclick="copyNoteCell(this)" data-v="${esc(c.t)}" title="คลิกเพื่อก๊อปปี้"` : ''} class="${cls}" style="${styles.join(';')}">${hi(c.t)}</td>`;
     };
     wrap.innerHTML = `
-        <table class="border-collapse text-sm min-w-full">
+        <div class="bg-white rounded-lg shadow-inner inline-block min-w-full">
+        <table class="border-collapse text-[14px]" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:${cols.length ? 'fixed' : 'auto'};${cols.length ? '' : 'width:100%'}">
+            ${colgroup}
             <tbody>
-                ${shown.map(r => `<tr>${r.map(cellHtml).join('')}<td class="border border-slate-700 text-center align-top w-9 bg-slate-900/40"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-500 hover:text-white p-1"><span class="material-icons text-[15px]">content_copy</span></button></td></tr>`).join('')}
+                ${shown.map(r => `<tr>${r.map(cellHtml).join('')}<td class="border border-[#cbd5e1] text-center align-middle bg-slate-50"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-400 hover:text-purple-600 p-1"><span class="material-icons text-[15px]">content_copy</span></button></td></tr>`).join('')}
             </tbody>
-        </table>`;
+        </table>
+        </div>`;
 };
 window._copyText = async function(text, el) {
     try { await navigator.clipboard.writeText(text); } catch (e) { if (typeof fallbackCopyText === 'function') fallbackCopyText(text); }
-    if (el) { const old = el.style.background; el.style.background = 'rgba(34,197,94,.35)'; setTimeout(() => el.style.background = old, 450); }
+    if (el) { const old = el.style.background; el.style.background = '#bbf7d0'; setTimeout(() => el.style.background = old, 450); }
     Swal.mixin({ toast: true, position: 'bottom-end', showConfirmButton: false, timer: 1000 }).fire({ icon: 'success', title: 'ก๊อปปี้แล้ว' });
 };
 window.copyNoteCell = function(td) { window._copyText(td.dataset.v || td.innerText, td); };
