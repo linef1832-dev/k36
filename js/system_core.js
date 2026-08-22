@@ -147,51 +147,63 @@ async function deleteSheet(id) {
 }
 
 let userSubscription = null;
-function subscribeUserChanges() {
-    if (userSubscription) appDB.removeChannel(userSubscription);
-    
+// 🔄 [FIX] ฟังการเปลี่ยนแปลงของ "ตัวเอง" จากแอดมิน (กะ / แผนก / ทีม / role / สิทธิ์) แล้วอัปเดตหน้าจอทันที ไม่ต้องออก-เข้าใหม่
+// ⚠️ ฟังก์ชันนี้เคยเขียนไว้แต่ "ไม่มีใครเรียก" — ตอนนี้ถูกเรียกจาก global.js ตอนเริ่มระบบ
+window.subscribeUserChanges = function subscribeUserChanges() {
+    if (userSubscription) { try { appDB.removeChannel(userSubscription); } catch (e) {} }
+
     userSubscription = appDB.channel('user-updates')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users' }, (payload) => {
             const updatedUser = payload.new;
-            const idx = GLOBAL_USER_LIST.findIndex(u => String(u.id) === String(updatedUser.id));
-            if (idx !== -1) {
-                GLOBAL_USER_LIST[idx] = updatedUser;
-            }
+            if (!updatedUser) return;
+            const idx = (window.GLOBAL_USER_LIST || []).findIndex(u => String(u.id) === String(updatedUser.id));
+            if (idx !== -1) GLOBAL_USER_LIST[idx] = { ...GLOBAL_USER_LIST[idx], ...updatedUser };
 
             if (currentUser && String(currentUser.id) === String(updatedUser.id)) {
-                let isChanged = false;
-                let msg = '';
-
-                if (currentUser.allowed_shift !== updatedUser.allowed_shift) {
-                    currentUser.allowed_shift = updatedUser.allowed_shift;
-                    msg = `แอดมินเปลี่ยนกะของคุณเป็น "${updatedUser.allowed_shift}"`;
-                    if (typeof renderShiftButtons === 'function') {
-                        renderShiftButtons(currentUser.allowed_shift);
-                    }
-                    isChanged = true;
-                }
-
-                // 🌟 ดักจับการเปลี่ยนแผนก (Department) ให้เรียลไทม์
-                if (currentUser.department !== updatedUser.department) {
-                    currentUser.department = updatedUser.department;
-                    msg = `แอดมินเปลี่ยนแผนกของคุณเป็น "${updatedUser.department}"`;
-                    isChanged = true;
-                    // สั่งอัปเดตป้ายชื่อด้านบนทันที
-                    if (typeof updateDashboardUserInfo === 'function') updateDashboardUserInfo();
-                    // อัปเดตสิทธิ์เมนูซ้ายมือใหม่
-                    if (typeof applySidebarPermissions === 'function') applySidebarPermissions(); 
-                }
-
-                if (isChanged) {
-                    sessionStorage.setItem('user_platinum_plus', JSON.stringify(currentUser));
-                    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 5000 });
-                    Toast.fire({ icon: 'info', title: msg });
-                    if (typeof fetchData === 'function') fetchData();
-                }
+                window.applyCurrentUserUpdate(updatedUser, true);
             }
         })
         .subscribe();
-}
+};
+
+// นำข้อมูล user ล่าสุดมาทับ currentUser แล้ววาดส่วนที่เกี่ยวข้องใหม่
+// notify = true → เด้ง toast บอกว่าอะไรเปลี่ยน
+window.applyCurrentUserUpdate = function(fresh, notify) {
+    if (!fresh || !currentUser) return;
+    const msgs = [];
+    const fields = { allowed_shift: 'กะ', department: 'แผนก', team: 'ทีม', role: 'ตำแหน่ง', check_type: 'รูปแบบเช็ค' };
+    Object.keys(fields).forEach(f => {
+        if (fresh[f] !== undefined && String(currentUser[f] ?? '') !== String(fresh[f] ?? '')) {
+            msgs.push(`${fields[f]} → "${fresh[f] || '-'}"`);
+        }
+    });
+    Object.assign(currentUser, fresh);
+    window.currentUser = currentUser;
+    sessionStorage.setItem('user_platinum_plus', JSON.stringify(currentUser));
+    if (msgs.length === 0) return;
+
+    // วาดใหม่เฉพาะส่วนที่ขึ้นกับข้อมูลพนักงาน
+    try { if (typeof updateDashboardUserInfo === 'function') updateDashboardUserInfo(); } catch (e) {}
+    try { if (typeof renderShiftButtons === 'function') renderShiftButtons(currentUser.allowed_shift); } catch (e) {}
+    try { if (typeof populateTeamSelects === 'function') populateTeamSelects(); } catch (e) {}
+    try { if (typeof applySidebarPermissions === 'function') applySidebarPermissions(); } catch (e) {}
+    try { if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots(); } catch (e) {}
+    try { if (typeof fetchData === 'function') fetchData(); } catch (e) {}
+
+    if (notify) {
+        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 6000 })
+            .fire({ icon: 'info', title: 'แอดมินเปลี่ยนข้อมูลของคุณ', text: msgs.join(' · ') });
+    }
+};
+
+// ดึงข้อมูลตัวเองสดจาก DB (ใช้ตอนเปิด dashboard เผื่อ realtime หลุด)
+window.refreshCurrentUserFromDB = async function() {
+    try {
+        if (!currentUser || !currentUser.id) return;
+        const { data } = await appDB.from('users').select('*').eq('id', currentUser.id).maybeSingle();
+        if (data) window.applyCurrentUserUpdate(data, false);
+    } catch (e) {}
+};
 
 function handleDateChange() { document.getElementById('displayDate').innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); refreshTimeSlots(); fetchData(); }
 function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) window.safeSetItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); fetchData(); }
