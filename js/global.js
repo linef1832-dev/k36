@@ -202,46 +202,57 @@ window.lazyStub = function(fnName, scriptName) {
     };
     window[fnName] = stub;
 };
-window.lazyStub('autoCalculateTeamQuotas', 'duty');     // dashboard → duty.js
 window.lazyStub('loadExcelLibrary', 'summary');         // leave.js → summary.js
 window.lazyStub('initSlipCheck', 'slip_check');
 window.lazyStub('initOdConfig', 'od_config');
 
 // ==========================================
-// 🍽️ [กติกาพัก] หลัก-รองห้ามชนกัน
-// ตารางจัดหน้าที่ของวันนั้น → ใครเป็น "หลัก" เว็บไหน / "รอง" (สแตนด์บาย) เว็บไหน
-// คู่ที่ห้ามพักพร้อมกันในช่วงเดียวกัน = (หลักของเว็บ X) กับ (รองของเว็บ X)
-// เพราะถ้าหลักพัก รองต้องอยู่คุม — ถ้ารองพักด้วย เว็บ X ไม่มีใครดู
-// โควตาต่อทีมยังนับจาก "เว็บหลัก" อย่างเดียวเหมือนเดิม กติกานี้เป็นชั้นเสริม
+// 🍽️ [กติกาพัก] "คนคุมขั้นต่ำต่อเว็บ"
+// ทุกช่วงเวลา เว็บ X ต้องมีคนที่ไม่ได้พัก (หลัก+รอง รวมกัน) อย่างน้อย = mincover_<เว็บ>_<แผนก>_<กะ> (ค่าเริ่มต้น 1)
+// นับจากตารางจัดหน้าที่ของวันนั้น + ตารางลงพัก → ปรับตามจำนวนคนจริงอัตโนมัติ ไม่ต้องตั้งโควตาทุกวัน
 // ==========================================
-window.buildBreakRoleMap = function(roster) {
-    const primaryOf = {}, secondaryOf = {};
+// สร้างแผนที่จากตารางหน้าที่: ใครรับผิดชอบเว็บไหนบ้าง (หลัก+รอง) และแต่ละเว็บมีใครบ้าง
+window.buildCoverageMap = function(roster) {
+    const webs = {};        // team -> Set(username)
+    const websOf = {};      // username -> [team, ...]
     for (const team in (roster || {})) {
         (roster[team] || []).forEach(u => {
             if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
-            primaryOf[u.username] = team;
-            if (u.secondary_team) secondaryOf[u.username] = u.secondary_team;
+            const add = (t) => {
+                if (!t) return;
+                (webs[t] = webs[t] || new Set()).add(u.username);
+                (websOf[u.username] = websOf[u.username] || []);
+                if (!websOf[u.username].includes(t)) websOf[u.username].push(t);
+            };
+            add(team);
+            add(u.secondary_team);
         });
     }
-    return { primaryOf, secondaryOf };
+    return { webs, websOf };
 };
-// คืนรายชื่อคนที่ "ชน" กับ username ในช่วงนี้ (ไม่นับตัวเอง) — ว่างคือไม่ชน
-window.findBreakClashes = function(username, roleMap, slotBookings) {
-    if (!roleMap) return [];
-    const myP = roleMap.primaryOf[username];
-    const myS = roleMap.secondaryOf[username];
-    if (!myP && !myS) return [];   // ไม่อยู่ในตาราง → ไม่มีคู่ให้ชน
-    const out = [];
-    (slotBookings || []).forEach(b => {
-        const n = b.staff_name;
-        if (!n || n === username) return;
-        const p = roleMap.primaryOf[n], sec = roleMap.secondaryOf[n];
-        // ฉันเป็นรองของ myS และเขาเป็นหลักของ myS  → ชน
-        if (myS && p === myS) out.push(`${n} (หลัก ${myS})`);
-        // ฉันเป็นหลักของ myP และเขาเป็นรองของ myP  → ชน
-        else if (myP && sec === myP) out.push(`${n} (รอง ${myP})`);
+window.getMinCover = function(team, dept, suffix) {
+    if (typeof SETTINGS === 'undefined') return 1;
+    const v = SETTINGS[`mincover_${team}_${dept}_${suffix}`];
+    return (v === undefined || v === '' || isNaN(parseInt(v))) ? 1 : parseInt(v);
+};
+// เช็คว่า username พักช่วงนี้ได้ไหม → { ok, problems:[{team, remain, min}], canLeave }
+// slotBookings = รายการจองของช่วงนี้ (มี staff_name)
+window.checkCoverage = function(username, covMap, slotBookings, dept, suffix) {
+    const myWebs = (covMap && covMap.websOf[username]) || [];
+    if (myWebs.length === 0) return { ok: true, problems: [], canLeave: Infinity };
+    const onBreak = new Set((slotBookings || []).map(b => b.staff_name).filter(Boolean));
+    const problems = [];
+    let canLeave = Infinity;
+    myWebs.forEach(team => {
+        const members = covMap.webs[team] || new Set();
+        let resting = 0;
+        members.forEach(n => { if (n !== username && onBreak.has(n)) resting++; });
+        const min = window.getMinCover(team, dept, suffix);
+        const remainIfLeave = members.size - resting - 1;   // ถ้าฉันพักด้วย จะเหลือคุมกี่คน
+        if (remainIfLeave < min) problems.push({ team, remain: remainIfLeave, min, total: members.size });
+        canLeave = Math.min(canLeave, Math.max(0, remainIfLeave - min + 1));
     });
-    return out;
+    return { ok: problems.length === 0, problems, canLeave };
 };
 
 async function showPage(pageName) {
