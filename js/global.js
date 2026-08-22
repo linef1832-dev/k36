@@ -52,6 +52,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const savedUser = sessionStorage.getItem('user_platinum_plus');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
+        // 🔄 ฟังการเปลี่ยนกะ/แผนก/ทีมของตัวเองแบบ realtime (เดิมมีฟังก์ชันแต่ไม่เคยถูกเรียก)
+        setTimeout(() => { if (typeof window.subscribeUserChanges === 'function') window.subscribeUserChanges(); }, 300);
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('main-layout').classList.remove('hidden');
 
