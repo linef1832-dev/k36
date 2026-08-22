@@ -128,17 +128,13 @@
                         <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14" selected>14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="22">22</option><option value="24">24</option><option value="28">28</option><option value="32">32</option>
                     </select>
                     <button onclick="noteCmd('bold')" title="ตัวหนา (Ctrl+B)" class="nt-btn font-black">B</button>
-                    <label title="สีตัวอักษร" class="nt-btn cursor-pointer relative"><span class="material-icons text-[18px]">format_color_text</span><input type="color" id="noteFgPick" onchange="noteCmd('fg', this.value)" class="absolute inset-0 opacity-0 cursor-pointer"></label>
-                    <label title="สีพื้นช่อง" class="nt-btn cursor-pointer relative"><span class="material-icons text-[18px]">format_color_fill</span><input type="color" id="noteBgPick" onchange="noteCmd('bg', this.value)" class="absolute inset-0 opacity-0 cursor-pointer"></label>
-                    <div class="flex gap-0.5 ml-1" title="สีพื้นด่วน">
-                        <button onclick="noteCmd('bg','#fce5cd')" class="w-5 h-5 rounded border border-slate-500" style="background:#fce5cd"></button>
-                        <button onclick="noteCmd('bg','#c9daf8')" class="w-5 h-5 rounded border border-slate-500" style="background:#c9daf8"></button>
-                        <button onclick="noteCmd('bg','#d9ead3')" class="w-5 h-5 rounded border border-slate-500" style="background:#d9ead3"></button>
-                        <button onclick="noteCmd('bg','#fff2cc')" class="w-5 h-5 rounded border border-slate-500" style="background:#fff2cc"></button>
-                        <button onclick="noteCmd('bg','#f4cccc')" class="w-5 h-5 rounded border border-slate-500" style="background:#f4cccc"></button>
-                        <button onclick="noteCmd('bg','#ff0000')" class="w-5 h-5 rounded border border-slate-500" style="background:#ff0000"></button>
-                        <button onclick="noteCmd('bg','#4dd0e1')" class="w-5 h-5 rounded border border-slate-500" style="background:#4dd0e1"></button>
-                        <button onclick="noteCmd('bg',null)" title="ล้างสีพื้น" class="w-5 h-5 rounded border border-slate-500 bg-white text-[10px] text-red-500 font-black">✕</button>
+                    <div class="relative nt-palette-wrap">
+                        <button onclick="notePaletteToggle('fg')" title="สีตัวอักษร" class="nt-btn gap-0.5"><span class="material-icons text-[18px]">format_color_text</span><span id="notePalSwFg" class="block w-4 h-1.5 rounded-sm" style="background:#000"></span></button>
+                        <div id="notePal_fg" class="nt-palette hidden"></div>
+                    </div>
+                    <div class="relative nt-palette-wrap">
+                        <button onclick="notePaletteToggle('bg')" title="สีพื้นช่อง" class="nt-btn gap-0.5"><span class="material-icons text-[18px]">format_color_fill</span><span id="notePalSwBg" class="block w-4 h-1.5 rounded-sm" style="background:#fce5cd"></span></button>
+                        <div id="notePal_bg" class="nt-palette hidden"></div>
                     </div>
                     <span class="w-px h-6 bg-slate-600 mx-1"></span>
                     <button onclick="noteCmd('align','l')" title="ชิดซ้าย" class="nt-btn"><span class="material-icons text-[18px]">format_align_left</span></button>
@@ -183,7 +179,7 @@
                     <button onclick="noteEditCancel()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold">ยกเลิก</button>
                     <button onclick="noteEditSave()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1"><span class="material-icons text-sm">save</span> บันทึก</button>
                 </div>
-                <style>.nt-hdr{background:#e8eaed;color:#000;font-weight:700;font-size:12px;text-align:center;border:1px solid #9aa0a6;user-select:none;height:26px;min-width:42px}.nt-hdr-sel{background:#a8c7fa !important;color:#000 !important}.nt-stick-top{position:sticky;top:0;z-index:6}.nt-stick-left{position:sticky;left:0;z-index:5;vertical-align:middle}.nt-stick-tl{position:sticky;top:0;left:0;z-index:7}.nt-hdr{box-shadow:inset 0 0 0 1px #9aa0a6;border:none !important}.nt-col-rs{position:absolute;top:0;right:-5px;width:10px;height:100%;cursor:col-resize;z-index:5}.nt-col-rs:hover{background:#1a73e8}.nt-row-rs{position:absolute;left:0;bottom:-5px;height:10px;width:100%;cursor:row-resize;z-index:5}.nt-row-rs:hover{background:#1a73e8}.nt-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 6px;border-radius:6px;color:#e2e8f0}.nt-btn:hover{background:#334155}.note-sel{outline:2px solid #7c3aed !important;outline-offset:-2px;background-image:linear-gradient(rgba(124,58,237,.12),rgba(124,58,237,.12))}</style>
+                <style>.nt-palette{position:absolute;left:0;top:34px;z-index:40;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);padding:8px;width:236px}.nt-palette .row{display:flex;gap:2px;margin-bottom:2px}.nt-palette .sw{width:20px;height:20px;border-radius:3px;border:1px solid rgba(0,0,0,.15);cursor:pointer}.nt-palette .sw:hover{outline:2px solid #7c3aed;outline-offset:-1px}.nt-palette .lbl{font-size:10px;color:#475569;margin:6px 0 3px;font-weight:700}.nt-hdr{background:#e8eaed;color:#000;font-weight:700;font-size:12px;text-align:center;border:1px solid #9aa0a6;user-select:none;height:26px;min-width:42px}.nt-hdr-sel{background:#a8c7fa !important;color:#000 !important}.nt-stick-top{position:sticky;top:0;z-index:6}.nt-stick-left{position:sticky;left:0;z-index:5;vertical-align:middle}.nt-stick-tl{position:sticky;top:0;left:0;z-index:7}.nt-hdr{box-shadow:inset 0 0 0 1px #9aa0a6;border:none !important}.nt-col-rs{position:absolute;top:0;right:-5px;width:10px;height:100%;cursor:col-resize;z-index:5}.nt-col-rs:hover{background:#1a73e8}.nt-row-rs{position:absolute;left:0;bottom:-5px;height:10px;width:100%;cursor:row-resize;z-index:5}.nt-row-rs:hover{background:#1a73e8}.nt-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 6px;border-radius:6px;color:#e2e8f0}.nt-btn:hover{background:#334155}.note-sel{outline:2px solid #7c3aed !important;outline-offset:-2px;background-image:linear-gradient(rgba(124,58,237,.12),rgba(124,58,237,.12))}</style>
                 <div id="noteTableWrap" class="flex-1 overflow-auto custom-scrollbar"></div>
             </div>
         </div>
