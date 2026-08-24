@@ -93,7 +93,7 @@ async function showLogin() {
     const loading = document.getElementById('loading');
     if(loading) loading.classList.remove('hidden');
     try {
-        const response = await fetch('./pages/login.html');
+        const response = await fetch(`./pages/login.html?v=${window._APP_VERSION || Date.now()}`);
         const html = await response.text();
         document.getElementById('login-container').innerHTML = html;
         
