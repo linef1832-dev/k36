@@ -1465,6 +1465,7 @@ window.renderRosterGrid = async function(rosterData) {
                     <div class="flex items-center gap-2.5">
                         <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span>
                         <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
+                        ${!isMissing ? `<span title="เว็บหลักที่รับผิดชอบ" class="${colorClass.bg} ${colorClass.text} border ${colorClass.border} text-[11px] font-black px-2.5 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0 tracking-wide">${team}</span>` : ''}
                     </div>
                 </div>
                 ${stayPinHtml}
