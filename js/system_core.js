@@ -2341,6 +2341,7 @@ const PERM_GROUPS = [
         id: 'page_admin', name: 'เครื่องมือผู้จัดการ', icon: 'manage_accounts', theme: 'red',
         items: [
             {id: 'admin', name: 'เข้าเครื่องมือผู้จัดการ (Admin)', isSub: false},
+            {id: 'ip_allow', name: 'ตั้งค่า IP ที่อนุญาต', isSub: false},
             {id: 'admin_settings', name: 'ตั้งค่าระบบ', isSub: true},
             {id: 'admin_users', name: 'จัดการพนักงาน', isSub: true},
             {id: 'admin_perms', name: 'สิทธิ์เมนู', isSub: true},
