@@ -225,10 +225,12 @@ window.breakCapByRule = function(total) {
     if (total <= 30) return 7;
     return 8;
 };
-// สร้างแผนที่จากตารางหน้าที่: แต่ละเว็บมีใครบ้าง (หลัก+รอง) และแต่ละคนรับผิดชอบเว็บไหนบ้าง
+// สร้างแผนที่จากตารางหน้าที่ — 🌟 แยกกลุ่ม "หลัก" กับ "รอง" ของแต่ละเว็บออกจากกัน
+// กติกา: หลักชนหลัก (เว็บเดียวกัน) ❌ | รองชนรอง (เว็บเดียวกัน) ❌ | หลักชนรอง ✅
+// เหตุผล: ถ้าหลักไปพัก ยังมีรองเฝ้า / ถ้ารองไปพัก ยังมีหลักเฝ้า → หน้างานไม่มีวันโล่ง
 window.buildCoverageMap = function(roster) {
-    const webs = {};        // team -> Set(username)
-    const websOf = {};      // username -> [team, ...]
+    const webs = {};        // "เว็บ (หลัก)" หรือ "เว็บ (รอง)" -> Set(username)
+    const websOf = {};      // username -> ["เว็บ (หลัก)", "เว็บ (รอง)", ...]
     for (const team in (roster || {})) {
         (roster[team] || []).forEach(u => {
             if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
@@ -238,8 +240,8 @@ window.buildCoverageMap = function(roster) {
                 (websOf[u.username] = websOf[u.username] || []);
                 if (!websOf[u.username].includes(t)) websOf[u.username].push(t);
             };
-            add(team);
-            add(u.secondary_team);
+            add(`${team} (หลัก)`);                                        // คนนี้เป็นหลักของเว็บนี้
+            if (u.secondary_team) add(`${u.secondary_team} (รอง)`);       // และเป็นรองของอีกเว็บ
         });
     }
     return { webs, websOf };
