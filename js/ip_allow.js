@@ -37,9 +37,7 @@
         const btn = document.getElementById('ipAllowToggleBtn');
         const dot = document.getElementById('ipAllowToggleDot');
         if (btn && dot) {
-            btn.classList.toggle('bg-green-500', ipData.enabled);
-            btn.classList.toggle('bg-gray-300', !ipData.enabled);
-            btn.classList.toggle('dark:bg-slate-700', !ipData.enabled);
+            btn.style.background = ipData.enabled ? '#16a34a' : '#33415c';
             dot.style.left = ipData.enabled ? 'calc(100% - 28px)' : '4px';
         }
         // รายการ
@@ -48,21 +46,21 @@
         if (count) count.textContent = `${ipData.ips.length} รายการ`;
         if (!list) return;
         if (ipData.ips.length === 0) {
-            list.innerHTML = `<div class="p-8 text-center text-sm text-gray-400 dark:text-gray-500">
+            list.innerHTML = `<div style="padding:32px;text-align:center;font-size:13px;color:#64748b">
                 ยังไม่มี IP ในรายการ — ถ้าเปิดบังคับตอนนี้ จะไม่มีใครเข้าได้เลย (ยกเว้น admin)</div>`;
             return;
         }
         list.innerHTML = ipData.ips.map((item, i) => `
-            <div class="px-5 py-3 flex items-center gap-3">
-                <span class="material-icons text-[18px] ${item.ip.includes('*') ? 'text-purple-500' : 'text-green-500'}">${item.ip.includes('*') ? 'lan' : 'computer'}</span>
-                <div class="flex-1 min-w-0">
-                    <p class="font-mono font-bold text-sm text-slate-800 dark:text-white">${item.ip}
-                        ${myIp && ipMatches(myIp, item.ip) ? '<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-500 font-sans font-bold">IP ของคุณ</span>' : ''}
+            <div style="padding:12px 20px;display:flex;align-items:center;gap:12px;border-top:1px solid #1a2740">
+                <span class="material-icons" style="font-size:18px;color:${item.ip.includes('*') ? '#a855f7' : '#22c55e'}">${item.ip.includes('*') ? 'lan' : 'computer'}</span>
+                <div style="flex:1;min-width:0">
+                    <p style="font-family:monospace;font-weight:800;font-size:15px;color:#f1f5f9;margin:0">${item.ip}
+                        ${myIp && ipMatches(myIp, item.ip) ? '<span style="margin-left:8px;font-size:10px;padding:2px 10px;border-radius:99px;background:rgba(59,130,246,0.18);color:#60a5fa;font-family:sans-serif;font-weight:700">IP ของคุณ</span>' : ''}
                     </p>
-                    <p class="text-[11px] text-gray-500 dark:text-gray-400 truncate">${item.note || '-'} · เพิ่มโดย ${item.added_by || '-'}</p>
+                    <p style="font-size:11px;color:#8fa3bf;margin:3px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note || '-'} · เพิ่มโดย ${item.added_by || '-'}</p>
                 </div>
-                <button onclick="ipAllowRemove(${i})" class="w-8 h-8 rounded-lg hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition flex items-center justify-center">
-                    <span class="material-icons text-[18px]">delete</span>
+                <button onclick="ipAllowRemove(${i})" style="width:34px;height:34px;border-radius:10px;border:none;background:transparent;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center" onmouseover="this.style.color='#ef4444';this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='#64748b';this.style.background='transparent'">
+                    <span class="material-icons" style="font-size:18px">delete</span>
                 </button>
             </div>`).join('');
     }
@@ -141,8 +139,13 @@
                        (typeof window.hasUserPerm === 'function' && window.hasUserPerm('ip_allow'));
         const app = document.getElementById('ipAllowApp');
         const noPerm = document.getElementById('ipAllowNoPerm');
-        if (!canUse) { noPerm && noPerm.classList.remove('hidden'); app && app.classList.add('hidden'); return; }
-        noPerm && noPerm.classList.add('hidden'); app && app.classList.remove('hidden');
+        if (!canUse) {
+            if (noPerm) noPerm.classList.remove('hidden');
+            if (app) { app.classList.add('hidden'); app.style.display = 'none'; }
+            return;
+        }
+        if (noPerm) noPerm.classList.add('hidden');
+        if (app) { app.classList.remove('hidden'); app.style.display = 'flex'; }
 
         await loadData();
         render();
