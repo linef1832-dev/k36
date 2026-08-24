@@ -1495,7 +1495,7 @@ window.renderRosterGrid = async function(rosterData) {
                             const yt = !isMissing ? yesterdayTeamOf[a.username] : null;
                             if (!yt) return '';
                             const yc = TEAM_COLORS[yt] || TEAM_COLORS['DEFAULT'];
-                            return `<span title="เมื่อวานประจำเว็บ ${yt}" class="flex items-center gap-0.5 ${yc.bg} ${yc.text} border ${yc.border} text-[9px] font-bold px-1.5 py-[1px] rounded-full shadow-sm pointer-events-none shrink-0 opacity-90"><span class="material-icons text-[10px]">history</span>เมื่อวานทำ ${yt}</span>`;
+                            return `<span title="เมื่อวานประจำเว็บ ${yt}" class="flex items-center gap-1 ${yc.bg} ${yc.text} border ${yc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0"><span class="material-icons text-[11px]">history</span>เมื่อวานทำ ${yt}</span>`;
                         })()}
                     </div>
                 </div>
