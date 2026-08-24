@@ -538,9 +538,9 @@ async function handleLogin(e) {
                     // บันทึกความพยายามเข้าที่ถูกบล็อกไว้ในประวัติระบบ
                     try {
                         await appDB.from('system_logs').insert([{
-                            username: user.username,
-                            action: 'login_blocked_ip',
-                            detail: `ถูกบล็อก: IP ${curIp || 'ตรวจไม่ได้'} ไม่อยู่ในรายการที่อนุญาต`
+                            action_type: 'ถูกบล็อก IP',
+                            performed_by: user.username,
+                            target_details: `พยายามเข้าระบบจาก IP ${curIp || 'ตรวจไม่ได้'} ซึ่งไม่อยู่ในรายการที่อนุญาต`
                         }]);
                     } catch (e2) {}
                     Swal.close(); clearPinInputs();
