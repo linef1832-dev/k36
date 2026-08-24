@@ -176,6 +176,7 @@ const PAGE_SCRIPTS = {
     withdrawal_report: ['withdrawal_report'],
     sop:               ['sop'],
     ip_check:          ['ip_check'],
+    ip_allow:          ['ip_allow'],
     slip_check:        ['slip_check'],
 };
 window._loadedScripts = {};
@@ -383,6 +384,9 @@ async function showPage(pageName) {
                 }
                 else if (pageName === 'ip_check') {
                     if (typeof initIpCheckApp === 'function') await initIpCheckApp();
+                }
+                else if (pageName === 'ip_allow') {
+                    if (typeof initIpAllowApp === 'function') await initIpAllowApp();
                 }
                 else if (pageName === 'slip_check') {
                     if (typeof window.initSlipCheck === 'function') await window.initSlipCheck();
