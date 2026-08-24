@@ -1358,6 +1358,32 @@ window.renderRosterGrid = async function(rosterData) {
     }
     window.currentStandbyData = standbyData; 
 
+    // 🕘 [ป้ายเมื่อวาน] ดึงตารางเวรของ "เมื่อวาน" (แผนกเดียวกัน กะเดียวกัน) มาทำแผนที่ ชื่อ → เว็บ
+    // เพื่อโชว์ป้าย "เมื่อวานทำ <เว็บ>" ต่อท้ายชื่อพนักงาน — cache ตาม key กันยิงซ้ำทุกครั้งที่วาด
+    let yesterdayTeamOf = {};
+    if (targetDate) {
+        try {
+            const yd = new Date(targetDate + 'T00:00:00');
+            yd.setDate(yd.getDate() - 1);
+            const ydStr = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`;
+            const ydKey = `duty_roster_${currentDutyDept}_${ydStr}_${shiftFilter}`;
+            if (window._ydRosterCache && window._ydRosterCache.key === ydKey) {
+                yesterdayTeamOf = window._ydRosterCache.map;
+            } else {
+                const { data: ydData } = await appDB.from('settings').select('value').eq('key', ydKey).maybeSingle();
+                if (ydData && ydData.value) {
+                    const ydRoster = JSON.parse(ydData.value);
+                    for (const t in ydRoster) {
+                        (ydRoster[t] || []).forEach(u => {
+                            if (u && u.username && !String(u.username).includes('ขาดคน')) yesterdayTeamOf[u.username] = t;
+                        });
+                    }
+                }
+                window._ydRosterCache = { key: ydKey, map: yesterdayTeamOf };
+            }
+        } catch (e) { console.error('โหลดตารางเมื่อวานไม่สำเร็จ:', e); }
+    }
+
     sortedTeams.forEach(team => {
         let assignees = rosterData[team] || [];
         // card เว็บแสดงเสมอ แม้จะไม่มีพนักงาน
@@ -1465,7 +1491,12 @@ window.renderRosterGrid = async function(rosterData) {
                     <div class="flex items-center gap-2.5">
                         <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span>
                         <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
-                        ${!isMissing ? `<span title="เว็บหลักที่รับผิดชอบ" class="${colorClass.bg} ${colorClass.text} border ${colorClass.border} text-[11px] font-black px-2.5 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0 tracking-wide">${team}</span>` : ''}
+                        ${(() => {
+                            const yt = !isMissing ? yesterdayTeamOf[a.username] : null;
+                            if (!yt) return '';
+                            const yc = TEAM_COLORS[yt] || TEAM_COLORS['DEFAULT'];
+                            return `<span title="เมื่อวานประจำเว็บ ${yt}" class="flex items-center gap-1 ${yc.bg} ${yc.text} border ${yc.border} text-[10.5px] font-black px-2.5 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0"><span class="material-icons text-[12px]">history</span>เมื่อวานทำ ${yt}</span>`;
+                        })()}
                     </div>
                 </div>
                 ${stayPinHtml}
