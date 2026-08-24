@@ -520,6 +520,52 @@ async function handleLogin(e) {
             });
         }
 
+        // ═══ 🔒 [IP Allowlist] ตรวจว่า IP ผู้ใช้อยู่ในรายการที่อนุญาตไหม ═══
+        // - ตั้งค่าได้ที่หน้า "ตั้งค่า IP ที่อนุญาต" (เก็บใน settings key: ip_whitelist)
+        // - เช็คหลังยืนยัน PIN ผ่าน เพื่อรู้บทบาท → admin ไม่ถูกบล็อก (กันตั้งผิดแล้วล็อกทุกคนออกถาวร)
+        try {
+            const { data: ipCfgRow } = await appDB.from('settings').select('value').eq('key', 'ip_whitelist').maybeSingle();
+            const ipCfg = ipCfgRow && ipCfgRow.value ? JSON.parse(ipCfgRow.value) : null;
+            if (ipCfg && ipCfg.enabled && user && user.role !== 'admin') {
+                const curIp = await probeCurrentIp();
+                const matches = (ip, pattern) => {
+                    if (!ip || !pattern) return false;
+                    if (pattern.includes('*')) return ip.startsWith(pattern.replace(/\*+$/, ''));
+                    return ip === pattern;
+                };
+                const allowed = curIp && (ipCfg.ips || []).some(x => matches(curIp, x.ip));
+                if (!allowed) {
+                    // บันทึกความพยายามเข้าที่ถูกบล็อกไว้ในประวัติระบบ
+                    try {
+                        await appDB.from('system_logs').insert([{
+                            username: user.username,
+                            action: 'login_blocked_ip',
+                            detail: `ถูกบล็อก: IP ${curIp || 'ตรวจไม่ได้'} ไม่อยู่ในรายการที่อนุญาต`
+                        }]);
+                    } catch (e2) {}
+                    Swal.close(); clearPinInputs();
+                    if (typeof window.shakeLoginCard === 'function') window.shakeLoginCard();
+                    return Swal.fire({
+                        html: `
+                            <div style="padding:16px 8px">
+                                <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(220,38,38,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(220,38,38,0.3)">
+                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+                                </div>
+                                <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">ไม่สามารถเข้าสู่ระบบได้</div>
+                                <div style="font-size:13px;color:#94a3b8;line-height:1.7">คุณไม่ได้อยู่ใน IP ที่กำหนด ไม่สามารถเข้าได้<br>IP ของคุณ: <span style="font-family:monospace;color:#f87171;font-weight:700">${curIp || 'ตรวจสอบไม่ได้'}</span><br>กรุณาติดต่อผู้จัดการเพื่อขอสิทธิ์</div>
+                            </div>
+                        `,
+                        background: '#0b1120',
+                        backdrop: 'rgba(0,0,0,0.75)',
+                        showConfirmButton: true,
+                        confirmButtonText: 'รับทราบ',
+                        confirmButtonColor: '#991b1b',
+                        customClass: { popup: 'rounded-3xl border border-red-900/40', confirmButton: 'rounded-xl font-bold px-6' }
+                    });
+                }
+            }
+        } catch (ipErr) { console.error('IP allowlist check:', ipErr); }
+
         if (remember) window.safeSetItem('remember_me_name', user.username); 
         else localStorage.removeItem('remember_me_name');
         
