@@ -1,4 +1,34 @@
 <div class="fade-in pb-10 flex flex-col h-full" id="slipCheckPage">
+<style>
+/* 🎩 Premium Skin — การ์ดแก้วเข้ม + ลอยตอนชี้ + ขอบเรืองสีประจำหน้า */
+#slipCheckPage [class*="dark:bg-slate-800"][class*="rounded-2xl"],
+#slipCheckPage [class*="dark:bg-slate-800"][class*="rounded-xl"],
+#slipCheckPage [class*="bg-[#151f32]"]{
+    background:linear-gradient(165deg,#101828,#0b111e) !important;
+    border-color:rgba(255,255,255,0.08) !important;
+    box-shadow:0 4px 16px rgba(0,0,0,0.25) !important;
+    transition:transform .15s, box-shadow .15s, border-color .15s !important;
+}
+#slipCheckPage [class*="dark:bg-slate-800"][class*="rounded-2xl"]:hover,
+#slipCheckPage [class*="dark:bg-slate-800"][class*="rounded-xl"]:hover{
+    transform:translateY(-3px);
+    border-color:rgba(99,102,241,0.45) !important;
+    box-shadow:0 12px 28px rgba(0,0,0,0.4) !important;
+}
+#slipCheckPage [class*="dark:bg-slate-900"]{
+    background:rgba(0,0,0,0.28) !important;
+    border-color:rgba(255,255,255,0.06) !important;
+}
+#slipCheckPage input:focus, #slipCheckPage select:focus{
+    border-color:rgba(99,102,241,0.55) !important;
+    box-shadow:0 0 0 3px rgba(99,102,241,0.12) !important;
+}
+#slipCheckPage thead{ background:#121826 !important; }
+#slipCheckPage thead th{ color:#aab6c8 !important; }
+#slipCheckPage tbody tr{ border-color:rgba(255,255,255,0.05) !important; }
+#slipCheckPage tbody tr:hover{ background:rgba(99,102,241,0.05) !important; }
+</style>
+
     <div class="p-4 md:p-6 rounded-2xl mb-6 flex justify-between items-center" style="background:linear-gradient(120deg,rgba(99,102,241,0.14),rgba(13,18,32,0.6) 45%),#121a2c;border:1px solid rgba(99,102,241,0.3);box-shadow:0 6px 24px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.05)">
         <div>
             <h1 class="font-black text-2xl text-white flex items-center gap-2">
