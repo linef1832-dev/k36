@@ -2073,18 +2073,24 @@ window.renderQuotaSettings = async function() {
         shifts.forEach(sh => { const r = rows[`duty_roster_${dept}_${dateVal}_${sh}`]; maps[sh] = r ? window.buildCoverageMap(r) : null; });
         const cell = (sh, team) => {
             const m = maps[sh];
-            if (!m) return `<div class="w-24 shrink-0 text-center text-[10px] text-slate-600 ml-2">ยังไม่จัด</div>`;
-            const n = (m.webs[team] || new Set()).size;
-            const cap = window.breakCapByRule(n);
-            return `<div class="w-24 shrink-0 text-center ml-2 rounded-lg border ${n ? 'border-slate-600 bg-slate-900' : 'border-slate-800 bg-slate-900/40'} py-1.5">
-                <span class="text-[10px] text-slate-400">${n} คน →</span> <b class="text-sm ${n ? 'text-emerald-300' : 'text-slate-600'}">${cap}</b></div>`;
+            if (!m) return `<div class="w-28 shrink-0 text-center text-[10px] text-slate-600 ml-2">ยังไม่จัด</div>`;
+            // 🌟 กติกาใหม่: แยกกลุ่มหลัก/รอง — คีย์ในแผนที่คือ "เว็บ (หลัก)" กับ "เว็บ (รอง)"
+            const n1 = (m.webs[`${team} (หลัก)`] || new Set()).size;
+            const n2 = (m.webs[`${team} (รอง)`] || new Set()).size;
+            const c1 = n1 ? window.breakCapByRule(n1) : 0;
+            const c2 = n2 ? window.breakCapByRule(n2) : 0;
+            const any = n1 || n2;
+            return `<div class="w-28 shrink-0 text-center ml-2 rounded-lg border ${any ? 'border-slate-600 bg-slate-900' : 'border-slate-800 bg-slate-900/40'} py-1 leading-tight">
+                <div class="text-[10px] ${n1 ? 'text-sky-300' : 'text-slate-600'}">หลัก ${n1} → <b class="${n1 ? 'text-emerald-300' : ''}">${c1}</b></div>
+                <div class="text-[10px] ${n2 ? 'text-amber-300' : 'text-slate-600'}">รอง ${n2} → <b class="${n2 ? 'text-emerald-300' : ''}">${c2}</b></div>
+            </div>`;
         };
         return `
         <div class="flex text-[10px] font-bold text-pink-400 mb-2 min-w-max shrink-0">
             <div class="w-24 shrink-0 text-center">เว็บ</div>
-            <div class="w-24 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
-            <div class="w-24 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
-            <div class="w-24 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
+            <div class="w-28 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
+            <div class="w-28 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
+            <div class="w-28 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
         </div>
         <div class="space-y-2 flex-1 overflow-auto custom-scrollbar pr-1">
             ${allTeams.map(team => `
@@ -2099,7 +2105,7 @@ window.renderQuotaSettings = async function() {
         <div class="flex flex-col gap-4 w-full mt-2">
             <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed flex flex-wrap items-center gap-3">
                 <div class="flex-1 min-w-[260px]">
-                    <b>กติกา (อัตโนมัติ ไม่มีค่าให้ตั้ง):</b> แต่ละเว็บพักพร้อมกันได้ไม่เกิน — นับคนของเว็บนั้น <b>หลัก+รอง</b> จากตารางจัดหน้าที่ →
+                    <b>กติกา (อัตโนมัติ ไม่มีค่าให้ตั้ง):</b> แยกนับ <b>หลัก</b> กับ <b>รอง</b> คนละกลุ่ม — หลักชนหลัก / รองชนรอง เกินเพดานไม่ได้ แต่หลักชนรองได้ · เพดานต่อกลุ่ม →
                     1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8 · แยก AM / OD ไม่ปนกัน
                 </div>
                 <label class="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">ดูของวันที่
