@@ -1,4 +1,62 @@
-<div class="fade-in pb-10">
+<div id="page-dashboard" class="fade-in pb-10">
+<style id="dashboard-premium-skin">
+/* ═══ 🎩 Premium Skin — กราไฟต์ดำ × ทองแชมเปญ (เปลี่ยนเฉพาะผิว ตำแหน่งเดิมทุกจุด) ═══ */
+
+/* การ์ด/กล่องหลักทั้งหน้า: พื้นลึกเรียบ ขอบบางเนียน */
+#page-dashboard [class*="dark:bg-slate-800"]{ background:#0c111d !important; border-color:rgba(255,255,255,0.07) !important; }
+#page-dashboard [class*="border-t-4"]{ border-top-width:1px !important; border-top-color:rgba(232,193,90,0.35) !important; }
+
+/* ป้ายพาสเทลหลากสี (หัวหน้า/ปุ่มบน) → แก้วเข้มโทนเดียว */
+#page-dashboard [class*="dark:bg-blue-900/30"], #page-dashboard [class*="dark:bg-purple-900/30"],
+#page-dashboard [class*="dark:bg-green-900/30"], #page-dashboard [class*="dark:bg-sky-900/30"],
+#page-dashboard [class*="dark:bg-indigo-900/30"], #page-dashboard [class*="dark:bg-orange-900/30"]{
+    background:rgba(255,255,255,0.045) !important; border-color:rgba(255,255,255,0.1) !important;
+}
+#page-dashboard [class*="dark:text-blue-300"], #page-dashboard [class*="dark:text-purple-300"],
+#page-dashboard [class*="dark:text-green-300"], #page-dashboard [class*="dark:text-sky-400"],
+#page-dashboard [class*="dark:text-indigo-400"], #page-dashboard [class*="dark:text-orange-400"]{
+    color:#d7dee9 !important;
+}
+#page-dashboard [class*="dark:text-blue-300"] .material-icons, #page-dashboard [class*="dark:text-purple-300"] .material-icons,
+#page-dashboard [class*="dark:text-green-300"] .material-icons, #page-dashboard [class*="dark:text-sky-400"] .material-icons,
+#page-dashboard [class*="dark:text-orange-400"] .material-icons{ color:#E8C15A !important; }
+
+/* ไอคอนหัวเรื่องน้ำเงิน → ทอง */
+#page-dashboard .text-blue-600.material-icons, #page-dashboard .material-icons.text-blue-600{ color:#E8C15A !important; }
+
+/* กล่อง 3 ช่วงเวลา (เขียว/ส้ม/ม่วง) → แก้วเข้มชุดเดียว หัวช่วงสีทอง */
+#page-dashboard [class*="dark:border-green-700"], #page-dashboard [class*="dark:border-orange-700"],
+#page-dashboard [class*="dark:border-purple-700"]{ border-color:rgba(255,255,255,0.1) !important; }
+#page-dashboard [class*="dark:text-orange-300"]{ color:#d7dee9 !important; }
+
+/* ปุ่มหลักน้ำเงินทั้งหน้า (บันทึก/รีเฟรช/เพิ่มรอบ) → ทองแชมเปญ ตัวหนังสือเข้ม */
+#page-dashboard .bg-blue-600{
+    background:linear-gradient(135deg,#E8C15A,#c99a30) !important; color:#191104 !important;
+    border:1px solid rgba(255,255,255,0.18) !important; box-shadow:0 6px 20px rgba(232,193,90,0.25) !important;
+}
+#page-dashboard .bg-blue-600 *{ color:#191104 !important; }
+#page-dashboard .bg-blue-600:hover{ background:linear-gradient(135deg,#f2d078,#d9ab3d) !important; }
+
+/* ช่องกรอก/ dropdown: โฟกัสเป็นทอง ไม่ใช่น้ำเงิน */
+#page-dashboard select:focus, #page-dashboard input:focus{
+    border-color:rgba(232,193,90,0.6) !important; box-shadow:0 0 0 3px rgba(232,193,90,0.12) !important; outline:none !important;
+}
+#page-dashboard [class*="focus:ring-blue"]:focus{ --tw-ring-color:rgba(232,193,90,0.35) !important; }
+#page-dashboard [class*="border-blue-500"]{ border-color:rgba(232,193,90,0.55) !important; }
+
+/* ป้าย "ช่วงที่ 1/2/3" ในตาราง (เขียว) → ทองบาง ๆ */
+#page-dashboard [class*="text-green-600"][class*="border-current"], #page-dashboard [class*="dark:text-green-400"][class*="border-current"]{
+    color:#E8C15A !important;
+}
+
+/* หัวตาราง */
+#page-dashboard thead{ background:#121826 !important; }
+#page-dashboard thead th{ color:#aab6c8 !important; }
+
+/* ปุ่มลบแดง: ลดความจัด */
+#page-dashboard [class*="bg-red-"] .material-icons{ filter:saturate(0.85); }
+</style>
+
 <style>
 .staff-row { transition: background .12s; }
 .staff-row:hover { background: rgba(100,116,139,.1); }
