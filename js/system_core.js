@@ -2726,6 +2726,17 @@ window.applySidebarPermissions = async function() {
                 logsBtn.style.setProperty('display', 'none', 'important');
             }
         }
+
+        // 🗂️ [หมวดเมนู] ซ่อนหัวหมวดที่ปุ่มข้างในถูกซ่อนหมด (พนักงานสิทธิ์น้อยจะไม่เห็นหัวลอยเปล่า ๆ)
+        document.querySelectorAll('#menu-list .menu-section-header').forEach(h => {
+            let el = h.nextElementSibling;
+            let hasVisible = false;
+            while (el && !el.classList.contains('menu-section-header')) {
+                if (el.tagName === 'BUTTON' && !el.classList.contains('hidden') && el.style.display !== 'none') { hasVisible = true; break; }
+                el = el.nextElementSibling;
+            }
+            h.style.display = hasVisible ? '' : 'none';
+        });
     };
 
     // 🌟 1. ดึงสิทธิ์จากความจำเครื่อง (Cache) มาโชว์เมนูทันที (ภาพไม่กระพริบ)
