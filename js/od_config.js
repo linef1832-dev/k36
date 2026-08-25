@@ -14,7 +14,7 @@ let odCfgData = {
     chat_id: '',
     odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
     big:  { chat_id: '' },
-    tags: { day: '', night: '', day_start: '08:00', night_start: '20:00' },
+    tags: { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [] },
     bot:  { token: '', enabled: true },
     templates: { od: '', odol: '', big: '', big_na: '' },
 };
@@ -118,7 +118,7 @@ window.initOdConfig = async function() {
             odCfgData = { ...odCfgData, ...parsed };
             odCfgData.odol = { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '', ...(parsed.odol || {}) };
             odCfgData.big  = { chat_id: '', ...(parsed.big || {}) };
-            odCfgData.tags = { day: '', night: '', day_start: '08:00', night_start: '20:00', ...(parsed.tags || {}) };
+            odCfgData.tags = { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [], ...(parsed.tags || {}) };
             odCfgData.bot  = { token: '', enabled: true, ...(parsed.bot || {}) };
             odCfgData.templates = { od: '', odol: '', big: '', big_na: '', ...(parsed.templates || {}) };
         } else {
@@ -148,10 +148,15 @@ window.initOdConfig = async function() {
                 chat_id: '',
                 odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
                 big:  { chat_id: '' },
-                tags: { day: '', night: '', day_start: '08:00', night_start: '20:00' },
+                tags: { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [] },
                 bot:  { token: '', enabled: true },
                 templates: { od: '', odol: '', big: '', big_na: '' },
             };
+        }
+
+        // โหลดรายชื่อพนักงาน (สำหรับ dropdown ผูก @username → เช็ควันหยุด)
+        if ((typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || !GLOBAL_USER_LIST.length) && typeof fetchUsers === 'function') {
+            try { await fetchUsers(); } catch(_) {}
         }
 
         odCfg_renderAll();
@@ -177,6 +182,7 @@ window.odCfg_save = async function() {
             night:       document.getElementById('odCfgTagNight').value.trim(),
             day_start:   document.getElementById('odCfgTagDayStart').value.trim()   || '08:00',
             night_start: document.getElementById('odCfgTagNightStart').value.trim() || '20:00',
+            map:         odCfg_readTagMap(),
         };
         odCfgData.bot.token    = document.getElementById('odCfgBotToken').value.trim();
         // template: ถ้าเหมือนค่าเดิม เก็บเป็นว่าง (ให้ extension ใช้ default)
@@ -238,6 +244,7 @@ function odCfg_renderAll() {
     if (tgds) tgds.value = odCfgData.tags?.day_start   || '08:00';
     if (tgns) tgns.value = odCfgData.tags?.night_start || '20:00';
     if (typeof odCfg_updateShiftLabels === 'function') odCfg_updateShiftLabels();
+    if (typeof odCfg_renderTagMap === 'function') odCfg_renderTagMap();
     if (bt) bt.value = odCfgData.bot?.token || '';
     if (ak) ak.value = localStorage.getItem('od_admin_key') || '';
     odCfg_renderNotes();
@@ -616,4 +623,54 @@ window.odCfg_updateShiftLabels = function() {
     const nl = document.getElementById("odCfgShiftNightLabel");
     if (dl) dl.textContent = `(${ds} \u2013 ${ns})`;
     if (nl) nl.textContent = `(${ns} \u2013 ${ds})`;
+};
+
+// ── ผูก @username → พนักงาน (เพื่อเช็ควันหยุด) ──────────────────────────────
+function odCfg_userOptions(selectedId) {
+    const list = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST : [];
+    const opts = list
+        .filter(u => u && u.username && !String(u.username).includes('ขาดคน'))
+        .sort((a, b) => String(a.username).localeCompare(String(b.username), 'th'))
+        .map(u => `<option value="${u.id}" ${String(u.id) === String(selectedId) ? 'selected' : ''}>${u.username}</option>`)
+        .join('');
+    return `<option value="">— เลือกพนักงาน —</option>${opts}`;
+}
+window.odCfg_renderTagMap = function() {
+    const box = document.getElementById('odCfgTagMapList');
+    if (!box) return;
+    const rows = Array.isArray(odCfgData.tags?.map) ? odCfgData.tags.map : [];
+    if (!rows.length) {
+        box.innerHTML = `<p class="text-xs text-gray-400 py-2">ยังไม่ได้ผูก @username กับพนักงาน — @ ที่ไม่ผูกจะถูกแท็กทุกวัน (ไม่เช็ควันหยุด)</p>`;
+        return;
+    }
+    box.innerHTML = rows.map((r, i) => `
+        <div class="flex items-center gap-2 mb-2 od-tagmap-row">
+            <input type="text" class="od-tagmap-handle w-40 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500" placeholder="@username" value="${(r.handle || '').replace(/"/g, '&quot;')}">
+            <span class="material-icons text-gray-400 text-sm">link</span>
+            <select class="od-tagmap-user flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500">${odCfg_userOptions(r.user_id)}</select>
+            <button onclick="odCfg_removeTagMapRow(${i})" class="text-gray-400 hover:text-red-500 border border-gray-300 dark:border-slate-600 rounded-lg px-2 py-1.5"><span class="material-icons text-sm">delete</span></button>
+        </div>`).join('');
+};
+window.odCfg_readTagMap = function() {
+    const rows = [];
+    document.querySelectorAll('#odCfgTagMapList .od-tagmap-row').forEach(row => {
+        const handle = row.querySelector('.od-tagmap-handle').value.trim();
+        const sel = row.querySelector('.od-tagmap-user');
+        const user_id = sel.value;
+        const name = sel.value ? sel.options[sel.selectedIndex].text : '';
+        if (handle && user_id) rows.push({ handle, user_id, name });
+    });
+    return rows;
+};
+window.odCfg_addTagMapRow = function() {
+    // อ่านของเดิมจาก DOM ก่อน แล้วเพิ่มแถวว่าง เพื่อไม่ให้ค่าที่กรอกหาย
+    odCfgData.tags = odCfgData.tags || {};
+    odCfgData.tags.map = odCfg_readTagMap();
+    odCfgData.tags.map.push({ handle: '', user_id: '', name: '' });
+    odCfg_renderTagMap();
+};
+window.odCfg_removeTagMapRow = function(i) {
+    odCfgData.tags.map = odCfg_readTagMap();
+    odCfgData.tags.map.splice(i, 1);
+    odCfg_renderTagMap();
 };
