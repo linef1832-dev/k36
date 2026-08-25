@@ -369,15 +369,6 @@ window.switchDutyDept = function(dept) {
     document.getElementById('btnDutyTRAINER_OD')?.classList.remove('active');
     
     document.getElementById(`btnDuty${dept}`)?.classList.add('active');
-
-    // แสดง/ซ่อนปุ่มแจกโปร/เคส TG เฉพาะ OD
-    const btnODTask = document.getElementById('btnAssignODTasks');
-    if (btnODTask) {
-        if (dept === 'OD') btnODTask.classList.remove('hidden');
-        else btnODTask.classList.add('hidden');
-    }
-
-    
     let labelText = dept;
     if (dept === 'AMQL') labelText = 'ผู้สอน AM';
     else if (dept === 'ODQL') labelText = 'ผู้สอน OD';
@@ -1350,8 +1341,6 @@ window.renderRosterGrid = async function(rosterData) {
                 standbyData[u.secondary_team].push({
                     name:       u.username,
                     fromTeam:   primaryTeam,
-                    od_pro_task: u.od_pro_task || null,
-                    od_tg_task:  u.od_tg_task  || null,
                 });
             }
         });
@@ -1446,25 +1435,7 @@ window.renderRosterGrid = async function(rosterData) {
                     แจกงานรองให้พนักงาน
                 </div>`;
             }
-
-            let odTaskHtml = '';
-            if (currentDutyDept === 'OD' && !isMissing && (a.od_pro_task || a.od_tg_task)) {
-                if (a.od_pro_task) {
-                    const clickAttr = isAdmin ? `onclick="event.stopPropagation(); swapODTask('${team}','${a.id}','pro')" style="cursor:pointer;"` : '';
-                    odTaskHtml += `<div ${clickAttr} class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-violet-600 bg-violet-50 dark:bg-violet-900/30 dark:text-violet-300 px-2.5 py-1 rounded-md border border-violet-200 dark:border-violet-800/50 w-fit shadow-sm ${isAdmin ? 'hover:bg-violet-100 dark:hover:bg-violet-800/40 transition' : ''}">
-                        <span class="material-icons text-[14px]">card_giftcard</span> อนุมัติโปร: ${a.od_pro_task}
-                        ${isAdmin ? '<span class="material-icons text-[11px] opacity-50 ml-0.5">edit</span>' : ''}
-                    </div>`;
-                }
-                if (a.od_tg_task) {
-                    const clickAttr = isAdmin ? `onclick="event.stopPropagation(); swapODTask('${team}','${a.id}','tg')" style="cursor:pointer;"` : '';
-                    odTaskHtml += `<div ${clickAttr} class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-300 px-2.5 py-1 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm ${isAdmin ? 'hover:bg-sky-100 dark:hover:bg-sky-800/40 transition' : ''}">
-                        <span class="material-icons text-[14px]">telegram</span> เคส TG: ${a.od_tg_task}
-                        ${isAdmin ? '<span class="material-icons text-[11px] opacity-50 ml-0.5">edit</span>' : ''}
-                    </div>`;
-                }
-            }
-
+            const odTaskHtml = '';   // (ป้ายแจกโปร/เคส TG ถูกถอดออก)
             // 📌 ป้าย/ปุ่ม "อยู่ต่ออีกกี่วัน"
             // ใช้สิทธิ์ของฟีเจอร์นี้โดยเฉพาะ ไม่ใช่ isAdmin ที่ถูกตัดในโหมดตัวอย่าง
             // เพราะการแก้/ยกเลิกการล็อกไม่ได้ไปแตะตารางเวร ทำได้ตลอด
@@ -1751,11 +1722,6 @@ window.viewStandbyList = function(team) {
                         <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">จากเว็บหลัก: <span class="font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/50">${item.fromTeam}</span></div>
                         ${breakTimeHtml}
                     </div>
-                    ${currentDutyDept === 'OD' && (item.od_pro_task || item.od_tg_task) ? `
-                    <div class="flex flex-wrap gap-1.5 mt-0.5">
-                        ${item.od_pro_task ? `<span class="text-[11px] font-bold text-violet-600 bg-violet-50 dark:bg-violet-900/30 dark:text-violet-300 px-2 py-0.5 rounded-md border border-violet-200 dark:border-violet-700 flex items-center gap-1"><span class="material-icons text-[12px]">card_giftcard</span> อนุมัติโปร: ${item.od_pro_task}</span>` : ''}
-                        ${item.od_tg_task  ? `<span class="text-[11px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-300 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-700 flex items-center gap-1"><span class="material-icons text-[12px]">telegram</span> เคส TG: ${item.od_tg_task}</span>` : ''}
-                    </div>` : ''}
                 </div>
             </div>
             <span class="material-icons text-amber-400 text-2xl opacity-40 group-hover:scale-110 transition shrink-0 ml-2">support_agent</span>
@@ -3934,224 +3900,7 @@ window.restoreDutyRoster = async function() {
 
 // (ลบโค้ดที่ไม่ได้ใช้ออก 298 บรรทัด — แท็บ 'ตั้งค่างานรอง' ถูกลบแล้ว)
 
-// ==========================================
-// 🎯 แจกโปร/เคส Telegram สำหรับแผนก OD
-// กดหลังจัดหน้าที่หลักเสร็จแล้ว
-// ==========================================
-
-// เว็บที่มีอนุมัติโปร (K36)
-const OD_K36_WEBS = ['Jun88', 'MK8', 'K188', 'VV72', 'BT678', 'TH26'];
-// เว็บที่มีแค่เคส TG (TCG)
-const OD_TCG_WEBS = ['PG688', 'JL69', 'NM9'];
-// F168 และอื่นๆ ไม่แจก
-
-window.assignODProTelegramTasks = async function() {
-    if (window.blockIfPreview()) return;   // โหมดตัวอย่าง: ห้ามเขียนตารางลง DB
-    if (!currentRosterData || Object.keys(currentRosterData).length === 0) {
-        return Swal.fire('แจ้งเตือน', 'กรุณาจัดหน้าที่หลักก่อน แล้วค่อยกดปุ่มนี้', 'warning');
-    }
-
-    // สร้าง standbyMap: { team: [user, user, ...] } จากคนที่ถูกจัดสแตนบายให้เว็บนั้น
-    const standbyMap = {};
-    sortedTeams.forEach(t => standbyMap[t] = []);
-    for (const primaryTeam in currentRosterData) {
-        (currentRosterData[primaryTeam] || []).forEach(u => {
-            if (u.secondary_team && sortedTeams.includes(u.secondary_team) && !u.username?.includes('ขาดคน')) {
-                standbyMap[u.secondary_team].push(u);
-            }
-        });
-    }
-
-    const webList = [...sortedTeams];
-    let preview = '';
-    let changeCount = 0;
-
-    webList.forEach(team => {
-        const isK36 = OD_K36_WEBS.includes(team);
-        const isTCG = OD_TCG_WEBS.includes(team);
-        if (!isK36 && !isTCG) return;
-
-        const members  = (currentRosterData[team] || []).filter(u => !u.username?.includes('ขาดคน'));
-        const standbys = standbyMap[team] || [];
-        const count    = members.length;
-
-        // clear task เดิมก่อน
-        members.forEach(u => { u.od_pro_task = null; u.od_tg_task = null; });
-        standbys.forEach(u => { u.od_pro_task = null; u.od_tg_task = null; });
-
-        preview += `<div style="margin-bottom:14px;">
-            <span style="font-weight:800;color:#a78bfa;">${team}</span>
-            <span style="font-size:11px;color:#64748b;margin-left:6px;">${isK36 ? '(K36)' : '(TCG)'} — งานหลัก ${count} คน${standbys.length ? ` + สแตนบาย ${standbys.length} คน` : ''}</span><br>`;
-
-        if (count >= 2) {
-            // มี 2+ คนในเว็บ → แจกตามปกติ
-            members.forEach((u, idx) => {
-                if (isK36) {
-                    if (idx % 2 === 0) u.od_pro_task = team;
-                    else               u.od_tg_task  = team;
-                } else {
-                    u.od_tg_task = team;
-                }
-                changeCount++;
-                const tag = u.od_pro_task ? '🟣 อนุมัติโปร' : '💬 เคส TG';
-                preview += `&nbsp;&nbsp;<span style="font-size:13px;">${u.username}</span> → <b>${tag}</b> <span style="font-size:10px;color:#64748b;">(งานหลัก)</span><br>`;
-            });
-
-        } else if (count === 1) {
-            // มี 1 คน → คนนั้นทำงานหลักอย่างเดียว ไม่แจกโปร/TG
-            preview += `&nbsp;&nbsp;<span style="font-size:13px;">${members[0]?.username}</span> → <span style="color:#64748b;">งานหลักอย่างเดียว</span><br>`;
-
-            if (standbys.length === 0) {
-                // ไม่มีสแตนบาย → แจ้งเตือน
-                preview += `&nbsp;&nbsp;<span style="color:#f87171;font-size:11px;">⚠️ ไม่มีคนสแตนบายมาช่วย กรุณาแจกงานรองก่อน</span><br>`;
-            } else {
-                // ดึงสแตนบายมาช่วยโปร/TG
-                if (isK36 && standbys.length >= 2) {
-                    // มีสแตนบาย 2+ คน → แบ่งโปร/TG
-                    standbys[0].od_pro_task = team; changeCount++;
-                    standbys[1].od_tg_task  = team; changeCount++;
-                    preview += `&nbsp;&nbsp;<span style="font-size:13px;color:#fbbf24;">${standbys[0].username}</span> → <b>🟣 อนุมัติโปร</b> <span style="font-size:10px;color:#64748b;">(สแตนบาย)</span><br>`;
-                    preview += `&nbsp;&nbsp;<span style="font-size:13px;color:#fbbf24;">${standbys[1].username}</span> → <b>💬 เคส TG</b> <span style="font-size:10px;color:#64748b;">(สแตนบาย)</span><br>`;
-                    // สแตนบายที่เหลือ (ถ้ามี) ไม่แจก
-                } else if (isK36 && standbys.length === 1) {
-                    // สแตนบาย 1 คน → รับทั้งโปร + TG
-                    standbys[0].od_pro_task = team;
-                    standbys[0].od_tg_task  = team; changeCount++;
-                    preview += `&nbsp;&nbsp;<span style="font-size:13px;color:#fbbf24;">${standbys[0].username}</span> → <b>🟣 โปร + 💬 TG</b> <span style="font-size:10px;color:#64748b;">(สแตนบาย)</span><br>`;
-                } else if (isTCG) {
-                    // TCG: สแตนบายคนแรกรับเคส TG
-                    standbys[0].od_tg_task = team; changeCount++;
-                    preview += `&nbsp;&nbsp;<span style="font-size:13px;color:#fbbf24;">${standbys[0].username}</span> → <b>💬 เคส TG</b> <span style="font-size:10px;color:#64748b;">(สแตนบาย)</span><br>`;
-                }
-            }
-        } else {
-            // ไม่มีคนเลย
-            preview += `&nbsp;&nbsp;<span style="color:#f87171;font-size:11px;">⚠️ ไม่มีคนในเว็บนี้</span><br>`;
-        }
-
-        preview += '</div>';
-    });
-
-    if (changeCount === 0) {
-        return Swal.fire('แจ้งเตือน', 'ไม่มีอะไรต้องแจก', 'info');
-    }
-
-    const result = await Swal.fire({
-        title: '🎯 ยืนยันการแจกโปร/เคส TG',
-        html: `<div style="text-align:left;font-size:13px;max-height:360px;overflow-y:auto;">${preview}</div>`,
-        showCancelButton: true,
-        confirmButtonText: 'ยืนยัน แจกเลย',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#7c3aed',
-        background: '#1e293b',
-        color: '#e2e8f0',
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-        const targetDate  = document.getElementById('dutyDate').value;
-        const shiftFilter = document.getElementById('dutyShiftSelect').value;
-        const saveKey     = getDutySaveKey(targetDate, shiftFilter);
-
-        window.clearSettingCache(); const { error: _upsertErr3 } = await appDB.from('settings').upsert([{
-            key:   saveKey,
-            value: JSON.stringify(currentRosterData)
-        }]);
-        if (_upsertErr3) throw _upsertErr3;
-
-        await window.refreshDutyData();
-        Swal.fire({ icon: 'success', title: 'แจกงานเรียบร้อย!', timer: 1500, showConfirmButton: false });
-    } catch(e) {
-        Swal.fire('Error', e.message, 'error');
-    }
-};
-
-// ==========================================
-// 🔄 สลับหน้าที่โปร/TG ระหว่างพนักงานในเว็บเดียวกัน
-// ==========================================
-window.swapODTask = async function(team, userId, taskType) {
-    if (window.blockIfPreview()) return;   // โหมดตัวอย่าง: ห้ามเขียนตารางลง DB
-    if (!isDutyAdmin()) return;
-
-    // หาข้อมูลคนปัจจุบัน
-    const members = (currentRosterData[team] || []).filter(u => !u.username?.includes('ขาดคน'));
-    const curMember = members.find(   // [FIX] เดิมชื่อ currentUser ทับตัวแปร global
-        u => String(u.id) === String(userId));
-    if (!curMember) return;
-
-    const taskLabel = taskType === 'pro' ? '🟣 อนุมัติโปร' : '💬 เคส TG';
-    const taskKey   = taskType === 'pro' ? 'od_pro_task' : 'od_tg_task';
-    const otherKey  = taskType === 'pro' ? 'od_tg_task'  : 'od_pro_task';
-
-    // หาคนอื่นในเว็บเดียวกันที่สลับได้
-    const others = members.filter(u => String(u.id) !== String(userId));
-    if (others.length === 0) {
-        return Swal.fire('แจ้งเตือน', 'ไม่มีคนอื่นในเว็บนี้ให้สลับ', 'info');
-    }
-
-    // สร้าง popup เลือกคนที่จะสลับด้วย
-    const html = others.map(u => {
-        const theirTask = u[taskKey] ? taskLabel
-            : u[otherKey] ? (taskType === 'pro' ? '💬 เคส TG' : '🟣 อนุมัติโปร')
-            : '—';
-        return `
-        <div onclick="window._swapODSelected='${u.id}'; document.querySelectorAll('.swap-card').forEach(c=>c.style.outline='none'); this.style.outline='2px solid #7c3aed';"
-             class="swap-card p-3 bg-slate-800 rounded-xl border border-slate-600 cursor-pointer hover:border-violet-400 transition mb-2 text-left">
-            <div class="font-black text-white text-sm">${u.username}</div>
-            <div class="text-xs text-gray-400 mt-0.5">งานปัจจุบัน: <span class="font-bold text-gray-200">${theirTask}</span></div>
-        </div>`;
-    }).join('');
-
-    window._swapODSelected = null;
-
-    const result = await Swal.fire({
-        title: `<div class="text-base">สลับ <span class="text-violet-300">${taskLabel}</span><br><span class="text-sm text-gray-400">ของ ${curMember.username}</span></div>`,
-        html: `<div class="text-xs text-gray-400 mb-3">เลือกคนที่ต้องการสลับด้วย:</div>${html}`,
-        showCancelButton: true,
-        confirmButtonText: 'ยืนยันสลับ',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#7c3aed',
-        background: '#1e293b',
-        color: '#e2e8f0',
-        preConfirm: () => {
-            if (!window._swapODSelected) {
-                Swal.showValidationMessage('กรุณาเลือกคนที่ต้องการสลับก่อน');
-                return false;
-            }
-            return window._swapODSelected;
-        }
-    });
-
-    if (!result.isConfirmed) return;
-
-    const targetUser = members.find(u => String(u.id) === String(result.value));
-    if (!targetUser) return;
-
-    // สลับ task ระหว่าง 2 คน
-    const tempTask = curMember[taskKey];
-    curMember[taskKey]  = targetUser[taskKey];
-    targetUser[taskKey]   = tempTask;
-
-    // บันทึกลง DB
-    try {
-        const targetDate  = document.getElementById('dutyDate').value;
-        const shiftFilter = document.getElementById('dutyShiftSelect').value;
-        const saveKey     = getDutySaveKey(targetDate, shiftFilter);
-
-        window.clearSettingCache(); const { error: _upsertErr4 } = await appDB.from('settings').upsert([{
-            key:   saveKey,
-            value: JSON.stringify(currentRosterData)
-        }]);
-        if (_upsertErr4) throw _upsertErr4;
-
-        await window.refreshDutyData();
-        Swal.fire({ icon: 'success', title: 'สลับงานเรียบร้อย!', timer: 1200, showConfirmButton: false });
-    } catch(e) {
-        Swal.fire('Error', e.message, 'error');
-    }
-};
-
+// (ลบฟีเจอร์ "แจกโปร/เคส TG" ออกทั้งชุดแล้ว — เลิกใช้งาน)
 // ============================================================
 // 🏠 ระบบรวมห้อง Discord (AMQL เท่านั้น)
 // ============================================================
