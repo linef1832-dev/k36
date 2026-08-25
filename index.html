@@ -189,6 +189,19 @@
                         <span class="sidebar-footer-label text-sm font-bold flex-1">โหมดสี</span>
                     </button>
 
+                    <button onclick="logout()" class="sidebar-footer-btn flex items-center w-full px-2 py-2 hover:bg-red-900/40 text-red-500 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-red-900/50">
+                        <span class="material-icons mr-3 text-[18px]">logout</span> <span class="sidebar-footer-label text-sm font-bold flex-1">ออกจากระบบ</span>
+                    </button>
+
+                    <div class="sidebar-collapse-row">
+                        <button onclick="toggleSidebarMini()" title="ยุบ/ขยายเมนู"
+                            style="width:100%;padding:8px 0;border-radius:10px;border:none;background:transparent;color:#5d6b82;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
+                            onmouseover="this.style.color='#E8C15A';this.style.background='rgba(232,193,90,0.06)'" onmouseout="this.style.color='#5d6b82';this.style.background='transparent'">
+                            <span class="material-icons" id="sidebarCollapseIcon" style="font-size:19px">chevron_left</span>
+                        </button>
+                    </div>
+                </div>
+
             </div> <div id="app-content" class="flex-1 w-full min-w-0 pb-10 relative"></div>
 
         </div>
