@@ -14,6 +14,7 @@ let odCfgData = {
     chat_id: '',
     odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
     big:  { chat_id: '' },
+    tags: { day: '', night: '', day_start: '08:00', night_start: '20:00' },
     bot:  { token: '', enabled: true },
     templates: { od: '', odol: '', big: '', big_na: '' },
 };
@@ -28,16 +29,16 @@ const OD_TPL_DEFAULT = {
     big_na: "💰 ยอดถอนใหญ่ 💰\n\nเว็บ : {เว็บ}\n\nยูสเซอร์ : {ยูส}\n\nBY: {ผู้ส่ง}",
 };
 const OD_TPL_VARS = {
-    od:   ['{เว็บ}','{ยูส}','{โปร}','{สาเหตุ}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
-    odol: ['{เว็บ}','{รายการยูส}','{จำนวนยูส}','{ชื่อ}','{หมายเหตุ}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
-    big:    ['{เว็บ}','{ยูส}','{จำนวนเงิน}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
-    big_na: ['{เว็บ}','{ยูส}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
+    od:   ['{เว็บ}','{ยูส}','{โปร}','{สาเหตุ}','{แท็ก}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
+    odol: ['{เว็บ}','{รายการยูส}','{จำนวนยูส}','{ชื่อ}','{หมายเหตุ}','{แท็ก}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
+    big:    ['{เว็บ}','{ยูส}','{จำนวนเงิน}','{แท็ก}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
+    big_na: ['{เว็บ}','{ยูส}','{แท็ก}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
 };
 const OD_TPL_SAMPLE = {
-    od:   { '{เว็บ}':'Jun88', '{ยูส}':'kaewoon1990', '{โปร}':'KM68', '{สาเหตุ}':'ตรวจพบหลายยูสเซอร์รับโปรโมชั่น', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
-    odol: { '{เว็บ}':'PG688', '{รายการยูส}':'1. 0993728365\n2. es181147\n3. es18112547', '{จำนวนยูส}':'3', '{ชื่อ}':'พีระพงศ์ ขวัญเกื้อ', '{หมายเหตุ}':'เก็งกำไร', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
-    big:    { '{เว็บ}':'MK8', '{ยูส}':'test1', '{จำนวนเงิน}':'50,000', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
-    big_na: { '{เว็บ}':'MK8', '{ยูส}':'test1', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
+    od:   { '{เว็บ}':'Jun88', '{ยูส}':'kaewoon1990', '{โปร}':'KM68', '{สาเหตุ}':'ตรวจพบหลายยูสเซอร์รับโปรโมชั่น', '{แท็ก}':'@somchai @somsri', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
+    odol: { '{เว็บ}':'PG688', '{รายการยูส}':'1. 0993728365\n2. es181147\n3. es18112547', '{จำนวนยูส}':'3', '{ชื่อ}':'พีระพงศ์ ขวัญเกื้อ', '{หมายเหตุ}':'เก็งกำไร', '{แท็ก}':'@somchai @somsri', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
+    big:    { '{เว็บ}':'MK8', '{ยูส}':'test1', '{จำนวนเงิน}':'50,000', '{แท็ก}':'@somchai @somsri', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
+    big_na: { '{เว็บ}':'MK8', '{ยูส}':'test1', '{แท็ก}':'@somchai @somsri', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
 };
 function odCfg_renderTplVars() {
     OD_TPL_KEYS.forEach(k => {
@@ -117,6 +118,7 @@ window.initOdConfig = async function() {
             odCfgData = { ...odCfgData, ...parsed };
             odCfgData.odol = { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '', ...(parsed.odol || {}) };
             odCfgData.big  = { chat_id: '', ...(parsed.big || {}) };
+            odCfgData.tags = { day: '', night: '', day_start: '08:00', night_start: '20:00', ...(parsed.tags || {}) };
             odCfgData.bot  = { token: '', enabled: true, ...(parsed.bot || {}) };
             odCfgData.templates = { od: '', odol: '', big: '', big_na: '', ...(parsed.templates || {}) };
         } else {
@@ -146,6 +148,7 @@ window.initOdConfig = async function() {
                 chat_id: '',
                 odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
                 big:  { chat_id: '' },
+                tags: { day: '', night: '', day_start: '08:00', night_start: '20:00' },
                 bot:  { token: '', enabled: true },
                 templates: { od: '', odol: '', big: '', big_na: '' },
             };
@@ -169,6 +172,12 @@ window.odCfg_save = async function() {
         odCfgData.chat_id    = document.getElementById('odCfgChatId').value.trim();
         odCfgData.odol.chat_id = document.getElementById('odCfgOdolChatId').value.trim();
         odCfgData.big.chat_id  = document.getElementById('odCfgBigChatId').value.trim();
+        odCfgData.tags = {
+            day:         document.getElementById('odCfgTagDay').value.trim(),
+            night:       document.getElementById('odCfgTagNight').value.trim(),
+            day_start:   document.getElementById('odCfgTagDayStart').value.trim()   || '08:00',
+            night_start: document.getElementById('odCfgTagNightStart').value.trim() || '20:00',
+        };
         odCfgData.bot.token    = document.getElementById('odCfgBotToken').value.trim();
         // template: ถ้าเหมือนค่าเดิม เก็บเป็นว่าง (ให้ extension ใช้ default)
         const tOd = document.getElementById('odCfgTplOd').value, tOdol = document.getElementById('odCfgTplOdol').value, tBig = document.getElementById('odCfgTplBig').value, tBigNa = document.getElementById('odCfgTplBigNa').value;
@@ -222,6 +231,13 @@ function odCfg_renderAll() {
     const ak = document.getElementById('odCfgAdminKey');
     if (oc) oc.value = odCfgData.odol?.chat_id || '';
     if (bc) bc.value = odCfgData.big?.chat_id || '';
+    const tgd = document.getElementById('odCfgTagDay'), tgn = document.getElementById('odCfgTagNight');
+    const tgds = document.getElementById('odCfgTagDayStart'), tgns = document.getElementById('odCfgTagNightStart');
+    if (tgd)  tgd.value  = odCfgData.tags?.day   || '';
+    if (tgn)  tgn.value  = odCfgData.tags?.night || '';
+    if (tgds) tgds.value = odCfgData.tags?.day_start   || '08:00';
+    if (tgns) tgns.value = odCfgData.tags?.night_start || '20:00';
+    if (typeof odCfg_updateShiftLabels === 'function') odCfg_updateShiftLabels();
     if (bt) bt.value = odCfgData.bot?.token || '';
     if (ak) ak.value = localStorage.getItem('od_admin_key') || '';
     odCfg_renderNotes();
@@ -567,6 +583,7 @@ window.odCfg_refreshPreview = function() {
         chat_id: odCfgData.chat_id,
         odol:    odCfgData.odol,
         big:     odCfgData.big,
+        tags:    odCfgData.tags,
         templates: odCfgData.templates,
         bot_enabled: odCfgData.bot?.enabled !== false,
     };
@@ -590,3 +607,13 @@ function odCfg_hideStatus() {
     const el = document.getElementById('odCfgStatus');
     if (el) el.classList.add('hidden');
 }
+
+// อัปเดตป้ายช่วงเวลากะ (แสดงใต้หัวข้อ)
+window.odCfg_updateShiftLabels = function() {
+    const ds = (document.getElementById("odCfgTagDayStart")||{}).value || "08:00";
+    const ns = (document.getElementById("odCfgTagNightStart")||{}).value || "20:00";
+    const dl = document.getElementById("odCfgShiftDayLabel");
+    const nl = document.getElementById("odCfgShiftNightLabel");
+    if (dl) dl.textContent = `(${ds} \u2013 ${ns})`;
+    if (nl) nl.textContent = `(${ns} \u2013 ${ds})`;
+};
