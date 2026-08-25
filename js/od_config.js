@@ -625,19 +625,66 @@ window.odCfg_updateShiftLabels = function() {
     if (nl) nl.textContent = `(${ns} \u2013 ${ds})`;
 };
 
-// ── ผูก @username → พนักงาน (เพื่อเช็ควันหยุด) ──────────────────────────────
-function odCfg_userOptions(selectedId) {
+// ── ผูก @username → พนักงาน (เพื่อเช็ควันหยุด) — ช่องค้นหาแบบ combobox ──────
+function odCfg_findUserByName(name) {
     const list = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST : [];
-    const opts = list
-        .filter(u => u && u.username && !String(u.username).includes('ขาดคน'))
-        .sort((a, b) => String(a.username).localeCompare(String(b.username), 'th'))
-        .map(u => `<option value="${u.id}" ${String(u.id) === String(selectedId) ? 'selected' : ''}>${u.username}</option>`)
-        .join('');
-    return `<option value="">— เลือกพนักงาน —</option>${opts}`;
+    const n = String(name || '').trim().toLowerCase();
+    if (!n) return null;
+    return list.find(u => u && u.username && String(u.username).toLowerCase() === n) || null;
+}
+function odCfg_esc(s) { return String(s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+// ค้นหา + แสดงรายการใต้ช่อง
+window.odCfg_userSearch = function(input) {
+    const wrap = input.parentElement;
+    const box = wrap.querySelector('.od-user-results');
+    if (!box) return;
+    const q = input.value.trim().toLowerCase();
+    input.dataset.uid = ''; // พิมพ์ใหม่ = ยังไม่ยืนยันการเลือก
+    const list = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST : [];
+    let items = list.filter(u => u && u.username && !String(u.username).includes('ขาดคน'));
+    if (q) items = items.filter(u => String(u.username).toLowerCase().includes(q));
+    items = items.sort((a, b) => String(a.username).localeCompare(String(b.username), 'th')).slice(0, 60);
+    if (!items.length) {
+        box.innerHTML = `<div class="px-3 py-2 text-xs text-gray-400">ไม่พบชื่อนี้</div>`;
+    } else {
+        box.innerHTML = items.map(u =>
+            `<div class="od-user-item px-3 py-1.5 text-sm cursor-pointer text-slate-700 dark:text-slate-200 hover:bg-blue-600 hover:text-white" data-uid="${u.id}" data-name="${odCfg_esc(u.username)}">${odCfg_esc(u.username)}</div>`
+        ).join('');
+    }
+    box.classList.remove('hidden');
+};
+window.odCfg_hideUserResults = function() {
+    document.querySelectorAll('#odCfgTagMapList .od-user-results').forEach(b => b.classList.add('hidden'));
+};
+// ผูก event แบบ delegation ครั้งเดียว
+function odCfg_bindTagMapEvents() {
+    if (window.__odCfgTagMapBound) return;
+    window.__odCfgTagMapBound = true;
+    document.addEventListener('input', e => {
+        if (e.target.classList && e.target.classList.contains('od-tagmap-user')) window.odCfg_userSearch(e.target);
+    });
+    document.addEventListener('focusin', e => {
+        if (e.target.classList && e.target.classList.contains('od-tagmap-user')) window.odCfg_userSearch(e.target);
+    });
+    document.addEventListener('mousedown', e => {
+        const item = e.target.closest && e.target.closest('.od-user-item');
+        if (item) {
+            e.preventDefault();
+            const row = item.closest('.od-tagmap-row');
+            const input = row.querySelector('.od-tagmap-user');
+            input.value = item.dataset.name;
+            input.dataset.uid = item.dataset.uid;
+            window.odCfg_hideUserResults();
+            return;
+        }
+        if (!(e.target.classList && e.target.classList.contains('od-tagmap-user'))) window.odCfg_hideUserResults();
+    });
 }
 window.odCfg_renderTagMap = function() {
     const box = document.getElementById('odCfgTagMapList');
     if (!box) return;
+    odCfg_bindTagMapEvents();
     const rows = Array.isArray(odCfgData.tags?.map) ? odCfgData.tags.map : [];
     if (!rows.length) {
         box.innerHTML = `<p class="text-xs text-gray-400 py-2">ยังไม่ได้ผูก @username กับพนักงาน — @ ที่ไม่ผูกจะถูกแท็กทุกวัน (ไม่เช็ควันหยุด)</p>`;
@@ -645,32 +692,53 @@ window.odCfg_renderTagMap = function() {
     }
     box.innerHTML = rows.map((r, i) => `
         <div class="flex items-center gap-2 mb-2 od-tagmap-row">
-            <input type="text" class="od-tagmap-handle w-40 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500" placeholder="@username" value="${(r.handle || '').replace(/"/g, '&quot;')}">
+            <input type="text" class="od-tagmap-handle w-40 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500" placeholder="@username" value="${odCfg_esc(r.handle)}">
             <span class="material-icons text-gray-400 text-sm">link</span>
-            <select class="od-tagmap-user flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500">${odCfg_userOptions(r.user_id)}</select>
+            <div class="relative flex-1">
+                <input type="text" autocomplete="off" data-uid="${odCfg_esc(r.user_id)}" class="od-tagmap-user w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500" placeholder="🔍 พิมพ์ค้นหาชื่อพนักงาน..." value="${odCfg_esc(r.name)}">
+                <div class="od-user-results hidden absolute left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-xl z-50"></div>
+            </div>
             <button onclick="odCfg_removeTagMapRow(${i})" class="text-gray-400 hover:text-red-500 border border-gray-300 dark:border-slate-600 rounded-lg px-2 py-1.5"><span class="material-icons text-sm">delete</span></button>
         </div>`).join('');
 };
+function odCfg_rowUser(row) {
+    const input = row.querySelector('.od-tagmap-user');
+    let u = null;
+    if (input.dataset.uid) {
+        const list = (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST) ? GLOBAL_USER_LIST : [];
+        u = list.find(x => String(x.id) === String(input.dataset.uid)) || null;
+    }
+    if (!u) u = odCfg_findUserByName(input.value);
+    return u;
+}
 window.odCfg_readTagMap = function() {
     const rows = [];
     document.querySelectorAll('#odCfgTagMapList .od-tagmap-row').forEach(row => {
         const handle = row.querySelector('.od-tagmap-handle').value.trim();
-        const sel = row.querySelector('.od-tagmap-user');
-        const user_id = sel.value;
-        const name = sel.value ? sel.options[sel.selectedIndex].text : '';
-        if (handle && user_id) rows.push({ handle, user_id, name });
+        const u = odCfg_rowUser(row);
+        if (handle && u) rows.push({ handle, user_id: String(u.id), name: u.username });
     });
     return rows;
 };
 window.odCfg_addTagMapRow = function() {
-    // อ่านของเดิมจาก DOM ก่อน แล้วเพิ่มแถวว่าง เพื่อไม่ให้ค่าที่กรอกหาย
     odCfgData.tags = odCfgData.tags || {};
-    odCfgData.tags.map = odCfg_readTagMap();
+    odCfgData.tags.map = odCfg_readTagMapRaw();
     odCfgData.tags.map.push({ handle: '', user_id: '', name: '' });
     odCfg_renderTagMap();
 };
 window.odCfg_removeTagMapRow = function(i) {
-    odCfgData.tags.map = odCfg_readTagMap();
+    odCfgData.tags.map = odCfg_readTagMapRaw();
     odCfgData.tags.map.splice(i, 1);
     odCfg_renderTagMap();
 };
+// อ่านค่าดิบจาก DOM ไว้ใช้ตอน add/remove (เก็บ text ที่กำลังพิมพ์แม้ยังไม่ตรงชื่อ)
+function odCfg_readTagMapRaw() {
+    const rows = [];
+    document.querySelectorAll('#odCfgTagMapList .od-tagmap-row').forEach(row => {
+        const handle = row.querySelector('.od-tagmap-handle').value;
+        const input = row.querySelector('.od-tagmap-user');
+        const u = odCfg_rowUser(row);
+        rows.push({ handle, user_id: u ? String(u.id) : '', name: u ? u.username : input.value.trim() });
+    });
+    return rows;
+}
