@@ -49,31 +49,29 @@
         #menu-list .nm-menu-title.active .material-icons{ color:#E8C15A !important; }
         /* เมนูย่อย discord/admin */
         #menu-discord button:hover, #menu-admin button:hover{ color:#f5e3ae !important; background:rgba(232,193,90,0.06) !important; }
-
-        /* ปุ่มยุบแถบเมนู: โชว์เฉพาะจอคอม */
-        .sidebar-collapse-row{ display:none; }
-        @media (min-width:768px){ .sidebar-collapse-row{ display:flex; justify-content:center; } }
+        /* 📐 ปุ่มหุบแถบ: โชว์เฉพาะจอคอม */
+        .sidebar-collapse-row{ display:none; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px; margin-top:8px; }
+        @media (min-width:768px){
+            .sidebar-collapse-row{ display:flex; justify-content:center; }
+            #sidebarNav.sidebar-mini{ width:66px !important; }
+            #sidebarNav.sidebar-mini .nm-menu-title{ font-size:0 !important; padding:13px 0 !important; justify-content:center !important; }
+            #sidebarNav.sidebar-mini .nm-menu-title > div{ justify-content:center !important; }
+            #sidebarNav.sidebar-mini .nm-menu-title .material-icons{ font-size:19px !important; margin:0 !important; width:auto !important; }
+            #sidebarNav.sidebar-mini button.group-collapsed{ display:flex !important; }
+            #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; padding:7px 0 !important; margin:8px 6px 3px !important; background:transparent !important; border-color:transparent !important; }
+            #sidebarNav.sidebar-mini .menu-section-header .sec-label,
+            #sidebarNav.sidebar-mini .menu-section-header .sec-chev{ display:none !important; }
+            #sidebarNav.sidebar-mini #menu-discord, #sidebarNav.sidebar-mini #menu-admin{ display:none !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-label{ display:none !important; }
+            #sidebarNav.sidebar-mini .theme-switch{ display:none !important; }
+            #sidebarNav.sidebar-mini .sidebar-theme-row{ justify-content:center !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-btn{ justify-content:center !important; padding:10px 0 !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-btn .material-icons,
+            #sidebarNav.sidebar-mini .sidebar-theme-row .material-icons{ margin:0 !important; }
+        }
         /* 🗂️ พับหมวดเมนู */
         #menu-list .group-collapsed{ display:none !important; }
         #menu-list .menu-section-header.collapsed .sec-chev{ transform:rotate(-90deg); }
-        
-        /* 📐 โหมดแถบจิ๋ว (เฉพาะจอ md ขึ้นไป) */
-        @media (min-width:768px){
-            #sidebarNav.sidebar-mini{ width:64px !important; }
-            #sidebarNav.sidebar-mini .menu-section-header{ padding:10px 0 2px !important; justify-content:center !important; }
-            #sidebarNav.sidebar-mini .menu-section-header .sec-label{ display:none; }
-            #sidebarNav.sidebar-mini .menu-section-header .sec-chev{ display:none; }
-            #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; padding:7px 0 !important; margin:8px 6px 3px !important; background:transparent !important; border-color:transparent !important; }
-            #sidebarNav.sidebar-mini .nm-menu-title{ font-size:0 !important; }
-            #sidebarNav.sidebar-mini .nm-menu-title > div{ justify-content:center !important; }
-            #sidebarNav.sidebar-mini .nm-menu-title .material-icons{ font-size:19px !important; margin:0 !important; }
-            #sidebarNav.sidebar-mini #menu-discord button, #sidebarNav.sidebar-mini #menu-admin button{ font-size:0 !important; padding:10px 0 !important; text-align:center !important; }
-            #sidebarNav.sidebar-mini .sidebar-footer-label{ display:none !important; }
-            #sidebarNav.sidebar-mini .theme-switch{ display:none !important; }
-            #sidebarNav.sidebar-mini #themeIcon{ margin-right:0 !important; }
-            #sidebarNav.sidebar-mini .text-sm.font-bold.flex-1{ display:none !important; }
-            #sidebarNav.sidebar-mini button .material-icons.mr-3{ margin-right:0 !important; }
-        }
     </style>
 </head>
 <body class="bg-gray-100 text-slate-800 dark:bg-[#0b1120] dark:text-gray-100 transition-colors duration-300">
@@ -186,13 +184,13 @@
 
                 <div class="mt-auto border-t border-[#1a273a] bg-[#020813] sticky bottom-0 z-10 p-5 shrink-0">
                     
-                    <button onclick="openLogsPage()" class="flex items-center w-full px-2 py-2 mb-4 hover:bg-blue-900/40 text-blue-400 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-blue-900/50">
-                        <span class="material-icons mr-3 text-[18px]">history</span> <span class="text-sm font-bold flex-1">ประวัติระบบ</span>
+                    <button onclick="openLogsPage()" class="sidebar-footer-btn flex items-center w-full px-2 py-2 mb-4 hover:bg-blue-900/40 text-blue-400 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-blue-900/50">
+                        <span class="material-icons mr-3 text-[18px]">history</span> <span class="sidebar-footer-label text-sm font-bold flex-1">ประวัติระบบ</span>
                     </button>
 
-                    <div class="flex items-center justify-between mb-4 px-2">
+                    <div class="sidebar-theme-row flex items-center justify-between mb-4 px-2">
                         <div class="flex items-center text-[#8b9bb4] text-sm font-bold">
-                            <span id="themeIcon" class="material-icons text-yellow-500 mr-3 text-[18px]">dark_mode</span> โหมดสี
+                            <span id="themeIcon" class="material-icons text-yellow-500 mr-3 text-[18px]">dark_mode</span> <span class="sidebar-footer-label">โหมดสี</span>
                         </div>
                         <label class="theme-switch">
                             <input type="checkbox" id="themeToggleCb" onchange="toggleTheme()" checked>
@@ -200,11 +198,11 @@
                         </label>
                     </div>
                     
-                    <button onclick="logout()" class="flex items-center w-full px-2 py-2 hover:bg-red-900/40 text-red-500 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-red-900/50">
-                        <span class="material-icons mr-3 text-[18px]">logout</span> <span class="text-sm font-bold flex-1">ออกจากระบบ</span>
+                    <button onclick="logout()" class="sidebar-footer-btn flex items-center w-full px-2 py-2 hover:bg-red-900/40 text-red-500 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-red-900/50">
+                        <span class="material-icons mr-3 text-[18px]">logout</span> <span class="sidebar-footer-label text-sm font-bold flex-1">ออกจากระบบ</span>
                     </button>
 
-                    <div class="sidebar-collapse-row" style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;margin-top:8px">
+                    <div class="sidebar-collapse-row">
                         <button onclick="toggleSidebarMini()" title="ยุบ/ขยายเมนู"
                             style="width:100%;padding:8px 0;border-radius:10px;border:none;background:transparent;color:#5d6b82;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
                             onmouseover="this.style.color='#E8C15A';this.style.background='rgba(232,193,90,0.06)'" onmouseout="this.style.color='#5d6b82';this.style.background='transparent'">
@@ -218,11 +216,11 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082437";</script>
-    <script src="./js/global.js?v=2026082437" defer></script>
-    <script src="./js/auth.js?v=2026082437" defer></script>
-    <script src="./js/system_core.js?v=2026082437" defer></script>
-    <script src="./js/dashboard.js?v=2026082437" defer></script>
+    <script>window._APP_VERSION = "2026082439";</script>
+    <script src="./js/global.js?v=2026082439" defer></script>
+    <script src="./js/auth.js?v=2026082439" defer></script>
+    <script src="./js/system_core.js?v=2026082439" defer></script>
+    <script src="./js/dashboard.js?v=2026082439" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
     
@@ -329,107 +327,110 @@
     <!-- ====== จบ Modal ====== -->
 
     <script>
-    // 🗂️ พับ/กางหมวดเมนู (จำสถานะไว้ในเครื่อง)
-    window.toggleMenuSection = function(h) {
-        const nav = document.getElementById('sidebarNav');
-        if (nav && nav.classList.contains('sidebar-mini')) { _showSectionFly(h); return; }  // โหมดจิ๋ว: คลิก = เปิดแผงลอย
-        const collapsed = !h.classList.contains('collapsed');
-        h.classList.toggle('collapsed', collapsed);
-        let el = h.nextElementSibling;
-        while (el && !el.classList.contains('menu-section-header')) {
-            el.classList.toggle('group-collapsed', collapsed);
-            el = el.nextElementSibling;
+    // ═══ ระบบเมนู: พับหมวด + ยุบแถบ + แผงลอย (เขียนรวมก้อนเดียว) ═══
+    (function() {
+        function cleanLabel(btn) {
+            const c = btn.cloneNode(true);
+            c.querySelectorAll('.material-icons, [class*="rounded-full"]').forEach(function(x) { x.remove(); });
+            return (c.textContent || '').trim().replace(/\s+/g, ' ');
         }
-        try { localStorage.setItem('menuSec_' + h.dataset.sec, collapsed ? '1' : '0'); } catch (e) {}
-    };
-    // 📐 ยุบ/ขยายแถบเมนูทั้งแท่ง
-    window.toggleSidebarMini = function() {
-        const nav = document.getElementById('sidebarNav');
-        const mini = !nav.classList.contains('sidebar-mini');
-        nav.classList.toggle('sidebar-mini', mini);
-        const ic = document.getElementById('sidebarCollapseIcon');
-        if (ic) ic.textContent = mini ? 'chevron_right' : 'chevron_left';
-        try { localStorage.setItem('sidebarMini', mini ? '1' : '0'); } catch (e) {}
-    };
-
-    // 🪟 [แถบจิ๋ว] ชี้หัวหมวดแล้วเมนูข้างในเด้งออกเป็นแผงลอยด้านข้าง
-    let _flyEl = null, _flyHideT = null;
-    function _ensureFly() {
-        if (_flyEl) return _flyEl;
-        _flyEl = document.createElement('div');
-        _flyEl.id = 'sidebarFlyout';
-        _flyEl.style.cssText = 'position:fixed;z-index:99;min-width:215px;background:linear-gradient(165deg,#101828,#0b111e);border:1px solid rgba(255,255,255,0.1);border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,0.55);padding:8px;display:none';
-        _flyEl.addEventListener('mouseenter', function() { clearTimeout(_flyHideT); });
-        _flyEl.addEventListener('mouseleave', _hideFlySoon);
-        document.body.appendChild(_flyEl);
-        return _flyEl;
-    }
-    function _hideFlySoon() {
-        clearTimeout(_flyHideT);
-        _flyHideT = setTimeout(function() { if (_flyEl) _flyEl.style.display = 'none'; }, 200);
-    }
-    function _showSectionFly(h) {
-        const nav = document.getElementById('sidebarNav');
-        if (!nav || !nav.classList.contains('sidebar-mini')) return;   // ทำงานเฉพาะตอนยุบ
-        clearTimeout(_flyHideT);
-        const fly = _ensureFly();
-        const items = [];
-        let el = h.nextElementSibling;
-        while (el && !el.classList.contains('menu-section-header')) {
-            const btns = el.tagName === 'BUTTON' ? [el] : Array.prototype.slice.call(el.querySelectorAll('button'));
-            btns.forEach(function(b) {
-                if (b.classList.contains('hidden') || b.style.display === 'none') return;
-                if ((b.getAttribute('onclick') || '').indexOf('toggleSubMenu') !== -1) return;  // ข้ามปุ่มกางเมนูย่อย
-                // เอาเฉพาะข้อความจริง — ตัดชื่อไอคอน (home, gavel, ...) และป้ายตัวเลขออก
-                const clone = b.cloneNode(true);
-                clone.querySelectorAll('.material-icons, [class*="rounded-full"]').forEach(function(x) { x.remove(); });
-                const label = (clone.textContent || '').trim().replace(/\s+/g, ' ');
-                if (label) items.push({ label: label, target: b });
-            });
-            el = el.nextElementSibling;
+        let flyEl = null, flyHideT = null;
+        function hideFlySoon() {
+            clearTimeout(flyHideT);
+            flyHideT = setTimeout(function() { if (flyEl) flyEl.style.display = 'none'; }, 200);
         }
-        if (!items.length) return;
-        const titleEl = h.querySelector('.sec-label');
-        const iconEl = h.querySelector('.sec-chip .material-icons');
-        const color = iconEl ? getComputedStyle(iconEl).color : '#8fa3bf';
-        fly.innerHTML =
-            '<div style="padding:7px 10px 8px;font-size:11px;font-weight:900;letter-spacing:0.05em;color:' + color + ';border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:5px">' + (titleEl ? titleEl.textContent : '') + '</div>' +
-            items.map(function(it, i) {
-                return '<button data-fi="' + i + '" style="width:100%;text-align:left;padding:9px 12px;border:none;border-radius:9px;background:transparent;color:#c9d3e0;font-size:13px;font-weight:700;cursor:pointer;display:block;transition:all .12s" ' +
-                       'onmouseover="this.style.background=\'rgba(255,255,255,0.07)\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#c9d3e0\'">' + it.label + '</button>';
-            }).join('');
-        fly.querySelectorAll('button[data-fi]').forEach(function(b) {
-            b.addEventListener('click', function() { items[+b.dataset.fi].target.click(); fly.style.display = 'none'; });
-        });
-        const r = h.getBoundingClientRect();
-        fly.style.display = 'block';
-        fly.style.left = (r.right + 10) + 'px';
-        fly.style.top = r.top + 'px';
-        requestAnimationFrame(function() {
-            const fr = fly.getBoundingClientRect();
-            if (fr.bottom > window.innerHeight - 8) fly.style.top = Math.max(8, window.innerHeight - fr.height - 8) + 'px';
-        });
-    }
-    // คืนสถานะตอนเปิดเว็บ + ใส่ tooltip ให้ปุ่มตอนโหมดจิ๋ว
-    document.addEventListener('DOMContentLoaded', function() {
-        try {
-            if (localStorage.getItem('sidebarMini') === '1') window.toggleSidebarMini();
-            document.querySelectorAll('#menu-list .menu-section-header').forEach(h => {
-                if (localStorage.getItem('menuSec_' + h.dataset.sec) === '1') window.toggleMenuSection(h);
-            });
-        } catch (e) {}
-        document.querySelectorAll('#menu-list .menu-section-header').forEach(h => {
-            h.addEventListener('mouseenter', function() { _showSectionFly(h); });
-            h.addEventListener('mouseleave', _hideFlySoon);
-        });
-        document.querySelectorAll('#menu-list .nm-menu-title').forEach(b => {
-            if (!b.title) {
-                const c = b.cloneNode(true);
-                c.querySelectorAll('.material-icons, [class*="rounded-full"]').forEach(function(x) { x.remove(); });
-                b.title = (c.textContent || '').trim().replace(/\s+/g, ' ');
+        function showFly(h) {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav || !nav.classList.contains('sidebar-mini')) return;
+            clearTimeout(flyHideT);
+            if (!flyEl) {
+                flyEl = document.createElement('div');
+                flyEl.style.cssText = 'position:fixed;z-index:99;min-width:215px;background:linear-gradient(165deg,#101828,#0b111e);border:1px solid rgba(255,255,255,0.1);border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,0.55);padding:8px;display:none';
+                flyEl.addEventListener('mouseenter', function() { clearTimeout(flyHideT); });
+                flyEl.addEventListener('mouseleave', hideFlySoon);
+                document.body.appendChild(flyEl);
             }
+            const items = [];
+            let el = h.nextElementSibling;
+            while (el && !el.classList.contains('menu-section-header')) {
+                const btns = el.tagName === 'BUTTON' ? [el] : Array.prototype.slice.call(el.querySelectorAll('button'));
+                btns.forEach(function(b) {
+                    if (b.classList.contains('hidden') || b.style.display === 'none') return;
+                    if ((b.getAttribute('onclick') || '').indexOf('toggleSubMenu') !== -1) return;
+                    const label = cleanLabel(b);
+                    if (label) items.push({ label: label, target: b });
+                });
+                el = el.nextElementSibling;
+            }
+            if (!items.length) return;
+            const titleEl = h.querySelector('.sec-label');
+            const iconEl = h.querySelector('.sec-chip .material-icons');
+            const color = iconEl ? getComputedStyle(iconEl).color : '#8fa3bf';
+            flyEl.innerHTML =
+                '<div style="padding:7px 10px 8px;font-size:11px;font-weight:900;letter-spacing:0.05em;color:' + color + ';border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:5px">' + (titleEl ? titleEl.textContent : '') + '</div>' +
+                items.map(function(it, i) {
+                    return '<button data-fi="' + i + '" style="width:100%;text-align:left;padding:9px 12px;border:none;border-radius:9px;background:transparent;color:#c9d3e0;font-size:13px;font-weight:700;cursor:pointer;display:block;transition:all .12s">' + it.label + '</button>';
+                }).join('');
+            flyEl.querySelectorAll('button[data-fi]').forEach(function(b) {
+                b.addEventListener('mouseenter', function() { b.style.background = 'rgba(255,255,255,0.07)'; b.style.color = '#fff'; });
+                b.addEventListener('mouseleave', function() { b.style.background = 'transparent'; b.style.color = '#c9d3e0'; });
+                b.addEventListener('click', function() { items[+b.dataset.fi].target.click(); flyEl.style.display = 'none'; });
+            });
+            const r = h.getBoundingClientRect();
+            flyEl.style.display = 'block';
+            flyEl.style.left = (r.right + 10) + 'px';
+            flyEl.style.top = r.top + 'px';
+            requestAnimationFrame(function() {
+                const fr = flyEl.getBoundingClientRect();
+                if (fr.bottom > window.innerHeight - 8) flyEl.style.top = Math.max(8, window.innerHeight - fr.height - 8) + 'px';
+            });
+        }
+        window.toggleMenuSection = function(h) {
+            const nav = document.getElementById('sidebarNav');
+            if (nav && nav.classList.contains('sidebar-mini')) { showFly(h); return; }
+            const collapsed = !h.classList.contains('collapsed');
+            h.classList.toggle('collapsed', collapsed);
+            let el = h.nextElementSibling;
+            while (el && !el.classList.contains('menu-section-header')) {
+                el.classList.toggle('group-collapsed', collapsed);
+                el = el.nextElementSibling;
+            }
+            try { localStorage.setItem('menuSec_' + h.dataset.sec, collapsed ? '1' : '0'); } catch (e) {}
+        };
+        window.toggleSidebarMini = function() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav) return;
+            const mini = !nav.classList.contains('sidebar-mini');
+            nav.classList.toggle('sidebar-mini', mini);
+            const ic = document.getElementById('sidebarCollapseIcon');
+            if (ic) ic.textContent = mini ? 'chevron_right' : 'chevron_left';
+            if (!mini && flyEl) flyEl.style.display = 'none';
+            try { localStorage.setItem('sidebarMini', mini ? '1' : '0'); } catch (e) {}
+        };
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                if (localStorage.getItem('sidebarMini') === '1') window.toggleSidebarMini();
+                document.querySelectorAll('#menu-list .menu-section-header').forEach(function(h) {
+                    if (localStorage.getItem('menuSec_' + h.dataset.sec) === '1') {
+                        h.classList.add('collapsed');
+                        let el = h.nextElementSibling;
+                        while (el && !el.classList.contains('menu-section-header')) {
+                            el.classList.add('group-collapsed');
+                            el = el.nextElementSibling;
+                        }
+                    }
+                });
+            } catch (e) {}
+            document.querySelectorAll('#menu-list .menu-section-header').forEach(function(h) {
+                h.addEventListener('mouseenter', function() { showFly(h); });
+                h.addEventListener('mouseleave', hideFlySoon);
+            });
+            document.querySelectorAll('#menu-list .nm-menu-title').forEach(function(b) {
+                if (!b.title) b.title = cleanLabel(b);
+            });
         });
-    });
+    })();
     </script>
+
 </body>
 </html>
