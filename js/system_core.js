@@ -704,8 +704,8 @@ function renderTableRows(data) {
                     })()}
                 </div>
             </td>
-            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white">${i.shift_name}</span></td>
-            <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300">${i.time_slot}</td>
+            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white" style="white-space:nowrap">${i.shift_name}</span></td>
+            <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300" style="white-space:nowrap">${i.time_slot}</td>
             <td class="px-6 py-4 text-center">${delBtn}</td>
         </tr>`;
     });
