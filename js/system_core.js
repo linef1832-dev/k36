@@ -2676,7 +2676,7 @@ window.applySidebarPermissions = async function() {
             const onClickAttr = btn.getAttribute('onclick') || '';
             let shouldShow = false;
 
-            if (onClickAttr.includes('dashboard') || onClickAttr.includes('password') || onClickAttr.includes('openEmployeeWrapped')) {
+            if (onClickAttr.includes('dashboard') || onClickAttr.includes('password')) {
                 shouldShow = true;
             } else {
                 PERM_GROUPS.forEach(group => {
