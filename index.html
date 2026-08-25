@@ -57,17 +57,13 @@
             #sidebarNav.sidebar-mini .nm-menu-title{ font-size:0 !important; padding:13px 0 !important; justify-content:center !important; }
             #sidebarNav.sidebar-mini .nm-menu-title > div{ justify-content:center !important; }
             #sidebarNav.sidebar-mini .nm-menu-title .material-icons{ font-size:19px !important; margin:0 !important; width:auto !important; }
-            #sidebarNav.sidebar-mini button.group-collapsed{ display:flex !important; }
             #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; padding:7px 0 !important; margin:8px 6px 3px !important; background:transparent !important; border-color:transparent !important; }
             #sidebarNav.sidebar-mini .menu-section-header .sec-label,
             #sidebarNav.sidebar-mini .menu-section-header .sec-chev{ display:none !important; }
             #sidebarNav.sidebar-mini #menu-discord, #sidebarNav.sidebar-mini #menu-admin{ display:none !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-label{ display:none !important; }
-            #sidebarNav.sidebar-mini .theme-switch{ display:none !important; }
-            #sidebarNav.sidebar-mini .sidebar-theme-row{ justify-content:center !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-btn{ justify-content:center !important; padding:10px 0 !important; }
-            #sidebarNav.sidebar-mini .sidebar-footer-btn .material-icons,
-            #sidebarNav.sidebar-mini .sidebar-theme-row .material-icons{ margin:0 !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-btn .material-icons{ margin:0 !important; }
         }
         /* 🗂️ พับหมวดเมนู */
         #menu-list .group-collapsed{ display:none !important; }
@@ -188,39 +184,21 @@
                         <span class="material-icons mr-3 text-[18px]">history</span> <span class="sidebar-footer-label text-sm font-bold flex-1">ประวัติระบบ</span>
                     </button>
 
-                    <div class="sidebar-theme-row flex items-center justify-between mb-4 px-2">
-                        <div class="flex items-center text-[#8b9bb4] text-sm font-bold">
-                            <span id="themeIcon" class="material-icons text-yellow-500 mr-3 text-[18px]">dark_mode</span> <span class="sidebar-footer-label">โหมดสี</span>
-                        </div>
-                        <label class="theme-switch">
-                            <input type="checkbox" id="themeToggleCb" onchange="toggleTheme()" checked>
-                            <span class="theme-slider"></span>
-                        </label>
-                    </div>
-                    
-                    <button onclick="logout()" class="sidebar-footer-btn flex items-center w-full px-2 py-2 hover:bg-red-900/40 text-red-500 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-red-900/50">
-                        <span class="material-icons mr-3 text-[18px]">logout</span> <span class="sidebar-footer-label text-sm font-bold flex-1">ออกจากระบบ</span>
+                    <button onclick="toggleTheme()" class="sidebar-footer-btn flex items-center w-full px-2 py-2 mb-4 hover:bg-yellow-900/20 text-[#8b9bb4] transition rounded-lg text-left cursor-pointer border border-transparent hover:border-yellow-900/40">
+                        <span id="themeIcon" class="material-icons text-yellow-500 mr-3 text-[18px]">dark_mode</span>
+                        <span class="sidebar-footer-label text-sm font-bold flex-1">โหมดสี</span>
                     </button>
-
-                    <div class="sidebar-collapse-row">
-                        <button onclick="toggleSidebarMini()" title="ยุบ/ขยายเมนู"
-                            style="width:100%;padding:8px 0;border-radius:10px;border:none;background:transparent;color:#5d6b82;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
-                            onmouseover="this.style.color='#E8C15A';this.style.background='rgba(232,193,90,0.06)'" onmouseout="this.style.color='#5d6b82';this.style.background='transparent'">
-                            <span class="material-icons" id="sidebarCollapseIcon" style="font-size:19px">chevron_left</span>
-                        </button>
-                    </div>
-                </div>
 
             </div> <div id="app-content" class="flex-1 w-full min-w-0 pb-10 relative"></div>
 
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082439";</script>
-    <script src="./js/global.js?v=2026082439" defer></script>
-    <script src="./js/auth.js?v=2026082439" defer></script>
-    <script src="./js/system_core.js?v=2026082439" defer></script>
-    <script src="./js/dashboard.js?v=2026082439" defer></script>
+    <script>window._APP_VERSION = "2026082440";</script>
+    <script src="./js/global.js?v=2026082440" defer></script>
+    <script src="./js/auth.js?v=2026082440" defer></script>
+    <script src="./js/system_core.js?v=2026082440" defer></script>
+    <script src="./js/dashboard.js?v=2026082440" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
     
