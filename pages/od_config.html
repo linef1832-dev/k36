@@ -202,6 +202,15 @@
                     </div>
                 </div>
                 <p class="text-xs text-gray-400 mt-2">💡 ใช้ <b>@username</b> ของ Telegram (คนนั้นต้องอยู่ในกลุ่ม) ถึงจะเด้งเตือนได้</p>
+
+                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1"><span class="material-icons text-sm text-emerald-500">event_busy</span> ผูก @username กับพนักงาน (เช็ควันหยุด)</label>
+                        <button onclick="odCfg_addTagMapRow()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">add</span> เพิ่มแถว</button>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-2">ผูก @ ไว้กับพนักงานในระบบ — ถ้าวันไหนพนักงานคนนั้น<b>ลา/หยุด</b> (ตามข้อมูลหน้าวันลา) ระบบจะ<b>ไม่แท็ก</b> @ นั้นให้อัตโนมัติ ส่วน @ ที่ไม่ได้ผูกไว้จะแท็กทุกวันตามปกติ</p>
+                    <div id="odCfgTagMapList"></div>
+                </div>
             </div>
         </div>
 
