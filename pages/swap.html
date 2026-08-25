@@ -1,5 +1,38 @@
-<div id="autoSwapModal" class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-    <div class="bg-gradient-to-r from-orange-600 to-red-600 text-white p-4 shadow-lg shrink-0 flex justify-between items-center z-10">
+<div id="swapPage" id="autoSwapModal" class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
+
+<style>
+/* 🎩 Premium Skin — การ์ดแก้วเข้ม + ลอยตอนชี้ + ขอบเรืองส้ม */
+#swapPage [class*="dark:bg-slate-800"][class*="rounded-2xl"],
+#swapPage [class*="dark:bg-slate-800"][class*="rounded-xl"]{
+    background:linear-gradient(165deg,#101828,#0b111e) !important;
+    border-color:rgba(255,255,255,0.08) !important;
+    box-shadow:0 4px 16px rgba(0,0,0,0.25) !important;
+    transition:transform .15s, box-shadow .15s, border-color .15s !important;
+}
+#swapPage [class*="dark:bg-slate-800"][class*="rounded-2xl"]:hover,
+#swapPage [class*="dark:bg-slate-800"][class*="rounded-xl"]:hover{
+    transform:translateY(-3px);
+    border-color:rgba(249,115,22,0.45) !important;
+    box-shadow:0 12px 28px rgba(0,0,0,0.4) !important;
+}
+#swapPage [class*="dark:bg-slate-900"]{
+    background:rgba(0,0,0,0.28) !important;
+    border-color:rgba(255,255,255,0.06) !important;
+}
+#swapPage input:focus, #swapPage select:focus{
+    border-color:rgba(249,115,22,0.55) !important;
+    box-shadow:0 0 0 3px rgba(249,115,22,0.12) !important;
+}
+/* ปุ่มคำนวณน้ำเงิน → ส้มเพลิงประจำหน้า ดูเป็นปุ่มหลักจริง ๆ */
+#swapPage .bg-blue-600{
+    background:linear-gradient(135deg,#f97316,#dc2626) !important;
+    border:1px solid rgba(255,255,255,0.18) !important;
+    box-shadow:0 6px 20px rgba(249,115,22,0.3) !important;
+}
+#swapPage .bg-blue-600:hover{ background:linear-gradient(135deg,#fb8a3c,#ef4444) !important; }
+</style>
+
+    <div class="text-white p-4 shrink-0 flex justify-between items-center z-10" style="background:linear-gradient(120deg,rgba(249,115,22,0.22),rgba(10,14,24,0.55) 45%,rgba(8,11,20,0.2)),#0c1322;border-bottom:1px solid rgba(249,115,22,0.4);box-shadow:0 6px 24px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06)">
         <div class="flex items-center gap-3">
             <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl">published_with_changes</span></div>
             <div>
@@ -124,8 +157,6 @@
                         </div>
                         <button onclick="generateSwapPlan()" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-blue-500/30 transition transform active:scale-95 flex justify-center items-center gap-2 text-base">
                             <span class="material-icons">auto_fix_high</span> ✨ คำนวณตารางสลับกะ
-                        </button>center gap-2 text-base">
-                            <span class="material-icons">auto_awesome</span> คำนวณตารางสลับกะ
                         </button>
                     </div>
 
