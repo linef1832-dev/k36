@@ -155,7 +155,7 @@ window.cleanupPageIntervals = function() {
 // ==========================================
 // 📦 [PERF] โหลด JS เฉพาะหน้าที่เปิด
 // เดิม index.html โหลดทุกไฟล์ ~2 MB ตั้งแต่เปิดเว็บ ทั้งที่ใช้แค่ 1-2 หน้า
-// ตอนนี้โหลดแค่ global/auth/system_core/dashboard/sheet/wrapped ก่อน
+// ตอนนี้โหลดแค่ global/auth/system_core/dashboard/sheet ก่อน
 // ไฟล์ของแต่ละหน้าจะถูกดึงตอนกดเข้าหน้านั้นครั้งแรก (โหลดแล้วจำไว้ ไม่โหลดซ้ำ)
 // เปลี่ยน version ทีเดียวที่ window._APP_VERSION ใน index.html
 // ==========================================
