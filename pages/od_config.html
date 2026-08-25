@@ -115,7 +115,7 @@
                 </h2>
                 <span class="text-xs text-gray-400">ใช้ตัวแปรในวงเล็บปีกกา ระบบจะแทนค่าให้ตอนส่ง</span>
             </div>
-            <div class="p-4 grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <!-- OD -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
@@ -140,17 +140,29 @@
                     <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
                     <pre id="odCfgTplPrevOdol" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
                 </div>
-                <!-- ยอดถอนใหญ่ -->
+                <!-- ยอดถอนใหญ่ (มีจำนวนเงิน) -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">💰 ยอดถอนใหญ่</label>
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">💰 ยอดถอนใหญ่ (มีจำนวนเงิน)</label>
                         <button onclick="odCfg_resetTpl('big')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
                     </div>
                     <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsBig"></div>
                     <textarea id="odCfgTplBig" rows="9" oninput="odCfg_tplPreview()"
                         class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
-                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น (พนักงานกรอกจำนวนเงิน)</div>
                     <pre id="odCfgTplPrevBig" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+                <!-- ยอดถอนใหญ่ (ไม่มีจำนวนเงิน) -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">💰 ยอดถอนใหญ่ (ไม่มีจำนวนเงิน)</label>
+                        <button onclick="odCfg_resetTpl('big_na')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsBigNa"></div>
+                    <textarea id="odCfgTplBigNa" rows="9" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น (พนักงานไม่กรอกจำนวนเงิน)</div>
+                    <pre id="odCfgTplPrevBigNa" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
                 </div>
             </div>
         </div>
