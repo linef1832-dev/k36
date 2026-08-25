@@ -17,6 +17,20 @@ window.initFilesApp = async function() {
     }
     filesActiveCategory = 'ALL';
     await fetchFilesData();
+
+    // 🔄 [เรียลไทม์] มีคนอัปไฟล์ใหม่/ลบ/ยอดโหลดเปลี่ยน → ทุกเครื่องที่เปิดหน้านี้อยู่อัปเดตเองทันที ไม่ต้องรีเฟรช
+    try {
+        let _filesRtTimer = null;
+        const ch = appDB.channel('files_realtime_' + Date.now())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
+                const k = (payload.new && payload.new.key) || (payload.old && payload.old.key);
+                if (k !== 'app_files_data' && k !== 'app_files_downloads') return;
+                clearTimeout(_filesRtTimer);
+                _filesRtTimer = setTimeout(() => fetchFilesData(), 400);   // กันวาดรัว ๆ ตอนมีหลายอีเวนต์ติดกัน
+            })
+            .subscribe();
+        if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(ch);
+    } catch (e) { console.error('files realtime:', e); }
 };
 
 // 2. ดึงข้อมูลทั้งหมด
