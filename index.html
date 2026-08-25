@@ -49,6 +49,24 @@
         #menu-list .nm-menu-title.active .material-icons{ color:#E8C15A !important; }
         /* เมนูย่อย discord/admin */
         #menu-discord button:hover, #menu-admin button:hover{ color:#f5e3ae !important; background:rgba(232,193,90,0.06) !important; }
+
+        /* 🗂️ พับหมวดเมนู */
+        #menu-list .group-collapsed{ display:none !important; }
+        #menu-list .menu-section-header.collapsed .sec-chev{ transform:rotate(-90deg); }
+        #menu-list .menu-section-header:hover{ color:#aab6c8 !important; }
+        /* 📐 โหมดแถบจิ๋ว (เฉพาะจอ md ขึ้นไป) */
+        @media (min-width:768px){
+            #sidebarNav.sidebar-mini{ width:64px !important; }
+            #sidebarNav.sidebar-mini .menu-section-header{ padding:10px 0 2px !important; justify-content:center !important; }
+            #sidebarNav.sidebar-mini .menu-section-header > span:first-child{ display:none; }
+            #sidebarNav.sidebar-mini .nm-menu-title{ font-size:0 !important; }
+            #sidebarNav.sidebar-mini .nm-menu-title > div{ justify-content:center !important; }
+            #sidebarNav.sidebar-mini .nm-menu-title .material-icons{ font-size:19px !important; margin:0 !important; }
+            #sidebarNav.sidebar-mini #menu-discord button, #sidebarNav.sidebar-mini #menu-admin button{ font-size:0 !important; padding:10px 0 !important; text-align:center !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-label{ display:none !important; }
+            #sidebarNav.sidebar-mini .text-sm.font-bold.flex-1{ display:none !important; }
+            #sidebarNav.sidebar-mini button .material-icons.mr-3{ margin-right:0 !important; }
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-slate-800 dark:bg-[#0b1120] dark:text-gray-100 transition-colors duration-300">
@@ -63,11 +81,17 @@
     <div id="main-layout" class="w-full mx-auto p-2 md:p-4 hidden fade-in min-h-screen">
         <div class="flex flex-col md:flex-row gap-4 md:gap-6 h-full items-start">
 
-            <div class="w-full md:w-[260px] bg-[#0b1727] rounded-xl shadow-2xl border border-[#1a273a] flex flex-col shrink-0 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar z-40">
-                <div class="h-3 shrink-0"></div>
+            <div id="sidebarNav" class="w-full md:w-[260px] bg-[#0b1727] rounded-xl shadow-2xl border border-[#1a273a] flex flex-col shrink-0 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar z-40" style="transition:width .2s ease">
+                <div class="shrink-0 hidden md:flex items-center justify-end px-2 pt-2">
+                    <button id="sidebarCollapseBtn" onclick="toggleSidebarMini()" title="ยุบ/ขยายเมนู"
+                        style="width:30px;height:30px;border-radius:9px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#8fa3bf;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
+                        onmouseover="this.style.color='#E8C15A';this.style.borderColor='rgba(232,193,90,0.4)'" onmouseout="this.style.color='#8fa3bf';this.style.borderColor='rgba(255,255,255,0.08)'">
+                        <span class="material-icons" id="sidebarCollapseIcon" style="font-size:17px">chevron_left</span>
+                    </button>
+                </div>
 
                 <div class="flex flex-col py-2" id="menu-list">
-                    <div class="menu-section-header" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none">งานประจำวัน</div>
+                    <div class="menu-section-header" data-sec="งานประจำวัน" onclick="toggleMenuSection(this)" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between"><span>งานประจำวัน</span><span class="material-icons sec-chev" style="font-size:14px;transition:transform .2s">expand_more</span></div>
                     <button onclick="showPage('dashboard'); setTimeout(() => { if(typeof initDashboard === 'function') initDashboard(); }, 200);" class="nm-menu-title active border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-blue-400">home</span> หน้าหลักลงเวลา</div>
                     </button>
@@ -83,7 +107,7 @@
                     <button onclick="showPage('sheet')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-green-500">table_view</span> ตารางงาน (Sheets)</div>
                     </button>
-                    <div class="menu-section-header" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none">ยอด & ตรวจสอบ</div>
+                    <div class="menu-section-header" data-sec="ยอดตรวจสอบ" onclick="toggleMenuSection(this)" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between"><span>ยอด & ตรวจสอบ</span><span class="material-icons sec-chev" style="font-size:14px;transition:transform .2s">expand_more</span></div>
                     <button onclick="showPage('summary')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-purple-400">query_stats</span> สรุปยอดทำรายการ</div>
                     </button>
@@ -99,7 +123,7 @@
                     <button onclick="showPage('ip_check')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-cyan-400">public</span> ตรวจสอบ IP พนักงาน</div>
                     </button>
-                    <div class="menu-section-header" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none">คลัง & เครื่องมือ</div>
+                    <div class="menu-section-header" data-sec="คลังเครื่องมือ" onclick="toggleMenuSection(this)" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between"><span>คลัง & เครื่องมือ</span><span class="material-icons sec-chev" style="font-size:14px;transition:transform .2s">expand_more</span></div>
                     <button onclick="showPage('gallery')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-pink-500">photo_library</span> คลังรูปภาพ</div>
                     </button>
@@ -120,14 +144,14 @@
                             <span id="sopUnreadBadge" class="hidden ml-auto bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse" title="OD ใหม่ที่ยังไม่อ่าน">0</span>
                         </div>
                     </button>
-                    <div class="menu-section-header" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none">ระบบบอท</div>
+                    <div class="menu-section-header" data-sec="ระบบบอท" onclick="toggleMenuSection(this)" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between"><span>ระบบบอท</span><span class="material-icons sec-chev" style="font-size:14px;transition:transform .2s">expand_more</span></div>
                     <button id="menuOdConfig" onclick="showPage('od_config');" class="nm-menu-title border-b border-[#1a273a] no-perm-hidden" style="display:none">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-indigo-400">extension</span> OD Form Bot</div>
                     </button>
                     <button id="sidebarKbizMenu" onclick="showPage('kbiz')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-teal-400">smart_toy</span> จัดการบอท K BIZ</div>
                     </button>
-                    <div class="menu-section-header" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none">สำหรับหัวหน้า</div>
+                    <div class="menu-section-header" data-sec="สำหรับหัวหน้า" onclick="toggleMenuSection(this)" style="padding:14px 16px 6px;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5d6b82;text-transform:uppercase;user-select:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between"><span>สำหรับหัวหน้า</span><span class="material-icons sec-chev" style="font-size:14px;transition:transform .2s">expand_more</span></div>
                     <button onclick="toggleSubMenu('menu-discord', 'icon-discord')" class="nm-menu-title border-b border-[#1a273a] justify-between">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-indigo-500">discord</span> เครื่องมือ DISCORD</div>
                         <span class="material-icons text-sm transition-transform duration-200" id="icon-discord">chevron_right</span>
@@ -171,11 +195,11 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082430";</script>
-    <script src="./js/global.js?v=2026082430" defer></script>
-    <script src="./js/auth.js?v=2026082430" defer></script>
-    <script src="./js/system_core.js?v=2026082430" defer></script>
-    <script src="./js/dashboard.js?v=2026082430" defer></script>
+    <script>window._APP_VERSION = "2026082431";</script>
+    <script src="./js/global.js?v=2026082431" defer></script>
+    <script src="./js/auth.js?v=2026082431" defer></script>
+    <script src="./js/system_core.js?v=2026082431" defer></script>
+    <script src="./js/dashboard.js?v=2026082431" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
     
@@ -280,5 +304,40 @@
         });
     </script>
     <!-- ====== จบ Modal ====== -->
+
+    <script>
+    // 🗂️ พับ/กางหมวดเมนู (จำสถานะไว้ในเครื่อง)
+    window.toggleMenuSection = function(h) {
+        const collapsed = !h.classList.contains('collapsed');
+        h.classList.toggle('collapsed', collapsed);
+        let el = h.nextElementSibling;
+        while (el && !el.classList.contains('menu-section-header')) {
+            el.classList.toggle('group-collapsed', collapsed);
+            el = el.nextElementSibling;
+        }
+        try { localStorage.setItem('menuSec_' + h.dataset.sec, collapsed ? '1' : '0'); } catch (e) {}
+    };
+    // 📐 ยุบ/ขยายแถบเมนูทั้งแท่ง
+    window.toggleSidebarMini = function() {
+        const nav = document.getElementById('sidebarNav');
+        const mini = !nav.classList.contains('sidebar-mini');
+        nav.classList.toggle('sidebar-mini', mini);
+        const ic = document.getElementById('sidebarCollapseIcon');
+        if (ic) ic.textContent = mini ? 'chevron_right' : 'chevron_left';
+        try { localStorage.setItem('sidebarMini', mini ? '1' : '0'); } catch (e) {}
+    };
+    // คืนสถานะตอนเปิดเว็บ + ใส่ tooltip ให้ปุ่มตอนโหมดจิ๋ว
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            if (localStorage.getItem('sidebarMini') === '1') window.toggleSidebarMini();
+            document.querySelectorAll('#menu-list .menu-section-header').forEach(h => {
+                if (localStorage.getItem('menuSec_' + h.dataset.sec) === '1') window.toggleMenuSection(h);
+            });
+        } catch (e) {}
+        document.querySelectorAll('#menu-list .nm-menu-title').forEach(b => {
+            if (!b.title) b.title = (b.textContent || '').trim().replace(/\s+/g, ' ');
+        });
+    });
+    </script>
 </body>
 </html>
