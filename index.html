@@ -54,13 +54,14 @@
         @media (min-width:768px){
             .sidebar-collapse-row{ display:flex; justify-content:center; }
             #sidebarNav.sidebar-mini{ width:66px !important; }
-            #sidebarNav.sidebar-mini .nm-menu-title{ font-size:0 !important; padding:13px 0 !important; justify-content:center !important; }
-            #sidebarNav.sidebar-mini .nm-menu-title > div{ justify-content:center !important; }
-            #sidebarNav.sidebar-mini .nm-menu-title .material-icons{ font-size:19px !important; margin:0 !important; width:auto !important; }
-            #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; padding:7px 0 !important; margin:8px 6px 3px !important; background:transparent !important; border-color:transparent !important; }
+            /* 🌟 กติกาหลัก: ตอนหุบ โชว์แค่ชิป 5 หมวดเสมอ — ปุ่มเมนูซ่อนหมดไม่ว่าหมวดกางหรือพับ */
+            #sidebarNav.sidebar-mini #menu-list > button{ display:none !important; }
+            #sidebarNav.sidebar-mini #menu-discord, #sidebarNav.sidebar-mini #menu-admin{ display:none !important; }
+            /* หัวหมวด: เหลือชิปไอคอนสีกึ่งกลาง */
+            #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; padding:7px 0 !important; margin:10px 6px !important; background:transparent !important; border-color:transparent !important; }
             #sidebarNav.sidebar-mini .menu-section-header .sec-label,
             #sidebarNav.sidebar-mini .menu-section-header .sec-chev{ display:none !important; }
-            #sidebarNav.sidebar-mini #menu-discord, #sidebarNav.sidebar-mini #menu-admin{ display:none !important; }
+            /* footer: เหลือไอคอนกึ่งกลาง */
             #sidebarNav.sidebar-mini .sidebar-footer-label{ display:none !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-btn{ justify-content:center !important; padding:10px 0 !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-btn .material-icons{ margin:0 !important; }
@@ -207,11 +208,11 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082440";</script>
-    <script src="./js/global.js?v=2026082440" defer></script>
-    <script src="./js/auth.js?v=2026082440" defer></script>
-    <script src="./js/system_core.js?v=2026082440" defer></script>
-    <script src="./js/dashboard.js?v=2026082440" defer></script>
+    <script>window._APP_VERSION = "2026082442";</script>
+    <script src="./js/global.js?v=2026082442" defer></script>
+    <script src="./js/auth.js?v=2026082442" defer></script>
+    <script src="./js/system_core.js?v=2026082442" defer></script>
+    <script src="./js/dashboard.js?v=2026082442" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
     
