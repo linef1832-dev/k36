@@ -89,6 +89,24 @@
             </div>
         </div>
 
+        <!-- แถว 2.6: ยอดถอนใหญ่ -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-amber-500 text-sm">savings</span> ยอดถอนใหญ่
+                </h2>
+                <span class="text-xs text-gray-400">ฟอร์มเลือกเว็บ + ใส่ยูส แล้วส่งเข้ากลุ่ม</span>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องสำหรับยอดถอนใหญ่</label>
+                    <input type="text" id="odCfgBigChatId" placeholder="เว้นว่าง = ใช้ห้องเดียวกับ OD"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                    <p class="text-xs text-gray-400 mt-1">ถ้าอยากให้ฟอร์มนี้ส่งไปอีกห้อง ใส่ -100… ที่นี่</p>
+                </div>
+            </div>
+        </div>
+
         <!-- แถว 2.7: Template ข้อความ -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
             <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
@@ -97,7 +115,7 @@
                 </h2>
                 <span class="text-xs text-gray-400">ใช้ตัวแปรในวงเล็บปีกกา ระบบจะแทนค่าให้ตอนส่ง</span>
             </div>
-            <div class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="p-4 grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <!-- OD -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
@@ -122,6 +140,18 @@
                     <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
                     <pre id="odCfgTplPrevOdol" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
                 </div>
+                <!-- ยอดถอนใหญ่ -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">💰 ยอดถอนใหญ่</label>
+                        <button onclick="odCfg_resetTpl('big')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsBig"></div>
+                    <textarea id="odCfgTplBig" rows="9" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
+                    <pre id="odCfgTplPrevBig" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
             </div>
         </div>
 
@@ -137,6 +167,7 @@
                     <button id="odCfgBtnToggle" onclick="odCfg_botToggle()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">power_settings_new</span> เปิด/ปิดบอท</button>
                     <button onclick="odCfg_botTest('od')" class="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ OD</button>
                     <button onclick="odCfg_botTest('odol')" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ODOL</button>
+                    <button onclick="odCfg_botTest('big')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ยอดใหญ่</button>
                 </div>
             </div>
             <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
