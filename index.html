@@ -29,6 +29,27 @@
             }
         }
     </script>
+
+    <!-- 🎩 Premium Theme Override — กราไฟต์ดำ × ทองแชมเปญ (เข้าชุดหน้า login) -->
+    <style id="premium-theme">
+        /* แถบเมนูซ้าย: พื้นเรียบลึก ขอบบางเนียน */
+        #menu-list .nm-menu-title{
+            font-size:13px; letter-spacing:0.02em; color:#aab6c8;
+            border-bottom:1px solid rgba(255,255,255,0.04) !important;
+            transition:background .15s,color .15s;
+        }
+        #menu-list .nm-menu-title:hover{ background:rgba(232,193,90,0.05); color:#f1f5f9; }
+        #menu-list .nm-menu-title.active{
+            background:linear-gradient(90deg,rgba(232,193,90,0.12),transparent 70%);
+            color:#f5e3ae; box-shadow:inset 3px 0 0 #E8C15A;
+        }
+        /* ไอคอนเมนู: เลิกสีสายรุ้ง → โทนเดียวนิ่ง ๆ, ทองเฉพาะอันที่เลือก */
+        #menu-list .nm-menu-title .material-icons{ color:#5d6b82 !important; font-size:18px !important; }
+        #menu-list .nm-menu-title:hover .material-icons{ color:#c9d3e0 !important; }
+        #menu-list .nm-menu-title.active .material-icons{ color:#E8C15A !important; }
+        /* เมนูย่อย discord/admin */
+        #menu-discord button:hover, #menu-admin button:hover{ color:#f5e3ae !important; background:rgba(232,193,90,0.06) !important; }
+    </style>
 </head>
 <body class="bg-gray-100 text-slate-800 dark:bg-[#0b1120] dark:text-gray-100 transition-colors duration-300">
 
@@ -43,20 +64,7 @@
         <div class="flex flex-col md:flex-row gap-4 md:gap-6 h-full items-start">
 
             <div class="w-full md:w-[260px] bg-[#0b1727] rounded-xl shadow-2xl border border-[#1a273a] flex flex-col shrink-0 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar z-40">
-                <div class="p-5 border-b border-[#1a273a] text-center bg-[#020813] sticky top-0 z-10 overflow-hidden relative shrink-0">
-                    <div class="absolute inset-0 bg-red-900/20 blur-[30px] rounded-full pointer-events-none"></div>
-                    <h2 class="font-black text-2xl tracking-[0.15em] flex items-center justify-center gap-2 relative z-10">
-                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect width="32" height="32" rx="6" fill="#111111"/>
-                            <polygon points="6,8 10,4 18,16 10,28 6,24 13,16" fill="#cc0000"/>
-                            <polygon points="13,16 18,16 20,20 16,24 10,24" fill="#ff3333" opacity="0.8"/>
-                        </svg>
-                        <div class="flex items-center gap-0.5">
-                            <span class="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">PG</span>
-                            <span class="text-red-500 drop-shadow-[0_0_12px_rgba(220,0,0,0.9)]">SG</span>
-                        </div>
-                    </h2>
-                </div>
+                <div class="h-3 shrink-0"></div>
 
                 <div class="flex flex-col py-2" id="menu-list">
                     <button onclick="showPage('dashboard'); setTimeout(() => { if(typeof initDashboard === 'function') initDashboard(); }, 200);" class="nm-menu-title active border-b border-[#1a273a]">
@@ -161,10 +169,10 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082421";</script>
-    <script src="./js/global.js?v=2026082421" defer></script>
-    <script src="./js/auth.js?v=2026082421" defer></script>
-    <script src="./js/system_core.js?v=2026082421" defer></script>
+    <script>window._APP_VERSION = "2026082422";</script>
+    <script src="./js/global.js?v=2026082422" defer></script>
+    <script src="./js/auth.js?v=2026082422" defer></script>
+    <script src="./js/system_core.js?v=2026082422" defer></script>
     <script src="./js/dashboard.js?v=2026082018" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
