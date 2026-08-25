@@ -58,7 +58,8 @@
             #sidebarNav.sidebar-mini #menu-list > button{ display:none !important; }
             #sidebarNav.sidebar-mini #menu-discord, #sidebarNav.sidebar-mini #menu-admin{ display:none !important; }
             /* หัวหมวด: เหลือชิปไอคอนสีกึ่งกลาง */
-            #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; padding:7px 0 !important; margin:10px 6px !important; background:transparent !important; border-color:transparent !important; }
+            #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; padding:7px 0 !important; margin:10px 0 !important; background:transparent !important; border-color:transparent !important; gap:0 !important; }
+            #sidebarNav.sidebar-mini .menu-section-header .sec-chip{ margin:0 auto !important; }
             #sidebarNav.sidebar-mini .menu-section-header .sec-label,
             #sidebarNav.sidebar-mini .menu-section-header .sec-chev{ display:none !important; }
             /* footer: เหลือไอคอนกึ่งกลาง */
@@ -102,9 +103,6 @@
                     <button onclick="showPage('duty')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-indigo-400">assignment_ind</span> จัดหน้าที่ / เวร</div>
                     </button>
-                    <button onclick="showPage('sheet')" class="nm-menu-title border-b border-[#1a273a]">
-                        <div class="flex items-center"><span class="material-icons nm-menu-icon text-green-500">table_view</span> ตารางงาน (Sheets)</div>
-                    </button>
                     <div class="menu-section-header" data-sec="ยอดตรวจสอบ" onclick="toggleMenuSection(this)"
                         style="margin:9px 8px 4px;padding:9px 11px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:all .15s"
                         onmouseover="this.style.borderColor='#34d39955';this.style.background='#34d3990d'"
@@ -136,6 +134,9 @@
                     </button>
                     <button onclick="showPage('files')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-emerald-400">folder_zip</span> คลังไฟล์ / โปรแกรม</div>
+                    </button>
+                    <button onclick="showPage('sheet')" class="nm-menu-title border-b border-[#1a273a]">
+                        <div class="flex items-center"><span class="material-icons nm-menu-icon text-green-500">table_view</span> ตารางงาน (Sheets)</div>
                     </button>
                     <button onclick="showPage('password')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-yellow-500">vpn_key</span> รหัสผ่าน</div>
@@ -208,11 +209,11 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082442";</script>
-    <script src="./js/global.js?v=2026082442" defer></script>
-    <script src="./js/auth.js?v=2026082442" defer></script>
-    <script src="./js/system_core.js?v=2026082442" defer></script>
-    <script src="./js/dashboard.js?v=2026082442" defer></script>
+    <script>window._APP_VERSION = "2026082443";</script>
+    <script src="./js/global.js?v=2026082443" defer></script>
+    <script src="./js/auth.js?v=2026082443" defer></script>
+    <script src="./js/system_core.js?v=2026082443" defer></script>
+    <script src="./js/dashboard.js?v=2026082443" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
     
