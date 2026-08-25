@@ -53,14 +53,14 @@
         /* 🗂️ พับหมวดเมนู */
         #menu-list .group-collapsed{ display:none !important; }
         #menu-list .menu-section-header.collapsed .sec-chev{ transform:rotate(-90deg); }
-        #menu-list .menu-section-header:hover{ filter:brightness(1.25); }
+        
         /* 📐 โหมดแถบจิ๋ว (เฉพาะจอ md ขึ้นไป) */
         @media (min-width:768px){
             #sidebarNav.sidebar-mini{ width:64px !important; }
             #sidebarNav.sidebar-mini .menu-section-header{ padding:10px 0 2px !important; justify-content:center !important; }
-            #sidebarNav.sidebar-mini .menu-section-header > span:nth-child(2){ display:none; }
+            #sidebarNav.sidebar-mini .menu-section-header .sec-label{ display:none; }
             #sidebarNav.sidebar-mini .menu-section-header .sec-chev{ display:none; }
-            #sidebarNav.sidebar-mini .menu-section-header > span:first-child{ width:22px !important; height:3px !important; }
+            #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; padding:7px 0 !important; margin:8px 6px 3px !important; background:transparent !important; border-color:transparent !important; }
             #sidebarNav.sidebar-mini .nm-menu-title{ font-size:0 !important; }
             #sidebarNav.sidebar-mini .nm-menu-title > div{ justify-content:center !important; }
             #sidebarNav.sidebar-mini .nm-menu-title .material-icons{ font-size:19px !important; margin:0 !important; }
@@ -86,7 +86,10 @@
             <div id="sidebarNav" class="w-full md:w-[260px] bg-[#0b1727] rounded-xl shadow-2xl border border-[#1a273a] flex flex-col shrink-0 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar z-40" style="transition:width .2s ease">
                 <div class="h-2 shrink-0"></div>
                 <div class="flex flex-col py-2" id="menu-list">
-                    <div class="menu-section-header" data-sec="งานประจำวัน" onclick="toggleMenuSection(this)" style="padding:15px 14px 7px;font-size:12.5px;font-weight:900;letter-spacing:0.06em;color:#60a5fa;user-select:none;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="width:4px;height:14px;border-radius:3px;background:#60a5fa;box-shadow:0 0 8px #60a5fa66;flex-shrink:0"></span><span style="flex:1">งานประจำวัน</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#60a5fa;opacity:0.8">expand_more</span></div>
+                    <div class="menu-section-header" data-sec="งานประจำวัน" onclick="toggleMenuSection(this)"
+                        style="margin:9px 8px 4px;padding:9px 11px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:all .15s"
+                        onmouseover="this.style.borderColor='#60a5fa55';this.style.background='#60a5fa0d'"
+                        onmouseout="this.style.borderColor='rgba(255,255,255,0.06)';this.style.background='rgba(255,255,255,0.03)'"><span class="sec-chip" style="width:27px;height:27px;border-radius:9px;background:linear-gradient(135deg,#60a5fa30,#60a5fa10);border:1px solid #60a5fa55;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 10px #60a5fa22"><span class="material-icons" style="font-size:15px;color:#60a5fa">today</span></span><span class="sec-label" style="flex:1;font-size:12.5px;font-weight:800;color:#dfe6f0;letter-spacing:0.03em">งานประจำวัน</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#5d6b82">expand_more</span></div>
                     <button onclick="showPage('dashboard'); setTimeout(() => { if(typeof initDashboard === 'function') initDashboard(); }, 200);" class="nm-menu-title active border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-blue-400">home</span> หน้าหลักลงเวลา</div>
                     </button>
@@ -102,7 +105,10 @@
                     <button onclick="showPage('sheet')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-green-500">table_view</span> ตารางงาน (Sheets)</div>
                     </button>
-                    <div class="menu-section-header" data-sec="ยอดตรวจสอบ" onclick="toggleMenuSection(this)" style="padding:15px 14px 7px;font-size:12.5px;font-weight:900;letter-spacing:0.06em;color:#34d399;user-select:none;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="width:4px;height:14px;border-radius:3px;background:#34d399;box-shadow:0 0 8px #34d39966;flex-shrink:0"></span><span style="flex:1">ยอด & ตรวจสอบ</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#34d399;opacity:0.8">expand_more</span></div>
+                    <div class="menu-section-header" data-sec="ยอดตรวจสอบ" onclick="toggleMenuSection(this)"
+                        style="margin:9px 8px 4px;padding:9px 11px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:all .15s"
+                        onmouseover="this.style.borderColor='#34d39955';this.style.background='#34d3990d'"
+                        onmouseout="this.style.borderColor='rgba(255,255,255,0.06)';this.style.background='rgba(255,255,255,0.03)'"><span class="sec-chip" style="width:27px;height:27px;border-radius:9px;background:linear-gradient(135deg,#34d39930,#34d39910);border:1px solid #34d39955;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 10px #34d39922"><span class="material-icons" style="font-size:15px;color:#34d399">fact_check</span></span><span class="sec-label" style="flex:1;font-size:12.5px;font-weight:800;color:#dfe6f0;letter-spacing:0.03em">ยอด & ตรวจสอบ</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#5d6b82">expand_more</span></div>
                     <button onclick="showPage('summary')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-purple-400">query_stats</span> สรุปยอดทำรายการ</div>
                     </button>
@@ -118,7 +124,10 @@
                     <button onclick="showPage('ip_check')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-cyan-400">public</span> ตรวจสอบ IP พนักงาน</div>
                     </button>
-                    <div class="menu-section-header" data-sec="คลังเครื่องมือ" onclick="toggleMenuSection(this)" style="padding:15px 14px 7px;font-size:12.5px;font-weight:900;letter-spacing:0.06em;color:#c084fc;user-select:none;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="width:4px;height:14px;border-radius:3px;background:#c084fc;box-shadow:0 0 8px #c084fc66;flex-shrink:0"></span><span style="flex:1">คลัง & เครื่องมือ</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#c084fc;opacity:0.8">expand_more</span></div>
+                    <div class="menu-section-header" data-sec="คลังเครื่องมือ" onclick="toggleMenuSection(this)"
+                        style="margin:9px 8px 4px;padding:9px 11px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:all .15s"
+                        onmouseover="this.style.borderColor='#c084fc55';this.style.background='#c084fc0d'"
+                        onmouseout="this.style.borderColor='rgba(255,255,255,0.06)';this.style.background='rgba(255,255,255,0.03)'"><span class="sec-chip" style="width:27px;height:27px;border-radius:9px;background:linear-gradient(135deg,#c084fc30,#c084fc10);border:1px solid #c084fc55;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 10px #c084fc22"><span class="material-icons" style="font-size:15px;color:#c084fc">widgets</span></span><span class="sec-label" style="flex:1;font-size:12.5px;font-weight:800;color:#dfe6f0;letter-spacing:0.03em">คลัง & เครื่องมือ</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#5d6b82">expand_more</span></div>
                     <button onclick="showPage('gallery')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-pink-500">photo_library</span> คลังรูปภาพ</div>
                     </button>
@@ -139,14 +148,20 @@
                             <span id="sopUnreadBadge" class="hidden ml-auto bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse" title="OD ใหม่ที่ยังไม่อ่าน">0</span>
                         </div>
                     </button>
-                    <div class="menu-section-header" data-sec="ระบบบอท" onclick="toggleMenuSection(this)" style="padding:15px 14px 7px;font-size:12.5px;font-weight:900;letter-spacing:0.06em;color:#fb923c;user-select:none;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="width:4px;height:14px;border-radius:3px;background:#fb923c;box-shadow:0 0 8px #fb923c66;flex-shrink:0"></span><span style="flex:1">ระบบบอท</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#fb923c;opacity:0.8">expand_more</span></div>
+                    <div class="menu-section-header" data-sec="ระบบบอท" onclick="toggleMenuSection(this)"
+                        style="margin:9px 8px 4px;padding:9px 11px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:all .15s"
+                        onmouseover="this.style.borderColor='#fb923c55';this.style.background='#fb923c0d'"
+                        onmouseout="this.style.borderColor='rgba(255,255,255,0.06)';this.style.background='rgba(255,255,255,0.03)'"><span class="sec-chip" style="width:27px;height:27px;border-radius:9px;background:linear-gradient(135deg,#fb923c30,#fb923c10);border:1px solid #fb923c55;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 10px #fb923c22"><span class="material-icons" style="font-size:15px;color:#fb923c">smart_toy</span></span><span class="sec-label" style="flex:1;font-size:12.5px;font-weight:800;color:#dfe6f0;letter-spacing:0.03em">ระบบบอท</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#5d6b82">expand_more</span></div>
                     <button id="menuOdConfig" onclick="showPage('od_config');" class="nm-menu-title border-b border-[#1a273a] no-perm-hidden" style="display:none">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-indigo-400">extension</span> OD Form Bot</div>
                     </button>
                     <button id="sidebarKbizMenu" onclick="showPage('kbiz')" class="nm-menu-title border-b border-[#1a273a]">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-teal-400">smart_toy</span> จัดการบอท K BIZ</div>
                     </button>
-                    <div class="menu-section-header" data-sec="สำหรับหัวหน้า" onclick="toggleMenuSection(this)" style="padding:15px 14px 7px;font-size:12.5px;font-weight:900;letter-spacing:0.06em;color:#E8C15A;user-select:none;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="width:4px;height:14px;border-radius:3px;background:#E8C15A;box-shadow:0 0 8px #E8C15A66;flex-shrink:0"></span><span style="flex:1">สำหรับหัวหน้า</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#E8C15A;opacity:0.8">expand_more</span></div>
+                    <div class="menu-section-header" data-sec="สำหรับหัวหน้า" onclick="toggleMenuSection(this)"
+                        style="margin:9px 8px 4px;padding:9px 11px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:all .15s"
+                        onmouseover="this.style.borderColor='#E8C15A55';this.style.background='#E8C15A0d'"
+                        onmouseout="this.style.borderColor='rgba(255,255,255,0.06)';this.style.background='rgba(255,255,255,0.03)'"><span class="sec-chip" style="width:27px;height:27px;border-radius:9px;background:linear-gradient(135deg,#E8C15A30,#E8C15A10);border:1px solid #E8C15A55;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 10px #E8C15A22"><span class="material-icons" style="font-size:15px;color:#E8C15A">workspace_premium</span></span><span class="sec-label" style="flex:1;font-size:12.5px;font-weight:800;color:#dfe6f0;letter-spacing:0.03em">สำหรับหัวหน้า</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#5d6b82">expand_more</span></div>
                     <button onclick="toggleSubMenu('menu-discord', 'icon-discord')" class="nm-menu-title border-b border-[#1a273a] justify-between">
                         <div class="flex items-center"><span class="material-icons nm-menu-icon text-indigo-500">discord</span> เครื่องมือ DISCORD</div>
                         <span class="material-icons text-sm transition-transform duration-200" id="icon-discord">chevron_right</span>
@@ -198,11 +213,11 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082433";</script>
-    <script src="./js/global.js?v=2026082433" defer></script>
-    <script src="./js/auth.js?v=2026082433" defer></script>
-    <script src="./js/system_core.js?v=2026082433" defer></script>
-    <script src="./js/dashboard.js?v=2026082433" defer></script>
+    <script>window._APP_VERSION = "2026082434";</script>
+    <script src="./js/global.js?v=2026082434" defer></script>
+    <script src="./js/auth.js?v=2026082434" defer></script>
+    <script src="./js/system_core.js?v=2026082434" defer></script>
+    <script src="./js/dashboard.js?v=2026082434" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
     
