@@ -52,42 +52,45 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-4 bg-gray-50 dark:bg-slate-800 p-6 rounded-2xl shadow-sm border-t-4 border-blue-600 sticky top-2 h-fit overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar pb-10">
-                <div class="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border border-amber-200 dark:border-amber-700/50 rounded-xl p-5 mb-6 text-slate-700 dark:text-amber-100 shadow-md relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-amber-500">gavel</span></div>
-                    <h4 class="font-extrabold text-xl text-amber-600 dark:text-amber-400 mb-4 flex items-center gap-2 relative z-10">
-                        <span class="material-icons">info</span> กฎระเบียบ (สรุป)
+                <div style="background:linear-gradient(165deg,#10141f,#0a0e18);border:1px solid rgba(232,193,90,0.22);border-radius:18px;padding:22px;margin-bottom:24px;box-shadow:0 10px 30px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.05)">
+                    <h4 style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:15px;color:#E8C15A;margin:0 0 16px;letter-spacing:0.04em">
+                        <span class="material-icons" style="font-size:18px">verified</span> กฎการลงเวลาพัก
                     </h4>
-                    
-                    <div class="bg-white/80 dark:bg-slate-800/80 p-4 rounded-lg border-l-4 border-purple-500 shadow-sm mb-4 backdrop-blur-sm">
-                        <p class="font-extrabold text-base text-purple-700 dark:text-purple-300 leading-relaxed">
-                            <span class="material-icons text-sm align-middle mr-1">schedule</span> 1 ช่วงเวลา ลงได้ <span id="periodLimitDisplay" class="underline text-lg text-purple-600 dark:text-purple-200">...</span> ครั้ง<br>
-                            <span class="material-icons text-sm align-middle mr-1">today</span> ลงได้สูงสุด <span id="limitDisplay" class="underline text-lg text-purple-600 dark:text-purple-200">...</span> ครั้ง/วัน
+
+                    <div style="display:flex;gap:10px;margin-bottom:16px">
+                        <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;text-align:center">
+                            <p style="font-size:22px;font-weight:900;color:#f1f5f9;margin:0"><span id="periodLimitDisplay">...</span></p>
+                            <p style="font-size:11px;color:#8fa3bf;margin:3px 0 0">ครั้ง / ช่วงเวลา</p>
+                        </div>
+                        <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;text-align:center">
+                            <p style="font-size:22px;font-weight:900;color:#f1f5f9;margin:0"><span id="limitDisplay">...</span></p>
+                            <p style="font-size:11px;color:#8fa3bf;margin:3px 0 0">ครั้ง / วัน</p>
+                        </div>
+                    </div>
+
+                    <div style="background:rgba(232,193,90,0.06);border:1px solid rgba(232,193,90,0.18);border-radius:12px;padding:12px 14px;margin-bottom:16px">
+                        <p style="font-size:12px;font-weight:800;color:#f5e3ae;margin:0 0 6px">การลงชนเวลากัน (เว็บเดียวกัน)</p>
+                        <p style="font-size:12px;color:#c9d3e0;margin:0;line-height:1.9">
+                            หลัก ชน หลัก <span style="color:#f87171;font-weight:800">✕</span> &nbsp;·&nbsp;
+                            รอง ชน รอง <span style="color:#f87171;font-weight:800">✕</span> &nbsp;·&nbsp;
+                            หลัก ชน รอง <span style="color:#4ade80;font-weight:800">✓</span>
                         </p>
                     </div>
-                    
-                    <div class="bg-white/50 dark:bg-black/20 p-4 rounded-lg border border-amber-100 dark:border-slate-700/50">
-                        <p class="font-bold text-sm underline mb-3 text-amber-800 dark:text-amber-300 flex items-center gap-1"><span class="material-icons text-sm">groups</span> โควตาพักพร้อมกัน:</p>
-                        <ul class="text-sm space-y-2 list-none text-slate-700 dark:text-slate-300 font-medium">
-                            <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold w-16">4 คน:</span> ห้ามพร้อม 2 (เว้น 15น.)</li>
-                            <li class="grid grid-cols-2 gap-x-2">
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">5-7 คน:</span> ≤ 2</span>
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">8-10 คน:</span> ≤ 3</span>
-                            </li>
-                            <li class="grid grid-cols-2 gap-x-2">
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">11-14:</span> ≤ 4</span>
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">15-20:</span> ≤ 5</span>
-                            </li>
-                            <li class="grid grid-cols-2 gap-x-2">
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">21-25:</span> ≤ 6</span>
-                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">26-30:</span> ≤ 7</span>
-                            </li>
-                            <li class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="font-bold">31-35 คน:</span> ไม่เกิน 8 คน</li>
-                        </ul>
+
+                    <p style="font-size:11px;font-weight:800;color:#8fa3bf;margin:0 0 8px;letter-spacing:0.05em">เพดานพักพร้อมกันต่อกลุ่ม (นับแยกหลัก / รอง)</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;font-size:12px;color:#c9d3e0;margin-bottom:16px">
+                        <span>1-4 คน <b style="color:#f1f5f9;float:right">พักได้ 1</b></span>
+                        <span>5-7 คน <b style="color:#f1f5f9;float:right">≤ 2</b></span>
+                        <span>8-10 คน <b style="color:#f1f5f9;float:right">≤ 3</b></span>
+                        <span>11-14 คน <b style="color:#f1f5f9;float:right">≤ 4</b></span>
+                        <span>15-20 คน <b style="color:#f1f5f9;float:right">≤ 5</b></span>
+                        <span>21-30 คน <b style="color:#f1f5f9;float:right">≤ 6-7</b></span>
                     </div>
-                    <div class="mt-4 text-center font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg text-sm shadow-sm border border-red-200 dark:border-red-900/50 flex flex-col gap-1">
-                        <span class="material-icons text-2xl">warning_amber</span>
-                        <span>คนที่กดไปหลังสุดจะถือว่า<br>"ไม่ปฎิบัติตามกระบวนการทำงาน"</span>
-                    </div>
+
+                    <p style="font-size:11.5px;color:#f87171;margin:0;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07);line-height:1.7">
+                        <span class="material-icons" style="font-size:13px;vertical-align:-2px">error_outline</span>
+                        คนที่กดลงหลังสุดในรอบที่เต็มแล้ว ถือว่าไม่ปฏิบัติตามกระบวนการทำงาน
+                    </p>
                 </div>
 
                 <form onsubmit="saveData(event)" class="space-y-6">
