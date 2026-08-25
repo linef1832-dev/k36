@@ -15,26 +15,29 @@ let odCfgData = {
     odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
     big:  { chat_id: '' },
     bot:  { token: '', enabled: true },
-    templates: { od: '', odol: '', big: '' },
+    templates: { od: '', odol: '', big: '', big_na: '' },
 };
 
 // ── Template ข้อความ ───────────────────────────────────────────────
-const OD_TPL_KEYS = ['od', 'odol', 'big'];
-const OD_TPL_SUF  = { od: 'Od', odol: 'Odol', big: 'Big' };
+const OD_TPL_KEYS = ['od', 'odol', 'big', 'big_na'];
+const OD_TPL_SUF  = { od: 'Od', odol: 'Odol', big: 'Big', big_na: 'BigNa' };
 const OD_TPL_DEFAULT = {
     od:   "❌ OD ตัดเครดิตผิดเงื่อนไข OD ❌\n\nเว็บ : {เว็บ}\n\nยูสเซอร์ : {ยูส}\n\nรหัสโปรโมชั่น : {โปร}\n\nสาเหตุ : {สาเหตุ}\n\nBY: {ผู้ส่ง}",
     odol: "เว็บ : {เว็บ}\n\nยูส :\n{รายการยูส}\n\nชื่อ : {ชื่อ}\n\nหมายเหตุ : {หมายเหตุ}\n\nBY: {ผู้ส่ง}",
-    big:  "💰 ยอดถอนใหญ่ 💰\n\nเว็บ : {เว็บ}\n\nยูสเซอร์ : {ยูส}\n{จำนวนเงิน}\n\nBY: {ผู้ส่ง}",
+    big:    "💰 ยอดถอนใหญ่ 💰\n\nเว็บ : {เว็บ}\n\nยูสเซอร์ : {ยูส}\nจำนวนเงิน : {จำนวนเงิน}\n\nBY: {ผู้ส่ง}",
+    big_na: "💰 ยอดถอนใหญ่ 💰\n\nเว็บ : {เว็บ}\n\nยูสเซอร์ : {ยูส}\n\nBY: {ผู้ส่ง}",
 };
 const OD_TPL_VARS = {
     od:   ['{เว็บ}','{ยูส}','{โปร}','{สาเหตุ}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
     odol: ['{เว็บ}','{รายการยูส}','{จำนวนยูส}','{ชื่อ}','{หมายเหตุ}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
-    big:  ['{เว็บ}','{ยูส}','{จำนวนเงิน}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
+    big:    ['{เว็บ}','{ยูส}','{จำนวนเงิน}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
+    big_na: ['{เว็บ}','{ยูส}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
 };
 const OD_TPL_SAMPLE = {
     od:   { '{เว็บ}':'Jun88', '{ยูส}':'kaewoon1990', '{โปร}':'KM68', '{สาเหตุ}':'ตรวจพบหลายยูสเซอร์รับโปรโมชั่น', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
     odol: { '{เว็บ}':'PG688', '{รายการยูส}':'1. 0993728365\n2. es181147\n3. es18112547', '{จำนวนยูส}':'3', '{ชื่อ}':'พีระพงศ์ ขวัญเกื้อ', '{หมายเหตุ}':'เก็งกำไร', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
-    big:  { '{เว็บ}':'MK8', '{ยูส}':'test1', '{จำนวนเงิน}':'จำนวนเงิน : 50,000', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
+    big:    { '{เว็บ}':'MK8', '{ยูส}':'test1', '{จำนวนเงิน}':'50,000', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
+    big_na: { '{เว็บ}':'MK8', '{ยูส}':'test1', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
 };
 function odCfg_renderTplVars() {
     OD_TPL_KEYS.forEach(k => {
@@ -115,7 +118,7 @@ window.initOdConfig = async function() {
             odCfgData.odol = { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '', ...(parsed.odol || {}) };
             odCfgData.big  = { chat_id: '', ...(parsed.big || {}) };
             odCfgData.bot  = { token: '', enabled: true, ...(parsed.bot || {}) };
-            odCfgData.templates = { od: '', odol: '', big: '', ...(parsed.templates || {}) };
+            odCfgData.templates = { od: '', odol: '', big: '', big_na: '', ...(parsed.templates || {}) };
         } else {
             // ครั้งแรก — ใช้ค่า default
             odCfgData = {
@@ -144,7 +147,7 @@ window.initOdConfig = async function() {
                 odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
                 big:  { chat_id: '' },
                 bot:  { token: '', enabled: true },
-                templates: { od: '', odol: '', big: '' },
+                templates: { od: '', odol: '', big: '', big_na: '' },
             };
         }
 
@@ -168,16 +171,17 @@ window.odCfg_save = async function() {
         odCfgData.big.chat_id  = document.getElementById('odCfgBigChatId').value.trim();
         odCfgData.bot.token    = document.getElementById('odCfgBotToken').value.trim();
         // template: ถ้าเหมือนค่าเดิม เก็บเป็นว่าง (ให้ extension ใช้ default)
-        const tOd = document.getElementById('odCfgTplOd').value, tOdol = document.getElementById('odCfgTplOdol').value, tBig = document.getElementById('odCfgTplBig').value;
-        const badOd = odCfg_tplUnknown('od', tOd), badOdol = odCfg_tplUnknown('odol', tOdol), badBig = odCfg_tplUnknown('big', tBig);
-        if (badOd.length || badOdol.length || badBig.length) {
-            odCfg_showStatus('❌ รูปแบบข้อความมีตัวแปรที่ไม่รู้จัก: ' + [...badOd, ...badOdol, ...badBig].join(' '), 'error');
+        const tOd = document.getElementById('odCfgTplOd').value, tOdol = document.getElementById('odCfgTplOdol').value, tBig = document.getElementById('odCfgTplBig').value, tBigNa = document.getElementById('odCfgTplBigNa').value;
+        const badOd = odCfg_tplUnknown('od', tOd), badOdol = odCfg_tplUnknown('odol', tOdol), badBig = odCfg_tplUnknown('big', tBig), badBigNa = odCfg_tplUnknown('big_na', tBigNa);
+        if (badOd.length || badOdol.length || badBig.length || badBigNa.length) {
+            odCfg_showStatus('❌ รูปแบบข้อความมีตัวแปรที่ไม่รู้จัก: ' + [...badOd, ...badOdol, ...badBig, ...badBigNa].join(' '), 'error');
             return;
         }
         odCfgData.templates = {
-            od:   (tOd.trim()   && tOd   !== OD_TPL_DEFAULT.od)   ? tOd   : '',
-            odol: (tOdol.trim() && tOdol !== OD_TPL_DEFAULT.odol) ? tOdol : '',
-            big:  (tBig.trim()  && tBig  !== OD_TPL_DEFAULT.big)  ? tBig  : '',
+            od:     (tOd.trim()    && tOd    !== OD_TPL_DEFAULT.od)     ? tOd    : '',
+            odol:   (tOdol.trim()  && tOdol  !== OD_TPL_DEFAULT.odol)   ? tOdol  : '',
+            big:    (tBig.trim()   && tBig   !== OD_TPL_DEFAULT.big)    ? tBig   : '',
+            big_na: (tBigNa.trim() && tBigNa !== OD_TPL_DEFAULT.big_na) ? tBigNa : '',
         };
         if (odCfgData.odol.notes.length && !odCfgData.odol.notes.includes(odCfgData.odol.default_note)) {
             odCfgData.odol.default_note = odCfgData.odol.notes[0];
@@ -222,10 +226,11 @@ function odCfg_renderAll() {
     if (ak) ak.value = localStorage.getItem('od_admin_key') || '';
     odCfg_renderNotes();
     odCfg_paintBotBadge(odCfgData.bot?.enabled !== false, null);
-    const to = document.getElementById('odCfgTplOd'), tl = document.getElementById('odCfgTplOdol'), tb = document.getElementById('odCfgTplBig');
+    const to = document.getElementById('odCfgTplOd'), tl = document.getElementById('odCfgTplOdol'), tb = document.getElementById('odCfgTplBig'), tbn = document.getElementById('odCfgTplBigNa');
     if (to) to.value = odCfgData.templates?.od   || OD_TPL_DEFAULT.od;
     if (tl) tl.value = odCfgData.templates?.odol || OD_TPL_DEFAULT.odol;
     if (tb) tb.value = odCfgData.templates?.big  || OD_TPL_DEFAULT.big;
+    if (tbn) tbn.value = odCfgData.templates?.big_na || OD_TPL_DEFAULT.big_na;
     odCfg_renderTplVars(); odCfg_tplPreview();
 }
 
