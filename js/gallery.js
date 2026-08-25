@@ -367,13 +367,24 @@ window.copyImageToClipboard = async function(imageUrl) {
         if (!navigator.clipboard || !window.ClipboardItem) {
             throw new Error("เบราว์เซอร์ไม่รองรับการคัดลอกรูปภาพโดยตรง (แนะนำให้ใช้ Chrome หรือ Edge)");
         }
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.src = imageUrl;
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = () => reject(new Error("ไม่สามารถโหลดรูปภาพจากเซิร์ฟเวอร์ได้"));
-        });
+        // ⚡ เร่งความเร็ว: ดึงผ่าน fetch + force-cache → รูปที่แสดงบนหน้าอยู่แล้วไม่ต้องโหลดใหม่จากเซิร์ฟเวอร์
+        // (วิธีเดิมใช้ new Image + crossOrigin ซึ่งแคชคนละช่องกับรูปบนหน้า เลยโหลดซ้ำเต็ม ๆ ทุกครั้ง = ช้า)
+        let img;
+        try {
+            const resp = await fetch(imageUrl, { cache: 'force-cache' });
+            if (!resp.ok) throw new Error('fetch failed');
+            const srcBlob = await resp.blob();
+            img = await createImageBitmap(srcBlob);
+        } catch (fetchErr) {
+            // fallback วิธีเดิม เผื่อเบราว์เซอร์เก่า/ติด CORS
+            img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = imageUrl;
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = () => reject(new Error("ไม่สามารถโหลดรูปภาพจากเซิร์ฟเวอร์ได้"));
+            });
+        }
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
@@ -402,7 +413,7 @@ window.copyImageToClipboard = async function(imageUrl) {
                     `,
                     background: '#0f172a',
                     backdrop: 'rgba(0,0,0,0.6)',
-                    timer: 2400,
+                    timer: 1500,
                     showConfirmButton: false,
                     customClass: { popup: 'rounded-2xl border border-green-900/40' }
                 });
