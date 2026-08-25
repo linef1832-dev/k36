@@ -167,6 +167,44 @@
             </div>
         </div>
 
+        <!-- แถว 2.8: แท็กคนตามกะ (Mention) -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-rose-500 text-sm">notifications_active</span> แท็กคนตามกะ (Mention)
+                </h2>
+                <span class="text-xs text-gray-400">ใส่ <code class="text-blue-400">{แท็ก}</code> ในรูปแบบข้อความด้านบน ระบบจะแท็กคนตามกะเวลาที่กดส่ง</span>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-wrap items-end gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">กะเช้าเริ่ม</label>
+                        <input type="time" id="odCfgTagDayStart" value="08:00" oninput="odCfg_updateShiftLabels()"
+                            class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">กะดึกเริ่ม</label>
+                        <input type="time" id="odCfgTagNightStart" value="20:00" oninput="odCfg_updateShiftLabels()"
+                            class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <p class="text-xs text-gray-400 flex-1 min-w-[180px]">กะเช้า = ตั้งแต่ “กะเช้าเริ่ม” ถึง “กะดึกเริ่ม” · กะดึก = ที่เหลือ (ข้ามเที่ยงคืนได้)</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">☀️ รายชื่อแท็ก กะเช้า <span id="odCfgShiftDayLabel" class="text-gray-400 font-normal">(08:00 – 20:00)</span></label>
+                        <textarea id="odCfgTagDay" rows="4" placeholder="@user1 @user2 @user3 (เว้นวรรคหรือขึ้นบรรทัดใหม่ก็ได้ ใส่กี่คนก็ได้)"
+                            class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">🌙 รายชื่อแท็ก กะดึก <span id="odCfgShiftNightLabel" class="text-gray-400 font-normal">(20:00 – 08:00)</span></label>
+                        <textarea id="odCfgTagNight" rows="4" placeholder="@user4 @user5 (เว้นวรรคหรือขึ้นบรรทัดใหม่ก็ได้ ใส่กี่คนก็ได้)"
+                            class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"></textarea>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">💡 ใช้ <b>@username</b> ของ Telegram (คนนั้นต้องอยู่ในกลุ่ม) ถึงจะเด้งเตือนได้</p>
+            </div>
+        </div>
+
         <!-- แถว 3: ตั้งค่า + ควบคุม Telegram Bot -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
             <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
