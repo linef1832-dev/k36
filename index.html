@@ -84,14 +84,7 @@
         <div class="flex flex-col md:flex-row gap-4 md:gap-6 h-full items-start">
 
             <div id="sidebarNav" class="w-full md:w-[260px] bg-[#0b1727] rounded-xl shadow-2xl border border-[#1a273a] flex flex-col shrink-0 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar z-40" style="transition:width .2s ease">
-                <div class="shrink-0 hidden md:flex items-center justify-end px-2 pt-2">
-                    <button id="sidebarCollapseBtn" onclick="toggleSidebarMini()" title="ยุบ/ขยายเมนู"
-                        style="width:30px;height:30px;border-radius:9px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#8fa3bf;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
-                        onmouseover="this.style.color='#E8C15A';this.style.borderColor='rgba(232,193,90,0.4)'" onmouseout="this.style.color='#8fa3bf';this.style.borderColor='rgba(255,255,255,0.08)'">
-                        <span class="material-icons" id="sidebarCollapseIcon" style="font-size:17px">chevron_left</span>
-                    </button>
-                </div>
-
+                <div class="h-2 shrink-0"></div>
                 <div class="flex flex-col py-2" id="menu-list">
                     <div class="menu-section-header" data-sec="งานประจำวัน" onclick="toggleMenuSection(this)" style="padding:15px 14px 7px;font-size:12.5px;font-weight:900;letter-spacing:0.06em;color:#60a5fa;user-select:none;cursor:pointer;display:flex;align-items:center;gap:8px"><span style="width:4px;height:14px;border-radius:3px;background:#60a5fa;box-shadow:0 0 8px #60a5fa66;flex-shrink:0"></span><span style="flex:1">งานประจำวัน</span><span class="material-icons sec-chev" style="font-size:16px;transition:transform .2s;color:#60a5fa;opacity:0.8">expand_more</span></div>
                     <button onclick="showPage('dashboard'); setTimeout(() => { if(typeof initDashboard === 'function') initDashboard(); }, 200);" class="nm-menu-title active border-b border-[#1a273a]">
@@ -190,6 +183,14 @@
                     <button onclick="logout()" class="flex items-center w-full px-2 py-2 hover:bg-red-900/40 text-red-500 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-red-900/50">
                         <span class="material-icons mr-3 text-[18px]">logout</span> <span class="text-sm font-bold flex-1">ออกจากระบบ</span>
                     </button>
+
+                    <div class="hidden md:flex justify-center pt-3 mt-2" style="border-top:1px solid rgba(255,255,255,0.06)">
+                        <button onclick="toggleSidebarMini()" title="ยุบ/ขยายเมนู"
+                            style="width:100%;padding:8px 0;border-radius:10px;border:none;background:transparent;color:#5d6b82;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
+                            onmouseover="this.style.color='#E8C15A';this.style.background='rgba(232,193,90,0.06)'" onmouseout="this.style.color='#5d6b82';this.style.background='transparent'">
+                            <span class="material-icons" id="sidebarCollapseIcon" style="font-size:19px">chevron_left</span>
+                        </button>
+                    </div>
                 </div>
 
             </div> <div id="app-content" class="flex-1 w-full min-w-0 pb-10 relative"></div>
@@ -197,11 +198,11 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082432";</script>
-    <script src="./js/global.js?v=2026082432" defer></script>
-    <script src="./js/auth.js?v=2026082432" defer></script>
-    <script src="./js/system_core.js?v=2026082432" defer></script>
-    <script src="./js/dashboard.js?v=2026082432" defer></script>
+    <script>window._APP_VERSION = "2026082433";</script>
+    <script src="./js/global.js?v=2026082433" defer></script>
+    <script src="./js/auth.js?v=2026082433" defer></script>
+    <script src="./js/system_core.js?v=2026082433" defer></script>
+    <script src="./js/dashboard.js?v=2026082433" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
     
