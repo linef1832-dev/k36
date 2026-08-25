@@ -65,8 +65,9 @@
             /* footer: เหลือไอคอนกึ่งกลาง */
             #sidebarNav.sidebar-mini .sidebar-footer-label{ display:none !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-btn{ justify-content:center !important; padding:10px 0 !important; }
-            #sidebarNav.sidebar-mini .sidebar-footer-btn .material-icons{ margin:0 !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-btn .footer-chip{ margin:0 !important; }
         }
+        .sidebar-footer-btn:hover .footer-chip{ filter:brightness(1.35); transform:translateY(-1px); }
         /* 🗂️ พับหมวดเมนู */
         #menu-list .group-collapsed{ display:none !important; }
         #menu-list .menu-section-header.collapsed .sec-chev{ transform:rotate(-90deg); }
@@ -183,16 +184,16 @@
                 <div class="mt-auto border-t border-[#1a273a] bg-[#020813] sticky bottom-0 z-10 p-5 shrink-0">
                     
                     <button onclick="openLogsPage()" class="sidebar-footer-btn flex items-center w-full px-2 py-2 mb-4 hover:bg-blue-900/40 text-blue-400 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-blue-900/50">
-                        <span class="material-icons mr-3 text-[18px]">history</span> <span class="sidebar-footer-label text-sm font-bold flex-1">ประวัติระบบ</span>
+                        <span class="footer-chip" style="width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,#60a5fa30,#60a5fa10);border:1px solid #60a5fa55;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 10px #60a5fa22;margin-right:10px;transition:all .15s"><span class="material-icons" style="font-size:16px;color:#60a5fa">history</span></span> <span class="sidebar-footer-label text-sm font-bold flex-1">ประวัติระบบ</span>
                     </button>
 
                     <button onclick="toggleTheme()" class="sidebar-footer-btn flex items-center w-full px-2 py-2 mb-4 hover:bg-yellow-900/20 text-[#8b9bb4] transition rounded-lg text-left cursor-pointer border border-transparent hover:border-yellow-900/40">
-                        <span id="themeIcon" class="material-icons text-yellow-500 mr-3 text-[18px]">dark_mode</span>
+                        <span class="footer-chip" style="width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,#eab30830,#eab30810);border:1px solid #eab30855;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 10px #eab30822;margin-right:10px;transition:all .15s"><span id="themeIcon" class="material-icons" style="font-size:16px;color:#eab308">dark_mode</span></span>
                         <span class="sidebar-footer-label text-sm font-bold flex-1">โหมดสี</span>
                     </button>
 
                     <button onclick="logout()" class="sidebar-footer-btn flex items-center w-full px-2 py-2 hover:bg-red-900/40 text-red-500 transition rounded-lg text-left cursor-pointer border border-transparent hover:border-red-900/50">
-                        <span class="material-icons mr-3 text-[18px]">logout</span> <span class="sidebar-footer-label text-sm font-bold flex-1">ออกจากระบบ</span>
+                        <span class="footer-chip" style="width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,#f8717130,#f8717110);border:1px solid #f8717155;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 10px #f8717122;margin-right:10px;transition:all .15s"><span class="material-icons" style="font-size:16px;color:#f87171">logout</span></span> <span class="sidebar-footer-label text-sm font-bold flex-1">ออกจากระบบ</span>
                     </button>
 
                     <div class="sidebar-collapse-row">
@@ -209,11 +210,11 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082443";</script>
-    <script src="./js/global.js?v=2026082443" defer></script>
-    <script src="./js/auth.js?v=2026082443" defer></script>
-    <script src="./js/system_core.js?v=2026082443" defer></script>
-    <script src="./js/dashboard.js?v=2026082443" defer></script>
+    <script>window._APP_VERSION = "2026082444";</script>
+    <script src="./js/global.js?v=2026082444" defer></script>
+    <script src="./js/auth.js?v=2026082444" defer></script>
+    <script src="./js/system_core.js?v=2026082444" defer></script>
+    <script src="./js/dashboard.js?v=2026082444" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
     
