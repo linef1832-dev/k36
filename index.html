@@ -69,6 +69,8 @@
             #sidebarNav.sidebar-mini .nm-menu-title .material-icons{ font-size:19px !important; margin:0 !important; }
             #sidebarNav.sidebar-mini #menu-discord button, #sidebarNav.sidebar-mini #menu-admin button{ font-size:0 !important; padding:10px 0 !important; text-align:center !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-label{ display:none !important; }
+            #sidebarNav.sidebar-mini .theme-switch{ display:none !important; }
+            #sidebarNav.sidebar-mini #themeIcon{ margin-right:0 !important; }
             #sidebarNav.sidebar-mini .text-sm.font-bold.flex-1{ display:none !important; }
             #sidebarNav.sidebar-mini button .material-icons.mr-3{ margin-right:0 !important; }
         }
@@ -216,11 +218,11 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026082436";</script>
-    <script src="./js/global.js?v=2026082436" defer></script>
-    <script src="./js/auth.js?v=2026082436" defer></script>
-    <script src="./js/system_core.js?v=2026082436" defer></script>
-    <script src="./js/dashboard.js?v=2026082436" defer></script>
+    <script>window._APP_VERSION = "2026082437";</script>
+    <script src="./js/global.js?v=2026082437" defer></script>
+    <script src="./js/auth.js?v=2026082437" defer></script>
+    <script src="./js/system_core.js?v=2026082437" defer></script>
+    <script src="./js/dashboard.js?v=2026082437" defer></script>
     <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
     <script src="./js/sheet.js?v=2026082033" defer></script>
     
@@ -378,7 +380,10 @@
             btns.forEach(function(b) {
                 if (b.classList.contains('hidden') || b.style.display === 'none') return;
                 if ((b.getAttribute('onclick') || '').indexOf('toggleSubMenu') !== -1) return;  // ข้ามปุ่มกางเมนูย่อย
-                const label = (b.textContent || '').trim().replace(/\s+/g, ' ');
+                // เอาเฉพาะข้อความจริง — ตัดชื่อไอคอน (home, gavel, ...) และป้ายตัวเลขออก
+                const clone = b.cloneNode(true);
+                clone.querySelectorAll('.material-icons, [class*="rounded-full"]').forEach(function(x) { x.remove(); });
+                const label = (clone.textContent || '').trim().replace(/\s+/g, ' ');
                 if (label) items.push({ label: label, target: b });
             });
             el = el.nextElementSibling;
@@ -418,7 +423,11 @@
             h.addEventListener('mouseleave', _hideFlySoon);
         });
         document.querySelectorAll('#menu-list .nm-menu-title').forEach(b => {
-            if (!b.title) b.title = (b.textContent || '').trim().replace(/\s+/g, ' ');
+            if (!b.title) {
+                const c = b.cloneNode(true);
+                c.querySelectorAll('.material-icons, [class*="rounded-full"]').forEach(function(x) { x.remove(); });
+                b.title = (c.textContent || '').trim().replace(/\s+/g, ' ');
+            }
         });
     });
     </script>
