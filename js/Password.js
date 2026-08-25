@@ -40,38 +40,90 @@ function _pwdPopulateUserDropdown(users) {
     if (oldVal) userSelect.value = oldVal;
 }
 
-// ฟังก์ชันดึงข้อมูลรหัสผ่าน
-window.fetchPasswords = async function() {
+// ═══ ดึงข้อมูลรหัสผ่านแบบแบ่งหน้า (โหลดทีละหน้าจากฐานข้อมูล — เร็วไม่ว่าจะมีกี่ร้อยรายการ) ═══
+const PWD_PAGE_SIZE = 12;
+let _pwdPage = 1;
+let _pwdSearchQ = '';
+let _pwdSearchTimer = null;
+
+window.fetchPasswords = async function(resetPage) {
+    if (resetPage) _pwdPage = 1;
     const grid = document.getElementById('pwdGrid');
     if (!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl">sync</span></div>';
+
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     const canViewAll = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('password_view_all'));
-    let query = appDB.from('user_passwords').select(`*, users(username)`);
+
+    let query = appDB.from('user_passwords').select(`*, users(username)`, { count: 'exact' });
     if (!canViewAll) {
         query = query.eq('user_id', currentUser.id);
     } else {
         const filterId = document.getElementById('pwdUserFilter')?.value;
         if (filterId && filterId !== 'all') query = query.eq('user_id', filterId);
     }
-    const { data, error } = await query.order('created_at', { ascending: false });
-    if (error) { grid.innerHTML = `<div class="col-span-full text-center text-red-500">โหลดข้อมูลไม่สำเร็จ: ${error.message}</div>`; return; }
+    // ค้นหาจากฐานข้อมูลจริง (ชื่อเว็บ / user / ลิงก์) — ไม่ใช่กรองเฉพาะหน้าปัจจุบัน
+    if (_pwdSearchQ) {
+        const q = _pwdSearchQ.replace(/[%,()]/g, '');
+        query = query.or(`site_name.ilike.%${q}%,login_user.ilike.%${q}%,site_url.ilike.%${q}%`);
+    }
+
+    const from = (_pwdPage - 1) * PWD_PAGE_SIZE;
+    const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, from + PWD_PAGE_SIZE - 1);
+
+    if (error) { grid.innerHTML = `<div class="col-span-full text-center text-red-500">โหลดข้อมูลไม่สำเร็จ: ${error.message}</div>`; renderPwdPagination(0); return; }
     if (!data || data.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center text-gray-400 py-10 flex flex-col items-center gap-2"><span class="material-icons text-5xl opacity-20">no_encryption</span><span>ยังไม่มีรหัสผ่านที่บันทึกไว้</span></div>`;
+        grid.innerHTML = `<div class="col-span-full text-center text-gray-400 py-10 flex flex-col items-center gap-2"><span class="material-icons text-5xl opacity-20">no_encryption</span><span>${_pwdSearchQ ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรหัสผ่านที่บันทึกไว้'}</span></div>`;
+        renderPwdPagination(count || 0);
         return;
     }
     grid.innerHTML = data.map(item => {
         const ownerName = item.users ? item.users.username : 'Unknown';
-        const ownerBadge = canViewAll ? `<div class="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1"><span class="material-icons text-[10px]">person</span> ${ownerName}</div>` : '';
-        const delBtn = (isGlobalAdmin || item.user_id === currentUser.id) ? `<button onclick="deletePassword(${item.id})" class="text-red-400 hover:text-red-600 text-xs font-bold flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition"><span class="material-icons text-sm">delete</span> ลบ</button>` : '';
-        const urlHtml = item.site_url ? `<a href="${item.site_url}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block">${item.site_url}</a>` : '';
+        const ownerBadge = canViewAll ? `<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.55);color:#e2e8f0;font-size:10px;padding:3px 10px;border-radius:99px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:3px;border:1px solid rgba(255,255,255,0.1)"><span class="material-icons" style="font-size:10px">person</span> ${ownerName}</div>` : '';
+        const delBtn = (isGlobalAdmin || item.user_id === currentUser.id) ? `<button onclick="deletePassword(${item.id})" style="color:#94a3b8;font-size:11px;font-weight:700;display:flex;align-items:center;gap:3px;padding:5px 10px;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:all .15s" onmouseover="this.style.color='#f87171';this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='#94a3b8';this.style.background='transparent'"><span class="material-icons" style="font-size:14px">delete</span> ลบ</button>` : '';
+        const urlHtml = item.site_url ? `<a href="${item.site_url}" target="_blank" style="font-size:11px;color:#60a5fa;text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${item.site_url}</a>` : '';
         return window.renderTemplate('tpl-pwd-card', {
             ownerBadge, site_name: item.site_name, urlHtml,
             id: item.id, login_user: item.login_user || '-',
             login_pass: item.login_pass, delBtn
         });
     }).join('');
+    renderPwdPagination(count || 0);
 }
+
+// ═══ แถบเลขหน้า ═══
+function renderPwdPagination(total) {
+    const bar = document.getElementById('pwdPagination');
+    if (!bar) return;
+    const pages = Math.max(1, Math.ceil(total / PWD_PAGE_SIZE));
+    if (pages <= 1) { bar.innerHTML = total ? `<span style="font-size:11px;color:#64748b">ทั้งหมด ${total} รายการ</span>` : ''; return; }
+    if (_pwdPage > pages) _pwdPage = pages;
+
+    const btn = (label, page, active, disabled) => `
+        <button ${disabled ? 'disabled' : `onclick="pwdGotoPage(${page})"`}
+            style="min-width:34px;height:34px;padding:0 10px;border-radius:10px;font-size:12.5px;font-weight:800;cursor:${disabled ? 'default' : 'pointer'};transition:all .15s;
+            ${active ? 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#1a1206;border:1px solid rgba(255,255,255,0.2);box-shadow:0 4px 12px rgba(245,158,11,0.3)'
+                     : 'background:rgba(255,255,255,0.05);color:' + (disabled ? '#3f4b61' : '#aab6c8') + ';border:1px solid rgba(255,255,255,0.09)'}">${label}</button>`;
+
+    // แสดงเลขหน้าแบบย่อ: 1 ... 4 5 6 ... 20
+    let nums = [];
+    for (let p = 1; p <= pages; p++) {
+        if (p === 1 || p === pages || Math.abs(p - _pwdPage) <= 1) nums.push(p);
+        else if (nums[nums.length - 1] !== '...') nums.push('...');
+    }
+    bar.innerHTML = `
+        <span style="font-size:11px;color:#64748b;margin-right:8px">ทั้งหมด ${total} รายการ · หน้า ${_pwdPage}/${pages}</span>
+        ${btn('‹', _pwdPage - 1, false, _pwdPage === 1)}
+        ${nums.map(p => p === '...' ? '<span style="color:#3f4b61;padding:0 2px">…</span>' : btn(p, p, p === _pwdPage, false)).join('')}
+        ${btn('›', _pwdPage + 1, false, _pwdPage === pages)}`;
+}
+
+window.pwdGotoPage = function(p) {
+    _pwdPage = p;
+    fetchPasswords();
+    document.getElementById('pwdGrid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 
 window.openAddPwdModal = function() {
     document.getElementById('pwdModal').classList.remove('hidden');
@@ -116,10 +168,11 @@ window.deletePassword = async function(id) {
 }
 
 window.filterPwdCards = function() {
-    const filter = document.getElementById('pwdSearchInput').value.toUpperCase().trim();
-    document.querySelectorAll('.pwd-card').forEach(card => {
-        card.style.display = (card.textContent || card.innerText).toUpperCase().includes(filter) ? "" : "none";
-    });
+    clearTimeout(_pwdSearchTimer);
+    _pwdSearchTimer = setTimeout(() => {
+        _pwdSearchQ = (document.getElementById('pwdSearchInput')?.value || '').trim();
+        fetchPasswords(true);   // ค้นทั้งฐานข้อมูล ไม่ใช่แค่หน้าที่เห็น
+    }, 350);
 }
 
 window.copyText = function(txt) {
