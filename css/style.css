@@ -323,19 +323,17 @@ html.dark .swal2-popup.swal2-toast {
     margin: 0 !important;
     padding: 0 !important;
 }
-.swal2-popup.swal2-toast .swal2-icon {
-    width: 1.3em !important;
-    height: 1.3em !important;
-    min-width: 1.3em !important;
-    margin: 0 !important;
-    border-width: 2px !important;
+/* ไอคอนจริงของ Swal ประกอบจากหลายชิ้น ย่อแล้วแตก → ซ่อนทิ้ง แล้วใช้สัญลักษณ์แทน */
+.swal2-popup.swal2-toast .swal2-icon { display: none !important; }
+.swal2-popup.swal2-toast .swal2-title::before {
+    font-weight: 900;
+    margin-right: 7px;
+    font-size: 0.85rem;
 }
-.swal2-popup.swal2-toast .swal2-icon .swal2-success-ring {
-    width: 1.3em !important;
-    height: 1.3em !important;
-    top: -2px !important;
-    left: -2px !important;
-}
+.swal2-popup.swal2-toast:has(.swal2-icon.swal2-success) .swal2-title::before { content: '✓'; color: #34d399; }
+.swal2-popup.swal2-toast:has(.swal2-icon.swal2-error)   .swal2-title::before { content: '✕'; color: #f87171; }
+.swal2-popup.swal2-toast:has(.swal2-icon.swal2-warning) .swal2-title::before { content: '!'; color: #E8C15A; }
+.swal2-popup.swal2-toast:has(.swal2-icon.swal2-info)    .swal2-title::before { content: 'i'; color: #60a5fa; }
 .swal2-popup.swal2-toast .swal2-html-container {
     font-size: 0.72rem !important;
     margin: 0 !important;
