@@ -189,11 +189,21 @@ html.dark #leaveTableMain thead::after {
    🎩 Premium SweetAlert2 — กราไฟต์ดำ × ทองแชมเปญ (ทั้งเว็บ)
    ครอบทุกป็อบอัป: กำลังบันทึก / ยืนยันลบ / success / error
    ========================================================== */
-.swal2-container.swal2-backdrop-show {
+/* ฉากหลังมืด+เบลอ เฉพาะป็อบอัปใหญ่เท่านั้น — ห้ามทำงานตอน toast เด็ดขาด */
+.swal2-container.swal2-backdrop-show:not(:has(.swal2-toast)) {
     background: rgba(2, 8, 19, 0.72) !important;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
 }
+/* container ของ toast ต้องโปร่งใสสนิท ไม่บังจอ */
+.swal2-container:has(.swal2-toast),
+.swal2-container.swal2-toast-shown {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    pointer-events: none;
+}
+.swal2-container:has(.swal2-toast) .swal2-toast { pointer-events: auto; }
 .swal2-popup {
     font-family: 'Sarabun', sans-serif !important;
     border-radius: 20px !important;
