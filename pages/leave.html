@@ -212,9 +212,44 @@ html.dark #leaveTableMain th.locked-day-col{ background-color:#0a1120 !important
 #leaveTableMain th.locked-day-col > *{ opacity:0.5; }
 
 /* ════════════════════════════════════════════════════════════
-   📐 COMPACT MODE — ซูมเอาต์ทั้งหน้าให้เห็นข้อมูลมากขึ้น
-   (override ขนาดจากคลาสที่ leave.js ใส่มา โดยไม่ต้องแก้ JS)
+   🗂️ หมวดพับ-กางได้ (ตั้งค่า / ประเภทลา) — ลดความเกะกะ
+   ใช้คลาส lv-collapsed แยกจาก hidden เพื่อไม่ชนกับระบบสิทธิ์ใน JS
    ════════════════════════════════════════════════════════════ */
+.lv-collapsed{ display:none !important; }
+
+/* ปุ่มสลับหมวด */
+.lv-chip-toggle{
+    height:30px; padding:0 12px; border-radius:10px;
+    font-size:11px; font-weight:800; letter-spacing:0.02em;
+    display:inline-flex; align-items:center; gap:5px; cursor:pointer;
+    background:#f8fafc; border:1px solid #e2e8f0; color:#64748b;
+    transition:all .15s;
+}
+html.dark .lv-chip-toggle{
+    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.12); color:#8b9bb4;
+}
+.lv-chip-toggle .material-icons{ font-size:15px; }
+.lv-chip-toggle:hover{ border-color:rgba(232,193,90,0.5); color:#b45309; }
+html.dark .lv-chip-toggle:hover{ color:#f5e3ae; background:rgba(232,193,90,0.06); }
+.lv-chip-toggle.lv-on{
+    background:linear-gradient(145deg,#f7e7b6,#E8C15A 60%,#d4a93c);
+    border-color:rgba(232,193,90,0.8); color:#3a2c07;
+    box-shadow:0 4px 12px -5px rgba(232,193,90,0.7);
+}
+html.dark .lv-chip-toggle.lv-on{ color:#2c2105; }
+
+/* ซ่อนปุ่มสลับอัตโนมัติ ถ้าผู้ใช้ไม่มีสิทธิ์เห็นหมวดนั้น (JS ใส่ hidden ให้แผงเอง) */
+#leaveApp:has(#leaveManagerControls.hidden) #btnToggleSettings{ display:none; }
+#leaveApp:has(#leaveTypeToolbar.hidden) #btnToggleTypes{ display:none; }
+
+/* เส้นคั่นกลุ่มเครื่องมือ */
+.lv-divider{ width:1px; height:22px; background:rgba(148,163,184,0.35); margin:0 3px; flex-shrink:0; }
+html.dark .lv-divider{ background:rgba(232,193,90,0.22); }
+
+/* แผงตั้งค่า: เปลี่ยนจากเลื่อนแนวนอน → จัดเรียงหลายแถวเป็นระเบียบ */
+#leaveManagerControls{ flex-wrap:wrap; overflow-x:visible; animation:fadeIn .2s ease; }
+
+
 
 /* แถบหัวเรื่อง: เตี้ยลง */
 .lv-header{ padding:8px 14px; gap:8px 12px; }
@@ -295,18 +330,32 @@ html.dark #leaveTableMain th.locked-day-col{ background-color:#0a1120 !important
                 </div>
                 <button id="btnNextMonth" onclick="changeMonth(1)" type="button"><span class="material-icons text-sm">chevron_right</span></button>
             </div>
+
+            <div class="lv-divider"></div>
+
+            <button id="btnToggleSettings" type="button" class="lv-chip-toggle"
+                onclick="document.getElementById('leaveManagerControls').classList.toggle('lv-collapsed'); this.classList.toggle('lv-on');">
+                <span class="material-icons">settings_suggest</span> ตั้งค่า
+            </button>
+            <button id="btnToggleTypes" type="button" class="lv-chip-toggle lv-on"
+                onclick="document.getElementById('leaveTypeToolbar').classList.toggle('lv-collapsed'); this.classList.toggle('lv-on');">
+                <span class="material-icons">edit_calendar</span> ประเภทลา
+            </button>
+
+            <div class="lv-divider"></div>
+
             <button id="btnExportExcel" onclick="exportLeaveToExcel()" class="hidden lv-btn lv-btn-excel">
-                <span class="material-icons">download</span> โหลด Excel
+                <span class="material-icons">download</span> Excel
             </button>
             <button onclick="openHistoryModal()" class="lv-btn lv-btn-history">
-                <span class="material-icons">history</span> ประวัติการกด
+                <span class="material-icons">history</span> ประวัติ
             </button>
-            <button onclick="showPage('dashboard')" class="lv-btn lv-btn-back">กลับ</button>
+            <button onclick="showPage('dashboard')" class="lv-btn lv-btn-back"><span class="material-icons">arrow_back</span> กลับ</button>
         </div>
     </div>
 
     <!-- ═══════════ ⚙️ แถบตั้งค่า (แอดมิน) ═══════════ -->
-    <div id="leaveManagerControls" class="hidden custom-scrollbar">
+    <div id="leaveManagerControls" class="hidden lv-collapsed custom-scrollbar">
 
         <div class="lv-set-head">
             <span class="lv-set-title"><span class="material-icons text-base">settings_suggest</span> ตั้งค่า <span id="settingTargetLabel" class="underline">AM</span></span>
