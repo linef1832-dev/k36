@@ -147,3 +147,152 @@ html.dark .nm-sidebar {
     background-color: #041020 !important;
     border-right: 1px solid #1a273a !important;
 }
+
+/* ==========================================================
+   🔒 ตารางวันหยุด (leave) — ปิดรอยต่อหัว sticky ให้ทึบ 100%
+   สาเหตุเดิม: border-collapse + สีพื้นโปร่งแสง ทำให้เนื้อตาราง
+   ข้างล่างลอดทะลุหัวตารางตอนเลื่อน
+   ========================================================== */
+#leaveTableMain {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+#leaveTableMain thead {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+}
+#leaveTableMain thead th {
+    background-clip: padding-box;
+    border-bottom: none !important;
+    /* ใช้ shadow แทนเส้นขอบล่าง — ปิดรอยต่อระหว่างแถวหัวตารางให้มิดชิด */
+    box-shadow: 0 1px 0 0 #cbd5e1;
+}
+html.dark #leaveTableMain thead th {
+    box-shadow: 0 1px 0 0 #334155;
+}
+/* เส้นทองบาง ๆ ใต้หัวตารางทั้งแถบ — ให้รู้สึกว่าหัว "วางทับ" เนื้อตารางจริง ๆ */
+html.dark #leaveTableMain thead::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(232,193,90,0.35), rgba(232,193,90,0.08));
+    pointer-events: none;
+}
+/* วันล็อก: หรี่เฉพาะ "เนื้อหาข้างใน" ไม่หรี่ตัวเซลล์ → พื้นหลังยังทึบสนิท */
+#leaveTableMain th.locked-day-col > * {
+    opacity: 0.5;
+}
+
+/* ==========================================================
+   🎩 Premium SweetAlert2 — กราไฟต์ดำ × ทองแชมเปญ (ทั้งเว็บ)
+   ครอบทุกป็อบอัป: กำลังบันทึก / ยืนยันลบ / success / error
+   ========================================================== */
+.swal2-container.swal2-backdrop-show {
+    background: rgba(2, 8, 19, 0.72) !important;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.swal2-popup {
+    font-family: 'Sarabun', sans-serif !important;
+    border-radius: 20px !important;
+    padding: 2rem 1.75rem 1.75rem !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(0,0,0,0.06) !important;
+    box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35) !important;
+}
+html.dark .swal2-popup {
+    background: linear-gradient(165deg, #141d30 0%, #0c1424 55%, #0a101d 100%) !important;
+    border: 1px solid rgba(232,193,90,0.22) !important;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 24px 70px -12px rgba(0,0,0,0.85),
+        0 0 40px -18px rgba(232,193,90,0.30) !important;
+}
+.swal2-title {
+    font-weight: 800 !important;
+    font-size: 1.35rem !important;
+    letter-spacing: 0.01em;
+    color: #1e293b !important;
+}
+html.dark .swal2-title { color: #f1f5f9 !important; }
+.swal2-html-container {
+    font-size: 0.95rem !important;
+    line-height: 1.7 !important;
+    color: #475569 !important;
+}
+html.dark .swal2-html-container { color: #aab6c8 !important; }
+
+/* ปุ่ม: โค้งมน หนา มีเงา + ยกตัวตอน hover (คงสีที่ตั้งจาก JS ไว้ เช่น แดง=ลบ) */
+.swal2-actions { gap: 0.6rem !important; margin-top: 1.4rem !important; }
+.swal2-styled {
+    border-radius: 12px !important;
+    padding: 0.65rem 1.6rem !important;
+    font-weight: 800 !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.02em;
+    box-shadow: 0 6px 16px -6px rgba(0,0,0,0.45) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease !important;
+    outline: none !important;
+}
+.swal2-styled:hover {
+    transform: translateY(-1px) scale(1.02);
+    filter: brightness(1.08);
+    box-shadow: 0 10px 22px -6px rgba(0,0,0,0.55) !important;
+}
+.swal2-styled:active { transform: translateY(0) scale(0.98); }
+.swal2-styled.swal2-cancel {
+    background: transparent !important;
+    color: #64748b !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+}
+html.dark .swal2-styled.swal2-cancel {
+    color: #aab6c8 !important;
+    border: 1px solid rgba(255,255,255,0.14) !important;
+}
+html.dark .swal2-styled.swal2-cancel:hover {
+    background: rgba(255,255,255,0.05) !important;
+    color: #f1f5f9 !important;
+}
+
+/* ไอคอน warning → วงแหวนทองแชมเปญ */
+html.dark .swal2-icon.swal2-warning {
+    border-color: rgba(232,193,90,0.55) !important;
+    color: #E8C15A !important;
+}
+html.dark .swal2-icon.swal2-question {
+    border-color: rgba(232,193,90,0.45) !important;
+    color: #E8C15A !important;
+}
+html.dark .swal2-icon.swal2-success { border-color: rgba(52,211,153,0.4) !important; }
+html.dark .swal2-icon.swal2-success [class^='swal2-success-line'] { background-color: #34d399 !important; }
+html.dark .swal2-icon.swal2-success .swal2-success-ring { border-color: rgba(52,211,153,0.35) !important; }
+
+/* ตัวหมุนโหลด "กำลังบันทึก..." → ทองแชมเปญ + เรืองแสงนิด ๆ */
+.swal2-loader {
+    border-color: #E8C15A transparent #E8C15A transparent !important;
+    width: 2.4em !important;
+    height: 2.4em !important;
+    filter: drop-shadow(0 0 6px rgba(232,193,90,0.45));
+}
+
+/* ป็อบอัปเด้งเข้าแบบนุ่ม ๆ */
+.swal2-show { animation: premiumPop 0.28s cubic-bezier(0.34, 1.4, 0.64, 1) !important; }
+@keyframes premiumPop {
+    0%   { opacity: 0; transform: translateY(14px) scale(0.94); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* input ในป็อบอัป (ถ้ามี) ให้เข้าธีม */
+html.dark .swal2-input, html.dark .swal2-textarea, html.dark .swal2-select {
+    background: #0a1120 !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    color: #f1f5f9 !important;
+    border-radius: 10px !important;
+}
+html.dark .swal2-input:focus, html.dark .swal2-textarea:focus {
+    border-color: rgba(232,193,90,0.5) !important;
+    box-shadow: 0 0 0 3px rgba(232,193,90,0.15) !important;
+}
