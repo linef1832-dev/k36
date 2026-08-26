@@ -743,7 +743,7 @@ window.renderLeaveTable = function() {
     });
 
     let workingRowHtml = `<tr id="tableWorkingRow">
-        <th colspan="2" class="p-1.5 sticky left-0 z-30 bg-emerald-50 dark:bg-emerald-950/40 border-b border-r dark:border-slate-700 text-left pl-4 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400">
+        <th colspan="2" class="p-1.5 sticky left-0 z-30 bg-emerald-50 dark:bg-[#04251b] border-b border-r dark:border-slate-700 text-left pl-4 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400">
             <span class="material-icons text-[12px] align-middle">groups</span> มาทำงาน (เหลือ/ทั้งหมด)
         </th>
     `;
@@ -766,7 +766,7 @@ window.renderLeaveTable = function() {
         const workA = Math.max(0, totalByShift['กะกลาง'] - countA);
         const workN = Math.max(0, totalByShift['กะดึก'] - countN);
 
-        workingRowHtml += `<th class="p-1 border-b border-r dark:border-slate-700 align-middle bg-emerald-50/70 dark:bg-emerald-950/30 min-w-[75px]">
+        workingRowHtml += `<th class="p-1 border-b border-r dark:border-slate-700 align-middle bg-emerald-50 dark:bg-[#0a1f1a] min-w-[75px]">
             <div class="flex flex-col gap-0.5">
                 <div class="flex justify-between items-center">
                     <span class="text-[9px] font-bold text-orange-500">เช้า</span>
@@ -795,7 +795,7 @@ window.renderLeaveTable = function() {
         let isLocked = false;
         if (s.startDay && d < s.startDay) isLocked = true;
         if (s.endDay && d > s.endDay) isLocked = true;
-        if (isLocked) bgClass = "bg-gray-200 dark:bg-slate-950 opacity-60";
+        if (isLocked) bgClass = "locked-day-col bg-gray-200 dark:bg-[#0a1120]";
 
         headerHtml += `<th class="p-1.5 border-b border-r dark:border-slate-700 min-w-[75px] align-top ${bgClass}">
             <div class="text-[14px] text-slate-800 dark:text-white font-extrabold text-center mb-1 pb-0.5 border-b border-gray-200 dark:border-slate-600">${d}</div>
