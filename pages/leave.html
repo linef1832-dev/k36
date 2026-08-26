@@ -1,111 +1,360 @@
-<div id="leaveApp" class="fade-in flex flex-col h-full relative bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden" style="height:calc(100vh - 2rem)">
+<div id="leaveApp" class="fade-in flex flex-col h-full relative overflow-hidden" style="height:calc(100vh - 2rem)">
 <style>
-/* 🔒 หัวตารางต้องทึบสนิท — ของเดิมบางแถวใช้สีโปร่ง 40% เลยมองทะลุเห็นเนื้อหาเลื่อนอยู่ข้างหลัง */
-#leaveTableMain thead th{ background-color:#f8fafc; }
-.dark #leaveTableMain thead th{ background-color:#1e293b; }
+/* ════════════════════════════════════════════════════════════
+   🎩 ตารางวันหยุด — Premium Redesign (กราไฟต์ดำ × ทองแชมเปญ)
+   โครงสร้าง id/onclick เดิมครบทุกตัว — leave.js ทำงานเหมือนเดิม
+   ════════════════════════════════════════════════════════════ */
+#leaveApp{
+    background:#f1f5f9;
+    border-radius:22px;
+    border:1px solid #e2e8f0;
+    box-shadow:0 10px 40px -12px rgba(0,0,0,0.18);
+}
+html.dark #leaveApp{
+    background:linear-gradient(180deg,#0c1424 0%,#0a0f1c 100%);
+    border:1px solid rgba(232,193,90,0.14);
+    box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 18px 60px -18px rgba(0,0,0,0.85);
+}
+
+/* ── 🥇 แถบหัวเรื่อง ─────────────────────────────── */
+.lv-header{
+    flex-shrink:0; z-index:30; position:relative;
+    display:flex; flex-wrap:wrap; align-items:center; gap:12px 18px;
+    padding:14px 18px;
+    background:#ffffff; border-bottom:1px solid #e2e8f0;
+}
+html.dark .lv-header{
+    background:linear-gradient(120deg,#101a2e 0%,#0b1322 60%,#0a101d 100%);
+    border-bottom:1px solid rgba(232,193,90,0.20);
+}
+.lv-title-wrap{ display:flex; align-items:center; gap:12px; min-width:0; }
+.lv-title-icon{
+    width:42px; height:42px; border-radius:13px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(145deg,#f7e7b6,#E8C15A 55%,#c99a33);
+    color:#3a2c07; box-shadow:0 6px 16px -6px rgba(232,193,90,0.7), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.lv-title-icon .material-icons{ font-size:22px; }
+.lv-title{ font-size:1.05rem; font-weight:800; letter-spacing:0.01em; color:#1e293b; display:flex; align-items:center; gap:8px; line-height:1.2; }
+html.dark .lv-title{ color:#f1f5f9; }
+.lv-subtitle{ font-size:10px; color:#94a3b8; display:flex; align-items:center; gap:6px; margin-top:2px; }
+html.dark .lv-subtitle{ color:#8b9bb4; }
+
+/* แท็บแผนก — คงคลาส dept-segment-btn/active ให้ JS จัดการเหมือนเดิม */
+.lv-header .dept-segment-container{
+    background:rgba(15,23,42,0.06); border:1px solid rgba(15,23,42,0.08);
+}
+html.dark .lv-header .dept-segment-container{
+    background:rgba(2,8,19,0.55); border:1px solid rgba(232,193,90,0.16);
+    box-shadow:inset 0 2px 6px rgba(0,0,0,0.45);
+}
+html.dark .lv-header .dept-segment-btn:not(.active):hover{ color:#f5e3ae; background:rgba(232,193,90,0.07); }
+html.dark .lv-header .dept-segment-btn.active{ box-shadow:0 4px 14px -4px rgba(0,0,0,0.6), 0 0 0 1px rgba(232,193,90,0.35); }
+
+/* กลุ่มควบคุมขวา */
+.lv-tools{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-left:auto; }
+
+/* ตัวเลือกกะ + ช่องค้นหา */
+.lv-input, .lv-select{
+    height:34px; border-radius:11px; font-size:12px; font-weight:700;
+    background:#f8fafc; border:1px solid #e2e8f0; color:#1e293b;
+    outline:none; transition:border-color .15s, box-shadow .15s, background .15s;
+}
+html.dark .lv-input, html.dark .lv-select{
+    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.10); color:#e2e8f0;
+}
+.lv-input:focus, .lv-select:focus{
+    border-color:rgba(232,193,90,0.65);
+    box-shadow:0 0 0 3px rgba(232,193,90,0.15);
+}
+.lv-select{ padding:0 10px; cursor:pointer; }
+.lv-search{ position:relative; }
+.lv-search .material-icons{ position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:16px; color:#94a3b8; pointer-events:none; }
+.lv-search input{ width:150px; padding:0 10px 0 30px; }
+
+/* ตัวเลื่อนเดือน */
+.lv-month-nav{
+    display:flex; align-items:center; height:34px; border-radius:11px; overflow:hidden;
+    background:#f8fafc; border:1px solid #e2e8f0;
+}
+html.dark .lv-month-nav{
+    background:rgba(2,8,19,0.55); border:1px solid rgba(232,193,90,0.22);
+}
+.lv-month-nav button{ height:100%; padding:0 7px; display:flex; align-items:center; color:#64748b; transition:background .15s,color .15s; }
+html.dark .lv-month-nav button{ color:#c9a54a; }
+.lv-month-nav button:hover{ background:rgba(232,193,90,0.12); color:#E8C15A; }
+.lv-month-nav .lv-month-mid{ position:relative; width:116px; height:100%; display:flex; align-items:center; justify-content:center; }
+.lv-month-nav .lv-month-mid span{ font-size:12.5px; font-weight:800; color:#1e293b; pointer-events:none; letter-spacing:0.02em; }
+html.dark .lv-month-nav .lv-month-mid span{ color:#f5e3ae; }
+
+/* ปุ่มมาตรฐาน */
+.lv-btn{
+    height:34px; padding:0 14px; border-radius:11px;
+    font-size:11.5px; font-weight:800; letter-spacing:0.02em;
+    display:inline-flex; align-items:center; gap:5px;
+    transition:transform .15s, box-shadow .15s, filter .15s;
+    box-shadow:0 5px 14px -6px rgba(0,0,0,0.4);
+}
+.lv-btn:hover{ transform:translateY(-1px); filter:brightness(1.08); box-shadow:0 8px 18px -6px rgba(0,0,0,0.5); }
+.lv-btn:active{ transform:translateY(0) scale(0.97); }
+.lv-btn .material-icons{ font-size:15px; }
+.lv-btn-excel{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid rgba(255,255,255,0.18); }
+.lv-btn-history{ background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:1px solid rgba(255,255,255,0.18); }
+.lv-btn-back{ background:transparent; color:#64748b; border:1px solid #cbd5e1; box-shadow:none; }
+html.dark .lv-btn-back{ color:#aab6c8; border:1px solid rgba(255,255,255,0.16); }
+html.dark .lv-btn-back:hover{ color:#f5e3ae; border-color:rgba(232,193,90,0.45); background:rgba(232,193,90,0.06); }
+
+/* ── ⚙️ แถบตั้งค่าแอดมิน — จัดเป็นการ์ดเป็นสัดส่วน ── */
+#leaveManagerControls{
+    flex-shrink:0; z-index:20;
+    display:flex; flex-wrap:nowrap; align-items:stretch; gap:10px;
+    overflow-x:auto; padding:12px 16px;
+    background:#f8fafc; border-bottom:1px solid #e2e8f0;
+}
+html.dark #leaveManagerControls{
+    background:#0a101d;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+    box-shadow:inset 0 6px 14px -10px rgba(0,0,0,0.8);
+}
+.lv-set-head{
+    display:flex; flex-direction:column; justify-content:center; gap:2px;
+    padding-right:14px; margin-right:2px; flex-shrink:0;
+    border-right:1px solid rgba(148,163,184,0.25);
+}
+html.dark .lv-set-head{ border-right:1px solid rgba(232,193,90,0.18); }
+.lv-set-head .lv-set-title{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#b45309; }
+html.dark .lv-set-head .lv-set-title{ color:#E8C15A; }
+.lv-set-head .lv-set-sub{ font-size:9px; color:#94a3b8; }
+.lv-card{
+    flex-shrink:0; display:flex; flex-direction:column; justify-content:center; gap:5px;
+    padding:7px 11px; border-radius:13px;
+    background:#ffffff; border:1px solid #e2e8f0;
+    box-shadow:0 2px 8px -4px rgba(0,0,0,0.12);
+}
+html.dark .lv-card{
+    background:linear-gradient(160deg,#121b2e,#0d1422);
+    border:1px solid rgba(255,255,255,0.07);
+    box-shadow:0 4px 12px -6px rgba(0,0,0,0.6);
+}
+.lv-card-label{
+    font-size:9px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase;
+    color:#94a3b8; display:flex; align-items:center; gap:4px; line-height:1;
+}
+html.dark .lv-card-label{ color:#8b9bb4; }
+.lv-card-label .dot{ width:6px; height:6px; border-radius:99px; display:inline-block; }
+.lv-card-row{ display:flex; align-items:center; gap:6px; }
+.lv-mini-input{
+    background:#f8fafc; border:1px solid #e2e8f0; color:#1e293b;
+    border-radius:8px; font-size:11px; font-weight:700; text-align:center;
+    padding:4px 5px; outline:none; transition:border-color .15s, box-shadow .15s;
+}
+html.dark .lv-mini-input{ background:rgba(2,8,19,0.6); border:1px solid rgba(255,255,255,0.10); color:#f1f5f9; }
+.lv-mini-input:focus{ border-color:rgba(232,193,90,0.6); box-shadow:0 0 0 3px rgba(232,193,90,0.12); }
+.lv-mini-input[type="datetime-local"]{ width:126px; font-family:monospace; font-size:10.5px; text-align:left; cursor:pointer; }
+.lv-w10{ width:42px; }
+.lv-shift-tag{ font-size:9.5px; font-weight:800; line-height:1; }
+.lv-quota-card{ border:1px solid rgba(232,193,90,0.55) !important; }
+html.dark .lv-quota-card{
+    background:linear-gradient(160deg,#17203414,#0d1422) , linear-gradient(160deg,#1a2338,#0f1626);
+    box-shadow:0 4px 14px -6px rgba(0,0,0,0.6), 0 0 18px -8px rgba(232,193,90,0.35);
+}
+.lv-quota-card .lv-card-label{ color:#b45309; }
+html.dark .lv-quota-card .lv-card-label{ color:#E8C15A; }
+.lv-btn-save{ background:linear-gradient(135deg,#22c55e,#15803d); color:#fff; border:1px solid rgba(255,255,255,0.2); margin-left:auto; height:40px; align-self:center; font-size:12.5px; padding:0 18px; }
+.lv-btn-staff{ background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:1px solid rgba(255,255,255,0.2); height:40px; align-self:center; font-size:12px; }
+
+/* toggle เปิดจอง */
+.lv-toggle-track{ transition:background .2s; }
+
+/* ── 🏷️ แถบเลือกประเภทการลา ─────────────────────── */
+#leaveTypeToolbar{
+    flex-shrink:0; z-index:20;
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px;
+    padding:9px 14px;
+    background:#eef2f7; border-bottom:1px solid #e2e8f0;
+}
+html.dark #leaveTypeToolbar{
+    background:rgba(2,8,19,0.4);
+    border-bottom:1px solid rgba(232,193,90,0.14);
+    box-shadow:inset 0 4px 10px -8px rgba(0,0,0,0.7);
+}
+.lv-type-label{
+    font-size:10.5px; font-weight:800; color:#64748b;
+    display:flex; align-items:center; gap:5px; margin-right:4px;
+    letter-spacing:0.03em;
+}
+html.dark .lv-type-label{ color:#c9a54a; }
+/* ปรับทรงปุ่มประเภทลาให้พรีเมียม — คงคลาส/สีเดิมให้ setLeaveType ทำงานตามปกติ */
+#leaveTypeToolbar .leave-type-btn{
+    border-radius:9999px !important;
+    padding:6px 14px !important;
+    box-shadow:0 4px 12px -5px rgba(0,0,0,0.45) !important;
+    border:1px solid rgba(255,255,255,0.22);
+    transition:transform .15s, opacity .2s, box-shadow .15s, filter .15s !important;
+}
+#leaveTypeToolbar .leave-type-btn:hover{ transform:translateY(-1px); filter:brightness(1.07); }
+
+/* ── 📅 พื้นที่ตาราง ────────────────────────────── */
+.lv-table-wrap{
+    flex:1 1 0%; overflow:auto; position:relative;
+    background:#ffffff;
+}
+html.dark .lv-table-wrap{ background:#0b1220; }
+
+/* หัวตารางทึบสนิท 100% — ไม่พึ่งคลาส tailwind ที่อาจไม่ได้คอมไพล์ */
+#leaveTableMain{ border-collapse:separate !important; border-spacing:0 !important; }
+#leaveTableMain thead th{ background-color:#f8fafc; background-clip:padding-box; }
+html.dark #leaveTableMain thead th{ background-color:#151f32; }
 #leaveTableMain thead th[class*="emerald"]{ background-color:#ecfdf5; }
-.dark #leaveTableMain thead th[class*="emerald"]{ background-color:#04281e; }
+html.dark #leaveTableMain thead th[class*="emerald"]{ background-color:#062e22; }
+#leaveTableMain th.locked-day-col{ background-color:#e5e7eb !important; }
+html.dark #leaveTableMain th.locked-day-col{ background-color:#0a1120 !important; }
+#leaveTableMain th.locked-day-col > *{ opacity:0.5; }
 </style>
 
-    
-    <div class="bg-slate-800 text-white p-3 shadow-md shrink-0 flex flex-col xl:flex-row justify-between items-center gap-4 z-30 border-b border-rose-500/50">
-        <div class="flex items-center gap-4 w-full xl:w-auto">
-            <div class="dept-segment-container">
-                <button onclick="switchDept('AM')" id="btnAM" class="dept-segment-btn active"><span class="material-icons text-sm">business</span> AM</button>
-                <button onclick="switchDept('OD')" id="btnOD" class="dept-segment-btn"><span class="material-icons text-sm">groups</span> OD</button>
-                <button onclick="switchDept('SPECIAL')" id="btnSPECIAL" class="dept-segment-btn"><span class="material-icons text-sm">star</span> พนักงานใหม่</button>
-                <button onclick="switchDept('AMQL')" id="btnAMQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน AM</button>
-                <button onclick="switchDept('ODQL')" id="btnODQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน OD</button>
-            </div>
+    <!-- ═══════════ 🥇 แถบหัวเรื่อง ═══════════ -->
+    <div class="lv-header">
+        <div class="lv-title-wrap">
+            <div class="lv-title-icon"><span class="material-icons">event_available</span></div>
             <div>
-                <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
-                    ตารางวันหยุด <span id="currentDeptLabel" class="text-[10px] bg-rose-600 px-2 rounded shadow">AM</span>
-                </h1>
-                <p class="text-[10px] text-gray-400 flex items-center gap-2">
+                <h1 class="lv-title">ตารางวันหยุด <span id="currentDeptLabel" class="text-[10px] bg-rose-600 px-2 rounded shadow">AM</span></h1>
+                <p class="lv-subtitle">
                     <span id="bookingStatusText">โหลดข้อมูล...</span>
                     <span id="rtStatus" class="realtime-dot" title="Realtime Status"></span>
                 </p>
             </div>
         </div>
 
-        <div class="flex flex-wrap gap-2 items-center justify-center">
-            <select id="leaveShiftFilter" onchange="renderLeaveTable()" class="h-8 px-2 rounded-lg text-xs text-slate-800 font-bold outline-none shadow-sm bg-white border border-gray-200">
+        <div class="dept-segment-container">
+            <button onclick="switchDept('AM')" id="btnAM" class="dept-segment-btn active"><span class="material-icons text-sm">business</span> AM</button>
+            <button onclick="switchDept('OD')" id="btnOD" class="dept-segment-btn"><span class="material-icons text-sm">groups</span> OD</button>
+            <button onclick="switchDept('SPECIAL')" id="btnSPECIAL" class="dept-segment-btn"><span class="material-icons text-sm">star</span> พนักงานใหม่</button>
+            <button onclick="switchDept('AMQL')" id="btnAMQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน AM</button>
+            <button onclick="switchDept('ODQL')" id="btnODQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน OD</button>
+        </div>
+
+        <div class="lv-tools">
+            <select id="leaveShiftFilter" onchange="renderLeaveTable()" class="lv-select">
                 <option value="all">ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
             </select>
-            <div class="relative">
-                <span class="material-icons absolute left-2 top-1.5 text-gray-400 text-sm">search</span>
-                <input type="text" id="leaveSearchInput" onkeyup="onLeaveSearch()" placeholder="ค้นหาชื่อ..." class="w-36 h-8 pl-8 pr-2 rounded-lg text-xs text-slate-800 font-bold outline-none bg-white shadow-sm border border-gray-200">
+            <div class="lv-search">
+                <span class="material-icons">search</span>
+                <input type="text" id="leaveSearchInput" onkeyup="onLeaveSearch()" placeholder="ค้นหาชื่อ..." class="lv-input">
             </div>
-        </div>
-
-        <div class="flex gap-2 items-center">
-            <div class="flex items-center bg-black/20 rounded-lg p-0.5 border border-white/10">
-                <button id="btnPrevMonth" onclick="changeMonth(-1)" class="relative z-10 p-1 hover:bg-white/10 rounded text-white"><span class="material-icons text-sm">chevron_left</span></button>
-                <div class="relative w-28 h-8 flex items-center justify-center">
-                    <span id="viewMonthDisplay" class="text-sm font-bold text-white pointer-events-none">เดือน ปี</span>
+            <div class="lv-month-nav">
+                <button id="btnPrevMonth" onclick="changeMonth(-1)" type="button"><span class="material-icons text-sm">chevron_left</span></button>
+                <div class="lv-month-mid">
+                    <span id="viewMonthDisplay">เดือน ปี</span>
                     <input type="month" id="viewMonthPicker" onchange="jumpToMonth()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
                 </div>
-                <button id="btnNextMonth" onclick="changeMonth(1)" class="relative z-10 p-1 hover:bg-white/10 rounded text-white"><span class="material-icons text-sm">chevron_right</span></button>
+                <button id="btnNextMonth" onclick="changeMonth(1)" type="button"><span class="material-icons text-sm">chevron_right</span></button>
             </div>
-            <button id="btnExportExcel" onclick="exportLeaveToExcel()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold ml-2 shadow-lg flex items-center gap-1 transition text-[11px]">
-                <span class="material-icons text-[14px]">download</span> โหลด Excel
+            <button id="btnExportExcel" onclick="exportLeaveToExcel()" class="hidden lv-btn lv-btn-excel">
+                <span class="material-icons">download</span> โหลด Excel
             </button>
-            <button onclick="openHistoryModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg font-bold ml-2 shadow-lg flex items-center gap-1 transition text-[10px]">
-                <span class="material-icons text-xs">history</span> ประวัติการกด
+            <button onclick="openHistoryModal()" class="lv-btn lv-btn-history">
+                <span class="material-icons">history</span> ประวัติการกด
             </button>
-            <button onclick="showPage('dashboard')" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg font-bold text-xs h-8 border border-white/20 transition">
-                กลับ
-            </button>
+            <button onclick="showPage('dashboard')" class="lv-btn lv-btn-back">กลับ</button>
         </div>
     </div>
 
-    <div id="leaveManagerControls" class="hidden bg-slate-900 p-3 border-b border-slate-700 flex flex-nowrap overflow-x-auto custom-scrollbar gap-3 items-center shadow-inner shrink-0 text-xs text-white z-20 transition-all">
-        
-        <div class="flex items-center gap-2 text-yellow-400 font-bold border-r border-slate-700 pr-3 shrink-0">
-            <span class="material-icons text-base">settings_suggest</span> <span class="text-sm">ตั้งค่า <span id="settingTargetLabel" class="underline">AM</span></span>
-        </div>
-        
-        <div class="flex items-center gap-2 bg-slate-800 p-1.5 rounded-lg border border-slate-600 shadow-sm shrink-0">
-            <span class="text-gray-300 font-bold ml-1">เปิดจอง:</span>
-            <label for="setForceOpen" class="relative inline-flex items-center cursor-pointer mr-1">
-                <input type="checkbox" id="setForceOpen" onchange="toggleLeaveStatus(this.checked)" class="sr-only peer">
-                <div class="w-9 h-5 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 shadow-inner"></div>
-            </label>
+    <!-- ═══════════ ⚙️ แถบตั้งค่า (แอดมิน) ═══════════ -->
+    <div id="leaveManagerControls" class="hidden custom-scrollbar">
+
+        <div class="lv-set-head">
+            <span class="lv-set-title"><span class="material-icons text-base">settings_suggest</span> ตั้งค่า <span id="settingTargetLabel" class="underline">AM</span></span>
+            <span class="lv-set-sub">เปิด-ปิดจอง · เวลา · โควตา</span>
         </div>
 
-        <div id="timeSettingsGroup" class="flex gap-2 transition-opacity duration-300 shrink-0">
-            <div class="flex flex-col gap-1 bg-slate-800 p-1.5 rounded border border-orange-500/50 shadow-sm"><span class="text-[9px] text-orange-400 font-bold text-center">เวลาจอง (กะเช้า)</span><div class="flex items-center gap-1"><input type="datetime-local" id="setStartM" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"><span class="text-gray-400">-</span><input type="datetime-local" id="setEndM" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"></div></div>
-            <div class="flex flex-col gap-1 bg-slate-800 p-1.5 rounded border border-blue-500/50 shadow-sm"><span class="text-[9px] text-blue-400 font-bold text-center">เวลาจอง (กะกลาง)</span><div class="flex items-center gap-1"><input type="datetime-local" id="setStartA" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"><span class="text-gray-400">-</span><input type="datetime-local" id="setEndA" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"></div></div>
-            <div class="flex flex-col gap-1 bg-slate-800 p-1.5 rounded border border-purple-500/50 shadow-sm"><span class="text-[9px] text-purple-400 font-bold text-center">เวลาจอง (กะดึก)</span><div class="flex items-center gap-1"><input type="datetime-local" id="setStartN" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"><span class="text-gray-400">-</span><input type="datetime-local" id="setEndN" class="bg-transparent text-white text-[11px] p-0.5 outline-none w-[120px] font-mono cursor-pointer border border-slate-600 rounded"></div></div>
+        <div class="lv-card">
+            <span class="lv-card-label"><span class="dot" style="background:#22c55e"></span> เปิดจอง</span>
+            <div class="lv-card-row" style="justify-content:center">
+                <label for="setForceOpen" class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="setForceOpen" onchange="toggleLeaveStatus(this.checked)" class="sr-only peer">
+                    <div class="lv-toggle-track w-9 h-5 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 shadow-inner"></div>
+                </label>
+            </div>
         </div>
-        
-        <div class="flex items-center gap-1 border-l border-slate-600 pl-3 shrink-0"><span class="text-gray-400">คนละ:</span><input type="number" id="setPersonLimit" class="w-10 bg-slate-800 border border-slate-600 text-center font-bold text-yellow-400 rounded p-1.5 outline-none shadow-inner"></div>
-        <div class="flex items-center gap-2 border-l border-slate-600 pl-3 shrink-0">
-            <span class="text-gray-400">👀 บังคับเดือน:</span>
-            <div class="flex items-center bg-slate-800 rounded-lg border border-slate-600 shadow-sm h-[30px]">
-                <button type="button" onclick="changeAdminMonth(-1)" class="px-2 h-full hover:bg-slate-700 text-white transition flex items-center justify-center border-r border-slate-600/50"><span class="material-icons text-[16px] leading-none">chevron_left</span></button>
-                <div class="relative w-24 h-full flex items-center justify-center hover:bg-slate-700 transition overflow-hidden">
-                    <span id="setMonthDisplay" class="text-[11px] text-white font-extrabold tracking-wide pointer-events-none select-none z-10">เลือกเดือน</span>
-                    <input type="month" id="setAllowedMonth" onchange="window.updateThaiMonthDisplay()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 month-full-click">
+
+        <div id="timeSettingsGroup" class="flex gap-2.5 transition-opacity duration-300 shrink-0">
+            <div class="lv-card">
+                <span class="lv-card-label"><span class="dot" style="background:#fb923c"></span> เวลาจอง · กะเช้า</span>
+                <div class="lv-card-row">
+                    <input type="datetime-local" id="setStartM" class="lv-mini-input">
+                    <span class="text-gray-400 text-[10px]">—</span>
+                    <input type="datetime-local" id="setEndM" class="lv-mini-input">
                 </div>
-                <button type="button" onclick="changeAdminMonth(1)" class="px-2 h-full hover:bg-slate-700 text-white transition flex items-center justify-center border-l border-slate-600/50"><span class="material-icons text-[16px] leading-none">chevron_right</span></button>
+            </div>
+            <div class="lv-card">
+                <span class="lv-card-label"><span class="dot" style="background:#60a5fa"></span> เวลาจอง · กะกลาง</span>
+                <div class="lv-card-row">
+                    <input type="datetime-local" id="setStartA" class="lv-mini-input">
+                    <span class="text-gray-400 text-[10px]">—</span>
+                    <input type="datetime-local" id="setEndA" class="lv-mini-input">
+                </div>
+            </div>
+            <div class="lv-card">
+                <span class="lv-card-label"><span class="dot" style="background:#c084fc"></span> เวลาจอง · กะดึก</span>
+                <div class="lv-card-row">
+                    <input type="datetime-local" id="setStartN" class="lv-mini-input">
+                    <span class="text-gray-400 text-[10px]">—</span>
+                    <input type="datetime-local" id="setEndN" class="lv-mini-input">
+                </div>
             </div>
         </div>
-        <div class="flex items-center gap-1 border-l border-slate-600 pl-3 shrink-0"><span class="text-gray-400">ล็อกวัน:</span><input type="number" id="setStartDay" placeholder="1" min="1" max="31" class="bg-slate-800 border border-slate-600 text-white text-[11px] p-1.5 rounded outline-none w-10 text-center font-bold shadow-inner"><span class="text-gray-500">-</span><input type="number" id="setEndDay" placeholder="31" min="1" max="31" class="bg-slate-800 border border-slate-600 text-white text-[11px] p-1.5 rounded outline-none w-10 text-center font-bold shadow-inner"></div>
-        <div class="flex items-center gap-2 border border-rose-500 rounded-lg p-1 bg-rose-950/40 ml-1 shadow-sm shrink-0">
-            <span class="text-rose-400 font-extrabold text-[11px] mr-1 flex items-center"><span class="material-icons text-[14px] mr-0.5">tune</span>โควตา:</span>
-            <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-1 rounded border border-orange-700/50"><span class="text-[10px] text-orange-400 font-bold">เช้า☀️</span><input type="number" id="setQuotaM" class="w-8 bg-slate-900 text-orange-400 border border-orange-500/50 text-xs text-center font-bold rounded outline-none h-6"></div>
-            <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-1 rounded border border-blue-700/50"><span class="text-[10px] text-blue-400 font-bold">กลาง🌤️</span><input type="number" id="setQuotaA" class="w-8 bg-slate-900 text-blue-400 border border-blue-500/50 text-xs text-center font-bold rounded outline-none h-6"></div>
-            <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-1 rounded border border-purple-700/50"><span class="text-[10px] text-purple-400 font-bold">ดึก🌙</span><input type="number" id="setQuotaN" class="w-8 bg-slate-900 text-purple-400 border border-purple-500/50 text-xs text-center font-bold rounded outline-none h-6"></div>
+
+        <div class="lv-card">
+            <span class="lv-card-label"><span class="dot" style="background:#facc15"></span> คนละ (วัน)</span>
+            <div class="lv-card-row" style="justify-content:center">
+                <input type="number" id="setPersonLimit" class="lv-mini-input lv-w10" style="color:#eab308; font-weight:800;">
+            </div>
         </div>
-        <button id="btnManageNewStaff" onclick="openManageSpecialModal()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg font-extrabold text-sm ml-2 shadow-lg flex items-center gap-1 transition transform hover:scale-105 border border-amber-400 shrink-0">
-    <span class="material-icons text-base">person_add</span> จัดการรายชื่อพนักงาน
-</button>
-        <button onclick="executeSaveSettings()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-extrabold text-sm ml-auto shadow-lg flex items-center gap-1 transition transform hover:scale-105 border border-green-400 shrink-0"><span class="material-icons text-base">save</span> บันทึก <span id="saveBtnLabel">AM</span></button>
+
+        <div class="lv-card">
+            <span class="lv-card-label"><span class="dot" style="background:#38bdf8"></span> 👀 บังคับเดือน</span>
+            <div class="lv-card-row">
+                <div class="lv-month-nav" style="height:28px">
+                    <button type="button" onclick="changeAdminMonth(-1)"><span class="material-icons text-[15px] leading-none">chevron_left</span></button>
+                    <div class="lv-month-mid" style="width:88px">
+                        <span id="setMonthDisplay" style="font-size:11px">เลือกเดือน</span>
+                        <input type="month" id="setAllowedMonth" onchange="window.updateThaiMonthDisplay()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 month-full-click">
+                    </div>
+                    <button type="button" onclick="changeAdminMonth(1)"><span class="material-icons text-[15px] leading-none">chevron_right</span></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="lv-card">
+            <span class="lv-card-label"><span class="dot" style="background:#f87171"></span> ล็อกวัน</span>
+            <div class="lv-card-row">
+                <input type="number" id="setStartDay" placeholder="1" min="1" max="31" class="lv-mini-input lv-w10">
+                <span class="text-gray-500 text-[10px]">—</span>
+                <input type="number" id="setEndDay" placeholder="31" min="1" max="31" class="lv-mini-input lv-w10">
+            </div>
+        </div>
+
+        <div class="lv-card lv-quota-card">
+            <span class="lv-card-label"><span class="material-icons" style="font-size:12px">tune</span> โควตาต่อวัน</span>
+            <div class="lv-card-row">
+                <span class="lv-shift-tag" style="color:#fb923c">เช้า☀️</span>
+                <input type="number" id="setQuotaM" class="lv-mini-input lv-w10" style="color:#fb923c">
+                <span class="lv-shift-tag" style="color:#60a5fa">กลาง🌤️</span>
+                <input type="number" id="setQuotaA" class="lv-mini-input lv-w10" style="color:#60a5fa">
+                <span class="lv-shift-tag" style="color:#c084fc">ดึก🌙</span>
+                <input type="number" id="setQuotaN" class="lv-mini-input lv-w10" style="color:#c084fc">
+            </div>
+        </div>
+
+        <button id="btnManageNewStaff" onclick="openManageSpecialModal()" class="lv-btn lv-btn-staff shrink-0">
+            <span class="material-icons">person_add</span> จัดการรายชื่อพนักงาน
+        </button>
+        <button onclick="executeSaveSettings()" class="lv-btn lv-btn-save shrink-0"><span class="material-icons">save</span> บันทึก <span id="saveBtnLabel">AM</span></button>
     </div>
 
-    <div id="leaveTypeToolbar" class="hidden bg-slate-200 dark:bg-slate-900 p-2 flex flex-wrap justify-center items-center gap-2 border-b dark:border-slate-700 shadow-inner shrink-0 z-20 transition-all">
-        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 mr-2 flex items-center gap-1"><span class="material-icons text-[14px]">edit_calendar</span> รูปแบบที่จะใส่ในตาราง:</span>
+    <!-- ═══════════ 🏷️ แถบเลือกประเภทการลา ═══════════ -->
+    <div id="leaveTypeToolbar" class="hidden">
+        <span class="lv-type-label"><span class="material-icons text-[14px]">edit_calendar</span> รูปแบบที่จะใส่ในตาราง:</span>
         <button id="ltBtn_X" onclick="setLeaveType('X')" class="leave-type-btn opacity-100 ring-2 ring-red-500 ring-offset-1 scale-105 dark:ring-offset-slate-900 bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">✕ (ปกติ)</button>
         <button id="ltBtn_XX" onclick="setLeaveType('XX')" class="leave-type-btn opacity-50 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">XX (สลับกะ)</button>
         <button id="ltBtn_X4" onclick="setLeaveType('X4')" class="leave-type-btn opacity-50 bg-pink-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">X4 (ลาครึ่งวัน)</button>
@@ -115,8 +364,9 @@
         <button id="ltBtn_KP" onclick="setLeaveType('KP')" class="leave-type-btn opacity-50 bg-yellow-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">KP (ขาดงาน)</button>
     </div>
 
-    <div class="flex-1 overflow-auto bg-white dark:bg-slate-900 relative custom-scrollbar fast-render-list">
-        <table class="w-full border-collapse text-xs" id="leaveTableMain">
+    <!-- ═══════════ 📅 ตาราง ═══════════ -->
+    <div class="lv-table-wrap custom-scrollbar fast-render-list">
+        <table class="w-full text-xs" id="leaveTableMain">
             <thead class="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 shadow-sm text-slate-600 dark:text-gray-300">
                 <tr id="tableHeaderRow"></tr>
             </thead>
