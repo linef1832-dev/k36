@@ -210,6 +210,52 @@ html.dark #leaveTableMain thead th[class*="emerald"]{ background-color:#062e22; 
 #leaveTableMain th.locked-day-col{ background-color:#e5e7eb !important; }
 html.dark #leaveTableMain th.locked-day-col{ background-color:#0a1120 !important; }
 #leaveTableMain th.locked-day-col > *{ opacity:0.5; }
+
+/* ════════════════════════════════════════════════════════════
+   📐 COMPACT MODE — ซูมเอาต์ทั้งหน้าให้เห็นข้อมูลมากขึ้น
+   (override ขนาดจากคลาสที่ leave.js ใส่มา โดยไม่ต้องแก้ JS)
+   ════════════════════════════════════════════════════════════ */
+
+/* แถบหัวเรื่อง: เตี้ยลง */
+.lv-header{ padding:8px 14px; gap:8px 12px; }
+.lv-title-icon{ width:34px; height:34px; border-radius:11px; }
+.lv-title-icon .material-icons{ font-size:18px; }
+.lv-title{ font-size:0.95rem; }
+.lv-header .dept-segment-btn{ padding:0.3rem 0.9rem; font-size:0.7rem; }
+.lv-input, .lv-select, .lv-month-nav, .lv-btn{ height:30px; }
+.lv-btn{ padding:0 11px; font-size:11px; }
+.lv-search input{ width:130px; }
+.lv-month-nav .lv-month-mid{ width:104px; }
+.lv-month-nav .lv-month-mid span{ font-size:11.5px; }
+
+/* แถบตั้งค่าแอดมิน: การ์ดเตี้ยลง */
+#leaveManagerControls{ padding:8px 12px; gap:8px; }
+.lv-card{ padding:5px 9px; border-radius:11px; gap:4px; }
+.lv-mini-input{ font-size:10.5px; padding:3px 4px; }
+.lv-mini-input[type="datetime-local"]{ width:118px; font-size:10px; }
+.lv-btn-save, .lv-btn-staff{ height:34px; font-size:11px; padding:0 13px; }
+
+/* แถบประเภทการลา: บางลง */
+#leaveTypeToolbar{ padding:6px 12px; gap:6px; }
+#leaveTypeToolbar .leave-type-btn{ padding:4px 11px !important; font-size:10.5px !important; }
+.lv-type-label{ font-size:10px; }
+
+/* 📅 ตาราง: คอลัมน์วันแคบลง 75→56px + แถวเตี้ยลง 56→42px */
+#leaveTableMain thead th{ min-width:56px !important; padding:4px 3px !important; }
+/* คงความกว้าง 2 คอลัมน์ซ้าย (No. / รายชื่อ) เพราะ JS ล็อกตำแหน่ง sticky left ไว้ */
+#leaveTableMain thead th[class*="left-0"]{ min-width:40px !important; }
+#leaveTableMain thead th[class*="left-["]{ min-width:140px !important; }
+#leaveTableMain tbody tr{ height:42px !important; }
+#leaveTableMain tbody td{ padding:3px 4px !important; }
+
+/* ฟอนต์ในหัวตาราง: เลขวันเด่น ส่วน เช้า/กลาง/ดึก ย่อลง */
+#tableHeaderRow th > div:first-child{ font-size:12px !important; margin-bottom:2px !important; padding-bottom:1px !important; }
+#tableHeaderRow th span, #tableWorkingRow th span{ font-size:8.5px !important; }
+#tableHeaderRow th .flex.flex-col, #tableWorkingRow th .flex.flex-col{ gap:1px !important; }
+#tableWorkingRow th .material-icons{ font-size:10px !important; }
+
+/* แถบสรุปประเภทลาใต้ชื่อ (X:4, XX:1) ให้เล็กกระชับ */
+#tableBody td .text-\[9px\], #tableBody td [class*="text-[9px]"]{ font-size:8px !important; margin-top:2px !important; }
 </style>
 
     <!-- ═══════════ 🥇 แถบหัวเรื่อง ═══════════ -->
