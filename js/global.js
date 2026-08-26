@@ -201,7 +201,7 @@ const PAGE_SCRIPTS = {
     fine:              ['fine'],
     withdrawal_report: ['withdrawal_report'],
     sop:               ['sop'],
-    kb:                ['kb'],
+
     ip_check:          ['ip_check'],
     ip_allow:          ['ip_allow'],
     slip_check:        ['slip_check'],
@@ -364,9 +364,6 @@ async function showPage(pageName) {
 
                 else if (pageName === 'sop') {
                     if (typeof initSopApp === 'function') await initSopApp();
-                }
-                else if (pageName === 'kb') {
-                    if (typeof initKbApp === 'function') await initKbApp();
                 }
                 else if (pageName === 'od_center') {
                     if (typeof initOdCenterApp === 'function') await initOdCenterApp();
