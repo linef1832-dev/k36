@@ -2908,6 +2908,14 @@ window.sop_telegramSettings = async function() {
                 </label>
             </div>
 
+            <div>
+                <label class="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 hover:border-amber-500 transition has-[:checked]:bg-amber-100 dark:has-[:checked]:bg-amber-900/40">
+                    <input type="checkbox" id="tgAiEnabled" ${cfg.ai_enabled !== false ? 'checked' : ''} class="w-4 h-4 accent-amber-500">
+                    <span class="material-icons text-amber-500 text-[18px]">smart_toy</span>
+                    <span class="text-sm font-bold text-slate-800 dark:text-white">เปิดบอท AI ตอบกติกา — พนักงานถามด้วย /ask ในกลุ่ม (อิงกติกาหน้านี้)</span>
+                </label>
+            </div>
+
             <div class="flex gap-2">
                 <button type="button" onclick="sop_telegramTest()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1 shadow-md transition active:scale-95">
                     <span class="material-icons text-sm">send</span>ทดสอบส่งข้อความ
@@ -2932,11 +2940,12 @@ window.sop_telegramSettings = async function() {
             const bot_token = document.getElementById('tgBotToken').value.trim();
             const chat_id = document.getElementById('tgChatId').value.trim();
             const enabled = document.getElementById('tgEnabled').checked;
+            const ai_enabled = document.getElementById('tgAiEnabled') ? document.getElementById('tgAiEnabled').checked : true;
             if (enabled && (!bot_token || !chat_id)) {
                 Swal.showValidationMessage('ต้องใส่ Bot Token และ Chat ID เมื่อเปิดการแจ้งเตือน');
                 return false;
             }
-            return { bot_token, chat_id, enabled };
+            return { bot_token, chat_id, enabled, ai_enabled };
         }
     });
 
