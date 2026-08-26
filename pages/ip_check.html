@@ -1,23 +1,170 @@
 <!-- ==========================================
-     🌐 หน้าตรวจสอบ IP + FP พนักงาน V3
+     🌐 หน้าตรวจสอบ IP + FP พนักงาน — Premium Redesign
+     โครง id / onclick / .ip-tab-btn เดิมครบทุกตัว
      ========================================== -->
-<div class="p-4 md:p-6 max-w-[1600px] mx-auto">
+<div class="ipx-page p-4 md:p-6 max-w-[1600px] mx-auto">
+<style>
+/* ════════════════════════════════════════════════════
+   🎩 IP & FP Monitor — กราไฟต์ดำ × ทองแชมเปญ
+   ════════════════════════════════════════════════════ */
 
-    <!-- Header -->
-    <div class="bg-gradient-to-r from-sky-600 to-cyan-500 text-white rounded-2xl p-5 mb-5 shadow-lg flex items-center justify-between flex-wrap gap-3">
-        <div class="flex items-center gap-3">
-            <span class="material-icons text-4xl">public</span>
+/* ── Header ── */
+.ipx-header{
+    border-radius:20px; padding:18px 22px; margin-bottom:16px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    background:#ffffff; border:1px solid #e2e8f0;
+    box-shadow:0 8px 24px -10px rgba(0,0,0,0.15);
+}
+html.dark .ipx-header{
+    background:linear-gradient(120deg,#121b30 0%,#0c1424 55%,#0a101d 100%);
+    border:1px solid rgba(232,193,90,0.20);
+    box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 14px 44px -14px rgba(0,0,0,0.8);
+}
+.ipx-header-left{ display:flex; align-items:center; gap:14px; }
+.ipx-header-icon{
+    width:48px; height:48px; border-radius:15px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(145deg,#f7e7b6,#E8C15A 55%,#c99a33);
+    color:#3a2c07;
+    box-shadow:0 8px 20px -8px rgba(232,193,90,0.75), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.ipx-header-icon .material-icons{ font-size:26px; }
+.ipx-title{ font-size:1.25rem; font-weight:900; letter-spacing:0.01em; color:#1e293b; line-height:1.2; }
+html.dark .ipx-title{ color:#f1f5f9; }
+.ipx-sub{ font-size:11.5px; color:#94a3b8; margin-top:3px; }
+html.dark .ipx-sub{ color:#8b9bb4; }
+
+.ipx-hbtn{
+    height:36px; padding:0 14px; border-radius:11px;
+    font-size:12px; font-weight:800; display:inline-flex; align-items:center; gap:6px;
+    transition:transform .15s, filter .15s, box-shadow .15s;
+    box-shadow:0 5px 14px -6px rgba(0,0,0,0.4);
+}
+.ipx-hbtn:hover{ transform:translateY(-1px); filter:brightness(1.08); }
+.ipx-hbtn:active{ transform:scale(0.97); }
+.ipx-hbtn .material-icons{ font-size:16px; }
+.ipx-hbtn-csv{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid rgba(255,255,255,0.2); }
+.ipx-hbtn-clean{ background:transparent; color:#94a3b8; border:1px solid #cbd5e1; box-shadow:none; }
+html.dark .ipx-hbtn-clean{ color:#aab6c8; border:1px solid rgba(255,255,255,0.16); }
+html.dark .ipx-hbtn-clean:hover{ color:#fda4af; border-color:rgba(244,63,94,0.5); background:rgba(244,63,94,0.07); }
+
+/* ── การ์ดสถิติ 6 ใบ ── */
+.ipx-stats{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px; }
+@media(min-width:768px){ .ipx-stats{ grid-template-columns:repeat(3,1fr); } }
+@media(min-width:1100px){ .ipx-stats{ grid-template-columns:repeat(6,1fr); } }
+.ipx-stat{
+    border-radius:16px; padding:13px 15px; position:relative; overflow:hidden;
+    background:#ffffff; border:1px solid #e2e8f0;
+    box-shadow:0 4px 14px -8px rgba(0,0,0,0.15);
+    transition:transform .15s, box-shadow .15s;
+}
+.ipx-stat:hover{ transform:translateY(-2px); box-shadow:0 10px 22px -10px rgba(0,0,0,0.3); }
+html.dark .ipx-stat{
+    background:linear-gradient(160deg,#121b2e,#0d1422);
+    border:1px solid rgba(255,255,255,0.07);
+    box-shadow:0 6px 16px -8px rgba(0,0,0,0.6);
+}
+.ipx-stat::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--acc,#E8C15A);
+    box-shadow:0 0 14px 0 var(--acc,#E8C15A);
+}
+.ipx-stat-label{
+    font-size:10px; font-weight:800; letter-spacing:0.05em;
+    color:#94a3b8; display:flex; align-items:center; gap:5px; line-height:1.2;
+}
+html.dark .ipx-stat-label{ color:#8b9bb4; }
+.ipx-stat-label .material-icons{ font-size:14px; color:var(--acc,#E8C15A); }
+.ipx-stat-num{
+    font-size:1.7rem; font-weight:900; margin-top:4px; line-height:1;
+    color:#1e293b; font-variant-numeric:tabular-nums;
+}
+html.dark .ipx-stat-num{ color:#f1f5f9; text-shadow:0 0 22px color-mix(in srgb, var(--acc,#E8C15A) 35%, transparent); }
+
+/* ── กล่องหมวดแท็บ + ค้นหา ── */
+.ipx-panel{
+    border-radius:18px; padding:14px 16px; margin-bottom:14px;
+    background:#ffffff; border:1px solid #e2e8f0;
+    box-shadow:0 6px 18px -10px rgba(0,0,0,0.15);
+}
+html.dark .ipx-panel{
+    background:linear-gradient(170deg,#101828,#0b1220);
+    border:1px solid rgba(255,255,255,0.06);
+    box-shadow:0 10px 26px -14px rgba(0,0,0,0.7);
+}
+.ipx-group{ display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding:7px 0; }
+.ipx-group + .ipx-group{ border-top:1px dashed rgba(148,163,184,0.25); }
+html.dark .ipx-group + .ipx-group{ border-top:1px dashed rgba(232,193,90,0.16); }
+.ipx-group-label{
+    flex-shrink:0; width:92px;
+    font-size:10px; font-weight:900; letter-spacing:0.07em; text-transform:uppercase;
+    color:#b45309; display:flex; align-items:center; gap:5px;
+}
+html.dark .ipx-group-label{ color:#E8C15A; }
+.ipx-group-label .material-icons{ font-size:14px; }
+
+/* แท็บ — คงคลาส .ip-tab-btn ให้ JS สลับสีพื้นได้ตามเดิม แต่งเฉพาะทรง */
+.ip-tab-btn{
+    border-radius:10px !important;
+    padding:7px 13px !important;
+    font-size:12px !important;
+    box-shadow:0 3px 10px -5px rgba(0,0,0,0.35);
+    transition:transform .13s, filter .13s, background-color .15s, color .15s !important;
+}
+.ip-tab-btn:hover{ transform:translateY(-1px); filter:brightness(1.06); }
+.ip-tab-btn:active{ transform:scale(0.97); }
+html.dark .ip-tab-btn{ border-color:rgba(255,255,255,0.10) !important; }
+
+/* แถวค้นหา/กรอง */
+.ipx-filter-row{
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px;
+    margin-top:10px; padding-top:11px;
+    border-top:1px solid rgba(148,163,184,0.25);
+}
+html.dark .ipx-filter-row{ border-top:1px solid rgba(232,193,90,0.18); }
+.ipx-input, .ipx-select{
+    height:36px; border-radius:11px; font-size:12.5px; font-weight:700;
+    background:#f8fafc; border:1px solid #e2e8f0; color:#1e293b;
+    outline:none; transition:border-color .15s, box-shadow .15s;
+}
+html.dark .ipx-input, html.dark .ipx-select{
+    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.10); color:#e2e8f0;
+}
+.ipx-input:focus, .ipx-select:focus{
+    border-color:rgba(232,193,90,0.65);
+    box-shadow:0 0 0 3px rgba(232,193,90,0.15);
+}
+.ipx-select{ padding:0 12px; cursor:pointer; }
+.ipx-search{ position:relative; flex:1 1 220px; max-width:340px; }
+.ipx-search .material-icons{ position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:17px; color:#94a3b8; pointer-events:none; }
+.ipx-search input{ width:100%; padding:0 12px 0 33px; }
+.ipx-refresh{
+    height:36px; width:38px; border-radius:11px; flex-shrink:0;
+    display:inline-flex; align-items:center; justify-content:center;
+    background:linear-gradient(145deg,#f7e7b6,#E8C15A 60%,#d4a93c);
+    color:#3a2c07; border:1px solid rgba(232,193,90,0.8);
+    box-shadow:0 5px 14px -6px rgba(232,193,90,0.7);
+    transition:transform .15s, filter .15s;
+}
+.ipx-refresh:hover{ transform:translateY(-1px) rotate(90deg); filter:brightness(1.05); }
+.ipx-refresh .material-icons{ font-size:18px; }
+</style>
+
+    <!-- ═══════ 🥇 Header ═══════ -->
+    <div class="ipx-header">
+        <div class="ipx-header-left">
+            <div class="ipx-header-icon"><span class="material-icons">travel_explore</span></div>
             <div>
-                <h1 class="text-xl md:text-2xl font-black">ตรวจสอบ IP &amp; FP พนักงาน</h1>
-                <p class="text-xs md:text-sm opacity-90">ตรวจจับการแชร์บัญชี / VPN / IP เปลี่ยนกลางคัน / สลับเครื่อง</p>
+                <h1 class="ipx-title">ตรวจสอบ IP &amp; FP พนักงาน</h1>
+                <p class="ipx-sub">ตรวจจับการแชร์บัญชี · VPN · IP เปลี่ยนกลางคัน · สลับเครื่อง</p>
             </div>
         </div>
         <div class="flex gap-2 flex-wrap">
-            <button onclick="exportIpLogsCSV()" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
-                <span class="material-icons text-base">download</span> Export CSV
+            <button onclick="exportIpLogsCSV()" class="ipx-hbtn ipx-hbtn-csv">
+                <span class="material-icons">download</span> Export CSV
             </button>
-            <button onclick="cleanOldIpLogs()" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
-                <span class="material-icons text-base">cleaning_services</span> ลบ Log เก่า
+            <button onclick="cleanOldIpLogs()" class="ipx-hbtn ipx-hbtn-clean">
+                <span class="material-icons">cleaning_services</span> ลบ Log เก่า
             </button>
         </div>
     </div>
@@ -25,93 +172,107 @@
     <!-- 🚨 Live Alert Banner -->
     <div id="ipAlertBanner" style="display:none" class="mb-5"></div>
 
-    <!-- การ์ดสรุป 6 ใบ -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-sky-500">
-            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">รายการทั้งหมด</div>
-            <div id="ipStatTotal" class="text-2xl md:text-3xl font-black text-sky-600 dark:text-sky-400 mt-1">0</div>
+    <!-- ═══════ 📊 การ์ดสรุป 6 ใบ ═══════ -->
+    <div class="ipx-stats">
+        <div class="ipx-stat" style="--acc:#38bdf8">
+            <div class="ipx-stat-label"><span class="material-icons">list_alt</span> รายการทั้งหมด</div>
+            <div id="ipStatTotal" class="ipx-stat-num">0</div>
         </div>
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-emerald-500">
-            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">พนักงานที่เข้าระบบ</div>
-            <div id="ipStatUsers" class="text-2xl md:text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1">0</div>
+        <div class="ipx-stat" style="--acc:#34d399">
+            <div class="ipx-stat-label"><span class="material-icons">badge</span> พนักงานที่เข้าระบบ</div>
+            <div id="ipStatUsers" class="ipx-stat-num">0</div>
         </div>
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-purple-500">
-            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">จำนวน IP ทั้งหมด</div>
-            <div id="ipStatIps" class="text-2xl md:text-3xl font-black text-purple-600 dark:text-purple-400 mt-1">0</div>
+        <div class="ipx-stat" style="--acc:#a78bfa">
+            <div class="ipx-stat-label"><span class="material-icons">lan</span> จำนวน IP ทั้งหมด</div>
+            <div id="ipStatIps" class="ipx-stat-num">0</div>
         </div>
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-indigo-500">
-            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">จำนวน FP (อุปกรณ์)</div>
-            <div id="ipStatFps" class="text-2xl md:text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-1">0</div>
+        <div class="ipx-stat" style="--acc:#818cf8">
+            <div class="ipx-stat-label"><span class="material-icons">devices</span> จำนวน FP (อุปกรณ์)</div>
+            <div id="ipStatFps" class="ipx-stat-num">0</div>
         </div>
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-rose-500">
-            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">⚠ IP เปลี่ยนกลางคัน</div>
-            <div id="ipStatChanges" class="text-2xl md:text-3xl font-black text-rose-600 dark:text-rose-400 mt-1">0</div>
+        <div class="ipx-stat" style="--acc:#fb7185">
+            <div class="ipx-stat-label"><span class="material-icons">swap_horiz</span> IP เปลี่ยนกลางคัน</div>
+            <div id="ipStatChanges" class="ipx-stat-num">0</div>
         </div>
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow border-l-4 border-fuchsia-500">
-            <div class="text-xs text-gray-500 dark:text-gray-400 font-bold">🚨 FP เปลี่ยนกลางคัน</div>
-            <div id="ipStatFpChanges" class="text-2xl md:text-3xl font-black text-fuchsia-600 dark:text-fuchsia-400 mt-1">0</div>
+        <div class="ipx-stat" style="--acc:#e879f9">
+            <div class="ipx-stat-label"><span class="material-icons">phonelink_erase</span> FP เปลี่ยนกลางคัน</div>
+            <div id="ipStatFpChanges" class="ipx-stat-num">0</div>
         </div>
     </div>
 
-    <!-- Tabs + Search -->
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex gap-2 flex-wrap">
+    <!-- ═══════ 🗂️ หมวดมุมมอง (จัดกลุ่ม 3 หมวด) + ค้นหา ═══════ -->
+    <div class="ipx-panel">
+
+        <!-- หมวด 1: ข้อมูลหลัก -->
+        <div class="ipx-group">
+            <span class="ipx-group-label"><span class="material-icons">folder_open</span> ข้อมูล</span>
             <button id="ipTab_all" onclick="switchIpTab('all')" class="ip-tab-btn bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
                 <span class="material-icons text-base">list</span> ประวัติทั้งหมด
-            </button>
-            <button id="ipTab_changes" onclick="switchIpTab('changes')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-rose-50">
-                <span class="material-icons text-base">swap_horiz</span> 🚨 IP เปลี่ยน
-            </button>
-            <button id="ipTab_fp_changes" onclick="switchIpTab('fp_changes')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-fuchsia-50">
-                <span class="material-icons text-base">devices</span> 🚨 FP เปลี่ยน
-            </button>
-            <button id="ipTab_duplicates" onclick="switchIpTab('duplicates')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-amber-50">
-                <span class="material-icons text-base">warning</span> ⚠ IP ซ้ำ
-            </button>
-            <button id="ipTab_fp_duplicates" onclick="switchIpTab('fp_duplicates')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-orange-50">
-                <span class="material-icons text-base">device_hub</span> ⚠ FP ซ้ำ
             </button>
             <button id="ipTab_by_user" onclick="switchIpTab('by_user')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-emerald-50">
                 <span class="material-icons text-base">groups</span> สรุปต่อพนักงาน
             </button>
-            <button id="ipTab_risk" onclick="switchIpTab('risk')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-slate-100">
-                <span class="material-icons text-base">leaderboard</span> 🏆 Risk Score
-            </button>
-            <button id="ipTab_vpn" onclick="switchIpTab('vpn')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-purple-50">
-                <span class="material-icons text-base">vpn_lock</span> 🛡️ VPN Detect
-            </button>
-            <button id="ipTab_travel" onclick="switchIpTab('travel')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-red-50">
-                <span class="material-icons text-base">flight</span> ✈️ Travel Alert
-            </button>
-            <button id="ipTab_heatmap" onclick="switchIpTab('heatmap')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-blue-50">
-                <span class="material-icons text-base">grid_on</span> ⏰ Heatmap
-            </button>
             <button id="ipTab_timeline" onclick="switchIpTab('timeline')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-indigo-50">
-                <span class="material-icons text-base">timeline</span> 👤 Timeline
-            </button>
-            <button id="ipTab_overlap" onclick="switchIpTab('overlap')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-rose-50">
-                <span class="material-icons text-base">supervisor_account</span> 👥 Session Overlap
-            </button>
-            <button id="ipTab_tzmismatch" onclick="switchIpTab('tzmismatch')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-cyan-50">
-                <span class="material-icons text-base">travel_explore</span> 🌍 TZ Mismatch
+                <span class="material-icons text-base">timeline</span> Timeline รายคน
             </button>
         </div>
 
-        <div class="flex gap-2 items-center flex-wrap">
-            <select id="ipUserFilter" onchange="filterIpLogs()" class="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white">
+        <!-- หมวด 2: เหตุการณ์ผิดปกติ -->
+        <div class="ipx-group">
+            <span class="ipx-group-label"><span class="material-icons">notification_important</span> แจ้งเตือน</span>
+            <button id="ipTab_changes" onclick="switchIpTab('changes')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-rose-50">
+                <span class="material-icons text-base">swap_horiz</span> IP เปลี่ยน
+            </button>
+            <button id="ipTab_fp_changes" onclick="switchIpTab('fp_changes')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-fuchsia-50">
+                <span class="material-icons text-base">devices</span> FP เปลี่ยน
+            </button>
+            <button id="ipTab_duplicates" onclick="switchIpTab('duplicates')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-amber-50">
+                <span class="material-icons text-base">warning</span> IP ซ้ำ
+            </button>
+            <button id="ipTab_fp_duplicates" onclick="switchIpTab('fp_duplicates')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-orange-50">
+                <span class="material-icons text-base">device_hub</span> FP ซ้ำ
+            </button>
+            <button id="ipTab_overlap" onclick="switchIpTab('overlap')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-rose-50">
+                <span class="material-icons text-base">supervisor_account</span> Session Overlap
+            </button>
+        </div>
+
+        <!-- หมวด 3: เครื่องมือวิเคราะห์ -->
+        <div class="ipx-group">
+            <span class="ipx-group-label"><span class="material-icons">insights</span> วิเคราะห์</span>
+            <button id="ipTab_risk" onclick="switchIpTab('risk')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-slate-100">
+                <span class="material-icons text-base">leaderboard</span> Risk Score
+            </button>
+            <button id="ipTab_vpn" onclick="switchIpTab('vpn')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-purple-50">
+                <span class="material-icons text-base">vpn_lock</span> VPN Detect
+            </button>
+            <button id="ipTab_travel" onclick="switchIpTab('travel')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-red-50">
+                <span class="material-icons text-base">flight</span> Travel Alert
+            </button>
+            <button id="ipTab_tzmismatch" onclick="switchIpTab('tzmismatch')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-cyan-50">
+                <span class="material-icons text-base">travel_explore</span> TZ Mismatch
+            </button>
+            <button id="ipTab_heatmap" onclick="switchIpTab('heatmap')" class="ip-tab-btn bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition hover:bg-blue-50">
+                <span class="material-icons text-base">grid_on</span> Heatmap
+            </button>
+        </div>
+
+        <!-- แถวค้นหา / กรอง / รีเฟรช -->
+        <div class="ipx-filter-row">
+            <select id="ipUserFilter" onchange="filterIpLogs()" class="ipx-select">
                 <option value="all">-- ดูทั้งหมด --</option>
             </select>
-            <div class="relative">
-                <span class="material-icons absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-base">search</span>
-                <input id="ipSearchInput" oninput="filterIpLogs(); if(currentIpTab==='all') renderIpView();" type="text" placeholder="ค้นหา ชื่อ / IP / FP / ประเทศ..." class="pl-8 pr-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg text-sm text-slate-800 dark:text-white w-56">
+            <div class="ipx-search">
+                <span class="material-icons">search</span>
+                <input id="ipSearchInput" oninput="filterIpLogs(); if(currentIpTab==='all') renderIpView();" type="text" placeholder="ค้นหา ชื่อ / IP / FP / ประเทศ..." class="ipx-input">
             </div>
-            <button onclick="fetchIpLogs()" class="bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition" title="รีเฟรชข้อมูล">
-                <span class="material-icons text-base">refresh</span>
+            <button onclick="fetchIpLogs()" class="ipx-refresh" title="รีเฟรชข้อมูล">
+                <span class="material-icons">refresh</span>
             </button>
         </div>
     </div>
 
-    <!-- พื้นที่แสดงข้อมูล -->
+    <!-- ═══════ 📄 พื้นที่แสดงข้อมูล ═══════ -->
     <div id="ipLogsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <div class="col-span-full text-center py-10">
             <span class="material-icons animate-spin text-sky-500 text-4xl">sync</span>
