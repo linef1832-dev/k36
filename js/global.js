@@ -115,6 +115,32 @@ async function showLogin() {
 const pageCache = {};
 
 // ==========================================
+// ⚡ [SPEED] DOM Snapshot — กดเข้าหน้าแล้วข้อมูลเด้งขึ้นทันที
+// หลักการ: ก่อนออกจากหน้า เก็บภาพ DOM ล่าสุด (ที่มีข้อมูลแล้ว) ไว้
+// พอกลับเข้ามา → แปะภาพเดิมขึ้นจอทันที (0 วินาที) แล้วค่อยให้
+// init ของหน้านั้นดึงข้อมูลใหม่มาวาดทับเงียบๆ ข้างหลัง
+// ปุ่ม onclick ต่างๆ ใช้ได้ทันทีเพราะเป็น inline attribute ทั้งระบบ
+// ==========================================
+const domSnapshot = {};
+window._currentPageName = null;
+
+// ชิปเล็กๆ มุมจอ บอกว่ากำลังดึงข้อมูลชุดใหม่
+window._showRefreshChip = function() {
+    if (document.getElementById('pageRefreshChip')) return;
+    const el = document.createElement('div');
+    el.id = 'pageRefreshChip';
+    el.innerHTML = `<span class="material-icons animate-spin" style="font-size:14px;color:#E8C15A">sync</span> กำลังอัปเดตข้อมูล...`;
+    el.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;background:rgba(10,16,29,0.92);border:1px solid rgba(232,193,90,0.35);color:#f5e3ae;font-size:11px;font-weight:700;box-shadow:0 8px 24px -8px rgba(0,0,0,0.6);backdrop-filter:blur(4px);transition:opacity .25s;';
+    document.body.appendChild(el);
+};
+window._hideRefreshChip = function() {
+    const el = document.getElementById('pageRefreshChip');
+    if (!el) return;
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 300);
+};
+
+// ==========================================
 // 🧹 ระบบจัดการ Realtime Subscriptions ตามหน้า (กัน memory leak)
 // ==========================================
 window._pageSubscriptions = window._pageSubscriptions || new Set();
@@ -273,6 +299,19 @@ async function showPage(pageName) {
     window.cleanupPageSubscriptions();
     window.cleanupPageIntervals();
 
+    // ⚡ [SPEED] เก็บภาพหน้าปัจจุบัน (ที่มีข้อมูลวาดเสร็จแล้ว) ไว้ก่อนสลับ
+    const _prevApp = document.getElementById('app-content');
+    if (window._currentPageName && _prevApp && _prevApp.innerHTML && _prevApp.innerHTML.length > 50) {
+        domSnapshot[window._currentPageName] = _prevApp.innerHTML;
+    }
+
+    // มี snapshot + สคริปต์โหลดครบแล้ว = โชว์ได้ทันที ไม่ต้องขึ้น overlay เลย
+    const _snapReady = !!domSnapshot[pageName];
+    const _scriptsReady = (typeof PAGE_SCRIPTS !== 'undefined')
+        ? (PAGE_SCRIPTS[pageName] || []).every(n => window._loadedScripts && window._loadedScripts[n])
+        : false;
+    const _instant = _snapReady && _scriptsReady && !!pageCache[pageName];
+
     try {
         if (!pageCache[pageName] && loading) loading.classList.remove('hidden');
         
@@ -283,21 +322,27 @@ async function showPage(pageName) {
             pageCache[pageName] = await response.text();
         }
         // 📦 โหลด JS ของหน้านี้ (ครั้งแรกเท่านั้น)
-        if (loading) loading.classList.remove('hidden');
+        if (loading && !_instant) loading.classList.remove('hidden');
         await window.loadPageScripts(pageName);
         
-        const htmlContent = pageCache[pageName];
+        // ⚡ ถ้ามี snapshot ให้แปะภาพเดิม (มีข้อมูลอยู่แล้ว) ขึ้นก่อน — ตาเห็นทันที
+        const usedSnapshot = !!domSnapshot[pageName];
+        const htmlContent = domSnapshot[pageName] || pageCache[pageName];
 
         const updateDOM = () => {
             const appContent = document.getElementById('app-content');
             appContent.innerHTML = htmlContent;
             appContent.classList.remove('hidden');
+            window._currentPageName = pageName;
             
             document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
             const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
             if (activeBtn) activeBtn.classList.add('active');
 
             requestAnimationFrame(async () => {
+                // ⚡ กำลังโชว์ข้อมูลชุดเก่าอยู่ → ขึ้นชิปบอกว่าเบื้องหลังกำลังดึงของใหม่
+                if (usedSnapshot && window._showRefreshChip) window._showRefreshChip();
+
                 if(document.getElementById('uName') && currentUser && currentUser.username) {
                     document.getElementById('uName').innerText = currentUser.username;
                 }
@@ -390,6 +435,13 @@ async function showPage(pageName) {
                 }
                 else if (pageName === 'slip_check') {
                     if (typeof window.initSlipCheck === 'function') await window.initSlipCheck();
+                }
+
+                // ⚡ ข้อมูลชุดใหม่วาดเสร็จแล้ว → ปิดชิป + เก็บ snapshot เวอร์ชันสดไว้เลย
+                if (window._hideRefreshChip) window._hideRefreshChip();
+                const _appNow = document.getElementById('app-content');
+                if (_appNow && window._currentPageName === pageName) {
+                    domSnapshot[pageName] = _appNow.innerHTML;
                 }
             });
         };
