@@ -1217,17 +1217,41 @@ function filterIndivTaskLog(shiftFilter = "") {
 
 async function deleteTask(id) { if (!window.sysRequireAdmin()) return; 
     Swal.fire({
-        title: 'ยืนยันลบ?', text: "ต้องการลบรายการนี้ออกจากประวัติใช่หรือไม่", icon: 'warning',
+        title: 'ยืนยันลบ?', text: "ต้องการลบรายการนี้ใช่หรือไม่ (วันหยุด XX ที่ระบบลงให้จากรายการนี้จะถูกลบออกจากตารางวันหยุดด้วย)", icon: 'warning',
         showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ใช่, ลบเลย!', cancelButtonText: 'ยกเลิก'
     }).then(async (result) => {
         if (result.isConfirmed) {
+            // 🌟 [ลบ XX ตาม] ดึงข้อมูลคิวก่อนลบ เพื่อตามไปลบช่องเหลือง XX ที่คิวนี้เคยลงไว้ในตารางวันหยุด
+            // กติกาวัน XX (ตามตอนสร้างใน confirmAndSaveSwapPlan): สลับไปดึก/กลาง = วันเดียวกับคิว | สลับไปเช้า = วันพักก่อนหน้า 1 วัน
+            let xxCleanup = null;
+            try {
+                const { data: taskRow } = await appDB.from('scheduled_tasks').select('*').eq('id', id).maybeSingle();
+                if (taskRow && taskRow.task_type === 'individual_shift_update' && taskRow.payload &&
+                    taskRow.payload.user_id && taskRow.payload.target_shift !== 'คงเดิม') {
+                    const d = new Date(taskRow.scheduled_for);
+                    if ((taskRow.payload.target_shift || '').includes('เช้า')) d.setDate(d.getDate() - 1);
+                    const xxDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    xxCleanup = { user_id: taskRow.payload.user_id, date: xxDate };
+                }
+            } catch (e) { console.error('เตรียมลบ XX:', e); }
+
             const { error } = await appDB.from('scheduled_tasks').delete().eq('id', id); 
             if(error) {
                 Swal.fire('Error', error.message, 'error');
             } else {
+                // ลบ XX ของคน+วันนั้น (เฉพาะที่ reason = 'XX' เท่านั้น — วันลาประเภทอื่นไม่โดนแตะ)
+                if (xxCleanup) {
+                    try {
+                        await appDB.from('leave_requests').delete()
+                            .eq('user_id', xxCleanup.user_id)
+                            .eq('leave_date', xxCleanup.date)
+                            .eq('reason', 'XX');
+                    } catch (e) { console.error('ลบ XX:', e); }
+                }
                 if(typeof fetchTasks === 'function') fetchTasks(); 
                 if(typeof fetchIndividualTasks === 'function') fetchIndividualTasks(); 
-                Swal.fire('ลบสำเร็จ!', 'รายการถูกลบเรียบร้อยแล้ว', 'success');
+                if(typeof fetchLeaveData === 'function') fetchLeaveData();   // รีเฟรชตารางวันหยุด → เหลืองหายทันที
+                Swal.fire('ลบสำเร็จ!', 'ลบรายการและวันหยุด XX ที่เกี่ยวข้องเรียบร้อยแล้ว', 'success');
             }
         }
     });
