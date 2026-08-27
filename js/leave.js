@@ -363,10 +363,9 @@ window.checkBookingWindow = function(targetShift) {
             return `<span class="text-[10px] text-red-400 font-bold bg-red-900/30 border border-red-800/50 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">${st.msg}</span>`;
         };
         
-        const newStatusHtml = `<div class="flex flex-wrap items-center gap-1.5 mt-1">${makeBadge(stM)}${makeBadge(stA)}${makeBadge(stN)}</div>`;
-        if (statusText.innerHTML !== newStatusHtml) {
-            statusText.innerHTML = newStatusHtml;
-        }
+        const newStatusHtml = `<span class="flex flex-wrap items-center gap-1.5">${makeBadge(stM)}${makeBadge(stA)}${makeBadge(stN)}</span>`;
+        // เขียนทับเสมอ (ไม่ต่อท้าย) กันป้ายซ้อนกันตอนกลับเข้าหน้าซ้ำ
+        if (statusText.innerHTML !== newStatusHtml) statusText.innerHTML = newStatusHtml;
     }
     if(rtDot) rtDot.classList.add('realtime-active');
     return true;
