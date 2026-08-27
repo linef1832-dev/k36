@@ -2916,13 +2916,33 @@ window.sop_telegramSettings = async function() {
                 </label>
             </div>
 
-            <div class="flex items-center gap-3 p-3 rounded-xl border-2 border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/20">
-                <span class="material-icons text-rose-500 text-[18px]">auto_delete</span>
-                <div class="flex-1">
-                    <div class="text-sm font-bold text-slate-800 dark:text-white">⏲️ ลบข้อความตอบของบอทอัตโนมัติ (นาที)</div>
-                    <div class="text-[10px] text-slate-500 dark:text-gray-400">0 = ไม่ลบ · ไม่เกิน 2 นาที ทำงานทันที · เกิน 2 นาที ต้องตั้ง Cron กวาดลบ (ถามคนทำระบบ)</div>
+            <div class="p-3 rounded-xl border-2 border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/20 space-y-2">
+                <div class="flex items-center gap-2">
+                    <span class="material-icons text-rose-500 text-[18px]">auto_delete</span>
+                    <div class="text-sm font-bold text-slate-800 dark:text-white">⏲️ ลบข้อความตอบของบอทอัตโนมัติ</div>
                 </div>
-                <input type="number" id="tgAutoDelete" min="0" step="0.5" value="${cfg.auto_delete_minutes ?? 0}" class="w-20 p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white text-center font-bold outline-none focus:ring-2 focus:ring-rose-400">
+
+                <div class="flex items-center gap-2 pl-1">
+                    <span class="material-icons text-slate-400 text-[15px]">groups</span>
+                    <div class="flex-1">
+                        <div class="text-xs font-bold text-slate-700 dark:text-gray-200">ข้อความสาธารณะ (/1, /ถาม, ควิซ)</div>
+                        <div class="text-[9px] text-slate-500 dark:text-gray-400">0:0 = ไม่ลบ · เกิน 2 นาที ต้องมี Cron กวาด</div>
+                    </div>
+                    <input type="number" id="tgAutoDelHr" min="0" step="1" value="${Math.floor((cfg.auto_delete_minutes || 0) / 60)}" class="w-14 p-1.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 dark:text-white text-center font-bold text-sm outline-none focus:ring-2 focus:ring-rose-400">
+                    <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400">ชม.</span>
+                    <input type="number" id="tgAutoDelMin" min="0" max="59" step="1" value="${Math.round((cfg.auto_delete_minutes || 0) % 60)}" class="w-14 p-1.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 dark:text-white text-center font-bold text-sm outline-none focus:ring-2 focus:ring-rose-400">
+                    <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400">นาที</span>
+                </div>
+
+                <div class="flex items-center gap-2 pl-1 pt-2 border-t border-rose-200 dark:border-rose-800">
+                    <span class="material-icons text-slate-400 text-[15px]">visibility_off</span>
+                    <div class="flex-1">
+                        <div class="text-xs font-bold text-slate-700 dark:text-gray-200">ข้อความส่วนตัว (/ถามเงียบ)</div>
+                        <div class="text-[9px] text-slate-500 dark:text-gray-400">0 = ใช้เวลาเดียวกับด้านบน · สูงสุด 14 นาที (ข้อจำกัด Discord)</div>
+                    </div>
+                    <input type="number" id="tgAutoDelPrivate" min="0" max="14" step="1" value="${cfg.auto_delete_private_minutes || 0}" class="w-14 p-1.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 dark:text-white text-center font-bold text-sm outline-none focus:ring-2 focus:ring-rose-400">
+                    <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400">นาที</span>
+                </div>
             </div>
 
             <div class="flex gap-2">
@@ -2974,12 +2994,15 @@ window.sop_telegramSettings = async function() {
             const chat_id = document.getElementById('tgChatId').value.trim();
             const enabled = document.getElementById('tgEnabled').checked;
             const ai_enabled = document.getElementById('tgAiEnabled') ? document.getElementById('tgAiEnabled').checked : true;
-            const auto_delete_minutes = parseFloat(document.getElementById('tgAutoDelete')?.value) || 0;
+            const _adHr = parseFloat(document.getElementById('tgAutoDelHr')?.value) || 0;
+            const _adMin = parseFloat(document.getElementById('tgAutoDelMin')?.value) || 0;
+            const auto_delete_minutes = (_adHr * 60) + _adMin;
+            const auto_delete_private_minutes = Math.min(parseFloat(document.getElementById('tgAutoDelPrivate')?.value) || 0, 14);
             if (enabled && (!bot_token || !chat_id)) {
                 Swal.showValidationMessage('ต้องใส่ Bot Token และ Chat ID เมื่อเปิดการแจ้งเตือน');
                 return false;
             }
-            return { bot_token, chat_id, enabled, ai_enabled, auto_delete_minutes };
+            return { bot_token, chat_id, enabled, ai_enabled, auto_delete_minutes, auto_delete_private_minutes };
         }
     });
 
