@@ -2916,6 +2916,15 @@ window.sop_telegramSettings = async function() {
                 </label>
             </div>
 
+            <div class="flex items-center gap-3 p-3 rounded-xl border-2 border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/20">
+                <span class="material-icons text-rose-500 text-[18px]">auto_delete</span>
+                <div class="flex-1">
+                    <div class="text-sm font-bold text-slate-800 dark:text-white">⏲️ ลบข้อความตอบของบอทอัตโนมัติ (นาที)</div>
+                    <div class="text-[10px] text-slate-500 dark:text-gray-400">0 = ไม่ลบ · ไม่เกิน 2 นาที ทำงานทันที · เกิน 2 นาที ต้องตั้ง Cron กวาดลบ (ถามคนทำระบบ)</div>
+                </div>
+                <input type="number" id="tgAutoDelete" min="0" step="0.5" value="${cfg.auto_delete_minutes ?? 0}" class="w-20 p-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 dark:text-white text-center font-bold outline-none focus:ring-2 focus:ring-rose-400">
+            </div>
+
             <div class="flex gap-2">
                 <button type="button" onclick="sop_telegramTest()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1 shadow-md transition active:scale-95">
                     <span class="material-icons text-sm">send</span>ทดสอบส่งข้อความ
@@ -2965,11 +2974,12 @@ window.sop_telegramSettings = async function() {
             const chat_id = document.getElementById('tgChatId').value.trim();
             const enabled = document.getElementById('tgEnabled').checked;
             const ai_enabled = document.getElementById('tgAiEnabled') ? document.getElementById('tgAiEnabled').checked : true;
+            const auto_delete_minutes = parseFloat(document.getElementById('tgAutoDelete')?.value) || 0;
             if (enabled && (!bot_token || !chat_id)) {
                 Swal.showValidationMessage('ต้องใส่ Bot Token และ Chat ID เมื่อเปิดการแจ้งเตือน');
                 return false;
             }
-            return { bot_token, chat_id, enabled, ai_enabled };
+            return { bot_token, chat_id, enabled, ai_enabled, auto_delete_minutes };
         }
     });
 
