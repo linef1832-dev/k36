@@ -1,713 +1,343 @@
-window.initDashboard = async function() {
-    // ลองดึงจาก sessionStorage ก่อนเลย ไม่ต้องรอ
-    if (!window.currentUser) {
-        const savedUser = sessionStorage.getItem('user_platinum_plus');
-        if (savedUser) {
-            window.currentUser = JSON.parse(savedUser);
-        } else {
-            // fallback: รอสั้นๆ เผื่อกำลังโหลดอยู่
-            let retry = 0;
-            while (!window.currentUser && retry < 10) {
-                await new Promise(r => setTimeout(r, 100));
-                retry++;
-            }
-            if (!window.currentUser) return;
-        }
-    }
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useI18n } from '../contexts/I18nContext.jsx'
+import { useAuth } from '../contexts/AuthContext.jsx'
+import { supabase } from '../lib/supabase.js'
+import { formatRelative } from '../lib/utils.js'
+import OwnerInsight from '../components/dashboard/OwnerInsight.jsx'
+import DateRangePicker, { presetRange } from '../components/dashboard/DateRangePicker.jsx'
+import { loadShifts, shiftsNow, bizToday, bizRange, shiftRange, thaiDate } from '../lib/shifts.js'
 
-    // 🔄 ดึงข้อมูลตัวเองสดจาก DB ก่อน (เผื่อแอดมินเปลี่ยนกะ/แผนกไประหว่างที่ปิดหน้า)
-    if (typeof window.refreshCurrentUserFromDB === 'function') await window.refreshCurrentUserFromDB();
+const PODIUM = [
+  { grad: 'from-yellow-400 to-amber-500',  ring: 'shadow-amber-500/30',  chip: 'text-amber-700',  emoji: '🥇' },
+  { grad: 'from-slate-300 to-slate-400',   ring: 'shadow-slate-400/25',  chip: 'text-slate-600',  emoji: '🥈' },
+  { grad: 'from-orange-400 to-orange-500', ring: 'shadow-orange-500/30', chip: 'text-orange-700', emoji: '🥉' }
+]
 
-    // อัปเดตข้อมูลพนักงานที่แถบด้านบน
-    if (typeof updateDashboardUserInfo === 'function') updateDashboardUserInfo();
-
-    // 🌟🌟🌟 ควบคุมการโชว์ปุ่มเช็คคนยังไม่ลงข้าว 🌟🌟🌟
-    const btnCheckMissing = document.getElementById('btnCheckMissingLunch');
-    if (btnCheckMissing) {
-        const uRole = (window.currentUser.role || '').toLowerCase();
-        const uDept = (window.currentUser.department || '');
-        // ให้เช็คสิทธิ์ว่ามีสิทธิ์เข้ามาดูเมนูจัดการลางาน หรือจัดการเวรไหม ถ้ามีก็ให้กดดูได้เลย
-if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
-    btnCheckMissing.classList.remove('hidden');
+// 📊 ดึงข้อความ "ขาออก" ในช่วง — แบ่งหน้า (เลี่ยง limit 1000 ของ PostgREST)
+async function fetchOutMessages({ fromISO, toISO, channelId = null }) {
+  const PAGE = 1000
+  let start = 0
+  const all = []
+  for (;;) {
+    let q = supabase.from('line_messages')
+      .select('sender_id, conversation_id, created_at')
+      .eq('direction', 'out')
+      .gte('created_at', fromISO).lt('created_at', toISO)
+    if (channelId && channelId !== 'all') q = q.eq('channel_id', channelId)
+    q = q.order('created_at', { ascending: true }).range(start, start + PAGE - 1)
+    const { data, error } = await q
+    if (error || !data || !data.length) break
+    all.push(...data)
+    if (data.length < PAGE) break
+    start += PAGE
+  }
+  return all
 }
+
+export default function Dashboard() {
+  const { lang } = useI18n()
+  const { user } = useAuth()
+
+  const [shiftCfg, setShiftCfg] = useState(shiftsNow)
+  const [range, setRange] = useState(() => ({ ...presetRange('today', shiftsNow().dayStartMin), preset: 'today' }))
+  const [channels, setChannels] = useState([])
+  const [selectedChannel, setSelectedChannel] = useState('all')
+  const [avatarMap, setAvatarMap] = useState({})
+  const [ranked, setRanked] = useState([])
+  const [summary, setSummary] = useState(null)      // { in, out, convs, shifts: [{name,label,in,out}] }
+  const [loading, setLoading] = useState(true)
+  const [staffPage, setStaffPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const STAFF_PER_PAGE = 20
+
+  // ⏰ โหลดทะเบียนกะจาก K36 — ได้ค่าจริงแล้วค่อยปรับช่วงวันให้ตรง
+  useEffect(() => {
+    loadShifts().then(cfg => {
+      setShiftCfg(cfg)
+      setRange(r => r.preset && r.preset !== 'custom'
+        ? { ...presetRange(r.preset, cfg.dayStartMin), preset: r.preset } : r)
+    })
+  }, [])
+
+  useEffect(() => {
+    supabase.from('chat_app_users').select('username, avatar_url').not('avatar_url', 'is', null)
+      .then(({ data }) => setAvatarMap(Object.fromEntries((data || []).map(u => [u.username, u.avatar_url]))))
+    supabase.from('line_channels_public').select('*').order('sort_order')
+      .then(({ data }) => setChannels(data || []))
+  }, [])
+
+  useEffect(() => { setStaffPage(1) }, [range, selectedChannel, search])
+
+  // 📥 โหลดข้อมูลทั้งหน้า — ยึดวันทำงานตามกะ (ไม่ใช่เที่ยงคืน)
+  const load = useCallback(async () => {
+    setLoading(true)
+    const startMin = shiftCfg.dayStartMin
+    const { from, to } = bizRange(range.from, range.to, startMin)
+    const fromISO = from.toISOString(), toISO = to.toISOString()
+
+    const cnt = (dir, a, b) => {
+      let q = supabase.from('line_messages').select('*', { count: 'exact', head: true })
+        .eq('direction', dir).gte('created_at', a.toISOString()).lt('created_at', b.toISOString())
+      if (selectedChannel !== 'all') q = q.eq('channel_id', selectedChannel)
+      return q.then(({ count }) => count || 0)
     }
 
-    // ดึงรายชื่อทีมเข้า Dropdown
-    if (typeof populateTeamSelects === 'function') populateTeamSelects();
+    // แยกกะ: วนทุกกะในทะเบียน × ทุกวันทำงานในช่วงที่เลือก
+    const days = []
+    for (let d = range.from; d <= range.to;) {
+      days.push(d)
+      const nd = new Date(d + 'T12:00:00'); nd.setDate(nd.getDate() + 1)
+      d = `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}-${String(nd.getDate()).padStart(2,'0')}`
+    }
 
-    // 🟢 บังคับเซ็ตวันที่ให้เป็น "วันนี้" เสมอ (ปรับให้กะดึกข้ามวัน)
-    const dInput = document.getElementById('wDate');
-    if (dInput) {
-        const today = new Date();
-        const currentHour = today.getHours(); // ดึงเวลาชั่วโมงปัจจุบัน (0-23)
-
-        // ถ้านาฬิกาอยู่ระหว่างเที่ยงคืน (00:00) ถึงก่อน 8 โมงเช้า (07:59)
-        // ให้ปฏิทินถอยกลับไปแสดงเป็นวันที่ของ "เมื่อวาน" อัตโนมัติ
-        if (currentHour >= 0 && currentHour < 8) {
-            today.setDate(today.getDate() - 1);
+    const [totIn, totOut, msgs, shiftRows] = await Promise.all([
+      cnt('in', from, to),
+      cnt('out', from, to),
+      fetchOutMessages({ fromISO, toISO, channelId: selectedChannel }),
+      Promise.all(shiftCfg.shifts.map(async sh => {
+        const parts = await Promise.all(days.map(d => {
+          const r = shiftRange(d, sh, startMin)
+          return Promise.all([cnt('in', r.from, r.to), cnt('out', r.from, r.to)])
+        }))
+        return {
+          name: sh.name, label: sh.label,
+          in:  parts.reduce((s, p) => s + p[0], 0),
+          out: parts.reduce((s, p) => s + p[1], 0)
         }
+      }))
+    ])
 
-        const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        dInput.value = localDate;
-        const displayDate = document.getElementById('displayDate');
-        if (displayDate) displayDate.innerText = new Date(localDate).toLocaleDateString('th-TH');
+    // อันดับพนักงาน — นับจากข้อความขาออกจริงในช่วง
+    const map = {}
+    const allConvs = new Set()
+    for (const m of msgs) {
+      if (!m.sender_id || m.sender_id === 'system') continue
+      if (!map[m.sender_id]) map[m.sender_id] = { replies: 0, convSet: new Set(), lastAt: null }
+      map[m.sender_id].replies++
+      map[m.sender_id].convSet.add(m.conversation_id)
+      allConvs.add(m.conversation_id)
+      if (!map[m.sender_id].lastAt || m.created_at > map[m.sender_id].lastAt) map[m.sender_id].lastAt = m.created_at
     }
-
-    // 🟢 สร้างปุ่มและ "บังคับเลือกกะให้อัตโนมัติ" ตามสิทธิ์
-    if (typeof renderShiftButtons === 'function') renderShiftButtons(window.currentUser.allowed_shift);
-
-    // เช็คระบบ "จำทีมนี้ไว้ตลอด"
-    const savedTeam = localStorage.getItem(`last_team_${window.currentUser.username}`);
-    const teamSelect = document.getElementById('dailyTeam');
-    if (teamSelect) {
-        if (savedTeam) {
-            teamSelect.value = savedTeam;
-            const rememberCb = document.getElementById('rememberTeam');
-            if(rememberCb) rememberCb.checked = true;
-        } else if (window.currentUser.team) {
-            teamSelect.value = window.currentUser.team;
-        }
-    }
-
-    // โหลดข้อมูลรอบเวลาก่อน แล้วค่อย fetchData
-    if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
-    if (typeof fetchData === 'function') fetchData();
-
-    // 🌟 เรียกใช้งานระบบ Realtime
-    if (typeof subscribeDashboardChanges === 'function') subscribeDashboardChanges();
-
-    // 💬 เริ่มระบบแชทสด
-};
-
-window.updateDashboardUserInfo = function() {
-    if (!window.currentUser) return;
-    if(document.getElementById('uName')) {
-        document.getElementById('uName').innerText = window.currentUser.username || 'Unknown';
-    }
-    const _uTagEl = document.getElementById('uTagBadge');
-    if(_uTagEl) {
-        const _tag = window.currentUser.tag;
-        _uTagEl.innerHTML = (window.getTagBadge && _tag) ? window.getTagBadge(_tag, currentUser?.department) : '';
-    }
-    if(document.getElementById('checkTypeDisplay')) document.getElementById('checkTypeDisplay').innerText = (window.currentUser.check_type === 'shift') ? 'เช็คโควตากะ' : 'เช็คโควตาทีม';
-    if(document.getElementById('quotaDisplay')) document.getElementById('quotaDisplay').innerText = window.currentUser.department || 'AM';
-
-    if(typeof SETTINGS !== 'undefined') {
-        if(document.getElementById('periodLimitDisplay')) document.getElementById('periodLimitDisplay').innerText = SETTINGS.period_limit || 1;
-        if(document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = SETTINGS.daily_limit || 2;
-    }
-};
-
-window.populateTeamSelects = function() {
-    const dt = document.getElementById('dailyTeam');
-    const tf = document.getElementById('tableTeamFilter');
-    const nt = document.getElementById('newTeam');
-    const mt = document.getElementById('moveTargetTeam');
-
-    let html = '';
-    let fHtml = '<option value="all">-- ทุกเว็บ --</option>';
-    let ntHtml = '<option value="">- ไม่ระบุทีม -</option>';
-
-    const sortedTeams = [...(typeof TEAM_LIST !== 'undefined' ? TEAM_LIST : [])].sort((a,b) => a.localeCompare(b));
-
-    sortedTeams.forEach(t => {
-        html += `<option value="${t}">${t}</option>`;
-        fHtml += `<option value="${t}">${t}</option>`;
-        ntHtml += `<option value="${t}">${t}</option>`;
-    });
-
-    if(dt) dt.innerHTML = html;
-    if(tf) tf.innerHTML = fHtml;
-    if(nt) nt.innerHTML = ntHtml;
-    if(mt) mt.innerHTML = ntHtml;
-
-    if(dt && window.currentUser && window.currentUser.team) dt.value = window.currentUser.team;
-};
-
-window.renderShiftButtons = function(allowedShift) {
-    const container = document.getElementById('shiftContainer');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const shifts = ['กะเช้า', 'กะกลาง', 'กะดึก'];
-    let hasChecked = false;
-
-    const userRole = window.currentUser?.role || 'staff';
-    const shiftRight = allowedShift || 'all';
-    const isAdmin = window.hasUserPerm('ds_manage') || window.hasUserPerm('admin');
-    // 🟢 มีสิทธิ์ "ลงเวลาได้ทุกกะ" → ไม่ถูกล็อกแค่กะของตัวเอง
-    const canViewAllShifts = isAdmin || window.hasUserPerm('dashboard_view_all_shifts');
-
-    shifts.forEach((s, index) => {
-        // 🌟 จุดสำคัญ: ถ้าไม่มีสิทธิ์เห็นทุกกะ และกะนี้ไม่ใช่กะของพนักงานคนนี้ ให้ "ข้าม (return)" ไปเลย
-        if (!canViewAllShifts && shiftRight !== 'all' && shiftRight !== s) {
-            return;
-        }
-
-        let bgClass = 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer';
-        let textClass = 'text-gray-700 dark:text-gray-300';
-        let borderClass = 'border-gray-200 dark:border-slate-600';
-
-        let isChecked = false;
-        if (!hasChecked) {
-            if (shiftRight === 'all' || isAdmin) {
-                if (index === 0) { isChecked = true; hasChecked = true; }
-            } else if (shiftRight === s) {
-                isChecked = true; hasChecked = true;
-            }
-        }
-
-        let icon = s === 'กะเช้า' ? 'wb_sunny' : (s === 'กะกลาง' ? 'cloud' : 'dark_mode');
-        let color = s === 'กะเช้า' ? 'text-orange-500' : (s === 'กะกลาง' ? 'text-blue-500' : 'text-purple-500');
-
-        container.innerHTML += `
-            <label class="relative flex flex-col items-center p-3 rounded-xl border-2 ${borderClass} ${bgClass} transition shadow-sm">
-                <input type="radio" name="shift" value="${s}" class="peer hidden" onchange="refreshTimeSlots(); if(typeof fetchData==='function') fetchData();" ${isChecked ? 'checked' : ''}>
-                <span class="material-icons ${color} mb-1 peer-checked:scale-125 transition-transform">${icon}</span>
-                <span class="font-bold ${textClass} text-sm">${s}</span>
-                <div class="absolute inset-0 border-2 border-transparent peer-checked:border-blue-500 rounded-xl pointer-events-none transition-colors"></div>
-                <div class="absolute top-2 right-2 w-3 h-3 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
-            </label>
-        `;
-    });
-};
-
-// debounce timer สำหรับ refreshTimeSlots
-let _refreshSlotsTimer = null;
-window.refreshTimeSlots = async function() {
-    // debounce 80ms — ถ้าถูกเรียกซ้ำในเวลาสั้น ให้รอแล้วรันครั้งเดียว
-    clearTimeout(_refreshSlotsTimer);
-    await new Promise(r => { _refreshSlotsTimer = setTimeout(r, 80); });
-
-    const shiftEl    = document.querySelector('input[name="shift"]:checked');
-    const slotSelect = document.getElementById('tSlot');
-    const dateEl     = document.getElementById('wDate');
-    const teamSelect = document.getElementById('dailyTeam');
-
-    if (!slotSelect) return;
-    if (!shiftEl || !dateEl || !dateEl.value) {
-        slotSelect.innerHTML = '<option value="">-- กรุณาเลือกกะ/วันทีก่อน --</option>';
-        return;
-    }
-
-    const shiftName = shiftEl.value;
-    const myDep     = window.currentUser?.department || 'AM';
-    const dateVal   = dateEl.value;
-    const now       = Date.now();
-
-    // ── Roster (⭐ ทีมที่ถูกจัด) — cache 90 วิ ──
-    if (teamSelect && !['manager', 'admin'].includes(currentUser.role)) {
-        const rosterKey = `duty_roster_${myDep}_${dateVal}_${shiftName}`;
-        let assignedTeams = [];
-        let coverageMap = null;
-
-        // ใช้ cache ถ้ายัง fresh
-        if (_rosterCache[rosterKey] && (now - _rosterCache[rosterKey].ts) < _SLOT_TTL) {
-            assignedTeams = _rosterCache[rosterKey].data;
-            coverageMap = _rosterCache[rosterKey].covMap || null;
-        } else {
-            try {
-                const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
-                if (rosterData && rosterData.value) {
-                    const roster = JSON.parse(rosterData.value);
-                    coverageMap = window.buildCoverageMap(roster);
-                    for (const team in roster) {
-                        (roster[team] || []).forEach(u => {
-                            if (String(u.id) === String(currentUser.id)) {
-                                if (!assignedTeams.includes(team)) assignedTeams.push(team);
-                                if (u.secondary_team && !assignedTeams.includes(u.secondary_team)) assignedTeams.push(u.secondary_team);
-                            }
-                        });
-                    }
-                }
-                _rosterCache[rosterKey] = { data: assignedTeams, covMap: coverageMap, ts: now };
-            } catch(e) { console.error(e); }
-        }
-
-        window._myAssignedTeams = assignedTeams;
-        window._myCoverageMap = coverageMap;
-
-        const oldVal = teamSelect.value;
-        const sortedTeams = [...TEAM_LIST].sort((a,b) => a.localeCompare(b));
-        let tHtml = '';
-        sortedTeams.forEach(t => {
-            const isAssigned = assignedTeams.includes(t);
-            tHtml += `<option value="${t}">${isAssigned ? `⭐ ${t} (หน้าที่ของคุณ)` : t}</option>`;
-        });
-        teamSelect.innerHTML = tHtml;
-
-        if (oldVal && sortedTeams.includes(oldVal)) teamSelect.value = oldVal;
-        else if (assignedTeams.length > 0) teamSelect.value = assignedTeams[0];
-    }
-
-    const selectedTeam = teamSelect ? teamSelect.value : (window.currentUser?.team || '');
-    const previousSelectedSlot = slotSelect.value;
-
-    const loadingIcon = document.getElementById('slotLoading');
-    if (loadingIcon) loadingIcon.classList.remove('hidden');
-
-    try {
-        // ── Slot bookings — cache 90 วิ ──
-        const slotCacheKey = `${dateVal}|${shiftName}`;
-        let bookings;
-        if (_slotCache[slotCacheKey] && (now - _slotCache[slotCacheKey].ts) < _SLOT_TTL) {
-            bookings = _slotCache[slotCacheKey].data;
-        } else {
-            const { data } = await appDB.from('schedules')
-                .select('time_slot, department, team, staff_name')
-                .eq('work_date', dateVal)
-                .eq('shift_name', shiftName);
-            bookings = data;
-            _slotCache[slotCacheKey] = { data: bookings, ts: now };
-        }
-
-        const periods = (typeof SHIFT_GROUPS !== 'undefined' ? SHIFT_GROUPS[shiftName] : {}) || {};
-        let html = '<option value="">-- เลือกช่วงเวลา --</option>';
-
-        for (const [periodName, times] of Object.entries(periods)) {
-            html += `<optgroup label="--- ${periodName} ---">`;
-            times.forEach(time => {
-                // 🍽️ [กติกาพัก] เพดานพักต่อเว็บ — อัตโนมัติจากตารางหน้าที่ (หลัก+รอง) + คนที่พักช่วงนี้
-                const slotB = (bookings || []).filter(b => b.time_slot === time);
-                let isFull = false, statusText = '';
-                if (window._myCoverageMap && currentUser.check_type !== 'shift') {
-                    const cov = window.checkCoverage(currentUser.username, window._myCoverageMap, slotB);
-                    if (!cov.ok) {
-                        isFull = true;
-                        statusText = `(${cov.problems.map(pb => `${pb.team} เต็ม ${pb.used}/${pb.cap}`).join(', ')})`;
-                    } else if (cov.canLeave === Infinity) {
-                        statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;   // ไม่อยู่ในตารางหน้าที่ → ไม่จำกัด
-                    } else {
-                        statusText = `(ว่าง: ${cov.canLeave})`;
-                    }
-                } else {
-                    // ยังไม่ได้จัดหน้าที่วันนี้ / ผู้จัดการ → ไม่จำกัด แสดงแค่จำนวนที่ลงแล้ว
-                    statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;
-                }
-                html += `<option value="${time}" data-period="${periodName}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
-            });
-            html += '</optgroup>';
-        }
-        slotSelect.innerHTML = html;
-
-        if (previousSelectedSlot) {
-            const opt = slotSelect.querySelector(`option[value="${previousSelectedSlot}"]`);
-            if (opt && !opt.disabled) slotSelect.value = previousSelectedSlot;
-        }
-
-    } catch (e) {
-        console.error("Refresh Slots Error:", e);
-    } finally {
-        if (loadingIcon) loadingIcon.classList.add('hidden');
-    }
-};
-
-
-// (ลบ openAdminPanel / undoClearSchedules ออกจากไฟล์นี้ — มีตัวเต็มอยู่ใน system_core.js อยู่แล้ว
-//  เดิมไฟล์นี้โหลดทีหลังเลย "เขียนทับ" ตัวเต็ม ทำให้การเช็คสิทธิ์แท็บแอดมินและด่านเช็ค admin ไม่เคยทำงาน)
-window.switchAdminTab = function(tab) {
-    const tabs = ['settings', 'users', 'perms', 'quotalog'];
-
-    tabs.forEach(t => {
-        // 1. จัดการปุ่มเมนูด้านบน (เปลี่ยนสี)
-        const btn = document.getElementById('btnAdminTab_' + t);
-        if (btn) {
-            if (t === tab) {
-                btn.className = 'whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow-md';
-            } else {
-                btn.className = 'whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent';
-            }
-        }
-
-        // 2. จัดการหน้าต่างเนื้อหา (เปิด/ปิด)
-        const view = document.getElementById('adminView_' + t);
-        if (view) {
-            if (t === tab) {
-                view.classList.remove('hidden');
-                view.classList.add('flex'); // ใช้ flex เพื่อแสดงผล
-            } else {
-                view.classList.add('hidden');
-                view.classList.remove('flex'); // ลบ flex ออกเพื่อซ่อน
-            }
-        }
-    });
-
-    // 🕘 แท็บประวัติโควตา/หน้าที่ → โหลดใหม่ทุกครั้งที่เปิด
-    if (tab === 'quotalog' && typeof window.renderQuotaHistory === 'function') window.renderQuotaHistory();
-
-    // 🌟 เพิ่มโค้ดตรงนี้: บังคับวาดตารางรายชื่อใหม่เสมอเมื่อกดเข้าแท็บ "จัดการพนักงาน"
-    if (tab === 'users') {
-        if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
-            if (typeof fetchUsers === 'function') fetchUsers();
-        } else {
-            if (typeof renderUserTableDirectly === 'function') window.renderUserTableDirectly();
-            if (typeof fastRecalculateStats === 'function') window.fastRecalculateStats();
-        }
-    }
-};
-
-window.fetchLogs = async function() {
-    const dateVal = document.getElementById('logDate') ? document.getElementById('logDate').value : '';
-    const actionVal = document.getElementById('logAction') ? document.getElementById('logAction').value : '';
-    const userVal = document.getElementById('logUser') ? document.getElementById('logUser').value.toLowerCase() : '';
-
-    // ดึงตาราง system_logs จาก Supabase
-    let query = appDB.from('system_logs').select('*').order('log_date', {ascending: false});
-
-    if(dateVal) {
-        query = query.gte('log_date', dateVal + 'T00:00:00').lte('log_date', dateVal + 'T23:59:59');
-    } else {
-        query = query.limit(100); // ถ้าไม่เลือกวัน ให้ดึงล่าสุด 100 รายการ
-    }
-
-    if(actionVal) query = query.eq('action_type', actionVal);
-
-    const { data, error } = await query;
-    const box = document.getElementById('logTableBody');
-    if(!box) return;
-    box.innerHTML = '';
-
-    if (error) {
-        box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-400">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>`;
-        return;
-    }
-
-    if(data && data.length > 0) {
-        const filtered = data.filter(log => {
-            return (!userVal || log.performed_by.toLowerCase().includes(userVal));
-        });
-
-        if(filtered.length === 0) { box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติที่ค้นหา</td></tr>`; return; }
-
-        let logsHtml = '';
-
-        filtered.forEach(log => {
-            const time = new Date(log.log_date).toLocaleString('th-TH');
-            const badgeColor = log.action_type === 'ลงเวลา' ? 'bg-green-900/50 text-green-400 border-green-700' : (log.action_type.includes('ลบ') ? 'bg-red-900/50 text-red-400 border-red-700' : 'bg-blue-900/50 text-blue-400 border-blue-700');
-
-            logsHtml += `
-            <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition">
-                <td class="px-4 py-3 text-xs text-gray-400">${time}</td>
-                <td class="px-4 py-3 font-bold text-white">${log.performed_by}</td>
-                <td class="px-4 py-3"><span class="px-2 py-1 rounded text-[10px] font-bold border ${badgeColor}">${log.action_type}</span></td>
-                <td class="px-4 py-3 text-xs text-gray-300">${log.target_details}</td>
-            </tr>`;
-        });
-
-        box.innerHTML = logsHtml;
-
-    } else {
-        box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติ</td></tr>`;
-    }
-};
-
-let dashboardSubscription = null;
-
-// Cache สำหรับ roster และ slot bookings — TTL 90 วินาที
-const _rosterCache = {};  // key → { data, ts }
-const _slotCache   = {};  // "date|shift" → { data, ts }
-const _SLOT_TTL    = 90 * 1000;
-
-window.subscribeDashboardChanges = function() {
-    if (dashboardSubscription) {
-        try { appDB.removeChannel(dashboardSubscription); } catch (e) {}
-        dashboardSubscription = null;
-    }
-
-    dashboardSubscription = appDB.channel('dashboard-schedules')
-        // 🔁 โควตาพัก / ตารางหน้าที่ เปลี่ยน (จากหน้าจัดหน้าที่) → โหลดค่าใหม่ให้ dropdown "ว่าง" ตรงกับจริง
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
-            const key = (payload.new && payload.new.key) || (payload.old && payload.old.key) || '';
-            if (!key) return;
-            if (key.startsWith('quota_') || key.startsWith('mincover_')) {   // (เหลือไว้เผื่อค่าเก่า)
-                if (typeof SETTINGS !== 'undefined') SETTINGS[key] = payload.new ? payload.new.value : undefined;
-                if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
-            } else if (key.startsWith('duty_roster_')) {
-                if (typeof _rosterCache !== 'undefined') delete _rosterCache[key];
-                if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
-            }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, (payload) => {
-            const mainContent = document.getElementById('mainContentArea');
-            if (mainContent && !mainContent.classList.contains('hidden')) {
-
-                const dateEl = document.getElementById('wDate');
-                const dateVal = dateEl ? dateEl.value : '';
-
-                // ข้ามถ้าไม่ใช่วันที่กำลังดูอยู่
-                if (payload.eventType !== 'DELETE' && payload.new.work_date !== dateVal) return;
-
-                // 🌟 อัปเดตข้อมูลแบบแทรกแถว (ไม่ต้องเรียก fetchData() ให้หมุนๆ แล้ว)
-                // ล้าง slot cache เมื่อมีการเปลี่ยนแปลงจาก realtime
-                const _rtDate  = payload.new?.work_date || payload.old?.work_date;
-                const _rtShift = payload.new?.shift_name || payload.old?.shift_name;
-                if (_rtDate && _rtShift) {
-                    const _rtKey = `${_rtDate}|${_rtShift}`;
-                    if (_slotCache[_rtKey]) delete _slotCache[_rtKey];
-                }
-
-                if (payload.eventType === 'INSERT') {
-                    const isExist = globalScheduleData.some(item => String(item.id) === String(payload.new.id));
-                    if (!isExist) globalScheduleData.push(payload.new);
-                } else if (payload.eventType === 'DELETE') {
-                    globalScheduleData = globalScheduleData.filter(item => String(item.id) !== String(payload.old.id));
-                } else if (payload.eventType === 'UPDATE') {
-                    const idx = globalScheduleData.findIndex(item => String(item.id) === String(payload.new.id));
-                    if (idx > -1) globalScheduleData[idx] = payload.new;
-                }
-
-                // เรียงเวลาใหม่
-                globalScheduleData.sort((a, b) => {
-                    const pA = getPeriodForTime(a.shift_name, a.time_slot);
-                    const pB = getPeriodForTime(b.shift_name, b.time_slot);
-                    const pOrder = {'ช่วงที่ 1': 1, 'ช่วงที่ 2': 2, 'ช่วงที่ 3': 3};
-                    if (pOrder[pA] !== pOrder[pB]) return (pOrder[pA] || 99) - (pOrder[pB] || 99);
-
-                    const timeA = a.time_slot || "";
-                    const timeB = b.time_slot || "";
-                    return timeA.localeCompare(timeB);
-                });
-
-                // กรองข้อมูลตามสิทธิ์แอดมิน/พนักงาน
-                let dataToRender = globalScheduleData;
-                const tableTeam = document.getElementById('tableTeamFilter') ? document.getElementById('tableTeamFilter').value : 'all';
-                if (tableTeam !== 'all') dataToRender = dataToRender.filter(item => item.team === tableTeam);
-
-                if (typeof currentUser !== 'undefined' && !['manager', 'admin'].includes(currentUser.role)) {
-                    if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) {
-                        dataToRender = dataToRender.filter(item => item.shift_name === currentUser.allowed_shift);
-                    }
-                }
-
-                const deptFilterForSummary = document.getElementById('summaryDeptFilter') ? document.getElementById('summaryDeptFilter').value : 'all';
-                let dataForSummary = dataToRender;
-                if (deptFilterForSummary !== 'all') {
-                    dataForSummary = dataToRender.filter(i => (i.department || 'AM') === deptFilterForSummary);
-                }
-
-                clearTimeout(window.realtimeRenderTimer);
-                window.realtimeRenderTimer = setTimeout(() => {
-                    if(typeof updateTableSummary === 'function') updateTableSummary(dataForSummary);
-                    if(typeof renderTableRows === 'function') renderTableRows(dataToRender);
-                    if(typeof refreshTimeSlots === 'function') refreshTimeSlots();
-                }, 200);
-            }
-        }).subscribe();
-
-    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dashboardSubscription);
-};
-
-setTimeout(() => {
-    const dInput = document.getElementById('wDate');
-    if (dInput) {
-        dInput.addEventListener('change', () => {
-            if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-            if (typeof fetchData === 'function') fetchData();
-        });
-    }
-}, 1000);
-
-setTimeout(() => {
-    const teamInput = document.getElementById('dailyTeam');
-    if (teamInput) {
-        teamInput.addEventListener('change', () => {
-            if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-        });
-    }
-}, 1000);
-
-
-window.openLogsPage = async function() {
-    if (!document.getElementById('logsPage')) {
-        if(typeof showPage === 'function') await showPage('dashboard');
-        if(typeof initDashboard === 'function') initDashboard();
-    }
-
-    const mainContent = document.getElementById('mainContentArea');
-    if (mainContent) mainContent.classList.add('hidden');
-
-    const adminPanel = document.getElementById('adminPanel');
-    if (adminPanel) {
-        adminPanel.classList.add('hidden');
-        adminPanel.classList.remove('flex');
-    }
-
-    const logsPage = document.getElementById('logsPage');
-    if (logsPage) {
-        logsPage.classList.remove('hidden');
-        logsPage.classList.add('flex');
-        if(typeof fetchLogs === 'function') fetchLogs();
-    }
-};
-
-window.backToDashboard = function() {
-    const logsPage = document.getElementById('logsPage');
-    if (logsPage) {
-        logsPage.classList.add('hidden');
-        logsPage.classList.remove('flex');
-    }
-
-    const adminPanel = document.getElementById('adminPanel');
-    if (adminPanel) {
-        adminPanel.classList.add('hidden');
-        adminPanel.classList.remove('flex');
-    }
-
-    const mainContent = document.getElementById('mainContentArea');
-    if (mainContent) {
-        mainContent.classList.remove('hidden');
-    }
-
-    if(typeof initDashboard === 'function') initDashboard();
-};
-
-window.tempMissingStaffData = {};
-
-window.renderMissingList = function() {
-    const shiftFilter = document.getElementById('missingShiftFilter').value;
-    const deptFilter = document.getElementById('missingDeptFilter').value;
-    const container = document.getElementById('missingListContainer');
-    if(!container) return;
-
-    let html = '';
-    let totalCount = 0;
-
-    const renderList = (shiftName, listKey, colorClass) => {
-        let list = window.tempMissingStaffData[listKey] || [];
-
-        if (deptFilter !== 'all') {
-            list = list.filter(s => s.dept === deptFilter);
-        }
-
-        if (list.length === 0) return '';
-
-        totalCount += list.length;
-
-        let htmlChunk = `
-            <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm mb-3">
-                <div class="flex justify-between items-center mb-2 border-b border-slate-200 dark:border-slate-700 pb-2">
-                    <span class="font-black ${colorClass} flex items-center gap-1">${shiftName}</span>
-                    <span class="text-[10px] font-bold ${colorClass.replace('text-', 'bg-').replace('-500', '-100')} ${colorClass.replace('text-', 'dark:bg-').replace('-500', '-900/30')} px-2 py-0.5 rounded shadow-inner border border-current opacity-80">${list.length} คน</span>
+    const list = Object.entries(map)
+      .map(([u, v]) => ({ username: u, replies: v.replies, conversations: v.convSet.size, last_reply_at: v.lastAt }))
+      .sort((a, b) => b.conversations - a.conversations || b.replies - a.replies)
+
+    setRanked(list)
+    setSummary({ in: totIn, out: totOut, convs: allConvs.size, shifts: shiftRows })
+    setLoading(false)
+  }, [range, selectedChannel, shiftCfg])
+
+  useEffect(() => { load() }, [load])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return q ? ranked.filter(s => s.username.toLowerCase().includes(q)) : ranked
+  }, [ranked, search])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / STAFF_PER_PAGE))
+  const pageRows = filtered.slice((staffPage-1)*STAFF_PER_PAGE, staffPage*STAFF_PER_PAGE)
+  const top3 = ranked.slice(0, 3)
+
+  const rangeLabel = range.from === range.to ? thaiDate(range.from) : `${thaiDate(range.from)} – ${thaiDate(range.to)}`
+  const dayStartLabel = shiftCfg.shifts[0]?.label?.split('–')[0] || '08:00'
+
+  const Avatar = ({ name, size = 'w-7 h-7', text = 'text-[10px]' }) => (
+    avatarMap[name]
+      ? <img src={avatarMap[name]} alt={name} loading="lazy" decoding="async" className={`${size} rounded-full object-cover shrink-0`} />
+      : <div className={`${size} ${text} rounded-full bg-gradient-to-br from-cyan-400 to-emerald-500 text-white flex items-center justify-center font-bold shrink-0`}>{name.substring(0,2).toUpperCase()}</div>
+  )
+
+  return (
+    <div className="p-4 md:p-6 max-w-7xl mx-auto h-full overflow-y-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
+        <div>
+          <h1 className="font-bold text-xl dark:text-white flex items-center gap-2">
+            <span className="material-icons text-emerald-500">insights</span>
+            {lang==='th'?'แดชบอร์ด':'Dashboard'}
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            {rangeLabel} · {lang==='th'?`วันทำงาน ${dayStartLabel}–${dayStartLabel}`:`work day ${dayStartLabel}–${dayStartLabel}`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={selectedChannel} onChange={e => setSelectedChannel(e.target.value)}
+                  className="text-sm px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white outline-none">
+            <option value="all">{lang==='th'?'ทุก OA':'All OA'}</option>
+            {channels.map(ch => <option key={ch.id} value={ch.id}>{ch.channel_name}</option>)}
+          </select>
+          <DateRangePicker value={range} onChange={setRange} startMin={shiftCfg.dayStartMin} lang={lang} />
+          <button onClick={load} disabled={loading}
+                  className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50">
+            <span className={`material-icons text-base ${loading ? 'animate-spin' : ''}`}>refresh</span>
+          </button>
+        </div>
+      </div>
+
+      {/* KPI */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-5 shadow-lg shadow-blue-500/20">
+          <div className="text-xs text-white/75 mb-2">📥 {lang==='th'?'แชทเข้า':'Incoming'}</div>
+          <div className="text-3xl font-black text-white tabular-nums leading-none">{loading ? '—' : summary?.in.toLocaleString()}</div>
+        </div>
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-2xl p-5 shadow-lg shadow-emerald-500/20">
+          <div className="text-xs text-white/75 mb-2">📤 {lang==='th'?'staff ตอบ':'Replies'}</div>
+          <div className="text-3xl font-black text-white tabular-nums leading-none">{loading ? '—' : summary?.out.toLocaleString()}</div>
+        </div>
+        <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-5 shadow-lg shadow-purple-500/20">
+          <div className="text-xs text-white/75 mb-2">👥 {lang==='th'?'ลูกค้าที่ดูแล':'Customers'}</div>
+          <div className="text-3xl font-black text-white tabular-nums leading-none">{loading ? '—' : summary?.convs.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* แยกกะ — วนตามทะเบียนกะจริงใน K36 */}
+      <div className={`grid gap-3 mb-6 ${(summary?.shifts?.length || 2) > 2 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
+        {(summary?.shifts || shiftCfg.shifts.map(s => ({ name: s.name, label: s.label }))).map((sh, i) => {
+          const tone = i === 0
+            ? { br: 'border-amber-400/40',  dot: 'bg-amber-400',  tx: 'text-amber-600 dark:text-amber-300' }
+            : i === 1
+            ? { br: 'border-indigo-400/40', dot: 'bg-indigo-400', tx: 'text-indigo-600 dark:text-indigo-300' }
+            : { br: 'border-teal-400/40',   dot: 'bg-teal-400',   tx: 'text-teal-600 dark:text-teal-300' }
+          return (
+            <div key={sh.name} className={`bg-white dark:bg-slate-800 border ${tone.br} rounded-2xl p-4`}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`w-2 h-2 rounded-full ${tone.dot}`} />
+                <span className={`text-sm font-bold ${tone.tx}`}>{sh.name}</span>
+                <span className="text-[11px] text-slate-400 tabular-nums">{sh.label}</span>
+              </div>
+              <div className="flex gap-9">
+                <div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">{lang==='th'?'เข้า':'In'}</div>
+                  <div className="text-xl font-black text-blue-600 dark:text-blue-400 tabular-nums leading-none">{loading ? '—' : (sh.in ?? 0).toLocaleString()}</div>
                 </div>
-                <div class="flex flex-wrap gap-2">
-        `;
-        list.forEach(staff => {
-            const deptColor = staff.dept === 'OD' ? 'text-pink-600 bg-pink-100 dark:bg-pink-900/30 border-pink-200' : 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 border-blue-200';
-
-            const missingBadgeHtml = `<span class="text-[9px] font-black text-red-500 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-1 rounded shadow-sm">ขาด ${staff.missingAmount}</span>`;
-
-            htmlChunk += `<div class="text-xs font-bold text-slate-700 dark:text-gray-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 px-2 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-default hover:border-indigo-400">
-                ${staff.name}
-                ${missingBadgeHtml}
-                <span class="text-[9px] font-black ${deptColor} border px-1 rounded shadow-sm">${staff.dept}</span>
-            </div>`;
-        });
-        htmlChunk += `</div></div>`;
-        return htmlChunk;
-    };
-
-    if (shiftFilter === 'all' || shiftFilter === 'กะเช้า') html += renderList('☀️ กะเช้า', 'กะเช้า', 'text-orange-500');
-    if (shiftFilter === 'all' || shiftFilter === 'กะกลาง') html += renderList('🌤️ กะกลาง', 'กะกลาง', 'text-blue-500');
-    if (shiftFilter === 'all' || shiftFilter === 'กะดึก') html += renderList('🌙 กะดึก', 'กะดึก', 'text-purple-500');
-
-    if (html === '') {
-        html = '<div class="text-center py-10 text-gray-500 text-sm font-bold bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-gray-300 dark:border-slate-600 mt-2">ไม่พบรายชื่อในเงื่อนไขที่เลือก</div>';
-    }
-
-    container.innerHTML = html;
-
-    const countEl = document.getElementById('missingTotalCount');
-    if (countEl) countEl.innerText = totalCount;
-};
-
-window.checkMissingLunch = async function() {
-    const dateVal = document.getElementById('wDate').value;
-    if (!dateVal) return Swal.fire('เตือน', 'กรุณาเลือกวันที่ต้องการตรวจสอบก่อนครับ', 'warning');
-
-    Swal.fire({title: 'กำลังสแกนยอดการลงเวลา...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-
-    try {
-        if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) {
-            if (typeof fetchUsers === 'function') await fetchUsers(true);
-        }
-
-        const { data: schedules } = await appDB.from('schedules').select('staff_name').eq('work_date', dateVal);
-
-        const bookingCounts = {};
-        if (schedules) {
-            schedules.forEach(s => {
-                bookingCounts[s.staff_name] = (bookingCounts[s.staff_name] || 0) + 1;
-            });
-        }
-
-        const { data: leaves } = await appDB.from('leave_requests').select('user_name').eq('leave_date', dateVal);
-        const onLeaveNames = (leaves || []).map(l => l.user_name);
-
-        window.tempMissingStaffData = { 'กะเช้า': [], 'กะกลาง': [], 'กะดึก': [] };
-        let missingCount = 0;
-
-        const dailyQuota = (typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit) ? parseInt(SETTINGS.daily_limit) : 2;
-
-        GLOBAL_USER_LIST.forEach(u => {
-            if (u.role === 'admin' || u.role === 'manager' || u.role === 'trainer') return;
-            if (u.department === 'TRAINER' || u.department === 'NEW') return;
-            if (!['กะเช้า', 'กะกลาง', 'กะดึก'].includes(u.allowed_shift)) return;
-
-            if (onLeaveNames.includes(u.username)) return;
-
-            const userBookedTimes = bookingCounts[u.username] || 0;
-
-            if (userBookedTimes < dailyQuota) {
-                const missingAmt = dailyQuota - userBookedTimes;
-                window.tempMissingStaffData[u.allowed_shift].push({
-                    name: u.username,
-                    dept: u.department || 'AM',
-                    missingAmount: missingAmt
-                });
-                missingCount++;
-            }
-        });
-
-        if (missingCount === 0) {
-            return Swal.fire({ icon: 'success', title: 'ครบทุกคน!', text: 'พนักงานในกะทุกคนลงเวลาครบตามโควตา หรือลาหยุดเรียบร้อยแล้วครับ 🎉', confirmButtonColor: '#3b82f6' });
-        }
-
-        const currentShiftEl = document.querySelector('input[name="shift"]:checked');
-        const defaultShift = currentShiftEl ? currentShiftEl.value : 'all';
-
-        Swal.fire({
-            title: `<div class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3"><span class="material-icons text-indigo-500 text-3xl">person_search</span> รายชื่อคนที่ยังไม่ลงเวลา (หรือลงไม่ครบ)</div>`,
-            html: `
-                <div class="text-xs text-gray-500 dark:text-gray-400 text-left mb-3">ระบบคัดกรองพนักงานที่ยังลงเวลา <span class="text-red-500 font-bold underline">ไม่ครบ ${dailyQuota} ครั้ง</span> (รวมที่แสดง: <span id="missingTotalCount" class="text-indigo-500 font-bold">${missingCount}</span> คน)</div>
-                <div class="flex gap-2 mb-3 border-b border-gray-100 dark:border-slate-700 pb-3">
-                    <select id="missingShiftFilter" onchange="renderMissingList()" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-xs font-bold outline-none cursor-pointer shadow-inner focus:border-indigo-500 transition">
-                        <option value="all">🌐 ทุกกะ</option>
-                        <option value="กะเช้า" ${defaultShift === 'กะเช้า' ? 'selected' : ''}>☀️ กะเช้า</option>
-                        <option value="กะกลาง" ${defaultShift === 'กะกลาง' ? 'selected' : ''}>🌤️ กะกลาง</option>
-                        <option value="กะดึก" ${defaultShift === 'กะดึก' ? 'selected' : ''}>🌙 กะดึก</option>
-                    </select>
-                    <select id="missingDeptFilter" onchange="renderMissingList()" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-xs font-bold outline-none cursor-pointer shadow-inner focus:border-indigo-500 transition">
-                        <option value="all">🏢 ทุกแผนก</option>
-                        <option value="AM">เฉพาะ AM</option>
-                        <option value="OD">เฉพาะ OD</option>
-                    </select>
+                <div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">{lang==='th'?'ตอบ':'Out'}</div>
+                  <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">{loading ? '—' : (sh.out ?? 0).toLocaleString()}</div>
                 </div>
-                <div id="missingListContainer" class="text-left max-h-[45vh] overflow-y-auto custom-scrollbar pr-2 pb-2"></div>
-            `,
-            showCloseButton: true,
-            showConfirmButton: false,
-            width: '600px',
-            customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-[2rem] border border-slate-700 shadow-2xl' },
-            didOpen: () => {
-                window.renderMissingList();
-            }
-        });
+              </div>
+            </div>
+          )
+        })}
+      </div>
 
-    } catch (e) {
-        console.error("Missing Lunch Error:", e);
-        Swal.fire('ข้อผิดพลาด', 'ดึงข้อมูลไม่สำเร็จ: ' + e.message, 'error');
-    }
-};
+      <OwnerInsight channels={channels} selectedChannel={selectedChannel} />
 
+      {/* ท็อป 3 */}
+      {top3.length > 0 && (
+        <>
+          <h2 className="font-bold text-base dark:text-white mb-3 mt-6 flex items-center gap-2">
+            <span className="material-icons text-amber-500">emoji_events</span>
+            {lang==='th'?'ท็อป 3':'Top 3'}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            {top3.map((s, i) => (
+              <div key={s.username} className={`bg-gradient-to-br ${PODIUM[i].grad} rounded-2xl p-4 shadow-lg ${PODIUM[i].ring}`}>
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <Avatar name={s.username} size="w-9 h-9" text="text-xs" />
+                  <div className="min-w-0">
+                    <div className="text-[15px] font-bold text-white truncate leading-tight">{s.username}</div>
+                    <div className="text-[11px] text-white/80">{PODIUM[i].emoji} {lang==='th'?`อันดับ ${i+1}`:`Rank ${i+1}`}</div>
+                  </div>
+                </div>
+                <div className="text-4xl font-black text-white tabular-nums leading-none">{s.conversations.toLocaleString()}</div>
+                <div className="text-[11px] text-white/85 mt-1.5">
+                  {lang==='th'?'ลูกค้า':'customers'} · {s.replies.toLocaleString()} {lang==='th'?'ข้อความ':'msgs'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
-// (ลบระบบแชทสด/กล่องข้อความพนักงานออกทั้งชุดแล้ว — เลิกใช้งาน)
+      {/* อันดับทั้งหมด */}
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h2 className="font-bold text-base dark:text-white flex items-center gap-2">
+          <span className="material-icons text-cyan-500">leaderboard</span>
+          {lang==='th'?'อันดับทั้งหมด':'Full leaderboard'}
+          <span className="text-xs font-normal text-slate-400">({ranked.length} {lang==='th'?'คน':'staff'})</span>
+        </h2>
+        <div className="relative">
+          <span className="material-icons text-base text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2">search</span>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+                 placeholder={lang==='th'?'ค้นหาชื่อพนักงาน':'Search staff'}
+                 className="w-[220px] text-sm pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-cyan-400" />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <span className="material-icons text-base">close</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {loading && ranked.length === 0 ? (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center text-slate-400">{lang==='th'?'กำลังโหลด...':'Loading...'}</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center text-slate-400">
+          <span className="material-icons text-5xl text-slate-300">{search ? 'search_off' : 'hourglass_empty'}</span>
+          <p className="mt-2 text-sm">{search ? (lang==='th'?`ไม่พบพนักงานชื่อ "${search}"`:`No staff matching "${search}"`) : (lang==='th'?'ยังไม่มีข้อมูลในช่วงนี้':'No activity in this period')}</p>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-700/60 text-xs text-slate-500 dark:text-slate-400">
+              <tr>
+                <th className="text-left p-3 w-14">#</th>
+                <th className="text-left p-3">{lang==='th'?'พนักงาน':'Staff'}</th>
+                <th className="text-right p-3 w-20">{lang==='th'?'ลูกค้า':'Customers'}</th>
+                <th className="text-right p-3 w-20">{lang==='th'?'ตอบ':'Replies'}</th>
+                <th className="text-right p-3 w-24">{lang==='th'?'ตอบล่าสุด':'Last reply'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((s) => {
+                const idx = ranked.findIndex(r => r.username === s.username)
+                const isMe = s.username === user.username
+                return (
+                  <tr key={s.username} className={`border-t border-slate-100 dark:border-slate-700 ${isMe ? 'bg-cyan-50 dark:bg-cyan-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}>
+                    <td className="p-3 font-black text-slate-500">{idx < 3 ? PODIUM[idx].emoji : `#${idx+1}`}</td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={s.username} />
+                        <span className="font-bold dark:text-white">{s.username}</span>
+                        {isMe && <span className="text-[10px] bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded font-bold">{lang==='th'?'คุณ':'YOU'}</span>}
+                      </div>
+                    </td>
+                    <td className="p-3 text-right font-bold text-[15px] text-emerald-600 dark:text-emerald-400 tabular-nums">{s.conversations.toLocaleString()}</td>
+                    <td className="p-3 text-right text-slate-600 dark:text-slate-300 tabular-nums">{s.replies.toLocaleString()}</td>
+                    <td className="p-3 text-right text-[11px] text-slate-400 tabular-nums">{formatRelative(s.last_reply_at, lang)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+
+          {filtered.length > STAFF_PER_PAGE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-700 flex-wrap gap-2">
+              <span className="text-xs text-slate-400">
+                {lang==='th'
+                  ? `แสดง ${(staffPage-1)*STAFF_PER_PAGE+1}–${Math.min(staffPage*STAFF_PER_PAGE, filtered.length)} จาก ${filtered.length} คน`
+                  : `Showing ${(staffPage-1)*STAFF_PER_PAGE+1}–${Math.min(staffPage*STAFF_PER_PAGE, filtered.length)} of ${filtered.length}`}
+              </span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setStaffPage(p => Math.max(1, p-1))} disabled={staffPage === 1}
+                        className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition">
+                  ← {lang==='th'?'ก่อนหน้า':'Prev'}
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i+1).map(p => (
+                  <button key={p} onClick={() => setStaffPage(p)}
+                          className={`w-8 h-8 text-xs font-bold rounded-lg transition ${staffPage===p ? 'bg-cyan-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
+                    {p}
+                  </button>
+                ))}
+                <button onClick={() => setStaffPage(p => Math.min(totalPages, p+1))} disabled={staffPage === totalPages}
+                        className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition">
+                  {lang==='th'?'ถัดไป':'Next'} →
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
