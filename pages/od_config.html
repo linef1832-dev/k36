@@ -173,7 +173,9 @@
                 <!-- ฟอร์มแก้ไข -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">✏️ ข้อความตอน "แก้ไข" (ต่อท้ายในข้อความเดิม)</label>
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <input type="checkbox" id="odCfgAuditEditEnabled" class="w-4 h-4"> ✏️ ข้อความตอน "แก้ไข" (ต่อท้ายในข้อความเดิม)
+                        </label>
                         <button onclick="odCfg_resetTpl('audit_edit')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
                     </div>
                     <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsAuditEdit"></div>
@@ -185,7 +187,9 @@
                 <!-- ฟอร์มลบ -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">🗑️ ข้อความตอน "ลบ" (แจ้งในห้อง audit)</label>
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <input type="checkbox" id="odCfgAuditDeleteEnabled" class="w-4 h-4"> 🗑️ ข้อความตอน "ลบ" (แจ้งในห้อง audit)
+                        </label>
                         <button onclick="odCfg_resetTpl('audit_delete')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
                     </div>
                     <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsAuditDelete"></div>
@@ -251,9 +255,7 @@
                 <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
                     <span class="material-icons text-amber-500 text-sm">history_edu</span> แจ้งเตือนการแก้ไข/ลบ (Audit)
                 </h2>
-                <label class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 cursor-pointer">
-                    <input type="checkbox" id="odCfgAuditEnabled" class="w-4 h-4"> เปิดใช้งาน
-                </label>
+                <span class="text-xs text-gray-400">เปิด/ปิดแยก "แก้ไข" กับ "ลบ" ได้ที่ปุ่ม "✏️ ฟอร์มแก้ไข/ลบ" ด้านบน</span>
             </div>
             <div class="p-4">
                 <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องแจ้ง "การลบ"</label>
