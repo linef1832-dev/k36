@@ -214,6 +214,24 @@
             </div>
         </div>
 
+        <!-- แถว 2.9: แจ้งเตือนการแก้ไข/ลบ (Audit) -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-amber-500 text-sm">history_edu</span> แจ้งเตือนการแก้ไข/ลบ (Audit)
+                </h2>
+                <label class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 cursor-pointer">
+                    <input type="checkbox" id="odCfgAuditEnabled" class="w-4 h-4"> เปิดใช้งาน
+                </label>
+            </div>
+            <div class="p-4">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องแจ้ง "การลบ"</label>
+                <input type="text" id="odCfgAuditChatId" placeholder="เว้นว่าง = แจ้งการลบในกลุ่มเดิม"
+                    class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                <p class="text-xs text-gray-400 mt-2"><b>การแก้ไข</b> → บันทึกต่อท้าย<b>ในข้อความเดิม</b>เลย (ใคร · เมื่อไหร่ · แก้อะไร ก่อน→หลัง) &nbsp;·&nbsp; <b>การลบ</b> → ข้อความหายแล้ว จึงแจ้งเป็นข้อความใหม่ในห้องนี้ (หรือกลุ่มเดิมถ้าเว้นว่าง)</p>
+            </div>
+        </div>
+
         <!-- แถว 3: ตั้งค่า + ควบคุม Telegram Bot -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
             <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
