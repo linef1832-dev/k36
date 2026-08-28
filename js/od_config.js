@@ -15,31 +15,37 @@ let odCfgData = {
     odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
     big:  { chat_id: '' },
     tags: { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [] },
-    audit: { chat_id: '', enabled: true },
+    audit: { chat_id: '', enabled: true, templates: { edit: '', delete: '' } },
     bot:  { token: '', enabled: true },
     templates: { od: '', odol: '', big: '', big_na: '' },
 };
 
 // ── Template ข้อความ ───────────────────────────────────────────────
-const OD_TPL_KEYS = ['od', 'odol', 'big', 'big_na'];
-const OD_TPL_SUF  = { od: 'Od', odol: 'Odol', big: 'Big', big_na: 'BigNa' };
+const OD_TPL_KEYS = ['od', 'odol', 'big', 'big_na', 'audit_edit', 'audit_delete'];
+const OD_TPL_SUF  = { od: 'Od', odol: 'Odol', big: 'Big', big_na: 'BigNa', audit_edit: 'AuditEdit', audit_delete: 'AuditDelete' };
 const OD_TPL_DEFAULT = {
     od:   "❌ OD ตัดเครดิตผิดเงื่อนไข OD ❌\n\nเว็บ : {เว็บ}\n\nยูสเซอร์ : {ยูส}\n\nรหัสโปรโมชั่น : {โปร}\n\nสาเหตุ : {สาเหตุ}\n\nBY: {ผู้ส่ง}",
     odol: "เว็บ : {เว็บ}\n\nยูส :\n{รายการยูส}\n\nชื่อ : {ชื่อ}\n\nหมายเหตุ : {หมายเหตุ}\n\nBY: {ผู้ส่ง}",
     big:    "💰 ยอดถอนใหญ่ 💰\n\nเว็บ : {เว็บ}\n\nยูสเซอร์ : {ยูส}\nจำนวนเงิน : {จำนวนเงิน}\n\nBY: {ผู้ส่ง}",
     big_na: "💰 ยอดถอนใหญ่ 💰\n\nเว็บ : {เว็บ}\n\nยูสเซอร์ : {ยูส}\n\nBY: {ผู้ส่ง}",
+    audit_edit:   "———\n✏️ แก้ไขโดย {ผู้ส่ง} · {เวลา}\n{การเปลี่ยนแปลง}\n{คนรับงาน}",
+    audit_delete: "🗑️ มีการลบข้อความในกลุ่ม\n👤 โดย: {ผู้ส่ง}\n🕐 {เวลา}\n\nข้อความที่ถูกลบ:\n{ข้อความเดิม}\n{คนรับงาน}",
 };
 const OD_TPL_VARS = {
     od:   ['{เว็บ}','{ยูส}','{โปร}','{สาเหตุ}','{แท็ก}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
     odol: ['{เว็บ}','{รายการยูส}','{จำนวนยูส}','{ชื่อ}','{หมายเหตุ}','{แท็ก}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
     big:    ['{เว็บ}','{ยูส}','{จำนวนเงิน}','{แท็ก}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
     big_na: ['{เว็บ}','{ยูส}','{แท็ก}','{ผู้ส่ง}','{วันที่}','{เวลา}'],
+    audit_edit:   ['{ผู้ส่ง}','{เวลา}','{การเปลี่ยนแปลง}','{คนรับงาน}'],
+    audit_delete: ['{ผู้ส่ง}','{เวลา}','{ข้อความเดิม}','{คนรับงาน}'],
 };
 const OD_TPL_SAMPLE = {
     od:   { '{เว็บ}':'Jun88', '{ยูส}':'kaewoon1990', '{โปร}':'KM68', '{สาเหตุ}':'ตรวจพบหลายยูสเซอร์รับโปรโมชั่น', '{แท็ก}':'@somchai @somsri', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
     odol: { '{เว็บ}':'PG688', '{รายการยูส}':'1. 0993728365\n2. es181147\n3. es18112547', '{จำนวนยูส}':'3', '{ชื่อ}':'พีระพงศ์ ขวัญเกื้อ', '{หมายเหตุ}':'เก็งกำไร', '{แท็ก}':'@somchai @somsri', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
     big:    { '{เว็บ}':'MK8', '{ยูส}':'test1', '{จำนวนเงิน}':'50,000', '{แท็ก}':'@somchai @somsri', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
     big_na: { '{เว็บ}':'MK8', '{ยูส}':'test1', '{แท็ก}':'@somchai @somsri', '{ผู้ส่ง}':'BIRD', '{วันที่}':'21/08/2569', '{เวลา}':'14:32' },
+    audit_edit:   { '{ผู้ส่ง}':'admin', '{เวลา}':'28 ส.ค. 2569 23:21', '{การเปลี่ยนแปลง}':'• ยูสเซอร์ : test1 → test2\n• จำนวนเงิน : 50,000 → 100,000', '{คนรับงาน}':'👉 สมชาย รายการที่รับไว้ถูกแก้ไข' },
+    audit_delete: { '{ผู้ส่ง}':'admin', '{เวลา}':'28 ส.ค. 2569 23:21', '{ข้อความเดิม}':'💰 ยอดถอนใหญ่ 💰\nเว็บ : MK8\nยูสเซอร์ : test1', '{คนรับงาน}':'👉 สมชาย รายการที่รับไว้ถูกลบ' },
 };
 function odCfg_renderTplVars() {
     OD_TPL_KEYS.forEach(k => {
@@ -121,6 +127,7 @@ window.initOdConfig = async function() {
             odCfgData.big  = { chat_id: '', ...(parsed.big || {}) };
             odCfgData.tags = { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [], ...(parsed.tags || {}) };
             odCfgData.audit = { chat_id: '', enabled: true, ...(parsed.audit || {}) };
+            odCfgData.audit.templates = { edit: '', delete: '', ...((parsed.audit && parsed.audit.templates) || {}) };
             odCfgData.bot  = { token: '', enabled: true, ...(parsed.bot || {}) };
             odCfgData.templates = { od: '', odol: '', big: '', big_na: '', ...(parsed.templates || {}) };
         } else {
@@ -151,7 +158,7 @@ window.initOdConfig = async function() {
                 odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
                 big:  { chat_id: '' },
                 tags: { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [] },
-                audit: { chat_id: '', enabled: true },
+                audit: { chat_id: '', enabled: true, templates: { edit: '', delete: '' } },
                 bot:  { token: '', enabled: true },
                 templates: { od: '', odol: '', big: '', big_na: '' },
             };
@@ -190,6 +197,10 @@ window.odCfg_save = async function() {
         odCfgData.audit = {
             chat_id: document.getElementById('odCfgAuditChatId').value.trim(),
             enabled: document.getElementById('odCfgAuditEnabled').checked,
+            templates: {
+                edit:   (function(){ const v = (document.getElementById('odCfgTplAuditEdit')||{}).value || ''; return (v.trim() && v !== OD_TPL_DEFAULT.audit_edit) ? v : ''; })(),
+                delete: (function(){ const v = (document.getElementById('odCfgTplAuditDelete')||{}).value || ''; return (v.trim() && v !== OD_TPL_DEFAULT.audit_delete) ? v : ''; })(),
+            },
         };
         odCfgData.bot.token    = document.getElementById('odCfgBotToken').value.trim();
         // template: ถ้าเหมือนค่าเดิม เก็บเป็นว่าง (ให้ extension ใช้ default)
@@ -264,6 +275,9 @@ function odCfg_renderAll() {
     if (tl) tl.value = odCfgData.templates?.odol || OD_TPL_DEFAULT.odol;
     if (tb) tb.value = odCfgData.templates?.big  || OD_TPL_DEFAULT.big;
     if (tbn) tbn.value = odCfgData.templates?.big_na || OD_TPL_DEFAULT.big_na;
+    const tae = document.getElementById('odCfgTplAuditEdit'), tad = document.getElementById('odCfgTplAuditDelete');
+    if (tae) tae.value = odCfgData.audit?.templates?.edit   || OD_TPL_DEFAULT.audit_edit;
+    if (tad) tad.value = odCfgData.audit?.templates?.delete || OD_TPL_DEFAULT.audit_delete;
     odCfg_renderTplVars(); odCfg_tplPreview();
 }
 
@@ -753,3 +767,19 @@ function odCfg_readTagMapRaw() {
     });
     return rows;
 }
+
+// สลับมุมมองรูปแบบข้อความ: ส่งเข้ากลุ่ม / แก้ไข-ลบ (audit)
+window.odCfg_tplView = function(which) {
+    const sendV = document.getElementById('odCfgTplSendView');
+    const auditV = document.getElementById('odCfgTplAuditView');
+    const tabS = document.getElementById('odCfgTplTabSend');
+    const tabA = document.getElementById('odCfgTplTabAudit');
+    const on  = 'px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white';
+    const off = 'px-3 py-1.5 rounded-lg text-gray-500 dark:text-gray-300';
+    const isAudit = which === 'audit';
+    if (sendV)  sendV.style.display  = isAudit ? 'none' : '';
+    if (auditV) auditV.style.display = isAudit ? '' : 'none';
+    if (tabS) tabS.className = isAudit ? off : on;
+    if (tabA) tabA.className = isAudit ? on : off;
+    odCfg_tplPreview();
+};
