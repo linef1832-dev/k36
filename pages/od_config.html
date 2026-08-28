@@ -113,9 +113,12 @@
                 <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
                     <span class="material-icons text-emerald-500 text-sm">description</span> รูปแบบข้อความที่ส่งเข้ากลุ่ม
                 </h2>
-                <span class="text-xs text-gray-400">ใช้ตัวแปรในวงเล็บปีกกา ระบบจะแทนค่าให้ตอนส่ง</span>
+                <div class="flex bg-gray-200 dark:bg-slate-700 rounded-xl p-1 text-xs font-bold">
+                    <button id="odCfgTplTabSend"  onclick="odCfg_tplView('send')"  class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white">📤 ฟอร์มส่งเข้ากลุ่ม</button>
+                    <button id="odCfgTplTabAudit" onclick="odCfg_tplView('audit')" class="px-3 py-1.5 rounded-lg text-gray-500 dark:text-gray-300">✏️ ฟอร์มแก้ไข/ลบ</button>
+                </div>
             </div>
-            <div class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div id="odCfgTplSendView" class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <!-- OD -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
@@ -164,6 +167,34 @@
                     <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น (พนักงานไม่กรอกจำนวนเงิน)</div>
                     <pre id="odCfgTplPrevBigNa" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
                 </div>
+            </div>
+
+            <div id="odCfgTplAuditView" class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-5" style="display:none">
+                <!-- ฟอร์มแก้ไข -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">✏️ ข้อความตอน "แก้ไข" (ต่อท้ายในข้อความเดิม)</label>
+                        <button onclick="odCfg_resetTpl('audit_edit')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsAuditEdit"></div>
+                    <textarea id="odCfgTplAuditEdit" rows="8" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่าง</div>
+                    <pre id="odCfgTplPrevAuditEdit" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+                <!-- ฟอร์มลบ -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">🗑️ ข้อความตอน "ลบ" (แจ้งในห้อง audit)</label>
+                        <button onclick="odCfg_resetTpl('audit_delete')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsAuditDelete"></div>
+                    <textarea id="odCfgTplAuditDelete" rows="8" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่าง</div>
+                    <pre id="odCfgTplPrevAuditDelete" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+                <p class="text-xs text-gray-400 lg:col-span-2"><b>{การเปลี่ยนแปลง}</b> = รายการที่แก้ (ก่อน→หลัง) · <b>{คนรับงาน}</b> = แท็กคนที่กดอิโมจิรับงาน (ถ้าไม่มีคน บรรทัดนี้จะหายไปเอง)</p>
             </div>
         </div>
 
