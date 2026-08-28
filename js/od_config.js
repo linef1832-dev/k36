@@ -15,7 +15,7 @@ let odCfgData = {
     odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
     big:  { chat_id: '' },
     tags: { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [] },
-    audit: { chat_id: '', enabled: true, templates: { edit: '', delete: '' } },
+    audit: { chat_id: '', edit_enabled: true, delete_enabled: true, templates: { edit: '', delete: '' } },
     bot:  { token: '', enabled: true },
     templates: { od: '', odol: '', big: '', big_na: '' },
 };
@@ -126,7 +126,10 @@ window.initOdConfig = async function() {
             odCfgData.odol = { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '', ...(parsed.odol || {}) };
             odCfgData.big  = { chat_id: '', ...(parsed.big || {}) };
             odCfgData.tags = { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [], ...(parsed.tags || {}) };
-            odCfgData.audit = { chat_id: '', enabled: true, ...(parsed.audit || {}) };
+            odCfgData.audit = { chat_id: '', ...(parsed.audit || {}) };
+            const _oldEn = parsed.audit?.enabled !== false;
+            odCfgData.audit.edit_enabled   = (parsed.audit?.edit_enabled   ?? _oldEn);
+            odCfgData.audit.delete_enabled = (parsed.audit?.delete_enabled ?? _oldEn);
             odCfgData.audit.templates = { edit: '', delete: '', ...((parsed.audit && parsed.audit.templates) || {}) };
             odCfgData.bot  = { token: '', enabled: true, ...(parsed.bot || {}) };
             odCfgData.templates = { od: '', odol: '', big: '', big_na: '', ...(parsed.templates || {}) };
@@ -158,7 +161,7 @@ window.initOdConfig = async function() {
                 odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
                 big:  { chat_id: '' },
                 tags: { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [] },
-                audit: { chat_id: '', enabled: true, templates: { edit: '', delete: '' } },
+                audit: { chat_id: '', edit_enabled: true, delete_enabled: true, templates: { edit: '', delete: '' } },
                 bot:  { token: '', enabled: true },
                 templates: { od: '', odol: '', big: '', big_na: '' },
             };
@@ -196,7 +199,8 @@ window.odCfg_save = async function() {
         };
         odCfgData.audit = {
             chat_id: document.getElementById('odCfgAuditChatId').value.trim(),
-            enabled: document.getElementById('odCfgAuditEnabled').checked,
+            edit_enabled:   (document.getElementById('odCfgAuditEditEnabled')   || { checked: true }).checked,
+            delete_enabled: (document.getElementById('odCfgAuditDeleteEnabled') || { checked: true }).checked,
             templates: {
                 edit:   (function(){ const v = (document.getElementById('odCfgTplAuditEdit')||{}).value || ''; return (v.trim() && v !== OD_TPL_DEFAULT.audit_edit) ? v : ''; })(),
                 delete: (function(){ const v = (document.getElementById('odCfgTplAuditDelete')||{}).value || ''; return (v.trim() && v !== OD_TPL_DEFAULT.audit_delete) ? v : ''; })(),
@@ -263,9 +267,11 @@ function odCfg_renderAll() {
     if (tgns) tgns.value = odCfgData.tags?.night_start || '20:00';
     if (typeof odCfg_updateShiftLabels === 'function') odCfg_updateShiftLabels();
     if (typeof odCfg_renderTagMap === 'function') odCfg_renderTagMap();
-    const ac = document.getElementById('odCfgAuditChatId'), ae = document.getElementById('odCfgAuditEnabled');
+    const ac = document.getElementById('odCfgAuditChatId');
     if (ac) ac.value = odCfgData.audit?.chat_id || '';
-    if (ae) ae.checked = odCfgData.audit?.enabled !== false;
+    const aee = document.getElementById('odCfgAuditEditEnabled'), ade = document.getElementById('odCfgAuditDeleteEnabled');
+    if (aee) aee.checked = odCfgData.audit?.edit_enabled   !== false;
+    if (ade) ade.checked = odCfgData.audit?.delete_enabled !== false;
     if (bt) bt.value = odCfgData.bot?.token || '';
     if (ak) ak.value = localStorage.getItem('od_admin_key') || '';
     odCfg_renderNotes();
