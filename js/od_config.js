@@ -15,6 +15,7 @@ let odCfgData = {
     odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
     big:  { chat_id: '' },
     tags: { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [] },
+    audit: { chat_id: '', enabled: true },
     bot:  { token: '', enabled: true },
     templates: { od: '', odol: '', big: '', big_na: '' },
 };
@@ -119,6 +120,7 @@ window.initOdConfig = async function() {
             odCfgData.odol = { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '', ...(parsed.odol || {}) };
             odCfgData.big  = { chat_id: '', ...(parsed.big || {}) };
             odCfgData.tags = { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [], ...(parsed.tags || {}) };
+            odCfgData.audit = { chat_id: '', enabled: true, ...(parsed.audit || {}) };
             odCfgData.bot  = { token: '', enabled: true, ...(parsed.bot || {}) };
             odCfgData.templates = { od: '', odol: '', big: '', big_na: '', ...(parsed.templates || {}) };
         } else {
@@ -149,6 +151,7 @@ window.initOdConfig = async function() {
                 odol: { notes: ['เก็งกำไร'], default_note: 'เก็งกำไร', chat_id: '' },
                 big:  { chat_id: '' },
                 tags: { day: '', night: '', day_start: '08:00', night_start: '20:00', map: [] },
+                audit: { chat_id: '', enabled: true },
                 bot:  { token: '', enabled: true },
                 templates: { od: '', odol: '', big: '', big_na: '' },
             };
@@ -183,6 +186,10 @@ window.odCfg_save = async function() {
             day_start:   document.getElementById('odCfgTagDayStart').value.trim()   || '08:00',
             night_start: document.getElementById('odCfgTagNightStart').value.trim() || '20:00',
             map:         odCfg_readTagMap(),
+        };
+        odCfgData.audit = {
+            chat_id: document.getElementById('odCfgAuditChatId').value.trim(),
+            enabled: document.getElementById('odCfgAuditEnabled').checked,
         };
         odCfgData.bot.token    = document.getElementById('odCfgBotToken').value.trim();
         // template: ถ้าเหมือนค่าเดิม เก็บเป็นว่าง (ให้ extension ใช้ default)
@@ -245,6 +252,9 @@ function odCfg_renderAll() {
     if (tgns) tgns.value = odCfgData.tags?.night_start || '20:00';
     if (typeof odCfg_updateShiftLabels === 'function') odCfg_updateShiftLabels();
     if (typeof odCfg_renderTagMap === 'function') odCfg_renderTagMap();
+    const ac = document.getElementById('odCfgAuditChatId'), ae = document.getElementById('odCfgAuditEnabled');
+    if (ac) ac.value = odCfgData.audit?.chat_id || '';
+    if (ae) ae.checked = odCfgData.audit?.enabled !== false;
     if (bt) bt.value = odCfgData.bot?.token || '';
     if (ak) ak.value = localStorage.getItem('od_admin_key') || '';
     odCfg_renderNotes();
@@ -591,6 +601,7 @@ window.odCfg_refreshPreview = function() {
         odol:    odCfgData.odol,
         big:     odCfgData.big,
         tags:    odCfgData.tags,
+        audit:   odCfgData.audit,
         templates: odCfgData.templates,
         bot_enabled: odCfgData.bot?.enabled !== false,
     };
