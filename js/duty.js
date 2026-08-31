@@ -1364,7 +1364,10 @@ window.renderRosterGrid = async function(rosterData) {
                     const ydRoster = JSON.parse(ydData.value);
                     for (const t in ydRoster) {
                         (ydRoster[t] || []).forEach(u => {
-                            if (u && u.username && !String(u.username).includes('ขาดคน')) yesterdayTeamOf[u.username] = t;
+                            if (u && u.username && !String(u.username).includes('ขาดคน')) {
+                                // เก็บทั้งงานหลัก และงานรอง (สแตนด์บายช่วย) ของเมื่อวาน
+                                yesterdayTeamOf[u.username] = { main: t, sec: u.secondary_team || null };
+                            }
                         });
                     }
                 }
@@ -1463,10 +1466,22 @@ window.renderRosterGrid = async function(rosterData) {
                         <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span>
                         <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
                         ${(() => {
-                            const yt = !isMissing ? yesterdayTeamOf[a.username] : null;
-                            if (!yt) return '';
-                            const yc = TEAM_COLORS[yt] || TEAM_COLORS['DEFAULT'];
-                            return `<span title="เมื่อวานประจำเว็บ ${yt}" class="flex items-center gap-1 ${yc.bg} ${yc.text} border ${yc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0"><span class="material-icons text-[11px]">history</span>เมื่อวานทำ ${yt}</span>`;
+                            const yInfo = !isMissing ? yesterdayTeamOf[a.username] : null;
+                            if (!yInfo) return '';
+                            // รองรับข้อมูลเก่าที่เก็บเป็น string เฉยๆ
+                            const yMain = (typeof yInfo === 'string') ? yInfo : yInfo.main;
+                            const ySec  = (typeof yInfo === 'string') ? null : yInfo.sec;
+                            if (!yMain && !ySec) return '';
+                            let html = '';
+                            if (yMain) {
+                                const yc = TEAM_COLORS[yMain] || TEAM_COLORS['DEFAULT'];
+                                html += `<span title="เมื่อวานงานหลักเว็บ ${yMain}" class="flex items-center gap-1 ${yc.bg} ${yc.text} border ${yc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0"><span class="material-icons text-[11px]">history</span>เมื่อวานทำ ${yMain}</span>`;
+                            }
+                            if (ySec) {
+                                const sc = TEAM_COLORS[ySec] || TEAM_COLORS['DEFAULT'];
+                                html += `<span title="เมื่อวานงานรอง (สแตนด์บายช่วย) เว็บ ${ySec}" class="flex items-center gap-1 ${sc.lightBg} ${sc.lightText} border ${sc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0 opacity-90"><span class="material-icons text-[11px]">directions_walk</span>รองเมื่อวาน ${ySec}</span>`;
+                            }
+                            return html;
                         })()}
                     </div>
                 </div>
@@ -3532,6 +3547,27 @@ window.quickAssignBackups = async function() {
 
     let roster = JSON.parse(currentDataVal);
 
+    // 🕘 โหลดประวัติย้อนหลัง เพื่อกัน "งานรองซ้ำเว็บเดิมกับเมื่อวาน" (ทั้งที่เคยเป็นหลักและรอง)
+    let bkRotation = null;
+    try {
+        if (typeof window.loadDutyRotationHistory === 'function') {
+            bkRotation = await window.loadDutyRotationHistory(targetDate, shiftFilter);
+        }
+    } catch (e) { console.warn('[backup] โหลดประวัติไม่สำเร็จ ข้ามกฎกันซ้ำ', e); }
+
+    // เมื่อวานคนนี้แตะเว็บนี้ไหม (หลักหรือรองก็นับ) — true = ห้ามให้ซ้ำ
+    const touchedYesterday = (uid, team) =>
+        !!(bkRotation && typeof window.dutyTouchedTeamYesterday === 'function'
+            && window.dutyTouchedTeamYesterday(bkRotation, uid, team));
+
+    // เว็บนี้ห่างจากครั้งล่าสุดที่แตะ (หลัก/รอง) กี่วัน — ยิ่งมากยิ่งควรได้
+    const daysAwayFromTeam = (uid, team) => {
+        if (!bkRotation) return Infinity;
+        const p = window.dutyDaysAgoOnTeam ? window.dutyDaysAgoOnTeam(bkRotation, uid, team) : Infinity;
+        const s = window.dutyDaysAgoOnSecTeam ? window.dutyDaysAgoOnSecTeam(bkRotation, uid, team) : Infinity;
+        return Math.min(p, s);
+    };
+
     Swal.fire({
         title: 'กำลังจับคู่งานรอง...', 
         html: '<span class="text-sm text-gray-500">🌱 Phase 1: เติมเว็บที่ยังไม่มีรองให้ครบก่อน...</span>', 
@@ -3629,11 +3665,20 @@ window.quickAssignBackups = async function() {
 
             if (candidates.length === 0) { noBackupReasons[targetTeam] = 'ไม่มีใครที่พักไม่ชน'; return; }
 
+            // 🕘 ตัดคนที่ "เมื่อวานแตะเว็บนี้" (เป็นหลักหรือรองก็ตาม) ออกก่อน
+            //     ถ้าตัดแล้วไม่เหลือใครเลย ค่อยยอมใช้คนเดิม (เว็บว่างแย่กว่าซ้ำ)
+            const freshCands = candidates.filter(c => !touchedYesterday(c.id, targetTeam));
+            if (freshCands.length > 0) candidates = freshCands;
+
             // เลือกคนแบบ "ใครเข้าได้น้อยสุด ใส่ก่อน" (กันคนที่เลือกได้แต่เว็บนี้ไม่หลุด)
             candidates.sort((a, b) => {
                 const accessA = (dutyAccessMatrix[a.id] || []).length;
                 const accessB = (dutyAccessMatrix[b.id] || []).length;
                 if (accessA !== accessB) return accessA - accessB;
+                // ห่างจากเว็บนี้นานกว่า = ควรได้ก่อน
+                const awayA = daysAwayFromTeam(a.id, targetTeam);
+                const awayB = daysAwayFromTeam(b.id, targetTeam);
+                if (awayA !== awayB) return awayB - awayA;
                 return Math.random() - 0.5;
             });
 
@@ -3676,11 +3721,19 @@ window.quickAssignBackups = async function() {
 
             if (validTeams.length === 0) return;
 
-            // เลือกเว็บที่มีรองน้อยที่สุด (load balance)
+            // 🕘 ตัดเว็บที่ "เมื่อวานเขาแตะไปแล้ว" (เป็นหลักหรือรอง) ออกก่อน
+            //     ถ้าตัดหมดไม่เหลือ ค่อยยอมใช้ของเดิม (มีรองดีกว่าไม่มี)
+            const freshTeams = validTeams.filter(t => !touchedYesterday(c.id, t));
+            if (freshTeams.length > 0) validTeams = freshTeams;
+
+            // เลือกเว็บที่มีรองน้อยที่สุด (load balance) + ห่างจากเว็บนั้นนานสุด
             validTeams.sort((a, b) => {
                 const cA = countBackupsForTeam(a);
                 const cB = countBackupsForTeam(b);
                 if (cA !== cB) return cA - cB;
+                const awayA = daysAwayFromTeam(c.id, a);
+                const awayB = daysAwayFromTeam(c.id, b);
+                if (awayA !== awayB) return awayB - awayA;
                 return Math.random() - 0.5;
             });
 
@@ -5120,9 +5173,11 @@ window.loadDutyRotationHistory = async function(targetDate, shiftFilter, lookbac
         agoOfKey[k] = i;                 // i = ย้อนหลังกี่วัน (1 = เมื่อวาน)
     }
 
-    const lastSeen = {};   // uid -> { team: ทำล่าสุดเมื่อกี่วันก่อน }
+    const lastSeen = {};   // uid -> { team: ทำล่าสุดเมื่อกี่วันก่อน } (งานหลัก)
     const counts   = {};   // uid -> { team: ทำไปกี่ครั้งในช่วงนี้ }
     const lastTeam = {};   // uid -> { team, ago } ของวันล่าสุดที่มีตาราง
+    const lastSec  = {};   // uid -> { team: เคยเป็น "งานรอง" ล่าสุดเมื่อกี่วันก่อน }
+    const lastSecTeam = {};// uid -> { team, ago } งานรองของวันล่าสุดที่มีตาราง
     let daysFound = 0;
 
     try {
@@ -5154,6 +5209,19 @@ window.loadDutyRotationHistory = async function(targetDate, shiftFilter, lookbac
                     if (lastTeam[uid] === undefined || ago < lastTeam[uid].ago) {
                         lastTeam[uid] = { team, ago };
                     }
+
+                    // 🆕 เก็บประวัติ "งานรอง" (สแตนด์บายช่วย) ด้วย
+                    // เพื่อไม่ให้วันถัดไปได้งานรอง (หรืองานหลัก) ซ้ำเว็บเดิม
+                    const st = u.secondary_team;
+                    if (st) {
+                        lastSec[uid] = lastSec[uid] || {};
+                        if (lastSec[uid][st] === undefined || ago < lastSec[uid][st]) {
+                            lastSec[uid][st] = ago;
+                        }
+                        if (lastSecTeam[uid] === undefined || ago < lastSecTeam[uid].ago) {
+                            lastSecTeam[uid] = { team: st, ago };
+                        }
+                    }
                 });
             });
         });
@@ -5161,7 +5229,25 @@ window.loadDutyRotationHistory = async function(targetDate, shiftFilter, lookbac
         console.warn('[rotation] โหลดประวัติไม่สำเร็จ ใช้การสุ่มแบบไม่มีประวัติแทน', e);
     }
 
-    return { lastSeen, counts, lastTeam, daysFound, lookback };
+    return { lastSeen, counts, lastTeam, lastSec, lastSecTeam, daysFound, lookback };
+};
+
+// 🆕 เว็บนี้ "เพิ่งเป็นงานรองไปเมื่อกี่วันก่อน"
+window.dutyDaysAgoOnSecTeam = function(rotation, uid, team) {
+    const m = rotation && rotation.lastSec ? rotation.lastSec[String(uid)] : null;
+    if (!m || m[team] === undefined) return Infinity;
+    return m[team];
+};
+
+// 🆕 เมื่อวาน (วันล่าสุดที่มีตาราง) คนนี้แตะเว็บนี้ไหม — นับทั้งงานหลักและงานรอง
+window.dutyTouchedTeamYesterday = function(rotation, uid, team) {
+    if (!rotation || !team) return false;
+    const u = String(uid);
+    const lt = rotation.lastTeam && rotation.lastTeam[u];
+    const ls = rotation.lastSecTeam && rotation.lastSecTeam[u];
+    if (lt && lt.ago === 1 && lt.team === team) return true;   // เมื่อวานเป็นงานหลักเว็บนี้
+    if (ls && ls.ago === 1 && ls.team === team) return true;   // เมื่อวานเป็นงานรองเว็บนี้
+    return false;
 };
 
 // เว็บนี้ "เพิ่งทำไปเมื่อกี่วันก่อน" — ไม่เคยทำเลยคืน Infinity (ดีที่สุด ควรได้ก่อน)
