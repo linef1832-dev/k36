@@ -1378,7 +1378,8 @@ async function deleteOperatingShift(suffix) {
         confirmButtonText: 'ลบ'
     }).then(async (result) => {
         if (result.isConfirmed) {
-              await appDB.from('settings').delete().like('key', `%_${suffix}`);
+              // [FIX] เดิม like '%_<กะ>' กิน quota_total_<กะ> ไปด้วย ทำให้โควตาหายถาวร — ระบุคีย์ตรง ๆ แทน
+              await appDB.from('settings').delete().in('key', [`open_time_${suffix}`, `close_time_${suffix}`]);
               delete SETTINGS[`open_time_${suffix}`];
               delete SETTINGS[`close_time_${suffix}`];
               if(typeof loadSettings === 'function') await loadSettings();

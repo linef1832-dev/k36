@@ -174,10 +174,28 @@ window.renderShiftButtons = function(allowedShift) {
 
 // debounce timer สำหรับ refreshTimeSlots
 let _refreshSlotsTimer = null;
-window.refreshTimeSlots = async function() {
-    // debounce 80ms — ถ้าถูกเรียกซ้ำในเวลาสั้น ให้รอแล้วรันครั้งเดียว
+let _refreshSlotsPending = null;   // คำขอที่รออยู่ในรอบ debounce — ผู้เรียกทุกคนใช้ก้อนเดียวกัน
+
+// [FIX] เดิม: clearTimeout ไปฆ่า timer ที่เป็นตัว resolve ของ promise รอบก่อนเอง
+// promise นั้นจึงไม่มีวัน resolve → ใครที่ await ค้างถาวร
+// (initDashboard ค้างจน fetchData() กับ subscribeDashboardChanges() ไม่ถูกเรียก)
+// ตอนนี้รวมคำขอที่ถี่ ๆ เป็นรอบเดียวเหมือนเดิม แต่ผู้เรียกทุกคนได้ผลของรอบที่รันจริง
+window.refreshTimeSlots = function() {
+    if (!_refreshSlotsPending) {
+        let _res;
+        const _p = new Promise(r => { _res = r; });
+        _refreshSlotsPending = { promise: _p, resolve: _res };
+    }
+    const _shared = _refreshSlotsPending;
     clearTimeout(_refreshSlotsTimer);
-    await new Promise(r => { _refreshSlotsTimer = setTimeout(r, 80); });
+    _refreshSlotsTimer = setTimeout(() => {
+        _refreshSlotsPending = null;
+        _shared.resolve(_doRefreshTimeSlots().catch(e => { console.error("Refresh Slots Error:", e); }));
+    }, 80);
+    return _shared.promise;
+};
+
+async function _doRefreshTimeSlots() {
 
     const shiftEl    = document.querySelector('input[name="shift"]:checked');
     const slotSelect = document.getElementById('tSlot');

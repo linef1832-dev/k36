@@ -1314,8 +1314,10 @@ window.saveSummaryToSupabase = async function() {
         document.getElementById('summaryDateFilter').value = fallbackDate; 
         await window.fetchHistoricalSummary(true); 
 
-        if (window.appDB && window.appDB.channel) {
-            window.appDB.channel('summary-updates').send({
+        // [FIX] เดิมสร้าง channel ใหม่แล้ว .send() ทันทีโดยไม่ได้ subscribe ก่อน — Supabase จะไม่ส่งออกไปจริง
+        // ใช้ channel เดิมที่ subscribeSummaryChanges เปิดค้างไว้แทน
+        if (summarySubscription) {
+            summarySubscription.send({
                 type: 'broadcast', event: 'force_summary_reload', payload: { date: fallbackDate }
             });
         }

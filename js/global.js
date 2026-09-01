@@ -47,6 +47,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (window.supabase) {
         appDB = window.supabase.createClient(DB_URL, DB_KEY);
+        // [FIX] appDB ประกาศด้วย let จึงไม่กลายเป็น property ของ window
+        // summary.js อ่านผ่าน window.appDB ทำให้ realtime ของหน้าสรุปยอดไม่เคยทำงาน
+        window.appDB = appDB;
     }
 
     const savedUser = sessionStorage.getItem('user_platinum_plus');
