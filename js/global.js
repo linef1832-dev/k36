@@ -111,6 +111,114 @@ async function showLogin() {
     }
 }
 
+
+// ==========================================================
+// 🖼️ ตัวย่อรูปอัตโนมัติก่อนอัปโหลด (ใช้ร่วมกันทุกหน้า)
+// ย่อขนาด + บีบคุณภาพในเบราว์เซอร์ก่อนส่งขึ้น Storage
+// ช่วยลดทั้งพื้นที่เก็บและเวลาโหลดของผู้ใช้ทุกคน
+// ==========================================================
+// ==========================================
+// ⚡ [SPEED] กันยิงคำขอซ้ำในช่วงสั้นๆ (request de-dup + micro cache)
+// ถ้าโค้ดหลายที่ขอข้อมูลชุดเดียวกันพร้อมกัน จะยิงจริงครั้งเดียวแล้วแชร์ผลกัน
+// ==========================================
+window._reqCache = {};
+window.cachedQuery = async function(key, fn, ttlMs = 15000) {
+    const now = Date.now();
+    const hit = window._reqCache[key];
+    if (hit && (now - hit.ts) < ttlMs) return hit.promise;   // ใช้ผลเดิม / รอผลที่กำลังยิงอยู่
+    const promise = Promise.resolve().then(fn);
+    window._reqCache[key] = { ts: now, promise };
+    promise.catch(() => { delete window._reqCache[key]; });   // พังแล้วอย่า cache ไว้
+    return promise;
+};
+window.clearQueryCache = function(prefix) {
+    if (!prefix) { window._reqCache = {}; return; }
+    Object.keys(window._reqCache).forEach(k => { if (k.startsWith(prefix)) delete window._reqCache[k]; });
+};
+
+// ==========================================
+// 🔍 เครื่องมือหาโลโก้เว็บที่ไฟล์ใหญ่เกินจำเป็น
+// วิธีใช้: เปิด Console (F12) แล้วพิมพ์  checkBigLogos()
+// ==========================================
+window.checkBigLogos = async function(limitKB = 200) {
+    try {
+        const logos = window.summaryWebLogos || {};
+        const names = Object.keys(logos);
+        if (!names.length) { console.log('⚠️ ยังไม่มีข้อมูลโลโก้ (ลองเข้าหน้าสรุปยอดก่อน แล้วรันใหม่)'); return; }
+        console.log(`🔍 กำลังตรวจโลโก้ ${names.length} เว็บ...`);
+        const rows = [];
+        for (const web of names) {
+            const url = logos[web];
+            if (!url) continue;
+            try {
+                const res = await fetch(url, { method: 'HEAD' });
+                const kb = Math.round((+res.headers.get('content-length') || 0) / 1024);
+                rows.push({ เว็บ: web, ขนาด_KB: kb, สถานะ: kb > limitKB ? '🔴 ใหญ่เกิน ควรย่อ' : '✅ โอเค', ลิงก์: url });
+            } catch (e) { rows.push({ เว็บ: web, ขนาด_KB: '?', สถานะ: '⚠️ เช็คไม่ได้', ลิงก์: url }); }
+        }
+        rows.sort((a, b) => (+b.ขนาด_KB || 0) - (+a.ขนาด_KB || 0));
+        console.table(rows);
+        const big = rows.filter(r => +r.ขนาด_KB > limitKB);
+        if (big.length) {
+            console.log(`\n🔴 พบ ${big.length} เว็บที่โลโก้ใหญ่เกิน ${limitKB} KB:`);
+            big.forEach(b => console.log(`   • ${b.เว็บ} = ${b.ขนาด_KB} KB`));
+            console.log('\n💡 วิธีแก้: ไปหน้าสรุปยอด → คลิกโลโก้เว็บนั้น → อัปรูปเดิมใหม่อีกครั้ง');
+            console.log('   ระบบจะย่อให้อัตโนมัติเหลือ ~20-50 KB');
+        } else {
+            console.log('✅ โลโก้ทุกเว็บขนาดเหมาะสมแล้ว');
+        }
+        return rows;
+    } catch (e) { console.error('เช็คโลโก้ไม่สำเร็จ:', e); }
+};
+
+window.compressImage = async function(file, opts = {}) {
+    const maxW = opts.maxWidth || 800;      // กว้างสุด
+    const maxH = opts.maxHeight || 800;     // สูงสุด
+    const quality = opts.quality || 0.85;   // คุณภาพ 0-1
+    const skipUnder = (opts.skipUnderKB || 150) * 1024;  // เล็กกว่านี้ไม่ต้องย่อ
+
+    if (!file || !file.type || !file.type.startsWith('image/')) return file;
+    if (file.type === 'image/gif' || file.type === 'image/svg+xml') return file; // ย่อแล้วเสียภาพเคลื่อนไหว/เวกเตอร์
+    if (file.size <= skipUnder) return file;
+
+    try {
+        const dataUrl = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+        });
+        const img = await new Promise((res, rej) => {
+            const i = new Image();
+            i.onload = () => res(i);
+            i.onerror = rej;
+            i.src = dataUrl;
+        });
+
+        let { width: w, height: h } = img;
+        if (w <= maxW && h <= maxH && file.size < 400 * 1024) return file;
+        const ratio = Math.min(maxW / w, maxH / h, 1);
+        w = Math.round(w * ratio); h = Math.round(h * ratio);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/webp', quality));
+        if (!blob || blob.size >= file.size) return file;   // ย่อแล้วไม่เล็กลง ใช้ของเดิม
+
+        const newName = file.name.replace(/\.[^.]+$/, '') + '.webp';
+        const out = new File([blob], newName, { type: 'image/webp' });
+        console.log(`[ย่อรูป] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(out.size/1024).toFixed(0)}KB`);
+        return out;
+    } catch (e) {
+        console.warn('[ย่อรูป] ล้มเหลว ใช้ไฟล์เดิม', e);
+        return file;
+    }
+};
+
 // 1. สร้างตัวแปรเก็บ Cache สำหรับ HTML String
 const pageCache = {};
 
