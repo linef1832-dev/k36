@@ -1543,12 +1543,11 @@ window.toggleSelectAllIndiv = function(source) {
 
 let isFetchingUsers = false;
 async function fetchUsers(forceRefresh = false) {
-    if (!forceRefresh && window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length > 0) {
-        if(typeof populateIndivUserSelect === 'function') populateIndivUserSelect();
-        if(typeof fastRecalculateStats === 'function') fastRecalculateStats();
-        if(typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
-        return;
-    }
+    // [FIX] เดิมมีการ์ด cache "ถ้ามีรายชื่ออยู่แล้วไม่ต้องโหลดใหม่" ซึ่งไม่เคยทำงาน
+    //       เพราะอ่าน window.GLOBAL_USER_LIST แต่ที่อื่นเขียนตัวแปรตรง ๆ (คนละตัวกัน)
+    //       พอผูกสองตัวเข้าด้วยกันแล้ว การ์ดนี้จะเริ่มทำงานทันที และทำให้จุดที่เรียก
+    //       fetchUsers() หลังลบ/ย้าย/เพิ่มพนักงาน ได้รายชื่อชุดเก่า → เอาการ์ดออก
+    //       จุดที่ต้องการประหยัด query เช็ค GLOBAL_USER_LIST.length ก่อนเรียกอยู่แล้ว
 
     if (isFetchingUsers) return;
     isFetchingUsers = true;
@@ -2645,7 +2644,7 @@ window.saveMenuPerms = async function() {
 };
 
 window.hasUserPerm = function(menuId) {
-    if (!window.currentUser) return false;
+    if (!window.currentUser || !window.currentUser.id) return false;
     
     // 🌟 คืนค่าบรรทัดนี้กลับมา: เพื่อให้ Admin และ Manager มองเห็นทุกเมนูและกดได้ทุกปุ่มเสมอ
     const uRoleLower = (window.currentUser.role || '').toLowerCase().trim();
@@ -2671,7 +2670,7 @@ window.hasUserPerm = function(menuId) {
 // =========================================================
 window.applySidebarPermissions = async function() {
     let user = window.currentUser;
-    if (!user) {
+    if (!user || !user.id) {
         const savedUser = sessionStorage.getItem('user_platinum_plus');
         if (savedUser) { user = JSON.parse(savedUser); window.currentUser = user; }
         else return; 

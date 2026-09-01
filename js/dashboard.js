@@ -1,17 +1,17 @@
 window.initDashboard = async function() {
     // ลองดึงจาก sessionStorage ก่อนเลย ไม่ต้องรอ
-    if (!window.currentUser) {
+    if (!window.currentUser || !window.currentUser.id) {
         const savedUser = sessionStorage.getItem('user_platinum_plus');
         if (savedUser) {
             window.currentUser = JSON.parse(savedUser);
         } else {
             // fallback: รอสั้นๆ เผื่อกำลังโหลดอยู่
             let retry = 0;
-            while (!window.currentUser && retry < 10) {
+            while ((!window.currentUser || !window.currentUser.id) && retry < 10) {
                 await new Promise(r => setTimeout(r, 100));
                 retry++;
             }
-            if (!window.currentUser) return;
+            if (!window.currentUser || !window.currentUser.id) return;
         }
     }
 
@@ -80,7 +80,7 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
 };
 
 window.updateDashboardUserInfo = function() {
-    if (!window.currentUser) return;
+    if (!window.currentUser || !window.currentUser.id) return;
     if(document.getElementById('uName')) {
         document.getElementById('uName').innerText = window.currentUser.username || 'Unknown';
     }

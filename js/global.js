@@ -10,6 +10,25 @@ let TEAM_LIST = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26',
 let GLOBAL_USER_LIST = [];
 
 // ==========================================
+// 🔗 [FIX] ผูก currentUser / GLOBAL_USER_LIST เข้ากับ window ให้เป็น "ตัวเดียวกัน"
+// ตัวแปรที่ประกาศด้วย let ที่ระดับบนสุดของสคริปต์ จะไม่กลายเป็น property ของ window
+// แต่โค้ดในโปรเจกต์อ่าน/เขียนปนกันทั้งสองแบบ (บางไฟล์ใช้ชื่อตรง ๆ บางไฟล์ใช้ window.)
+// จึงกลายเป็นตัวแปรคนละตัว เช่น dashboard.js เขียน window.currentUser
+// แต่ system_core.js อ่าน currentUser ตรง ๆ เลยได้ค่าเก่า
+// ผูกด้วย accessor ทำให้เป็นตัวเดียวกันจริง โดยไม่ต้องไล่แก้จุดเรียกทั้ง 86 จุด
+// ==========================================
+Object.defineProperty(window, 'currentUser', {
+    get: function() { return currentUser; },
+    set: function(v) { currentUser = v; },
+    configurable: true, enumerable: true
+});
+Object.defineProperty(window, 'GLOBAL_USER_LIST', {
+    get: function() { return GLOBAL_USER_LIST; },
+    set: function(v) { GLOBAL_USER_LIST = v; },
+    configurable: true, enumerable: true
+});
+
+// ==========================================
 // 🔧 [FIX] safeSetItem / safeGetItem — ป้องกัน localStorage เต็มหรือ Private Mode
 // ฟังก์ชันนี้ถูกเรียกจาก auth.js, system_core.js, duty.js, discord.js ฯลฯ
 // แต่ไม่เคยถูก define ไว้ที่ไหน ทำให้ ReferenceError ทุกครั้งที่เรียก
