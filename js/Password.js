@@ -264,26 +264,6 @@ window.copyTextFlash = function(txt, btnEl) {
 };
 
 // ==========================================
-// 🔍 Search Highlight
-// ==========================================
-window.filterPwdCards = function() {
-    const filter = document.getElementById('pwdSearchInput').value.trim();
-    const cards  = document.querySelectorAll('.pwd-card');
-    cards.forEach(card => {
-        const txt = card.getAttribute('data-search') || card.textContent;
-        if (!filter) {
-            card.style.display = '';
-            return;
-        }
-        if (txt.toLowerCase().includes(filter.toLowerCase())) {
-            card.style.display = '';
-        } else {
-            card.style.display = 'none';
-        }
-    });
-};
-
-// ==========================================
 // 🔒 Auto-hide password หลัง 5 วิ
 // ==========================================
 window._pwdAutoHideTimers = {};

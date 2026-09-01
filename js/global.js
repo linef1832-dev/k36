@@ -820,25 +820,68 @@ window.clearUsersCache = function() { _usersCacheTs = 0; };
 
 // ==========================================
 // 📡 debouncedBroadcast — broadcast realtime แบบ debounce กัน spam
-// ถูกเรียกจาก duty.js 16+ จุด แต่ไม่เคย define ไว้ที่ไหน
+// ถูกเรียกจาก duty.js 22 จุด ด้วย channel 'duty-updates'
+// ตัวรับอยู่ที่ duty.js > subscribeDutyChanges (event 'force_reload')
+//
+// [FIX] เดิมสร้าง channel ใหม่ทุกครั้งแล้ว .send() ทันทีโดยไม่ subscribe ก่อน
+//       Supabase จะไม่ส่งออกไปจริง (เงียบ ไม่มี error) และ channel ที่สร้างทิ้งไว้
+//       ก็ไม่เคยถูกปิด กลายเป็น memory leak สะสมทุกครั้งที่แก้ตารางเวร
+// ตอนนี้: ส่งผ่าน channel ที่หน้านั้น subscribe ไว้อยู่แล้วเป็นอันดับแรก
+//         (ผู้ส่งจึงไม่ได้รับ broadcast ของตัวเอง = ไม่รีโหลดซ้ำซ้อน)
+//         ถ้าไม่มีจริง ๆ ค่อยเปิดของตัวเองไว้ตัวเดียวแล้วใช้ซ้ำ ไม่สร้างใหม่ทุกครั้ง
 // ==========================================
 (function() {
     const _timers = {};
+    const _own = {};   // ชื่อ channel -> { ch, ready, queue } เฉพาะกรณีที่ต้องเปิดเอง
+
+    // หา channel ที่ต่อสำเร็จอยู่แล้วในชื่อเดียวกัน
+    function _findJoined(name) {
+        try {
+            const list = (appDB.getChannels && appDB.getChannels()) || [];
+            for (let i = 0; i < list.length; i++) {
+                const c = list[i];
+                if (!c || !c.topic) continue;
+                if ((c.topic === name || c.topic === 'realtime:' + name) && c.state === 'joined') return c;
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    function _emit(name, event) {
+        try {
+            if (typeof appDB === 'undefined' || !appDB || !appDB.channel) return;
+
+            const joined = _findJoined(name);
+            if (joined) { joined.send({ type: 'broadcast', event: event }); return; }
+
+            let entry = _own[name];
+            if (!entry) {
+                const ch = appDB.channel(name);
+                entry = _own[name] = { ch: ch, ready: false, queue: [] };
+                ch.subscribe(function(status) {
+                    if (status !== 'SUBSCRIBED') return;
+                    entry.ready = true;
+                    const pending = entry.queue;
+                    entry.queue = [];
+                    pending.forEach(function(ev) {
+                        try { ch.send({ type: 'broadcast', event: ev }); } catch (e) {}
+                    });
+                });
+            }
+            // ยังต่อไม่เสร็จ → พักไว้ก่อน แล้วส่งตอน subscribe สำเร็จ (กันส่งทิ้งเปล่าแบบเดิม)
+            if (entry.ready) entry.ch.send({ type: 'broadcast', event: event });
+            else if (entry.queue.indexOf(event) === -1) entry.queue.push(event);
+        } catch (e) {
+            console.warn('[debouncedBroadcast] failed:', e);
+        }
+    }
+
     window.debouncedBroadcast = function(channel, event, delay) {
         delay = delay || 800;
         if (_timers[channel]) clearTimeout(_timers[channel]);
         _timers[channel] = setTimeout(function() {
-            try {
-                if (typeof appDB !== 'undefined' && appDB.channel) {
-                    appDB.channel(channel).send({
-                        type: 'broadcast',
-                        event: event || 'force_reload'
-                    });
-                }
-            } catch(e) {
-                console.warn('[debouncedBroadcast] failed:', e);
-            }
             delete _timers[channel];
+            _emit(channel, event || 'force_reload');
         }, delay);
     };
 })();
