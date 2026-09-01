@@ -250,7 +250,27 @@ window.saveFileData = async function(e) {
         return Swal.fire('เตือน', 'กรุณาวางลิงก์ดาวน์โหลด หรือ เลือกไฟล์อัปโหลดอย่างน้อย 1 รายการครับ', 'warning');
     }
 
-    Swal.fire({ title: 'กำลังอัปโหลด...', text: 'ระบบกำลังส่งไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    // 🕒 กันค้าง: ถ้าเกินเวลาที่กำหนดให้เด้ง error แทนหมุนไม่จบ
+    const withTimeout = (promise, ms, label) => Promise.race([
+        promise,
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} ใช้เวลานานเกินไป (เกิน ${Math.round(ms / 1000)} วินาที)\n\n• ไฟล์อาจใหญ่เกินไป หรือเน็ตช้า\n• ลองย่อไฟล์ให้เล็กลง แล้วอัปใหม่`)), ms)),
+    ]);
+
+    const MAX_MB = 45;   // เพดานของ Supabase Storage ปกติ 50MB
+    const allFiles = (fileInput && fileInput.files) ? Array.from(fileInput.files) : [];
+    const coverFiles = (coverInput && coverInput.files) ? Array.from(coverInput.files) : [];
+    const tooBig = [...allFiles, ...coverFiles].find(f => f.size > MAX_MB * 1024 * 1024);
+    if (tooBig) {
+        return Swal.fire('ไฟล์ใหญ่เกินไป', `"${tooBig.name}" ขนาด ${(tooBig.size / 1024 / 1024).toFixed(1)} MB\nระบบรับได้ไม่เกิน ${MAX_MB} MB ต่อไฟล์ครับ`, 'warning');
+    }
+
+    const totalMb = [...allFiles, ...coverFiles].reduce((s, f) => s + f.size, 0) / 1024 / 1024;
+    Swal.fire({
+        title: 'กำลังอัปโหลด...',
+        html: `<div class="text-sm text-gray-400">ระบบกำลังส่งไฟล์...</div><div id="upProgress" class="mt-2 text-xs font-bold text-amber-400"></div>`,
+        allowOutsideClick: false, didOpen: () => Swal.showLoading()
+    });
+    const setUp = (t) => { const el = document.getElementById('upProgress'); if (el) el.innerText = t; };
 
     let finalFileUrls = [];
     let finalCoverUrl = '';
@@ -258,26 +278,38 @@ window.saveFileData = async function(e) {
     try {
         if (externalUrl) {
             finalFileUrls = [externalUrl];
-        } else if (fileInput && fileInput.files && fileInput.files.length > 0) {
-            const uploadPromises = Array.from(fileInput.files).map(async (file, index) => {
+        } else if (allFiles.length > 0) {
+            // อัปทีละไฟล์ (เดิมยิงพร้อมกันทั้งหมด ทำให้ไฟล์ใหญ่ค้างและไม่รู้ว่าถึงไหน)
+            let done = 0;
+            for (const [index, file] of allFiles.entries()) {
+                setUp(`ไฟล์ ${done + 1}/${allFiles.length}: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`);
                 const fileExt = file.name.split('.').pop();
                 const fileName = `app_${Date.now()}_${Math.floor(Math.random() * 1000)}_${index}.${fileExt}`;
-                const { error: uploadError } = await appDB.storage.from('staff_images').upload(`files/${fileName}`, file, { cacheControl: '3600', upsert: false });
-                if (uploadError) throw new Error(`อัปโหลดไฟล์ ${file.name} ไม่สำเร็จ`);
+                // ให้เวลา 60 วินาทีต่อ 10MB ขั้นต่ำ 90 วินาที
+                const limitMs = Math.max(90000, (file.size / 1024 / 1024) * 6000);
+                const { error: uploadError } = await withTimeout(
+                    appDB.storage.from('staff_images').upload(`files/${fileName}`, file, { cacheControl: '3600', upsert: false }),
+                    limitMs, `อัปโหลด "${file.name}"`
+                );
+                if (uploadError) throw new Error(`อัปโหลดไฟล์ ${file.name} ไม่สำเร็จ: ${uploadError.message || ''}`);
                 const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`files/${fileName}`);
-                return { url: publicUrlData.publicUrl, originalName: file.name };
-            });
-            finalFileUrls = await Promise.all(uploadPromises);
+                finalFileUrls.push({ url: publicUrlData.publicUrl, originalName: file.name });
+                done++;
+            }
         } else if (id) {
             const existingFile = globalAppFiles.find(x => String(x.id) === String(id));
             if (existingFile?.url) finalFileUrls = Array.isArray(existingFile.url) ? existingFile.url : [existingFile.url];
         }
 
-        if (coverInput && coverInput.files && coverInput.files.length > 0) {
-            const coverFile = coverInput.files[0];
+        if (coverFiles.length > 0) {
+            const coverFile = coverFiles[0];
+            setUp(`กำลังอัปรูปปก: ${coverFile.name}`);
             const coverExt = coverFile.name.split('.').pop();
             const coverName = `cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${coverExt}`;
-            const { error: coverError } = await appDB.storage.from('staff_images').upload(`files/covers/${coverName}`, coverFile, { cacheControl: '3600', upsert: false });
+            const { error: coverError } = await withTimeout(
+                appDB.storage.from('staff_images').upload(`files/covers/${coverName}`, coverFile, { cacheControl: '3600', upsert: false }),
+                Math.max(90000, (coverFile.size / 1024 / 1024) * 6000), `อัปโหลดรูปปก`
+            );
             if (coverError) throw new Error('อัปโหลดรูปปกไม่สำเร็จ: ' + coverError.message);
             const { data: coverUrlData } = appDB.storage.from('staff_images').getPublicUrl(`files/covers/${coverName}`);
             finalCoverUrl = coverUrlData.publicUrl;
@@ -293,13 +325,19 @@ window.saveFileData = async function(e) {
             globalAppFiles.unshift({ id: 'file_' + Date.now(), title, url: finalFileUrls, cover_url: finalCoverUrl, desc, category, created_at: Date.now() });
         }
 
-        await appDB.from('settings').upsert([{ key: 'app_files_data', value: JSON.stringify(globalAppFiles) }]);
+        setUp('กำลังบันทึกข้อมูล...');
+        const { error: saveErr } = await withTimeout(
+            appDB.from('settings').upsert([{ key: 'app_files_data', value: JSON.stringify(globalAppFiles) }]),
+            45000, 'บันทึกข้อมูล'
+        );
+        if (saveErr) throw new Error('บันทึกข้อมูลไม่สำเร็จ: ' + (saveErr.message || ''));
         document.getElementById('fileModal').classList.add('hidden');
         renderCategoryTabs();
         renderFilesGrid();
         Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1500, showConfirmButton: false});
     } catch (err) {
-        Swal.fire('Error', err.message, 'error');
+        console.error('[อัปโหลดไฟล์] ล้มเหลว:', err);
+        Swal.fire({ icon: 'error', title: 'อัปโหลดไม่สำเร็จ', html: `<div style="white-space:pre-wrap;text-align:left;font-size:13px">${(err.message || 'ไม่ทราบสาเหตุ')}</div>` });
     }
 };
 
