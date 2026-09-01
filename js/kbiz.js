@@ -405,7 +405,10 @@ const _kbizOcrTimer = setInterval(() => {
         fetchOcrKeysData();
     }
 }, 30000);
-if (typeof window.registerPageInterval === 'function') window.registerPageInterval(_kbizOcrTimer);
+// [FIX] เดิมลงทะเบียนตัวจับเวลานี้กับ registerPageInterval — แต่มันถูกสร้างตอนโหลดไฟล์ครั้งเดียว
+// พอออกจากหน้า cleanupPageIntervals() จะ clear ทิ้ง แล้วไม่มีใครสร้างใหม่
+// = ระบบรีเฟรช OCR อัตโนมัติตายถาวรจนกว่าจะ F5 จึงไม่ลงทะเบียน
+// (ข้างในเช็ค #ocrKeysGrid อยู่แล้ว ตอนไม่ได้อยู่หน้านี้จึงไม่ยิง DB)
 
 
 // ==========================================
@@ -702,6 +705,7 @@ function startVpsStatsPolling() {
     if (_vpsStatsTimer) clearInterval(_vpsStatsTimer);
     fetchVpsStats();
     _vpsStatsTimer = setInterval(fetchVpsStats, 5 * 60 * 1000);
+    if (typeof window.registerPageInterval === 'function') window.registerPageInterval(_vpsStatsTimer);
 }
 
 
@@ -822,6 +826,8 @@ async function fetchChromeRefreshConfig() {
     // auto refresh ประวัติทุก 30 วิ
     if (_refreshHistoryTimer) clearInterval(_refreshHistoryTimer);
     _refreshHistoryTimer = setInterval(fetchChromeRefreshHistory, 30 * 1000);
+    // [FIX] เดิมไม่ได้ลงทะเบียน ทำให้ยิง DB ทุก 30 วิ ต่อไปเรื่อย ๆ แม้ออกจากหน้านี้ไปแล้ว
+    if (typeof window.registerPageInterval === 'function') window.registerPageInterval(_refreshHistoryTimer);
 }
 
 function renderChromeRefreshConfig() {
