@@ -142,7 +142,7 @@ window.leSwitchTab = function(tab) {
     if (tab === 'resize') leUpdateResizeInfo();
     if (tab === 'sticker') leRenderEmojiPickers();
     if (tab === 'layer') leLayerRefresh();
-    if (tab === 'split') leSplitRefresh();
+    if (tab === 'split' && typeof leSplitRefresh === 'function') leSplitRefresh();
 };
 
 window.leSetMode = function(mode) {
@@ -322,7 +322,7 @@ function leSetupCanvasEvents() {
         // 🎨 Split mode — ใช้แท็บ split และมีชิ้นแยกอยู่
         if (window.leState.currentTab === 'split' && window.leState.splitMode && window.leState.splitParts.length > 0) {
             e.preventDefault();
-            leSplitHandleCanvasMouseDown(e);
+            if (typeof leSplitHandleCanvasMouseDown === 'function') leSplitHandleCanvasMouseDown(e);
             return;
         }
         
@@ -356,7 +356,7 @@ function leSetupCanvasEvents() {
         
         // split drag
         if (window.leState._splitDragging) {
-            return leSplitHandleCanvasMouseMove(e);
+            return (typeof leSplitHandleCanvasMouseMove === 'function') ? leSplitHandleCanvasMouseMove(e) : undefined;
         }
         
         if (window.leState.drawMode) return leMoveDraw(e, getCoords(e));
@@ -384,7 +384,7 @@ function leSetupCanvasEvents() {
         
         // split drag end
         if (window.leState._splitDragging) {
-            return leSplitHandleCanvasMouseUp();
+            return (typeof leSplitHandleCanvasMouseUp === 'function') ? leSplitHandleCanvasMouseUp() : undefined;
         }
         
         if (window.leState.drawMode) return leEndDraw(e);

@@ -374,7 +374,7 @@ window.fetchLogs = async function() {
 
     if(data && data.length > 0) {
         const filtered = data.filter(log => {
-            return (!userVal || log.performed_by.toLowerCase().includes(userVal));
+            return (!userVal || (log.performed_by || '').toLowerCase().includes(userVal));
         });
 
         if(filtered.length === 0) { box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติที่ค้นหา</td></tr>`; return; }
@@ -383,14 +383,14 @@ window.fetchLogs = async function() {
 
         filtered.forEach(log => {
             const time = new Date(log.log_date).toLocaleString('th-TH');
-            const badgeColor = log.action_type === 'ลงเวลา' ? 'bg-green-900/50 text-green-400 border-green-700' : (log.action_type.includes('ลบ') ? 'bg-red-900/50 text-red-400 border-red-700' : 'bg-blue-900/50 text-blue-400 border-blue-700');
+            const badgeColor = log.action_type === 'ลงเวลา' ? 'bg-green-900/50 text-green-400 border-green-700' : ((log.action_type || '').includes('ลบ') ? 'bg-red-900/50 text-red-400 border-red-700' : 'bg-blue-900/50 text-blue-400 border-blue-700');
 
             logsHtml += `
             <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition">
                 <td class="px-4 py-3 text-xs text-gray-400">${time}</td>
-                <td class="px-4 py-3 font-bold text-white">${log.performed_by}</td>
-                <td class="px-4 py-3"><span class="px-2 py-1 rounded text-[10px] font-bold border ${badgeColor}">${log.action_type}</span></td>
-                <td class="px-4 py-3 text-xs text-gray-300">${log.target_details}</td>
+                <td class="px-4 py-3 font-bold text-white">${log.performed_by || '-'}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 rounded text-[10px] font-bold border ${badgeColor}">${log.action_type || '-'}</span></td>
+                <td class="px-4 py-3 text-xs text-gray-300">${log.target_details || ''}</td>
             </tr>`;
         });
 
@@ -582,12 +582,14 @@ window.renderMissingList = function() {
         if (list.length === 0) return '';
 
         totalCount += list.length;
+        // สีพื้นป้ายจำนวนคน: เดิมปั้นชื่อคลาสด้วย .replace() ตอน runtime ซึ่ง Tailwind ไม่ compile ให้ → ใช้ inline style แทน
+        const badgeBg = { 'text-orange-500':'rgba(249,115,22,.14)', 'text-blue-500':'rgba(59,130,246,.14)', 'text-purple-500':'rgba(168,85,247,.14)' }[colorClass] || 'rgba(100,116,139,.14)';
 
         let htmlChunk = `
             <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm mb-3">
                 <div class="flex justify-between items-center mb-2 border-b border-slate-200 dark:border-slate-700 pb-2">
                     <span class="font-black ${colorClass} flex items-center gap-1">${shiftName}</span>
-                    <span class="text-[10px] font-bold ${colorClass.replace('text-', 'bg-').replace('-500', '-100')} ${colorClass.replace('text-', 'dark:bg-').replace('-500', '-900/30')} px-2 py-0.5 rounded shadow-inner border border-current opacity-80">${list.length} คน</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded shadow-inner border border-current opacity-80" style="background:${badgeBg}">${list.length} คน</span>
                 </div>
                 <div class="flex flex-wrap gap-2">
         `;

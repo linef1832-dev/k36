@@ -577,12 +577,12 @@ function toggleTheme() {
     const cb = document.getElementById('themeToggleCb');
     if (document.documentElement.classList.contains('dark')) {
         document.documentElement.classList.remove('dark');
-        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'light_mode';
+        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'dark_mode';
         localStorage.setItem('theme', 'light');
         if(cb) cb.checked = false;
     } else {
         document.documentElement.classList.add('dark');
-        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'dark_mode';
+        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'light_mode';
         localStorage.setItem('theme', 'dark');
         if(cb) cb.checked = true;
     }
@@ -604,33 +604,7 @@ window.renderTemplate = function(templateId, data = {}) {
 // ==========================================
 // 🛠️ ฟังก์ชันเพิ่มแผนก และ Role ลงฐานข้อมูล
 // ==========================================
-window.addCustomPermDept = async function() {
-    const inputEl = document.getElementById('newDeptInput');
-    if (!inputEl) return Swal.fire('Error', 'ไม่พบช่องกรอกชื่อแผนก', 'error');
-    
-    const deptName = inputEl.value.toUpperCase().trim();
-    if (!deptName) return Swal.fire('แจ้งเตือน', 'กรุณาพิมพ์ชื่อแผนกก่อนกดเพิ่มครับ', 'warning');
-
-    let currentDepts = [];
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'custom_departments').single();
-        if(data && data.value) currentDepts = JSON.parse(data.value);
-    } catch(e) {}
-
-    if (!currentDepts.includes(deptName)) {
-        currentDepts.push(deptName);
-        Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        
-        await appDB.from('settings').upsert([{ key: 'custom_departments', value: JSON.stringify(currentDepts) }]);
-        
-        inputEl.value = '';
-        await window.loadSettings();
-        
-        Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มแผนก ${deptName} แล้ว`, timer: 1500, showConfirmButton: false});
-    } else {
-        Swal.fire('เตือน', 'มีแผนกนี้ในระบบแล้ว', 'warning');
-    }
-};
+// [ลบออก] addCustomPermDept ตัวนี้ซ้ำกับใน system_core.js และไม่มีการเช็คสิทธิ์แอดมิน — ใช้ตัวใน system_core.js แทน
 
 window.addCustomPermRole = async function() {
     const inputEl = document.getElementById('newRoleInput');

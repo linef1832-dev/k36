@@ -77,19 +77,8 @@ async function loadAssignmentMapForDate(dateVal) {
 let GLOBAL_INDIV_TASKS = [];
 let ACTIVE_SHIFTS_CONFIG = ['กะเช้า', 'กะกลาง', 'กะดึก']; 
 
-let GLOBAL_SHEETS = [];
 const SHEET_BASE = "https://docs.google.com/spreadsheets/d"; 
 
-async function fetchSheets() {
-    const { data, error } = await appDB.from('external_sheets').select('*').order('group_name', {ascending: true});
-    if(data) {
-        GLOBAL_SHEETS = data;
-        if(typeof renderSheetMenu === 'function') renderSheetMenu();
-        if((currentUser.role === 'manager' || currentUser.role === 'admin') && typeof renderAdminSheetList === 'function') {
-            renderAdminSheetList();
-        }
-    }
-}
 
 async function addSheet() {
     if (!window.sysRequireAdmin()) return;
@@ -374,11 +363,14 @@ window.saveData = async function(e) {
     }
     // 🌟 --------------------------------------------------- 🌟
 
-    const { data: myBookings } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('staff_name', currentUser.username);
+    const { data: _mbRaw } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('staff_name', currentUser.username);
+    const myBookings = _mbRaw || [];
     const dailyLimit = parseInt(SETTINGS.daily_limit || 2);
     if (myBookings.length >= dailyLimit) { window.resetBtn(); return Swal.fire('ครบโควตา', `คุณลงครบ ${dailyLimit} รอบต่อวันแล้ว`, 'error'); }
 
-    const targetPeriod = select.options[select.selectedIndex].dataset.period;
+    const _slotOpt = select.options[select.selectedIndex];
+    if (!_slotOpt) { window.resetBtn(); return Swal.fire('เตือน', 'กรุณาเลือกช่วงเวลาก่อนบันทึก', 'warning'); }
+    const targetPeriod = _slotOpt.dataset.period;
     const periodLimit = parseInt(SETTINGS.period_limit || 1);
     
     const checkPeriod = typeof getPeriodForTime === 'function' ? getPeriodForTime : () => targetPeriod; 
@@ -1261,7 +1253,7 @@ async function fetchTasks() {
     const {data}=await appDB.from('scheduled_tasks').select('*').neq('task_type', 'individual_shift_update').order('created_at',{ascending:false}).limit(5); 
     const taskLog = document.getElementById('taskLog');
     if(taskLog) {
-        taskLog.innerHTML=data.map(t=>`<div class="flex justify-between border-b border-gray-700 py-1"><span>${new Date(t.scheduled_for).toLocaleString('th-TH')} ${t.payload.from}->${t.payload.to}</span><span onclick="deleteTask(${t.id})" class="text-red-400 cursor-pointer material-icons text-xs">delete</span></div>`).join(''); 
+        taskLog.innerHTML=(data || []).map(t=>`<div class="flex justify-between border-b border-gray-700 py-1"><span>${new Date(t.scheduled_for).toLocaleString('th-TH')} ${t.payload.from}->${t.payload.to}</span><span onclick="deleteTask(${t.id})" class="text-red-400 cursor-pointer material-icons text-xs">delete</span></div>`).join(''); 
     }
 }
 
@@ -1757,11 +1749,6 @@ window.renderPaginationControls = function(totalUsers, totalPages) {
             <button onclick="if(userCurrentPage < ${totalPages}) { userCurrentPage++; window.renderUserTableDirectly(); }" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold transition disabled:opacity-30 disabled:cursor-not-allowed" ${userCurrentPage >= totalPages ? 'disabled' : ''}>ถัดไป ▶</button>
         </div>
     `;
-};
-
-window.searchEmployee = function() {
-    userCurrentPage = 1; 
-    window.renderUserTableDirectly();
 };
 
 function fastRecalculateStats() {

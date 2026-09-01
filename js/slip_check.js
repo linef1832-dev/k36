@@ -246,111 +246,6 @@ window.handleScanQRReceiver = async function(event) {
 };
 
 // ==========================================
-// 🌟 ระบบประวัติย้อนหลัง สำหรับ "สแกน QR ผู้รับเงิน"
-// ==========================================
-window.saveQRHistory = async function(data) {
-    const newEntry = {
-        id: 'qr_' + Date.now(),
-        timestamp: Date.now(),
-        type: data.type,
-        account: data.account,
-        raw: data.raw,
-        checkerName: window.getCurrentUserName() // บันทึกชื่อคนทำรายการ
-    };
-    
-    window.qrHistoryData.unshift(newEntry);
-    if (window.qrHistoryData.length > 200) window.qrHistoryData.pop(); 
-    
-    localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
-    
-    // ซิงค์ขึ้นฐานข้อมูล
-    if (typeof appDB !== 'undefined') {
-        await appDB.from('settings').upsert([{ key: 'qr_check_history', value: JSON.stringify(window.qrHistoryData) }]);
-        
-        // 🌟 ส่งสัญญาณ Broadcast บอกเครื่องอื่นให้อัปเดตหน้าจอทันที
-        if (window.syncChannel) {
-            window.syncChannel.send({ type: 'broadcast', event: 'update_qr', payload: window.qrHistoryData });
-        }
-    }
-    
-    window.renderQRHistory();
-};
-
-window.renderQRHistory = function() {
-    const tbody = document.getElementById('qrHistoryBody');
-    if (!tbody) return;
-    
-    const search = document.getElementById('qrHistorySearch') ? document.getElementById('qrHistorySearch').value.toLowerCase() : '';
-    
-    const filtered = window.qrHistoryData.filter(h => 
-        (h.account && h.account.toLowerCase().includes(search)) ||
-        (h.type && h.type.toLowerCase().includes(search)) ||
-        (h.checkerName && h.checkerName.toLowerCase().includes(search))
-    );
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500 font-bold bg-[#151f32] text-xs">ไม่พบประวัติการสแกน QR Code</td></tr>`;
-        return;
-    }
-
-    const role = window.getCurrentUserRole().toLowerCase();
-    const isManager = (role === 'manager' || role === 'admin' || role === 'vip' || role === 'ผู้จัดการ');
-    const canDelete = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('slip_check_delete') : isManager;
-    
-    tbody.innerHTML = filtered.map(h => {
-        const timeStr = new Date(h.timestamp).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
-        
-        const actionBtn = canDelete 
-            ? `<button onclick="window.deleteQRHistory('${h.id}', event)" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1.5 rounded-lg transition" title="ลบประวัติ"><span class="material-icons text-[18px]">delete</span></button>`
-            : `<span class="text-slate-600 material-icons text-[16px]" title="ไม่มีสิทธิ์ลบ">block</span>`;
-            
-        return `
-            <tr class="hover:bg-slate-800 transition border-b border-slate-800/50">
-                <td class="p-3 text-xs text-gray-400 font-mono">${timeStr} น.</td>
-                <td class="p-3 text-xs text-sky-400 font-bold">${h.type || '-'}</td>
-                <td class="p-3 font-mono font-bold text-emerald-400 text-sm tracking-wider select-all">${h.account || '-'}</td>
-                <td class="p-3 text-xs text-amber-300 font-semibold">${h.checkerName || '-'}</td>
-                <td class="p-3 text-center">${actionBtn}</td>
-            </tr>
-        `;
-    }).join('');
-};
-
-window.filterQRHistory = function() { window.renderQRHistory(); };
-
-window.deleteQRHistory = function(id, event) {
-    if (event) event.stopPropagation(); 
-    Swal.fire({
-        title: 'ยืนยันการลบประวัติ?',
-        text: "คุณต้องการลบประวัติการสแกน QR นี้ใช่หรือไม่?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#4b5563',
-        confirmButtonText: 'ลบเลย',
-        cancelButtonText: 'ยกเลิก',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-2xl' }
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            window.qrHistoryData = window.qrHistoryData.filter(h => h.id !== id);
-            localStorage.setItem('qr_check_history', JSON.stringify(window.qrHistoryData));
-            
-            if (typeof appDB !== 'undefined') {
-                await appDB.from('settings').upsert([{ key: 'qr_check_history', value: JSON.stringify(window.qrHistoryData) }]);
-                
-                // 🌟 ส่งสัญญาณบอกเครื่องอื่นให้ลบรายการนี้ออกจากหน้าจอ
-                if (window.syncChannel) {
-                    window.syncChannel.send({ type: 'broadcast', event: 'update_qr', payload: window.qrHistoryData });
-                }
-            }
-            
-            window.renderQRHistory();
-            Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
-        }
-    });
-};
-
-// ==========================================
 // 🌟 โหมดที่ 1: เช็คสลิปโอนเงิน (OCR & API)
 // ==========================================
 
@@ -1008,6 +903,7 @@ window.renderFakeHistory = function() {
 };
 
 window.filterFakeHistory = function() { window.renderFakeHistory(); };
+window.filterSlipHistory = function() { window.renderSlipHistory(); };
 
 // ==========================================
 // 🌟 ประวัติการสแกน QR Code
