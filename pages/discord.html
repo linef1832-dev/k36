@@ -180,7 +180,8 @@
                                 <span class="material-icons text-[14px]">sync</span> ดึงรายชื่อใหม่
                             </button>
                         </div>
-                        <div class="flex gap-2 mb-3 shrink-0">
+                        <!-- [ซ่อนไว้] ฟังก์ชัน addStaff() ไม่มีอยู่จริงในโปรเจกต์ ปุ่มนี้กดแล้วไม่เกิดอะไร — เปิดคืนได้เมื่อเขียนฟังก์ชันแล้ว -->
+                        <div style="display:none" class="flex gap-2 mb-3 shrink-0">
                             <input type="text" id="newStaffName" placeholder="พิมพ์ชื่อเพิ่มเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-sky-500">
                             <button onclick="addStaff()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">เพิ่ม</button>
                         </div>
@@ -207,12 +208,14 @@
                     <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 flex flex-col h-[650px] shadow-inner">
                         <div class="flex justify-between items-center mb-2 shrink-0">
                             <h3 class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="material-icons text-[18px]">auto_awesome</span> จัดการกลุ่ม (กดดู/แก้ชื่อได้)</h3>
-                            <button onclick="autoBuildGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition flex items-center gap-1" title="ดึงข้อมูลจากเว็บมาจัดกลุ่มให้ใหม่">
+                            <!-- [ซ่อนไว้] ฟังก์ชัน autoBuildGroups() ไม่มีอยู่จริงในโปรเจกต์ -->
+                            <button style="display:none" onclick="autoBuildGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition flex items-center gap-1" title="ดึงข้อมูลจากเว็บมาจัดกลุ่มให้ใหม่">
                                 <span class="material-icons text-[14px]">bolt</span> จัดกลุ่มออโต้
                             </button>
                         </div>
                         
-                        <div class="flex gap-2 mb-3 pb-3 border-b border-slate-700 shrink-0 mt-2">
+                        <!-- [ซ่อนไว้] ฟังก์ชัน createGroup() ไม่มีอยู่จริงในโปรเจกต์ -->
+                        <div style="display:none" class="flex gap-2 mb-3 pb-3 border-b border-slate-700 shrink-0 mt-2">
                             <input type="text" id="newGroupName" placeholder="พิมพ์ชื่อกลุ่มใหม่เพื่อสร้างเอง..." class="flex-1 bg-slate-800 border border-slate-600 text-white rounded-xl p-2.5 text-sm outline-none focus:border-emerald-500">
                             <button onclick="createGroup()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition shadow">สร้างกลุ่ม</button>
                         </div>
@@ -380,7 +383,8 @@
               <button onclick="window.toggleBreakGroupsPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
                 <span class="material-icons text-sm">group</span> ตั้งค่ากลุ่ม
               </button>
-              <button onclick="window.toggleParseRulesPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
+              <!-- [ซ่อนไว้] ฟังก์ชัน toggleParseRulesPanel() ไม่มีอยู่จริง แผง #parseRulesPanel จึงเปิดไม่ได้อยู่แล้ว -->
+              <button style="display:none" onclick="window.toggleParseRulesPanel()" class="text-gray-400 hover:text-white flex items-center gap-1 text-sm bg-slate-900 px-3 py-2 rounded-xl border border-slate-600 transition">
                 <span class="material-icons text-sm">manage_search</span> ตั้งค่าคำที่จับ
               </button>
 
