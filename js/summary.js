@@ -167,7 +167,9 @@ window.subscribeSummaryChanges = function() {
 
 window.loadWebLogos = async function() {
     try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'summary_web_logos').single();
+        const { data } = await (window.cachedQuery
+            ? window.cachedQuery('sum_logos', () => appDB.from('settings').select('value').eq('key', 'summary_web_logos').single(), 300000)
+            : appDB.from('settings').select('value').eq('key', 'summary_web_logos').single());
         if (data && data.value) {
             window.summaryWebLogos = JSON.parse(data.value);
             if (typeof SETTINGS !== 'undefined') SETTINGS['summary_web_logos'] = data.value;
@@ -177,7 +179,9 @@ window.loadWebLogos = async function() {
 
 window.fetchAvailableDates = async function(forceRender = false) {
     try {
-        const { data } = await appDB.from('transaction_daily_summary').select('date').order('date', {ascending: false}).limit(1000);
+        const { data } = await (window.cachedQuery
+            ? window.cachedQuery('sum_dates', () => appDB.from('transaction_daily_summary').select('date').order('date', {ascending: false}).limit(1000), 60000)
+            : appDB.from('transaction_daily_summary').select('date').order('date', {ascending: false}).limit(1000));
         if (data) {
             window.availableSummaryDates = [...new Set(data.map(item => item.date))].slice(0, 15);
             if (forceRender || !pendingSummaryData || pendingSummaryData.length === 0) window.renderSummaryDashboard();
@@ -1289,7 +1293,9 @@ window.saveSummaryToSupabase = async function() {
         const chunkSize = 500;
         for (let i = 0; i < finalInsertData.length; i += chunkSize) {
             const chunk = finalInsertData.slice(i, i + chunkSize);
+            window._sumCache = {};  // มีข้อมูลใหม่เข้า → ล้าง cache
             const { error } = await appDB.from('transaction_daily_summary').upsert(chunk, { onConflict: 'date,employee_name,website' });
+            if (window.clearQueryCache) window.clearQueryCache('sum_');
             if (error) throw error;
         }
 
@@ -1338,11 +1344,25 @@ window.fetchHistoricalSummary = async function(silent = false) {
         yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
         const yesterdayStr = `${yesterdayDateObj.getFullYear()}-${String(yesterdayDateObj.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDateObj.getDate()).padStart(2, '0')}`;
 
-        const [todayRes, yestRes, schedulesRes] = await Promise.all([
-            appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').eq('date', dateVal),
-            appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr), // ดึงเฉพาะของเมื่อวาน
-            appDB.from('schedules').select('staff_name, shift_name').eq('work_date', dateVal)
-        ]);
+        // ⚡ กันยิงซ้ำ: ถ้าคำขอชุดเดิม (วันเดียวกัน) ยังวิ่งอยู่ ให้รอผลก้อนเดิมแทนการยิงใหม่
+        //    และเก็บผลไว้ใช้ซ้ำ 20 วินาที (กดสลับหน้าไปมาไม่ต้องโหลดใหม่ทุกครั้ง)
+        window._sumCache = window._sumCache || {};
+        const _ck = `daily_${dateVal}`;
+        const _now = Date.now();
+        let _entry = window._sumCache[_ck];
+        if (!_entry || (!_entry.promise && _now - (_entry.ts || 0) > 20000)) {
+            _entry = window._sumCache[_ck] = {
+                ts: _now,
+                promise: Promise.all([
+                    appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').eq('date', dateVal),
+                    appDB.from('transaction_daily_summary').select('employee_name, website, count').eq('date', yesterdayStr),
+                    appDB.from('schedules').select('staff_name, shift_name').eq('work_date', dateVal)
+                ]),
+            };
+            _entry.promise.then(r => { _entry.data = r; _entry.promise = null; _entry.ts = Date.now(); })
+                          .catch(() => { delete window._sumCache[_ck]; });
+        }
+        const [todayRes, yestRes, schedulesRes] = _entry.promise ? await _entry.promise : _entry.data;
 
         if (todayRes.error) throw todayRes.error;
 
@@ -1978,11 +1998,19 @@ window.saveWebLogo = async function() {
 
     try {
         if (fileInput.files && fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            const fileExt = file.name.split('.').pop();
+            let file = fileInput.files[0];
+            // 🖼️ ย่อโลโก้ก่อนอัป (โลโก้ไม่ต้องใหญ่ 400px ก็คมแล้ว) — ลดจากหลาย MB เหลือหลักสิบ KB
+            if (typeof window.compressImage === 'function') {
+                const before = file.size;
+                file = await window.compressImage(file, { maxWidth: 400, maxHeight: 400, quality: 0.9, skipUnderKB: 60 });
+                if (file.size < before) {
+                    Swal.update({ html: `<div class="text-sm">ย่อรูปจาก ${(before/1024).toFixed(0)} KB → <b class="text-emerald-400">${(file.size/1024).toFixed(0)} KB</b><br>กำลังอัปโหลด...</div>` });
+                }
+            }
+            const fileExt = (file.name.split('.').pop() || 'webp');
             const fileName = `logo_${web}_${Date.now()}.${fileExt}`;
 
-            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, file, { cacheControl: '3600', upsert: true });
+            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, file, { cacheControl: '31536000', upsert: true });
             if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ: ' + uploadError.message);
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`logos/${fileName}`);
             finalUrl = publicUrlData.publicUrl;
@@ -1996,6 +2024,7 @@ window.saveWebLogo = async function() {
         }
 
         await appDB.from('settings').upsert([{ key: 'summary_web_logos', value: JSON.stringify(window.summaryWebLogos) }]);
+        if (window.clearQueryCache) window.clearQueryCache('sum_logos');
 
         document.getElementById('webLogoModal').classList.add('hidden');
         if (typeof window.renderSummaryDashboard === 'function') window.renderSummaryDashboard();
