@@ -52,6 +52,99 @@ window.safeGetItem = function(key, fallback) {
 };
 
 // ==========================================
+// 🛡️ แจ้งเตือนเมื่อ "เขียนฐานข้อมูลไม่สำเร็จ"
+// ปัญหาเดิม: มี 56 จุดในโปรเจกต์ที่เขียน DB แล้วเด้ง "สำเร็จ" ทันทีโดยไม่เช็ค error
+// ถ้า Supabase ปฏิเสธ (สิทธิ์ RLS / เน็ตหลุด / ข้อมูลผิดรูป) ผู้ใช้จะเห็นว่าบันทึกแล้ว
+// ทั้งที่ข้อมูลไม่เข้า แล้วเดินจากไปโดยไม่รู้ตัว
+//
+// วิธีแก้: ดักที่ตัว Supabase client จุดเดียว แทนการไล่แก้ทีละ 56 จุด
+//   - ทำงานเฉพาะตอน error เท่านั้น ตอนสำเร็จทุกอย่างเหมือนเดิม 100%
+//   - ไม่แตะค่าที่คืนกลับ โค้ดเดิมที่เช็ค error เองอยู่แล้วยังทำงานเหมือนเดิม
+//   - ใช้แถบแจ้งเตือนของตัวเอง ไม่ใช้ SweetAlert เพราะ popup "สำเร็จ" ของโค้ดเดิม
+//     จะขึ้นทับ toast ทันที ทำให้ผู้ใช้ไม่ทันเห็น
+// ==========================================
+window._showDbError = function(msg) {
+    try {
+        if (!document.body) return;
+        let box = document.getElementById('dbErrorBanner');
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'dbErrorBanner';
+            box.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:2147483000;max-width:min(560px,92vw);display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:14px;background:#7f1d1d;border:1px solid #ef4444;color:#fee2e2;font-size:13px;line-height:1.5;box-shadow:0 12px 32px -8px rgba(0,0,0,.6);cursor:pointer;';
+            box.title = 'คลิกเพื่อปิด';
+            box.onclick = function() { box.remove(); };
+            document.body.appendChild(box);
+        }
+        box.textContent = '';
+        const ic = document.createElement('span');
+        ic.className = 'material-icons';
+        ic.style.cssText = 'font-size:18px;color:#fca5a5;flex-shrink:0';
+        ic.textContent = 'error_outline';
+        const wrap = document.createElement('span');
+        const t1 = document.createElement('b');
+        t1.style.cssText = 'display:block;margin-bottom:2px';
+        t1.textContent = 'บันทึกลงฐานข้อมูลไม่สำเร็จ';
+        const t2 = document.createElement('span');
+        t2.style.cssText = 'opacity:.9;word-break:break-word';
+        t2.textContent = msg;
+        wrap.appendChild(t1); wrap.appendChild(t2);
+        box.appendChild(ic); box.appendChild(wrap);
+        clearTimeout(box._t);
+        box._t = setTimeout(function() { if (box.parentNode) box.remove(); }, 9000);
+    } catch (e) { console.warn('[_showDbError]', e); }
+};
+
+window._installDbWriteGuard = function(db) {
+    if (!db || typeof db.from !== 'function' || db.__writeGuardOn) return;
+    db.__writeGuardOn = true;
+
+    let lastMsg = '', lastAt = 0;
+    // ตารางที่เป็นบันทึกประวัติล้วน ๆ — ถ้าเขียนไม่ผ่านก็ไม่ควรเด้งแถบแดงรบกวนผู้ใช้
+    // (ยังขึ้น console.error ให้แอดมินเห็นเหมือนเดิม)
+    const QUIET_TABLES = ['user_ip_logs', 'system_logs'];
+
+    const notify = function(err, table) {
+        try {
+            console.error('[เขียนฐานข้อมูลไม่สำเร็จ]', err);
+            const msg = (err && (err.message || err.details || err.hint)) || 'ไม่ทราบสาเหตุ';
+            const now = Date.now();
+            if (QUIET_TABLES.indexOf(table) !== -1) return;
+            if (msg === lastMsg && (now - lastAt) < 4000) return;   // กันเด้งรัวตอนเขียนหลายรายการติดกัน
+            lastMsg = msg; lastAt = now;
+            window._showDbError(msg);
+        } catch (e) {}
+    };
+
+    const watch = function(builder, table) {
+        try {
+            if (!builder || typeof builder.then !== 'function' || builder.__dbWatched) return builder;
+            builder.__dbWatched = true;
+            const origThen = builder.then.bind(builder);
+            builder.then = function(onOk, onErr) {
+                return origThen(function(res) {
+                    if (res && res.error) notify(res.error, table);
+                    return onOk ? onOk(res) : res;
+                }, onErr);
+            };
+        } catch (e) {}
+        return builder;
+    };
+
+    const origFrom = db.from.bind(db);
+    db.from = function(table) {
+        const qb = origFrom(table);
+        try {
+            ['insert', 'update', 'upsert', 'delete'].forEach(function(m) {
+                const orig = qb[m];
+                if (typeof orig !== 'function') return;
+                qb[m] = function() { return watch(orig.apply(qb, arguments), table); };
+            });
+        } catch (e) {}
+        return qb;
+    };
+};
+
+// ==========================================
 // 🚀 เริ่มทำงานเมื่อเปิดเว็บ
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -69,6 +162,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // [FIX] appDB ประกาศด้วย let จึงไม่กลายเป็น property ของ window
         // summary.js อ่านผ่าน window.appDB ทำให้ realtime ของหน้าสรุปยอดไม่เคยทำงาน
         window.appDB = appDB;
+        // ดักการเขียนฐานข้อมูลที่ล้มเหลว (ดูรายละเอียดที่ _installDbWriteGuard)
+        try { window._installDbWriteGuard(appDB); } catch (e) { console.warn('[dbWriteGuard]', e); }
     }
 
     const savedUser = sessionStorage.getItem('user_platinum_plus');
