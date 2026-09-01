@@ -256,7 +256,7 @@ window.saveFileData = async function(e) {
         new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} ใช้เวลานานเกินไป (เกิน ${Math.round(ms / 1000)} วินาที)\n\n• ไฟล์อาจใหญ่เกินไป หรือเน็ตช้า\n• ลองย่อไฟล์ให้เล็กลง แล้วอัปใหม่`)), ms)),
     ]);
 
-    const MAX_MB = 45;   // เพดานของ Supabase Storage ปกติ 50MB
+    const MAX_MB = 480;  // bucket staff_images ตั้ง Unset (500GB) — เผื่อไว้ที่ 480MB
     const allFiles = (fileInput && fileInput.files) ? Array.from(fileInput.files) : [];
     const coverFiles = (coverInput && coverInput.files) ? Array.from(coverInput.files) : [];
     const tooBig = [...allFiles, ...coverFiles].find(f => f.size > MAX_MB * 1024 * 1024);
@@ -282,11 +282,12 @@ window.saveFileData = async function(e) {
             // อัปทีละไฟล์ (เดิมยิงพร้อมกันทั้งหมด ทำให้ไฟล์ใหญ่ค้างและไม่รู้ว่าถึงไหน)
             let done = 0;
             for (const [index, file] of allFiles.entries()) {
-                setUp(`ไฟล์ ${done + 1}/${allFiles.length}: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`);
+                const mb = file.size / 1024 / 1024;
+                setUp(`ไฟล์ ${done + 1}/${allFiles.length}: ${file.name} (${mb.toFixed(1)} MB)${mb > 30 ? '\nไฟล์ใหญ่ อาจใช้เวลาสักครู่ อย่าปิดหน้านี้นะครับ' : ''}`);
                 const fileExt = file.name.split('.').pop();
                 const fileName = `app_${Date.now()}_${Math.floor(Math.random() * 1000)}_${index}.${fileExt}`;
                 // ให้เวลา 60 วินาทีต่อ 10MB ขั้นต่ำ 90 วินาที
-                const limitMs = Math.max(90000, (file.size / 1024 / 1024) * 6000);
+                const limitMs = Math.min(1800000, Math.max(180000, (file.size / 1024 / 1024) * 10000));
                 const { error: uploadError } = await withTimeout(
                     appDB.storage.from('staff_images').upload(`files/${fileName}`, file, { cacheControl: '3600', upsert: false }),
                     limitMs, `อัปโหลด "${file.name}"`
@@ -308,7 +309,7 @@ window.saveFileData = async function(e) {
             const coverName = `cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${coverExt}`;
             const { error: coverError } = await withTimeout(
                 appDB.storage.from('staff_images').upload(`files/covers/${coverName}`, coverFile, { cacheControl: '3600', upsert: false }),
-                Math.max(90000, (coverFile.size / 1024 / 1024) * 6000), `อัปโหลดรูปปก`
+                Math.min(1800000, Math.max(180000, (coverFile.size / 1024 / 1024) * 10000)), `อัปโหลดรูปปก`
             );
             if (coverError) throw new Error('อัปโหลดรูปปกไม่สำเร็จ: ' + coverError.message);
             const { data: coverUrlData } = appDB.storage.from('staff_images').getPublicUrl(`files/covers/${coverName}`);
