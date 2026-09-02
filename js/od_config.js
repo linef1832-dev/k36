@@ -848,16 +848,25 @@ function odCfgHist_render() {
     if (!odCfgHistItems.length) { body.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">ไม่พบข้อมูลในช่วงนี้</td></tr>'; return; }
     body.innerHTML = odCfgHistItems.map(it => {
         const preview = odCfgHist_esc((it.message || '').replace(/\n+/g, ' ↵ ')).slice(0, 130);
-        return `<tr class="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/40 align-top">
+        const gone = it.status === 'deleted';
+        return `<tr class="odCfgHist-row border-b border-gray-100 dark:border-slate-700 align-top">
             <td class="px-3 py-2 text-xs whitespace-nowrap text-gray-500 dark:text-gray-400">${odCfgHist_fmt(it.created_at)}</td>
             <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-300">${odCfgHist_esc(it.form || 'od')}</td>
             <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">${odCfgHist_esc(it.sender || '-')}</td>
             <td class="px-3 py-2">${odCfgHist_tag(it.status)}</td>
             <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-300" title="${odCfgHist_esc(it.message || '')}">${preview}</td>
-            <td class="px-3 py-2 text-right"><button data-id="${it.id}" class="odCfgHist-resend bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold whitespace-nowrap">🔁 ส่งซ้ำ</button></td>
+            <td class="px-3 py-2 text-right">
+              <div class="flex gap-1 justify-end flex-wrap">
+                <button data-id="${it.id}" class="odCfgHist-edit bg-amber-600 hover:bg-amber-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold whitespace-nowrap" ${gone ? 'disabled title="ลบไปแล้ว"' : ''} style="${gone ? 'opacity:.4;cursor:not-allowed' : ''}">✏️ แก้</button>
+                <button data-id="${it.id}" class="odCfgHist-del bg-red-600 hover:bg-red-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold whitespace-nowrap" ${gone ? 'disabled title="ลบไปแล้ว"' : ''} style="${gone ? 'opacity:.4;cursor:not-allowed' : ''}">🗑️ ลบ</button>
+                <button data-id="${it.id}" class="odCfgHist-resend bg-blue-600 hover:bg-blue-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold whitespace-nowrap">🔁 ส่งซ้ำ</button>
+              </div>
+            </td>
         </tr>`;
     }).join('');
     body.querySelectorAll('.odCfgHist-resend').forEach(b => b.addEventListener('click', () => odCfgHist_resend(b.dataset.id, b)));
+    body.querySelectorAll('.odCfgHist-del').forEach(b => { if (!b.disabled) b.addEventListener('click', () => odCfgHist_delete(b.dataset.id, b)); });
+    body.querySelectorAll('.odCfgHist-edit').forEach(b => { if (!b.disabled) b.addEventListener('click', () => odCfgHist_editOpen(b.dataset.id)); });
 }
 async function odCfgHist_resend(id, btn) {
     const old = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังส่ง...';
@@ -882,3 +891,44 @@ window.odCfgHist_resendAll = async function() {
     odCfg_showStatus(`เสร็จแล้ว: ส่งซ้ำสำเร็จ ${done}${fail ? ` · ไม่สำเร็จ ${fail}` : ''}`, fail ? 'error' : 'success');
     odCfgHist_load();
 }
+
+function odCfgHist_by() { return (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'admin'; }
+
+// ลบข้อความในกลุ่มจากประวัติ (ผ่าน server)
+async function odCfgHist_delete(id, btn) {
+    if (!confirm('ลบข้อความนี้ออกจากกลุ่ม Telegram?\n\nข้อความจะหายจากกลุ่มทันที (ยังกู้/ส่งซ้ำจากประวัติได้ภายหลัง)')) return;
+    const old = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังลบ...';
+    try {
+        await odCfg_adminFetch('/admin/delete', 'POST', { id, by: odCfgHist_by() });
+        odCfg_showStatus('🗑️ ลบข้อความในกลุ่มแล้ว', 'success');
+        odCfgHist_load();
+    } catch (e) { btn.disabled = false; btn.textContent = old; odCfg_showStatus('ลบไม่สำเร็จ: ' + e.message, 'error'); }
+}
+
+// เปิดกล่องแก้ไขข้อความ
+function odCfgHist_editOpen(id) {
+    const it = odCfgHistItems.find(x => String(x.id) === String(id));
+    if (!it) return;
+    document.getElementById('odCfgEditId').value = it.id;
+    document.getElementById('odCfgEditText').value = it.message || '';
+    document.getElementById('odCfgEditModal').classList.remove('hidden');
+    document.getElementById('odCfgEditModal').classList.add('flex');
+}
+window.odCfgHist_editClose = function() {
+    document.getElementById('odCfgEditModal').classList.add('hidden');
+    document.getElementById('odCfgEditModal').classList.remove('flex');
+};
+window.odCfgHist_editSave = async function() {
+    const id = document.getElementById('odCfgEditId').value;
+    const message = document.getElementById('odCfgEditText').value;
+    if (!message.trim()) { odCfg_showStatus('ข้อความว่างไม่ได้', 'error'); return; }
+    const btn = document.getElementById('odCfgEditSaveBtn'); const old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+    try {
+        await odCfg_adminFetch('/admin/edit', 'POST', { id, message, by: odCfgHist_by() });
+        odCfgHist_editClose();
+        odCfg_showStatus('✏️ แก้ไขข้อความในกลุ่มแล้ว', 'success');
+        odCfgHist_load();
+    } catch (e) { odCfg_showStatus('แก้ไขไม่สำเร็จ: ' + e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = old; }
+};
