@@ -173,6 +173,18 @@ window.initOdConfig = async function() {
         }
 
         odCfg_renderAll();
+
+        // 📜 ตั้งค่าเริ่มต้น + ผูกปุ่มของส่วนประวัติ/กู้ข้อความ
+        odCfgHist_initDates();
+        const hLoad = document.getElementById('odCfgHistLoad');
+        if (hLoad) hLoad.addEventListener('click', odCfgHist_load);
+        const hAll = document.getElementById('odCfgHistResendAll');
+        if (hAll) hAll.addEventListener('click', odCfgHist_resendAll);
+        const hSearch = document.getElementById('odCfgHistSearch');
+        if (hSearch) hSearch.addEventListener('keydown', e => { if (e.key === 'Enter') odCfgHist_load(); });
+        const hStatus = document.getElementById('odCfgHistStatus');
+        if (hStatus) hStatus.addEventListener('change', odCfgHist_load);
+
         odCfg_showStatus('โหลดข้อมูลสำเร็จ', 'success');
         setTimeout(() => odCfg_hideStatus(), 2000);
 
@@ -348,7 +360,7 @@ async function odCfg_adminFetch(path, method = 'GET', body = null) {
     if (!key) throw new Error('กรุณาใส่ Admin Key ก่อน');
     const res = await fetch(odCfg_serverUrl() + path, {
         method,
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key, 'X-Resend-By': (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'admin' },
         body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));
@@ -789,3 +801,84 @@ window.odCfg_tplView = function(which) {
     if (tabA) tabA.className = isAudit ? on : off;
     odCfg_tplPreview();
 };
+
+// ══════════════════════════════════════════════════════════════════════════
+// 📜 ประวัติข้อความ / กู้ข้อความที่ถูกลบ (backup ที่ server) — รวมอยู่ในหน้านี้
+// ══════════════════════════════════════════════════════════════════════════
+let odCfgHistItems = [];
+function odCfgHist_esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function odCfgHist_fmt(ts) { try { return new Date(ts).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch (e) { return ts; } }
+function odCfgHist_dstr(d) { return d.toISOString().slice(0, 10); }
+function odCfgHist_tag(st) {
+    if (st === 'deleted') return '<span class="px-2 py-0.5 rounded-full text-xs bg-red-500/20 text-red-400 whitespace-nowrap">ลบแล้ว</span>';
+    if (st === 'edited')  return '<span class="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-400 whitespace-nowrap">แก้ไขแล้ว</span>';
+    return '<span class="px-2 py-0.5 rounded-full text-xs bg-emerald-500/20 text-emerald-400 whitespace-nowrap">ส่งแล้ว</span>';
+}
+function odCfgHist_initDates() {
+    const f = document.getElementById('odCfgHistFrom'), t = document.getElementById('odCfgHistTo');
+    if (f && !f.value) f.value = odCfgHist_dstr(new Date(Date.now() - 3 * 86400000));
+    if (t && !t.value) t.value = odCfgHist_dstr(new Date());
+}
+window.odCfgHist_load = async function() {
+    const body = document.getElementById('odCfgHistBody');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">กำลังโหลด...</td></tr>';
+    try {
+        const from = document.getElementById('odCfgHistFrom').value;
+        const to   = document.getElementById('odCfgHistTo').value;
+        const q    = document.getElementById('odCfgHistSearch').value.trim();
+        const status = document.getElementById('odCfgHistStatus').value;
+        const p = new URLSearchParams();
+        if (from) p.set('from', from);
+        if (to) p.set('to', to);
+        if (q) p.set('q', q);
+        if (status) p.set('status', status);
+        p.set('limit', '500');
+        const data = await odCfg_adminFetch('/admin/history?' + p.toString());
+        odCfgHistItems = data.items || [];
+        odCfgHist_render();
+    } catch (e) {
+        body.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-red-400 text-sm">${odCfgHist_esc(e.message)}</td></tr>`;
+        const c = document.getElementById('odCfgHistCount'); if (c) c.textContent = '0 รายการ';
+    }
+};
+function odCfgHist_render() {
+    const body = document.getElementById('odCfgHistBody');
+    const c = document.getElementById('odCfgHistCount'); if (c) c.textContent = `${odCfgHistItems.length} รายการ`;
+    if (!odCfgHistItems.length) { body.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">ไม่พบข้อมูลในช่วงนี้</td></tr>'; return; }
+    body.innerHTML = odCfgHistItems.map(it => {
+        const preview = odCfgHist_esc((it.message || '').replace(/\n+/g, ' ↵ ')).slice(0, 130);
+        return `<tr class="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/40 align-top">
+            <td class="px-3 py-2 text-xs whitespace-nowrap text-gray-500 dark:text-gray-400">${odCfgHist_fmt(it.created_at)}</td>
+            <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-300">${odCfgHist_esc(it.form || 'od')}</td>
+            <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">${odCfgHist_esc(it.sender || '-')}</td>
+            <td class="px-3 py-2">${odCfgHist_tag(it.status)}</td>
+            <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-300" title="${odCfgHist_esc(it.message || '')}">${preview}</td>
+            <td class="px-3 py-2 text-right"><button data-id="${it.id}" class="odCfgHist-resend bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold whitespace-nowrap">🔁 ส่งซ้ำ</button></td>
+        </tr>`;
+    }).join('');
+    body.querySelectorAll('.odCfgHist-resend').forEach(b => b.addEventListener('click', () => odCfgHist_resend(b.dataset.id, b)));
+}
+async function odCfgHist_resend(id, btn) {
+    const old = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังส่ง...';
+    try {
+        await odCfg_adminFetch('/admin/resend', 'POST', { id });
+        btn.textContent = '✅ ส่งแล้ว';
+        btn.className = 'odCfgHist-resend bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold whitespace-nowrap';
+    } catch (e) { btn.disabled = false; btn.textContent = old; odCfg_showStatus('ส่งซ้ำไม่สำเร็จ: ' + e.message, 'error'); }
+}
+window.odCfgHist_resendAll = async function() {
+    if (!odCfgHistItems.length) { odCfg_showStatus('ยังไม่มีรายการ (กดค้นหาก่อน)', 'error'); return; }
+    if (!confirm(`ส่งซ้ำที่แสดงอยู่ทั้งหมด ${odCfgHistItems.length} รายการ?\n\nระบบจะส่งทีละอัน เรียงเก่า→ใหม่ ช้าๆ (~3 วิ/อัน) กัน Telegram บล็อก\nอย่าปิดหน้านี้จนกว่าจะเสร็จ`)) return;
+    const btn = document.getElementById('odCfgHistResendAll'); btn.disabled = true;
+    const items = odCfgHistItems.slice().reverse(); // เก่า→ใหม่
+    let done = 0, fail = 0;
+    for (const it of items) {
+        btn.textContent = `🔁 กำลังส่ง ${done + fail + 1}/${items.length}...`;
+        try { await odCfg_adminFetch('/admin/resend', 'POST', { id: it.id }); done++; } catch (e) { fail++; }
+        await new Promise(r => setTimeout(r, 3000));
+    }
+    btn.disabled = false; btn.textContent = '🔁 ส่งซ้ำที่แสดงทั้งหมด';
+    odCfg_showStatus(`เสร็จแล้ว: ส่งซ้ำสำเร็จ ${done}${fail ? ` · ไม่สำเร็จ ${fail}` : ''}`, fail ? 'error' : 'success');
+    odCfgHist_load();
+}
