@@ -1165,25 +1165,31 @@ window.fetchLeaderboardData = async function() {
     }
 
     try {
-        let query = appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount');
-        
+        // [FIX] เดิม await query ตรง ๆ ซึ่งถูกตัดที่ 1000 แถวโดยไม่แจ้ง error
+        // วัดจริง: เดือน ส.ค. 2026 มี 1,213 แถว → อันดับขาดไป 213 แถว
+        // และถ้าไม่ได้เลือกโหมดรายเดือน จะดึงทั้งตาราง 7,104 แถว เหลือ 1,000
+        // จึงเก็บเงื่อนไขไว้ก่อน แล้วให้ selectAllRows สร้าง query ใหม่ทีละหน้า
+        let _lbStart = null, _lbEnd = null;
+
         if (mode === 'monthly' && monthInput && monthInput.value) {
             const [year, month] = monthInput.value.split('-');
-            const startDate = `${year}-${month}-01`;
+            _lbStart = `${year}-${month}-01`;
             // [FIX เวลา] เดิมใช้ .toISOString() ซึ่งแปลงเป็นเวลา UTC (+0)
             // ทำให้ "วันสุดท้ายของเดือน เที่ยงคืนเวลาไทย" กลายเป็นวันก่อนหน้า
             // ผลคือยอดของวันสุดท้ายของทุกเดือนหายไปจากอันดับ
             // แก้เป็น: เอาเฉพาะ "เลขวัน" มาประกอบข้อความเอง ไม่ผ่าน UTC
             const lastDay = new Date(Number(year), Number(month), 0).getDate();
-            const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
-            query = query.gte('date', startDate).lte('date', endDate);
-        }
-        
-        if (selectedWeb !== 'ALL') {
-            query = query.eq('website', selectedWeb);
+            _lbEnd = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
         }
 
-        const { data, error } = await query;
+        const _buildLbQuery = () => {
+            let q = appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').order('id', { ascending: true });
+            if (_lbStart && _lbEnd) q = q.gte('date', _lbStart).lte('date', _lbEnd);
+            if (selectedWeb !== 'ALL') q = q.eq('website', selectedWeb);
+            return q;
+        };
+
+        const { data, error } = await window.selectAllRows(_buildLbQuery);
         if (error) throw error;
 
         if (!data || data.length === 0) {
@@ -1860,10 +1866,12 @@ window.fetchMultipleHistoricalSummary = async function() {
             return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
         });
 
+        // [FIX] ทั้งสามคำขอเดิมถูกตัดที่ 1000 แถวโดยไม่แจ้ง error — ยิ่งเลือกหลายวันยิ่งขาดมาก
+        // ห่อด้วย selectAllRows ให้ดึงครบทุกหน้า และใส่ order เพื่อให้การแบ่งหน้าเสถียร
         const [mainRes, schRes, yestRes] = await Promise.all([
-            appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').in('date', dates),
-            appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates),
-            appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates) // 🌟 ดึงข้อมูลของวันที่ก่อนหน้าทั้งหมด
+            window.selectAllRows(() => appDB.from('transaction_daily_summary').select('date, employee_name, website, count, approved_count, reject_count, total_amount').in('date', dates).order('id', { ascending: true })),
+            window.selectAllRows(() => appDB.from('schedules').select('work_date, staff_name, shift_name').in('work_date', dates).order('id', { ascending: true })),
+            window.selectAllRows(() => appDB.from('transaction_daily_summary').select('date, employee_name, website, count').in('date', yesterdayDates).order('id', { ascending: true }))   // 🌟 ดึงข้อมูลของวันที่ก่อนหน้าทั้งหมด
         ]);
         
         if (mainRes.error) throw mainRes.error;
