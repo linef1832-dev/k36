@@ -3557,8 +3557,8 @@ window.groupTagBadge = function(tag) {
         <div class="bg-slate-900 rounded-2xl border ${s.enabled ? 'border-sky-500' : 'border-slate-700'} p-3 space-y-3">
             <div class="flex items-center justify-between">
                 <h3 class="text-white font-bold flex items-center gap-2"><span class="material-icons text-sky-400 text-lg">schedule</span> ${s.name}</h3>
-                <button onclick="ttsShiftToggle(${gi},${si})" class="relative w-12 h-6 rounded-full transition ${s.enabled ? 'bg-green-500' : 'bg-slate-600'}">
-                    <span class="absolute top-0.5 ${s.enabled ? 'left-6' : 'left-0.5'} w-5 h-5 rounded-full bg-white transition-all"></span>
+                <button onclick="ttsShiftToggle(${gi},${si})" style="width:48px;height:24px;" class="relative rounded-full transition ${s.enabled ? 'bg-green-500' : 'bg-slate-600'}">
+                    <span class="absolute rounded-full bg-white transition-all" style="width:20px;height:20px;top:2px; left:${s.enabled ? '26px' : '2px'};"></span>
                 </button>
             </div>
 
@@ -3662,7 +3662,7 @@ window.groupTagBadge = function(tag) {
                 <div class="flex items-center gap-2">
                     <input type="time" value="${esc(sc.time)}" onchange="ttsScField(${i},'time',this.value)" class="bg-slate-800 border border-slate-700 text-white text-lg font-black px-3 py-2 rounded-lg outline-none focus:border-amber-500">
                     <input type="text" value="${esc(sc.name)}" oninput="ttsScField(${i},'name',this.value)" placeholder="ชื่อรายการ" class="flex-1 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-amber-500">
-                    <button onclick="ttsScToggle(${i})" class="relative w-12 h-6 rounded-full transition ${sc.enabled ? 'bg-green-500' : 'bg-slate-600'}"><span class="absolute top-0.5 ${sc.enabled ? 'left-6' : 'left-0.5'} w-5 h-5 rounded-full bg-white transition-all"></span></button>
+                    <button onclick="ttsScToggle(${i})" style="width:48px;height:24px;" class="relative rounded-full transition ${sc.enabled ? 'bg-green-500' : 'bg-slate-600'}"><span class="absolute rounded-full bg-white transition-all" style="width:20px;height:20px;top:2px; left:${sc.enabled ? '26px' : '2px'};"></span></button>
                     <button onclick="ttsDelSched(${i})" class="text-gray-500 hover:text-red-400"><span class="material-icons">delete</span></button>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -3738,7 +3738,7 @@ window.groupTagBadge = function(tag) {
             </div>
             <div class="flex items-center justify-between">
                 <div><div class="text-white font-bold">เสียงเตือนก่อนพูด</div><div class="text-xs text-gray-500">ติ๊งต่องก่อนบอทพูด</div></div>
-                <button onclick="_cfgToggleChime()" id="setChime" class="relative w-12 h-6 rounded-full transition ${_cfg.chime_enabled ? 'bg-green-500' : 'bg-slate-600'}"><span class="absolute top-0.5 ${_cfg.chime_enabled ? 'left-6' : 'left-0.5'} w-5 h-5 rounded-full bg-white transition-all"></span></button>
+                <button onclick="_cfgToggleChime()" id="setChime" style="width:48px;height:24px;" class="relative rounded-full transition ${_cfg.chime_enabled ? 'bg-green-500' : 'bg-slate-600'}"><span class="absolute rounded-full bg-white transition-all" style="width:20px;height:20px;top:2px; left:${_cfg.chime_enabled ? '26px' : '2px'};"></span></button>
             </div>
             <div class="flex items-center justify-between">
                 <div><div class="text-white font-bold">กันจับซ้ำ</div><div class="text-xs text-gray-500">ถ้าเจอคำเดิมซ้ำในเวลาสั้นๆ ไม่พูดซ้ำ</div></div>
