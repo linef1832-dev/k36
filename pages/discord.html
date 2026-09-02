@@ -552,40 +552,50 @@
         </div>
       </div>
       <!-- ===== จบ TAB เช็คอิน ===== -->
+        <!-- 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน (พรีเมียม) -->
+        <div id="dsContent_ttsvoice" class="max-w-5xl mx-auto hidden fade-in pb-16">
 
-
-        <!-- 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน (3 กะ) -->
-        <div id="dsContent_ttsvoice" class="max-w-4xl mx-auto hidden fade-in pb-10">
-            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg space-y-5">
-                <div class="flex items-center gap-2">
-                    <span class="material-icons text-sky-400 text-2xl">campaign</span>
-                    <h2 class="text-sky-400 font-black text-xl">ศูนย์ควบคุมเสียงแจ้งเตือน</h2>
+            <!-- แถบสถานะสด -->
+            <div class="relative overflow-hidden rounded-3xl border border-slate-700 bg-gradient-to-br from-slate-800 via-slate-800 to-indigo-950/40 p-5 mb-4 shadow-xl">
+                <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-sky-500/10 blur-2xl"></div>
+                <div class="relative flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center">
+                            <span class="material-icons text-sky-300 text-2xl">campaign</span>
+                        </div>
+                        <div>
+                            <h2 class="text-white font-black text-xl leading-tight">ศูนย์ควบคุมเสียงแจ้งเตือน</h2>
+                            <p class="text-sm text-gray-400">จับคำในกลุ่ม แล้วให้บอทพูดในห้องเสียงอัตโนมัติ</p>
+                        </div>
+                    </div>
+                    <div id="ttsLiveStatus" class="flex items-center gap-4 text-sm">
+                        <div class="flex items-center gap-2 text-gray-500"><span class="material-icons text-base animate-spin">sync</span> กำลังเชื่อมต่อ...</div>
+                    </div>
                 </div>
-                <p class="text-sm text-gray-400 -mt-3">แต่ละกะตั้งได้เอง: เจอ "คำที่จับ" ในกลุ่ม Telegram → บอทเข้า "ห้องเสียง" แล้วพูด "ข้อความที่ตั้งไว้" จบแล้วออกจากห้อง</p>
+            </div>
 
-                <div class="flex items-center gap-3 bg-slate-900 p-3 rounded-xl border border-slate-700">
-                    <span class="material-icons text-sky-400">speed</span>
-                    <label class="text-sm text-gray-300 font-bold">ความเร็วเสียง</label>
-                    <select id="ttsRate" class="bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                        <option value="0%">ปกติ</option>
-                        <option value="-10%">ช้าลงเล็กน้อย</option>
-                        <option value="-15%">ช้า</option>
-                        <option value="-25%">ช้ามาก</option>
-                    </select>
-                </div>
+            <!-- แท็บย่อย -->
+            <div class="flex items-center gap-2 mb-4 flex-wrap">
+                <button onclick="ttsSubTab('groups')" id="ttsSub_groups" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-sky-500 text-white shadow-lg flex items-center gap-1"><span class="material-icons text-sm">groups</span> กลุ่ม &amp; กะ</button>
+                <button onclick="ttsSubTab('schedule')" id="ttsSub_schedule" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">schedule</span> ตั้งเวลาพูด</button>
+                <button onclick="ttsSubTab('history')" id="ttsSub_history" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติ</button>
+                <button onclick="ttsSubTab('settings')" id="ttsSub_settings" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">tune</span> ตั้งค่าเสียง</button>
+            </div>
 
-                <div id="ttsShiftsWrap" class="space-y-4">
-                    <div class="text-center text-gray-500 py-8">กำลังโหลด...</div>
-                </div>
+            <!-- แผงเนื้อหา -->
+            <div id="ttsPane_groups" class="space-y-4"></div>
+            <div id="ttsPane_schedule" class="space-y-4 hidden"></div>
+            <div id="ttsPane_history" class="hidden"></div>
+            <div id="ttsPane_settings" class="hidden"></div>
 
-                <div class="flex justify-end">
-                    <button onclick="ttsSaveConfig()" class="bg-sky-500 hover:bg-sky-600 text-white px-6 py-3 rounded-2xl font-black transition shadow-lg flex items-center gap-2">
-                        <span class="material-icons">save</span> บันทึกการตั้งค่า
-                    </button>
-                </div>
-                <p class="text-xs text-gray-500 text-center">💡 หลังกดบันทึก บอทจะปรับตามภายในประมาณ 10 วินาที</p>
+            <!-- ปุ่มบันทึก (ลอยล่าง) -->
+            <div class="sticky bottom-4 mt-6 flex justify-end">
+                <button onclick="ttsSaveConfig()" class="bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 text-white px-8 py-3.5 rounded-2xl font-black transition shadow-2xl shadow-sky-500/30 flex items-center gap-2">
+                    <span class="material-icons">save</span> บันทึกการตั้งค่า
+                </button>
             </div>
         </div>
+
 
 <div id="discordTemplates" class="hidden">
     <template id="tpl-ds-spy-row">
