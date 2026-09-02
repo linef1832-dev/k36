@@ -10,6 +10,7 @@
             <button onclick="switchDiscordTab('sendmsg')" id="tabDsSendmsg" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">send</span> ส่งข้อความ</button>
             <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">coffee</span> เช็คอิน</button>
             <button onclick="switchDiscordTab('checkin')" id="tabDsCheckin" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">photo_camera</span> ถ่ายรูป</button>
+            <button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">campaign</span> ศูนย์ควบคุมเสียง</button>
         </div>
         <button onclick="showPage('dashboard')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition flex items-center gap-1 text-sm shrink-0 border border-slate-600"><span class="material-icons text-sm">close</span> ปิดหน้าต่าง</button>
     </div>
@@ -608,6 +609,54 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน -->
+        <div id="dsContent_ttsvoice" class="max-w-4xl mx-auto hidden fade-in pb-10">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg space-y-6">
+                <div class="flex items-center gap-2">
+                    <span class="material-icons text-sky-400 text-2xl">campaign</span>
+                    <h2 class="text-sky-400 font-black text-xl">ศูนย์ควบคุมเสียงแจ้งเตือน</h2>
+                </div>
+                <p class="text-sm text-gray-400 -mt-3">พอมีข้อความในกลุ่ม Telegram บอทจะเข้าห้องเสียงที่เลือก แล้วอ่านออกเสียงให้อัตโนมัติ</p>
+
+                <div id="ttsStatusBox" class="bg-slate-900 p-5 rounded-2xl border border-slate-700"></div>
+
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="material-icons text-sky-400 text-lg">meeting_room</span>
+                        <h3 class="text-white font-bold">เลือกห้องเสียงที่จะให้บอทเข้าไปพูด</h3>
+                    </div>
+                    <div id="ttsChannelList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                        <div class="text-center text-gray-500 py-8 col-span-full">กำลังโหลด...</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm text-gray-400 font-bold block mb-1">เสียงที่ใช้อ่าน</label>
+                        <select id="ttsVoiceName" class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-sky-500">
+                            <option value="th-TH-PremwadeeNeural">เสียงผู้หญิง (Premwadee)</option>
+                            <option value="th-TH-NiwatNeural">เสียงผู้ชาย (Niwat)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-400 font-bold block mb-1">อ่านเฉพาะข้อความที่มีคำว่า (เว้นว่าง = อ่านทุกข้อความ)</label>
+                        <input id="ttsKeyword" type="text" placeholder="เช่น เช็คชื่อ" class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-sky-500">
+                        <label class="flex items-center gap-2 mt-2 text-sm text-gray-300 cursor-pointer">
+                            <input id="ttsCheckinOnly" type="checkbox" class="w-4 h-4 accent-sky-500" onchange="ttsCheckinOnlyChanged(this)">
+                            อ่านเฉพาะข้อความเช็คชื่อ
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button onclick="ttsSaveConfig(false)" class="bg-sky-500 hover:bg-sky-600 text-white px-6 py-3 rounded-2xl font-black transition shadow-lg flex items-center gap-2">
+                        <span class="material-icons">save</span> บันทึกการตั้งค่า
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 text-center">💡 หลังกดบันทึก บอทจะปรับตามภายในประมาณ 10 วินาที</p>
             </div>
         </div>
 
