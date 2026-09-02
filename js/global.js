@@ -172,6 +172,88 @@ window._installDbWriteGuard = function(db) {
 };
 
 // ==========================================
+// 🚨 ตัวดัก error ระดับแอป
+// เดิมทั้งโปรเจกต์ไม่มีตัวดักเลย — ถ้า JS พังกลางทาง หน้าจะค้างครึ่ง ๆ กลาง ๆ
+// เงียบ ๆ ผู้ใช้ไม่รู้ว่าเกิดอะไร แอดมินก็ตามไม่ได้ว่าพังตรงไหน
+//
+// ตัวนี้ "ไม่เปลี่ยนพฤติกรรมอะไรเลย" แค่ทำให้ความพังมองเห็นได้:
+//   - ไม่ขวางการทำงาน ไม่กลืน error (ยังขึ้น console เหมือนเดิมทุกอย่าง)
+//   - ใช้แถบเตือนของตัวเอง ไม่ใช้ SweetAlert จะได้ไม่ไปทับ popup ที่เปิดอยู่
+//   - กันสแปม: ข้อความเดิมเตือนครั้งเดียว และทั้งหน้าไม่เกิน 3 ครั้ง
+//   - เก็บ 20 รายการล่าสุด ดูย้อนหลังได้ที่ Console ด้วย  showAppErrors()
+// ==========================================
+window._showAppError = function(msg, src) {
+    try {
+        if (!document.body) return;
+        let box = document.getElementById('appErrorBanner');
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'appErrorBanner';
+            box.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:2147482000;max-width:min(420px,88vw);display:flex;align-items:flex-start;gap:9px;padding:11px 14px;border-radius:12px;background:#78350f;border:1px solid #f59e0b;color:#fef3c7;font-size:12.5px;line-height:1.5;box-shadow:0 10px 28px -8px rgba(0,0,0,.6);cursor:pointer;';
+            box.title = 'คลิกเพื่อปิด';
+            box.onclick = function() { box.remove(); };
+            document.body.appendChild(box);
+        }
+        box.textContent = '';
+        const ic = document.createElement('span');
+        ic.className = 'material-icons';
+        ic.style.cssText = 'font-size:17px;color:#fcd34d;flex-shrink:0';
+        ic.textContent = 'warning_amber';
+        const wrap = document.createElement('span');
+        const t1 = document.createElement('b');
+        t1.style.cssText = 'display:block;margin-bottom:2px';
+        t1.textContent = 'ระบบมีข้อผิดพลาด บางส่วนของหน้าอาจไม่ทำงาน';
+        const t2 = document.createElement('span');
+        t2.style.cssText = 'opacity:.9;word-break:break-word;font-size:11.5px';
+        t2.textContent = msg + (src ? '  (' + src + ')' : '');
+        wrap.appendChild(t1); wrap.appendChild(t2);
+        box.appendChild(ic); box.appendChild(wrap);
+        clearTimeout(box._t);
+        box._t = setTimeout(function() { if (box.parentNode) box.remove(); }, 12000);
+    } catch (e) {}
+};
+
+(function() {
+    const seen = new Set();
+    let shown = 0;
+    const MAX_BANNERS = 3;
+    window._appErrors = [];
+
+    function record(kind, msg, src) {
+        try {
+            msg = String(msg || 'ไม่ทราบสาเหตุ');
+            window._appErrors.push({ เวลา: new Date().toLocaleTimeString('th-TH'), ประเภท: kind, ข้อความ: msg, ที่มา: src || '-' });
+            if (window._appErrors.length > 20) window._appErrors.shift();
+            console.error('[แอปมีข้อผิดพลาด]', kind, msg, src || '');
+            const key = kind + '|' + msg;
+            if (seen.has(key) || shown >= MAX_BANNERS) return;
+            seen.add(key); shown++;
+            window._showAppError(msg, src);
+        } catch (e) {}
+    }
+
+    // หมายเหตุ: รูป/สคริปต์โหลดไม่ขึ้นจะยิง event นี้เหมือนกัน แต่ไม่มี .message
+    // จึงข้ามไป ไม่เอามารบกวนผู้ใช้
+    window.addEventListener('error', function(e) {
+        if (!e || !e.message) return;
+        const file = (e.filename || '').split('/').pop().split('?')[0];
+        record('error', e.message, file ? file + ':' + (e.lineno || '?') : '');
+    });
+
+    window.addEventListener('unhandledrejection', function(e) {
+        const r = e && e.reason;
+        record('promise', (r && (r.message || r.details)) || r, '');
+    });
+
+    // เรียกใน Console เพื่อดูรายการที่ผ่านมา
+    window.showAppErrors = function() {
+        if (!window._appErrors.length) { console.log('✅ ยังไม่พบข้อผิดพลาด'); return []; }
+        console.table(window._appErrors);
+        return window._appErrors;
+    };
+})();
+
+// ==========================================
 // 🚀 เริ่มทำงานเมื่อเปิดเว็บ
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
