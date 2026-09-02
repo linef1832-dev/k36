@@ -376,7 +376,31 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="text-xs text-gray-400 mt-2">💡 "ส่งซ้ำ" = สร้างข้อความใหม่ที่มีเนื้อหาเหมือนเดิมเข้ากลุ่ม · กู้จาก server ไม่ต้องพึ่งเครื่องพนักงาน</p>
+                <p class="text-xs text-gray-400 mt-2">💡 "ส่งซ้ำ" = สร้างข้อความใหม่ที่มีเนื้อหาเหมือนเดิมเข้ากลุ่ม · "แก้/ลบ" สั่งจัดการข้อความจริงในกลุ่มได้เลย · ทำจาก server ไม่ต้องพึ่งเครื่องพนักงาน</p>
+            </div>
+        </div>
+
+        <style>
+            .odCfgHist-row:hover { background: #f1f5f9; }
+            .dark .odCfgHist-row:hover { background: rgba(51,65,85,.55); }
+        </style>
+
+        <!-- Modal แก้ไขข้อความ -->
+        <div id="odCfgEditModal" class="hidden fixed inset-0 z-[9999] items-center justify-center bg-black/60 p-4">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-2xl w-full max-w-lg">
+                <div class="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-700 dark:text-white flex items-center gap-2"><span class="material-icons text-amber-500 text-sm">edit</span> แก้ไขข้อความในกลุ่ม</h3>
+                    <button onclick="odCfgHist_editClose()" class="text-gray-400 hover:text-white"><span class="material-icons">close</span></button>
+                </div>
+                <div class="p-4">
+                    <input type="hidden" id="odCfgEditId">
+                    <textarea id="odCfgEditText" rows="10" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <p class="text-xs text-gray-400 mt-2">แก้ข้อความแล้วกดบันทึก — ข้อความในกลุ่มจะถูกแก้ พร้อมต่อท้ายบันทึก "แก้ไขโดย" ให้อัตโนมัติ</p>
+                </div>
+                <div class="px-4 py-3 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-2">
+                    <button onclick="odCfgHist_editClose()" class="text-sm px-4 py-2 rounded-xl border border-gray-300 dark:border-slate-600 text-gray-500 dark:text-gray-300">ยกเลิก</button>
+                    <button id="odCfgEditSaveBtn" onclick="odCfgHist_editSave()" class="bg-amber-600 hover:bg-amber-500 text-white text-sm px-4 py-2 rounded-xl font-bold">บันทึกการแก้ไข</button>
+                </div>
             </div>
         </div>
 
