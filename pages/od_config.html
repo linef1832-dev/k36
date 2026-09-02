@@ -322,5 +322,63 @@
             <pre id="odCfgPreview" class="p-4 text-xs text-green-400 bg-slate-950 overflow-x-auto max-h-40 custom-scrollbar rounded-b-2xl"></pre>
         </div>
 
+        <!-- แถว 5: ประวัติข้อความ / กู้ข้อความที่ถูกลบ -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-indigo-500 text-sm">history</span> ประวัติข้อความ / กู้ข้อความที่ถูกลบ
+                </h2>
+                <span class="text-xs text-gray-400">ทุกข้อความที่บอทส่งถูกสำรองไว้ที่ server — เลือกวันที่ ค้นหา แล้วกดส่งซ้ำได้เลย</span>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-wrap items-end gap-3 mb-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ตั้งแต่วันที่</label>
+                        <input type="date" id="odCfgHistFrom" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ถึงวันที่</label>
+                        <input type="date" id="odCfgHistTo" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">สถานะ</label>
+                        <select id="odCfgHistStatus" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                            <option value="">ทั้งหมด</option>
+                            <option value="sent">ส่งแล้ว</option>
+                            <option value="edited">แก้ไขแล้ว</option>
+                            <option value="deleted">ลบแล้ว</option>
+                        </select>
+                    </div>
+                    <div class="flex-1 min-w-[180px]">
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ค้นหา (ยูส / เนื้อหา / คนส่ง)</label>
+                        <input type="text" id="odCfgHistSearch" placeholder="🔍 พิมพ์แล้วกด Enter..." class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <button id="odCfgHistLoad" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-xl font-bold flex items-center gap-1"><span class="material-icons text-sm">search</span> ค้นหา</button>
+                </div>
+                <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+                    <span id="odCfgHistCount" class="text-sm font-bold text-slate-700 dark:text-white">0 รายการ</span>
+                    <button id="odCfgHistResendAll" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1"><span class="material-icons text-xs">replay</span> ส่งซ้ำที่แสดงทั้งหมด</button>
+                </div>
+                <div class="overflow-x-auto border border-gray-200 dark:border-slate-700 rounded-xl">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 dark:bg-slate-900 text-xs text-gray-500 dark:text-gray-400">
+                            <tr>
+                                <th class="px-3 py-2 font-bold">เวลา</th>
+                                <th class="px-3 py-2 font-bold">ฟอร์ม</th>
+                                <th class="px-3 py-2 font-bold">คนส่ง</th>
+                                <th class="px-3 py-2 font-bold">สถานะ</th>
+                                <th class="px-3 py-2 font-bold">เนื้อหา</th>
+                                <th class="px-3 py-2 font-bold text-right">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="odCfgHistBody">
+                            <tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">กด"ค้นหา" เพื่อโหลดประวัติ</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">💡 "ส่งซ้ำ" = สร้างข้อความใหม่ที่มีเนื้อหาเหมือนเดิมเข้ากลุ่ม · กู้จาก server ไม่ต้องพึ่งเครื่องพนักงาน</p>
+            </div>
+        </div>
+
     </div>
 </div>
