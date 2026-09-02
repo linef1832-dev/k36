@@ -3432,9 +3432,9 @@ window.groupTagBadge = function(tag) {
     };
 
     const DEFAULT_SHIFTS = [
-        { name: 'กะเช้า', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '' },
-        { name: 'กะบ่าย', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '' },
-        { name: 'กะดึก', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '' },
+        { name: 'กะเช้า', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '', repeat: 1 },
+        { name: 'กะบ่าย', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '', repeat: 1 },
+        { name: 'กะดึก', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '', repeat: 1 },
     ];
 
     let _cfg = { speech_rate: '-15%', shifts: JSON.parse(JSON.stringify(DEFAULT_SHIFTS)) };
@@ -3534,12 +3534,20 @@ window.groupTagBadge = function(tag) {
                     <textarea rows="2" oninput="ttsShiftField(${i},'announce_text',this.value)" placeholder="เช่น ถึงเวลาเช็คชื่อแล้วนะครับ กรุณาเช็คชื่อภายใน 10 นาที" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${(s.announce_text || '')}</textarea>
                 </div>
 
-                <div>
-                    <label class="text-xs text-gray-400 font-bold block mb-1">เสียง</label>
-                    <select onchange="ttsShiftField(${i},'voice_name',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                        <option value="th-TH-PremwadeeNeural" ${s.voice_name === 'th-TH-PremwadeeNeural' ? 'selected' : ''}>เสียงผู้หญิง (Premwadee)</option>
-                        <option value="th-TH-NiwatNeural" ${s.voice_name === 'th-TH-NiwatNeural' ? 'selected' : ''}>เสียงผู้ชาย (Niwat)</option>
-                    </select>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-400 font-bold block mb-1">เสียง</label>
+                        <select onchange="ttsShiftField(${i},'voice_name',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                            <option value="th-TH-PremwadeeNeural" ${s.voice_name === 'th-TH-PremwadeeNeural' ? 'selected' : ''}>เสียงผู้หญิง (Premwadee)</option>
+                            <option value="th-TH-NiwatNeural" ${s.voice_name === 'th-TH-NiwatNeural' ? 'selected' : ''}>เสียงผู้ชาย (Niwat)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 font-bold block mb-1">พูดซ้ำกี่รอบ</label>
+                        <select onchange="ttsShiftField(${i},'repeat',parseInt(this.value))" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                            ${[1,2,3,4,5].map(n => `<option value="${n}" ${Number(s.repeat||1)===n?'selected':''}>${n} รอบ</option>`).join('')}
+                        </select>
+                    </div>
                 </div>
             </div>`;
         }).join('');
