@@ -5373,3 +5373,106 @@ window.openStayPinListModal = async function() {
         customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
     });
 };
+// ============================================================
+// 🩹 แพตช์ระบบจัดหน้าที่ — วางต่อท้าย duty.js (บรรทัดล่างสุด) แล้วเซฟ
+//   1) ชื่อพนักงานในการ์ดโชว์เต็ม ไม่โดนตัด (…)  — ทำผ่าน CSS
+//   2) เพิ่ม/ลดคนต่อเว็บ → เด้ง toast บอกว่าดึง/คืนคนจากเว็บไหน — override manualAdjustReq
+// * ต้องอยู่ใน duty.js (ไม่ใช่ไฟล์แยก) เพราะใช้ตัวแปร sortedTeams / currentDutyDept ที่เป็น scope ของไฟล์นี้
+// ============================================================
+(function () {
+    // ── แพตช์ 1: ชื่อเต็ม ไม่โดนตัด + ให้ป้าย (เมื่อวานทำ/รองเมื่อวาน) ตกบรรทัดแทนที่จะบีบชื่อ ──
+    try {
+        if (!document.getElementById('dutyNameFixStyle')) {
+            const st = document.createElement('style');
+            st.id = 'dutyNameFixStyle';
+            st.textContent =
+                '.duty-user-card span.truncate.tracking-wide{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;}' +
+                '.duty-user-card .flex.items-center.gap-2\\.5{flex-wrap:wrap;}';
+            document.head.appendChild(st);
+        }
+    } catch (e) { console.warn('[dutyPatch] name-fix css failed', e); }
+})();
+
+// ── แพตช์ 2: ปรับยอดคนต่อเว็บ แล้วบอกว่าระบบดึง/คืนคนจากเว็บไหน ──
+window.manualAdjustReq = function (changedTeam) {
+    const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    const activeStaff = window.getDutyActiveStaff(shiftFilter);
+    const availableCount = activeStaff.length;
+    if (availableCount === 0) return;
+
+    let reqs = {};
+    let totalReq = 0;
+    sortedTeams.forEach(team => {
+        const val = parseInt(document.getElementById(`req_${team}`).value) || 0;
+        reqs[team] = val;
+        totalReq += val;
+    });
+
+    // 📊 จำค่าก่อนปรับ ไว้เทียบว่าระบบดึง/คืนคนจากเว็บไหน
+    const beforeReqs = { ...reqs };
+
+    const changedInput = document.getElementById(`req_${changedTeam}`);
+    let changedVal = parseInt(changedInput.value) || 0;
+
+    if (changedVal < 0) {
+        changedVal = 0;
+        reqs[changedTeam] = 0;
+        totalReq = Object.values(reqs).reduce((a, b) => a + b, 0);
+    }
+
+    let diff = totalReq - availableCount;
+    if (diff === 0) { window.updateDutyStats(); return; }
+
+    let safeLoopLimit = 1000;
+    while (diff > 0 && safeLoopLimit-- > 0) {
+        let maxTeam = null; let maxVal = -1;
+        sortedTeams.forEach(t => {
+            if (t !== changedTeam && reqs[t] > maxVal && reqs[t] > 0) { maxVal = reqs[t]; maxTeam = t; }
+        });
+        if (maxTeam) { reqs[maxTeam]--; diff--; } else { reqs[changedTeam]--; diff--; }
+    }
+    while (diff < 0 && safeLoopLimit-- > 0) {
+        let minTeam = null; let minVal = Infinity;
+        sortedTeams.forEach(t => {
+            if (t !== changedTeam && reqs[t] < minVal) { minVal = reqs[t]; minTeam = t; }
+        });
+        if (minTeam) { reqs[minTeam]++; diff++; } else { reqs[changedTeam]++; diff++; }
+    }
+
+    const reqsToSave = {};
+    sortedTeams.forEach(team => {
+        const input = document.getElementById(`req_${team}`);
+        if (input) input.value = reqs[team];
+        reqsToSave[`req_${team}`] = reqs[team];
+    });
+
+    window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
+    window.updateDutyStats();
+
+    // 🔔 แจ้งว่าระบบไปดึง/คืนคนจากเว็บไหนให้อัตโนมัติ
+    if (typeof window.dutyReqAdjustToast === 'function') window.dutyReqAdjustToast(changedTeam, beforeReqs, reqs);
+};
+
+// 🔔 Toast บอกการปรับยอดคนอัตโนมัติ (เว็บอื่นที่ยอดเปลี่ยนไปเพราะเว็บที่เราแก้)
+window.dutyReqAdjustToast = function (changedTeam, before, after) {
+    const ups = [], downs = [];
+    sortedTeams.forEach(t => {
+        if (t === changedTeam) return;
+        const d = (after[t] || 0) - (before[t] || 0);
+        if (d > 0) ups.push(`${t} +${d}`);
+        else if (d < 0) downs.push(`${t} ${d}`);   // d ติดลบอยู่แล้ว
+    });
+    if (ups.length === 0 && downs.length === 0) return;
+
+    let html = `<div style="text-align:left;font-size:12.5px;line-height:1.9;color:#e2e8f0">`;
+    if (downs.length) html += `🔻 <b>ดึงคนออกจาก:</b> <span style="color:#f87171;font-weight:800">${downs.join(' · ')}</span><br>`;
+    if (ups.length)   html += `🔺 <b>คืนคนให้:</b> <span style="color:#34d399;font-weight:800">${ups.join(' · ')}</span>`;
+    html += `</div>`;
+
+    Swal.fire({
+        toast: true, position: 'top-end', icon: 'info',
+        title: `<span style="font-size:12.5px;font-weight:900">⚖️ ปรับยอดคนให้พอดี (แก้ ${changedTeam})</span>`,
+        html: html, showConfirmButton: false, timer: 4500, timerProgressBar: true,
+        background: '#0b1120', customClass: { popup: 'rounded-2xl border border-slate-700' }
+    });
+};
