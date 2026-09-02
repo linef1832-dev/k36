@@ -3405,9 +3405,10 @@ window.groupTagBadge = function(tag) {
 
 
 
+
 // ============================================================
-// 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน (TTS) — 3 กะ + เลือกหลายห้อง
-// แต่ละกะ: คำที่จับ + หลายห้องเสียง + ข้อความที่ให้บอทพูด
+// 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน (TTS)
+// 3 กะ + หลายห้อง + ค้นหาห้อง + หลายกลุ่ม Telegram + พูดซ้ำหลายรอบ
 // เก็บใน Supabase settings (key = tts_voice_config)
 // ============================================================
 (function () {
@@ -3437,18 +3438,15 @@ window.groupTagBadge = function(tag) {
         { name: 'กะดึก', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '', repeat: 1 },
     ];
 
-    let _cfg = { speech_rate: '-15%', shifts: JSON.parse(JSON.stringify(DEFAULT_SHIFTS)) };
+    let _cfg = { speech_rate: '-15%', telegram_groups: [], shifts: JSON.parse(JSON.stringify(DEFAULT_SHIFTS)) };
     let _rooms = [];
+    let _search = ['', '', '']; // คำค้นหาห้องของแต่ละกะ
 
-    // แปลง config เก่า (ห้องเดียว) → ใหม่ (หลายห้อง)
     function _normShift(d, saved) {
         const s = Object.assign({}, d, saved || {});
-        if (!Array.isArray(s.voice_channel_ids)) {
-            s.voice_channel_ids = s.voice_channel_id ? [String(s.voice_channel_id)] : [];
-        }
+        if (!Array.isArray(s.voice_channel_ids)) s.voice_channel_ids = s.voice_channel_id ? [String(s.voice_channel_id)] : [];
         s.voice_channel_ids = s.voice_channel_ids.map(String);
-        delete s.voice_channel_id;
-        delete s.voice_channel_name;
+        delete s.voice_channel_id; delete s.voice_channel_name;
         return s;
     }
 
@@ -3459,8 +3457,9 @@ window.groupTagBadge = function(tag) {
             if (data && data.value) {
                 const parsed = JSON.parse(data.value);
                 _cfg.speech_rate = parsed.speech_rate || '-15%';
-                const savedShifts = Array.isArray(parsed.shifts) ? parsed.shifts : [];
-                _cfg.shifts = DEFAULT_SHIFTS.map((d, i) => _normShift(d, savedShifts[i]));
+                _cfg.telegram_groups = Array.isArray(parsed.telegram_groups) ? parsed.telegram_groups : [];
+                const saved = Array.isArray(parsed.shifts) ? parsed.shifts : [];
+                _cfg.shifts = DEFAULT_SHIFTS.map((d, i) => _normShift(d, saved[i]));
             } else {
                 _cfg.shifts = DEFAULT_SHIFTS.map(d => _normShift(d));
             }
@@ -3470,6 +3469,10 @@ window.groupTagBadge = function(tag) {
             const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').maybeSingle();
             if (data && data.value) _rooms = JSON.parse(data.value);
         } catch (e) { console.warn('load rooms', e); }
+
+        // เติมช่องกลุ่ม Telegram
+        const tg = document.getElementById('ttsTelegramGroups');
+        if (tg) tg.value = (_cfg.telegram_groups || []).join('\n');
 
         _renderAll();
     };
@@ -3490,23 +3493,7 @@ window.groupTagBadge = function(tag) {
             return;
         }
 
-        wrap.innerHTML = _cfg.shifts.map((s, i) => {
-            const selected = s.voice_channel_ids || [];
-            const summary = selected.length
-                ? `<span class="text-green-400 font-bold">เลือก ${selected.length} ห้อง:</span> ` + selected.map(id => `<span class="inline-block bg-sky-500/20 text-sky-300 border border-sky-500/40 rounded-full px-2 py-0.5 text-xs mr-1 mb-1">${_roomName(id)}</span>`).join('')
-                : `<span class="text-gray-500">ยังไม่ได้เลือกห้อง</span>`;
-
-            const roomChecks = _rooms.map(r => {
-                const on = selected.map(String).includes(String(r.id));
-                return `
-                <label class="flex items-center gap-2 p-2 rounded-lg border ${on ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700'} hover:border-sky-500 cursor-pointer transition text-sm">
-                    <input type="checkbox" ${on ? 'checked' : ''} onchange="ttsShiftRoomToggle(${i}, '${r.id}', this)" class="w-4 h-4 accent-sky-500">
-                    <span class="material-icons text-sky-400 text-base">volume_up</span>
-                    <span class="text-white">${r.name || r.id}</span>
-                </label>`;
-            }).join('');
-
-            return `
+        wrap.innerHTML = _cfg.shifts.map((s, i) => `
             <div class="bg-slate-900 rounded-2xl border ${s.enabled ? 'border-sky-500' : 'border-slate-700'} p-4 space-y-3">
                 <div class="flex items-center justify-between">
                     <h3 class="text-white font-black text-lg flex items-center gap-2"><span class="material-icons text-sky-400">schedule</span> ${s.name}</h3>
@@ -3523,10 +3510,9 @@ window.groupTagBadge = function(tag) {
 
                 <div>
                     <label class="text-xs text-gray-400 font-bold block mb-1">ห้องเสียง (เลือกได้หลายห้อง)</label>
-                    <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-2 mb-2 text-xs">${summary}</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                        ${roomChecks}
-                    </div>
+                    <input type="text" value="${(_search[i] || '').replace(/"/g,'&quot;')}" oninput="ttsShiftSearch(${i}, this.value)" placeholder="🔍 ค้นหาห้อง..." class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 mb-2">
+                    <div id="ttsSummary_${i}" class="bg-slate-800/50 border border-slate-700 rounded-xl p-2 mb-2 text-xs"></div>
+                    <div id="ttsRooms_${i}" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1"></div>
                 </div>
 
                 <div>
@@ -3549,24 +3535,62 @@ window.groupTagBadge = function(tag) {
                         </select>
                     </div>
                 </div>
-            </div>`;
+            </div>
+        `).join('');
+
+        // เติมห้อง + สรุปของแต่ละกะ
+        _cfg.shifts.forEach((s, i) => _renderRooms(i));
+    }
+
+    // วาดเฉพาะรายการห้อง + สรุป ของกะ i (ไม่รีเซ็ตช่องค้นหา)
+    function _renderRooms(i) {
+        const selected = (_cfg.shifts[i].voice_channel_ids || []).map(String);
+        const term = (_search[i] || '').toLowerCase().trim();
+
+        // สรุป
+        const sumEl = document.getElementById('ttsSummary_' + i);
+        if (sumEl) {
+            sumEl.innerHTML = selected.length
+                ? `<span class="text-green-400 font-bold">เลือก ${selected.length} ห้อง:</span> ` + selected.map(id => `<span class="inline-block bg-sky-500/20 text-sky-300 border border-sky-500/40 rounded-full px-2 py-0.5 text-xs mr-1 mb-1">${_roomName(id)}</span>`).join('')
+                : `<span class="text-gray-500">ยังไม่ได้เลือกห้อง</span>`;
+        }
+
+        // รายการห้อง (กรองด้วยคำค้นหา)
+        const listEl = document.getElementById('ttsRooms_' + i);
+        if (!listEl) return;
+        const filtered = _rooms.filter(r => !term || (r.name || '').toLowerCase().includes(term));
+        if (!filtered.length) {
+            listEl.innerHTML = `<div class="col-span-full text-center text-gray-500 py-4 text-sm">ไม่พบห้องที่ค้นหา</div>`;
+            return;
+        }
+        listEl.innerHTML = filtered.map(r => {
+            const on = selected.includes(String(r.id));
+            return `
+            <label class="flex items-center gap-2 p-2 rounded-lg border ${on ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700'} hover:border-sky-500 cursor-pointer transition text-sm">
+                <input type="checkbox" ${on ? 'checked' : ''} onchange="ttsShiftRoomToggle(${i}, '${r.id}', this)" class="w-4 h-4 accent-sky-500">
+                <span class="material-icons text-sky-400 text-base">volume_up</span>
+                <span class="text-white">${r.name || r.id}</span>
+            </label>`;
         }).join('');
     }
 
     window.ttsShiftToggle = function (i, el) { _cfg.shifts[i].enabled = el.checked; _renderAll(); };
     window.ttsShiftField = function (i, field, val) { _cfg.shifts[i][field] = val; };
+    window.ttsShiftSearch = function (i, term) { _search[i] = term; _renderRooms(i); };
     window.ttsShiftRoomToggle = function (i, roomId, el) {
         const arr = _cfg.shifts[i].voice_channel_ids || [];
         const idx = arr.map(String).indexOf(String(roomId));
         if (el.checked && idx === -1) arr.push(String(roomId));
         else if (!el.checked && idx !== -1) arr.splice(idx, 1);
         _cfg.shifts[i].voice_channel_ids = arr;
-        _renderAll(); // อัปเดตสรุป "เลือกกี่ห้อง"
+        _renderRooms(i); // อัปเดตเฉพาะกะนี้ (ไม่เสียโฟกัส/คำค้นหา)
     };
 
     window.ttsSaveConfig = async function () {
         const rateSel = document.getElementById('ttsRate');
         _cfg.speech_rate = (rateSel && rateSel.value) || '-15%';
+        const tg = document.getElementById('ttsTelegramGroups');
+        _cfg.telegram_groups = tg ? tg.value.split('\n').map(x => x.trim()).filter(Boolean) : [];
         _cfg.updated_at = new Date().toISOString();
         try {
             await appDB.from('settings').upsert([{ key: 'tts_voice_config', value: JSON.stringify(_cfg) }]);
