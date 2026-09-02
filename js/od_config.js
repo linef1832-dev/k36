@@ -185,6 +185,9 @@ window.initOdConfig = async function() {
         const hStatus = document.getElementById('odCfgHistStatus');
         if (hStatus) hStatus.addEventListener('change', odCfgHist_load);
 
+        // เข้ามาแล้วโหลดรายการ "วันนี้" ให้เลย (ถ้ามี Admin Key)
+        odCfgHist_load();
+
         odCfg_showStatus('โหลดข้อมูลสำเร็จ', 'success');
         setTimeout(() => odCfg_hideStatus(), 2000);
 
@@ -816,8 +819,9 @@ function odCfgHist_tag(st) {
 }
 function odCfgHist_initDates() {
     const f = document.getElementById('odCfgHistFrom'), t = document.getElementById('odCfgHistTo');
-    if (f && !f.value) f.value = odCfgHist_dstr(new Date(Date.now() - 3 * 86400000));
-    if (t && !t.value) t.value = odCfgHist_dstr(new Date());
+    const today = odCfgHist_dstr(new Date());
+    if (f && !f.value) f.value = today;   // เริ่มต้น = วันนี้
+    if (t && !t.value) t.value = today;
 }
 window.odCfgHist_load = async function() {
     const body = document.getElementById('odCfgHistBody');
@@ -836,6 +840,8 @@ window.odCfgHist_load = async function() {
         p.set('limit', '500');
         const data = await odCfg_adminFetch('/admin/history?' + p.toString());
         odCfgHistItems = data.items || [];
+        const todayEl = document.getElementById('odCfgHistToday');
+        if (todayEl) todayEl.textContent = `📤 วันนี้บอทส่งทั้งหมด ${data.today_count != null ? data.today_count : '-'} รายการ`;
         odCfgHist_render();
     } catch (e) {
         body.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-red-400 text-sm">${odCfgHist_esc(e.message)}</td></tr>`;
@@ -878,7 +884,14 @@ async function odCfgHist_resend(id, btn) {
 }
 window.odCfgHist_resendAll = async function() {
     if (!odCfgHistItems.length) { odCfg_showStatus('ยังไม่มีรายการ (กดค้นหาก่อน)', 'error'); return; }
-    if (!confirm(`ส่งซ้ำที่แสดงอยู่ทั้งหมด ${odCfgHistItems.length} รายการ?\n\nระบบจะส่งทีละอัน เรียงเก่า→ใหม่ ช้าๆ (~3 วิ/อัน) กัน Telegram บล็อก\nอย่าปิดหน้านี้จนกว่าจะเสร็จ`)) return;
+    const c = await Swal.fire({
+        title: `ส่งซ้ำที่แสดงอยู่ทั้งหมด ${odCfgHistItems.length} รายการ?`,
+        html: 'ระบบจะส่งทีละอัน เรียงเก่า→ใหม่ ช้าๆ (~3 วิ/อัน) กัน Telegram บล็อก<br><span style="color:#f59e0b;font-size:12px">⚠️ อย่าปิดหน้านี้จนกว่าจะเสร็จ</span>',
+        icon: 'question', showCancelButton: true, confirmButtonText: 'ส่งซ้ำทั้งหมด', cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#2481cc', reverseButtons: true,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+    });
+    if (!c.isConfirmed) return;
     const btn = document.getElementById('odCfgHistResendAll'); btn.disabled = true;
     const items = odCfgHistItems.slice().reverse(); // เก่า→ใหม่
     let done = 0, fail = 0;
@@ -896,13 +909,28 @@ function odCfgHist_by() { return (typeof currentUser !== 'undefined' && currentU
 
 // ลบข้อความในกลุ่มจากประวัติ (ผ่าน server)
 async function odCfgHist_delete(id, btn) {
-    if (!confirm('ลบข้อความนี้ออกจากกลุ่ม Telegram?\n\nข้อความจะหายจากกลุ่มทันที (ยังกู้/ส่งซ้ำจากประวัติได้ภายหลัง)')) return;
+    const r = await Swal.fire({
+        title: 'ลบข้อความในกลุ่ม?',
+        html: 'ข้อความนี้จะหายจากกลุ่ม Telegram <b>ทันที</b><br><span style="font-size:12px;opacity:.75">(ยังกู้/ส่งซ้ำจากประวัติได้ภายหลัง)</span>',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '🗑️ ลบเลย',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        reverseButtons: true,
+        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },
+    });
+    if (!r.isConfirmed) return;
     const old = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังลบ...';
     try {
         await odCfg_adminFetch('/admin/delete', 'POST', { id, by: odCfgHist_by() });
-        odCfg_showStatus('🗑️ ลบข้อความในกลุ่มแล้ว', 'success');
+        Swal.fire({ icon: 'success', title: 'ลบข้อความในกลุ่มแล้ว', timer: 1200, showConfirmButton: false, customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' } });
         odCfgHist_load();
-    } catch (e) { btn.disabled = false; btn.textContent = old; odCfg_showStatus('ลบไม่สำเร็จ: ' + e.message, 'error'); }
+    } catch (e) {
+        btn.disabled = false; btn.textContent = old;
+        Swal.fire({ icon: 'error', title: 'ลบไม่สำเร็จ', text: e.message, customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' } });
+    }
 }
 
 // เปิดกล่องแก้ไขข้อความ
