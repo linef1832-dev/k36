@@ -3433,11 +3433,12 @@ window.groupTagBadge = function(tag) {
 
     const SHIFT_NAMES = ['กะเช้า', 'กะบ่าย', 'กะดึก'];
     const newShift = n => ({ name: n, enabled: false, keyword: '', voice_name: 'th-TH-PremwadeeNeural', repeat: 1, active_start: '', active_end: '', rooms: [] });
-    const newGroup = () => ({ telegram_group: '', shifts: SHIFT_NAMES.map(newShift) });
+    const newGroup = () => ({ telegram_group: '', telegram_group_id: '', shifts: SHIFT_NAMES.map(newShift) });
     const newSched = () => ({ enabled: true, name: 'เตือนใหม่', time: '00:00', voice_name: 'th-TH-PremwadeeNeural', repeat: 1, rooms: [] });
 
     let _cfg = { speech_rate: '-15%', chime_enabled: true, dedupe_seconds: 60, groups: [newGroup(), newGroup()], schedules: [] };
     let _rooms = [];
+    let _tgList = [];      // รายชื่อกลุ่ม Telegram [{id,title}]
     let _search = {};      // ค้นหาห้อง keyed "g-s" หรือ "sc-i"
     let _sub = 'groups';
     let _statusTimer = null;
@@ -3460,6 +3461,7 @@ window.groupTagBadge = function(tag) {
         if (!groups) groups = [newGroup(), newGroup()];
         _cfg.groups = groups.map(g => ({
             telegram_group: g.telegram_group || '',
+            telegram_group_id: g.telegram_group_id ? String(g.telegram_group_id) : '',
             shifts: SHIFT_NAMES.map((nm, i) => {
                 const s = (g.shifts && g.shifts[i]) || newShift(nm);
                 let rooms = Array.isArray(s.rooms) ? s.rooms : null;
@@ -3481,6 +3483,10 @@ window.groupTagBadge = function(tag) {
             const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').maybeSingle();
             if (data && data.value) _rooms = JSON.parse(data.value);
         } catch (e) { console.warn('load rooms', e); }
+        try {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'telegram_groups_list').maybeSingle();
+            if (data && data.value) _tgList = JSON.parse(data.value);
+        } catch (e) { console.warn('load tg list', e); }
 
         ttsSubTab(_sub);
         _ttsStartStatus();
@@ -3489,13 +3495,14 @@ window.groupTagBadge = function(tag) {
     // ---------- แท็บย่อย ----------
     window.ttsSubTab = function (name) {
         _sub = name;
-        ['groups', 'schedule', 'history', 'settings'].forEach(t => {
+        ['groups', 'telegram', 'schedule', 'history', 'settings'].forEach(t => {
             const pane = document.getElementById('ttsPane_' + t);
             const btn = document.getElementById('ttsSub_' + t);
             if (pane) pane.classList.toggle('hidden', t !== name);
             if (btn) btn.className = (t === name) ? SUB_ON : SUB_OFF;
         });
         if (name === 'groups') _renderGroups();
+        else if (name === 'telegram') _renderTelegram();
         else if (name === 'schedule') _renderSchedules();
         else if (name === 'history') _renderHistory();
         else if (name === 'settings') _renderSettings();
@@ -3540,9 +3547,16 @@ window.groupTagBadge = function(tag) {
             <div class="rounded-3xl border border-indigo-500/30 bg-slate-800/40 p-4 space-y-3">
                 <div class="flex items-center gap-2">
                     <span class="material-icons text-indigo-400">forum</span>
-                    <input type="text" value="${esc(grp.telegram_group)}" oninput="ttsGroupName(${gi},this.value)" placeholder="ชื่อกลุ่ม Telegram (เช่น ทดลอง2)" class="flex-1 bg-slate-900 border border-indigo-500/30 text-white font-bold px-3 py-2 rounded-xl text-sm outline-none focus:border-indigo-400">
+                    ${_tgList.length
+                        ? `<select onchange="ttsPickTgGroup(${gi},this)" class="flex-1 bg-slate-900 border border-indigo-500/30 text-white font-bold px-3 py-2 rounded-xl text-sm outline-none focus:border-indigo-400">
+                            <option value="">— เลือกกลุ่ม Telegram —</option>
+                            ${_tgList.map(t => `<option value="${t.id}" ${String(grp.telegram_group_id||'')===String(t.id)?'selected':''}>${(t.title||t.id)}</option>`).join('')}
+                           </select>`
+                        : `<input type="text" value="${esc(grp.telegram_group)}" oninput="ttsGroupName(${gi},this.value)" placeholder="ชื่อกลุ่ม Telegram (เช่น ทดลอง2)" class="flex-1 bg-slate-900 border border-indigo-500/30 text-white font-bold px-3 py-2 rounded-xl text-sm outline-none focus:border-indigo-400">`
+                    }
                     ${_cfg.groups.length > 1 ? `<button onclick="ttsRemoveGroup(${gi})" class="text-gray-500 hover:text-red-400 p-1"><span class="material-icons">delete</span></button>` : ''}
                 </div>
+                ${grp.telegram_group_id ? `<div class="text-xs text-indigo-300/70 -mt-1 pl-8">🔗 ผูกกับ ID: ${grp.telegram_group_id}${grp.telegram_group ? ' ('+grp.telegram_group+')' : ''}</div>` : ''}
                 <div class="space-y-3">${grp.shifts.map((s, si) => _shiftCard(gi, si, s)).join('')}</div>
             </div>`;
         });
@@ -3688,7 +3702,59 @@ window.groupTagBadge = function(tag) {
         _cfg.schedules.forEach((sc, i) => { _renderChk('sc-' + i, sc.rooms); _renderSel('sc', i, null); });
     }
 
-    // ================= แผง: ประวัติ =================
+    // ================= แผง: ผูกกลุ่ม Telegram =================
+    async function _renderTelegram() {
+        const wrap = document.getElementById('ttsPane_telegram');
+        if (!wrap) return;
+        // โหลดล่าสุด
+        try {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'telegram_groups_list').maybeSingle();
+            if (data && data.value) _tgList = JSON.parse(data.value);
+        } catch (e) { /* ignore */ }
+
+        const boundIds = new Set(_cfg.groups.map(g => String(g.telegram_group_id || '')).filter(Boolean));
+
+        let html = `
+        <div class="bg-slate-800/60 rounded-2xl border border-slate-700 p-4">
+            <p class="text-sm text-gray-300 mb-1">กลุ่ม Telegram ที่บอทได้ยิน (บัญชีเราเป็นสมาชิก)</p>
+            <p class="text-xs text-gray-500">เลือกกลุ่มจากที่นี่เพื่อผูกด้วยเลข ID ในแท็บ "กลุ่ม &amp; กะ" — แม่นกว่าพิมพ์ชื่อ (ชื่อกลุ่มซ้ำ/เปลี่ยนได้)</p>
+            <div class="flex justify-end mt-2">
+                <button onclick="ttsSubTab('telegram')" class="text-sky-400 hover:text-sky-300 text-sm flex items-center gap-1"><span class="material-icons text-base">refresh</span> รีเฟรชรายการ</button>
+            </div>
+        </div>`;
+
+        if (!_tgList.length) {
+            html += `<div class="text-center text-gray-500 py-10 bg-slate-800/40 rounded-2xl border border-slate-700 mt-3">ยังไม่มีรายชื่อกลุ่ม — รอบอทอัปเดต (ทุก 5 นาที) หรือเช็คว่าบอทออนไลน์อยู่</div>`;
+        } else {
+            html += `<div class="space-y-2 mt-3">` + _tgList.map(t => {
+                const bound = boundIds.has(String(t.id));
+                return `<div class="bg-slate-800/60 border ${bound ? 'border-green-500/40' : 'border-slate-700'} rounded-xl p-3 flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="text-white font-bold truncate">${(t.title || '(ไม่มีชื่อ)').replace(/</g,'&lt;')}</div>
+                        <div class="text-gray-500 text-xs font-mono">ID: ${t.id}</div>
+                    </div>
+                    ${bound
+                        ? `<span class="text-xs font-bold text-green-300 bg-green-500/10 border border-green-500/30 rounded-full px-3 py-1 whitespace-nowrap">✓ ผูกแล้ว</span>`
+                        : `<button onclick="ttsBindTg('${t.id}')" class="text-xs font-bold text-sky-300 bg-sky-500/10 border border-sky-500/30 hover:bg-sky-500/20 rounded-full px-3 py-1 whitespace-nowrap">ผูกกลุ่มนี้</button>`
+                    }
+                </div>`;
+            }).join('') + `</div>`;
+        }
+        wrap.innerHTML = html;
+    }
+
+    // ผูกกลุ่มที่เลือกเข้ากับกลุ่มว่างตัวแรก (หรือสร้างใหม่)
+    window.ttsBindTg = function (id) {
+        const t = _tgList.find(x => String(x.id) === String(id));
+        if (!t) return;
+        let slot = _cfg.groups.find(g => !g.telegram_group_id && !g.telegram_group);
+        if (!slot) { slot = newGroup(); _cfg.groups.push(slot); }
+        slot.telegram_group_id = String(t.id);
+        slot.telegram_group = t.title || '';
+        if (window.Swal) Swal.fire({ icon: 'success', title: 'ผูกแล้ว', text: 'ไปตั้งคำ/ห้อง ในแท็บ "กลุ่ม & กะ" ได้เลย', timer: 2200, showConfirmButton: false });
+        ttsSubTab('groups');
+    };
+
     async function _renderHistory() {
         const wrap = document.getElementById('ttsPane_history');
         if (!wrap) return;
@@ -3755,6 +3821,13 @@ window.groupTagBadge = function(tag) {
 
     // ================= actions ร่วม =================
     window.ttsGroupName = (gi, v) => { _cfg.groups[gi].telegram_group = v; };
+    window.ttsPickTgGroup = (gi, el) => {
+        const id = el.value;
+        _cfg.groups[gi].telegram_group_id = id;
+        const opt = el.options[el.selectedIndex];
+        _cfg.groups[gi].telegram_group = (opt && id) ? opt.text : '';
+        _renderGroups();
+    };
     window.ttsAddGroup = () => { _cfg.groups.push(newGroup()); _renderGroups(); };
     window.ttsRemoveGroup = (gi) => { _cfg.groups.splice(gi, 1); if (!_cfg.groups.length) _cfg.groups.push(newGroup()); _renderGroups(); };
     window.ttsShiftToggle = (gi, si) => { _cfg.groups[gi].shifts[si].enabled = !_cfg.groups[gi].shifts[si].enabled; _renderGroups(); };
