@@ -381,9 +381,11 @@ async function fetchLeaveData(skipRender = false) {
     const fetchStart = new Date(year, month - 2, 1).toISOString();
     const fetchEnd = new Date(year, month + 1, 0).toISOString() + "T23:59:59";
 
+    // [FIX] เดิมถูกตัดที่ 1000 แถวโดยไม่แจ้ง error (ตอนนี้เดือนละ ~730 แถว ใกล้ชนเพดานแล้ว)
+    // ห่อด้วย selectAllRows ให้ดึงครบทุกหน้า และใส่ order เพื่อให้การแบ่งหน้าเสถียร
     const [leaveRes, swapRes] = await Promise.all([
-        appDB.from('leave_requests').select('*').gte('leave_date', startDate).lte('leave_date', endDate),
-        appDB.from('scheduled_tasks').select('*').eq('task_type', 'individual_shift_update').gte('scheduled_for', fetchStart).lte('scheduled_for', fetchEnd)
+        window.selectAllRows(() => appDB.from('leave_requests').select('*').gte('leave_date', startDate).lte('leave_date', endDate).order('id', { ascending: true })),
+        window.selectAllRows(() => appDB.from('scheduled_tasks').select('*').eq('task_type', 'individual_shift_update').gte('scheduled_for', fetchStart).lte('scheduled_for', fetchEnd).order('id', { ascending: true }))
     ]);
 
     if (leaveRes && leaveRes.data) allLeaveData = leaveRes.data;

@@ -63,6 +63,33 @@ window.safeGetItem = function(key, fallback) {
 //   - ใช้แถบแจ้งเตือนของตัวเอง ไม่ใช้ SweetAlert เพราะ popup "สำเร็จ" ของโค้ดเดิม
 //     จะขึ้นทับ toast ทันที ทำให้ผู้ใช้ไม่ทันเห็น
 // ==========================================
+// ==========================================
+// 📚 selectAllRows — ดึงข้อมูลให้ครบ ไม่ให้ถูกตัดที่ 1000 แถว
+// Supabase/PostgREST คืนสูงสุด 1000 แถวต่อคำขอ และ "ไม่แจ้ง error" เมื่อถูกตัด
+// โค้ดเดิมหลายจุด select มาทั้งชุดโดยไม่ใส่ .range() ตัวเลขจึงขาดไปเงียบ ๆ
+// (วัดจริงแล้ว: leaderboard เดือน ส.ค. 2026 มี 1,213 แถว แต่ได้มาแค่ 1,000)
+//
+// วิธีใช้: ส่ง "ฟังก์ชันที่สร้าง query ใหม่" เข้ามา เพราะ builder ของ Supabase
+// ใช้ซ้ำหลายรอบไม่ได้ ต้องสร้างใหม่ทุกหน้า
+//   const { data, error } = await window.selectAllRows(() =>
+//       appDB.from('t').select('a,b').gte('date', d1).lte('date', d2));
+// คืนค่ารูปแบบเดียวกับ Supabase ({ data, error }) จุดเรียกจึงแทบไม่ต้องแก้
+// ==========================================
+window.selectAllRows = async function(buildQuery, pageSize) {
+    const size = pageSize || 1000;
+    let from = 0;
+    let out = [];
+    for (let guard = 0; guard < 500; guard++) {   // กันวนไม่รู้จบถ้ามีอะไรผิดปกติ
+        const { data, error } = await buildQuery().range(from, from + size - 1);
+        if (error) return { data: out.length ? out : null, error: error };
+        if (!data || data.length === 0) break;
+        out = out.concat(data);
+        if (data.length < size) break;   // หน้าสุดท้ายแล้ว
+        from += size;
+    }
+    return { data: out, error: null };
+};
+
 window._showDbError = function(msg) {
     try {
         if (!document.body) return;
