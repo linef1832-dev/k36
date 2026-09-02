@@ -3406,9 +3406,10 @@ window.groupTagBadge = function(tag) {
 
 
 
+
 // ============================================================
 // 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน (TTS)
-// 3 กะ + หลายห้อง + ค้นหาห้อง + หลายกลุ่ม Telegram + พูดซ้ำหลายรอบ
+// หลายกลุ่ม × 3 กะ | แต่ละห้องมีข้อความเฉพาะ | เลือกห้อง 2 แบบ (ติ๊ก + พิมพ์เลข)
 // เก็บใน Supabase settings (key = tts_voice_config)
 // ============================================================
 (function () {
@@ -3432,48 +3433,61 @@ window.groupTagBadge = function(tag) {
         if (typeof _orig === 'function') return _orig.apply(this, arguments);
     };
 
-    const DEFAULT_SHIFTS = [
-        { name: 'กะเช้า', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '', repeat: 1 },
-        { name: 'กะบ่าย', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '', repeat: 1 },
-        { name: 'กะดึก', enabled: false, keyword: '', voice_channel_ids: [], voice_name: 'th-TH-PremwadeeNeural', announce_text: '', repeat: 1 },
-    ];
+    const SHIFT_NAMES = ['กะเช้า', 'กะบ่าย', 'กะดึก'];
+    function _newShift(name) {
+        return { name: name, enabled: false, keyword: '', voice_name: 'th-TH-PremwadeeNeural', repeat: 1, rooms: [] };
+    }
+    function _newGroup() {
+        return { telegram_group: '', shifts: SHIFT_NAMES.map(_newShift) };
+    }
 
-    let _cfg = { speech_rate: '-15%', telegram_groups: [], shifts: JSON.parse(JSON.stringify(DEFAULT_SHIFTS)) };
+    let _cfg = { speech_rate: '-15%', groups: [_newGroup(), _newGroup()] };
     let _rooms = [];
-    let _search = ['', '', '']; // คำค้นหาห้องของแต่ละกะ
+    let _search = {}; // คำค้นหาห้อง keyed by "g-s"
 
-    function _normShift(d, saved) {
-        const s = Object.assign({}, d, saved || {});
-        if (!Array.isArray(s.voice_channel_ids)) s.voice_channel_ids = s.voice_channel_id ? [String(s.voice_channel_id)] : [];
-        s.voice_channel_ids = s.voice_channel_ids.map(String);
-        delete s.voice_channel_id; delete s.voice_channel_name;
-        return s;
+    // แปลง config เก่า → โครงใหม่
+    function _migrate(parsed) {
+        if (Array.isArray(parsed.groups) && parsed.groups.length) {
+            _cfg.groups = parsed.groups.map(g => ({
+                telegram_group: g.telegram_group || '',
+                shifts: SHIFT_NAMES.map((nm, i) => {
+                    const s = (g.shifts && g.shifts[i]) || _newShift(nm);
+                    let rooms = Array.isArray(s.rooms) ? s.rooms : null;
+                    if (!rooms) {
+                        const ids = s.voice_channel_ids || (s.voice_channel_id ? [s.voice_channel_id] : []);
+                        rooms = ids.map(id => ({ id: String(id), text: s.announce_text || '' }));
+                    }
+                    return { name: nm, enabled: !!s.enabled, keyword: s.keyword || '', voice_name: s.voice_name || 'th-TH-PremwadeeNeural', repeat: Number(s.repeat) || 1, rooms: rooms.map(r => ({ id: String(r.id), text: r.text || '' })) };
+                })
+            }));
+        } else if (Array.isArray(parsed.shifts) && parsed.shifts.length) {
+            // เก่ามาก: shifts เดี่ยว → ยัดเป็นกลุ่มเดียว
+            const g = { telegram_group: (parsed.telegram_groups && parsed.telegram_groups[0]) || '', shifts: SHIFT_NAMES.map((nm, i) => {
+                const s = parsed.shifts[i] || _newShift(nm);
+                const ids = s.voice_channel_ids || (s.voice_channel_id ? [s.voice_channel_id] : []);
+                return { name: nm, enabled: !!s.enabled, keyword: s.keyword || '', voice_name: s.voice_name || 'th-TH-PremwadeeNeural', repeat: Number(s.repeat) || 1, rooms: ids.map(id => ({ id: String(id), text: s.announce_text || '' })) };
+            })};
+            _cfg.groups = [g, _newGroup()];
+        }
+        // ให้มีอย่างน้อย 2 กลุ่ม
+        while (_cfg.groups.length < 2) _cfg.groups.push(_newGroup());
     }
 
     window.initTtsControl = async function () {
         if (typeof appDB === 'undefined' || !appDB) return;
+        _cfg = { speech_rate: '-15%', groups: [_newGroup(), _newGroup()] };
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'tts_voice_config').maybeSingle();
             if (data && data.value) {
                 const parsed = JSON.parse(data.value);
                 _cfg.speech_rate = parsed.speech_rate || '-15%';
-                _cfg.telegram_groups = Array.isArray(parsed.telegram_groups) ? parsed.telegram_groups : [];
-                const saved = Array.isArray(parsed.shifts) ? parsed.shifts : [];
-                _cfg.shifts = DEFAULT_SHIFTS.map((d, i) => _normShift(d, saved[i]));
-            } else {
-                _cfg.shifts = DEFAULT_SHIFTS.map(d => _normShift(d));
+                _migrate(parsed);
             }
-        } catch (e) { console.warn('load tts cfg', e); _cfg.shifts = DEFAULT_SHIFTS.map(d => _normShift(d)); }
-
+        } catch (e) { console.warn('load tts cfg', e); }
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').maybeSingle();
             if (data && data.value) _rooms = JSON.parse(data.value);
         } catch (e) { console.warn('load rooms', e); }
-
-        // เติมช่องกลุ่ม Telegram
-        const tg = document.getElementById('ttsTelegramGroups');
-        if (tg) tg.value = (_cfg.telegram_groups || []).join('\n');
-
         _renderAll();
     };
 
@@ -3481,116 +3495,183 @@ window.groupTagBadge = function(tag) {
         const r = _rooms.find(r => String(r.id) === String(id));
         return r ? (r.name || r.id) : id;
     }
+    function _esc(s) { return String(s || '').replace(/"/g, '&quot;'); }
 
+    // ---------- วาดทั้งหมด ----------
     function _renderAll() {
         const wrap = document.getElementById('ttsShiftsWrap');
         if (!wrap) return;
         const rateSel = document.getElementById('ttsRate');
         if (rateSel) rateSel.value = _cfg.speech_rate || '-15%';
 
-        if (!_rooms.length) {
-            wrap.innerHTML = `<div class="text-center text-gray-500 py-8">ยังไม่มีรายชื่อห้อง — เข้าแท็บ "ย้ายห้อง" 1 ครั้งก่อน แล้วกลับมา</div>`;
-            return;
-        }
-
-        wrap.innerHTML = _cfg.shifts.map((s, i) => `
-            <div class="bg-slate-900 rounded-2xl border ${s.enabled ? 'border-sky-500' : 'border-slate-700'} p-4 space-y-3">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-white font-black text-lg flex items-center gap-2"><span class="material-icons text-sky-400">schedule</span> ${s.name}</h3>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <span class="text-sm ${s.enabled ? 'text-green-400' : 'text-gray-500'} font-bold">${s.enabled ? 'เปิด' : 'ปิด'}</span>
-                        <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="ttsShiftToggle(${i}, this)" class="w-5 h-5 accent-sky-500">
-                    </label>
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-400 font-bold block mb-1">คำที่จับ (เจอในกลุ่มแล้วพูด)</label>
-                    <input type="text" value="${(s.keyword || '').replace(/"/g,'&quot;')}" oninput="ttsShiftField(${i},'keyword',this.value)" placeholder="เช่น เช็คชื่อ" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-400 font-bold block mb-1">ห้องเสียง (เลือกได้หลายห้อง)</label>
-                    <input type="text" value="${(_search[i] || '').replace(/"/g,'&quot;')}" oninput="ttsShiftSearch(${i}, this.value)" placeholder="🔍 ค้นหาห้อง..." class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 mb-2">
-                    <div id="ttsSummary_${i}" class="bg-slate-800/50 border border-slate-700 rounded-xl p-2 mb-2 text-xs"></div>
-                    <div id="ttsRooms_${i}" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1"></div>
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-400 font-bold block mb-1">ข้อความที่ให้บอทพูด</label>
-                    <textarea rows="2" oninput="ttsShiftField(${i},'announce_text',this.value)" placeholder="เช่น ถึงเวลาเช็คชื่อแล้วนะครับ กรุณาเช็คชื่อภายใน 10 นาที" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${(s.announce_text || '')}</textarea>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs text-gray-400 font-bold block mb-1">เสียง</label>
-                        <select onchange="ttsShiftField(${i},'voice_name',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                            <option value="th-TH-PremwadeeNeural" ${s.voice_name === 'th-TH-PremwadeeNeural' ? 'selected' : ''}>เสียงผู้หญิง (Premwadee)</option>
-                            <option value="th-TH-NiwatNeural" ${s.voice_name === 'th-TH-NiwatNeural' ? 'selected' : ''}>เสียงผู้ชาย (Niwat)</option>
-                        </select>
+        let html = '';
+        _cfg.groups.forEach((grp, gi) => {
+            html += `
+            <div class="bg-slate-800/60 rounded-3xl border-2 border-indigo-500/40 p-4 space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 flex-1">
+                        <span class="material-icons text-indigo-400">forum</span>
+                        <input type="text" value="${_esc(grp.telegram_group)}" oninput="ttsGroupName(${gi}, this.value)" placeholder="ชื่อกลุ่ม Telegram (เช่น ทดลอง2)" class="flex-1 bg-slate-900 border border-indigo-500/40 text-white font-bold px-3 py-2 rounded-lg text-sm outline-none focus:border-indigo-400">
                     </div>
-                    <div>
-                        <label class="text-xs text-gray-400 font-bold block mb-1">พูดซ้ำกี่รอบ</label>
-                        <select onchange="ttsShiftField(${i},'repeat',parseInt(this.value))" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                            ${[1,2,3,4,5].map(n => `<option value="${n}" ${Number(s.repeat||1)===n?'selected':''}>${n} รอบ</option>`).join('')}
-                        </select>
-                    </div>
+                    ${_cfg.groups.length > 1 ? `<button onclick="ttsRemoveGroup(${gi})" class="text-gray-500 hover:text-red-400 p-1" title="ลบกลุ่มนี้"><span class="material-icons text-lg">delete</span></button>` : ''}
                 </div>
-            </div>
-        `).join('');
+                <div class="space-y-3 pl-1">
+                    ${grp.shifts.map((s, si) => _shiftHtml(gi, si, s)).join('')}
+                </div>
+            </div>`;
+        });
+        html += `<button onclick="ttsAddGroup()" class="w-full py-2 rounded-xl border-2 border-dashed border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10 transition font-bold text-sm flex items-center justify-center gap-1"><span class="material-icons text-lg">add</span> เพิ่มกลุ่ม</button>`;
+        wrap.innerHTML = html;
 
-        // เติมห้อง + สรุปของแต่ละกะ
-        _cfg.shifts.forEach((s, i) => _renderRooms(i));
+        // เติมรายการห้องของทุกกะ
+        _cfg.groups.forEach((grp, gi) => grp.shifts.forEach((s, si) => { _renderChecklist(gi, si); _renderSelected(gi, si); }));
     }
 
-    // วาดเฉพาะรายการห้อง + สรุป ของกะ i (ไม่รีเซ็ตช่องค้นหา)
-    function _renderRooms(i) {
-        const selected = (_cfg.shifts[i].voice_channel_ids || []).map(String);
-        const term = (_search[i] || '').toLowerCase().trim();
+    function _shiftHtml(gi, si, s) {
+        const key = gi + '-' + si;
+        return `
+        <div class="bg-slate-900 rounded-2xl border ${s.enabled ? 'border-sky-500' : 'border-slate-700'} p-3 space-y-3">
+            <div class="flex items-center justify-between">
+                <h3 class="text-white font-bold flex items-center gap-2"><span class="material-icons text-sky-400 text-lg">schedule</span> ${s.name}</h3>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <span class="text-sm ${s.enabled ? 'text-green-400' : 'text-gray-500'} font-bold">${s.enabled ? 'เปิด' : 'ปิด'}</span>
+                    <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="ttsShiftToggle(${gi},${si},this)" class="w-5 h-5 accent-sky-500">
+                </label>
+            </div>
 
-        // สรุป
-        const sumEl = document.getElementById('ttsSummary_' + i);
-        if (sumEl) {
-            sumEl.innerHTML = selected.length
-                ? `<span class="text-green-400 font-bold">เลือก ${selected.length} ห้อง:</span> ` + selected.map(id => `<span class="inline-block bg-sky-500/20 text-sky-300 border border-sky-500/40 rounded-full px-2 py-0.5 text-xs mr-1 mb-1">${_roomName(id)}</span>`).join('')
-                : `<span class="text-gray-500">ยังไม่ได้เลือกห้อง</span>`;
-        }
+            <div>
+                <label class="text-xs text-gray-400 font-bold block mb-1">คำที่จับ (เจอในกลุ่มแล้วพูด)</label>
+                <input type="text" value="${_esc(s.keyword)}" oninput="ttsShiftField(${gi},${si},'keyword',this.value)" placeholder="เช่น เช็คชื่อ" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+            </div>
 
-        // รายการห้อง (กรองด้วยคำค้นหา)
-        const listEl = document.getElementById('ttsRooms_' + i);
-        if (!listEl) return;
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-xs text-gray-400 font-bold block mb-1">เสียง</label>
+                    <select onchange="ttsShiftField(${gi},${si},'voice_name',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                        <option value="th-TH-PremwadeeNeural" ${s.voice_name === 'th-TH-PremwadeeNeural' ? 'selected' : ''}>หญิง (Premwadee)</option>
+                        <option value="th-TH-NiwatNeural" ${s.voice_name === 'th-TH-NiwatNeural' ? 'selected' : ''}>ชาย (Niwat)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 font-bold block mb-1">พูดซ้ำกี่รอบ</label>
+                    <select onchange="ttsShiftField(${gi},${si},'repeat',parseInt(this.value))" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                        ${[1,2,3,4,5].map(n => `<option value="${n}" ${Number(s.repeat||1)===n?'selected':''}>${n} รอบ</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs text-gray-400 font-bold block mb-1">เพิ่มห้อง (พิมพ์เลขห้องแล้วกดเพิ่ม เช่น 1)</label>
+                <div class="flex gap-2 mb-2">
+                    <input type="text" id="ttsNum_${key}" placeholder="พิมพ์เลขห้อง เช่น 1" class="flex-1 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                    <button onclick="ttsAddRoomByNum(${gi},${si})" class="bg-sky-600 hover:bg-sky-500 text-white px-4 rounded-lg text-sm font-bold">เพิ่ม</button>
+                </div>
+                <input type="text" value="${_esc(_search[key])}" oninput="ttsSearch(${gi},${si},this.value)" placeholder="🔍 หรือค้นหาห้องแล้วติ๊กเลือก..." class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 mb-2">
+                <div id="ttsChk_${key}" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1 mb-2"></div>
+            </div>
+
+            <div>
+                <label class="text-xs text-gray-400 font-bold block mb-1">ห้องที่เลือก + ข้อความเฉพาะของแต่ละห้อง</label>
+                <div id="ttsSel_${key}" class="space-y-2"></div>
+            </div>
+        </div>`;
+    }
+
+    // ---------- วาด checklist (กรองด้วยคำค้นหา) ----------
+    function _renderChecklist(gi, si) {
+        const key = gi + '-' + si;
+        const el = document.getElementById('ttsChk_' + key);
+        if (!el) return;
+        const sh = _cfg.groups[gi].shifts[si];
+        const selectedIds = (sh.rooms || []).map(r => String(r.id));
+        const term = (_search[key] || '').toLowerCase().trim();
         const filtered = _rooms.filter(r => !term || (r.name || '').toLowerCase().includes(term));
         if (!filtered.length) {
-            listEl.innerHTML = `<div class="col-span-full text-center text-gray-500 py-4 text-sm">ไม่พบห้องที่ค้นหา</div>`;
+            el.innerHTML = `<div class="col-span-full text-center text-gray-500 py-3 text-sm">${_rooms.length ? 'ไม่พบห้องที่ค้นหา' : 'ยังไม่มีรายชื่อห้อง — เข้าแท็บ "ย้ายห้อง" ก่อน'}</div>`;
             return;
         }
-        listEl.innerHTML = filtered.map(r => {
-            const on = selected.includes(String(r.id));
+        el.innerHTML = filtered.map(r => {
+            const on = selectedIds.includes(String(r.id));
             return `
             <label class="flex items-center gap-2 p-2 rounded-lg border ${on ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700'} hover:border-sky-500 cursor-pointer transition text-sm">
-                <input type="checkbox" ${on ? 'checked' : ''} onchange="ttsShiftRoomToggle(${i}, '${r.id}', this)" class="w-4 h-4 accent-sky-500">
+                <input type="checkbox" ${on ? 'checked' : ''} onchange="ttsToggleRoom(${gi},${si},'${r.id}',this)" class="w-4 h-4 accent-sky-500">
                 <span class="material-icons text-sky-400 text-base">volume_up</span>
                 <span class="text-white">${r.name || r.id}</span>
             </label>`;
         }).join('');
     }
 
-    window.ttsShiftToggle = function (i, el) { _cfg.shifts[i].enabled = el.checked; _renderAll(); };
-    window.ttsShiftField = function (i, field, val) { _cfg.shifts[i][field] = val; };
-    window.ttsShiftSearch = function (i, term) { _search[i] = term; _renderRooms(i); };
-    window.ttsShiftRoomToggle = function (i, roomId, el) {
-        const arr = _cfg.shifts[i].voice_channel_ids || [];
-        const idx = arr.map(String).indexOf(String(roomId));
-        if (el.checked && idx === -1) arr.push(String(roomId));
-        else if (!el.checked && idx !== -1) arr.splice(idx, 1);
-        _cfg.shifts[i].voice_channel_ids = arr;
-        _renderRooms(i); // อัปเดตเฉพาะกะนี้ (ไม่เสียโฟกัส/คำค้นหา)
+    // ---------- วาดห้องที่เลือก (แต่ละห้องมีช่องข้อความ) ----------
+    function _renderSelected(gi, si) {
+        const key = gi + '-' + si;
+        const el = document.getElementById('ttsSel_' + key);
+        if (!el) return;
+        const sh = _cfg.groups[gi].shifts[si];
+        const rooms = sh.rooms || [];
+        if (!rooms.length) {
+            el.innerHTML = `<div class="text-gray-500 text-sm py-2">ยังไม่ได้เลือกห้อง</div>`;
+            return;
+        }
+        el.innerHTML = rooms.map((r, ri) => `
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-2">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sky-300 font-bold text-sm flex items-center gap-1"><span class="material-icons text-base">volume_up</span> ${_roomName(r.id)}</span>
+                    <button onclick="ttsRemoveRoom(${gi},${si},${ri})" class="text-gray-500 hover:text-red-400" title="เอาห้องนี้ออก"><span class="material-icons text-lg">close</span></button>
+                </div>
+                <textarea rows="2" oninput="ttsRoomText(${gi},${si},${ri},this.value)" placeholder="ข้อความที่บอทจะพูดในห้องนี้..." class="w-full bg-slate-900 border border-slate-700 text-white px-2 py-1.5 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${(r.text || '')}</textarea>
+            </div>`).join('');
+    }
+
+    // ---------- actions ----------
+    window.ttsGroupName = function (gi, val) { _cfg.groups[gi].telegram_group = val; };
+    window.ttsAddGroup = function () { _cfg.groups.push(_newGroup()); _renderAll(); };
+    window.ttsRemoveGroup = function (gi) { _cfg.groups.splice(gi, 1); if (!_cfg.groups.length) _cfg.groups.push(_newGroup()); _renderAll(); };
+
+    window.ttsShiftToggle = function (gi, si, el) { _cfg.groups[gi].shifts[si].enabled = el.checked; _renderAll(); };
+    window.ttsShiftField = function (gi, si, field, val) { _cfg.groups[gi].shifts[si][field] = val; };
+
+    window.ttsSearch = function (gi, si, term) { _search[gi + '-' + si] = term; _renderChecklist(gi, si); };
+
+    window.ttsToggleRoom = function (gi, si, roomId, el) {
+        const rooms = _cfg.groups[gi].shifts[si].rooms;
+        const idx = rooms.findIndex(r => String(r.id) === String(roomId));
+        if (el.checked && idx === -1) rooms.push({ id: String(roomId), text: '' });
+        else if (!el.checked && idx !== -1) rooms.splice(idx, 1);
+        _renderChecklist(gi, si);
+        _renderSelected(gi, si);
+    };
+
+    window.ttsAddRoomByNum = function (gi, si) {
+        const key = gi + '-' + si;
+        const inp = document.getElementById('ttsNum_' + key);
+        const val = (inp && inp.value.trim()) || '';
+        if (!val) return;
+        // หาห้อง: ตรง id, หรือชื่อขึ้นต้นด้วยเลขนั้น เช่น "1" → "1 PB"
+        let room = _rooms.find(r => String(r.id) === val);
+        if (!room) room = _rooms.find(r => (r.name || '').trim() === val);
+        if (!room) room = _rooms.find(r => (r.name || '').trim().startsWith(val + ' ') || (r.name || '').trim().startsWith(val));
+        if (!room) { if (window.Swal) Swal.fire('ไม่พบห้อง', 'ไม่พบห้องเลข/ชื่อ: ' + val, 'warning'); return; }
+        const rooms = _cfg.groups[gi].shifts[si].rooms;
+        if (rooms.some(r => String(r.id) === String(room.id))) { if (inp) inp.value = ''; return; }
+        rooms.push({ id: String(room.id), text: '' });
+        if (inp) inp.value = '';
+        _renderChecklist(gi, si);
+        _renderSelected(gi, si);
+    };
+
+    window.ttsRemoveRoom = function (gi, si, ri) {
+        _cfg.groups[gi].shifts[si].rooms.splice(ri, 1);
+        _renderChecklist(gi, si);
+        _renderSelected(gi, si);
+    };
+
+    window.ttsRoomText = function (gi, si, ri, val) {
+        if (_cfg.groups[gi].shifts[si].rooms[ri]) _cfg.groups[gi].shifts[si].rooms[ri].text = val;
     };
 
     window.ttsSaveConfig = async function () {
         const rateSel = document.getElementById('ttsRate');
         _cfg.speech_rate = (rateSel && rateSel.value) || '-15%';
-        const tg = document.getElementById('ttsTelegramGroups');
-        _cfg.telegram_groups = tg ? tg.value.split('\n').map(x => x.trim()).filter(Boolean) : [];
         _cfg.updated_at = new Date().toISOString();
         try {
             await appDB.from('settings').upsert([{ key: 'tts_voice_config', value: JSON.stringify(_cfg) }]);
