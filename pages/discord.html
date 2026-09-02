@@ -577,6 +577,7 @@
             <!-- แท็บย่อย -->
             <div class="flex items-center gap-2 mb-4 flex-wrap">
                 <button onclick="ttsSubTab('groups')" id="ttsSub_groups" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-sky-500 text-white shadow-lg flex items-center gap-1"><span class="material-icons text-sm">groups</span> กลุ่ม &amp; กะ</button>
+                <button onclick="ttsSubTab('telegram')" id="ttsSub_telegram" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">link</span> ผูกกลุ่ม Telegram</button>
                 <button onclick="ttsSubTab('schedule')" id="ttsSub_schedule" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">schedule</span> ตั้งเวลาพูด</button>
                 <button onclick="ttsSubTab('history')" id="ttsSub_history" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติ</button>
                 <button onclick="ttsSubTab('settings')" id="ttsSub_settings" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">tune</span> ตั้งค่าเสียง</button>
@@ -584,6 +585,7 @@
 
             <!-- แผงเนื้อหา -->
             <div id="ttsPane_groups" class="space-y-4"></div>
+            <div id="ttsPane_telegram" class="space-y-4 hidden"></div>
             <div id="ttsPane_schedule" class="space-y-4 hidden"></div>
             <div id="ttsPane_history" class="hidden"></div>
             <div id="ttsPane_settings" class="hidden"></div>
