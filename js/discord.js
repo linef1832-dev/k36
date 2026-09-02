@@ -3403,11 +3403,11 @@ window.groupTagBadge = function(tag) {
     return pill(tag, c, true);
 };
 
+
 // ============================================================
-// 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน (TTS Voice Control)
-// แท็บ "ศูนย์ควบคุมเสียง" — ติ๊กเลือกห้องเสียงให้บอทเข้าไปพูด
-// เก็บค่าใน Supabase settings (key = tts_voice_config)
-// บอทบน Railway อ่านค่านี้แล้วเข้าห้องอัตโนมัติ
+// 🔊 ศูนย์ควบคุมเสียงแจ้งเตือน (TTS) — แบบ 3 กะ
+// แต่ละกะ: คำที่จับ + ห้องเสียง + ข้อความที่ให้บอทพูด (แยกกัน)
+// เก็บใน Supabase settings (key = tts_voice_config)
 // ============================================================
 (function () {
     const ACTIVE = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-sky-500 text-white shadow-[0_0_10px_rgba(14,165,233,0.5)] flex items-center gap-1";
@@ -3419,9 +3419,7 @@ window.groupTagBadge = function(tag) {
         const myBtn = document.getElementById('tabDsTtsvoice');
         if (tabName === 'ttsvoice') {
             document.querySelectorAll('[id^="dsContent_"]').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('[id^="tabDs"]').forEach(btn => {
-                if (btn.id !== 'tabDsTtsvoice') btn.className = INACTIVE;
-            });
+            document.querySelectorAll('[id^="tabDs"]').forEach(btn => { if (btn.id !== 'tabDsTtsvoice') btn.className = INACTIVE; });
             if (myPanel) myPanel.classList.remove('hidden');
             if (myBtn) myBtn.className = ACTIVE;
             initTtsControl();
@@ -3432,104 +3430,124 @@ window.groupTagBadge = function(tag) {
         if (typeof _orig === 'function') return _orig.apply(this, arguments);
     };
 
-    let _ttsCfg = {
-        enabled: false, voice_channel_id: '', voice_channel_name: '',
-        keyword_filter: '', voice_name: 'th-TH-PremwadeeNeural',
-    };
+    // ค่าเริ่มต้น 3 กะ
+    const DEFAULT_SHIFTS = [
+        { name: 'กะเช้า', enabled: false, keyword: '', voice_channel_id: '', voice_channel_name: '', voice_name: 'th-TH-PremwadeeNeural', announce_text: '' },
+        { name: 'กะบ่าย', enabled: false, keyword: '', voice_channel_id: '', voice_channel_name: '', voice_name: 'th-TH-PremwadeeNeural', announce_text: '' },
+        { name: 'กะดึก', enabled: false, keyword: '', voice_channel_id: '', voice_channel_name: '', voice_name: 'th-TH-PremwadeeNeural', announce_text: '' },
+    ];
+
+    let _cfg = { speech_rate: '-15%', shifts: JSON.parse(JSON.stringify(DEFAULT_SHIFTS)) };
+    let _rooms = [];
 
     window.initTtsControl = async function () {
         if (typeof appDB === 'undefined' || !appDB) return;
+        // โหลด config
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'tts_voice_config').maybeSingle();
-            if (data && data.value) _ttsCfg = Object.assign(_ttsCfg, JSON.parse(data.value));
+            if (data && data.value) {
+                const parsed = JSON.parse(data.value);
+                _cfg.speech_rate = parsed.speech_rate || '-15%';
+                if (Array.isArray(parsed.shifts) && parsed.shifts.length) {
+                    // เติมให้ครบ 3 กะเสมอ
+                    _cfg.shifts = DEFAULT_SHIFTS.map((d, i) => Object.assign({}, d, parsed.shifts[i] || {}));
+                }
+            }
         } catch (e) { console.warn('load tts cfg', e); }
-
-        let rooms = [];
+        // โหลดรายชื่อห้อง
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'discord_channels').maybeSingle();
-            if (data && data.value) rooms = JSON.parse(data.value);
+            if (data && data.value) _rooms = JSON.parse(data.value);
         } catch (e) { console.warn('load rooms', e); }
 
-        _renderTtsStatus();
-        _renderTtsRooms(rooms);
-        const kwInput = document.getElementById('ttsKeyword');
-        if (kwInput) kwInput.value = _ttsCfg.keyword_filter || '';
-        const kwChk = document.getElementById('ttsCheckinOnly');
-        if (kwChk) kwChk.checked = (_ttsCfg.keyword_filter || '').includes('เช็คชื่อ');
-        const vSel = document.getElementById('ttsVoiceName');
-        if (vSel) vSel.value = _ttsCfg.voice_name || 'th-TH-PremwadeeNeural';
+        _renderAll();
     };
 
-    function _renderTtsStatus() {
-        const box = document.getElementById('ttsStatusBox');
-        if (!box) return;
-        const on = _ttsCfg.enabled;
-        const room = _ttsCfg.voice_channel_name || '(ยังไม่ได้เลือกห้อง)';
-        box.innerHTML = `
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <div class="text-sm text-gray-400">สถานะบอทเสียง</div>
-                    <div class="text-2xl font-black ${on ? 'text-green-400' : 'text-gray-500'}">${on ? '🟢 เปิดอยู่' : '⚫ ปิดอยู่'}</div>
-                    <div class="text-sm text-sky-400 mt-1">ห้องเป้าหมาย: <b>${room}</b></div>
+    function _roomOptions(selectedId) {
+        let html = '<option value="">— เลือกห้องเสียง —</option>';
+        _rooms.forEach(r => {
+            const sel = String(r.id) === String(selectedId) ? 'selected' : '';
+            html += `<option value="${r.id}" ${sel}>${(r.name || r.id)}</option>`;
+        });
+        return html;
+    }
+
+    function _renderAll() {
+        const wrap = document.getElementById('ttsShiftsWrap');
+        if (!wrap) return;
+
+        // ความเร็ว
+        const rateSel = document.getElementById('ttsRate');
+        if (rateSel) rateSel.value = _cfg.speech_rate || '-15%';
+
+        if (!_rooms.length) {
+            wrap.innerHTML = `<div class="text-center text-gray-500 py-8">ยังไม่มีรายชื่อห้อง — เข้าแท็บ "ย้ายห้อง" 1 ครั้งก่อน แล้วกลับมา</div>`;
+            return;
+        }
+
+        wrap.innerHTML = _cfg.shifts.map((s, i) => `
+            <div class="bg-slate-900 rounded-2xl border ${s.enabled ? 'border-sky-500' : 'border-slate-700'} p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-white font-black text-lg flex items-center gap-2">
+                        <span class="material-icons text-sky-400">schedule</span> ${s.name}
+                    </h3>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <span class="text-sm ${s.enabled ? 'text-green-400' : 'text-gray-500'} font-bold">${s.enabled ? 'เปิด' : 'ปิด'}</span>
+                        <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="ttsShiftToggle(${i}, this)" class="w-5 h-5 accent-sky-500">
+                    </label>
                 </div>
-                <button onclick="ttsToggleEnabled()" class="px-6 py-3 rounded-2xl font-black text-white transition shadow-lg ${on ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}">${on ? 'ปิดเสียง' : 'เปิดเสียง'}</button>
-            </div>`;
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-400 font-bold block mb-1">คำที่จับ (เจอในกลุ่มแล้วพูด)</label>
+                        <input type="text" value="${(s.keyword || '').replace(/"/g,'&quot;')}" oninput="ttsShiftField(${i},'keyword',this.value)" placeholder="เช่น เช็คชื่อ" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 font-bold block mb-1">ห้องเสียง</label>
+                        <select onchange="ttsShiftRoom(${i}, this)" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                            ${_roomOptions(s.voice_channel_id)}
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-400 font-bold block mb-1">ข้อความที่ให้บอทพูด</label>
+                    <textarea rows="2" oninput="ttsShiftField(${i},'announce_text',this.value)" placeholder="เช่น ถึงเวลาเช็คชื่อแล้วนะครับ กรุณาเช็คชื่อภายใน 10 นาที" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${(s.announce_text || '')}</textarea>
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-400 font-bold block mb-1">เสียง</label>
+                    <select onchange="ttsShiftField(${i},'voice_name',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                        <option value="th-TH-PremwadeeNeural" ${s.voice_name === 'th-TH-PremwadeeNeural' ? 'selected' : ''}>เสียงผู้หญิง (Premwadee)</option>
+                        <option value="th-TH-NiwatNeural" ${s.voice_name === 'th-TH-NiwatNeural' ? 'selected' : ''}>เสียงผู้ชาย (Niwat)</option>
+                    </select>
+                </div>
+            </div>
+        `).join('');
     }
 
-    function _renderTtsRooms(rooms) {
-        const list = document.getElementById('ttsChannelList');
-        if (!list) return;
-        if (!rooms || rooms.length === 0) {
-            list.innerHTML = `<div class="text-center text-gray-500 py-8 col-span-full">ยังไม่มีรายชื่อห้อง — ลองเข้าแท็บ "ย้ายห้อง" 1 ครั้งเพื่อให้ระบบดึงรายชื่อห้องก่อน</div>`;
-            return;
-        }
-        list.innerHTML = rooms.map(r => {
-            const checked = String(r.id) === String(_ttsCfg.voice_channel_id) ? 'checked' : '';
-            return `
-            <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-700 hover:border-sky-500 hover:bg-slate-700/40 cursor-pointer transition">
-                <input type="radio" name="ttsRoom" value="${r.id}" data-name="${(r.name || '').replace(/"/g, '')}" ${checked} class="w-5 h-5 accent-sky-500" onchange="ttsPickRoom(this)">
-                <span class="material-icons text-sky-400 text-lg">volume_up</span>
-                <span class="text-white font-bold">${r.name || r.id}</span>
-            </label>`;
-        }).join('');
-    }
-
-    window.ttsPickRoom = function (el) {
-        _ttsCfg.voice_channel_id = el.value;
-        _ttsCfg.voice_channel_name = el.getAttribute('data-name') || '';
-        _renderTtsStatus();
+    window.ttsShiftToggle = function (i, el) {
+        _cfg.shifts[i].enabled = el.checked;
+        _renderAll();
+    };
+    window.ttsShiftField = function (i, field, val) {
+        _cfg.shifts[i][field] = val;
+    };
+    window.ttsShiftRoom = function (i, el) {
+        _cfg.shifts[i].voice_channel_id = el.value;
+        const opt = el.options[el.selectedIndex];
+        _cfg.shifts[i].voice_channel_name = opt ? opt.text : '';
     };
 
-    window.ttsToggleEnabled = function () {
-        if (!_ttsCfg.voice_channel_id && !_ttsCfg.enabled) {
-            if (window.Swal) Swal.fire('เลือกห้องก่อน', 'กรุณาติ๊กเลือกห้องเสียงที่จะให้บอทเข้าไปพูด', 'warning');
-            return;
-        }
-        _ttsCfg.enabled = !_ttsCfg.enabled;
-        _renderTtsStatus();
-        ttsSaveConfig(true);
-    };
-
-    window.ttsSaveConfig = async function (silent) {
-        const kwChk = document.getElementById('ttsCheckinOnly');
-        const kwInput = document.getElementById('ttsKeyword');
-        const vSel = document.getElementById('ttsVoiceName');
-        if (kwChk && kwChk.checked) _ttsCfg.keyword_filter = 'เช็คชื่อ';
-        else _ttsCfg.keyword_filter = (kwInput && kwInput.value.trim()) || '';
-        _ttsCfg.voice_name = (vSel && vSel.value) || 'th-TH-PremwadeeNeural';
-        _ttsCfg.updated_at = new Date().toISOString();
+    window.ttsSaveConfig = async function () {
+        const rateSel = document.getElementById('ttsRate');
+        _cfg.speech_rate = (rateSel && rateSel.value) || '-15%';
+        _cfg.updated_at = new Date().toISOString();
         try {
-            await appDB.from('settings').upsert([{ key: 'tts_voice_config', value: JSON.stringify(_ttsCfg) }]);
-            if (!silent && window.Swal) Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', text: 'บอทจะอัปเดตภายในไม่กี่วินาที', timer: 2000, showConfirmButton: false });
+            await appDB.from('settings').upsert([{ key: 'tts_voice_config', value: JSON.stringify(_cfg) }]);
+            if (window.Swal) Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', text: 'บอทจะอัปเดตภายในไม่กี่วินาที', timer: 2000, showConfirmButton: false });
         } catch (e) {
             if (window.Swal) Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ: ' + e.message, 'error');
         }
-    };
-
-    window.ttsCheckinOnlyChanged = function (chk) {
-        const kwInput = document.getElementById('ttsKeyword');
-        if (!kwInput) return;
-        if (chk.checked) { kwInput.value = 'เช็คชื่อ'; kwInput.disabled = true; }
-        else { kwInput.disabled = false; }
     };
 })();
