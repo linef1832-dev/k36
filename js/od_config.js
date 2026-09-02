@@ -184,6 +184,8 @@ window.initOdConfig = async function() {
         if (hSearch) hSearch.addEventListener('keydown', e => { if (e.key === 'Enter') odCfgHist_load(); });
         const hStatus = document.getElementById('odCfgHistStatus');
         if (hStatus) hStatus.addEventListener('change', odCfgHist_load);
+        const hForm = document.getElementById('odCfgHistForm');
+        if (hForm) hForm.addEventListener('change', odCfgHist_load);
 
         // เข้ามาแล้วโหลดรายการ "วันนี้" ให้เลย (ถ้ามี Admin Key)
         odCfgHist_load();
@@ -811,7 +813,7 @@ window.odCfg_tplView = function(which) {
 let odCfgHistItems = [];
 function odCfgHist_esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function odCfgHist_fmt(ts) { try { return new Date(ts).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch (e) { return ts; } }
-function odCfgHist_dstr(d) { return d.toISOString().slice(0, 10); }
+function odCfgHist_dstr(d) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d || new Date()); }
 function odCfgHist_tag(st) {
     if (st === 'deleted') return '<span class="px-2 py-0.5 rounded-full text-xs bg-red-500/20 text-red-400 whitespace-nowrap">ลบแล้ว</span>';
     if (st === 'edited')  return '<span class="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-400 whitespace-nowrap">แก้ไขแล้ว</span>';
@@ -832,11 +834,13 @@ window.odCfgHist_load = async function() {
         const to   = document.getElementById('odCfgHistTo').value;
         const q    = document.getElementById('odCfgHistSearch').value.trim();
         const status = document.getElementById('odCfgHistStatus').value;
+        const form = (document.getElementById('odCfgHistForm') || {}).value || '';
         const p = new URLSearchParams();
         if (from) p.set('from', from);
         if (to) p.set('to', to);
         if (q) p.set('q', q);
         if (status) p.set('status', status);
+        if (form) p.set('form', form);
         p.set('limit', '500');
         const data = await odCfg_adminFetch('/admin/history?' + p.toString());
         odCfgHistItems = data.items || [];
