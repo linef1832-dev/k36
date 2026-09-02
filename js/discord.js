@@ -3436,7 +3436,7 @@ window.groupTagBadge = function(tag) {
     const newGroup = () => ({ telegram_group: '', telegram_group_id: '', shifts: SHIFT_NAMES.map(newShift) });
     const newSched = () => ({ enabled: true, name: 'เตือนใหม่', time: '00:00', voice_name: 'th-TH-PremwadeeNeural', repeat: 1, rooms: [] });
 
-    let _cfg = { speech_rate: '-15%', chime_enabled: true, dedupe_seconds: 60, groups: [newGroup(), newGroup()], schedules: [] };
+    let _cfg = { speech_rate: '-15%', volume: '+0%', pitch: '+0Hz', chime_enabled: true, dedupe_seconds: 60, groups: [newGroup(), newGroup()], schedules: [] };
     let _rooms = [];
     let _tgList = [];      // รายชื่อกลุ่ม Telegram [{id,title}]
     let _search = {};      // ค้นหาห้อง keyed "g-s" หรือ "sc-i"
@@ -3448,6 +3448,8 @@ window.groupTagBadge = function(tag) {
 
     function _migrate(p) {
         _cfg.speech_rate = p.speech_rate || '-15%';
+        _cfg.volume = p.volume || '+0%';
+        _cfg.pitch = p.pitch || '+0Hz';
         _cfg.chime_enabled = p.chime_enabled !== false;
         _cfg.dedupe_seconds = (p.dedupe_seconds != null) ? p.dedupe_seconds : 60;
         _cfg.schedules = Array.isArray(p.schedules) ? p.schedules.map(s => ({
@@ -3474,7 +3476,7 @@ window.groupTagBadge = function(tag) {
 
     window.initTtsControl = async function () {
         if (typeof appDB === 'undefined' || !appDB) return;
-        _cfg = { speech_rate: '-15%', chime_enabled: true, dedupe_seconds: 60, groups: [newGroup(), newGroup()], schedules: [] };
+        _cfg = { speech_rate: '-15%', volume: '+0%', pitch: '+0Hz', chime_enabled: true, dedupe_seconds: 60, groups: [newGroup(), newGroup()], schedules: [] };
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'tts_voice_config').maybeSingle();
             if (data && data.value) _migrate(JSON.parse(data.value));
@@ -3797,27 +3799,67 @@ window.groupTagBadge = function(tag) {
         wrap.innerHTML = `
         <div class="bg-slate-800/60 rounded-2xl border border-slate-700 p-4 space-y-4 max-w-lg">
             <div class="flex items-center justify-between">
-                <div><div class="text-white font-bold">ความเร็วเสียง</div><div class="text-xs text-gray-500">ปรับให้พูดช้า/เร็ว</div></div>
+                <div><div class="text-white font-bold">ความเร็วเสียง</div><div class="text-xs text-gray-500">พูดช้า/เร็ว</div></div>
                 <select id="setRate" onchange="_cfgSet('speech_rate',this.value)" class="bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                    <option value="0%">ปกติ</option><option value="-10%">ช้าลงเล็กน้อย</option><option value="-15%">ช้า</option><option value="-25%">ช้ามาก</option>
+                    <option value="+15%">เร็ว</option><option value="0%">ปกติ</option><option value="-10%">ช้าลงเล็กน้อย</option><option value="-15%">ช้า</option><option value="-25%">ช้ามาก</option>
+                </select>
+            </div>
+            <div class="flex items-center justify-between">
+                <div><div class="text-white font-bold">ระดับเสียง (ดัง/เบา)</div><div class="text-xs text-gray-500">ความดังของเสียงพูด</div></div>
+                <select id="setVol" onchange="_cfgSet('volume',this.value)" class="bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                    <option value="-50%">เบามาก</option><option value="-25%">เบา</option><option value="+0%">ปกติ</option><option value="+25%">ดัง</option><option value="+50%">ดังมาก</option>
+                </select>
+            </div>
+            <div class="flex items-center justify-between">
+                <div><div class="text-white font-bold">โทนเสียง (สูง/ต่ำ)</div><div class="text-xs text-gray-500">ปรับให้เสียงต่างออกไป</div></div>
+                <select id="setPitch" onchange="_cfgSet('pitch',this.value)" class="bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                    <option value="-50Hz">ต่ำมาก</option><option value="-25Hz">ต่ำ</option><option value="+0Hz">ปกติ</option><option value="+25Hz">สูง</option><option value="+50Hz">สูงมาก</option>
                 </select>
             </div>
             <div class="flex items-center justify-between">
                 <div><div class="text-white font-bold">เสียงเตือนก่อนพูด</div><div class="text-xs text-gray-500">ติ๊งต่องก่อนบอทพูด</div></div>
-                <button onclick="_cfgToggleChime()" id="setChime" style="width:48px;height:24px;" class="relative rounded-full transition ${_cfg.chime_enabled ? 'bg-green-500' : 'bg-slate-600'}"><span class="absolute rounded-full bg-white transition-all" style="width:20px;height:20px;top:2px; left:${_cfg.chime_enabled ? '26px' : '2px'};"></span></button>
+                <button onclick="_cfgToggleChime()" id="setChime" style="width:48px;height:24px;" class="relative rounded-full transition ${_cfg.chime_enabled ? 'bg-green-500' : 'bg-slate-600'}"><span class="absolute rounded-full bg-white transition-all" style="width:20px;height:20px;top:2px;left:${_cfg.chime_enabled ? '26px' : '2px'};"></span></button>
             </div>
             <div class="flex items-center justify-between">
-                <div><div class="text-white font-bold">กันจับซ้ำ</div><div class="text-xs text-gray-500">ถ้าเจอคำเดิมซ้ำในเวลาสั้นๆ ไม่พูดซ้ำ</div></div>
+                <div><div class="text-white font-bold">กันจับซ้ำ</div><div class="text-xs text-gray-500">เจอคำเดิมซ้ำในเวลาสั้นๆ ไม่พูดซ้ำ</div></div>
                 <select id="setDedupe" onchange="_cfgSet('dedupe_seconds',parseInt(this.value))" class="bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
                     <option value="0">ปิด</option><option value="30">30 วินาที</option><option value="60">1 นาที</option><option value="180">3 นาที</option><option value="300">5 นาที</option>
                 </select>
             </div>
+
+            <div class="pt-3 border-t border-slate-700">
+                <div class="text-white font-bold mb-2">ลองฟังเสียง</div>
+                <div class="flex gap-2 flex-wrap">
+                    <select id="setTestVoice" class="bg-slate-900 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                        <option value="th-TH-PremwadeeNeural">หญิง (Premwadee)</option>
+                        <option value="th-TH-NiwatNeural">ชาย (Niwat)</option>
+                    </select>
+                    <select id="setTestRoom" class="flex-1 min-w-[140px] bg-slate-900 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                        <option value="">— เลือกห้องลองฟัง —</option>
+                        ${_rooms.map(r => `<option value="${r.id}">${r.name || r.id}</option>`).join('')}
+                    </select>
+                    <button onclick="ttsTestVoice()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 rounded-lg text-sm font-bold flex items-center gap-1"><span class="material-icons text-sm">play_arrow</span> ลอง</button>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">กดบันทึกก่อน แล้วเลือกห้องเพื่อฟังเสียงตามที่ตั้ง</p>
+            </div>
         </div>`;
-        const r = document.getElementById('setRate'); if (r) r.value = _cfg.speech_rate || '-15%';
-        const d = document.getElementById('setDedupe'); if (d) d.value = String(_cfg.dedupe_seconds != null ? _cfg.dedupe_seconds : 60);
+        const set = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
+        set('setRate', _cfg.speech_rate || '-15%');
+        set('setVol', _cfg.volume || '+0%');
+        set('setPitch', _cfg.pitch || '+0Hz');
+        set('setDedupe', String(_cfg.dedupe_seconds != null ? _cfg.dedupe_seconds : 60));
     }
     window._cfgSet = (k, v) => { _cfg[k] = v; };
     window._cfgToggleChime = () => { _cfg.chime_enabled = !_cfg.chime_enabled; _renderSettings(); };
+    window.ttsTestVoice = async function () {
+        const voice = document.getElementById('setTestVoice').value;
+        const rid = document.getElementById('setTestRoom').value;
+        if (!rid) { if (window.Swal) Swal.fire('เลือกห้องก่อน', 'เลือกห้องที่จะให้บอทเข้าไปลองพูด', 'warning'); return; }
+        try {
+            await appDB.from('settings').upsert([{ key: 'tts_command', value: JSON.stringify({ id: 'c' + Date.now(), room_id: String(rid), text: 'ทดสอบเสียงแจ้งเตือน สวัสดีครับ นี่คือเสียงตัวอย่างตามที่ตั้งค่าไว้', voice_name: voice, repeat: 1 }) }]);
+            if (window.Swal) Swal.fire({ icon: 'success', title: 'สั่งลองฟังแล้ว', text: 'บอทจะพูดในห้องที่เลือก (ใช้ค่าเสียงที่บันทึกไว้)', timer: 2600, showConfirmButton: false });
+        } catch (e) { if (window.Swal) Swal.fire('ผิดพลาด', e.message, 'error'); }
+    };
 
     // ================= actions ร่วม =================
     window.ttsGroupName = (gi, v) => { _cfg.groups[gi].telegram_group = v; };
