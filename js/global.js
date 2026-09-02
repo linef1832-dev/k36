@@ -414,7 +414,7 @@ const PAGE_SCRIPTS = {
     leave:             ['leave', 'swap'],
     swap:              ['leave', 'swap'],
     duty:              ['duty'],
-    discord:           ['discord', 'tts_control'],
+    discord:           ['discord'],
     summary:           ['summary'],
     telegram:          ['Telegram'],
     password:          ['Password'],
