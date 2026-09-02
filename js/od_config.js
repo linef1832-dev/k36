@@ -360,7 +360,7 @@ async function odCfg_adminFetch(path, method = 'GET', body = null) {
     if (!key) throw new Error('กรุณาใส่ Admin Key ก่อน');
     const res = await fetch(odCfg_serverUrl() + path, {
         method,
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key, 'X-Resend-By': (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'admin' },
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
         body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));
@@ -862,7 +862,7 @@ function odCfgHist_render() {
 async function odCfgHist_resend(id, btn) {
     const old = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังส่ง...';
     try {
-        await odCfg_adminFetch('/admin/resend', 'POST', { id });
+        await odCfg_adminFetch('/admin/resend', 'POST', { id, by: (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'admin' });
         btn.textContent = '✅ ส่งแล้ว';
         btn.className = 'odCfgHist-resend bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold whitespace-nowrap';
     } catch (e) { btn.disabled = false; btn.textContent = old; odCfg_showStatus('ส่งซ้ำไม่สำเร็จ: ' + e.message, 'error'); }
@@ -875,7 +875,7 @@ window.odCfgHist_resendAll = async function() {
     let done = 0, fail = 0;
     for (const it of items) {
         btn.textContent = `🔁 กำลังส่ง ${done + fail + 1}/${items.length}...`;
-        try { await odCfg_adminFetch('/admin/resend', 'POST', { id: it.id }); done++; } catch (e) { fail++; }
+        try { await odCfg_adminFetch('/admin/resend', 'POST', { id: it.id, by: (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'admin' }); done++; } catch (e) { fail++; }
         await new Promise(r => setTimeout(r, 3000));
     }
     btn.disabled = false; btn.textContent = '🔁 ส่งซ้ำที่แสดงทั้งหมด';
