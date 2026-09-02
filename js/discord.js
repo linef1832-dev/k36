@@ -3935,3 +3935,156 @@ window.groupTagBadge = function(tag) {
         } catch (e) { if (window.Swal) Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ: ' + e.message, 'error'); }
     };
 })();
+// ============================================================
+// 🩹 แพตช์ Spy Monitor — แบ่งหน้า (Pagination) 20 ชื่อ/หน้า + ปุ่ม 1-2-3
+//   วางต่อท้าย discord.js (บรรทัดล่างสุด) แล้วเซฟ
+// * ต้องอยู่ใน discord.js (ไม่ใช่ไฟล์แยก) เพราะใช้ตัวแปร globalSpyData / dsRoomList /
+//   spySelectedUsers ที่เป็น scope ของไฟล์นี้
+// ============================================================
+(function () {
+    window.spyRowsPerPage = 20;   // จำนวนชื่อต่อหน้า (ปรับได้ด้วย dropdown)
+    window.spyCurrentPage = 1;
+    let _spyLastSig = '';
+
+    window.spySetPage = function (n) {
+        window.spyCurrentPage = Math.max(1, Number(n) || 1);
+        window.ds_renderSpyTable();
+    };
+    window.spySetPageSize = function (n) {
+        window.spyRowsPerPage = Number(n) || 20;
+        window.spyCurrentPage = 1;
+        window.ds_renderSpyTable();
+    };
+
+    // override ตัวเดิม — เพิ่มการตัดหน้า แต่แถวยังหน้าตาเหมือนเดิมเป๊ะ
+    window.ds_renderSpyTable = function () {
+        const term = document.getElementById('spySearchInput').value.toLowerCase();
+        const tbody = document.getElementById('ds_spyBody');
+        if (!tbody) return;
+        const now = Date.now();
+
+        let roomOptionsHtml = '<option value="">⚡ ย้ายไป..</option>';
+        dsRoomList.forEach(c => { roomOptionsHtml += `<option value="${c.id}">${dsEsc(c.name)}</option>`; });
+
+        const filtered = globalSpyData.filter(u => term === '' || u.name.toLowerCase().includes(term));
+
+        // พิมพ์ค้นหาใหม่ → เด้งกลับหน้า 1
+        if (term !== _spyLastSig) { _spyLastSig = term; window.spyCurrentPage = 1; }
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-gray-500">ไม่พบรายชื่อพนักงาน</td></tr>';
+            window.ds_renderSpyPagination(0);
+            return;
+        }
+
+        const totalPages = Math.max(1, Math.ceil(filtered.length / window.spyRowsPerPage));
+        if (window.spyCurrentPage > totalPages) window.spyCurrentPage = totalPages;
+        const start = (window.spyCurrentPage - 1) * window.spyRowsPerPage;
+        const pageRows = filtered.slice(start, start + window.spyRowsPerPage);
+
+        tbody.innerHTML = pageRows.map(u => {
+            let mute = u.totalMute + (u.startMute ? (now - u.startMute) : 0);
+            let deaf = u.totalDeaf + (u.startDeaf ? (now - u.startDeaf) : 0);
+
+            let mStr = '-';
+            if (mute > 0) { let mMins = Math.floor(mute / 60000); mStr = mMins > 0 ? `${mMins} นาที` : `< 1 นาที`; }
+            let dStr = '-';
+            if (deaf > 0) { let dMins = Math.floor(deaf / 60000); dStr = dMins > 0 ? `${dMins} นาที` : `< 1 นาที`; }
+
+            let statusBadges = '';
+            if (u.startMute) statusBadges += '<span class="bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-500/50 mr-1">ปิดไมค์</span>';
+            if (u.startDeaf) statusBadges += '<span class="bg-red-500/20 text-red-500 px-2 py-0.5 rounded text-[10px] font-bold border border-red-500/50 mr-1">ปิดหูฟัง</span>';
+            if (!statusBadges && u.currentRoom) statusBadges = '<span class="text-gray-500 text-xs">ปกติ</span>';
+
+            let devicesHTML = '';
+            let isDouble = false;
+            if (u.devices) {
+                if (u.devices.includes('desktop')) devicesHTML += '<span title="PC" class="text-lg">💻</span>';
+                if (u.devices.includes('web')) devicesHTML += '<span title="Web" class="text-lg">🌐</span>';
+                if (u.devices.includes('mobile')) devicesHTML += '<span title="Mobile" class="text-lg">📱</span>';
+                if (u.devices.includes('desktop') && u.devices.includes('web')) isDouble = true;
+            }
+            if (isDouble) devicesHTML += '<span class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold ml-2 animate-pulse">ซ้อน 2 จอ!</span>';
+
+            const roomBadge = u.currentRoom ? `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded border border-indigo-700/50 text-xs font-bold">${dsEsc(u.currentRoom)}</span>` : '<span class="text-gray-600 text-xs">ออฟไลน์</span>';
+            const nameColor = u.currentRoom ? 'text-white' : 'text-gray-500';
+            const isChecked = spySelectedUsers.has(u.id) ? 'checked' : '';
+
+            return window.renderTemplate('tpl-ds-spy-row', {
+                id: u.id,
+                nameColor: nameColor,
+                name: dsEsc(u.name),
+                roomBadge: roomBadge,
+                devicesHTML: devicesHTML,
+                statusBadges: statusBadges,
+                mStr: mStr,
+                dStr: dStr,
+                roomOptionsHtml: roomOptionsHtml,
+                isChecked: isChecked
+            });
+        }).join('');
+
+        window.ds_renderSpyPagination(filtered.length);
+    };
+
+    // แถบเปลี่ยนหน้า — สร้างต่อท้ายตาราง Spy เอง (ไม่ต้องแก้ discord.html)
+    window.ds_renderSpyPagination = function (totalItems) {
+        const tbody = document.getElementById('ds_spyBody');
+        if (!tbody) return;
+        const table = tbody.closest('table');
+        const wrapper = table ? (table.closest('.overflow-x-auto') || table.parentElement) : null;
+        if (!wrapper) return;
+
+        let bar = document.getElementById('spyPaginationContainer');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'spyPaginationContainer';
+            wrapper.insertAdjacentElement('afterend', bar);
+        }
+
+        if (totalItems === 0) { bar.innerHTML = ''; return; }
+
+        const totalPages = Math.max(1, Math.ceil(totalItems / window.spyRowsPerPage));
+        const cur = window.spyCurrentPage;
+        const from = (cur - 1) * window.spyRowsPerPage + 1;
+        const to = Math.min(cur * window.spyRowsPerPage, totalItems);
+
+        const nums = [];
+        const push = (n) => {
+            const active = n === cur;
+            nums.push(`<button onclick="window.spySetPage(${n})" class="min-w-[32px] h-[32px] px-2 rounded-lg text-xs font-bold transition active:scale-95 ${active ? 'bg-red-500 text-white border border-red-400' : 'bg-slate-800 text-gray-300 border border-slate-600 hover:bg-slate-700'}">${n}</button>`);
+        };
+        const dots = () => nums.push('<span class="text-gray-600 px-1 select-none">…</span>');
+        if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) push(i); }
+        else {
+            push(1);
+            if (cur > 3) dots();
+            for (let i = Math.max(2, cur - 1); i <= Math.min(totalPages - 1, cur + 1); i++) push(i);
+            if (cur < totalPages - 2) dots();
+            push(totalPages);
+        }
+
+        const navBtn = (label, target, disabled) =>
+            `<button onclick="window.spySetPage(${target})" ${disabled ? 'disabled' : ''} class="h-[32px] px-3 rounded-lg text-xs font-bold transition active:scale-95 ${disabled ? 'bg-slate-800/40 text-gray-600 border border-slate-700 cursor-not-allowed' : 'bg-slate-800 text-gray-300 border border-slate-600 hover:bg-slate-700'}">${label}</button>`;
+
+        const sizeOpt = (n) => `<option value="${n}"${window.spyRowsPerPage === n ? ' selected' : ''}>${n}</option>`;
+
+        bar.innerHTML = `
+          <div class="flex flex-wrap items-center justify-between gap-3 mt-4 p-3 bg-[#151f32] rounded-xl border border-slate-700/80 shadow-md">
+            <div class="flex items-center gap-2 text-xs text-gray-400 font-bold">
+              <span>แสดง</span>
+              <select onchange="window.spySetPageSize(this.value)" class="bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-xs outline-none focus:border-red-500">
+                ${[20, 50, 100].map(sizeOpt).join('')}
+              </select>
+              <span>ชื่อ/หน้า</span>
+              <span class="text-gray-600 mx-1">·</span>
+              <span><b class="text-red-400">${from}-${to}</b> จาก <b class="text-white">${totalItems}</b> คน</span>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${navBtn('‹ ก่อนหน้า', cur - 1, cur <= 1)}
+              ${nums.join('')}
+              ${navBtn('ถัดไป ›', cur + 1, cur >= totalPages)}
+            </div>
+          </div>`;
+    };
+})();
