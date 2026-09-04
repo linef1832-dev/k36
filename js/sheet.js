@@ -7,17 +7,38 @@ window.currentActiveTabId = null;
 let recentTabs = JSON.parse(localStorage.getItem('sheet_recent_tabs') || '[]');
 
 // ==========================================
+// 👤 [ชีตส่วนตัว] ระบบชีตของใครของมัน
+// - external_sheets มีคอลัมน์ owner (null = ชีตส่วนกลาง, มีชื่อ = ชีตส่วนตัวของ user นั้น)
+// - พนักงานทุกคนสร้าง/แก้/ลบ "ชีตของตัวเอง" ได้ผ่านปุ่ม "+ ชีตของฉัน"
+// - ปุ่ม "จัดการชีท" (ชีตส่วนกลาง) ยังเป็นของ manager/admin เหมือนเดิม
+// ==========================================
+window.MY_SHEET_GROUP = 'ชีตของฉัน';
+window._sheetPersonalMode = false;   // true = modal กำลังทำงานกับชีตส่วนตัว
+
+window.sheetMe = function() {
+    return (window.currentUser && window.currentUser.username) ? String(window.currentUser.username) : '';
+};
+window.sheetIsMgr = function() {
+    const r = window.currentUser && window.currentUser.role ? String(window.currentUser.role).toLowerCase().trim() : '';
+    return r === 'admin' || r === 'manager';
+};
+// แก้/ลบชีตนี้ได้ไหม: ชีตส่วนกลาง → เฉพาะ mgr | ชีตส่วนตัว → เจ้าของเท่านั้น (mgr แก้ของคนอื่นไม่ได้ เพราะของใครของมัน)
+window.sheetCanTouch = function(sheet) {
+    if (!sheet) return false;
+    if (sheet.owner) return sheet.owner === window.sheetMe();
+    return window.sheetIsMgr();
+};
+
+// ==========================================
 // 🟢 1. โหลดข้อมูล & สร้าง UI
 // ==========================================
 window.initSheetApp = async function() {
-    const btnManage = document.getElementById('btnManageSheet');
-    if (btnManage) {
-        if (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'manager')) {
-            btnManage.classList.remove('hidden');
-        } else {
-            btnManage.classList.add('hidden');
-        }
-    }
+    // ปุ่ม "จัดการชีท" (ชีตส่วนกลาง) — เฉพาะ manager/admin
+    const adminControls = document.getElementById('sheetAdminControls');
+    if (adminControls) adminControls.classList.toggle('hidden', !window.sheetIsMgr());
+    // ปุ่ม "+ ชีตของฉัน" — ทุกคนเห็น
+    const myBtn = document.getElementById('btnMySheets');
+    if (myBtn) myBtn.classList.remove('hidden');
     loadCalcSettings();
     await fetchSheets();
 };
@@ -28,7 +49,9 @@ window.fetchSheets = async function() {
         const { data, error } = await appDB.from('external_sheets').select('*').order('id', { ascending: true });
         if (error) throw error;
         
-        window.GLOBAL_SHEETS = data || [];
+        // 👤 ของใครของมัน: เก็บเฉพาะชีตส่วนกลาง (owner ว่าง) + ชีตที่ตัวเองเป็นเจ้าของ
+        const me = window.sheetMe();
+        window.GLOBAL_SHEETS = (data || []).filter(s => !s.owner || s.owner === me);
         renderSheetMenu();
         populateCalcTeamDropdown(); 
         if(typeof renderAdminSheetList === 'function') renderAdminSheetList();
@@ -42,7 +65,7 @@ function populateCalcTeamDropdown() {
     datalist.innerHTML = '';
     
     const teamNames = window.GLOBAL_SHEETS
-        .filter(s => s.group_name !== 'วันหยุด / เปลี่ยนกะ' && s.group_name !== 'แก้ไขข้อมูล')
+        .filter(s => !s.owner && s.group_name !== 'วันหยุด / เปลี่ยนกะ' && s.group_name !== 'แก้ไขข้อมูล')
         .map(s => s.name || s.title)
         .filter(Boolean);
         
@@ -134,6 +157,18 @@ window.renderSheetMenu = function() {
         container.innerHTML += pinHTML;
     }
 
+    // 👤 กลุ่ม "ชีตของฉัน" (ชีตส่วนตัว) ขึ้นบนสุดเสมอ — เห็นคนเดียว
+    const myGroupKeys = Object.keys(groups).filter(g => (groups[g] || []).some(s => s.owner));
+    myGroupKeys.forEach(gName => {
+        const mySheets = groups[gName].filter(s => s.owner);
+        groups[gName] = groups[gName].filter(s => !s.owner);
+        if (groups[gName].length === 0) delete groups[gName];
+        let gridHTML = `<div class="mb-10"><h2 class="text-sm font-black text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2"><span class="material-icons text-base">person</span> ${gName === window.MY_SHEET_GROUP ? 'ชีตของฉัน' : gName} <span class="text-[10px] font-bold normal-case tracking-normal bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1"><span class="material-icons text-[12px]">lock</span> เห็นเฉพาะคุณ</span></h2><div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-5">`;
+        mySheets.forEach(sheet => { gridHTML += createCard(sheet, pinnedIds.includes(sheet.id)); });
+        gridHTML += `</div></div>`;
+        container.innerHTML += gridHTML;
+    });
+
     const sortedGroupNames = Object.keys(groups).sort();
     for (const groupName of sortedGroupNames) {
         const sheets = groups[groupName];
@@ -175,7 +210,7 @@ window.initCalculator = async function() {
     if (teamSelect) {
         teamSelect.innerHTML = '';
         const teamNames = window.GLOBAL_SHEETS
-            .filter(s => s.group_name !== 'วันหยุด / เปลี่ยนกะ' && s.group_name !== 'แก้ไขข้อมูล' && s.group_name !== 'งาน OD')
+            .filter(s => !s.owner && s.group_name !== 'วันหยุด / เปลี่ยนกะ' && s.group_name !== 'แก้ไขข้อมูล' && s.group_name !== 'งาน OD')
             .map(s => s.name || s.title)
             .filter(Boolean);
             
@@ -744,7 +779,13 @@ window.noteEditExit = function(rerender) {
     const tb = document.getElementById('noteToolbar'); if (tb) { tb.classList.add('hidden'); tb.classList.remove('flex'); }
     const srch = document.getElementById('noteSearch'); if (srch) srch.disabled = false;
     document.getElementById('noteHint')?.classList.remove('hidden');
-    const canEdit = window.currentUser && ['admin', 'manager'].includes(window.currentUser.role);
+    // 👤 แก้หน้าข้อความได้: mgr (ชีตส่วนกลาง) หรือเจ้าของ (ชีตส่วนตัว)
+    const _ns = (window.GLOBAL_SHEETS || []).find(s => String(s.id) === String(window._currentNoteSheetId));
+    const canEdit = window.currentUser && (
+        (_ns && _ns.owner)
+            ? _ns.owner === window.sheetMe()
+            : ['admin', 'manager'].includes(window.currentUser.role)
+    );
     document.getElementById('btnNoteEdit')?.classList.toggle('hidden', !canEdit);
     if (rerender) window.renderNoteTable();
 };
@@ -755,6 +796,9 @@ window.noteEditCancel = async function() {
 window.noteEditSave = async function() {
     window._noteSyncText();
     const note = window._noteEdit; const id = window._currentNoteSheetId; if (!note || !id) return;
+    // 👤 กันสิทธิ์ (กันเรียกตรงจาก console): ชีตส่วนตัวเซฟได้เฉพาะเจ้าของ / ส่วนกลางเฉพาะ mgr
+    const _s = (window.GLOBAL_SHEETS || []).find(s => String(s.id) === String(id));
+    if (_s && !window.sheetCanTouch(_s)) return Swal.fire('ไม่มีสิทธิ์', 'คุณแก้ไขได้เฉพาะชีตของตัวเองครับ', 'error');
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         window.clearSettingCache();
@@ -1006,7 +1050,22 @@ document.addEventListener('keydown', e => {
 // ==========================================
 // 🟢 4. ระบบแอดมิน (เพิ่ม/ลบ/แก้ไข)
 // ==========================================
-window.showSheetAdmin = function() {
+window.showSheetAdmin = function(personal) {
+    // 👤 พนักงานทั่วไปเปิดได้เฉพาะโหมดชีตส่วนตัว — โหมดชีตส่วนกลางเฉพาะ manager/admin
+    if (!personal && !window.sheetIsMgr()) personal = true;
+    window._sheetPersonalMode = !!personal;
+
+    // ปรับหน้าตา modal ตามโหมด
+    const title = document.getElementById('sheetAdminTitle');
+    if (title) title.innerHTML = personal
+        ? `<span class="material-icons">person</span> ชีตของฉัน (ส่วนตัว — เห็นเฉพาะคุณ)`
+        : `<span class="material-icons">settings_applications</span> จัดการรายการ / ลิงก์`;
+    const groupWrap = document.getElementById('sheetGroupFieldWrap');
+    if (groupWrap) groupWrap.classList.toggle('hidden', !!personal);   // ส่วนตัวไม่ต้องเลือกหมวด (fix เป็น "ชีตของฉัน")
+    const hint = document.getElementById('sheetPersonalHint');
+    if (hint) hint.classList.toggle('hidden', !personal);
+
+    window.cancelEdit();
     document.getElementById('sheetAdminModal').classList.remove('hidden');
     document.getElementById('sheetAdminModal').classList.add('flex');
     renderAdminSheetList();
@@ -1022,7 +1081,16 @@ window.renderAdminSheetList = function() {
     if(!list) return;
     const colorMap = { 'blue': '#3b82f6', 'green': '#10b981', 'red': '#ef4444', 'yellow': '#f59e0b', 'purple': '#8b5cf6', 'gray': '#64748b' };
     
-    list.innerHTML = window.GLOBAL_SHEETS.map(s => {
+    // 👤 โหมดส่วนตัว → เฉพาะชีตของตัวเอง | โหมดส่วนกลาง → เฉพาะชีตส่วนกลาง (ไม่ปนกัน)
+    const me = window.sheetMe();
+    const visible = window.GLOBAL_SHEETS.filter(s => window._sheetPersonalMode ? (s.owner === me) : !s.owner);
+
+    if (visible.length === 0) {
+        list.innerHTML = `<div class="col-span-full text-center text-slate-500 py-8 text-sm">${window._sheetPersonalMode ? 'คุณยังไม่มีชีตส่วนตัว — กรอกฟอร์มด้านบนเพื่อสร้างอันแรกได้เลย' : 'ยังไม่มีรายการ'}</div>`;
+        return;
+    }
+
+    list.innerHTML = visible.map(s => {
         let bg = s.color;
         if(bg && !bg.startsWith('#')) bg = colorMap[bg] || '#8b5cf6';
         if(!bg) bg = '#8b5cf6';
@@ -1039,6 +1107,8 @@ window.renderAdminSheetList = function() {
 window.startEdit = function(id) {
     const sheet = window.GLOBAL_SHEETS.find(s => String(s.id) === String(id));
     if(!sheet) return;
+    // 👤 กันสิทธิ์: ชีตส่วนกลางแก้ได้เฉพาะ mgr / ชีตส่วนตัวแก้ได้เฉพาะเจ้าของ
+    if (!window.sheetCanTouch(sheet)) return Swal.fire('ไม่มีสิทธิ์', 'คุณแก้ไขได้เฉพาะชีตของตัวเองครับ', 'error');
 
     document.getElementById('editSheetId').value = sheet.id;
     document.getElementById('newSheetName').value = sheet.name || sheet.title;
@@ -1104,7 +1174,19 @@ window.cancelEdit = function() {
 window.saveSheetData = async function() {
     const id = document.getElementById('editSheetId').value;
     const name = document.getElementById('newSheetName').value.trim();
-    const group = document.getElementById('newSheetGroup').value.trim() || 'ทั่วไป';
+    // 👤 โหมดส่วนตัว: หมวดตายตัวเป็น "ชีตของฉัน" (ไม่ให้ปนกับหมวดส่วนกลาง)
+    const group = window._sheetPersonalMode
+        ? window.MY_SHEET_GROUP
+        : (document.getElementById('newSheetGroup').value.trim() || 'ทั่วไป');
+
+    // 👤 กันสิทธิ์ตอนแก้ไข: แตะได้เฉพาะชีตที่มีสิทธิ์ (กันเรียกตรงจาก console ด้วย)
+    if (id) {
+        const editing = window.GLOBAL_SHEETS.find(s => String(s.id) === String(id));
+        if (editing && !window.sheetCanTouch(editing)) return Swal.fire('ไม่มีสิทธิ์', 'คุณแก้ไขได้เฉพาะชีตของตัวเองครับ', 'error');
+    } else {
+        // สร้างใหม่แบบส่วนกลาง → ต้องเป็น mgr เท่านั้น
+        if (!window._sheetPersonalMode && !window.sheetIsMgr()) return Swal.fire('ไม่มีสิทธิ์', 'สร้างชีตส่วนกลางได้เฉพาะผู้จัดการขึ้นไป — ใช้ปุ่ม "+ ชีตของฉัน" เพื่อสร้างชีตส่วนตัวครับ', 'error');
+    }
     const url = document.getElementById('newSheetUrl').value.trim();
     const color = document.getElementById('newSheetColor').value;
     
@@ -1155,6 +1237,9 @@ window.saveSheetData = async function() {
         }
         
         const payload = { name: name, group_name: group, sheet_id: sheetId, gid: gid, color: color, cover_url: finalCoverUrl };
+        // 👤 เจ้าของชีต: สร้างใหม่ → ตามโหมด (ส่วนตัว = ชื่อตัวเอง, ส่วนกลาง = null)
+        //    แก้ไข → ไม่แตะ owner เดิม (กันชีตเปลี่ยนมือโดยไม่ตั้งใจ)
+        if (!id) payload.owner = window._sheetPersonalMode ? window.sheetMe() : null;
 
         let savedId = id;
         if (id) {
@@ -1180,6 +1265,10 @@ window.saveSheetData = async function() {
 };
 
 window.deleteSheet = async function(id) {
+    // 👤 กันสิทธิ์: ลบได้เฉพาะชีตที่ตัวเองมีสิทธิ์
+    const target = window.GLOBAL_SHEETS.find(s => String(s.id) === String(id));
+    if (target && !window.sheetCanTouch(target)) return Swal.fire('ไม่มีสิทธิ์', 'คุณลบได้เฉพาะชีตของตัวเองครับ', 'error');
+
     const result = await Swal.fire({ title: 'ยืนยันการลบ?', text: "ลบแล้วกู้คืนไม่ได้นะ", icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก' });
     if (!result.isConfirmed) return;
 
