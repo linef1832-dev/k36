@@ -1468,23 +1468,41 @@ window.applySplitLayout = function() {
     if (!drawer) return;
     const p = window._splitPrefs;
     const pct = Math.min(75, Math.max(25, p.pct || 50));
-    drawer.style.width = pct + 'vw';
+    const drawerPx = Math.round(window.innerWidth * pct / 100);
+    drawer.style.width = drawerPx + 'px';
     const gold = '2px solid rgba(232,193,90,.45)';
     if (p.side === 'left') {
         drawer.style.left = '0'; drawer.style.right = 'auto';
         drawer.style.borderLeft = 'none'; drawer.style.borderRight = gold;
         drawer.style.boxShadow = '12px 0 40px rgba(0,0,0,.6)';
-        if (sheetApp) { sheetApp.style.marginLeft = pct + 'vw'; sheetApp.style.marginRight = ''; }
     } else {
         drawer.style.right = '0'; drawer.style.left = 'auto';
         drawer.style.borderRight = 'none'; drawer.style.borderLeft = gold;
         drawer.style.boxShadow = '-12px 0 40px rgba(0,0,0,.6)';
-        if (sheetApp) { sheetApp.style.marginRight = pct + 'vw'; sheetApp.style.marginLeft = ''; }
+    }
+    // 📏 วัดตำแหน่งจริงของหน้าชีต (แถบเมนูซ้าย/ระยะขอบกินที่ไม่เท่ากันสองฝั่ง)
+    // แล้วตั้ง margin แค่พอให้ขอบชีต "ชนขอบแผงรูปพอดี" — ไม่มีช่องว่างเหลือ ไม่มีอะไรถูกบัง
+    if (sheetApp) {
+        sheetApp.style.marginLeft = '0px'; sheetApp.style.marginRight = '0px';
+        const r = sheetApp.getBoundingClientRect();   // ตำแหน่งตามธรรมชาติ (margin = 0)
+        if (p.side === 'left') {
+            sheetApp.style.marginLeft = Math.max(0, drawerPx - r.left + 8) + 'px';
+            sheetApp.style.marginRight = '0px';
+        } else {
+            sheetApp.style.marginRight = Math.max(0, r.right - (window.innerWidth - drawerPx) + 8) + 'px';
+            sheetApp.style.marginLeft = '0px';
+        }
     }
     // ที่จับลากอยู่ขอบด้านที่ติดกับหน้าชีตเสมอ
     const h = document.getElementById('splitDragHandle');
     if (h) { if (p.side === 'left') { h.style.right = '-3px'; h.style.left = 'auto'; } else { h.style.left = '-3px'; h.style.right = 'auto'; } }
 };
+
+// ปรับขนาดหน้าต่าง → คำนวณตำแหน่งใหม่ (เฉพาะตอนแผงเปิดอยู่)
+window.addEventListener('resize', () => {
+    const d = document.getElementById('galleryDrawer');
+    if (d && d.style.display === 'flex') window.applySplitLayout();
+});
 
 // ⇄ สลับฝั่ง ชีต↔คลังรูป
 window.swapSplitSide = function() {
@@ -1566,7 +1584,7 @@ window.toggleGalleryDrawer = async function(show) {
         return;
     }
     drawer.style.display = 'flex';
-    if (sheetApp) { sheetApp.style.transition = 'margin .2s ease'; sheetApp.classList.add('sheet-split'); }
+    if (sheetApp) { sheetApp.style.transition = 'none'; sheetApp.classList.add('sheet-split'); }
     window._ensureSplitControls();
     window.applySplitLayout();
 
