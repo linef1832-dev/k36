@@ -126,11 +126,15 @@
                 <!-- 🛠️ แถบเครื่องมือแก้ไข (โชว์เฉพาะตอนกดแก้ไข) -->
                 <div id="noteToolbar" class="hidden items-center gap-1 flex-wrap px-3 py-2 bg-slate-800 border-b border-slate-700 shrink-0 text-white">
                     <button onclick="noteCmd('undo')" title="เลิกทำ (Ctrl+Z)" class="nt-btn"><span class="material-icons text-[18px]">undo</span></button>
+                    <button onclick="noteCmd('redo')" title="ทำซ้ำ (Ctrl+Y)" class="nt-btn"><span class="material-icons text-[18px]">redo</span></button>
                     <span class="w-px h-6 bg-slate-600 mx-1"></span>
                     <select id="noteFontSize" onchange="noteCmd('fontSize', this.value)" title="ขนาดตัวอักษร" class="bg-slate-900 border border-slate-600 rounded-md text-white text-xs px-1.5 h-[30px] outline-none">
                         <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14" selected>14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="22">22</option><option value="24">24</option><option value="28">28</option><option value="32">32</option>
                     </select>
                     <button onclick="noteCmd('bold')" title="ตัวหนา (Ctrl+B)" class="nt-btn font-black">B</button>
+                    <button onclick="noteCmd('italic')" title="ตัวเอียง (Ctrl+I)" class="nt-btn italic font-serif font-bold">I</button>
+                    <button onclick="noteCmd('underline')" title="ขีดเส้นใต้ (Ctrl+U)" class="nt-btn underline font-bold">U</button>
+                    <button onclick="noteCmd('strike')" title="ขีดฆ่า" class="nt-btn line-through font-bold">S</button>
                     <div class="relative nt-palette-wrap">
                         <button onclick="notePaletteToggle('fg')" title="สีตัวอักษร" class="nt-btn gap-0.5"><span class="material-icons text-[18px]">format_color_text</span><span id="notePalSwFg" class="block w-4 h-1.5 rounded-sm" style="background:#000"></span></button>
                         <div id="notePal_fg" class="nt-palette hidden"></div>
@@ -180,6 +184,17 @@
                     <button onclick="noteCmd('colRight')" title="แทรกคอลัมน์ขวา" class="nt-btn text-[11px] font-bold">→คอลัมน์</button>
                     <button onclick="noteCmd('colDel')" title="ลบคอลัมน์" class="nt-btn text-[11px] font-bold text-red-300">✕คอลัมน์</button>
                     <button onclick="noteCmd('colWidth')" title="ปรับความกว้างคอลัมน์" class="nt-btn text-[11px] font-bold">↔กว้าง</button>
+                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
+                    <button onclick="noteCmd('rowUp')" title="ย้ายแถวที่เลือกขึ้น" class="nt-btn"><span class="material-icons text-[18px]">arrow_upward</span></button>
+                    <button onclick="noteCmd('rowDown')" title="ย้ายแถวที่เลือกลง" class="nt-btn"><span class="material-icons text-[18px]">arrow_downward</span></button>
+                    <button onclick="noteCmd('rowDup')" title="คัดลอกแถวที่เลือก (ทั้งข้อความ+สี) แทรกต่อท้าย" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">content_copy</span>ก๊อปแถว</button>
+                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
+                    <button onclick="noteCmd('sortAsc')" title="เรียงแถวตามคอลัมน์ที่เลือก ก→ฮ / A→Z / น้อย→มาก" class="nt-btn text-[11px] font-bold gap-0.5"><span class="material-icons text-[16px]">sort</span>A→Z</button>
+                    <button onclick="noteCmd('sortDesc')" title="เรียงแถวตามคอลัมน์ที่เลือก ฮ→ก / Z→A / มาก→น้อย" class="nt-btn text-[11px] font-bold gap-0.5"><span class="material-icons text-[16px] rotate-180">sort</span>Z→A</button>
+                    <span class="w-px h-6 bg-slate-600 mx-1"></span>
+                    <button onclick="noteFindReplace()" title="ค้นหา & แทนที่ (Ctrl+H)" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">find_replace</span>แทนที่</button>
+                    <button onclick="noteCmd('copyTSV')" title="คัดลอกช่วงที่เลือกเป็นตาราง — เอาไปวางใน Excel / Google Sheets ได้เลย" class="nt-btn text-[11px] font-bold gap-1"><span class="material-icons text-[16px]">table_view</span>ก๊อป Excel</button>
+                    <button onclick="noteCmd('clearFmt')" title="ล้างรูปแบบทั้งหมดของช่องที่เลือก (สี/ตัวหนา/ขนาด) เหลือแต่ข้อความ" class="nt-btn text-[11px] font-bold gap-1 text-amber-300"><span class="material-icons text-[16px]">format_clear</span>ล้างรูปแบบ</button>
                     <span class="flex-1"></span>
                     <span id="noteSelInfo" class="text-[11px] text-slate-400 mr-2"></span>
                     <button onclick="noteEditCancel()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold">ยกเลิก</button>
