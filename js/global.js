@@ -1271,3 +1271,16 @@ document.addEventListener('mouseover', e => {
     window.addEventListener('offline', () => show('<span class="material-icons" style="font-size:17px">wifi_off</span> อินเทอร์เน็ตหลุด — ข้อมูลจะยังไม่ถูกบันทึกจนกว่าเน็ตจะกลับมา', '#dc2626', false));
     window.addEventListener('online',  () => show('<span class="material-icons" style="font-size:17px">wifi</span> เน็ตกลับมาแล้ว ใช้งานต่อได้เลย', '#16a34a', true));
 })();
+
+// ══════════════════════════════════════════════════════════════════════════
+// 🗃️ [dbCache] cache กลางฝั่งเว็บ ลดการยิงขอข้อมูลเดิมซ้ำๆ จาก Supabase
+// ใช้: dbCache.get(key) / dbCache.set(key, val, ttlMs) / dbCache.bust(prefix)
+// กติกา: ใช้กับข้อมูลที่นานๆ เปลี่ยนที (รายการชีต, รายชื่อ user) เท่านั้น
+//        ข้อมูลที่ต้อง realtime (เวร, คิวพัก, ยอดเงิน) ห้ามใช้ — ต้องสดเสมอ
+// ══════════════════════════════════════════════════════════════════════════
+window.dbCache = {
+    _m: new Map(),
+    get(key) { const e = this._m.get(key); if (e && Date.now() < e.exp) return e.val; this._m.delete(key); return undefined; },
+    set(key, val, ttlMs) { this._m.set(key, { val, exp: Date.now() + (ttlMs || 60000) }); },
+    bust(prefix) { [...this._m.keys()].forEach(k => { if (!prefix || k.startsWith(prefix)) this._m.delete(k); }); }
+};
