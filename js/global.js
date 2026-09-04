@@ -1170,3 +1170,104 @@ window.getTagBadgeByName = function(name) {
     return u ? window.getTagBadge(u.tag, u.department) : '';
 };
 // ====== จบ TAG Badge Helper ======
+
+// ══════════════════════════════════════════════════════════════════════════
+// ⚡ [อัปเกรดเว็บ] เมนูด่วน Ctrl+K + Prefetch ตอนชี้เมนู + แถบเตือนเน็ตหลุด
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── 1) 🚀 เมนูด่วน (Ctrl+K): พิมพ์ชื่อหน้า → Enter → เด้งไปทันที ──
+window._qnavItems = function() {
+    // เก็บจากเมนูจริงในหน้า → ได้เฉพาะหน้าที่คนนี้มีสิทธิ์เห็น (ปุ่มที่โดนซ่อนด้วยสิทธิ์จะไม่ติดมา)
+    const seen = new Set(); const items = [];
+    document.querySelectorAll("#sidebarNav [onclick*=\"showPage('\"]").forEach(btn => {
+        if (btn.classList.contains('hidden')) return;   // โดนซ่อนด้วยสิทธิ์
+        const m = (btn.getAttribute('onclick') || '').match(/showPage\('([^']+)'\)/);
+        if (!m || seen.has(m[1])) return;
+        seen.add(m[1]);
+        const label = btn.innerText.replace(/\s+/g, ' ').trim();
+        if (label) items.push({ page: m[1], label });
+    });
+    return items;
+};
+window.openQuickNav = function() {
+    let box = document.getElementById('quickNavBox');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'quickNavBox';
+        box.style.cssText = 'position:fixed;inset:0;z-index:99990;display:none;align-items:flex-start;justify-content:center;padding-top:14vh;background:rgba(2,6,23,.75);backdrop-filter:blur(3px)';
+        box.innerHTML = `
+            <div style="width:min(520px,92vw);background:#0f172a;border:1px solid rgba(232,193,90,.35);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.7);overflow:hidden">
+                <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(148,163,184,.15)">
+                    <span class="material-icons" style="color:#E8C15A;font-size:20px">bolt</span>
+                    <input id="quickNavInput" placeholder="พิมพ์ชื่อหน้า... (เช่น ชีต, คลังรูป, จัดเวร)" autocomplete="off"
+                        style="flex:1;background:transparent;border:0;outline:none;color:#f1f5f9;font-size:15px;font-weight:600">
+                    <span style="font-size:10px;color:#64748b;border:1px solid #334155;border-radius:5px;padding:2px 6px">Esc ปิด</span>
+                </div>
+                <div id="quickNavList" style="max-height:46vh;overflow-y:auto;padding:6px"></div>
+            </div>`;
+        document.body.appendChild(box);
+        box.addEventListener('mousedown', e => { if (e.target === box) window.closeQuickNav(); });
+        const input = box.querySelector('#quickNavInput');
+        input.addEventListener('input', () => window._qnavRender());
+        input.addEventListener('keydown', e => {
+            const rows = box.querySelectorAll('.qnav-row');
+            let idx = [...rows].findIndex(r => r.dataset.sel === '1');
+            if (e.key === 'ArrowDown') { e.preventDefault(); window._qnavSelect(rows, Math.min(rows.length - 1, idx + 1)); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); window._qnavSelect(rows, Math.max(0, idx - 1)); }
+            else if (e.key === 'Enter') { e.preventDefault(); const r = rows[idx >= 0 ? idx : 0]; if (r) r.click(); }
+            else if (e.key === 'Escape') { window.closeQuickNav(); }
+        });
+    }
+    box.style.display = 'flex';
+    const input = box.querySelector('#quickNavInput');
+    input.value = ''; window._qnavRender(); setTimeout(() => input.focus(), 30);
+};
+window.closeQuickNav = function() { const b = document.getElementById('quickNavBox'); if (b) b.style.display = 'none'; };
+window._qnavSelect = function(rows, i) {
+    rows.forEach((r, x) => { r.dataset.sel = x === i ? '1' : ''; r.style.background = x === i ? 'rgba(232,193,90,.14)' : 'transparent'; r.style.borderColor = x === i ? 'rgba(232,193,90,.4)' : 'transparent'; });
+    if (rows[i]) rows[i].scrollIntoView({ block: 'nearest' });
+};
+window._qnavRender = function() {
+    const list = document.getElementById('quickNavList'); if (!list) return;
+    const q = (document.getElementById('quickNavInput').value || '').toLowerCase().trim();
+    const items = window._qnavItems().filter(it => !q || it.label.toLowerCase().includes(q) || it.page.toLowerCase().includes(q));
+    if (!items.length) { list.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;font-size:13px">ไม่พบหน้าที่ค้นหา</div>'; return; }
+    list.innerHTML = items.map((it, i) => `
+        <div class="qnav-row" data-sel="${i === 0 ? '1' : ''}" onclick="closeQuickNav();showPage('${it.page}')"
+            onmouseenter="window._qnavSelect(document.querySelectorAll('.qnav-row'), ${i})"
+            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid ${i === 0 ? 'rgba(232,193,90,.4)' : 'transparent'};background:${i === 0 ? 'rgba(232,193,90,.14)' : 'transparent'};color:#e2e8f0;font-size:14px;font-weight:600">
+            <span class="material-icons" style="font-size:17px;color:#8b95a8">arrow_forward</span>${it.label}
+            <span style="margin-left:auto;font-size:10px;color:#475569">${it.page}</span>
+        </div>`).join('');
+};
+document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); window.openQuickNav(); }
+});
+
+// ── 2) ⚡ Prefetch: เอาเมาส์ชี้ปุ่มเมนู → แอบโหลด HTML ของหน้านั้นเข้า cache รอไว้ ──
+// พอคลิกจริง fetch เจอ cache เปิดติดแทบทันที (โหลดล่วงหน้าแค่ HTML ไม่รันสคริปต์ ปลอดภัย)
+window._prefetched = new Set();
+document.addEventListener('mouseover', e => {
+    const btn = e.target.closest && e.target.closest("[onclick*=\"showPage('\"]");
+    if (!btn) return;
+    const m = (btn.getAttribute('onclick') || '').match(/showPage\('([^']+)'\)/);
+    if (!m || window._prefetched.has(m[1])) return;
+    window._prefetched.add(m[1]);
+    fetch(`./pages/${m[1]}.html?v=${window._APP_VERSION || ''}`).catch(() => window._prefetched.delete(m[1]));
+});
+
+// ── 3) 📶 แถบเตือนเน็ตหลุด: เน็ตดับขึ้นแถบแดงทันที กลับมาแล้วขึ้นเขียวแป๊บนึง ──
+(function() {
+    const bar = document.createElement('div');
+    bar.id = 'netStatusBar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;display:none;align-items:center;justify-content:center;gap:8px;padding:8px;font-weight:800;font-size:13px;color:#fff;font-family:Sarabun,sans-serif';
+    document.body.appendChild(bar);
+    let hideTimer = null;
+    const show = (msg, bg, autoHide) => {
+        clearTimeout(hideTimer);
+        bar.style.background = bg; bar.innerHTML = msg; bar.style.display = 'flex';
+        if (autoHide) hideTimer = setTimeout(() => bar.style.display = 'none', 3000);
+    };
+    window.addEventListener('offline', () => show('<span class="material-icons" style="font-size:17px">wifi_off</span> อินเทอร์เน็ตหลุด — ข้อมูลจะยังไม่ถูกบันทึกจนกว่าเน็ตจะกลับมา', '#dc2626', false));
+    window.addEventListener('online',  () => show('<span class="material-icons" style="font-size:17px">wifi</span> เน็ตกลับมาแล้ว ใช้งานต่อได้เลย', '#16a34a', true));
+})();
