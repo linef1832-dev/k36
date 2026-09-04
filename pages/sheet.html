@@ -5,10 +5,13 @@
                 <span class="material-icons text-2xl text-purple-400">grid_view</span> หน้าตารางงานรวม
             </h1>
             <div id="sheetAdminControls" class="hidden">
-                <button onclick="showSheetAdmin()" class="bg-purple-600/50 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition border border-purple-400/50">
+                <button onclick="showSheetAdmin(false)" class="bg-purple-600/50 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition border border-purple-400/50">
                     <span class="material-icons text-sm">settings</span> จัดการชีท
                 </button>
             </div>
+            <button id="btnMySheets" onclick="showSheetAdmin(true)" class="bg-emerald-600/40 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition border border-emerald-400/50">
+                <span class="material-icons text-sm">person_add</span> + ชีตของฉัน
+            </button>
         </div>
         <div class="flex items-center gap-2">
             <div class="relative">
@@ -192,7 +195,7 @@
 <div id="sheetAdminModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4 fade-in">
     <div class="bg-slate-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-700">
         <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-5 flex justify-between items-center shrink-0">
-            <h3 class="font-black text-xl text-white flex items-center gap-2">
+            <h3 id="sheetAdminTitle" class="font-black text-xl text-white flex items-center gap-2">
                 <span class="material-icons">settings_applications</span> จัดการรายการ / ลิงก์
             </h3>
             <button onclick="closeSheetAdmin()" class="text-white/70 hover:text-white hover:bg-white/20 p-1 rounded-full transition">
@@ -212,10 +215,13 @@
                     <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ชื่อเรียก</label>
                     <input type="text" id="newSheetName" placeholder="เช่น ตารางงาน, เว็บหลังบ้าน..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
                 </div>
-                <div>
+                <div id="sheetGroupFieldWrap">
                     <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">กลุ่ม / หมวด</label>
                     <input type="text" id="newSheetGroup" placeholder="เช่น Jun88, ทั่วไป..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
                 </div>
+            </div>
+            <div id="sheetPersonalHint" class="hidden text-[11px] text-emerald-300 bg-emerald-900/20 border border-emerald-700/40 rounded-lg p-2 leading-relaxed flex items-center gap-2">
+                <span class="material-icons text-sm">lock</span> ชีตนี้เป็นของคุณคนเดียว — คนอื่นจะมองไม่เห็น และจะถูกเก็บในหมวด "ชีตของฉัน" อัตโนมัติ
             </div>
             <div>
                 <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ประเภทรายการ</label>
