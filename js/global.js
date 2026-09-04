@@ -334,6 +334,8 @@ async function showLogin() {
         console.error('Error loading login:', err);
     } finally {
         if(loading) loading.classList.add('hidden');
+        // ⚡ เริ่ม warm-up ทุกหน้าหลังระบบนิ่ง (ครั้งเดียวต่อ session)
+        if (!window._warmedUp) setTimeout(() => window._warmupAllPages(), 4000);
     }
 }
 
@@ -797,6 +799,8 @@ async function showPage(pageName) {
         document.getElementById('app-content').innerHTML = `<div class="p-10 text-center text-red-500 font-bold">เกิดข้อผิดพลาดในการโหลดหน้า ${pageName}<br><br><span class="text-xs text-gray-500">${err.message}</span></div>`;
     } finally {
         if(loading) loading.classList.add('hidden');
+        // ⚡ เริ่ม warm-up ทุกหน้าหลังระบบนิ่ง (ครั้งเดียวต่อ session)
+        if (!window._warmedUp) setTimeout(() => window._warmupAllPages(), 4000);
     }
 }
 
@@ -856,7 +860,7 @@ window.addCustomPermRole = async function() {
         await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(currentRoles) }]);
         
         inputEl.value = '';
-        await window.loadSettings();
+        await window.loadSettings(true);
         
         Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มตำแหน่ง ${roleName.toUpperCase()} แล้ว`, timer: 1500, showConfirmButton: false});
     } else {
@@ -1251,14 +1255,45 @@ document.addEventListener('keydown', e => {
 // ── 2) ⚡ Prefetch: เอาเมาส์ชี้ปุ่มเมนู → แอบโหลด HTML ของหน้านั้นเข้า cache รอไว้ ──
 // พอคลิกจริง fetch เจอ cache เปิดติดแทบทันที (โหลดล่วงหน้าแค่ HTML ไม่รันสคริปต์ ปลอดภัย)
 window._prefetched = new Set();
+window._prefetchPage = async function(name) {
+    if (window._prefetched.has(name)) return;
+    window._prefetched.add(name);
+    try {
+        const v = window._APP_VERSION || '';
+        // HTML → ยัดเข้า pageCache ตรงๆ เลย (ตอนกดจริงไม่ต้องยิงเน็ตแม้แต่ครั้งเดียว)
+        if (typeof pageCache !== 'undefined' && !pageCache[name]) {
+            const r = await fetch(`./pages/${name}/${name}.html?v=${v}`);
+            if (r.ok) pageCache[name] = await r.text();
+        }
+        // ไฟล์ JS ของหน้านั้น → อุ่นเข้า HTTP cache (ตอน loadScript จริงจะติดตั้งจาก cache ทันที)
+        if (typeof PAGE_SCRIPTS !== 'undefined') {
+            for (const sn of (PAGE_SCRIPTS[name] || [])) {
+                if (!window._loadedScripts || !window._loadedScripts[sn]) fetch(`./js/${sn}.js?v=${v}`).catch(() => {});
+            }
+        }
+    } catch (e) { window._prefetched.delete(name); }
+};
 document.addEventListener('mouseover', e => {
     const btn = e.target.closest && e.target.closest("[onclick*=\"showPage('\"]");
     if (!btn) return;
     const m = (btn.getAttribute('onclick') || '').match(/showPage\('([^']+)'\)/);
-    if (!m || window._prefetched.has(m[1])) return;
-    window._prefetched.add(m[1]);
-    fetch(`./pages/${m[1]}/${m[1]}.html?v=${window._APP_VERSION || ''}`).catch(() => window._prefetched.delete(m[1]));
+    if (m) window._prefetchPage(m[1]);
 });
+
+// ⚡ [Warm-up ทั้งเว็บ] หลังเข้าระบบนิ่งแล้ว ~4 วิ → แอบโหลดทุกหน้า+ทุกสคริปต์เข้าเครื่องเงียบๆ
+// ทีละหน้า เว้นจังหวะ ไม่แย่งแบนด์วิดท์งานจริง — หลังจากนั้นกดหน้าไหนก็เปิดติดทันที
+window._warmedUp = false;
+window._warmupAllPages = async function() {
+    if (window._warmedUp) return;
+    window._warmedUp = true;
+    const names = [...new Set([...(typeof PAGE_SCRIPTS !== 'undefined' ? Object.keys(PAGE_SCRIPTS) : []), 'dashboard', 'announcement'])];
+    for (const n of names) {
+        if (window._currentPageName === n) continue;   // หน้าปัจจุบันโหลดแล้ว
+        await window._prefetchPage(n);
+        await new Promise(r => setTimeout(r, 200));    // เว้นจังหวะเบาๆ
+    }
+    console.log('⚡ warm-up ครบทุกหน้าแล้ว — สลับหน้าจากนี้ไม่ต้องรอโหลดไฟล์อีก');
+};
 
 // ── 3) 📶 แถบเตือนเน็ตหลุด: เน็ตดับขึ้นแถบแดงทันที กลับมาแล้วขึ้นเขียวแป๊บนึง ──
 (function() {
