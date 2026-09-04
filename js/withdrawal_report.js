@@ -208,7 +208,8 @@ let _shiftMap = {}; // { sender_name: 'กะเช้า'|'กะดึก' }
 
 async function _loadShiftMap() {
     try {
-        const { data } = await appDB.from('users').select('username, allowed_shift');
+        // 🗃️ ใช้รายชื่อจาก cache กลาง (มีครบทุก field อยู่แล้ว) แทนยิง query แยกอีกรอบ
+        const data = await window.getUsersCached();
         _shiftMap = {};
         (data||[]).forEach(u => {
             if (u.username && u.allowed_shift) {
