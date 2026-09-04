@@ -181,6 +181,15 @@ window._lastKnownFp = null;
 window._ipFailCount = 0;
 window._ipVisibilityHandlerAttached = false;
 
+// ⚡ [เร่งล็อกอิน] อุ่นผลเช็ค IP ล่วงหน้า — เริ่มยิงตั้งแต่หน้า login โผล่ (ระหว่างคนพิมพ์ PIN)
+// พอกดเข้าระบบ ผลรออยู่แล้ว ไม่ต้องเสียเวลารอเว็บนอก 0.5-2 วิ (จำผลไว้ 2 นาที)
+window._ipProbe = { p: null, ts: 0 };
+window.prewarmIpProbe = function() {
+    if (window._ipProbe.p && Date.now() - window._ipProbe.ts < 120000) return window._ipProbe.p;
+    window._ipProbe = { p: probeCurrentIp().catch(() => null), ts: Date.now() };
+    return window._ipProbe.p;
+};
+
 // 🚀 [Step 1] เช็ค IP เร็วๆ — ใช้หลาย API หมุนกัน เพื่อกัน rate limit
 async function probeCurrentIp() {
     const probes = [
@@ -461,6 +470,9 @@ async function handleLogin(e) {
     try {
         // 🔐 [SECURITY] เดิมดึง users ทั้งแถว (รวม PIN) มาเทียบในเบราว์เซอร์ → ใครเปิด F12 ก็เห็น PIN ทุกคน
         // ตอนนี้เทียบ PIN ฝั่ง server ผ่าน function verify_login (PIN อยู่ในตาราง user_pins ที่ฝั่งเว็บอ่านไม่ได้)
+        // ⚡ ยิงขนาน: ระหว่างรอเช็ค PIN ให้ดึงตั้งค่า IP whitelist และอุ่นผลเช็ค IP ไปพร้อมกันเลย
+        const _wlPromise = appDB.from('settings').select('value').eq('key', 'ip_whitelist').maybeSingle().then(r => r).catch(() => ({ data: null }));
+        window.prewarmIpProbe();
         const { data: loginRes, error } = await appDB.rpc('verify_login', { p_username: name, p_pin: pinInput });
         const loginStatus = loginRes && loginRes.status;
         const users = (loginStatus === 'ok' || loginStatus === 'first_set') ? [loginRes.user] : [];
@@ -524,10 +536,10 @@ async function handleLogin(e) {
         // - ตั้งค่าได้ที่หน้า "ตั้งค่า IP ที่อนุญาต" (เก็บใน settings key: ip_whitelist)
         // - เช็คหลังยืนยัน PIN ผ่าน เพื่อรู้บทบาท → admin ไม่ถูกบล็อก (กันตั้งผิดแล้วล็อกทุกคนออกถาวร)
         try {
-            const { data: ipCfgRow } = await appDB.from('settings').select('value').eq('key', 'ip_whitelist').maybeSingle();
+            const { data: ipCfgRow } = await _wlPromise;   // ⚡ ผลถูกยิงรอไว้ตั้งแต่ตอนเช็ค PIN แล้ว
             const ipCfg = ipCfgRow && ipCfgRow.value ? JSON.parse(ipCfgRow.value) : null;
             if (ipCfg && ipCfg.enabled && user && user.role !== 'admin') {
-                const curIp = await probeCurrentIp();
+                const curIp = await window.prewarmIpProbe();   // ⚡ ใช้ผลที่อุ่นไว้ตั้งแต่หน้า login โผล่
                 const matches = (ip, pattern) => {
                     if (!ip || !pattern) return false;
                     if (pattern.includes('*')) return ip.startsWith(pattern.replace(/\*+$/, ''));
@@ -571,7 +583,7 @@ async function handleLogin(e) {
         
         if(typeof window.pinSuccessAnim==='function') window.pinSuccessAnim();
         if(typeof window._loginBeepSuccess==='function') window._loginBeepSuccess();
-        await new Promise(r=>setTimeout(r,350));
+        await new Promise(r=>setTimeout(r,120));   // ⚡ เดิม 350ms — ลดเหลือพอเห็นแอนิเมชัน
         clearPinInputs();
         Swal.close();
         
