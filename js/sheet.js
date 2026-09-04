@@ -1458,6 +1458,18 @@ window.onSheetSearch = function() {
 // - ตอนเปิด: บีบหน้าชีตให้เหลือครึ่งซ้ายพอดี (ไม่มีอะไรถูกบัง)
 // ==========================================
 window.toggleGalleryDrawer = async function(show) {
+    // 💉 ฉีด CSS โหมดแบ่งจอจาก JS ตรงๆ (กันกรณีไฟล์ sheet.html เก่าค้างใน cache ของ CDN)
+    if (!document.getElementById('sheetSplitCSS')) {
+        const st = document.createElement('style');
+        st.id = 'sheetSplitCSS';
+        st.textContent = `
+            #sheetApp.sheet-split #sheetMenu .lg\\:flex-row{ flex-direction:column !important; }
+            #sheetApp.sheet-split #sheetMenu .lg\\:w-\\[340px\\]{ width:100% !important; position:static !important; max-width:520px; }
+            #sheetApp.sheet-split #sheetGroupsContainer .grid{ grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
+            #sheetApp.sheet-split #sheetGroupsContainer{ padding-right:4px; }
+        `;
+        document.head.appendChild(st);
+    }
     const drawer = document.getElementById('galleryDrawer');
     const sheetApp = document.getElementById('sheetApp');
     if (!drawer) return;
@@ -1466,11 +1478,11 @@ window.toggleGalleryDrawer = async function(show) {
 
     if (!willShow) {
         drawer.style.display = 'none';
-        if (sheetApp) { sheetApp.style.marginRight = ''; }
+        if (sheetApp) { sheetApp.style.marginRight = ''; sheetApp.classList.remove('sheet-split'); }
         return;
     }
     drawer.style.display = 'flex';
-    if (sheetApp) { sheetApp.style.marginRight = '50vw'; sheetApp.style.transition = 'margin-right .2s ease'; }
+    if (sheetApp) { sheetApp.style.marginRight = '50vw'; sheetApp.style.transition = 'margin-right .2s ease'; sheetApp.classList.add('sheet-split'); }
 
     // เช็คจาก DOM จริง (ไม่ใช้แฟล็ก) — เพราะเปลี่ยนหน้าไปกลับ DOM ของแผงจะถูกสร้างใหม่
     if (!document.getElementById('galleryApp')) {
