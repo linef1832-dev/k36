@@ -1,0 +1,355 @@
+// ════════════════════════════════════════════════════════════════════
+// 📦 withdrawal_report/bot.js — ส่วนที่ 2/2 ของสถิติเคส+บอทถอน (แยกจาก withdrawal_report.js เดิม 820 บรรทัด)
+// เนื้อหา: ตั้งค่าบอท Telegram + สรุปรายการรวม (เดือน/สัปดาห์)
+// ⚠️ ลำดับโหลด: withdrawal_report/stats → withdrawal_report/bot (ห้ามสลับ — ตัวแปร top-level แชร์ scope เดียวกัน)
+// ════════════════════════════════════════════════════════════════════
+// 🤖 BOT SETTINGS
+// ==========================================
+
+const BOT_SETTING_KEY      = 'tg_bot_token';
+const CHATID_SETTING_KEY   = 'tg_bot_chatid';
+
+window.toggleTokenVisibility = function() {
+    const inp  = document.getElementById('botTokenInput');
+    const icon = document.getElementById('tokenEyeIcon');
+    if (inp.type === 'password') { inp.type='text'; icon.textContent='visibility_off'; }
+    else                          { inp.type='password'; icon.textContent='visibility'; }
+};
+
+window.openBotSettings = function() { switchCaseTab('settings'); };
+
+// โหลดสถานะบอทจาก settings
+async function _loadBotStatus() {
+    try {
+        const { data } = await appDB.from('settings')
+            .select('key,value')
+            .in('key', [BOT_SETTING_KEY, CHATID_SETTING_KEY]);
+        const map = {};
+        (data||[]).forEach(r => { map[r.key] = r.value; });
+
+        const token  = map[BOT_SETTING_KEY]    || '';
+        const chatId = map[CHATID_SETTING_KEY] || '';
+
+        const inp1 = document.getElementById('botTokenInput');
+        const inp2 = document.getElementById('botChatIdInput');
+        if (inp1 && token)  inp1.value = token;
+        if (inp2 && chatId) inp2.value = chatId;
+
+        if (token) {
+            await _verifyBotToken(token, chatId, false); // เช็คเงียบๆ
+        } else {
+            _setBotStatusUI(false, null, chatId);
+        }
+    } catch(e) { console.warn('loadBotStatus:', e); }
+}
+
+// ทดสอบการเชื่อมต่อ
+window.testBotConnection = async function() {
+    const token  = (document.getElementById('botTokenInput')?.value||'').trim();
+    const chatId = (document.getElementById('botChatIdInput')?.value||'').trim();
+    if (!token) return _showTestResult(false, 'กรุณาใส่ Bot Token ก่อน');
+    const btn = document.getElementById('btnTestBot');
+    btn.innerHTML = `<span class="material-icons text-sm animate-spin">sync</span> กำลังทดสอบ...`;
+    btn.disabled  = true;
+    await _verifyBotToken(token, chatId, true);
+    btn.innerHTML = `<span class="material-icons text-sm">wifi_tethering</span> ทดสอบ`;
+    btn.disabled  = false;
+};
+
+async function _verifyBotToken(token, chatId, showResult) {
+    try {
+        const r    = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+        const json = await r.json();
+        if (!json.ok) throw new Error(json.description || 'Token ไม่ถูกต้อง');
+        const bot  = json.result;
+        _setBotStatusUI(true, bot, chatId);
+        if (showResult) _showTestResult(true, `เชื่อมต่อสำเร็จ! ชื่อบอท: ${bot.first_name} (@${bot.username})`);
+        return true;
+    } catch(e) {
+        _setBotStatusUI(false, null, chatId);
+        if (showResult) _showTestResult(false, e.message);
+        return false;
+    }
+}
+
+function _setBotStatusUI(connected, botInfo, chatId) {
+    const dot    = document.getElementById('botStatusDot');
+    const txt    = document.getElementById('botStatusText');
+    const disc   = document.getElementById('btnDisconnect');
+
+    if (dot) dot.className = `w-2 h-2 rounded-full inline-block ${connected ? 'bg-emerald-400' : 'bg-gray-400'}`;
+    if (txt) txt.textContent = connected
+        ? `เชื่อมต่อแล้ว: @${botInfo?.username || '...'}`
+        : 'ยังไม่ได้เชื่อมต่อบอท';
+
+    const sName     = document.getElementById('sBot_name');
+    const sUser     = document.getElementById('sBot_username');
+    const sStatus   = document.getElementById('sBot_status');
+    const sChatId   = document.getElementById('sBot_chatid');
+
+    if (sStatus) sStatus.textContent = connected ? '✅ เชื่อมต่อแล้ว' : '❌ ไม่ได้เชื่อมต่อ';
+    if (sStatus) sStatus.className   = `font-bold ${connected ? 'text-emerald-400' : 'text-red-400'}`;
+    if (sName)   sName.textContent   = botInfo?.first_name || '—';
+    if (sUser)   sUser.textContent   = botInfo ? `@${botInfo.username}` : '—';
+    if (sChatId) sChatId.textContent = chatId || '—';
+    if (disc)    disc.classList.toggle('hidden', !connected);
+}
+
+function _showTestResult(ok, msg) {
+    const el = document.getElementById('botTestResult');
+    if (!el) return;
+    el.className = `mt-4 p-4 rounded-xl text-sm font-bold ${ok ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`;
+    el.textContent = (ok ? '✅ ' : '❌ ') + msg;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 5000);
+}
+
+// บันทึก settings
+window.saveBotSettings = async function() {
+    const token  = (document.getElementById('botTokenInput')?.value||'').trim();
+    const chatId = (document.getElementById('botChatIdInput')?.value||'').trim();
+    if (!token) return Swal.fire('แจ้งเตือน','กรุณาใส่ Bot Token','warning');
+
+    const btn = document.getElementById('btnSaveBot');
+    btn.innerHTML = `<span class="material-icons text-sm animate-spin">sync</span> กำลังบันทึก...`;
+    btn.disabled  = true;
+
+    // ทดสอบก่อนบันทึก
+    const ok = await _verifyBotToken(token, chatId, false);
+    if (!ok) {
+        btn.innerHTML = `<span class="material-icons text-sm">save</span> บันทึกและเชื่อมต่อ`;
+        btn.disabled  = false;
+        return Swal.fire('ผิดพลาด','Bot Token ไม่ถูกต้อง — กรุณาตรวจสอบใหม่','error');
+    }
+
+    try {
+        await appDB.from('settings').upsert([
+            { key: BOT_SETTING_KEY,    value: token  },
+            { key: CHATID_SETTING_KEY, value: chatId },
+        ]);
+
+        // บันทึกเวลา
+        const now = new Date().toLocaleString('th-TH');
+        const sSaved = document.getElementById('sBot_saved');
+        if (sSaved) sSaved.textContent = now;
+
+        Swal.fire({ icon:'success', title:'บันทึกแล้ว', text:'เชื่อมต่อบอทเรียบร้อย', timer:2000, showConfirmButton:false });
+    } catch(e) {
+        Swal.fire('Error', e.message, 'error');
+    } finally {
+        btn.innerHTML = `<span class="material-icons text-sm">save</span> บันทึกและเชื่อมต่อ`;
+        btn.disabled  = false;
+    }
+};
+
+// ยกเลิกการเชื่อมต่อ
+window.disconnectBot = async function() {
+    const res = await Swal.fire({
+        title:'ยืนยันการยกเลิก?',
+        text:'จะลบ Token ออกจากระบบ',
+        icon:'warning',
+        showCancelButton:true,
+        confirmButtonText:'ยืนยัน',
+        cancelButtonText:'ยกเลิก',
+        confirmButtonColor:'#ef4444'
+    });
+    if (!res.isConfirmed) return;
+    await appDB.from('settings').delete().in('key',[BOT_SETTING_KEY, CHATID_SETTING_KEY]);
+    document.getElementById('botTokenInput').value  = '';
+    document.getElementById('botChatIdInput').value = '';
+    _setBotStatusUI(false, null, '');
+    Swal.fire({ icon:'success', title:'ยกเลิกแล้ว', timer:1500, showConfirmButton:false });
+};
+
+// วิธีหา Chat ID
+window.helpGetChatId = function() {
+    Swal.fire({
+        title: 'วิธีหา Chat ID',
+        html: `
+            <div class="text-left text-sm space-y-3">
+                <p>1. เพิ่ม <strong>@userinfobot</strong> เข้ากลุ่ม</p>
+                <p>2. พิมพ์ <strong>/start</strong> ในกลุ่ม</p>
+                <p>3. บอทจะตอบกลับพร้อม Chat ID (เริ่มด้วย -100...)</p>
+                <hr class="border-slate-600 my-2">
+                <p>หรือใช้วิธีนี้:</p>
+                <p>1. Forward ข้อความจากกลุ่มไปให้ <strong>@getidsbot</strong></p>
+                <p>2. บอทจะบอก Chat ID ให้</p>
+            </div>`,
+        confirmButtonText: 'เข้าใจแล้ว',
+        background: '#1e293b',
+        color: '#e2e8f0'
+    });
+};
+
+// ─── Export Excel ──────────────────────────
+window.exportCaseExcel = async function() {
+    if (!_caseData.length) return Swal.fire('แจ้งเตือน','ไม่มีข้อมูล','warning');
+
+    // โหลด SheetJS ถ้ายังไม่มี
+    if (typeof XLSX === 'undefined') {
+        await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
+    const rows = [['#','เวลา','พนักงาน','ประเภท','เว็บ','ตอบใคร','ข้อความ']];
+    _caseData.forEach((d,i) => {
+        const t = new Date(d.created_at).toLocaleTimeString('th-TH',{timeZone:'Asia/Bangkok'});
+        rows.push([i+1, t, d.sender_name, d.case_type||'reply', d.site||'', d.quoted_from||'', d.message_text||'']);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cases');
+    XLSX.writeFile(wb, `tg_cases_${_caseDate}.xlsx`);
+};
+
+// ==========================================
+// 📊 สรุปรายการรวม (เดือน/สัปดาห์)
+// ==========================================
+
+window.loadSummary = async function() {
+    const period     = document.getElementById('summaryPeriod')?.value || 'month';
+    const shiftFilter = document.getElementById('summaryShift')?.value || 'ALL';
+    const customDiv  = document.getElementById('summaryCustomRange');
+
+    // แสดง/ซ่อน custom range
+    if (customDiv) customDiv.classList.toggle('hidden', period !== 'custom');
+
+    // คำนวณ date range
+    const now   = new Date();
+    const thNow = new Date(now.getTime() + 7*60*60*1000);
+    let fromDate, toDate;
+
+    if (period === 'today') {
+        fromDate = toDate = thNow.toISOString().slice(0,10);
+    } else if (period === 'yesterday') {
+        const yd = new Date(thNow); yd.setDate(thNow.getDate() - 1);
+        fromDate = toDate = yd.toISOString().slice(0,10);
+    } else if (period === 'week') {
+        const day = thNow.getDay() || 7;
+        const mon = new Date(thNow); mon.setDate(thNow.getDate() - day + 1);
+        fromDate  = mon.toISOString().slice(0,10);
+        toDate    = thNow.toISOString().slice(0,10);
+    } else if (period === 'last_week') {
+        const day = thNow.getDay() || 7;
+        const mon = new Date(thNow); mon.setDate(thNow.getDate() - day - 6);
+        const sun = new Date(mon);   sun.setDate(mon.getDate() + 6);
+        fromDate  = mon.toISOString().slice(0,10);
+        toDate    = sun.toISOString().slice(0,10);
+    } else if (period === 'month') {
+        fromDate  = `${thNow.getFullYear()}-${String(thNow.getMonth()+1).padStart(2,'0')}-01`;
+        toDate    = thNow.toISOString().slice(0,10);
+    } else if (period === 'last_month') {
+        const lm  = new Date(thNow.getFullYear(), thNow.getMonth()-1, 1);
+        const lme = new Date(thNow.getFullYear(), thNow.getMonth(), 0);
+        fromDate  = lm.toISOString().slice(0,10);
+        toDate    = lme.toISOString().slice(0,10);
+    } else {
+        fromDate = document.getElementById('summaryFrom')?.value;
+        toDate   = document.getElementById('summaryTo')?.value;
+        if (!fromDate || !toDate) return;
+    }
+
+    // แสดงช่วงวันที่
+    const rangeEl = document.getElementById('summaryDateRange');
+    if (rangeEl) rangeEl.textContent = `${fromDate} ถึง ${toDate}`;
+
+    // Loading
+    document.getElementById('summaryRanking').innerHTML =
+        `<div class="text-center py-8"><span class="material-icons animate-spin text-violet-400 text-3xl">sync</span></div>`;
+
+    try {
+        const { data, error } = await appDB
+            .from('tg_case_logs')
+            .select('sender_name, case_type, site, full_name')
+            .gte('msg_date', fromDate)
+            .lte('msg_date', toDate);
+        if (error) throw error;
+
+        const rows = data || [];
+
+        // summary cards
+        const total = rows.length;
+        const del   = 0;
+        const unb   = rows.filter(d => _caseGroup(d) === 'ปลด').length;
+        const other = rows.filter(d => { const t=d.case_type||''; return !t.includes('ลบ')&&!t.includes('เช็ค')&&!t.includes('ปลด'); }).length;
+        document.getElementById('sumTotal').textContent = total.toLocaleString();
+        document.getElementById('sumDel').textContent   = del.toLocaleString();
+        document.getElementById('sumUnb').textContent   = unb.toLocaleString();
+        document.getElementById('sumOther').textContent = other.toLocaleString();
+
+        // นับต่อคน (กรองกะด้วย)
+        const counts = {};
+        rows.forEach(d => {
+            const k     = d.sender_name;
+            const shift = _getShift(k, d.full_name, _shiftMap);
+            // กรองกะ
+            if (shiftFilter !== 'ALL' && shift !== shiftFilter) return;
+            if (!counts[k]) counts[k] = { total:0, ลบ:0, เช็ค:0, ปลด:0, other:0,
+                shift: _getShift(k, d.full_name, _shiftMap),
+                display: (()=>{ const m=(k||'').match(/^[^-]+-([^-]+)-/); return m?m[1]:k; })()
+            };
+            counts[k].total++;
+            const t = d.case_type||'';
+            const grp = _caseGroup(d);
+        if (grp === 'เช็ค') counts[k].เช็ค++;
+            else if (t.includes('ปลด'))  counts[k].ปลด++;
+            else                          counts[k].other++;
+        });
+
+        const sorted = Object.entries(counts).sort((a,b) => b[1].total - a[1].total);
+        const max    = sorted[0]?.[1]?.total || 1;
+        const medals = ['🥇','🥈','🥉'];
+
+        const ranking = document.getElementById('summaryRanking');
+        if (sorted.length === 0) {
+            ranking.innerHTML = `<div class="text-center py-8 text-gray-400">ไม่มีข้อมูลในช่วงนี้</div>`;
+            return;
+        }
+
+        ranking.innerHTML = sorted.map(([name, c], i) => {
+            const pct   = Math.round((c.total/max)*100);
+            const mdl   = medals[i] || `#${i+1}`;
+            const shiftColor = c.shift==='กะเช้า'?'#fbbf24':c.shift==='กะดึก'?'#818cf8':'#64748b';
+            const shiftIcon  = c.shift==='กะเช้า'?'🌅':c.shift==='กะดึก'?'🌙':'❓';
+            const tags = [
+                c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
+                c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:#34d399;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>`:'',
+                c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:#fbbf24;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
+                c.other ? `<span style="background:rgba(100,116,139,0.2);color:#94a3b8;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.other}</span>`:'',
+            ].filter(Boolean).join('');
+
+            return `
+            <div style="background:#0f172a;border-radius:12px;padding:12px 16px;border:1px solid #1e293b;display:flex;align-items:center;gap:12px;">
+                <span style="font-size:22px;flex-shrink:0;width:32px;text-align:center;">${mdl}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <span style="font-weight:800;color:#f1f5f9;font-size:14px;">${c.display}</span>
+                        <span style="font-size:10px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:1px 7px;border-radius:999px;">${shiftIcon}${c.shift}</span>
+                    </div>
+                    <div style="width:100%;background:#1e293b;border-radius:999px;height:5px;margin-bottom:6px;">
+                        <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;transition:width .5s;"></div>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;">${tags}</div>
+                </div>
+                <span style="font-size:28px;font-weight:900;color:#a78bfa;flex-shrink:0;min-width:40px;text-align:right;">${c.total}</span>
+            </div>`;
+        }).join('');
+
+    } catch(e) {
+        document.getElementById('summaryRanking').innerHTML =
+            `<div class="text-center py-8 text-red-400">Error: ${e.message}</div>`;
+    }
+};
+
+// custom date range toggle
+document.addEventListener('change', e => {
+    if (e.target?.id === 'summaryPeriod') {
+        const show = e.target.value === 'custom';
+        document.getElementById('summaryCustomRange')?.classList.toggle('hidden', !show);
+    }
+});

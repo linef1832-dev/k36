@@ -1,0 +1,419 @@
+// ════════════════════════════════════════════════════════════════════
+// 📦 kbiz/core.js — ส่วนที่ 1/2 ของระบบบอท K BIZ (แยกจาก kbiz.js เดิม 969 บรรทัด)
+// เนื้อหา: จัดการบอทหลัก + OCR API Keys/โควต้า
+// ⚠️ ลำดับโหลด: kbiz/core → kbiz/ops (ห้ามสลับ — ตัวแปร top-level แชร์ scope เดียวกัน)
+// ════════════════════════════════════════════════════════════════════
+// ==========================================
+// 🤖 ระบบจัดการบอท K BIZ (K BIZ APP)
+// ==========================================
+let globalKbizBots = [];
+let globalOcrKeys = [];
+
+function getKbizTpl(templateId, data = {}) {
+    const tpl = document.getElementById(templateId);
+    if (!tpl) return '';
+    let html = tpl.innerHTML;
+    for (const key in data) {
+        const val = data[key] !== undefined && data[key] !== null ? data[key] : '';
+        html = html.split(`{{${key}}}`).join(val);
+    }
+    return html;
+}
+
+async function fetchKbizData() {
+    const grid = document.getElementById('kbizGrid');
+    if(!grid) return;
+    grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดข้อมูลบอท...</span></div>';
+    try {
+        let rawData = await window.getSettingCached('kbiz_bots_data');
+        // [FIX] fallback ดึงตรงจาก DB ถ้า cache ว่าง
+        if (!rawData) {
+            const { data } = await appDB.from('settings').select('value').eq('key', 'kbiz_bots_data').maybeSingle();
+            rawData = data?.value ?? null;
+        }
+        // [FIX] getSettingCached คืนค่า value ตรงๆ ไม่ใช่ { key, value }
+        if (rawData) {
+            globalKbizBots = JSON.parse(rawData);
+            let needSave = false;
+            globalKbizBots = globalKbizBots.map(b => {
+                if (!b.id) {
+                    needSave = true;
+                    return { ...b, id: 'bot_' + Math.random().toString(36).substr(2, 9) };
+                }
+                return b;
+            });
+            if (needSave) {
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
+            }
+        } else {
+            globalKbizBots = [];
+        }
+        renderKbizGrid();
+        fetchOcrKeysData();
+        fetchTelegramBotConfig();
+        fetchChromeRefreshConfig();
+        startVpsStatsPolling();
+    } catch(e) { 
+        globalKbizBots = []; 
+        renderKbizGrid(); 
+        fetchOcrKeysData();
+        fetchTelegramBotConfig();
+        startVpsStatsPolling();
+    }
+}
+
+window.renderKbizGrid = function() {
+    const grid = document.getElementById('kbizGrid');
+    if(!grid) return;
+    const term = document.getElementById('kbizSearchInput') ? document.getElementById('kbizSearchInput').value.toLowerCase() : '';
+    const filtered = globalKbizBots.filter(b => b.machine_id.toLowerCase().includes(term) || (b.display_name && b.display_name.toLowerCase().includes(term)));
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-24 text-gray-400"><span class="material-icons text-7xl mb-3 opacity-20">smart_toy</span><span class="font-bold text-lg">ไม่พบบัญชีบอท</span></div>`;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(b => {
+        return getKbizTpl('tpl-kbiz-card', {
+            id: b.id,
+            machine_id: b.machine_id,
+            statusColor: b.is_active ? 'bg-emerald-500' : 'bg-gray-500',
+            statusText: b.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน',
+            display_name: b.display_name || '-',
+            username: b.username,
+            password: b.password
+        });
+    }).join('');
+};
+
+window.openKbizModal = function() {
+    document.getElementById('kbizModal').classList.remove('hidden');
+    ['kbizEditId','kbizMachineId','kbizDisplayName','kbizUser','kbizPass'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('kbizIsActive').checked = true;
+    document.getElementById('kbizModalTitle').innerHTML = '<span class="material-icons">smart_toy</span> เพิ่มบอทตัวใหม่';
+};
+
+window.editKbizBot = function(id) {
+    const b = globalKbizBots.find(x => String(x.id) === String(id));
+    if(!b) return;
+    document.getElementById('kbizEditId').value = b.id;
+    document.getElementById('kbizMachineId').value = b.machine_id;
+    document.getElementById('kbizDisplayName').value = b.display_name || '';
+    document.getElementById('kbizUser').value = b.username;
+    document.getElementById('kbizPass').value = b.password;
+    document.getElementById('kbizIsActive').checked = b.is_active;
+    document.getElementById('kbizModalTitle').innerHTML = '<span class="material-icons text-amber-400">edit</span> แก้ไขข้อมูลบอท';
+    document.getElementById('kbizModal').classList.remove('hidden');
+};
+
+window.saveKbizBot = async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('kbizEditId').value;
+    const mId = document.getElementById('kbizMachineId').value.trim();
+    const dName = document.getElementById('kbizDisplayName').value.trim();
+    const user = document.getElementById('kbizUser').value.trim();
+    const pass = document.getElementById('kbizPass').value.trim();
+    const isActive = document.getElementById('kbizIsActive').checked;
+
+    if (!id && globalKbizBots.some(b => b.machine_id.toLowerCase() === mId.toLowerCase())) {
+        return Swal.fire('ข้อมูลซ้ำ', `ชื่อเครื่อง ${mId} มีในระบบแล้วครับ`, 'warning');
+    }
+
+    Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+
+    if (id && id.trim() !== '') {
+        const index = globalKbizBots.findIndex(x => String(x.id) === String(id));
+        if(index !== -1) {
+            globalKbizBots[index] = { id, machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive };
+        } else {
+            globalKbizBots.push({ id, machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive });
+        }
+    } else {
+        globalKbizBots.push({ id: 'bot_' + Date.now(), machine_id: mId, display_name: dName, username: user, password: pass, is_active: isActive });
+    }
+
+    try {
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
+        document.getElementById('kbizModal').classList.add('hidden');
+        renderKbizGrid();
+        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1500, showConfirmButton: false});
+    } catch (err) { 
+        Swal.fire('Error', err.message, 'error'); 
+    }
+};
+
+window.deleteKbizBot = async function(id) {
+    Swal.fire({ title: 'ลบบัญชีบอทนี้?', text: "ลบแล้วจะไม่สามารถกู้คืนได้", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบทิ้งเลย' }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
+            globalKbizBots = globalKbizBots.filter(b => String(b.id) !== String(id));
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'kbiz_bots_data', value: JSON.stringify(globalKbizBots) }]);
+            renderKbizGrid();
+            Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false});
+        }
+    });
+};
+
+
+// ==========================================
+// 🔑 ระบบจัดการ OCR API KEYS + โควต้า
+// ==========================================
+
+const OCR_DAILY_QUOTA = 500;
+
+function getTodayKey() {
+    const now = new Date();
+    return now.getUTCFullYear() + '-' + 
+           String(now.getUTCMonth() + 1).padStart(2, '0') + '-' + 
+           String(now.getUTCDate()).padStart(2, '0');
+}
+
+function maskOcrKey(key) {
+    if (!key || key.length < 8) return key || '';
+    return key.substring(0, 4) + '••••••••' + key.substring(key.length - 4);
+}
+
+window.updateOcrKeyStatusLabel = function() {
+    const checkbox = document.getElementById('ocrKeyIsActive');
+    const label = document.getElementById('ocrKeyStatusLabel');
+    if (!checkbox || !label) return;
+    if (checkbox.checked) {
+        label.textContent = 'เปิดใช้';
+        label.className = 'text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-500 text-white';
+    } else {
+        label.textContent = 'ปิดอยู่';
+        label.className = 'text-xs font-bold px-2 py-0.5 rounded-md bg-red-500 text-white';
+    }
+};
+
+function autoResetIfNewDay(keys) {
+    const today = getTodayKey();
+    let needSave = false;
+    keys.forEach(k => {
+        if (k.last_used_date !== today) {
+            k.used_count = 0;
+            k.last_used_date = today;
+            needSave = true;
+        }
+    });
+    return needSave;
+}
+
+async function fetchOcrKeysData() {
+    const grid = document.getElementById('ocrKeysGrid');
+    if(!grid) return;
+    grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl mb-2">sync</span><br><span class="text-gray-400 font-bold text-sm">กำลังโหลด API Keys...</span></div>';
+    try {
+        let _ocrRaw = await window.getSettingCached('ocr_api_keys_data');
+        if (!_ocrRaw) {
+            const { data: _dbOcr } = await appDB.from('settings').select('value').eq('key', 'ocr_api_keys_data').maybeSingle();
+            _ocrRaw = _dbOcr?.value ?? null;
+        }
+        if (_ocrRaw) {
+            globalOcrKeys = JSON.parse(_ocrRaw);
+            const needSave = autoResetIfNewDay(globalOcrKeys);
+            globalOcrKeys.forEach(k => {
+                if (typeof k.used_count !== 'number') { k.used_count = 0; k.last_used_date = getTodayKey(); }
+                if (!k.last_used_date) k.last_used_date = getTodayKey();
+            });
+            if (needSave) {
+                window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+            }
+        } else {
+            globalOcrKeys = [];
+        }
+        renderOcrKeysGrid();
+    } catch(e) { 
+        globalOcrKeys = []; 
+        renderOcrKeysGrid(); 
+    }
+}
+
+window.renderOcrKeysGrid = function() {
+    const grid = document.getElementById('ocrKeysGrid');
+    if(!grid) return;
+
+    const totalEl = document.getElementById('ocrTotalQuota');
+    if (totalEl) {
+        if (globalOcrKeys.length > 0) {
+            const totalUsed = globalOcrKeys.reduce((s, k) => s + (k.used_count || 0), 0);
+            const totalQuota = globalOcrKeys.length * OCR_DAILY_QUOTA;
+            const totalRemaining = totalQuota - totalUsed;
+            totalEl.classList.remove('hidden');
+            totalEl.innerHTML = `📊 รวม: ${totalUsed}/${totalQuota} (เหลือ <b class="text-emerald-200">${totalRemaining}</b>)`;
+        } else {
+            totalEl.classList.add('hidden');
+        }
+    }
+
+    if (globalOcrKeys.length === 0) {
+        grid.innerHTML = `
+            <div class="col-span-full flex flex-col items-center justify-center py-12 text-gray-400 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                <span class="material-icons text-5xl mb-2 opacity-30">vpn_key</span>
+                <span class="font-bold">ยังไม่มี API Key</span>
+                <span class="text-xs mt-1">กดปุ่ม "เพิ่ม Key" เพื่อเริ่มใช้งาน</span>
+            </div>`;
+        return;
+    }
+
+    grid.innerHTML = globalOcrKeys.map(k => {
+        const used = k.used_count || 0;
+        const remaining = Math.max(0, OCR_DAILY_QUOTA - used);
+        const percentUsed = Math.min(100, Math.round((used / OCR_DAILY_QUOTA) * 100));
+        
+        let progressBarColor, quotaColor;
+        if (percentUsed >= 90) {
+            progressBarColor = 'bg-red-500';
+            quotaColor = 'text-red-600 dark:text-red-400';
+        } else if (percentUsed >= 70) {
+            progressBarColor = 'bg-orange-500';
+            quotaColor = 'text-orange-600 dark:text-orange-400';
+        } else if (percentUsed >= 40) {
+            progressBarColor = 'bg-amber-500';
+            quotaColor = 'text-amber-600 dark:text-amber-400';
+        } else {
+            progressBarColor = 'bg-emerald-500';
+            quotaColor = 'text-emerald-600 dark:text-emerald-400';
+        }
+
+        return getKbizTpl('tpl-ocr-key-card', {
+            id: k.id,
+            key_name: k.key_name,
+            api_key: k.api_key,
+            statusColor: k.is_active ? 'bg-emerald-500' : 'bg-gray-500',
+            statusText: k.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน',
+            usedCount: used,
+            remaining: remaining,
+            percentUsed: percentUsed,
+            progressBarColor: progressBarColor,
+            quotaColor: quotaColor
+        });
+    }).join('');
+};
+
+window.openOcrKeyModal = function() {
+    if (globalOcrKeys.length >= 5) {
+        Swal.fire('ครบแล้ว', 'ใส่ key ได้สูงสุด 5 อันเท่านั้น — ลบของเก่าก่อนถ้าอยากเพิ่ม', 'info');
+        return;
+    }
+    document.getElementById('ocrKeyModal').classList.remove('hidden');
+    ['ocrKeyEditId','ocrKeyName','ocrKeyValue'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ocrKeyIsActive').checked = true;
+    document.getElementById('ocrKeyModalTitle').innerHTML = '<span class="material-icons">vpn_key</span> เพิ่ม API Key';
+    updateOcrKeyStatusLabel();
+};
+
+window.editOcrKey = function(id) {
+    const k = globalOcrKeys.find(x => String(x.id) === String(id));
+    if(!k) return;
+    document.getElementById('ocrKeyEditId').value = k.id;
+    document.getElementById('ocrKeyName').value = k.key_name;
+    document.getElementById('ocrKeyValue').value = k.api_key;
+    document.getElementById('ocrKeyIsActive').checked = k.is_active;
+    document.getElementById('ocrKeyModalTitle').innerHTML = '<span class="material-icons text-amber-400">edit</span> แก้ไข API Key';
+    document.getElementById('ocrKeyModal').classList.remove('hidden');
+    updateOcrKeyStatusLabel();
+};
+
+window.saveOcrKey = async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('ocrKeyEditId').value;
+    const keyName = document.getElementById('ocrKeyName').value.trim();
+    const keyValue = document.getElementById('ocrKeyValue').value.trim();
+    const isActive = document.getElementById('ocrKeyIsActive').checked;
+
+    if (!keyName) return Swal.fire('กรอกข้อมูลไม่ครบ', 'กรุณาตั้งชื่อ Key', 'warning');
+    if (keyValue.length < 10) return Swal.fire('Key สั้นเกินไป', 'API key ดูสั้นผิดปกติ', 'warning');
+
+    const isDuplicate = globalOcrKeys.some(k => k.api_key === keyValue && String(k.id) !== String(id));
+    if (isDuplicate) return Swal.fire('Key ซ้ำ', 'API key นี้มีในระบบแล้วครับ', 'warning');
+
+    Swal.fire({title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading()});
+
+    if (id && id.trim() !== '') {
+        const index = globalOcrKeys.findIndex(x => String(x.id) === String(id));
+        if(index !== -1) {
+            globalOcrKeys[index] = { 
+                ...globalOcrKeys[index],
+                key_name: keyName, 
+                api_key: keyValue, 
+                is_active: isActive 
+            };
+        }
+    } else {
+        if (globalOcrKeys.length >= 5) {
+            Swal.close();
+            return Swal.fire('ครบแล้ว', 'ใส่ key ได้สูงสุด 5 อัน', 'warning');
+        }
+        globalOcrKeys.push({ 
+            id: 'key_' + Date.now(), 
+            key_name: keyName, 
+            api_key: keyValue, 
+            is_active: isActive,
+            used_count: 0,
+            last_used_date: getTodayKey()
+        });
+    }
+
+    try {
+        window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+        document.getElementById('ocrKeyModal').classList.add('hidden');
+        renderOcrKeysGrid();
+        Swal.fire({icon: 'success', title: id ? 'แก้ไขสำเร็จ!' : 'เพิ่ม Key สำเร็จ!', timer: 1500, showConfirmButton: false});
+    } catch (err) { 
+        Swal.fire('Error', err.message, 'error'); 
+    }
+};
+
+window.deleteOcrKey = async function(id) {
+    Swal.fire({ 
+        title: 'ลบ API Key นี้?', 
+        text: "พนักงานจะใช้ key นี้ไม่ได้อีก", 
+        icon: 'warning', 
+        showCancelButton: true, 
+        confirmButtonColor: '#d33', 
+        confirmButtonText: 'ลบทิ้งเลย' 
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
+            globalOcrKeys = globalOcrKeys.filter(k => String(k.id) !== String(id));
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+            renderOcrKeysGrid();
+            Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false});
+        }
+    });
+};
+
+window.resetOcrKeyUsage = async function(id) {
+    Swal.fire({
+        title: 'รีเซ็ตโควต้า Key นี้?',
+        text: 'เริ่มนับใหม่จาก 0/500 ทันที',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3498db',
+        confirmButtonText: 'รีเซ็ตเลย'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            const k = globalOcrKeys.find(x => String(x.id) === String(id));
+            if (!k) return;
+            k.used_count = 0;
+            k.last_used_date = getTodayKey();
+            window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'ocr_api_keys_data', value: JSON.stringify(globalOcrKeys) }]);
+            renderOcrKeysGrid();
+            Swal.fire({icon: 'success', title: 'รีเซ็ตแล้ว!', timer: 1200, showConfirmButton: false});
+        }
+    });
+};
+
+const _kbizOcrTimer = setInterval(() => {
+    if (document.getElementById('ocrKeysGrid')) {
+        fetchOcrKeysData();
+    }
+}, 30000);
+// [FIX] เดิมลงทะเบียนตัวจับเวลานี้กับ registerPageInterval — แต่มันถูกสร้างตอนโหลดไฟล์ครั้งเดียว
+// พอออกจากหน้า cleanupPageIntervals() จะ clear ทิ้ง แล้วไม่มีใครสร้างใหม่
+// = ระบบรีเฟรช OCR อัตโนมัติตายถาวรจนกว่าจะ F5 จึงไม่ลงทะเบียน
+// (ข้างในเช็ค #ocrKeysGrid อยู่แล้ว ตอนไม่ได้อยู่หน้านี้จึงไม่ยิง DB)
+
+
+// ==========================================

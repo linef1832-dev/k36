@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "2026090415";</script>
+    <script>window._APP_VERSION = "2026090420";</script>
     <script>
         (function(v){
             ['css/style.css','css/tailwind-compiled.css'].forEach(function(p){
@@ -223,7 +223,7 @@
     <!-- ไฟล์ของแต่ละหน้า (leave, duty, ...) โหลดอัตโนมัติตอนกดเข้าหน้านั้น ใช้ _APP_VERSION เดียวกันผ่าน loadScript -->
     <script>
         (function(v){
-            ['js/global.js','js/auth.js','js/system_core.js','js/dashboard.js','js/sheet.js'].forEach(function(p){
+            ['js/global.js','js/auth.js','js/system/users.js','js/system/manage.js','js/system/permissions.js','js/system/admin.js','js/dashboard.js','js/sheet/core.js','js/sheet/note_view.js','js/sheet/note_edit.js','js/sheet/admin.js'].forEach(function(p){
                 document.write('<script src="./'+p+'?v='+v+'" defer><'+'/script>');
             });
         })(window._APP_VERSION);

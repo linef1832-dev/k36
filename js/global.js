@@ -319,7 +319,7 @@ async function showLogin() {
     const loading = document.getElementById('loading');
     if(loading) loading.classList.remove('hidden');
     try {
-        const response = await fetch(`./pages/login.html?v=${window._APP_VERSION || Date.now()}`);
+        const response = await fetch(`./pages/login/login.html?v=${window._APP_VERSION || Date.now()}`);
         const html = await response.text();
         document.getElementById('login-container').innerHTML = html;
         
@@ -519,26 +519,28 @@ window.cleanupPageIntervals = function() {
 // ไฟล์ของแต่ละหน้าจะถูกดึงตอนกดเข้าหน้านั้นครั้งแรก (โหลดแล้วจำไว้ ไม่โหลดซ้ำ)
 // เปลี่ยน version ทีเดียวที่ window._APP_VERSION ใน index.html
 // ==========================================
+// 📁 โครงสร้างใหม่: สคริปต์ของแต่ละหน้าอยู่ในโฟลเดอร์ของตัวเอง (js/ชื่อหน้า/ไฟล์.js)
+// ชื่อในรายการ = path ต่อจาก js/ (ไม่ต้องมี .js) — loadScript ประกอบเป็น ./js/{ชื่อ}.js เอง
 const PAGE_SCRIPTS = {
-    leave:             ['leave', 'swap'],
-    swap:              ['leave', 'swap'],
-    duty:              ['duty'],
-    discord:           ['discord'],
-    summary:           ['summary'],
-    telegram:          ['Telegram'],
-    password:          ['Password'],
-    files:             ['FilesApp'],
-    od_config:         ['od_config'],
-    kbiz:              ['kbiz'],
-    gallery:           ['gallery'],
-    logo_editor:       ['logo_editor'],
-    fine:              ['fine'],
-    withdrawal_report: ['withdrawal_report'],
-    sop:               ['sop'],
+    leave:             ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
+    swap:              ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
+    duty:              ['duty/core', 'duty/dragdrop', 'duty/roles', 'duty/tools', 'duty/support', 'duty/rotation'],   // แยกจาก duty.js เดิม (5,478) — core ต้องมาก่อน
+    discord:           ['discord/core', 'discord/history', 'discord/message', 'discord/breaktrack', 'discord/tts'],   // ลำดับสำคัญ: core ต้องมาก่อนเสมอ
+    summary:           ['summary/core', 'summary/export'],
+    telegram:          ['telegram/Telegram'],
+    password:          ['password/Password'],
+    files:             ['files/FilesApp'],
+    od_config:         ['od_config/config', 'od_config/history'],
+    kbiz:              ['kbiz/core', 'kbiz/ops'],
+    gallery:           ['gallery/core', 'gallery/ui'],
+    logo_editor:       ['logo_editor/core', 'logo_editor/erase', 'logo_editor/tools', 'logo_editor/extras'],
+    fine:              ['fine/core', 'fine/rules', 'fine/records', 'fine/tools'],
+    withdrawal_report: ['withdrawal_report/stats', 'withdrawal_report/bot'],
+    sop:               ['sop/core', 'sop/rules', 'sop/manage', 'sop/share'],   // แยกจาก sop.js เดิม (3,451) — core ต้องมาก่อน
 
-    ip_check:          ['ip_check'],
-    ip_allow:          ['ip_allow'],
-    slip_check:        ['slip_check'],
+    ip_check:          ['ip_check/core', 'ip_check/tabs', 'ip_check/risk', 'ip_check/alerts'],
+    ip_allow:          ['ip_allow/ip_allow'],
+    slip_check:        ['slip_check/core', 'slip_check/scan', 'slip_check/history'],
 };
 window._loadedScripts = {};
 window.loadScript = function(name) {
@@ -560,15 +562,17 @@ window.loadPageScripts = async function(pageName) {
 window.lazyStub = function(fnName, scriptName) {
     if (typeof window[fnName] === 'function') return;
     const stub = async function(...args) {
-        await window.loadScript(scriptName);
+        // รองรับทั้งไฟล์เดียวและหลายไฟล์ (ฟีเจอร์ที่ถูกผ่าเป็นหลายส่วน ต้องโหลดครบตามลำดับ)
+        const list = Array.isArray(scriptName) ? scriptName : [scriptName];
+        for (const sn of list) await window.loadScript(sn);
         if (typeof window[fnName] === 'function' && window[fnName] !== stub) return window[fnName](...args);
-        throw new Error(`${fnName} ไม่พบใน ${scriptName}.js`);
+        throw new Error(`${fnName} ไม่พบใน ${list.join(', ')}`);
     };
     window[fnName] = stub;
 };
-window.lazyStub('loadExcelLibrary', 'summary');         // leave.js → summary.js
-window.lazyStub('initSlipCheck', 'slip_check');
-window.lazyStub('initOdConfig', 'od_config');
+window.lazyStub('loadExcelLibrary', ['summary/core', 'summary/export']);         // leave.js → summary.js
+window.lazyStub('initSlipCheck', ['slip_check/core', 'slip_check/scan', 'slip_check/history']);
+window.lazyStub('initOdConfig', ['od_config/config', 'od_config/history']);
 
 // ==========================================
 // 🍽️ [กติกาพัก] "พักพร้อมกันได้ไม่เกินกี่คน — ต่อเว็บ — อัตโนมัติตามตารางหน้าที่"
@@ -652,7 +656,7 @@ async function showPage(pageName) {
         
         if (!pageCache[pageName]) {
             const _v = window._APP_VERSION || Date.now();
-            const response = await fetch(`./pages/${pageName}.html?v=${_v}`);
+            const response = await fetch(`./pages/${pageName}/${pageName}.html?v=${_v}`);   // 📁 โครงใหม่: หน้าแต่ละหน้าอยู่ในโฟลเดอร์ตัวเอง
             if (!response.ok) throw new Error('Page not found');
             pageCache[pageName] = await response.text();
         }
@@ -1253,7 +1257,7 @@ document.addEventListener('mouseover', e => {
     const m = (btn.getAttribute('onclick') || '').match(/showPage\('([^']+)'\)/);
     if (!m || window._prefetched.has(m[1])) return;
     window._prefetched.add(m[1]);
-    fetch(`./pages/${m[1]}.html?v=${window._APP_VERSION || ''}`).catch(() => window._prefetched.delete(m[1]));
+    fetch(`./pages/${m[1]}/${m[1]}.html?v=${window._APP_VERSION || ''}`).catch(() => window._prefetched.delete(m[1]));
 });
 
 // ── 3) 📶 แถบเตือนเน็ตหลุด: เน็ตดับขึ้นแถบแดงทันที กลับมาแล้วขึ้นเขียวแป๊บนึง ──
