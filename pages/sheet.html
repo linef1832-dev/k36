@@ -345,17 +345,14 @@
     </template>
 </div>
 
-<!-- 🖼️ [ลิ้นชักคลังรูป] เปิดคลังรูปทับหน้าชีตโดยไม่ต้องเปลี่ยนหน้า — โหลดครั้งเดียว เปิด/ปิดได้เร็ว -->
-<div id="galleryDrawer" class="fixed inset-0 z-[95] hidden">
-    <div onclick="toggleGalleryDrawer(false)" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"></div>
-    <div class="absolute top-0 right-0 h-full w-[92%] md:w-[85%] bg-[#0b1120] shadow-2xl border-l border-amber-500/30 flex flex-col animate-[slideIn_.25s_ease]" style="max-width:1400px">
-        <div class="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-amber-900/40 to-slate-900 border-b border-amber-500/20 shrink-0">
-            <span class="font-black text-amber-300 flex items-center gap-2 text-sm"><span class="material-icons text-lg">photo_library</span> คลังรูป (เปิดทับหน้าชีต — ปิดแล้วกลับมาทำงานต่อได้เลย)</span>
-            <button onclick="toggleGalleryDrawer(false)" class="bg-red-600/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 transition"><span class="material-icons text-sm">close</span> ปิดคลังรูป (Esc)</button>
-        </div>
-        <div id="galleryDrawerBody" class="flex-1 overflow-hidden p-2">
-            <div class="flex items-center justify-center h-full text-slate-500"><span class="material-icons animate-spin mr-2">sync</span> กำลังโหลดคลังรูป...</div>
-        </div>
+<!-- 🖼️ [แบ่งจอคลังรูป] ชีตซ้าย-คลังรูปขวา ครึ่งต่อครึ่ง ใช้พร้อมกันได้ เปิดค้างจนกว่าจะกดปิดเอง
+     ⚠️ ใช้ inline style ทั้งหมด — ห้ามใช้ Tailwind class แบบ z-[..] w-[..] เพราะ CSS คอมไพล์ไว้ล่วงหน้าแล้ว -->
+<div id="galleryDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:50vw;z-index:90;background:#0b1120;border-left:2px solid rgba(232,193,90,.45);box-shadow:-12px 0 40px rgba(0,0,0,.6);flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:linear-gradient(90deg,rgba(120,80,10,.35),#0f172a);border-bottom:1px solid rgba(232,193,90,.25);flex-shrink:0">
+        <span style="font-weight:900;color:#fcd34d;display:flex;align-items:center;gap:8px;font-size:13px"><span class="material-icons" style="font-size:18px">photo_library</span> คลังรูป — แบ่งจอกับหน้าชีต (เปิดค้างไว้ได้ตลอด)</span>
+        <button onclick="toggleGalleryDrawer(false)" style="background:#dc2626;color:#fff;padding:6px 12px;border-radius:8px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:4px;border:0;cursor:pointer"><span class="material-icons" style="font-size:15px">close</span> ปิดคลังรูป</button>
+    </div>
+    <div id="galleryDrawerBody" style="flex:1;overflow:hidden;padding:6px;min-height:0">
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b"><span class="material-icons" style="animation:spin 1s linear infinite;margin-right:8px">sync</span> กำลังโหลดคลังรูป...</div>
     </div>
 </div>
-<style>@keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}</style>
