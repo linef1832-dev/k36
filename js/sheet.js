@@ -712,9 +712,34 @@ window.renderNoteTable = function() {
         <table class="border-collapse" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed;width:${42 + 36 + cols.reduce((a, w) => a + Math.max(60, Math.round((w || 100) * 1.15)), 0)}px">
             ${colgroup}
             <thead><tr><th class="${_nHdrCls} nt-stick-tl"></th>${cols.map((_, x) => `<th class="${_nHdrCls} nt-stick-top">${_nColName(x)}</th>`).join('')}<th class="${_nHdrCls} nt-stick-top"></th></tr></thead>
-            <tbody>${rows.map((r, ri) => keep[ri] ? `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} nt-stick-left">${ri + 1}</td>${r.map(c => c.h ? '' : `<td colspan="${c.cs || 1}" rowspan="${term ? 1 : (c.rs || 1)}" ${c.t ? `onclick="copyNoteCell(this)" data-v="${_nEsc(c.t)}" title="คลิกเพื่อก๊อปปี้"` : ''} class="px-3 py-2 align-top whitespace-pre-wrap leading-snug ${c.b ? 'font-bold' : ''} ${c.t ? 'cursor-copy hover:outline hover:outline-2 hover:outline-purple-500 hover:-outline-offset-2' : ''}" style="${window._noteCellStyle(c, false)}">${c.clip ? `<div class="nt-clip" style="background:${c.bg || '#fff'}">${hi(c.t)}</div>` : hi(c.t)}</td>`).join('')}<td class="border border-[#cbd5e1] text-center align-middle bg-slate-50"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-400 hover:text-purple-600 p-1"><span class="material-icons text-[15px]">content_copy</span></button></td></tr>` : '').join('')}
+            <tbody>${rows.map((r, ri) => keep[ri] ? `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} nt-stick-left">${ri + 1}</td>${r.map(c => c.h ? '' : `<td colspan="${c.cs || 1}" rowspan="${term ? 1 : (c.rs || 1)}" ${c.t ? `onclick="copyNoteCell(this)" data-v="${_nEsc(c.t)}" title="คลิกเพื่อก๊อปปี้"` : ''} class="px-3 py-2 align-top whitespace-pre-wrap leading-snug ${c.b ? 'font-bold' : ''} ${c.t ? 'cursor-copy hover:outline hover:outline-2 hover:outline-purple-500 hover:-outline-offset-2' : ''}" style="${window._noteCellStyle(c, false)}">${c.clip ? `<div class="nt-clip" style="background:${c.bg || '#fff'}">${hi(c.t)}</div>` : `<div class="nt-body">${hi(c.t)}</div>`}</td>`).join('')}<td class="border border-[#cbd5e1] text-center align-middle bg-slate-50"><button onclick="copyNoteRow(this)" title="ก๊อปทั้งแถว" class="text-slate-400 hover:text-purple-600 p-1"><span class="material-icons text-[15px]">content_copy</span></button></td></tr>` : '').join('')}
             </tbody>
         </table></div>`;
+
+    // 📏 [Auto-clamp] ช่องไหนเนื้อหาสูงเกินเกณฑ์ → จำกัดความสูงแล้วให้เลื่อนดู "ในช่องตัวเอง"
+    // จะได้ไม่ดันทั้งแถวให้สูงตาม (ช่องอื่นในแถวเดียวกันไม่กลายเป็นช่องยักษ์ว่างๆ)
+    // มีปุ่ม ⇕ มุมช่องไว้กดกาง/หุบดูเต็มๆ ได้
+    requestAnimationFrame(() => {
+        const MAX_H = 230; // ~11-12 บรรทัด
+        wrap.querySelectorAll('.nt-body').forEach(d => {
+            if (d.scrollHeight <= MAX_H + 30) return;   // เผื่อ 30px กันช่องที่เกินนิดเดียวไม่ต้อง clamp
+            d.classList.add('nt-tall');
+            const td = d.parentElement;
+            if (td && !td.querySelector('.nt-expand')) {
+                const btn = document.createElement('button');
+                btn.className = 'nt-expand';
+                btn.title = 'กาง/หุบข้อความ';
+                btn.innerHTML = '<span class="material-icons" style="font-size:13px">unfold_more</span>';
+                btn.onclick = (e) => {
+                    e.stopPropagation();   // อย่าให้ไปโดน copy ของช่อง
+                    const open = d.classList.toggle('nt-open');
+                    btn.innerHTML = `<span class="material-icons" style="font-size:13px">${open ? 'unfold_less' : 'unfold_more'}</span>`;
+                };
+                td.style.position = 'relative';
+                td.appendChild(btn);
+            }
+        });
+    });
 };
 window._copyText = async function(text, el) {
     try { await navigator.clipboard.writeText(text); } catch (e) { if (typeof fallbackCopyText === 'function') fallbackCopyText(text); }
