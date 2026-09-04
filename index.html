@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoiDai TaeHamRak</title>
 
-    <link rel="icon" type="image/png" href="/favicon.png.png">
+    <link rel="icon" type="image/png" href="./favicon.png">
     
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -13,8 +13,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
-    <link rel="stylesheet" href="./css/style.css?v=2026082702">
-    <link rel="stylesheet" href="./css/tailwind-compiled.css">
+    <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
+    <script>window._APP_VERSION = "2026090415";</script>
+    <script>
+        (function(v){
+            ['css/style.css','css/tailwind-compiled.css'].forEach(function(p){
+                document.write('<link rel="stylesheet" href="./'+p+'?v='+v+'">');
+            });
+        })(window._APP_VERSION);
+    </script>
     
     <script>
         function toggleSubMenu(menuId, iconId) {
@@ -212,13 +219,15 @@
         </div>
     </div>
 
-    <script>window._APP_VERSION = "2026090414";</script>
-    <script src="./js/global.js?v=2026090414" defer></script>
-    <script src="./js/auth.js?v=2026090140" defer></script>
-    <script src="./js/system_core.js?v=2026090140" defer></script>
-    <script src="./js/dashboard.js?v=2026090140" defer></script>
-    <!-- 📦 ไฟล์ของแต่ละหน้า (leave, duty, discord, sop, ...) ถูกโหลดอัตโนมัติตอนกดเข้าหน้านั้น — ดู PAGE_SCRIPTS ใน global.js -->
-    <script src="./js/sheet.js?v=2026090412" defer></script>
+    <!-- 📦 สคริปต์หลักทุกไฟล์ผูกกับ _APP_VERSION ตัวเดียว (ประกาศไว้ใน <head>) -->
+    <!-- ไฟล์ของแต่ละหน้า (leave, duty, ...) โหลดอัตโนมัติตอนกดเข้าหน้านั้น ใช้ _APP_VERSION เดียวกันผ่าน loadScript -->
+    <script>
+        (function(v){
+            ['js/global.js','js/auth.js','js/system_core.js','js/dashboard.js','js/sheet.js'].forEach(function(p){
+                document.write('<script src="./'+p+'?v='+v+'" defer><'+'/script>');
+            });
+        })(window._APP_VERSION);
+    </script>
     
     
     <!-- ลบ lazy load: <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" defer></script> -->
