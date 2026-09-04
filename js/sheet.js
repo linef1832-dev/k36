@@ -837,7 +837,7 @@ window.noteEditSave = async function() {
 };
 window._noteSyncText = function() {
     if (!window._noteEdit) return;
-    document.querySelectorAll('#noteTableWrap td[data-r]').forEach(td => { const c = window._noteEdit.rows[+td.dataset.r] && window._noteEdit.rows[+td.dataset.r][+td.dataset.x]; if (c) c.t = td.innerText.replace(/\u00a0/g, ' ').replace(/\n$/, ''); });
+    document.querySelectorAll('#noteTableWrap td[data-r]').forEach(td => { const c = window._noteEdit.rows[+td.dataset.r] && window._noteEdit.rows[+td.dataset.r][+td.dataset.x]; if (c) { const d = td.querySelector('.nt-ebody'); c.t = (d || td).innerText.replace(/\u00a0/g, ' ').replace(/\n$/, ''); } });
 };
 const _nSnap = () => { window._noteSyncText(); window._noteUndo.push(_nClone(window._noteEdit)); if (window._noteUndo.length > 50) window._noteUndo.shift(); };
 
@@ -853,12 +853,23 @@ window.renderNoteEditor = function() {
         <table id="noteEditTable" class="border-collapse" style="font-family:'Sarabun',system-ui,sans-serif;table-layout:fixed;width:${42 + cols.reduce((a, w) => a + Math.max(60, Math.round((w || 100) * 1.15)), 0)}px">
             ${colgroup}
             <thead><tr><th class="${_nHdrCls} nt-stick-tl" onmousedown="noteSelectAll()" title="เลือกทั้งหมด"></th>${cols.map((_, x) => `<th class="${_nHdrCls} nt-stick-top relative cursor-pointer ${selCols.has(x) ? 'nt-hdr-sel' : ''}" onmousedown="noteSelectCol(event,${x})">${_nColName(x)}<div class="nt-col-rs" onmousedown="noteResizeStart(event,'col',${x})" title="ลากเพื่อปรับความกว้าง"></div></th>`).join('')}</tr></thead>
-            <tbody>${note.rows.map((r, ri) => `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} nt-stick-left relative cursor-pointer ${selRows.has(ri) ? 'nt-hdr-sel' : ''}" onmousedown="noteSelectRow(event,${ri})">${ri + 1}<div class="nt-row-rs" onmousedown="noteResizeStart(event,'row',${ri})" title="ลากเพื่อปรับความสูง"></div></td>${r.map((c, x) => c.h ? '' : `<td data-r="${ri}" data-x="${x}" colspan="${c.cs || 1}" rowspan="${c.rs || 1}" contenteditable="true" spellcheck="false"
-                    onmousedown="noteCellDown(event,this)" onmouseenter="noteCellEnter(event,this)" onfocus="noteCellFocus(this)"
-                    class="px-3 py-2 align-top whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''} ${selSet.has(`${ri}:${x}`) ? 'note-sel' : ''}"
-                    style="${window._noteCellStyle(c, true)}${c.clip ? ';box-shadow:inset 0 -3px 0 #f59e0b' : ''}">${_nEsc(c.t)}</td>`).join('')}</tr>`).join('')}
+            <tbody>${note.rows.map((r, ri) => `<tr style="${rowH[ri] ? `height:${rowH[ri]}px` : ''}"><td class="${_nHdrCls} nt-stick-left relative cursor-pointer ${selRows.has(ri) ? 'nt-hdr-sel' : ''}" onmousedown="noteSelectRow(event,${ri})">${ri + 1}<div class="nt-row-rs" onmousedown="noteResizeStart(event,'row',${ri})" title="ลากเพื่อปรับความสูง"></div></td>${r.map((c, x) => c.h ? '' : `<td data-r="${ri}" data-x="${x}" colspan="${c.cs || 1}" rowspan="${c.rs || 1}"
+                    onmousedown="noteCellDown(event,this)" onmouseenter="noteCellEnter(event,this)"
+                    class="p-0 align-top ${selSet.has(`${ri}:${x}`) ? 'note-sel' : ''}"
+                    style="${window._noteCellStyle(c, true)}${c.clip ? ';box-shadow:inset 0 -3px 0 #f59e0b' : ''}"><div class="nt-ebody whitespace-pre-wrap leading-snug outline-none ${c.b ? 'font-bold' : ''}" contenteditable="true" spellcheck="false" onfocus="noteCellFocus(this.parentElement)">${_nEsc(c.t)}</div></td>`).join('')}</tr>`).join('')}
             </tbody>
         </table></div>`;
+
+    // 📏 [Auto-clamp] เหมือนโหมดดู: ช่องไหนพิมพ์ไว้ยาวมาก → เลื่อนดูในช่องตัวเอง ไม่ดันทั้งแถวสูง
+    // ถ้าผู้ใช้ลากปรับความสูงแถวเองไว้สูงกว่าเกณฑ์ จะเคารพค่าที่ลากไว้ (โชว์ได้ถึงความสูงนั้น)
+    const _clampEditCell = (d) => {
+        const td = d.parentElement; if (!td || td.dataset.r === undefined) return;
+        const maxH = Math.max(230, (note.rowH || [])[+td.dataset.r] || 0);
+        if (d.scrollHeight > maxH + 30) { d.classList.add('nt-etall'); d.style.maxHeight = maxH + 'px'; }
+    };
+    requestAnimationFrame(() => wrap.querySelectorAll('.nt-ebody').forEach(_clampEditCell));
+    // พิมพ์เพิ่มจนยาวเกินระหว่างแก้ → clamp ทันทีโดยไม่ต้องรอ render ใหม่
+    wrap.oninput = (e) => { const d = e.target && e.target.closest && e.target.closest('.nt-ebody'); if (d && !d.classList.contains('nt-etall')) _clampEditCell(d); };
     window._noteUpdateSelInfo();
     // แสดงขนาดตัวอักษรของช่องที่เลือกใน dropdown
     const fsSel = document.getElementById('noteFontSize'); const first = _nSelCells()[0];
@@ -886,6 +897,14 @@ window.noteCellDown = function(e, td) {
     window._noteSel = { r1: t.r, r2: t.r2, x1: t.x1, x2: t.x2 };
     window._noteDrag = { start: t, td };
     window._notePaintSel();
+    // 🖱️ คลิกโดนพื้นที่ว่างของช่อง (นอกกล่องข้อความ) → พาเคอร์เซอร์เข้าไปท้ายข้อความให้
+    if (e.target === td) {
+        const d = td.querySelector('.nt-ebody');
+        if (d) {
+            e.preventDefault(); d.focus();
+            try { const rng = document.createRange(); rng.selectNodeContents(d); rng.collapse(false); const s = window.getSelection(); s.removeAllRanges(); s.addRange(rng); } catch (err) {}
+        }
+    }
 };
 window.noteCellEnter = function(e, td) {
     const d = window._noteDrag; if (!d || !(e.buttons & 1) || td === d.td) return;
