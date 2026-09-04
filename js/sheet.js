@@ -43,11 +43,17 @@ window.initSheetApp = async function() {
     await fetchSheets();
 };
 
-window.fetchSheets = async function() {
+window.fetchSheets = async function(force) {
     try {
         if (typeof appDB === 'undefined') return;
-        const { data, error } = await appDB.from('external_sheets').select('*').order('id', { ascending: true });
-        if (error) throw error;
+        // 🗃️ cache 60 วิ: เข้าๆ ออกๆ หน้านี้บ่อยๆ ไม่ต้องยิง DB ทุกรอบ (บันทึก/ลบชีตจะล้าง cache ให้เอง)
+        let data = (!force && window.dbCache) ? window.dbCache.get('ext_sheets') : undefined;
+        if (data === undefined) {
+            const res = await appDB.from('external_sheets').select('*').order('id', { ascending: true });
+            if (res.error) throw res.error;
+            data = res.data || [];
+            if (window.dbCache) window.dbCache.set('ext_sheets', data, 60000);
+        }
         
         // 👤 ของใครของมัน: เก็บเฉพาะชีตส่วนกลาง (owner ว่าง) + ชีตที่ตัวเองเป็นเจ้าของ
         const me = window.sheetMe();
@@ -1416,7 +1422,7 @@ window.saveSheetData = async function() {
         Swal.fire({icon: 'success', title: id ? 'แก้ไขข้อมูลสำเร็จ' : 'เพิ่มรายการสำเร็จ', showConfirmButton: false, timer: 1000});
         
         window.cancelEdit();
-        await fetchSheets();
+        await fetchSheets(true);
     } catch (err) { Swal.fire('Error', err.message, 'error'); }
 };
 
@@ -1434,7 +1440,7 @@ window.deleteSheet = async function(id) {
         const { error } = await appDB.from('external_sheets').delete().eq('id', id);
         if (error) throw error;
         Swal.fire({icon: 'success', title: 'ลบเรียบร้อย', showConfirmButton: false, timer: 1000});
-        await fetchSheets();
+        await fetchSheets(true);
     } catch (e) {
         Swal.fire('Error', e.message, 'error');
     }
