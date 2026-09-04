@@ -1457,6 +1457,90 @@ window.onSheetSearch = function() {
 // - เปิดครั้งแรกโหลดหน้า gallery จริงมาใส่ + init | ครั้งต่อไปโชว์ทันที สถานะคงเดิม
 // - ตอนเปิด: บีบหน้าชีตให้เหลือครึ่งซ้ายพอดี (ไม่มีอะไรถูกบัง)
 // ==========================================
+// ⚙️ ค่าที่ผู้ใช้จัดไว้: ฝั่ง (left/right) + ความกว้างแผงรูป (% ของจอ) — จำถาวรใน localStorage
+window._splitPrefs = (() => { try { return { side: 'right', pct: 50, ...JSON.parse(localStorage.getItem('gallery_split') || '{}') }; } catch (e) { return { side: 'right', pct: 50 }; } })();
+window._saveSplitPrefs = function() { window.safeSetItem('gallery_split', JSON.stringify(window._splitPrefs)); };
+
+// จัดตำแหน่งตามค่าที่ตั้งไว้ (เรียกทุกครั้งที่เปิด/สลับฝั่ง/ลากปรับขนาด)
+window.applySplitLayout = function() {
+    const drawer = document.getElementById('galleryDrawer');
+    const sheetApp = document.getElementById('sheetApp');
+    if (!drawer) return;
+    const p = window._splitPrefs;
+    const pct = Math.min(75, Math.max(25, p.pct || 50));
+    drawer.style.width = pct + 'vw';
+    const gold = '2px solid rgba(232,193,90,.45)';
+    if (p.side === 'left') {
+        drawer.style.left = '0'; drawer.style.right = 'auto';
+        drawer.style.borderLeft = 'none'; drawer.style.borderRight = gold;
+        drawer.style.boxShadow = '12px 0 40px rgba(0,0,0,.6)';
+        if (sheetApp) { sheetApp.style.marginLeft = pct + 'vw'; sheetApp.style.marginRight = ''; }
+    } else {
+        drawer.style.right = '0'; drawer.style.left = 'auto';
+        drawer.style.borderRight = 'none'; drawer.style.borderLeft = gold;
+        drawer.style.boxShadow = '-12px 0 40px rgba(0,0,0,.6)';
+        if (sheetApp) { sheetApp.style.marginRight = pct + 'vw'; sheetApp.style.marginLeft = ''; }
+    }
+    // ที่จับลากอยู่ขอบด้านที่ติดกับหน้าชีตเสมอ
+    const h = document.getElementById('splitDragHandle');
+    if (h) { if (p.side === 'left') { h.style.right = '-3px'; h.style.left = 'auto'; } else { h.style.left = '-3px'; h.style.right = 'auto'; } }
+};
+
+// ⇄ สลับฝั่ง ชีต↔คลังรูป
+window.swapSplitSide = function() {
+    window._splitPrefs.side = window._splitPrefs.side === 'left' ? 'right' : 'left';
+    window._saveSplitPrefs();
+    window.applySplitLayout();
+};
+
+// สร้างปุ่มสลับฝั่ง + เส้นลากปรับขนาด (สร้างจาก JS — กันไฟล์ HTML เก่าค้าง cache)
+window._ensureSplitControls = function() {
+    const drawer = document.getElementById('galleryDrawer');
+    if (!drawer) return;
+    // ปุ่มสลับฝั่ง แทรกหน้าปุ่มปิด
+    if (!document.getElementById('btnSwapSplit')) {
+        const header = drawer.firstElementChild;
+        const closeBtn = header ? header.querySelector('button') : null;
+        if (header && closeBtn) {
+            const b = document.createElement('button');
+            b.id = 'btnSwapSplit';
+            b.title = 'สลับฝั่ง ชีต ↔ คลังรูป';
+            b.style.cssText = 'background:#334155;color:#fcd34d;padding:6px 12px;border-radius:8px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:4px;border:1px solid rgba(232,193,90,.35);cursor:pointer;margin-right:8px';
+            b.innerHTML = '<span class="material-icons" style="font-size:15px">swap_horiz</span> สลับฝั่ง';
+            b.onclick = window.swapSplitSide;
+            closeBtn.parentElement.insertBefore(b, closeBtn);
+            closeBtn.parentElement.style.display = 'flex';
+            closeBtn.parentElement.style.alignItems = 'center';
+        }
+    }
+    // เส้นลากปรับความกว้าง (ขอบด้านในของแผงรูป)
+    if (!document.getElementById('splitDragHandle')) {
+        const h = document.createElement('div');
+        h.id = 'splitDragHandle';
+        h.title = 'ลากเพื่อปรับขนาดสองฝั่ง';
+        h.style.cssText = 'position:absolute;top:0;bottom:0;width:8px;cursor:col-resize;z-index:5;background:transparent;transition:background .15s';
+        h.onmouseenter = () => h.style.background = 'rgba(232,193,90,.5)';
+        h.onmouseleave = () => h.style.background = 'transparent';
+        h.onmousedown = (e) => {
+            e.preventDefault();
+            // ผ้าคลุมโปร่งกันเมาส์หลุดเข้า iframe (Google Sheet) ระหว่างลาก
+            const cover = document.createElement('div');
+            cover.style.cssText = 'position:fixed;inset:0;z-index:9998;cursor:col-resize';
+            document.body.appendChild(cover);
+            const move = (ev) => {
+                const p = window._splitPrefs;
+                const raw = p.side === 'left' ? (ev.clientX / window.innerWidth * 100) : ((window.innerWidth - ev.clientX) / window.innerWidth * 100);
+                p.pct = Math.min(75, Math.max(25, Math.round(raw)));
+                window.applySplitLayout();
+            };
+            const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); cover.remove(); window._saveSplitPrefs(); };
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', up);
+        };
+        drawer.appendChild(h);
+    }
+};
+
 window.toggleGalleryDrawer = async function(show) {
     // 💉 ฉีด CSS โหมดแบ่งจอจาก JS ตรงๆ (กันกรณีไฟล์ sheet.html เก่าค้างใน cache ของ CDN)
     if (!document.getElementById('sheetSplitCSS')) {
@@ -1478,11 +1562,13 @@ window.toggleGalleryDrawer = async function(show) {
 
     if (!willShow) {
         drawer.style.display = 'none';
-        if (sheetApp) { sheetApp.style.marginRight = ''; sheetApp.classList.remove('sheet-split'); }
+        if (sheetApp) { sheetApp.style.marginRight = ''; sheetApp.style.marginLeft = ''; sheetApp.classList.remove('sheet-split'); }
         return;
     }
     drawer.style.display = 'flex';
-    if (sheetApp) { sheetApp.style.marginRight = '50vw'; sheetApp.style.transition = 'margin-right .2s ease'; sheetApp.classList.add('sheet-split'); }
+    if (sheetApp) { sheetApp.style.transition = 'margin .2s ease'; sheetApp.classList.add('sheet-split'); }
+    window._ensureSplitControls();
+    window.applySplitLayout();
 
     // เช็คจาก DOM จริง (ไม่ใช้แฟล็ก) — เพราะเปลี่ยนหน้าไปกลับ DOM ของแผงจะถูกสร้างใหม่
     if (!document.getElementById('galleryApp')) {
