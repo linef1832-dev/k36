@@ -356,3 +356,12 @@
         <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b"><span class="material-icons" style="animation:spin 1s linear infinite;margin-right:8px">sync</span> กำลังโหลดคลังรูป...</div>
     </div>
 </div>
+
+<style>
+/* 📐 [โหมดแบ่งจอ] ตอนเปิดคลังรูป ฝั่งชีตเหลือครึ่งจอ → จัด layout ใหม่ไม่ให้บีบ
+   - แถวการ์ด: 5 คอลัมน์ → 3 คอลัมน์
+   - แผงคำนวณยอด: ย้ายจากข้างขวา ลงไปต่อท้ายข้างล่าง (เต็มความกว้าง) */
+#sheetApp.sheet-split #sheetMenu .lg\:flex-row{ flex-direction:column !important; }
+#sheetApp.sheet-split #sheetMenu .lg\:w-\[340px\]{ width:100% !important; position:static !important; max-width:520px; }
+#sheetApp.sheet-split #sheetGroupsContainer .grid{ grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
+</style>
