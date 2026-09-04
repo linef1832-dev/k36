@@ -1450,3 +1450,46 @@ window.onSheetSearch = function() {
         renderSheetMenu(); // สั่งวาดตารางเมื่อหยุดพิมพ์ไปแล้ว 300ms
     }, 300); 
 };
+
+// ==========================================
+// 🖼️ [ลิ้นชักคลังรูป] เปิดคลังรูปทับหน้าชีต — ไม่ต้องกดสลับหน้าไปมา
+// - เปิดครั้งแรก: ดึง pages/gallery.html มาใส่ลิ้นชัก + โหลด gallery.js + init
+// - ครั้งต่อไป: โชว์ทันที (สถานะ filter/สกอลล์คงเดิม)
+// - ปุ่ม "กลับ" ข้างในคลังรูปถูกเปลี่ยนให้เป็น "ปิดลิ้นชัก" แทน (กันหลุดไป dashboard)
+// ==========================================
+window._galleryDrawerLoaded = false;
+window.toggleGalleryDrawer = async function(show) {
+    const drawer = document.getElementById('galleryDrawer');
+    if (!drawer) return;
+    const willShow = (show === undefined) ? drawer.classList.contains('hidden') : !!show;
+
+    if (!willShow) { drawer.classList.add('hidden'); return; }
+    drawer.classList.remove('hidden');
+
+    // เช็คจาก DOM จริง (ไม่ใช้แฟล็ก) — เพราะเปลี่ยนหน้าไปกลับ DOM ของลิ้นชักจะถูกสร้างใหม่
+    if (!document.getElementById('galleryApp')) {
+        try {
+            const body = document.getElementById('galleryDrawerBody');
+            const res = await fetch(`./pages/gallery.html?v=${window._APP_VERSION || Date.now()}`);
+            if (!res.ok) throw new Error('โหลดหน้าคลังรูปไม่สำเร็จ');
+            body.innerHTML = await res.text();
+            // ปุ่ม "กลับ" ของหน้าคลังรูป → เปลี่ยนเป็นปิดลิ้นชักแทน
+            body.querySelectorAll('[onclick*="showPage"]').forEach(btn => {
+                btn.setAttribute('onclick', 'toggleGalleryDrawer(false)');
+                btn.innerHTML = '<span class="material-icons">close</span> ปิด';
+            });
+            await window.loadScript('gallery');
+            if (typeof initGalleryApp === 'function') initGalleryApp();
+            window._galleryDrawerLoaded = true;
+        } catch (e) {
+            document.getElementById('galleryDrawerBody').innerHTML = `<div class="text-center text-red-400 py-10 font-bold">โหลดคลังรูปไม่สำเร็จ<br><span class="text-xs text-slate-500">${e.message}</span></div>`;
+        }
+    }
+};
+// Esc ปิดลิ้นชัก (เฉพาะตอนที่เปิดอยู่ และไม่ได้เปิด lightbox รูปอยู่)
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const drawer = document.getElementById('galleryDrawer');
+    const lb = document.getElementById('galleryLightbox');
+    if (drawer && !drawer.classList.contains('hidden') && (!lb || lb.classList.contains('hidden'))) toggleGalleryDrawer(false);
+});
