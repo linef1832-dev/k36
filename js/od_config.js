@@ -811,6 +811,8 @@ window.odCfg_tplView = function(which) {
 // 📜 ประวัติข้อความ / กู้ข้อความที่ถูกลบ (backup ที่ server) — รวมอยู่ในหน้านี้
 // ══════════════════════════════════════════════════════════════════════════
 let odCfgHistItems = [];
+let odCfgHistPage = 1;                 // 📄 หน้าปัจจุบันของตารางประวัติ
+const ODCFG_HIST_PER_PAGE = 10;        // แสดงหน้าละ 10 รายการ
 function odCfgHist_esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function odCfgHist_fmt(ts) { try { return new Date(ts).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch (e) { return ts; } }
 function odCfgHist_dstr(d) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d || new Date()); }
@@ -844,6 +846,7 @@ window.odCfgHist_load = async function() {
         p.set('limit', '500');
         const data = await odCfg_adminFetch('/admin/history?' + p.toString());
         odCfgHistItems = data.items || [];
+        odCfgHistPage = 1;   // ค้นหา/โหลดใหม่ → กลับไปหน้าแรกเสมอ
         const todayEl = document.getElementById('odCfgHistToday');
         if (todayEl) todayEl.textContent = `📤 วันนี้บอทส่งทั้งหมด ${data.today_count != null ? data.today_count : '-'} รายการ`;
         odCfgHist_render();
@@ -852,11 +855,55 @@ window.odCfgHist_load = async function() {
         const c = document.getElementById('odCfgHistCount'); if (c) c.textContent = '0 รายการ';
     }
 };
+// 🔢 เปลี่ยนหน้า (เรียกจากปุ่มเลขหน้า)
+window.odCfgHist_goPage = function(pg) {
+    const total = Math.max(1, Math.ceil(odCfgHistItems.length / ODCFG_HIST_PER_PAGE));
+    odCfgHistPage = Math.min(total, Math.max(1, pg));
+    odCfgHist_render();
+    // เลื่อนกลับขึ้นหัวตารางให้เห็นรายการแรกของหน้าใหม่
+    const tbl = document.getElementById('odCfgHistBody')?.closest('table');
+    if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+// สร้าง/อัปเดตแถบปุ่มเลขหน้า (สร้าง container จาก JS — ไม่ต้องแก้ HTML)
+function odCfgHist_renderPager() {
+    const body = document.getElementById('odCfgHistBody');
+    const tbl = body ? body.closest('table') : null;
+    if (!tbl) return;
+    let pager = document.getElementById('odCfgHistPager');
+    if (!pager) {
+        pager = document.createElement('div');
+        pager.id = 'odCfgHistPager';
+        pager.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;padding:12px 8px';
+        const host = tbl.closest('div') || tbl;   // กล่องครอบตาราง (พื้นที่ scroll) → วาง pager ต่อท้ายข้างนอก
+        host.after(pager);
+    }
+    const total = Math.ceil(odCfgHistItems.length / ODCFG_HIST_PER_PAGE);
+    if (total <= 1) { pager.innerHTML = ''; return; }
+    const btn = (label, pg, active, disabled) =>
+        `<button onclick="odCfgHist_goPage(${pg})" ${disabled ? 'disabled' : ''} style="min-width:34px;height:34px;padding:0 10px;border-radius:9px;font-weight:800;font-size:13px;border:1px solid ${active ? '#ec4899' : 'rgba(148,163,184,.35)'};background:${active ? '#ec4899' : 'rgba(30,41,59,.8)'};color:${active ? '#fff' : '#cbd5e1'};cursor:${disabled ? 'not-allowed' : 'pointer'};opacity:${disabled ? '.4' : '1'}">${label}</button>`;
+    // เลขหน้าแบบย่อ: 1 … (รอบๆ หน้าปัจจุบัน) … หน้าสุดท้าย
+    const pages = [];
+    for (let i = 1; i <= total; i++) {
+        if (i === 1 || i === total || Math.abs(i - odCfgHistPage) <= 2) pages.push(i);
+        else if (pages[pages.length - 1] !== '…') pages.push('…');
+    }
+    pager.innerHTML =
+        btn('‹', odCfgHistPage - 1, false, odCfgHistPage === 1) +
+        pages.map(pv => pv === '…' ? '<span style="color:#64748b;padding:0 2px">…</span>' : btn(pv, pv, pv === odCfgHistPage, false)).join('') +
+        btn('›', odCfgHistPage + 1, false, odCfgHistPage === total) +
+        `<span style="font-size:11px;color:#64748b;margin-left:8px">หน้า ${odCfgHistPage}/${total}</span>`;
+}
 function odCfgHist_render() {
     const body = document.getElementById('odCfgHistBody');
-    const c = document.getElementById('odCfgHistCount'); if (c) c.textContent = `${odCfgHistItems.length} รายการ`;
-    if (!odCfgHistItems.length) { body.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">ไม่พบข้อมูลในช่วงนี้</td></tr>'; return; }
-    body.innerHTML = odCfgHistItems.map(it => {
+    const c = document.getElementById('odCfgHistCount');
+    if (!odCfgHistItems.length) { if (c) c.textContent = '0 รายการ'; body.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">ไม่พบข้อมูลในช่วงนี้</td></tr>'; odCfgHist_renderPager(); return; }
+    // 📄 แสดงเฉพาะรายการของหน้าปัจจุบัน (หน้าละ 10)
+    const total = Math.max(1, Math.ceil(odCfgHistItems.length / ODCFG_HIST_PER_PAGE));
+    if (odCfgHistPage > total) odCfgHistPage = total;
+    const s0 = (odCfgHistPage - 1) * ODCFG_HIST_PER_PAGE;
+    const pageItems = odCfgHistItems.slice(s0, s0 + ODCFG_HIST_PER_PAGE);
+    if (c) c.textContent = `${odCfgHistItems.length} รายการ (แสดง ${s0 + 1}-${s0 + pageItems.length})`;
+    body.innerHTML = pageItems.map(it => {
         const preview = odCfgHist_esc((it.message || '').replace(/\n+/g, ' ↵ ')).slice(0, 130);
         const gone = it.status === 'deleted';
         return `<tr class="odCfgHist-row border-b border-gray-100 dark:border-slate-700 align-top">
@@ -877,6 +924,7 @@ function odCfgHist_render() {
     body.querySelectorAll('.odCfgHist-resend').forEach(b => b.addEventListener('click', () => odCfgHist_resend(b.dataset.id, b)));
     body.querySelectorAll('.odCfgHist-del').forEach(b => { if (!b.disabled) b.addEventListener('click', () => odCfgHist_delete(b.dataset.id, b)); });
     body.querySelectorAll('.odCfgHist-edit').forEach(b => { if (!b.disabled) b.addEventListener('click', () => odCfgHist_editOpen(b.dataset.id)); });
+    odCfgHist_renderPager();
 }
 async function odCfgHist_resend(id, btn) {
     const old = btn.textContent; btn.disabled = true; btn.textContent = 'กำลังส่ง...';
