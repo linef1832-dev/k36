@@ -686,6 +686,8 @@ window.openNoteSheet = async function(sheet) {
 // สไตล์ช่อง (ใช้ทั้งดูและแก้)
 window._noteCellStyle = function(c, editing) {
     const st = [`background:${c.bg || '#ffffff'}`, `color:${c.fg || '#111827'}`, `font-size:${c.fs || window.NOTE_DEF_FS}px`];
+    if (c.i) st.push('font-style:italic');
+    { const deco = []; if (c.u) deco.push('underline'); if (c.st) deco.push('line-through'); if (deco.length) st.push(`text-decoration:${deco.join(' ')}`); }
     if (c.a === 'c') st.push('text-align:center'); else if (c.a === 'r') st.push('text-align:right');
     const bd = c.bd || { t: true, b: true, l: true, r: true }; const col = c.bc || window.NOTE_DEF_BC;
     const off = editing ? '1px dashed rgba(148,163,184,.45)' : '1px none transparent';   // none = ถ้าช่องข้างเคียงอยากมีเส้น ให้มันวาดได้ (ลบเส้นจริงต้องปิดทั้งสองฝั่ง ซึ่ง _nSetEdge ทำให้)
@@ -699,7 +701,9 @@ const _nEsc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g
 window.renderNoteTable = function() {
     const wrap = document.getElementById('noteTableWrap'); const note = window._currentNote; if (!wrap || !note) return;
     const term = (document.getElementById('noteSearch')?.value || '').toLowerCase().trim();
-    const hi = (txt) => { const e = _nEsc(txt); if (!term) return e; return e.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark class="bg-yellow-300 rounded px-0.5">${m}</mark>`); };
+    const hi = (txt) => { let e = _nEsc(txt); if (term) e = e.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark class="bg-yellow-300 rounded px-0.5">${m}</mark>`);
+        // 🔗 ทำลิงก์ให้คลิกได้ (stopPropagation กันไปโดนก๊อปปี้ของช่อง)
+        return e.replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="text-blue-600 underline hover:text-blue-800">${u}</a>`); };
     const rows = note.rows || [];
     if (rows.length === 0) { wrap.innerHTML = '<div class="text-center text-slate-500 py-16"><span class="material-icons text-4xl opacity-40">table_chart</span><p class="mt-2 text-sm">ยังไม่มีเนื้อหา — กด "แก้ไขหน้านี้" หรือวางจาก Google Sheet ใน "จัดการชีท"</p></div>'; return; }
     // ค้นหา: ซ่อนแถวที่ไม่ตรง (ถ้าค้นอยู่จะไม่ใช้ rowspan ข้ามแถวที่ซ่อน)
@@ -752,7 +756,7 @@ window.copyNoteRow = function(btn) { const tr = btn.closest('tr'); window._copyT
 // ==========================================
 // 🛠️ แก้ไขในหน้า — เลือกช่องแบบลากคลุม, ผสานทั้งแนวนอน/แนวตั้ง, เส้นขอบร่วม, ขนาดตัวอักษร
 // ==========================================
-window._noteEdit = null; window._noteUndo = []; window._noteSel = null; window._noteEditing = false; window._noteDrag = null;
+window._noteEdit = null; window._noteUndo = []; window._noteRedo = []; window._noteSel = null; window._noteEditing = false; window._noteDrag = null;
 const _nClone = (n) => JSON.parse(JSON.stringify(n));
 // ต้นทางของช่อง (r,x) — ถ้าช่องถูกผสานทับ คืนช่องที่ผสานมันอยู่
 const _nAnchor = (note, r, x) => {
@@ -792,7 +796,7 @@ window.noteEditStart = function() {
     if (!window._currentNote) return;
     window._noteEdit = _nClone(window.noteToV3(window._currentNote));
     if (window._noteEdit.rows.length === 0) { window._noteEdit.rows = [[_nCell(), _nCell(), _nCell()], [_nCell(), _nCell(), _nCell()]]; window._noteEdit.cols = [160, 200, 300]; }
-    window._noteUndo = []; window._noteSel = null; window._noteEditing = true;
+    window._noteUndo = []; window._noteRedo = []; window._noteSel = null; window._noteEditing = true;
     document.getElementById('noteToolbar').classList.remove('hidden'); document.getElementById('noteToolbar').classList.add('flex');
     document.getElementById('btnNoteEdit').classList.add('hidden');
     document.getElementById('noteHint')?.classList.add('hidden');
@@ -839,7 +843,7 @@ window._noteSyncText = function() {
     if (!window._noteEdit) return;
     document.querySelectorAll('#noteTableWrap td[data-r]').forEach(td => { const c = window._noteEdit.rows[+td.dataset.r] && window._noteEdit.rows[+td.dataset.r][+td.dataset.x]; if (c) { const d = td.querySelector('.nt-ebody'); c.t = (d || td).innerText.replace(/\u00a0/g, ' ').replace(/\n$/, ''); } });
 };
-const _nSnap = () => { window._noteSyncText(); window._noteUndo.push(_nClone(window._noteEdit)); if (window._noteUndo.length > 50) window._noteUndo.shift(); };
+const _nSnap = () => { window._noteSyncText(); window._noteUndo.push(_nClone(window._noteEdit)); if (window._noteUndo.length > 50) window._noteUndo.shift(); window._noteRedo = []; };
 
 window.renderNoteEditor = function() {
     const wrap = document.getElementById('noteTableWrap'); const note = window._noteEdit; if (!wrap || !note) return;
@@ -870,6 +874,25 @@ window.renderNoteEditor = function() {
     requestAnimationFrame(() => wrap.querySelectorAll('.nt-ebody').forEach(_clampEditCell));
     // พิมพ์เพิ่มจนยาวเกินระหว่างแก้ → clamp ทันทีโดยไม่ต้องรอ render ใหม่
     wrap.oninput = (e) => { const d = e.target && e.target.closest && e.target.closest('.nt-ebody'); if (d && !d.classList.contains('nt-etall')) _clampEditCell(d); };
+    // 📥 [Excel Paste] ก๊อปหลายช่องจาก Excel/Google Sheet มาวาง → กระจายลงหลายช่องให้อัตโนมัติ
+    // เริ่มวางที่ช่องที่เลือกอยู่ ถ้าข้อมูลยาวเกินตาราง จะเพิ่มแถว/คอลัมน์ให้เอง
+    wrap.onpaste = (e) => {
+        const note = window._noteEdit; if (!note || !window._noteSel) return;
+        const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
+        if (!/\t|\n/.test(text.replace(/\r/g, '').replace(/\n$/, ''))) return;   // ข้อมูลช่องเดียว → วางแบบปกติ
+        e.preventDefault();
+        _nSnap();
+        const grid = text.replace(/\r/g, '').replace(/\n$/, '').split('\n').map(l => l.split('\t'));
+        const r0 = window._noteSel.r1, x0 = window._noteSel.x1;
+        const needRows = r0 + grid.length;
+        const needCols = x0 + Math.max(...grid.map(g => g.length));
+        while (note.rows.length < needRows) { note.rows.push(Array.from({ length: note.rows[0].length }, () => _nCell())); if (note.rowH) note.rowH.push(undefined); }
+        while (note.rows[0].length < needCols) { note.rows.forEach(row => row.push(_nCell())); note.cols.push(160); }
+        grid.forEach((line, dr) => line.forEach((valTxt, dx) => { const c = note.rows[r0 + dr][x0 + dx]; if (!c.h) c.t = valTxt; }));
+        window._noteSel = { r1: r0, r2: r0 + grid.length - 1, x1: x0, x2: x0 + Math.max(...grid.map(g => g.length)) - 1 };
+        window.renderNoteEditor();
+        _nToast(`วางข้อมูล ${grid.length} แถว เรียบร้อย`);
+    };
     window._noteUpdateSelInfo();
     // แสดงขนาดตัวอักษรของช่องที่เลือกใน dropdown
     const fsSel = document.getElementById('noteFontSize'); const first = _nSelCells()[0];
@@ -995,7 +1018,8 @@ const _nToast = (m) => Swal.mixin({ toast: true, position: 'top', timer: 1800, s
 
 window.noteCmd = async function(cmd, val) {
     const note = window._noteEdit; if (!note) return;
-    if (cmd === 'undo') { if (!window._noteUndo.length) return; window._noteEdit = window._noteUndo.pop(); window._noteSel = null; window.renderNoteEditor(); return; }
+    if (cmd === 'undo') { if (!window._noteUndo.length) return; window._noteSyncText(); window._noteRedo.push(_nClone(window._noteEdit)); window._noteEdit = window._noteUndo.pop(); window._noteSel = null; window.renderNoteEditor(); return; }
+    if (cmd === 'redo') { if (!window._noteRedo.length) return; window._noteSyncText(); window._noteUndo.push(_nClone(window._noteEdit)); window._noteEdit = window._noteRedo.pop(); window._noteSel = null; window.renderNoteEditor(); return; }
     if (cmd === 'trimEmpty') { _nSnap(); const t = window.trimNoteGrid(note); note.rows = t.rows; note.cols = t.cols; window._noteSel = null; window.renderNoteEditor(); return; }
     const sel = window._noteSel; if (!sel) { _nToast('คลิกเลือกช่องก่อน'); return; }
     _nSnap();
@@ -1005,6 +1029,66 @@ window.noteCmd = async function(cmd, val) {
     const W = note.rows[0].length, H = note.rows.length;
     switch (cmd) {
         case 'bold': { const allB = cells.every(o => o.c.b); each(c => c.b = !allB); break; }
+        case 'italic': { const all = cells.every(o => o.c.i); each(c => c.i = !all); break; }
+        case 'underline': { const all = cells.every(o => o.c.u); each(c => c.u = !all); break; }
+        case 'strike': { const all = cells.every(o => o.c.st); each(c => c.st = !all); break; }
+        // 🧹 ล้างรูปแบบ — เหลือแต่ข้อความ (เส้นตารางกลับเป็นค่าเริ่มต้น)
+        case 'clearFmt': each(c => { c.bg = null; c.fg = null; c.b = false; c.i = false; c.u = false; c.st = false; c.a = null; c.fs = null; c.bc = null; c.clip = false; c.bd = { t: true, b: true, l: true, r: true }; }); break;
+        // ↕️ ย้ายแถวที่เลือกขึ้น/ลง 1 ตำแหน่ง (ทั้งก้อนถ้าเลือกหลายแถว)
+        case 'rowUp': case 'rowDown': {
+            const up = cmd === 'rowUp';
+            const from = up ? sel.r1 - 1 : sel.r2 + 1;                       // แถวเพื่อนบ้านที่จะสลับ
+            if (from < 0 || from >= H) { abort(); return; }
+            // กันช่องผสานแนวตั้งพัง: แถวที่เกี่ยวข้องทั้งหมดต้องไม่มีช่องผสานข้ามแถว
+            for (let r = Math.min(from, sel.r1); r <= Math.max(from, sel.r2); r++)
+                for (let x = 0; x < W; x++) { const c = note.rows[r][x]; if (c.h || (c.rs || 1) > 1) { abort(); _nToast('มีช่องผสานแนวตั้งคร่อมอยู่ — แยกช่องก่อนแล้วค่อยย้ายแถว'); return; } }
+            const band = note.rows.splice(sel.r1, sel.r2 - sel.r1 + 1);
+            const bandH = note.rowH ? note.rowH.splice(sel.r1, sel.r2 - sel.r1 + 1) : null;
+            const at = up ? sel.r1 - 1 : sel.r1 + 1;
+            note.rows.splice(at, 0, ...band);
+            if (bandH) { note.rowH = note.rowH || []; note.rowH.splice(at, 0, ...bandH); }
+            window._noteSel = { r1: at, r2: at + band.length - 1, x1: sel.x1, x2: sel.x2 };
+            break;
+        }
+        // ⎘ คัดลอกแถวที่เลือก แทรกต่อท้ายก้อนเดิม (ก๊อปทั้งข้อความ+สี+รูปแบบ)
+        case 'rowDup': {
+            for (let r = sel.r1; r <= sel.r2; r++)
+                for (let x = 0; x < W; x++) { const c = note.rows[r][x];
+                    if (c.h) { const a = _nAnchor(note, r, x); if (!a || a.r < sel.r1) { abort(); _nToast('มีช่องผสานคร่อมนอกแถวที่เลือก — แยกช่องก่อน'); return; } }
+                    if ((c.rs || 1) > 1 && r + c.rs - 1 > sel.r2) { abort(); _nToast('มีช่องผสานยื่นออกนอกแถวที่เลือก — แยกช่องก่อน'); return; } }
+            const band = JSON.parse(JSON.stringify(note.rows.slice(sel.r1, sel.r2 + 1)));
+            note.rows.splice(sel.r2 + 1, 0, ...band);
+            if (note.rowH) { const bh = note.rowH.slice(sel.r1, sel.r2 + 1); note.rowH.splice(sel.r2 + 1, 0, ...bh); }
+            window._noteSel = { r1: sel.r2 + 1, r2: sel.r2 + band.length, x1: sel.x1, x2: sel.x2 };
+            break;
+        }
+        // 🔤 เรียงแถวตามคอลัมน์ที่เลือก (ตัวเลขเรียงแบบตัวเลข ไทย/อังกฤษเรียงตามพจนานุกรม)
+        case 'sortAsc': case 'sortDesc': {
+            for (let r = 0; r < H; r++) for (let x = 0; x < W; x++) { const c = note.rows[r][x]; if (c.h || (c.cs || 1) > 1 || (c.rs || 1) > 1) { abort(); _nToast('ตารางมีช่องผสาน — แยกช่องทั้งหมดก่อนแล้วค่อยเรียง'); return; } }
+            const ask = await Swal.fire({ title: 'เรียงลำดับ', text: `เรียงตามคอลัมน์ ${_nColName(sel.x1)} ${cmd === 'sortAsc' ? 'ก→ฮ / A→Z / น้อย→มาก' : 'ฮ→ก / Z→A / มาก→น้อย'}`, input: 'checkbox', inputValue: 1, inputPlaceholder: 'แถวแรกเป็นหัวตาราง (ไม่ต้องเรียง)', showCancelButton: true, confirmButtonText: 'เรียงเลย', cancelButtonText: 'ยกเลิก' });
+            if (ask.isConfirmed === false || ask.dismiss) { abort(); return; }
+            const skipHead = !!ask.value;
+            const start = skipHead ? 1 : 0;
+            const idx = note.rows.map((_, i) => i).slice(start);
+            const key = (i) => String(note.rows[i][sel.x1].t || '');
+            idx.sort((a, b) => key(a).localeCompare(key(b), 'th', { numeric: true, sensitivity: 'base' }));
+            if (cmd === 'sortDesc') idx.reverse();
+            const head = note.rows.slice(0, start);
+            note.rows = head.concat(idx.map(i => note.rows[i]));
+            if (note.rowH) { const hh = note.rowH.slice(0, start); note.rowH = hh.concat(idx.map(i => note.rowH[i])); }
+            window._noteSel = null;
+            break;
+        }
+        // 📋 คัดลอกช่วงที่เลือกเป็นตาราง (TSV) → เอาไปวางใน Excel / Google Sheets ได้เลย
+        case 'copyTSV': {
+            abort();   // ไม่ต้องเก็บ undo — ไม่ได้แก้ข้อมูล
+            const lines = [];
+            for (let r = sel.r1; r <= sel.r2; r++) { const row = [];
+                for (let x = sel.x1; x <= sel.x2; x++) { const c = note.rows[r][x]; row.push(c.h ? '' : String(c.t || '').replace(/\t/g, ' ')); }
+                lines.push(row.join('\t')); }
+            window._copyText(lines.join('\n'), null);
+            return;
+        }
         case 'fg': each(c => c.fg = val); break;
         case 'bg': each(c => c.bg = val); break;
         case 'align': each(c => c.a = val === 'l' ? null : val); break;
@@ -1032,7 +1116,7 @@ window.noteCmd = async function(cmd, val) {
         }
         case 'unmerge': {
             let did = false;
-            cells.forEach(o => { const c = o.c; if ((c.cs || 1) === 1 && (c.rs || 1) === 1) return; const cs = c.cs || 1, rs = c.rs || 1; for (let r = o.r; r < o.r + rs; r++) for (let x = o.x; x < o.x + cs; x++) if (!(r === o.r && x === o.x)) note.rows[r][x] = _nCell({ bg: c.bg, fg: c.fg, b: c.b, a: c.a, fs: c.fs, bd: { ...bdOf(c) }, bc: c.bc, clip: c.clip }); c.cs = 1; c.rs = 1; did = true; });
+            cells.forEach(o => { const c = o.c; if ((c.cs || 1) === 1 && (c.rs || 1) === 1) return; const cs = c.cs || 1, rs = c.rs || 1; for (let r = o.r; r < o.r + rs; r++) for (let x = o.x; x < o.x + cs; x++) if (!(r === o.r && x === o.x)) note.rows[r][x] = _nCell({ bg: c.bg, fg: c.fg, b: c.b, i: c.i, u: c.u, st: c.st, a: c.a, fs: c.fs, bd: { ...bdOf(c) }, bc: c.bc, clip: c.clip }); c.cs = 1; c.rs = 1; did = true; });
             if (!did) { abort(); return; }
             break;
         }
@@ -1076,6 +1160,30 @@ window.noteCmd = async function(cmd, val) {
     }
     window.renderNoteEditor();
 };
+// 🔎 ค้นหา & แทนที่ทั้งตาราง (หรือเฉพาะช่วงที่เลือกไว้ ถ้าเลือกมากกว่า 1 ช่อง)
+window.noteFindReplace = async function() {
+    const note = window._noteEdit; if (!note) return;
+    const sel = window._noteSel; const inSel = sel && (sel.r2 > sel.r1 || sel.x2 > sel.x1);
+    const { value: v, isConfirmed } = await Swal.fire({
+        title: '🔎 ค้นหา & แทนที่',
+        html: `<input id="nfrFind" class="swal2-input" placeholder="คำที่ค้นหา..." style="margin-bottom:6px">` +
+              `<input id="nfrRep" class="swal2-input" placeholder="แทนที่ด้วย... (เว้นว่าง = ลบคำนั้นทิ้ง)">` +
+              (inSel ? `<div style="font-size:12px;color:#94a3b8;margin-top:4px">จะแทนที่เฉพาะในช่วงที่เลือกไว้</div>` : `<div style="font-size:12px;color:#94a3b8;margin-top:4px">จะแทนที่ทั้งตาราง</div>`),
+        showCancelButton: true, confirmButtonText: 'แทนที่ทั้งหมด', cancelButtonText: 'ยกเลิก',
+        preConfirm: () => ({ f: document.getElementById('nfrFind').value, r: document.getElementById('nfrRep').value })
+    });
+    if (!isConfirmed || !v || !v.f) return;
+    _nSnap();
+    const esc = v.f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(esc, 'g');
+    let cellCount = 0, hitCount = 0;
+    const walk = (r, x) => { const c = note.rows[r][x]; if (c.h || !c.t) return; const hits = (String(c.t).match(re) || []).length; if (!hits) return; c.t = String(c.t).replace(re, v.r); cellCount++; hitCount += hits; };
+    if (inSel) { for (let r = sel.r1; r <= sel.r2; r++) for (let x = sel.x1; x <= sel.x2; x++) walk(r, x); }
+    else { for (let r = 0; r < note.rows.length; r++) for (let x = 0; x < note.rows[r].length; x++) walk(r, x); }
+    if (!hitCount) { window._noteUndo.pop(); _nToast('ไม่พบคำที่ค้นหา'); return; }
+    window.renderNoteEditor();
+    _nToast(`แทนที่แล้ว ${hitCount} จุด ใน ${cellCount} ช่อง`);
+};
 document.addEventListener('mousedown', e => { const m = document.getElementById('noteBorderMenu'); if (m && !m.classList.contains('hidden') && !e.target.closest('#noteBorderMenuWrap')) m.classList.add('hidden'); });
 document.addEventListener('keydown', e => {
     if (!window._noteEditing) return;
@@ -1087,7 +1195,11 @@ document.addEventListener('keydown', e => {
     }
     if (e.key === 'Escape') { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); window.noteCmd('bold'); }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); window.noteCmd('undo'); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') { e.preventDefault(); window.noteCmd('italic'); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') { e.preventDefault(); window.noteCmd('underline'); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') { e.preventDefault(); window.noteFindReplace(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); window.noteCmd(e.shiftKey ? 'redo' : 'undo'); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); window.noteCmd('redo'); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); window.noteEditSave(); }
 });
 
