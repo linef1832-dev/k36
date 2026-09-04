@@ -320,6 +320,8 @@ async function showLogin() {
     if(loading) loading.classList.remove('hidden');
     try {
         const response = await fetch(`./pages/login/login.html?v=${window._APP_VERSION || Date.now()}`);
+        // ⚡ [เร่งล็อกอิน] เริ่มเช็ค IP เบื้องหลังตั้งแต่ตอนนี้ — ตอนกดเข้าระบบผลจะรออยู่แล้ว
+        setTimeout(() => { if (typeof window.prewarmIpProbe === 'function') window.prewarmIpProbe(); }, 800);
         const html = await response.text();
         document.getElementById('login-container').innerHTML = html;
         
