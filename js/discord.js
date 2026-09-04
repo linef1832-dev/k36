@@ -852,7 +852,8 @@ window.fetchSystemData = async function(forceSync = false, silent = false) {
         if (forceSync && !silent) Swal.fire({title: 'กำลังเชื่อมต่อบอท...', text: 'เซิร์ฟเวอร์อาจกำลังตื่นนอน โปรดรอสักครู่...', didOpen: () => Swal.showLoading(), allowOutsideClick: false});
         
         if (typeof appDB !== 'undefined') {
-            const { data: dbUsers } = await appDB.from('users').select('*');
+            // 🗃️ ใช้ cache กลาง (TTL 3 นาที) แทนยิงตรง — เปิดหน้านี้ซ้ำๆ ไม่เปลืองโควต้า DB
+            const dbUsers = await window.getUsersCached();
             if (dbUsers && dbUsers.length > 0) window.GLOBAL_USER_LIST = dbUsers;
 
             const { data: customNameData } = await appDB.from('settings').select('value').eq('key', 'discord_custom_names').single();
