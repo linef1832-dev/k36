@@ -1452,44 +1452,42 @@ window.onSheetSearch = function() {
 };
 
 // ==========================================
-// 🖼️ [ลิ้นชักคลังรูป] เปิดคลังรูปทับหน้าชีต — ไม่ต้องกดสลับหน้าไปมา
-// - เปิดครั้งแรก: ดึง pages/gallery.html มาใส่ลิ้นชัก + โหลด gallery.js + init
-// - ครั้งต่อไป: โชว์ทันที (สถานะ filter/สกอลล์คงเดิม)
-// - ปุ่ม "กลับ" ข้างในคลังรูปถูกเปลี่ยนให้เป็น "ปิดลิ้นชัก" แทน (กันหลุดไป dashboard)
+// 🖼️ [แบ่งจอคลังรูป] ชีตครึ่งซ้าย — คลังรูปครึ่งขวา ใช้พร้อมกันได้
+// - เปิดแล้ว "ค้างถาวร" จนกว่าจะกดปุ่มปิดเอง (ไม่มี Esc / ไม่มีคลิกข้างนอกแล้วปิด)
+// - เปิดครั้งแรกโหลดหน้า gallery จริงมาใส่ + init | ครั้งต่อไปโชว์ทันที สถานะคงเดิม
+// - ตอนเปิด: บีบหน้าชีตให้เหลือครึ่งซ้ายพอดี (ไม่มีอะไรถูกบัง)
 // ==========================================
-window._galleryDrawerLoaded = false;
 window.toggleGalleryDrawer = async function(show) {
     const drawer = document.getElementById('galleryDrawer');
+    const sheetApp = document.getElementById('sheetApp');
     if (!drawer) return;
-    const willShow = (show === undefined) ? drawer.classList.contains('hidden') : !!show;
+    const isOpen = drawer.style.display !== 'none' && drawer.style.display !== '';
+    const willShow = (show === undefined) ? !isOpen : !!show;
 
-    if (!willShow) { drawer.classList.add('hidden'); return; }
-    drawer.classList.remove('hidden');
+    if (!willShow) {
+        drawer.style.display = 'none';
+        if (sheetApp) { sheetApp.style.marginRight = ''; }
+        return;
+    }
+    drawer.style.display = 'flex';
+    if (sheetApp) { sheetApp.style.marginRight = '50vw'; sheetApp.style.transition = 'margin-right .2s ease'; }
 
-    // เช็คจาก DOM จริง (ไม่ใช้แฟล็ก) — เพราะเปลี่ยนหน้าไปกลับ DOM ของลิ้นชักจะถูกสร้างใหม่
+    // เช็คจาก DOM จริง (ไม่ใช้แฟล็ก) — เพราะเปลี่ยนหน้าไปกลับ DOM ของแผงจะถูกสร้างใหม่
     if (!document.getElementById('galleryApp')) {
         try {
             const body = document.getElementById('galleryDrawerBody');
             const res = await fetch(`./pages/gallery.html?v=${window._APP_VERSION || Date.now()}`);
             if (!res.ok) throw new Error('โหลดหน้าคลังรูปไม่สำเร็จ');
             body.innerHTML = await res.text();
-            // ปุ่ม "กลับ" ของหน้าคลังรูป → เปลี่ยนเป็นปิดลิ้นชักแทน
+            // ปุ่ม "กลับ" ของหน้าคลังรูป → เปลี่ยนเป็นปิดแผงแทน (กันหลุดไป dashboard)
             body.querySelectorAll('[onclick*="showPage"]').forEach(btn => {
                 btn.setAttribute('onclick', 'toggleGalleryDrawer(false)');
                 btn.innerHTML = '<span class="material-icons">close</span> ปิด';
             });
             await window.loadScript('gallery');
             if (typeof initGalleryApp === 'function') initGalleryApp();
-            window._galleryDrawerLoaded = true;
         } catch (e) {
-            document.getElementById('galleryDrawerBody').innerHTML = `<div class="text-center text-red-400 py-10 font-bold">โหลดคลังรูปไม่สำเร็จ<br><span class="text-xs text-slate-500">${e.message}</span></div>`;
+            document.getElementById('galleryDrawerBody').innerHTML = `<div style="text-align:center;color:#f87171;padding:40px 0;font-weight:700">โหลดคลังรูปไม่สำเร็จ<br><span style="font-size:11px;color:#64748b">${e.message}</span></div>`;
         }
     }
 };
-// Esc ปิดลิ้นชัก (เฉพาะตอนที่เปิดอยู่ และไม่ได้เปิด lightbox รูปอยู่)
-document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    const drawer = document.getElementById('galleryDrawer');
-    const lb = document.getElementById('galleryLightbox');
-    if (drawer && !drawer.classList.contains('hidden') && (!lb || lb.classList.contains('hidden'))) toggleGalleryDrawer(false);
-});
