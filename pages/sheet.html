@@ -14,6 +14,9 @@
             </button>
         </div>
         <div class="flex items-center gap-2">
+            <button onclick="toggleGalleryDrawer()" title="เปิดคลังรูปโดยไม่ต้องออกจากหน้านี้" class="bg-amber-600/30 hover:bg-amber-500 text-amber-200 hover:text-white border border-amber-500/40 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 text-sm shadow-sm">
+                <span class="material-icons text-sm">photo_library</span> คลังรูป
+            </button>
             <div class="relative">
                 <span class="material-icons absolute left-2 top-1.5 text-purple-300/70 text-sm">search</span>
                 <input type="text" id="sheetSearch" placeholder="ค้นหาชีท..." class="pl-8 pr-2 py-1.5 rounded-lg text-sm text-white bg-slate-800/80 border border-purple-500/30 font-bold outline-none w-48 transition focus:w-64 focus:border-purple-400 focus:ring-1 focus:ring-purple-400 placeholder-purple-300/50 shadow-inner" onkeyup="onSheetSearch()">
@@ -341,3 +344,18 @@
         </div>
     </template>
 </div>
+
+<!-- 🖼️ [ลิ้นชักคลังรูป] เปิดคลังรูปทับหน้าชีตโดยไม่ต้องเปลี่ยนหน้า — โหลดครั้งเดียว เปิด/ปิดได้เร็ว -->
+<div id="galleryDrawer" class="fixed inset-0 z-[95] hidden">
+    <div onclick="toggleGalleryDrawer(false)" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"></div>
+    <div class="absolute top-0 right-0 h-full w-[92%] md:w-[85%] bg-[#0b1120] shadow-2xl border-l border-amber-500/30 flex flex-col animate-[slideIn_.25s_ease]" style="max-width:1400px">
+        <div class="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-amber-900/40 to-slate-900 border-b border-amber-500/20 shrink-0">
+            <span class="font-black text-amber-300 flex items-center gap-2 text-sm"><span class="material-icons text-lg">photo_library</span> คลังรูป (เปิดทับหน้าชีต — ปิดแล้วกลับมาทำงานต่อได้เลย)</span>
+            <button onclick="toggleGalleryDrawer(false)" class="bg-red-600/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 transition"><span class="material-icons text-sm">close</span> ปิดคลังรูป (Esc)</button>
+        </div>
+        <div id="galleryDrawerBody" class="flex-1 overflow-hidden p-2">
+            <div class="flex items-center justify-center h-full text-slate-500"><span class="material-icons animate-spin mr-2">sync</span> กำลังโหลดคลังรูป...</div>
+        </div>
+    </div>
+</div>
+<style>@keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}</style>
