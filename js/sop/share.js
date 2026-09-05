@@ -360,18 +360,6 @@ window.sop_telegramSettings = async function() {
                 </button>
                 <div id="tgBroadcastResult" class="text-xs text-center min-h-[18px] mt-1"></div>
             </div>
-
-            <!-- 🤖 เชื่อมบอท AI (setWebhook คลิกเดียว) -->
-            <div class="border-t-2 border-dashed border-slate-300 dark:border-slate-600 pt-3">
-                <div class="font-bold text-amber-600 dark:text-amber-300 flex items-center gap-1 mb-2 text-sm">
-                    <span class="material-icons text-[16px]">smart_toy</span> เชื่อมบอท AI ตอบกติกา (ทำครั้งเดียว)
-                </div>
-                <p class="text-[11px] text-slate-500 dark:text-gray-400 mb-2">กดปุ่มนี้เพื่อสั่งให้ Telegram ส่งคำถาม /ask มาที่ระบบ AI — ใช้ Token ในช่องด้านบน กดซ้ำได้ไม่พัง</p>
-                <button type="button" onclick="sop_telegramSetWebhook()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1 shadow-md transition active:scale-95">
-                    <span class="material-icons text-sm">link</span> เชื่อมบอท AI เดี๋ยวนี้
-                </button>
-                <div id="tgWebhookResult" class="text-xs text-center min-h-[18px] mt-1"></div>
-            </div>
         </div>
     `;
 
@@ -415,11 +403,6 @@ window.sop_telegramSettings = async function() {
     }
 };
 
-// 🔗 ค่าคงที่ระบบบอท AI (ต้องตรงกับ Secrets ใน Supabase)
-// ประกอบจาก DB_URL ใน global.js — ย้ายโปรเจกต์ Supabase ทีจะได้แก้ที่เดียว
-const SOP_AI_WEBHOOK_URL = `${DB_URL}/functions/v1/telegram-rules-bot`;
-const SOP_AI_WEBHOOK_SECRET = 'k36od66secret2569';
-
 // 📢 ยิงข้อความเข้ากลุ่ม (ใช้ Token/Chat ID จากช่องในหน้าต่าง — เห็นข้อความก่อนยิง)
 window.sop_telegramBroadcast = async function() {
     const token = (document.getElementById('tgBotToken')?.value || '').trim();
@@ -445,28 +428,6 @@ window.sop_telegramBroadcast = async function() {
             msgEl.value = '';
         } else {
             resultEl.innerHTML = `<span class="text-red-500 font-bold">❌ ${json.description || 'ยิงไม่สำเร็จ'}</span>`;
-        }
-    } catch (e) {
-        resultEl.innerHTML = `<span class="text-red-500 font-bold">❌ ${e.message}</span>`;
-    }
-};
-
-// 🤖 เชื่อมบอท AI — ตั้ง Webhook ให้ Telegram ส่งคำถามมาที่ Edge Function (คลิกเดียวจบ)
-window.sop_telegramSetWebhook = async function() {
-    const token = (document.getElementById('tgBotToken')?.value || '').trim();
-    const resultEl = document.getElementById('tgWebhookResult');
-    if (!resultEl) return;
-    if (!token) { resultEl.innerHTML = '<span class="text-red-500 font-bold">❌ ใส่ Bot Token ก่อนครับ</span>'; return; }
-
-    resultEl.innerHTML = '<span class="text-amber-500 font-bold">⏳ กำลังเชื่อม...</span>';
-    try {
-        const url = `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(SOP_AI_WEBHOOK_URL)}&secret_token=${encodeURIComponent(SOP_AI_WEBHOOK_SECRET)}&drop_pending_updates=true`;
-        const res = await fetch(url);
-        const json = await res.json();
-        if (json.ok) {
-            resultEl.innerHTML = '<span class="text-emerald-500 font-bold">✅ เชื่อมสำเร็จ! ลองพิมพ์ /ask ในกลุ่มได้เลย</span>';
-        } else {
-            resultEl.innerHTML = `<span class="text-red-500 font-bold">❌ ${json.description || 'เชื่อมไม่สำเร็จ'}</span>`;
         }
     } catch (e) {
         resultEl.innerHTML = `<span class="text-red-500 font-bold">❌ ${e.message}</span>`;
