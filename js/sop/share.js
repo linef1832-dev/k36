@@ -416,7 +416,8 @@ window.sop_telegramSettings = async function() {
 };
 
 // 🔗 ค่าคงที่ระบบบอท AI (ต้องตรงกับ Secrets ใน Supabase)
-const SOP_AI_WEBHOOK_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/functions/v1/telegram-rules-bot';
+// ประกอบจาก DB_URL ใน global.js — ย้ายโปรเจกต์ Supabase ทีจะได้แก้ที่เดียว
+const SOP_AI_WEBHOOK_URL = `${DB_URL}/functions/v1/telegram-rules-bot`;
 const SOP_AI_WEBHOOK_SECRET = 'k36od66secret2569';
 
 // 📢 ยิงข้อความเข้ากลุ่ม (ใช้ Token/Chat ID จากช่องในหน้าต่าง — เห็นข้อความก่อนยิง)

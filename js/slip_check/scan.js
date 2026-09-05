@@ -192,7 +192,8 @@ window.verifyThunderSlip = async function() {
         const qrPayload = await window.extractQrPayload(window.selectedSlipFile);
         
         Swal.update({ title: 'เชื่อมต่อฐานข้อมูล...', html: 'กำลังดึงข้อมูลจากธนาคาร...' });
-        const SUPABASE_FUNCTION_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co/functions/v1/verify-slip'; 
+        // ประกอบจาก DB_URL ใน global.js — ย้ายโปรเจกต์ Supabase ทีจะได้แก้ที่เดียว
+        const SUPABASE_FUNCTION_URL = `${DB_URL}/functions/v1/verify-slip`;
 
         const response = await fetch(SUPABASE_FUNCTION_URL, {
             method: 'POST',

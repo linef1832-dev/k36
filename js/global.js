@@ -1,8 +1,8 @@
 // ==========================================
 // 🧠 ตัวแปรส่วนกลาง (Global Variables)
 // ==========================================
-const DB_URL = 'https://zedbbtjxuidfubpiauyb.supabase.co';
-const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplZGJidGp4dWlkZnVicGlhdXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MjQ2ODgsImV4cCI6MjA4MzIwMDY4OH0.4orJyfFcOwnZcnHFjLOTLXaqFNeapCVe9yCxj3rLMBM';
+const DB_URL = 'https://evuzlihhbicmuvpjwwln.supabase.co';
+const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2dXpsaWhoYmljbXV2cGp3d2xuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1Nzk0OTIsImV4cCI6MjEwNDE1NTQ5Mn0.QZdqTS3c9rsMBdRVyakqAPYwQULhzff7hBrvM3zqAUA';
 
 let appDB;
 let currentUser = {};
