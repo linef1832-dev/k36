@@ -601,6 +601,8 @@ window.breakCapByRule = function(total) {
 window.buildCoverageMap = function(roster) {
     const webs = {};        // "เว็บ (หลัก)" หรือ "เว็บ (รอง)" -> Set(username)
     const websOf = {};      // username -> ["เว็บ (หลัก)", "เว็บ (รอง)", ...]
+    const combined = {};    // เว็บ -> Set(username) รวมหลัก+รองทั้งหมดของเว็บนั้น (ไว้เช็ค "เว็บห้ามว่าง")
+    const combinedOf = {};  // username -> [เว็บ, ...] ทุกเว็บที่เขารับผิดชอบไม่ว่าฐานะไหน
     for (const team in (roster || {})) {
         (roster[team] || []).forEach(u => {
             if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
@@ -610,13 +612,26 @@ window.buildCoverageMap = function(roster) {
                 (websOf[u.username] = websOf[u.username] || []);
                 if (!websOf[u.username].includes(t)) websOf[u.username].push(t);
             };
+            const addCombined = (tm) => {
+                if (!tm) return;
+                (combined[tm] = combined[tm] || new Set()).add(u.username);
+                (combinedOf[u.username] = combinedOf[u.username] || []);
+                if (!combinedOf[u.username].includes(tm)) combinedOf[u.username].push(tm);
+            };
             add(`${team} (หลัก)`);                                        // คนนี้เป็นหลักของเว็บนี้
-            if (u.secondary_team) add(`${u.secondary_team} (รอง)`);       // และเป็นรองของอีกเว็บ
+            addCombined(team);
+            if (u.secondary_team) { add(`${u.secondary_team} (รอง)`); addCombined(u.secondary_team); }   // และเป็นรองของอีกเว็บ
         });
     }
-    return { webs, websOf };
+    return { webs, websOf, combined, combinedOf };
 };
 // เช็คว่า username พักช่วงนี้ได้ไหม — ทุกเว็บที่เขารับผิดชอบต้องยังไม่เต็มเพดาน
+// กติกา 3 ข้อ:
+//   1) หลักชนหลัก (เว็บเดียวกัน) เกินเพดาน ❌
+//   2) รองชนรอง (เว็บเดียวกัน) เกินเพดาน ❌
+//   3) 🌟 [ใหม่] รวมหลัก+รองของเว็บเดียวกัน ต้องเหลือคนเฝ้าอย่างน้อย 1 คนเสมอ
+//      (กันเคสเว็บมีหลัก 1 + รอง 1 แล้วดันพักช่วงเดียวกัน → หน้างานว่างไม่มีคนดู)
+//      *ยกเว้นเว็บที่มีคนรับผิดชอบแค่คนเดียว — ไม่งั้นเขาจะพักไม่ได้เลยทั้งวัน
 // → { ok, problems:[{team, used, cap, total}], canLeave }
 window.checkCoverage = function(username, covMap, slotBookings) {
     const myWebs = (covMap && covMap.websOf[username]) || [];
@@ -630,6 +645,17 @@ window.checkCoverage = function(username, covMap, slotBookings) {
         members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
         const cap = window.breakCapByRule(members.size);
         if (used >= cap) problems.push({ team, used, cap, total: members.size });
+        canLeave = Math.min(canLeave, Math.max(0, cap - used));
+    });
+    // 🌟 กติกาข้อ 3: เว็บห้ามว่าง — นับรวมหลัก+รองของแต่ละเว็บที่คนนี้รับผิดชอบ
+    const myTeams = (covMap && covMap.combinedOf && covMap.combinedOf[username]) || [];
+    myTeams.forEach(team => {
+        const members = (covMap.combined && covMap.combined[team]) || new Set();
+        if (members.size < 2) return;   // เว็บมีคนเดียว → ใช้กติกาเดิม (ไม่งั้นพักไม่ได้เลย)
+        let used = 0;
+        members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
+        const cap = members.size - 1;   // พักพร้อมกันได้มากสุด = ทั้งหมด - 1 (ต้องเหลือคนเฝ้า)
+        if (used >= cap) problems.push({ team: `${team} (หลัก+รองต้องเหลือคนเฝ้า)`, used, cap, total: members.size });
         canLeave = Math.min(canLeave, Math.max(0, cap - used));
     });
     return { ok: problems.length === 0, problems, canLeave };
