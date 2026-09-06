@@ -784,7 +784,7 @@ window.switchDiscordTab = function(tabName) {
             const el = document.getElementById('dsContent_' + view);
             if (el) el.classList.add('hidden');
             const btn = document.getElementById('tabDs' + view.charAt(0).toUpperCase() + view.slice(1));
-            if (btn) btn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1";
+            if (btn) btn.className = "ds-tab";
         });
 
         const targetView = document.getElementById('dsContent_' + tabName);
@@ -796,18 +796,18 @@ window.switchDiscordTab = function(tabName) {
         const activeBtn = document.getElementById('tabDs' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
         if (activeBtn) {
             if (tabName === 'spy') {
-                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.5)] flex items-center gap-1";
+                activeBtn.className = "ds-tab ds-tab-active";
                 ds_fetchSpy(); 
                 ds_fetchChannelsSilently();
                 spyInterval = setInterval(ds_fetchSpy, 3000);
                 if (typeof window.registerPageInterval === 'function') window.registerPageInterval(spyInterval);
             } 
             else if (tabName === 'move') {
-                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)] flex items-center gap-1";
+                activeBtn.className = "ds-tab ds-tab-active";
                 ds_fetchChannels(); 
             }
             else if (tabName === 'checkin') {
-                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-violet-500 text-white shadow-[0_0_10px_rgba(139,92,246,0.5)] flex items-center gap-1";
+                activeBtn.className = "ds-tab ds-tab-active";
                 const d = new Date();
                 const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0');
                 if(document.getElementById('tgDate')) document.getElementById('tgDate').value = `${y}-${m}-${day}`;
@@ -820,14 +820,14 @@ window.switchDiscordTab = function(tabName) {
                 });
             }
             else if (tabName === 'manage') {
-                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-amber-500 text-slate-900 shadow-[0_0_10px_rgba(245,158,11,0.5)] flex items-center gap-1";
+                activeBtn.className = "ds-tab ds-tab-active";
                 if (!isDataLoaded) fetchSystemData(false); 
                 else {
                     _doRenderManagerList(); renderGroupList(); renderTransferUserList(); fetchTransfers();
                 }
             }
             else if (tabName === 'voicelog') {
-                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-fuchsia-500 text-white shadow-[0_0_10px_rgba(217,70,239,0.5)] flex items-center gap-1";
+                activeBtn.className = "ds-tab ds-tab-active";
                 const dateInput = document.getElementById('voiceLogDate');
                 if(dateInput && !dateInput.value) {
                     const tzOffset = 7 * 60 * 60 * 1000;
@@ -840,7 +840,7 @@ window.switchDiscordTab = function(tabName) {
                 if (typeof window.registerPageInterval === 'function') window.registerPageInterval(logInterval);
             }
             else if (tabName === 'breaktrack') {
-                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-emerald-600 text-white shadow-[0_0_10px_rgba(5,150,105,0.5)] flex items-center gap-1";
+                activeBtn.className = "ds-tab ds-tab-active";
                 window.initBreaktrack();
             }
         }
