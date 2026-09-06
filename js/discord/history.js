@@ -143,17 +143,19 @@ window.ds_renderVoiceLogs = function() {
     let finalHtml = '';
     
     filtered.forEach(log => {
-        let d = new Date(log.time);
-        
-        // 🌟 แก้ปัญหาเวลาแสดงผล: หักลบ 7 ชั่วโมงที่บราวเซอร์บวกเพิ่มซ้ำซ้อนออก
-        d = new Date(d.getTime() - (7 * 60 * 60 * 1000));
-        
+        const d = new Date(log.time);   // instant จริงจาก DB (created_at เป็น UTC)
+
+        // 🌟 [FIX เวลาไม่ตรง] เดิมลบ 7 ชม.เองแล้วยังส่ง timeZone:'Asia/Bangkok' ให้ toLocale อีก = โดนแปลงสองต่อ
+        // จอเลยโชว์เวลา UTC (ช้ากว่าจริง 7 ชม.) — ตัดการลบเองทิ้ง ให้ timeZone จัดการที่เดียวพอ
         // 🌟 1. ดึงวันที่ (รูปแบบ 09/04/2569)
         const datePart = d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: 'numeric' });
         // 🌟 2. ดึงเวลา (รูปแบบ 15:38:51)
         const timePart = d.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit' });
         // 🌟 3. เอามาจับมัดรวมกัน จัดให้วันที่เป็นตัวหนังสือเล็กๆ สีเทาๆ
         const timeStr = `${timePart} <span class="text-[9px] text-gray-600 ml-1">(${datePart})</span>`;
+
+        // 🕰️ นาฬิกาไทยสำหรับคำนวณ "มาสาย" — ไม่พึ่งโซนเวลาของเครื่องผู้ใช้ (เครื่องตั้งโซนไหนก็คำนวณตรง)
+        const bkk = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
         
         let badge = ''; let lateBadge = ''; let rowClass = 'hover:bg-slate-700/50'; let isLate = false;
         const dbUser = getDbUserFromDiscordName(log.name);
@@ -181,15 +183,15 @@ window.ds_renderVoiceLogs = function() {
                 
                 if (expectedStart) {
                     const [h, m] = expectedStart.split(':').map(Number);
-                    let expectedTime = new Date(d); 
+                    let expectedTime = new Date(bkk);
                     expectedTime.setHours(h, m, 0, 0);
 
-                    if (h >= 18 && d.getHours() < 12) {
+                    if (h >= 18 && bkk.getHours() < 12) {
                         expectedTime.setDate(expectedTime.getDate() - 1);
                     }
 
-                    if (d > expectedTime && (d - expectedTime) > 60000) {
-                        const diffMins = Math.floor((d - expectedTime) / 60000);
+                    if (bkk > expectedTime && (bkk - expectedTime) > 60000) {
+                        const diffMins = Math.floor((bkk - expectedTime) / 60000);
                         if (diffMins <= 720) { 
                             lateBadge = `<span class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold shadow-md whitespace-nowrap">มาสาย ${diffMins} นาที</span>`;
                             isLate = true;
