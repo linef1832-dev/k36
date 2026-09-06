@@ -182,7 +182,7 @@ window.renderLeaveTable = function() {
         const workA = Math.max(0, totalByShift['กะกลาง'] - countA);
         const workN = Math.max(0, totalByShift['กะดึก'] - countN);
 
-        workingRowHtml += `<th class="p-1 border-b border-r dark:border-slate-700 align-middle bg-emerald-50 dark:bg-[#0a1f1a] min-w-[75px]">
+        workingRowHtml += `<th data-col="${d - 1}" class="p-1 border-b border-r dark:border-slate-700 align-middle bg-emerald-50 dark:bg-[#0a1f1a] min-w-[75px]">
             <div class="flex flex-col gap-0.5">
                 <div class="flex justify-between items-center">
                     <span class="text-[9px] font-bold text-orange-500">เช้า</span>
@@ -213,7 +213,7 @@ window.renderLeaveTable = function() {
         if (s.endDay && d > s.endDay) isLocked = true;
         if (isLocked) bgClass = "locked-day-col bg-gray-200 dark:bg-[#0a1120]";
 
-        headerHtml += `<th class="p-1.5 border-b border-r dark:border-slate-700 min-w-[75px] align-top ${bgClass}">
+        headerHtml += `<th data-col="${d - 1}" class="p-1.5 border-b border-r dark:border-slate-700 min-w-[75px] align-top ${bgClass}">
             <div class="text-[14px] text-slate-800 dark:text-white font-extrabold text-center mb-1 pb-0.5 border-b border-gray-200 dark:border-slate-600">${d}</div>
             <div class="flex flex-col gap-1">
                 <div class="flex justify-between items-center">
@@ -474,4 +474,3 @@ window.renderLeaveTable = function() {
     if(staffListToRender.length === 0) bodyHtml = `<tr><td colspan="${daysInMonth + 2}" class="p-10 text-center text-gray-400">ไม่พบรายชื่อในแผนก ${displayDeptText}</td></tr>`;
     tbody.innerHTML = bodyHtml;
 };
-
