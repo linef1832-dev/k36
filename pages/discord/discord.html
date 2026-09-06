@@ -1,16 +1,38 @@
 <div class="fade-in flex flex-col h-full bg-[#0b1120] rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden">
-    <div class="bg-slate-900 p-4 border-b border-indigo-500/30 flex justify-between items-center shrink-0 shadow-md">
-        <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
-            <div class="bg-indigo-600 p-2 rounded-lg text-white mr-2 shadow"><span class="material-icons">discord</span></div>
-            <button onclick="switchDiscordTab('spy')" id="tabDsSpy" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-red-500 text-white shadow-sm flex items-center gap-1"><span class="material-icons text-sm">visibility</span> Spy Monitor</button>
-            <button onclick="switchDiscordTab('move')" id="tabDsMove" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">move_up</span> ย้ายห้อง (Mass Move)</button>
-            <button onclick="switchDiscordTab('manage')" id="tabDsManage" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">manage_accounts</span> ฐานข้อมูล</button>
-            <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติเข้า/ออกดิส</button>
-            <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">coffee</span> เช็คอิน</button>
-            <button onclick="switchDiscordTab('checkin')" id="tabDsCheckin" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">photo_camera</span> ถ่ายรูป</button>
-            <button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">campaign</span> ศูนย์ควบคุมเสียง</button>
+    <!-- 🎩 Premium Tab System — สีประจำแท็บอยู่ใน style="--acc" (JS เขียน className ทับได้ ไม่กระทบสี) -->
+    <style id="ds-premium-tabs">
+        .ds-topbar{ background:linear-gradient(180deg,#0d1526,#0a111f); border-bottom:1px solid rgba(232,193,90,0.12); padding:12px 14px; display:flex; align-items:center; gap:12px; flex-shrink:0; box-shadow:0 6px 24px -12px rgba(0,0,0,.7); }
+        .ds-brand{ width:40px;height:40px;border-radius:13px;flex-shrink:0; background:linear-gradient(135deg,#4f46e5,#7c3aed); display:flex;align-items:center;justify-content:center; color:#fff; box-shadow:0 0 18px rgba(99,102,241,.45), inset 0 1px 0 rgba(255,255,255,.25); }
+        .ds-tabs-rail{ display:flex; align-items:center; gap:6px; overflow-x:auto; flex:1; padding:3px 2px; scrollbar-width:none; -ms-overflow-style:none; }
+        .ds-tabs-rail::-webkit-scrollbar{ display:none; }
+        .ds-tab{ display:inline-flex; align-items:center; gap:8px; padding:7px 14px 7px 8px; border-radius:12px; font-weight:800; font-size:13px; letter-spacing:.01em; color:#8b9bb4; background:transparent; border:1px solid transparent; white-space:nowrap; cursor:pointer; transition:all .16s ease; user-select:none; }
+        .ds-tab .tab-chip{ width:27px;height:27px;border-radius:9px; display:inline-flex;align-items:center;justify-content:center; flex-shrink:0; background:color-mix(in srgb, var(--acc) 13%, transparent); border:1px solid color-mix(in srgb, var(--acc) 30%, transparent); transition:all .16s ease; }
+        .ds-tab .tab-chip .material-icons{ font-size:15px; color:color-mix(in srgb, var(--acc) 80%, #fff 0%); }
+        .ds-tab:hover{ color:#e7edf6; background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.07); transform:translateY(-1px); }
+        .ds-tab-active{ color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--acc) 26%, #0b1120), color-mix(in srgb, var(--acc) 8%, #0b1120)); border-color:color-mix(in srgb, var(--acc) 55%, transparent); box-shadow:0 0 18px color-mix(in srgb, var(--acc) 28%, transparent), inset 0 1px 0 rgba(255,255,255,.07); }
+        .ds-tab-active .tab-chip{ background:var(--acc); border-color:transparent; box-shadow:0 0 12px color-mix(in srgb, var(--acc) 60%, transparent); }
+        .ds-tab-active .tab-chip .material-icons{ color:#fff; }
+        .ds-close{ display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; font-weight:800; font-size:13px; color:#f87171; background:rgba(248,113,113,0.07); border:1px solid rgba(248,113,113,0.25); cursor:pointer; transition:all .16s; flex-shrink:0; white-space:nowrap; }
+        .ds-close:hover{ background:rgba(248,113,113,0.16); color:#fecaca; box-shadow:0 0 14px rgba(248,113,113,.2); }
+        /* ── แท็บย่อยศูนย์เสียง ── */
+        .tts-sub{ display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:12px; font-weight:800; font-size:13px; color:#8b9bb4; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); cursor:pointer; transition:all .16s ease; white-space:nowrap; }
+        .tts-sub .material-icons{ font-size:15px; color:color-mix(in srgb, var(--acc) 75%, transparent); transition:color .16s; }
+        .tts-sub:hover{ color:#e7edf6; border-color:color-mix(in srgb, var(--acc) 40%, transparent); background:color-mix(in srgb, var(--acc) 7%, transparent); }
+        .tts-sub-active{ color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--acc) 30%, #0b1120), color-mix(in srgb, var(--acc) 10%, #0b1120)); border-color:color-mix(in srgb, var(--acc) 60%, transparent); box-shadow:0 0 16px color-mix(in srgb, var(--acc) 30%, transparent); }
+        .tts-sub-active .material-icons{ color:#fff; }
+    </style>
+    <div class="ds-topbar">
+        <div class="ds-brand"><span class="material-icons">discord</span></div>
+        <div class="ds-tabs-rail">
+            <button onclick="switchDiscordTab('spy')" id="tabDsSpy" class="ds-tab ds-tab-active" style="--acc:#ef4444"><span class="tab-chip"><span class="material-icons">visibility</span></span> Spy Monitor</button>
+            <button onclick="switchDiscordTab('move')" id="tabDsMove" class="ds-tab" style="--acc:#6366f1"><span class="tab-chip"><span class="material-icons">move_up</span></span> ย้ายห้อง</button>
+            <button onclick="switchDiscordTab('manage')" id="tabDsManage" class="ds-tab" style="--acc:#8b5cf6"><span class="tab-chip"><span class="material-icons">manage_accounts</span></span> ฐานข้อมูล</button>
+            <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="ds-tab" style="--acc:#f59e0b"><span class="tab-chip"><span class="material-icons">history</span></span> เข้า/ออกดิส</button>
+            <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="ds-tab" style="--acc:#10b981"><span class="tab-chip"><span class="material-icons">coffee</span></span> เช็คอิน</button>
+            <button onclick="switchDiscordTab('checkin')" id="tabDsCheckin" class="ds-tab" style="--acc:#d946ef"><span class="tab-chip"><span class="material-icons">photo_camera</span></span> ถ่ายรูป</button>
+            <button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="ds-tab" style="--acc:#0ea5e9"><span class="tab-chip"><span class="material-icons">campaign</span></span> ศูนย์เสียง</button>
         </div>
-        <button onclick="showPage('dashboard')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold transition flex items-center gap-1 text-sm shrink-0 border border-slate-600"><span class="material-icons text-sm">close</span> ปิดหน้าต่าง</button>
+        <button onclick="showPage('dashboard')" class="ds-close"><span class="material-icons" style="font-size:15px">close</span> ปิด</button>
     </div>
 
     <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-[#0f172a] custom-scrollbar">
@@ -549,12 +571,12 @@
 
             <!-- แท็บย่อย -->
             <div class="flex items-center gap-2 mb-4 flex-wrap">
-                <button onclick="ttsSubTab('groups')" id="ttsSub_groups" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-sky-500 text-white shadow-lg flex items-center gap-1"><span class="material-icons text-sm">groups</span> กลุ่ม &amp; กะ</button>
-                <button onclick="ttsSubTab('bots')" id="ttsSub_bots" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">smart_toy</span> กองบอท</button>
-                <button onclick="ttsSubTab('telegram')" id="ttsSub_telegram" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">link</span> ผูกกลุ่ม Telegram</button>
-                <button onclick="ttsSubTab('schedule')" id="ttsSub_schedule" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">schedule</span> ตั้งเวลาพูด</button>
-                <button onclick="ttsSubTab('history')" id="ttsSub_history" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติ</button>
-                <button onclick="ttsSubTab('settings')" id="ttsSub_settings" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">tune</span> ตั้งค่าเสียง</button>
+                <button onclick="ttsSubTab('groups')" id="ttsSub_groups" class="tts-sub tts-sub-active" style="--acc:#0ea5e9"><span class="material-icons">groups</span> กลุ่ม &amp; กะ</button>
+                <button onclick="ttsSubTab('bots')" id="ttsSub_bots" class="tts-sub" style="--acc:#a78bfa"><span class="material-icons">smart_toy</span> กองบอท</button>
+                <button onclick="ttsSubTab('telegram')" id="ttsSub_telegram" class="tts-sub" style="--acc:#6366f1"><span class="material-icons">link</span> ผูกกลุ่ม Telegram</button>
+                <button onclick="ttsSubTab('schedule')" id="ttsSub_schedule" class="tts-sub" style="--acc:#f59e0b"><span class="material-icons">schedule</span> ตั้งเวลาพูด</button>
+                <button onclick="ttsSubTab('history')" id="ttsSub_history" class="tts-sub" style="--acc:#60a5fa"><span class="material-icons">history</span> ประวัติ</button>
+                <button onclick="ttsSubTab('settings')" id="ttsSub_settings" class="tts-sub" style="--acc:#E8C15A"><span class="material-icons">tune</span> ตั้งค่าเสียง</button>
             </div>
 
             <!-- แผงเนื้อหา -->
