@@ -226,6 +226,7 @@ window._renameLightboxImg = async function() {
             timer: 1500, showConfirmButton: false,
             customClass: { popup: 'rounded-xl border border-green-900/50 shadow-xl' }
         });
+        if (window._galleryMarkDirty) window._galleryMarkDirty();
         fetchGalleryImages();
     } catch(e) {
         Swal.fire('Error', e.message, 'error');
@@ -343,6 +344,7 @@ window.renameGalleryImage = async function(imgId, currentName) {
             timer: 1500, showConfirmButton: false,
             customClass: { popup: 'rounded-xl border border-green-900/50 shadow-xl' }
         });
+        if (window._galleryMarkDirty) window._galleryMarkDirty();
         fetchGalleryImages();
     } catch(e) {
         Swal.fire('Error', e.message, 'error');
