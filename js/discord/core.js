@@ -714,7 +714,6 @@ window.applyDiscordPermissions = function() {
         { btnId: 'tabDsCheckin', viewId: 'checkin', reqPerm: 'ds_checkin' },
         { btnId: 'tabDsManage', viewId: 'manage', reqPerm: 'ds_manage' },
         { btnId: 'tabDsVoicelog', viewId: 'voicelog', reqPerm: 'ds_log' },
-        { btnId: 'tabDsActionlog', viewId: 'actionlog', reqPerm: 'ds_log' },
         { btnId: 'tabDsBreaktrack', viewId: 'breaktrack', reqPerm: 'ds_checkin' }
     ];
 
@@ -735,7 +734,7 @@ window.applyDiscordPermissions = function() {
 
     if (firstAllowedTab) {
         document.getElementById('discordNoAccessMessage')?.remove();
-        const activeTabs = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog', 'breaktrack'];
+        const activeTabs = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'breaktrack'];
         let isCurrentTabValid = false;
         
         activeTabs.forEach(t => {
@@ -780,7 +779,7 @@ window.applyDiscordPermissions = function() {
 
 window.switchDiscordTab = function(tabName) {
     try {
-        const allViews = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'actionlog', 'breaktrack'];
+        const allViews = ['spy', 'move', 'checkin', 'manage', 'voicelog', 'breaktrack'];
         allViews.forEach(view => {
             const el = document.getElementById('dsContent_' + view);
             if (el) el.classList.add('hidden');
@@ -839,10 +838,6 @@ window.switchDiscordTab = function(tabName) {
                     ds_fetchVoiceLogs(false, window.dsCurrentPage);
                 }, 15000);
                 if (typeof window.registerPageInterval === 'function') window.registerPageInterval(logInterval);
-            }
-            else if (tabName === 'actionlog') {
-                activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.5)] flex items-center gap-1";
-                ds_fetchActionLogs();
             }
             else if (tabName === 'breaktrack') {
                 activeBtn.className = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-emerald-600 text-white shadow-[0_0_10px_rgba(5,150,105,0.5)] flex items-center gap-1";
@@ -1693,4 +1688,3 @@ window.delTransfer = async function(id) {
     await fetch(DISCORD_API_URL + '/api/delete-transfer', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})});
     fetchTransfers();
 };
-
