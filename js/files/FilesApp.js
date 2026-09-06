@@ -34,26 +34,75 @@ window.initFilesApp = async function() {
 };
 
 // 2. ดึงข้อมูลทั้งหมด
+// ⚡ [SPEED — เข้าหน้าแล้วเห็นทันที] จำข้อมูลรอบก่อนไว้ (ทั้งในตัวแปร + localStorage)
+// เปิดหน้า → วาดของเก่าขึ้นก่อนทันที (0 ms) → ดึงของใหม่เบื้องหลัง → ถ้าเปลี่ยนค่อยวาดทับเงียบๆ
+// สปินเนอร์จะโชว์เฉพาะครั้งแรกสุดที่ยังไม่มีข้อมูลอะไรเลยเท่านั้น
+const FILES_SNAP_KEY = 'files_page_cache_v1';
+let _filesFetchSeq = 0;   // กันผลลัพธ์เก่ามาทับผลลัพธ์ใหม่ ถ้ายิงซ้อนกัน
+
+function _filesLoadSnapshot() {
+    try {
+        const raw = (typeof window.safeGetItem === 'function') ? window.safeGetItem(FILES_SNAP_KEY) : localStorage.getItem(FILES_SNAP_KEY);
+        if (!raw) return false;
+        const s = JSON.parse(raw);
+        if (!Array.isArray(s.files)) return false;
+        globalAppFiles = s.files;
+        globalFilesDownloads = s.downloads || {};
+        globalFilesLogs = s.logs || [];
+        return globalAppFiles.length > 0;
+    } catch (e) { return false; }
+}
+function _filesSaveSnapshot() {
+    try {
+        const raw = JSON.stringify({ files: globalAppFiles, downloads: globalFilesDownloads, logs: globalFilesLogs, ts: Date.now() });
+        if (typeof window.safeSetItem === 'function') window.safeSetItem(FILES_SNAP_KEY, raw);
+        else localStorage.setItem(FILES_SNAP_KEY, raw);
+    } catch (e) { /* localStorage เต็ม/ปิด — ข้าม ไม่เป็นไร */ }
+}
+
 window.fetchFilesData = async function() {
     const grid = document.getElementById('filesGrid');
     if(!grid) return;
-    grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดไฟล์...</span></div>';
 
+    // ⚡ มีข้อมูลอยู่แล้ว (ในตัวแปร หรือ snapshot จากรอบก่อน) → วาดทันที ไม่ต้องขึ้นสปินเนอร์
+    const hasData = globalAppFiles.length > 0 || _filesLoadSnapshot();
+    if (hasData) {
+        renderCategoryTabs();
+        renderFilesGrid();
+    } else {
+        grid.innerHTML = '<div class="col-span-full text-center py-20"><span class="material-icons animate-spin text-emerald-500 text-5xl mb-2">sync</span><br><span class="text-gray-400 font-bold">กำลังโหลดไฟล์...</span></div>';
+    }
+
+    // 🔄 ดึงของสดเบื้องหลัง — ถ้าเหมือนเดิมเป๊ะ ไม่วาดซ้ำ (ภาพนิ่ง ไม่กระพริบ)
+    const mySeq = ++_filesFetchSeq;
     try {
         const [filesRes, dlRes, logRes] = await Promise.all([
             appDB.from('settings').select('value').eq('key', 'app_files_data').single(),
             appDB.from('settings').select('value').eq('key', 'app_files_downloads').single(),
             appDB.from('settings').select('value').eq('key', 'app_files_logs').single()
         ]);
-        globalAppFiles   = (filesRes.data?.value) ? JSON.parse(filesRes.data.value) : [];
-        globalFilesDownloads = (dlRes.data?.value) ? JSON.parse(dlRes.data.value) : {};
-        globalFilesLogs  = (logRes.data?.value) ? JSON.parse(logRes.data.value) : [];
+        if (mySeq !== _filesFetchSeq) return;   // มีรอบใหม่กว่ายิงตามมาแล้ว — ทิ้งผลรอบนี้
+        const newFiles = (filesRes.data?.value) ? JSON.parse(filesRes.data.value) : [];
+        const newDl    = (dlRes.data?.value) ? JSON.parse(dlRes.data.value) : {};
+        const newLogs  = (logRes.data?.value) ? JSON.parse(logRes.data.value) : [];
+        const changed = JSON.stringify(newFiles) !== JSON.stringify(globalAppFiles)
+                     || JSON.stringify(newDl) !== JSON.stringify(globalFilesDownloads);
+        globalAppFiles = newFiles;
+        globalFilesDownloads = newDl;
+        globalFilesLogs = newLogs;
+        _filesSaveSnapshot();
+        if (!hasData || changed) {
+            renderCategoryTabs();
+            renderFilesGrid();
+        }
     } catch(e) {
         console.error("Fetch files error:", e);
-        globalAppFiles = []; globalFilesDownloads = {}; globalFilesLogs = [];
+        if (!hasData) {
+            globalAppFiles = []; globalFilesDownloads = {}; globalFilesLogs = [];
+            renderCategoryTabs();
+            renderFilesGrid();
+        }
     }
-    renderCategoryTabs();
-    renderFilesGrid();
 };
 
 // 3. สร้างแท็บหมวดหมู่
@@ -123,7 +172,7 @@ window.renderFilesGrid = function() {
         }
 
         const imageOrIconHtml = (f.cover_url && f.cover_url.trim() !== '') ?
-            `<img src="${f.cover_url}" class="w-14 h-14 rounded-2xl object-cover shadow-md border border-gray-200 dark:border-slate-600 shrink-0 bg-white" alt="cover">` :
+            `<img src="${f.cover_url}" loading="lazy" decoding="async" width="56" height="56" class="w-14 h-14 rounded-2xl object-cover shadow-md border border-gray-200 dark:border-slate-600 shrink-0" style="background:linear-gradient(135deg,#1e293b,#0f172a)" alt="cover" onerror="this.style.display='none'">` :
             `<div class="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${iconColor}"><span class="material-icons text-3xl">${icon}</span></div>`;
 
         // badge ใหม่/อัปเดต
@@ -303,8 +352,12 @@ window.saveFileData = async function(e) {
         }
 
         if (coverFiles.length > 0) {
-            const coverFile = coverFiles[0];
+            let coverFile = coverFiles[0];
             setUp(`กำลังอัปรูปปก: ${coverFile.name}`);
+            // ⚡ [SPEED] รูปปกโชว์แค่ 56px — ย่อเหลือ 256px/webp ก่อนอัป (ไฟล์เล็กลง 10-50 เท่า โหลดโผล่ทันที)
+            if (typeof window.compressImage === 'function') {
+                coverFile = await window.compressImage(coverFile, { maxWidth: 256, maxHeight: 256, quality: 0.85, skipUnderKB: 40 });
+            }
             const coverExt = coverFile.name.split('.').pop();
             const coverName = `cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${coverExt}`;
             const { error: coverError } = await withTimeout(
