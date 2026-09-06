@@ -121,18 +121,80 @@ window.syncUploadCategory = function() {
         uploadSelect.value = viewVal;
     }
 }
+// ⚡ [SPEED — คลังรูป 1,500+] แยก "ดึงข้อมูล" ออกจาก "วาด"
+// เดิม: เปลี่ยนหมวด/ค้นหา/เรียง/เปลี่ยนหน้า = ยิง DB ใหม่ + ล้างจอเป็นสปินเนอร์ทุกครั้ง
+// ใหม่: ดึงรายการทั้งหมดครั้งเดียว (จำไว้ + snapshot ใน localStorage) → กรอง/เรียง/แบ่งหน้าในเครื่องล้วนๆ (0 ms)
+//       ดึงของสดเบื้องหลังไม่ถี่กว่าทุก 15 วิ ถ้าไม่เปลี่ยนก็ไม่วาดซ้ำ
+// 🐛 [FIX] เดิมใช้ .limit(1000) แต่รูปมี 1,500+ → รูปเก่าหายไป ~500 รูปแบบเงียบๆ — เปลี่ยนเป็น selectAllRows ดึงครบ
+let _galleryAllData = [];
+let _galleryLastFetch = 0;
+const GALLERY_SNAP_KEY = 'gallery_page_cache_v1';
+const GALLERY_REFRESH_MS = 15000;
+window._galleryMarkDirty = function() { _galleryLastFetch = 0; };   // เรียกหลัง อัป/ลบ/แก้ชื่อ → รอบถัดไปดึงสดทันที
+
+function _gallerySlim(rows) {
+    return (rows || []).map(r => ({
+        id: r.id, name: r.name, url: r.url, thumb_url: r.thumb_url || '',
+        category: r.category, created_at: r.created_at,
+        uploaded_by: r.uploaded_by || r.uploader || '', uploader: r.uploader || ''
+    }));
+}
+function _gallerySnapLoad() {
+    try {
+        const raw = (typeof window.safeGetItem === 'function') ? window.safeGetItem(GALLERY_SNAP_KEY) : localStorage.getItem(GALLERY_SNAP_KEY);
+        if (!raw) return false;
+        const s = JSON.parse(raw);
+        if (!Array.isArray(s.rows) || !s.rows.length) return false;
+        _galleryAllData = s.rows;
+        return true;
+    } catch (e) { return false; }
+}
+function _gallerySnapSave() {
+    try {
+        const raw = JSON.stringify({ rows: _galleryAllData, ts: Date.now() });
+        if (typeof window.safeSetItem === 'function') window.safeSetItem(GALLERY_SNAP_KEY, raw);
+        else localStorage.setItem(GALLERY_SNAP_KEY, raw);
+    } catch (e) { /* localStorage เต็ม — ข้ามได้ ระบบยังทำงานปกติ */ }
+}
+
 window.fetchGalleryImages = async function() {
     const grid = document.getElementById('galleryGrid');
-    if(!grid) return;
+    if (!grid) return;
+
+    // ⚡ มีข้อมูลแล้ว (ตัวแปร หรือ snapshot รอบก่อน) → วาดทันที ไม่มีสปินเนอร์
+    const hasData = _galleryAllData.length > 0 || _gallerySnapLoad();
+    if (hasData) _renderGalleryGrid();
+    else grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-10 flex flex-col items-center"><span class="material-icons animate-spin text-4xl mb-2">sync</span>กำลังโหลด...</div>';
+
+    // 🔄 ดึงของสดเบื้องหลัง (ไม่ถี่กว่าทุก 15 วิ) — กรอง/เปลี่ยนหน้ารัวๆ ไม่ยิง DB ซ้ำ
+    if (hasData && (Date.now() - _galleryLastFetch) < GALLERY_REFRESH_MS) return;
+    _galleryLastFetch = Date.now();
+    try {
+        const { data, error } = await window.selectAllRows(() =>
+            appDB.from('image_gallery').select('*').order('created_at', { ascending: false }));
+        if (error || !data) {
+            if (!hasData) grid.innerHTML = '<div class="col-span-full text-center text-red-400">โหลดไม่สำเร็จ</div>';
+            return;
+        }
+        const slim = _gallerySlim(data);
+        const changed = JSON.stringify(slim) !== JSON.stringify(_galleryAllData);
+        _galleryAllData = slim;
+        _gallerySnapSave();
+        if (!hasData || changed) _renderGalleryGrid();
+    } catch (e) {
+        console.error('gallery fetch:', e);
+        if (!hasData) grid.innerHTML = '<div class="col-span-full text-center text-red-400">โหลดไม่สำเร็จ</div>';
+    }
+};
+
+// 🎨 วาดจากข้อมูลในเครื่องล้วนๆ — กรอง/เรียง/แบ่งหน้า เร็วระดับกดปุ๊บติดปั๊บ
+function _renderGalleryGrid() {
+    const grid = document.getElementById('galleryGrid');
+    if (!grid) return;
     const filterVal = document.getElementById('galleryFilter').value;
     const searchVal = document.getElementById('gallerySearch').value.toLowerCase();
     const countSpan = document.getElementById('galleryCount');
-    grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-10 flex flex-col items-center"><span class="material-icons animate-spin text-4xl mb-2">sync</span>กำลังโหลด...</div>';
-    const { data, error } = await appDB.from('image_gallery').select('*').order('created_at', { ascending: false }).limit(1000);
-    if (error || !data) {
-        grid.innerHTML = '<div class="col-span-full text-center text-red-400">โหลดไม่สำเร็จ</div>';
-        return;
-    }
+    const data = _galleryAllData;
     const currentSuffix = GALLERY_MODE_SUFFIX[currentGalleryMode] || '';
     const allSuffixes = Object.values(GALLERY_MODE_SUFFIX).filter(s => s !== '');
     let filteredData = data.filter(img => {
@@ -207,6 +269,7 @@ window.fetchGalleryImages = async function() {
             : '';
         return getGalleryTpl('tpl-gallery-card', {
             url: img.url, name: img.name,
+            thumb: img.thumb_url || img.url,   // 🖼️ การ์ดโชว์รูปย่อ (ถ้ามี) — ปุ่มคัดลอก/โหลด/Lightbox ยังใช้รูปเต็ม img.url เหมือนเดิม
             imgId: img.id,
             renameBtn,
             newBadge: newBadgeG, adminCheckbox: adminCbG, catBadge: catBadgeG,
@@ -242,15 +305,35 @@ window.handleImageUpload = async function(input) {
             const { error: uploadError } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
             if (uploadError) throw new Error(uploadError.message);
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
-            const { error: dbError } = await appDB.from('image_gallery').insert([{
-                name: file.name, url: publicUrlData.publicUrl, uploader: currentUser.username || 'unknown', category: category
-            }]);
+
+            // 🖼️ [SPEED] สร้างรูปย่อคู่กัน (480px/webp) ไว้โชว์ในการ์ด — รูปเต็มยังอัปครบทุกพิกเซล ใช้คัดลอก/ส่งลูกค้าเหมือนเดิม
+            let thumbUrl = '';
+            try {
+                if (typeof window.compressImage === 'function') {
+                    const thumbFile = await window.compressImage(file, { maxWidth: 480, maxHeight: 480, quality: 0.8, skipUnderKB: 60 });
+                    if (thumbFile !== file) {   // ย่อได้จริง (รูปเล็กอยู่แล้วจะคืนไฟล์เดิม = ไม่ต้องมี thumb แยก)
+                        const thumbName = `thumb_${fileName.replace(/\.[^.]+$/, '')}.webp`;
+                        const { error: thumbErr } = await appDB.storage.from('staff_images').upload(thumbName, thumbFile, { cacheControl: '3600', upsert: false });
+                        if (!thumbErr) thumbUrl = appDB.storage.from('staff_images').getPublicUrl(thumbName).data.publicUrl;
+                    }
+                }
+            } catch (te) { /* ย่อไม่ได้ → ใช้รูปเต็มโชว์การ์ดตามเดิม ไม่พัง */ }
+
+            const row = { name: file.name, url: publicUrlData.publicUrl, uploader: currentUser.username || 'unknown', category: category };
+            if (thumbUrl) row.thumb_url = thumbUrl;
+            let { error: dbError } = await appDB.from('image_gallery').insert([row]);
+            // ⚠️ ตารางยังไม่มีคอลัมน์ thumb_url (ยังไม่ได้รัน SQL) → ตัดออกแล้วบันทึกใหม่ ไม่ให้การอัปล้ม
+            if (dbError && thumbUrl && String(dbError.message || '').includes('thumb_url')) {
+                delete row.thumb_url;
+                ({ error: dbError } = await appDB.from('image_gallery').insert([row]));
+            }
             if (dbError) throw new Error(dbError.message);
             successCount++;
         } catch (err) { failCount++; }
     }
     input.value = '';
     document.getElementById('galleryFilter').value = category.replace(currentSuffix, '');
+    if (window._galleryMarkDirty) window._galleryMarkDirty();   // ให้รอบถัดไปดึงสด เห็นรูปใหม่ทันที
     fetchGalleryImages();
     if (failCount === 0) Swal.fire({ icon: 'success', title: 'เสร็จสิ้น', text: `อัปโหลด ${successCount} รูป เข้าหมวด ${modeText}${displayCategory} เรียบร้อย`, timer: 1500, showConfirmButton: false });
     else Swal.fire('แจ้งเตือน', `สำเร็จ ${successCount}, ล้มเหลว ${failCount}`, 'warning');
@@ -276,7 +359,7 @@ window.deleteSelectedImages = async function() {
         Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
         const { error } = await appDB.from('image_gallery').delete().in('id', ids);
         if (error) Swal.fire('Error', error.message, 'error');
-        else { fetchGalleryImages(); Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1500, showConfirmButton: false }); }
+        else { if (window._galleryMarkDirty) window._galleryMarkDirty(); fetchGalleryImages(); Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1500, showConfirmButton: false }); }
     }
 }
 window.viewImageFull = function(url) { window.open(url, '_blank'); }
@@ -344,4 +427,4 @@ window.downloadAllInFilter = async function() {
         } catch (err) { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างไฟล์ ZIP ได้', 'error'); }
     }
 };
-// ==========================================
+// ==========================================
