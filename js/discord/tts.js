@@ -10,10 +10,10 @@
 // อ่าน tts_status (สถานะสด), tts_logs (ประวัติ) ; เขียน tts_command (ทดสอบ)
 // ============================================================
 (function () {
-    const ACTIVE = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-sky-500 text-white shadow-[0_0_10px_rgba(14,165,233,0.5)] flex items-center gap-1";
-    const INACTIVE = "whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1";
-    const SUB_ON = "px-4 py-2 rounded-xl font-bold text-sm transition-all bg-sky-500 text-white shadow-lg flex items-center gap-1";
-    const SUB_OFF = "px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1";
+    const ACTIVE = "ds-tab ds-tab-active";
+    const INACTIVE = "ds-tab";
+    const SUB_ON = "tts-sub tts-sub-active";
+    const SUB_OFF = "tts-sub";
 
     const _orig = window.switchDiscordTab;
     window.switchDiscordTab = function (tabName) {
