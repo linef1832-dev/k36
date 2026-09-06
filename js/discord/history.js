@@ -274,81 +274,9 @@ window.ds_renderPaginationControls = function(totalItems) {
     `;
 };
 
-window.ds_fetchActionLogs = async function() {
-    try {
-        document.getElementById('ds_actionLogBody').innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500"><span class="material-icons animate-spin">sync</span></td></tr>';
-        const res = await fetch(DISCORD_API_URL + '/api/action-logs');
-        if(res.ok) {
-            let data = await res.json();
-            window.dsGlobalActionLogs = data; 
-            ds_renderActionLogs();
-        }
-    } catch(e) {}
-};
-
-window.ds_renderActionLogs = function() {
-    const term = document.getElementById('actionLogSearch') ? document.getElementById('actionLogSearch').value.toLowerCase() : '';
-    const dateFilter = document.getElementById('actionLogDate') ? document.getElementById('actionLogDate').value : '';
-    const tbody = document.getElementById('ds_actionLogBody');
-    
-    if (!window.dsGlobalActionLogs || window.dsGlobalActionLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบประวัติการใช้งาน</td></tr>';
-        return;
-    }
-
-    let filtered = window.dsGlobalActionLogs.filter(log => 
-        log.user.toLowerCase().includes(term) || 
-        log.action.toLowerCase().includes(term) || 
-        log.detail.toLowerCase().includes(term)
-    );
-
-    if (dateFilter) {
-        filtered = filtered.filter(log => {
-            // 🌟 จุดที่แก้ไข: รวมตัวแปร d ให้เหลือตัวเดียว แล้วหักลบเวลา 7 ชั่วโมง
-            let d = new Date(log.time);
-            d = new Date(d.getTime() - (7 * 60 * 60 * 1000)); 
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${day}` === dateFilter;
-        });
-    }
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">ไม่พบข้อมูลในเงื่อนไขที่ค้นหา</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = filtered.map(log => {
-        let d = new Date(log.time);
-        
-        // 🌟 หักลบ 7 ชั่วโมงให้ตรงกับประเทศไทย (GMT+7)
-        d = new Date(d.getTime() - (7 * 60 * 60 * 1000));
-        const timeStr = d.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-        
-        return window.renderTemplate('tpl-ds-action-log-row', {
-            timeStr: timeStr,
-            user: log.user,
-            action: log.action,
-            detail: log.detail
-        });
-    }).join('');
-};
-
-window.ds_logAction = async function(actionName, detailStr) {
-    try {
-        const userName = (typeof currentUser !== 'undefined' && currentUser.username) ? currentUser.username : 'Unknown Admin';
-        await fetch(DISCORD_API_URL + '/api/action-logs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user: userName, action: actionName, detail: detailStr })
-        });
-    } catch(e) {}
-};
-
-// ==========================================
-// 🟢 อัปเดต Dropdown และ ระบบจัดการฐานข้อมูลดิสคอร์ด (Manage)
-// ==========================================
+// 🗑️ [ถอดแท็บ 'ประวัติกดคำสั่ง' ออกแล้ว] — เหลือ ds_logAction เป็น no-op
+// เพราะยังถูกเรียกจากปุ่มย้ายห้อง/ส่งข้อความ 7 จุด จะได้ไม่ error และไม่ยิง network เปล่าๆ
+window.ds_logAction = async function() {};
 
 window.updateAllFilters = function() {
     const groupNames = Object.keys(extStaffGroups || {}).sort();
@@ -721,4 +649,3 @@ window.ds_clearOldMoveLogs = async function() {
         }
     }
 };
-
