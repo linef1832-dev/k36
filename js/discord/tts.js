@@ -38,12 +38,31 @@
     const newGroup = () => ({ telegram_group: '', telegram_group_id: '', shifts: SHIFT_NAMES.map(newShift) });
     const newSched = () => ({ enabled: true, name: 'เตือนใหม่', time: '00:00', voice_name: 'th-TH-PremwadeeNeural', repeat: 1, rooms: [] });
 
-    let _cfg = { speech_rate: '-15%', volume: '+0%', pitch: '+0Hz', chime_enabled: true, dedupe_seconds: 60, groups: [newGroup(), newGroup()], schedules: [] };
+    // 🤖 [Multi-Bot] กองบอท — หลายตัวช่วยกันพูดขนานกัน (ห้องเยอะก็จบไว)
+    const BOT_COLORS = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#fb923c', '#60a5fa', '#4ade80'];
+    const newBot = (i) => ({ id: 'bot' + Date.now() + Math.floor(Math.random() * 999), name: 'บอท ' + (i + 1), token: '', enabled: true, color: BOT_COLORS[i % BOT_COLORS.length] });
+
+    let _cfg = { speech_rate: '-15%', volume: '+0%', pitch: '+0Hz', chime_enabled: true, dedupe_seconds: 60, groups: [newGroup(), newGroup()], schedules: [], bots: [], dispatch_mode: 'auto' };
     let _rooms = [];
     let _tgList = [];      // รายชื่อกลุ่ม Telegram [{id,title}]
     let _search = {};      // ค้นหาห้อง keyed "g-s" หรือ "sc-i"
     let _sub = 'groups';
     let _statusTimer = null;
+    let _status = null;    // สถานะสดล่าสุด (cache ให้แผงกองบอทใช้)
+    let _tokenVis = {};    // โชว์/ซ่อน token ต่อบอท
+
+    const botById = id => (_cfg.bots || []).find(b => String(b.id) === String(id)) || null;
+    const enabledBots = () => (_cfg.bots || []).filter(b => b.enabled && (b.token || '').trim());
+    // สถานะรายบอทจาก tts_status (รูปใหม่ {bots:[...]}) — คืน null ถ้ายังเป็นรูปเก่า/ไม่มี
+    function botLive(botId) {
+        if (!_status || !Array.isArray(_status.bots)) return null;
+        return _status.bots.find(b => String(b.bot_id) === String(botId)) || null;
+    }
+    function isFresh(updatedAt) {
+        if (!updatedAt) return false;
+        const t = new Date(String(updatedAt).replace(' ', 'T'));
+        return !isNaN(t) && (Date.now() - t.getTime() < 40000);
+    }
 
     const esc = s => String(s || '').replace(/"/g, '&quot;');
     const roomName = id => { const r = _rooms.find(r => String(r.id) === String(id)); return r ? (r.name || r.id) : id; };
@@ -57,8 +76,18 @@
         _cfg.schedules = Array.isArray(p.schedules) ? p.schedules.map(s => ({
             enabled: s.enabled !== false, name: s.name || 'เตือน', time: s.time || '00:00',
             voice_name: s.voice_name || 'th-TH-PremwadeeNeural', repeat: Number(s.repeat) || 1,
-            rooms: (Array.isArray(s.rooms) ? s.rooms : []).map(r => ({ id: String(r.id), text: r.text || '' }))
+            rooms: (Array.isArray(s.rooms) ? s.rooms : []).map(r => ({ id: String(r.id), text: r.text || '', bot_id: r.bot_id ? String(r.bot_id) : '' }))
         })) : [];
+
+        // 🤖 กองบอท (ของเก่าไม่มี = เริ่มว่าง โหมด auto — บอทเดิมของระบบยังทำงานต่อได้)
+        _cfg.dispatch_mode = (p.dispatch_mode === 'manual') ? 'manual' : 'auto';
+        _cfg.bots = (Array.isArray(p.bots) ? p.bots : []).map((b, i) => ({
+            id: b.id ? String(b.id) : ('bot_m' + i),
+            name: b.name || ('บอท ' + (i + 1)),
+            token: b.token || '',
+            enabled: b.enabled !== false,
+            color: b.color || BOT_COLORS[i % BOT_COLORS.length]
+        }));
 
         let groups = Array.isArray(p.groups) ? p.groups : null;
         if (!groups && Array.isArray(p.shifts)) groups = [{ telegram_group: (p.telegram_groups && p.telegram_groups[0]) || '', shifts: p.shifts }];
@@ -70,7 +99,7 @@
                 const s = (g.shifts && g.shifts[i]) || newShift(nm);
                 let rooms = Array.isArray(s.rooms) ? s.rooms : null;
                 if (!rooms) { const ids = s.voice_channel_ids || (s.voice_channel_id ? [s.voice_channel_id] : []); rooms = ids.map(id => ({ id: String(id), text: s.announce_text || '' })); }
-                return { name: nm, enabled: !!s.enabled, keyword: s.keyword || '', voice_name: s.voice_name || 'th-TH-PremwadeeNeural', repeat: Number(s.repeat) || 1, active_start: s.active_start || '', active_end: s.active_end || '', rooms: rooms.map(r => ({ id: String(r.id), text: r.text || '' })) };
+                return { name: nm, enabled: !!s.enabled, keyword: s.keyword || '', voice_name: s.voice_name || 'th-TH-PremwadeeNeural', repeat: Number(s.repeat) || 1, active_start: s.active_start || '', active_end: s.active_end || '', rooms: rooms.map(r => ({ id: String(r.id), text: r.text || '', bot_id: r.bot_id ? String(r.bot_id) : '' })) };
             })
         }));
         while (_cfg.groups.length < 2) _cfg.groups.push(newGroup());
@@ -99,13 +128,14 @@
     // ---------- แท็บย่อย ----------
     window.ttsSubTab = function (name) {
         _sub = name;
-        ['groups', 'telegram', 'schedule', 'history', 'settings'].forEach(t => {
+        ['groups', 'bots', 'telegram', 'schedule', 'history', 'settings'].forEach(t => {
             const pane = document.getElementById('ttsPane_' + t);
             const btn = document.getElementById('ttsSub_' + t);
             if (pane) pane.classList.toggle('hidden', t !== name);
             if (btn) btn.className = (t === name) ? SUB_ON : SUB_OFF;
         });
         if (name === 'groups') _renderGroups();
+        else if (name === 'bots') _renderBots();
         else if (name === 'telegram') _renderTelegram();
         else if (name === 'schedule') _renderSchedules();
         else if (name === 'history') _renderHistory();
@@ -125,16 +155,36 @@
         if (!box || typeof appDB === 'undefined') return;
         try {
             const { data } = await appDB.from('settings').select('value').eq('key', 'tts_status').maybeSingle();
-            if (!data || !data.value) { box.innerHTML = _dot('#64748b') + '<span class="text-gray-500">ยังไม่มีข้อมูลสถานะ</span>'; return; }
+            if (!data || !data.value) { _status = null; box.innerHTML = _dot('#64748b') + '<span class="text-gray-500">ยังไม่มีข้อมูลสถานะ</span>'; return; }
             const s = JSON.parse(data.value);
-            const upd = s.updated_at ? new Date(s.updated_at.replace(' ', 'T')) : null;
-            const fresh = upd && (Date.now() - upd.getTime() < 40000);
-            const online = s.online && fresh;
+            _status = s;
             let html = '';
-            html += `<div class="flex items-center gap-2">${_dot(online ? '#22c55e' : '#64748b', online)}<span class="${online ? 'text-green-400' : 'text-gray-500'} font-bold">${online ? 'บอทออนไลน์' : 'บอทออฟไลน์'}</span></div>`;
-            if (online && s.current_room) html += `<div class="flex items-center gap-1 text-sky-300"><span class="material-icons text-base">volume_up</span>${s.current_room}</div>`;
-            if (s.last_spoke_at) html += `<div class="text-gray-500 text-xs">พูดล่าสุด ${s.last_spoke_at.slice(11, 16)}</div>`;
+
+            if (Array.isArray(s.bots)) {
+                // ── รูปใหม่: สถานะรายบอทหลายตัว ──
+                const live = s.bots.map(b => ({ ...b, on: !!b.online && isFresh(b.updated_at || s.updated_at) }));
+                const onCount = live.filter(b => b.on).length;
+                const anySpeaking = live.filter(b => b.on && b.current_room);
+                html += `<div class="flex items-center gap-2">${_dot(onCount ? '#22c55e' : '#64748b', onCount > 0)}<span class="${onCount ? 'text-green-400' : 'text-gray-500'} font-bold">บอทออนไลน์ ${onCount}/${live.length}</span></div>`;
+                // จุดสีต่อบอท (โชว์สูงสุด 8)
+                html += `<div class="flex items-center gap-1.5">` + live.slice(0, 8).map(b => {
+                    const cb = botById(b.bot_id);
+                    const col = (cb && cb.color) || '#38bdf8';
+                    return `<span title="${esc(b.name || b.bot_id)}${b.current_room ? ' — กำลังพูด: ' + esc(b.current_room) : ''}" class="inline-flex rounded-full" style="width:10px;height:10px;background:${b.on ? col : '#475569'};${b.on && b.current_room ? 'box-shadow:0 0 8px ' + col : ''}"></span>`;
+                }).join('') + `</div>`;
+                if (anySpeaking.length) html += `<div class="flex items-center gap-1 text-sky-300"><span class="material-icons text-base">volume_up</span>${anySpeaking.length > 1 ? 'กำลังพูด ' + anySpeaking.length + ' ห้องพร้อมกัน' : esc(anySpeaking[0].current_room)}</div>`;
+                const lastAll = live.map(b => b.last_spoke_at).filter(Boolean).sort().pop();
+                if (lastAll) html += `<div class="text-gray-500 text-xs">พูดล่าสุด ${lastAll.slice(11, 16)}</div>`;
+            } else {
+                // ── รูปเก่า: บอทเดี่ยว (backward compatible) ──
+                const online = s.online && isFresh(s.updated_at);
+                html += `<div class="flex items-center gap-2">${_dot(online ? '#22c55e' : '#64748b', online)}<span class="${online ? 'text-green-400' : 'text-gray-500'} font-bold">${online ? 'บอทออนไลน์' : 'บอทออฟไลน์'}</span></div>`;
+                if (online && s.current_room) html += `<div class="flex items-center gap-1 text-sky-300"><span class="material-icons text-base">volume_up</span>${s.current_room}</div>`;
+                if (s.last_spoke_at) html += `<div class="text-gray-500 text-xs">พูดล่าสุด ${s.last_spoke_at.slice(11, 16)}</div>`;
+            }
             box.innerHTML = html;
+            // แผงกองบอทเปิดอยู่ → อัปเดตเฉพาะป้ายสถานะสด (ไม่ re-render ทั้งแผง กันช่องกรอกเด้ง)
+            if (_sub === 'bots') _refreshBotLiveBadges();
         } catch (e) { box.innerHTML = _dot('#64748b') + '<span class="text-gray-500">—</span>'; }
     }
     function _dot(color, pulse) {
@@ -254,17 +304,28 @@
         const el = document.getElementById(elId);
         if (!el) return;
         if (!rooms.length) { el.innerHTML = `<div class="text-gray-500 text-sm py-2">ยังไม่ได้เลือกห้อง</div>`; return; }
-        el.innerHTML = rooms.map((r, ri) => `
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-2">
-                <div class="flex items-center justify-between mb-1">
-                    <span class="text-sky-300 font-bold text-sm flex items-center gap-1"><span class="material-icons text-base">volume_up</span> ${roomName(r.id)}</span>
+        const manual = _cfg.dispatch_mode === 'manual' && (_cfg.bots || []).length > 0;
+        el.innerHTML = rooms.map((r, ri) => {
+            const bb = r.bot_id ? botById(r.bot_id) : null;
+            return `
+            <div class="bg-slate-800 border ${bb ? '' : 'border-slate-700'} rounded-xl p-2" ${bb ? `style="border:1px solid ${bb.color}55"` : ''}>
+                <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                    <span class="text-sky-300 font-bold text-sm flex items-center gap-1"><span class="material-icons text-base">volume_up</span> ${roomName(r.id)}
+                        ${bb ? `<span class="text-[10px] font-black rounded-full px-2 py-0.5 ml-1" style="background:${bb.color}22;color:${bb.color};border:1px solid ${bb.color}55">🤖 ${esc(bb.name)}</span>` : ''}
+                    </span>
                     <div class="flex items-center gap-1">
+                        ${manual ? `
+                        <select onchange="ttsRoomBot('${kind}',${a},${b == null ? 'null' : b},${ri},this.value)" title="บอทประจำห้องนี้" class="text-xs bg-slate-900 border border-slate-700 text-gray-300 px-1.5 py-1 rounded-lg outline-none focus:border-violet-500 max-w-[120px]">
+                            <option value="">🎲 อัตโนมัติ</option>
+                            ${(_cfg.bots || []).map(bt => `<option value="${bt.id}" ${String(r.bot_id || '') === String(bt.id) ? 'selected' : ''}>🤖 ${esc(bt.name)}</option>`).join('')}
+                        </select>` : ''}
                         <button onclick="ttsTest('${kind}',${a},${b == null ? 'null' : b},${ri})" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded-lg flex items-center gap-1" title="ให้บอทพูดทันที"><span class="material-icons text-sm">play_arrow</span> ทดสอบ</button>
                         <button onclick="ttsDelRoom('${kind}',${a},${b == null ? 'null' : b},${ri})" class="text-gray-500 hover:text-red-400"><span class="material-icons text-lg">close</span></button>
                     </div>
                 </div>
                 <textarea rows="2" oninput="ttsRoomText('${kind}',${a},${b == null ? 'null' : b},${ri},this.value)" placeholder="ข้อความที่บอทจะพูดในห้องนี้..." class="w-full bg-slate-900 border border-slate-700 text-white px-2 py-1.5 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${(r.text || '')}</textarea>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     }
 
     // ================= แผง: ตั้งเวลาพูด =================
@@ -382,6 +443,7 @@
                         <div class="text-white text-sm truncate">${(r.message || '').replace(/</g, '&lt;')}</div>
                         <div class="text-gray-500 text-xs mt-0.5 flex flex-wrap gap-x-3">
                             <span>🔊 ${r.room_name || '-'}</span>
+                            ${r.bot_name ? `<span class="text-violet-300">🤖 ${String(r.bot_name).replace(/</g, '&lt;')}</span>` : ''}
                             ${r.keyword && r.keyword !== '-' ? `<span>คำ: ${r.keyword}</span>` : ''}
                             ${r.group_name && r.group_name !== '-' ? `<span>${r.group_name}</span>` : ''}
                         </div>
@@ -508,12 +570,141 @@
     };
     window.ttsDelRoom = (kind, a, b, ri) => { const rooms = (kind === 'sc') ? _cfg.schedules[a].rooms : _cfg.groups[a].shifts[b].rooms; rooms.splice(ri, 1); _reRoom(kind === 'sc' ? ('sc-' + a) : (a + '-' + b)); };
     window.ttsRoomText = (kind, a, b, ri, v) => { const rooms = (kind === 'sc') ? _cfg.schedules[a].rooms : _cfg.groups[a].shifts[b].rooms; if (rooms[ri]) rooms[ri].text = v; };
+    // 📌 เลือกบอทประจำห้อง (โหมดกำหนดเอง) — ค่าว่าง = ให้ระบบแบ่งอัตโนมัติ
+    window.ttsRoomBot = (kind, a, b, ri, v) => { const rooms = (kind === 'sc') ? _cfg.schedules[a].rooms : _cfg.groups[a].shifts[b].rooms; if (rooms[ri]) rooms[ri].bot_id = v || ''; _reRoom(kind === 'sc' ? ('sc-' + a) : (a + '-' + b)); };
 
     // schedule actions
     window.ttsAddSched = () => { _cfg.schedules.push(newSched()); _renderSchedules(); };
     window.ttsDelSched = (i) => { _cfg.schedules.splice(i, 1); _renderSchedules(); };
     window.ttsScToggle = (i) => { _cfg.schedules[i].enabled = !_cfg.schedules[i].enabled; _renderSchedules(); };
     window.ttsScField = (i, f, v) => { _cfg.schedules[i][f] = v; };
+
+    // ================= แผง: กองบอท (Multi-Bot) =================
+    function _botStatusBadge(b) {
+        const lv = botLive(b.id);
+        const on = lv && lv.online && isFresh(lv.updated_at || (_status && _status.updated_at));
+        if (!b.enabled) return `<span class="text-xs font-bold text-gray-500 bg-slate-700/60 rounded-full px-3 py-1">ปิดใช้งาน</span>`;
+        if (!(b.token || '').trim()) return `<span class="text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-full px-3 py-1">ยังไม่ใส่ Token</span>`;
+        if (!on) return `<span class="text-xs font-bold text-gray-400 bg-slate-700/60 rounded-full px-3 py-1">● ออฟไลน์</span>`;
+        if (lv.current_room) return `<span class="text-xs font-bold text-sky-300 bg-sky-500/10 border border-sky-500/30 rounded-full px-3 py-1 animate-pulse">🔊 ${esc(lv.current_room)}</span>`;
+        return `<span class="text-xs font-bold text-green-300 bg-green-500/10 border border-green-500/30 rounded-full px-3 py-1">● ออนไลน์ พร้อมพูด</span>`;
+    }
+    function _refreshBotLiveBadges() {
+        (_cfg.bots || []).forEach(b => {
+            const el = document.getElementById('botLive_' + b.id);
+            if (el) el.innerHTML = _botStatusBadge(b);
+            const spoke = document.getElementById('botSpoke_' + b.id);
+            const lv = botLive(b.id);
+            if (spoke) spoke.textContent = (lv && lv.last_spoke_at) ? ('พูดล่าสุด ' + lv.last_spoke_at.slice(11, 16)) : '';
+        });
+    }
+
+    function _renderBots() {
+        const wrap = document.getElementById('ttsPane_bots');
+        if (!wrap) return;
+        const bots = _cfg.bots || [];
+        const nOn = bots.filter(b => { const lv = botLive(b.id); return b.enabled && lv && lv.online && isFresh(lv.updated_at || (_status && _status.updated_at)); }).length;
+        const auto = _cfg.dispatch_mode !== 'manual';
+
+        let html = `
+        <!-- สรุป + โหมดแบ่งห้อง -->
+        <div class="rounded-3xl border border-violet-500/30 bg-gradient-to-br from-slate-800/60 to-violet-950/30 p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-violet-500/20 border border-violet-500/40 flex items-center justify-center"><span class="material-icons text-violet-300">smart_toy</span></div>
+                    <div>
+                        <div class="text-white font-black">กองบอท ${bots.length ? `(ออนไลน์ ${nOn}/${bots.length})` : ''}</div>
+                        <div class="text-xs text-gray-400">ยิ่งมีบอทหลายตัว ยิ่งพูดหลายห้องพร้อมกันได้ — 9 ห้อง + 3 บอท = จบใน 3 รอบแทนที่จะเป็น 9 รอบ</div>
+                    </div>
+                </div>
+                <div class="flex items-center bg-slate-900 rounded-xl border border-slate-700 p-1 gap-1">
+                    <button onclick="ttsDispatchMode('auto')" class="px-3 py-1.5 rounded-lg text-sm font-bold transition ${auto ? 'bg-violet-500 text-white shadow' : 'text-gray-400 hover:text-white'}">🎲 แบ่งอัตโนมัติ</button>
+                    <button onclick="ttsDispatchMode('manual')" class="px-3 py-1.5 rounded-lg text-sm font-bold transition ${!auto ? 'bg-violet-500 text-white shadow' : 'text-gray-400 hover:text-white'}">📌 กำหนดเอง</button>
+                </div>
+            </div>
+            <div class="text-xs rounded-xl px-3 py-2 ${auto ? 'bg-violet-500/10 text-violet-200 border border-violet-500/20' : 'bg-amber-500/10 text-amber-200 border border-amber-500/20'}">
+                ${auto
+                    ? '🎲 <b>แบ่งอัตโนมัติ:</b> เวลาต้องพูดหลายห้อง ระบบจะกระจายห้องให้บอทที่ออนไลน์ทุกตัวช่วยกันพูดพร้อมกันเอง ไม่ต้องตั้งอะไรเพิ่ม'
+                    : '📌 <b>กำหนดเอง:</b> เลือกบอทประจำห้องได้ที่กล่อง "ห้องที่เลือก" ในแท็บ กลุ่ม &amp; กะ / ตั้งเวลาพูด — ห้องที่ไม่ได้เลือกบอท ระบบจะแบ่งให้อัตโนมัติเหมือนเดิม'}
+            </div>
+        </div>`;
+
+        if (!bots.length) {
+            html += `<div class="text-center text-gray-500 py-8 bg-slate-800/40 rounded-2xl border border-slate-700">
+                ยังไม่มีบอทในกองเลย — กด "เพิ่มบอท" แล้ววาง Token ของบอท Discord แต่ละตัว<br>
+                <span class="text-xs">(สร้างบอทเพิ่มได้ที่ discord.com/developers → New Application → Bot → เชิญเข้าเซิร์ฟเวอร์ก่อน)</span>
+            </div>`;
+        }
+
+        bots.forEach((b, i) => {
+            const vis = !!_tokenVis[b.id];
+            html += `
+            <div class="bg-slate-900 rounded-2xl border ${b.enabled ? 'border-slate-600' : 'border-slate-800 opacity-70'} p-3 space-y-2.5">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="inline-flex rounded-full flex-shrink-0" style="width:14px;height:14px;background:${b.color};box-shadow:0 0 8px ${b.color}66"></span>
+                    <input type="text" value="${esc(b.name)}" oninput="ttsBotField('${b.id}','name',this.value)" placeholder="ชื่อบอท เช่น บอทตัวที่ 1" class="w-40 bg-slate-800 border border-slate-700 text-white font-bold px-3 py-1.5 rounded-lg text-sm outline-none focus:border-violet-500">
+                    <span id="botLive_${b.id}">${_botStatusBadge(b)}</span>
+                    <span id="botSpoke_${b.id}" class="text-gray-500 text-xs">${(() => { const lv = botLive(b.id); return (lv && lv.last_spoke_at) ? ('พูดล่าสุด ' + lv.last_spoke_at.slice(11, 16)) : ''; })()}</span>
+                    <div class="ml-auto flex items-center gap-1.5">
+                        <button onclick="ttsBotTest('${b.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1" title="ให้บอทตัวนี้ลองพูด"><span class="material-icons text-sm">play_arrow</span> ทดสอบ</button>
+                        <button onclick="ttsBotToggle('${b.id}')" style="width:44px;height:22px;" class="relative rounded-full transition ${b.enabled ? 'bg-green-500' : 'bg-slate-600'}" title="เปิด/ปิดใช้บอทตัวนี้"><span class="absolute rounded-full bg-white transition-all" style="width:18px;height:18px;top:2px;left:${b.enabled ? '24px' : '2px'};"></span></button>
+                        <button onclick="ttsDelBot('${b.id}')" class="text-gray-500 hover:text-red-400 p-1"><span class="material-icons text-lg">delete</span></button>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <div class="relative flex-1">
+                        <input type="${vis ? 'text' : 'password'}" value="${esc(b.token)}" oninput="ttsBotField('${b.id}','token',this.value)" placeholder="Bot Token (จาก Discord Developer Portal)" autocomplete="off" class="w-full bg-slate-800 border border-slate-700 text-sky-200 font-mono text-xs px-3 py-2 pr-10 rounded-lg outline-none focus:border-violet-500">
+                        <button onclick="ttsBotTokenVis('${b.id}')" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"><span class="material-icons text-base">${vis ? 'visibility_off' : 'visibility'}</span></button>
+                    </div>
+                    <div class="flex items-center gap-1" title="สีประจำบอท (ใช้แยกตาในหน้าเว็บ)">
+                        ${BOT_COLORS.map(c => `<button onclick="ttsBotField('${b.id}','color','${c}');ttsRenderBots()" class="rounded-full transition hover:scale-125" style="width:14px;height:14px;background:${c};${b.color === c ? 'outline:2px solid #fff;outline-offset:1px' : ''}"></button>`).join('')}
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        html += `<button onclick="ttsAddBot()" class="w-full py-2.5 rounded-2xl border-2 border-dashed border-violet-500/40 text-violet-300 hover:bg-violet-500/10 transition font-bold text-sm flex items-center justify-center gap-1"><span class="material-icons">add</span> เพิ่มบอท</button>
+        <p class="text-xs text-gray-500 px-1">💡 บอททุกตัวต้องถูก<b>เชิญเข้าเซิร์ฟเวอร์ Discord เดียวกัน</b>ก่อน (สิทธิ์ Connect + Speak) — ใส่ Token แล้วกด "บันทึกการตั้งค่า" ด้านล่าง เซิร์ฟเวอร์บอทจะสตาร์ทตัวใหม่ให้เองภายในไม่กี่วินาที</p>`;
+        wrap.innerHTML = html;
+    }
+    window.ttsRenderBots = _renderBots;
+    window.ttsDispatchMode = (m) => { _cfg.dispatch_mode = (m === 'manual') ? 'manual' : 'auto'; _renderBots(); };
+    window.ttsAddBot = () => { _cfg.bots = _cfg.bots || []; _cfg.bots.push(newBot(_cfg.bots.length)); _renderBots(); };
+    window.ttsBotField = (id, f, v) => { const b = botById(id); if (b) b[f] = v; };
+    window.ttsBotToggle = (id) => { const b = botById(id); if (b) { b.enabled = !b.enabled; _renderBots(); } };
+    window.ttsBotTokenVis = (id) => { _tokenVis[id] = !_tokenVis[id]; _renderBots(); };
+    window.ttsDelBot = (id) => {
+        const b = botById(id);
+        const doDel = () => {
+            _cfg.bots = (_cfg.bots || []).filter(x => String(x.id) !== String(id));
+            // ล้างการผูกห้อง → บอทตัวนี้ (ทั้งกะและตั้งเวลา)
+            _cfg.groups.forEach(g => g.shifts.forEach(s => s.rooms.forEach(r => { if (String(r.bot_id) === String(id)) r.bot_id = ''; })));
+            _cfg.schedules.forEach(sc => sc.rooms.forEach(r => { if (String(r.bot_id) === String(id)) r.bot_id = ''; }));
+            _renderBots();
+        };
+        if (window.Swal) Swal.fire({ title: 'ลบบอทนี้?', text: (b ? b.name : '') + ' — ห้องที่ผูกกับบอทนี้จะกลับเป็นแบ่งอัตโนมัติ', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc2626' }).then(r => { if (r.isConfirmed) doDel(); });
+        else doDel();
+    };
+    // ทดสอบรายบอท: เลือกห้องจาก popup แล้วสั่งพูดด้วยบอทตัวนั้นโดยเฉพาะ
+    window.ttsBotTest = async function (id) {
+        const b = botById(id);
+        if (!b) return;
+        if (!(b.token || '').trim()) { if (window.Swal) Swal.fire('ยังไม่ใส่ Token', 'ใส่ Token ของบอทตัวนี้ก่อน แล้วกดบันทึก', 'warning'); return; }
+        if (!_rooms.length) { if (window.Swal) Swal.fire('ยังไม่มีรายชื่อห้อง', 'เข้าแท็บย้ายห้องเพื่อดึงรายชื่อห้องก่อน', 'warning'); return; }
+        const { value: rid } = await Swal.fire({
+            title: 'ให้ ' + (b.name || 'บอท') + ' พูดห้องไหน?',
+            input: 'select',
+            inputOptions: Object.fromEntries(_rooms.map(r => [String(r.id), r.name || r.id])),
+            inputPlaceholder: '— เลือกห้อง —',
+            showCancelButton: true, confirmButtonText: 'พูดเลย', cancelButtonText: 'ยกเลิก',
+            background: '#0f172a', color: '#fff', confirmButtonColor: '#7c3aed'
+        });
+        if (!rid) return;
+        try {
+            await appDB.from('settings').upsert([{ key: 'tts_command', value: JSON.stringify({ id: 'c' + Date.now(), bot_id: String(b.id), room_id: String(rid), text: 'ทดสอบเสียง ' + (b.name || 'บอท') + ' รายงานตัวครับ', voice_name: 'th-TH-NiwatNeural', repeat: 1 }) }]);
+            if (window.Swal) Swal.fire({ icon: 'success', title: 'สั่งแล้ว', text: (b.name || 'บอท') + ' จะพูดในห้อง ' + roomName(rid) + ' (ต้องบันทึก Token ก่อนถึงจะทำงาน)', timer: 2800, showConfirmButton: false });
+        } catch (e) { if (window.Swal) Swal.fire('ผิดพลาด', e.message, 'error'); }
+    };
 
     // ---------- ปุ่มทดสอบ: สั่งบอทพูดทันที ----------
     window.ttsTest = async function (kind, a, b, ri) {
@@ -523,8 +714,11 @@
         if (!r || !r.id) return;
         if (!(r.text || '').trim()) { if (window.Swal) Swal.fire('ยังไม่มีข้อความ', 'พิมพ์ข้อความให้บอทพูดก่อน', 'warning'); return; }
         try {
-            await appDB.from('settings').upsert([{ key: 'tts_command', value: JSON.stringify({ id: 'c' + Date.now(), room_id: String(r.id), text: r.text, voice_name: voice, repeat: 1 }) }]);
-            if (window.Swal) Swal.fire({ icon: 'success', title: 'สั่งทดสอบแล้ว', text: 'บอทจะพูดในห้อง ' + roomName(r.id) + ' ภายในไม่กี่วินาที', timer: 2500, showConfirmButton: false });
+            const cmd = { id: 'c' + Date.now(), room_id: String(r.id), text: r.text, voice_name: voice, repeat: 1 };
+            if (_cfg.dispatch_mode === 'manual' && r.bot_id) cmd.bot_id = String(r.bot_id);   // 📌 ห้องผูกบอท → ใช้บอทตัวนั้นทดสอบ
+            await appDB.from('settings').upsert([{ key: 'tts_command', value: JSON.stringify(cmd) }]);
+            const bb = cmd.bot_id ? botById(cmd.bot_id) : null;
+            if (window.Swal) Swal.fire({ icon: 'success', title: 'สั่งทดสอบแล้ว', text: (bb ? (bb.name + ' จะพูดในห้อง ') : 'บอทจะพูดในห้อง ') + roomName(r.id) + ' ภายในไม่กี่วินาที', timer: 2500, showConfirmButton: false });
         } catch (e) { if (window.Swal) Swal.fire('ผิดพลาด', e.message, 'error'); }
     };
 
