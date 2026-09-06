@@ -565,7 +565,7 @@
                         </div>
                         <div>
                             <h2 class="text-white font-black text-xl leading-tight">ศูนย์ควบคุมเสียงแจ้งเตือน</h2>
-                            <p class="text-sm text-gray-400">จับคำในกลุ่ม แล้วให้บอทพูดในห้องเสียงอัตโนมัติ</p>
+                            <p class="text-sm text-gray-400">จับคำในกลุ่ม แล้วให้กองบอทช่วยกันพูดหลายห้องพร้อมกัน</p>
                         </div>
                     </div>
                     <div id="ttsLiveStatus" class="flex items-center gap-4 text-sm">
@@ -577,6 +577,7 @@
             <!-- แท็บย่อย -->
             <div class="flex items-center gap-2 mb-4 flex-wrap">
                 <button onclick="ttsSubTab('groups')" id="ttsSub_groups" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-sky-500 text-white shadow-lg flex items-center gap-1"><span class="material-icons text-sm">groups</span> กลุ่ม &amp; กะ</button>
+                <button onclick="ttsSubTab('bots')" id="ttsSub_bots" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">smart_toy</span> กองบอท</button>
                 <button onclick="ttsSubTab('telegram')" id="ttsSub_telegram" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">link</span> ผูกกลุ่ม Telegram</button>
                 <button onclick="ttsSubTab('schedule')" id="ttsSub_schedule" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">schedule</span> ตั้งเวลาพูด</button>
                 <button onclick="ttsSubTab('history')" id="ttsSub_history" class="px-4 py-2 rounded-xl font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติ</button>
@@ -585,6 +586,7 @@
 
             <!-- แผงเนื้อหา -->
             <div id="ttsPane_groups" class="space-y-4"></div>
+            <div id="ttsPane_bots" class="space-y-3 hidden"></div>
             <div id="ttsPane_telegram" class="space-y-4 hidden"></div>
             <div id="ttsPane_schedule" class="space-y-4 hidden"></div>
             <div id="ttsPane_history" class="hidden"></div>
