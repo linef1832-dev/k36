@@ -316,7 +316,7 @@ html.dark #galleryPerPage{ background:rgba(2,8,19,0.55); color:#e2e8f0; border:1
                 {{newBadge}}
                 {{adminCheckbox}}
                 {{catBadge}}
-                <img src="{{url}}" class="w-full h-full object-contain transition duration-300 group-hover:scale-105" loading="lazy">
+                <img src="{{thumb}}" class="w-full h-full object-contain transition duration-300 group-hover:scale-105" loading="lazy" decoding="async" style="background:linear-gradient(135deg,#1e293b,#0f172a)">
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex flex-col items-center justify-center pointer-events-none">
                     <span class="material-icons text-white text-4xl opacity-0 group-hover:opacity-80 transition">zoom_in</span>
                     <span class="text-white text-[10px] font-bold opacity-0 group-hover:opacity-90 transition mt-1 bg-black/50 px-2 py-0.5 rounded">{{uploadDate}}</span>
