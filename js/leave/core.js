@@ -576,14 +576,23 @@ window.setupLeaveHoverDelegation = function() {
         if (rafId) cancelAnimationFrame(rafId);
         rafId = requestAnimationFrame(() => {
             const cssIndex = colIndex + 3;
-            const isDark = document.documentElement.classList.contains('dark');
-            const bgColor = isDark ? '#374151' : '#fff7ed';
             const styleTag = document.getElementById('crosshair-dynamic-style');
             if (styleTag) {
+                // 🎯 [FIX ไฮไลต์บังสี] เดิมทาพื้น background ทึบทับ = สีช่องลา (XX/X/สีกะ) หายหมด
+                // เปลี่ยนเป็น "ฟิล์มโปร่งแสง" (inset box-shadow) — ย้อมสีทองบางๆ ทับ ยังเห็นสีจริงข้างใต้ครบ
+                // + แถบแนวนอน (hover-row-active) และช่องตัดกัน (hover-cell-active) นิยามไว้ใน CSS ตายตัวด้านล่าง
                 styleTag.innerHTML = `
-                    #leaveTableMain tbody tr td:nth-child(${cssIndex}):not(.is-booked),
+                    #leaveTableMain tbody tr td:nth-child(${cssIndex}) {
+                        box-shadow: inset 0 0 0 999px rgba(232,193,90,0.13);
+                    }
                     #leaveTableMain thead tr th:nth-child(${cssIndex}) {
-                        background-color: ${bgColor} !important;
+                        box-shadow: inset 0 -3px 0 0 #E8C15A, inset 0 0 0 999px rgba(232,193,90,0.2);
+                    }
+                    #leaveTableMain tbody tr.hover-row-active td {
+                        box-shadow: inset 0 0 0 999px rgba(232,193,90,0.13);
+                    }
+                    #leaveTableMain tbody td.hover-cell-active {
+                        box-shadow: inset 0 0 0 2px #E8C15A, inset 0 0 0 999px rgba(232,193,90,0.22) !important;
                     }
                 `;
             }
@@ -592,4 +601,3 @@ window.setupLeaveHoverDelegation = function() {
 
     tbody.addEventListener('mouseleave', clearHover);
 };
-
