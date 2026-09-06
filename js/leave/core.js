@@ -575,24 +575,23 @@ window.setupLeaveHoverDelegation = function() {
         const colIndex = parseInt(cell.dataset.col, 10);
         if (rafId) cancelAnimationFrame(rafId);
         rafId = requestAnimationFrame(() => {
-            const cssIndex = colIndex + 3;
             const styleTag = document.getElementById('crosshair-dynamic-style');
             if (styleTag) {
-                // 🎯 [FIX ไฮไลต์บังสี] เดิมทาพื้น background ทึบทับ = สีช่องลา (XX/X/สีกะ) หายหมด
-                // เปลี่ยนเป็น "ฟิล์มโปร่งแสง" (inset box-shadow) — ย้อมสีทองบางๆ ทับ ยังเห็นสีจริงข้างใต้ครบ
-                // + แถบแนวนอน (hover-row-active) และช่องตัดกัน (hover-cell-active) นิยามไว้ใน CSS ตายตัวด้านล่าง
+                // 🎯 [FIX ไม่ตรง] เลิกนับตำแหน่งคอลัมน์ (nth-child) — หัวตารางแถวสรุปสีเขียวขึ้นต้นด้วย colspan=2
+                //    ทำให้การนับเพี้ยน 1-2 ช่อง → ชี้เป้าด้วย data-col ที่ฝังไว้ในทุกช่องแทน ตรงเป๊ะทุกแถวเสมอ
+                // 🎯 [FIX สีอ่อน] เร่งความเข้มฟิล์มทอง 13% → 28% (คอลัมน์/แถว) เห็นชัดขึ้นแต่สีช่องลายังโชว์ครบ
                 styleTag.innerHTML = `
-                    #leaveTableMain tbody tr td:nth-child(${cssIndex}) {
-                        box-shadow: inset 0 0 0 999px rgba(232,193,90,0.13);
+                    #leaveTableMain tbody td[data-col="${colIndex}"] {
+                        box-shadow: inset 0 0 0 999px rgba(232,193,90,0.28);
                     }
-                    #leaveTableMain thead tr th:nth-child(${cssIndex}) {
-                        box-shadow: inset 0 -3px 0 0 #E8C15A, inset 0 0 0 999px rgba(232,193,90,0.2);
+                    #leaveTableMain th[data-col="${colIndex}"] {
+                        box-shadow: inset 0 -3px 0 0 #E8C15A, inset 0 0 0 999px rgba(232,193,90,0.35);
                     }
                     #leaveTableMain tbody tr.hover-row-active td {
-                        box-shadow: inset 0 0 0 999px rgba(232,193,90,0.13);
+                        box-shadow: inset 0 0 0 999px rgba(232,193,90,0.28);
                     }
                     #leaveTableMain tbody td.hover-cell-active {
-                        box-shadow: inset 0 0 0 2px #E8C15A, inset 0 0 0 999px rgba(232,193,90,0.22) !important;
+                        box-shadow: inset 0 0 0 2px #E8C15A, inset 0 0 0 999px rgba(232,193,90,0.4) !important;
                     }
                 `;
             }
