@@ -6,7 +6,6 @@
             <button onclick="switchDiscordTab('move')" id="tabDsMove" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">move_up</span> ย้ายห้อง (Mass Move)</button>
             <button onclick="switchDiscordTab('manage')" id="tabDsManage" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">manage_accounts</span> ฐานข้อมูล</button>
             <button onclick="switchDiscordTab('voicelog')" id="tabDsVoicelog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติเข้า/ออกดิส</button>
-            <button onclick="switchDiscordTab('actionlog')" id="tabDsActionlog" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">list_alt</span> ประวัติกดคำสั่ง</button>
             <button onclick="switchDiscordTab('breaktrack')" id="tabDsBreaktrack" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">coffee</span> เช็คอิน</button>
             <button onclick="switchDiscordTab('checkin')" id="tabDsCheckin" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">photo_camera</span> ถ่ายรูป</button>
             <button onclick="switchDiscordTab('ttsvoice')" id="tabDsTtsvoice" class="whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all bg-slate-700 text-gray-300 hover:text-white flex items-center gap-1"><span class="material-icons text-sm">campaign</span> ศูนย์ควบคุมเสียง</button>
@@ -333,33 +332,7 @@
             </div>
         </div>
     
-        <div id="dsContent_actionlog" class="max-w-5xl mx-auto hidden fade-in pb-10">
-            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-lg">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-orange-500 font-black flex items-center gap-2 text-xl"><span class="material-icons">manage_search</span> ประวัติการกดคำสั่ง (Admin Logs)</h2>
-                    <button onclick="ds_fetchActionLogs()" class="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-full transition shadow"><span class="material-icons text-sm">refresh</span></button>
-                </div>
-                
-                <div class="flex gap-4 mb-6">
-                    <input type="date" id="actionLogDate" onchange="ds_renderActionLogs()" class="bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-orange-500">
-                    <div class="relative flex-1">
-                        <span class="material-icons absolute left-3 top-3 text-gray-500 text-[18px]">search</span>
-                        <input type="text" id="actionLogSearch" onkeyup="ds_renderActionLogs()" placeholder="ค้นหาชื่อแอดมิน หรือ คำสั่ง..." class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:border-orange-500">
-                    </div>
-                </div>
-
-                <div class="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-inner">
-                    <div class="max-h-[60vh] overflow-y-auto custom-scrollbar">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-800 text-gray-400 text-[10px] uppercase tracking-wider sticky top-0 z-10 shadow-sm">
-                                <tr><th class="p-4 font-bold">เวลา</th><th class="p-4 font-bold">แอดมินผู้สั่งการ</th><th class="p-4 font-bold">คำสั่ง</th><th class="p-4 font-bold">รายละเอียด</th></tr>
-                            </thead>
-                            <tbody id="ds_actionLogBody" class="text-sm"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+        
 
       <!-- ===== TAB เช็คอิน ===== -->
       <div id="dsContent_breaktrack" class="max-w-6xl mx-auto hidden fade-in pb-10">
@@ -719,12 +692,5 @@
         </tr>
     </template>
 
-    <template id="tpl-ds-action-log-row">
-        <tr class="hover:bg-slate-700/50 transition border-b border-slate-700/50">
-            <td class="p-3 text-gray-400 font-mono text-xs whitespace-nowrap">{{timeStr}}</td>
-            <td class="p-3 font-bold text-amber-400 whitespace-nowrap">{{user}}</td>
-            <td class="p-3 whitespace-nowrap"><span class="bg-slate-900 text-white px-2 py-1 rounded text-[11px] font-bold border border-slate-600">{{action}}</span></td>
-            <td class="p-3 text-gray-300 text-xs">{{detail}}</td>
-        </tr>
-    </template>
+    
 </div>
