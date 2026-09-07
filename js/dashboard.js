@@ -228,7 +228,8 @@ async function _doRefreshTimeSlots() {
                 const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
                 if (rosterData && rosterData.value) {
                     const roster = JSON.parse(rosterData.value);
-                    coverageMap = window.buildCoverageMap(roster);
+                    await window.loadBreakMinRemainCfg();   // ⚙️ โหลดค่า "ต้องเหลือเฝ้ากี่คน" (cache ในตัว)
+                    coverageMap = window.buildCoverageMap(roster, myDep, shiftName);
                     for (const team in roster) {
                         (roster[team] || []).forEach(u => {
                             if (String(u.id) === String(currentUser.id)) {
