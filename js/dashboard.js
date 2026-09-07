@@ -1,734 +1,712 @@
-window.initDashboard = async function() {
-    // ลองดึงจาก sessionStorage ก่อนเลย ไม่ต้องรอ
-    if (!window.currentUser || !window.currentUser.id) {
-        const savedUser = sessionStorage.getItem('user_platinum_plus');
-        if (savedUser) {
-            window.currentUser = JSON.parse(savedUser);
-        } else {
-            // fallback: รอสั้นๆ เผื่อกำลังโหลดอยู่
-            let retry = 0;
-            while ((!window.currentUser || !window.currentUser.id) && retry < 10) {
-                await new Promise(r => setTimeout(r, 100));
-                retry++;
-            }
-            if (!window.currentUser || !window.currentUser.id) return;
-        }
-    }
-
-    // 🔄 ดึงข้อมูลตัวเองสดจาก DB ก่อน (เผื่อแอดมินเปลี่ยนกะ/แผนกไประหว่างที่ปิดหน้า)
-    if (typeof window.refreshCurrentUserFromDB === 'function') await window.refreshCurrentUserFromDB();
-
-    // อัปเดตข้อมูลพนักงานที่แถบด้านบน
-    if (typeof updateDashboardUserInfo === 'function') updateDashboardUserInfo();
-
-    // 🌟🌟🌟 ควบคุมการโชว์ปุ่มเช็คคนยังไม่ลงข้าว 🌟🌟🌟
-    const btnCheckMissing = document.getElementById('btnCheckMissingLunch');
-    if (btnCheckMissing) {
-        const uRole = (window.currentUser.role || '').toLowerCase();
-        const uDept = (window.currentUser.department || '');
-        // ให้เช็คสิทธิ์ว่ามีสิทธิ์เข้ามาดูเมนูจัดการลางาน หรือจัดการเวรไหม ถ้ามีก็ให้กดดูได้เลย
-if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
-    btnCheckMissing.classList.remove('hidden');
-}
-    }
-
-    // ดึงรายชื่อทีมเข้า Dropdown
-    if (typeof populateTeamSelects === 'function') populateTeamSelects();
-
-    // 🟢 บังคับเซ็ตวันที่ให้เป็น "วันนี้" เสมอ (ปรับให้กะดึกข้ามวัน)
-    const dInput = document.getElementById('wDate');
-    if (dInput) {
-        const today = new Date();
-        const currentHour = today.getHours(); // ดึงเวลาชั่วโมงปัจจุบัน (0-23)
-
-        // ถ้านาฬิกาอยู่ระหว่างเที่ยงคืน (00:00) ถึงก่อน 8 โมงเช้า (07:59)
-        // ให้ปฏิทินถอยกลับไปแสดงเป็นวันที่ของ "เมื่อวาน" อัตโนมัติ
-        if (currentHour >= 0 && currentHour < 8) {
-            today.setDate(today.getDate() - 1);
-        }
-
-        const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        dInput.value = localDate;
-        const displayDate = document.getElementById('displayDate');
-        if (displayDate) displayDate.innerText = new Date(localDate).toLocaleDateString('th-TH');
-    }
-
-    // 🟢 สร้างปุ่มและ "บังคับเลือกกะให้อัตโนมัติ" ตามสิทธิ์
-    if (typeof renderShiftButtons === 'function') renderShiftButtons(window.currentUser.allowed_shift);
-
-    // เช็คระบบ "จำทีมนี้ไว้ตลอด"
-    const savedTeam = localStorage.getItem(`last_team_${window.currentUser.username}`);
-    const teamSelect = document.getElementById('dailyTeam');
-    if (teamSelect) {
-        if (savedTeam) {
-            teamSelect.value = savedTeam;
-            const rememberCb = document.getElementById('rememberTeam');
-            if(rememberCb) rememberCb.checked = true;
-        } else if (window.currentUser.team) {
-            teamSelect.value = window.currentUser.team;
-        }
-    }
-
-    // โหลดข้อมูลรอบเวลาก่อน แล้วค่อย fetchData
-    if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
-    if (typeof fetchData === 'function') fetchData();
-
-    // 🌟 เรียกใช้งานระบบ Realtime
-    if (typeof subscribeDashboardChanges === 'function') subscribeDashboardChanges();
-
-    // 💬 เริ่มระบบแชทสด
-};
-
-window.updateDashboardUserInfo = function() {
-    if (!window.currentUser || !window.currentUser.id) return;
-    if(document.getElementById('uName')) {
-        document.getElementById('uName').innerText = window.currentUser.username || 'Unknown';
-    }
-    const _uTagEl = document.getElementById('uTagBadge');
-    if(_uTagEl) {
-        const _tag = window.currentUser.tag;
-        _uTagEl.innerHTML = (window.getTagBadge && _tag) ? window.getTagBadge(_tag, currentUser?.department) : '';
-    }
-    if(document.getElementById('checkTypeDisplay')) document.getElementById('checkTypeDisplay').innerText = (window.currentUser.check_type === 'shift') ? 'เช็คโควตากะ' : 'เช็คโควตาทีม';
-    if(document.getElementById('quotaDisplay')) document.getElementById('quotaDisplay').innerText = window.currentUser.department || 'AM';
-
-    if(typeof SETTINGS !== 'undefined') {
-        if(document.getElementById('periodLimitDisplay')) document.getElementById('periodLimitDisplay').innerText = SETTINGS.period_limit || 1;
-        if(document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = SETTINGS.daily_limit || 2;
-    }
-};
-
-window.populateTeamSelects = function() {
-    const dt = document.getElementById('dailyTeam');
-    const tf = document.getElementById('tableTeamFilter');
-    const nt = document.getElementById('newTeam');
-    const mt = document.getElementById('moveTargetTeam');
-
-    let html = '';
-    let fHtml = '<option value="all">-- ทุกเว็บ --</option>';
-    let ntHtml = '<option value="">- ไม่ระบุทีม -</option>';
-
-    const sortedTeams = [...(typeof TEAM_LIST !== 'undefined' ? TEAM_LIST : [])].sort((a,b) => a.localeCompare(b));
-
-    sortedTeams.forEach(t => {
-        html += `<option value="${t}">${t}</option>`;
-        fHtml += `<option value="${t}">${t}</option>`;
-        ntHtml += `<option value="${t}">${t}</option>`;
-    });
-
-    if(dt) dt.innerHTML = html;
-    if(tf) tf.innerHTML = fHtml;
-    if(nt) nt.innerHTML = ntHtml;
-    if(mt) mt.innerHTML = ntHtml;
-
-    if(dt && window.currentUser && window.currentUser.team) dt.value = window.currentUser.team;
-};
-
-window.renderShiftButtons = function(allowedShift) {
-    const container = document.getElementById('shiftContainer');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const shifts = ['กะเช้า', 'กะกลาง', 'กะดึก'];
-    let hasChecked = false;
-
-    const userRole = window.currentUser?.role || 'staff';
-    const shiftRight = allowedShift || 'all';
-    const isAdmin = window.hasUserPerm('ds_manage') || window.hasUserPerm('admin');
-    // 🟢 มีสิทธิ์ "ลงเวลาได้ทุกกะ" → ไม่ถูกล็อกแค่กะของตัวเอง
-    const canViewAllShifts = isAdmin || window.hasUserPerm('dashboard_view_all_shifts');
-
-    shifts.forEach((s, index) => {
-        // 🌟 จุดสำคัญ: ถ้าไม่มีสิทธิ์เห็นทุกกะ และกะนี้ไม่ใช่กะของพนักงานคนนี้ ให้ "ข้าม (return)" ไปเลย
-        if (!canViewAllShifts && shiftRight !== 'all' && shiftRight !== s) {
-            return;
-        }
-
-        let bgClass = 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer';
-        let textClass = 'text-gray-700 dark:text-gray-300';
-        let borderClass = 'border-gray-200 dark:border-slate-600';
-
-        let isChecked = false;
-        if (!hasChecked) {
-            if (shiftRight === 'all' || isAdmin) {
-                if (index === 0) { isChecked = true; hasChecked = true; }
-            } else if (shiftRight === s) {
-                isChecked = true; hasChecked = true;
-            }
-        }
-
-        let icon = s === 'กะเช้า' ? 'wb_sunny' : (s === 'กะกลาง' ? 'cloud' : 'dark_mode');
-        let color = s === 'กะเช้า' ? 'text-orange-500' : (s === 'กะกลาง' ? 'text-blue-500' : 'text-purple-500');
-
-        container.innerHTML += `
-            <label class="relative flex flex-col items-center p-3 rounded-xl border-2 ${borderClass} ${bgClass} transition shadow-sm">
-                <input type="radio" name="shift" value="${s}" class="peer hidden" onchange="refreshTimeSlots(); if(typeof fetchData==='function') fetchData();" ${isChecked ? 'checked' : ''}>
-                <span class="material-icons ${color} mb-1 peer-checked:scale-125 transition-transform">${icon}</span>
-                <span class="font-bold ${textClass} text-sm">${s}</span>
-                <div class="absolute inset-0 border-2 border-transparent peer-checked:border-blue-500 rounded-xl pointer-events-none transition-colors"></div>
-                <div class="absolute top-2 right-2 w-3 h-3 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
-            </label>
-        `;
-    });
-};
-
-// debounce timer สำหรับ refreshTimeSlots
-let _refreshSlotsTimer = null;
-let _refreshSlotsPending = null;   // คำขอที่รออยู่ในรอบ debounce — ผู้เรียกทุกคนใช้ก้อนเดียวกัน
-
-// [FIX] เดิม: clearTimeout ไปฆ่า timer ที่เป็นตัว resolve ของ promise รอบก่อนเอง
-// promise นั้นจึงไม่มีวัน resolve → ใครที่ await ค้างถาวร
-// (initDashboard ค้างจน fetchData() กับ subscribeDashboardChanges() ไม่ถูกเรียก)
-// ตอนนี้รวมคำขอที่ถี่ ๆ เป็นรอบเดียวเหมือนเดิม แต่ผู้เรียกทุกคนได้ผลของรอบที่รันจริง
-window.refreshTimeSlots = function() {
-    if (!_refreshSlotsPending) {
-        let _res;
-        const _p = new Promise(r => { _res = r; });
-        _refreshSlotsPending = { promise: _p, resolve: _res };
-    }
-    const _shared = _refreshSlotsPending;
-    clearTimeout(_refreshSlotsTimer);
-    _refreshSlotsTimer = setTimeout(() => {
-        _refreshSlotsPending = null;
-        _shared.resolve(_doRefreshTimeSlots().catch(e => { console.error("Refresh Slots Error:", e); }));
-    }, 80);
-    return _shared.promise;
-};
-
-async function _doRefreshTimeSlots() {
-
-    const shiftEl    = document.querySelector('input[name="shift"]:checked');
-    const slotSelect = document.getElementById('tSlot');
-    const dateEl     = document.getElementById('wDate');
-    const teamSelect = document.getElementById('dailyTeam');
-
-    if (!slotSelect) return;
-    if (!shiftEl || !dateEl || !dateEl.value) {
-        slotSelect.innerHTML = '<option value="">-- กรุณาเลือกกะ/วันทีก่อน --</option>';
-        return;
-    }
-
-    const shiftName = shiftEl.value;
-    const myDep     = window.currentUser?.department || 'AM';
-    const dateVal   = dateEl.value;
-    const now       = Date.now();
-
-    // ── Roster (⭐ ทีมที่ถูกจัด) — cache 90 วิ ──
-    if (teamSelect && !['manager', 'admin'].includes(currentUser.role)) {
-        const rosterKey = `duty_roster_${myDep}_${dateVal}_${shiftName}`;
-        let assignedTeams = [];
-        let coverageMap = null;
-
-        // ใช้ cache ถ้ายัง fresh
-        if (_rosterCache[rosterKey] && (now - _rosterCache[rosterKey].ts) < _SLOT_TTL) {
-            assignedTeams = _rosterCache[rosterKey].data;
-            coverageMap = _rosterCache[rosterKey].covMap || null;
-        } else {
-            try {
-                const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
-                if (rosterData && rosterData.value) {
-                    const roster = JSON.parse(rosterData.value);
-                    await window.loadBreakMinRemainCfg();   // ⚙️ โหลดค่า "ต้องเหลือเฝ้ากี่คน" (cache ในตัว)
-                    coverageMap = window.buildCoverageMap(roster, myDep, shiftName);
-                    for (const team in roster) {
-                        (roster[team] || []).forEach(u => {
-                            if (String(u.id) === String(currentUser.id)) {
-                                if (!assignedTeams.includes(team)) assignedTeams.push(team);
-                                if (u.secondary_team && !assignedTeams.includes(u.secondary_team)) assignedTeams.push(u.secondary_team);
-                            }
-                        });
-                    }
-                }
-                _rosterCache[rosterKey] = { data: assignedTeams, covMap: coverageMap, ts: now };
-            } catch(e) { console.error(e); }
-        }
-
-        window._myAssignedTeams = assignedTeams;
-        window._myCoverageMap = coverageMap;
-
-        const oldVal = teamSelect.value;
-        const sortedTeams = [...TEAM_LIST].sort((a,b) => a.localeCompare(b));
-        let tHtml = '';
-        sortedTeams.forEach(t => {
-            const isAssigned = assignedTeams.includes(t);
-            tHtml += `<option value="${t}">${isAssigned ? `⭐ ${t} (หน้าที่ของคุณ)` : t}</option>`;
-        });
-        teamSelect.innerHTML = tHtml;
-
-        if (oldVal && sortedTeams.includes(oldVal)) teamSelect.value = oldVal;
-        else if (assignedTeams.length > 0) teamSelect.value = assignedTeams[0];
-    }
-
-    const selectedTeam = teamSelect ? teamSelect.value : (window.currentUser?.team || '');
-    const previousSelectedSlot = slotSelect.value;
-
-    const loadingIcon = document.getElementById('slotLoading');
-    if (loadingIcon) loadingIcon.classList.remove('hidden');
-
-    try {
-        // ── Slot bookings — cache 90 วิ ──
-        const slotCacheKey = `${dateVal}|${shiftName}`;
-        let bookings;
-        if (_slotCache[slotCacheKey] && (now - _slotCache[slotCacheKey].ts) < _SLOT_TTL) {
-            bookings = _slotCache[slotCacheKey].data;
-        } else {
-            const { data } = await appDB.from('schedules')
-                .select('time_slot, department, team, staff_name')
-                .eq('work_date', dateVal)
-                .eq('shift_name', shiftName);
-            bookings = data;
-            _slotCache[slotCacheKey] = { data: bookings, ts: now };
-        }
-
-        const periods = (typeof SHIFT_GROUPS !== 'undefined' ? SHIFT_GROUPS[shiftName] : {}) || {};
-        let html = '<option value="">-- เลือกช่วงเวลา --</option>';
-
-        for (const [periodName, times] of Object.entries(periods)) {
-            html += `<optgroup label="--- ${periodName} ---">`;
-            times.forEach(time => {
-                // 🍽️ [กติกาพัก] เพดานพักต่อเว็บ — อัตโนมัติจากตารางหน้าที่ (หลัก+รอง) + คนที่พักช่วงนี้
-                const slotB = (bookings || []).filter(b => b.time_slot === time);
-                let isFull = false, statusText = '';
-                if (window._myCoverageMap && currentUser.check_type !== 'shift') {
-                    const cov = window.checkCoverage(currentUser.username, window._myCoverageMap, slotB);
-                    if (!cov.ok) {
-                        isFull = true;
-                        statusText = `(${cov.problems.map(pb => `${pb.team} เต็ม ${pb.used}/${pb.cap}`).join(', ')})`;
-                    } else if (cov.canLeave === Infinity) {
-                        statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;   // ไม่อยู่ในตารางหน้าที่ → ไม่จำกัด
-                    } else {
-                        statusText = `(ว่าง: ${cov.canLeave})`;
-                    }
-                } else {
-                    // ยังไม่ได้จัดหน้าที่วันนี้ / ผู้จัดการ → ไม่จำกัด แสดงแค่จำนวนที่ลงแล้ว
-                    statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;
-                }
-                html += `<option value="${time}" data-period="${periodName}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
-            });
-            html += '</optgroup>';
-        }
-        slotSelect.innerHTML = html;
-
-        if (previousSelectedSlot) {
-            const opt = slotSelect.querySelector(`option[value="${previousSelectedSlot}"]`);
-            if (opt && !opt.disabled) slotSelect.value = previousSelectedSlot;
-        }
-
-    } catch (e) {
-        console.error("Refresh Slots Error:", e);
-    } finally {
-        if (loadingIcon) loadingIcon.classList.add('hidden');
-    }
-};
-
-
-// (ลบ openAdminPanel / undoClearSchedules ออกจากไฟล์นี้ — มีตัวเต็มอยู่ใน system_core.js อยู่แล้ว
-//  เดิมไฟล์นี้โหลดทีหลังเลย "เขียนทับ" ตัวเต็ม ทำให้การเช็คสิทธิ์แท็บแอดมินและด่านเช็ค admin ไม่เคยทำงาน)
-window.switchAdminTab = function(tab) {
-    const tabs = ['settings', 'users', 'perms', 'quotalog'];
-
-    tabs.forEach(t => {
-        // 1. จัดการปุ่มเมนูด้านบน (เปลี่ยนสี)
-        const btn = document.getElementById('btnAdminTab_' + t);
-        if (btn) {
-            if (t === tab) {
-                btn.className = 'whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow-md';
-            } else {
-                btn.className = 'whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent';
-            }
-        }
-
-        // 2. จัดการหน้าต่างเนื้อหา (เปิด/ปิด)
-        const view = document.getElementById('adminView_' + t);
-        if (view) {
-            if (t === tab) {
-                view.classList.remove('hidden');
-                view.classList.add('flex'); // ใช้ flex เพื่อแสดงผล
-            } else {
-                view.classList.add('hidden');
-                view.classList.remove('flex'); // ลบ flex ออกเพื่อซ่อน
-            }
-        }
-    });
-
-    // 🕘 แท็บประวัติโควตา/หน้าที่ → โหลดใหม่ทุกครั้งที่เปิด
-    if (tab === 'quotalog' && typeof window.renderQuotaHistory === 'function') window.renderQuotaHistory();
-
-    // 🌟 เพิ่มโค้ดตรงนี้: บังคับวาดตารางรายชื่อใหม่เสมอเมื่อกดเข้าแท็บ "จัดการพนักงาน"
-    if (tab === 'users') {
-        if (!window.GLOBAL_USER_LIST || window.GLOBAL_USER_LIST.length === 0) {
-            if (typeof fetchUsers === 'function') fetchUsers();
-        } else {
-            if (typeof renderUserTableDirectly === 'function') window.renderUserTableDirectly();
-            if (typeof fastRecalculateStats === 'function') window.fastRecalculateStats();
-        }
-    }
-};
-
-window.fetchLogs = async function() {
-    const dateVal = document.getElementById('logDate') ? document.getElementById('logDate').value : '';
-    const actionVal = document.getElementById('logAction') ? document.getElementById('logAction').value : '';
-    const userVal = document.getElementById('logUser') ? document.getElementById('logUser').value.toLowerCase() : '';
-
-    // ดึงตาราง system_logs จาก Supabase
-    let query = appDB.from('system_logs').select('*').order('log_date', {ascending: false});
-
-    if(dateVal) {
-        query = query.gte('log_date', dateVal + 'T00:00:00').lte('log_date', dateVal + 'T23:59:59');
-    } else {
-        query = query.limit(100); // ถ้าไม่เลือกวัน ให้ดึงล่าสุด 100 รายการ
-    }
-
-    if(actionVal) query = query.eq('action_type', actionVal);
-
-    const { data, error } = await query;
-    const box = document.getElementById('logTableBody');
-    if(!box) return;
-    box.innerHTML = '';
-
-    if (error) {
-        box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-400">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>`;
-        return;
-    }
-
-    if(data && data.length > 0) {
-        const filtered = data.filter(log => {
-            return (!userVal || (log.performed_by || '').toLowerCase().includes(userVal));
-        });
-
-        if(filtered.length === 0) { box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติที่ค้นหา</td></tr>`; return; }
-
-        let logsHtml = '';
-
-        filtered.forEach(log => {
-            const time = new Date(log.log_date).toLocaleString('th-TH');
-            const badgeColor = log.action_type === 'ลงเวลา' ? 'bg-green-900/50 text-green-400 border-green-700' : ((log.action_type || '').includes('ลบ') ? 'bg-red-900/50 text-red-400 border-red-700' : 'bg-blue-900/50 text-blue-400 border-blue-700');
-
-            logsHtml += `
-            <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition">
-                <td class="px-4 py-3 text-xs text-gray-400">${time}</td>
-                <td class="px-4 py-3 font-bold text-white">${log.performed_by || '-'}</td>
-                <td class="px-4 py-3"><span class="px-2 py-1 rounded text-[10px] font-bold border ${badgeColor}">${log.action_type || '-'}</span></td>
-                <td class="px-4 py-3 text-xs text-gray-300">${log.target_details || ''}</td>
-            </tr>`;
-        });
-
-        box.innerHTML = logsHtml;
-
-    } else {
-        box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติ</td></tr>`;
-    }
-};
-
-let dashboardSubscription = null;
-
-// Cache สำหรับ roster และ slot bookings — TTL 90 วินาที
-const _rosterCache = {};  // key → { data, ts }
-const _slotCache   = {};  // "date|shift" → { data, ts }
-const _SLOT_TTL    = 90 * 1000;
-
-window.subscribeDashboardChanges = function() {
-    if (dashboardSubscription) {
-        try { appDB.removeChannel(dashboardSubscription); } catch (e) {}
-        dashboardSubscription = null;
-    }
-
-    dashboardSubscription = appDB.channel('dashboard-schedules')
-        // 🔁 โควตาพัก / ตารางหน้าที่ เปลี่ยน (จากหน้าจัดหน้าที่) → โหลดค่าใหม่ให้ dropdown "ว่าง" ตรงกับจริง
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
-            const key = (payload.new && payload.new.key) || (payload.old && payload.old.key) || '';
-            if (!key) return;
-            if (key.startsWith('quota_') || key.startsWith('mincover_')) {   // (เหลือไว้เผื่อค่าเก่า)
-                if (typeof SETTINGS !== 'undefined') SETTINGS[key] = payload.new ? payload.new.value : undefined;
-                if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
-            } else if (key.startsWith('duty_roster_')) {
-                if (typeof _rosterCache !== 'undefined') delete _rosterCache[key];
-                if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
-            }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, (payload) => {
-            const mainContent = document.getElementById('mainContentArea');
-            if (mainContent && !mainContent.classList.contains('hidden')) {
-
-                const dateEl = document.getElementById('wDate');
-                const dateVal = dateEl ? dateEl.value : '';
-
-                // ข้ามถ้าไม่ใช่วันที่กำลังดูอยู่
-                if (payload.eventType !== 'DELETE' && payload.new.work_date !== dateVal) return;
-
-                // 🌟 อัปเดตข้อมูลแบบแทรกแถว (ไม่ต้องเรียก fetchData() ให้หมุนๆ แล้ว)
-                // ล้าง slot cache เมื่อมีการเปลี่ยนแปลงจาก realtime
-                const _rtDate  = payload.new?.work_date || payload.old?.work_date;
-                const _rtShift = payload.new?.shift_name || payload.old?.shift_name;
-                if (_rtDate && _rtShift) {
-                    const _rtKey = `${_rtDate}|${_rtShift}`;
-                    if (_slotCache[_rtKey]) delete _slotCache[_rtKey];
-                }
-
-                if (payload.eventType === 'INSERT') {
-                    const isExist = globalScheduleData.some(item => String(item.id) === String(payload.new.id));
-                    if (!isExist) globalScheduleData.push(payload.new);
-                } else if (payload.eventType === 'DELETE') {
-                    globalScheduleData = globalScheduleData.filter(item => String(item.id) !== String(payload.old.id));
-                } else if (payload.eventType === 'UPDATE') {
-                    const idx = globalScheduleData.findIndex(item => String(item.id) === String(payload.new.id));
-                    if (idx > -1) globalScheduleData[idx] = payload.new;
-                }
-
-                // เรียงเวลาใหม่
-                globalScheduleData.sort((a, b) => {
-                    const pA = getPeriodForTime(a.shift_name, a.time_slot);
-                    const pB = getPeriodForTime(b.shift_name, b.time_slot);
-                    const pOrder = {'ช่วงที่ 1': 1, 'ช่วงที่ 2': 2, 'ช่วงที่ 3': 3};
-                    if (pOrder[pA] !== pOrder[pB]) return (pOrder[pA] || 99) - (pOrder[pB] || 99);
-
-                    const timeA = a.time_slot || "";
-                    const timeB = b.time_slot || "";
-                    return timeA.localeCompare(timeB);
-                });
-
-                // กรองข้อมูลตามสิทธิ์แอดมิน/พนักงาน
-                let dataToRender = globalScheduleData;
-                const tableTeam = document.getElementById('tableTeamFilter') ? document.getElementById('tableTeamFilter').value : 'all';
-                if (tableTeam !== 'all') dataToRender = dataToRender.filter(item => item.team === tableTeam);
-
-                if (typeof currentUser !== 'undefined' && !['manager', 'admin'].includes(currentUser.role)) {
-                    if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) {
-                        dataToRender = dataToRender.filter(item => item.shift_name === currentUser.allowed_shift);
-                    }
-                }
-
-                const deptFilterForSummary = document.getElementById('summaryDeptFilter') ? document.getElementById('summaryDeptFilter').value : 'all';
-                let dataForSummary = dataToRender;
-                if (deptFilterForSummary !== 'all') {
-                    dataForSummary = dataToRender.filter(i => (i.department || 'AM') === deptFilterForSummary);
-                }
-
-                clearTimeout(window.realtimeRenderTimer);
-                window.realtimeRenderTimer = setTimeout(() => {
-                    if(typeof updateTableSummary === 'function') updateTableSummary(dataForSummary);
-                    if(typeof renderTableRows === 'function') renderTableRows(dataToRender);
-                    if(typeof refreshTimeSlots === 'function') refreshTimeSlots();
-                }, 200);
-            }
-        }).subscribe();
-
-    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dashboardSubscription);
-};
-
-setTimeout(() => {
-    const dInput = document.getElementById('wDate');
-    if (dInput) {
-        dInput.addEventListener('change', () => {
-            if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-            if (typeof fetchData === 'function') fetchData();
-        });
-    }
-}, 1000);
-
-setTimeout(() => {
-    const teamInput = document.getElementById('dailyTeam');
-    if (teamInput) {
-        teamInput.addEventListener('change', () => {
-            if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
-        });
-    }
-}, 1000);
-
-
-window.openLogsPage = async function() {
-    if (!document.getElementById('logsPage')) {
-        if(typeof showPage === 'function') await showPage('dashboard');
-        if(typeof initDashboard === 'function') initDashboard();
-    }
-
-    const mainContent = document.getElementById('mainContentArea');
-    if (mainContent) mainContent.classList.add('hidden');
-
-    const adminPanel = document.getElementById('adminPanel');
-    if (adminPanel) {
-        adminPanel.classList.add('hidden');
-        adminPanel.classList.remove('flex');
-    }
-
-    const logsPage = document.getElementById('logsPage');
-    if (logsPage) {
-        logsPage.classList.remove('hidden');
-        logsPage.classList.add('flex');
-        if(typeof fetchLogs === 'function') fetchLogs();
-    }
-};
-
-window.backToDashboard = function() {
-    const logsPage = document.getElementById('logsPage');
-    if (logsPage) {
-        logsPage.classList.add('hidden');
-        logsPage.classList.remove('flex');
-    }
-
-    const adminPanel = document.getElementById('adminPanel');
-    if (adminPanel) {
-        adminPanel.classList.add('hidden');
-        adminPanel.classList.remove('flex');
-    }
-
-    const mainContent = document.getElementById('mainContentArea');
-    if (mainContent) {
-        mainContent.classList.remove('hidden');
-    }
-
-    if(typeof initDashboard === 'function') initDashboard();
-};
-
-window.tempMissingStaffData = {};
-
-window.renderMissingList = function() {
-    const shiftFilter = document.getElementById('missingShiftFilter').value;
-    const deptFilter = document.getElementById('missingDeptFilter').value;
-    const container = document.getElementById('missingListContainer');
-    if(!container) return;
-
-    let html = '';
-    let totalCount = 0;
-
-    const renderList = (shiftName, listKey, colorClass) => {
-        let list = window.tempMissingStaffData[listKey] || [];
-
-        if (deptFilter !== 'all') {
-            list = list.filter(s => s.dept === deptFilter);
-        }
-
-        if (list.length === 0) return '';
-
-        totalCount += list.length;
-        // สีพื้นป้ายจำนวนคน: เดิมปั้นชื่อคลาสด้วย .replace() ตอน runtime ซึ่ง Tailwind ไม่ compile ให้ → ใช้ inline style แทน
-        const badgeBg = { 'text-orange-500':'rgba(249,115,22,.14)', 'text-blue-500':'rgba(59,130,246,.14)', 'text-purple-500':'rgba(168,85,247,.14)' }[colorClass] || 'rgba(100,116,139,.14)';
-
-        let htmlChunk = `
-            <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm mb-3">
-                <div class="flex justify-between items-center mb-2 border-b border-slate-200 dark:border-slate-700 pb-2">
-                    <span class="font-black ${colorClass} flex items-center gap-1">${shiftName}</span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded shadow-inner border border-current opacity-80" style="background:${badgeBg}">${list.length} คน</span>
+<div class="fade-in pb-10">
+<style>
+.staff-row { transition: background .12s; }
+.staff-row:hover { background: rgba(100,116,139,.1); }
+.staff-row:hover .row-edit-btn { opacity: 1 !important; }
+.row-edit-btn { transition: opacity .12s, color .12s; }
+.row-edit-btn:hover { color: var(--text-pro) !important; }
+</style>
+<style>
+.staff-row { border-bottom: 0.5px solid rgba(100,116,139,.3); transition: background .12s; }
+.staff-row:hover { background: rgba(100,116,139,.08); }
+.staff-row:hover .row-edit-btn { opacity: 1 !important; }
+.row-edit-btn:hover { color: var(--text-pro) !important; }
+</style>
+
+    
+    <div id="mainContentArea" class="block w-full">
+        <div style="position:relative;background:linear-gradient(120deg,rgba(59,130,246,0.14),rgba(13,18,32,0.6) 40%,rgba(10,14,24,0.3)),linear-gradient(165deg,#101828,#0b111e);border:1px solid rgba(59,130,246,0.28);border-radius:18px;padding:18px 20px;margin-bottom:24px;box-shadow:0 10px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:0">
+                <h1 style="display:flex;align-items:center;gap:11px;margin:0;font-size:21px;font-weight:900;color:#f1f5f9;letter-spacing:0.01em">
+                    <span style="width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,rgba(59,130,246,0.28),rgba(59,130,246,0.08));border:1px solid rgba(59,130,246,0.5);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 14px rgba(59,130,246,0.25)">
+                        <span class="material-icons" style="font-size:19px;color:#60a5fa">verified_user</span>
+                    </span>
+                    ลงเวลาทำงาน
+                </h1>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">
+                    <span style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);font-size:12px;font-weight:800;color:#93c5fd">
+                        <span class="material-icons" style="font-size:13px">person</span> <span id="uName">...</span>
+                    </span>
+                    <span id="uTagBadge"></span>
+                    <span style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);font-size:12px;font-weight:800;color:#d8b4fe">
+                        <span class="material-icons" style="font-size:13px">settings_suggest</span> <span id="checkTypeDisplay">...</span>
+                    </span>
+                    <span style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);font-size:12px;font-weight:800;color:#86efac">
+                        <span class="material-icons" style="font-size:13px">group</span> <span id="quotaDisplay">...</span>
+                    </span>
                 </div>
-                <div class="flex flex-wrap gap-2">
-        `;
-        list.forEach(staff => {
-            const deptColor = staff.dept === 'OD' ? 'text-pink-600 bg-pink-100 dark:bg-pink-900/30 border-pink-200' : 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 border-blue-200';
+            </div>
 
-            const missingBadgeHtml = `<span class="text-[9px] font-black text-red-500 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-1 rounded shadow-sm">ขาด ${staff.missingAmount}</span>`;
+            <div style="display:flex;align-items:center;gap:9px;flex-shrink:0">
+                <button id="btnCheckMissingLunch" onclick="checkMissingLunch()" class="hidden"
+                    style="position:relative;display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:13px;background:linear-gradient(135deg,rgba(99,102,241,0.22),rgba(99,102,241,0.08));border:1px solid rgba(99,102,241,0.45);color:#a5b4fc;font-weight:800;font-size:13px;cursor:pointer;transition:all .15s;box-shadow:0 0 12px rgba(99,102,241,0.15)"
+                    onmouseover="this.style.filter='brightness(1.25)';this.style.transform='translateY(-1px)'" onmouseout="this.style.filter='';this.style.transform=''">
+                    <span class="material-icons" style="font-size:18px">person_search</span> <span class="hidden md:block">เช็คคนยังไม่ลงข้าว</span>
+                    <span id="missingLunchBadge" class="hidden" style="position:absolute;top:-7px;right:-7px;background:#ef4444;color:#fff;font-size:10px;font-weight:900;padding:2px 6px;border-radius:99px;box-shadow:0 2px 8px rgba(239,68,68,0.5);border:1.5px solid #0b111e">0</span>
+                </button>
+                <button onclick="openChangePinModal()"
+                    style="display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:13px;background:linear-gradient(135deg,rgba(249,115,22,0.22),rgba(249,115,22,0.08));border:1px solid rgba(249,115,22,0.45);color:#fdba74;font-weight:800;font-size:13px;cursor:pointer;transition:all .15s;box-shadow:0 0 12px rgba(249,115,22,0.15)"
+                    onmouseover="this.style.filter='brightness(1.25)';this.style.transform='translateY(-1px)'" onmouseout="this.style.filter='';this.style.transform=''">
+                    <span class="material-icons" style="font-size:18px">vpn_key</span> <span class="hidden md:block">เปลี่ยนรหัส</span>
+                </button>
+            </div>
+        </div>
 
-            htmlChunk += `<div class="text-xs font-bold text-slate-700 dark:text-gray-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 px-2 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-default hover:border-indigo-400">
-                ${staff.name}
-                ${missingBadgeHtml}
-                <span class="text-[9px] font-black ${deptColor} border px-1 rounded shadow-sm">${staff.dept}</span>
-            </div>`;
-        });
-        htmlChunk += `</div></div>`;
-        return htmlChunk;
-    };
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-4 bg-gray-50 dark:bg-slate-800 p-6 rounded-2xl shadow-sm border-t-4 border-blue-600 sticky top-2 h-fit overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar pb-10">
+                <div style="background:linear-gradient(165deg,#10141f,#0a0e18);border:1px solid rgba(232,193,90,0.22);border-radius:18px;padding:22px;margin-bottom:24px;box-shadow:0 10px 30px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.05)">
+                    <h4 style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:15px;color:#E8C15A;margin:0 0 16px;letter-spacing:0.04em">
+                        <span class="material-icons" style="font-size:18px">verified</span> กฎการลงเวลาพัก
+                    </h4>
 
-    if (shiftFilter === 'all' || shiftFilter === 'กะเช้า') html += renderList('☀️ กะเช้า', 'กะเช้า', 'text-orange-500');
-    if (shiftFilter === 'all' || shiftFilter === 'กะกลาง') html += renderList('🌤️ กะกลาง', 'กะกลาง', 'text-blue-500');
-    if (shiftFilter === 'all' || shiftFilter === 'กะดึก') html += renderList('🌙 กะดึก', 'กะดึก', 'text-purple-500');
+                    <div style="display:flex;gap:10px;margin-bottom:16px">
+                        <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;text-align:center">
+                            <p style="font-size:22px;font-weight:900;color:#f1f5f9;margin:0"><span id="periodLimitDisplay">...</span></p>
+                            <p style="font-size:11px;color:#8fa3bf;margin:3px 0 0">ครั้ง / ช่วงเวลา</p>
+                        </div>
+                        <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;text-align:center">
+                            <p style="font-size:22px;font-weight:900;color:#f1f5f9;margin:0"><span id="limitDisplay">...</span></p>
+                            <p style="font-size:11px;color:#8fa3bf;margin:3px 0 0">ครั้ง / วัน</p>
+                        </div>
+                    </div>
 
-    if (html === '') {
-        html = '<div class="text-center py-10 text-gray-500 text-sm font-bold bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-gray-300 dark:border-slate-600 mt-2">ไม่พบรายชื่อในเงื่อนไขที่เลือก</div>';
-    }
+                    <div style="background:rgba(232,193,90,0.06);border:1px solid rgba(232,193,90,0.18);border-radius:12px;padding:12px 14px;margin-bottom:16px">
+                        <p style="font-size:12px;font-weight:800;color:#f5e3ae;margin:0 0 6px">กติกาเดียวจบ: เว็บห้ามว่าง 🛡️</p>
+                        <p style="font-size:12px;color:#c9d3e0;margin:0;line-height:1.9">
+                            ทุกเว็บต้องเหลือคนเฝ้าหน้างานตามที่กำหนด <span style="color:#4ade80;font-weight:800">(ปกติ 1 คน)</span><br>
+                            นับรวมทุกคนของเว็บ (หลัก + รอง) — ใครกดจองแล้วทำให้เว็บว่าง <span style="color:#f87171;font-weight:800">จองไม่ผ่าน ✕</span>
+                        </p>
+                    </div>
 
-    container.innerHTML = html;
+                    <p style="font-size:11px;font-weight:800;color:#8fa3bf;margin:0 0 8px;letter-spacing:0.05em">พักพร้อมกันได้กี่คน (ต่อเว็บ)</p>
+                    <div style="font-size:12px;color:#c9d3e0;margin-bottom:16px;line-height:1.9">
+                        <b style="color:#f1f5f9">พักพร้อมกันได้ = จำนวนคนของเว็บ − คนที่ต้องเหลือเฝ้า</b><br>
+                        เช่น เว็บมี 3 คน (เหลือเฝ้า 1) → พักพร้อมกันได้ 2 · เว็บมีคนเดียวพักได้ปกติ<br>
+                        <span style="color:#8fa3bf;font-size:11px">* หัวหน้าตั้ง "คนที่ต้องเหลือเฝ้า" แยกแผนก/กะ/เว็บ ได้ในหน้าตั้งค่าระบบ</span>
+                    </div>
 
-    const countEl = document.getElementById('missingTotalCount');
-    if (countEl) countEl.innerText = totalCount;
-};
+                    <p style="font-size:11.5px;color:#f87171;margin:0;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07);line-height:1.7">
+                        <span class="material-icons" style="font-size:13px;vertical-align:-2px">error_outline</span>
+                        คนที่กดลงหลังสุดในรอบที่เต็มแล้ว ถือว่าไม่ปฏิบัติตามกระบวนการทำงาน
+                    </p>
+                </div>
 
-window.checkMissingLunch = async function() {
-    const dateVal = document.getElementById('wDate').value;
-    if (!dateVal) return Swal.fire('เตือน', 'กรุณาเลือกวันที่ต้องการตรวจสอบก่อนครับ', 'warning');
+                <form onsubmit="saveData(event)" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">วันที่ทำงาน (Logical Date)</label>
+                        <input type="date" id="wDate" required class="w-full p-3 text-lg border rounded-lg bg-gray-100 dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-blue-500" onchange="handleDateChange()">
+                        <p class="text-[10px] text-gray-500 mt-1">* ระบบจะปรับวันที่ให้อัตโนมัติหากเข้างานช่วงดึก</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-1">เลือกทีมที่ทำวันนี้</label>
+                        <select id="dailyTeam" required onchange="handleTeamChange()" class="w-full p-3 text-lg border-2 border-indigo-200 rounded-lg bg-gray-100 dark:bg-slate-700 dark:border-indigo-900 dark:text-white outline-none font-bold text-indigo-700 dark:text-indigo-300 focus:ring-2 focus:ring-indigo-500">
+                        </select>
+                        <label class="flex items-center gap-2 mt-2 cursor-pointer text-sm text-gray-500 dark:text-gray-400 select-none hover:text-indigo-500 transition">
+                            <input type="checkbox" id="rememberTeam" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300" onchange="toggleRememberTeam()"> 
+                            <span>จำทีมนี้ไว้ตลอด (ไม่ต้องเลือกใหม่)</span>
+                        </label>
+                    </div>
 
-    Swal.fire({title: 'กำลังสแกนยอดการลงเวลา...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+                    <div id="shiftSection">
+                        <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">เลือกกะ</label>
+                        <div class="grid grid-cols-3 gap-2" id="shiftContainer"></div>
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase">
+                                รอบเวลา <span id="slotLoading" class="text-blue-500 hidden flex items-center gap-1 text-xs"><span class="animate-spin material-icons text-xs">sync</span> อัปเดต...</span>
+                            </label>
+                            <button type="button" onclick="refreshTimeSlots()" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 font-bold flex items-center gap-1 transition"><span class="material-icons text-xs">refresh</span> เช็คที่ว่าง</button>
+                        </div>
+                        <select id="tSlot" required class="w-full p-3 text-lg border rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none cursor-pointer disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:text-gray-400 focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- กรุณาเลือกกะก่อน --</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" id="btnSave" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95 flex justify-center items-center gap-2 text-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        <span class="material-icons">save</span> บันทึกข้อมูล
+                    </button>
+                </form>
+            </div>
 
-    try {
-        if (typeof GLOBAL_USER_LIST === 'undefined' || !GLOBAL_USER_LIST || GLOBAL_USER_LIST.length === 0) {
-            if (typeof fetchUsers === 'function') await fetchUsers(true);
-        }
+            <div class="lg:col-span-8 flex flex-col gap-6">
+                <div class="bg-gray-50 dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden w-full h-full" id="timeTableSection">
+                    <div class="p-4 bg-gray-100 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
+                      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                            <h3 class="font-bold text-lg text-slate-700 dark:text-white flex items-center gap-2 whitespace-nowrap">
+                                <span class="material-icons text-blue-500">today</span> ตารางวันที่: <span id="displayDate" class="text-blue-400">...</span>
+                            </h3>
+                            
+                            <div class="flex gap-2 w-full md:w-auto">
+                                <select id="summaryDeptFilter" onchange="fetchData()" class="p-2 rounded-lg border border-slate-600 text-sm font-bold bg-gray-100 dark:bg-slate-700 text-slate-800 dark:text-white outline-none cursor-pointer focus:border-blue-500 transition shadow-sm">
+                                    <option value="all">🌐 รวมทุกแผนก</option>
+                                    <option value="AM">เฉพาะ AM</option>
+                                    <option value="OD">เฉพาะ OD</option>
+                                </select>
 
-        const { data: schedules } = await appDB.from('schedules').select('staff_name').eq('work_date', dateVal);
+                                <div class="relative flex-1 md:w-64">
+                                    <span class="material-icons absolute left-2 top-2 text-gray-400 text-sm">search</span>
+                                    <input type="text" id="tableSearch" onkeyup="debounceDashboardSearch()" placeholder="ค้นหาชื่อในตาราง..." class="pl-8 pr-2 py-2 rounded-lg border border-slate-600 text-sm bg-gray-100 dark:bg-slate-700 text-slate-800 dark:text-white outline-none focus:border-blue-500 w-full transition shadow-sm">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="tableSummary" class="mb-4"></div>
+                        
+                        <div class="flex flex-wrap gap-2 justify-end items-center bg-gray-100 dark:bg-slate-900/50 p-2 rounded-lg border border-gray-200 dark:border-transparent">
+                            <span class="text-xs font-bold text-gray-500 uppercase">ตัวกรอง:</span>
+                            <button onclick="clearSpecificTimeFilter()" id="clearFilterBtn" class="hidden bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1.5 rounded flex items-center"><span class="material-icons text-sm mr-1">close</span> ล้างเวลากรอง</button>
+                            
+                            <select id="tableShiftFilter" onchange="resetSchedPage()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer">
+                                <option value="all">-- ทุกกะ --</option>
+                                <option value="กะเช้า">กะเช้า</option>
+                                <option value="กะกลาง">กะกลาง</option>
+                                <option value="กะดึก">กะดึก</option>
+                            </select>
 
-        const bookingCounts = {};
-        if (schedules) {
-            schedules.forEach(s => {
-                bookingCounts[s.staff_name] = (bookingCounts[s.staff_name] || 0) + 1;
-            });
-        }
+                            <select id="tableDeptFilter" onchange="resetSchedPage()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกแผนก --</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
+                            <select id="tableTeamFilter" onchange="fetchData()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกเว็บ --</option></select>
+                            <select id="periodFilter" onchange="resetSchedPage()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกช่วงเวลา --</option><option value="ช่วงที่ 1">ช่วงที่ 1</option><option value="ช่วงที่ 2">ช่วงที่ 2</option><option value="ช่วงที่ 3">ช่วงที่ 3</option></select>
+                            
+                            <button onclick="manualRefresh()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-3 py-1.5 rounded flex items-center transition shadow-sm"><span class="material-icons text-base">refresh</span></button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto p-4">
+                        <table class="w-full text-base text-left text-gray-300" style="min-width:620px">
+                            <thead class="bg-gray-200 dark:bg-slate-700 uppercase text-sm font-bold text-slate-700 dark:text-gray-200">
+                                <tr><th class="px-6 py-4 w-32 text-center">ช่วง</th><th class="px-6 py-4">ชื่อ</th><th class="px-6 py-4">ทีม (ที่ทำ)</th><th class="px-6 py-4">กะ</th><th class="px-6 py-4">เวลา</th><th class="px-6 py-4 text-center">จัดการ</th></tr>
+                            </thead>
+                            <tbody id="dataTableBody" class="divide-y divide-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        const { data: leaves } = await appDB.from('leave_requests').select('user_name').eq('leave_date', dateVal);
-        const onLeaveNames = (leaves || []).map(l => l.user_name);
+    <div id="adminPanel" class="hidden flex-col gap-6 w-full animate-fade-in bg-[#0f172a] p-4 md:p-6 rounded-3xl border border-slate-700 shadow-2xl min-h-[80vh]">
+        
+        <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center bg-[#151f32] p-2 rounded-2xl border border-slate-700/80 shadow-md gap-4">
+            <div class="flex items-center gap-1 overflow-x-auto custom-scrollbar w-full xl:w-auto">
+                <button onclick="switchAdminTab('settings')" id="btnAdminTab_settings" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow-md">
+                    <span class="material-icons text-base">tune</span> ตั้งค่าระบบ
+                </button>
+                <button onclick="switchAdminTab('users')" id="btnAdminTab_users" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
+                    <span class="material-icons text-base">groups</span> จัดการพนักงาน
+                </button>
+                <button onclick="switchAdminTab('perms')" id="btnAdminTab_perms" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
+                    <span class="material-icons text-base">security</span> สิทธิ์เมนู
+                </button>
+                <button onclick="switchAdminTab('quotalog')" id="btnAdminTab_quotalog" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
+                    <span class="material-icons text-base">history</span> ประวัติโควตา
+                </button>
+            </div>
+            
+            <div class="flex gap-2 shrink-0 w-full xl:w-auto justify-end pr-2">
+                <button onclick="refreshAdminData()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-md active:scale-95 text-sm">
+                    <span class="material-icons text-sm">sync</span> อัปเดตข้อมูล
+                </button>
+                <button onclick="document.getElementById('adminPanel').classList.add('hidden'); document.getElementById('mainContentArea').classList.remove('hidden');" class="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-md active:scale-95 text-sm">
+                    <span class="material-icons text-sm">arrow_back</span> กลับ
+                </button>
+            </div>
+        </div>
 
-        window.tempMissingStaffData = { 'กะเช้า': [], 'กะกลาง': [], 'กะดึก': [] };
-        let missingCount = 0;
+        <div id="adminView_settings" class="hidden flex-col gap-6 w-full animate-fade-in">
+            <div class="flex items-center gap-3 bg-[#151f32] p-4 rounded-2xl border border-slate-700/50">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center shadow-inner">
+                    <span class="material-icons text-3xl text-white drop-shadow-md">tune</span>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-xl text-white tracking-wide">ตั้งค่าระบบ (System Settings)</h3>
+                    <p class="text-xs text-gray-400">จัดการเวลาทำงาน ขีดจำกัด และโควตาพนักงาน</p>
+                </div>
+            </div>
 
-        const dailyQuota = (typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit) ? parseInt(SETTINGS.daily_limit) : 2;
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <div class="flex flex-col gap-6">
+                    <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                            <h4 class="text-emerald-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">schedule</span> เวลาเปิด-ปิดระบบ</h4>
+                            <button onclick="saveTimeSettings()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-3 py-1.5 rounded-lg shadow font-bold">บันทึกเวลา</button>
+                        </div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs text-gray-500">เพิ่มกะใหม่:</span>
+                            <button onclick="addOperatingShift()" class="text-[10px] text-emerald-400 border border-emerald-500/50 hover:bg-emerald-900/30 px-3 py-1 rounded-lg transition flex items-center gap-1">+ เพิ่ม</button>
+                        </div>
+                        <div id="operatingTimeContainer" class="space-y-3 mb-4 min-h-[120px] max-h-[250px] overflow-y-auto custom-scrollbar pr-1 flex-1"></div>
+                        <p class="text-[10px] text-orange-400 mt-auto pt-3 border-t border-slate-700 flex items-center gap-1"><span class="material-icons text-[12px]">info</span> นอกเวลานี้ พนักงานจอง/ลบไม่ได้</p>
+                    </div>
 
-        GLOBAL_USER_LIST.forEach(u => {
-            if (u.role === 'admin' || u.role === 'manager' || u.role === 'trainer') return;
-            if (u.department === 'TRAINER' || u.department === 'NEW') return;
-            if (!['กะเช้า', 'กะกลาง', 'กะดึก'].includes(u.allowed_shift)) return;
+                    <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg">
+                        <h4 class="text-blue-400 font-bold mb-4 flex items-center gap-2 border-b border-slate-700 pb-3"><span class="material-icons text-lg">add_alarm</span> เพิ่มรอบเวลาเอง</h4>
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="text-[10px] text-gray-500 mb-1 block">กะ</label>
+                                <select id="newTimeShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500"><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 mb-1 block">ช่วง</label>
+                                <select id="newTimePeriod" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500"><option value="ช่วงที่ 1">1</option><option value="ช่วงที่ 2">2</option><option value="ช่วงที่ 3">3</option></select>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 mb-4">
+                            <input type="time" id="newTimeStart" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500 text-center">
+                            <span class="text-gray-500">-</span>
+                            <input type="time" id="newTimeEnd" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500 text-center">
+                        </div>
+                        <button onclick="addManualTimeSlot()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 shadow-md mb-4"><span class="material-icons text-sm">add_circle</span> เพิ่มรอบเวลา</button>
+                        
+                        <div class="text-[10px] text-gray-500 mb-2">รอบเวลาที่เพิ่มไว้:</div>
+                        <div id="manualTimeSlotsContainer" class="max-h-[150px] overflow-y-auto custom-scrollbar space-y-1.5 bg-slate-900 p-2 rounded-lg border border-slate-700">
+                            <div class="text-center text-gray-600 text-xs py-4">ยังไม่มีการตั้งค่า</div>
+                        </div>
+                    </div> 
 
-            if (onLeaveNames.includes(u.username)) return;
+                    <div class="bg-[#151f32] p-5 rounded-2xl border border-red-900/50 shadow-lg relative overflow-hidden flex flex-col">
+                        <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none"><span class="material-icons text-8xl text-red-500">delete_sweep</span></div>
+                        <h4 class="text-red-500 font-bold mb-3 flex items-center gap-2 border-b border-red-900/30 pb-2 relative z-10">
+                            <span class="material-icons text-xl">delete_sweep</span> ล้างกระดาน (ลบเวลา)
+                        </h4>
+                        <p class="text-[10px] text-gray-400 mb-4 relative z-10">เลือกลบข้อมูลการลงเวลา เพื่อให้พนักงานกลุ่มนั้นจองใหม่</p>
+                        
+                        <div class="flex flex-col gap-3 relative z-10">
+                            <div>
+                                <label class="block text-[10px] text-gray-500 mb-1">วันที่</label>
+                                <input type="date" id="clearScheduleDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-sm font-bold outline-none focus:border-red-500 shadow-inner">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] text-gray-500 mb-1">แผนก</label>
+                                    <select id="clearScheduleDept" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-[11px] font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
+                                        <option value="all">🌐 ทุกแผนก</option>
+                                        <option value="AM">เฉพาะ AM</option>
+                                        <option value="OD">เฉพาะ OD</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-gray-500 mb-1">กะ</label>
+                                    <select id="clearScheduleShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-[11px] font-bold outline-none focus:border-red-500 shadow-inner cursor-pointer">
+                                        <option value="all">⏱️ ทุกกะ</option>
+                                        <option value="กะเช้า">เช้า</option>
+                                        <option value="กะกลาง">กลาง</option>
+                                        <option value="กะดึก">ดึก</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-2 flex flex-col gap-2">
+                                <button type="button" onclick="clearAllSchedules()" class="w-full bg-red-600 hover:bg-red-500 text-white text-sm font-bold py-3 rounded-lg shadow-md transition flex items-center justify-center gap-1 active:scale-95 border border-red-500">
+                                    <span class="material-icons text-base">warning</span> ล้างข้อมูล
+                                </button>
+                               <button type="button" id="undoScheduleBtn" onclick="undoClearSchedules()" class="hidden w-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold py-3 rounded-lg shadow-md transition flex items-center justify-center gap-2 active:scale-95 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+                                    <span class="material-icons text-base">restore</span> กู้คืนข้อมูลล่าสุด
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
-            const userBookedTimes = bookingCounts[u.username] || 0;
+                </div> 
+                
+                <div class="lg:col-span-2 flex flex-col gap-6">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg">
+                            <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                                <h4 class="text-red-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">block</span> ขีดจำกัดการจอง</h4>
+                            </div>
+                            <div class="space-y-4 mt-2">
+                                <div class="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700/80">
+                                    <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-red-400">event</span> ต่อวัน (ครั้ง):</span>
+                                    <input type="number" id="dailyLimitInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-red-400">
+                                </div>
+                                <div class="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700/80">
+                                    <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-orange-400">view_day</span> ต่อช่วง (ครั้ง):</span>
+                                    <input type="number" id="periodLimitInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-orange-400">
+                                </div>
+                            </div>
+                        </div>
 
-            if (userBookedTimes < dailyQuota) {
-                const missingAmt = dailyQuota - userBookedTimes;
-                window.tempMissingStaffData[u.allowed_shift].push({
-                    name: u.username,
-                    dept: u.department || 'AM',
-                    missingAmount: missingAmt
-                });
-                missingCount++;
-            }
-        });
+                        <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col h-full">
+                            <h4 class="text-indigo-400 font-bold mb-4 flex items-center gap-2 border-b border-slate-700 pb-3"><span class="material-icons text-lg">groups</span> ย้ายกะทุกคน (Bulk)</h4>
+                            <div class="flex items-center gap-2 mb-4 mt-2">
+                                <select id="schFrom" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500">
+                                    <option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
+                                </select>
+                                <span class="material-icons text-gray-500">arrow_forward</span>
+                                <select id="schTo" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500">
+                                    <option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
+                                </select>
+                            </div>
+                            <input type="datetime-local" id="schDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500 mb-4">
+                            <div class="flex gap-2 mb-4">
+                                <button onclick="addScheduledTask()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-1 transition"><span class="material-icons text-sm">schedule</span> ตั้งเวลา</button>
+                                <button onclick="moveNowInstant()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-1 transition"><span class="material-icons text-sm">flash_on</span> ย้ายทันที</button>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mb-1">ประวัติการย้าย (Bulk)</div>
+                            <div id="taskLog" class="flex-1 min-h-[60px] bg-slate-900 rounded-lg border border-slate-700 p-2 text-[10px] text-gray-400 overflow-y-auto custom-scrollbar"></div>
+                        </div>
+                    </div>
 
-        if (missingCount === 0) {
-            return Swal.fire({ icon: 'success', title: 'ครบทุกคน!', text: 'พนักงานในกะทุกคนลงเวลาครบตามโควตา หรือลาหยุดเรียบร้อยแล้วครับ 🎉', confirmButtonColor: '#3b82f6' });
-        }
+                    <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex-1 flex flex-col">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                            <h4 class="text-yellow-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">shield</span> เพดานพักต่อเว็บ (อัตโนมัติจากตารางหน้าที่)</h4>
+                            <div class="flex gap-2 items-center">
+                            </div>
+                        </div>
 
-        const currentShiftEl = document.querySelector('input[name="shift"]:checked');
-        const defaultShift = currentShiftEl ? currentShiftEl.value : 'all';
+                        <div id="quotaSettingsContainer" class="flex-1 overflow-y-auto custom-scrollbar p-1">
+                            <div class="text-center py-10 text-gray-500"><span class="material-icons animate-spin mb-2 text-2xl">sync</span><br>กำลังโหลดข้อมูลโควตา...</div>
+                        </div>
+                    </div>
 
-        Swal.fire({
-            title: `<div class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3"><span class="material-icons text-indigo-500 text-3xl">person_search</span> รายชื่อคนที่ยังไม่ลงเวลา (หรือลงไม่ครบ)</div>`,
-            html: `
-                <div class="text-xs text-gray-500 dark:text-gray-400 text-left mb-3">ระบบคัดกรองพนักงานที่ยังลงเวลา <span class="text-red-500 font-bold underline">ไม่ครบ ${dailyQuota} ครั้ง</span> (รวมที่แสดง: <span id="missingTotalCount" class="text-indigo-500 font-bold">${missingCount}</span> คน)</div>
-                <div class="flex gap-2 mb-3 border-b border-gray-100 dark:border-slate-700 pb-3">
-                    <select id="missingShiftFilter" onchange="renderMissingList()" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-xs font-bold outline-none cursor-pointer shadow-inner focus:border-indigo-500 transition">
-                        <option value="all">🌐 ทุกกะ</option>
-                        <option value="กะเช้า" ${defaultShift === 'กะเช้า' ? 'selected' : ''}>☀️ กะเช้า</option>
-                        <option value="กะกลาง" ${defaultShift === 'กะกลาง' ? 'selected' : ''}>🌤️ กะกลาง</option>
-                        <option value="กะดึก" ${defaultShift === 'กะดึก' ? 'selected' : ''}>🌙 กะดึก</option>
-                    </select>
-                    <select id="missingDeptFilter" onchange="renderMissingList()" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl p-2.5 text-xs font-bold outline-none cursor-pointer shadow-inner focus:border-indigo-500 transition">
-                        <option value="all">🏢 ทุกแผนก</option>
-                        <option value="AM">เฉพาะ AM</option>
-                        <option value="OD">เฉพาะ OD</option>
+                </div>
+            </div>
+            
+            <div class="bg-[#0f172a] p-1 rounded-2xl border border-teal-900/50 shadow-lg mt-6 overflow-hidden">
+                <div class="bg-teal-900/20 p-4 border-b border-teal-900/50 flex items-center gap-2">
+                    <span class="material-icons text-teal-400">person_add_alt</span>
+                    <h4 class="text-teal-400 font-bold text-sm">ตั้งเวลาเปลี่ยนกะรายบุคคล (ล่วงหน้า)</h4>
+                </div>
+                
+                <div class="p-4 grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div class="md:col-span-6 bg-slate-900 p-3 rounded-xl border border-slate-700 flex flex-col h-[220px]">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-[10px] text-gray-400">เลือกพนักงาน (ติ๊กถูก):</span>
+                            <label class="text-[10px] text-white flex items-center gap-1 cursor-pointer"><input type="checkbox" onchange="toggleSelectAllIndiv(this)" class="rounded border-gray-500 bg-slate-800"> เลือกทั้งหมด</label>
+                        </div>
+                        <input type="text" id="indivSearchUser" onkeyup="filterIndivUserSelect()" placeholder="พิมพ์ชื่อเพื่อกรอง..." class="w-full bg-slate-800 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none mb-2 focus:border-teal-500 shadow-inner">
+                        <div id="indivUserListContainer" class="flex-1 overflow-y-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700"></div>
+                    </div>
+
+                    <div class="md:col-span-6 flex flex-col justify-start">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="text-[10px] text-gray-400 mb-1 block">เปลี่ยนเป็นกะ</label>
+                                <select id="indivTargetShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-teal-500 font-bold shadow-inner">
+                                    <option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 mb-1 block">วัน/เวลา ที่มีผล</label>
+                                <input type="datetime-local" id="indivDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-teal-500 shadow-inner">
+                            </div>
+                        </div>
+
+                        <button onclick="addToPendingList()" class="w-full bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold py-3 rounded-xl shadow-md transition active:scale-95 mb-4">
+                            = เพิ่มรายการตามที่เลือก
+                        </button>
+                        
+                        <div id="pendingListContainer" class="hidden flex-col flex-1 bg-slate-900 p-3 rounded-xl border border-slate-700 overflow-hidden">
+                            <h5 class="text-white font-bold text-[10px] mb-2 flex items-center justify-between">
+                                <span>รายการรอรัน (<span id="pendingCount">0</span>)</span>
+                                <button onclick="commitIndividualSchedules()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 text-[10px] rounded shadow transition">บันทึกคิว</button>
+                            </h5>
+                            <div class="flex-1 overflow-y-auto custom-scrollbar">
+                                <table class="w-full text-[10px] text-white text-left"><tbody id="pendingTableBody"></tbody></table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg mt-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <h4 class="text-sky-400 font-bold flex items-center gap-2 text-sm"><span class="material-icons text-base">history</span> ประวัติและสถานะเปลี่ยนกะ <span class="text-gray-500 text-[10px]">(กดป้ายสีเพื่อกรอง):</span></h4>
+                        <div class="flex items-center gap-1.5 text-[10px] font-bold">
+                            <button onclick="filterIndivTaskLog('กะเช้า')" class="bg-orange-900/50 text-orange-400 border border-orange-700 px-2 py-1 rounded transition hover:bg-orange-900">เช้า: <span id="sumIndivM">0</span></button>
+                            <button onclick="filterIndivTaskLog('กะกลาง')" class="bg-blue-900/50 text-blue-400 border border-blue-700 px-2 py-1 rounded transition hover:bg-blue-900">กลาง: <span id="sumIndivA">0</span></button>
+                            <button onclick="filterIndivTaskLog('กะดึก')" class="bg-purple-900/50 text-purple-400 border border-purple-700 px-2 py-1 rounded transition hover:bg-purple-900">ดึก: <span id="sumIndivN">0</span></button>
+                            <button onclick="filterIndivTaskLog('')" class="bg-slate-700 text-white border border-slate-500 px-2 py-1 rounded hover:bg-slate-600 transition">แสดงทั้งหมด</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <input type="text" id="indivHistorySearch" onkeyup="filterIndivTaskLog()" placeholder="ค้นหาชื่อ..." class="bg-slate-900 border border-slate-600 text-white p-1.5 rounded-lg text-xs outline-none w-full md:w-48 focus:border-sky-500 shadow-inner transition">
+                        <button onclick="manualRefreshIndiv()" class="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1.5 rounded-lg text-[10px] shadow transition flex items-center gap-1 border border-slate-500"><span class="material-icons text-[14px]">refresh</span> รีเฟรช</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="flex flex-col h-[250px]">
+                        <h5 class="text-amber-400 text-xs font-bold mb-2 flex items-center gap-1"><span class="material-icons text-[14px]">hourglass_top</span> รอการทำงาน (Pending)</h5>
+                        <div id="indivTaskLogPending" class="bg-slate-900 p-2 rounded-xl border border-slate-700 flex-1 overflow-y-auto custom-scrollbar text-[10px] text-gray-300 space-y-1 shadow-inner"></div>
+                    </div>
+                    <div class="flex flex-col h-[250px]">
+                        <h5 class="text-emerald-400 text-xs font-bold mb-2 flex items-center gap-1"><span class="material-icons text-[14px]">check_circle</span> สำเร็จแล้ว (Completed/History)</h5>
+                        <div id="indivTaskLogCompleted" class="bg-slate-900 p-2 rounded-xl border border-slate-700 flex-1 overflow-y-auto custom-scrollbar text-[10px] text-gray-300 space-y-1 shadow-inner"></div>
+                    </div>
+                </div>
+            </div>
+        </div> 
+
+        <div id="adminView_users" class="hidden flex-col gap-6 w-full animate-fade-in">
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-orange-500/30 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-orange-500">wb_sunny</span></div>
+                    <div class="text-orange-400 text-xs font-bold uppercase mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> พนักงานกะเช้า</div>
+                    <div id="countShiftM" class="relative z-10 flex flex-col gap-1 mt-1">
+                        <div class="text-3xl font-black text-white leading-none stat-total">0</div>
+                        <div class="flex gap-3 text-xs font-bold mt-1">
+                            <span class="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/50">AM: <span class="stat-am">0</span></span>
+                            <span class="text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-800/50">OD: <span class="stat-od">0</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-blue-500/30 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-blue-500">cloud</span></div>
+                    <div class="text-blue-400 text-xs font-bold uppercase mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> พนักงานกะกลาง</div>
+                    <div id="countShiftA" class="relative z-10 flex flex-col gap-1 mt-1">
+                        <div class="text-3xl font-black text-white leading-none stat-total">0</div>
+                        <div class="flex gap-3 text-xs font-bold mt-1">
+                            <span class="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/50">AM: <span class="stat-am">0</span></span>
+                            <span class="text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-800/50">OD: <span class="stat-od">0</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-purple-500/30 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-purple-500">dark_mode</span></div>
+                    <div class="text-purple-400 text-xs font-bold uppercase mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span> พนักงานกะดึก</div>
+                    <div id="countShiftN" class="relative z-10 flex flex-col gap-1 mt-1">
+                        <div class="text-3xl font-black text-white leading-none stat-total">0</div>
+                        <div class="flex gap-3 text-xs font-bold mt-1">
+                            <span class="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/50">AM: <span class="stat-am">0</span></span>
+                            <span class="text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-800/50">OD: <span class="stat-od">0</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-[#151f32] rounded-2xl border border-slate-700 shadow-md p-5 flex flex-col xl:flex-row gap-5 items-center">
+                <div class="flex items-center gap-2 text-green-400 font-bold shrink-0 w-full xl:w-auto border-b xl:border-b-0 xl:border-r border-slate-700 pb-3 xl:pb-0 pr-5 text-lg">
+                    <span class="material-icons bg-green-500/20 p-2 rounded-xl">person_add</span> 
+                    <span>เพิ่มรายชื่อ</span>
+                </div>
+                <div class="flex flex-col gap-2 flex-1 w-full">
+                    <textarea id="newUsersArea" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3.5 text-white text-sm font-bold focus:border-green-500 outline-none transition custom-scrollbar" placeholder="พิมพ์ชื่อพนักงาน (ขึ้นบรรทัดใหม่เพื่อเพิ่มทีละหลายคน)"></textarea>
+                    <div class="flex gap-2">
+                        <input id="newDiscordId" type="text" placeholder="🔷 Discord ID (ไม่บังคับ)" class="flex-1 bg-slate-900 border border-slate-700 text-indigo-300 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500 transition placeholder-slate-600">
+                        <input id="newTelegramId" type="text" placeholder="✈️ Telegram ID (ไม่บังคับ)" class="flex-1 bg-slate-900 border border-slate-700 text-sky-300 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-sky-500 transition placeholder-slate-600">
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-3 shrink-0 w-full xl:w-auto">
+                    <div class="flex flex-col gap-1.5 w-full sm:w-auto">
+                        <select id="newDept" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-blue-100 outline-none"><option value="AM">แผนก AM</option><option value="OD">แผนก OD</option></select>
+                        <select id="newTag" class="p-2 rounded-lg text-white text-xs font-bold bg-slate-700 outline-none border border-slate-600"><option value="">— TAG —</option><option value="ONLINE">ONLINE</option><option value="TEMP">TEMP</option><option value="ONSITE">ONSITE</option></select>
+                        <select id="newTeam" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-indigo-100 outline-none"></select>
+                    </div>
+                    <div class="flex flex-col gap-1.5 w-full sm:w-auto">
+                        <select id="newAllowedShift" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-gray-100 outline-none"><option value="all">กะอิสระ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
+                        <select id="newCheckType" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-purple-100 outline-none"><option value="team">☑ เช็คทีม+กะ</option><option value="shift">☐ เช็คกะอย่างเดียว</option></select>
+                    </div>
+                    <button onclick="addUsersBulk()" class="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 rounded-xl font-bold shadow-lg transition active:scale-95 flex items-center justify-center h-16 text-base">
+                        <span class="material-icons text-xl mr-1">add_task</span> เพิ่ม
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-[#151f32] p-4 rounded-2xl border border-slate-700 shadow-sm flex flex-col lg:flex-row justify-between items-center gap-4">
+                <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    <select id="filterUserDept" onchange="searchEmployee()" class="p-2.5 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">🌐 ทุกแผนก</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
+                    <select id="filterUserShift" onchange="searchEmployee()" class="p-2.5 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">⏱️ ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option></select>
+                    <div class="relative flex-1 min-w-[200px]">
+                        <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[20px]">search</span>
+                        <input type="text" id="searchUser" onkeyup="searchEmployee()" placeholder="ค้นหาชื่อพนักงาน..." class="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-white text-sm font-bold outline-none focus:border-blue-500 transition shadow-inner">
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto bg-slate-900 p-2 rounded-xl border border-slate-700">
+                    <select id="moveTargetShift" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-orange-100 outline-none"><option value="">ย้ายกะไป...</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
+                    <button onclick="moveSelectedUsers()" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm">ยืนยัน</button>
+                    <div class="w-px h-8 bg-slate-600 mx-1"></div>
+                    <select id="moveTargetTeam" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-indigo-100 outline-none"><option value="">ย้ายทีมไป...</option></select>
+                    <button onclick="moveSelectedUsersTeam()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm">ยืนยัน</button>
+                    <div class="w-px h-8 bg-slate-600 mx-1"></div>
+                    <button onclick="deleteSelectedUsers()" class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1"><span class="material-icons text-[14px]">delete_sweep</span> ลบ</button>
+                </div>
+            </div>
+
+            <div class="bg-[#151f32] rounded-2xl border border-slate-700 shadow-xl overflow-hidden mt-2">
+                <div class="max-h-[500px] overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-sm text-left border-collapse whitespace-nowrap">
+                        <thead class="bg-slate-900 text-gray-400 sticky top-0 z-20 shadow-md">
+                            <tr>
+                                <th class="p-4 w-10 text-center"><input type="checkbox" onchange="toggleSelectAll(this)" class="w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600"></th>
+                                <th class="p-4 font-bold">พนักงาน</th><th class="p-4 text-center">แผนก</th><th class="p-4 text-center">ทีม</th><th class="p-4 text-center">กะ</th><th class="p-4 text-center">รหัส PIN</th><th class="p-4 text-center">ระบบเช็ค</th><th class="p-4 text-center">สิทธิ์</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody" class="divide-y divide-slate-700/50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="adminView_perms" class="hidden flex-col gap-6 w-full animate-fade-in">
+            <div class="bg-[#151f32] rounded-2xl border border-slate-700 shadow-xl flex flex-col min-h-[600px]">
+                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center p-4 xl:p-5 border-b border-slate-700/80 bg-slate-800/30 rounded-t-2xl gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center border border-orange-500/30 shadow-inner">
+                            <span class="material-icons text-3xl">security</span>
+                        </div>
+                        <div>
+                            <h4 class="text-white font-extrabold text-lg flex items-center gap-2">ตั้งค่าสิทธิ์การเข้าถึง <span class="bg-orange-900/50 text-orange-400 border border-orange-700 px-2 py-0.5 rounded text-[10px] shadow-sm">ระดับแผนก</span></h4>
+                            <p class="text-[10px] text-gray-400 mt-0.5 tracking-wide">กำหนดสิทธิ์ Role และ หน้าเมนูย่อย ให้แต่ละแผนกอย่างละเอียด</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-end gap-2 w-full">
+                        <input type="text" id="newDeptInput" placeholder="ชื่อแผนกใหม่..." class="bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 shadow-inner w-32 transition">
+                        <button onclick="addCustomPermDept()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-1 border border-blue-500 active:scale-95">
+                            <span class="material-icons text-[16px]">add</span> เพิ่มแผนก
+                        </button>
+                    
+                        <input type="text" id="newRoleInput" placeholder="ชื่อ Role ใหม่..." class="bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-fuchsia-500 shadow-inner w-32 transition ml-2">
+                        <button onclick="addCustomPermRole()" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-1 border border-fuchsia-500 active:scale-95">
+                            <span class="material-icons text-[16px]">add</span> เพิ่ม Role
+                        </button>
+                        
+                        <button onclick="deleteCustomPermRole()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-1 border border-red-500 active:scale-95 ml-2">
+                            <span class="material-icons text-[16px]">remove</span> ลบ Role
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex-1 overflow-x-auto pb-[400px]">
+                    <table class="w-full text-left text-sm whitespace-nowrap min-w-[900px] border-collapse">
+                        <thead class="text-[10px] text-gray-400 uppercase bg-slate-900/50 border-b border-slate-700 tracking-wider shadow-sm">
+                            <tr>
+                                <th class="px-6 py-4 font-bold w-48">แผนก (DEPT)</th>
+                                <th class="px-6 py-4 font-bold w-48">สิทธิ์ที่มองเห็น (ROLE)</th>
+                                <th class="px-6 py-4 font-bold">หน้าเมนูที่เข้าถึงได้ (MENUS)</th>
+                                <th class="px-6 py-4 font-bold text-center w-32 border-l border-slate-700">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="permTableBody" class="divide-y divide-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="adminView_quotalog" class="hidden flex-col gap-4 w-full animate-fade-in">
+            <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                    <div>
+                        <h4 class="text-yellow-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">history</span> ประวัติการจัดหน้าที่ (ที่ทำให้เพดานพักเปลี่ยน)</h4>
+                        <p class="text-[11px] text-gray-500 mt-1">ใครสุ่ม/ย้าย/ล้างตารางหน้าที่ เมื่อไหร่ — เพดานพักของแต่ละเว็บเปลี่ยนตามนี้</p>
+                    </div>
+                    <button onclick="renderQuotaHistory()" class="bg-slate-700 hover:bg-slate-600 text-white text-[10px] px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition"><span class="material-icons text-sm">refresh</span> รีเฟรช</button>
+                </div>
+                <div id="quotaHistoryContainer" class="overflow-y-auto custom-scrollbar p-1 max-h-[70vh]"></div>
+            </div>
+        </div>
+        
+    </div>
+
+    <div id="logsPage" class="hidden flex-col gap-6 w-full animate-fade-in pb-10">
+        
+        <div class="bg-[#151f32] p-4 md:p-5 rounded-2xl shadow-sm border border-slate-700 flex justify-between items-center shrink-0">
+            <h1 class="font-bold text-xl md:text-2xl text-white flex items-center gap-2">
+                <span class="material-icons text-blue-400">manage_search</span> ประวัติการใช้งานระบบ (Audit Logs)
+            </h1>
+            <button onclick="backToDashboard()" class="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-sm text-sm active:scale-95">
+                <span class="material-icons text-sm">arrow_back</span> กลับ
+            </button>
+        </div>
+
+        <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-xl flex flex-col min-h-[600px]">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 pb-4 border-b border-slate-700">
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-1">วันที่ (ไม่เลือก = ล่าสุด):</label>
+                    <input type="date" id="logDate" onchange="fetchLogs()" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-blue-500 shadow-inner">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-1">ประเภท:</label>
+                    <select id="logAction" onchange="fetchLogs()" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-blue-500 shadow-inner cursor-pointer">
+                        <option value="">ทั้งหมด</option>
+                        <option value="ลงเวลา">ลงเวลา</option>
+                        <option value="ลบรายการ">ลบรายการ</option>
+                        <option value="ย้ายกะ">ย้ายกะ</option>
+                        <option value="ย้ายทีม">ย้ายทีม</option>
+                        <option value="ลบพนักงาน">ลบพนักงาน</option>
                     </select>
                 </div>
-                <div id="missingListContainer" class="text-left max-h-[45vh] overflow-y-auto custom-scrollbar pr-2 pb-2"></div>
-            `,
-            showCloseButton: true,
-            showConfirmButton: false,
-            width: '600px',
-            customClass: { popup: 'dark:bg-slate-900 dark:text-white rounded-[2rem] border border-slate-700 shadow-2xl' },
-            didOpen: () => {
-                window.renderMissingList();
-            }
-        });
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-1">ค้นหาคนทำ:</label>
+                    <div class="flex gap-2">
+                        <div class="relative flex-1">
+                            <span class="material-icons absolute left-2 top-2.5 text-gray-500 text-sm">search</span>
+                            <input type="text" id="logUser" onkeyup="if(event.key === 'Enter') fetchLogs()" placeholder="ชื่อพนักงาน..." class="w-full pl-8 pr-2 py-2.5 bg-slate-900 border border-slate-600 text-white rounded-lg text-xs outline-none focus:border-blue-500 shadow-inner">
+                        </div>
+                        <button onclick="fetchLogs()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-lg text-xs font-bold transition shadow-md">ค้นหา</button>
+                    </div>
+                </div>
+            </div>
 
-    } catch (e) {
-        console.error("Missing Lunch Error:", e);
-        Swal.fire('ข้อผิดพลาด', 'ดึงข้อมูลไม่สำเร็จ: ' + e.message, 'error');
-    }
-};
+            <div class="flex-1 overflow-x-auto pb-[100px] custom-scrollbar">
+                <table class="w-full text-left text-sm whitespace-nowrap min-w-[800px] border-collapse">
+                    <thead class="text-[10px] text-gray-400 uppercase bg-slate-900/50 border-b border-slate-700 tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3 font-bold w-48">เวลา</th>
+                            <th class="px-4 py-3 font-bold w-48">ผู้ทำรายการ</th>
+                            <th class="px-4 py-3 font-bold w-32">การกระทำ</th>
+                            <th class="px-4 py-3 font-bold">รายละเอียด</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody" class="divide-y divide-slate-700/50 text-gray-300 text-xs">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
+</div>
 
-// (ลบระบบแชทสด/กล่องข้อความพนักงานออกทั้งชุดแล้ว — เลิกใช้งาน)
+<div id="changePinModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] items-center justify-center p-4 animate-fade-in">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-sm overflow-hidden transform transition-all">
+        <div class="bg-gradient-to-r from-orange-500 to-amber-500 p-5 text-center relative">
+            <button type="button" onclick="closeChangePinModal()" class="absolute top-3 right-3 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full w-8 h-8 flex items-center justify-center transition">
+                <span class="material-icons text-sm">close</span>
+            </button>
+            <div class="w-16 h-16 bg-white/20 rounded-full mx-auto flex items-center justify-center mb-2 border-2 border-white/30 shadow-inner">
+                <span class="material-icons text-4xl text-white">vpn_key</span>
+            </div>
+            <h3 class="text-xl font-black text-white tracking-wide">เปลี่ยนรหัสผ่าน (PIN)</h3>
+            <p class="text-orange-100 text-xs mt-1">กรุณาตั้งรหัสผ่านเป็นตัวเลข 6 หลัก</p>
+        </div>
+        
+        <form onsubmit="submitChangePin(event)" class="p-6 space-y-5">
+            <!-- 🔐 [SECURITY] ต้องกรอก PIN เดิมก่อนเปลี่ยน -->
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">รหัสผ่านเดิม</label>
+                <div class="relative">
+                    <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">vpn_key</span>
+                    <input type="password" id="oldPin" pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
+                </div>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">รหัสผ่านใหม่</label>
+                <div class="relative">
+                    <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">lock</span>
+                    <input type="password" id="newPin1" required pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
+                </div>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">ยืนยันรหัสผ่านอีกครั้ง</label>
+                <div class="relative">
+                    <span class="material-icons absolute left-3 top-3.5 text-gray-400 text-[20px]">lock_clock</span>
+                    <input type="password" id="newPin2" required pattern="[0-9]{6}" maxlength="6" placeholder="ตัวเลข 6 หลัก" class="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white font-mono text-lg tracking-widest outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition shadow-inner">
+                </div>
+            </div>
+            
+            <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black py-3.5 rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2">
+                <span class="material-icons">save</span> บันทึกรหัสผ่านใหม่
+            </button>
+        </form>
+    </div>
+
+</div>
