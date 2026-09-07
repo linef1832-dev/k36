@@ -1068,15 +1068,12 @@ window.renderQuotaSettings = async function() {
         const cell = (sh, team) => {
             const m = maps[sh];
             if (!m) return `<div class="w-28 shrink-0 text-center text-[10px] text-slate-600 ml-2">ยังไม่จัด</div>`;
-            // 🌟 กติกาใหม่: แยกกลุ่มหลัก/รอง — คีย์ในแผนที่คือ "เว็บ (หลัก)" กับ "เว็บ (รอง)"
-            const n1 = (m.webs[`${team} (หลัก)`] || new Set()).size;
-            const n2 = (m.webs[`${team} (รอง)`] || new Set()).size;
-            const c1 = n1 ? window.breakCapByRule(n1) : 0;
-            const c2 = n2 ? window.breakCapByRule(n2) : 0;
-            const any = n1 || n2;
-            return `<div class="w-28 shrink-0 text-center ml-2 rounded-lg border ${any ? 'border-slate-600 bg-slate-900' : 'border-slate-800 bg-slate-900/40'} py-1 leading-tight">
-                <div class="text-[10px] ${n1 ? 'text-sky-300' : 'text-slate-600'}">หลัก ${n1} → <b class="${n1 ? 'text-emerald-300' : ''}">${c1}</b></div>
-                <div class="text-[10px] ${n2 ? 'text-amber-300' : 'text-slate-600'}">รอง ${n2} → <b class="${n2 ? 'text-emerald-300' : ''}">${c2}</b></div>
+            // 🌟 กติกาใหม่ (ข้อเดียว): นับรวมหลัก+รอง → พักพร้อมกันได้ = คน − 1 (เหลือเฝ้า 1) | คนเดียวพักได้ปกติ
+            const n = ((m.combined && m.combined[team]) || new Set()).size;
+            const cap = n <= 1 ? n : n - 1;
+            return `<div class="w-28 shrink-0 text-center ml-2 rounded-lg border ${n ? 'border-slate-600 bg-slate-900' : 'border-slate-800 bg-slate-900/40'} py-1 leading-tight">
+                <div class="text-[10px] ${n ? 'text-sky-300' : 'text-slate-600'}">คน ${n} → พักได้ <b class="${n ? 'text-emerald-300' : ''}">${cap}</b></div>
+                <div class="text-[9px] ${n >= 2 ? 'text-amber-300/80' : 'text-slate-700'}">${n >= 2 ? 'เหลือเฝ้า 1' : (n === 1 ? 'คนเดียว-พักได้' : '-')}</div>
             </div>`;
         };
         return `
@@ -1099,8 +1096,8 @@ window.renderQuotaSettings = async function() {
         <div class="flex flex-col gap-4 w-full mt-2">
             <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed flex flex-wrap items-center gap-3">
                 <div class="flex-1 min-w-[260px]">
-                    <b>กติกา (อัตโนมัติ ไม่มีค่าให้ตั้ง):</b> แยกนับ <b>หลัก</b> กับ <b>รอง</b> คนละกลุ่ม — หลักชนหลัก / รองชนรอง เกินเพดานไม่ได้ แต่หลักชนรองได้ · เพดานต่อกลุ่ม →
-                    1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8 · แยก AM / OD ไม่ปนกัน
+                    <b>กติกา (อัตโนมัติ ไม่มีค่าให้ตั้ง):</b> ข้อเดียวจบ — <b>ทุกเว็บต้องเหลือคนเฝ้าอย่างน้อย 1 คนเสมอ</b> ·
+                    นับรวมหลัก+รองของเว็บนั้น พักพร้อมกันได้สูงสุด = จำนวนคน − 1 (เช่น 3 คน → พักพร้อมกันได้ 2) · เว็บที่มีคนเดียวพักได้ปกติ · แยก AM / OD ไม่ปนกัน
                 </div>
                 <label class="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">ดูของวันที่
                     <input type="date" id="capPreviewDate" value="${dateVal}" onchange="renderQuotaSettings()" class="bg-slate-900 border border-slate-600 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500">
@@ -1164,4 +1161,4 @@ window.saveQuotaSettings = async function() {
     Swal.fire('ไม่ต้องบันทึก', 'เพดานพักต่อเว็บคำนวณอัตโนมัติจากตารางจัดหน้าที่ ไม่มีค่าให้ตั้งครับ', 'info');
 };
 
-// =========================================================
+// =========================================================
