@@ -1053,6 +1053,7 @@ window.renderQuotaSettings = async function() {
 
     const shifts = ['กะเช้า', 'กะกลาง', 'กะดึก'];
     const depts = ['AM', 'OD'];
+    await window.loadBreakMinRemainCfg(true);   // ⚙️ โหลดค่า "ต้องเหลือเฝ้ากี่คน" ล่าสุดมาแสดงในช่องกรอก
     const keys = [];
     depts.forEach(d => shifts.forEach(sh => keys.push(`duty_roster_${d}_${dateVal}_${sh}`)));
     let rows = {};
@@ -1067,13 +1068,19 @@ window.renderQuotaSettings = async function() {
         shifts.forEach(sh => { const r = rows[`duty_roster_${dept}_${dateVal}_${sh}`]; maps[sh] = r ? window.buildCoverageMap(r) : null; });
         const cell = (sh, team) => {
             const m = maps[sh];
-            if (!m) return `<div class="w-28 shrink-0 text-center text-[10px] text-slate-600 ml-2">ยังไม่จัด</div>`;
-            // 🌟 กติกาใหม่ (ข้อเดียว): นับรวมหลัก+รอง → พักพร้อมกันได้ = คน − 1 (เหลือเฝ้า 1) | คนเดียวพักได้ปกติ
-            const n = ((m.combined && m.combined[team]) || new Set()).size;
-            const cap = n <= 1 ? n : n - 1;
-            return `<div class="w-28 shrink-0 text-center ml-2 rounded-lg border ${n ? 'border-slate-600 bg-slate-900' : 'border-slate-800 bg-slate-900/40'} py-1 leading-tight">
-                <div class="text-[10px] ${n ? 'text-sky-300' : 'text-slate-600'}">คน ${n} → พักได้ <b class="${n ? 'text-emerald-300' : ''}">${cap}</b></div>
-                <div class="text-[9px] ${n >= 2 ? 'text-amber-300/80' : 'text-slate-700'}">${n >= 2 ? 'เหลือเฝ้า 1' : (n === 1 ? 'คนเดียว-พักได้' : '-')}</div>
+            // ⚙️ ค่า "ต้องเหลือเฝ้ากี่คน" ของ แผนก×กะ×เว็บ นี้ (แก้ได้ในช่อง, กดบันทึกถึงมีผล)
+            const remain = window.getBreakMinRemain(dept, sh, team);
+            const n = m ? ((m.combined && m.combined[team]) || new Set()).size : 0;
+            const cap = n <= 1 ? n : Math.max(0, n - remain);
+            const capHtml = m
+                ? `<div class="text-[10px] ${n ? 'text-sky-300' : 'text-slate-600'}">คน ${n} → พักได้ <b class="brm-cap ${(cap === 0 && n > 0) ? 'text-red-400' : 'text-emerald-300'}" data-n="${n}">${cap}</b></div>`
+                : `<div class="text-[10px] text-slate-600">ยังไม่จัด</div>`;
+            return `<div class="w-28 shrink-0 text-center ml-2 rounded-lg border border-slate-600 bg-slate-900 py-1 leading-tight">
+                ${capHtml}
+                <div class="text-[9px] text-amber-300/90 flex items-center justify-center gap-1 mt-0.5">เหลือ
+                    <input type="number" min="0" max="9" value="${remain}" data-brm="${dept}|${sh}|${team}" oninput="brmPreview(this)"
+                        class="w-9 bg-slate-800 border border-slate-600 rounded text-center text-[10px] text-white py-0.5 outline-none focus:border-amber-400"> คน
+                </div>
             </div>`;
         };
         return `
@@ -1096,12 +1103,13 @@ window.renderQuotaSettings = async function() {
         <div class="flex flex-col gap-4 w-full mt-2">
             <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed flex flex-wrap items-center gap-3">
                 <div class="flex-1 min-w-[260px]">
-                    <b>กติกา (อัตโนมัติ ไม่มีค่าให้ตั้ง):</b> ข้อเดียวจบ — <b>ทุกเว็บต้องเหลือคนเฝ้าอย่างน้อย 1 คนเสมอ</b> ·
-                    นับรวมหลัก+รองของเว็บนั้น พักพร้อมกันได้สูงสุด = จำนวนคน − 1 (เช่น 3 คน → พักพร้อมกันได้ 2) · เว็บที่มีคนเดียวพักได้ปกติ · แยก AM / OD ไม่ปนกัน
+                    <b>กติกา:</b> <b>ทุกเว็บต้องเหลือคนเฝ้าตามที่ตั้ง</b> (ค่าเริ่มต้น 1) — นับรวมหลัก+รองของเว็บ · พักพร้อมกันได้ = จำนวนคน − ค่าเหลือเฝ้า ·
+                    ตั้งค่า "เหลือ" แยก แผนก × กะ × เว็บ ได้ในช่องด้านล่าง (ค่าถาวร แก้ได้ตลอด <b>กดบันทึกถึงมีผล</b>) · เว็บที่มีคนเดียวพักได้ปกติ
                 </div>
                 <label class="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">ดูของวันที่
                     <input type="date" id="capPreviewDate" value="${dateVal}" onchange="renderQuotaSettings()" class="bg-slate-900 border border-slate-600 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500">
                 </label>
+                <button onclick="saveBreakMinRemain()" class="shrink-0 bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition shadow"><span class="material-icons text-[13px]">save</span> บันทึกค่าเหลือเฝ้า</button>
             </div>
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
                 <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[460px]">
@@ -1114,6 +1122,45 @@ window.renderQuotaSettings = async function() {
                 </div>
             </div>
         </div>`;
+};
+
+// ⚙️ พรีวิวสด: พิมพ์เลข "เหลือ" แล้วตัวเลข "พักได้" ในช่องเดียวกันอัปเดตทันที (ยังไม่บันทึก)
+window.brmPreview = function(inp) {
+    const capEl = inp.closest('.rounded-lg')?.querySelector('.brm-cap');
+    if (!capEl) return;
+    const n = parseInt(capEl.dataset.n || '0', 10);
+    const remain = Math.max(0, Math.min(9, parseInt(inp.value, 10) || 0));
+    const cap = n <= 1 ? n : Math.max(0, n - remain);
+    capEl.textContent = cap;
+    capEl.className = 'brm-cap ' + ((cap === 0 && n > 0) ? 'text-red-400' : 'text-emerald-300');
+};
+
+// 💾 บันทึกค่า "ต้องเหลือเฝ้ากี่คน" ทั้งหมด (ทุกแผนก×กะ×เว็บ) ลง settings ถาวร
+window.saveBreakMinRemain = async function() {
+    const cfg = {};
+    let zeroCap = 0;
+    document.querySelectorAll('input[data-brm]').forEach(inp => {
+        const [dept, sh, team] = String(inp.dataset.brm).split('|');
+        if (!dept || !sh || !team) return;
+        const nVal = Math.max(0, Math.min(9, parseInt(inp.value, 10) || 0));
+        ((cfg[dept] = cfg[dept] || {})[sh] = cfg[dept][sh] || {})[team] = nVal;
+        const capEl = inp.closest('.rounded-lg')?.querySelector('.brm-cap');
+        if (capEl && parseInt(capEl.dataset.n || '0', 10) > 1 && capEl.textContent === '0') zeroCap++;
+    });
+    // ⚠️ เตือนถ้าตั้งจนบางเว็บ "พักได้ 0" (เช่น เว็บ 2 คน ตั้งเหลือ 2) — คนเว็บนั้นจะจองพักไม่ได้เลย
+    if (zeroCap > 0) {
+        const r = await Swal.fire({ title: 'มีเว็บที่จะพักไม่ได้เลย', html: `มี <b>${zeroCap} ช่อง</b> ที่ตั้งค่าเหลือเฝ้าจนคน "พักได้ 0"<br>คนเว็บนั้นในกะนั้นจะกดจองพักไม่ได้ทั้งวัน — ยืนยันบันทึก?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'บันทึกเลย', cancelButtonText: 'กลับไปแก้' });
+        if (!r.isConfirmed) return;
+    }
+    try {
+        const { error } = await appDB.from('settings').upsert([{ key: 'break_min_remain', value: JSON.stringify(cfg) }]);
+        if (error) throw error;
+        await window.loadBreakMinRemainCfg(true);
+        try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าเหลือเฝ้าหน้างาน', performed_by: (window.currentUser?.username || 'admin'), target_details: 'อัปเดตค่า "พักแล้วต้องเหลือหน้างานกี่คน" (แยกแผนก/กะ/เว็บ)' }]); } catch (e) {}
+        Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', text: 'มีผลกับการจองพักทันที', timer: 1800, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('บันทึกไม่สำเร็จ', e.message, 'error');
+    }
 };
 
 // ==========================================
