@@ -731,18 +731,21 @@ async function showPage(pageName) {
                     // 🏠 [FIX] กดเมนู "หน้าหลักลงเวลา" ขณะเปิดหน้าย่อยที่ซ้อนใน dashboard (ตั้งค่าระบบ/ประวัติ)
                     // → snapshot คืนภาพหน้าย่อยเดิมกลับมา เหมือนกดแล้วไม่ไปไหน
                     // แก้: เข้าหน้า dashboard ทางเมนูเมื่อไหร่ ปิดหน้าย่อยทั้งหมด กลับหน้าลงเวลาเสมอ
-                    let _subWasOpen = false;
-                    ['adminPanel', 'logsPage'].forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el && !el.classList.contains('hidden')) {
-                            el.classList.add('hidden');
-                            el.classList.remove('flex');
-                            _subWasOpen = true;
+                    // ⛳ ยกเว้น: กำลังกดเข้า "ตั้งค่าระบบ" อยู่ (openAdminPanel ตั้งธงไว้) — อย่าปิดแผงตัดหน้า
+                    if (!window._openingAdminPanel) {
+                        let _subWasOpen = false;
+                        ['adminPanel', 'logsPage'].forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el && !el.classList.contains('hidden')) {
+                                el.classList.add('hidden');
+                                el.classList.remove('flex');
+                                _subWasOpen = true;
+                            }
+                        });
+                        if (_subWasOpen) {
+                            const mc = document.getElementById('mainContentArea');
+                            if (mc) mc.classList.remove('hidden');
                         }
-                    });
-                    if (_subWasOpen) {
-                        const mc = document.getElementById('mainContentArea');
-                        if (mc) mc.classList.remove('hidden');
                     }
                     if (typeof initDashboard === 'function') initDashboard();
                     if (typeof refreshAdminData === 'function') refreshAdminData();
