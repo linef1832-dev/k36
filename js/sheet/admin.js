@@ -230,8 +230,14 @@ window.deleteSheet = async function(id) {
     Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
     try {
         try { await appDB.from('settings').delete().eq('key', `sheet_note_${id}`); delete window._noteCache[id]; } catch (e) {}
-        const { error } = await appDB.from('external_sheets').delete().eq('id', id);
+        // 🐛 [FIX ลบแล้วไม่หาย] เติม .select() เพื่อขอแถวที่ถูกลบจริงกลับมา —
+        // ถ้า RLS ฝั่ง Supabase ไม่อนุญาตให้ลบ มันจะ "สำเร็จแบบปลอม" (ไม่มี error แต่ลบ 0 แถว)
+        // เดิมเลยขึ้น "ลบเรียบร้อย" ทั้งที่ของยังอยู่ — ตอนนี้จับได้และฟ้องตรงๆ
+        const { data: delRows, error } = await appDB.from('external_sheets').delete().eq('id', id).select();
         if (error) throw error;
+        if (!delRows || delRows.length === 0) {
+            throw new Error('ฐานข้อมูลไม่ยอมลบ (ลบได้ 0 แถว) — ตาราง external_sheets น่าจะยังไม่มี RLS policy สำหรับ DELETE ให้ไปเพิ่มใน Supabase');
+        }
         Swal.fire({icon: 'success', title: 'ลบเรียบร้อย', showConfirmButton: false, timer: 1000});
         await fetchSheets(true);
     } catch (e) {
