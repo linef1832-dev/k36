@@ -8,11 +8,17 @@
 // ==========================================
 window.openAdminPanel = async function() {
     if (!window.sysRequireAdmin()) return;   // 🔒
+    window._openingAdminPanel = true;   // 🚩 บอก showPage ว่า "กำลังจะเปิดแผงตั้งค่า อย่าเพิ่งบังคับกลับหน้าหลัก"
     // 🌟 1. เปิดวงกลมหมุนๆ บังคับให้เบราว์เซอร์รอก่อน
     Swal.fire({title: 'กำลังดึงรายชื่อพนักงาน...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     if (!document.getElementById('adminPanel')) {
         if(typeof showPage === 'function') await showPage('dashboard');
+        // 🐛 [FIX กดครั้งแรกไม่เปิด] showPage แปะ DOM ใน requestAnimationFrame ทีหลัง await —
+        // จังหวะนี้แผงอาจยังไม่อยู่ใน DOM → รอจนกว่าจะโผล่ (สูงสุด ~2 วิ) แล้วค่อยไปต่อ
+        for (let i = 0; i < 40 && !document.getElementById('adminPanel'); i++) {
+            await new Promise(r => setTimeout(r, 50));
+        }
         if(typeof initDashboard === 'function') initDashboard(); // เตรียมตารางไว้เบื้องหลัง
     }
 
@@ -38,6 +44,7 @@ window.openAdminPanel = async function() {
         adminPanel.classList.remove('hidden');
         adminPanel.classList.add('flex');
     }
+    window._openingAdminPanel = false;   // 🚩 เปิดเสร็จแล้ว ปลดธง
     
     // 🌟 3. ดึงสิทธิ์ของการเข้าถึงแต่ละแท็บ (บังคับเช็คตาม Checkbox 100%)
     const canSeeSettings = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_settings'));
