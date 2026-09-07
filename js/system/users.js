@@ -449,14 +449,22 @@ window.debounceDashboardSearch = function() {
 };
 
 function filterTableBySpecificTime(time, shiftName) {
+    // 🎯 กดช่องเดิมซ้ำ = ยกเลิกการเลือก (toggle)
+    if (currentSpecificTimeFilter && currentSpecificTimeFilter.time === time && currentSpecificTimeFilter.shift === shiftName) {
+        return clearSpecificTimeFilter();
+    }
     currentSpecificTimeFilter = { time: time, shift: shiftName };
     document.getElementById('clearFilterBtn').classList.remove('hidden');
+    // 🐛 [FIX ไฮไลต์ไม่ขึ้นทันที] เดิมวาดแค่ตารางรายชื่อ ไม่ได้วาดแผงปุ่มเวลาซ้ำ
+    // สีน้ำเงิน (btn-slot-active) เลยไปโผล่ตอนสลับหัวข้อ — วาดแผงซ้ำทันทีด้วยข้อมูลชุดเดิม
+    if (window._lastSummaryData) updateTableSummary(window._lastSummaryData);
     window.resetSchedPage();
 }
 
 function clearSpecificTimeFilter() {
     currentSpecificTimeFilter = null;
     document.getElementById('clearFilterBtn').classList.add('hidden');
+    if (window._lastSummaryData) updateTableSummary(window._lastSummaryData);
     window.resetSchedPage();
 }
 
@@ -714,6 +722,7 @@ function renderTableRows(data) {
 }
 
 function updateTableSummary(data) {
+    window._lastSummaryData = data;   // 🎯 จำชุดข้อมูลล่าสุดไว้ ให้กดเลือกช่องเวลาแล้ววาดแผงซ้ำได้ทันที (ไฮไลต์น้ำเงินขึ้นทันใจ)
     const container = document.getElementById('tableSummary'); 
     if(!container) return;
     container.innerHTML = '';
