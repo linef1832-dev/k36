@@ -611,10 +611,16 @@ window.loadBreakMinRemainCfg = async function(force) {
     return window._breakMinRemainCfg;
 };
 window.getBreakMinRemain = function(dept, shift, team) {
+    const n = window.getBreakMinRemainRaw(dept, shift, team);
+    return n === null ? 1 : n;
+};
+// อ่านค่าที่ "ตั้งเอง" — คืน null ถ้าไม่ได้ตั้ง (= ใช้กฏขั้นบันไดอัตโนมัติ)
+window.getBreakMinRemainRaw = function(dept, shift, team) {
     const c = window._breakMinRemainCfg || {};
     const v = c && c[dept] && c[dept][shift] ? c[dept][shift][team] : undefined;
+    if (v === undefined || v === null || v === '') return null;
     const n = parseInt(v, 10);
-    return (isNaN(n) || n < 0) ? 1 : n;
+    return (isNaN(n) || n < 0) ? null : n;
 };
 
 window.buildCoverageMap = function(roster, dept, shift) {
@@ -661,9 +667,17 @@ window.checkCoverage = function(username, covMap, slotBookings) {
     myTeams.forEach(team => {
         const members = (covMap.combined && covMap.combined[team]) || new Set();
         if (members.size < 2) return;   // เว็บมีคนเดียว → พักได้ ไม่ติดกติกา
-        // ⚙️ จำนวนที่ต้องเหลือเฝ้า — อ่านจากค่าที่ตั้งไว้ (แยกแผนก/กะ/เว็บ) ไม่ได้ตั้ง = 1
-        const minRemain = window.getBreakMinRemain(covMap.dept, covMap.shift, team);
-        const cap = Math.max(0, members.size - minRemain);
+        // ⚙️ กติกา: ค่าเริ่มต้น = กฏขั้นบันไดเดิม (1-4 คน→พักได้ 1, 5-7→2, 8-10→3, ...)
+        //           ถ้าหัวหน้าตั้ง "เหลือเฝ้า" เองไว้ (แยกแผนก/กะ/เว็บ) → ใช้ค่าที่ตั้งแทน
+        const raw = window.getBreakMinRemainRaw(covMap.dept, covMap.shift, team);
+        let cap, minRemain;
+        if (raw === null) {
+            cap = window.breakCapByRule(members.size);          // ตามกฏเดิม
+            minRemain = members.size - cap;
+        } else {
+            minRemain = raw;                                    // ตามที่ตั้งเอง
+            cap = Math.max(0, members.size - raw);
+        }
         let used = 0;
         members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
         if (used >= cap) problems.push({ team: `${team} (ต้องเหลือคนเฝ้า ${minRemain})`, used, cap, total: members.size });
