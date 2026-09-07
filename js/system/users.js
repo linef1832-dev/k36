@@ -344,7 +344,8 @@ window.saveData = async function(e) {
 
         if (rosterData && rosterData.value) {
             const roster = JSON.parse(rosterData.value);
-            coverageMap = window.buildCoverageMap(roster);
+            await window.loadBreakMinRemainCfg();   // ⚙️ โหลดค่า "ต้องเหลือเฝ้ากี่คน"
+            coverageMap = window.buildCoverageMap(roster, myDep, sName);
             let allowedTeams = [];
             for (const team in roster) {
                 (roster[team] || []).forEach(u => {
@@ -1026,4 +1027,4 @@ async function moveNowInstant() {
     });
 }
 
-// =========================================================
+// =========================================================
