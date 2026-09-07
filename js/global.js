@@ -598,7 +598,26 @@ window.breakCapByRule = function(total) {
 // สร้างแผนที่จากตารางหน้าที่ — 🌟 แยกกลุ่ม "หลัก" กับ "รอง" ของแต่ละเว็บออกจากกัน
 // กติกา: หลักชนหลัก (เว็บเดียวกัน) ❌ | รองชนรอง (เว็บเดียวกัน) ❌ | หลักชนรอง ✅
 // เหตุผล: ถ้าหลักไปพัก ยังมีรองเฝ้า / ถ้ารองไปพัก ยังมีหลักเฝ้า → หน้างานไม่มีวันโล่ง
-window.buildCoverageMap = function(roster) {
+// ⚙️ [ตั้งค่าได้] "พักแล้วต้องเหลือหน้างานกี่คน" — แยกแผนก(AM/OD) × กะ × เว็บ
+// เก็บถาวรใน settings key 'break_min_remain' รูปแบบ { AM: { 'กะเช้า': { Jun88: 2, ... } } }
+// ไม่ได้ตั้ง = 1 (เหลือเฝ้า 1 คน) | ตั้งได้ในหน้าตั้งค่าระบบ → เพดานพักต่อเว็บ
+window._breakMinRemainCfg = null;
+window.loadBreakMinRemainCfg = async function(force) {
+    if (window._breakMinRemainCfg && !force) return window._breakMinRemainCfg;
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'break_min_remain').maybeSingle();
+        window._breakMinRemainCfg = (data && data.value) ? JSON.parse(data.value) : {};
+    } catch (e) { window._breakMinRemainCfg = window._breakMinRemainCfg || {}; }
+    return window._breakMinRemainCfg;
+};
+window.getBreakMinRemain = function(dept, shift, team) {
+    const c = window._breakMinRemainCfg || {};
+    const v = c && c[dept] && c[dept][shift] ? c[dept][shift][team] : undefined;
+    const n = parseInt(v, 10);
+    return (isNaN(n) || n < 0) ? 1 : n;
+};
+
+window.buildCoverageMap = function(roster, dept, shift) {
     const webs = {};        // "เว็บ (หลัก)" หรือ "เว็บ (รอง)" -> Set(username)
     const websOf = {};      // username -> ["เว็บ (หลัก)", "เว็บ (รอง)", ...]
     const combined = {};    // เว็บ -> Set(username) รวมหลัก+รองทั้งหมดของเว็บนั้น (ไว้เช็ค "เว็บห้ามว่าง")
@@ -623,7 +642,7 @@ window.buildCoverageMap = function(roster) {
             if (u.secondary_team) { add(`${u.secondary_team} (รอง)`); addCombined(u.secondary_team); }   // และเป็นรองของอีกเว็บ
         });
     }
-    return { webs, websOf, combined, combinedOf };
+    return { webs, websOf, combined, combinedOf, dept: dept || '', shift: shift || '' };
 };
 // เช็คว่า username พักช่วงนี้ได้ไหม
 // 🌟 [กติกาใหม่ — ข้อเดียวจบ] "เว็บต้องเหลือคนเฝ้าอย่างน้อย 1 คนเสมอ"
@@ -642,10 +661,12 @@ window.checkCoverage = function(username, covMap, slotBookings) {
     myTeams.forEach(team => {
         const members = (covMap.combined && covMap.combined[team]) || new Set();
         if (members.size < 2) return;   // เว็บมีคนเดียว → พักได้ ไม่ติดกติกา
+        // ⚙️ จำนวนที่ต้องเหลือเฝ้า — อ่านจากค่าที่ตั้งไว้ (แยกแผนก/กะ/เว็บ) ไม่ได้ตั้ง = 1
+        const minRemain = window.getBreakMinRemain(covMap.dept, covMap.shift, team);
+        const cap = Math.max(0, members.size - minRemain);
         let used = 0;
         members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
-        const cap = members.size - 1;   // ต้องเหลือคนเฝ้า 1 เสมอ
-        if (used >= cap) problems.push({ team: `${team} (ต้องเหลือคนเฝ้า 1)`, used, cap, total: members.size });
+        if (used >= cap) problems.push({ team: `${team} (ต้องเหลือคนเฝ้า ${minRemain})`, used, cap, total: members.size });
         canLeave = Math.min(canLeave, Math.max(0, cap - used));
     });
     return { ok: problems.length === 0, problems, canLeave };
