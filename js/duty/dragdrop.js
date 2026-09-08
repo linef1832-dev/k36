@@ -856,6 +856,9 @@ window.updateDutyStats = function() {
 
     statusBar.className = statusClass;
     statusBar.innerHTML = statusHTML;
+    // 🔗 [FIX เลขไม่ตรงกัน] แถบสถานะกับช่องส่วนกลางต้องคำนวณพร้อมกันเสมอ —
+    // เดิมข้อมูลลาหยุดโหลดมาช้ากว่า จุดนึงรีเฟรชอีกจุดไม่รีเฟรช เลขเลยเหลื่อมกัน (18/18 vs 18/17)
+    if (typeof window.updateReqTotal === 'function') window.updateReqTotal();
 }
 
 // 🌟 [แก้บัค Realtime] Helper สำหรับ broadcast การเปลี่ยนแปลงและ log
