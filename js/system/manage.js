@@ -1087,18 +1087,23 @@ window.renderQuotaSettings = async function() {
             </div>`;
         };
         return `
-        <div class="flex text-[10px] font-bold text-pink-400 mb-2 min-w-max shrink-0">
-            <div class="w-24 shrink-0 text-center">เว็บ</div>
-            <div class="w-28 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
-            <div class="w-28 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
-            <div class="w-28 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
-        </div>
-        <div class="space-y-2 flex-1 overflow-auto custom-scrollbar pr-1">
-            ${allTeams.map(team => `
-            <div class="flex items-center min-w-max">
-                <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-lg w-24 text-center text-xs shrink-0">${team}</div>
-                ${cell('กะเช้า', team)}${cell('กะกลาง', team)}${cell('กะดึก', team)}
-            </div>`).join('')}
+        <!-- 📱 [FIX จอเล็กหลุดกรอบ] หัวตาราง+แถวข้อมูล อยู่ในกล่องเลื่อนแนวนอนเดียวกัน — เลื่อนไปด้วยกัน คอลัมน์ดึกไม่ทะลุกรอบ -->
+        <div class="flex-1 overflow-x-auto custom-scrollbar min-h-0">
+            <div class="min-w-max h-full flex flex-col">
+                <div class="flex text-[10px] font-bold text-pink-400 mb-2 shrink-0">
+                    <div class="w-24 shrink-0 text-center">เว็บ</div>
+                    <div class="w-28 shrink-0 text-center text-orange-400 ml-2">เช้า</div>
+                    <div class="w-28 shrink-0 text-center text-blue-400 ml-2">กลาง</div>
+                    <div class="w-28 shrink-0 text-center text-purple-400 ml-2">ดึก</div>
+                </div>
+                <div class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
+                    ${allTeams.map(team => `
+                    <div class="flex items-center">
+                        <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-lg w-24 text-center text-xs shrink-0">${team}</div>
+                        ${cell('กะเช้า', team)}${cell('กะกลาง', team)}${cell('กะดึก', team)}
+                    </div>`).join('')}
+                </div>
+            </div>
         </div>`;
     };
 
