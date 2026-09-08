@@ -45,7 +45,10 @@ window.openAdminPanel = async function() {
         adminPanel.classList.remove('hidden');
         adminPanel.classList.add('flex');
     }
-    window._openingAdminPanel = false;   // 🚩 เปิดเสร็จแล้ว ปลดธง
+    // 🚩 ปลดธง "หลัง" rAF ของ view transition ผ่านไปแล้ว (2 เฟรม)
+    // เดิมปลดทันที → rAF ของ showPage (ซึ่งถูก transition หน่วงมาช้า) มาเห็นธงถูกปลดแล้ว
+    // เลยเข้าใจผิดว่าไม่มีใครกำลังเปิดแผง → สั่งปิดแผงที่เพิ่งเปิดทิ้ง (ต้นเหตุอาการกดสองที!)
+    requestAnimationFrame(() => requestAnimationFrame(() => { window._openingAdminPanel = false; }));
     
     // 🌟 3. ดึงสิทธิ์ของการเข้าถึงแต่ละแท็บ (บังคับเช็คตาม Checkbox 100%)
     const canSeeSettings = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin_settings'));
