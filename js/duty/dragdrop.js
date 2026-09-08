@@ -612,10 +612,15 @@ function _dreqEnsureStyle() {
         .dreq-delta.up{background:#16a34a;color:#fff;box-shadow:0 0 10px rgba(34,197,94,.6)}
         .dreq-delta.down{background:#ea580c;color:#fff;box-shadow:0 0 10px rgba(251,146,60,.6)}
         @keyframes dreqPop{0%{opacity:0;transform:translateY(6px) scale(.6)}15%{opacity:1;transform:translateY(0) scale(1.1)}30%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
-        .dreq-total{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:7px 12px;border-radius:12px;border:1px solid;white-space:nowrap}
-        .dreq-total.ok{color:#4ade80;border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08)}
-        .dreq-total.bad{color:#f87171;border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.08)}
-        .dreq-total.pool{color:#fbbf24;border-color:rgba(232,193,90,.5);background:rgba(232,193,90,.1);box-shadow:0 0 12px rgba(232,193,90,.15)}
+        .dreq-pool{padding-right:10px;border-color:rgba(232,193,90,.45)!important;background:linear-gradient(180deg,#1d1a10,#12100a)!important}
+        .dreq-pool-name{color:#E8C15A;border-right-color:rgba(232,193,90,.3)!important;background:rgba(232,193,90,.1)}
+        .dreq-pool-num{font-size:18px;font-weight:900;color:#fbbf24;min-width:34px;text-align:center;padding:0 4px;text-shadow:0 0 12px rgba(232,193,90,.5)}
+        .dreq-pool-sub{font-size:9px;font-weight:700;color:#8b9bb4;white-space:nowrap;padding-right:4px}
+        .dreq-pool.ok{border-color:rgba(34,197,94,.55)!important;background:linear-gradient(180deg,#0f1f16,#0a150e)!important}
+        .dreq-pool.ok .dreq-pool-num{color:#4ade80;text-shadow:0 0 12px rgba(34,197,94,.5)}
+        .dreq-pool.ok .dreq-pool-name{color:#4ade80;background:rgba(34,197,94,.1)}
+        .dreq-pool.bad{border-color:rgba(248,113,113,.6)!important}
+        .dreq-pool.bad .dreq-pool-num{color:#f87171}
         .dreq-shake{animation:dreqShake .4s ease}
         @keyframes dreqShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
     `;
@@ -647,7 +652,12 @@ window.renderDutyRequirements = function() {
                 <button class="dreq-btn" onclick="dutyReqStep('${team}', 1)" title="เพิ่ม 1 — ระบบดึงจากเว็บที่เยอะสุดมาให้เอง">+</button>
             </div>`;
     });
-    html += `<div id="dreqTotal" class="dreq-total ok" title="กด − จากเว็บ = เก็บคนเข้ากองกลาง · กด + ที่เว็บ = แจกจากกองกลาง"><span class="material-icons" style="font-size:13px">inventory_2</span> <span id="dreqTotalText">-</span></div>`;
+    html += `
+        <div id="dreqTotal" class="dreq-card dreq-pool" title="กด − จากเว็บ = คนเข้าช่องนี้ · กด + ที่เว็บ = ดึงจากช่องนี้ · เหลือ 0 = แจกพอดีคน">
+            <div class="dreq-name dreq-pool-name"><span class="material-icons" style="font-size:12px;vertical-align:-2px">inventory_2</span> ส่วนกลาง</div>
+            <div class="dreq-pool-num" id="dreqPoolNum">0</div>
+            <div class="dreq-pool-sub" id="dreqTotalText">-</div>
+        </div>`;
     container.innerHTML = html;
     window.updateReqTotal();
 }
@@ -675,19 +685,33 @@ window._dreqPoolCount = function() {
     return avail - total;
 }
 
-// ป้ายกองกลาง — สั้น ชัด: เขียว = แจกครบ | เหลือง = ยังมีของในกอง | แดง = แจกเกิน (ไม่ควรเกิด)
+// 🧺 ช่องส่วนกลาง: เลขใหญ่ = คนที่ยังไม่ได้แจก | 0 = แจกพอดีคน (เขียว ✓)
 window.updateReqTotal = function() {
-    const el = document.getElementById('dreqTotal');
-    const txt = document.getElementById('dreqTotalText');
-    if (!el || !txt) return;
+    const card = document.getElementById('dreqTotal');
+    const num = document.getElementById('dreqPoolNum');
+    const sub = document.getElementById('dreqTotalText');
+    if (!card || !num || !sub) return;
     let total = 0;
     sortedTeams.forEach(t => { total += parseInt(document.getElementById(`req_${t}`)?.value) || 0; });
     let avail = 0;
     try { avail = window.getDutyActiveStaff(document.getElementById('dutyShiftSelect').value).length; } catch(e) {}
     const pool = avail - total;
-    if (pool === 0) { txt.textContent = `แจกครบ ${total}/${avail} ✓`; el.className = 'dreq-total ok'; }
-    else if (pool > 0) { txt.textContent = `กองกลาง ${pool} คน · แจกแล้ว ${total}/${avail}`; el.className = 'dreq-total pool'; }
-    else { txt.textContent = `เกินคนที่มี! ${total}/${avail}`; el.className = 'dreq-total bad'; }
+    num.textContent = pool === 0 ? '0 ✓' : pool;
+    sub.textContent = `แจกแล้ว ${total}/${avail}`;
+    card.classList.remove('ok', 'bad');
+    if (pool === 0) card.classList.add('ok');
+    else if (pool < 0) card.classList.add('bad');
+}
+
+// ป้าย +1/−1 เด้งบนช่องส่วนกลาง
+function _dreqPoolBadge(delta) {
+    const card = document.getElementById('dreqTotal');
+    if (!card || !delta) return;
+    const b = document.createElement('span');
+    b.className = 'dreq-delta ' + (delta > 0 ? 'up' : 'down');
+    b.textContent = (delta > 0 ? '+' : '') + delta;
+    card.appendChild(b);
+    setTimeout(() => b.remove(), 1350);
 }
 
 // ✨ ไฟวิ่ง + ป้าย +1/−1 บอกว่าโยกคนไป/มาจากเว็บไหน (หัวใจของความ "ใช้ง่าย")
@@ -732,10 +756,10 @@ window.manualAdjustReq = function(changedTeam, delta) {
     sortedTeams.forEach(team => { reqsToSave[`req_${team}`] = parseInt(document.getElementById(`req_${team}`)?.value) || 0; });
     window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
 
-    // ✨ ไฟบอกทิศทาง: ลด = ป้าย −1 ที่เว็บ (ของเข้ากอง) | เพิ่ม = ป้าย +1 ที่เว็บ (ของออกจากกอง)
+    // ✨ ไฟบอกทิศทางสองฝั่ง: เว็บ กับ ช่องส่วนกลาง วิ่งสวนกันให้เห็นเส้นทางคน
     if (typeof _dreqFlash === 'function') {
-        if (delta > 0) _dreqFlash(changedTeam, 'up', +delta);
-        else if (delta < 0) _dreqFlash(changedTeam, 'down', delta);
+        if (delta > 0) { _dreqFlash(changedTeam, 'up', +delta); _dreqPoolBadge(-delta); }
+        else if (delta < 0) { _dreqFlash(changedTeam, 'down', delta); _dreqPoolBadge(-delta); }
         else _dreqFlash(changedTeam, 'self', 0);
     }
     if (typeof window.updateReqTotal === 'function') window.updateReqTotal();
