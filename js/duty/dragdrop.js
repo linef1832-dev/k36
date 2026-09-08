@@ -589,32 +589,111 @@ window.removeDutyRole = async function(team, idx) {
 
 window.saveCustomRolesToDB = async function() { window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'duty_custom_roles', value: JSON.stringify(customDutyRoles) }]); }
 
+// 🎨 [Premium] แถบจำนวนคนต่อเว็บ — การ์ดปุ่ม −/+ กดง่าย + ไฟวิ่งบอกการโยกคน + แถบยอดรวม
+function _dreqEnsureStyle() {
+    if (document.getElementById('dreq-style')) return;
+    const s = document.createElement('style');
+    s.id = 'dreq-style';
+    s.textContent = `
+        .dreq-card{position:relative;display:flex;align-items:center;background:linear-gradient(180deg,#16203a,#0d1526);border:1px solid #2b3a55;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.35);transition:border-color .25s,box-shadow .25s,transform .15s}
+        .dreq-card:hover{border-color:rgba(232,193,90,.4);transform:translateY(-1px)}
+        .dreq-move{display:flex;flex-direction:column;border-right:1px solid #22304a;border-radius:12px 0 0 12px;overflow:hidden;align-self:stretch}
+        .dreq-move button{width:18px;flex:1;font-size:9px;line-height:1;color:#5b6c8a;background:#111a2e;transition:.15s}
+        .dreq-move button:hover{color:#fff;background:#1d2a44}
+        .dreq-name{font-size:11px;font-weight:800;padding:7px 8px;min-width:56px;text-align:center;border-right:1px solid #22304a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .dreq-btn{width:26px;align-self:stretch;font-weight:900;font-size:14px;color:#8b9bb4;background:transparent;transition:.15s}
+        .dreq-btn:hover{color:#fff;background:rgba(232,193,90,.14)}
+        .dreq-btn:active{transform:scale(.9)}
+        .dreq-num{width:32px;text-align:center;font-size:14px;font-weight:800;background:transparent;color:#fff;outline:none}
+        .dreq-flash-up{border-color:#22c55e!important;box-shadow:0 0 16px rgba(34,197,94,.55)!important}
+        .dreq-flash-down{border-color:#fb923c!important;box-shadow:0 0 16px rgba(251,146,60,.55)!important}
+        .dreq-flash-self{border-color:#E8C15A!important;box-shadow:0 0 16px rgba(232,193,90,.55)!important}
+        .dreq-delta{position:absolute;top:-9px;right:-6px;z-index:5;font-size:10px;font-weight:900;padding:1px 6px;border-radius:99px;pointer-events:none;animation:dreqPop 1.3s ease forwards}
+        .dreq-delta.up{background:#16a34a;color:#fff;box-shadow:0 0 10px rgba(34,197,94,.6)}
+        .dreq-delta.down{background:#ea580c;color:#fff;box-shadow:0 0 10px rgba(251,146,60,.6)}
+        @keyframes dreqPop{0%{opacity:0;transform:translateY(6px) scale(.6)}15%{opacity:1;transform:translateY(0) scale(1.1)}30%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
+        .dreq-total{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:7px 12px;border-radius:12px;border:1px solid;white-space:nowrap}
+        .dreq-total.ok{color:#4ade80;border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08)}
+        .dreq-total.bad{color:#f87171;border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.08)}
+    `;
+    document.head.appendChild(s);
+}
+
 window.renderDutyRequirements = function() {
     const container = document.getElementById('dutyRequirements');
     if(!container) return;
+    _dreqEnsureStyle();
     container.innerHTML = '';
     const savedReqs = JSON.parse(window.safeGetItem(`duty_reqs_${currentDutyDept}`, '{}') || '{}');
 
+    let html = '';
     sortedTeams.forEach((team, index) => {
         const reqKey = `req_${team}`;
         const defaultVal = savedReqs[reqKey] || 0;
         const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
 
-        container.innerHTML += `
-            <div class="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm overflow-hidden group hover:border-indigo-400 transition">
-                <div class="flex flex-col items-center border-r border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 w-5">
-                    <button onclick="moveTeam('${team}', -1)" class="text-gray-400 hover:text-indigo-600 leading-none h-4 ${index === 0 ? 'invisible' : ''}">◀</button>
-                    <button onclick="moveTeam('${team}', 1)" class="text-gray-400 hover:text-indigo-600 leading-none h-4 ${index === sortedTeams.length-1 ? 'invisible' : ''}">▶</button>
+        html += `
+            <div class="dreq-card" id="dreqCard_${team}">
+                <div class="dreq-move">
+                    <button onclick="moveTeam('${team}', -1)" class="${index === 0 ? 'invisible' : ''}" title="เลื่อนซ้าย">◀</button>
+                    <button onclick="moveTeam('${team}', 1)" class="${index === sortedTeams.length-1 ? 'invisible' : ''}" title="เลื่อนขวา">▶</button>
                 </div>
-                <div class="${colorClass.bg} ${colorClass.text} text-[11px] font-extrabold px-2 py-1.5 w-16 text-center border-r ${colorClass.border} truncate" title="${team}">${team}</div>
-                <input type="number" id="${reqKey}" onchange="window.manualAdjustReq('${team}')" class="req-input w-12 text-center text-sm font-bold bg-transparent outline-none text-slate-800 dark:text-white py-1" value="${defaultVal}" min="0">
-            </div>
-        `;
+                <div class="dreq-name ${colorClass.bg} ${colorClass.text}" title="${team}">${team}</div>
+                <button class="dreq-btn" onclick="dutyReqStep('${team}', -1)" title="ลด 1 — ระบบโยกไปเติมเว็บที่น้อยสุดให้เอง">−</button>
+                <input type="number" id="${reqKey}" onchange="window.manualAdjustReq('${team}')" class="dreq-num req-input" value="${defaultVal}" min="0">
+                <button class="dreq-btn" onclick="dutyReqStep('${team}', 1)" title="เพิ่ม 1 — ระบบดึงจากเว็บที่เยอะสุดมาให้เอง">+</button>
+            </div>`;
     });
+    html += `<div id="dreqTotal" class="dreq-total ok"><span class="material-icons" style="font-size:13px">groups</span> <span id="dreqTotalText">-</span></div>`;
+    container.innerHTML = html;
+    window.updateReqTotal();
+}
+
+// ปุ่ม − / + : ขยับเลขแล้วส่งเข้าระบบโยกอัตโนมัติตัวเดิม
+window.dutyReqStep = function(team, delta) {
+    const input = document.getElementById(`req_${team}`);
+    if (!input) return;
+    input.value = Math.max(0, (parseInt(input.value) || 0) + delta);
+    window.manualAdjustReq(team);
+}
+
+// แถบยอดรวม: ใช้ X / มีคน Y — เขียวเมื่อพอดี แดงเมื่อไม่ตรง
+window.updateReqTotal = function() {
+    const el = document.getElementById('dreqTotal');
+    const txt = document.getElementById('dreqTotalText');
+    if (!el || !txt) return;
+    let total = 0;
+    sortedTeams.forEach(t => { total += parseInt(document.getElementById(`req_${t}`)?.value) || 0; });
+    let avail = 0;
+    try {
+        const shiftFilter = document.getElementById('dutyShiftSelect').value;
+        avail = window.getDutyActiveStaff(shiftFilter).length;
+    } catch(e) {}
+    txt.textContent = `ใช้ ${total} / มีคน ${avail}`;
+    el.className = 'dreq-total ' + (total === avail ? 'ok' : 'bad');
+}
+
+// ✨ ไฟวิ่ง + ป้าย +1/−1 บอกว่าโยกคนไป/มาจากเว็บไหน (หัวใจของความ "ใช้ง่าย")
+function _dreqFlash(team, kind, delta) {
+    const card = document.getElementById(`dreqCard_${team}`);
+    if (!card) return;
+    const cls = kind === 'self' ? 'dreq-flash-self' : (kind === 'up' ? 'dreq-flash-up' : 'dreq-flash-down');
+    card.classList.add(cls);
+    setTimeout(() => card.classList.remove(cls), 1300);
+    if (delta) {
+        const b = document.createElement('span');
+        b.className = 'dreq-delta ' + (delta > 0 ? 'up' : 'down');
+        b.textContent = (delta > 0 ? '+' : '') + delta;
+        card.appendChild(b);
+        setTimeout(() => b.remove(), 1350);
+    }
 }
 
 window.manualAdjustReq = function(changedTeam) {
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
+    // 📸 จำค่าเดิมของเว็บอื่นไว้ก่อนโยก — จะได้รู้ว่าใครโดนบวก/ลบ แล้วโชว์ไฟวิ่งให้เห็น
+    const _before = {};
+    sortedTeams.forEach(t => { if (t !== changedTeam) _before[t] = parseInt(document.getElementById(`req_${t}`)?.value) || 0; });
     
     const activeStaff = window.getDutyActiveStaff(shiftFilter);
     
@@ -673,6 +752,17 @@ window.manualAdjustReq = function(changedTeam) {
     });
     
     window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
+    // ✨ โชว์ให้เห็นว่าโยกไปไหน: ทอง = เว็บที่แก้ | เขียว +1 = ได้คนเพิ่ม | ส้ม −1 = โดนดึงคน
+    if (typeof _dreqFlash === 'function') {
+        _dreqFlash(changedTeam, 'self', 0);
+        sortedTeams.forEach(t => {
+            if (t === changedTeam) return;
+            const d = reqs[t] - (_before[t] || 0);
+            if (d > 0) _dreqFlash(t, 'up', d);
+            else if (d < 0) _dreqFlash(t, 'down', d);
+        });
+    }
+    if (typeof window.updateReqTotal === 'function') window.updateReqTotal();
     window.updateDutyStats();
 };
 
@@ -1163,4 +1253,3 @@ window.saveTrainerMatrixRole = async function(userId, web, taskIdx, newRole) {
         Swal.fire('Error', err.message, 'error');
     }
 };
-
