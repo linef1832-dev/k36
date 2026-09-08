@@ -615,6 +615,9 @@ function _dreqEnsureStyle() {
         .dreq-total{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:7px 12px;border-radius:12px;border:1px solid;white-space:nowrap}
         .dreq-total.ok{color:#4ade80;border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08)}
         .dreq-total.bad{color:#f87171;border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.08)}
+        .dreq-total.pool{color:#fbbf24;border-color:rgba(232,193,90,.5);background:rgba(232,193,90,.1);box-shadow:0 0 12px rgba(232,193,90,.15)}
+        .dreq-shake{animation:dreqShake .4s ease}
+        @keyframes dreqShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
     `;
     document.head.appendChild(s);
 }
@@ -644,20 +647,35 @@ window.renderDutyRequirements = function() {
                 <button class="dreq-btn" onclick="dutyReqStep('${team}', 1)" title="เพิ่ม 1 — ระบบดึงจากเว็บที่เยอะสุดมาให้เอง">+</button>
             </div>`;
     });
-    html += `<div id="dreqTotal" class="dreq-total ok"><span class="material-icons" style="font-size:13px">groups</span> <span id="dreqTotalText">-</span></div>`;
+    html += `<div id="dreqTotal" class="dreq-total ok" title="กด − จากเว็บ = เก็บคนเข้ากองกลาง · กด + ที่เว็บ = แจกจากกองกลาง"><span class="material-icons" style="font-size:13px">inventory_2</span> <span id="dreqTotalText">-</span></div>`;
     container.innerHTML = html;
     window.updateReqTotal();
 }
 
-// ปุ่ม − / + : ขยับเลขแล้วส่งเข้าระบบโยกอัตโนมัติตัวเดิม
+// ปุ่ม − / + แบบ "กองกลาง": ลด = เก็บเข้ากอง | เพิ่ม = แจกจากกอง (กองว่าง = กดเพิ่มไม่ได้)
 window.dutyReqStep = function(team, delta) {
     const input = document.getElementById(`req_${team}`);
     if (!input) return;
+    if (delta > 0 && window._dreqPoolCount() <= 0) {
+        // กองกลางว่าง — เขย่าป้ายเตือน ไม่ต้องเด้ง popup ให้รำคาญ
+        const pill = document.getElementById('dreqTotal');
+        if (pill) { pill.classList.add('dreq-shake'); setTimeout(() => pill.classList.remove('dreq-shake'), 500); }
+        return;
+    }
     input.value = Math.max(0, (parseInt(input.value) || 0) + delta);
-    window.manualAdjustReq(team);
+    window.manualAdjustReq(team, delta);
 }
 
-// แถบยอดรวม: ใช้ X / มีคน Y — เขียวเมื่อพอดี แดงเมื่อไม่ตรง
+// นับคนในกองกลาง = คนที่มีทั้งหมด − ที่แจกไปแล้ว
+window._dreqPoolCount = function() {
+    let total = 0;
+    sortedTeams.forEach(t => { total += parseInt(document.getElementById(`req_${t}`)?.value) || 0; });
+    let avail = 0;
+    try { avail = window.getDutyActiveStaff(document.getElementById('dutyShiftSelect').value).length; } catch(e) {}
+    return avail - total;
+}
+
+// ป้ายกองกลาง — สั้น ชัด: เขียว = แจกครบ | เหลือง = ยังมีของในกอง | แดง = แจกเกิน (ไม่ควรเกิด)
 window.updateReqTotal = function() {
     const el = document.getElementById('dreqTotal');
     const txt = document.getElementById('dreqTotalText');
@@ -665,12 +683,11 @@ window.updateReqTotal = function() {
     let total = 0;
     sortedTeams.forEach(t => { total += parseInt(document.getElementById(`req_${t}`)?.value) || 0; });
     let avail = 0;
-    try {
-        const shiftFilter = document.getElementById('dutyShiftSelect').value;
-        avail = window.getDutyActiveStaff(shiftFilter).length;
-    } catch(e) {}
-    txt.textContent = `ใช้ ${total} / มีคน ${avail}`;
-    el.className = 'dreq-total ' + (total === avail ? 'ok' : 'bad');
+    try { avail = window.getDutyActiveStaff(document.getElementById('dutyShiftSelect').value).length; } catch(e) {}
+    const pool = avail - total;
+    if (pool === 0) { txt.textContent = `แจกครบ ${total}/${avail} ✓`; el.className = 'dreq-total ok'; }
+    else if (pool > 0) { txt.textContent = `กองกลาง ${pool} คน · แจกแล้ว ${total}/${avail}`; el.className = 'dreq-total pool'; }
+    else { txt.textContent = `เกินคนที่มี! ${total}/${avail}`; el.className = 'dreq-total bad'; }
 }
 
 // ✨ ไฟวิ่ง + ป้าย +1/−1 บอกว่าโยกคนไป/มาจากเว็บไหน (หัวใจของความ "ใช้ง่าย")
@@ -689,78 +706,37 @@ function _dreqFlash(team, kind, delta) {
     }
 }
 
-window.manualAdjustReq = function(changedTeam) {
+window.manualAdjustReq = function(changedTeam, delta) {
+    // 🧺 [ระบบกองกลาง] ลด = คนกลับเข้ากองกลาง | เพิ่ม/พิมพ์ = แจกจากกองกลาง (ห้ามเกินคนที่มี)
+    // ❌ ไม่มีการโยกไปเพิ่มเว็บอื่นให้เองแล้ว — หัวหน้าเลือกแจกเองทุกคน
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    // 📸 จำค่าเดิมของเว็บอื่นไว้ก่อนโยก — จะได้รู้ว่าใครโดนบวก/ลบ แล้วโชว์ไฟวิ่งให้เห็น
-    const _before = {};
-    sortedTeams.forEach(t => { if (t !== changedTeam) _before[t] = parseInt(document.getElementById(`req_${t}`)?.value) || 0; });
-    
-    const activeStaff = window.getDutyActiveStaff(shiftFilter);
-    
-    const availableCount = activeStaff.length;
-    if (availableCount === 0) return; 
-
-    let reqs = {};
-    let totalReq = 0;
-    sortedTeams.forEach(team => {
-        const val = parseInt(document.getElementById(`req_${team}`).value) || 0;
-        reqs[team] = val;
-        totalReq += val;
-    });
+    const availableCount = window.getDutyActiveStaff(shiftFilter).length;
 
     const changedInput = document.getElementById(`req_${changedTeam}`);
-    let changedVal = parseInt(changedInput.value) || 0;
+    let v = parseInt(changedInput.value) || 0;
+    if (v < 0) v = 0;
 
-    if (changedVal < 0) {
-        changedVal = 0;
-        reqs[changedTeam] = 0;
-        totalReq = Object.values(reqs).reduce((a,b) => a+b, 0);
+    // เพดานของเว็บนี้ = คนทั้งหมด − ที่เว็บอื่นใช้ไปแล้ว (คือ ค่าเดิม + กองกลางที่เหลือ)
+    let othersTotal = 0;
+    sortedTeams.forEach(t => { if (t !== changedTeam) othersTotal += parseInt(document.getElementById(`req_${t}`)?.value) || 0; });
+    const maxAllowed = Math.max(0, availableCount - othersTotal);
+    if (v > maxAllowed) {
+        v = maxAllowed;   // พิมพ์เกิน → หั่นลงเหลือเท่าที่กองกลางมี
+        const pill = document.getElementById('dreqTotal');
+        if (pill) { pill.classList.add('dreq-shake'); setTimeout(() => pill.classList.remove('dreq-shake'), 500); }
     }
+    changedInput.value = v;
 
-    let diff = totalReq - availableCount;
-
-    if (diff === 0) {
-        window.updateDutyStats();
-        return; 
-    }
-
-    let safeLoopLimit = 1000;
-
-    while (diff > 0 && safeLoopLimit-- > 0) {
-        let maxTeam = null; let maxVal = -1;
-        sortedTeams.forEach(t => {
-            if (t !== changedTeam && reqs[t] > maxVal && reqs[t] > 0) { maxVal = reqs[t]; maxTeam = t; }
-        });
-        if (maxTeam) { reqs[maxTeam]--; diff--; } 
-        else { reqs[changedTeam]--; diff--; }
-    }
-
-    while (diff < 0 && safeLoopLimit-- > 0) {
-        let minTeam = null; let minVal = Infinity;
-        sortedTeams.forEach(t => {
-            if (t !== changedTeam && reqs[t] < minVal) { minVal = reqs[t]; minTeam = t; }
-        });
-        if (minTeam) { reqs[minTeam]++; diff++; } 
-        else { reqs[changedTeam]++; diff++; }
-    }
-
+    // เซฟทุกช่อง
     const reqsToSave = {};
-    sortedTeams.forEach(team => {
-        const input = document.getElementById(`req_${team}`);
-        if (input) input.value = reqs[team];
-        reqsToSave[`req_${team}`] = reqs[team];
-    });
-    
+    sortedTeams.forEach(team => { reqsToSave[`req_${team}`] = parseInt(document.getElementById(`req_${team}`)?.value) || 0; });
     window.safeSetItem(`duty_reqs_${currentDutyDept}`, JSON.stringify(reqsToSave));
-    // ✨ โชว์ให้เห็นว่าโยกไปไหน: ทอง = เว็บที่แก้ | เขียว +1 = ได้คนเพิ่ม | ส้ม −1 = โดนดึงคน
+
+    // ✨ ไฟบอกทิศทาง: ลด = ป้าย −1 ที่เว็บ (ของเข้ากอง) | เพิ่ม = ป้าย +1 ที่เว็บ (ของออกจากกอง)
     if (typeof _dreqFlash === 'function') {
-        _dreqFlash(changedTeam, 'self', 0);
-        sortedTeams.forEach(t => {
-            if (t === changedTeam) return;
-            const d = reqs[t] - (_before[t] || 0);
-            if (d > 0) _dreqFlash(t, 'up', d);
-            else if (d < 0) _dreqFlash(t, 'down', d);
-        });
+        if (delta > 0) _dreqFlash(changedTeam, 'up', +delta);
+        else if (delta < 0) _dreqFlash(changedTeam, 'down', delta);
+        else _dreqFlash(changedTeam, 'self', 0);
     }
     if (typeof window.updateReqTotal === 'function') window.updateReqTotal();
     window.updateDutyStats();
