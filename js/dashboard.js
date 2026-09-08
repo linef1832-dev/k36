@@ -444,6 +444,17 @@ window.subscribeDashboardChanges = function() {
             } else if (key.startsWith('duty_roster_')) {
                 if (typeof _rosterCache !== 'undefined') delete _rosterCache[key];
                 if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
+            } else if (key === 'break_min_remain') {
+                // 🔴 [Realtime] หัวหน้าแก้ค่า "เฝ้า≥" → โหลดค่าใหม่ + วาด dropdown ซ้ำทันที พนักงานไม่ต้องรีเฟรช
+                window.loadBreakMinRemainCfg && window.loadBreakMinRemainCfg(true).then(() => {
+                    if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
+                });
+            } else if (key === 'custom_time_slots') {
+                // 🔴 [Realtime] หัวหน้าแก้รอบเวลา (AM/OD) → ใช้ชุดใหม่ทันที
+                if (typeof SETTINGS !== 'undefined') SETTINGS[key] = payload.new ? payload.new.value : undefined;
+                if (typeof window.applyCustomTimeSlots === 'function') window.applyCustomTimeSlots();
+                if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
+                if (window._lastSummaryData && typeof updateTableSummary === 'function') updateTableSummary(window._lastSummaryData);
             }
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, (payload) => {
