@@ -474,6 +474,10 @@ window.subscribeDashboardChanges = function() {
                 if (_rtDate && _rtShift) {
                     const _rtKey = `${_rtDate}|${_rtShift}`;
                     if (_slotCache[_rtKey]) delete _slotCache[_rtKey];
+                } else if (payload.eventType === 'DELETE') {
+                    // 🔴 [FIX เรียลไทม์ตอนลบ] DELETE ส่งข้อมูลมาแค่ id (ไม่มีวัน/กะ) → ล้าง cache ทั้งหมด
+                    // ไม่งั้นตัวเลข "ว่าง: X" ใน dropdown จะค้างเก่าจนกว่า cache หมดอายุ/รีเฟรช
+                    for (const k in _slotCache) delete _slotCache[k];
                 }
 
                 if (payload.eventType === 'INSERT') {
