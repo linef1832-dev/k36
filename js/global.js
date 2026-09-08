@@ -650,34 +650,37 @@ window.buildCoverageMap = function(roster, dept, shift) {
     }
     return { webs, websOf, combined, combinedOf, dept: dept || '', shift: shift || '' };
 };
-// เช็คว่า username พักช่วงนี้ได้ไหม
-// 🌟 [กติกาใหม่ — ข้อเดียวจบ] "เว็บต้องเหลือคนเฝ้าอย่างน้อย 1 คนเสมอ"
-//   - นับรวมทุกคนที่ดูแลเว็บนั้น (หลัก + รอง รวมกัน ไม่แยกกลุ่มแล้ว)
-//   - พักพร้อมกันได้สูงสุด = จำนวนคนทั้งหมด - 1 (เช่น เว็บมี 3 คน → พักพร้อมกัน 07:00 ได้ 2 คน คนที่ 3 ต้องเฝ้า)
-//   - ใครกดจองแล้วจะทำให้เว็บว่าง = ไม่ผ่าน
-//   - ยกเว้นเว็บที่มีคนดูแลคนเดียว → พักได้ปกติ (ไม่งั้นอดพักทั้งวัน)
-//   (แทนกติกาเก่าแบบแยกเพดานหลัก/รอง — เลิกใช้แล้วตามมติ 07/09/2026)
+// เช็คว่า username พักช่วงนี้ได้ไหม — กติกาเก่า (นับแยกกลุ่ม) + กันเว็บว่าง
+//   1) หลักชนหลัก (เว็บเดียวกัน): กลุ่มหลักพักพร้อมกันได้ตามกฏขั้นบันได (1-4 คน→1, 5-7→2, ...)
+//   2) รองชนรอง (เว็บเดียวกัน): กลุ่มรองก็ตามกฏขั้นบันไดเหมือนกัน (หลักชนรองได้)
+//   3) เว็บห้ามว่าง: รวมหลัก+รองของเว็บ ต้องเหลือคนเฝ้าอย่างน้อยตามที่ตั้ง (ค่าเริ่มต้น 1)
+//      — ช่อง "เหลือ" ในหน้าตั้งค่า (แยกแผนก/กะ/เว็บ) คุมข้อนี้ | เว็บที่มีคนเดียวพักได้ปกติ
 // → { ok, problems:[{team, used, cap, total}], canLeave }
 window.checkCoverage = function(username, covMap, slotBookings) {
+    const myWebs = (covMap && covMap.websOf && covMap.websOf[username]) || [];
     const myTeams = (covMap && covMap.combinedOf && covMap.combinedOf[username]) || [];
-    if (myTeams.length === 0) return { ok: true, problems: [], canLeave: Infinity };
+    if (myWebs.length === 0 && myTeams.length === 0) return { ok: true, problems: [], canLeave: Infinity };
     const onBreak = new Set((slotBookings || []).map(b => b.staff_name).filter(Boolean));
     const problems = [];
     let canLeave = Infinity;
+
+    // ข้อ 1-2: เพดานต่อกลุ่ม (คีย์ "เว็บ (หลัก)" / "เว็บ (รอง)")
+    myWebs.forEach(team => {
+        const members = covMap.webs[team] || new Set();
+        let used = 0;
+        members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
+        const cap = window.breakCapByRule(members.size);
+        if (used >= cap) problems.push({ team, used, cap, total: members.size });
+        canLeave = Math.min(canLeave, Math.max(0, cap - used));
+    });
+
+    // ข้อ 3: เว็บห้ามว่าง — รวมหลัก+รอง เหลือเฝ้า ≥ ค่าที่ตั้ง (ไม่ตั้ง = 1)
     myTeams.forEach(team => {
         const members = (covMap.combined && covMap.combined[team]) || new Set();
-        if (members.size < 2) return;   // เว็บมีคนเดียว → พักได้ ไม่ติดกติกา
-        // ⚙️ กติกา: ค่าเริ่มต้น = กฏขั้นบันไดเดิม (1-4 คน→พักได้ 1, 5-7→2, 8-10→3, ...)
-        //           ถ้าหัวหน้าตั้ง "เหลือเฝ้า" เองไว้ (แยกแผนก/กะ/เว็บ) → ใช้ค่าที่ตั้งแทน
+        if (members.size < 2) return;   // เว็บมีคนเดียว → พักได้ ไม่ติดข้อนี้
         const raw = window.getBreakMinRemainRaw(covMap.dept, covMap.shift, team);
-        let cap, minRemain;
-        if (raw === null) {
-            cap = window.breakCapByRule(members.size);          // ตามกฏเดิม
-            minRemain = members.size - cap;
-        } else {
-            minRemain = raw;                                    // ตามที่ตั้งเอง
-            cap = Math.max(0, members.size - raw);
-        }
+        const minRemain = (raw === null) ? 1 : raw;
+        const cap = Math.max(0, members.size - minRemain);
         let used = 0;
         members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
         if (used >= cap) problems.push({ team: `${team} (ต้องเหลือคนเฝ้า ${minRemain})`, used, cap, total: members.size });
@@ -760,6 +763,13 @@ async function showPage(pageName) {
                             const mc = document.getElementById('mainContentArea');
                             if (mc) mc.classList.remove('hidden');
                         }
+                    } else {
+                        // 🎯 [เกราะชั้นสอง] กำลังกดเข้า "ตั้งค่าระบบ" อยู่ → showPage เปิดแผงให้เลยตรงนี้
+                        // (กันเคสจังหวะ DOM แปะช้ากว่าที่ openAdminPanel ไปหยิบ — สองฝั่งช่วยกันเปิด ใครถึงก่อนก็ติด)
+                        const ap = document.getElementById('adminPanel');
+                        const mc = document.getElementById('mainContentArea');
+                        if (ap) { ap.classList.remove('hidden'); ap.classList.add('flex'); }
+                        if (mc) mc.classList.add('hidden');
                     }
                     if (typeof initDashboard === 'function') initDashboard();
                     if (typeof refreshAdminData === 'function') refreshAdminData();
