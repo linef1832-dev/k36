@@ -498,6 +498,9 @@ window.refreshDutyData = async function() {
         }
         window.currentDutyLeaveData = relevantLeaves;
         window.renderDutyLeaveBox();
+        // 🔗 [FIX เลขไม่ตรง] ข้อมูลลาเพิ่งมาถึง = จำนวนคนว่างเปลี่ยน → คำนวณแถบสถานะ+ช่องส่วนกลางใหม่ทันที
+        // (เดิมไม่มีใครเรียก ทำให้แถบเขียวค้างเลขเก่า 18 ทั้งที่ MIKA ลาดึกเหลือ 17)
+        if (typeof window.updateDutyStats === 'function') window.updateDutyStats();
 
         let savedRoster = null;
         window.globalImportantTasks = [];
@@ -1554,26 +1557,29 @@ window.renderRosterGrid = async function(rosterData) {
         const standbyList = standbyData[team] || [];
         const standbyCount = standbyList.length;
 
-        // 🍽️ [กติกาพัก] เตือนถ้าช่วงไหนพักพร้อมกันจนเว็บว่าง — กติกาใหม่ (ข้อเดียว): รวมหลัก+รอง ต้องเหลือคนเฝ้า 1 เสมอ
+        // 🍽️ [กติกาพัก] เตือนถ้าช่วงไหนพักพร้อมกันเกินเพดาน — นับแยกกลุ่มหลัก/รอง ตามกฏขั้นบันได
         let breakWarnHtml = '';
-        {
+        if (typeof window.breakCapByRule === 'function') {
             const mainMembers = assignees.filter(u => u.id && !u.username.includes('ขาดคน')).map(u => u.username);
             const secMembers = standbyList.map(s => s.name).filter(n => n && !mainMembers.includes(n));
-            const allMembers = [...mainMembers, ...secMembers];
-            const cap = allMembers.length <= 1 ? allMembers.length : allMembers.length - 1;
+            const groups = [
+                { label: 'หลัก', members: mainMembers, cap: mainMembers.length ? window.breakCapByRule(mainMembers.length) : 0 },
+                { label: 'รอง',  members: secMembers,  cap: secMembers.length ? window.breakCapByRule(secMembers.length) : 0 }
+            ];
             const warnLines = [];
-            if (allMembers.length >= 2) {
+            groups.forEach(g => {
+                if (g.members.length === 0) return;
                 const perSlot = {};
                 (window.currentDutySchedules || []).forEach(sc => {
-                    if (!allMembers.includes(sc.staff_name)) return;
+                    if (!g.members.includes(sc.staff_name)) return;
                     String(sc.time_slot || '').split(',').map(x => x.trim()).filter(Boolean).forEach(slot => {
                         (perSlot[slot] = perSlot[slot] || new Set()).add(sc.staff_name);
                     });
                 });
-                Object.entries(perSlot).filter(([, set]) => set.size > cap)
+                Object.entries(perSlot).filter(([, set]) => set.size > g.cap)
                     .sort((a, b) => a[0].localeCompare(b[0]))
-                    .forEach(([slot, set]) => warnLines.push(`<div class="ml-4 font-normal">[เว็บจะว่าง] ${slot} → พัก ${set.size}/${cap}: ${[...set].join(', ')}</div>`));
-            }
+                    .forEach(([slot, set]) => warnLines.push(`<div class="ml-4 font-normal">[${g.label}] ${slot} → ${set.size}/${g.cap}: ${[...set].join(', ')}</div>`));
+            });
             if (warnLines.length > 0) {
                 breakWarnHtml = `<div class="mx-2 mt-2 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg px-2 py-1.5 text-[10px] font-bold text-red-600 dark:text-red-300 shrink-0">
                     <div class="flex items-center gap-1"><span class="material-icons text-[13px]">warning</span> พักพร้อมกันเกินเพดาน (หลัก ${mainMembers.length} คน พักได้ ${groups[0].cap} · รอง ${secMembers.length} คน พักได้ ${groups[1].cap})</div>
