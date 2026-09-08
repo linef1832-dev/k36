@@ -1068,20 +1068,21 @@ window.renderQuotaSettings = async function() {
         shifts.forEach(sh => { const r = rows[`duty_roster_${dept}_${dateVal}_${sh}`]; maps[sh] = r ? window.buildCoverageMap(r) : null; });
         const cell = (sh, team) => {
             const m = maps[sh];
-            // ⚙️ ค่าเริ่มต้น = กฏขั้นบันไดเดิม | ช่องว่าง = อัตโนมัติ | พิมพ์เลข = กำหนดเองทับ
-            const raw = window.getBreakMinRemainRaw(dept, sh, team);          // null = ไม่ได้ตั้งเอง
-            const n = m ? ((m.combined && m.combined[team]) || new Set()).size : 0;
-            const autoCap = n <= 1 ? n : window.breakCapByRule(n);
-            const autoRemain = Math.max(0, n - autoCap);
-            const cap = raw === null ? autoCap : (n <= 1 ? n : Math.max(0, n - raw));
-            const capHtml = m
-                ? `<div class="text-[10px] ${n ? 'text-sky-300' : 'text-slate-600'}">คน ${n} → พักได้ <b class="brm-cap ${(cap === 0 && n > 0) ? 'text-red-400' : 'text-emerald-300'}" data-n="${n}">${cap}</b></div>`
-                : `<div class="text-[10px] text-slate-600">ยังไม่จัด</div>`;
+            // 🎯 นับแยกกลุ่มตามกติกาเก่า (ตรงกับป้าย "หลัก 2 รอง 2" บนบอร์ดหน้างาน)
+            const raw = window.getBreakMinRemainRaw(dept, sh, team);          // เหลือเฝ้า (null = ค่าเริ่มต้น 1)
+            const n1 = m ? ((m.webs && m.webs[`${team} (หลัก)`]) || new Set()).size : 0;
+            const n2 = m ? ((m.webs && m.webs[`${team} (รอง)`]) || new Set()).size : 0;
+            const c1 = n1 ? window.breakCapByRule(n1) : 0;
+            const c2 = n2 ? window.breakCapByRule(n2) : 0;
+            const body = m
+                ? `<div class="text-[10px] ${n1 ? 'text-sky-300' : 'text-slate-600'}">หลัก ${n1} → <b class="${n1 ? 'text-emerald-300' : ''}">${c1}</b></div>
+                   <div class="text-[10px] ${n2 ? 'text-amber-300' : 'text-slate-600'}">รอง ${n2} → <b class="${n2 ? 'text-emerald-300' : ''}">${c2}</b></div>`
+                : `<div class="text-[10px] text-slate-600 py-0.5">ยังไม่จัด</div>`;
             return `<div class="w-28 shrink-0 text-center ml-2 rounded-lg border ${raw === null ? 'border-slate-600' : 'border-amber-500/60'} bg-slate-900 py-1 leading-tight">
-                ${capHtml}
-                <div class="text-[9px] ${raw === null ? 'text-slate-400' : 'text-amber-300'} flex items-center justify-center gap-1 mt-0.5">เหลือ
-                    <input type="number" min="0" max="99" value="${raw === null ? '' : raw}" placeholder="${m ? autoRemain : 'อัตโนฯ'}" data-brm="${dept}|${sh}|${team}" oninput="brmPreview(this)"
-                        class="w-10 bg-slate-800 border ${raw === null ? 'border-slate-600' : 'border-amber-500/60'} rounded text-center text-[10px] text-white py-0.5 outline-none focus:border-amber-400 placeholder:text-slate-500"> คน
+                ${body}
+                <div class="text-[9px] ${raw === null ? 'text-slate-400' : 'text-amber-300'} flex items-center justify-center gap-1 mt-0.5" title="เว็บห้ามว่าง: รวมหลัก+รอง ต้องเหลือเฝ้าอย่างน้อยเท่านี้">เฝ้า≥
+                    <input type="number" min="0" max="99" value="${raw === null ? '' : raw}" placeholder="1" data-brm="${dept}|${sh}|${team}" oninput="brmPreview(this)"
+                        class="w-9 bg-slate-800 border ${raw === null ? 'border-slate-600' : 'border-amber-500/60'} rounded text-center text-[10px] py-0.5 outline-none focus:border-amber-400"> คน
                 </div>
             </div>`;
         };
@@ -1102,11 +1103,17 @@ window.renderQuotaSettings = async function() {
     };
 
     container.innerHTML = `
+        <style>
+            /* 🎨 เลขอัตโนมัติ (placeholder) ต้องจางชัดเจน แยกจากเลขที่พิมพ์เอง — ใช้ CSS ตรงๆ ไม่พึ่งคลาส Tailwind ที่อาจไม่ได้คอมไพล์ */
+            input[data-brm]::placeholder { color: #526075; opacity: 1; font-weight: 400; font-style: italic; }
+            input[data-brm] { color: #fbbf24; font-weight: 700; }   /* เลขที่พิมพ์เอง = เหลืองหนา เห็นปุ๊บรู้ว่ากำหนดเอง */
+        </style>
         <div class="flex flex-col gap-4 w-full mt-2">
             <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed flex flex-wrap items-center gap-3">
                 <div class="flex-1 min-w-[260px]">
-                    <b>กติกา:</b> ค่าเริ่มต้นตามกฏ — <b>1-4 คน→พักได้ 1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8</b> (นับรวมหลัก+รองของเว็บ) ·
-                    อยากปรับเว็บไหน พิมพ์เลข "เหลือเฝ้า" ในช่อง (กรอบเหลือง = กำหนดเองอยู่ · ลบว่าง = กลับอัตโนมัติ) <b>กดบันทึกถึงมีผล</b>
+                    <b>กติกา:</b> แยกนับ <b>หลัก</b> กับ <b>รอง</b> คนละกลุ่ม (ตรงกับป้ายบนบอร์ดหน้าที่) — หลักชนหลัก / รองชนรอง เกินเพดานไม่ได้ แต่หลักชนรองได้ ·
+                    เพดานต่อกลุ่ม → 1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8 ·
+                    <b>เว็บห้ามว่าง:</b> รวมหลัก+รอง ต้องเหลือเฝ้า ≥ ช่อง "เฝ้า≥" (ไม่ตั้ง = 1, <b>กดบันทึกถึงมีผล</b>) · แยก AM / OD ไม่ปนกัน
                 </div>
                 <label class="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">ดูของวันที่
                     <input type="date" id="capPreviewDate" value="${dateVal}" onchange="renderQuotaSettings()" class="bg-slate-900 border border-slate-600 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500">
@@ -1148,7 +1155,8 @@ window.resetBreakMinRemain = async function() {
     const r = await Swal.fire({ title: 'ล้างเป็นอัตโนมัติทั้งหมด?', text: 'ค่า "เหลือเฝ้า" ที่ตั้งเองไว้ทุกช่องจะถูกลบ กลับไปใช้กฏขั้นบันไดเดิม (1-4 คน→1, 5-7→2, ...)', icon: 'question', showCancelButton: true, confirmButtonText: 'ล้างเลย', cancelButtonText: 'ยกเลิก' });
     if (!r.isConfirmed) return;
     try {
-        await appDB.from('settings').delete().eq('key', 'break_min_remain');
+        // ใช้ upsert ค่าว่างแทนการลบแถว — realtime ตอน DELETE ไม่แนบชื่อ key ทำให้เครื่องพนักงานไม่รู้ว่าต้องรีโหลด
+        await appDB.from('settings').upsert([{ key: 'break_min_remain', value: '{}' }]);
         await window.loadBreakMinRemainCfg(true);
         try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าเหลือเฝ้าหน้างาน', performed_by: (window.currentUser?.username || 'admin'), target_details: 'ล้างค่ากำหนดเองทั้งหมด กลับไปใช้กฏขั้นบันไดอัตโนมัติ' }]); } catch (e) {}
         Swal.fire({ icon: 'success', title: 'ล้างแล้ว', text: 'ทุกเว็บใช้กฏอัตโนมัติ', timer: 1500, showConfirmButton: false });
