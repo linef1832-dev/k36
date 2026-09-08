@@ -9,6 +9,7 @@
 window.openAdminPanel = async function() {
     if (!window.sysRequireAdmin()) return;   // 🔒
     window._openingAdminPanel = true;   // 🚩 บอก showPage ว่า "กำลังจะเปิดแผงตั้งค่า อย่าเพิ่งบังคับกลับหน้าหลัก"
+    setTimeout(() => { window._openingAdminPanel = false; }, 8000);   // ⛑️ กันธงค้างถ้ามี error กลางทาง
     // 🌟 1. เปิดวงกลมหมุนๆ บังคับให้เบราว์เซอร์รอก่อน
     Swal.fire({title: 'กำลังดึงรายชื่อพนักงาน...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
