@@ -184,6 +184,78 @@ window._ipVisibilityHandlerAttached = false;
 // ⚡ [เร่งล็อกอิน] อุ่นผลเช็ค IP ล่วงหน้า — เริ่มยิงตั้งแต่หน้า login โผล่ (ระหว่างคนพิมพ์ PIN)
 // พอกดเข้าระบบ ผลรออยู่แล้ว ไม่ต้องเสียเวลารอเว็บนอก 0.5-2 วิ (จำผลไว้ 2 นาที)
 window._ipProbe = { p: null, ts: 0 };
+
+// 🎯 ขั้นตอนหลังผ่านทุกด่าน (PIN + IP) — แยกไว้เรียกซ้ำได้จากหน้ารอ VPN
+window._finishLoginAfterIp = async function(user, remember) {
+    if (remember) window.safeSetItem('remember_me_name', user.username);
+    else localStorage.removeItem('remember_me_name');
+
+    if(typeof window.pinSuccessAnim==='function') window.pinSuccessAnim();
+    if(typeof window._loginBeepSuccess==='function') window._loginBeepSuccess();
+    await new Promise(r=>setTimeout(r,120));
+    clearPinInputs();
+    Swal.close();
+
+    currentUser = user;
+    sessionStorage.setItem('user_platinum_plus', JSON.stringify(user));
+    if (typeof window.subscribeUserChanges === 'function') window.subscribeUserChanges();
+
+    recordUserLoginIP(user).then(() => window.startIpHeartbeat());
+
+    if (typeof applySidebarPermissions === 'function') applySidebarPermissions();
+
+    document.getElementById('login-container').innerHTML = '';
+    document.getElementById('main-layout').classList.remove('hidden');
+    showPage('dashboard');
+};
+
+// 📡 [VPN Auto-Detect] หน้ารอ IP: จับ IP สดทุก 4 วิ — เปิด VPN ให้ตรงปุ๊บ พาเข้าระบบเองทันที ไม่ต้องรีหน้า
+window._waitForAllowedIp = function(user, remember, ipCfg, matchesFn, firstIp) {
+    let timer = null;
+    let checking = false;
+    Swal.fire({
+        html: `
+            <div style="padding:16px 8px">
+                <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(232,193,90,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(232,193,90,0.35)">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#E8C15A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z"/></svg>
+                </div>
+                <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">IP ยังไม่ได้รับอนุญาต</div>
+                <div style="font-size:13px;color:#94a3b8;line-height:1.8">
+                    IP ปัจจุบัน: <span id="ipWaitCur" style="font-family:monospace;color:#f87171;font-weight:700">${firstIp || 'ตรวจไม่ได้'}</span>
+                    <span style="display:inline-block;width:10px;height:10px;border:2px solid #E8C15A;border-top-color:transparent;border-radius:50%;margin-left:6px;vertical-align:-1px;animation:ipspin 0.8s linear infinite"></span><br>
+                    เปิด VPN ให้ตรง IP ที่กำหนดได้เลย<br><b style="color:#E8C15A">ระบบเช็คให้อัตโนมัติ ผ่านปุ๊บพาเข้าทันที</b>
+                </div>
+                <style>@keyframes ipspin{to{transform:rotate(360deg)}}</style>
+            </div>`,
+        background: '#0b1120',
+        backdrop: 'rgba(0,0,0,0.85)',
+        allowOutsideClick: false,
+        showConfirmButton: true,
+        confirmButtonText: 'ยกเลิก',
+        confirmButtonColor: '#334155',
+        customClass: { popup: 'rounded-3xl border border-yellow-900/40', confirmButton: 'rounded-xl font-bold px-6' },
+        didOpen: () => {
+            timer = setInterval(async () => {
+                if (checking) return;
+                checking = true;
+                try {
+                    const ip = await probeCurrentIp().catch(() => null);   // 🔄 จับสดทุกรอบ ไม่ใช้ cache
+                    window._ipProbe = { p: Promise.resolve(ip), ts: Date.now() };
+                    const el = document.getElementById('ipWaitCur');
+                    if (el && ip) el.textContent = ip;
+                    const ok = ip && (ipCfg.ips || []).some(x => matchesFn(ip, x.ip));
+                    if (ok) {
+                        clearInterval(timer); timer = null;
+                        if (el) el.style.color = '#4ade80';
+                        try { await appDB.from('system_logs').insert([{ action_type: 'IP ผ่านหลังเปิด VPN', performed_by: user.username, target_details: `IP ใหม่ ${ip} อยู่ในรายการอนุญาต — เข้าระบบอัตโนมัติ` }]); } catch(e) {}
+                        await window._finishLoginAfterIp(user, remember);
+                    }
+                } finally { checking = false; }
+            }, 4000);
+        },
+        willClose: () => { if (timer) clearInterval(timer); }
+    });
+};
 window.prewarmIpProbe = function() {
     if (window._ipProbe.p && Date.now() - window._ipProbe.ts < 120000) return window._ipProbe.p;
     window._ipProbe = { p: probeCurrentIp().catch(() => null), ts: Date.now() };
@@ -545,61 +617,33 @@ async function handleLogin(e) {
                     if (pattern.includes('*')) return ip.startsWith(pattern.replace(/\*+$/, ''));
                     return ip === pattern;
                 };
-                const allowed = curIp && (ipCfg.ips || []).some(x => matches(curIp, x.ip));
+                let allowed = curIp && (ipCfg.ips || []).some(x => matches(curIp, x.ip));
+                let liveIp = curIp;
                 if (!allowed) {
-                    // บันทึกความพยายามเข้าที่ถูกบล็อกไว้ในประวัติระบบ
+                    // 🔄 [FIX เปิด VPN แล้วต้องรีหน้า] ค่า IP ที่อุ่นไว้อาจเก่า (cache 2 นาที)
+                    // → จับสดใหม่ 1 รอบก่อนตัดสิน เผื่อผู้ใช้เพิ่งเปิด VPN แล้วกดเข้าเลย
+                    liveIp = await probeCurrentIp().catch(() => null) || curIp;
+                    window._ipProbe = { p: Promise.resolve(liveIp), ts: Date.now() };
+                    allowed = liveIp && (ipCfg.ips || []).some(x => matches(liveIp, x.ip));
+                }
+                if (!allowed) {
                     try {
                         await appDB.from('system_logs').insert([{
                             action_type: 'ถูกบล็อก IP',
                             performed_by: user.username,
-                            target_details: `พยายามเข้าระบบจาก IP ${curIp || 'ตรวจไม่ได้'} ซึ่งไม่อยู่ในรายการที่อนุญาต`
+                            target_details: `พยายามเข้าระบบจาก IP ${liveIp || 'ตรวจไม่ได้'} ซึ่งไม่อยู่ในรายการที่อนุญาต`
                         }]);
                     } catch (e2) {}
                     Swal.close(); clearPinInputs();
                     if (typeof window.shakeLoginCard === 'function') window.shakeLoginCard();
-                    return Swal.fire({
-                        html: `
-                            <div style="padding:16px 8px">
-                                <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(220,38,38,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(220,38,38,0.3)">
-                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
-                                </div>
-                                <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">ไม่สามารถเข้าสู่ระบบได้</div>
-                                <div style="font-size:13px;color:#94a3b8;line-height:1.7">คุณไม่ได้อยู่ใน IP ที่กำหนด ไม่สามารถเข้าได้<br>IP ของคุณ: <span style="font-family:monospace;color:#f87171;font-weight:700">${curIp || 'ตรวจสอบไม่ได้'}</span><br>กรุณาติดต่อผู้จัดการเพื่อขอสิทธิ์</div>
-                            </div>
-                        `,
-                        background: '#0b1120',
-                        backdrop: 'rgba(0,0,0,0.75)',
-                        showConfirmButton: true,
-                        confirmButtonText: 'รับทราบ',
-                        confirmButtonColor: '#991b1b',
-                        customClass: { popup: 'rounded-3xl border border-red-900/40', confirmButton: 'rounded-xl font-bold px-6' }
-                    });
+                    // 📡 หน้ารอแบบมีชีวิต: จับ IP ทุก 4 วิ เปิด VPN ตรงเมื่อไหร่พาเข้าเอง
+                    window._waitForAllowedIp(user, remember, ipCfg, matches, liveIp);
+                    return;
                 }
             }
         } catch (ipErr) { console.error('IP allowlist check:', ipErr); }
 
-        if (remember) window.safeSetItem('remember_me_name', user.username); 
-        else localStorage.removeItem('remember_me_name');
-        
-        if(typeof window.pinSuccessAnim==='function') window.pinSuccessAnim();
-        if(typeof window._loginBeepSuccess==='function') window._loginBeepSuccess();
-        await new Promise(r=>setTimeout(r,120));   // ⚡ เดิม 350ms — ลดเหลือพอเห็นแอนิเมชัน
-        clearPinInputs();
-        Swal.close();
-        
-        // 🌟 ล็อกอินสำเร็จ
-        currentUser = user; 
-        sessionStorage.setItem('user_platinum_plus', JSON.stringify(user));
-        if (typeof window.subscribeUserChanges === 'function') window.subscribeUserChanges();   // 🔄 ฟังการเปลี่ยนข้อมูลตัวเอง
-
-        // 🌐 [V4] บันทึก IP + FP + เริ่ม Heartbeat (ไม่ block UI)
-        recordUserLoginIP(user).then(() => window.startIpHeartbeat());
-
-        if (typeof applySidebarPermissions === 'function') applySidebarPermissions();
-        
-        document.getElementById('login-container').innerHTML = ''; 
-        document.getElementById('main-layout').classList.remove('hidden');
-        showPage('dashboard');
+        await window._finishLoginAfterIp(user, remember);
 
     } catch (err) {
         console.error("Login Exception:", err);
