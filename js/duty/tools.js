@@ -457,4 +457,59 @@ window.clearHelpCalc = function() {
 };
 
 // คำนวณตารางซัพพอร์ต
-// ============================================================
+// ============================================================
+
+// ============================================================
+// 🎧 ระบบห้อง Discord ของ OD — จัดอัตโนมัติตอน "สุ่มจัดหน้าที่"
+// กติกา: เว็บเดียวกันอยู่ห้องเดียวกัน + เฉลี่ยจำนวนคนต่อห้องให้สมดุล
+// ตั้งชื่อห้องได้ที่ปุ่ม "🎧 ห้องดิส" (settings: discord_rooms_OD)
+// ผังห้องต่อวัน/กะ เก็บที่ settings: duty_od_rooms_{วันที่}_{กะ}
+// ============================================================
+window.getOdDiscordRooms = function() {
+    try {
+        const raw = SETTINGS['discord_rooms_OD'];
+        const a = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (Array.isArray(a) && a.length) return a.map(x => String(x).trim()).filter(Boolean);
+    } catch (e) {}
+    return ['ห้อง 1', 'ห้อง 2'];   // ค่าเริ่มต้น — แก้ได้ที่ปุ่มตั้งค่า
+};
+
+// เฉลี่ยเว็บลงห้อง: เรียงเว็บคนเยอะก่อน แล้วหย่อนลงห้องที่คนน้อยสุดทีละเว็บ
+window.assignOdRooms = function(rosterResult, rooms) {
+    const sizes = Object.keys(rosterResult || {}).map(t => ({
+        t,
+        n: (rosterResult[t] || []).filter(u => u && u.username && !String(u.username).includes('ขาดคน')).length
+    })).filter(x => x.n > 0);
+    sizes.sort((a, b) => b.n - a.n || a.t.localeCompare(b.t));
+    const load = rooms.map(() => 0);
+    const map = {};
+    sizes.forEach(x => {
+        let mi = 0;
+        for (let i = 1; i < load.length; i++) if (load[i] < load[mi]) mi = i;
+        map[x.t] = rooms[mi];
+        load[mi] += x.n;
+    });
+    return map;
+};
+
+// ปุ่มตั้งค่าชื่อห้อง (แสดงเฉพาะแท็บ OD)
+window.configOdDiscordRooms = async function() {
+    const rooms = window.getOdDiscordRooms();
+    const r = await Swal.fire({
+        title: '🎧 ห้อง Discord (OD)',
+        html: `<div style="font-size:12px;color:#94a3b8;margin-bottom:8px">พิมพ์ชื่อห้อง 1 ห้องต่อ 1 บรรทัด — ระบบจะเฉลี่ยคนลงห้องพวกนี้ตอนกด "สุ่มจัดหน้าที่"</div>
+               <textarea id="odRoomsTa" style="width:100%;height:120px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:10px;padding:10px;font-size:13px;outline:none">${rooms.join('\n')}</textarea>`,
+        showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก',
+        preConfirm: () => {
+            const lines = (document.getElementById('odRoomsTa').value || '').split('\n').map(x => x.trim()).filter(Boolean);
+            if (!lines.length) { Swal.showValidationMessage('ต้องมีอย่างน้อย 1 ห้อง'); return false; }
+            return lines;
+        }
+    });
+    if (!r.isConfirmed || !r.value) return;
+    try {
+        await appDB.from('settings').upsert([{ key: 'discord_rooms_OD', value: JSON.stringify(r.value) }]);
+        SETTINGS['discord_rooms_OD'] = JSON.stringify(r.value);
+        Swal.fire({ icon: 'success', title: 'บันทึกห้องแล้ว', text: 'มีผลตอนกด "สุ่มจัดหน้าที่" ครั้งถัดไป', timer: 1800, showConfirmButton: false });
+    } catch (e) { Swal.fire('ผิดพลาด', e.message, 'error'); }
+};
