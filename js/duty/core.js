@@ -1198,6 +1198,16 @@ window.generateDutyRoster = async function() {
         window.clearSettingCache(); const { error: _upsertErr2 } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(rosterResult) }]);
         if (_upsertErr2) throw _upsertErr2;
 
+        // 🎧 [OD] จัดห้อง Discord อัตโนมัติพร้อมเวร — เว็บเดียวกันห้องเดียวกัน เฉลี่ยหัวให้สมดุล
+        if (currentDutyDept === 'OD') {
+            try {
+                const _rooms = window.getOdDiscordRooms();
+                const _roomMap = window.assignOdRooms(rosterResult, _rooms);
+                await appDB.from('settings').upsert([{ key: `duty_od_rooms_${targetDate}_${shiftFilter}`, value: JSON.stringify(_roomMap) }]);
+                window._odRoomCache = null;   // ล้าง cache ให้วาดรอบใหม่เห็นผังล่าสุด
+            } catch (e) { console.warn('จัดห้องดิส OD ไม่สำเร็จ:', e); }
+        }
+
         try {
             // 🌟 สร้าง summary ของผู้ที่ถูกจัดเข้าแต่ละเว็บ
             const summaryParts = [];
@@ -1357,6 +1367,23 @@ window.renderRosterGrid = async function(rosterData) {
         });
     }
     window.currentStandbyData = standbyData; 
+
+    // 🎧 [OD] โหลดผังห้องดิสของวัน/กะนี้ + สลับปุ่มตั้งค่าห้องให้โผล่เฉพาะ OD
+    let odRoomOf = {}; let odRoomIdx = {};
+    { const _bt = document.getElementById('odRoomsBtn'); if (_bt) _bt.style.display = (currentDutyDept === 'OD') ? '' : 'none'; }
+    if (currentDutyDept === 'OD' && targetDate) {
+        try {
+            const _rk = `duty_od_rooms_${targetDate}_${shiftFilter}`;
+            if (window._odRoomCache && window._odRoomCache.key === _rk) {
+                odRoomOf = window._odRoomCache.map;
+            } else {
+                const { data: _rd } = await appDB.from('settings').select('value').eq('key', _rk).maybeSingle();
+                if (_rd && _rd.value) odRoomOf = JSON.parse(_rd.value);
+                window._odRoomCache = { key: _rk, map: odRoomOf };
+            }
+            window.getOdDiscordRooms().forEach((r, i) => { odRoomIdx[r] = i; });
+        } catch (e) { odRoomOf = {}; }
+    }
 
     // 🕘 [ป้ายเมื่อวาน] ดึงตารางเวรของ "เมื่อวาน" (แผนกเดียวกัน กะเดียวกัน) มาทำแผนที่ ชื่อ → เว็บ
     // เพื่อโชว์ป้าย "เมื่อวานทำ <เว็บ>" ต่อท้ายชื่อพนักงาน — cache ตาม key กันยิงซ้ำทุกครั้งที่วาด
@@ -1596,6 +1623,7 @@ window.renderRosterGrid = async function(rosterData) {
                 <div class="flex justify-between items-center ${colorClass.bg} ${colorClass.text} p-3 shadow-sm shrink-0">
                     <div class="flex items-center flex-wrap gap-2 w-full">
                         <h4 class="font-black text-base pointer-events-none tracking-wide">${team}</h4>
+                        ${(() => { const _room = odRoomOf[team]; if (!_room) return ''; const _pal = ['#34d399','#38bdf8','#a78bfa','#fbbf24','#fb7185','#22d3ee']; const _c = _pal[(odRoomIdx[_room] || 0) % _pal.length]; return `<span title="เข้าห้อง Discord: ${_room}" class="pointer-events-none shrink-0" style="display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.3);border:1.5px solid ${_c};color:${_c};font-size:10px;font-weight:900;padding:2.5px 9px;border-radius:99px;text-shadow:0 0 8px ${_c}55"><span class="material-icons" style="font-size:12px">headset_mic</span>${_room}</span>`; })()}
                         <div class="flex items-center gap-2 ml-auto">
                             <div class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-lg shadow-inner whitespace-nowrap border border-white/30 flex items-center gap-1" style="color: inherit;">
                                 <span class="opacity-80">หลัก</span><span class="text-xs font-black bg-black/20 px-1 rounded-md">${primaryCount}</span>
@@ -1855,4 +1883,3 @@ window.searchDutyMyself = function() {
         searchInput.value = currentUser.username; window.filterDutyResult();
     }
 }
-
