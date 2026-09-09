@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "2026090913";</script>
+    <script>window._APP_VERSION = "2026090914";</script>
     <script>
         (function(v){
             ['css/style.css','css/tailwind-compiled.css'].forEach(function(p){
@@ -140,7 +140,13 @@
                 transition:opacity .16s ease, transform .16s ease;
             }
             #sidebarNav.sidebar-mini .menu-section-header:hover::after{ opacity:1; transform:translate(0,-50%); }
-            /* ── เส้นคั่นเหนือโซนล่าง: hairline จางๆ ── */
+            /* ── โซนท้ายราง (mini): ตัด padding โหมดเต็มทิ้ง จัดกึ่งกลางเป๊ะทุกปุ่ม ── */
+            #sidebarNav.sidebar-mini .mt-auto{ padding:10px 4px !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-btn{
+                width:100% !important; display:flex !important;
+                justify-content:center !important; align-items:center !important;
+                padding:6px 0 !important; margin:0 0 6px 0 !important;
+            }
             #sidebarNav.sidebar-mini .sidebar-collapse-row{ border-top:1px solid rgba(255,255,255,0.06); }
             /* ── ปุ่มขยายราง: ลูกศรเรียบๆ ภาษาเดียวกับไอคอนอื่น ── */
             #sidebarNav.sidebar-mini .sidebar-collapse-row button{
