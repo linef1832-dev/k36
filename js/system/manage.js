@@ -1068,19 +1068,17 @@ window.renderQuotaSettings = async function() {
         shifts.forEach(sh => { const r = rows[`duty_roster_${dept}_${dateVal}_${sh}`]; maps[sh] = r ? window.buildCoverageMap(r) : null; });
         const cell = (sh, team) => {
             const m = maps[sh];
-            // 🎯 นับแยกกลุ่มตามกติกาเก่า (ตรงกับป้าย "หลัก 2 รอง 2" บนบอร์ดหน้างาน)
-            const raw = window.getBreakMinRemainRaw(dept, sh, team);          // เหลือเฝ้า (null = ค่าเริ่มต้น 1)
-            const n1 = m ? ((m.webs && m.webs[`${team} (หลัก)`]) || new Set()).size : 0;
-            const n2 = m ? ((m.webs && m.webs[`${team} (รอง)`]) || new Set()).size : 0;
-            const c1 = n1 ? window.breakCapByRule(n1) : 0;
-            const c2 = n2 ? window.breakCapByRule(n2) : 0;
-            const body = m
-                ? `<div class="text-[10px] ${n1 ? 'text-sky-300' : 'text-slate-600'}">หลัก ${n1} → <b class="${n1 ? 'text-emerald-300' : ''}">${c1}</b></div>
-                   <div class="text-[10px] ${n2 ? 'text-amber-300' : 'text-slate-600'}">รอง ${n2} → <b class="${n2 ? 'text-emerald-300' : ''}">${c2}</b></div>`
+            // 🧹 [กติกาเดียว] นับรวมทุกคนของเว็บ (ไม่สนหลัก/รอง) — พักพร้อมกันได้ = คน − เฝ้า≥ (ไม่ตั้ง = 1)
+            const raw = window.getBreakMinRemainRaw(dept, sh, team);
+            const remain = raw === null ? 1 : raw;
+            const n = m ? ((m.combined && m.combined[team]) || new Set()).size : 0;
+            const cap = n <= 1 ? n : Math.max(0, n - remain);
+            const capHtml = m
+                ? `<div class="text-[10px] ${n ? 'text-sky-300' : 'text-slate-600'}">คน ${n} → พักได้ <b class="brm-cap ${(cap === 0 && n > 0) ? 'text-red-400' : 'text-emerald-300'}" data-n="${n}">${cap}</b></div>`
                 : `<div class="text-[10px] text-slate-600 py-0.5">ยังไม่จัด</div>`;
             return `<div class="w-28 shrink-0 text-center ml-2 rounded-lg border ${raw === null ? 'border-slate-600' : 'border-amber-500/60'} bg-slate-900 py-1 leading-tight">
-                ${body}
-                <div class="text-[9px] ${raw === null ? 'text-slate-400' : 'text-amber-300'} flex items-center justify-center gap-1 mt-0.5" title="เว็บห้ามว่าง: รวมหลัก+รอง ต้องเหลือเฝ้าอย่างน้อยเท่านี้">เฝ้า≥
+                ${capHtml}
+                <div class="text-[9px] ${raw === null ? 'text-slate-400' : 'text-amber-300'} flex items-center justify-center gap-1 mt-0.5" title="ช่วงเวลาเดียวกัน ต้องเหลือคนเฝ้าเว็บนี้อย่างน้อยเท่านี้">เฝ้า≥
                     <input type="number" min="0" max="99" value="${raw === null ? '' : raw}" placeholder="1" data-brm="${dept}|${sh}|${team}" oninput="brmPreview(this)"
                         class="w-9 bg-slate-800 border ${raw === null ? 'border-slate-600' : 'border-amber-500/60'} rounded text-center text-[10px] py-0.5 outline-none focus:border-amber-400"> คน
                 </div>
@@ -1116,9 +1114,8 @@ window.renderQuotaSettings = async function() {
         <div class="flex flex-col gap-4 w-full mt-2">
             <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed flex flex-wrap items-center gap-3">
                 <div class="flex-1 min-w-[260px]">
-                    <b>กติกา:</b> แยกนับ <b>หลัก</b> กับ <b>รอง</b> คนละกลุ่ม (ตรงกับป้ายบนบอร์ดหน้าที่) — หลักชนหลัก / รองชนรอง เกินเพดานไม่ได้ แต่หลักชนรองได้ ·
-                    เพดานต่อกลุ่ม → 1-4 คน→1, 5-7→2, 8-10→3, 11-14→4, 15-20→5, 21-25→6, 26-30→7, 31+→8 ·
-                    <b>เว็บห้ามว่าง:</b> รวมหลัก+รอง ต้องเหลือเฝ้า ≥ ช่อง "เฝ้า≥" (ไม่ตั้ง = 1, <b>กดบันทึกถึงมีผล</b>) · แยก AM / OD ไม่ปนกัน
+                    <b>กติกา (ข้อเดียว):</b> นับรวมทุกคนของเว็บ <b>ไม่สนหลัก/รอง</b> — ช่วงเวลาเดียวกันต้องเหลือคนเฝ้า ≥ ช่อง "เฝ้า≥" (ไม่ตั้ง = 1) ·
+                    เช่น เว็บ 6 คน ตั้งเฝ้า≥2 → ลงเวลาเดียวกันได้ 4 คน · ลงช่วงติดกันควบพัก 1 ชม.ได้ · แยก AM/OD ไม่ปนกัน · <b>กดบันทึกถึงมีผล</b>
                 </div>
                 <label class="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">ดูของวันที่
                     <input type="date" id="capPreviewDate" value="${dateVal}" onchange="renderQuotaSettings()" class="bg-slate-900 border border-slate-600 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500">
@@ -1144,13 +1141,8 @@ window.brmPreview = function(inp) {
     const capEl = inp.closest('.rounded-lg')?.querySelector('.brm-cap');
     if (!capEl) return;
     const n = parseInt(capEl.dataset.n || '0', 10);
-    let cap;
-    if (String(inp.value).trim() === '') {
-        cap = n <= 1 ? n : window.breakCapByRule(n);          // ว่าง = อัตโนมัติตามกฏเดิม
-    } else {
-        const remain = Math.max(0, parseInt(inp.value, 10) || 0);
-        cap = n <= 1 ? n : Math.max(0, n - remain);
-    }
+    const remain = String(inp.value).trim() === '' ? 1 : Math.max(0, parseInt(inp.value, 10) || 0);   // ว่าง = ค่าเริ่มต้น 1
+    const cap = n <= 1 ? n : Math.max(0, n - remain);
     capEl.textContent = cap;
     capEl.className = 'brm-cap ' + ((cap === 0 && n > 0) ? 'text-red-400' : 'text-emerald-300');
 };
