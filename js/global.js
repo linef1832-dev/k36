@@ -650,34 +650,22 @@ window.buildCoverageMap = function(roster, dept, shift) {
     }
     return { webs, websOf, combined, combinedOf, dept: dept || '', shift: shift || '' };
 };
-// เช็คว่า username พักช่วงนี้ได้ไหม — กติกาเก่า (นับแยกกลุ่ม) + กันเว็บว่าง
-//   1) หลักชนหลัก (เว็บเดียวกัน): กลุ่มหลักพักพร้อมกันได้ตามกฏขั้นบันได (1-4 คน→1, 5-7→2, ...)
-//   2) รองชนรอง (เว็บเดียวกัน): กลุ่มรองก็ตามกฏขั้นบันไดเหมือนกัน (หลักชนรองได้)
-//   3) เว็บห้ามว่าง: รวมหลัก+รองของเว็บ ต้องเหลือคนเฝ้าอย่างน้อยตามที่ตั้ง (ค่าเริ่มต้น 1)
-//      — ช่อง "เหลือ" ในหน้าตั้งค่า (แยกแผนก/กะ/เว็บ) คุมข้อนี้ | เว็บที่มีคนเดียวพักได้ปกติ
+// เช็คว่า username พักช่วงนี้ได้ไหม — 🧹 [ล้างกระดาน 09/09/2026] เหลือกติกาเดียวเท่านั้น:
+//   "นับรวมทุกคนของเว็บ (ไม่สนหลัก/รอง) — ช่วงเวลาไหนก็ตาม ต้องเหลือคนเฝ้า ≥ ค่าที่ตั้งหลังบ้าน"
+//   เช่น Jun88 หลัก+รอง รวม 6 คน ตั้งเหลือ 2 → ลงเวลาเดียวกันได้ 4 คน จบ ไม่มีข้อยิบย่อยอื่น
+//   ค่าที่ตั้ง: หน้าตั้งค่าระบบ → เพดานพักต่อเว็บ (แยกแผนก/กะ/เว็บ, ไม่ตั้ง = เหลือ 1)
+//   เว็บที่มีคนเดียว → พักได้ปกติ (ไม่งั้นอดพักทั้งวัน)
+//   (กติกาเก่าทั้งหมด — ขั้นบันได, หลักชนหลัก, รองชนรอง — ยกเลิกหมดแล้ว)
 // → { ok, problems:[{team, used, cap, total}], canLeave }
 window.checkCoverage = function(username, covMap, slotBookings) {
-    const myWebs = (covMap && covMap.websOf && covMap.websOf[username]) || [];
     const myTeams = (covMap && covMap.combinedOf && covMap.combinedOf[username]) || [];
-    if (myWebs.length === 0 && myTeams.length === 0) return { ok: true, problems: [], canLeave: Infinity };
+    if (myTeams.length === 0) return { ok: true, problems: [], canLeave: Infinity };
     const onBreak = new Set((slotBookings || []).map(b => b.staff_name).filter(Boolean));
     const problems = [];
     let canLeave = Infinity;
-
-    // ข้อ 1-2: เพดานต่อกลุ่ม (คีย์ "เว็บ (หลัก)" / "เว็บ (รอง)")
-    myWebs.forEach(team => {
-        const members = covMap.webs[team] || new Set();
-        let used = 0;
-        members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
-        const cap = window.breakCapByRule(members.size);
-        if (used >= cap) problems.push({ team, used, cap, total: members.size });
-        canLeave = Math.min(canLeave, Math.max(0, cap - used));
-    });
-
-    // ข้อ 3: เว็บห้ามว่าง — รวมหลัก+รอง เหลือเฝ้า ≥ ค่าที่ตั้ง (ไม่ตั้ง = 1)
     myTeams.forEach(team => {
         const members = (covMap.combined && covMap.combined[team]) || new Set();
-        if (members.size < 2) return;   // เว็บมีคนเดียว → พักได้ ไม่ติดข้อนี้
+        if (members.size < 2) return;
         const raw = window.getBreakMinRemainRaw(covMap.dept, covMap.shift, team);
         const minRemain = (raw === null) ? 1 : raw;
         const cap = Math.max(0, members.size - minRemain);
