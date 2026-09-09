@@ -1121,7 +1121,7 @@ window.renderQuotaSettings = async function() {
                     <input type="date" id="capPreviewDate" value="${dateVal}" onchange="renderQuotaSettings()" class="bg-slate-900 border border-slate-600 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500">
                 </label>
                 <button onclick="saveBreakMinRemain()" class="shrink-0 bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition shadow"><span class="material-icons text-[13px]">save</span> บันทึกค่าเหลือเฝ้า</button>
-                <button onclick="resetBreakMinRemain()" class="shrink-0 bg-slate-700 hover:bg-slate-600 text-slate-300 text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition" title="ลบค่าที่ตั้งเองทั้งหมด กลับไปใช้กฏขั้นบันไดอัตโนมัติ"><span class="material-icons text-[13px]">restart_alt</span> ล้างเป็นอัตโนมัติ</button>
+                <button onclick="resetBreakMinRemain()" class="shrink-0 bg-slate-700 hover:bg-slate-600 text-slate-300 text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition" title="ลบค่าที่ตั้งเองทั้งหมด กลับไปใช้ค่าเริ่มต้น (เหลือเฝ้า 1)"><span class="material-icons text-[13px]">restart_alt</span> ล้างเป็นอัตโนมัติ</button>
             </div>
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
                 <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[460px]">
@@ -1136,7 +1136,7 @@ window.renderQuotaSettings = async function() {
         </div>`;
 };
 
-// ⚙️ พรีวิวสด: พิมพ์เลข "เหลือ" แล้วตัวเลข "พักได้" อัปเดตทันที | ลบว่าง = กลับอัตโนมัติตามกฏขั้นบันได
+// ⚙️ พรีวิวสด: พิมพ์เลข "เฝ้า≥" แล้วตัวเลข "พักได้" อัปเดตทันที | ลบว่าง = ค่าเริ่มต้น (เหลือ 1)
 window.brmPreview = function(inp) {
     const capEl = inp.closest('.rounded-lg')?.querySelector('.brm-cap');
     if (!capEl) return;
@@ -1147,15 +1147,15 @@ window.brmPreview = function(inp) {
     capEl.className = 'brm-cap ' + ((cap === 0 && n > 0) ? 'text-red-400' : 'text-emerald-300');
 };
 
-// 🔄 ล้างค่าที่ตั้งเองทั้งหมด → ทุกเว็บกลับไปใช้กฏขั้นบันไดอัตโนมัติ
+// 🔄 ล้างค่าที่ตั้งเองทั้งหมด → ทุกเว็บกลับไปใช้ค่าเริ่มต้น (เหลือเฝ้า 1)
 window.resetBreakMinRemain = async function() {
-    const r = await Swal.fire({ title: 'ล้างเป็นอัตโนมัติทั้งหมด?', text: 'ค่า "เหลือเฝ้า" ที่ตั้งเองไว้ทุกช่องจะถูกลบ กลับไปใช้กฏขั้นบันไดเดิม (1-4 คน→1, 5-7→2, ...)', icon: 'question', showCancelButton: true, confirmButtonText: 'ล้างเลย', cancelButtonText: 'ยกเลิก' });
+    const r = await Swal.fire({ title: 'ล้างเป็นอัตโนมัติทั้งหมด?', text: 'ค่า "เฝ้า≥" ที่ตั้งเองไว้ทุกช่องจะถูกลบ ทุกเว็บกลับไปใช้ค่าเริ่มต้น = เหลือเฝ้า 1 คน', icon: 'question', showCancelButton: true, confirmButtonText: 'ล้างเลย', cancelButtonText: 'ยกเลิก' });
     if (!r.isConfirmed) return;
     try {
         // ใช้ upsert ค่าว่างแทนการลบแถว — realtime ตอน DELETE ไม่แนบชื่อ key ทำให้เครื่องพนักงานไม่รู้ว่าต้องรีโหลด
         await appDB.from('settings').upsert([{ key: 'break_min_remain', value: '{}' }]);
         await window.loadBreakMinRemainCfg(true);
-        try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าเหลือเฝ้าหน้างาน', performed_by: (window.currentUser?.username || 'admin'), target_details: 'ล้างค่ากำหนดเองทั้งหมด กลับไปใช้กฏขั้นบันไดอัตโนมัติ' }]); } catch (e) {}
+        try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าเหลือเฝ้าหน้างาน', performed_by: (window.currentUser?.username || 'admin'), target_details: 'ล้างค่ากำหนดเองทั้งหมด กลับไปใช้ค่าเริ่มต้น (เหลือเฝ้า 1)' }]); } catch (e) {}
         Swal.fire({ icon: 'success', title: 'ล้างแล้ว', text: 'ทุกเว็บใช้กฏอัตโนมัติ', timer: 1500, showConfirmButton: false });
         if (typeof renderQuotaSettings === 'function') renderQuotaSettings();
     } catch (e) { Swal.fire('ผิดพลาด', e.message, 'error'); }
