@@ -1382,6 +1382,27 @@ window.renderRosterGrid = async function(rosterData) {
                 window._odRoomCache = { key: _rk, map: odRoomOf };
             }
             window.getOdDiscordRooms().forEach((r, i) => { odRoomIdx[r] = i; });
+
+            // 🔧 [FIX] เว็บที่ "ไม่มีห้อง" ทั้งที่มีคน — เกิดเมื่อตอนกดสุ่มเว็บนั้นยังว่าง (0 คน)
+            // แล้วแอดมินค่อยลาก/เพิ่มคนเข้าไปทีหลัง ผังห้องถูกคำนวณครั้งเดียวตอนสุ่มจึงไม่มีเว็บนี้
+            // วิธีแก้: ตอนวาด ถ้าเว็บไหนมีคนแต่ไม่มีห้อง ให้หยิบห้องที่คนน้อยสุดใส่ให้ แล้วบันทึกลง DB
+            try {
+                const _rooms = window.getOdDiscordRooms();
+                if (_rooms.length) {
+                    const _load = {}; _rooms.forEach(r => _load[r] = 0);
+                    const _cnt = t => (rosterData[t] || []).filter(u => u && u.username && !String(u.username).includes('ขาดคน')).length;
+                    Object.keys(odRoomOf).forEach(t => { if (_load[odRoomOf[t]] !== undefined) _load[odRoomOf[t]] += _cnt(t); });
+                    let _changed = false;
+                    sortedTeams.filter(t => _cnt(t) > 0 && !odRoomOf[t]).forEach(t => {
+                        const _best = _rooms.reduce((a, b) => _load[b] < _load[a] ? b : a, _rooms[0]);
+                        odRoomOf[t] = _best; _load[_best] += _cnt(t); _changed = true;
+                    });
+                    if (_changed) {
+                        window._odRoomCache = { key: _rk, map: odRoomOf };
+                        appDB.from('settings').upsert([{ key: _rk, value: JSON.stringify(odRoomOf) }]).then(() => {});
+                    }
+                }
+            } catch (e) { console.warn('[odRooms] เติมห้องให้เว็บที่ตกหล่นไม่สำเร็จ:', e); }
         } catch (e) { odRoomOf = {}; }
     }
 
