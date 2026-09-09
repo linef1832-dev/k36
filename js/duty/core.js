@@ -613,7 +613,11 @@ window.refreshDutyData = async function() {
         if (savedRoster && savedRoster.value) {
             const parsedRoster = JSON.parse(savedRoster.value);
             window.isRosterPreview = false;
-            window.renderRosterGrid(parsedRoster);
+            // 🔧 [FIX] ถ้าวาดตารางพัง (ข้อมูลเก่าผิดรูป ฯลฯ) เดิมจะเหลือหน้าขาว ๆ โดยไม่บอกอะไร
+            Promise.resolve(window.renderRosterGrid(parsedRoster)).catch(err => {
+                console.error('[duty] วาดตารางไม่สำเร็จ:', err);
+                if (grid) grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-red-400"><span class="material-icons text-5xl mb-2">error_outline</span><span class="font-bold">โหลดตารางวันนี้ไม่สำเร็จ</span><span class="text-xs opacity-80 mt-1">${String(err && err.message || err)}</span><span class="text-[11px] opacity-60 mt-2">ข้อมูลยังอยู่ในระบบ ลองรีเฟรชหน้า หรือส่งข้อความนี้ให้ผู้ดูแล</span></div>`;
+            });
             if (btnGen) {
                 btnGen.disabled = true; btnGen.innerHTML = '<span class="material-icons text-base">lock</span> จัดแล้ว (ต้องล้างก่อน)';
                 btnGen.classList.replace('bg-indigo-600', 'bg-gray-500'); btnGen.classList.replace('hover:bg-indigo-700', 'hover:bg-gray-600');
@@ -1436,7 +1440,8 @@ window.renderRosterGrid = async function(rosterData) {
     }
 
     sortedTeams.forEach(team => {
-        let assignees = rosterData[team] || [];
+        // 🔧 [FIX] ข้อมูลเก่าบางวันมีรายการที่ username ว่าง/null → a.username.includes() พัง ทั้งกระดานเลยขาว
+        let assignees = (rosterData[team] || []).filter(a => a && typeof a.username === 'string');
         // card เว็บแสดงเสมอ แม้จะไม่มีพนักงาน
         
         if (window.isTrainerDept()) {
@@ -1458,7 +1463,7 @@ window.renderRosterGrid = async function(rosterData) {
                 const mySchedules = (window.currentDutySchedules || []).filter(s => s.staff_name === a.username);
                 
                 if (mySchedules && mySchedules.length > 0) {
-                    const timeSlotsText = mySchedules.map(s => s.time_slot).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
+                    const timeSlotsText = mySchedules.map(s => String(s.time_slot || '')).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
                     
                     // ปรับ text-[10px] เป็น text-xs (ใหญ่ขึ้น), เพิ่มช่องว่าง gap-1.5, ขยายไอคอนเป็น text-[14px], ปรับ Padding px-2.5 py-1
                     breakTimeHtml = `<div class="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 dark:text-sky-400 px-2.5 py-1 rounded-md border border-sky-200 dark:border-sky-800/50 w-fit shadow-sm cursor-default"><span class="material-icons text-[14px]">restaurant</span> พัก: ${timeSlotsText}</div>`;
@@ -1781,7 +1786,7 @@ window.viewStandbyList = function(team) {
         const mySchedules = (window.currentDutySchedules || []).filter(s => s.staff_name === item.name);
         
         if (mySchedules && mySchedules.length > 0) {
-            const timeSlotsText = mySchedules.map(s => s.time_slot).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
+            const timeSlotsText = mySchedules.map(s => String(s.time_slot || '')).sort((t1, t2) => t1.localeCompare(t2)).join(', ');
             // 🌟 ปรับขนาดป้ายเวลาพักให้ใหญ่ขึ้น (text-xs = 12px, px-2.5 py-1)
             breakTimeHtml = `<span class="text-xs text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-900/30 px-2.5 py-1 rounded-md flex items-center gap-1 border border-sky-200 dark:border-sky-800/50 shadow-sm"><span class="material-icons text-[14px]">restaurant</span> พัก: ${timeSlotsText}</span>`;
         } else {
