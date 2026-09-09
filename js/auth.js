@@ -199,6 +199,7 @@ window._finishLoginAfterIp = async function(user, remember) {
     currentUser = user;
     sessionStorage.setItem('user_platinum_plus', JSON.stringify(user));
     if (typeof window.subscribeUserChanges === 'function') window.subscribeUserChanges();
+    if (typeof window.subscribeBoardEvents === 'function') window.subscribeBoardEvents();
 
     recordUserLoginIP(user).then(() => window.startIpHeartbeat());
 
