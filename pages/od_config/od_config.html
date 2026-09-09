@@ -107,6 +107,24 @@
             </div>
         </div>
 
+        <!-- แถว 2.65: ล็อคบัญชีธนาคาร -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-cyan-500 text-sm">lock</span> ล็อคบัญชีธนาคาร
+                </h2>
+                <span class="text-xs text-gray-400">ฟอร์มเลือกเว็บ + ใส่ยูส + เลขบัญชีธนาคาร แล้วส่งเข้ากลุ่ม</span>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องสำหรับล็อคบัญชี</label>
+                    <input type="text" id="odCfgLockChatId" placeholder="เว้นว่าง = ใช้ห้องเดียวกับ OD"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                    <p class="text-xs text-gray-400 mt-1">ถ้าอยากให้ฟอร์มนี้ส่งไปอีกห้อง ใส่ -100… ที่นี่</p>
+                </div>
+            </div>
+        </div>
+
         <!-- แถว 2.7: Template ข้อความ -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
             <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
@@ -166,6 +184,18 @@
                         class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
                     <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น (พนักงานไม่กรอกจำนวนเงิน)</div>
                     <pre id="odCfgTplPrevBigNa" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+                <!-- ล็อคบัญชีธนาคาร -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">🔒 ฟอร์มล็อคบัญชีธนาคาร</label>
+                        <button onclick="odCfg_resetTpl('lock')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsLock"></div>
+                    <textarea id="odCfgTplLock" rows="9" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
+                    <pre id="odCfgTplPrevLock" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
                 </div>
             </div>
 
@@ -278,6 +308,7 @@
                     <button onclick="odCfg_botTest('od')" class="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ OD</button>
                     <button onclick="odCfg_botTest('odol')" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ODOL</button>
                     <button onclick="odCfg_botTest('big')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ยอดใหญ่</button>
+                    <button onclick="odCfg_botTest('lock')" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ล็อคบัญชี</button>
                 </div>
             </div>
             <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -347,6 +378,7 @@
                             <option value="od">OD ตัดเครดิต</option>
                             <option value="odol">OD หลายยูส</option>
                             <option value="big">ยอดถอนใหญ่</option>
+                            <option value="lock">ล็อคบัญชี</option>
                         </select>
                     </div>
                     <div>
