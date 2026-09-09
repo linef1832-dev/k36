@@ -99,12 +99,14 @@
             <div id="dutyRequirementsWrapper" class="duty-admin-only bg-indigo-50 dark:bg-slate-900/50 p-2 border-b border-indigo-100 dark:border-slate-700 shrink-0">
                 <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-indigo-800 dark:text-indigo-300 mb-2 px-2">
                     <span>จำนวนคนต่อเว็บ — กด <b>−</b> เก็บคนเข้ากองกลาง · กด <b>+</b> แจกจากกองกลางเข้าเว็บที่ต้องการ · ◀▶ เลื่อนตำแหน่ง</span>
-                    <button onclick="autoSuggestRequirements()" class="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition transform active:scale-95">
-                        <span class="material-icons text-[14px]">auto_fix_high</span> คำนวณยอดคนออโต้
-                    </button>
-                    <button id="odRoomsBtn" onclick="configOdDiscordRooms()" style="display:none" class="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition shadow" title="ตั้งชื่อห้อง Discord ของ OD — ระบบเฉลี่ยคนลงห้องตอนสุ่มจัดหน้าที่">
-                        <span class="material-icons text-[14px]">headset_mic</span> ห้องดิส
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button id="odRoomsBtn" onclick="configOdDiscordRooms()" style="display:none" class="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition transform active:scale-95" title="ตั้งชื่อห้อง Discord ของ OD — ระบบเฉลี่ยคนลงห้องตอนสุ่มจัดหน้าที่">
+                            <span class="material-icons text-[14px]">headset_mic</span> ห้องดิส
+                        </button>
+                        <button onclick="autoSuggestRequirements()" class="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition transform active:scale-95">
+                            <span class="material-icons text-[14px]">auto_fix_high</span> คำนวณยอดคนออโต้
+                        </button>
+                    </div>
                 </div>
                 <div id="dutyRequirements" class="flex flex-wrap gap-2 px-2 pb-2"></div>
             </div>
