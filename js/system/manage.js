@@ -434,6 +434,9 @@ window.populateAdminDeptSelects = function() {
         filterUserDept.innerHTML = html;
         filterUserDept.value = currentVal || 'all';
     }
+
+    // 3. อัปเดตช่อง "แผนก" ในการ์ดล้างกระดาน (ให้ตามแผนกจริง ไม่ใช่ AM/OD คงที่)
+    if (typeof window.populateClearScheduleDept === 'function') window.populateClearScheduleDept();
 };
 
 async function addUsersBulk() {
