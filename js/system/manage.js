@@ -1115,7 +1115,7 @@ window.renderQuotaSettings = async function() {
             <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed flex flex-wrap items-center gap-3">
                 <div class="flex-1 min-w-[260px]">
                     <b>กติกา (ข้อเดียว):</b> นับรวมทุกคนของเว็บ <b>ไม่สนหลัก/รอง</b> — ช่วงเวลาเดียวกันต้องเหลือคนเฝ้า ≥ ช่อง "เฝ้า≥" (ไม่ตั้ง = 1) ·
-                    เช่น เว็บ 6 คน ตั้งเฝ้า≥2 → ลงเวลาเดียวกันได้ 4 คน · ลงช่วงติดกันควบพัก 1 ชม.ได้ · แยก AM/OD ไม่ปนกัน · <b>กดบันทึกถึงมีผล</b>
+                    เช่น เว็บ 6 คน ตั้งเฝ้า≥2 → ลงเวลาเดียวกันได้ 4 คน · ห้ามลงช่วงติดกัน (ห้ามควบพักยาว) · แยก AM/OD ไม่ปนกัน · <b>กดบันทึกถึงมีผล</b>
                 </div>
                 <label class="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">ดูของวันที่
                     <input type="date" id="capPreviewDate" value="${dateVal}" onchange="renderQuotaSettings()" class="bg-slate-900 border border-slate-600 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500">
