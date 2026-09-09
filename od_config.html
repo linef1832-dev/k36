@@ -1,0 +1,420 @@
+<div id="odConfigApp" class="fade-in flex flex-col min-h-full bg-slate-50 dark:bg-slate-900 pb-10">
+
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-blue-700 to-indigo-700 text-white p-4 shadow-md shrink-0 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="bg-white/20 p-2 rounded-full"><span class="material-icons text-2xl">extension</span></div>
+            <div>
+                <h1 class="font-bold text-lg">ตั้งค่าส่วนขยาย OD Form Bot</h1>
+                <p class="text-xs text-blue-100">แก้ไขรหัสโปร / เว็บ / สาเหตุ — มีผลทันทีเมื่อพนักงานเปิดส่วนขยาย</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="odCfg_save()" class="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
+                <span class="material-icons text-sm">save</span> บันทึกทั้งหมด
+            </button>
+        </div>
+    </div>
+
+    <!-- Status bar -->
+    <div id="odCfgStatus" class="hidden mx-4 mt-3 p-3 rounded-xl text-sm font-bold text-center"></div>
+
+    <div class="p-4 max-w-6xl mx-auto w-full">
+
+        <!-- แถว 1: เว็บ + สาเหตุ -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+            <!-- เว็บ -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                        <span class="material-icons text-blue-500 text-sm">language</span> รายชื่อเว็บ
+                    </h2>
+                    <button onclick="odCfg_addWeb()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มเว็บ</button>
+                </div>
+                <div class="p-3 space-y-2 max-h-72 overflow-y-auto custom-scrollbar" id="odCfgWebList"></div>
+            </div>
+
+            <!-- สาเหตุ -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                        <span class="material-icons text-amber-500 text-sm">report_problem</span> สาเหตุการตัด OD
+                    </h2>
+                    <button onclick="odCfg_addReason()" class="bg-amber-500 hover:bg-amber-400 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มสาเหตุ</button>
+                </div>
+                <div class="p-3 space-y-2 max-h-72 overflow-y-auto custom-scrollbar" id="odCfgReasonList"></div>
+            </div>
+        </div>
+
+        <!-- แถว 2: รหัสโปรแยกตามเว็บ -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-yellow-500 text-sm">star</span> รหัสโปรโมชั่น แยกตามเว็บ
+                </h2>
+                <div class="flex items-center gap-2">
+                    <select id="odCfgPromoWebSel" onchange="odCfg_renderPromos()" class="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500">
+                        <option value="">-- เลือกเว็บ --</option>
+                    </select>
+                    <button onclick="odCfg_addPromo()" class="bg-yellow-500 hover:bg-yellow-400 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มโปร</button>
+                </div>
+            </div>
+            <div class="p-3">
+                <div id="odCfgPromoList" class="flex flex-wrap gap-2 min-h-16">
+                    <div class="text-gray-400 text-sm m-auto">เลือกเว็บเพื่อดูรหัสโปร</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- แถว 2.5: ฟอร์มหลายยูส (ODOL) -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-purple-500 text-sm">groups</span> ฟอร์มหลายยูส (ODOL)
+                </h2>
+                <button onclick="odCfg_addNote()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition">+ เพิ่มหมายเหตุ</button>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">ตัวเลือกหมายเหตุ (คลิก ★ เพื่อตั้งเป็นค่าเริ่มต้น)</label>
+                    <div id="odCfgNoteList" class="flex flex-wrap gap-2 min-h-12"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องสำหรับฟอร์มหลายยูส</label>
+                    <input type="text" id="odCfgOdolChatId" placeholder="เว้นว่าง = ใช้ห้องเดียวกับ OD"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                    <p class="text-xs text-gray-400 mt-1">ถ้าอยากให้ฟอร์มนี้ส่งไปอีกห้อง ใส่ -100… ที่นี่</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- แถว 2.6: ยอดถอนใหญ่ -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-amber-500 text-sm">savings</span> ยอดถอนใหญ่
+                </h2>
+                <span class="text-xs text-gray-400">ฟอร์มเลือกเว็บ + ใส่ยูส แล้วส่งเข้ากลุ่ม</span>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องสำหรับยอดถอนใหญ่</label>
+                    <input type="text" id="odCfgBigChatId" placeholder="เว้นว่าง = ใช้ห้องเดียวกับ OD"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                    <p class="text-xs text-gray-400 mt-1">ถ้าอยากให้ฟอร์มนี้ส่งไปอีกห้อง ใส่ -100… ที่นี่</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- แถว 2.7: Template ข้อความ -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-emerald-500 text-sm">description</span> รูปแบบข้อความที่ส่งเข้ากลุ่ม
+                </h2>
+                <div class="flex bg-gray-200 dark:bg-slate-700 rounded-xl p-1 text-xs font-bold">
+                    <button id="odCfgTplTabSend"  onclick="odCfg_tplView('send')"  class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white">📤 ฟอร์มส่งเข้ากลุ่ม</button>
+                    <button id="odCfgTplTabAudit" onclick="odCfg_tplView('audit')" class="px-3 py-1.5 rounded-lg text-gray-500 dark:text-gray-300">✏️ ฟอร์มแก้ไข/ลบ</button>
+                </div>
+            </div>
+            <div id="odCfgTplSendView" class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <!-- OD -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">❌ ฟอร์ม OD ตัดเครดิต</label>
+                        <button onclick="odCfg_resetTpl('od')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsOd"></div>
+                    <textarea id="odCfgTplOd" rows="9" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
+                    <pre id="odCfgTplPrevOd" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+                <!-- ODOL -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">👥 ฟอร์มหลายยูส (ODOL)</label>
+                        <button onclick="odCfg_resetTpl('odol')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsOdol"></div>
+                    <textarea id="odCfgTplOdol" rows="9" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น</div>
+                    <pre id="odCfgTplPrevOdol" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+                <!-- ยอดถอนใหญ่ (มีจำนวนเงิน) -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">💰 ยอดถอนใหญ่ (มีจำนวนเงิน)</label>
+                        <button onclick="odCfg_resetTpl('big')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsBig"></div>
+                    <textarea id="odCfgTplBig" rows="9" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น (พนักงานกรอกจำนวนเงิน)</div>
+                    <pre id="odCfgTplPrevBig" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+                <!-- ยอดถอนใหญ่ (ไม่มีจำนวนเงิน) -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400">💰 ยอดถอนใหญ่ (ไม่มีจำนวนเงิน)</label>
+                        <button onclick="odCfg_resetTpl('big_na')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsBigNa"></div>
+                    <textarea id="odCfgTplBigNa" rows="9" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่างที่พนักงานจะเห็น (พนักงานไม่กรอกจำนวนเงิน)</div>
+                    <pre id="odCfgTplPrevBigNa" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+            </div>
+
+            <div id="odCfgTplAuditView" class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-5" style="display:none">
+                <!-- ฟอร์มแก้ไข -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <input type="checkbox" id="odCfgAuditEditEnabled" class="w-4 h-4"> ✏️ ข้อความตอน "แก้ไข" (ต่อท้ายในข้อความเดิม)
+                        </label>
+                        <button onclick="odCfg_resetTpl('audit_edit')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsAuditEdit"></div>
+                    <textarea id="odCfgTplAuditEdit" rows="8" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่าง</div>
+                    <pre id="odCfgTplPrevAuditEdit" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+                <!-- ฟอร์มลบ -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <input type="checkbox" id="odCfgAuditDeleteEnabled" class="w-4 h-4"> 🗑️ ข้อความตอน "ลบ" (แจ้งในห้อง audit)
+                        </label>
+                        <button onclick="odCfg_resetTpl('audit_delete')" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-2 py-0.5 rounded-lg">คืนค่าเดิม</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2" id="odCfgTplVarsAuditDelete"></div>
+                    <textarea id="odCfgTplAuditDelete" rows="8" oninput="odCfg_tplPreview()"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="text-xs text-gray-400 mt-2 mb-1">ตัวอย่าง</div>
+                    <pre id="odCfgTplPrevAuditDelete" class="bg-slate-950 text-emerald-300 text-xs rounded-xl p-3 whitespace-pre-wrap min-h-24"></pre>
+                </div>
+                <p class="text-xs text-gray-400 lg:col-span-2"><b>{การเปลี่ยนแปลง}</b> = รายการที่แก้ (ก่อน→หลัง) · <b>{คนรับงาน}</b> = แท็กคนที่กดอิโมจิรับงาน (ถ้าไม่มีคน บรรทัดนี้จะหายไปเอง)</p>
+            </div>
+        </div>
+
+        <!-- แถว 2.8: แท็กคนตามกะ (Mention) -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-visible mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 rounded-t-2xl flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-rose-500 text-sm">notifications_active</span> แท็กคนตามกะ (Mention)
+                </h2>
+                <span class="text-xs text-gray-400">ใส่ <code class="text-blue-400">{แท็ก}</code> ในรูปแบบข้อความด้านบน ระบบจะแท็กคนตามกะเวลาที่กดส่ง</span>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-wrap items-end gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">กะเช้าเริ่ม</label>
+                        <input type="time" id="odCfgTagDayStart" value="08:00" oninput="odCfg_updateShiftLabels()"
+                            class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">กะดึกเริ่ม</label>
+                        <input type="time" id="odCfgTagNightStart" value="20:00" oninput="odCfg_updateShiftLabels()"
+                            class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <p class="text-xs text-gray-400 flex-1 min-w-[180px]">กะเช้า = ตั้งแต่ “กะเช้าเริ่ม” ถึง “กะดึกเริ่ม” · กะดึก = ที่เหลือ (ข้ามเที่ยงคืนได้)</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">☀️ รายชื่อแท็ก กะเช้า <span id="odCfgShiftDayLabel" class="text-gray-400 font-normal">(08:00 – 20:00)</span></label>
+                        <textarea id="odCfgTagDay" rows="4" placeholder="@user1 @user2 @user3 (เว้นวรรคหรือขึ้นบรรทัดใหม่ก็ได้ ใส่กี่คนก็ได้)"
+                            class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">🌙 รายชื่อแท็ก กะดึก <span id="odCfgShiftNightLabel" class="text-gray-400 font-normal">(20:00 – 08:00)</span></label>
+                        <textarea id="odCfgTagNight" rows="4" placeholder="@user4 @user5 (เว้นวรรคหรือขึ้นบรรทัดใหม่ก็ได้ ใส่กี่คนก็ได้)"
+                            class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"></textarea>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">💡 ใช้ <b>@username</b> ของ Telegram (คนนั้นต้องอยู่ในกลุ่ม) ถึงจะเด้งเตือนได้</p>
+
+                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1"><span class="material-icons text-sm text-emerald-500">event_busy</span> ผูก @username กับพนักงาน (เช็ควันหยุด)</label>
+                        <button onclick="odCfg_addTagMapRow()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">add</span> เพิ่มแถว</button>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-2">ผูก @ ไว้กับพนักงานในระบบ — ถ้าวันไหนพนักงานคนนั้น<b>ลา/หยุด</b> (ตามข้อมูลหน้าวันลา) ระบบจะ<b>ไม่แท็ก</b> @ นั้นให้อัตโนมัติ ส่วน @ ที่ไม่ได้ผูกไว้จะแท็กทุกวันตามปกติ</p>
+                    <div id="odCfgTagMapList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- แถว 2.9: แจ้งเตือนการแก้ไข/ลบ (Audit) -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-amber-500 text-sm">history_edu</span> แจ้งเตือนการแก้ไข/ลบ (Audit)
+                </h2>
+                <span class="text-xs text-gray-400">เปิด/ปิดแยก "แก้ไข" กับ "ลบ" ได้ที่ปุ่ม "✏️ ฟอร์มแก้ไข/ลบ" ด้านบน</span>
+            </div>
+            <div class="p-4">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Chat ID ห้องแจ้ง "การลบ"</label>
+                <input type="text" id="odCfgAuditChatId" placeholder="เว้นว่าง = แจ้งการลบในกลุ่มเดิม"
+                    class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                <p class="text-xs text-gray-400 mt-2"><b>การแก้ไข</b> → บันทึกต่อท้าย<b>ในข้อความเดิม</b>เลย (ใคร · เมื่อไหร่ · แก้อะไร ก่อน→หลัง) &nbsp;·&nbsp; <b>การลบ</b> → ข้อความหายแล้ว จึงแจ้งเป็นข้อความใหม่ในห้องนี้ (หรือกลุ่มเดิมถ้าเว้นว่าง)</p>
+            </div>
+        </div>
+
+        <!-- แถว 3: ตั้งค่า + ควบคุม Telegram Bot -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-sky-500 text-sm">smart_toy</span> Telegram Bot (Railway)
+                    <span id="odCfgBotBadge" class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">ยังไม่เช็ค</span>
+                </h2>
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="odCfg_botStatus()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">refresh</span> เช็คสถานะ</button>
+                    <button id="odCfgBtnToggle" onclick="odCfg_botToggle()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">power_settings_new</span> เปิด/ปิดบอท</button>
+                    <button onclick="odCfg_botTest('od')" class="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ OD</button>
+                    <button onclick="odCfg_botTest('odol')" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ODOL</button>
+                    <button onclick="odCfg_botTest('big')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1"><span class="material-icons text-xs">send</span> ยิงทดสอบ ยอดใหญ่</button>
+                </div>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Railway API URL</label>
+                    <input type="text" id="odCfgServerUrl" placeholder="https://od-form-bot-production.up.railway.app"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Group Chat ID (ห้องหลัก สำหรับ OD)</label>
+                    <input type="text" id="odCfgChatId" placeholder="-100XXXXXXXXXX"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Bot Token (จาก @BotFather)</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="odCfgBotToken" placeholder="เว้นว่าง = ใช้ BOT_TOKEN ใน Railway"
+                            class="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+                        <button type="button" onclick="const i=document.getElementById('odCfgBotToken'); i.type=i.type==='password'?'text':'password'" class="px-3 rounded-xl border border-gray-300 dark:border-slate-600 text-gray-400 hover:text-white"><span class="material-icons text-sm">visibility</span></button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">เปลี่ยนบอทได้โดยไม่ต้อง redeploy — กดบันทึกแล้วเช็คสถานะ</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Admin Key (ตรงกับ ADMIN_KEY ใน Railway)</label>
+                    <input type="password" id="odCfgAdminKey" placeholder="ใช้ยืนยันตัวตอนสั่งบอท — เก็บเฉพาะในเครื่องนี้"
+                        class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                        onchange="localStorage.setItem('od_admin_key', this.value.trim())">
+                    <p class="text-xs text-gray-400 mt-1">ไม่ถูกบันทึกลง Supabase</p>
+                </div>
+            </div>
+            <div id="odCfgBotInfo" class="mx-4 mb-4 p-3 rounded-xl bg-slate-950 text-xs text-slate-300 font-mono whitespace-pre-wrap hidden"></div>
+        </div>
+
+        <!-- Preview JSON -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-gray-400 text-sm">code</span> Preview JSON (ที่ส่วนขยายจะดึงไป)
+                </h2>
+                <button onclick="odCfg_refreshPreview()" class="text-xs text-gray-400 hover:text-white border border-gray-300 dark:border-slate-600 px-3 py-1 rounded-lg transition">รีเฟรช</button>
+            </div>
+            <pre id="odCfgPreview" class="p-4 text-xs text-green-400 bg-slate-950 overflow-x-auto max-h-40 custom-scrollbar rounded-b-2xl"></pre>
+        </div>
+
+        <!-- แถว 5: ประวัติข้อความ / กู้ข้อความที่ถูกลบ -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-indigo-500 text-sm">history</span> ประวัติข้อความ / กู้ข้อความที่ถูกลบ
+                </h2>
+                <span class="text-xs text-gray-400">ทุกข้อความที่บอทส่งถูกสำรองไว้ที่ server — เลือกวันที่ ค้นหา แล้วกดส่งซ้ำได้เลย</span>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-wrap items-end gap-3 mb-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ตั้งแต่วันที่</label>
+                        <input type="date" id="odCfgHistFrom" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ถึงวันที่</label>
+                        <input type="date" id="odCfgHistTo" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">หัวข้อ</label>
+                        <select id="odCfgHistForm" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                            <option value="">ทั้งหมด</option>
+                            <option value="od">OD ตัดเครดิต</option>
+                            <option value="odol">OD หลายยูส</option>
+                            <option value="big">ยอดถอนใหญ่</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">สถานะ</label>
+                        <select id="odCfgHistStatus" class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                            <option value="">ทั้งหมด</option>
+                            <option value="sent">ส่งแล้ว</option>
+                            <option value="edited">แก้ไขแล้ว</option>
+                            <option value="deleted">ลบแล้ว</option>
+                        </select>
+                    </div>
+                    <div class="flex-1 min-w-[180px]">
+                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ค้นหา (ยูส / เนื้อหา / คนส่ง)</label>
+                        <input type="text" id="odCfgHistSearch" placeholder="🔍 พิมพ์แล้วกด Enter..." class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <button id="odCfgHistLoad" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-xl font-bold flex items-center gap-1"><span class="material-icons text-sm">search</span> ค้นหา</button>
+                </div>
+                <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span id="odCfgHistCount" class="text-sm font-bold text-slate-700 dark:text-white">0 รายการ</span>
+                        <span id="odCfgHistToday" class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-500 dark:text-indigo-300">📤 วันนี้บอทส่งทั้งหมด - รายการ</span>
+                    </div>
+                    <button id="odCfgHistResendAll" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1"><span class="material-icons text-xs">replay</span> ส่งซ้ำที่แสดงทั้งหมด</button>
+                </div>
+                <div class="overflow-x-auto border border-gray-200 dark:border-slate-700 rounded-xl">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 dark:bg-slate-900 text-xs text-gray-500 dark:text-gray-400">
+                            <tr>
+                                <th class="px-3 py-2 font-bold">เวลา</th>
+                                <th class="px-3 py-2 font-bold">ฟอร์ม</th>
+                                <th class="px-3 py-2 font-bold">คนส่ง</th>
+                                <th class="px-3 py-2 font-bold">สถานะ</th>
+                                <th class="px-3 py-2 font-bold">เนื้อหา</th>
+                                <th class="px-3 py-2 font-bold text-right">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="odCfgHistBody">
+                            <tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">กด"ค้นหา" เพื่อโหลดประวัติ</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">💡 "ส่งซ้ำ" = สร้างข้อความใหม่ที่มีเนื้อหาเหมือนเดิมเข้ากลุ่ม · "แก้/ลบ" สั่งจัดการข้อความจริงในกลุ่มได้เลย · ทำจาก server ไม่ต้องพึ่งเครื่องพนักงาน</p>
+            </div>
+        </div>
+
+        <style>
+            .odCfgHist-row:hover { background: #f1f5f9; }
+            .dark .odCfgHist-row:hover { background: rgba(51,65,85,.55); }
+        </style>
+
+        <!-- Modal แก้ไขข้อความ -->
+        <div id="odCfgEditModal" class="hidden fixed inset-0 z-[9999] items-center justify-center bg-black/60 p-4">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-2xl w-full max-w-lg">
+                <div class="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-700 dark:text-white flex items-center gap-2"><span class="material-icons text-amber-500 text-sm">edit</span> แก้ไขข้อความในกลุ่ม</h3>
+                    <button onclick="odCfgHist_editClose()" class="text-gray-400 hover:text-white"><span class="material-icons">close</span></button>
+                </div>
+                <div class="p-4">
+                    <input type="hidden" id="odCfgEditId">
+                    <textarea id="odCfgEditText" rows="10" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 font-mono"></textarea>
+                    <p class="text-xs text-gray-400 mt-2">แก้ข้อความแล้วกดบันทึก — ข้อความในกลุ่มจะถูกแก้ พร้อมต่อท้ายบันทึก "แก้ไขโดย" ให้อัตโนมัติ</p>
+                </div>
+                <div class="px-4 py-3 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-2">
+                    <button onclick="odCfgHist_editClose()" class="text-sm px-4 py-2 rounded-xl border border-gray-300 dark:border-slate-600 text-gray-500 dark:text-gray-300">ยกเลิก</button>
+                    <button id="odCfgEditSaveBtn" onclick="odCfgHist_editSave()" class="bg-amber-600 hover:bg-amber-500 text-white text-sm px-4 py-2 rounded-xl font-bold">บันทึกการแก้ไข</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
