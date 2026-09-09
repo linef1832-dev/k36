@@ -380,16 +380,17 @@ window.saveData = async function(e) {
     const targetPeriod = _slotOpt.dataset.period;
     const periodLimit = parseInt(SETTINGS.period_limit || 1);
     
-    const checkPeriod = typeof getPeriodForTime === 'function' ? getPeriodForTime : () => targetPeriod; 
-    const countInPeriod = myBookings.filter(b => b.shift_name === sName && checkPeriod(sName, b.time_slot) === targetPeriod).length;
-    // ⏰ [ควบชั่วโมง] ลงช่วงเวลา "ติดกัน" กับที่ลงไว้แล้วได้ (เช่น 04:00-04:30 แล้วลง 04:30-05:00 ต่อ = พัก 1 ชม.)
-    // ลิมิตต่อช่วงจะยกเว้นให้เฉพาะช่องที่ต่อเนื่องกับของเดิมเท่านั้น (ลิมิตต่อวันยังนับปกติ)
+    // 🚫 [ห้ามควบพักยาว] ลงช่วงเวลา "ติดกัน" กับที่ตัวเองลงไว้ไม่ได้ (เช่น 04:00-04:30 แล้วมาลง 04:30-05:00 ต่อ)
     const _isAdjacent = (a, b) => {
         const pa = String(a || '').split('-'), pb = String(b || '').split('-');
         return pa.length === 2 && pb.length === 2 && (pa[1] === pb[0] || pb[1] === pa[0]);
     };
-    const adjacentToMine = myBookings.some(b => b.shift_name === sName && _isAdjacent(b.time_slot, timeVal));
-    if (countInPeriod >= periodLimit && !adjacentToMine) { window.resetBtn(); return Swal.fire('ซ้ำ!', `คุณลงช่วง "${targetPeriod}" ครบ ${periodLimit} ครั้งแล้ว<br><span class="text-xs text-gray-500">(ยกเว้นลงเวลา "ติดกัน" กับที่ลงไว้ เพื่อควบพักยาวได้)</span>`, 'error'); }
+    const adjacentMine = myBookings.find(b => b.shift_name === sName && _isAdjacent(b.time_slot, timeVal));
+    if (adjacentMine) { window.resetBtn(); return Swal.fire('ลงติดกันไม่ได้', `ช่วง ${timeVal} ต่อเนื่องกับ ${adjacentMine.time_slot} ที่คุณลงไว้แล้ว — ห้ามควบพักยาว กรุณาเว้นช่วง`, 'error'); }
+
+    const checkPeriod = typeof getPeriodForTime === 'function' ? getPeriodForTime : () => targetPeriod; 
+    const countInPeriod = myBookings.filter(b => b.shift_name === sName && checkPeriod(sName, b.time_slot) === targetPeriod).length;
+    if (countInPeriod >= periodLimit) { window.resetBtn(); return Swal.fire('ซ้ำ!', `คุณลงช่วง "${targetPeriod}" ครบ ${periodLimit} ครั้งแล้ว`, 'error'); }
 
     const shiftSuffix = sName.replace('กะ','');
     const { data: slotBookings } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', timeVal);
