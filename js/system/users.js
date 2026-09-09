@@ -382,7 +382,14 @@ window.saveData = async function(e) {
     
     const checkPeriod = typeof getPeriodForTime === 'function' ? getPeriodForTime : () => targetPeriod; 
     const countInPeriod = myBookings.filter(b => b.shift_name === sName && checkPeriod(sName, b.time_slot) === targetPeriod).length;
-    if (countInPeriod >= periodLimit) { window.resetBtn(); return Swal.fire('ซ้ำ!', `คุณลงช่วง "${targetPeriod}" ครบ ${periodLimit} ครั้งแล้ว`, 'error'); }
+    // ⏰ [ควบชั่วโมง] ลงช่วงเวลา "ติดกัน" กับที่ลงไว้แล้วได้ (เช่น 04:00-04:30 แล้วลง 04:30-05:00 ต่อ = พัก 1 ชม.)
+    // ลิมิตต่อช่วงจะยกเว้นให้เฉพาะช่องที่ต่อเนื่องกับของเดิมเท่านั้น (ลิมิตต่อวันยังนับปกติ)
+    const _isAdjacent = (a, b) => {
+        const pa = String(a || '').split('-'), pb = String(b || '').split('-');
+        return pa.length === 2 && pb.length === 2 && (pa[1] === pb[0] || pb[1] === pa[0]);
+    };
+    const adjacentToMine = myBookings.some(b => b.shift_name === sName && _isAdjacent(b.time_slot, timeVal));
+    if (countInPeriod >= periodLimit && !adjacentToMine) { window.resetBtn(); return Swal.fire('ซ้ำ!', `คุณลงช่วง "${targetPeriod}" ครบ ${periodLimit} ครั้งแล้ว<br><span class="text-xs text-gray-500">(ยกเว้นลงเวลา "ติดกัน" กับที่ลงไว้ เพื่อควบพักยาวได้)</span>`, 'error'); }
 
     const shiftSuffix = sName.replace('กะ','');
     const { data: slotBookings } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', timeVal);
