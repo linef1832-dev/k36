@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "2026090914";</script>
+    <script>window._APP_VERSION = "2026090915";</script>
     <script>
         (function(v){
             ['css/style.css','css/tailwind-compiled.css'].forEach(function(p){
@@ -87,7 +87,7 @@
             /* ── ตัวราง: ดำลึกเรียบ ขอบบางแทบมองไม่เห็น ── */
             #sidebarNav.sidebar-mini{
                 width:64px !important;
-                overflow:visible !important;   /* ให้ tooltip ลอยออกได้ */
+                overflow-y:auto !important; overflow-x:hidden !important;   /* จอเตี้ยเลื่อนดูได้ครบทุกไอคอน */
                 background:linear-gradient(180deg, #0c1322 0%, #080d17 100%) !important;
                 border:1px solid rgba(255,255,255,0.055) !important;
                 box-shadow:0 12px 44px -18px rgba(0,0,0,0.9) !important;
@@ -95,7 +95,7 @@
             /* ── ชิปสี → ล่องหนหมด เหลือแต่ไอคอนบริสุทธิ์ ── */
             #sidebarNav.sidebar-mini .sec-chip,
             #sidebarNav.sidebar-mini .footer-chip{
-                width:44px !important; height:40px !important; border-radius:11px !important;
+                width:42px !important; height:34px !important; border-radius:10px !important;
                 background:transparent !important;
                 border-color:transparent !important;
                 box-shadow:none !important;
@@ -109,7 +109,9 @@
             }
             /* ── ภาษาเดียวทั้งราง: ชี้ = พื้นจางบางเบา + ไอคอนทอง + ขีดทองเรืองซ้าย ── */
             #sidebarNav.sidebar-mini .menu-section-header,
-            #sidebarNav.sidebar-mini .sidebar-footer-btn{ position:relative; overflow:visible !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-btn{ position:relative; }
+            /* ช่องไฟกระชับ — จอเตี้ยก็เห็นครบ */
+            #sidebarNav.sidebar-mini .menu-section-header{ margin:3px 0 !important; padding:3px 0 !important; }
             #sidebarNav.sidebar-mini .menu-section-header::before,
             #sidebarNav.sidebar-mini .sidebar-footer-btn::before{
                 content:''; position:absolute; left:7px; top:50%; width:2px; height:0;
@@ -126,26 +128,12 @@
             /* ออกจากระบบ: ข้อยกเว้นเดียว — ชี้แล้วแดงนุ่ม */
             #sidebarNav.sidebar-mini .sidebar-footer-btn[onclick*="logout"]:hover .footer-chip .material-icons{ color:#f87171 !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-btn[onclick*="logout"]:hover::before{ background:#f87171; box-shadow:0 0 8px rgba(248,113,113,0.5); }
-            /* ── Tooltip: ป้ายดำเรียบ ตัวอักษรชัด ไม่ฉูดฉาด ── */
-            #sidebarNav.sidebar-mini .menu-section-header::after{
-                content:attr(data-sec);
-                position:absolute; left:calc(100% + 14px); top:50%;
-                transform:translate(-6px,-50%);
-                padding:6px 12px; border-radius:9px; white-space:nowrap;
-                font-size:12px; font-weight:700; letter-spacing:0.02em; color:#e7edf6;
-                background:#101a2d;
-                border:1px solid rgba(255,255,255,0.1);
-                box-shadow:0 10px 30px -12px rgba(0,0,0,0.9);
-                opacity:0; pointer-events:none; z-index:70;
-                transition:opacity .16s ease, transform .16s ease;
-            }
-            #sidebarNav.sidebar-mini .menu-section-header:hover::after{ opacity:1; transform:translate(0,-50%); }
             /* ── โซนท้ายราง (mini): ตัด padding โหมดเต็มทิ้ง จัดกึ่งกลางเป๊ะทุกปุ่ม ── */
-            #sidebarNav.sidebar-mini .mt-auto{ padding:10px 4px !important; }
+            #sidebarNav.sidebar-mini .mt-auto{ padding:8px 4px !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-btn{
                 width:100% !important; display:flex !important;
                 justify-content:center !important; align-items:center !important;
-                padding:6px 0 !important; margin:0 0 6px 0 !important;
+                padding:3px 0 !important; margin:0 0 3px 0 !important;
             }
             #sidebarNav.sidebar-mini .sidebar-collapse-row{ border-top:1px solid rgba(255,255,255,0.06); }
             /* ── ปุ่มขยายราง: ลูกศรเรียบๆ ภาษาเดียวกับไอคอนอื่น ── */
