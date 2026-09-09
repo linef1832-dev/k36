@@ -1855,3 +1855,4 @@ window.searchDutyMyself = function() {
         searchInput.value = currentUser.username; window.filterDutyResult();
     }
 }
+

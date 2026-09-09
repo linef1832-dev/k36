@@ -769,4 +769,4 @@ window.deleteManualTimeSlot = async function(dep, shift, period, timeSlot) {
     Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
 };
 
-// ==========================================
+// ==========================================

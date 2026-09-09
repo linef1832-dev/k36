@@ -474,3 +474,4 @@ window.renderLeaveTable = function() {
     if(staffListToRender.length === 0) bodyHtml = `<tr><td colspan="${daysInMonth + 2}" class="p-10 text-center text-gray-400">ไม่พบรายชื่อในแผนก ${displayDeptText}</td></tr>`;
     tbody.innerHTML = bodyHtml;
 };
+

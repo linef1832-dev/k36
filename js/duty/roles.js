@@ -603,15 +603,18 @@ window.quickAssignBackups = async function() {
     //   - 2a: เช็คเวลาพัก + เช็คสิทธิ์
     //   - 2b: ผ่อนเวลาพัก + เช็คสิทธิ์
 
-    // 🍽️ [กติกาพัก] ถ้าเอา c มาเป็นรองของ team แล้ว ช่วงพักไหนของ team จะเกินเพดานไหม
-    // สมาชิกของ team = หลัก + รองที่จัดไปแล้ว + c → เพดาน = breakCapByRule(จำนวนนั้น)
-    // เช็คทุกช่วงพักของ c: จำนวนสมาชิกอื่นที่พักช่วงเดียวกัน ต้อง < เพดาน
+    // 🍽️ [กติกาพัก — ข้อเดียว] ถ้าเอา c มาเป็นรองของ team แล้ว ช่วงพักไหนจะทำให้เหลือเฝ้าไม่พอไหม
+    // นับรวมทุกคนของเว็บ (ไม่สนหลัก/รอง) เพดาน = คน − เฝ้า≥ ที่ตั้ง (ไม่ตั้ง = 1) — ตรงกับตัวจองจริง
     const wouldBreakCap = (c, team) => {
         const members = [];
         (roster[team] || []).forEach(u => { if (u && u.id && !String(u.username || '').includes('ขาดคน')) members.push(u.username); });
         for (const t in roster) (roster[t] || []).forEach(u => { if (u && u.secondary_team === team && !members.includes(u.username)) members.push(u.username); });
         if (!members.includes(c.username)) members.push(c.username);
-        const cap = window.breakCapByRule(members.length);
+        const _shiftSel = document.getElementById('dutyShiftSelect');
+        const _raw = (typeof window.getBreakMinRemainRaw === 'function' && _shiftSel)
+            ? window.getBreakMinRemainRaw(currentDutyDept, _shiftSel.value, team) : null;
+        const _remain = _raw === null ? 1 : _raw;
+        const cap = Math.max(0, members.length - _remain);
         const cBreaks = breakTimes[c.username] || [];
         for (const slot of cBreaks) {
             let others = 0;
@@ -901,4 +904,4 @@ window.ensureDutyExtraButtons = function() {
     }
 };
 
-// ==========================================
+// ==========================================

@@ -600,3 +600,4 @@ window.setupLeaveHoverDelegation = function() {
 
     tbody.addEventListener('mouseleave', clearHover);
 };
+

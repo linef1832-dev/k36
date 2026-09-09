@@ -1688,3 +1688,4 @@ window.delTransfer = async function(id) {
     await fetch(DISCORD_API_URL + '/api/delete-transfer', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})});
     fetchTransfers();
 };
+

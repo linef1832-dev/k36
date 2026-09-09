@@ -1256,3 +1256,4 @@ window.saveTrainerMatrixRole = async function(userId, web, taskIdx, newRole) {
         Swal.fire('Error', err.message, 'error');
     }
 };
+
