@@ -67,6 +67,11 @@ window.openAdminPanel = async function() {
     if(btnPerms) btnPerms.style.display = canSeePerms ? '' : 'none';
     if(btnInfo) btnInfo.style.display = canSeeInfo ? '' : 'none';
 
+    // 🧩 เติมแผนกในการ์ดล้างกระดาน + เช็คปุ่มกู้คืนค้าง
+    window.populateClearScheduleDept();
+    window.syncUndoScheduleBtn();
+    window.setClearScheduleDefaultDate();
+
     // 🌟 5. สั่งให้ระบบ "เปิดแท็บแรก" ที่พนักงานคนนั้นมีสิทธิ์เห็นโดยอัตโนมัติ
     if (typeof switchAdminTab === 'function') {
         if (canSeeSettings) switchAdminTab('settings');
@@ -82,6 +87,105 @@ window.openAdminPanel = async function() {
 // =========================================================
 // 🔴 ฟังก์ชันล้างกระดาน (เลือก ลบตามแผนก / ตามกะ ได้ + กู้คืนได้)
 // =========================================================
+// 🧰 ดึง schedules ของวันนั้น "ทุกแถว" (Supabase ส่งได้ทีละ 1000 → วนหน้าเอง)
+window.selectAllSchedulesByDate = async function(dateVal) {
+    const PAGE = 1000;
+    let all = [], from = 0;
+    while (true) {
+        const { data, error } = await appDB.from('schedules').select('*')
+            .eq('work_date', dateVal).order('id', { ascending: true }).range(from, from + PAGE - 1);
+        if (error) throw error;
+        all = all.concat(data || []);
+        if (!data || data.length < PAGE) break;
+        from += PAGE;
+    }
+    return all;
+};
+
+// 🧩 เติมตัวเลือก "แผนก" ในการ์ดล้างกระดานจากแผนกจริงในระบบ (เดิม hardcode แค่ AM/OD)
+window.populateClearScheduleDept = function() {
+    const sel = document.getElementById('clearScheduleDept');
+    if (!sel) return;
+    const keep = sel.value || 'all';
+    const depts = (typeof window.getSystemDepts === 'function') ? window.getSystemDepts() : ['AM', 'OD', 'AMQL'];
+    let html = '<option value="all">🌐 ทุกแผนก</option>';
+    depts.forEach(d => { html += `<option value="${d}">เฉพาะ ${d}</option>`; });
+    sel.innerHTML = html;
+    sel.value = [...sel.options].some(o => o.value === keep) ? keep : 'all';
+};
+
+// 🟢 ถ้ายังมีแบ็คอัพค้างใน session (เช่น รีเฟรชหน้า) ให้ปุ่มกู้คืนโผล่กลับมา
+window.syncUndoScheduleBtn = function() {
+    const btn = document.getElementById('undoScheduleBtn');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !sessionStorage.getItem('temp_schedule_backup'));
+};
+
+// =========================================================
+// 📡 ช่องแจ้งเตือนกระดาน (Supabase Broadcast) — ไม่ต้องมีตารางเพิ่ม
+//   แอดมินล้าง/กู้คืน → ส่ง event ไปทุกเครื่องที่เปิดเว็บอยู่
+//   เครื่องที่ชื่อตัวเองอยู่ในรายการ → เด้ง toast + รีเฟรชตารางให้เอง (ไม่ต้อง F5)
+// =========================================================
+let _boardChannel = null;
+window.subscribeBoardEvents = function() {
+    if (!window.appDB) return;
+    if (_boardChannel) { try { appDB.removeChannel(_boardChannel); } catch (e) {} }
+
+    const _localToday = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]; };
+    const _refreshBoard = () => {
+        try { if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots(); } catch (e) {}
+        try { if (typeof fetchData === 'function') fetchData(); } catch (e) {}
+    };
+    const _toast = (icon, title, text) => Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 9000, timerProgressBar: true })
+        .fire({ icon, title, text });
+    const _isMe = (names) => currentUser && Array.isArray(names) && names.some(n => String(n || '').trim().toLowerCase() === String(currentUser.username || '').trim().toLowerCase());
+    const _cond = (p) => `วันที่ ${p.date}${p.dept !== 'all' ? ' · แผนก ' + p.dept : ''}${p.shift !== 'all' ? ' · ' + p.shift : ''}`;
+
+    _boardChannel = appDB.channel('board-events', { config: { broadcast: { self: false } } })
+        .on('broadcast', { event: 'schedule_cleared' }, ({ payload: p }) => {
+            if (!p) return;
+            if (_isMe(p.names)) {
+                const mine = (p.items || []).filter(i => String(i.staff_name || '').toLowerCase() === String(currentUser.username || '').toLowerCase());
+                const slots = mine.map(i => `${i.shift_name} ${i.time_slot}`).join(', ');
+                _toast('warning', '⚠️ เวลาพักของคุณถูกล้างโดยแอดมิน', `${_cond(p)}${slots ? ' — ' + slots : ''} กรุณาลงเวลาใหม่`);
+            }
+            _refreshBoard();
+        })
+        .on('broadcast', { event: 'schedule_restored' }, ({ payload: p }) => {
+            if (!p) return;
+            if (_isMe(p.names)) _toast('success', '✅ เวลาพักของคุณถูกกู้คืนแล้ว', `${_cond(p)} — ไม่ต้องลงใหม่`);
+            _refreshBoard();
+        })
+        .subscribe();
+    window._boardChannel = _boardChannel;
+};
+
+// ส่ง event (ถ้าช่องยังไม่พร้อม จะข้ามเงียบๆ ไม่ทำให้การลบล้ม)
+async function _broadcastBoard(event, payload) {
+    try {
+        if (!_boardChannel) window.subscribeBoardEvents();
+        if (!_boardChannel) return;
+        await _boardChannel.send({ type: 'broadcast', event, payload });
+    } catch (e) { console.warn('[board-events] ส่งแจ้งเตือนไม่สำเร็จ', e); }
+}
+
+function _boardPayload(rows, dateVal, deptVal, shiftVal) {
+    return {
+        date: dateVal, dept: deptVal, shift: shiftVal,
+        names: [...new Set(rows.map(r => r.staff_name).filter(Boolean))],
+        items: rows.map(r => ({ staff_name: r.staff_name, shift_name: r.shift_name, time_slot: r.time_slot })),
+        by: currentUser ? currentUser.username : 'admin', at: Date.now()
+    };
+}
+
+// 🗓️ ตั้งค่าวันที่เริ่มต้นของการ์ดล้างกระดาน = วันนี้ (ยังเลือกวันอื่นได้ตามปกติ)
+window.setClearScheduleDefaultDate = function() {
+    const el = document.getElementById('clearScheduleDate');
+    if (!el || el.value) return;
+    const d = new Date();
+    el.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+};
+
 window.clearAllSchedules = async function() {
     if (!window.sysRequireAdmin()) return;
 
@@ -117,40 +221,59 @@ window.clearAllSchedules = async function() {
         Swal.fire({title: 'กำลังประมวลผล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         
         try {
-            // 🌟 1. ค้นหาและ "แบ็คอัพ" ข้อมูลชุดนี้เก็บไว้ในกระเป๋าก่อนลบ
-            let backupQuery = appDB.from('schedules').select('*').eq('work_date', dateVal);
-            if (deptVal !== 'all') backupQuery = backupQuery.eq('department', deptVal);
-            if (shiftVal !== 'all') backupQuery = backupQuery.eq('shift_name', shiftVal);
-            
-            const { data: backupData, error: backupErr } = await backupQuery;
-            if (backupErr) throw backupErr;
+            // 🌟 1. ดึงข้อมูล "ทั้งวัน" มาก่อน แล้วค่อยกรองแผนก/กะฝั่งเว็บ
+            // 🐛 [FIX ลบไม่ครบ/ลบผิดกลุ่ม] เดิมกรองด้วย .eq('department', ...) ตรงๆ ที่ DB
+            //   → แถวเก่าที่ department เป็น null/ว่าง (ระบบทั้งเว็บถือว่าเป็น AM) ไม่ถูกลบ
+            //   → ค่าที่มีช่องว่าง/ตัวพิมพ์เล็ก-ใหญ่ต่างกัน (เช่น "am ", "Od") ก็หลุดรอด
+            //   → แผนกที่ไม่ใช่ AM/OD (AMQL หรือแผนกที่สร้างเพิ่ม) เลือกลบไม่ได้เลย
+            const allRows = await window.selectAllSchedulesByDate(dateVal);
 
-            if (!backupData || backupData.length === 0) {
+            const normDept  = v => String(v || 'AM').trim().toUpperCase();   // null/ว่าง = AM (ตรงกับ dashboard.js)
+            const normShift = v => String(v || '').trim();
+            const wantDept  = normDept(deptVal);
+            const wantShift = normShift(shiftVal);
+
+            const backupData = allRows.filter(r =>
+                (deptVal === 'all'  || normDept(r.department)  === wantDept) &&
+                (shiftVal === 'all' || normShift(r.shift_name) === wantShift)
+            );
+
+            if (backupData.length === 0) {
                 return Swal.fire('ไม่พบข้อมูล', 'ไม่มีประวัติการลงเวลาในเงื่อนไขที่เลือกครับ', 'info');
             }
 
             // เก็บใส่ Session Storage (หน่วยความจำชั่วคราว)
             sessionStorage.setItem('temp_schedule_backup', JSON.stringify(backupData));
 
-            // 🌟 2. สั่งลบจริง
-            let delQuery = appDB.from('schedules').delete().eq('work_date', dateVal);
-            if (deptVal !== 'all') delQuery = delQuery.eq('department', deptVal);
-            if (shiftVal !== 'all') delQuery = delQuery.eq('shift_name', shiftVal);
+            // 🌟 2. สั่งลบ "ตาม id ที่แบ็คอัพไว้เท่านั้น" → สิ่งที่ลบ = สิ่งที่กู้คืนได้ 100% เสมอ
+            const ids = backupData.map(r => r.id).filter(id => id !== null && id !== undefined);
+            if (ids.length !== backupData.length) throw new Error('พบแถวที่ไม่มี id — ยกเลิกการลบเพื่อความปลอดภัย');
 
-            const { error } = await delQuery;
-            if (error) throw error;
+            const CHUNK = 200;   // กัน URL ยาวเกินเมื่อ .in() มี id เยอะ
+            let deletedCount = 0;
+            for (let i = 0; i < ids.length; i += CHUNK) {
+                const part = ids.slice(i, i + CHUNK);
+                const { data: delRows, error } = await appDB.from('schedules').delete().in('id', part).select('id');
+                if (error) throw error;
+                // ถ้า DB ไม่คืนแถว (RLS/นโยบาย) ให้ถือว่าลบครบตามที่สั่ง
+                deletedCount += Array.isArray(delRows) && delRows.length ? delRows.length : part.length;
+            }
+            if (deletedCount !== ids.length) {
+                console.warn(`[ล้างกระดาน] ตั้งใจลบ ${ids.length} แต่ลบได้ ${deletedCount} (อาจมีคนลบไปก่อน)`);
+            }
 
             if (typeof logAction === 'function') await logAction('ล้างกระดาน', `แอดมินลบเวลากินข้าว วันที่ ${dateVal} [${deptVal}] [${shiftVal}]`);
             
-            Swal.fire('ล้างข้อมูลสำเร็จ!', `ลบข้อมูลไปทั้งหมด ${backupData.length} รายการ (สามารถกดกู้คืนได้หากลบผิด)`, 'success');
+            Swal.fire('ล้างข้อมูลสำเร็จ!', `ลบข้อมูลไปทั้งหมด ${deletedCount} รายการ (สามารถกดกู้คืนได้หากลบผิด)`, 'success');
             
             // 🌟 3. โชว์ปุ่มสีเขียว "กู้คืน" ขึ้นมา
             const undoBtn = document.getElementById('undoScheduleBtn');
             if (undoBtn) undoBtn.classList.remove('hidden');
-            
-            if (document.getElementById('wDate') && document.getElementById('wDate').value === dateVal) {
-                if (typeof fetchData === 'function') fetchData();
-            }
+
+            // 📡 4. แจ้งเตือนคนที่ถูกลบ (ทุกเครื่องที่เปิดอยู่) + รีเฟรชกระดานฝั่งแอดมินทันที
+            await _broadcastBoard('schedule_cleared', _boardPayload(backupData, dateVal, deptVal, shiftVal));
+            if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
+            if (typeof fetchData === 'function') fetchData();
             
         } catch (e) {
             console.error(e);
@@ -186,7 +309,8 @@ window.undoClearSchedules = async function() {
         Swal.fire({title: 'กำลังกู้คืนข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         try {
             // โยนข้อมูลที่ก๊อปปี้ไว้ กลับเข้าไปในฐานข้อมูล
-            const { error } = await appDB.from('schedules').insert(backupData);
+            // 🛡️ ใช้ upsert ตาม id — ถ้าบางแถวถูกกู้ไปแล้ว/ยังอยู่ จะไม่ error ซ้ำ id
+            const { error } = await appDB.from('schedules').upsert(backupData, { onConflict: 'id' });
             if (error) throw error;
 
             // กู้คืนเสร็จ ล้างกระเป๋า และซ่อนปุ่ม
@@ -197,6 +321,10 @@ window.undoClearSchedules = async function() {
 
             Swal.fire('กู้คืนสำเร็จ!', 'ข้อมูลกลับมาอยู่ที่เดิมเรียบร้อยแล้วครับ', 'success');
 
+            // 📡 แจ้งคนที่ได้ข้อมูลคืน + รีเฟรชกระดานทันที
+            const _d0 = backupData[0] || {};
+            await _broadcastBoard('schedule_restored', _boardPayload(backupData, _d0.work_date || '', 'all', 'all'));
+            if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
             if (typeof fetchData === 'function') fetchData();
 
         } catch(e) {
