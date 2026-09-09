@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "2026090911";</script>
+    <script>window._APP_VERSION = "2026090912";</script>
     <script>
         (function(v){
             ['css/style.css','css/tailwind-compiled.css'].forEach(function(p){
@@ -80,6 +80,92 @@
         /* 🗂️ พับหมวดเมนู */
         #menu-list .group-collapsed{ display:none !important; }
         #menu-list .menu-section-header.collapsed .sec-chev{ transform:rotate(-90deg); }
+
+        /* ═══════════ 🌟 Premium Rail v2 — แถบย่อระดับพรีเมียม ═══════════ */
+        /* เงาแก้วบนชิปทุกโหมด (ประกายมุมบนซ้าย) */
+        .sec-chip, .footer-chip{ position:relative; overflow:hidden; }
+        .sec-chip::after, .footer-chip::after{
+            content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+            background:linear-gradient(160deg, rgba(255,255,255,0.22), transparent 46%);
+        }
+        @media (min-width:768px){
+            /* ── ตัวราง: กราไฟต์ไล่ลึก + ประกายทองหัวราง + สันทองริมขวา ── */
+            #sidebarNav.sidebar-mini{
+                width:74px !important;
+                overflow:visible !important;   /* ให้ tooltip ลอยออกนอกรางได้ */
+                background:
+                    radial-gradient(130% 55% at 50% 0%, rgba(232,193,90,0.08), transparent 55%),
+                    linear-gradient(180deg, #111b30 0%, #0a1122 55%, #080d19 100%) !important;
+                border:1px solid #24334f !important;
+                box-shadow: 0 14px 44px -14px rgba(0,0,0,0.85),
+                            inset 0 1px 0 rgba(255,255,255,0.06),
+                            inset -1px 0 0 rgba(232,193,90,0.10) !important;
+            }
+            /* เส้นสันทองจางวิ่งกลางราง เชื่อมชิปเป็นเส้นเดียว */
+            #sidebarNav.sidebar-mini #menu-list{ position:relative; }
+            #sidebarNav.sidebar-mini #menu-list::before{
+                content:''; position:absolute; top:16px; bottom:10px; left:50%; width:1px;
+                transform:translateX(-0.5px); pointer-events:none;
+                background:linear-gradient(180deg, transparent, rgba(232,193,90,0.18) 18%, rgba(232,193,90,0.18) 82%, transparent);
+            }
+            /* ── ชิปหมวด: ใหญ่ขึ้น มน เงาลึก เด้งนุ่มแบบสปริง ── */
+            #sidebarNav.sidebar-mini .menu-section-header{ position:relative; z-index:1; overflow:visible !important; }
+            #sidebarNav.sidebar-mini .sec-chip{
+                width:42px !important; height:42px !important; border-radius:14px !important;
+                transition: transform .2s cubic-bezier(.34,1.56,.64,1), filter .2s !important;
+            }
+            #sidebarNav.sidebar-mini .sec-chip .material-icons{ font-size:18px !important; }
+            #sidebarNav.sidebar-mini .menu-section-header:hover .sec-chip{
+                transform:translateY(-2px) scale(1.08);
+                filter:brightness(1.3) saturate(1.2);
+            }
+            #sidebarNav.sidebar-mini .menu-section-header:active .sec-chip{ transform:scale(.9); }
+            /* ── Tooltip ชื่อหมวด: ป้ายทองลอยข้างขวา เลื่อนเข้าอย่างนุ่ม ── */
+            #sidebarNav.sidebar-mini .menu-section-header::after{
+                content:attr(data-sec);
+                position:absolute; left:calc(100% + 16px); top:50%;
+                transform:translate(-8px,-50%);
+                padding:6px 13px; border-radius:10px; white-space:nowrap;
+                font-size:12px; font-weight:800; letter-spacing:0.02em; color:#f5e3ae;
+                background:linear-gradient(180deg,#1b2740,#0f1830);
+                border:1px solid rgba(232,193,90,0.4);
+                box-shadow:0 10px 28px -10px rgba(0,0,0,0.85), 0 0 14px rgba(232,193,90,0.14);
+                opacity:0; pointer-events:none; z-index:70;
+                transition:opacity .18s ease, transform .18s ease;
+            }
+            #sidebarNav.sidebar-mini .menu-section-header:hover::after{ opacity:1; transform:translate(0,-50%); }
+            /* ── ชิปท้ายราง (ประวัติ/โหมดสี/ออกระบบ): ชุดเดียวกับข้างบน ── */
+            #sidebarNav.sidebar-mini .footer-chip{
+                width:40px !important; height:40px !important; border-radius:13px !important;
+                transition: transform .2s cubic-bezier(.34,1.56,.64,1), filter .2s !important;
+            }
+            #sidebarNav.sidebar-mini .footer-chip .material-icons{ font-size:18px !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-btn:hover .footer-chip{
+                transform:translateY(-2px) scale(1.08); filter:brightness(1.35) saturate(1.2);
+            }
+            #sidebarNav.sidebar-mini .sidebar-footer-btn:active .footer-chip{ transform:scale(.9); }
+            /* ── ปุ่มขยายราง: แคปซูลทองเรียบหรู ── */
+            #sidebarNav.sidebar-mini .sidebar-collapse-row{ border-top:1px solid rgba(232,193,90,0.12); }
+            #sidebarNav.sidebar-mini .sidebar-collapse-row button{
+                width:42px !important; margin:0 auto; border-radius:12px !important;
+                background:rgba(232,193,90,0.07) !important;
+                border:1px solid rgba(232,193,90,0.28) !important;
+                color:#E8C15A !important;
+            }
+            #sidebarNav.sidebar-mini .sidebar-collapse-row button:hover{
+                background:rgba(232,193,90,0.16) !important;
+                box-shadow:0 0 14px rgba(232,193,90,0.28);
+            }
+            /* ── แอนิเมชันเปิดราง: ชิปไหลเข้าทีละตัว ── */
+            @keyframes railChipIn{ from{opacity:0; transform:translateX(-12px) scale(.85);} to{opacity:1; transform:none;} }
+            #sidebarNav.sidebar-mini .menu-section-header{ animation:railChipIn .35s ease backwards; }
+            #sidebarNav.sidebar-mini .menu-section-header:nth-of-type(1){ animation-delay:.03s }
+            #sidebarNav.sidebar-mini .menu-section-header:nth-of-type(2){ animation-delay:.08s }
+            #sidebarNav.sidebar-mini .menu-section-header:nth-of-type(3){ animation-delay:.13s }
+            #sidebarNav.sidebar-mini .menu-section-header:nth-of-type(4){ animation-delay:.18s }
+            #sidebarNav.sidebar-mini .menu-section-header:nth-of-type(5){ animation-delay:.23s }
+            #sidebarNav.sidebar-mini .menu-section-header:nth-of-type(6){ animation-delay:.28s }
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-slate-800 dark:bg-[#0b1120] dark:text-gray-100 transition-colors duration-300">
