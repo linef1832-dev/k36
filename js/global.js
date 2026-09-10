@@ -74,6 +74,14 @@ window.escapeAttr = function(s) {
     if (/^\s*(javascript|data|vbscript):/i.test(String(s || ''))) return '#';
     return t;
 };
+// 🛡️ สำหรับค่าที่อยู่ใน JS-string ภายใน on-handler เช่น onclick="fn('${escapeJsAttr(name)}')"
+// ที่นี่มี 2 ชั้น: เบราว์เซอร์ decode HTML ก่อน แล้วค่อยรันเป็น JS → escapeHtml เดี่ยว ๆ ไม่พอ
+// วิธี: escape JS ก่อน ( \ และ ' ) แล้วค่อย escapeHtml ทับ → ปลอดภัยทั้งสองชั้น
+window.escapeJsAttr = function(s) {
+    return window.escapeHtml(
+        String(s === undefined || s === null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    );
+};
 
 // ==========================================
 // 🛡️ แจ้งเตือนเมื่อ "เขียนฐานข้อมูลไม่สำเร็จ"
