@@ -72,7 +72,7 @@ window.sop_doExportPDF = function(mode) {
                 <h1>${companyName}</h1>
                 <h2>${mode === 'rules' ? 'กติกาขั้นตอน' : (mode === 'sop' ? 'ขั้นตอนต่างๆ (SOP)' : 'ฉบับเต็ม')}</h2>
                 <div class="meta">สร้าง: ${dateStr}</div>
-                <div class="meta">โดย: ${(currentUser && (currentUser.username || currentUser.name)) || 'admin'}</div>
+                <div class="meta">โดย: ${window.escapeHtml((currentUser && (currentUser.username || currentUser.name)) || 'admin')}</div>
             </div>
         </div>
     `;
@@ -748,7 +748,7 @@ window.sop_moveToGroup = async function(idx) {
     globalSopGroups.forEach(g => { options[g] = `📁 ${g}`; });
 
     const { value: selectedGroup } = await Swal.fire({
-        title: `<div class="flex items-center gap-2 text-base"><span class="material-icons text-indigo-500">drive_file_move</span> โยก "${r.title || r.text || '(ไม่มีหัวข้อ)'}"</div>`,
+        title: `<div class="flex items-center gap-2 text-base"><span class="material-icons text-indigo-500">drive_file_move</span> โยก "${window.escapeHtml(r.title || r.text || '(ไม่มีหัวข้อ)')}"</div>`,
         input: 'select',
         inputOptions: options,
         inputValue: r.group || '',
@@ -785,7 +785,7 @@ window.sop_moveCategoryToGroup = async function(catId) {
     globalSopGroups.forEach(g => { options[g] = `📁 ${g}`; });
 
     const { value: selectedGroup } = await Swal.fire({
-        title: `<div class="flex items-center gap-2 text-base"><span class="material-icons text-indigo-500">drive_file_move</span> โยกหมวด "${cat.name}"</div>`,
+        title: `<div class="flex items-center gap-2 text-base"><span class="material-icons text-indigo-500">drive_file_move</span> โยกหมวด "${window.escapeHtml(cat.name)}"</div>`,
         input: 'select',
         inputOptions: options,
         inputValue: cat.group || '',
@@ -802,7 +802,7 @@ window.sop_moveCategoryToGroup = async function(catId) {
         sop_renderAllRulesPage();
         Swal.fire({
             icon: 'success',
-            title: selectedGroup ? `ย้ายหมวด "${cat.name}" เข้ากลุ่ม "${selectedGroup}" แล้ว!` : `นำหมวด "${cat.name}" ออกจากกลุ่มแล้ว`,
+            title: selectedGroup ? `ย้ายหมวด "${window.escapeHtml(cat.name)}" เข้ากลุ่ม "${window.escapeHtml(selectedGroup)}" แล้ว!` : `นำหมวด "${window.escapeHtml(cat.name)}" ออกจากกลุ่มแล้ว`,
             timer: 1500,
             showConfirmButton: false
         });
