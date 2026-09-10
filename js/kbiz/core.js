@@ -416,4 +416,20 @@ const _kbizOcrTimer = setInterval(() => {
 // (ข้างในเช็ค #ocrKeysGrid อยู่แล้ว ตอนไม่ได้อยู่หน้านี้จึงไม่ยิง DB)
 
 
-// ==========================================
+// ==========================================
+// 📡 [Realtime] ฟังการเปลี่ยน settings ที่เกี่ยวกับ KBIZ → รีเฟรชเองไม่ต้องรีหน้า
+window._kbizRtSub = window._kbizRtSub || null;
+window.subscribeKbizChanges = function() {
+    if (typeof appDB === 'undefined' || !appDB) return;
+    if (window._kbizRtSub) { try { appDB.removeChannel(window._kbizRtSub); } catch(e){} }
+    var KEYS = ['kbiz_bots_data','ocr_api_keys_data','telegram_bot_config','vps_stats','chrome_refresh_config','chrome_refresh_history'];
+    window._kbizRtSub = appDB.channel('kbiz-updates')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, function(payload){
+            if (window._currentPageName !== 'kbiz') return;
+            var key = (payload.new && payload.new.key) || (payload.old && payload.old.key);
+            if (KEYS.indexOf(key) === -1) return;
+            if (typeof fetchKbizData === 'function') fetchKbizData();
+        })
+        .subscribe();
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._kbizRtSub);
+};
