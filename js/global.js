@@ -52,6 +52,30 @@ window.safeGetItem = function(key, fallback) {
 };
 
 // ==========================================
+// 🛡️ [SECURITY/XSS] escape ข้อความก่อนยัดลง innerHTML
+// ปัญหาเดิม: หลายจุดเอาข้อมูลที่ผู้ใช้กรอก (ชื่อเว็บ, URL, username, ข้อความ) ยัดลง innerHTML ตรง ๆ
+// ถ้าใครใส่ <img src=x onerror=...> หรือ <script> ปนมา จะรันในเบราว์เซอร์คนอื่นได้ (Stored XSS)
+// วิธีใช้: ครอบเฉพาะ "ค่าที่มาจากผู้ใช้/ภายนอก" เท่านั้น — อย่าครอบ HTML ที่เราสร้างเอง (ปุ่ม/badge)
+//   ตัวอย่าง:  `<span>${escapeHtml(item.site_name)}</span>`
+//   ในแอตทริบิวต์ (href/title/value):  `<a href="${escapeAttr(item.site_url)}">`
+window.escapeHtml = function(s) {
+    if (s === undefined || s === null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+// สำหรับใส่ในแอตทริบิวต์ที่คร่อมด้วย " " — escape เหมือนกัน แต่กัน javascript:/data: ใน URL ด้วย
+window.escapeAttr = function(s) {
+    const t = window.escapeHtml(s);
+    // ตัด scheme อันตรายใน href/src (javascript: , data: , vbscript:)
+    if (/^\s*(javascript|data|vbscript):/i.test(String(s || ''))) return '#';
+    return t;
+};
+
+// ==========================================
 // 🛡️ แจ้งเตือนเมื่อ "เขียนฐานข้อมูลไม่สำเร็จ"
 // ปัญหาเดิม: มี 56 จุดในโปรเจกต์ที่เขียน DB แล้วเด้ง "สำเร็จ" ทันทีโดยไม่เช็ค error
 // ถ้า Supabase ปฏิเสธ (สิทธิ์ RLS / เน็ตหลุด / ข้อมูลผิดรูป) ผู้ใช้จะเห็นว่าบันทึกแล้ว
@@ -465,7 +489,8 @@ const domSnapshot = {};
 window._currentPageName = null;
 
 // ชิปเล็กๆ มุมจอ บอกว่ากำลังดึงข้อมูลชุดใหม่
-window._showRefreshChip = function() {
+window._refreshChipTimer = null;
+window._buildRefreshChip = function() {
     if (document.getElementById('pageRefreshChip')) return;
     const el = document.createElement('div');
     el.id = 'pageRefreshChip';
@@ -473,7 +498,17 @@ window._showRefreshChip = function() {
     el.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;background:rgba(10,16,29,0.92);border:1px solid rgba(232,193,90,0.35);color:#f5e3ae;font-size:11px;font-weight:700;box-shadow:0 8px 24px -8px rgba(0,0,0,0.6);backdrop-filter:blur(4px);transition:opacity .25s;';
     document.body.appendChild(el);
 };
+window._showRefreshChip = function() {
+    // 🎯 [นิ่งขึ้น] หน่วง ~600ms ก่อนโชว์ — ถ้าข้อมูลใหม่มาไวกว่านั้น ชิปจะไม่โผล่เลย
+    // (เดิมเด้งทุกครั้งที่กลับเข้าหน้าเดิม แม้ข้อมูลมาไวมาก → เห็นชิปกระพริบตลอด)
+    if (window._refreshChipTimer || document.getElementById('pageRefreshChip')) return;
+    window._refreshChipTimer = setTimeout(() => {
+        window._refreshChipTimer = null;
+        window._buildRefreshChip();
+    }, 600);
+};
 window._hideRefreshChip = function() {
+    if (window._refreshChipTimer) { clearTimeout(window._refreshChipTimer); window._refreshChipTimer = null; }
     const el = document.getElementById('pageRefreshChip');
     if (!el) return;
     el.style.opacity = '0';
@@ -859,12 +894,11 @@ async function showPage(pageName) {
             });
         };
 
-        if (document.startViewTransition) {
-            const transition = document.startViewTransition(() => updateDOM());
-            try { await transition.updateCallbackDone; } catch (e) { /* ignore */ }
-        } else {
-            updateDOM();
-        }
+        // 🎯 [นิ่งขึ้น] เลิกใช้ view transition (cross-fade) ตอนสลับหน้า
+        // เหตุผล: มันเฟดภาพทั้งหน้า แต่ข้อมูลจริงเพิ่งมาทีหลัง (ใน rAF) → เห็น "เฟดแล้วเด้ง" ฟีลไม่นิ่ง
+        // การเรียก updateDOM() ตรง ๆ คือเส้นทางเดิมที่ Safari/Firefox ใช้อยู่แล้ว = ผ่านการใช้งานจริงมาแล้ว
+        // 👉 อยากได้ cross-fade กลับ: เปลี่ยนบล็อกนี้กลับเป็น if (document.startViewTransition) { ... }
+        updateDOM();
 
     } catch (err) {
         console.error(err);
