@@ -486,7 +486,7 @@ function odCfg_renderWebs() {
     list.innerHTML = odCfgData.webs.map((w, i) => `
         <div class="flex items-center gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2">
             <span class="w-3 h-3 rounded-full shrink-0" style="background:${w.color}"></span>
-            <span class="flex-1 font-bold text-sm text-slate-800 dark:text-white">${w.name}</span>
+            <span class="flex-1 font-bold text-sm text-slate-800 dark:text-white">${window.escapeHtml(w.name)}</span>
             <input type="color" value="${w.color}" title="เปลี่ยนสี"
                 onchange="odCfgData.webs[${i}].color=this.value; odCfg_renderWebs(); odCfg_renderPromoWebSel();"
                 class="w-7 h-7 rounded border-none cursor-pointer p-0">
@@ -539,7 +539,7 @@ function odCfg_renderPromoWebSel() {
     const cur = sel.value;
     sel.innerHTML = '<option value="">-- เลือกเว็บ --</option>';
     odCfgData.webs.forEach(w => {
-        sel.innerHTML += `<option value="${w.name}" ${w.name===cur?'selected':''}>${w.name}</option>`;
+        sel.innerHTML += `<option value="${window.escapeHtml(w.name)}" ${w.name===cur?'selected':''}>${window.escapeHtml(w.name)}</option>`;
     });
     odCfg_renderPromos();
 }
