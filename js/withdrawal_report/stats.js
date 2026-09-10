@@ -288,6 +288,8 @@ function _renderStaffCards(counts, search) {
     const max    = sorted[0][1].total || 1;
     const medals = ['🥇','🥈','🥉'];
 
+    // 🛡️ [XSS] name/site มาจากข้อมูล Telegram (คนนอก) — escape ก่อน render
+    const esc = window.escapeHtml, escA = window.escapeAttr;
     grid.innerHTML = sorted.map(([name, c], i) => {
         const pct   = Math.round((c.total/max)*100);
         const mdl   = medals[i] || `#${i+1}`;
@@ -303,20 +305,19 @@ function _renderStaffCards(counts, search) {
         ].filter(Boolean).join('');
 
         const siteTags = Object.entries(c.sites).sort((a,b)=>b[1]-a[1])
-            .map(([s,n]) => `<span style="background:rgba(14,165,233,0.15);color:#38bdf8;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${s}×${n}</span>`)
+            .map(([s,n]) => `<span style="background:rgba(14,165,233,0.15);color:#38bdf8;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${esc(s)}×${n}</span>`)
             .join('');
 
-        const safeName    = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         const displayName = (()=>{ const m = name.match(/^[^-]+-([^-]+)-/); return m ? m[1] : name; })();
         return `
-        <div onclick="openStaffDetail('${safeName}')"
+        <div onclick="openStaffDetail(this.dataset.name)" data-name="${escA(name)}"
              style="cursor:pointer;background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;transition:all .15s;${ring}"
              onmouseover="this.style.background='#263548';this.style.borderColor='#7c3aed'"
              onmouseout="this.style.background='#1e293b';this.style.borderColor='#334155'">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                 <div style="display:flex;align-items:center;gap:8px;min-width:0;">
                     <span style="font-size:20px;flex-shrink:0;">${mdl}</span>
-                    <span style="font-weight:700;color:#f1f5f9;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${name}">${displayName}</span>
+                    <span style="font-weight:700;color:#f1f5f9;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escA(name)}">${esc(displayName)}</span>
                 </div>
                 <span style="font-size:24px;font-weight:900;color:#a78bfa;flex-shrink:0;">${c.total}</span>
             </div>
@@ -374,11 +375,13 @@ window.openStaffDetail = function(name) {
     const rows = _caseData.filter(d => d.sender_name === name)
         .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
 
+    // 🛡️ [XSS] ข้อมูลด้านล่างมาจาก Telegram (คนนอกทีมพิมพ์เข้ามา) — ต้อง escape ก่อน render
+    const esc = window.escapeHtml;
     const badge = t => {
-        if ((t||'').includes('ลบ'))   return `<span style="background:rgba(59,130,246,0.25);color:#93c5fd;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${t}</span>`;
-        if ((t||'').includes('เช็ค')) return `<span style="background:rgba(16,185,129,0.25);color:#6ee7b7;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${t}</span>`;
-        if ((t||'').includes('ปลด'))  return `<span style="background:rgba(245,158,11,0.25);color:#fde68a;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${t}</span>`;
-        return `<span style="background:rgba(100,116,139,0.25);color:#cbd5e1;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${t||'reply'}</span>`;
+        if ((t||'').includes('ลบ'))   return `<span style="background:rgba(59,130,246,0.25);color:#93c5fd;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
+        if ((t||'').includes('เช็ค')) return `<span style="background:rgba(16,185,129,0.25);color:#6ee7b7;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
+        if ((t||'').includes('ปลด'))  return `<span style="background:rgba(245,158,11,0.25);color:#fde68a;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
+        return `<span style="background:rgba(100,116,139,0.25);color:#cbd5e1;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t||'reply')}</span>`;
     };
 
     const html = rows.map((d,i) => {
@@ -386,15 +389,15 @@ window.openStaffDetail = function(name) {
         // กรอง message_text ที่เป็น timestamp ออก
         const rawMsg     = d.message_text || '';
         const isTimestamp = /^\d{4}-\d{2}-\d{2}/.test(rawMsg.trim());
-        const myMsg      = isTimestamp ? '—' : (rawMsg || '—');
-        const quotedMsg  = d.quoted_text  || '';
-        const qf         = d.quoted_from  || '—';
+        const myMsg      = esc(isTimestamp ? '—' : (rawMsg || '—'));
+        const quotedMsg  = esc(d.quoted_text  || '');
+        const qf         = esc(d.quoted_from  || '—');
         return `
         <div style="background:#0f172a;border-radius:10px;padding:12px 14px;border:1px solid #1e293b;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                 <span style="font-size:11px;color:#64748b;font-weight:700;font-family:monospace;">${i+1}. ${t}</span>
                 ${badge(d.case_type)}
-                <span style="font-size:11px;color:#38bdf8;font-weight:700;">${d.site||''}</span>
+                <span style="font-size:11px;color:#38bdf8;font-weight:700;">${esc(d.site||'')}</span>
             </div>
             ${quotedMsg ? `
             <div style="background:#1e293b;border-left:3px solid #475569;border-radius:6px;padding:8px 10px;margin-bottom:8px;">
@@ -409,7 +412,7 @@ window.openStaffDetail = function(name) {
     }).join('');
 
     Swal.fire({
-        title: `<span style="font-size:16px;">📋 ${name} — ${rows.length} เคส</span>`,
+        title: `<span style="font-size:16px;">📋 ${esc(name)} — ${rows.length} เคส</span>`,
         html:  `<div style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;text-align:left;">${html}</div>`,
         background:      '#1e293b',
         color:           '#e2e8f0',
@@ -431,11 +434,13 @@ function _renderLogTable() {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">ไม่มีข้อมูล</td></tr>`;
         _renderPagination(0); return;
     }
+    // 🛡️ [XSS] ข้อมูลด้านล่างมาจาก Telegram (คนนอก) — escape ก่อน render
+    const esc = window.escapeHtml, escA = window.escapeAttr;
     const badge = t => {
-        if ((t||'').includes('ลบ'))   return `<span class="bg-blue-900/50 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${t}</span>`;
-        if ((t||'').includes('เช็ค')) return `<span class="bg-emerald-900/50 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${t}</span>`;
-        if ((t||'').includes('ปลด'))  return `<span class="bg-amber-900/50 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${t}</span>`;
-        return `<span class="bg-slate-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${t||'reply'}</span>`;
+        if ((t||'').includes('ลบ'))   return `<span class="bg-blue-900/50 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
+        if ((t||'').includes('เช็ค')) return `<span class="bg-emerald-900/50 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
+        if ((t||'').includes('ปลด'))  return `<span class="bg-amber-900/50 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t)}</span>`;
+        return `<span class="bg-slate-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${esc(t||'reply')}</span>`;
     };
     tbody.innerHTML = page.map((d,i) => {
         const ts   = new Date(d.created_at);
@@ -445,11 +450,11 @@ function _renderLogTable() {
         return `<tr class="hover:bg-slate-800/30 transition">
             <td class="p-3 text-center text-gray-500 text-xs">${start+i+1}</td>
             <td class="p-3 text-xs text-gray-400 font-mono">${t}</td>
-            <td class="p-3 font-bold text-sm text-violet-300">${d.sender_name}</td>
+            <td class="p-3 font-bold text-sm text-violet-300">${esc(d.sender_name)}</td>
             <td class="p-3">${badge(d.case_type)}</td>
-            <td class="p-3 text-xs font-bold text-sky-400">${d.site||'—'}</td>
-            <td class="p-3 text-xs text-gray-500 font-mono">${d.quoted_from||'—'}</td>
-            <td class="p-3 text-xs text-gray-400 max-w-[200px] truncate" title="${d.message_text||''}">${msg||'—'}</td>
+            <td class="p-3 text-xs font-bold text-sky-400">${esc(d.site||'—')}</td>
+            <td class="p-3 text-xs text-gray-500 font-mono">${esc(d.quoted_from||'—')}</td>
+            <td class="p-3 text-xs text-gray-400 max-w-[200px] truncate" title="${escA(d.message_text||'')}">${esc(msg||'—')}</td>
         </tr>`;
     }).join('');
     _renderPagination(total);
