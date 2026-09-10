@@ -133,7 +133,7 @@ window.renderRiskBoard = function() {
                     <div class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition" onclick="showRiskDetail('${u.user_id}')">
                         <div class="text-2xl font-black text-slate-400 w-8">#${rank}</div>
                         <div>
-                            <div class="font-black text-lg text-slate-800 dark:text-white underline decoration-dotted">${u.username}</div>
+                            <div class="font-black text-lg text-slate-800 dark:text-white underline decoration-dotted">${window.escapeHtml(u.username)}</div>
                             <div class="text-[10px] text-gray-500">เข้าล่าสุด: ${new Date(u.lastSeen).toLocaleString('th-TH')} • ${u.allTimes.length} ครั้ง</div>
                         </div>
                     </div>
@@ -152,7 +152,7 @@ window.renderRiskBoard = function() {
                 <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div class="bg-white/60 dark:bg-slate-700/40 rounded-xl p-3">
                         <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">🌐 IP ที่ใช้ (${Object.keys(u.ips).length} รายการ)</div>
-                        ${ipList.map(([ip, d]) => `<div class="text-xs mb-1 flex items-center justify-between"><span class="font-mono font-bold text-sky-600 dark:text-sky-400">${ip}</span><span class="text-gray-400">${d.country || '-'} • ${d.count}ครั้ง</span></div>`).join('')}
+                        ${ipList.map(([ip, d]) => `<div class="text-xs mb-1 flex items-center justify-between"><span class="font-mono font-bold text-sky-600 dark:text-sky-400">${ip}</span><span class="text-gray-400">${window.escapeHtml(d.country || '-')} • ${d.count}ครั้ง</span></div>`).join('')}
                         ${Object.keys(u.ips).length > 3 ? `<div class="text-[10px] text-gray-400 mt-1">+${Object.keys(u.ips).length-3} รายการ...</div>` : ''}
                     </div>
                     <div class="bg-white/60 dark:bg-slate-700/40 rounded-xl p-3">
@@ -215,7 +215,7 @@ window.renderVpnDetector = function() {
             <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
                 <div>
                     <div class="font-mono font-bold text-lg text-purple-700 dark:text-purple-300">${g.ip}</div>
-                    <div class="text-xs text-gray-500">${g.country || '-'} • ${g.isp}</div>
+                    <div class="text-xs text-gray-500">${window.escapeHtml(g.country || '-')} • ${window.escapeHtml(g.isp)}</div>
                 </div>
                 <span class="bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">⚠ VPN/Proxy • ${g.users.size} คน</span>
             </div>
@@ -299,7 +299,7 @@ window.renderImpossibleTravel = function() {
         ${filtered.map(a => `
         <div class="col-span-full bg-white dark:bg-slate-800 rounded-2xl shadow p-4 border-l-4 border-red-500">
             <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-                <div class="font-black text-lg text-slate-800 dark:text-white">${a.username}</div>
+                <div class="font-black text-lg text-slate-800 dark:text-white">${window.escapeHtml(a.username)}</div>
                 <div class="flex gap-2">
                     <span class="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">🚀 ${a.speedKmh.toLocaleString()} km/h</span>
                     <span class="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">📍 ${a.distKm.toLocaleString()} km</span>
@@ -478,8 +478,8 @@ window.renderUserTimeline = function() {
                                 <span class="text-xs text-gray-400">${new Date(l.login_time).toLocaleString('th-TH')}</span>
                             </div>
                             <div class="mt-1 text-xs text-gray-500 space-y-0.5">
-                                <div>🌐 <span class="font-mono">${l.ip_address || '-'}</span> — ${l.country || '-'} / ${l.city || '-'}</div>
-                                <div>🏢 ${l.isp || '-'}</div>
+                                <div>🌐 <span class="font-mono">${l.ip_address || '-'}</span> — ${window.escapeHtml(l.country || '-')} / ${window.escapeHtml(l.city || '-')}</div>
+                                <div>🏢 ${window.escapeHtml(l.isp || '-')}</div>
                                 ${l.fingerprint ? `<div>📱 FP: <span class="font-mono">${shortFp(l.fingerprint)}</span></div>` : ''}
                                 ${l.timezone ? `<div>🕐 Timezone: ${l.timezone}</div>` : ''}
                                 ${l.asn ? `<div>🔌 ASN: ${l.asn}</div>` : ''}
@@ -525,8 +525,8 @@ window.showRiskDetail = function(userId) {
         const isVpnIp = VPN_ISP_KEYWORDS.some(k => (d.isp||'').toLowerCase().includes(k));
         return `<tr style="border-bottom:1px solid #e2e8f0">
             <td style="padding:8px;font-family:monospace;font-size:12px;color:#0369a1;font-weight:700">${ip}</td>
-            <td style="padding:8px;font-size:12px">${d.country || '-'} / ${d.city || '-'}</td>
-            <td style="padding:8px;font-size:12px;max-width:180px;word-break:break-word">${isVpnIp ? '<span style="background:#7e22ce;color:#fff;padding:1px 6px;border-radius:99px;font-size:10px;font-weight:700">⚠ VPN</span> ' : ''}${d.isp || '-'}</td>
+            <td style="padding:8px;font-size:12px">${window.escapeHtml(d.country || '-')} / ${window.escapeHtml(d.city || '-')}</td>
+            <td style="padding:8px;font-size:12px;max-width:180px;word-break:break-word">${isVpnIp ? '<span style="background:#7e22ce;color:#fff;padding:1px 6px;border-radius:99px;font-size:10px;font-weight:700">⚠ VPN</span> ' : ''}${window.escapeHtml(d.isp || '-')}</td>
             <td style="padding:8px;font-size:11px;color:#64748b">${d.asn || '-'}</td>
             <td style="padding:8px;font-size:11px;color:#64748b">${d.timezone || '-'}</td>
             <td style="padding:8px;text-align:center;font-weight:700;color:#0f172a">${d.count}</td>
@@ -551,7 +551,7 @@ window.showRiskDetail = function(userId) {
             <td style="padding:6px 8px;font-size:11px;color:#64748b;white-space:nowrap">${new Date(l.login_time).toLocaleString('th-TH')}</td>
             <td style="padding:6px 8px"><span style="background:${evColor[l.event_type]}22;color:${evColor[l.event_type]};font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px">${evLabel[l.event_type]||l.event_type}</span></td>
             <td style="padding:6px 8px;font-family:monospace;font-size:11px;color:#0369a1">${l.ip_address||'-'}</td>
-            <td style="padding:6px 8px;font-size:11px;color:#64748b">${l.country||'-'} / ${l.city||'-'}</td>
+            <td style="padding:6px 8px;font-size:11px;color:#64748b">${window.escapeHtml(l.country||'-')} / ${window.escapeHtml(l.city||'-')}</td>
             <td style="padding:6px 8px;font-size:11px;color:#64748b">${l.fingerprint ? shortFp(l.fingerprint) : '-'}</td>
         </tr>`).join('');
 
@@ -655,7 +655,7 @@ window.showRiskDetail = function(userId) {
     </div>`;
 
     Swal.fire({
-        title: `<div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">👤</span> ${u.username} <span style="font-size:12px;background:${levelColor[u.level]}22;color:${levelColor[u.level]};padding:2px 10px;border-radius:99px;font-weight:700">${levelLabel[u.level]}</span></div>`,
+        title: `<div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">👤</span> ${window.escapeHtml(u.username)} <span style="font-size:12px;background:${levelColor[u.level]}22;color:${levelColor[u.level]};padding:2px 10px;border-radius:99px;font-weight:700">${levelLabel[u.level]}</span></div>`,
         html,
         width: '900px',
         showConfirmButton: false,

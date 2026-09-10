@@ -225,7 +225,7 @@ window.renderSessionOverlap = function() {
         ${paged.map(o => `
         <div class="col-span-full rounded-2xl shadow p-4 border-l-4 border-rose-500" style="background:${cardBg}">
             <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-                <div class="font-black text-lg" style="color:${textColor}">${o.username}</div>
+                <div class="font-black text-lg" style="color:${textColor}">${window.escapeHtml(o.username)}</div>
                 <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:99px">⚠ ห่างกัน ${o.diffMin} นาที</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -343,7 +343,7 @@ window.renderTzMismatch = function() {
         <div class="col-span-full rounded-2xl shadow p-4 border-l-4 border-cyan-500" style="background:${cardBg}">
             <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
                 <div>
-                    <div class="font-black text-lg" style="color:${textColor}">${l.username}</div>
+                    <div class="font-black text-lg" style="color:${textColor}">${window.escapeHtml(l.username)}</div>
                     <div style="font-size:11px;color:${subColor}">${new Date(l.login_time).toLocaleString('th-TH')}</div>
                 </div>
                 <span style="background:#0891b2;color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:99px">🌍 TZ ไม่ตรง</span>
@@ -352,8 +352,8 @@ window.renderTzMismatch = function() {
                 <div style="background:${isDark?'rgba(51,65,85,.5)':'#f8fafc'};border-radius:10px;padding:10px;border:1px solid ${isDark?'#334155':'#e2e8f0'}">
                     <div style="font-size:10px;font-weight:700;color:${subColor};text-transform:uppercase;margin-bottom:4px">🌐 IP บอกว่าอยู่</div>
                     <div style="font-family:monospace;font-weight:700;color:#0369a1;font-size:12px">${l.ip_address}</div>
-                    <div style="font-size:12px;font-weight:700;margin-top:4px;color:${textColor}">${l.country} / ${l.city || '-'}</div>
-                    <div style="font-size:11px;color:${subColor}">${l.isp || '-'}</div>
+                    <div style="font-size:12px;font-weight:700;margin-top:4px;color:${textColor}">${window.escapeHtml(l.country)} / ${window.escapeHtml(l.city || '-')}</div>
+                    <div style="font-size:11px;color:${subColor}">${window.escapeHtml(l.isp || '-')}</div>
                 </div>
                 <div style="background:${isDark?'rgba(21,128,61,.2)':'#f0fdf4'};border-radius:10px;padding:10px;border:1px solid ${isDark?'#166534':'#bbf7d0'}">
                     <div style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;margin-bottom:4px">✅ TZ ที่ควรเป็น</div>

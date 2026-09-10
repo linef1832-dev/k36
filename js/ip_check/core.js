@@ -101,7 +101,7 @@ function populateIpUserFilter() {
         .filter(u => u && u.username)
         .sort((a, b) => String(a.username).localeCompare(String(b.username)))
         .forEach(u => {
-            select.innerHTML += `<option value="${u.id}">${u.username}</option>`;
+            select.innerHTML += `<option value="${u.id}">${window.escapeHtml(u.username)}</option>`;
         });
     
     if (oldVal) select.value = oldVal;
@@ -288,7 +288,7 @@ function renderAllLogs() {
                             <tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 ${rowClass}">
                                 <td class="px-3 py-2 text-xs">${time}</td>
                                 <td class="px-3 py-2">${eventBadge(l.event_type)}</td>
-                                <td class="px-3 py-2 font-bold text-slate-800 dark:text-white">${l.username || '-'}</td>
+                                <td class="px-3 py-2 font-bold text-slate-800 dark:text-white">${window.escapeHtml(l.username || '-')}</td>
                                 <td class="px-3 py-2">
                                     <span class="font-mono text-xs ${isSharedIp ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-700 dark:text-slate-200'}">${l.ip_address || '-'}</span>
                                     ${isSharedIp ? `<span class="ml-1 text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full">⚠ ${sharedIpCount} คน</span>` : ''}
@@ -299,8 +299,8 @@ function renderAllLogs() {
                                         ${isSharedFp ? `<span class="ml-1 text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full">⚠ ${sharedFpCount} คน</span>` : ''}
                                     ` : '<span class="text-gray-400 text-xs">-</span>'}
                                 </td>
-                                <td class="px-3 py-2 text-xs">${l.country || '-'} / ${l.city || '-'}</td>
-                                <td class="px-3 py-2 text-xs text-gray-500">${l.isp || '-'}</td>
+                                <td class="px-3 py-2 text-xs">${window.escapeHtml(l.country || '-')} / ${window.escapeHtml(l.city || '-')}</td>
+                                <td class="px-3 py-2 text-xs text-gray-500">${window.escapeHtml(l.isp || '-')}</td>
                                 <td class="px-3 py-2 text-xs text-gray-500">${device}</td>
                                 <td class="px-3 py-2 text-center">
                                     <button onclick="deleteIpLog(${l.id})" class="text-red-400 hover:text-red-600" title="ลบ">

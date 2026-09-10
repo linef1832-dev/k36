@@ -72,7 +72,7 @@ function renderIpChanges() {
                         <div class="flex items-center gap-3">
                             <span class="material-icons text-rose-500 text-3xl">swap_horiz</span>
                             <div>
-                                <div class="font-bold text-lg text-slate-800 dark:text-white">${l.username || '-'}</div>
+                                <div class="font-bold text-lg text-slate-800 dark:text-white">${window.escapeHtml(l.username || '-')}</div>
                                 <div class="text-xs text-gray-500">${time}</div>
                             </div>
                         </div>
@@ -84,20 +84,20 @@ function renderIpChanges() {
                         <div class="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
                             <div class="text-[10px] font-bold text-gray-500 uppercase">IP เดิม</div>
                             <div class="font-mono font-bold text-slate-800 dark:text-white">${prevLog.ip_address}</div>
-                            <div class="text-xs text-gray-500 mt-1">${prevLog.country || '-'} • ${prevLog.city || '-'}</div>
-                            <div class="text-xs text-gray-500">${prevLog.isp || '-'}</div>
+                            <div class="text-xs text-gray-500 mt-1">${window.escapeHtml(prevLog.country || '-')} • ${window.escapeHtml(prevLog.city || '-')}</div>
+                            <div class="text-xs text-gray-500">${window.escapeHtml(prevLog.isp || '-')}</div>
                         </div>
                         <div class="p-3 bg-rose-50 dark:bg-rose-900/30 rounded-lg border border-rose-200 dark:border-rose-700">
                             <div class="text-[10px] font-bold text-rose-600 dark:text-rose-300 uppercase">IP ใหม่ 🆕</div>
                             <div class="font-mono font-bold text-rose-700 dark:text-rose-200">${l.ip_address}</div>
-                            <div class="text-xs text-rose-600 dark:text-rose-300 mt-1">${l.country || '-'} • ${l.city || '-'}</div>
-                            <div class="text-xs text-rose-600 dark:text-rose-300">${l.isp || '-'}</div>
+                            <div class="text-xs text-rose-600 dark:text-rose-300 mt-1">${window.escapeHtml(l.country || '-')} • ${window.escapeHtml(l.city || '-')}</div>
+                            <div class="text-xs text-rose-600 dark:text-rose-300">${window.escapeHtml(l.isp || '-')}</div>
                         </div>
                         ` : `
                         <div class="md:col-span-2 p-3 bg-rose-50 dark:bg-rose-900/30 rounded-lg border border-rose-200 dark:border-rose-700">
                             <div class="text-[10px] font-bold text-rose-600 dark:text-rose-300 uppercase">IP ใหม่ 🆕</div>
                             <div class="font-mono font-bold text-rose-700 dark:text-rose-200">${l.ip_address}</div>
-                            <div class="text-xs text-rose-600 dark:text-rose-300 mt-1">${l.country || '-'} • ${l.city || '-'} • ${l.isp || '-'}</div>
+                            <div class="text-xs text-rose-600 dark:text-rose-300 mt-1">${window.escapeHtml(l.country || '-')} • ${window.escapeHtml(l.city || '-')} • ${window.escapeHtml(l.isp || '-')}</div>
                         </div>
                         `}
                     </div>
@@ -179,7 +179,7 @@ function renderFpChanges() {
                         <div class="flex items-center gap-3">
                             <span class="material-icons text-fuchsia-500 text-3xl">devices</span>
                             <div>
-                                <div class="font-bold text-lg text-slate-800 dark:text-white">${l.username || '-'}</div>
+                                <div class="font-bold text-lg text-slate-800 dark:text-white">${window.escapeHtml(l.username || '-')}</div>
                                 <div class="text-xs text-gray-500">${time}</div>
                             </div>
                         </div>
@@ -270,7 +270,7 @@ function renderDuplicateIps() {
             .map(u => `
                 <div class="flex justify-between items-center px-3 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
                     <div class="flex flex-col">
-                        <span class="font-bold text-slate-800 dark:text-white">${u.username}</span>
+                        <span class="font-bold text-slate-800 dark:text-white">${window.escapeHtml(u.username)}</span>
                         <span class="text-[10px] text-gray-500">เข้าล่าสุด: ${new Date(u.lastTime).toLocaleString('th-TH')}</span>
                     </div>
                     <span class="bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 text-xs font-bold px-2 py-1 rounded-full">${u.count} ครั้ง</span>
@@ -283,7 +283,7 @@ function renderDuplicateIps() {
                         <span class="material-icons text-amber-500 text-3xl">warning</span>
                         <div>
                             <div class="font-mono font-bold text-lg text-slate-800 dark:text-white">${g.ip}</div>
-                            <div class="text-xs text-gray-500">${g.country || '-'} • ${g.city || '-'} • ${g.isp || '-'}</div>
+                            <div class="text-xs text-gray-500">${window.escapeHtml(g.country || '-')} • ${window.escapeHtml(g.city || '-')} • ${window.escapeHtml(g.isp || '-')}</div>
                         </div>
                     </div>
                     <span class="bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-bold">⚠ ใช้ร่วม ${userCount} คน</span>
@@ -374,7 +374,7 @@ function renderDuplicateFps() {
                 .map(u => `
                     <div class="flex justify-between items-center px-3 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
                         <div class="flex flex-col">
-                            <span class="font-bold text-slate-800 dark:text-white">${u.username}</span>
+                            <span class="font-bold text-slate-800 dark:text-white">${window.escapeHtml(u.username)}</span>
                             <span class="text-[10px] text-gray-500">IP: ${u.ip_address || '-'}</span>
                             <span class="text-[10px] text-gray-500">เข้าล่าสุด: ${new Date(u.lastTime).toLocaleString('th-TH')}</span>
                         </div>
@@ -481,7 +481,7 @@ function renderByUser() {
             <div class="flex items-center justify-between px-2 py-1 bg-slate-50 dark:bg-slate-700/50 rounded text-xs">
                 <div class="flex items-center gap-2">
                     <span class="font-mono text-slate-700 dark:text-slate-200">${ip.ip}</span>
-                    <span class="text-gray-400">(${ip.country || '-'}, ${ip.city || '-'})</span>
+                    <span class="text-gray-400">(${window.escapeHtml(ip.country || '-')}, ${window.escapeHtml(ip.city || '-')})</span>
                 </div>
                 <span class="text-sky-600 dark:text-sky-400 font-bold">${ip.count} ครั้ง</span>
             </div>`).join('');
@@ -504,7 +504,7 @@ function renderByUser() {
                     <div class="flex items-center gap-2">
                         <span class="material-icons ${accentColor}">person</span>
                         <div>
-                            <div class="font-bold text-slate-800 dark:text-white">${u.username}</div>
+                            <div class="font-bold text-slate-800 dark:text-white">${window.escapeHtml(u.username)}</div>
                             <div class="text-[10px] text-gray-500">เข้าล่าสุด: ${new Date(u.lastSeen).toLocaleString('th-TH')}</div>
                         </div>
                     </div>
