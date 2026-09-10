@@ -497,9 +497,9 @@ function populateIndivUserSelect(filter = "") {
             const itemDiv = document.createElement('div');
             itemDiv.className = "flex items-center gap-2 px-2 py-1.5 hover:bg-blue-50 border-b border-gray-100 last:border-0 cursor-pointer select-none transition";
             itemDiv.innerHTML = `
-                <input type="checkbox" class="indiv-user-cb w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer" value="${u.id}" data-name="${u.username}">
+                <input type="checkbox" class="indiv-user-cb w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer" value="${u.id}" data-name="${window.escapeHtml(u.username)}">
                 <div class="flex-1 text-xs flex justify-between items-center">
-                    <span class="font-bold text-slate-700">${u.username}</span>${window.getTagBadge ? window.getTagBadge(u.tag, u.department) : ""}
+                    <span class="font-bold text-slate-700">${window.escapeHtml(u.username)}</span>${window.getTagBadge ? window.getTagBadge(u.tag, u.department) : ""}
                     <span class="text-[9px] ${shiftColor} bg-gray-100 px-1.5 py-0.5 rounded ml-1 font-bold">${u.allowed_shift}</span>
                 </div>
             `;
@@ -624,7 +624,7 @@ window.renderUserTableDirectly = function() {
         deptListArray.forEach(dName => { depBadge += `<option value="${dName}" ${currentDep === dName ? 'selected' : ''} class="text-white">${dName}</option>`; });
         depBadge += `</select>`;
         
-        const teamBadge = `<button class="bg-indigo-900/50 text-indigo-300 text-xs px-2.5 py-1 rounded-md font-bold hover:bg-indigo-800 transition border border-indigo-700/50 shadow-inner" onclick="updateUserTeam('${u.id}', '${u.team || ''}')">${u.team || '-'}</button>`;
+        const teamBadge = `<button class="bg-indigo-900/50 text-indigo-300 text-xs px-2.5 py-1 rounded-md font-bold hover:bg-indigo-800 transition border border-indigo-700/50 shadow-inner" onclick="updateUserTeam('${u.id}', '${window.escapeJsAttr(u.team || '')}')">${window.escapeHtml(u.team || '-')}</button>`;
         
         let shiftColor = u.allowed_shift === 'กะเช้า' ? 'text-orange-400' : (u.allowed_shift === 'กะกลาง' ? 'text-blue-400' : (u.allowed_shift === 'กะดึก' ? 'text-purple-400' : 'text-gray-400'));
         let shiftSelect = `<select onchange="updateUserShift(this, ${u.id}, this.value)" class="bg-slate-900 ${shiftColor} text-xs p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center">`;
@@ -642,8 +642,8 @@ window.renderUserTableDirectly = function() {
 
         // 🔐 [SECURITY] ไม่โชว์ PIN จริงอีกต่อไป (PIN อยู่ฝั่ง server) — โชว์แค่ว่าตั้งแล้วหรือยัง
         const pinDisplay = u.has_pin 
-            ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs" title="ตั้ง PIN แล้ว">••••••</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
-            : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${u.username}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
+            ? `<div class="flex items-center justify-center gap-1 group"><span class="font-mono text-amber-400 font-bold bg-amber-900/20 px-2 py-1 rounded-md border border-amber-700/50 tracking-widest text-xs" title="ตั้ง PIN แล้ว">••••••</span><button onclick="resetUserPin(${u.id}, '${window.escapeJsAttr(u.username)}')" class="text-slate-500 hover:text-red-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="ล้างรหัสผ่านให้ตั้งใหม่"><span class="material-icons text-[14px]">lock_reset</span></button></div>` 
+            : `<div class="flex items-center justify-center gap-1 group"><span class="text-slate-500 text-[10px] italic bg-slate-800 px-2 py-1 rounded-md">ยังไม่ตั้ง</span><button onclick="resetUserPin(${u.id}, '${window.escapeJsAttr(u.username)}')" class="text-slate-500 hover:text-green-400 p-1 bg-slate-800 rounded-md transition opacity-0 group-hover:opacity-100" title="รีเซ็ต"><span class="material-icons text-[14px]">refresh</span></button></div>`;
 
         // avatar สีสลับตาม index
         const avatarColors = [
@@ -669,10 +669,10 @@ window.renderUserTableDirectly = function() {
                 <td class="p-3 text-center border-b border-slate-700/50"><input type="checkbox" class="user-check w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer" value="${u.id}"></td>
                 <td class="p-3 text-left border-b border-slate-700/50">
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:34px;height:34px;border-radius:50%;background:${ac.bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${ac.color};flex-shrink:0;letter-spacing:.5px;">${u.username.substring(0,2).toUpperCase()}</div>
+                        <div style="width:34px;height:34px;border-radius:50%;background:${ac.bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${ac.color};flex-shrink:0;letter-spacing:.5px;">${window.escapeHtml(u.username.substring(0,2).toUpperCase())}</div>
                         <div style="min-width:0;flex:1;">
                             <div style="display:flex;align-items:center;gap:5px;">
-                                <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${u.username}</span>${window.getTagBadge ? window.getTagBadge(u.tag, u.department) : ""}
+                                <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${window.escapeHtml(u.username)}</span>${window.getTagBadge ? window.getTagBadge(u.tag, u.department) : ""}
                                 <button class="row-edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:3px;cursor:pointer;color:#475569;line-height:1;border-radius:5px;opacity:0;transition:opacity .15s,color .15s,background .15s;display:inline-flex;align-items:center;justify-content:center;" title="แก้ไข" onmouseenter="this.style.color='#c084fc';this.style.background='rgba(192,132,252,.12)'" onmouseleave="this.style.color='#475569';this.style.background='none'"><span class="material-icons" style="font-size:14px;">edit</span></button>
                             </div>
                             ${idRow}

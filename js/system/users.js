@@ -400,7 +400,7 @@ window.saveData = async function(e) {
         const cov = window.checkCoverage(currentUser.username, coverageMap, slotBookings);
         if (!cov.ok) {
             window.resetBtn();
-            const lines = cov.problems.map(pb => `<b class="text-red-500">${pb.team}</b> มี ${pb.total} คน พักพร้อมกันได้ ${pb.cap} — ตอนนี้พักอยู่แล้ว <b>${pb.used}</b>`).join('<br>');
+            const lines = cov.problems.map(pb => `<b class="text-red-500">${window.escapeHtml(pb.team)}</b> มี ${pb.total} คน พักพร้อมกันได้ ${pb.cap} — ตอนนี้พักอยู่แล้ว <b>${pb.used}</b>`).join('<br>');
             return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} เต็มแล้ว`, html: `${lines}<br><br><span class="text-xs text-gray-500">เลือกช่วงอื่น หรือรอให้เพื่อนในเว็บกลับจากพักก่อน</span>` });
         }
     }
@@ -697,7 +697,7 @@ function renderTableRows(data) {
             <td class="px-6 py-4 font-bold text-slate-700 dark:text-gray-200">${i.staff_name}</td>
             <td class="px-6 py-4">
                 <div class="flex items-center gap-1 flex-wrap">
-                    <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${i.team || '-'}</span>
+                    <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">${window.escapeHtml(i.team || '-')}</span>
                     <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${deptColor}">${i.department || 'AM'}</span>
                     ${(() => {
                         // 🌟 เช็ค off-roster ตอน render — ใช้ map ที่โหลดมาแล้ว
