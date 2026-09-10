@@ -827,3 +827,19 @@ window.odCfg_tplView = function(which) {
 };
 
 // ══════════════════════════════════════════════════════════════════════════
+
+// 📡 [Realtime] ฟังการเปลี่ยน settings 'od_form_config' → รีเฟรชเองไม่ต้องรีหน้า
+window._odCfgRtSub = window._odCfgRtSub || null;
+window.subscribeOdConfigChanges = function() {
+    if (typeof appDB === 'undefined' || !appDB) return;
+    if (window._odCfgRtSub) { try { appDB.removeChannel(window._odCfgRtSub); } catch(e){} }
+    window._odCfgRtSub = appDB.channel('odconfig-updates')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, function(payload){
+            if (window._currentPageName !== 'od_config') return;
+            var key = (payload.new && payload.new.key) || (payload.old && payload.old.key);
+            if (key !== 'od_form_config') return;
+            if (typeof initOdConfig === 'function') initOdConfig();
+        })
+        .subscribe();
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._odCfgRtSub);
+};
