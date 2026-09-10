@@ -78,14 +78,16 @@ window.fetchPasswords = async function(resetPage) {
         return;
     }
     grid.innerHTML = data.map(item => {
+        // 🛡️ [XSS] ครอบทุกค่าที่มาจากผู้ใช้ก่อนยัดลง innerHTML (ชื่อเว็บ/URL/user/รหัส เป็น free text)
+        const esc = window.escapeHtml, escA = window.escapeAttr;
         const ownerName = item.users ? item.users.username : 'Unknown';
-        const ownerBadge = canViewAll ? `<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.55);color:#e2e8f0;font-size:10px;padding:3px 10px;border-radius:99px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:3px;border:1px solid rgba(255,255,255,0.1)"><span class="material-icons" style="font-size:10px">person</span> ${ownerName}</div>` : '';
+        const ownerBadge = canViewAll ? `<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.55);color:#e2e8f0;font-size:10px;padding:3px 10px;border-radius:99px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:3px;border:1px solid rgba(255,255,255,0.1)"><span class="material-icons" style="font-size:10px">person</span> ${esc(ownerName)}</div>` : '';
         const delBtn = (isGlobalAdmin || item.user_id === currentUser.id) ? `<button onclick="deletePassword(${item.id})" style="color:#94a3b8;font-size:11px;font-weight:700;display:flex;align-items:center;gap:3px;padding:5px 10px;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:all .15s" onmouseover="this.style.color='#f87171';this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='#94a3b8';this.style.background='transparent'"><span class="material-icons" style="font-size:14px">delete</span> ลบ</button>` : '';
-        const urlHtml = item.site_url ? `<a href="${item.site_url}" target="_blank" style="font-size:11px;color:#60a5fa;text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${item.site_url}</a>` : '';
+        const urlHtml = item.site_url ? `<a href="${escA(item.site_url)}" target="_blank" style="font-size:11px;color:#60a5fa;text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(item.site_url)}</a>` : '';
         return window.renderTemplate('tpl-pwd-card', {
-            ownerBadge, site_name: item.site_name, urlHtml,
-            id: item.id, login_user: item.login_user || '-',
-            login_pass: item.login_pass, delBtn
+            ownerBadge, site_name: esc(item.site_name), urlHtml,
+            id: item.id, login_user: esc(item.login_user || '-'),
+            login_pass: esc(item.login_pass), delBtn
         });
     }).join('');
     renderPwdPagination(count || 0);
@@ -261,6 +263,17 @@ window.copyTextFlash = function(txt, btnEl) {
             btnEl.style.pointerEvents = '';
         }, 1500);
     });
+};
+
+// 🛡️ [XSS] ก็อปค่าจาก DOM แทนการฝังค่าใน onclick
+// เดิม: onclick="copyTextFlash('{{login_pass}}', this)" → ค่ารหัสถูกฝังเป็น JS string
+//   ถ้ารหัสมี ' หรือ " จะหลุดออกมารันโค้ดได้ (HTML escape ธรรมดาแก้ไม่ได้เพราะ browser decode ก่อน JS รัน)
+// ใหม่: ปุ่มอ่านค่าจาก <span class="select-all"> ที่อยู่ในแถวเดียวกัน (textContent = ค่าจริงเสมอ)
+window.copyFromRow = function(btnEl) {
+    const row = btnEl.parentElement;
+    const valEl = row ? row.querySelector('.select-all') : null;
+    const txt = valEl ? valEl.textContent : '';
+    window.copyTextFlash(txt, btnEl);
 };
 
 // ==========================================
