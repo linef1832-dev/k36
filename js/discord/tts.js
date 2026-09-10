@@ -213,7 +213,7 @@
                     ${_tgList.length
                         ? `<select onchange="ttsPickTgGroup(${gi},this)" class="flex-1 bg-slate-900 border border-indigo-500/30 text-white font-bold px-3 py-2 rounded-xl text-sm outline-none focus:border-indigo-400">
                             <option value="">— เลือกกลุ่ม Telegram —</option>
-                            ${_tgList.map(t => `<option value="${t.id}" ${String(grp.telegram_group_id||'')===String(t.id)?'selected':''}>${(t.title||t.id)}</option>`).join('')}
+                            ${_tgList.map(t => `<option value="${t.id}" ${String(grp.telegram_group_id||'')===String(t.id)?'selected':''}>${window.escapeHtml(t.title||t.id)}</option>`).join('')}
                            </select>`
                         : `<input type="text" value="${esc(grp.telegram_group)}" oninput="ttsGroupName(${gi},this.value)" placeholder="ชื่อกลุ่ม Telegram (เช่น ทดลอง2)" class="flex-1 bg-slate-900 border border-indigo-500/30 text-white font-bold px-3 py-2 rounded-xl text-sm outline-none focus:border-indigo-400">`
                     }
@@ -233,7 +233,7 @@
         return `
         <div class="bg-slate-900 rounded-2xl border ${s.enabled ? 'border-sky-500' : 'border-slate-700'} p-3 space-y-3">
             <div class="flex items-center justify-between">
-                <h3 class="text-white font-bold flex items-center gap-2"><span class="material-icons text-sky-400 text-lg">schedule</span> ${s.name}</h3>
+                <h3 class="text-white font-bold flex items-center gap-2"><span class="material-icons text-sky-400 text-lg">schedule</span> ${window.escapeHtml(s.name)}</h3>
                 <button onclick="ttsShiftToggle(${gi},${si})" style="width:48px;height:24px;" class="relative rounded-full transition ${s.enabled ? 'bg-green-500' : 'bg-slate-600'}">
                     <span class="absolute rounded-full bg-white transition-all" style="width:20px;height:20px;top:2px; left:${s.enabled ? '26px' : '2px'};"></span>
                 </button>
@@ -300,7 +300,7 @@
             const on = ids.includes(String(r.id));
             return `<label class="flex items-center gap-2 p-2 rounded-lg border ${on ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700'} hover:border-sky-500 cursor-pointer transition text-sm">
                 <input type="checkbox" ${on ? 'checked' : ''} onchange="ttsChkRoom('${key}','${r.id}',this)" class="w-4 h-4 accent-sky-500">
-                <span class="material-icons text-sky-400 text-base">volume_up</span><span class="text-white">${r.name || r.id}</span></label>`;
+                <span class="material-icons text-sky-400 text-base">volume_up</span><span class="text-white">${window.escapeHtml(r.name || r.id)}</span></label>`;
         }).join('');
     }
 
@@ -510,7 +510,7 @@
                     </select>
                     <select id="setTestRoom" class="flex-1 min-w-[140px] bg-slate-900 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
                         <option value="">— เลือกห้องลองฟัง —</option>
-                        ${_rooms.map(r => `<option value="${r.id}">${r.name || r.id}</option>`).join('')}
+                        ${_rooms.map(r => `<option value="${r.id}">${window.escapeHtml(r.name || r.id)}</option>`).join('')}
                     </select>
                     <button onclick="ttsTestVoice()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 rounded-lg text-sm font-bold flex items-center gap-1"><span class="material-icons text-sm">play_arrow</span> ลอง</button>
                 </div>

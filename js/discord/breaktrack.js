@@ -244,7 +244,7 @@ window.renderBreaktrackTable = function() {
 
     document.getElementById('breaktrackTableBody').innerHTML = pageRows.map(r => `
         <tr class="hover:bg-slate-700/30 transition">
-            <td class="px-4 py-3 font-bold text-white text-center truncate" title="${r.name}">${r.name}</td>
+            <td class="px-4 py-3 font-bold text-white text-center truncate" title="${window.escapeHtml(r.name)}">${window.escapeHtml(r.name)}</td>
             <td class="px-4 py-3 text-center">
                 <span class="text-xs px-2 py-1 rounded-full font-bold ${r.shift === 'กะเช้า' ? 'bg-yellow-500/20 text-yellow-400' : r.shift === 'กะดึก' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-700 text-gray-400'}">${r.shift}</span>
             </td>
@@ -262,7 +262,7 @@ window.renderBreaktrackTable = function() {
                     : `<span class="text-emerald-400 font-bold text-xs">✅ ครบ</span>`}
             </td>
             <td class="px-4 py-3 text-center">
-                <button onclick="window.openBreaktrackDetail('${r.name}')" class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95">
+                <button onclick="window.openBreaktrackDetail('${window.escapeJsAttr(r.name)}')" class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95">
                     <span class="material-icons text-xs">list</span> ดู
                 </button>
             </td>
