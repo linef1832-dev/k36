@@ -201,7 +201,7 @@ window.openStayPinListModal = async function() {
         <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#0f172a;border:1px solid #1e293b;margin-bottom:8px;${dim}">
             <span class="material-icons" style="font-size:16px;color:#fbbf24">push_pin</span>
             <div style="flex:1;min-width:0;text-align:left">
-                <div style="font-weight:800;font-size:13px;color:#f1f5f9;display:flex;align-items:center;flex-wrap:wrap">${p.username}${leaveTag}</div>
+                <div style="font-weight:800;font-size:13px;color:#f1f5f9;display:flex;align-items:center;flex-wrap:wrap">${window.escapeHtml(p.username)}${leaveTag}</div>
                 <div style="font-size:10.5px;color:#64748b;margin-top:2px">
                     เว็บ <b style="color:#a5b4fc">${p.team}</b> • ${p.shift || '-'} • ถึง ${window.dutyFmtShortDate(p.until)}
                     ${p.by ? ` • ตั้งโดย ${p.by}` : ''}

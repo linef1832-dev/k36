@@ -220,7 +220,7 @@ window.assignSupportTeam = async function() {
     const preview = slots.map((s, i) =>
         `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e293b">
             <span style="width:18px;height:18px;border-radius:50%;background:#0369a1;color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i + 1}</span>
-            <span style="flex:1;text-align:left;font-weight:800;font-size:12px;color:#f1f5f9">${s.name}</span>
+            <span style="flex:1;text-align:left;font-weight:800;font-size:12px;color:#f1f5f9">${window.escapeHtml(s.name)}</span>
             <span style="font-size:11px;font-weight:800;color:#38bdf8">${minToTime(s.start)}–${minToTime(s.end)}</span>
             <span style="font-size:9px;color:${s.breakMin > 0 ? '#fbbf24' : '#34d399'};min-width:56px;text-align:right">${s.breakMin > 0 ? `พักใน ${s.breakMin} น.` : 'ไม่ชนพัก'}</span>
         </div>`).join('');
@@ -231,7 +231,7 @@ window.assignSupportTeam = async function() {
         (window.getSupportForUser(s.id) || []).forEach(prev => {
             if (prev.target === target && prev.source === source) return;   // รายการเดิมของคู่นี้ เดี๋ยวถูกทับอยู่แล้ว
             if (s.start < prev.end && prev.start < s.end) {
-                clashes.push(`${s.name} — ช่วยเว็บ ${prev.target} อยู่แล้ว ${minToTime(prev.start)}–${minToTime(prev.end)}`);
+                clashes.push(`${window.escapeHtml(s.name)} — ช่วยเว็บ ${prev.target} อยู่แล้ว ${minToTime(prev.start)}–${minToTime(prev.end)}`);
             }
         });
     });
@@ -524,7 +524,7 @@ window.renderStayPinHtml = function(a, team, isAdmin) {
         // เหลืออีกกี่วันนับจากวันที่กำลังดู (อย่างน้อย 0)
         const left = Math.max(0, window.dutyDiffDays(dateStr, pin.until));
         const warn = pin.team !== team
-            ? `<span class="text-[9px] text-red-600 dark:text-red-400 font-bold ml-1" title="pin ชี้ไปเว็บ ${pin.team}">(≠ ${pin.team})</span>`
+            ? `<span class="text-[9px] text-red-600 dark:text-red-400 font-bold ml-1" title="pin ชี้ไปเว็บ ${window.escapeHtml(pin.team)}">(≠ ${pin.team})</span>`
             : '';
         return `<div onclick="event.stopPropagation(); openStayPinModal('${team}', '${a.id}', '${safeName}')"
             title="คลิกเพื่อแก้ไข / ยกเลิกการอยู่ต่อ"
@@ -749,7 +749,7 @@ window.removeStayPin = async function(userId, username) {
     const ok = await Swal.fire({
         icon: 'warning',
         title: 'ยกเลิกการอยู่ต่อ?',
-        html: `<b>${username || pin.username}</b> จะกลับไปหมุนเว็บตามปกติ`,
+        html: `<b>${window.escapeHtml(username || pin.username)}</b> จะกลับไปหมุนเว็บตามปกติ`,
         showCancelButton: true,
         confirmButtonText: 'ยกเลิกการล็อก',
         cancelButtonText: 'ไม่',

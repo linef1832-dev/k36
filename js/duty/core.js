@@ -712,10 +712,10 @@ window.renderDutyLeaveBox = function() {
             const shiftTag = l.originalShift && l.originalShift !== '?' ? `<span class="text-[8px] text-gray-400 ml-1">(${l.originalShift.replace('กะ','')})</span>` : '';
 
             leaveHtml += `
-                <div onclick="restoreFromLeave('${l.user_id}', '${l.username}')" title="คลิกเพื่อดึงกลับมาทำงาน" class="bg-white dark:bg-slate-700 p-1.5 rounded-lg border ${boxBorder} shadow-sm flex justify-between items-center mb-1.5 transition-all hover:bg-blue-50 dark:hover:bg-slate-600 group cursor-pointer hover:border-blue-500">
+                <div onclick="restoreFromLeave('${l.user_id}', '${window.escapeJsAttr(l.username)}')" title="คลิกเพื่อดึงกลับมาทำงาน" class="bg-white dark:bg-slate-700 p-1.5 rounded-lg border ${boxBorder} shadow-sm flex justify-between items-center mb-1.5 transition-all hover:bg-blue-50 dark:hover:bg-slate-600 group cursor-pointer hover:border-blue-500">
                     <span class="text-[11px] font-bold text-slate-700 dark:text-gray-200 truncate pr-2 flex items-center">
                         <span class="material-icons text-[14px] text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity mr-1">settings_backup_restore</span>
-                        ${l.username} ${shiftTag}
+                        ${window.escapeHtml(l.username)} ${shiftTag}
                     </span>
                     <span class="text-[9px] font-black ${badgeColor} px-1.5 py-0.5 rounded border shadow-sm whitespace-nowrap group-hover:scale-105 transition-transform">${displayRsn}</span>
                 </div>
@@ -855,7 +855,7 @@ window.addStaffToRoster = async function() {
     let userOptionsHtml = '<option value="" disabled selected>-- เลือกพนักงาน --</option>';
     candidates.forEach(u => {
         const shiftTag = (u.allowed_shift && u.allowed_shift !== 'all') ? ` [${u.allowed_shift.replace('กะ','')}]` : ' [อิสระ]';
-        userOptionsHtml += `<option value="${u.id}">${u.username}${shiftTag}</option>`;
+        userOptionsHtml += `<option value="${u.id}">${window.escapeHtml(u.username)}${shiftTag}</option>`;
     });
 
     let teamOptionsHtml = '<option value="" disabled selected>-- เลือกเว็บที่จะใส่ --</option>';
@@ -1084,7 +1084,7 @@ window.generateDutyRoster = async function() {
                 return;
             }
 
-            if ((remainingReqs[pin.team] || 0) <= 0) pinnedOverQuota.push(`${pin.username} (${pin.team})`);
+            if ((remainingReqs[pin.team] || 0) <= 0) pinnedOverQuota.push(`${window.escapeHtml(pin.username)} (${pin.team})`);
 
             rosterResult[pin.team].push({
                 ...u,
@@ -1095,7 +1095,7 @@ window.generateDutyRoster = async function() {
             });
             remainingReqs[pin.team] = Math.max(0, (remainingReqs[pin.team] || 0) - 1);
             unassignedPool = unassignedPool.filter(x => String(x.id) !== String(uid));
-            pinnedPlaced.push(`${pin.username} → ${pin.team}`);
+            pinnedPlaced.push(`${window.escapeHtml(pin.username)} → ${pin.team}`);
             pinnedIds.add(String(uid));
         });
 
@@ -1192,7 +1192,7 @@ window.generateDutyRoster = async function() {
                 else if (ago >= cycleLen)  rotationStats.rotated++;
                 else {
                     rotationStats.repeated++;
-                    rotationStats.repeatedNames.push(`${u.username} → ${team} (เพิ่งทำเมื่อ ${ago} วันก่อน)`);
+                    rotationStats.repeatedNames.push(`${window.escapeHtml(u.username)} → ${team} (เพิ่งทำเมื่อ ${ago} วันก่อน)`);
                 }
             });
         });
@@ -1267,7 +1267,7 @@ ${summaryParts.join(' | ')}`;
                 const newFaces = (rosterResult[s.team] || [])
                     .filter(u => u && u.id && yestTeamMap[String(u.id)] !== s.team)
                     .map(u => u.username);
-                return `• <b>${s.username}</b> (ล็อกไว้ที่ ${s.team}) → `
+                return `• <b>${window.escapeHtml(s.username)}</b> (ล็อกไว้ที่ ${s.team}) → `
                     + (newFaces.length
                         ? `วันนี้ <b>${s.team}</b> ได้ <b>${newFaces.join(', ')}</b> มาแทน`
                         : `วันนี้ <b>${s.team}</b> ใช้คนเดิมทั้งหมด`);
@@ -1285,10 +1285,10 @@ ${summaryParts.join(' | ')}`;
             const quotaFull = unassignedPool.filter(u => !noAccess.includes(u));
             let reasonHtml = '';
             if (quotaFull.length > 0) {
-                reasonHtml += `<div style="margin-top:6px">มีสิทธิ์แต่<b>โควตาเว็บเต็ม</b> (ตั้งจำนวนรวม ${requiredCount} คน แต่มาทำ ${activeStaff.length} คน) <b>${quotaFull.length} คน</b>:<br><span class="text-amber-500 font-bold">${quotaFull.map(u => u.username).join(', ')}</span><br><span style="font-size:11px;opacity:.8">→ เพิ่มจำนวนคนต่อเว็บ หรือกด "คำนวณยอดคนออโต้" แล้วล้างตารางจัดใหม่</span></div>`;
+                reasonHtml += `<div style="margin-top:6px">มีสิทธิ์แต่<b>โควตาเว็บเต็ม</b> (ตั้งจำนวนรวม ${requiredCount} คน แต่มาทำ ${activeStaff.length} คน) <b>${quotaFull.length} คน</b>:<br><span class="text-amber-500 font-bold">${quotaFull.map(u => window.escapeHtml(u.username)).join(', ')}</span><br><span style="font-size:11px;opacity:.8">→ เพิ่มจำนวนคนต่อเว็บ หรือกด "คำนวณยอดคนออโต้" แล้วล้างตารางจัดใหม่</span></div>`;
             }
             if (noAccess.length > 0) {
-                reasonHtml += `<div style="margin-top:6px">ไม่ได้ติ๊กสิทธิ์หลังบ้านเว็บไหนเลย <b>${noAccess.length} คน</b>:<br><span class="text-red-500 font-bold">${noAccess.map(u => u.username).join(', ')}</span></div>`;
+                reasonHtml += `<div style="margin-top:6px">ไม่ได้ติ๊กสิทธิ์หลังบ้านเว็บไหนเลย <b>${noAccess.length} คน</b>:<br><span class="text-red-500 font-bold">${noAccess.map(u => window.escapeHtml(u.username)).join(', ')}</span></div>`;
             }
             Swal.fire({ icon: 'warning', title: `จัดหลักสำเร็จ! (มีคนเหลือ)`, html: `เหลือพนักงานไม่ได้ลงเว็บ <b>${unassignedPool.length} คน</b>${reasonHtml}${pinSummary}` });
         } else if (pinSummary) {
@@ -1454,7 +1454,7 @@ window.renderRosterGrid = async function(rosterData) {
         let namesHtml = assignees.map(a => {
             const isMissing = a.username.includes('ขาดคน');
             const canDrag = !isMissing && a.id && isAdmin;
-            const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${a.username}', '${team}')"` : '';
+            const dragAttrs = canDrag ? `draggable="true" ondragstart="handleDragStart(event, '${a.id}', '${window.escapeJsAttr(a.username)}', '${team}')"` : '';
             const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing hover:shadow-md' : 'cursor-default';
 
             // 🌟 NEW: สร้างป้ายโชว์เวลากินข้าว (อัปเดตให้ดึงมาทั้งหมด 2 ช่วง และปรับขนาดใหญ่ขึ้น)
@@ -1476,7 +1476,7 @@ window.renderRosterGrid = async function(rosterData) {
             let secHtml = '';
             if (a.secondary_team && !isMissing) {
                 const secTeamColors = TEAM_COLORS[a.secondary_team] || TEAM_COLORS['DEFAULT'];
-                const actionClick = isAdmin ? `onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${a.username}')"` : '';
+                const actionClick = isAdmin ? `onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${window.escapeJsAttr(a.username)}')"` : '';
                 const hoverFx = isAdmin ? 'hover:border-transparent hover:shadow-md cursor-pointer' : 'border-gray-200 dark:border-slate-600';
 
                 secHtml = `
@@ -1497,7 +1497,7 @@ window.renderRosterGrid = async function(rosterData) {
                 </div>`;
             } else if (!isMissing && isAdmin) {
                 secHtml = `
-                <div onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${a.username}')" class="mt-2.5 flex items-center justify-center gap-1.5 w-full bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-gray-400 hover:text-indigo-500 border border-dashed border-gray-300 dark:border-slate-600 hover:border-indigo-400 py-2 rounded-lg text-[9.5px] font-bold transition cursor-pointer group/add shadow-inner">
+                <div onclick="event.stopPropagation(); changeSecondaryTeam('${team}', '${a.id}', '${window.escapeJsAttr(a.username)}')" class="mt-2.5 flex items-center justify-center gap-1.5 w-full bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-gray-400 hover:text-indigo-500 border border-dashed border-gray-300 dark:border-slate-600 hover:border-indigo-400 py-2 rounded-lg text-[9.5px] font-bold transition cursor-pointer group/add shadow-inner">
                     <span class="material-icons text-[14px] group-hover/add:rotate-90 transition-transform">add_task</span>
                     แจกงานรองให้พนักงาน
                 </div>`;
@@ -1524,11 +1524,11 @@ window.renderRosterGrid = async function(rosterData) {
             }
 
             return `
-            <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0 group ${cursorClass}" data-name="${(a.username || '').toLowerCase()}" ${dragAttrs}>
+            <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0 group ${cursorClass}" data-name="${window.escapeHtml((a.username || '').toLowerCase())}" ${dragAttrs}>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
                         <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span>
-                        <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${a.username}</span>
+                        <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${window.escapeHtml(a.username)}</span>
                         ${(() => {
                             const yInfo = !isMissing ? yesterdayTeamOf[a.username] : null;
                             if (!yInfo) return '';
@@ -1571,7 +1571,7 @@ window.renderRosterGrid = async function(rosterData) {
             if (tr.mistakes && tr.mistakes.length > 0) {
                 behaviorHtml = tr.mistakes.map(m => `
                     <div class="mt-1 p-1.5 bg-red-50 dark:bg-red-900/30 rounded border border-red-100 dark:border-red-800 text-[10px]">
-                        <span class="font-bold text-red-600">${m.empName}</span>: <span class="text-slate-600 dark:text-slate-300">${m.note || '-'}</span>
+                        <span class="font-bold text-red-600">${window.escapeHtml(m.empName)}</span>: <span class="text-slate-600 dark:text-slate-300">${window.escapeHtml(m.note || '-')}</span>
                         <div class="flex gap-1 mt-1 overflow-x-auto">
                             ${m.images && m.images.length > 0 ? m.images.map(img => `<img src="${img}" class="h-10 w-auto rounded shadow-sm border border-red-200 cursor-pointer" onclick="window.open('${img}','_blank')">`).join('') : ''}
                         </div>
@@ -1798,7 +1798,7 @@ window.viewStandbyList = function(team) {
             <div class="flex items-center gap-4">
                 <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-black text-sm shadow-inner shrink-0">${i + 1}</div>
                 <div class="text-left flex flex-col gap-1.5">
-                    <div class="font-black text-slate-800 dark:text-white text-[15px] uppercase tracking-wide">${item.name}</div>
+                    <div class="font-black text-slate-800 dark:text-white text-[15px] uppercase tracking-wide">${window.escapeHtml(item.name)}</div>
                     <div class="flex flex-wrap items-center gap-2">
                         <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">จากเว็บหลัก: <span class="font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/50">${item.fromTeam}</span></div>
                         ${breakTimeHtml}

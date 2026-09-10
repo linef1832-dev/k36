@@ -340,7 +340,7 @@ window.renderHelpCalcPanel = function() {
             const rows = (info.slots || []).map((s, i) => `
                 <div class="flex items-center gap-2 py-1 border-b border-slate-700/30 last:border-0">
                     <span class="w-4 h-4 rounded-full bg-cyan-700 text-white text-[9px] font-black flex items-center justify-center shrink-0">${i+1}</span>
-                    <span class="flex-1 min-w-0 text-[11px] font-black text-white truncate">${s.name}</span>
+                    <span class="flex-1 min-w-0 text-[11px] font-black text-white truncate">${window.escapeHtml(s.name)}</span>
                     <span class="text-[10px] text-cyan-300 font-bold shrink-0">${minToTime(s.start)}–${minToTime(s.end)}</span>
                     <span class="text-[9px] shrink-0 ${s.breakMin > 0 ? 'text-amber-400' : 'text-emerald-400'}">${s.breakMin > 0 ? `พัก ${s.breakMin}น.` : 'ว่าง'}</span>
                 </div>`).join('');
@@ -406,7 +406,7 @@ window.renderHelpCalcPanel = function() {
                 <div class="flex items-center gap-2 py-1 border-b border-slate-700/30 last:border-0">
                     <span class="w-4 h-4 rounded-full bg-sky-700 text-white text-[9px] font-black flex items-center justify-center shrink-0">${i+1}</span>
                     <div class="flex-1 min-w-0">
-                        <span class="text-[11px] font-black text-white">${item.name}</span>
+                        <span class="text-[11px] font-black text-white">${window.escapeHtml(item.name)}</span>
                         <span class="text-[10px] text-sky-400 font-bold ml-1.5">${minToTime(item.helpStart)}–${minToTime(item.helpEnd)}</span>
                         ${breakNote}
                     </div>

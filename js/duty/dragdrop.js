@@ -215,14 +215,14 @@ window.openTrainerReportModal = async function(team) {
 
     const tr = currentReports[team] || { missed: 0, checker: currentUser.username, score: '', bad_behavior: '', mistakes: [] };
     window._currentAssignedStaff = rosterData[team] ? rosterData[team].filter(u => !u.username.includes('ขาดคน')) : [];
-    const datalistOptions = GLOBAL_USER_LIST.map(u => `<option value="${u.username}">`).join('');
+    const datalistOptions = GLOBAL_USER_LIST.map(u => `<option value="${window.escapeHtml(u.username)}">`).join('');
 
     const htmlForm = `
         <div class="text-left space-y-4">
             <datalist id="employee_list_modal">${datalistOptions}</datalist>
             <div class="bg-blue-50 dark:bg-slate-700 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                 <label class="block text-xs font-bold text-blue-800 dark:text-blue-300 mb-1">👮 ผู้เช็คชื่อ (ล็อกชื่ออัตโนมัติ)</label>
-                <input type="text" id="trChecker" value="${tr.checker || currentUser.username}" class="w-full p-2 border rounded bg-gray-200 dark:bg-slate-900 dark:text-gray-400 outline-none font-bold text-sm cursor-not-allowed border-gray-300" readonly>
+                <input type="text" id="trChecker" value="${window.escapeHtml(tr.checker || currentUser.username)}" class="w-full p-2 border rounded bg-gray-200 dark:bg-slate-900 dark:text-gray-400 outline-none font-bold text-sm cursor-not-allowed border-gray-300" readonly>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -328,7 +328,7 @@ window.addMistakeRow = function(empName = '', note = '', images = []) {
         window._currentAssignedStaff.forEach(u => {
             const isSelected = (empName === u.username) ? 'selected' : '';
             if (isSelected) isOtherName = false;
-            staffOptionsHTML += `<option value="${u.username}" ${isSelected}>${u.username}</option>`;
+            staffOptionsHTML += `<option value="${window.escapeHtml(u.username)}" ${isSelected}>${window.escapeHtml(u.username)}</option>`;
         });
     }
     
@@ -520,7 +520,7 @@ window.renderDutyAccessTable = function() {
         let rowHtml = `<tr class="${rowBgClass} transition">
             <td class="p-2 font-bold text-slate-700 dark:text-gray-200 border-r dark:border-slate-700 flex justify-between items-center">
                 <div class="flex items-center flex-wrap">
-                    <span>${u.username}</span>
+                    <span>${window.escapeHtml(u.username)}</span>
                     ${roleBadge}
                     ${noAccessWarning} </div>
                 <span class="text-[9px] ${shiftColor} bg-gray-100 dark:bg-slate-900 px-1 rounded border dark:border-slate-600 shrink-0 ml-1">${u.allowed_shift.replace('กะ','')}</span>
@@ -1149,7 +1149,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
             
             html += `<td class="border border-slate-300 dark:border-slate-700 p-3 text-left font-bold ${nameColor} pl-3 text-[15px] od-divider">
                 <div class="flex items-center">
-                    <span class="uppercase">${user.username}</span> ${leaveTag}
+                    <span class="uppercase">${window.escapeHtml(user.username)}</span> ${leaveTag}
                 </div>
             </td>`;
             
