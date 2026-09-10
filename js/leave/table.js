@@ -276,10 +276,10 @@ window.renderLeaveTable = function() {
         let removeBtn = '';
         if (isAdmin && currentViewDept === 'TRAINER') {
             if(typeof removeFromNewDept === 'function') {
-                removeBtn = `<button onclick="removeFromNewDept(${u.id}, '${u.username}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
+                removeBtn = `<button onclick="removeFromNewDept(${u.id}, '${window.escapeJsAttr(u.username)}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
             }
         } else if (isAdmin && currentViewDept === 'SPECIAL') {
-             removeBtn = `<button onclick="removeFromSpecialDept(${u.id}, '${u.username}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
+             removeBtn = `<button onclick="removeFromSpecialDept(${u.id}, '${window.escapeJsAttr(u.username)}')" class="ml-1 text-gray-400 hover:text-red-500 transition"><span class="material-icons text-[10px]">close</span></button>`;
         }
 
         // 🌟 สร้าง HTML แสดงจำนวนลางานแยกตามประเภท ให้ครบทุกแบบตามหน้าเว็บคุณ
@@ -325,7 +325,7 @@ window.renderLeaveTable = function() {
     rowHtml += `<td class="p-2 sticky left-[39px] z-10 bg-white dark:bg-slate-900 border-r dark:border-slate-700 shadow-[inset_0_-1px_0_0_#e5e7eb] dark:shadow-[inset_0_-1px_0_0_#334155] text-xs ${nameClass} w-[140px] min-w-[140px] max-w-[140px]">
         <div class="flex justify-between items-start gap-1">
             <div class="flex flex-col min-w-0 flex-1">
-                <div class="flex items-center"><span class="truncate max-w-[70px] font-bold text-[13px]">${u.username}</span>${removeBtn}</div>
+                <div class="flex items-center"><span class="truncate max-w-[70px] font-bold text-[13px]">${window.escapeHtml(u.username)}</span>${removeBtn}</div>
                 ${breakdownHtml}
             </div>
             <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 mt-0.5 ${isPersonalFull ? 'bg-red-100 text-red-600 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200 shadow-inner'}">${myTotal}/${s.limit}</span>
@@ -454,10 +454,10 @@ window.renderLeaveTable = function() {
                     clickAttr = `onclick="Swal.fire({icon:'error', title:'ไม่มีสิทธิ์', text:'คุณไม่มีสิทธิ์กดจอง/ยกเลิกวันหยุด', timer:1500, showConfirmButton:false})"`;
                 } else {
                     if (isBooked) {
-                        clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'remove', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
+                        clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'remove', ${u.id}, '${window.escapeJsAttr(u.username)}', '${u.allowed_shift}')"`;
                     } else if (!isShiftFull || isAdmin) { 
                         if (!isPersonalFull || isAdmin) {
-                            clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'add', ${u.id}, '${u.username}', '${u.allowed_shift}')"`;
+                            clickAttr = `onclick="toggleLeaveTable('${dateStr}', 'add', ${u.id}, '${window.escapeJsAttr(u.username)}', '${u.allowed_shift}')"`;
                         } else if (isMe) {
                             clickAttr = `onclick="Swal.fire({icon:'warning', title:'ครบโควตา', text:'คุณใช้สิทธิ์ครบ ${s.limit} วันแล้ว', timer:1500, showConfirmButton:false})"`;
                         }
