@@ -124,8 +124,8 @@ window.testTelegramBotInfo = async function() {
                 html: `
                     <div class="text-left text-sm space-y-1 mt-2">
                         <div>🤖 ชื่อบอท: <b>${b.first_name}</b></div>
-                        <div>📛 Username: <code>@${b.username}</code></div>
-                        <div>🔗 Link: <a href="https://t.me/${b.username}" target="_blank" class="text-sky-500 underline">t.me/${b.username}</a></div>
+                        <div>📛 Username: <code>@${window.escapeHtml(b.username)}</code></div>
+                        <div>🔗 Link: <a href="https://t.me/${window.escapeHtml(b.username)}" target="_blank" class="text-sky-500 underline">t.me/${window.escapeHtml(b.username)}</a></div>
                     </div>
                 `
             });
