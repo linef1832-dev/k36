@@ -763,3 +763,20 @@ window.sop_updateTabCounters = function() {
         }
     }
 };
+
+// 📡 [Realtime] ฟังการเปลี่ยน settings ที่เกี่ยวกับ SOP → รีเฟรชเองไม่ต้องรีหน้า
+window._sopRtSub = window._sopRtSub || null;
+window.subscribeSopChanges = function() {
+    if (typeof appDB === 'undefined' || !appDB) return;
+    if (window._sopRtSub) { try { appDB.removeChannel(window._sopRtSub); } catch(e){} }
+    var KEYS = ['sop_data','sop_categories','sop_groups','sop_rules_standalone','sop_telegram_config'];
+    window._sopRtSub = appDB.channel('sop-updates')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, function(payload){
+            if (window._currentPageName !== 'sop') return;
+            var key = (payload.new && payload.new.key) || (payload.old && payload.old.key);
+            if (KEYS.indexOf(key) === -1) return;
+            if (typeof initSopApp === 'function') initSopApp();
+        })
+        .subscribe();
+    if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._sopRtSub);
+};
