@@ -145,7 +145,7 @@ window.openAddMissingSwap = async function() {
     const userOpts = eligibleUsers.map(u => {
         const dept = u.department || 'AM';
         const shiftShort = (u.allowed_shift || '').replace('กะ', '');
-        return `<option value="${u.id}">${u.username} [${dept} | ${shiftShort}]</option>`;
+        return `<option value="${u.id}">${window.escapeHtml(u.username)} [${dept} | ${shiftShort}]</option>`;
     }).join('');
 
     const result = await Swal.fire({
@@ -497,4 +497,4 @@ window.reactivateSavedSwap = async function(taskId) {
     }
 };
 
-// ==========================================
+// ==========================================
