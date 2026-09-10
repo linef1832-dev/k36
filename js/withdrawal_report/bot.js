@@ -311,6 +311,8 @@ window.loadSummary = async function() {
             return;
         }
 
+        // 🛡️ [XSS] display มาจากข้อมูล Telegram (คนนอก) — escape ก่อน render
+        const esc = window.escapeHtml;
         ranking.innerHTML = sorted.map(([name, c], i) => {
             const pct   = Math.round((c.total/max)*100);
             const mdl   = medals[i] || `#${i+1}`;
@@ -328,8 +330,8 @@ window.loadSummary = async function() {
                 <span style="font-size:22px;flex-shrink:0;width:32px;text-align:center;">${mdl}</span>
                 <div style="flex:1;min-width:0;">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                        <span style="font-weight:800;color:#f1f5f9;font-size:14px;">${c.display}</span>
-                        <span style="font-size:10px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:1px 7px;border-radius:999px;">${shiftIcon}${c.shift}</span>
+                        <span style="font-weight:800;color:#f1f5f9;font-size:14px;">${esc(c.display)}</span>
+                        <span style="font-size:10px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:1px 7px;border-radius:999px;">${shiftIcon}${esc(c.shift)}</span>
                     </div>
                     <div style="width:100%;background:#1e293b;border-radius:999px;height:5px;margin-bottom:6px;">
                         <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;transition:width .5s;"></div>
