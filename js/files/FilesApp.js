@@ -205,7 +205,7 @@ window.renderFilesGrid = function() {
                 ${imageOrIconHtml}
                 <div class="flex-1 min-w-0 pr-6 pt-1">
                     <div class="flex items-center gap-1.5 flex-wrap mb-1">
-                        <h4 class="font-black text-slate-800 dark:text-white text-base truncate leading-tight" title="${f.title}">${f.title}</h4>
+                        <h4 class="font-black text-slate-800 dark:text-white text-base truncate leading-tight" title="${window.escapeHtml(f.title)}">${window.escapeHtml(f.title)}</h4>
                         ${newBadge}
                     </div>
                     <p class="text-[11px] font-bold text-gray-500 line-clamp-2 leading-snug">${f.desc || 'ไม่มีคำอธิบาย'}</p>
