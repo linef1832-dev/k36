@@ -524,6 +524,62 @@ window._hideRefreshChip = function() {
 };
 
 // ==========================================
+// 🆕 [เช็คเวอร์ชันใหม่อัตโนมัติ] แก้ปัญหา "push โค้ดใหม่แล้วพนักงานที่เปิดค้างไว้ไม่รู้ตัว"
+// วิธีทำงาน: แอบขอไฟล์ index.html ตัวเองเป็นระยะ (ไม่โดน cache) มาอ่านเลข _APP_VERSION
+// ถ้าเลขไม่ตรงกับที่ตัวเองใช้อยู่ → มีโค้ดใหม่ขึ้นเว็บแล้ว → เด้งแถบแจ้งเตือนให้กดอัปเดต
+// (ไม่บังคับรีเฟรชอัตโนมัติ กันข้อมูลที่กำลังกรอกอยู่หาย — ให้พนักงานเป็นคนกดเอง)
+// ==========================================
+const VERSION_CHECK_INTERVAL_MS = 3 * 60 * 1000; // เช็คทุก 3 นาที
+window._versionCheckInterval = null;
+window._newVersionDetected = false;
+
+window.checkForNewVersion = async function() {
+    if (window._newVersionDetected) return; // เจอแล้วครั้งนึง ไม่ต้องเช็คซ้ำ (รอพนักงานกดอัปเดต)
+    try {
+        const res = await fetch('./index.html?_vc=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const html = await res.text();
+        const m = html.match(/_APP_VERSION\s*=\s*["']([^"']+)["']/);
+        if (!m) return;
+        const liveVersion = m[1];
+        const myVersion = String(window._APP_VERSION || '');
+        if (liveVersion && myVersion && liveVersion !== myVersion) {
+            window._newVersionDetected = true;
+            window._showNewVersionBanner();
+        }
+    } catch (e) {
+        // เน็ตหลุดชั่วคราว ฯลฯ — เงียบไว้ รอบหน้าค่อยลองใหม่
+    }
+};
+
+window._showNewVersionBanner = function() {
+    if (document.getElementById('newVersionBanner')) return;
+    const el = document.createElement('div');
+    el.id = 'newVersionBanner';
+    el.innerHTML = `
+        <span class="material-icons" style="font-size:18px;color:#E8C15A">new_releases</span>
+        <span>มีการอัปเดตระบบใหม่ — กดเพื่อโหลดหน้าล่าสุด</span>
+        <button onclick="location.reload()" style="margin-left:6px;padding:6px 14px;border-radius:8px;background:#E8C15A;color:#101828;font-weight:900;font-size:12.5px;border:none;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(232,193,90,0.4)">อัปเดตเลย</button>
+    `;
+    el.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:100000;display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:14px;background:rgba(10,16,29,0.97);border:1px solid rgba(232,193,90,0.5);color:#f5e3ae;font-size:13px;font-weight:700;box-shadow:0 12px 32px -8px rgba(0,0,0,0.7);backdrop-filter:blur(6px);max-width:92vw;';
+    document.body.appendChild(el);
+};
+
+// ▶️ เริ่มเช็คเวอร์ชันเป็นระยะ (เรียกคู่กับ startIpHeartbeat ตอน login สำเร็จ)
+window.startVersionWatch = function() {
+    if (window._versionCheckInterval) return; // กันสร้างซ้ำ
+    window._versionCheckInterval = setInterval(window.checkForNewVersion, VERSION_CHECK_INTERVAL_MS);
+    // 🌟 เช็คทันทีตอนกลับมาที่ Tab (เผื่อพลาดตอนปิดแท็บไปนาน)
+    if (!window._versionVisibilityHandlerAttached) {
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) window.checkForNewVersion();
+        });
+        window._versionVisibilityHandlerAttached = true;
+    }
+    console.log(`[Version Watch] เริ่มเช็คอัปเดตทุก ${VERSION_CHECK_INTERVAL_MS/60000} นาที`);
+};
+
+// ==========================================
 // 🧹 ระบบจัดการ Realtime Subscriptions ตามหน้า (กัน memory leak)
 // ==========================================
 window._pageSubscriptions = window._pageSubscriptions || new Set();
@@ -819,6 +875,7 @@ async function showPage(pageName) {
 
                 else if (pageName === 'sop') {
                     if (typeof initSopApp === 'function') await initSopApp();
+                    if (typeof subscribeSopChanges === 'function') subscribeSopChanges();   // 📡 realtime
                 }
                 else if (pageName === 'od_center') {
                     if (typeof initOdCenterApp === 'function') await initOdCenterApp();
@@ -857,6 +914,7 @@ async function showPage(pageName) {
                 }
                 else if (pageName === 'od_config') {
                     if (typeof initOdConfig === 'function') await initOdConfig();
+                    if (typeof subscribeOdConfigChanges === 'function') subscribeOdConfigChanges();   // 📡 realtime
                 }
                 else if (pageName === 'sheet') {
                     if (typeof fetchSheets === 'function') await fetchSheets(); 
@@ -878,6 +936,7 @@ async function showPage(pageName) {
                 }
                 else if (pageName === 'kbiz') {
                     if (typeof fetchKbizData === 'function') await fetchKbizData();
+                    if (typeof subscribeKbizChanges === 'function') subscribeKbizChanges();   // 📡 realtime
                 }
 
                 else if (pageName === 'swap') {

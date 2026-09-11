@@ -202,6 +202,7 @@ window._finishLoginAfterIp = async function(user, remember) {
     if (typeof window.subscribeBoardEvents === 'function') window.subscribeBoardEvents();
 
     recordUserLoginIP(user).then(() => window.startIpHeartbeat());
+    if (typeof window.startVersionWatch === 'function') window.startVersionWatch();   // 🆕 เช็คเวอร์ชันใหม่เป็นระยะ
 
     if (typeof applySidebarPermissions === 'function') applySidebarPermissions();
 
@@ -703,6 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // ตรวจ IP + FP ครั้งแรกทันที (เผื่อมีการเปลี่ยนระหว่างปิดเปิดเบราว์เซอร์)
                     checkIpHeartbeat();
                     window.startIpHeartbeat();
+                    if (typeof window.startVersionWatch === 'function') window.startVersionWatch();   // 🆕 เช็คเวอร์ชันใหม่เป็นระยะ
                 }
             }, 500);
             
