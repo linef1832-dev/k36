@@ -186,8 +186,8 @@
                         <p style="font-size:10px;color:rgba(255,255,255,0.13);text-align:center;margin-top:10px;letter-spacing:0.04em">* พิมพ์ครบ 6 หลัก ระบบจะเข้าสู่หน้าหลักอัตโนมัติ</p>
                     </div>
 
-                    <label style="display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;color:rgba(255,255,255,0.22);font-size:13px;font-weight:600;user-select:none">
-                        <input type="checkbox" id="rememberMe" class="sr-only">
+                    <label onclick="event.preventDefault(); window.toggleRememberMe();" style="display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;color:rgba(255,255,255,0.22);font-size:13px;font-weight:600;user-select:none">
+                        <input type="checkbox" id="rememberMe" class="sr-only" tabindex="-1">
                         <div id="rememberBox" style="width:18px;height:18px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);border:1.5px solid rgba(255,255,255,0.09);transition:all 0.2s">
                             <span class="material-icons text-white" id="checkIcon" style="font-size:12px;opacity:0;transition:opacity 0.2s">check</span>
                         </div>
@@ -290,11 +290,17 @@ document.querySelectorAll('.pin-box').forEach(inp=>{
 });
 
 // ========== Remember me ==========
-document.getElementById('rememberMe')?.addEventListener('change',function(){
+// 🩹 [แก้บั๊ก] เดิมพึ่งพฤติกรรมเบราว์เซอร์ "คลิก label แล้ว browser ติ๊ก checkbox ให้เอง"
+// ซึ่งบางอุปกรณ์/บางเบราว์เซอร์ทำงานไม่เสถียร → กดแล้วติ๊กไม่ติด
+// ตอนนี้สั่งติ๊กตรงๆ ด้วย JS เอง ชัวร์ 100% ไม่ต้องพึ่งพฤติกรรม default ของเบราว์เซอร์
+window.toggleRememberMe = function(){
+    const cb=document.getElementById('rememberMe');
     const icon=document.getElementById('checkIcon'),box=document.getElementById('rememberBox');
-    if(this.checked){icon.style.opacity='1';box.style.background='rgba(200,0,0,0.45)';box.style.borderColor='rgba(232,193,90,0.6)'}
+    if(!cb) return;
+    cb.checked = !cb.checked;
+    if(cb.checked){icon.style.opacity='1';box.style.background='rgba(232,193,90,0.45)';box.style.borderColor='rgba(232,193,90,0.6)'}
     else{icon.style.opacity='0';box.style.background='rgba(255,255,255,0.03)';box.style.borderColor='rgba(255,255,255,0.09)'}
-});
+};
 
 // ========== Shake on error (intercept Swal) ==========
 const _origHandleLogin = window.handleLogin;
