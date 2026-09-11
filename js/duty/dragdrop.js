@@ -442,18 +442,18 @@ window.openDutyHistoryModal = async function() {
                     .replace(/→/g, '<span style="color:#818cf8;font-weight:800;margin:0 3px">→</span>');
 
                 rows += `
-                    <div class="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-3 hover:border-indigo-300 dark:hover:border-indigo-600 transition">
+                    <div class="rounded-xl p-3 transition" style="background:#1a2236;border:1px solid #2d3748">
                         <div class="flex items-center justify-between mb-2">
                             <span class="${badgeColor} inline-flex items-center gap-1 px-2 py-0.5 rounded-md border shadow-sm font-bold text-[10.5px]">
                                 <span class="material-icons" style="font-size:12px">${icon}</span>${log.action_type}
                             </span>
-                            <span class="text-[10.5px] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">${time}</span>
+                            <span class="font-mono whitespace-nowrap" style="font-size:10.5px;color:#8b93a7">${time}</span>
                         </div>
                         <div class="flex items-start gap-2.5">
-                            <div class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-black text-xs shrink-0">${initial}</div>
+                            <div class="w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0" style="background:#312e81;color:#c7d2fe">${initial}</div>
                             <div class="min-w-0 flex-1">
                                 <div class="font-bold text-sm" style="color:#f1f5f9">${log.performed_by}</div>
-                                <div class="text-[12.5px] text-gray-600 dark:text-gray-300 leading-relaxed mt-0.5">${prettyDetails}</div>
+                                <div class="leading-relaxed mt-0.5" style="font-size:12.5px;color:#b0b8c9">${prettyDetails}</div>
                             </div>
                         </div>
                     </div>
