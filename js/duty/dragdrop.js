@@ -409,8 +409,15 @@ window.openDutyHistoryModal = async function() {
 
         let rows = '';
         if (!data || data.length === 0) {
-            rows = `<tr><td colspan="4" class="text-center p-6 text-gray-500 font-bold">ยังไม่มีประวัติการทำรายการ</td></tr>`;
+            rows = `<div class="text-center p-10 text-gray-400 font-bold">ยังไม่มีประวัติการทำรายการ</div>`;
         } else {
+            // 🎨 [อ่านง่ายขึ้น] ไอคอนต่อ 1 ประเภท ช่วยให้กวาดตาหาเร็วขึ้นโดยไม่ต้องอ่านตัวหนังสือก่อน
+            const actionIcon = {
+                'จัดหน้าที่':'assignment_turned_in', 'สุ่มจัดหน้าที่':'casino', 'แจกงานรอง':'call_split',
+                'ล้างงานรอง':'backspace', 'ล้างตารางงาน':'delete_sweep', 'ประเมินงานผู้สอน':'grade',
+                'ย้ายหน้าที่':'swap_horiz', 'กู้คืนตารางงาน':'restore', 'รวมห้อง Discord':'forum',
+                'จัดซัพพอร์ต':'support_agent', 'ล็อกอยู่ต่อ':'lock_clock'
+            };
             data.forEach(log => {
                 const time = new Date(log.created_at).toLocaleString('th-TH', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
                 let badgeColor = 'text-blue-600 bg-blue-100 border-blue-200';
@@ -424,30 +431,37 @@ window.openDutyHistoryModal = async function() {
                 if (log.action_type === 'รวมห้อง Discord') badgeColor = 'text-violet-600 bg-violet-100 border-violet-200';
                 if (log.action_type === 'จัดซัพพอร์ต') badgeColor = 'text-teal-700 bg-teal-100 border-teal-300';
                 if (log.action_type === 'ล็อกอยู่ต่อ') badgeColor = 'text-amber-700 bg-amber-100 border-amber-300';
+                const icon = actionIcon[log.action_type] || 'history';
+                const initial = (log.performed_by || '?').charAt(0).toUpperCase();
+
+                // 🎨 [อ่านง่ายขึ้น] ทำโค้ดเว็บ [XXX] และลูกศร → ให้เด่นขึ้นด้วยตัวหนา ไม่แตะเนื้อความเดิม (กันข้อมูลผิดเพี้ยน)
+                const prettyDetails = (log.target_details || '')
+                    .replace(/\[([^\]]+)\]/g, '<b class="text-slate-800 dark:text-white">$1</b>')
+                    .replace(/→/g, '<span class="text-indigo-500 font-bold mx-0.5">→</span>');
 
                 rows += `
-                    <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition text-xs">
-                        <td class="px-3 py-2 font-mono text-gray-500 whitespace-nowrap">${time}</td>
-                        <td class="px-3 py-2 font-bold text-slate-700 dark:text-gray-200">${log.performed_by}</td>
-                        <td class="px-3 py-2 whitespace-nowrap"><span class="${badgeColor} px-2 py-0.5 rounded border shadow-sm font-bold text-[10px]">${log.action_type}</span></td>
-                        <td class="px-3 py-2 text-gray-600 dark:text-gray-400">${log.target_details}</td>
-                    </tr>
+                    <div class="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-3 hover:border-indigo-300 dark:hover:border-indigo-600 transition">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="${badgeColor} inline-flex items-center gap-1 px-2 py-0.5 rounded-md border shadow-sm font-bold text-[10.5px]">
+                                <span class="material-icons" style="font-size:12px">${icon}</span>${log.action_type}
+                            </span>
+                            <span class="text-[10.5px] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">${time}</span>
+                        </div>
+                        <div class="flex items-start gap-2.5">
+                            <div class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-black text-xs shrink-0">${initial}</div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-bold text-sm text-slate-800 dark:text-white">${log.performed_by}</div>
+                                <div class="text-[12.5px] text-gray-600 dark:text-gray-300 leading-relaxed mt-0.5">${prettyDetails}</div>
+                            </div>
+                        </div>
+                    </div>
                 `;
             });
         }
 
         const htmlContent = `
-            <div class="text-left overflow-hidden rounded-lg border border-gray-300 dark:border-slate-600 shadow-inner bg-white dark:bg-slate-900">
-                <div class="max-h-[60vh] overflow-y-auto custom-scrollbar">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-gray-300 sticky top-0 z-10 shadow-sm">
-                            <tr class="text-xs uppercase tracking-wider">
-                                <th class="px-3 py-2 font-bold">วัน-เวลา</th><th class="px-3 py-2 font-bold">ผู้ทำรายการ</th><th class="px-3 py-2 font-bold">ประเภท</th><th class="px-3 py-2 font-bold">รายละเอียด</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rows}</tbody>
-                    </table>
-                </div>
+            <div class="text-left overflow-hidden rounded-lg">
+                <div class="max-h-[62vh] overflow-y-auto custom-scrollbar space-y-2 p-1">${rows}</div>
             </div>
         `;
 
@@ -919,8 +933,8 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     let savedRoleOverrides = {};
     try {
         if (targetDate) {
-            const raw = await window.getSettingCached(matrixRoleKey);   // คืน value ตรงๆ ไม่ใช่ { data }
-            if (raw) savedRoleOverrides = JSON.parse(raw);
+            const { data } = await window.getSettingCached(matrixRoleKey);
+            if (data && data.value) savedRoleOverrides = JSON.parse(data.value);
         }
     } catch(e) { console.warn('Load trainer matrix roles failed:', e); savedRoleOverrides = {}; }
 
@@ -1226,8 +1240,8 @@ window.saveTrainerMatrixRole = async function(userId, web, taskIdx, newRole) {
         // โหลดค่าเก่าก่อน (เพื่อ merge ไม่ใช่ทับ)
         let current = {};
         try {
-            const raw = await window.getSettingCached(matrixRoleKey);   // คืน value ตรงๆ ไม่ใช่ { data }
-            if (raw) current = JSON.parse(raw);
+            const { data } = await window.getSettingCached(matrixRoleKey);
+            if (data && data.value) current = JSON.parse(data.value);
         } catch(e) {}
 
         current[overrideKey] = newRole;
