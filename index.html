@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "2026091001";</script>
+    <script>window._APP_VERSION = "2026090918";</script>
     <script>
         (function(v){
             ['css/style.css','css/tailwind-compiled.css'].forEach(function(p){
@@ -110,6 +110,17 @@
             /* ── ภาษาเดียวทั้งราง: ชี้ = พื้นจางบางเบา + ไอคอนทอง + ขีดทองเรืองซ้าย ── */
             #sidebarNav.sidebar-mini .menu-section-header,
             #sidebarNav.sidebar-mini .sidebar-footer-btn{ position:relative; }
+            /* 🎨 [โทนเดียวทั้งราง] เอากฎ "ไอคอนเรียบ" จากโหมดพับ มาใช้ตอนกางเมนูด้วย
+               กันไอคอนสีสันหลากสี (ฟ้า/เขียว/ม่วง/ส้ม) ต่างจากตอนพับที่เรียบ ๆ
+               เทาเรียบตลอด ไม่เปลี่ยนสีแม้ตอน hover */
+            #sidebarNav .sec-chip{
+                background:transparent !important;
+                border-color:transparent !important;
+                box-shadow:none !important;
+            }
+            #sidebarNav .sec-chip .material-icons{
+                color:#5c6a83 !important;
+            }
             /* ช่องไฟกระชับ — จอเตี้ยก็เห็นครบ */
             #sidebarNav.sidebar-mini .menu-section-header{ margin:3px 0 !important; padding:3px 0 !important; }
             #sidebarNav.sidebar-mini .menu-section-header::before,
