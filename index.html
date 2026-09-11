@@ -111,14 +111,16 @@
             #sidebarNav.sidebar-mini .menu-section-header,
             #sidebarNav.sidebar-mini .sidebar-footer-btn{ position:relative; }
             /* 🎨 [โทนเดียวทั้งราง] เอากฎ "ไอคอนเรียบ" จากโหมดพับ มาใช้ตอนกางเมนูด้วย
-               กันไอคอนสีสันหลากสี (ฟ้า/เขียว/ม่วง/ส้ม) ต่างจากตอนพับที่เรียบ ๆ
-               เทาเรียบตลอด ไม่เปลี่ยนสีแม้ตอน hover */
-            #sidebarNav .sec-chip{
+               ครอบทั้ง sec-chip (หมวดเมนู) และ footer-chip (ประวัติระบบ/โหมดสี/ออกจากระบบ)
+               เทาเรียบตลอด ไม่เปลี่ยนสีแม้ตอน hover (รวมปุ่มออกจากระบบ ไม่มีข้อยกเว้นสีแดง) */
+            #sidebarNav .sec-chip,
+            #sidebarNav .footer-chip{
                 background:transparent !important;
                 border-color:transparent !important;
                 box-shadow:none !important;
             }
-            #sidebarNav .sec-chip .material-icons{
+            #sidebarNav .sec-chip .material-icons,
+            #sidebarNav .footer-chip .material-icons{
                 color:#5c6a83 !important;
             }
             /* ช่องไฟกระชับ — จอเตี้ยก็เห็นครบ */
