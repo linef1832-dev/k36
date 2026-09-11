@@ -434,10 +434,12 @@ window.openDutyHistoryModal = async function() {
                 const icon = actionIcon[log.action_type] || 'history';
                 const initial = (log.performed_by || '?').charAt(0).toUpperCase();
 
-                // 🎨 [อ่านง่ายขึ้น] ทำโค้ดเว็บ [XXX] และลูกศร → ให้เด่นขึ้นด้วยตัวหนา ไม่แตะเนื้อความเดิม (กันข้อมูลผิดเพี้ยน)
+                // 🩹 [แก้บั๊ก] เดิมใช้ class "text-slate-800 dark:text-white" แล้วตัวหนังสือหายไปเลย (สีเข้มบนพื้นเข้ม)
+                // สาเหตุ: ระบบสลับธีมมืด/สว่างของเว็บใช้กลไกซับซ้อนที่ตรงนี้ใช้ไม่ได้ผล
+                // แก้โดยกำหนดสีตรงๆ (สีทองของธีมเว็บ) ไม่พึ่งพา dark:/light: อีกเลย = เห็นชัดแน่นอนทุกกรณี
                 const prettyDetails = (log.target_details || '')
-                    .replace(/\[([^\]]+)\]/g, '<b class="text-slate-800 dark:text-white">$1</b>')
-                    .replace(/→/g, '<span class="text-indigo-500 font-bold mx-0.5">→</span>');
+                    .replace(/\[([^\]]+)\]/g, '<b style="color:#c9a227;font-weight:800">$1</b>')
+                    .replace(/→/g, '<span style="color:#818cf8;font-weight:800;margin:0 3px">→</span>');
 
                 rows += `
                     <div class="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-3 hover:border-indigo-300 dark:hover:border-indigo-600 transition">
@@ -450,7 +452,7 @@ window.openDutyHistoryModal = async function() {
                         <div class="flex items-start gap-2.5">
                             <div class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-black text-xs shrink-0">${initial}</div>
                             <div class="min-w-0 flex-1">
-                                <div class="font-bold text-sm text-slate-800 dark:text-white">${log.performed_by}</div>
+                                <div class="font-bold text-sm" style="color:#f1f5f9">${log.performed_by}</div>
                                 <div class="text-[12.5px] text-gray-600 dark:text-gray-300 leading-relaxed mt-0.5">${prettyDetails}</div>
                             </div>
                         </div>
