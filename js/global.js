@@ -349,6 +349,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ==========================================
 // 🔄 ระบบดึงหน้าเว็บ (Router) และกระตุ้นสมองกล
 // ==========================================
+// 🩹 [แก้บั๊กลึก] innerHTML ไม่รันแท็ก <script> ที่แนบมาด้วย (พฤติกรรมมาตรฐานเบราว์เซอร์ กันสคริปต์แปลกปลอม)
+// ผลคือทุกฟังก์ชันใน <script> ของหน้า login (รวม toggleRememberMe, เอฟเฟกต์ต่างๆ) ไม่เคยทำงานเลย
+// ฟังก์ชันนี้ใส่ HTML เข้า container แล้ว "รันสคริปต์ใหม่" ให้จริงๆ ด้วยการสร้าง <script> element ใหม่มาแทนที่ตัวเดิม
+// (การ appendChild script element ใหม่ = เบราว์เซอร์รันให้จริง ต่างจาก innerHTML ที่ไม่รัน)
+function setHtmlAndRunScripts(container, html) {
+    container.innerHTML = html;
+    const oldScripts = container.querySelectorAll('script');
+    oldScripts.forEach(oldScript => {
+        const newScript = document.createElement('script');
+        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        newScript.textContent = oldScript.textContent;
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
+}
+
 async function showLogin() {
     const loading = document.getElementById('loading');
     if(loading) loading.classList.remove('hidden');
@@ -357,7 +372,7 @@ async function showLogin() {
         // ⚡ [เร่งล็อกอิน] เริ่มเช็ค IP เบื้องหลังตั้งแต่ตอนนี้ — ตอนกดเข้าระบบผลจะรออยู่แล้ว
         setTimeout(() => { if (typeof window.prewarmIpProbe === 'function') window.prewarmIpProbe(); }, 800);
         const html = await response.text();
-        document.getElementById('login-container').innerHTML = html;
+        setHtmlAndRunScripts(document.getElementById('login-container'), html);
         
         if(typeof setupPinInputs === 'function') setupPinInputs();
         
