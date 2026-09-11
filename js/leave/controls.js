@@ -267,12 +267,20 @@ window.exportLeaveToExcel = async function() {
     });
 };
 
+window.historyFilterType = 'all'; // 'all' | 'จอง' | 'ยกเลิก'
+
 window.openHistoryModal = async function() {
+    window.historyFilterType = 'all'; // รีเซ็ตทุกครั้งที่เปิด modal ใหม่
     let htmlContent = `
         <div class="text-left w-full">
-            <div class="relative mb-4">
+            <div class="relative mb-3">
                 <span class="material-icons absolute left-3 top-3 text-gray-400 text-lg">search</span>
                 <input type="text" id="historySearch" placeholder="พิมพ์ชื่อพนักงานเพื่อค้นหา..." class="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner transition" onkeyup="debounceHistorySearch()">
+            </div>
+            <div id="historyFilterTabs" class="flex items-center gap-2 mb-4">
+                <button type="button" data-filter="all" onclick="window.setHistoryFilter('all')" class="hist-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-black border transition"><span class="material-icons text-[13px] align-middle mr-1">list</span>หมด</button>
+                <button type="button" data-filter="จอง" onclick="window.setHistoryFilter('จอง')" class="hist-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-black border transition"><span class="material-icons text-[13px] align-middle mr-1">event_available</span>จอง</button>
+                <button type="button" data-filter="ยกเลิก" onclick="window.setHistoryFilter('ยกเลิก')" class="hist-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-black border transition"><span class="material-icons text-[13px] align-middle mr-1">event_busy</span>ยกเลิก</button>
             </div>
             <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
                 <div class="overflow-y-auto max-h-[60vh] custom-scrollbar">
@@ -301,7 +309,7 @@ window.openHistoryModal = async function() {
         `,
         html: htmlContent, width: '700px', showConfirmButton: false, showCloseButton: true,
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-[1.5rem] shadow-2xl p-6' },
-        didOpen: () => { fetchHistoryLogs(); }
+        didOpen: () => { window.paintHistoryFilterTabs(); fetchHistoryLogs(); }
     });
 }
 
@@ -312,11 +320,33 @@ window.debounceHistorySearch = function() {
     }, 500); 
 };
 
+// 🔖 [แท็บกรองประวัติ] สลับหมวด หมด/จอง/ยกเลิก แล้วรีเฟรชตาราง
+window.setHistoryFilter = function(type) {
+    window.historyFilterType = type;
+    window.paintHistoryFilterTabs();
+    fetchHistoryLogs();
+};
+
+window.paintHistoryFilterTabs = function() {
+    const wrap = document.getElementById('historyFilterTabs');
+    if (!wrap) return;
+    wrap.querySelectorAll('.hist-tab-btn').forEach(btn => {
+        const active = btn.dataset.filter === window.historyFilterType;
+        btn.className = 'hist-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-black border transition ' +
+            (active
+                ? 'bg-indigo-500 border-indigo-500 text-white shadow-sm'
+                : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-slate-800');
+    });
+};
+
 window.fetchHistoryLogs = async function() {
     const search = document.getElementById('historySearch').value.trim();
     const tbody = document.getElementById('historyTableBody');
     let query = appDB.from('leave_logs').select('*').eq('department', currentViewDept).order('created_at', { ascending: false }).limit(100);
     if (search) query = query.ilike('username', `%${search}%`);
+    // 🔖 [แท็บกรองประวัติ] จอง = action_type ขึ้นต้นด้วย "จอง" (เช่น "จอง [ลาป่วย]") / ยกเลิก = ตรงตัว
+    if (window.historyFilterType === 'จอง') query = query.ilike('action_type', 'จอง%');
+    else if (window.historyFilterType === 'ยกเลิก') query = query.eq('action_type', 'ยกเลิก');
 
     const { data, error } = await query;
     if (error || !data || data.length === 0) {
