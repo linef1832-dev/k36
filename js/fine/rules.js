@@ -7,9 +7,10 @@
 // ===============================================
 async function loadFineNotes() {
     try {
-        const { data } = await window.getSettingCached('fine_notes_data');
-        if (data && data.value) {
-            let parsed = JSON.parse(data.value);
+        // getSettingCached คืน value ตรงๆ (string) ไม่ใช่ { data: { value } }
+        const raw = await window.getSettingCached('fine_notes_data');
+        if (raw) {
+            let parsed = JSON.parse(raw);
             // 🌟 Migration: ถ้าข้อมูลเดิมเป็นแค่ Array ของ String (ข้อมูลเก่า) ให้แปลงเป็น Object
             if (parsed.length > 0 && typeof parsed[0] === 'string') {
                 globalFineNotes = parsed.map(text => ({ text: text, rule: 'ALL' }));
@@ -252,9 +253,10 @@ window.removeFineNotePage = async function(idx) {
 // ===============================================
 async function loadFineRules() {
     try {
-        const { data } = await window.getSettingCached('fine_rules_data');
-        if (data && data.value) {
-            globalFineRules = JSON.parse(data.value);
+        // getSettingCached คืน value ตรงๆ (string) ไม่ใช่ { data: { value } } — เดิมแกะ .data ได้ undefined เสมอ
+        const raw = await window.getSettingCached('fine_rules_data');
+        if (raw) {
+            globalFineRules = JSON.parse(raw);
             if (globalFineRules.length < 5) {
                 globalFineRules = okvipRules;
                 await appDB.from('settings').upsert([{ key: 'fine_rules_data', value: JSON.stringify(globalFineRules) }]);
