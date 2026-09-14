@@ -265,31 +265,52 @@
             </div>
         </div>
 
-        <!-- 🔑 OCR API KEYS MANAGER -->
+        <!-- 🔍 GOOGLE VISION OCR STATUS (คีย์อยู่ที่ Railway ไม่แสดงในหน้านี้) -->
         <div class="max-w-[1600px] mx-auto mt-8">
-            <div class="bg-gradient-to-br from-amber-600 to-orange-700 dark:from-amber-700 dark:to-orange-900 text-white p-4 rounded-t-2xl flex justify-between items-center shadow-lg">
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-700 dark:to-indigo-900 text-white p-4 rounded-t-2xl flex justify-between items-center shadow-lg">
                 <div class="flex items-center gap-3">
-                    <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-amber-100">vpn_key</span></div>
+                    <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-blue-100">visibility</span></div>
                     <div>
-                        <h2 class="font-black text-lg tracking-wide">จัดการ OCR API Keys</h2>
-                        <p class="text-xs text-amber-100 opacity-90">ใส่ API key ของ OCR.space (สูงสุด 5 keys) — ระบบสุ่มใช้ให้พนักงานอัตโนมัติ</p>
+                        <h2 class="font-black text-lg tracking-wide">Google Cloud Vision OCR</h2>
+                        <p class="text-xs text-blue-100 opacity-90">OCR หลักของระบบ — แม่นภาษาไทย เร็ว • คีย์เก็บไว้ที่เซิร์ฟเวอร์ Railway</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <div id="ocrTotalQuota" class="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold border border-white/30 hidden"></div>
-                    <button onclick="openOcrKeyModal()" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-lg transition transform active:scale-95 border border-white/30">
-                        <span class="material-icons text-sm">add_box</span> เพิ่ม Key
+                    <div id="gvStatusBadge" class="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold border border-white/30">⏳ กำลังตรวจสอบ...</div>
+                    <button onclick="fetchGoogleOcrStatus(true)" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-lg transition transform active:scale-95 border border-white/30">
+                        <span class="material-icons text-sm">refresh</span> รีเฟรช
                     </button>
                 </div>
             </div>
 
             <div class="bg-white dark:bg-slate-800 p-5 rounded-b-2xl border border-t-0 border-slate-200 dark:border-slate-700 shadow-sm">
-                <div id="ocrKeysGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-
-                <div class="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 rounded-r-lg text-xs text-amber-800 dark:text-amber-200">
-                    💡 <b>วิธีสมัคร API key ฟรี:</b> เข้า <a href="https://ocr.space/ocrapi/freekey" target="_blank" class="text-emerald-600 dark:text-emerald-400 font-bold underline">ocr.space/ocrapi/freekey</a> → กรอก email → ได้ key ฟรี <b>500 ครั้ง/วัน ต่อ key</b><br>
-                    🚀 ใส่ครบ 5 keys → รวมโควต้า <b>2,500 ครั้ง/วัน</b> ระบบสุ่มสลับใช้ให้อัตโนมัติ<br>
-                    🔄 <b>โควต้ารีเซ็ตอัตโนมัติ:</b> ทุกวันเวลา <b>07:00 น.</b> (ตามเวลาไทย)
+                <div id="gvStatsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">ใช้ Google วันนี้</div>
+                        <div id="gvOk" class="text-2xl font-black text-emerald-500 mt-1">—</div>
+                        <div class="text-[11px] text-gray-400 mt-1">ครั้ง (สำเร็จ)</div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Google พลาด</div>
+                        <div id="gvFail" class="text-2xl font-black text-red-500 mt-1">—</div>
+                        <div class="text-[11px] text-gray-400 mt-1">ครั้ง (สลับไปสำรอง)</div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">ใช้ตัวสำรองวันนี้</div>
+                        <div id="gvFallback" class="text-2xl font-black text-amber-500 mt-1">—</div>
+                        <div class="text-[11px] text-gray-400 mt-1">ครั้ง (OCR.space)</div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">ความเร็วล่าสุด</div>
+                        <div id="gvMs" class="text-2xl font-black text-blue-500 mt-1">—</div>
+                        <div class="text-[11px] text-gray-400 mt-1">มิลลิวินาที</div>
+                    </div>
+                </div>
+                <div id="gvLastError" class="hidden mt-4 p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-400 rounded-r-lg text-xs text-red-700 dark:text-red-200 font-mono break-all"></div>
+                <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 rounded-r-lg text-xs text-blue-800 dark:text-blue-200">
+                    🔐 <b>คีย์ไม่แสดงในหน้านี้</b> — ตั้งค่าได้ที่ Railway → K-BIT → Variables → <code>GOOGLE_VISION_API_KEY</code><br>
+                    🔄 ถ้า Google ล่มหรือโควตาหมด ระบบสลับไปใช้ OCR.space ให้อัตโนมัติ (คีย์สำรองยังเก็บอยู่ในระบบ)<br>
+                    📊 สถิติรีเซ็ตทุกวันตามเวลาไทย
                 </div>
             </div>
         </div>
