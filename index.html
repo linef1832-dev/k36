@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "202609114";</script>
+    <script>window._APP_VERSION = "2026090918";</script>
     <script>
         (function(v){
             ['css/style.css','css/tailwind-compiled.css'].forEach(function(p){
@@ -122,6 +122,43 @@
             #sidebarNav .sec-chip .material-icons,
             #sidebarNav .footer-chip .material-icons{
                 color:#5c6a83 !important;
+            }
+            /* 📏 [เมนูเล็กลง] ลดขนาดการ์ดหมวดเมนู + ปุ่มท้าย sidebar ตอนกางเมนู ให้ใกล้เคียงขนาดตอนหุบ
+               (ตอนหุบเล็กพอดีอยู่แล้ว ตอนกางใหญ่เกินไป — ลดทั้ง padding/ไอคอน/ตัวอักษร) */
+            #sidebarNav:not(.sidebar-mini) .menu-section-header{
+                padding:5px 8px !important;
+                margin:3px 8px !important;
+            }
+            #sidebarNav:not(.sidebar-mini) .sec-chip{
+                width:20px !important;
+                height:20px !important;
+                border-radius:6px !important;
+            }
+            #sidebarNav:not(.sidebar-mini) .sec-chip .material-icons{
+                font-size:12px !important;
+            }
+            #sidebarNav:not(.sidebar-mini) .sec-label{
+                font-size:11px !important;
+            }
+            #sidebarNav:not(.sidebar-mini) .sec-chev{
+                font-size:13px !important;
+            }
+            #sidebarNav:not(.sidebar-mini) .sidebar-footer-btn{
+                padding-top:5px !important;
+                padding-bottom:5px !important;
+                margin-bottom:6px !important;
+            }
+            #sidebarNav:not(.sidebar-mini) .footer-chip{
+                width:22px !important;
+                height:22px !important;
+                border-radius:6px !important;
+                margin-right:7px !important;
+            }
+            #sidebarNav:not(.sidebar-mini) .footer-chip .material-icons{
+                font-size:13px !important;
+            }
+            #sidebarNav:not(.sidebar-mini) .sidebar-footer-label{
+                font-size:11.5px !important;
             }
             /* ช่องไฟกระชับ — จอเตี้ยก็เห็นครบ */
             #sidebarNav.sidebar-mini .menu-section-header{ margin:3px 0 !important; padding:3px 0 !important; }
