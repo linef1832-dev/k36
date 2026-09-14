@@ -436,9 +436,10 @@ window.subscribeKbizChanges = function() {
 
 
 // ==========================================
-// 🔍 Google Vision OCR — ดึงสถานะจาก Railway (คีย์ไม่ออกจากเซิร์ฟเวอร์)
+// 🔍 OCR Engine — ดึงสถานะจาก Railway + สลับเครื่องยนต์หลักผ่าน Supabase (คีย์ไม่ออกจากเซิร์ฟเวอร์)
 // ==========================================
 const KBIT_SERVER_URL = 'https://k-bit-production-374d.up.railway.app';
+const OCR_ENGINE_LABEL = { vision: 'Google Vision', gemini: 'Gemini Flash-Lite', ocrspace: 'OCR.space' };
 
 window.fetchGoogleOcrStatus = async function(manual) {
     const badge = document.getElementById('gvStatusBadge');
@@ -451,17 +452,27 @@ window.fetchGoogleOcrStatus = async function(manual) {
         clearTimeout(t);
         const d = await r.json();
         const s = d.stats || {};
-        if (d.google) {
-            badge.innerHTML = '🟢 พร้อมใช้งาน (Google หลัก)';
-            badge.className = 'bg-emerald-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-emerald-300/50';
-        } else {
-            badge.innerHTML = '🟡 ยังไม่ตั้งคีย์ — ใช้ OCR.space อยู่';
-            badge.className = 'bg-amber-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-amber-300/50';
-        }
+        const eng = d.engine || 'ocrspace';
+        badge.innerHTML = '🟢 กำลังใช้: ' + (OCR_ENGINE_LABEL[eng] || eng);
+        badge.className = 'bg-emerald-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-emerald-300/50';
+        // ปุ่มเลือกเครื่องยนต์
+        document.querySelectorAll('.ocr-eng-btn').forEach(b => {
+            const k = b.dataset.engine;
+            const has = k === 'vision' ? d.google : k === 'gemini' ? d.gemini : true;
+            const st = b.querySelector('.eng-state');
+            b.classList.toggle('border-emerald-500', k === eng);
+            b.classList.toggle('bg-emerald-50', k === eng);
+            b.classList.toggle('dark:bg-emerald-900/20', k === eng);
+            b.classList.toggle('opacity-50', !has);
+            b.disabled = !has;
+            if (st) st.innerHTML = k === eng ? '<span class="text-emerald-600">● กำลังใช้งาน</span>' : has ? '<span class="text-gray-400">○ พร้อมใช้ — กดเพื่อสลับ</span>' : '<span class="text-red-400">✕ ยังไม่ได้ตั้งคีย์ใน Railway</span>';
+        });
         set('gvOk', s.google_ok ?? 0);
-        set('gvFail', s.google_fail ?? 0);
+        set('gmOk', s.gemini_ok ?? 0);
+        set('gvFail', (s.google_fail ?? 0) + (s.gemini_fail ?? 0));
         set('gvFallback', (s.fallback_ok ?? 0) + (s.fallback_fail ?? 0));
         set('gvMs', s.last_ms != null ? s.last_ms : '—');
+        set('gvLastEngine', s.last_engine ? 'มิลลิวินาที (' + (s.last_engine === 'google' ? 'Vision' : s.last_engine) + ')' : 'มิลลิวินาที');
         const errEl = document.getElementById('gvLastError');
         if (errEl) {
             if (s.last_error) { errEl.classList.remove('hidden'); errEl.textContent = '⚠️ ข้อผิดพลาดล่าสุด: ' + s.last_error; }
@@ -470,5 +481,20 @@ window.fetchGoogleOcrStatus = async function(manual) {
     } catch (e) {
         badge.innerHTML = '🔴 ติดต่อเซิร์ฟเวอร์ไม่ได้';
         badge.className = 'bg-red-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-red-300/50';
+    }
+};
+
+window.setOcrEngine = async function(engine) {
+    const badge = document.getElementById('gvStatusBadge');
+    try {
+        if (badge) badge.innerHTML = '⏳ กำลังสลับเป็น ' + (OCR_ENGINE_LABEL[engine] || engine) + '...';
+        if (typeof window.clearSettingCache === 'function') window.clearSettingCache();
+        const { error } = await appDB.from('settings').upsert([{ key: 'ocr_engine', value: JSON.stringify(engine) }]);
+        if (error) throw error;
+        // Railway อ่านค่าใหม่ทันทีตอนถูกเรียก /health (เราเคลียร์ cache ฝั่งนั้นให้แล้ว)
+        await new Promise(r => setTimeout(r, 400));
+        fetchGoogleOcrStatus(true);
+    } catch (e) {
+        if (badge) badge.innerHTML = '🔴 สลับไม่สำเร็จ: ' + (e.message || e);
     }
 };
