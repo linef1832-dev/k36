@@ -49,14 +49,14 @@ async function fetchKbizData() {
             globalKbizBots = [];
         }
         renderKbizGrid();
-        fetchOcrKeysData();
+        fetchGoogleOcrStatus();
         fetchTelegramBotConfig();
         fetchChromeRefreshConfig();
         startVpsStatsPolling();
     } catch(e) { 
         globalKbizBots = []; 
         renderKbizGrid(); 
-        fetchOcrKeysData();
+        fetchGoogleOcrStatus();
         fetchTelegramBotConfig();
         startVpsStatsPolling();
     }
@@ -406,8 +406,8 @@ window.resetOcrKeyUsage = async function(id) {
 };
 
 const _kbizOcrTimer = setInterval(() => {
-    if (document.getElementById('ocrKeysGrid')) {
-        fetchOcrKeysData();
+    if (document.getElementById('gvStatusBadge')) {
+        fetchGoogleOcrStatus();
     }
 }, 30000);
 // [FIX] เดิมลงทะเบียนตัวจับเวลานี้กับ registerPageInterval — แต่มันถูกสร้างตอนโหลดไฟล์ครั้งเดียว
@@ -432,4 +432,43 @@ window.subscribeKbizChanges = function() {
         })
         .subscribe();
     if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(window._kbizRtSub);
+};
+
+
+// ==========================================
+// 🔍 Google Vision OCR — ดึงสถานะจาก Railway (คีย์ไม่ออกจากเซิร์ฟเวอร์)
+// ==========================================
+const KBIT_SERVER_URL = 'https://k-bit-production-374d.up.railway.app';
+
+window.fetchGoogleOcrStatus = async function(manual) {
+    const badge = document.getElementById('gvStatusBadge');
+    if (!badge) return;
+    if (manual) badge.innerHTML = '⏳ กำลังตรวจสอบ...';
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    try {
+        const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
+        const r = await fetch(KBIT_SERVER_URL + '/api/ocr/health', { signal: ctl.signal, cache: 'no-store' });
+        clearTimeout(t);
+        const d = await r.json();
+        const s = d.stats || {};
+        if (d.google) {
+            badge.innerHTML = '🟢 พร้อมใช้งาน (Google หลัก)';
+            badge.className = 'bg-emerald-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-emerald-300/50';
+        } else {
+            badge.innerHTML = '🟡 ยังไม่ตั้งคีย์ — ใช้ OCR.space อยู่';
+            badge.className = 'bg-amber-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-amber-300/50';
+        }
+        set('gvOk', s.google_ok ?? 0);
+        set('gvFail', s.google_fail ?? 0);
+        set('gvFallback', (s.fallback_ok ?? 0) + (s.fallback_fail ?? 0));
+        set('gvMs', s.last_ms != null ? s.last_ms : '—');
+        const errEl = document.getElementById('gvLastError');
+        if (errEl) {
+            if (s.last_error) { errEl.classList.remove('hidden'); errEl.textContent = '⚠️ ข้อผิดพลาดล่าสุด: ' + s.last_error; }
+            else errEl.classList.add('hidden');
+        }
+    } catch (e) {
+        badge.innerHTML = '🔴 ติดต่อเซิร์ฟเวอร์ไม่ได้';
+        badge.className = 'bg-red-500/30 px-3 py-2 rounded-xl text-xs font-bold border border-red-300/50';
+    }
 };
