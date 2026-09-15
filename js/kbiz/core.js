@@ -479,15 +479,16 @@ window.fetchGoogleOcrStatus = async function(manual) {
         const paint = (key, start, used, calls, rate) => {
             const card = document.getElementById(key === 'vision' ? 'bgVisionCard' : 'bgGeminiCard'); if (!card) return;
             const left = Math.max(0, (start || 0) - (used || 0)); const pct = start ? Math.max(0, Math.min(100, left / start * 100)) : 0;
-            const tone = !start ? ['bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500', '#94a3b8']
-                : pct > 50 ? ['bg-emerald-50 dark:bg-emerald-900/15 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300', '#10b981']
-                : pct > 20 ? ['bg-amber-50 dark:bg-amber-900/15 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300', '#f59e0b']
-                : ['bg-red-50 dark:bg-red-900/15 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300', '#ef4444'];
-            card.className = 'rounded-2xl p-5 border-2 transition-colors ' + tone[0];
+            // สีใช้เฉพาะแถบซ้าย/แถบ %/ป้าย — ตัวเลขและพื้นเป็นสีปกติ อ่านง่ายทั้งโหมดสว่างและมืด
+            const col = !start ? '#94a3b8' : pct > 50 ? '#10b981' : pct > 20 ? '#f59e0b' : '#ef4444';
+            const label = !start ? '' : pct > 50 ? 'ปกติ' : pct > 20 ? 'เริ่มน้อย' : 'ใกล้หมด!';
+            card.className = 'rounded-2xl p-5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 transition-colors';
+            card.style.borderLeft = '6px solid ' + col;
             const id = key === 'vision' ? 'Vision' : 'Gemini';
             set('bg' + id + 'Left', start ? thb(left) : 'ยังไม่ตั้งยอด');
-            set('bg' + id + 'Pct', start ? 'เหลือ ' + Math.round(pct) + '%' : '');
-            const bar = document.getElementById('bg' + id + 'Bar'); if (bar) { bar.style.width = pct + '%'; bar.style.background = tone[1]; }
+            const pctEl = document.getElementById('bg' + id + 'Pct');
+            if (pctEl) { pctEl.textContent = start ? `เหลือ ${Math.round(pct)}% • ${label}` : ''; pctEl.style.color = col; }
+            const bar = document.getElementById('bg' + id + 'Bar'); if (bar) { bar.style.width = pct + '%'; bar.style.background = col; }
             set('bg' + id + 'Info', start ? `ตั้งต้น ${thb(start)} • ใช้ไป ${thb(used || 0)} (${(calls || 0).toLocaleString()} รูป) • ใช้ได้อีก ~${Math.floor(left / rate).toLocaleString()} รูป` : 'กด ✏️ ตั้งยอด แล้วใส่ยอดที่เห็นในหน้า Google');
         };
         paint('vision', b.vision_start, b.vision_used, b.vision_calls, rates.vision);
