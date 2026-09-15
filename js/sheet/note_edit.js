@@ -152,15 +152,35 @@ window.renderNoteEditor = function() {
     wrap.oninput = (e) => { const d = e.target && e.target.closest && e.target.closest('.nt-ebody'); if (d && !d.classList.contains('nt-etall')) _clampEditCell(d); };
     // 📥 [Excel Paste] ก๊อปหลายช่องจาก Excel/Google Sheet มาวาง → กระจายลงหลายช่องให้อัตโนมัติ
     // เริ่มวางที่ช่องที่เลือกอยู่ ถ้าข้อมูลยาวเกินตาราง จะเพิ่มแถว/คอลัมน์ให้เอง
-    wrap.onpaste = (e) => {
+    wrap.onpaste = async (e) => {
         const note = window._noteEdit; if (!note || !window._noteSel) return;
         const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
         // 🩹 [แก้บั๊ก] เดิม split('\n') ตรงๆ → ช่องที่มีหลายบรรทัดจาก Excel/Sheets ถูกแยกเป็นหลายแถวผิดๆ
         // Excel/Sheets ครอบช่องที่มีบรรทัดใหม่ด้วย "..." และ escape เครื่องหมายคำพูดเป็น "" → ต้อง parse ตามกติกานี้
-        const grid = _nParseTSV(text);
-        const isSingle = grid.length === 1 && grid[0].length === 1;
+        let grid = _nParseTSV(text);
+        let isSingle = grid.length === 1 && grid[0].length === 1;
         if (isSingle && !/\n/.test(grid[0][0])) return;   // ช่องเดียว บรรทัดเดียว → วางแบบปกติ
         e.preventDefault();
+
+        // 🆕 [ข้อความธรรมดาหลายบรรทัด] ก็อปจาก LINE/Telegram/Word ไม่มีแท็บ ไม่มี "..." → กำกวมว่าอยากได้ช่องเดียวหรือหลายแถว
+        // ถามผู้ใช้เลือกเอง แทนที่จะเดา (เพราะบางทีอยากวางเป็นรายการหลายแถวจริงๆ ก็มี)
+        const plainText = text.replace(/\r\n?/g, '\n').replace(/\n$/, '');
+        const isPlainMultiLine = !/\t/.test(plainText) && !/^"/.test(plainText.trim()) && /\n/.test(plainText) && grid.length > 1;
+        if (isPlainMultiLine) {
+            const ask = await Swal.fire({
+                title: 'ข้อความมีหลายบรรทัด',
+                html: `<div style="text-align:left;font-size:13px;line-height:1.6">ตรวจพบ <b>${grid.length} บรรทัด</b> ที่ไม่ใช่รูปแบบตาราง<br>อยากวางแบบไหน?</div>`,
+                icon: 'question',
+                showCancelButton: true, showDenyButton: true,
+                confirmButtonText: '📝 ลงช่องเดียว (หลายบรรทัด)',
+                denyButtonText: '📋 แยกเป็นหลายแถว',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#6366f1', denyButtonColor: '#0ea5e9'
+            });
+            if (ask.isDismissed) return;
+            if (ask.isConfirmed) { grid = [[plainText]]; isSingle = true; }
+        }
+
         _nSnap();
         const r0 = window._noteSel.r1, x0 = window._noteSel.x1;
         const needRows = r0 + grid.length;
