@@ -482,10 +482,16 @@ window.fetchGoogleOcrStatus = async function(manual) {
             // สีใช้เฉพาะแถบซ้าย/แถบ %/ป้าย — ตัวเลขและพื้นเป็นสีปกติ อ่านง่ายทั้งโหมดสว่างและมืด
             const col = !start ? '#94a3b8' : pct > 50 ? '#10b981' : pct > 20 ? '#f59e0b' : '#ef4444';
             const label = !start ? '' : pct > 50 ? 'ปกติ' : pct > 20 ? 'เริ่มน้อย' : 'ใกล้หมด!';
-            card.className = 'rounded-2xl p-5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 transition-colors';
+            card.className = 'rounded-2xl p-5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 transition-colors';
             card.style.borderLeft = '6px solid ' + col;
+            // สีตัวเลขตามพื้นการ์ดจริง (ธีมมืดของเว็บไม่ได้ใช้ dark: ของ Tailwind)
+            const bg = getComputedStyle(card).backgroundColor.match(/\d+/g) || [255, 255, 255];
+            const lum = (0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]);
+            const fg = lum < 128 ? '#ffffff' : '#0f172a', sub = lum < 128 ? '#cbd5e1' : '#475569';
+            card.style.color = fg;
             const id = key === 'vision' ? 'Vision' : 'Gemini';
-            set('bg' + id + 'Left', start ? thb(left) : 'ยังไม่ตั้งยอด');
+            set('bg' + id + 'Left', start ? thb(left) : 'ยังไม่ตั้งยอด'); const leftEl = document.getElementById('bg' + id + 'Left'); if (leftEl) leftEl.style.color = fg;
+            const infoEl = document.getElementById('bg' + id + 'Info'); if (infoEl) infoEl.style.color = sub;
             const pctEl = document.getElementById('bg' + id + 'Pct');
             if (pctEl) { pctEl.textContent = start ? `เหลือ ${Math.round(pct)}% • ${label}` : ''; pctEl.style.color = col; }
             const bar = document.getElementById('bg' + id + 'Bar'); if (bar) { bar.style.width = pct + '%'; bar.style.background = col; }
