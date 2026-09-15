@@ -473,14 +473,28 @@ window.fetchGoogleOcrStatus = async function(manual) {
         set('gvFallback', (s.fallback_ok ?? 0) + (s.fallback_fail ?? 0));
         set('gvMs', s.last_ms != null ? s.last_ms : '—');
         set('gvLastEngine', s.last_engine ? 'มิลลิวินาที (' + (s.last_engine === 'google' ? 'Vision' : s.last_engine) + ')' : 'มิลลิวินาที');
-        // 💰 ยอดคงเหลือประมาณการ
-        const b = d.budget || {}, rates = d.rates || { vision: 0.05, gemini: 0.0015 };
+        // 💰 ยอดคงเหลือประมาณการ — สีตามระดับที่เหลือ
+        const b = d.budget || {}, rates = d.rates || { vision: 0.05, gemini: 0.01 };
         const thb = (v) => '฿' + (Math.round(v * 100) / 100).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const vLeft = (b.vision_start || 0) - (b.vision_used || 0), gLeft = (b.gemini_start || 0) - (b.gemini_used || 0);
-        set('bgVisionLeft', b.vision_start ? thb(Math.max(0, vLeft)) : 'ยังไม่ตั้งยอด');
-        set('bgVisionInfo', b.vision_start ? `ตั้งต้น ${thb(b.vision_start)} • ใช้ไป ${thb(b.vision_used || 0)} (${(b.vision_calls || 0).toLocaleString()} รูป) • เหลืออีก ~${Math.floor(Math.max(0, vLeft) / rates.vision).toLocaleString()} รูป` : 'กด ✏️ ตั้งยอด แล้วใส่เครดิตที่เห็นในหน้า Google Cloud');
-        set('bgGeminiLeft', b.gemini_start ? thb(Math.max(0, gLeft)) : 'ยังไม่ตั้งยอด');
-        set('bgGeminiInfo', b.gemini_start ? `ตั้งต้น ${thb(b.gemini_start)} • ใช้ไป ${thb(b.gemini_used || 0)} (${(b.gemini_calls || 0).toLocaleString()} รูป) • เหลืออีก ~${Math.floor(Math.max(0, gLeft) / rates.gemini).toLocaleString()} รูป` : 'กด ✏️ ตั้งยอด แล้วใส่ยอดที่เติมใน AI Studio');
+        const paint = (key, start, used, calls, rate) => {
+            const card = document.getElementById(key === 'vision' ? 'bgVisionCard' : 'bgGeminiCard'); if (!card) return;
+            const left = Math.max(0, (start || 0) - (used || 0)); const pct = start ? Math.max(0, Math.min(100, left / start * 100)) : 0;
+            const tone = !start ? ['bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500', '#94a3b8']
+                : pct > 50 ? ['bg-emerald-50 dark:bg-emerald-900/15 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300', '#10b981']
+                : pct > 20 ? ['bg-amber-50 dark:bg-amber-900/15 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300', '#f59e0b']
+                : ['bg-red-50 dark:bg-red-900/15 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300', '#ef4444'];
+            card.className = 'rounded-2xl p-5 border-2 transition-colors ' + tone[0];
+            const id = key === 'vision' ? 'Vision' : 'Gemini';
+            set('bg' + id + 'Left', start ? thb(left) : 'ยังไม่ตั้งยอด');
+            set('bg' + id + 'Pct', start ? 'เหลือ ' + Math.round(pct) + '%' : '');
+            const bar = document.getElementById('bg' + id + 'Bar'); if (bar) { bar.style.width = pct + '%'; bar.style.background = tone[1]; }
+            set('bg' + id + 'Info', start ? `ตั้งต้น ${thb(start)} • ใช้ไป ${thb(used || 0)} (${(calls || 0).toLocaleString()} รูป) • ใช้ได้อีก ~${Math.floor(left / rate).toLocaleString()} รูป` : 'กด ✏️ ตั้งยอด แล้วใส่ยอดที่เห็นในหน้า Google');
+        };
+        paint('vision', b.vision_start, b.vision_used, b.vision_calls, rates.vision);
+        paint('gemini', b.gemini_start, b.gemini_used, b.gemini_calls, rates.gemini);
+        // 📅 ประวัติรายวัน
+        window.__ocrHistory = d.history || {}; window.__ocrToday = d.today; window.__ocrRates = rates;
+        renderUsage();
         const errEl = document.getElementById('gvLastError');
         if (errEl) {
             if (s.last_error) { errEl.classList.remove('hidden'); errEl.textContent = '⚠️ ข้อผิดพลาดล่าสุด: ' + s.last_error; }
@@ -526,3 +540,28 @@ window.setOcrBudget = async function(which) {
         setTimeout(() => fetchGoogleOcrStatus(true), 300);
     } catch (e) { alert('บันทึกไม่สำเร็จ: ' + (e.message || e)); }
 };
+
+// 📅 สถิติการใช้ตามช่วงเวลา
+let usagePeriod = 'today', usageDate = '';
+window.renderUsage = function() {
+    const H = window.__ocrHistory || {}, today = window.__ocrToday || new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    const dayShift = (n) => new Date(new Date(today + 'T00:00:00Z').getTime() - n * 86400e3).toISOString().slice(0, 10);
+    let days = [], title = '';
+    if (usageDate) { days = [usageDate]; title = 'วันที่ ' + usageDate; }
+    else if (usagePeriod === 'today') { days = [today]; title = 'วันนี้ (' + today + ')'; }
+    else if (usagePeriod === 'yesterday') { days = [dayShift(1)]; title = 'เมื่อวาน (' + dayShift(1) + ')'; }
+    else if (usagePeriod === 'all') { days = Object.keys(H); title = 'ทั้งหมด (' + days.length + ' วันที่มีข้อมูล)'; }
+    else { const n = parseInt(usagePeriod, 10); for (let i = 0; i < n; i++) days.push(dayShift(i)); title = n + ' วันล่าสุด (' + dayShift(n - 1) + ' → ' + today + ')'; }
+    const sum = { vision: 0, gemini: 0, fallback: 0, vision_thb: 0, gemini_thb: 0 };
+    days.forEach(dk => { const h = H[dk]; if (!h) return; for (const k in sum) sum[k] += (h[k] || 0); });
+    const thb = (v) => '฿' + (Math.round(v * 100) / 100).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('usageTitle', title);
+    set('usVision', sum.vision.toLocaleString()); set('usVisionThb', thb(sum.vision_thb));
+    set('usGemini', sum.gemini.toLocaleString()); set('usGeminiThb', thb(sum.gemini_thb));
+    set('usFallback', sum.fallback.toLocaleString());
+    set('usTotalThb', thb(sum.vision_thb + sum.gemini_thb)); set('usTotalN', (sum.vision + sum.gemini + sum.fallback).toLocaleString() + ' รูป');
+    document.querySelectorAll('.usage-p').forEach(btn => { const on = !usageDate && btn.dataset.p === usagePeriod; btn.className = 'usage-p px-3 py-1.5 rounded-lg text-xs font-bold ' + (on ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'); });
+};
+document.addEventListener('click', (e) => { const btn = e.target.closest('.usage-p'); if (!btn) return; usagePeriod = btn.dataset.p; usageDate = ''; const di = document.getElementById('usageDate'); if (di) di.value = ''; renderUsage(); });
+document.addEventListener('change', (e) => { if (e.target && e.target.id === 'usageDate') { usageDate = e.target.value; renderUsage(); } });
