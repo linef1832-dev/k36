@@ -473,6 +473,14 @@ window.fetchGoogleOcrStatus = async function(manual) {
         set('gvFallback', (s.fallback_ok ?? 0) + (s.fallback_fail ?? 0));
         set('gvMs', s.last_ms != null ? s.last_ms : '—');
         set('gvLastEngine', s.last_engine ? 'มิลลิวินาที (' + (s.last_engine === 'google' ? 'Vision' : s.last_engine) + ')' : 'มิลลิวินาที');
+        // 💰 ยอดคงเหลือประมาณการ
+        const b = d.budget || {}, rates = d.rates || { vision: 0.05, gemini: 0.0015 };
+        const thb = (v) => '฿' + (Math.round(v * 100) / 100).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const vLeft = (b.vision_start || 0) - (b.vision_used || 0), gLeft = (b.gemini_start || 0) - (b.gemini_used || 0);
+        set('bgVisionLeft', b.vision_start ? thb(Math.max(0, vLeft)) : 'ยังไม่ตั้งยอด');
+        set('bgVisionInfo', b.vision_start ? `ตั้งต้น ${thb(b.vision_start)} • ใช้ไป ${thb(b.vision_used || 0)} (${(b.vision_calls || 0).toLocaleString()} รูป) • เหลืออีก ~${Math.floor(Math.max(0, vLeft) / rates.vision).toLocaleString()} รูป` : 'กด ✏️ ตั้งยอด แล้วใส่เครดิตที่เห็นในหน้า Google Cloud');
+        set('bgGeminiLeft', b.gemini_start ? thb(Math.max(0, gLeft)) : 'ยังไม่ตั้งยอด');
+        set('bgGeminiInfo', b.gemini_start ? `ตั้งต้น ${thb(b.gemini_start)} • ใช้ไป ${thb(b.gemini_used || 0)} (${(b.gemini_calls || 0).toLocaleString()} รูป) • เหลืออีก ~${Math.floor(Math.max(0, gLeft) / rates.gemini).toLocaleString()} รูป` : 'กด ✏️ ตั้งยอด แล้วใส่ยอดที่เติมใน AI Studio');
         const errEl = document.getElementById('gvLastError');
         if (errEl) {
             if (s.last_error) { errEl.classList.remove('hidden'); errEl.textContent = '⚠️ ข้อผิดพลาดล่าสุด: ' + s.last_error; }
@@ -497,4 +505,24 @@ window.setOcrEngine = async function(engine) {
     } catch (e) {
         if (badge) badge.innerHTML = '🔴 สลับไม่สำเร็จ: ' + (e.message || e);
     }
+};
+
+// 💰 ตั้งยอดตั้งต้น (บาท) — เก็บใน Supabase settings.ocr_budget แล้วเซิร์ฟเวอร์หักให้เอง
+window.setOcrBudget = async function(which) {
+    const label = which === 'vision' ? 'เครดิต Google Cloud (Vision)' : 'เงินเติม Gemini';
+    const v = prompt('ใส่ยอด' + label + ' ที่มีตอนนี้ (บาท)\nระบบจะเริ่มนับใหม่จากยอดนี้ — ดูยอดจริงจากหน้า Google แล้วใส่ตามนั้น');
+    if (v === null) return;
+    const num = parseFloat(String(v).replace(/[^\d.]/g, ''));
+    if (isNaN(num) || num < 0) return alert('ใส่ตัวเลขบาท เช่น 9869');
+    try {
+        if (typeof window.clearSettingCache === 'function') window.clearSettingCache();
+        const { data } = await appDB.from('settings').select('value').eq('key', 'ocr_budget').maybeSingle();
+        const b = (data && data.value) ? JSON.parse(data.value) : {};
+        if (which === 'vision') { b.vision_start = num; b.vision_used = 0; b.vision_calls = 0; }
+        else { b.gemini_start = num; b.gemini_used = 0; b.gemini_calls = 0; }
+        b.reset_at = Date.now();
+        const { error } = await appDB.from('settings').upsert([{ key: 'ocr_budget', value: JSON.stringify(b) }]);
+        if (error) throw error;
+        setTimeout(() => fetchGoogleOcrStatus(true), 300);
+    } catch (e) { alert('บันทึกไม่สำเร็จ: ' + (e.message || e)); }
 };
