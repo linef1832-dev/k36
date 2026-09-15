@@ -4,6 +4,33 @@
 // ⚠️ ลำดับโหลด: sheet/core → sheet/note_view → sheet/note_edit → sheet/admin (ห้ามสลับ — ตัวแปร top-level แชร์ scope เดียวกัน)
 // ════════════════════════════════════════════════════════════════════
 // 🛠️ แก้ไขในหน้า — เลือกช่องแบบลากคลุม, ผสานทั้งแนวนอน/แนวตั้ง, เส้นขอบร่วม, ขนาดตัวอักษร
+
+// 📋 [ตัวแยกข้อมูลวางจาก Excel/Sheets] อ่านตามกติกา TSV จริง:
+//   - ช่องที่มีบรรทัดใหม่/แท็บ/เครื่องหมายคำพูด จะถูกครอบด้วย "..."
+//   - เครื่องหมายคำพูดข้างในถูก escape เป็น ""
+//   - บรรทัดใหม่ "ข้างใน" เครื่องหมายคำพูด = ส่วนหนึ่งของช่อง ไม่ใช่แถวใหม่  ← จุดที่ตัว split('\n') เดิมทำผิด
+function _nParseTSV(text) {
+    text = String(text || '').replace(/\r\n?/g, '\n');
+    const rows = []; let row = []; let field = ''; let inQ = false;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inQ) {
+            if (ch === '"') {
+                if (text[i + 1] === '"') { field += '"'; i++; }   // "" = เครื่องหมายคำพูดจริง 1 ตัว
+                else inQ = false;                                  // ปิด quote
+            } else field += ch;                                    // รวมทุกอย่างในนี้ (รวม \n ด้วย)
+        } else {
+            if (ch === '"' && field === '') inQ = true;            // เปิด quote ได้เฉพาะตอนเริ่มช่อง
+            else if (ch === '\t') { row.push(field); field = ''; }
+            else if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+            else field += ch;
+        }
+    }
+    row.push(field); rows.push(row);
+    // ตัดแถวท้ายที่ว่างเปล่า (Excel/Sheets มักแถม \n ปิดท้ายมาด้วย)
+    while (rows.length > 1 && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === '') rows.pop();
+    return rows;
+}
 // ==========================================
 window._noteEdit = null; window._noteUndo = []; window._noteRedo = []; window._noteSel = null; window._noteEditing = false; window._noteDrag = null;
 const _nClone = (n) => JSON.parse(JSON.stringify(n));
@@ -128,10 +155,13 @@ window.renderNoteEditor = function() {
     wrap.onpaste = (e) => {
         const note = window._noteEdit; if (!note || !window._noteSel) return;
         const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
-        if (!/\t|\n/.test(text.replace(/\r/g, '').replace(/\n$/, ''))) return;   // ข้อมูลช่องเดียว → วางแบบปกติ
+        // 🩹 [แก้บั๊ก] เดิม split('\n') ตรงๆ → ช่องที่มีหลายบรรทัดจาก Excel/Sheets ถูกแยกเป็นหลายแถวผิดๆ
+        // Excel/Sheets ครอบช่องที่มีบรรทัดใหม่ด้วย "..." และ escape เครื่องหมายคำพูดเป็น "" → ต้อง parse ตามกติกานี้
+        const grid = _nParseTSV(text);
+        const isSingle = grid.length === 1 && grid[0].length === 1;
+        if (isSingle && !/\n/.test(grid[0][0])) return;   // ช่องเดียว บรรทัดเดียว → วางแบบปกติ
         e.preventDefault();
         _nSnap();
-        const grid = text.replace(/\r/g, '').replace(/\n$/, '').split('\n').map(l => l.split('\t'));
         const r0 = window._noteSel.r1, x0 = window._noteSel.x1;
         const needRows = r0 + grid.length;
         const needCols = x0 + Math.max(...grid.map(g => g.length));
@@ -140,7 +170,7 @@ window.renderNoteEditor = function() {
         grid.forEach((line, dr) => line.forEach((valTxt, dx) => { const c = note.rows[r0 + dr][x0 + dx]; if (!c.h) c.t = valTxt; }));
         window._noteSel = { r1: r0, r2: r0 + grid.length - 1, x1: x0, x2: x0 + Math.max(...grid.map(g => g.length)) - 1 };
         window.renderNoteEditor();
-        _nToast(`วางข้อมูล ${grid.length} แถว เรียบร้อย`);
+        _nToast(isSingle ? 'วางข้อความหลายบรรทัดลงช่องเดียว เรียบร้อย' : `วางข้อมูล ${grid.length} แถว เรียบร้อย`);
     };
     window._noteUpdateSelInfo();
     // แสดงขนาดตัวอักษรของช่องที่เลือกใน dropdown
