@@ -528,24 +528,72 @@ window.setOcrEngine = async function(engine) {
     }
 };
 
-// 💰 ตั้งยอดตั้งต้น (บาท) — เก็บใน Supabase settings.ocr_budget แล้วเซิร์ฟเวอร์หักให้เอง
-window.setOcrBudget = async function(which) {
-    const label = which === 'vision' ? 'เครดิต Google Cloud (Vision)' : 'เงินเติม Gemini';
-    const v = prompt('ใส่ยอด' + label + ' ที่มีตอนนี้ (บาท)\nระบบจะเริ่มนับใหม่จากยอดนี้ — ดูยอดจริงจากหน้า Google แล้วใส่ตามนั้น');
-    if (v === null) return;
-    const num = parseFloat(String(v).replace(/[^\d.]/g, ''));
-    if (isNaN(num) || num < 0) return alert('ใส่ตัวเลขบาท เช่น 9869');
-    try {
-        if (typeof window.clearSettingCache === 'function') window.clearSettingCache();
-        const { data } = await appDB.from('settings').select('value').eq('key', 'ocr_budget').maybeSingle();
-        const b = (data && data.value) ? JSON.parse(data.value) : {};
-        if (which === 'vision') { b.vision_start = num; b.vision_used = 0; b.vision_calls = 0; }
-        else { b.gemini_start = num; b.gemini_used = 0; b.gemini_calls = 0; }
-        b.reset_at = Date.now();
-        const { error } = await appDB.from('settings').upsert([{ key: 'ocr_budget', value: JSON.stringify(b) }]);
-        if (error) throw error;
-        setTimeout(() => fetchGoogleOcrStatus(true), 300);
-    } catch (e) { alert('บันทึกไม่สำเร็จ: ' + (e.message || e)); }
+// 💰 ตั้งยอดตั้งต้น (บาท) — โมดัลสวยๆ แทน prompt
+window.setOcrBudget = function(which) {
+    const isV = which === 'vision';
+    const label = isV ? 'เครดิต Google Cloud (Vision)' : 'เงินเติม Gemini';
+    const hint = isV ? 'ดูจาก Google Cloud → Billing → "You have a credit"' : 'ดูจาก AI Studio → Projects → ยอด Prepay';
+    const link = isV ? 'https://console.cloud.google.com/billing' : 'https://aistudio.google.com/projects';
+    const accent = isV ? '#10b981' : '#0ea5e9';
+    document.getElementById('ocrBudgetModal')?.remove();
+    const wrap = document.createElement('div'); wrap.id = 'ocrBudgetModal';
+    wrap.innerHTML = `
+    <div style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,.65);backdrop-filter:blur(6px);animation:obFade .15s ease">
+      <div style="width:min(440px,92vw);background:linear-gradient(180deg,#151a26,#0f1420);border:1px solid rgba(255,255,255,.08);border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden;animation:obPop .18s cubic-bezier(.2,.9,.3,1.2);font-family:inherit">
+        <div style="height:4px;background:linear-gradient(90deg,${accent},transparent)"></div>
+        <div style="padding:22px 24px 8px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:42px;height:42px;border-radius:12px;background:${accent}22;display:flex;align-items:center;justify-content:center;font-size:20px">💰</div>
+            <div>
+              <div style="font-size:16px;font-weight:900;color:#fff">ตั้งยอด${label}</div>
+              <div style="font-size:12px;color:#8b93a8;margin-top:2px">ระบบจะเริ่มนับใหม่จากยอดนี้ แล้วหักตามการใช้จริง</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:14px 24px 6px">
+          <label style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8b93a8">ยอดที่มีตอนนี้ (บาท)</label>
+          <div style="position:relative;margin-top:8px">
+            <span style="position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:20px;font-weight:900;color:${accent}">฿</span>
+            <input id="obInput" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off"
+              style="width:100%;box-sizing:border-box;padding:14px 16px 14px 42px;border-radius:14px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#fff;font-size:26px;font-weight:900;letter-spacing:.5px;outline:none;transition:border-color .15s,box-shadow .15s">
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap" id="obQuick"></div>
+          <div style="font-size:12px;color:#8b93a8;margin-top:10px">💡 ${hint} · <a href="${link}" target="_blank" style="color:${accent};font-weight:700;text-decoration:none">เปิดดูยอดจริง ↗</a></div>
+          <div id="obErr" style="display:none;font-size:12px;color:#f87171;font-weight:700;margin-top:8px"></div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;padding:16px 24px 22px">
+          <button id="obCancel" style="padding:11px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#cbd5e1;font-weight:800;font-size:13px;cursor:pointer">ยกเลิก</button>
+          <button id="obSave" style="padding:11px 22px;border-radius:12px;border:0;background:${accent};color:#04111a;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 8px 20px ${accent}55">บันทึกยอด</button>
+        </div>
+      </div>
+    </div>
+    <style>@keyframes obFade{from{opacity:0}to{opacity:1}}@keyframes obPop{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:none}}#obInput:focus{border-color:${accent};box-shadow:0 0 0 4px ${accent}33}</style>`;
+    document.body.appendChild(wrap);
+    const input = wrap.querySelector('#obInput'), err = wrap.querySelector('#obErr');
+    const quick = wrap.querySelector('#obQuick');
+    (isV ? [9869, 5000, 3000, 1000] : [300, 500, 1000, 2000]).forEach(v => { const b = document.createElement('button'); b.textContent = '฿' + v.toLocaleString(); b.style.cssText = 'padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#cbd5e1;font-weight:700;font-size:12px;cursor:pointer'; b.onclick = () => { input.value = v; input.focus(); }; quick.appendChild(b); });
+    const close = () => wrap.remove();
+    wrap.querySelector('#obCancel').onclick = close;
+    wrap.firstElementChild.addEventListener('mousedown', e => { if (e.target === wrap.firstElementChild) close(); });
+    document.addEventListener('keydown', function esc(e) { if (!document.body.contains(wrap)) return document.removeEventListener('keydown', esc); if (e.key === 'Escape') close(); });
+    const save = async () => {
+        const num = parseFloat(String(input.value).replace(/[^\d.]/g, ''));
+        if (isNaN(num) || num < 0) { err.style.display = ''; err.textContent = 'ใส่ตัวเลขบาท เช่น 9869'; input.focus(); return; }
+        const btn = wrap.querySelector('#obSave'); btn.textContent = '⏳ กำลังบันทึก...'; btn.disabled = true;
+        try {
+            if (typeof window.clearSettingCache === 'function') window.clearSettingCache();
+            const { data } = await appDB.from('settings').select('value').eq('key', 'ocr_budget').maybeSingle();
+            const b = (data && data.value) ? JSON.parse(data.value) : {};
+            if (isV) { b.vision_start = num; b.vision_used = 0; b.vision_calls = 0; } else { b.gemini_start = num; b.gemini_used = 0; b.gemini_calls = 0; }
+            b.reset_at = Date.now();
+            const { error } = await appDB.from('settings').upsert([{ key: 'ocr_budget', value: JSON.stringify(b) }]);
+            if (error) throw error;
+            btn.textContent = '✅ บันทึกแล้ว'; setTimeout(() => { close(); fetchGoogleOcrStatus(true); }, 400);
+        } catch (e) { err.style.display = ''; err.textContent = 'บันทึกไม่สำเร็จ: ' + (e.message || e); btn.textContent = 'บันทึกยอด'; btn.disabled = false; }
+    };
+    wrap.querySelector('#obSave').onclick = save;
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+    setTimeout(() => input.focus(), 50);
 };
 
 // 📅 สถิติการใช้ตามช่วงเวลา
