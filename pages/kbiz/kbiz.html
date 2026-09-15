@@ -333,11 +333,32 @@
                         <div id="gvLastEngine" class="text-[11px] text-gray-400 mt-1">มิลลิวินาที</div>
                     </div>
                 </div>
+                <!-- 💰 ยอดคงเหลือ (ประมาณการ) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div class="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800">
+                        <div class="flex justify-between items-center">
+                            <div class="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold uppercase tracking-wider">💰 เครดิต Google Cloud (Vision) — คงเหลือประมาณ</div>
+                            <button onclick="setOcrBudget('vision')" class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline">✏️ ตั้งยอด</button>
+                        </div>
+                        <div id="bgVisionLeft" class="text-3xl font-black text-emerald-600 mt-1">—</div>
+                        <div id="bgVisionInfo" class="text-[11px] text-gray-500 mt-1">—</div>
+                        <a href="https://console.cloud.google.com/billing" target="_blank" class="text-[11px] text-blue-500 hover:underline">ดูยอดจริงที่ Google Cloud ↗</a>
+                    </div>
+                    <div class="bg-sky-50 dark:bg-sky-900/10 rounded-xl p-4 border border-sky-200 dark:border-sky-800">
+                        <div class="flex justify-between items-center">
+                            <div class="text-[10px] text-sky-700 dark:text-sky-300 font-bold uppercase tracking-wider">💰 เงินเติม Gemini — คงเหลือประมาณ</div>
+                            <button onclick="setOcrBudget('gemini')" class="text-[11px] font-bold text-sky-700 dark:text-sky-300 hover:underline">✏️ ตั้งยอด</button>
+                        </div>
+                        <div id="bgGeminiLeft" class="text-3xl font-black text-sky-600 mt-1">—</div>
+                        <div id="bgGeminiInfo" class="text-[11px] text-gray-500 mt-1">—</div>
+                        <a href="https://aistudio.google.com/projects" target="_blank" class="text-[11px] text-blue-500 hover:underline">ดูยอดจริงที่ AI Studio ↗</a>
+                    </div>
+                </div>
                 <div id="gvLastError" class="hidden mt-4 p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-400 rounded-r-lg text-xs text-red-700 dark:text-red-200 font-mono break-all"></div>
                 <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 rounded-r-lg text-xs text-blue-800 dark:text-blue-200">
                     🔐 <b>คีย์ไม่แสดงในหน้านี้</b> — ตั้งที่ Railway → K-BIT → Variables: <code>GOOGLE_VISION_API_KEY</code> / <code>GEMINI_API_KEY</code><br>
                     🔄 เครื่องยนต์หลักล่ม → สลับไปตัวถัดไปอัตโนมัติ → สุดท้ายคือ OCR.space เสมอ<br>
-                    📊 สถิติรีเซ็ตทุกวันตามเวลาไทย
+                    📊 สถิติรีเซ็ตทุกวันตามเวลาไทย • ยอดคงเหลือเป็น<b>ประมาณการ</b>จากจำนวนที่ใช้ × ราคาต่อรูป (Google ไม่มี API ให้ดึงยอดจริง) — เติมเงินเมื่อไหร่ให้กด ✏️ ตั้งยอดใหม่
                 </div>
             </div>
         </div>
