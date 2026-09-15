@@ -406,6 +406,34 @@ window.noteCmd = async function(cmd, val) {
             if (!value) { abort(); return; }
             for (let x = sel.x1; x <= sel.x2; x++) note.cols[x] = parseInt(value); break;
         }
+        // 🆕 [แทรกเซลล์และเลื่อนไปทางขวา] แบบ Google Sheets — แทรกช่องว่างที่ตำแหน่งเลือก แล้วดันช่องทางขวาในแถวนี้ออกไป
+        // ช่องสุดท้ายของแถวจะหลุดขอบตาราง (เหมือน Sheets จริง) — ถ้ามีข้อมูลอยู่จะถามยืนยันก่อน กันข้อมูลหายแบบไม่รู้ตัว
+        case 'cellShiftRight': {
+            const r = sel.r1, at = sel.x1;
+            for (let x = at; x < W; x++) { const c = note.rows[r][x]; if (c.h || (c.rs || 1) > 1 || (c.cs || 1) > 1) { abort(); _nToast('มีช่องผสานอยู่ในแถวนี้ — แยกช่องก่อนแล้วค่อยแทรก'); return; } }
+            const lastCell = note.rows[r][W - 1];
+            if (lastCell && lastCell.t) {
+                const ask = await Swal.fire({ title: 'แทรกเซลล์และเลื่อนไปทางขวา', text: 'ข้อมูลในช่องสุดท้ายของแถวนี้จะหลุดขอบตารางไป ต้องการดำเนินการต่อไหม?', icon: 'warning', showCancelButton: true, confirmButtonText: 'แทรกเลย', cancelButtonText: 'ยกเลิก' });
+                if (!ask.isConfirmed) { abort(); return; }
+            }
+            note.rows[r].splice(at, 0, _nCell());
+            note.rows[r].length = W;
+            window._noteSel = null; break;
+        }
+        // 🆕 [แทรกเซลล์และเลื่อนลง] แบบ Google Sheets — แทรกช่องว่างที่ตำแหน่งเลือก แล้วดันช่องด้านล่างในคอลัมน์นี้ลงไป
+        // ช่องสุดท้ายของคอลัมน์จะหลุดขอบตาราง — ถ้ามีข้อมูลอยู่จะถามยืนยันก่อนเช่นกัน
+        case 'cellShiftDown': {
+            const x = sel.x1, at = sel.r1;
+            for (let r = at; r < H; r++) { const c = note.rows[r][x]; if (c.h || (c.rs || 1) > 1 || (c.cs || 1) > 1) { abort(); _nToast('มีช่องผสานอยู่ในคอลัมน์นี้ — แยกช่องก่อนแล้วค่อยแทรก'); return; } }
+            const lastCell = note.rows[H - 1][x];
+            if (lastCell && lastCell.t) {
+                const ask = await Swal.fire({ title: 'แทรกเซลล์และเลื่อนลง', text: 'ข้อมูลในช่องสุดท้ายของคอลัมน์นี้จะหลุดขอบตารางไป ต้องการดำเนินการต่อไหม?', icon: 'warning', showCancelButton: true, confirmButtonText: 'แทรกเลย', cancelButtonText: 'ยกเลิก' });
+                if (!ask.isConfirmed) { abort(); return; }
+            }
+            for (let r = H - 1; r > at; r--) note.rows[r][x] = note.rows[r - 1][x];
+            note.rows[at][x] = _nCell();
+            window._noteSel = null; break;
+        }
     }
     window.renderNoteEditor();
 };
