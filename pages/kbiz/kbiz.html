@@ -335,23 +335,55 @@
                 </div>
                 <!-- 💰 ยอดคงเหลือ (ประมาณการ) -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div class="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800">
+                    <div id="bgVisionCard" class="rounded-2xl p-5 border-2 transition-colors">
                         <div class="flex justify-between items-center">
-                            <div class="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold uppercase tracking-wider">💰 เครดิต Google Cloud (Vision) — คงเหลือประมาณ</div>
-                            <button onclick="setOcrBudget('vision')" class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline">✏️ ตั้งยอด</button>
+                            <div class="text-[11px] font-black uppercase tracking-wider opacity-80">💰 Vision — เครดิต Google Cloud</div>
+                            <button onclick="setOcrBudget('vision')" class="text-[11px] font-bold opacity-80 hover:opacity-100 hover:underline">✏️ ตั้งยอด</button>
                         </div>
-                        <div id="bgVisionLeft" class="text-3xl font-black text-emerald-600 mt-1">—</div>
-                        <div id="bgVisionInfo" class="text-[11px] text-gray-500 mt-1">—</div>
-                        <a href="https://console.cloud.google.com/billing" target="_blank" class="text-[11px] text-blue-500 hover:underline">ดูยอดจริงที่ Google Cloud ↗</a>
+                        <div class="flex items-end gap-3 mt-2">
+                            <div id="bgVisionLeft" class="text-4xl font-black leading-none">—</div>
+                            <div id="bgVisionPct" class="text-sm font-bold opacity-80 pb-1">—</div>
+                        </div>
+                        <div class="h-2.5 rounded-full bg-black/10 dark:bg-white/10 mt-3 overflow-hidden"><div id="bgVisionBar" class="h-full rounded-full transition-all" style="width:0%"></div></div>
+                        <div id="bgVisionInfo" class="text-[12px] mt-2 opacity-80">—</div>
+                        <a href="https://console.cloud.google.com/billing" target="_blank" class="text-[11px] opacity-70 hover:opacity-100 hover:underline">ดูยอดจริงที่ Google Cloud ↗</a>
                     </div>
-                    <div class="bg-sky-50 dark:bg-sky-900/10 rounded-xl p-4 border border-sky-200 dark:border-sky-800">
+                    <div id="bgGeminiCard" class="rounded-2xl p-5 border-2 transition-colors">
                         <div class="flex justify-between items-center">
-                            <div class="text-[10px] text-sky-700 dark:text-sky-300 font-bold uppercase tracking-wider">💰 เงินเติม Gemini — คงเหลือประมาณ</div>
-                            <button onclick="setOcrBudget('gemini')" class="text-[11px] font-bold text-sky-700 dark:text-sky-300 hover:underline">✏️ ตั้งยอด</button>
+                            <div class="text-[11px] font-black uppercase tracking-wider opacity-80">💰 Gemini — เงินเติม</div>
+                            <button onclick="setOcrBudget('gemini')" class="text-[11px] font-bold opacity-80 hover:opacity-100 hover:underline">✏️ ตั้งยอด</button>
                         </div>
-                        <div id="bgGeminiLeft" class="text-3xl font-black text-sky-600 mt-1">—</div>
-                        <div id="bgGeminiInfo" class="text-[11px] text-gray-500 mt-1">—</div>
-                        <a href="https://aistudio.google.com/projects" target="_blank" class="text-[11px] text-blue-500 hover:underline">ดูยอดจริงที่ AI Studio ↗</a>
+                        <div class="flex items-end gap-3 mt-2">
+                            <div id="bgGeminiLeft" class="text-4xl font-black leading-none">—</div>
+                            <div id="bgGeminiPct" class="text-sm font-bold opacity-80 pb-1">—</div>
+                        </div>
+                        <div class="h-2.5 rounded-full bg-black/10 dark:bg-white/10 mt-3 overflow-hidden"><div id="bgGeminiBar" class="h-full rounded-full transition-all" style="width:0%"></div></div>
+                        <div id="bgGeminiInfo" class="text-[12px] mt-2 opacity-80">—</div>
+                        <a href="https://aistudio.google.com/projects" target="_blank" class="text-[11px] opacity-70 hover:opacity-100 hover:underline">ดูยอดจริงที่ AI Studio ↗</a>
+                    </div>
+                </div>
+
+                <!-- 📅 สถิติการใช้ตามช่วงเวลา -->
+                <div class="mt-4 bg-slate-50 dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-700">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="text-[11px] text-gray-500 font-black uppercase tracking-wider">📅 ใช้ไปเท่าไหร่</div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div id="usagePeriodBtns" class="flex gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <button data-p="today" class="usage-p px-3 py-1.5 rounded-lg text-xs font-bold">วันนี้</button>
+                                <button data-p="yesterday" class="usage-p px-3 py-1.5 rounded-lg text-xs font-bold">เมื่อวาน</button>
+                                <button data-p="7" class="usage-p px-3 py-1.5 rounded-lg text-xs font-bold">7 วัน</button>
+                                <button data-p="30" class="usage-p px-3 py-1.5 rounded-lg text-xs font-bold">30 วัน</button>
+                                <button data-p="all" class="usage-p px-3 py-1.5 rounded-lg text-xs font-bold">ทั้งหมด</button>
+                            </div>
+                            <input type="date" id="usageDate" class="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200" title="เลือกวัน">
+                        </div>
+                    </div>
+                    <div id="usageTitle" class="text-sm font-bold text-slate-600 dark:text-slate-300 mt-3">—</div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700"><div class="text-[10px] text-gray-400 font-bold uppercase">Vision</div><div id="usVision" class="text-2xl font-black text-emerald-500">—</div><div id="usVisionThb" class="text-[11px] text-gray-500">—</div></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700"><div class="text-[10px] text-gray-400 font-bold uppercase">Gemini</div><div id="usGemini" class="text-2xl font-black text-sky-500">—</div><div id="usGeminiThb" class="text-[11px] text-gray-500">—</div></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700"><div class="text-[10px] text-gray-400 font-bold uppercase">OCR.space</div><div id="usFallback" class="text-2xl font-black text-amber-500">—</div><div class="text-[11px] text-gray-500">ฟรี</div></div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border-2 border-indigo-300 dark:border-indigo-700"><div class="text-[10px] text-indigo-500 font-bold uppercase">รวมค่าใช้จ่าย</div><div id="usTotalThb" class="text-2xl font-black text-indigo-500">—</div><div id="usTotalN" class="text-[11px] text-gray-500">—</div></div>
                     </div>
                 </div>
                 <div id="gvLastError" class="hidden mt-4 p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-400 rounded-r-lg text-xs text-red-700 dark:text-red-200 font-mono break-all"></div>
