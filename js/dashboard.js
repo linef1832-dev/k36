@@ -72,6 +72,13 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
     // โหลดข้อมูลรอบเวลาก่อน แล้วค่อย fetchData
     if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
     if (typeof fetchData === 'function') fetchData();
+    // 🏠 [หน้าหลักแบบใหม่] วาดวันนี้ของฉัน + ตารางรวมเปิดไว้ให้แอดมิน/หัวหน้า หรือตามที่เคยเลือกไว้
+    try {
+        const pref = localStorage.getItem('k36_show_full_table');
+        const isBoss = ['manager','admin'].includes((window.currentUser||{}).role);
+        if (typeof window.toggleFullTable === 'function') window.toggleFullTable(pref === null ? isBoss : pref === '1');
+        if (typeof window.renderMyToday === 'function') window.renderMyToday();
+    } catch (e) {}
 
     // 🌟 เรียกใช้งานระบบ Realtime
     if (typeof subscribeDashboardChanges === 'function') subscribeDashboardChanges();
@@ -798,4 +805,173 @@ window.manualRefreshDashboard = async function() {
         if (btn) btn.style.pointerEvents = '';
         window._manualRefreshBusy = false;
     }
+};
+
+// ════════════════════════════════════════════════════════════════════
+// 🏠 [หน้าหลักแบบใหม่] "วันนี้ของฉัน" — เห็นของตัวเองก่อน: กะ / เว็บที่ทำ / พัก / วันหยุด + ติดต่อหัวหน้า
+// ตารางรวม (ใครลงกินข้าว) ซ่อนไว้หลังปุ่ม ฟอร์มลงเวลาพักคอลัมน์ซ้ายไม่แตะ ทำงานเหมือนเดิม
+// ════════════════════════════════════════════════════════════════════
+const _MT_TH_DAYS = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+const _MT_TH_MON  = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const _mtFmt = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); if (!m) return iso || '-'; const d = new Date(+m[1], +m[2]-1, +m[3]); return `${_MT_TH_DAYS[d.getDay()]} ${d.getDate()} ${_MT_TH_MON[d.getMonth()]} ${d.getFullYear()+543}`; };
+const _mtEsc = (v) => (window.escapeHtml ? window.escapeHtml(v) : String(v ?? ''));
+const _mtMin = (hhmm) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm || '')); return m ? (+m[1])*60 + (+m[2]) : null; };
+
+// เวลาเปิด-ปิดของกะ จากตั้งค่าระบบ (open_time_เช้า / close_time_เช้า ...) ถ้าไม่มี ใช้ค่าเริ่มต้น
+function _mtShiftHours(shift) {
+    const suf = String(shift || '').replace('กะ', '');
+    const def = { 'เช้า': ['08:00','20:00'], 'กลาง': ['11:00','23:00'], 'ดึก': ['20:00','08:00'] }[suf] || [null, null];
+    const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
+    return { open: S[`open_time_${suf}`] || def[0], close: S[`close_time_${suf}`] || def[1] };
+}
+// สถานะ: อยู่ในกะ / ก่อนเข้ากะ / นอกกะ
+function _mtShiftStatus(shift) {
+    const { open, close } = _mtShiftHours(shift);
+    const o = _mtMin(open), c = _mtMin(close);
+    if (o === null || c === null) return { label: '-', color: '#64748b', bg: 'rgba(100,116,139,.15)' };
+    const now = new Date(); const n = now.getHours()*60 + now.getMinutes();
+    const inShift = (o <= c) ? (n >= o && n < c) : (n >= o || n < c);
+    if (inShift) return { label: 'อยู่ในกะ', color: '#34d399', bg: 'rgba(52,211,153,.15)' };
+    if (o <= c ? n < o : (n >= c && n < o)) return { label: 'ก่อนเข้ากะ', color: '#fbbf24', bg: 'rgba(251,191,36,.15)' };
+    return { label: 'นอกกะ', color: '#94a3b8', bg: 'rgba(148,163,184,.15)' };
+}
+const _mtShiftBadge = (shift) => ({ 'กะเช้า': ['D','#fbbf24','☀️'], 'กะกลาง': ['M','#60a5fa','🌤️'], 'กะดึก': ['N','#a78bfa','🌙'] }[shift] || ['-','#94a3b8','']);
+
+window.renderMyToday = async function() {
+    const box = document.getElementById('myTodayPanel');
+    if (!box || !window.currentUser) return;
+    const me = window.currentUser;
+    const dateEl = document.getElementById('wDate');
+    const t = new Date();
+    const dateVal = (dateEl && dateEl.value) || `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    const myDep = me.department || 'AM';
+    const myShift = ['กะเช้า','กะกลาง','กะดึก'].includes(me.allowed_shift) ? me.allowed_shift : (document.querySelector('input[name="shift"]:checked')?.value || '');
+
+    // ── ดึงข้อมูลพร้อมกัน: เว็บที่ทำวันนี้ / พักของฉัน / วันหยุดที่จอง ──
+    const rosterKeys = myShift ? [`duty_roster_${myDep}_${dateVal}_${myShift}`] : ['กะเช้า','กะกลาง','กะดึก'].map(s => `duty_roster_${myDep}_${dateVal}_${s}`);
+    let rosterRows = [], myBreaks = [], myLeaves = [];
+    try {
+        const [r1, r2, r3] = await Promise.all([
+            appDB.from('settings').select('key, value').in('key', rosterKeys),
+            appDB.from('schedules').select('shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username),
+            appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal).order('leave_date', { ascending: true }).limit(6)
+        ]);
+        rosterRows = r1.data || []; myBreaks = r2.data || []; myLeaves = r3.data || [];
+    } catch (e) { console.warn('renderMyToday:', e); }
+
+    // เว็บที่ได้รับมอบหมาย (หลัก/รอง) จากตารางเวร
+    const jobs = [];
+    rosterRows.forEach(row => {
+        let roster = {}; try { roster = JSON.parse(row.value || '{}'); } catch (e) {}
+        const shiftOfKey = row.key.split('_').pop();
+        for (const team in roster) (roster[team] || []).forEach(u => {
+            if (!u || String(u.username || '').toLowerCase() !== String(me.username).toLowerCase()) return;
+            jobs.push({ team, role: 'หลัก', shift: shiftOfKey });
+            if (u.secondary_team) jobs.push({ team: u.secondary_team, role: 'รอง', shift: shiftOfKey });
+        });
+    });
+
+    const dailyLimit = parseInt((typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit) || 2);
+    const remain = Math.max(0, dailyLimit - myBreaks.length);
+    const sb = _mtShiftBadge(myShift);
+    const sh = _mtShiftHours(myShift);
+    const st = myShift ? _mtShiftStatus(myShift) : null;
+
+    const card = (icon, iconColor, label, valueHtml, subHtml) => `
+        <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 4px;border-bottom:1px solid rgba(148,163,184,.12)">
+            <div style="width:44px;height:44px;border-radius:12px;background:${iconColor}22;border:1px solid ${iconColor}55;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span class="material-icons" style="font-size:22px;color:${iconColor}">${icon}</span></div>
+            <div style="min-width:0;flex:1">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:3px">${label}</div>
+                <div style="font-size:15px;font-weight:800;color:#f1f5f9;line-height:1.35">${valueHtml}</div>
+                ${subHtml ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:4px">${subHtml}</div>` : ''}
+            </div>
+        </div>`;
+
+    // 1) กะของฉัน
+    const shiftVal = myShift ? `${sb[2]} ${_mtEsc(myShift)} <span style="font-size:11px;font-weight:700;color:${sb[1]};background:${sb[1]}22;padding:2px 7px;border-radius:6px;margin-left:4px">${sh.open}–${sh.close}</span>` : 'ไม่มีกะ';
+    const shiftSub = st ? `<span style="color:${st.color};font-weight:700">● ${st.label}</span>` : '';
+    // 2) งานของฉัน
+    const jobsVal = jobs.length ? jobs.map(j => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:13px;background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'#fcd34d'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span></span>`).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
+    const jobsSub = jobs.length ? '' : 'หัวหน้ายังไม่ได้จัดเวรวันนี้ หรือคุณไม่อยู่ในตาราง';
+    // 3) พักวันนี้
+    const brVal = myBreaks.length
+        ? myBreaks.map(b => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:13px;font-family:monospace;background:rgba(52,211,153,.14);color:#6ee7b7;border:1px solid rgba(52,211,153,.35)">${_mtEsc(b.time_slot)}</span>`).join('')
+        : 'ยังไม่ได้เลือกเวลาพัก';
+    const brSub = remain > 0
+        ? `ยังเลือกได้อีก <b style="color:#fbbf24">${remain}</b> จาก ${dailyLimit} รอบ · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:#60a5fa;font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>`
+        : `ครบ ${dailyLimit} รอบแล้ววันนี้ ✅`;
+    // 4) วันหยุดที่จอง
+    const lvVal = myLeaves.length
+        ? myLeaves.map(l => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:12.5px;background:rgba(244,114,182,.14);color:#f9a8d4;border:1px solid rgba(244,114,182,.35)">${_mtFmt(l.leave_date)} <span style="font-size:10px;opacity:.85">(${_mtEsc(l.reason || '-')})</span></span>`).join('')
+        : 'ยังไม่ได้จองวันหยุด';
+    const lvSub = myLeaves.length ? `วันหยุดที่จองไว้ล่วงหน้า ${myLeaves.length} วัน` : `ไปจองได้ที่เมนู <a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">วันหยุด</a>`;
+
+    // ── ติดต่อหัวหน้า (manager/admin ในแผนกเดียวกัน ถ้าไม่มีให้แสดงทุกแผนก) ──
+    const all = window.GLOBAL_USER_LIST || [];
+    let heads = all.filter(u => ['manager','admin'].includes(u.role) && (u.department || 'AM') === myDep);
+    if (!heads.length) heads = all.filter(u => ['manager','admin'].includes(u.role));
+    const headRows = heads.map(u => {
+        const b = _mtShiftBadge(u.allowed_shift); const h = _mtShiftHours(u.allowed_shift); const s = ['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift) ? _mtShiftStatus(u.allowed_shift) : null;
+        const ini = _mtEsc(String(u.username || '?').substring(0,2).toUpperCase());
+        const tg = u.telegram_id ? (/^\d+$/.test(String(u.telegram_id)) ? `tg://user?id=${_mtEsc(u.telegram_id)}` : `https://t.me/${_mtEsc(String(u.telegram_id).replace(/^@/,''))}`) : null;
+        return `
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 4px;border-bottom:1px solid rgba(148,163,184,.1)">
+            <div style="width:40px;height:40px;border-radius:50%;background:#1e293b;border:1px solid #334155;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:#cbd5e1;flex-shrink:0">${ini}</div>
+            <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="font-weight:800;color:#f1f5f9;font-size:14px">${_mtEsc(u.username)}</span>
+                    <span style="font-size:10px;color:#94a3b8;background:rgba(148,163,184,.12);padding:1px 7px;border-radius:5px">${_mtEsc(u.department || '-')}</span>
+                    <span style="font-size:10px;color:#c084fc;background:rgba(192,132,252,.12);padding:1px 7px;border-radius:5px">${u.role === 'admin' ? 'ADMIN' : 'หัวหน้า'}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
+                    ${s ? `<span style="font-size:11px;font-weight:700;color:${s.color};background:${s.bg};padding:2px 8px;border-radius:6px">${s.label}</span>` : ''}
+                    ${['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift) ? `<span style="font-size:11px;font-weight:900;color:#0f172a;background:${b[1]};padding:1px 6px;border-radius:5px">${b[0]}</span><span style="font-size:12px;color:#cbd5e1;font-family:monospace">${h.open}–${h.close}</span>` : `<span style="font-size:11px;color:#64748b">ทุกกะ</span>`}
+                </div>
+                <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;font-size:12px">
+                    ${tg ? `<a href="${tg}" target="_blank" style="color:#38bdf8;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><span class="material-icons" style="font-size:14px">send</span>Telegram</a>` : `<span style="color:#475569">ไม่มี Telegram</span>`}
+                    ${u.discord_id ? `<span style="color:#a78bfa;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="กดเพื่อก็อป Discord ID" onclick="navigator.clipboard&&navigator.clipboard.writeText('${_mtEsc(u.discord_id)}');Swal.fire({toast:true,position:'top-end',icon:'success',title:'ก็อป Discord ID แล้ว',showConfirmButton:false,timer:1500})"><span class="material-icons" style="font-size:14px">content_copy</span>Discord</span>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('') || `<div style="padding:16px;color:#64748b;font-size:12px;text-align:center">ยังไม่มีหัวหน้าในระบบ</div>`;
+
+    const wrap = (title, icon, bodyHtml, rightHtml) => `
+        <div style="background:linear-gradient(165deg,#0f172a,#0b1120);border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.3)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:15px;color:#f1f5f9"><span class="material-icons" style="font-size:19px;color:#60a5fa">${icon}</span>${title}</div>
+                ${rightHtml || ''}
+            </div>
+            ${bodyHtml}
+        </div>`;
+
+    box.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:2px 4px">
+            <div>
+                <div style="font-size:22px;font-weight:900;color:#f1f5f9">วันนี้</div>
+                <div style="font-size:12.5px;color:#94a3b8;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="material-icons" style="font-size:15px">calendar_month</span>${_mtFmt(dateVal)} <span style="color:#475569">|</span> <span style="background:rgba(148,163,184,.12);padding:1px 8px;border-radius:5px;color:#cbd5e1;font-weight:700">${_mtEsc(myDep)}</span>${me.team ? `<span style="background:rgba(96,165,250,.14);padding:1px 8px;border-radius:5px;color:#93c5fd;font-weight:700">${_mtEsc(me.team)}</span>` : ''}</div>
+            </div>
+            <button onclick="renderMyToday()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.6);color:#cbd5e1;font-size:12px;font-weight:700;cursor:pointer"><span class="material-icons" style="font-size:15px">refresh</span>รีเฟรช</button>
+        </div>
+        ${wrap('วันนี้ของฉัน', 'person', `
+            <div style="font-size:11px;color:#64748b;margin-bottom:2px">${_mtEsc(me.username)}</div>
+            ${card('schedule', '#60a5fa', 'กะของฉันวันนี้', shiftVal, shiftSub)}
+            ${card('work', '#818cf8', 'งานของฉัน (เว็บที่รับผิดชอบ)', jobsVal, jobsSub)}
+            ${card('restaurant', '#34d399', 'เวลาพักวันนี้', brVal, brSub)}
+            ${card('event_available', '#f472b6', 'วันหยุดที่จองไว้', lvVal, lvSub)}
+        `)}
+        ${wrap('ช่องทางติดต่อหัวหน้า', 'support_agent', headRows + `<div style="font-size:11px;color:#64748b;padding-top:10px">หากมีปัญหาหรือติดขัด ติดต่อหัวหน้าก่อนเป็นอันดับแรก</div>`, `<span style="font-size:11px;color:#94a3b8">แผนก ${_mtEsc(myDep)}</span>`)}
+    `;
+};
+
+// 📋 เปิด/ปิดตารางรวม (จำค่าไว้ในเครื่อง)
+window.toggleFullTable = function(force) {
+    const sec = document.getElementById('timeTableSection');
+    const icon = document.getElementById('toggleFullTableIcon');
+    const label = document.getElementById('toggleFullTableLabel');
+    if (!sec) return;
+    const show = (typeof force === 'boolean') ? force : sec.classList.contains('hidden');
+    sec.classList.toggle('hidden', !show);
+    if (icon) icon.textContent = show ? 'expand_less' : 'expand_more';
+    if (label) label.textContent = show ? 'ซ่อนตารางลงเวลาทั้งหมด' : 'ดูตารางลงเวลาทั้งหมด (ใครลงกินข้าวกี่โมง)';
+    try { localStorage.setItem('k36_show_full_table', show ? '1' : '0'); } catch (e) {}
 };
