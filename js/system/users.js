@@ -561,6 +561,7 @@ async function fetchData() {
         
         updateTableSummary(dataForSummary); 
         renderTableRows(data);
+        if (typeof window.renderMyToday === 'function') window.renderMyToday();   // 🏠 อัปเดตวันนี้ของฉัน
     }
 }
 
