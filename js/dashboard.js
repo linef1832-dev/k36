@@ -1100,7 +1100,7 @@ window.renderMyToday = async function() {
                 ${isToday ? '' : `<button onclick="myTodaySetDate('')" style="padding:7px 10px;border-radius:9px;border:1px solid rgba(232,193,90,.45);background:rgba(232,193,90,.12);color:#E8C15A;font-size:12px;font-weight:800;cursor:pointer">วันนี้</button>`}
             </div>
         </div>
-        ${wrap('วันนี้ของฉัน <span style="font-size:11px;font-weight:600;color:#64748b;margin-left:4px">${_mtEsc(me.username)}</span>', 'person', `
+        ${wrap(`วันนี้ของฉัน <span style="font-size:11px;font-weight:600;color:#64748b;margin-left:4px">${_mtEsc(me.username)}</span>`, 'person', `
             ${card('work', '#818cf8', 'งานของฉัน (เว็บที่รับผิดชอบ)', jobsVal, jobsSub)}
             ${card('restaurant', '#34d399', 'เวลาพักวันนี้', brVal, brSub)}
             ${card('event_available', '#f472b6', 'วันหยุดเดือนนี้ + ที่จองล่วงหน้า', lvVal, lvSub)}
