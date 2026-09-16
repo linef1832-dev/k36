@@ -19,7 +19,8 @@
     const AV_COLORS = ['#2563eb','#db2777','#059669','#d97706','#7c3aed','#0891b2','#dc2626','#4f46e5','#b45309','#0d9488'];
     const avColor = name => AV_COLORS[[...String(name || '')].reduce((a, c) => a + c.charCodeAt(0), 0) % AV_COLORS.length];
     const initials = name => esc(String(name || '?').replace(/[^A-Za-z0-9ก-๙]/g, '').substring(0, 2).toUpperCase() || '?');
-    const avatar = (name, size) => `<span class="bt-av" style="width:${size}px;height:${size}px;background:${avColor(name)};font-size:${Math.round(size / 3)}px" title="${esc(name)}">${initials(name)}</span>`;
+    // 🩹 ใส่สไตล์วงกลมติดตัวเลย — popup อยู่นอก #btPage ทำให้ CSS ของหน้าไม่โดน
+    const avatar = (name, size) => `<span class="bt-av" style="width:${size}px;height:${size}px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#fff;background:${avColor(name)};font-size:${Math.round(size / 3)}px;border:2px solid #0b1220;letter-spacing:.3px" title="${esc(name)}">${initials(name)}</span>`;
 
     let _rows = [];          // ข้อมูลวันนี้ทั้งหมด (ก่อนกรอง)
     let _lastDate = null;
@@ -82,7 +83,7 @@
             const cnt = groups[shift].reduce((a, sl) => a + (bySlot[sl] || []).length, 0);
             const cards = groups[shift].map(sl => {
                 const list = bySlot[sl] || [];
-                const avs = list.slice(0, 3).map(r => avatar(r.staff_name, 28)).join('') + (list.length > 3 ? `<span class="bt-av bt-more" style="width:28px;height:28px;font-size:9px">+${list.length - 3}</span>` : '');
+                const avs = list.slice(0, 3).map(r => avatar(r.staff_name, 28)).join('') + (list.length > 3 ? `<span class="bt-av bt-more" style="width:28px;height:28px;border-radius:50%;font-size:9px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;border:2px solid #0b1220;margin-left:-8px">+${list.length - 3}</span>` : '');
                 return `<div class="bt-card ${list.length ? '' : 'bt-empty'}" onclick="btOpenSlot('${esc(sl)}')">
                     <div><div class="bt-time">${esc(sl.replace('-', ' – '))}</div><div class="bt-sub">${list.length ? `จองแล้ว <b style="color:#e2e8f0">${list.length}</b> คน` : 'ยังไม่มีคนลง'}</div></div>
                     <div style="display:flex;align-items:center;gap:8px"><div style="display:flex;align-items:center">${avs}</div><span class="bt-eye" title="ดูรายชื่อ"><span class="material-icons" style="font-size:17px">visibility</span></span></div>
