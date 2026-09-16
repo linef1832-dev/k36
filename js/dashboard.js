@@ -880,7 +880,7 @@ window.renderMyToday = async function() {
         const [r1, r2, r3] = await Promise.all([
             appDB.from('settings').select('key, value').in('key', rosterKeys),
             appDB.from('schedules').select('shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username),
-            appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal).order('leave_date', { ascending: true }).limit(6)
+            appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').order('leave_date', { ascending: true }).limit(20)   // ทั้งเดือนนี้ + ที่จองล่วงหน้า
         ]);
         rosterRows = r1.data || []; myBreaks = r2.data || []; myLeaves = r3.data || [];
     } catch (e) { console.warn('renderMyToday:', e); }
@@ -927,10 +927,20 @@ window.renderMyToday = async function() {
         ? `ยังเลือกได้อีก <b style="color:#fbbf24">${remain}</b> จาก ${dailyLimit} รอบ · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:#60a5fa;font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>`
         : `ครบ ${dailyLimit} รอบแล้ววันนี้ ✅`;
     // 4) วันหยุดที่จอง
-    const lvVal = myLeaves.length
-        ? myLeaves.map(l => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:12.5px;background:rgba(244,114,182,.14);color:#f9a8d4;border:1px solid rgba(244,114,182,.35)">${_mtFmt(l.leave_date)} <span style="font-size:10px;opacity:.85">(${_mtEsc(l.reason || '-')})</span></span>`).join('')
-        : 'ยังไม่ได้จองวันหยุด';
-    const lvSub = myLeaves.length ? `วันหยุดที่จองไว้ล่วงหน้า ${myLeaves.length} วัน` : `ไปจองได้ที่เมนู <a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">วันหยุด</a>`;
+    const _lvChip = (l) => {
+        const iso = String(l.leave_date || '').slice(0, 10);
+        const state = iso < dateVal ? 'past' : (iso === dateVal ? 'today' : 'next');
+        const st = state === 'past' ? 'background:rgba(148,163,184,.10);color:#94a3b8;border:1px solid rgba(148,163,184,.25);opacity:.75;text-decoration:line-through'
+                 : state === 'today' ? 'background:rgba(244,114,182,.30);color:#fff;border:1px solid #f472b6;box-shadow:0 0 10px rgba(244,114,182,.35)'
+                 : 'background:rgba(244,114,182,.14);color:#f9a8d4;border:1px solid rgba(244,114,182,.35)';
+        return `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:12.5px;${st}" title="${state==='past'?'ผ่านมาแล้ว':state==='today'?'วันนี้':'ยังไม่ถึง'}">${_mtFmt(iso)} <span style="font-size:10px;opacity:.85">(${_mtEsc(l.reason || '-')})</span>${state==='today'?' <b style="font-size:10px">← วันนี้</b>':''}</span>`;
+    };
+    const lvPast = myLeaves.filter(l => String(l.leave_date).slice(0,10) < dateVal).length;
+    const lvNext = myLeaves.length - lvPast;
+    const lvVal = myLeaves.length ? myLeaves.map(_lvChip).join('') : 'ยังไม่ได้จองวันหยุด';
+    const lvSub = myLeaves.length
+        ? `เดือนนี้ ${myLeaves.length} วัน · ผ่านแล้ว ${lvPast} · ยังไม่ถึง ${lvNext} · <a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">ดู/จองเพิ่ม</a>`
+        : `ไปจองได้ที่เมนู <a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">วันหยุด</a>`;
 
     // ── ติดต่อหัวหน้า: ใช้รายชื่อที่แอดมินตั้งค่าไว้ (ตั้งค่าระบบ → ติดต่อหัวหน้า) ก่อน
     //    ถ้ายังไม่ได้ตั้ง → ดึง manager/admin จากรายชื่อพนักงานอัตโนมัติ (แบบเดิม) ──
@@ -1006,7 +1016,7 @@ window.renderMyToday = async function() {
             ${card('schedule', '#60a5fa', 'กะของฉันวันนี้', shiftVal, shiftSub)}
             ${card('work', '#818cf8', 'งานของฉัน (เว็บที่รับผิดชอบ)', jobsVal, jobsSub)}
             ${card('restaurant', '#34d399', 'เวลาพักวันนี้', brVal, brSub)}
-            ${card('event_available', '#f472b6', 'วันหยุดที่จองไว้', lvVal, lvSub)}
+            ${card('event_available', '#f472b6', 'วันหยุดเดือนนี้ + ที่จองล่วงหน้า', lvVal, lvSub)}
         `)}
         ${wrap('ช่องทางติดต่อหัวหน้า', 'support_agent', headRows + `<div style="font-size:11px;color:#64748b;padding-top:10px">หากมีปัญหาหรือติดขัด ติดต่อหัวหน้าก่อนเป็นอันดับแรก</div>`, `<span style="font-size:11px;color:#94a3b8">ทั้งหมด ${heads.length} คน</span>`)}
     `;
