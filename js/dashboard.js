@@ -867,13 +867,24 @@ window._myTodayRefresh = function() {
 // ⏱️ สถานะกะ (อยู่ในกะ/ก่อนเข้ากะ) ขึ้นกับเวลา → เช็คใหม่ทุก 1 นาที (เฉพาะตอนแผงอยู่บนจอ)
 if (!window._myTodayClock) window._myTodayClock = setInterval(() => { if (document.getElementById('myTodayPanel')) window._myTodayRefresh(); }, 60000);
 
+// 📅 เปลี่ยนวันที่ของแผงวันนี้ของฉัน (ว่าง = กลับวันนี้)
+window.myTodaySetDate = function(v) { window._myTodayDate = v || ''; if (typeof window.renderMyToday === 'function') window.renderMyToday(); };
+window.myTodayShift = function(n) {
+    const cur = window._myTodayDate || (document.getElementById('myTodayDate') || {}).value || new Date().toISOString().slice(0, 10);
+    const d = new Date(cur + 'T00:00:00'); d.setDate(d.getDate() + n);
+    window.myTodaySetDate(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+};
+
 window.renderMyToday = async function() {
     const box = document.getElementById('myTodayPanel');
     if (!box || !window.currentUser) return;
     const me = window.currentUser;
     const dateEl = document.getElementById('wDate');
     const t = new Date();
-    const dateVal = (dateEl && dateEl.value) || `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    const todayIso = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    // 📅 วันที่ของแผงนี้เลือกได้เอง (window._myTodayDate) — แยกจากวันที่ฟอร์มลงพักด้านซ้าย
+    const dateVal = window._myTodayDate || (dateEl && dateEl.value) || todayIso;
+    const isToday = dateVal === todayIso;
     const myDep = me.department || 'AM';
     const myShift = ['กะเช้า','กะกลาง','กะดึก'].includes(me.allowed_shift) ? me.allowed_shift : (document.querySelector('input[name="shift"]:checked')?.value || '');
 
@@ -955,7 +966,7 @@ window.renderMyToday = async function() {
         ? myBreaks.map(b => `<span style="display:inline-flex;align-items:center;gap:6px;margin:2px 6px 2px 0;padding:3px 4px 3px 10px;border-radius:8px;font-size:13px;font-family:monospace;background:rgba(52,211,153,.14);color:#6ee7b7;border:1px solid rgba(52,211,153,.35)">${_mtEsc(b.time_slot)}<button type="button" onclick="if(typeof delSch==='function') delSch(${b.id}, '${_mtEsc(b.shift_name)}')" title="ลบช่วงนี้ แล้วลงใหม่ได้" style="border:none;background:rgba(239,68,68,.18);color:#f87171;width:20px;height:20px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1">✕</button></span>`).join('')
         : 'ยังไม่ได้เลือกเวลาพัก';
     const brSub = remain > 0
-        ? `ยังเลือกได้อีก <b style="color:#fbbf24">${remain}</b> จาก ${dailyLimit} รอบ · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:#60a5fa;font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>`
+        ? `ยังเลือกได้อีก <b style="color:#fbbf24">${remain}</b> จาก ${dailyLimit} รอบ${isToday ? ` · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:#60a5fa;font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>` : ' <span style="color:#64748b">(ฟอร์มด้านซ้ายลงของวันปัจจุบันเท่านั้น)</span>'}`
         : `ครบ ${dailyLimit} รอบแล้ววันนี้ ✅ · กด ✕ ที่ช่วงที่ต้องการเพื่อลบแล้วลงใหม่`;
     // 4) วันหยุดที่จอง
     // 🎨 ประเภทวันหยุด: ชื่อ + สี ตรงกับปุ่มในหน้าตารางวันหยุด (leave.html)
@@ -1052,8 +1063,14 @@ window.renderMyToday = async function() {
     box.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:2px 4px">
             <div>
-                <div style="font-size:22px;font-weight:900;color:#f1f5f9">วันนี้</div>
+                <div style="font-size:22px;font-weight:900;color:#f1f5f9">${isToday ? 'วันนี้' : 'วันที่เลือก'}</div>
                 <div style="font-size:12.5px;color:#94a3b8;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="material-icons" style="font-size:15px">calendar_month</span>${_mtFmt(dateVal)} <span style="color:#475569">|</span> <span style="background:rgba(148,163,184,.12);padding:1px 8px;border-radius:5px;color:#cbd5e1;font-weight:700">${_mtEsc(myDep)}</span>${me.team ? `<span style="background:rgba(96,165,250,.14);padding:1px 8px;border-radius:5px;color:#93c5fd;font-weight:700">${_mtEsc(me.team)}</span>` : ''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+                <button onclick="myTodayShift(-1)" title="วันก่อน" style="width:32px;height:34px;border-radius:9px;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.6);color:#cbd5e1;cursor:pointer"><span class="material-icons" style="font-size:16px">chevron_left</span></button>
+                <input type="date" id="myTodayDate" value="${dateVal}" onchange="myTodaySetDate(this.value)" style="background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.25);color:#e2e8f0;border-radius:9px;padding:6px 10px;font-size:12.5px;font-weight:700;min-width:140px">
+                <button onclick="myTodayShift(1)" title="วันถัดไป" style="width:32px;height:34px;border-radius:9px;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.6);color:#cbd5e1;cursor:pointer"><span class="material-icons" style="font-size:16px">chevron_right</span></button>
+                ${isToday ? '' : `<button onclick="myTodaySetDate('')" style="padding:7px 10px;border-radius:9px;border:1px solid rgba(232,193,90,.45);background:rgba(232,193,90,.12);color:#E8C15A;font-size:12px;font-weight:800;cursor:pointer">วันนี้</button>`}
             </div>
         </div>
         ${wrap('วันนี้ของฉัน', 'person', `
