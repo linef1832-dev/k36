@@ -405,14 +405,48 @@ window.saveData = async function(e) {
         }
     }
 
-    const { error } = await appDB.from('schedules').insert([{ 
-        work_date: dateVal, 
-        staff_name: currentUser.username, 
-        team: activeTeam, 
-        shift_name: sName, 
-        time_slot: timeVal,
-        department: myDep 
-    }]);
+    // 🔒 [แก้บั๊กกดพร้อมกัน] เดิม "เช็คก่อน แล้วค่อย insert" เป็น 2 ขั้นแยกกัน → สองคนกดห่างกัน 1 วิ ผ่านทั้งคู่ เพดานหลุด
+    // ตอนนี้ให้ฐานข้อมูลล็อกช่วงเวลาแล้ว "เช็ค+บันทึก" ในจังหวะเดียว (RPC book_break_slot) กดพร้อมกันยังไงก็เข้าคิวทีละคน
+    // ถ้ายังไม่ได้ติดตั้ง RPC ใน Supabase จะถอยไปใช้วิธีเดิมอัตโนมัติ (ไม่พัง แค่ยังกัน race ไม่ได้)
+    let rules = [];
+    if (coverageMap && currentUser.check_type !== 'shift') {
+        const myTeams = (coverageMap.combinedOf && coverageMap.combinedOf[currentUser.username]) || [];
+        myTeams.forEach(team => {
+            const members = (coverageMap.combined && coverageMap.combined[team]) || new Set();
+            if (members.size < 2) return;
+            const raw = window.getBreakMinRemainRaw(coverageMap.dept, coverageMap.shift, team);
+            const minRemain = (raw === null) ? 1 : raw;
+            rules.push({ team, members: [...members], cap: Math.max(0, members.size - minRemain), total: members.size, min_remain: minRemain });
+        });
+    }
+
+    let error = null, bookedViaRpc = false;
+    try {
+        const { data: rpcRes, error: rpcErr } = await appDB.rpc('book_break_slot', {
+            p_work_date: dateVal, p_staff: currentUser.username, p_team: activeTeam,
+            p_shift: sName, p_slot: timeVal, p_dept: myDep, p_rules: rules
+        });
+        if (rpcErr) throw rpcErr;
+        bookedViaRpc = true;
+        if (rpcRes && rpcRes.ok === false) {
+            window.resetBtn();
+            return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} เต็มแล้ว`, html: `<b class="text-red-500">${window.escapeHtml(rpcRes.team || '')}</b> (ต้องเหลือคนเฝ้า ${rpcRes.min_remain}) มี ${rpcRes.total} คน พักพร้อมกันได้ ${rpcRes.cap} — ตอนนี้พักอยู่แล้ว <b>${rpcRes.used}</b><br><br><span class="text-xs text-gray-500">มีคนกดตัดหน้าไปเมื่อกี้ เลือกช่วงอื่น หรือรอให้เพื่อนกลับจากพักก่อน</span>` });
+        }
+    } catch (e) {
+        console.warn('book_break_slot RPC ใช้ไม่ได้ → ใช้วิธีเดิม:', e.message);
+    }
+
+    if (!bookedViaRpc) {
+        const r = await appDB.from('schedules').insert([{ 
+            work_date: dateVal, 
+            staff_name: currentUser.username, 
+            team: activeTeam, 
+            shift_name: sName, 
+            time_slot: timeVal,
+            department: myDep 
+        }]);
+        error = r.error;
+    }
     
     if (error) { window.resetBtn(); Swal.fire('Error', error.message, 'error'); }
     else {
