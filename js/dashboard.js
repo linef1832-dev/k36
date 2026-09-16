@@ -456,11 +456,16 @@ window.subscribeDashboardChanges = function() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
             const key = (payload.new && payload.new.key) || (payload.old && payload.old.key) || '';
             if (!key) return;
+            if (key === 'head_contacts' || key.startsWith('open_time_') || key.startsWith('close_time_')) {
+                if (typeof SETTINGS !== 'undefined' && key !== 'head_contacts') SETTINGS[key] = payload.new ? payload.new.value : undefined;
+                window._myTodayRefresh();   // 🏠 รายชื่อหัวหน้า/เวลากะเปลี่ยน
+            }
             if (key.startsWith('quota_') || key.startsWith('mincover_')) {   // (เหลือไว้เผื่อค่าเก่า)
                 if (typeof SETTINGS !== 'undefined') SETTINGS[key] = payload.new ? payload.new.value : undefined;
                 if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
             } else if (key.startsWith('duty_roster_')) {
                 if (typeof _rosterCache !== 'undefined') delete _rosterCache[key];
+                window._myTodayRefresh();   // 🏠 หัวหน้าจัดเวร/ย้ายเว็บ → งานของฉันเปลี่ยน
                 if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
             } else if (key === 'break_min_remain') {
                 // 🔴 [Realtime] หัวหน้าแก้ค่า "เฝ้า≥" → โหลดค่าใหม่ + วาด dropdown ซ้ำทันที พนักงานไม่ต้องรีเฟรช
@@ -544,7 +549,15 @@ window.subscribeDashboardChanges = function() {
                     if(typeof refreshTimeSlots === 'function') refreshTimeSlots();
                 }, 200);
             }
-        }).subscribe();
+            // 🏠 พักของฉันเปลี่ยน (ตัวเอง/แอดมินลบ) → อัปเดตแผงวันนี้ของฉัน
+            window._myTodayRefresh();
+        })
+        // 🏠 [realtime วันนี้ของฉัน] วันหยุดของฉันถูกจอง/ยกเลิก/อนุมัติ → อัปเดตทันที
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, (payload) => {
+            const uid = String((payload.new && payload.new.user_id) || (payload.old && payload.old.user_id) || '');
+            if (window.currentUser && uid === String(window.currentUser.id)) window._myTodayRefresh();
+        })
+        .subscribe();
 
     if (typeof window.registerPageSubscription === 'function') window.registerPageSubscription(dashboardSubscription);
 };
@@ -838,6 +851,17 @@ function _mtShiftStatus(shift) {
     return { label: 'นอกกะ', color: '#94a3b8', bg: 'rgba(148,163,184,.15)' };
 }
 const _mtShiftBadge = (shift) => ({ 'กะเช้า': ['D','#fbbf24','☀️'], 'กะกลาง': ['M','#60a5fa','🌤️'], 'กะดึก': ['N','#a78bfa','🌙'] }[shift] || ['-','#94a3b8','']);
+
+// 🏠 อัปเดต "วันนี้ของฉัน" แบบหน่วง 400ms (หลาย event ติดกันจะวาดครั้งเดียว) และเฉพาะตอนแผงอยู่บนจอ
+window._myTodayTimer = null;
+window._myTodayRefresh = function() {
+    if (!document.getElementById('myTodayPanel')) return;
+    clearTimeout(window._myTodayTimer);
+    window._myTodayTimer = setTimeout(() => { if (typeof window.renderMyToday === 'function') window.renderMyToday(); }, 400);
+};
+
+// ⏱️ สถานะกะ (อยู่ในกะ/ก่อนเข้ากะ) ขึ้นกับเวลา → เช็คใหม่ทุก 1 นาที (เฉพาะตอนแผงอยู่บนจอ)
+if (!window._myTodayClock) window._myTodayClock = setInterval(() => { if (document.getElementById('myTodayPanel')) window._myTodayRefresh(); }, 60000);
 
 window.renderMyToday = async function() {
     const box = document.getElementById('myTodayPanel');
