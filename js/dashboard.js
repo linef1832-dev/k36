@@ -458,6 +458,7 @@ window.subscribeDashboardChanges = function() {
             if (!key) return;
             if (key === 'head_contacts' || key.startsWith('open_time_') || key.startsWith('close_time_')) {
                 if (typeof SETTINGS !== 'undefined' && key !== 'head_contacts') SETTINGS[key] = payload.new ? payload.new.value : undefined;
+                if (key === 'head_contacts') window._headContactsAt = 0;   // ล้าง cache
                 window._myTodayRefresh();   // 🏠 รายชื่อหัวหน้า/เวลากะเปลี่ยน
             }
             if (key.startsWith('quota_') || key.startsWith('mincover_')) {   // (เหลือไว้เผื่อค่าเก่า)
@@ -857,7 +858,7 @@ window._myTodayTimer = null;
 window._myTodayRefresh = function() {
     if (!document.getElementById('myTodayPanel')) return;
     clearTimeout(window._myTodayTimer);
-    window._myTodayTimer = setTimeout(() => { if (typeof window.renderMyToday === 'function') window.renderMyToday(); }, 400);
+    window._myTodayTimer = setTimeout(() => { if (typeof window.renderMyToday === 'function') window.renderMyToday(); }, 150);
 };
 
 // ⏱️ สถานะกะ (อยู่ในกะ/ก่อนเข้ากะ) ขึ้นกับเวลา → เช็คใหม่ทุก 1 นาที (เฉพาะตอนแผงอยู่บนจอ)
@@ -1068,19 +1069,23 @@ window.toggleFullTable = function(force) {
 // ════════════════════════════════════════════════════════════════════
 window._headContacts = [];
 
-window.loadHeadContacts = async function() {
+window._headContactsAt = 0;
+window.loadHeadContacts = async function(force) {
+    // ⚡ cache 60 วิ (realtime จะล้างให้เมื่อแอดมินแก้)
+    if (!force && window._headContactsAt && Date.now() - window._headContactsAt < 60000) return window._headContacts;
     try {
         const { data } = await appDB.from('settings').select('value').eq('key', 'head_contacts').maybeSingle();
         window._headContacts = (data && data.value) ? JSON.parse(data.value) : [];
     } catch (e) { window._headContacts = []; }
     if (!Array.isArray(window._headContacts)) window._headContacts = [];
+    window._headContactsAt = Date.now();
     return window._headContacts;
 };
 
 window.renderHeadContactsEditor = async function() {
     const box = document.getElementById('headContactsEditor'); if (!box) return;
     box.innerHTML = '<div class="text-center text-gray-500 text-xs py-6">กำลังโหลด...</div>';
-    await window.loadHeadContacts();
+    await window.loadHeadContacts(true);
     const list = window._headContacts;
     const esc = (v) => (window.escapeHtml ? window.escapeHtml(v) : String(v ?? ''));
     const depts = ['AM', 'OD', 'ทุกแผนก'];
