@@ -556,6 +556,8 @@ window.subscribeDashboardChanges = function() {
             window._myTodayRefresh();
         })
         // 🏠 [realtime วันนี้ของฉัน] วันหยุดของฉันถูกจอง/ยกเลิก/อนุมัติ → อัปเดตทันที
+        // 🔄 สลับกะเปลี่ยน (สร้าง/แก้/ยกเลิก) → อัปเดตแผง
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduled_tasks' }, () => { window._myTodayRefresh(); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, (payload) => {
             const uid = String((payload.new && payload.new.user_id) || (payload.old && payload.old.user_id) || '');
             // 🩹 ตอน DELETE สัญญาณส่งมาแค่ id ไม่มี user_id → บอกไม่ได้ว่าของใคร → วาดใหม่เสมอ (ถูกมาก)
@@ -896,14 +898,19 @@ window.renderMyToday = async function() {
     const rosterKeys = [...shiftsToLoad.map(s => `duty_roster_${myDep}_${dateVal}_${s}`), ...shiftsToLoad.map(s => `duty_roster_${myDep}_${ydate}_${s}`)];
     // 🎧 [OD] ผังห้อง Discord ของวัน/กะ (settings: duty_od_rooms_{วันที่}_{กะ} = { เว็บ: "ห้อง 1", ... })
     const roomKeys = myDep === 'OD' ? (myShift ? [`duty_od_rooms_${dateVal}_${myShift}`] : ['กะเช้า','กะกลาง','กะดึก'].map(s => `duty_od_rooms_${dateVal}_${s}`)) : [];
-    let rosterRows = [], myBreaks = [], myLeaves = [];
+    let rosterRows = [], myBreaks = [], myLeaves = [], mySwaps = [];
     try {
-        const [r1, r2, r3] = await Promise.all([
+        const _swEnd = new Date(dateVal + 'T00:00:00'); _swEnd.setDate(_swEnd.getDate() + 60);
+        const [r1, r2, r3, r4] = await Promise.all([
             appDB.from('settings').select('key, value').in('key', [...rosterKeys, ...roomKeys]),
             appDB.from('schedules').select('id, shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username),
-            appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').order('leave_date', { ascending: true }).limit(20)   // ทั้งเดือนนี้ + ที่จองล่วงหน้า
+            appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').order('leave_date', { ascending: true }).limit(20),   // ทั้งเดือนนี้ + ที่จองล่วงหน้า
+            // 🔄 สลับกะของฉัน: ตั้งแต่วันที่ดู ไปอีก 60 วัน (จากหน้าสลับกะ)
+            appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', dateVal + 'T00:00:00').lte('scheduled_for', _swEnd.toISOString().slice(0,10) + 'T23:59:59').order('scheduled_for', { ascending: true })
         ]);
         rosterRows = r1.data || []; myBreaks = r2.data || []; myLeaves = r3.data || [];
+        mySwaps = (r4.data || []).map(t => { let pl = t.payload; if (typeof pl === 'string') { try { pl = JSON.parse(pl); } catch (e) { pl = {}; } } return { ...t, pl: pl || {} }; })
+            .filter(t => t.pl && String(t.pl.user_id) === String(me.id) && t.status !== 'cancelled');
     } catch (e) { console.warn('renderMyToday:', e); }
 
     // เว็บที่ได้รับมอบหมาย (หลัก/รอง) จากตารางเวร
@@ -941,8 +948,12 @@ window.renderMyToday = async function() {
         </div>`;
 
     // 1) กะของฉัน
-    const shiftVal = myShift ? `${sb[2]} ${_mtEsc(myShift)} <span style="font-size:11px;font-weight:700;color:${sb[1]};background:${sb[1]}22;padding:2px 7px;border-radius:6px;margin-left:4px">${sh.open}–${sh.close}</span>` : 'ไม่มีกะ';
-    const shiftSub = st ? `<span style="color:${st.color};font-weight:700">● ${st.label}</span>` : '';
+    // 🔄 วันที่ดูมีสลับกะไหม (target_shift ไม่ใช่ 'คงเดิม') → กะจริงของวันนั้น
+    const swapToday = mySwaps.find(t => String(t.scheduled_for || '').slice(0, 10) === dateVal && t.pl.target_shift && t.pl.target_shift !== 'คงเดิม');
+    const effShift = swapToday ? swapToday.pl.target_shift : myShift;
+    const sbE = _mtShiftBadge(effShift), shE = _mtShiftHours(effShift), stE = effShift ? _mtShiftStatus(effShift) : null;
+    const shiftVal = effShift ? `${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;font-weight:700;color:${sbE[1]};background:${sbE[1]}22;padding:2px 7px;border-radius:6px;margin-left:4px">${shE.open}–${shE.close}</span>${swapToday ? ` <span style="font-size:11px;font-weight:800;color:#fb923c;background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.45);padding:2px 8px;border-radius:999px;margin-left:4px">🔄 สลับกะ</span>` : ''}` : 'ไม่มีกะ';
+    const shiftSub = (stE ? `<span style="color:${stE.color};font-weight:700">● ${stE.label}</span>` : '') + (swapToday ? ` <span style="color:#94a3b8">· วันนี้สลับจาก <b style="color:#cbd5e1">${_mtEsc(swapToday.pl.from_shift || swapToday.pl.original_shift || myShift || '-')}</b> → <b style="color:#fdba74">${_mtEsc(swapToday.pl.target_shift)}</b>${swapToday.pl.display_desc ? ` (${_mtEsc(swapToday.pl.display_desc)})` : ''}</span>` : '');
     // 2) งานของฉัน
     // 🎧 [OD] ห้องเป็นของ "คน" ตามเว็บหลัก (ไม่ใช่ของแต่ละเว็บ) → โชว์ป้ายเดียวจากงานหลัก
     const mainJob = jobs.find(j => j.role === 'หลัก');
@@ -997,6 +1008,22 @@ window.renderMyToday = async function() {
     const lvSub = myLeaves.length
         ? `เดือนนี้ ${myLeaves.length} วัน · ผ่านแล้ว ${lvPast} · ยังไม่ถึง ${lvNext} · <a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">ดู/จองเพิ่ม</a>`
         : `ไปจองได้ที่เมนู <a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">วันหยุด</a>`;
+
+    // ── การ์ดสลับกะ (จากหน้าสลับกะ) ──
+    const swapChip = (t) => {
+        const d = String(t.scheduled_for || '').slice(0, 10);
+        const isD = d === dateVal;
+        const to = t.pl.target_shift || '-', from = t.pl.from_shift || t.pl.original_shift || '';
+        const stay = to === 'คงเดิม';
+        const b = _mtShiftBadge(stay ? from : to);
+        return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px;border-radius:9px;font-size:12.5px;background:rgba(15,23,42,.7);border:1px solid ${isD ? '#fb923c' : 'rgba(251,146,60,.35)'};${isD ? 'box-shadow:0 0 0 2px rgba(251,146,60,.35);' : ''}">
+            <span style="color:#f1f5f9;font-weight:700">${_mtFmt(d)}</span>
+            ${stay ? `<span style="color:#94a3b8;font-size:11px">คงเดิม (${_mtEsc(from)})</span>` : `<span style="color:#94a3b8;font-size:11px">${_mtEsc(from || '?')}</span><span style="color:#fb923c;font-weight:900">→</span><span style="background:${b[1]};color:#0f172a;font-weight:900;font-size:11px;padding:1px 7px;border-radius:5px">${_mtEsc(to)}</span>`}
+            ${t.pl.display_desc ? `<span style="color:#64748b;font-size:10.5px">${_mtEsc(t.pl.display_desc)}</span>` : ''}${isD ? '<b style="font-size:10px;color:#fff;background:#fb923c;padding:1px 6px;border-radius:5px">วันนี้</b>' : ''}
+        </span>`;
+    };
+    const swVal = mySwaps.length ? mySwaps.map(swapChip).join('') : 'ไม่มีการสลับกะ';
+    const swSub = mySwaps.length ? `มี ${mySwaps.length} รายการใน 60 วันข้างหน้า · <a href="javascript:void(0)" onclick="showPage('swap')" style="color:#60a5fa;font-weight:700;text-decoration:underline">ดูหน้าสลับกะ</a>` : `ถ้ามีสลับกะจะขึ้นที่นี่ · <a href="javascript:void(0)" onclick="showPage('swap')" style="color:#60a5fa;font-weight:700;text-decoration:underline">หน้าสลับกะ</a>`;
 
     // ── ติดต่อหัวหน้า: ใช้รายชื่อที่แอดมินตั้งค่าไว้ (ตั้งค่าระบบ → ติดต่อหัวหน้า) ก่อน
     //    ถ้ายังไม่ได้ตั้ง → ดึง manager/admin จากรายชื่อพนักงานอัตโนมัติ (แบบเดิม) ──
@@ -1076,6 +1103,7 @@ window.renderMyToday = async function() {
         ${wrap('วันนี้ของฉัน', 'person', `
             <div style="font-size:11px;color:#64748b;margin-bottom:2px">${_mtEsc(me.username)}</div>
             ${card('schedule', '#60a5fa', 'กะของฉันวันนี้', shiftVal, shiftSub)}
+            ${card('swap_horiz', '#fb923c', 'สลับกะ', swVal, swSub)}
             ${card('work', '#818cf8', 'งานของฉัน (เว็บที่รับผิดชอบ)', jobsVal, jobsSub)}
             ${card('restaurant', '#34d399', 'เวลาพักวันนี้', brVal, brSub)}
             ${card('event_available', '#f472b6', 'วันหยุดเดือนนี้ + ที่จองล่วงหน้า', lvVal, lvSub)}
