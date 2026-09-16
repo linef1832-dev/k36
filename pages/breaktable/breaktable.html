@@ -1,66 +1,58 @@
-<!-- 📊 ตารางลงเวลาพักทั้งหมด (ใครลงกินข้าวกี่โมง) — แยกออกมาจากหน้าหลัก มีสิทธิ์เมนูของตัวเอง (breaktable) -->
-<div class="flex flex-col gap-4 w-full animate-fade-in pb-10">
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-[#151f32] p-4 rounded-2xl border border-slate-700 shadow-xl">
+<!-- 📊 ตารางลงเวลาพัก (ใครลงกินข้าวกี่โมง) — แบบการ์ดตามช่วงเวลา + กดดูรายละเอียด -->
+<div class="w-full animate-fade-in pb-10" id="btPage">
+    <style>
+        #btPage .bt-card{background:#0b1220;border:1px solid rgba(148,163,184,.14);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:66px;transition:border-color .15s,background .15s}
+        #btPage .bt-card:hover{border-color:rgba(96,165,250,.5);background:#0e1730}
+        #btPage .bt-card.bt-empty{opacity:.55}
+        #btPage .bt-time{font-weight:800;font-size:15px;color:#f1f5f9;letter-spacing:.2px;font-family:ui-monospace,Menlo,monospace}
+        #btPage .bt-sub{font-size:11.5px;color:#94a3b8;margin-top:3px}
+        #btPage .bt-av{width:28px;height:28px;border-radius:50%;border:2px solid #0b1220;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:900;color:#fff;margin-left:-8px;letter-spacing:.3px}
+        #btPage .bt-av:first-child{margin-left:0}
+        #btPage .bt-more{background:#334155;color:#e2e8f0}
+        #btPage .bt-eye{width:30px;height:30px;border-radius:8px;border:1px solid rgba(148,163,184,.2);background:rgba(148,163,184,.06);color:#cbd5e1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+        #btPage .bt-eye:hover{border-color:#60a5fa;color:#93c5fd}
+        #btPage .bt-sel{background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:9px;padding:8px 10px;font-size:13px;font-weight:700;outline:none;min-width:130px}
+        #btPage .bt-sel:focus{border-color:#60a5fa}
+        #btPage .bt-navbtn{width:34px;height:34px;border-radius:9px;border:1px solid #334155;background:#0f172a;color:#cbd5e1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+        #btPage .bt-navbtn:hover{border-color:#60a5fa;color:#fff}
+        #btPage .bt-shift-h{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,.14)}
+        .bt-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#cbd5e1;font-size:12px;font-weight:700;cursor:pointer;user-select:none}
+        .bt-chip.on{border-color:#3b82f6;color:#93c5fd;background:rgba(59,130,246,.15)}
+        .bt-chip b{background:#1e293b;padding:0 7px;border-radius:5px;font-size:11px}
+        .bt-row{display:grid;grid-template-columns:1.4fr .7fr .8fr .9fr 1.1fr 42px;gap:8px;align-items:center;padding:10px 8px;border-bottom:1px solid rgba(148,163,184,.1);font-size:13px}
+        .bt-row:hover{background:rgba(148,163,184,.05)}
+        .bt-det{grid-column:1/-1;font-size:11.5px;color:#94a3b8;padding:0 8px 6px 46px;display:none;line-height:1.6}
+        .bt-row.open .bt-det{display:block}
+        .bt-tag{display:inline-block;background:#1e293b;color:#e2e8f0;border:1px solid #334155;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700}
+    </style>
+
+    <!-- หัว: ชื่อหน้า + ตัวเลื่อนวัน + รีเฟรช -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-[#151f32] p-4 rounded-2xl border border-slate-700 shadow-xl">
         <div>
-            <h2 class="text-xl font-black text-white flex items-center gap-2"><span class="material-icons text-cyan-400">table_view</span> ตารางลงเวลาพักทั้งหมด</h2>
-            <p class="text-[11px] text-gray-400 mt-1">ดูว่าใครลงพักช่วงไหน กะไหน ลงเมื่อกี่โมง — เปลี่ยนวันได้ที่ช่องด้านขวา</p>
+            <h2 class="text-xl font-black text-white flex items-center gap-2"><span class="material-icons text-cyan-400">restaurant</span> ลงเวลากินข้าว</h2>
+            <p class="text-[11px] text-gray-400 mt-1" id="btSubTitle">ใครลงพักช่วงไหน — กด 👁 ที่ช่วงเวลาเพื่อดูรายชื่อ</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
-            <label class="text-[11px] text-gray-400 font-bold">วันที่:</label>
-            <!-- ใช้ id="wDate" เหมือนหน้าหลัก เพราะ fetchData() (ตัวเดิม) อ่านวันจาก id นี้ — หน้าละ 1 ตัว ไม่ชนกัน -->
-            <input type="date" id="wDate" onchange="if(typeof fetchData==='function') fetchData()" class="bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-sm font-bold outline-none focus:border-blue-500">
-            <button onclick="if(typeof fetchData==='function') fetchData()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1"><span class="material-icons text-sm">refresh</span> รีเฟรช</button>
+            <button class="bt-navbtn" onclick="btShiftDate(-1)" title="วันก่อน"><span class="material-icons text-[18px]">chevron_left</span></button>
+            <input type="date" id="wDate" onchange="btRender()" class="bt-sel" style="min-width:150px;text-align:center">
+            <button class="bt-navbtn" onclick="btShiftDate(1)" title="วันถัดไป"><span class="material-icons text-[18px]">chevron_right</span></button>
+            <span id="btUpdatedAt" class="text-[11px] text-gray-500 ml-1"></span>
+            <button onclick="btRender(true)" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1"><span class="material-icons text-sm">refresh</span> รีเฟรช</button>
         </div>
     </div>
-    <div class="bg-gray-50 dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden w-full h-full" id="timeTableSection">
-                    <div class="p-4 bg-gray-100 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
-                      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                            <h3 class="font-bold text-lg text-slate-700 dark:text-white flex items-center gap-2 whitespace-nowrap">
-                                <span class="material-icons text-blue-500">today</span> ตารางวันที่: <span id="displayDate" class="text-blue-400">...</span>
-                            </h3>
-                            
-                            <div class="flex gap-2 w-full md:w-auto">
-                                <select id="summaryDeptFilter" onchange="fetchData()" class="p-2 rounded-lg border border-slate-600 text-sm font-bold bg-gray-100 dark:bg-slate-700 text-slate-800 dark:text-white outline-none cursor-pointer focus:border-blue-500 transition shadow-sm">
-                                    <option value="all">🌐 รวมทุกแผนก</option>
-                                    <option value="AM">เฉพาะ AM</option>
-                                    <option value="OD">เฉพาะ OD</option>
-                                </select>
 
-                                <div class="relative flex-1 md:w-64">
-                                    <span class="material-icons absolute left-2 top-2 text-gray-400 text-sm">search</span>
-                                    <input type="text" id="tableSearch" onkeyup="debounceDashboardSearch()" placeholder="ค้นหาชื่อในตาราง..." class="pl-8 pr-2 py-2 rounded-lg border border-slate-600 text-sm bg-gray-100 dark:bg-slate-700 text-slate-800 dark:text-white outline-none focus:border-blue-500 w-full transition shadow-sm">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div id="tableSummary" class="mb-4"></div>
-                        
-                        <div class="flex flex-wrap gap-2 justify-end items-center bg-gray-100 dark:bg-slate-900/50 p-2 rounded-lg border border-gray-200 dark:border-transparent">
-                            <span class="text-xs font-bold text-gray-500 uppercase">ตัวกรอง:</span>
-                            <button onclick="clearSpecificTimeFilter()" id="clearFilterBtn" class="hidden bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1.5 rounded flex items-center"><span class="material-icons text-sm mr-1">close</span> ล้างเวลากรอง</button>
-                            
-                            <select id="tableShiftFilter" onchange="resetSchedPage()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer">
-                                <option value="all">-- ทุกกะ --</option>
-                                <option value="กะเช้า">กะเช้า</option>
-                                <option value="กะกลาง">กะกลาง</option>
-                                <option value="กะดึก">กะดึก</option>
-                            </select>
+    <!-- ตัวกรอง -->
+    <div class="bg-[#0f172a] mt-3 p-3 rounded-2xl border border-slate-700 flex flex-wrap gap-3 items-end">
+        <div><div class="text-[10px] text-gray-400 font-bold mb-1">แผนก</div><select id="btDept" class="bt-sel" onchange="btRender()"><option value="all">ทุกแผนก</option><option value="AM">AM</option><option value="OD">OD</option></select></div>
+        <div><div class="text-[10px] text-gray-400 font-bold mb-1">เว็บ</div><select id="btTeam" class="bt-sel" onchange="btRender()"><option value="all">ทุกเว็บ</option></select></div>
+        <div><div class="text-[10px] text-gray-400 font-bold mb-1">กะ</div><select id="btShift" class="bt-sel" onchange="btRender()"><option value="all">ทุกกะ</option><option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option></select></div>
+        <div class="flex-1 min-w-[160px]"><div class="text-[10px] text-gray-400 font-bold mb-1">ค้นหาชื่อ</div><input id="btSearch" oninput="btRender()" placeholder="พิมพ์ชื่อ..." class="bt-sel w-full"></div>
+    </div>
 
-                            <select id="tableDeptFilter" onchange="resetSchedPage()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกแผนก --</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
-                            <select id="tableTeamFilter" onchange="fetchData()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกเว็บ --</option></select>
-                            <select id="periodFilter" onchange="resetSchedPage()" class="text-sm p-1.5 rounded border border-gray-300 dark:border-slate-600 font-bold text-slate-700 dark:text-white bg-gray-100 dark:bg-slate-700 outline-none cursor-pointer"><option value="all">-- ทุกช่วงเวลา --</option><option value="ช่วงที่ 1">ช่วงที่ 1</option><option value="ช่วงที่ 2">ช่วงที่ 2</option><option value="ช่วงที่ 3">ช่วงที่ 3</option></select>
-                            
-                            <button onclick="manualRefresh()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-3 py-1.5 rounded flex items-center transition shadow-sm"><span class="material-icons text-base">refresh</span></button>
-                        </div>
-                    </div>
-                    
-                    <div class="overflow-x-auto p-4">
-                        <table class="w-full text-base text-left text-gray-300" style="min-width:620px">
-                            <thead class="bg-gray-200 dark:bg-slate-700 uppercase text-sm font-bold text-slate-700 dark:text-gray-200">
-                                <tr><th class="px-6 py-4 w-32 text-center">ช่วง</th><th class="px-6 py-4">ชื่อ</th><th class="px-6 py-4">ทีม (ที่ทำ)</th><th class="px-6 py-4">กะ</th><th class="px-6 py-4">เวลา</th><th class="px-6 py-4" title="เวลาที่พนักงานกดลงจริง — ดูว่าใครกดก่อน-หลัง">ลงเมื่อ</th><th class="px-6 py-4 text-center">จัดการ</th></tr>
-                            </thead>
-                            <tbody id="dataTableBody" class="divide-y divide-slate-700"></tbody>
-                        </table>
-                    </div>
-                </div>
+    <!-- สรุป + การ์ดช่วงเวลา -->
+    <div class="flex items-center justify-between mt-4 mb-1">
+        <div class="text-lg font-black text-white" id="btDateTitle">—</div>
+        <div class="text-[12px] text-gray-400" id="btTotal">จองแล้ว 0 คน</div>
+    </div>
+    <div id="btGrid"><div class="text-center text-gray-500 py-10 text-sm"><span class="material-icons animate-spin text-3xl text-blue-500">sync</span><br>กำลังโหลด...</div></div>
 </div>
