@@ -310,6 +310,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const savedUser = sessionStorage.getItem('user_platinum_plus');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
+        // 🚪 [เช็คว่าถูกเตะไหม] ถ้าแอดมินเตะหลังจากเวลาที่ล็อกอิน → ไม่ให้เข้าต่อ ต้องล็อกอินใหม่ (กันรีเฟรชหนี)
+        if (appDB && currentUser && currentUser.id) {
+            try {
+                const { data: kick } = await appDB.from('settings').select('value').eq('key', `force_logout_${currentUser.id}`).maybeSingle();
+                const kickedAt = kick && kick.value ? parseInt(kick.value, 10) : 0;
+                if (kickedAt && kickedAt > (currentUser._loginAt || 0)) {
+                    sessionStorage.removeItem('user_platinum_plus');
+                    currentUser = null; window.currentUser = null;
+                    Swal.fire({ icon: 'warning', title: 'คุณถูกให้ออกจากระบบ', text: 'ผู้ดูแลระบบให้คุณออกจากระบบ กรุณาล็อกอินใหม่', confirmButtonText: 'ตกลง' });
+                    document.getElementById('loading').classList.add('hidden');
+                    showLogin();
+                    return;
+                }
+            } catch (e) {}
+        }
         // 🔄 ฟังการเปลี่ยนกะ/แผนก/ทีมของตัวเองแบบ realtime (เดิมมีฟังก์ชันแต่ไม่เคยถูกเรียก)
         setTimeout(() => { if (typeof window.subscribeUserChanges === 'function') window.subscribeUserChanges(); }, 300);
         // 📡 ฟังแจ้งเตือนล้าง/กู้คืนกระดาน (ดู js/system/admin.js)
