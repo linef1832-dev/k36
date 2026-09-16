@@ -562,7 +562,7 @@ window.saveWebLogo = async function() {
             const fileExt = (file.name.split('.').pop() || 'webp');
             const fileName = `logo_${web}_${Date.now()}.${fileExt}`;
 
-            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, file, { cacheControl: '31536000', upsert: true });
+            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`logos/${fileName}`, await window.compressImageFile(file, { maxDim: 900, quality: 0.85 }), { cacheControl: '31536000', upsert: true });
             if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ: ' + uploadError.message);
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`logos/${fileName}`);
             finalUrl = publicUrlData.publicUrl;

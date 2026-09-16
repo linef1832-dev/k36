@@ -338,7 +338,7 @@ window.saveFileData = async function(e) {
                 // ให้เวลา 60 วินาทีต่อ 10MB ขั้นต่ำ 90 วินาที
                 const limitMs = Math.min(1800000, Math.max(180000, (file.size / 1024 / 1024) * 10000));
                 const { error: uploadError } = await withTimeout(
-                    appDB.storage.from('staff_images').upload(`files/${fileName}`, file, { cacheControl: '3600', upsert: false }),
+                    appDB.storage.from('staff_images').upload(`files/${fileName}`, await window.compressImageFile(file, { maxDim: 2000, quality: 0.85 }), { cacheControl: '3600', upsert: false }),
                     limitMs, `อัปโหลด "${file.name}"`
                 );
                 if (uploadError) throw new Error(`อัปโหลดไฟล์ ${file.name} ไม่สำเร็จ: ${uploadError.message || ''}`);
@@ -361,7 +361,7 @@ window.saveFileData = async function(e) {
             const coverExt = coverFile.name.split('.').pop();
             const coverName = `cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${coverExt}`;
             const { error: coverError } = await withTimeout(
-                appDB.storage.from('staff_images').upload(`files/covers/${coverName}`, coverFile, { cacheControl: '3600', upsert: false }),
+                appDB.storage.from('staff_images').upload(`files/covers/${coverName}`, await window.compressImageFile(coverFile, { maxDim: 1400, quality: 0.8 }), { cacheControl: '3600', upsert: false }),
                 Math.min(1800000, Math.max(180000, (coverFile.size / 1024 / 1024) * 10000)), `อัปโหลดรูปปก`
             );
             if (coverError) throw new Error('อัปโหลดรูปปกไม่สำเร็จ: ' + coverError.message);

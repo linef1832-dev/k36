@@ -302,7 +302,7 @@ window.handleImageUpload = async function(input) {
         try {
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.floor(Math.random() * 10000)}.${fileExt}`;
-            const { error: uploadError } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
+            const { error: uploadError } = await appDB.storage.from('staff_images').upload(fileName, await window.compressImageFile(file, { maxDim: 1920, quality: 0.85 }), { cacheControl: '3600', upsert: false });
             if (uploadError) throw new Error(uploadError.message);
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
 

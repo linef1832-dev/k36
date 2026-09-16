@@ -174,7 +174,7 @@ window.saveSheetData = async function() {
             const coverFile = coverFileInput.files[0];
             const coverName = `sheet_cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${coverFile.name.split('.').pop()}`;
 
-            const { error: coverError } = await appDB.storage.from('staff_images').upload(`files/covers/${coverName}`, coverFile, { cacheControl: '3600', upsert: false });
+            const { error: coverError } = await appDB.storage.from('staff_images').upload(`files/covers/${coverName}`, await window.compressImageFile(coverFile, { maxDim: 1400, quality: 0.8 }), { cacheControl: '3600', upsert: false });
             if (coverError) throw new Error('อัปโหลดรูปปกไม่สำเร็จ: ' + coverError.message);
             const { data: coverUrlData } = appDB.storage.from('staff_images').getPublicUrl(`files/covers/${coverName}`);
             finalCoverUrl = coverUrlData.publicUrl;

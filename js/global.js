@@ -84,6 +84,35 @@ window.escapeJsAttr = function(s) {
 };
 
 // ==========================================
+// 🖼️ [ย่อรูปก่อนอัปโหลด] ลดขนาดรูปให้พอดีจอ ก่อนส่งขึ้น Supabase Storage
+// เดิม: ปก/โลโก้บางรูป 2-3 MB → โหลดหน้าช้า กินเน็ต · ตอนนี้ย่อเหลือ ~100-300 KB โดยดูบนจอไม่ต่าง
+// - ไม่ใช่รูป / GIF / SVG / รูปเล็กอยู่แล้ว → ส่งคืนตัวเดิม ไม่แตะ
+// - คงนามสกุลเดิม (PNG ยังเป็น PNG กันโปร่งใสหาย, JPEG/WebP ใช้ quality ที่กำหนด)
+// - ถ้าย่อแล้วกลับใหญ่กว่าเดิม → ใช้ตัวเดิม
+// ==========================================
+window.compressImageFile = async function(file, opts) {
+    try {
+        const o = Object.assign({ maxDim: 1600, quality: 0.82, minBytes: 150 * 1024 }, opts || {});
+        if (!file || !(file instanceof Blob)) return file;
+        const type = (file.type || '').toLowerCase();
+        if (!type.startsWith('image/') || type === 'image/gif' || type === 'image/svg+xml') return file;
+        let bmp;
+        try { bmp = await createImageBitmap(file); } catch (e) { return file; }
+        const scale = Math.min(1, o.maxDim / Math.max(bmp.width, bmp.height));
+        if (scale >= 1 && file.size <= o.minBytes) { bmp.close && bmp.close(); return file; }   // เล็กพออยู่แล้ว
+        const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
+        const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d'); ctx.drawImage(bmp, 0, 0, w, h); bmp.close && bmp.close();
+        const outType = (type === 'image/png') ? 'image/png' : (type === 'image/webp' ? 'image/webp' : 'image/jpeg');
+        const blob = await new Promise(res => canvas.toBlob(res, outType, outType === 'image/png' ? undefined : o.quality));
+        if (!blob || blob.size >= file.size) return file;
+        const out = new File([blob], file.name || 'image', { type: outType, lastModified: Date.now() });
+        console.log(`[compressImage] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(out.size/1024).toFixed(0)}KB (${w}x${h})`);
+        return out;
+    } catch (e) { return file; }
+};
+
+// ==========================================
 // 🛡️ แจ้งเตือนเมื่อ "เขียนฐานข้อมูลไม่สำเร็จ"
 // ปัญหาเดิม: มี 56 จุดในโปรเจกต์ที่เขียน DB แล้วเด้ง "สำเร็จ" ทันทีโดยไม่เช็ค error
 // ถ้า Supabase ปฏิเสธ (สิทธิ์ RLS / เน็ตหลุด / ข้อมูลผิดรูป) ผู้ใช้จะเห็นว่าบันทึกแล้ว

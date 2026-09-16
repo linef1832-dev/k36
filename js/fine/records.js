@@ -99,7 +99,7 @@ window.submitFine = async function(e) {
             const fileExt = file.name.split('.').pop();
             const fileName = `fine_${Date.now()}_${Math.floor(Math.random() * 1000)}.${fileExt}`;
 
-            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`fines/${fileName}`, file, { cacheControl: '3600', upsert: false });
+            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`fines/${fileName}`, await window.compressImageFile(file, { maxDim: 1600, quality: 0.85 }), { cacheControl: '3600', upsert: false });
             if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ');
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`fines/${fileName}`);
             imageUrl = publicUrlData.publicUrl;

@@ -800,7 +800,7 @@ window.sop_uploadAttachmentFile = async function(file) {
             }
         }
         const fileName = `sop/${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
-        const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
+        const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, await window.compressImageFile(file, { maxDim: 1600, quality: 0.85 }), { cacheControl: '3600', upsert: false });
         if (upErr) throw new Error(upErr.message);
         const { data: pubData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
         sopAttachmentsBuffer.push({
@@ -1231,7 +1231,7 @@ window.sop_uploadRuleImageFile = async function(file) {
     try {
         const ext = (file.name && file.name.split('.').pop()) || 'png';
         const fileName = `sop/rule_${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
-        const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, file, { cacheControl: '3600', upsert: false });
+        const { error: upErr } = await appDB.storage.from('staff_images').upload(fileName, await window.compressImageFile(file, { maxDim: 1600, quality: 0.85 }), { cacheControl: '3600', upsert: false });
         if (upErr) throw new Error(upErr.message);
         const { data: pubData } = appDB.storage.from('staff_images').getPublicUrl(fileName);
         return { url: pubData.publicUrl, name: file.name || 'image.png', path: fileName };

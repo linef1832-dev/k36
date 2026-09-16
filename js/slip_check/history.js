@@ -324,7 +324,7 @@ window.uploadSlipToStorage = async function(file) {
         const fileExt = file.name ? file.name.split('.').pop() : 'png';
         const fileName = `slip_${Date.now()}_${Math.random().toString(36).substring(2,9)}.${fileExt}`;
 
-        const { error } = await appDB.storage.from('slips').upload(fileName, file);
+        const { error } = await appDB.storage.from('slips').upload(fileName, await window.compressImageFile(file, { maxDim: 1800, quality: 0.9 }));
         if (error) throw error;
 
         const { data: publicUrlData } = appDB.storage.from('slips').getPublicUrl(fileName);
