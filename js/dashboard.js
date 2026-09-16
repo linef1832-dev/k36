@@ -922,7 +922,14 @@ window.renderMyToday = async function() {
     const shiftVal = myShift ? `${sb[2]} ${_mtEsc(myShift)} <span style="font-size:11px;font-weight:700;color:${sb[1]};background:${sb[1]}22;padding:2px 7px;border-radius:6px;margin-left:4px">${sh.open}–${sh.close}</span>` : 'ไม่มีกะ';
     const shiftSub = st ? `<span style="color:${st.color};font-weight:700">● ${st.label}</span>` : '';
     // 2) งานของฉัน
-    const jobsVal = jobs.length ? jobs.map(j => `<span style="display:inline-flex;align-items:center;gap:6px;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:13px;background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'#fcd34d'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span>${myDep === 'OD' ? (j.room ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#22c55e;color:#052e16;font-weight:900;font-size:11px;padding:2px 8px;border-radius:999px"><span class="material-icons" style="font-size:12px">headset</span>${_mtEsc(j.room)}</span>` : `<span style="font-size:10px;color:#94a3b8;background:rgba(148,163,184,.12);padding:2px 7px;border-radius:999px">ยังไม่จัดห้อง</span>`) : ''}</span>`).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
+    // 🎧 [OD] ห้องเป็นของ "คน" ตามเว็บหลัก (ไม่ใช่ของแต่ละเว็บ) → โชว์ป้ายเดียวจากงานหลัก
+    const mainJob = jobs.find(j => j.role === 'หลัก');
+    const roomBadge = (myDep === 'OD' && jobs.length)
+        ? (mainJob && mainJob.room
+            ? `<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 6px 2px 0;padding:3px 12px;border-radius:999px;font-size:13px;background:#22c55e;color:#052e16;font-weight:900"><span class="material-icons" style="font-size:14px">headset</span>เข้า ${_mtEsc(mainJob.room)}</span>`
+            : `<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 6px 2px 0;padding:3px 10px;border-radius:999px;font-size:11.5px;color:#94a3b8;background:rgba(148,163,184,.12)"><span class="material-icons" style="font-size:13px">headset_off</span>ยังไม่จัดห้อง</span>`)
+        : '';
+    const jobsVal = jobs.length ? roomBadge + jobs.map(j => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:13px;background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'#fcd34d'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span></span>`).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
     const jobsSub = jobs.length ? '' : 'หัวหน้ายังไม่ได้จัดเวรวันนี้ หรือคุณไม่อยู่ในตาราง';
     // 3) พักวันนี้
     // 🗑️ แต่ละช่วงมีปุ่ม ✕ ลบได้จากตรงนี้ (ใช้ delSch เดิม: เช็คเวลา + ยืนยัน + รีเฟรชฟอร์มให้) แล้วลงใหม่ที่ฟอร์มซ้ายได้เลย
