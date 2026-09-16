@@ -74,9 +74,6 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
     if (typeof fetchData === 'function') fetchData();
     // 🏠 [หน้าหลักแบบใหม่] วาดวันนี้ของฉัน + ตารางรวมเปิดไว้ให้แอดมิน/หัวหน้า หรือตามที่เคยเลือกไว้
     try {
-        const pref = localStorage.getItem('k36_show_full_table');
-        const isBoss = ['manager','admin'].includes((window.currentUser||{}).role);
-        if (typeof window.toggleFullTable === 'function') window.toggleFullTable(pref === null ? isBoss : pref === '1');
         if (typeof window.renderMyToday === 'function') window.renderMyToday();
     } catch (e) {}
 
@@ -586,6 +583,8 @@ window.openLogsPage = async function() {
         adminPanel.classList.add('hidden');
         adminPanel.classList.remove('flex');
     }
+    const _btp = document.getElementById('breakTablePage');
+    if (_btp) { _btp.classList.add('hidden'); _btp.classList.remove('flex'); }
 
     const logsPage = document.getElementById('logsPage');
     if (logsPage) {
@@ -609,6 +608,8 @@ window.openLogsPage = async function() {
 };
 
 window.backToDashboard = function() {
+    const btp = document.getElementById('breakTablePage');
+    if (btp) { btp.classList.add('hidden'); btp.classList.remove('flex'); }
     const logsPage = document.getElementById('logsPage');
     if (logsPage) {
         logsPage.classList.add('hidden');
@@ -1090,3 +1091,32 @@ window._tgLink = function(v) {
     if (/^\d+$/.test(v)) return `tg://user?id=${v}`;
     return `https://t.me/${v.replace(/^@/, '').replace(/^t\.me\//i, '')}`;
 };
+
+// ════════════════════════════════════════════════════════════════════
+// 📋 [หน้าแยก] ตารางลงเวลาพักทั้งหมด — เปิดจากเมนู "ตารางลงเวลาพัก" (ใช้ตาราง/ตัวกรอง/ฟังก์ชันเดิมทั้งหมด)
+// ════════════════════════════════════════════════════════════════════
+window.openDashboardBreakTable = async function() {
+    if (!document.getElementById('breakTablePage')) {
+        if (typeof showPage === 'function') await showPage('dashboard');
+        if (typeof initDashboard === 'function') await initDashboard();
+    }
+    ['mainContentArea', 'adminPanel', 'logsPage'].forEach(id => { const el = document.getElementById(id); if (el) { el.classList.add('hidden'); el.classList.remove('flex'); } });
+    const page = document.getElementById('breakTablePage');
+    if (page) { page.classList.remove('hidden'); page.classList.add('flex'); }
+    // วันที่ของหน้านี้ผูกกับ wDate (ตัวเดียวกับที่ตารางใช้อยู่แล้ว) — ซิงก์ค่าให้ตรงกัน
+    const w = document.getElementById('wDate'), d = document.getElementById('breakTableDate');
+    if (w && d) d.value = w.value;
+    if (typeof fetchData === 'function') fetchData();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // ไฮไลต์เมนู
+    document.querySelectorAll('.nm-menu-title').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('menuBreakTable'); if (btn) btn.classList.add('active');
+};
+window.breakTableChangeDate = function(v) {
+    const w = document.getElementById('wDate'); if (!w || !v) return;
+    w.value = v;
+    if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
+    if (typeof fetchData === 'function') fetchData();
+};
+// ตัวเดิม (ปุ่มซ่อน/แสดง) ไม่ใช้แล้ว แต่คงไว้กันโค้ดเก่าเรียก
+window.toggleFullTable = function() {};
