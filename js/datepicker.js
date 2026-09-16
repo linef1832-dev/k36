@@ -141,9 +141,37 @@
         openPop.style.left = left + 'px'; openPop.style.top = top + 'px';
     }
 
+    function bindField(input, field) {
+        input.__k36dpField = field;
+        if (field.__k36dpBound) return;
+        field.__k36dpBound = true;
+        const open = () => { if (input.disabled || input.readOnly) return; if (openField === field) { closePop(); return; } buildPop(input, field); };
+        field.addEventListener('click', open);
+        field.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+        input.addEventListener('change', () => updateLabel(input));
+        input.addEventListener('input', () => updateLabel(input));
+    }
+
     function enhance(input) {
-        if (input.__k36dpField || input.dataset.k36dpSkip !== undefined) return;
+        if (input.dataset.k36dpSkip !== undefined) return;
         if (!input.parentNode) return;
+
+        // 🩹 [กันซ้อน] หน้าถูกวาดใหม่จาก HTML ที่จำไว้ → ช่องปฏิทินเดิมติดมาด้วย แต่ input ตัวใหม่ไม่รู้จักมัน
+        // ถ้ามี .k36dp-field ต่อท้ายอยู่แล้ว ให้ "ใช้ซ้ำ" ตัวแรก และลบตัวที่เกินออก (ล้างของที่เคยงอกซ้อนไว้ด้วย)
+        let existing = null, sib = input.nextSibling;
+        while (sib) {
+            const next = sib.nextSibling;
+            if (sib.nodeType === 1 && sib.classList && sib.classList.contains('k36dp-field')) {
+                if (!existing) existing = sib; else sib.remove();
+            } else if (sib.nodeType === 1 || (sib.nodeType === 3 && sib.textContent.trim())) break;
+            sib = next;
+        }
+        if (existing) {
+            if (input.__k36dpField === existing && existing.__k36dpBound) { updateLabel(input); return; }
+            bindField(input, existing); updateLabel(input); return;
+        }
+        if (input.__k36dpField && input.__k36dpField.isConnected) { updateLabel(input); return; }
+
         const field = document.createElement('div');
         // ใช้ class เดิมของช่อง → ขนาด/ขอบ/สีพื้นตรงกับดีไซน์แต่ละหน้าอัตโนมัติ
         field.className = (input.className || '') + ' k36dp-field';
@@ -152,14 +180,9 @@
         // ซ่อนช่องเดิมแต่ยังอยู่ใน DOM (โค้ดเดิมยังอ่าน/เขียน .value ได้)
         input.style.cssText += ';position:absolute!important;opacity:0!important;width:0!important;height:0!important;padding:0!important;margin:0!important;border:0!important;pointer-events:none!important;';
         input.setAttribute('tabindex', '-1');
+        input.dataset.k36dp = '1';
         input.parentNode.insertBefore(field, input.nextSibling);
-        input.__k36dpField = field;
-        const open = () => { if (input.disabled || input.readOnly) return; if (openField === field) { closePop(); return; } buildPop(input, field); };
-        field.addEventListener('click', open);
-        field.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-        // ค่าถูกเปลี่ยนจากโค้ด/ผู้ใช้ → อัปเดตป้าย
-        input.addEventListener('change', () => updateLabel(input));
-        input.addEventListener('input', () => updateLabel(input));
+        bindField(input, field);
         updateLabel(input);
     }
 
@@ -181,7 +204,7 @@
             muts.forEach(mu => mu.addedNodes.forEach(n => { if (n.nodeType === 1) scan(n); }));
         }).observe(document.body, { childList: true, subtree: true });
         // โค้ดเดิมหลายจุดเซ็ต .value ตรงๆ โดยไม่ยิง event → เช็คให้ป้ายตรงกับค่าเป็นระยะ (เบามาก)
-        setInterval(() => document.querySelectorAll('input[type="date"]').forEach(i => { if (i.__k36dpField) updateLabel(i); }), 500);
+        setInterval(() => scan(document), 500);   // scan = ครอบช่องใหม่ + ใช้ซ้ำของเดิม + อัปเดตป้าย
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
