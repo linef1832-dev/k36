@@ -74,10 +74,6 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
     // โหลดข้อมูลรอบเวลาก่อน แล้วค่อย fetchData
     if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
     if (typeof fetchData === 'function') fetchData();
-    // 🏠 [หน้าหลักแบบใหม่] วาดวันนี้ของฉัน + ตารางรวมเปิดไว้ให้แอดมิน/หัวหน้า หรือตามที่เคยเลือกไว้
-    try {
-        if (typeof window.renderMyToday === 'function') window.renderMyToday();
-    } catch (e) {}
 
     // 🌟 เรียกใช้งานระบบ Realtime
     if (typeof subscribeDashboardChanges === 'function') subscribeDashboardChanges();
@@ -877,7 +873,18 @@ window.myTodayShift = function(n) {
     window.myTodaySetDate(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
 };
 
+window._myTodayBusy = false; window._myTodayPending = false;
 window.renderMyToday = async function() {
+    // ⚡ [กันยิงซ้ำ] ถูกเรียกซ้อนกันหลายจุด → วาดครั้งเดียว ที่เหลือรวมเป็นอีก 1 รอบหลังเสร็จ
+    if (window._myTodayBusy) { window._myTodayPending = true; return; }
+    window._myTodayBusy = true;
+    try { await window._renderMyTodayNow(); }
+    finally {
+        window._myTodayBusy = false;
+        if (window._myTodayPending) { window._myTodayPending = false; setTimeout(() => window.renderMyToday(), 50); }
+    }
+};
+window._renderMyTodayNow = async function() {
     const box = document.getElementById('myTodayPanel');
     if (!box || !window.currentUser) return;
     const me = window.currentUser;
