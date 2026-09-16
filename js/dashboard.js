@@ -463,9 +463,9 @@ window.subscribeDashboardChanges = function() {
             if (key.startsWith('quota_') || key.startsWith('mincover_')) {   // (เหลือไว้เผื่อค่าเก่า)
                 if (typeof SETTINGS !== 'undefined') SETTINGS[key] = payload.new ? payload.new.value : undefined;
                 if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
-            } else if (key.startsWith('duty_roster_')) {
+            } else if (key.startsWith('duty_roster_') || key.startsWith('duty_od_rooms_')) {
                 if (typeof _rosterCache !== 'undefined') delete _rosterCache[key];
-                window._myTodayRefresh();   // 🏠 หัวหน้าจัดเวร/ย้ายเว็บ → งานของฉันเปลี่ยน
+                window._myTodayRefresh();   // 🏠 หัวหน้าจัดเวร/ย้ายเว็บ/เปลี่ยนห้อง OD → งานของฉันเปลี่ยน
                 if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
             } else if (key === 'break_min_remain') {
                 // 🔴 [Realtime] หัวหน้าแก้ค่า "เฝ้า≥" → โหลดค่าใหม่ + วาด dropdown ซ้ำทันที พนักงานไม่ต้องรีเฟรช
@@ -875,10 +875,12 @@ window.renderMyToday = async function() {
 
     // ── ดึงข้อมูลพร้อมกัน: เว็บที่ทำวันนี้ / พักของฉัน / วันหยุดที่จอง ──
     const rosterKeys = myShift ? [`duty_roster_${myDep}_${dateVal}_${myShift}`] : ['กะเช้า','กะกลาง','กะดึก'].map(s => `duty_roster_${myDep}_${dateVal}_${s}`);
+    // 🎧 [OD] ผังห้อง Discord ของวัน/กะ (settings: duty_od_rooms_{วันที่}_{กะ} = { เว็บ: "ห้อง 1", ... })
+    const roomKeys = myDep === 'OD' ? (myShift ? [`duty_od_rooms_${dateVal}_${myShift}`] : ['กะเช้า','กะกลาง','กะดึก'].map(s => `duty_od_rooms_${dateVal}_${s}`)) : [];
     let rosterRows = [], myBreaks = [], myLeaves = [];
     try {
         const [r1, r2, r3] = await Promise.all([
-            appDB.from('settings').select('key, value').in('key', rosterKeys),
+            appDB.from('settings').select('key, value').in('key', [...rosterKeys, ...roomKeys]),
             appDB.from('schedules').select('id, shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username),
             appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').order('leave_date', { ascending: true }).limit(20)   // ทั้งเดือนนี้ + ที่จองล่วงหน้า
         ]);
@@ -887,13 +889,16 @@ window.renderMyToday = async function() {
 
     // เว็บที่ได้รับมอบหมาย (หลัก/รอง) จากตารางเวร
     const jobs = [];
-    rosterRows.forEach(row => {
+    const roomMaps = {};   // shift -> { team: room }
+    rosterRows.filter(r => r.key.startsWith('duty_od_rooms_')).forEach(r => { try { roomMaps[r.key.split('_').pop()] = JSON.parse(r.value || '{}'); } catch (e) {} });
+    rosterRows.filter(r => r.key.startsWith('duty_roster_')).forEach(row => {
         let roster = {}; try { roster = JSON.parse(row.value || '{}'); } catch (e) {}
         const shiftOfKey = row.key.split('_').pop();
+        const roomOf = (t) => (roomMaps[shiftOfKey] || {})[t] || '';
         for (const team in roster) (roster[team] || []).forEach(u => {
             if (!u || String(u.username || '').toLowerCase() !== String(me.username).toLowerCase()) return;
-            jobs.push({ team, role: 'หลัก', shift: shiftOfKey });
-            if (u.secondary_team) jobs.push({ team: u.secondary_team, role: 'รอง', shift: shiftOfKey });
+            jobs.push({ team, role: 'หลัก', shift: shiftOfKey, room: roomOf(team) });
+            if (u.secondary_team) jobs.push({ team: u.secondary_team, role: 'รอง', shift: shiftOfKey, room: roomOf(u.secondary_team) });
         });
     });
 
@@ -917,7 +922,7 @@ window.renderMyToday = async function() {
     const shiftVal = myShift ? `${sb[2]} ${_mtEsc(myShift)} <span style="font-size:11px;font-weight:700;color:${sb[1]};background:${sb[1]}22;padding:2px 7px;border-radius:6px;margin-left:4px">${sh.open}–${sh.close}</span>` : 'ไม่มีกะ';
     const shiftSub = st ? `<span style="color:${st.color};font-weight:700">● ${st.label}</span>` : '';
     // 2) งานของฉัน
-    const jobsVal = jobs.length ? jobs.map(j => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:13px;background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'#fcd34d'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span></span>`).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
+    const jobsVal = jobs.length ? jobs.map(j => `<span style="display:inline-flex;align-items:center;gap:6px;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:13px;background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'#fcd34d'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span>${myDep === 'OD' ? (j.room ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#22c55e;color:#052e16;font-weight:900;font-size:11px;padding:2px 8px;border-radius:999px"><span class="material-icons" style="font-size:12px">headset</span>${_mtEsc(j.room)}</span>` : `<span style="font-size:10px;color:#94a3b8;background:rgba(148,163,184,.12);padding:2px 7px;border-radius:999px">ยังไม่จัดห้อง</span>`) : ''}</span>`).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
     const jobsSub = jobs.length ? '' : 'หัวหน้ายังไม่ได้จัดเวรวันนี้ หรือคุณไม่อยู่ในตาราง';
     // 3) พักวันนี้
     // 🗑️ แต่ละช่วงมีปุ่ม ✕ ลบได้จากตรงนี้ (ใช้ delSch เดิม: เช็คเวลา + ยืนยัน + รีเฟรชฟอร์มให้) แล้วลงใหม่ที่ฟอร์มซ้ายได้เลย
