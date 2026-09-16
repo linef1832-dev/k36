@@ -365,10 +365,18 @@ window.switchAdminTab = function(tab) {
     }
 };
 
+// 🆕 [ค้นหาแบบพิมพ์แล้วขึ้นเลย] หน่วง 300ms กันยิง DB ทุกตัวอักษร
+window._fetchLogsTimer = null;
+window.debounceFetchLogs = function() {
+    clearTimeout(window._fetchLogsTimer);
+    window._fetchLogsTimer = setTimeout(() => { if (typeof fetchLogs === 'function') fetchLogs(); }, 300);
+};
+
 window.fetchLogs = async function() {
     const dateVal = document.getElementById('logDate') ? document.getElementById('logDate').value : '';
     const actionVal = document.getElementById('logAction') ? document.getElementById('logAction').value : '';
     const userVal = document.getElementById('logUser') ? document.getElementById('logUser').value.toLowerCase() : '';
+    const teamVal = document.getElementById('logTeam') ? document.getElementById('logTeam').value : '';   // 🆕 กรองเว็บ
 
     // ดึงตาราง system_logs จาก Supabase
     let query = appDB.from('system_logs').select('*').order('log_date', {ascending: false});
@@ -380,6 +388,8 @@ window.fetchLogs = async function() {
     }
 
     if(actionVal) query = query.eq('action_type', actionVal);
+    // 🆕 กรองเว็บ — log ไม่มีคอลัมน์เว็บแยก แต่รายละเอียดมีชื่อเว็บในวงเล็บเสมอ เช่น "(PG688)" → กรองจากข้อความ
+    if(teamVal) query = query.ilike('target_details', `%${teamVal}%`);
 
     const { data, error } = await query;
     const box = document.getElementById('logTableBody');
@@ -570,6 +580,13 @@ window.openLogsPage = async function() {
     if (logsPage) {
         logsPage.classList.remove('hidden');
         logsPage.classList.add('flex');
+        // 🆕 เติมรายชื่อเว็บลง dropdown (เติมครั้งเดียว)
+        const teamSel = document.getElementById('logTeam');
+        if (teamSel && teamSel.options.length <= 1 && typeof TEAM_LIST !== 'undefined') {
+            [...TEAM_LIST].sort((a, b) => a.localeCompare(b)).forEach(t => {
+                const o = document.createElement('option'); o.value = t; o.textContent = t; teamSel.appendChild(o);
+            });
+        }
         if(typeof fetchLogs === 'function') fetchLogs();
     }
 };
@@ -747,3 +764,29 @@ window.checkMissingLunch = async function() {
 
 
 // (ลบระบบแชทสด/กล่องข้อความพนักงานออกทั้งชุดแล้ว — เลิกใช้งาน)
+
+// 🔄 [ปุ่มรีเฟรชมือ] กดแล้วดึงตารางกะ + ยอดว่างล่าสุดทันที ไม่ต้องรีโหลดหน้า
+// หมายเหตุ: dashboard นี้มี realtime อัตโนมัติอยู่แล้ว (subscribeDashboardChanges)
+// ปุ่มนี้ไว้เผื่อกรณีอยากดึงซ้ำมือ/subscription หลุดชั่วคราว
+window._manualRefreshBusy = false;
+window.manualRefreshDashboard = async function() {
+    if (window._manualRefreshBusy) return;
+    window._manualRefreshBusy = true;
+    const icon = document.getElementById('manualRefreshIcon');
+    const btn = document.getElementById('btnManualRefreshDashboard');
+    if (icon) icon.classList.add('animate-spin');
+    if (btn) btn.style.pointerEvents = 'none';
+    try {
+        if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
+        if (typeof fetchData === 'function') await fetchData();
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'อัปเดตข้อมูลล่าสุดแล้ว', showConfirmButton: false, timer: 1400 });
+        }
+    } catch (e) {
+        console.error('manualRefreshDashboard error:', e);
+    } finally {
+        if (icon) icon.classList.remove('animate-spin');
+        if (btn) btn.style.pointerEvents = '';
+        window._manualRefreshBusy = false;
+    }
+};
