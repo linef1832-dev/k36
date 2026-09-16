@@ -377,6 +377,7 @@ window.fetchLogs = async function() {
     const actionVal = document.getElementById('logAction') ? document.getElementById('logAction').value : '';
     const userVal = document.getElementById('logUser') ? document.getElementById('logUser').value.toLowerCase() : '';
     const teamVal = document.getElementById('logTeam') ? document.getElementById('logTeam').value : '';   // 🆕 กรองเว็บ
+    const deptVal = document.getElementById('logDept') ? document.getElementById('logDept').value : '';   // 🆕 กรองแผนก
 
     // ดึงตาราง system_logs จาก Supabase
     let query = appDB.from('system_logs').select('*').order('log_date', {ascending: false});
@@ -390,6 +391,8 @@ window.fetchLogs = async function() {
     if(actionVal) query = query.eq('action_type', actionVal);
     // 🆕 กรองเว็บ — log ไม่มีคอลัมน์เว็บแยก แต่รายละเอียดมีชื่อเว็บในวงเล็บเสมอ เช่น "(PG688)" → กรองจากข้อความ
     if(teamVal) query = query.ilike('target_details', `%${teamVal}%`);
+    // 🆕 กรองแผนก — รายละเอียดมีแผนกในวงเล็บเหลี่ยมเสมอ เช่น "[OD]" → กรองจากข้อความ (ใส่วงเล็บด้วย กันไปชนกับคำอื่น)
+    if(deptVal) query = query.ilike('target_details', `%[${deptVal}]%`);
 
     const { data, error } = await query;
     const box = document.getElementById('logTableBody');
