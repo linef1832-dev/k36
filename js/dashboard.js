@@ -912,15 +912,15 @@ window.renderMyToday = async function() {
     const configured = await window.loadHeadContacts();
     let heads;
     if (configured.length) {
-        heads = configured.filter(c => !c.dept || c.dept === 'ทุกแผนก' || c.dept === myDep)
-            .map(c => ({ username: c.name, department: c.dept === 'ทุกแผนก' ? 'ทุกแผนก' : c.dept, role: null, label: c.label || 'หัวหน้า', allowed_shift: c.shift || '', telegram_id: c.telegram, discord_id: c.discord, note: c.note }));
-        if (!heads.length) heads = configured.map(c => ({ username: c.name, department: c.dept, role: null, label: c.label || 'หัวหน้า', allowed_shift: c.shift || '', telegram_id: c.telegram, discord_id: c.discord, note: c.note }));
+        heads = configured.map(c => ({ username: c.name, department: c.dept || 'AM', role: null, label: c.label || 'หัวหน้า', allowed_shift: c.shift || '', telegram_id: c.telegram, discord_id: c.discord, note: c.note }));
     } else {
         const all = window.GLOBAL_USER_LIST || [];
-        heads = all.filter(u => ['manager','admin'].includes(u.role) && (u.department || 'AM') === myDep);
-        if (!heads.length) heads = all.filter(u => ['manager','admin'].includes(u.role));
+        heads = all.filter(u => ['manager','admin'].includes(u.role)).map(u => ({ ...u, department: u.role === 'admin' ? 'ทุกแผนก' : (u.department || 'AM') }));
     }
-    const headRows = heads.map(u => {
+    // 🗂️ จัดกลุ่มตามแผนก: แผนกตัวเองขึ้นก่อน → แผนกอื่น → ผู้จัดการ (ทุกแผนก) ปิดท้าย
+    const groupOrder = [myDep, ...['AM','OD'].filter(d => d !== myDep), 'ทุกแผนก'];
+    const groupTitle = (d) => d === 'ทุกแผนก' ? '⭐ ผู้จัดการ / ดูแลทุกแผนก' : `👥 หัวหน้า ${d}`;
+    const renderOne = (u) => {
         const b = _mtShiftBadge(u.allowed_shift); const h = _mtShiftHours(u.allowed_shift); const s = ['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift) ? _mtShiftStatus(u.allowed_shift) : null;
         const ini = _mtEsc(String(u.username || '?').substring(0,2).toUpperCase());
         const tg = window._tgLink(u.telegram_id);
@@ -945,7 +945,15 @@ window.renderMyToday = async function() {
                 </div>
             </div>
         </div>`;
-    }).join('') || `<div style="padding:16px;color:#64748b;font-size:12px;text-align:center">ยังไม่ได้ตั้งค่าหัวหน้า — แอดมินตั้งได้ที่ ตั้งค่าระบบ → ติดต่อหัวหน้า</div>`;
+    };
+    const groups = groupOrder.map(d => ({ d, items: heads.filter(u => (u.department || 'AM') === d) })).filter(g => g.items.length);
+    // แผนกที่ไม่อยู่ในรายการมาตรฐาน (เผื่อมีแผนกเพิ่ม) ต่อท้าย
+    heads.filter(u => !groupOrder.includes(u.department || 'AM')).forEach(u => { let g = groups.find(x => x.d === u.department); if (!g) { g = { d: u.department, items: [] }; groups.splice(groups.length - (groups.some(x=>x.d==='ทุกแผนก')?1:0), 0, g); } g.items.push(u); });
+    const headRows = groups.map(g => `
+        <div style="margin-top:10px;padding:6px 10px;border-radius:9px;background:${g.d === myDep ? 'rgba(96,165,250,.14)' : 'rgba(148,163,184,.08)'};border-left:3px solid ${g.d === myDep ? '#60a5fa' : (g.d === 'ทุกแผนก' ? '#fbbf24' : '#64748b')};font-size:12px;font-weight:800;color:${g.d === myDep ? '#93c5fd' : '#cbd5e1'};display:flex;justify-content:space-between;align-items:center">
+            <span>${groupTitle(g.d)}${g.d === myDep ? ' <span style="font-size:10px;font-weight:600;opacity:.8">(แผนกของคุณ)</span>' : ''}</span><span style="font-size:10px;font-weight:600;opacity:.7">${g.items.length} คน</span>
+        </div>${g.items.map(renderOne).join('')}`).join('')
+        || `<div style="padding:16px;color:#64748b;font-size:12px;text-align:center">ยังไม่ได้ตั้งค่าหัวหน้า — แอดมินตั้งได้ที่ ตั้งค่าระบบ → ติดต่อหัวหน้า</div>`;
 
     const wrap = (title, icon, bodyHtml, rightHtml) => `
         <div style="background:linear-gradient(165deg,#0f172a,#0b1120);border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.3)">
@@ -971,7 +979,7 @@ window.renderMyToday = async function() {
             ${card('restaurant', '#34d399', 'เวลาพักวันนี้', brVal, brSub)}
             ${card('event_available', '#f472b6', 'วันหยุดที่จองไว้', lvVal, lvSub)}
         `)}
-        ${wrap('ช่องทางติดต่อหัวหน้า', 'support_agent', headRows + `<div style="font-size:11px;color:#64748b;padding-top:10px">หากมีปัญหาหรือติดขัด ติดต่อหัวหน้าก่อนเป็นอันดับแรก</div>`, `<span style="font-size:11px;color:#94a3b8">แผนก ${_mtEsc(myDep)}</span>`)}
+        ${wrap('ช่องทางติดต่อหัวหน้า', 'support_agent', headRows + `<div style="font-size:11px;color:#64748b;padding-top:10px">หากมีปัญหาหรือติดขัด ติดต่อหัวหน้าก่อนเป็นอันดับแรก</div>`, `<span style="font-size:11px;color:#94a3b8">ทั้งหมด ${heads.length} คน</span>`)}
     `;
 };
 
