@@ -279,6 +279,8 @@ function _renderGalleryGrid() {
         });
     }).join('');
     updateBulkDeleteButton();
+    // 🚀 โหลดรูปเต็มไว้ล่วงหน้าเงียบ ๆ → กดดูรูปแล้วชัดทันที ไม่ต้องรอ/ไม่เบลอ
+    if (typeof window.preloadGalleryFulls === 'function') setTimeout(() => window.preloadGalleryFulls(currentGalleryData), 800);
 }
 window.handleImageUpload = async function(input) {
     const files = input.files;
