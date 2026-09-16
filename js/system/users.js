@@ -524,9 +524,9 @@ async function fetchData() {
 
     updateTableSummary([]); 
     const tBody = document.getElementById('dataTableBody');
-    if(tBody) tBody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-400"><span class="animate-spin material-icons text-3xl text-blue-500 mb-2">sync</span><br><b>กำลังดึงข้อมูล...</b></td></tr>`;
+    if(tBody) tBody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400"><span class="animate-spin material-icons text-3xl text-blue-500 mb-2">sync</span><br><b>กำลังดึงข้อมูล...</b></td></tr>`;
 
-    let query = appDB.from('schedules').select('id, work_date, staff_name, team, shift_name, time_slot, department').eq('work_date', dateVal);
+    let query = appDB.from('schedules').select('id, work_date, staff_name, team, shift_name, time_slot, department, created_at').eq('work_date', dateVal);
     if (tableTeam !== 'all') { query = query.eq('team', tableTeam); }
     const canViewAllShifts = ['manager', 'admin'].includes(currentUser.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
     if (!canViewAllShifts) {
@@ -691,7 +691,7 @@ function renderTableRows(data) {
     }
 
     if(filteredData.length === 0) {
-        box.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>`;
+        box.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>`;
         renderSchedPagination(0, 0, 0, 0);
         return;
     }
@@ -755,6 +755,14 @@ function renderTableRows(data) {
             </td>
             <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-slate-700 dark:bg-slate-600 dark:text-white" style="white-space:nowrap">${i.shift_name}</span></td>
             <td class="px-6 py-4 font-mono text-base text-slate-700 dark:text-gray-300" style="white-space:nowrap">${i.time_slot}</td>
+            <td class="px-6 py-4" style="white-space:nowrap">${(() => {
+                // 🆕 [ลงเมื่อ] เวลาที่พนักงานกดลงจริง — ไว้ดูว่าใครกดก่อน-หลัง
+                if (!i.created_at) return '<span class="text-gray-500 text-xs">-</span>';
+                const d = new Date(i.created_at);
+                const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0'), ss = String(d.getSeconds()).padStart(2, '0');
+                const dd = `${d.getDate()}/${d.getMonth() + 1}`;
+                return `<span class="font-mono text-sm text-emerald-600 dark:text-emerald-400 font-bold">${hh}:${mm}:${ss}</span> <span class="text-[10px] text-gray-500">(${dd})</span>`;
+            })()}</td>
             <td class="px-6 py-4 text-center">${delBtn}</td>
         </tr>`;
     });
