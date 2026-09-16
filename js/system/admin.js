@@ -156,8 +156,43 @@ window.subscribeBoardEvents = function() {
             if (_isMe(p.names)) _toast('success', '✅ เวลาพักของคุณถูกกู้คืนแล้ว', `${_cond(p)} — ไม่ต้องลงใหม่`);
             _refreshBoard();
         })
+        // 🚪 [เตะออกจากระบบ] แอดมินสั่งให้คนนี้หลุดจากเว็บทันที (ทุกแท็บที่เปิดอยู่)
+        .on('broadcast', { event: 'force_logout' }, ({ payload: p }) => {
+            if (!p || !currentUser) return;
+            if (String(p.user_id) !== String(currentUser.id)) return;
+            window._forceLogoutNow(p.by);
+        })
         .subscribe();
     window._boardChannel = _boardChannel;
+};
+
+// 🚪 โดนเตะ: เคลียร์ session แล้วส่งกลับหน้า login
+window._forceLogoutNow = function(byWhom) {
+    Swal.fire({
+        icon: 'warning', title: 'คุณถูกให้ออกจากระบบ',
+        text: `ผู้ดูแลระบบ${byWhom ? ' (' + byWhom + ')' : ''} ให้คุณออกจากระบบ กรุณาล็อกอินใหม่`,
+        allowOutsideClick: false, allowEscapeKey: false, confirmButtonText: 'ตกลง', timer: 6000, timerProgressBar: true
+    }).then(() => { if (typeof logout === 'function') logout(); else location.reload(); });
+};
+
+// 🚪 [แอดมิน] เตะพนักงานออกจากระบบ — ส่งสัญญาณสด + จดเวลาไว้ใน DB (กันรีเฟรชหนี)
+window.kickUserOut = async function(userId, username) {
+    if (!['manager', 'admin'].includes(currentUser.role)) return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะแอดมิน/ผู้จัดการ', 'error');
+    if (String(userId) === String(currentUser.id)) return Swal.fire('ไม่ได้', 'เตะตัวเองไม่ได้ ใช้ปุ่มออกจากระบบแทน', 'warning');
+    const ask = await Swal.fire({
+        icon: 'question', title: `เตะ ${username} ออกจากระบบ?`,
+        html: `<div class="text-sm text-gray-400">คนนี้จะหลุดจากเว็บทันทีทุกอุปกรณ์ที่เปิดอยู่<br>และต้อง<b>ล็อกอินใหม่</b>ถึงจะเข้าได้อีก (ไม่ได้ลบ/แบนบัญชี)</div>`,
+        showCancelButton: true, confirmButtonText: '🚪 เตะออกเลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc2626'
+    });
+    if (!ask.isConfirmed) return;
+    try {
+        // 1) จดเวลาเตะไว้ใน DB — ถ้าพนักงานรีเฟรชหนี ตอนโหลดใหม่จะเจอว่าถูกเตะ ต้องล็อกอินใหม่
+        await appDB.from('settings').upsert({ key: `force_logout_${userId}`, value: String(Date.now()) }, { onConflict: 'key' });
+        // 2) ส่งสัญญาณสดให้หลุดทันที
+        await _broadcastBoard('force_logout', { user_id: userId, username, by: currentUser.username });
+        if (typeof logAction === 'function') await logAction('เตะออกจากระบบ', `เตะ ${username} ออกจากระบบ`);
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `เตะ ${username} ออกแล้ว`, showConfirmButton: false, timer: 2500 });
+    } catch (e) { Swal.fire('ผิดพลาด', e.message, 'error'); }
 };
 
 // ส่ง event (ถ้าช่องยังไม่พร้อม จะข้ามเงียบๆ ไม่ทำให้การลบล้ม)
