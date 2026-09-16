@@ -197,6 +197,7 @@ window._finishLoginAfterIp = async function(user, remember) {
     Swal.close();
 
     currentUser = user;
+    user._loginAt = Date.now();   // 🚪 จดเวลาล็อกอิน — ไว้เทียบว่าถูกเตะหลังจากนี้ไหม
     sessionStorage.setItem('user_platinum_plus', JSON.stringify(user));
     if (typeof window.subscribeUserChanges === 'function') window.subscribeUserChanges();
     if (typeof window.subscribeBoardEvents === 'function') window.subscribeBoardEvents();
