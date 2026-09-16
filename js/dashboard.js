@@ -1100,14 +1100,16 @@ window.renderMyToday = async function() {
                 ${isToday ? '' : `<button onclick="myTodaySetDate('')" style="padding:7px 10px;border-radius:9px;border:1px solid rgba(232,193,90,.45);background:rgba(232,193,90,.12);color:#E8C15A;font-size:12px;font-weight:800;cursor:pointer">วันนี้</button>`}
             </div>
         </div>
-        ${wrap('วันนี้ของฉัน', 'person', `
-            <div style="font-size:11px;color:#64748b;margin-bottom:2px">${_mtEsc(me.username)}</div>
-            ${card('schedule', '#60a5fa', 'กะของฉันวันนี้', shiftVal, shiftSub)}
+        ${wrap('วันนี้ของฉัน <span style="font-size:11px;font-weight:600;color:#64748b;margin-left:4px">${_mtEsc(me.username)}</span>', 'person', `
             ${card('work', '#818cf8', 'งานของฉัน (เว็บที่รับผิดชอบ)', jobsVal, jobsSub)}
             ${card('restaurant', '#34d399', 'เวลาพักวันนี้', brVal, brSub)}
             ${card('event_available', '#f472b6', 'วันหยุดเดือนนี้ + ที่จองล่วงหน้า', lvVal, lvSub)}
             ${card('swap_horiz', '#fb923c', 'สลับกะ', swVal, swSub)}
-        `)}
+        `, effShift ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+                <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:${sbE[1]}22;border:1px solid ${sbE[1]}66;color:#f1f5f9;font-weight:800;font-size:13px">${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;color:${sbE[1]};font-family:monospace">${shE.open}–${shE.close}</span></span>
+                ${stE ? `<span style="font-size:11px;font-weight:800;color:${stE.color};background:${stE.bg};padding:4px 9px;border-radius:999px">● ${stE.label}</span>` : ''}
+                ${swapToday ? `<span title="วันนี้สลับจาก ${_mtEsc(swapToday.pl.from_shift || swapToday.pl.original_shift || myShift || '-')} → ${_mtEsc(swapToday.pl.target_shift)}" style="font-size:11px;font-weight:800;color:#fb923c;background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.45);padding:4px 9px;border-radius:999px">🔄 สลับกะ</span>` : ''}
+            </div>` : `<span style="font-size:11px;color:#64748b">ไม่มีกะ</span>`)}
         ${wrap('ช่องทางติดต่อหัวหน้า', 'support_agent', headRows + `<div style="font-size:11px;color:#64748b;padding-top:10px">หากมีปัญหาหรือติดขัด ติดต่อหัวหน้าก่อนเป็นอันดับแรก</div>`, `<span style="font-size:11px;color:#94a3b8">ทั้งหมด ${heads.length} คน</span>`)}
     `;
 };
