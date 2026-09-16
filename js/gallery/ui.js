@@ -134,7 +134,26 @@ window.openLightbox = function(index) {
 function _updateLightbox() {
     const img = _lbData[_lbIndex];
     if (!img) return;
-    document.getElementById('lightboxImg').src              = img.url;
+    // ⚡ [เร็วขึ้น] โชว์รูปย่อที่โหลดไว้แล้วทันที (ไม่ต้องรอ 4-5 วิ) แล้วค่อยสลับเป็นรูปเต็มเมื่อโหลดเสร็จ
+    const el = document.getElementById('lightboxImg');
+    const thumb = img.thumb_url || '';
+    const myIdx = _lbIndex;
+    if (thumb && thumb !== img.url) {
+        el.src = thumb;
+        el.style.filter = 'blur(6px)';            // รูปย่อขยายเต็มจอจะไม่คม → เบลอบาง ๆ ระหว่างรอของจริง
+        el.style.transition = 'filter .25s';
+        const full = new Image();
+        full.onload = () => { if (_lbIndex !== myIdx) return; el.src = img.url; el.style.filter = ''; };
+        full.onerror = () => { if (_lbIndex !== myIdx) return; el.src = img.url; el.style.filter = ''; };
+        full.src = img.url;
+    } else {
+        el.style.filter = '';
+        el.src = img.url;
+    }
+    // โหลดรูปถัดไป/ก่อนหน้าไว้ล่วงหน้า → กดลูกศรแล้วขึ้นทันที
+    [1, -1].forEach(d => { const n = _lbData[(_lbIndex + d + _lbData.length) % _lbData.length]; if (n && n.url) { const p = new Image(); p.src = n.url; } });
+    const _skipOldSrc = true;
+    if (!_skipOldSrc) document.getElementById('lightboxImg').src = img.url;
     document.getElementById('lightboxName').textContent     = img.name || '';
     document.getElementById('lightboxCounter').textContent  = `${_lbIndex + 1} / ${_lbData.length}`;
     document.getElementById('lightboxDownload').href        = img.url;
