@@ -332,7 +332,7 @@ async function _doRefreshTimeSlots() {
 // (ลบ openAdminPanel / undoClearSchedules ออกจากไฟล์นี้ — มีตัวเต็มอยู่ใน system_core.js อยู่แล้ว
 //  เดิมไฟล์นี้โหลดทีหลังเลย "เขียนทับ" ตัวเต็ม ทำให้การเช็คสิทธิ์แท็บแอดมินและด่านเช็ค admin ไม่เคยทำงาน)
 window.switchAdminTab = function(tab) {
-    const tabs = ['settings', 'users', 'perms', 'quotalog'];
+    const tabs = ['settings', 'users', 'perms', 'quotalog', 'contacts'];
 
     tabs.forEach(t => {
         // 1. จัดการปุ่มเมนูด้านบน (เปลี่ยนสี)
@@ -360,6 +360,7 @@ window.switchAdminTab = function(tab) {
 
     // 🕘 แท็บประวัติโควตา/หน้าที่ → โหลดใหม่ทุกครั้งที่เปิด
     if (tab === 'quotalog' && typeof window.renderQuotaHistory === 'function') window.renderQuotaHistory();
+    if (tab === 'contacts' && typeof window.renderHeadContactsEditor === 'function') window.renderHeadContactsEditor();
 
     // 🌟 เพิ่มโค้ดตรงนี้: บังคับวาดตารางรายชื่อใหม่เสมอเมื่อกดเข้าแท็บ "จัดการพนักงาน"
     if (tab === 'users') {
@@ -906,14 +907,24 @@ window.renderMyToday = async function() {
         : 'ยังไม่ได้จองวันหยุด';
     const lvSub = myLeaves.length ? `วันหยุดที่จองไว้ล่วงหน้า ${myLeaves.length} วัน` : `ไปจองได้ที่เมนู <a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">วันหยุด</a>`;
 
-    // ── ติดต่อหัวหน้า (manager/admin ในแผนกเดียวกัน ถ้าไม่มีให้แสดงทุกแผนก) ──
-    const all = window.GLOBAL_USER_LIST || [];
-    let heads = all.filter(u => ['manager','admin'].includes(u.role) && (u.department || 'AM') === myDep);
-    if (!heads.length) heads = all.filter(u => ['manager','admin'].includes(u.role));
+    // ── ติดต่อหัวหน้า: ใช้รายชื่อที่แอดมินตั้งค่าไว้ (ตั้งค่าระบบ → ติดต่อหัวหน้า) ก่อน
+    //    ถ้ายังไม่ได้ตั้ง → ดึง manager/admin จากรายชื่อพนักงานอัตโนมัติ (แบบเดิม) ──
+    const configured = await window.loadHeadContacts();
+    let heads;
+    if (configured.length) {
+        heads = configured.filter(c => !c.dept || c.dept === 'ทุกแผนก' || c.dept === myDep)
+            .map(c => ({ username: c.name, department: c.dept === 'ทุกแผนก' ? 'ทุกแผนก' : c.dept, role: null, label: c.label || 'หัวหน้า', allowed_shift: c.shift || '', telegram_id: c.telegram, discord_id: c.discord, note: c.note }));
+        if (!heads.length) heads = configured.map(c => ({ username: c.name, department: c.dept, role: null, label: c.label || 'หัวหน้า', allowed_shift: c.shift || '', telegram_id: c.telegram, discord_id: c.discord, note: c.note }));
+    } else {
+        const all = window.GLOBAL_USER_LIST || [];
+        heads = all.filter(u => ['manager','admin'].includes(u.role) && (u.department || 'AM') === myDep);
+        if (!heads.length) heads = all.filter(u => ['manager','admin'].includes(u.role));
+    }
     const headRows = heads.map(u => {
         const b = _mtShiftBadge(u.allowed_shift); const h = _mtShiftHours(u.allowed_shift); const s = ['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift) ? _mtShiftStatus(u.allowed_shift) : null;
         const ini = _mtEsc(String(u.username || '?').substring(0,2).toUpperCase());
-        const tg = u.telegram_id ? (/^\d+$/.test(String(u.telegram_id)) ? `tg://user?id=${_mtEsc(u.telegram_id)}` : `https://t.me/${_mtEsc(String(u.telegram_id).replace(/^@/,''))}`) : null;
+        const tg = window._tgLink(u.telegram_id);
+        const label = u.label || (u.role === 'admin' ? 'ADMIN' : 'หัวหน้า');
         return `
         <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 4px;border-bottom:1px solid rgba(148,163,184,.1)">
             <div style="width:40px;height:40px;border-radius:50%;background:#1e293b;border:1px solid #334155;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:#cbd5e1;flex-shrink:0">${ini}</div>
@@ -921,19 +932,20 @@ window.renderMyToday = async function() {
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                     <span style="font-weight:800;color:#f1f5f9;font-size:14px">${_mtEsc(u.username)}</span>
                     <span style="font-size:10px;color:#94a3b8;background:rgba(148,163,184,.12);padding:1px 7px;border-radius:5px">${_mtEsc(u.department || '-')}</span>
-                    <span style="font-size:10px;color:#c084fc;background:rgba(192,132,252,.12);padding:1px 7px;border-radius:5px">${u.role === 'admin' ? 'ADMIN' : 'หัวหน้า'}</span>
+                    <span style="font-size:10px;color:#c084fc;background:rgba(192,132,252,.12);padding:1px 7px;border-radius:5px">${_mtEsc(label)}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
                     ${s ? `<span style="font-size:11px;font-weight:700;color:${s.color};background:${s.bg};padding:2px 8px;border-radius:6px">${s.label}</span>` : ''}
                     ${['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift) ? `<span style="font-size:11px;font-weight:900;color:#0f172a;background:${b[1]};padding:1px 6px;border-radius:5px">${b[0]}</span><span style="font-size:12px;color:#cbd5e1;font-family:monospace">${h.open}–${h.close}</span>` : `<span style="font-size:11px;color:#64748b">ทุกกะ</span>`}
                 </div>
+                ${u.note ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:5px">${_mtEsc(u.note)}</div>` : ''}
                 <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;font-size:12px">
-                    ${tg ? `<a href="${tg}" target="_blank" style="color:#38bdf8;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><span class="material-icons" style="font-size:14px">send</span>Telegram</a>` : `<span style="color:#475569">ไม่มี Telegram</span>`}
-                    ${u.discord_id ? `<span style="color:#a78bfa;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="กดเพื่อก็อป Discord ID" onclick="navigator.clipboard&&navigator.clipboard.writeText('${_mtEsc(u.discord_id)}');Swal.fire({toast:true,position:'top-end',icon:'success',title:'ก็อป Discord ID แล้ว',showConfirmButton:false,timer:1500})"><span class="material-icons" style="font-size:14px">content_copy</span>Discord</span>` : ''}
+                    ${tg ? `<a href="${_mtEsc(tg)}" target="_blank" style="color:#38bdf8;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><span class="material-icons" style="font-size:14px">send</span>${_mtEsc(String(u.telegram_id).startsWith('@') ? u.telegram_id : 'Telegram')}</a>` : `<span style="color:#475569">ไม่มี Telegram</span>`}
+                    ${u.discord_id ? `<span style="color:#a78bfa;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="กดเพื่อก็อป Discord" onclick="navigator.clipboard&&navigator.clipboard.writeText('${_mtEsc(u.discord_id)}');Swal.fire({toast:true,position:'top-end',icon:'success',title:'ก็อป Discord แล้ว',showConfirmButton:false,timer:1500})"><span class="material-icons" style="font-size:14px">content_copy</span>${_mtEsc(u.discord_id)}</span>` : ''}
                 </div>
             </div>
         </div>`;
-    }).join('') || `<div style="padding:16px;color:#64748b;font-size:12px;text-align:center">ยังไม่มีหัวหน้าในระบบ</div>`;
+    }).join('') || `<div style="padding:16px;color:#64748b;font-size:12px;text-align:center">ยังไม่ได้ตั้งค่าหัวหน้า — แอดมินตั้งได้ที่ ตั้งค่าระบบ → ติดต่อหัวหน้า</div>`;
 
     const wrap = (title, icon, bodyHtml, rightHtml) => `
         <div style="background:linear-gradient(165deg,#0f172a,#0b1120);border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.3)">
@@ -974,4 +986,99 @@ window.toggleFullTable = function(force) {
     if (icon) icon.textContent = show ? 'expand_less' : 'expand_more';
     if (label) label.textContent = show ? 'ซ่อนตารางลงเวลาทั้งหมด' : 'ดูตารางลงเวลาทั้งหมด (ใครลงกินข้าวกี่โมง)';
     try { localStorage.setItem('k36_show_full_table', show ? '1' : '0'); } catch (e) {}
+};
+
+// ════════════════════════════════════════════════════════════════════
+// 🎧 [ตั้งค่า] ช่องทางติดต่อหัวหน้า — เก็บใน settings key 'head_contacts' (JSON array)
+// แต่ละคน: { name, dept, label, shift, telegram, discord, note }
+// ════════════════════════════════════════════════════════════════════
+window._headContacts = [];
+
+window.loadHeadContacts = async function() {
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'head_contacts').maybeSingle();
+        window._headContacts = (data && data.value) ? JSON.parse(data.value) : [];
+    } catch (e) { window._headContacts = []; }
+    if (!Array.isArray(window._headContacts)) window._headContacts = [];
+    return window._headContacts;
+};
+
+window.renderHeadContactsEditor = async function() {
+    const box = document.getElementById('headContactsEditor'); if (!box) return;
+    box.innerHTML = '<div class="text-center text-gray-500 text-xs py-6">กำลังโหลด...</div>';
+    await window.loadHeadContacts();
+    const list = window._headContacts;
+    const esc = (v) => (window.escapeHtml ? window.escapeHtml(v) : String(v ?? ''));
+    const depts = ['AM', 'OD', 'ทุกแผนก'];
+    const shifts = ['', 'กะเช้า', 'กะกลาง', 'กะดึก'];
+    if (!list.length) {
+        box.innerHTML = `<div class="text-center text-gray-500 text-xs py-8 border border-dashed border-slate-700 rounded-xl">ยังไม่มีรายชื่อ — กด "เพิ่มคน" เพื่อเริ่ม<br><span class="text-[10px]">(ถ้าไม่ตั้ง ระบบจะดึงแอดมิน/หัวหน้าจากรายชื่อพนักงานให้อัตโนมัติ)</span></div>`;
+        return;
+    }
+    box.innerHTML = `
+        <div class="grid text-[10px] text-gray-500 font-bold px-2" style="grid-template-columns:34px 1.2fr .8fr .9fr .9fr 1.2fr 1fr 1.2fr 70px;gap:6px">
+            <div>#</div><div>ชื่อที่แสดง</div><div>แผนก</div><div>ตำแหน่ง/ป้าย</div><div>กะ</div><div>Telegram (@ หรือลิงก์)</div><div>Discord ID</div><div>หมายเหตุ</div><div></div>
+        </div>` +
+        list.map((c, i) => `
+        <div class="grid items-center bg-slate-900/60 border border-slate-700 rounded-xl px-2 py-2" style="grid-template-columns:34px 1.2fr .8fr .9fr .9fr 1.2fr 1fr 1.2fr 70px;gap:6px">
+            <div class="text-xs text-gray-500 font-bold text-center">${i + 1}</div>
+            <input data-f="name" data-i="${i}" value="${esc(c.name || '')}" placeholder="ชื่อ" class="hc-in">
+            <select data-f="dept" data-i="${i}" class="hc-in">${depts.map(d => `<option value="${d}" ${(c.dept || 'AM') === d ? 'selected' : ''}>${d}</option>`).join('')}</select>
+            <input data-f="label" data-i="${i}" value="${esc(c.label || 'หัวหน้า')}" placeholder="เช่น หัวหน้า AM" class="hc-in">
+            <select data-f="shift" data-i="${i}" class="hc-in">${shifts.map(sv => `<option value="${sv}" ${(c.shift || '') === sv ? 'selected' : ''}>${sv || 'ทุกกะ'}</option>`).join('')}</select>
+            <input data-f="telegram" data-i="${i}" value="${esc(c.telegram || '')}" placeholder="@username" class="hc-in">
+            <input data-f="discord" data-i="${i}" value="${esc(c.discord || '')}" placeholder="Discord ID / ชื่อ" class="hc-in">
+            <input data-f="note" data-i="${i}" value="${esc(c.note || '')}" placeholder="เช่น ติดต่อเรื่องเวร" class="hc-in">
+            <div class="flex gap-1 justify-end">
+                <button onclick="moveHeadContact(${i},-1)" class="text-gray-400 hover:text-white p-1" title="เลื่อนขึ้น"><span class="material-icons text-sm">arrow_upward</span></button>
+                <button onclick="moveHeadContact(${i},1)" class="text-gray-400 hover:text-white p-1" title="เลื่อนลง"><span class="material-icons text-sm">arrow_downward</span></button>
+                <button onclick="removeHeadContact(${i})" class="text-red-400 hover:text-red-300 p-1" title="ลบ"><span class="material-icons text-sm">delete</span></button>
+            </div>
+        </div>`).join('') +
+        `<style>.hc-in{background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:7px 9px;font-size:12px;outline:none;min-width:0;width:100%}.hc-in:focus{border-color:#fbbf24}</style>`;
+    box.querySelectorAll('.hc-in').forEach(el => el.addEventListener('input', () => {
+        const i = +el.dataset.i, f = el.dataset.f; if (window._headContacts[i]) window._headContacts[i][f] = el.value;
+    }));
+    box.querySelectorAll('select.hc-in').forEach(el => el.addEventListener('change', () => {
+        const i = +el.dataset.i, f = el.dataset.f; if (window._headContacts[i]) window._headContacts[i][f] = el.value;
+    }));
+};
+
+window.addHeadContactRow = function() {
+    window._headContacts.push({ name: '', dept: (window.currentUser && window.currentUser.department) || 'AM', label: 'หัวหน้า', shift: '', telegram: '', discord: '', note: '' });
+    window._renderHeadContactsFromMemory();
+};
+window.removeHeadContact = function(i) { window._headContacts.splice(i, 1); window._renderHeadContactsFromMemory(); };
+window.moveHeadContact = function(i, d) {
+    const j = i + d; const L = window._headContacts;
+    if (j < 0 || j >= L.length) return;
+    [L[i], L[j]] = [L[j], L[i]]; window._renderHeadContactsFromMemory();
+};
+// วาดใหม่จากข้อมูลในหน่วยความจำ (ไม่โหลดจาก DB ทับของที่กำลังแก้)
+window._renderHeadContactsFromMemory = function() {
+    const keep = window._headContacts; const orig = window.loadHeadContacts;
+    window.loadHeadContacts = async () => keep;
+    window.renderHeadContactsEditor().finally(() => { window.loadHeadContacts = orig; });
+};
+
+window.saveHeadContacts = async function() {
+    const list = (window._headContacts || []).map(c => ({
+        name: String(c.name || '').trim(), dept: c.dept || 'AM', label: String(c.label || '').trim() || 'หัวหน้า', shift: c.shift || '',
+        telegram: String(c.telegram || '').trim(), discord: String(c.discord || '').trim(), note: String(c.note || '').trim()
+    })).filter(c => c.name);
+    try {
+        await appDB.from('settings').upsert({ key: 'head_contacts', value: JSON.stringify(list) }, { onConflict: 'key' });
+        window._headContacts = list;
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `บันทึกแล้ว (${list.length} คน)`, showConfirmButton: false, timer: 2000 });
+        window._renderHeadContactsFromMemory();
+        if (typeof window.renderMyToday === 'function') window.renderMyToday();
+    } catch (e) { Swal.fire('บันทึกไม่สำเร็จ', e.message, 'error'); }
+};
+
+// ลิงก์ Telegram จากค่าที่ตั้ง: @name / name / t.me/name / ตัวเลข id
+window._tgLink = function(v) {
+    v = String(v || '').trim(); if (!v) return null;
+    if (/^https?:\/\//i.test(v)) return v;
+    if (/^\d+$/.test(v)) return `tg://user?id=${v}`;
+    return `https://t.me/${v.replace(/^@/, '').replace(/^t\.me\//i, '')}`;
 };
