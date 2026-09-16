@@ -137,7 +137,21 @@
             </div>
 
             <div class="lg:col-span-8 flex flex-col gap-6">
-                <div class="bg-gray-50 dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden w-full h-full" id="timeTableSection">
+                <!-- 🆕 [หน้าหลักแบบใหม่] วันนี้ของฉัน — เห็นของตัวเองก่อน (วาดด้วย JS: renderMyToday) -->
+                <div id="myTodayPanel" style="display:flex;flex-direction:column;gap:14px">
+                    <div style="text-align:center;color:#64748b;font-size:12px;padding:20px">กำลังโหลดข้อมูลของคุณ...</div>
+                </div>
+
+                <!-- 🆕 ปุ่มเปิด/ปิดตารางรวม (ใครลงกินข้าวกี่โมง) — ซ่อนไว้ก่อน ไม่รกหน้าหลัก -->
+                <button id="toggleFullTableBtn" onclick="toggleFullTable()"
+                    style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:14px;border:1px dashed rgba(148,163,184,0.35);background:rgba(15,23,42,0.6);color:#94a3b8;font-weight:700;font-size:13px;cursor:pointer;transition:all .15s"
+                    onmouseover="this.style.borderColor='#60a5fa';this.style.color='#e2e8f0'" onmouseout="this.style.borderColor='rgba(148,163,184,0.35)';this.style.color='#94a3b8'">
+                    <span class="material-icons" style="font-size:18px">table_view</span>
+                    <span id="toggleFullTableLabel">ดูตารางลงเวลาทั้งหมด (ใครลงกินข้าวกี่โมง)</span>
+                    <span class="material-icons" id="toggleFullTableIcon" style="font-size:18px">expand_more</span>
+                </button>
+
+                <div class="bg-gray-50 dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden w-full h-full hidden" id="timeTableSection">
                     <div class="p-4 bg-gray-100 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
                       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                             <h3 class="font-bold text-lg text-slate-700 dark:text-white flex items-center gap-2 whitespace-nowrap">
