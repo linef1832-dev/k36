@@ -875,7 +875,11 @@ window.renderMyToday = async function() {
     const myShift = ['กะเช้า','กะกลาง','กะดึก'].includes(me.allowed_shift) ? me.allowed_shift : (document.querySelector('input[name="shift"]:checked')?.value || '');
 
     // ── ดึงข้อมูลพร้อมกัน: เว็บที่ทำวันนี้ / พักของฉัน / วันหยุดที่จอง ──
-    const rosterKeys = myShift ? [`duty_roster_${myDep}_${dateVal}_${myShift}`] : ['กะเช้า','กะกลาง','กะดึก'].map(s => `duty_roster_${myDep}_${dateVal}_${s}`);
+    const _yd = new Date(dateVal + 'T00:00:00'); _yd.setDate(_yd.getDate() - 1);
+    const ydate = `${_yd.getFullYear()}-${String(_yd.getMonth()+1).padStart(2,'0')}-${String(_yd.getDate()).padStart(2,'0')}`;
+    const shiftsToLoad = myShift ? [myShift] : ['กะเช้า','กะกลาง','กะดึก'];
+    // วันนี้ + เมื่อวาน (ไว้บอกว่าเมื่อวานทำเว็บไหน)
+    const rosterKeys = [...shiftsToLoad.map(s => `duty_roster_${myDep}_${dateVal}_${s}`), ...shiftsToLoad.map(s => `duty_roster_${myDep}_${ydate}_${s}`)];
     // 🎧 [OD] ผังห้อง Discord ของวัน/กะ (settings: duty_od_rooms_{วันที่}_{กะ} = { เว็บ: "ห้อง 1", ... })
     const roomKeys = myDep === 'OD' ? (myShift ? [`duty_od_rooms_${dateVal}_${myShift}`] : ['กะเช้า','กะกลาง','กะดึก'].map(s => `duty_od_rooms_${dateVal}_${s}`)) : [];
     let rosterRows = [], myBreaks = [], myLeaves = [];
@@ -889,17 +893,20 @@ window.renderMyToday = async function() {
     } catch (e) { console.warn('renderMyToday:', e); }
 
     // เว็บที่ได้รับมอบหมาย (หลัก/รอง) จากตารางเวร
-    const jobs = [];
+    const jobs = [], jobsY = [];   // วันนี้ / เมื่อวาน
     const roomMaps = {};   // shift -> { team: room }
     rosterRows.filter(r => r.key.startsWith('duty_od_rooms_')).forEach(r => { try { roomMaps[r.key.split('_').pop()] = JSON.parse(r.value || '{}'); } catch (e) {} });
     rosterRows.filter(r => r.key.startsWith('duty_roster_')).forEach(row => {
         let roster = {}; try { roster = JSON.parse(row.value || '{}'); } catch (e) {}
-        const shiftOfKey = row.key.split('_').pop();
-        const roomOf = (t) => (roomMaps[shiftOfKey] || {})[t] || '';
+        const parts = row.key.split('_');            // duty_roster_{dept}_{date}_{shift}
+        const dateOfKey = parts[3], shiftOfKey = parts[4] || parts.pop();
+        const target = dateOfKey === dateVal ? jobs : (dateOfKey === ydate ? jobsY : null);
+        if (!target) return;
+        const roomOf = (t) => (dateOfKey === dateVal ? (roomMaps[shiftOfKey] || {})[t] : '') || '';
         for (const team in roster) (roster[team] || []).forEach(u => {
             if (!u || String(u.username || '').toLowerCase() !== String(me.username).toLowerCase()) return;
-            jobs.push({ team, role: 'หลัก', shift: shiftOfKey, room: roomOf(team) });
-            if (u.secondary_team) jobs.push({ team: u.secondary_team, role: 'รอง', shift: shiftOfKey, room: roomOf(u.secondary_team) });
+            target.push({ team, role: 'หลัก', shift: shiftOfKey, room: roomOf(team) });
+            if (u.secondary_team) target.push({ team: u.secondary_team, role: 'รอง', shift: shiftOfKey, room: roomOf(u.secondary_team) });
         });
     });
 
@@ -930,8 +937,15 @@ window.renderMyToday = async function() {
             ? `<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 6px 2px 0;padding:3px 12px;border-radius:999px;font-size:13px;background:#22c55e;color:#052e16;font-weight:900"><span class="material-icons" style="font-size:14px">headset</span>เข้า ${_mtEsc(mainJob.room)}</span>`
             : `<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 6px 2px 0;padding:3px 10px;border-radius:999px;font-size:11.5px;color:#94a3b8;background:rgba(148,163,184,.12)"><span class="material-icons" style="font-size:13px">headset_off</span>ยังไม่จัดห้อง</span>`)
         : '';
-    const jobsVal = jobs.length ? roomBadge + jobs.map(j => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:13px;background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'#fcd34d'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span></span>`).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
-    const jobsSub = jobs.length ? '' : 'หัวหน้ายังไม่ได้จัดเวรวันนี้ หรือคุณไม่อยู่ในตาราง';
+    const _jobChip = (j, dim) => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:${dim?'1px 8px':'3px 10px'};border-radius:8px;font-size:${dim?'11.5px':'13px'};${dim?'opacity:.7;':''}background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'#fcd34d'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span></span>`;
+    const jobsVal = jobs.length ? jobs.map(j => _jobChip(j, false)).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
+    // 🎧 ห้อง Discord (OD) — บรรทัดแยก ไม่ปนกับชิปงาน จะได้ไม่ดูเหมือนเป็นเว็บอีกอัน
+    const roomLine = (myDep === 'OD' && jobs.length)
+        ? `<div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:7px 10px;border-radius:10px;background:rgba(34,197,94,.10);border:1px dashed rgba(34,197,94,.45)"><span class="material-icons" style="font-size:16px;color:#22c55e">headset_mic</span><span style="font-size:12px;color:#94a3b8">ห้อง Discord ที่ต้องเข้าวันนี้:</span>${(mainJob && mainJob.room) ? `<b style="color:#4ade80;font-size:14px">${_mtEsc(mainJob.room)}</b>` : `<span style="color:#94a3b8;font-size:12px">ยังไม่จัดห้อง</span>`}</div>`
+        : '';
+    // 🕘 เมื่อวานทำอะไร (หลัก/รอง)
+    const yLine = `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:8px"><span style="font-size:11px;color:#64748b;margin-right:4px"><span class="material-icons" style="font-size:12px;vertical-align:-2px">history</span> เมื่อวาน (${_mtFmt(ydate).replace(/^\S+\s/, '')}):</span>${jobsY.length ? jobsY.map(j => _jobChip(j, true)).join('') : '<span style="font-size:11px;color:#64748b">ไม่มีข้อมูล</span>'}</div>`;
+    const jobsSub = (jobs.length ? '' : 'หัวหน้ายังไม่ได้จัดเวรวันนี้ หรือคุณไม่อยู่ในตาราง') + roomLine + yLine;
     // 3) พักวันนี้
     // 🗑️ แต่ละช่วงมีปุ่ม ✕ ลบได้จากตรงนี้ (ใช้ delSch เดิม: เช็คเวลา + ยืนยัน + รีเฟรชฟอร์มให้) แล้วลงใหม่ที่ฟอร์มซ้ายได้เลย
     const brVal = myBreaks.length
