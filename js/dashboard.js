@@ -927,13 +927,27 @@ window.renderMyToday = async function() {
         ? `ยังเลือกได้อีก <b style="color:#fbbf24">${remain}</b> จาก ${dailyLimit} รอบ · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:#60a5fa;font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>`
         : `ครบ ${dailyLimit} รอบแล้ววันนี้ ✅`;
     // 4) วันหยุดที่จอง
+    // 🎨 ประเภทวันหยุด: ชื่อ + สี ตรงกับปุ่มในหน้าตารางวันหยุด (leave.html)
+    const LV_TYPES = {
+        X:  { name: 'หยุดปกติ',      bg: '#ef4444', fg: '#fff' },
+        XX: { name: 'สลับกะ',        bg: '#facc15', fg: '#713f12' },
+        X4: { name: 'ลาครึ่งวัน',    bg: '#ec4899', fg: '#fff' },
+        KL: { name: 'ลากิจ/ลาป่วย',  bg: '#22c55e', fg: '#fff' },
+        TX: { name: 'สลับวันหยุด',   bg: '#3b82f6', fg: '#fff' },
+        PN: { name: 'พักร้อน',       bg: '#92400e', fg: '#fff' },
+        KP: { name: 'ขาดงาน',        bg: '#a16207', fg: '#fff' }
+    };
     const _lvChip = (l) => {
         const iso = String(l.leave_date || '').slice(0, 10);
+        const code = String(l.reason || 'X').toUpperCase();
+        const t = LV_TYPES[code] || { name: code, bg: '#64748b', fg: '#fff' };
         const state = iso < dateVal ? 'past' : (iso === dateVal ? 'today' : 'next');
-        const st = state === 'past' ? 'background:rgba(148,163,184,.10);color:#94a3b8;border:1px solid rgba(148,163,184,.25);opacity:.75;text-decoration:line-through'
-                 : state === 'today' ? 'background:rgba(244,114,182,.30);color:#fff;border:1px solid #f472b6;box-shadow:0 0 10px rgba(244,114,182,.35)'
-                 : 'background:rgba(244,114,182,.14);color:#f9a8d4;border:1px solid rgba(244,114,182,.35)';
-        return `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:12.5px;${st}" title="${state==='past'?'ผ่านมาแล้ว':state==='today'?'วันนี้':'ยังไม่ถึง'}">${_mtFmt(iso)} <span style="font-size:10px;opacity:.85">(${_mtEsc(l.reason || '-')})</span>${state==='today'?' <b style="font-size:10px">← วันนี้</b>':''}</span>`;
+        const dim = state === 'past';
+        return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px 4px 6px;border-radius:9px;font-size:12.5px;background:rgba(15,23,42,.7);border:1px solid ${dim ? 'rgba(148,163,184,.25)' : t.bg + '88'};${dim ? 'opacity:.55;' : ''}${state === 'today' ? 'box-shadow:0 0 0 2px ' + t.bg + '66;' : ''}" title="${state==='past'?'ผ่านมาแล้ว':state==='today'?'วันนี้':'ยังไม่ถึง'}">
+            <span style="background:${t.bg};color:${t.fg};font-weight:900;font-size:11px;padding:2px 7px;border-radius:6px;letter-spacing:.3px">${_mtEsc(code)}</span>
+            <span style="color:${dim ? '#94a3b8' : '#f1f5f9'};font-weight:700;${dim ? 'text-decoration:line-through' : ''}">${_mtFmt(iso)}</span>
+            <span style="color:${dim ? '#64748b' : t.bg};font-size:11px;font-weight:700">${t.name}</span>${state==='today'?'<b style="font-size:10px;color:#fff;background:'+t.bg+';padding:1px 6px;border-radius:5px">วันนี้</b>':''}
+        </span>`;
     };
     const lvPast = myLeaves.filter(l => String(l.leave_date).slice(0,10) < dateVal).length;
     const lvNext = myLeaves.length - lvPast;
