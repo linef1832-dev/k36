@@ -175,6 +175,7 @@ window.applyCurrentUserUpdate = function(fresh, notify) {
     Object.assign(currentUser, fresh);
     window.currentUser = currentUser;
     sessionStorage.setItem('user_platinum_plus', JSON.stringify(currentUser));
+    if (typeof window._myTodayRefresh === 'function') window._myTodayRefresh();   // 🏠 กะ/แผนก/ทีมเปลี่ยน → แผงวันนี้ของฉันอัปเดตทันที
     if (msgs.length === 0) return;
 
     // วาดใหม่เฉพาะส่วนที่ขึ้นกับข้อมูลพนักงาน
@@ -338,13 +339,19 @@ window.saveData = async function(e) {
     let isOffRoster = false;
     let assignedTeamsStr = '';
     let coverageMap = null;   // 🍽️ ใช้เช็คคนคุมขั้นต่ำ
+    // ⚡ [เร็วขึ้น] ยิงคำถามที่ไม่ขึ้นต่อกัน "พร้อมกัน" แทนทีละรอบ (เดิมรอต่อกัน ~4 รอบ = 1-1.5 วิ)
+    const _timeValEarly = document.getElementById('tSlot') ? document.getElementById('tSlot').value : '';
+    const _pRoster = (!['manager', 'admin'].includes(currentUser.role)) ? Promise.resolve(appDB.from('settings').select('value').eq('key', `duty_roster_${myDep}_${dateVal}_${sName}`).maybeSingle()) : Promise.resolve({ data: null });
+    const _pMine   = Promise.resolve(appDB.from('schedules').select('*').eq('work_date', dateVal).eq('staff_name', currentUser.username));
+    const _pSlot   = Promise.resolve(appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', _timeValEarly));
+    const _pCfg    = (typeof window.loadBreakMinRemainCfg === 'function') ? window.loadBreakMinRemainCfg() : Promise.resolve();
     if (!['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
-        const { data: rosterData } = await appDB.from('settings').select('value').eq('key', rosterKey).maybeSingle();
+        const { data: rosterData } = await _pRoster;
 
         if (rosterData && rosterData.value) {
             const roster = JSON.parse(rosterData.value);
-            await window.loadBreakMinRemainCfg();   // ⚙️ โหลดค่า "ต้องเหลือเฝ้ากี่คน"
+            await _pCfg;   // ⚙️ ค่า "ต้องเหลือเฝ้ากี่คน" (เริ่มโหลดไว้แล้วตั้งแต่ต้น)
             coverageMap = window.buildCoverageMap(roster, myDep, sName);
             let allowedTeams = [];
             for (const team in roster) {
@@ -370,7 +377,7 @@ window.saveData = async function(e) {
     }
     // 🌟 --------------------------------------------------- 🌟
 
-    const { data: _mbRaw } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('staff_name', currentUser.username);
+    const { data: _mbRaw } = await _pMine;   // ⚡ เริ่มโหลดไว้แล้วตั้งแต่ต้น
     const myBookings = _mbRaw || [];
     const dailyLimit = parseInt(SETTINGS.daily_limit || 2);
     if (myBookings.length >= dailyLimit) { window.resetBtn(); return Swal.fire('ครบโควตา', `คุณลงครบ ${dailyLimit} รอบต่อวันแล้ว`, 'error'); }
@@ -393,7 +400,7 @@ window.saveData = async function(e) {
     if (countInPeriod >= periodLimit) { window.resetBtn(); return Swal.fire('ซ้ำ!', `คุณลงช่วง "${targetPeriod}" ครบ ${periodLimit} ครั้งแล้ว`, 'error'); }
 
     const shiftSuffix = sName.replace('กะ','');
-    const { data: slotBookings } = await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', timeVal);
+    const { data: slotBookings } = (timeVal === _timeValEarly) ? await _pSlot : await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', timeVal);   // ⚡ ใช้ที่โหลดไว้แล้ว
 
     // 🍽️ [กติกาพัก] เพดานพักต่อเว็บ (หลัก+รอง) อัตโนมัติจากตารางหน้าที่ — เช็คจาก DB สดเป็นด่านสุดท้าย
     if (currentUser.check_type !== 'shift' && coverageMap) {
@@ -450,19 +457,19 @@ window.saveData = async function(e) {
     
     if (error) { window.resetBtn(); Swal.fire('Error', error.message, 'error'); }
     else {
-        if (typeof logAction === 'function') {
-            if (isOffRoster) {
-                await logAction('ลงผิดเว็บ',
-                    `⚠️ ${currentUser.username} ลง "${activeTeam}" แต่หน้าที่จริง = "${assignedTeamsStr}" (${sName} ${timeVal}) [${myDep}]`
-                );
-            } else {
-                await logAction('ลงเวลา', `ลงเวลา ${sName} ${timeVal} (${activeTeam}) [${myDep}]`);
-            }
-        }
+        // ⚡ [เร็วขึ้น] บันทึกเสร็จ = โชว์สำเร็จ + ปลดปุ่ม "ทันที" — เขียนประวัติ/รีเฟรชตารางทำต่อเบื้องหลัง ไม่ต้องรอ
         Swal.fire({ icon:'success', title:'บันทึกสำเร็จ', timer:800, showConfirmButton:false });
-        if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
-        if (typeof fetchData === 'function') await fetchData(); // โหลดใหม่ให้ขึ้น ⚠️
         window.resetBtn();
+        if (typeof logAction === 'function') {
+            const _p = isOffRoster
+                ? logAction('ลงผิดเว็บ', `⚠️ ${currentUser.username} ลง "${activeTeam}" แต่หน้าที่จริง = "${assignedTeamsStr}" (${sName} ${timeVal}) [${myDep}]`)
+                : logAction('ลงเวลา', `ลงเวลา ${sName} ${timeVal} (${activeTeam}) [${myDep}]`);
+            if (_p && _p.catch) _p.catch(() => {});
+        }
+        (async () => {
+            try { if (typeof refreshTimeSlots === 'function') await refreshTimeSlots(); } catch (e) {}
+            try { if (typeof fetchData === 'function') await fetchData(); } catch (e) {}
+        })();
     }
 };
 
