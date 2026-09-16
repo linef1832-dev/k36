@@ -32,6 +32,25 @@ window.copyImageToClipboard = async function(imageUrl) {
         }
         // ⚡ เร่งความเร็ว: ดึงผ่าน fetch + force-cache → รูปที่แสดงบนหน้าอยู่แล้วไม่ต้องโหลดใหม่จากเซิร์ฟเวอร์
         // (วิธีเดิมใช้ new Image + crossOrigin ซึ่งแคชคนละช่องกับรูปบนหน้า เลยโหลดซ้ำเต็ม ๆ ทุกครั้ง = ช้า)
+        // ⚡ [เร็วขึ้น] ทางลัด: รูป PNG ส่งเข้าคลิปบอร์ดได้ตรง ๆ ไม่ต้องวาด/แปลงใหม่ · JPG แปลงครั้งเดียวจบ
+        try {
+            const respQ = await fetch(imageUrl, { cache: 'force-cache' });
+            if (respQ.ok) {
+                const b = await respQ.blob();
+                let png = b;
+                if (b.type !== 'image/png') {
+                    const bmp = await createImageBitmap(b);
+                    const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
+                    cv.getContext('2d').drawImage(bmp, 0, 0); bmp.close && bmp.close();
+                    png = await new Promise(r => cv.toBlob(r, 'image/png'));
+                }
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+                _galleryRipple(imageUrl);
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'คัดลอกรูปแล้ว', showConfirmButton: false, timer: 1500, background: '#0f172a', color: '#e2e8f0' });
+                return;
+            }
+        } catch (fastErr) { /* ไม่ผ่าน → ใช้ทางเดิมด้านล่าง */ }
+
         let img;
         try {
             const resp = await fetch(imageUrl, { cache: 'force-cache' });
@@ -124,6 +143,7 @@ window.filterGalleryImages = function() {
 let _lbIndex = 0;
 let _lbData  = [];
 const _isAdminGallery = () => currentUser.role === 'admin' || currentUser.role === 'manager';
+const _lbPreloaded = {};   // รูปเต็มที่โหลดไว้แล้ว (url -> Image) กันเบลอซ้ำเวลากดกลับมาดู
 window.openLightbox = function(index) {
     _lbData  = currentGalleryData;
     _lbIndex = index;
@@ -138,12 +158,15 @@ function _updateLightbox() {
     const el = document.getElementById('lightboxImg');
     const thumb = img.thumb_url || '';
     const myIdx = _lbIndex;
-    if (thumb && thumb !== img.url) {
+    const cached = _lbPreloaded[img.url];
+    if (cached && cached.complete && cached.naturalWidth) {
+        el.style.filter = ''; el.src = img.url;          // ✅ โหลดไว้แล้ว → ขึ้นคมทันที ไม่เบลอ
+    } else if (thumb && thumb !== img.url) {
         el.src = thumb;
         el.style.filter = 'blur(6px)';            // รูปย่อขยายเต็มจอจะไม่คม → เบลอบาง ๆ ระหว่างรอของจริง
         el.style.transition = 'filter .25s';
         const full = new Image();
-        full.onload = () => { if (_lbIndex !== myIdx) return; el.src = img.url; el.style.filter = ''; };
+        full.onload = () => { _lbPreloaded[img.url] = full; if (_lbIndex !== myIdx) return; el.src = img.url; el.style.filter = ''; };
         full.onerror = () => { if (_lbIndex !== myIdx) return; el.src = img.url; el.style.filter = ''; };
         full.src = img.url;
     } else {
@@ -151,7 +174,10 @@ function _updateLightbox() {
         el.src = img.url;
     }
     // โหลดรูปถัดไป/ก่อนหน้าไว้ล่วงหน้า → กดลูกศรแล้วขึ้นทันที
-    [1, -1].forEach(d => { const n = _lbData[(_lbIndex + d + _lbData.length) % _lbData.length]; if (n && n.url) { const p = new Image(); p.src = n.url; } });
+    [1, -1, 2, -2].forEach(d => {
+        const n = _lbData[(_lbIndex + d + _lbData.length) % _lbData.length];
+        if (n && n.url && !_lbPreloaded[n.url]) { const pi = new Image(); pi.src = n.url; _lbPreloaded[n.url] = pi; }
+    });
     const _skipOldSrc = true;
     if (!_skipOldSrc) document.getElementById('lightboxImg').src = img.url;
     document.getElementById('lightboxName').textContent     = img.name || '';
