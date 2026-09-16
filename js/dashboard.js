@@ -69,6 +69,8 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
         }
     }
 
+    // 🏠 [เร็วขึ้น] วาด "วันนี้ของฉัน" ทันทีตั้งแต่ต้น (ขนานกับการโหลดตาราง) ไม่ต้องรอขั้นอื่น
+    if (typeof window.renderMyToday === 'function') window.renderMyToday();
     // โหลดข้อมูลรอบเวลาก่อน แล้วค่อย fetchData
     if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
     if (typeof fetchData === 'function') fetchData();
