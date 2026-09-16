@@ -590,6 +590,12 @@ window.openLogsPage = async function() {
                 const o = document.createElement('option'); o.value = t; o.textContent = t; teamSel.appendChild(o);
             });
         }
+        // 🆕 เปิดหน้ามาให้วันที่เป็น "วันนี้" เลย (ถ้ายังไม่ได้เลือกวันไว้) — ไม่ต้องมานั่งเลือกเอง
+        const logDateEl = document.getElementById('logDate');
+        if (logDateEl && !logDateEl.value) {
+            const t = new Date();
+            logDateEl.value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+        }
         if(typeof fetchLogs === 'function') fetchLogs();
     }
 };
