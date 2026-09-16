@@ -1103,10 +1103,10 @@ window.renderMyToday = async function() {
         ${wrap('วันนี้ของฉัน', 'person', `
             <div style="font-size:11px;color:#64748b;margin-bottom:2px">${_mtEsc(me.username)}</div>
             ${card('schedule', '#60a5fa', 'กะของฉันวันนี้', shiftVal, shiftSub)}
-            ${card('swap_horiz', '#fb923c', 'สลับกะ', swVal, swSub)}
             ${card('work', '#818cf8', 'งานของฉัน (เว็บที่รับผิดชอบ)', jobsVal, jobsSub)}
             ${card('restaurant', '#34d399', 'เวลาพักวันนี้', brVal, brSub)}
             ${card('event_available', '#f472b6', 'วันหยุดเดือนนี้ + ที่จองล่วงหน้า', lvVal, lvSub)}
+            ${card('swap_horiz', '#fb923c', 'สลับกะ', swVal, swSub)}
         `)}
         ${wrap('ช่องทางติดต่อหัวหน้า', 'support_agent', headRows + `<div style="font-size:11px;color:#64748b;padding-top:10px">หากมีปัญหาหรือติดขัด ติดต่อหัวหน้าก่อนเป็นอันดับแรก</div>`, `<span style="font-size:11px;color:#94a3b8">ทั้งหมด ${heads.length} คน</span>`)}
     `;
