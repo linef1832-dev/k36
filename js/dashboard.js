@@ -1232,3 +1232,65 @@ window._tgLink = function(v) {
     if (/^\d+$/.test(v)) return `tg://user?id=${v}`;
     return `https://t.me/${v.replace(/^@/, '').replace(/^t\.me\//i, '')}`;
 };
+
+// ════════════════════════════════════════════════════════════════════
+// 🧹 [ชั่วคราว] ย่อรูปเก่าใน Storage (bucket staff_images) — ทำครบแล้วถอดปุ่มออกได้
+//   - ไล่ทุกโฟลเดอร์ที่ใช้: root(แกลเลอรี่) / files / files/covers / fines / logos / sop
+//   - ข้าม: ไม่ใช่รูป, thumb_*, รูปที่ ≤ 250KB อยู่แล้ว, สลิป (คนละ bucket ไม่แตะ)
+//   - โหลด → ย่อ (compressImageFile) → อัปทับ path เดิม (ลิงก์ไม่เปลี่ยน)
+//   - ทำทีละชุด 20 รูป กด "หยุด" ได้ กด "ทำต่อ" จะข้ามที่ทำแล้วเอง (ดูจากขนาด)
+// ════════════════════════════════════════════════════════════════════
+window._shrinkStop = false;
+window.shrinkOldImages = async function() {
+    if (!['manager', 'admin'].includes((window.currentUser || {}).role)) return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะแอดมิน', 'error');
+    const log = document.getElementById('shrinkOldLog'), btn = document.getElementById('shrinkOldBtn'), stopBtn = document.getElementById('shrinkOldStop');
+    const say = (m, cls) => { if (!log) return; log.classList.remove('hidden'); const d = document.createElement('div'); d.textContent = m; if (cls) d.style.color = cls; log.appendChild(d); log.scrollTop = log.scrollHeight; };
+    const BUCKET = 'staff_images', FOLDERS = ['', 'files', 'files/covers', 'fines', 'logos', 'sop'], MIN = 250 * 1024, BATCH = 20;
+    const OPTS = { '': { maxDim: 1920, quality: 0.85 }, 'files': { maxDim: 2000, quality: 0.85 }, 'files/covers': { maxDim: 1400, quality: 0.8 }, 'fines': { maxDim: 1600, quality: 0.85 }, 'logos': { maxDim: 900, quality: 0.85 }, 'sop': { maxDim: 1600, quality: 0.85 } };
+    window._shrinkStop = false; btn.disabled = true; stopBtn.classList.remove('hidden');
+    if (log) log.innerHTML = '';
+    say('🔎 กำลังไล่ดูรายชื่อรูปทั้งหมด...');
+    // ── list ทุกโฟลเดอร์ (แบ่งหน้า 1000/รอบ) ──
+    const targets = [];
+    for (const folder of FOLDERS) {
+        let offset = 0;
+        while (true) {
+            const { data, error } = await appDB.storage.from(BUCKET).list(folder, { limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } });
+            if (error) { say(`⚠️ list ${folder || '/'} ไม่ได้: ${error.message}`, '#f87171'); break; }
+            (data || []).forEach(o => {
+                if (!o.id || !o.metadata) return;                     // โฟลเดอร์
+                const size = o.metadata.size || 0, mime = String(o.metadata.mimetype || '');
+                if (!mime.startsWith('image/') || mime === 'image/gif' || mime === 'image/svg+xml') return;
+                if (o.name.startsWith('thumb_')) return;
+                if (size <= MIN) return;                                // เล็กอยู่แล้ว / ทำไปแล้ว
+                targets.push({ path: (folder ? folder + '/' : '') + o.name, size, folder, mime });
+            });
+            if (!data || data.length < 1000) break;
+            offset += 1000;
+        }
+    }
+    const totalMB = targets.reduce((a, t) => a + t.size, 0) / 1024 / 1024;
+    say(`📋 พบรูปที่ควรย่อ ${targets.length} รูป รวม ${totalMB.toFixed(1)} MB (ข้ามรูปที่เล็กอยู่แล้ว)`);
+    if (!targets.length) { say('✅ ไม่มีรูปเก่าที่ต้องย่อแล้ว — ถอดปุ่มนี้ออกได้เลย', '#4ade80'); btn.disabled = false; stopBtn.classList.add('hidden'); return; }
+    let done = 0, saved = 0, fail = 0;
+    for (let i = 0; i < targets.length; i += BATCH) {
+        if (window._shrinkStop) { say(`⏸️ หยุดตามคำสั่ง — ทำไปแล้ว ${done}/${targets.length} กด "ทำต่อ" เพื่อทำต่อจากตรงนี้`, '#fbbf24'); break; }
+        const chunk = targets.slice(i, i + BATCH);
+        await Promise.all(chunk.map(async t => {
+            try {
+                const { data: blob, error: dErr } = await appDB.storage.from(BUCKET).download(t.path);
+                if (dErr || !blob) throw new Error(dErr ? dErr.message : 'download ว่าง');
+                const file = new File([blob], t.path.split('/').pop(), { type: t.mime });
+                const small = await window.compressImageFile(file, OPTS[t.folder] || { maxDim: 1600, quality: 0.85 });
+                if (small === file || small.size >= t.size * 0.95) { done++; return; }   // ย่อไม่ลง → ปล่อยไว้
+                const { error: uErr } = await appDB.storage.from(BUCKET).upload(t.path, small, { upsert: true, cacheControl: '3600', contentType: small.type });
+                if (uErr) throw new Error(uErr.message);
+                done++; saved += (t.size - small.size);
+                say(`✔ ${t.path}  ${(t.size/1024).toFixed(0)}KB → ${(small.size/1024).toFixed(0)}KB`);
+            } catch (e) { fail++; say(`✖ ${t.path}: ${e.message}`, '#f87171'); }
+        }));
+        say(`— ${Math.min(i + BATCH, targets.length)}/${targets.length} · ประหยัดแล้ว ${(saved/1024/1024).toFixed(1)} MB${fail ? ' · พลาด ' + fail : ''}`, '#93c5fd');
+    }
+    if (!window._shrinkStop) say(`🎉 เสร็จ: ย่อ ${done} รูป ประหยัด ${(saved/1024/1024).toFixed(1)} MB${fail ? ' (พลาด ' + fail + ' รูป กดทำต่อเพื่อลองใหม่)' : ''}`, '#4ade80');
+    btn.disabled = false; stopBtn.classList.add('hidden');
+};
