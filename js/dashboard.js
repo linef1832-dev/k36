@@ -879,7 +879,7 @@ window.renderMyToday = async function() {
     try {
         const [r1, r2, r3] = await Promise.all([
             appDB.from('settings').select('key, value').in('key', rosterKeys),
-            appDB.from('schedules').select('shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username),
+            appDB.from('schedules').select('id, shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username),
             appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').order('leave_date', { ascending: true }).limit(20)   // ทั้งเดือนนี้ + ที่จองล่วงหน้า
         ]);
         rosterRows = r1.data || []; myBreaks = r2.data || []; myLeaves = r3.data || [];
@@ -920,12 +920,13 @@ window.renderMyToday = async function() {
     const jobsVal = jobs.length ? jobs.map(j => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:13px;background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'#fcd34d'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span></span>`).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
     const jobsSub = jobs.length ? '' : 'หัวหน้ายังไม่ได้จัดเวรวันนี้ หรือคุณไม่อยู่ในตาราง';
     // 3) พักวันนี้
+    // 🗑️ แต่ละช่วงมีปุ่ม ✕ ลบได้จากตรงนี้ (ใช้ delSch เดิม: เช็คเวลา + ยืนยัน + รีเฟรชฟอร์มให้) แล้วลงใหม่ที่ฟอร์มซ้ายได้เลย
     const brVal = myBreaks.length
-        ? myBreaks.map(b => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:8px;font-size:13px;font-family:monospace;background:rgba(52,211,153,.14);color:#6ee7b7;border:1px solid rgba(52,211,153,.35)">${_mtEsc(b.time_slot)}</span>`).join('')
+        ? myBreaks.map(b => `<span style="display:inline-flex;align-items:center;gap:6px;margin:2px 6px 2px 0;padding:3px 4px 3px 10px;border-radius:8px;font-size:13px;font-family:monospace;background:rgba(52,211,153,.14);color:#6ee7b7;border:1px solid rgba(52,211,153,.35)">${_mtEsc(b.time_slot)}<button type="button" onclick="if(typeof delSch==='function') delSch(${b.id}, '${_mtEsc(b.shift_name)}')" title="ลบช่วงนี้ แล้วลงใหม่ได้" style="border:none;background:rgba(239,68,68,.18);color:#f87171;width:20px;height:20px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1">✕</button></span>`).join('')
         : 'ยังไม่ได้เลือกเวลาพัก';
     const brSub = remain > 0
         ? `ยังเลือกได้อีก <b style="color:#fbbf24">${remain}</b> จาก ${dailyLimit} รอบ · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:#60a5fa;font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>`
-        : `ครบ ${dailyLimit} รอบแล้ววันนี้ ✅`;
+        : `ครบ ${dailyLimit} รอบแล้ววันนี้ ✅ · กด ✕ ที่ช่วงที่ต้องการเพื่อลบแล้วลงใหม่`;
     // 4) วันหยุดที่จอง
     // 🎨 ประเภทวันหยุด: ชื่อ + สี ตรงกับปุ่มในหน้าตารางวันหยุด (leave.html)
     const LV_TYPES = {
