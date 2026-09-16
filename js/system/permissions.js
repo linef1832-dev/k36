@@ -17,6 +17,12 @@ const PERM_GROUPS = [
         ]
     },
     {
+        id: 'page_breaktable', name: 'ตารางลงเวลาพัก (ใครลงกินข้าว)', icon: 'table_view', theme: 'cyan',
+        items: [
+            {id: 'breaktable', name: 'เข้าหน้าตารางลงเวลาพัก', isSub: false}
+        ]
+    },
+    {
         id: 'page_leave', name: 'หน้าวันหยุด / ลางาน', icon: 'event_busy', theme: 'rose',
         items: [
             {id: 'leave', name: 'เข้าหน้าตารางวันหยุด', isSub: false},

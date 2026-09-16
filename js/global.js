@@ -657,6 +657,7 @@ window.cleanupPageIntervals = function() {
 // 📁 โครงสร้างใหม่: สคริปต์ของแต่ละหน้าอยู่ในโฟลเดอร์ของตัวเอง (js/ชื่อหน้า/ไฟล์.js)
 // ชื่อในรายการ = path ต่อจาก js/ (ไม่ต้องมี .js) — loadScript ประกอบเป็น ./js/{ชื่อ}.js เอง
 const PAGE_SCRIPTS = {
+    breaktable: ['breaktable/core'],   // 📊 ตารางลงเวลาพักทั้งหมด (ใช้ fetchData จาก system/users.js ที่โหลดไว้แล้ว)
     leave:             ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
     swap:              ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
     duty:              ['duty/core', 'duty/dragdrop', 'duty/roles', 'duty/tools', 'duty/support', 'duty/rotation'],   // แยกจาก duty.js เดิม (5,478) — core ต้องมาก่อน
@@ -909,6 +910,9 @@ async function showPage(pageName) {
                 }
                 else if (pageName === 'od_center') {
                     if (typeof initOdCenterApp === 'function') await initOdCenterApp();
+                }
+                else if (pageName === 'breaktable') {
+                    if (typeof initBreakTable === 'function') await initBreakTable();
                 }
                 else if (pageName === 'leave') {
                     if (typeof initLeaveTable === 'function') await initLeaveTable();
