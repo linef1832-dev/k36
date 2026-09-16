@@ -144,6 +144,31 @@ let _lbIndex = 0;
 let _lbData  = [];
 const _isAdminGallery = () => currentUser.role === 'admin' || currentUser.role === 'manager';
 const _lbPreloaded = {};   // รูปเต็มที่โหลดไว้แล้ว (url -> Image) กันเบลอซ้ำเวลากดกลับมาดู
+
+// 🚀 [กดแล้วชัดทันที] โหลดรูปเต็มไว้ล่วงหน้าเงียบ ๆ หลังเปิดหน้าแกลเลอรี่
+//    ทีละ 3 รูปพร้อมกัน ไม่แย่งเน็ตกับการใช้งาน · หยุดเองเมื่อออกจากหน้า/เปลี่ยนตัวกรอง
+let _preloadToken = 0;
+window.preloadGalleryFulls = async function(list) {
+    const myToken = ++_preloadToken;
+    const urls = (list || []).map(i => i && i.url).filter(u => u && !_lbPreloaded[u]);
+    const CONCURRENCY = 3;
+    let i = 0;
+    const worker = async () => {
+        while (i < urls.length) {
+            if (myToken !== _preloadToken) return;           // มีการเปลี่ยนหน้า/กรองใหม่ → เลิก
+            if (!document.getElementById('lightboxImg')) return;   // ออกจากหน้าแกลเลอรี่แล้ว
+            const u = urls[i++];
+            if (_lbPreloaded[u]) continue;
+            await new Promise(res => {
+                const im = new Image();
+                im.onload = () => { _lbPreloaded[u] = im; res(); };
+                im.onerror = res;
+                im.src = u;
+            });
+        }
+    };
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+};
 window.openLightbox = function(index) {
     _lbData  = currentGalleryData;
     _lbIndex = index;
