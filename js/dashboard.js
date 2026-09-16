@@ -558,7 +558,8 @@ window.subscribeDashboardChanges = function() {
         // 🏠 [realtime วันนี้ของฉัน] วันหยุดของฉันถูกจอง/ยกเลิก/อนุมัติ → อัปเดตทันที
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, (payload) => {
             const uid = String((payload.new && payload.new.user_id) || (payload.old && payload.old.user_id) || '');
-            if (window.currentUser && uid === String(window.currentUser.id)) window._myTodayRefresh();
+            // 🩹 ตอน DELETE สัญญาณส่งมาแค่ id ไม่มี user_id → บอกไม่ได้ว่าของใคร → วาดใหม่เสมอ (ถูกมาก)
+            if (!uid || (window.currentUser && uid === String(window.currentUser.id))) window._myTodayRefresh();
         })
         .subscribe();
 
