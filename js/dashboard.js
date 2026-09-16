@@ -950,11 +950,16 @@ window.renderMyToday = async function() {
     const groups = groupOrder.map(d => ({ d, items: heads.filter(u => (u.department || 'AM') === d) })).filter(g => g.items.length);
     // แผนกที่ไม่อยู่ในรายการมาตรฐาน (เผื่อมีแผนกเพิ่ม) ต่อท้าย
     heads.filter(u => !groupOrder.includes(u.department || 'AM')).forEach(u => { let g = groups.find(x => x.d === u.department); if (!g) { g = { d: u.department, items: [] }; groups.splice(groups.length - (groups.some(x=>x.d==='ทุกแผนก')?1:0), 0, g); } g.items.push(u); });
-    const headRows = groups.map(g => `
-        <div style="margin-top:10px;padding:6px 10px;border-radius:9px;background:${g.d === myDep ? 'rgba(96,165,250,.14)' : 'rgba(148,163,184,.08)'};border-left:3px solid ${g.d === myDep ? '#60a5fa' : (g.d === 'ทุกแผนก' ? '#fbbf24' : '#64748b')};font-size:12px;font-weight:800;color:${g.d === myDep ? '#93c5fd' : '#cbd5e1'};display:flex;justify-content:space-between;align-items:center">
-            <span>${groupTitle(g.d)}${g.d === myDep ? ' <span style="font-size:10px;font-weight:600;opacity:.8">(แผนกของคุณ)</span>' : ''}</span><span style="font-size:10px;font-weight:600;opacity:.7">${g.items.length} คน</span>
-        </div>${g.items.map(renderOne).join('')}`).join('')
-        || `<div style="padding:16px;color:#64748b;font-size:12px;text-align:center">ยังไม่ได้ตั้งค่าหัวหน้า — แอดมินตั้งได้ที่ ตั้งค่าระบบ → ติดต่อหัวหน้า</div>`;
+    // 🧱 จัดเป็นคอลัมน์ซ้าย-ขวา (แต่ละแผนก 1 คอลัมน์) — จอแคบพับเป็นคอลัมน์เดียวเอง
+    const groupCol = (g) => `
+        <div style="min-width:0;background:rgba(15,23,42,.45);border:1px solid rgba(148,163,184,.12);border-radius:12px;padding:4px 10px 6px">
+            <div style="margin:6px 0 4px;padding:6px 10px;border-radius:9px;background:${g.d === myDep ? 'rgba(96,165,250,.14)' : 'rgba(148,163,184,.08)'};border-left:3px solid ${g.d === myDep ? '#60a5fa' : (g.d === 'ทุกแผนก' ? '#fbbf24' : '#64748b')};font-size:12px;font-weight:800;color:${g.d === myDep ? '#93c5fd' : '#cbd5e1'};display:flex;justify-content:space-between;align-items:center">
+                <span>${groupTitle(g.d)}${g.d === myDep ? ' <span style="font-size:10px;font-weight:600;opacity:.8">(แผนกของคุณ)</span>' : ''}</span><span style="font-size:10px;font-weight:600;opacity:.7">${g.items.length} คน</span>
+            </div>${g.items.map(renderOne).join('')}
+        </div>`;
+    const headRows = groups.length
+        ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:6px">${groups.map(groupCol).join('')}</div>`
+        : `<div style="padding:16px;color:#64748b;font-size:12px;text-align:center">ยังไม่ได้ตั้งค่าหัวหน้า — แอดมินตั้งได้ที่ ตั้งค่าระบบ → ติดต่อหัวหน้า</div>`;
 
     const wrap = (title, icon, bodyHtml, rightHtml) => `
         <div style="background:linear-gradient(165deg,#0f172a,#0b1120);border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.3)">
