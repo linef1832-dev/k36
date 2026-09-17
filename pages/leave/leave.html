@@ -45,14 +45,22 @@
 /* ── 🛠️ แถว 2: แถบเครื่องมือ ── */
 .lv-toolbar{
     flex-shrink:0; z-index:25;
-    display:flex; flex-wrap:wrap; align-items:center; gap:7px;
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px;
     padding:7px 14px;
     background:rgba(2,8,19,0.4);
     border-bottom:1px solid rgba(232,193,90,0.14);
     box-shadow:inset 0 4px 10px -8px rgba(0,0,0,0.7);
 }
-/* กล่องประเภทลา — โชว์ตลอด (ตามสิทธิ์) ไม่ต้องกดเปิดอีกแล้ว */
-#leaveTypeToolbar{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+/* สองกลุ่มชัดเจน: ซ้าย=ประเภทลา · ขวา=เครื่องมือ — แต่ละกลุ่มเกาะกันเสมอ ไม่มีปุ่มตกแถวลอยเดี่ยว */
+.lv-tb-left, .lv-tb-right{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.lv-tb-right{ margin-left:auto; }
+/* กล่องประเภทลา — มีกรอบครอบให้อ่านเป็นชุดเดียว โชว์ตลอด (ตามสิทธิ์) */
+#leaveTypeToolbar{
+    display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+    padding:5px 10px; border-radius:14px;
+    background:rgba(2,8,19,0.55); border:1px solid rgba(232,193,90,0.18);
+    box-shadow:inset 0 2px 6px rgba(0,0,0,0.4);
+}
 #leaveTypeToolbar.hidden{ display:none; }
 .lv-type-label{
     font-size:10.5px; font-weight:800; color:#c9a54a;
@@ -218,41 +226,41 @@
         </div>
     </div>
 
-    <!-- ═══════════ 🛠️ แถว 2: ประเภทลา (เห็นตลอด) · กะ · ค้นหา · ตั้งค่า · Excel · ประวัติ ═══════════ -->
+    <!-- ═══════════ 🛠️ แถว 2: ซ้าย=ประเภทลา · ขวา=เครื่องมือ (เกาะกลุ่ม ไม่ตกแถว) ═══════════ -->
     <div class="lv-toolbar">
-        <div id="leaveTypeToolbar" class="hidden">
-            <span class="lv-type-label"><span class="material-icons text-[14px]">edit_calendar</span> ใส่ในตาราง:</span>
-            <button id="ltBtn_X" onclick="setLeaveType('X')" class="leave-type-btn opacity-100 ring-2 ring-red-500 ring-offset-1 scale-105 dark:ring-offset-slate-900 bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">✕ (ปกติ)</button>
+        <div class="lv-tb-left">
+            <div id="leaveTypeToolbar" class="hidden">
+                <span class="lv-type-label"><span class="material-icons text-[14px]">edit_calendar</span> ใส่ในตาราง:</span>
+                <button id="ltBtn_X" onclick="setLeaveType('X')" class="leave-type-btn opacity-100 ring-2 ring-red-500 ring-offset-1 scale-105 dark:ring-offset-slate-900 bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">✕ (ปกติ)</button>
         <button id="ltBtn_XX" onclick="setLeaveType('XX')" class="leave-type-btn opacity-50 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">XX (สลับกะ)</button>
         <button id="ltBtn_X4" onclick="setLeaveType('X4')" class="leave-type-btn opacity-50 bg-pink-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">X4 (ลาครึ่งวัน)</button>
         <button id="ltBtn_KL" onclick="setLeaveType('KL')" class="leave-type-btn opacity-50 bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">KL (ลากิจ+ป่วย)</button>
         <button id="ltBtn_TX" onclick="setLeaveType('TX')" class="leave-type-btn opacity-50 bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">TX (สลับวันหยุด)</button>
         <button id="ltBtn_PN" onclick="setLeaveType('PN')" class="leave-type-btn opacity-50 bg-amber-800 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">PN (พักร้อน)</button>
         <button id="ltBtn_KP" onclick="setLeaveType('KP')" class="leave-type-btn opacity-50 bg-yellow-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">KP (ขาดงาน)</button>
+            </div>
         </div>
 
-        <div style="margin-left:auto"></div>
-
-        <select id="leaveShiftFilter" onchange="renderLeaveTable()" class="lv-select">
-            <option value="all">ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
-        </select>
-        <div class="lv-search">
-            <span class="material-icons">search</span>
-            <input type="text" id="leaveSearchInput" onkeyup="onLeaveSearch()" placeholder="ค้นหาชื่อ..." class="lv-input">
+        <div class="lv-tb-right">
+            <select id="leaveShiftFilter" onchange="renderLeaveTable()" class="lv-select">
+                <option value="all">ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
+            </select>
+            <div class="lv-search">
+                <span class="material-icons">search</span>
+                <input type="text" id="leaveSearchInput" onkeyup="onLeaveSearch()" placeholder="ค้นหาชื่อ..." class="lv-input">
+            </div>
+            <div class="lv-divider"></div>
+            <button id="btnToggleSettings" type="button" class="lv-chip-toggle"
+                onclick="document.getElementById('leaveManagerControls').classList.toggle('lv-collapsed'); this.classList.toggle('lv-on');">
+                <span class="material-icons">settings_suggest</span> ตั้งค่า
+            </button>
+            <button id="btnExportExcel" onclick="exportLeaveToExcel()" class="hidden lv-btn lv-btn-excel">
+                <span class="material-icons">download</span> Excel
+            </button>
+            <button onclick="openHistoryModal()" class="lv-btn lv-btn-history">
+                <span class="material-icons">history</span> ประวัติ
+            </button>
         </div>
-
-        <div class="lv-divider"></div>
-
-        <button id="btnToggleSettings" type="button" class="lv-chip-toggle"
-            onclick="document.getElementById('leaveManagerControls').classList.toggle('lv-collapsed'); this.classList.toggle('lv-on');">
-            <span class="material-icons">settings_suggest</span> ตั้งค่า
-        </button>
-        <button id="btnExportExcel" onclick="exportLeaveToExcel()" class="hidden lv-btn lv-btn-excel">
-            <span class="material-icons">download</span> Excel
-        </button>
-        <button onclick="openHistoryModal()" class="lv-btn lv-btn-history">
-            <span class="material-icons">history</span> ประวัติ
-        </button>
     </div>
 
     <!-- ═══════════ ⚙️ แถบตั้งค่า (แอดมิน) ═══════════ -->
