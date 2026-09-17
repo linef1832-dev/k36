@@ -212,14 +212,16 @@ window.togglePermPopup = function(key) {
 };
 
 // ตัวแปรเก็บว่าแต่ละบรรทัดเลือก Role อะไรอยู่
-window.permRowSelections = window.permRowSelections || {
-    'AM': 'STAFF',
-    'OD': 'STAFF',
-    'AMQL': 'TRAINER'
-};
+// 🆕 จำค่าที่เลือกไว้ในเครื่อง (localStorage) — รีเฟรชหน้าแล้วยังจำ Role เดิม ไม่เด้งกลับ STAFF
+window.permRowSelections = (function() {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('perm_row_selections') || '{}'); } catch(e) {}
+    return Object.assign({ 'AM': 'STAFF', 'OD': 'STAFF', 'AMQL': 'TRAINER' }, saved);
+})();
 
 window.changePermRowRole = function(dept, newRole) {
     window.permRowSelections[dept] = newRole;
+    try { window.safeSetItem('perm_row_selections', JSON.stringify(window.permRowSelections)); } catch(e) {}
     renderPermsTable();
 };
 
@@ -420,18 +422,15 @@ window.renderPermsTable = function() {
                 </div>
             </td>
             
-            <td class="px-6 py-5 border-r border-slate-700 align-top relative perm-cell" style="overflow: visible;">
+            <td class="px-6 py-5 align-top relative perm-cell" style="overflow: visible;">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-[10px] font-bold ${iconColor} bg-slate-800/80 border border-slate-600 px-2 py-1 rounded-lg">กำลังดูสิทธิ์ของ: ${dept} · ${role}</span>
+                    <span class="text-[10px] text-gray-500">(เปลี่ยน Role ด้านซ้ายเพื่อดู/ตั้งค่าชุดอื่น)</span>
+                </div>
                 <div onclick="togglePermPopup('${key}')" class="bg-slate-900/30 border border-slate-700 p-4 rounded-2xl min-h-[60px] cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/50 transition shadow-inner">
                     ${badgesHtml}
                 </div>
                 ${popupContentHtml}
-            </td>
-
-            <td class="px-6 py-5 text-center align-middle bg-slate-900/20">
-                <button onclick="saveMenuPerms()" class="bg-emerald-600/10 text-emerald-400 border border-emerald-600/50 hover:bg-emerald-500 hover:text-white hover:border-emerald-400 w-16 h-16 rounded-2xl flex flex-col items-center justify-center transition shadow mx-auto group">
-                    <span class="material-icons text-xl group-hover:scale-110 transition-transform">save</span>
-                    <span class="text-[9px] font-bold mt-1">บันทึก</span>
-                </button>
             </td>
         </tr>`;
     });
@@ -484,10 +483,11 @@ window.hasUserPerm = function(menuId) {
     let uDept = window.currentUser.department || 'AM';
     if (uDept === 'SPECIAL') uDept = 'AM'; // 🌟 เพิ่มบรรทัดนี้: ให้กลุ่มพิเศษดึงสิทธิ์เมนู AM มาใช้
     
-    const uRole = uRoleLower === 'trainer' ? 'TRAINER' : 'STAFF';
-    const key = `${uDept}_${uRole}`;
-    
-    const userPerms = perms[key] || [];
+    // 🆕 ใช้ Role จริงของพนักงาน (รองรับ Role ที่สร้างเอง เช่น SUPERVISOR)
+    // ถ้า Role นั้นยังไม่เคยตั้งสิทธิ์ไว้เลย ให้ถอยไปใช้ชุด STAFF ของแผนกแทน (พฤติกรรมเดิม จะได้ไม่มีใครเมนูหายกะทันหัน)
+    const uRole = uRoleLower ? uRoleLower.toUpperCase() : 'STAFF';
+    let userPerms = perms[`${uDept}_${uRole}`];
+    if (!Array.isArray(userPerms)) userPerms = perms[`${uDept}_STAFF`] || [];
     return userPerms.includes(menuId);
 };
 
