@@ -206,7 +206,7 @@ window.initQuickRebook = async function () {
         box.innerHTML = `
         <div style="background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(99,102,241,.08));border:1px solid rgba(96,165,250,.35);border-radius:14px;padding:11px 13px;margin-bottom:18px;box-shadow:0 4px 14px rgba(37,99,235,.12)">
             <div style="font-size:11px;font-weight:900;color:#93c5fd;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:5px;letter-spacing:.02em">
-                <span style="display:flex;align-items:center;gap:5px"><span class="material-icons" style="font-size:14px">bolt</span> ลงเหมือนเมื่อวาน — กดเดียวจบ</span>
+                <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span class="material-icons" style="font-size:14px">bolt</span> ลงเวลาเหมือนเมื่อวาน <span style="font-weight:700;color:#8fa3bf;font-size:10px">(${srcNote})</span></span>
                 ${items.length > 1 ? `<button type="button" id="qrbAllBtn" onclick="quickRebookAll('qrbAllBtn')" style="background:linear-gradient(135deg,#2563eb,#4f46e5);border:1px solid #60a5fa;border-radius:9px;padding:4px 12px;color:#fff;font-size:11px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;gap:4px;box-shadow:0 3px 10px rgba(59,130,246,.35)"><span class="material-icons" style="font-size:13px">done_all</span> ลงทั้ง ${items.length} รอบเลย</button>` : ''}
             </div>
             <div style="display:flex;flex-direction:column;gap:6px">
