@@ -61,7 +61,23 @@
         const u = $('btUpdatedAt'); if (u) { const n = new Date(); u.textContent = `อัปเดต ${pad(n.getHours())}:${pad(n.getMinutes())}`; }
     }
 
+    // ── เช็คว่า slot ไหนกำลังเดินอยู่ "ตอนนี้" (เฉพาะเมื่อกำลังดูวันทำงานปัจจุบัน) ──
+    function currentSlotNow() {
+        const t = new Date();
+        const logical = new Date(t); if (t.getHours() < 8) logical.setDate(logical.getDate() - 1);
+        if (dateVal() !== iso(logical)) return null;           // ดูวันอื่นอยู่ → ไม่ไฮไลต์
+        return t.getHours() * 60 + t.getMinutes();             // นาทีปัจจุบัน
+    }
+    function slotIsNow(sl, nowMin) {
+        if (nowMin === null) return false;
+        const m = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/.exec(sl || '');
+        if (!m) return false;
+        const a = (+m[1]) * 60 + (+m[2]), b = (+m[3]) * 60 + (+m[4]);
+        return nowMin >= a && nowMin < b;
+    }
+
     // ── วาดการ์ด ──
+    let _btScrolledOnce = false;   // เลื่อนหารอบปัจจุบันแค่ครั้งแรกที่เข้า ไม่เลื่อนซ้ำตอน realtime
     window.btRender = async function (force) {
         if (!$('btGrid')) return;
         await load(force);
@@ -69,6 +85,8 @@
         const rows = filtered();
         $('btDateTitle').textContent = fmtDate(d);
         $('btTotal').innerHTML = `จองแล้ว <b style="color:#fff">${rows.length}</b> คน`;
+        btRenderMissing(rows);   // 🟠 ป้าย "ยังไม่ลงพัก" (คำนวณเบื้องหลัง ไม่บล็อกการวาด)
+        const nowMin = currentSlotNow();
 
         const bySlot = {};
         rows.forEach(r => (bySlot[r.time_slot] = bySlot[r.time_slot] || []).push(r));
@@ -83,9 +101,10 @@
             const cnt = groups[shift].reduce((a, sl) => a + (bySlot[sl] || []).length, 0);
             const cards = groups[shift].map(sl => {
                 const list = bySlot[sl] || [];
+                const isNow = slotIsNow(sl, nowMin);
                 const avs = list.slice(0, 3).map(r => avatar(r.staff_name, 28)).join('') + (list.length > 3 ? `<span class="bt-av bt-more" style="width:28px;height:28px;border-radius:50%;font-size:9px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;border:2px solid #0b1220;margin-left:-8px">+${list.length - 3}</span>` : '');
-                return `<div class="bt-card ${list.length ? '' : 'bt-empty'}" onclick="btOpenSlot('${esc(sl)}')">
-                    <div><div class="bt-time">${esc(sl.replace('-', ' – '))}</div><div class="bt-sub">${list.length ? `จองแล้ว <b style="color:#e2e8f0">${list.length}</b> คน` : 'ยังไม่มีคนลง'}</div></div>
+                return `<div class="bt-card ${list.length ? '' : 'bt-empty'} ${isNow ? 'bt-now' : ''}" onclick="btOpenSlot('${esc(sl)}')">
+                    <div><div class="bt-time">${esc(sl.replace('-', ' – '))}${isNow ? '<span class="bt-now-badge"><span class="bt-now-dot"></span>กำลังพัก</span>' : ''}</div><div class="bt-sub">${list.length ? `จองแล้ว <b style="color:#e2e8f0">${list.length}</b> คน` : 'ยังไม่มีคนลง'}</div></div>
                     <div style="display:flex;align-items:center;gap:8px"><div style="display:flex;align-items:center">${avs}</div><span class="bt-eye" title="ดูรายชื่อ"><span class="material-icons" style="font-size:17px">visibility</span></span></div>
                 </div>`;
             }).join('');
@@ -93,6 +112,107 @@
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">${cards}</div>`;
         }).join('');
         $('btGrid').innerHTML = html;
+
+        // 🎯 เข้าหน้าครั้งแรก → เลื่อนไปหารอบที่กำลังเดินอยู่ให้เอง
+        if (!_btScrolledOnce && nowMin !== null) {
+            _btScrolledOnce = true;
+            const nowCard = $('btGrid').querySelector('.bt-now');
+            if (nowCard) setTimeout(() => nowCard.scrollIntoView({ block: 'center', behavior: 'smooth' }), 150);
+        }
+    };
+
+    // ── 🟠 "ใครยังไม่ลงพัก" — เทียบพนักงานทั้งหมดกับคนที่ลงแล้ววันนี้ ──
+    let _btMissingList = [];
+    async function btMissingCompute() {
+        const users = (typeof window.getUsersCached === 'function') ? await window.getUsersCached() : (window.GLOBAL_USER_LIST || []);
+        const dept = $('btDept').value, team = $('btTeam').value, shift = $('btShift').value, q = ($('btSearch').value || '').trim().toLowerCase();
+        const loggedNames = new Set(_rows.map(r => String(r.staff_name || '').toLowerCase()));   // ลงแล้ววันนี้ (ไม่สนตัวกรอง)
+        return (users || []).filter(u => {
+            if (!u || !u.username) return false;
+            if (['admin', 'manager'].includes(u.role)) return false;                 // หัวหน้า/แอดมินไม่นับ
+            if (dept !== 'all' && (u.department || 'AM') !== dept) return false;
+            if (team !== 'all' && u.team !== team) return false;
+            if (shift !== 'all' && u.allowed_shift && u.allowed_shift !== shift) return false;
+            if (q && !String(u.username).toLowerCase().includes(q)) return false;
+            return !loggedNames.has(String(u.username).toLowerCase());
+        }).sort((a, b) => String(a.department || '').localeCompare(String(b.department || '')) || String(a.username).localeCompare(String(b.username), 'th'));
+    }
+    async function btRenderMissing() {
+        const el = $('btMissing'); if (!el) return;
+        try {
+            _btMissingList = await btMissingCompute();
+            el.innerHTML = _btMissingList.length
+                ? `<span class="bt-missing-badge" onclick="btOpenMissing()"><span class="material-icons" style="font-size:14px">notification_important</span> ยังไม่ลงพัก <b>${_btMissingList.length}</b> คน</span>`
+                : `<span style="display:inline-flex;align-items:center;gap:4px;color:#34d399;font-size:11.5px;font-weight:800"><span class="material-icons" style="font-size:14px">check_circle</span> ลงพักครบทุกคน</span>`;
+        } catch (e) { el.innerHTML = ''; }
+    }
+    window.btOpenMissing = function () {
+        const byDept = {};
+        _btMissingList.forEach(u => (byDept[u.department || 'AM'] = byDept[u.department || 'AM'] || []).push(u));
+        const html = Object.keys(byDept).sort().map(dep => `
+            <div style="margin-bottom:12px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="bt-tag" style="background:#1d4ed8;border-color:#3b82f6;color:#fff">${esc(dep)}</span><span style="font-size:11px;color:#94a3b8">${byDept[dep].length} คน</span></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
+                    ${byDept[dep].map(u => `<div style="display:flex;align-items:center;gap:8px;background:#0b1220;border:1px solid #1e293b;border-radius:10px;padding:7px 10px">${avatar(u.username, 28)}<div style="min-width:0"><div style="color:#f1f5f9;font-weight:700;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.username)}</div><div style="color:#8fa3bf;font-size:10.5px">${esc(u.team || '-')} · ${esc(u.allowed_shift || 'ทุกกะ')}</div></div></div>`).join('')}
+                </div>
+            </div>`).join('') || '<div style="padding:20px;text-align:center;color:#64748b">ลงครบทุกคนแล้ว 🎉</div>';
+        Swal.fire({
+            title: `<div style="text-align:left;font-size:17px;font-weight:900;color:#fbbf24">🔔 ยังไม่ลงพัก ${_btMissingList.length} คน</div><div style="text-align:left;font-size:11.5px;color:#94a3b8;font-weight:500">${fmtDate(dateVal())} · นับเฉพาะตามตัวกรองที่เลือกอยู่ · ไม่นับหัวหน้า/แอดมิน</div>`,
+            html: `<div style="text-align:left;max-height:60vh;overflow-y:auto">${html}</div>`,
+            width: 'min(760px, 96vw)', background: '#0f172a', color: '#e2e8f0',
+            showConfirmButton: false, showCloseButton: true,
+            customClass: { popup: 'rounded-2xl border border-slate-700' }
+        });
+    };
+
+    // ── 📗 โหลดทั้งวันเป็น Excel (ตามสิทธิ์ breaktable_export) ──
+    let _btExcelLib = null;
+    function btLoadExcelLib() {
+        if (window.ExcelJS) return Promise.resolve();
+        if (_btExcelLib) return _btExcelLib;
+        _btExcelLib = new Promise((res, rej) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
+            s.onload = res; s.onerror = () => { _btExcelLib = null; rej(new Error('โหลดตัวสร้าง Excel ไม่สำเร็จ')); };
+            document.head.appendChild(s);
+        });
+        return _btExcelLib;
+    }
+    window.btExportExcel = async function () {
+        try {
+            Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', didOpen: () => Swal.showLoading(), background: '#0f172a', color: '#e2e8f0' });
+            await btLoadExcelLib();
+            await load(true);
+            const d = dateVal();
+            const toMin = s => { const m = /^(\d{1,2}):(\d{2})/.exec(s || ''); return m ? (+m[1]) * 60 + (+m[2]) : 9999; };
+            const rows = filtered().slice().sort((a, b) => toMin(a.time_slot) - toMin(b.time_slot) || String(a.created_at || '').localeCompare(String(b.created_at || '')));
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('ลงเวลาพัก', { views: [{ state: 'frozen', ySplit: 1 }] });
+            ws.columns = [
+                { header: 'ช่วงเวลา', key: 'slot', width: 15 },
+                { header: 'ชื่อ', key: 'name', width: 22 },
+                { header: 'แผนก', key: 'dept', width: 10 },
+                { header: 'เว็บ', key: 'team', width: 12 },
+                { header: 'กะ', key: 'shift', width: 12 },
+                { header: 'กดลงเมื่อ', key: 'at', width: 20 },
+                { header: 'วันทำงาน', key: 'wd', width: 13 },
+            ];
+            ws.getRow(1).font = { bold: true };
+            ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+            ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            rows.forEach(r => ws.addRow({ slot: r.time_slot || '-', name: r.staff_name || '-', dept: r.department || 'AM', team: r.team || '-', shift: r.shift_name || '-', at: fmtFull(r.created_at), wd: r.work_date || d }));
+            // แถวสรุปท้ายไฟล์
+            ws.addRow({}); ws.addRow({ slot: 'รวม', name: `${rows.length} คน` }).font = { bold: true };
+            const buf = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `ลงเวลาพัก_${d}.xlsx`;
+            a.click(); URL.revokeObjectURL(a.href);
+            Swal.fire({ icon: 'success', title: 'โหลดไฟล์แล้ว', text: `ลงเวลาพัก_${d}.xlsx (${rows.length} รายการ ตามตัวกรองที่เลือก)`, timer: 1800, showConfirmButton: false, background: '#0f172a', color: '#e2e8f0' });
+        } catch (e) {
+            Swal.fire({ icon: 'error', title: 'สร้างไฟล์ไม่สำเร็จ', text: String(e.message || e), background: '#0f172a', color: '#e2e8f0' });
+        }
     };
 
     // ── popup รายละเอียดช่วงเวลา ──
@@ -169,7 +289,17 @@
         const me = window.currentUser || {};
         const canAll = ['manager', 'admin'].includes(me.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
         if (!canAll && ['กะเช้า', 'กะกลาง', 'กะดึก'].includes(me.allowed_shift)) { $('btShift').value = me.allowed_shift; $('btShift').disabled = true; }
+        // 📗 ปุ่ม Excel: โชว์เฉพาะหัวหน้า/แอดมิน หรือ Role ที่ติ๊กสิทธิ์ "โหลด Excel ทั้งวัน" ไว้
+        const canExport = ['manager', 'admin'].includes(me.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('breaktable_export'));
+        const exBtn = $('btExportBtn'); if (exBtn) exBtn.style.display = canExport ? 'inline-flex' : 'none';
+        _btScrolledOnce = false;   // เข้าหน้าใหม่ → เลื่อนหารอบปัจจุบันอีกครั้ง
         await btRender(true);
+        // ⏱️ ทุก 1 นาที ขยับไฮไลต์ "กำลังพัก" ตามเวลาจริง (หยุดเองเมื่อออกจากหน้า)
+        if (window._btNowTimer) clearInterval(window._btNowTimer);
+        window._btNowTimer = setInterval(() => {
+            if (!$('btGrid')) { clearInterval(window._btNowTimer); window._btNowTimer = null; return; }
+            btRender();
+        }, 60000);
         // 📡 realtime: มีคนลง/ลบพัก → วาดใหม่ (และอัปเดต popup ถ้าเปิดอยู่)
         if (_sub) { try { appDB.removeChannel(_sub); } catch (e) {} }
         let timer = null;

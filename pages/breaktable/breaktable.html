@@ -24,6 +24,14 @@
         .bt-det{grid-column:1/-1;font-size:11.5px;color:#94a3b8;padding:0 8px 6px 46px;display:none;line-height:1.6}
         .bt-row.open .bt-det{display:block}
         .bt-tag{display:inline-block;background:#1e293b;color:#e2e8f0;border:1px solid #334155;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700}
+        /* 🔴 ไฮไลต์รอบที่กำลังเดินอยู่ตอนนี้ */
+        #btPage .bt-card.bt-now{border-color:#22d3ee;background:linear-gradient(135deg,rgba(34,211,238,.10),rgba(16,185,129,.06));box-shadow:0 0 0 1px rgba(34,211,238,.35),0 0 18px rgba(34,211,238,.25);opacity:1}
+        #btPage .bt-now-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(34,211,238,.15);border:1px solid rgba(34,211,238,.45);color:#67e8f9;font-size:10px;font-weight:900;padding:1px 8px;border-radius:99px;margin-left:6px;white-space:nowrap}
+        #btPage .bt-now-dot{width:6px;height:6px;border-radius:50%;background:#22d3ee;animation:btPulse 1.2s infinite}
+        @keyframes btPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+        /* 🟠 ป้ายยังไม่ลงพัก */
+        .bt-missing-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fbbf24;font-size:11.5px;font-weight:800;padding:4px 12px;border-radius:99px;cursor:pointer;transition:background .15s}
+        .bt-missing-badge:hover{background:rgba(245,158,11,.25)}
     </style>
 
     <!-- หัว: ชื่อหน้า + ตัวเลื่อนวัน + รีเฟรช -->
@@ -37,6 +45,7 @@
             <input type="date" id="wDate" onchange="btRender()" class="bt-sel" style="min-width:150px;text-align:center">
             <button class="bt-navbtn" onclick="btShiftDate(1)" title="วันถัดไป"><span class="material-icons text-[18px]">chevron_right</span></button>
             <span id="btUpdatedAt" class="text-[11px] text-gray-500 ml-1"></span>
+            <button id="btExportBtn" onclick="btExportExcel()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-bold items-center gap-1" style="display:none"><span class="material-icons text-sm">download</span> Excel</button>
             <button onclick="btRender(true)" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1"><span class="material-icons text-sm">refresh</span> รีเฟรช</button>
         </div>
     </div>
@@ -52,7 +61,7 @@
     <!-- สรุป + การ์ดช่วงเวลา -->
     <div class="flex items-center justify-between mt-4 mb-1">
         <div class="text-lg font-black text-white" id="btDateTitle">—</div>
-        <div class="text-[12px] text-gray-400" id="btTotal">จองแล้ว 0 คน</div>
+        <div class="flex items-center gap-2"><span id="btMissing"></span><span class="text-[12px] text-gray-400" id="btTotal">จองแล้ว 0 คน</span></div>
     </div>
     <div id="btGrid"><div class="text-center text-gray-500 py-10 text-sm"><span class="material-icons animate-spin text-3xl text-blue-500">sync</span><br>กำลังโหลด...</div></div>
 </div>

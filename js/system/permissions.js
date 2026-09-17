@@ -19,7 +19,8 @@ const PERM_GROUPS = [
     {
         id: 'page_breaktable', name: 'ตารางลงเวลาพัก (ใครลงกินข้าว)', icon: 'table_view', theme: 'cyan',
         items: [
-            {id: 'breaktable', name: 'เข้าหน้าตารางลงเวลาพัก', isSub: false}
+            {id: 'breaktable', name: 'เข้าหน้าตารางลงเวลาพัก', isSub: false},
+            {id: 'breaktable_export', name: 'โหลด Excel ทั้งวัน', isSub: true}
         ]
     },
     {
