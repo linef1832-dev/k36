@@ -897,8 +897,8 @@ async function showPage(pageName) {
                     // 🏠 [FIX] กดเมนู "หน้าหลักลงเวลา" ขณะเปิดหน้าย่อยที่ซ้อนใน dashboard (ตั้งค่าระบบ/ประวัติ)
                     // → snapshot คืนภาพหน้าย่อยเดิมกลับมา เหมือนกดแล้วไม่ไปไหน
                     // แก้: เข้าหน้า dashboard ทางเมนูเมื่อไหร่ ปิดหน้าย่อยทั้งหมด กลับหน้าลงเวลาเสมอ
-                    // ⛳ ยกเว้น: กำลังกดเข้า "ตั้งค่าระบบ" อยู่ (openAdminPanel ตั้งธงไว้) — อย่าปิดแผงตัดหน้า
-                    if (!window._openingAdminPanel) {
+                    // ⛳ ยกเว้น: กำลังกดเข้า "ตั้งค่าระบบ" หรือ "ประวัติระบบ" อยู่ (ตั้งธงไว้) — อย่าปิดแผงตัดหน้า
+                    if (!window._openingAdminPanel && !window._openingLogsPage) {
                         let _subWasOpen = false;
                         ['adminPanel', 'logsPage'].forEach(id => {
                             const el = document.getElementById(id);
@@ -913,12 +913,18 @@ async function showPage(pageName) {
                             if (mc) mc.classList.remove('hidden');
                         }
                     } else {
-                        // 🎯 [เกราะชั้นสอง] กำลังกดเข้า "ตั้งค่าระบบ" อยู่ → showPage เปิดแผงให้เลยตรงนี้
-                        // (กันเคสจังหวะ DOM แปะช้ากว่าที่ openAdminPanel ไปหยิบ — สองฝั่งช่วยกันเปิด ใครถึงก่อนก็ติด)
-                        const ap = document.getElementById('adminPanel');
+                        // 🎯 [เกราะชั้นสอง] กำลังกดเข้าหน้าย่อยอยู่ → showPage ช่วยเปิดให้เลยตรงนี้
+                        // (กันเคสจังหวะ DOM แปะช้ากว่าที่ปุ่มไปหยิบ — สองฝั่งช่วยกันเปิด ใครถึงก่อนก็ติด)
                         const mc = document.getElementById('mainContentArea');
-                        if (ap) { ap.classList.remove('hidden'); ap.classList.add('flex'); }
                         if (mc) mc.classList.add('hidden');
+                        if (window._openingAdminPanel) {
+                            const ap = document.getElementById('adminPanel');
+                            if (ap) { ap.classList.remove('hidden'); ap.classList.add('flex'); }
+                        }
+                        if (window._openingLogsPage) {
+                            const lp = document.getElementById('logsPage');
+                            if (lp) { lp.classList.remove('hidden'); lp.classList.add('flex'); }
+                        }
                     }
                     if (typeof initDashboard === 'function') initDashboard();
                     if (typeof refreshAdminData === 'function') refreshAdminData();

@@ -585,6 +585,11 @@ setTimeout(() => {
 
 
 window.openLogsPage = async function() {
+    // 🚩 บอก showPage ว่า "กำลังจะเปิดหน้าประวัติ อย่าเพิ่งบังคับกลับหน้าหลัก"
+    // (แก้บั๊ก: กดปุ่มประวัติจากหน้าอื่น เด้งไปหน้าหลักก่อน ต้องกดซ้ำอีกทีถึงเข้า)
+    window._openingLogsPage = true;
+    setTimeout(() => { window._openingLogsPage = false; }, 8000);   // ⛑️ กันธงค้างถ้ามี error กลางทาง
+
     if (!document.getElementById('logsPage')) {
         if(typeof showPage === 'function') await showPage('dashboard');
         if(typeof initDashboard === 'function') initDashboard();
@@ -620,6 +625,9 @@ window.openLogsPage = async function() {
         }
         if(typeof fetchLogs === 'function') fetchLogs();
     }
+
+    // ✅ เปิดหน้าประวัติเสร็จแล้ว เคลียร์ธง (รอ 2 เฟรมกันจังหวะ DOM แปะช้า)
+    requestAnimationFrame(() => requestAnimationFrame(() => { window._openingLogsPage = false; }));
 };
 
 window.backToDashboard = function() {
