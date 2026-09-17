@@ -215,7 +215,8 @@ function checkBookingTime(shiftName) {
     
     if (!openStr || !closeStr) return { allowed: true };
 
-    const now = new Date();
+    // 🕐 ใช้เวลาเซิร์ฟเวอร์ ไม่ใช่เวลาเครื่อง — ตั้งนาฬิกาคอมเร็ว/ช้าเองก็โกงไม่ได้
+    const now = (typeof window.serverNow === 'function') ? window.serverNow() : new Date();
     const nowMins = now.getHours() * 60 + now.getMinutes();
 
     const [oH, oM] = openStr.split(':').map(Number);
@@ -252,7 +253,9 @@ window.saveData = async function(e) {
     const timeVal = select.value;
     
     // 🌟 --- โค้ดดักลงเวลาล่วงหน้า (ล็อกไม่ให้จองข้ามวัน) --- 🌟
-    const todayObj = new Date();
+    // 🕐 เทียบเวลาเซิร์ฟเวอร์ให้สดก่อน แล้วใช้เวลานั้นตัดสิน (กันตั้งนาฬิกาเครื่องโกง)
+    if (typeof window.syncServerTime === 'function') { try { await window.syncServerTime(); } catch (e) {} }
+    const todayObj = (typeof window.serverNow === 'function') ? window.serverNow() : new Date();
     const currentHour = todayObj.getHours();
 
     const realTodayStr = new Date(todayObj.getTime() - (todayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];

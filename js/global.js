@@ -2,6 +2,29 @@
 // 🧠 ตัวแปรส่วนกลาง (Global Variables)
 // ==========================================
 const DB_URL = 'https://evuzlihhbicmuvpjwwln.supabase.co';
+
+// ════════════════════════════════════════════════════════
+// 🕐 นาฬิกามาตรฐานจากเซิร์ฟเวอร์ — กันคนตั้งเวลาเครื่องเองเพื่อแซงคิวเปิดจอง
+//   วิธี: ยิงถาม Supabase เบา ๆ แล้วอ่านเวลาจากหัวตอบกลับ (Date header) ของเซิร์ฟเวอร์
+//   จากนั้นจำ "ส่วนต่าง" ระหว่างเวลาเซิร์ฟเวอร์กับเครื่องไว้ → serverNow() คืนเวลาจริงเสมอ
+//   ถ้ายิงไม่สำเร็จ (เน็ตล่มแวบ) ถอยไปใช้เวลาเครื่องตามเดิม ระบบไม่พัง
+// ════════════════════════════════════════════════════════
+window._srvOffset = 0;        // ms: เวลาเซิร์ฟเวอร์ - เวลาเครื่อง
+window._srvSyncedAt = 0;      // ครั้งล่าสุดที่เทียบเวลา
+window.syncServerTime = async function (force) {
+    try {
+        if (!force && (Date.now() - window._srvSyncedAt) < 5 * 60 * 1000) return;   // เทียบซ้ำทุก 5 นาทีพอ
+        const res = await fetch(DB_URL + '/rest/v1/', { method: 'HEAD', headers: { apikey: DB_KEY }, cache: 'no-store' });
+        const hdr = res.headers.get('date');
+        if (hdr) {
+            const srv = new Date(hdr).getTime() + 500;   // header ละเอียดระดับวินาที → บวกครึ่งวิให้อยู่กลาง ๆ
+            window._srvOffset = srv - Date.now();
+            window._srvSyncedAt = Date.now();
+        }
+    } catch (e) { /* ใช้เวลาเครื่องไปก่อน */ }
+};
+// ⏰ เวลาปัจจุบันฉบับเชื่อถือได้ — ใช้แทน new Date() ในทุกด่านเช็คเวลา
+window.serverNow = function () { return new Date(Date.now() + (window._srvOffset || 0)); };
 const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2dXpsaWhoYmljbXV2cGp3d2xuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1Nzk0OTIsImV4cCI6MjEwNDE1NTQ5Mn0.QZdqTS3c9rsMBdRVyakqAPYwQULhzff7hBrvM3zqAUA';
 
 let appDB;
@@ -329,6 +352,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (window.supabase) {
         appDB = window.supabase.createClient(DB_URL, DB_KEY);
+        if (typeof window.syncServerTime === 'function') window.syncServerTime(true);   // 🕐 เทียบเวลาเซิร์ฟเวอร์ทันที
         // [FIX] appDB ประกาศด้วย let จึงไม่กลายเป็น property ของ window
         // summary.js อ่านผ่าน window.appDB ทำให้ realtime ของหน้าสรุปยอดไม่เคยทำงาน
         window.appDB = appDB;
