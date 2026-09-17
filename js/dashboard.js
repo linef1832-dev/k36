@@ -1249,7 +1249,11 @@ window.shrinkOldImages = async function() {
     const OPTS = { '': { maxDim: 1920, quality: 0.85 }, 'files': { maxDim: 2000, quality: 0.85 }, 'files/covers': { maxDim: 1400, quality: 0.8 }, 'fines': { maxDim: 1600, quality: 0.85 }, 'logos': { maxDim: 900, quality: 0.85 }, 'sop': { maxDim: 1600, quality: 0.85 } };
     window._shrinkStop = false; btn.disabled = true; stopBtn.classList.remove('hidden');
     if (log) log.innerHTML = '';
-    say('🔎 กำลังไล่ดูรายชื่อรูปทั้งหมด...');
+    // 🩹 [กันย่อซ้ำ] จำรูปที่ "ย่อสำเร็จแล้ว" ไว้ในเครื่อง — รอบต่อไปข้ามเลย (ไม่ดูแค่ขนาด เพราะบางรูปย่อแล้วยังเกิน 250KB)
+    const DONE_KEY = 'k36_shrink_done_v1';
+    let doneSet = new Set(); try { doneSet = new Set(JSON.parse(localStorage.getItem(DONE_KEY) || '[]')); } catch (e) {}
+    const markDone = (path) => { doneSet.add(path); try { localStorage.setItem(DONE_KEY, JSON.stringify([...doneSet])); } catch (e) {} };
+    say('🔎 กำลังไล่ดูรายชื่อรูปทั้งหมด...' + (doneSet.size ? ` (เคยทำแล้ว ${doneSet.size} รูป จะข้าม)` : ''));
     // ── list ทุกโฟลเดอร์ (แบ่งหน้า 1000/รอบ) ──
     const targets = [];
     for (const folder of FOLDERS) {
@@ -1262,8 +1266,10 @@ window.shrinkOldImages = async function() {
                 const size = o.metadata.size || 0, mime = String(o.metadata.mimetype || '');
                 if (!mime.startsWith('image/') || mime === 'image/gif' || mime === 'image/svg+xml') return;
                 if (o.name.startsWith('thumb_')) return;
-                if (size <= MIN) return;                                // เล็กอยู่แล้ว / ทำไปแล้ว
-                targets.push({ path: (folder ? folder + '/' : '') + o.name, size, folder, mime });
+                if (size <= MIN) return;                                // เล็กอยู่แล้ว
+                const path = (folder ? folder + '/' : '') + o.name;
+                if (doneSet.has(path)) return;                          // ✅ ย่อไปแล้ว (จำไว้ในเครื่อง) — ไม่ย่อซ้ำ
+                targets.push({ path, size, folder, mime });
             });
             if (!data || data.length < 1000) break;
             offset += 1000;
@@ -1282,15 +1288,15 @@ window.shrinkOldImages = async function() {
                 if (dErr || !blob) throw new Error(dErr ? dErr.message : 'download ว่าง');
                 const file = new File([blob], t.path.split('/').pop(), { type: t.mime });
                 const small = await window.compressImageFile(file, OPTS[t.folder] || { maxDim: 1600, quality: 0.85 });
-                if (small === file || small.size >= t.size * 0.95) { done++; return; }   // ย่อไม่ลง → ปล่อยไว้
+                if (small === file || small.size >= t.size * 0.95) { done++; markDone(t.path); return; }   // ย่อไม่ลง → ปล่อยไว้ + จดว่าดูแล้ว
                 const { error: uErr } = await appDB.storage.from(BUCKET).upload(t.path, small, { upsert: true, cacheControl: '3600', contentType: small.type });
                 if (uErr) throw new Error(uErr.message);
-                done++; saved += (t.size - small.size);
+                done++; saved += (t.size - small.size); markDone(t.path);
                 say(`✔ ${t.path}  ${(t.size/1024).toFixed(0)}KB → ${(small.size/1024).toFixed(0)}KB`);
             } catch (e) { fail++; say(`✖ ${t.path}: ${e.message}`, '#f87171'); }
         }));
         say(`— ${Math.min(i + BATCH, targets.length)}/${targets.length} · ประหยัดแล้ว ${(saved/1024/1024).toFixed(1)} MB${fail ? ' · พลาด ' + fail : ''}`, '#93c5fd');
     }
-    if (!window._shrinkStop) say(`🎉 เสร็จ: ย่อ ${done} รูป ประหยัด ${(saved/1024/1024).toFixed(1)} MB${fail ? ' (พลาด ' + fail + ' รูป กดทำต่อเพื่อลองใหม่)' : ''}`, '#4ade80');
+    if (!window._shrinkStop) say(`🎉 เสร็จ: ย่อ ${done} รูป ประหยัด ${(saved/1024/1024).toFixed(1)} MB${fail ? ' (พลาด ' + fail + ' รูป — กด "ทำต่อ" จะลองเฉพาะรูปที่พลาด)' : ' — ครบแล้ว ถอดปุ่มออกได้'}`, '#4ade80');
     btn.disabled = false; stopBtn.classList.add('hidden');
 };
