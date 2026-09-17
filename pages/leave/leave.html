@@ -1,299 +1,190 @@
 <div id="leaveApp" class="fade-in flex flex-col h-full relative overflow-hidden" style="height:calc(100vh - 2rem)">
 <style>
 /* ════════════════════════════════════════════════════════════
-   🎩 ตารางวันหยุด — Premium Redesign (กราไฟต์ดำ × ทองแชมเปญ)
-   โครงสร้าง id/onclick เดิมครบทุกตัว — leave.js ทำงานเหมือนเดิม
+   🎩 ตารางวันหยุด V2 — ผังใหม่ 2 แถวชัดเจน + CSS ชั้นเดียว (ล้างของซ้อนหมดแล้ว)
+   แถว 1: ชื่อหน้า · แผนก · เดือน · กลับ
+   แถว 2: ปุ่มประเภทลา (เห็นตลอด ไม่ต้องกดเปิด) · กะ · ค้นหา · ตั้งค่า · Excel · ประวัติ
+   id/onclick/คลาสที่ JS ใช้ ครบทุกตัว — ระบบจองทำงานเหมือนเดิม
    ════════════════════════════════════════════════════════════ */
 #leaveApp{
-    background:#f1f5f9;
-    border-radius:22px;
-    border:1px solid #e2e8f0;
-    box-shadow:0 10px 40px -12px rgba(0,0,0,0.18);
-}
-html.dark #leaveApp{
     background:linear-gradient(180deg,#0c1424 0%,#0a0f1c 100%);
-    border:1px solid rgba(232,193,90,0.14);
+    border-radius:22px; border:1px solid rgba(232,193,90,0.14);
     box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 18px 60px -18px rgba(0,0,0,0.85);
 }
 
-/* ── 🥇 แถบหัวเรื่อง ─────────────────────────────── */
+/* ── 🥇 แถว 1: หัวเรื่อง ── */
 .lv-header{
     flex-shrink:0; z-index:30; position:relative;
-    display:flex; flex-wrap:wrap; align-items:center; gap:12px 18px;
-    padding:14px 18px;
-    background:#ffffff; border-bottom:1px solid #e2e8f0;
-}
-html.dark .lv-header{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;
+    padding:9px 14px;
     background:linear-gradient(120deg,#101a2e 0%,#0b1322 60%,#0a101d 100%);
     border-bottom:1px solid rgba(232,193,90,0.20);
 }
-.lv-title-wrap{ display:flex; align-items:center; gap:12px; min-width:0; }
+.lv-title-wrap{ display:flex; align-items:center; gap:10px; min-width:0; }
 .lv-title-icon{
-    width:42px; height:42px; border-radius:13px; flex-shrink:0;
+    width:34px; height:34px; border-radius:11px; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
     background:linear-gradient(145deg,#f7e7b6,#E8C15A 55%,#c99a33);
     color:#3a2c07; box-shadow:0 6px 16px -6px rgba(232,193,90,0.7), inset 0 1px 0 rgba(255,255,255,0.6);
 }
-.lv-title-icon .material-icons{ font-size:22px; }
-.lv-title{ font-size:1.05rem; font-weight:800; letter-spacing:0.01em; color:#1e293b; display:flex; align-items:center; gap:8px; line-height:1.2; }
-html.dark .lv-title{ color:#f1f5f9; }
-.lv-subtitle{ font-size:10px; color:#94a3b8; display:flex; align-items:center; gap:6px; margin-top:2px; }
-html.dark .lv-subtitle{ color:#8b9bb4; }
+.lv-title-icon .material-icons{ font-size:18px; }
+.lv-title{ font-size:0.95rem; font-weight:800; letter-spacing:0.01em; color:#f1f5f9; display:flex; align-items:center; gap:8px; line-height:1.2; }
+.lv-subtitle{ font-size:10px; color:#8b9bb4; display:flex; align-items:center; gap:6px; margin-top:2px; }
 
 /* แท็บแผนก — คงคลาส dept-segment-btn/active ให้ JS จัดการเหมือนเดิม */
 .lv-header .dept-segment-container{
-    background:rgba(15,23,42,0.06); border:1px solid rgba(15,23,42,0.08);
-}
-html.dark .lv-header .dept-segment-container{
     background:rgba(2,8,19,0.55); border:1px solid rgba(232,193,90,0.16);
     box-shadow:inset 0 2px 6px rgba(0,0,0,0.45);
 }
-html.dark .lv-header .dept-segment-btn:not(.active):hover{ color:#f5e3ae; background:rgba(232,193,90,0.07); }
-html.dark .lv-header .dept-segment-btn.active{ box-shadow:0 4px 14px -4px rgba(0,0,0,0.6), 0 0 0 1px rgba(232,193,90,0.35); }
+.lv-header .dept-segment-btn{ padding:0.32rem 0.9rem; font-size:0.7rem; }
+.lv-header .dept-segment-btn:not(.active):hover{ color:#f5e3ae; background:rgba(232,193,90,0.07); }
+.lv-header .dept-segment-btn.active{ box-shadow:0 4px 14px -4px rgba(0,0,0,0.6), 0 0 0 1px rgba(232,193,90,0.35); }
 
-/* กลุ่มควบคุมขวา */
-.lv-tools{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-left:auto; }
+.lv-tools{ display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-left:auto; }
 
-/* ตัวเลือกกะ + ช่องค้นหา */
-.lv-input, .lv-select{
-    height:34px; border-radius:11px; font-size:12px; font-weight:700;
-    background:#f8fafc; border:1px solid #e2e8f0; color:#1e293b;
-    outline:none; transition:border-color .15s, box-shadow .15s, background .15s;
-}
-html.dark .lv-input, html.dark .lv-select{
-    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.10); color:#e2e8f0;
-}
-.lv-input:focus, .lv-select:focus{
-    border-color:rgba(232,193,90,0.65);
-    box-shadow:0 0 0 3px rgba(232,193,90,0.15);
-}
-.lv-select{ padding:0 10px; cursor:pointer; }
-.lv-search{ position:relative; }
-.lv-search .material-icons{ position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:16px; color:#94a3b8; pointer-events:none; }
-.lv-search input{ width:150px; padding:0 10px 0 30px; }
-
-/* ตัวเลื่อนเดือน */
-.lv-month-nav{
-    display:flex; align-items:center; height:34px; border-radius:11px; overflow:hidden;
-    background:#f8fafc; border:1px solid #e2e8f0;
-}
-html.dark .lv-month-nav{
-    background:rgba(2,8,19,0.55); border:1px solid rgba(232,193,90,0.22);
-}
-.lv-month-nav button{ height:100%; padding:0 7px; display:flex; align-items:center; color:#64748b; transition:background .15s,color .15s; }
-html.dark .lv-month-nav button{ color:#c9a54a; }
-.lv-month-nav button:hover{ background:rgba(232,193,90,0.12); color:#E8C15A; }
-.lv-month-nav .lv-month-mid{ position:relative; width:116px; height:100%; display:flex; align-items:center; justify-content:center; }
-.lv-month-nav .lv-month-mid span{ font-size:12.5px; font-weight:800; color:#1e293b; pointer-events:none; letter-spacing:0.02em; }
-html.dark .lv-month-nav .lv-month-mid span{ color:#f5e3ae; }
-
-/* ปุ่มมาตรฐาน */
-.lv-btn{
-    height:34px; padding:0 14px; border-radius:11px;
-    font-size:11.5px; font-weight:800; letter-spacing:0.02em;
-    display:inline-flex; align-items:center; gap:5px;
-    transition:transform .15s, box-shadow .15s, filter .15s;
-    box-shadow:0 5px 14px -6px rgba(0,0,0,0.4);
-}
-.lv-btn:hover{ transform:translateY(-1px); filter:brightness(1.08); box-shadow:0 8px 18px -6px rgba(0,0,0,0.5); }
-.lv-btn:active{ transform:translateY(0) scale(0.97); }
-.lv-btn .material-icons{ font-size:15px; }
-.lv-btn-excel{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid rgba(255,255,255,0.18); }
-.lv-btn-history{ background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:1px solid rgba(255,255,255,0.18); }
-.lv-btn-back{ background:transparent; color:#64748b; border:1px solid #cbd5e1; box-shadow:none; }
-html.dark .lv-btn-back{ color:#aab6c8; border:1px solid rgba(255,255,255,0.16); }
-html.dark .lv-btn-back:hover{ color:#f5e3ae; border-color:rgba(232,193,90,0.45); background:rgba(232,193,90,0.06); }
-
-/* ── ⚙️ แถบตั้งค่าแอดมิน — จัดเป็นการ์ดเป็นสัดส่วน ── */
-#leaveManagerControls{
-    flex-shrink:0; z-index:20;
-    display:flex; flex-wrap:nowrap; align-items:stretch; gap:10px;
-    overflow-x:auto; padding:12px 16px;
-    background:#f8fafc; border-bottom:1px solid #e2e8f0;
-}
-html.dark #leaveManagerControls{
-    background:#0a101d;
-    border-bottom:1px solid rgba(255,255,255,0.05);
-    box-shadow:inset 0 6px 14px -10px rgba(0,0,0,0.8);
-}
-.lv-set-head{
-    display:flex; flex-direction:column; justify-content:center; gap:2px;
-    padding-right:14px; margin-right:2px; flex-shrink:0;
-    border-right:1px solid rgba(148,163,184,0.25);
-}
-html.dark .lv-set-head{ border-right:1px solid rgba(232,193,90,0.18); }
-.lv-set-head .lv-set-title{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#b45309; }
-html.dark .lv-set-head .lv-set-title{ color:#E8C15A; }
-.lv-set-head .lv-set-sub{ font-size:9px; color:#94a3b8; }
-.lv-card{
-    flex-shrink:0; display:flex; flex-direction:column; justify-content:center; gap:5px;
-    padding:7px 11px; border-radius:13px;
-    background:#ffffff; border:1px solid #e2e8f0;
-    box-shadow:0 2px 8px -4px rgba(0,0,0,0.12);
-}
-html.dark .lv-card{
-    background:linear-gradient(160deg,#121b2e,#0d1422);
-    border:1px solid rgba(255,255,255,0.07);
-    box-shadow:0 4px 12px -6px rgba(0,0,0,0.6);
-}
-.lv-card-label{
-    font-size:9px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase;
-    color:#94a3b8; display:flex; align-items:center; gap:4px; line-height:1;
-}
-html.dark .lv-card-label{ color:#8b9bb4; }
-.lv-card-label .dot{ width:6px; height:6px; border-radius:99px; display:inline-block; }
-.lv-card-row{ display:flex; align-items:center; gap:6px; }
-.lv-mini-input{
-    background:#f8fafc; border:1px solid #e2e8f0; color:#1e293b;
-    border-radius:8px; font-size:11px; font-weight:700; text-align:center;
-    padding:4px 5px; outline:none; transition:border-color .15s, box-shadow .15s;
-}
-html.dark .lv-mini-input{ background:rgba(2,8,19,0.6); border:1px solid rgba(255,255,255,0.10); color:#f1f5f9; }
-.lv-mini-input:focus{ border-color:rgba(232,193,90,0.6); box-shadow:0 0 0 3px rgba(232,193,90,0.12); }
-.lv-mini-input[type="datetime-local"]{ width:126px; font-family:monospace; font-size:10.5px; text-align:left; cursor:pointer; }
-.lv-w10{ width:42px; }
-.lv-shift-tag{ font-size:9.5px; font-weight:800; line-height:1; }
-.lv-quota-card{ border:1px solid rgba(232,193,90,0.55) !important; }
-html.dark .lv-quota-card{
-    background:linear-gradient(160deg,#17203414,#0d1422) , linear-gradient(160deg,#1a2338,#0f1626);
-    box-shadow:0 4px 14px -6px rgba(0,0,0,0.6), 0 0 18px -8px rgba(232,193,90,0.35);
-}
-.lv-quota-card .lv-card-label{ color:#b45309; }
-html.dark .lv-quota-card .lv-card-label{ color:#E8C15A; }
-.lv-btn-save{ background:linear-gradient(135deg,#22c55e,#15803d); color:#fff; border:1px solid rgba(255,255,255,0.2); margin-left:auto; height:40px; align-self:center; font-size:12.5px; padding:0 18px; }
-.lv-btn-staff{ background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:1px solid rgba(255,255,255,0.2); height:40px; align-self:center; font-size:12px; }
-
-/* toggle เปิดจอง */
-.lv-toggle-track{ transition:background .2s; }
-
-/* ── 🏷️ แถบเลือกประเภทการลา ─────────────────────── */
-#leaveTypeToolbar{
-    flex-shrink:0; z-index:20;
-    display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px;
-    padding:9px 14px;
-    background:#eef2f7; border-bottom:1px solid #e2e8f0;
-}
-html.dark #leaveTypeToolbar{
+/* ── 🛠️ แถว 2: แถบเครื่องมือ ── */
+.lv-toolbar{
+    flex-shrink:0; z-index:25;
+    display:flex; flex-wrap:wrap; align-items:center; gap:7px;
+    padding:7px 14px;
     background:rgba(2,8,19,0.4);
     border-bottom:1px solid rgba(232,193,90,0.14);
     box-shadow:inset 0 4px 10px -8px rgba(0,0,0,0.7);
 }
+/* กล่องประเภทลา — โชว์ตลอด (ตามสิทธิ์) ไม่ต้องกดเปิดอีกแล้ว */
+#leaveTypeToolbar{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+#leaveTypeToolbar.hidden{ display:none; }
 .lv-type-label{
-    font-size:10.5px; font-weight:800; color:#64748b;
-    display:flex; align-items:center; gap:5px; margin-right:4px;
-    letter-spacing:0.03em;
+    font-size:10.5px; font-weight:800; color:#c9a54a;
+    display:flex; align-items:center; gap:4px; letter-spacing:0.03em; white-space:nowrap;
 }
-html.dark .lv-type-label{ color:#c9a54a; }
-/* ปรับทรงปุ่มประเภทลาให้พรีเมียม — คงคลาส/สีเดิมให้ setLeaveType ทำงานตามปกติ */
 #leaveTypeToolbar .leave-type-btn{
-    border-radius:9999px !important;
-    padding:6px 14px !important;
+    border-radius:9999px !important; padding:5px 12px !important; font-size:10.5px !important;
     box-shadow:0 4px 12px -5px rgba(0,0,0,0.45) !important;
     border:1px solid rgba(255,255,255,0.22);
     transition:transform .15s, opacity .2s, box-shadow .15s, filter .15s !important;
 }
 #leaveTypeToolbar .leave-type-btn:hover{ transform:translateY(-1px); filter:brightness(1.07); }
 
-/* ── 📅 พื้นที่ตาราง ────────────────────────────── */
-.lv-table-wrap{
-    flex:1 1 0%; overflow:auto; position:relative;
-    background:#ffffff;
+/* ช่องกรอก/ตัวเลือก/ปุ่ม — นิยามเดียวจบ */
+.lv-input, .lv-select{
+    height:30px; border-radius:11px; font-size:12px; font-weight:700;
+    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.10); color:#e2e8f0;
+    outline:none; transition:border-color .15s, box-shadow .15s;
 }
-html.dark .lv-table-wrap{ background:#0b1220; }
+.lv-input:focus, .lv-select:focus{ border-color:rgba(232,193,90,0.65); box-shadow:0 0 0 3px rgba(232,193,90,0.15); }
+.lv-select{ padding:0 10px; cursor:pointer; }
+.lv-search{ position:relative; }
+.lv-search .material-icons{ position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:16px; color:#94a3b8; pointer-events:none; }
+.lv-search input{ width:140px; padding:0 10px 0 30px; }
 
-/* หัวตารางทึบสนิท 100% — ไม่พึ่งคลาส tailwind ที่อาจไม่ได้คอมไพล์ */
-#leaveTableMain{ border-collapse:separate !important; border-spacing:0 !important; }
-#leaveTableMain thead th{ background-color:#f8fafc; background-clip:padding-box; }
-html.dark #leaveTableMain thead th{ background-color:#151f32; }
-#leaveTableMain thead th[class*="emerald"]{ background-color:#ecfdf5; }
-html.dark #leaveTableMain thead th[class*="emerald"]{ background-color:#062e22; }
-#leaveTableMain th.locked-day-col{ background-color:#e5e7eb !important; }
-html.dark #leaveTableMain th.locked-day-col{ background-color:#0a1120 !important; }
-#leaveTableMain th.locked-day-col > *{ opacity:0.5; }
+.lv-month-nav{
+    display:flex; align-items:center; height:30px; border-radius:11px; overflow:hidden;
+    background:rgba(2,8,19,0.55); border:1px solid rgba(232,193,90,0.22);
+}
+.lv-month-nav button{ height:100%; padding:0 7px; display:flex; align-items:center; color:#c9a54a; transition:background .15s,color .15s; }
+.lv-month-nav button:hover{ background:rgba(232,193,90,0.12); color:#E8C15A; }
+.lv-month-nav .lv-month-mid{ position:relative; width:104px; height:100%; display:flex; align-items:center; justify-content:center; }
+.lv-month-nav .lv-month-mid span{ font-size:11.5px; font-weight:800; color:#f5e3ae; pointer-events:none; letter-spacing:0.02em; }
 
-/* ════════════════════════════════════════════════════════════
-   🗂️ หมวดพับ-กางได้ (ตั้งค่า / ประเภทลา) — ลดความเกะกะ
-   ใช้คลาส lv-collapsed แยกจาก hidden เพื่อไม่ชนกับระบบสิทธิ์ใน JS
-   ════════════════════════════════════════════════════════════ */
-.lv-collapsed{ display:none !important; }
+.lv-btn{
+    height:30px; padding:0 11px; border-radius:11px;
+    font-size:11px; font-weight:800; letter-spacing:0.02em;
+    display:inline-flex; align-items:center; gap:5px;
+    transition:transform .15s, box-shadow .15s, filter .15s;
+    box-shadow:0 5px 14px -6px rgba(0,0,0,0.4); white-space:nowrap;
+}
+.lv-btn:hover{ transform:translateY(-1px); filter:brightness(1.08); }
+.lv-btn:active{ transform:scale(0.97); }
+.lv-btn .material-icons{ font-size:15px; }
+.lv-btn-excel{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid rgba(255,255,255,0.18); }
+.lv-btn-history{ background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:1px solid rgba(255,255,255,0.18); }
+.lv-btn-back{ background:transparent; color:#aab6c8; border:1px solid rgba(255,255,255,0.16); box-shadow:none; }
+.lv-btn-back:hover{ color:#f5e3ae; border-color:rgba(232,193,90,0.45); background:rgba(232,193,90,0.06); }
 
-/* ปุ่มสลับหมวด */
+/* ปุ่มพับ/กางแผงตั้งค่า */
 .lv-chip-toggle{
     height:30px; padding:0 12px; border-radius:10px;
-    font-size:11px; font-weight:800; letter-spacing:0.02em;
-    display:inline-flex; align-items:center; gap:5px; cursor:pointer;
-    background:#f8fafc; border:1px solid #e2e8f0; color:#64748b;
-    transition:all .15s;
-}
-html.dark .lv-chip-toggle{
-    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.12); color:#8b9bb4;
+    font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:5px; cursor:pointer;
+    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.12); color:#8b9bb4; transition:all .15s;
 }
 .lv-chip-toggle .material-icons{ font-size:15px; }
-.lv-chip-toggle:hover{ border-color:rgba(232,193,90,0.5); color:#b45309; }
-html.dark .lv-chip-toggle:hover{ color:#f5e3ae; background:rgba(232,193,90,0.06); }
+.lv-chip-toggle:hover{ color:#f5e3ae; background:rgba(232,193,90,0.06); border-color:rgba(232,193,90,0.5); }
 .lv-chip-toggle.lv-on{
     background:linear-gradient(145deg,#f7e7b6,#E8C15A 60%,#d4a93c);
-    border-color:rgba(232,193,90,0.8); color:#3a2c07;
+    border-color:rgba(232,193,90,0.8); color:#2c2105;
     box-shadow:0 4px 12px -5px rgba(232,193,90,0.7);
 }
-html.dark .lv-chip-toggle.lv-on{ color:#2c2105; }
-
-/* ซ่อนปุ่มสลับอัตโนมัติ ถ้าผู้ใช้ไม่มีสิทธิ์เห็นหมวดนั้น (JS ใส่ hidden ให้แผงเอง) */
+.lv-collapsed{ display:none !important; }
 #leaveApp:has(#leaveManagerControls.hidden) #btnToggleSettings{ display:none; }
-#leaveApp:has(#leaveTypeToolbar.hidden) #btnToggleTypes{ display:none; }
+.lv-divider{ width:1px; height:22px; background:rgba(232,193,90,0.22); margin:0 3px; flex-shrink:0; }
 
-/* เส้นคั่นกลุ่มเครื่องมือ */
-.lv-divider{ width:1px; height:22px; background:rgba(148,163,184,0.35); margin:0 3px; flex-shrink:0; }
-html.dark .lv-divider{ background:rgba(232,193,90,0.22); }
+/* ── ⚙️ แผงตั้งค่าแอดมิน — นิยามเดียวจบ ── */
+#leaveManagerControls{
+    flex-shrink:0; z-index:20;
+    display:flex; flex-wrap:wrap; align-items:stretch; gap:8px;
+    padding:8px 12px; animation:fadeIn .2s ease;
+    background:#0a101d; border-bottom:1px solid rgba(255,255,255,0.05);
+    box-shadow:inset 0 6px 14px -10px rgba(0,0,0,0.8);
+}
+.lv-set-head{
+    display:flex; flex-direction:column; justify-content:center; gap:2px;
+    padding-right:14px; margin-right:2px; flex-shrink:0;
+    border-right:1px solid rgba(232,193,90,0.18);
+}
+.lv-set-head .lv-set-title{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#E8C15A; }
+.lv-set-head .lv-set-sub{ font-size:9px; color:#94a3b8; }
+.lv-card{
+    flex-shrink:0; display:flex; flex-direction:column; justify-content:center; gap:4px;
+    padding:5px 9px; border-radius:11px;
+    background:linear-gradient(160deg,#121b2e,#0d1422);
+    border:1px solid rgba(255,255,255,0.07);
+    box-shadow:0 4px 12px -6px rgba(0,0,0,0.6);
+}
+.lv-card-label{
+    font-size:9px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase;
+    color:#8b9bb4; display:flex; align-items:center; gap:4px; line-height:1;
+}
+.lv-card-label .dot{ width:6px; height:6px; border-radius:99px; display:inline-block; }
+.lv-card-row{ display:flex; align-items:center; gap:6px; }
+.lv-mini-input{
+    background:rgba(2,8,19,0.6); border:1px solid rgba(255,255,255,0.10); color:#f1f5f9;
+    border-radius:8px; font-size:10.5px; font-weight:700; text-align:center;
+    padding:3px 4px; outline:none; transition:border-color .15s, box-shadow .15s;
+}
+.lv-mini-input:focus{ border-color:rgba(232,193,90,0.6); box-shadow:0 0 0 3px rgba(232,193,90,0.12); }
+.lv-mini-input[type="datetime-local"]{ width:118px; font-family:monospace; font-size:10px; text-align:left; cursor:pointer; }
+.lv-w10{ width:42px; }
+.lv-shift-tag{ font-size:9.5px; font-weight:800; line-height:1; }
+.lv-quota-card{
+    border:1px solid rgba(232,193,90,0.55) !important;
+    background:linear-gradient(160deg,#1a2338,#0f1626);
+    box-shadow:0 4px 14px -6px rgba(0,0,0,0.6), 0 0 18px -8px rgba(232,193,90,0.35);
+}
+.lv-quota-card .lv-card-label{ color:#E8C15A; }
+.lv-btn-save{ background:linear-gradient(135deg,#22c55e,#15803d); color:#fff; border:1px solid rgba(255,255,255,0.2); margin-left:auto; height:34px; align-self:center; font-size:11px; padding:0 13px; }
+.lv-btn-staff{ background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:1px solid rgba(255,255,255,0.2); height:34px; align-self:center; font-size:11px; }
+.lv-toggle-track{ transition:background .2s; }
 
-/* แผงตั้งค่า: เปลี่ยนจากเลื่อนแนวนอน → จัดเรียงหลายแถวเป็นระเบียบ */
-#leaveManagerControls{ flex-wrap:wrap; overflow-x:visible; animation:fadeIn .2s ease; }
-
-
-
-/* แถบหัวเรื่อง: เตี้ยลง */
-.lv-header{ padding:8px 14px; gap:8px 12px; }
-.lv-title-icon{ width:34px; height:34px; border-radius:11px; }
-.lv-title-icon .material-icons{ font-size:18px; }
-.lv-title{ font-size:0.95rem; }
-.lv-header .dept-segment-btn{ padding:0.3rem 0.9rem; font-size:0.7rem; }
-.lv-input, .lv-select, .lv-month-nav, .lv-btn{ height:30px; }
-.lv-btn{ padding:0 11px; font-size:11px; }
-.lv-search input{ width:130px; }
-.lv-month-nav .lv-month-mid{ width:104px; }
-.lv-month-nav .lv-month-mid span{ font-size:11.5px; }
-
-/* แถบตั้งค่าแอดมิน: การ์ดเตี้ยลง */
-#leaveManagerControls{ padding:8px 12px; gap:8px; }
-.lv-card{ padding:5px 9px; border-radius:11px; gap:4px; }
-.lv-mini-input{ font-size:10.5px; padding:3px 4px; }
-.lv-mini-input[type="datetime-local"]{ width:118px; font-size:10px; }
-.lv-btn-save, .lv-btn-staff{ height:34px; font-size:11px; padding:0 13px; }
-
-/* แถบประเภทการลา: บางลง */
-#leaveTypeToolbar{ padding:6px 12px; gap:6px; }
-#leaveTypeToolbar .leave-type-btn{ padding:4px 11px !important; font-size:10.5px !important; }
-.lv-type-label{ font-size:10px; }
-
-/* 📅 ตาราง: คอลัมน์วันแคบลง 75→56px + แถวเตี้ยลง 56→42px */
-#leaveTableMain thead th{ min-width:56px !important; padding:4px 3px !important; }
-/* คงความกว้าง 2 คอลัมน์ซ้าย (No. / รายชื่อ) เพราะ JS ล็อกตำแหน่ง sticky left ไว้ */
+/* ── 📅 ตาราง — คงชุดเดิมทั้งหมด ── */
+.lv-table-wrap{ flex:1 1 0%; overflow:auto; position:relative; background:#0b1220; }
+#leaveTableMain{ border-collapse:separate !important; border-spacing:0 !important; }
+#leaveTableMain thead th{ background-color:#151f32; background-clip:padding-box; min-width:56px !important; padding:4px 3px !important; }
+#leaveTableMain thead th[class*="emerald"]{ background-color:#062e22; }
+#leaveTableMain th.locked-day-col{ background-color:#0a1120 !important; }
+#leaveTableMain th.locked-day-col > *{ opacity:0.5; }
 #leaveTableMain thead th[class*="left-0"]{ min-width:40px !important; }
 #leaveTableMain thead th[class*="left-["]{ min-width:140px !important; }
 #leaveTableMain tbody tr{ height:42px !important; }
 #leaveTableMain tbody td{ padding:3px 4px !important; }
-
-/* ฟอนต์ในหัวตาราง: เลขวันเด่น ส่วน เช้า/กลาง/ดึก ย่อลง */
 #tableHeaderRow th > div:first-child{ font-size:12px !important; margin-bottom:2px !important; padding-bottom:1px !important; }
 #tableHeaderRow th span, #tableWorkingRow th span{ font-size:8.5px !important; }
 #tableHeaderRow th .flex.flex-col, #tableWorkingRow th .flex.flex-col{ gap:1px !important; }
 #tableWorkingRow th .material-icons{ font-size:10px !important; }
-
-/* แถบสรุปประเภทลาใต้ชื่อ (X:4, XX:1) ให้เล็กกระชับ */
 #tableBody td .text-\[9px\], #tableBody td [class*="text-[9px]"]{ font-size:8px !important; margin-top:2px !important; }
 </style>
 
-    <!-- ═══════════ 🥇 แถบหัวเรื่อง ═══════════ -->
+    <!-- ═══════════ 🥇 แถว 1: หัวเรื่อง · แผนก · เดือน · กลับ ═══════════ -->
     <div class="lv-header">
         <div class="lv-title-wrap">
             <div class="lv-title-icon"><span class="material-icons">event_available</span></div>
@@ -315,13 +206,6 @@ html.dark .lv-divider{ background:rgba(232,193,90,0.22); }
         </div>
 
         <div class="lv-tools">
-            <select id="leaveShiftFilter" onchange="renderLeaveTable()" class="lv-select">
-                <option value="all">ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
-            </select>
-            <div class="lv-search">
-                <span class="material-icons">search</span>
-                <input type="text" id="leaveSearchInput" onkeyup="onLeaveSearch()" placeholder="ค้นหาชื่อ..." class="lv-input">
-            </div>
             <div class="lv-month-nav">
                 <button id="btnPrevMonth" onclick="changeMonth(-1)" type="button"><span class="material-icons text-sm">chevron_left</span></button>
                 <div class="lv-month-mid">
@@ -330,28 +214,45 @@ html.dark .lv-divider{ background:rgba(232,193,90,0.22); }
                 </div>
                 <button id="btnNextMonth" onclick="changeMonth(1)" type="button"><span class="material-icons text-sm">chevron_right</span></button>
             </div>
-
-            <div class="lv-divider"></div>
-
-            <button id="btnToggleSettings" type="button" class="lv-chip-toggle"
-                onclick="document.getElementById('leaveManagerControls').classList.toggle('lv-collapsed'); this.classList.toggle('lv-on');">
-                <span class="material-icons">settings_suggest</span> ตั้งค่า
-            </button>
-            <button id="btnToggleTypes" type="button" class="lv-chip-toggle lv-on"
-                onclick="document.getElementById('leaveTypeToolbar').classList.toggle('lv-collapsed'); this.classList.toggle('lv-on');">
-                <span class="material-icons">edit_calendar</span> ประเภทลา
-            </button>
-
-            <div class="lv-divider"></div>
-
-            <button id="btnExportExcel" onclick="exportLeaveToExcel()" class="hidden lv-btn lv-btn-excel">
-                <span class="material-icons">download</span> Excel
-            </button>
-            <button onclick="openHistoryModal()" class="lv-btn lv-btn-history">
-                <span class="material-icons">history</span> ประวัติ
-            </button>
             <button onclick="showPage('dashboard')" class="lv-btn lv-btn-back"><span class="material-icons">arrow_back</span> กลับ</button>
         </div>
+    </div>
+
+    <!-- ═══════════ 🛠️ แถว 2: ประเภทลา (เห็นตลอด) · กะ · ค้นหา · ตั้งค่า · Excel · ประวัติ ═══════════ -->
+    <div class="lv-toolbar">
+        <div id="leaveTypeToolbar" class="hidden">
+            <span class="lv-type-label"><span class="material-icons text-[14px]">edit_calendar</span> ใส่ในตาราง:</span>
+            <button id="ltBtn_X" onclick="setLeaveType('X')" class="leave-type-btn opacity-100 ring-2 ring-red-500 ring-offset-1 scale-105 dark:ring-offset-slate-900 bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">✕ (ปกติ)</button>
+        <button id="ltBtn_XX" onclick="setLeaveType('XX')" class="leave-type-btn opacity-50 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">XX (สลับกะ)</button>
+        <button id="ltBtn_X4" onclick="setLeaveType('X4')" class="leave-type-btn opacity-50 bg-pink-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">X4 (ลาครึ่งวัน)</button>
+        <button id="ltBtn_KL" onclick="setLeaveType('KL')" class="leave-type-btn opacity-50 bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">KL (ลากิจ+ป่วย)</button>
+        <button id="ltBtn_TX" onclick="setLeaveType('TX')" class="leave-type-btn opacity-50 bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">TX (สลับวันหยุด)</button>
+        <button id="ltBtn_PN" onclick="setLeaveType('PN')" class="leave-type-btn opacity-50 bg-amber-800 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">PN (พักร้อน)</button>
+        <button id="ltBtn_KP" onclick="setLeaveType('KP')" class="leave-type-btn opacity-50 bg-yellow-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">KP (ขาดงาน)</button>
+        </div>
+
+        <div style="margin-left:auto"></div>
+
+        <select id="leaveShiftFilter" onchange="renderLeaveTable()" class="lv-select">
+            <option value="all">ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
+        </select>
+        <div class="lv-search">
+            <span class="material-icons">search</span>
+            <input type="text" id="leaveSearchInput" onkeyup="onLeaveSearch()" placeholder="ค้นหาชื่อ..." class="lv-input">
+        </div>
+
+        <div class="lv-divider"></div>
+
+        <button id="btnToggleSettings" type="button" class="lv-chip-toggle"
+            onclick="document.getElementById('leaveManagerControls').classList.toggle('lv-collapsed'); this.classList.toggle('lv-on');">
+            <span class="material-icons">settings_suggest</span> ตั้งค่า
+        </button>
+        <button id="btnExportExcel" onclick="exportLeaveToExcel()" class="hidden lv-btn lv-btn-excel">
+            <span class="material-icons">download</span> Excel
+        </button>
+        <button onclick="openHistoryModal()" class="lv-btn lv-btn-history">
+            <span class="material-icons">history</span> ประวัติ
+        </button>
     </div>
 
     <!-- ═══════════ ⚙️ แถบตั้งค่า (แอดมิน) ═══════════ -->
@@ -445,18 +346,6 @@ html.dark .lv-divider{ background:rgba(232,193,90,0.22); }
             <span class="material-icons">person_add</span> จัดการรายชื่อพนักงาน
         </button>
         <button onclick="executeSaveSettings()" class="lv-btn lv-btn-save shrink-0"><span class="material-icons">save</span> บันทึก <span id="saveBtnLabel">AM</span></button>
-    </div>
-
-    <!-- ═══════════ 🏷️ แถบเลือกประเภทการลา ═══════════ -->
-    <div id="leaveTypeToolbar" class="hidden">
-        <span class="lv-type-label"><span class="material-icons text-[14px]">edit_calendar</span> รูปแบบที่จะใส่ในตาราง:</span>
-        <button id="ltBtn_X" onclick="setLeaveType('X')" class="leave-type-btn opacity-100 ring-2 ring-red-500 ring-offset-1 scale-105 dark:ring-offset-slate-900 bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">✕ (ปกติ)</button>
-        <button id="ltBtn_XX" onclick="setLeaveType('XX')" class="leave-type-btn opacity-50 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">XX (สลับกะ)</button>
-        <button id="ltBtn_X4" onclick="setLeaveType('X4')" class="leave-type-btn opacity-50 bg-pink-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">X4 (ลาครึ่งวัน)</button>
-        <button id="ltBtn_KL" onclick="setLeaveType('KL')" class="leave-type-btn opacity-50 bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">KL (ลากิจ+ป่วย)</button>
-        <button id="ltBtn_TX" onclick="setLeaveType('TX')" class="leave-type-btn opacity-50 bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">TX (สลับวันหยุด)</button>
-        <button id="ltBtn_PN" onclick="setLeaveType('PN')" class="leave-type-btn opacity-50 bg-amber-800 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">PN (พักร้อน)</button>
-        <button id="ltBtn_KP" onclick="setLeaveType('KP')" class="leave-type-btn opacity-50 bg-yellow-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm">KP (ขาดงาน)</button>
     </div>
 
     <!-- ═══════════ 📅 ตาราง ═══════════ -->
