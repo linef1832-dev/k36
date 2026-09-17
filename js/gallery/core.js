@@ -94,23 +94,12 @@ window.switchGalleryMode = function(mode) {
         }
     }
     currentGalleryMode = mode;
-    const tabs = {
-        general: { btn: 'tabGeneral', activeStyle: 'bg-blue-600 text-white shadow-lg border border-blue-400' },
-        bonus:   { btn: 'tabBonus',   activeStyle: 'bg-gradient-to-r from-yellow-600 to-amber-500 text-white shadow-lg border border-yellow-400' },
-        reach:   { btn: 'tabReach',   activeStyle: 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow-lg border border-fuchsia-400' },
-        card:    { btn: 'tabCard',    activeStyle: 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-lg border border-emerald-400' },
-        logo:    { btn: 'tabLogo',    activeStyle: 'bg-gradient-to-r from-rose-600 to-pink-500 text-white shadow-lg border border-rose-400' }
-    };
-    const inactiveStyle = 'bg-slate-700 text-gray-400 hover:text-white border border-transparent';
-    Object.keys(tabs).forEach(k => {
-        const el = document.getElementById(tabs[k].btn);
-        if (!el) return;
-        const base = 'flex-1 min-w-[110px] py-2 rounded-lg font-bold text-sm transition';
-        if (k === mode) {
-            el.className = `${base} ${tabs[k].activeStyle} transform scale-105`;
-        } else {
-            el.className = `${base} ${inactiveStyle}`;
-        }
+    // 🧹 [ล้างโค้ดซ้อน] เดิมเขียนทับ className ทั้งก้อนทุกครั้ง → ไปลบ class 'hidden' ของแท็บที่ไม่มีสิทธิ์ทิ้ง (สลับแท็บแล้วแท็บต้องห้ามโผล่กลับมา!)
+    // ใหม่: แค่สลับ .on ตัวเดียว — สไตล์อยู่ใน CSS (.gx-tab / .gx-tab.on) ที่เดียวจบ, 'hidden' ไม่โดนแตะ
+    const tabBtn = { general: 'tabGeneral', bonus: 'tabBonus', reach: 'tabReach', card: 'tabCard', logo: 'tabLogo' };
+    Object.keys(tabBtn).forEach(k => {
+        const el = document.getElementById(tabBtn[k]);
+        if (el) el.classList.toggle('on', k === mode);
     });
     fetchGalleryImages();
 }

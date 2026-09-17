@@ -327,16 +327,16 @@ window.initGalleryDragDrop = function() {
     if (!galleryApp) return;
     galleryApp.addEventListener('dragover', (e) => {
         e.preventDefault();
-        zone.classList.add('border-pink-300', 'bg-pink-800/30');
+        zone.classList.add('gx-drag');
     });
     galleryApp.addEventListener('dragleave', (e) => {
         if (!galleryApp.contains(e.relatedTarget)) {
-            zone.classList.remove('border-pink-300', 'bg-pink-800/30');
+            zone.classList.remove('gx-drag');
         }
     });
     galleryApp.addEventListener('drop', async (e) => {
         e.preventDefault();
-        zone.classList.remove('border-pink-300', 'bg-pink-800/30');
+        zone.classList.remove('gx-drag');
         const files = e.dataTransfer?.files;
         if (!files || files.length === 0) return;
         const fakeInput = { files };
