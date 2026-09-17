@@ -55,6 +55,8 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
 
     // 🟢 สร้างปุ่มและ "บังคับเลือกกะให้อัตโนมัติ" ตามสิทธิ์
     if (typeof renderShiftButtons === 'function') renderShiftButtons(window.currentUser.allowed_shift);
+    // ⚡ ปุ่มลัด "ลงเหมือนเมื่อวาน" (ทำเบื้องหลัง ไม่หน่วงหน้า)
+    if (typeof initQuickRebook === 'function') setTimeout(() => initQuickRebook(), 400);
 
     // เช็คระบบ "จำทีมนี้ไว้ตลอด"
     const savedTeam = localStorage.getItem(`last_team_${window.currentUser.username}`);
@@ -172,6 +174,80 @@ window.renderShiftButtons = function(allowedShift) {
             </label>
         `;
     });
+};
+
+// ════════════════════════════════════════════════════════
+// ⚡ ปุ่มลัด "ลงเหมือนเมื่อวาน" — จำว่าเมื่อวานลงพักเวลาไหน กดเดียวจองซ้ำ
+//   ปลอดภัย 100%: กดแล้วมันไป "กรอกฟอร์มให้แล้วกดบันทึกให้" → วิ่งผ่านด่านเช็คเดิมครบ
+//   (โควตา/ห้ามลงติดกัน/คนเฝ้าขั้นต่ำ/RPC กันกดพร้อมกัน) เหมือนกดเองทุกอย่าง
+// ════════════════════════════════════════════════════════
+window.initQuickRebook = async function () {
+    const box = document.getElementById('quickRebookBox');
+    if (!box || !window.currentUser || !currentUser.username) return;
+    box.innerHTML = '';
+    try {
+        const today = document.getElementById('wDate') ? document.getElementById('wDate').value : '';
+        if (!today) return;
+        const y = new Date(today + 'T00:00:00'); y.setDate(y.getDate() - 1);
+        const p2 = n => String(n).padStart(2, '0');
+        const yISO = `${y.getFullYear()}-${p2(y.getMonth() + 1)}-${p2(y.getDate())}`;
+        // เมื่อวานลงอะไรไว้ + วันนี้ลงอะไรไปแล้ว (ยิงพร้อมกัน)
+        const [yr, tr] = await Promise.all([
+            appDB.from('schedules').select('team, shift_name, time_slot').eq('work_date', yISO).eq('staff_name', currentUser.username).order('time_slot'),
+            appDB.from('schedules').select('shift_name, time_slot').eq('work_date', today).eq('staff_name', currentUser.username)
+        ]);
+        const yest = yr.data || [];
+        if (!yest.length) return;                                   // เมื่อวานไม่ได้ลง → ไม่มีปุ่ม
+        const doneToday = new Set((tr.data || []).map(m => `${m.shift_name}|${m.time_slot}`));
+        const items = yest.filter(b => !doneToday.has(`${b.shift_name}|${b.time_slot}`));
+        if (!items.length) return;                                  // วันนี้ลงเหมือนเมื่อวานครบแล้ว → ซ่อน
+        const esc = v => (window.escapeHtml ? window.escapeHtml(v) : String(v ?? ''));
+        box.innerHTML = `
+        <div style="background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(99,102,241,.08));border:1px solid rgba(96,165,250,.35);border-radius:14px;padding:11px 13px;margin-bottom:18px;box-shadow:0 4px 14px rgba(37,99,235,.12)">
+            <div style="font-size:11px;font-weight:900;color:#93c5fd;margin-bottom:8px;display:flex;align-items:center;gap:5px;letter-spacing:.02em">
+                <span class="material-icons" style="font-size:14px">bolt</span> ลงเหมือนเมื่อวาน — กดเดียวจบ
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+                ${items.map((b, i) => `
+                <button type="button" id="qrbBtn${i}" onclick="quickRebook('${esc(b.team)}','${esc(b.shift_name)}','${esc(b.time_slot)}','qrbBtn${i}')"
+                    style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:rgba(15,23,42,.65);border:1px solid rgba(96,165,250,.3);border-radius:11px;padding:9px 13px;color:#e2e8f0;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s;text-align:left"
+                    onmouseover="this.style.borderColor='#60a5fa';this.style.background='rgba(30,58,138,.35)'" onmouseout="this.style.borderColor='rgba(96,165,250,.3)';this.style.background='rgba(15,23,42,.65)'">
+                    <span>🍚 <b style="font-family:monospace;color:#fff">${esc(b.time_slot)}</b> <span style="color:#94a3b8;font-weight:700;font-size:11.5px">· ${esc(b.team)} · ${esc(b.shift_name)}</span></span>
+                    <span class="material-icons" style="font-size:17px;color:#60a5fa">play_circle</span>
+                </button>`).join('')}
+            </div>
+        </div>`;
+    } catch (e) { /* เงียบ ๆ — ปุ่มลัดพังไม่ควรทำหน้าหลักพัง */ }
+};
+
+window.quickRebook = async function (team, shift, slot, btnId) {
+    const btn = document.getElementById(btnId);
+    if (btn) { btn.disabled = true; btn.style.opacity = '.6'; btn.innerHTML = '<span class="animate-spin material-icons" style="font-size:15px">sync</span> <span style="font-size:12px">กำลังลงให้...</span>'; }
+    try {
+        // 1) เลือกทีมให้ (ถ้าทีมนั้นยังอยู่ในรายการ)
+        const ts = document.getElementById('dailyTeam');
+        if (ts) {
+            const has = [...ts.options].some(o => o.value === team);
+            if (has) { ts.value = team; }
+            else throw new Error(`เว็บ "${team}" ไม่อยู่ในรายการแล้ว — เลือกจากฟอร์มด้านล่างแทนนะ`);
+        }
+        // 2) เลือกกะให้
+        const radio = document.querySelector(`input[name="shift"][value="${shift}"]`);
+        if (!radio) throw new Error(`วันนี้คุณลง${shift}ไม่ได้ (ไม่มีสิทธิ์กะนี้)`);
+        radio.checked = true;
+        // 3) โหลดรอบเวลาของกะนั้น แล้วเลือกรอบเดิมให้
+        if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
+        const sel = document.getElementById('tSlot');
+        const opt = sel ? [...sel.options].find(o => o.value === slot) : null;
+        if (!opt) throw new Error(`วันนี้ไม่มีรอบ ${slot} ในตั้งค่าแล้ว`);
+        if (opt.disabled) throw new Error(`รอบ ${slot} วันนี้เต็มแล้ว — เลือกรอบอื่นจากฟอร์มได้เลย`);
+        sel.value = slot;
+        // 4) กดบันทึกให้ — วิ่งเข้าตัวเช็คชุดเดิมทั้งหมดเหมือนกดเอง
+        if (typeof saveData === 'function') await saveData({ preventDefault: () => {} });
+    } catch (e) {
+        Swal.fire({ icon: 'warning', title: 'ลงเวลาเดิมไม่ได้', text: String(e.message || e) });
+    }
+    if (typeof initQuickRebook === 'function') initQuickRebook();   // อัปเดตปุ่ม (ลงแล้วให้หายไป)
 };
 
 // debounce timer สำหรับ refreshTimeSlots

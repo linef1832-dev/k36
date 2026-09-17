@@ -201,7 +201,7 @@ window.refreshCurrentUserFromDB = async function() {
     } catch (e) {}
 };
 
-function handleDateChange() { const _dd = document.getElementById('displayDate'); if (_dd) _dd.innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); /* 🩹 displayDate อยู่หน้าตารางลงเวลาพักแล้ว หน้าหลักไม่มี → เช็คก่อน */ refreshTimeSlots(); fetchData(); }
+function handleDateChange() { const _dd = document.getElementById('displayDate'); if (_dd) _dd.innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); /* 🩹 displayDate อยู่หน้าตารางลงเวลาพักแล้ว หน้าหลักไม่มี → เช็คก่อน */ refreshTimeSlots(); fetchData(); if (typeof initQuickRebook === 'function') initQuickRebook(); }
 function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) window.safeSetItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); fetchData(); }
 function toggleRememberTeam() { const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) { const team = document.getElementById('dailyTeam').value; window.safeSetItem(`last_team_${currentUser.username}`, team); } else { localStorage.removeItem(`last_team_${currentUser.username}`); } }
 function getPeriodForTime(shift, time) { const groups = SHIFT_GROUPS[shift]; if(!groups) return null; for(const [p, ts] of Object.entries(groups)) { if(ts.includes(time)) return p; } return null; }
