@@ -196,278 +196,317 @@ const PERM_GROUPS = [
     }
 ];
 
-// ฟังก์ชันคลิกพื้นที่ว่างแล้วให้ป๊อปอัปปิด
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.perm-cell') && !e.target.closest('.swal2-container')) {
-        document.querySelectorAll('.perm-popup').forEach(el => el.classList.add('hidden'));
-    }
-});
-
-// ฟังก์ชันเปิด/ปิด ป๊อปอัปสิทธิ์เมนู
-window.togglePermPopup = function(key) {
-    const popup = document.getElementById('popup_' + key);
-    const isHidden = popup.classList.contains('hidden');
-    document.querySelectorAll('.perm-popup').forEach(p => p.classList.add('hidden'));
-    if (isHidden) popup.classList.remove('hidden');
+// =========================================================
+// 🟢 หน้าตั้งค่าสิทธิ์ โฉมใหม่ (V2) — เลิกใช้ป๊อปอัปลอย
+// วิธีใช้: เลือกแผนก (แถวบน) → เลือก Role (แถวสอง) → เปิด/ปิดสวิตช์ → กดบันทึก (ปุ่มเดียว แถบล่าง)
+// ข้อมูลเก็บรูปเดิมเป๊ะ: MENU_PERMS["แผนก_ROLE"] = [รายชื่อเมนู] — สิทธิ์เก่าที่เคยตั้งไว้ใช้ได้ต่อทันที
+// =========================================================
+const PERM_THEME_HEX = {
+    'blue':'#3b82f6','rose':'#f43f5e','pink':'#ec4899','amber':'#f59e0b','green':'#22c55e',
+    'orange':'#f97316','indigo':'#6366f1','sky':'#0ea5e9','emerald':'#10b981','purple':'#a855f7',
+    'red':'#ef4444','teal':'#14b8a6','cyan':'#06b6d4','fuchsia':'#d946ef'
 };
 
-// ตัวแปรเก็บว่าแต่ละบรรทัดเลือก Role อะไรอยู่
-// 🆕 จำค่าที่เลือกไว้ในเครื่อง (localStorage) — รีเฟรชหน้าแล้วยังจำ Role เดิม ไม่เด้งกลับ STAFF
-window.permRowSelections = (function() {
-    let saved = {};
-    try { saved = JSON.parse(localStorage.getItem('perm_row_selections') || '{}'); } catch(e) {}
-    return Object.assign({ 'AM': 'STAFF', 'OD': 'STAFF', 'AMQL': 'TRAINER' }, saved);
-})();
+// สถานะหน้าจอ: แผนก/Role ที่เลือกอยู่ + ฉบับร่างที่กำลังแก้ (ยังไม่บันทึก)
+window.permUI = window.permUI || { dept: null, role: null, draft: [], dirty: false };
 
-window.changePermRowRole = function(dept, newRole) {
-    window.permRowSelections[dept] = newRole;
-    try { window.safeSetItem('perm_row_selections', JSON.stringify(window.permRowSelections)); } catch(e) {}
-    renderPermsTable();
-};
-
-window.renderPermsTable = function() {
+function _permReadMenuPerms() {
     try {
         if (typeof SETTINGS['dept_menu_rules'] === 'string') MENU_PERMS = JSON.parse(SETTINGS['dept_menu_rules']);
         else if (SETTINGS['dept_menu_rules']) MENU_PERMS = SETTINGS['dept_menu_rules'];
         else MENU_PERMS = {};
     } catch(e) { MENU_PERMS = {}; }
+}
 
-    const tbody = document.getElementById('permTableBody');
-    if(!tbody) return;
-
-    // 🌟 1. ดึงชื่อแผนกจากฐานข้อมูล (DB)
-    const depts = typeof window.getSystemDepts === 'function' ? window.getSystemDepts() : ['AM', 'OD', 'AMQL'];
-    
-    let bodyHtml = '';
-
-    // 🌟 2. ดึงชื่อ Role จากฐานข้อมูล (DB) และรายชื่อพนักงาน
+function _permAllRoles() {
     let dbRoles = [];
     try { dbRoles = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
-    let allSystemRoles = [...new Set(['staff', 'trainer', 'manager', ...dbRoles])];
-
+    let all = [...new Set(['staff', 'trainer', 'manager', ...dbRoles])];
     if (typeof GLOBAL_USER_LIST !== 'undefined') {
         GLOBAL_USER_LIST.forEach(u => {
-            if (u.role && !allSystemRoles.includes(u.role.toLowerCase())) {
-                allSystemRoles.push(u.role.toLowerCase());
-            }
+            if (u.role && !all.includes(u.role.toLowerCase())) all.push(u.role.toLowerCase());
         });
     }
+    return all.map(r => r.toUpperCase());
+}
 
-    const colorClasses = {
-        'blue': 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-        'rose': 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-        'pink': 'text-pink-400 bg-pink-500/10 border-pink-500/20',
-        'amber': 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-        'green': 'text-green-400 bg-green-500/10 border-green-500/20',
-        'orange': 'text-orange-400 bg-orange-500/10 border-orange-500/20',
-        'indigo': 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
-        'sky': 'text-sky-400 bg-sky-500/10 border-sky-500/20',
-        'emerald': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-        'purple': 'text-purple-400 bg-purple-500/10 border-purple-500/20',
-        'red': 'text-red-400 bg-red-500/10 border-red-500/20',
-        'teal': 'text-teal-400 bg-teal-500/10 border-teal-500/20',
-    };
+function _permSaveSel() {
+    try { window.safeSetItem('perm_ui_sel', JSON.stringify({ dept: permUI.dept, role: permUI.role })); } catch(e) {}
+}
 
-    const themeHexColors = {
-        'blue': '#3b82f6', 'rose': '#f43f5e', 'pink': '#ec4899', 'amber': '#f59e0b',
-        'green': '#22c55e', 'orange': '#f97316', 'indigo': '#6366f1', 'sky': '#0ea5e9',
-        'emerald': '#10b981', 'purple': '#a855f7', 'red': '#ef4444', 'teal': '#14b8a6',
-    };
-
-    depts.forEach(dept => {
-        const role = window.permRowSelections[dept] || 'STAFF';
-        const key = `${dept}_${role}`;
-        const activePerms = MENU_PERMS[key] || [];
-
-        // 🌟 สร้าง Dropdown ของ Role รอไว้
-        let dynamicRoleOpts = '';
-        allSystemRoles.forEach(r => {
-            let rUpper = r.toUpperCase();
-            dynamicRoleOpts += `<option value="${rUpper}" ${role === rUpper ? 'selected' : ''} class="bg-slate-800 text-white font-bold">${rUpper}</option>`;
+// สลับแผนก/Role — ถ้ามีของแก้ค้างยังไม่บันทึก จะถามก่อน กันงานหาย
+window.permSwitch = async function(dept, role) {
+    if (window.permUI.dirty) {
+        const r = await Swal.fire({
+            title: 'ยังไม่ได้บันทึก',
+            text: 'สิทธิ์ชุดนี้มีการแก้ไขค้างอยู่ ถ้าสลับไปชุดอื่นตอนนี้ ที่แก้ไว้จะหายนะ',
+            icon: 'warning', showCancelButton: true,
+            confirmButtonText: 'สลับเลย (ทิ้งที่แก้)', cancelButtonText: 'อยู่ก่อน เดี๋ยวกดบันทึก',
+            confirmButtonColor: '#ef4444'
         });
-        
-        let badgesHtml = '<div class="grid grid-cols-2 xl:grid-cols-3 gap-3 w-full content-start items-start">';
-        let activeCount = 0;
-
-        PERM_GROUPS.forEach(g => {
-            const activeItemsInGroup = g.items.filter(i => activePerms.includes(i.id));
-            if (activeItemsInGroup.length > 0) {
-                activeCount++;
-                const themeClass = colorClasses[g.theme] || colorClasses['blue'];
-                const iconColor = themeClass.split(' ')[0]; 
-
-                let itemsHtml = '';
-                activeItemsInGroup.forEach(item => {
-                    if (item.isSub) {
-                        itemsHtml += `<span class="bg-slate-700/50 text-gray-300 border border-slate-600/50 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap shadow-sm mt-1">${item.name}</span>`;
-                    } else {
-                        itemsHtml += `<span class="${themeClass} border px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap shadow-sm mt-1">${item.name}</span>`;
-                    }
-                });
-
-                badgesHtml += `
-                    <div class="bg-slate-800/40 border border-slate-700 rounded-xl p-3 flex flex-col shadow-inner hover:border-slate-500 transition h-fit">
-                        <div class="flex items-center gap-2 border-b border-slate-700/50 pb-2 mb-1">
-                            <span class="material-icons text-[16px] ${iconColor}">${g.icon}</span>
-                            <span class="font-bold text-white text-[11px] truncate">${g.name}</span>
-                        </div>
-                        <div class="flex flex-wrap gap-1 content-start">
-                            ${itemsHtml}
-                        </div>
-                    </div>
-                `;
-            }
-        });
-        badgesHtml += '</div>';
-        if (activeCount === 0) {
-            badgesHtml = `<div class="flex flex-col items-center justify-center py-6 text-gray-500 w-full"><span class="material-icons text-4xl mb-2 opacity-30">admin_panel_settings</span><span class="text-sm font-bold">คลิกที่นี่เพื่อกำหนดสิทธิ์การเข้าถึง</span></div>`;
-        }
-
-        let popupContentHtml = `
-            <div id="popup_${key}" class="perm-popup absolute top-full left-0 mt-2 bg-[#0f172a] border border-slate-600 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[950px] z-[99] hidden cursor-default overflow-hidden flex-col">
-                
-                <div class="bg-gradient-to-r from-slate-800 to-slate-900 border-b border-slate-700 p-5 flex justify-between items-center shrink-0">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-blue-500/20 text-blue-400 p-2 rounded-xl shadow-inner border border-blue-500/30"><span class="material-icons text-xl block">tune</span></div>
-                        <div>
-                            <h4 class="text-white font-black text-lg leading-tight tracking-wide">จัดการสิทธิ์ <span class="text-blue-400">(${dept})</span></h4>
-                            <p class="text-[10px] text-gray-400 mt-0.5">ระบุการเข้าถึงหน้าเว็บและเครื่องมือต่างๆ สำหรับ ${role}</p>
-                        </div>
-                    </div>
-                    <button onclick="togglePermPopup('${key}')" class="text-gray-400 hover:text-white bg-slate-700/50 hover:bg-red-500 rounded-full w-8 h-8 flex items-center justify-center transition border border-slate-600 shadow-sm"><span class="material-icons text-[16px]">close</span></button>
-                </div>
-
-                <div class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-slate-900/50">
-                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-5 items-start">
-        `;
-        
-        PERM_GROUPS.forEach(g => {
-            const themeClass = colorClasses[g.theme] || colorClasses['blue'];
-            const themeColorHex = themeHexColors[g.theme] || '#3b82f6';
-            const iconColor = themeClass.split(' ')[0];
-            
-            popupContentHtml += `
-                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-sm hover:border-slate-500 transition">
-                    <div class="bg-slate-900/60 px-4 py-3 border-b border-slate-700 flex items-center gap-2">
-                        <span class="material-icons text-[18px] ${iconColor}">${g.icon}</span>
-                        <span class="font-bold text-white text-[11px] tracking-wide">${g.name}</span>
-                    </div>
-                    <div class="p-3 bg-slate-800/80 flex flex-col gap-0.5">
-            `;
-            
-            g.items.forEach(item => {
-                const isCheckedAttr = activePerms.includes(item.id) ? 'checked' : '';
-                const bgOpacity = activePerms.includes(item.id) ? '1' : '0';
-                const borderColor = activePerms.includes(item.id) ? 'transparent' : '';
-                const marginLeft = item.isSub ? 'ml-6 pl-2 border-l-2 border-slate-600/50' : 'font-bold bg-slate-700/30 rounded-lg p-1 mb-1';
-                const textStyle = item.isSub ? 'text-gray-400 text-[10px]' : 'text-gray-200 text-[11px]';
-                
-                popupContentHtml += `
-                    <label class="relative flex items-center gap-3 ${textStyle} cursor-pointer hover:bg-slate-700 p-2 rounded-lg transition ${marginLeft} group">
-                        <input type="checkbox" class="perm-cb absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
-                               data-key="${key}" data-menu="${item.id}" ${isCheckedAttr}
-                               onchange="
-                                  this.nextElementSibling.style.borderColor = this.checked ? 'transparent' : '';
-                                  this.nextElementSibling.querySelector('.check-bg').style.opacity = this.checked ? '1' : '0';
-                                  this.nextElementSibling.querySelector('.check-icon').style.opacity = this.checked ? '1' : '0';
-                                  this.nextElementSibling.querySelector('.check-icon').style.transform = this.checked ? 'scale(1)' : 'scale(0.5)';
-                               ">
-                        <div class="relative w-4 h-4 shrink-0 rounded border-2 border-slate-500 bg-slate-900 transition-all flex items-center justify-center shadow-inner" style="border-color: ${borderColor};">
-                            <div class="check-bg absolute inset-0 rounded transition-opacity duration-200" style="background-color: ${themeColorHex}; opacity: ${bgOpacity};"></div>
-                            <span class="check-icon material-icons text-[12px] text-white font-bold z-10 transition-all duration-200" style="opacity: ${bgOpacity}; transform: scale(${bgOpacity === '1' ? '1' : '0.5'});">check</span>
-                        </div>
-                        <span class="flex-1 select-none leading-none group-hover:text-white transition-colors pt-0.5 z-10">${item.name}</span>
-                    </label>`;
-            });
-            popupContentHtml += `</div></div>`;
-        });
-        
-        popupContentHtml += `
-                    </div>
-                </div>
-                <div class="bg-slate-800 border-t border-slate-700 p-5 flex justify-between items-center shrink-0">
-                    <span class="text-[10px] text-gray-500 flex items-center gap-1"><span class="material-icons text-[14px]">info</span> กดติ๊กถูกเพื่อเปิดสิทธิ์การใช้งานให้เมนูนั้นๆ</span>
-                    <div class="flex gap-2">
-                        <button onclick="togglePermPopup('${key}')" class="px-5 py-2.5 rounded-xl text-xs font-bold text-gray-300 hover:bg-slate-700 transition border border-slate-600 shadow-sm">ยกเลิก</button>
-                        <button onclick="saveMenuPerms()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg transition flex items-center gap-1 border border-blue-400 active:scale-95"><span class="material-icons text-[16px]">save</span> บันทึกสิทธิ์</button>
-                    </div>
-                </div>
-            </div>`;
-
-        let roleColor = role === 'TRAINER' ? 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-700' : (role === 'MANAGER' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-purple-900/30 text-purple-400 border-purple-700');
-        let iconColor = role === 'TRAINER' ? 'text-fuchsia-400' : (role === 'MANAGER' ? 'text-red-400' : 'text-purple-400');
-
-        // 🌟 สร้างกลุ่มปุ่มจัดการ (แก้ไขได้ทุกแผนก, ลบได้เฉพาะแผนกที่สร้างเอง)
-        let deptActionBtns = `
-        <div class="absolute -top-3 -right-3 flex gap-1 z-30">
-            <button onclick="renameAnyDept('${dept}')" class="bg-amber-500 hover:bg-amber-400 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
-            ${!['AM', 'OD', 'AMQL'].includes(dept) ? `<button onclick="deleteCustomPermDept('${dept}')" class="bg-red-600 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition active:scale-95" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>` : ''}
-        </div>`;
-
-        bodyHtml += `
-        <tr class="hover:bg-slate-800/30 transition border-b border-slate-700/50">
-            <td class="px-6 py-5 border-r border-slate-700 align-top">
-                <div class="relative bg-slate-900 border border-slate-600 px-3 py-3 rounded-xl font-black text-white shadow-inner text-sm w-32 text-center tracking-wider">
-                    ${dept}
-                    ${deptActionBtns}
-                </div>
-            </td>
-            
-            <td class="px-6 py-5 border-r border-slate-700 align-top">
-                <div class="relative w-32">
-                    <select onchange="changePermRowRole('${dept}', this.value)" class="${roleColor} border px-3 py-3 rounded-xl font-black text-[11px] shadow-sm w-full outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-purple-500 transition relative z-10 text-center tracking-wide">
-                        ${dynamicRoleOpts}
-                    </select>
-                    <span class="material-icons text-[14px] opacity-70 absolute right-2.5 top-3 pointer-events-none z-20 ${iconColor}">expand_more</span>
-                </div>
-            </td>
-            
-            <td class="px-6 py-5 align-top relative perm-cell" style="overflow: visible;">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="text-[10px] font-bold ${iconColor} bg-slate-800/80 border border-slate-600 px-2 py-1 rounded-lg">กำลังดูสิทธิ์ของ: ${dept} · ${role}</span>
-                    <span class="text-[10px] text-gray-500">(เปลี่ยน Role ด้านซ้ายเพื่อดู/ตั้งค่าชุดอื่น)</span>
-                </div>
-                <div onclick="togglePermPopup('${key}')" class="bg-slate-900/30 border border-slate-700 p-4 rounded-2xl min-h-[60px] cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/50 transition shadow-inner">
-                    ${badgesHtml}
-                </div>
-                ${popupContentHtml}
-            </td>
-        </tr>`;
-    });
-    tbody.innerHTML = bodyHtml;
+        if (!r.isConfirmed) return;
+    }
+    window.permUI.dept = dept;
+    window.permUI.role = role;
+    window.permUI.dirty = false;
+    _permSaveSel();
+    renderPermsTable();
 };
 
+// เปิด/ปิดสวิตช์ 1 ตัว — อัปเดตฉบับร่าง + ตัวนับ ไม่วาดหน้าใหม่ (จอไม่กระตุก)
+window.permToggleItem = function(itemId, checked) {
+    const d = window.permUI.draft;
+    if (checked) { if (!d.includes(itemId)) d.push(itemId); }
+    else { const i = d.indexOf(itemId); if (i > -1) d.splice(i, 1); }
+    window.permUI.dirty = true;
+    _permRefreshCounts();
+};
+
+// ปุ่ม "ทั้งหมด/ล้าง" รายหมวด
+window.permGroupSetAll = function(groupId, on) {
+    const g = PERM_GROUPS.find(x => x.id === groupId);
+    if (!g) return;
+    g.items.forEach(item => {
+        const cb = document.getElementById('permCb_' + item.id);
+        if (cb) cb.checked = !!on;
+        const d = window.permUI.draft;
+        if (on) { if (!d.includes(item.id)) d.push(item.id); }
+        else { const i = d.indexOf(item.id); if (i > -1) d.splice(i, 1); }
+    });
+    window.permUI.dirty = true;
+    _permRefreshCounts();
+};
+
+// คัดลอกสิทธิ์จากชุดอื่นมาใส่ชุดที่กำลังแก้ (เช่น ก๊อปของ AM_STAFF มาเป็นฐานให้ ODQL_TRAINER)
+window.permCopyFrom = async function(srcKey) {
+    if (!srcKey) return;
+    const srcPerms = MENU_PERMS[srcKey] || [];
+    const r = await Swal.fire({
+        title: 'คัดลอกสิทธิ์?',
+        html: `เอาสิทธิ์ทั้งหมดของ <b class="text-blue-400">${srcKey.replace('_', ' · ')}</b> (${srcPerms.length} รายการ)<br>มาทับชุด <b class="text-emerald-400">${permUI.dept} · ${permUI.role}</b> ที่เปิดอยู่`,
+        icon: 'question', showCancelButton: true,
+        confirmButtonText: 'คัดลอกเลย', cancelButtonText: 'ยกเลิก'
+    });
+    document.getElementById('permCopySelect').value = '';
+    if (!r.isConfirmed) return;
+    window.permUI.draft = [...srcPerms];
+    window.permUI.dirty = true;
+    _permRenderGroups();
+    _permRefreshCounts();
+};
+
+// ช่องค้นหา — พิมพ์แล้วซ่อนหมวดที่ไม่เกี่ยว
+window.permFilter = function(q) {
+    q = (q || '').toLowerCase().trim();
+    document.querySelectorAll('.perm-group-card').forEach(card => {
+        card.style.display = (!q || (card.getAttribute('data-search') || '').includes(q)) ? '' : 'none';
+    });
+};
+
+// อัปเดตตัวเลขนับ + แถบ "ยังไม่บันทึก" (ไม่วาดหน้าใหม่)
+function _permRefreshCounts() {
+    const d = window.permUI.draft;
+    let total = 0;
+    PERM_GROUPS.forEach(g => {
+        const n = g.items.filter(i => d.includes(i.id)).length;
+        total += n;
+        const badge = document.getElementById('permCnt_' + g.id);
+        if (badge) {
+            badge.textContent = n + '/' + g.items.length;
+            badge.className = 'text-[10px] font-black px-2 py-0.5 rounded-lg border ' +
+                (n > 0 ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' : 'text-gray-500 border-slate-600 bg-slate-800');
+        }
+    });
+    const totalEl = document.getElementById('permTotalCnt');
+    if (totalEl) totalEl.textContent = total;
+    const dirtyEl = document.getElementById('permDirtyHint');
+    if (dirtyEl) dirtyEl.style.display = window.permUI.dirty ? 'flex' : 'none';
+}
+
+// วาดเฉพาะกริดการ์ดหมวดสิทธิ์
+function _permRenderGroups() {
+    const grid = document.getElementById('permGroupsGrid');
+    if (!grid) return;
+    const d = window.permUI.draft;
+    let html = '';
+
+    PERM_GROUPS.forEach(g => {
+        const hex = PERM_THEME_HEX[g.theme] || PERM_THEME_HEX['blue'];
+        const searchText = (g.name + ' ' + g.items.map(i => i.name).join(' ')).toLowerCase();
+        const n = g.items.filter(i => d.includes(i.id)).length;
+
+        let itemsHtml = '';
+        g.items.forEach(item => {
+            const on = d.includes(item.id);
+            const mainCls = item.isSub
+                ? 'perm-row perm-row-sub'
+                : 'perm-row perm-row-main';
+            itemsHtml += `
+                <label class="${mainCls}">
+                    <span class="perm-row-name">${item.name}</span>
+                    <input type="checkbox" id="permCb_${item.id}" class="perm-sw-input" ${on ? 'checked' : ''}
+                           onchange="permToggleItem('${item.id}', this.checked)">
+                    <span class="perm-sw" style="--sw:${hex};"></span>
+                </label>`;
+        });
+
+        html += `
+            <div class="perm-group-card bg-slate-800/70 rounded-2xl border border-slate-700 overflow-hidden shadow-sm hover:border-slate-500 transition" data-search="${searchText}">
+                <div class="px-4 py-3 border-b border-slate-700 flex items-center gap-2 bg-slate-900/50">
+                    <span class="material-icons text-[18px]" style="color:${hex}">${g.icon}</span>
+                    <span class="font-bold text-white text-[11px] flex-1 truncate">${g.name}</span>
+                    <span id="permCnt_${g.id}" class="text-[10px] font-black px-2 py-0.5 rounded-lg border ${n > 0 ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' : 'text-gray-500 border-slate-600 bg-slate-800'}">${n}/${g.items.length}</span>
+                </div>
+                <div class="px-3 pt-2 flex gap-1.5">
+                    <button type="button" onclick="permGroupSetAll('${g.id}', true)" class="text-[9px] font-bold text-emerald-400 hover:text-white hover:bg-emerald-600 border border-emerald-600/40 rounded-md px-2 py-0.5 transition">เปิดทั้งหมด</button>
+                    <button type="button" onclick="permGroupSetAll('${g.id}', false)" class="text-[9px] font-bold text-gray-400 hover:text-white hover:bg-slate-600 border border-slate-600 rounded-md px-2 py-0.5 transition">ล้าง</button>
+                </div>
+                <div class="p-3 flex flex-col gap-0.5">${itemsHtml}</div>
+            </div>`;
+    });
+    grid.innerHTML = html;
+}
+
+// 🌟 ฟังก์ชันหลัก — ชื่อเดิม (renderPermsTable) เพื่อให้ไฟล์อื่นที่เรียกอยู่ใช้ได้โดยไม่ต้องแก้
+window.renderPermsTable = function() {
+    _permReadMenuPerms();
+    const root = document.getElementById('permBuilderRoot');
+    if (!root) return;
+
+    const depts = typeof window.getSystemDepts === 'function' ? window.getSystemDepts() : ['AM', 'OD', 'AMQL'];
+    const roles = _permAllRoles();
+
+    // กู้ค่าที่เคยเลือกไว้ (จำข้ามการรีเฟรช)
+    if (!permUI.dept) {
+        try {
+            const saved = JSON.parse(localStorage.getItem('perm_ui_sel') || '{}');
+            if (saved.dept) permUI.dept = saved.dept;
+            if (saved.role) permUI.role = saved.role;
+        } catch(e) {}
+    }
+    if (!depts.includes(permUI.dept)) permUI.dept = depts[0] || 'AM';
+    if (!roles.includes(permUI.role)) permUI.role = roles.includes('STAFF') ? 'STAFF' : (roles[0] || 'STAFF');
+
+    const key = `${permUI.dept}_${permUI.role}`;
+    permUI.draft = [...(MENU_PERMS[key] || [])];
+    permUI.dirty = false;
+
+    // ชิปเลือกแผนก (พร้อมปุ่มแก้ชื่อ/ลบ)
+    let deptChips = '';
+    depts.forEach(dept => {
+        const active = dept === permUI.dept;
+        deptChips += `
+            <div class="perm-chip ${active ? 'perm-chip-active' : ''}" onclick="permSwitch('${dept}', permUI.role)">
+                <span class="font-black tracking-wider text-[12px]">${dept}</span>
+                <span class="perm-chip-tools">
+                    <button type="button" onclick="event.stopPropagation(); renameAnyDept('${dept}')" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
+                    ${!['AM','OD','AMQL'].includes(dept) ? `<button type="button" class="perm-tool-del" onclick="event.stopPropagation(); deleteCustomPermDept('${dept}')" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>` : ''}
+                </span>
+            </div>`;
+    });
+
+    // เม็ดเลือก Role
+    const rolePillColor = { 'STAFF': '#a855f7', 'TRAINER': '#d946ef', 'MANAGER': '#ef4444' };
+    let rolePills = '';
+    roles.forEach(r => {
+        const active = r === permUI.role;
+        const c = rolePillColor[r] || '#0ea5e9';
+        rolePills += `
+            <button type="button" onclick="permSwitch(permUI.dept, '${r}')"
+                class="perm-pill ${active ? 'perm-pill-active' : ''}" style="--pc:${c};">
+                ${r}${(MENU_PERMS[permUI.dept + '_' + r] || []).length > 0 ? '<span class="perm-pill-dot"></span>' : ''}
+            </button>`;
+    });
+
+    // ตัวเลือก "คัดลอกจาก" — โชว์เฉพาะชุดที่มีสิทธิ์ตั้งไว้แล้ว
+    let copyOpts = '<option value="">📋 คัดลอกสิทธิ์จากชุดอื่น...</option>';
+    Object.keys(MENU_PERMS).sort().forEach(k => {
+        if (k !== key && Array.isArray(MENU_PERMS[k]) && MENU_PERMS[k].length > 0) {
+            copyOpts += `<option value="${k}">${k.replace('_', ' · ')} (${MENU_PERMS[k].length} รายการ)</option>`;
+        }
+    });
+
+    root.innerHTML = `
+    <style>
+        .perm-chip{position:relative;display:inline-flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;color:#94a3b8;border-radius:14px;padding:10px 14px;cursor:pointer;transition:all .15s;user-select:none;}
+        .perm-chip:hover{border-color:#64748b;color:#fff;}
+        .perm-chip-active{background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-color:#60a5fa;color:#fff;box-shadow:0 4px 14px rgba(59,130,246,.35);}
+        .perm-chip-tools{display:inline-flex;gap:4px;margin-left:2px;}
+        .perm-chip-tools button{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;color:inherit;transition:background .15s;}
+        .perm-chip-tools button:hover{background:#f59e0b;color:#fff;}
+        .perm-chip-tools .perm-tool-del:hover{background:#ef4444;}
+        .perm-pill{position:relative;border:1px solid #334155;background:#0f172a;color:#94a3b8;border-radius:12px;padding:8px 16px;font-size:11px;font-weight:900;letter-spacing:.05em;cursor:pointer;transition:all .15s;}
+        .perm-pill:hover{border-color:var(--pc);color:#fff;}
+        .perm-pill-active{background:var(--pc);border-color:var(--pc);color:#fff;box-shadow:0 4px 14px color-mix(in srgb,var(--pc) 40%,transparent);}
+        .perm-pill-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:#10b981;border:2px solid #151f32;}
+        .perm-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;cursor:pointer;transition:background .12s;}
+        .perm-row:hover{background:rgba(51,65,85,.5);}
+        .perm-row-main{background:rgba(51,65,85,.28);font-weight:700;margin-bottom:2px;}
+        .perm-row-main .perm-row-name{color:#e2e8f0;font-size:11px;}
+        .perm-row-sub{margin-left:14px;border-left:2px solid rgba(100,116,139,.35);border-radius:0 10px 10px 0;}
+        .perm-row-sub .perm-row-name{color:#94a3b8;font-size:10px;}
+        .perm-row-name{flex:1;line-height:1.3;}
+        .perm-sw-input{display:none;}
+        .perm-sw{width:34px;height:19px;border-radius:99px;background:#334155;position:relative;flex-shrink:0;transition:background .18s;box-shadow:inset 0 1px 3px rgba(0,0,0,.4);}
+        .perm-sw::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#94a3b8;transition:all .18s;}
+        .perm-sw-input:checked + .perm-sw{background:var(--sw);}
+        .perm-sw-input:checked + .perm-sw::after{left:17px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.35);}
+        .perm-savebar{position:sticky;bottom:10px;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);border:1px solid #334155;border-radius:18px;padding:12px 18px;box-shadow:0 -8px 30px rgba(0,0,0,.45);margin-top:14px;}
+        .perm-toolbar input[type=text]{background:#0f172a;border:1px solid #334155;color:#fff;border-radius:12px;padding:8px 12px;font-size:12px;outline:none;width:220px;transition:border .15s;}
+        .perm-toolbar input[type=text]:focus{border-color:#3b82f6;}
+        .perm-toolbar select{background:#0f172a;border:1px solid #334155;color:#94a3b8;border-radius:12px;padding:8px 10px;font-size:11px;font-weight:700;outline:none;cursor:pointer;}
+    </style>
+
+    <div class="flex flex-col gap-4">
+        <div>
+            <div class="text-[10px] text-gray-500 font-bold mb-1.5 tracking-widest uppercase">1) เลือกแผนก</div>
+            <div class="flex flex-wrap items-center gap-2">${deptChips}</div>
+        </div>
+        <div>
+            <div class="text-[10px] text-gray-500 font-bold mb-1.5 tracking-widest uppercase">2) เลือก Role <span class="normal-case text-gray-600">(จุดเขียว = ชุดนั้นมีสิทธิ์ตั้งไว้แล้ว)</span></div>
+            <div class="flex flex-wrap items-center gap-2">${rolePills}</div>
+        </div>
+
+        <div class="perm-toolbar flex flex-wrap items-center gap-2 border-t border-slate-700/60 pt-4">
+            <span class="text-[11px] font-black text-white bg-slate-800 border border-slate-600 rounded-xl px-3 py-2">กำลังตั้งค่า: <span class="text-blue-400">${permUI.dept}</span> · <span class="text-emerald-400">${permUI.role}</span></span>
+            <input type="text" placeholder="🔍 ค้นหาเมนู เช่น วันหยุด, Discord..." oninput="permFilter(this.value)">
+            <select id="permCopySelect" onchange="permCopyFrom(this.value)">${copyOpts}</select>
+            <span class="text-[11px] text-gray-400 ml-auto">เปิดอยู่ <span id="permTotalCnt" class="text-emerald-400 font-black">${permUI.draft.length}</span> รายการ</span>
+        </div>
+
+        <div id="permGroupsGrid" class="grid grid-cols-2 xl:grid-cols-3 gap-3 items-start"></div>
+
+        <div class="perm-savebar">
+            <div class="flex items-center gap-2 text-[11px]">
+                <span id="permDirtyHint" style="display:none;" class="items-center gap-1.5 text-amber-400 font-bold"><span class="material-icons text-[15px]">warning</span> มีการแก้ไขที่ยังไม่บันทึก</span>
+                <span class="text-gray-500">การตั้งค่านี้มีผลกับชุด <b class="text-gray-300">${permUI.dept} · ${permUI.role}</b> เท่านั้น</span>
+            </div>
+            <button onclick="saveMenuPerms()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl text-sm font-black shadow-lg transition flex items-center gap-2 border border-emerald-400 active:scale-95">
+                <span class="material-icons text-[18px]">save</span> บันทึกสิทธิ์
+            </button>
+        </div>
+    </div>`;
+
+    _permRenderGroups();
+};
+
+// บันทึก — เซฟเฉพาะชุด (แผนก·Role) ที่เปิดแก้อยู่ ชุดอื่นไม่ถูกแตะเลย
 window.saveMenuPerms = async function() {
     if (!window.sysRequireAdmin()) return;
 
-    Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
-    
-    // คัดลอกสิทธิ์เดิมมาทั้งหมด เพื่อป้องกันการบันทึกทับข้อมูลของแผนกที่ไม่ได้โชว์อยู่
-    let newPerms = JSON.parse(JSON.stringify(MENU_PERMS));
-    
-    // หากุญแจ (key) ที่กำลังเปิดให้แก้อยู่ตอนนี้
-    const visibleKeys = new Set();
-    document.querySelectorAll('.perm-cb').forEach(cb => {
-        visibleKeys.add(cb.getAttribute('data-key'));
-    });
-    
-    // ล้างเฉพาะค่าของ key ที่กำลังแก้อยู่
-    visibleKeys.forEach(k => { newPerms[k] = []; });
+    _permReadMenuPerms();   // ดึงค่าปัจจุบันสุดจาก SETTINGS กันเขียนทับชุดอื่น
+    const key = `${permUI.dept}_${permUI.role}`;
+    MENU_PERMS[key] = [...permUI.draft];
 
-    // วนลูปอ่านค่าที่ติ๊กถูก แล้วเอามาใส่เข้าไปใหม่
-    document.querySelectorAll('.perm-cb:checked').forEach(cb => {
-        const key = cb.getAttribute('data-key');
-        const menu = cb.getAttribute('data-menu');
-        newPerms[key].push(menu);
-    });
-
-    MENU_PERMS = newPerms;
     SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
     window.safeSetItem('cached_menu_rules', JSON.stringify(MENU_PERMS));
-    
+
+    Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
     await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
-    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์การมองเห็นเมนูเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false});
-    renderPermsTable(); 
+
+    window.permUI.dirty = false;
+    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: `อัปเดตสิทธิ์ของ ${permUI.dept} · ${permUI.role} เรียบร้อย`, timer: 1500, showConfirmButton: false});
+    renderPermsTable();
 };
 
 window.hasUserPerm = function(menuId) {
@@ -775,4 +814,4 @@ window.deleteManualTimeSlot = async function(dep, shift, period, timeSlot) {
     Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
 };
 
-// ==========================================
+// ==========================================
