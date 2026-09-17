@@ -122,14 +122,47 @@
     };
 
     // ── 🟠 "ใครยังไม่ลงพัก" — เทียบพนักงานทั้งหมดกับคนที่ลงแล้ววันนี้ ──
+    // นับเฉพาะ: กะที่กำลังทำงานอยู่ตอนนี้ (กะดึกยังไม่เข้างานจะไม่โผล่) + ไม่นับคนลา/หยุดวันนั้น
+    function shiftHoursBT(shift) {
+        const suf = String(shift || '').replace('กะ', '');
+        const def = { 'เช้า': ['08:00', '20:00'], 'กลาง': ['11:00', '23:00'], 'ดึก': ['20:00', '08:00'] }[suf] || [null, null];
+        const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
+        return { open: S[`open_time_${suf}`] || def[0], close: S[`close_time_${suf}`] || def[1] };
+    }
+    function activeShiftsNow() {
+        const toM = s => { const m = /^(\d{1,2}):(\d{2})/.exec(String(s || '')); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+        const n = new Date(); const nm = n.getHours() * 60 + n.getMinutes();
+        return ['กะเช้า', 'กะกลาง', 'กะดึก'].filter(sh => {
+            const { open, close } = shiftHoursBT(sh);
+            const o = toM(open), c = toM(close);
+            if (o === null || c === null) return false;
+            return (o <= c) ? (nm >= o && nm < c) : (nm >= o || nm < c);   // รองรับกะดึกคร่อมเที่ยงคืน
+        });
+    }
+    // คนลา/หยุดของวันที่ดูอยู่ (จำไว้ ไม่ยิง DB ซ้ำทุกครั้งที่วาด)
+    let _btLeave = { date: null, names: new Set() };
+    async function loadLeaveNames(d) {
+        if (_btLeave.date === d) return _btLeave.names;
+        try {
+            const { data } = await appDB.from('leave_requests').select('user_name').eq('leave_date', d);
+            _btLeave = { date: d, names: new Set((data || []).map(x => String(x.user_name || '').toLowerCase())) };
+        } catch (e) { _btLeave = { date: d, names: new Set() }; }
+        return _btLeave.names;
+    }
     let _btMissingList = [];
     async function btMissingCompute() {
         const users = (typeof window.getUsersCached === 'function') ? await window.getUsersCached() : (window.GLOBAL_USER_LIST || []);
+        const onLeave = await loadLeaveNames(dateVal());
         const dept = $('btDept').value, team = $('btTeam').value, shift = $('btShift').value, q = ($('btSearch').value || '').trim().toLowerCase();
         const loggedNames = new Set(_rows.map(r => String(r.staff_name || '').toLowerCase()));   // ลงแล้ววันนี้ (ไม่สนตัวกรอง)
+        // ดูวันปัจจุบันอยู่ → นับเฉพาะกะที่กำลังทำงานตอนนี้ · ดูวันเก่า/วันอื่น → นับทุกกะ (ไว้ตรวจย้อนหลัง)
+        const act = (currentSlotNow() !== null) ? activeShiftsNow() : null;
+        window._btActiveShifts = act;
         return (users || []).filter(u => {
             if (!u || !u.username) return false;
             if (['admin', 'manager'].includes(u.role)) return false;                 // หัวหน้า/แอดมินไม่นับ
+            if (onLeave.has(String(u.username).toLowerCase())) return false;        // ลา/หยุดวันนี้ ไม่นับ
+            if (act && u.allowed_shift && !act.includes(u.allowed_shift)) return false;   // กะยังไม่เข้างานตอนนี้ ไม่นับ
             if (dept !== 'all' && (u.department || 'AM') !== dept) return false;
             if (team !== 'all' && u.team !== team) return false;
             if (shift !== 'all' && u.allowed_shift && u.allowed_shift !== shift) return false;
@@ -157,7 +190,7 @@
                 </div>
             </div>`).join('') || '<div style="padding:20px;text-align:center;color:#64748b">ลงครบทุกคนแล้ว 🎉</div>';
         Swal.fire({
-            title: `<div style="text-align:left;font-size:17px;font-weight:900;color:#fbbf24">🔔 ยังไม่ลงพัก ${_btMissingList.length} คน</div><div style="text-align:left;font-size:11.5px;color:#94a3b8;font-weight:500">${fmtDate(dateVal())} · นับเฉพาะตามตัวกรองที่เลือกอยู่ · ไม่นับหัวหน้า/แอดมิน</div>`,
+            title: `<div style="text-align:left;font-size:17px;font-weight:900;color:#fbbf24">🔔 ยังไม่ลงพัก ${_btMissingList.length} คน</div><div style="text-align:left;font-size:11.5px;color:#94a3b8;font-weight:500">${fmtDate(dateVal())} · ${window._btActiveShifts ? 'เฉพาะกะที่ทำงานอยู่ตอนนี้ (' + window._btActiveShifts.join(', ') + ')' : 'ทุกกะของวันนั้น'} · ไม่นับคนลา/หยุด · ไม่นับหัวหน้า/แอดมิน</div>`,
             html: `<div style="text-align:left;max-height:60vh;overflow-y:auto">${html}</div>`,
             width: 'min(760px, 96vw)', background: '#0f172a', color: '#e2e8f0',
             showConfirmButton: false, showCloseButton: true,
