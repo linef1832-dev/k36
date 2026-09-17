@@ -84,7 +84,8 @@
         const d = dateVal();
         const rows = filtered();
         $('btDateTitle').textContent = fmtDate(d);
-        $('btTotal').innerHTML = `จองแล้ว <b style="color:#fff">${rows.length}</b> คน`;
+        const uniqPeople = new Set(rows.map(r => String(r.staff_name || '').toLowerCase())).size;
+        $('btTotal').innerHTML = `ลงแล้ว <b style="color:#fff">${uniqPeople}</b> คน · <b style="color:#94a3b8">${rows.length}</b> รายการ`;
         btRenderMissing(rows);   // 🟠 ป้าย "ยังไม่ลงพัก" (คำนวณเบื้องหลัง ไม่บล็อกการวาด)
         // 📗 ปุ่ม Excel: เช็คสิทธิ์ทุกครั้งที่วาด (hasUserPerm ผ่านให้หัวหน้า/แอดมินเสมอ + อ่านสิทธิ์ "โหลด Excel ทั้งวัน" ให้คนอื่น)
         const exBtn = $('btExportBtn');
@@ -111,7 +112,7 @@
                     <div style="display:flex;align-items:center;gap:8px"><div style="display:flex;align-items:center">${avs}</div><span class="bt-eye" title="ดูรายชื่อ"><span class="material-icons" style="font-size:17px">visibility</span></span></div>
                 </div>`;
             }).join('');
-            return `<div class="bt-shift-h"><div style="font-weight:800;color:#e2e8f0;font-size:14px">${SHIFT_ICON[shift] || ''} ${esc(shift)}</div><span class="bt-tag">รวม ${cnt} คน</span></div>
+            return `<div class="bt-shift-h"><div style="font-weight:800;color:#e2e8f0;font-size:14px">${SHIFT_ICON[shift] || ''} ${esc(shift)}</div><span class="bt-tag">${cnt} รายการ</span></div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">${cards}</div>`;
         }).join('');
         $('btGrid').innerHTML = html;
