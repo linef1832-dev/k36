@@ -165,12 +165,12 @@ window.renderShiftButtons = function(allowedShift) {
         let color = s === 'กะเช้า' ? 'text-orange-500' : (s === 'กะกลาง' ? 'text-blue-500' : 'text-purple-500');
 
         container.innerHTML += `
-            <label class="relative flex flex-col items-center p-3 rounded-xl border-2 ${borderClass} ${bgClass} transition shadow-sm">
+            <label class="relative flex items-center justify-center rounded-xl border-2 ${borderClass} ${bgClass} transition shadow-sm" style="gap:5px;padding:9px 4px;user-select:none">
                 <input type="radio" name="shift" value="${s}" class="peer hidden" onchange="refreshTimeSlots(); if(typeof fetchData==='function') fetchData();" ${isChecked ? 'checked' : ''}>
-                <span class="material-icons ${color} mb-1 peer-checked:scale-125 transition-transform">${icon}</span>
-                <span class="font-bold ${textClass} text-sm">${s}</span>
+                <span class="material-icons ${color} peer-checked:scale-110 transition-transform" style="font-size:16px">${icon}</span>
+                <span class="font-bold ${textClass}" style="font-size:12px;white-space:nowrap">${s}</span>
                 <div class="absolute inset-0 border-2 border-transparent peer-checked:border-blue-500 rounded-xl pointer-events-none transition-colors"></div>
-                <div class="absolute top-2 right-2 w-3 h-3 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                <div class="absolute rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity" style="top:4px;right:5px;width:7px;height:7px"></div>
             </label>
         `;
     });
