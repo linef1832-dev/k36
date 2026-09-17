@@ -14,7 +14,7 @@ window._srvSyncedAt = 0;      // ครั้งล่าสุดที่เ�
 window.syncServerTime = async function (force) {
     try {
         if (!force && (Date.now() - window._srvSyncedAt) < 5 * 60 * 1000) return;   // เทียบซ้ำทุก 5 นาทีพอ
-        const res = await fetch(DB_URL + '/rest/v1/', { method: 'HEAD', headers: { apikey: DB_KEY }, cache: 'no-store' });
+        const res = await fetch(DB_URL + '/rest/v1/', { method: 'HEAD', headers: { apikey: DB_KEY, 'Authorization': 'Bearer ' + DB_KEY }, cache: 'no-store' });
         const hdr = res.headers.get('date');
         if (hdr) {
             const srv = new Date(hdr).getTime() + 500;   // header ละเอียดระดับวินาที → บวกครึ่งวิให้อยู่กลาง ๆ
