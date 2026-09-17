@@ -260,11 +260,14 @@ window.quickRebookAll = async function (btnId) {
     if (btn) { btn.disabled = true; btn.style.opacity = '.6'; btn.innerHTML = '<span class="animate-spin material-icons" style="font-size:13px">sync</span> กำลังลงให้ทุกรอบ...'; }
     const items = [...(window._qrbItems || [])];
     const fails = [];
-    for (const b of items) {
-        try { await _qrbBookOne(b.team, b.shift_name, b.time_slot); }
-        catch (e) { fails.push(`${b.time_slot}: ${String(e.message || e)}`); }
-        await new Promise(r => setTimeout(r, 300));   // เว้นจังหวะให้ DB/ป๊อปอัปหายใจ
-    }
+    window._qrbSilent = true;   // 🤫 โหมดเงียบ: ป๊อปอัป "บันทึกสำเร็จ" รายรอบไม่ต้องเด้ง เดี๋ยวสรุปทีเดียวตอนจบ
+    try {
+        for (const b of items) {
+            try { await _qrbBookOne(b.team, b.shift_name, b.time_slot); }
+            catch (e) { fails.push(`${b.time_slot}: ${String(e.message || e)}`); }
+            await new Promise(r => setTimeout(r, 300));   // เว้นจังหวะให้ DB หายใจ
+        }
+    } finally { window._qrbSilent = false; }
     const okCount = items.length - fails.length;
     if (!fails.length) {
         Swal.fire({ icon: 'success', title: `ลงครบทั้ง ${okCount} รอบแล้ว 🎉`, timer: 1600, showConfirmButton: false });
@@ -580,6 +583,9 @@ window.subscribeDashboardChanges = function() {
             }
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, (payload) => {
+            // ⚡ ปุ่มลัด "ลงเหมือนเมื่อวาน" อัปเดตตามข้อมูลจริงเสมอ (ลบ/ลงจากที่ไหนก็ตาม)
+            clearTimeout(window._qrbRtTimer);
+            window._qrbRtTimer = setTimeout(() => { if (typeof initQuickRebook === 'function') initQuickRebook(); }, 600);
             const mainContent = document.getElementById('mainContentArea');
             if (mainContent && !mainContent.classList.contains('hidden')) {
 

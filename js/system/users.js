@@ -458,7 +458,7 @@ window.saveData = async function(e) {
     if (error) { window.resetBtn(); Swal.fire('Error', error.message, 'error'); }
     else {
         // ⚡ [เร็วขึ้น] บันทึกเสร็จ = โชว์สำเร็จ + ปลดปุ่ม "ทันที" — เขียนประวัติ/รีเฟรชตารางทำต่อเบื้องหลัง ไม่ต้องรอ
-        Swal.fire({ icon:'success', title:'บันทึกสำเร็จ', timer:800, showConfirmButton:false });
+        if (!window._qrbSilent) Swal.fire({ icon:'success', title:'บันทึกสำเร็จ', timer:800, showConfirmButton:false });
         window.resetBtn();
         if (typeof logAction === 'function') {
             const _p = isOffRoster
@@ -861,7 +861,8 @@ async function delSch(id, shiftName) {
             const { error } = await appDB.from('schedules').delete().eq('id', id); 
             if(error) { Swal.fire('Error', error.message, 'error'); return; }
             if(item) await logAction('ลบรายการ', `ลบรายการของ ${item.staff_name} (${item.shift_name} ${item.time_slot})`);
-            Swal.fire('ลบสำเร็จ!', '', 'success'); await refreshTimeSlots(); await fetchData(); 
+            Swal.fire('ลบสำเร็จ!', '', 'success'); await refreshTimeSlots(); await fetchData();
+            if (typeof initQuickRebook === 'function') initQuickRebook();   // ⚡ ปุ่มลัดกลับมาทันทีหลังลบ
         }
     })
 }
