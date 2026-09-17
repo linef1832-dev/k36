@@ -201,11 +201,13 @@ window.initQuickRebook = async function () {
         const doneToday = new Set((tr.data || []).map(m => `${m.shift_name}|${m.time_slot}`));
         const items = yest.filter(b => !doneToday.has(`${b.shift_name}|${b.time_slot}`));
         if (!items.length) return;                                  // วันนี้ลงเหมือนเมื่อวานครบแล้ว → ซ่อน
+        window._qrbItems = items;                                   // เก็บไว้ให้ปุ่ม "ลงทั้งหมด" ใช้
         const esc = v => (window.escapeHtml ? window.escapeHtml(v) : String(v ?? ''));
         box.innerHTML = `
         <div style="background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(99,102,241,.08));border:1px solid rgba(96,165,250,.35);border-radius:14px;padding:11px 13px;margin-bottom:18px;box-shadow:0 4px 14px rgba(37,99,235,.12)">
-            <div style="font-size:11px;font-weight:900;color:#93c5fd;margin-bottom:8px;display:flex;align-items:center;gap:5px;letter-spacing:.02em">
-                <span class="material-icons" style="font-size:14px">bolt</span> ลงเหมือนเมื่อวาน — กดเดียวจบ
+            <div style="font-size:11px;font-weight:900;color:#93c5fd;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:5px;letter-spacing:.02em">
+                <span style="display:flex;align-items:center;gap:5px"><span class="material-icons" style="font-size:14px">bolt</span> ลงเหมือนเมื่อวาน — กดเดียวจบ</span>
+                ${items.length > 1 ? `<button type="button" id="qrbAllBtn" onclick="quickRebookAll('qrbAllBtn')" style="background:linear-gradient(135deg,#2563eb,#4f46e5);border:1px solid #60a5fa;border-radius:9px;padding:4px 12px;color:#fff;font-size:11px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;gap:4px;box-shadow:0 3px 10px rgba(59,130,246,.35)"><span class="material-icons" style="font-size:13px">done_all</span> ลงทั้ง ${items.length} รอบเลย</button>` : ''}
             </div>
             <div style="display:flex;flex-direction:column;gap:6px">
                 ${items.map((b, i) => `
@@ -220,34 +222,56 @@ window.initQuickRebook = async function () {
     } catch (e) { /* เงียบ ๆ — ปุ่มลัดพังไม่ควรทำหน้าหลักพัง */ }
 };
 
+// กรอกฟอร์ม (ทีม/กะ/รอบ) แล้วกดบันทึกให้ 1 รอบ — โยน Error พร้อมเหตุผลถ้าลงไม่ได้
+async function _qrbBookOne(team, shift, slot) {
+    // 1) เลือกทีมให้ (ถ้าทีมนั้นยังอยู่ในรายการ)
+    const ts = document.getElementById('dailyTeam');
+    if (ts) {
+        const has = [...ts.options].some(o => o.value === team);
+        if (has) { ts.value = team; }
+        else throw new Error(`เว็บ "${team}" ไม่อยู่ในรายการแล้ว — เลือกจากฟอร์มด้านล่างแทนนะ`);
+    }
+    // 2) เลือกกะให้
+    const radio = document.querySelector(`input[name="shift"][value="${shift}"]`);
+    if (!radio) throw new Error(`วันนี้คุณลง${shift}ไม่ได้ (ไม่มีสิทธิ์กะนี้)`);
+    radio.checked = true;
+    // 3) โหลดรอบเวลาของกะนั้น แล้วเลือกรอบเดิมให้
+    if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
+    const sel = document.getElementById('tSlot');
+    const opt = sel ? [...sel.options].find(o => o.value === slot) : null;
+    if (!opt) throw new Error(`วันนี้ไม่มีรอบ ${slot} ในตั้งค่าแล้ว`);
+    if (opt.disabled) throw new Error(`รอบ ${slot} วันนี้เต็มแล้ว`);
+    sel.value = slot;
+    // 4) กดบันทึกให้ — วิ่งเข้าตัวเช็คชุดเดิมทั้งหมดเหมือนกดเอง
+    if (typeof saveData === 'function') await saveData({ preventDefault: () => {} });
+}
+
 window.quickRebook = async function (team, shift, slot, btnId) {
     const btn = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.style.opacity = '.6'; btn.innerHTML = '<span class="animate-spin material-icons" style="font-size:15px">sync</span> <span style="font-size:12px">กำลังลงให้...</span>'; }
-    try {
-        // 1) เลือกทีมให้ (ถ้าทีมนั้นยังอยู่ในรายการ)
-        const ts = document.getElementById('dailyTeam');
-        if (ts) {
-            const has = [...ts.options].some(o => o.value === team);
-            if (has) { ts.value = team; }
-            else throw new Error(`เว็บ "${team}" ไม่อยู่ในรายการแล้ว — เลือกจากฟอร์มด้านล่างแทนนะ`);
-        }
-        // 2) เลือกกะให้
-        const radio = document.querySelector(`input[name="shift"][value="${shift}"]`);
-        if (!radio) throw new Error(`วันนี้คุณลง${shift}ไม่ได้ (ไม่มีสิทธิ์กะนี้)`);
-        radio.checked = true;
-        // 3) โหลดรอบเวลาของกะนั้น แล้วเลือกรอบเดิมให้
-        if (typeof refreshTimeSlots === 'function') await refreshTimeSlots();
-        const sel = document.getElementById('tSlot');
-        const opt = sel ? [...sel.options].find(o => o.value === slot) : null;
-        if (!opt) throw new Error(`วันนี้ไม่มีรอบ ${slot} ในตั้งค่าแล้ว`);
-        if (opt.disabled) throw new Error(`รอบ ${slot} วันนี้เต็มแล้ว — เลือกรอบอื่นจากฟอร์มได้เลย`);
-        sel.value = slot;
-        // 4) กดบันทึกให้ — วิ่งเข้าตัวเช็คชุดเดิมทั้งหมดเหมือนกดเอง
-        if (typeof saveData === 'function') await saveData({ preventDefault: () => {} });
-    } catch (e) {
-        Swal.fire({ icon: 'warning', title: 'ลงเวลาเดิมไม่ได้', text: String(e.message || e) });
-    }
+    try { await _qrbBookOne(team, shift, slot); }
+    catch (e) { Swal.fire({ icon: 'warning', title: 'ลงเวลาเดิมไม่ได้', text: String(e.message || e) }); }
     if (typeof initQuickRebook === 'function') initQuickRebook();   // อัปเดตปุ่ม (ลงแล้วให้หายไป)
+};
+
+// 🔥 ลงทุกรอบของเมื่อวานในคลิกเดียว — ไล่จองทีละรอบผ่านด่านเช็คเดิมครบทุกตัว
+window.quickRebookAll = async function (btnId) {
+    const btn = document.getElementById(btnId);
+    if (btn) { btn.disabled = true; btn.style.opacity = '.6'; btn.innerHTML = '<span class="animate-spin material-icons" style="font-size:13px">sync</span> กำลังลงให้ทุกรอบ...'; }
+    const items = [...(window._qrbItems || [])];
+    const fails = [];
+    for (const b of items) {
+        try { await _qrbBookOne(b.team, b.shift_name, b.time_slot); }
+        catch (e) { fails.push(`${b.time_slot}: ${String(e.message || e)}`); }
+        await new Promise(r => setTimeout(r, 300));   // เว้นจังหวะให้ DB/ป๊อปอัปหายใจ
+    }
+    const okCount = items.length - fails.length;
+    if (!fails.length) {
+        Swal.fire({ icon: 'success', title: `ลงครบทั้ง ${okCount} รอบแล้ว 🎉`, timer: 1600, showConfirmButton: false });
+    } else {
+        Swal.fire({ icon: okCount ? 'warning' : 'error', title: `ลงสำเร็จ ${okCount}/${items.length} รอบ`, html: `<div style="text-align:left;font-size:13px;line-height:1.8">${fails.map(f => '• ' + f).join('<br>')}</div>` });
+    }
+    if (typeof initQuickRebook === 'function') initQuickRebook();
 };
 
 // debounce timer สำหรับ refreshTimeSlots
