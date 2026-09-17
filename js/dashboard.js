@@ -379,103 +379,61 @@ window.fetchLogs = async function() {
     const dateVal = document.getElementById('logDate') ? document.getElementById('logDate').value : '';
     const actionVal = document.getElementById('logAction') ? document.getElementById('logAction').value : '';
     const userVal = document.getElementById('logUser') ? document.getElementById('logUser').value.toLowerCase() : '';
-    const teamVal = document.getElementById('logTeam') ? document.getElementById('logTeam').value : '';   // กรองเว็บ
-    const deptVal = document.getElementById('logDept') ? document.getElementById('logDept').value : '';   // กรองแผนก
-
-    const feed = document.getElementById('logFeed');
-    if(!feed) return;
-    feed.innerHTML = `<div style="padding:40px;text-align:center;color:#64748b"><span class="material-icons animate-spin text-2xl text-blue-500">sync</span></div>`;
+    const teamVal = document.getElementById('logTeam') ? document.getElementById('logTeam').value : '';   // 🆕 กรองเว็บ
+    const deptVal = document.getElementById('logDept') ? document.getElementById('logDept').value : '';   // 🆕 กรองแผนก
 
     // ดึงตาราง system_logs จาก Supabase
     let query = appDB.from('system_logs').select('*').order('log_date', {ascending: false});
-    if(dateVal) query = query.gte('log_date', dateVal + 'T00:00:00').lte('log_date', dateVal + 'T23:59:59');
-    else query = query.limit(150); // ถ้าไม่เลือกวัน ให้ดึงล่าสุด 150 รายการ
+
+    if(dateVal) {
+        query = query.gte('log_date', dateVal + 'T00:00:00').lte('log_date', dateVal + 'T23:59:59');
+    } else {
+        query = query.limit(100); // ถ้าไม่เลือกวัน ให้ดึงล่าสุด 100 รายการ
+    }
+
     if(actionVal) query = query.eq('action_type', actionVal);
-    // log ไม่มีคอลัมน์เว็บ/แผนกแยก แต่รายละเอียดมีชื่อในวงเล็บเสมอ → กรองจากข้อความ
+    // 🆕 กรองเว็บ — log ไม่มีคอลัมน์เว็บแยก แต่รายละเอียดมีชื่อเว็บในวงเล็บเสมอ เช่น "(PG688)" → กรองจากข้อความ
     if(teamVal) query = query.ilike('target_details', `%${teamVal}%`);
+    // 🆕 กรองแผนก — รายละเอียดมีแผนกในวงเล็บเหลี่ยมเสมอ เช่น "[OD]" → กรองจากข้อความ (ใส่วงเล็บด้วย กันไปชนกับคำอื่น)
     if(deptVal) query = query.ilike('target_details', `%[${deptVal}]%`);
 
     const { data, error } = await query;
-    const statsBox = document.getElementById('logStats');
-    if (error) { feed.innerHTML = `<div style="padding:40px;text-align:center;color:#f87171">เกิดข้อผิดพลาดในการดึงข้อมูล</div>`; if(statsBox) statsBox.innerHTML=''; return; }
+    const box = document.getElementById('logTableBody');
+    if(!box) return;
+    box.innerHTML = '';
 
-    const rows = (data || []).filter(l => !userVal || (l.performed_by || '').toLowerCase().includes(userVal));
-    if (!rows.length) {
-        if(statsBox) statsBox.innerHTML = '';
-        feed.innerHTML = `<div style="padding:50px;text-align:center;color:#64748b"><span class="material-icons" style="font-size:40px;opacity:.4">inbox</span><div style="margin-top:8px;font-size:13px">ไม่พบประวัติที่ค้นหา</div></div>`;
+    if (error) {
+        box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-400">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>`;
         return;
     }
 
-    // ── ลูกเล่น: ไอคอน/สีตามประเภทการกระทำ ──
-    const ACT = {
-        'ลงเวลา':    { i: 'schedule',      c: '#34d399' },
-        'ลบรายการ':  { i: 'delete',        c: '#f87171' },
-        'ย้ายกะ':     { i: 'swap_horiz',    c: '#60a5fa' },
-        'ย้ายทีม':    { i: 'groups',        c: '#a78bfa' },
-        'ลบพนักงาน': { i: 'person_remove', c: '#fb7185' },
-    };
-    const actOf = t => ACT[t] || { i: 'bolt', c: '#94a3b8' };
-    const AVC = ['#2563eb','#db2777','#059669','#d97706','#7c3aed','#0891b2','#dc2626','#4f46e5'];
-    const avc = n => AVC[[...String(n || '')].reduce((a, ch) => a + ch.charCodeAt(0), 0) % AVC.length];
-    const esc = v => (window.escapeHtml ? window.escapeHtml(v) : String(v ?? ''));
-    const pad2 = n => String(n).padStart(2, '0');
-    // เวลาแบบอ่านง่าย "5 นาทีที่แล้ว"
-    const rel = ts => {
-        const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-        if (s < 60) return 'เมื่อครู่'; if (s < 3600) return `${Math.floor(s/60)} นาทีที่แล้ว`;
-        if (s < 86400) return `${Math.floor(s/3600)} ชม.ที่แล้ว`; return `${Math.floor(s/86400)} วันที่แล้ว`;
-    };
-    const TH_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-    const TH_D = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
-    const dayLabel = d => {
-        const t = new Date(); const y = new Date(); y.setDate(y.getDate() - 1);
-        if (d.toDateString() === t.toDateString()) return '📌 วันนี้';
-        if (d.toDateString() === y.toDateString()) return 'เมื่อวาน';
-        return `${TH_D[d.getDay()]} ${d.getDate()} ${TH_M[d.getMonth()]} ${d.getFullYear() + 543}`;
-    };
+    if(data && data.length > 0) {
+        const filtered = data.filter(log => {
+            return (!userVal || (log.performed_by || '').toLowerCase().includes(userVal));
+        });
 
-    // ── แถบสถิติบนสุด: จำนวนต่อประเภท (กดเพื่อกรองได้เลย) + คนทำเยอะสุด ──
-    if (statsBox) {
-        const cnt = {}; rows.forEach(l => cnt[l.action_type || 'อื่นๆ'] = (cnt[l.action_type || 'อื่นๆ'] || 0) + 1);
-        const byUser = {}; rows.forEach(l => byUser[l.performed_by || '-'] = (byUser[l.performed_by || '-'] || 0) + 1);
-        const top = Object.entries(byUser).sort((a, b) => b[1] - a[1])[0];
-        statsBox.innerHTML =
-            `<span class="log-chip ${!actionVal ? 'on' : ''}" onclick="document.getElementById('logAction').value='';fetchLogs()">ทั้งหมด <b>${rows.length}</b></span>` +
-            Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([k, v]) => {
-                const a = actOf(k);
-                return `<span class="log-chip ${actionVal === k ? 'on' : ''}" onclick="document.getElementById('logAction').value='${esc(k)}';fetchLogs()"><span class="material-icons" style="font-size:13px;color:${a.c}">${a.i}</span>${esc(k)} <b>${v}</b></span>`;
-            }).join('') +
-            (top ? `<span class="log-chip" style="margin-left:auto;cursor:default"><span class="material-icons" style="font-size:13px;color:#fbbf24">emoji_events</span>ขยันสุด: <b style="color:#fbbf24">${esc(top[0])}</b> ${top[1]} ครั้ง</span>` : '');
+        if(filtered.length === 0) { box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติที่ค้นหา</td></tr>`; return; }
+
+        let logsHtml = '';
+
+        filtered.forEach(log => {
+            const time = new Date(log.log_date).toLocaleString('th-TH');
+            const badgeColor = log.action_type === 'ลงเวลา' ? 'bg-green-900/50 text-green-400 border-green-700' : ((log.action_type || '').includes('ลบ') ? 'bg-red-900/50 text-red-400 border-red-700' : 'bg-blue-900/50 text-blue-400 border-blue-700');
+
+            logsHtml += `
+            <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition">
+                <td class="px-4 py-3 text-xs text-gray-400">${time}</td>
+                <td class="px-4 py-3 font-bold text-white">${log.performed_by || '-'}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 rounded text-[10px] font-bold border ${badgeColor}">${log.action_type || '-'}</span></td>
+                <td class="px-4 py-3 text-xs text-gray-300">${log.target_details || ''}</td>
+            </tr>`;
+        });
+
+        box.innerHTML = logsHtml;
+
+    } else {
+        box.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ไม่พบประวัติ</td></tr>`;
     }
-
-    // ── ฟีดไทม์ไลน์ จัดกลุ่มตามวัน ──
-    let html = '', lastDay = '';
-    rows.forEach(l => {
-        const d = new Date(l.log_date);
-        const dayKey = d.toDateString();
-        if (dayKey !== lastDay) {
-            lastDay = dayKey;
-            html += `<div class="log-day">${dayLabel(d)}</div>`;
-        }
-        const a = actOf(l.action_type);
-        // ไฮไลต์ [แผนก] และ (เว็บ) ในรายละเอียดให้สแกนตาง่าย
-        const det = esc(l.target_details || '').replace(/\[([^\]]+)\]/g, '<span class="log-tag" style="color:#93c5fd;border-color:rgba(96,165,250,.4)">$1</span>')
-                                               .replace(/\(([^)]+)\)/g, '<span class="log-tag">$1</span>');
-        html += `
-        <div class="log-item">
-            <div class="log-icon" style="background:${a.c}1a;border-color:${a.c}55;color:${a.c}"><span class="material-icons" style="font-size:16px">${a.i}</span></div>
-            <div class="log-body">
-                <div class="log-line1">
-                    <span class="log-av" style="background:${avc(l.performed_by)}">${esc(String(l.performed_by || '?').substring(0, 2).toUpperCase())}</span>
-                    <b style="color:#f1f5f9">${esc(l.performed_by || '-')}</b>
-                    <span class="log-act" style="background:${a.c}1a;border-color:${a.c}55;color:${a.c}">${esc(l.action_type || '-')}</span>
-                </div>
-                <div class="log-det">${det || '<span style="color:#64748b">—</span>'}</div>
-            </div>
-            <div class="log-time"><b style="color:#e2e8f0;font-family:monospace">${pad2(d.getHours())}:${pad2(d.getMinutes())}</b><span>${rel(l.log_date)}</span></div>
-        </div>`;
-    });
-    feed.innerHTML = html;
 };
 
 let dashboardSubscription = null;

@@ -86,6 +86,9 @@
         $('btDateTitle').textContent = fmtDate(d);
         $('btTotal').innerHTML = `จองแล้ว <b style="color:#fff">${rows.length}</b> คน`;
         btRenderMissing(rows);   // 🟠 ป้าย "ยังไม่ลงพัก" (คำนวณเบื้องหลัง ไม่บล็อกการวาด)
+        // 📗 ปุ่ม Excel: เช็คสิทธิ์ทุกครั้งที่วาด (hasUserPerm ผ่านให้หัวหน้า/แอดมินเสมอ + อ่านสิทธิ์ "โหลด Excel ทั้งวัน" ให้คนอื่น)
+        const exBtn = $('btExportBtn');
+        if (exBtn) exBtn.style.display = (typeof window.hasUserPerm === 'function' && window.hasUserPerm('breaktable_export')) ? 'inline-flex' : 'none';
         const nowMin = currentSlotNow();
 
         const bySlot = {};
@@ -161,6 +164,7 @@
         return (users || []).filter(u => {
             if (!u || !u.username) return false;
             if (['admin', 'manager'].includes(u.role)) return false;                 // หัวหน้า/แอดมินไม่นับ
+            if (['AMQL', 'ODQL'].includes(String(u.department || '').toUpperCase())) return false;   // แผนก QL ไม่ต้องลงพัก ไม่นับ
             if (onLeave.has(String(u.username).toLowerCase())) return false;        // ลา/หยุดวันนี้ ไม่นับ
             if (act && u.allowed_shift && !act.includes(u.allowed_shift)) return false;   // กะยังไม่เข้างานตอนนี้ ไม่นับ
             if (dept !== 'all' && (u.department || 'AM') !== dept) return false;
@@ -322,9 +326,6 @@
         const me = window.currentUser || {};
         const canAll = ['manager', 'admin'].includes(me.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
         if (!canAll && ['กะเช้า', 'กะกลาง', 'กะดึก'].includes(me.allowed_shift)) { $('btShift').value = me.allowed_shift; $('btShift').disabled = true; }
-        // 📗 ปุ่ม Excel: โชว์เฉพาะหัวหน้า/แอดมิน หรือ Role ที่ติ๊กสิทธิ์ "โหลด Excel ทั้งวัน" ไว้
-        const canExport = ['manager', 'admin'].includes(me.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('breaktable_export'));
-        const exBtn = $('btExportBtn'); if (exBtn) exBtn.style.display = canExport ? 'inline-flex' : 'none';
         _btScrolledOnce = false;   // เข้าหน้าใหม่ → เลื่อนหารอบปัจจุบันอีกครั้ง
         await btRender(true);
         // ⏱️ ทุก 1 นาที ขยับไฮไลต์ "กำลังพัก" ตามเวลาจริง (หยุดเองเมื่อออกจากหน้า)
