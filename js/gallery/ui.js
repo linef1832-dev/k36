@@ -148,17 +148,26 @@ const _lbPreloaded = {};   // รูปเต็มที่โหลดไว�
 // 🚀 [กดแล้วชัดทันที] โหลดรูปเต็มไว้ล่วงหน้าเงียบ ๆ หลังเปิดหน้าแกลเลอรี่
 //    ทีละ 3 รูปพร้อมกัน ไม่แย่งเน็ตกับการใช้งาน · หยุดเองเมื่อออกจากหน้า/เปลี่ยนตัวกรอง
 let _preloadToken = 0;
-window.preloadGalleryFulls = async function(list) {
+// startIndex = เริ่มโหลดจากรูปไหนก่อน (ไล่ออกซ้าย-ขวาจากตรงนั้น ใกล้ก่อน ไกลทีหลัง)
+window.preloadGalleryFulls = async function(list, startIndex = 0) {
     const myToken = ++_preloadToken;
-    const urls = (list || []).map(i => i && i.url).filter(u => u && !_lbPreloaded[u]);
+    const arr = (list || []).filter(i => i && i.url);
+    // เรียงคิว: รูปที่ดูอยู่ → ข้างๆ → ไกลออกไปเรื่อยๆ
+    const ordered = [];
+    for (let d = 0; d < arr.length; d++) {
+        const a = (startIndex + d) % arr.length;
+        if (!ordered.includes(arr[a].url)) ordered.push(arr[a].url);
+        const b = ((startIndex - d) % arr.length + arr.length) % arr.length;
+        if (!ordered.includes(arr[b].url)) ordered.push(arr[b].url);
+    }
+    const urls = ordered.filter(u => !(_lbPreloaded[u] && _lbPreloaded[u].complete && _lbPreloaded[u].naturalWidth));
     const CONCURRENCY = 3;
     let i = 0;
     const worker = async () => {
         while (i < urls.length) {
-            if (myToken !== _preloadToken) return;           // มีการเปลี่ยนหน้า/กรองใหม่ → เลิก
+            if (myToken !== _preloadToken) return;           // มีการเปลี่ยนหน้า/กรองใหม่/เปิดรูป → หยุดหลบทันที
             if (!document.getElementById('lightboxImg')) return;   // ออกจากหน้าแกลเลอรี่แล้ว
             const u = urls[i++];
-            if (_lbPreloaded[u]) continue;
             await new Promise(res => {
                 const im = new Image();
                 im.onload = () => { _lbPreloaded[u] = im; res(); };
@@ -186,23 +195,27 @@ function _updateLightbox() {
     const cached = _lbPreloaded[img.url];
     if (cached && cached.complete && cached.naturalWidth) {
         el.style.filter = ''; el.src = img.url;          // ✅ โหลดไว้แล้ว → ขึ้นคมทันที ไม่เบลอ
+        // โหลดเบื้องหลังต่อ เรียงจากรูปที่ดูอยู่ออกไปซ้ายขวา (กดลูกศรต่อ = ติดทันที)
+        preloadGalleryFulls(_lbData, _lbIndex);
     } else if (thumb && thumb !== img.url) {
+        // 🚦 ยังไม่เคยโหลดรูปนี้ → สั่งตัวโหลดเบื้องหลังหยุดหลบก่อน ยกเน็ตทั้งหมดให้รูปที่กด
+        _preloadToken++;
         el.src = thumb;
         el.style.filter = 'blur(6px)';            // รูปย่อขยายเต็มจอจะไม่คม → เบลอบาง ๆ ระหว่างรอของจริง
         el.style.transition = 'filter .25s';
         const full = new Image();
-        full.onload = () => { _lbPreloaded[img.url] = full; if (_lbIndex !== myIdx) return; el.src = img.url; el.style.filter = ''; };
-        full.onerror = () => { if (_lbIndex !== myIdx) return; el.src = img.url; el.style.filter = ''; };
+        full.fetchPriority = 'high';              // บอกเบราว์เซอร์ว่ารูปนี้ด่วนสุด
+        full.decoding = 'async';
+        const _resume = () => preloadGalleryFulls(_lbData, myIdx);   // ชัดแล้วค่อยกลับไปโหลดเบื้องหลังต่อ
+        full.onload = () => { _lbPreloaded[img.url] = full; _resume(); if (_lbIndex !== myIdx) return; el.src = img.url; el.style.filter = ''; };
+        full.onerror = () => { _resume(); if (_lbIndex !== myIdx) return; el.src = img.url; el.style.filter = ''; };
         full.src = img.url;
     } else {
+        _preloadToken++;
         el.style.filter = '';
         el.src = img.url;
+        preloadGalleryFulls(_lbData, _lbIndex);
     }
-    // โหลดรูปถัดไป/ก่อนหน้าไว้ล่วงหน้า → กดลูกศรแล้วขึ้นทันที
-    [1, -1, 2, -2].forEach(d => {
-        const n = _lbData[(_lbIndex + d + _lbData.length) % _lbData.length];
-        if (n && n.url && !_lbPreloaded[n.url]) { const pi = new Image(); pi.src = n.url; _lbPreloaded[n.url] = pi; }
-    });
     const _skipOldSrc = true;
     if (!_skipOldSrc) document.getElementById('lightboxImg').src = img.url;
     document.getElementById('lightboxName').textContent     = img.name || '';
