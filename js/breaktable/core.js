@@ -75,7 +75,7 @@
         const m = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/.exec(sl || '');
         if (!m) return false;
         const a = (+m[1]) * 60 + (+m[2]), b = (+m[3]) * 60 + (+m[4]);
-        return nowMin >= a && nowMin < b;
+        return (a < b) ? (nowMin >= a && nowMin < b) : (nowMin >= a || nowMin < b);   // 🌙 รองรับรอบคร่อมเที่ยงคืน เช่น 23:30-00:00
     }
 
     // ── วาดการ์ด ──

@@ -791,7 +791,8 @@ window.addManualTimeSlot = async function() {
     const end = document.getElementById('newTimeEnd').value;
 
     if (!start || !end) return Swal.fire('เตือน', 'กรุณาระบุเวลาให้ครบ', 'warning');
-    if (start >= end) return Swal.fire('เตือน', 'เวลาเริ่มต้องน้อยกว่าเวลาจบ', 'warning');
+    // 🌙 รองรับรอบคร่อมเที่ยงคืน (กะดึกทำงาน 20:00-08:00) เช่น 23:30-00:00 ถือว่าถูกต้อง
+    if (start === end) return Swal.fire('เตือน', 'เวลาเริ่มกับเวลาจบต้องไม่เท่ากัน', 'warning');
 
     const timeSlot = `${start}-${end}`;
     const G = window.SHIFT_GROUPS_ALL[dep] = window.SHIFT_GROUPS_ALL[dep] || {};
