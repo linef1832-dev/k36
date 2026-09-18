@@ -289,8 +289,29 @@ window.renderSlotChips = function () {
     const okVals = new Set(opts.filter(o => !o.disabled).map(o => o.value));
     window._pickedSlots = (window._pickedSlots || []).filter(t => okVals.has(t));
     sel.value = window._pickedSlots[0] || '';
-    let html = '<div class="slotc-grid">';
+
+    // 🔎 จับกลุ่ม "ก้อนเวลา" อัตโนมัติ (เวลาต่อเนื่องกัน = ก้อนเดียว, มีช่องว่าง = ขึ้นก้อนใหม่)
+    //    → ทำแถบกรองให้พนักงานกดดูเฉพาะก้อนที่สนใจ ไม่ต้องไล่สายตาทั้งกระดาน
+    const blocks = [];
     opts.forEach(o => {
+        const [s, e] = o.value.split('-');
+        const last = blocks[blocks.length - 1];
+        if (last && last.end === s) { last.end = e; last.items.push(o.value); }
+        else blocks.push({ start: s, end: e, items: [o.value] });
+    });
+    if (window._slotFilter && !blocks.some(b => `${b.start}-${b.end}` === window._slotFilter)) window._slotFilter = '';   // ก้อนเดิมหายไป (เปลี่ยนกะ) → กลับเป็นทั้งหมด
+    let filterHtml = '';
+    if (blocks.length > 1) {
+        filterHtml = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">'
+            + `<button type="button" onclick="setSlotFilter('')" class="slotf ${!window._slotFilter ? 'on' : ''}">ทั้งหมด</button>`
+            + blocks.map(b => { const lb = `${b.start}-${b.end}`; return `<button type="button" onclick="setSlotFilter('${lb}')" class="slotf ${window._slotFilter === lb ? 'on' : ''}">${b.start} – ${b.end}</button>`; }).join('')
+            + '</div>';
+    }
+    const showSet = window._slotFilter ? new Set((blocks.find(b => `${b.start}-${b.end}` === window._slotFilter) || { items: [] }).items) : null;
+
+    let html = filterHtml + '<div class="slotc-grid">';
+    opts.forEach(o => {
+        if (showSet && !showSet.has(o.value)) return;   // อยู่นอกก้อนที่กรอง → ไม่วาด
         const time = o.value;
         const i = info[time] || {};
         const isOn = window._pickedSlots.includes(time);
@@ -331,6 +352,12 @@ window.slotFullAlert = function (time) {
 
 // 🎯 เลือกได้สูงสุด 2 รอบพร้อมกัน (ตามโควตา/วัน) → กดบันทึกทีเดียว ลงให้ทั้งคู่
 window._pickedSlots = window._pickedSlots || [];
+// 🔎 สลับตัวกรองก้อนเวลา
+window.setSlotFilter = function (label) {
+    window._slotFilter = label || '';
+    window.renderSlotChips();
+};
+
 window.pickTimeSlot = function (time) {
     const sel = document.getElementById('tSlot');
     if (!sel) return;
