@@ -834,7 +834,20 @@ window.addStaffToRoster = async function() {
         return true;
     }).sort((a, b) => a.username.localeCompare(b.username, 'th'));
 
-    if (candidates.length === 0) {
+    // 🔄 ชุดที่ 2: "ทุกกะ" (เงื่อนไขเดียวกันแต่ไม่เช็คกะ) — ไว้ดึงคนโยกเปลี่ยนกะกลางคัน/กันตกหล่น
+    const candidatesAll = GLOBAL_USER_LIST.filter(u => {
+        if (!u || !u.username) return false;
+        if (alreadyAssignedIds.has(String(u.id))) return false;
+        if (currentDutyLeaves && currentDutyLeaves.has(String(u.id))) return false;
+        const role = (u.role || 'staff').toLowerCase();
+        if (['admin', 'manager'].includes(role)) return false;
+        let uDept = u.department || 'AM';
+        if (uDept === 'TRAINER') uDept = 'AMQL';
+        if (uDept !== currentDutyDept) return false;
+        return true;
+    }).sort((a, b) => a.username.localeCompare(b.username, 'th'));
+
+    if (candidates.length === 0 && candidatesAll.length === 0) {
         return Swal.fire({
             icon: 'info',
             title: 'ไม่มีพนักงานให้เพิ่ม',
@@ -852,52 +865,72 @@ window.addStaffToRoster = async function() {
         return Swal.fire('!', 'ไม่มีรายชื่อเว็บ/ทีมในระบบ', 'warning');
     }
 
-    let userOptionsHtml = '<option value="" disabled selected>-- เลือกพนักงาน --</option>';
-    candidates.forEach(u => {
-        const shiftTag = (u.allowed_shift && u.allowed_shift !== 'all') ? ` [${u.allowed_shift.replace('กะ','')}]` : ' [อิสระ]';
-        userOptionsHtml += `<option value="${u.id}">${window.escapeHtml(u.username)}${shiftTag}</option>`;
-    });
+    const _optOf = (list) => {
+        let h = '<option value="" disabled selected>-- เลือกพนักงาน --</option>';
+        list.forEach(u => {
+            const shiftTag = (u.allowed_shift && u.allowed_shift !== 'all') ? ` [${u.allowed_shift.replace('กะ','')}]` : ' [อิสระ]';
+            h += `<option value="${u.id}">${window.escapeHtml(u.username)}${shiftTag}</option>`;
+        });
+        return h;
+    };
+    const userOptionsHtml = _optOf(candidates);
+    window._pullStaffOpts = { match: userOptionsHtml, all: _optOf(candidatesAll) };   // ให้ติ๊ก "ทุกกะ" สลับรายชื่อได้
 
-    let teamOptionsHtml = '<option value="" disabled selected>-- เลือกเว็บที่จะใส่ --</option>';
+    let teamOptionsHtml = '<option value="" disabled selected>-- เลือกเว็บหลัก --</option>';
+    let subOptionsHtml = '<option value="">— ไม่ใส่เว็บรอง —</option>';
     teamChoices.forEach(t => {
         const cnt = (currentRosterData[t] || []).length;
         teamOptionsHtml += `<option value="${t}">${t} (${cnt} คน)</option>`;
+        subOptionsHtml += `<option value="${t}">${t}</option>`;
     });
 
     // 4. เปิด Modal ให้เลือก
     const result = await Swal.fire({
-        title: `<div class="text-xl font-black text-emerald-500 mt-2">เพิ่มพนักงานเข้าตาราง</div>`,
+        title: `<div class="text-xl font-black text-emerald-500 mt-2">🫳 ดึงคนเข้างาน</div>`,
         html: `
             <div class="text-left text-xs text-gray-500 dark:text-gray-400 mb-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg">
                 <span class="material-icons text-[14px] align-middle text-emerald-500">info</span>
                 <span class="align-middle">วันที่: <b class="text-slate-800 dark:text-white">${targetDate}</b> | กะ: <b class="text-slate-800 dark:text-white">${shiftFilter}</b> | แผนก: <b class="text-slate-800 dark:text-white">${currentDutyDept}</b></span>
             </div>
-            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">พนักงาน (ที่ยังไม่อยู่ในตาราง):</label></div>
+            <div class="text-left mb-1 flex items-center justify-between">
+                <label class="text-xs font-bold text-gray-600 dark:text-gray-300">พนักงาน (ที่ยังไม่อยู่ในตาราง):</label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-amber-500 select-none">
+                    <input type="checkbox" id="swal-add-allshift" class="w-3.5 h-3.5 accent-amber-500 cursor-pointer"
+                        onchange="document.getElementById('swal-add-user').innerHTML = this.checked ? window._pullStaffOpts.all : window._pullStaffOpts.match">
+                    รวมทุกกะ (โยกกลางคัน)
+                </label>
+            </div>
             <select id="swal-add-user" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">
                 ${userOptionsHtml}
             </select>
-            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">ใส่เข้าเว็บ:</label></div>
-            <select id="swal-add-team" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm">
+            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บหลัก:</label></div>
+            <select id="swal-add-team" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer text-sm mb-3">
                 ${teamOptionsHtml}
+            </select>
+            <div class="text-left mb-2"><label class="text-xs font-bold text-gray-600 dark:text-gray-300">เว็บรอง <span class="text-gray-400 font-normal">(ไม่บังคับ)</span>:</label></div>
+            <select id="swal-add-subteam" class="w-full p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer text-sm">
+                ${subOptionsHtml}
             </select>
         `,
         showCancelButton: true,
         confirmButtonColor: '#10b981',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'เพิ่มเข้าตาราง',
+        confirmButtonText: '🫳 ดึงเข้างานเลย',
         cancelButtonText: 'ยกเลิก',
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl border border-slate-700 shadow-2xl' },
         preConfirm: () => {
             const userId = document.getElementById('swal-add-user').value;
             const team = document.getElementById('swal-add-team').value;
+            const subTeam = document.getElementById('swal-add-subteam').value || '';
             if (!userId) { Swal.showValidationMessage('กรุณาเลือกพนักงาน'); return false; }
-            if (!team) { Swal.showValidationMessage('กรุณาเลือกเว็บปลายทาง'); return false; }
-            return { userId, team };
+            if (!team) { Swal.showValidationMessage('กรุณาเลือกเว็บหลัก'); return false; }
+            if (subTeam && subTeam === team) { Swal.showValidationMessage('เว็บรองต้องไม่ซ้ำกับเว็บหลัก'); return false; }
+            return { userId, team, subTeam };
         }
     });
 
     if (!result.isConfirmed || !result.value) return;
-    const { userId, team } = result.value;
+    const { userId, team, subTeam } = result.value;
 
     // 5. ทำการ save
     Swal.fire({title: 'กำลังเพิ่ม...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
@@ -912,6 +945,7 @@ window.addStaffToRoster = async function() {
         }
         currentRosterData[team].push({
             ...fullUserObj,
+            secondary_team: subTeam || null,   // 🫳 เว็บรองที่เลือกในกล่อง (ไม่เลือก = ไม่มีรอง)
             assigned_by: currentUser.username,
             assigned_at: new Date().toISOString()
         });
@@ -923,7 +957,7 @@ window.addStaffToRoster = async function() {
         await appDB.from('system_logs').insert([{
             action_type: 'ย้ายหน้าที่',
             performed_by: currentUser.username,
-            target_details: `เพิ่ม ${fullUserObj.username} เข้าเว็บ [${team}] (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
+            target_details: `ดึง ${fullUserObj.username} เข้างาน → หลัก [${team}]${subTeam ? ` + รอง [${subTeam}]` : ''} (${currentDutyDept}, ${shiftFilter}, ${targetDate})`
         }]);
 
         try { window.debouncedBroadcast('duty-updates', 'force_reload'); } catch(e) {}
@@ -932,7 +966,7 @@ window.addStaffToRoster = async function() {
         Swal.fire({
             icon: 'success',
             title: 'เพิ่มสำเร็จ!',
-            text: `${fullUserObj.username} ถูกใส่เข้าเว็บ ${team} แล้ว`,
+            text: `${fullUserObj.username} → หลัก ${team}${subTeam ? ' + รอง ' + subTeam : ''} เรียบร้อย`,
             timer: 1500,
             showConfirmButton: false
         });
