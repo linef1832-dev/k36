@@ -293,11 +293,15 @@ window.renderSlotChips = function () {
     }
     // 🧹 ตารางเวลาล้วนๆ เรียงตามลำดับของกะ — ตัวเลขชัด: 🟡 ลงแล้ว · 🟢 ว่าง · ⛔ เต็ม (มืด กดแล้วเด้งเตือน)
     const info = window._slotInfo || {};
+    // ตัดรอบที่เลือกไว้แต่ตอนนี้กดไม่ได้แล้ว (เต็ม/เปลี่ยนกะ) ออกจากชุดที่เลือก
+    const okVals = new Set(opts.filter(o => !o.disabled).map(o => o.value));
+    window._pickedSlots = (window._pickedSlots || []).filter(t => okVals.has(t));
+    sel.value = window._pickedSlots[0] || '';
     let html = '<div class="slotc-grid">';
     opts.forEach(o => {
         const time = o.value;
         const i = info[time] || {};
-        const isOn = sel.value === time;
+        const isOn = window._pickedSlots.includes(time);
         const isFull = o.disabled || i.full;
         let statusHtml;
         if (isFull) {
@@ -314,6 +318,12 @@ window.renderSlotChips = function () {
     });
     html += '</div>';
     box.innerHTML = html;
+    // 🔘 ปุ่มบันทึกบอกจำนวนที่เลือก
+    const btn = document.getElementById('btnSave');
+    if (btn) {
+        const n = window._pickedSlots.length;
+        btn.innerHTML = `<span class="material-icons" style="font-size:19px">save</span> ${n >= 2 ? `บันทึกทั้ง ${n} รอบ (${window._pickedSlots.join(' · ')})` : 'บันทึกข้อมูล'}`;
+    }
 };
 
 // ⛔ กดรอบที่เต็ม → เด้งบอกชัดๆ ว่าเต็มเพราะอะไร
@@ -327,13 +337,58 @@ window.slotFullAlert = function (time) {
     });
 };
 
+// 🎯 เลือกได้สูงสุด 2 รอบพร้อมกัน (ตามโควตา/วัน) → กดบันทึกทีเดียว ลงให้ทั้งคู่
+window._pickedSlots = window._pickedSlots || [];
 window.pickTimeSlot = function (time) {
     const sel = document.getElementById('tSlot');
     if (!sel) return;
     const opt = [...sel.options].find(o => o.value === time);
     if (!opt || opt.disabled) return;
-    sel.value = (sel.value === time) ? '' : time;   // กดซ้ำ = ยกเลิกเลือก
+    const P = window._pickedSlots;
+    const i = P.indexOf(time);
+    if (i > -1) { P.splice(i, 1); }                                  // กดซ้ำ = เอาออก
+    else {
+        const maxPick = Math.max(1, parseInt((typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit) || 2));
+        if (P.length >= maxPick) return Swal.fire({ icon: 'info', title: `เลือกได้สูงสุด ${maxPick} รอบ`, text: 'เอารอบที่เลือกไว้ออกก่อน (กดซ้ำที่ปุ่มนั้น) แล้วค่อยเลือกใหม่', timer: 2200, showConfirmButton: false });
+        // 🚫 กันเลือกรอบติดกันตั้งแต่ตอนจิ้ม (ห้ามควบพักยาว)
+        const adj = (a, b) => { const x = String(a).split('-'), y = String(b).split('-'); return x.length === 2 && y.length === 2 && (x[1] === y[0] || y[1] === x[0]); };
+        const hit = P.find(t => adj(t, time));
+        if (hit) return Swal.fire({ icon: 'warning', title: 'ลงติดกันไม่ได้', text: `รอบ ${time} ต่อเนื่องกับ ${hit} ที่เลือกไว้ — ห้ามควบพักยาว เว้นช่วงหน่อยนะ` });
+        P.push(time);
+    }
+    sel.value = P[0] || '';   // ให้ select (สมองเดิม) ชี้ตัวแรกไว้เสมอ โค้ดเก่าอ่านได้ปกติ
     window.renderSlotChips();
+};
+
+// 💾 บันทึก: 1 รอบ = เส้นทางเดิมเป๊ะ · 2 รอบ = วนลงทีละรอบผ่านด่านเช็คเดิมครบทุกตัว
+window.saveMulti = async function (ev) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    const picks = [...(window._pickedSlots || [])];
+    const sel = document.getElementById('tSlot');
+    if (picks.length <= 1) {
+        if (sel) sel.value = picks[0] || sel.value || '';
+        return saveData({ preventDefault: () => {} });
+    }
+    window._qrbSilent = true;   // 🤫 ป๊อปอัป "บันทึกสำเร็จ" รายรอบไม่ต้องเด้ง เดี๋ยวสรุปทีเดียว
+    try {
+        for (const t of picks) {
+            if (sel) sel.value = t;
+            try { await saveData({ preventDefault: () => {} }); } catch (e) {}
+            await new Promise(r => setTimeout(r, 350));
+        }
+    } finally { window._qrbSilent = false; }
+    // ✅ เช็คผลจริงจากฐานข้อมูล แล้วสรุปครั้งเดียว
+    try {
+        const d = document.getElementById('wDate') ? document.getElementById('wDate').value : '';
+        const { data } = await appDB.from('schedules').select('time_slot').eq('work_date', d).eq('staff_name', currentUser.username);
+        const got = new Set((data || []).map(x => x.time_slot));
+        const ok = picks.filter(t => got.has(t));
+        if (ok.length === picks.length) Swal.fire({ icon: 'success', title: `ลงครบทั้ง ${picks.length} รอบแล้ว 🎉`, text: ok.join(' และ '), timer: 2000, showConfirmButton: false });
+        else if (ok.length) Swal.fire({ icon: 'warning', title: `ลงสำเร็จ ${ok.length}/${picks.length} รอบ`, text: `สำเร็จ: ${ok.join(', ')} — อีกรอบไม่ผ่าน (ดูเหตุผลจากกล่องเตือนก่อนหน้า)` });
+    } catch (e) {}
+    window._pickedSlots = [];
+    if (sel) sel.value = '';
+    if (typeof refreshTimeSlots === 'function') refreshTimeSlots();
 };
 
 // debounce timer สำหรับ refreshTimeSlots
