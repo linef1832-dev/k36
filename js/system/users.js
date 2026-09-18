@@ -202,8 +202,8 @@ window.refreshCurrentUserFromDB = async function() {
 };
 
 function handleDateChange() { const _dd = document.getElementById('displayDate'); if (_dd) _dd.innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); /* 🩹 displayDate อยู่หน้าตารางลงเวลาพักแล้ว หน้าหลักไม่มี → เช็คก่อน */ refreshTimeSlots(); fetchData(); if (typeof initQuickRebook === 'function') initQuickRebook(); }
-function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) window.safeSetItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); fetchData(); }
-function toggleRememberTeam() { const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) { const team = document.getElementById('dailyTeam').value; window.safeSetItem(`last_team_${currentUser.username}`, team); } else { localStorage.removeItem(`last_team_${currentUser.username}`); } }
+// 🧹 [ถอดระบบ "จำทีมนี้ไว้ตลอด" ออกแล้ว] เปลี่ยนทีม = รีเฟรชรอบเวลา/ข้อมูล + อัปเดตปุ่มลัด ไม่จำอะไรทั้งนั้น
+function handleTeamChange() { refreshTimeSlots(); fetchData(); if (typeof initQuickRebook === 'function') initQuickRebook(); }
 function getPeriodForTime(shift, time) { const g = SHIFT_GROUPS[shift]; if(!g) return null; if(Array.isArray(g)) return g.includes(time) ? 'รอบพัก' : null; for(const [p, ts] of Object.entries(g)) { if((ts||[]).includes(time)) return p; } return null; }   // 🧹 ช่วงถูกยกเลิก — คงฟังก์ชันไว้กันโค้ดเก่าเรียกแล้วพัง
 
 function checkBookingTime(shiftName) {

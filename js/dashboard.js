@@ -58,18 +58,10 @@ if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
     // ⚡ ปุ่มลัด "ลงเหมือนเมื่อวาน" (ทำเบื้องหลัง ไม่หน่วงหน้า)
     if (typeof initQuickRebook === 'function') setTimeout(() => initQuickRebook(), 400);
 
-    // เช็คระบบ "จำทีมนี้ไว้ตลอด"
-    const savedTeam = localStorage.getItem(`last_team_${window.currentUser.username}`);
+    // 🧹 [ถอดระบบ "จำทีมนี้ไว้ตลอด" ออกแล้ว] เหลือแค่เติมเว็บประจำตัวจากโปรไฟล์ให้เป็นค่าเริ่มต้น
+    localStorage.removeItem(`last_team_${window.currentUser.username}`);   // ล้างค่าที่เคยจำค้างไว้ของทุกคน
     const teamSelect = document.getElementById('dailyTeam');
-    if (teamSelect) {
-        if (savedTeam) {
-            teamSelect.value = savedTeam;
-            const rememberCb = document.getElementById('rememberTeam');
-            if(rememberCb) rememberCb.checked = true;
-        } else if (window.currentUser.team) {
-            teamSelect.value = window.currentUser.team;
-        }
-    }
+    if (teamSelect && window.currentUser.team) teamSelect.value = window.currentUser.team;
 
     // 🏠 [เร็วขึ้น] วาด "วันนี้ของฉัน" ทันทีตั้งแต่ต้น (ขนานกับการโหลดตาราง) ไม่ต้องรอขั้นอื่น
     if (typeof window.renderMyToday === 'function') window.renderMyToday();
