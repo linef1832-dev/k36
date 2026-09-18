@@ -392,12 +392,11 @@ async function saveTimeSettings() { if (!window.sysRequireAdmin()) return;
 
 async function saveDailyLimit() { if (!window.sysRequireAdmin()) return; 
     const dailyVal = document.getElementById('dailyLimitInput').value; 
-    const periodVal = document.getElementById('periodLimitInput').value; 
-    await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }, { key: 'period_limit', value: periodVal }]); 
-    SETTINGS.daily_limit = parseInt(dailyVal); SETTINGS.period_limit = parseInt(periodVal); 
+    // 🧹 [รื้อระบบช่วง] เหลือโควตา/วัน อย่างเดียว
+    await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }]); 
+    SETTINGS.daily_limit = parseInt(dailyVal); 
     
-    if(document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = dailyVal; 
-    if(document.getElementById('periodLimitDisplay')) document.getElementById('periodLimitDisplay').innerText = periodVal;
+    if(document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = dailyVal;
     
     Swal.fire('Saved', '', 'success'); 
 }

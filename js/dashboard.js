@@ -385,11 +385,12 @@ async function _doRefreshTimeSlots() {
             _slotCache[slotCacheKey] = { data: bookings, ts: now };
         }
 
-        const periods = (typeof SHIFT_GROUPS !== 'undefined' ? SHIFT_GROUPS[shiftName] : {}) || {};
-        let html = '<option value="">-- เลือกช่วงเวลา --</option>';
+        // 🧹 [รื้อระบบช่วง] รายการเวลาเป็นชุดเดียวต่อกะ ไม่มีหัว "ช่วงที่ 1/2/3" แล้ว
+        const _g = (typeof SHIFT_GROUPS !== 'undefined' ? SHIFT_GROUPS[shiftName] : null);
+        const times = Array.isArray(_g) ? _g : [].concat(...Object.values(_g || {}));
+        let html = '<option value="">-- เลือกรอบเวลา --</option>';
 
-        for (const [periodName, times] of Object.entries(periods)) {
-            html += `<optgroup label="--- ${periodName} ---">`;
+        {
             times.forEach(time => {
                 // 🍽️ [กติกาพัก] เพดานพักต่อเว็บ — อัตโนมัติจากตารางหน้าที่ (หลัก+รอง) + คนที่พักช่วงนี้
                 const slotB = (bookings || []).filter(b => b.time_slot === time);
@@ -408,9 +409,8 @@ async function _doRefreshTimeSlots() {
                     // ยังไม่ได้จัดหน้าที่วันนี้ / ผู้จัดการ → ไม่จำกัด แสดงแค่จำนวนที่ลงแล้ว
                     statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;
                 }
-                html += `<option value="${time}" data-period="${periodName}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
+                html += `<option value="${time}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
             });
-            html += '</optgroup>';
         }
         slotSelect.innerHTML = html;
 
@@ -619,16 +619,8 @@ window.subscribeDashboardChanges = function() {
                 }
 
                 // เรียงเวลาใหม่
-                globalScheduleData.sort((a, b) => {
-                    const pA = getPeriodForTime(a.shift_name, a.time_slot);
-                    const pB = getPeriodForTime(b.shift_name, b.time_slot);
-                    const pOrder = {'ช่วงที่ 1': 1, 'ช่วงที่ 2': 2, 'ช่วงที่ 3': 3};
-                    if (pOrder[pA] !== pOrder[pB]) return (pOrder[pA] || 99) - (pOrder[pB] || 99);
-
-                    const timeA = a.time_slot || "";
-                    const timeB = b.time_slot || "";
-                    return timeA.localeCompare(timeB);
-                });
+                // 🧹 [รื้อระบบช่วง] เรียงตามเวลาจริงล้วนๆ
+                globalScheduleData.sort((a, b) => String(a.time_slot || '').localeCompare(String(b.time_slot || '')));
 
                 // กรองข้อมูลตามสิทธิ์แอดมิน/พนักงาน
                 let dataToRender = globalScheduleData;

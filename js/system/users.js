@@ -204,7 +204,7 @@ window.refreshCurrentUserFromDB = async function() {
 function handleDateChange() { const _dd = document.getElementById('displayDate'); if (_dd) _dd.innerText = new Date(document.getElementById('wDate').value).toLocaleDateString('th-TH'); /* 🩹 displayDate อยู่หน้าตารางลงเวลาพักแล้ว หน้าหลักไม่มี → เช็คก่อน */ refreshTimeSlots(); fetchData(); if (typeof initQuickRebook === 'function') initQuickRebook(); }
 function handleTeamChange() { const team = document.getElementById('dailyTeam').value; const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) window.safeSetItem(`last_team_${currentUser.username}`, team); refreshTimeSlots(); fetchData(); }
 function toggleRememberTeam() { const isRemember = document.getElementById('rememberTeam').checked; if (isRemember) { const team = document.getElementById('dailyTeam').value; window.safeSetItem(`last_team_${currentUser.username}`, team); } else { localStorage.removeItem(`last_team_${currentUser.username}`); } }
-function getPeriodForTime(shift, time) { const groups = SHIFT_GROUPS[shift]; if(!groups) return null; for(const [p, ts] of Object.entries(groups)) { if(ts.includes(time)) return p; } return null; }
+function getPeriodForTime(shift, time) { const g = SHIFT_GROUPS[shift]; if(!g) return null; if(Array.isArray(g)) return g.includes(time) ? 'รอบพัก' : null; for(const [p, ts] of Object.entries(g)) { if((ts||[]).includes(time)) return p; } return null; }   // 🧹 ช่วงถูกยกเลิก — คงฟังก์ชันไว้กันโค้ดเก่าเรียกแล้วพัง
 
 function checkBookingTime(shiftName) {
     if(['manager', 'admin'].includes(currentUser.role)) return { allowed: true };
@@ -387,8 +387,7 @@ window.saveData = async function(e) {
 
     const _slotOpt = select.options[select.selectedIndex];
     if (!_slotOpt) { window.resetBtn(); return Swal.fire('เตือน', 'กรุณาเลือกช่วงเวลาก่อนบันทึก', 'warning'); }
-    const targetPeriod = _slotOpt.dataset.period;
-    const periodLimit = parseInt(SETTINGS.period_limit || 1);
+    // 🧹 [รื้อระบบช่วง] กติกา "1 ครั้ง/ช่วง" ถูกยกเลิกแล้ว — เหลือ: โควตา/วัน + ห้ามลงติดกัน + คนเฝ้าขั้นต่ำ
     
     // 🚫 [ห้ามควบพักยาว] ลงช่วงเวลา "ติดกัน" กับที่ตัวเองลงไว้ไม่ได้ (เช่น 04:00-04:30 แล้วมาลง 04:30-05:00 ต่อ)
     const _isAdjacent = (a, b) => {
@@ -397,10 +396,6 @@ window.saveData = async function(e) {
     };
     const adjacentMine = myBookings.find(b => b.shift_name === sName && _isAdjacent(b.time_slot, timeVal));
     if (adjacentMine) { window.resetBtn(); return Swal.fire('ลงติดกันไม่ได้', `ช่วง ${timeVal} ต่อเนื่องกับ ${adjacentMine.time_slot} ที่คุณลงไว้แล้ว — ห้ามควบพักยาว กรุณาเว้นช่วง`, 'error'); }
-
-    const checkPeriod = typeof getPeriodForTime === 'function' ? getPeriodForTime : () => targetPeriod; 
-    const countInPeriod = myBookings.filter(b => b.shift_name === sName && checkPeriod(sName, b.time_slot) === targetPeriod).length;
-    if (countInPeriod >= periodLimit) { window.resetBtn(); return Swal.fire('ซ้ำ!', `คุณลงช่วง "${targetPeriod}" ครบ ${periodLimit} ครั้งแล้ว`, 'error'); }
 
     const shiftSuffix = sName.replace('กะ','');
     const { data: slotBookings } = (timeVal === _timeValEarly) ? await _pSlot : await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', timeVal);   // ⚡ ใช้ที่โหลดไว้แล้ว

@@ -34,9 +34,11 @@
         const set = new Map();   // slot -> Set(shift)
         const all = window.SHIFT_GROUPS_ALL || {};
         const depts = deptFilter === 'all' ? Object.keys(all) : [deptFilter];
-        depts.forEach(d => Object.entries(all[d] || {}).forEach(([shift, periods]) => {
+        depts.forEach(d => Object.entries(all[d] || {}).forEach(([shift, val]) => {
             if (shiftFilter !== 'all' && shift !== shiftFilter) return;
-            Object.values(periods || {}).forEach(arr => (arr || []).forEach(sl => { if (!set.has(sl)) set.set(sl, new Set()); set.get(sl).add(shift); }));
+            // 🧹 รองรับทรงใหม่ (กะ → [เวลา]) และทรงเก่า (กะ → ช่วง → [เวลา]) เผื่อข้อมูลเก่าค้าง
+            const arr = Array.isArray(val) ? val : [].concat(...Object.values(val || {}));
+            (arr || []).forEach(sl => { if (!set.has(sl)) set.set(sl, new Set()); set.get(sl).add(shift); });
         }));
         _rows.forEach(r => { if (!r.time_slot) return; if (!set.has(r.time_slot)) set.set(r.time_slot, new Set()); set.get(r.time_slot).add(r.shift_name); });
         const toMin = s => { const m = /^(\d{1,2}):(\d{2})/.exec(s); return m ? (+m[1]) * 60 + (+m[2]) : 9999; };

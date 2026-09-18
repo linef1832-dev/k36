@@ -656,10 +656,9 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
 }
 
 // =========================================================
-// 🟢 ระบบเพิ่มรอบเวลาเอง — 🆕 แยกชุดเวลา AM / OD (เวลาไม่เหมือนกัน ตั้งของใครของมัน)
-// เก็บใน settings 'custom_time_slots' รูปใหม่ { AM: {กะ:{ช่วง:[...]}}, OD: {...} }
-// ของเก่า (ไม่แยกแผนก) → migrate อัตโนมัติ: ทั้งสองแผนกเริ่มด้วยชุดเดิมเหมือนกัน แล้วค่อยแก้แยกกันได้
-// SHIFT_GROUPS (ตัวที่ทุกหน้าใช้อยู่) จะชี้ไปชุดของ "แผนกผู้ใช้ที่ล็อกอิน" อัตโนมัติ — โค้ดเดิมไม่ต้องแก้
+// 🟢 ระบบรอบเวลา (โครงใหม่: ไม่มี "ช่วง" แล้ว) — กะ → [รายการเวลา] ตรงๆ
+// เก็บใน settings 'custom_time_slots' รูป { AM: {กะ:[...]}, OD: {กะ:[...]} }
+// ของเก่า (มีช่วงซ้อน หรือไม่แยกแผนก) → แปลงให้อัตโนมัติ รวมทุกช่วงเป็นรายการเดียว ไม่มีข้อมูลหาย
 // =========================================================
 window.SHIFT_GROUPS_ALL = { AM: {}, OD: {} };
 window._slotsViewerDept = function() {
@@ -667,38 +666,52 @@ window._slotsViewerDept = function() {
     return d === 'OD' ? 'OD' : 'AM';   // แผนกอื่นๆ นับเป็น AM
 };
 
+// รวมข้อมูลทุกทรง (แบน/มีช่วงซ้อน) ให้เป็น กะ → [เวลา เรียง ไม่ซ้ำ]
+function _flattenShiftSlots(deptObj) {
+    const out = {};
+    const toMin = s => { const m = /^(\d{1,2}):(\d{2})/.exec(String(s||'')); return m ? (+m[1])*60+(+m[2]) : 9999; };
+    for (const [shift, val] of Object.entries(deptObj || {})) {
+        let arr = [];
+        if (Array.isArray(val)) arr = val;                                         // ทรงใหม่อยู่แล้ว
+        else if (val && typeof val === 'object') Object.values(val).forEach(a => { if (Array.isArray(a)) arr = arr.concat(a); });   // ทรงเก่ามีช่วง → เทรวม
+        arr = [...new Set(arr)].sort((a, b) => toMin(a) - toMin(b));
+        if (arr.length) out[shift] = arr;
+    }
+    return out;
+}
+
 window.applyCustomTimeSlots = function() {
     try {
         let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
 
-        // 💡 ค่าเริ่มต้นของระบบ (ใช้เมื่อฐานข้อมูลยังไม่มี)
+        // 💡 ค่าเริ่มต้นชุดใหม่ (ตามประกาศรอบพักเบรค) — ใช้เมื่อฐานข้อมูลยังไม่มีค่า
+        // กติกาโดยดีไซน์: ชั่วโมงแรกหลังเข้างาน และชั่วโมงสุดท้ายก่อนเลิกงาน ไม่มีรอบให้ลง
         const defaultTimeSlots = {
-            'กะเช้า': {
-                'ช่วงที่ 1': ['08:00-08:30', '08:30-09:00', '09:00-09:30', '09:30-10:00'],
-                'ช่วงที่ 2': ['12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00'],
-                'ช่วงที่ 3': ['16:00-16:30', '16:30-17:00']
-            },
-            'กะกลาง': {
-                'ช่วงที่ 1': ['12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00'],
-                'ช่วงที่ 2': ['16:00-16:30', '16:30-17:00', '17:00-17:30', '17:30-18:00'],
-                'ช่วงที่ 3': ['20:00-20:30', '20:30-21:00', '21:00-21:30']
-            },
-            'กะดึก': {
-                'ช่วงที่ 1': ['20:00-20:30', '20:30-21:00', '21:00-21:30', '21:30-22:00'],
-                'ช่วงที่ 2': ['00:00-00:30', '00:30-01:00', '01:00-01:30', '01:30-02:00'],
-                'ช่วงที่ 3': ['04:00-04:30', '04:30-05:00', '05:00-05:30', '05:30-06:00']
-            }
+            'กะเช้า': [   // 08:00-20:00
+                '09:00-09:30', '09:30-10:00',
+                '12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00',
+                '16:00-16:30', '16:30-17:00', '17:00-17:30', '17:30-18:00', '18:00-18:30'
+            ],
+            'กะกลาง': [   // 11:00-23:00
+                '12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00',
+                '16:00-16:30', '16:30-17:00', '17:00-17:30', '17:30-18:00', '18:00-18:30',
+                '21:00-21:30', '21:30-22:00'
+            ],
+            'กะดึก': [    // 20:00-08:00
+                '21:00-21:30', '21:30-22:00', '22:00-22:30', '22:30-23:00', '23:00-23:30',
+                '02:00-02:30', '02:30-03:00', '03:00-03:30', '03:30-04:00',
+                '05:00-05:30', '05:30-06:00', '06:00-06:30', '06:30-07:00'
+            ]
         };
 
         let parsed = rawData ? (typeof rawData === 'string' ? JSON.parse(rawData) : rawData) : null;
         if (!parsed) parsed = defaultTimeSlots;
 
         if (parsed.AM || parsed.OD) {
-            // รูปใหม่ (แยกแผนกแล้ว)
-            window.SHIFT_GROUPS_ALL = { AM: parsed.AM || {}, OD: parsed.OD || {} };
+            window.SHIFT_GROUPS_ALL = { AM: _flattenShiftSlots(parsed.AM || {}), OD: _flattenShiftSlots(parsed.OD || {}) };
         } else {
-            // รูปเก่า → ทั้งสองแผนกเริ่มด้วยชุดเดียวกัน (สำเนาแยกกัน แก้แล้วไม่ปนกัน)
-            window.SHIFT_GROUPS_ALL = { AM: parsed, OD: JSON.parse(JSON.stringify(parsed)) };
+            const flat = _flattenShiftSlots(parsed);
+            window.SHIFT_GROUPS_ALL = { AM: flat, OD: JSON.parse(JSON.stringify(flat)) };
         }
         SHIFT_GROUPS = window.SHIFT_GROUPS_ALL[window._slotsViewerDept()] || {};
     } catch(e) { console.error('Error applying custom time slots:', e); }
@@ -708,54 +721,41 @@ window.renderManualTimeSlots = function() {
     const container = document.getElementById('manualTimeSlotsContainer');
     if (!container) return;
 
-    let html = '';
-    let count = 0;
-
-    // 🆕 วาดแยกแผนก AM / OD — ป้ายสีบอกชัดว่าเวลาไหนของแผนกไหน
+    let html = '', count = 0;
     for (const dep of ['AM', 'OD']) {
         const groups = (window.SHIFT_GROUPS_ALL && window.SHIFT_GROUPS_ALL[dep]) || {};
         let depHtml = '';
-        for (const [shift, periods] of Object.entries(groups)) {
-            for (const [period, slots] of Object.entries(periods)) {
-                slots.forEach(slot => {
-                    let sName = shift.replace('กะ', '');
-                    let pName = period.replace('ช่วงที่ ', 'P');
-                    let colorClass = sName === 'เช้า' ? 'text-orange-400' : (sName === 'กลาง' ? 'text-blue-400' : 'text-purple-400');
-
-                    depHtml += `
-                    <div class="flex justify-between items-center bg-slate-800 p-2 rounded-lg border border-slate-600/50 shadow-sm mb-1.5">
-                        <div class="flex items-center gap-2 text-[10px] font-bold ${colorClass}">
-                            <span class="w-12">${sName} ${pName}</span>
-                            <span class="text-gray-300 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-700 tracking-wider shadow-inner">${slot}</span>
-                        </div>
-                        <button type="button" onclick="deleteManualTimeSlot('${dep}', '${shift}', '${period}', '${slot}')" class="text-red-400 hover:text-red-500 hover:bg-red-900/30 p-1 rounded transition" title="ลบเวลา">
-                            <span class="material-icons text-[14px]">delete</span>
-                        </button>
-                    </div>`;
-                    count++;
-                });
-            }
+        for (const [shift, slots] of Object.entries(groups)) {
+            (slots || []).forEach(slot => {
+                const sName = shift.replace('กะ', '');
+                const colorClass = sName === 'เช้า' ? 'text-orange-400' : (sName === 'กลาง' ? 'text-blue-400' : 'text-purple-400');
+                depHtml += `
+                <div class="flex justify-between items-center bg-slate-800 p-2 rounded-lg border border-slate-600/50 shadow-sm mb-1.5">
+                    <div class="flex items-center gap-2 text-[10px] font-bold ${colorClass}">
+                        <span class="w-12">${sName}</span>
+                        <span class="text-gray-300 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-700 tracking-wider shadow-inner">${slot}</span>
+                    </div>
+                    <button type="button" onclick="deleteManualTimeSlot('${dep}', '${shift}', '${slot}')" class="text-red-400 hover:text-red-500 hover:bg-red-900/30 p-1 rounded transition" title="ลบเวลา">
+                        <span class="material-icons text-[14px]">delete</span>
+                    </button>
+                </div>`;
+                count++;
+            });
         }
         if (depHtml) {
             const depColor = dep === 'AM' ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' : 'text-pink-300 border-pink-500/40 bg-pink-500/10';
             html += `<div class="text-[10px] font-black ${depColor} border rounded-lg px-2 py-1 mb-1.5 mt-2 inline-block">แผนก ${dep}</div>` + depHtml;
         }
     }
-
-    if (count === 0) {
-        container.innerHTML = '<div class="text-center text-gray-600 text-xs py-4">ยังไม่มีการตั้งค่า</div>';
-    } else {
-        container.innerHTML = html;
-    }
+    container.innerHTML = count === 0 ? '<div class="text-center text-gray-600 text-xs py-4">ยังไม่มีการตั้งค่า</div>' : html;
 };
 
 window.addManualTimeSlot = async function() {
     if (!window.sysRequireAdmin()) return;
 
     const depEl = document.getElementById('newTimeDept');
-    const dep = (depEl && depEl.value === 'OD') ? 'OD' : 'AM';   // 🆕 แผนกที่จะเพิ่มให้
-    const shiftSelect = document.getElementById('newTimeShift').value; 
-    const periodSelect = document.getElementById('newTimePeriod').value; 
+    const dep = (depEl && depEl.value === 'OD') ? 'OD' : 'AM';
+    const shiftSelect = document.getElementById('newTimeShift').value;
     const start = document.getElementById('newTimeStart').value;
     const end = document.getElementById('newTimeEnd').value;
 
@@ -764,47 +764,40 @@ window.addManualTimeSlot = async function() {
 
     const timeSlot = `${start}-${end}`;
     const G = window.SHIFT_GROUPS_ALL[dep] = window.SHIFT_GROUPS_ALL[dep] || {};
+    if (!Array.isArray(G[shiftSelect])) G[shiftSelect] = [];
+    if (G[shiftSelect].includes(timeSlot)) return Swal.fire('เตือน', `แผนก ${dep} มีรอบเวลานี้อยู่แล้ว`, 'warning');
 
-    if (!G[shiftSelect]) G[shiftSelect] = {};
-    if (!G[shiftSelect][periodSelect]) G[shiftSelect][periodSelect] = [];
-    
-    if (G[shiftSelect][periodSelect].includes(timeSlot)) {
-        return Swal.fire('เตือน', `แผนก ${dep} มีรอบเวลานี้อยู่แล้ว`, 'warning');
-    }
-
-    G[shiftSelect][periodSelect].push(timeSlot);
-    G[shiftSelect][periodSelect].sort();
+    G[shiftSelect].push(timeSlot);
+    const toMin = s => { const m = /^(\d{1,2}):(\d{2})/.exec(s); return m ? (+m[1])*60+(+m[2]) : 9999; };
+    G[shiftSelect].sort((a, b) => toMin(a) - toMin(b));
 
     SETTINGS['custom_time_slots'] = JSON.stringify(window.SHIFT_GROUPS_ALL);
-    SHIFT_GROUPS = window.SHIFT_GROUPS_ALL[window._slotsViewerDept()] || {};   // อัปเดตชุดที่หน้าอื่นใช้อยู่
-    
+    SHIFT_GROUPS = window.SHIFT_GROUPS_ALL[window._slotsViewerDept()] || {};
+
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
     await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(window.SHIFT_GROUPS_ALL) }]);
-    
+
     renderManualTimeSlots();
-    
     document.getElementById('newTimeStart').value = '';
     document.getElementById('newTimeEnd').value = '';
-    
     Swal.fire({icon: 'success', title: `เพิ่มให้แผนก ${dep} สำเร็จ`, timer: 1200, showConfirmButton: false});
 };
 
-window.deleteManualTimeSlot = async function(dep, shift, period, timeSlot) {
+window.deleteManualTimeSlot = async function(dep, shift, timeSlot) {
     if (!window.sysRequireAdmin()) return;
 
     const G = (window.SHIFT_GROUPS_ALL && window.SHIFT_GROUPS_ALL[dep]) || null;
-    if (G && G[shift] && G[shift][period]) {
-        G[shift][period] = G[shift][period].filter(t => t !== timeSlot);
-        if (G[shift][period].length === 0) delete G[shift][period];
-        if (Object.keys(G[shift]).length === 0) delete G[shift];
+    if (G && Array.isArray(G[shift])) {
+        G[shift] = G[shift].filter(t => t !== timeSlot);
+        if (G[shift].length === 0) delete G[shift];
     }
 
     SETTINGS['custom_time_slots'] = JSON.stringify(window.SHIFT_GROUPS_ALL);
     SHIFT_GROUPS = window.SHIFT_GROUPS_ALL[window._slotsViewerDept()] || {};
-    
+
     Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
     await appDB.from('settings').upsert([{ key: 'custom_time_slots', value: JSON.stringify(window.SHIFT_GROUPS_ALL) }]);
-    
+
     renderManualTimeSlots();
     Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1000, showConfirmButton: false});
 };
