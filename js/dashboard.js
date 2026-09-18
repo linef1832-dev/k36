@@ -301,7 +301,7 @@ window.renderSlotChips = function () {
     });
     if (window._slotFilter && !blocks.some(b => `${b.start}-${b.end}` === window._slotFilter)) window._slotFilter = '';   // ก้อนเดิมหายไป (เปลี่ยนกะ) → กลับเป็นทั้งหมด
     let filterHtml = '';
-    if (blocks.length > 1) {
+    if (blocks.length >= 1) {   // 🔎 โชว์แถบกรองทุกกะเสมอ (แม้เวลาจะติดเป็นก้อนเดียว)
         filterHtml = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">'
             + `<button type="button" onclick="setSlotFilter('')" class="slotf ${!window._slotFilter ? 'on' : ''}">ทั้งหมด</button>`
             + blocks.map(b => { const lb = `${b.start}-${b.end}`; return `<button type="button" onclick="setSlotFilter('${lb}')" class="slotf ${window._slotFilter === lb ? 'on' : ''}">${b.start} – ${b.end}</button>`; }).join('')
