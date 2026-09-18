@@ -15,24 +15,33 @@ window.renderRecentTabs = function() {
     }
     container.classList.remove('hidden');
 
+    // 🎨 สีประจำชีต (ชื่อสี → hex, ตั้งเป็น hex ตรงๆ ก็ได้) — แท็บใช้สีเดียวกับที่ตั้งไว้
+    const COLOR_MAP = { blue: '#3b82f6', green: '#10b981', red: '#ef4444', yellow: '#f59e0b', purple: '#8b5cf6', gray: '#64748b' };
+    const accentOf = (tab) => {
+        // แท็บที่จำไว้นานอาจไม่มีสีติดมา → ไปถามชีตตัวจริงในระบบ
+        const full = (window.GLOBAL_SHEETS || []).find(s => String(s.id) === String(tab.id)) || tab;
+        const c = full.color || '';
+        return c.startsWith('#') ? c : (COLOR_MAP[c] || '#3b82f6');
+    };
+
     let html = recentTabs.map(tab => {
         const isViewerVisible = !document.getElementById('sheetViewer').classList.contains('hidden');
         const isActive = (String(window.currentActiveTabId) === String(tab.id)) && isViewerVisible;
-        const activeClass = isActive ? 'bg-white text-blue-700 font-black' : 'bg-gray-300 text-gray-600 hover:bg-gray-200 font-bold opacity-80';
         const urlToCheck = tab.sheet_id || tab.url || '';
         const icon = (urlToCheck.startsWith('http') || urlToCheck.startsWith('www')) ? 'link' : 'table_chart';
         const tName = tab.name || tab.title || 'ไม่มีชื่อ';
 
         return window.renderTemplate('tpl-sheet-recent-tab', {
             id: tab.id,
-            activeClass: activeClass,
+            activeClass: isActive ? 'on' : '',
+            accent: accentOf(tab),
             icon: icon,
             title: tName
         });
     }).join('');
 
     if (recentTabs.length > 1) { 
-        html += `<button onclick="clearAllTabs()" class="ml-2 px-2 pb-2 text-[10px] text-red-500 hover:text-red-400 underline shrink-0">ล้างทั้งหมด</button>`; 
+        html += `<button onclick="clearAllTabs()" class="sht-clear"><span class="material-icons" style="font-size:13px">delete_sweep</span> ล้างทั้งหมด</button>`; 
     }
     container.innerHTML = html;
 };
