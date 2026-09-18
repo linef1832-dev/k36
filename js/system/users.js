@@ -428,20 +428,33 @@ window.saveData = async function(e) {
         });
     }
 
-    let error = null, bookedViaRpc = false;
+    let error = null, bookedViaRpc = false, rpcRes = null;
+    // 🛡️ [เกราะเหล็ก V2] ฐานข้อมูลคำนวณกติกาเองทั้งหมด (โควตา/ห้ามติดกัน/เพดานขั้นบันได/ล็อกกันกดพร้อมกัน)
+    //    หน้าเว็บปลอมกติกาส่งไปก็ไม่มีผล — ยังไม่ติดตั้ง V2 → ถอยไป V1 → วิธีเดิม อัตโนมัติ ไม่มีทางพัง
     try {
-        const { data: rpcRes, error: rpcErr } = await appDB.rpc('book_break_slot', {
+        const r2 = await appDB.rpc('book_break_slot_v2', {
             p_work_date: dateVal, p_staff: currentUser.username, p_team: activeTeam,
-            p_shift: sName, p_slot: timeVal, p_dept: myDep, p_rules: rules
+            p_shift: sName, p_slot: timeVal, p_dept: myDep
         });
-        if (rpcErr) throw rpcErr;
-        bookedViaRpc = true;
-        if (rpcRes && rpcRes.ok === false) {
-            window.resetBtn();
-            return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} เต็มแล้ว`, html: `<b class="text-red-500">${window.escapeHtml(rpcRes.team || '')}</b> (ต้องเหลือคนเฝ้า ${rpcRes.min_remain}) มี ${rpcRes.total} คน พักพร้อมกันได้ ${rpcRes.cap} — ตอนนี้พักอยู่แล้ว <b>${rpcRes.used}</b><br><br><span class="text-xs text-gray-500">มีคนกดตัดหน้าไปเมื่อกี้ เลือกช่วงอื่น หรือรอให้เพื่อนกลับจากพักก่อน</span>` });
+        if (r2.error) throw r2.error;
+        rpcRes = r2.data; bookedViaRpc = true;
+    } catch (e2) {
+        try {
+            const r1 = await appDB.rpc('book_break_slot', {
+                p_work_date: dateVal, p_staff: currentUser.username, p_team: activeTeam,
+                p_shift: sName, p_slot: timeVal, p_dept: myDep, p_rules: rules
+            });
+            if (r1.error) throw r1.error;
+            rpcRes = r1.data; bookedViaRpc = true;
+        } catch (e1) {
+            console.warn('book_break_slot RPC ใช้ไม่ได้ → ใช้วิธีเดิม:', e1.message);
         }
-    } catch (e) {
-        console.warn('book_break_slot RPC ใช้ไม่ได้ → ใช้วิธีเดิม:', e.message);
+    }
+    if (bookedViaRpc && rpcRes && rpcRes.ok === false) {
+        window.resetBtn();
+        if (rpcRes.reason === 'daily') return Swal.fire('ครบโควตา', `คุณลงครบ ${rpcRes.cap} รอบต่อวันแล้ว`, 'error');
+        if (rpcRes.reason === 'adjacent') return Swal.fire('ลงติดกันไม่ได้', `ช่วง ${timeVal} ต่อเนื่องกับรอบที่คุณลงไว้แล้ว — ห้ามควบพักยาว กรุณาเว้นช่วง`, 'error');
+        return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} เต็มแล้ว`, html: `<b class="text-red-500">${window.escapeHtml(rpcRes.team || '')}</b> (ต้องเหลือคนเฝ้า ${rpcRes.min_remain}) มี ${rpcRes.total} คน พักพร้อมกันได้ ${rpcRes.cap} — ตอนนี้พักอยู่แล้ว <b>${rpcRes.used}</b><br><br><span class="text-xs text-gray-500">มีคนกดตัดหน้าไปเมื่อกี้ เลือกช่วงอื่น หรือรอให้เพื่อนกลับจากพักก่อน</span>` });
     }
 
     if (!bookedViaRpc) {
