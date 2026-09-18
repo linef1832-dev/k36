@@ -400,10 +400,15 @@ window.pickTimeSlot = function (time) {
     else {
         const maxPick = Math.max(1, parseInt((typeof SETTINGS !== 'undefined' && SETTINGS.daily_limit) || 2));
         if (P.length >= maxPick) return Swal.fire({ icon: 'info', title: `เลือกได้สูงสุด ${maxPick} รอบ`, text: 'เอารอบที่เลือกไว้ออกก่อน (กดซ้ำที่ปุ่มนั้น) แล้วค่อยเลือกใหม่', timer: 2200, showConfirmButton: false });
-        // 🚫 กันเลือกรอบติดกันตั้งแต่ตอนจิ้ม (ห้ามควบพักยาว)
-        const adj = (a, b) => { const x = String(a).split('-'), y = String(b).split('-'); return x.length === 2 && y.length === 2 && (x[1] === y[0] || y[1] === x[0]); };
-        const hit = P.find(t => adj(t, time));
-        if (hit) return Swal.fire({ icon: 'warning', title: 'ลงติดกันไม่ได้', text: `รอบ ${time} ต่อเนื่องกับ ${hit} ที่เลือกไว้ — ห้ามควบพักยาว เว้นช่วงหน่อยนะ` });
+        // 🚫 กันเลือกรอบที่ห่างไม่พอตั้งแต่ตอนจิ้ม (ตามค่าที่ตั้งในระบบ · 0 = ห้ามติดกัน)
+        const gapMin = (typeof window.getBreakGapMin === 'function') ? window.getBreakGapMin() : 0;
+        const near = [...P, ...(window._myBookedSlots || [])].find(t => window.isSlotTooClose(t, time, gapMin));
+        if (near) {
+            const gapTxt = window.fmtGapText(gapMin);
+            return Swal.fire({ icon: 'warning',
+                title: gapMin > 0 ? 'เว้นระยะไม่พอ' : 'ลงติดกันไม่ได้',
+                text: gapMin > 0 ? `รอบ ${time} ห่างจาก ${near} ไม่ถึง ${gapTxt} — เลือกรอบที่ห่างกว่านี้นะ` : `รอบ ${time} ต่อเนื่องกับ ${near} — ห้ามควบพักยาว เว้นช่วงหน่อยนะ` });
+        }
         P.push(time);
     }
     sel.value = P[0] || '';   // ให้ select (สมองเดิม) ชี้ตัวแรกไว้เสมอ โค้ดเก่าอ่านได้ปกติ
@@ -755,6 +760,9 @@ window.subscribeDashboardChanges = function() {
                 window.loadBreakMinRemainCfg && window.loadBreakMinRemainCfg(true).then(() => {
                     if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
                 });
+            } else if (key === 'break_gap_min') {
+                // ⏳ [Realtime] หัวหน้าแก้ระยะห่างขั้นต่ำ → ทุกเครื่องใช้ค่าใหม่ทันที
+                if (typeof SETTINGS !== 'undefined') SETTINGS.break_gap_min = (payload.new && payload.new.value) || '0';
             } else if (key === 'daily_limit') {
                 // 🔴 [Realtime] หัวหน้าแก้โควตา/วัน → ทุกเครื่องใช้ค่าใหม่ทันที ไม่ต้องรีเฟรช
                 if (typeof SETTINGS !== 'undefined') SETTINGS.daily_limit = parseInt((payload.new && payload.new.value) || 2);

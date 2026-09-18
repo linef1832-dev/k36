@@ -334,6 +334,21 @@
                                     <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-red-400">event</span> ต่อวัน (ครั้ง):</span>
                                     <input type="number" id="dailyLimitInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-red-400">
                                 </div>
+
+                                <!-- ⏳ ระยะห่างขั้นต่ำระหว่างรอบพักของคนเดียวกัน -->
+                                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700/80">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-amber-400">hourglass_bottom</span> เว้นระยะอย่างน้อย:</span>
+                                        <div class="flex items-center gap-1.5">
+                                            <input type="number" min="0" id="gapValueInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-amber-400">
+                                            <select id="gapUnitInput" class="bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-xs font-bold outline-none focus:border-amber-400 cursor-pointer">
+                                                <option value="min">นาที</option>
+                                                <option value="hour">ชั่วโมง</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <p class="text-[10px] text-gray-500 mt-2 leading-relaxed">ห่างจาก<b class="text-gray-400">รอบที่ตัวเองลงไว้</b> (นับจากจบรอบก่อน ถึงเริ่มรอบใหม่) · <b class="text-amber-400">0 = ห้ามติดกันเฉยๆ</b> (ค่าเดิม) · เช่น 60 นาที = ลง 13:30 แล้วรอบถัดไปต้อง 14:30 ขึ้นไป</p>
+                                </div>
                             </div>
                         </div>
 

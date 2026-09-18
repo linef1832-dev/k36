@@ -392,9 +392,12 @@ async function saveTimeSettings() { if (!window.sysRequireAdmin()) return;
 
 async function saveDailyLimit() { if (!window.sysRequireAdmin()) return; 
     const dailyVal = document.getElementById('dailyLimitInput').value; 
-    // 🧹 [รื้อระบบช่วง] เหลือโควตา/วัน อย่างเดียว
-    await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }]); 
+    // ⏳ ระยะห่างขั้นต่ำ: แปลงเป็น "นาที" เก็บค่าเดียว (เลือกหน่วยได้แค่ตอนกรอก)
+    const gEl = document.getElementById('gapValueInput'), uEl = document.getElementById('gapUnitInput');
+    const gapMin = gEl ? Math.max(0, (parseInt(gEl.value) || 0) * ((uEl && uEl.value === 'hour') ? 60 : 1)) : 0;
+    await appDB.from('settings').upsert([{ key: 'daily_limit', value: dailyVal }, { key: 'break_gap_min', value: String(gapMin) }]); 
     SETTINGS.daily_limit = parseInt(dailyVal); 
+    SETTINGS.break_gap_min = String(gapMin);
     
     if(document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = dailyVal;
     
@@ -1021,6 +1024,13 @@ window.loadSettings = async function() {
         if (data) { data.forEach(row => { SETTINGS[row.key] = row.value; }); }
         
         if (document.getElementById('dailyLimitInput')) document.getElementById('dailyLimitInput').value = SETTINGS.daily_limit || 2;
+        // ⏳ เติมค่าระยะห่างที่ตั้งไว้ (เก็บเป็นนาที → โชว์เป็น ชม. ถ้าลงตัว)
+        const _g = parseInt(SETTINGS.break_gap_min) || 0;
+        const gEl = document.getElementById('gapValueInput'), uEl = document.getElementById('gapUnitInput');
+        if (gEl && uEl) {
+            if (_g > 0 && _g % 60 === 0) { gEl.value = _g / 60; uEl.value = 'hour'; }
+            else { gEl.value = _g; uEl.value = 'min'; }
+        }
         if (document.getElementById('periodLimitInput')) document.getElementById('periodLimitInput').value = SETTINGS.period_limit || 1;
         if (document.getElementById('limitDisplay')) document.getElementById('limitDisplay').innerText = SETTINGS.daily_limit || 2;
         if (document.getElementById('periodLimitDisplay')) document.getElementById('periodLimitDisplay').innerText = SETTINGS.period_limit || 1;

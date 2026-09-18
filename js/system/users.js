@@ -402,13 +402,17 @@ window.saveData = async function(e) {
     if (!_slotOpt || !_slotOpt.value) { window.resetBtn(); return Swal.fire('เตือน', 'กรุณากดเลือกรอบเวลาก่อนบันทึก', 'warning'); }
     // 🧹 [รื้อระบบช่วง] กติกา "1 ครั้ง/ช่วง" ถูกยกเลิกแล้ว — เหลือ: โควตา/วัน + ห้ามลงติดกัน + คนเฝ้าขั้นต่ำ
     
-    // 🚫 [ห้ามควบพักยาว] ลงช่วงเวลา "ติดกัน" กับที่ตัวเองลงไว้ไม่ได้ (เช่น 04:00-04:30 แล้วมาลง 04:30-05:00 ต่อ)
-    const _isAdjacent = (a, b) => {
-        const pa = String(a || '').split('-'), pb = String(b || '').split('-');
-        return pa.length === 2 && pb.length === 2 && (pa[1] === pb[0] || pb[1] === pa[0]);
-    };
-    const adjacentMine = myBookings.find(b => b.shift_name === sName && _isAdjacent(b.time_slot, timeVal));
-    if (adjacentMine) { window.resetBtn(); return Swal.fire('ลงติดกันไม่ได้', `ช่วง ${timeVal} ต่อเนื่องกับ ${adjacentMine.time_slot} ที่คุณลงไว้แล้ว — ห้ามควบพักยาว กรุณาเว้นช่วง`, 'error'); }
+    // 🚫 [เว้นระยะห่าง] ต้องห่างจากรอบที่ตัวเองลงไว้ตามที่ตั้งในระบบ (0 = ห้ามติดกันเฉยๆ)
+    const _gapMin = (typeof window.getBreakGapMin === 'function') ? window.getBreakGapMin() : 0;
+    const tooClose = myBookings.find(b => b.shift_name === sName && window.isSlotTooClose(b.time_slot, timeVal, _gapMin));
+    if (tooClose) {
+        window.resetBtn();
+        const gapTxt = window.fmtGapText(_gapMin);
+        return Swal.fire(_gapMin > 0 ? 'เว้นระยะไม่พอ' : 'ลงติดกันไม่ได้',
+            _gapMin > 0
+                ? `ช่วง ${timeVal} ห่างจาก ${tooClose.time_slot} ที่คุณลงไว้ไม่ถึง ${gapTxt} — กรุณาเลือกรอบที่ห่างกว่านี้`
+                : `ช่วง ${timeVal} ต่อเนื่องกับ ${tooClose.time_slot} ที่คุณลงไว้แล้ว — ห้ามควบพักยาว กรุณาเว้นช่วง`, 'error');
+    }
 
     const shiftSuffix = sName.replace('กะ','');
     const { data: slotBookings } = (timeVal === _timeValEarly) ? await _pSlot : await appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', timeVal);   // ⚡ ใช้ที่โหลดไว้แล้ว
@@ -468,6 +472,7 @@ window.saveData = async function(e) {
         if (rpcRes.reason === 'no_roster') return Swal.fire({ icon: 'info', title: 'เวรวันนี้ยังไม่ออก', text: 'รอหัวหน้าจัดหน้าที่/เวรของกะนี้ก่อน แล้วค่อยลงเวลาพักนะครับ', confirmButtonText: 'รับทราบ' });
         if (rpcRes.reason === 'not_in') return Swal.fire({ icon: 'info', title: 'คุณยังไม่ถูกจัดลงเว็บ', text: 'เวรของกะนี้ออกแล้ว แต่ไม่มีชื่อคุณในตาราง — แจ้งหัวหน้าให้จัดคุณลงเว็บก่อนนะครับ', confirmButtonText: 'รับทราบ' });
         if (rpcRes.reason === 'daily') return Swal.fire('ครบโควตา', `คุณลงครบ ${rpcRes.cap} รอบต่อวันแล้ว`, 'error');
+        if (rpcRes.reason === 'gap') return Swal.fire('เว้นระยะไม่พอ', `ช่วง ${timeVal} ห่างจากรอบที่คุณลงไว้ไม่ถึง ${window.fmtGapText(rpcRes.min_remain)} — กรุณาเลือกรอบที่ห่างกว่านี้`, 'error');
         if (rpcRes.reason === 'adjacent') return Swal.fire('ลงติดกันไม่ได้', `ช่วง ${timeVal} ต่อเนื่องกับรอบที่คุณลงไว้แล้ว — ห้ามควบพักยาว กรุณาเว้นช่วง`, 'error');
         return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} เต็มแล้ว`, html: `<b class="text-red-500">${window.escapeHtml(rpcRes.team || '')}</b> (ต้องเหลือคนเฝ้า ${rpcRes.min_remain}) มี ${rpcRes.total} คน พักพร้อมกันได้ ${rpcRes.cap} — ตอนนี้พักอยู่แล้ว <b>${rpcRes.used}</b><br><br><span class="text-xs text-gray-500">มีคนกดตัดหน้าไปเมื่อกี้ เลือกช่วงอื่น หรือรอให้เพื่อนกลับจากพักก่อน</span>` });
     }

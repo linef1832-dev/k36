@@ -408,10 +408,36 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        showPage('dashboard');
+        window.openPageFromHash();   // 🔗 รีเฟรชแล้วกลับไปหน้าเดิมตามลิงก์
     } else {
         showLogin();
     }
+});
+
+
+// ════════════════════════════════════════════════════════
+// 🔗 ระบบจำหน้าไว้ในลิงก์ (URL Router)
+//   /#gallery → รีเฟรชแล้วยังอยู่หน้าคลังรูป · ปุ่ม Back/Forward ของเบราว์เซอร์ใช้ได้
+//   กันพลาด: หน้าที่ไม่มีจริง/ไม่มีสิทธิ์ → พากลับหน้าหลักตามปกติ
+// ════════════════════════════════════════════════════════
+window.openPageFromHash = function () {
+    const raw = (location.hash || '').replace('#', '').trim();
+    const name = /^[a-z0-9_]+$/i.test(raw) ? raw : '';
+    if (!name || name === 'dashboard') return showPage('dashboard');
+
+    // มีเมนูหน้านี้ให้คนนี้จริงไหม (เคารพระบบสิทธิ์เดิม — ปุ่มเมนูที่ถูกซ่อน = เข้าไม่ได้)
+    const btn = document.querySelector(`button[onclick*="showPage('${name}')"]`);
+    const allowed = btn && !btn.closest('.hidden') && getComputedStyle(btn).display !== 'none';
+    if (!allowed) { try { history.replaceState({ page: 'dashboard' }, '', '#dashboard'); } catch (e) {} return showPage('dashboard'); }
+    return showPage(name);
+};
+
+// ⬅️➡️ ปุ่มย้อนกลับ/ไปหน้าถัดไปของเบราว์เซอร์
+window.addEventListener('popstate', () => {
+    const name = (location.hash || '').replace('#', '').trim() || 'dashboard';
+    if (name === window._currentPageName) return;
+    window._navFromHash = true;                        // กันเขียนประวัติซ้ำซ้อน
+    Promise.resolve(showPage(name)).finally(() => { window._navFromHash = false; });
 });
 
 // ==========================================
@@ -807,6 +833,36 @@ window.breakCapByHeadcount = function(n) {
     return 11 + Math.ceil((n - 50) / 5);
 };
 
+// ⏳ ระยะห่างขั้นต่ำระหว่างรอบพักของคนเดียวกัน (นาที) — ตั้งในหน้าตั้งค่าระบบ · 0 = ห้ามติดกันเฉยๆ
+window.getBreakGapMin = function() {
+    const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
+    const v = parseInt(S.break_gap_min);
+    return (isNaN(v) || v < 0) ? 0 : v;
+};
+
+// เช็คว่า 2 รอบห่างกันพอไหม (รองรับรอบคร่อมเที่ยงคืน) — true = ชนกฎ ลงไม่ได้
+window.isSlotTooClose = function(slotA, slotB, gapMin) {
+    const gap = (gapMin === undefined) ? window.getBreakGapMin() : (parseInt(gapMin) || 0);
+    const toM = s => { const m = /^(\d{1,2}):(\d{2})/.exec(String(s || '')); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+    const pa = String(slotA || '').split('-'), pb = String(slotB || '').split('-');
+    if (pa.length !== 2 || pb.length !== 2) return false;
+    const a1 = toM(pa[0]), a2 = toM(pa[1]), b1 = toM(pb[0]), b2 = toM(pb[1]);
+    if ([a1, a2, b1, b2].some(v => v === null)) return false;
+    if (gap <= 0) return (pa[1] === pb[0] || pb[1] === pa[0]);   // 0 = กฎเดิม: ห้ามติดกัน
+    // ระยะจากจบรอบก่อน → เริ่มรอบหลัง (วนข้ามเที่ยงคืนได้)
+    const d1 = ((b1 - a2) + 1440) % 1440;
+    const d2 = ((a1 - b2) + 1440) % 1440;
+    return Math.min(d1, d2) < gap;
+};
+
+// ข้อความบอกระยะห่างแบบอ่านง่าย เช่น "1 ชม. 30 นาที"
+window.fmtGapText = function(min) {
+    min = parseInt(min) || 0;
+    if (min <= 0) return '';
+    const h = Math.floor(min / 60), m = min % 60;
+    return (h ? `${h} ชม.` : '') + (m ? `${h ? ' ' : ''}${m} นาที` : '');
+};
+
 window.loadBreakMinRemainCfg = async function(force) {
     if (window._breakMinRemainCfg && !force) return window._breakMinRemainCfg;
     try {
@@ -927,6 +983,13 @@ async function showPage(pageName) {
             appContent.innerHTML = htmlContent;
             appContent.classList.remove('hidden');
             window._currentPageName = pageName;
+
+            // 🔗 เขียนชื่อหน้าลงลิงก์ (เช่น /#gallery) → รีเฟรชแล้วอยู่หน้าเดิม + ปุ่มย้อนกลับของเบราว์เซอร์ใช้ได้
+            try {
+                if (!window._navFromHash && location.hash.slice(1) !== pageName) {
+                    history.pushState({ page: pageName }, '', '#' + pageName);
+                }
+            } catch (e) {}
             
             document.querySelectorAll('.nm-menu-title').forEach(el => el.classList.remove('active'));
             const activeBtn = document.querySelector(`button[onclick*="showPage('${pageName}')"]`);
