@@ -401,6 +401,19 @@ document.addEventListener('paste', function(e) {
     }
 });
 
+// 🔎 กรองประวัติจัดหน้าที่ตามชื่อ (ชื่อคนถูกย้าย/คนทำรายการ/ประเภท) — พิมพ์ปุ๊บกรองปั๊บ
+window.filterDutyLogs = function(q) {
+    q = String(q || '').trim().toLowerCase();
+    let hit = 0;
+    document.querySelectorAll('.duty-log-card').forEach(card => {
+        const show = !q || (card.dataset.search || '').includes(q);
+        card.style.display = show ? '' : 'none';
+        if (show) hit++;
+    });
+    const noHit = document.getElementById('dutyLogNoHit');
+    if (noHit) noHit.classList.toggle('hidden', hit > 0);
+};
+
 window.openDutyHistoryModal = async function() {
     Swal.fire({title: 'กำลังโหลดประวัติ...', didOpen: () => Swal.showLoading()});
     try {
@@ -441,8 +454,9 @@ window.openDutyHistoryModal = async function() {
                     .replace(/\[([^\]]+)\]/g, '<b style="color:#c9a227;font-weight:800">$1</b>')
                     .replace(/→/g, '<span style="color:#818cf8;font-weight:800;margin:0 3px">→</span>');
 
+                const searchBlob = `${log.performed_by || ''} ${log.target_details || ''} ${log.action_type || ''}`.toLowerCase();
                 rows += `
-                    <div class="rounded-xl p-3 transition" style="background:#1a2236;border:1px solid #2d3748">
+                    <div class="rounded-xl p-3 transition duty-log-card" data-search="${searchBlob.replace(/"/g, '&quot;')}" style="background:#1a2236;border:1px solid #2d3748">
                         <div class="flex items-center justify-between mb-2">
                             <span class="${badgeColor} inline-flex items-center gap-1 px-2 py-0.5 rounded-md border shadow-sm font-bold text-[10.5px]">
                                 <span class="material-icons" style="font-size:12px">${icon}</span>${log.action_type}
@@ -463,7 +477,15 @@ window.openDutyHistoryModal = async function() {
 
         const htmlContent = `
             <div class="text-left overflow-hidden rounded-lg">
-                <div class="max-h-[62vh] overflow-y-auto custom-scrollbar space-y-2 p-1">${rows}</div>
+                <div style="position:relative;margin:2px 4px 10px">
+                    <span class="material-icons" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:17px;color:#8b93a7;pointer-events:none">search</span>
+                    <input type="text" id="dutyLogSearch" placeholder="พิมพ์ชื่อ (ตัวเอง/ใครก็ได้) เพื่อกรอง... เช่น ALIEN"
+                        oninput="filterDutyLogs(this.value)"
+                        style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:11px;padding:9px 12px 9px 36px;font-size:13px;font-weight:700;color:#f1f5f9;outline:none"
+                        onfocus="this.style.borderColor='#818cf8'" onblur="this.style.borderColor='#334155'">
+                </div>
+                <div id="dutyLogList" class="max-h-[56vh] overflow-y-auto custom-scrollbar space-y-2 p-1">${rows}</div>
+                <div id="dutyLogNoHit" class="hidden text-center p-6 font-bold" style="color:#8b93a7;font-size:12.5px">ไม่พบรายการที่เกี่ยวกับชื่อนี้ใน 50 รายการล่าสุด</div>
             </div>
         `;
 

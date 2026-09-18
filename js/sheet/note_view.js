@@ -52,9 +52,14 @@ window.openSheetById = function(id) {
 };
 
 window.addToRecentTabs = function(sheet) {
-    recentTabs = recentTabs.filter(t => t.id !== sheet.id);
-    recentTabs.unshift(sheet);
-    if (recentTabs.length > 10) recentTabs.pop();
+    // 📌 แท็บอยู่กับที่เสมอ — กดสลับไปมาไม่เด้งเรียงใหม่ (เหมือนแท็บเบราว์เซอร์)
+    const i = recentTabs.findIndex(t => String(t.id) === String(sheet.id));
+    if (i > -1) {
+        recentTabs[i] = sheet;                    // แท็บเดิม → อัปเดตข้อมูล อยู่ตำแหน่งเดิม
+    } else {
+        recentTabs.push(sheet);                   // แท็บใหม่ → ต่อท้ายขวาสุด
+        if (recentTabs.length > 10) recentTabs.shift();   // เกิน 10 → ตัดตัวเก่าสุด (ซ้ายสุด) ทิ้ง
+    }
     window.safeSetItem('sheet_recent_tabs', JSON.stringify(recentTabs));
     renderRecentTabs();
 };
