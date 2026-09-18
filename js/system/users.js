@@ -385,6 +385,12 @@ window.saveData = async function(e) {
     const dailyLimit = parseInt(SETTINGS.daily_limit || 2);
     if (myBookings.length >= dailyLimit) { window.resetBtn(); return Swal.fire('ครบโควตา', `คุณลงครบ ${dailyLimit} รอบต่อวันแล้ว`, 'error'); }
 
+    // 🔒 เวรของกะนี้ยังไม่ออก → พนักงานปกติลงไม่ได้ (หัวหน้า/แอดมิน/คนเช็คแบบกะ ไม่ติดล็อก)
+    if (!['manager', 'admin'].includes(currentUser.role) && currentUser.check_type !== 'shift' && !coverageMap) {
+        window.resetBtn();
+        return Swal.fire({ icon: 'info', title: 'เวรวันนี้ยังไม่ออก', text: 'รอหัวหน้าจัดหน้าที่/เวรของกะนี้ก่อน แล้วค่อยลงเวลาพักนะครับ', confirmButtonText: 'รับทราบ' });
+    }
+
     const _slotOpt = select.options[select.selectedIndex];
     if (!_slotOpt || !_slotOpt.value) { window.resetBtn(); return Swal.fire('เตือน', 'กรุณากดเลือกรอบเวลาก่อนบันทึก', 'warning'); }
     // 🧹 [รื้อระบบช่วง] กติกา "1 ครั้ง/ช่วง" ถูกยกเลิกแล้ว — เหลือ: โควตา/วัน + ห้ามลงติดกัน + คนเฝ้าขั้นต่ำ
@@ -452,6 +458,7 @@ window.saveData = async function(e) {
     }
     if (bookedViaRpc && rpcRes && rpcRes.ok === false) {
         window.resetBtn();
+        if (rpcRes.reason === 'no_roster') return Swal.fire({ icon: 'info', title: 'เวรวันนี้ยังไม่ออก', text: 'รอหัวหน้าจัดหน้าที่/เวรของกะนี้ก่อน แล้วค่อยลงเวลาพักนะครับ', confirmButtonText: 'รับทราบ' });
         if (rpcRes.reason === 'daily') return Swal.fire('ครบโควตา', `คุณลงครบ ${rpcRes.cap} รอบต่อวันแล้ว`, 'error');
         if (rpcRes.reason === 'adjacent') return Swal.fire('ลงติดกันไม่ได้', `ช่วง ${timeVal} ต่อเนื่องกับรอบที่คุณลงไว้แล้ว — ห้ามควบพักยาว กรุณาเว้นช่วง`, 'error');
         return Swal.fire({ icon: 'error', title: `ช่วง ${timeVal} เต็มแล้ว`, html: `<b class="text-red-500">${window.escapeHtml(rpcRes.team || '')}</b> (ต้องเหลือคนเฝ้า ${rpcRes.min_remain}) มี ${rpcRes.total} คน พักพร้อมกันได้ ${rpcRes.cap} — ตอนนี้พักอยู่แล้ว <b>${rpcRes.used}</b><br><br><span class="text-xs text-gray-500">มีคนกดตัดหน้าไปเมื่อกี้ เลือกช่วงอื่น หรือรอให้เพื่อนกลับจากพักก่อน</span>` });

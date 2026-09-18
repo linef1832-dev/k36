@@ -283,6 +283,18 @@ window.renderSlotChips = function () {
         box.innerHTML = '<div class="slotc-empty">☝️ เลือกกะก่อน แล้วรอบเวลาจะขึ้นให้เลือกตรงนี้</div>';
         return;
     }
+    // 🔒 เวรวันนี้ของกะนี้ยังไม่ออก → ล็อกทั้งแผง (หัวหน้าจัดเวรเสร็จเมื่อไหร่ ปลดเองทันทีไม่ต้องรีเฟรช)
+    if (window._rosterMissing) {
+        window._pickedSlots = []; sel.value = '';
+        box.innerHTML = `<div style="border:1px dashed rgba(251,191,36,.45);background:rgba(251,191,36,.06);border-radius:14px;padding:18px 12px;text-align:center">
+            <div style="font-size:26px;margin-bottom:6px">🔒</div>
+            <div style="font-size:12.5px;font-weight:800;color:#fbbf24;margin-bottom:4px">ยังลงเวลาพักไม่ได้ — เวรวันนี้ยังไม่ออก</div>
+            <div style="font-size:11px;color:#8fa3bf;line-height:1.7">รอหัวหน้าจัดหน้าที่/เวรของกะนี้ก่อน<br>พอเวรออก ปุ่มเวลาจะขึ้นให้กดเองทันที ไม่ต้องรีเฟรช</div>
+        </div>`;
+        const btn = document.getElementById('btnSave');
+        if (btn) btn.innerHTML = '<span class="material-icons" style="font-size:19px">lock</span> รอเวรออกก่อน';
+        return;
+    }
     // 🧹 ตารางเวลาล้วนๆ เรียงตามลำดับของกะ — ตัวเลขชัด: 🟡 ลงแล้ว · 🟢 ว่าง · ⛔ เต็ม (มืด กดแล้วเด้งเตือน)
     const info = window._slotInfo || {};
     // ตัดรอบที่เลือกไว้แต่ตอนนี้กดไม่ได้แล้ว (เต็ม/เปลี่ยนกะ) ออกจากชุดที่เลือก
@@ -458,6 +470,7 @@ async function _doRefreshTimeSlots() {
     const now       = Date.now();
 
     // ── Roster (⭐ ทีมที่ถูกจัด) — cache 90 วิ ──
+    if (['manager', 'admin'].includes(currentUser.role)) window._rosterMissing = false;   // 🔓 หัวหน้า/แอดมินลงได้เสมอ
     if (teamSelect && !['manager', 'admin'].includes(currentUser.role)) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${shiftName}`;
         let assignedTeams = [];
@@ -489,6 +502,8 @@ async function _doRefreshTimeSlots() {
 
         window._myAssignedTeams = assignedTeams;
         window._myCoverageMap = coverageMap;
+        // 🔒 เวรของกะนี้ยังไม่ออก → พนักงานปกติ (ที่ผูกเว็บ) ห้ามลงพักจนกว่าหัวหน้าจะจัดเวร
+        window._rosterMissing = (!coverageMap && currentUser.check_type !== 'shift');
 
         const oldVal = teamSelect.value;
         const sortedTeams = [...TEAM_LIST].sort((a,b) => a.localeCompare(b));
