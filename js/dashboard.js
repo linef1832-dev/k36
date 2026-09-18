@@ -1387,16 +1387,25 @@ window._renderMyTodayNow = async function() {
         </div>`;
 
     box.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:2px 4px">
-            <div>
-                <div style="font-size:22px;font-weight:900;color:#f1f5f9">${isToday ? 'วันนี้' : 'วันที่เลือก'}</div>
-                <div style="font-size:12.5px;color:#94a3b8;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="material-icons" style="font-size:15px">calendar_month</span>${_mtFmt(dateVal)} <span style="color:#475569">|</span> <span style="background:rgba(148,163,184,.12);padding:1px 8px;border-radius:5px;color:#cbd5e1;font-weight:700">${_mtEsc(myDep)}</span>${me.team ? `<span style="background:rgba(96,165,250,.14);padding:1px 8px;border-radius:5px;color:#93c5fd;font-weight:700">${_mtEsc(me.team)}</span>` : ''}</div>
+        <!-- 📅 แถบวันที่แถวเดียวจบ: [‹] [วันที่กดเลือกได้] [›] + ปุ่มกลับวันนี้ · ไม่มีข้อความซ้ำอีก -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:2px 4px 2px 2px">
+            <div style="display:flex;align-items:center;height:38px;border-radius:12px;overflow:hidden;background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.22)">
+                <button onclick="myTodayShift(-1)" title="วันก่อนหน้า" style="height:100%;padding:0 9px;display:flex;align-items:center;color:#94a3b8;background:none;border:none;cursor:pointer;transition:all .15s"
+                    onmouseover="this.style.color='#fff';this.style.background='rgba(148,163,184,.14)'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><span class="material-icons" style="font-size:18px">chevron_left</span></button>
+                <div style="position:relative;display:flex;align-items:center;gap:7px;height:100%;padding:0 13px;border-left:1px solid rgba(148,163,184,.16);border-right:1px solid rgba(148,163,184,.16);cursor:pointer">
+                    <span class="material-icons" style="font-size:16px;color:${isToday ? '#60a5fa' : '#E8C15A'}">calendar_month</span>
+                    <span style="font-size:14px;font-weight:900;color:#f1f5f9;white-space:nowrap">${_mtFmt(dateVal)}</span>
+                    ${isToday ? '<span style="font-size:10px;font-weight:800;color:#60a5fa;background:rgba(96,165,250,.16);padding:2px 7px;border-radius:99px">วันนี้</span>' : ''}
+                    <input type="date" id="myTodayDate" value="${dateVal}" onchange="myTodaySetDate(this.value)" title="กดเพื่อเลือกวันที่"
+                        style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer">
+                </div>
+                <button onclick="myTodayShift(1)" title="วันถัดไป" style="height:100%;padding:0 9px;display:flex;align-items:center;color:#94a3b8;background:none;border:none;cursor:pointer;transition:all .15s"
+                    onmouseover="this.style.color='#fff';this.style.background='rgba(148,163,184,.14)'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><span class="material-icons" style="font-size:18px">chevron_right</span></button>
             </div>
-            <div style="display:flex;align-items:center;gap:6px">
-                <button onclick="myTodayShift(-1)" title="วันก่อน" style="width:32px;height:34px;border-radius:9px;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.6);color:#cbd5e1;cursor:pointer"><span class="material-icons" style="font-size:16px">chevron_left</span></button>
-                <input type="date" id="myTodayDate" value="${dateVal}" onchange="myTodaySetDate(this.value)" style="background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.25);color:#e2e8f0;border-radius:9px;padding:6px 10px;font-size:12.5px;font-weight:700;min-width:140px">
-                <button onclick="myTodayShift(1)" title="วันถัดไป" style="width:32px;height:34px;border-radius:9px;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.6);color:#cbd5e1;cursor:pointer"><span class="material-icons" style="font-size:16px">chevron_right</span></button>
-                ${isToday ? '' : `<button onclick="myTodaySetDate('')" style="padding:7px 10px;border-radius:9px;border:1px solid rgba(232,193,90,.45);background:rgba(232,193,90,.12);color:#E8C15A;font-size:12px;font-weight:800;cursor:pointer">วันนี้</button>`}
+            ${isToday ? '' : `<button onclick="myTodaySetDate('')" style="height:38px;padding:0 13px;border-radius:12px;border:1px solid rgba(232,193,90,.45);background:rgba(232,193,90,.12);color:#E8C15A;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px"><span class="material-icons" style="font-size:15px">today</span> กลับวันนี้</button>`}
+            <div style="display:flex;align-items:center;gap:5px;margin-left:auto">
+                <span style="background:rgba(148,163,184,.12);padding:4px 10px;border-radius:7px;color:#cbd5e1;font-weight:800;font-size:11.5px">${_mtEsc(myDep)}</span>
+                ${me.team ? `<span style="background:rgba(96,165,250,.14);padding:4px 10px;border-radius:7px;color:#93c5fd;font-weight:800;font-size:11.5px">${_mtEsc(me.team)}</span>` : ''}
             </div>
         </div>
         ${wrap(`วันนี้ของฉัน <span style="font-size:11px;font-weight:600;color:#64748b;margin-left:4px">${_mtEsc(me.username)}</span>`, 'person', `
