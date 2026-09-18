@@ -503,7 +503,8 @@ async function _doRefreshTimeSlots() {
         window._myAssignedTeams = assignedTeams;
         window._myCoverageMap = coverageMap;
         // 🔒 เวรของกะนี้ยังไม่ออก → พนักงานปกติ (ที่ผูกเว็บ) ห้ามลงพักจนกว่าหัวหน้าจะจัดเวร
-        window._rosterMissing = (!coverageMap && currentUser.check_type !== 'shift');
+        // ⚠️ เฉพาะแผนก AM/OD เท่านั้น — แผนกอื่น (AMQL/ODQL ฯลฯ) ไม่มีระบบเวร ถ้าล็อกจะติดตลอดกาล
+        window._rosterMissing = (!coverageMap && currentUser.check_type !== 'shift' && ['AM', 'OD'].includes(myDep));
 
         const oldVal = teamSelect.value;
         const sortedTeams = [...TEAM_LIST].sort((a,b) => a.localeCompare(b));

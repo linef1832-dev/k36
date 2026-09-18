@@ -386,7 +386,7 @@ window.saveData = async function(e) {
     if (myBookings.length >= dailyLimit) { window.resetBtn(); return Swal.fire('ครบโควตา', `คุณลงครบ ${dailyLimit} รอบต่อวันแล้ว`, 'error'); }
 
     // 🔒 เวรของกะนี้ยังไม่ออก → พนักงานปกติลงไม่ได้ (หัวหน้า/แอดมิน/คนเช็คแบบกะ ไม่ติดล็อก)
-    if (!['manager', 'admin'].includes(currentUser.role) && currentUser.check_type !== 'shift' && !coverageMap) {
+    if (!['manager', 'admin'].includes(currentUser.role) && currentUser.check_type !== 'shift' && !coverageMap && ['AM', 'OD'].includes(myDep)) {
         window.resetBtn();
         return Swal.fire({ icon: 'info', title: 'เวรวันนี้ยังไม่ออก', text: 'รอหัวหน้าจัดหน้าที่/เวรของกะนี้ก่อน แล้วค่อยลงเวลาพักนะครับ', confirmButtonText: 'รับทราบ' });
     }
