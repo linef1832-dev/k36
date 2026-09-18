@@ -787,6 +787,26 @@ window.breakCapByRule = function(total) {
 // เก็บถาวรใน settings key 'break_min_remain' รูปแบบ { AM: { 'กะเช้า': { Jun88: 2, ... } } }
 // ไม่ได้ตั้ง = 1 (เหลือเฝ้า 1 คน) | ตั้งได้ในหน้าตั้งค่าระบบ → เพดานพักต่อเว็บ
 window._breakMinRemainCfg = null;
+// 📊 ตารางขั้นบันได "พักพร้อมกันได้สูงสุด" ตามจำนวนคนของเว็บ (ประกาศหน้างาน)
+//   ≤4→1 · 5-7→2 · 8-10→3 · 11-14→4 · 15-20→5 · 21-25→6 · 26-30→7 · 31-35→8 · 36-40→9 · 41-45→10 · 46-50→11 · เกินนั้น +1 ทุก 5 คน
+//   (เว็บคนเดียวพักได้ปกติ ไม่งั้นอดพักทั้งวัน)
+window.breakCapByHeadcount = function(n) {
+    n = parseInt(n) || 0;
+    if (n <= 1) return n;
+    if (n <= 4) return 1;
+    if (n <= 7) return 2;
+    if (n <= 10) return 3;
+    if (n <= 14) return 4;
+    if (n <= 20) return 5;
+    if (n <= 25) return 6;
+    if (n <= 30) return 7;
+    if (n <= 35) return 8;
+    if (n <= 40) return 9;
+    if (n <= 45) return 10;
+    if (n <= 50) return 11;
+    return 11 + Math.ceil((n - 50) / 5);
+};
+
 window.loadBreakMinRemainCfg = async function(force) {
     if (window._breakMinRemainCfg && !force) return window._breakMinRemainCfg;
     try {
@@ -852,11 +872,14 @@ window.checkCoverage = function(username, covMap, slotBookings) {
         const members = (covMap.combined && covMap.combined[team]) || new Set();
         if (members.size < 2) return;
         const raw = window.getBreakMinRemainRaw(covMap.dept, covMap.shift, team);
-        const minRemain = (raw === null) ? 1 : raw;
-        const cap = Math.max(0, members.size - minRemain);
+        // 🆕 ไม่ตั้งเอง = เพดานอัตโนมัติตามตารางขั้นบันได (เว็บมีกี่คน → พักได้กี่คน) · ตั้งเองเมื่อไหร่ ค่าที่ตั้งชนะ
+        const cap = (raw === null)
+            ? Math.min(members.size, window.breakCapByHeadcount(members.size))
+            : Math.max(0, members.size - raw);
+        const minRemain = members.size - cap;
         let used = 0;
         members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
-        if (used >= cap) problems.push({ team: `${team} (ต้องเหลือคนเฝ้า ${minRemain})`, used, cap, total: members.size });
+        if (used >= cap) problems.push({ team: `${team} (${raw === null ? 'เพดานอัตโนมัติ เหลือเฝ้า' : 'ต้องเหลือคนเฝ้า'} ${minRemain})`, used, cap, total: members.size });
         canLeave = Math.min(canLeave, Math.max(0, cap - used));
     });
     return { ok: problems.length === 0, problems, canLeave };

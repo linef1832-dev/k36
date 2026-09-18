@@ -420,8 +420,11 @@ window.saveData = async function(e) {
             const members = (coverageMap.combined && coverageMap.combined[team]) || new Set();
             if (members.size < 2) return;
             const raw = window.getBreakMinRemainRaw(coverageMap.dept, coverageMap.shift, team);
-            const minRemain = (raw === null) ? 1 : raw;
-            rules.push({ team, members: [...members], cap: Math.max(0, members.size - minRemain), total: members.size, min_remain: minRemain });
+            // 🆕 ไม่ตั้งเอง = เพดานอัตโนมัติตามตารางขั้นบันได — ค่าเดียวกันนี้ถูกส่งให้ฐานข้อมูลล็อกตอนกดพร้อมกันด้วย
+            const cap = (raw === null)
+                ? Math.min(members.size, window.breakCapByHeadcount(members.size))
+                : Math.max(0, members.size - raw);
+            rules.push({ team, members: [...members], cap, total: members.size, min_remain: members.size - cap });
         });
     }
 

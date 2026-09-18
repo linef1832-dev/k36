@@ -1073,16 +1073,19 @@ window.renderQuotaSettings = async function() {
             const m = maps[sh];
             // 🧹 [กติกาเดียว] นับรวมทุกคนของเว็บ (ไม่สนหลัก/รอง) — พักพร้อมกันได้ = คน − เฝ้า≥ (ไม่ตั้ง = 1)
             const raw = window.getBreakMinRemainRaw(dept, sh, team);
-            const remain = raw === null ? 1 : raw;
             const n = m ? ((m.combined && m.combined[team]) || new Set()).size : 0;
-            const cap = n <= 1 ? n : Math.max(0, n - remain);
+            // 🆕 ไม่ตั้งเอง = เพดานอัตโนมัติตามตารางขั้นบันได · ตั้งเอง = คน − เฝ้า≥
+            const cap = (raw === null)
+                ? Math.min(n, window.breakCapByHeadcount(n))
+                : (n <= 1 ? n : Math.max(0, n - raw));
+            const autoRemain = n > 0 ? (n - Math.min(n, window.breakCapByHeadcount(n))) : 1;
             const capHtml = m
                 ? `<div class="text-[10px] ${n ? 'text-sky-300' : 'text-slate-600'}">คน ${n} → พักได้ <b class="brm-cap ${(cap === 0 && n > 0) ? 'text-red-400' : 'text-emerald-300'}" data-n="${n}">${cap}</b></div>`
                 : `<div class="text-[10px] text-slate-600 py-0.5">ยังไม่จัด</div>`;
             return `<div class="w-28 shrink-0 text-center ml-2 rounded-lg border ${raw === null ? 'border-slate-600' : 'border-amber-500/60'} bg-slate-900 py-1 leading-tight">
                 ${capHtml}
                 <div class="text-[9px] ${raw === null ? 'text-slate-400' : 'text-amber-300'} flex items-center justify-center gap-1 mt-0.5" title="ช่วงเวลาเดียวกัน ต้องเหลือคนเฝ้าเว็บนี้อย่างน้อยเท่านี้">เฝ้า≥
-                    <input type="number" min="0" max="99" value="${raw === null ? '' : raw}" placeholder="1" data-brm="${dept}|${sh}|${team}" oninput="brmPreview(this)"
+                    <input type="number" min="0" max="99" value="${raw === null ? '' : raw}" placeholder="${autoRemain}" data-brm="${dept}|${sh}|${team}" oninput="brmPreview(this)"
                         class="w-9 bg-slate-800 border ${raw === null ? 'border-slate-600' : 'border-amber-500/60'} rounded text-center text-[10px] py-0.5 outline-none focus:border-amber-400"> คน
                 </div>
             </div>`;
@@ -1117,8 +1120,9 @@ window.renderQuotaSettings = async function() {
         <div class="flex flex-col gap-4 w-full mt-2">
             <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed flex flex-wrap items-center gap-3">
                 <div class="flex-1 min-w-[260px]">
-                    <b>กติกา (ข้อเดียว):</b> นับรวมทุกคนของเว็บ <b>ไม่สนหลัก/รอง</b> — ช่วงเวลาเดียวกันต้องเหลือคนเฝ้า ≥ ช่อง "เฝ้า≥" (ไม่ตั้ง = 1) ·
-                    เช่น เว็บ 6 คน ตั้งเฝ้า≥2 → ลงเวลาเดียวกันได้ 4 คน · ห้ามลงช่วงติดกัน (ห้ามควบพักยาว) · แยก AM/OD ไม่ปนกัน · <b>กดบันทึกถึงมีผล</b>
+                    <b>กติกา:</b> นับรวมทุกคนของเว็บ <b>ไม่สนหลัก/รอง</b> — <b>ไม่ตั้งค่า = เพดานอัตโนมัติตามขั้นบันได:</b>
+                    ≤4→1 · 5-7→2 · 8-10→3 · 11-14→4 · 15-20→5 · 21-25→6 · 26-30→7 · 31-35→8 · 36-40→9 · 41-45→10 · 46-50→11 ·
+                    อยากเข้ม/หลวมกว่านั้นค่อยกรอกช่อง "เฝ้า≥" เอง (ค่าที่กรอกชนะอัตโนมัติ) · ห้ามลงช่วงติดกัน · แยก AM/OD · <b>กดบันทึกถึงมีผล</b>
                 </div>
                 <label class="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">ดูของวันที่
                     <input type="date" id="capPreviewDate" value="${dateVal}" onchange="renderQuotaSettings()" class="bg-slate-900 border border-slate-600 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500">
@@ -1144,15 +1148,17 @@ window.brmPreview = function(inp) {
     const capEl = inp.closest('.rounded-lg')?.querySelector('.brm-cap');
     if (!capEl) return;
     const n = parseInt(capEl.dataset.n || '0', 10);
-    const remain = String(inp.value).trim() === '' ? 1 : Math.max(0, parseInt(inp.value, 10) || 0);   // ว่าง = ค่าเริ่มต้น 1
-    const cap = n <= 1 ? n : Math.max(0, n - remain);
+    // ว่าง = อัตโนมัติตามตารางขั้นบันได
+    const cap = String(inp.value).trim() === ''
+        ? Math.min(n, window.breakCapByHeadcount(n))
+        : (n <= 1 ? n : Math.max(0, n - Math.max(0, parseInt(inp.value, 10) || 0)));
     capEl.textContent = cap;
     capEl.className = 'brm-cap ' + ((cap === 0 && n > 0) ? 'text-red-400' : 'text-emerald-300');
 };
 
 // 🔄 ล้างค่าที่ตั้งเองทั้งหมด → ทุกเว็บกลับไปใช้ค่าเริ่มต้น (เหลือเฝ้า 1)
 window.resetBreakMinRemain = async function() {
-    const r = await Swal.fire({ title: 'ล้างเป็นอัตโนมัติทั้งหมด?', text: 'ค่า "เฝ้า≥" ที่ตั้งเองไว้ทุกช่องจะถูกลบ ทุกเว็บกลับไปใช้ค่าเริ่มต้น = เหลือเฝ้า 1 คน', icon: 'question', showCancelButton: true, confirmButtonText: 'ล้างเลย', cancelButtonText: 'ยกเลิก' });
+    const r = await Swal.fire({ title: 'ล้างเป็นอัตโนมัติทั้งหมด?', text: 'ค่า "เฝ้า≥" ที่ตั้งเองไว้ทุกช่องจะถูกลบ ทุกเว็บกลับไปใช้เพดานอัตโนมัติตามตารางขั้นบันได (เว็บมีกี่คน → พักได้กี่คน)', icon: 'question', showCancelButton: true, confirmButtonText: 'ล้างเลย', cancelButtonText: 'ยกเลิก' });
     if (!r.isConfirmed) return;
     try {
         // ใช้ upsert ค่าว่างแทนการลบแถว — realtime ตอน DELETE ไม่แนบชื่อ key ทำให้เครื่องพนักงานไม่รู้ว่าต้องรีโหลด
