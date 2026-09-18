@@ -684,22 +684,28 @@ window.applyCustomTimeSlots = function() {
     try {
         let rawData = SETTINGS['custom_time_slots'] || SETTINGS['shift_time_slots'] || SETTINGS['manual_time_slots'];
 
-        // 💡 ค่าเริ่มต้นชุดใหม่ (ตามประกาศรอบพักเบรค) — ใช้เมื่อฐานข้อมูลยังไม่มีค่า
-        // กติกาโดยดีไซน์: ชั่วโมงแรกหลังเข้างาน และชั่วโมงสุดท้ายก่อนเลิกงาน ไม่มีรอบให้ลง
+        // 💡 ค่าเริ่มต้น = ชุดตามประกาศ "รอบการพักเบรคของพนักงาน" (ล็อกตายตัว)
         const defaultTimeSlots = {
-            'กะเช้า': [   // 08:00-20:00
+            'กะเช้า': [
+                // 💡 รอบเช้า 09.00-11.00
                 '09:00-09:30', '09:30-10:00',
+                // 💡 รอบเช้า 12.00-14.00
                 '12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00',
+                // 💡 รอบเช้า 16.00-18.30
                 '16:00-16:30', '16:30-17:00', '17:00-17:30', '17:30-18:00', '18:00-18:30'
             ],
-            'กะกลาง': [   // 11:00-23:00
+            'กะกลาง': [
+                // (ประกาศไม่ได้ระบุกะกลาง — ใช้หลักเดียวกัน ปรับได้ที่เครื่องมือเพิ่มรอบเวลา)
                 '12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00',
                 '16:00-16:30', '16:30-17:00', '17:00-17:30', '17:30-18:00', '18:00-18:30',
                 '21:00-21:30', '21:30-22:00'
             ],
-            'กะดึก': [    // 20:00-08:00
+            'กะดึก': [
+                // 🌙 รอบดึก 21.00-23.30
                 '21:00-21:30', '21:30-22:00', '22:00-22:30', '22:30-23:00', '23:00-23:30',
+                // 🌙 รอบดึก 02.00-04.00
                 '02:00-02:30', '02:30-03:00', '03:00-03:30', '03:30-04:00',
+                // 🌙 รอบดึก 05.00-07.00
                 '05:00-05:30', '05:30-06:00', '06:00-06:30', '06:30-07:00'
             ]
         };
@@ -712,6 +718,12 @@ window.applyCustomTimeSlots = function() {
         } else {
             const flat = _flattenShiftSlots(parsed);
             window.SHIFT_GROUPS_ALL = { AM: flat, OD: JSON.parse(JSON.stringify(flat)) };
+        }
+        // 🛡️ ถ้าข้อมูลที่เก็บไว้ว่างเปล่า (เช่น เพิ่งกดรีเซ็ต) → ใช้ชุดอัตโนมัติ
+        for (const dep of ['AM', 'OD']) {
+            if (!Object.keys(window.SHIFT_GROUPS_ALL[dep] || {}).length) {
+                window.SHIFT_GROUPS_ALL[dep] = JSON.parse(JSON.stringify(defaultTimeSlots));
+            }
         }
         SHIFT_GROUPS = window.SHIFT_GROUPS_ALL[window._slotsViewerDept()] || {};
     } catch(e) { console.error('Error applying custom time slots:', e); }
@@ -790,6 +802,24 @@ window.addManualTimeSlot = async function() {
     document.getElementById('newTimeStart').value = '';
     document.getElementById('newTimeEnd').value = '';
     Swal.fire({icon: 'success', title: `เพิ่มให้แผนก ${dep} สำเร็จ`, timer: 1200, showConfirmButton: false});
+};
+
+// ♻️ รีเซ็ตรอบเวลาทั้งระบบเป็น "อัตโนมัติตามเวลากะ" — ลบชุดที่ตั้งเองทิ้ง ทุกเครื่องได้ชุดใหม่ทันที
+window.resetTimeSlotsAuto = async function() {
+    if (!window.sysRequireAdmin()) return;
+    const r = await Swal.fire({
+        title: 'รีเซ็ตรอบเวลาเป็นชุดมาตรฐาน?',
+        html: 'รอบเวลาที่เพิ่มเองทั้งหมด (AM และ OD) จะถูกลบ<br>กลับไปใช้ <b class="text-emerald-400">ชุดตามประกาศรอบพักเบรค</b> (เช้า 09-10, 12-14, 16-18:30 · ดึก 21-23:30, 02-04, 05-07)',
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'รีเซ็ตเลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#059669'
+    });
+    if (!r.isConfirmed) return;
+    Swal.fire({title: 'กำลังรีเซ็ต...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    await appDB.from('settings').delete().eq('key', 'custom_time_slots');
+    delete SETTINGS['custom_time_slots'];
+    window.applyCustomTimeSlots();
+    if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
+    renderManualTimeSlots();
+    Swal.fire({icon: 'success', title: 'รีเซ็ตแล้ว', text: 'ทุกกะใช้รอบตามประกาศแล้ว', timer: 1800, showConfirmButton: false});
 };
 
 window.deleteManualTimeSlot = async function(dep, shift, timeSlot) {
