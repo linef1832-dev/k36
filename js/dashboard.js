@@ -291,21 +291,40 @@ window.renderSlotChips = function () {
         box.innerHTML = '<div class="slotc-empty">☝️ เลือกกะก่อน แล้วรอบเวลาจะขึ้นให้เลือกตรงนี้</div>';
         return;
     }
-    // 🧹 ไม่มีหัวคั่นช่วงแล้ว — ตารางเวลาล้วนๆ เรียงตามลำดับของกะ
+    // 🧹 ตารางเวลาล้วนๆ เรียงตามลำดับของกะ — ตัวเลขชัด: 🟡 ลงแล้ว · 🟢 ว่าง · ⛔ เต็ม (มืด กดแล้วเด้งเตือน)
+    const info = window._slotInfo || {};
     let html = '<div class="slotc-grid">';
     opts.forEach(o => {
         const time = o.value;
-        const status = o.text.replace(time, '').trim();
-        const nice = status.replace(/^\(|\)$/g, '');
+        const i = info[time] || {};
         const isOn = sel.value === time;
-        const isFull = o.disabled;
-        html += `<div class="slot-chip ${isOn ? 'on' : ''} ${isFull ? 'full' : ''}" ${isFull ? '' : `onclick="pickTimeSlot('${time}')"`} title="${isFull ? 'รอบนี้เต็ม — ' + nice : 'กดเพื่อเลือกรอบนี้'}">
+        const isFull = o.disabled || i.full;
+        let statusHtml;
+        if (isFull) {
+            statusHtml = '<span style="color:#f87171;font-weight:900">⛔ เต็มแล้ว</span>';
+        } else {
+            statusHtml = `<span style="color:#fbbf24;font-weight:900">ลงแล้ว ${i.booked ?? 0}</span>`;
+            if (i.free !== null && i.free !== undefined) statusHtml += ` <span style="color:#475569">·</span> <span style="color:#34d399;font-weight:900">ว่าง ${i.free}</span>`;
+        }
+        const click = isFull ? `onclick="slotFullAlert('${time}')"` : `onclick="pickTimeSlot('${time}')"`;
+        html += `<div class="slot-chip ${isOn ? 'on' : ''} ${isFull ? 'full' : ''}" ${click} title="${isFull ? 'รอบนี้เต็มแล้ว' : 'กดเพื่อเลือกรอบนี้'}">
             <div class="t">${time.replace('-', ' – ')}</div>
-            <div class="s">${isFull ? '⛔ ' + (nice || 'เต็ม') : (nice || '&nbsp;')}</div>
+            <div class="s">${statusHtml}</div>
         </div>`;
     });
     html += '</div>';
     box.innerHTML = html;
+};
+
+// ⛔ กดรอบที่เต็ม → เด้งบอกชัดๆ ว่าเต็มเพราะอะไร
+window.slotFullAlert = function (time) {
+    const i = (window._slotInfo || {})[time] || {};
+    Swal.fire({
+        icon: 'error',
+        title: `รอบ ${time} เต็มแล้ว`,
+        html: `${i.reason ? `<b class="text-red-400">${i.reason}</b><br><br>` : ''}<span class="text-xs text-gray-400">เลือกรอบอื่น หรือรอให้เพื่อนในเว็บกลับจากพักก่อน</span>`,
+        confirmButtonText: 'เลือกรอบอื่น'
+    });
 };
 
 window.pickTimeSlot = function (time) {
@@ -430,25 +449,31 @@ async function _doRefreshTimeSlots() {
         const times = Array.isArray(_g) ? _g : [].concat(...Object.values(_g || {}));
         let html = '<option value="">-- เลือกรอบเวลา --</option>';
 
+        const _slotInfo = {};   // 🎨 ข้อมูลละเอียดต่อรอบ ส่งให้แผงปุ่มวาด (ลงแล้ว/ว่าง/เต็ม/เหตุผล)
         {
             times.forEach(time => {
                 // 🍽️ [กติกาพัก] เพดานพักต่อเว็บ — อัตโนมัติจากตารางหน้าที่ (หลัก+รอง) + คนที่พักช่วงนี้
                 const slotB = (bookings || []).filter(b => b.time_slot === time);
-                let isFull = false, statusText = '';
+                const deptBooked = slotB.filter(b => (b.department || 'AM') === myDep).length;
+                let isFull = false, statusText = '', freeN = null, fullReason = '';
                 if (window._myCoverageMap && currentUser.check_type !== 'shift') {
                     const cov = window.checkCoverage(currentUser.username, window._myCoverageMap, slotB);
                     if (!cov.ok) {
                         isFull = true;
-                        statusText = `(${cov.problems.map(pb => `${pb.team} เต็ม ${pb.used}/${pb.cap}`).join(', ')})`;
+                        fullReason = cov.problems.map(pb => `${pb.team} เต็ม ${pb.used}/${pb.cap}`).join(', ');
+                        statusText = `(${fullReason})`;
+                        freeN = 0;
                     } else if (cov.canLeave === Infinity) {
-                        statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;   // ไม่อยู่ในตารางหน้าที่ → ไม่จำกัด
+                        statusText = `(ลงแล้ว ${deptBooked})`;   // ไม่อยู่ในตารางหน้าที่ → ไม่จำกัด
                     } else {
                         statusText = `(ว่าง: ${cov.canLeave})`;
+                        freeN = cov.canLeave;
                     }
                 } else {
                     // ยังไม่ได้จัดหน้าที่วันนี้ / ผู้จัดการ → ไม่จำกัด แสดงแค่จำนวนที่ลงแล้ว
-                    statusText = `(ลงแล้ว ${slotB.filter(b => (b.department || 'AM') === myDep).length})`;
+                    statusText = `(ลงแล้ว ${deptBooked})`;
                 }
+                _slotInfo[time] = { booked: deptBooked, free: freeN, full: isFull, reason: fullReason };
                 html += `<option value="${time}" ${isFull ? 'disabled class="text-gray-400 bg-gray-100 dark:bg-slate-800"' : 'class="text-blue-600 font-bold dark:text-blue-400"'}>${time} ${statusText}</option>`;
             });
         }
@@ -458,6 +483,7 @@ async function _doRefreshTimeSlots() {
             const opt = slotSelect.querySelector(`option[value="${previousSelectedSlot}"]`);
             if (opt && !opt.disabled) slotSelect.value = previousSelectedSlot;
         }
+        window._slotInfo = _slotInfo;
         if (typeof window.renderSlotChips === 'function') window.renderSlotChips();   // 🎨 วาดแผงปุ่มเวลาให้ตรงกับ select
 
     } catch (e) {
