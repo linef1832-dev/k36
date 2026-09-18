@@ -291,19 +291,11 @@ window.renderSlotChips = function () {
         box.innerHTML = '<div class="slotc-empty">☝️ เลือกกะก่อน แล้วรอบเวลาจะขึ้นให้เลือกตรงนี้</div>';
         return;
     }
-    // ป้ายหมวดตามเวลาเริ่ม (ไล่ตามธรรมชาติของวัน)
-    const bandOf = h => (h >= 5 && h < 11) ? '☀️ ช่วงเช้า' : (h >= 11 && h < 15) ? '🍚 ช่วงเที่ยง' : (h >= 15 && h < 19) ? '🌤️ ช่วงเย็น' : (h >= 19 && h < 24) ? '🌙 ช่วงค่ำ' : '🌌 ช่วงดึก';
-    let html = '', lastBand = null, gridOpen = false;
+    // 🧹 ไม่มีหัวคั่นช่วงแล้ว — ตารางเวลาล้วนๆ เรียงตามลำดับของกะ
+    let html = '<div class="slotc-grid">';
     opts.forEach(o => {
         const time = o.value;
-        const h = parseInt(time.slice(0, 2), 10) || 0;
-        const band = bandOf(h);
-        if (band !== lastBand) {
-            if (gridOpen) html += '</div>';
-            html += `<div class="slotc-group-label">${band}</div><div class="slotc-grid">`;
-            lastBand = band; gridOpen = true;
-        }
-        const status = o.text.replace(time, '').trim();                    // เช่น (ว่าง: 2) / (ลงแล้ว 5) / (TEAM เต็ม 3/3)
+        const status = o.text.replace(time, '').trim();
         const nice = status.replace(/^\(|\)$/g, '');
         const isOn = sel.value === time;
         const isFull = o.disabled;
@@ -312,7 +304,7 @@ window.renderSlotChips = function () {
             <div class="s">${isFull ? '⛔ ' + (nice || 'เต็ม') : (nice || '&nbsp;')}</div>
         </div>`;
     });
-    if (gridOpen) html += '</div>';
+    html += '</div>';
     box.innerHTML = html;
 };
 
