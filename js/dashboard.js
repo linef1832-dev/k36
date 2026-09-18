@@ -283,16 +283,19 @@ window.renderSlotChips = function () {
         box.innerHTML = '<div class="slotc-empty">☝️ เลือกกะก่อน แล้วรอบเวลาจะขึ้นให้เลือกตรงนี้</div>';
         return;
     }
-    // 🔒 เวรวันนี้ของกะนี้ยังไม่ออก → ล็อกทั้งแผง (หัวหน้าจัดเวรเสร็จเมื่อไหร่ ปลดเองทันทีไม่ต้องรีเฟรช)
+    // 🔒 ล็อกทั้งแผง — เวรยังไม่ออก หรือ ชื่อไม่อยู่ในเวร (หัวหน้าจัด/เพิ่มชื่อเมื่อไหร่ ปลดเองทันทีไม่ต้องรีเฟรช)
     if (window._rosterMissing) {
         window._pickedSlots = []; sel.value = '';
+        const notIn = window._rosterMissing === 'not_in';
         box.innerHTML = `<div style="border:1px dashed rgba(251,191,36,.45);background:rgba(251,191,36,.06);border-radius:14px;padding:18px 12px;text-align:center">
             <div style="font-size:26px;margin-bottom:6px">🔒</div>
-            <div style="font-size:12.5px;font-weight:800;color:#fbbf24;margin-bottom:4px">ยังลงเวลาพักไม่ได้ — เวรวันนี้ยังไม่ออก</div>
-            <div style="font-size:11px;color:#8fa3bf;line-height:1.7">รอหัวหน้าจัดหน้าที่/เวรของกะนี้ก่อน<br>พอเวรออก ปุ่มเวลาจะขึ้นให้กดเองทันที ไม่ต้องรีเฟรช</div>
+            <div style="font-size:12.5px;font-weight:800;color:#fbbf24;margin-bottom:4px">${notIn ? 'ยังลงเวลาพักไม่ได้ — คุณยังไม่ถูกจัดลงเว็บ' : 'ยังลงเวลาพักไม่ได้ — เวรวันนี้ยังไม่ออก'}</div>
+            <div style="font-size:11px;color:#8fa3bf;line-height:1.7">${notIn
+                ? 'เวรของกะนี้ออกแล้ว แต่ไม่มีชื่อคุณในตาราง (เพิ่งสลับกะมา?)<br>แจ้งหัวหน้าให้จัดคุณลงเว็บก่อน — พอมีชื่อ ปุ่มจะขึ้นให้เองทันที'
+                : 'รอหัวหน้าจัดหน้าที่/เวรของกะนี้ก่อน<br>พอเวรออก ปุ่มเวลาจะขึ้นให้กดเองทันที ไม่ต้องรีเฟรช'}</div>
         </div>`;
         const btn = document.getElementById('btnSave');
-        if (btn) btn.innerHTML = '<span class="material-icons" style="font-size:19px">lock</span> รอเวรออกก่อน';
+        if (btn) btn.innerHTML = `<span class="material-icons" style="font-size:19px">lock</span> ${notIn ? 'รอหัวหน้าจัดคุณลงเว็บ' : 'รอเวรออกก่อน'}`;
         return;
     }
     // 🧹 ตารางเวลาล้วนๆ เรียงตามลำดับของกะ — ตัวเลขชัด: 🟡 ลงแล้ว · 🟢 ว่าง · ⛔ เต็ม (มืด กดแล้วเด้งเตือน)
@@ -502,9 +505,12 @@ async function _doRefreshTimeSlots() {
 
         window._myAssignedTeams = assignedTeams;
         window._myCoverageMap = coverageMap;
-        // 🔒 เวรของกะนี้ยังไม่ออก → พนักงานปกติ (ที่ผูกเว็บ) ห้ามลงพักจนกว่าหัวหน้าจะจัดเวร
-        // ⚠️ เฉพาะแผนก AM/OD เท่านั้น — แผนกอื่น (AMQL/ODQL ฯลฯ) ไม่มีระบบเวร ถ้าล็อกจะติดตลอดกาล
-        window._rosterMissing = (!coverageMap && currentUser.check_type !== 'shift' && ['AM', 'OD'].includes(myDep));
+        // 🔒 ล็อกลงพัก 2 กรณี (เฉพาะพนักงานปกติ AM/OD — แผนกอื่น/เช็คแบบกะ ไม่ติด):
+        //   'no_roster' = เวรของกะนี้ยังไม่ออก
+        //   'not_in'    = เวรออกแล้ว แต่ชื่อคุณไม่อยู่ในเวร (เช่น เพิ่งสลับกะมา หัวหน้ายังไม่จัดลงเว็บ)
+        const _lockable = currentUser.check_type !== 'shift' && ['AM', 'OD'].includes(myDep);
+        const _inRoster = coverageMap && ((coverageMap.combinedOf && coverageMap.combinedOf[currentUser.username] || []).length > 0 || assignedTeams.length > 0);
+        window._rosterMissing = _lockable ? (!coverageMap ? 'no_roster' : (!_inRoster ? 'not_in' : false)) : false;
 
         const oldVal = teamSelect.value;
         const sortedTeams = [...TEAM_LIST].sort((a,b) => a.localeCompare(b));
