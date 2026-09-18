@@ -574,6 +574,11 @@ window.subscribeDashboardChanges = function() {
                 window.loadBreakMinRemainCfg && window.loadBreakMinRemainCfg(true).then(() => {
                     if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
                 });
+            } else if (key === 'daily_limit') {
+                // 🔴 [Realtime] หัวหน้าแก้โควตา/วัน → ทุกเครื่องใช้ค่าใหม่ทันที ไม่ต้องรีเฟรช
+                if (typeof SETTINGS !== 'undefined') SETTINGS.daily_limit = parseInt((payload.new && payload.new.value) || 2);
+                const ld = document.getElementById('limitDisplay'); if (ld) ld.innerText = SETTINGS.daily_limit;
+                if (typeof window._myTodayRefresh === 'function') window._myTodayRefresh();
             } else if (key === 'custom_time_slots') {
                 // 🔴 [Realtime] หัวหน้าแก้รอบเวลา (AM/OD) → ใช้ชุดใหม่ทันที
                 if (typeof SETTINGS !== 'undefined') SETTINGS[key] = payload.new ? payload.new.value : undefined;

@@ -721,33 +721,42 @@ window.renderManualTimeSlots = function() {
     const container = document.getElementById('manualTimeSlotsContainer');
     if (!container) return;
 
-    let html = '', count = 0;
-    for (const dep of ['AM', 'OD']) {
-        const groups = (window.SHIFT_GROUPS_ALL && window.SHIFT_GROUPS_ALL[dep]) || {};
-        let depHtml = '';
-        for (const [shift, slots] of Object.entries(groups)) {
-            (slots || []).forEach(slot => {
-                const sName = shift.replace('กะ', '');
-                const colorClass = sName === 'เช้า' ? 'text-orange-400' : (sName === 'กลาง' ? 'text-blue-400' : 'text-purple-400');
-                depHtml += `
-                <div class="flex justify-between items-center bg-slate-800 p-2 rounded-lg border border-slate-600/50 shadow-sm mb-1.5">
-                    <div class="flex items-center gap-2 text-[10px] font-bold ${colorClass}">
-                        <span class="w-12">${sName}</span>
-                        <span class="text-gray-300 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-700 tracking-wider shadow-inner">${slot}</span>
-                    </div>
-                    <button type="button" onclick="deleteManualTimeSlot('${dep}', '${shift}', '${slot}')" class="text-red-400 hover:text-red-500 hover:bg-red-900/30 p-1 rounded transition" title="ลบเวลา">
-                        <span class="material-icons text-[14px]">delete</span>
-                    </button>
-                </div>`;
-                count++;
-            });
-        }
-        if (depHtml) {
-            const depColor = dep === 'AM' ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' : 'text-pink-300 border-pink-500/40 bg-pink-500/10';
-            html += `<div class="text-[10px] font-black ${depColor} border rounded-lg px-2 py-1 mb-1.5 mt-2 inline-block">แผนก ${dep}</div>` + depHtml;
-        }
+    // 🎯 โชว์เฉพาะแผนกที่เลือกอยู่ในฟอร์มด้านบน — เลือก OD รายการก็เป็นของ OD ทันที
+    const depEl = document.getElementById('newTimeDept');
+    const dep = (depEl && depEl.value === 'OD') ? 'OD' : 'AM';
+    const selShift = (document.getElementById('newTimeShift') || {}).value || '';
+    const groups = (window.SHIFT_GROUPS_ALL && window.SHIFT_GROUPS_ALL[dep]) || {};
+
+    const SHIFT_ORDER = ['กะเช้า', 'กะกลาง', 'กะดึก'];
+    const shiftMeta = {
+        'กะเช้า': { icon: '☀️', color: 'text-orange-400', border: 'rgba(251,146,60,.4)' },
+        'กะกลาง': { icon: '⛅', color: 'text-blue-400',   border: 'rgba(96,165,250,.4)' },
+        'กะดึก':  { icon: '🌙', color: 'text-purple-400', border: 'rgba(192,132,252,.4)' }
+    };
+    const depColor = dep === 'AM' ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10' : 'text-pink-300 border-pink-500/40 bg-pink-500/10';
+
+    let html = `<div class="text-[10px] font-black ${depColor} border rounded-lg px-2 py-1 mb-2 inline-block">กำลังดู: แผนก ${dep}</div>`;
+    let count = 0;
+    const shifts = Object.keys(groups).sort((a, b) => (SHIFT_ORDER.indexOf(a) + 1 || 99) - (SHIFT_ORDER.indexOf(b) + 1 || 99));
+    for (const shift of shifts) {
+        const slots = groups[shift] || [];
+        if (!slots.length) continue;
+        const m = shiftMeta[shift] || { icon: '⏰', color: 'text-gray-300', border: 'rgba(148,163,184,.4)' };
+        const isSel = shift === selShift;
+        html += `<div class="text-[10px] font-bold ${m.color} mt-2 mb-1 flex items-center gap-1.5">${m.icon} ${shift} <span class="text-gray-600 font-normal">(${slots.length} รอบ)</span>${isSel ? '<span style="font-size:9px;background:rgba(59,130,246,.2);border:1px solid rgba(96,165,250,.5);color:#93c5fd;border-radius:99px;padding:1px 7px;font-weight:800">กำลังเพิ่มกะนี้</span>' : ''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;${isSel ? 'padding:6px;border:1px dashed ' + m.border + ';border-radius:10px;' : ''}">`;
+        slots.forEach(slot => {
+            html += `<span style="display:inline-flex;align-items:center;gap:5px;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:3px 4px 3px 9px">
+                <span class="text-gray-300 font-mono text-[10.5px] font-bold tracking-wider">${slot}</span>
+                <button type="button" onclick="deleteManualTimeSlot('${dep}', '${shift}', '${slot}')" class="text-red-400 hover:text-white hover:bg-red-600 rounded transition" style="width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;line-height:1" title="ลบเวลานี้">✕</button>
+            </span>`;
+            count++;
+        });
+        html += `</div>`;
     }
-    container.innerHTML = count === 0 ? '<div class="text-center text-gray-600 text-xs py-4">ยังไม่มีการตั้งค่า</div>' : html;
+    container.innerHTML = count === 0
+        ? html + `<div class="text-center text-gray-600 text-xs py-4">แผนก ${dep} ยังไม่มีรอบเวลา — เพิ่มจากฟอร์มด้านบนได้เลย</div>`
+        : html;
 };
 
 window.addManualTimeSlot = async function() {

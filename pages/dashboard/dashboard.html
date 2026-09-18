@@ -225,11 +225,11 @@
                         <div class="grid grid-cols-3 gap-3 mb-3">
                             <div>
                                 <label class="text-[10px] text-gray-500 mb-1 block">แผนก</label>
-                                <select id="newTimeDept" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500"><option value="AM">AM</option><option value="OD">OD</option></select>
+                                <select id="newTimeDept" onchange="renderManualTimeSlots()" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500"><option value="AM">AM</option><option value="OD">OD</option></select>
                             </div>
                             <div>
                                 <label class="text-[10px] text-gray-500 mb-1 block">กะ</label>
-                                <select id="newTimeShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500"><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
+                                <select id="newTimeShift" onchange="renderManualTimeSlots()" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-blue-500"><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 mb-4">
