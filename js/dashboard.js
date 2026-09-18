@@ -302,7 +302,9 @@ window.renderSlotChips = function () {
     const info = window._slotInfo || {};
     // ตัดรอบที่เลือกไว้แต่ตอนนี้กดไม่ได้แล้ว (เต็ม/เปลี่ยนกะ) ออกจากชุดที่เลือก
     const okVals = new Set(opts.filter(o => !o.disabled).map(o => o.value));
-    window._pickedSlots = (window._pickedSlots || []).filter(t => okVals.has(t));
+    const mineSet = window._myBookedSlots || new Set();
+    // ✂️ รอบที่บันทึกสำเร็จไปแล้ว = ติ๊กหายทันที เริ่มเลือกรอบใหม่ได้สะอาดๆ
+    window._pickedSlots = (window._pickedSlots || []).filter(t => okVals.has(t) && !mineSet.has(t));
     sel.value = window._pickedSlots[0] || '';
 
     // 🔎 แบ่งรอบเวลาเป็น 3 ช่วงเท่าๆ กันเสมอ (ช่วงต้น/กลาง/ท้ายของกะ) — ทุกเวลาอยู่ในช่วงใดช่วงหนึ่งครบ ไม่มีหลุด
@@ -335,17 +337,20 @@ window.renderSlotChips = function () {
         if (showSet && !showSet.has(o.value)) return;   // อยู่นอกก้อนที่กรอง → ไม่วาด
         const time = o.value;
         const i = info[time] || {};
+        const isMine = mineSet.has(time);
         const isOn = window._pickedSlots.includes(time);
-        const isFull = o.disabled || i.full;
+        const isFull = (o.disabled || i.full) && !isMine;
         let statusHtml;
-        if (isFull) {
+        if (isMine) {
+            statusHtml = '<span style="color:#34d399;font-weight:900">✓ คุณลงรอบนี้แล้ว</span>';
+        } else if (isFull) {
             statusHtml = '<span style="color:#f87171;font-weight:900">⛔ เต็มแล้ว</span>';
         } else {
             statusHtml = `<span style="color:#fbbf24;font-weight:900">ลงแล้ว ${i.booked ?? 0}</span>`;
             if (i.free !== null && i.free !== undefined) statusHtml += ` <span style="color:#475569">·</span> <span style="color:#34d399;font-weight:900">ว่าง ${i.free}</span>`;
         }
-        const click = isFull ? `onclick="slotFullAlert('${time}')"` : `onclick="pickTimeSlot('${time}')"`;
-        html += `<div class="slot-chip ${isOn ? 'on' : ''} ${isFull ? 'full' : ''}" ${click} title="${isFull ? 'รอบนี้เต็มแล้ว' : 'กดเพื่อเลือกรอบนี้'}">
+        const click = isMine ? `onclick="myBookedAlert('${time}')"` : (isFull ? `onclick="slotFullAlert('${time}')"` : `onclick="pickTimeSlot('${time}')"`);
+        html += `<div class="slot-chip ${isOn ? 'on' : ''} ${isFull ? 'full' : ''} ${isMine ? 'mine' : ''}" ${click} title="${isMine ? 'คุณลงรอบนี้ไปแล้ว' : (isFull ? 'รอบนี้เต็มแล้ว' : 'กดเพื่อเลือกรอบนี้')}">
             <div class="t">${time.replace('-', ' – ')}</div>
             <div class="s">${statusHtml}</div>
         </div>`;
@@ -377,6 +382,11 @@ window._pickedSlots = window._pickedSlots || [];
 window.setSlotFilter = function (label) {
     window._slotFilter = label || '';
     window.renderSlotChips();
+};
+
+// ✅ กดรอบที่ตัวเองลงไปแล้ว → บอกชัดๆ พร้อมทางแก้
+window.myBookedAlert = function (time) {
+    Swal.fire({ icon: 'success', title: `รอบ ${time} เป็นของคุณอยู่แล้ว`, html: '<span class="text-xs text-gray-400">อยากเปลี่ยนรอบ? ลบรอบนี้ได้จากการ์ด "วันนี้ของฉัน" (ปุ่ม ✕ ข้างเวลา) แล้วค่อยเลือกใหม่</span>', confirmButtonText: 'เข้าใจแล้ว' });
 };
 
 window.pickTimeSlot = function (time) {
@@ -551,6 +561,8 @@ async function _doRefreshTimeSlots() {
         const times = Array.isArray(_g) ? _g : [].concat(...Object.values(_g || {}));
         let html = '<option value="">-- เลือกรอบเวลา --</option>';
 
+        // ✅ รอบที่ฉันลงไปแล้ว (ไว้ตัดติ๊กออกหลังบันทึก + ระบายเขียวบนแผง)
+        window._myBookedSlots = new Set((bookings || []).filter(b => b.staff_name === currentUser.username).map(b => b.time_slot));
         const _slotInfo = {};   // 🎨 ข้อมูลละเอียดต่อรอบ ส่งให้แผงปุ่มวาด (ลงแล้ว/ว่าง/เต็ม/เหตุผล)
         {
             times.forEach(time => {
