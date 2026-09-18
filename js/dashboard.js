@@ -277,6 +277,54 @@ window.quickRebookAll = async function (btnId) {
     if (typeof initQuickRebook === 'function') initQuickRebook();
 };
 
+// ════════════════════════════════════════════════════════
+// 🎨 แผงปุ่มเลือกรอบเวลา (หน้ากากสวยของ select#tSlot)
+//   select ตัวเดิมยังเป็นสมอง: ทุกโค้ด (บันทึก/ปุ่มลัด/เช็คที่ว่าง) อ่าน-เขียนที่ select เหมือนเดิม
+//   แผงนี้แค่ฉายค่าจาก select ออกมาเป็นปุ่มกด แล้วกดปุ่ม = ตั้งค่าให้ select
+// ════════════════════════════════════════════════════════
+window.renderSlotChips = function () {
+    const box = document.getElementById('tSlotChips');
+    const sel = document.getElementById('tSlot');
+    if (!box || !sel) return;
+    const opts = [...sel.options].filter(o => o.value);
+    if (!opts.length) {
+        box.innerHTML = '<div class="slotc-empty">☝️ เลือกกะก่อน แล้วรอบเวลาจะขึ้นให้เลือกตรงนี้</div>';
+        return;
+    }
+    // ป้ายหมวดตามเวลาเริ่ม (ไล่ตามธรรมชาติของวัน)
+    const bandOf = h => (h >= 5 && h < 11) ? '☀️ ช่วงเช้า' : (h >= 11 && h < 15) ? '🍚 ช่วงเที่ยง' : (h >= 15 && h < 19) ? '🌤️ ช่วงเย็น' : (h >= 19 && h < 24) ? '🌙 ช่วงค่ำ' : '🌌 ช่วงดึก';
+    let html = '', lastBand = null, gridOpen = false;
+    opts.forEach(o => {
+        const time = o.value;
+        const h = parseInt(time.slice(0, 2), 10) || 0;
+        const band = bandOf(h);
+        if (band !== lastBand) {
+            if (gridOpen) html += '</div>';
+            html += `<div class="slotc-group-label">${band}</div><div class="slotc-grid">`;
+            lastBand = band; gridOpen = true;
+        }
+        const status = o.text.replace(time, '').trim();                    // เช่น (ว่าง: 2) / (ลงแล้ว 5) / (TEAM เต็ม 3/3)
+        const nice = status.replace(/^\(|\)$/g, '');
+        const isOn = sel.value === time;
+        const isFull = o.disabled;
+        html += `<div class="slot-chip ${isOn ? 'on' : ''} ${isFull ? 'full' : ''}" ${isFull ? '' : `onclick="pickTimeSlot('${time}')"`} title="${isFull ? 'รอบนี้เต็ม — ' + nice : 'กดเพื่อเลือกรอบนี้'}">
+            <div class="t">${time.replace('-', ' – ')}</div>
+            <div class="s">${isFull ? '⛔ ' + (nice || 'เต็ม') : (nice || '&nbsp;')}</div>
+        </div>`;
+    });
+    if (gridOpen) html += '</div>';
+    box.innerHTML = html;
+};
+
+window.pickTimeSlot = function (time) {
+    const sel = document.getElementById('tSlot');
+    if (!sel) return;
+    const opt = [...sel.options].find(o => o.value === time);
+    if (!opt || opt.disabled) return;
+    sel.value = (sel.value === time) ? '' : time;   // กดซ้ำ = ยกเลิกเลือก
+    window.renderSlotChips();
+};
+
 // debounce timer สำหรับ refreshTimeSlots
 let _refreshSlotsTimer = null;
 let _refreshSlotsPending = null;   // คำขอที่รออยู่ในรอบ debounce — ผู้เรียกทุกคนใช้ก้อนเดียวกัน
@@ -418,6 +466,7 @@ async function _doRefreshTimeSlots() {
             const opt = slotSelect.querySelector(`option[value="${previousSelectedSlot}"]`);
             if (opt && !opt.disabled) slotSelect.value = previousSelectedSlot;
         }
+        if (typeof window.renderSlotChips === 'function') window.renderSlotChips();   // 🎨 วาดแผงปุ่มเวลาให้ตรงกับ select
 
     } catch (e) {
         console.error("Refresh Slots Error:", e);

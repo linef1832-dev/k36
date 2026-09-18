@@ -136,11 +136,31 @@
                             </label>
                             <button type="button" onclick="refreshTimeSlots()" class="bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-bold flex items-center gap-1 transition" style="font-size:10.5px;padding:3px 8px"><span class="material-icons" style="font-size:11px">refresh</span> เช็คที่ว่าง</button>
                         </div>
-                        <select id="tSlot" required
-                            class="w-full border rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none cursor-pointer disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:text-gray-400 focus:ring-2 focus:ring-blue-500"
-                            style="padding:10px;font-size:14px;font-weight:700">
+                        <!-- 🧠 select ตัวเดิม = สมองของระบบ (ทุกโค้ดเดิมอ่าน/เขียนที่นี่) — แค่ซ่อนไว้ แล้วโชว์เป็นแผงปุ่มแทน -->
+                        <select id="tSlot" style="display:none">
                             <option value="">-- กรุณาเลือกกะก่อน --</option>
                         </select>
+                        <style>
+                            #tSlotChips{display:flex;flex-direction:column;gap:8px}
+                            .slotc-group-label{font-size:9.5px;font-weight:900;color:#8fa3bf;letter-spacing:.08em;display:flex;align-items:center;gap:6px;margin-top:2px}
+                            .slotc-group-label::after{content:'';flex:1;height:1px;background:rgba(148,163,184,.18)}
+                            .slotc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+                            @media (min-width:1400px){ .slotc-grid{grid-template-columns:repeat(3,1fr)} }
+                            .slot-chip{position:relative;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.65);border-radius:12px;padding:8px 6px 7px;text-align:center;cursor:pointer;transition:all .14s;user-select:none}
+                            .slot-chip:hover{border-color:#60a5fa;background:rgba(30,58,138,.25);transform:translateY(-1px)}
+                            .slot-chip .t{font-family:monospace;font-size:13px;font-weight:800;color:#e2e8f0;letter-spacing:.02em;line-height:1.2}
+                            .slot-chip .s{font-size:9.5px;color:#8fa3bf;margin-top:2px;line-height:1.2}
+                            .slot-chip.on{background:linear-gradient(135deg,#2563eb,#4f46e5);border-color:#93c5fd;box-shadow:0 6px 18px -6px rgba(59,130,246,.6),0 0 0 2px rgba(96,165,250,.35)}
+                            .slot-chip.on .t{color:#fff}
+                            .slot-chip.on .s{color:#dbeafe}
+                            .slot-chip.on::after{content:'✓';position:absolute;top:-7px;right:-5px;width:17px;height:17px;border-radius:50%;background:#22c55e;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #141d30;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+                            .slot-chip.full{opacity:.42;cursor:not-allowed;background:rgba(15,23,42,.4)}
+                            .slot-chip.full:hover{border-color:rgba(148,163,184,.25);transform:none;background:rgba(15,23,42,.4)}
+                            .slot-chip.full .t{color:#94a3b8;text-decoration:line-through;text-decoration-color:rgba(248,113,113,.7);text-decoration-thickness:1.5px}
+                            .slot-chip .s b{font-weight:900}
+                            .slotc-empty{border:1px dashed rgba(148,163,184,.3);border-radius:12px;padding:16px 10px;text-align:center;font-size:11.5px;color:#8fa3bf}
+                        </style>
+                        <div id="tSlotChips"><div class="slotc-empty">☝️ เลือกกะก่อน แล้วรอบเวลาจะขึ้นให้เลือกตรงนี้</div></div>
                     </div>
 
                     <button type="submit" id="btnSave"

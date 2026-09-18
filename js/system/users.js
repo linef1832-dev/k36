@@ -386,7 +386,7 @@ window.saveData = async function(e) {
     if (myBookings.length >= dailyLimit) { window.resetBtn(); return Swal.fire('ครบโควตา', `คุณลงครบ ${dailyLimit} รอบต่อวันแล้ว`, 'error'); }
 
     const _slotOpt = select.options[select.selectedIndex];
-    if (!_slotOpt) { window.resetBtn(); return Swal.fire('เตือน', 'กรุณาเลือกช่วงเวลาก่อนบันทึก', 'warning'); }
+    if (!_slotOpt || !_slotOpt.value) { window.resetBtn(); return Swal.fire('เตือน', 'กรุณากดเลือกรอบเวลาก่อนบันทึก', 'warning'); }
     // 🧹 [รื้อระบบช่วง] กติกา "1 ครั้ง/ช่วง" ถูกยกเลิกแล้ว — เหลือ: โควตา/วัน + ห้ามลงติดกัน + คนเฝ้าขั้นต่ำ
     
     // 🚫 [ห้ามควบพักยาว] ลงช่วงเวลา "ติดกัน" กับที่ตัวเองลงไว้ไม่ได้ (เช่น 04:00-04:30 แล้วมาลง 04:30-05:00 ต่อ)
