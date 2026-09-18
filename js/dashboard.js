@@ -290,18 +290,24 @@ window.renderSlotChips = function () {
     window._pickedSlots = (window._pickedSlots || []).filter(t => okVals.has(t));
     sel.value = window._pickedSlots[0] || '';
 
-    // 🔎 จับกลุ่ม "ก้อนเวลา" อัตโนมัติ (เวลาต่อเนื่องกัน = ก้อนเดียว, มีช่องว่าง = ขึ้นก้อนใหม่)
-    //    → ทำแถบกรองให้พนักงานกดดูเฉพาะก้อนที่สนใจ ไม่ต้องไล่สายตาทั้งกระดาน
+    // 🔎 แบ่งรอบเวลาเป็น 3 ช่วงเท่าๆ กันเสมอ (ช่วงต้น/กลาง/ท้ายของกะ) — ทุกเวลาอยู่ในช่วงใดช่วงหนึ่งครบ ไม่มีหลุด
     const blocks = [];
-    opts.forEach(o => {
-        const [s, e] = o.value.split('-');
-        const last = blocks[blocks.length - 1];
-        if (last && last.end === s) { last.end = e; last.items.push(o.value); }
-        else blocks.push({ start: s, end: e, items: [o.value] });
-    });
-    if (window._slotFilter && !blocks.some(b => `${b.start}-${b.end}` === window._slotFilter)) window._slotFilter = '';   // ก้อนเดิมหายไป (เปลี่ยนกะ) → กลับเป็นทั้งหมด
+    {
+        const nChunks = Math.min(3, opts.length);
+        const per = Math.ceil(opts.length / nChunks);
+        for (let c = 0; c < nChunks; c++) {
+            const part = opts.slice(c * per, (c + 1) * per);
+            if (!part.length) continue;
+            blocks.push({
+                start: part[0].value.split('-')[0],
+                end: part[part.length - 1].value.split('-')[1],
+                items: part.map(o => o.value)
+            });
+        }
+    }
+    if (window._slotFilter && !blocks.some(b => `${b.start}-${b.end}` === window._slotFilter)) window._slotFilter = '';   // ช่วงเดิมหายไป (เปลี่ยนกะ) → กลับเป็นทั้งหมด
     let filterHtml = '';
-    if (blocks.length >= 1) {   // 🔎 โชว์แถบกรองทุกกะเสมอ (แม้เวลาจะติดเป็นก้อนเดียว)
+    if (blocks.length > 1) {
         filterHtml = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">'
             + `<button type="button" onclick="setSlotFilter('')" class="slotf ${!window._slotFilter ? 'on' : ''}">ทั้งหมด</button>`
             + blocks.map(b => { const lb = `${b.start}-${b.end}`; return `<button type="button" onclick="setSlotFilter('${lb}')" class="slotf ${window._slotFilter === lb ? 'on' : ''}">${b.start} – ${b.end}</button>`; }).join('')
