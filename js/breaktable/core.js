@@ -102,6 +102,10 @@
         // จัดกลุ่มตามกะ (ถ้าเลือกทุกกะ) เพื่อให้อ่านง่าย
         const groups = {};
         slots.forEach(([slot, shifts]) => { const key = $('btShift').value !== 'all' ? $('btShift').value : ([...shifts][0] || 'อื่นๆ'); (groups[key] = groups[key] || []).push(slot); });
+        // 🕐 ในแต่ละกะ เรียงตามลำดับของกะ (กะดึก: 21:00 ขึ้นก่อน ข้ามเที่ยงคืนไล่ถึงเช้า)
+        Object.keys(groups).forEach(sh => {
+            if (typeof window.sortSlotsByShift === 'function') groups[sh] = window.sortSlotsByShift(sh, groups[sh]);
+        });
         const order = ['กะเช้า', 'กะกลาง', 'กะดึก'];
         const html = Object.keys(groups).sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99)).map(shift => {
             const cnt = groups[shift].reduce((a, sl) => a + (bySlot[sl] || []).length, 0);

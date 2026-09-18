@@ -666,15 +666,25 @@ window._slotsViewerDept = function() {
     return d === 'OD' ? 'OD' : 'AM';   // แผนกอื่นๆ นับเป็น AM
 };
 
-// รวมข้อมูลทุกทรง (แบน/มีช่วงซ้อน) ให้เป็น กะ → [เวลา เรียง ไม่ซ้ำ]
+// 🕐 เรียงเวลา "ตามลำดับของกะ" — นับจากเวลาเข้ากะเป็นจุดเริ่ม (กะดึก: 21:00 ขึ้นก่อน แล้วข้ามเที่ยงคืนไล่ถึงเช้า)
+window.sortSlotsByShift = function(shift, arr) {
+    const suf = String(shift || '').replace('กะ', '');
+    const defOpen = { 'เช้า': '08:00', 'กลาง': '11:00', 'ดึก': '20:00' }[suf] || '00:00';
+    const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
+    const toMin = s => { const m = /^(\d{1,2}):(\d{2})/.exec(String(s || '')); return m ? (+m[1]) * 60 + (+m[2]) : 9999; };
+    const open = toMin(S[`open_time_${suf}`] || defOpen);
+    const key = sl => ((toMin(sl) - open) + 1440) % 1440;   // ระยะห่างจากเวลาเข้ากะ
+    return [...arr].sort((a, b) => key(a) - key(b));
+};
+
+// รวมข้อมูลทุกทรง (แบน/มีช่วงซ้อน) ให้เป็น กะ → [เวลา เรียงตามลำดับกะ ไม่ซ้ำ]
 function _flattenShiftSlots(deptObj) {
     const out = {};
-    const toMin = s => { const m = /^(\d{1,2}):(\d{2})/.exec(String(s||'')); return m ? (+m[1])*60+(+m[2]) : 9999; };
     for (const [shift, val] of Object.entries(deptObj || {})) {
         let arr = [];
         if (Array.isArray(val)) arr = val;                                         // ทรงใหม่อยู่แล้ว
         else if (val && typeof val === 'object') Object.values(val).forEach(a => { if (Array.isArray(a)) arr = arr.concat(a); });   // ทรงเก่ามีช่วง → เทรวม
-        arr = [...new Set(arr)].sort((a, b) => toMin(a) - toMin(b));
+        arr = window.sortSlotsByShift(shift, [...new Set(arr)]);
         if (arr.length) out[shift] = arr;
     }
     return out;
@@ -789,8 +799,7 @@ window.addManualTimeSlot = async function() {
     if (G[shiftSelect].includes(timeSlot)) return Swal.fire('เตือน', `แผนก ${dep} มีรอบเวลานี้อยู่แล้ว`, 'warning');
 
     G[shiftSelect].push(timeSlot);
-    const toMin = s => { const m = /^(\d{1,2}):(\d{2})/.exec(s); return m ? (+m[1])*60+(+m[2]) : 9999; };
-    G[shiftSelect].sort((a, b) => toMin(a) - toMin(b));
+    G[shiftSelect] = window.sortSlotsByShift(shiftSelect, G[shiftSelect]);   // เรียงตามลำดับกะ (ดึก: 21:00 ก่อน)
 
     SETTINGS['custom_time_slots'] = JSON.stringify(window.SHIFT_GROUPS_ALL);
     SHIFT_GROUPS = window.SHIFT_GROUPS_ALL[window._slotsViewerDept()] || {};
