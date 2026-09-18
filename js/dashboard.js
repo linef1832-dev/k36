@@ -1396,8 +1396,8 @@ window._renderMyTodayNow = async function() {
                     <span class="material-icons" style="font-size:16px;color:${isToday ? '#60a5fa' : '#E8C15A'}">calendar_month</span>
                     <span style="font-size:14px;font-weight:900;color:#f1f5f9;white-space:nowrap">${_mtFmt(dateVal)}</span>
                     ${isToday ? '<span style="font-size:10px;font-weight:800;color:#60a5fa;background:rgba(96,165,250,.16);padding:2px 7px;border-radius:99px">วันนี้</span>' : ''}
-                    <input type="date" id="myTodayDate" value="${dateVal}" onchange="myTodaySetDate(this.value)" title="กดเพื่อเลือกวันที่"
-                        style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer">
+                    <input type="date" id="myTodayDate" class="mt-date-hidden" value="${dateVal}" onchange="myTodaySetDate(this.value)" title="กดเพื่อเลือกวันที่"
+                        style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;color:transparent;background:transparent;border:none;padding:0;font-size:0">
                 </div>
                 <button onclick="myTodayShift(1)" title="วันถัดไป" style="height:100%;padding:0 9px;display:flex;align-items:center;color:#94a3b8;background:none;border:none;cursor:pointer;transition:all .15s"
                     onmouseover="this.style.color='#fff';this.style.background='rgba(148,163,184,.14)'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><span class="material-icons" style="font-size:18px">chevron_right</span></button>

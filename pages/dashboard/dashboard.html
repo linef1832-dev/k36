@@ -153,6 +153,17 @@
                             .slot-chip.full:hover{border-color:rgba(248,113,113,.45);transform:none;background:rgba(30,10,10,.4);opacity:.55}
                             .slot-chip.full .t{color:#94a3b8;text-decoration:line-through;text-decoration-color:rgba(248,113,113,.7);text-decoration-thickness:1.5px}
                             .slot-chip .s b{font-weight:900}
+                            /* 📅 ช่องวันที่ของแผง "วันนี้" — โปร่งใสสนิททุกเบราว์เซอร์ (กันตัวเลขวันที่โผล่ซ้ำ) */
+                            .mt-date-hidden{-webkit-appearance:none;appearance:none;color:transparent!important;font-size:0!important;text-shadow:none!important}
+                            .mt-date-hidden::-webkit-datetime-edit,
+                            .mt-date-hidden::-webkit-datetime-edit-fields-wrapper,
+                            .mt-date-hidden::-webkit-datetime-edit-text,
+                            .mt-date-hidden::-webkit-datetime-edit-year-field,
+                            .mt-date-hidden::-webkit-datetime-edit-month-field,
+                            .mt-date-hidden::-webkit-datetime-edit-day-field,
+                            .mt-date-hidden::-webkit-inner-spin-button,
+                            .mt-date-hidden::-webkit-clear-button{display:none!important;opacity:0!important;color:transparent!important}
+                            .mt-date-hidden::-webkit-calendar-picker-indicator{opacity:0;width:100%;height:100%;position:absolute;inset:0;cursor:pointer}
                             .slotf{border:1px solid rgba(148,163,184,.3);background:rgba(15,23,42,.6);color:#8fa3bf;border-radius:99px;padding:4px 12px;font-size:10.5px;font-weight:800;cursor:pointer;transition:all .14s;white-space:nowrap}
                             .slotf:hover{color:#e2e8f0;border-color:#60a5fa}
                             .slotf.on{background:linear-gradient(135deg,#2563eb,#4f46e5);border-color:#93c5fd;color:#fff;box-shadow:0 4px 12px -5px rgba(59,130,246,.55)}
