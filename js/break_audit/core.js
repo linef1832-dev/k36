@@ -385,95 +385,10 @@
         $('baExportBtn').style.display = (_people.length && canExport) ? 'flex' : 'none';
 
         render();
-        renderCoverage();
         updateStatus();
     };
 
     // ── หน้างานตอนนี้: ใครออกพร้อมกันกี่คน เทียบเพดานของเว็บ ──
-    function renderCoverage() {
-        const box = $('baCoverage');
-        if (!box) return;
-        const isToday = dateVal() === iso(new Date());
-        const now = nowSec();
-        const hasDuty = Object.keys(_duty).length > 0;
-
-        // จำนวนคนหน้างานจริง = จากตารางจัดหน้าที่ของวันนั้น (ไม่ใช่ users.team ที่เป็นแค่ทะเบียนตอนสมัคร)
-        const groups = {};   // 'แผนก|กะ|เว็บ' → { dept, shift, team, head, now:[], away:[], peak, peakAt }
-        const wantShift = ($('baShift') && $('baShift').value) || 'all';
-        Object.keys(_duty).forEach(k => {
-            const [dept, shift, team] = k.split('|');
-            if (_skipDepts.indexOf(dept) > -1) return;
-            if (wantShift !== 'all' && shift !== wantShift) return;
-            groups[k] = { dept, shift, team, head: _duty[k].size,
-                          main: (_dutyMain[k] || new Set()).size, sec: (_dutySec[k] || new Set()).size,
-                          now: [], away: [], peak: 0, peakAt: null };
-        });
-
-        const noDuty = { names: [], sessions: 0 };
-        _people.forEach(p => {
-            if (!p.sessions.length) return;
-            const spots = _dutyOf[norm(p.name)] || [];
-            if (!spots.length) { noDuty.names.push(p.name); noDuty.sessions += p.sessions.length; return; }
-            spots.forEach(sp => {
-                const k = sp.dept + '|' + sp.shift + '|' + sp.team;
-                const g = groups[k];
-                if (!g) return;
-                p.sessions.forEach(s => {
-                    g.away.push({ a: s.start, b: s.end });
-                    if (isToday && (s.live || (s.start <= now && s.end >= now)) && g.now.indexOf(p.name) < 0) g.now.push(p.name);
-                });
-            });
-        });
-
-        Object.keys(groups).forEach(k => {
-            const g = groups[k], ev = [];
-            g.away.forEach(x => { ev.push([x.a, 1]); ev.push([x.b, -1]); });
-            ev.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
-            let cur = 0;
-            ev.forEach(e => { cur += e[1]; if (cur > g.peak) { g.peak = cur; g.peakAt = e[0]; } });
-        });
-
-        const rows = Object.keys(groups)
-            .filter(k => groups[k].head > 0)
-            .sort((a, b) => groups[b].now.length - groups[a].now.length
-                         || groups[b].peak - groups[a].peak
-                         || groups[a].dept.localeCompare(groups[b].dept, 'th')
-                         || groups[a].team.localeCompare(groups[b].team, 'th'));
-
-        if (!hasDuty) {
-            box.style.display = '';
-            box.innerHTML = `<div class="ba-covhead"><span class="material-icons text-base text-amber-400">warning</span>
-                หน้างานตอนนี้ <span class="ba-covsub">ยังไม่มีตารางจัดหน้าที่ของวันนี้ — ไปจัดเวรที่หน้า “จัดหน้าที่ / เวร” ก่อน แล้วแผงนี้จะคำนวณให้เอง</span></div>`;
-            return;
-        }
-        if (!rows.length && !noDuty.names.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
-        box.style.display = '';
-
-        const cap = n => (typeof window.breakCapByHeadcount === 'function') ? window.breakCapByHeadcount(n) : Math.max(1, Math.ceil(n / 4));
-
-        const cards = rows.map(k => {
-            const g = groups[k], mx = cap(g.head), nowN = g.now.length;
-            const st = !isToday ? '' : nowN > mx ? 'bad' : (mx > 0 && nowN === mx) ? 'warn' : 'ok';
-            return `<div class="ba-cov ${st}">
-                <div class="ba-covteam"><span class="ba-covdept">${esc(g.dept)} · ${esc(g.shift)}</span>${esc(g.team)} <span class="ba-covhc">เข้าเวร ${g.head} คน (หลัก ${g.main} · รอง ${g.sec})</span></div>
-                ${isToday ? `<div class="ba-covnow"><b>${nowN}</b> / ${mx} <span>ออกอยู่ตอนนี้</span></div>`
-                          : `<div class="ba-covnow"><b>—</b><span>ดูย้อนหลัง</span></div>`}
-                ${nowN ? `<div class="ba-covwho">${g.now.map(x => esc(x)).join(', ')}</div>` : ''}
-                <div class="ba-covpeak">วันนี้ออกพร้อมกันสูงสุด ${g.peak} คน${g.peakAt != null ? ' ตอน ' + clock(g.peakAt) : ''}${g.peak > mx ? ' · เกินเพดาน' : ''}</div>
-            </div>`;
-        }).join('');
-
-        const extra = noDuty.names.length ? `<div class="ba-cov" style="border-style:dashed">
-                <div class="ba-covteam"><span class="ba-covdept" style="background:#94a3b8">ไม่มีในตารางเวร</span>${noDuty.names.length} คน</div>
-                <div class="ba-covwho">${noDuty.names.slice(0, 12).map(x => esc(x)).join(', ')}${noDuty.names.length > 12 ? ' …' : ''}</div>
-                <div class="ba-covpeak">กดเช็คอินแต่ไม่ได้ถูกจัดเวรวันนี้ รวม ${noDuty.sessions} รอบ</div>
-            </div>` : '';
-
-        box.innerHTML = `<div class="ba-covhead"><span class="material-icons text-base text-cyan-400">groups</span>
-                หน้างานตอนนี้ <span class="ba-covsub">นับจากตารางจัดหน้าที่ของวันนี้ · เพดานคิดจากจำนวนคนที่เข้าเวรในเว็บนั้น</span></div>
-            <div class="ba-covgrid">${cards}${extra}</div>`;
-    }
-
     // ── ไฟสถานะตัวดักฟัง ─────────────────────────────────
     function updateStatus() {
         const box = $('baLive'), txt = $('baLiveText');
