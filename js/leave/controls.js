@@ -3,7 +3,13 @@
 // เนื้อหา: เปลี่ยนเดือน/ปฏิทิน, toggle รายการ, บันทึกตั้งค่า, หน่วงค้นหา
 // ⚠️ ลำดับโหลด: leave/core → leave/table → leave/controls (ห้ามสลับ — ตัวแปร top-level แชร์ scope เดียวกัน)
 // ════════════════════════════════════════════════════════════════════
-window.changeMonth = function(step) { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + step); updateMonthPicker(); fetchLeaveData(); }
+// 📆 [FIX] เดิมใช้ setMonth() กับวันที่เดิมของ currentCalendarDate (เริ่มจาก new Date() = วันนี้)
+//    ถ้าวันนี้ 31 ม.ค. กดเดือนถัดไป → setMonth(1) = 31 ก.พ. ซึ่งไม่มีจริง → เด้งเป็น 3 มี.ค. = ข้ามกุมภาพันธ์ทั้งเดือน
+//    แก้โดยสร้างวันที่ใหม่ที่วันที่ 1 เสมอ (หน้านี้ใช้แค่ปี/เดือน วันที่ไม่มีผล) — วิธีเดียวกับ datepicker.js:86
+window.changeMonth = function(step) {
+    currentCalendarDate = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + step, 1);
+    updateMonthPicker(); fetchLeaveData();
+}
 window.updateMonthPicker = function() { 
     const y = currentCalendarDate.getFullYear(); const m = String(currentCalendarDate.getMonth() + 1).padStart(2, '0'); 
     if(document.getElementById('viewMonthPicker')) document.getElementById('viewMonthPicker').value = `${y}-${m}`; 
@@ -42,10 +48,12 @@ window.changeAdminMonth = function(step) {
         const [y, m] = currentVal.split('-');
         d = new Date(parseInt(y), parseInt(m) - 1, 1);
     } else {
-        d = new Date();
+        // 📆 [FIX] เดิม d = new Date() (ติดวันที่ปัจจุบันมา) แล้ว setMonth ต่อ → วันที่ 29-31 จะล้นข้ามเดือน
+        const _t = new Date();
+        d = new Date(_t.getFullYear(), _t.getMonth(), 1);
     }
 
-    d.setMonth(d.getMonth() + step);
+    d = new Date(d.getFullYear(), d.getMonth() + step, 1);
 
     const newY = d.getFullYear();
     const newM = String(d.getMonth() + 1).padStart(2, '0');

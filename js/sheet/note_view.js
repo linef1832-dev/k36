@@ -97,7 +97,8 @@ window.openSheet = function(sheet) {
     
     const gName = sheet.group_name || sheet.category || 'ทั่วไป';
     const sName = sheet.name || sheet.title || 'ไม่มีชื่อ';
-    document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${gName}</span> <span class="material-icons text-[10px] mx-1 text-gray-600">arrow_forward_ios</span> <span class="text-white font-bold text-sm">${sName}</span>`;
+    // 🛡️ [XSS] ชื่อกลุ่ม/ชื่อชีต ผู้ใช้พิมพ์เอง — escape ก่อนยัดลง innerHTML
+    document.getElementById('sheetTitle').innerHTML = `<span class="text-gray-500">${window.escapeHtml(gName)}</span> <span class="material-icons text-[10px] mx-1 text-gray-600">arrow_forward_ios</span> <span class="text-white font-bold text-sm">${window.escapeHtml(sName)}</span>`;
     
     document.getElementById('sheetLoading').classList.remove('hidden');
     addToRecentTabs(sheet);

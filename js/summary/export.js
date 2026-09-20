@@ -491,11 +491,11 @@ window.fetchMultipleHistoricalSummary = async function() {
     } catch (e) { Swal.fire('Error', e.message, 'error'); }
 };
 
-const _originalClearSummaryDataForMulti = window.clearSummaryData;
-window.clearSummaryData = function() {
-    window.selectedSummaryDates.clear(); 
-    _originalClearSummaryDataForMulti();
-};
+// 🧹 [FIX] เดิมตรงนี้ห่อ window.clearSummaryData อีกชั้นเพื่อเคลียร์ selectedSummaryDates
+//    แต่เกิดปัญหา 2 ข้อ: (1) ตัวห่อเป็น sync และไม่ return ของตัวจริงที่เป็น async
+//        → await clearSummaryData() ทุกจุดคืนทันทีทั้งที่งานข้างในยังไม่เสร็จ และ error กลายเป็น unhandled rejection
+//        (2) .clear() ตรงนั้นไม่เช็ค null ทั้งที่ตัวจริง (summary/core.js:339) เช็คและเคลียร์ให้อยู่แล้ว
+//    ตัวห่อจึงไม่ได้ทำอะไรเพิ่มนอกจากของซ้ำ — ตัดทิ้ง ใช้ตัวจริงจาก summary/core.js ตรงๆ
 
 window.deleteSummaryDate = function(dateStr) {
     const [y, m, day] = dateStr.split('-');

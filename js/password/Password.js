@@ -35,7 +35,9 @@ function _pwdPopulateUserDropdown(users) {
         .filter(u => u && u.username)
         .sort((a, b) => String(a.username).localeCompare(String(b.username)))
         .forEach(u => {
-            userSelect.innerHTML += `<option value="${u.id}" style="background:#1e293b;color:#fff">${u.username}</option>`;
+            // 🛡️ [XSS] escape ทั้ง id (อยู่ในแอตทริบิวต์) และ username (อยู่ในเนื้อหา)
+            // ใช้ escapeHtml กับ value — ไม่ใช้ escapeAttr เพราะตัวนั้นมีการกรอง URL scheme ซึ่งไม่เกี่ยวกับ <option>
+            userSelect.innerHTML += `<option value="${window.escapeHtml(u.id)}" style="background:#1e293b;color:#fff">${window.escapeHtml(u.username)}</option>`;
         });
     if (oldVal) userSelect.value = oldVal;
 }

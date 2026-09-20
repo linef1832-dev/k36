@@ -94,7 +94,11 @@ window.escapeHtml = function(s) {
 window.escapeAttr = function(s) {
     const t = window.escapeHtml(s);
     // ตัด scheme อันตรายใน href/src (javascript: , data: , vbscript:)
-    if (/^\s*(javascript|data|vbscript):/i.test(String(s || ''))) return '#';
+    // 🛡️ [FIX] เดิมเทียบกับค่าดิบ — เบราว์เซอร์จะตัด tab/newline/null ทิ้งเองก่อนอ่าน URL
+    //    ค่าอย่าง "java\tscript:alert(1)" จึงรอด regex ไปได้ แต่ยังรันจริงตอนคลิก
+    //    → ถอดช่องว่าง/control char ออกก่อนค่อยเทียบ (เทียบเฉพาะตอนกรอง ไม่กระทบค่าที่แสดงจริง)
+    const probe = String(s || '').replace(/[\u0000-\u0020\u00a0\u2028\u2029]/g, '');
+    if (/^(javascript|data|vbscript):/i.test(probe)) return '#';
     return t;
 };
 // 🛡️ สำหรับค่าที่อยู่ใน JS-string ภายใน on-handler เช่น onclick="fn('${escapeJsAttr(name)}')"
@@ -1180,11 +1184,16 @@ function toggleTheme() {
 window.renderTemplate = function(templateId, data = {}) {
     const tpl = document.getElementById(templateId);
     if (!tpl) return '';
-    let html = tpl.innerHTML;
-    for (const key in data) {
-        html = html.split(`{{${key}}}`).join(data[key] !== undefined && data[key] !== null ? data[key] : '');
-    }
-    return html;
+    // 🔁 [FIX] เดิมวนแทนทีละ key ด้วย split/join — ผลลัพธ์ของ key แรกจะโดน key ถัดไปสแกนซ้ำอีกชั้น
+    //    ถ้าค่าจากผู้ใช้มีข้อความ {{login_pass}} ปนอยู่ มันจะถูกแทนต่อ = ค่าฟิลด์อื่นรั่วออกมา
+    //    ตอนนี้ scan ต้นฉบับรอบเดียวจบ ค่าที่แทนแล้วไม่ถูกอ่านซ้ำ
+    // ⚠️ จงใจไม่ escape ที่นี่ — หลายจุดส่ง HTML เข้ามาตั้งใจ (ownerBadge, attachmentsHtml, delBtn ...)
+    //    ฝั่งผู้เรียกต้อง escapeHtml ค่าที่มาจากผู้ใช้เองก่อนส่งเข้า
+    return tpl.innerHTML.replace(/\{\{(\w+)\}\}/g, function(match, key) {
+        if (!Object.prototype.hasOwnProperty.call(data, key)) return match;   // ไม่มีใน data → ปล่อยไว้เหมือนเดิม
+        const v = data[key];
+        return (v === undefined || v === null) ? '' : String(v);
+    });
 };
 
 // ==========================================

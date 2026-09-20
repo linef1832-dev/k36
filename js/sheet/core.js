@@ -51,7 +51,9 @@ window.initSheetApp = async function() {
 window.fetchSheets = async function(force) {
     try {
         if (typeof appDB === 'undefined') return;
-        // 🗃️ cache 60 วิ: เข้าๆ ออกๆ หน้านี้บ่อยๆ ไม่ต้องยิง DB ทุกรอบ (บันทึก/ลบชีตจะล้าง cache ให้เอง)
+        // 🗃️ cache 60 วิ: เข้าๆ ออกๆ หน้านี้บ่อยๆ ไม่ต้องยิง DB ทุกรอบ
+        // ❗ ข้อมูลนี้ไม่มีจุดไหนเรียก dbCache.bust('ext_sheets') เลย — ทางเดียวที่ทำให้ข้อมูลสดคือ force
+        //    ดังนั้น sheet/admin.js ต้องเรียก fetchSheets(true) หลังบันทึก/ลบเสมอ
         let data = (!force && window.dbCache) ? window.dbCache.get('ext_sheets') : undefined;
         if (data === undefined) {
             const res = await appDB.from('external_sheets').select('*').order('id', { ascending: true });
@@ -68,6 +70,13 @@ window.fetchSheets = async function(force) {
         if(typeof renderAdminSheetList === 'function') renderAdminSheetList();
         renderRecentTabs();
     } catch (err) { console.error('Fetch Sheets Error:', err); }
+
+    // 🧮 [FIX] เดิมบรรทัด ~385 ท้ายไฟล์ห่อ fetchSheets อีกชั้นเพื่อเรียก initCalculator ต่อท้าย
+    //    แต่ตัวห่อประกาศเป็น function() วงเล็บว่าง และเรียก oldFetchSheets() มือเปล่า
+    //    → force ที่ sheet/admin.js ส่งมาหลังบันทึก/ลบชีต ตกหล่นตรงนั้น กลายเป็น undefined ทุกครั้ง
+    //    → ไปอ่าน cache ตัวเดิม ผู้ใช้เห็นชีตที่ลบไปแล้วค้างอยู่นานสุด 60 วินาที
+    //    แก้โดยยุบมารวมเป็นฟังก์ชันเดียว ไม่ต้องห่อ = ไม่มีอาร์กิวเมนต์ตกหล่นอีก
+    if (typeof initCalculator === 'function') await initCalculator();
 };
 
 function populateCalcTeamDropdown() {
@@ -381,11 +390,5 @@ function fallbackCopyText(text) {
     }
     document.body.removeChild(textArea);
 }
-
-const oldFetchSheets = window.fetchSheets;
-window.fetchSheets = async function() {
-    await oldFetchSheets();
-    if(typeof initCalculator === 'function') await initCalculator();
-};
 
 // ==========================================
