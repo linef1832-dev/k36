@@ -1,0 +1,19 @@
+{
+  "name": "k36-tg-listener",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ดักข้อความบอทเช็คอินในกลุ่ม Telegram แล้วบันทึกลง Supabase สำหรับหน้า ตรวจเวลาลุกจากที่นั่ง",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "login": "node login.js",
+    "chats": "node list-chats.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5",
+    "input": "^1.0.1",
+    "telegram": "^2.26.22"
+  },
+  "engines": { "node": ">=18" }
+}
