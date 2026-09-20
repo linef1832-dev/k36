@@ -48,6 +48,26 @@ window.initSheetApp = async function() {
     await fetchSheets();
 };
 
+// ════════════════════════════════════════════════════════
+// 🔴 Realtime ชีต — เพิ่ม/แก้/ลบ ที่ไหนก็ตาม ทุกเครื่องเห็นทันที ไม่ต้องกด F5
+//   (หน้านี้เดิมไม่มี realtime จึงต้องรีเฟรชเองตลอด)
+// ════════════════════════════════════════════════════════
+window.initSheetRealtime = function () {
+    if (window._sheetRtChannel || typeof appDB === 'undefined') return;
+    try {
+        window._sheetRtChannel = appDB
+            .channel('sheets-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'external_sheets' }, () => {
+                clearTimeout(window._sheetRtTimer);
+                window._sheetRtTimer = setTimeout(() => {
+                    if (window.dbCache) window.dbCache.bust('ext_sheets');
+                    window.fetchSheets(true);   // ดึงสดแล้ววาดใหม่ทั้งหน้า (เมนู/แท็บ/รายการแอดมิน)
+                }, 350);
+            })
+            .subscribe();
+    } catch (e) { console.warn('Sheet realtime ใช้ไม่ได้:', e.message); }
+};
+
 window.fetchSheets = async function(force) {
     try {
         if (typeof appDB === 'undefined') return;
@@ -67,6 +87,7 @@ window.fetchSheets = async function(force) {
         populateCalcTeamDropdown(); 
         if(typeof renderAdminSheetList === 'function') renderAdminSheetList();
         renderRecentTabs();
+        if (typeof window.initSheetRealtime === 'function') window.initSheetRealtime();   // 🔴 เปิดหูฟังครั้งแรก
     } catch (err) { console.error('Fetch Sheets Error:', err); }
 };
 
