@@ -18,6 +18,8 @@
     let _sub     = null;
     let _lastRowAt = null; // created_at ล่าสุด — ใช้ดูว่าตัวดักฟังยังทำงานอยู่ไหม
     let _booked  = {};     // ชื่อพนักงาน → [รอบพักที่จองไว้วันนี้]
+    let _skipDepts   = [];  // แผนกที่ไม่ต้องตรวจเลย
+    let _noSlotDepts = [];  // แผนกที่ไม่ต้องเทียบรอบจองพัก
 
     // ── เวลา ─────────────────────────────────────────────
     const toSec = t => { const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t || '')); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] || 0)) : null; };
@@ -63,6 +65,8 @@
         try {
             const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
             RULE_FIELDS.forEach(id => { if (v[id] !== undefined && $(id)) $(id).value = v[id]; });
+            _skipDepts   = Array.isArray(v._skipDepts)   ? v._skipDepts   : [];
+            _noSlotDepts = Array.isArray(v._noSlotDepts) ? v._noSlotDepts : [];
             if ($('baRulesNote')) $('baRulesNote').textContent = v._by ? `เกณฑ์ที่ใช้อยู่ ตั้งโดย ${v._by}` : '';
         } catch (e) { console.warn('[break_audit] เกณฑ์ที่เก็บไว้อ่านไม่ออก', e); }
     }
@@ -70,6 +74,10 @@
     window.baSaveRules = async function () {
         const v = {};
         RULE_FIELDS.forEach(id => { if ($(id)) v[id] = $(id).value; });
+        _skipDepts   = [].slice.call(document.querySelectorAll('#baSkipDepts input:checked')).map(x => x.value);
+        _noSlotDepts = [].slice.call(document.querySelectorAll('#baNoSlotDepts input:checked')).map(x => x.value);
+        v._skipDepts = _skipDepts;
+        v._noSlotDepts = _noSlotDepts;
         v._by = (window.currentUser && window.currentUser.username) || '';
         v._at = new Date().toISOString();
         const json = JSON.stringify(v);
@@ -100,9 +108,43 @@
         } catch (e) { console.warn('[break_audit] โหลดรายชื่อพนักงานไม่สำเร็จ', e); _users = []; }
 
         const fill = (el, arr, allLabel) => { if (el) el.innerHTML = `<option value="all">${allLabel}</option>` + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join(''); };
-        fill($('baDept'), [...new Set(_users.map(u => u.department).filter(Boolean))].sort(), 'ทุกแผนก');
+        const depts = [...new Set(_users.map(u => u.department).filter(Boolean))].sort();
+        fill($('baDept'), depts, 'ทุกแผนก');
+        renderDeptBoxes(depts);
         fill($('baTeam'), [...new Set(_users.map(u => u.team).filter(Boolean))].sort(), 'ทุกเว็บ');
     }
+    function renderDeptBoxes(depts) {
+        const mk = (host, picked) => {
+            if (!$(host)) return;
+            $(host).innerHTML = depts.map(d => {
+                const on = picked.indexOf(d) > -1;
+                return `<label class="ba-dept ${on ? 'on' : ''}">
+                    <input type="checkbox" value="${esc(d)}" ${on ? 'checked' : ''}
+                        onchange="this.parentNode.classList.toggle('on', this.checked); baApplyDepts();">
+                    ${esc(d)}</label>`;
+            }).join('') || '<span class="text-[11px] text-gray-500">ยังไม่มีข้อมูลแผนก</span>';
+        };
+        mk('baSkipDepts', _skipDepts);
+        mk('baNoSlotDepts', _noSlotDepts);
+        updateSettingsNote();
+    }
+
+    function updateSettingsNote() {
+        const n = $('baSettingsNote');
+        if (!n) return;
+        const a = _skipDepts.length ? `ไม่ตรวจ ${_skipDepts.join(', ')}` : '';
+        const b = _noSlotDepts.length ? `ไม่เทียบรอบจอง ${_noSlotDepts.join(', ')}` : '';
+        n.textContent = [a, b].filter(Boolean).join(' · ') || 'ตรวจทุกแผนก';
+    }
+
+    // ติ๊กแล้วเห็นผลทันที (ยังไม่บันทึกจนกว่าจะกดปุ่ม)
+    window.baApplyDepts = function () {
+        _skipDepts   = [].slice.call(document.querySelectorAll('#baSkipDepts input:checked')).map(x => x.value);
+        _noSlotDepts = [].slice.call(document.querySelectorAll('#baNoSlotDepts input:checked')).map(x => x.value);
+        updateSettingsNote();
+        window.baCompute();
+    };
+
     function findUser(tgId, tgName) {
         const id = String(tgId || '').trim();
         let u = _users.find(x => x.telegram_id && String(x.telegram_id).trim() === id);
@@ -188,8 +230,9 @@
             // เทียบกับรอบที่จองไว้ (เช็คเฉพาะหมวดกินข้าว)
             p.booked = p.booked || [];
             p.offSlot = 0;
+            p.checkSlot = _noSlotDepts.indexOf(p.dept || '') < 0;
             p.sessions.forEach(s => {
-                if (s.kind !== 'meal') return;
+                if (!p.checkSlot || s.kind !== 'meal') return;
                 if (!p.booked.length) { s.slotNote = 'ไม่ได้จองรอบพัก'; s.offSlot = true; p.offSlot++; return; }
                 const hit = p.booked.find(b => s.start < b.b && s.end > b.a);
                 if (hit) { s.slotNote = 'ตรงรอบ ' + hit.text; s.offSlot = false; }
@@ -227,6 +270,7 @@
         _rows.forEach(r => {
             const u = findUser(r.tg_user_id, r.tg_name);
             if (!u) { (unknown[r.tg_user_id] = unknown[r.tg_user_id] || { id: r.tg_user_id, name: r.tg_name, n: 0 }).n++; return; }
+            if (_skipDepts.indexOf(u.department || '') > -1) return;
             if (dept !== 'all' && (u.department || '') !== dept) return;
             if (team !== 'all' && (u.team || '') !== team) return;
             const start = toSec(r.started_at);
@@ -246,6 +290,7 @@
         if ($('baAbsent').checked) {
             _users.forEach(u => {
                 if (hit[u.id] || !u.telegram_id) return;
+                if (_skipDepts.indexOf(u.department || '') > -1) return;
                 if (dept !== 'all' && (u.department || '') !== dept) return;
                 if (team !== 'all' && (u.team || '') !== team) return;
                 _people.push({
@@ -404,7 +449,7 @@
             if (p.chains.length) chips.push(`<span class="ba-chip ${p.overCap ? 'bad' : 'warn'}">กดต่อเนื่อง ${p.chains.length} ชุด รวดเดียว ${hms(p.chainMax)}</span>`);
             if (p.overLimit)     chips.push(`<span class="ba-chip warn">ใช้เกินเวลาที่บอทให้ ${p.overLimit} รอบ</span>`);
             if (p.offSlot)       chips.push(`<span class="ba-chip warn">กินข้าวนอกรอบที่จอง ${p.offSlot} รอบ</span>`);
-            if (p.booked && p.booked.length) chips.push(`<span class="ba-chip">จองไว้ ${p.booked.map(b => b.text).join(', ')}</span>`);
+            if (p.checkSlot !== false && p.booked && p.booked.length) chips.push(`<span class="ba-chip">จองไว้ ${p.booked.map(b => b.text).join(', ')}</span>`);
             if (p.live)          chips.push('<span class="ba-chip live">ตอนนี้ยังไม่กลับที่นั่ง</span>');
 
             const when = p.sessions.length
