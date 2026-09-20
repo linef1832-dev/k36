@@ -18,7 +18,9 @@
     let _sub     = null;
     let _lastRowAt = null; // created_at ล่าสุด — ใช้ดูว่าตัวดักฟังยังทำงานอยู่ไหม
     let _booked  = {};     // ชื่อพนักงาน → [รอบพักที่จองไว้วันนี้]
-    let _duty    = {};     // 'แผนก|กะ|เว็บ' → Set(ชื่อ)  — จากหน้าจัดหน้าที่ของวันนั้น
+    let _duty    = {};     // 'แผนก|กะ|เว็บ' → Set(ชื่อ) รวมหลัก+รอง — จากหน้าจัดหน้าที่ของวันนั้น
+    let _dutyMain = {};    // เฉพาะคนที่เป็น "หลัก" ของเว็บนั้น
+    let _dutySec  = {};    // เฉพาะคนที่เป็น "รอง" ของเว็บนั้น
     let _dutyOf  = {};     // ชื่อ(normalized) → [{dept, shift, team}]
     let _skipDepts   = [];  // แผนกที่ไม่ต้องตรวจเลย
     let _noSlotDepts = [];  // แผนกที่ไม่ต้องเทียบรอบจองพัก
@@ -36,6 +38,7 @@
             cap:     (+$('baCap').value     || 120) * 60,
             mealMax: (+$('baMealMax').value || 2),
             gap:     (+$('baGap').value || 0) * (($('baGapUnit') && $('baGapUnit').value === 'sec') ? 1 : 60),
+            late:    (+($('baLate') && $('baLate').value) || 0) * 60,
             a: toSec($('baShiftA').value) || 0,
             b: toSec($('baShiftB').value) || 86400
         };
@@ -51,7 +54,7 @@
 
     // ── เกณฑ์: โหลด/บันทึก (เก็บในตาราง settings ใช้ร่วมกันทั้งทีม) ──
     const RULE_KEY = 'break_audit_rules';
-    const RULE_FIELDS = ['baCap', 'baMealMax', 'baGap', 'baGapUnit', 'baShiftA', 'baShiftB'];
+    const RULE_FIELDS = ['baCap', 'baMealMax', 'baGap', 'baGapUnit', 'baLate', 'baShiftA', 'baShiftB'];
 
     async function loadRules() {
         let raw = null;
@@ -204,7 +207,7 @@
     // ── ตารางจัดหน้าที่ของวันนั้น (settings: duty_roster_แผนก_วันที่_กะ) ──
     //    เว็บที่แต่ละคนเฝ้า เปลี่ยนทุกวัน จึงต้องอ่านจากตรงนี้ ไม่ใช่ users.team
     async function loadDuty() {
-        _duty = {}; _dutyOf = {};
+        _duty = {}; _dutyOf = {}; _dutyMain = {}; _dutySec = {};
         if (typeof appDB === 'undefined') return;
         try {
             const { data } = await appDB.from('settings')
@@ -216,10 +219,12 @@
                 const dept = parts[2], shift = parts[parts.length - 1];
                 let roster;
                 try { roster = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; } catch (e) { return; }
-                const add = (team, name) => {
+                const add = (team, name, role) => {
                     if (!team || !name || String(name).includes('ขาดคน')) return;
                     const k = dept + '|' + shift + '|' + team;
                     (_duty[k] = _duty[k] || new Set()).add(name);
+                    const bucket = role === 'sec' ? _dutySec : _dutyMain;
+                    (bucket[k] = bucket[k] || new Set()).add(name);
                     const nk = norm(name);
                     _dutyOf[nk] = _dutyOf[nk] || [];
                     if (!_dutyOf[nk].some(x => x.dept === dept && x.shift === shift && x.team === team)) {
@@ -229,8 +234,8 @@
                 Object.keys(roster || {}).forEach(team => {
                     (roster[team] || []).forEach(u => {
                         if (!u || !u.username) return;
-                        add(team, u.username);                    // เว็บหลัก
-                        if (u.secondary_team) add(u.secondary_team, u.username);   // เว็บรอง ก็ต้องเฝ้าเหมือนกัน
+                        add(team, u.username, 'main');                                    // เว็บหลัก
+                        if (u.secondary_team) add(u.secondary_team, u.username, 'sec');    // เว็บรอง ก็ต้องเฝ้าเหมือนกัน
                     });
                 });
             });
@@ -287,12 +292,20 @@
             p.booked = p.booked || [];
             p.offSlot = 0;
             p.checkSlot = _noSlotDepts.indexOf(p.dept || '') < 0;
+            p.lateSlot = 0;
             p.sessions.forEach(s => {
                 if (!p.checkSlot || s.kind !== 'meal') return;
                 if (!p.booked.length) { s.slotNote = 'ไม่ได้จองรอบพัก'; s.offSlot = true; p.offSlot++; return; }
-                const hit = p.booked.find(b => s.start < b.b && s.end > b.a);
-                if (hit) { s.slotNote = 'ตรงรอบ ' + hit.text; s.offSlot = false; }
-                else { s.slotNote = 'นอกรอบ (จอง ' + p.booked.map(b => b.text).join(', ') + ')'; s.offSlot = true; p.offSlot++; }
+                // จับคู่กับรอบที่จองไว้ซึ่งเวลาเริ่มใกล้ที่สุด
+                let best = p.booked[0], bestDiff = Math.abs(s.start - best.a);
+                p.booked.forEach(b => { const d = Math.abs(s.start - b.a); if (d < bestDiff) { best = b; bestDiff = d; } });
+                const diff = s.start - best.a;                       // + = ออกช้ากว่าที่จอง
+                const mins = Math.round(Math.abs(diff) / 60);
+                if (Math.abs(diff) <= c.late) { s.slotNote = 'ตรงรอบ ' + best.text; s.offSlot = false; }
+                else {
+                    s.offSlot = true; s.lateSlot = true; p.offSlot++; p.lateSlot++;
+                    s.slotNote = (diff > 0 ? 'ออกช้ากว่ารอบที่จอง ' : 'ออกก่อนรอบที่จอง ') + mins + ' นาที (จอง ' + best.text + ')';
+                }
             });
 
             p.chains = []; p.inChain = {}; p.chainMax = 0;
@@ -310,7 +323,7 @@
 
             p.overCap  = p.total > c.cap;
             p.overMeal = p.meal > c.mealMax;
-            p.state = (p.overCap || p.overMeal) ? 'over'
+            p.state = (p.overCap || p.overMeal || p.lateSlot) ? 'over'
                     : (p.total >= c.cap * 0.8 || p.chains.length || p.overLimit || p.offSlot) ? 'near' : 'ok';
             return p;
         }).sort((a, b) => {
@@ -355,7 +368,7 @@
                     id: String(u.telegram_id), name: u.username || '-', dept: u.department || '', team: u.team || '',
                     sessions: [], total: 0, meal: 0, live: false, chains: [], inChain: {}, chainMax: 0,
                     byKind: { meal:{n:0,sec:0}, heavy:{n:0,sec:0}, light:{n:0,sec:0}, other:{n:0,sec:0} },
-                    firstOut: null, lastBack: null, overLimit: 0, offSlot: 0, booked: _booked[norm(u.username)] || [],
+                    firstOut: null, lastBack: null, overLimit: 0, offSlot: 0, lateSlot: 0, booked: _booked[norm(u.username)] || [],
                     overCap: false, overMeal: false, absent: true, state: 'ok'
                 });
             });
@@ -391,7 +404,9 @@
             const [dept, shift, team] = k.split('|');
             if (_skipDepts.indexOf(dept) > -1) return;
             if (wantShift !== 'all' && shift !== wantShift) return;
-            groups[k] = { dept, shift, team, head: _duty[k].size, now: [], away: [], peak: 0, peakAt: null };
+            groups[k] = { dept, shift, team, head: _duty[k].size,
+                          main: (_dutyMain[k] || new Set()).size, sec: (_dutySec[k] || new Set()).size,
+                          now: [], away: [], peak: 0, peakAt: null };
         });
 
         const noDuty = { names: [], sessions: 0 };
@@ -440,7 +455,7 @@
             const g = groups[k], mx = cap(g.head), nowN = g.now.length;
             const st = !isToday ? '' : nowN > mx ? 'bad' : (mx > 0 && nowN === mx) ? 'warn' : 'ok';
             return `<div class="ba-cov ${st}">
-                <div class="ba-covteam"><span class="ba-covdept">${esc(g.dept)} · ${esc(g.shift)}</span>${esc(g.team)} <span class="ba-covhc">เข้าเวร ${g.head} คน</span></div>
+                <div class="ba-covteam"><span class="ba-covdept">${esc(g.dept)} · ${esc(g.shift)}</span>${esc(g.team)} <span class="ba-covhc">เข้าเวร ${g.head} คน (หลัก ${g.main} · รอง ${g.sec})</span></div>
                 ${isToday ? `<div class="ba-covnow"><b>${nowN}</b> / ${mx} <span>ออกอยู่ตอนนี้</span></div>`
                           : `<div class="ba-covnow"><b>—</b><span>ดูย้อนหลัง</span></div>`}
                 ${nowN ? `<div class="ba-covwho">${g.now.map(x => esc(x)).join(', ')}</div>` : ''}
@@ -536,7 +551,8 @@
             if (p.overMeal)      chips.push(`<span class="ba-chip bad">กินข้าวเกิน ${p.meal}/${c.mealMax} รอบ</span>`);
             if (p.chains.length) chips.push(`<span class="ba-chip ${p.overCap ? 'bad' : 'warn'}">กดต่อเนื่อง ${p.chains.length} ชุด รวดเดียว ${hms(p.chainMax)}</span>`);
             if (p.overLimit)     chips.push(`<span class="ba-chip warn">ใช้เกินเวลาที่บอทให้ ${p.overLimit} รอบ</span>`);
-            if (p.offSlot)       chips.push(`<span class="ba-chip warn">กินข้าวนอกรอบที่จอง ${p.offSlot} รอบ</span>`);
+            if (p.lateSlot)      chips.push(`<span class="ba-chip bad">ออกผิดเวลาที่จอง ${p.lateSlot} รอบ</span>`);
+            if (p.offSlot - (p.lateSlot || 0) > 0) chips.push(`<span class="ba-chip warn">ไม่ได้จองรอบพัก ${p.offSlot - p.lateSlot} รอบ</span>`);
             if (p.checkSlot !== false && p.booked && p.booked.length) chips.push(`<span class="ba-chip">จองไว้ ${p.booked.map(b => b.text).join(', ')}</span>`);
             if (p.live)          chips.push('<span class="ba-chip live">ตอนนี้ยังไม่กลับที่นั่ง</span>');
 
@@ -553,7 +569,7 @@
                     <td class="n">${s.live ? 'ยังไม่กลับ' : clock(s.end)}</td>
                     <td class="n" ${s.overLimit ? 'style="color:#fca5a5;font-weight:800"' : ''}>${hms(s.dur)}</td>
                     <td class="n" style="color:#64748b">${s.limit ? s.limit + ' น.' : '—'}</td>
-                    <td>${[p.inChain[i] ? 'ต่อจากรอบก่อน' : '', s.overLimit ? 'เกินเวลาที่บอทให้' : '', s.slotNote || ''].filter(Boolean).join(' · ')}</td>
+                    <td${s.lateSlot ? ' style="color:#fca5a5;font-weight:700"' : ''}>${[p.inChain[i] ? 'ต่อจากรอบก่อน' : '', s.overLimit ? 'เกินเวลาที่บอทให้' : '', s.slotNote || ''].filter(Boolean).join(' · ')}</td>
                 </tr>`).join('');
 
             const spots = _dutyOf[norm(p.name)] || [];
