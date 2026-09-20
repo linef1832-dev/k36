@@ -24,6 +24,13 @@ const PERM_GROUPS = [
         ]
     },
     {
+        id: 'page_break_audit', name: 'ตรวจเวลาลุกจากที่นั่ง (Telegram)', icon: 'timer', theme: 'amber',
+        items: [
+            {id: 'break_audit', name: 'เข้าหน้าตรวจเวลาลุกจากที่นั่ง', isSub: false},
+            {id: 'break_audit_export', name: 'โหลด CSV สรุปรายวัน', isSub: true}
+        ]
+    },
+    {
         id: 'page_leave', name: 'หน้าวันหยุด / ลางาน', icon: 'event_busy', theme: 'rose',
         items: [
             {id: 'leave', name: 'เข้าหน้าตารางวันหยุด', isSub: false},

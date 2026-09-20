@@ -1,0 +1,148 @@
+<!-- ⏱️ ตรวจเวลาลุกจากที่นั่ง — อ่านข้อความบอทเช็คอินใน Telegram แล้วรวมเวลาต่อคนต่อวัน -->
+<div class="w-full animate-fade-in pb-10" id="baPage">
+    <style>
+        #baPage .ba-sel{background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:9px;padding:8px 10px;font-size:13px;font-weight:700;outline:none;min-width:120px}
+        #baPage .ba-sel:focus{border-color:#60a5fa}
+        #baPage .ba-num{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+        #baPage .ba-lbl{font-size:10px;color:#94a3b8;font-weight:800;margin-bottom:4px}
+
+        /* ชิปสรุปด้านบน */
+        #baPage .ba-tally{display:flex;flex-wrap:wrap;gap:8px}
+        #baPage .ba-t{flex:1 1 120px;background:#0b1220;border:1px solid rgba(148,163,184,.16);border-radius:12px;padding:10px 12px;cursor:pointer;transition:border-color .15s,background .15s;text-align:left}
+        #baPage .ba-t:hover{border-color:rgba(96,165,250,.5);background:#0e1730}
+        #baPage .ba-t.on{border-color:#60a5fa;background:rgba(59,130,246,.12)}
+        #baPage .ba-t .n{display:block;font-size:24px;font-weight:900;line-height:1.15;color:#f1f5f9;font-variant-numeric:tabular-nums}
+        #baPage .ba-t .l{display:block;font-size:11.5px;color:#94a3b8;font-weight:700}
+        #baPage .ba-t.over .n{color:#f87171}
+        #baPage .ba-t.near .n{color:#fbbf24}
+
+        /* แถวพนักงาน */
+        #baPage .ba-row{border-bottom:1px solid rgba(148,163,184,.1)}
+        #baPage .ba-row>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:4px 1fr auto;gap:0 12px;align-items:center;padding:11px 8px}
+        #baPage .ba-row>summary::-webkit-details-marker{display:none}
+        #baPage .ba-row:hover>summary{background:rgba(148,163,184,.05)}
+        #baPage .ba-bar{width:4px;align-self:stretch;border-radius:2px;background:#334155}
+        #baPage .ba-row[data-state="over"] .ba-bar{background:#ef4444}
+        #baPage .ba-row[data-state="near"] .ba-bar{background:#f59e0b}
+        #baPage .ba-nm{font-weight:800;color:#e2e8f0;font-size:14px}
+        #baPage .ba-meta{font-size:11px;color:#94a3b8;margin-top:1px}
+        #baPage .ba-tot{text-align:right;font-weight:900;font-size:18px;color:#f1f5f9;font-family:ui-monospace,Menlo,monospace}
+        #baPage .ba-row[data-state="over"] .ba-tot{color:#f87171}
+        #baPage .ba-row[data-state="near"] .ba-tot{color:#fbbf24}
+        #baPage .ba-tot small{display:block;font-size:10.5px;font-weight:700;color:#64748b;font-family:inherit}
+
+        /* แถบเวลาในกะ */
+        #baPage .ba-track{grid-column:2/-1;position:relative;height:20px;background:#0b1220;border:1px solid rgba(148,163,184,.12);border-radius:5px;margin:3px 0 4px;overflow:hidden}
+        #baPage .ba-track i{position:absolute;display:block}
+        #baPage .ba-blk{top:3px;height:12px;min-width:3px;border-radius:2px}
+        #baPage .ba-blk.meal{background:#22c55e}
+        #baPage .ba-blk.heavy{background:#f97316}
+        #baPage .ba-blk.light{background:#38bdf8}
+        #baPage .ba-blk.other{background:#a78bfa}
+        #baPage .ba-blk.live{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 3px,transparent 3px 6px)}
+        #baPage .ba-chain{bottom:1px;height:5px;border:1px solid #ef4444;border-top:0;border-radius:0 0 3px 3px}
+        #baPage .ba-hour{top:0;bottom:0;width:1px;background:rgba(148,163,184,.13)}
+        #baPage .ba-ticks{grid-column:2/-1;position:relative;height:12px;font-size:9.5px;color:#64748b;font-family:ui-monospace,Menlo,monospace}
+        #baPage .ba-ticks span{position:absolute;transform:translateX(-50%)}
+
+        #baPage .ba-chips{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:5px;padding-bottom:2px}
+        #baPage .ba-chip{font-size:11px;font-weight:800;padding:1px 8px;border-radius:99px;border:1px solid #334155;color:#94a3b8;background:#0f172a}
+        #baPage .ba-chip.bad{border-color:rgba(239,68,68,.45);color:#fca5a5;background:rgba(239,68,68,.12)}
+        #baPage .ba-chip.warn{border-color:rgba(245,158,11,.45);color:#fcd34d;background:rgba(245,158,11,.12)}
+        #baPage .ba-chip.live{border-color:rgba(34,197,94,.45);color:#86efac;background:rgba(34,197,94,.12)}
+
+        #baPage .ba-det{grid-column:1/-1;padding:2px 8px 14px 24px}
+        #baPage .ba-det table{width:100%;border-collapse:collapse;font-size:12.5px}
+        #baPage .ba-det th{text-align:left;color:#64748b;font-size:10.5px;font-weight:800;padding:4px 8px 4px 0;border-bottom:1px solid rgba(148,163,184,.12)}
+        #baPage .ba-det td{padding:5px 8px 5px 0;border-bottom:1px solid rgba(148,163,184,.08);color:#cbd5e1}
+        #baPage .ba-det td.n{text-align:right;font-family:ui-monospace,Menlo,monospace;padding-right:0}
+        #baPage .ba-det tr.linked td{border-left:2px solid #ef4444;padding-left:7px}
+        #baPage .ba-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+
+        /* กล่องลากไฟล์ */
+        #baPage .ba-drop{border:1.5px dashed #334155;background:#0b1220;border-radius:12px;padding:18px;text-align:center;color:#94a3b8;font-size:13px;cursor:pointer;transition:border-color .15s,color .15s}
+        #baPage .ba-drop:hover,#baPage .ba-drop.hot{border-color:#60a5fa;color:#cbd5e1}
+        #baPage textarea{width:100%;min-height:120px;background:#0b1220;border:1px solid #334155;border-radius:10px;color:#cbd5e1;font-family:ui-monospace,Menlo,monospace;font-size:12px;padding:10px;outline:none;resize:vertical}
+        #baPage textarea:focus{border-color:#60a5fa}
+    </style>
+
+    <!-- หัวหน้า -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-[#151f32] p-4 rounded-2xl border border-slate-700 shadow-xl">
+        <div>
+            <h2 class="text-xl font-black text-white flex items-center gap-2">
+                <span class="material-icons text-amber-400">timer</span> ตรวจเวลาลุกจากที่นั่ง
+            </h2>
+            <p class="text-[11px] text-gray-400 mt-1">อ่านข้อความบอทเช็คอินใน Telegram แล้วรวมเวลาทุกหมวดต่อคนต่อวัน · จับการกดต่อเนื่อง</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+            <div><div class="ba-lbl">วันที่ในไฟล์</div><select id="baDate" class="ba-sel" style="min-width:150px"><option value="">— ยังไม่มีข้อมูล —</option></select></div>
+            <button id="baExportBtn" onclick="baExport()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-bold items-center gap-1 self-end" style="display:none"><span class="material-icons text-sm">download</span> CSV</button>
+        </div>
+    </div>
+
+    <!-- เกณฑ์ -->
+    <div class="bg-[#0f172a] mt-3 p-3 rounded-2xl border border-slate-700 flex flex-wrap gap-3 items-end">
+        <div><div class="ba-lbl">เพดานรวมทั้งวัน (นาที)</div><input id="baCap" type="number" min="1" value="120" onchange="baRun()" class="ba-sel ba-num" style="min-width:90px"></div>
+        <div><div class="ba-lbl">กินข้าวได้กี่รอบ</div><input id="baMealMax" type="number" min="1" value="2" onchange="baRun()" class="ba-sel ba-num" style="min-width:80px"></div>
+        <div><div class="ba-lbl">กลับมานั่งไม่ถึง (นาที) = ต่อเนื่อง</div><input id="baGap" type="number" min="0" value="5" onchange="baRun()" class="ba-sel ba-num" style="min-width:90px"></div>
+        <div><div class="ba-lbl">กะเริ่ม</div><input id="baShiftA" type="time" value="08:00" onchange="baRun()" class="ba-sel" style="min-width:110px"></div>
+        <div><div class="ba-lbl">กะเลิก</div><input id="baShiftB" type="time" value="20:00" onchange="baRun()" class="ba-sel" style="min-width:110px"></div>
+        <div><div class="ba-lbl">แผนก</div><select id="baDept" class="ba-sel" onchange="baRun()"><option value="all">ทุกแผนก</option></select></div>
+        <div><div class="ba-lbl">เว็บ</div><select id="baTeam" class="ba-sel" onchange="baRun()"><option value="all">ทุกเว็บ</option></select></div>
+        <div class="flex-1 min-w-[150px]"><div class="ba-lbl">ค้นหาชื่อ</div><input id="baSearch" oninput="baRender()" placeholder="พิมพ์ชื่อ..." class="ba-sel w-full"></div>
+        <label class="flex items-center gap-2 text-[12px] text-gray-300 font-bold cursor-pointer self-end pb-2">
+            <input type="checkbox" id="baAbsent" checked onchange="baRun()" class="w-4 h-4 accent-amber-500"> แสดงคนที่ไม่ได้กดเลย
+        </label>
+    </div>
+
+    <!-- สรุป -->
+    <div class="ba-tally mt-3" id="baTally"></div>
+
+    <!-- รายชื่อ -->
+    <div class="bg-[#0b1220] mt-3 rounded-2xl border border-slate-700 overflow-hidden">
+        <div id="baList">
+            <div class="text-center text-gray-500 py-12 text-sm px-4">
+                <span class="material-icons text-4xl text-slate-600">upload_file</span><br>
+                ยังไม่มีข้อมูล — วางไฟล์ export ของกลุ่ม Telegram ไว้ด้านล่าง
+            </div>
+        </div>
+    </div>
+
+    <!-- คนที่จับคู่กับระบบไม่ได้ -->
+    <div id="baUnknownBox" class="bg-[#1a1408] mt-3 p-3 rounded-2xl border border-amber-800/60" style="display:none">
+        <div class="text-amber-300 font-black text-sm flex items-center gap-2 mb-1">
+            <span class="material-icons text-base">person_off</span> มีคนกดเช็คอินแต่จับคู่กับพนักงานในระบบไม่ได้
+        </div>
+        <p class="text-[11px] text-amber-200/70 mb-2">ถ้าเป็นคนของเรา ให้ไปใส่ Telegram ID ให้เขาที่หน้า “ตั้งค่าระบบ → จัดการพนักงาน” แล้วกลับมากดคำนวณใหม่ ถ้าไม่ใช่คนของเราก็ปล่อยไว้ได้เลย</p>
+        <div id="baUnknown" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <!-- ข้อมูลเข้า -->
+    <div class="bg-[#0f172a] mt-3 p-4 rounded-2xl border border-slate-700">
+        <div class="text-white font-black text-sm flex items-center gap-2 mb-2"><span class="material-icons text-base text-sky-400">description</span> ข้อมูลเข้า</div>
+        <p class="text-[11.5px] text-gray-400 mb-3 leading-relaxed">
+            เปิด Telegram บนคอม → เข้ากลุ่มเช็คอิน → เมนูขวาบน → Export chat history → เอาติ๊กรูป/ไฟล์ออกให้หมด เลือกรูปแบบ <b class="text-gray-300">JSON</b> → ลากไฟล์ <b class="text-gray-300">result.json</b> มาวางตรงนี้
+            <span class="block mt-1 text-gray-500">ไฟล์อ่านในเครื่องคุณเอง ไม่ได้อัปขึ้นเซิร์ฟเวอร์</span>
+        </p>
+        <div class="ba-drop" id="baDrop" tabindex="0" role="button">
+            <span class="material-icons text-2xl text-slate-500">cloud_upload</span><br>
+            <b class="text-gray-200">ลากไฟล์มาวางตรงนี้</b><br>result.json · messages.html · .txt — หรือกดเพื่อเลือกไฟล์
+        </div>
+        <input type="file" id="baFile" accept=".json,.html,.htm,.txt" multiple hidden>
+        <div class="text-[10px] text-gray-500 mt-3 mb-1 font-bold">หรือก๊อปข้อความจากบอทมาวางตรงนี้</div>
+        <textarea id="baRaw" spellcheck="false" placeholder="ผู้ใช้ : OD- BIRD-TT-Jun88 (08.00 - 20.00)&#10;รหัสผู้ใช้ : 8319332907&#10;✅ 09/20 13:03:26 ลงทะเบียนสำหรับ กลับที่นั่ง สำเร็จ : ปวดหนัก&#10;เวลากิจกรรมนี้ : 00:19:08"></textarea>
+        <div class="flex flex-wrap gap-2 mt-3">
+            <button onclick="baRun()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1"><span class="material-icons text-sm">calculate</span> คำนวณ</button>
+            <button onclick="baDemo()" class="bg-slate-700 hover:bg-slate-600 text-gray-200 px-4 py-2 rounded-lg text-sm font-bold">ใส่ข้อมูลตัวอย่าง</button>
+            <button onclick="baClear()" class="bg-slate-800 hover:bg-slate-700 text-gray-400 px-4 py-2 rounded-lg text-sm font-bold">ล้างข้อมูล</button>
+            <div id="baMsg" class="text-[12px] text-gray-400 self-center ml-1"></div>
+        </div>
+        <div class="flex flex-wrap gap-3 mt-3 text-[11px] text-gray-500">
+            <span><span class="ba-dot" style="background:#22c55e"></span>กินข้าว</span>
+            <span><span class="ba-dot" style="background:#f97316"></span>ปวดหนัก</span>
+            <span><span class="ba-dot" style="background:#38bdf8"></span>ปวดน้อย / สูบบุหรี่</span>
+            <span><span class="ba-dot" style="background:#a78bfa"></span>อื่นๆ</span>
+            <span><span class="ba-dot" style="border:1px solid #ef4444;background:transparent"></span>กรอบแดง = กดต่อเนื่อง</span>
+        </div>
+    </div>
+</div>
