@@ -66,6 +66,7 @@
         #baPage .ba-cov.warn{border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.07)}
         #baPage .ba-cov.bad{border-color:rgba(239,68,68,.55);background:rgba(239,68,68,.09)}
         #baPage .ba-covteam{font-weight:800;color:#e2e8f0;font-size:13px}
+        #baPage .ba-covdept{display:inline-block;font-size:10px;font-weight:900;color:#0f172a;background:#7dd3fc;border-radius:5px;padding:1px 6px;margin-right:6px;vertical-align:1px}
         #baPage .ba-covhc{font-weight:600;font-size:11px;color:#64748b;margin-left:4px}
         #baPage .ba-covnow{font-size:12px;color:#94a3b8;margin-top:3px}
         #baPage .ba-covnow b{font-size:19px;color:#f1f5f9;font-variant-numeric:tabular-nums;margin-right:2px}
@@ -115,7 +116,7 @@
         </div>
     </div>
 
-    <!-- เกณฑ์ + ตัวกรอง -->
+    <!-- แถวบน: เกณฑ์ที่ต้องกดบันทึก -->
     <div class="bg-[#0f172a] mt-3 p-3 rounded-2xl border border-slate-700 flex flex-wrap gap-3 items-end">
         <div><div class="ba-lbl">เพดานรวมทั้งวัน (นาที)</div><input id="baCap" type="number" min="1" value="120" onchange="baCompute()" class="ba-sel" style="min-width:90px"></div>
         <div><div class="ba-lbl">กินข้าวได้กี่รอบ</div><input id="baMealMax" type="number" min="1" value="2" onchange="baCompute()" class="ba-sel" style="min-width:80px"></div>
@@ -130,7 +131,17 @@
         </div>
         <div><div class="ba-lbl">กะเริ่ม</div><input id="baShiftA" type="time" value="08:00" onchange="baCompute()" class="ba-sel" style="min-width:110px"></div>
         <div><div class="ba-lbl">กะเลิก</div><input id="baShiftB" type="time" value="20:00" onchange="baCompute()" class="ba-sel" style="min-width:110px"></div>
+        <button id="baSaveRules" onclick="baSaveRules()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
+            <span class="material-icons text-sm">save</span> บันทึกเกณฑ์
+        </button>
+        <span id="baRulesNote" class="text-[11px] text-gray-500 self-end pb-2"></span>
+    </div>
+
+    <!-- แถวล่าง: ตัวกรอง เลือกแล้วเปลี่ยนทันที ไม่ต้องบันทึก -->
+    <div class="bg-[#0b1220] mt-2 p-3 rounded-2xl border border-slate-800 flex flex-wrap gap-3 items-end">
+        <span class="text-[11px] text-gray-500 self-end pb-2 mr-1">ตัวกรอง (เลือกแล้วเปลี่ยนทันที)</span>
         <div><div class="ba-lbl">แผนก</div><select id="baDept" class="ba-sel" onchange="baCompute()"><option value="all">ทุกแผนก</option></select></div>
+        <div><div class="ba-lbl">กะ</div><select id="baShift" class="ba-sel" onchange="baCompute()"><option value="all">ทุกกะ</option></select></div>
         <div><div class="ba-lbl">เว็บ</div><select id="baTeam" class="ba-sel" onchange="baCompute()"><option value="all">ทุกเว็บ</option></select></div>
         <div><div class="ba-lbl">ดูเฉพาะหมวด</div><select id="baKind" class="ba-sel" onchange="baRender()">
             <option value="all">ทุกหมวด</option>
@@ -143,10 +154,6 @@
         <label class="flex items-center gap-2 text-[12px] text-gray-300 font-bold cursor-pointer self-end pb-2">
             <input type="checkbox" id="baAbsent" checked onchange="baCompute()" class="w-4 h-4 accent-amber-500"> แสดงคนที่ไม่ได้กดเลย
         </label>
-        <button id="baSaveRules" onclick="baSaveRules()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 self-end">
-            <span class="material-icons text-sm">save</span> บันทึกเกณฑ์
-        </button>
-        <span id="baRulesNote" class="text-[11px] text-gray-500 self-end pb-2"></span>
     </div>
 
     <!-- สรุป -->
