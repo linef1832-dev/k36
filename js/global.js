@@ -425,10 +425,13 @@ window.openPageFromHash = function () {
     const name = /^[a-z0-9_]+$/i.test(raw) ? raw : '';
     if (!name || name === 'dashboard') return showPage('dashboard');
 
-    // มีเมนูหน้านี้ให้คนนี้จริงไหม (เคารพระบบสิทธิ์เดิม — ปุ่มเมนูที่ถูกซ่อน = เข้าไม่ได้)
+    // มีเมนูหน้านี้ให้คนนี้จริงไหม
+    // ⚠️ [FIX] ห้ามเช็คด้วย "มองเห็นบนจอไหม" — หมวดเมนูที่พับอยู่ (group-collapsed) หรือแถบข้างแบบย่อ
+    //    จะทำให้ปุ่มถูกซ่อนด้วย CSS ทั้งที่มีสิทธิ์ → เด้งกลับหน้าหลักทุกครั้งที่รีเฟรช
+    //    เช็คแค่ว่า "ปุ่มเมนูนี้มีอยู่จริงและไม่ได้ถูกซ่อนด้วยสิทธิ์ (.hidden)" ก็พอ
     const btn = document.querySelector(`button[onclick*="showPage('${name}')"]`);
-    const allowed = btn && !btn.closest('.hidden') && getComputedStyle(btn).display !== 'none';
-    if (!allowed) { try { history.replaceState({ page: 'dashboard' }, '', '#dashboard'); } catch (e) {} return showPage('dashboard'); }
+    const hiddenByPerm = btn && (btn.classList.contains('hidden') || btn.style.display === 'none');
+    if (!btn || hiddenByPerm) { try { history.replaceState({ page: 'dashboard' }, '', '#dashboard'); } catch (e) {} return showPage('dashboard'); }
     return showPage(name);
 };
 
