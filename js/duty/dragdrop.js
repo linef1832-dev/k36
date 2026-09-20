@@ -483,8 +483,9 @@ window.openDutyHistoryModal = async function() {
         }
 
         // 📋 รวบรวมวันที่และหัวข้อที่มีจริง ไว้ทำตัวเลือก
-        const _days = [...new Set(logs.map(l => String(l.created_at || '').slice(0, 10)).filter(Boolean))].sort().reverse();
-        const _types = [...new Set(logs.map(l => String(l.action_type || 'อื่นๆ')).filter(Boolean))].sort();
+        const _logs = data || [];   // ✅ ชื่อตัวแปรจริงคือ data (ก่อนหน้านี้เขียน logs ผิด → โหลดประวัติไม่ขึ้น)
+        const _days = [...new Set(_logs.map(l => String(l.created_at || '').slice(0, 10)).filter(Boolean))].sort().reverse();
+        const _types = [...new Set(_logs.map(l => String(l.action_type || 'อื่นๆ')).filter(Boolean))].sort();
         const _thDay = d => { try { const [y, m, dd] = d.split('-'); return `${+dd}/${+m}/${+y + 543}`; } catch (e) { return d; } };
         const _dayOpts = _days.map(d => `<option value="${d}">${_thDay(d)}</option>`).join('');
         const _typeOpts = _types.map(t => `<option value="${t}">${t}</option>`).join('');
