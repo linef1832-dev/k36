@@ -210,18 +210,26 @@
     function render() {
         const c = cfg();
         const q = (($('baSearch') && $('baSearch').value) || '').trim().toLowerCase();
-        const counts = { all: _people.length, over: 0, near: 0, ok: 0 };
-        _people.forEach(p => counts[p.state]++);
+        const kindPick = ($('baKind') && $('baKind').value) || 'all';
+        const counts = { all: _people.length, over: 0, near: 0, live: 0 };
+        _people.forEach(p => { if (p.state === 'over') counts.over++; else if (p.state === 'near') counts.near++; if (p.live) counts.live++; });
 
         $('baTally').innerHTML = [
             ['all', 'ทั้งหมด', counts.all, ''],
             ['over', 'เกินเกณฑ์', counts.over, 'over'],
             ['near', 'ต้องดู', counts.near, 'near'],
-            ['ok', 'ปกติ', counts.ok, '']
+            ['live', 'ยังไม่กดกลับ', counts.live, 'live']
         ].map(t => `<button class="ba-t ${t[3]} ${_filter === t[0] ? 'on' : ''}" onclick="baFilter('${t[0]}')">
                         <span class="n">${t[2]}</span><span class="l">${t[1]}</span></button>`).join('');
 
-        const shown = _people.filter(p => (_filter === 'all' || p.state === _filter) && (!q || String(p.name).toLowerCase().includes(q)));
+        const shown = _people.filter(p => {
+            if (_filter === 'over' && p.state !== 'over') return false;
+            if (_filter === 'near' && p.state !== 'near') return false;
+            if (_filter === 'live' && !p.live) return false;
+            if (kindPick !== 'all' && (!p.byKind[kindPick] || !p.byKind[kindPick].n)) return false;
+            if (q && !String(p.name).toLowerCase().includes(q)) return false;
+            return true;
+        });
         const box = $('baList');
 
         if (!_people.length) {
@@ -231,7 +239,7 @@
                 <span class="text-[12px] text-gray-600">ถ้าบอทในกลุ่มยังพิมพ์อยู่ แปลว่าตัวดักฟัง (tg-listener) อาจหยุดทำงาน ลองเช็คที่ Railway</span></div>`;
             return;
         }
-        if (!shown.length) { box.innerHTML = '<div class="text-center text-gray-500 py-10 text-sm">ไม่มีคนในกลุ่มนี้</div>'; return; }
+        if (!shown.length) { box.innerHTML = '<div class="text-center text-gray-500 py-10 text-sm">ไม่มีคนที่ตรงกับตัวกรองนี้</div>'; return; }
 
         box.innerHTML = shown.map(p => {
             const KIND = {
@@ -290,6 +298,7 @@
                     <div class="ba-tot">${hms(p.total)}<small>ใช้ไป ${pctUsed}% ของ ${hms(c.cap)}</small></div>
                     <div class="ba-kinds">${kindCells}</div>
                     ${chips.length ? `<div class="ba-chips">${chips.join('')}</div>` : ''}
+                    <div class="ba-open"><span class="material-icons">chevron_right</span>${p.sessions.length ? `กดเพื่อดูรายละเอียดทั้ง ${p.sessions.length} รอบ (ออกตอนไหน กลับตอนไหน)` : 'ไม่มีรอบให้ดู'}</div>
                 </summary>
                 <div class="ba-det">
                     ${p.sessions.length ? `<table><thead><tr><th style="text-align:right">#</th><th>หมวด</th><th style="text-align:right">ออกตอน</th><th style="text-align:right">กลับตอน</th><th style="text-align:right">ใช้ไป</th><th style="text-align:right">บอทให้</th><th>หมายเหตุ</th></tr></thead><tbody>${rows}</tbody></table>`

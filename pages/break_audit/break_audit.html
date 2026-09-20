@@ -25,6 +25,7 @@
         #baPage .ba-t .l{display:block;font-size:11.5px;color:#94a3b8;font-weight:700}
         #baPage .ba-t.over .n{color:#f87171}
         #baPage .ba-t.near .n{color:#fbbf24}
+        #baPage .ba-t.live .n{color:#4ade80}
 
         /* แถวพนักงาน */
         #baPage .ba-row{border-bottom:1px solid rgba(148,163,184,.1)}
@@ -50,6 +51,10 @@
         #baPage .ba-kn{font-size:14px;color:#f1f5f9;font-weight:900;font-variant-numeric:tabular-nums;margin-left:2px}
         #baPage .ba-kunit{font-size:11px;color:#64748b}
         #baPage .ba-ktime{font-size:12px;color:#94a3b8;font-family:ui-monospace,Menlo,monospace;border-left:1px solid rgba(148,163,184,.2);padding-left:8px;margin-left:2px}
+        #baPage .ba-open{grid-column:2/-1;font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px;margin-top:2px}
+        #baPage .ba-open .material-icons{font-size:14px;transition:transform .15s}
+        #baPage .ba-row[open] .ba-open .material-icons{transform:rotate(90deg)}
+        #baPage .ba-row[open] .ba-open{color:#60a5fa}
         #baPage .ba-cnt{font-size:11px;font-weight:700;color:#94a3b8;background:#0f172a;border:1px solid rgba(148,163,184,.18);border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:middle}
 
         #baPage .ba-chips{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:5px;padding-bottom:2px}
@@ -96,6 +101,13 @@
         <div><div class="ba-lbl">กะเลิก</div><input id="baShiftB" type="time" value="20:00" onchange="baCompute()" class="ba-sel" style="min-width:110px"></div>
         <div><div class="ba-lbl">แผนก</div><select id="baDept" class="ba-sel" onchange="baCompute()"><option value="all">ทุกแผนก</option></select></div>
         <div><div class="ba-lbl">เว็บ</div><select id="baTeam" class="ba-sel" onchange="baCompute()"><option value="all">ทุกเว็บ</option></select></div>
+        <div><div class="ba-lbl">ดูเฉพาะหมวด</div><select id="baKind" class="ba-sel" onchange="baRender()">
+            <option value="all">ทุกหมวด</option>
+            <option value="meal">กินข้าว</option>
+            <option value="heavy">ปวดหนัก</option>
+            <option value="light">ปวดน้อย / สูบบุหรี่</option>
+            <option value="other">อื่นๆ</option>
+        </select></div>
         <div class="flex-1 min-w-[150px]"><div class="ba-lbl">ค้นหาชื่อ</div><input id="baSearch" oninput="baRender()" placeholder="พิมพ์ชื่อ..." class="ba-sel w-full"></div>
         <label class="flex items-center gap-2 text-[12px] text-gray-300 font-bold cursor-pointer self-end pb-2">
             <input type="checkbox" id="baAbsent" checked onchange="baCompute()" class="w-4 h-4 accent-amber-500"> แสดงคนที่ไม่ได้กดเลย
