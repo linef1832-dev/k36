@@ -319,21 +319,173 @@
         window.baReload();
     };
 
+    // ── ส่งออก Excel ───────────────────────────────────
+    const KIND_NAME = { meal: 'กินข้าว', heavy: 'ปวดหนัก', light: 'ปวดน้อย/สูบบุหรี่', other: 'อื่นๆ' };
+
+    function sortedForExport() {
+        return _people.slice().sort((a, b) => {
+            const d = String(a.dept || 'zzz').localeCompare(String(b.dept || 'zzz'), 'th');
+            if (d !== 0) return d;
+            const t = String(a.team || 'zzz').localeCompare(String(b.team || 'zzz'), 'th');
+            if (t !== 0) return t;
+            return b.total - a.total;
+        });
+    }
+    const statusText = p => p.absent ? 'ไม่ได้กดเลย'
+                       : p.state === 'over' ? 'เกินเกณฑ์'
+                       : p.state === 'near' ? 'ต้องดู' : 'ปกติ';
+
     window.baExport = function () {
         if (!_people.length) return;
+        if (typeof window.loadExcelLibrary !== 'function' || typeof ExcelJS === 'undefined' && !window.loadExcelLibrary) return baExportCsv();
+        window.loadExcelLibrary(async function () {
+            try {
+                if (typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const c = cfg(), d = dateVal(), list = sortedForExport();
+                const wb = new ExcelJS.Workbook();
+
+                const HEAD_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+                const headStyle = row => row.eachCell(cell => {
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+                    cell.fill = HEAD_FILL;
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.border = { bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } };
+                });
+
+                // ══ ชีท 1: สรุปรายคน ══
+                const s1 = wb.addWorksheet('สรุปรายคน', { views: [{ state: 'frozen', ySplit: 1 }] });
+                s1.columns = [
+                    { header: 'วันที่',        key: 'date',  width: 12 },
+                    { header: 'แผนก',          key: 'dept',  width: 9  },
+                    { header: 'เว็บ',           key: 'team',  width: 10 },
+                    { header: 'ชื่อ',            key: 'name',  width: 18 },
+                    { header: 'รวมทั้งวัน',     key: 'total', width: 12 },
+                    { header: 'เพดาน',          key: 'cap',   width: 10 },
+                    { header: 'เกินไป',         key: 'over',  width: 11 },
+                    { header: 'รวมกี่รอบ',      key: 'n',     width: 10 },
+                    { header: 'กินข้าว\n(รอบ)',  key: 'mn',    width: 9  },
+                    { header: 'เวลากินข้าว',    key: 'mt',    width: 12 },
+                    { header: 'ปวดหนัก\n(รอบ)', key: 'hn',    width: 9  },
+                    { header: 'เวลาปวดหนัก',   key: 'ht',    width: 12 },
+                    { header: 'ปวดน้อย\n(รอบ)', key: 'ln',    width: 9  },
+                    { header: 'เวลาปวดน้อย',   key: 'lt',    width: 12 },
+                    { header: 'กดต่อเนื่อง\n(ชุด)', key: 'ch', width: 11 },
+                    { header: 'เกินเวลาบอท\n(รอบ)', key: 'ol', width: 11 },
+                    { header: 'ออกครั้งแรก',   key: 'first', width: 12 },
+                    { header: 'กลับล่าสุด',     key: 'last',  width: 12 },
+                    { header: 'สถานะ',          key: 'st',    width: 12 }
+                ];
+                headStyle(s1.getRow(1));
+                s1.getRow(1).height = 30;
+
+                list.forEach(p => {
+                    const r = s1.addRow({
+                        date: d, dept: p.dept || '-', team: String(p.team || '-'), name: String(p.name || '-'),
+                        total: hms(p.total), cap: hms(c.cap), over: p.overCap ? hms(p.total - c.cap) : '',
+                        n: p.sessions.length,
+                        mn: p.byKind.meal.n,  mt: p.byKind.meal.n  ? hms(p.byKind.meal.sec)  : '',
+                        hn: p.byKind.heavy.n, ht: p.byKind.heavy.n ? hms(p.byKind.heavy.sec) : '',
+                        ln: p.byKind.light.n, lt: p.byKind.light.n ? hms(p.byKind.light.sec) : '',
+                        ch: p.chains.length, ol: p.overLimit,
+                        first: p.firstOut != null ? clock(p.firstOut) : '',
+                        last:  p.live ? 'ยังไม่กลับ' : (p.lastBack != null ? clock(p.lastBack) : ''),
+                        st: statusText(p)
+                    });
+                    r.eachCell((cell, col) => {
+                        cell.alignment = { horizontal: col <= 4 ? 'left' : 'center', vertical: 'middle' };
+                        cell.border = { bottom: { style: 'hair', color: { argb: 'FFCBD5E1' } } };
+                    });
+                    if (p.state === 'over') {
+                        r.getCell('st').font = { bold: true, color: { argb: 'FFB91C1C' } };
+                        r.getCell('total').font = { bold: true, color: { argb: 'FFB91C1C' } };
+                        r.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; });
+                    } else if (p.state === 'near') {
+                        r.getCell('st').font = { bold: true, color: { argb: 'FFB45309' } };
+                        r.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; });
+                    } else if (p.absent) {
+                        r.eachCell(cell => { cell.font = { color: { argb: 'FF94A3B8' } }; });
+                    }
+                });
+                s1.autoFilter = { from: 'A1', to: { row: 1, column: s1.columns.length } };
+
+                // ══ ชีท 2: รายรอบ แยกเป็นคนๆ ══
+                const s2 = wb.addWorksheet('รายรอบแต่ละคน', { views: [{ state: 'frozen', ySplit: 1 }] });
+                s2.columns = [
+                    { header: 'แผนก',   key: 'dept',  width: 9  },
+                    { header: 'เว็บ',    key: 'team',  width: 10 },
+                    { header: 'ชื่อ',     key: 'name',  width: 18 },
+                    { header: 'รอบที่', key: 'i',     width: 8  },
+                    { header: 'หมวด',   key: 'cat',   width: 20 },
+                    { header: 'ออกตอน', key: 'out',   width: 11 },
+                    { header: 'กลับตอน',key: 'back',  width: 11 },
+                    { header: 'ใช้ไป',   key: 'dur',   width: 11 },
+                    { header: 'บอทให้\n(นาที)', key: 'lim', width: 10 },
+                    { header: 'หมายเหตุ', key: 'note', width: 34 }
+                ];
+                headStyle(s2.getRow(1));
+                s2.getRow(1).height = 30;
+
+                list.forEach(p => {
+                    if (!p.sessions.length) return;
+                    // หัวชื่อคน คั่นให้อ่านง่าย
+                    const h = s2.addRow({ dept: p.dept || '-', team: String(p.team || '-'), name: String(p.name || '-'),
+                                          i: '', cat: `รวม ${p.sessions.length} รอบ · ${hms(p.total)}`, note: statusText(p) });
+                    h.eachCell(cell => {
+                        cell.font = { bold: true, color: { argb: 'FF0F172A' } };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+                    });
+                    p.sessions.forEach((ss, i) => {
+                        const note = [p.inChain[i] ? 'ต่อจากรอบก่อน' : '', ss.overLimit ? 'เกินเวลาที่บอทให้' : ''].filter(Boolean).join(' · ');
+                        const r = s2.addRow({
+                            dept: '', team: '', name: '', i: i + 1,
+                            cat: String(ss.cat || '-'),
+                            out: clock(ss.start),
+                            back: ss.live ? 'ยังไม่กลับ' : clock(ss.end),
+                            dur: hms(ss.dur),
+                            lim: ss.limit || '',
+                            note: note
+                        });
+                        r.eachCell((cell, col) => {
+                            cell.alignment = { horizontal: (col === 5 || col === 10) ? 'left' : 'center', vertical: 'middle' };
+                            cell.border = { bottom: { style: 'hair', color: { argb: 'FFE2E8F0' } } };
+                        });
+                        if (ss.overLimit) r.getCell('dur').font = { bold: true, color: { argb: 'FFB91C1C' } };
+                        if (p.inChain[i])  r.getCell('note').font = { color: { argb: 'FFB45309' } };
+                    });
+                    s2.addRow({});   // เว้นบรรทัดคั่นคน
+                });
+
+                const buf = await wb.xlsx.writeBuffer();
+                const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+                const a = document.createElement('a');
+                a.href = url; a.download = `ตรวจเวลาลุกจากที่นั่ง-${d}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+                if (typeof Swal !== 'undefined') Swal.close();
+            } catch (e) {
+                console.error('[break_audit] export', e);
+                if (typeof Swal !== 'undefined') Swal.fire('ผิดพลาด', 'สร้างไฟล์ไม่สำเร็จ: ' + e.message, 'error');
+            }
+        });
+    };
+
+    // สำรอง: ถ้าโหลด ExcelJS ไม่ได้ ใช้ CSV แทน
+    function baExportCsv() {
         const c = cfg(), d = dateVal();
-        const head = ['วันที่', 'ชื่อ', 'แผนก', 'เว็บ', 'Telegram ID', 'รวมทั้งวัน', 'เพดาน', 'เกิน', 'รอบกินข้าว', 'จำนวนครั้ง', 'ชุดกดต่อเนื่อง', 'สถานะ'];
-        const lines = [head.join(',')].concat(_people.map(p => [
-            d, `"${p.name}"`, p.dept || '', p.team || '', p.id || '',
-            hms(p.total), hms(c.cap), p.overCap ? hms(p.total - c.cap) : '',
-            p.meal, p.sessions.length, p.chains.length,
-            p.state === 'over' ? 'เกินเกณฑ์' : p.state === 'near' ? 'ต้องดู' : 'ปกติ'
+        const head = ['วันที่','แผนก','เว็บ','ชื่อ','รวมทั้งวัน','เพดาน','เกินไป','รวมกี่รอบ','กินข้าว(รอบ)','ปวดหนัก(รอบ)','ปวดน้อย(รอบ)','กดต่อเนื่อง(ชุด)','ออกครั้งแรก','กลับล่าสุด','สถานะ'];
+        const lines = [head.join(',')].concat(sortedForExport().map(p => [
+            d, p.dept || '', p.team || '', `"${p.name}"`, hms(p.total), hms(c.cap),
+            p.overCap ? hms(p.total - c.cap) : '', p.sessions.length,
+            p.byKind.meal.n, p.byKind.heavy.n, p.byKind.light.n, p.chains.length,
+            p.firstOut != null ? clock(p.firstOut) : '',
+            p.live ? 'ยังไม่กลับ' : (p.lastBack != null ? clock(p.lastBack) : ''),
+            statusText(p)
         ].join(',')));
         const url = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
         const a = document.createElement('a');
         a.href = url; a.download = `break-audit-${d}.csv`; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-    };
+    }
 
     // ── เริ่มหน้า ────────────────────────────────────────
     window.initBreakAudit = async function () {
