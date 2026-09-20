@@ -368,6 +368,7 @@ window.switchDutyTab = function(tabName) {
 
 window.switchDutyDept = function(dept) {
     currentDutyDept = dept;
+    if (typeof window.fillRotationGapInput === 'function') window.fillRotationGapInput();   // 🔁 ค่าเว้นวันของแผนกนี้
     
     document.getElementById('btnDutyAM')?.classList.remove('active'); 
     document.getElementById('btnDutyOD')?.classList.remove('active');
@@ -793,21 +794,42 @@ window.restoreFromLeave = async function(userId, username) {
     }
 };
 
-// 🔁 บันทึก "เว้นกี่วันก่อนกลับมาเว็บเดิม" — มีผลกับปุ่มจัดเวร/จัดรองด่วนทุกเครื่อง
+// 🔁 บันทึก "เว้นกี่วันก่อนกลับมาเว็บเดิม" — ⚠️ เก็บแยกตามแผนกที่กำลังจัดอยู่ (AM/OD/ผู้สอน ไม่ปนกัน)
 window.saveRotationGap = async function(v) {
     const n = Math.max(0, Math.min(30, parseInt(v) || 0));
+    const dept = currentDutyDept || 'AM';
     try {
-        await appDB.from('settings').upsert([{ key: 'duty_rotation_gap', value: String(n) }]);
-        if (typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = String(n);
-        Swal.fire({ icon: 'success', title: n > 0 ? `เว้น ${n} วันก่อนกลับเว็บเดิม` : 'ปิดการเว้นวันแล้ว',
-            text: n > 0 ? 'กดจัดเวรครั้งต่อไปจะเวียนงานให้ทั่วถึงตามนี้' : '', timer: 1800, showConfirmButton: false });
+        // อ่านค่าเดิมทุกแผนกมาก่อน แล้วแก้เฉพาะแผนกนี้ (กันทับของแผนกอื่น)
+        let cfg = {};
+        try {
+            const raw = (typeof SETTINGS !== 'undefined') ? SETTINGS.duty_rotation_gap : null;
+            const parsed = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
+            if (parsed && typeof parsed === 'object') cfg = parsed;
+            else if (!isNaN(parseInt(parsed))) { const L = parseInt(parsed); cfg = { AM: L, OD: L, AMQL: L, ODQL: L }; }   // ค่าเก่าแบบตัวเลขเดี่ยว → กระจายให้ทุกแผนก
+        } catch (e) { cfg = {}; }
+
+        cfg[dept] = n;
+        const val = JSON.stringify(cfg);
+        await appDB.from('settings').upsert([{ key: 'duty_rotation_gap', value: val }]);
+        if (typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = val;
+
+        const depLabel = dept === 'AMQL' ? 'ผู้สอน AM' : dept === 'ODQL' ? 'ผู้สอน OD' : dept;
+        Swal.fire({ icon: 'success',
+            title: n > 0 ? `${depLabel}: เว้น ${n} วันก่อนกลับเว็บเดิม` : `${depLabel}: ปิดการเว้นวันแล้ว`,
+            text: n > 0 ? 'ค่านี้ใช้เฉพาะแผนกนี้ แผนกอื่นไม่กระทบ' : '', timer: 2000, showConfirmButton: false });
     } catch (e) { Swal.fire('บันทึกไม่สำเร็จ', e.message, 'error'); }
 };
 
-// เติมค่าที่ตั้งไว้ลงช่อง (เรียกตอนเปิดหน้าจัดหน้าที่)
+// เติมค่าของ "แผนกที่กำลังดูอยู่" ลงช่อง (เรียกตอนเปิดหน้า + ทุกครั้งที่สลับแผนก)
 window.fillRotationGapInput = function() {
     const el = document.getElementById('rotGapInput');
-    if (el) el.value = (typeof window.getRotationGapDays === 'function') ? window.getRotationGapDays() : 3;
+    if (!el) return;
+    el.value = (typeof window.getRotationGapDays === 'function') ? window.getRotationGapDays(currentDutyDept) : 3;
+    const depLabel = currentDutyDept === 'AMQL' ? 'ผู้สอน AM' : currentDutyDept === 'ODQL' ? 'ผู้สอน OD' : currentDutyDept;
+    const box = el.closest('div');
+    if (box) box.title = `เว้นซ้ำเว็บของแผนก ${depLabel} — ทำเว็บนี้แล้วต้องเว้นกี่วันถึงกลับมาได้อีก (แต่ละแผนกตั้งแยกกัน)`;
+    const tag = document.getElementById('rotGapDept');
+    if (tag) tag.textContent = depLabel;
 };
 
 window.addStaffToRoster = async function() {

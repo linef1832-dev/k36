@@ -113,11 +113,20 @@ window.dutyDaysAgoOnTeam = function(rotation, uid, team) {
     return m[team];
 };
 
-// 🔁 จำนวนวันที่ต้องเว้นก่อนกลับมาเว็บเดิม (ตั้งได้ในหน้าจัดหน้าที่ · ค่าเริ่มต้น 3 วัน)
-//    เช่น ตั้ง 3 = ทำ Jun88 วันนี้ → อีก 3 วันถัดไปไม่ควรได้ Jun88 อีก ให้เวียนไปเว็บอื่นก่อน
-window.getRotationGapDays = function() {
+// 🔁 จำนวนวันที่ต้องเว้นก่อนกลับมาเว็บเดิม — ⚠️ แยกค่าตามแผนก (AM / OD / ผู้สอน) ไม่ปนกัน
+//    เช่น AM ตั้ง 3 วัน · OD ตั้ง 2 วัน ต่างคนต่างใช้ค่าของตัวเอง · ค่าเริ่มต้น 3 วัน
+window.getRotationGapDays = function(dept) {
     const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
-    const v = parseInt(S.duty_rotation_gap);
+    const d = dept || (typeof currentDutyDept !== 'undefined' ? currentDutyDept : 'AM');
+    let cfg = {};
+    try { cfg = S.duty_rotation_gap ? (typeof S.duty_rotation_gap === 'string' ? JSON.parse(S.duty_rotation_gap) : S.duty_rotation_gap) : {}; }
+    catch (e) { cfg = {}; }
+    // รองรับค่าเก่าที่เคยเก็บเป็นตัวเลขเดี่ยว (ใช้เป็นค่าตั้งต้นของทุกแผนก)
+    if (typeof cfg === 'number' || (typeof cfg !== 'object' || cfg === null)) {
+        const legacy = parseInt(cfg);
+        return (isNaN(legacy) || legacy < 0) ? 3 : Math.min(30, legacy);
+    }
+    const v = parseInt(cfg[d]);
     return (isNaN(v) || v < 0) ? 3 : Math.min(30, v);
 };
 
