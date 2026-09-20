@@ -51,6 +51,23 @@
         #baPage .ba-kn{font-size:14px;color:#f1f5f9;font-weight:900;font-variant-numeric:tabular-nums;margin-left:2px}
         #baPage .ba-kunit{font-size:11px;color:#64748b}
         #baPage .ba-ktime{font-size:12px;color:#94a3b8;font-family:ui-monospace,Menlo,monospace;border-left:1px solid rgba(148,163,184,.2);padding-left:8px;margin-left:2px}
+        /* แผงหน้างาน */
+        #baPage .ba-covhead{display:flex;align-items:center;gap:6px;color:#e2e8f0;font-weight:900;font-size:13.5px;margin-bottom:8px}
+        #baPage .ba-covsub{font-weight:600;font-size:11px;color:#64748b;margin-left:2px}
+        #baPage .ba-covgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+        #baPage .ba-cov{background:#0f172a;border:1px solid rgba(148,163,184,.16);border-radius:11px;padding:9px 11px}
+        #baPage .ba-cov.ok{border-color:rgba(34,197,94,.35)}
+        #baPage .ba-cov.warn{border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.07)}
+        #baPage .ba-cov.bad{border-color:rgba(239,68,68,.55);background:rgba(239,68,68,.09)}
+        #baPage .ba-covteam{font-weight:800;color:#e2e8f0;font-size:13px}
+        #baPage .ba-covhc{font-weight:600;font-size:11px;color:#64748b;margin-left:4px}
+        #baPage .ba-covnow{font-size:12px;color:#94a3b8;margin-top:3px}
+        #baPage .ba-covnow b{font-size:19px;color:#f1f5f9;font-variant-numeric:tabular-nums;margin-right:2px}
+        #baPage .ba-cov.warn .ba-covnow b{color:#fbbf24}
+        #baPage .ba-cov.bad .ba-covnow b{color:#f87171}
+        #baPage .ba-covnow span{margin-left:4px}
+        #baPage .ba-covwho{font-size:11.5px;color:#cbd5e1;margin-top:3px;line-height:1.45}
+        #baPage .ba-covpeak{font-size:11px;color:#64748b;margin-top:4px;border-top:1px solid rgba(148,163,184,.12);padding-top:4px}
         #baPage .ba-open{grid-column:2/-1;font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px;margin-top:2px}
         #baPage .ba-open .material-icons{font-size:14px;transition:transform .15s}
         #baPage .ba-row[open] .ba-open .material-icons{transform:rotate(90deg)}
@@ -128,6 +145,9 @@
 
     <!-- สรุป -->
     <div class="ba-tally mt-3" id="baTally"></div>
+
+    <!-- หน้างานตอนนี้ -->
+    <div id="baCoverage" class="bg-[#0b1220] mt-3 p-3 rounded-2xl border border-slate-700" style="display:none"></div>
 
     <!-- รายชื่อ -->
     <div class="bg-[#0b1220] mt-3 rounded-2xl border border-slate-700 overflow-hidden">

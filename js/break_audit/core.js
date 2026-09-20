@@ -17,6 +17,7 @@
     let _filter  = 'all';
     let _sub     = null;
     let _lastRowAt = null; // created_at ล่าสุด — ใช้ดูว่าตัวดักฟังยังทำงานอยู่ไหม
+    let _booked  = {};     // ชื่อพนักงาน → [รอบพักที่จองไว้วันนี้]
 
     // ── เวลา ─────────────────────────────────────────────
     const toSec = t => { const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t || '')); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] || 0)) : null; };
@@ -130,6 +131,32 @@
         _lastRowAt = _rows.reduce((mx, r) => (!mx || r.created_at > mx ? r.created_at : mx), null);
     }
 
+    // ── ตารางจองพัก (ตาราง schedules ของหน้า "ลงเวลากินข้าว") ──
+    const slotRange = sl => {
+        const m = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/.exec(String(sl || ''));
+        if (!m) return null;
+        let a = (+m[1]) * 3600 + (+m[2]) * 60, b = (+m[3]) * 3600 + (+m[4]) * 60;
+        if (b <= a) b += 86400;                       // รอบคร่อมเที่ยงคืน
+        return { a, b, text: `${m[1].padStart(2,'0')}:${m[2]}-${m[3].padStart(2,'0')}:${m[4]}` };
+    };
+
+    async function loadBooked() {
+        _booked = {};
+        if (typeof appDB === 'undefined') return;
+        try {
+            const { data } = await appDB.from('schedules')
+                .select('staff_name, time_slot, shift_name, department, team')
+                .eq('work_date', dateVal());
+            (data || []).forEach(r => {
+                const k = norm(r.staff_name);
+                if (!k || !r.time_slot) return;
+                const rg = slotRange(r.time_slot);
+                if (rg) (_booked[k] = _booked[k] || []).push(rg);
+            });
+            Object.keys(_booked).forEach(k => _booked[k].sort((x, y) => x.a - y.a));
+        } catch (e) { console.warn('[break_audit] โหลดตารางจองพักไม่ได้', e); }
+    }
+
     // ── คำนวณ ────────────────────────────────────────────
     function build(records, c) {
         const now = nowSec(), by = {};
@@ -139,6 +166,7 @@
             let dur = live ? Math.max(0, now - r.start) : (r.dur != null ? r.dur : (r.end - r.start + 86400) % 86400);
             by[r.uid].sessions.push({ cat: r.cat, kind: kindOf(r.cat), start: r.start, end: r.start + dur, dur, live,
                                       limit: r.limit, overLimit: r.limit ? dur > r.limit * 60 : false });
+            if (!by[r.uid].booked) by[r.uid].booked = _booked[norm(r.name)] || [];
         });
 
         return Object.keys(by).map(k => {
@@ -157,6 +185,17 @@
             p.firstOut = p.sessions.length ? p.sessions[0].start : null;
             p.lastBack = p.sessions.length ? p.sessions[p.sessions.length - 1].end : null;
 
+            // เทียบกับรอบที่จองไว้ (เช็คเฉพาะหมวดกินข้าว)
+            p.booked = p.booked || [];
+            p.offSlot = 0;
+            p.sessions.forEach(s => {
+                if (s.kind !== 'meal') return;
+                if (!p.booked.length) { s.slotNote = 'ไม่ได้จองรอบพัก'; s.offSlot = true; p.offSlot++; return; }
+                const hit = p.booked.find(b => s.start < b.b && s.end > b.a);
+                if (hit) { s.slotNote = 'ตรงรอบ ' + hit.text; s.offSlot = false; }
+                else { s.slotNote = 'นอกรอบ (จอง ' + p.booked.map(b => b.text).join(', ') + ')'; s.offSlot = true; p.offSlot++; }
+            });
+
             p.chains = []; p.inChain = {}; p.chainMax = 0;
             let g = [0];
             for (let i = 1; i < p.sessions.length; i++) {
@@ -173,7 +212,7 @@
             p.overCap  = p.total > c.cap;
             p.overMeal = p.meal > c.mealMax;
             p.state = (p.overCap || p.overMeal) ? 'over'
-                    : (p.total >= c.cap * 0.8 || p.chains.length || p.overLimit) ? 'near' : 'ok';
+                    : (p.total >= c.cap * 0.8 || p.chains.length || p.overLimit || p.offSlot) ? 'near' : 'ok';
             return p;
         }).sort((a, b) => {
             const rank = { over: 0, near: 1, ok: 2 };
@@ -213,7 +252,7 @@
                     id: String(u.telegram_id), name: u.username || '-', dept: u.department || '', team: u.team || '',
                     sessions: [], total: 0, meal: 0, live: false, chains: [], inChain: {}, chainMax: 0,
                     byKind: { meal:{n:0,sec:0}, heavy:{n:0,sec:0}, light:{n:0,sec:0}, other:{n:0,sec:0} },
-                    firstOut: null, lastBack: null, overLimit: 0,
+                    firstOut: null, lastBack: null, overLimit: 0, offSlot: 0, booked: _booked[norm(u.username)] || [],
                     overCap: false, overMeal: false, absent: true, state: 'ok'
                 });
             });
@@ -230,8 +269,62 @@
         $('baExportBtn').style.display = (_people.length && canExport) ? 'flex' : 'none';
 
         render();
+        renderCoverage();
         updateStatus();
     };
+
+    // ── หน้างานตอนนี้: ใครออกพร้อมกันกี่คน เทียบเพดานของเว็บ ──
+    function renderCoverage() {
+        const box = $('baCoverage');
+        if (!box) return;
+        const isToday = dateVal() === iso(new Date());
+        const now = nowSec();
+
+        // จำนวนคนของแต่ละเว็บ (จากรายชื่อพนักงานในระบบ)
+        const head = {};
+        _users.forEach(u => { if (u.team) head[u.team] = (head[u.team] || 0) + 1; });
+
+        // รวมรอบของทุกคนแยกตามเว็บ
+        const byTeam = {};
+        _people.forEach(p => {
+            if (!p.team || !p.sessions.length) return;
+            const t = (byTeam[p.team] = byTeam[p.team] || { away: [], now: [], peak: 0, peakAt: null });
+            p.sessions.forEach(s => {
+                t.away.push({ a: s.start, b: s.end });
+                if (isToday && s.live) t.now.push(p.name);
+                else if (isToday && s.start <= now && s.end >= now) t.now.push(p.name);
+            });
+        });
+
+        // หาช่วงที่ออกพร้อมกันมากสุดของวัน
+        Object.keys(byTeam).forEach(t => {
+            const ev = [];
+            byTeam[t].away.forEach(x => { ev.push([x.a, 1]); ev.push([x.b, -1]); });
+            ev.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+            let cur = 0;
+            ev.forEach(e => { cur += e[1]; if (cur > byTeam[t].peak) { byTeam[t].peak = cur; byTeam[t].peakAt = e[0]; } });
+        });
+
+        const rows = Object.keys(byTeam).sort((a, b) => byTeam[b].now.length - byTeam[a].now.length || byTeam[b].peak - byTeam[a].peak);
+        if (!rows.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+        box.style.display = '';
+
+        const cap = n => (typeof window.breakCapByHeadcount === 'function') ? window.breakCapByHeadcount(n) : Math.max(1, Math.ceil(n / 4));
+
+        box.innerHTML = `<div class="ba-covhead"><span class="material-icons text-base text-cyan-400">groups</span>
+                หน้างานตอนนี้ <span class="ba-covsub">ออกพร้อมกันได้กี่คนคิดจากจำนวนคนของเว็บนั้น (กติกาเดิมของระบบ)</span></div>
+            <div class="ba-covgrid">` + rows.map(t => {
+            const d = byTeam[t], n = head[t] || 0, mx = cap(n);
+            const nowN = d.now.length;
+            const st = !isToday ? '' : nowN > mx ? 'bad' : nowN === mx ? 'warn' : 'ok';
+            return `<div class="ba-cov ${st}">
+                <div class="ba-covteam">${esc(t)} <span class="ba-covhc">${n} คน</span></div>
+                ${isToday ? `<div class="ba-covnow"><b>${nowN}</b> / ${mx} <span>ออกอยู่ตอนนี้</span></div>` : `<div class="ba-covnow"><b>—</b><span>ดูย้อนหลัง</span></div>`}
+                ${nowN ? `<div class="ba-covwho">${d.now.map(x => esc(x)).join(', ')}</div>` : ''}
+                <div class="ba-covpeak">วันนี้ออกพร้อมกันสูงสุด ${d.peak} คน${d.peakAt != null ? ' ตอน ' + clock(d.peakAt) : ''}${d.peak > mx ? ' · เกินเพดาน' : ''}</div>
+            </div>`;
+        }).join('') + '</div>';
+    }
 
     // ── ไฟสถานะตัวดักฟัง ─────────────────────────────────
     function updateStatus() {
@@ -310,6 +403,8 @@
             if (p.overMeal)      chips.push(`<span class="ba-chip bad">กินข้าวเกิน ${p.meal}/${c.mealMax} รอบ</span>`);
             if (p.chains.length) chips.push(`<span class="ba-chip ${p.overCap ? 'bad' : 'warn'}">กดต่อเนื่อง ${p.chains.length} ชุด รวดเดียว ${hms(p.chainMax)}</span>`);
             if (p.overLimit)     chips.push(`<span class="ba-chip warn">ใช้เกินเวลาที่บอทให้ ${p.overLimit} รอบ</span>`);
+            if (p.offSlot)       chips.push(`<span class="ba-chip warn">กินข้าวนอกรอบที่จอง ${p.offSlot} รอบ</span>`);
+            if (p.booked && p.booked.length) chips.push(`<span class="ba-chip">จองไว้ ${p.booked.map(b => b.text).join(', ')}</span>`);
             if (p.live)          chips.push('<span class="ba-chip live">ตอนนี้ยังไม่กลับที่นั่ง</span>');
 
             const when = p.sessions.length
@@ -325,7 +420,7 @@
                     <td class="n">${s.live ? 'ยังไม่กลับ' : clock(s.end)}</td>
                     <td class="n" ${s.overLimit ? 'style="color:#fca5a5;font-weight:800"' : ''}>${hms(s.dur)}</td>
                     <td class="n" style="color:#64748b">${s.limit ? s.limit + ' น.' : '—'}</td>
-                    <td>${[p.inChain[i] ? 'ต่อจากรอบก่อน' : '', s.overLimit ? 'เกินเวลาที่บอทให้' : ''].filter(Boolean).join(' · ')}</td>
+                    <td>${[p.inChain[i] ? 'ต่อจากรอบก่อน' : '', s.overLimit ? 'เกินเวลาที่บอทให้' : '', s.slotNote || ''].filter(Boolean).join(' · ')}</td>
                 </tr>`).join('');
 
             const meta = [p.dept, p.team, p.id].filter(Boolean).join(' · ');
@@ -354,7 +449,7 @@
     // ── ปุ่มต่างๆ ────────────────────────────────────────
     window.baRender = render;
     window.baFilter = function (f) { _filter = f; render(); };
-    window.baReload = async function () { await load(); window.baCompute(); };
+    window.baReload = async function () { await load(); await loadBooked(); window.baCompute(); };
     window.baShiftDate = function (n) {
         const d = new Date(dateVal() + 'T12:00:00');
         d.setDate(d.getDate() + n);
@@ -538,6 +633,7 @@
         await loadRules();
         await loadUsers();
         await load();
+        await loadBooked();
         window.baCompute();
 
         // 📡 realtime — บอทในกลุ่มพิมพ์ → tg-listener เขียนลงตาราง → หน้านี้ขยับเอง
