@@ -103,7 +103,16 @@
             p.sessions.sort((a, b) => a.start - b.start);
             p.total = 0; p.meal = 0; p.live = false;
             p.overLimit = 0;
-            p.sessions.forEach(s => { p.total += s.dur; if (s.kind === 'meal') p.meal++; if (s.live) p.live = true; if (s.overLimit) p.overLimit++; });
+            p.byKind = { meal: {n:0,sec:0}, heavy: {n:0,sec:0}, light: {n:0,sec:0}, other: {n:0,sec:0} };
+            p.sessions.forEach(s => {
+                p.total += s.dur;
+                if (s.kind === 'meal') p.meal++;
+                if (s.live) p.live = true;
+                if (s.overLimit) p.overLimit++;
+                p.byKind[s.kind].n++; p.byKind[s.kind].sec += s.dur;
+            });
+            p.firstOut = p.sessions.length ? p.sessions[0].start : null;
+            p.lastBack = p.sessions.length ? p.sessions[p.sessions.length - 1].end : null;
 
             p.chains = []; p.inChain = {}; p.chainMax = 0;
             let g = [0];
@@ -115,7 +124,7 @@
             p.chains.forEach(ix => {
                 const span = p.sessions[ix[ix.length - 1]].end - p.sessions[ix[0]].start;
                 if (span > p.chainMax) p.chainMax = span;
-                ix.forEach(i => { p.inChain[i] = true; });
+                ix.forEach((i, j) => { if (j > 0) p.inChain[i] = true; });   // รอบแรกของชุดไม่ใช่ "ต่อจากรอบก่อน"
             });
 
             p.overCap  = p.total > c.cap;
@@ -160,6 +169,8 @@
                 _people.push({
                     id: String(u.telegram_id), name: u.username || '-', dept: u.department || '', team: u.team || '',
                     sessions: [], total: 0, meal: 0, live: false, chains: [], inChain: {}, chainMax: 0,
+                    byKind: { meal:{n:0,sec:0}, heavy:{n:0,sec:0}, light:{n:0,sec:0}, other:{n:0,sec:0} },
+                    firstOut: null, lastBack: null, overLimit: 0,
                     overCap: false, overMeal: false, absent: true, state: 'ok'
                 });
             });
@@ -222,63 +233,66 @@
         }
         if (!shown.length) { box.innerHTML = '<div class="text-center text-gray-500 py-10 text-sm">ไม่มีคนในกลุ่มนี้</div>'; return; }
 
-        const span = Math.max(60, c.b - c.a);
-        const pct = s => ((s - c.a) / span) * 100;
-        const isToday = dateVal() === iso(new Date());
-        const nowMark = (isToday && nowSec() >= c.a && nowSec() <= c.b) ? `<i class="ba-now" style="left:${pct(nowSec()).toFixed(2)}%"></i>` : '';
-
         box.innerHTML = shown.map(p => {
-            let marks = '';
-            for (let t = Math.ceil(c.a / 3600) * 3600; t < c.b; t += 3600) marks += `<i class="ba-hour" style="left:${pct(t).toFixed(2)}%"></i>`;
+            const KIND = {
+                meal:  { name: 'กินข้าว',            color: '#22c55e' },
+                heavy: { name: 'ปวดหนัก',           color: '#f97316' },
+                light: { name: 'ปวดน้อย/สูบบุหรี่', color: '#38bdf8' },
+                other: { name: 'อื่นๆ',              color: '#a78bfa' }
+            };
 
-            const blocks = p.sessions.map(s => {
-                const l = Math.max(0, Math.min(100, pct(s.start)));
-                const w = Math.max(0.6, Math.min(100 - l, (s.dur / span) * 100));
-                return `<i class="ba-blk ${s.kind}${s.live ? ' live' : ''}" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%" title="${esc(s.cat)} ${clock(s.start)} · ${hms(s.dur)}"></i>`;
+            // แถวนับรอบแยกหมวด — โชว์ทุกหมวดเสมอ หมวดที่ไม่ได้กดเป็นสีจาง
+            const kindCells = ['meal','heavy','light','other'].map(k => {
+                const d = p.byKind[k], on = d.n > 0;
+                if (k === 'other' && !on) return '';
+                return `<div class="ba-k ${on ? '' : 'off'}">
+                    <span class="ba-kdot" style="background:${on ? KIND[k].color : '#334155'}"></span>
+                    <span class="ba-kname">${KIND[k].name}</span>
+                    <b class="ba-kn">${d.n}</b><span class="ba-kunit">รอบ</span>
+                    <span class="ba-ktime">${on ? hms(d.sec) : '—'}</span>
+                </div>`;
             }).join('');
-
-            const chainMarks = p.chains.map(ix => {
-                const s0 = p.sessions[ix[0]].start, s1 = p.sessions[ix[ix.length - 1]].end;
-                const l = Math.max(0, Math.min(100, pct(s0)));
-                const w = Math.max(1, Math.min(100 - l, ((s1 - s0) / span) * 100));
-                return `<i class="ba-chain" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%"></i>`;
-            }).join('');
-
-            let ticks = '';
-            for (let h = Math.ceil(c.a / 3600) * 3600; h <= c.b; h += 7200) ticks += `<span style="left:${pct(h).toFixed(2)}%">${clock(h)}</span>`;
 
             const chips = [];
             if (p.absent)        chips.push('<span class="ba-chip">ไม่มีการกดเลยในวันนี้</span>');
             if (p.overCap)       chips.push(`<span class="ba-chip bad">เกินเพดาน ${hms(p.total - c.cap)}</span>`);
-            if (p.overMeal)      chips.push(`<span class="ba-chip bad">กินข้าว ${p.meal} รอบ</span>`);
-            if (p.chains.length) chips.push(`<span class="ba-chip ${p.overCap ? 'bad' : 'warn'}">กดต่อเนื่อง ${p.chains.length} ชุด ยาวสุด ${hms(p.chainMax)}</span>`);
+            if (p.overMeal)      chips.push(`<span class="ba-chip bad">กินข้าวเกิน ${p.meal}/${c.mealMax} รอบ</span>`);
+            if (p.chains.length) chips.push(`<span class="ba-chip ${p.overCap ? 'bad' : 'warn'}">กดต่อเนื่อง ${p.chains.length} ชุด รวดเดียว ${hms(p.chainMax)}</span>`);
             if (p.overLimit)     chips.push(`<span class="ba-chip warn">ใช้เกินเวลาที่บอทให้ ${p.overLimit} รอบ</span>`);
-            if (!p.overMeal && p.meal) chips.push(`<span class="ba-chip">กินข้าว ${p.meal}/${c.mealMax} รอบ</span>`);
-            if (p.live)          chips.push('<span class="ba-chip live">ยังไม่กลับที่นั่ง</span>');
+            if (p.live)          chips.push('<span class="ba-chip live">ตอนนี้ยังไม่กลับที่นั่ง</span>');
 
+            const when = p.sessions.length
+                ? `ออกครั้งแรก ${clock(p.firstOut)} · ${p.live ? 'ออกล่าสุด ' + clock(p.sessions[p.sessions.length-1].start) : 'กลับล่าสุด ' + clock(p.lastBack)}`
+                : '';
+
+            // ตารางรายรอบ
             const rows = p.sessions.map((s, i) => `
                 <tr class="${p.inChain[i] ? 'linked' : ''}">
-                    <td><span class="ba-dot" style="background:${{meal:'#22c55e',heavy:'#f97316',light:'#38bdf8',other:'#a78bfa'}[s.kind]}"></span>${esc(s.cat || '-')}</td>
+                    <td class="n" style="color:#64748b">${i + 1}</td>
+                    <td><span class="ba-dot" style="background:${KIND[s.kind].color}"></span>${esc(s.cat || '-')}</td>
                     <td class="n">${clock(s.start)}</td>
-                    <td class="n">${s.live ? '—' : clock(s.end)}</td>
+                    <td class="n">${s.live ? 'ยังไม่กลับ' : clock(s.end)}</td>
                     <td class="n" ${s.overLimit ? 'style="color:#fca5a5;font-weight:800"' : ''}>${hms(s.dur)}</td>
                     <td class="n" style="color:#64748b">${s.limit ? s.limit + ' น.' : '—'}</td>
-                    <td>${[p.inChain[i] ? 'ต่อจากครั้งก่อน' : '', s.overLimit ? 'เกินเวลาที่บอทให้' : ''].filter(Boolean).join(' · ')}</td>
+                    <td>${[p.inChain[i] ? 'ต่อจากรอบก่อน' : '', s.overLimit ? 'เกินเวลาที่บอทให้' : ''].filter(Boolean).join(' · ')}</td>
                 </tr>`).join('');
 
             const meta = [p.dept, p.team, p.id].filter(Boolean).join(' · ');
+            const pctUsed = Math.min(100, Math.round(p.total / c.cap * 100));
 
             return `<details class="ba-row" data-state="${p.state}">
                 <summary>
                     <i class="ba-bar"></i>
-                    <div style="min-width:0"><div class="ba-nm">${esc(p.name)}</div><div class="ba-meta">${esc(meta)}</div></div>
-                    <div class="ba-tot">${hms(p.total)}<small>จาก ${hms(c.cap)}</small></div>
-                    <div class="ba-track">${marks}${blocks}${chainMarks}${nowMark}</div>
-                    <div class="ba-ticks">${ticks}</div>
+                    <div style="min-width:0">
+                        <div class="ba-nm">${esc(p.name)} <span class="ba-cnt">${p.sessions.length} รอบวันนี้</span></div>
+                        <div class="ba-meta">${esc(meta)}${when ? ' · ' + when : ''}</div>
+                    </div>
+                    <div class="ba-tot">${hms(p.total)}<small>ใช้ไป ${pctUsed}% ของ ${hms(c.cap)}</small></div>
+                    <div class="ba-kinds">${kindCells}</div>
                     ${chips.length ? `<div class="ba-chips">${chips.join('')}</div>` : ''}
                 </summary>
                 <div class="ba-det">
-                    ${p.sessions.length ? `<table><thead><tr><th>หมวด</th><th>ออก</th><th>กลับ</th><th style="text-align:right">ใช้ไป</th><th style="text-align:right">บอทให้</th><th>หมายเหตุ</th></tr></thead><tbody>${rows}</tbody></table>`
+                    ${p.sessions.length ? `<table><thead><tr><th style="text-align:right">#</th><th>หมวด</th><th style="text-align:right">ออกตอน</th><th style="text-align:right">กลับตอน</th><th style="text-align:right">ใช้ไป</th><th style="text-align:right">บอทให้</th><th>หมายเหตุ</th></tr></thead><tbody>${rows}</tbody></table>`
                                         : '<div class="text-[12px] text-gray-500 py-2">ไม่มีรายการในวันนี้</div>'}
                 </div>
             </details>`;

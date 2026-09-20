@@ -41,20 +41,16 @@
         #baPage .ba-row[data-state="near"] .ba-tot{color:#fbbf24}
         #baPage .ba-tot small{display:block;font-size:10.5px;font-weight:700;color:#64748b;font-family:inherit}
 
-        /* แถบเวลาในกะ */
-        #baPage .ba-track{grid-column:2/-1;position:relative;height:20px;background:#0b1220;border:1px solid rgba(148,163,184,.12);border-radius:5px;margin:3px 0 4px;overflow:hidden}
-        #baPage .ba-track i{position:absolute;display:block}
-        #baPage .ba-blk{top:3px;height:12px;min-width:3px;border-radius:2px}
-        #baPage .ba-blk.meal{background:#22c55e}
-        #baPage .ba-blk.heavy{background:#f97316}
-        #baPage .ba-blk.light{background:#38bdf8}
-        #baPage .ba-blk.other{background:#a78bfa}
-        #baPage .ba-blk.live{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 3px,transparent 3px 6px)}
-        #baPage .ba-chain{bottom:1px;height:5px;border:1px solid #ef4444;border-top:0;border-radius:0 0 3px 3px}
-        #baPage .ba-hour{top:0;bottom:0;width:1px;background:rgba(148,163,184,.13)}
-        #baPage .ba-now{top:0;bottom:0;width:1px;background:#22d3ee;box-shadow:0 0 6px #22d3ee}
-        #baPage .ba-ticks{grid-column:2/-1;position:relative;height:12px;font-size:9.5px;color:#64748b;font-family:ui-monospace,Menlo,monospace}
-        #baPage .ba-ticks span{position:absolute;transform:translateX(-50%)}
+        /* นับรอบแยกหมวด */
+        #baPage .ba-kinds{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+        #baPage .ba-k{display:flex;align-items:center;gap:6px;background:#0f172a;border:1px solid rgba(148,163,184,.16);border-radius:9px;padding:5px 10px}
+        #baPage .ba-k.off{opacity:.42}
+        #baPage .ba-kdot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+        #baPage .ba-kname{font-size:12px;color:#cbd5e1;font-weight:700}
+        #baPage .ba-kn{font-size:14px;color:#f1f5f9;font-weight:900;font-variant-numeric:tabular-nums;margin-left:2px}
+        #baPage .ba-kunit{font-size:11px;color:#64748b}
+        #baPage .ba-ktime{font-size:12px;color:#94a3b8;font-family:ui-monospace,Menlo,monospace;border-left:1px solid rgba(148,163,184,.2);padding-left:8px;margin-left:2px}
+        #baPage .ba-cnt{font-size:11px;font-weight:700;color:#94a3b8;background:#0f172a;border:1px solid rgba(148,163,184,.18);border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:middle}
 
         #baPage .ba-chips{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:5px;padding-bottom:2px}
         #baPage .ba-chip{font-size:11px;font-weight:800;padding:1px 8px;border-radius:99px;border:1px solid #334155;color:#94a3b8;background:#0f172a}
@@ -133,7 +129,7 @@
         <span><span class="ba-dot" style="background:#f97316"></span>ปวดหนัก</span>
         <span><span class="ba-dot" style="background:#38bdf8"></span>ปวดน้อย / สูบบุหรี่</span>
         <span><span class="ba-dot" style="background:#a78bfa"></span>อื่นๆ</span>
-        <span><span class="ba-dot" style="border:1px solid #ef4444;background:transparent"></span>กรอบแดง = กดต่อเนื่อง</span>
+        <span>กดที่ชื่อเพื่อดูรายรอบว่าออกตอนไหน กลับตอนไหน</span>
         <span class="ml-auto" id="baUpdatedAt"></span>
     </div>
 </div>
