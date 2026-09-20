@@ -133,6 +133,8 @@ window.initDutyApp = async function() {
             dateInput.value = (new Date(today - offset)).toISOString().slice(0, 10);
         }
 
+        if (typeof window.fillRotationGapInput === 'function') window.fillRotationGapInput();   // 🔁 เติมค่าเว้นวันที่ตั้งไว้
+
         // 🚀 ดึง users + access matrix/roles ขนานกัน (อิสระต่อกัน)
         const initFetches = [window.loadDutyAccessAndRoles()];
         if (GLOBAL_USER_LIST.length === 0 && typeof fetchUsers === 'function') {
@@ -789,6 +791,23 @@ window.restoreFromLeave = async function(userId, username) {
             Swal.fire({icon: 'success', title: 'ดึงกลับสำเร็จ!', text: `${username} ไปอยู่เว็บ ${selectedTeam} แล้ว`, timer: 1500, showConfirmButton: false});
         } catch (err) { Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
     }
+};
+
+// 🔁 บันทึก "เว้นกี่วันก่อนกลับมาเว็บเดิม" — มีผลกับปุ่มจัดเวร/จัดรองด่วนทุกเครื่อง
+window.saveRotationGap = async function(v) {
+    const n = Math.max(0, Math.min(30, parseInt(v) || 0));
+    try {
+        await appDB.from('settings').upsert([{ key: 'duty_rotation_gap', value: String(n) }]);
+        if (typeof SETTINGS !== 'undefined') SETTINGS.duty_rotation_gap = String(n);
+        Swal.fire({ icon: 'success', title: n > 0 ? `เว้น ${n} วันก่อนกลับเว็บเดิม` : 'ปิดการเว้นวันแล้ว',
+            text: n > 0 ? 'กดจัดเวรครั้งต่อไปจะเวียนงานให้ทั่วถึงตามนี้' : '', timer: 1800, showConfirmButton: false });
+    } catch (e) { Swal.fire('บันทึกไม่สำเร็จ', e.message, 'error'); }
+};
+
+// เติมค่าที่ตั้งไว้ลงช่อง (เรียกตอนเปิดหน้าจัดหน้าที่)
+window.fillRotationGapInput = function() {
+    const el = document.getElementById('rotGapInput');
+    if (el) el.value = (typeof window.getRotationGapDays === 'function') ? window.getRotationGapDays() : 3;
 };
 
 window.addStaffToRoster = async function() {

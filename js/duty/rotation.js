@@ -17,7 +17,8 @@
 // อ่านตารางย้อนหลังมาสรุปว่า "ใครเคยอยู่เว็บไหน เมื่อกี่วันก่อน"
 window.loadDutyRotationHistory = async function(targetDate, shiftFilter, lookbackDays) {
     // ย้อนให้ยาวกว่าจำนวนเว็บนิดหน่อย จะได้เห็นครบ 1 รอบเต็มของทุกคน
-    const lookback = lookbackDays || Math.min(30, Math.max(10, sortedTeams.length + 4));
+    const _gap = (typeof window.getRotationGapDays === 'function') ? window.getRotationGapDays() : 3;
+    const lookback = lookbackDays || Math.min(30, Math.max(10, sortedTeams.length + 4, _gap + 2));   // ต้องมองย้อนให้ไกลกว่าวันที่เว้น
 
     const keys = [];
     const agoOfKey = {};
@@ -112,10 +113,23 @@ window.dutyDaysAgoOnTeam = function(rotation, uid, team) {
     return m[team];
 };
 
+// 🔁 จำนวนวันที่ต้องเว้นก่อนกลับมาเว็บเดิม (ตั้งได้ในหน้าจัดหน้าที่ · ค่าเริ่มต้น 3 วัน)
+//    เช่น ตั้ง 3 = ทำ Jun88 วันนี้ → อีก 3 วันถัดไปไม่ควรได้ Jun88 อีก ให้เวียนไปเว็บอื่นก่อน
+window.getRotationGapDays = function() {
+    const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
+    const v = parseInt(S.duty_rotation_gap);
+    return (isNaN(v) || v < 0) ? 3 : Math.min(30, v);
+};
+
 // คะแนนความ "ไม่ควร" ของการเอาคนนี้ลงเว็บนี้ — ยิ่งมากยิ่งแย่
 window.dutyRotationPenalty = function(rotation, uid, team) {
     const ago = window.dutyDaysAgoOnTeam(rotation, uid, team);
-    if (ago === 1) return 3;                                        // ซ้ำกับวันล่าสุด — แย่สุด
+    const gap = window.getRotationGapDays();
+
+    // 🚫 อยู่ในช่วงต้องเว้น → โทษหนักแบบไล่ระดับ (เพิ่งทำเมื่อวาน = หนักสุด)
+    if (gap > 0 && ago <= gap) return 100 + (gap - ago + 1) * 10;
+
+    if (ago === 1) return 3;                                        // (กรณีปิดการเว้นวัน) ซ้ำกับวันล่าสุด
     const cycleLen = (dutyAccessMatrix[String(uid)] || []).length;
     if (ago >= cycleLen) return 0;                                  // วนครบรอบแล้ว — ดี
     return 1;                                                       // ซ้ำก่อนครบรอบ — พอรับได้

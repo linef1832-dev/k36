@@ -402,11 +402,16 @@ document.addEventListener('paste', function(e) {
 });
 
 // 🔎 กรองประวัติจัดหน้าที่ตามชื่อ (ชื่อคนถูกย้าย/คนทำรายการ/ประเภท) — พิมพ์ปุ๊บกรองปั๊บ
-window.filterDutyLogs = function(q) {
-    q = String(q || '').trim().toLowerCase();
+window.filterDutyLogs = function() {
+    const q = String((document.getElementById('dutyLogSearch') || {}).value || '').trim().toLowerCase();
+    const day = (document.getElementById('dutyLogDay') || {}).value || '';
+    const type = (document.getElementById('dutyLogType') || {}).value || '';
     let hit = 0;
     document.querySelectorAll('.duty-log-card').forEach(card => {
-        const show = !q || (card.dataset.search || '').includes(q);
+        const okQ = !q || (card.dataset.search || '').includes(q);
+        const okD = !day || card.dataset.day === day;
+        const okT = !type || card.dataset.type === type;
+        const show = okQ && okD && okT;
         card.style.display = show ? '' : 'none';
         if (show) hit++;
     });
@@ -455,8 +460,10 @@ window.openDutyHistoryModal = async function() {
                     .replace(/→/g, '<span style="color:#818cf8;font-weight:800;margin:0 3px">→</span>');
 
                 const searchBlob = `${log.performed_by || ''} ${log.target_details || ''} ${log.action_type || ''}`.toLowerCase();
+                const logDay = String(log.created_at || '').slice(0, 10);          // 📅 วันที่ของรายการ (YYYY-MM-DD)
+                const logType = String(log.action_type || 'อื่นๆ');                  // 🏷️ หัวข้อ/ประเภท
                 rows += `
-                    <div class="rounded-xl p-3 transition duty-log-card" data-search="${searchBlob.replace(/"/g, '&quot;')}" style="background:#1a2236;border:1px solid #2d3748">
+                    <div class="rounded-xl p-3 transition duty-log-card" data-search="${searchBlob.replace(/"/g, '&quot;')}" data-day="${logDay}" data-type="${logType.replace(/"/g, '&quot;')}" style="background:#1a2236;border:1px solid #2d3748">
                         <div class="flex items-center justify-between mb-2">
                             <span class="${badgeColor} inline-flex items-center gap-1 px-2 py-0.5 rounded-md border shadow-sm font-bold text-[10.5px]">
                                 <span class="material-icons" style="font-size:12px">${icon}</span>${log.action_type}
@@ -475,12 +482,27 @@ window.openDutyHistoryModal = async function() {
             });
         }
 
+        // 📋 รวบรวมวันที่และหัวข้อที่มีจริง ไว้ทำตัวเลือก
+        const _days = [...new Set(logs.map(l => String(l.created_at || '').slice(0, 10)).filter(Boolean))].sort().reverse();
+        const _types = [...new Set(logs.map(l => String(l.action_type || 'อื่นๆ')).filter(Boolean))].sort();
+        const _thDay = d => { try { const [y, m, dd] = d.split('-'); return `${+dd}/${+m}/${+y + 543}`; } catch (e) { return d; } };
+        const _dayOpts = _days.map(d => `<option value="${d}">${_thDay(d)}</option>`).join('');
+        const _typeOpts = _types.map(t => `<option value="${t}">${t}</option>`).join('');
+
         const htmlContent = `
             <div class="text-left overflow-hidden rounded-lg">
+                <div style="display:flex;gap:6px;margin:2px 4px 8px">
+                    <select id="dutyLogDay" onchange="filterDutyLogs()" style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;color:#f1f5f9;outline:none;cursor:pointer">
+                        <option value="">📅 ทุกวัน</option>${_dayOpts}
+                    </select>
+                    <select id="dutyLogType" onchange="filterDutyLogs()" style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;color:#f1f5f9;outline:none;cursor:pointer">
+                        <option value="">🏷️ ทุกหัวข้อ</option>${_typeOpts}
+                    </select>
+                </div>
                 <div style="position:relative;margin:2px 4px 10px">
                     <span class="material-icons" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:17px;color:#8b93a7;pointer-events:none">search</span>
                     <input type="text" id="dutyLogSearch" placeholder="พิมพ์ชื่อ (ตัวเอง/ใครก็ได้) เพื่อกรอง... เช่น ALIEN"
-                        oninput="filterDutyLogs(this.value)"
+                        oninput="filterDutyLogs()"
                         style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:11px;padding:9px 12px 9px 36px;font-size:13px;font-weight:700;color:#f1f5f9;outline:none"
                         onfocus="this.style.borderColor='#818cf8'" onblur="this.style.borderColor='#334155'">
                 </div>
