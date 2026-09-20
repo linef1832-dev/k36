@@ -96,7 +96,15 @@
     <div class="bg-[#0f172a] mt-3 p-3 rounded-2xl border border-slate-700 flex flex-wrap gap-3 items-end">
         <div><div class="ba-lbl">เพดานรวมทั้งวัน (นาที)</div><input id="baCap" type="number" min="1" value="120" onchange="baCompute()" class="ba-sel" style="min-width:90px"></div>
         <div><div class="ba-lbl">กินข้าวได้กี่รอบ</div><input id="baMealMax" type="number" min="1" value="2" onchange="baCompute()" class="ba-sel" style="min-width:80px"></div>
-        <div><div class="ba-lbl">กลับมานั่งไม่ถึง (นาที) = ต่อเนื่อง</div><input id="baGap" type="number" min="0" value="5" onchange="baCompute()" class="ba-sel" style="min-width:90px"></div>
+        <div><div class="ba-lbl">กลับมานั่งไม่ถึงเท่านี้ = ต่อเนื่อง</div>
+            <div style="display:flex;gap:6px">
+                <input id="baGap" type="number" min="0" value="5" onchange="baCompute()" class="ba-sel" style="min-width:74px">
+                <select id="baGapUnit" class="ba-sel" onchange="baCompute()" style="min-width:86px">
+                    <option value="min">นาที</option>
+                    <option value="sec">วินาที</option>
+                </select>
+            </div>
+        </div>
         <div><div class="ba-lbl">กะเริ่ม</div><input id="baShiftA" type="time" value="08:00" onchange="baCompute()" class="ba-sel" style="min-width:110px"></div>
         <div><div class="ba-lbl">กะเลิก</div><input id="baShiftB" type="time" value="20:00" onchange="baCompute()" class="ba-sel" style="min-width:110px"></div>
         <div><div class="ba-lbl">แผนก</div><select id="baDept" class="ba-sel" onchange="baCompute()"><option value="all">ทุกแผนก</option></select></div>
@@ -112,6 +120,10 @@
         <label class="flex items-center gap-2 text-[12px] text-gray-300 font-bold cursor-pointer self-end pb-2">
             <input type="checkbox" id="baAbsent" checked onchange="baCompute()" class="w-4 h-4 accent-amber-500"> แสดงคนที่ไม่ได้กดเลย
         </label>
+        <button id="baSaveRules" onclick="baSaveRules()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 self-end">
+            <span class="material-icons text-sm">save</span> บันทึกเกณฑ์
+        </button>
+        <span id="baRulesNote" class="text-[11px] text-gray-500 self-end pb-2"></span>
     </div>
 
     <!-- สรุป -->

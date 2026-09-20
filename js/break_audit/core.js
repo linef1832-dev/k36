@@ -30,7 +30,7 @@
         return {
             cap:     (+$('baCap').value     || 120) * 60,
             mealMax: (+$('baMealMax').value || 2),
-            gap:     (+$('baGap').value     || 0) * 60,
+            gap:     (+$('baGap').value || 0) * (($('baGapUnit') && $('baGapUnit').value === 'sec') ? 1 : 60),
             a: toSec($('baShiftA').value) || 0,
             b: toSec($('baShiftB').value) || 86400
         };
@@ -43,6 +43,49 @@
         return 'other';
     }
     const dateVal = () => ($('baDate') && $('baDate').value) || iso(new Date());
+
+    // ── เกณฑ์: โหลด/บันทึก (เก็บในตาราง settings ใช้ร่วมกันทั้งทีม) ──
+    const RULE_KEY = 'break_audit_rules';
+    const RULE_FIELDS = ['baCap', 'baMealMax', 'baGap', 'baGapUnit', 'baShiftA', 'baShiftB'];
+
+    async function loadRules() {
+        let raw = null;
+        try {
+            if (typeof window.getSettingCached === 'function') raw = await window.getSettingCached(RULE_KEY);
+            else if (typeof appDB !== 'undefined') {
+                const { data } = await appDB.from('settings').select('value').eq('key', RULE_KEY).maybeSingle();
+                raw = data ? data.value : null;
+            }
+        } catch (e) { console.warn('[break_audit] โหลดเกณฑ์ไม่ได้', e); }
+        if (!raw) { try { raw = localStorage.getItem(RULE_KEY); } catch (e) {} }
+        if (!raw) return;
+        try {
+            const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            RULE_FIELDS.forEach(id => { if (v[id] !== undefined && $(id)) $(id).value = v[id]; });
+            if ($('baRulesNote')) $('baRulesNote').textContent = v._by ? `เกณฑ์ที่ใช้อยู่ ตั้งโดย ${v._by}` : '';
+        } catch (e) { console.warn('[break_audit] เกณฑ์ที่เก็บไว้อ่านไม่ออก', e); }
+    }
+
+    window.baSaveRules = async function () {
+        const v = {};
+        RULE_FIELDS.forEach(id => { if ($(id)) v[id] = $(id).value; });
+        v._by = (window.currentUser && window.currentUser.username) || '';
+        v._at = new Date().toISOString();
+        const json = JSON.stringify(v);
+        try { localStorage.setItem(RULE_KEY, json); } catch (e) {}
+        try {
+            if (typeof appDB === 'undefined') throw new Error('ไม่ได้เชื่อมฐานข้อมูล');
+            const { error } = await appDB.from('settings').upsert([{ key: RULE_KEY, value: json }]);
+            if (error) throw error;
+            if (typeof window.clearSettingCache === 'function') window.clearSettingCache(RULE_KEY);
+            if ($('baRulesNote')) $('baRulesNote').textContent = `บันทึกแล้ว ${new Date().toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'})}`;
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'บันทึกเกณฑ์แล้ว', text: 'ทุกคนที่เปิดหน้านี้จะใช้เกณฑ์เดียวกัน', timer: 1600, showConfirmButton: false });
+        } catch (e) {
+            if ($('baRulesNote')) $('baRulesNote').textContent = 'บันทึกในเครื่องนี้เท่านั้น';
+            if (typeof Swal !== 'undefined') Swal.fire('บันทึกขึ้นระบบไม่สำเร็จ', 'ค่าถูกเก็บไว้ในเครื่องนี้แล้ว แต่เครื่องอื่นจะยังใช้ค่าเดิม (' + e.message + ')', 'warning');
+        }
+        window.baCompute();
+    };
 
     // ── พนักงานในระบบ ────────────────────────────────────
     async function loadUsers() {
@@ -492,6 +535,7 @@
         if (!$('baPage')) return;
         if (!$('baDate').value) $('baDate').value = iso(new Date());
 
+        await loadRules();
         await loadUsers();
         await load();
         window.baCompute();
