@@ -41,7 +41,8 @@ window.handleDragStart = function(event, userId, username, fromTeam) {
         tooltip.className = 'fixed z-[9999] pointer-events-none bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-2xl border border-indigo-500 opacity-95';
         document.body.appendChild(tooltip);
     }
-    tooltip.innerHTML = `<div class="text-indigo-300 text-[10px] mb-1">สิทธิ์ของ ${username}:</div><div class="text-green-400 text-sm">${accessText}</div>`;
+    // 🛡️ [XSS] username / ชื่อเว็บ มาจากฐานข้อมูล (free text) — ต้อง escape ก่อนยัดลง innerHTML
+    tooltip.innerHTML = `<div class="text-indigo-300 text-[10px] mb-1">สิทธิ์ของ ${window.escapeHtml(username)}:</div><div class="text-green-400 text-sm">${window.escapeHtml(accessText)}</div>`;
     tooltip.style.display = 'block';
 
     document.querySelectorAll('.duty-site-card').forEach(card => {

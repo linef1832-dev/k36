@@ -40,10 +40,13 @@ window.openAutoSwapModal = async function() {
         
         if(typeof clearExcludeStaff === 'function') clearExcludeStaff();
 
-        const now = new Date();
-        now.setMonth(now.getMonth() + 1);
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
+        // 📆 [FIX] เดิม now.setMonth(getMonth()+1) บนวันที่ปัจจุบัน — วันที่ 29-31 จะล้นไปเดือนถัดไปอีก
+        //    (31 พ.ค. +1 เดือน = 31 มิ.ย. ซึ่งไม่มี → 1 ก.ค.) ทำให้เดือนตั้งต้นเพี้ยนไป 1 เดือน
+        //    คำนวณจากปี/เดือนตรงๆ แทน — ไม่ต้องพึ่งวันที่เลย
+        const _t = new Date();
+        const _next = new Date(_t.getFullYear(), _t.getMonth() + 1, 1);
+        const y = _next.getFullYear();
+        const m = String(_next.getMonth() + 1).padStart(2, '0');
         
         if(document.getElementById('swapStartDate')) document.getElementById('swapStartDate').value = `${y}-${m}-01`;
         if(document.getElementById('swapEndDate')) document.getElementById('swapEndDate').value = `${y}-${m}-06`;

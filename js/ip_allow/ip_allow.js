@@ -177,9 +177,9 @@
         if (!ip) { out.innerHTML = ''; return; }
         const hit = ipData.ips.find(x => ipMatches(ip, x.ip));
         if (!ipData.enabled) {
-            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.25);font-size:13px;color:#94a3b8">ระบบปิดอยู่ — ตอนนี้ IP ไหนก็เข้าได้ (ถ้าเปิด: ${hit ? 'IP นี้จะ<b style="color:#4ade80">เข้าได้</b> ตรงกับกติกา ' + hit.ip : 'IP นี้จะ<b style="color:#f87171">ถูกบล็อก</b>'})</div>`;
+            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.25);font-size:13px;color:#94a3b8">ระบบปิดอยู่ — ตอนนี้ IP ไหนก็เข้าได้ (ถ้าเปิด: ${hit ? 'IP นี้จะ<b style="color:#4ade80">เข้าได้</b> ตรงกับกติกา ' + window.escapeHtml(hit.ip) : 'IP นี้จะ<b style="color:#f87171">ถูกบล็อก</b>'})</div>`;
         } else if (hit) {
-            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);font-size:13px;color:#4ade80">✅ เข้าได้ — ตรงกับกติกา <b style="font-family:monospace">${hit.ip}</b> (${hit.note || 'ไม่มีหมายเหตุ'})</div>`;
+            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);font-size:13px;color:#4ade80">✅ เข้าได้ — ตรงกับกติกา <b style="font-family:monospace">${window.escapeHtml(hit.ip)}</b> (${window.escapeHtml(hit.note || 'ไม่มีหมายเหตุ')})</div>`;
         } else {
             out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171">⛔ ถูกบล็อก — ไม่ตรงกับกติกาไหนเลย (ยกเว้นคนที่เป็น admin)</div>`;
         }
