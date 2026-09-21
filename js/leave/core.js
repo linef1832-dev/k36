@@ -319,10 +319,8 @@ async function loadLeaveSettings(skipRender = false) {
 
 window.checkBookingWindow = function(targetShift) {
     const now = new Date();
-    // [FIX] AMQL ใช้ค่าเปิด/ปิด + เวลา ของ AM, ODQL ใช้ของ OD
-    let _settingDept = currentViewDept;
-    if (currentViewDept === 'AMQL') _settingDept = 'AM';
-    else if (currentViewDept === 'ODQL') _settingDept = 'OD';
+    // ✅ เวลาเปิด-ปิดจองของแต่ละหน้าแยกกัน (ผู้สอนไม่ใช้เวลาของ AM/OD อีกต่อไป)
+    const _settingDept = currentViewDept;
     const s = deptSettings[_settingDept] || {};
 
     const getStatus = (name, startStr, endStr) => {

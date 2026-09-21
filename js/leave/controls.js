@@ -390,10 +390,8 @@ window.toggleLeaveStatus = async function(isChecked) {
     try {
         if (typeof appDB === 'undefined') throw new Error('ไม่พบตัวแปรเชื่อมต่อฐานข้อมูล');
 
-        // [FIX] หน้า AMQL บันทึกลง AM, ODQL บันทึกลง OD เพราะระบบอ่านค่าจาก AM/OD
-        let _saveDept = currentViewDept;
-        if (currentViewDept === 'AMQL') _saveDept = 'AM';
-        else if (currentViewDept === 'ODQL') _saveDept = 'OD';
+        // ✅ เปิด/ปิดจองเฉพาะหน้าที่ดูอยู่ — หน้าผู้สอนไม่ไปเปิด/ปิดของ AM/OD อีกแล้ว
+        const _saveDept = currentViewDept;
 
         const upsertRows = [{ key: `${_saveDept}_is_open`, value: statusValue }];
         // sync ค่ากลับให้ตัวเองด้วย กันสับสน

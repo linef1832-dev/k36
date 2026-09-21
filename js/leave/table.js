@@ -17,10 +17,9 @@ window.renderLeaveTable = function() {
     // 🌟 แก้บั๊กเส้นตารางหาย: ลบคลาสที่ทำให้เส้นขอบชนกันออก
     tbody.classList.remove('divide-y', 'divide-gray-100', 'dark:divide-slate-700');
 
-    // [FIX] AMQL ใช้ settings (quota, เวลา, lock) ของ AM, ODQL ใช้ของ OD
-    let _settingDept = currentViewDept;
-    if (currentViewDept === 'AMQL') _settingDept = 'AM';
-    else if (currentViewDept === 'ODQL') _settingDept = 'OD';
+    // ✅ ทุกหน้า (AM / OD / พนักงานใหม่ / ผู้สอน AM / ผู้สอน OD) ใช้ค่าตั้งของตัวเองแยกกันเด็ดขาด
+    //    (เดิมผู้สอนแอบไปใช้ค่าของ AM/OD → โควตาในหัวตารางไม่ตรงกับที่ตั้งในแผงของผู้สอน)
+    const _settingDept = currentViewDept;
     const s = deptSettings[_settingDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 };
     const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
     // isAdmin = global admin หรือ มีสิทธิ์จัดการแผนกที่กำลังดูอยู่
