@@ -28,9 +28,19 @@
     // ── เวลา ─────────────────────────────────────────────
     const toSec = t => { const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t || '')); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] || 0)) : null; };
     const hms   = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 3600) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(s % 60); };
-    const clock = s => pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s % 3600 / 60));
+    const clock = s => {
+        const nx = s >= 86400;
+        s = ((s % 86400) + 86400) % 86400;
+        return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s % 3600 / 60)) + (nx ? '⁺¹' : '');
+    };
     const nowSec = () => { const d = new Date(); return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(); };
     const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const addDays = (ds, n) => { const d = new Date(ds + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
+    // วันทำงานปัจจุบัน — ก่อนเวลาเริ่มวัน ยังถือเป็นของเมื่อวาน (กะดึก)
+    function workDateNow(dayStart) {
+        const d = new Date();
+        return nowSec() < dayStart ? addDays(iso(d), -1) : iso(d);
+    }
     const norm = s => String(s || '').toLowerCase().replace(/[\s\-_.()]/g, '');
 
     function cfg() {
@@ -39,8 +49,8 @@
             mealMax: (+$('baMealMax').value || 2),
             gap:     (+$('baGap').value || 0) * (($('baGapUnit') && $('baGapUnit').value === 'sec') ? 1 : 60),
             late:    (+($('baLate') && $('baLate').value) || 0) * 60,
-            a: toSec($('baShiftA').value) || 0,
-            b: toSec($('baShiftB').value) || 86400
+            dayStart: toSec($('baDayStart') && $('baDayStart').value) || 0,
+            botReset: toSec($('baBotReset') && $('baBotReset').value)
         };
     }
     function kindOf(name) {
@@ -54,7 +64,7 @@
 
     // ── เกณฑ์: โหลด/บันทึก (เก็บในตาราง settings ใช้ร่วมกันทั้งทีม) ──
     const RULE_KEY = 'break_audit_rules';
-    const RULE_FIELDS = ['baCap', 'baMealMax', 'baGap', 'baGapUnit', 'baLate', 'baShiftA', 'baShiftB'];
+    const RULE_FIELDS = ['baCap', 'baMealMax', 'baGap', 'baGapUnit', 'baLate', 'baDayStart', 'baBotReset'];
 
     async function loadRules() {
         let raw = null;
@@ -162,9 +172,10 @@
     // ── ดึงข้อมูลของวันที่เลือก ───────────────────────────
     async function load() {
         if (typeof appDB === 'undefined') { _rows = []; return; }
+        const d = dateVal();
         const { data, error } = await appDB.from('break_punches')
-            .select('tg_user_id, tg_name, category, started_at, ended_at, duration_sec, limit_min, is_open, created_at')
-            .eq('punch_date', dateVal())
+            .select('punch_date, tg_user_id, tg_name, category, started_at, ended_at, duration_sec, limit_min, is_open, created_at')
+            .in('punch_date', [d, addDays(d, 1)])      // กะดึกข้ามเที่ยงคืน ต้องดึงวันถัดไปมาด้วย
             .order('started_at', { ascending: true });
         if (error) {
             console.error('[break_audit]', error);
@@ -266,8 +277,10 @@
         records.forEach(r => {
             if (!by[r.uid]) by[r.uid] = { id: r.id, name: r.name, dept: r.dept, team: r.team, sessions: [] };
             const live = r.end === null;
-            let dur = live ? Math.max(0, now - r.start) : (r.dur != null ? r.dur : (r.end - r.start + 86400) % 86400);
+            const nowT = nowSec() + (nowSec() < c.dayStart ? 86400 : 0);
+            let dur = live ? Math.max(0, nowT - r.start) : (r.dur != null ? r.dur : Math.max(0, r.end - r.start));
             by[r.uid].sessions.push({ cat: r.cat, kind: kindOf(r.cat), start: r.start, end: r.start + dur, dur, live,
+                                      botReset: r.botReset, noBack: r.noBack,
                                       limit: r.limit, overLimit: r.limit ? dur > r.limit * 60 : false });
             if (!by[r.uid].booked) by[r.uid].booked = _booked[norm(r.name)] || [];
         });
@@ -276,13 +289,15 @@
             const p = by[k];
             p.sessions.sort((a, b) => a.start - b.start);
             p.total = 0; p.meal = 0; p.live = false;
-            p.overLimit = 0;
+            p.overLimit = 0; p.botReset = 0; p.noBack = 0;
             p.byKind = { meal: {n:0,sec:0}, heavy: {n:0,sec:0}, light: {n:0,sec:0}, other: {n:0,sec:0} };
             p.sessions.forEach(s => {
                 p.total += s.dur;
                 if (s.kind === 'meal') p.meal++;
                 if (s.live) p.live = true;
                 if (s.overLimit) p.overLimit++;
+                if (s.botReset) p.botReset++;
+                if (s.noBack) p.noBack++;
                 p.byKind[s.kind].n++; p.byKind[s.kind].sec += s.dur;
             });
             p.firstOut = p.sessions.length ? p.sessions[0].start : null;
@@ -321,10 +336,11 @@
                 ix.forEach((i, j) => { if (j > 0) p.inChain[i] = true; });   // รอบแรกของชุดไม่ใช่ "ต่อจากรอบก่อน"
             });
 
-            p.overCap  = p.total > c.cap;
+            p.overCap  = p.total > c.cap && !p.botReset;   // ถ้ามีรอบที่ค้างเพราะบอทรีเซ็ต เวลาไม่แม่น ไม่ฟันธงว่าเกิน
             p.overMeal = p.meal > c.mealMax;
+            // เหลือง = กดกลับที่นั่งแล้วกดออกต่อทันที (ไม่ว่าหมวดอะไร) อย่างเดียวเท่านั้น
             p.state = (p.overCap || p.overMeal || p.lateSlot) ? 'over'
-                    : (p.total >= c.cap * 0.8 || p.chains.length || p.overLimit || p.offSlot) ? 'near' : 'ok';
+                    : p.chains.length ? 'near' : 'ok';
             return p;
         }).sort((a, b) => {
             const rank = { over: 0, near: 1, ok: 2 };
@@ -336,21 +352,48 @@
         const c = cfg(), dept = $('baDept').value, team = $('baTeam').value;
         const unknown = {}, hit = {}, use = [];
 
+        const d0 = dateVal(), d1 = addDays(d0, 1);
+        const ds = c.dayStart;
+        const resetTs = c.botReset === null ? null : (c.botReset + (c.botReset < ds ? 86400 : 0));
+        const isToday = d0 === workDateNow(ds);
+        const nowTs = nowSec() + (nowSec() < ds ? 86400 : 0);
+
         _rows.forEach(r => {
+            // อยู่ในวันทำงานที่เลือกไหม (ก่อนเวลาเริ่มวัน = ยังเป็นของเมื่อวาน)
+            const t = toSec(r.started_at);
+            if (t === null) return;
+            let off = null;
+            if (r.punch_date === d0 && t >= ds) off = 0;
+            else if (r.punch_date === d1 && t < ds) off = 86400;
+            if (off === null) return;
+
             const u = findUser(r.tg_user_id, r.tg_name);
             if (!u) { (unknown[r.tg_user_id] = unknown[r.tg_user_id] || { id: r.tg_user_id, name: r.tg_name, n: 0 }).n++; return; }
             if (_skipDepts.indexOf(u.department || '') > -1) return;
             if (dept !== 'all' && (u.department || '') !== dept) return;
             if (team !== 'all' && (u.team || '') !== team) return;
             if (!inShift(u.username || r.tg_name)) return;
-            const start = toSec(r.started_at);
-            if (start === null) return;
+
+            const start = t + off;
+            let end = null, dur = null, botReset = false, noBack = false;
+
+            if (!r.is_open) {
+                let e = toSec(r.ended_at);
+                if (e !== null) { e += off; if (e < start) e += 86400; }
+                end = e; dur = r.duration_sec;
+            } else if (isToday && (resetTs === null || nowTs <= resetTs)) {
+                end = null;                                   // ยังไม่กลับจริงๆ เวลาเดินอยู่
+            } else if (resetTs !== null && start < resetTs) {
+                end = resetTs; dur = resetTs - start; botReset = true;   // บอทรีเซ็ตไปแล้ว กดกลับไม่ได้
+            } else {
+                end = start; dur = 0; noBack = true;          // ค้างไว้ ไม่รู้เวลาจริง
+            }
+
             hit[u.id] = true;
             use.push({
                 uid: u.id, id: String(u.telegram_id || r.tg_user_id), name: u.username || r.tg_name,
                 dept: u.department || '', team: u.team || '', cat: r.category || 'อื่นๆ',
-                start, end: r.is_open ? null : toSec(r.ended_at), dur: r.is_open ? null : r.duration_sec,
-                limit: r.limit_min
+                start, end, dur, limit: r.limit_min, botReset, noBack
             });
         });
 
@@ -368,7 +411,7 @@
                     id: String(u.telegram_id), name: u.username || '-', dept: u.department || '', team: u.team || '',
                     sessions: [], total: 0, meal: 0, live: false, chains: [], inChain: {}, chainMax: 0,
                     byKind: { meal:{n:0,sec:0}, heavy:{n:0,sec:0}, light:{n:0,sec:0}, other:{n:0,sec:0} },
-                    firstOut: null, lastBack: null, overLimit: 0, offSlot: 0, lateSlot: 0, booked: _booked[norm(u.username)] || [],
+                    firstOut: null, lastBack: null, overLimit: 0, offSlot: 0, lateSlot: 0, botReset: 0, noBack: 0, booked: _booked[norm(u.username)] || [],
                     overCap: false, overMeal: false, absent: true, state: 'ok'
                 });
             });
@@ -416,7 +459,7 @@
         $('baTally').innerHTML = [
             ['all', 'ทั้งหมด', counts.all, ''],
             ['over', 'เกินเกณฑ์', counts.over, 'over'],
-            ['near', 'ต้องดู', counts.near, 'near'],
+            ['near', 'กดต่อเนื่อง', counts.near, 'near'],
             ['live', 'ยังไม่กดกลับ', counts.live, 'live']
         ].map(t => `<button class="ba-t ${t[3]} ${_filter === t[0] ? 'on' : ''}" onclick="baFilter('${t[0]}')">
                         <span class="n">${t[2]}</span><span class="l">${t[1]}</span></button>`).join('');
@@ -470,6 +513,8 @@
             if (p.offSlot - (p.lateSlot || 0) > 0) chips.push(`<span class="ba-chip warn">ไม่ได้จองรอบพัก ${p.offSlot - p.lateSlot} รอบ</span>`);
             if (p.checkSlot !== false && p.booked && p.booked.length) chips.push(`<span class="ba-chip">จองไว้ ${p.booked.map(b => b.text).join(', ')}</span>`);
             if (p.live)          chips.push('<span class="ba-chip live">ตอนนี้ยังไม่กลับที่นั่ง</span>');
+            if (p.botReset)      chips.push(`<span class="ba-chip">ค้างเพราะบอทรีเซ็ต ${p.botReset} รอบ</span>`);
+            if (p.noBack)        chips.push(`<span class="ba-chip warn">ไม่มีการกดกลับ ${p.noBack} รอบ</span>`);
 
             const when = p.sessions.length
                 ? `ออกครั้งแรก ${clock(p.firstOut)} · ${p.live ? 'ออกล่าสุด ' + clock(p.sessions[p.sessions.length-1].start) : 'กลับล่าสุด ' + clock(p.lastBack)}`
@@ -481,10 +526,10 @@
                     <td class="n" style="color:#64748b">${i + 1}</td>
                     <td><span class="ba-dot" style="background:${KIND[s.kind].color}"></span>${esc(s.cat || '-')}</td>
                     <td class="n">${clock(s.start)}</td>
-                    <td class="n">${s.live ? 'ยังไม่กลับ' : clock(s.end)}</td>
+                    <td class="n">${s.live ? 'ยังไม่กลับ' : s.noBack ? '—' : clock(s.end)}</td>
                     <td class="n" ${s.overLimit ? 'style="color:#fca5a5;font-weight:800"' : ''}>${hms(s.dur)}</td>
                     <td class="n" style="color:#64748b">${s.limit ? s.limit + ' น.' : '—'}</td>
-                    <td${s.lateSlot ? ' style="color:#fca5a5;font-weight:700"' : ''}>${[p.inChain[i] ? 'ต่อจากรอบก่อน' : '', s.overLimit ? 'เกินเวลาที่บอทให้' : '', s.slotNote || ''].filter(Boolean).join(' · ')}</td>
+                    <td${s.lateSlot ? ' style="color:#fca5a5;font-weight:700"' : ''}>${[p.inChain[i] ? 'ต่อจากรอบก่อน' : '', s.overLimit ? 'เกินเวลาที่บอทให้' : '', s.botReset ? 'บอทรีเซ็ตตอนตี 1 · นับถึงตรงนั้น' : '', s.noBack ? 'ไม่มีการกดกลับ · นับเวลาไม่ได้' : '', s.slotNote || ''].filter(Boolean).join(' · ')}</td>
                 </tr>`).join('');
 
             const spots = _dutyOf[norm(p.name)] || [];
