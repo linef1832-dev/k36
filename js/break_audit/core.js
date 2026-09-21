@@ -313,9 +313,13 @@
             p.sessions.forEach(s => {
                 if (!p.checkSlot || s.kind !== 'meal') return;
                 if (!p.booked.length) { s.slotNote = 'ไม่ได้จองรอบพัก'; s.offSlot = true; p.offSlot++; return; }
-                // จับคู่กับรอบที่จองไว้ซึ่งเวลาเริ่มใกล้ที่สุด
-                let best = p.booked[0], bestDiff = Math.abs(s.start - best.a);
-                p.booked.forEach(b => { const d = Math.abs(s.start - b.a); if (d < bestDiff) { best = b; bestDiff = d; } });
+                // รอบที่จองต้องเลื่อนเข้าเส้นเวลาเดียวกับรอบที่กดจริง (กะดึกข้ามเที่ยงคืน)
+                const slots = p.booked.map(b => {
+                    const off = b.a < c.dayStart ? 86400 : 0;
+                    return { a: b.a + off, b: b.b + off, text: b.text };
+                });
+                let best = slots[0], bestDiff = Math.abs(s.start - best.a);
+                slots.forEach(b => { const d = Math.abs(s.start - b.a); if (d < bestDiff) { best = b; bestDiff = d; } });
                 const diff = s.start - best.a;                       // + = ออกช้ากว่าที่จอง
                 const mins = Math.round(Math.abs(diff) / 60);
                 if (Math.abs(diff) <= c.late) { s.slotNote = 'ตรงรอบ ' + best.text; s.offSlot = false; }
