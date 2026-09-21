@@ -117,12 +117,23 @@
             if (typeof window.getUsersCached === 'function') _users = await window.getUsersCached();
             else if (window.GLOBAL_USER_LIST && window.GLOBAL_USER_LIST.length) _users = window.GLOBAL_USER_LIST;
             else if (typeof appDB !== 'undefined') {
-                const { data } = await appDB.from('users').select('id, username, department, team, role, telegram_id');
+                const { data } = await appDB.from('users').select('id, username, department, team, role, telegram_id, allowed_shift');
                 _users = data || [];
             }
         } catch (e) { console.warn('[break_audit] โหลดรายชื่อพนักงานไม่สำเร็จ', e); _users = []; }
 
         const fill = (el, arr, allLabel) => { if (el) el.innerHTML = `<option value="all">${allLabel}</option>` + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join(''); };
+        // กะ: ใช้ชุดมาตรฐานของระบบเสมอ + กะแปลกๆ ที่เจอในข้อมูลจริง
+        const SHIFTS = ['กะเช้า', 'กะกลาง', 'กะดึก'];
+        const extra = [...new Set(_users.map(u => u.allowed_shift).filter(Boolean))].filter(x => SHIFTS.indexOf(x) < 0);
+        const sSel = $('baShift');
+        if (sSel) {
+            const keep = sSel.value;
+            sSel.innerHTML = '<option value="all">ทุกกะ</option>' +
+                SHIFTS.concat(extra).map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+            if (keep) sSel.value = keep;
+        }
+
         const depts = [...new Set(_users.map(u => u.department).filter(Boolean))].sort();
         fill($('baDept'), depts, 'ทุกแผนก');
         renderDeptBoxes(depts);
@@ -252,23 +263,14 @@
             });
         } catch (e) { console.warn('[break_audit] โหลดตารางจัดหน้าที่ไม่ได้', e); }
 
-        // เติมตัวเลือกกะจากที่มีจริงในตารางเวรวันนั้น
-        const sel = $('baShift');
-        if (sel) {
-            const order = ['กะเช้า', 'กะกลาง', 'กะดึก'];
-            const shifts = [...new Set(Object.keys(_duty).map(k => k.split('|')[1]))]
-                .sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9) || a.localeCompare(b, 'th'));
-            const keep = sel.value;
-            sel.innerHTML = '<option value="all">ทุกกะ</option>' + shifts.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-            if (shifts.indexOf(keep) > -1) sel.value = keep;
-        }
     }
 
-    // คนนี้อยู่กะที่เลือกไว้ไหม
-    function inShift(name) {
+    // คนนี้อยู่กะที่เลือกไว้ไหม — ดูจากกะประจำของพนักงานก่อน ถ้าไม่มีค่อยดูตารางเวรวันนั้น
+    function inShift(u, fallbackName) {
         const want = ($('baShift') && $('baShift').value) || 'all';
         if (want === 'all') return true;
-        return (_dutyOf[norm(name)] || []).some(x => x.shift === want);
+        if (u && u.allowed_shift) return u.allowed_shift === want;
+        return (_dutyOf[norm((u && u.username) || fallbackName)] || []).some(x => x.shift === want);
     }
 
     // ── คำนวณ ────────────────────────────────────────────
@@ -372,7 +374,7 @@
             if (_skipDepts.indexOf(u.department || '') > -1) return;
             if (dept !== 'all' && (u.department || '') !== dept) return;
             if (team !== 'all' && (u.team || '') !== team) return;
-            if (!inShift(u.username || r.tg_name)) return;
+            if (!inShift(u, r.tg_name)) return;
 
             const start = t + off;
             let end = null, dur = null, botReset = false, noBack = false;
@@ -404,7 +406,7 @@
             _users.forEach(u => {
                 if (hit[u.id] || !u.telegram_id) return;
                 if (_skipDepts.indexOf(u.department || '') > -1) return;
-                if (!inShift(u.username)) return;
+                if (!inShift(u)) return;
                 if (dept !== 'all' && (u.department || '') !== dept) return;
                 if (team !== 'all' && (u.team || '') !== team) return;
                 _people.push({
