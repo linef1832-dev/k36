@@ -298,7 +298,7 @@
     function build(records, c) {
         const now = nowSec(), by = {};
         records.forEach(r => {
-            if (!by[r.uid]) by[r.uid] = { uid: r.uid, id: r.id, name: r.name, dept: r.dept, team: r.team, ds: (r.ds != null ? r.ds : c.dayStart), sessions: [] };
+            if (!by[r.uid]) by[r.uid] = { uid: r.uid, id: r.id, name: r.name, dept: r.dept, team: r.team, ds: (r.ds != null ? r.ds : c.dayStart), unknown: !!r.unknown, sessions: [] };
             const live = r.end === null;
             const dsR = (r.ds != null ? r.ds : c.dayStart);
             const nowT = nowSec() + (nowSec() < dsR ? 86400 : 0);
@@ -330,7 +330,7 @@
             // เทียบกับรอบที่จองไว้ (เช็คเฉพาะหมวดกินข้าว)
             p.booked = p.booked || [];
             p.offSlot = 0;
-            p.checkSlot = _noSlotDepts.indexOf(p.dept || '') < 0;
+            p.checkSlot = !p.unknown && _noSlotDepts.indexOf(p.dept || '') < 0;   // คนไม่อยู่ในระบบไม่มีการจอง → ไม่ตำหนิเรื่องรอบ
             p.lateSlot = 0;
             p.sessions.forEach(s => {
                 if (!p.checkSlot || s.kind !== 'meal') return;
@@ -406,11 +406,18 @@
             else if (r.punch_date === d1 && crossed) off = 0;          // ออกเย็นวันนี้ กลับหลังเที่ยงคืน (ลงวันที่เป็น d1)
             if (off === null) return;
 
-            if (!u) { (unknown[r.tg_user_id] = unknown[r.tg_user_id] || { id: r.tg_user_id, name: r.tg_name, n: 0 }).n++; return; }
-            if (_skipDepts.indexOf(u.department || '') > -1) return;
-            if (dept !== 'all' && (u.department || '') !== dept) return;
-            if (team !== 'all' && (u.team || '') !== team) return;
-            if (!inShift(u, r.tg_name)) return;
+            if (!u) {
+                // 👤 คนที่กดแต่จับคู่กับพนักงานไม่ได้ → ยังนับใน "ไม่รู้จัก" (กล่องเตือน) และ
+                //    เอามาโชว์ในรายการหลักด้วย (ใช้ชื่อ/ไอดี Telegram แทน) จะได้ไม่หลุดจากการตรวจ
+                //    โชว์เฉพาะตอนดู "ทุกแผนก / ทุกเว็บ" เพราะไม่รู้ว่าเขาอยู่แผนกไหน
+                (unknown[r.tg_user_id] = unknown[r.tg_user_id] || { id: r.tg_user_id, name: r.tg_name, n: 0 }).n++;
+                if (dept !== 'all' || team !== 'all') return;
+            } else {
+                if (_skipDepts.indexOf(u.department || '') > -1) return;
+                if (dept !== 'all' && (u.department || '') !== dept) return;
+                if (team !== 'all' && (u.team || '') !== team) return;
+                if (!inShift(u, r.tg_name)) return;
+            }
 
             const start = t + off;
             let end = null, dur = null, botReset = false, noBack = false;
@@ -427,11 +434,15 @@
                 end = start; dur = 0; noBack = true;          // ค้างไว้ ไม่รู้เวลาจริง
             }
 
-            hit[u.id] = true;
-            use.push({
+            if (u) hit[u.id] = true;
+            use.push(u ? {
                 uid: u.id, id: String(u.telegram_id || r.tg_user_id), name: u.username || r.tg_name,
                 dept: u.department || '', team: u.team || '', cat: r.category || 'อื่นๆ',
                 start, end, dur, limit: r.limit_min, botReset, noBack, ds
+            } : {
+                uid: 'tg:' + r.tg_user_id, id: String(r.tg_user_id), name: r.tg_name || ('TG ' + r.tg_user_id),
+                dept: '', team: '', cat: r.category || 'อื่นๆ',
+                start, end, dur, limit: r.limit_min, botReset, noBack, ds, unknown: true
             });
         });
 
@@ -597,9 +608,12 @@
 
             const spots = _dutyOf[norm(p.name)] || [];
             const dutyTeams = [...new Set(spots.map(x => x.team))];
-            const meta = [p.dept, dutyTeams.length ? 'หน้างานวันนี้ ' + dutyTeams.join('+') : (p.team || ''), p.id].filter(Boolean).join(' · ');
+            const meta = p.unknown
+                ? `Telegram ID ${p.id} · ไม่รู้แผนก/เว็บ`
+                : [p.dept, dutyTeams.length ? 'หน้างานวันนี้ ' + dutyTeams.join('+') : (p.team || ''), p.id].filter(Boolean).join(' · ');
             const pctUsed = Math.min(100, Math.round(p.total / c.cap * 100));
             const shiftBadge = (() => {
+                if (p.unknown) return `<span title="Telegram ID ${esc(p.id)} ยังไม่ผูกกับพนักงานคนไหน — ใส่ที่หน้า พนักงาน" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;color:#fbbf24;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);vertical-align:middle"><span class="material-icons" style="font-size:12px">person_off</span>ไม่อยู่ในระบบ</span>`;
                 const sh = shiftOf(_users.find(x => x.id === p.uid) || _users.find(x => x.username === p.name), p.name);
                 const B = { 'กะเช้า': ['☀️', 'เช้า', '#fbbf24'], 'กะกลาง': ['🌤️', 'กลาง', '#60a5fa'], 'กะดึก': ['🌙', 'ดึก', '#a78bfa'] }[sh];
                 if (!B) return '';
