@@ -29,9 +29,8 @@
     const toSec = t => { const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t || '')); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] || 0)) : null; };
     const hms   = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 3600) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(s % 60); };
     const clock = s => {
-        const nx = s >= 86400;
-        s = ((s % 86400) + 86400) % 86400;
-        return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s % 3600 / 60)) + (nx ? '⁺¹' : '');
+        s = ((s % 86400) + 86400) % 86400;   // หลังเที่ยงคืนโชว์เวลาตรงๆ ไม่ต้องติด ⁺¹
+        return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s % 3600 / 60));
     };
     const nowSec = () => { const d = new Date(); return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(); };
     const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -299,7 +298,7 @@
     function build(records, c) {
         const now = nowSec(), by = {};
         records.forEach(r => {
-            if (!by[r.uid]) by[r.uid] = { id: r.id, name: r.name, dept: r.dept, team: r.team, ds: (r.ds != null ? r.ds : c.dayStart), sessions: [] };
+            if (!by[r.uid]) by[r.uid] = { uid: r.uid, id: r.id, name: r.name, dept: r.dept, team: r.team, ds: (r.ds != null ? r.ds : c.dayStart), sessions: [] };
             const live = r.end === null;
             const dsR = (r.ds != null ? r.ds : c.dayStart);
             const nowT = nowSec() + (nowSec() < dsR ? 86400 : 0);
@@ -459,7 +458,7 @@
                 if (dept !== 'all' && (u.department || '') !== dept) return;
                 if (team !== 'all' && (u.team || '') !== team) return;
                 _people.push({
-                    id: String(u.telegram_id), name: u.username || '-', dept: u.department || '', team: u.team || '',
+                    uid: u.id, id: String(u.telegram_id), name: u.username || '-', dept: u.department || '', team: u.team || '',
                     sessions: [], total: 0, meal: 0, live: false, chains: [], inChain: {}, chainMax: 0,
                     byKind: { meal:{n:0,sec:0}, heavy:{n:0,sec:0}, light:{n:0,sec:0}, other:{n:0,sec:0} },
                     firstOut: null, lastBack: null, overLimit: 0, offSlot: 0, lateSlot: 0, botReset: 0, noBack: 0, booked: _booked[norm(u.username)] || [],
@@ -587,12 +586,18 @@
             const dutyTeams = [...new Set(spots.map(x => x.team))];
             const meta = [p.dept, dutyTeams.length ? 'หน้างานวันนี้ ' + dutyTeams.join('+') : (p.team || ''), p.id].filter(Boolean).join(' · ');
             const pctUsed = Math.min(100, Math.round(p.total / c.cap * 100));
+            const shiftBadge = (() => {
+                const sh = shiftOf(_users.find(x => x.id === p.uid) || _users.find(x => x.username === p.name), p.name);
+                const B = { 'กะเช้า': ['☀️', 'เช้า', '#fbbf24'], 'กะกลาง': ['🌤️', 'กลาง', '#60a5fa'], 'กะดึก': ['🌙', 'ดึก', '#a78bfa'] }[sh];
+                if (!B) return '';
+                return `<span title="${esc(sh)}" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;color:${B[2]};background:${B[2]}1f;border:1px solid ${B[2]}55;vertical-align:middle">${B[0]} ${B[1]}</span>`;
+            })();
 
             return `<details class="ba-row" data-state="${p.state}">
                 <summary>
                     <i class="ba-bar"></i>
                     <div style="min-width:0">
-                        <div class="ba-nm">${esc(p.name)} <span class="ba-cnt">${p.sessions.length} รอบวันนี้</span></div>
+                        <div class="ba-nm">${esc(p.name)}${shiftBadge} <span class="ba-cnt">${p.sessions.length} รอบวันนี้</span></div>
                         <div class="ba-meta">${esc(meta)}${when ? ' · ' + when : ''}</div>
                     </div>
                     <div class="ba-tot">${hms(p.total)}<small>ใช้ไป ${pctUsed}% ของ ${hms(c.cap)}</small></div>
