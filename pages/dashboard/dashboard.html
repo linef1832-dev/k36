@@ -168,7 +168,12 @@
                             .mt-break-pill:hover{ border-color:rgba(52,211,153,.7); box-shadow:0 4px 14px -5px rgba(16,185,129,.6); }
                             .mt-break-x:hover{ background:#ef4444 !important; color:#fff !important; transform:rotate(90deg); box-shadow:0 3px 10px -3px rgba(239,68,68,.7); }
                             .mt-break-x:active{ transform:rotate(90deg) scale(.88); }
-                            .slotf{border:1px solid rgba(148,163,184,.3);background:rgba(15,23,42,.6);color:#8fa3bf;border-radius:99px;padding:4px 12px;font-size:10.5px;font-weight:800;cursor:pointer;transition:all .14s;white-space:nowrap}
+                            /* 📏 แถวตัวกรองรอบเวลา: บังคับอยู่แถวเดียวเสมอ — ปุ่มหดเท่าๆ กัน จอแคบมากค่อยเลื่อนซ้ายขวา */
+                            .slotf-bar{display:flex;flex-wrap:nowrap;gap:5px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 0}
+                            .slotf-bar::-webkit-scrollbar{display:none}
+                            .slotf{flex:1 1 0;min-width:0;text-align:center;border:1px solid rgba(148,163,184,.3);background:rgba(15,23,42,.6);color:#8fa3bf;border-radius:99px;padding:4px 6px;font-size:10.5px;font-weight:800;cursor:pointer;transition:all .14s;white-space:nowrap;letter-spacing:0}
+                            .slotf-bar .slotf:first-child{flex:0 0 auto;padding:4px 10px}
+                            @media (max-width:420px){ .slotf{font-size:9.5px;padding:4px 4px} }
                             .slotf:hover{color:#e2e8f0;border-color:#60a5fa}
                             .slotf.on{background:linear-gradient(135deg,#2563eb,#4f46e5);border-color:#93c5fd;color:#fff;box-shadow:0 4px 12px -5px rgba(59,130,246,.55)}
                             .slotc-empty{border:1px dashed rgba(148,163,184,.3);border-radius:12px;padding:16px 10px;text-align:center;font-size:11.5px;color:#8fa3bf}
