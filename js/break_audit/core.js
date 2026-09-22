@@ -400,9 +400,11 @@
             const eRaw = r.is_open ? null : toSec(r.ended_at);
             const crossed = eRaw !== null && eRaw < t && t >= ds;
             let off = null;
-            if (r.punch_date === d0 && t >= ds) off = 0;              // ออกในวันนี้ (รวมรอบที่คร่อมเที่ยงคืน)
+            // ⚠️ listener ลง punch_date ตามวันที่ "กดกลับ" → รอบที่คร่อมเที่ยงคืน (ออก 23:55 กลับ 00:14) จะมี punch_date เป็นวันถัดไป
+            //    รอบแบบนี้ที่ punch_date = d0 แปลว่าออกตั้งแต่เย็นวันก่อน (d0-1) → ไม่ใช่ของวันนี้ ห้ามหยิบ
+            if (r.punch_date === d0 && t >= ds && !crossed) off = 0;  // ออกในวันนี้หลังเวลาเริ่มวัน
             else if (r.punch_date === d1 && t < ds) off = 86400;      // หลังเที่ยงคืน ก่อนถึงเวลาเริ่มวันใหม่ = ยังเป็นวันนี้
-            else if (r.punch_date === d1 && crossed) off = 0;          // รอบคร่อมเที่ยงคืนที่ listener ลงวันที่ตามเวลากดกลับ
+            else if (r.punch_date === d1 && crossed) off = 0;          // ออกเย็นวันนี้ กลับหลังเที่ยงคืน (ลงวันที่เป็น d1)
             if (off === null) return;
 
             if (!u) { (unknown[r.tg_user_id] = unknown[r.tg_user_id] || { id: r.tg_user_id, name: r.tg_name, n: 0 }).n++; return; }
