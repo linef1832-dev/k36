@@ -76,6 +76,36 @@
         #baPage .ba-det td.n{text-align:right;font-family:ui-monospace,Menlo,monospace;padding-right:0}
         #baPage .ba-det tr.linked td{border-left:2px solid #ef4444;padding-left:7px}
         #baPage .ba-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+
+        /* ═══ 🧾 รายรอบแบบการ์ดพรีเมียม ═══ */
+        #baPage .ba-ses-head,#baPage .ba-ses{display:grid;grid-template-columns:34px 170px 190px 170px 1fr;gap:0 14px;align-items:center}
+        #baPage .ba-ses-head{padding:4px 12px 6px;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#5d6b82}
+        #baPage .ba-ses{position:relative;margin:4px 0;padding:9px 12px;border-radius:12px;background:linear-gradient(90deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);transition:border-color .15s,background .15s}
+        #baPage .ba-ses::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--k)}
+        #baPage .ba-ses:hover{border-color:rgba(232,193,90,.35);background:linear-gradient(90deg,rgba(232,193,90,.06),rgba(255,255,255,.02))}
+        #baPage .ba-ses.bad{border-color:rgba(239,68,68,.35);background:linear-gradient(90deg,rgba(239,68,68,.08),rgba(255,255,255,.015))}
+        #baPage .ba-ses.warn{border-color:rgba(245,158,11,.3)}
+        #baPage .ba-ses-n{width:26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#0b1120;background:linear-gradient(135deg,#f5e3ae,#E8C15A);box-shadow:0 2px 8px rgba(232,193,90,.25)}
+        #baPage .ba-ses.bad .ba-ses-n{background:linear-gradient(135deg,#fca5a5,#ef4444);color:#fff;box-shadow:0 2px 8px rgba(239,68,68,.3)}
+        #baPage .ba-ses-cat{font-size:13px;font-weight:800;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        #baPage .ba-ses-time{display:flex;align-items:center;gap:6px;font-family:ui-monospace,Menlo,monospace;font-size:13.5px;font-weight:800;color:#f1f5f9;font-variant-numeric:tabular-nums}
+        #baPage .ba-ses-time .material-icons{font-size:14px;color:#E8C15A}
+        #baPage .ba-ses-dur-t{display:flex;align-items:baseline;gap:6px;font-family:ui-monospace,Menlo,monospace;font-size:13px;font-variant-numeric:tabular-nums}
+        #baPage .ba-ses-dur-t small{font-size:10.5px;color:#64748b;font-family:inherit}
+        #baPage .ba-ses-bar{height:4px;border-radius:4px;background:rgba(255,255,255,.07);margin-top:5px;overflow:hidden}
+        #baPage .ba-ses-bar i{display:block;height:100%;border-radius:4px;transition:width .3s}
+        #baPage .ba-ses-tags{display:flex;flex-wrap:wrap;gap:5px}
+        #baPage .ba-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid rgba(148,163,184,.25);color:#94a3b8;background:rgba(148,163,184,.08)}
+        #baPage .ba-tag .material-icons{font-size:12px}
+        #baPage .ba-tag.ok{border-color:rgba(34,197,94,.35);color:#86efac;background:rgba(34,197,94,.1)}
+        #baPage .ba-tag.warn{border-color:rgba(245,158,11,.4);color:#fcd34d;background:rgba(245,158,11,.1)}
+        #baPage .ba-tag.bad{border-color:rgba(239,68,68,.45);color:#fca5a5;background:rgba(239,68,68,.12)}
+        #baPage .ba-tag.dim{opacity:.75}
+        @media(max-width:900px){
+            #baPage .ba-ses-head{display:none}
+            #baPage .ba-ses{grid-template-columns:30px 1fr;gap:6px 10px}
+            #baPage .ba-ses-tags{grid-column:1/-1}
+        }
     </style>
 
     <!-- หัวหน้า -->

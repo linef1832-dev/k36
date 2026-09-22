@@ -570,17 +570,30 @@
                 ? `ออกครั้งแรก ${clock(p.firstOut)} · ${p.live ? 'ออกล่าสุด ' + clock(p.sessions[p.sessions.length-1].start) : 'กลับล่าสุด ' + clock(p.lastBack)}`
                 : '';
 
-            // ตารางรายรอบ
-            const rows = p.sessions.map((s, i) => `
-                <tr class="${p.inChain[i] ? 'linked' : ''}">
-                    <td class="n" style="color:#64748b">${i + 1}</td>
-                    <td><span class="ba-dot" style="background:${KIND[s.kind].color}"></span>${esc(s.cat || '-')}</td>
-                    <td class="n">${clock(s.start)}</td>
-                    <td class="n">${s.live ? 'ยังไม่กลับ' : s.noBack ? '—' : clock(s.end)}</td>
-                    <td class="n" ${s.overLimit ? 'style="color:#fca5a5;font-weight:800"' : ''}>${hms(s.dur)}</td>
-                    <td class="n" style="color:#64748b">${s.limit ? s.limit + ' น.' : '—'}</td>
-                    <td${s.lateSlot ? ' style="color:#fca5a5;font-weight:700"' : ''}>${[p.inChain[i] ? 'ต่อจากรอบก่อน' : '', s.overLimit ? 'เกินเวลาที่บอทให้' : '', s.botReset ? 'บอทรีเซ็ตตอนตี 1 · นับถึงตรงนั้น' : '', s.noBack ? 'ไม่มีการกดกลับ · นับเวลาไม่ได้' : '', s.slotNote || ''].filter(Boolean).join(' · ')}</td>
-                </tr>`).join('');
+            // 🧾 รายรอบ — แถวแบบการ์ดพรีเมียม (เลขลำดับ · หมวด · ช่วงเวลา · แถบเวลาเทียบที่บอทให้ · ป้ายหมายเหตุ)
+            const rows = p.sessions.map((s, i) => {
+                const K = KIND[s.kind];
+                const limitSec = s.limit ? s.limit * 60 : 0;
+                const pct = limitSec ? Math.min(100, Math.round(s.dur / limitSec * 100)) : 0;
+                const barColor = s.overLimit ? '#ef4444' : (limitSec && pct >= 85 ? '#f59e0b' : K.color);
+                const endTxt = s.live ? '<span style="color:#4ade80;font-weight:800">ยังไม่กลับ</span>' : s.noBack ? '—' : clock(s.end);
+                const tags = [];
+                if (p.inChain[i]) tags.push(['warn', 'link', 'ต่อจากรอบก่อน']);
+                if (s.overLimit)  tags.push(['bad', 'timer_off', 'เกินเวลาที่บอทให้']);
+                if (s.botReset)   tags.push(['dim', 'restart_alt', 'บอทรีเซ็ต · นับถึงตรงนั้น']);
+                if (s.noBack)     tags.push(['warn', 'help_outline', 'ไม่มีการกดกลับ']);
+                if (s.slotNote)   tags.push([s.lateSlot ? 'bad' : (s.offSlot ? 'warn' : 'ok'), s.lateSlot ? 'schedule' : (s.offSlot ? 'event_busy' : 'event_available'), s.slotNote]);
+                return `<div class="ba-ses ${s.overLimit || s.lateSlot ? 'bad' : (p.inChain[i] ? 'warn' : '')}" style="--k:${K.color}">
+                    <div class="ba-ses-n">${i + 1}</div>
+                    <div class="ba-ses-cat"><i class="ba-dot" style="background:${K.color}"></i>${esc(s.cat || '-')}</div>
+                    <div class="ba-ses-time"><b>${clock(s.start)}</b><span class="material-icons">east</span><b>${endTxt}</b></div>
+                    <div class="ba-ses-dur">
+                        <div class="ba-ses-dur-t"><b style="color:${s.overLimit ? '#fca5a5' : '#f1f5f9'}">${hms(s.dur)}</b>${limitSec ? `<small>/ ${s.limit} น.</small>` : '<small>ไม่มีลิมิต</small>'}</div>
+                        ${limitSec ? `<div class="ba-ses-bar"><i style="width:${pct}%;background:${barColor}"></i></div>` : ''}
+                    </div>
+                    <div class="ba-ses-tags">${tags.length ? tags.map(t => `<span class="ba-tag ${t[0]}"><span class="material-icons">${t[1]}</span>${esc(t[2])}</span>`).join('') : '<span class="ba-tag ok"><span class="material-icons">check_circle</span>ปกติ</span>'}</div>
+                </div>`;
+            }).join('');
 
             const spots = _dutyOf[norm(p.name)] || [];
             const dutyTeams = [...new Set(spots.map(x => x.team))];
@@ -606,7 +619,7 @@
                     <div class="ba-open"><span class="material-icons">chevron_right</span>${p.sessions.length ? `กดเพื่อดูรายละเอียดทั้ง ${p.sessions.length} รอบ (ออกตอนไหน กลับตอนไหน)` : 'ไม่มีรอบให้ดู'}</div>
                 </summary>
                 <div class="ba-det">
-                    ${p.sessions.length ? `<table><thead><tr><th style="text-align:right">#</th><th>หมวด</th><th style="text-align:right">ออกตอน</th><th style="text-align:right">กลับตอน</th><th style="text-align:right">ใช้ไป</th><th style="text-align:right">บอทให้</th><th>หมายเหตุ</th></tr></thead><tbody>${rows}</tbody></table>`
+                    ${p.sessions.length ? `<div class="ba-ses-head"><span>#</span><span>หมวด</span><span>ออก → กลับ</span><span>ใช้ไป / บอทให้</span><span>หมายเหตุ</span></div>${rows}`
                                         : '<div class="text-[12px] text-gray-500 py-2">ไม่มีรายการในวันนี้</div>'}
                 </div>
             </details>`;
