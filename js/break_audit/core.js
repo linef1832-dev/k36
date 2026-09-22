@@ -43,6 +43,28 @@
     }
     const norm = s => String(s || '').toLowerCase().replace(/[\s\-_.()]/g, '');
 
+    // ── 🌙 วันทำงาน "ต่อคน" ตามกะ ───────────────────────────
+    //   กะดึก (เข้า 20:00 เลิก 08:00) → วันทำงานเริ่มนับตอนเข้ากะ (20:00) และวนไปจนถึง 20:00 ของวันถัดไป
+    //   → ทุกรอบที่กดหลังเที่ยงคืน (02:00, 08:00, แม้ 12:00 ของวันที่ 23) ยังเป็น "วันที่ 22" ทั้งหมด
+    //   กะอื่นที่ไม่ข้ามเที่ยงคืน → ใช้ค่าจากช่อง "วันทำงานเริ่มนับตอน" เหมือนเดิม
+    function shiftOf(u, fallbackName) {
+        if (u && u.allowed_shift) return u.allowed_shift;
+        const d = _dutyOf[norm((u && u.username) || fallbackName)] || [];
+        return d.length ? d[0].shift : '';
+    }
+    function shiftHours(shift) {
+        const suf = String(shift || '').replace('กะ', '');
+        const def = { 'เช้า': ['08:00', '20:00'], 'กลาง': ['11:00', '23:00'], 'ดึก': ['20:00', '08:00'] }[suf] || [null, null];
+        const S = (typeof SETTINGS !== 'undefined' && SETTINGS) ? SETTINGS : {};
+        return { open: toSec(S[`open_time_${suf}`] || def[0]), close: toSec(S[`close_time_${suf}`] || def[1]) };
+    }
+    function dayStartFor(u, fallbackName, globalDs) {
+        const h = shiftHours(shiftOf(u, fallbackName));
+        // กะที่เข้าค่ำเลิกเช้า (open > close) = ข้ามเที่ยงคืน → นับวันจากเวลาเข้ากะ
+        if (h.open !== null && h.close !== null && h.open > h.close) return h.open;
+        return globalDs;
+    }
+
     function cfg() {
         return {
             cap:     (+$('baCap').value     || 120) * 60,
@@ -277,9 +299,10 @@
     function build(records, c) {
         const now = nowSec(), by = {};
         records.forEach(r => {
-            if (!by[r.uid]) by[r.uid] = { id: r.id, name: r.name, dept: r.dept, team: r.team, sessions: [] };
+            if (!by[r.uid]) by[r.uid] = { id: r.id, name: r.name, dept: r.dept, team: r.team, ds: (r.ds != null ? r.ds : c.dayStart), sessions: [] };
             const live = r.end === null;
-            const nowT = nowSec() + (nowSec() < c.dayStart ? 86400 : 0);
+            const dsR = (r.ds != null ? r.ds : c.dayStart);
+            const nowT = nowSec() + (nowSec() < dsR ? 86400 : 0);
             let dur = live ? Math.max(0, nowT - r.start) : (r.dur != null ? r.dur : Math.max(0, r.end - r.start));
             by[r.uid].sessions.push({ cat: r.cat, kind: kindOf(r.cat), start: r.start, end: r.start + dur, dur, live,
                                       botReset: r.botReset, noBack: r.noBack,
@@ -315,7 +338,7 @@
                 if (!p.booked.length) { s.slotNote = 'ไม่ได้จองรอบพัก'; s.offSlot = true; p.offSlot++; return; }
                 // รอบที่จองต้องเลื่อนเข้าเส้นเวลาเดียวกับรอบที่กดจริง (กะดึกข้ามเที่ยงคืน)
                 const slots = p.booked.map(b => {
-                    const off = b.a < c.dayStart ? 86400 : 0;
+                    const off = b.a < p.ds ? 86400 : 0;
                     return { a: b.a + off, b: b.b + off, text: b.text };
                 });
                 let best = slots[0], bestDiff = Math.abs(s.start - best.a);
@@ -360,25 +383,28 @@
         let use = [];
 
         const d0 = dateVal(), d1 = addDays(d0, 1);
-        const ds = c.dayStart;
-        const resetTs = c.botReset === null ? null : (c.botReset + (c.botReset < ds ? 86400 : 0));
-        const isToday = d0 === workDateNow(ds);
-        const nowTs = nowSec() + (nowSec() < ds ? 86400 : 0);
 
         _rows.forEach(r => {
-            // อยู่ในวันทำงานที่เลือกไหม (ก่อนเวลาเริ่มวัน = ยังเป็นของเมื่อวาน)
             const t = toSec(r.started_at);
             if (t === null) return;
+
+            // 🌙 หาคนก่อน เพื่อรู้ว่าเขาอยู่กะไหน → วันทำงานของเขาเริ่มนับตอนกี่โมง
+            const u = findUser(r.tg_user_id, r.tg_name);
+            const ds = dayStartFor(u, r.tg_name, c.dayStart);
+            const resetTs = c.botReset === null ? null : (c.botReset + (c.botReset < ds ? 86400 : 0));
+            const isToday = d0 === workDateNow(ds);
+            const nowTs = nowSec() + (nowSec() < ds ? 86400 : 0);
+
+            // อยู่ในวันทำงานที่เลือกไหม (ก่อนเวลาเริ่มวัน = ยังเป็นของเมื่อวาน)
             // รอบที่ข้ามเที่ยงคืน (กลับก่อนเวลาที่ออก) = ออกตั้งแต่วันก่อนหน้า
             const eRaw = r.is_open ? null : toSec(r.ended_at);
             const crossed = eRaw !== null && eRaw < t && t >= ds;
             let off = null;
-            if (r.punch_date === d0 && t >= ds && !crossed) off = 0;
-            else if (r.punch_date === d1 && t < ds) off = 86400;
-            else if (r.punch_date === d1 && crossed) off = 0;          // ข้อมูลเก่าที่บันทึกวันที่ผิด
+            if (r.punch_date === d0 && t >= ds) off = 0;              // ออกในวันนี้ (รวมรอบที่คร่อมเที่ยงคืน)
+            else if (r.punch_date === d1 && t < ds) off = 86400;      // หลังเที่ยงคืน ก่อนถึงเวลาเริ่มวันใหม่ = ยังเป็นวันนี้
+            else if (r.punch_date === d1 && crossed) off = 0;          // รอบคร่อมเที่ยงคืนที่ listener ลงวันที่ตามเวลากดกลับ
             if (off === null) return;
 
-            const u = findUser(r.tg_user_id, r.tg_name);
             if (!u) { (unknown[r.tg_user_id] = unknown[r.tg_user_id] || { id: r.tg_user_id, name: r.tg_name, n: 0 }).n++; return; }
             if (_skipDepts.indexOf(u.department || '') > -1) return;
             if (dept !== 'all' && (u.department || '') !== dept) return;
@@ -404,9 +430,13 @@
             use.push({
                 uid: u.id, id: String(u.telegram_id || r.tg_user_id), name: u.username || r.tg_name,
                 dept: u.department || '', team: u.team || '', cat: r.category || 'อื่นๆ',
-                start, end, dur, limit: r.limit_min, botReset, noBack
+                start, end, dur, limit: r.limit_min, botReset, noBack, ds
             });
         });
+
+        // รอบเดียวกันที่โผล่ซ้ำ (เช่นบันทึกไว้ทั้ง 2 วันจากข้อมูลเก่า) → เก็บแค่แถวเดียว
+        const seen = {};
+        use = use.filter(x => { const k = x.uid + '|' + x.start + '|' + x.end; if (seen[k]) return false; seen[k] = true; return true; });
 
         // ซากจากบั๊กเดิม: แถวกดออกค้าง ที่จริงมีรอบปิดแล้วเวลาเริ่มเดียวกัน → ทิ้งแถวค้าง
         const closedStarts = {};
@@ -431,7 +461,7 @@
                     sessions: [], total: 0, meal: 0, live: false, chains: [], inChain: {}, chainMax: 0,
                     byKind: { meal:{n:0,sec:0}, heavy:{n:0,sec:0}, light:{n:0,sec:0}, other:{n:0,sec:0} },
                     firstOut: null, lastBack: null, overLimit: 0, offSlot: 0, lateSlot: 0, botReset: 0, noBack: 0, booked: _booked[norm(u.username)] || [],
-                    overCap: false, overMeal: false, absent: true, state: 'ok'
+                    overCap: false, overMeal: false, absent: true, state: 'ok', ds: dayStartFor(u, u.username, c.dayStart)
                 });
             });
         }
@@ -759,8 +789,12 @@
     window.initBreakAudit = async function () {
         if (!$('baPage')) return;
         await loadRules();
-        if (!$('baDate').value) $('baDate').value = workDateNow(cfg().dayStart);
         await loadUsers();
+        if (!$('baDate').value) {
+            // คนกะดึกเปิดหน้านี้ตอน 10 โมงเช้าวันที่ 23 → ยังเป็น "วันทำงาน 22" ของเขา
+            const me = (window.currentUser && window.currentUser.username) ? _users.find(x => x.username === window.currentUser.username) : null;
+            $('baDate').value = workDateNow(me ? dayStartFor(me, me.username, cfg().dayStart) : cfg().dayStart);
+        }
         await load();
         await loadBooked();
         await loadDuty();
