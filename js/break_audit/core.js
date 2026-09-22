@@ -356,7 +356,8 @@
 
     window.baCompute = function () {
         const c = cfg(), dept = $('baDept').value, team = $('baTeam').value;
-        const unknown = {}, hit = {}, use = [];
+        const unknown = {}, hit = {};
+        let use = [];
 
         const d0 = dateVal(), d1 = addDays(d0, 1);
         const ds = c.dayStart;
@@ -368,9 +369,13 @@
             // อยู่ในวันทำงานที่เลือกไหม (ก่อนเวลาเริ่มวัน = ยังเป็นของเมื่อวาน)
             const t = toSec(r.started_at);
             if (t === null) return;
+            // รอบที่ข้ามเที่ยงคืน (กลับก่อนเวลาที่ออก) = ออกตั้งแต่วันก่อนหน้า
+            const eRaw = r.is_open ? null : toSec(r.ended_at);
+            const crossed = eRaw !== null && eRaw < t && t >= ds;
             let off = null;
-            if (r.punch_date === d0 && t >= ds) off = 0;
+            if (r.punch_date === d0 && t >= ds && !crossed) off = 0;
             else if (r.punch_date === d1 && t < ds) off = 86400;
+            else if (r.punch_date === d1 && crossed) off = 0;          // ข้อมูลเก่าที่บันทึกวันที่ผิด
             if (off === null) return;
 
             const u = findUser(r.tg_user_id, r.tg_name);
@@ -401,6 +406,14 @@
                 dept: u.department || '', team: u.team || '', cat: r.category || 'อื่นๆ',
                 start, end, dur, limit: r.limit_min, botReset, noBack
             });
+        });
+
+        // ซากจากบั๊กเดิม: แถวกดออกค้าง ที่จริงมีรอบปิดแล้วเวลาเริ่มเดียวกัน → ทิ้งแถวค้าง
+        const closedStarts = {};
+        use.forEach(x => { if (x.end !== null && !x.botReset && !x.noBack) (closedStarts[x.uid] = closedStarts[x.uid] || []).push(x.start); });
+        use = use.filter(x => {
+            if (x.end !== null && !x.botReset && !x.noBack) return true;
+            return !(closedStarts[x.uid] || []).some(st => Math.abs(st - x.start) <= 120);
         });
 
         _people = build(use, c);
@@ -745,9 +758,8 @@
     // ── เริ่มหน้า ────────────────────────────────────────
     window.initBreakAudit = async function () {
         if (!$('baPage')) return;
-        if (!$('baDate').value) $('baDate').value = iso(new Date());
-
         await loadRules();
+        if (!$('baDate').value) $('baDate').value = workDateNow(cfg().dayStart);
         await loadUsers();
         await load();
         await loadBooked();
