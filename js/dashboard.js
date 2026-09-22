@@ -1346,7 +1346,7 @@ window._renderMyTodayNow = async function() {
     const groupOrder = [myDep, ...['AM','OD'].filter(d => d !== myDep), 'ทุกแผนก'];
     const groupTitle = (d) => d === 'ทุกแผนก' ? '⭐ ผู้จัดการ / ดูแลทุกแผนก' : `👥 หัวหน้า ${d}`;
     const renderOne = (u) => {
-        const b = _mtShiftBadge(u.allowed_shift); const h = _mtShiftHours(u.allowed_shift); const s = ['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift) ? _mtShiftStatus(u.allowed_shift) : null;
+        const b = _mtShiftBadge(u.allowed_shift); // ✂️ ตัดสถานะ อยู่ในกะ/ก่อนเข้ากะ และช่วงเวลาออก โชว์แค่ชื่อกะ
         const ini = _mtEsc(String(u.username || '?').substring(0,2).toUpperCase());
         const tg = window._tgLink(u.telegram_id);
         const label = u.label || (u.role === 'admin' ? 'ADMIN' : 'หัวหน้า');
@@ -1360,8 +1360,9 @@ window._renderMyTodayNow = async function() {
                     <span style="font-size:10px;color:#c084fc;background:rgba(192,132,252,.12);padding:1px 7px;border-radius:5px">${_mtEsc(label)}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
-                    ${s ? `<span style="font-size:11px;font-weight:700;color:${s.color};background:${s.bg};padding:2px 8px;border-radius:6px">${s.label}</span>` : ''}
-                    ${['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift) ? `<span style="font-size:11px;font-weight:900;color:#0f172a;background:${b[1]};padding:1px 6px;border-radius:5px">${b[0]}</span><span style="font-size:12px;color:#cbd5e1;font-family:monospace">${h.open}–${h.close}</span>` : `<span style="font-size:11px;color:#64748b">ทุกกะ</span>`}
+                    ${['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift)
+                        ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:800;color:${b[1]};background:${b[1]}1f;border:1px solid ${b[1]}55;padding:2px 9px;border-radius:999px">${b[2]} ${_mtEsc(u.allowed_shift.replace('กะ',''))}</span>`
+                        : `<span style="font-size:11px;color:#64748b">ทุกกะ</span>`}
                 </div>
                 ${u.note ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:5px">${_mtEsc(u.note)}</div>` : ''}
                 <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;font-size:12px">
