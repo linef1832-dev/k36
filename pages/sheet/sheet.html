@@ -366,6 +366,13 @@
 
 <!-- 🖼️ [แบ่งจอคลังรูป] ชีตซ้าย-คลังรูปขวา ครึ่งต่อครึ่ง ใช้พร้อมกันได้ เปิดค้างจนกว่าจะกดปิดเอง
      ⚠️ ใช้ inline style ทั้งหมด — ห้ามใช้ Tailwind class แบบ z-[..] w-[..] เพราะ CSS คอมไพล์ไว้ล่วงหน้าแล้ว -->
+<style>
+    /* 🖼️ คลังรูปในแผงแบ่งจอ: ขนาดรูปคิดจากความกว้าง "แผง" ไม่ใช่ความกว้างจอ
+       (คลาส md:/lg:/xl: ของ Tailwind ดูจากจอทั้งจอ → พอเปิดคู่กับชีตแล้วบีบ 5 คอลัมน์ลงครึ่งจอ รูปเลยจิ๋ว)
+       ใช้ auto-fill: กว้างขั้นต่ำ 190px ต่อรูป ได้กี่คอลัมน์ก็เท่านั้น ย่อจอแล้วรูปยังเท่าเดิม */
+    #galleryDrawer #galleryGrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr)) !important}
+    @media (max-width:900px){ #galleryDrawer #galleryGrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)) !important} }
+</style>
 <div id="galleryDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:50vw;z-index:90;background:#0b1120;border-left:2px solid rgba(232,193,90,.45);box-shadow:-12px 0 40px rgba(0,0,0,.6);flex-direction:column">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:linear-gradient(90deg,rgba(120,80,10,.35),#0f172a);border-bottom:1px solid rgba(232,193,90,.25);flex-shrink:0">
         <span style="font-weight:900;color:#fcd34d;display:flex;align-items:center;gap:8px;font-size:13px"><span class="material-icons" style="font-size:18px">photo_library</span> คลังรูป — แบ่งจอกับหน้าชีต (เปิดค้างไว้ได้ตลอด)</span>
