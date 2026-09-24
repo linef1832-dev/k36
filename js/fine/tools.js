@@ -310,3 +310,166 @@ window.onFineSearch = function() {
         renderFineTable(); // สั่งวาดตารางเมื่อหยุดพิมพ์ไปแล้ว 300ms (0.3 วินาที)
     }, 300); 
 };
+
+// ════════════════════════════════════════════════════════════════════
+// ✨ ดรอปดาวน์พรีเมียม (fx-select) — ครอบ <select> เดิมของฟอร์มออกใบปรับ
+//   • <select> ตัวจริงยังอยู่ (ซ่อนไว้) ค่า/onchange/innerHTML ทำงานเหมือนเดิมทุกอย่าง
+//   • วาดปุ่ม + แผงรายการเอง: หัวกลุ่มชัด, ช่องค้นหา (เมื่อรายการยาว), ไฮไลต์ตัวที่เลือก, กดคีย์บอร์ดได้
+//   • ตามการเปลี่ยนแปลงของ select อัตโนมัติ (เปลี่ยนรายการ / disabled / ตั้งค่าจากโค้ด)
+// ════════════════════════════════════════════════════════════════════
+(function () {
+    if (window.__fxSelectReady) return;
+    window.__fxSelectReady = true;
+
+    const CSS = `
+    .fx-sel{position:relative}
+    .fx-sel:not([class*='w-']){width:100%}
+    .fx-sel select{position:absolute!important;opacity:0;pointer-events:none;width:1px;height:1px;left:0;top:0}
+    .fx-btn{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:8px 12px;border-radius:12px;cursor:pointer;text-align:left;
+        background:linear-gradient(180deg,#111a2e,#0b1220);border:1px solid rgba(148,163,184,.25);color:#f1f5f9;font-weight:800;font-size:13.5px;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 1px 2px rgba(0,0,0,.35);transition:border-color .15s,box-shadow .15s}
+    .fx-btn:hover{border-color:rgba(232,193,90,.55)}
+    .fx-sel.open .fx-btn,.fx-btn:focus{outline:none;border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.18)}
+    .fx-btn.ph{color:#7c8aa3;font-weight:700}
+    .fx-btn .fx-ic{font-size:18px;color:#E8C15A;flex:none}
+    .fx-btn .fx-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35}
+    .fx-btn .fx-txt small{display:block;font-size:10.5px;color:#94a3b8;font-weight:700;letter-spacing:.03em}
+    .fx-btn .fx-caret{font-size:20px;color:#94a3b8;flex:none;transition:transform .15s}
+    .fx-sel.open .fx-caret{transform:rotate(180deg)}
+    .fx-sel.dis .fx-btn{opacity:.5;cursor:not-allowed}
+    .fx-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:9999;border-radius:14px;overflow:hidden;
+        background:#0b1220;border:1px solid rgba(232,193,90,.35);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.4);
+        transform-origin:top;animation:fxPop .12s ease-out}
+    @keyframes fxPop{from{opacity:0;transform:scaleY(.96) translateY(-4px)}to{opacity:1;transform:none}}
+    .fx-search{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid rgba(148,163,184,.15);background:#0f172a}
+    .fx-search .material-icons{font-size:18px;color:#94a3b8}
+    .fx-search input{flex:1;background:transparent;border:0;outline:none;color:#f1f5f9;font-size:13px;font-weight:700}
+    .fx-list{max-height:min(360px,60vh);overflow-y:auto;padding:6px;scrollbar-width:thin;scrollbar-color:rgba(232,193,90,.4) transparent}
+    .fx-grp{position:sticky;top:0;z-index:1;margin:6px 2px 2px;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+        color:#0b1120;background:linear-gradient(90deg,#f5e3ae,#E8C15A);box-shadow:0 2px 8px rgba(232,193,90,.2)}
+    .fx-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:2px 0;border-radius:10px;cursor:pointer;color:#e2e8f0;font-size:13px;font-weight:700;line-height:1.35;border:1px solid transparent}
+    .fx-opt .fx-no{flex:none;min-width:52px;padding:2px 8px;border-radius:999px;text-align:center;font-size:11px;font-weight:900;color:#E8C15A;background:rgba(232,193,90,.12);border:1px solid rgba(232,193,90,.35);font-variant-numeric:tabular-nums}
+    .fx-opt .fx-lb{flex:1;min-width:0}
+    .fx-opt .fx-pen{flex:none;font-size:11px;font-weight:800;color:#fca5a5;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);padding:2px 8px;border-radius:999px;white-space:nowrap}
+    .fx-opt .fx-pen.nowage{color:#fcd34d;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.4)}
+    .fx-opt:hover,.fx-opt.act{background:rgba(232,193,90,.1);border-color:rgba(232,193,90,.3)}
+    .fx-opt.sel{background:rgba(37,99,235,.22);border-color:rgba(96,165,250,.5);color:#fff}
+    .fx-opt.sel .fx-lb::after{content:'check';font-family:'Material Icons';font-size:16px;color:#60a5fa;float:right;margin-left:8px}
+    .fx-opt.ph{color:#7c8aa3;font-weight:700}
+    .fx-empty{padding:16px;text-align:center;color:#64748b;font-size:12.5px;font-weight:700}
+    html:not(.dark) .fx-btn{background:#fff;border-color:#cbd5e1;color:#0f172a;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    html:not(.dark) .fx-pop,html:not(.dark) .fx-search{background:#fff;border-color:rgba(232,193,90,.6)}
+    html:not(.dark) .fx-search input,html:not(.dark) .fx-opt{color:#0f172a}
+    html:not(.dark) .fx-opt.sel{background:rgba(37,99,235,.12)}
+    `;
+    const st = document.createElement('style'); st.id = 'fx-select-css'; st.textContent = CSS; document.head.appendChild(st);
+
+    const esc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const PEN_RE = /\s*\(([^)]*(?:ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*)\)\s*$/i;
+
+    // แยกข้อความตัวเลือกให้เป็น เลขข้อ / ชื่อ / โทษ (สำหรับหัวข้อความผิด) — เลือกอื่นก็แค่โชว์ตรงๆ
+    function parseLabel(text) {
+        const m = String(text).match(/^\s*ข้อ\s*([\d.]+)\s*·\s*(.*)$/);
+        let body = m ? m[2] : String(text), pen = '';
+        const pm = body.match(PEN_RE);
+        if (pm) { pen = pm[1].trim(); body = body.replace(PEN_RE, '').trim(); }
+        return { no: m ? m[1] : '', body, pen };
+    }
+
+    function enhance(sel, opt = {}) {
+        if (!sel || sel.__fx) return;
+        const wrap = document.createElement('div'); wrap.className = 'fx-sel';
+        // ย้ายคลาสความกว้าง (w-full / w-[45%] ...) จาก select มาไว้ที่ตัวครอบ ให้เลย์เอาต์เดิมไม่เปลี่ยน
+        Array.from(sel.classList).filter(c => /^(w-|flex-|shrink|grow)/.test(c)).forEach(c => { wrap.classList.add(c); });
+        sel.parentNode.insertBefore(wrap, sel); wrap.appendChild(sel);
+        const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'fx-btn'; wrap.appendChild(btn);
+        let pop = null, filter = '', act = -1;
+        const fx = { sel, wrap, btn, opt, render, sync };
+        sel.__fx = fx;
+
+        function items() {
+            const out = []; let grp = '';
+            Array.from(sel.children).forEach(ch => {
+                if (ch.tagName === 'OPTGROUP') { grp = ch.label.replace(/━/g, '').trim(); Array.from(ch.children).forEach(o => out.push({ o, grp })); }
+                else out.push({ o: ch, grp: '' });
+            });
+            return out;
+        }
+        function sync() {
+            const o = sel.options[sel.selectedIndex];
+            const isPh = !sel.value;
+            btn.classList.toggle('ph', isPh);
+            wrap.classList.toggle('dis', sel.disabled);
+            btn.disabled = sel.disabled;
+            let txt = o ? o.textContent : '';
+            let sub = '';
+            if (!isPh && o && o.parentNode.tagName === 'OPTGROUP') sub = o.parentNode.label.replace(/━/g, '').trim();
+            const p = parseLabel(txt);
+            const main = p.no ? `ข้อ ${p.no} · ${p.body}${p.pen ? ` (${p.pen})` : ''}` : txt;
+            btn.innerHTML = `<span class="material-icons fx-ic">${esc(opt.icon || 'list')}</span><span class="fx-txt">${esc(main)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="material-icons fx-caret">expand_more</span>`;
+        }
+        function close() { if (pop) { pop.remove(); pop = null; } wrap.classList.remove('open'); filter = ''; act = -1; }
+        function choose(val) { sel.value = val; sel.dispatchEvent(new Event('change', { bubbles: true })); close(); sync(); btn.focus(); }
+        function render() {
+            if (!pop) return;
+            const list = pop.querySelector('.fx-list');
+            const all = items().filter(x => !filter || (x.o.textContent + ' ' + x.grp).toLowerCase().includes(filter.toLowerCase()));
+            if (!all.length) { list.innerHTML = '<div class="fx-empty">ไม่พบรายการ</div>'; return; }
+            let html = '', lastGrp = null; const rows = [];
+            all.forEach(x => {
+                if (x.grp && x.grp !== lastGrp) { html += `<div class="fx-grp">${esc(x.grp)}</div>`; lastGrp = x.grp; }
+                const p = parseLabel(x.o.textContent);
+                const isPh = !x.o.value;
+                const i = rows.length; rows.push(x.o.value);
+                html += `<div class="fx-opt ${isPh ? 'ph' : ''} ${x.o.value === sel.value && !isPh ? 'sel' : ''} ${i === act ? 'act' : ''}" data-i="${i}" data-v="${esc(x.o.value)}">`
+                    + (p.no ? `<span class="fx-no">ข้อ ${esc(p.no)}</span>` : '')
+                    + `<span class="fx-lb">${esc(p.body)}</span>`
+                    + (p.pen ? `<span class="fx-pen ${/ค่าแรง|เลิกจ้าง/.test(p.pen) ? 'nowage' : ''}">${esc(p.pen)}</span>` : '')
+                    + `</div>`;
+            });
+            list.innerHTML = html;
+            list.__rows = rows;
+            const a = list.querySelector('.fx-opt.act'); if (a) a.scrollIntoView({ block: 'nearest' });
+        }
+        function open() {
+            if (sel.disabled || pop) return;
+            document.querySelectorAll('.fx-sel.open').forEach(w => w !== wrap && w.querySelector('select').__fx.close());
+            pop = document.createElement('div'); pop.className = 'fx-pop';
+            const many = sel.options.length > 7;
+            pop.innerHTML = (many ? `<div class="fx-search"><span class="material-icons">search</span><input placeholder="พิมพ์ค้นหา..." autocomplete="off"></div>` : '') + `<div class="fx-list"></div>`;
+            wrap.appendChild(pop); wrap.classList.add('open');
+            // เปิดขึ้นบนถ้าด้านล่างไม่พอ
+            const r = wrap.getBoundingClientRect();
+            if (window.innerHeight - r.bottom < 300 && r.top > 300) { pop.style.top = 'auto'; pop.style.bottom = 'calc(100% + 6px)'; pop.style.transformOrigin = 'bottom'; }
+            const inp = pop.querySelector('input');
+            if (inp) { inp.addEventListener('input', () => { filter = inp.value; act = -1; render(); }); setTimeout(() => inp.focus(), 0); }
+            pop.addEventListener('mousedown', e => e.preventDefault());
+            pop.addEventListener('click', e => { const o = e.target.closest('.fx-opt'); if (o) choose(o.dataset.v); });
+            const cur = items().findIndex(x => x.o.value === sel.value && x.o.value); act = cur;
+            render();
+        }
+        fx.close = close;
+        btn.addEventListener('click', () => pop ? close() : open());
+        wrap.addEventListener('keydown', e => {
+            if (!pop) { if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } return; }
+            const list = pop.querySelector('.fx-list'); const n = (list.__rows || []).length;
+            if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus(); }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); act = Math.min(n - 1, act + 1); render(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); act = Math.max(0, act - 1); render(); }
+            else if (e.key === 'Enter') { e.preventDefault(); if (act >= 0 && list.__rows) choose(list.__rows[act]); }
+        });
+        document.addEventListener('click', e => { if (pop && !wrap.contains(e.target)) close(); });
+        sel.addEventListener('change', sync);
+        new MutationObserver(() => { sync(); if (pop) render(); }).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+        // ค่าที่โค้ดตั้งตรงๆ (sel.value = '') ไม่ยิง event → เช็คเบาๆ เป็นระยะ
+        let lastV = sel.value; setInterval(() => { if (sel.value !== lastV) { lastV = sel.value; sync(); } }, 400);
+        sync();
+    }
+
+    window.enhanceFineSelects = function () {
+        enhance(document.getElementById('fineCategorySelect'), { icon: 'category' });
+        enhance(document.getElementById('fineRuleSelect'), { icon: 'gavel' });
+        enhance(document.getElementById('fineNoteSelect'), { icon: 'sticky_note_2' });
+        enhance(document.getElementById('finePenaltyType'), { icon: 'payments' });
+    };
+})();

@@ -91,6 +91,8 @@ window.initFineApp = async function() {
         await fetchUsers();
     }
 
+    if (typeof window.enhanceFineSelects === 'function') window.enhanceFineSelects();   // ✨ ดรอปดาวน์พรีเมียม
+
     const adminControls = document.getElementById('fineAdminControls');
     const tableContainer = document.getElementById('fineTableContainer');
     const tabsContainer = document.getElementById('fineTabsContainer');
