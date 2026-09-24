@@ -337,7 +337,7 @@ window.onFineSearch = function() {
     .fx-btn .fx-caret{font-size:20px;color:#94a3b8;flex:none;transition:transform .15s}
     .fx-sel.open .fx-caret{transform:rotate(180deg)}
     .fx-sel.dis .fx-btn{opacity:.5;cursor:not-allowed}
-    .fx-pop{position:absolute;left:0;top:calc(100% + 6px);z-index:9999;border-radius:14px;overflow:hidden;min-width:100%;width:max-content;max-width:min(92vw,680px);
+    .fx-pop{position:fixed;z-index:2147483000;border-radius:14px;overflow:hidden;width:max-content;max-width:min(92vw,680px);
         background:#0b1220;border:1px solid rgba(232,193,90,.35);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.4);
         transform-origin:top;animation:fxPop .12s ease-out}
     @keyframes fxPop{from{opacity:0;transform:scaleY(.96) translateY(-4px)}to{opacity:1;transform:none}}
@@ -408,7 +408,11 @@ window.onFineSearch = function() {
             const main = p.no ? `ข้อ ${p.no} · ${p.body}${p.pen ? ` (${p.pen})` : ''}` : txt;
             btn.innerHTML = `<span class="material-icons fx-ic">${esc(opt.icon || 'list')}</span><span class="fx-txt">${esc(main)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="material-icons fx-caret">expand_more</span>`;
         }
-        function close() { if (pop) { pop.remove(); pop = null; } wrap.classList.remove('open'); filter = ''; act = -1; }
+        function close() {
+            if (pop) { pop.remove(); pop = null; }
+            if (fx._place) { window.removeEventListener('resize', fx._place); window.removeEventListener('scroll', fx._place, true); fx._place = null; }
+            wrap.classList.remove('open'); filter = ''; act = -1;
+        }
         function choose(val) { sel.value = val; sel.dispatchEvent(new Event('change', { bubbles: true })); close(); sync(); btn.focus(); }
         function render() {
             if (!pop) return;
@@ -429,6 +433,7 @@ window.onFineSearch = function() {
             });
             list.innerHTML = html;
             list.__rows = rows;
+            if (fx._place) fx._place();
             const a = list.querySelector('.fx-opt.act'); if (a) a.scrollIntoView({ block: 'nearest' });
         }
         function open() {
@@ -437,31 +442,41 @@ window.onFineSearch = function() {
             pop = document.createElement('div'); pop.className = 'fx-pop';
             const many = sel.options.length > 7;
             pop.innerHTML = (many ? `<div class="fx-search"><span class="material-icons">search</span><input placeholder="พิมพ์ค้นหา..." autocomplete="off"></div>` : '') + `<div class="fx-list"></div>`;
-            wrap.appendChild(pop); wrap.classList.add('open');
-            // เปิดขึ้นบนถ้าด้านล่างไม่พอ
-            const r = wrap.getBoundingClientRect();
-            if (window.innerHeight - r.bottom < 300 && r.top > 300) { pop.style.top = 'auto'; pop.style.bottom = 'calc(100% + 6px)'; pop.style.transformOrigin = 'bottom'; }
-            // แผงกว้างกว่าช่อง (ให้ข้อความอยู่บรรทัดเดียว) → ถ้าล้นขอบขวาจอ ให้ชิดขวาแทน
-            const pr = pop.getBoundingClientRect();
-            if (pr.right > window.innerWidth - 8) { pop.style.left = 'auto'; pop.style.right = '0'; }
+            // 🪟 วางแผงไว้ที่ <body> แบบ position:fixed — ไม่โดนตาราง/แผงข้างๆ ทับหรือตัดขอบ (แก้อาการโดนบังและกระพริบ)
+            document.body.appendChild(pop); wrap.classList.add('open');
+            const place = () => {
+                const r = btn.getBoundingClientRect();
+                pop.style.minWidth = r.width + 'px';
+                const ph = pop.offsetHeight, pw = pop.offsetWidth;
+                let left = r.left; if (left + pw > window.innerWidth - 8) left = Math.max(8, window.innerWidth - 8 - pw);
+                pop.style.left = left + 'px';
+                if (window.innerHeight - r.bottom < ph + 12 && r.top > ph + 12) { pop.style.top = (r.top - 6 - ph) + 'px'; pop.style.transformOrigin = 'bottom'; }
+                else { pop.style.top = (r.bottom + 6) + 'px'; pop.style.transformOrigin = 'top'; }
+            };
+            fx._place = place;
+            place();
+            window.addEventListener('resize', place);
+            window.addEventListener('scroll', place, true);
             const inp = pop.querySelector('input');
             if (inp) { inp.addEventListener('input', () => { filter = inp.value; act = -1; render(); }); setTimeout(() => inp.focus(), 0); }
-            pop.addEventListener('mousedown', e => e.preventDefault());
+            pop.addEventListener('mousedown', e => { if (e.target.tagName !== 'INPUT') e.preventDefault(); });
+            pop.addEventListener('keydown', onKey);
             pop.addEventListener('click', e => { const o = e.target.closest('.fx-opt'); if (o) choose(o.dataset.v); });
             const cur = items().findIndex(x => x.o.value === sel.value && x.o.value); act = cur;
             render();
         }
         fx.close = close;
         btn.addEventListener('click', () => pop ? close() : open());
-        wrap.addEventListener('keydown', e => {
+        function onKey(e) {
             if (!pop) { if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } return; }
             const list = pop.querySelector('.fx-list'); const n = (list.__rows || []).length;
             if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus(); }
             else if (e.key === 'ArrowDown') { e.preventDefault(); act = Math.min(n - 1, act + 1); render(); }
             else if (e.key === 'ArrowUp') { e.preventDefault(); act = Math.max(0, act - 1); render(); }
             else if (e.key === 'Enter') { e.preventDefault(); if (act >= 0 && list.__rows) choose(list.__rows[act]); }
-        });
-        document.addEventListener('click', e => { if (pop && !wrap.contains(e.target)) close(); });
+        }
+        wrap.addEventListener('keydown', onKey);
+        document.addEventListener('click', e => { if (pop && !wrap.contains(e.target) && !pop.contains(e.target)) close(); });
         sel.addEventListener('change', sync);
         new MutationObserver(() => { sync(); if (pop) render(); }).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
         // ค่าที่โค้ดตั้งตรงๆ (sel.value = '') ไม่ยิง event → เช็คเบาๆ เป็นระยะ
