@@ -196,9 +196,17 @@ window.generateFineText = function() {
         dateStr = `${dd}/${mm}/${yyyy}`;
     }
 
-    // 🌟 4. นับจำนวนครั้งที่ทำผิด
-    const pastFines = globalFines.filter(f => String(f.user_name).toLowerCase() === String(empName).toLowerCase() && f.rule_text === ruleText).length;
-    const currentCount = pastFines + 1;
+    // 🌟 4. นับจำนวนครั้งที่ทำผิด — ของใครของมัน (ชื่อเดียวกัน + กฎข้อเดียวกัน)
+    //    ⚠️ บั๊กเดิม: ถ้ากด "บันทึกใบปรับ" ก่อนแล้วค่อยกดสร้างข้อความ ใบที่เพิ่งบันทึกจะถูกนับเป็น "ครั้งก่อน" ด้วย
+    //       → ความผิดครั้งแรกของคนใหม่โชว์เป็น "ครั้งที่ 2"  จึงต้องตัดใบที่เพิ่งออกให้คนนี้เมื่อกี้ออกก่อน
+    const _mine = globalFines.filter(f => String(f.user_name).toLowerCase() === String(empName).toLowerCase() && f.rule_text === ruleText);
+    const _justSaved = _mine.some(f => {
+        const sameIssuer = !currentUser || !f.issued_by || String(f.issued_by).toLowerCase() === String(currentUser.username || '').toLowerCase();
+        const recent = (Date.now() - new Date(f.created_at).getTime()) < 15 * 60 * 1000;   // ออกไปไม่เกิน 15 นาที
+        const sameDay = !offenseDateVal || !f.offense_date || String(f.offense_date).slice(0, 10) === offenseDateVal;
+        return sameIssuer && recent && sameDay;
+    });
+    const currentCount = _mine.length + (_justSaved ? 0 : 1);
 
     // 🌟 5. การคิดเปอร์เซ็นต์
     const isPercentChecked = document.getElementById('fineUsePercent') ? document.getElementById('fineUsePercent').checked : false;
