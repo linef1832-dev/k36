@@ -337,7 +337,7 @@ window.onFineSearch = function() {
     .fx-btn .fx-caret{font-size:20px;color:#94a3b8;flex:none;transition:transform .15s}
     .fx-sel.open .fx-caret{transform:rotate(180deg)}
     .fx-sel.dis .fx-btn{opacity:.5;cursor:not-allowed}
-    .fx-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:9999;border-radius:14px;overflow:hidden;
+    .fx-pop{position:absolute;left:0;top:calc(100% + 6px);z-index:9999;border-radius:14px;overflow:hidden;min-width:100%;width:max-content;max-width:min(92vw,680px);
         background:#0b1220;border:1px solid rgba(232,193,90,.35);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.4);
         transform-origin:top;animation:fxPop .12s ease-out}
     @keyframes fxPop{from{opacity:0;transform:scaleY(.96) translateY(-4px)}to{opacity:1;transform:none}}
@@ -345,11 +345,11 @@ window.onFineSearch = function() {
     .fx-search .material-icons{font-size:18px;color:#94a3b8}
     .fx-search input{flex:1;background:transparent;border:0;outline:none;color:#f1f5f9;font-size:13px;font-weight:700}
     .fx-list{max-height:min(360px,60vh);overflow-y:auto;padding:6px;scrollbar-width:thin;scrollbar-color:rgba(232,193,90,.4) transparent}
-    .fx-grp{position:sticky;top:0;z-index:1;margin:6px 2px 2px;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+    .fx-grp{position:sticky;top:0;z-index:1;margin:6px 2px 2px;padding:5px 10px;white-space:nowrap;border-radius:8px;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
         color:#0b1120;background:linear-gradient(90deg,#f5e3ae,#E8C15A);box-shadow:0 2px 8px rgba(232,193,90,.2)}
-    .fx-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:2px 0;border-radius:10px;cursor:pointer;color:#e2e8f0;font-size:13px;font-weight:700;line-height:1.35;border:1px solid transparent}
+    .fx-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:2px 0;border-radius:10px;cursor:pointer;color:#e2e8f0;font-size:13px;font-weight:700;line-height:1.35;border:1px solid transparent;white-space:nowrap}
     .fx-opt .fx-no{flex:none;min-width:52px;padding:2px 8px;border-radius:999px;text-align:center;font-size:11px;font-weight:900;color:#E8C15A;background:rgba(232,193,90,.12);border:1px solid rgba(232,193,90,.35);font-variant-numeric:tabular-nums}
-    .fx-opt .fx-lb{flex:1;min-width:0}
+    .fx-opt .fx-lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .fx-opt .fx-pen{flex:none;font-size:11px;font-weight:800;color:#fca5a5;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);padding:2px 8px;border-radius:999px;white-space:nowrap}
     .fx-opt .fx-pen.nowage{color:#fcd34d;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.4)}
     .fx-opt:hover,.fx-opt.act{background:rgba(232,193,90,.1);border-color:rgba(232,193,90,.3)}
@@ -441,6 +441,9 @@ window.onFineSearch = function() {
             // เปิดขึ้นบนถ้าด้านล่างไม่พอ
             const r = wrap.getBoundingClientRect();
             if (window.innerHeight - r.bottom < 300 && r.top > 300) { pop.style.top = 'auto'; pop.style.bottom = 'calc(100% + 6px)'; pop.style.transformOrigin = 'bottom'; }
+            // แผงกว้างกว่าช่อง (ให้ข้อความอยู่บรรทัดเดียว) → ถ้าล้นขอบขวาจอ ให้ชิดขวาแทน
+            const pr = pop.getBoundingClientRect();
+            if (pr.right > window.innerWidth - 8) { pop.style.left = 'auto'; pop.style.right = '0'; }
             const inp = pop.querySelector('input');
             if (inp) { inp.addEventListener('input', () => { filter = inp.value; act = -1; render(); }); setTimeout(() => inp.focus(), 0); }
             pop.addEventListener('mousedown', e => e.preventDefault());
