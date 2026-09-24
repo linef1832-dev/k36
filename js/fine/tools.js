@@ -331,6 +331,8 @@ window.onFineSearch = function() {
     .fx-btn:hover{border-color:rgba(232,193,90,.55)}
     .fx-sel.open .fx-btn,.fx-btn:focus{outline:none;border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.18)}
     .fx-btn.ph{color:#7c8aa3;font-weight:700}
+    .fx-sel.compact .fx-btn{padding:8px 8px 8px 10px;gap:4px;font-size:14px}
+    .fx-sel.compact .fx-caret{font-size:18px}
     .fx-btn .fx-ic{font-size:18px;color:#E8C15A;flex:none}
     .fx-btn .fx-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35}
     .fx-btn .fx-txt small{display:block;font-size:10.5px;color:#94a3b8;font-weight:700;letter-spacing:.03em}
@@ -378,7 +380,7 @@ window.onFineSearch = function() {
 
     function enhance(sel, opt = {}) {
         if (!sel || sel.__fx) return;
-        const wrap = document.createElement('div'); wrap.className = 'fx-sel';
+        const wrap = document.createElement('div'); wrap.className = 'fx-sel' + (opt.compact ? ' compact' : '');
         // ย้ายคลาสความกว้าง (w-full / w-[45%] ...) จาก select มาไว้ที่ตัวครอบ ให้เลย์เอาต์เดิมไม่เปลี่ยน
         Array.from(sel.classList).filter(c => /^(w-|flex-|shrink|grow)/.test(c)).forEach(c => { wrap.classList.add(c); });
         sel.parentNode.insertBefore(wrap, sel); wrap.appendChild(sel);
@@ -406,7 +408,7 @@ window.onFineSearch = function() {
             if (!isPh && o && o.parentNode.tagName === 'OPTGROUP') sub = o.parentNode.label.replace(/━/g, '').trim();
             const p = parseLabel(txt);
             const main = p.no ? `ข้อ ${p.no} · ${p.body}${p.pen ? ` (${p.pen})` : ''}` : txt;
-            btn.innerHTML = `<span class="material-icons fx-ic">${esc(opt.icon || 'list')}</span><span class="fx-txt">${esc(main)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="material-icons fx-caret">expand_more</span>`;
+            btn.innerHTML = (opt.compact ? '' : `<span class="material-icons fx-ic">${esc(opt.icon || 'list')}</span>`) + `<span class="fx-txt">${esc(main)}${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="material-icons fx-caret">expand_more</span>`;
         }
         function close() {
             if (pop) { pop.remove(); pop = null; }
@@ -489,6 +491,6 @@ window.onFineSearch = function() {
         enhance(document.getElementById('fineRuleSelect'), { icon: 'gavel' });
         enhance(document.getElementById('fineNoteSelect'), { icon: 'sticky_note_2' });
         enhance(document.getElementById('finePenaltyType'), { icon: 'payments' });
-        enhance(document.getElementById('finePercentRate'), { icon: 'percent' });
+        enhance(document.getElementById('finePercentRate'), { compact: true });   // ช่องแคบ: ไม่ใส่ไอคอน ให้เห็นตัวเลขเต็มๆ
     };
 })();
