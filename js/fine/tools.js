@@ -474,5 +474,6 @@ window.onFineSearch = function() {
         enhance(document.getElementById('fineRuleSelect'), { icon: 'gavel' });
         enhance(document.getElementById('fineNoteSelect'), { icon: 'sticky_note_2' });
         enhance(document.getElementById('finePenaltyType'), { icon: 'payments' });
+        enhance(document.getElementById('finePercentRate'), { icon: 'percent' });
     };
 })();
