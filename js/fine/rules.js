@@ -323,7 +323,30 @@ window.filterRulesByCategory = function() {
         return;
     }
 
-    ruleSelect.innerHTML = '<option value="">-- เลือกหัวข้อที่ผิด --</option>' + filteredRules.map(r => `<option value="${r}">${r}</option>`).join('');
+    // 🧹 จัดรายการให้อ่านง่าย: ตัด [หมวด] ทิ้ง (เลือกไว้ทางซ้ายแล้ว), เรียงตามบท → ข้อ, แบ่งกลุ่มด้วย optgroup ต่อบท
+    //    ค่าที่ส่งไป (value) ยังเป็นข้อความกฎเต็มเหมือนเดิม จึงไม่กระทบการบันทึก/ตัวนับครั้ง
+    const parseRule = r => {
+        const noCat = r.replace(/^\s*\[[^\]]*\]\s*/, '').trim();
+        const m = noCat.match(/^บทที่\s*([\d.]+)\s*ข้อ(?:ที่)?\s*([\d.]+)\s*(.*)$/);
+        const num = x => x.split('.').map(n => parseInt(n, 10) || 0);
+        const pen = (m ? m[3] : noCat).match(/\(([^)]*(?:ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*)\)\s*$/i);
+        const desc = (m ? m[3] : noCat).replace(/\s*\([^)]*(?:ปรับ|ค่าแรง|เลิกจ้าง|คืนเงิน|THB|บาท)[^)]*\)\s*$/i, '').trim();
+        return { raw: r, chapter: m ? m[1] : '', clause: m ? m[2] : '', chapKey: m ? num(m[1]) : [999], clauseKey: m ? num(m[2]) : [999], desc, pen: pen ? pen[1].trim() : '' };
+    };
+    const cmp = (a, b) => { for (let i = 0; i < Math.max(a.length, b.length); i++) { const d = (a[i] || 0) - (b[i] || 0); if (d) return d; } return 0; };
+    const parsed = filteredRules.map(parseRule).sort((a, b) => cmp(a.chapKey, b.chapKey) || cmp(a.clauseKey, b.clauseKey) || a.desc.localeCompare(b.desc, 'th'));
+    const esc = t => String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+    let html = '<option value="">-- เลือกหัวข้อที่ผิด --</option>';
+    let curChap = null;
+    parsed.forEach(x => {
+        const chapLabel = x.chapter ? `บทที่ ${x.chapter}` : 'อื่นๆ';
+        if (chapLabel !== curChap) { if (curChap !== null) html += '</optgroup>'; html += `<optgroup label="━━ ${esc(chapLabel)} ━━">`; curChap = chapLabel; }
+        const label = (x.clause ? `ข้อ ${x.clause}  ·  ` : '') + x.desc + (x.pen ? `   (${x.pen})` : '');
+        html += `<option value="${esc(x.raw)}">${esc(label)}</option>`;
+    });
+    if (curChap !== null) html += '</optgroup>';
+    ruleSelect.innerHTML = html;
 
     ruleSelect.onchange = function() {
         const typeSelect = document.getElementById('finePenaltyType');
