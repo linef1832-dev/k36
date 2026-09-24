@@ -1206,7 +1206,7 @@ window.generateDutyRoster = async function() {
             let teamToFill = target.team;
 
             if (target.eligibleCount === 0) {
-                rosterResult[teamToFill].push({ username: '<span class="text-red-500 font-bold bg-red-50 px-1 rounded border border-red-200"><span class="material-icons text-[10px]">warning</span> ขาดคน (ไม่มีสิทธิ์)</span>' });
+                rosterResult[teamToFill].push({ username: 'ขาดคน (ไม่มีสิทธิ์)' });   // เก็บเป็นข้อความล้วน ตอนวาดการ์ดจะแต่งสีให้เอง (เดิมยัด HTML ไว้แล้วโดน escape เป็นโค้ดโชว์)
                 remainingReqs[teamToFill]--;
                 continue;
             }
@@ -1602,8 +1602,8 @@ window.renderRosterGrid = async function(rosterData) {
             <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0 group ${cursorClass}" data-name="${window.escapeHtml((a.username || '').toLowerCase())}" ${dragAttrs}>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
-                        <span class="material-icons text-green-500 text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span>
-                        <span class="font-black text-slate-800 dark:text-gray-100 text-sm pointer-events-none truncate tracking-wide">${window.escapeHtml(a.username)}</span>
+                        <span class="material-icons ${isMissing ? 'text-red-500' : 'text-green-500'} text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span>
+                        <span class="font-black ${isMissing ? 'text-red-500 bg-red-50 dark:bg-red-900/30 px-1.5 rounded border border-red-200 dark:border-red-800/50' : 'text-slate-800 dark:text-gray-100'} text-sm pointer-events-none truncate tracking-wide">${window.escapeHtml(String(a.username).replace(/<[^>]*>/g, '').replace(/^\s*warning\s*/, '').trim())}</span>
                         ${(() => {
                             const yInfo = !isMissing ? yesterdayTeamOf[a.username] : null;
                             if (!yInfo) return '';
