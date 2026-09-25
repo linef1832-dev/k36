@@ -1211,7 +1211,7 @@ window._renderMyTodayNow = async function() {
         const [r1, r2, r3, r4] = await Promise.all([
             appDB.from('settings').select('key, value').in('key', [...rosterKeys, ...roomKeys]),
             appDB.from('schedules').select('id, shift_name, time_slot, team').eq('work_date', dateVal).eq('staff_name', me.username),
-            appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').order('leave_date', { ascending: true }).limit(20),   // ทั้งเดือนนี้ + ที่จองล่วงหน้า
+            appDB.from('leave_requests').select('leave_date, reason').eq('user_id', me.id).gte('leave_date', dateVal.slice(0, 8) + '01').lt('leave_date', (() => { const d = new Date(+dateVal.slice(0,4), +dateVal.slice(5,7) + 1, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01'; })()).order('leave_date', { ascending: true }).limit(80),   // เดือนนี้ + เดือนหน้า เท่านั้น
             // 🔄 สลับกะของฉัน: ตั้งแต่วันที่ดู ไปอีก 60 วัน (จากหน้าสลับกะ)
             appDB.from('scheduled_tasks').select('payload, scheduled_for, status').eq('task_type', 'individual_shift_update').gte('scheduled_for', dateVal + 'T00:00:00').lte('scheduled_for', _swEnd.toISOString().slice(0,10) + 'T23:59:59').order('scheduled_for', { ascending: true })
         ]);
@@ -1309,12 +1309,33 @@ window._renderMyTodayNow = async function() {
             <span style="color:${dim ? '#64748b' : t.bg};font-size:11px;font-weight:700">${t.name}</span>${state==='today'?'<b style="font-size:10px;color:#fff;background:'+t.bg+';padding:1px 6px;border-radius:5px">วันนี้</b>':''}
         </span>`;
     };
-    const lvPast = myLeaves.filter(l => String(l.leave_date).slice(0,10) < dateVal).length;
-    const lvNext = myLeaves.length - lvPast;
-    const lvVal = myLeaves.length ? myLeaves.map(_lvChip).join('') : 'ยังไม่ได้จองวันหยุด';
-    const lvSub = myLeaves.length
-        ? `เดือนนี้ ${myLeaves.length} วัน · ผ่านแล้ว ${lvPast} · ยังไม่ถึง ${lvNext} · <a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">ดู/จองเพิ่ม</a>`
-        : `ไปจองได้ที่เมนู <a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">วันหยุด</a>`;
+    // 📅 แยกเป็นบล็อกรายเดือน: "เดือนนี้" กับ "เดือนหน้า" เท่านั้น (ข้ามเดือนใหม่แล้ว เดือนเก่าหายไปเองเพราะ query ดึงตั้งแต่วันที่ 1 ของเดือนปัจจุบัน)
+    const _TH_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const _ymLabel = ym => { const [y, m] = ym.split('-').map(Number); return `${_TH_M[m - 1]} ${y + 543}`; };
+    const _ymAdd = (ym, n) => { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+    const thisYM = dateVal.slice(0, 7), nextYM = _ymAdd(thisYM, 1);
+    const lvByMonth = { [thisYM]: [], [nextYM]: [] };
+    myLeaves.forEach(l => { const ym = String(l.leave_date || '').slice(0, 7); if (lvByMonth[ym]) lvByMonth[ym].push(l); });
+    const lvTotal = lvByMonth[thisYM].length + lvByMonth[nextYM].length;
+
+    const _lvMonthBlock = (ym, tag, accent) => {
+        const rows = lvByMonth[ym];
+        const past = rows.filter(l => String(l.leave_date).slice(0, 10) < dateVal).length;
+        const next = rows.length - past;
+        const stat = rows.length
+            ? `${rows.length} วัน${past ? ` · <span style="color:#94a3b8">ผ่านแล้ว ${past}</span>` : ''}${next ? ` · <span style="color:${accent}">ยังไม่ถึง ${next}</span>` : ''}`
+            : '<span style="color:#64748b">ยังไม่ได้จอง</span>';
+        return `<div style="margin:2px 0 8px;padding:9px 11px 6px;border-radius:12px;background:linear-gradient(90deg,${accent}12,rgba(255,255,255,.015));border:1px solid ${accent}40;border-left:3px solid ${accent}">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:900;color:#f8fafc;letter-spacing:.2px"><span class="material-icons" style="font-size:15px;color:${accent}">calendar_month</span>${_ymLabel(ym)}</span>
+                <span style="font-size:10.5px;font-weight:800;color:${accent};background:${accent}22;border:1px solid ${accent}55;padding:1px 8px;border-radius:999px;letter-spacing:.3px">${tag}</span>
+                <span style="margin-left:auto;font-size:11.5px;font-weight:700;color:#cbd5e1">${stat}</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap">${rows.length ? rows.map(_lvChip).join('') : `<span style="font-size:12px;color:#64748b;padding:2px 0 4px">— ยังไม่มีวันหยุดในเดือนนี้ —</span>`}</div>
+        </div>`;
+    };
+    const lvVal = _lvMonthBlock(thisYM, 'เดือนนี้', '#f472b6') + _lvMonthBlock(nextYM, 'เดือนหน้า', '#60a5fa');
+    const lvSub = `<a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">ดู/จองเพิ่ม</a>` + (lvTotal ? ` · รวม ${lvTotal} วัน (2 เดือน)` : ' · ยังไม่ได้จองวันหยุด');
 
     // ── การ์ดสลับกะ (จากหน้าสลับกะ) ──
     const swapChip = (t) => {
@@ -1420,7 +1441,7 @@ window._renderMyTodayNow = async function() {
         ${wrap(`วันนี้ของฉัน <span style="font-size:11px;font-weight:600;color:#64748b;margin-left:4px">${_mtEsc(me.username)}</span>`, 'person', `
             ${card('work', '#818cf8', 'งานของฉัน (เว็บที่รับผิดชอบ)', jobsVal, jobsSub)}
             ${card('restaurant', '#34d399', 'เวลาพักวันนี้', brVal, brSub)}
-            ${card('event_available', '#f472b6', 'วันหยุดเดือนนี้ + ที่จองล่วงหน้า', lvVal, lvSub)}
+            ${card('event_available', '#f472b6', 'วันหยุดของฉัน', lvVal, lvSub)}
             ${card('swap_horiz', '#fb923c', 'สลับกะ', swVal, swSub)}
         `, effShift ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
                 <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:${sbE[1]}22;border:1px solid ${sbE[1]}66;color:#f1f5f9;font-weight:800;font-size:13px">${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;color:${sbE[1]};font-family:monospace">${shE.open}–${shE.close}</span></span>
