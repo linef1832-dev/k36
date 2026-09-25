@@ -267,6 +267,15 @@ window.checkSwapBackup = function() {
     else btn.classList.add('hidden');
 };
 
+// 🟨 หาวันที่ลง XX ของงานสลับกะ 1 รายการ (กติกาเดียวกับตอนสร้าง: ดึก→เช้า ลง XX วันก่อนเข้าเช้า, เช้า→ดึก ลง XX วันที่สลับ)
+function _swapTaskXXDate(task) {
+    let p = {}; try { p = typeof task.payload === 'string' ? JSON.parse(task.payload) : task.payload; } catch (e) {}
+    if (!p || !p.user_id || !task.scheduled_for || p.target_shift === 'คงเดิม') return null;
+    const swapDate = String(task.scheduled_for).split('T')[0];
+    const offset = p.target_shift === 'กะเช้า' ? -1 : 0;
+    return { user_id: p.user_id, user_name: p.user_name, leave_date: getSafeDateStr(swapDate, offset) };
+}
+
 window.deleteAllSwapSchedules = async function() {
     const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
     const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
@@ -301,13 +310,19 @@ window.deleteAllSwapSchedules = async function() {
                     if (idsToDelete.length > 0) {
                         window.safeSetItem(`backup_swap_${activeSwapDeptFilter}`, JSON.stringify(tasksToBackup));
                         await appDB.from('scheduled_tasks').delete().in('id', idsToDelete);
+
+                        // 🟨 [FIX] ลบวันหยุด XX ที่ตารางสลับกะชุดนี้ลงไว้ด้วย — เดิมลบแต่งาน ทำให้ XX เหลืองค้างในตารางวันหยุด
+                        const xxRows = tasksToBackup.map(_swapTaskXXDate).filter(Boolean);
+                        for (const x of xxRows) {
+                            await appDB.from('leave_requests').delete().eq('user_id', x.user_id).eq('leave_date', x.leave_date).eq('reason', 'XX');
+                        }
                     }
                 }
                 
                 if(typeof logAction === 'function') await logAction('Auto Swap Delete', `ลบตารางสลับกะเฉพาะแผนก ${deptName} แล้ว`);
 
                 Swal.fire('ลบสำเร็จ', `เคลียร์ข้อมูลของแผนก ${deptName} เรียบร้อย`, 'success');
-                fetchPublicSwapSchedule(); checkSwapBackup(); 
+                fetchPublicSwapSchedule(); checkSwapBackup(); if (typeof fetchLeaveData === 'function') fetchLeaveData();
             } catch (err) { Swal.fire('Error', 'ไม่สามารถลบข้อมูลได้', 'error'); }
         }
     });
@@ -332,6 +347,13 @@ window.restoreDeletedSwapSchedules = async function() {
                 const { error } = await appDB.from('scheduled_tasks').insert(insertPayload);
                 if (error) throw error;
 
+                // 🟨 [FIX] กู้ XX กลับมาด้วย (ลบไปตอนล้างตาราง) — เฉพาะงานที่ยังไม่ผ่านไปแล้ว
+                const xxRows = tasksToRestore.filter(t => t.status === 'pending').map(_swapTaskXXDate).filter(Boolean);
+                if (xxRows.length) {
+                    for (const x of xxRows) await appDB.from('leave_requests').delete().eq('user_id', x.user_id).eq('leave_date', x.leave_date).eq('reason', 'XX');
+                    await appDB.from('leave_requests').insert(xxRows.map(x => ({ ...x, reason: 'XX', status: 'approved' })));
+                }
+
                 localStorage.removeItem(`backup_swap_${activeSwapDeptFilter}`);
                 
                 if(typeof logAction === 'function') {
@@ -340,10 +362,10 @@ window.restoreDeletedSwapSchedules = async function() {
                 }
 
                 Swal.fire('กู้คืนสำเร็จ', 'ข้อมูลสลับกะกลับมาเรียบร้อยแล้ว', 'success');
-                fetchPublicSwapSchedule(); checkSwapBackup(); 
+                fetchPublicSwapSchedule(); checkSwapBackup(); if (typeof fetchLeaveData === 'function') fetchLeaveData();
             } catch (err) { Swal.fire('Error', 'เกิดข้อผิดพลาดในการกู้คืน', 'error'); }
         }
     });
 };
 
-// ==========================================
+// ==========================================
