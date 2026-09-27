@@ -379,7 +379,18 @@ window.onFineSearch = function() {
     }
 
     function enhance(sel, opt = {}) {
-        if (!sel || sel.__fx) return;
+        if (!sel) return;
+        if (sel.__fx && sel.__fx.wrap.isConnected && sel.parentNode === sel.__fx.wrap) { sel.__fx.sync(); return; }
+        // 🧹 หน้าที่คืนจาก snapshot cache มีกรอบ + ปุ่มเก่าติดมาเป็น HTML เปล่าๆ (ไม่มีตัวควบคุม) → รื้อออกก่อน กันปุ่มซ้อน 2 ชั้น
+        let p = sel.parentNode;
+        while (p && p.classList && p.classList.contains('fx-sel')) {
+            const outer = p.parentNode;
+            outer.insertBefore(sel, p);
+            p.remove();
+            p = sel.parentNode;
+        }
+        document.querySelectorAll('body > .fx-pop').forEach(x => x.remove());
+        sel.__fx = null;
         const wrap = document.createElement('div'); wrap.className = 'fx-sel' + (opt.compact ? ' compact' : '');
         // ย้ายคลาสความกว้าง (w-full / w-[45%] ...) จาก select มาไว้ที่ตัวครอบ ให้เลย์เอาต์เดิมไม่เปลี่ยน
         Array.from(sel.classList).filter(c => /^(w-|flex-|shrink|grow)/.test(c)).forEach(c => { wrap.classList.add(c); });
@@ -482,7 +493,11 @@ window.onFineSearch = function() {
         sel.addEventListener('change', sync);
         new MutationObserver(() => { sync(); if (pop) render(); }).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
         // ค่าที่โค้ดตั้งตรงๆ (sel.value = '') ไม่ยิง event → เช็คเบาๆ เป็นระยะ
-        let lastV = sel.value; setInterval(() => { if (sel.value !== lastV) { lastV = sel.value; sync(); } }, 400);
+        let lastV = sel.value;
+        const tick = setInterval(() => {
+            if (!wrap.isConnected) { clearInterval(tick); close(); return; }   // หน้าถูกเปลี่ยน/สร้างใหม่ → เลิกเฝ้า
+            if (sel.value !== lastV) { lastV = sel.value; sync(); }
+        }, 400);
         sync();
     }
 
