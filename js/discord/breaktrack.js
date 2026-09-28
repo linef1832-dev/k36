@@ -86,7 +86,7 @@ window.loadBreaktrack = async function() {
         }
 
         const { data, error } = await appDB
-            .from('break_sessions')
+            .from('break_logs')
             .select('*')
             .eq('break_date', date)
             .order('break_start', { ascending: true });
@@ -705,9 +705,3 @@ window.groupTagBadge = function(tag) {
     const c = { ONLINE:'#4ade80', TEMP:'#fbbf24', ONSITE:'#94a3b8' }[tag] || '#94a3b8';
     return pill(tag, c, true);
 };
-
-
-
-
-
-
