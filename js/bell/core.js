@@ -114,10 +114,10 @@ window.bell_setFilter = function (f) { window._bellFilter = f; bell_render(); };
 
 // ────────────────────────── วาดรายชื่อ ──────────────────────────
 const BELL_BADGE = {
-    offline:   { t: '⚫ ยังไม่เปิดแอป', c: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400' },
-    online:    { t: '🟢 เปิดแอปอยู่',   c: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
-    ringing:   { t: '🔔 รอยืนยัน...',   c: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 animate-pulse' },
-    confirmed: { t: '✅ ยืนยันแล้ว',    c: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+    offline:   { t: '⚫ ยังไม่เปิดแอป', c: 'offline' },
+    online:    { t: '🟢 เปิดแอปอยู่',   c: 'online' },
+    ringing:   { t: '🔔 รอยืนยัน...',   c: 'ringing' },
+    confirmed: { t: '✅ ยืนยันแล้ว',    c: 'confirmed' },
 };
 window.bell_render = function () {
     const all = bell_rows();
@@ -148,22 +148,20 @@ window.bell_render = function () {
         const checked = window._bellSelected.has(r.id) ? 'checked' : '';
         const ver = r.p && r.p.app_version;
         const outdated = ver && relVer && bell_verCmp(relVer, ver) > 0;
-        const verBadge = (r.online && ver) ? `<span class="text-[10px] px-1.5 py-0.5 rounded ${outdated ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'}">v${bell_esc(ver)}${outdated ? ' ⚠️ ตกรุ่น' : ''}</span>` : '';
+        const verBadge = (r.online && ver) ? `<span class="bell-ver ${outdated ? 'outdated' : ''}">v${bell_esc(ver)}${outdated ? ' ⚠️ ตกรุ่น' : ''}</span>` : '';
         const when = (r.p && r.p.confirmed_at && r.st === 'confirmed') ? ('✅ ' + bell_timeTxt(r.p.confirmed_at)) : '';
         const ringBtn = (window._bellCanRing && r.online) ? `
-            <button onclick="bell_ringOne('${r.id}')" class="bg-amber-500 hover:bg-amber-400 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
-                <span class="material-icons" style="font-size:14px">notifications_active</span> เรียก
-            </button>` : '';
+            <button onclick="bell_ringOne('${r.id}')" class="bell-ringbtn"><span class="material-icons" style="font-size:14px">notifications_active</span> เรียก</button>` : '';
         return `
-        <div class="flex items-center gap-3 p-2.5 rounded-xl border border-gray-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition ${r.online ? '' : 'opacity-60'}">
+        <div class="bell-row ${r.online ? '' : 'offline'}">
             <input type="checkbox" data-bell-id="${r.id}" ${checked} ${r.online ? '' : 'disabled title="ยังไม่เปิดแอป เรียกไม่ได้"'}
                    onchange="bell_toggleOne('${r.id}', this.checked)" class="accent-amber-500 w-4 h-4">
             <div class="flex-1 min-w-0">
-                <div class="font-bold text-slate-700 dark:text-white truncate">${bell_esc(r.username)} ${verBadge}</div>
-                <div class="text-xs text-slate-400">${bell_esc(r.team || '-')}${r.department ? ' · ' + bell_esc(r.department) : ''}</div>
+                <div class="bell-name truncate">${bell_esc(r.username)} ${verBadge}</div>
+                <div class="bell-sub">${bell_esc(r.team || '-')}${r.department ? ' · ' + bell_esc(r.department) : ''}</div>
             </div>
-            <div class="text-xs text-slate-400 hidden sm:block">${when}</div>
-            <span class="text-xs px-2.5 py-1 rounded-full font-bold whitespace-nowrap ${badge.c}">${badge.t}</span>
+            <div class="bell-when hidden sm:block">${when}</div>
+            <span class="bell-badge ${badge.c}">${badge.t}</span>
             ${ringBtn}
         </div>`;
     }).join('');
@@ -267,17 +265,17 @@ window.bell_renderHistory = function () {
     const rows = bell_histFiltered();
     const cnt = document.getElementById('bellHistCount'); if (cnt) cnt.textContent = `${rows.length} รายการ`;
     const body = document.getElementById('bellHistBody'); if (!body) return;
-    if (rows.length === 0) { body.innerHTML = '<tr><td colspan="7" class="text-center text-slate-400 py-8">ไม่มีประวัติในช่วงที่เลือก</td></tr>'; return; }
+    if (rows.length === 0) { body.innerHTML = '<tr><td colspan="7" class="text-center bell-hist-muted py-8">ไม่มีประวัติในช่วงที่เลือก</td></tr>'; return; }
     body.innerHTML = rows.map(r => {
         const done = r.status === 'เข้างานแล้ว';
-        return `<tr class="border-t border-gray-100 dark:border-slate-700 text-slate-700 dark:text-slate-200">
-            <td class="px-3 py-2 font-bold">${bell_esc(r.name || r.username || '')}</td>
-            <td class="px-3 py-2 text-center text-slate-500">${bell_esc(r.team || '-')}</td>
-            <td class="px-3 py-2 text-center">${bell_esc(bell_full(r.ring_at))}</td>
-            <td class="px-3 py-2 text-center">${bell_esc(bell_full(r.confirmed_at)) || '-'}</td>
-            <td class="px-3 py-2 text-center">${r.elapsed_sec != null ? bell_hms(r.elapsed_sec) : '-'}</td>
-            <td class="px-3 py-2 text-center"><span class="text-xs px-2 py-0.5 rounded-full font-bold ${done ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}">${bell_esc(r.status || '')}</span></td>
-            <td class="px-3 py-2 text-center text-slate-500">${bell_esc(r.rung_by || '')}</td>
+        return `<tr class="bell-hist-row">
+            <td class="font-bold">${bell_esc(r.name || r.username || '')}</td>
+            <td class="text-center bell-hist-muted">${bell_esc(r.team || '-')}</td>
+            <td class="text-center">${bell_esc(bell_full(r.ring_at))}</td>
+            <td class="text-center">${bell_esc(bell_full(r.confirmed_at)) || '-'}</td>
+            <td class="text-center">${r.elapsed_sec != null ? bell_hms(r.elapsed_sec) : '-'}</td>
+            <td class="text-center"><span class="bell-badge ${done ? 'confirmed' : 'ringing'}" style="animation:none">${bell_esc(r.status || '')}</span></td>
+            <td class="text-center bell-hist-muted">${bell_esc(r.rung_by || '')}</td>
         </tr>`;
     }).join('');
 };
@@ -312,11 +310,11 @@ window.bell_renderSounds = function () {
     const all = [BELL_DEFAULT_SOUND, ...window._bellSounds];
     list.innerHTML = all.map((s, i) => {
         const active = (s.url || '') === (cur.url || '');
-        return `<div class="flex items-center gap-3 p-2 rounded-xl border ${active ? 'border-pink-400 bg-pink-50 dark:bg-pink-900/20' : 'border-gray-100 dark:border-slate-700'}">
+        return `<div class="bell-sound-row ${active ? 'active' : ''}">
             <input type="radio" name="bellSoundPick" ${active ? 'checked' : ''} onchange="bell_selectSound(${i})" class="accent-pink-500">
-            <div class="flex-1 text-sm font-bold text-slate-700 dark:text-white truncate">${bell_esc(s.name)}</div>
-            ${s.url ? `<button onclick="bell_previewSound('${bell_esc(s.url)}')" class="text-xs px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white">▶ ฟัง</button>
-                       <button onclick="bell_removeSound(${i - 1})" class="text-xs px-2 py-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30" title="ลบออกจากรายการ">✕</button>` : '<span class="text-xs text-slate-400">เสียงในเครื่อง</span>'}
+            <div class="bell-sound-name">${bell_esc(s.name)}</div>
+            ${s.url ? `<button onclick="bell_previewSound('${bell_esc(s.url)}')" class="bell-minibtn">▶ ฟัง</button>
+                       <button onclick="bell_removeSound(${i - 1})" class="bell-minibtn danger" title="ลบออกจากรายการ">✕</button>` : '<span class="bell-sound-hint">เสียงในเครื่อง</span>'}
         </div>`;
     }).join('');
 };
