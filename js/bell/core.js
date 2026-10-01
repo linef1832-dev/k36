@@ -77,7 +77,8 @@ window.bell_loadPresence = async function () {
 window.bell_load = async function () {
     if (!window.appDB) return;
     try {
-        await Promise.all([window.bell_loadUsers(), window.bell_loadPresence()]);
+        await Promise.all([window.bell_loadUsers(), window.bell_loadPresence(), window.bell_loadShifts()]);
+        if (!window._bellShTimer) window._bellShTimer = setInterval(() => window.bell_loadShifts().then(() => { try { bell_render(); } catch (e) {} }), 5 * 60 * 1000);
         bell_render();
     } catch (e) { bell_setStatus('โหลดข้อมูลไม่สำเร็จ: ' + (e.message || e), 'err'); }
 };
@@ -170,7 +171,7 @@ window.bell_render = function () {
         <div class="bell-row ${r.online ? '' : 'offline'} ${window._bellSelected.has(r.id) ? 'sel' : ''}" ${r.online ? `onclick="if(!event.target.closest('button'))bell_toggleOne('${r.id}', !window._bellSelected.has('${r.id}'))"` : 'title="ยังไม่เปิดแอป เรียกไม่ได้"'}>
             <span class="bell-check"></span>
             <div class="flex-1 min-w-0">
-                <div class="bell-name truncate">${bell_esc(r.username)} ${verBadge}</div>
+                <div class="bell-name truncate">${bell_esc(r.username)}${bell_shiftOf(r) ? `<span class="bell-shtag">กะ${bell_shiftOf(r)}</span>` : ''} ${verBadge}</div>
                 <div class="bell-sub">${bell_esc(r.team || '-')}${r.department ? ' · ' + bell_esc(r.department) : ''}</div>
             </div>
             <div class="bell-when">${when}</div>
@@ -180,28 +181,29 @@ window.bell_render = function () {
     }).join('');
 };
 
-// ────────────────────────── เรียกด่วน: ทั้งหมด / แผนก / ทีม-กะ ──────────────────────────
-function bell_renderGroups(all) {
-    const on = all.filter(r => r.online);
-    const sub = document.getElementById('bellAllSub'); if (sub) sub.textContent = on.length ? `${on.length} คนออนไลน์อยู่` : 'ยังไม่มีใครเปิดแอป';
-    const build = (key, elId) => {
-        const el = document.getElementById(elId); if (!el) return;
-        const groups = {}; all.forEach(r => { const k = (r[key] || '').trim(); if (!k) return; const g = groups[k] || (groups[k] = { total: 0, on: 0 }); g.total++; if (r.online) g.on++; });
-        const keys = Object.keys(groups).sort((a, b) => groups[b].on - groups[a].on || a.localeCompare(b, 'th'));
-        el.innerHTML = keys.length ? keys.map(k => `<button class="bell-chip ${groups[k].on ? '' : 'dis'}" ${groups[k].on ? `onclick="bell_ringGroup('${key}', '${bell_esc(k).replace(/'/g, "\\'")}')"` : 'disabled'} title="${groups[k].on}/${groups[k].total} คนออนไลน์">${bell_esc(k)} <span class="n">${groups[k].on}</span></button>`).join('') : '<span class="bell-chip-none">—</span>';
-    };
-    build('department', 'bellGroupDept'); build('team', 'bellGroupTeam');
-}
-window.bell_ringAll = function () {
-    const rows = bell_rows().filter(r => r.online);
-    if (!rows.length) { bell_setStatus('ยังไม่มีพนักงานเปิดแอป', 'warn'); return; }
-    if (!confirm(`เรียกพนักงานที่เปิดแอปทั้งหมด ${rows.length} คน?`)) return;
-    bell_ring(rows);
+// ────────────────────────── เรียกตามกะ (จากตารางกะ schedules ของวันทำงานปัจจุบัน) ──────────────────────────
+window._bellShift = {};   // username(lower) → 'เช้า' | 'กลาง' | 'ดึก'
+function bell_workDate() { const t = new Date(); if (t.getHours() < 8) t.setDate(t.getDate() - 1); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; }
+function bell_normShift(v) { v = String(v || ''); return /เช้า/.test(v) ? 'เช้า' : /กลาง|บ่าย/.test(v) ? 'กลาง' : /ดึก/.test(v) ? 'ดึก' : ''; }
+window.bell_loadShifts = async function () {
+    try {
+        const { data } = await window.appDB.from('schedules').select('staff_name, shift_name').eq('work_date', bell_workDate());
+        const m = {}; (data || []).forEach(r => { const sh = bell_normShift(r.shift_name); if (sh) m[(r.staff_name || '').toLowerCase().trim()] = sh; });
+        window._bellShift = m;
+    } catch (e) { window._bellShift = {}; }
 };
-window.bell_ringGroup = function (key, val) {
-    const rows = bell_rows().filter(r => r.online && (r[key] || '').trim() === val);
-    if (!rows.length) { bell_setStatus(`ไม่มีใครใน "${val}" เปิดแอปอยู่`, 'warn'); return; }
-    if (!confirm(`เรียก${key === 'department' ? 'แผนก' : 'ทีม/กะ'} "${val}" ทั้งหมด ${rows.length} คน?`)) return;
+function bell_shiftOf(r) { return window._bellShift[(r.username || '').toLowerCase().trim()] || ''; }
+function bell_renderGroups(all) {
+    ['เช้า', 'กลาง', 'ดึก'].forEach(sh => {
+        const on = all.filter(r => r.online && bell_shiftOf(r) === sh).length;
+        const n = document.getElementById('bellShN_' + sh); if (n) n.textContent = on;
+        const b = document.querySelector(`.bell-shift[data-s="${sh}"]`); if (b) { b.disabled = on === 0; b.title = on ? `เรียกกะ${sh}ที่เปิดแอป ${on} คน` : `ไม่มีกะ${sh}เปิดแอปอยู่`; }
+    });
+}
+window.bell_ringShift = function (sh) {
+    const rows = bell_rows().filter(r => r.online && bell_shiftOf(r) === sh);
+    if (!rows.length) { bell_setStatus(`ไม่มีพนักงานกะ${sh}เปิดแอปอยู่`, 'warn'); return; }
+    if (!confirm(`เรียกพนักงานกะ${sh}ทั้งหมด ${rows.length} คน?`)) return;
     bell_ring(rows);
 };
 
