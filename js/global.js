@@ -739,6 +739,7 @@ window.cleanupPageIntervals = function() {
 // 📁 โครงสร้างใหม่: สคริปต์ของแต่ละหน้าอยู่ในโฟลเดอร์ของตัวเอง (js/ชื่อหน้า/ไฟล์.js)
 // ชื่อในรายการ = path ต่อจาก js/ (ไม่ต้องมี .js) — loadScript ประกอบเป็น ./js/{ชื่อ}.js เอง
 const PAGE_SCRIPTS = {
+    bell:              ['bell/core'],   // 🔔 กระดิ่งเรียกพนักงาน
     breaktable: ['breaktable/core'],   // 📊 ตารางลงเวลาพักทั้งหมด (ใช้ fetchData จาก system/users.js ที่โหลดไว้แล้ว)
     break_audit:       ['break_audit/core'],   // ⏱️ ตรวจเวลาลุกจากที่นั่ง (อ่าน export กลุ่ม Telegram)
     leave:             ['leave/core', 'leave/table', 'leave/controls', 'swap/core', 'swap/view', 'swap/admin', 'swap/extras'],
@@ -1136,6 +1137,9 @@ async function showPage(pageName) {
                 }
                 else if (pageName === 'slip_check') {
                     if (typeof window.initSlipCheck === 'function') await window.initSlipCheck();
+                }
+                else if (pageName === 'bell') {
+                    if (typeof initBell === 'function') await initBell();
                 }
 
                 // ⚡ ข้อมูลชุดใหม่วาดเสร็จแล้ว → ปิดชิป + เก็บ snapshot เวอร์ชันสดไว้เลย

@@ -193,7 +193,10 @@ const PERM_GROUPS = [
             {id: 'admin_users', name: 'จัดการพนักงาน', isSub: true},
             {id: 'admin_perms', name: 'สิทธิ์เมนู', isSub: true},
             {id: 'admin_info', name: 'ประวัติจัดหน้าที่', isSub: true},
-            {id: 'admin_logs', name: 'ประวัติระบบ (ปุ่มซ้ายล่าง)', isSub: true}
+            {id: 'admin_logs', name: 'ประวัติระบบ (ปุ่มซ้ายล่าง)', isSub: true},
+            {id: 'bell', name: 'เข้าหน้ากระดิ่งเรียกพนักงาน', isSub: false},
+            {id: 'bell_ring', name: 'กดเรียกกระดิ่ง', isSub: true},
+            {id: 'bell_history', name: 'ดูประวัติ + ดาวน์โหลด CSV', isSub: true}
         ]
     }
 ];
