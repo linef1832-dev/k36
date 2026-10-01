@@ -371,6 +371,11 @@
                 <option value="กะเช้า">กะเช้า</option>
                 <option value="กะดึก">กะดึก</option>
               </select>
+              <select id="breaktrackDept" class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" onchange="window.renderBreaktrackTable()">
+                <option value="all">-- ทุกแผนก --</option>
+                <option value="AM">AM</option>
+                <option value="OD">OD</option>
+              </select>
               <input type="text" id="breaktrackSearch" placeholder="🔍 ค้นหาชื่อ..." class="bg-slate-900 border border-slate-600 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" oninput="window.renderBreaktrackTable()">
               <button onclick="window.loadBreaktrack()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-1 active:scale-95">
                 <span class="material-icons text-sm">refresh</span> รีเฟรช

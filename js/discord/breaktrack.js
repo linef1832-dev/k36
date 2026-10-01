@@ -86,7 +86,7 @@ window.loadBreaktrack = async function() {
         }
 
         const { data, error } = await appDB
-            .from('break_sessions')
+            .from('break_logs')
             .select('*')
             .eq('break_date', date)
             .order('break_start', { ascending: true });
@@ -139,6 +139,7 @@ window.btSetPageSize = function(n) {
 
 window.renderBreaktrackTable = function() {
     const shiftFilter = document.getElementById('breaktrackShift')?.value || 'all';
+    const deptFilter = document.getElementById('breaktrackDept')?.value || 'all';
     const search = (document.getElementById('breaktrackSearch')?.value || '').toLowerCase();
 
     // กลุ่มข้อมูลตามชื่อพนักงาน
@@ -158,6 +159,12 @@ window.renderBreaktrackTable = function() {
 
         // filter กะ
         if (shiftFilter !== 'all' && shift !== shiftFilter) return null;
+        // filter แผนก (AM / OD) — AMQL นับเป็น AM, ODQL / TRAINER_OD นับเป็น OD
+        if (deptFilter !== 'all') {
+            const d = String(user ? (user.department || 'AM') : '').toUpperCase();
+            const group = d.includes('OD') ? 'OD' : (d.startsWith('AM') ? 'AM' : '');
+            if (group !== deptFilter) return null;
+        }
         // filter search
         if (search && !name.toLowerCase().includes(search)) return null;
 
@@ -226,7 +233,7 @@ window.renderBreaktrackTable = function() {
 
     // ── แบ่งหน้า ──────────────────────────────────────────────────────
     // ถ้าตัวกรอง (วันที่ / กะ / คำค้น) เปลี่ยน ให้เด้งกลับหน้า 1 อัตโนมัติ
-    const _sig = `${document.getElementById('breaktrackDate')?.value || ''}|${shiftFilter}|${search}`;
+    const _sig = `${document.getElementById('breaktrackDate')?.value || ''}|${shiftFilter}|${deptFilter}|${search}`;
     if (_sig !== _btLastSig) { _btLastSig = _sig; _btPage = 1; }
 
     const totalPages = Math.max(1, Math.ceil(rows.length / _btPageSize));
@@ -705,9 +712,3 @@ window.groupTagBadge = function(tag) {
     const c = { ONLINE:'#4ade80', TEMP:'#fbbf24', ONSITE:'#94a3b8' }[tag] || '#94a3b8';
     return pill(tag, c, true);
 };
-
-
-
-
-
-
