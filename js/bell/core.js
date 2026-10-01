@@ -389,8 +389,9 @@ window.bell_uploadSound = async function () {
     if (!['mp3', 'wav'].includes(ext)) { bell_setStatus('รองรับเฉพาะ .mp3 หรือ .wav', 'warn'); return; }
     try {
         status('⬆️ กำลังอัปโหลด...');
-        const safe = file.name.replace(/[^\w.\-ก-๙]+/g, '_');
-        const path = `sounds/${Date.now()}_${safe}`;
+        // ชื่อไฟล์ใน Storage ต้องเป็นอังกฤษ/ตัวเลขเท่านั้น (ภาษาไทยจะขึ้น Invalid key) — ชื่อที่โชว์ในรายการยังเป็นชื่อเดิม
+        const base = file.name.replace(/\.[^.]+$/, '').normalize('NFKD').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'sound';
+        const path = `sounds/${Date.now()}_${base}.${ext}`;
         const up = await window.appDB.storage.from(BELL_BUCKET).upload(path, file, { cacheControl: '3600', upsert: false, contentType: ext === 'mp3' ? 'audio/mpeg' : 'audio/wav' });
         if (up.error) throw up.error;
         const { data: pub } = window.appDB.storage.from(BELL_BUCKET).getPublicUrl(path);
