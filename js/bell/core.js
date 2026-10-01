@@ -135,7 +135,9 @@ window.bell_render = function () {
     // ล้างที่เลือกถ้าออฟไลน์ไปแล้ว
     const onlineIds = new Set(all.filter(r => r.online).map(r => r.id));
     [...window._bellSelected].forEach(id => { if (!onlineIds.has(id)) window._bellSelected.delete(id); });
-    setTxt('bellSelCount', window._bellSelected.size);
+    setTxt('bellSelCount', window._bellSelected.size); setTxt('bellSelCount2', window._bellSelected.size);
+    const sr = document.querySelector('.bell-selring'); if (sr) sr.disabled = window._bellSelected.size === 0;
+    bell_renderGroups(all);
 
     const list = document.getElementById('bellList'); if (!list) return;
     const vis = bell_visibleRows();
@@ -165,9 +167,8 @@ window.bell_render = function () {
         const ringBtn = (window._bellCanRing && r.online) ? `
             <button onclick="bell_ringOne('${r.id}')" class="bell-ringbtn"><span class="material-icons" style="font-size:14px">notifications_active</span> เรียก</button>` : '';
         return `
-        <div class="bell-row ${r.online ? '' : 'offline'}">
-            <input type="checkbox" data-bell-id="${r.id}" ${checked} ${r.online ? '' : 'disabled title="ยังไม่เปิดแอป เรียกไม่ได้"'}
-                   onchange="bell_toggleOne('${r.id}', this.checked)" class="accent-amber-500 w-4 h-4">
+        <div class="bell-row ${r.online ? '' : 'offline'} ${window._bellSelected.has(r.id) ? 'sel' : ''}" ${r.online ? `onclick="if(!event.target.closest('button'))bell_toggleOne('${r.id}', !window._bellSelected.has('${r.id}'))"` : 'title="ยังไม่เปิดแอป เรียกไม่ได้"'}>
+            <span class="bell-check"></span>
             <div class="flex-1 min-w-0">
                 <div class="bell-name truncate">${bell_esc(r.username)} ${verBadge}</div>
                 <div class="bell-sub">${bell_esc(r.team || '-')}${r.department ? ' · ' + bell_esc(r.department) : ''}</div>
@@ -179,10 +180,35 @@ window.bell_render = function () {
     }).join('');
 };
 
+// ────────────────────────── เรียกด่วน: ทั้งหมด / แผนก / ทีม-กะ ──────────────────────────
+function bell_renderGroups(all) {
+    const on = all.filter(r => r.online);
+    const sub = document.getElementById('bellAllSub'); if (sub) sub.textContent = on.length ? `${on.length} คนออนไลน์อยู่` : 'ยังไม่มีใครเปิดแอป';
+    const build = (key, elId) => {
+        const el = document.getElementById(elId); if (!el) return;
+        const groups = {}; all.forEach(r => { const k = (r[key] || '').trim(); if (!k) return; const g = groups[k] || (groups[k] = { total: 0, on: 0 }); g.total++; if (r.online) g.on++; });
+        const keys = Object.keys(groups).sort((a, b) => groups[b].on - groups[a].on || a.localeCompare(b, 'th'));
+        el.innerHTML = keys.length ? keys.map(k => `<button class="bell-chip ${groups[k].on ? '' : 'dis'}" ${groups[k].on ? `onclick="bell_ringGroup('${key}', '${bell_esc(k).replace(/'/g, "\\'")}')"` : 'disabled'} title="${groups[k].on}/${groups[k].total} คนออนไลน์">${bell_esc(k)} <span class="n">${groups[k].on}</span></button>`).join('') : '<span class="bell-chip-none">—</span>';
+    };
+    build('department', 'bellGroupDept'); build('team', 'bellGroupTeam');
+}
+window.bell_ringAll = function () {
+    const rows = bell_rows().filter(r => r.online);
+    if (!rows.length) { bell_setStatus('ยังไม่มีพนักงานเปิดแอป', 'warn'); return; }
+    if (!confirm(`เรียกพนักงานที่เปิดแอปทั้งหมด ${rows.length} คน?`)) return;
+    bell_ring(rows);
+};
+window.bell_ringGroup = function (key, val) {
+    const rows = bell_rows().filter(r => r.online && (r[key] || '').trim() === val);
+    if (!rows.length) { bell_setStatus(`ไม่มีใครใน "${val}" เปิดแอปอยู่`, 'warn'); return; }
+    if (!confirm(`เรียก${key === 'department' ? 'แผนก' : 'ทีม/กะ'} "${val}" ทั้งหมด ${rows.length} คน?`)) return;
+    bell_ring(rows);
+};
+
 // ────────────────────────── เลือก ──────────────────────────
 window.bell_toggleOne = function (id, on) {
     if (on) window._bellSelected.add(String(id)); else window._bellSelected.delete(String(id));
-    const el = document.getElementById('bellSelCount'); if (el) el.textContent = window._bellSelected.size;
+    bell_render();
 };
 window.bell_toggleSelectAll = function (cb) {
     const vis = bell_visibleRows().filter(r => r.online);
@@ -414,7 +440,7 @@ window.bell_uploadRelease = async function () {
         window._bellRelease = rel; status('');
         bell_setStatus(`✅ ปล่อยเวอร์ชัน v${version} แล้ว — แอปพนักงานจะเด้งถามให้อัปเดตเอง`, 'ok');
         document.getElementById('bellRelVersion').value = ''; document.getElementById('bellRelNotes').value = ''; if (fileEl) fileEl.value = '';
-        await window.bell_loadRelease(); bell_render();
+        bell_render();
     } catch (e) { status(''); bell_setStatus('อัปโหลดไม่สำเร็จ: ' + (e.message || e), 'err'); }
     finally { if (btn) btn.disabled = false; }
 };
@@ -435,7 +461,6 @@ window.initBell = async function () {
     hide('bellSoundCard', bell_can('bell_sound'));
     hide('bellUpdateCard', bell_can('bell_app_update'));
 
-    await window.bell_loadRelease();
     await window.bell_loadSounds();
     await window.bell_load();
     window.bell_subscribe();
