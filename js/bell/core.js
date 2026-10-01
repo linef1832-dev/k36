@@ -103,6 +103,7 @@ function bell_rows() {
 function bell_visibleRows() {
     const q = (window._bellSearch || '').trim().toLowerCase();
     return bell_rows().filter(r => {
+        if (window._bellDept && window._bellDept !== 'ALL' && (r.department || '').trim() !== window._bellDept) return false;
         if (window._bellFilter === 'online' && !r.online) return false;
         if (window._bellFilter === 'offline' && r.online) return false;
         if (!q) return true;
@@ -193,7 +194,21 @@ window.bell_loadShifts = async function () {
     } catch (e) { window._bellShift = {}; }
 };
 function bell_shiftOf(r) { return window._bellShift[(r.username || '').toLowerCase().trim()] || ''; }
+window._bellDept = window._bellDept || 'ALL';
+window.bell_setDept = function (d) { window._bellDept = d; window._bellSelected = new Set(); const sa = document.getElementById('bellSelectAll'); if (sa) sa.checked = false; bell_render(); };
+const bell_inDept = (r) => !window._bellDept || window._bellDept === 'ALL' || (r.department || '').trim() === window._bellDept;
+function bell_renderDept(all) {
+    const el = document.getElementById('bellDeptChips'); if (!el) return;
+    const g = {}; all.forEach(r => { const d = (r.department || '').trim(); if (!d) return; const x = g[d] || (g[d] = { t: 0, on: 0 }); x.t++; if (r.online) x.on++; });
+    const keys = Object.keys(g).sort((a, b) => a.localeCompare(b, 'th'));
+    if (window._bellDept !== 'ALL' && !g[window._bellDept]) window._bellDept = 'ALL';
+    const onAll = all.filter(r => r.online).length;
+    el.innerHTML = `<button class="bell-dchip ${window._bellDept === 'ALL' ? 'active' : ''}" onclick="bell_setDept('ALL')">ทุกแผนก<span class="n">${onAll}</span></button>` +
+        keys.map(k => `<button class="bell-dchip ${window._bellDept === k ? 'active' : ''}" onclick="bell_setDept('${bell_esc(k).replace(/'/g, "\\'")}')" title="ออนไลน์ ${g[k].on}/${g[k].t} คน">${bell_esc(k)}<span class="n">${g[k].on}</span></button>`).join('');
+}
 function bell_renderGroups(all) {
+    bell_renderDept(all);
+    all = all.filter(bell_inDept);
     ['เช้า', 'กลาง', 'ดึก'].forEach(sh => {
         const on = all.filter(r => r.online && bell_shiftOf(r) === sh).length;
         const n = document.getElementById('bellShN_' + sh); if (n) n.textContent = on;
@@ -201,9 +216,10 @@ function bell_renderGroups(all) {
     });
 }
 window.bell_ringShift = function (sh) {
-    const rows = bell_rows().filter(r => r.online && bell_shiftOf(r) === sh);
-    if (!rows.length) { bell_setStatus(`ไม่มีพนักงานกะ${sh}เปิดแอปอยู่`, 'warn'); return; }
-    if (!confirm(`เรียกพนักงานกะ${sh}ทั้งหมด ${rows.length} คน?`)) return;
+    const rows = bell_rows().filter(r => r.online && bell_shiftOf(r) === sh && bell_inDept(r));
+    const dl = window._bellDept && window._bellDept !== 'ALL' ? ` แผนก ${window._bellDept}` : '';
+    if (!rows.length) { bell_setStatus(`ไม่มีพนักงานกะ${sh}${dl}เปิดแอปอยู่`, 'warn'); return; }
+    if (!confirm(`เรียกพนักงานกะ${sh}${dl} ทั้งหมด ${rows.length} คน?`)) return;
     bell_ring(rows);
 };
 
@@ -450,7 +466,7 @@ window.bell_uploadRelease = async function () {
 
 // ────────────────────────── init ──────────────────────────
 window.initBell = async function () {
-    window._bellSelected = new Set(); window._bellSearch = ''; window._bellFilter = 'all';
+    window._bellSelected = new Set(); window._bellSearch = ''; window._bellFilter = 'all'; window._bellDept = 'ALL';
     const si = document.getElementById('bellSearch'); if (si) si.value = '';
     const sa = document.getElementById('bellSelectAll'); if (sa) sa.checked = false;
     window.bell_closeHistory();

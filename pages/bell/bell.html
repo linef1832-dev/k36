@@ -11,8 +11,8 @@
             </div>
         </div>
         <div class="flex gap-2">
-            <button id="bellBtnHistory" onclick="bell_openHistory()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
-                <span class="material-icons text-sm">history</span> ประวัติ
+            <button onclick="showPage('dashboard')" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded-xl font-bold transition-colors flex items-center gap-2 shadow-sm border border-white/20 backdrop-blur-sm">
+                <span class="material-icons text-sm">arrow_back</span> กลับ
             </button>
         </div>
     </div>
@@ -22,7 +22,7 @@
     <div class="p-4 max-w-6xl mx-auto w-full">
 
         <!-- ตัวเลขสรุป -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
                 <div class="text-xs text-slate-500 dark:text-slate-400">พนักงานทั้งหมด</div>
                 <div id="bellCountAll" class="text-2xl font-extrabold text-slate-600 dark:text-slate-200">0</div>
@@ -43,6 +43,11 @@
                 <div class="text-xs text-slate-500 dark:text-slate-400">✅ ยืนยันแล้ว</div>
                 <div id="bellCountConfirmed" class="text-2xl font-extrabold text-blue-500">0</div>
             </div>
+            <button id="bellBtnHistory" onclick="bell_openHistory()" class="bell-histcard">
+                <span class="material-icons">history</span>
+                <span><b>ประวัติการเรียก</b><small>ดูย้อนหลัง · ดาวน์โหลด CSV</small></span>
+                <span class="material-icons arr">chevron_right</span>
+            </button>
         </div>
 
         <!-- รายชื่อพนักงาน -->
@@ -62,6 +67,8 @@
                     <button data-f="offline" onclick="bell_setFilter('offline')" class="bell-fbtn px-3 py-1.5 rounded-lg font-bold">ยังไม่เปิดแอป</button>
                 </div>
             </div>
+            <!-- เลือกแผนก -->
+            <div class="bell-deptbar"><span class="bell-tlbl">แผนก</span><div id="bellDeptChips" class="bell-dchips"></div></div>
             <!-- แถบเรียก: ตามกะ (ซ้าย) · ที่เลือก (ขวา) -->
             <div id="bellRingControls" class="bell-toolbar">
                 <div class="bell-tgroup">
@@ -155,6 +162,20 @@
 <style>
     /* ปุ่มกรอง */
 
+
+    .bell-histcard { grid-column: span 2 / span 2; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; cursor: pointer; text-align: left; color: #fff;
+        background: linear-gradient(135deg, #334155, #1e293b); border: 1px solid rgba(255,255,255,.08); box-shadow: 0 6px 16px rgba(0,0,0,.15); transition: transform .1s, filter .15s; }
+    @media (min-width: 768px) { .bell-histcard { grid-column: span 1 / span 1; } }
+    .bell-histcard:hover { filter: brightness(1.15); } .bell-histcard:active { transform: translateY(1px); }
+    .bell-histcard .material-icons:first-child { font-size: 24px; color: #fbbf24; }
+    .bell-histcard b { display: block; font-size: 13px; } .bell-histcard small { font-size: 10.5px; color: #94a3b8; }
+    .bell-histcard .arr { margin-left: auto; color: #94a3b8; }
+    .bell-deptbar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid rgba(148,163,184,.15); flex-wrap: wrap; }
+    .bell-dchips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .bell-dchip { padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid rgba(148,163,184,.3); background: transparent; color: #cbd5e1; transition: all .15s; }
+    .bell-dchip:hover { border-color: #f59e0b; color: #fbbf24; }
+    .bell-dchip.active { background: #f59e0b; border-color: #f59e0b; color: #fff; }
+    .bell-dchip .n { margin-left: 5px; font-size: 10.5px; opacity: .8; }
     /* ── แถบเรียก ── */
     .bell-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid rgba(148,163,184,.15); }
     .bell-tgroup { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
