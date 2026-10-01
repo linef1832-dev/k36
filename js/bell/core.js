@@ -22,7 +22,7 @@ const BELL_SOUNDS_KEY = 'bell_sounds';
 const BELL_SOUND_KEY = 'bell_sound';
 const BELL_BUCKET = 'bell-app';
 const BELL_EXE_NAME = 'BellEmployee.exe';
-const BELL_DEFAULT_SOUND = { name: '🔔 เสียงมาตรฐานของ Windows', url: '' };
+const BELL_DEFAULT_SOUND = { name: '🚨 ไซเรน BIZ Checker (ค่าเริ่มต้น)', url: '' };
 
 // ────────────────────────── ตัวช่วย ──────────────────────────
 function bell_now() { return (typeof window.serverNow === 'function') ? window.serverNow() : new Date(); }
@@ -314,7 +314,7 @@ window.bell_renderSounds = function () {
             <input type="radio" name="bellSoundPick" ${active ? 'checked' : ''} onchange="bell_selectSound(${i})" class="accent-pink-500">
             <div class="bell-sound-name">${bell_esc(s.name)}</div>
             ${s.url ? `<button onclick="bell_previewSound('${bell_esc(s.url)}')" class="bell-minibtn">▶ ฟัง</button>
-                       <button onclick="bell_removeSound(${i - 1})" class="bell-minibtn danger" title="ลบออกจากรายการ">✕</button>` : '<span class="bell-sound-hint">เสียงในเครื่อง</span>'}
+                       <button onclick="bell_removeSound(${i - 1})" class="bell-minibtn danger" title="ลบออกจากรายการ">✕</button>` : '<span class="bell-sound-hint">เสียงในแอป</span>'}
         </div>`;
     }).join('');
 };
