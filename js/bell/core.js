@@ -119,6 +119,7 @@ const BELL_BADGE = {
     ringing:   { t: '🔔 รอยืนยัน...',   c: 'ringing' },
     confirmed: { t: '✅ ยืนยันแล้ว',    c: 'confirmed' },
 };
+if (!window._bellTick) window._bellTick = setInterval(() => { try { if (document.getElementById('bellList') && Object.values(window._bellPresence || {}).some(p => p.status === 'ringing')) window.bell_render(); } catch (e) {} }, 1000);
 window.bell_render = function () {
     const all = bell_rows();
     const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -149,7 +150,18 @@ window.bell_render = function () {
         const ver = r.p && r.p.app_version;
         const outdated = ver && relVer && bell_verCmp(relVer, ver) > 0;
         const verBadge = (r.online && ver) ? `<span class="bell-ver ${outdated ? 'outdated' : ''}">v${bell_esc(ver)}${outdated ? ' ⚠️ ตกรุ่น' : ''}</span>` : '';
-        const when = (r.p && r.p.confirmed_at && r.st === 'confirmed') ? ('✅ ' + bell_timeTxt(r.p.confirmed_at)) : '';
+        // เวลาเรียก / เวลาตอบกลับ / ใช้เวลา — โชว์ชัดทุกแถวที่เคยถูกเรียก
+        let when = '';
+        if (r.p && r.p.ring_at && (r.st === 'ringing' || r.st === 'confirmed')) {
+            const rt = `<span class="bw-ring">📣 เรียก ${bell_timeTxt(r.p.ring_at)}</span>`;
+            if (r.st === 'confirmed' && r.p.confirmed_at) {
+                const sec = Math.max(0, (new Date(r.p.confirmed_at) - new Date(r.p.ring_at)) / 1000);
+                when = `${rt}<span class="bw-ok">✅ ตอบ ${bell_timeTxt(r.p.confirmed_at)}</span><span class="bw-sec">${sec < 60 ? sec.toFixed(1) + ' วิ' : Math.floor(sec / 60) + ' นาที ' + Math.round(sec % 60) + ' วิ'}</span>`;
+            } else {
+                const sec = Math.max(0, Math.round((Date.now() - new Date(r.p.ring_at)) / 1000));
+                when = `${rt}<span class="bw-wait">⏳ รอ ${sec < 60 ? sec + ' วิ' : Math.floor(sec / 60) + ' นาที'}</span>`;
+            }
+        }
         const ringBtn = (window._bellCanRing && r.online) ? `
             <button onclick="bell_ringOne('${r.id}')" class="bell-ringbtn"><span class="material-icons" style="font-size:14px">notifications_active</span> เรียก</button>` : '';
         return `
@@ -160,7 +172,7 @@ window.bell_render = function () {
                 <div class="bell-name truncate">${bell_esc(r.username)} ${verBadge}</div>
                 <div class="bell-sub">${bell_esc(r.team || '-')}${r.department ? ' · ' + bell_esc(r.department) : ''}</div>
             </div>
-            <div class="bell-when hidden sm:block">${when}</div>
+            <div class="bell-when">${when}</div>
             <span class="bell-badge ${badge.c}">${badge.t}</span>
             ${ringBtn}
         </div>`;
