@@ -109,6 +109,10 @@ function bell_visibleRows() {
         if (!q) return true;
         return (r.username || '').toLowerCase().includes(q) || (r.team || '').toLowerCase().includes(q)
             || (r.department || '').toLowerCase().includes(q);
+    }).sort((a, b) => {
+        // คนที่เปิดแอปอยู่ขึ้นบนเสมอ (กำลังเรียก → ยืนยันแล้ว → ออนไลน์ → ออฟไลน์) แล้วเรียงตามชื่อ
+        const rank = (r) => r.st === 'ringing' ? 0 : r.st === 'confirmed' ? 1 : r.online ? 2 : 3;
+        return rank(a) - rank(b) || (a.username || '').localeCompare(b.username || '', 'th');
     });
 }
 window.bell_onSearch = function (v) { window._bellSearch = v || ''; bell_render(); };
