@@ -196,7 +196,8 @@ const PERM_GROUPS = [
             {id: 'admin_logs', name: 'ประวัติระบบ (ปุ่มซ้ายล่าง)', isSub: true},
             {id: 'bell', name: 'เข้าหน้ากระดิ่งเรียกพนักงาน', isSub: false},
             {id: 'bell_ring', name: 'กดเรียกกระดิ่ง', isSub: true},
-            {id: 'bell_history', name: 'ดูประวัติ + ดาวน์โหลด CSV', isSub: true}
+            {id: 'bell_history', name: 'ดูประวัติ + ดาวน์โหลด CSV', isSub: true},
+            {id: 'bell_app_update', name: 'อัปโหลดเวอร์ชันใหม่ของแอปพนักงาน', isSub: true}
         ]
     }
 ];

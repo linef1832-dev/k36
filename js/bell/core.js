@@ -86,6 +86,12 @@ window.bell_render = function () {
         const badge = BELL_STATUS_BADGE[r.status] || BELL_STATUS_BADGE.online;
         const checked = window._bellSelected.has(id) ? 'checked' : '';
         const when = r.confirmed_at ? ('✅ ' + bell_timeTxt(r.confirmed_at)) : '';
+        const ver = r.app_version || '';
+        const outdated = ver && window._bellRelease && window._bellRelease.version
+            && bell_verCmp(window._bellRelease.version, ver) > 0;
+        const verBadge = ver ? `<span class="text-[10px] px-1.5 py-0.5 rounded ${outdated
+            ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'}"
+            title="${outdated ? 'ยังไม่ได้อัปเดตเป็นเวอร์ชันล่าสุด' : 'เวอร์ชันแอป'}">v${bell_esc(ver)}${outdated ? ' ⚠️ ตกรุ่น' : ''}</span>` : '';
         const ringBtn = window._bellCanRing ? `
             <button onclick="bell_ringOne('${id}')" class="bg-amber-500 hover:bg-amber-400 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
                 <span class="material-icons" style="font-size:14px">notifications_active</span> เรียก
@@ -94,7 +100,7 @@ window.bell_render = function () {
         <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
             <input type="checkbox" data-bell-id="${id}" ${checked} onchange="bell_toggleOne('${id}', this.checked)" class="accent-amber-500 w-4 h-4">
             <div class="flex-1 min-w-0">
-                <div class="font-bold text-slate-700 dark:text-white truncate">${bell_esc(r.name || r.username || id)}</div>
+                <div class="font-bold text-slate-700 dark:text-white truncate">${bell_esc(r.name || r.username || id)} ${verBadge}</div>
                 <div class="text-xs text-slate-400">${bell_esc(r.team || '')} ${r.username ? '· ' + bell_esc(r.username) : ''}</div>
             </div>
             <div class="text-xs text-slate-400 hidden sm:block">${when}</div>
@@ -263,21 +269,112 @@ window.bell_exportCSV = function () {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
+// ---------- อัปเดตแอปพนักงาน (เก็บเวอร์ชันใน settings key 'bell_app_release', ไฟล์ใน storage bucket 'bell-app') ----------
+const BELL_RELEASE_KEY = 'bell_app_release';
+const BELL_BUCKET = 'bell-app';
+const BELL_EXE_NAME = 'BellEmployee.exe';
+window._bellRelease = window._bellRelease || null;
+
+function bell_verCmp(a, b) {
+    // คืน >0 ถ้า a ใหม่กว่า b, 0 เท่ากัน, <0 เก่ากว่า   (เทียบแบบ 1.2.10 > 1.2.9)
+    const pa = String(a || '').replace(/^v/i, '').split('.').map(x => parseInt(x, 10) || 0);
+    const pb = String(b || '').replace(/^v/i, '').split('.').map(x => parseInt(x, 10) || 0);
+    const n = Math.max(pa.length, pb.length);
+    for (let i = 0; i < n; i++) {
+        const d = (pa[i] || 0) - (pb[i] || 0);
+        if (d !== 0) return d;
+    }
+    return 0;
+}
+
+window.bell_loadRelease = async function () {
+    if (!window.appDB) return;
+    try {
+        const { data } = await window.appDB.from('settings').select('value').eq('key', BELL_RELEASE_KEY).maybeSingle();
+        window._bellRelease = (data && data.value) ? JSON.parse(data.value) : null;
+    } catch (e) { window._bellRelease = null; }
+    const el = document.getElementById('bellReleaseInfo');
+    if (el) {
+        const r = window._bellRelease;
+        el.textContent = r && r.version
+            ? `เวอร์ชันล่าสุดที่ปล่อย: v${r.version} (${bell_full(r.updated_at)})`
+            : 'ยังไม่เคยปล่อยเวอร์ชันผ่านหน้านี้';
+    }
+};
+
+async function bell_sha256(buf) {
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+window.bell_uploadRelease = async function () {
+    if (!window.appDB) return;
+    const version = (document.getElementById('bellRelVersion').value || '').trim().replace(/^v/i, '');
+    const notes = (document.getElementById('bellRelNotes').value || '').trim();
+    const fileEl = document.getElementById('bellRelFile');
+    const file = fileEl && fileEl.files && fileEl.files[0];
+    const status = (t) => { const s = document.getElementById('bellUploadStatus'); if (s) s.textContent = t; };
+    if (!/^\d+(\.\d+)*$/.test(version)) { bell_setStatus('เลขเวอร์ชันต้องเป็นตัวเลขคั่นจุด เช่น 1.0.1', 'warn'); return; }
+    if (!file) { bell_setStatus('กรุณาเลือกไฟล์ BellEmployee.exe', 'warn'); return; }
+    if (window._bellRelease && bell_verCmp(version, window._bellRelease.version) <= 0) {
+        bell_setStatus(`เวอร์ชันต้องสูงกว่าตัวล่าสุด (v${window._bellRelease.version})`, 'warn'); return;
+    }
+    const btn = document.getElementById('bellBtnUpload');
+    if (btn) btn.disabled = true;
+    try {
+        status('🔢 กำลังคำนวณ checksum...');
+        const buf = await file.arrayBuffer();
+        const sha256 = await bell_sha256(buf);
+        status(`⬆️ กำลังอัปโหลด (${(file.size / 1048576).toFixed(1)} MB)...`);
+        // เก็บแยกชื่อตามเวอร์ชัน กันไฟล์เก่าโดนทับระหว่างที่พนักงานกำลังโหลด
+        const path = `v${version}/${BELL_EXE_NAME}`;
+        const up = await window.appDB.storage.from(BELL_BUCKET).upload(path, file, {
+            cacheControl: '60', upsert: true, contentType: 'application/octet-stream'
+        });
+        if (up.error) throw up.error;
+        const { data: pub } = window.appDB.storage.from(BELL_BUCKET).getPublicUrl(path);
+        const rel = {
+            version, notes, sha256, size: file.size, url: pub.publicUrl,
+            updated_at: bell_now().toISOString(),
+            released_by: (window.currentUser && window.currentUser.username) || ''
+        };
+        status('📝 กำลังบันทึกเวอร์ชัน...');
+        const sv = await window.appDB.from('settings').upsert([{ key: BELL_RELEASE_KEY, value: JSON.stringify(rel) }]);
+        if (sv.error) throw sv.error;
+        window._bellRelease = rel;
+        status('');
+        bell_setStatus(`✅ ปล่อยเวอร์ชัน v${version} แล้ว — แอปพนักงานจะเด้งถามให้อัปเดตเอง`, 'ok');
+        document.getElementById('bellRelVersion').value = '';
+        document.getElementById('bellRelNotes').value = '';
+        if (fileEl) fileEl.value = '';
+        await window.bell_loadRelease();
+        bell_render();
+    } catch (e) {
+        status('');
+        bell_setStatus('อัปโหลดไม่สำเร็จ: ' + (e.message || e), 'err');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+
 // ---------- init (เรียกตอนเปิดหน้า) ----------
 window.initBell = async function () {
     window._bellSelected = new Set();
     const sa = document.getElementById('bellSelectAll');
     if (sa) sa.checked = false;
 
-    // 🔐 สิทธิ์: ไม่มี 'bell_ring' = ซ่อนปุ่มเรียก, ไม่มี 'bell_history' = ซ่อนปุ่มประวัติ
+    // 🔐 สิทธิ์: ไม่มี 'bell_ring' = ซ่อนปุ่มเรียก, ไม่มี 'bell_history' = ซ่อนปุ่มประวัติ, ไม่มี 'bell_app_update' = ซ่อนการ์ดอัปเดต
     const can = (id) => (typeof window.hasUserPerm !== 'function') ? true : window.hasUserPerm(id);
     window._bellCanRing = can('bell_ring');
     const canHist = can('bell_history');
+    const canUpd = can('bell_app_update');
     const hide = (elId, show) => { const el = document.getElementById(elId); if (el) el.style.display = show ? '' : 'none'; };
     hide('bellBtnRingAll', window._bellCanRing);
     hide('bellRingControls', window._bellCanRing);
     hide('bellBtnHistory', canHist);
+    hide('bellUpdateCard', canUpd);
 
+    await window.bell_loadRelease();
     await window.bell_load();
     window.bell_subscribe();
     // รีเฟรชทุก 5 วิ เพื่ออัปเดตสถานะ ออนไลน์/ออฟไลน์ ตาม last_seen
