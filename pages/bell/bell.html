@@ -1,70 +1,103 @@
 <div id="bellApp" class="fade-in flex flex-col min-h-full bg-slate-50 dark:bg-slate-900 pb-10">
 
-    <!-- Header -->
+<!-- ═══════════════════════ หน้าหลัก ═══════════════════════ -->
+<div id="bellMainView">
+
     <div class="bg-gradient-to-r from-amber-600 to-yellow-600 text-white p-4 shadow-md shrink-0 flex justify-between items-center flex-wrap gap-2">
         <div class="flex items-center gap-3">
             <div class="bg-white/20 p-2 rounded-full"><span class="material-icons text-2xl">notifications_active</span></div>
             <div>
                 <h1 class="font-bold text-lg">กระดิ่งเรียกพนักงาน</h1>
-                <p class="text-xs text-amber-100">กดเรียก → เครื่องพนักงานเด้งป็อปอัป + มีเสียง → พนักงานกดยืนยัน</p>
+                <p class="text-xs text-amber-100">ติ๊กเลือกคน → กดเรียก → เครื่องพนักงานเด้งป็อปอัป + มีเสียง → พนักงานกดยืนยัน</p>
             </div>
         </div>
         <div class="flex gap-2">
-            <button id="bellBtnRingAll" onclick="bell_ringAll()" class="bg-rose-500 hover:bg-rose-400 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
-                <span class="material-icons text-sm">campaign</span> เรียกทั้งหมด
+            <button id="bellBtnRingSel" onclick="bell_ringSelected()" class="bg-rose-500 hover:bg-rose-400 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
+                <span class="material-icons text-sm">campaign</span> เรียกที่เลือก <span id="bellSelCount" class="bg-white/25 rounded-full px-2 text-xs">0</span>
             </button>
-            <button id="bellBtnHistory" onclick="bell_showHistory()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
+            <button id="bellBtnHistory" onclick="bell_openHistory()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
                 <span class="material-icons text-sm">history</span> ประวัติ
             </button>
         </div>
     </div>
 
-    <!-- Status bar -->
     <div id="bellStatus" class="hidden mx-4 mt-3 p-3 rounded-xl text-sm font-bold text-center"></div>
 
-    <div class="p-4 max-w-5xl mx-auto w-full">
+    <div class="p-4 max-w-6xl mx-auto w-full">
 
-        <!-- การ์ดนับสถานะ -->
-        <div class="grid grid-cols-3 gap-3 mb-4">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-4 text-center">
-                <div class="text-xs text-slate-500 dark:text-slate-400">ออนไลน์</div>
+        <!-- ตัวเลขสรุป -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
+                <div class="text-xs text-slate-500 dark:text-slate-400">พนักงานทั้งหมด</div>
+                <div id="bellCountAll" class="text-2xl font-extrabold text-slate-600 dark:text-slate-200">0</div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
+                <div class="text-xs text-slate-500 dark:text-slate-400">🟢 เปิดแอปอยู่</div>
                 <div id="bellCountOnline" class="text-2xl font-extrabold text-emerald-500">0</div>
             </div>
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-4 text-center">
-                <div class="text-xs text-slate-500 dark:text-slate-400">รอยืนยัน</div>
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
+                <div class="text-xs text-slate-500 dark:text-slate-400">⚫ ยังไม่เปิดแอป</div>
+                <div id="bellCountOffline" class="text-2xl font-extrabold text-slate-400">0</div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
+                <div class="text-xs text-slate-500 dark:text-slate-400">🔔 รอยืนยัน</div>
                 <div id="bellCountWaiting" class="text-2xl font-extrabold text-amber-500">0</div>
             </div>
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-4 text-center">
-                <div class="text-xs text-slate-500 dark:text-slate-400">ยืนยันแล้ว</div>
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-3 text-center">
+                <div class="text-xs text-slate-500 dark:text-slate-400">✅ ยืนยันแล้ว</div>
                 <div id="bellCountConfirmed" class="text-2xl font-extrabold text-blue-500">0</div>
             </div>
         </div>
 
-        <!-- การ์ดรายชื่อพนักงานออนไลน์ -->
+        <!-- รายชื่อพนักงาน -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
-                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                    <span class="material-icons text-emerald-500 text-sm">groups</span> พนักงานที่เปิดแอปอยู่
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center gap-3">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2 shrink-0">
+                    <span class="material-icons text-emerald-500 text-sm">groups</span> รายชื่อพนักงาน
                 </h2>
-                <div id="bellRingControls" class="flex gap-2 items-center">
-                    <label class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 cursor-pointer select-none">
-                        <input type="checkbox" id="bellSelectAll" onchange="bell_toggleSelectAll(this)" class="accent-amber-500"> เลือกทั้งหมด
-                    </label>
-                    <button id="bellBtnRingSel" onclick="bell_ringSelected()" class="bg-amber-500 hover:bg-amber-400 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
-                        <span class="material-icons text-xs">notifications_active</span> เรียกที่เลือก
-                    </button>
+                <div class="relative flex-1">
+                    <span class="material-icons absolute left-3 top-2.5 text-slate-400 text-base">search</span>
+                    <input id="bellSearch" type="text" placeholder="พิมพ์ชื่อ / ทีม เพื่อค้นหา..." oninput="bell_onSearch(this.value)"
+                        class="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-white text-sm">
+                </div>
+                <div class="flex gap-1 text-xs shrink-0" id="bellFilterBar">
+                    <button data-f="all" onclick="bell_setFilter('all')" class="bell-fbtn px-3 py-1.5 rounded-lg font-bold">ทั้งหมด</button>
+                    <button data-f="online" onclick="bell_setFilter('online')" class="bell-fbtn px-3 py-1.5 rounded-lg font-bold">เปิดแอปอยู่</button>
+                    <button data-f="offline" onclick="bell_setFilter('offline')" class="bell-fbtn px-3 py-1.5 rounded-lg font-bold">ยังไม่เปิดแอป</button>
                 </div>
             </div>
-            <div id="bellList" class="p-3 space-y-2 min-h-[120px]">
+            <div id="bellRingControls" class="px-4 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center gap-3 flex-wrap text-xs">
+                <label class="text-slate-500 dark:text-slate-400 flex items-center gap-1 cursor-pointer select-none">
+                    <input type="checkbox" id="bellSelectAll" onchange="bell_toggleSelectAll(this)" class="accent-amber-500"> เลือกทุกคนที่แสดงอยู่ (เฉพาะที่เปิดแอป)
+                </label>
+                <button onclick="bell_clearSelection()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">ล้างที่เลือก</button>
+                <span class="text-slate-400 ml-auto">💡 ติ๊กได้หลายคน แล้วกด "เรียกที่เลือก" ด้านบน</span>
+            </div>
+            <div id="bellList" class="p-3 space-y-1.5 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 <div class="text-center text-slate-400 py-8 text-sm">กำลังโหลด...</div>
             </div>
         </div>
 
-        <p class="text-xs text-slate-400 dark:text-slate-500 mt-3 text-center">
-            💡 "ออนไลน์" คือพนักงานที่เปิดแอปกระดิ่งบนเครื่องอยู่ — ถ้าปิดแอปจะหายไปจากรายการใน 1 นาที
-        </p>
+        <!-- เสียงเตือน -->
+        <div id="bellSoundCard" class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <span class="material-icons text-pink-500 text-sm">volume_up</span> เสียงเตือนบนเครื่องพนักงาน
+                </h2>
+                <div id="bellSoundCurrent" class="text-xs text-slate-500 dark:text-slate-400">ใช้อยู่: -</div>
+            </div>
+            <div id="bellSoundList" class="p-3 space-y-1.5"></div>
+            <div class="px-4 pb-4 flex items-center gap-2 flex-wrap">
+                <input id="bellSoundFile" type="file" accept="audio/*,.mp3,.wav" class="text-xs text-slate-600 dark:text-slate-300">
+                <button onclick="bell_uploadSound()" class="bg-pink-600 hover:bg-pink-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 transition">
+                    <span class="material-icons text-xs">upload</span> อัปโหลดเสียงใหม่
+                </button>
+                <span id="bellSoundStatus" class="text-xs text-slate-500"></span>
+            </div>
+            <p class="text-xs text-slate-400 dark:text-slate-500 px-4 pb-4">รองรับ .mp3 / .wav ไม่เกิน 5 MB — เสียงที่เลือกจะมีผลกับพนักงานทุกคนในการเรียกครั้งถัดไป</p>
+        </div>
 
-        <!-- การ์ดอัปเดตแอปพนักงาน (เห็นเฉพาะคนมีสิทธิ์ bell_app_update) -->
+        <!-- อัปเดตแอปพนักงาน -->
         <div id="bellUpdateCard" class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mt-4">
             <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center flex-wrap gap-2">
                 <h2 class="font-bold text-slate-700 dark:text-white flex items-center gap-2">
@@ -75,18 +108,15 @@
             <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                 <div>
                     <label class="text-xs text-slate-500 dark:text-slate-400">เลขเวอร์ชันใหม่ (เช่น 1.0.1)</label>
-                    <input id="bellRelVersion" type="text" placeholder="1.0.1"
-                        class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-sm">
+                    <input id="bellRelVersion" type="text" placeholder="1.0.1" class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-sm">
                 </div>
                 <div>
                     <label class="text-xs text-slate-500 dark:text-slate-400">มีอะไรใหม่ (ไม่บังคับ)</label>
-                    <input id="bellRelNotes" type="text" placeholder="แก้บั๊กเสียงเตือน"
-                        class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-sm">
+                    <input id="bellRelNotes" type="text" placeholder="แก้บั๊กเสียงเตือน" class="w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-sm">
                 </div>
                 <div>
                     <label class="text-xs text-slate-500 dark:text-slate-400">ไฟล์ BellEmployee.exe ตัวใหม่</label>
-                    <input id="bellRelFile" type="file" accept=".exe"
-                        class="w-full mt-1 text-xs text-slate-600 dark:text-slate-300">
+                    <input id="bellRelFile" type="file" accept=".exe" class="w-full mt-1 text-xs text-slate-600 dark:text-slate-300">
                 </div>
             </div>
             <div class="px-4 pb-4 flex items-center gap-3 flex-wrap">
@@ -95,9 +125,59 @@
                 </button>
                 <span id="bellUploadStatus" class="text-xs text-slate-500 dark:text-slate-400"></span>
             </div>
-            <p class="text-xs text-slate-400 dark:text-slate-500 px-4 pb-4">
-                หลังอัปโหลด แอปของพนักงานทุกเครื่องจะเด้งถามให้อัปเดตเองภายในไม่กี่นาที (หรือทันทีตอนเปิดแอป)
-            </p>
         </div>
     </div>
+</div>
+
+<!-- ═══════════════════════ หน้าประวัติ (แยกหน้า) ═══════════════════════ -->
+<div id="bellHistoryView" class="hidden">
+    <div class="bg-gradient-to-r from-slate-700 to-slate-800 text-white p-4 shadow-md shrink-0 flex justify-between items-center flex-wrap gap-2">
+        <div class="flex items-center gap-3">
+            <button onclick="bell_closeHistory()" class="bg-white/15 hover:bg-white/25 p-2 rounded-full transition" title="กลับ"><span class="material-icons">arrow_back</span></button>
+            <div>
+                <h1 class="font-bold text-lg">📜 ประวัติการเรียกกระดิ่ง</h1>
+                <p class="text-xs text-slate-300">ใครถูกเรียกเมื่อไหร่ กดรับเมื่อไหร่ ใช้เวลาเท่าไหร่</p>
+            </div>
+        </div>
+        <button onclick="bell_exportCSV()" class="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1 transition shadow">
+            <span class="material-icons text-sm">download</span> ดาวน์โหลด CSV
+        </button>
+    </div>
+    <div class="p-4 max-w-6xl mx-auto w-full">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center gap-3">
+                <div class="relative flex-1">
+                    <span class="material-icons absolute left-3 top-2.5 text-slate-400 text-base">search</span>
+                    <input id="bellHistSearch" type="text" placeholder="ค้นหาชื่อ / ทีม..." oninput="bell_renderHistory()"
+                        class="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-white text-sm">
+                </div>
+                <div class="flex gap-1 text-xs shrink-0" id="bellHistPeriod">
+                    <button data-p="today" onclick="bell_setHistPeriod('today')" class="bell-pbtn px-3 py-1.5 rounded-lg font-bold">วันนี้</button>
+                    <button data-p="7" onclick="bell_setHistPeriod('7')" class="bell-pbtn px-3 py-1.5 rounded-lg font-bold">7 วัน</button>
+                    <button data-p="30" onclick="bell_setHistPeriod('30')" class="bell-pbtn px-3 py-1.5 rounded-lg font-bold">30 วัน</button>
+                    <button data-p="all" onclick="bell_setHistPeriod('all')" class="bell-pbtn px-3 py-1.5 rounded-lg font-bold">ทั้งหมด</button>
+                </div>
+                <div id="bellHistCount" class="text-xs text-slate-500 dark:text-slate-400 shrink-0">0 รายการ</div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-xs">
+                        <tr>
+                            <th class="px-3 py-2 text-left">ชื่อ</th><th class="px-3 py-2">ทีม</th>
+                            <th class="px-3 py-2">เวลาเรียก</th><th class="px-3 py-2">เวลายืนยัน</th>
+                            <th class="px-3 py-2">ใช้เวลา</th><th class="px-3 py-2">สถานะ</th><th class="px-3 py-2">เรียกโดย</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bellHistBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bell-fbtn, .bell-pbtn { background: transparent; color: #64748b; border: 1px solid transparent; }
+    .bell-fbtn.active, .bell-pbtn.active { background: #f59e0b; color: #fff; }
+    .dark .bell-fbtn:hover, .dark .bell-pbtn:hover { color: #fff; }
+</style>
 </div>

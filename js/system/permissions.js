@@ -197,7 +197,8 @@ const PERM_GROUPS = [
             {id: 'bell', name: 'เข้าหน้ากระดิ่งเรียกพนักงาน', isSub: false},
             {id: 'bell_ring', name: 'กดเรียกกระดิ่ง', isSub: true},
             {id: 'bell_history', name: 'ดูประวัติ + ดาวน์โหลด CSV', isSub: true},
-            {id: 'bell_app_update', name: 'อัปโหลดเวอร์ชันใหม่ของแอปพนักงาน', isSub: true}
+            {id: 'bell_app_update', name: 'อัปโหลดเวอร์ชันใหม่ของแอปพนักงาน', isSub: true},
+            {id: 'bell_sound', name: 'เปลี่ยนเสียงเตือนกระดิ่ง', isSub: true}
         ]
     }
 ];
