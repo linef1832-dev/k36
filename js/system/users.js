@@ -914,6 +914,7 @@ async function refreshAdminData() {
     if (isAdmin) tasks.push(fetchTasks(), fetchIndividualTasks());
     await Promise.all(tasks);
 
+    if(typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();   // เติมแผนกหลังได้ทั้งพนักงาน+ค่าตั้งระบบครบ
     if(typeof renderQuotaSettings === 'function') renderQuotaSettings();
     if(typeof populateTeamSelects === 'function') populateTeamSelects();
     if(typeof renderOperatingHours === 'function') renderOperatingHours();

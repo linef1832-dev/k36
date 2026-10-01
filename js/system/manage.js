@@ -1038,6 +1038,13 @@ window.loadSettings = async function() {
         if (typeof renderOperatingHours === 'function') renderOperatingHours();
         if (typeof renderQuotaSettings === 'function') renderQuotaSettings();
         if (typeof renderPermsTable === 'function') renderPermsTable();
+
+        // 🔄 [FIX] แผนก / Role ที่แอดมินเพิ่มใหม่ ต้องโผล่ในเครื่องคนอื่นด้วย
+        //   เดิมช่องเลือกแผนกถูกเติมตอนโหลดรายชื่อพนักงานเสร็จ ซึ่งมักเสร็จ "ก่อน" ค่าตั้งระบบ
+        //   → เครื่องคนอื่นได้รายการแผนก/Role ชุดเก่า (เครื่องคนเพิ่มเห็นเพราะแก้ค่าในเครื่องตัวเองไปแล้ว)
+        //   → เติมซ้ำอีกรอบหลังค่าตั้งระบบมาถึงเสมอ
+        if (typeof populateAdminDeptSelects === 'function') populateAdminDeptSelects();
+        if (typeof GLOBAL_USER_LIST !== 'undefined' && GLOBAL_USER_LIST && GLOBAL_USER_LIST.length && typeof renderUserTableDirectly === 'function') renderUserTableDirectly();
         
         if (typeof applyCustomTimeSlots === 'function') applyCustomTimeSlots();
         if (typeof renderManualTimeSlots === 'function') renderManualTimeSlots(); 
