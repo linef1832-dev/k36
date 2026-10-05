@@ -529,78 +529,116 @@ window.renderDutyAccessTable = function() {
     const head = document.getElementById('dutyAccessHead');
     const body = document.getElementById('dutyAccessBody');
     if(!head || !body) return;
-    
+
     let staff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'AMQL'; 
-
-        if (window.isTrainerDept()) {
-            return uDept === currentDutyDept; 
-        } else {
-            return u.role === 'staff' && uDept === currentDutyDept;
-        }
+        if (uDept === 'TRAINER') uDept = 'AMQL';
+        if (window.isTrainerDept()) return uDept === currentDutyDept;
+        return u.role === 'staff' && uDept === currentDutyDept;
     });
 
-    // 🌟 ดึงลิสต์รายชื่อเว็บมาตรฐานมาใช้
-    let headHtml = `<tr><th class="p-2 bg-slate-200 dark:bg-slate-800 border-r dark:border-slate-700 min-w-[120px]">ชื่อพนักงาน</th>`;
-    sortedTeams.forEach(team => { headHtml += `<th class="p-2 text-center text-[10px] font-extrabold truncate max-w-[50px] border-r dark:border-slate-700" title="${team}">${team}</th>`; });
-    headHtml += `</tr>`;
-    head.innerHTML = headHtml;
-    
     const shiftFilter = document.getElementById('settingShiftFilter') ? document.getElementById('settingShiftFilter').value : 'all';
     const searchFilter = document.getElementById('settingSearchInput') ? document.getElementById('settingSearchInput').value.toLowerCase() : '';
-
     if (shiftFilter !== 'all') staff = staff.filter(u => u.allowed_shift === shiftFilter);
     if (searchFilter) staff = staff.filter(u => u.username.toLowerCase().includes(searchFilter));
-    
     staff.sort((a,b) => a.username.localeCompare(b.username));
-    
+
+    // เก็บรายชื่อที่แสดงอยู่ไว้ให้ปุ่มติกทั้งแถว/คอลัมน์/ทั้งหมด ใช้ (ทำกับเฉพาะคนที่เห็นบนจอ)
+    window._dutyAccessVisible = staff.map(u => String(u.id));
+
     const countEl = document.getElementById('dutyStaffCount');
     if(countEl) countEl.innerText = `${staff.length} คน`;
 
+    const has = (uid, team) => (dutyAccessMatrix[uid] || []).includes(team);
+    const nVisible = staff.length;
+
+    // ── หัวตาราง: ชื่อเว็บ (สีประจำเว็บ) + ช่องติกทั้งคอลัมน์ + จำนวนคนที่ติก ──
+    let allOn = 0;
+    staff.forEach(u => sortedTeams.forEach(t => { if (has(String(u.id), t)) allOn++; }));
+    const allTotal = nVisible * sortedTeams.length;
+    let headHtml = `<tr><th class="ds-namecol"><div class="ds-name">
+            <span style="font-size:12px;font-weight:800;color:#8a97ad">ชื่อพนักงาน</span>
+            <label class="ds-rowctl" title="ติก/เอาออก ทุกช่องของทุกคนที่แสดงอยู่" style="cursor:pointer">
+                <span class="ds-rowcnt">ทั้งหมด</span>
+                <input type="checkbox" class="ds-ck" data-tri="${allTotal && allOn === allTotal ? 'all' : (allOn ? 'some' : 'none')}" onchange="dutyAccessSetAll(this.checked)" ${nVisible ? '' : 'disabled'}>
+            </label>
+        </div></th>`;
+    sortedTeams.forEach(team => {
+        const c = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
+        const on = staff.filter(u => has(String(u.id), team)).length;
+        const tri = nVisible && on === nVisible ? 'all' : (on ? 'some' : 'none');
+        headHtml += `<th><div class="ds-th">
+            <span class="ds-team ${c.bg} ${c.text}" title="${team}">${team}</span>
+            <input type="checkbox" class="ds-ck sm" data-tri="${tri}" title="ติก/เอาออก ${team} ให้ทุกคนที่แสดงอยู่" onchange="dutyAccessSetCol('${team}', this.checked)" ${nVisible ? '' : 'disabled'}>
+            <span class="ds-colnum">${on}/${nVisible}</span>
+        </div></th>`;
+    });
+    head.innerHTML = headHtml + `</tr>`;
+
+    // ── แถวพนักงาน ──
     let bodyHtml = '';
     staff.forEach(u => {
-        const shiftColor = u.allowed_shift === 'กะเช้า' ? 'text-orange-500' : (u.allowed_shift === 'กะกลาง' ? 'text-blue-500' : 'text-purple-500');
-        
-        let roleBadge = '';
-        if (u.role === 'manager' || u.role === 'admin') {
-            roleBadge = `<span class="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 shadow-sm ml-1">Manager</span>`;
-        }
+        const uid = String(u.id);
+        const shift = String(u.allowed_shift || '');
+        const sc = shift === 'กะเช้า' ? 'm' : (shift === 'กะกลาง' ? 'd' : 'n');
+        const on = sortedTeams.filter(t => has(uid, t)).length;
+        const tri = on === sortedTeams.length ? 'all' : (on ? 'some' : 'none');
+        const mgr = (u.role === 'manager' || u.role === 'admin') ? `<span class="ds-mgr">หัวหน้า</span>` : '';
+        const warn = on === 0 ? `<span class="ds-warn" title="คนนี้จะถูกข้ามตอนสุ่ม เพราะไม่มีสิทธิ์เว็บไหนเลย">ไม่มีสิทธิ์</span>` : '';
 
-        const userAccess = dutyAccessMatrix[String(u.id)] || [];
-        const validAccessCount = userAccess.filter(t => sortedTeams.includes(t)).length; 
-
-        let noAccessWarning = '';
-        let rowBgClass = 'hover:bg-slate-50 dark:hover:bg-slate-800/50'; 
-
-        if (validAccessCount === 0) {
-            noAccessWarning = `<span class="text-[9px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm ml-1 animate-pulse" title="พนักงานคนนี้จะจัดตารางไม่ได้เพราะไม่มีสิทธิ์เว็บใดเลย">ไม่มีสิทธิ์</span>`;
-            rowBgClass = 'bg-red-50/50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40';
-        }
-
-        let rowHtml = `<tr class="${rowBgClass} transition">
-            <td class="p-2 font-bold text-slate-700 dark:text-gray-200 border-r dark:border-slate-700 flex justify-between items-center">
-                <div class="flex items-center flex-wrap">
-                    <span>${window.escapeHtml(u.username)}</span>
-                    ${roleBadge}
-                    ${noAccessWarning} </div>
-                <span class="text-[9px] ${shiftColor} bg-gray-100 dark:bg-slate-900 px-1 rounded border dark:border-slate-600 shrink-0 ml-1">${u.allowed_shift.replace('กะ','')}</span>
-            </td>`;
-        
+        let row = `<tr class="${on === 0 ? 'noaccess' : ''}">
+            <td class="ds-namecol"><div class="ds-name">
+                <span class="ds-uname">${window.escapeHtml(u.username)}</span>
+                ${shift ? `<span class="ds-shift ${sc}">${window.escapeHtml(shift.replace('กะ',''))}</span>` : ''}
+                ${mgr}${warn}
+                <label class="ds-rowctl" title="ติก/เอาออก ทุกเว็บของ ${window.escapeHtml(u.username)}" style="cursor:pointer">
+                    <span class="ds-rowcnt ${tri === 'all' ? 'full' : ''}">${on}/${sortedTeams.length}</span>
+                    <input type="checkbox" class="ds-ck sm" data-tri="${tri}" onchange="dutyAccessSetRow('${uid}', this.checked)">
+                </label>
+            </div></td>`;
         sortedTeams.forEach(team => {
-            const isChecked = userAccess.includes(team) ? 'checked' : '';
-            rowHtml += `<td class="p-1 text-center border-r dark:border-slate-700 bg-white dark:bg-transparent"><input type="checkbox" class="duty-check w-5 h-5 text-green-500 rounded cursor-pointer border-gray-300 focus:ring-green-500 shadow-sm transition" onchange="updateLocalDutyAccess('${u.id}', '${team}', this.checked)" ${isChecked}></td>`;
+            row += `<td><input type="checkbox" class="ds-ck duty-check" aria-label="${window.escapeHtml(u.username)} ดูแล ${team}" onchange="updateLocalDutyAccess('${uid}', '${team}', this.checked); renderDutyAccessTable();" ${has(uid, team) ? 'checked' : ''}></td>`;
         });
-        rowHtml += `</tr>`;
-        bodyHtml += rowHtml;
+        bodyHtml += row + `</tr>`;
     });
-    
-    if(staff.length === 0) bodyHtml = `<tr><td colspan="${sortedTeams.length+1}" class="p-8 text-center text-gray-400">ไม่พบพนักงานที่ค้นหา</td></tr>`;
+
+    if (staff.length === 0) bodyHtml = `<tr><td colspan="${sortedTeams.length+1}" class="ds-empty">ไม่พบพนักงานตามตัวกรองนี้</td></tr>`;
     body.innerHTML = bodyHtml;
+
+    // ช่องติกแบบ 3 สถานะ (ติกครบ / ติกบางช่อง / ไม่ติก)
+    document.querySelectorAll('#dutyAccessTable .ds-ck[data-tri]').forEach(cb => {
+        cb.checked = cb.dataset.tri === 'all';
+        cb.indeterminate = cb.dataset.tri === 'some';
+    });
+    window._dutyAccessMarkDirty(window._dutyAccessDirty);
 }
+
+// ── ติกเป็นชุด (ทำกับเฉพาะคนที่แสดงอยู่ตามตัวกรอง/ค้นหา) ──
+window.dutyAccessSetCol = function(team, on) {
+    (window._dutyAccessVisible || []).forEach(uid => window.updateLocalDutyAccess(uid, team, on));
+    window.renderDutyAccessTable();
+};
+window.dutyAccessSetRow = function(uid, on) {
+    sortedTeams.forEach(team => window.updateLocalDutyAccess(uid, team, on));
+    window.renderDutyAccessTable();
+};
+window.dutyAccessSetAll = function(on) {
+    const ids = window._dutyAccessVisible || [];
+    ids.forEach(uid => sortedTeams.forEach(team => window.updateLocalDutyAccess(uid, team, on)));
+    window.renderDutyAccessTable();
+};
+
+// ── ป้าย "ยังไม่ได้บันทึก" ──
+window._dutyAccessDirty = false;
+window._dutyAccessMarkDirty = function(on) {
+    window._dutyAccessDirty = !!on;
+    document.getElementById('dutyAccessDirty')?.classList.toggle('on', !!on);
+    document.getElementById('dutyAccessSaveBtn')?.classList.toggle('dirty', !!on);
+};
 
 window.updateLocalDutyAccess = function(uid, team, isChecked) {
     uid = String(uid); if(!dutyAccessMatrix[uid]) dutyAccessMatrix[uid] = [];
+    if (typeof window._dutyAccessMarkDirty === 'function') window._dutyAccessMarkDirty(true);
     if(isChecked) { 
         if(!dutyAccessMatrix[uid].includes(team)) dutyAccessMatrix[uid].push(team); 
     } else { 
@@ -612,6 +650,7 @@ window.saveDutyAccess = async function() {
     Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
     try {
         window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'duty_access_matrix', value: JSON.stringify(dutyAccessMatrix) }]);
+        if (typeof window._dutyAccessMarkDirty === 'function') window._dutyAccessMarkDirty(false);
         Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', timer: 1000, showConfirmButton: false});
     } catch(e) { Swal.fire('Error', e.message, 'error'); }
 }

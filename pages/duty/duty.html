@@ -275,47 +275,145 @@
             </div>
         </div>
 
-        <div id="dutyTabSettings" class="flex-1 overflow-hidden bg-slate-100 dark:bg-slate-900 p-4 hidden flex-col lg:flex-row gap-4 mx-4 border-x border-b border-gray-200 dark:border-slate-700 rounded-b-xl shadow-sm w-auto">
-            <div class="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow border dark:border-slate-700 flex flex-col overflow-hidden w-full">
-                <div class="bg-slate-50 dark:bg-slate-700 p-3 border-b dark:border-slate-600 flex flex-col xl:flex-row justify-between items-start xl:items-center shrink-0 gap-3">
-                    <div class="flex items-center gap-2">
-                        <h3 class="font-bold text-slate-700 dark:text-white text-sm flex items-center gap-1"><span class="material-icons text-orange-500">manage_accounts</span> สิทธิ์ดูแลหลังบ้าน</h3>
-                        <span id="dutyStaffCount" class="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] px-2 py-0.5 rounded-full font-bold border border-indigo-200 dark:border-indigo-700">0 คน</span>
+        <!-- ⚙️ แท็บตั้งค่าสิทธิ์และหัวข้อ (ออกแบบใหม่ + ติกทั้งแถว/ทั้งคอลัมน์/ทั้งหมด) — id เดิมทุกตัว -->
+        <style>
+            #dutyApp .ds{background:#0f1829;border:1px solid #24324b;border-top:0;border-radius:0 0 16px 16px;padding:14px;gap:14px}
+            #dutyApp .ds-panel{background:#121c30;border:1px solid #24324b;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+            #dutyApp .ds-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid #24324b}
+            #dutyApp .ds-title{display:flex;align-items:center;gap:10px;margin-right:auto}
+            #dutyApp .ds-title>.material-icons{font-size:20px;color:#E8C15A;width:36px;height:36px;border-radius:10px;background:rgba(232,193,90,.12);display:flex;align-items:center;justify-content:center}
+            #dutyApp .ds-h{font-size:14.5px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px}
+            #dutyApp .ds-hint{font-size:11.5px;font-weight:600;color:#7d8ba3}
+            #dutyApp .ds-count{font-size:11.5px;font-weight:900;color:#E8C15A;background:rgba(232,193,90,.12);border:1px solid rgba(232,193,90,.4);padding:1px 9px;border-radius:999px}
+            #dutyApp .ds-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+            #dutyApp .ds-sel,#dutyApp .ds-in{height:36px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#f3f6fb;font-size:13px;font-weight:800;outline:none;padding:0 10px;color-scheme:dark}
+            #dutyApp .ds-sel option{background:#18233a}
+            #dutyApp .ds-sel:focus,#dutyApp .ds-in:focus{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
+            #dutyApp .ds-search{position:relative}
+            #dutyApp .ds-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:#7d8ba3;pointer-events:none}
+            #dutyApp .ds-search .ds-in{width:170px;padding-left:34px}
+            #dutyApp .ds-save{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:10px;border:1px solid #E8C15A;background:#E8C15A;color:#1b1406;font-size:13px;font-weight:900;cursor:pointer;transition:background .15s,box-shadow .2s}
+            #dutyApp .ds-save .material-icons{font-size:18px}
+            #dutyApp .ds-save:hover{background:#f1cf74}
+            #dutyApp .ds-save.dirty{box-shadow:0 0 0 3px rgba(232,193,90,.25),0 0 18px rgba(232,193,90,.35)}
+            #dutyApp .ds-dirty{display:none;font-size:11.5px;font-weight:800;color:#fbbf24;align-items:center;gap:4px}
+            #dutyApp .ds-dirty.on{display:inline-flex}
+            #dutyApp .ds-dirty .material-icons{font-size:15px}
+            #dutyApp .ds-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid #1d2a42;background:#0f1829;font-size:12px;font-weight:700;color:#8a97ad}
+            #dutyApp .ds-bulk .dt-btn{height:30px;font-size:12px;padding:0 11px}
+
+            /* ── ตาราง ── */
+            #dutyApp .ds-scroll{flex:1;overflow:auto;min-height:0}
+            #dutyApp .ds-tbl{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+            #dutyApp .ds-tbl th,#dutyApp .ds-tbl td{border-bottom:1px solid #1d2a42}
+            #dutyApp .ds-tbl thead th{position:sticky;top:0;z-index:3;background:#121c30;padding:8px 4px;vertical-align:bottom}
+            #dutyApp .ds-tbl .ds-namecol{position:sticky;left:0;z-index:2;background:#121c30;text-align:left;padding:8px 12px;min-width:210px;border-right:1px solid #24324b}
+            #dutyApp .ds-tbl thead .ds-namecol{z-index:4}
+            #dutyApp .ds-th{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:64px}
+            #dutyApp .ds-team{font-size:11px;font-weight:900;padding:2px 8px;border-radius:6px;white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis}
+            #dutyApp .ds-colnum{font-size:10.5px;font-weight:700;color:#7d8ba3;font-variant-numeric:tabular-nums}
+            #dutyApp .ds-tbl tbody tr:hover td{background:#16223a}
+            #dutyApp .ds-tbl tbody tr:hover .ds-namecol{background:#16223a}
+            #dutyApp .ds-tbl tbody td{text-align:center;padding:6px 4px}
+            #dutyApp .ds-tbl tbody tr.noaccess .ds-namecol{box-shadow:inset 3px 0 0 #ef4444}
+            #dutyApp .ds-name{display:flex;align-items:center;gap:8px}
+            #dutyApp .ds-uname{font-weight:900;color:#eef2f8;white-space:nowrap}
+            #dutyApp .ds-shift{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;border:1px solid;flex:none}
+            #dutyApp .ds-shift.m{color:#fbbf24;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.08)}
+            #dutyApp .ds-shift.d{color:#60a5fa;border-color:rgba(96,165,250,.4);background:rgba(96,165,250,.08)}
+            #dutyApp .ds-shift.n{color:#a78bfa;border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08)}
+            #dutyApp .ds-mgr{font-size:10px;font-weight:800;color:#fca5a5;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);padding:0 6px;border-radius:999px}
+            #dutyApp .ds-warn{font-size:10px;font-weight:800;color:#fff;background:#dc2626;padding:1px 7px;border-radius:999px}
+            #dutyApp .ds-rowctl{margin-left:auto;display:flex;align-items:center;gap:6px;flex:none}
+            #dutyApp .ds-rowcnt{font-size:11px;font-weight:800;color:#7d8ba3;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+            #dutyApp .ds-rowcnt.full{color:#4ade80}
+
+            /* ช่องติก */
+            #dutyApp .ds-ck{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:7px;border:1.5px solid #3a4b6b;background:#0c1424;cursor:pointer;position:relative;vertical-align:middle;transition:background .12s,border-color .12s,transform .08s}
+            #dutyApp .ds-ck:hover{border-color:#E8C15A}
+            #dutyApp .ds-ck:active{transform:scale(.9)}
+            #dutyApp .ds-ck:checked{background:#E8C15A;border-color:#E8C15A}
+            #dutyApp .ds-ck:checked::after{content:'';position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid #1b1406;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+            #dutyApp .ds-ck:indeterminate{background:rgba(232,193,90,.3);border-color:#E8C15A}
+            #dutyApp .ds-ck:indeterminate::after{content:'';position:absolute;left:5px;top:9px;width:9px;height:2.5px;background:#E8C15A;border-radius:2px}
+            #dutyApp .ds-ck:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
+            #dutyApp .ds-ck.sm{width:18px;height:18px;border-radius:6px}
+            #dutyApp .ds-ck.sm:checked::after{left:5px;top:2px;width:5px;height:9px}
+            #dutyApp .ds-ck.sm:indeterminate::after{left:3.5px;top:7px;width:8px}
+            #dutyApp .ds-empty{padding:40px;text-align:center;color:#7d8ba3;font-weight:700}
+
+            /* ── หัวข้องาน ── */
+            #dutyApp .ds-roles{width:100%}
+            @media (min-width:1024px){ #dutyApp .ds-roles{width:340px;flex:none} }
+            #dutyApp .ds-addrow{display:flex;gap:8px;padding:12px 14px;border-bottom:1px solid #24324b;flex-direction:column}
+            #dutyApp .ds-addrow .ds-in,#dutyApp .ds-addrow .ds-sel{width:100%}
+            #dutyApp .ds-addrow>div{display:flex;gap:8px}
+            #dutyApp .ds-add{width:36px;height:36px;border-radius:10px;border:1px solid rgba(45,212,191,.5);background:rgba(45,212,191,.14);color:#5eead4;font-size:20px;font-weight:900;cursor:pointer;flex:none}
+            #dutyApp .ds-add:hover{background:rgba(45,212,191,.25)}
+            #dutyApp #roleEditorList{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+            #dutyApp #roleEditorList > div{background:#18233a !important;border:1px solid #2c3b58 !important;border-radius:10px !important;padding:8px 10px !important;box-shadow:none !important}
+            #dutyApp #roleEditorList > div span{color:#e7ecf5 !important;font-size:12.5px !important}
+            #dutyApp #roleEditorList > div button{color:#f87171 !important}
+            @media (max-width:640px){ #dutyApp .ds-search .ds-in{width:100%} #dutyApp .ds-search{flex:1} #dutyApp .ds-tbl .ds-namecol{min-width:150px} }
+        </style>
+
+        <div id="dutyTabSettings" class="ds hidden flex-1 overflow-hidden flex-col lg:flex-row mx-4">
+            <div class="ds-panel flex-1 w-full">
+                <div class="ds-head">
+                    <div class="ds-title">
+                        <span class="material-icons">manage_accounts</span>
+                        <div>
+                            <div class="ds-h">สิทธิ์ดูแลหลังบ้าน <span id="dutyStaffCount" class="ds-count">0 คน</span></div>
+                            <div class="ds-hint">ติกเว็บที่แต่ละคนดูแลได้ ระบบจะสุ่มลงเฉพาะเว็บที่ติกไว้</div>
+                        </div>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2 w-full xl:w-auto">
-                        <select id="settingShiftFilter" onchange="renderDutyAccessTable()" class="text-xs p-1.5 rounded font-bold text-slate-700 outline-none border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-sm cursor-pointer">
-                            <option value="all">ดูทุกกะ</option>
+                    <div class="ds-tools">
+                        <select id="settingShiftFilter" onchange="renderDutyAccessTable()" class="ds-sel" title="กรองตามกะ">
+                            <option value="all">ทุกกะ</option>
                             <option value="กะเช้า">☀️ กะเช้า</option>
                             <option value="กะกลาง">🌤️ กะกลาง</option>
                             <option value="กะดึก">🌙 กะดึก</option>
                         </select>
-                        <div class="relative flex-1 xl:w-32">
-                            <span class="material-icons absolute left-2 top-1.5 text-gray-400 text-sm">search</span>
-                            <input type="text" id="settingSearchInput" onkeyup="renderDutyAccessTable()" placeholder="ค้นหาชื่อ..." class="w-full pl-7 pr-2 py-1.5 rounded border border-gray-300 dark:border-slate-600 text-xs outline-none focus:ring-1 focus:ring-orange-500 transition-all dark:bg-slate-800 dark:text-white shadow-sm">
+                        <div class="ds-search">
+                            <span class="material-icons">search</span>
+                            <input type="text" id="settingSearchInput" onkeyup="renderDutyAccessTable()" placeholder="ค้นหาชื่อ" class="ds-in">
                         </div>
-                        <button onclick="saveDutyAccess()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs px-3 py-1.5 rounded shadow font-bold transition flex items-center gap-1 xl:ml-2"><span class="material-icons text-sm">save</span> บันทึก</button>
+                        <span id="dutyAccessDirty" class="ds-dirty"><span class="material-icons">edit_note</span>ยังไม่ได้บันทึก</span>
+                        <button id="dutyAccessSaveBtn" onclick="saveDutyAccess()" class="ds-save"><span class="material-icons">save</span> บันทึกสิทธิ์</button>
                     </div>
                 </div>
-                <div class="flex-1 overflow-auto custom-scrollbar w-full">
-                    <table class="w-full text-xs text-left border-collapse" id="dutyAccessTable">
-                        <thead class="bg-slate-100 dark:bg-slate-900 text-gray-600 dark:text-gray-400 sticky top-0 z-10 shadow-sm border-b dark:border-slate-700" id="dutyAccessHead"></thead>
-                        <tbody id="dutyAccessBody" class="divide-y divide-gray-200 dark:divide-slate-700/50"></tbody>
+                <div class="ds-bulk">
+                    <span>ใช้กับรายชื่อที่แสดงอยู่</span>
+                    <button onclick="dutyAccessSetAll(true)" class="dt-btn"><span class="material-icons" style="color:#4ade80">done_all</span> ติกทุกช่อง</button>
+                    <button onclick="dutyAccessSetAll(false)" class="dt-btn"><span class="material-icons" style="color:#f87171">remove_done</span> เอาออกทุกช่อง</button>
+                    <span style="margin-left:auto">ติกหัวคอลัมน์ = ทั้งเว็บ · ติกท้ายชื่อ = ทุกเว็บของคนนั้น</span>
+                </div>
+                <div class="ds-scroll custom-scrollbar">
+                    <table class="ds-tbl" id="dutyAccessTable">
+                        <thead id="dutyAccessHead"></thead>
+                        <tbody id="dutyAccessBody"></tbody>
                     </table>
                 </div>
             </div>
 
-            <div class="w-full lg:w-96 bg-white dark:bg-slate-800 rounded-xl shadow border dark:border-slate-700 flex flex-col overflow-hidden shrink-0">
-                <div class="bg-slate-50 dark:bg-slate-700 p-3 border-b dark:border-slate-600 shrink-0">
-                    <h3 class="font-bold text-slate-700 dark:text-white text-sm flex items-center gap-1"><span class="material-icons text-teal-500">format_list_bulleted_add</span> หัวข้องานแต่ละเว็บ</h3>
-                </div>
-                <div class="p-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
-                    <select id="roleEditorTeam" onchange="renderRoleEditorList()" class="w-full p-2 rounded border border-gray-300 dark:border-slate-600 font-bold text-sm outline-none dark:bg-slate-700 dark:text-white"></select>
-                    <div class="flex gap-1 mt-2">
-                        <input type="text" id="newRoleInput" placeholder="เพิ่มหัวข้อใหม่..." class="flex-1 p-1.5 rounded border border-gray-300 dark:border-slate-600 text-xs outline-none dark:bg-slate-900 dark:text-white">
-                        <button onclick="addDutyRole()" class="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow transition">+</button>
+            <div class="ds-panel ds-roles">
+                <div class="ds-head">
+                    <div class="ds-title">
+                        <span class="material-icons" style="color:#5eead4;background:rgba(45,212,191,.12)">checklist</span>
+                        <div>
+                            <div class="ds-h">หัวข้องานแต่ละเว็บ</div>
+                            <div class="ds-hint">รายการงานที่คนดูแลเว็บนั้นต้องทำ</div>
+                        </div>
                     </div>
                 </div>
-                <div id="roleEditorList" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2 bg-slate-50 dark:bg-slate-900"></div>
+                <div class="ds-addrow">
+                    <select id="roleEditorTeam" onchange="renderRoleEditorList()" class="ds-sel" title="เลือกเว็บ"></select>
+                    <div>
+                        <input type="text" id="newRoleInput" placeholder="พิมพ์หัวข้อใหม่ แล้วกด +" class="ds-in" onkeydown="if(event.key==='Enter'){event.preventDefault();addDutyRole();}">
+                        <button onclick="addDutyRole()" class="ds-add" title="เพิ่มหัวข้อ">+</button>
+                    </div>
+                </div>
+                <div id="roleEditorList" class="flex-1 overflow-y-auto custom-scrollbar"></div>
             </div>
         </div>
 

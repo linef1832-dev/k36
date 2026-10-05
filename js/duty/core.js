@@ -152,6 +152,7 @@ window.initDutyApp = async function() {
         window.ensureDutyExtraButtons();
         window.applyDutyRoleUI(); 
 
+        if (typeof window._dutyAccessMarkDirty === 'function') window._dutyAccessMarkDirty(false);   // เพิ่งโหลดสิทธิ์จากฐานข้อมูล = ยังไม่มีอะไรค้างบันทึก
         window.renderDutyAccessTable();
         window.renderDutyRequirements();
         await window.refreshDutyData(); 
