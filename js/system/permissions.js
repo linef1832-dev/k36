@@ -506,6 +506,11 @@ window.hasUserPerm = function(menuId) {
     let perms = {};
     try { perms = typeof SETTINGS['dept_menu_rules'] === 'string' ? JSON.parse(SETTINGS['dept_menu_rules']) : (SETTINGS['dept_menu_rules'] || {}); } catch(e) {}
     
+    // 🎯 ชุดสิทธิ์ที่ตั้งให้ "รายคน" มาก่อนเสมอ (ตั้งที่หน้าจัดการพนักงาน)
+    //    ถ้าคนนี้ยังไม่ได้ตั้ง ค่อยถอยไปใช้ชุดของแผนกเหมือนเดิม
+    const uGroup = (window.currentUser.perm_group || "").trim();
+    if (uGroup && Array.isArray(perms[uGroup])) return perms[uGroup].includes(menuId);
+
     let uDept = window.currentUser.department || 'AM';
     if (uDept === 'SPECIAL') uDept = 'AM'; // 🌟 เพิ่มบรรทัดนี้: ให้กลุ่มพิเศษดึงสิทธิ์เมนู AM มาใช้
     
@@ -617,6 +622,16 @@ window.applySidebarPermissions = async function() {
     executeMenuUpdate();
 
     // 🌟 2. วิ่งไปเช็คฐานข้อมูลเงียบๆ (ถ้ามีการเปลี่ยนสิทธิ์ใหม่ เมนูจะอัปเดตให้อัตโนมัติ)
+    // 🎯 ดึง "ชุดสิทธิ์รายคน" ของตัวเองมาเติม (Edge Function ตอนเช็ค PIN อาจไม่ส่งช่องนี้มา)
+    //    ได้มาแล้วค่อยวาดเมนูใหม่ ถ้าคอลัมน์ยังไม่มีในฐานข้อมูลก็เงียบไป ใช้ชุดของแผนกเหมือนเดิม
+    if (typeof appDB !== 'undefined' && window.currentUser && window.currentUser.id && window.currentUser.perm_group === undefined) {
+        appDB.from('users').select('perm_group').eq('id', window.currentUser.id).maybeSingle().then(({data, error}) => {
+            if (error || !data) { window.currentUser.perm_group = ''; return; }
+            window.currentUser.perm_group = data.perm_group || '';
+            if (data.perm_group) executeMenuUpdate();
+        }).catch(() => { window.currentUser.perm_group = ''; });
+    }
+
     if (typeof appDB !== 'undefined') {
         appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single().then(({data}) => {
             if (data && data.value && data.value !== cachedRules) {
