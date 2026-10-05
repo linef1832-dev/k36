@@ -21,11 +21,11 @@ window.renderLeaveTable = function() {
     //    (เดิมผู้สอนแอบไปใช้ค่าของ AM/OD → โควตาในหัวตารางไม่ตรงกับที่ตั้งในแผงของผู้สอน)
     const _settingDept = currentViewDept;
     const s = deptSettings[_settingDept] || { limit: 4, quotaM: 0, quotaA: 0, quotaN: 0 };
-    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isGlobalAdmin = canPerm('leave_manage');
     // isAdmin = global admin หรือ มีสิทธิ์จัดการแผนกที่กำลังดูอยู่
     const _d = currentViewDept || 'AM';
     // [FIX] ผู้สอนที่อยู่ในหน้า AMQL หรือ ODQL หรือ TRAINER — ลงได้แค่ของตัวเอง ไม่ใช่ admin
-    const isTrainerRole = (currentUser.role === 'trainer');
+    const isTrainerRole = ['AMQL', 'ODQL', 'TRAINER'].includes(currentUser.department);
     // dept AMQL หรือ role trainer + dept AM = ผู้สอน AM
     const isTrainerAM = currentUser.department === 'AMQL'
         || (isTrainerRole && currentUser.department === 'AM');

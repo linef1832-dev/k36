@@ -6,7 +6,7 @@
 // 🎯 เมนูจัดการพนักงานในแผนสลับกะ (Admin Only)
 // ==========================================
 window.openSwapUserMenu = function(userId, dayIndex, direction) {
-    const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const isGlobalAdmin = canPerm('swap_manage');
     const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
     if (!canManageSwap) {
         Swal.fire({ icon: 'error', title: 'ไม่มีสิทธิ์', text: 'เฉพาะ Admin เท่านั้นที่กำหนดการสลับกะได้', confirmButtonColor: '#ef4444' });
@@ -105,7 +105,7 @@ window.moveSwapUserToExclude = function(userId, fromDayIndex, direction) {
 // ➕ เพิ่มพนักงานที่ตกหล่นเข้าตารางสลับกะ (Admin Only)
 // ==========================================
 window.openAddMissingSwap = async function() {
-    const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const isGlobalAdmin = canPerm('swap_manage');
     const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
     if (!canManageSwap) {
         Swal.fire({ icon: 'error', title: 'ไม่มีสิทธิ์', text: 'เฉพาะ Admin เท่านั้นที่ใช้ได้', confirmButtonColor: '#ef4444' });
@@ -254,7 +254,7 @@ window.openAddMissingSwap = async function() {
 window._swapScheduleTasks = window._swapScheduleTasks || {};
 
 window.openSavedSwapMenu = async function(taskId) {
-    const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const isGlobalAdmin = canPerm('swap_manage');
     const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
     if (!canManageSwap) {
         Swal.fire({ icon: 'error', title: 'ไม่มีสิทธิ์', text: 'เฉพาะ Admin เท่านั้นที่จัดการได้', confirmButtonColor: '#ef4444' });

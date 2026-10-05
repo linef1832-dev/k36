@@ -119,7 +119,7 @@ window.sop_renderAllRulesPage = function() {
     }
 
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
-    const isAdmin = hasManagePerm || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const isAdmin = hasManagePerm;
 
     // จัดกลุ่มตามหมวด
     const groupedByCat = {};
@@ -170,7 +170,7 @@ window.sop_renderAllRulesPage = function() {
 
         const catGroupName = catObj?.group || '';
         const catGroupBadge = catGroupName ? `<span class="inline-flex items-center gap-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-0.5"><span class="material-icons text-[9px]">folder</span>${catGroupName}</span>` : '';
-        const isAdminForToc = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin');
+        const isAdminForToc = canPerm('sop_manage');
         const moveCatBtn = isAdminForToc ? `<button onclick="event.stopPropagation(); sop_moveCategoryToGroup('${safeCatKey}')" class="opacity-0 group-hover:opacity-100 ml-auto shrink-0 p-1.5 rounded-lg bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-400 hover:text-indigo-500 hover:border-indigo-400 transition" title="โยกเข้ากลุ่ม"><span class="material-icons text-[14px]">drive_file_move</span></button>` : '';
 
         tocHtml += `
@@ -257,7 +257,7 @@ window.sop_renderAllRulesPage = function() {
                     `</div>`;
             }
 
-            const canSendTgSA = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'trainer');
+            const canSendTgSA = canPerm('sop_send_tg');
             const tgBtnSA = canSendTgSA ? `<button onclick="event.stopPropagation(); sop_sendStandaloneToTelegram(${idx})" class="bg-white dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ส่งลง Telegram"><span class="material-icons text-[16px]">send</span></button>` : '';
             const moveBtnSA = isAdmin ? `<button onclick="event.stopPropagation(); sop_moveToGroup(${idx})" class="bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 text-gray-400 hover:text-indigo-500 p-1.5 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="โยกเข้ากลุ่ม"><span class="material-icons text-[16px]">drive_file_move</span></button>` : '';
             const groupBadgeSA = r.group ? `<span class="inline-flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-700 ml-1"><span class="material-icons text-[10px]">folder</span>${r.group}</span>` : '';
@@ -385,7 +385,7 @@ window.sop_readRule = async function(id, skipIncrement) {
     const formattedContent = (item.content || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
 
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
-    const isAdmin = hasManagePerm || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const isAdmin = hasManagePerm;
 
     // priority big badge
     const priorityOpt = SOP_PRIORITY_OPTIONS.find(p => p.id === item.priority) || SOP_PRIORITY_OPTIONS[1];
@@ -429,7 +429,7 @@ window.sop_readRule = async function(id, skipIncrement) {
 
     // admin buttons (pin toggle + edit + delete)
     let adminBtns = '';
-    const canSendTg = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin' || currentUser.role === 'trainer');
+    const canSendTg = canPerm('sop_send_tg');
     const tgBtn = canSendTg ? `<button onclick="event.stopPropagation(); sop_sendItemToTelegram('${item.id}')" class="bg-white dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-500 p-2 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm" title="ส่งลง Telegram"><span class="material-icons">send</span></button>` : '';
     if (isAdmin || canSendTg) {
         const pinTitle = item.pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด';

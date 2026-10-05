@@ -30,7 +30,7 @@ window.openAutoSwapModal = async function() {
     await fetchPublicSwapSchedule();
     
     // เช็คสิทธิ์
-    const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const isGlobalAdmin = canPerm('swap_manage');
     const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
 
     if (canManageSwap) {

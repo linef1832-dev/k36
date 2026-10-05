@@ -965,7 +965,7 @@ window.renderTrainerOdMatrix = async function(rosterData) {
     // 🔒 เช็คสิทธิ์การแก้ไข (ถ้าเป็นผู้สอน จะแก้ไขหน้าตารางของตัวเองไม่ได้)
     let canEdit = window.isDutyAdmin();
     if (window.isTrainerDept()) {
-        if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+        if (!canPerm('duty_manage_amql') && !canPerm('duty_manage_odql')) {
             canEdit = false;
         }
     }

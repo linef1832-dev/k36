@@ -166,7 +166,7 @@ window.fetchFinesData = async function() {
     const hasViewAllPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_view_all') : false;
     const hasStatsPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_stats') : false;
 
-    const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = hasManagePerm;
     const canViewAll = isAdmin || hasViewAllPerm;
     const canViewStats = isAdmin || hasStatsPerm; // 🌟 เช็คสิทธิ์หน้าสถิติ
 
@@ -204,7 +204,7 @@ window.renderFineTable = function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const hasViewAllPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_view_all') : false;
     
-    const isAdmin = hasManagePerm || currentUser.role === 'manager' || currentUser.role === 'admin';
+    const isAdmin = hasManagePerm;
     const canViewAll = isAdmin || hasViewAllPerm;
     
     const tbody = document.getElementById('fineTableBody');

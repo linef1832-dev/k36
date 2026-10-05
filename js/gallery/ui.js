@@ -142,7 +142,7 @@ window.filterGalleryImages = function() {
 // ==========================================
 let _lbIndex = 0;
 let _lbData  = [];
-const _isAdminGallery = () => currentUser.role === 'admin' || currentUser.role === 'manager';
+const _isAdminGallery = () => canPerm('gallery_rename');
 const _lbPreloaded = {};   // รูปเต็มที่โหลดไว้แล้ว (url -> Image) กันเบลอซ้ำเวลากดกลับมาดู
 
 // 🚀 [กดแล้วชัดทันที] โหลดรูปเต็มไว้ล่วงหน้าเงียบ ๆ หลังเปิดหน้าแกลเลอรี่
@@ -372,7 +372,7 @@ function _renderWebBadges(data) {
 // ✏️ แก้ชื่อรูปจากหน้า card
 // ==========================================
 window.renameGalleryImage = async function(imgId, currentName) {
-    const isAdminG = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdminG = canPerm('gallery_rename');
     if (!isAdminG) return;
     const { value: newName } = await Swal.fire({
         html: `

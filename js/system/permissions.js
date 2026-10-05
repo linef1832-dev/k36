@@ -13,14 +13,16 @@ const PERM_GROUPS = [
         id: 'page_dashboard', name: 'หน้าหลักลงเวลา', icon: 'home', theme: 'blue',
         items: [
             {id: 'dashboard', name: 'เข้าหน้าหลักลงเวลา', isSub: false},
-            {id: 'dashboard_view_all_shifts', name: 'ลงเวลาได้ทุกกะ (เห็นทั้ง 3 กะ)', isSub: true}
+            {id: 'dashboard_view_all_shifts', name: 'ลงเวลาได้ทุกกะ (เห็นทั้ง 3 กะ)', isSub: true},
+            {id: 'dashboard_bypass_rules', name: 'ลงเวลาได้ไม่ติดเงื่อนไข (ไม่สนเวลาเปิด/ไม่สนตารางเวร)', isSub: true}
         ]
     },
     {
         id: 'page_breaktable', name: 'ตารางลงเวลาพัก (ใครลงกินข้าว)', icon: 'table_view', theme: 'cyan',
         items: [
             {id: 'breaktable', name: 'เข้าหน้าตารางลงเวลาพัก', isSub: false},
-            {id: 'breaktable_export', name: 'โหลด Excel ทั้งวัน', isSub: true}
+            {id: 'breaktable_export', name: 'โหลด Excel ทั้งวัน', isSub: true},
+            {id: 'schedule_delete_any', name: 'ลบรายการลงพักของคนอื่น', isSub: true}
         ]
     },
     {
@@ -57,7 +59,8 @@ const PERM_GROUPS = [
             {id: 'gallery_tab_card',  name: 'ดูแท็บ "การ์ดเมนู"', isSub: true},
             {id: 'gallery_tab_logo',  name: 'ดูแท็บ "LOGO"', isSub: true},
             {id: 'gallery_upload', name: 'อัปโหลดรูปภาพ', isSub: true},
-            {id: 'gallery_delete', name: 'ลบรูปภาพ', isSub: true}
+            {id: 'gallery_delete', name: 'ลบรูปภาพ', isSub: true},
+            {id: 'gallery_rename', name: 'เปลี่ยนชื่อรูป', isSub: true}
         ]
     },
     {
@@ -80,7 +83,8 @@ const PERM_GROUPS = [
     id: 'page_sop', name: 'คู่มือการทำงาน (OD)', icon: 'rule_folder', theme: 'rose',
     items: [
         {id: 'sop', name: 'เข้าหน้าคู่มือ SOP', isSub: false},
-        {id: 'sop_manage', name: 'เพิ่ม/แก้/ลบ กฎ', isSub: true}
+        {id: 'sop_manage', name: 'เพิ่ม/แก้/ลบ กฎ', isSub: true},
+        {id: 'sop_send_tg', name: 'ส่งกฎเข้า Telegram', isSub: true}
     ]
     },
     {
@@ -110,7 +114,8 @@ const PERM_GROUPS = [
     {
         id: 'page_slip_check', name: 'ตรวจสอบสลิป', icon: 'qr_code_scanner', theme: 'blue',
         items: [
-            {id: 'slip_check', name: 'เข้าหน้าตรวจสอบสลิป', isSub: false}
+            {id: 'slip_check', name: 'เข้าหน้าตรวจสอบสลิป', isSub: false},
+            {id: 'slip_check_delete', name: 'ลบประวัติสลิป', isSub: true}
         ]
     },
     {
@@ -128,7 +133,8 @@ const PERM_GROUPS = [
     {
         id: 'page_telegram', name: 'กลุ่มงาน (Telegram)', icon: 'near_me', theme: 'sky',
         items: [
-            {id: 'telegram', name: 'เข้าหน้ากลุ่มงาน (Telegram)', isSub: false}
+            {id: 'telegram', name: 'เข้าหน้ากลุ่มงาน (Telegram)', isSub: false},
+            {id: 'telegram_manage', name: 'จัดการลิงก์กลุ่มงาน (ปุ่มแอดมิน)', isSub: true}
         ]
     },
     {
@@ -525,7 +531,7 @@ window.applySidebarPermissions = async function() {
         else return; 
     }
 
-    const userRole = (user.role || '').toLowerCase().trim();
+    // (role ไม่ใช้คุมสิทธิ์แล้ว)
     
     // ฟังก์ชันย่อยสำหรับวาดเมนู
     const executeMenuUpdate = () => {
@@ -551,11 +557,11 @@ window.applySidebarPermissions = async function() {
                 const discordGroup = PERM_GROUPS.find(g => g.id === 'page_discord');
                 if (discordGroup && onClickAttr.includes("toggleSubMenu('menu-discord'")) {
                     const hasAnyDiscordPerm = discordGroup.items.some(i => window.hasUserPerm(i.id));
-                    if (hasAnyDiscordPerm || ['admin', 'manager'].includes(userRole)) shouldShow = true;
+                    if (hasAnyDiscordPerm) shouldShow = true;
                 }
 
                 if (onClickAttr.includes("toggleSubMenu('menu-admin'") || onClickAttr.includes("openAdminPanel()")) {
-                    if (window.hasUserPerm('admin') || ['admin', 'manager'].includes(userRole)) shouldShow = true;
+                    if (window.hasUserPerm('admin')) shouldShow = true;
                 }
             }
 
@@ -577,7 +583,7 @@ window.applySidebarPermissions = async function() {
         if (menuAdmin && adminBtn && adminBtn.classList.contains('hidden')) menuAdmin.classList.add('hidden');
 
         if (logsBtn) {
-            const canSeeLogs = ['admin', 'manager'].includes(userRole) || window.hasUserPerm('admin_logs');
+            const canSeeLogs = window.hasUserPerm('admin_logs');
             if (canSeeLogs) {
                 logsBtn.classList.remove('hidden');
                 logsBtn.style.removeProperty('display');
@@ -607,7 +613,7 @@ window.applySidebarPermissions = async function() {
     executeMenuUpdate();
 
     // 🌟 2. วิ่งไปเช็คฐานข้อมูลเงียบๆ (ถ้ามีการเปลี่ยนสิทธิ์ใหม่ เมนูจะอัปเดตให้อัตโนมัติ)
-    if (typeof appDB !== 'undefined' && !['admin', 'manager'].includes(userRole)) {
+    if (typeof appDB !== 'undefined') {
         appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single().then(({data}) => {
             if (data && data.value && data.value !== cachedRules) {
                 SETTINGS['dept_menu_rules'] = data.value;

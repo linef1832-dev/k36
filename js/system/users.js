@@ -9,8 +9,8 @@
 // เกณฑ์เดียวกับเมนู "จัดการระบบ": admin, manager หรือมีสิทธิ์ 'admin' ในตารางสิทธิ์
 window.sysIsAdmin = function() {
     if (typeof currentUser === 'undefined' || !currentUser) return false;
-    const r = String(currentUser.role || '').toLowerCase();
-    if (r === 'admin' || r === 'manager') return true;
+    // สิทธิ์อย่างเดียว ไม่ดู role แล้ว
+    // (ตำแหน่ง admin/manager ได้สิทธิ์ผ่าน hasUserPerm อยู่แล้ว)
     return typeof window.hasUserPerm === 'function' && window.hasUserPerm('admin');
 };
 window.sysRequireAdmin = function() {
@@ -207,7 +207,7 @@ function handleTeamChange() { refreshTimeSlots(); fetchData(); if (typeof initQu
 function getPeriodForTime(shift, time) { const g = SHIFT_GROUPS[shift]; if(!g) return null; if(Array.isArray(g)) return g.includes(time) ? 'รอบพัก' : null; for(const [p, ts] of Object.entries(g)) { if((ts||[]).includes(time)) return p; } return null; }   // 🧹 ช่วงถูกยกเลิก — คงฟังก์ชันไว้กันโค้ดเก่าเรียกแล้วพัง
 
 function checkBookingTime(shiftName) {
-    if(['manager', 'admin'].includes(currentUser.role)) return { allowed: true };
+    if(canPerm('dashboard_bypass_rules')) return { allowed: true };
     
     const suffix = shiftName.replace('กะ', '');
     const openStr = SETTINGS[`open_time_${suffix}`];
@@ -263,7 +263,7 @@ window.saveData = async function(e) {
     yesterdayObj.setDate(yesterdayObj.getDate() - 1);
     const realYesterdayStr = new Date(yesterdayObj.getTime() - (yesterdayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
-    const isStaff = !['manager', 'admin'].includes(currentUser.role);
+    const isStaff = !canPerm('dashboard_bypass_rules');
 
     // 🌙 ค่าตั้งของกะดึก (ปรับเลขตรงนี้ได้ตามต้องการ)
     const NIGHT_START_HOUR = 20; // กะดึกเริ่มลงของวันนี้ได้ตั้งแต่ 20:00
@@ -344,11 +344,11 @@ window.saveData = async function(e) {
     let coverageMap = null;   // 🍽️ ใช้เช็คคนคุมขั้นต่ำ
     // ⚡ [เร็วขึ้น] ยิงคำถามที่ไม่ขึ้นต่อกัน "พร้อมกัน" แทนทีละรอบ (เดิมรอต่อกัน ~4 รอบ = 1-1.5 วิ)
     const _timeValEarly = document.getElementById('tSlot') ? document.getElementById('tSlot').value : '';
-    const _pRoster = (!['manager', 'admin'].includes(currentUser.role)) ? Promise.resolve(appDB.from('settings').select('value').eq('key', `duty_roster_${myDep}_${dateVal}_${sName}`).maybeSingle()) : Promise.resolve({ data: null });
+    const _pRoster = (!canPerm('dashboard_bypass_rules')) ? Promise.resolve(appDB.from('settings').select('value').eq('key', `duty_roster_${myDep}_${dateVal}_${sName}`).maybeSingle()) : Promise.resolve({ data: null });
     const _pMine   = Promise.resolve(appDB.from('schedules').select('*').eq('work_date', dateVal).eq('staff_name', currentUser.username));
     const _pSlot   = Promise.resolve(appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', _timeValEarly));
     const _pCfg    = (typeof window.loadBreakMinRemainCfg === 'function') ? window.loadBreakMinRemainCfg() : Promise.resolve();
-    if (!['manager', 'admin'].includes(currentUser.role)) {
+    if (!canPerm('dashboard_bypass_rules')) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
         const { data: rosterData } = await _pRoster;
 
@@ -386,7 +386,7 @@ window.saveData = async function(e) {
     if (myBookings.length >= dailyLimit) { window.resetBtn(); return Swal.fire('ครบโควตา', `คุณลงครบ ${dailyLimit} รอบต่อวันแล้ว`, 'error'); }
 
     // 🔒 พนักงานปกติ AM/OD: เวรยังไม่ออก หรือ เวรออกแต่ชื่อไม่อยู่ในเวร → ลงไม่ได้ทั้งคู่
-    if (!['manager', 'admin'].includes(currentUser.role) && currentUser.check_type !== 'shift' && ['AM', 'OD'].includes(myDep)) {
+    if (!canPerm('dashboard_bypass_rules') && currentUser.check_type !== 'shift' && ['AM', 'OD'].includes(myDep)) {
         if (!coverageMap) {
             window.resetBtn();
             return Swal.fire({ icon: 'info', title: 'เวรวันนี้ยังไม่ออก', text: 'รอหัวหน้าจัดหน้าที่/เวรของกะนี้ก่อน แล้วค่อยลงเวลาพักนะครับ', confirmButtonText: 'รับทราบ' });
@@ -569,7 +569,7 @@ async function fetchData() {
 
     let query = appDB.from('schedules').select('id, work_date, staff_name, team, shift_name, time_slot, department, created_at').eq('work_date', dateVal);
     if (tableTeam !== 'all') { query = query.eq('team', tableTeam); }
-    const canViewAllShifts = ['manager', 'admin'].includes(currentUser.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
+    const canViewAllShifts = canPerm('dashboard_view_all_shifts');
     if (!canViewAllShifts) {
         const userShift = currentUser.allowed_shift;
         if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(userShift)) {
@@ -763,7 +763,7 @@ function renderTableRows(data) {
         else if (periodName === 'ช่วงที่ 3') pClass = 'text-purple-600 dark:text-purple-400 border-current';
         else if (!periodName) pClass = 'text-gray-400 border-gray-400/50 border-dashed bg-gray-100 dark:bg-slate-800';
         
-        const canDelete = ['manager', 'admin'].includes(currentUser.role) || i.staff_name === currentUser.username;
+        const canDelete = canPerm('schedule_delete_any') || i.staff_name === currentUser.username;
         let delBtn = canDelete ? `<button onclick="delSch(${i.id}, '${i.shift_name}')" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-lg bg-red-50 dark:bg-red-900/30 transition"><span class="material-icons text-lg">delete</span></button>` : '';
         
         const deptColor = (i.department === 'OD') ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700';
@@ -826,7 +826,7 @@ function updateTableSummary(data) {
     });
     
     let shiftsToShow = ACTIVE_SHIFTS_CONFIG;
-    const canViewAllShifts = ['manager', 'admin'].includes(currentUser.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
+    const canViewAllShifts = canPerm('dashboard_view_all_shifts');
     if (!canViewAllShifts) {
         const userShift = currentUser.allowed_shift;
         // 🌟 ถ้า allowed_shift เป็น 'all' หรือไม่ระบุ → ใช้กะที่กำลังเลือกอยู่ในปัจจุบันแทน (จากปุ่ม shift)
@@ -909,7 +909,7 @@ async function refreshAdminData() {
     const btn = document.querySelector('button[onclick="refreshAdminData()"] span');
     if(btn) btn.classList.add('animate-spin');
 
-    const isAdmin = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = canPerm('admin');
     const tasks = [fetchUsers(), loadSettings()];
     if (isAdmin) tasks.push(fetchTasks(), fetchIndividualTasks());
     await Promise.all(tasks);

@@ -144,7 +144,7 @@ window.fetchPublicSwapSchedule = async function() {
                 const myHighlight = isMe ? 'ring-2 ring-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)] scale-[1.02] z-10' : '';
                 const safeSearchName = userName.toLowerCase();
                 
-                const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+                const isGlobalAdmin = canPerm('swap_manage');
                 const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
                 const adminDelete = canManageSwap ? `<button onclick="deleteTask(${task.id}); setTimeout(fetchPublicSwapSchedule, 500);" class="absolute top-2 right-2 text-red-500 hover:text-red-400 p-1 bg-black/20 rounded-lg transition z-20" title="${task.status === 'completed' ? 'ลบประวัตินี้' : 'ยกเลิกคิวนี้'}"><span class="material-icons text-sm">delete</span></button>` : '';
 
@@ -180,7 +180,7 @@ window.fetchPublicSwapSchedule = async function() {
             box.innerHTML = `<div class="col-span-full text-center text-gray-400 py-8 bg-slate-800/50 rounded-xl border border-dashed border-slate-600">${noDataMsg}</div>`;
         } else { box.innerHTML = html; }
 
-        const isGlobalAdminStat = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+        const isGlobalAdminStat = canPerm('swap_manage');
         const canManageSwapStat = isGlobalAdminStat || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
         
         if (isGlobalAdminStat || canManageSwapStat) {
@@ -277,7 +277,7 @@ function _swapTaskXXDate(task) {
 }
 
 window.deleteAllSwapSchedules = async function() {
-    const isGlobalAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const isGlobalAdmin = canPerm('swap_manage');
     const canManageSwap = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('swap_manage'));
     if (!canManageSwap) return;
     

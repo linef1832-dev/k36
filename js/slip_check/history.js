@@ -106,8 +106,8 @@ window.renderSlipHistory = function() {
         return;
     }
 
-    const role = window.getCurrentUserRole().toLowerCase();
-    const isManager = (role === 'manager' || role === 'admin' || role === 'vip' || role === 'ผู้จัดการ');
+
+    const isManager = canPerm('slip_check_delete');
     const canDelete = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('slip_check_delete') : isManager;
     
     tbody.innerHTML = filtered.map(h => {
@@ -229,8 +229,8 @@ window.renderQRHistory = function() {
         return;
     }
 
-    const role = window.getCurrentUserRole().toLowerCase();
-    const isManager = (role === 'manager' || role === 'admin' || role === 'vip' || role === 'ผู้จัดการ');
+
+    const isManager = canPerm('slip_check_delete');
     const canDelete = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('slip_check_delete') : isManager;
     
     tbody.innerHTML = filtered.map(h => {

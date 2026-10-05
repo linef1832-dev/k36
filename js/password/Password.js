@@ -3,7 +3,7 @@
 // ==========================================
 async function initPasswordApp() {
     if (!currentUser) return;
-    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isGlobalAdmin = canPerm('password_view_all');
     const canViewAll = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('password_view_all'));
 
     if (canViewAll) {
@@ -52,7 +52,7 @@ window.fetchPasswords = async function(resetPage) {
     if (!grid) return;
     grid.innerHTML = '<div class="col-span-full text-center py-10"><span class="material-icons animate-spin text-amber-500 text-4xl">sync</span></div>';
 
-    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isGlobalAdmin = canPerm('password_view_all');
     const canViewAll = isGlobalAdmin || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('password_view_all'));
 
     let query = appDB.from('user_passwords').select(`*, users(username)`, { count: 'exact' });

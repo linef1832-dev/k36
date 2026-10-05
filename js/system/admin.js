@@ -177,7 +177,7 @@ window._forceLogoutNow = function(byWhom) {
 
 // 🚪 [แอดมิน] เตะพนักงานออกจากระบบ — ส่งสัญญาณสด + จดเวลาไว้ใน DB (กันรีเฟรชหนี)
 window.kickUserOut = async function(userId, username) {
-    if (!['manager', 'admin'].includes(currentUser.role)) return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะแอดมิน/ผู้จัดการ', 'error');
+    if (!canPerm('admin_users')) return Swal.fire('ไม่มีสิทธิ์', 'ต้องมีสิทธิ์ จัดการผู้ใช้', 'error');
     if (String(userId) === String(currentUser.id)) return Swal.fire('ไม่ได้', 'เตะตัวเองไม่ได้ ใช้ปุ่มออกจากระบบแทน', 'warning');
     const ask = await Swal.fire({
         icon: 'question', title: `เตะ ${username} ออกจากระบบ?`,

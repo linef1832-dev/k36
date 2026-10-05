@@ -24,8 +24,8 @@ window.sheetMe = function() {
     return (window.currentUser && window.currentUser.username) ? String(window.currentUser.username) : '';
 };
 window.sheetIsMgr = function() {
-    const r = window.currentUser && window.currentUser.role ? String(window.currentUser.role).toLowerCase().trim() : '';
-    return r === 'admin' || r === 'manager';
+    // สิทธิ์อย่างเดียว ไม่ดู role แล้ว
+    return canPerm('sheet_manage');
 };
 // แก้/ลบชีตนี้ได้ไหม: ชีตส่วนกลาง → เฉพาะ mgr | ชีตส่วนตัว → เจ้าของเท่านั้น (mgr แก้ของคนอื่นไม่ได้ เพราะของใครของมัน)
 window.sheetCanTouch = function(sheet) {
@@ -233,11 +233,11 @@ window.initCalculator = async function() {
     const addBtn = document.getElementById('btnCalcAdd');
     const delBtn = document.getElementById('btnCalcDelete');
 
-    let isAdmin = false;
-    if (typeof window.currentUser !== 'undefined' && window.currentUser.role) {
-        const role = window.currentUser.role.toLowerCase().trim();
-        if (role === 'manager' || role === 'admin') isAdmin = true;
-    }
+    let isAdmin = canPerm('sheet_manage');
+
+
+
+
 
     if (teamSelect) {
         teamSelect.innerHTML = '';

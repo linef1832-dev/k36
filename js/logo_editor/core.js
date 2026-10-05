@@ -66,7 +66,7 @@ function leEnsureInit() {
 
 window.initLogoEditorApp = function() {
     if (!leEnsureInit()) return;
-    const isAdminOrMgr = (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager'));
+    const isAdminOrMgr = false;
     const can = (perm) => isAdminOrMgr || (typeof window.hasUserPerm === 'function' && window.hasUserPerm(perm));
     window.leCanErase = can('logo_editor_erase');
     window.leCanAddLogo = can('logo_editor_add_logo');

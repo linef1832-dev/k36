@@ -24,8 +24,8 @@ window.initDashboard = async function() {
     // 🌟🌟🌟 ควบคุมการโชว์ปุ่มเช็คคนยังไม่ลงข้าว 🌟🌟🌟
     const btnCheckMissing = document.getElementById('btnCheckMissingLunch');
     if (btnCheckMissing) {
-        const uRole = (window.currentUser.role || '').toLowerCase();
-        const uDept = (window.currentUser.department || '');
+
+
         // ให้เช็คสิทธิ์ว่ามีสิทธิ์เข้ามาดูเมนูจัดการลางาน หรือจัดการเวรไหม ถ้ามีก็ให้กดดูได้เลย
 if (window.hasUserPerm('admin') || window.hasUserPerm('leave_manage_am')) {
     btnCheckMissing.classList.remove('hidden');
@@ -128,7 +128,7 @@ window.renderShiftButtons = function(allowedShift) {
     const shifts = ['กะเช้า', 'กะกลาง', 'กะดึก'];
     let hasChecked = false;
 
-    const userRole = window.currentUser?.role || 'staff';
+
     const shiftRight = allowedShift || 'all';
     const isAdmin = window.hasUserPerm('ds_manage') || window.hasUserPerm('admin');
     // 🟢 มีสิทธิ์ "ลงเวลาได้ทุกกะ" → ไม่ถูกล็อกแค่กะของตัวเอง
@@ -488,8 +488,8 @@ async function _doRefreshTimeSlots() {
     const now       = Date.now();
 
     // ── Roster (⭐ ทีมที่ถูกจัด) — cache 90 วิ ──
-    if (['manager', 'admin'].includes(currentUser.role)) window._rosterMissing = false;   // 🔓 หัวหน้า/แอดมินลงได้เสมอ
-    if (teamSelect && !['manager', 'admin'].includes(currentUser.role)) {
+    if (canPerm('dashboard_bypass_rules')) window._rosterMissing = false;   // 🔓 คนที่มีสิทธิ์ลงเวลาไม่ติดเงื่อนไข
+    if (teamSelect && !canPerm('dashboard_bypass_rules')) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${shiftName}`;
         let assignedTeams = [];
         let coverageMap = null;
@@ -821,7 +821,7 @@ window.subscribeDashboardChanges = function() {
                 const tableTeam = document.getElementById('tableTeamFilter') ? document.getElementById('tableTeamFilter').value : 'all';
                 if (tableTeam !== 'all') dataToRender = dataToRender.filter(item => item.team === tableTeam);
 
-                if (typeof currentUser !== 'undefined' && !['manager', 'admin'].includes(currentUser.role)) {
+                if (typeof currentUser !== 'undefined' && !canPerm('dashboard_view_all_shifts')) {
                     if (['กะเช้า', 'กะกลาง', 'กะดึก'].includes(currentUser.allowed_shift)) {
                         dataToRender = dataToRender.filter(item => item.shift_name === currentUser.allowed_shift);
                     }
@@ -1573,7 +1573,7 @@ window._tgLink = function(v) {
 // ════════════════════════════════════════════════════════════════════
 window._shrinkStop = false;
 window.shrinkOldImages = async function() {
-    if (!['manager', 'admin'].includes((window.currentUser || {}).role)) return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะแอดมิน', 'error');
+    if (!canPerm('admin_settings')) return Swal.fire('ไม่มีสิทธิ์', 'ต้องมีสิทธิ์ ตั้งค่าระบบ', 'error');
     const log = document.getElementById('shrinkOldLog'), btn = document.getElementById('shrinkOldBtn'), stopBtn = document.getElementById('shrinkOldStop');
     const say = (m, cls) => { if (!log) return; log.classList.remove('hidden'); const d = document.createElement('div'); d.textContent = m; if (cls) d.style.color = cls; log.appendChild(d); log.scrollTop = log.scrollHeight; };
     const BUCKET = 'staff_images', FOLDERS = ['', 'files', 'files/covers', 'fines', 'logos', 'sop'], MIN = 250 * 1024, BATCH = 20;

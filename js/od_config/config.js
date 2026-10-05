@@ -109,7 +109,7 @@ window.odCfg_tplPreview = function() {
 // ── โหลด config จาก Supabase ──────────────────────────────────────
 window.initOdConfig = async function() {
     // เช็คสิทธิ์
-    const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager');
+    const isAdmin = canPerm('od_config');
     if (!isAdmin && !window.hasUserPerm('od_config')) {
         document.getElementById('odConfigApp').innerHTML = `
             <div class="flex flex-col items-center justify-center h-64 text-gray-400">

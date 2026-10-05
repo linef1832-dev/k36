@@ -261,7 +261,7 @@
 
     // ── popup รายละเอียดช่วงเวลา ──
     window.btOpenSlot = function (slot) {
-        const isBoss = ['manager', 'admin'].includes((window.currentUser || {}).role);
+        const isBoss = canPerm('schedule_delete_any');
         const me = (window.currentUser || {}).username;
         let chipKey = 'all';
         const keyOf = r => `${r.department || 'AM'} / ${r.team || '-'}`;
@@ -346,7 +346,7 @@
         if (typeof window.applyCustomTimeSlots === 'function' && (!window.SHIFT_GROUPS_ALL || !Object.keys(window.SHIFT_GROUPS_ALL.AM || {}).length)) { try { await window.applyCustomTimeSlots(); } catch (e) {} }
         // สิทธิ์: ถ้าเห็นได้แค่กะตัวเอง → ล็อกตัวกรองกะ
         const me = window.currentUser || {};
-        const canAll = ['manager', 'admin'].includes(me.role) || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('dashboard_view_all_shifts'));
+        const canAll = canPerm('dashboard_view_all_shifts');
         if (!canAll && ['กะเช้า', 'กะกลาง', 'กะดึก'].includes(me.allowed_shift)) { $('btShift').value = me.allowed_shift; $('btShift').disabled = true; }
         _btScrolledOnce = false;   // เข้าหน้าใหม่ → เลื่อนหารอบปัจจุบันอีกครั้ง
         await btRender(true);

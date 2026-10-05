@@ -9,7 +9,7 @@ let filesActiveCategory = 'ALL';
 // 1. เริ่มระบบ
 window.initFilesApp = async function() {
     const hasPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('files_manage') : false;
-    const isAdmin = hasPerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = hasPerm;
     const adminControls = document.getElementById('filesAdminControls');
     if (adminControls) {
         if (isAdmin) adminControls.classList.remove('hidden');
@@ -142,7 +142,7 @@ window.renderFilesGrid = function() {
 
     const term = document.getElementById('searchFilesInput')?.value.toLowerCase() || '';
     const hasPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('files_manage') : false;
-    const isAdmin = hasPerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = hasPerm;
     const now = Date.now();
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
 

@@ -300,7 +300,7 @@ window.subscribeDutyChanges = function() {
 window.applyDutyRoleUI = function() {
     const isAdmin = window.isDutyAdmin();
     const isTrainerDept = (currentUser.department === 'AMQL' || currentUser.department === 'ODQL' || (currentUser.department && currentUser.department.startsWith('TRAINER'))); 
-    const isTrainerRole = (currentUser.role && currentUser.role.toLowerCase() === 'trainer');
+    const isTrainerRole = ['AMQL', 'ODQL', 'TRAINER'].includes(currentUser.department);
 
     let canManageDuty = isAdmin;
     
@@ -308,7 +308,7 @@ window.applyDutyRoleUI = function() {
     // คนที่จะมีสิทธิ์จัดการ/สุ่มเวรได้ ต้องเป็น 'admin' หรือ 'manager' เท่านั้น!
     // ผู้สอน (trainer) จะถูกริบสิทธิ์ปุ่มจัดการทันที แม้ในหลังบ้านจะเผลอติ๊กสิทธิ์ไว้ก็ตาม
     if (window.isTrainerDept()) {
-        if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+        if (!canPerm('duty_manage_amql') && !canPerm('duty_manage_odql')) {
             canManageDuty = false; 
         }
     }

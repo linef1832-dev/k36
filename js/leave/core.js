@@ -84,7 +84,7 @@ window.switchDept = function(dept) {
         btnManage.classList.remove('hidden'); 
     }
 
-    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isGlobalAdmin = canPerm('leave_manage');
     let canManageThisDept = isGlobalAdmin;
 
     if (dept === 'AM') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_am');
@@ -94,7 +94,7 @@ window.switchDept = function(dept) {
 
     // [FIX] ผู้สอน (role trainer) ที่ไม่ใช่ admin → ไม่ให้เห็นแถบตั้งค่า/toggle เปิด-ปิด
     // ในหน้า AMQL/ODQL/TRAINER (เปิด-ปิดต้องทำจากหน้า AM/OD โดยแอดมินเท่านั้น)
-    const _isTrainerOnlyUser = (currentUser.role === 'trainer') && !isGlobalAdmin;
+    const _isTrainerOnlyUser = ['AMQL', 'ODQL', 'TRAINER'].includes(currentUser.department) && !isGlobalAdmin;
     if (_isTrainerOnlyUser && (dept === 'AMQL' || dept === 'ODQL' || dept === 'TRAINER')) {
         canManageThisDept = false;
     }
@@ -150,7 +150,7 @@ if(forceOpenCb) forceOpenCb.addEventListener('change', (e) => { toggleTimeInputs
 window.initLeaveTable = async function() {
     if(typeof updateMonthPicker === 'function') updateMonthPicker();
 
-    const isGlobalAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isGlobalAdmin = canPerm('leave_manage');
     const canManage = isGlobalAdmin || window.hasUserPerm('leave_manage');
     const canExport = isGlobalAdmin || window.hasUserPerm('leave_export');
     const canViewHistory = isGlobalAdmin || window.hasUserPerm('leave_history');
@@ -224,7 +224,7 @@ window.initLeaveTable = async function() {
     if (btnSPECIAL) {
         window.specialGroupUserIds = window.specialGroupUserIds || [];
         const isInSpecialGroup = window.specialGroupUserIds.includes(String(currentUser.id));
-        const isTrainerUser = (currentUser.role && currentUser.role.toLowerCase() === 'trainer') || currentUser.department === 'TRAINER';
+        const isTrainerUser = ['AMQL', 'ODQL', 'TRAINER'].includes(currentUser.department);
 
         // แอดมิน / ผู้สอน / คนที่ถูกดึงชื่อเข้ากลุ่ม = เห็นแท็บนี้
         if (isGlobalAdmin || isInSpecialGroup || isTrainerUser) {

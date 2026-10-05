@@ -13,7 +13,7 @@ async function initTelegramApp() {
     }
     
     // โชว์ปุ่มแอดมินเฉพาะแอดมิน
-    if (currentUser.role === 'manager' || currentUser.role === 'admin') {
+    if (canPerm('telegram_manage')) {
         document.getElementById('teleAdminControls')?.classList.remove('hidden');
     }
     
@@ -90,7 +90,7 @@ function renderTeleGrid() {
         paused:   '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800">🟡 ปิดชั่วคราว</span>',
         archived: '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-600">⚫ เก็บถาวร</span>',
     };
-    const isAdmin = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = canPerm('telegram_manage');
 
     grid.innerHTML = links.map(link => {
         const colorClass  = colorMap[link.icon_color] || colorMap['blue'];

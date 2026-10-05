@@ -35,7 +35,7 @@ function dsDebounce(key, func, delay = 200) {
 // 🔒 [FIX] เช็คสิทธิ์ "ในฟังก์ชัน" — เดิมเช็คแค่ซ่อนแท็บ ใครเปิด F12 ก็เรียกเตะ/ย้าย/ส่งข้อความได้
 // perm ตรงกับ applyDiscordPermissions: ds_spy, ds_move, ds_checkin, ds_manage, ds_log, ds_sendmsg
 window.dsCan = function(perm) {
-    if (typeof currentUser !== 'undefined' && currentUser && ['manager', 'admin'].includes(currentUser.role)) return true;
+    // คุมด้วยสิทธิ์อย่างเดียว ไม่ดู role
     return typeof window.hasUserPerm === 'function' && window.hasUserPerm(perm);
 };
 window.dsRequire = function(perm) {
@@ -722,7 +722,7 @@ window.applyDiscordPermissions = function() {
     tabs.forEach(tab => {
         const btn = document.getElementById(tab.btnId);
         if (!btn) return;
-        if (window.hasUserPerm(tab.reqPerm) || ['manager', 'admin'].includes(currentUser?.role)) {
+        if (canPerm(tab.reqPerm)) {
             btn.classList.remove('no-perm-hidden', 'hidden');
             btn.style.display = ''; 
             if (!firstAllowedTab) firstAllowedTab = tab.viewId;
@@ -741,7 +741,7 @@ window.applyDiscordPermissions = function() {
             const contentBox = document.getElementById('dsContent_' + t);
             if(contentBox && !contentBox.classList.contains('hidden')) {
                 const reqPerm = tabs.find(x => x.viewId === t)?.reqPerm;
-                if(window.hasUserPerm(reqPerm) || ['manager', 'admin'].includes(currentUser?.role)) isCurrentTabValid = true;
+                if(canPerm(reqPerm)) isCurrentTabValid = true;
             }
         });
 

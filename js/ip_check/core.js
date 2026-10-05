@@ -41,7 +41,7 @@ window.initIpCheckApp = async function() {
     if (!currentUser) return;
 
     // 🔒 จำกัดเฉพาะ admin/manager หรือคนที่มีสิทธิ์ ip_view เท่านั้น
-    const canView = (currentUser.role === 'manager' || currentUser.role === 'admin')
+    const canView = canPerm('ip_view')
                  || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('ip_view'));
     
     if (!canView) {

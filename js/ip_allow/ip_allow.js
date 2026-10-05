@@ -228,8 +228,8 @@
 
     // ═══ จุดเริ่มหน้า ═══
     window.initIpAllowApp = async function () {
-        const role = ((window.currentUser && currentUser.role) || '').toLowerCase();
-        const canUse = role === 'admin' || role === 'manager' ||
+
+        const canUse = canPerm('ip_allow') ||
                        (typeof window.hasUserPerm === 'function' && window.hasUserPerm('ip_allow'));
         const app = document.getElementById('ipAllowApp');
         const noPerm = document.getElementById('ipAllowNoPerm');

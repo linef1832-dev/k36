@@ -38,7 +38,7 @@ const GALLERY_MODE_UPLOAD_TEXT = {
     logo:    '🏷️ LOGO '
 };
 window.initGalleryApp = function() {
-    const isAdminOrManager = (currentUser.role === 'admin' || currentUser.role === 'manager');
+    // แท็บคุมด้วยตารางสิทธิ์อย่างเดียว
     const tabPermMap = {
         tabBonus: 'gallery_tab_bonus',
         tabReach: 'gallery_tab_reach',
@@ -49,7 +49,7 @@ window.initGalleryApp = function() {
         const btn = document.getElementById(btnId);
         if (!btn) return;
         const permId = tabPermMap[btnId];
-        const canSee = isAdminOrManager || (typeof window.hasUserPerm === 'function' && window.hasUserPerm(permId));
+        const canSee = canPerm(permId);
         if (canSee) btn.classList.remove('hidden');
         else btn.classList.add('hidden');
     });
@@ -84,9 +84,9 @@ window.initGalleryApp = function() {
     setTimeout(() => initGalleryDragDrop(), 300);
 }
 window.switchGalleryMode = function(mode) {
-    const isAdminOrManager = (currentUser.role === 'admin' || currentUser.role === 'manager');
+    // แท็บคุมด้วยตารางสิทธิ์อย่างเดียว
     const modePerm = { bonus: 'gallery_tab_bonus', reach: 'gallery_tab_reach', card: 'gallery_tab_card', logo: 'gallery_tab_logo' };
-    if (modePerm[mode] && !isAdminOrManager) {
+    if (modePerm[mode]) {
         const allowed = (typeof window.hasUserPerm === 'function' && window.hasUserPerm(modePerm[mode]));
         if (!allowed) {
             Swal.fire('ไม่มีสิทธิ์', 'คุณไม่มีสิทธิ์เข้าดูแท็บนี้ครับ', 'warning');
@@ -235,7 +235,7 @@ function _renderGalleryGrid() {
             pagEl.innerHTML = '';
         }
     }
-    const isAdminG = (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdminG = canPerm('gallery_delete');
     const canDelG  = isAdminG || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('gallery_delete'));
     const lastViewG = new Date(localStorage.getItem(`gallery_last_view_${currentUser.username}`) || '2000-01-01');
     grid.innerHTML = pageData.map((img, i) => {
@@ -252,7 +252,7 @@ function _renderGalleryGrid() {
         else if (catNameG.endsWith('_REACH')) { catNameG = catNameG.replace('_REACH',''); catColorG = 'bg-purple-600/90 text-white border-fuchsia-300'; }
         else if (catNameG.endsWith('_CARD'))  { catNameG = catNameG.replace('_CARD','');  catColorG = 'bg-emerald-600/90 text-white border-teal-300'; }
         const catBadgeG = `<span class="absolute bottom-2 left-2 ${catColorG} text-[10px] px-2 py-0.5 rounded border z-20 backdrop-blur-sm font-bold shadow-sm">${catNameG}</span>`;
-        const isAdminRename = (currentUser.role === 'manager' || currentUser.role === 'admin');
+        const isAdminRename = canPerm('gallery_rename');
         const renameBtn = isAdminRename
             ? `<button data-img-id="${img.id}" data-img-name="${(img.name||'').replace(/"/g,'&quot;')}" onclick="event.stopPropagation(); renameGalleryImage(this.dataset.imgId, this.dataset.imgName)" class="text-amber-400 hover:text-amber-300 shrink-0 transition opacity-0 group-hover:opacity-100"><span class="material-icons text-[14px]">edit</span></button>`
             : '';

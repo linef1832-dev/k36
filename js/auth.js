@@ -613,7 +613,7 @@ async function handleLogin(e) {
         try {
             const { data: ipCfgRow } = await _wlPromise;   // ⚡ ผลถูกยิงรอไว้ตั้งแต่ตอนเช็ค PIN แล้ว
             const ipCfg = ipCfgRow && ipCfgRow.value ? JSON.parse(ipCfgRow.value) : null;
-            if (ipCfg && ipCfg.enabled && user && user.role !== 'admin') {
+            if (ipCfg && ipCfg.enabled && user) {
                 const curIp = await window.prewarmIpProbe();   // ⚡ ใช้ผลที่อุ่นไว้ตั้งแต่หน้า login โผล่
                 const matches = (ip, pattern) => {
                     if (!ip || !pattern) return false;

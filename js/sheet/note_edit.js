@@ -89,7 +89,7 @@ window.noteEditExit = function(rerender) {
     const canEdit = window.currentUser && (
         (_ns && _ns.owner)
             ? _ns.owner === window.sheetMe()
-            : ['admin', 'manager'].includes(window.currentUser.role)
+            : canPerm('sheet_manage')
     );
     document.getElementById('btnNoteEdit')?.classList.toggle('hidden', !canEdit);
     if (rerender) window.renderNoteTable();

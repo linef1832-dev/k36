@@ -19,7 +19,7 @@ window.subscribeFinesChanges = function() {
 
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
     const hasViewAllPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_view_all') : false;
-    const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = hasManagePerm;
     const canViewAll = isAdmin || hasViewAllPerm;
 
     finesSubscription = appDB.channel('fines-realtime')
@@ -83,7 +83,7 @@ window.initFineApp = async function() {
     const hasViewAllPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_view_all') : false;
     const hasStatsPerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_stats') : false;
     
-    const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = hasManagePerm;
     const canViewAll = isAdmin || hasViewAllPerm;
     const canViewStats = isAdmin || hasStatsPerm;
 
@@ -331,7 +331,7 @@ window.renderFineStats = function() {
     }).join('');
     
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('fine_manage') : false;
-    const isAdmin = hasManagePerm || (currentUser.role === 'manager' || currentUser.role === 'admin');
+    const isAdmin = hasManagePerm;
     document.querySelectorAll('.admin-col').forEach(el => {
         if (isAdmin) el.classList.remove('hidden');
         else el.classList.add('hidden');

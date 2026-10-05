@@ -58,8 +58,8 @@ const _TAB_COLORS = {
 };
 
 function _canViewTab(tab) {
-    const role = (window.currentUser||{}).role||'';
-    if (['admin','manager'].includes(role)) return true;
+
+    // คุมด้วยสิทธิ์อย่างเดียว ไม่ดู role
     const cfg = _TAB_COLORS[tab];
     if (!cfg?.perm) return true;
     if (typeof window.hasUserPerm === 'function') return window.hasUserPerm(cfg.perm);

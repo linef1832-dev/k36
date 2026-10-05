@@ -25,12 +25,12 @@ let sopActiveTab = 'rules';
 // 🔒 [FIX] เช็คสิทธิ์ "ในฟังก์ชัน" — เดิมเช็คแค่ซ่อนปุ่ม ใครเปิด F12 ก็เรียกลบ/แก้ SOP ได้
 window.sopCanManage = function() {
     if (typeof currentUser === 'undefined' || !currentUser) return false;
-    if (['manager', 'admin'].includes(currentUser.role)) return true;
+    // คุมด้วยสิทธิ์อย่างเดียว ไม่ดู role
     return typeof window.hasUserPerm === 'function' && window.hasUserPerm('sop_manage');
 };
 window.sopCanSendTg = function() {
     if (typeof currentUser === 'undefined' || !currentUser) return false;
-    return ['manager', 'admin', 'trainer'].includes(currentUser.role) || window.sopCanManage();
+    return canPerm('sop_send_tg') || window.sopCanManage();
 };
 window.sopRequire = function(fn) {
     if (fn()) return true;
@@ -55,7 +55,7 @@ const SOP_SHIFT_OPTIONS = [
 // ==========================================
 window.initSopApp = async function() {
     const hasManagePerm = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
-    const isAdmin = hasManagePerm || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+    const isAdmin = hasManagePerm;
 
     const adminControls = document.getElementById('sopAdminControls');
     if (adminControls) {
@@ -488,7 +488,7 @@ window.sop_renderList = function() {
     sop_updateTabCounters();
 
     if (globalSOPData.length === 0) {
-        const isAdmin = (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+        const isAdmin = canPerm('sop_manage');
         const hint = isAdmin ? 'กดปุ่ม "เพิ่มกฎใหม่" เพื่อเริ่ม' : 'รอผู้ดูแลเพิ่มกฎ';
         container.innerHTML = window.renderTemplate('tpl-sop-no-rules', { hint });
         return;
@@ -575,7 +575,7 @@ window.sop_renderList = function() {
 
         // V4.3: ปุ่มย้ายหมวดเร็ว (เฉพาะ admin)
         const hasManagePermLi = typeof window.hasUserPerm === 'function' ? window.hasUserPerm('sop_manage') : false;
-        const isAdminLi = hasManagePermLi || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin'));
+        const isAdminLi = hasManagePermLi;
         const moveCategoryBtn = isAdminLi
             ? `<button onclick="event.stopPropagation(); sop_quickMoveCategory('${item.id}')" class="ml-auto bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-gray-400 hover:text-blue-500 px-2 py-1 rounded-lg transition border border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-1" title="ย้ายไปหมวดอื่น"><span class="material-icons text-[12px]">drive_file_move</span>ย้ายหมวด</button>`
             : '';

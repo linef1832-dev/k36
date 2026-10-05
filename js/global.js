@@ -27,6 +27,16 @@ window.syncServerTime = async function (force) {
 window.serverNow = function () { return new Date(Date.now() + (window._srvOffset || 0)); };
 const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2dXpsaWhoYmljbXV2cGp3d2xuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1Nzk0OTIsImV4cCI6MjEwNDE1NTQ5Mn0.QZdqTS3c9rsMBdRVyakqAPYwQULhzff7hBrvM3zqAUA';
 
+// ═══════════════════════════════════════
+// 🔑 เช็คสิทธิ์แบบปลอดภัย — ใช้แทนการเช็ค role ทั้งระบบ
+//   ทุกฟีเจอร์ต้องถามผ่านตัวนี้ "สิทธิ์อย่างเดียว" ห้ามดู currentUser.role
+//   (role เหลือไว้เป็นป้ายบอกตำแหน่ง/แสดงผลเท่านั้น)
+// ═══════════════════════════════════════
+window.canPerm = function (permId) {
+    return typeof window.hasUserPerm === 'function' && window.hasUserPerm(permId);
+};
+
+
 let appDB;
 let currentUser = {};
 let TEAM_LIST = ['Jun88', 'MK8', 'F168', 'PG688', 'JL69', 'NM9', 'VV72', 'TH26', 'BT678', 'K188'];
@@ -1043,7 +1053,7 @@ async function showPage(pageName) {
                     }
                     if (typeof initDashboard === 'function') initDashboard();
                     if (typeof refreshAdminData === 'function') refreshAdminData();
-                    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+                    if (canPerm('admin_users')) {
                         if (document.getElementById('userManagerUIBlock')) {
                             document.getElementById('userManagerUIBlock').classList.remove('hidden');
                             document.getElementById('userManagerUIBlock').classList.add('flex');
@@ -1107,7 +1117,7 @@ async function showPage(pageName) {
                     if (typeof fetchSheets === 'function') await fetchSheets(); 
                     if (typeof renderSheetMenu === 'function') renderSheetMenu();
                     if (typeof renderRecentTabs === 'function') renderRecentTabs();
-                    if (currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin')) {
+                    if (canPerm('sheet_manage')) {
                         if(document.getElementById('sheetAdminControls')) document.getElementById('sheetAdminControls').classList.remove('hidden');
                     }
                     const sheetApp = document.getElementById('sheetApp');
