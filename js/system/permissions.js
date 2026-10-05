@@ -374,7 +374,7 @@ window.renderPermsTable = function() {
     const root = document.getElementById('permBuilderRoot');
     if (!root) return;
 
-    const depts = typeof window.getSystemDepts === 'function' ? window.getSystemDepts() : ['AM', 'OD', 'AMQL'];
+    const depts = typeof window.getPermRoles === 'function' ? window.getPermRoles() : ['STAFF', 'TRAINER', 'MANAGER'];
 
     // กู้ค่าที่เคยเลือกไว้ (จำข้ามการรีเฟรช)
     if (!permUI.dept) {
@@ -383,7 +383,7 @@ window.renderPermsTable = function() {
             if (saved.dept) permUI.dept = saved.dept;
         } catch(e) {}
     }
-    if (!depts.includes(permUI.dept)) permUI.dept = depts[0] || 'AM';
+    if (!depts.includes(permUI.dept)) permUI.dept = depts[0] || 'STAFF';
 
     // 🔑 สิทธิ์ผูกกับ "แผนก" อย่างเดียว — ตำแหน่ง (role) ไม่เกี่ยวแล้ว
     const key = permUI.dept;
@@ -398,8 +398,8 @@ window.renderPermsTable = function() {
             <div class="perm-chip ${active ? 'perm-chip-active' : ''}" onclick="permSwitch('${dept}')">
                 <span class="font-black tracking-wider text-[12px]">${dept}</span>
                 <span class="perm-chip-tools">
-                    <button type="button" onclick="event.stopPropagation(); renameAnyDept('${dept}')" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
-                    ${!['AM','OD','AMQL'].includes(dept) ? `<button type="button" class="perm-tool-del" onclick="event.stopPropagation(); deleteCustomPermDept('${dept}')" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>` : ''}
+                    <button type="button" onclick="event.stopPropagation(); renameAnyRole('${dept}')" title="เปลี่ยนชื่อตำแหน่ง"><span class="material-icons text-[12px]">edit</span></button>
+                    ${!['STAFF','TRAINER','MANAGER'].includes(dept) ? `<button type="button" class="perm-tool-del" onclick="event.stopPropagation(); deleteCustomPermRole('${dept}')" title="ลบแผนก"><span class="material-icons text-[12px]">close</span></button>` : ''}
                 </span>
             </div>`;
     });
@@ -462,7 +462,7 @@ window.renderPermsTable = function() {
         <div class="perm-savebar">
             <div class="flex items-center gap-2 text-[11px]">
                 <span id="permDirtyHint" style="display:none;" class="items-center gap-1.5 text-amber-400 font-bold"><span class="material-icons text-[15px]">warning</span> มีการแก้ไขที่ยังไม่บันทึก</span>
-                <span class="text-gray-500">การตั้งค่านี้มีผลกับ <b class="text-gray-300">ทุกคนในแผนก ${permUI.dept}</b></span>
+                <span class="text-gray-500">การตั้งค่านี้มีผลกับ <b class="text-gray-300">ทุกคนที่ตำแหน่ง ${permUI.dept}</b></span>
             </div>
             <button onclick="saveMenuPerms()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl text-sm font-black shadow-lg transition flex items-center gap-2 border border-emerald-400 active:scale-95">
                 <span class="material-icons text-[18px]">save</span> บันทึกสิทธิ์
@@ -488,43 +488,34 @@ window.saveMenuPerms = async function() {
     await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
 
     window.permUI.dirty = false;
-    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: `อัปเดตสิทธิ์ของแผนก ${permUI.dept} เรียบร้อย`, timer: 1500, showConfirmButton: false});
+    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: `อัปเดตสิทธิ์ของตำแหน่ง ${permUI.dept} เรียบร้อย`, timer: 1500, showConfirmButton: false});
     renderPermsTable();
 };
 
 window.hasUserPerm = function(menuId) {
     if (!window.currentUser || !window.currentUser.id) return false;
-    
-    // ⚠️ จุดเดียวในระบบที่ยังดู role — เป็น "ประตูสำรอง" ของหัวหน้า/แอดมิน
-    //    ทุกฟีเจอร์เลิกเช็ค role แล้ว (เช็คผ่าน canPerm/hasUserPerm หมด) แต่ยังต้องเก็บบรรทัดนี้ไว้
-    //    เพราะสิทธิ์ผูกกับ "แผนก" อย่างเดียว หัวหน้ากับพนักงานในแผนกเดียวกันจึงใช้ชุดสิทธิ์เดียวกัน
-    //    ถ้าถอดออกตอนนี้ หัวหน้า 12 คนจะเหลือสิทธิ์เท่าพนักงานในแผนกตัวเอง (เช่น หัวหน้า OD เหลือ 27 สิทธิ์)
-    //    จะถอดได้เมื่อแยกคีย์สิทธิ์ของหัวหน้าออกจากพนักงานก่อน
-    const uRoleLower = (window.currentUser.role || '').toLowerCase().trim();
-    if (uRoleLower === 'admin' || uRoleLower === 'manager') return true;
-    
+
     let perms = {};
     try { perms = typeof SETTINGS['dept_menu_rules'] === 'string' ? JSON.parse(SETTINGS['dept_menu_rules']) : (SETTINGS['dept_menu_rules'] || {}); } catch(e) {}
-    
-    // 🎯 ชุดสิทธิ์ที่ตั้งให้ "รายคน" มาก่อนเสมอ (ตั้งที่หน้าจัดการพนักงาน)
-    //    ถ้าคนนี้ยังไม่ได้ตั้ง ค่อยถอยไปใช้ชุดของแผนกเหมือนเดิม
-    const uGroup = (window.currentUser.perm_group || "").trim();
+
+    // 1️⃣ ชุดสิทธิ์ที่ตั้งให้ "รายคน" มาก่อนเสมอ (ตั้งที่หน้าจัดการพนักงาน)
+    const uGroup = (window.currentUser.perm_group || '').trim().toUpperCase();
     if (uGroup && Array.isArray(perms[uGroup])) return perms[uGroup].includes(menuId);
 
-    let uDept = window.currentUser.department || 'AM';
-    if (uDept === 'SPECIAL') uDept = 'AM'; // 🌟 เพิ่มบรรทัดนี้: ให้กลุ่มพิเศษดึงสิทธิ์เมนู AM มาใช้
-    
-    // 🔑 สิทธิ์ผูกกับ "แผนก" อย่างเดียว — ตำแหน่ง (role) เป็นแค่ป้ายบอกหน้าที่ ไม่คุมสิทธิ์
-    let userPerms = perms[uDept];
+    // 2️⃣ ไม่ได้ตั้งรายคน -> ใช้ชุดตาม "ตำแหน่ง" (MANAGER / STAFF / TRAINER)
+    const uRole = (window.currentUser.role || 'STAFF').toUpperCase().trim();
+    let set = perms[uRole];
+    if (!Array.isArray(set) && uRole === 'ADMIN') set = perms['MANAGER'];
 
-    // ⏳ รองรับข้อมูลรูปแบบเก่า (แผนก_ตำแหน่ง) เผื่อยังไม่ได้แปลงข้อมูล
-    // จะได้ไม่มีใครเมนูหายกะทันหัน ถ้า deploy โค้ดใหม่ก่อนแปลงข้อมูล
-    if (!Array.isArray(userPerms)) {
-        const uRole = uRoleLower ? uRoleLower.toUpperCase() : "STAFF";
-        userPerms = perms[`${uDept}_${uRole}`];
-        if (!Array.isArray(userPerms)) userPerms = perms[`${uDept}_STAFF`] || [];
+    // ⏳ รองรับข้อมูลรูปแบบเก่าที่ยังผูกกับแผนก เผื่อยังไม่ได้แปลง
+    if (!Array.isArray(set)) {
+        let uDept = window.currentUser.department || 'AM';
+        if (uDept === 'SPECIAL') uDept = 'AM';
+        set = perms[uDept];
     }
-    return userPerms.includes(menuId);
+    if (!Array.isArray(set)) set = perms['STAFF'] || [];
+
+    return set.includes(menuId);
 };
 
 // ฟังก์ชันสำหรับปุ่มกดเพิ่มทีมผ่านหน้าเว็บ

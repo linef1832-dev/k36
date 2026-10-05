@@ -646,7 +646,7 @@ window.renderUserTableDirectly = function() {
         const curGroup = (u.perm_group || "").trim();
         const gColor = curGroup ? "text-emerald-400" : "text-slate-500";
         let permGroupSelect = `<select onchange="updateUserPermGroup(this, ${u.id}, this.value)" class="bg-slate-900 ${gColor} text-xs p-1.5 rounded-md border border-slate-700 cursor-pointer focus:outline-none focus:border-emerald-500" title="ชุดสิทธิ์ของคนนี้ — ไม่เกี่ยวกับตำแหน่ง">`;
-        permGroupSelect += `<option value="" ${!curGroup ? "selected" : ""} class="text-white">ตามแผนก (${u.department || "AM"})</option>`;
+        permGroupSelect += `<option value="" ${!curGroup ? "selected" : ""} class="text-white">ตามตำแหน่ง (${(u.role || "staff").toUpperCase()})</option>`;
         window.getPermGroupNames().forEach(g => {
             permGroupSelect += `<option value="${g}" ${curGroup === g ? "selected" : ""} class="text-white">${g}</option>`;
         });
@@ -899,6 +899,99 @@ window.resetUserPin = async function(id, username) {
 // ==========================================
 // 🛠️ ระบบจัดการแผนกอัจฉริยะ (จัดการ AM, OD และแผนกสร้างใหม่ทั้งหมด)
 // ==========================================
+// 🎖️ รายชื่อ "ตำแหน่ง" ทั้งหมด — ใช้เป็นชุดสิทธิ์ในหน้าสิทธิ์เมนู
+window.getPermRoles = function() {
+    let extra = [];
+    try { extra = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
+    const all = ['STAFF', 'TRAINER', 'MANAGER', ...extra.map(r => String(r).toUpperCase().trim())];
+    return [...new Set(all.filter(Boolean))];
+};
+
+// ➕ เพิ่มตำแหน่งใหม่
+window.addCustomPermRole = async function() {
+    if (!window.sysRequireAdmin()) return;
+    const inputEl = document.getElementById('newRoleInput');
+    if (!inputEl) return Swal.fire('Error', 'ไม่พบช่องกรอกชื่อตำแหน่ง', 'error');
+    const name = inputEl.value.toUpperCase().trim();
+    if (!name) return Swal.fire('แจ้งเตือน', 'พิมพ์ชื่อตำแหน่งก่อนครับ', 'warning');
+    if (window.getPermRoles().includes(name)) return Swal.fire('เตือน', 'มีตำแหน่งนี้แล้ว', 'warning');
+    let extra = [];
+    try { extra = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
+    extra.push(name);
+    Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(extra) }]);
+    SETTINGS['custom_roles'] = JSON.stringify(extra);
+    inputEl.value = '';
+    await window.loadSettings();
+    if (typeof renderPermsTable === 'function') renderPermsTable();
+    Swal.fire({icon: 'success', title: 'สำเร็จ', text: 'เพิ่มตำแหน่ง ' + name + ' แล้ว', timer: 1500, showConfirmButton: false});
+};
+
+// 🗑️ ลบตำแหน่งที่สร้างเอง (ลบ STAFF/TRAINER/MANAGER ไม่ได้)
+window.deleteCustomPermRole = async function(name) {
+    if (!window.sysRequireAdmin()) return;
+    if (['STAFF', 'TRAINER', 'MANAGER'].includes(name)) return Swal.fire('ลบไม่ได้', 'ตำแหน่งหลักลบไม่ได้ครับ', 'warning');
+    const ask = await Swal.fire({
+        icon: 'warning', title: 'ลบตำแหน่ง ' + name + '?',
+        text: 'คนที่ตำแหน่งนี้จะกลับไปใช้ชุดของ STAFF',
+        showCancelButton: true, confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc2626'
+    });
+    if (!ask.isConfirmed) return;
+    let extra = [];
+    try { extra = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
+    extra = extra.filter(r => String(r).toUpperCase().trim() !== name);
+    const perms = JSON.parse(JSON.stringify(MENU_PERMS));
+    delete perms[name];
+    await appDB.from('settings').upsert([
+        { key: 'custom_roles', value: JSON.stringify(extra) },
+        { key: 'dept_menu_rules', value: JSON.stringify(perms) }
+    ]);
+    SETTINGS['custom_roles'] = JSON.stringify(extra);
+    SETTINGS['dept_menu_rules'] = JSON.stringify(perms);
+    window.MENU_PERMS = perms;
+    await window.loadSettings();
+    window.permUI.dept = null;
+    if (typeof renderPermsTable === 'function') renderPermsTable();
+    Swal.fire({icon: 'success', title: 'ลบแล้ว', timer: 1200, showConfirmButton: false});
+};
+
+// ✏️ เปลี่ยนชื่อตำแหน่ง (ย้ายชุดสิทธิ์ตามไปด้วย)
+window.renameAnyRole = async function(oldName) {
+    if (!window.sysRequireAdmin()) return;
+    const { value: raw } = await Swal.fire({
+        title: 'เปลี่ยนชื่อตำแหน่ง ' + oldName, input: 'text', inputValue: oldName,
+        showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#f59e0b'
+    });
+    if (!raw) return;
+    const name = raw.toUpperCase().trim();
+    if (!name || name === oldName) return;
+    if (window.getPermRoles().includes(name)) return Swal.fire('เตือน', 'มีตำแหน่งชื่อนี้แล้ว', 'warning');
+
+    Swal.fire({title: 'กำลังอัปเดต...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    let extra = [];
+    try { extra = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
+    const core = ['STAFF', 'TRAINER', 'MANAGER'].includes(oldName);
+    if (!core) extra = extra.map(r => String(r).toUpperCase().trim() === oldName ? name : r);
+    else extra = [...new Set([...extra, name])];
+
+    const perms = JSON.parse(JSON.stringify(MENU_PERMS));
+    if (perms[oldName]) { perms[name] = perms[oldName]; if (!core) delete perms[oldName]; }
+
+    await appDB.from('users').update({ role: name.toLowerCase() }).eq('role', oldName.toLowerCase());
+    await appDB.from('settings').upsert([
+        { key: 'custom_roles', value: JSON.stringify(extra) },
+        { key: 'dept_menu_rules', value: JSON.stringify(perms) }
+    ]);
+    SETTINGS['custom_roles'] = JSON.stringify(extra);
+    SETTINGS['dept_menu_rules'] = JSON.stringify(perms);
+    window.MENU_PERMS = perms;
+    await window.loadSettings();
+    window.permUI.dept = name;
+    if (typeof renderPermsTable === 'function') renderPermsTable();
+    if (typeof window.renderUserTableDirectly === 'function') window.renderUserTableDirectly();
+    Swal.fire({icon: 'success', title: 'เปลี่ยนชื่อแล้ว', timer: 1400, showConfirmButton: false});
+};
+
 window.getSystemDepts = function() {
     let dbDepts = [];
     try { 
