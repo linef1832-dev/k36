@@ -348,6 +348,7 @@ window.saveData = async function(e) {
     const _pMine   = Promise.resolve(appDB.from('schedules').select('*').eq('work_date', dateVal).eq('staff_name', currentUser.username));
     const _pSlot   = Promise.resolve(appDB.from('schedules').select('*').eq('work_date', dateVal).eq('shift_name', sName).eq('time_slot', _timeValEarly));
     const _pCfg    = (typeof window.loadBreakMinRemainCfg === 'function') ? window.loadBreakMinRemainCfg() : Promise.resolve();
+    const _pGrp    = (typeof window.loadBreakWebGroups === 'function') ? window.loadBreakWebGroups() : Promise.resolve();
     if (!canPerm('dashboard_bypass_rules')) {
         const rosterKey = `duty_roster_${myDep}_${dateVal}_${sName}`;
         const { data: rosterData } = await _pRoster;
@@ -355,6 +356,7 @@ window.saveData = async function(e) {
         if (rosterData && rosterData.value) {
             const roster = JSON.parse(rosterData.value);
             await _pCfg;   // ⚙️ ค่า "ต้องเหลือเฝ้ากี่คน" (เริ่มโหลดไว้แล้วตั้งแต่ต้น)
+            await _pGrp;   // 🔗 กลุ่มเว็บที่ใช้โควตารวมกัน
             coverageMap = window.buildCoverageMap(roster, myDep, sName);
             let allowedTeams = [];
             for (const team in roster) {

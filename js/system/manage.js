@@ -1212,6 +1212,55 @@ window.removeQuotaDept = async function(d) {
     await window.renderQuotaSettings();
 };
 
+// 🔗 บันทึกกลุ่มเว็บลงฐานข้อมูล
+window._saveWebGroups = async function(all) {
+    const v = JSON.stringify(all);
+    await appDB.from('settings').upsert([{ key: 'break_web_groups', value: v }]);
+    SETTINGS['break_web_groups'] = v;
+    window._breakWebGroups = all;
+    if (typeof window.clearSettingCache === "function") window.clearSettingCache();
+};
+
+// ➕ จับ 2 เว็บให้ใช้โควตาพักรวมกัน (ถ้าเว็บใดอยู่ในกลุ่มอื่นแล้ว จะยุบรวมกลุ่มให้)
+window.addWebGroup = async function(dept) {
+    if (!window.sysRequireAdmin()) return;
+    const a = (document.getElementById('wg1-' + dept) || {}).value;
+    const b = (document.getElementById('wg2-' + dept) || {}).value;
+    if (!a || !b) return;
+    if (a === b) return Swal.fire('เลือกคนละเว็บ', 'ต้องเลือกสองเว็บที่ต่างกันครับ', 'warning');
+
+    const all = JSON.parse(JSON.stringify(window._breakWebGroups || {}));
+    let groups = Array.isArray(all[dept]) ? all[dept] : [];
+    // รวมกลุ่มเดิมที่มี a หรือ b อยู่ เข้าด้วยกันเป็นกลุ่มเดียว
+    const merged = new Set([a, b]);
+    groups = groups.filter(g => {
+        if (g.some(x => x === a || x === b)) { g.forEach(x => merged.add(x)); return false; }
+        return true;
+    });
+    groups.push([...merged].sort());
+    all[dept] = groups;
+    await window._saveWebGroups(all);
+    await window.renderQuotaSettings();
+};
+
+// ➖ แยกกลุ่มกลับเป็นเว็บเดี่ยว
+window.removeWebGroup = async function(dept, idx) {
+    if (!window.sysRequireAdmin()) return;
+    const all = JSON.parse(JSON.stringify(window._breakWebGroups || {}));
+    if (!Array.isArray(all[dept]) || !all[dept][idx]) return;
+    const names = all[dept][idx].join(" + ");
+    const ask = await Swal.fire({
+        icon: 'question', title: 'แยก ' + names + ' ออกจากกัน?',
+        text: 'แต่ละเว็บจะกลับไปนับโควตาพักของตัวเอง',
+        showCancelButton: true, confirmButtonText: 'แยกเลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc2626'
+    });
+    if (!ask.isConfirmed) return;
+    all[dept].splice(idx, 1);
+    if (!all[dept].length) delete all[dept];
+    await window._saveWebGroups(all);
+    await window.renderQuotaSettings();
+};
+
 window.renderQuotaSettings = async function() {
     const container = document.getElementById('quotaSettingsContainer');
     if (!container) return;
@@ -1223,6 +1272,7 @@ window.renderQuotaSettings = async function() {
     const shifts = ['กะเช้า', 'กะกลาง', 'กะดึก'];
     const depts = window.getQuotaDepts();
     await window.loadBreakMinRemainCfg(true);   // ⚙️ โหลดค่า "ต้องเหลือเฝ้ากี่คน" ล่าสุดมาแสดงในช่องกรอก
+    await window.loadBreakWebGroups(true);
     const keys = [];
     depts.forEach(d => shifts.forEach(sh => keys.push(`duty_roster_${d}_${dateVal}_${sh}`)));
     let rows = {};
@@ -1239,7 +1289,9 @@ window.renderQuotaSettings = async function() {
             const m = maps[sh];
             // 🧹 [กติกาเดียว] นับรวมทุกคนของเว็บ (ไม่สนหลัก/รอง) — พักพร้อมกันได้ = คน − เฝ้า≥ (ไม่ตั้ง = 1)
             const raw = window.getBreakMinRemainRaw(dept, sh, team);
-            const n = m ? ((m.combined && m.combined[team]) || new Set()).size : 0;
+            // 🔗 ถ้าเว็บนี้ถูกจับกลุ่มไว้ ให้นับคนรวมทั้งกอง
+            const pool = window.getBreakWebPool(dept, team);
+            const n = m ? window.poolMembers(m, dept, team).members.size : 0;
             // 🆕 ไม่ตั้งเอง = เพดานอัตโนมัติตามตารางขั้นบันได · ตั้งเอง = คน − เฝ้า≥
             const cap = (raw === null)
                 ? Math.min(n, window.breakCapByHeadcount(n))
@@ -1269,7 +1321,7 @@ window.renderQuotaSettings = async function() {
                 <div class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
                     ${allTeams.map(team => `
                     <div class="flex items-center">
-                        <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-lg w-24 text-center text-xs shrink-0">${team}</div>
+                        <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-lg w-24 text-center text-xs shrink-0">${team}${(() => { const p = window.getBreakWebPool(dept, team); return p.grouped ? `<span class="block text-[8px] font-normal text-amber-300/90 leading-none mt-0.5" title="ใช้โควตาพักรวมกับ ${p.members.filter(x => x !== team).join(", ")}">🔗 รวม ${p.members.filter(x => x !== team).join(", ")}</span>` : ""; })()}</div>
                         ${cell('กะเช้า', team)}${cell('กะกลาง', team)}${cell('กะดึก', team)}
                     </div>`).join('')}
                 </div>
@@ -1313,6 +1365,25 @@ window.renderQuotaSettings = async function() {
                         <button onclick="removeQuotaDept('${d}')" title="เอาแผนกนี้ออกจากหน้านี้"
                             class="ml-auto text-slate-500 hover:text-red-400 transition"><span class="material-icons text-[14px]">close</span></button>
                     </h5>
+                    <div class="mb-2 shrink-0 text-[10px] bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-slate-400">🔗 เว็บที่ใช้โควตารวมกัน:</span>
+                            ${(window._breakWebGroups && Array.isArray(window._breakWebGroups[d]) ? window._breakWebGroups[d] : [])
+                                .map((g, gi) => `<span class="inline-flex items-center gap-1 bg-amber-900/30 border border-amber-600/50 text-amber-200 rounded px-1.5 py-0.5">${g.join(" + ")}
+                                    <button onclick="removeWebGroup('${d}', ${gi})" title="แยกกลับเป็นเว็บเดี่ยว" class="hover:text-red-400"><span class="material-icons text-[11px] align-middle">close</span></button>
+                                </span>`).join('') || '<span class="text-slate-600 italic">ยังไม่ได้จับกลุ่ม</span>'}
+                        </div>
+                        <div class="flex items-center gap-1 mt-1.5">
+                            <select id="wg1-${d}" class="bg-slate-800 border border-slate-600 rounded px-1 py-0.5 text-white text-[10px] outline-none">
+                                ${allTeams.map(tm => `<option value="${tm}">${tm}</option>`).join('')}
+                            </select>
+                            <span class="text-slate-500">+</span>
+                            <select id="wg2-${d}" class="bg-slate-800 border border-slate-600 rounded px-1 py-0.5 text-white text-[10px] outline-none">
+                                ${allTeams.map((tm, ti) => `<option value="${tm}" ${ti === 1 ? "selected" : ""}>${tm}</option>`).join('')}
+                            </select>
+                            <button onclick="addWebGroup('${d}')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-2 py-0.5 rounded">รวม</button>
+                        </div>
+                    </div>
                     ${table(d)}
                 </div>`).join('')}
             </div>
@@ -1340,6 +1411,7 @@ window.resetBreakMinRemain = async function() {
         // ใช้ upsert ค่าว่างแทนการลบแถว — realtime ตอน DELETE ไม่แนบชื่อ key ทำให้เครื่องพนักงานไม่รู้ว่าต้องรีโหลด
         await appDB.from('settings').upsert([{ key: 'break_min_remain', value: '{}' }]);
         await window.loadBreakMinRemainCfg(true);
+        await window.loadBreakWebGroups(true);
         try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าเหลือเฝ้าหน้างาน', performed_by: (window.currentUser?.username || 'admin'), target_details: 'ล้างค่ากำหนดเองทั้งหมด กลับไปใช้ค่าเริ่มต้น (เหลือเฝ้า 1)' }]); } catch (e) {}
         Swal.fire({ icon: 'success', title: 'ล้างแล้ว', text: 'ทุกเว็บใช้กฏอัตโนมัติ', timer: 1500, showConfirmButton: false });
         if (typeof renderQuotaSettings === 'function') renderQuotaSettings();
@@ -1369,6 +1441,7 @@ window.saveBreakMinRemain = async function() {
         const { error } = await appDB.from('settings').upsert([{ key: 'break_min_remain', value: JSON.stringify(cfg) }]);
         if (error) throw error;
         await window.loadBreakMinRemainCfg(true);
+        await window.loadBreakWebGroups(true);
         try { await appDB.from('system_logs').insert([{ action_type: 'ตั้งค่าเหลือเฝ้าหน้างาน', performed_by: (window.currentUser?.username || 'admin'), target_details: 'อัปเดตค่า "พักแล้วต้องเหลือหน้างานกี่คน" (แยกแผนก/กะ/เว็บ)' }]); } catch (e) {}
         Swal.fire({ icon: 'success', title: 'บันทึกแล้ว', text: 'มีผลกับการจองพักทันที', timer: 1800, showConfirmButton: false });
     } catch (e) {

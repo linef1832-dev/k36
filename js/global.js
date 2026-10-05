@@ -878,6 +878,47 @@ window.fmtGapText = function(min) {
     return (h ? `${h} ชม.` : '') + (m ? `${h ? ' ' : ''}${m} นาที` : '');
 };
 
+// ═══════════════════════════════════════
+// 🔗 [กลุ่มเว็บ] เว็บหลายเว็บที่ "ใช้โควตาพักรวมกัน"
+//   เช่น AMQL เอา BT678 กับ F168 รวมกัน → นับคนรวมเป็นก้อนเดียว เพดานพักก็ก้อนเดียว
+//   ในตารางยังเห็นแยกเว็บเหมือนเดิม แค่ตอนคิดว่าใครพักได้ ถือเป็นกองเดียวกัน
+//   เก็บที่ settings.break_web_groups รูปแบบ { "AMQL": [["BT678","F168"], ...], ... }
+// ═══════════════════════════════════════
+window._breakWebGroups = null;
+
+window.loadBreakWebGroups = async function(force) {
+    if (window._breakWebGroups && !force) return window._breakWebGroups;
+    try {
+        const { data } = await appDB.from('settings').select('value').eq('key', 'break_web_groups').maybeSingle();
+        window._breakWebGroups = (data && data.value) ? JSON.parse(data.value) : {};
+    } catch (e) { window._breakWebGroups = window._breakWebGroups || {}; }
+    return window._breakWebGroups;
+};
+
+// คืนกลุ่มของเว็บนี้ -> { key, members[] }  (ไม่ได้จับกลุ่ม = อยู่คนเดียว)
+window.getBreakWebPool = function(dept, team) {
+    const all = window._breakWebGroups || {};
+    const groups = Array.isArray(all[dept]) ? all[dept] : [];
+    for (const g of groups) {
+        if (Array.isArray(g) && g.includes(team)) {
+            const members = [...new Set(g.filter(Boolean))];
+            return { key: members.slice().sort().join(' + '), members, grouped: members.length > 1 };
+        }
+    }
+    return { key: team, members: [team], grouped: false };
+};
+
+// รวมสมาชิกทุกเว็บในกลุ่มเป็นกองเดียว
+window.poolMembers = function(covMap, dept, team) {
+    const pool = window.getBreakWebPool(dept, team);
+    const out = new Set();
+    pool.members.forEach(t => {
+        const s = (covMap && covMap.combined && covMap.combined[t]) || new Set();
+        s.forEach(n => out.add(n));
+    });
+    return { pool, members: out };
+};
+
 window.loadBreakMinRemainCfg = async function(force) {
     if (window._breakMinRemainCfg && !force) return window._breakMinRemainCfg;
     try {
@@ -937,20 +978,35 @@ window.checkCoverage = function(username, covMap, slotBookings) {
     const myTeams = (covMap && covMap.combinedOf && covMap.combinedOf[username]) || [];
     if (myTeams.length === 0) return { ok: true, problems: [], canLeave: Infinity };
     const onBreak = new Set((slotBookings || []).map(b => b.staff_name).filter(Boolean));
+    const dept = (covMap && covMap.dept) || "";
     const problems = [];
     let canLeave = Infinity;
+
+    // 🔗 เว็บที่จับกลุ่มกันไว้ = คิดรวมเป็นกองเดียว (เช็คกองละครั้ง ไม่นับซ้ำ)
+    const seen = new Set();
     myTeams.forEach(team => {
-        const members = (covMap.combined && covMap.combined[team]) || new Set();
+        const { pool, members } = window.poolMembers(covMap, dept, team);
+        if (seen.has(pool.key)) return;
+        seen.add(pool.key);
         if (members.size < 2) return;
-        const raw = window.getBreakMinRemainRaw(covMap.dept, covMap.shift, team);
-        // 🆕 ไม่ตั้งเอง = เพดานอัตโนมัติตามตารางขั้นบันได (เว็บมีกี่คน → พักได้กี่คน) · ตั้งเองเมื่อไหร่ ค่าที่ตั้งชนะ
+
+        // ค่า "เหลือเฝ้า≥" ของกอง: ถ้าจับกลุ่ม ใช้ค่าที่ตั้งไว้สูงสุดในกลุ่ม
+        let raw = null;
+        pool.members.forEach(t => {
+            const v = window.getBreakMinRemainRaw(dept, covMap.shift, t);
+            if (v !== null) raw = (raw === null) ? v : Math.max(raw, v);
+        });
+
         const cap = (raw === null)
             ? Math.min(members.size, window.breakCapByHeadcount(members.size))
             : Math.max(0, members.size - raw);
         const minRemain = members.size - cap;
         let used = 0;
         members.forEach(n => { if (n !== username && onBreak.has(n)) used++; });
-        if (used >= cap) problems.push({ team: `${team} (${raw === null ? 'เพดานอัตโนมัติ เหลือเฝ้า' : 'ต้องเหลือคนเฝ้า'} ${minRemain})`, used, cap, total: members.size });
+        if (used >= cap) problems.push({
+            team: pool.key + ' (' + (raw === null ? 'เพดานอัตโนมัติ เหลือเฝ้า' : 'ตั้งเอง เหลือเฝ้า') + ' ' + minRemain + ')',
+            used, cap, total: members.size
+        });
         canLeave = Math.min(canLeave, Math.max(0, cap - used));
     });
     return { ok: problems.length === 0, problems, canLeave };

@@ -504,6 +504,7 @@ async function _doRefreshTimeSlots() {
                 if (rosterData && rosterData.value) {
                     const roster = JSON.parse(rosterData.value);
                     await window.loadBreakMinRemainCfg();   // ⚙️ โหลดค่า "ต้องเหลือเฝ้ากี่คน" (cache ในตัว)
+                    await window.loadBreakWebGroups();
                     coverageMap = window.buildCoverageMap(roster, myDep, shiftName);
                     for (const team in roster) {
                         (roster[team] || []).forEach(u => {
@@ -758,6 +759,7 @@ window.subscribeDashboardChanges = function() {
             } else if (key === 'break_min_remain') {
                 // 🔴 [Realtime] หัวหน้าแก้ค่า "เฝ้า≥" → โหลดค่าใหม่ + วาด dropdown ซ้ำทันที พนักงานไม่ต้องรีเฟรช
                 window.loadBreakMinRemainCfg && window.loadBreakMinRemainCfg(true).then(() => {
+                window.loadBreakWebGroups(true);
                     if (typeof window.refreshTimeSlots === 'function') window.refreshTimeSlots();
                 });
             } else if (key === 'break_gap_min') {
