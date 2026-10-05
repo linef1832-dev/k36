@@ -225,17 +225,6 @@ function _permReadMenuPerms() {
     } catch(e) { MENU_PERMS = {}; }
 }
 
-function _permAllRoles() {
-    let dbRoles = [];
-    try { dbRoles = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
-    let all = [...new Set(['staff', 'trainer', 'manager', ...dbRoles])];
-    if (typeof GLOBAL_USER_LIST !== 'undefined') {
-        GLOBAL_USER_LIST.forEach(u => {
-            if (u.role && !all.includes(u.role.toLowerCase())) all.push(u.role.toLowerCase());
-        });
-    }
-    return all.map(r => r.toUpperCase());
-}
 
 function _permSaveSel() {
     try { window.safeSetItem('perm_ui_sel', JSON.stringify({ dept: permUI.dept })); } catch(e) {}
@@ -380,7 +369,6 @@ window.renderPermsTable = function() {
     if (!root) return;
 
     const depts = typeof window.getSystemDepts === 'function' ? window.getSystemDepts() : ['AM', 'OD', 'AMQL'];
-    const roles = _permAllRoles();
 
     // กู้ค่าที่เคยเลือกไว้ (จำข้ามการรีเฟรช)
     if (!permUI.dept) {

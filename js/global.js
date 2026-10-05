@@ -1203,33 +1203,6 @@ window.renderTemplate = function(templateId, data = {}) {
 // ==========================================
 // [ลบออก] addCustomPermDept ตัวนี้ซ้ำกับใน system_core.js และไม่มีการเช็คสิทธิ์แอดมิน — ใช้ตัวใน system_core.js แทน
 
-window.addCustomPermRole = async function() {
-    const inputEl = document.getElementById('newRoleInput');
-    if (!inputEl) return Swal.fire('Error', 'ไม่พบช่องกรอกชื่อ Role', 'error');
-    
-    const roleName = inputEl.value.toLowerCase().trim();
-    if (!roleName) return Swal.fire('แจ้งเตือน', 'กรุณาพิมพ์ชื่อ Role ก่อนกดเพิ่มครับ', 'warning');
-
-    let currentRoles = [];
-    try {
-        const { data } = await appDB.from('settings').select('value').eq('key', 'custom_roles').single();
-        if(data && data.value) currentRoles = JSON.parse(data.value);
-    } catch(e) {}
-
-    if (!currentRoles.includes(roleName)) {
-        currentRoles.push(roleName);
-        Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        
-        await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(currentRoles) }]);
-        
-        inputEl.value = '';
-        await window.loadSettings(true);
-        
-        Swal.fire({icon: 'success', title: 'สำเร็จ', text: `เพิ่มตำแหน่ง ${roleName.toUpperCase()} แล้ว`, timer: 1500, showConfirmButton: false});
-    } else {
-        Swal.fire('เตือน', 'มีตำแหน่งนี้ในระบบแล้ว', 'warning');
-    }
-};
 
 // ==========================================
 // 🗑️ ฟังก์ชันลบแผนก และ Role ที่สร้างเอง
@@ -1260,36 +1233,6 @@ window.deleteCustomPermDept = async function(dept) {
     });
 };
 
-window.deleteCustomPermRole = async function() {
-    let dbRoles = [];
-    try { dbRoles = JSON.parse(SETTINGS['custom_roles'] || '[]'); } catch(e) {}
-    
-    if (dbRoles.length === 0) return Swal.fire('ไม่มี Role ให้ลบ', 'มีแต่ Role มาตรฐานของระบบครับ', 'info');
-
-    let options = {};
-    dbRoles.forEach(r => options[r] = r.toUpperCase());
-
-    const { value: roleToDelete } = await Swal.fire({
-        title: 'เลือกลบ Role ที่สร้างเอง',
-        input: 'select',
-        inputOptions: options,
-        inputPlaceholder: '-- เลือก Role ที่ต้องการลบ --',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        confirmButtonText: 'ลบทิ้ง',
-        customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' }
-    });
-
-    if (roleToDelete) {
-        Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        dbRoles = dbRoles.filter(r => r !== roleToDelete);
-        SETTINGS['custom_roles'] = JSON.stringify(dbRoles);
-        
-        await appDB.from('settings').upsert([{ key: 'custom_roles', value: JSON.stringify(dbRoles) }]);
-        window.renderPermsTable();
-        Swal.fire({icon: 'success', title: 'ลบ Role สำเร็จ', timer: 1000, showConfirmButton: false});
-    }
-};
 
 // ==========================================
 // ✏️ ฟังก์ชันเปลี่ยนชื่อแผนก และอัปเดตพนักงานทั้งระบบ
