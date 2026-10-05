@@ -320,6 +320,21 @@
     };
 
     // ── เข้าหน้า ──
+    // ── เติมรายชื่อแผนกใน dropdown จากข้อมูลจริง ──
+    // เดิม HTML เขียน AM/OD ตายตัว ทำให้ AMQL ODQL FT AMTT FT TT มองไม่เห็น
+    // ทั้งที่มีคนลงเวลาพักจริง (AMQL อย่างเดียว 3,000+ รายการ)
+    // ต้องเรียกหลังข้อมูลโหลดแล้ว ไม่งั้น _rows กับ GLOBAL_USER_LIST ยังว่าง
+    async function btFillDepts() {
+        const ds = $('btDept'); if (!ds || ds.options.length > 1) return;
+        const set = new Set();
+        try {
+            const users = (typeof window.getUsersCached === 'function') ? await window.getUsersCached() : (window.GLOBAL_USER_LIST || []);
+            (users || []).forEach(u => { if (u && u.department) set.add(String(u.department).trim()); });
+        } catch (e) {}
+        _rows.forEach(r => { if (r && r.department) set.add(String(r.department).trim()); });
+        [...set].filter(Boolean).sort().forEach(x => { const o = document.createElement('option'); o.value = x; o.textContent = x; ds.appendChild(o); });
+    }
+
     window.initBreakTable = async function () {
         if (!$('btGrid')) return;
         // วันเริ่มต้น = วันนี้ (00:00-07:59 ถือเป็นเมื่อวาน — กะดึกคร่อมวัน)
@@ -335,6 +350,7 @@
         if (!canAll && ['กะเช้า', 'กะกลาง', 'กะดึก'].includes(me.allowed_shift)) { $('btShift').value = me.allowed_shift; $('btShift').disabled = true; }
         _btScrolledOnce = false;   // เข้าหน้าใหม่ → เลื่อนหารอบปัจจุบันอีกครั้ง
         await btRender(true);
+        await btFillDepts();   // เติมแผนกหลังข้อมูลโหลดเสร็จ
         // ⏱️ ทุก 1 นาที ขยับไฮไลต์ "กำลังพัก" ตามเวลาจริง (หยุดเองเมื่อออกจากหน้า)
         if (window._btNowTimer) clearInterval(window._btNowTimer);
         window._btNowTimer = setInterval(() => {
