@@ -34,70 +34,137 @@
         </div>
 
         <div id="dutyTabRoster" class="flex-1 overflow-hidden flex flex-col mx-4 bg-white dark:bg-slate-900 border-x border-b border-gray-200 dark:border-slate-700 shadow-sm rounded-b-xl w-auto">
-            <div class="bg-white dark:bg-slate-800 p-3 border-b dark:border-slate-700 flex flex-wrap gap-3 items-center shrink-0 z-20 shadow-sm">
-                <div class="flex items-center gap-2 border-r dark:border-slate-600 pr-3">
-                    <span class="text-xs font-bold text-gray-500">วันที่:</span>
-                    <input type="date" id="dutyDate" class="text-sm font-bold text-slate-800 p-1 rounded outline-none border border-gray-300 dark:bg-slate-700 dark:text-white dark:border-slate-600" onchange="refreshDutyData()">
-                </div>
-                
-                <div class="duty-admin-only flex items-center gap-2 border-r dark:border-slate-600 pr-3">
-                    <span class="text-xs font-bold text-gray-500">จัดกะ:</span>
-                    <select id="dutyShiftSelect" onchange="refreshDutyData()" class="text-sm p-1.5 rounded font-bold text-slate-800 outline-none border border-gray-300 bg-indigo-50 text-indigo-700 cursor-pointer dark:bg-slate-700 dark:text-indigo-300 dark:border-slate-600">
-                        <option value="กะเช้า">☀️ กะเช้า</option>
-                        <option value="กะกลาง">🌤️ กะกลาง</option>
-                        <option value="กะดึก">🌙 กะดึก</option>
-                    </select>
-                </div>
-                
-                <button id="btnGenerateRoster" onclick="generateDutyRoster()" class="duty-admin-only bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 disabled:bg-gray-500 disabled:cursor-not-allowed">
-                    <span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่
-                </button>
-                <button onclick="clearDutyRoster()" class="duty-admin-only bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95">
-                    <span class="material-icons text-base">delete_sweep</span> ล้างตาราง
-                </button>
+            <!-- 🧭 แถบเครื่องมือจัดหน้าที่ (จัดกลุ่มใหม่: เลือกวัน/กะ → จัดตาราง → การเวียน → ล้าง) — id/onclick เดิมทุกตัว -->
+            <style>
+                #dutyApp .dt-bar{background:#121c30;border-bottom:1px solid #24324b;padding:10px 12px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:20}
+                #dutyApp .dt-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+                #dutyApp .dt-grow{flex:1 1 auto}
+                /* กล่องกลุ่ม */
+                #dutyApp .dt-grp{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border-radius:12px;background:#0c1424;border:1px solid #22304a}
+                #dutyApp .dt-cap{font-size:11px;font-weight:800;color:#7d8ba3;margin-right:4px;white-space:nowrap;display:flex;align-items:center;gap:4px}
+                #dutyApp .dt-cap .material-icons{font-size:14px;color:#56657f}
+                #dutyApp .dt-grp.danger{border-color:#4a2330;background:#170e16}
+                #dutyApp .dt-grp.danger .dt-cap{color:#c58a96}
+                #dutyApp .dt-grp.danger .dt-cap .material-icons{color:#8f4f5d}
+                /* ช่องเลือก */
+                #dutyApp .dt-field{display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#e7ecf5}
+                #dutyApp .dt-field .material-icons{font-size:17px;color:#E8C15A}
+                #dutyApp .dt-field input,#dutyApp .dt-field select{background:transparent;border:0;outline:none;color:#f3f6fb;font-weight:800;font-size:13.5px;cursor:pointer;color-scheme:dark}
+                #dutyApp .dt-field select option{background:#18233a;color:#f3f6fb}
+                #dutyApp .dt-field:focus-within{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
+                /* ปุ่ม */
+                #dutyApp .dt-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;
+                    border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;transition:background .15s,border-color .15s,color .15s,transform .08s}
+                #dutyApp .dt-btn .material-icons{font-size:17px}
+                #dutyApp .dt-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
+                #dutyApp .dt-btn:active{transform:scale(.97)}
+                #dutyApp .dt-btn:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
+                #dutyApp .dt-btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+                #dutyApp .dt-btn.primary{height:36px;padding:0 16px;background:#E8C15A;border-color:#E8C15A;color:#1b1406;box-shadow:0 4px 14px rgba(232,193,90,.22)}
+                #dutyApp .dt-btn.primary .material-icons{color:#1b1406}
+                #dutyApp .dt-btn.primary:hover{background:#f1cf74;border-color:#f1cf74}
+                #dutyApp .dt-btn.ai .material-icons{color:#e879f9}
+                #dutyApp .dt-btn.add .material-icons{color:#34d399}
+                #dutyApp .dt-btn.pin .material-icons{color:#fbbf24}
+                #dutyApp .dt-btn.me .material-icons{color:#E8C15A}
+                #dutyApp .dt-btn.warn{color:#f5b7c1;border-color:#5a2a37;background:#24121b}
+                #dutyApp .dt-btn.warn .material-icons{color:#fb7185}
+                #dutyApp .dt-btn.warn:hover{background:#3a1724;border-color:#9f3a52;color:#fff}
+                #dutyApp .dt-btn.restore{color:#a7f3d0;border-color:#1f5a46;background:#0f2a22}
+                #dutyApp .dt-btn.restore .material-icons{color:#34d399}
+                #dutyApp .dt-badge{min-width:20px;height:18px;padding:0 6px;border-radius:999px;background:#E8C15A;color:#1b1406;font-size:11px;font-weight:900;display:inline-flex;align-items:center;justify-content:center}
+                #dutyApp .dt-num{width:46px;height:28px;border-radius:7px;background:#18233a;border:1px solid #2c3b58;color:#fff;text-align:center;font-weight:900;font-size:13px;outline:none}
+                #dutyApp .dt-num:focus{border-color:#E8C15A}
+                #dutyApp .dt-unit{font-size:12px;font-weight:700;color:#8a97ad}
+                #dutyApp .dt-gaptag{color:#E8C15A}
+                #dutyApp .dt-search{position:relative}
+                #dutyApp .dt-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:#7d8ba3;pointer-events:none}
+                #dutyApp .dt-search input{height:36px;width:180px;padding:0 10px 0 34px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#f3f6fb;font-size:13.5px;font-weight:700;outline:none;transition:width .2s,border-color .15s}
+                #dutyApp .dt-search input:focus{width:240px;border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
+                #dutyApp .dt-shiftchip{display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#e7ecf5;font-size:13px;font-weight:800}
+                #dutyApp .dt-shiftchip .material-icons{font-size:17px;color:#E8C15A}
+                /* JS ใช้คลาส hidden ซ่อน/โชว์ → ต้องชนะ display ของคลาสข้างบน */
+                #dutyApp .dt-bar .hidden{display:none !important}
+                @media (max-width:640px){
+                    #dutyApp .dt-search input,#dutyApp .dt-search input:focus{width:100%}
+                    #dutyApp .dt-search{flex:1 1 100%}
+                    #dutyApp .dt-grp{flex-wrap:wrap}
+                }
+                @media (prefers-reduced-motion:reduce){ #dutyApp .dt-btn,#dutyApp .dt-search input{transition:none} }
+            </style>
 
-                <button id="btnQuickBackup" onclick="quickAssignBackups()" class="duty-admin-only bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-fuchsia-400">
-                    <span class="material-icons text-base">bolt</span> จัดรองด่วน (AI)
-                </button>
-                
-                <div class="flex items-center gap-1.5 bg-slate-900/70 border border-indigo-500/40 rounded-lg px-2.5 py-1.5" title="ทำเว็บนี้แล้วต้องเว้นกี่วันถึงจะกลับมาได้อีก — ช่วยให้เวียนงานทั่วถึง">
-                        <span class="material-icons text-[15px] text-indigo-400">refresh</span>
-                        <span class="text-[10px] font-bold text-gray-300 whitespace-nowrap">เว้นซ้ำเว็บ <span id="rotGapDept" class="text-indigo-300">AM</span></span>
-                        <input type="number" min="0" max="30" id="rotGapInput" onchange="saveRotationGap(this.value)"
-                            class="w-11 bg-slate-800 border border-slate-600 text-white rounded text-center text-[11px] font-bold py-0.5 outline-none focus:border-indigo-400">
-                        <span class="text-[10px] font-bold text-gray-400">วัน</span>
+            <div class="dt-bar shrink-0">
+                <!-- แถวบน: ดูวันไหน กะไหน + หาตัวเอง -->
+                <div class="dt-row">
+                    <label class="dt-field" title="วันที่ของตารางหน้าที่">
+                        <span class="material-icons">event</span>
+                        <input type="date" id="dutyDate" onchange="refreshDutyData()">
+                    </label>
+
+                    <label class="duty-admin-only dt-field" title="เลือกกะที่จะจัด">
+                        <span class="material-icons">schedule</span>
+                        <select id="dutyShiftSelect" onchange="refreshDutyData()">
+                            <option value="กะเช้า">☀️ กะเช้า</option>
+                            <option value="กะกลาง">🌤️ กะกลาง</option>
+                            <option value="กะดึก">🌙 กะดึก</option>
+                        </select>
+                    </label>
+
+                    <!-- พนักงานทั่วไป: โชว์กะของตัวเองแทนช่องเลือกกะ -->
+                    <div id="staffShiftIndicator" class="hidden dt-shiftchip">
+                        <span class="material-icons">schedule</span> <span id="staffShiftLabel">...</span>
                     </div>
-                    <button onclick="addStaffToRoster()" class="duty-admin-only bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95">
-                    <span class="material-icons text-base">person_add</span> ดึงคนเข้างาน
-                </button>
 
-                <button id="btnClearSecondary" onclick="clearSecondaryDuties()" title="ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ" class="duty-admin-only bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-cyan-400">
-                    <span class="material-icons text-base">layers_clear</span> ล้างงานรอง
-                </button>
-                
-                <button id="btnRestoreRoster" onclick="restoreDutyRoster()" class="hidden duty-admin-only bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 ml-2">
-                    <span class="material-icons text-base">restore</span> กู้คืนที่ลบ
-                </button>
+                    <div class="dt-grow"></div>
 
-                <!-- 📌 รายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน -->
-                <!-- ไม่ใช้ duty-admin-only เพราะสิทธิ์ของปุ่มนี้แยกต่างหาก (duty_stay_pin)
-                     ให้ updateStayPinButton() เป็นคนตัดสินว่าจะโชว์ไหม -->
-                <button id="btnStayPinList" onclick="openStayPinListModal()" title="ดูรายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมต่อ" style="display:none" class="opacity-60 bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition items-center gap-1.5 transform active:scale-95">
-                    <span class="material-icons text-base">push_pin</span> อยู่ต่อ
-                    <span id="stayPinCount" class="bg-white/30 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center">0</span>
-                </button>
-
-                <div id="staffShiftIndicator" class="hidden text-sm font-bold text-indigo-700 bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200 flex items-center gap-1 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-700">
-                    <span class="material-icons text-sm">schedule</span> กะ: <span id="staffShiftLabel">...</span>
+                    <button onclick="searchDutyMyself()" class="dt-btn me" title="เลื่อนไปที่หน้าที่ของฉัน">
+                        <span class="material-icons">person_pin</span> หน้าที่ของฉัน
+                    </button>
+                    <div class="dt-search">
+                        <span class="material-icons">search</span>
+                        <input type="text" id="dutySearchInput" onkeyup="onDutySearch()" placeholder="ค้นหาชื่อพนักงาน">
+                    </div>
                 </div>
 
-                <div class="flex-1"></div>
-                
-                <div class="flex items-center gap-2">
-                    <button onclick="searchDutyMyself()" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow flex items-center gap-1"><span class="material-icons text-sm">person</span> หน้าที่ฉัน</button>
-                    <div class="relative">
-                        <span class="material-icons absolute left-2 top-1.5 text-gray-400 text-sm">search</span>
-                        <input type="text" id="dutySearchInput" onkeyup="onDutySearch()" placeholder="ค้นหาชื่อ..." class="pl-7 pr-2 py-1.5 rounded border border-gray-300 dark:border-slate-600 text-sm outline-none focus:ring-1 focus:ring-indigo-500 w-32 focus:w-48 transition-all dark:bg-slate-700 dark:text-white shadow-inner">
+                <!-- แถวล่าง: เครื่องมือแอดมิน แยกเป็นกลุ่มตามงาน -->
+                <div class="dt-row">
+                    <div class="duty-admin-only dt-grp">
+                        <span class="dt-cap"><span class="material-icons">grid_view</span>จัดตาราง</span>
+                        <button id="btnGenerateRoster" onclick="generateDutyRoster()" class="dt-btn primary" title="สุ่มคนลงเว็บทั้งกะ (ข้ามคนลาหยุดให้อัตโนมัติ)">
+                            <span class="material-icons">casino</span> สุ่มจัดหน้าที่
+                        </button>
+                        <button id="btnQuickBackup" onclick="quickAssignBackups()" class="dt-btn ai" title="ให้ AI จัดงานรอง (สแตนด์บาย) ให้ทุกเว็บ">
+                            <span class="material-icons">bolt</span> จัดรอง (AI)
+                        </button>
+                        <button onclick="addStaffToRoster()" class="dt-btn add" title="เพิ่มพนักงานเข้าตารางวันนี้">
+                            <span class="material-icons">person_add</span> ดึงคนเข้างาน
+                        </button>
+                    </div>
+
+                    <div class="dt-grp" title="ทำเว็บนี้แล้วต้องเว้นกี่วันถึงจะกลับมาได้อีก — ช่วยให้เวียนงานทั่วถึง">
+                        <span class="dt-cap"><span class="material-icons">sync</span>การเวียน</span>
+                        <span class="dt-unit">เว้นซ้ำเว็บ <span id="rotGapDept" class="dt-gaptag">AM</span></span>
+                        <input type="number" min="0" max="30" id="rotGapInput" onchange="saveRotationGap(this.value)" class="dt-num">
+                        <span class="dt-unit">วัน</span>
+                        <!-- สิทธิ์ของปุ่มนี้แยกต่างหาก (duty_stay_pin) — updateStayPinButton() เป็นคนซ่อน/โชว์ -->
+                        <button id="btnStayPinList" onclick="openStayPinListModal()" title="ดูรายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมต่อ" style="display:none" class="opacity-60 dt-btn pin">
+                            <span class="material-icons">push_pin</span> อยู่ต่อ <span id="stayPinCount" class="dt-badge">0</span>
+                        </button>
+                    </div>
+
+                    <div class="dt-grow"></div>
+
+                    <div class="duty-admin-only dt-grp danger">
+                        <span class="dt-cap"><span class="material-icons">cleaning_services</span>ล้าง</span>
+                        <button id="btnRestoreRoster" onclick="restoreDutyRoster()" class="hidden dt-btn restore" title="เอาตารางที่เพิ่งล้างกลับมา">
+                            <span class="material-icons">restore</span> กู้คืนที่ลบ
+                        </button>
+                        <button id="btnClearSecondary" onclick="clearSecondaryDuties()" class="dt-btn warn" title="ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ">
+                            <span class="material-icons">layers_clear</span> งานรอง
+                        </button>
+                        <button onclick="clearDutyRoster()" class="dt-btn warn" title="ล้างตารางหน้าที่ทั้งกะของวันนี้">
+                            <span class="material-icons">delete_sweep</span> ทั้งตาราง
+                        </button>
                     </div>
                 </div>
             </div>
@@ -108,7 +175,7 @@
 
             <div id="dutyRequirementsWrapper" class="duty-admin-only bg-indigo-50 dark:bg-slate-900/50 p-2 border-b border-indigo-100 dark:border-slate-700 shrink-0">
                 <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-indigo-800 dark:text-indigo-300 mb-2 px-2">
-                    <span>จำนวนคนต่อเว็บ — กด <b>−</b> เก็บคนเข้ากองกลาง · กด <b>+</b> แจกจากกองกลางเข้าเว็บที่ต้องการ · ◀▶ เลื่อนตำแหน่ง</span>
+                    <span class="flex items-center gap-1.5"><span class="material-icons text-[15px]">groups</span>จำนวนคนต่อเว็บ <span class="font-semibold opacity-75">(กด − ย้ายคนเข้าส่วนกลาง, กด + แจกคนจากส่วนกลาง, ◀ ▶ สลับลำดับเว็บ)</span></span>
                     <div class="flex items-center gap-2">
                         <button id="odRoomsBtn" onclick="configOdDiscordRooms()" style="display:none" class="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition transform active:scale-95" title="ตั้งชื่อห้อง Discord ของ OD — ระบบเฉลี่ยคนลงห้องตอนสุ่มจัดหน้าที่">
                             <span class="material-icons text-[14px]">headset_mic</span> ห้องดิส
