@@ -215,7 +215,7 @@ const PERM_THEME_HEX = {
 };
 
 // สถานะหน้าจอ: แผนก/Role ที่เลือกอยู่ + ฉบับร่างที่กำลังแก้ (ยังไม่บันทึก)
-window.permUI = window.permUI || { dept: null, role: null, draft: [], dirty: false };
+window.permUI = window.permUI || { dept: null, draft: [], dirty: false };
 
 function _permReadMenuPerms() {
     try {
@@ -238,11 +238,11 @@ function _permAllRoles() {
 }
 
 function _permSaveSel() {
-    try { window.safeSetItem('perm_ui_sel', JSON.stringify({ dept: permUI.dept, role: permUI.role })); } catch(e) {}
+    try { window.safeSetItem('perm_ui_sel', JSON.stringify({ dept: permUI.dept })); } catch(e) {}
 }
 
 // สลับแผนก/Role — ถ้ามีของแก้ค้างยังไม่บันทึก จะถามก่อน กันงานหาย
-window.permSwitch = async function(dept, role) {
+window.permSwitch = async function(dept) {
     if (window.permUI.dirty) {
         const r = await Swal.fire({
             title: 'ยังไม่ได้บันทึก',
@@ -254,7 +254,6 @@ window.permSwitch = async function(dept, role) {
         if (!r.isConfirmed) return;
     }
     window.permUI.dept = dept;
-    window.permUI.role = role;
     window.permUI.dirty = false;
     _permSaveSel();
     renderPermsTable();
@@ -290,7 +289,7 @@ window.permCopyFrom = async function(srcKey) {
     const srcPerms = MENU_PERMS[srcKey] || [];
     const r = await Swal.fire({
         title: 'คัดลอกสิทธิ์?',
-        html: `เอาสิทธิ์ทั้งหมดของ <b class="text-blue-400">${srcKey.replace('_', ' · ')}</b> (${srcPerms.length} รายการ)<br>มาทับชุด <b class="text-emerald-400">${permUI.dept} · ${permUI.role}</b> ที่เปิดอยู่`,
+        html: `เอาสิทธิ์ทั้งหมดของ <b class="text-blue-400">${srcKey.replace('_', ' · ')}</b> (${srcPerms.length} รายการ)<br>มาทับชุด <b class="text-emerald-400">${permUI.dept}</b> ที่เปิดอยู่`,
         icon: 'question', showCancelButton: true,
         confirmButtonText: 'คัดลอกเลย', cancelButtonText: 'ยกเลิก'
     });
@@ -388,13 +387,12 @@ window.renderPermsTable = function() {
         try {
             const saved = JSON.parse(localStorage.getItem('perm_ui_sel') || '{}');
             if (saved.dept) permUI.dept = saved.dept;
-            if (saved.role) permUI.role = saved.role;
         } catch(e) {}
     }
     if (!depts.includes(permUI.dept)) permUI.dept = depts[0] || 'AM';
-    if (!roles.includes(permUI.role)) permUI.role = roles.includes('STAFF') ? 'STAFF' : (roles[0] || 'STAFF');
 
-    const key = `${permUI.dept}_${permUI.role}`;
+    // 🔑 สิทธิ์ผูกกับ "แผนก" อย่างเดียว — ตำแหน่ง (role) ไม่เกี่ยวแล้ว
+    const key = permUI.dept;
     permUI.draft = [...(MENU_PERMS[key] || [])];
     permUI.dirty = false;
 
@@ -403,7 +401,7 @@ window.renderPermsTable = function() {
     depts.forEach(dept => {
         const active = dept === permUI.dept;
         deptChips += `
-            <div class="perm-chip ${active ? 'perm-chip-active' : ''}" onclick="permSwitch('${dept}', permUI.role)">
+            <div class="perm-chip ${active ? 'perm-chip-active' : ''}" onclick="permSwitch('${dept}')">
                 <span class="font-black tracking-wider text-[12px]">${dept}</span>
                 <span class="perm-chip-tools">
                     <button type="button" onclick="event.stopPropagation(); renameAnyDept('${dept}')" title="เปลี่ยนชื่อแผนก"><span class="material-icons text-[12px]">edit</span></button>
@@ -412,18 +410,6 @@ window.renderPermsTable = function() {
             </div>`;
     });
 
-    // เม็ดเลือก Role
-    const rolePillColor = { 'STAFF': '#a855f7', 'TRAINER': '#d946ef', 'MANAGER': '#ef4444' };
-    let rolePills = '';
-    roles.forEach(r => {
-        const active = r === permUI.role;
-        const c = rolePillColor[r] || '#0ea5e9';
-        rolePills += `
-            <button type="button" onclick="permSwitch(permUI.dept, '${r}')"
-                class="perm-pill ${active ? 'perm-pill-active' : ''}" style="--pc:${c};">
-                ${r}${(MENU_PERMS[permUI.dept + '_' + r] || []).length > 0 ? '<span class="perm-pill-dot"></span>' : ''}
-            </button>`;
-    });
 
     // ตัวเลือก "คัดลอกจาก" — โชว์เฉพาะชุดที่มีสิทธิ์ตั้งไว้แล้ว
     let copyOpts = '<option value="">📋 คัดลอกสิทธิ์จากชุดอื่น...</option>';
@@ -466,16 +452,12 @@ window.renderPermsTable = function() {
 
     <div class="flex flex-col gap-4">
         <div>
-            <div class="text-[10px] text-gray-500 font-bold mb-1.5 tracking-widest uppercase">1) เลือกแผนก</div>
+            <div class="text-[10px] text-gray-500 font-bold mb-1.5 tracking-widest uppercase">เลือกแผนก</div>
             <div class="flex flex-wrap items-center gap-2">${deptChips}</div>
-        </div>
-        <div>
-            <div class="text-[10px] text-gray-500 font-bold mb-1.5 tracking-widest uppercase">2) เลือก Role <span class="normal-case text-gray-600">(จุดเขียว = ชุดนั้นมีสิทธิ์ตั้งไว้แล้ว)</span></div>
-            <div class="flex flex-wrap items-center gap-2">${rolePills}</div>
         </div>
 
         <div class="perm-toolbar flex flex-wrap items-center gap-2 border-t border-slate-700/60 pt-4">
-            <span class="text-[11px] font-black text-white bg-slate-800 border border-slate-600 rounded-xl px-3 py-2">กำลังตั้งค่า: <span class="text-blue-400">${permUI.dept}</span> · <span class="text-emerald-400">${permUI.role}</span></span>
+            <span class="text-[11px] font-black text-white bg-slate-800 border border-slate-600 rounded-xl px-3 py-2">กำลังตั้งค่า: <span class="text-blue-400">${permUI.dept}</span></span>
             <input type="text" placeholder="🔍 ค้นหาเมนู เช่น วันหยุด, Discord..." oninput="permFilter(this.value)">
             <select id="permCopySelect" onchange="permCopyFrom(this.value)">${copyOpts}</select>
             <span class="text-[11px] text-gray-400 ml-auto">เปิดอยู่ <span id="permTotalCnt" class="text-emerald-400 font-black">${permUI.draft.length}</span> รายการ</span>
@@ -486,7 +468,7 @@ window.renderPermsTable = function() {
         <div class="perm-savebar">
             <div class="flex items-center gap-2 text-[11px]">
                 <span id="permDirtyHint" style="display:none;" class="items-center gap-1.5 text-amber-400 font-bold"><span class="material-icons text-[15px]">warning</span> มีการแก้ไขที่ยังไม่บันทึก</span>
-                <span class="text-gray-500">การตั้งค่านี้มีผลกับชุด <b class="text-gray-300">${permUI.dept} · ${permUI.role}</b> เท่านั้น</span>
+                <span class="text-gray-500">การตั้งค่านี้มีผลกับ <b class="text-gray-300">ทุกคนในแผนก ${permUI.dept}</b></span>
             </div>
             <button onclick="saveMenuPerms()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl text-sm font-black shadow-lg transition flex items-center gap-2 border border-emerald-400 active:scale-95">
                 <span class="material-icons text-[18px]">save</span> บันทึกสิทธิ์
@@ -502,7 +484,7 @@ window.saveMenuPerms = async function() {
     if (!window.sysRequireAdmin()) return;
 
     _permReadMenuPerms();   // ดึงค่าปัจจุบันสุดจาก SETTINGS กันเขียนทับชุดอื่น
-    const key = `${permUI.dept}_${permUI.role}`;
+    const key = permUI.dept;
     MENU_PERMS[key] = [...permUI.draft];
 
     SETTINGS['dept_menu_rules'] = JSON.stringify(MENU_PERMS);
@@ -512,7 +494,7 @@ window.saveMenuPerms = async function() {
     await appDB.from('settings').upsert([{ key: 'dept_menu_rules', value: JSON.stringify(MENU_PERMS) }]);
 
     window.permUI.dirty = false;
-    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: `อัปเดตสิทธิ์ของ ${permUI.dept} · ${permUI.role} เรียบร้อย`, timer: 1500, showConfirmButton: false});
+    Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: `อัปเดตสิทธิ์ของแผนก ${permUI.dept} เรียบร้อย`, timer: 1500, showConfirmButton: false});
     renderPermsTable();
 };
 
@@ -529,11 +511,16 @@ window.hasUserPerm = function(menuId) {
     let uDept = window.currentUser.department || 'AM';
     if (uDept === 'SPECIAL') uDept = 'AM'; // 🌟 เพิ่มบรรทัดนี้: ให้กลุ่มพิเศษดึงสิทธิ์เมนู AM มาใช้
     
-    // 🆕 ใช้ Role จริงของพนักงาน (รองรับ Role ที่สร้างเอง เช่น SUPERVISOR)
-    // ถ้า Role นั้นยังไม่เคยตั้งสิทธิ์ไว้เลย ให้ถอยไปใช้ชุด STAFF ของแผนกแทน (พฤติกรรมเดิม จะได้ไม่มีใครเมนูหายกะทันหัน)
-    const uRole = uRoleLower ? uRoleLower.toUpperCase() : 'STAFF';
-    let userPerms = perms[`${uDept}_${uRole}`];
-    if (!Array.isArray(userPerms)) userPerms = perms[`${uDept}_STAFF`] || [];
+    // 🔑 สิทธิ์ผูกกับ "แผนก" อย่างเดียว — ตำแหน่ง (role) เป็นแค่ป้ายบอกหน้าที่ ไม่คุมสิทธิ์
+    let userPerms = perms[uDept];
+
+    // ⏳ รองรับข้อมูลรูปแบบเก่า (แผนก_ตำแหน่ง) เผื่อยังไม่ได้แปลงข้อมูล
+    // จะได้ไม่มีใครเมนูหายกะทันหัน ถ้า deploy โค้ดใหม่ก่อนแปลงข้อมูล
+    if (!Array.isArray(userPerms)) {
+        const uRole = uRoleLower ? uRoleLower.toUpperCase() : "STAFF";
+        userPerms = perms[`${uDept}_${uRole}`];
+        if (!Array.isArray(userPerms)) userPerms = perms[`${uDept}_STAFF`] || [];
+    }
     return userPerms.includes(menuId);
 };
 
