@@ -1,39 +1,71 @@
 <div id="dutyApp" class="fade-in flex flex-col h-full relative bg-[#0f172a] rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
 
     <div class="fade-in flex flex-col h-full relative pb-10 w-full max-w-full">
-        <div class="bg-indigo-700 text-white p-3 shadow-md shrink-0 flex flex-col md:flex-row justify-between items-center z-30 gap-3 rounded-t-xl mt-4 mx-4">
-            <div class="flex items-center gap-4 w-full md:w-auto">
-                <div class="bg-white/20 p-2 rounded-lg"><span class="material-icons text-2xl">assignment_ind</span></div>
+        <!-- 🏷️ หัวหน้าระบบจัดหน้าที่ (ออกแบบใหม่) — id/onclick เดิมทุกตัว -->
+        <style>
+            #dutyApp .dh{margin:16px 16px 0;padding:14px 16px 0;border-radius:16px 16px 0 0;background:#121c30;border:1px solid #24324b;border-bottom:0;color:#e7ecf5;position:relative;z-index:30}
+            #dutyApp .dh-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+            #dutyApp .dh-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none;box-shadow:0 6px 18px rgba(232,193,90,.25)}
+            #dutyApp .dh-ico .material-icons{font-size:24px}
+            #dutyApp .dh-title{font-size:19px;font-weight:900;line-height:1.2;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+            #dutyApp .dh-dept{font-size:12px;font-weight:900;padding:2px 10px;border-radius:999px;background:rgba(232,193,90,.14);color:#E8C15A;border:1px solid rgba(232,193,90,.45)}
+            #dutyApp .dh-sub{font-size:12px;color:#8a97ad;font-weight:600;margin-top:2px}
+            #dutyApp .dh-act{margin-left:auto;display:flex;gap:8px;align-items:center}
+            #dutyApp .dh-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+            #dutyApp .dh-btn .material-icons{font-size:17px;color:#9fb0cc}
+            #dutyApp .dh-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
+            #dutyApp .dh-btn:focus-visible,#dutyApp .dh-tab:focus-visible,#dutyApp .dh .dept-segment-btn:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
+            /* แถวล่างของหัว: เลือกแผนก (ซ้าย) + แท็บมุมมอง (ขวา) */
+            #dutyApp .dh-nav{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;border-bottom:1px solid #24324b}
+            #dutyApp .dh .dept-segment-container{display:flex;gap:2px;padding:3px;margin-bottom:10px;border-radius:11px;background:#0c1424;border:1px solid #22304a;box-shadow:none;transform:none}
+            #dutyApp .dh .dept-segment-btn{height:32px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:800;color:#8a97ad;gap:6px}
+            #dutyApp .dh .dept-segment-btn .material-icons{font-size:16px}
+            #dutyApp .dh .dept-segment-btn:not(.active):hover{color:#fff;background:#1a2640}
+            #dutyApp .dh .dept-segment-btn.active{background:#E8C15A;color:#1b1406;box-shadow:0 3px 10px rgba(232,193,90,.25)}
+            #dutyApp .dh-tabs{display:flex;gap:4px}
+            #dutyApp .dh-tab{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;font-size:13.5px;font-weight:800;color:#8a97ad;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;transition:color .15s,border-color .15s}
+            #dutyApp .dh-tab .material-icons{font-size:17px}
+            #dutyApp .dh-tab:hover{color:#dbe3f0}
+            #dutyApp .dh-tab.active{color:#fff;border-bottom-color:#E8C15A}
+            #dutyApp .dh-tab.active .material-icons{color:#E8C15A}
+            #dutyApp .dh .hidden{display:none !important}
+            @media (max-width:640px){ #dutyApp .dh-act{margin-left:0;width:100%} #dutyApp .dh .dept-segment-container{overflow-x:auto;max-width:100%} }
+        </style>
+
+        <div class="dh shrink-0">
+            <div class="dh-top">
+                <div class="dh-ico"><span class="material-icons">assignment_ind</span></div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight flex items-center gap-2">ระบบจัดหน้าที่ <span id="dutyDeptLabel" class="text-[10px] bg-white text-indigo-700 px-2 py-0.5 rounded shadow font-black">AM</span></h1>
-                    <p class="text-[10px] text-indigo-200">1 คนทำ 1 เว็บ (เหมาทุกหัวข้อ) | ข้ามคนลาหยุดอัตโนมัติ</p>
+                    <h1 class="dh-title">ระบบจัดหน้าที่ <span id="dutyDeptLabel" class="dh-dept">AM</span></h1>
+                    <p class="dh-sub">1 คนทำ 1 เว็บ ดูแลทุกหัวข้อของเว็บนั้น และข้ามคนที่ลาหยุดให้อัตโนมัติ</p>
+                </div>
+                <div class="dh-act">
+                    <!-- เปิดให้ทุกคนดูประวัติได้ (ไม่ใช่ duty-admin-only) -->
+                    <button onclick="openDutyHistoryModal()" id="tabBtnHistory" class="dh-btn" title="ดูตารางหน้าที่ย้อนหลัง">
+                        <span class="material-icons">history</span> ประวัติ
+                    </button>
+                    <button onclick="showPage('dashboard')" class="dh-btn" title="กลับหน้าหลัก">
+                        <span class="material-icons">arrow_back</span> กลับ
+                    </button>
                 </div>
             </div>
-            
-            <div class="flex flex-wrap gap-2 items-center w-full md:w-auto justify-start md:justify-end">
-               <div class="dept-segment-container flex scale-90 origin-left">
-                    <button onclick="switchDutyDept('AM')" id="btnDutyAM" class="dept-segment-btn active"><span class="material-icons text-sm">business</span> AM</button>
-                    <button onclick="switchDutyDept('OD')" id="btnDutyOD" class="dept-segment-btn"><span class="material-icons text-sm">groups</span> OD</button>
-                    <button onclick="switchDutyDept('AMQL')" id="btnDutyAMQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน AM</button>
-                    <button onclick="switchDutyDept('ODQL')" id="btnDutyODQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน OD</button>
+
+            <div class="dh-nav">
+                <div class="dept-segment-container" role="tablist" aria-label="เลือกแผนก">
+                    <button onclick="switchDutyDept('AM')" id="btnDutyAM" class="dept-segment-btn active"><span class="material-icons">business</span> AM</button>
+                    <button onclick="switchDutyDept('OD')" id="btnDutyOD" class="dept-segment-btn"><span class="material-icons">groups</span> OD</button>
+                    <button onclick="switchDutyDept('AMQL')" id="btnDutyAMQL" class="dept-segment-btn"><span class="material-icons">school</span> ผู้สอน AM</button>
+                    <button onclick="switchDutyDept('ODQL')" id="btnDutyODQL" class="dept-segment-btn"><span class="material-icons">school</span> ผู้สอน OD</button>
                 </div>
 
-                <div class="flex bg-indigo-900 rounded-lg p-1 mr-2 duty-admin-only">
-                    <button onclick="switchDutyTab('roster')" id="tabBtnRoster" class="px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition">📋 จัดเวร</button>
-                    <button onclick="switchDutyTab('settings')" id="tabBtnSettings" class="px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition">⚙️ ตั้งค่าสิทธิ์ & หัวข้อ</button>
+                <div class="dh-tabs duty-admin-only" role="tablist" aria-label="มุมมอง">
+                    <button onclick="switchDutyTab('roster')" id="tabBtnRoster" class="dh-tab active"><span class="material-icons">view_quilt</span> จัดเวร</button>
+                    <button onclick="switchDutyTab('settings')" id="tabBtnSettings" class="dh-tab"><span class="material-icons">tune</span> ตั้งค่าสิทธิ์และหัวข้อ</button>
                 </div>
-
-                <!-- 🩹 [เปิดให้ทุกคนดูได้] แยกปุ่มประวัติออกจาก duty-admin-only เพื่อให้พนักงานทั่วไปกดดูได้ด้วย
-                     (เดิมรวมอยู่กับปุ่มแอดมินอื่นๆ เลยโดนซ่อนไปด้วยกันทั้งชุด) -->
-                <button onclick="openDutyHistoryModal()" id="tabBtnHistory" class="mr-2 px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-900 text-indigo-300 hover:text-white hover:bg-indigo-800 transition flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติ</button>
-
-                <button onclick="showPage('dashboard')" class="bg-black/20 hover:bg-black/40 text-white px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 text-xs shadow-sm border border-white/20 backdrop-blur-sm shrink-0">
-                    <span class="material-icons text-sm">arrow_back</span> กลับ
-                </button>
             </div>
         </div>
 
-        <div id="dutyTabRoster" class="flex-1 overflow-hidden flex flex-col mx-4 bg-white dark:bg-slate-900 border-x border-b border-gray-200 dark:border-slate-700 shadow-sm rounded-b-xl w-auto">
+        <div id="dutyTabRoster" class="flex-1 overflow-hidden flex flex-col mx-4 bg-white dark:bg-slate-900 border-x border-b shadow-sm rounded-b-xl w-auto" style="border-color:#24324b">
             <!-- 🧭 แถบเครื่องมือจัดหน้าที่ (จัดกลุ่มใหม่: เลือกวัน/กะ → จัดตาราง → การเวียน → ล้าง) — id/onclick เดิมทุกตัว -->
             <style>
                 #dutyApp .dt-bar{background:#121c30;border-bottom:1px solid #24324b;padding:10px 12px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:20}
@@ -173,19 +205,27 @@
                 กำลังโหลดข้อมูลบุคลากร...
             </div>
 
-            <div id="dutyRequirementsWrapper" class="duty-admin-only bg-indigo-50 dark:bg-slate-900/50 p-2 border-b border-indigo-100 dark:border-slate-700 shrink-0">
-                <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-indigo-800 dark:text-indigo-300 mb-2 px-2">
-                    <span class="flex items-center gap-1.5"><span class="material-icons text-[15px]">groups</span>จำนวนคนต่อเว็บ <span class="font-semibold opacity-75">(กด − ย้ายคนเข้าส่วนกลาง, กด + แจกคนจากส่วนกลาง, ◀ ▶ สลับลำดับเว็บ)</span></span>
-                    <div class="flex items-center gap-2">
-                        <button id="odRoomsBtn" onclick="configOdDiscordRooms()" style="display:none" class="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition transform active:scale-95" title="ตั้งชื่อห้อง Discord ของ OD — ระบบเฉลี่ยคนลงห้องตอนสุ่มจัดหน้าที่">
-                            <span class="material-icons text-[14px]">headset_mic</span> ห้องดิส
+            <!-- 👥 จำนวนคนต่อเว็บ (ออกแบบใหม่) -->
+            <div id="dutyRequirementsWrapper" class="duty-admin-only dq shrink-0">
+                <div class="dq-head">
+                    <div class="dq-title">
+                        <span class="material-icons">groups</span>
+                        <div>
+                            <div class="dq-h">จำนวนคนต่อเว็บ</div>
+                            <div class="dq-hint">กด − ย้ายคนกลับส่วนกลาง กด + แจกคนจากส่วนกลาง ชี้ที่การ์ดเพื่อสลับลำดับเว็บ</div>
+                        </div>
+                    </div>
+                    <div id="dreqPoolSlot" class="dq-poolslot"></div>
+                    <div class="dq-tools">
+                        <button id="odRoomsBtn" onclick="configOdDiscordRooms()" style="display:none" class="dt-btn" title="ตั้งชื่อห้อง Discord ของ OD — ระบบเฉลี่ยคนลงห้องตอนสุ่มจัดหน้าที่">
+                            <span class="material-icons" style="color:#a5b4fc">headset_mic</span> ห้องดิสคอร์ด
                         </button>
-                        <button onclick="autoSuggestRequirements()" class="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition transform active:scale-95">
-                            <span class="material-icons text-[14px]">auto_fix_high</span> คำนวณยอดคนออโต้
+                        <button onclick="autoSuggestRequirements()" class="dt-btn" title="แบ่งคนลงแต่ละเว็บให้อัตโนมัติตามสิทธิ์ของพนักงาน">
+                            <span class="material-icons" style="color:#5eead4">auto_fix_high</span> แบ่งคนอัตโนมัติ
                         </button>
                     </div>
                 </div>
-                <div id="dutyRequirements" class="flex flex-wrap gap-2 px-2 pb-2"></div>
+                <div id="dutyRequirements" class="dq-grid"></div>
             </div>
 
             <div class="flex-1 flex flex-col md:flex-row overflow-hidden bg-slate-100 dark:bg-slate-900/80 w-full">

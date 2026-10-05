@@ -344,8 +344,9 @@ window.switchDutyTab = function(tabName) {
     document.getElementById('dutyTabSettings')?.classList.add('hidden');
     document.getElementById('dutyTabSettings')?.classList.remove('flex');
     
-    const resetClass = 'px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition';
-    const activeClass = 'px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition';
+    // 🎨 แท็บหัวหน้าแบบใหม่ (สไตล์อยู่ใน duty.html: .dh-tab / .dh-tab.active)
+    const resetClass = 'dh-tab';
+    const activeClass = 'dh-tab active';
     
     const btnRoster = document.getElementById('tabBtnRoster');
     const btnSettings = document.getElementById('tabBtnSettings');
