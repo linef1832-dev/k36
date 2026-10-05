@@ -1,202 +1,103 @@
 <div id="dutyApp" class="fade-in flex flex-col h-full relative bg-[#0f172a] rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
 
     <div class="fade-in flex flex-col h-full relative pb-10 w-full max-w-full">
-        <!-- 🏷️ หัวหน้าระบบจัดหน้าที่ (ออกแบบใหม่) — id/onclick เดิมทุกตัว -->
-        <style>
-            #dutyApp .dh{margin:16px 16px 0;padding:14px 16px 0;border-radius:16px 16px 0 0;background:#121c30;border:1px solid #24324b;border-bottom:0;color:#e7ecf5;position:relative;z-index:30}
-            #dutyApp .dh-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-            #dutyApp .dh-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none;box-shadow:0 6px 18px rgba(232,193,90,.25)}
-            #dutyApp .dh-ico .material-icons{font-size:24px}
-            #dutyApp .dh-title{font-size:19px;font-weight:900;line-height:1.2;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-            #dutyApp .dh-dept{font-size:12px;font-weight:900;padding:2px 10px;border-radius:999px;background:rgba(232,193,90,.14);color:#E8C15A;border:1px solid rgba(232,193,90,.45)}
-            #dutyApp .dh-sub{font-size:12px;color:#8a97ad;font-weight:600;margin-top:2px}
-            #dutyApp .dh-act{margin-left:auto;display:flex;gap:8px;align-items:center}
-            #dutyApp .dh-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
-            #dutyApp .dh-btn .material-icons{font-size:17px;color:#9fb0cc}
-            #dutyApp .dh-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
-            #dutyApp .dh-btn:focus-visible,#dutyApp .dh-tab:focus-visible,#dutyApp .dh .dept-segment-btn:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-            /* แถวล่างของหัว: เลือกแผนก (ซ้าย) + แท็บมุมมอง (ขวา) */
-            #dutyApp .dh-nav{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;border-bottom:1px solid #24324b}
-            #dutyApp .dh .dept-segment-container{display:flex;gap:2px;padding:3px;margin-bottom:10px;border-radius:11px;background:#0c1424;border:1px solid #22304a;box-shadow:none;transform:none}
-            #dutyApp .dh .dept-segment-btn{height:32px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:800;color:#8a97ad;gap:6px}
-            #dutyApp .dh .dept-segment-btn .material-icons{font-size:16px}
-            #dutyApp .dh .dept-segment-btn:not(.active):hover{color:#fff;background:#1a2640}
-            #dutyApp .dh .dept-segment-btn.active{background:#E8C15A;color:#1b1406;box-shadow:0 3px 10px rgba(232,193,90,.25)}
-            #dutyApp .dh-tabs{display:flex;gap:4px}
-            #dutyApp .dh-tab{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;font-size:13.5px;font-weight:800;color:#8a97ad;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;transition:color .15s,border-color .15s}
-            #dutyApp .dh-tab .material-icons{font-size:17px}
-            #dutyApp .dh-tab:hover{color:#dbe3f0}
-            #dutyApp .dh-tab.active{color:#fff;border-bottom-color:#E8C15A}
-            #dutyApp .dh-tab.active .material-icons{color:#E8C15A}
-            #dutyApp .dh .hidden{display:none !important}
-            @media (max-width:640px){ #dutyApp .dh-act{margin-left:0;width:100%} #dutyApp .dh .dept-segment-container{overflow-x:auto;max-width:100%} }
-        </style>
-
-        <div class="dh shrink-0">
-            <div class="dh-top">
-                <div class="dh-ico"><span class="material-icons">assignment_ind</span></div>
+        <div class="bg-indigo-700 text-white p-3 shadow-md shrink-0 flex flex-col md:flex-row justify-between items-center z-30 gap-3 rounded-t-xl mt-4 mx-4">
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <div class="bg-white/20 p-2 rounded-lg"><span class="material-icons text-2xl">assignment_ind</span></div>
                 <div>
-                    <h1 class="dh-title">ระบบจัดหน้าที่ <span id="dutyDeptLabel" class="dh-dept">AM</span></h1>
-                    <p class="dh-sub">1 คนทำ 1 เว็บ ดูแลทุกหัวข้อของเว็บนั้น และข้ามคนที่ลาหยุดให้อัตโนมัติ</p>
-                </div>
-                <div class="dh-act">
-                    <!-- เปิดให้ทุกคนดูประวัติได้ (ไม่ใช่ duty-admin-only) -->
-                    <button onclick="openDutyHistoryModal()" id="tabBtnHistory" class="dh-btn" title="ดูตารางหน้าที่ย้อนหลัง">
-                        <span class="material-icons">history</span> ประวัติ
-                    </button>
-                    <button onclick="showPage('dashboard')" class="dh-btn" title="กลับหน้าหลัก">
-                        <span class="material-icons">arrow_back</span> กลับ
-                    </button>
+                    <h1 class="font-bold text-lg leading-tight flex items-center gap-2">ระบบจัดหน้าที่ <span id="dutyDeptLabel" class="text-[10px] bg-white text-indigo-700 px-2 py-0.5 rounded shadow font-black">AM</span></h1>
+                    <p class="text-[10px] text-indigo-200">1 คนทำ 1 เว็บ (เหมาทุกหัวข้อ) | ข้ามคนลาหยุดอัตโนมัติ</p>
                 </div>
             </div>
-
-            <div class="dh-nav">
-                <div class="dept-segment-container" role="tablist" aria-label="เลือกแผนก">
-                    <button onclick="switchDutyDept('AM')" id="btnDutyAM" class="dept-segment-btn active"><span class="material-icons">business</span> AM</button>
-                    <button onclick="switchDutyDept('OD')" id="btnDutyOD" class="dept-segment-btn"><span class="material-icons">groups</span> OD</button>
-                    <button onclick="switchDutyDept('AMQL')" id="btnDutyAMQL" class="dept-segment-btn"><span class="material-icons">school</span> ผู้สอน AM</button>
-                    <button onclick="switchDutyDept('ODQL')" id="btnDutyODQL" class="dept-segment-btn"><span class="material-icons">school</span> ผู้สอน OD</button>
+            
+            <div class="flex flex-wrap gap-2 items-center w-full md:w-auto justify-start md:justify-end">
+               <div class="dept-segment-container flex scale-90 origin-left">
+                    <button onclick="switchDutyDept('AM')" id="btnDutyAM" class="dept-segment-btn active"><span class="material-icons text-sm">business</span> AM</button>
+                    <button onclick="switchDutyDept('OD')" id="btnDutyOD" class="dept-segment-btn"><span class="material-icons text-sm">groups</span> OD</button>
+                    <button onclick="switchDutyDept('AMQL')" id="btnDutyAMQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน AM</button>
+                    <button onclick="switchDutyDept('ODQL')" id="btnDutyODQL" class="dept-segment-btn"><span class="material-icons text-sm">school</span> ผู้สอน OD</button>
                 </div>
 
-                <div class="dh-tabs duty-admin-only" role="tablist" aria-label="มุมมอง">
-                    <button onclick="switchDutyTab('roster')" id="tabBtnRoster" class="dh-tab active"><span class="material-icons">view_quilt</span> จัดเวร</button>
-                    <button onclick="switchDutyTab('settings')" id="tabBtnSettings" class="dh-tab"><span class="material-icons">tune</span> ตั้งค่าสิทธิ์และหัวข้อ</button>
+                <div class="flex bg-indigo-900 rounded-lg p-1 mr-2 duty-admin-only">
+                    <button onclick="switchDutyTab('roster')" id="tabBtnRoster" class="px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-500 text-white shadow transition">📋 จัดเวร</button>
+                    <button onclick="switchDutyTab('settings')" id="tabBtnSettings" class="px-3 py-1.5 rounded-md text-xs font-bold text-indigo-300 hover:text-white transition">⚙️ ตั้งค่าสิทธิ์ & หัวข้อ</button>
                 </div>
+
+                <!-- 🩹 [เปิดให้ทุกคนดูได้] แยกปุ่มประวัติออกจาก duty-admin-only เพื่อให้พนักงานทั่วไปกดดูได้ด้วย
+                     (เดิมรวมอยู่กับปุ่มแอดมินอื่นๆ เลยโดนซ่อนไปด้วยกันทั้งชุด) -->
+                <button onclick="openDutyHistoryModal()" id="tabBtnHistory" class="mr-2 px-3 py-1.5 rounded-md text-xs font-bold bg-indigo-900 text-indigo-300 hover:text-white hover:bg-indigo-800 transition flex items-center gap-1"><span class="material-icons text-sm">history</span> ประวัติ</button>
+
+                <button onclick="showPage('dashboard')" class="bg-black/20 hover:bg-black/40 text-white px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 text-xs shadow-sm border border-white/20 backdrop-blur-sm shrink-0">
+                    <span class="material-icons text-sm">arrow_back</span> กลับ
+                </button>
             </div>
         </div>
 
-        <div id="dutyTabRoster" class="flex-1 overflow-hidden flex flex-col mx-4 bg-white dark:bg-slate-900 border-x border-b shadow-sm rounded-b-xl w-auto" style="border-color:#24324b">
-            <!-- 🧭 แถบเครื่องมือจัดหน้าที่ (จัดกลุ่มใหม่: เลือกวัน/กะ → จัดตาราง → การเวียน → ล้าง) — id/onclick เดิมทุกตัว -->
-            <style>
-                #dutyApp .dt-bar{background:#121c30;border-bottom:1px solid #24324b;padding:10px 12px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:20}
-                #dutyApp .dt-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-                #dutyApp .dt-grow{flex:1 1 auto}
-                /* กล่องกลุ่ม */
-                #dutyApp .dt-grp{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border-radius:12px;background:#0c1424;border:1px solid #22304a}
-                #dutyApp .dt-cap{font-size:11px;font-weight:800;color:#7d8ba3;margin-right:4px;white-space:nowrap;display:flex;align-items:center;gap:4px}
-                #dutyApp .dt-cap .material-icons{font-size:14px;color:#56657f}
-                #dutyApp .dt-grp.danger{border-color:#4a2330;background:#170e16}
-                #dutyApp .dt-grp.danger .dt-cap{color:#c58a96}
-                #dutyApp .dt-grp.danger .dt-cap .material-icons{color:#8f4f5d}
-                /* ช่องเลือก */
-                #dutyApp .dt-field{display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#e7ecf5}
-                #dutyApp .dt-field .material-icons{font-size:17px;color:#E8C15A}
-                #dutyApp .dt-field input,#dutyApp .dt-field select{background:transparent;border:0;outline:none;color:#f3f6fb;font-weight:800;font-size:13.5px;cursor:pointer;color-scheme:dark}
-                #dutyApp .dt-field select option{background:#18233a;color:#f3f6fb}
-                #dutyApp .dt-field:focus-within{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
-                /* ปุ่ม */
-                #dutyApp .dt-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;
-                    border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;transition:background .15s,border-color .15s,color .15s,transform .08s}
-                #dutyApp .dt-btn .material-icons{font-size:17px}
-                #dutyApp .dt-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
-                #dutyApp .dt-btn:active{transform:scale(.97)}
-                #dutyApp .dt-btn:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-                #dutyApp .dt-btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
-                #dutyApp .dt-btn.primary{height:36px;padding:0 16px;background:#E8C15A;border-color:#E8C15A;color:#1b1406;box-shadow:0 4px 14px rgba(232,193,90,.22)}
-                #dutyApp .dt-btn.primary .material-icons{color:#1b1406}
-                #dutyApp .dt-btn.primary:hover{background:#f1cf74;border-color:#f1cf74}
-                #dutyApp .dt-btn.ai .material-icons{color:#e879f9}
-                #dutyApp .dt-btn.add .material-icons{color:#34d399}
-                #dutyApp .dt-btn.pin .material-icons{color:#fbbf24}
-                #dutyApp .dt-btn.me .material-icons{color:#E8C15A}
-                #dutyApp .dt-btn.warn{color:#f5b7c1;border-color:#5a2a37;background:#24121b}
-                #dutyApp .dt-btn.warn .material-icons{color:#fb7185}
-                #dutyApp .dt-btn.warn:hover{background:#3a1724;border-color:#9f3a52;color:#fff}
-                #dutyApp .dt-btn.restore{color:#a7f3d0;border-color:#1f5a46;background:#0f2a22}
-                #dutyApp .dt-btn.restore .material-icons{color:#34d399}
-                #dutyApp .dt-badge{min-width:20px;height:18px;padding:0 6px;border-radius:999px;background:#E8C15A;color:#1b1406;font-size:11px;font-weight:900;display:inline-flex;align-items:center;justify-content:center}
-                #dutyApp .dt-num{width:46px;height:28px;border-radius:7px;background:#18233a;border:1px solid #2c3b58;color:#fff;text-align:center;font-weight:900;font-size:13px;outline:none}
-                #dutyApp .dt-num:focus{border-color:#E8C15A}
-                #dutyApp .dt-unit{font-size:12px;font-weight:700;color:#8a97ad}
-                #dutyApp .dt-gaptag{color:#E8C15A}
-                #dutyApp .dt-search{position:relative}
-                #dutyApp .dt-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:#7d8ba3;pointer-events:none}
-                #dutyApp .dt-search input{height:36px;width:180px;padding:0 10px 0 34px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#f3f6fb;font-size:13.5px;font-weight:700;outline:none;transition:width .2s,border-color .15s}
-                #dutyApp .dt-search input:focus{width:240px;border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
-                #dutyApp .dt-shiftchip{display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#e7ecf5;font-size:13px;font-weight:800}
-                #dutyApp .dt-shiftchip .material-icons{font-size:17px;color:#E8C15A}
-                /* JS ใช้คลาส hidden ซ่อน/โชว์ → ต้องชนะ display ของคลาสข้างบน */
-                #dutyApp .dt-bar .hidden{display:none !important}
-                @media (max-width:640px){
-                    #dutyApp .dt-search input,#dutyApp .dt-search input:focus{width:100%}
-                    #dutyApp .dt-search{flex:1 1 100%}
-                    #dutyApp .dt-grp{flex-wrap:wrap}
-                }
-                @media (prefers-reduced-motion:reduce){ #dutyApp .dt-btn,#dutyApp .dt-search input{transition:none} }
-            </style>
+        <div id="dutyTabRoster" class="flex-1 overflow-hidden flex flex-col mx-4 bg-white dark:bg-slate-900 border-x border-b border-gray-200 dark:border-slate-700 shadow-sm rounded-b-xl w-auto">
+            <div class="bg-white dark:bg-slate-800 p-3 border-b dark:border-slate-700 flex flex-wrap gap-3 items-center shrink-0 z-20 shadow-sm">
+                <div class="flex items-center gap-2 border-r dark:border-slate-600 pr-3">
+                    <span class="text-xs font-bold text-gray-500">วันที่:</span>
+                    <input type="date" id="dutyDate" class="text-sm font-bold text-slate-800 p-1 rounded outline-none border border-gray-300 dark:bg-slate-700 dark:text-white dark:border-slate-600" onchange="refreshDutyData()">
+                </div>
+                
+                <div class="duty-admin-only flex items-center gap-2 border-r dark:border-slate-600 pr-3">
+                    <span class="text-xs font-bold text-gray-500">จัดกะ:</span>
+                    <select id="dutyShiftSelect" onchange="refreshDutyData()" class="text-sm p-1.5 rounded font-bold text-slate-800 outline-none border border-gray-300 bg-indigo-50 text-indigo-700 cursor-pointer dark:bg-slate-700 dark:text-indigo-300 dark:border-slate-600">
+                        <option value="กะเช้า">☀️ กะเช้า</option>
+                        <option value="กะกลาง">🌤️ กะกลาง</option>
+                        <option value="กะดึก">🌙 กะดึก</option>
+                    </select>
+                </div>
+                
+                <button id="btnGenerateRoster" onclick="generateDutyRoster()" class="duty-admin-only bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 disabled:bg-gray-500 disabled:cursor-not-allowed">
+                    <span class="material-icons text-base">casino</span> สุ่มจัดหน้าที่
+                </button>
+                <button onclick="clearDutyRoster()" class="duty-admin-only bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95">
+                    <span class="material-icons text-base">delete_sweep</span> ล้างตาราง
+                </button>
 
-            <div class="dt-bar shrink-0">
-                <!-- แถวบน: ดูวันไหน กะไหน + หาตัวเอง -->
-                <div class="dt-row">
-                    <label class="dt-field" title="วันที่ของตารางหน้าที่">
-                        <span class="material-icons">event</span>
-                        <input type="date" id="dutyDate" onchange="refreshDutyData()">
-                    </label>
-
-                    <label class="duty-admin-only dt-field" title="เลือกกะที่จะจัด">
-                        <span class="material-icons">schedule</span>
-                        <select id="dutyShiftSelect" onchange="refreshDutyData()">
-                            <option value="กะเช้า">☀️ กะเช้า</option>
-                            <option value="กะกลาง">🌤️ กะกลาง</option>
-                            <option value="กะดึก">🌙 กะดึก</option>
-                        </select>
-                    </label>
-
-                    <!-- พนักงานทั่วไป: โชว์กะของตัวเองแทนช่องเลือกกะ -->
-                    <div id="staffShiftIndicator" class="hidden dt-shiftchip">
-                        <span class="material-icons">schedule</span> <span id="staffShiftLabel">...</span>
+                <button id="btnQuickBackup" onclick="quickAssignBackups()" class="duty-admin-only bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-fuchsia-400">
+                    <span class="material-icons text-base">bolt</span> จัดรองด่วน (AI)
+                </button>
+                
+                <div class="flex items-center gap-1.5 bg-slate-900/70 border border-indigo-500/40 rounded-lg px-2.5 py-1.5" title="ทำเว็บนี้แล้วต้องเว้นกี่วันถึงจะกลับมาได้อีก — ช่วยให้เวียนงานทั่วถึง">
+                        <span class="material-icons text-[15px] text-indigo-400">refresh</span>
+                        <span class="text-[10px] font-bold text-gray-300 whitespace-nowrap">เว้นซ้ำเว็บ <span id="rotGapDept" class="text-indigo-300">AM</span></span>
+                        <input type="number" min="0" max="30" id="rotGapInput" onchange="saveRotationGap(this.value)"
+                            class="w-11 bg-slate-800 border border-slate-600 text-white rounded text-center text-[11px] font-bold py-0.5 outline-none focus:border-indigo-400">
+                        <span class="text-[10px] font-bold text-gray-400">วัน</span>
                     </div>
+                    <button onclick="addStaffToRoster()" class="duty-admin-only bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95">
+                    <span class="material-icons text-base">person_add</span> ดึงคนเข้างาน
+                </button>
 
-                    <div class="dt-grow"></div>
+                <button id="btnClearSecondary" onclick="clearSecondaryDuties()" title="ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ" class="duty-admin-only bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 border border-cyan-400">
+                    <span class="material-icons text-base">layers_clear</span> ล้างงานรอง
+                </button>
+                
+                <button id="btnRestoreRoster" onclick="restoreDutyRoster()" class="hidden duty-admin-only bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition flex items-center gap-1 transform active:scale-95 ml-2">
+                    <span class="material-icons text-base">restore</span> กู้คืนที่ลบ
+                </button>
 
-                    <button onclick="searchDutyMyself()" class="dt-btn me" title="เลื่อนไปที่หน้าที่ของฉัน">
-                        <span class="material-icons">person_pin</span> หน้าที่ของฉัน
-                    </button>
-                    <div class="dt-search">
-                        <span class="material-icons">search</span>
-                        <input type="text" id="dutySearchInput" onkeyup="onDutySearch()" placeholder="ค้นหาชื่อพนักงาน">
-                    </div>
+                <!-- 📌 รายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน -->
+                <!-- ไม่ใช้ duty-admin-only เพราะสิทธิ์ของปุ่มนี้แยกต่างหาก (duty_stay_pin)
+                     ให้ updateStayPinButton() เป็นคนตัดสินว่าจะโชว์ไหม -->
+                <button id="btnStayPinList" onclick="openStayPinListModal()" title="ดูรายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมต่อ" style="display:none" class="opacity-60 bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-1.5 rounded-lg shadow-md font-bold transition items-center gap-1.5 transform active:scale-95">
+                    <span class="material-icons text-base">push_pin</span> อยู่ต่อ
+                    <span id="stayPinCount" class="bg-white/30 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center">0</span>
+                </button>
+
+                <div id="staffShiftIndicator" class="hidden text-sm font-bold text-indigo-700 bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200 flex items-center gap-1 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-700">
+                    <span class="material-icons text-sm">schedule</span> กะ: <span id="staffShiftLabel">...</span>
                 </div>
 
-                <!-- แถวล่าง: เครื่องมือแอดมิน แยกเป็นกลุ่มตามงาน -->
-                <div class="dt-row">
-                    <div class="duty-admin-only dt-grp">
-                        <span class="dt-cap"><span class="material-icons">grid_view</span>จัดตาราง</span>
-                        <button id="btnGenerateRoster" onclick="generateDutyRoster()" class="dt-btn primary" title="สุ่มคนลงเว็บทั้งกะ (ข้ามคนลาหยุดให้อัตโนมัติ)">
-                            <span class="material-icons">casino</span> สุ่มจัดหน้าที่
-                        </button>
-                        <button id="btnQuickBackup" onclick="quickAssignBackups()" class="dt-btn ai" title="ให้ AI จัดงานรอง (สแตนด์บาย) ให้ทุกเว็บ">
-                            <span class="material-icons">bolt</span> จัดรอง (AI)
-                        </button>
-                        <button onclick="addStaffToRoster()" class="dt-btn add" title="เพิ่มพนักงานเข้าตารางวันนี้">
-                            <span class="material-icons">person_add</span> ดึงคนเข้างาน
-                        </button>
-                    </div>
-
-                    <div class="dt-grp" title="ทำเว็บนี้แล้วต้องเว้นกี่วันถึงจะกลับมาได้อีก — ช่วยให้เวียนงานทั่วถึง">
-                        <span class="dt-cap"><span class="material-icons">sync</span>การเวียน</span>
-                        <span class="dt-unit">เว้นซ้ำเว็บ <span id="rotGapDept" class="dt-gaptag">AM</span></span>
-                        <input type="number" min="0" max="30" id="rotGapInput" onchange="saveRotationGap(this.value)" class="dt-num">
-                        <span class="dt-unit">วัน</span>
-                        <!-- สิทธิ์ของปุ่มนี้แยกต่างหาก (duty_stay_pin) — updateStayPinButton() เป็นคนซ่อน/โชว์ -->
-                        <button id="btnStayPinList" onclick="openStayPinListModal()" title="ดูรายชื่อคนที่ถูกล็อกให้อยู่เว็บเดิมต่อ" style="display:none" class="opacity-60 dt-btn pin">
-                            <span class="material-icons">push_pin</span> อยู่ต่อ <span id="stayPinCount" class="dt-badge">0</span>
-                        </button>
-                    </div>
-
-                    <div class="dt-grow"></div>
-
-                    <div class="duty-admin-only dt-grp danger">
-                        <span class="dt-cap"><span class="material-icons">cleaning_services</span>ล้าง</span>
-                        <button id="btnRestoreRoster" onclick="restoreDutyRoster()" class="hidden dt-btn restore" title="เอาตารางที่เพิ่งล้างกลับมา">
-                            <span class="material-icons">restore</span> กู้คืนที่ลบ
-                        </button>
-                        <button id="btnClearSecondary" onclick="clearSecondaryDuties()" class="dt-btn warn" title="ล้างเฉพาะงานรอง (สแตนด์บาย) — งานหลักไม่กระทบ">
-                            <span class="material-icons">layers_clear</span> งานรอง
-                        </button>
-                        <button onclick="clearDutyRoster()" class="dt-btn warn" title="ล้างตารางหน้าที่ทั้งกะของวันนี้">
-                            <span class="material-icons">delete_sweep</span> ทั้งตาราง
-                        </button>
+                <div class="flex-1"></div>
+                
+                <div class="flex items-center gap-2">
+                    <button onclick="searchDutyMyself()" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow flex items-center gap-1"><span class="material-icons text-sm">person</span> หน้าที่ฉัน</button>
+                    <div class="relative">
+                        <span class="material-icons absolute left-2 top-1.5 text-gray-400 text-sm">search</span>
+                        <input type="text" id="dutySearchInput" onkeyup="onDutySearch()" placeholder="ค้นหาชื่อ..." class="pl-7 pr-2 py-1.5 rounded border border-gray-300 dark:border-slate-600 text-sm outline-none focus:ring-1 focus:ring-indigo-500 w-32 focus:w-48 transition-all dark:bg-slate-700 dark:text-white shadow-inner">
                     </div>
                 </div>
             </div>
@@ -205,27 +106,19 @@
                 กำลังโหลดข้อมูลบุคลากร...
             </div>
 
-            <!-- 👥 จำนวนคนต่อเว็บ (ออกแบบใหม่) -->
-            <div id="dutyRequirementsWrapper" class="duty-admin-only dq shrink-0">
-                <div class="dq-head">
-                    <div class="dq-title">
-                        <span class="material-icons">groups</span>
-                        <div>
-                            <div class="dq-h">จำนวนคนต่อเว็บ</div>
-                            <div class="dq-hint">กด − ย้ายคนกลับส่วนกลาง กด + แจกคนจากส่วนกลาง ชี้ที่การ์ดเพื่อสลับลำดับเว็บ</div>
-                        </div>
-                    </div>
-                    <div id="dreqPoolSlot" class="dq-poolslot"></div>
-                    <div class="dq-tools">
-                        <button id="odRoomsBtn" onclick="configOdDiscordRooms()" style="display:none" class="dt-btn" title="ตั้งชื่อห้อง Discord ของ OD — ระบบเฉลี่ยคนลงห้องตอนสุ่มจัดหน้าที่">
-                            <span class="material-icons" style="color:#a5b4fc">headset_mic</span> ห้องดิสคอร์ด
+            <div id="dutyRequirementsWrapper" class="duty-admin-only bg-indigo-50 dark:bg-slate-900/50 p-2 border-b border-indigo-100 dark:border-slate-700 shrink-0">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-indigo-800 dark:text-indigo-300 mb-2 px-2">
+                    <span>จำนวนคนต่อเว็บ — กด <b>−</b> เก็บคนเข้ากองกลาง · กด <b>+</b> แจกจากกองกลางเข้าเว็บที่ต้องการ · ◀▶ เลื่อนตำแหน่ง</span>
+                    <div class="flex items-center gap-2">
+                        <button id="odRoomsBtn" onclick="configOdDiscordRooms()" style="display:none" class="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition transform active:scale-95" title="ตั้งชื่อห้อง Discord ของ OD — ระบบเฉลี่ยคนลงห้องตอนสุ่มจัดหน้าที่">
+                            <span class="material-icons text-[14px]">headset_mic</span> ห้องดิส
                         </button>
-                        <button onclick="autoSuggestRequirements()" class="dt-btn" title="แบ่งคนลงแต่ละเว็บให้อัตโนมัติตามสิทธิ์ของพนักงาน">
-                            <span class="material-icons" style="color:#5eead4">auto_fix_high</span> แบ่งคนอัตโนมัติ
+                        <button onclick="autoSuggestRequirements()" class="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition transform active:scale-95">
+                            <span class="material-icons text-[14px]">auto_fix_high</span> คำนวณยอดคนออโต้
                         </button>
                     </div>
                 </div>
-                <div id="dutyRequirements" class="dq-grid"></div>
+                <div id="dutyRequirements" class="flex flex-wrap gap-2 px-2 pb-2"></div>
             </div>
 
             <div class="flex-1 flex flex-col md:flex-row overflow-hidden bg-slate-100 dark:bg-slate-900/80 w-full">
@@ -275,145 +168,47 @@
             </div>
         </div>
 
-        <!-- ⚙️ แท็บตั้งค่าสิทธิ์และหัวข้อ (ออกแบบใหม่ + ติกทั้งแถว/ทั้งคอลัมน์/ทั้งหมด) — id เดิมทุกตัว -->
-        <style>
-            #dutyApp .ds{background:#0f1829;border:1px solid #24324b;border-top:0;border-radius:0 0 16px 16px;padding:14px;gap:14px}
-            #dutyApp .ds-panel{background:#121c30;border:1px solid #24324b;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
-            #dutyApp .ds-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid #24324b}
-            #dutyApp .ds-title{display:flex;align-items:center;gap:10px;margin-right:auto}
-            #dutyApp .ds-title>.material-icons{font-size:20px;color:#E8C15A;width:36px;height:36px;border-radius:10px;background:rgba(232,193,90,.12);display:flex;align-items:center;justify-content:center}
-            #dutyApp .ds-h{font-size:14.5px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px}
-            #dutyApp .ds-hint{font-size:11.5px;font-weight:600;color:#7d8ba3}
-            #dutyApp .ds-count{font-size:11.5px;font-weight:900;color:#E8C15A;background:rgba(232,193,90,.12);border:1px solid rgba(232,193,90,.4);padding:1px 9px;border-radius:999px}
-            #dutyApp .ds-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-            #dutyApp .ds-sel,#dutyApp .ds-in{height:36px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#f3f6fb;font-size:13px;font-weight:800;outline:none;padding:0 10px;color-scheme:dark}
-            #dutyApp .ds-sel option{background:#18233a}
-            #dutyApp .ds-sel:focus,#dutyApp .ds-in:focus{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
-            #dutyApp .ds-search{position:relative}
-            #dutyApp .ds-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:#7d8ba3;pointer-events:none}
-            #dutyApp .ds-search .ds-in{width:170px;padding-left:34px}
-            #dutyApp .ds-save{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:10px;border:1px solid #E8C15A;background:#E8C15A;color:#1b1406;font-size:13px;font-weight:900;cursor:pointer;transition:background .15s,box-shadow .2s}
-            #dutyApp .ds-save .material-icons{font-size:18px}
-            #dutyApp .ds-save:hover{background:#f1cf74}
-            #dutyApp .ds-save.dirty{box-shadow:0 0 0 3px rgba(232,193,90,.25),0 0 18px rgba(232,193,90,.35)}
-            #dutyApp .ds-dirty{display:none;font-size:11.5px;font-weight:800;color:#fbbf24;align-items:center;gap:4px}
-            #dutyApp .ds-dirty.on{display:inline-flex}
-            #dutyApp .ds-dirty .material-icons{font-size:15px}
-            #dutyApp .ds-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid #1d2a42;background:#0f1829;font-size:12px;font-weight:700;color:#8a97ad}
-            #dutyApp .ds-bulk .dt-btn{height:30px;font-size:12px;padding:0 11px}
-
-            /* ── ตาราง ── */
-            #dutyApp .ds-scroll{flex:1;overflow:auto;min-height:0}
-            #dutyApp .ds-tbl{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
-            #dutyApp .ds-tbl th,#dutyApp .ds-tbl td{border-bottom:1px solid #1d2a42}
-            #dutyApp .ds-tbl thead th{position:sticky;top:0;z-index:3;background:#121c30;padding:8px 4px;vertical-align:bottom}
-            #dutyApp .ds-tbl .ds-namecol{position:sticky;left:0;z-index:2;background:#121c30;text-align:left;padding:8px 12px;min-width:210px;border-right:1px solid #24324b}
-            #dutyApp .ds-tbl thead .ds-namecol{z-index:4}
-            #dutyApp .ds-th{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:64px}
-            #dutyApp .ds-team{font-size:11px;font-weight:900;padding:2px 8px;border-radius:6px;white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis}
-            #dutyApp .ds-colnum{font-size:10.5px;font-weight:700;color:#7d8ba3;font-variant-numeric:tabular-nums}
-            #dutyApp .ds-tbl tbody tr:hover td{background:#16223a}
-            #dutyApp .ds-tbl tbody tr:hover .ds-namecol{background:#16223a}
-            #dutyApp .ds-tbl tbody td{text-align:center;padding:6px 4px}
-            #dutyApp .ds-tbl tbody tr.noaccess .ds-namecol{box-shadow:inset 3px 0 0 #ef4444}
-            #dutyApp .ds-name{display:flex;align-items:center;gap:8px}
-            #dutyApp .ds-uname{font-weight:900;color:#eef2f8;white-space:nowrap}
-            #dutyApp .ds-shift{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;border:1px solid;flex:none}
-            #dutyApp .ds-shift.m{color:#fbbf24;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.08)}
-            #dutyApp .ds-shift.d{color:#60a5fa;border-color:rgba(96,165,250,.4);background:rgba(96,165,250,.08)}
-            #dutyApp .ds-shift.n{color:#a78bfa;border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08)}
-            #dutyApp .ds-mgr{font-size:10px;font-weight:800;color:#fca5a5;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);padding:0 6px;border-radius:999px}
-            #dutyApp .ds-warn{font-size:10px;font-weight:800;color:#fff;background:#dc2626;padding:1px 7px;border-radius:999px}
-            #dutyApp .ds-rowctl{margin-left:auto;display:flex;align-items:center;gap:6px;flex:none}
-            #dutyApp .ds-rowcnt{font-size:11px;font-weight:800;color:#7d8ba3;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
-            #dutyApp .ds-rowcnt.full{color:#4ade80}
-
-            /* ช่องติก */
-            #dutyApp .ds-ck{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:7px;border:1.5px solid #3a4b6b;background:#0c1424;cursor:pointer;position:relative;vertical-align:middle;transition:background .12s,border-color .12s,transform .08s}
-            #dutyApp .ds-ck:hover{border-color:#E8C15A}
-            #dutyApp .ds-ck:active{transform:scale(.9)}
-            #dutyApp .ds-ck:checked{background:#E8C15A;border-color:#E8C15A}
-            #dutyApp .ds-ck:checked::after{content:'';position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid #1b1406;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
-            #dutyApp .ds-ck:indeterminate{background:rgba(232,193,90,.3);border-color:#E8C15A}
-            #dutyApp .ds-ck:indeterminate::after{content:'';position:absolute;left:5px;top:9px;width:9px;height:2.5px;background:#E8C15A;border-radius:2px}
-            #dutyApp .ds-ck:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-            #dutyApp .ds-ck.sm{width:18px;height:18px;border-radius:6px}
-            #dutyApp .ds-ck.sm:checked::after{left:5px;top:2px;width:5px;height:9px}
-            #dutyApp .ds-ck.sm:indeterminate::after{left:3.5px;top:7px;width:8px}
-            #dutyApp .ds-empty{padding:40px;text-align:center;color:#7d8ba3;font-weight:700}
-
-            /* ── หัวข้องาน ── */
-            #dutyApp .ds-roles{width:100%}
-            @media (min-width:1024px){ #dutyApp .ds-roles{width:340px;flex:none} }
-            #dutyApp .ds-addrow{display:flex;gap:8px;padding:12px 14px;border-bottom:1px solid #24324b;flex-direction:column}
-            #dutyApp .ds-addrow .ds-in,#dutyApp .ds-addrow .ds-sel{width:100%}
-            #dutyApp .ds-addrow>div{display:flex;gap:8px}
-            #dutyApp .ds-add{width:36px;height:36px;border-radius:10px;border:1px solid rgba(45,212,191,.5);background:rgba(45,212,191,.14);color:#5eead4;font-size:20px;font-weight:900;cursor:pointer;flex:none}
-            #dutyApp .ds-add:hover{background:rgba(45,212,191,.25)}
-            #dutyApp #roleEditorList{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
-            #dutyApp #roleEditorList > div{background:#18233a !important;border:1px solid #2c3b58 !important;border-radius:10px !important;padding:8px 10px !important;box-shadow:none !important}
-            #dutyApp #roleEditorList > div span{color:#e7ecf5 !important;font-size:12.5px !important}
-            #dutyApp #roleEditorList > div button{color:#f87171 !important}
-            @media (max-width:640px){ #dutyApp .ds-search .ds-in{width:100%} #dutyApp .ds-search{flex:1} #dutyApp .ds-tbl .ds-namecol{min-width:150px} }
-        </style>
-
-        <div id="dutyTabSettings" class="ds hidden flex-1 overflow-hidden flex-col lg:flex-row mx-4">
-            <div class="ds-panel flex-1 w-full">
-                <div class="ds-head">
-                    <div class="ds-title">
-                        <span class="material-icons">manage_accounts</span>
-                        <div>
-                            <div class="ds-h">สิทธิ์ดูแลหลังบ้าน <span id="dutyStaffCount" class="ds-count">0 คน</span></div>
-                            <div class="ds-hint">ติกเว็บที่แต่ละคนดูแลได้ ระบบจะสุ่มลงเฉพาะเว็บที่ติกไว้</div>
-                        </div>
+        <div id="dutyTabSettings" class="flex-1 overflow-hidden bg-slate-100 dark:bg-slate-900 p-4 hidden flex-col lg:flex-row gap-4 mx-4 border-x border-b border-gray-200 dark:border-slate-700 rounded-b-xl shadow-sm w-auto">
+            <div class="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow border dark:border-slate-700 flex flex-col overflow-hidden w-full">
+                <div class="bg-slate-50 dark:bg-slate-700 p-3 border-b dark:border-slate-600 flex flex-col xl:flex-row justify-between items-start xl:items-center shrink-0 gap-3">
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-bold text-slate-700 dark:text-white text-sm flex items-center gap-1"><span class="material-icons text-orange-500">manage_accounts</span> สิทธิ์ดูแลหลังบ้าน</h3>
+                        <span id="dutyStaffCount" class="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] px-2 py-0.5 rounded-full font-bold border border-indigo-200 dark:border-indigo-700">0 คน</span>
                     </div>
-                    <div class="ds-tools">
-                        <select id="settingShiftFilter" onchange="renderDutyAccessTable()" class="ds-sel" title="กรองตามกะ">
-                            <option value="all">ทุกกะ</option>
+                    <div class="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+                        <select id="settingShiftFilter" onchange="renderDutyAccessTable()" class="text-xs p-1.5 rounded font-bold text-slate-700 outline-none border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-sm cursor-pointer">
+                            <option value="all">ดูทุกกะ</option>
                             <option value="กะเช้า">☀️ กะเช้า</option>
                             <option value="กะกลาง">🌤️ กะกลาง</option>
                             <option value="กะดึก">🌙 กะดึก</option>
                         </select>
-                        <div class="ds-search">
-                            <span class="material-icons">search</span>
-                            <input type="text" id="settingSearchInput" onkeyup="renderDutyAccessTable()" placeholder="ค้นหาชื่อ" class="ds-in">
+                        <div class="relative flex-1 xl:w-32">
+                            <span class="material-icons absolute left-2 top-1.5 text-gray-400 text-sm">search</span>
+                            <input type="text" id="settingSearchInput" onkeyup="renderDutyAccessTable()" placeholder="ค้นหาชื่อ..." class="w-full pl-7 pr-2 py-1.5 rounded border border-gray-300 dark:border-slate-600 text-xs outline-none focus:ring-1 focus:ring-orange-500 transition-all dark:bg-slate-800 dark:text-white shadow-sm">
                         </div>
-                        <span id="dutyAccessDirty" class="ds-dirty"><span class="material-icons">edit_note</span>ยังไม่ได้บันทึก</span>
-                        <button id="dutyAccessSaveBtn" onclick="saveDutyAccess()" class="ds-save"><span class="material-icons">save</span> บันทึกสิทธิ์</button>
+                        <button onclick="saveDutyAccess()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs px-3 py-1.5 rounded shadow font-bold transition flex items-center gap-1 xl:ml-2"><span class="material-icons text-sm">save</span> บันทึก</button>
                     </div>
                 </div>
-                <div class="ds-bulk">
-                    <span>ใช้กับรายชื่อที่แสดงอยู่</span>
-                    <button onclick="dutyAccessSetAll(true)" class="dt-btn"><span class="material-icons" style="color:#4ade80">done_all</span> ติกทุกช่อง</button>
-                    <button onclick="dutyAccessSetAll(false)" class="dt-btn"><span class="material-icons" style="color:#f87171">remove_done</span> เอาออกทุกช่อง</button>
-                    <span style="margin-left:auto">ติกหัวคอลัมน์ = ทั้งเว็บ · ติกท้ายชื่อ = ทุกเว็บของคนนั้น</span>
-                </div>
-                <div class="ds-scroll custom-scrollbar">
-                    <table class="ds-tbl" id="dutyAccessTable">
-                        <thead id="dutyAccessHead"></thead>
-                        <tbody id="dutyAccessBody"></tbody>
+                <div class="flex-1 overflow-auto custom-scrollbar w-full">
+                    <table class="w-full text-xs text-left border-collapse" id="dutyAccessTable">
+                        <thead class="bg-slate-100 dark:bg-slate-900 text-gray-600 dark:text-gray-400 sticky top-0 z-10 shadow-sm border-b dark:border-slate-700" id="dutyAccessHead"></thead>
+                        <tbody id="dutyAccessBody" class="divide-y divide-gray-200 dark:divide-slate-700/50"></tbody>
                     </table>
                 </div>
             </div>
 
-            <div class="ds-panel ds-roles">
-                <div class="ds-head">
-                    <div class="ds-title">
-                        <span class="material-icons" style="color:#5eead4;background:rgba(45,212,191,.12)">checklist</span>
-                        <div>
-                            <div class="ds-h">หัวข้องานแต่ละเว็บ</div>
-                            <div class="ds-hint">รายการงานที่คนดูแลเว็บนั้นต้องทำ</div>
-                        </div>
+            <div class="w-full lg:w-96 bg-white dark:bg-slate-800 rounded-xl shadow border dark:border-slate-700 flex flex-col overflow-hidden shrink-0">
+                <div class="bg-slate-50 dark:bg-slate-700 p-3 border-b dark:border-slate-600 shrink-0">
+                    <h3 class="font-bold text-slate-700 dark:text-white text-sm flex items-center gap-1"><span class="material-icons text-teal-500">format_list_bulleted_add</span> หัวข้องานแต่ละเว็บ</h3>
+                </div>
+                <div class="p-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
+                    <select id="roleEditorTeam" onchange="renderRoleEditorList()" class="w-full p-2 rounded border border-gray-300 dark:border-slate-600 font-bold text-sm outline-none dark:bg-slate-700 dark:text-white"></select>
+                    <div class="flex gap-1 mt-2">
+                        <input type="text" id="newRoleInput" placeholder="เพิ่มหัวข้อใหม่..." class="flex-1 p-1.5 rounded border border-gray-300 dark:border-slate-600 text-xs outline-none dark:bg-slate-900 dark:text-white">
+                        <button onclick="addDutyRole()" class="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow transition">+</button>
                     </div>
                 </div>
-                <div class="ds-addrow">
-                    <select id="roleEditorTeam" onchange="renderRoleEditorList()" class="ds-sel" title="เลือกเว็บ"></select>
-                    <div>
-                        <input type="text" id="newRoleInput" placeholder="พิมพ์หัวข้อใหม่ แล้วกด +" class="ds-in" onkeydown="if(event.key==='Enter'){event.preventDefault();addDutyRole();}">
-                        <button onclick="addDutyRole()" class="ds-add" title="เพิ่มหัวข้อ">+</button>
-                    </div>
-                </div>
-                <div id="roleEditorList" class="flex-1 overflow-y-auto custom-scrollbar"></div>
+                <div id="roleEditorList" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2 bg-slate-50 dark:bg-slate-900"></div>
             </div>
         </div>
 

@@ -529,116 +529,78 @@ window.renderDutyAccessTable = function() {
     const head = document.getElementById('dutyAccessHead');
     const body = document.getElementById('dutyAccessBody');
     if(!head || !body) return;
-
+    
     let staff = GLOBAL_USER_LIST.filter(u => {
         let uDept = u.department || 'AM';
-        if (uDept === 'TRAINER') uDept = 'AMQL';
-        if (window.isTrainerDept()) return uDept === currentDutyDept;
-        return u.role === 'staff' && uDept === currentDutyDept;
+        if (uDept === 'TRAINER') uDept = 'AMQL'; 
+
+        if (window.isTrainerDept()) {
+            return uDept === currentDutyDept; 
+        } else {
+            return u.role === 'staff' && uDept === currentDutyDept;
+        }
     });
 
+    // 🌟 ดึงลิสต์รายชื่อเว็บมาตรฐานมาใช้
+    let headHtml = `<tr><th class="p-2 bg-slate-200 dark:bg-slate-800 border-r dark:border-slate-700 min-w-[120px]">ชื่อพนักงาน</th>`;
+    sortedTeams.forEach(team => { headHtml += `<th class="p-2 text-center text-[10px] font-extrabold truncate max-w-[50px] border-r dark:border-slate-700" title="${team}">${team}</th>`; });
+    headHtml += `</tr>`;
+    head.innerHTML = headHtml;
+    
     const shiftFilter = document.getElementById('settingShiftFilter') ? document.getElementById('settingShiftFilter').value : 'all';
     const searchFilter = document.getElementById('settingSearchInput') ? document.getElementById('settingSearchInput').value.toLowerCase() : '';
+
     if (shiftFilter !== 'all') staff = staff.filter(u => u.allowed_shift === shiftFilter);
     if (searchFilter) staff = staff.filter(u => u.username.toLowerCase().includes(searchFilter));
+    
     staff.sort((a,b) => a.username.localeCompare(b.username));
-
-    // เก็บรายชื่อที่แสดงอยู่ไว้ให้ปุ่มติกทั้งแถว/คอลัมน์/ทั้งหมด ใช้ (ทำกับเฉพาะคนที่เห็นบนจอ)
-    window._dutyAccessVisible = staff.map(u => String(u.id));
-
+    
     const countEl = document.getElementById('dutyStaffCount');
     if(countEl) countEl.innerText = `${staff.length} คน`;
 
-    const has = (uid, team) => (dutyAccessMatrix[uid] || []).includes(team);
-    const nVisible = staff.length;
-
-    // ── หัวตาราง: ชื่อเว็บ (สีประจำเว็บ) + ช่องติกทั้งคอลัมน์ + จำนวนคนที่ติก ──
-    let allOn = 0;
-    staff.forEach(u => sortedTeams.forEach(t => { if (has(String(u.id), t)) allOn++; }));
-    const allTotal = nVisible * sortedTeams.length;
-    let headHtml = `<tr><th class="ds-namecol"><div class="ds-name">
-            <span style="font-size:12px;font-weight:800;color:#8a97ad">ชื่อพนักงาน</span>
-            <label class="ds-rowctl" title="ติก/เอาออก ทุกช่องของทุกคนที่แสดงอยู่" style="cursor:pointer">
-                <span class="ds-rowcnt">ทั้งหมด</span>
-                <input type="checkbox" class="ds-ck" data-tri="${allTotal && allOn === allTotal ? 'all' : (allOn ? 'some' : 'none')}" onchange="dutyAccessSetAll(this.checked)" ${nVisible ? '' : 'disabled'}>
-            </label>
-        </div></th>`;
-    sortedTeams.forEach(team => {
-        const c = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
-        const on = staff.filter(u => has(String(u.id), team)).length;
-        const tri = nVisible && on === nVisible ? 'all' : (on ? 'some' : 'none');
-        headHtml += `<th><div class="ds-th">
-            <span class="ds-team ${c.bg} ${c.text}" title="${team}">${team}</span>
-            <input type="checkbox" class="ds-ck sm" data-tri="${tri}" title="ติก/เอาออก ${team} ให้ทุกคนที่แสดงอยู่" onchange="dutyAccessSetCol('${team}', this.checked)" ${nVisible ? '' : 'disabled'}>
-            <span class="ds-colnum">${on}/${nVisible}</span>
-        </div></th>`;
-    });
-    head.innerHTML = headHtml + `</tr>`;
-
-    // ── แถวพนักงาน ──
     let bodyHtml = '';
     staff.forEach(u => {
-        const uid = String(u.id);
-        const shift = String(u.allowed_shift || '');
-        const sc = shift === 'กะเช้า' ? 'm' : (shift === 'กะกลาง' ? 'd' : 'n');
-        const on = sortedTeams.filter(t => has(uid, t)).length;
-        const tri = on === sortedTeams.length ? 'all' : (on ? 'some' : 'none');
-        const mgr = (u.role === 'manager' || u.role === 'admin') ? `<span class="ds-mgr">หัวหน้า</span>` : '';
-        const warn = on === 0 ? `<span class="ds-warn" title="คนนี้จะถูกข้ามตอนสุ่ม เพราะไม่มีสิทธิ์เว็บไหนเลย">ไม่มีสิทธิ์</span>` : '';
+        const shiftColor = u.allowed_shift === 'กะเช้า' ? 'text-orange-500' : (u.allowed_shift === 'กะกลาง' ? 'text-blue-500' : 'text-purple-500');
+        
+        let roleBadge = '';
+        if (u.role === 'manager' || u.role === 'admin') {
+            roleBadge = `<span class="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 shadow-sm ml-1">Manager</span>`;
+        }
 
-        let row = `<tr class="${on === 0 ? 'noaccess' : ''}">
-            <td class="ds-namecol"><div class="ds-name">
-                <span class="ds-uname">${window.escapeHtml(u.username)}</span>
-                ${shift ? `<span class="ds-shift ${sc}">${window.escapeHtml(shift.replace('กะ',''))}</span>` : ''}
-                ${mgr}${warn}
-                <label class="ds-rowctl" title="ติก/เอาออก ทุกเว็บของ ${window.escapeHtml(u.username)}" style="cursor:pointer">
-                    <span class="ds-rowcnt ${tri === 'all' ? 'full' : ''}">${on}/${sortedTeams.length}</span>
-                    <input type="checkbox" class="ds-ck sm" data-tri="${tri}" onchange="dutyAccessSetRow('${uid}', this.checked)">
-                </label>
-            </div></td>`;
+        const userAccess = dutyAccessMatrix[String(u.id)] || [];
+        const validAccessCount = userAccess.filter(t => sortedTeams.includes(t)).length; 
+
+        let noAccessWarning = '';
+        let rowBgClass = 'hover:bg-slate-50 dark:hover:bg-slate-800/50'; 
+
+        if (validAccessCount === 0) {
+            noAccessWarning = `<span class="text-[9px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm ml-1 animate-pulse" title="พนักงานคนนี้จะจัดตารางไม่ได้เพราะไม่มีสิทธิ์เว็บใดเลย">ไม่มีสิทธิ์</span>`;
+            rowBgClass = 'bg-red-50/50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40';
+        }
+
+        let rowHtml = `<tr class="${rowBgClass} transition">
+            <td class="p-2 font-bold text-slate-700 dark:text-gray-200 border-r dark:border-slate-700 flex justify-between items-center">
+                <div class="flex items-center flex-wrap">
+                    <span>${window.escapeHtml(u.username)}</span>
+                    ${roleBadge}
+                    ${noAccessWarning} </div>
+                <span class="text-[9px] ${shiftColor} bg-gray-100 dark:bg-slate-900 px-1 rounded border dark:border-slate-600 shrink-0 ml-1">${u.allowed_shift.replace('กะ','')}</span>
+            </td>`;
+        
         sortedTeams.forEach(team => {
-            row += `<td><input type="checkbox" class="ds-ck duty-check" aria-label="${window.escapeHtml(u.username)} ดูแล ${team}" onchange="updateLocalDutyAccess('${uid}', '${team}', this.checked); renderDutyAccessTable();" ${has(uid, team) ? 'checked' : ''}></td>`;
+            const isChecked = userAccess.includes(team) ? 'checked' : '';
+            rowHtml += `<td class="p-1 text-center border-r dark:border-slate-700 bg-white dark:bg-transparent"><input type="checkbox" class="duty-check w-5 h-5 text-green-500 rounded cursor-pointer border-gray-300 focus:ring-green-500 shadow-sm transition" onchange="updateLocalDutyAccess('${u.id}', '${team}', this.checked)" ${isChecked}></td>`;
         });
-        bodyHtml += row + `</tr>`;
+        rowHtml += `</tr>`;
+        bodyHtml += rowHtml;
     });
-
-    if (staff.length === 0) bodyHtml = `<tr><td colspan="${sortedTeams.length+1}" class="ds-empty">ไม่พบพนักงานตามตัวกรองนี้</td></tr>`;
+    
+    if(staff.length === 0) bodyHtml = `<tr><td colspan="${sortedTeams.length+1}" class="p-8 text-center text-gray-400">ไม่พบพนักงานที่ค้นหา</td></tr>`;
     body.innerHTML = bodyHtml;
-
-    // ช่องติกแบบ 3 สถานะ (ติกครบ / ติกบางช่อง / ไม่ติก)
-    document.querySelectorAll('#dutyAccessTable .ds-ck[data-tri]').forEach(cb => {
-        cb.checked = cb.dataset.tri === 'all';
-        cb.indeterminate = cb.dataset.tri === 'some';
-    });
-    window._dutyAccessMarkDirty(window._dutyAccessDirty);
 }
-
-// ── ติกเป็นชุด (ทำกับเฉพาะคนที่แสดงอยู่ตามตัวกรอง/ค้นหา) ──
-window.dutyAccessSetCol = function(team, on) {
-    (window._dutyAccessVisible || []).forEach(uid => window.updateLocalDutyAccess(uid, team, on));
-    window.renderDutyAccessTable();
-};
-window.dutyAccessSetRow = function(uid, on) {
-    sortedTeams.forEach(team => window.updateLocalDutyAccess(uid, team, on));
-    window.renderDutyAccessTable();
-};
-window.dutyAccessSetAll = function(on) {
-    const ids = window._dutyAccessVisible || [];
-    ids.forEach(uid => sortedTeams.forEach(team => window.updateLocalDutyAccess(uid, team, on)));
-    window.renderDutyAccessTable();
-};
-
-// ── ป้าย "ยังไม่ได้บันทึก" ──
-window._dutyAccessDirty = false;
-window._dutyAccessMarkDirty = function(on) {
-    window._dutyAccessDirty = !!on;
-    document.getElementById('dutyAccessDirty')?.classList.toggle('on', !!on);
-    document.getElementById('dutyAccessSaveBtn')?.classList.toggle('dirty', !!on);
-};
 
 window.updateLocalDutyAccess = function(uid, team, isChecked) {
     uid = String(uid); if(!dutyAccessMatrix[uid]) dutyAccessMatrix[uid] = [];
-    if (typeof window._dutyAccessMarkDirty === 'function') window._dutyAccessMarkDirty(true);
     if(isChecked) { 
         if(!dutyAccessMatrix[uid].includes(team)) dutyAccessMatrix[uid].push(team); 
     } else { 
@@ -650,7 +612,6 @@ window.saveDutyAccess = async function() {
     Swal.fire({title: 'กำลังบันทึกสิทธิ์...', didOpen: () => Swal.showLoading()});
     try {
         window.clearSettingCache(); await appDB.from('settings').upsert([{ key: 'duty_access_matrix', value: JSON.stringify(dutyAccessMatrix) }]);
-        if (typeof window._dutyAccessMarkDirty === 'function') window._dutyAccessMarkDirty(false);
         Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', timer: 1000, showConfirmButton: false});
     } catch(e) { Swal.fire('Error', e.message, 'error'); }
 }
@@ -691,77 +652,38 @@ window.saveCustomRolesToDB = async function() { window.clearSettingCache(); awai
 
 // 🎨 [Premium] แถบจำนวนคนต่อเว็บ — การ์ดปุ่ม −/+ กดง่าย + ไฟวิ่งบอกการโยกคน + แถบยอดรวม
 function _dreqEnsureStyle() {
-    if (document.getElementById('dreq-style-v2')) return;
-    document.getElementById('dreq-style')?.remove();
+    if (document.getElementById('dreq-style')) return;
     const s = document.createElement('style');
-    s.id = 'dreq-style-v2';
+    s.id = 'dreq-style';
     s.textContent = `
-        /* ── กรอบทั้งส่วน ── */
-        #dutyApp .dq{background:#0f1829;border-bottom:1px solid #24324b;padding:12px}
-        #dutyApp .dq-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-        #dutyApp .dq-title{display:flex;align-items:center;gap:10px;min-width:0}
-        #dutyApp .dq-title>.material-icons{font-size:20px;color:#E8C15A;width:36px;height:36px;border-radius:10px;background:rgba(232,193,90,.12);display:flex;align-items:center;justify-content:center;flex:none}
-        #dutyApp .dq-h{font-size:14.5px;font-weight:900;color:#fff}
-        #dutyApp .dq-hint{font-size:11.5px;font-weight:600;color:#7d8ba3}
-        #dutyApp .dq-poolslot{margin-left:auto}
-        #dutyApp .dq-tools{display:flex;gap:8px}
-        #dutyApp .dq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
-
-        /* ── การ์ดเว็บ ── */
-        .dreq-card{position:relative;display:flex;flex-direction:column;border-radius:12px;background:#151f35;border:1px solid #273650;overflow:hidden;transition:border-color .25s,box-shadow .25s}
-        .dreq-card:hover{border-color:#3e5277}
-        .dreq-name{display:flex;align-items:center;justify-content:center;height:26px;font-size:12px;font-weight:900;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 26px}
-        .dreq-ctrl{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px}
-        .dreq-btn{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;line-height:1;color:#cdd6e6;background:#1e2a45;border:1px solid #2f3f5e;cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .08s;flex:none}
-        .dreq-btn:hover{background:#28385c;color:#fff;border-color:#4a5f86}
-        .dreq-btn.plus:hover{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.5);color:#86efac}
-        .dreq-btn.minus:hover{background:rgba(251,146,60,.14);border-color:rgba(251,146,60,.5);color:#fdba74}
-        .dreq-btn:active{transform:scale(.92)}
-        .dreq-btn:focus-visible,.dreq-move button:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-        .dreq-num{width:100%;min-width:0;text-align:center;font-size:22px;font-weight:900;background:transparent;color:#fff;outline:none;border:0;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
-        .dreq-num::-webkit-outer-spin-button,.dreq-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-        .dreq-num:focus{color:#E8C15A}
-        .dreq-card.zero .dreq-num{color:#56657f}
-        /* ปุ่มเลื่อนลำดับ: ซ่อนไว้ โผล่ตอนชี้ (บนมือถือโชว์ตลอด) */
-        .dreq-move{position:absolute;top:0;left:0;right:0;height:26px;display:flex;justify-content:space-between;pointer-events:none}
-        .dreq-move button{pointer-events:auto;width:24px;height:26px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);background:rgba(0,0,0,.28);opacity:0;transition:opacity .15s,background .15s;cursor:pointer}
-        .dreq-move button .material-icons{font-size:16px}
-        .dreq-move button:hover{background:rgba(0,0,0,.5)}
-        .dreq-card:hover .dreq-move button,.dreq-move button:focus-visible{opacity:1}
-        @media (hover:none){ .dreq-move button{opacity:.9} }
-
-        /* ไฟบอกการโยกคน */
-        .dreq-flash-up{border-color:#22c55e!important;box-shadow:0 0 14px rgba(34,197,94,.45)!important}
-        .dreq-flash-down{border-color:#fb923c!important;box-shadow:0 0 14px rgba(251,146,60,.45)!important}
-        .dreq-flash-self{border-color:#E8C15A!important;box-shadow:0 0 14px rgba(232,193,90,.45)!important}
-        .dreq-delta{position:absolute;top:30px;right:6px;z-index:5;font-size:11px;font-weight:900;padding:1px 7px;border-radius:99px;pointer-events:none;animation:dreqPop 1.3s ease forwards}
-        .dreq-delta.up{background:#16a34a;color:#fff}
-        .dreq-delta.down{background:#ea580c;color:#fff}
+        .dreq-card{position:relative;display:flex;align-items:center;background:linear-gradient(180deg,#16203a,#0d1526);border:1px solid #2b3a55;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.35);transition:border-color .25s,box-shadow .25s,transform .15s}
+        .dreq-card:hover{border-color:rgba(232,193,90,.4);transform:translateY(-1px)}
+        .dreq-move{display:flex;flex-direction:column;border-right:1px solid #22304a;border-radius:12px 0 0 12px;overflow:hidden;align-self:stretch}
+        .dreq-move button{width:18px;flex:1;font-size:9px;line-height:1;color:#5b6c8a;background:#111a2e;transition:.15s}
+        .dreq-move button:hover{color:#fff;background:#1d2a44}
+        .dreq-name{font-size:11px;font-weight:800;padding:7px 8px;min-width:56px;text-align:center;border-right:1px solid #22304a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .dreq-btn{width:26px;align-self:stretch;font-weight:900;font-size:14px;color:#8b9bb4;background:transparent;transition:.15s}
+        .dreq-btn:hover{color:#fff;background:rgba(232,193,90,.14)}
+        .dreq-btn:active{transform:scale(.9)}
+        .dreq-num{width:32px;text-align:center;font-size:14px;font-weight:800;background:transparent;color:#fff;outline:none}
+        .dreq-flash-up{border-color:#22c55e!important;box-shadow:0 0 16px rgba(34,197,94,.55)!important}
+        .dreq-flash-down{border-color:#fb923c!important;box-shadow:0 0 16px rgba(251,146,60,.55)!important}
+        .dreq-flash-self{border-color:#E8C15A!important;box-shadow:0 0 16px rgba(232,193,90,.55)!important}
+        .dreq-delta{position:absolute;top:-9px;right:-6px;z-index:5;font-size:10px;font-weight:900;padding:1px 6px;border-radius:99px;pointer-events:none;animation:dreqPop 1.3s ease forwards}
+        .dreq-delta.up{background:#16a34a;color:#fff;box-shadow:0 0 10px rgba(34,197,94,.6)}
+        .dreq-delta.down{background:#ea580c;color:#fff;box-shadow:0 0 10px rgba(251,146,60,.6)}
         @keyframes dreqPop{0%{opacity:0;transform:translateY(6px) scale(.6)}15%{opacity:1;transform:translateY(0) scale(1.1)}30%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
-
-        /* ── ส่วนกลาง (มิเตอร์บนหัว) ── */
-        .dreq-pool{position:relative;display:flex;align-items:center;gap:12px;padding:6px 14px 6px 8px;border-radius:12px;background:#1a1810;border:1px solid rgba(232,193,90,.45);min-width:250px}
-        .dreq-pool-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(232,193,90,.14);color:#E8C15A;flex:none}
-        .dreq-pool-ic .material-icons{font-size:19px}
-        .dreq-pool-body{flex:1;min-width:0}
-        .dreq-pool-row{display:flex;align-items:baseline;gap:6px}
-        .dreq-pool-lb{font-size:12px;font-weight:800;color:#d8c58f}
-        .dreq-pool-num{font-size:20px;font-weight:900;color:#fbbf24;font-variant-numeric:tabular-nums;line-height:1.1}
-        .dreq-pool-unit{font-size:11px;font-weight:700;color:#a99a6e}
-        .dreq-pool-sub{margin-left:auto;font-size:11px;font-weight:700;color:#8b9bb4;white-space:nowrap;font-variant-numeric:tabular-nums}
-        .dreq-pool-bar{height:5px;border-radius:5px;background:rgba(255,255,255,.08);margin-top:5px;overflow:hidden}
-        .dreq-pool-bar i{display:block;height:100%;border-radius:5px;background:#E8C15A;transition:width .3s}
-        .dreq-pool.ok{background:#0e1d15;border-color:rgba(34,197,94,.5)}
-        .dreq-pool.ok .dreq-pool-ic{background:rgba(34,197,94,.14);color:#4ade80}
-        .dreq-pool.ok .dreq-pool-num,.dreq-pool.ok .dreq-pool-lb{color:#4ade80}
-        .dreq-pool.ok .dreq-pool-bar i{background:#22c55e}
-        .dreq-pool.bad{background:#200f14;border-color:rgba(248,113,113,.6)}
-        .dreq-pool.bad .dreq-pool-num,.dreq-pool.bad .dreq-pool-lb{color:#f87171}
-        .dreq-pool.bad .dreq-pool-bar i{background:#ef4444}
+        .dreq-pool{padding-right:10px;border-color:rgba(232,193,90,.45)!important;background:linear-gradient(180deg,#1d1a10,#12100a)!important}
+        .dreq-pool-name{color:#E8C15A;border-right-color:rgba(232,193,90,.3)!important;background:rgba(232,193,90,.1)}
+        .dreq-pool-num{font-size:18px;font-weight:900;color:#fbbf24;min-width:34px;text-align:center;padding:0 4px;text-shadow:0 0 12px rgba(232,193,90,.5)}
+        .dreq-pool-sub{font-size:9px;font-weight:700;color:#8b9bb4;white-space:nowrap;padding-right:4px}
+        .dreq-pool.ok{border-color:rgba(34,197,94,.55)!important;background:linear-gradient(180deg,#0f1f16,#0a150e)!important}
+        .dreq-pool.ok .dreq-pool-num{color:#4ade80;text-shadow:0 0 12px rgba(34,197,94,.5)}
+        .dreq-pool.ok .dreq-pool-name{color:#4ade80;background:rgba(34,197,94,.1)}
+        .dreq-pool.bad{border-color:rgba(248,113,113,.6)!important}
+        .dreq-pool.bad .dreq-pool-num{color:#f87171}
         .dreq-shake{animation:dreqShake .4s ease}
         @keyframes dreqShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
-        @media (max-width:640px){ #dutyApp .dq-poolslot{margin-left:0;width:100%} .dreq-pool{min-width:0} #dutyApp .dq-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))} }
-        @media (prefers-reduced-motion:reduce){ .dreq-delta,.dreq-shake{animation:none} }
     `;
     document.head.appendChild(s);
 }
@@ -780,38 +702,24 @@ window.renderDutyRequirements = function() {
         const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
 
         html += `
-            <div class="dreq-card ${defaultVal ? '' : 'zero'}" id="dreqCard_${team}">
-                <div class="dreq-name ${colorClass.bg} ${colorClass.text}" title="${team}">${team}</div>
+            <div class="dreq-card" id="dreqCard_${team}">
                 <div class="dreq-move">
-                    <button onclick="moveTeam('${team}', -1)" class="${index === 0 ? 'invisible' : ''}" title="เลื่อน ${team} ไปทางซ้าย" aria-label="เลื่อนซ้าย"><span class="material-icons">chevron_left</span></button>
-                    <button onclick="moveTeam('${team}', 1)" class="${index === sortedTeams.length-1 ? 'invisible' : ''}" title="เลื่อน ${team} ไปทางขวา" aria-label="เลื่อนขวา"><span class="material-icons">chevron_right</span></button>
+                    <button onclick="moveTeam('${team}', -1)" class="${index === 0 ? 'invisible' : ''}" title="เลื่อนซ้าย">◀</button>
+                    <button onclick="moveTeam('${team}', 1)" class="${index === sortedTeams.length-1 ? 'invisible' : ''}" title="เลื่อนขวา">▶</button>
                 </div>
-                <div class="dreq-ctrl">
-                    <button class="dreq-btn minus" onclick="dutyReqStep('${team}', -1)" title="ลด 1 คน (ย้ายกลับส่วนกลาง)" aria-label="ลด ${team}">−</button>
-                    <input type="number" id="${reqKey}" onchange="window.manualAdjustReq('${team}')" class="dreq-num req-input" value="${defaultVal}" min="0" aria-label="จำนวนคน ${team}">
-                    <button class="dreq-btn plus" onclick="dutyReqStep('${team}', 1)" title="เพิ่ม 1 คน (แจกจากส่วนกลาง)" aria-label="เพิ่ม ${team}">+</button>
-                </div>
+                <div class="dreq-name ${colorClass.bg} ${colorClass.text}" title="${team}">${team}</div>
+                <button class="dreq-btn" onclick="dutyReqStep('${team}', -1)" title="ลด 1 — ระบบโยกไปเติมเว็บที่น้อยสุดให้เอง">−</button>
+                <input type="number" id="${reqKey}" onchange="window.manualAdjustReq('${team}')" class="dreq-num req-input" value="${defaultVal}" min="0">
+                <button class="dreq-btn" onclick="dutyReqStep('${team}', 1)" title="เพิ่ม 1 — ระบบดึงจากเว็บที่เยอะสุดมาให้เอง">+</button>
             </div>`;
     });
-
-    const poolHtml = `
-        <div id="dreqTotal" class="dreq-pool" title="คนที่ยังไม่ได้แจกลงเว็บไหน — เหลือ 0 แปลว่าแจกครบพอดี">
-            <div class="dreq-pool-ic"><span class="material-icons">inventory_2</span></div>
-            <div class="dreq-pool-body">
-                <div class="dreq-pool-row">
-                    <span class="dreq-pool-lb">ส่วนกลางเหลือ</span>
-                    <span class="dreq-pool-num" id="dreqPoolNum">0</span>
-                    <span class="dreq-pool-unit">คน</span>
-                    <span class="dreq-pool-sub" id="dreqTotalText">-</span>
-                </div>
-                <div class="dreq-pool-bar"><i id="dreqPoolBar" style="width:0%"></i></div>
-            </div>
+    html += `
+        <div id="dreqTotal" class="dreq-card dreq-pool" title="กด − จากเว็บ = คนเข้าช่องนี้ · กด + ที่เว็บ = ดึงจากช่องนี้ · เหลือ 0 = แจกพอดีคน">
+            <div class="dreq-name dreq-pool-name"><span class="material-icons" style="font-size:12px;vertical-align:-2px">inventory_2</span> ส่วนกลาง</div>
+            <div class="dreq-pool-num" id="dreqPoolNum">0</div>
+            <div class="dreq-pool-sub" id="dreqTotalText">-</div>
         </div>`;
-
     container.innerHTML = html;
-    const slot = document.getElementById('dreqPoolSlot');
-    if (slot) slot.innerHTML = poolHtml;
-    else container.insertAdjacentHTML('beforeend', poolHtml);   // เผื่อหน้า HTML เก่ายังค้าง cache
     window.updateReqTotal();
 }
 
@@ -854,13 +762,6 @@ window.updateReqTotal = function() {
     card.classList.remove('ok', 'bad');
     if (pool === 0) card.classList.add('ok');
     else if (pool < 0) card.classList.add('bad');
-    const bar = document.getElementById('dreqPoolBar');
-    if (bar) bar.style.width = (avail > 0 ? Math.min(100, Math.round(total / avail * 100)) : 0) + '%';
-    // การ์ดเว็บที่เป็น 0 ให้ตัวเลขจางลง จะได้เห็นเว็บที่ยังไม่มีคนชัดๆ
-    sortedTeams.forEach(t => {
-        const c = document.getElementById(`dreqCard_${t}`);
-        if (c) c.classList.toggle('zero', !(parseInt(document.getElementById(`req_${t}`)?.value) || 0));
-    });
 }
 
 // ป้าย +1/−1 เด้งบนช่องส่วนกลาง
