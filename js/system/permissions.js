@@ -495,7 +495,11 @@ window.saveMenuPerms = async function() {
 window.hasUserPerm = function(menuId) {
     if (!window.currentUser || !window.currentUser.id) return false;
     
-    // 🌟 คืนค่าบรรทัดนี้กลับมา: เพื่อให้ Admin และ Manager มองเห็นทุกเมนูและกดได้ทุกปุ่มเสมอ
+    // ⚠️ จุดเดียวในระบบที่ยังดู role — เป็น "ประตูสำรอง" ของหัวหน้า/แอดมิน
+    //    ทุกฟีเจอร์เลิกเช็ค role แล้ว (เช็คผ่าน canPerm/hasUserPerm หมด) แต่ยังต้องเก็บบรรทัดนี้ไว้
+    //    เพราะสิทธิ์ผูกกับ "แผนก" อย่างเดียว หัวหน้ากับพนักงานในแผนกเดียวกันจึงใช้ชุดสิทธิ์เดียวกัน
+    //    ถ้าถอดออกตอนนี้ หัวหน้า 12 คนจะเหลือสิทธิ์เท่าพนักงานในแผนกตัวเอง (เช่น หัวหน้า OD เหลือ 27 สิทธิ์)
+    //    จะถอดได้เมื่อแยกคีย์สิทธิ์ของหัวหน้าออกจากพนักงานก่อน
     const uRoleLower = (window.currentUser.role || '').toLowerCase().trim();
     if (uRoleLower === 'admin' || uRoleLower === 'manager') return true;
     
