@@ -58,7 +58,7 @@ window.initGalleryApp = function() {
     const bulkDeleteBtn = document.getElementById('btnBulkDelete');
     if (bulkDeleteBtn) bulkDeleteBtn.classList.add('hidden');
     document.querySelectorAll('.gallery-check').forEach(cb => cb.checked = false);
-    const canUpload = isAdminOrManager || (typeof window.hasUserPerm === 'function' && window.hasUserPerm('gallery_upload'));
+    const canUpload = canPerm('gallery_upload');
     if (adminControls) {
         if (canUpload) adminControls.classList.remove('hidden');
         else adminControls.classList.add('hidden');
