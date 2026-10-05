@@ -1516,13 +1516,24 @@ window.renderRosterGrid = async function(rosterData) {
 
     sortedTeams.forEach(team => {
         // 🔧 [FIX] ข้อมูลเก่าบางวันมีรายการที่ username ว่าง/null → a.username.includes() พัง ทั้งกระดานเลยขาว
-        let assignees = (rosterData[team] || []).filter(a => a && typeof a.username === 'string');
+        // 🔗 [กลุ่มเว็บ] เว็บที่ถูกจับกลุ่มไว้ = วาดการ์ดใบเดียวรวมกัน
+        //   ใบหลักของกลุ่มคือเว็บที่มาก่อนในลำดับ ตัวที่เหลือข้ามไป (ไม่วาดซ้ำ)
+        const _pool = (typeof window.getBreakWebPool === 'function')
+            ? window.getBreakWebPool(currentDutyDept, team)
+            : { members: [team], grouped: false };
+        const _grpTeams = _pool.grouped ? sortedTeams.filter(t => _pool.members.includes(t)) : [team];
+        if (_pool.grouped && _grpTeams.length > 1 && _grpTeams[0] !== team) return;   // ไม่ใช่ใบหลัก ข้าม
+        const _isGrp = _grpTeams.length > 1;
+        const _title = _grpTeams.join(' + ');
+
+        // คนในการ์ด = รวมทุกเว็บในกลุ่ม
+        let assignees = _grpTeams.flatMap(t => (rosterData[t] || []).filter(a => a && typeof a.username === 'string'));
         // card เว็บแสดงเสมอ แม้จะไม่มีพนักงาน
         
         if (window.isTrainerDept()) {
         }
         
-        const rolesForThisTeam = customDutyRoles[team] || [];
+        const rolesForThisTeam = [...new Set(_grpTeams.flatMap(t => customDutyRoles[t] || []))];
         const colorClass = TEAM_COLORS[team] || TEAM_COLORS['DEFAULT'];
         let rolesTags = rolesForThisTeam.map(r => `<span class="${colorClass.lightBg} ${colorClass.lightText} px-1.5 py-0.5 rounded text-[9px] mr-1 mb-1 font-bold inline-block border ${colorClass.border} opacity-90">${r}</span>`).join('');
         
@@ -1684,7 +1695,7 @@ window.renderRosterGrid = async function(rosterData) {
         }
 
         const primaryCount = assignees.filter(u => !u.username.includes('ขาดคน')).length;
-        const standbyList = standbyData[team] || [];
+        const standbyList = _grpTeams.flatMap(t => standbyData[t] || []);
         const standbyCount = standbyList.length;
 
         // 🍽️ [กติกาพัก — ข้อเดียว] เตือนถ้าช่วงไหนคนพักพร้อมกันจนเหลือเฝ้าไม่พอ (รวมหลัก+รอง, เฝ้า≥ ตามตั้งค่า)
@@ -1695,7 +1706,7 @@ window.renderRosterGrid = async function(rosterData) {
             const allMembers = [...mainMembers, ...secMembers];
             const shiftSel = document.getElementById('dutyShiftSelect');
             const raw = (typeof window.getBreakMinRemainRaw === 'function' && shiftSel)
-                ? window.getBreakMinRemainRaw(currentDutyDept, shiftSel.value, team) : null;
+                ? _grpTeams.reduce((acc, t) => { const v = window.getBreakMinRemainRaw(currentDutyDept, shiftSel.value, t); return v === null ? acc : (acc === null ? v : Math.max(acc, v)); }, null) : null;
             const minRemain = raw === null ? 1 : raw;
             const cap = allMembers.length <= 1 ? allMembers.length : Math.max(0, allMembers.length - minRemain);
             const warnLines = [];
@@ -1723,7 +1734,7 @@ window.renderRosterGrid = async function(rosterData) {
             <div class="duty-site-card bg-slate-50 dark:bg-slate-900 border-2 ${colorClass.border} rounded-2xl shadow-md flex flex-col h-[500px] overflow-hidden w-full">
                 <div class="flex justify-between items-center ${colorClass.bg} ${colorClass.text} p-3 shadow-sm shrink-0">
                     <div class="flex items-center flex-wrap gap-2 w-full">
-                        <h4 class="font-black text-base pointer-events-none tracking-wide">${team}</h4>
+                        <h4 class="font-black text-base pointer-events-none tracking-wide">${_title}</h4>${_isGrp ? `<span class="text-[9px] font-bold bg-black/25 px-1.5 py-0.5 rounded-md whitespace-nowrap" title="สองเว็บนี้ถูกจับกลุ่มให้ทำงานรวมกัน">🔗 รวม ${_grpTeams.length} เว็บ</span>` : ""}
                         ${(() => { const _room = odRoomOf[team]; if (!_room) return ''; const _pal = ['#34d399','#38bdf8','#a78bfa','#fbbf24','#fb7185','#22d3ee']; const _c = _pal[(odRoomIdx[_room] || 0) % _pal.length]; return `<span title="เข้าห้อง Discord: ${_room}" class="pointer-events-none shrink-0" style="display:inline-flex;align-items:center;gap:5px;background:${_c};color:#0b1120;font-size:12.5px;font-weight:900;padding:4px 12px;border-radius:99px;letter-spacing:0.02em;box-shadow:0 0 0 2px rgba(0,0,0,0.4), 0 3px 10px rgba(0,0,0,0.45)"><span class="material-icons" style="font-size:14px">headset_mic</span>${_room}</span>`; })()}
                         <div class="flex items-center gap-2 ml-auto">
                             <div class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-lg shadow-inner whitespace-nowrap border border-white/30 flex items-center gap-1" style="color: inherit;">
