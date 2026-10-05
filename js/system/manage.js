@@ -1167,6 +1167,51 @@ window.loadSettings = async function() {
 };
 
 // 🟢 หน้า "เพดานพักต่อเว็บ" — ไม่มีค่าให้ตั้ง แสดงผลที่ระบบคำนวณจากตารางหน้าที่ของวันที่เลือก (หลัก+รอง)
+// 🏷️ แผนกที่โชว์บนหน้า "เพดานพักต่อเว็บ" — เพิ่ม/ลบได้จากหน้าเว็บ เก็บที่ settings.quota_depts
+window.getQuotaDepts = function() {
+    try {
+        const raw = SETTINGS['quota_depts'];
+        const a = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (Array.isArray(a) && a.length) return [...new Set(a.map(d => String(d).trim()).filter(Boolean))];
+    } catch (e) {}
+    return ['AM', 'OD'];   // ค่าเริ่มต้นเหมือนเดิม
+};
+
+// 💾 บันทึกรายชื่อแผนกบนหน้าโควตา
+window._saveQuotaDepts = async function(list) {
+    const v = JSON.stringify([...new Set(list)]);
+    await appDB.from('settings').upsert([{ key: 'quota_depts', value: v }]);
+    SETTINGS['quota_depts'] = v;
+    if (typeof window.clearSettingCache === "function") window.clearSettingCache();
+};
+
+// ➕ เพิ่มแผนกเข้าหน้าโควตา
+window.addQuotaDept = async function() {
+    if (!window.sysRequireAdmin()) return;
+    const sel = document.getElementById('quotaDeptPicker');
+    const d = sel && sel.value ? sel.value.trim() : '';
+    if (!d) return Swal.fire('เลือกแผนกก่อน', 'เลือกแผนกที่อยากเพิ่มจากช่องข้างปุ่มครับ', 'info');
+    const cur = window.getQuotaDepts();
+    if (cur.includes(d)) return Swal.fire('มีอยู่แล้ว', 'แผนก ' + d + ' อยู่บนหน้านี้แล้ว', 'warning');
+    await window._saveQuotaDepts([...cur, d]);
+    await window.renderQuotaSettings();
+};
+
+// ➖ เอาแผนกออกจากหน้าโควตา (ค่าที่ตั้งไว้ไม่ถูกลบ เอากลับมาเมื่อไหร่ก็ยังอยู่)
+window.removeQuotaDept = async function(d) {
+    if (!window.sysRequireAdmin()) return;
+    const cur = window.getQuotaDepts();
+    if (cur.length <= 1) return Swal.fire('เอาออกไม่ได้', 'ต้องเหลืออย่างน้อย 1 แผนกครับ', 'warning');
+    const ask = await Swal.fire({
+        icon: 'question', title: 'เอาแผนก ' + d + ' ออกจากหน้านี้?',
+        text: 'ค่าที่ตั้งไว้ยังอยู่ครบ เพิ่มกลับมาเมื่อไหร่ก็เห็นเหมือนเดิม',
+        showCancelButton: true, confirmButtonText: 'เอาออก', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc2626'
+    });
+    if (!ask.isConfirmed) return;
+    await window._saveQuotaDepts(cur.filter(x => x !== d));
+    await window.renderQuotaSettings();
+};
+
 window.renderQuotaSettings = async function() {
     const container = document.getElementById('quotaSettingsContainer');
     if (!container) return;
@@ -1176,7 +1221,7 @@ window.renderQuotaSettings = async function() {
     const dateVal = (dateEl && dateEl.value) || today;
 
     const shifts = ['กะเช้า', 'กะกลาง', 'กะดึก'];
-    const depts = ['AM', 'OD'];
+    const depts = window.getQuotaDepts();
     await window.loadBreakMinRemainCfg(true);   // ⚙️ โหลดค่า "ต้องเหลือเฝ้ากี่คน" ล่าสุดมาแสดงในช่องกรอก
     const keys = [];
     depts.forEach(d => shifts.forEach(sh => keys.push(`duty_roster_${d}_${dateVal}_${sh}`)));
@@ -1250,16 +1295,26 @@ window.renderQuotaSettings = async function() {
                 </label>
                 <button onclick="saveBreakMinRemain()" class="shrink-0 bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition shadow"><span class="material-icons text-[13px]">save</span> บันทึกค่าเหลือเฝ้า</button>
                 <button onclick="resetBreakMinRemain()" class="shrink-0 bg-slate-700 hover:bg-slate-600 text-slate-300 text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition" title="ลบค่าที่ตั้งเองทั้งหมด กลับไปใช้ค่าเริ่มต้น (เหลือเฝ้า 1)"><span class="material-icons text-[13px]">restart_alt</span> ล้างเป็นอัตโนมัติ</button>
+                <label class="flex items-center gap-2 text-[11px] text-slate-300 shrink-0 border-l border-slate-700 pl-3">เพิ่มแผนก
+                    <select id="quotaDeptPicker" class="bg-slate-900 border border-slate-600 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-emerald-500">
+                        ${(typeof window.getSystemDepts === "function" ? window.getSystemDepts() : [])
+                            .filter(d => !depts.includes(d))
+                            .map(d => `<option value="${d}">${d}</option>`).join('') || '<option value="">— ครบทุกแผนกแล้ว —</option>'}
+                    </select>
+                </label>
+                <button onclick="addQuotaDept()" class="shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"><span class="material-icons text-[13px]">add</span> เพิ่ม</button>
             </div>
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
+                ${depts.map((d, di) => `
                 <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[460px]">
-                    <h5 class="text-blue-300 font-bold text-xs flex items-center gap-1.5 mb-3 border-b border-slate-700/50 pb-2 shrink-0"><span class="material-icons text-[14px]">domain</span> แผนก AM — คน → พักพร้อมกันได้</h5>
-                    ${table('AM')}
-                </div>
-                <div class="bg-[#151f32] rounded-xl border border-slate-700/80 shadow-inner p-4 flex flex-col h-[460px]">
-                    <h5 class="text-pink-300 font-bold text-xs flex items-center gap-1.5 mb-3 border-b border-slate-700/50 pb-2 shrink-0"><span class="material-icons text-[14px]">groups</span> แผนก OD — คน → พักพร้อมกันได้</h5>
-                    ${table('OD')}
-                </div>
+                    <h5 class="${["text-blue-300","text-pink-300","text-emerald-300","text-amber-300","text-violet-300","text-cyan-300","text-rose-300"][di % 7]} font-bold text-xs flex items-center gap-1.5 mb-3 border-b border-slate-700/50 pb-2 shrink-0">
+                        <span class="material-icons text-[14px]">${["domain","groups","apartment","corporate_fare","store","workspaces","hub"][di % 7]}</span>
+                        แผนก ${d} — คน → พักพร้อมกันได้
+                        <button onclick="removeQuotaDept('${d}')" title="เอาแผนกนี้ออกจากหน้านี้"
+                            class="ml-auto text-slate-500 hover:text-red-400 transition"><span class="material-icons text-[14px]">close</span></button>
+                    </h5>
+                    ${table(d)}
+                </div>`).join('')}
             </div>
         </div>`;
 };
