@@ -301,6 +301,7 @@ window.applySplitLayout = function() {
     // ที่จับลากอยู่ขอบด้านที่ติดกับหน้าชีตเสมอ
     const h = document.getElementById('splitDragHandle');
     if (h) { if (p.side === 'left') { h.style.right = '-3px'; h.style.left = 'auto'; } else { h.style.left = '-3px'; h.style.right = 'auto'; } }
+    if (window._splitSyncUI) window._splitSyncUI();
 };
 
 // ปรับขนาดหน้าต่าง → คำนวณตำแหน่งใหม่ (เฉพาะตอนแผงเปิดอยู่)
@@ -384,6 +385,7 @@ window.toggleGalleryDrawer = async function(show) {
     const willShow = (show === undefined) ? !isOpen : !!show;
 
     if (!willShow) {
+        if (window._splitPreviewHide) window._splitPreviewHide();
         drawer.style.display = 'none';
         if (sheetApp) { sheetApp.style.marginRight = ''; sheetApp.style.marginLeft = ''; sheetApp.classList.remove('sheet-split'); }
         return;
@@ -392,6 +394,7 @@ window.toggleGalleryDrawer = async function(show) {
     if (sheetApp) { sheetApp.style.transition = 'none'; sheetApp.classList.add('sheet-split'); }
     window._ensureSplitControls();
     window.applySplitLayout();
+    if (window._splitEnhance) window._splitEnhance();
 
     // เช็คจาก DOM จริง (ไม่ใช้แฟล็ก) — เพราะเปลี่ยนหน้าไปกลับ DOM ของแผงจะถูกสร้างใหม่
     if (!document.getElementById('galleryApp')) {
@@ -407,8 +410,151 @@ window.toggleGalleryDrawer = async function(show) {
             });
             for (const _g of ['gallery/core', 'gallery/ui']) await window.loadScript(_g);   // gallery ถูกผ่าเป็น 2 ไฟล์ ต้องโหลดครบตามลำดับ
             if (typeof initGalleryApp === 'function') initGalleryApp();
+            if (window._splitEnhance) window._splitEnhance();   // ผูกเอฟเฟกต์คัดลอก/พรีวิว หลังสคริปต์คลังรูปโหลดเสร็จ
         } catch (e) {
             document.getElementById('galleryDrawerBody').innerHTML = `<div style="text-align:center;color:#f87171;padding:40px 0;font-weight:700">โหลดคลังรูปไม่สำเร็จ<br><span style="font-size:11px;color:#64748b">${e.message}</span></div>`;
         }
+    }
+};
+
+
+// =====================================================================
+// ✨ ของเพิ่มโหมดแบ่งจอ: ③ ปุ่มขนาดสำเร็จรูป · ⑦ คัดลอกแล้วเห็นชัด · ⑧ พรีวิวรูปใหญ่
+// =====================================================================
+
+// ③ ปุ่มขนาด 30 / 50 / 70% + ดับเบิลคลิกขอบ = กลับ 50/50
+window.setSplitSize = function(pct) {
+    window._splitPrefs.pct = pct;
+    window._saveSplitPrefs();
+    window.applySplitLayout();
+};
+window._splitSyncUI = function() {
+    const pct = Math.round(window._splitPrefs.pct || 50);
+    document.querySelectorAll('#galleryDrawer .gd-size button[data-pct]').forEach(b => {
+        b.classList.toggle('on', Math.abs(parseInt(b.dataset.pct) - pct) <= 2);
+    });
+    const tag = document.getElementById('gdSizeNow');
+    if (tag) tag.textContent = pct + '%';
+    const pv = document.getElementById('gdPrevToggle');
+    if (pv) pv.classList.toggle('on', window._splitPreviewOn());
+    window._splitPreviewPlace && window._splitPreviewPlace();
+};
+
+// ⑧ พรีวิวรูปใหญ่: ชี้รูปค้าง ~0.6 วิ หรือกด Space ตอนชี้ → รูปใหญ่ลอยทับฝั่งชีต
+window._splitPreviewOn = function() { try { return localStorage.getItem('split_preview') !== '0'; } catch (e) { return true; } };
+window.toggleSplitPreview = function() {
+    const on = !window._splitPreviewOn();
+    window.safeSetItem('split_preview', on ? '1' : '0');
+    if (!on) window._splitPreviewHide();
+    window._splitSyncUI();
+    if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: on ? 'เปิดพรีวิวรูปใหญ่ (ชี้ค้าง หรือกด Space)' : 'ปิดพรีวิวรูปใหญ่', showConfirmButton: false, timer: 1400, background: '#0f172a', color: '#e2e8f0' });
+};
+window._splitPreviewEl = function() {
+    let el = document.getElementById('gdPreview');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'gdPreview';
+        el.innerHTML = '<div class="gdp-box"><img alt=""><div class="gdp-cap"><span class="gdp-name"></span><span class="gdp-hint">กด Space เพื่อปิด/ค้างไว้ · คลิกรูปเพื่อเปิดเต็มจอ</span></div></div>';
+        document.body.appendChild(el);
+    }
+    return el;
+};
+window._splitPreviewPlace = function() {
+    const el = document.getElementById('gdPreview'), d = document.getElementById('galleryDrawer');
+    if (!el || !d) return;
+    const w = d.getBoundingClientRect().width;
+    // วางทับฝั่ง "ชีต" เสมอ (ฝั่งตรงข้ามกับแผงคลังรูป)
+    if (window._splitPrefs.side === 'left') { el.style.left = (w + 14) + 'px'; el.style.right = '14px'; }
+    else { el.style.left = '14px'; el.style.right = (w + 14) + 'px'; }
+};
+window._splitPreviewShow = function(card) {
+    if (!card) return;
+    const copyBtn = card.querySelector('button[onclick*="copyImageToClipboard"]');
+    const m = copyBtn && (copyBtn.getAttribute('onclick') || '').match(/copyImageToClipboard\('([^']+)'\)/);
+    const thumb = card.querySelector('img');
+    const url = m ? m[1] : (thumb ? thumb.src : '');
+    if (!url) return;
+    const el = window._splitPreviewEl();
+    const img = el.querySelector('img');
+    if (thumb && img.dataset.full !== url) img.src = thumb.src;   // โชว์รูปย่อก่อนทันที แล้วค่อยสลับเป็นรูปเต็ม
+    img.dataset.full = url;
+    const full = new Image(); full.onload = () => { if (img.dataset.full === url) img.src = url; }; full.src = url;
+    const nm = card.querySelector('.gx-card-name');
+    el.querySelector('.gdp-name').textContent = nm ? nm.textContent.trim() : '';
+    window._splitPreviewPlace();
+    el.classList.add('on');
+};
+window._splitPreviewHide = function() {
+    const el = document.getElementById('gdPreview');
+    if (el) { el.classList.remove('on', 'pinned'); }
+};
+
+// ⑦ คัดลอกแล้วเห็นชัด: การ์ดเรืองทอง + ป้าย "คัดลอกแล้ว ✓" + แถบล่าง "รูปล่าสุดในคลิปบอร์ด"
+window._splitMarkCopied = function(imageUrl) {
+    const btn = Array.from(document.querySelectorAll('button[onclick*="copyImageToClipboard"]'))
+        .find(b => (b.getAttribute('onclick') || '').includes(imageUrl));
+    const card = btn ? btn.closest('.gx-card') : null;
+    if (card) {
+        document.querySelectorAll('.gx-card.gd-copied').forEach(c => c.classList.remove('gd-copied'));
+        void card.offsetWidth;   // รีสตาร์ทแอนิเมชันถ้ากดซ้ำการ์ดเดิม
+        card.classList.add('gd-copied');
+        clearTimeout(card._gdT); card._gdT = setTimeout(() => card.classList.remove('gd-copied'), 2600);
+    }
+    const bar = document.getElementById('gdClipBar');
+    if (bar) {
+        const nm = card ? card.querySelector('.gx-card-name') : null;
+        const th = card ? card.querySelector('img') : null;
+        bar.querySelector('.gdc-name').textContent = nm ? nm.textContent.trim() : imageUrl.split('/').pop();
+        bar.querySelector('img').src = th ? th.src : imageUrl;
+        bar.querySelector('.gdc-time').textContent = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        bar.classList.add('on');
+    }
+};
+
+window._splitEnhance = function() {
+    const d = document.getElementById('galleryDrawer');
+    if (!d) return;
+    window._splitSyncUI();
+
+    // ดับเบิลคลิกเส้นลากขอบ = กลับ 50/50
+    const h = document.getElementById('splitDragHandle');
+    if (h && !h._gdDbl) { h._gdDbl = true; h.addEventListener('dblclick', () => window.setSplitSize(50)); h.title = 'ลากเพื่อปรับขนาด · ดับเบิลคลิก = แบ่งครึ่ง'; }
+
+    // ต่อเอฟเฟกต์เข้ากับฟังก์ชันคัดลอกเดิมของคลังรูป (ฟังก์ชันนี้ถูกเรียกเฉพาะตอนคัดลอกสำเร็จ)
+    if (typeof window._galleryRipple === 'function' && !window._galleryRipple._gd) {
+        const orig = window._galleryRipple;
+        const wrapped = function(url) { try { orig(url); } catch (e) {} try { window._splitMarkCopied(url); } catch (e) {} };
+        wrapped._gd = true;
+        window._galleryRipple = wrapped;
+    }
+
+    // พรีวิว: ผูกครั้งเดียวที่ตัวแผง (ใช้ได้แม้การ์ดถูกวาดใหม่)
+    if (!d._gdPrev) {
+        d._gdPrev = true;
+        let hoverCard = null, timer = null;
+        d.addEventListener('mouseover', e => {
+            const img = e.target.closest && e.target.closest('.gx-card-img');
+            const card = img ? img.closest('.gx-card') : null;
+            if (card === hoverCard) return;
+            hoverCard = card; clearTimeout(timer);
+            const el = document.getElementById('gdPreview');
+            if (!card) { if (el && !el.classList.contains('pinned')) window._splitPreviewHide(); return; }
+            if (!window._splitPreviewOn()) return;
+            if (el && el.classList.contains('on')) { window._splitPreviewShow(card); return; }   // เปิดอยู่แล้ว → เลื่อนเมาส์ไปรูปอื่นเปลี่ยนตามทันที
+            timer = setTimeout(() => { if (hoverCard === card) window._splitPreviewShow(card); }, 600);
+        });
+        d.addEventListener('mouseleave', () => {
+            hoverCard = null; clearTimeout(timer);
+            const el = document.getElementById('gdPreview');
+            if (el && !el.classList.contains('pinned')) window._splitPreviewHide();
+        });
+        document.addEventListener('keydown', e => {
+            if (e.code !== 'Space' || d.style.display !== 'flex') return;
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            const el = document.getElementById('gdPreview');
+            if (el && el.classList.contains('on')) { e.preventDefault(); window._splitPreviewHide(); return; }
+            if (hoverCard) { e.preventDefault(); window._splitPreviewShow(hoverCard); window._splitPreviewEl().classList.add('pinned'); }
+        });
     }
 };

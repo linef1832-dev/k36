@@ -527,6 +527,40 @@
     #galleryDrawer .gd-btn.close:hover{background:#3a1724;border-color:#9f3a52;color:#fff}
     #galleryDrawer #galleryDrawerBody{padding:0 !important}
 
+    /* ③ ปุ่มขนาดสำเร็จรูป */
+    #galleryDrawer .gd-size{display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:#0b1222;border:1px solid #24324b}
+    #galleryDrawer .gd-size button{height:26px;min-width:32px;padding:0 6px;border-radius:7px;font-size:11.5px;font-weight:900;color:#8a97ad;background:transparent;border:0;cursor:pointer;font-variant-numeric:tabular-nums}
+    #galleryDrawer .gd-size button:hover{color:#fff;background:#1a2640}
+    #galleryDrawer .gd-size button.on{background:#E8C15A;color:#1b1406}
+    #galleryDrawer .gd-now{font-size:10.5px;font-weight:800;color:#6b7891;padding:0 5px 0 3px;font-variant-numeric:tabular-nums}
+    #galleryDrawer .gd-btn.on{border-color:rgba(232,193,90,.55);background:rgba(232,193,90,.12);color:#f3dc9a}
+    #galleryDrawer .gd-btn:not(.on)#gdPrevToggle .material-icons{color:#6b7891}
+    @media (max-width:1200px){ #galleryDrawer .gd-t{display:none} #galleryDrawer .gd-btn{padding:0 8px} #galleryDrawer .gd-now{display:none} }
+
+    /* ⑦ คัดลอกแล้วเห็นชัด */
+    .gx-card.gd-copied{position:relative;border-color:#E8C15A !important;box-shadow:0 0 0 2px #E8C15A,0 0 24px rgba(232,193,90,.45) !important;animation:gdGlow 2.6s ease forwards}
+    .gx-card.gd-copied::after{content:'คัดลอกแล้ว ✓';position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:45;padding:5px 12px;border-radius:999px;background:#E8C15A;color:#1b1406;font-size:12px;font-weight:900;box-shadow:0 6px 16px rgba(0,0,0,.4);pointer-events:none;animation:gdBadge 2.6s ease forwards}
+    @keyframes gdGlow{0%{box-shadow:0 0 0 2px #E8C15A,0 0 34px rgba(232,193,90,.7)}75%{box-shadow:0 0 0 2px #E8C15A,0 0 18px rgba(232,193,90,.35)}100%{box-shadow:0 0 0 0 transparent}}
+    @keyframes gdBadge{0%{opacity:0;transform:translate(-50%,-6px) scale(.85)}10%{opacity:1;transform:translate(-50%,0) scale(1)}80%{opacity:1}100%{opacity:0}}
+    #gdClipBar{display:none;align-items:center;gap:10px;padding:7px 12px;background:#121c30;border-top:1px solid #24324b;flex-shrink:0}
+    #gdClipBar.on{display:flex}
+    #gdClipBar img{width:38px;height:38px;border-radius:8px;object-fit:cover;background:#0b1222;border:1px solid rgba(232,193,90,.5);flex:none}
+    #gdClipBar .gdc-txt{min-width:0;flex:1;display:flex;flex-direction:column}
+    #gdClipBar small{font-size:10.5px;font-weight:700;color:#7d8ba3}
+    #gdClipBar b{font-size:12.5px;font-weight:900;color:#f3dc9a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #gdClipBar .gdc-key{flex:none;font-size:11px;font-weight:800;color:#4ade80;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);padding:3px 9px;border-radius:999px}
+
+    /* ⑧ พรีวิวรูปใหญ่ (ลอยทับฝั่งชีต) */
+    #gdPreview{position:fixed;top:14px;bottom:14px;z-index:95;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transform:scale(.98);transition:opacity .15s,transform .15s}
+    #gdPreview.on{opacity:1;transform:none}
+    #gdPreview .gdp-box{max-width:100%;max-height:100%;display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:#0b1222;border:1px solid rgba(232,193,90,.55);box-shadow:0 30px 80px rgba(0,0,0,.7)}
+    #gdPreview img{display:block;max-width:100%;max-height:calc(100vh - 100px);object-fit:contain;background:#05080f}
+    #gdPreview .gdp-cap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;background:#121c30;border-top:1px solid #24324b}
+    #gdPreview .gdp-name{font-size:13px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #gdPreview .gdp-hint{font-size:11px;font-weight:700;color:#7d8ba3;white-space:nowrap}
+    #gdPreview.pinned .gdp-box{border-color:#E8C15A}
+    @media (prefers-reduced-motion:reduce){ #gdPreview,.gx-card.gd-copied,.gx-card.gd-copied::after{transition:none;animation:none} }
+
     /* ── คลังรูปในแผง: ย้ายแถบข้างซ้ายขึ้นเป็นแถบเครื่องมือด้านบน → รูปได้พื้นที่เต็มความกว้าง ── */
     #galleryDrawer .gx-app{flex-direction:column;border-radius:0;border:0;box-shadow:none;background:#0b1222}
     #galleryDrawer .gx-side{width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;overflow:visible;background:#0f1829;border-right:0;border-bottom:1px solid #24324b}
@@ -559,12 +593,24 @@
             </div>
         </div>
         <div class="gd-acts">
+            <div class="gd-size" title="ขนาดแผงคลังรูป (ดับเบิลคลิกเส้นขอบ = แบ่งครึ่ง)">
+                <button data-pct="30" onclick="setSplitSize(30)">30</button>
+                <button data-pct="50" onclick="setSplitSize(50)">50</button>
+                <button data-pct="70" onclick="setSplitSize(70)">70</button>
+                <span id="gdSizeNow" class="gd-now">50%</span>
+            </div>
+            <button id="gdPrevToggle" onclick="toggleSplitPreview()" class="gd-btn" title="พรีวิวรูปใหญ่: ชี้รูปค้าง หรือกด Space"><span class="material-icons">preview</span><span class="gd-t">พรีวิว</span></button>
             <button id="btnSwapSplit" onclick="swapSplitSide()" class="gd-btn" title="สลับฝั่ง ชีต ↔ คลังรูป"><span class="material-icons">swap_horiz</span><span class="gd-t">สลับฝั่ง</span></button>
             <button onclick="toggleGalleryDrawer(false)" class="gd-btn close" title="ปิดคลังรูป"><span class="material-icons">close</span><span class="gd-t">ปิด</span></button>
         </div>
     </div>
     <div id="galleryDrawerBody" style="flex:1;overflow:hidden;padding:6px;min-height:0">
         <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b"><span class="material-icons" style="animation:spin 1s linear infinite;margin-right:8px">sync</span> กำลังโหลดคลังรูป...</div>
+    </div>
+    <div id="gdClipBar" title="รูปล่าสุดที่คัดลอกไว้ — กด Ctrl+V เพื่อวางได้เลย">
+        <img alt="">
+        <div class="gdc-txt"><small>รูปล่าสุดในคลิปบอร์ด · <span class="gdc-time"></span></small><b class="gdc-name"></b></div>
+        <span class="gdc-key">Ctrl+V วางได้เลย</span>
     </div>
 </div>
 
