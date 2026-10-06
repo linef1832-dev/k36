@@ -1222,25 +1222,25 @@ window._saveWebGroups = async function(all) {
 };
 
 // ➕ จับ 2 เว็บให้ใช้โควตาพักรวมกัน (ถ้าเว็บใดอยู่ในกลุ่มอื่นแล้ว จะยุบรวมกลุ่มให้)
+// ➕ จับหลายเว็บให้ใช้โควตาพักรวมกัน (เลือกกี่เว็บก็ได้)
+//   ถ้าเว็บที่เลือกไปอยู่ในกลุ่มอื่นแล้ว จะยุบรวมทุกกลุ่มที่เกี่ยวข้องเป็นกลุ่มเดียว
 window.addWebGroup = async function(dept) {
     if (!window.sysRequireAdmin()) return;
-    const a = (document.getElementById('wg1-' + dept) || {}).value;
-    const b = (document.getElementById('wg2-' + dept) || {}).value;
-    if (!a || !b) return;
-    if (a === b) return Swal.fire('เลือกคนละเว็บ', 'ต้องเลือกสองเว็บที่ต่างกันครับ', 'warning');
+    const picked = [...document.querySelectorAll('.wgpick-' + dept + ':checked')].map(el => el.value).filter(Boolean);
+    if (picked.length < 2) return Swal.fire('เลือกอย่างน้อย 2 เว็บ', 'ติ๊กเว็บที่อยากให้ใช้โควตารวมกัน แล้วกดรวมอีกครั้งครับ', 'info');
 
     const all = JSON.parse(JSON.stringify(window._breakWebGroups || {}));
     let groups = Array.isArray(all[dept]) ? all[dept] : [];
-    // รวมกลุ่มเดิมที่มี a หรือ b อยู่ เข้าด้วยกันเป็นกลุ่มเดียว
-    const merged = new Set([a, b]);
+    const merged = new Set(picked);
     groups = groups.filter(g => {
-        if (g.some(x => x === a || x === b)) { g.forEach(x => merged.add(x)); return false; }
+        if (g.some(x => merged.has(x))) { g.forEach(x => merged.add(x)); return false; }
         return true;
     });
     groups.push([...merged].sort());
     all[dept] = groups;
     await window._saveWebGroups(all);
     await window.renderQuotaSettings();
+    Swal.fire({ icon: 'success', title: 'รวมแล้ว', text: [...merged].join(' + '), timer: 1600, showConfirmButton: false });
 };
 
 // ➖ แยกกลุ่มกลับเป็นเว็บเดี่ยว
@@ -1373,15 +1373,15 @@ window.renderQuotaSettings = async function() {
                                     <button onclick="removeWebGroup('${d}', ${gi})" title="แยกกลับเป็นเว็บเดี่ยว" class="hover:text-red-400"><span class="material-icons text-[11px] align-middle">close</span></button>
                                 </span>`).join('') || '<span class="text-slate-600 italic">ยังไม่ได้จับกลุ่ม</span>'}
                         </div>
-                        <div class="flex items-center gap-1 mt-1.5">
-                            <select id="wg1-${d}" class="bg-slate-800 border border-slate-600 rounded px-1 py-0.5 text-white text-[10px] outline-none">
-                                ${allTeams.map(tm => `<option value="${tm}">${tm}</option>`).join('')}
-                            </select>
-                            <span class="text-slate-500">+</span>
-                            <select id="wg2-${d}" class="bg-slate-800 border border-slate-600 rounded px-1 py-0.5 text-white text-[10px] outline-none">
-                                ${allTeams.map((tm, ti) => `<option value="${tm}" ${ti === 1 ? "selected" : ""}>${tm}</option>`).join('')}
-                            </select>
-                            <button onclick="addWebGroup('${d}')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-2 py-0.5 rounded">รวม</button>
+                        <div class="text-slate-500 mt-1 text-[9px]">ติ๊กเว็บที่อยากให้ใช้โควตารวมกัน (เลือกกี่เว็บก็ได้) แล้วกด "รวมที่เลือก"</div>
+                        <div class="flex items-center gap-1 mt-1.5 flex-wrap">
+                            ${allTeams.map(tm => {
+                                const inG = (window._breakWebGroups && Array.isArray(window._breakWebGroups[d]) ? window._breakWebGroups[d] : []).some(g => g.includes(tm));
+                                return `<label class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border cursor-pointer select-none ${inG ? "border-amber-600/50 bg-amber-900/20 text-amber-200" : "border-slate-600 bg-slate-800 text-slate-300 hover:border-amber-500"}">
+                                    <input type="checkbox" class="wgpick-${d} accent-amber-500 w-3 h-3" value="${tm}">${tm}
+                                </label>`;
+                            }).join('')}
+                            <button onclick="addWebGroup('${d}')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-2 py-0.5 rounded ml-1">รวมที่เลือก</button>
                         </div>
                     </div>
                     ${table(d)}
