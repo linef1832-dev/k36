@@ -896,9 +896,9 @@ window.loadBreakWebGroups = async function(force) {
 };
 
 // คืนกลุ่มของเว็บนี้ -> { key, members[] }  (ไม่ได้จับกลุ่ม = อยู่คนเดียว)
-window.getBreakWebPool = function(dept, team) {
-    const all = window._breakWebGroups || {};
-    const groups = Array.isArray(all[dept]) ? all[dept] : [];
+// คืนกลุ่มของเว็บนี้ "ในกะนั้น" -> { key, members[] }  (ไม่ได้จับกลุ่ม = อยู่คนเดียว)
+window.getBreakWebPool = function(dept, team, shift) {
+    const groups = window.getWebGroupsOf(dept, shift);
     for (const g of groups) {
         if (Array.isArray(g) && g.includes(team)) {
             const members = [...new Set(g.filter(Boolean))];
@@ -908,9 +908,21 @@ window.getBreakWebPool = function(dept, team) {
     return { key: team, members: [team], grouped: false };
 };
 
+// อ่านรายการกลุ่มของแผนก+กะ (รองรับข้อมูลรูปแบบเก่าที่เป็น array เดียวใช้ทุกกะ)
+window.getWebGroupsOf = function(dept, shift) {
+    const all = window._breakWebGroups || {};
+    const d = all[dept];
+    if (Array.isArray(d)) return d;                       // ⏳ รูปแบบเก่า = ใช้กับทุกกะ
+    if (d && typeof d === "object") {
+        const g = d[shift];
+        if (Array.isArray(g)) return g;
+    }
+    return [];
+};
+
 // รวมสมาชิกทุกเว็บในกลุ่มเป็นกองเดียว
 window.poolMembers = function(covMap, dept, team) {
-    const pool = window.getBreakWebPool(dept, team);
+    const pool = window.getBreakWebPool(dept, team, (covMap && covMap.shift) || "");
     const out = new Set();
     pool.members.forEach(t => {
         const s = (covMap && covMap.combined && covMap.combined[t]) || new Set();

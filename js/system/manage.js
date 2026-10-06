@@ -1224,39 +1224,82 @@ window._saveWebGroups = async function(all) {
 // ➕ จับ 2 เว็บให้ใช้โควตาพักรวมกัน (ถ้าเว็บใดอยู่ในกลุ่มอื่นแล้ว จะยุบรวมกลุ่มให้)
 // ➕ จับหลายเว็บให้ใช้โควตาพักรวมกัน (เลือกกี่เว็บก็ได้)
 //   ถ้าเว็บที่เลือกไปอยู่ในกลุ่มอื่นแล้ว จะยุบรวมทุกกลุ่มที่เกี่ยวข้องเป็นกลุ่มเดียว
+// 🕐 กะที่กำลังตั้งกลุ่มอยู่บนหน้าจอ
+window._wgShift = window._wgShift || 'กะเช้า';
+window.wgPickShift = function(sh) { window._wgShift = sh; if (typeof renderQuotaSettings === "function") renderQuotaSettings(); };
+
+// แปลงข้อมูลให้เป็นรูปแบบ "แยกตามกะ" (ของเก่าเป็น array เดียว = ใช้ทุกกะ)
+window._wgNormalize = function(all, dept) {
+    const SH = ['กะเช้า', 'กะกลาง', 'กะดึก'];
+    if (Array.isArray(all[dept])) {
+        const old = all[dept];
+        all[dept] = {};
+        SH.forEach(s => { all[dept][s] = JSON.parse(JSON.stringify(old)); });
+    }
+    if (!all[dept] || typeof all[dept] !== "object") all[dept] = {};
+    return all[dept];
+};
+
+// ➕ จับหลายเว็บให้รวมกัน "เฉพาะกะที่เลือก"
 window.addWebGroup = async function(dept) {
     if (!window.sysRequireAdmin()) return;
     const picked = [...document.querySelectorAll('.wgpick-' + dept + ':checked')].map(el => el.value).filter(Boolean);
-    if (picked.length < 2) return Swal.fire('เลือกอย่างน้อย 2 เว็บ', 'ติ๊กเว็บที่อยากให้ใช้โควตารวมกัน แล้วกดรวมอีกครั้งครับ', 'info');
+    if (picked.length < 2) return Swal.fire('เลือกอย่างน้อย 2 เว็บ', 'ติ๊กเว็บที่อยากรวมกัน แล้วกดอีกครั้งครับ', 'info');
 
+    const sh = window._wgShift;
     const all = JSON.parse(JSON.stringify(window._breakWebGroups || {}));
-    let groups = Array.isArray(all[dept]) ? all[dept] : [];
+    const byShift = window._wgNormalize(all, dept);
+    let groups = Array.isArray(byShift[sh]) ? byShift[sh] : [];
     const merged = new Set(picked);
     groups = groups.filter(g => {
         if (g.some(x => merged.has(x))) { g.forEach(x => merged.add(x)); return false; }
         return true;
     });
     groups.push([...merged].sort());
-    all[dept] = groups;
+    byShift[sh] = groups;
     await window._saveWebGroups(all);
     await window.renderQuotaSettings();
-    Swal.fire({ icon: 'success', title: 'รวมแล้ว', text: [...merged].join(' + '), timer: 1600, showConfirmButton: false });
+    Swal.fire({ icon: 'success', title: 'รวมแล้ว (' + sh + ')', text: [...merged].join(' + '), timer: 1600, showConfirmButton: false });
+};
+
+// 📋 เอากลุ่มของกะนี้ไปใช้กับอีก 2 กะ
+window.copyWebGroupsToAllShifts = async function(dept) {
+    if (!window.sysRequireAdmin()) return;
+    const sh = window._wgShift;
+    const src = window.getWebGroupsOf(dept, sh);
+    if (!src.length) return Swal.fire('ยังไม่มีกลุ่ม', 'กะ' + sh.replace('กะ', '') + ' ยังไม่ได้จับกลุ่มอะไรไว้ครับ', 'info');
+    const ask = await Swal.fire({
+        icon: 'question', title: 'ใช้กลุ่มของ' + sh + ' กับทุกกะ?',
+        html: 'กลุ่มที่จะคัดลอก: <b>' + src.map(g => g.join(' + ')).join('</b> · <b>') + '</b><br><span style="color:#f87171">กลุ่มเดิมของกะอื่นจะถูกเขียนทับ</span>',
+        showCancelButton: true, confirmButtonText: 'ใช้เลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#f59e0b'
+    });
+    if (!ask.isConfirmed) return;
+    const all = JSON.parse(JSON.stringify(window._breakWebGroups || {}));
+    const byShift = window._wgNormalize(all, dept);
+    ['กะเช้า', 'กะกลาง', 'กะดึก'].forEach(s => { byShift[s] = JSON.parse(JSON.stringify(src)); });
+    await window._saveWebGroups(all);
+    await window.renderQuotaSettings();
+    Swal.fire({ icon: 'success', title: 'คัดลอกครบ 3 กะแล้ว', timer: 1500, showConfirmButton: false });
 };
 
 // ➖ แยกกลุ่มกลับเป็นเว็บเดี่ยว
+// ➖ แยกกลุ่มกลับเป็นเว็บเดี่ยว (เฉพาะกะที่เลือก)
 window.removeWebGroup = async function(dept, idx) {
     if (!window.sysRequireAdmin()) return;
+    const sh = window._wgShift;
     const all = JSON.parse(JSON.stringify(window._breakWebGroups || {}));
-    if (!Array.isArray(all[dept]) || !all[dept][idx]) return;
-    const names = all[dept][idx].join(" + ");
+    const byShift = window._wgNormalize(all, dept);
+    if (!Array.isArray(byShift[sh]) || !byShift[sh][idx]) return;
+    const names = byShift[sh][idx].join(' + ');
     const ask = await Swal.fire({
         icon: 'question', title: 'แยก ' + names + ' ออกจากกัน?',
-        text: 'แต่ละเว็บจะกลับไปนับโควตาพักของตัวเอง',
+        text: 'เฉพาะ' + sh + ' — กะอื่นไม่กระทบ',
         showCancelButton: true, confirmButtonText: 'แยกเลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc2626'
     });
     if (!ask.isConfirmed) return;
-    all[dept].splice(idx, 1);
-    if (!all[dept].length) delete all[dept];
+    byShift[sh].splice(idx, 1);
+    if (!byShift[sh].length) delete byShift[sh];
+    if (!Object.keys(byShift).length) delete all[dept];
     await window._saveWebGroups(all);
     await window.renderQuotaSettings();
 };
@@ -1290,7 +1333,7 @@ window.renderQuotaSettings = async function() {
             // 🧹 [กติกาเดียว] นับรวมทุกคนของเว็บ (ไม่สนหลัก/รอง) — พักพร้อมกันได้ = คน − เฝ้า≥ (ไม่ตั้ง = 1)
             const raw = window.getBreakMinRemainRaw(dept, sh, team);
             // 🔗 ถ้าเว็บนี้ถูกจับกลุ่มไว้ ให้นับคนรวมทั้งกอง
-            const pool = window.getBreakWebPool(dept, team);
+            const pool = window.getBreakWebPool(dept, team, sh);
             const n = m ? window.poolMembers(m, dept, team).members.size : 0;
             // 🆕 ไม่ตั้งเอง = เพดานอัตโนมัติตามตารางขั้นบันได · ตั้งเอง = คน − เฝ้า≥
             const cap = (raw === null)
@@ -1302,6 +1345,7 @@ window.renderQuotaSettings = async function() {
                 : `<div class="text-[10px] text-slate-600 py-0.5">ยังไม่จัด</div>`;
             return `<div class="w-28 shrink-0 text-center ml-2 rounded-lg border ${raw === null ? 'border-slate-600' : 'border-amber-500/60'} bg-slate-900 py-1 leading-tight">
                 ${capHtml}
+                ${pool.grouped ? `<div class="text-[8px] text-amber-300/90 leading-none -mt-0.5" title="กะนี้รวมกับ ${pool.members.filter(x => x !== team).join(", ")}">🔗 ${pool.members.filter(x => x !== team).join(", ")}</div>` : ""}
                 <div class="text-[9px] ${raw === null ? 'text-slate-400' : 'text-amber-300'} flex items-center justify-center gap-1 mt-0.5" title="ช่วงเวลาเดียวกัน ต้องเหลือคนเฝ้าเว็บนี้อย่างน้อยเท่านี้">เฝ้า≥
                     <input type="number" min="0" max="99" value="${raw === null ? '' : raw}" placeholder="${autoRemain}" data-brm="${dept}|${sh}|${team}" oninput="brmPreview(this)"
                         class="w-9 bg-slate-800 border ${raw === null ? 'border-slate-600' : 'border-amber-500/60'} rounded text-center text-[10px] py-0.5 outline-none focus:border-amber-400"> คน
@@ -1321,7 +1365,7 @@ window.renderQuotaSettings = async function() {
                 <div class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
                     ${allTeams.map(team => `
                     <div class="flex items-center">
-                        <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-lg w-24 text-center text-xs shrink-0">${team}${(() => { const p = window.getBreakWebPool(dept, team); return p.grouped ? `<span class="block text-[8px] font-normal text-amber-300/90 leading-none mt-0.5" title="ใช้โควตาพักรวมกับ ${p.members.filter(x => x !== team).join(", ")}">🔗 รวม ${p.members.filter(x => x !== team).join(", ")}</span>` : ""; })()}</div>
+                        <div class="bg-[#f0fdf4] dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-emerald-100 font-bold px-3 py-1.5 rounded-lg w-24 text-center text-xs shrink-0">${team}</div>
                         ${cell('กะเช้า', team)}${cell('กะกลาง', team)}${cell('กะดึก', team)}
                     </div>`).join('')}
                 </div>
@@ -1367,21 +1411,24 @@ window.renderQuotaSettings = async function() {
                     </h5>
                     <div class="mb-2 shrink-0 text-[10px] bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5">
                         <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="text-slate-400">🔗 กลุ่มเว็บที่รวมกัน (การ์ดจัดเวร + โควตาพัก):</span>
-                            ${(window._breakWebGroups && Array.isArray(window._breakWebGroups[d]) ? window._breakWebGroups[d] : [])
+                            <span class="text-slate-400">🔗 กลุ่มเว็บที่รวมกัน (การ์ดจัดเวร + โควตาพัก)</span>
+                            ${shifts.map(sh => `<button onclick="wgPickShift('${sh}')" class="px-1.5 py-0.5 rounded border font-bold ${window._wgShift === sh ? "bg-amber-600 border-amber-500 text-white" : "bg-slate-800 border-slate-600 text-slate-300 hover:border-amber-500"}">${sh.replace("กะ", "")}</button>`).join('')}
+                            <span class="text-slate-500">:</span>
+                            ${window.getWebGroupsOf(d, window._wgShift)
                                 .map((g, gi) => `<span class="inline-flex items-center gap-1 bg-amber-900/30 border border-amber-600/50 text-amber-200 rounded px-1.5 py-0.5">${g.join(" + ")}
                                     <button onclick="removeWebGroup('${d}', ${gi})" title="แยกกลับเป็นเว็บเดี่ยว" class="hover:text-red-400"><span class="material-icons text-[11px] align-middle">close</span></button>
                                 </span>`).join('') || '<span class="text-slate-600 italic">ยังไม่มีกลุ่ม</span>'}
                         </div>
-                        <div class="text-slate-500 mt-1 text-[9px]">ติ๊กเว็บที่อยากรวมเป็น "กลุ่มเดียวกัน" แล้วกด "รวมที่เลือก" · สร้างได้หลายกลุ่ม ทำทีละกลุ่ม เช่น กลุ่มที่ 1 = BT678+F168 แล้วค่อยติ๊กกลุ่มที่ 2 = JL69+Jun88</div>
+                        <div class="text-slate-500 mt-1 text-[9px]">ติ๊กเว็บที่อยากรวมเป็น "กลุ่มเดียวกัน" แล้วกด "รวมที่เลือก" · แยกกลุ่มของแต่ละกะได้ (กดเลือกกะด้านบน) · สร้างได้หลายกลุ่ม ทำทีละกลุ่ม เช่น กลุ่มที่ 1 = BT678+F168 แล้วค่อยติ๊กกลุ่มที่ 2 = JL69+Jun88</div>
                         <div class="flex items-center gap-1 mt-1.5 flex-wrap">
                             ${allTeams.map(tm => {
-                                const inG = (window._breakWebGroups && Array.isArray(window._breakWebGroups[d]) ? window._breakWebGroups[d] : []).some(g => g.includes(tm));
+                                const inG = window.getWebGroupsOf(d, window._wgShift).some(g => g.includes(tm));
                                 return `<label class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border cursor-pointer select-none ${inG ? "border-amber-600/50 bg-amber-900/20 text-amber-200" : "border-slate-600 bg-slate-800 text-slate-300 hover:border-amber-500"}">
                                     <input type="checkbox" class="wgpick-${d} accent-amber-500 w-3 h-3" value="${tm}">${tm}
                                 </label>`;
                             }).join('')}
                             <button onclick="addWebGroup('${d}')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-2 py-0.5 rounded ml-1">รวมที่เลือก</button>
+                            <button onclick="copyWebGroupsToAllShifts('${d}')" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold px-2 py-0.5 rounded" title="เอากลุ่มของกะนี้ไปใช้กับอีก 2 กะด้วย">ใช้กับทุกกะ</button>
                         </div>
                     </div>
                     ${table(d)}

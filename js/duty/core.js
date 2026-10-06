@@ -1519,7 +1519,7 @@ window.renderRosterGrid = async function(rosterData) {
         // 🔗 [กลุ่มเว็บ] เว็บที่ถูกจับกลุ่มไว้ = วาดการ์ดใบเดียวรวมกัน
         //   ใบหลักของกลุ่มคือเว็บที่มาก่อนในลำดับ ตัวที่เหลือข้ามไป (ไม่วาดซ้ำ)
         const _pool = (typeof window.getBreakWebPool === 'function')
-            ? window.getBreakWebPool(currentDutyDept, team)
+            ? window.getBreakWebPool(currentDutyDept, team, (document.getElementById('dutyShiftSelect') || {}).value || '')
             : { members: [team], grouped: false };
         const _grpTeams = _pool.grouped ? sortedTeams.filter(t => _pool.members.includes(t)) : [team];
         if (_pool.grouped && _grpTeams.length > 1 && _grpTeams[0] !== team) return;   // ไม่ใช่ใบหลัก ข้าม
