@@ -79,6 +79,19 @@
     #sheetApp .sh-vbar{display:flex;align-items:center;justify-content:space-between;gap:10px;height:50px;padding:0 10px 0 14px;background:#121c30;border-bottom:1px solid #24324b}
     #sheetApp #sheetTitle{font-size:14px;font-weight:900;color:#fff}
 
+    /* ── โหมดแบ่งจอกับคลังรูป: หัวกะทัดรัด ปุ่มเหลือแต่ไอคอน (ชี้ค้างมีคำอธิบาย) ── */
+    #sheetApp.sheet-split .sh-head{padding:10px 12px;gap:10px;flex-wrap:nowrap}
+    #sheetApp.sheet-split .sh-sub{display:none}
+    #sheetApp.sheet-split .sh-ico{width:34px;height:34px}
+    #sheetApp.sheet-split .sh-title{font-size:15px;white-space:nowrap}
+    #sheetApp.sheet-split .sh-right{flex-wrap:nowrap;gap:6px;min-width:0}
+    #sheetApp.sheet-split .sh-search{flex:1 1 auto;min-width:0}
+    #sheetApp.sheet-split .sh-search input,#sheetApp.sheet-split .sh-search input:focus{width:100%;min-width:90px}
+    #sheetApp.sheet-split .sh-right .sh-btn{padding:0 9px}
+    #sheetApp.sheet-split .sh-right .sh-t{display:none}
+    #sheetApp.sheet-split .sh-sep{display:none}
+    #sheetApp.sheet-split .sh-vbar .sh-btn{padding:0 9px}
+    #sheetApp.sheet-split .sh-vbar .sh-t{display:none}
     @media (max-width:1024px){ #sheetApp .sh-main{flex-direction:column} }
     @media (max-width:640px){ #sheetApp .sh-search input,#sheetApp .sh-search input:focus{width:100%} #sheetApp .sh-search{flex:1 1 100%} #sheetApp .sh-right{margin-left:0;width:100%} }
     @media (prefers-reduced-motion:reduce){ #sheetApp .sh-card,#sheetApp .sh-btn{transition:none} }
@@ -97,18 +110,18 @@
             </div>
             <span class="sh-sep"></span>
             <button id="btnMySheets" onclick="showSheetAdmin(true)" class="sh-btn" title="เพิ่มชีตส่วนตัว (เห็นคนเดียว)">
-                <span class="material-icons ic-g">person_add</span> ชีตของฉัน
+                <span class="material-icons ic-g">person_add</span><span class="sh-t">ชีตของฉัน</span>
             </button>
             <div id="sheetAdminControls" class="hidden">
                 <button onclick="showSheetAdmin(false)" class="sh-btn" title="เพิ่ม/แก้/ลบ ชีตของทีม">
-                    <span class="material-icons">settings</span> จัดการชีต
+                    <span class="material-icons">settings</span><span class="sh-t">จัดการชีต</span>
                 </button>
             </div>
             <button onclick="toggleGalleryDrawer()" title="เปิดคลังรูปแบ่งจอ โดยไม่ต้องออกจากหน้านี้" class="sh-btn gold">
-                <span class="material-icons">photo_library</span> คลังรูป
+                <span class="material-icons">photo_library</span><span class="sh-t">คลังรูป</span>
             </button>
             <button onclick="showPage('dashboard')" class="sh-btn">
-                <span class="material-icons">arrow_back</span> กลับ
+                <span class="material-icons">arrow_back</span><span class="sh-t">กลับ</span>
             </button>
         </div>
     </div>
@@ -188,10 +201,10 @@
             <span id="sheetTitle" class="flex items-center gap-2 min-w-0 truncate">...</span>
             <div class="flex items-center gap-2 shrink-0">
                 <button onclick="document.getElementById('sheetFrame').src = document.getElementById('sheetFrame').src" class="sh-btn" title="โหลดหน้านี้ใหม่">
-                    <span class="material-icons">refresh</span> โหลดใหม่
+                    <span class="material-icons">refresh</span><span class="sh-t">โหลดใหม่</span>
                 </button>
                 <button onclick="closeSheet()" class="sh-btn danger">
-                    <span class="material-icons">close</span> ปิดหน้านี้
+                    <span class="material-icons">close</span><span class="sh-t">ปิดหน้านี้</span>
                 </button>
             </div>
         </div>
@@ -496,12 +509,59 @@
        (คลาส md:/lg:/xl: ของ Tailwind ดูจากจอทั้งจอ → พอเปิดคู่กับชีตแล้วบีบ 5 คอลัมน์ลงครึ่งจอ รูปเลยจิ๋ว)
        ใช้ auto-fill: กว้างขั้นต่ำ 190px ต่อรูป ได้กี่คอลัมน์ก็เท่านั้น ย่อจอแล้วรูปยังเท่าเดิม */
     #galleryDrawer #galleryGrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr)) !important}
+
+    /* ── หัวแผงคลังรูป ── */
+    #galleryDrawer{background:#0b1222 !important}
+    #galleryDrawer .gd-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 12px;background:#121c30;border-bottom:1px solid #24324b;flex-shrink:0}
+    #galleryDrawer .gd-title{display:flex;align-items:center;gap:10px;min-width:0}
+    #galleryDrawer .gd-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none}
+    #galleryDrawer .gd-ic .material-icons{font-size:18px}
+    #galleryDrawer .gd-title b{display:block;font-size:14px;font-weight:900;color:#fff;line-height:1.2}
+    #galleryDrawer .gd-title small{display:block;font-size:11px;font-weight:600;color:#7d8ba3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #galleryDrawer .gd-acts{display:flex;gap:6px;flex:none}
+    #galleryDrawer .gd-btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 11px;border-radius:9px;font-size:12.5px;font-weight:800;cursor:pointer;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;transition:background .15s,border-color .15s}
+    #galleryDrawer .gd-btn .material-icons{font-size:17px;color:#E8C15A}
+    #galleryDrawer .gd-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
+    #galleryDrawer .gd-btn.close{color:#fca5a5;border-color:#5a2a37;background:#24121b}
+    #galleryDrawer .gd-btn.close .material-icons{color:#f87171}
+    #galleryDrawer .gd-btn.close:hover{background:#3a1724;border-color:#9f3a52;color:#fff}
+    #galleryDrawer #galleryDrawerBody{padding:0 !important}
+
+    /* ── คลังรูปในแผง: ย้ายแถบข้างซ้ายขึ้นเป็นแถบเครื่องมือด้านบน → รูปได้พื้นที่เต็มความกว้าง ── */
+    #galleryDrawer .gx-app{flex-direction:column;border-radius:0;border:0;box-shadow:none;background:#0b1222}
+    #galleryDrawer .gx-side{width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;overflow:visible;background:#0f1829;border-right:0;border-bottom:1px solid #24324b}
+    #galleryDrawer .gx-brand,#galleryDrawer .gx-side-label,#galleryDrawer .gx-back{display:none !important}
+    #galleryDrawer .gx-tabs{flex-direction:row;flex-wrap:nowrap;gap:3px;padding:3px;border-radius:10px;background:#0b1222;border:1px solid #22304a;overflow-x:auto;max-width:100%}
+    #galleryDrawer .gx-tab{width:auto;padding:6px 10px;border-radius:8px;font-size:12px}
+    #galleryDrawer .gx-tab.hidden{display:none}
+    #galleryDrawer .gx-select{width:auto;height:32px;margin:0;border-radius:9px;font-size:12px;background:#18233a;border-color:#2c3b58}
+    #galleryDrawer .gx-btn,#galleryDrawer #btnBulkDelete{width:auto;height:32px;margin:0;padding:0 11px;border-radius:9px;font-size:12px;box-shadow:none}
+    #galleryDrawer #btnBulkDelete.hidden{display:none}
+    #galleryDrawer #adminUploadControls{flex-direction:row;align-items:center;gap:6px}
+    #galleryDrawer #adminUploadControls.hidden{display:none}
+    #galleryDrawer #adminUploadControls select{height:32px;border-radius:9px;font-size:12px;padding:0 8px;background:#18233a;border:1px solid #2c3b58;color:#e7ecf5}
+    #galleryDrawer .gx-upload-label{height:32px !important;margin:0 !important;padding:0 12px !important;border-radius:9px !important;font-size:12px !important;width:auto !important;display:inline-flex !important;align-items:center;gap:5px}
+    #galleryDrawer .gx-main{min-height:0}
+    #galleryDrawer .gx-top{padding:8px 10px;gap:8px}
+    #galleryDrawer .gx-search input,#galleryDrawer .gx-count-pill{height:36px;border-radius:10px}
+    #galleryDrawer #galleryWebBadges{padding:7px 10px;min-height:0}
+    #galleryDrawer #galleryDropZone{padding:8px !important;font-size:12px !important;margin:6px 10px !important}
+    #galleryDrawer #galleryDropZone .material-icons{font-size:18px !important;display:inline-block !important;margin:0 6px 0 0 !important;vertical-align:middle}
     @media (max-width:900px){ #galleryDrawer #galleryGrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)) !important} }
 </style>
 <div id="galleryDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:50vw;z-index:90;background:#0b1120;border-left:2px solid rgba(232,193,90,.45);box-shadow:-12px 0 40px rgba(0,0,0,.6);flex-direction:column">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:linear-gradient(90deg,rgba(120,80,10,.35),#0f172a);border-bottom:1px solid rgba(232,193,90,.25);flex-shrink:0">
-        <span style="font-weight:900;color:#fcd34d;display:flex;align-items:center;gap:8px;font-size:13px"><span class="material-icons" style="font-size:18px">photo_library</span> คลังรูป — แบ่งจอกับหน้าชีต (เปิดค้างไว้ได้ตลอด)</span>
-        <button onclick="toggleGalleryDrawer(false)" style="background:#dc2626;color:#fff;padding:6px 12px;border-radius:8px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:4px;border:0;cursor:pointer"><span class="material-icons" style="font-size:15px">close</span> ปิดคลังรูป</button>
+    <div class="gd-head">
+        <div class="gd-title">
+            <span class="gd-ic"><span class="material-icons">photo_library</span></span>
+            <div>
+                <b>คลังรูป</b>
+                <small>ใช้คู่กับชีตได้ · ลากขอบเพื่อปรับขนาด</small>
+            </div>
+        </div>
+        <div class="gd-acts">
+            <button id="btnSwapSplit" onclick="swapSplitSide()" class="gd-btn" title="สลับฝั่ง ชีต ↔ คลังรูป"><span class="material-icons">swap_horiz</span><span class="gd-t">สลับฝั่ง</span></button>
+            <button onclick="toggleGalleryDrawer(false)" class="gd-btn close" title="ปิดคลังรูป"><span class="material-icons">close</span><span class="gd-t">ปิด</span></button>
+        </div>
     </div>
     <div id="galleryDrawerBody" style="flex:1;overflow:hidden;padding:6px;min-height:0">
         <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b"><span class="material-icons" style="animation:spin 1s linear infinite;margin-right:8px">sync</span> กำลังโหลดคลังรูป...</div>
