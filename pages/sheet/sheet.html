@@ -300,86 +300,141 @@
     </div>
 </div>
 
+<!-- ⚙️ หน้าต่างเพิ่ม/แก้ชีต (ออกแบบใหม่: ฟอร์มซ้าย · รายการขวา) — id / onclick เดิมทุกตัว -->
+<style>
+    #sheetAdminModal .sa-box{width:100%;max-width:1040px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;border-radius:18px;background:#121c30;border:1px solid #24324b;box-shadow:0 30px 80px rgba(0,0,0,.6);color:#e7ecf5}
+    #sheetAdminModal .sa-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid #24324b}
+    #sheetAdminModal #sheetAdminTitle{font-size:16px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px}
+    #sheetAdminModal #sheetAdminTitle .material-icons{color:#E8C15A;font-size:20px}
+    #sheetAdminModal .sa-x{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#9fb0cc;background:#1a2640;border:1px solid #2f3f5e;cursor:pointer}
+    #sheetAdminModal .sa-x:hover{color:#fff;background:#22314f}
+    #sheetAdminModal .sa-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+    #sheetAdminModal .sa-form{overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px;border-right:1px solid #24324b}
+    #sheetAdminModal .sa-list{overflow-y:auto;padding:16px 18px;background:#0f1829}
+    #sheetAdminModal .sa-sec{font-size:12px;font-weight:900;color:#8a97ad;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    #sheetAdminModal #formTitle{font-size:13.5px !important;font-weight:900 !important;color:#E8C15A !important;display:flex;align-items:center;gap:6px}
+    #sheetAdminModal #formTitle.text-orange-600{color:#fb923c !important}
+    #sheetAdminModal .sa-lbl{display:block;font-size:12px;font-weight:800;color:#9fb0cc;margin-bottom:6px}
+    #sheetAdminModal .sa-lbl small{font-weight:600;color:#6b7891;margin-left:4px}
+    #sheetAdminModal .sa-in{width:100%;height:42px;padding:0 12px;border-radius:10px;background:#0f1829;border:1px solid #2c3b58;color:#f3f6fb;font-size:13.5px;font-weight:700;outline:none;transition:border-color .15s}
+    #sheetAdminModal .sa-in::placeholder{color:#5f6c84;font-weight:600}
+    #sheetAdminModal .sa-in:focus,#sheetAdminModal textarea:focus{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.15)}
+    #sheetAdminModal textarea{width:100%;padding:10px 12px;border-radius:10px;background:#0f1829;border:1px solid #2c3b58;color:#f3f6fb;font-size:12.5px;outline:none;white-space:pre}
+    #sheetAdminModal .sa-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    #sheetAdminModal .sa-row:has(#sheetGroupFieldWrap.hidden){grid-template-columns:1fr}   /* โหมดชีตของฉัน: ไม่มีช่องหมวด → ช่องชื่อเต็มแถว */
+    /* ปุ่มเลือกประเภท (JS เปลี่ยน className เป็น bg-purple-600 = เลือก / bg-slate-800 = ไม่เลือก) */
+    #sheetAdminModal .sa-seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#0f1829;border:1px solid #24324b}
+    #sheetAdminModal .sa-seg button{flex:1;height:38px;border-radius:9px !important;border:0 !important;font-size:12.5px !important;font-weight:800 !important;display:flex;align-items:center;justify-content:center;gap:6px;background:transparent !important;color:#8a97ad !important;cursor:pointer;transition:background .15s,color .15s}
+    #sheetAdminModal .sa-seg button:hover{color:#fff !important}
+    #sheetAdminModal .sa-seg button.bg-purple-600{background:#E8C15A !important;color:#1b1406 !important}
+    #sheetAdminModal .sa-seg button .material-icons{font-size:17px}
+    #sheetAdminModal .sa-note{font-size:11.5px;line-height:1.55;color:#a9c4e0;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.25);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+    #sheetAdminModal .sa-file{display:flex;align-items:center;gap:10px;height:42px;padding:0 6px 0 4px;border-radius:10px;background:#0f1829;border:1px dashed #3a4b6b;font-size:12.5px;color:#9fb0cc}
+    #sheetAdminModal .sa-file input{flex:1;min-width:0;font-size:12px;color:#9fb0cc}
+    #sheetAdminModal .sa-file input::file-selector-button{margin-right:10px;height:32px;padding:0 12px;border-radius:8px;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;font-weight:800;font-size:12px;cursor:pointer}
+    #sheetAdminModal .sa-color{display:flex;align-items:center;gap:8px;height:42px;padding:0 10px;border-radius:10px;background:#0f1829;border:1px solid #2c3b58}
+    #sheetAdminModal .sa-color input{width:34px;height:26px;border:0;padding:0;background:transparent;cursor:pointer}
+    #sheetAdminModal .sa-color span{font-size:12px;font-weight:700;color:#8a97ad}
+    #sheetAdminModal .sa-foot{display:flex;align-items:center;gap:8px;padding-top:4px}
+    #sheetAdminModal #btnSaveSheet{flex:1;height:44px;border-radius:11px;border:1px solid #E8C15A;background:#E8C15A !important;color:#1b1406;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;box-shadow:0 6px 18px rgba(232,193,90,.22);transition:background .15s,transform .08s}
+    #sheetAdminModal #btnSaveSheet:hover{background:#f1cf74 !important}
+    #sheetAdminModal #btnSaveSheet:active{transform:scale(.98)}
+    #sheetAdminModal #btnSaveSheet.bg-orange-500{background:#fb923c !important;border-color:#fb923c}
+    #sheetAdminModal #btnCancelEdit{height:44px;padding:0 14px;border-radius:11px;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;font-size:13px;font-weight:800;cursor:pointer}
+    #sheetAdminModal #btnCancelEdit.hidden{display:none}
+    #sheetAdminModal #sheetPersonalHint{font-size:11.5px;color:#86efac;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:8px 11px;display:flex;align-items:center;gap:8px}
+    #sheetAdminModal #sheetPersonalHint.hidden{display:none}
+    #sheetAdminModal #adminSheetList{display:flex;flex-direction:column;gap:8px}
+    #sheetAdminModal #adminSheetList > div{background:#151f35 !important;border-color:#273650 !important;border-radius:12px !important}
+    #sheetAdminModal #adminSheetList .opacity-0{opacity:1 !important}
+    #sheetAdminModal .sa-empty-hint{font-size:12px;color:#6b7891;text-align:center;padding:18px}
+    @media (max-width:860px){ #sheetAdminModal .sa-body{grid-template-columns:1fr;overflow-y:auto} #sheetAdminModal .sa-form{border-right:0;border-bottom:1px solid #24324b;overflow:visible} #sheetAdminModal .sa-list{overflow:visible} #sheetAdminModal .sa-row{grid-template-columns:1fr} }
+</style>
 <div id="sheetAdminModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4 fade-in">
-    <div class="bg-slate-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-700">
-        <div class="p-5 flex justify-between items-center shrink-0" style="background:#121c30;border-bottom:1px solid #24324b">
-            <h3 id="sheetAdminTitle" class="font-black text-xl text-white flex items-center gap-2">
-                <span class="material-icons">settings_applications</span> จัดการรายการ / ลิงก์
-            </h3>
-            <button onclick="closeSheetAdmin()" class="text-white/70 hover:text-white hover:bg-white/20 p-1 rounded-full transition">
-                <span class="material-icons">close</span>
-            </button>
+    <div class="sa-box">
+        <div class="sa-head">
+            <h3 id="sheetAdminTitle"><span class="material-icons">settings_applications</span> จัดการรายการ / ลิงก์</h3>
+            <button onclick="closeSheetAdmin()" class="sa-x" title="ปิด"><span class="material-icons">close</span></button>
         </div>
-        <div class="p-6 bg-slate-800/50 border-b border-slate-700 space-y-4 shrink-0">
-            <div class="flex justify-between items-center">
-                <h4 id="formTitle" class="text-sm font-bold text-purple-400 flex items-center gap-1">
-                    <span class="material-icons text-base">add_circle</span> เพิ่มรายการใหม่
-                </h4>
-                <button id="btnCancelEdit" onclick="cancelEdit()" class="hidden text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition">ยกเลิกการแก้ไข</button>
-            </div>
-            <input type="hidden" id="editSheetId">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ชื่อเรียก</label>
-                    <input type="text" id="newSheetName" placeholder="เช่น ตารางงาน, เว็บหลังบ้าน..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
+
+        <div class="sa-body">
+            <!-- ซ้าย: ฟอร์ม -->
+            <div class="sa-form custom-scrollbar">
+                <h4 id="formTitle"><span class="material-icons text-[18px]">add_circle</span> เพิ่มรายการใหม่</h4>
+                <input type="hidden" id="editSheetId">
+
+                <div id="sheetPersonalHint" class="hidden">
+                    <span class="material-icons" style="font-size:16px">lock</span> ชีตนี้เห็นคุณคนเดียว และจะอยู่ในหมวด "ชีตของฉัน" อัตโนมัติ
                 </div>
-                <div id="sheetGroupFieldWrap">
-                    <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">กลุ่ม / หมวด</label>
-                    <input type="text" id="newSheetGroup" placeholder="เช่น Jun88, ทั่วไป..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
-                </div>
-            </div>
-            <div id="sheetPersonalHint" class="hidden text-[11px] text-emerald-300 bg-emerald-900/20 border border-emerald-700/40 rounded-lg p-2 leading-relaxed flex items-center gap-2">
-                <span class="material-icons text-sm">lock</span> ชีตนี้เป็นของคุณคนเดียว — คนอื่นจะมองไม่เห็น และจะถูกเก็บในหมวด "ชีตของฉัน" อัตโนมัติ
-            </div>
-            <div>
-                <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ประเภทรายการ</label>
-                <div class="flex gap-2">
-                    <button type="button" id="sheetTypeBtn_link" onclick="setSheetType('link')" class="flex-1 py-2.5 rounded-xl text-sm font-bold border transition bg-purple-600 border-purple-400 text-white"><span class="material-icons text-sm align-middle">link</span> ลิงก์ (Google Sheet / เว็บ)</button>
-                    <button type="button" id="sheetTypeBtn_note" onclick="setSheetType('note')" class="flex-1 py-2.5 rounded-xl text-sm font-bold border transition bg-slate-800 border-slate-600 text-slate-400 hover:text-white"><span class="material-icons text-sm align-middle">table_chart</span> หน้าข้อความ (สร้างในระบบ)</button>
-                </div>
-                <input type="hidden" id="newSheetType" value="link">
-            </div>
-            <div id="noteEditorBox" class="hidden">
-                <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">เนื้อหาตาราง</label>
-                <div class="text-[11px] text-sky-300 bg-sky-900/20 border border-sky-700/40 rounded-lg p-2 mb-2 leading-relaxed">
-                    วิธีง่ายสุด: เปิด Google Sheet → ลากเลือกช่องที่ต้องการ (รวมหัวตาราง) → Ctrl+C → มาวาง (Ctrl+V) ในช่องด้านล่าง ระบบจะแปลงเป็นตารางให้เอง
-                    <br>หรือพิมพ์เอง: แต่ละแถวขึ้นบรรทัดใหม่ คั่นช่องด้วย <b>Tab</b> หรือ <b>|</b>
-                </div>
-                <textarea id="newSheetNote" rows="10" placeholder="เหตุผล&#9;หมายเหตุ (พนักงาน)&#9;หมายเหตุหน้าแพลตฟอร์ม (ลูกค้า)&#10;ชื่อ ผิด&#9;ชื่อลูกค้าไม่ถูกต้อง&#9;ชื่อไม่ถูกต้อง กรุณาติดต่อฝ่ายบริการค่ะ" class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm font-mono outline-none focus:border-purple-500 whitespace-pre"></textarea>
-                <label class="flex items-center gap-2 mt-2 text-[12px] text-slate-300 cursor-pointer"><input type="checkbox" id="newSheetNoteHeader" checked class="accent-purple-500"> แถวแรกเป็นหัวตาราง</label>
-                <div id="notePreview" class="mt-2 text-[11px] text-slate-400"></div>
-            </div>
-            <div id="linkEditorBox">
-                <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">ลิงก์ (URL)</label>
-                <input type="text" id="newSheetUrl" placeholder="วางลิงก์ Google Sheet หรือ Link เว็บใดๆ ที่นี่..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm font-mono focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition shadow-inner">
-            </div>
-            </div>
-            <div class="flex flex-col md:flex-row gap-4 items-start">
-                <div class="flex-1 w-full">
-                    <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider">🖼️ รูปลิงก์หน้าปก (อัปโหลดรูป)</label>
-                    <input type="file" id="newSheetCoverFile" accept="image/*" class="w-full p-2 border border-slate-700 rounded-xl bg-slate-950 text-white focus:ring-2 focus:ring-purple-500 outline-none text-sm transition shadow-inner file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-600 file:text-white hover:file:bg-purple-500 cursor-pointer">
-                    <input type="hidden" id="newSheetCover" value="">
-                    <div id="currentSheetCoverContainer" class="hidden mt-2">
-                        <span class="text-[10px] text-gray-500 block mb-1">รูปปัจจุบัน:</span>
-                        <img id="currentSheetCoverImg" src="" class="h-16 w-auto rounded-lg border border-slate-600 shadow-sm object-cover bg-black">
+
+                <div class="sa-row">
+                    <div>
+                        <label class="sa-lbl" for="newSheetName">ชื่อเรียก</label>
+                        <input type="text" id="newSheetName" placeholder="เช่น ตารางงาน, เว็บหลังบ้าน" class="sa-in">
+                    </div>
+                    <div id="sheetGroupFieldWrap">
+                        <label class="sa-lbl" for="newSheetGroup">กลุ่ม / หมวด</label>
+                        <input type="text" id="newSheetGroup" placeholder="เช่น Jun88, ทั่วไป" class="sa-in">
                     </div>
                 </div>
-                <div class="w-full md:w-auto flex gap-3 mt-4 md:mt-0">
-                    <div class="flex flex-col w-full md:w-24">
-                        <label class="block text-[11px] font-extrabold text-slate-400 mb-1 uppercase tracking-wider text-center">สีธีม</label>
-                        <div class="h-[46px] w-full bg-slate-950 border border-slate-700 rounded-xl overflow-hidden p-1 flex items-center justify-center shadow-inner">
-                            <input type="color" id="newSheetColor" value="#8b5cf6" class="w-full h-full cursor-pointer bg-transparent border-0 rounded-lg">
+
+                <div>
+                    <label class="sa-lbl">ประเภทรายการ</label>
+                    <div class="sa-seg">
+                        <button type="button" id="sheetTypeBtn_link" onclick="setSheetType('link')" class="bg-purple-600"><span class="material-icons">link</span> ลิงก์ (Google Sheet / เว็บ)</button>
+                        <button type="button" id="sheetTypeBtn_note" onclick="setSheetType('note')" class="bg-slate-800"><span class="material-icons">table_chart</span> หน้าข้อความ (สร้างในระบบ)</button>
+                    </div>
+                    <input type="hidden" id="newSheetType" value="link">
+                </div>
+
+                <div id="linkEditorBox">
+                    <label class="sa-lbl" for="newSheetUrl">ลิงก์ (URL)</label>
+                    <input type="text" id="newSheetUrl" placeholder="วางลิงก์ Google Sheet หรือเว็บใดก็ได้" class="sa-in" style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px">
+                </div>
+
+                <div id="noteEditorBox" class="hidden">
+                    <label class="sa-lbl" for="newSheetNote">เนื้อหาตาราง</label>
+                    <div class="sa-note">
+                        วิธีง่ายสุด: เปิด Google Sheet → ลากเลือกช่องที่ต้องการ (รวมหัวตาราง) → Ctrl+C → มาวาง (Ctrl+V) ในช่องด้านล่าง ระบบจะแปลงเป็นตารางให้เอง
+                        <br>หรือพิมพ์เอง: แต่ละแถวขึ้นบรรทัดใหม่ คั่นช่องด้วย <b>Tab</b> หรือ <b>|</b>
+                    </div>
+                    <textarea id="newSheetNote" rows="9" placeholder="เหตุผล&#9;หมายเหตุ (พนักงาน)&#9;หมายเหตุหน้าแพลตฟอร์ม (ลูกค้า)&#10;ชื่อ ผิด&#9;ชื่อลูกค้าไม่ถูกต้อง&#9;ชื่อไม่ถูกต้อง กรุณาติดต่อฝ่ายบริการค่ะ" class="font-mono"></textarea>
+                    <label class="flex items-center gap-2 mt-2 cursor-pointer" style="font-size:12px;color:#cbd5e1"><input type="checkbox" id="newSheetNoteHeader" checked style="accent-color:#E8C15A"> แถวแรกเป็นหัวตาราง</label>
+                    <div id="notePreview" class="mt-2" style="font-size:11.5px;color:#8a97ad"></div>
+                </div>
+
+                <div class="sa-row">
+                    <div>
+                        <label class="sa-lbl" for="newSheetCoverFile">รูปหน้าปก <small>(ไม่บังคับ)</small></label>
+                        <div class="sa-file">
+                            <input type="file" id="newSheetCoverFile" accept="image/*">
+                        </div>
+                        <input type="hidden" id="newSheetCover" value="">
+                        <div id="currentSheetCoverContainer" class="hidden mt-2">
+                            <span style="font-size:11px;color:#6b7891" class="block mb-1">รูปปัจจุบัน</span>
+                            <img id="currentSheetCoverImg" src="" class="h-16 w-auto rounded-lg object-cover" style="border:1px solid #2c3b58;background:#000">
                         </div>
                     </div>
-                    <button id="btnSaveSheet" onclick="saveSheetData()" class="h-[46px] self-end px-6 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold transition shadow-lg shadow-purple-500/30 whitespace-nowrap active:scale-95">
-                        บันทึก
-                    </button>
+                    <div>
+                        <label class="sa-lbl" for="newSheetColor">สีประจำการ์ด</label>
+                        <label class="sa-color">
+                            <input type="color" id="newSheetColor" value="#8b5cf6">
+                            <span>กดเพื่อเลือกสี (ใช้เป็นแถบสีบนการ์ด)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="sa-foot">
+                    <button id="btnCancelEdit" onclick="cancelEdit()" class="hidden">ยกเลิกการแก้ไข</button>
+                    <button id="btnSaveSheet" onclick="saveSheetData()" class="bg-green-600 hover:bg-green-500"><span class="material-icons">save</span> บันทึกข้อมูล</button>
                 </div>
             </div>
-        </div>
-        <div class="flex-1 overflow-y-auto p-6 bg-[#0b1120] custom-scrollbar">
-            <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4">รายการที่มีอยู่</h4>
-            <div id="adminSheetList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+
+            <!-- ขวา: รายการที่มีอยู่ -->
+            <div class="sa-list custom-scrollbar">
+                <div class="sa-sec"><span class="material-icons" style="font-size:16px;color:#E8C15A">list</span> รายการที่มีอยู่ <span style="font-weight:600;color:#6b7891">· กดดินสอเพื่อแก้ไข</span></div>
+                <div id="adminSheetList"></div>
+            </div>
         </div>
     </div>
 </div>
