@@ -701,25 +701,25 @@ function _dreqEnsureStyle() {
         #dutyApp .dq-hint{font-size:11.5px;font-weight:600;color:#7d8ba3}
         #dutyApp .dq-poolslot{margin-left:auto}
         #dutyApp .dq-tools{display:flex;gap:8px}
-        #dutyApp .dq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+        #dutyApp .dq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
 
-        .dreq-card{position:relative;display:flex;flex-direction:column;border-radius:12px;background:#151f35;border:1px solid #273650;overflow:hidden;transition:border-color .25s,box-shadow .25s}
+        .dreq-card{position:relative;display:flex;flex-direction:column;border-radius:9px;background:#151f35;border:1px solid #273650;overflow:hidden;transition:border-color .25s,box-shadow .25s}
         .dreq-card:hover{border-color:#3e5277}
-        .dreq-name{display:flex;align-items:center;justify-content:center;height:26px;font-size:12px;font-weight:900;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 26px}
-        .dreq-ctrl{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px}
-        .dreq-btn{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;line-height:1;color:#cdd6e6;background:#1e2a45;border:1px solid #2f3f5e;cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .08s;flex:none}
+        .dreq-name{display:flex;align-items:center;justify-content:center;height:20px;font-size:11px;font-weight:900;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 20px}
+        .dreq-ctrl{display:flex;align-items:center;justify-content:space-between;gap:2px;padding:5px 6px}
+        .dreq-btn{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;line-height:1;color:#cdd6e6;background:#1e2a45;border:1px solid #2f3f5e;cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .08s;flex:none}
         .dreq-btn:hover{background:#28385c;color:#fff;border-color:#4a5f86}
         .dreq-btn.plus:hover{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.5);color:#86efac}
         .dreq-btn.minus:hover{background:rgba(251,146,60,.14);border-color:rgba(251,146,60,.5);color:#fdba74}
         .dreq-btn:active{transform:scale(.92)}
         .dreq-btn:focus-visible,.dreq-move button:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-        .dreq-num{width:100%;min-width:0;text-align:center;font-size:22px;font-weight:900;background:transparent;color:#fff;outline:none;border:0;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
+        .dreq-num{width:100%;min-width:0;text-align:center;font-size:17px;font-weight:900;background:transparent;color:#fff;outline:none;border:0;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
         .dreq-num::-webkit-outer-spin-button,.dreq-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
         .dreq-num:focus{color:#E8C15A}
         .dreq-card.zero .dreq-num{color:#56657f}
-        .dreq-move{position:absolute;top:0;left:0;right:0;height:26px;display:flex;justify-content:space-between;pointer-events:none}
-        .dreq-move button{pointer-events:auto;width:24px;height:26px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);background:rgba(0,0,0,.28);opacity:0;transition:opacity .15s,background .15s;cursor:pointer}
-        .dreq-move button .material-icons{font-size:16px}
+        .dreq-move{position:absolute;top:0;left:0;right:0;height:20px;display:flex;justify-content:space-between;pointer-events:none}
+        .dreq-move button{pointer-events:auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);background:rgba(0,0,0,.28);opacity:0;transition:opacity .15s,background .15s;cursor:pointer}
+        .dreq-move button .material-icons{font-size:14px}
         .dreq-move button:hover{background:rgba(0,0,0,.5)}
         .dreq-card:hover .dreq-move button,.dreq-move button:focus-visible{opacity:1}
         @media (hover:none){ .dreq-move button{opacity:.9} }
@@ -727,7 +727,7 @@ function _dreqEnsureStyle() {
         .dreq-flash-up{border-color:#22c55e!important;box-shadow:0 0 14px rgba(34,197,94,.45)!important}
         .dreq-flash-down{border-color:#fb923c!important;box-shadow:0 0 14px rgba(251,146,60,.45)!important}
         .dreq-flash-self{border-color:#E8C15A!important;box-shadow:0 0 14px rgba(232,193,90,.45)!important}
-        .dreq-delta{position:absolute;top:30px;right:6px;z-index:5;font-size:11px;font-weight:900;padding:1px 7px;border-radius:99px;pointer-events:none;animation:dreqPop 1.3s ease forwards}
+        .dreq-delta{position:absolute;top:22px;right:4px;z-index:5;font-size:11px;font-weight:900;padding:1px 7px;border-radius:99px;pointer-events:none;animation:dreqPop 1.3s ease forwards}
         .dreq-delta.up{background:#16a34a;color:#fff}
         .dreq-delta.down{background:#ea580c;color:#fff}
         @keyframes dreqPop{0%{opacity:0;transform:translateY(6px) scale(.6)}15%{opacity:1;transform:translateY(0) scale(1.1)}30%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
@@ -752,7 +752,7 @@ function _dreqEnsureStyle() {
         .dreq-pool.bad .dreq-pool-bar i{background:#ef4444}
         .dreq-shake{animation:dreqShake .4s ease}
         @keyframes dreqShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
-        @media (max-width:640px){ #dutyApp .dq-poolslot{margin-left:0;width:100%} .dreq-pool{min-width:0} #dutyApp .dq-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))} }
+        @media (max-width:640px){ #dutyApp .dq-poolslot{margin-left:0;width:100%} .dreq-pool{min-width:0} #dutyApp .dq-grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))} }
         @media (prefers-reduced-motion:reduce){ .dreq-delta,.dreq-shake{animation:none} }
     `;
     document.head.appendChild(s);
