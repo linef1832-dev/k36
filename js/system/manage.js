@@ -1367,13 +1367,13 @@ window.renderQuotaSettings = async function() {
                     </h5>
                     <div class="mb-2 shrink-0 text-[10px] bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5">
                         <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="text-slate-400">🔗 เว็บที่ใช้โควตารวมกัน:</span>
+                            <span class="text-slate-400">🔗 กลุ่มเว็บที่รวมกัน (การ์ดจัดเวร + โควตาพัก):</span>
                             ${(window._breakWebGroups && Array.isArray(window._breakWebGroups[d]) ? window._breakWebGroups[d] : [])
                                 .map((g, gi) => `<span class="inline-flex items-center gap-1 bg-amber-900/30 border border-amber-600/50 text-amber-200 rounded px-1.5 py-0.5">${g.join(" + ")}
                                     <button onclick="removeWebGroup('${d}', ${gi})" title="แยกกลับเป็นเว็บเดี่ยว" class="hover:text-red-400"><span class="material-icons text-[11px] align-middle">close</span></button>
-                                </span>`).join('') || '<span class="text-slate-600 italic">ยังไม่ได้จับกลุ่ม</span>'}
+                                </span>`).join('') || '<span class="text-slate-600 italic">ยังไม่มีกลุ่ม</span>'}
                         </div>
-                        <div class="text-slate-500 mt-1 text-[9px]">ติ๊กเว็บที่อยากให้ใช้โควตารวมกัน (เลือกกี่เว็บก็ได้) แล้วกด "รวมที่เลือก"</div>
+                        <div class="text-slate-500 mt-1 text-[9px]">ติ๊กเว็บที่อยากรวมเป็น "กลุ่มเดียวกัน" แล้วกด "รวมที่เลือก" · สร้างได้หลายกลุ่ม ทำทีละกลุ่ม เช่น กลุ่มที่ 1 = BT678+F168 แล้วค่อยติ๊กกลุ่มที่ 2 = JL69+Jun88</div>
                         <div class="flex items-center gap-1 mt-1.5 flex-wrap">
                             ${allTeams.map(tm => {
                                 const inG = (window._breakWebGroups && Array.isArray(window._breakWebGroups[d]) ? window._breakWebGroups[d] : []).some(g => g.includes(tm));
