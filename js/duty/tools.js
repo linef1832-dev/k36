@@ -152,7 +152,10 @@ window.shuffleMergeRooms = async function() {
     });
 
     window.currentMergeRooms = rooms;
-    window.renderMergeRoomPanel();
+    // 🐛 [FIX] เดิมเรียก window.renderMergeRoomPanel() ซึ่งถูกลบไปตอนรื้อ modal แบบเก่า
+    //    ทำให้ shuffleMergeRooms() โยน TypeError ทุกครั้ง -> ปุ่ม "บันทึก" ไม่เคยโผล่
+    //    -> รวมห้องจึงไม่เคยถูกบันทึกลง DB และหายทุกครั้งที่โหลดหน้าใหม่
+    if (typeof window.renderImportantTasksPanel === 'function') window.renderImportantTasksPanel();
 };
 
 // (ลบโค้ดที่ไม่ได้ใช้ออก 47 บรรทัด — modal รวมห้องแบบเก่า)
