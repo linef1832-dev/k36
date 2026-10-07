@@ -86,64 +86,8 @@ let ACTIVE_SHIFTS_CONFIG = ['กะเช้า', 'กะกลาง', 'กะ�
 const SHEET_BASE = "https://docs.google.com/spreadsheets/d"; 
 
 
-async function addSheet() {
-    if (!window.sysRequireAdmin()) return;
+// (addSheet / deleteSheet ชุดเก่าลบแล้ว — ระบบชีตใช้ js/sheet/admin.js ที่เดียว)
 
-    const name = document.getElementById('newSheetName').value.trim();
-    const group = document.getElementById('newSheetGroup').value.trim() || 'ทั่วไป';
-    const url = document.getElementById('newSheetUrl').value.trim();
-    const color = document.getElementById('newSheetColor').value;
-    
-    if(!name || !url) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาใส่ชื่อและลิงก์', 'warning');
-    
-    let sheetId = url;
-    let gid = null;
-
-    const idMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-    if(idMatch) {
-        sheetId = idMatch[1];
-        const gidMatch = url.match(/[?&#]gid=([0-9]+)/); 
-        if (gidMatch) {
-            gid = gidMatch[1];
-        }
-    } 
-    
-    const { error } = await appDB.from('external_sheets').insert([{
-        name: name,
-        group_name: group,
-        sheet_id: sheetId,
-        gid: gid, 
-        color: color
-    }]);
-    
-    if(error) return Swal.fire('Error', error.message, 'error');
-    
-    document.getElementById('newSheetName').value = '';
-    document.getElementById('newSheetUrl').value = '';
-    
-    await fetchSheets();
-    renderAdminSheetList();
-    Swal.fire('สำเร็จ', 'เพิ่มรายการเรียบร้อย', 'success');
-}
-
-async function deleteSheet(id) {
-    if (!window.sysRequireAdmin()) return;
-
-    Swal.fire({
-        title: 'ลบตาราง?', text: "ไม่สามารถกู้คืนได้", icon: 'warning',
-        showCancelButton: true, confirmButtonText: 'ลบ', confirmButtonColor: '#d33'
-    }).then(async (result) => {
-        if(result.isConfirmed) {
-            await appDB.from('external_sheets').delete().eq('id', id);
-            await fetchSheets();
-            renderAdminSheetList();
-        }
-    });
-}
-
-let userSubscription = null;
-// 🔄 [FIX] ฟังการเปลี่ยนแปลงของ "ตัวเอง" จากแอดมิน (กะ / แผนก / ทีม / role / สิทธิ์) แล้วอัปเดตหน้าจอทันที ไม่ต้องออก-เข้าใหม่
-// ⚠️ ฟังก์ชันนี้เคยเขียนไว้แต่ "ไม่มีใครเรียก" — ตอนนี้ถูกเรียกจาก global.js ตอนเริ่มระบบ
 window.subscribeUserChanges = function subscribeUserChanges() {
     if (userSubscription) { try { appDB.removeChannel(userSubscription); } catch (e) {} }
 

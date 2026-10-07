@@ -1,35 +1,4 @@
 <div class="fade-in pb-10 flex flex-col h-full" id="slipCheckPage">
-<style>
-/* 🎩 Premium Skin (เฉพาะโหมดมืด — เดิมไม่ได้จำกัดโหมด เลยบังคับการ์ดเป็นสีดำแม้อยู่โหมดสว่าง) — การ์ดแก้วเข้ม + ลอยตอนชี้ + ขอบเรืองสีประจำหน้า */
-html.dark #slipCheckPage [class*="dark:bg-slate-800"][class*="rounded-2xl"],
-html.dark #slipCheckPage [class*="dark:bg-slate-800"][class*="rounded-xl"],
-html.dark #slipCheckPage [class*="bg-[#151f32]"]{
-    background:linear-gradient(165deg,var(--k-panel2),var(--k-panel2)) !important;
-    border-color:color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent) !important;
-    box-shadow:0 4px 16px rgba(0,0,0,0.25) !important;
-    transition:transform .15s, box-shadow .15s, border-color .15s !important;
-}
-html.dark #slipCheckPage [class*="dark:bg-slate-800"][class*="rounded-2xl"]:hover,
-html.dark #slipCheckPage [class*="dark:bg-slate-800"][class*="rounded-xl"]:hover{
-    transform:translateY(-3px);
-    border-color:rgba(99,102,241,0.45) !important;
-    box-shadow:0 12px 28px rgba(0,0,0,0.4) !important;
-}
-html.dark #slipCheckPage [class*="dark:bg-slate-900"]{
-    background:color-mix(in srgb,var(--k-panel2) 28.0%,transparent) !important;
-    border-color:color-mix(in srgb,var(--k-tx-strong) 6.0%,transparent) !important;
-}
-html.dark #slipCheckPage input:focus,
-html.dark #slipCheckPage select:focus{
-    border-color:rgba(99,102,241,0.55) !important;
-    box-shadow:0 0 0 3px rgba(99,102,241,0.12) !important;
-}
-html.dark #slipCheckPage thead{ background:var(--k-panel2) !important; }
-html.dark #slipCheckPage thead th{ color:var(--k-tx2) !important; }
-html.dark #slipCheckPage tbody tr{ border-color:color-mix(in srgb,var(--k-tx-strong) 5.0%,transparent) !important; }
-html.dark #slipCheckPage tbody tr:hover{ background:rgba(99,102,241,0.05) !important; }
-
-</style>
 
     <div class="p-4 md:p-6 rounded-2xl mb-6 flex justify-between items-center" style="background:linear-gradient(120deg,rgba(99,102,241,0.14),color-mix(in srgb,var(--k-panel2) 60.0%,transparent) 45%),var(--k-panel);border:1px solid rgba(99,102,241,0.3);box-shadow:0 6px 24px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.05)">
         <div>

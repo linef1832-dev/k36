@@ -1,35 +1,4 @@
 <div id="finePage" class="fade-in flex flex-col h-full bg-slate-100 dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden pb-10">
-<style>
-/* 🎩 Premium Skin (เฉพาะโหมดมืด — เดิมไม่ได้จำกัดโหมด เลยบังคับการ์ดเป็นสีดำแม้อยู่โหมดสว่าง) — การ์ดแก้วเข้ม + ลอยตอนชี้ + ขอบเรืองสีประจำหน้า */
-html.dark #finePage [class*="dark:bg-slate-800"][class*="rounded-2xl"],
-html.dark #finePage [class*="dark:bg-slate-800"][class*="rounded-xl"],
-html.dark #finePage [class*="bg-[#151f32]"]{
-    background:linear-gradient(165deg,var(--k-panel2),var(--k-panel2)) !important;
-    border-color:color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent) !important;
-    box-shadow:0 4px 16px rgba(0,0,0,0.25) !important;
-    transition:transform .15s, box-shadow .15s, border-color .15s !important;
-}
-html.dark #finePage [class*="dark:bg-slate-800"][class*="rounded-2xl"]:hover,
-html.dark #finePage [class*="dark:bg-slate-800"][class*="rounded-xl"]:hover{
-    transform:translateY(-3px);
-    border-color:rgba(239,68,68,0.45) !important;
-    box-shadow:0 12px 28px rgba(0,0,0,0.4) !important;
-}
-html.dark #finePage [class*="dark:bg-slate-900"]{
-    background:color-mix(in srgb,var(--k-panel2) 28.0%,transparent) !important;
-    border-color:color-mix(in srgb,var(--k-tx-strong) 6.0%,transparent) !important;
-}
-html.dark #finePage input:focus,
-html.dark #finePage select:focus{
-    border-color:rgba(239,68,68,0.55) !important;
-    box-shadow:0 0 0 3px rgba(239,68,68,0.12) !important;
-}
-html.dark #finePage thead{ background:var(--k-panel2) !important; }
-html.dark #finePage thead th{ color:var(--k-tx2) !important; }
-html.dark #finePage tbody tr{ border-color:color-mix(in srgb,var(--k-tx-strong) 5.0%,transparent) !important; }
-html.dark #finePage tbody tr:hover{ background:rgba(239,68,68,0.05) !important; }
-
-</style>
 
     <div style="--acc:239,68,68;background:linear-gradient(120deg,rgba(var(--acc),0.22),color-mix(in srgb,var(--k-panel2) 55.0%,transparent) 45%,color-mix(in srgb,var(--k-panel2) 20.0%,transparent)),var(--k-panel2);border-bottom:1px solid rgba(var(--acc),0.4);box-shadow:0 6px 24px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06)" class="k-pagehead text-white p-4 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center z-10 gap-4">
         <div class="flex items-center gap-3">

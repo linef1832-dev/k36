@@ -997,69 +997,7 @@ window.spy_moveSingleUser = async function(uid, targetId) {
     } catch(e) {}
 };
 
-window.ds_renderSpyTable = function() {
-    const term = document.getElementById('spySearchInput').value.toLowerCase();
-    const tbody = document.getElementById('ds_spyBody');
-    const now = Date.now();
-    
-    let roomOptionsHtml = '<option value="">⚡ ย้ายไป..</option>';
-    dsRoomList.forEach(c => { roomOptionsHtml += `<option value="${c.id}">${dsEsc(c.name)}</option>`; });
-
-    const filtered = globalSpyData.filter(u => term === '' || u.name.toLowerCase().includes(term));
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-gray-500">ไม่พบรายชื่อพนักงาน</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = filtered.map(u => {
-        let mute = u.totalMute + (u.startMute ? (now - u.startMute) : 0);
-        let deaf = u.totalDeaf + (u.startDeaf ? (now - u.startDeaf) : 0);
-        
-        let mStr = '-';
-        if (mute > 0) {
-            let mMins = Math.floor(mute / 60000);
-            mStr = mMins > 0 ? `${mMins} นาที` : `< 1 นาที`;
-        }
-        let dStr = '-';
-        if (deaf > 0) {
-            let dMins = Math.floor(deaf / 60000);
-            dStr = dMins > 0 ? `${dMins} นาที` : `< 1 นาที`;
-        }
-        
-        let statusBadges = '';
-        if(u.startMute) statusBadges += '<span class="bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-500/50 mr-1">ปิดไมค์</span>';
-        if(u.startDeaf) statusBadges += '<span class="bg-red-500/20 text-red-500 px-2 py-0.5 rounded text-[10px] font-bold border border-red-500/50 mr-1">ปิดหูฟัง</span>';
-        if(!statusBadges && u.currentRoom) statusBadges = '<span class="text-gray-500 text-xs">ปกติ</span>';
-
-        let devicesHTML = '';
-        let isDouble = false;
-        if (u.devices) {
-            if (u.devices.includes('desktop')) devicesHTML += '<span title="PC" class="text-lg">💻</span>';
-            if (u.devices.includes('web')) devicesHTML += '<span title="Web" class="text-lg">🌐</span>';
-            if (u.devices.includes('mobile')) devicesHTML += '<span title="Mobile" class="text-lg">📱</span>';
-            if (u.devices.includes('desktop') && u.devices.includes('web')) isDouble = true;
-        }
-        if(isDouble) devicesHTML += '<span class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold ml-2 animate-pulse">ซ้อน 2 จอ!</span>';
-
-        const roomBadge = u.currentRoom ? `<span class="bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded border border-indigo-700/50 text-xs font-bold">${dsEsc(u.currentRoom)}</span>` : '<span class="text-gray-600 text-xs">ออฟไลน์</span>';
-        const nameColor = u.currentRoom ? 'text-white' : 'text-gray-500';
-        const isChecked = spySelectedUsers.has(u.id) ? 'checked' : '';
-
-        return window.renderTemplate('tpl-ds-spy-row', {
-            id: u.id,
-            nameColor: nameColor,
-            name: dsEsc(u.name),
-            roomBadge: roomBadge,
-            devicesHTML: devicesHTML,
-            statusBadges: statusBadges,
-            mStr: mStr,
-            dStr: dStr,
-            roomOptionsHtml: roomOptionsHtml,
-            isChecked: isChecked
-        });
-    }).join('');
-};
+// (ds_renderSpyTable ตัวเดิมย้ายไปอยู่ discord/tts.js ที่เดียว — เดิมเขียนไว้สองที่ ตัวที่นี่ถูกทับทุกครั้งตอนโหลดหน้า)
 
 window.ds_fetchSpy = async function() {
     try {
