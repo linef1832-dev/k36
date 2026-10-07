@@ -1,4 +1,4 @@
-<div class="fade-in flex flex-col h-full bg-[#0b1120] rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden">
+<div id="dsApp" class="fade-in flex flex-col h-full rounded-2xl overflow-hidden">
     <!-- 🎩 Premium Tab System — สีประจำแท็บอยู่ใน style="--acc" (JS เขียน className ทับได้ ไม่กระทบสี) -->
     <style id="ds-premium-tabs">
         .ds-topbar{ background:linear-gradient(180deg,var(--k-panel2),var(--k-panel2)); border-bottom:1px solid rgba(232,193,90,0.12); padding:12px 14px; display:flex; align-items:center; gap:12px; flex-shrink:0; box-shadow:0 6px 24px -12px rgba(0,0,0,.7); }
@@ -21,6 +21,62 @@
         .tts-sub-active{ color:var(--k-tx-strong); background:linear-gradient(135deg, color-mix(in srgb, var(--acc) 30%, var(--k-bg)), color-mix(in srgb, var(--acc) 10%, var(--k-bg))); border-color:color-mix(in srgb, var(--acc) 60%, transparent); box-shadow:0 0 16px color-mix(in srgb, var(--acc) 30%, transparent); }
         .tts-sub-active .material-icons{ color:var(--k-tx-strong); }
     </style>
+
+    <!-- 🎨 Discord Tools — ระบบหน้าตาเดียวกันทั้ง 7 แท็บ (การ์ด / หัวการ์ด / ปุ่ม / ช่องกรอก / ตาราง) — ไม่แตะ id / onclick -->
+    <style id="ds-skin">
+        #dsApp{background:var(--k-bg);border:1px solid var(--k-line);color:var(--k-tx)}
+        #dsApp .ds-body{background:var(--k-bg)}
+        /* แถบบน */
+        #dsApp .ds-topbar{background:var(--k-panel) !important;border-bottom:1px solid var(--k-line) !important;box-shadow:none !important;padding:10px 12px !important}
+        #dsApp .ds-brand{width:38px !important;height:38px !important;border-radius:11px !important;background:#5865F2 !important;box-shadow:0 6px 16px rgba(88,101,242,.3) !important}
+        #dsApp .ds-tab{height:38px;padding:0 13px 0 7px !important;border-radius:11px !important;color:var(--k-mute) !important;transform:none !important}
+        #dsApp .ds-tab:hover{background:var(--k-btn-h) !important;border-color:transparent !important;color:var(--k-tx-strong) !important}
+        #dsApp .ds-tab.ds-tab-active{background:color-mix(in srgb,var(--acc) 14%,var(--k-panel)) !important;border-color:color-mix(in srgb,var(--acc) 50%,transparent) !important;color:var(--k-tx-strong) !important;box-shadow:none !important}
+        #dsApp .ds-tab .tab-chip{width:26px !important;height:26px !important;border-radius:8px !important}
+        #dsApp .ds-tab.ds-tab-active .tab-chip .material-icons{color:#fff !important}
+        #dsApp .ds-close{height:36px;padding:0 13px !important;border-radius:10px !important;color:var(--k-tx2) !important;background:var(--k-btn) !important;border:1px solid var(--k-line3) !important}
+        #dsApp .ds-close:hover{background:var(--k-red-bg) !important;border-color:var(--k-red-line) !important;color:var(--k-red-tx) !important;box-shadow:none !important}
+
+        /* การ์ดหลักของแต่ละแท็บ */
+        #dsApp [id^="dsContent_"] :is(.bg-slate-800.rounded-2xl,.bg-slate-800.rounded-3xl,.bg-slate-800.rounded-xl){background:var(--k-panel) !important;border:1px solid var(--k-line) !important;border-radius:16px !important;box-shadow:none !important}
+        #dsApp [id^="dsContent_"] > .bg-slate-800{overflow:hidden}
+        /* หัวการ์ด */
+        #dsApp [id^="dsContent_"] h2{font-size:15px !important;font-weight:900 !important;color:var(--k-tx-strong) !important;display:flex;align-items:center;gap:10px !important}
+        #dsApp [id^="dsContent_"] h2 > .material-icons{width:32px;height:32px;border-radius:9px;display:inline-flex !important;align-items:center;justify-content:center;font-size:18px !important;background:var(--k-btn-h);flex:none}
+        #dsApp [id^="dsContent_"] h3{font-size:13.5px !important;font-weight:900 !important;color:var(--k-tx-strong)}
+        /* แถบหัว/แถบเครื่องมือในการ์ด */
+        #dsApp [id^="dsContent_"] .bg-slate-900.border-b,#dsApp [id^="dsContent_"] .bg-slate-800.border-b{background:var(--k-panel2) !important;border-color:var(--k-line) !important}
+        #dsApp [id^="dsContent_"] .border-slate-700,#dsApp [id^="dsContent_"] .border-slate-600,#dsApp [id^="dsContent_"] .border-slate-700\/50{border-color:var(--k-line) !important}
+        /* กล่องย่อยด้านใน */
+        #dsApp [id^="dsContent_"] .bg-slate-900:not(input):not(select):not(button):not(thead){background:var(--k-panel2) !important}
+        #dsApp [id^="dsContent_"] .rounded-2xl.bg-slate-900,#dsApp [id^="dsContent_"] .rounded-xl.bg-slate-900{border-color:var(--k-line) !important}
+        /* ช่องกรอก / ตัวเลือก */
+        #dsApp :is(input[type=text],input[type=number],input[type=search],input[type=date],input[type=time],input[type=datetime-local],select,textarea){border-radius:10px !important;background:var(--k-field) !important;border:1px solid var(--k-line2) !important;color:var(--k-tx) !important;font-weight:700;outline:none;box-shadow:none !important}
+        #dsApp :is(input[type=text],input[type=number],input[type=search],input[type=date],input[type=time],input[type=datetime-local],select){min-height:36px;padding-left:11px !important;padding-right:11px !important}
+        #dsApp :is(input,select,textarea):focus{border-color:var(--k-gold) !important;box-shadow:0 0 0 3px rgba(232,193,90,.15) !important}
+        #dsApp select option{background:var(--k-field);color:var(--k-tx)}
+        #dsApp input::placeholder,#dsApp textarea::placeholder{color:var(--k-mute3) !important}
+        /* ปุ่ม: รูปทรงเดียวกันทั้งหน้า (ยังคงสีตามหน้าที่เดิม) */
+        #dsApp [id^="dsContent_"] button{border-radius:10px !important;font-weight:800 !important;transition:background .15s,border-color .15s,color .15s,filter .15s,transform .08s !important}
+        #dsApp [id^="dsContent_"] button:active{transform:scale(.97)}
+        #dsApp [id^="dsContent_"] button:is([class*="bg-sky-"],[class*="bg-indigo-"],[class*="bg-blue-"],[class*="bg-emerald-"],[class*="bg-green-"],[class*="bg-amber-"],[class*="bg-teal-"],[class*="bg-violet-"],[class*="bg-purple-"],[class*="bg-fuchsia-"],[class*="bg-pink-"],[class*="bg-cyan-"]):not([class*="/"]){min-height:36px;box-shadow:none !important;border-color:transparent !important}
+        #dsApp [id^="dsContent_"] button:is(.bg-slate-700,.bg-slate-800,.bg-slate-900,.bg-gray-700){background:var(--k-btn) !important;border:1px solid var(--k-line3) !important;color:var(--k-tx2) !important}
+        #dsApp [id^="dsContent_"] button:is(.bg-slate-700,.bg-slate-800,.bg-slate-900,.bg-gray-700):hover{background:var(--k-btn-h) !important;color:var(--k-tx-strong) !important}
+        /* ตาราง */
+        #dsApp table thead{background:var(--k-panel2) !important;border-color:var(--k-line) !important}
+        #dsApp table thead th{font-size:11.5px !important;font-weight:800 !important;color:var(--k-mute) !important;padding-top:11px !important;padding-bottom:11px !important}
+        #dsApp table thead th.text-amber-400{color:var(--k-amber-tx) !important}
+        #dsApp table thead th.text-red-400{color:var(--k-red-tx) !important}
+        #dsApp table tbody{background:transparent !important}
+        #dsApp table tbody tr{border-color:var(--k-line) !important}
+        #dsApp table tbody tr:hover{background:var(--k-btn-h) !important}
+        #dsApp :is(.divide-slate-700,.divide-slate-700\/50) > * + *{border-color:var(--k-line) !important}
+        /* ตัวอักษรเล็กเกินไป */
+        #dsApp [id^="dsContent_"] .text-\[10px\]{font-size:11.5px !important}
+        #dsApp [id^="dsContent_"] .text-\[9px\]{font-size:10.5px !important}
+        /* หน้าต่างรายละเอียดเช็คอิน */
+        #dsApp #breaktrackModal > div{background:var(--k-panel) !important;border-color:var(--k-line) !important;border-radius:16px !important}
+    </style>
     <div class="ds-topbar">
         <div class="ds-brand"><span class="material-icons">discord</span></div>
         <div class="ds-tabs-rail">
@@ -35,7 +91,7 @@
         <button onclick="showPage('dashboard')" class="ds-close"><span class="material-icons" style="font-size:15px">close</span> ปิด</button>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-[#0f172a] custom-scrollbar">
+    <div class="ds-body flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
         
         <div id="dsContent_spy" class="max-w-[1400px] mx-auto block fade-in pb-10">
             <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
