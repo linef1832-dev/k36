@@ -604,7 +604,6 @@ window.renderUserTableDirectly = function() {
     
     let rawRoles = ['staff', 'trainer', 'manager', ...dbRoles];
     const uniqueRoles = [...new Set(rawRoles)];
-    const roleOptions = uniqueRoles.map(r => ({ val: r, label: r.toUpperCase() }));
 
     // 5. วาดตาราง (เฉพาะคนที่อยู่ในหน้านี้)
     let html = '';
@@ -636,11 +635,7 @@ window.renderUserTableDirectly = function() {
         const checkType = u.check_type || 'team';
         const typeBadge = `<button class="${checkType === 'shift' ? 'bg-fuchsia-900/40 text-fuchsia-400 border-fuchsia-800/50' : 'bg-emerald-900/40 text-emerald-400 border-emerald-800/50'} text-[10px] px-2 py-1 rounded-md font-bold hover:opacity-80 border shadow-inner transition" onclick="updateCheckType(this, ${u.id}, '${checkType}')">${checkType === 'shift' ? 'เน้นกะ' : 'เน้นทีม'}</button>`;
 
-        let roleColor = (u.role === 'manager' || u.role === 'admin') ? 'text-red-400' : (u.role !== 'staff' ? 'text-fuchsia-400' : 'text-gray-400');
-        let currentRoleVal = (u.role === 'admin') ? 'manager' : (u.role || 'staff');
-        let roleBadge = `<select onchange="updateUserRole(this, ${u.id}, this.value)" class="bg-slate-900 ${roleColor} text-xs p-1.5 rounded-md border border-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-950 shadow-inner text-center capitalize">`;
-        roleOptions.forEach(opt => { roleBadge += `<option value="${opt.val}" ${currentRoleVal === opt.val ? 'selected' : ''} class="text-white">${opt.label}</option>`; });
-        roleBadge += `</select>`;
+        // (ช่อง "ตำแหน่ง" ถูกเอาออกจากตารางแล้ว — ค่า role ในฐานข้อมูลยังใช้คุมการจัดเวร/ลงพัก/สลับกะอยู่)
 
 
         // 🔐 [SECURITY] ไม่โชว์ PIN จริงอีกต่อไป (PIN อยู่ฝั่ง server) — โชว์แค่ว่าตั้งแล้วหรือยัง
@@ -688,12 +683,11 @@ window.renderUserTableDirectly = function() {
                 <td class="p-3 text-center border-b border-slate-700/50">${shiftSelect}</td>
                 <td class="p-3 text-center border-b border-slate-700/50 bg-black/10">${pinDisplay}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${typeBadge}</td> 
-                <td class="p-3 text-center border-b border-slate-700/50">${roleBadge}</td>
             </tr>`;
     });
     
     if (paginatedUsers.length === 0) {
-        html = `<tr><td colspan="8" class="text-center p-10 text-gray-400">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่ค้นหา</td></tr>`;
+        html = `<tr><td colspan="7" class="text-center p-10 text-gray-400">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่ค้นหา</td></tr>`;
     }
 
     box.innerHTML = html;
