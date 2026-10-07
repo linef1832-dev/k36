@@ -226,7 +226,7 @@ window.openStayPinListModal = async function() {
             <div style="flex:1;min-width:0;text-align:left">
                 <div style="font-weight:800;font-size:13px;color:var(--k-tx);display:flex;align-items:center;flex-wrap:wrap">${window.escapeHtml(p.username)}${leaveTag}</div>
                 <div style="font-size:10.5px;color:var(--k-mute);margin-top:2px">
-                    เว็บ <b style="color:#a5b4fc">${p.team}</b> • ${p.shift || '-'} • ถึง ${window.dutyFmtShortDate(p.until)}
+                    เว็บ <b style="color:light-dark(#0622a8,#a5b4fc)">${p.team}</b> • ${p.shift || '-'} • ถึง ${window.dutyFmtShortDate(p.until)}
                     ${p.by ? ` • ตั้งโดย ${p.by}` : ''}
                 </div>
                 ${onLeave ? `<div style="font-size:10px;color:var(--k-red-tx);margin-top:3px">↳ วันนี้ระบบจะข้ามเขา แล้วดึงคนอื่นมาลง ${p.team} แทน — การล็อกยังอยู่ ใช้ต่อวันถัดไป</div>` : ''}

@@ -133,7 +133,7 @@ window.odCfgHist_resendAll = async function() {
     if (!odCfgHistItems.length) { odCfg_showStatus('ยังไม่มีรายการ (กดค้นหาก่อน)', 'error'); return; }
     const c = await Swal.fire({
         title: `ส่งซ้ำที่แสดงอยู่ทั้งหมด ${odCfgHistItems.length} รายการ?`,
-        html: 'ระบบจะส่งทีละอัน เรียงเก่า→ใหม่ ช้าๆ (~3 วิ/อัน) กัน Telegram บล็อก<br><span style="color:#f59e0b;font-size:12px">⚠️ อย่าปิดหน้านี้จนกว่าจะเสร็จ</span>',
+        html: 'ระบบจะส่งทีละอัน เรียงเก่า→ใหม่ ช้าๆ (~3 วิ/อัน) กัน Telegram บล็อก<br><span style="color:light-dark(#a76b07,#f59e0b);font-size:12px">⚠️ อย่าปิดหน้านี้จนกว่าจะเสร็จ</span>',
         icon: 'question', showCancelButton: true, confirmButtonText: 'ส่งซ้ำทั้งหมด', cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#2481cc', reverseButtons: true,
         customClass: { popup: 'dark:bg-slate-800 dark:text-white rounded-3xl' },

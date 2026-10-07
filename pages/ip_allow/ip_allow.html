@@ -3,7 +3,7 @@
 
     <div style="display:flex;align-items:center;gap:12px">
         <div style="width:48px;height:48px;border-radius:16px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);display:flex;align-items:center;justify-content:center">
-            <span class="material-icons" style="color:#eab308">vpn_lock</span>
+            <span class="material-icons" style="color:light-dark(#a88006,#eab308)">vpn_lock</span>
         </div>
         <div>
             <h1 style="font-size:20px;font-weight:900;color:var(--k-tx);margin:0">ตั้งค่า IP ที่อนุญาต</h1>
@@ -13,7 +13,7 @@
 
     <!-- ผู้ไม่มีสิทธิ์ -->
     <div id="ipAllowNoPerm" class="hidden" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:18px;padding:28px;text-align:center">
-        <span class="material-icons" style="color:#ef4444;font-size:40px">block</span>
+        <span class="material-icons" style="color:light-dark(#a00e0e,#ef4444);font-size:40px">block</span>
         <p style="margin:8px 0 0;font-weight:700;color:var(--k-red-tx)">เฉพาะผู้มีสิทธิ์เท่านั้น</p>
     </div>
 
@@ -27,7 +27,7 @@
                 <p style="font-size:11px;color:var(--k-mute);margin:4px 0 0">สถานะระบบ</p>
             </div>
             <div style="background:var(--k-panel2);border:1px solid var(--k-line2);border-radius:16px;padding:14px 16px;text-align:center">
-                <p id="ipStatCount" style="font-size:18px;font-weight:900;color:#60a5fa;margin:0">0</p>
+                <p id="ipStatCount" style="font-size:18px;font-weight:900;color:light-dark(#054ea8,#60a5fa);margin:0">0</p>
                 <p style="font-size:11px;color:var(--k-mute);margin:4px 0 0">IP ที่อนุญาต</p>
             </div>
             <div style="background:var(--k-panel2);border:1px solid var(--k-line2);border-radius:16px;padding:14px 16px;text-align:center">
@@ -42,7 +42,7 @@
                 <p style="font-weight:800;color:var(--k-tx);margin:0">บังคับตรวจ IP ตอนเข้าสู่ระบบ</p>
                 <p style="font-size:12px;color:var(--k-tx3);margin:6px 0 0;line-height:1.6">
                     ปิด = ทุกคนเข้าได้ตามปกติ | เปิด = เข้าได้เฉพาะ IP ในรายการ<br>
-                    <span style="color:#eab308">* บทบาท admin ไม่ถูกบล็อก กันกรณีตั้งผิดแล้วล็อกตัวเองออกจากระบบ</span>
+                    <span style="color:light-dark(#a88006,#eab308)">* บทบาท admin ไม่ถูกบล็อก กันกรณีตั้งผิดแล้วล็อกตัวเองออกจากระบบ</span>
                 </p>
             </div>
             <button id="ipAllowToggleBtn" onclick="ipAllowToggle()" style="flex-shrink:0;width:64px;height:32px;border-radius:99px;position:relative;border:none;cursor:pointer;transition:background 0.2s;background:var(--k-btn-h)">
@@ -54,7 +54,7 @@
         <div style="background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.25);border-radius:18px;padding:20px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
             <div>
                 <p style="font-size:12px;color:var(--k-tx3);margin:0">IP ปัจจุบันของคุณ</p>
-                <p id="ipAllowMyIp" style="font-family:monospace;font-weight:900;font-size:20px;color:#60a5fa;margin:4px 0 0">กำลังตรวจสอบ...</p>
+                <p id="ipAllowMyIp" style="font-family:monospace;font-weight:900;font-size:20px;color:light-dark(#054ea8,#60a5fa);margin:4px 0 0">กำลังตรวจสอบ...</p>
             </div>
             <button onclick="ipAllowAddMyIp()" style="padding:10px 18px;border-radius:14px;background:#2563eb;color:#fff;font-size:13px;font-weight:800;border:none;cursor:pointer;display:flex;align-items:center;gap:6px">
                 <span class="material-icons" style="font-size:16px">add_circle</span> เพิ่ม IP นี้เข้ารายการ

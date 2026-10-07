@@ -113,8 +113,8 @@
 
             <!-- Staff Ranking -->
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-5">
-                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1e293b;">
-                    <h3 style="font-size:14px;font-weight:700;color:#cbd5e1;display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--k-line);">
+                    <h3 style="font-size:14px;font-weight:700;color:var(--k-tx2);display:flex;align-items:center;gap:8px;">
                         <span class="material-icons" style="color:#7c3aed;">leaderboard</span> จำนวนเคสแต่ละคน (เรียงมากสุด)
                     </h3>
                     <!-- ปุ่มกรองกะ -->
@@ -139,14 +139,14 @@
                     <div style="display:flex;align-items:center;gap:8px;">
                         <!-- ปุ่มของฉัน -->
                         <button id="btnMyCase" onclick="toggleMyCase()"
-                            style="background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px;">
+                            style="background:rgba(16,185,129,0.15);color:var(--k-green-tx);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px;">
                             <span class="material-icons" style="font-size:15px;">person</span> ของฉัน
                         </button>
                         <!-- ช่องค้นหา -->
                         <div style="position:relative;">
-                            <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:17px;">search</span>
+                            <span class="material-icons" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--k-mute);font-size:17px;">search</span>
                             <input type="text" id="staffSearchInput" placeholder="ค้นหาชื่อพนักงาน..." oninput="searchStaff(this.value)"
-                                style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:7px 14px 7px 34px;color:#fff;font-size:13px;outline:none;font-family:inherit;width:200px;"
+                                style="background:var(--k-panel2);border:1px solid var(--k-line2);border-radius:10px;padding:7px 14px 7px 34px;color:var(--k-tx-strong);font-size:13px;outline:none;font-family:inherit;width:200px;"
                                 onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#334155'">
                         </div>
                     </div>
@@ -372,7 +372,7 @@
 </div>
 
 <style>
-.tab-btn-active  { background: rgba(255,255,255,0.2); color: #fff; }
-.tab-btn-inactive { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.6); }
-.tab-btn-inactive:hover { background: rgba(255,255,255,0.13); color: #fff; }
+.tab-btn-active  { background:color-mix(in srgb,var(--k-tx-strong) 20.0%,transparent); color:var(--k-tx-strong); }
+.tab-btn-inactive { background:color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent); color:color-mix(in srgb,var(--k-tx-strong) 60.0%,transparent); }
+.tab-btn-inactive:hover { background:color-mix(in srgb,var(--k-tx-strong) 13.0%,transparent); color:var(--k-tx-strong); }
 </style>

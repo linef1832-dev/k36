@@ -459,8 +459,8 @@ window.openDutyHistoryModal = async function() {
                 // สาเหตุ: ระบบสลับธีมมืด/สว่างของเว็บใช้กลไกซับซ้อนที่ตรงนี้ใช้ไม่ได้ผล
                 // แก้โดยกำหนดสีตรงๆ (สีทองของธีมเว็บ) ไม่พึ่งพา dark:/light: อีกเลย = เห็นชัดแน่นอนทุกกรณี
                 const prettyDetails = (log.target_details || '')
-                    .replace(/\[([^\]]+)\]/g, '<b style="color:#c9a227;font-weight:800">$1</b>')
-                    .replace(/→/g, '<span style="color:#818cf8;font-weight:800;margin:0 3px">→</span>');
+                    .replace(/\[([^\]]+)\]/g, '<b style="color:light-dark(#91751c,#c9a227);font-weight:800">$1</b>')
+                    .replace(/→/g, '<span style="color:light-dark(#0917a4,#818cf8);font-weight:800;margin:0 3px">→</span>');
 
                 const searchBlob = `${log.performed_by || ''} ${log.target_details || ''} ${log.action_type || ''}`.toLowerCase();
                 const logDay = String(log.created_at || '').slice(0, 10);          // 📅 วันที่ของรายการ (YYYY-MM-DD)

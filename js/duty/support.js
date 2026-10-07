@@ -180,8 +180,8 @@ window.assignSupportTeam = async function() {
             title: `เว็บ ${source} ไม่มีคน`,
             html: usable.length
                 ? `<div style="font-size:13px;color:var(--k-tx3);line-height:1.8">เว็บนี้ไม่มีพนักงานในตารางวันนี้ จึงส่งไปช่วยใครไม่ได้<br><br>
-                     เว็บที่ส่งคนไปช่วยได้:<br><b style="color:#38bdf8">${usable.map(t => `${t} (${hasStaff(t).length})`).join(' · ')}</b></div>`
-                : `<div style="font-size:13px;color:var(--k-tx3)">ยังไม่ได้จัดเวรของวันนี้เลย — กด <b style="color:#818cf8">"สุ่มจัดหน้าที่"</b> ก่อนครับ</div>`,
+                     เว็บที่ส่งคนไปช่วยได้:<br><b style="color:light-dark(#0676a8,#38bdf8)">${usable.map(t => `${t} (${hasStaff(t).length})`).join(' · ')}</b></div>`
+                : `<div style="font-size:13px;color:var(--k-tx3)">ยังไม่ได้จัดเวรของวันนี้เลย — กด <b style="color:light-dark(#0917a4,#818cf8)">"สุ่มจัดหน้าที่"</b> ก่อนครับ</div>`,
             background: '#0b1120',
             confirmButtonColor: '#6366f1',
             customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
@@ -198,7 +198,7 @@ window.assignSupportTeam = async function() {
         icon: 'warning', title: 'ช่วงเวลาไม่ถูกต้อง',
         html: `<div style="font-size:13px;color:var(--k-tx3);line-height:1.8">${msg}<br><br>
                  กะ <b style="color:var(--k-tx)">${shiftFilter}</b> อยู่ในช่วง
-                 <b style="color:#38bdf8">${minToTime(cfg.start)}–${minToTime(cfg.end)}</b></div>`,
+                 <b style="color:light-dark(#0676a8,#38bdf8)">${minToTime(cfg.start)}–${minToTime(cfg.end)}</b></div>`,
         background: '#0b1120', confirmButtonColor: '#6366f1',
         customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
     });
@@ -221,7 +221,7 @@ window.assignSupportTeam = async function() {
         `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--k-line)">
             <span style="width:18px;height:18px;border-radius:50%;background:#0369a1;color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i + 1}</span>
             <span style="flex:1;text-align:left;font-weight:800;font-size:12px;color:var(--k-tx)">${window.escapeHtml(s.name)}</span>
-            <span style="font-size:11px;font-weight:800;color:#38bdf8">${minToTime(s.start)}–${minToTime(s.end)}</span>
+            <span style="font-size:11px;font-weight:800;color:light-dark(#0676a8,#38bdf8)">${minToTime(s.start)}–${minToTime(s.end)}</span>
             <span style="font-size:9px;color:${s.breakMin > 0 ? 'var(--k-amber-tx)' : 'var(--k-green-tx)'};min-width:56px;text-align:right">${s.breakMin > 0 ? `พักใน ${s.breakMin} น.` : 'ไม่ชนพัก'}</span>
         </div>`).join('');
 
@@ -242,7 +242,7 @@ window.assignSupportTeam = async function() {
     const confirm = await Swal.fire({
         title: `<div style="font-size:15px;font-weight:900">🤝 ${source} → ซัพพอร์ต ${target}</div>`,
         html: `<div style="font-size:11.5px;color:var(--k-tx3);margin-bottom:10px">
-                   ช่วง <b style="color:#38bdf8">${minToTime(winStart)}–${minToTime(winEnd)}</b>
+                   ช่วง <b style="color:light-dark(#0676a8,#38bdf8)">${minToTime(winStart)}–${minToTime(winEnd)}</b>
                    ${spanMin === (cfg.end - cfg.start) ? '<span style="opacity:.7">(เต็มกะ)</span>' : `<span style="opacity:.7">(${Math.floor(spanMin/60)} ชม. ${spanMin%60 ? spanMin%60 + ' น.' : ''})</span>`}
                    <br>${members.length} คน ผลัดกันคนละ <b style="color:var(--k-tx)">${perSlot} นาที</b>
                </div>
@@ -584,7 +584,7 @@ window.blockIfPreview = function() {
         title: 'ยังไม่ได้จัดเวรวันนี้',
         html: `<div style="font-size:13px;color:var(--k-tx3);line-height:1.7">
                  ที่เห็นอยู่เป็น <b style="color:var(--k-amber-tx)">ภาพตัวอย่าง</b> จากคนที่ถูกล็อก "อยู่ต่อ" เท่านั้น<br>
-                 กรุณากด <b style="color:#818cf8">"สุ่มจัดหน้าที่"</b> เพื่อจัดคนที่เหลือให้ครบก่อนครับ
+                 กรุณากด <b style="color:light-dark(#0917a4,#818cf8)">"สุ่มจัดหน้าที่"</b> เพื่อจัดคนที่เหลือให้ครบก่อนครับ
                </div>`,
         background: '#0b1120',
         confirmButtonText: 'เข้าใจแล้ว',
@@ -624,7 +624,7 @@ window.openStayPinModal = async function(team, userId, username) {
         style="min-width:44px">${n}</button>`;
 
     const { value: result } = await Swal.fire({
-        title: `<div class="text-base font-black">📌 ให้อยู่เว็บ <span style="color:#6366f1">${team}</span> ต่ออีกกี่วัน?</div>`,
+        title: `<div class="text-base font-black">📌 ให้อยู่เว็บ <span style="color:light-dark(#0e119f,#6366f1)">${team}</span> ต่ออีกกี่วัน?</div>`,
         html: `
             <div style="text-align:left">
                 <div style="font-size:12px;color:var(--k-tx3);margin-bottom:14px">
@@ -632,7 +632,7 @@ window.openStayPinModal = async function(team, userId, username) {
                     &nbsp;•&nbsp; กะ: <b style="color:var(--k-tx)">${shift}</b>
                 </div>
 
-                ${movingFrom ? `<div style="background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);border-radius:10px;padding:8px 11px;font-size:11.5px;color:#7dd3fc;margin-bottom:14px;line-height:1.6">
+                ${movingFrom ? `<div style="background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);border-radius:10px;padding:8px 11px;font-size:11.5px;color:light-dark(#0474a9,#7dd3fc);margin-bottom:14px;line-height:1.6">
                     🔀 เดิมล็อกไว้ที่เว็บ <b>${movingFrom}</b> — กดยืนยันแล้วจะย้ายมาล็อกที่ <b>${team}</b> แทน
                 </div>` : ''}
 

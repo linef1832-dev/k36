@@ -99,7 +99,7 @@ window.renderLiveAlerts = function() {
         banner.style.display = 'block';
         banner.innerHTML = `
             <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:10px">
-                <span class="material-icons" style="color:#16a34a;font-size:22px">verified_user</span>
+                <span class="material-icons" style="color:light-dark(#159945,#16a34a);font-size:22px">verified_user</span>
                 <div>
                     <div style="font-weight:700;color:#15803d;font-size:14px">✅ วันนี้ไม่พบเหตุการณ์ผิดปกติ</div>
                     <div style="font-size:11px;color:#166534;margin-top:2px">ตรวจสอบแล้ว ${todayLogs.length} รายการ</div>
@@ -234,7 +234,7 @@ window.renderSessionOverlap = function() {
                     <div style="font-family:monospace;font-size:12px;color:#0369a1;font-weight:700">${o.prev.ip_address || '-'}</div>
                     <div style="font-size:11px;color:${subColor};margin-top:3px">${o.prev.country || '-'} / ${o.prev.city || '-'}</div>
                     <div style="font-size:11px;color:${subColor}">${parseUserAgent(o.prev.user_agent || '')}</div>
-                    <div style="font-family:monospace;font-size:10px;color:#6366f1;margin-top:3px">FP: ${shortFp(o.prev.fingerprint)}</div>
+                    <div style="font-family:monospace;font-size:10px;color:light-dark(#0e119f,#6366f1);margin-top:3px">FP: ${shortFp(o.prev.fingerprint)}</div>
                     <div style="font-size:10px;color:${subColor};margin-top:3px">${new Date(o.prev.login_time).toLocaleString('th-TH')}</div>
                 </div>
                 <div style="background:${isDark?'rgba(127,29,29,.3)':'#fff1f2'};border-radius:12px;padding:12px;border:1px solid ${isDark?'#7f1d1d':'#fecdd3'}">
@@ -242,7 +242,7 @@ window.renderSessionOverlap = function() {
                     <div style="font-family:monospace;font-size:12px;color:#e11d48;font-weight:700">${o.curr.ip_address || '-'}</div>
                     <div style="font-size:11px;color:#e11d48;margin-top:3px">${o.curr.country || '-'} / ${o.curr.city || '-'}</div>
                     <div style="font-size:11px;color:#e11d48">${parseUserAgent(o.curr.user_agent || '')}</div>
-                    <div style="font-family:monospace;font-size:10px;color:#a855f7;margin-top:3px">FP: ${shortFp(o.curr.fingerprint)}</div>
+                    <div style="font-family:monospace;font-size:10px;color:light-dark(#5908a6,#a855f7);margin-top:3px">FP: ${shortFp(o.curr.fingerprint)}</div>
                     <div style="font-size:10px;color:#e11d48;margin-top:3px">${new Date(o.curr.login_time).toLocaleString('th-TH')}</div>
                 </div>
             </div>
@@ -356,7 +356,7 @@ window.renderTzMismatch = function() {
                     <div style="font-size:11px;color:${subColor}">${window.escapeHtml(l.isp || '-')}</div>
                 </div>
                 <div style="background:${isDark?'rgba(21,128,61,.2)':'#f0fdf4'};border-radius:10px;padding:10px;border:1px solid ${isDark?'#166534':'#bbf7d0'}">
-                    <div style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;margin-bottom:4px">✅ TZ ที่ควรเป็น</div>
+                    <div style="font-size:10px;font-weight:700;color:light-dark(#159945,#16a34a);text-transform:uppercase;margin-bottom:4px">✅ TZ ที่ควรเป็น</div>
                     <div style="font-size:12px;font-weight:700;color:#15803d">${expected.join(', ') || '-'}</div>
                 </div>
                 <div style="background:${isDark?'rgba(127,29,29,.2)':'#fff1f2'};border-radius:10px;padding:10px;border:1px solid ${isDark?'#7f1d1d':'#fecdd3'}">

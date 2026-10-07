@@ -233,7 +233,7 @@ window.filterByShift = function(shift) {
         const el = document.getElementById('shiftBtn-'+s);
         if (!el) return;
         el.style.background  = (_activeShiftFilter === s) ? '#7c3aed' : 'rgba(124,58,237,0.15)';
-        el.style.color       = (_activeShiftFilter === s) ? '#fff' : '#a78bfa';
+        el.style.color       = (_activeShiftFilter === s) ? '#fff' : 'light-dark(#6d28d9,#a78bfa)';   // โหมดสว่างใช้ม่วงเข้มให้อ่านออก
         el.style.borderColor = (_activeShiftFilter === s) ? '#7c3aed' : 'rgba(124,58,237,0.3)';
     });
     _renderStaffGrid();
@@ -305,7 +305,7 @@ function _renderStaffCards(counts, search) {
         ].filter(Boolean).join('');
 
         const siteTags = Object.entries(c.sites).sort((a,b)=>b[1]-a[1])
-            .map(([s,n]) => `<span style="background:rgba(14,165,233,0.15);color:#38bdf8;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${esc(s)}×${n}</span>`)
+            .map(([s,n]) => `<span style="background:rgba(14,165,233,0.15);color:light-dark(#0676a8,#38bdf8);padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;">${esc(s)}×${n}</span>`)
             .join('');
 
         const displayName = (()=>{ const m = name.match(/^[^-]+-([^-]+)-/); return m ? m[1] : name; })();
@@ -319,7 +319,7 @@ function _renderStaffCards(counts, search) {
                     <span style="font-size:20px;flex-shrink:0;">${mdl}</span>
                     <span style="font-weight:700;color:var(--k-tx);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escA(name)}">${esc(displayName)}</span>
                 </div>
-                <span style="font-size:24px;font-weight:900;color:#a78bfa;flex-shrink:0;">${c.total}</span>
+                <span style="font-size:24px;font-weight:900;color:light-dark(#2f07a6,#a78bfa);flex-shrink:0;">${c.total}</span>
             </div>
             <div style="margin-bottom:8px;">
                 <span style="font-size:11px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:2px 8px;border-radius:999px;">
@@ -378,9 +378,9 @@ window.openStaffDetail = function(name) {
     // 🛡️ [XSS] ข้อมูลด้านล่างมาจาก Telegram (คนนอกทีมพิมพ์เข้ามา) — ต้อง escape ก่อน render
     const esc = window.escapeHtml;
     const badge = t => {
-        if ((t||'').includes('ลบ'))   return `<span style="background:rgba(59,130,246,0.25);color:#93c5fd;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
-        if ((t||'').includes('เช็ค')) return `<span style="background:rgba(16,185,129,0.25);color:#6ee7b7;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
-        if ((t||'').includes('ปลด'))  return `<span style="background:rgba(245,158,11,0.25);color:#fde68a;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
+        if ((t||'').includes('ลบ'))   return `<span style="background:rgba(59,130,246,0.25);color:light-dark(#0352aa,#93c5fd);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
+        if ((t||'').includes('เช็ค')) return `<span style="background:rgba(16,185,129,0.25);color:light-dark(#199564,#6ee7b7);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
+        if ((t||'').includes('ปลด'))  return `<span style="background:rgba(245,158,11,0.25);color:light-dark(#aa8903,#fde68a);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
         return `<span style="background:rgba(100,116,139,0.25);color:var(--k-tx2);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t||'reply')}</span>`;
     };
 
@@ -397,7 +397,7 @@ window.openStaffDetail = function(name) {
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                 <span style="font-size:11px;color:var(--k-mute);font-weight:700;font-family:monospace;">${i+1}. ${t}</span>
                 ${badge(d.case_type)}
-                <span style="font-size:11px;color:#38bdf8;font-weight:700;">${esc(d.site||'')}</span>
+                <span style="font-size:11px;color:light-dark(#0676a8,#38bdf8);font-weight:700;">${esc(d.site||'')}</span>
             </div>
             ${quotedMsg ? `
             <div style="background:var(--k-card);border-left:3px solid var(--k-line3);border-radius:6px;padding:8px 10px;margin-bottom:8px;">

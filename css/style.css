@@ -77,16 +77,11 @@ input:checked + .theme-slider:before { transform: translateX(20px); background-c
     position: sticky !important;
     top: 0 !important;
     z-index: 50 !important;
-    background-color: #151f32 !important;
+    background-color: var(--k-card) !important;   /* เดิม #151f32 ตายตัว → โหมดสว่างหัวตารางดำ */
     border-bottom: none !important; /* ปิด border ปกติ */
-    box-shadow: 0 1px 0 0 #334155 !important; /* ใช้ shadow สร้างเส้นขอบล่างแทน ปิดรอยต่อมิดชิด */
+    box-shadow: 0 1px 0 0 var(--k-line2) !important; /* ใช้ shadow สร้างเส้นขอบล่างแทน ปิดรอยต่อมิดชิด */
 }
 
-/* ป้องกัน transition ทุกตัวตอนสลับธีม */
-.theme-switching, .theme-switching * {
-    transition: none !important;
-    animation-duration: 0.01ms !important;
-}
 
 
 /* ==========================================================

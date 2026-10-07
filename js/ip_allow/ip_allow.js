@@ -90,7 +90,7 @@
                 <span class="material-icons" style="font-size:18px;color:${item.ip.includes('*') ? '#a855f7' : '#22c55e'}">${item.ip.includes('*') ? 'lan' : 'computer'}</span>
                 <div style="flex:1;min-width:0">
                     <p style="font-family:monospace;font-weight:800;font-size:15px;color:var(--k-tx);margin:0">${item.ip}
-                        ${myIp && ipMatches(myIp, item.ip) ? '<span style="margin-left:8px;font-size:10px;padding:2px 10px;border-radius:99px;background:rgba(59,130,246,0.18);color:#60a5fa;font-family:sans-serif;font-weight:700">IP ของคุณ</span>' : ''}
+                        ${myIp && ipMatches(myIp, item.ip) ? '<span style="margin-left:8px;font-size:10px;padding:2px 10px;border-radius:99px;background:rgba(59,130,246,0.18);color:light-dark(#054ea8,#60a5fa);font-family:sans-serif;font-weight:700">IP ของคุณ</span>' : ''}
                     </p>
                     <p style="font-size:11px;color:var(--k-tx3);margin:3px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note || '-'} · เพิ่มโดย ${item.added_by || '-'}
                         <span id="ipGeo_${item.ip.replace(/[^0-9a-zA-Z]/g, '_')}" style="color:var(--k-mute)"></span></p>

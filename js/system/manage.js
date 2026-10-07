@@ -666,8 +666,8 @@ window.renderUserTableDirectly = function() {
         ];
         const ac = avatarColors[displayIndex % avatarColors.length];
 
-        const disBadge = `<span style="font-size:8.5px;font-weight:700;color:#c084fc;background:var(--k-card);border:0.5px solid rgba(124,58,237,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">DIS</span>`;
-        const telBadge = `<span style="font-size:8.5px;font-weight:700;color:#38bdf8;background:var(--k-card);border:0.5px solid rgba(2,132,199,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">TEL</span>`;
+        const disBadge = `<span style="font-size:8.5px;font-weight:700;color:light-dark(#5704a9,#c084fc);background:var(--k-card);border:0.5px solid rgba(124,58,237,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">DIS</span>`;
+        const telBadge = `<span style="font-size:8.5px;font-weight:700;color:light-dark(#0676a8,#38bdf8);background:var(--k-card);border:0.5px solid rgba(2,132,199,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">TEL</span>`;
         const discordChip = u.discord_id
             ? `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:var(--k-tx3);font-family:monospace;letter-spacing:.2px;" title="${u.discord_id}">${u.discord_id}</span></span>`
             : `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:var(--k-mute3);font-style:italic;">ยังไม่มี</span></span>`;

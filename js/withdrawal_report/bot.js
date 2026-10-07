@@ -319,7 +319,7 @@ window.loadSummary = async function() {
             const shiftColor = c.shift==='กะเช้า'?'#fbbf24':c.shift==='กะดึก'?'#818cf8':'#64748b';
             const shiftIcon  = c.shift==='กะเช้า'?'🌅':c.shift==='กะดึก'?'🌙':'❓';
             const tags = [
-                c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
+                c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:light-dark(#054ea8,#60a5fa);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
                 c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:var(--k-green-tx);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>`:'',
                 c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:var(--k-amber-tx);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
                 c.other ? `<span style="background:rgba(100,116,139,0.2);color:var(--k-tx3);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.other}</span>`:'',
@@ -338,7 +338,7 @@ window.loadSummary = async function() {
                     </div>
                     <div style="display:flex;flex-wrap:wrap;gap:5px;">${tags}</div>
                 </div>
-                <span style="font-size:28px;font-weight:900;color:#a78bfa;flex-shrink:0;min-width:40px;text-align:right;">${c.total}</span>
+                <span style="font-size:28px;font-weight:900;color:light-dark(#2f07a6,#a78bfa);flex-shrink:0;min-width:40px;text-align:right;">${c.total}</span>
             </div>`;
         }).join('');
 

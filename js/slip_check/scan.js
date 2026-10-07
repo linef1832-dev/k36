@@ -408,7 +408,7 @@ window.verifyThunderSlip = async function() {
                 
                 Swal.fire({
                     icon: 'error', title: '🚨 AI จับโป๊ะสลิปไม่ตรงปก!',
-                    html: `ระบบตรวจพบความผิดปกติ ดังนี้:<br><ul style="text-align:left; display:inline-block; margin-top:15px; font-size:14px; color:#ef4444;">${reasonHtml}</ul>`,
+                    html: `ระบบตรวจพบความผิดปกติ ดังนี้:<br><ul style="text-align:left; display:inline-block; margin-top:15px; font-size:14px; color:light-dark(#a00e0e,#ef4444);">${reasonHtml}</ul>`,
                     confirmButtonColor: '#ef4444'
                 });
                 

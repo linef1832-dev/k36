@@ -16,7 +16,7 @@
     box-shadow:0 8px 24px -10px rgba(0,0,0,0.15);
 }
 html.dark .ipx-header{
-    background:linear-gradient(120deg,#121b30 0%,#0c1424 55%,#0a101d 100%);
+    background:linear-gradient(120deg,var(--k-panel) 0%,var(--k-sunk) 55%,var(--k-panel2) 100%);
     border:1px solid rgba(232,193,90,0.20);
     box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 14px 44px -14px rgba(0,0,0,0.8);
 }
@@ -30,9 +30,9 @@ html.dark .ipx-header{
 }
 .ipx-header-icon .material-icons{ font-size:26px; }
 .ipx-title{ font-size:1.25rem; font-weight:900; letter-spacing:0.01em; color:#1e293b; line-height:1.2; }
-html.dark .ipx-title{ color:#f1f5f9; }
-.ipx-sub{ font-size:11.5px; color:#94a3b8; margin-top:3px; }
-html.dark .ipx-sub{ color:#8b9bb4; }
+html.dark .ipx-title{ color:var(--k-tx); }
+.ipx-sub{ font-size:11.5px; color:var(--k-tx3); margin-top:3px; }
+html.dark .ipx-sub{ color:var(--k-mute); }
 
 .ipx-hbtn{
     height:36px; padding:0 14px; border-radius:11px;
@@ -43,10 +43,10 @@ html.dark .ipx-sub{ color:#8b9bb4; }
 .ipx-hbtn:hover{ transform:translateY(-1px); filter:brightness(1.08); }
 .ipx-hbtn:active{ transform:scale(0.97); }
 .ipx-hbtn .material-icons{ font-size:16px; }
-.ipx-hbtn-csv{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid rgba(255,255,255,0.2); }
-.ipx-hbtn-clean{ background:transparent; color:#94a3b8; border:1px solid #cbd5e1; box-shadow:none; }
-html.dark .ipx-hbtn-clean{ color:#aab6c8; border:1px solid rgba(255,255,255,0.16); }
-html.dark .ipx-hbtn-clean:hover{ color:#fda4af; border-color:rgba(244,63,94,0.5); background:rgba(244,63,94,0.07); }
+.ipx-hbtn-csv{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid color-mix(in srgb,var(--k-tx-strong) 20.0%,transparent); }
+.ipx-hbtn-clean{ background:transparent; color:var(--k-tx3); border:1px solid #cbd5e1; box-shadow:none; }
+html.dark .ipx-hbtn-clean{ color:var(--k-tx2); border:1px solid color-mix(in srgb,var(--k-tx-strong) 16.0%,transparent); }
+html.dark .ipx-hbtn-clean:hover{ color:light-dark(#aa0418,#fda4af); border-color:rgba(244,63,94,0.5); background:rgba(244,63,94,0.07); }
 
 /* ── การ์ดสถิติ 6 ใบ ── */
 .ipx-stats{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px; }
@@ -60,8 +60,8 @@ html.dark .ipx-hbtn-clean:hover{ color:#fda4af; border-color:rgba(244,63,94,0.5)
 }
 .ipx-stat:hover{ transform:translateY(-2px); box-shadow:0 10px 22px -10px rgba(0,0,0,0.3); }
 html.dark .ipx-stat{
-    background:linear-gradient(160deg,#121b2e,#0d1422);
-    border:1px solid rgba(255,255,255,0.07);
+    background:linear-gradient(160deg,var(--k-panel),var(--k-panel2));
+    border:1px solid color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent);
     box-shadow:0 6px 16px -8px rgba(0,0,0,0.6);
 }
 .ipx-stat::before{
@@ -71,15 +71,15 @@ html.dark .ipx-stat{
 }
 .ipx-stat-label{
     font-size:10px; font-weight:800; letter-spacing:0.05em;
-    color:#94a3b8; display:flex; align-items:center; gap:5px; line-height:1.2;
+    color:var(--k-tx3); display:flex; align-items:center; gap:5px; line-height:1.2;
 }
-html.dark .ipx-stat-label{ color:#8b9bb4; }
-.ipx-stat-label .material-icons{ font-size:14px; color:var(--acc,#E8C15A); }
+html.dark .ipx-stat-label{ color:var(--k-mute); }
+.ipx-stat-label .material-icons{ font-size:14px; color:var(--acc,var(--k-gold-tx)); }
 .ipx-stat-num{
     font-size:1.7rem; font-weight:900; margin-top:4px; line-height:1;
     color:#1e293b; font-variant-numeric:tabular-nums;
 }
-html.dark .ipx-stat-num{ color:#f1f5f9; text-shadow:0 0 22px color-mix(in srgb, var(--acc,#E8C15A) 35%, transparent); }
+html.dark .ipx-stat-num{ color:var(--k-tx); text-shadow:0 0 22px color-mix(in srgb, var(--acc,#E8C15A) 35%, transparent); }
 
 /* ── กล่องหมวดแท็บ + ค้นหา ── */
 .ipx-panel{
@@ -88,8 +88,8 @@ html.dark .ipx-stat-num{ color:#f1f5f9; text-shadow:0 0 22px color-mix(in srgb, 
     box-shadow:0 6px 18px -10px rgba(0,0,0,0.15);
 }
 html.dark .ipx-panel{
-    background:linear-gradient(170deg,#101828,#0b1220);
-    border:1px solid rgba(255,255,255,0.06);
+    background:linear-gradient(170deg,var(--k-panel2),var(--k-panel2));
+    border:1px solid color-mix(in srgb,var(--k-tx-strong) 6.0%,transparent);
     box-shadow:0 10px 26px -14px rgba(0,0,0,0.7);
 }
 .ipx-group{ display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding:7px 0; }
@@ -100,7 +100,7 @@ html.dark .ipx-group + .ipx-group{ border-top:1px dashed rgba(232,193,90,0.16); 
     font-size:10px; font-weight:900; letter-spacing:0.07em; text-transform:uppercase;
     color:#b45309; display:flex; align-items:center; gap:5px;
 }
-html.dark .ipx-group-label{ color:#E8C15A; }
+html.dark .ipx-group-label{ color:var(--k-gold-tx); }
 .ipx-group-label .material-icons{ font-size:14px; }
 
 /* แท็บ — คงคลาส .ip-tab-btn ให้ JS สลับสีพื้นได้ตามเดิม แต่งเฉพาะทรง */
@@ -113,7 +113,7 @@ html.dark .ipx-group-label{ color:#E8C15A; }
 }
 .ip-tab-btn:hover{ transform:translateY(-1px); filter:brightness(1.06); }
 .ip-tab-btn:active{ transform:scale(0.97); }
-html.dark .ip-tab-btn{ border-color:rgba(255,255,255,0.10) !important; }
+html.dark .ip-tab-btn{ border-color:color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent) !important; }
 
 /* แถวค้นหา/กรอง */
 .ipx-filter-row{
@@ -128,7 +128,7 @@ html.dark .ipx-filter-row{ border-top:1px solid rgba(232,193,90,0.18); }
     outline:none; transition:border-color .15s, box-shadow .15s;
 }
 html.dark .ipx-input, html.dark .ipx-select{
-    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.10); color:#e2e8f0;
+    background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent); color:var(--k-tx);
 }
 .ipx-input:focus, .ipx-select:focus{
     border-color:rgba(232,193,90,0.65);
@@ -136,7 +136,7 @@ html.dark .ipx-input, html.dark .ipx-select{
 }
 .ipx-select{ padding:0 12px; cursor:pointer; }
 .ipx-search{ position:relative; flex:1 1 220px; max-width:340px; }
-.ipx-search .material-icons{ position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:17px; color:#94a3b8; pointer-events:none; }
+.ipx-search .material-icons{ position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:17px; color:var(--k-tx3); pointer-events:none; }
 .ipx-search input{ width:100%; padding:0 12px 0 33px; }
 .ipx-refresh{
     height:36px; width:38px; border-radius:11px; flex-shrink:0;

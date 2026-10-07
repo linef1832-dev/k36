@@ -197,7 +197,7 @@ window.initQuickRebook = async function () {
         const esc = v => (window.escapeHtml ? window.escapeHtml(v) : String(v ?? ''));
         box.innerHTML = `
         <div style="background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(99,102,241,.08));border:1px solid rgba(96,165,250,.35);border-radius:14px;padding:11px 13px;margin-bottom:18px;box-shadow:0 4px 14px rgba(37,99,235,.12)">
-            <div style="font-size:11px;font-weight:900;color:#93c5fd;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:5px;letter-spacing:.02em">
+            <div style="font-size:11px;font-weight:900;color:light-dark(#0352aa,#93c5fd);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:5px;letter-spacing:.02em">
                 <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span class="material-icons" style="font-size:14px">bolt</span> ลงเวลาเหมือนเมื่อวาน <span style="font-weight:700;color:var(--k-tx3);font-size:10px">(${srcNote})</span></span>
                 ${items.length > 1 ? `<button type="button" id="qrbAllBtn" onclick="quickRebookAll('qrbAllBtn')" style="background:linear-gradient(135deg,#2563eb,#4f46e5);border:1px solid #60a5fa;border-radius:9px;padding:4px 12px;color:#fff;font-size:11px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;gap:4px;box-shadow:0 3px 10px rgba(59,130,246,.35)"><span class="material-icons" style="font-size:13px">done_all</span> ลงทั้ง ${items.length} รอบเลย</button>` : ''}
             </div>
@@ -207,7 +207,7 @@ window.initQuickRebook = async function () {
                     style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:color-mix(in srgb,var(--k-panel2) 65.0%,transparent);border:1px solid rgba(96,165,250,.3);border-radius:11px;padding:9px 13px;color:var(--k-tx);font-size:13px;font-weight:800;cursor:pointer;transition:all .15s;text-align:left"
                     onmouseover="this.style.borderColor='#60a5fa';this.style.background='rgba(30,58,138,.35)'" onmouseout="this.style.borderColor='rgba(96,165,250,.3)';this.style.background='rgba(15,23,42,.65)'">
                     <span>🍚 <b style="font-family:monospace;color:var(--k-tx-strong)">${esc(b.time_slot)}</b> <span style="color:var(--k-tx3);font-weight:700;font-size:11.5px">· ${esc(b.team)} · ${esc(b.shift_name)}</span></span>
-                    <span class="material-icons" style="font-size:17px;color:#60a5fa">play_circle</span>
+                    <span class="material-icons" style="font-size:17px;color:light-dark(#054ea8,#60a5fa)">play_circle</span>
                 </button>`).join('')}
             </div>
         </div>`;
@@ -1261,7 +1261,7 @@ window._renderMyTodayNow = async function() {
     const swapToday = mySwaps.find(t => String(t.scheduled_for || '').slice(0, 10) === dateVal && t.pl.target_shift && t.pl.target_shift !== 'คงเดิม');
     const effShift = swapToday ? swapToday.pl.target_shift : myShift;
     const sbE = _mtShiftBadge(effShift), shE = _mtShiftHours(effShift), stE = effShift ? _mtShiftStatus(effShift) : null;
-    const shiftVal = effShift ? `${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;font-weight:700;color:${sbE[1]};background:${sbE[1]}22;padding:2px 7px;border-radius:6px;margin-left:4px">${shE.open}–${shE.close}</span>${swapToday ? ` <span style="font-size:11px;font-weight:800;color:#fb923c;background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.45);padding:2px 8px;border-radius:999px;margin-left:4px">🔄 สลับกะ</span>` : ''}` : 'ไม่มีกะ';
+    const shiftVal = effShift ? `${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;font-weight:700;color:${sbE[1]};background:${sbE[1]}22;padding:2px 7px;border-radius:6px;margin-left:4px">${shE.open}–${shE.close}</span>${swapToday ? ` <span style="font-size:11px;font-weight:800;color:light-dark(#aa4e03,#fb923c);background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.45);padding:2px 8px;border-radius:999px;margin-left:4px">🔄 สลับกะ</span>` : ''}` : 'ไม่มีกะ';
     const shiftSub = (stE ? `<span style="color:${stE.color};font-weight:700">● ${stE.label}</span>` : '') + (swapToday ? ` <span style="color:var(--k-tx3)">· วันนี้สลับจาก <b style="color:var(--k-tx2)">${_mtEsc(swapToday.pl.from_shift || swapToday.pl.original_shift || myShift || '-')}</b> → <b style="color:var(--k-amber-tx)">${_mtEsc(swapToday.pl.target_shift)}</b>${swapToday.pl.display_desc ? ` (${_mtEsc(swapToday.pl.display_desc)})` : ''}</span>` : '');
     // 2) งานของฉัน
     // 🎧 [OD] ห้องเป็นของ "คน" ตามเว็บหลัก (ไม่ใช่ของแต่ละเว็บ) → โชว์ป้ายเดียวจากงานหลัก
@@ -1275,7 +1275,7 @@ window._renderMyTodayNow = async function() {
     const jobsVal = jobs.length ? jobs.map(j => _jobChip(j, false)).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
     // 🎧 ห้อง Discord (OD) — บรรทัดแยก ไม่ปนกับชิปงาน จะได้ไม่ดูเหมือนเป็นเว็บอีกอัน
     const roomLine = (myDep === 'OD' && jobs.length)
-        ? `<div style="margin-top:8px"><span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:rgba(34,197,94,.10);border:1px dashed rgba(34,197,94,.45)"><span class="material-icons" style="font-size:15px;color:#22c55e">headset_mic</span><span style="font-size:11.5px;color:var(--k-tx3)">Discord</span>${(mainJob && mainJob.room) ? `<b style="color:var(--k-green-tx);font-size:13.5px">${_mtEsc(mainJob.room)}</b>` : `<span style="color:var(--k-tx3);font-size:12px">ยังไม่จัดห้อง</span>`}</span></div>`
+        ? `<div style="margin-top:8px"><span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:rgba(34,197,94,.10);border:1px dashed rgba(34,197,94,.45)"><span class="material-icons" style="font-size:15px;color:light-dark(#1a9447,#22c55e)">headset_mic</span><span style="font-size:11.5px;color:var(--k-tx3)">Discord</span>${(mainJob && mainJob.room) ? `<b style="color:var(--k-green-tx);font-size:13.5px">${_mtEsc(mainJob.room)}</b>` : `<span style="color:var(--k-tx3);font-size:12px">ยังไม่จัดห้อง</span>`}</span></div>`
         : '';
     // 🕘 เมื่อวานทำอะไร (หลัก/รอง)
     const yLine = `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:8px"><span style="font-size:11px;color:var(--k-mute);margin-right:4px"><span class="material-icons" style="font-size:12px;vertical-align:-2px">history</span> เมื่อวาน (${_mtFmt(ydate).replace(/^\S+\s/, '')}):</span>${jobsY.length ? jobsY.map(j => _jobChip(j, true)).join('') : '<span style="font-size:11px;color:var(--k-mute)">ไม่มีข้อมูล</span>'}</div>`;
@@ -1283,10 +1283,10 @@ window._renderMyTodayNow = async function() {
     // 3) พักวันนี้
     // 🗑️ แต่ละช่วงมีปุ่ม ✕ ลบได้จากตรงนี้ (ใช้ delSch เดิม: เช็คเวลา + ยืนยัน + รีเฟรชฟอร์มให้) แล้วลงใหม่ที่ฟอร์มซ้ายได้เลย
     const brVal = myBreaks.length
-        ? myBreaks.map(b => `<span class="mt-break-pill" style="display:inline-flex;align-items:center;gap:7px;margin:2px 6px 2px 0;padding:4px 5px 4px 11px;border-radius:10px;font-size:13px;font-family:monospace;font-weight:700;background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(52,211,153,.10));color:#6ee7b7;border:1px solid rgba(52,211,153,.4);box-shadow:0 2px 8px -4px rgba(16,185,129,.5);transition:all .16s">${_mtEsc(b.time_slot)}<button type="button" class="mt-break-x" onclick="if(typeof delSch==='function') delSch(${b.id}, '${_mtEsc(b.shift_name)}')" title="ลบรอบนี้ แล้วลงใหม่ได้" style="border:none;background:rgba(148,163,184,.14);color:var(--k-tx3);width:21px;height:21px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:all .16s"><span class="material-icons" style="font-size:14px;line-height:1">close</span></button></span>`).join('')
+        ? myBreaks.map(b => `<span class="mt-break-pill" style="display:inline-flex;align-items:center;gap:7px;margin:2px 6px 2px 0;padding:4px 5px 4px 11px;border-radius:10px;font-size:13px;font-family:monospace;font-weight:700;background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(52,211,153,.10));color:light-dark(#199564,#6ee7b7);border:1px solid rgba(52,211,153,.4);box-shadow:0 2px 8px -4px rgba(16,185,129,.5);transition:all .16s">${_mtEsc(b.time_slot)}<button type="button" class="mt-break-x" onclick="if(typeof delSch==='function') delSch(${b.id}, '${_mtEsc(b.shift_name)}')" title="ลบรอบนี้ แล้วลงใหม่ได้" style="border:none;background:rgba(148,163,184,.14);color:var(--k-tx3);width:21px;height:21px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:all .16s"><span class="material-icons" style="font-size:14px;line-height:1">close</span></button></span>`).join('')
         : 'ยังไม่ได้เลือกเวลาพัก';
     const brSub = remain > 0
-        ? `ยังเลือกได้อีก <b style="color:var(--k-amber-tx)">${remain}</b> จาก ${dailyLimit} รอบ${isToday ? ` · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:#60a5fa;font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>` : ' <span style="color:var(--k-mute)">(ฟอร์มด้านซ้ายลงของวันปัจจุบันเท่านั้น)</span>'}`
+        ? `ยังเลือกได้อีก <b style="color:var(--k-amber-tx)">${remain}</b> จาก ${dailyLimit} รอบ${isToday ? ` · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:light-dark(#054ea8,#60a5fa);font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>` : ' <span style="color:var(--k-mute)">(ฟอร์มด้านซ้ายลงของวันปัจจุบันเท่านั้น)</span>'}`
         : `ครบ ${dailyLimit} รอบแล้ววันนี้ ✅ · กด ✕ ที่ช่วงที่ต้องการเพื่อลบแล้วลงใหม่`;
     // 4) วันหยุดที่จอง
     // 🎨 ประเภทวันหยุด: ชื่อ + สี ตรงกับปุ่มในหน้าตารางวันหยุด (leave.html)
@@ -1337,7 +1337,7 @@ window._renderMyTodayNow = async function() {
         </div>`;
     };
     const lvVal = _lvMonthBlock(thisYM, 'เดือนนี้', '#f472b6') + _lvMonthBlock(nextYM, 'เดือนหน้า', '#60a5fa');
-    const lvSub = `<a href="javascript:void(0)" onclick="showPage('leave')" style="color:#60a5fa;font-weight:700;text-decoration:underline">ดู/จองเพิ่ม</a>` + (lvTotal ? ` · รวม ${lvTotal} วัน (2 เดือน)` : ' · ยังไม่ได้จองวันหยุด');
+    const lvSub = `<a href="javascript:void(0)" onclick="showPage('leave')" style="color:light-dark(#054ea8,#60a5fa);font-weight:700;text-decoration:underline">ดู/จองเพิ่ม</a>` + (lvTotal ? ` · รวม ${lvTotal} วัน (2 เดือน)` : ' · ยังไม่ได้จองวันหยุด');
 
     // ── การ์ดสลับกะ (จากหน้าสลับกะ) ──
     const swapChip = (t) => {
@@ -1348,12 +1348,12 @@ window._renderMyTodayNow = async function() {
         const b = _mtShiftBadge(stay ? from : to);
         return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px;border-radius:9px;font-size:12.5px;background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid ${isD ? '#fb923c' : 'rgba(251,146,60,.35)'};${isD ? 'box-shadow:0 0 0 2px rgba(251,146,60,.35);' : ''}">
             <span style="color:var(--k-tx);font-weight:700">${_mtFmt(d)}</span>
-            ${stay ? `<span style="color:var(--k-tx3);font-size:11px">คงเดิม (${_mtEsc(from)})</span>` : `<span style="color:var(--k-tx3);font-size:11px">${_mtEsc(from || '?')}</span><span style="color:#fb923c;font-weight:900">→</span><span style="background:${b[1]};color:#0f172a;font-weight:900;font-size:11px;padding:1px 7px;border-radius:5px">${_mtEsc(to)}</span>`}
+            ${stay ? `<span style="color:var(--k-tx3);font-size:11px">คงเดิม (${_mtEsc(from)})</span>` : `<span style="color:var(--k-tx3);font-size:11px">${_mtEsc(from || '?')}</span><span style="color:light-dark(#aa4e03,#fb923c);font-weight:900">→</span><span style="background:${b[1]};color:#0f172a;font-weight:900;font-size:11px;padding:1px 7px;border-radius:5px">${_mtEsc(to)}</span>`}
             ${t.pl.display_desc ? `<span style="color:var(--k-mute);font-size:10.5px">${_mtEsc(t.pl.display_desc)}</span>` : ''}${isD ? '<b style="font-size:10px;color:#fff;background:#fb923c;padding:1px 6px;border-radius:5px">วันนี้</b>' : ''}
         </span>`;
     };
     const swVal = mySwaps.length ? mySwaps.map(swapChip).join('') : 'ไม่มีการสลับกะ';
-    const swSub = mySwaps.length ? `มี ${mySwaps.length} รายการใน 60 วันข้างหน้า · <a href="javascript:void(0)" onclick="showPage('swap')" style="color:#60a5fa;font-weight:700;text-decoration:underline">ดูหน้าสลับกะ</a>` : `ถ้ามีสลับกะจะขึ้นที่นี่ · <a href="javascript:void(0)" onclick="showPage('swap')" style="color:#60a5fa;font-weight:700;text-decoration:underline">หน้าสลับกะ</a>`;
+    const swSub = mySwaps.length ? `มี ${mySwaps.length} รายการใน 60 วันข้างหน้า · <a href="javascript:void(0)" onclick="showPage('swap')" style="color:light-dark(#054ea8,#60a5fa);font-weight:700;text-decoration:underline">ดูหน้าสลับกะ</a>` : `ถ้ามีสลับกะจะขึ้นที่นี่ · <a href="javascript:void(0)" onclick="showPage('swap')" style="color:light-dark(#054ea8,#60a5fa);font-weight:700;text-decoration:underline">หน้าสลับกะ</a>`;
 
     // ── ติดต่อหัวหน้า: ใช้รายชื่อที่แอดมินตั้งค่าไว้ (ตั้งค่าระบบ → ติดต่อหัวหน้า) ก่อน
     //    ถ้ายังไม่ได้ตั้ง → ดึง manager/admin จากรายชื่อพนักงานอัตโนมัติ (แบบเดิม) ──
@@ -1380,7 +1380,7 @@ window._renderMyTodayNow = async function() {
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                     <span style="font-weight:800;color:var(--k-tx);font-size:14px">${_mtEsc(u.username)}</span>
                     <span style="font-size:10px;color:var(--k-tx3);background:rgba(148,163,184,.12);padding:1px 7px;border-radius:5px">${_mtEsc(u.department || '-')}</span>
-                    <span style="font-size:10px;color:#c084fc;background:rgba(192,132,252,.12);padding:1px 7px;border-radius:5px">${_mtEsc(label)}</span>
+                    <span style="font-size:10px;color:light-dark(#5704a9,#c084fc);background:rgba(192,132,252,.12);padding:1px 7px;border-radius:5px">${_mtEsc(label)}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
                     ${['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift)
@@ -1389,8 +1389,8 @@ window._renderMyTodayNow = async function() {
                 </div>
                 ${u.note ? `<div style="font-size:11.5px;color:var(--k-tx3);margin-top:5px">${_mtEsc(u.note)}</div>` : ''}
                 <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;font-size:12px">
-                    ${tg ? `<a href="${_mtEsc(tg)}" target="_blank" style="color:#38bdf8;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><span class="material-icons" style="font-size:14px">send</span>${_mtEsc(String(u.telegram_id).startsWith('@') ? u.telegram_id : 'Telegram')}</a>` : `<span style="color:var(--k-mute3)">ไม่มี Telegram</span>`}
-                    ${u.discord_id ? `<span style="color:#a78bfa;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="กดเพื่อก็อป Discord" onclick="navigator.clipboard&&navigator.clipboard.writeText('${_mtEsc(u.discord_id)}');Swal.fire({toast:true,position:'top-end',icon:'success',title:'ก็อป Discord แล้ว',showConfirmButton:false,timer:1500})"><span class="material-icons" style="font-size:14px">content_copy</span>${_mtEsc(u.discord_id)}</span>` : ''}
+                    ${tg ? `<a href="${_mtEsc(tg)}" target="_blank" style="color:light-dark(#0676a8,#38bdf8);text-decoration:none;display:inline-flex;align-items:center;gap:4px"><span class="material-icons" style="font-size:14px">send</span>${_mtEsc(String(u.telegram_id).startsWith('@') ? u.telegram_id : 'Telegram')}</a>` : `<span style="color:var(--k-mute3)">ไม่มี Telegram</span>`}
+                    ${u.discord_id ? `<span style="color:light-dark(#2f07a6,#a78bfa);display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="กดเพื่อก็อป Discord" onclick="navigator.clipboard&&navigator.clipboard.writeText('${_mtEsc(u.discord_id)}');Swal.fire({toast:true,position:'top-end',icon:'success',title:'ก็อป Discord แล้ว',showConfirmButton:false,timer:1500})"><span class="material-icons" style="font-size:14px">content_copy</span>${_mtEsc(u.discord_id)}</span>` : ''}
                 </div>
             </div>
         </div>`;
@@ -1412,7 +1412,7 @@ window._renderMyTodayNow = async function() {
     const wrap = (title, icon, bodyHtml, rightHtml) => `
         <div style="background:linear-gradient(165deg,var(--k-panel2),var(--k-bg));border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.3)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                <div style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:15px;color:var(--k-tx)"><span class="material-icons" style="font-size:19px;color:#60a5fa">${icon}</span>${title}</div>
+                <div style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:15px;color:var(--k-tx)"><span class="material-icons" style="font-size:19px;color:light-dark(#054ea8,#60a5fa)">${icon}</span>${title}</div>
                 ${rightHtml || ''}
             </div>
             ${bodyHtml}
@@ -1427,7 +1427,7 @@ window._renderMyTodayNow = async function() {
                 <div style="position:relative;display:flex;align-items:center;gap:7px;height:100%;padding:0 13px;border-left:1px solid rgba(148,163,184,.16);border-right:1px solid rgba(148,163,184,.16);cursor:pointer">
                     <span class="material-icons" style="font-size:16px;color:${isToday ? '#60a5fa' : 'var(--k-gold-tx)'}">calendar_month</span>
                     <span style="font-size:14px;font-weight:900;color:var(--k-tx);white-space:nowrap">${_mtFmt(dateVal)}</span>
-                    ${isToday ? '<span style="font-size:10px;font-weight:800;color:#60a5fa;background:rgba(96,165,250,.16);padding:2px 7px;border-radius:99px">วันนี้</span>' : ''}
+                    ${isToday ? '<span style="font-size:10px;font-weight:800;color:light-dark(#054ea8,#60a5fa);background:rgba(96,165,250,.16);padding:2px 7px;border-radius:99px">วันนี้</span>' : ''}
                     <input type="date" id="myTodayDate" class="mt-date-hidden" value="${dateVal}" onchange="myTodaySetDate(this.value)" title="กดเพื่อเลือกวันที่"
                         style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;color:transparent;background:transparent;border:none;padding:0;font-size:0">
                 </div>
@@ -1437,7 +1437,7 @@ window._renderMyTodayNow = async function() {
             ${isToday ? '' : `<button onclick="myTodaySetDate('')" style="height:38px;padding:0 13px;border-radius:12px;border:1px solid rgba(232,193,90,.45);background:rgba(232,193,90,.12);color:var(--k-gold-tx);font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px"><span class="material-icons" style="font-size:15px">today</span> กลับวันนี้</button>`}
             <div style="display:flex;align-items:center;gap:5px;margin-left:auto">
                 <span style="background:rgba(148,163,184,.12);padding:4px 10px;border-radius:7px;color:var(--k-tx2);font-weight:800;font-size:11.5px">${_mtEsc(myDep)}</span>
-                ${me.team ? `<span style="background:rgba(96,165,250,.14);padding:4px 10px;border-radius:7px;color:#93c5fd;font-weight:800;font-size:11.5px">${_mtEsc(me.team)}</span>` : ''}
+                ${me.team ? `<span style="background:rgba(96,165,250,.14);padding:4px 10px;border-radius:7px;color:light-dark(#0352aa,#93c5fd);font-weight:800;font-size:11.5px">${_mtEsc(me.team)}</span>` : ''}
             </div>
         </div>
         ${wrap(`วันนี้ของฉัน <span style="font-size:11px;font-weight:600;color:var(--k-mute);margin-left:4px">${_mtEsc(me.username)}</span>`, 'person', `
@@ -1448,7 +1448,7 @@ window._renderMyTodayNow = async function() {
         `, effShift ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
                 <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:${sbE[1]}22;border:1px solid ${sbE[1]}66;color:var(--k-tx);font-weight:800;font-size:13px">${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;color:${sbE[1]};font-family:monospace">${shE.open}–${shE.close}</span></span>
                 ${stE ? `<span style="font-size:11px;font-weight:800;color:${stE.color};background:${stE.bg};padding:4px 9px;border-radius:999px">● ${stE.label}</span>` : ''}
-                ${swapToday ? `<span title="วันนี้สลับจาก ${_mtEsc(swapToday.pl.from_shift || swapToday.pl.original_shift || myShift || '-')} → ${_mtEsc(swapToday.pl.target_shift)}" style="font-size:11px;font-weight:800;color:#fb923c;background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.45);padding:4px 9px;border-radius:999px">🔄 สลับกะ</span>` : ''}
+                ${swapToday ? `<span title="วันนี้สลับจาก ${_mtEsc(swapToday.pl.from_shift || swapToday.pl.original_shift || myShift || '-')} → ${_mtEsc(swapToday.pl.target_shift)}" style="font-size:11px;font-weight:800;color:light-dark(#aa4e03,#fb923c);background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.45);padding:4px 9px;border-radius:999px">🔄 สลับกะ</span>` : ''}
             </div>` : `<span style="font-size:11px;color:var(--k-mute)">ไม่มีกะ</span>`)}
         ${wrap('ช่องทางติดต่อหัวหน้า', 'support_agent', headRows + `<div style="font-size:11px;color:var(--k-mute);padding-top:10px">หากมีปัญหาหรือติดขัด ติดต่อหัวหน้าก่อนเป็นอันดับแรก</div>`, `<span style="font-size:11px;color:var(--k-tx3)">ทั้งหมด ${heads.length} คน</span>`)}
     `;

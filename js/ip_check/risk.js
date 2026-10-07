@@ -425,7 +425,7 @@ window.renderLoginHeatmap = function() {
                 ${oddList.map(([name, times]) => `
                 <div style="background:${cardBg};border:1px solid ${warnBorder};border-radius:8px;padding:6px 12px;font-size:13px">
                     <span style="font-weight:700;color:${textColor}">${name}</span>
-                    <span style="margin-left:8px;color:#ef4444;font-weight:700">${times.length} ครั้ง</span>
+                    <span style="margin-left:8px;color:light-dark(#a00e0e,#ef4444);font-weight:700">${times.length} ครั้ง</span>
                 </div>`).join('')}
             </div>
         </div>`;
@@ -565,23 +565,23 @@ window.showRiskDetail = function(userId) {
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
-                    <div style="font-size:20px;font-weight:900;color:#0ea5e9">${Object.keys(u.ips).length}</div>
+                    <div style="font-size:20px;font-weight:900;color:light-dark(#0a74a4,#0ea5e9)">${Object.keys(u.ips).length}</div>
                     <div style="font-size:10px;color:var(--k-mute)">IP ที่ใช้</div>
                 </div>
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
-                    <div style="font-size:20px;font-weight:900;color:#6366f1">${Object.keys(u.fps).length}</div>
+                    <div style="font-size:20px;font-weight:900;color:light-dark(#0e119f,#6366f1)">${Object.keys(u.fps).length}</div>
                     <div style="font-size:10px;color:var(--k-mute)">เครื่องที่ใช้</div>
                 </div>
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
-                    <div style="font-size:20px;font-weight:900;color:#f97316">${u.ipChanges}</div>
+                    <div style="font-size:20px;font-weight:900;color:light-dark(#a94804,#f97316)">${u.ipChanges}</div>
                     <div style="font-size:10px;color:var(--k-mute)">IP เปลี่ยน</div>
                 </div>
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
-                    <div style="font-size:20px;font-weight:900;color:#a855f7">${u.fpChanges}</div>
+                    <div style="font-size:20px;font-weight:900;color:light-dark(#5908a6,#a855f7)">${u.fpChanges}</div>
                     <div style="font-size:10px;color:var(--k-mute)">สลับเครื่อง</div>
                 </div>
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
-                    <div style="font-size:20px;font-weight:900;color:#10b981">${u.allTimes.length}</div>
+                    <div style="font-size:20px;font-weight:900;color:light-dark(#0ea06f,#10b981)">${u.allTimes.length}</div>
                     <div style="font-size:10px;color:var(--k-mute)">Login ทั้งหมด</div>
                 </div>
             </div>
