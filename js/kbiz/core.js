@@ -538,31 +538,31 @@ window.setOcrBudget = function(which) {
     document.getElementById('ocrBudgetModal')?.remove();
     const wrap = document.createElement('div'); wrap.id = 'ocrBudgetModal';
     wrap.innerHTML = `
-    <div style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,.65);backdrop-filter:blur(6px);animation:obFade .15s ease">
-      <div style="width:min(440px,92vw);background:linear-gradient(180deg,#151a26,#0f1420);border:1px solid rgba(255,255,255,.08);border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden;animation:obPop .18s cubic-bezier(.2,.9,.3,1.2);font-family:inherit">
+    <div style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--k-panel2) 65.0%,transparent);backdrop-filter:blur(6px);animation:obFade .15s ease">
+      <div style="width:min(440px,92vw);background:linear-gradient(180deg,var(--k-panel),var(--k-panel2));border:1px solid color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent);border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden;animation:obPop .18s cubic-bezier(.2,.9,.3,1.2);font-family:inherit">
         <div style="height:4px;background:linear-gradient(90deg,${accent},transparent)"></div>
         <div style="padding:22px 24px 8px">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:42px;height:42px;border-radius:12px;background:${accent}22;display:flex;align-items:center;justify-content:center;font-size:20px">💰</div>
             <div>
-              <div style="font-size:16px;font-weight:900;color:#fff">ตั้งยอด${label}</div>
-              <div style="font-size:12px;color:#8b93a8;margin-top:2px">ระบบจะเริ่มนับใหม่จากยอดนี้ แล้วหักตามการใช้จริง</div>
+              <div style="font-size:16px;font-weight:900;color:var(--k-tx-strong)">ตั้งยอด${label}</div>
+              <div style="font-size:12px;color:var(--k-tx3);margin-top:2px">ระบบจะเริ่มนับใหม่จากยอดนี้ แล้วหักตามการใช้จริง</div>
             </div>
           </div>
         </div>
         <div style="padding:14px 24px 6px">
-          <label style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8b93a8">ยอดที่มีตอนนี้ (บาท)</label>
+          <label style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--k-tx3)">ยอดที่มีตอนนี้ (บาท)</label>
           <div style="position:relative;margin-top:8px">
             <span style="position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:20px;font-weight:900;color:${accent}">฿</span>
             <input id="obInput" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off"
-              style="width:100%;box-sizing:border-box;padding:14px 16px 14px 42px;border-radius:14px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#fff;font-size:26px;font-weight:900;letter-spacing:.5px;outline:none;transition:border-color .15s,box-shadow .15s">
+              style="width:100%;box-sizing:border-box;padding:14px 16px 14px 42px;border-radius:14px;border:1.5px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent);background:color-mix(in srgb,var(--k-tx-strong) 4.0%,transparent);color:var(--k-tx-strong);font-size:26px;font-weight:900;letter-spacing:.5px;outline:none;transition:border-color .15s,box-shadow .15s">
           </div>
           <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap" id="obQuick"></div>
-          <div style="font-size:12px;color:#8b93a8;margin-top:10px">💡 ${hint} · <a href="${link}" target="_blank" style="color:${accent};font-weight:700;text-decoration:none">เปิดดูยอดจริง ↗</a></div>
-          <div id="obErr" style="display:none;font-size:12px;color:#f87171;font-weight:700;margin-top:8px"></div>
+          <div style="font-size:12px;color:var(--k-tx3);margin-top:10px">💡 ${hint} · <a href="${link}" target="_blank" style="color:${accent};font-weight:700;text-decoration:none">เปิดดูยอดจริง ↗</a></div>
+          <div id="obErr" style="display:none;font-size:12px;color:var(--k-red-tx);font-weight:700;margin-top:8px"></div>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;padding:16px 24px 22px">
-          <button id="obCancel" style="padding:11px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#cbd5e1;font-weight:800;font-size:13px;cursor:pointer">ยกเลิก</button>
+          <button id="obCancel" style="padding:11px 18px;border-radius:12px;border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent);background:transparent;color:var(--k-tx2);font-weight:800;font-size:13px;cursor:pointer">ยกเลิก</button>
           <button id="obSave" style="padding:11px 22px;border-radius:12px;border:0;background:${accent};color:#04111a;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 8px 20px ${accent}55">บันทึกยอด</button>
         </div>
       </div>

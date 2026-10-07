@@ -198,15 +198,15 @@ window.initQuickRebook = async function () {
         box.innerHTML = `
         <div style="background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(99,102,241,.08));border:1px solid rgba(96,165,250,.35);border-radius:14px;padding:11px 13px;margin-bottom:18px;box-shadow:0 4px 14px rgba(37,99,235,.12)">
             <div style="font-size:11px;font-weight:900;color:#93c5fd;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:5px;letter-spacing:.02em">
-                <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span class="material-icons" style="font-size:14px">bolt</span> ลงเวลาเหมือนเมื่อวาน <span style="font-weight:700;color:#8fa3bf;font-size:10px">(${srcNote})</span></span>
+                <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span class="material-icons" style="font-size:14px">bolt</span> ลงเวลาเหมือนเมื่อวาน <span style="font-weight:700;color:var(--k-tx3);font-size:10px">(${srcNote})</span></span>
                 ${items.length > 1 ? `<button type="button" id="qrbAllBtn" onclick="quickRebookAll('qrbAllBtn')" style="background:linear-gradient(135deg,#2563eb,#4f46e5);border:1px solid #60a5fa;border-radius:9px;padding:4px 12px;color:#fff;font-size:11px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;gap:4px;box-shadow:0 3px 10px rgba(59,130,246,.35)"><span class="material-icons" style="font-size:13px">done_all</span> ลงทั้ง ${items.length} รอบเลย</button>` : ''}
             </div>
             <div style="display:flex;flex-direction:column;gap:6px">
                 ${items.map((b, i) => `
                 <button type="button" id="qrbBtn${i}" onclick="quickRebook('${esc(b.team)}','${esc(b.shift_name)}','${esc(b.time_slot)}','qrbBtn${i}')"
-                    style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:rgba(15,23,42,.65);border:1px solid rgba(96,165,250,.3);border-radius:11px;padding:9px 13px;color:#e2e8f0;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s;text-align:left"
+                    style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:color-mix(in srgb,var(--k-panel2) 65.0%,transparent);border:1px solid rgba(96,165,250,.3);border-radius:11px;padding:9px 13px;color:var(--k-tx);font-size:13px;font-weight:800;cursor:pointer;transition:all .15s;text-align:left"
                     onmouseover="this.style.borderColor='#60a5fa';this.style.background='rgba(30,58,138,.35)'" onmouseout="this.style.borderColor='rgba(96,165,250,.3)';this.style.background='rgba(15,23,42,.65)'">
-                    <span>🍚 <b style="font-family:monospace;color:#fff">${esc(b.time_slot)}</b> <span style="color:#94a3b8;font-weight:700;font-size:11.5px">· ${esc(b.team)} · ${esc(b.shift_name)}</span></span>
+                    <span>🍚 <b style="font-family:monospace;color:var(--k-tx-strong)">${esc(b.time_slot)}</b> <span style="color:var(--k-tx3);font-weight:700;font-size:11.5px">· ${esc(b.team)} · ${esc(b.shift_name)}</span></span>
                     <span class="material-icons" style="font-size:17px;color:#60a5fa">play_circle</span>
                 </button>`).join('')}
             </div>
@@ -289,8 +289,8 @@ window.renderSlotChips = function () {
         const notIn = window._rosterMissing === 'not_in';
         box.innerHTML = `<div style="border:1px dashed rgba(251,191,36,.45);background:rgba(251,191,36,.06);border-radius:14px;padding:18px 12px;text-align:center">
             <div style="font-size:26px;margin-bottom:6px">🔒</div>
-            <div style="font-size:12.5px;font-weight:800;color:#fbbf24;margin-bottom:4px">${notIn ? 'ยังลงเวลาพักไม่ได้ — คุณยังไม่ถูกจัดลงเว็บ' : 'ยังลงเวลาพักไม่ได้ — เวรวันนี้ยังไม่ออก'}</div>
-            <div style="font-size:11px;color:#8fa3bf;line-height:1.7">${notIn
+            <div style="font-size:12.5px;font-weight:800;color:var(--k-amber-tx);margin-bottom:4px">${notIn ? 'ยังลงเวลาพักไม่ได้ — คุณยังไม่ถูกจัดลงเว็บ' : 'ยังลงเวลาพักไม่ได้ — เวรวันนี้ยังไม่ออก'}</div>
+            <div style="font-size:11px;color:var(--k-tx3);line-height:1.7">${notIn
                 ? 'เวรของกะนี้ออกแล้ว แต่ไม่มีชื่อคุณในตาราง (เพิ่งสลับกะมา?)<br>แจ้งหัวหน้าให้จัดคุณลงเว็บก่อน — พอมีชื่อ ปุ่มจะขึ้นให้เองทันที'
                 : 'รอหัวหน้าจัดหน้าที่/เวรของกะนี้ก่อน<br>พอเวรออก ปุ่มเวลาจะขึ้นให้กดเองทันที ไม่ต้องรีเฟรช'}</div>
         </div>`;
@@ -342,12 +342,12 @@ window.renderSlotChips = function () {
         const isFull = (o.disabled || i.full) && !isMine;
         let statusHtml;
         if (isMine) {
-            statusHtml = '<span style="color:#34d399;font-weight:900">✓ คุณลงรอบนี้แล้ว</span>';
+            statusHtml = '<span style="color:var(--k-green-tx);font-weight:900">✓ คุณลงรอบนี้แล้ว</span>';
         } else if (isFull) {
-            statusHtml = '<span style="color:#f87171;font-weight:900">⛔ เต็มแล้ว</span>';
+            statusHtml = '<span style="color:var(--k-red-tx);font-weight:900">⛔ เต็มแล้ว</span>';
         } else {
-            statusHtml = `<span style="color:#fbbf24;font-weight:900">ลงแล้ว ${i.booked ?? 0}</span>`;
-            if (i.free !== null && i.free !== undefined) statusHtml += ` <span style="color:#475569">·</span> <span style="color:#34d399;font-weight:900">ว่าง ${i.free}</span>`;
+            statusHtml = `<span style="color:var(--k-amber-tx);font-weight:900">ลงแล้ว ${i.booked ?? 0}</span>`;
+            if (i.free !== null && i.free !== undefined) statusHtml += ` <span style="color:var(--k-mute3)">·</span> <span style="color:var(--k-green-tx);font-weight:900">ว่าง ${i.free}</span>`;
         }
         const click = isMine ? `onclick="myBookedAlert('${time}')"` : (isFull ? `onclick="slotFullAlert('${time}')"` : `onclick="pickTimeSlot('${time}')"`);
         html += `<div class="slot-chip ${isOn ? 'on' : ''} ${isFull ? 'full' : ''} ${isMine ? 'mine' : ''}" ${click} title="${isMine ? 'คุณลงรอบนี้ไปแล้ว' : (isFull ? 'รอบนี้เต็มแล้ว' : 'กดเพื่อเลือกรอบนี้')}">
@@ -1250,9 +1250,9 @@ window._renderMyTodayNow = async function() {
         <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 4px;border-bottom:1px solid rgba(148,163,184,.12)">
             <div style="width:44px;height:44px;border-radius:12px;background:${iconColor}22;border:1px solid ${iconColor}55;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span class="material-icons" style="font-size:22px;color:${iconColor}">${icon}</span></div>
             <div style="min-width:0;flex:1">
-                <div style="font-size:11px;color:#94a3b8;margin-bottom:3px">${label}</div>
-                <div style="font-size:15px;font-weight:800;color:#f1f5f9;line-height:1.35">${valueHtml}</div>
-                ${subHtml ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:4px">${subHtml}</div>` : ''}
+                <div style="font-size:11px;color:var(--k-tx3);margin-bottom:3px">${label}</div>
+                <div style="font-size:15px;font-weight:800;color:var(--k-tx);line-height:1.35">${valueHtml}</div>
+                ${subHtml ? `<div style="font-size:11.5px;color:var(--k-tx3);margin-top:4px">${subHtml}</div>` : ''}
             </div>
         </div>`;
 
@@ -1262,31 +1262,31 @@ window._renderMyTodayNow = async function() {
     const effShift = swapToday ? swapToday.pl.target_shift : myShift;
     const sbE = _mtShiftBadge(effShift), shE = _mtShiftHours(effShift), stE = effShift ? _mtShiftStatus(effShift) : null;
     const shiftVal = effShift ? `${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;font-weight:700;color:${sbE[1]};background:${sbE[1]}22;padding:2px 7px;border-radius:6px;margin-left:4px">${shE.open}–${shE.close}</span>${swapToday ? ` <span style="font-size:11px;font-weight:800;color:#fb923c;background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.45);padding:2px 8px;border-radius:999px;margin-left:4px">🔄 สลับกะ</span>` : ''}` : 'ไม่มีกะ';
-    const shiftSub = (stE ? `<span style="color:${stE.color};font-weight:700">● ${stE.label}</span>` : '') + (swapToday ? ` <span style="color:#94a3b8">· วันนี้สลับจาก <b style="color:#cbd5e1">${_mtEsc(swapToday.pl.from_shift || swapToday.pl.original_shift || myShift || '-')}</b> → <b style="color:#fdba74">${_mtEsc(swapToday.pl.target_shift)}</b>${swapToday.pl.display_desc ? ` (${_mtEsc(swapToday.pl.display_desc)})` : ''}</span>` : '');
+    const shiftSub = (stE ? `<span style="color:${stE.color};font-weight:700">● ${stE.label}</span>` : '') + (swapToday ? ` <span style="color:var(--k-tx3)">· วันนี้สลับจาก <b style="color:var(--k-tx2)">${_mtEsc(swapToday.pl.from_shift || swapToday.pl.original_shift || myShift || '-')}</b> → <b style="color:var(--k-amber-tx)">${_mtEsc(swapToday.pl.target_shift)}</b>${swapToday.pl.display_desc ? ` (${_mtEsc(swapToday.pl.display_desc)})` : ''}</span>` : '');
     // 2) งานของฉัน
     // 🎧 [OD] ห้องเป็นของ "คน" ตามเว็บหลัก (ไม่ใช่ของแต่ละเว็บ) → โชว์ป้ายเดียวจากงานหลัก
     const mainJob = jobs.find(j => j.role === 'หลัก');
     const roomBadge = (myDep === 'OD' && jobs.length)
         ? (mainJob && mainJob.room
             ? `<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 6px 2px 0;padding:3px 12px;border-radius:999px;font-size:13px;background:#22c55e;color:#052e16;font-weight:900"><span class="material-icons" style="font-size:14px">headset</span>เข้า ${_mtEsc(mainJob.room)}</span>`
-            : `<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 6px 2px 0;padding:3px 10px;border-radius:999px;font-size:11.5px;color:#94a3b8;background:rgba(148,163,184,.12)"><span class="material-icons" style="font-size:13px">headset_off</span>ยังไม่จัดห้อง</span>`)
+            : `<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 6px 2px 0;padding:3px 10px;border-radius:999px;font-size:11.5px;color:var(--k-tx3);background:rgba(148,163,184,.12)"><span class="material-icons" style="font-size:13px">headset_off</span>ยังไม่จัดห้อง</span>`)
         : '';
-    const _jobChip = (j, dim) => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:${dim?'1px 8px':'3px 10px'};border-radius:8px;font-size:${dim?'11.5px':'13px'};${dim?'opacity:.7;':''}background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'#fcd34d'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span></span>`;
+    const _jobChip = (j, dim) => `<span style="display:inline-block;margin:2px 6px 2px 0;padding:${dim?'1px 8px':'3px 10px'};border-radius:8px;font-size:${dim?'11.5px':'13px'};${dim?'opacity:.7;':''}background:${j.role==='หลัก'?'rgba(96,165,250,.18)':'rgba(251,191,36,.15)'};color:${j.role==='หลัก'?'#93c5fd':'var(--k-amber-tx)'};border:1px solid ${j.role==='หลัก'?'rgba(96,165,250,.4)':'rgba(251,191,36,.4)'}">${_mtEsc(j.team)} <span style="font-size:10px;opacity:.8">(${j.role})</span></span>`;
     const jobsVal = jobs.length ? jobs.map(j => _jobChip(j, false)).join('') : 'ยังไม่มีงานที่ได้รับมอบหมาย';
     // 🎧 ห้อง Discord (OD) — บรรทัดแยก ไม่ปนกับชิปงาน จะได้ไม่ดูเหมือนเป็นเว็บอีกอัน
     const roomLine = (myDep === 'OD' && jobs.length)
-        ? `<div style="margin-top:8px"><span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:rgba(34,197,94,.10);border:1px dashed rgba(34,197,94,.45)"><span class="material-icons" style="font-size:15px;color:#22c55e">headset_mic</span><span style="font-size:11.5px;color:#94a3b8">Discord</span>${(mainJob && mainJob.room) ? `<b style="color:#4ade80;font-size:13.5px">${_mtEsc(mainJob.room)}</b>` : `<span style="color:#94a3b8;font-size:12px">ยังไม่จัดห้อง</span>`}</span></div>`
+        ? `<div style="margin-top:8px"><span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:rgba(34,197,94,.10);border:1px dashed rgba(34,197,94,.45)"><span class="material-icons" style="font-size:15px;color:#22c55e">headset_mic</span><span style="font-size:11.5px;color:var(--k-tx3)">Discord</span>${(mainJob && mainJob.room) ? `<b style="color:var(--k-green-tx);font-size:13.5px">${_mtEsc(mainJob.room)}</b>` : `<span style="color:var(--k-tx3);font-size:12px">ยังไม่จัดห้อง</span>`}</span></div>`
         : '';
     // 🕘 เมื่อวานทำอะไร (หลัก/รอง)
-    const yLine = `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:8px"><span style="font-size:11px;color:#64748b;margin-right:4px"><span class="material-icons" style="font-size:12px;vertical-align:-2px">history</span> เมื่อวาน (${_mtFmt(ydate).replace(/^\S+\s/, '')}):</span>${jobsY.length ? jobsY.map(j => _jobChip(j, true)).join('') : '<span style="font-size:11px;color:#64748b">ไม่มีข้อมูล</span>'}</div>`;
+    const yLine = `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:8px"><span style="font-size:11px;color:var(--k-mute);margin-right:4px"><span class="material-icons" style="font-size:12px;vertical-align:-2px">history</span> เมื่อวาน (${_mtFmt(ydate).replace(/^\S+\s/, '')}):</span>${jobsY.length ? jobsY.map(j => _jobChip(j, true)).join('') : '<span style="font-size:11px;color:var(--k-mute)">ไม่มีข้อมูล</span>'}</div>`;
     const jobsSub = (jobs.length ? '' : 'หัวหน้ายังไม่ได้จัดเวรวันนี้ หรือคุณไม่อยู่ในตาราง') + roomLine + yLine;
     // 3) พักวันนี้
     // 🗑️ แต่ละช่วงมีปุ่ม ✕ ลบได้จากตรงนี้ (ใช้ delSch เดิม: เช็คเวลา + ยืนยัน + รีเฟรชฟอร์มให้) แล้วลงใหม่ที่ฟอร์มซ้ายได้เลย
     const brVal = myBreaks.length
-        ? myBreaks.map(b => `<span class="mt-break-pill" style="display:inline-flex;align-items:center;gap:7px;margin:2px 6px 2px 0;padding:4px 5px 4px 11px;border-radius:10px;font-size:13px;font-family:monospace;font-weight:700;background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(52,211,153,.10));color:#6ee7b7;border:1px solid rgba(52,211,153,.4);box-shadow:0 2px 8px -4px rgba(16,185,129,.5);transition:all .16s">${_mtEsc(b.time_slot)}<button type="button" class="mt-break-x" onclick="if(typeof delSch==='function') delSch(${b.id}, '${_mtEsc(b.shift_name)}')" title="ลบรอบนี้ แล้วลงใหม่ได้" style="border:none;background:rgba(148,163,184,.14);color:#94a3b8;width:21px;height:21px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:all .16s"><span class="material-icons" style="font-size:14px;line-height:1">close</span></button></span>`).join('')
+        ? myBreaks.map(b => `<span class="mt-break-pill" style="display:inline-flex;align-items:center;gap:7px;margin:2px 6px 2px 0;padding:4px 5px 4px 11px;border-radius:10px;font-size:13px;font-family:monospace;font-weight:700;background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(52,211,153,.10));color:#6ee7b7;border:1px solid rgba(52,211,153,.4);box-shadow:0 2px 8px -4px rgba(16,185,129,.5);transition:all .16s">${_mtEsc(b.time_slot)}<button type="button" class="mt-break-x" onclick="if(typeof delSch==='function') delSch(${b.id}, '${_mtEsc(b.shift_name)}')" title="ลบรอบนี้ แล้วลงใหม่ได้" style="border:none;background:rgba(148,163,184,.14);color:var(--k-tx3);width:21px;height:21px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:all .16s"><span class="material-icons" style="font-size:14px;line-height:1">close</span></button></span>`).join('')
         : 'ยังไม่ได้เลือกเวลาพัก';
     const brSub = remain > 0
-        ? `ยังเลือกได้อีก <b style="color:#fbbf24">${remain}</b> จาก ${dailyLimit} รอบ${isToday ? ` · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:#60a5fa;font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>` : ' <span style="color:#64748b">(ฟอร์มด้านซ้ายลงของวันปัจจุบันเท่านั้น)</span>'}`
+        ? `ยังเลือกได้อีก <b style="color:var(--k-amber-tx)">${remain}</b> จาก ${dailyLimit} รอบ${isToday ? ` · <a href="javascript:void(0)" onclick="document.getElementById('btnSave')?.scrollIntoView({behavior:'smooth',block:'center'})" style="color:#60a5fa;font-weight:700;text-decoration:underline">ลงเวลาพักที่ฟอร์มด้านซ้าย →</a>` : ' <span style="color:var(--k-mute)">(ฟอร์มด้านซ้ายลงของวันปัจจุบันเท่านั้น)</span>'}`
         : `ครบ ${dailyLimit} รอบแล้ววันนี้ ✅ · กด ✕ ที่ช่วงที่ต้องการเพื่อลบแล้วลงใหม่`;
     // 4) วันหยุดที่จอง
     // 🎨 ประเภทวันหยุด: ชื่อ + สี ตรงกับปุ่มในหน้าตารางวันหยุด (leave.html)
@@ -1305,10 +1305,10 @@ window._renderMyTodayNow = async function() {
         const t = LV_TYPES[code] || { name: code, bg: '#64748b', fg: '#fff' };
         const state = iso < dateVal ? 'past' : (iso === dateVal ? 'today' : 'next');
         const dim = state === 'past';
-        return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px 4px 6px;border-radius:9px;font-size:12.5px;background:rgba(15,23,42,.7);border:1px solid ${dim ? 'rgba(148,163,184,.25)' : t.bg + '88'};${dim ? 'opacity:.55;' : ''}${state === 'today' ? 'box-shadow:0 0 0 2px ' + t.bg + '66;' : ''}" title="${state==='past'?'ผ่านมาแล้ว':state==='today'?'วันนี้':'ยังไม่ถึง'}">
+        return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px 4px 6px;border-radius:9px;font-size:12.5px;background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid ${dim ? 'rgba(148,163,184,.25)' : t.bg + '88'};${dim ? 'opacity:.55;' : ''}${state === 'today' ? 'box-shadow:0 0 0 2px ' + t.bg + '66;' : ''}" title="${state==='past'?'ผ่านมาแล้ว':state==='today'?'วันนี้':'ยังไม่ถึง'}">
             <span style="background:${t.bg};color:${t.fg};font-weight:900;font-size:11px;padding:2px 7px;border-radius:6px;letter-spacing:.3px">${_mtEsc(code)}</span>
-            <span style="color:${dim ? '#94a3b8' : '#f1f5f9'};font-weight:700;${dim ? 'text-decoration:line-through' : ''}">${_mtFmt(iso)}</span>
-            <span style="color:${dim ? '#64748b' : t.bg};font-size:11px;font-weight:700">${t.name}</span>${state==='today'?'<b style="font-size:10px;color:#fff;background:'+t.bg+';padding:1px 6px;border-radius:5px">วันนี้</b>':''}
+            <span style="color:${dim ? 'var(--k-tx3)' : 'var(--k-tx)'};font-weight:700;${dim ? 'text-decoration:line-through' : ''}">${_mtFmt(iso)}</span>
+            <span style="color:${dim ? 'var(--k-mute)' : t.bg};font-size:11px;font-weight:700">${t.name}</span>${state==='today'?'<b style="font-size:10px;color:var(--k-tx-strong);background:'+t.bg+';padding:1px 6px;border-radius:5px">วันนี้</b>':''}
         </span>`;
     };
     // 📅 แยกเป็นบล็อกรายเดือน: "เดือนนี้" กับ "เดือนหน้า" เท่านั้น (ข้ามเดือนใหม่แล้ว เดือนเก่าหายไปเองเพราะ query ดึงตั้งแต่วันที่ 1 ของเดือนปัจจุบัน)
@@ -1325,15 +1325,15 @@ window._renderMyTodayNow = async function() {
         const past = rows.filter(l => String(l.leave_date).slice(0, 10) < dateVal).length;
         const next = rows.length - past;
         const stat = rows.length
-            ? `${rows.length} วัน${past ? ` · <span style="color:#94a3b8">ผ่านแล้ว ${past}</span>` : ''}${next ? ` · <span style="color:${accent}">ยังไม่ถึง ${next}</span>` : ''}`
-            : '<span style="color:#64748b">ยังไม่ได้จอง</span>';
+            ? `${rows.length} วัน${past ? ` · <span style="color:var(--k-tx3)">ผ่านแล้ว ${past}</span>` : ''}${next ? ` · <span style="color:${accent}">ยังไม่ถึง ${next}</span>` : ''}`
+            : '<span style="color:var(--k-mute)">ยังไม่ได้จอง</span>';
         return `<div style="margin:2px 0 8px;padding:9px 11px 6px;border-radius:12px;background:linear-gradient(90deg,${accent}12,rgba(255,255,255,.015));border:1px solid ${accent}40;border-left:3px solid ${accent}">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-                <span style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:900;color:#f8fafc;letter-spacing:.2px"><span class="material-icons" style="font-size:15px;color:${accent}">calendar_month</span>${_ymLabel(ym)}</span>
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:900;color:var(--k-tx);letter-spacing:.2px"><span class="material-icons" style="font-size:15px;color:${accent}">calendar_month</span>${_ymLabel(ym)}</span>
                 <span style="font-size:10.5px;font-weight:800;color:${accent};background:${accent}22;border:1px solid ${accent}55;padding:1px 8px;border-radius:999px;letter-spacing:.3px">${tag}</span>
-                <span style="margin-left:auto;font-size:11.5px;font-weight:700;color:#cbd5e1">${stat}</span>
+                <span style="margin-left:auto;font-size:11.5px;font-weight:700;color:var(--k-tx2)">${stat}</span>
             </div>
-            <div style="display:flex;flex-wrap:wrap">${rows.length ? rows.map(_lvChip).join('') : `<span style="font-size:12px;color:#64748b;padding:2px 0 4px">— ยังไม่มีวันหยุดในเดือนนี้ —</span>`}</div>
+            <div style="display:flex;flex-wrap:wrap">${rows.length ? rows.map(_lvChip).join('') : `<span style="font-size:12px;color:var(--k-mute);padding:2px 0 4px">— ยังไม่มีวันหยุดในเดือนนี้ —</span>`}</div>
         </div>`;
     };
     const lvVal = _lvMonthBlock(thisYM, 'เดือนนี้', '#f472b6') + _lvMonthBlock(nextYM, 'เดือนหน้า', '#60a5fa');
@@ -1346,10 +1346,10 @@ window._renderMyTodayNow = async function() {
         const to = t.pl.target_shift || '-', from = t.pl.from_shift || t.pl.original_shift || '';
         const stay = to === 'คงเดิม';
         const b = _mtShiftBadge(stay ? from : to);
-        return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px;border-radius:9px;font-size:12.5px;background:rgba(15,23,42,.7);border:1px solid ${isD ? '#fb923c' : 'rgba(251,146,60,.35)'};${isD ? 'box-shadow:0 0 0 2px rgba(251,146,60,.35);' : ''}">
-            <span style="color:#f1f5f9;font-weight:700">${_mtFmt(d)}</span>
-            ${stay ? `<span style="color:#94a3b8;font-size:11px">คงเดิม (${_mtEsc(from)})</span>` : `<span style="color:#94a3b8;font-size:11px">${_mtEsc(from || '?')}</span><span style="color:#fb923c;font-weight:900">→</span><span style="background:${b[1]};color:#0f172a;font-weight:900;font-size:11px;padding:1px 7px;border-radius:5px">${_mtEsc(to)}</span>`}
-            ${t.pl.display_desc ? `<span style="color:#64748b;font-size:10.5px">${_mtEsc(t.pl.display_desc)}</span>` : ''}${isD ? '<b style="font-size:10px;color:#fff;background:#fb923c;padding:1px 6px;border-radius:5px">วันนี้</b>' : ''}
+        return `<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 8px 3px 0;padding:4px 10px;border-radius:9px;font-size:12.5px;background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid ${isD ? '#fb923c' : 'rgba(251,146,60,.35)'};${isD ? 'box-shadow:0 0 0 2px rgba(251,146,60,.35);' : ''}">
+            <span style="color:var(--k-tx);font-weight:700">${_mtFmt(d)}</span>
+            ${stay ? `<span style="color:var(--k-tx3);font-size:11px">คงเดิม (${_mtEsc(from)})</span>` : `<span style="color:var(--k-tx3);font-size:11px">${_mtEsc(from || '?')}</span><span style="color:#fb923c;font-weight:900">→</span><span style="background:${b[1]};color:#0f172a;font-weight:900;font-size:11px;padding:1px 7px;border-radius:5px">${_mtEsc(to)}</span>`}
+            ${t.pl.display_desc ? `<span style="color:var(--k-mute);font-size:10.5px">${_mtEsc(t.pl.display_desc)}</span>` : ''}${isD ? '<b style="font-size:10px;color:#fff;background:#fb923c;padding:1px 6px;border-radius:5px">วันนี้</b>' : ''}
         </span>`;
     };
     const swVal = mySwaps.length ? mySwaps.map(swapChip).join('') : 'ไม่มีการสลับกะ';
@@ -1375,21 +1375,21 @@ window._renderMyTodayNow = async function() {
         const label = u.label || (u.role === 'admin' ? 'ADMIN' : 'หัวหน้า');
         return `
         <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 4px;border-bottom:1px solid rgba(148,163,184,.1)">
-            <div style="width:40px;height:40px;border-radius:50%;background:#1e293b;border:1px solid #334155;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:#cbd5e1;flex-shrink:0">${ini}</div>
+            <div style="width:40px;height:40px;border-radius:50%;background:var(--k-card);border:1px solid var(--k-line2);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:var(--k-tx2);flex-shrink:0">${ini}</div>
             <div style="min-width:0;flex:1">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <span style="font-weight:800;color:#f1f5f9;font-size:14px">${_mtEsc(u.username)}</span>
-                    <span style="font-size:10px;color:#94a3b8;background:rgba(148,163,184,.12);padding:1px 7px;border-radius:5px">${_mtEsc(u.department || '-')}</span>
+                    <span style="font-weight:800;color:var(--k-tx);font-size:14px">${_mtEsc(u.username)}</span>
+                    <span style="font-size:10px;color:var(--k-tx3);background:rgba(148,163,184,.12);padding:1px 7px;border-radius:5px">${_mtEsc(u.department || '-')}</span>
                     <span style="font-size:10px;color:#c084fc;background:rgba(192,132,252,.12);padding:1px 7px;border-radius:5px">${_mtEsc(label)}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
                     ${['กะเช้า','กะกลาง','กะดึก'].includes(u.allowed_shift)
                         ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:800;color:${b[1]};background:${b[1]}1f;border:1px solid ${b[1]}55;padding:2px 9px;border-radius:999px">${b[2]} ${_mtEsc(u.allowed_shift.replace('กะ',''))}</span>`
-                        : `<span style="font-size:11px;color:#64748b">ทุกกะ</span>`}
+                        : `<span style="font-size:11px;color:var(--k-mute)">ทุกกะ</span>`}
                 </div>
-                ${u.note ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:5px">${_mtEsc(u.note)}</div>` : ''}
+                ${u.note ? `<div style="font-size:11.5px;color:var(--k-tx3);margin-top:5px">${_mtEsc(u.note)}</div>` : ''}
                 <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;font-size:12px">
-                    ${tg ? `<a href="${_mtEsc(tg)}" target="_blank" style="color:#38bdf8;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><span class="material-icons" style="font-size:14px">send</span>${_mtEsc(String(u.telegram_id).startsWith('@') ? u.telegram_id : 'Telegram')}</a>` : `<span style="color:#475569">ไม่มี Telegram</span>`}
+                    ${tg ? `<a href="${_mtEsc(tg)}" target="_blank" style="color:#38bdf8;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><span class="material-icons" style="font-size:14px">send</span>${_mtEsc(String(u.telegram_id).startsWith('@') ? u.telegram_id : 'Telegram')}</a>` : `<span style="color:var(--k-mute3)">ไม่มี Telegram</span>`}
                     ${u.discord_id ? `<span style="color:#a78bfa;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="กดเพื่อก็อป Discord" onclick="navigator.clipboard&&navigator.clipboard.writeText('${_mtEsc(u.discord_id)}');Swal.fire({toast:true,position:'top-end',icon:'success',title:'ก็อป Discord แล้ว',showConfirmButton:false,timer:1500})"><span class="material-icons" style="font-size:14px">content_copy</span>${_mtEsc(u.discord_id)}</span>` : ''}
                 </div>
             </div>
@@ -1400,19 +1400,19 @@ window._renderMyTodayNow = async function() {
     heads.filter(u => !groupOrder.includes(u.department || 'AM')).forEach(u => { let g = groups.find(x => x.d === u.department); if (!g) { g = { d: u.department, items: [] }; groups.splice(groups.length - (groups.some(x=>x.d==='ทุกแผนก')?1:0), 0, g); } g.items.push(u); });
     // 🧱 จัดเป็นคอลัมน์ซ้าย-ขวา (แต่ละแผนก 1 คอลัมน์) — จอแคบพับเป็นคอลัมน์เดียวเอง
     const groupCol = (g) => `
-        <div style="min-width:0;background:rgba(15,23,42,.45);border:1px solid rgba(148,163,184,.12);border-radius:12px;padding:4px 10px 6px">
-            <div style="margin:6px 0 4px;padding:6px 10px;border-radius:9px;background:${g.d === myDep ? 'rgba(96,165,250,.14)' : 'rgba(148,163,184,.08)'};border-left:3px solid ${g.d === myDep ? '#60a5fa' : (g.d === 'ทุกแผนก' ? '#fbbf24' : '#64748b')};font-size:12px;font-weight:800;color:${g.d === myDep ? '#93c5fd' : '#cbd5e1'};display:flex;justify-content:space-between;align-items:center">
+        <div style="min-width:0;background:color-mix(in srgb,var(--k-panel2) 45.0%,transparent);border:1px solid rgba(148,163,184,.12);border-radius:12px;padding:4px 10px 6px">
+            <div style="margin:6px 0 4px;padding:6px 10px;border-radius:9px;background:${g.d === myDep ? 'rgba(96,165,250,.14)' : 'rgba(148,163,184,.08)'};border-left:3px solid ${g.d === myDep ? '#60a5fa' : (g.d === 'ทุกแผนก' ? '#fbbf24' : '#64748b')};font-size:12px;font-weight:800;color:${g.d === myDep ? '#93c5fd' : 'var(--k-tx2)'};display:flex;justify-content:space-between;align-items:center">
                 <span>${groupTitle(g.d)}${g.d === myDep ? ' <span style="font-size:10px;font-weight:600;opacity:.8">(แผนกของคุณ)</span>' : ''}</span><span style="font-size:10px;font-weight:600;opacity:.7">${g.items.length} คน</span>
             </div>${g.items.map(renderOne).join('')}
         </div>`;
     const headRows = groups.length
         ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:6px">${groups.map(groupCol).join('')}</div>`
-        : `<div style="padding:16px;color:#64748b;font-size:12px;text-align:center">ยังไม่ได้ตั้งค่าหัวหน้า — แอดมินตั้งได้ที่ ตั้งค่าระบบ → ติดต่อหัวหน้า</div>`;
+        : `<div style="padding:16px;color:var(--k-mute);font-size:12px;text-align:center">ยังไม่ได้ตั้งค่าหัวหน้า — แอดมินตั้งได้ที่ ตั้งค่าระบบ → ติดต่อหัวหน้า</div>`;
 
     const wrap = (title, icon, bodyHtml, rightHtml) => `
-        <div style="background:linear-gradient(165deg,#0f172a,#0b1120);border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.3)">
+        <div style="background:linear-gradient(165deg,var(--k-panel2),var(--k-bg));border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.3)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                <div style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:15px;color:#f1f5f9"><span class="material-icons" style="font-size:19px;color:#60a5fa">${icon}</span>${title}</div>
+                <div style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:15px;color:var(--k-tx)"><span class="material-icons" style="font-size:19px;color:#60a5fa">${icon}</span>${title}</div>
                 ${rightHtml || ''}
             </div>
             ${bodyHtml}
@@ -1421,36 +1421,36 @@ window._renderMyTodayNow = async function() {
     box.innerHTML = `
         <!-- 📅 แถบวันที่แถวเดียวจบ: [‹] [วันที่กดเลือกได้] [›] + ปุ่มกลับวันนี้ · ไม่มีข้อความซ้ำอีก -->
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:2px 4px 2px 2px">
-            <div style="display:flex;align-items:center;height:38px;border-radius:12px;overflow:hidden;background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.22)">
-                <button onclick="myTodayShift(-1)" title="วันก่อนหน้า" style="height:100%;padding:0 9px;display:flex;align-items:center;color:#94a3b8;background:none;border:none;cursor:pointer;transition:all .15s"
+            <div style="display:flex;align-items:center;height:38px;border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--k-panel2) 65.0%,transparent);border:1px solid rgba(148,163,184,.22)">
+                <button onclick="myTodayShift(-1)" title="วันก่อนหน้า" style="height:100%;padding:0 9px;display:flex;align-items:center;color:var(--k-tx3);background:none;border:none;cursor:pointer;transition:all .15s"
                     onmouseover="this.style.color='#fff';this.style.background='rgba(148,163,184,.14)'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><span class="material-icons" style="font-size:18px">chevron_left</span></button>
                 <div style="position:relative;display:flex;align-items:center;gap:7px;height:100%;padding:0 13px;border-left:1px solid rgba(148,163,184,.16);border-right:1px solid rgba(148,163,184,.16);cursor:pointer">
-                    <span class="material-icons" style="font-size:16px;color:${isToday ? '#60a5fa' : '#E8C15A'}">calendar_month</span>
-                    <span style="font-size:14px;font-weight:900;color:#f1f5f9;white-space:nowrap">${_mtFmt(dateVal)}</span>
+                    <span class="material-icons" style="font-size:16px;color:${isToday ? '#60a5fa' : 'var(--k-gold-tx)'}">calendar_month</span>
+                    <span style="font-size:14px;font-weight:900;color:var(--k-tx);white-space:nowrap">${_mtFmt(dateVal)}</span>
                     ${isToday ? '<span style="font-size:10px;font-weight:800;color:#60a5fa;background:rgba(96,165,250,.16);padding:2px 7px;border-radius:99px">วันนี้</span>' : ''}
                     <input type="date" id="myTodayDate" class="mt-date-hidden" value="${dateVal}" onchange="myTodaySetDate(this.value)" title="กดเพื่อเลือกวันที่"
                         style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;color:transparent;background:transparent;border:none;padding:0;font-size:0">
                 </div>
-                <button onclick="myTodayShift(1)" title="วันถัดไป" style="height:100%;padding:0 9px;display:flex;align-items:center;color:#94a3b8;background:none;border:none;cursor:pointer;transition:all .15s"
+                <button onclick="myTodayShift(1)" title="วันถัดไป" style="height:100%;padding:0 9px;display:flex;align-items:center;color:var(--k-tx3);background:none;border:none;cursor:pointer;transition:all .15s"
                     onmouseover="this.style.color='#fff';this.style.background='rgba(148,163,184,.14)'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><span class="material-icons" style="font-size:18px">chevron_right</span></button>
             </div>
-            ${isToday ? '' : `<button onclick="myTodaySetDate('')" style="height:38px;padding:0 13px;border-radius:12px;border:1px solid rgba(232,193,90,.45);background:rgba(232,193,90,.12);color:#E8C15A;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px"><span class="material-icons" style="font-size:15px">today</span> กลับวันนี้</button>`}
+            ${isToday ? '' : `<button onclick="myTodaySetDate('')" style="height:38px;padding:0 13px;border-radius:12px;border:1px solid rgba(232,193,90,.45);background:rgba(232,193,90,.12);color:var(--k-gold-tx);font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px"><span class="material-icons" style="font-size:15px">today</span> กลับวันนี้</button>`}
             <div style="display:flex;align-items:center;gap:5px;margin-left:auto">
-                <span style="background:rgba(148,163,184,.12);padding:4px 10px;border-radius:7px;color:#cbd5e1;font-weight:800;font-size:11.5px">${_mtEsc(myDep)}</span>
+                <span style="background:rgba(148,163,184,.12);padding:4px 10px;border-radius:7px;color:var(--k-tx2);font-weight:800;font-size:11.5px">${_mtEsc(myDep)}</span>
                 ${me.team ? `<span style="background:rgba(96,165,250,.14);padding:4px 10px;border-radius:7px;color:#93c5fd;font-weight:800;font-size:11.5px">${_mtEsc(me.team)}</span>` : ''}
             </div>
         </div>
-        ${wrap(`วันนี้ของฉัน <span style="font-size:11px;font-weight:600;color:#64748b;margin-left:4px">${_mtEsc(me.username)}</span>`, 'person', `
+        ${wrap(`วันนี้ของฉัน <span style="font-size:11px;font-weight:600;color:var(--k-mute);margin-left:4px">${_mtEsc(me.username)}</span>`, 'person', `
             ${card('work', '#818cf8', 'งานของฉัน (เว็บที่รับผิดชอบ)', jobsVal, jobsSub)}
             ${card('restaurant', '#34d399', 'เวลาพักวันนี้', brVal, brSub)}
             ${card('event_available', '#f472b6', 'วันหยุดของฉัน', lvVal, lvSub)}
             ${card('swap_horiz', '#fb923c', 'สลับกะ', swVal, swSub)}
         `, effShift ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-                <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:${sbE[1]}22;border:1px solid ${sbE[1]}66;color:#f1f5f9;font-weight:800;font-size:13px">${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;color:${sbE[1]};font-family:monospace">${shE.open}–${shE.close}</span></span>
+                <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:${sbE[1]}22;border:1px solid ${sbE[1]}66;color:var(--k-tx);font-weight:800;font-size:13px">${sbE[2]} ${_mtEsc(effShift)} <span style="font-size:11px;color:${sbE[1]};font-family:monospace">${shE.open}–${shE.close}</span></span>
                 ${stE ? `<span style="font-size:11px;font-weight:800;color:${stE.color};background:${stE.bg};padding:4px 9px;border-radius:999px">● ${stE.label}</span>` : ''}
                 ${swapToday ? `<span title="วันนี้สลับจาก ${_mtEsc(swapToday.pl.from_shift || swapToday.pl.original_shift || myShift || '-')} → ${_mtEsc(swapToday.pl.target_shift)}" style="font-size:11px;font-weight:800;color:#fb923c;background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.45);padding:4px 9px;border-radius:999px">🔄 สลับกะ</span>` : ''}
-            </div>` : `<span style="font-size:11px;color:#64748b">ไม่มีกะ</span>`)}
-        ${wrap('ช่องทางติดต่อหัวหน้า', 'support_agent', headRows + `<div style="font-size:11px;color:#64748b;padding-top:10px">หากมีปัญหาหรือติดขัด ติดต่อหัวหน้าก่อนเป็นอันดับแรก</div>`, `<span style="font-size:11px;color:#94a3b8">ทั้งหมด ${heads.length} คน</span>`)}
+            </div>` : `<span style="font-size:11px;color:var(--k-mute)">ไม่มีกะ</span>`)}
+        ${wrap('ช่องทางติดต่อหัวหน้า', 'support_agent', headRows + `<div style="font-size:11px;color:var(--k-mute);padding-top:10px">หากมีปัญหาหรือติดขัด ติดต่อหัวหน้าก่อนเป็นอันดับแรก</div>`, `<span style="font-size:11px;color:var(--k-tx3)">ทั้งหมด ${heads.length} คน</span>`)}
     `;
 };
 

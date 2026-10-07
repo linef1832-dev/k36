@@ -54,14 +54,7 @@ th.sticky-header { position: sticky; top: 0; z-index: 20; }
     color: #ffffff; background-color: rgba(255, 255, 255, 0.05);
 }
 
-.nm-sidebar { background-color: #f3f4f6; border-right: 1px solid #e5e7eb; font-family: Tahoma, sans-serif; }
-.dark .nm-sidebar { background-color: #041020 !important; border-right: 1px solid #1a273a; }
-.nm-menu-title { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; cursor: pointer; transition: background-color 0.15s, color 0.15s; color: #475569; font-weight: bold; font-size: 14px; background: transparent; border: none; width: 100%; outline: none; }
-.dark .nm-menu-title { color: #8b9bb4 !important; background: transparent !important; }
-.nm-menu-title:hover { background-color: #e5e7eb; color: #1e293b; }
-.dark .nm-menu-title:hover { background-color: #0a192f !important; color: #ffffff !important; }
-.nm-menu-title.active { background-color: #dbeafe; color: #1e40af; border-left: 4px solid #ef4444; }
-.dark .nm-menu-title.active { background-color: #0f2341 !important; color: #ffffff !important; }
+.nm-menu-title { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; cursor: pointer; transition: background-color 0.15s, color 0.15s; font-weight: bold; font-size: 14px; background: transparent; border: none; width: 100%; outline: none; }
 .nm-menu-icon { margin-right: 12px; font-size: 18px; width: 20px; text-align: center; }
 
 .theme-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
@@ -95,58 +88,6 @@ input:checked + .theme-slider:before { transform: translateX(20px); background-c
     animation-duration: 0.01ms !important;
 }
 
-/* ── Sidebar theme-aware classes ── */
-.nm-sidebar-wrap {
-    background-color: #f3f4f6 !important;
-    border: 1px solid #d1d5db !important;
-}
-html.dark .nm-sidebar-wrap {
-    background-color: #0b1727 !important;
-    border: 1px solid #1a273a !important;
-}
-
-.nm-sidebar-header {
-    background-color: #e5e7eb !important;
-    border-bottom: 1px solid #d1d5db !important;
-}
-html.dark .nm-sidebar-header {
-    background-color: #020813 !important;
-    border-bottom: 1px solid #1a273a !important;
-}
-
-.nm-sidebar-footer {
-    background-color: #f3f4f6 !important;
-    border-top: 1px solid #d1d5db !important;
-}
-html.dark .nm-sidebar-footer {
-    background-color: #020813 !important;
-    border-top: 1px solid #1a273a !important;
-}
-
-.nm-submenu {
-    background-color: #e5e7eb !important;
-}
-html.dark .nm-submenu {
-    background-color: #020813 !important;
-}
-
-/* nm-menu-title dark override */
-html.dark .nm-menu-title {
-    color: #8b9bb4 !important;
-    background: transparent !important;
-}
-html.dark .nm-menu-title:hover {
-    background-color: #0a192f !important;
-    color: #ffffff !important;
-}
-html.dark .nm-menu-title.active {
-    background-color: #0f2341 !important;
-    color: #ffffff !important;
-}
-html.dark .nm-sidebar {
-    background-color: #041020 !important;
-    border-right: 1px solid #1a273a !important;
-}
 
 /* ==========================================================
    🔒 ตารางวันหยุด (leave) — ปิดรอยต่อหัว sticky ให้ทึบ 100%
@@ -353,3 +294,6 @@ html.dark .swal2-popup.swal2-toast {
     from { opacity: 0; transform: translateY(10px) scale(0.95); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* 🌗 สลับโหมดแบบนุ่ม (ใส่คลาสนี้ชั่วคราวตอนกดสลับเท่านั้น) */
+html.theme-switching, html.theme-switching *, html.theme-switching *::before, html.theme-switching *::after{ transition:background-color .25s ease, border-color .25s ease, color .2s ease, fill .2s ease !important; }

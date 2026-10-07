@@ -351,14 +351,7 @@ window._showAppError = function(msg, src) {
 // 🚀 เริ่มทำงานเมื่อเปิดเว็บ
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    const savedTheme = localStorage.getItem('theme');
-    if(savedTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-        const themeIcon = document.getElementById('themeIcon');
-        if(themeIcon) themeIcon.innerText = 'light_mode';
-        const cb = document.getElementById('themeToggleCb');
-        if(cb) cb.checked = true;
-    }
+    window.syncThemeUI();   // 🌗 โหมดถูกตั้งไว้แล้วใน <head> ของ index.html — ตรงนี้แค่ทำให้ไอคอน/สวิตช์ตรงกับโหมดปัจจุบัน
 
     if (window.supabase) {
         appDB = window.supabase.createClient(DB_URL, DB_KEY);
@@ -624,7 +617,7 @@ window._buildRefreshChip = function() {
     if (document.getElementById('pageRefreshChip')) return;
     const el = document.createElement('div');
     el.id = 'pageRefreshChip';
-    el.innerHTML = `<span class="material-icons animate-spin" style="font-size:14px;color:#E8C15A">sync</span> กำลังอัปเดตข้อมูล...`;
+    el.innerHTML = `<span class="material-icons animate-spin" style="font-size:14px;color:var(--k-gold-tx)">sync</span> กำลังอัปเดตข้อมูล...`;
     el.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;background:rgba(10,16,29,0.92);border:1px solid rgba(232,193,90,0.35);color:#f5e3ae;font-size:11px;font-weight:700;box-shadow:0 8px 24px -8px rgba(0,0,0,0.6);backdrop-filter:blur(4px);transition:opacity .25s;';
     document.body.appendChild(el);
 };
@@ -679,7 +672,7 @@ window._showNewVersionBanner = function() {
     const el = document.createElement('div');
     el.id = 'newVersionBanner';
     el.innerHTML = `
-        <span class="material-icons" style="font-size:18px;color:#E8C15A">new_releases</span>
+        <span class="material-icons" style="font-size:18px;color:var(--k-gold-tx)">new_releases</span>
         <span>มีการอัปเดตระบบใหม่ — กดเพื่อโหลดหน้าล่าสุด</span>
         <button onclick="location.reload()" style="margin-left:6px;padding:6px 14px;border-radius:8px;background:#E8C15A;color:#101828;font-weight:900;font-size:12.5px;border:none;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(232,193,90,0.4)">อัปเดตเลย</button>
     `;
@@ -1248,20 +1241,32 @@ async function showPage(pageName) {
 // ==========================================
 // 🎨 ระบบเปลี่ยนโหมดสี
 // ==========================================
-function toggleTheme() {
+// ==========================================
+// 🌗 โหมดสว่าง / มืด — จุดเดียวของทั้งเว็บ
+//   • ตั้งค่าเริ่มต้นตอนเปิดเว็บ: สคริปต์เล็กใน <head> ของ index.html (ก่อนวาดหน้า กันกระพริบ)
+//   • สี: css/theme.css (ตัวแปร --k-*) + คลาส dark: ของ Tailwind
+// ==========================================
+window.syncThemeUI = function() {
+    const dark = document.documentElement.classList.contains('dark');
+    const icon = document.getElementById('themeIcon');
+    if (icon) icon.innerText = dark ? 'light_mode' : 'dark_mode';   // ไอคอน = โหมดที่จะสลับไป
     const cb = document.getElementById('themeToggleCb');
-    if (document.documentElement.classList.contains('dark')) {
-        document.documentElement.classList.remove('dark');
-        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'dark_mode';
-        localStorage.setItem('theme', 'light');
-        if(cb) cb.checked = false;
-    } else {
-        document.documentElement.classList.add('dark');
-        if(document.getElementById('themeIcon')) document.getElementById('themeIcon').innerText = 'light_mode';
-        localStorage.setItem('theme', 'dark');
-        if(cb) cb.checked = true;
-    }
+    if (cb) cb.checked = dark;
+};
+window.setTheme = function(mode) {
+    const root = document.documentElement;
+    root.classList.add('theme-switching');   // เปลี่ยนสีแบบนุ่ม 0.25 วิ เฉพาะตอนกดสลับ
+    root.classList.toggle('dark', mode === 'dark');
+    try { localStorage.setItem('theme', mode); } catch (e) {}
+    window.syncThemeUI();
+    clearTimeout(window._themeAnimT);
+    window._themeAnimT = setTimeout(() => root.classList.remove('theme-switching'), 300);
+    window.dispatchEvent(new CustomEvent('k-themechange', { detail: { mode } }));   // ให้หน้าที่วาดสีด้วย JS วาดใหม่ได้
+};
+function toggleTheme() {
+    window.setTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark');
 }
+window.toggleTheme = toggleTheme;
 
 // ==========================================
 // 🧩 ระบบดึง HTML Template
@@ -1588,12 +1593,12 @@ window.openQuickNav = function() {
         box.id = 'quickNavBox';
         box.style.cssText = 'position:fixed;inset:0;z-index:99990;display:none;align-items:flex-start;justify-content:center;padding-top:14vh;background:rgba(2,6,23,.75);backdrop-filter:blur(3px)';
         box.innerHTML = `
-            <div style="width:min(520px,92vw);background:#0f172a;border:1px solid rgba(232,193,90,.35);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.7);overflow:hidden">
+            <div style="width:min(520px,92vw);background:var(--k-panel2);border:1px solid rgba(232,193,90,.35);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.7);overflow:hidden">
                 <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(148,163,184,.15)">
-                    <span class="material-icons" style="color:#E8C15A;font-size:20px">bolt</span>
+                    <span class="material-icons" style="color:var(--k-gold-tx);font-size:20px">bolt</span>
                     <input id="quickNavInput" placeholder="พิมพ์ชื่อหน้า... (เช่น ชีต, คลังรูป, จัดเวร)" autocomplete="off"
-                        style="flex:1;background:transparent;border:0;outline:none;color:#f1f5f9;font-size:15px;font-weight:600">
-                    <span style="font-size:10px;color:#64748b;border:1px solid #334155;border-radius:5px;padding:2px 6px">Esc ปิด</span>
+                        style="flex:1;background:transparent;border:0;outline:none;color:var(--k-tx);font-size:15px;font-weight:600">
+                    <span style="font-size:10px;color:var(--k-mute);border:1px solid var(--k-line2);border-radius:5px;padding:2px 6px">Esc ปิด</span>
                 </div>
                 <div id="quickNavList" style="max-height:46vh;overflow-y:auto;padding:6px"></div>
             </div>`;
@@ -1623,13 +1628,13 @@ window._qnavRender = function() {
     const list = document.getElementById('quickNavList'); if (!list) return;
     const q = (document.getElementById('quickNavInput').value || '').toLowerCase().trim();
     const items = window._qnavItems().filter(it => !q || it.label.toLowerCase().includes(q) || it.page.toLowerCase().includes(q));
-    if (!items.length) { list.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;font-size:13px">ไม่พบหน้าที่ค้นหา</div>'; return; }
+    if (!items.length) { list.innerHTML = '<div style="text-align:center;color:var(--k-mute);padding:20px;font-size:13px">ไม่พบหน้าที่ค้นหา</div>'; return; }
     list.innerHTML = items.map((it, i) => `
         <div class="qnav-row" data-sel="${i === 0 ? '1' : ''}" onclick="closeQuickNav();showPage('${it.page}')"
             onmouseenter="window._qnavSelect(document.querySelectorAll('.qnav-row'), ${i})"
-            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid ${i === 0 ? 'rgba(232,193,90,.4)' : 'transparent'};background:${i === 0 ? 'rgba(232,193,90,.14)' : 'transparent'};color:#e2e8f0;font-size:14px;font-weight:600">
-            <span class="material-icons" style="font-size:17px;color:#8b95a8">arrow_forward</span>${it.label}
-            <span style="margin-left:auto;font-size:10px;color:#475569">${it.page}</span>
+            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid ${i === 0 ? 'rgba(232,193,90,.4)' : 'transparent'};background:${i === 0 ? 'rgba(232,193,90,.14)' : 'transparent'};color:var(--k-tx);font-size:14px;font-weight:600">
+            <span class="material-icons" style="font-size:17px;color:var(--k-tx3)">arrow_forward</span>${it.label}
+            <span style="margin-left:auto;font-size:10px;color:var(--k-mute3)">${it.page}</span>
         </div>`).join('');
 };
 document.addEventListener('keydown', e => {

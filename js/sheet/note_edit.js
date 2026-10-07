@@ -495,7 +495,7 @@ window.noteFindReplace = async function() {
         title: '🔎 ค้นหา & แทนที่',
         html: `<input id="nfrFind" class="swal2-input" placeholder="คำที่ค้นหา..." style="margin-bottom:6px">` +
               `<input id="nfrRep" class="swal2-input" placeholder="แทนที่ด้วย... (เว้นว่าง = ลบคำนั้นทิ้ง)">` +
-              (inSel ? `<div style="font-size:12px;color:#94a3b8;margin-top:4px">จะแทนที่เฉพาะในช่วงที่เลือกไว้</div>` : `<div style="font-size:12px;color:#94a3b8;margin-top:4px">จะแทนที่ทั้งตาราง</div>`),
+              (inSel ? `<div style="font-size:12px;color:var(--k-tx3);margin-top:4px">จะแทนที่เฉพาะในช่วงที่เลือกไว้</div>` : `<div style="font-size:12px;color:var(--k-tx3);margin-top:4px">จะแทนที่ทั้งตาราง</div>`),
         showCancelButton: true, confirmButtonText: 'แทนที่ทั้งหมด', cancelButtonText: 'ยกเลิก',
         preConfirm: () => ({ f: document.getElementById('nfrFind').value, r: document.getElementById('nfrRep').value })
     });

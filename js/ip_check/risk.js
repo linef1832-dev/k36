@@ -527,8 +527,8 @@ window.showRiskDetail = function(userId) {
             <td style="padding:8px;font-family:monospace;font-size:12px;color:#0369a1;font-weight:700">${ip}</td>
             <td style="padding:8px;font-size:12px">${window.escapeHtml(d.country || '-')} / ${window.escapeHtml(d.city || '-')}</td>
             <td style="padding:8px;font-size:12px;max-width:180px;word-break:break-word">${isVpnIp ? '<span style="background:#7e22ce;color:#fff;padding:1px 6px;border-radius:99px;font-size:10px;font-weight:700">⚠ VPN</span> ' : ''}${window.escapeHtml(d.isp || '-')}</td>
-            <td style="padding:8px;font-size:11px;color:#64748b">${d.asn || '-'}</td>
-            <td style="padding:8px;font-size:11px;color:#64748b">${d.timezone || '-'}</td>
+            <td style="padding:8px;font-size:11px;color:var(--k-mute)">${d.asn || '-'}</td>
+            <td style="padding:8px;font-size:11px;color:var(--k-mute)">${d.timezone || '-'}</td>
             <td style="padding:8px;text-align:center;font-weight:700;color:#0f172a">${d.count}</td>
         </tr>`;
     }).join('');
@@ -537,8 +537,8 @@ window.showRiskDetail = function(userId) {
     const fpRows = Object.entries(u.fps).sort((a,b) => b[1].count - a[1].count).map(([fp, d], i) => {
         return `<tr style="border-bottom:1px solid #e2e8f0">
             <td style="padding:8px;font-size:12px;font-weight:700;color:#4f46e5">${d.device}</td>
-            <td style="padding:8px;font-family:monospace;font-size:11px;color:#64748b">${fp}</td>
-            <td style="padding:8px;font-size:11px;color:#64748b;max-width:200px;word-break:break-word">${d.ua}</td>
+            <td style="padding:8px;font-family:monospace;font-size:11px;color:var(--k-mute)">${fp}</td>
+            <td style="padding:8px;font-size:11px;color:var(--k-mute);max-width:200px;word-break:break-word">${d.ua}</td>
             <td style="padding:8px;text-align:center;font-weight:700;color:#0f172a">${d.count}</td>
         </tr>`;
     }).join('');
@@ -548,11 +548,11 @@ window.showRiskDetail = function(userId) {
     const evLabel = { login:'🟢 Login', ip_change:'🔴 IP เปลี่ยน', fp_change:'🟣 สลับเครื่อง' };
     const recentLogs = logs.slice(0, 15).map(l => `
         <tr style="border-bottom:1px solid #f1f5f9">
-            <td style="padding:6px 8px;font-size:11px;color:#64748b;white-space:nowrap">${new Date(l.login_time).toLocaleString('th-TH')}</td>
+            <td style="padding:6px 8px;font-size:11px;color:var(--k-mute);white-space:nowrap">${new Date(l.login_time).toLocaleString('th-TH')}</td>
             <td style="padding:6px 8px"><span style="background:${evColor[l.event_type]}22;color:${evColor[l.event_type]};font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px">${evLabel[l.event_type]||l.event_type}</span></td>
             <td style="padding:6px 8px;font-family:monospace;font-size:11px;color:#0369a1">${l.ip_address||'-'}</td>
-            <td style="padding:6px 8px;font-size:11px;color:#64748b">${window.escapeHtml(l.country||'-')} / ${window.escapeHtml(l.city||'-')}</td>
-            <td style="padding:6px 8px;font-size:11px;color:#64748b">${l.fingerprint ? shortFp(l.fingerprint) : '-'}</td>
+            <td style="padding:6px 8px;font-size:11px;color:var(--k-mute)">${window.escapeHtml(l.country||'-')} / ${window.escapeHtml(l.city||'-')}</td>
+            <td style="padding:6px 8px;font-size:11px;color:var(--k-mute)">${l.fingerprint ? shortFp(l.fingerprint) : '-'}</td>
         </tr>`).join('');
 
     const html = `
@@ -560,29 +560,29 @@ window.showRiskDetail = function(userId) {
         <!-- Header -->
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
             <div>
-                <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Risk Score</div>
+                <div style="font-size:11px;color:var(--k-mute);text-transform:uppercase;letter-spacing:.05em">Risk Score</div>
                 <div style="font-size:36px;font-weight:900;color:${levelColor[u.level]};line-height:1">${u.score}</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
                     <div style="font-size:20px;font-weight:900;color:#0ea5e9">${Object.keys(u.ips).length}</div>
-                    <div style="font-size:10px;color:#64748b">IP ที่ใช้</div>
+                    <div style="font-size:10px;color:var(--k-mute)">IP ที่ใช้</div>
                 </div>
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
                     <div style="font-size:20px;font-weight:900;color:#6366f1">${Object.keys(u.fps).length}</div>
-                    <div style="font-size:10px;color:#64748b">เครื่องที่ใช้</div>
+                    <div style="font-size:10px;color:var(--k-mute)">เครื่องที่ใช้</div>
                 </div>
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
                     <div style="font-size:20px;font-weight:900;color:#f97316">${u.ipChanges}</div>
-                    <div style="font-size:10px;color:#64748b">IP เปลี่ยน</div>
+                    <div style="font-size:10px;color:var(--k-mute)">IP เปลี่ยน</div>
                 </div>
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
                     <div style="font-size:20px;font-weight:900;color:#a855f7">${u.fpChanges}</div>
-                    <div style="font-size:10px;color:#64748b">สลับเครื่อง</div>
+                    <div style="font-size:10px;color:var(--k-mute)">สลับเครื่อง</div>
                 </div>
                 <div style="background:#f1f5f9;border-radius:10px;padding:8px 14px;text-align:center">
                     <div style="font-size:20px;font-weight:900;color:#10b981">${u.allTimes.length}</div>
-                    <div style="font-size:10px;color:#64748b">Login ทั้งหมด</div>
+                    <div style="font-size:10px;color:var(--k-mute)">Login ทั้งหมด</div>
                 </div>
             </div>
         </div>
@@ -603,12 +603,12 @@ window.showRiskDetail = function(userId) {
                 <table style="width:100%;border-collapse:collapse;font-size:12px">
                     <thead style="background:#f8fafc">
                         <tr>
-                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">IP</th>
-                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ประเทศ/เมือง</th>
-                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ISP</th>
-                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ASN</th>
-                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">Timezone</th>
-                            <th style="padding:8px;text-align:center;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ครั้ง</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">IP</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">ประเทศ/เมือง</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">ISP</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">ASN</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">Timezone</th>
+                            <th style="padding:8px;text-align:center;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">ครั้ง</th>
                         </tr>
                     </thead>
                     <tbody>${ipRows}</tbody>
@@ -623,10 +623,10 @@ window.showRiskDetail = function(userId) {
                 <table style="width:100%;border-collapse:collapse;font-size:12px">
                     <thead style="background:#f8fafc">
                         <tr>
-                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">รุ่น/ระบบ</th>
-                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">Device FP</th>
-                            <th style="padding:8px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">User Agent</th>
-                            <th style="padding:8px;text-align:center;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">ครั้ง</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">รุ่น/ระบบ</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">Device FP</th>
+                            <th style="padding:8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">User Agent</th>
+                            <th style="padding:8px;text-align:center;font-size:10px;color:var(--k-mute);font-weight:700;text-transform:uppercase">ครั้ง</th>
                         </tr>
                     </thead>
                     <tbody>${fpRows}</tbody>
@@ -641,11 +641,11 @@ window.showRiskDetail = function(userId) {
                 <table style="width:100%;border-collapse:collapse;font-size:12px">
                     <thead style="background:#f8fafc;position:sticky;top:0">
                         <tr>
-                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">เวลา</th>
-                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">ประเภท</th>
-                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">IP</th>
-                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">สถานที่</th>
-                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:#64748b;font-weight:700">FP</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700">เวลา</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700">ประเภท</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700">IP</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700">สถานที่</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--k-mute);font-weight:700">FP</th>
                         </tr>
                     </thead>
                     <tbody>${recentLogs}</tbody>

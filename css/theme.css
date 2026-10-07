@@ -1,0 +1,140 @@
+/* ═══════════════════════════════════════════════════════════════════
+   🎨 theme.css — สีกลางของทั้งเว็บ (โหมดมืด / โหมดสว่าง)
+   หน้าที่ออกแบบใหม่ใช้ตัวแปร --k-* ทั้งหมด → สลับโหมดแล้วเปลี่ยนสีตามเองทั้งหน้า
+   โหมดมืด = ค่าเริ่มต้น · โหมดสว่าง = html ที่ไม่มีคลาส .dark (toggleTheme ใน global.js)
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+    --k-bg:#0b1222;        /* พื้นหลังหน้า */
+    --k-sunk:#0c1424;      /* พื้นจมลงไป (ช่องในกล่อง) */
+    --k-panel:#121c30;     /* แผง/การ์ดหลัก */
+    --k-panel2:#0f1829;    /* แผงรอง/แถบตัวกรอง */
+    --k-card:#151f35;      /* การ์ดย่อย */
+    --k-field:#18233a;     /* ช่องกรอก */
+    --k-btn:#1a2640;       /* ปุ่มรอง */
+    --k-btn-h:#22314f;     /* ปุ่มรองตอนชี้ */
+    --k-line:#24324b;      /* เส้นแบ่ง */
+    --k-line2:#2c3b58;     /* ขอบช่องกรอก */
+    --k-line3:#2f3f5e;     /* ขอบปุ่ม */
+    --k-line4:#4a5f86;     /* ขอบตอนชี้ */
+    --k-tx-strong:#ffffff; /* หัวข้อ */
+    --k-tx:#e7ecf5;        /* ตัวอักษรหลัก */
+    --k-tx2:#dbe3f0;
+    --k-tx3:#9fb0cc;
+    --k-mute:#8a97ad;      /* คำอธิบาย */
+    --k-mute2:#7d8ba3;
+    --k-mute3:#6b7891;
+    --k-gold:#E8C15A;      /* สีทอง (พื้นปุ่มหลัก) */
+    --k-gold-ink:#1b1406;  /* ตัวอักษรบนปุ่มทอง */
+    --k-gold-tx:#E8C15A;   /* ตัวอักษรสีทองบนพื้นแผง */
+    --k-gold-bg:#1a1810;
+    --k-red-tx:#f87171;  --k-red-bg:#24121b;  --k-red-bg-h:#3a1724;  --k-red-line:#5a2a37;  --k-red-line-h:#9f3a52;
+    --k-green-tx:#4ade80; --k-green-bg:#0f2a22; --k-green-line:#1f5a46;
+    --k-amber-tx:#fbbf24;
+    --k-shadow:0 10px 24px rgba(0,0,0,.35);
+    color-scheme:dark;
+}
+html:not(.dark){
+    --k-bg:#eef2f7;
+    --k-sunk:#e9eef5;
+    --k-panel:#ffffff;
+    --k-panel2:#f6f8fb;
+    --k-card:#ffffff;
+    --k-field:#f3f6fa;
+    --k-btn:#ffffff;
+    --k-btn-h:#f1f4f9;
+    --k-line:#e2e8f0;
+    --k-line2:#d4dce7;
+    --k-line3:#cdd6e2;
+    --k-line4:#94a3b8;
+    --k-tx-strong:#0f172a;
+    --k-tx:#1e293b;
+    --k-tx2:#334155;
+    --k-tx3:#475569;
+    --k-mute:#64748b;
+    --k-mute2:#64748b;
+    --k-mute3:#94a3b8;
+    --k-gold:#E8C15A;
+    --k-gold-ink:#1b1406;
+    --k-gold-tx:#9a7412;
+    --k-gold-bg:#fdf8ea;
+    --k-red-tx:#c02626;  --k-red-bg:#fef2f2;  --k-red-bg-h:#fee2e2;  --k-red-line:#fecaca;  --k-red-line-h:#f87171;
+    --k-green-tx:#15803d; --k-green-bg:#f0fdf4; --k-green-line:#bbf7d0;
+    --k-amber-tx:#b45309;
+    --k-shadow:0 10px 24px rgba(15,23,42,.10);
+    color-scheme:light;
+}
+
+/* ═══════════ 🧭 แถบเมนูซ้าย — โหมดสว่าง ═══════════ */
+html:not(.dark) #sidebarNav{ background:#ffffff !important; border-color:#e2e8f0 !important; box-shadow:0 10px 30px rgba(15,23,42,.08) !important; }
+html:not(.dark) #sidebarNav .menu-section-header{ background:#f6f8fb !important; border-color:#e5eaf1 !important; }
+html:not(.dark) #sidebarNav .menu-section-header:hover{ background:#fdf8ea !important; border-color:rgba(232,193,90,.6) !important; }
+html:not(.dark) #sidebarNav .sec-label{ color:#1e293b !important; }
+html:not(.dark) #sidebarNav .sec-chev{ color:#94a3b8 !important; }
+html:not(.dark) #sidebarNav .sec-chip .material-icons,
+html:not(.dark) #sidebarNav .footer-chip .material-icons{ color:#64748b !important; }
+html:not(.dark) #menu-list .nm-menu-title{ color:#475569 !important; border-bottom-color:#eef2f7 !important; background:transparent !important; }
+html:not(.dark) #menu-list .nm-menu-title:hover{ background:#fdf8ea !important; color:#0f172a !important; }
+html:not(.dark) #menu-list .nm-menu-title.active{ background:linear-gradient(90deg,rgba(232,193,90,.22),transparent 75%) !important; color:#6b5210 !important; box-shadow:inset 3px 0 0 #E8C15A; border-left:0 !important; }
+html:not(.dark) #menu-list .nm-menu-title .material-icons{ color:#94a3b8 !important; }
+html:not(.dark) #menu-list .nm-menu-title:hover .material-icons{ color:#475569 !important; }
+html:not(.dark) #menu-list .nm-menu-title.active .material-icons{ color:#b8901f !important; }
+html:not(.dark) #menu-discord, html:not(.dark) #menu-admin{ background:#f8fafc !important; }
+html:not(.dark) #menu-discord button, html:not(.dark) #menu-admin button{ color:#475569 !important; border-color:#eef2f7 !important; }
+html:not(.dark) #menu-discord button:hover, html:not(.dark) #menu-admin button:hover{ color:#6b5210 !important; background:#fdf8ea !important; }
+html:not(.dark) #sidebarNav .sidebar-footer-btn{ color:#475569 !important; }
+html:not(.dark) .sidebar-collapse-row{ border-top-color:#e2e8f0 !important; }
+html:not(.dark) #sidebarNav.sidebar-mini .menu-section-header{ background:transparent !important; border-color:transparent !important; }
+/* เมนูลอยตอนหุบแถบ */
+html:not(.dark) #secFly{ background:#ffffff !important; border-color:#e2e8f0 !important; box-shadow:0 18px 40px rgba(15,23,42,.14) !important; }
+html:not(.dark) #secFly > div:first-child{ border-bottom-color:#eef2f7 !important; }
+html:not(.dark) #secFly button{ color:#334155 !important; }
+html:not(.dark) #secFly button:hover{ background:#fdf8ea !important; color:#0f172a !important; }
+
+
+/* ═══════════ 🌗 ตัวช่วยโหมดสว่าง: .k-auto-light ═══════════
+   ใส่คลาสนี้ที่กล่องนอกสุดของหน้า → คลาส Tailwind ที่เขียนไว้แบบ "มืดอย่างเดียว" (ไม่มี dark:)
+   จะถูกแปลงเป็นสีสว่างให้อัตโนมัติเมื่ออยู่โหมดสว่าง · ตัวอักษรขาวบนพื้นสีสด/ไล่สี ยังขาวเหมือนเดิม */
+html:not(.dark) .k-auto-light .text-white:not([class*="bg-red-"]):not([class*="bg-green-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-violet-"]):not([class*="bg-purple-"]):not([class*="bg-cyan-"]):not([class*="bg-teal-"]):not([class*="bg-emerald-"]):not([class*="bg-amber-"]):not([class*="bg-orange-"]):not([class*="bg-pink-"]):not([class*="bg-rose-"]):not([class*="bg-sky-"]):not([class*="bg-yellow-"]):not([class*="bg-lime-"]):not([class*="bg-fuchsia-"]):not([class*="bg-gradient"]):not([class*="bg-black"]){ color:var(--k-tx-strong) !important; }
+html:not(.dark) .k-auto-light :is(.text-slate-100,.text-slate-200,.text-gray-100,.text-gray-200){ color:var(--k-tx) !important; }
+html:not(.dark) .k-auto-light :is(.text-slate-300,.text-gray-300){ color:var(--k-tx2) !important; }
+html:not(.dark) .k-auto-light :is(.text-slate-400,.text-gray-400){ color:var(--k-mute) !important; }
+html:not(.dark) .k-auto-light :is(.bg-slate-800,.bg-slate-900,.bg-slate-950,.bg-gray-800,.bg-gray-900,.bg-\[\#151f32\],.bg-\[\#0f172a\],.bg-\[\#0b1120\],.bg-\[\#1e293b\]){ background-color:var(--k-card) !important; }
+html:not(.dark) .k-auto-light :is(.bg-slate-700,.bg-gray-700){ background-color:var(--k-btn-h) !important; }
+html:not(.dark) .k-auto-light :is(select,input,textarea):is(.bg-slate-800,.bg-slate-900,.bg-slate-950,.bg-gray-900){ background-color:var(--k-field) !important; color:var(--k-tx) !important; }
+html:not(.dark) .k-auto-light :is(.bg-slate-800\/50,.bg-slate-800\/60,.bg-slate-800\/80,.bg-slate-900\/50,.bg-slate-900\/60,.bg-slate-900\/80,.bg-indigo-900\/60){ background-color:var(--k-panel2) !important; }
+html:not(.dark) .k-auto-light :is(.border-slate-600,.border-slate-700,.border-slate-800,.border-gray-700,.border-slate-700\/50,.border-slate-700\/60){ border-color:var(--k-line) !important; }
+html:not(.dark) .k-auto-light :is(.hover\:bg-slate-700,.hover\:bg-slate-800,.hover\:bg-indigo-800):hover{ background-color:var(--k-btn-h) !important; }
+
+/* ═══════════ 🖼️ คลังรูป (ทั้งหน้าเต็มและในแผงแบ่งจอ) — โหมดสว่าง ═══════════ */
+html:not(.dark) .gx-app{ background:var(--k-bg) !important; border-color:var(--k-line) !important; box-shadow:0 10px 30px rgba(15,23,42,.06) !important; }
+html:not(.dark) .gx-side{ background:var(--k-panel) !important; border-color:var(--k-line) !important; }
+html:not(.dark) .gx-brand-title{ color:var(--k-tx-strong) !important; }
+html:not(.dark) :is(.gx-brand-sub,.gx-side-label){ color:var(--k-mute) !important; }
+html:not(.dark) .gx-tab{ color:var(--k-tx3) !important; }
+html:not(.dark) .gx-tab:hover{ color:var(--k-tx-strong) !important; background:var(--k-btn-h) !important; }
+html:not(.dark) .gx-tab.on{ color:#fff !important; }
+html:not(.dark) :is(.gx-select,#uploadCategory,#galleryPerPage,.gx-search input){ background:var(--k-field) !important; border-color:var(--k-line2) !important; color:var(--k-tx) !important; }
+html:not(.dark) .gx-search .material-icons{ color:var(--k-mute) !important; }
+html:not(.dark) .gx-back{ color:var(--k-tx3) !important; border-color:var(--k-line2) !important; }
+html:not(.dark) .gx-top{ background:var(--k-panel) !important; border-color:var(--k-line) !important; }
+html:not(.dark) .gx-count-pill{ background:var(--k-gold-bg) !important; border-color:rgba(232,193,90,.5) !important; color:var(--k-tx2) !important; }
+html:not(.dark) #galleryCount{ color:var(--k-gold-tx) !important; text-shadow:none !important; }
+html:not(.dark) #galleryDropZone{ background:var(--k-gold-bg) !important; color:var(--k-gold-tx) !important; }
+html:not(.dark) #galleryWebBadges{ border-color:var(--k-line) !important; }
+html:not(.dark) .gx-card{ background:var(--k-card) !important; border-color:var(--k-line) !important; }
+html:not(.dark) .gx-card:hover{ box-shadow:0 14px 30px -12px rgba(15,23,42,.18), 0 0 0 1px rgba(232,193,90,.5) !important; }
+html:not(.dark) .gx-card-img{ background:#f1f4f8 !important; }
+html:not(.dark) .gx-card-img img{ background:linear-gradient(135deg,#f8fafc,#eef2f7) !important; }
+html:not(.dark) .gx-card-body{ background:var(--k-panel2) !important; border-color:var(--k-line) !important; }
+html:not(.dark) .gx-card-name{ color:var(--k-tx) !important; }
+html:not(.dark) .gx-foot{ background:var(--k-panel) !important; border-color:var(--k-line) !important; color:var(--k-mute) !important; }
+html:not(.dark) #galleryDrawer{ background:var(--k-bg) !important; }
+
+/* ═══════════ 💬 หน้าต่างแจ้งเตือน (SweetAlert) — ตามโหมด ═══════════
+   หลายจุดในเว็บสั่งพื้นหลังป๊อปอัปเป็นสีมืดตายตัว → โหมดสว่างบังคับให้เป็นพื้นสว่าง ข้อความข้างในใช้ตัวแปรสีแล้ว */
+html:not(.dark) .swal2-popup{ background:var(--k-panel) !important; color:var(--k-tx) !important; border-color:var(--k-line) !important; box-shadow:0 24px 60px rgba(15,23,42,.18) !important; }
+html:not(.dark) .swal2-title{ color:var(--k-tx-strong) !important; }
+html:not(.dark) .swal2-html-container{ color:var(--k-tx2) !important; }
+html:not(.dark) :is(.swal2-input,.swal2-textarea,.swal2-select){ background:var(--k-field) !important; color:var(--k-tx) !important; border-color:var(--k-line2) !important; }
+html:not(.dark) .swal2-toast{ background:var(--k-panel) !important; color:var(--k-tx) !important; }
+html:not(.dark) .swal2-close{ color:var(--k-mute) !important; }

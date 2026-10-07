@@ -172,7 +172,7 @@ window.renderFilesGrid = function() {
         }
 
         const imageOrIconHtml = (f.cover_url && f.cover_url.trim() !== '') ?
-            `<img src="${f.cover_url}" loading="lazy" decoding="async" width="56" height="56" class="w-14 h-14 rounded-2xl object-cover shadow-md border border-gray-200 dark:border-slate-600 shrink-0" style="background:linear-gradient(135deg,#1e293b,#0f172a)" alt="cover" onerror="this.style.display='none'">` :
+            `<img src="${f.cover_url}" loading="lazy" decoding="async" width="56" height="56" class="w-14 h-14 rounded-2xl object-cover shadow-md border border-gray-200 dark:border-slate-600 shrink-0" style="background:linear-gradient(135deg,var(--k-card),var(--k-panel2))" alt="cover" onerror="this.style.display='none'">` :
             `<div class="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${iconColor}"><span class="material-icons text-3xl">${icon}</span></div>`;
 
         // badge ใหม่/อัปเดต

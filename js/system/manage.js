@@ -666,14 +666,14 @@ window.renderUserTableDirectly = function() {
         ];
         const ac = avatarColors[displayIndex % avatarColors.length];
 
-        const disBadge = `<span style="font-size:8.5px;font-weight:700;color:#c084fc;background:#2d1f3d;border:0.5px solid rgba(124,58,237,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">DIS</span>`;
-        const telBadge = `<span style="font-size:8.5px;font-weight:700;color:#38bdf8;background:#0c2a3d;border:0.5px solid rgba(2,132,199,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">TEL</span>`;
+        const disBadge = `<span style="font-size:8.5px;font-weight:700;color:#c084fc;background:var(--k-card);border:0.5px solid rgba(124,58,237,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">DIS</span>`;
+        const telBadge = `<span style="font-size:8.5px;font-weight:700;color:#38bdf8;background:var(--k-card);border:0.5px solid rgba(2,132,199,.35);padding:1px 5px;border-radius:3px;letter-spacing:.4px;flex-shrink:0;">TEL</span>`;
         const discordChip = u.discord_id
-            ? `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:#94a3b8;font-family:monospace;letter-spacing:.2px;" title="${u.discord_id}">${u.discord_id}</span></span>`
-            : `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:#475569;font-style:italic;">ยังไม่มี</span></span>`;
+            ? `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:var(--k-tx3);font-family:monospace;letter-spacing:.2px;" title="${u.discord_id}">${u.discord_id}</span></span>`
+            : `<span style="display:inline-flex;align-items:center;gap:4px;">${disBadge}<span style="font-size:10px;color:var(--k-mute3);font-style:italic;">ยังไม่มี</span></span>`;
         const telegramChip = u.telegram_id
-            ? `<span style="display:inline-flex;align-items:center;gap:4px;">${telBadge}<span style="font-size:10px;color:#94a3b8;font-family:monospace;letter-spacing:.2px;" title="${u.telegram_id}">${u.telegram_id}</span></span>`
-            : `<span style="display:inline-flex;align-items:center;gap:4px;">${telBadge}<span style="font-size:10px;color:#475569;font-style:italic;">ยังไม่มี</span></span>`;
+            ? `<span style="display:inline-flex;align-items:center;gap:4px;">${telBadge}<span style="font-size:10px;color:var(--k-tx3);font-family:monospace;letter-spacing:.2px;" title="${u.telegram_id}">${u.telegram_id}</span></span>`
+            : `<span style="display:inline-flex;align-items:center;gap:4px;">${telBadge}<span style="font-size:10px;color:var(--k-mute3);font-style:italic;">ยังไม่มี</span></span>`;
         const idRow = `<div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${discordChip}${telegramChip}</div>`;
 
         html += `
@@ -685,8 +685,8 @@ window.renderUserTableDirectly = function() {
                         <div style="min-width:0;flex:1;">
                             <div style="display:flex;align-items:center;gap:5px;">
                                 <span style="font-weight:500;color:var(--text-primary);font-size:13px;">${window.escapeHtml(u.username)}</span>${window.getTagBadge ? window.getTagBadge(u.tag, u.department) : ""}
-                                <button class="row-edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:3px;cursor:pointer;color:#475569;line-height:1;border-radius:5px;opacity:0;transition:opacity .15s,color .15s,background .15s;display:inline-flex;align-items:center;justify-content:center;" title="แก้ไข" onmouseenter="this.style.color='#c084fc';this.style.background='rgba(192,132,252,.12)'" onmouseleave="this.style.color='#475569';this.style.background='none'"><span class="material-icons" style="font-size:14px;">edit</span></button>
-                                <button class="row-edit-btn" onclick="window.kickUserOut(${u.id}, '${window.escapeJsAttr(u.username)}')" style="border:none;background:none;padding:3px;cursor:pointer;color:#475569;line-height:1;border-radius:5px;opacity:0;transition:opacity .15s,color .15s,background .15s;display:inline-flex;align-items:center;justify-content:center;" title="เตะออกจากระบบ (ต้องล็อกอินใหม่)" onmouseenter="this.style.color='#f87171';this.style.background='rgba(248,113,113,.12)'" onmouseleave="this.style.color='#475569';this.style.background='none'"><span class="material-icons" style="font-size:14px;">logout</span></button>
+                                <button class="row-edit-btn" onclick="window.openEditUserModal(${u.id})" style="border:none;background:none;padding:3px;cursor:pointer;color:var(--k-mute3);line-height:1;border-radius:5px;opacity:0;transition:opacity .15s,color .15s,background .15s;display:inline-flex;align-items:center;justify-content:center;" title="แก้ไข" onmouseenter="this.style.color='#c084fc';this.style.background='rgba(192,132,252,.12)'" onmouseleave="this.style.color='#475569';this.style.background='none'"><span class="material-icons" style="font-size:14px;">edit</span></button>
+                                <button class="row-edit-btn" onclick="window.kickUserOut(${u.id}, '${window.escapeJsAttr(u.username)}')" style="border:none;background:none;padding:3px;cursor:pointer;color:var(--k-mute3);line-height:1;border-radius:5px;opacity:0;transition:opacity .15s,color .15s,background .15s;display:inline-flex;align-items:center;justify-content:center;" title="เตะออกจากระบบ (ต้องล็อกอินใหม่)" onmouseenter="this.style.color='#f87171';this.style.background='rgba(248,113,113,.12)'" onmouseleave="this.style.color='#475569';this.style.background='none'"><span class="material-icons" style="font-size:14px;">logout</span></button>
                             </div>
                             ${idRow}
                         </div>
@@ -1270,7 +1270,7 @@ window.copyWebGroupsToAllShifts = async function(dept) {
     if (!src.length) return Swal.fire('ยังไม่มีกลุ่ม', 'กะ' + sh.replace('กะ', '') + ' ยังไม่ได้จับกลุ่มอะไรไว้ครับ', 'info');
     const ask = await Swal.fire({
         icon: 'question', title: 'ใช้กลุ่มของ' + sh + ' กับทุกกะ?',
-        html: 'กลุ่มที่จะคัดลอก: <b>' + src.map(g => g.join(' + ')).join('</b> · <b>') + '</b><br><span style="color:#f87171">กลุ่มเดิมของกะอื่นจะถูกเขียนทับ</span>',
+        html: 'กลุ่มที่จะคัดลอก: <b>' + src.map(g => g.join(' + ')).join('</b> · <b>') + '</b><br><span style="color:var(--k-red-tx)">กลุ่มเดิมของกะอื่นจะถูกเขียนทับ</span>',
         showCancelButton: true, confirmButtonText: 'ใช้เลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#f59e0b'
     });
     if (!ask.isConfirmed) return;

@@ -320,20 +320,20 @@ window.loadSummary = async function() {
             const shiftIcon  = c.shift==='กะเช้า'?'🌅':c.shift==='กะดึก'?'🌙':'❓';
             const tags = [
                 c.ลบ    ? `<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ลบ ${c.ลบ}</span>`:'',
-                c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:#34d399;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>`:'',
-                c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:#fbbf24;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
-                c.other ? `<span style="background:rgba(100,116,139,0.2);color:#94a3b8;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.other}</span>`:'',
+                c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:var(--k-green-tx);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค ${c.เช็ค}</span>`:'',
+                c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:var(--k-amber-tx);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
+                c.other ? `<span style="background:rgba(100,116,139,0.2);color:var(--k-tx3);padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.other}</span>`:'',
             ].filter(Boolean).join('');
 
             return `
-            <div style="background:#0f172a;border-radius:12px;padding:12px 16px;border:1px solid #1e293b;display:flex;align-items:center;gap:12px;">
+            <div style="background:var(--k-panel2);border-radius:12px;padding:12px 16px;border:1px solid var(--k-line);display:flex;align-items:center;gap:12px;">
                 <span style="font-size:22px;flex-shrink:0;width:32px;text-align:center;">${mdl}</span>
                 <div style="flex:1;min-width:0;">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                        <span style="font-weight:800;color:#f1f5f9;font-size:14px;">${esc(c.display)}</span>
+                        <span style="font-weight:800;color:var(--k-tx);font-size:14px;">${esc(c.display)}</span>
                         <span style="font-size:10px;font-weight:700;color:${shiftColor};background:${shiftColor}22;padding:1px 7px;border-radius:999px;">${shiftIcon}${esc(c.shift)}</span>
                     </div>
-                    <div style="width:100%;background:#1e293b;border-radius:999px;height:5px;margin-bottom:6px;">
+                    <div style="width:100%;background:var(--k-card);border-radius:999px;height:5px;margin-bottom:6px;">
                         <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;transition:width .5s;"></div>
                     </div>
                     <div style="display:flex;flex-wrap:wrap;gap:5px;">${tags}</div>

@@ -81,21 +81,21 @@
         if (count) count.textContent = `${ipData.ips.length} รายการ`;
         if (!list) return;
         if (ipData.ips.length === 0) {
-            list.innerHTML = `<div style="padding:32px;text-align:center;font-size:13px;color:#64748b">
+            list.innerHTML = `<div style="padding:32px;text-align:center;font-size:13px;color:var(--k-mute)">
                 ยังไม่มี IP ในรายการ — ถ้าเปิดบังคับตอนนี้ จะไม่มีใครเข้าได้เลย (ยกเว้น admin)</div>`;
             return;
         }
         list.innerHTML = ipData.ips.map((item, i) => `
-            <div style="padding:12px 20px;display:flex;align-items:center;gap:12px;border-top:1px solid #1a2740">
+            <div style="padding:12px 20px;display:flex;align-items:center;gap:12px;border-top:1px solid var(--k-line)">
                 <span class="material-icons" style="font-size:18px;color:${item.ip.includes('*') ? '#a855f7' : '#22c55e'}">${item.ip.includes('*') ? 'lan' : 'computer'}</span>
                 <div style="flex:1;min-width:0">
-                    <p style="font-family:monospace;font-weight:800;font-size:15px;color:#f1f5f9;margin:0">${item.ip}
+                    <p style="font-family:monospace;font-weight:800;font-size:15px;color:var(--k-tx);margin:0">${item.ip}
                         ${myIp && ipMatches(myIp, item.ip) ? '<span style="margin-left:8px;font-size:10px;padding:2px 10px;border-radius:99px;background:rgba(59,130,246,0.18);color:#60a5fa;font-family:sans-serif;font-weight:700">IP ของคุณ</span>' : ''}
                     </p>
-                    <p style="font-size:11px;color:#8fa3bf;margin:3px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note || '-'} · เพิ่มโดย ${item.added_by || '-'}
-                        <span id="ipGeo_${item.ip.replace(/[^0-9a-zA-Z]/g, '_')}" style="color:#64748b"></span></p>
+                    <p style="font-size:11px;color:var(--k-tx3);margin:3px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note || '-'} · เพิ่มโดย ${item.added_by || '-'}
+                        <span id="ipGeo_${item.ip.replace(/[^0-9a-zA-Z]/g, '_')}" style="color:var(--k-mute)"></span></p>
                 </div>
-                <button onclick="ipAllowRemove(${i})" style="width:34px;height:34px;border-radius:10px;border:none;background:transparent;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center" onmouseover="this.style.color='#ef4444';this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='#64748b';this.style.background='transparent'">
+                <button onclick="ipAllowRemove(${i})" style="width:34px;height:34px;border-radius:10px;border:none;background:transparent;color:var(--k-mute);cursor:pointer;display:flex;align-items:center;justify-content:center" onmouseover="this.style.color='#ef4444';this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='#64748b';this.style.background='transparent'">
                     <span class="material-icons" style="font-size:18px">delete</span>
                 </button>
             </div>`).join('');
@@ -177,11 +177,11 @@
         if (!ip) { out.innerHTML = ''; return; }
         const hit = ipData.ips.find(x => ipMatches(ip, x.ip));
         if (!ipData.enabled) {
-            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.25);font-size:13px;color:#94a3b8">ระบบปิดอยู่ — ตอนนี้ IP ไหนก็เข้าได้ (ถ้าเปิด: ${hit ? 'IP นี้จะ<b style="color:#4ade80">เข้าได้</b> ตรงกับกติกา ' + hit.ip : 'IP นี้จะ<b style="color:#f87171">ถูกบล็อก</b>'})</div>`;
+            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.25);font-size:13px;color:var(--k-tx3)">ระบบปิดอยู่ — ตอนนี้ IP ไหนก็เข้าได้ (ถ้าเปิด: ${hit ? 'IP นี้จะ<b style="color:var(--k-green-tx)">เข้าได้</b> ตรงกับกติกา ' + hit.ip : 'IP นี้จะ<b style="color:var(--k-red-tx)">ถูกบล็อก</b>'})</div>`;
         } else if (hit) {
-            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);font-size:13px;color:#4ade80">✅ เข้าได้ — ตรงกับกติกา <b style="font-family:monospace">${hit.ip}</b> (${hit.note || 'ไม่มีหมายเหตุ'})</div>`;
+            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);font-size:13px;color:var(--k-green-tx)">✅ เข้าได้ — ตรงกับกติกา <b style="font-family:monospace">${hit.ip}</b> (${hit.note || 'ไม่มีหมายเหตุ'})</div>`;
         } else {
-            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:#f87171">⛔ ถูกบล็อก — ไม่ตรงกับกติกาไหนเลย (ยกเว้นคนที่เป็น admin)</div>`;
+            out.innerHTML = `<div style="padding:12px 16px;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--k-red-tx)">⛔ ถูกบล็อก — ไม่ตรงกับกติกาไหนเลย (ยกเว้นคนที่เป็น admin)</div>`;
         }
     };
 
@@ -200,7 +200,7 @@
             renderStats(logs.filter(l => new Date(l.created_at) >= today).length);
 
             if (logs.length === 0) {
-                box.innerHTML = `<div style="padding:24px;text-align:center;font-size:12px;color:#64748b">ยังไม่มีใครถูกบล็อก 🎉</div>`;
+                box.innerHTML = `<div style="padding:24px;text-align:center;font-size:12px;color:var(--k-mute)">ยังไม่มีใครถูกบล็อก 🎉</div>`;
                 return;
             }
             box.innerHTML = logs.map(l => {
@@ -208,21 +208,21 @@
                 const ip = m ? m[1] : null;
                 const t = l.created_at ? new Date(l.created_at).toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
                 return `
-                <div style="padding:12px 20px;display:flex;align-items:center;gap:12px;border-top:1px solid #1a2740">
-                    <span class="material-icons" style="font-size:18px;color:#f87171">gpp_bad</span>
+                <div style="padding:12px 20px;display:flex;align-items:center;gap:12px;border-top:1px solid var(--k-line)">
+                    <span class="material-icons" style="font-size:18px;color:var(--k-red-tx)">gpp_bad</span>
                     <div style="flex:1;min-width:0">
-                        <p style="font-size:13px;font-weight:700;color:#f1f5f9;margin:0">${l.performed_by || '-'}
-                            ${ip ? `<span style="font-family:monospace;font-weight:800;color:#fbbf24;margin-left:6px">${ip}</span>` : ''}
+                        <p style="font-size:13px;font-weight:700;color:var(--k-tx);margin:0">${l.performed_by || '-'}
+                            ${ip ? `<span style="font-family:monospace;font-weight:800;color:var(--k-amber-tx);margin-left:6px">${ip}</span>` : ''}
                         </p>
-                        <p style="font-size:11px;color:#8fa3bf;margin:3px 0 0">${t}</p>
+                        <p style="font-size:11px;color:var(--k-tx3);margin:3px 0 0">${t}</p>
                     </div>
                     ${ip && !ipData.ips.some(x => ipMatches(ip, x.ip)) ? `
                     <button onclick="ipAllowAdd('${ip}', 'อนุญาตจากประวัติบล็อก (${(l.performed_by || '').replace(/'/g, '')})').then(()=>ipAllowLoadBlocked())"
-                        style="padding:7px 14px;border-radius:10px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.35);color:#4ade80;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap">+ อนุญาต IP นี้</button>` : ''}
+                        style="padding:7px 14px;border-radius:10px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.35);color:var(--k-green-tx);font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap">+ อนุญาต IP นี้</button>` : ''}
                 </div>`;
             }).join('');
         } catch (e) {
-            box.innerHTML = `<div style="padding:24px;text-align:center;font-size:12px;color:#64748b">โหลดประวัติไม่สำเร็จ</div>`;
+            box.innerHTML = `<div style="padding:24px;text-align:center;font-size:12px;color:var(--k-mute)">โหลดประวัติไม่สำเร็จ</div>`;
         }
     };
 

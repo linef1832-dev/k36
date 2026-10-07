@@ -1,46 +1,46 @@
 <!-- 🗂️ หน้าตารางงานรวม (ออกแบบใหม่) — id / onclick / template เดิมทุกตัว -->
 <style>
-    #sheetApp{background:#0b1222}
-    #sheetApp .sh-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:#121c30;border-bottom:1px solid #24324b}
+    #sheetApp{background:var(--k-bg)}
+    #sheetApp .sh-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:var(--k-panel);border-bottom:1px solid var(--k-line)}
     #sheetApp .sh-ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none;box-shadow:0 6px 18px rgba(232,193,90,.25)}
     #sheetApp .sh-ico .material-icons{font-size:22px}
-    #sheetApp .sh-title{font-size:18px;font-weight:900;color:#fff;line-height:1.2}
-    #sheetApp .sh-sub{font-size:11.5px;font-weight:600;color:#8a97ad}
+    #sheetApp .sh-title{font-size:18px;font-weight:900;color:var(--k-tx-strong);line-height:1.2}
+    #sheetApp .sh-sub{font-size:11.5px;font-weight:600;color:var(--k-mute)}
     #sheetApp .sh-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-    #sheetApp .sh-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;transition:background .15s,border-color .15s,color .15s,transform .08s}
-    #sheetApp .sh-btn .material-icons{font-size:17px;color:#9fb0cc}
-    #sheetApp .sh-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
+    #sheetApp .sh-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,border-color .15s,color .15s,transform .08s}
+    #sheetApp .sh-btn .material-icons{font-size:17px;color:var(--k-tx3)}
+    #sheetApp .sh-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4);color:var(--k-tx-strong)}
     #sheetApp .sh-btn:active{transform:scale(.97)}
     #sheetApp .sh-btn:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-    #sheetApp .sh-btn.gold{background:rgba(232,193,90,.12);border-color:rgba(232,193,90,.45);color:#f3dc9a}
-    #sheetApp .sh-btn.gold .material-icons{color:#E8C15A}
+    #sheetApp .sh-btn.gold{background:rgba(232,193,90,.12);border-color:rgba(232,193,90,.45);color:var(--k-gold-tx)}
+    #sheetApp .sh-btn.gold .material-icons{color:var(--k-gold-tx)}
     #sheetApp .sh-btn.gold:hover{background:rgba(232,193,90,.22)}
-    #sheetApp .sh-btn .ic-g{color:#4ade80}
-    #sheetApp .sh-btn.danger{color:#fca5a5;border-color:#5a2a37;background:#24121b}
-    #sheetApp .sh-btn.danger .material-icons{color:#f87171}
-    #sheetApp .sh-btn.danger:hover{background:#3a1724;border-color:#9f3a52;color:#fff}
-    #sheetApp .sh-sep{width:1px;height:22px;background:#2c3b58;margin:0 2px}
+    #sheetApp .sh-btn .ic-g{color:var(--k-green-tx)}
+    #sheetApp .sh-btn.danger{color:var(--k-red-tx);border-color:var(--k-red-line);background:var(--k-red-bg)}
+    #sheetApp .sh-btn.danger .material-icons{color:var(--k-red-tx)}
+    #sheetApp .sh-btn.danger:hover{background:var(--k-red-bg-h);border-color:var(--k-red-line-h);color:var(--k-tx-strong)}
+    #sheetApp .sh-sep{width:1px;height:22px;background:var(--k-line2);margin:0 2px}
     #sheetApp .sh-search{position:relative}
-    #sheetApp .sh-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:#7d8ba3;pointer-events:none}
-    #sheetApp .sh-search input{height:34px;width:200px;padding:0 10px 0 34px;border-radius:9px;background:#18233a;border:1px solid #2c3b58;color:#f3f6fb;font-size:13px;font-weight:700;outline:none;transition:width .2s,border-color .15s}
+    #sheetApp .sh-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:var(--k-mute2);pointer-events:none}
+    #sheetApp .sh-search input{height:34px;width:200px;padding:0 10px 0 34px;border-radius:9px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13px;font-weight:700;outline:none;transition:width .2s,border-color .15s}
     #sheetApp .sh-search input:focus{width:260px;border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.15)}
-    #sheetApp .sh-search input::placeholder{color:#6b7891}
+    #sheetApp .sh-search input::placeholder{color:var(--k-mute3)}
 
     /* พื้นที่การ์ด */
-    #sheetApp #sheetMenu{background:#0b1222}
+    #sheetApp #sheetMenu{background:var(--k-bg)}
     #sheetApp .sh-main{max-width:1600px;margin:0 auto;display:flex;gap:20px;align-items:flex-start}
     /* หัวกลุ่มที่ระบบวาด (h2) → แถบหัวข้อมีเส้นต่อท้าย */
-    #sheetGroupsContainer h2{display:flex !important;align-items:center;gap:8px;font-size:13px !important;letter-spacing:.02em !important;text-transform:none !important;margin-bottom:12px !important;color:#e7ecf5 !important}
-    #sheetGroupsContainer h2>.material-icons{font-size:16px !important;color:#E8C15A}
-    #sheetGroupsContainer h2::after{content:'';flex:1;height:1px;background:#24324b;margin-left:6px}
+    #sheetGroupsContainer h2{display:flex !important;align-items:center;gap:8px;font-size:13px !important;letter-spacing:.02em !important;text-transform:none !important;margin-bottom:12px !important;color:var(--k-tx) !important}
+    #sheetGroupsContainer h2>.material-icons{font-size:16px !important;color:var(--k-gold-tx)}
+    #sheetGroupsContainer h2::after{content:'';flex:1;height:1px;background:var(--k-line);margin-left:6px}
     #sheetGroupsContainer>div{margin-bottom:26px !important}
     #sheetGroupsContainer .grid{gap:12px !important}
 
     /* การ์ดชีต */
-    #sheetApp .sh-card{position:relative;cursor:pointer;height:112px;border-radius:14px;overflow:hidden;background:#121c30;border:1px solid #24324b;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;transition:border-color .15s,transform .15s,box-shadow .15s}
-    #sheetApp .sh-card:hover{border-color:#4a5f86;transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.35)}
+    #sheetApp .sh-card{position:relative;cursor:pointer;height:112px;border-radius:14px;overflow:hidden;background:var(--k-panel);border:1px solid var(--k-line);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;transition:border-color .15s,transform .15s,box-shadow .15s}
+    #sheetApp .sh-card:hover{border-color:var(--k-line4);transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.35)}
     #sheetApp .sh-card:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-    #sheetApp .sh-card .sh-cname{font-size:13px;font-weight:800;color:#f3f6fb;text-align:center;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0 6px}
+    #sheetApp .sh-card .sh-cname{font-size:13px;font-weight:800;color:var(--k-tx);text-align:center;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0 6px}
     #sheetApp .sh-card .w-12.h-12{width:40px !important;height:40px !important;border-radius:12px !important;margin-bottom:8px !important}
     #sheetApp .sh-card .w-12.h-12 .material-icons{font-size:22px !important}
     #sheetApp .sh-pin{position:absolute;top:6px;right:6px;z-index:20;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(11,18,34,.6);transition:background .15s,opacity .15s}
@@ -48,36 +48,36 @@
     #sheetApp .sh-pin .material-icons{font-size:17px}
 
     /* แผงคำนวณยอด */
-    #sheetApp .sh-calc{background:#121c30;border:1px solid #24324b;border-radius:16px;overflow:hidden}
-    #sheetApp .sh-calc-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #24324b}
-    #sheetApp .sh-calc-h .ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(232,193,90,.12);color:#E8C15A}
+    #sheetApp .sh-calc{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px;overflow:hidden}
+    #sheetApp .sh-calc-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--k-line)}
+    #sheetApp .sh-calc-h .ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(232,193,90,.12);color:var(--k-gold-tx)}
     #sheetApp .sh-calc-h .ic .material-icons{font-size:18px}
-    #sheetApp .sh-calc-h b{font-size:14.5px;font-weight:900;color:#fff}
+    #sheetApp .sh-calc-h b{font-size:14.5px;font-weight:900;color:var(--k-tx-strong)}
     #sheetApp .sh-calc-b{padding:14px;display:flex;flex-direction:column;gap:12px}
-    #sheetApp .sh-lbl{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;font-weight:800;color:#8a97ad;margin-bottom:5px}
-    #sheetApp .sh-in{width:100%;height:40px;padding:0 12px;border-radius:10px;background:#0f1829;border:1px solid #2c3b58;color:#f3f6fb;font-size:14px;font-weight:800;outline:none;color-scheme:dark;transition:border-color .15s}
+    #sheetApp .sh-lbl{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;font-weight:800;color:var(--k-mute);margin-bottom:5px}
+    #sheetApp .sh-in{width:100%;height:40px;padding:0 12px;border-radius:10px;background:var(--k-panel2);border:1px solid var(--k-line2);color:var(--k-tx);font-size:14px;font-weight:800;outline:none;transition:border-color .15s}
     #sheetApp .sh-in:focus{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.15)}
-    #sheetApp select.sh-in option{background:#18233a}
+    #sheetApp select.sh-in option{background:var(--k-field)}
     #sheetApp .sh-in.big{height:52px;font-size:22px;font-weight:900;text-align:right}
-    #sheetApp .sh-in.big::placeholder{font-size:13px;font-weight:600;color:#6b7891;text-align:left}
-    #sheetApp .sh-in.deduct{color:#fca5a5;text-align:center;background:#1a1117;border-color:#4a2330}
+    #sheetApp .sh-in.big::placeholder{font-size:13px;font-weight:600;color:var(--k-mute3);text-align:left}
+    #sheetApp .sh-in.deduct{color:var(--k-red-tx);text-align:center;background:var(--k-red-bg);border-color:var(--k-red-line)}
     #sheetApp .sh-in:disabled{opacity:.75;cursor:not-allowed}
-    #sheetApp .sh-ibtn{width:40px;height:40px;flex:none;border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;cursor:pointer;transition:background .15s}
-    #sheetApp .sh-ibtn:hover{background:#22314f}
+    #sheetApp .sh-ibtn{width:40px;height:40px;flex:none;border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);cursor:pointer;transition:background .15s}
+    #sheetApp .sh-ibtn:hover{background:var(--k-btn-h)}
     #sheetApp .sh-ibtn .material-icons{font-size:19px}
     #sheetApp .sh-result{display:flex;gap:8px;align-items:stretch}
-    #sheetApp #calcResultDisplay{flex:1;min-width:0;height:60px;border-radius:12px;background:#0f1d15;border:1px solid rgba(34,197,94,.4);color:#4ade80;font-size:28px;font-weight:900;display:flex;align-items:center;justify-content:flex-end;padding:0 14px;overflow:hidden;font-variant-numeric:tabular-nums;-webkit-text-fill-color:#4ade80;-webkit-background-clip:border-box !important;background-clip:border-box !important}
+    #sheetApp #calcResultDisplay{flex:1;min-width:0;height:60px;border-radius:12px;background:#0f1d15;border:1px solid rgba(34,197,94,.4);color:var(--k-green-tx);font-size:28px;font-weight:900;display:flex;align-items:center;justify-content:flex-end;padding:0 14px;overflow:hidden;font-variant-numeric:tabular-nums;-webkit-text-fill-color:var(--k-green-tx);-webkit-background-clip:border-box !important;background-clip:border-box !important}
     /* JS เปลี่ยนคลาสตามผลลัพธ์: ติดลบ = แดง, ศูนย์ = เทา */
-    #sheetApp #calcResultDisplay.text-rose-500{color:#f87171;-webkit-text-fill-color:#f87171;background:#1a1117;border-color:rgba(248,113,113,.45)}
-    #sheetApp #calcResultDisplay.text-slate-500{color:#6b7891;-webkit-text-fill-color:#6b7891;background:#0f1829;border-color:#24324b}
+    #sheetApp #calcResultDisplay.text-rose-500{color:var(--k-red-tx);-webkit-text-fill-color:var(--k-red-tx);background:var(--k-red-bg);border-color:rgba(248,113,113,.45)}
+    #sheetApp #calcResultDisplay.text-slate-500{color:var(--k-mute3);-webkit-text-fill-color:var(--k-mute3);background:var(--k-panel2);border-color:var(--k-line)}
     #sheetApp .sh-copy{width:64px;flex:none;border-radius:12px;border:1px solid #E8C15A;background:#E8C15A;color:#1b1406;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:11px;font-weight:900;cursor:pointer;transition:background .15s,transform .08s}
     #sheetApp .sh-copy:hover{background:#f1cf74}
     #sheetApp .sh-copy:active{transform:scale(.95)}
     #sheetApp .sh-copy .material-icons{font-size:20px}
 
     /* แถบบนตอนเปิดดูชีต */
-    #sheetApp .sh-vbar{display:flex;align-items:center;justify-content:space-between;gap:10px;height:50px;padding:0 10px 0 14px;background:#121c30;border-bottom:1px solid #24324b}
-    #sheetApp #sheetTitle{font-size:14px;font-weight:900;color:#fff}
+    #sheetApp .sh-vbar{display:flex;align-items:center;justify-content:space-between;gap:10px;height:50px;padding:0 10px 0 14px;background:var(--k-panel);border-bottom:1px solid var(--k-line)}
+    #sheetApp #sheetTitle{font-size:14px;font-weight:900;color:var(--k-tx-strong)}
 
     /* ── โหมดแบ่งจอกับคลังรูป: หัวกะทัดรัด ปุ่มเหลือแต่ไอคอน (ชี้ค้างมีคำอธิบาย) ── */
     #sheetApp.sheet-split .sh-head{padding:10px 12px;gap:10px;flex-wrap:nowrap}
@@ -96,7 +96,7 @@
     @media (max-width:640px){ #sheetApp .sh-search input,#sheetApp .sh-search input:focus{width:100%} #sheetApp .sh-search{flex:1 1 100%} #sheetApp .sh-right{margin-left:0;width:100%} }
     @media (prefers-reduced-motion:reduce){ #sheetApp .sh-card,#sheetApp .sh-btn{transition:none} }
 </style>
-<div id="sheetApp" class="hidden fade-in flex flex-col h-full relative rounded-2xl overflow-hidden" style="height:calc(100vh - 2rem)">
+<div id="sheetApp" class="k-auto-light hidden fade-in flex flex-col h-full relative rounded-2xl overflow-hidden" style="height:calc(100vh - 2rem)">
     <div class="sh-head shrink-0">
         <div class="sh-ico"><span class="material-icons">grid_view</span></div>
         <div>
@@ -128,19 +128,19 @@
 
     <style>
         /* 🎩 แถบแท็บชีต V2 — สีตามที่ตั้งของแต่ละชีต · แท็บที่เปิดอยู่เด่นชัด */
-        #recentTabsContainer{display:flex;align-items:flex-end;gap:6px;padding:7px 8px 0;background:linear-gradient(180deg,#0a0f1c,#0b1120);border-bottom:1px solid rgba(148,163,184,.14)}
+        #recentTabsContainer{display:flex;align-items:flex-end;gap:6px;padding:7px 8px 0;background:linear-gradient(180deg,#0a0f1c,var(--k-bg));border-bottom:1px solid rgba(148,163,184,.14)}
         .sht-tab{position:relative;display:flex;align-items:center;gap:7px;padding:8px 8px 8px 11px;min-width:130px;max-width:220px;flex-shrink:0;border-radius:12px 12px 0 0;cursor:pointer;user-select:none;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.16);border-bottom:none;color:#8fa3bf;transition:all .15s}
-        .sht-tab:hover{color:#e2e8f0;background:rgba(30,41,59,.75);transform:translateY(-1px)}
+        .sht-tab:hover{color:var(--k-tx);background:rgba(30,41,59,.75);transform:translateY(-1px)}
         .sht-dot{width:8px;height:8px;border-radius:99px;background:var(--tc,#3b82f6);box-shadow:0 0 7px var(--tc,#3b82f6);flex-shrink:0}
         .sht-tab .material-icons{color:var(--tc,#3b82f6);opacity:.8}
         .sht-name{font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
         .sht-x{flex-shrink:0;width:19px;height:19px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:#64748b;transition:all .13s}
-        .sht-x:hover{background:rgba(239,68,68,.2);color:#f87171}
-        .sht-tab.on{background:linear-gradient(180deg,color-mix(in srgb,var(--tc,#3b82f6) 26%,#0f172a),#0d1526);border-color:var(--tc,#3b82f6);color:#fff;box-shadow:0 -5px 16px -7px var(--tc,#3b82f6)}
+        .sht-x:hover{background:rgba(239,68,68,.2);color:var(--k-red-tx)}
+        .sht-tab.on{background:linear-gradient(180deg,color-mix(in srgb,var(--tc,#3b82f6) 26%,#0f172a),#0d1526);border-color:var(--tc,#3b82f6);color:var(--k-tx-strong);box-shadow:0 -5px 16px -7px var(--tc,#3b82f6)}
         .sht-tab.on .sht-name{font-weight:900}
         .sht-tab.on .material-icons{opacity:1}
         .sht-tab.on::after{content:'';position:absolute;left:8px;right:8px;bottom:0;height:2.5px;border-radius:99px 99px 0 0;background:var(--tc,#3b82f6)}
-        .sht-clear{margin-left:6px;align-self:center;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:99px;font-size:10.5px;font-weight:800;color:#f87171;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);cursor:pointer;transition:all .15s;white-space:nowrap}
+        .sht-clear{margin-left:6px;align-self:center;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:99px;font-size:10.5px;font-weight:800;color:var(--k-red-tx);background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);cursor:pointer;transition:all .15s;white-space:nowrap}
         .sht-clear:hover{background:#dc2626;border-color:#f87171;color:#fff;box-shadow:0 4px 12px -4px rgba(239,68,68,.5)}
     </style>
     <div id="recentTabsContainer" class="overflow-x-auto shrink-0 hidden z-20 custom-scrollbar"></div>
@@ -163,8 +163,8 @@
                             <div class="sh-lbl"><span>เว็บ / ทีม</span></div>
                             <div class="flex gap-2">
                                 <select id="calcTeamSelect" onchange="loadCalcSettings()" class="sh-in flex-1 cursor-pointer"></select>
-                                <button id="btnCalcDelete" onclick="deleteCalcTeam()" class="hidden sh-ibtn" title="ลบเว็บนี้" style="color:#f87171"><span class="material-icons">delete_outline</span></button>
-                                <button id="btnCalcAdd" onclick="addNewCalcTeam()" class="hidden sh-ibtn" title="เพิ่มเว็บ" style="color:#E8C15A"><span class="material-icons">add</span></button>
+                                <button id="btnCalcDelete" onclick="deleteCalcTeam()" class="hidden sh-ibtn" title="ลบเว็บนี้" style="color:var(--k-red-tx)"><span class="material-icons">delete_outline</span></button>
+                                <button id="btnCalcAdd" onclick="addNewCalcTeam()" class="hidden sh-ibtn" title="เพิ่มเว็บ" style="color:var(--k-gold-tx)"><span class="material-icons">add</span></button>
                             </div>
                         </div>
 
@@ -174,15 +174,15 @@
                         </div>
 
                         <div>
-                            <div class="sh-lbl"><span style="color:#fca5a5">ยอดหักออก (−)</span><span id="calcLockIcon" class="material-icons text-sm opacity-50" title="แก้ได้เฉพาะหัวหน้า">lock</span></div>
+                            <div class="sh-lbl"><span style="color:var(--k-red-tx)">ยอดหักออก (−)</span><span id="calcLockIcon" class="material-icons text-sm opacity-50" title="แก้ได้เฉพาะหัวหน้า">lock</span></div>
                             <div class="flex gap-2">
                                 <input type="number" id="calcDeductAmount" oninput="calculateMoney()" placeholder="0" class="sh-in deduct" disabled>
-                                <button id="btnSaveCalc" onclick="saveCalcSettings()" class="hidden sh-ibtn" title="บันทึกยอดหักของเว็บนี้" style="color:#E8C15A"><span class="material-icons">save</span></button>
+                                <button id="btnSaveCalc" onclick="saveCalcSettings()" class="hidden sh-ibtn" title="บันทึกยอดหักของเว็บนี้" style="color:var(--k-gold-tx)"><span class="material-icons">save</span></button>
                             </div>
                         </div>
 
                         <div>
-                            <div class="sh-lbl"><span style="color:#4ade80">ผลลัพธ์สุทธิ</span></div>
+                            <div class="sh-lbl"><span style="color:var(--k-green-tx)">ผลลัพธ์สุทธิ</span></div>
                             <div class="sh-result">
                                 <div id="calcResultDisplay" class="text-slate-500">0</div>
                                 <button onclick="copyCalcResult()" class="sh-copy" title="คัดลอกผลลัพธ์">
@@ -315,53 +315,53 @@
 
 <!-- ⚙️ หน้าต่างเพิ่ม/แก้ชีต (ออกแบบใหม่: ฟอร์มซ้าย · รายการขวา) — id / onclick เดิมทุกตัว -->
 <style>
-    #sheetAdminModal .sa-box{width:100%;max-width:1040px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;border-radius:18px;background:#121c30;border:1px solid #24324b;box-shadow:0 30px 80px rgba(0,0,0,.6);color:#e7ecf5}
-    #sheetAdminModal .sa-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid #24324b}
-    #sheetAdminModal #sheetAdminTitle{font-size:16px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px}
-    #sheetAdminModal #sheetAdminTitle .material-icons{color:#E8C15A;font-size:20px}
-    #sheetAdminModal .sa-x{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#9fb0cc;background:#1a2640;border:1px solid #2f3f5e;cursor:pointer}
-    #sheetAdminModal .sa-x:hover{color:#fff;background:#22314f}
+    #sheetAdminModal .sa-box{width:100%;max-width:1040px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;border-radius:18px;background:var(--k-panel);border:1px solid var(--k-line);box-shadow:0 30px 80px rgba(0,0,0,.6);color:var(--k-tx)}
+    #sheetAdminModal .sa-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--k-line)}
+    #sheetAdminModal #sheetAdminTitle{font-size:16px;font-weight:900;color:var(--k-tx-strong);display:flex;align-items:center;gap:8px}
+    #sheetAdminModal #sheetAdminTitle .material-icons{color:var(--k-gold-tx);font-size:20px}
+    #sheetAdminModal .sa-x{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--k-tx3);background:var(--k-btn);border:1px solid var(--k-line3);cursor:pointer}
+    #sheetAdminModal .sa-x:hover{color:var(--k-tx-strong);background:var(--k-btn-h)}
     #sheetAdminModal .sa-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
-    #sheetAdminModal .sa-form{overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px;border-right:1px solid #24324b}
-    #sheetAdminModal .sa-list{overflow-y:auto;padding:16px 18px;background:#0f1829}
-    #sheetAdminModal .sa-sec{font-size:12px;font-weight:900;color:#8a97ad;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-    #sheetAdminModal #formTitle{font-size:13.5px !important;font-weight:900 !important;color:#E8C15A !important;display:flex;align-items:center;gap:6px}
+    #sheetAdminModal .sa-form{overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px;border-right:1px solid var(--k-line)}
+    #sheetAdminModal .sa-list{overflow-y:auto;padding:16px 18px;background:var(--k-panel2)}
+    #sheetAdminModal .sa-sec{font-size:12px;font-weight:900;color:var(--k-mute);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    #sheetAdminModal #formTitle{font-size:13.5px !important;font-weight:900 !important;color:var(--k-gold-tx) !important;display:flex;align-items:center;gap:6px}
     #sheetAdminModal #formTitle.text-orange-600{color:#fb923c !important}
-    #sheetAdminModal .sa-lbl{display:block;font-size:12px;font-weight:800;color:#9fb0cc;margin-bottom:6px}
-    #sheetAdminModal .sa-lbl small{font-weight:600;color:#6b7891;margin-left:4px}
-    #sheetAdminModal .sa-in{width:100%;height:42px;padding:0 12px;border-radius:10px;background:#0f1829;border:1px solid #2c3b58;color:#f3f6fb;font-size:13.5px;font-weight:700;outline:none;transition:border-color .15s}
-    #sheetAdminModal .sa-in::placeholder{color:#5f6c84;font-weight:600}
+    #sheetAdminModal .sa-lbl{display:block;font-size:12px;font-weight:800;color:var(--k-tx3);margin-bottom:6px}
+    #sheetAdminModal .sa-lbl small{font-weight:600;color:var(--k-mute3);margin-left:4px}
+    #sheetAdminModal .sa-in{width:100%;height:42px;padding:0 12px;border-radius:10px;background:var(--k-panel2);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13.5px;font-weight:700;outline:none;transition:border-color .15s}
+    #sheetAdminModal .sa-in::placeholder{color:var(--k-mute3);font-weight:600}
     #sheetAdminModal .sa-in:focus,#sheetAdminModal textarea:focus{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.15)}
-    #sheetAdminModal textarea{width:100%;padding:10px 12px;border-radius:10px;background:#0f1829;border:1px solid #2c3b58;color:#f3f6fb;font-size:12.5px;outline:none;white-space:pre}
+    #sheetAdminModal textarea{width:100%;padding:10px 12px;border-radius:10px;background:var(--k-panel2);border:1px solid var(--k-line2);color:var(--k-tx);font-size:12.5px;outline:none;white-space:pre}
     #sheetAdminModal .sa-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     #sheetAdminModal .sa-row:has(#sheetGroupFieldWrap.hidden){grid-template-columns:1fr}   /* โหมดชีตของฉัน: ไม่มีช่องหมวด → ช่องชื่อเต็มแถว */
     /* ปุ่มเลือกประเภท (JS เปลี่ยน className เป็น bg-purple-600 = เลือก / bg-slate-800 = ไม่เลือก) */
-    #sheetAdminModal .sa-seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#0f1829;border:1px solid #24324b}
-    #sheetAdminModal .sa-seg button{flex:1;height:38px;border-radius:9px !important;border:0 !important;font-size:12.5px !important;font-weight:800 !important;display:flex;align-items:center;justify-content:center;gap:6px;background:transparent !important;color:#8a97ad !important;cursor:pointer;transition:background .15s,color .15s}
-    #sheetAdminModal .sa-seg button:hover{color:#fff !important}
+    #sheetAdminModal .sa-seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--k-panel2);border:1px solid var(--k-line)}
+    #sheetAdminModal .sa-seg button{flex:1;height:38px;border-radius:9px !important;border:0 !important;font-size:12.5px !important;font-weight:800 !important;display:flex;align-items:center;justify-content:center;gap:6px;background:transparent !important;color:var(--k-mute) !important;cursor:pointer;transition:background .15s,color .15s}
+    #sheetAdminModal .sa-seg button:hover{color:var(--k-tx-strong) !important}
     #sheetAdminModal .sa-seg button.bg-purple-600{background:#E8C15A !important;color:#1b1406 !important}
     #sheetAdminModal .sa-seg button .material-icons{font-size:17px}
-    #sheetAdminModal .sa-note{font-size:11.5px;line-height:1.55;color:#a9c4e0;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.25);border-radius:10px;padding:9px 11px;margin-bottom:8px}
-    #sheetAdminModal .sa-file{display:flex;align-items:center;gap:10px;height:42px;padding:0 6px 0 4px;border-radius:10px;background:#0f1829;border:1px dashed #3a4b6b;font-size:12.5px;color:#9fb0cc}
-    #sheetAdminModal .sa-file input{flex:1;min-width:0;font-size:12px;color:#9fb0cc}
-    #sheetAdminModal .sa-file input::file-selector-button{margin-right:10px;height:32px;padding:0 12px;border-radius:8px;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;font-weight:800;font-size:12px;cursor:pointer}
-    #sheetAdminModal .sa-color{display:flex;align-items:center;gap:8px;height:42px;padding:0 10px;border-radius:10px;background:#0f1829;border:1px solid #2c3b58}
+    #sheetAdminModal .sa-note{font-size:11.5px;line-height:1.55;color:var(--k-tx3);background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.25);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+    #sheetAdminModal .sa-file{display:flex;align-items:center;gap:10px;height:42px;padding:0 6px 0 4px;border-radius:10px;background:var(--k-panel2);border:1px dashed var(--k-line3);font-size:12.5px;color:var(--k-tx3)}
+    #sheetAdminModal .sa-file input{flex:1;min-width:0;font-size:12px;color:var(--k-tx3)}
+    #sheetAdminModal .sa-file input::file-selector-button{margin-right:10px;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);font-weight:800;font-size:12px;cursor:pointer}
+    #sheetAdminModal .sa-color{display:flex;align-items:center;gap:8px;height:42px;padding:0 10px;border-radius:10px;background:var(--k-panel2);border:1px solid var(--k-line2)}
     #sheetAdminModal .sa-color input{width:34px;height:26px;border:0;padding:0;background:transparent;cursor:pointer}
-    #sheetAdminModal .sa-color span{font-size:12px;font-weight:700;color:#8a97ad}
+    #sheetAdminModal .sa-color span{font-size:12px;font-weight:700;color:var(--k-mute)}
     #sheetAdminModal .sa-foot{display:flex;align-items:center;gap:8px;padding-top:4px}
     #sheetAdminModal #btnSaveSheet{flex:1;height:44px;border-radius:11px;border:1px solid #E8C15A;background:#E8C15A !important;color:#1b1406;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;box-shadow:0 6px 18px rgba(232,193,90,.22);transition:background .15s,transform .08s}
     #sheetAdminModal #btnSaveSheet:hover{background:#f1cf74 !important}
     #sheetAdminModal #btnSaveSheet:active{transform:scale(.98)}
     #sheetAdminModal #btnSaveSheet.bg-orange-500{background:#fb923c !important;border-color:#fb923c}
-    #sheetAdminModal #btnCancelEdit{height:44px;padding:0 14px;border-radius:11px;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;font-size:13px;font-weight:800;cursor:pointer}
+    #sheetAdminModal #btnCancelEdit{height:44px;padding:0 14px;border-radius:11px;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);font-size:13px;font-weight:800;cursor:pointer}
     #sheetAdminModal #btnCancelEdit.hidden{display:none}
-    #sheetAdminModal #sheetPersonalHint{font-size:11.5px;color:#86efac;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:8px 11px;display:flex;align-items:center;gap:8px}
+    #sheetAdminModal #sheetPersonalHint{font-size:11.5px;color:var(--k-green-tx);background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:8px 11px;display:flex;align-items:center;gap:8px}
     #sheetAdminModal #sheetPersonalHint.hidden{display:none}
     #sheetAdminModal #adminSheetList{display:flex;flex-direction:column;gap:8px}
-    #sheetAdminModal #adminSheetList > div{background:#151f35 !important;border-color:#273650 !important;border-radius:12px !important}
+    #sheetAdminModal #adminSheetList > div{background:var(--k-card) !important;border-color:var(--k-line) !important;border-radius:12px !important}
     #sheetAdminModal #adminSheetList .opacity-0{opacity:1 !important}
-    #sheetAdminModal .sa-empty-hint{font-size:12px;color:#6b7891;text-align:center;padding:18px}
-    @media (max-width:860px){ #sheetAdminModal .sa-body{grid-template-columns:1fr;overflow-y:auto} #sheetAdminModal .sa-form{border-right:0;border-bottom:1px solid #24324b;overflow:visible} #sheetAdminModal .sa-list{overflow:visible} #sheetAdminModal .sa-row{grid-template-columns:1fr} }
+    #sheetAdminModal .sa-empty-hint{font-size:12px;color:var(--k-mute3);text-align:center;padding:18px}
+    @media (max-width:860px){ #sheetAdminModal .sa-body{grid-template-columns:1fr;overflow-y:auto} #sheetAdminModal .sa-form{border-right:0;border-bottom:1px solid var(--k-line);overflow:visible} #sheetAdminModal .sa-list{overflow:visible} #sheetAdminModal .sa-row{grid-template-columns:1fr} }
 </style>
 <div id="sheetAdminModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4 fade-in">
     <div class="sa-box">
@@ -412,8 +412,8 @@
                         <br>หรือพิมพ์เอง: แต่ละแถวขึ้นบรรทัดใหม่ คั่นช่องด้วย <b>Tab</b> หรือ <b>|</b>
                     </div>
                     <textarea id="newSheetNote" rows="9" placeholder="เหตุผล&#9;หมายเหตุ (พนักงาน)&#9;หมายเหตุหน้าแพลตฟอร์ม (ลูกค้า)&#10;ชื่อ ผิด&#9;ชื่อลูกค้าไม่ถูกต้อง&#9;ชื่อไม่ถูกต้อง กรุณาติดต่อฝ่ายบริการค่ะ" class="font-mono"></textarea>
-                    <label class="flex items-center gap-2 mt-2 cursor-pointer" style="font-size:12px;color:#cbd5e1"><input type="checkbox" id="newSheetNoteHeader" checked style="accent-color:#E8C15A"> แถวแรกเป็นหัวตาราง</label>
-                    <div id="notePreview" class="mt-2" style="font-size:11.5px;color:#8a97ad"></div>
+                    <label class="flex items-center gap-2 mt-2 cursor-pointer" style="font-size:12px;color:var(--k-tx2)"><input type="checkbox" id="newSheetNoteHeader" checked style="accent-color:#E8C15A"> แถวแรกเป็นหัวตาราง</label>
+                    <div id="notePreview" class="mt-2" style="font-size:11.5px;color:var(--k-mute)"></div>
                 </div>
 
                 <div class="sa-row">
@@ -424,8 +424,8 @@
                         </div>
                         <input type="hidden" id="newSheetCover" value="">
                         <div id="currentSheetCoverContainer" class="hidden mt-2">
-                            <span style="font-size:11px;color:#6b7891" class="block mb-1">รูปปัจจุบัน</span>
-                            <img id="currentSheetCoverImg" src="" class="h-16 w-auto rounded-lg object-cover" style="border:1px solid #2c3b58;background:#000">
+                            <span style="font-size:11px;color:var(--k-mute3)" class="block mb-1">รูปปัจจุบัน</span>
+                            <img id="currentSheetCoverImg" src="" class="h-16 w-auto rounded-lg object-cover" style="border:1px solid var(--k-line2);background:#000">
                         </div>
                     </div>
                     <div>
@@ -445,7 +445,7 @@
 
             <!-- ขวา: รายการที่มีอยู่ -->
             <div class="sa-list custom-scrollbar">
-                <div class="sa-sec"><span class="material-icons" style="font-size:16px;color:#E8C15A">list</span> รายการที่มีอยู่ <span style="font-weight:600;color:#6b7891">· กดดินสอเพื่อแก้ไข</span></div>
+                <div class="sa-sec"><span class="material-icons" style="font-size:16px;color:var(--k-gold-tx)">list</span> รายการที่มีอยู่ <span style="font-weight:600;color:var(--k-mute3)">· กดดินสอเพื่อแก้ไข</span></div>
                 <div id="adminSheetList"></div>
             </div>
         </div>
@@ -456,7 +456,7 @@
     <template id="tpl-sheet-card-img">
         <div class="sh-card group" onclick='openSheetById("{{id}}")'>
             <img src="{{cover_url}}" class="absolute inset-0 w-full h-full object-cover opacity-40 transition-opacity duration-300 group-hover:opacity-25" loading="lazy" onerror="this.style.display='none'">
-            <div class="absolute inset-0" style="background:linear-gradient(to top,#0b1222 10%,rgba(11,18,34,.55) 60%,rgba(11,18,34,.2))"></div>
+            <div class="absolute inset-0" style="background:linear-gradient(to top,var(--k-bg) 10%,rgba(11,18,34,.55) 60%,rgba(11,18,34,.2))"></div>
             <div class="relative z-10 flex flex-col items-center">
                 <div class="w-12 h-12 flex items-center justify-center" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18)"><span class="material-icons text-white">{{iconType}}</span></div>
                 <span class="sh-cname">{{title}}</span>
@@ -511,30 +511,30 @@
     #galleryDrawer #galleryGrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr)) !important}
 
     /* ── หัวแผงคลังรูป ── */
-    #galleryDrawer{background:#0b1222 !important}
-    #galleryDrawer .gd-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 12px;background:#121c30;border-bottom:1px solid #24324b;flex-shrink:0}
+    #galleryDrawer{background:var(--k-bg) !important}
+    #galleryDrawer .gd-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 12px;background:var(--k-panel);border-bottom:1px solid var(--k-line);flex-shrink:0}
     #galleryDrawer .gd-title{display:flex;align-items:center;gap:10px;min-width:0}
     #galleryDrawer .gd-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none}
     #galleryDrawer .gd-ic .material-icons{font-size:18px}
-    #galleryDrawer .gd-title b{display:block;font-size:14px;font-weight:900;color:#fff;line-height:1.2}
-    #galleryDrawer .gd-title small{display:block;font-size:11px;font-weight:600;color:#7d8ba3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #galleryDrawer .gd-title b{display:block;font-size:14px;font-weight:900;color:var(--k-tx-strong);line-height:1.2}
+    #galleryDrawer .gd-title small{display:block;font-size:11px;font-weight:600;color:var(--k-mute2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #galleryDrawer .gd-acts{display:flex;gap:6px;flex:none}
-    #galleryDrawer .gd-btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 11px;border-radius:9px;font-size:12.5px;font-weight:800;cursor:pointer;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;transition:background .15s,border-color .15s}
-    #galleryDrawer .gd-btn .material-icons{font-size:17px;color:#E8C15A}
-    #galleryDrawer .gd-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
-    #galleryDrawer .gd-btn.close{color:#fca5a5;border-color:#5a2a37;background:#24121b}
-    #galleryDrawer .gd-btn.close .material-icons{color:#f87171}
-    #galleryDrawer .gd-btn.close:hover{background:#3a1724;border-color:#9f3a52;color:#fff}
+    #galleryDrawer .gd-btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 11px;border-radius:9px;font-size:12.5px;font-weight:800;cursor:pointer;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,border-color .15s}
+    #galleryDrawer .gd-btn .material-icons{font-size:17px;color:var(--k-gold-tx)}
+    #galleryDrawer .gd-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4);color:var(--k-tx-strong)}
+    #galleryDrawer .gd-btn.close{color:var(--k-red-tx);border-color:var(--k-red-line);background:var(--k-red-bg)}
+    #galleryDrawer .gd-btn.close .material-icons{color:var(--k-red-tx)}
+    #galleryDrawer .gd-btn.close:hover{background:var(--k-red-bg-h);border-color:var(--k-red-line-h);color:var(--k-tx-strong)}
     #galleryDrawer #galleryDrawerBody{padding:0 !important}
 
     /* ③ ปุ่มขนาดสำเร็จรูป */
-    #galleryDrawer .gd-size{display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:#0b1222;border:1px solid #24324b}
-    #galleryDrawer .gd-size button{height:26px;min-width:32px;padding:0 6px;border-radius:7px;font-size:11.5px;font-weight:900;color:#8a97ad;background:transparent;border:0;cursor:pointer;font-variant-numeric:tabular-nums}
-    #galleryDrawer .gd-size button:hover{color:#fff;background:#1a2640}
+    #galleryDrawer .gd-size{display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:var(--k-bg);border:1px solid var(--k-line)}
+    #galleryDrawer .gd-size button{height:26px;min-width:32px;padding:0 6px;border-radius:7px;font-size:11.5px;font-weight:900;color:var(--k-mute);background:transparent;border:0;cursor:pointer;font-variant-numeric:tabular-nums}
+    #galleryDrawer .gd-size button:hover{color:var(--k-tx-strong);background:var(--k-btn)}
     #galleryDrawer .gd-size button.on{background:#E8C15A;color:#1b1406}
-    #galleryDrawer .gd-now{font-size:10.5px;font-weight:800;color:#6b7891;padding:0 5px 0 3px;font-variant-numeric:tabular-nums}
-    #galleryDrawer .gd-btn.on{border-color:rgba(232,193,90,.55);background:rgba(232,193,90,.12);color:#f3dc9a}
-    #galleryDrawer .gd-btn:not(.on)#gdPrevToggle .material-icons{color:#6b7891}
+    #galleryDrawer .gd-now{font-size:10.5px;font-weight:800;color:var(--k-mute3);padding:0 5px 0 3px;font-variant-numeric:tabular-nums}
+    #galleryDrawer .gd-btn.on{border-color:rgba(232,193,90,.55);background:rgba(232,193,90,.12);color:var(--k-gold-tx)}
+    #galleryDrawer .gd-btn:not(.on)#gdPrevToggle .material-icons{color:var(--k-mute3)}
     @media (max-width:1200px){ #galleryDrawer .gd-t{display:none} #galleryDrawer .gd-btn{padding:0 8px} #galleryDrawer .gd-now{display:none} }
 
     /* ⑦ คัดลอกแล้วเห็นชัด */
@@ -542,38 +542,38 @@
     .gx-card.gd-copied::after{content:'คัดลอกแล้ว ✓';position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:45;padding:5px 12px;border-radius:999px;background:#E8C15A;color:#1b1406;font-size:12px;font-weight:900;box-shadow:0 6px 16px rgba(0,0,0,.4);pointer-events:none;animation:gdBadge 2.6s ease forwards}
     @keyframes gdGlow{0%{box-shadow:0 0 0 2px #E8C15A,0 0 34px rgba(232,193,90,.7)}75%{box-shadow:0 0 0 2px #E8C15A,0 0 18px rgba(232,193,90,.35)}100%{box-shadow:0 0 0 0 transparent}}
     @keyframes gdBadge{0%{opacity:0;transform:translate(-50%,-6px) scale(.85)}10%{opacity:1;transform:translate(-50%,0) scale(1)}80%{opacity:1}100%{opacity:0}}
-    #gdClipBar{display:none;align-items:center;gap:10px;padding:7px 12px;background:#121c30;border-top:1px solid #24324b;flex-shrink:0}
+    #gdClipBar{display:none;align-items:center;gap:10px;padding:7px 12px;background:var(--k-panel);border-top:1px solid var(--k-line);flex-shrink:0}
     #gdClipBar.on{display:flex}
-    #gdClipBar img{width:38px;height:38px;border-radius:8px;object-fit:cover;background:#0b1222;border:1px solid rgba(232,193,90,.5);flex:none}
+    #gdClipBar img{width:38px;height:38px;border-radius:8px;object-fit:cover;background:var(--k-bg);border:1px solid rgba(232,193,90,.5);flex:none}
     #gdClipBar .gdc-txt{min-width:0;flex:1;display:flex;flex-direction:column}
-    #gdClipBar small{font-size:10.5px;font-weight:700;color:#7d8ba3}
-    #gdClipBar b{font-size:12.5px;font-weight:900;color:#f3dc9a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #gdClipBar .gdc-key{flex:none;font-size:11px;font-weight:800;color:#4ade80;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);padding:3px 9px;border-radius:999px}
+    #gdClipBar small{font-size:10.5px;font-weight:700;color:var(--k-mute2)}
+    #gdClipBar b{font-size:12.5px;font-weight:900;color:var(--k-gold-tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #gdClipBar .gdc-key{flex:none;font-size:11px;font-weight:800;color:var(--k-green-tx);background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);padding:3px 9px;border-radius:999px}
 
     /* ⑧ พรีวิวรูปใหญ่ (ลอยทับฝั่งชีต) */
     #gdPreview{position:fixed;top:14px;bottom:14px;z-index:95;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transform:scale(.98);transition:opacity .15s,transform .15s}
     #gdPreview.on{opacity:1;transform:none}
-    #gdPreview .gdp-box{max-width:100%;max-height:100%;display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:#0b1222;border:1px solid rgba(232,193,90,.55);box-shadow:0 30px 80px rgba(0,0,0,.7)}
-    #gdPreview img{display:block;max-width:100%;max-height:calc(100vh - 100px);object-fit:contain;background:#05080f}
-    #gdPreview .gdp-cap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;background:#121c30;border-top:1px solid #24324b}
-    #gdPreview .gdp-name{font-size:13px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #gdPreview .gdp-hint{font-size:11px;font-weight:700;color:#7d8ba3;white-space:nowrap}
+    #gdPreview .gdp-box{max-width:100%;max-height:100%;display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:var(--k-bg);border:1px solid rgba(232,193,90,.55);box-shadow:0 30px 80px rgba(0,0,0,.7)}
+    #gdPreview img{display:block;max-width:100%;max-height:calc(100vh - 100px);object-fit:contain;background:var(--k-sunk)}
+    #gdPreview .gdp-cap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;background:var(--k-panel);border-top:1px solid var(--k-line)}
+    #gdPreview .gdp-name{font-size:13px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #gdPreview .gdp-hint{font-size:11px;font-weight:700;color:var(--k-mute2);white-space:nowrap}
     #gdPreview.pinned .gdp-box{border-color:#E8C15A}
     @media (prefers-reduced-motion:reduce){ #gdPreview,.gx-card.gd-copied,.gx-card.gd-copied::after{transition:none;animation:none} }
 
     /* ── คลังรูปในแผง: ย้ายแถบข้างซ้ายขึ้นเป็นแถบเครื่องมือด้านบน → รูปได้พื้นที่เต็มความกว้าง ── */
-    #galleryDrawer .gx-app{flex-direction:column;border-radius:0;border:0;box-shadow:none;background:#0b1222}
-    #galleryDrawer .gx-side{width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;overflow:visible;background:#0f1829;border-right:0;border-bottom:1px solid #24324b}
+    #galleryDrawer .gx-app{flex-direction:column;border-radius:0;border:0;box-shadow:none;background:var(--k-bg)}
+    #galleryDrawer .gx-side{width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;overflow:visible;background:var(--k-panel2);border-right:0;border-bottom:1px solid var(--k-line)}
     #galleryDrawer .gx-brand,#galleryDrawer .gx-side-label,#galleryDrawer .gx-back{display:none !important}
-    #galleryDrawer .gx-tabs{flex-direction:row;flex-wrap:nowrap;gap:3px;padding:3px;border-radius:10px;background:#0b1222;border:1px solid #22304a;overflow-x:auto;max-width:100%}
+    #galleryDrawer .gx-tabs{flex-direction:row;flex-wrap:nowrap;gap:3px;padding:3px;border-radius:10px;background:var(--k-bg);border:1px solid var(--k-line);overflow-x:auto;max-width:100%}
     #galleryDrawer .gx-tab{width:auto;padding:6px 10px;border-radius:8px;font-size:12px}
     #galleryDrawer .gx-tab.hidden{display:none}
-    #galleryDrawer .gx-select{width:auto;height:32px;margin:0;border-radius:9px;font-size:12px;background:#18233a;border-color:#2c3b58}
+    #galleryDrawer .gx-select{width:auto;height:32px;margin:0;border-radius:9px;font-size:12px;background:var(--k-field);border-color:var(--k-line2)}
     #galleryDrawer .gx-btn,#galleryDrawer #btnBulkDelete{width:auto;height:32px;margin:0;padding:0 11px;border-radius:9px;font-size:12px;box-shadow:none}
     #galleryDrawer #btnBulkDelete.hidden{display:none}
     #galleryDrawer #adminUploadControls{flex-direction:row;align-items:center;gap:6px}
     #galleryDrawer #adminUploadControls.hidden{display:none}
-    #galleryDrawer #adminUploadControls select{height:32px;border-radius:9px;font-size:12px;padding:0 8px;background:#18233a;border:1px solid #2c3b58;color:#e7ecf5}
+    #galleryDrawer #adminUploadControls select{height:32px;border-radius:9px;font-size:12px;padding:0 8px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx)}
     #galleryDrawer .gx-upload-label{height:32px !important;margin:0 !important;padding:0 12px !important;border-radius:9px !important;font-size:12px !important;width:auto !important;display:inline-flex !important;align-items:center;gap:5px}
     #galleryDrawer .gx-main{min-height:0}
     #galleryDrawer .gx-top{padding:8px 10px;gap:8px}
@@ -583,7 +583,7 @@
     #galleryDrawer #galleryDropZone .material-icons{font-size:18px !important;display:inline-block !important;margin:0 6px 0 0 !important;vertical-align:middle}
     @media (max-width:900px){ #galleryDrawer #galleryGrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)) !important} }
 </style>
-<div id="galleryDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:50vw;z-index:90;background:#0b1120;border-left:2px solid rgba(232,193,90,.45);box-shadow:-12px 0 40px rgba(0,0,0,.6);flex-direction:column">
+<div id="galleryDrawer" class="k-auto-light" style="display:none;position:fixed;top:0;right:0;bottom:0;width:50vw;z-index:90;background:#0b1120;border-left:2px solid rgba(232,193,90,.45);box-shadow:-12px 0 40px rgba(0,0,0,.6);flex-direction:column">
     <div class="gd-head">
         <div class="gd-title">
             <span class="gd-ic"><span class="material-icons">photo_library</span></span>

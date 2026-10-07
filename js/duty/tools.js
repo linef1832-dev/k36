@@ -501,8 +501,8 @@ window.configOdDiscordRooms = async function() {
     const rooms = window.getOdDiscordRooms();
     const r = await Swal.fire({
         title: '🎧 ห้อง Discord (OD)',
-        html: `<div style="font-size:12px;color:#94a3b8;margin-bottom:8px">พิมพ์ชื่อห้อง 1 ห้องต่อ 1 บรรทัด — ระบบจะเฉลี่ยคนลงห้องพวกนี้ตอนกด "สุ่มจัดหน้าที่"</div>
-               <textarea id="odRoomsTa" style="width:100%;height:120px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:10px;padding:10px;font-size:13px;outline:none">${rooms.join('\n')}</textarea>`,
+        html: `<div style="font-size:12px;color:var(--k-tx3);margin-bottom:8px">พิมพ์ชื่อห้อง 1 ห้องต่อ 1 บรรทัด — ระบบจะเฉลี่ยคนลงห้องพวกนี้ตอนกด "สุ่มจัดหน้าที่"</div>
+               <textarea id="odRoomsTa" style="width:100%;height:120px;background:var(--k-panel2);color:var(--k-tx-strong);border:1px solid var(--k-line2);border-radius:10px;padding:10px;font-size:13px;outline:none">${rooms.join('\n')}</textarea>`,
         showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก',
         preConfirm: () => {
             const lines = (document.getElementById('odRoomsTa').value || '').split('\n').map(x => x.trim()).filter(Boolean);

@@ -15,8 +15,8 @@ window.copyImageToClipboard = async function(imageUrl) {
                     <div style="position:absolute;inset:0;border-radius:50%;border:3px solid transparent;border-top-color:#ec4899;animation:gspinn .8s linear infinite"></div>
                     <div style="position:absolute;inset:8px;border-radius:50%;border:2px solid transparent;border-top-color:#f9a8d4;animation:gspinn .6s linear infinite reverse"></div>
                 </div>
-                <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:4px">กำลังคัดลอกรูปภาพ</div>
-                <div style="font-size:11px;color:#94a3b8">กำลังแปลงไฟล์ กรุณารอสักครู่...</div>
+                <div style="font-size:14px;font-weight:700;color:var(--k-tx-strong);margin-bottom:4px">กำลังคัดลอกรูปภาพ</div>
+                <div style="font-size:11px;color:var(--k-tx3)">กำลังแปลงไฟล์ กรุณารอสักครู่...</div>
             </div>
             <style>@keyframes gspinn{to{transform:rotate(360deg)}}</style>
         `,
@@ -85,10 +85,10 @@ window.copyImageToClipboard = async function(imageUrl) {
                             <div style="width:58px;height:58px;margin:0 auto 14px;background:rgba(34,197,94,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(34,197,94,0.3);box-shadow:0 0 20px rgba(34,197,94,0.12)">
                                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                             </div>
-                            <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:8px">คัดลอกสำเร็จ!</div>
-                            <div style="font-size:12px;color:#94a3b8;line-height:1.8">
+                            <div style="font-size:17px;font-weight:800;color:var(--k-tx-strong);margin-bottom:8px">คัดลอกสำเร็จ!</div>
+                            <div style="font-size:12px;color:var(--k-tx3);line-height:1.8">
                                 นำไปกดวาง
-                                <kbd style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:2px 7px;font-size:11px;color:#e2e8f0;font-family:monospace">Ctrl+V</kbd>
+                                <kbd style="background:color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent);border:1px solid color-mix(in srgb,var(--k-tx-strong) 15.0%,transparent);border-radius:5px;padding:2px 7px;font-size:11px;color:var(--k-tx);font-family:monospace">Ctrl+V</kbd>
                                 ในช่องแชท Line OA ได้เลยครับ
                             </div>
                         </div>
@@ -106,8 +106,8 @@ window.copyImageToClipboard = async function(imageUrl) {
                         <div style="width:52px;height:52px;margin:0 auto 12px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(239,68,68,0.3)">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </div>
-                        <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:6px">คัดลอกไม่สำเร็จ</div>
-                        <div style="font-size:11px;color:#94a3b8">${err.message}</div>
+                        <div style="font-size:16px;font-weight:800;color:var(--k-tx-strong);margin-bottom:6px">คัดลอกไม่สำเร็จ</div>
+                        <div style="font-size:11px;color:var(--k-tx3)">${err.message}</div>
                     </div>`,
                     background: '#0f172a', backdrop: 'rgba(0,0,0,0.6)',
                     showConfirmButton: true, confirmButtonText: 'ตกลง', confirmButtonColor: '#dc2626',
@@ -122,8 +122,8 @@ window.copyImageToClipboard = async function(imageUrl) {
                 <div style="width:52px;height:52px;margin:0 auto 12px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(239,68,68,0.3)">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </div>
-                <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:6px">คัดลอกไม่สำเร็จ</div>
-                <div style="font-size:11px;color:#94a3b8">${err.message}</div>
+                <div style="font-size:16px;font-weight:800;color:var(--k-tx-strong);margin-bottom:6px">คัดลอกไม่สำเร็จ</div>
+                <div style="font-size:11px;color:var(--k-tx3)">${err.message}</div>
             </div>`,
             background: '#0f172a', backdrop: 'rgba(0,0,0,0.6)',
             showConfirmButton: true, confirmButtonText: 'ตกลง', confirmButtonColor: '#dc2626',
@@ -260,11 +260,11 @@ window._renameLightboxImg = async function() {
         html: `
             <div style="padding:8px 4px 4px">
                 <div style="width:48px;height:48px;margin:0 auto 14px;background:rgba(251,191,36,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(251,191,36,0.3)">
-                    <span class="material-icons" style="color:#fbbf24;font-size:22px">edit</span>
+                    <span class="material-icons" style="color:var(--k-amber-tx);font-size:22px">edit</span>
                 </div>
-                <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:14px">แก้ชื่อรูป</div>
+                <div style="font-size:15px;font-weight:800;color:var(--k-tx-strong);margin-bottom:14px">แก้ชื่อรูป</div>
                 <input id="_renameInput" type="text" maxlength="100" placeholder="ชื่อรูปใหม่..."
-                    style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:14px;font-weight:600;outline:none;transition:border 0.2s"
+                    style="width:100%;padding:10px 14px;background:color-mix(in srgb,var(--k-tx-strong) 6.0%,transparent);border:1.5px solid color-mix(in srgb,var(--k-tx-strong) 12.0%,transparent);border-radius:10px;color:var(--k-tx-strong);font-size:14px;font-weight:600;outline:none;transition:border 0.2s"
                     onfocus="this.style.borderColor='rgba(251,191,36,0.6)'"
                     onblur="this.style.borderColor='rgba(255,255,255,0.12)'"
                 >
@@ -303,7 +303,7 @@ window._renameLightboxImg = async function() {
                 <div style="width:28px;height:28px;background:rgba(34,197,94,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
-                <span style="font-size:13px;font-weight:700;color:#fff">แก้ชื่อสำเร็จ!</span>
+                <span style="font-size:13px;font-weight:700;color:var(--k-tx-strong)">แก้ชื่อสำเร็จ!</span>
             </div>`,
             background: '#0f172a', toast: true, position: 'top-end',
             timer: 1500, showConfirmButton: false,
@@ -378,11 +378,11 @@ window.renameGalleryImage = async function(imgId, currentName) {
         html: `
             <div style="padding:8px 4px 4px">
                 <div style="width:48px;height:48px;margin:0 auto 14px;background:rgba(251,191,36,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(251,191,36,0.3)">
-                    <span class="material-icons" style="color:#fbbf24;font-size:22px">edit</span>
+                    <span class="material-icons" style="color:var(--k-amber-tx);font-size:22px">edit</span>
                 </div>
-                <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:14px">แก้ชื่อรูป</div>
+                <div style="font-size:15px;font-weight:800;color:var(--k-tx-strong);margin-bottom:14px">แก้ชื่อรูป</div>
                 <input id="_renameInput" type="text" maxlength="100" placeholder="ชื่อรูปใหม่..."
-                    style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:14px;font-weight:600;outline:none;transition:border 0.2s"
+                    style="width:100%;padding:10px 14px;background:color-mix(in srgb,var(--k-tx-strong) 6.0%,transparent);border:1.5px solid color-mix(in srgb,var(--k-tx-strong) 12.0%,transparent);border-radius:10px;color:var(--k-tx-strong);font-size:14px;font-weight:600;outline:none;transition:border 0.2s"
                     onfocus="this.style.borderColor='rgba(251,191,36,0.6)'"
                     onblur="this.style.borderColor='rgba(255,255,255,0.12)'"
                 >
@@ -421,7 +421,7 @@ window.renameGalleryImage = async function(imgId, currentName) {
                 <div style="width:28px;height:28px;background:rgba(34,197,94,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
-                <span style="font-size:13px;font-weight:700;color:#fff">แก้ชื่อสำเร็จ!</span>
+                <span style="font-size:13px;font-weight:700;color:var(--k-tx-strong)">แก้ชื่อสำเร็จ!</span>
             </div>`,
             background: '#0f172a', toast: true, position: 'top-end',
             timer: 1500, showConfirmButton: false,

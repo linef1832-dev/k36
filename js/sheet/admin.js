@@ -412,7 +412,7 @@ window.toggleGalleryDrawer = async function(show) {
             if (typeof initGalleryApp === 'function') initGalleryApp();
             if (window._splitEnhance) window._splitEnhance();   // ผูกเอฟเฟกต์คัดลอก/พรีวิว หลังสคริปต์คลังรูปโหลดเสร็จ
         } catch (e) {
-            document.getElementById('galleryDrawerBody').innerHTML = `<div style="text-align:center;color:#f87171;padding:40px 0;font-weight:700">โหลดคลังรูปไม่สำเร็จ<br><span style="font-size:11px;color:#64748b">${e.message}</span></div>`;
+            document.getElementById('galleryDrawerBody').innerHTML = `<div style="text-align:center;color:var(--k-red-tx);padding:40px 0;font-weight:700">โหลดคลังรูปไม่สำเร็จ<br><span style="font-size:11px;color:var(--k-mute)">${e.message}</span></div>`;
         }
     }
 };

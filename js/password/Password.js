@@ -35,7 +35,7 @@ function _pwdPopulateUserDropdown(users) {
         .filter(u => u && u.username)
         .sort((a, b) => String(a.username).localeCompare(String(b.username)))
         .forEach(u => {
-            userSelect.innerHTML += `<option value="${u.id}" style="background:#1e293b;color:#fff">${u.username}</option>`;
+            userSelect.innerHTML += `<option value="${u.id}" style="background:var(--k-card);color:var(--k-tx-strong)">${u.username}</option>`;
         });
     if (oldVal) userSelect.value = oldVal;
 }
@@ -81,8 +81,8 @@ window.fetchPasswords = async function(resetPage) {
         // 🛡️ [XSS] ครอบทุกค่าที่มาจากผู้ใช้ก่อนยัดลง innerHTML (ชื่อเว็บ/URL/user/รหัส เป็น free text)
         const esc = window.escapeHtml, escA = window.escapeAttr;
         const ownerName = item.users ? item.users.username : 'Unknown';
-        const ownerBadge = canViewAll ? `<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.55);color:#e2e8f0;font-size:10px;padding:3px 10px;border-radius:99px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:3px;border:1px solid rgba(255,255,255,0.1)"><span class="material-icons" style="font-size:10px">person</span> ${esc(ownerName)}</div>` : '';
-        const delBtn = (isGlobalAdmin || item.user_id === currentUser.id) ? `<button onclick="deletePassword(${item.id})" style="color:#94a3b8;font-size:11px;font-weight:700;display:flex;align-items:center;gap:3px;padding:5px 10px;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:all .15s" onmouseover="this.style.color='#f87171';this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='#94a3b8';this.style.background='transparent'"><span class="material-icons" style="font-size:14px">delete</span> ลบ</button>` : '';
+        const ownerBadge = canViewAll ? `<div style="position:absolute;top:10px;right:10px;background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent);color:var(--k-tx);font-size:10px;padding:3px 10px;border-radius:99px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:3px;border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent)"><span class="material-icons" style="font-size:10px">person</span> ${esc(ownerName)}</div>` : '';
+        const delBtn = (isGlobalAdmin || item.user_id === currentUser.id) ? `<button onclick="deletePassword(${item.id})" style="color:var(--k-tx3);font-size:11px;font-weight:700;display:flex;align-items:center;gap:3px;padding:5px 10px;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:all .15s" onmouseover="this.style.color='#f87171';this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='#94a3b8';this.style.background='transparent'"><span class="material-icons" style="font-size:14px">delete</span> ลบ</button>` : '';
         const urlHtml = item.site_url ? `<a href="${escA(item.site_url)}" target="_blank" style="font-size:11px;color:#60a5fa;text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(item.site_url)}</a>` : '';
         return window.renderTemplate('tpl-pwd-card', {
             ownerBadge, site_name: esc(item.site_name), urlHtml,
@@ -98,7 +98,7 @@ function renderPwdPagination(total) {
     const bar = document.getElementById('pwdPagination');
     if (!bar) return;
     const pages = Math.max(1, Math.ceil(total / PWD_PAGE_SIZE));
-    if (pages <= 1) { bar.innerHTML = total ? `<span style="font-size:11px;color:#64748b">ทั้งหมด ${total} รายการ</span>` : ''; return; }
+    if (pages <= 1) { bar.innerHTML = total ? `<span style="font-size:11px;color:var(--k-mute)">ทั้งหมด ${total} รายการ</span>` : ''; return; }
     if (_pwdPage > pages) _pwdPage = pages;
 
     const btn = (label, page, active, disabled) => `
@@ -114,9 +114,9 @@ function renderPwdPagination(total) {
         else if (nums[nums.length - 1] !== '...') nums.push('...');
     }
     bar.innerHTML = `
-        <span style="font-size:11px;color:#64748b;margin-right:8px">ทั้งหมด ${total} รายการ · หน้า ${_pwdPage}/${pages}</span>
+        <span style="font-size:11px;color:var(--k-mute);margin-right:8px">ทั้งหมด ${total} รายการ · หน้า ${_pwdPage}/${pages}</span>
         ${btn('‹', _pwdPage - 1, false, _pwdPage === 1)}
-        ${nums.map(p => p === '...' ? '<span style="color:#3f4b61;padding:0 2px">…</span>' : btn(p, p, p === _pwdPage, false)).join('')}
+        ${nums.map(p => p === '...' ? '<span style="color:var(--k-mute3);padding:0 2px">…</span>' : btn(p, p, p === _pwdPage, false)).join('')}
         ${btn('›', _pwdPage + 1, false, _pwdPage === pages)}`;
 }
 

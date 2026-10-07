@@ -117,12 +117,12 @@ window.renderLiveAlerts = function() {
     banner.style.display = 'block';
     banner.innerHTML = `
         <div style="background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-            <div style="background:linear-gradient(90deg,#1e293b,#334155);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div style="background:linear-gradient(90deg,var(--k-card),var(--k-btn-h));padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
                 <div style="display:flex;align-items:center;gap:8px">
-                    <span class="material-icons" style="color:#f87171;font-size:20px;animation:pulse 1.5s infinite">warning</span>
-                    <span style="color:#f1f5f9;font-weight:700;font-size:14px">🚨 แจ้งเตือนวันนี้ — พบ ${alerts.length} เหตุการณ์ผิดปกติ</span>
+                    <span class="material-icons" style="color:var(--k-red-tx);font-size:20px;animation:pulse 1.5s infinite">warning</span>
+                    <span style="color:var(--k-tx);font-weight:700;font-size:14px">🚨 แจ้งเตือนวันนี้ — พบ ${alerts.length} เหตุการณ์ผิดปกติ</span>
                 </div>
-                <span style="color:#94a3b8;font-size:11px">ตรวจสอบ ${todayLogs.length} รายการ จาก ${new Date().toLocaleDateString('th-TH')}</span>
+                <span style="color:var(--k-tx3);font-size:11px">ตรวจสอบ ${todayLogs.length} รายการ จาก ${new Date().toLocaleDateString('th-TH')}</span>
             </div>
             <div style="padding:12px;display:flex;flex-direction:column;gap:8px">
                 ${alerts.map(a => {
@@ -220,7 +220,7 @@ window.renderSessionOverlap = function() {
                 <span class="material-icons">supervisor_account</span>
                 พบ ${overlaps.length} กรณี Login พร้อมกัน 2 เครื่อง (ภายใน 5 นาที)
             </div>
-            <p class="text-xs mt-1" style="color:${isDark?'#fb7185':'#e11d48'}">บัญชีเดียวกัน login จาก 2 เครื่องที่ต่างกัน (FP ต่างกัน) ในเวลาใกล้เคียง = น่าสงสัยว่าแชร์บัญชี</p>
+            <p class="text-xs mt-1" style="color:${isDark?'var(--k-red-tx)':'#e11d48'}">บัญชีเดียวกัน login จาก 2 เครื่องที่ต่างกัน (FP ต่างกัน) ในเวลาใกล้เคียง = น่าสงสัยว่าแชร์บัญชี</p>
         </div>
         ${paged.map(o => `
         <div class="col-span-full rounded-2xl shadow p-4 border-l-4 border-rose-500" style="background:${cardBg}">
@@ -229,7 +229,7 @@ window.renderSessionOverlap = function() {
                 <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:99px">⚠ ห่างกัน ${o.diffMin} นาที</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div style="background:${isDark?'rgba(51,65,85,.5)':'#f8fafc'};border-radius:12px;padding:12px;border:1px solid ${isDark?'#334155':'#e2e8f0'}">
+                <div style="background:${isDark?'color-mix(in srgb,var(--k-btn-h) 50.0%,transparent)':'#f8fafc'};border-radius:12px;padding:12px;border:1px solid ${isDark?'var(--k-line2)':'#e2e8f0'}">
                     <div style="font-size:10px;font-weight:700;color:${subColor};text-transform:uppercase;margin-bottom:6px">เครื่องที่ 1</div>
                     <div style="font-family:monospace;font-size:12px;color:#0369a1;font-weight:700">${o.prev.ip_address || '-'}</div>
                     <div style="font-size:11px;color:${subColor};margin-top:3px">${o.prev.country || '-'} / ${o.prev.city || '-'}</div>
@@ -349,7 +349,7 @@ window.renderTzMismatch = function() {
                 <span style="background:#0891b2;color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:99px">🌍 TZ ไม่ตรง</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div style="background:${isDark?'rgba(51,65,85,.5)':'#f8fafc'};border-radius:10px;padding:10px;border:1px solid ${isDark?'#334155':'#e2e8f0'}">
+                <div style="background:${isDark?'color-mix(in srgb,var(--k-btn-h) 50.0%,transparent)':'#f8fafc'};border-radius:10px;padding:10px;border:1px solid ${isDark?'var(--k-line2)':'#e2e8f0'}">
                     <div style="font-size:10px;font-weight:700;color:${subColor};text-transform:uppercase;margin-bottom:4px">🌐 IP บอกว่าอยู่</div>
                     <div style="font-family:monospace;font-weight:700;color:#0369a1;font-size:12px">${l.ip_address}</div>
                     <div style="font-size:12px;font-weight:700;margin-top:4px;color:${textColor}">${window.escapeHtml(l.country)} / ${window.escapeHtml(l.city || '-')}</div>

@@ -482,7 +482,7 @@
         if (_unknown.length) {
             ubox.style.display = '';
             $('baUnknown').innerHTML = _unknown.slice(0, 40).map(u =>
-                `<span class="ba-chip" style="border-color:rgba(245,158,11,.4);color:#fcd34d">${esc(u.name)} · ${esc(u.id)} · ${u.n} รอบ</span>`).join('');
+                `<span class="ba-chip" style="border-color:rgba(245,158,11,.4);color:var(--k-amber-tx)">${esc(u.name)} · ${esc(u.id)} · ${u.n} รอบ</span>`).join('');
         } else ubox.style.display = 'none';
 
         const canExport = (typeof window.hasUserPerm !== 'function') || window.hasUserPerm('break_audit_export');
@@ -557,7 +557,7 @@
                 const d = p.byKind[k], on = d.n > 0;
                 if (k === 'other' && !on) return '';
                 return `<div class="ba-k ${on ? '' : 'off'}">
-                    <span class="ba-kdot" style="background:${on ? KIND[k].color : '#334155'}"></span>
+                    <span class="ba-kdot" style="background:${on ? KIND[k].color : 'var(--k-btn-h)'}"></span>
                     <span class="ba-kname">${KIND[k].name}</span>
                     <b class="ba-kn">${d.n}</b><span class="ba-kunit">รอบ</span>
                     <span class="ba-ktime">${on ? hms(d.sec) : '—'}</span>
@@ -587,7 +587,7 @@
                 const limitSec = s.limit ? s.limit * 60 : 0;
                 const pct = limitSec ? Math.min(100, Math.round(s.dur / limitSec * 100)) : 0;
                 const barColor = s.overLimit ? '#ef4444' : (limitSec && pct >= 85 ? '#f59e0b' : K.color);
-                const endTxt = s.live ? '<span style="color:#4ade80;font-weight:800">ยังไม่กลับ</span>' : s.noBack ? '—' : clock(s.end);
+                const endTxt = s.live ? '<span style="color:var(--k-green-tx);font-weight:800">ยังไม่กลับ</span>' : s.noBack ? '—' : clock(s.end);
                 const tags = [];
                 if (p.inChain[i]) tags.push(['warn', 'link', 'ต่อจากรอบก่อน']);
                 if (s.overLimit)  tags.push(['bad', 'timer_off', 'เกินเวลาที่บอทให้']);
@@ -599,7 +599,7 @@
                     <div class="ba-ses-cat"><i class="ba-dot" style="background:${K.color}"></i>${esc(s.cat || '-')}</div>
                     <div class="ba-ses-time"><b>${clock(s.start)}</b><span class="material-icons">east</span><b>${endTxt}</b></div>
                     <div class="ba-ses-dur">
-                        <div class="ba-ses-dur-t"><b style="color:${s.overLimit ? '#fca5a5' : '#f1f5f9'}">${hms(s.dur)}</b>${limitSec ? `<small>/ ${s.limit} น.</small>` : '<small>ไม่มีลิมิต</small>'}</div>
+                        <div class="ba-ses-dur-t"><b style="color:${s.overLimit ? 'var(--k-red-tx)' : 'var(--k-tx)'}">${hms(s.dur)}</b>${limitSec ? `<small>/ ${s.limit} น.</small>` : '<small>ไม่มีลิมิต</small>'}</div>
                         ${limitSec ? `<div class="ba-ses-bar"><i style="width:${pct}%;background:${barColor}"></i></div>` : ''}
                     </div>
                     <div class="ba-ses-tags">${tags.length ? tags.map(t => `<span class="ba-tag ${t[0]}"><span class="material-icons">${t[1]}</span>${esc(t[2])}</span>`).join('') : '<span class="ba-tag ok"><span class="material-icons">check_circle</span>ปกติ</span>'}</div>
@@ -613,7 +613,7 @@
                 : [p.dept, dutyTeams.length ? 'หน้างานวันนี้ ' + dutyTeams.join('+') : (p.team || ''), p.id].filter(Boolean).join(' · ');
             const pctUsed = Math.min(100, Math.round(p.total / c.cap * 100));
             const shiftBadge = (() => {
-                if (p.unknown) return `<span title="Telegram ID ${esc(p.id)} ยังไม่ผูกกับพนักงานคนไหน — ใส่ที่หน้า พนักงาน" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;color:#fbbf24;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);vertical-align:middle"><span class="material-icons" style="font-size:12px">person_off</span>ไม่อยู่ในระบบ</span>`;
+                if (p.unknown) return `<span title="Telegram ID ${esc(p.id)} ยังไม่ผูกกับพนักงานคนไหน — ใส่ที่หน้า พนักงาน" style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;color:var(--k-amber-tx);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);vertical-align:middle"><span class="material-icons" style="font-size:12px">person_off</span>ไม่อยู่ในระบบ</span>`;
                 const sh = shiftOf(_users.find(x => x.id === p.uid) || _users.find(x => x.username === p.name), p.name);
                 const B = { 'กะเช้า': ['☀️', 'เช้า', '#fbbf24'], 'กะกลาง': ['🌤️', 'กลาง', '#60a5fa'], 'กะดึก': ['🌙', 'ดึก', '#a78bfa'] }[sh];
                 if (!B) return '';

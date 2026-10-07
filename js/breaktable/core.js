@@ -20,7 +20,7 @@
     const avColor = name => AV_COLORS[[...String(name || '')].reduce((a, c) => a + c.charCodeAt(0), 0) % AV_COLORS.length];
     const initials = name => esc(String(name || '?').replace(/[^A-Za-z0-9ก-๙]/g, '').substring(0, 2).toUpperCase() || '?');
     // 🩹 ใส่สไตล์วงกลมติดตัวเลย — popup อยู่นอก #btPage ทำให้ CSS ของหน้าไม่โดน
-    const avatar = (name, size) => `<span class="bt-av" style="width:${size}px;height:${size}px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#fff;background:${avColor(name)};font-size:${Math.round(size / 3)}px;border:2px solid #0b1220;letter-spacing:.3px" title="${esc(name)}">${initials(name)}</span>`;
+    const avatar = (name, size) => `<span class="bt-av" style="width:${size}px;height:${size}px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:var(--k-tx-strong);background:${avColor(name)};font-size:${Math.round(size / 3)}px;border:2px solid var(--k-line);letter-spacing:.3px" title="${esc(name)}">${initials(name)}</span>`;
 
     let _rows = [];          // ข้อมูลวันนี้ทั้งหมด (ก่อนกรอง)
     let _lastDate = null;
@@ -87,7 +87,7 @@
         const rows = filtered();
         $('btDateTitle').textContent = fmtDate(d);
         const uniqPeople = new Set(rows.map(r => String(r.staff_name || '').toLowerCase())).size;
-        $('btTotal').innerHTML = `ลงแล้ว <b style="color:#fff">${uniqPeople}</b> คน · <b style="color:#94a3b8">${rows.length}</b> รายการ`;
+        $('btTotal').innerHTML = `ลงแล้ว <b style="color:var(--k-tx-strong)">${uniqPeople}</b> คน · <b style="color:var(--k-tx3)">${rows.length}</b> รายการ`;
         btRenderMissing(rows);   // 🟠 ป้าย "ยังไม่ลงพัก" (คำนวณเบื้องหลัง ไม่บล็อกการวาด)
         // 📗 ปุ่ม Excel: เช็คสิทธิ์ทุกครั้งที่วาด (hasUserPerm ผ่านให้หัวหน้า/แอดมินเสมอ + อ่านสิทธิ์ "โหลด Excel ทั้งวัน" ให้คนอื่น)
         const exBtn = $('btExportBtn');
@@ -112,13 +112,13 @@
             const cards = groups[shift].map(sl => {
                 const list = bySlot[sl] || [];
                 const isNow = slotIsNow(sl, nowMin);
-                const avs = list.slice(0, 3).map(r => avatar(r.staff_name, 28)).join('') + (list.length > 3 ? `<span class="bt-av bt-more" style="width:28px;height:28px;border-radius:50%;font-size:9px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;border:2px solid #0b1220;margin-left:-8px">+${list.length - 3}</span>` : '');
+                const avs = list.slice(0, 3).map(r => avatar(r.staff_name, 28)).join('') + (list.length > 3 ? `<span class="bt-av bt-more" style="width:28px;height:28px;border-radius:50%;font-size:9px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;border:2px solid var(--k-line);margin-left:-8px">+${list.length - 3}</span>` : '');
                 return `<div class="bt-card ${list.length ? '' : 'bt-empty'} ${isNow ? 'bt-now' : ''}" onclick="btOpenSlot('${esc(sl)}')">
-                    <div><div class="bt-time">${esc(sl.replace('-', ' – '))}${isNow ? '<span class="bt-now-badge"><span class="bt-now-dot"></span>กำลังพัก</span>' : ''}</div><div class="bt-sub">${list.length ? `จองแล้ว <b style="color:#e2e8f0">${list.length}</b> คน` : 'ยังไม่มีคนลง'}</div></div>
+                    <div><div class="bt-time">${esc(sl.replace('-', ' – '))}${isNow ? '<span class="bt-now-badge"><span class="bt-now-dot"></span>กำลังพัก</span>' : ''}</div><div class="bt-sub">${list.length ? `จองแล้ว <b style="color:var(--k-tx)">${list.length}</b> คน` : 'ยังไม่มีคนลง'}</div></div>
                     <div style="display:flex;align-items:center;gap:8px"><div style="display:flex;align-items:center">${avs}</div><span class="bt-eye" title="ดูรายชื่อ"><span class="material-icons" style="font-size:17px">visibility</span></span></div>
                 </div>`;
             }).join('');
-            return `<div class="bt-shift-h"><div style="font-weight:800;color:#e2e8f0;font-size:14px">${SHIFT_ICON[shift] || ''} ${esc(shift)}</div><span class="bt-tag">${cnt} รายการ</span></div>
+            return `<div class="bt-shift-h"><div style="font-weight:800;color:var(--k-tx);font-size:14px">${SHIFT_ICON[shift] || ''} ${esc(shift)}</div><span class="bt-tag">${cnt} รายการ</span></div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">${cards}</div>`;
         }).join('');
         $('btGrid').innerHTML = html;
@@ -187,7 +187,7 @@
             _btMissingList = await btMissingCompute();
             el.innerHTML = _btMissingList.length
                 ? `<span class="bt-missing-badge" onclick="btOpenMissing()"><span class="material-icons" style="font-size:14px">notification_important</span> ยังไม่ลงพัก <b>${_btMissingList.length}</b> คน</span>`
-                : `<span style="display:inline-flex;align-items:center;gap:4px;color:#34d399;font-size:11.5px;font-weight:800"><span class="material-icons" style="font-size:14px">check_circle</span> ลงพักครบทุกคน</span>`;
+                : `<span style="display:inline-flex;align-items:center;gap:4px;color:var(--k-green-tx);font-size:11.5px;font-weight:800"><span class="material-icons" style="font-size:14px">check_circle</span> ลงพักครบทุกคน</span>`;
         } catch (e) { el.innerHTML = ''; }
     }
     window.btOpenMissing = function () {
@@ -195,13 +195,13 @@
         _btMissingList.forEach(u => (byDept[u.department || 'AM'] = byDept[u.department || 'AM'] || []).push(u));
         const html = Object.keys(byDept).sort().map(dep => `
             <div style="margin-bottom:12px">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="bt-tag" style="background:#1d4ed8;border-color:#3b82f6;color:#fff">${esc(dep)}</span><span style="font-size:11px;color:#94a3b8">${byDept[dep].length} คน</span></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="bt-tag" style="background:#1d4ed8;border-color:#3b82f6;color:#fff">${esc(dep)}</span><span style="font-size:11px;color:var(--k-tx3)">${byDept[dep].length} คน</span></div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
-                    ${byDept[dep].map(u => `<div style="display:flex;align-items:center;gap:8px;background:#0b1220;border:1px solid #1e293b;border-radius:10px;padding:7px 10px">${avatar(u.username, 28)}<div style="min-width:0"><div style="color:#f1f5f9;font-weight:700;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.username)}</div><div style="color:#8fa3bf;font-size:10.5px">${esc(u.team || '-')} · ${esc(u.allowed_shift || 'ทุกกะ')}</div></div></div>`).join('')}
+                    ${byDept[dep].map(u => `<div style="display:flex;align-items:center;gap:8px;background:var(--k-panel2);border:1px solid var(--k-line);border-radius:10px;padding:7px 10px">${avatar(u.username, 28)}<div style="min-width:0"><div style="color:var(--k-tx);font-weight:700;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.username)}</div><div style="color:var(--k-tx3);font-size:10.5px">${esc(u.team || '-')} · ${esc(u.allowed_shift || 'ทุกกะ')}</div></div></div>`).join('')}
                 </div>
-            </div>`).join('') || '<div style="padding:20px;text-align:center;color:#64748b">ลงครบทุกคนแล้ว 🎉</div>';
+            </div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--k-mute)">ลงครบทุกคนแล้ว 🎉</div>';
         Swal.fire({
-            title: `<div style="text-align:left;font-size:17px;font-weight:900;color:#fbbf24">🔔 ยังไม่ลงพัก ${_btMissingList.length} คน</div><div style="text-align:left;font-size:11.5px;color:#94a3b8;font-weight:500">${fmtDate(dateVal())} · ${window._btActiveShifts ? 'เฉพาะกะที่ทำงานอยู่ตอนนี้ (' + window._btActiveShifts.join(', ') + ')' : 'ทุกกะของวันนั้น'} · ไม่นับคนลา/หยุด · ไม่นับหัวหน้า/แอดมิน</div>`,
+            title: `<div style="text-align:left;font-size:17px;font-weight:900;color:var(--k-amber-tx)">🔔 ยังไม่ลงพัก ${_btMissingList.length} คน</div><div style="text-align:left;font-size:11.5px;color:var(--k-tx3);font-weight:500">${fmtDate(dateVal())} · ${window._btActiveShifts ? 'เฉพาะกะที่ทำงานอยู่ตอนนี้ (' + window._btActiveShifts.join(', ') + ')' : 'ทุกกะของวันนั้น'} · ไม่นับคนลา/หยุด · ไม่นับหัวหน้า/แอดมิน</div>`,
             html: `<div style="text-align:left;max-height:60vh;overflow-y:auto">${html}</div>`,
             width: 'min(760px, 96vw)', background: '#0f172a', color: '#e2e8f0',
             showConfirmButton: false, showCloseButton: true,
@@ -277,27 +277,27 @@
             const rows = list.map(r => {
                 const canDel = isBoss || r.staff_name === me;
                 return `<div class="bt-row" data-id="${r.id}">
-                    <div style="display:flex;align-items:center;gap:10px;min-width:0">${avatar(r.staff_name, 32)}<b style="color:#f1f5f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.staff_name)}</b></div>
+                    <div style="display:flex;align-items:center;gap:10px;min-width:0">${avatar(r.staff_name, 32)}<b style="color:var(--k-tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.staff_name)}</b></div>
                     <div><span class="bt-tag">${esc(r.department || 'AM')}</span></div>
                     <div><span class="bt-tag">${esc(r.team || '-')}</span></div>
-                    <div style="color:#cbd5e1;font-size:12px"><b style="background:#334155;padding:1px 6px;border-radius:5px;margin-right:4px">${SHIFT_CODE[r.shift_name] || '-'}</b>${esc(r.shift_name || '-')}</div>
-                    <div style="text-align:right"><div style="color:#e2e8f0;font-weight:700;font-family:monospace;display:flex;align-items:center;justify-content:flex-end;gap:4px"><span class="material-icons" style="font-size:14px;color:#94a3b8">schedule</span>${fmtTime(r.created_at)}</div><div class="bt-toggle" style="font-size:11px;color:#94a3b8;cursor:pointer;user-select:none">▸ รายละเอียดรายการ</div></div>
-                    <div style="text-align:center">${canDel ? `<button onclick="event.stopPropagation();btDel(${r.id},'${esc(r.shift_name)}')" title="ลบรายการนี้" style="border:none;background:rgba(239,68,68,.12);color:#f87171;width:30px;height:30px;border-radius:8px;cursor:pointer"><span class="material-icons" style="font-size:16px">delete</span></button>` : ''}</div>
-                    <div class="bt-det">ลงเมื่อ <b style="color:#e2e8f0">${fmtFull(r.created_at)}</b> · ลงโดย <b style="color:#e2e8f0">${esc(r.staff_name)}</b> · วันทำงาน ${esc(r.work_date)} · รหัสรายการ #${r.id}</div>
+                    <div style="color:var(--k-tx2);font-size:12px"><b style="background:var(--k-btn-h);padding:1px 6px;border-radius:5px;margin-right:4px">${SHIFT_CODE[r.shift_name] || '-'}</b>${esc(r.shift_name || '-')}</div>
+                    <div style="text-align:right"><div style="color:var(--k-tx);font-weight:700;font-family:monospace;display:flex;align-items:center;justify-content:flex-end;gap:4px"><span class="material-icons" style="font-size:14px;color:var(--k-tx3)">schedule</span>${fmtTime(r.created_at)}</div><div class="bt-toggle" style="font-size:11px;color:var(--k-tx3);cursor:pointer;user-select:none">▸ รายละเอียดรายการ</div></div>
+                    <div style="text-align:center">${canDel ? `<button onclick="event.stopPropagation();btDel(${r.id},'${esc(r.shift_name)}')" title="ลบรายการนี้" style="border:none;background:rgba(239,68,68,.12);color:var(--k-red-tx);width:30px;height:30px;border-radius:8px;cursor:pointer"><span class="material-icons" style="font-size:16px">delete</span></button>` : ''}</div>
+                    <div class="bt-det">ลงเมื่อ <b style="color:var(--k-tx)">${fmtFull(r.created_at)}</b> · ลงโดย <b style="color:var(--k-tx)">${esc(r.staff_name)}</b> · วันทำงาน ${esc(r.work_date)} · รหัสรายการ #${r.id}</div>
                 </div>`;
-            }).join('') || `<div style="padding:30px;text-align:center;color:#64748b;font-size:13px">ไม่มีรายชื่อ</div>`;
+            }).join('') || `<div style="padding:30px;text-align:center;color:var(--k-mute);font-size:13px">ไม่มีรายชื่อ</div>`;
             const box = document.getElementById('btSlotBox'); if (!box) return;
             box.innerHTML = `
-                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:#0b1220;border:1px solid #1e293b;border-radius:12px;margin-bottom:10px;align-items:center">
-                    <div style="font-size:11px;color:#94a3b8;margin-right:6px;line-height:1.5"><b style="color:#cbd5e1">สรุปตามแผนก / เว็บ</b><br>แสดง ${list.length} จาก ${all.length} คน</div>${chips}
+                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--k-panel2);border:1px solid var(--k-line);border-radius:12px;margin-bottom:10px;align-items:center">
+                    <div style="font-size:11px;color:var(--k-tx3);margin-right:6px;line-height:1.5"><b style="color:var(--k-tx2)">สรุปตามแผนก / เว็บ</b><br>แสดง ${list.length} จาก ${all.length} คน</div>${chips}
                 </div>
-                <div class="bt-row" style="font-size:11px;color:#94a3b8;font-weight:800;border-bottom:1px solid #334155"><div>ชื่อ</div><div>แผนก</div><div>เว็บ</div><div>กะ</div><div style="text-align:right">เวลาที่ลง</div><div></div></div>
+                <div class="bt-row" style="font-size:11px;color:var(--k-tx3);font-weight:800;border-bottom:1px solid var(--k-line2)"><div>ชื่อ</div><div>แผนก</div><div>เว็บ</div><div>กะ</div><div style="text-align:right">เวลาที่ลง</div><div></div></div>
                 <div style="max-height:52vh;overflow-y:auto">${rows}</div>`;
             box.querySelectorAll('.bt-chip').forEach(c => c.onclick = () => { chipKey = c.dataset.k; render(); });
             box.querySelectorAll('.bt-toggle').forEach(t => t.onclick = e => { const row = e.target.closest('.bt-row'); row.classList.toggle('open'); e.target.textContent = row.classList.contains('open') ? '▾ รายละเอียดรายการ' : '▸ รายละเอียดรายการ'; });
         };
         Swal.fire({
-            title: `<div style="text-align:left"><div style="font-size:20px;font-weight:900;color:#fff;font-family:monospace">${esc(slot.replace('-', ' – '))}</div><div style="font-size:12px;color:#94a3b8;font-weight:500">${fmtDate(dateVal())} · จองแล้ว <span id="btSlotCount">0</span> คน</div></div>`,
+            title: `<div style="text-align:left"><div style="font-size:20px;font-weight:900;color:var(--k-tx-strong);font-family:monospace">${esc(slot.replace('-', ' – '))}</div><div style="font-size:12px;color:var(--k-tx3);font-weight:500">${fmtDate(dateVal())} · จองแล้ว <span id="btSlotCount">0</span> คน</div></div>`,
             html: `<div id="btSlotBox" style="text-align:left"></div>`,
             width: 'min(960px, 96vw)', background: '#0f172a', color: '#e2e8f0',
             showConfirmButton: false, showCloseButton: true,

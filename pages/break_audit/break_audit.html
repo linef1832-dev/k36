@@ -1,105 +1,105 @@
 <!-- ⏱️ ตรวจเวลาลุกจากที่นั่ง — ข้อมูลสดจากกลุ่ม Telegram (ผ่าน tg-listener → ตาราง break_punches) -->
 <div class="w-full animate-fade-in pb-10" id="baPage">
     <style>
-        #baPage .ba-sel{background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:9px;padding:8px 10px;font-size:13px;font-weight:700;outline:none;min-width:120px}
+        #baPage .ba-sel{background:var(--k-panel2);border:1px solid var(--k-line2);color:var(--k-tx);border-radius:9px;padding:8px 10px;font-size:13px;font-weight:700;outline:none;min-width:120px}
         #baPage .ba-sel:focus{border-color:#60a5fa}
-        #baPage .ba-lbl{font-size:10px;color:#94a3b8;font-weight:800;margin-bottom:4px}
-        #baPage .ba-navbtn{width:34px;height:34px;border-radius:9px;border:1px solid #334155;background:#0f172a;color:#cbd5e1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
-        #baPage .ba-navbtn:hover{border-color:#60a5fa;color:#fff}
+        #baPage .ba-lbl{font-size:10px;color:var(--k-tx3);font-weight:800;margin-bottom:4px}
+        #baPage .ba-navbtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--k-line2);background:var(--k-panel2);color:var(--k-tx2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+        #baPage .ba-navbtn:hover{border-color:#60a5fa;color:var(--k-tx-strong)}
 
         /* ไฟสถานะตัวดักฟัง */
-        #baPage .ba-live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:99px;border:1px solid #334155;color:#94a3b8;background:#0f172a}
+        #baPage .ba-live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:99px;border:1px solid var(--k-line2);color:var(--k-tx3);background:var(--k-panel2)}
         #baPage .ba-live .dot{width:7px;height:7px;border-radius:50%;background:#64748b}
-        #baPage .ba-live.on{border-color:rgba(34,197,94,.45);color:#86efac;background:rgba(34,197,94,.1)}
+        #baPage .ba-live.on{border-color:rgba(34,197,94,.45);color:var(--k-green-tx);background:rgba(34,197,94,.1)}
         #baPage .ba-live.on .dot{background:#22c55e;animation:baPulse 1.4s infinite}
-        #baPage .ba-live.off{border-color:rgba(239,68,68,.45);color:#fca5a5;background:rgba(239,68,68,.1)}
+        #baPage .ba-live.off{border-color:rgba(239,68,68,.45);color:var(--k-red-tx);background:rgba(239,68,68,.1)}
         #baPage .ba-live.off .dot{background:#ef4444}
         @keyframes baPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.65)}}
 
         /* ชิปสรุปด้านบน */
         #baPage .ba-tally{display:flex;flex-wrap:wrap;gap:8px}
-        #baPage .ba-t{flex:1 1 120px;background:#0b1220;border:1px solid rgba(148,163,184,.16);border-radius:12px;padding:10px 12px;cursor:pointer;transition:border-color .15s,background .15s;text-align:left}
-        #baPage .ba-t:hover{border-color:rgba(96,165,250,.5);background:#0e1730}
+        #baPage .ba-t{flex:1 1 120px;background:var(--k-panel2);border:1px solid rgba(148,163,184,.16);border-radius:12px;padding:10px 12px;cursor:pointer;transition:border-color .15s,background .15s;text-align:left}
+        #baPage .ba-t:hover{border-color:rgba(96,165,250,.5);background:var(--k-panel2)}
         #baPage .ba-t.on{border-color:#60a5fa;background:rgba(59,130,246,.12)}
-        #baPage .ba-t .n{display:block;font-size:24px;font-weight:900;line-height:1.15;color:#f1f5f9;font-variant-numeric:tabular-nums}
-        #baPage .ba-t .l{display:block;font-size:11.5px;color:#94a3b8;font-weight:700}
-        #baPage .ba-t.over .n{color:#f87171}
-        #baPage .ba-t.near .n{color:#fbbf24}
-        #baPage .ba-t.live .n{color:#4ade80}
+        #baPage .ba-t .n{display:block;font-size:24px;font-weight:900;line-height:1.15;color:var(--k-tx);font-variant-numeric:tabular-nums}
+        #baPage .ba-t .l{display:block;font-size:11.5px;color:var(--k-tx3);font-weight:700}
+        #baPage .ba-t.over .n{color:var(--k-red-tx)}
+        #baPage .ba-t.near .n{color:var(--k-amber-tx)}
+        #baPage .ba-t.live .n{color:var(--k-green-tx)}
 
         /* แถวพนักงาน */
         #baPage .ba-row{border-bottom:1px solid rgba(148,163,184,.1)}
         #baPage .ba-row>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:4px 1fr auto;gap:0 12px;align-items:center;padding:11px 10px}
         #baPage .ba-row>summary::-webkit-details-marker{display:none}
         #baPage .ba-row:hover>summary{background:rgba(148,163,184,.05)}
-        #baPage .ba-bar{width:4px;align-self:stretch;border-radius:2px;background:#334155}
+        #baPage .ba-bar{width:4px;align-self:stretch;border-radius:2px;background:var(--k-btn-h)}
         #baPage .ba-row[data-state="over"] .ba-bar{background:#ef4444}
         #baPage .ba-row[data-state="near"] .ba-bar{background:#f59e0b}
-        #baPage .ba-nm{font-weight:800;color:#e2e8f0;font-size:14px}
-        #baPage .ba-meta{font-size:11px;color:#94a3b8;margin-top:1px}
-        #baPage .ba-tot{text-align:right;font-weight:900;font-size:18px;color:#f1f5f9;font-family:ui-monospace,Menlo,monospace}
-        #baPage .ba-row[data-state="over"] .ba-tot{color:#f87171}
-        #baPage .ba-row[data-state="near"] .ba-tot{color:#fbbf24}
-        #baPage .ba-tot small{display:block;font-size:10.5px;font-weight:700;color:#64748b;font-family:inherit}
+        #baPage .ba-nm{font-weight:800;color:var(--k-tx);font-size:14px}
+        #baPage .ba-meta{font-size:11px;color:var(--k-tx3);margin-top:1px}
+        #baPage .ba-tot{text-align:right;font-weight:900;font-size:18px;color:var(--k-tx);font-family:ui-monospace,Menlo,monospace}
+        #baPage .ba-row[data-state="over"] .ba-tot{color:var(--k-red-tx)}
+        #baPage .ba-row[data-state="near"] .ba-tot{color:var(--k-amber-tx)}
+        #baPage .ba-tot small{display:block;font-size:10.5px;font-weight:700;color:var(--k-mute);font-family:inherit}
 
         /* นับรอบแยกหมวด */
         #baPage .ba-kinds{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
-        #baPage .ba-k{display:flex;align-items:center;gap:6px;background:#0f172a;border:1px solid rgba(148,163,184,.16);border-radius:9px;padding:5px 10px}
+        #baPage .ba-k{display:flex;align-items:center;gap:6px;background:var(--k-panel2);border:1px solid rgba(148,163,184,.16);border-radius:9px;padding:5px 10px}
         #baPage .ba-k.off{opacity:.42}
         #baPage .ba-kdot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
-        #baPage .ba-kname{font-size:12px;color:#cbd5e1;font-weight:700}
-        #baPage .ba-kn{font-size:14px;color:#f1f5f9;font-weight:900;font-variant-numeric:tabular-nums;margin-left:2px}
-        #baPage .ba-kunit{font-size:11px;color:#64748b}
-        #baPage .ba-ktime{font-size:12px;color:#94a3b8;font-family:ui-monospace,Menlo,monospace;border-left:1px solid rgba(148,163,184,.2);padding-left:8px;margin-left:2px}
+        #baPage .ba-kname{font-size:12px;color:var(--k-tx2);font-weight:700}
+        #baPage .ba-kn{font-size:14px;color:var(--k-tx);font-weight:900;font-variant-numeric:tabular-nums;margin-left:2px}
+        #baPage .ba-kunit{font-size:11px;color:var(--k-mute)}
+        #baPage .ba-ktime{font-size:12px;color:var(--k-tx3);font-family:ui-monospace,Menlo,monospace;border-left:1px solid rgba(148,163,184,.2);padding-left:8px;margin-left:2px}
         #baPage #baSettings>summary{list-style:none}
         #baPage #baSettings>summary::-webkit-details-marker{display:none}
-        #baPage .ba-dept{display:inline-flex;align-items:center;gap:6px;background:#0b1220;border:1px solid rgba(148,163,184,.2);border-radius:9px;padding:6px 11px;cursor:pointer;font-size:12.5px;color:#cbd5e1;font-weight:700;user-select:none}
+        #baPage .ba-dept{display:inline-flex;align-items:center;gap:6px;background:var(--k-panel2);border:1px solid rgba(148,163,184,.2);border-radius:9px;padding:6px 11px;cursor:pointer;font-size:12.5px;color:var(--k-tx2);font-weight:700;user-select:none}
         #baPage .ba-dept:hover{border-color:#60a5fa}
         #baPage .ba-dept input{width:15px;height:15px;accent-color:#f59e0b;cursor:pointer}
-        #baPage .ba-dept.on{border-color:#f59e0b;background:rgba(245,158,11,.1);color:#fcd34d}
-        #baPage .ba-open{grid-column:2/-1;font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px;margin-top:2px}
+        #baPage .ba-dept.on{border-color:#f59e0b;background:rgba(245,158,11,.1);color:var(--k-amber-tx)}
+        #baPage .ba-open{grid-column:2/-1;font-size:11px;color:var(--k-mute);display:flex;align-items:center;gap:4px;margin-top:2px}
         #baPage .ba-open .material-icons{font-size:14px;transition:transform .15s}
         #baPage .ba-row[open] .ba-open .material-icons{transform:rotate(90deg)}
         #baPage .ba-row[open] .ba-open{color:#60a5fa}
-        #baPage .ba-cnt{font-size:11px;font-weight:700;color:#94a3b8;background:#0f172a;border:1px solid rgba(148,163,184,.18);border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+        #baPage .ba-cnt{font-size:11px;font-weight:700;color:var(--k-tx3);background:var(--k-panel2);border:1px solid rgba(148,163,184,.18);border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:middle}
 
         #baPage .ba-chips{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:5px;padding-bottom:2px}
-        #baPage .ba-chip{font-size:11px;font-weight:800;padding:1px 8px;border-radius:99px;border:1px solid #334155;color:#94a3b8;background:#0f172a}
-        #baPage .ba-chip.bad{border-color:rgba(239,68,68,.45);color:#fca5a5;background:rgba(239,68,68,.12)}
-        #baPage .ba-chip.warn{border-color:rgba(245,158,11,.45);color:#fcd34d;background:rgba(245,158,11,.12)}
-        #baPage .ba-chip.live{border-color:rgba(34,197,94,.45);color:#86efac;background:rgba(34,197,94,.12)}
+        #baPage .ba-chip{font-size:11px;font-weight:800;padding:1px 8px;border-radius:99px;border:1px solid var(--k-line2);color:var(--k-tx3);background:var(--k-panel2)}
+        #baPage .ba-chip.bad{border-color:rgba(239,68,68,.45);color:var(--k-red-tx);background:rgba(239,68,68,.12)}
+        #baPage .ba-chip.warn{border-color:rgba(245,158,11,.45);color:var(--k-amber-tx);background:rgba(245,158,11,.12)}
+        #baPage .ba-chip.live{border-color:rgba(34,197,94,.45);color:var(--k-green-tx);background:rgba(34,197,94,.12)}
 
         #baPage .ba-det{grid-column:1/-1;padding:2px 10px 14px 26px}
         #baPage .ba-det table{width:100%;border-collapse:collapse;font-size:12.5px}
-        #baPage .ba-det th{text-align:left;color:#64748b;font-size:10.5px;font-weight:800;padding:4px 8px 4px 0;border-bottom:1px solid rgba(148,163,184,.12)}
-        #baPage .ba-det td{padding:5px 8px 5px 0;border-bottom:1px solid rgba(148,163,184,.08);color:#cbd5e1}
+        #baPage .ba-det th{text-align:left;color:var(--k-mute);font-size:10.5px;font-weight:800;padding:4px 8px 4px 0;border-bottom:1px solid rgba(148,163,184,.12)}
+        #baPage .ba-det td{padding:5px 8px 5px 0;border-bottom:1px solid rgba(148,163,184,.08);color:var(--k-tx2)}
         #baPage .ba-det td.n{text-align:right;font-family:ui-monospace,Menlo,monospace;padding-right:0}
         #baPage .ba-det tr.linked td{border-left:2px solid #ef4444;padding-left:7px}
         #baPage .ba-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 
         /* ═══ 🧾 รายรอบแบบการ์ดพรีเมียม ═══ */
         #baPage .ba-ses-head,#baPage .ba-ses{display:grid;grid-template-columns:34px 170px 190px 170px 1fr;gap:0 14px;align-items:center}
-        #baPage .ba-ses-head{padding:4px 12px 6px;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#5d6b82}
-        #baPage .ba-ses{position:relative;margin:4px 0;padding:9px 12px;border-radius:12px;background:linear-gradient(90deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);transition:border-color .15s,background .15s}
+        #baPage .ba-ses-head{padding:4px 12px 6px;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--k-mute3)}
+        #baPage .ba-ses{position:relative;margin:4px 0;padding:9px 12px;border-radius:12px;background:linear-gradient(90deg,color-mix(in srgb,var(--k-tx-strong) 3.5%,transparent),color-mix(in srgb,var(--k-tx-strong) 1.5%,transparent));border:1px solid color-mix(in srgb,var(--k-tx-strong) 6.0%,transparent);transition:border-color .15s,background .15s}
         #baPage .ba-ses::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--k)}
-        #baPage .ba-ses:hover{border-color:rgba(232,193,90,.35);background:linear-gradient(90deg,rgba(232,193,90,.06),rgba(255,255,255,.02))}
-        #baPage .ba-ses.bad{border-color:rgba(239,68,68,.35);background:linear-gradient(90deg,rgba(239,68,68,.08),rgba(255,255,255,.015))}
+        #baPage .ba-ses:hover{border-color:rgba(232,193,90,.35);background:linear-gradient(90deg,rgba(232,193,90,.06),color-mix(in srgb,var(--k-tx-strong) 2.0%,transparent))}
+        #baPage .ba-ses.bad{border-color:rgba(239,68,68,.35);background:linear-gradient(90deg,rgba(239,68,68,.08),color-mix(in srgb,var(--k-tx-strong) 1.5%,transparent))}
         #baPage .ba-ses.warn{border-color:rgba(245,158,11,.3)}
         #baPage .ba-ses-n{width:26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#0b1120;background:linear-gradient(135deg,#f5e3ae,#E8C15A);box-shadow:0 2px 8px rgba(232,193,90,.25)}
         #baPage .ba-ses.bad .ba-ses-n{background:linear-gradient(135deg,#fca5a5,#ef4444);color:#fff;box-shadow:0 2px 8px rgba(239,68,68,.3)}
-        #baPage .ba-ses-cat{font-size:13px;font-weight:800;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        #baPage .ba-ses-time{display:flex;align-items:center;gap:6px;font-family:ui-monospace,Menlo,monospace;font-size:13.5px;font-weight:800;color:#f1f5f9;font-variant-numeric:tabular-nums}
-        #baPage .ba-ses-time .material-icons{font-size:14px;color:#E8C15A}
+        #baPage .ba-ses-cat{font-size:13px;font-weight:800;color:var(--k-tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        #baPage .ba-ses-time{display:flex;align-items:center;gap:6px;font-family:ui-monospace,Menlo,monospace;font-size:13.5px;font-weight:800;color:var(--k-tx);font-variant-numeric:tabular-nums}
+        #baPage .ba-ses-time .material-icons{font-size:14px;color:var(--k-gold-tx)}
         #baPage .ba-ses-dur-t{display:flex;align-items:baseline;gap:6px;font-family:ui-monospace,Menlo,monospace;font-size:13px;font-variant-numeric:tabular-nums}
-        #baPage .ba-ses-dur-t small{font-size:10.5px;color:#64748b;font-family:inherit}
-        #baPage .ba-ses-bar{height:4px;border-radius:4px;background:rgba(255,255,255,.07);margin-top:5px;overflow:hidden}
+        #baPage .ba-ses-dur-t small{font-size:10.5px;color:var(--k-mute);font-family:inherit}
+        #baPage .ba-ses-bar{height:4px;border-radius:4px;background:color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent);margin-top:5px;overflow:hidden}
         #baPage .ba-ses-bar i{display:block;height:100%;border-radius:4px;transition:width .3s}
         #baPage .ba-ses-tags{display:flex;flex-wrap:wrap;gap:5px}
-        #baPage .ba-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid rgba(148,163,184,.25);color:#94a3b8;background:rgba(148,163,184,.08)}
+        #baPage .ba-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid rgba(148,163,184,.25);color:var(--k-tx3);background:rgba(148,163,184,.08)}
         #baPage .ba-tag .material-icons{font-size:12px}
-        #baPage .ba-tag.ok{border-color:rgba(34,197,94,.35);color:#86efac;background:rgba(34,197,94,.1)}
-        #baPage .ba-tag.warn{border-color:rgba(245,158,11,.4);color:#fcd34d;background:rgba(245,158,11,.1)}
-        #baPage .ba-tag.bad{border-color:rgba(239,68,68,.45);color:#fca5a5;background:rgba(239,68,68,.12)}
+        #baPage .ba-tag.ok{border-color:rgba(34,197,94,.35);color:var(--k-green-tx);background:rgba(34,197,94,.1)}
+        #baPage .ba-tag.warn{border-color:rgba(245,158,11,.4);color:var(--k-amber-tx);background:rgba(245,158,11,.1)}
+        #baPage .ba-tag.bad{border-color:rgba(239,68,68,.45);color:var(--k-red-tx);background:rgba(239,68,68,.12)}
         #baPage .ba-tag.dim{opacity:.75}
         @media(max-width:900px){
             #baPage .ba-ses-head{display:none}

@@ -222,11 +222,11 @@ window._waitForAllowedIp = function(user, remember, ipCfg, matchesFn, firstIp) {
                 <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(232,193,90,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(232,193,90,0.35)">
                     <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#E8C15A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z"/></svg>
                 </div>
-                <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">IP ยังไม่ได้รับอนุญาต</div>
-                <div style="font-size:13px;color:#94a3b8;line-height:1.8">
-                    IP ปัจจุบัน: <span id="ipWaitCur" style="font-family:monospace;color:#f87171;font-weight:700">${firstIp || 'ตรวจไม่ได้'}</span>
+                <div style="font-size:18px;font-weight:800;color:var(--k-tx-strong);margin-bottom:8px">IP ยังไม่ได้รับอนุญาต</div>
+                <div style="font-size:13px;color:var(--k-tx3);line-height:1.8">
+                    IP ปัจจุบัน: <span id="ipWaitCur" style="font-family:monospace;color:var(--k-red-tx);font-weight:700">${firstIp || 'ตรวจไม่ได้'}</span>
                     <span style="display:inline-block;width:10px;height:10px;border:2px solid #E8C15A;border-top-color:transparent;border-radius:50%;margin-left:6px;vertical-align:-1px;animation:ipspin 0.8s linear infinite"></span><br>
-                    เปิด VPN ให้ตรง IP ที่กำหนดได้เลย<br><b style="color:#E8C15A">ระบบเช็คให้อัตโนมัติ ผ่านปุ๊บพาเข้าทันที</b>
+                    เปิด VPN ให้ตรง IP ที่กำหนดได้เลย<br><b style="color:var(--k-gold-tx)">ระบบเช็คให้อัตโนมัติ ผ่านปุ๊บพาเข้าทันที</b>
                 </div>
                 <style>@keyframes ipspin{to{transform:rotate(360deg)}}</style>
             </div>`,
@@ -530,8 +530,8 @@ async function handleLogin(e) {
                         <svg width="22" height="22" viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="8" fill="#111"/><polygon points="7,9 12,4 21,18 12,32 7,27 15,18" fill="#cc0000"/><polygon points="15,18 21,18 23,23 18,28 12,28" fill="#ff4444" opacity="0.85"/></svg>
                     </div>
                 </div>
-                <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:4px">กำลังตรวจสอบ</div>
-                <div style="font-size:12px;color:#94a3b8">กรุณารอสักครู่...</div>
+                <div style="font-size:15px;font-weight:700;color:var(--k-tx-strong);margin-bottom:4px">กำลังตรวจสอบ</div>
+                <div style="font-size:12px;color:var(--k-tx3)">กรุณารอสักครู่...</div>
             </div>
             <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
         `,
@@ -565,8 +565,8 @@ async function handleLogin(e) {
                         <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(234,179,8,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(234,179,8,0.3)">
                             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                         </div>
-                        <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">ไม่พบชื่อพนักงาน</div>
-                        <div style="font-size:13px;color:#94a3b8">โปรดตรวจสอบตัวสะกดแล้วลองใหม่</div>
+                        <div style="font-size:18px;font-weight:800;color:var(--k-tx-strong);margin-bottom:8px">ไม่พบชื่อพนักงาน</div>
+                        <div style="font-size:13px;color:var(--k-tx3)">โปรดตรวจสอบตัวสะกดแล้วลองใหม่</div>
                     </div>
                 `,
                 background: '#0b1120',
@@ -594,8 +594,8 @@ async function handleLogin(e) {
                         <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(220,38,38,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(220,38,38,0.3)">
                             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </div>
-                        <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">รหัส PIN ไม่ถูกต้อง</div>
-                        <div style="font-size:13px;color:#94a3b8">กรุณาตรวจสอบรหัส PIN แล้วลองใหม่อีกครั้ง</div>
+                        <div style="font-size:18px;font-weight:800;color:var(--k-tx-strong);margin-bottom:8px">รหัส PIN ไม่ถูกต้อง</div>
+                        <div style="font-size:13px;color:var(--k-tx3)">กรุณาตรวจสอบรหัส PIN แล้วลองใหม่อีกครั้ง</div>
                     </div>
                 `,
                 background: '#0b1120',
@@ -657,8 +657,8 @@ async function handleLogin(e) {
                         <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(220,38,38,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(220,38,38,0.3)">
                             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                         </div>
-                        <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">เชื่อมต่อไม่สำเร็จ</div>
-                        <div style="font-size:13px;color:#94a3b8">เกิดข้อผิดพลาดในการเชื่อมต่อระบบ</div>
+                        <div style="font-size:18px;font-weight:800;color:var(--k-tx-strong);margin-bottom:8px">เชื่อมต่อไม่สำเร็จ</div>
+                        <div style="font-size:13px;color:var(--k-tx3)">เกิดข้อผิดพลาดในการเชื่อมต่อระบบ</div>
                     </div>
                 `,
                 background: '#0b1120',

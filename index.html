@@ -2,6 +2,15 @@
 <html lang="th" class="dark">
 <head>
     <meta charset="UTF-8">
+    <!-- 🌗 ตั้งโหมดสว่าง/มืดทันทีก่อนวาดหน้า (เดิมตั้งหลังโหลดเสร็จ + ไม่เคยถอด .dark ออก → เลือกโหมดสว่างแล้วรีเฟรชกลับเป็นมืดทุกครั้ง) -->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                document.documentElement.classList.toggle('dark', t !== 'light');   // ค่าเริ่มต้น = มืด
+            } catch (e) {}
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoiDai TaeHamRak</title>
 
@@ -14,10 +23,10 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "2026100530";</script>
+    <script>window._APP_VERSION = "2026100532";</script>
     <script>
         (function(v){
-            ['css/style.css','css/tailwind-compiled.css'].forEach(function(p){
+            ['css/style.css','css/tailwind-compiled.css','css/theme.css'].forEach(function(p){
                 document.write('<link rel="stylesheet" href="./'+p+'?v='+v+'">');
             });
         })(window._APP_VERSION);
@@ -40,22 +49,22 @@
     <!-- 🎩 Premium Theme Override — กราไฟต์ดำ × ทองแชมเปญ (เข้าชุดหน้า login) -->
     <style id="premium-theme">
         /* แถบเมนูซ้าย: พื้นเรียบลึก ขอบบางเนียน */
-        #menu-list .nm-menu-title{
-            font-size:13px; letter-spacing:0.02em; color:#aab6c8;
-            border-bottom:1px solid rgba(255,255,255,0.04) !important;
-            transition:background .15s,color .15s;
-        }
-        #menu-list .nm-menu-title:hover{ background:rgba(232,193,90,0.05); color:#f1f5f9; }
-        #menu-list .nm-menu-title.active{
+        /* ขนาด/ระยะของเมนู ใช้ทั้งสองโหมด */
+        #menu-list .nm-menu-title{ font-size:13px; letter-spacing:0.02em; transition:background .15s,color .15s; }
+        #menu-list .nm-menu-title .material-icons{ font-size:18px !important; }
+        /* สีโหมดมืด (โหมดสว่างอยู่ใน css/theme.css) */
+        html.dark #menu-list .nm-menu-title{ color:#aab6c8; border-bottom:1px solid rgba(255,255,255,0.04) !important; }
+        html.dark #menu-list .nm-menu-title:hover{ background:rgba(232,193,90,0.05); color:#f1f5f9; }
+        html.dark #menu-list .nm-menu-title.active{
             background:linear-gradient(90deg,rgba(232,193,90,0.12),transparent 70%);
             color:#f5e3ae; box-shadow:inset 3px 0 0 #E8C15A;
         }
         /* ไอคอนเมนู: เลิกสีสายรุ้ง → โทนเดียวนิ่ง ๆ, ทองเฉพาะอันที่เลือก */
-        #menu-list .nm-menu-title .material-icons{ color:#5d6b82 !important; font-size:18px !important; }
-        #menu-list .nm-menu-title:hover .material-icons{ color:#c9d3e0 !important; }
-        #menu-list .nm-menu-title.active .material-icons{ color:#E8C15A !important; }
+        html.dark #menu-list .nm-menu-title .material-icons{ color:#5d6b82 !important; }
+        html.dark #menu-list .nm-menu-title:hover .material-icons{ color:#c9d3e0 !important; }
+        html.dark #menu-list .nm-menu-title.active .material-icons{ color:#E8C15A !important; }
         /* เมนูย่อย discord/admin */
-        #menu-discord button:hover, #menu-admin button:hover{ color:#f5e3ae !important; background:rgba(232,193,90,0.06) !important; }
+        html.dark #menu-discord button:hover, html.dark #menu-admin button:hover{ color:#f5e3ae !important; background:rgba(232,193,90,0.06) !important; }
         /* 📐 ปุ่มหุบแถบ: โชว์เฉพาะจอคอม */
         .sidebar-collapse-row{ display:none; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px; margin-top:8px; }
         @media (min-width:768px){
@@ -339,7 +348,7 @@
                     </div>
                 </div>
 
-            </div> <div id="app-content" class="flex-1 w-full min-w-0 pb-10 relative"></div>
+            </div> <div id="app-content" class="k-auto-light flex-1 w-full min-w-0 pb-10 relative"></div>
 
         </div>
     </div>
@@ -475,6 +484,7 @@
             clearTimeout(flyHideT);
             if (!flyEl) {
                 flyEl = document.createElement('div');
+                flyEl.id = 'secFly';   // ใช้ให้ theme.css แต่งโหมดสว่าง
                 flyEl.style.cssText = 'position:fixed;z-index:99;min-width:215px;background:linear-gradient(165deg,#101828,#0b111e);border:1px solid rgba(255,255,255,0.1);border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,0.55);padding:8px;display:none';
                 flyEl.addEventListener('mouseenter', function() { clearTimeout(flyHideT); });
                 flyEl.addEventListener('mouseleave', hideFlySoon);

@@ -1,18 +1,18 @@
 <!-- 📊 สรุปยอดทำรายการ (ออกแบบใหม่) — id / onclick / template เดิมทุกตัว -->
 <style>
-    #summaryApp{background:#0b1222;color:#e7ecf5}
-    #summaryApp .sm-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 20px;background:#121c30;border-bottom:1px solid #24324b}
+    #summaryApp{background:var(--k-bg);color:var(--k-tx)}
+    #summaryApp .sm-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 20px;background:var(--k-panel);border-bottom:1px solid var(--k-line)}
     #summaryApp .sm-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none;box-shadow:0 6px 18px rgba(232,193,90,.25)}
     #summaryApp .sm-ico .material-icons{font-size:24px}
-    #summaryApp .sm-title{font-size:19px;font-weight:900;color:#fff;line-height:1.2}
-    #summaryApp .sm-sub{font-size:12px;font-weight:600;color:#8a97ad;margin-top:2px}
+    #summaryApp .sm-title{font-size:19px;font-weight:900;color:var(--k-tx-strong);line-height:1.2}
+    #summaryApp .sm-sub{font-size:12px;font-weight:600;color:var(--k-mute);margin-top:2px}
     #summaryApp .sm-body{flex:1;overflow-y:auto;padding:18px 20px}
     #summaryApp .sm-wrap{max-width:1600px;margin:0 auto;display:flex;flex-direction:column;gap:16px;padding-bottom:32px}
 
     /* ปุ่ม */
-    #summaryApp .sm-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 14px;border-radius:10px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;transition:background .15s,border-color .15s,color .15s,transform .08s}
-    #summaryApp .sm-btn .material-icons{font-size:17px;color:#9fb0cc}
-    #summaryApp .sm-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
+    #summaryApp .sm-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 14px;border-radius:10px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,border-color .15s,color .15s,transform .08s}
+    #summaryApp .sm-btn .material-icons{font-size:17px;color:var(--k-tx3)}
+    #summaryApp .sm-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4);color:var(--k-tx-strong)}
     #summaryApp .sm-btn:active{transform:scale(.97)}
     #summaryApp .sm-btn:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
     #summaryApp .sm-btn.sm{height:30px;padding:0 11px;font-size:12px;border-radius:8px}
@@ -20,15 +20,15 @@
     #summaryApp .sm-btn.primary{background:#E8C15A;border-color:#E8C15A;color:#1b1406;box-shadow:0 4px 14px rgba(232,193,90,.22)}
     #summaryApp .sm-btn.primary .material-icons{color:#1b1406}
     #summaryApp .sm-btn.primary:hover{background:#f1cf74;border-color:#f1cf74}
-    #summaryApp .sm-btn.green .material-icons{color:#4ade80}
+    #summaryApp .sm-btn.green .material-icons{color:var(--k-green-tx)}
 
     /* แผง */
-    #summaryApp .sm-panel{background:#121c30;border:1px solid #24324b;border-radius:16px;display:flex;flex-direction:column;min-height:0}
-    #summaryApp .sm-ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid #24324b}
+    #summaryApp .sm-panel{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px;display:flex;flex-direction:column;min-height:0}
+    #summaryApp .sm-ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--k-line)}
     #summaryApp .sm-pt{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
-    #summaryApp .sm-pt>.material-icons{font-size:19px;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;color:#E8C15A;background:rgba(232,193,90,.12)}
-    #summaryApp .sm-h{font-size:14.5px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px}
-    #summaryApp .sm-hint{font-size:11.5px;font-weight:600;color:#7d8ba3}
+    #summaryApp .sm-pt>.material-icons{font-size:19px;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;color:var(--k-gold-tx);background:rgba(232,193,90,.12)}
+    #summaryApp .sm-h{font-size:14.5px;font-weight:900;color:var(--k-tx-strong);display:flex;align-items:center;gap:8px}
+    #summaryApp .sm-hint{font-size:11.5px;font-weight:600;color:var(--k-mute2)}
     #summaryApp .sm-pb{padding:14px 16px}
 
     /* ขั้นตอน */
@@ -36,12 +36,12 @@
 
     /* อัปโหลด */
     #summaryApp .sm-ups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-    #summaryApp .sm-drop{--c:#60a5fa;display:flex;align-items:center;gap:12px;padding:14px;border-radius:12px;border:1.5px dashed color-mix(in srgb,var(--c) 45%,transparent);background:color-mix(in srgb,var(--c) 6%,#0f1829);cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
-    #summaryApp .sm-drop:hover,#summaryApp .sm-drop.bg-slate-100{background:color-mix(in srgb,var(--c) 14%,#0f1829) !important;border-color:var(--c)}
+    #summaryApp .sm-drop{--c:#60a5fa;display:flex;align-items:center;gap:12px;padding:14px;border-radius:12px;border:1.5px dashed color-mix(in srgb,var(--c) 45%,transparent);background:color-mix(in srgb,var(--c) 6%,var(--k-panel2));cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+    #summaryApp .sm-drop:hover,#summaryApp .sm-drop.bg-slate-100{background:color-mix(in srgb,var(--c) 14%,var(--k-panel2)) !important;border-color:var(--c)}
     #summaryApp .sm-drop .sm-dic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c)}
     #summaryApp .sm-drop .sm-dic .material-icons{font-size:22px}
-    #summaryApp .sm-dname{font-size:14px;font-weight:900;color:#fff}
-    #summaryApp .sm-dwebs{font-size:11.5px;font-weight:700;color:#8a97ad;margin-top:1px}
+    #summaryApp .sm-dname{font-size:14px;font-weight:900;color:var(--k-tx-strong)}
+    #summaryApp .sm-dwebs{font-size:11.5px;font-weight:700;color:var(--k-mute);margin-top:1px}
     #summaryApp .sm-dcta{font-size:11.5px;font-weight:800;color:var(--c);margin-top:4px;display:flex;align-items:center;gap:4px}
     #summaryApp .sm-dcta .material-icons{font-size:14px}
 
@@ -49,26 +49,26 @@
     #summaryApp .sm-kpibar{display:flex;align-items:stretch;gap:12px;flex-wrap:wrap;padding:12px 16px}
     #summaryApp #shiftSummaryStats{display:flex;gap:8px;flex:1 1 520px;min-width:0;overflow-x:auto}
     #summaryApp .sm-acts{display:flex;gap:8px;align-items:center;margin-left:auto}
-    #summaryApp .sm-kpi{flex:1;min-width:110px;padding:9px 14px;border-radius:12px;background:#0f1829;border:1px solid #24324b}
-    #summaryApp .sm-kpi .l{font-size:11px;font-weight:800;color:#8a97ad;display:flex;align-items:center;gap:5px}
-    #summaryApp .sm-kpi .v{font-size:22px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;line-height:1.25;display:flex;align-items:center;gap:6px}
+    #summaryApp .sm-kpi{flex:1;min-width:110px;padding:9px 14px;border-radius:12px;background:var(--k-panel2);border:1px solid var(--k-line)}
+    #summaryApp .sm-kpi .l{font-size:11px;font-weight:800;color:var(--k-mute);display:flex;align-items:center;gap:5px}
+    #summaryApp .sm-kpi .v{font-size:22px;font-weight:900;color:var(--k-tx-strong);font-variant-numeric:tabular-nums;line-height:1.25;display:flex;align-items:center;gap:6px}
     #summaryApp .sm-kpi .s{display:flex;gap:10px;font-size:11px;font-weight:800;margin-top:1px}
-    #summaryApp .sm-kpi.main{flex:1.4;border-color:rgba(232,193,90,.4);background:linear-gradient(180deg,rgba(232,193,90,.08),#0f1829)}
-    #summaryApp .sm-kpi.main .v{color:#E8C15A}
+    #summaryApp .sm-kpi.main{flex:1.4;border-color:rgba(232,193,90,.4);background:linear-gradient(180deg,rgba(232,193,90,.08),var(--k-panel2))}
+    #summaryApp .sm-kpi.main .v{color:var(--k-gold-tx)}
     #summaryApp .sm-kpi .dot{width:8px;height:8px;border-radius:99px;display:inline-block}
 
     /* ช่องกรอง */
-    #summaryApp .sm-field{display:flex;align-items:center;gap:6px;height:34px;padding:0 10px;border-radius:9px;background:#18233a;border:1px solid #2c3b58;color:#e7ecf5;position:relative}
-    #summaryApp .sm-field .material-icons{font-size:16px;color:#7d8ba3}
-    #summaryApp .sm-field select,#summaryApp .sm-field input{background:transparent !important;border:0 !important;outline:none;color:#f3f6fb !important;font-size:12.5px;font-weight:800;padding:0 !important;box-shadow:none !important;color-scheme:dark;min-width:0}
-    #summaryApp .sm-field select option{background:#18233a;color:#f3f6fb}
+    #summaryApp .sm-field{display:flex;align-items:center;gap:6px;height:34px;padding:0 10px;border-radius:9px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);position:relative}
+    #summaryApp .sm-field .material-icons{font-size:16px;color:var(--k-mute2)}
+    #summaryApp .sm-field select,#summaryApp .sm-field input{background:transparent !important;border:0 !important;outline:none;color:var(--k-tx) !important;font-size:12.5px;font-weight:800;padding:0 !important;box-shadow:none !important;min-width:0}
+    #summaryApp .sm-field select option{background:var(--k-field);color:var(--k-tx)}
     #summaryApp .sm-field:focus-within{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.15)}
     #summaryApp .sm-field.grow{flex:1 1 160px}
     #summaryApp .sm-field.grow input{width:100%}
-    #summaryApp .sm-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:999px;font-size:11.5px;font-weight:800;color:#9fb0cc;background:#0f1829;border:1px solid #24324b}
-    #summaryApp .sm-chip .material-icons{font-size:14px;color:#E8C15A}
-    #summaryApp .sm-chip b{color:#E8C15A}
-    #summaryApp .sm-filters{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;border-bottom:1px solid #1d2a42;background:#0f1829}
+    #summaryApp .sm-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:999px;font-size:11.5px;font-weight:800;color:var(--k-tx3);background:var(--k-panel2);border:1px solid var(--k-line)}
+    #summaryApp .sm-chip .material-icons{font-size:14px;color:var(--k-gold-tx)}
+    #summaryApp .sm-chip b{color:var(--k-gold-tx)}
+    #summaryApp .sm-filters{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;border-bottom:1px solid var(--k-line);background:var(--k-panel2)}
 
     /* ส่วนล่าง 2 แผง */
     #summaryApp .sm-split{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:16px}
@@ -76,24 +76,24 @@
     #summaryApp .sm-scroll{flex:1;overflow-y:auto;min-height:0;padding:10px 12px}
 
     /* ทำให้การ์ด/แถวที่ JS วาด (ใช้คลาส Tailwind) เข้าโทนเดียวกัน */
-    #summaryApp .sm-panel .bg-slate-800{background-color:#151f35 !important}
-    #summaryApp .sm-panel .bg-\[\#151f32\]{background-color:#151f35 !important}
-    #summaryApp .sm-panel .border-slate-700{border-color:#273650 !important}
-    #summaryApp .sm-panel .hover\:bg-slate-700:hover{background-color:#1c2a47 !important}
-    #summaryApp .sm-panel .bg-indigo-900\/60{background-color:#18233a !important}
-    #summaryApp .sm-panel .hover\:bg-indigo-800:hover{background-color:#1e2c4a !important}
+    #summaryApp .sm-panel .bg-slate-800{background-color:var(--k-card) !important}
+    #summaryApp .sm-panel .bg-\[\#151f32\]{background-color:var(--k-card) !important}
+    #summaryApp .sm-panel .border-slate-700{border-color:var(--k-line) !important}
+    #summaryApp .sm-panel .hover\:bg-slate-700:hover{background-color:var(--k-btn-h) !important}
+    #summaryApp .sm-panel .bg-indigo-900\/60{background-color:var(--k-field) !important}
+    #summaryApp .sm-panel .hover\:bg-indigo-800:hover{background-color:var(--k-btn-h) !important}
     #summaryApp .sm-panel .bg-indigo-600{background-color:#E8C15A !important;color:#1b1406 !important}
 
     /* month input ให้เห็นตัวอักษร */
     #leaderboardMonth::-webkit-datetime-edit,#leaderboardMonth::-webkit-datetime-edit-fields-wrapper,#leaderboardMonth::-webkit-datetime-edit-text,#leaderboardMonth::-webkit-datetime-edit-month-field,#leaderboardMonth::-webkit-datetime-edit-year-field{color:inherit !important}
-    #leaderboardMonth{color:#E8C15A !important;text-shadow:none !important}
+    #leaderboardMonth{color:var(--k-gold-tx) !important;text-shadow:none !important}
 
     @media (max-width:1100px){ #summaryApp .sm-split{grid-template-columns:1fr} #summaryApp .sm-ups{grid-template-columns:1fr} }
     @media (max-width:640px){ #summaryApp .sm-body{padding:12px} #summaryApp .sm-acts{width:100%} #summaryApp .sm-acts .sm-btn{flex:1} }
     @media (prefers-reduced-motion:reduce){ #summaryApp .sm-btn,#summaryApp .sm-drop{transition:none} }
 </style>
 
-<div id="summaryApp" class="fade-in flex flex-col h-full relative rounded-2xl overflow-hidden">
+<div id="summaryApp" class="k-auto-light fade-in flex flex-col h-full relative rounded-2xl overflow-hidden">
     <div class="sm-head shrink-0">
         <div class="sm-ico"><span class="material-icons">query_stats</span></div>
         <div>
@@ -163,7 +163,7 @@
                 </div>
                 <div class="sm-kpibar">
                     <div id="shiftSummaryStats" class="custom-scrollbar">
-                        <div class="sm-kpi" style="display:flex;align-items:center;justify-content:center;color:#7d8ba3;font-size:12.5px;font-weight:700">ยังไม่มีข้อมูล อัปโหลดไฟล์ในขั้นที่ 1 ก่อน</div>
+                        <div class="sm-kpi" style="display:flex;align-items:center;justify-content:center;color:var(--k-mute2);font-size:12.5px;font-weight:700">ยังไม่มีข้อมูล อัปโหลดไฟล์ในขั้นที่ 1 ก่อน</div>
                     </div>
                     <div class="sm-acts">
                         <button onclick="clearSummaryData()" class="sm-btn">
@@ -191,7 +191,7 @@
                 </div>
                 <div class="sm-pb">
                     <div id="summaryWebGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                        <div class="col-span-full text-center py-6 text-sm" style="color:#7d8ba3">รออัปโหลดข้อมูล...</div>
+                        <div class="col-span-full text-center py-6 text-sm" style="color:var(--k-mute2)">รออัปโหลดข้อมูล...</div>
                     </div>
                 </div>
             </section>
@@ -222,7 +222,7 @@
                         </label>
                     </div>
                     <div id="summaryLeaderboard" class="sm-scroll custom-scrollbar space-y-2 relative">
-                        <div class="text-center py-10 text-sm" style="color:#7d8ba3">รอโหลดข้อมูล...</div>
+                        <div class="text-center py-10 text-sm" style="color:var(--k-mute2)">รอโหลดข้อมูล...</div>
                     </div>
                 </section>
 
@@ -263,7 +263,7 @@
                         <input type="hidden" id="summaryDateFilter">
                     </div>
                     <div id="summaryTableBody" class="sm-scroll custom-scrollbar content-start">
-                        <div class="text-center py-20 font-bold flex flex-col items-center" style="color:#7d8ba3">
+                        <div class="text-center py-20 font-bold flex flex-col items-center" style="color:var(--k-mute2)">
                             <span class="material-icons text-6xl mb-2 opacity-20">inventory_2</span>
                             รออัปโหลดไฟล์ Excel หรือเลือกวันที่ด้านบน...
                         </div>
@@ -360,9 +360,9 @@
 
     <template id="tpl-shift-stats">
         <div class="sm-kpi main">
-            <div class="l"><span class="material-icons" style="font-size:14px;color:#E8C15A">functions</span>ยอดรวมทั้งหมด</div>
+            <div class="l"><span class="material-icons" style="font-size:14px;color:var(--k-gold-tx)">functions</span>ยอดรวมทั้งหมด</div>
             <div class="v">{{total}} {{totalDiffHtml}}</div>
-            <div class="s"><span style="color:#4ade80">สำเร็จ {{approved}}</span><span style="color:#f87171">ปฏิเสธ {{reject}}</span></div>
+            <div class="s"><span style="color:var(--k-green-tx)">สำเร็จ {{approved}}</span><span style="color:var(--k-red-tx)">ปฏิเสธ {{reject}}</span></div>
         </div>
         <div class="sm-kpi">
             <div class="l"><span class="dot" style="background:#fbbf24"></span>กะเช้า</div>
@@ -379,8 +379,8 @@
     </template>
 
     <template id="tpl-history-header">
-        <div class="flex justify-between items-center mb-3 gap-2 flex-wrap" style="padding:8px 8px 8px 12px;border-radius:10px;background:#18233a;border:1px solid #2c3b58">
-            <span class="flex items-center gap-1" style="font-size:12px;font-weight:800;color:#E8C15A">
+        <div class="flex justify-between items-center mb-3 gap-2 flex-wrap" style="padding:8px 8px 8px 12px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2)">
+            <span class="flex items-center gap-1" style="font-size:12px;font-weight:800;color:var(--k-gold-tx)">
                 <span class="material-icons" style="font-size:15px">history</span> กำลังดูข้อมูลย้อนหลัง
             </span>
             <button onclick="clearSummaryData()" class="sm-btn sm">

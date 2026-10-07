@@ -17,17 +17,16 @@
   }
   /* scrollbar ให้เห็นชัดเลย */
   #logoEditorApp aside ::-webkit-scrollbar { width: 8px; }
-  #logoEditorApp aside ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+  #logoEditorApp aside ::-webkit-scrollbar-track { background:color-mix(in srgb,var(--k-panel2) 20.0%,transparent); }
   #logoEditorApp aside ::-webkit-scrollbar-thumb { 
-    background: rgba(168, 85, 247, 0.5); 
+    background:rgba(168, 85, 247, 0.5); 
     border-radius: 4px;
   }
-  #logoEditorApp aside ::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
+  #logoEditorApp aside ::-webkit-scrollbar-thumb:hover { background:rgba(168, 85, 247, 0.8); }
   
   #leCanvasArea {
-    background-color: #1a1a1a;
-    background-image:
-      linear-gradient(45deg, #2a2a2a 25%, transparent 25%),
+    background-color:var(--k-panel);
+    background-image:linear-gradient(45deg, var(--k-card) 25%, transparent 25%),
       linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
       linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
       linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
@@ -36,22 +35,22 @@
   }
   #leCanvas { box-shadow: 0 25px 60px rgba(0,0,0,0.5); image-rendering: -webkit-optimize-contrast; }
   .le-tool-panel {
-    background: rgba(15, 23, 42, 0.97);
+    background:color-mix(in srgb,var(--k-panel2) 97.0%,transparent);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.08);
+    border:1px solid color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent);
   }
-  .le-btn-primary { background: linear-gradient(135deg, #ec4899, #a855f7); transition: all 0.2s; }
+  .le-btn-primary { background:linear-gradient(135deg, #ec4899, #a855f7); transition: all 0.2s; }
   .le-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(168, 85, 247, 0.4); }
-  .le-btn-danger { background: linear-gradient(135deg, #f43f5e, #dc2626); }
-  .le-btn-success { background: linear-gradient(135deg, #10b981, #14b8a6); }
-  .le-btn-download { background: linear-gradient(135deg, #6366f1, #06b6d4); }
-  .le-btn-amber { background: linear-gradient(135deg, #f59e0b, #d97706); }
-  .le-btn-cyan { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+  .le-btn-danger { background:linear-gradient(135deg, #f43f5e, #dc2626); }
+  .le-btn-success { background:linear-gradient(135deg, #10b981, #14b8a6); }
+  .le-btn-download { background:linear-gradient(135deg, #6366f1, #06b6d4); }
+  .le-btn-amber { background:linear-gradient(135deg, #f59e0b, #d97706); }
+  .le-btn-cyan { background:linear-gradient(135deg, #06b6d4, #0891b2); }
   
   /* Tab nav แนวนอน */
   .le-tab-nav {
-    background: rgba(0,0,0,0.4);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background:color-mix(in srgb,var(--k-panel2) 40.0%,transparent);
+    border-bottom:1px solid color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent);
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -66,49 +65,49 @@
     flex: 0 0 auto;
     min-width: 72px;
     padding: 10px 8px;
-    color: #94a3b8;
+    color:var(--k-tx3);
     cursor: pointer;
     font-size: 10px;
     font-weight: 800;
     transition: all 0.2s;
-    border-bottom: 2px solid transparent;
+    border-bottom:2px solid transparent;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
     white-space: nowrap;
   }
-  .le-tab-btn:hover { background: rgba(255,255,255,0.04); color: #cbd5e1; }
+  .le-tab-btn:hover { background:color-mix(in srgb,var(--k-tx-strong) 4.0%,transparent); color:var(--k-tx2); }
   .le-tab-btn.active {
-    color: #fff;
-    background: linear-gradient(180deg, rgba(168, 85, 247, 0.15), transparent);
-    border-bottom-color: #a855f7;
+    color:var(--k-tx-strong);
+    background:linear-gradient(180deg, rgba(168, 85, 247, 0.15), transparent);
+    border-bottom-color:#a855f7;
   }
   .le-tab-btn .material-icons { font-size: 18px; }
   
-  .le-zoom-btn { background: rgba(255,255,255,0.08); transition: all 0.15s; }
-  .le-zoom-btn:hover { background: rgba(255,255,255,0.18); }
+  .le-zoom-btn { background:color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent); transition: all 0.15s; }
+  .le-zoom-btn:hover { background:color-mix(in srgb,var(--k-tx-strong) 18.0%,transparent); }
   .le-floating-toolbar {
-    background: rgba(15, 23, 42, 0.92);
+    background:color-mix(in srgb,var(--k-panel2) 92.0%,transparent);
     backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.1);
+    border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent);
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
   }
   .le-shape-btn, .le-filter-btn {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    background:color-mix(in srgb,var(--k-tx-strong) 4.0%,transparent);
+    border:1px solid color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent);
     transition: all 0.15s;
     cursor: pointer;
   }
-  .le-shape-btn:hover, .le-filter-btn:hover { background: rgba(255,255,255,0.1); }
+  .le-shape-btn:hover, .le-filter-btn:hover { background:color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent); }
   .le-shape-btn.active {
-    background: linear-gradient(135deg, rgba(244, 63, 94, 0.3), rgba(220, 38, 38, 0.3));
-    border-color: rgba(244, 63, 94, 0.6);
+    background:linear-gradient(135deg, rgba(244, 63, 94, 0.3), rgba(220, 38, 38, 0.3));
+    border-color:rgba(244, 63, 94, 0.6);
     box-shadow: 0 0 12px rgba(244, 63, 94, 0.3);
   }
   .le-filter-btn.active {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.3));
-    border-color: rgba(168, 85, 247, 0.6);
+    background:linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.3));
+    border-color:rgba(168, 85, 247, 0.6);
   }
   .le-svg-overlay {
     position: absolute;
@@ -128,8 +127,8 @@
   @keyframes leDash { to { stroke-dashoffset: -16; } }
   
   .le-logo-preview {
-    background: rgba(16, 185, 129, 0.1);
-    border: 2px solid rgba(16, 185, 129, 0.4);
+    background:rgba(16, 185, 129, 0.1);
+    border:2px solid rgba(16, 185, 129, 0.4);
   }
   
   /* Slider แบบสวย */
@@ -138,7 +137,7 @@
     appearance: none;
     height: 6px;
     border-radius: 3px;
-    background: rgba(255,255,255,0.1);
+    background:color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent);
     outline: none;
   }
   .le-slider::-webkit-slider-thumb {
@@ -146,9 +145,9 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #ec4899, #a855f7);
+    background:linear-gradient(135deg, #ec4899, #a855f7);
     cursor: pointer;
-    border: 2px solid #fff;
+    border:2px solid #fff;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   }
   
@@ -158,12 +157,12 @@
     cursor: move;
     user-select: none;
     white-space: nowrap;
-    border: 2px dashed transparent;
+    border:2px dashed transparent;
     padding: 4px;
     transition: border-color 0.2s;
   }
   .le-text-overlay:hover, .le-text-overlay.selected {
-    border-color: #06b6d4;
+    border-color:#06b6d4;
   }
   .le-text-overlay.selected { box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.3); }
 </style>
@@ -406,7 +405,7 @@
                                     <!-- preset สี -->
                                     <div class="grid grid-cols-6 gap-1">
                                         <button onclick="void(0)" disabled style="background:#ffffff" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ขาว"></button>
-                                        <button onclick="void(0)" disabled style="background:#000000" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ดำ"></button>
+                                        <button onclick="void(0)" disabled style="background:var(--k-panel2)" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ดำ"></button>
                                         <button onclick="void(0)" disabled style="background:#ec4899" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ชมพู"></button>
                                         <button onclick="void(0)" disabled style="background:#a855f7" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ม่วง"></button>
                                         <button onclick="void(0)" disabled style="background:#f59e0b" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ส้ม"></button>
@@ -416,7 +415,7 @@
                                         <button onclick="void(0)" disabled style="background:#06b6d4" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="ฟ้า"></button>
                                         <button onclick="void(0)" disabled style="background:#facc15" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="เหลือง"></button>
                                         <button onclick="void(0)" disabled style="background:#dc2626" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="แดงเข้ม"></button>
-                                        <button onclick="void(0)" disabled style="background:#1e293b" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="กรมท่า"></button>
+                                        <button onclick="void(0)" disabled style="background:var(--k-card)" class="h-6 rounded border border-white/20 hover:scale-110 transition" title="กรมท่า"></button>
                                     </div>
                                 </div>
                             </div>
@@ -534,7 +533,7 @@
                             </div>
                             <div class="grid grid-cols-6 gap-1">
                                 <button onclick="leSplitChangeColor('#ffffff')" style="background:#ffffff" class="h-5 rounded border border-white/30"></button>
-                                <button onclick="leSplitChangeColor('#000000')" style="background:#000000" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#000000')" style="background:var(--k-panel2)" class="h-5 rounded border border-white/30"></button>
                                 <button onclick="leSplitChangeColor('#ec4899')" style="background:#ec4899" class="h-5 rounded border border-white/30"></button>
                                 <button onclick="leSplitChangeColor('#a855f7')" style="background:#a855f7" class="h-5 rounded border border-white/30"></button>
                                 <button onclick="leSplitChangeColor('#f59e0b')" style="background:#f59e0b" class="h-5 rounded border border-white/30"></button>
@@ -544,7 +543,7 @@
                                 <button onclick="leSplitChangeColor('#06b6d4')" style="background:#06b6d4" class="h-5 rounded border border-white/30"></button>
                                 <button onclick="leSplitChangeColor('#facc15')" style="background:#facc15" class="h-5 rounded border border-white/30"></button>
                                 <button onclick="leSplitChangeColor('#dc2626')" style="background:#dc2626" class="h-5 rounded border border-white/30"></button>
-                                <button onclick="leSplitChangeColor('#1e293b')" style="background:#1e293b" class="h-5 rounded border border-white/30"></button>
+                                <button onclick="leSplitChangeColor('#1e293b')" style="background:var(--k-card)" class="h-5 rounded border border-white/30"></button>
                             </div>
                         </div>
                         
@@ -822,7 +821,7 @@
                                 <button onclick="leSetDrawColor('#facc15')" style="background:#facc15" class="h-6 rounded border border-white/20"></button>
                                 <button onclick="leSetDrawColor('#10b981')" style="background:#10b981" class="h-6 rounded border border-white/20"></button>
                                 <button onclick="leSetDrawColor('#3b82f6')" style="background:#3b82f6" class="h-6 rounded border border-white/20"></button>
-                                <button onclick="leSetDrawColor('#000000')" style="background:#000000" class="h-6 rounded border border-white/20"></button>
+                                <button onclick="leSetDrawColor('#000000')" style="background:var(--k-panel2)" class="h-6 rounded border border-white/20"></button>
                             </div>
                         </div>
                         

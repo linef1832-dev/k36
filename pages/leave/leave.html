@@ -7,7 +7,7 @@
    id/onclick/คลาสที่ JS ใช้ ครบทุกตัว — ระบบจองทำงานเหมือนเดิม
    ════════════════════════════════════════════════════════════ */
 #leaveApp{
-    background:linear-gradient(180deg,#0c1424 0%,#0a0f1c 100%);
+    background:linear-gradient(180deg,var(--k-sunk) 0%,var(--k-panel2) 100%);
     border-radius:22px; border:1px solid rgba(232,193,90,0.14);
     box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 18px 60px -18px rgba(0,0,0,0.85);
 }
@@ -17,7 +17,7 @@
     flex-shrink:0; z-index:30; position:relative;
     display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;
     padding:9px 14px;
-    background:linear-gradient(120deg,#101a2e 0%,#0b1322 60%,#0a101d 100%);
+    background:linear-gradient(120deg,var(--k-panel) 0%,var(--k-panel2) 60%,var(--k-panel2) 100%);
     border-bottom:1px solid rgba(232,193,90,0.20);
 }
 .lv-title-wrap{ display:flex; align-items:center; gap:10px; min-width:0; }
@@ -28,16 +28,16 @@
     color:#3a2c07; box-shadow:0 6px 16px -6px rgba(232,193,90,0.7), inset 0 1px 0 rgba(255,255,255,0.6);
 }
 .lv-title-icon .material-icons{ font-size:18px; }
-.lv-title{ font-size:0.95rem; font-weight:800; letter-spacing:0.01em; color:#f1f5f9; display:flex; align-items:center; gap:8px; line-height:1.2; }
-.lv-subtitle{ font-size:10px; color:#8b9bb4; display:flex; align-items:center; gap:6px; margin-top:2px; }
+.lv-title{ font-size:0.95rem; font-weight:800; letter-spacing:0.01em; color:var(--k-tx); display:flex; align-items:center; gap:8px; line-height:1.2; }
+.lv-subtitle{ font-size:10px; color:var(--k-mute); display:flex; align-items:center; gap:6px; margin-top:2px; }
 
 /* แท็บแผนก — คงคลาส dept-segment-btn/active ให้ JS จัดการเหมือนเดิม */
 .lv-header .dept-segment-container{
-    background:rgba(2,8,19,0.55); border:1px solid rgba(232,193,90,0.16);
+    background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent); border:1px solid rgba(232,193,90,0.16);
     box-shadow:inset 0 2px 6px rgba(0,0,0,0.45);
 }
 .lv-header .dept-segment-btn{ padding:0.32rem 0.9rem; font-size:0.7rem; }
-.lv-header .dept-segment-btn:not(.active):hover{ color:#f5e3ae; background:rgba(232,193,90,0.07); }
+.lv-header .dept-segment-btn:not(.active):hover{ color:var(--k-gold-tx); background:rgba(232,193,90,0.07); }
 .lv-header .dept-segment-btn.active{ box-shadow:0 4px 14px -4px rgba(0,0,0,0.6), 0 0 0 1px rgba(232,193,90,0.35); }
 
 .lv-tools{ display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-left:auto; }
@@ -47,7 +47,7 @@
     flex-shrink:0; z-index:25;
     display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px;
     padding:7px 14px;
-    background:rgba(2,8,19,0.4);
+    background:color-mix(in srgb,var(--k-panel2) 40.0%,transparent);
     border-bottom:1px solid rgba(232,193,90,0.14);
     box-shadow:inset 0 4px 10px -8px rgba(0,0,0,0.7);
 }
@@ -58,18 +58,18 @@
 #leaveTypeToolbar{
     display:flex; flex-wrap:wrap; align-items:center; gap:6px;
     padding:5px 10px; border-radius:14px;
-    background:rgba(2,8,19,0.55); border:1px solid rgba(232,193,90,0.18);
+    background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent); border:1px solid rgba(232,193,90,0.18);
     box-shadow:inset 0 2px 6px rgba(0,0,0,0.4);
 }
 #leaveTypeToolbar.hidden{ display:none; }
 .lv-type-label{
-    font-size:10.5px; font-weight:800; color:#c9a54a;
+    font-size:10.5px; font-weight:800; color:var(--k-gold-tx);
     display:flex; align-items:center; gap:4px; letter-spacing:0.03em; white-space:nowrap;
 }
 #leaveTypeToolbar .leave-type-btn{
     border-radius:9999px !important; padding:5px 12px !important; font-size:10.5px !important;
     box-shadow:0 4px 12px -5px rgba(0,0,0,0.45) !important;
-    border:1px solid rgba(255,255,255,0.22);
+    border:1px solid color-mix(in srgb,var(--k-tx-strong) 22.0%,transparent);
     transition:transform .15s, opacity .2s, box-shadow .15s, filter .15s !important;
 }
 #leaveTypeToolbar .leave-type-btn:hover{ transform:translateY(-1px); filter:brightness(1.07); }
@@ -77,23 +77,23 @@
 /* ช่องกรอก/ตัวเลือก/ปุ่ม — นิยามเดียวจบ */
 .lv-input, .lv-select{
     height:30px; border-radius:11px; font-size:12px; font-weight:700;
-    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.10); color:#e2e8f0;
+    background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent); color:var(--k-tx);
     outline:none; transition:border-color .15s, box-shadow .15s;
 }
 .lv-input:focus, .lv-select:focus{ border-color:rgba(232,193,90,0.65); box-shadow:0 0 0 3px rgba(232,193,90,0.15); }
 .lv-select{ padding:0 10px; cursor:pointer; }
 .lv-search{ position:relative; }
-.lv-search .material-icons{ position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:16px; color:#94a3b8; pointer-events:none; }
+.lv-search .material-icons{ position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:16px; color:var(--k-tx3); pointer-events:none; }
 .lv-search input{ width:140px; padding:0 10px 0 30px; }
 
 .lv-month-nav{
     display:flex; align-items:center; height:30px; border-radius:11px; overflow:hidden;
-    background:rgba(2,8,19,0.55); border:1px solid rgba(232,193,90,0.22);
+    background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent); border:1px solid rgba(232,193,90,0.22);
 }
-.lv-month-nav button{ height:100%; padding:0 7px; display:flex; align-items:center; color:#c9a54a; transition:background .15s,color .15s; }
-.lv-month-nav button:hover{ background:rgba(232,193,90,0.12); color:#E8C15A; }
+.lv-month-nav button{ height:100%; padding:0 7px; display:flex; align-items:center; color:var(--k-gold-tx); transition:background .15s,color .15s; }
+.lv-month-nav button:hover{ background:rgba(232,193,90,0.12); color:var(--k-gold-tx); }
 .lv-month-nav .lv-month-mid{ position:relative; width:104px; height:100%; display:flex; align-items:center; justify-content:center; }
-.lv-month-nav .lv-month-mid span{ font-size:11.5px; font-weight:800; color:#f5e3ae; pointer-events:none; letter-spacing:0.02em; }
+.lv-month-nav .lv-month-mid span{ font-size:11.5px; font-weight:800; color:var(--k-gold-tx); pointer-events:none; letter-spacing:0.02em; }
 
 .lv-btn{
     height:30px; padding:0 11px; border-radius:11px;
@@ -105,19 +105,19 @@
 .lv-btn:hover{ transform:translateY(-1px); filter:brightness(1.08); }
 .lv-btn:active{ transform:scale(0.97); }
 .lv-btn .material-icons{ font-size:15px; }
-.lv-btn-excel{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid rgba(255,255,255,0.18); }
-.lv-btn-history{ background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:1px solid rgba(255,255,255,0.18); }
-.lv-btn-back{ background:transparent; color:#aab6c8; border:1px solid rgba(255,255,255,0.16); box-shadow:none; }
-.lv-btn-back:hover{ color:#f5e3ae; border-color:rgba(232,193,90,0.45); background:rgba(232,193,90,0.06); }
+.lv-btn-excel{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:1px solid color-mix(in srgb,var(--k-tx-strong) 18.0%,transparent); }
+.lv-btn-history{ background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:1px solid color-mix(in srgb,var(--k-tx-strong) 18.0%,transparent); }
+.lv-btn-back{ background:transparent; color:var(--k-tx2); border:1px solid color-mix(in srgb,var(--k-tx-strong) 16.0%,transparent); box-shadow:none; }
+.lv-btn-back:hover{ color:var(--k-gold-tx); border-color:rgba(232,193,90,0.45); background:rgba(232,193,90,0.06); }
 
 /* ปุ่มพับ/กางแผงตั้งค่า */
 .lv-chip-toggle{
     height:30px; padding:0 12px; border-radius:10px;
     font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:5px; cursor:pointer;
-    background:rgba(2,8,19,0.55); border:1px solid rgba(255,255,255,0.12); color:#8b9bb4; transition:all .15s;
+    background:color-mix(in srgb,var(--k-panel2) 55.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 12.0%,transparent); color:var(--k-mute); transition:all .15s;
 }
 .lv-chip-toggle .material-icons{ font-size:15px; }
-.lv-chip-toggle:hover{ color:#f5e3ae; background:rgba(232,193,90,0.06); border-color:rgba(232,193,90,0.5); }
+.lv-chip-toggle:hover{ color:var(--k-gold-tx); background:rgba(232,193,90,0.06); border-color:rgba(232,193,90,0.5); }
 .lv-chip-toggle.lv-on{
     background:linear-gradient(145deg,#f7e7b6,#E8C15A 60%,#d4a93c);
     border-color:rgba(232,193,90,0.8); color:#2c2105;
@@ -132,7 +132,7 @@
     flex-shrink:0; z-index:20;
     display:flex; flex-wrap:wrap; align-items:stretch; gap:8px;
     padding:8px 12px; animation:fadeIn .2s ease;
-    background:#0a101d; border-bottom:1px solid rgba(255,255,255,0.05);
+    background:var(--k-panel2); border-bottom:1px solid color-mix(in srgb,var(--k-tx-strong) 5.0%,transparent);
     box-shadow:inset 0 6px 14px -10px rgba(0,0,0,0.8);
 }
 .lv-set-head{
@@ -140,23 +140,23 @@
     padding-right:14px; margin-right:2px; flex-shrink:0;
     border-right:1px solid rgba(232,193,90,0.18);
 }
-.lv-set-head .lv-set-title{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#E8C15A; }
-.lv-set-head .lv-set-sub{ font-size:9px; color:#94a3b8; }
+.lv-set-head .lv-set-title{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:var(--k-gold-tx); }
+.lv-set-head .lv-set-sub{ font-size:9px; color:var(--k-tx3); }
 .lv-card{
     flex-shrink:0; display:flex; flex-direction:column; justify-content:center; gap:4px;
     padding:5px 9px; border-radius:11px;
-    background:linear-gradient(160deg,#121b2e,#0d1422);
-    border:1px solid rgba(255,255,255,0.07);
+    background:linear-gradient(160deg,var(--k-panel),var(--k-panel2));
+    border:1px solid color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent);
     box-shadow:0 4px 12px -6px rgba(0,0,0,0.6);
 }
 .lv-card-label{
     font-size:9px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase;
-    color:#8b9bb4; display:flex; align-items:center; gap:4px; line-height:1;
+    color:var(--k-mute); display:flex; align-items:center; gap:4px; line-height:1;
 }
 .lv-card-label .dot{ width:6px; height:6px; border-radius:99px; display:inline-block; }
 .lv-card-row{ display:flex; align-items:center; gap:6px; }
 .lv-mini-input{
-    background:rgba(2,8,19,0.6); border:1px solid rgba(255,255,255,0.10); color:#f1f5f9;
+    background:color-mix(in srgb,var(--k-panel2) 60.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent); color:var(--k-tx);
     border-radius:8px; font-size:10.5px; font-weight:700; text-align:center;
     padding:3px 4px; outline:none; transition:border-color .15s, box-shadow .15s;
 }
@@ -166,20 +166,20 @@
 .lv-shift-tag{ font-size:9.5px; font-weight:800; line-height:1; }
 .lv-quota-card{
     border:1px solid rgba(232,193,90,0.55) !important;
-    background:linear-gradient(160deg,#1a2338,#0f1626);
+    background:linear-gradient(160deg,var(--k-card),var(--k-panel2));
     box-shadow:0 4px 14px -6px rgba(0,0,0,0.6), 0 0 18px -8px rgba(232,193,90,0.35);
 }
-.lv-quota-card .lv-card-label{ color:#E8C15A; }
-.lv-btn-save{ background:linear-gradient(135deg,#22c55e,#15803d); color:#fff; border:1px solid rgba(255,255,255,0.2); margin-left:auto; height:34px; align-self:center; font-size:11px; padding:0 13px; }
-.lv-btn-staff{ background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:1px solid rgba(255,255,255,0.2); height:34px; align-self:center; font-size:11px; }
+.lv-quota-card .lv-card-label{ color:var(--k-gold-tx); }
+.lv-btn-save{ background:linear-gradient(135deg,#22c55e,#15803d); color:#fff; border:1px solid color-mix(in srgb,var(--k-tx-strong) 20.0%,transparent); margin-left:auto; height:34px; align-self:center; font-size:11px; padding:0 13px; }
+.lv-btn-staff{ background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:1px solid color-mix(in srgb,var(--k-tx-strong) 20.0%,transparent); height:34px; align-self:center; font-size:11px; }
 .lv-toggle-track{ transition:background .2s; }
 
 /* ── 📅 ตาราง — คงชุดเดิมทั้งหมด ── */
-.lv-table-wrap{ flex:1 1 0%; overflow:auto; position:relative; background:#0b1220; }
+.lv-table-wrap{ flex:1 1 0%; overflow:auto; position:relative; background:var(--k-panel2); }
 #leaveTableMain{ border-collapse:separate !important; border-spacing:0 !important; }
-#leaveTableMain thead th{ background-color:#151f32; background-clip:padding-box; min-width:56px !important; padding:4px 3px !important; }
-#leaveTableMain thead th[class*="emerald"]{ background-color:#062e22; }
-#leaveTableMain th.locked-day-col{ background-color:#0a1120 !important; }
+#leaveTableMain thead th{ background-color:var(--k-panel); background-clip:padding-box; min-width:56px !important; padding:4px 3px !important; }
+#leaveTableMain thead th[class*="emerald"]{ background-color:var(--k-card); }
+#leaveTableMain th.locked-day-col{ background-color:var(--k-panel2) !important; }
 #leaveTableMain th.locked-day-col > *{ opacity:0.5; }
 #leaveTableMain thead th[class*="left-0"]{ min-width:40px !important; }
 #leaveTableMain thead th[class*="left-["]{ min-width:140px !important; }

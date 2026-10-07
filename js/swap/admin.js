@@ -152,19 +152,19 @@ window.openAddMissingSwap = async function() {
         title: 'เพิ่มพนักงานที่ตกหล่น',
         html: `
             <div style="text-align:left">
-                <label style="font-size:12px; font-weight:bold; color:#475569; display:block; margin-bottom:4px;">เลือกพนักงาน:</label>
+                <label style="font-size:12px; font-weight:bold; color:var(--k-mute3); display:block; margin-bottom:4px;">เลือกพนักงาน:</label>
                 <select id="addSwapUser" class="swal2-select" style="width:100%; margin: 0 0 12px; display:block;">
                     <option value="">-- กรุณาเลือก --</option>
                     ${userOpts}
                 </select>
 
-                <label style="font-size:12px; font-weight:bold; color:#475569; display:block; margin-bottom:4px;">ประเภท:</label>
+                <label style="font-size:12px; font-weight:bold; color:var(--k-mute3); display:block; margin-bottom:4px;">ประเภท:</label>
                 <select id="addSwapAction" class="swal2-select" style="width:100%; margin: 0 0 12px; display:block;">
                     <option value="swap">✨ สลับกะ (เช้า↔ดึก)</option>
                     <option value="stay">⏸️ ไม่สลับ (อยู่กะเดิม)</option>
                 </select>
 
-                <label style="font-size:12px; font-weight:bold; color:#475569; display:block; margin-bottom:4px;">วันที่:</label>
+                <label style="font-size:12px; font-weight:bold; color:var(--k-mute3); display:block; margin-bottom:4px;">วันที่:</label>
                 <input id="addSwapDate" type="date" value="${today}" class="swal2-input" style="width:100%; margin: 0; display:block;">
             </div>
         `,

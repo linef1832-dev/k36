@@ -653,7 +653,7 @@
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="inline-flex rounded-full flex-shrink-0" style="width:14px;height:14px;background:#E8C15A;box-shadow:0 0 8px #E8C15A66"></span>
                     <span class="text-white font-bold px-1">${esc(mb.name)}</span>
-                    <span class="text-[10px] font-black rounded-full px-2 py-0.5" style="background:#E8C15A22;color:#E8C15A;border:1px solid #E8C15A55">🎩 บอทหลัก — Token อยู่บน Railway</span>
+                    <span class="text-[10px] font-black rounded-full px-2 py-0.5" style="background:#E8C15A22;color:var(--k-gold-tx);border:1px solid #E8C15A55">🎩 บอทหลัก — Token อยู่บน Railway</span>
                     <span id="botLive_main">${_botStatusBadge(mb)}</span>
                     <span id="botSpoke_main" class="text-gray-500 text-xs">${(() => { const lv = botLive('main'); return (lv && lv.last_spoke_at) ? ('พูดล่าสุด ' + lv.last_spoke_at.slice(11, 16)) : ''; })()}</span>
                     <div class="ml-auto flex items-center gap-1.5">

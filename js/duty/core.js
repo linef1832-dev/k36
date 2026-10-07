@@ -1422,7 +1422,7 @@ ${summaryParts.join(' | ')}`;
                         ? `วันนี้ <b>${s.team}</b> ได้ <b>${newFaces.join(', ')}</b> มาแทน`
                         : `วันนี้ <b>${s.team}</b> ใช้คนเดิมทั้งหมด`);
             });
-            pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:#64748b;line-height:1.8">
+            pinSummary += `<div style="margin-top:8px;text-align:left;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:var(--k-mute);line-height:1.8">
                 ℹ️ <b>คนที่ถูกล็อกแต่วันนี้ไม่ได้ทำงาน</b> (ลาหยุด / สลับกะ) — การล็อกยังอยู่ ใช้ต่อวันถัดไปได้<br>
                 ${lines.join('<br>')}
                 <div style="margin-top:6px;opacity:.8">คนที่มาแทนไม่ได้ถูกล็อกไว้ พรุ่งนี้จะหมุนตามปกติ ถ้าอยากให้อยู่ต่อให้กด 📌 เอง</div>
@@ -1812,7 +1812,7 @@ window.renderRosterGrid = async function(rosterData) {
                         <h4 class="font-black text-base pointer-events-none tracking-wide">${_title}</h4>${_isGrp ? `<span class="text-[9px] font-bold bg-black/25 px-1.5 py-0.5 rounded-md whitespace-nowrap" title="สองเว็บนี้ถูกจับกลุ่มให้ทำงานรวมกัน">🔗 รวม ${_grpTeams.length} เว็บ</span>` : ""}
                         ${(() => { const _room = odRoomOf[team]; if (!_room) return ''; const _pal = ['#34d399','#38bdf8','#a78bfa','#fbbf24','#fb7185','#22d3ee']; const _c = _pal[(odRoomIdx[_room] || 0) % _pal.length]; return `<span title="เข้าห้อง Discord: ${_room}" class="pointer-events-none shrink-0" style="display:inline-flex;align-items:center;gap:5px;background:${_c};color:#0b1120;font-size:12.5px;font-weight:900;padding:4px 12px;border-radius:99px;letter-spacing:0.02em;box-shadow:0 0 0 2px rgba(0,0,0,0.4), 0 3px 10px rgba(0,0,0,0.45)"><span class="material-icons" style="font-size:14px">headset_mic</span>${_room}</span>`; })()}
                         <div class="flex items-center gap-2 ml-auto">
-                            <div class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-lg shadow-inner whitespace-nowrap border border-white/30 flex items-center gap-1" style="color: inherit;">
+                            <div class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-lg shadow-inner whitespace-nowrap border border-white/30 flex items-center gap-1" style="color:inherit;">
                                 <span class="opacity-80">หลัก</span><span class="text-xs font-black bg-black/20 px-1 rounded-md">${primaryCount}</span>
                             </div>
                             <button onclick="viewStandbyList('${team}')" title="คลิกดูรายชื่อสแตนด์บาย" class="cursor-pointer text-[10px] font-extrabold bg-gradient-to-br from-amber-300 to-yellow-500 text-amber-950 px-2 py-0.5 rounded-lg shadow-md whitespace-nowrap transition hover:from-amber-200 hover:to-yellow-400 hover:scale-105 border border-amber-600 flex items-center gap-1 active:scale-95">

@@ -299,9 +299,9 @@ function _renderStaffCards(counts, search) {
         const shiftIcon  = shift==='กะเช้า' ? '🌅' : shift==='กะดึก' ? '🌙' : '❓';
 
         const typeTags = [
-            c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:#34d399;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค/ลบ/ล้าง ${c.เช็ค}</span>`:'',
-            c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:#fbbf24;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
-            c.reply ? `<span style="background:rgba(100,116,139,0.2);color:#94a3b8;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.reply}</span>`:'',
+            c.เช็ค  ? `<span style="background:rgba(16,185,129,0.2);color:var(--k-green-tx);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">เช็ค/ลบ/ล้าง ${c.เช็ค}</span>`:'',
+            c.ปลด   ? `<span style="background:rgba(245,158,11,0.2);color:var(--k-amber-tx);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">ปลด ${c.ปลด}</span>`:'',
+            c.reply ? `<span style="background:rgba(100,116,139,0.2);color:var(--k-tx3);padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;">อื่นๆ ${c.reply}</span>`:'',
         ].filter(Boolean).join('');
 
         const siteTags = Object.entries(c.sites).sort((a,b)=>b[1]-a[1])
@@ -311,13 +311,13 @@ function _renderStaffCards(counts, search) {
         const displayName = (()=>{ const m = name.match(/^[^-]+-([^-]+)-/); return m ? m[1] : name; })();
         return `
         <div onclick="openStaffDetail(this.dataset.name)" data-name="${escA(name)}"
-             style="cursor:pointer;background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;transition:all .15s;${ring}"
+             style="cursor:pointer;background:var(--k-card);border-radius:12px;padding:16px;border:1px solid var(--k-line2);transition:all .15s;${ring}"
              onmouseover="this.style.background='#263548';this.style.borderColor='#7c3aed'"
              onmouseout="this.style.background='#1e293b';this.style.borderColor='#334155'">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                 <div style="display:flex;align-items:center;gap:8px;min-width:0;">
                     <span style="font-size:20px;flex-shrink:0;">${mdl}</span>
-                    <span style="font-weight:700;color:#f1f5f9;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escA(name)}">${esc(displayName)}</span>
+                    <span style="font-weight:700;color:var(--k-tx);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escA(name)}">${esc(displayName)}</span>
                 </div>
                 <span style="font-size:24px;font-weight:900;color:#a78bfa;flex-shrink:0;">${c.total}</span>
             </div>
@@ -326,7 +326,7 @@ function _renderStaffCards(counts, search) {
                     ${shiftIcon} กะ${shift}
                 </span>
             </div>
-            <div style="width:100%;background:#334155;border-radius:999px;height:5px;margin-bottom:8px;">
+            <div style="width:100%;background:var(--k-btn-h);border-radius:999px;height:5px;margin-bottom:8px;">
                 <div style="background:#7c3aed;height:5px;border-radius:999px;width:${pct}%;"></div>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:${siteTags?'5px':'0'};">${typeTags}</div>
@@ -381,7 +381,7 @@ window.openStaffDetail = function(name) {
         if ((t||'').includes('ลบ'))   return `<span style="background:rgba(59,130,246,0.25);color:#93c5fd;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
         if ((t||'').includes('เช็ค')) return `<span style="background:rgba(16,185,129,0.25);color:#6ee7b7;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
         if ((t||'').includes('ปลด'))  return `<span style="background:rgba(245,158,11,0.25);color:#fde68a;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t)}</span>`;
-        return `<span style="background:rgba(100,116,139,0.25);color:#cbd5e1;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t||'reply')}</span>`;
+        return `<span style="background:rgba(100,116,139,0.25);color:var(--k-tx2);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;">${esc(t||'reply')}</span>`;
     };
 
     const html = rows.map((d,i) => {
@@ -393,20 +393,20 @@ window.openStaffDetail = function(name) {
         const quotedMsg  = esc(d.quoted_text  || '');
         const qf         = esc(d.quoted_from  || '—');
         return `
-        <div style="background:#0f172a;border-radius:10px;padding:12px 14px;border:1px solid #1e293b;">
+        <div style="background:var(--k-panel2);border-radius:10px;padding:12px 14px;border:1px solid var(--k-line);">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                <span style="font-size:11px;color:#64748b;font-weight:700;font-family:monospace;">${i+1}. ${t}</span>
+                <span style="font-size:11px;color:var(--k-mute);font-weight:700;font-family:monospace;">${i+1}. ${t}</span>
                 ${badge(d.case_type)}
                 <span style="font-size:11px;color:#38bdf8;font-weight:700;">${esc(d.site||'')}</span>
             </div>
             ${quotedMsg ? `
-            <div style="background:#1e293b;border-left:3px solid #475569;border-radius:6px;padding:8px 10px;margin-bottom:8px;">
-                <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:3px;">📌 ข้อความต้นทาง (จาก ${qf})</div>
-                <div style="font-size:12px;color:#94a3b8;line-height:1.5;">${quotedMsg}</div>
+            <div style="background:var(--k-card);border-left:3px solid var(--k-line3);border-radius:6px;padding:8px 10px;margin-bottom:8px;">
+                <div style="font-size:10px;color:var(--k-mute);font-weight:700;margin-bottom:3px;">📌 ข้อความต้นทาง (จาก ${qf})</div>
+                <div style="font-size:12px;color:var(--k-tx3);line-height:1.5;">${quotedMsg}</div>
             </div>` : ''}
             <div style="display:flex;align-items:flex-start;gap:8px;">
                 <span style="font-size:11px;color:#7c3aed;font-weight:700;flex-shrink:0;">↩ ตอบ:</span>
-                <div style="font-size:13px;color:#e2e8f0;line-height:1.5;">${myMsg}</div>
+                <div style="font-size:13px;color:var(--k-tx);line-height:1.5;">${myMsg}</div>
             </div>
         </div>`;
     }).join('');

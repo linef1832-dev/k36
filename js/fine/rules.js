@@ -176,7 +176,7 @@ window.editFineNotePage = async function(idx) {
     const currentNote = globalFineNotes[idx];
     
     // สร้าง Dropdown กฎสำหรับ Popup แก้ไข
-    let ruleOptionsHtml = '<option value="ALL" style="color: #6b7280; font-weight: bold; background-color: #1e293b;">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
+    let ruleOptionsHtml = '<option value="ALL" style="color:var(--k-mute); font-weight: bold; background-color:var(--k-card);">-- ใช้ได้กับทุกกฎ (ทั่วไป) --</option>';
     globalFineRules.forEach(r => {
         const isSelected = r === currentNote.rule ? 'selected' : '';
         

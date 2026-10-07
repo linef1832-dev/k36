@@ -474,7 +474,7 @@ window.editTelegramGroup = async function(id) {
                 onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#334155'">
                 ${groupTagOptionsHtml(g.tag)}
             </select>
-            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;color:#64748b;font-size:10px;line-height:1;">&#9660;</span>
+            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--k-mute);font-size:10px;line-height:1;">&#9660;</span>
         </div>`;
 
     const result = await Swal.fire({
@@ -482,7 +482,7 @@ window.editTelegramGroup = async function(id) {
         width: 460,
         html: `
             <div style="padding:2px">
-                ${field('ชื่อกลุ่ม <span style="font-weight:500;color:#64748b">(แค่ป้ายชื่อ ระบบใช้ Chat ID จับ)</span>', input('tgEditName', g.group_name, ''))}
+                ${field('ชื่อกลุ่ม <span style="font-weight:500;color:var(--k-mute)">(แค่ป้ายชื่อ ระบบใช้ Chat ID จับ)</span>', input('tgEditName', g.group_name, ''))}
                 ${field('Chat ID', input('tgEditChatId', g.chat_id, '-1001234567890'))}
                 ${!isShift ? '' : field('TAG ที่ต้องถ่ายรูปในกลุ่มนี้', selectHtml)}
                 ${!isShift ? '' : `<div style="display:flex;gap:10px">

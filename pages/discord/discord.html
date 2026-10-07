@@ -1,25 +1,25 @@
 <div class="fade-in flex flex-col h-full bg-[#0b1120] rounded-2xl shadow-2xl border border-indigo-500/30 overflow-hidden">
     <!-- 🎩 Premium Tab System — สีประจำแท็บอยู่ใน style="--acc" (JS เขียน className ทับได้ ไม่กระทบสี) -->
     <style id="ds-premium-tabs">
-        .ds-topbar{ background:linear-gradient(180deg,#0d1526,#0a111f); border-bottom:1px solid rgba(232,193,90,0.12); padding:12px 14px; display:flex; align-items:center; gap:12px; flex-shrink:0; box-shadow:0 6px 24px -12px rgba(0,0,0,.7); }
+        .ds-topbar{ background:linear-gradient(180deg,var(--k-panel2),var(--k-panel2)); border-bottom:1px solid rgba(232,193,90,0.12); padding:12px 14px; display:flex; align-items:center; gap:12px; flex-shrink:0; box-shadow:0 6px 24px -12px rgba(0,0,0,.7); }
         .ds-brand{ width:40px;height:40px;border-radius:13px;flex-shrink:0; background:linear-gradient(135deg,#4f46e5,#7c3aed); display:flex;align-items:center;justify-content:center; color:#fff; box-shadow:0 0 18px rgba(99,102,241,.45), inset 0 1px 0 rgba(255,255,255,.25); }
         .ds-tabs-rail{ display:flex; align-items:center; gap:6px; overflow-x:auto; flex:1; padding:3px 2px; scrollbar-width:none; -ms-overflow-style:none; }
         .ds-tabs-rail::-webkit-scrollbar{ display:none; }
-        .ds-tab{ display:inline-flex; align-items:center; gap:8px; padding:7px 14px 7px 8px; border-radius:12px; font-weight:800; font-size:13px; letter-spacing:.01em; color:#8b9bb4; background:transparent; border:1px solid transparent; white-space:nowrap; cursor:pointer; transition:all .16s ease; user-select:none; }
+        .ds-tab{ display:inline-flex; align-items:center; gap:8px; padding:7px 14px 7px 8px; border-radius:12px; font-weight:800; font-size:13px; letter-spacing:.01em; color:var(--k-mute); background:transparent; border:1px solid transparent; white-space:nowrap; cursor:pointer; transition:all .16s ease; user-select:none; }
         .ds-tab .tab-chip{ width:27px;height:27px;border-radius:9px; display:inline-flex;align-items:center;justify-content:center; flex-shrink:0; background:color-mix(in srgb, var(--acc) 13%, transparent); border:1px solid color-mix(in srgb, var(--acc) 30%, transparent); transition:all .16s ease; }
-        .ds-tab .tab-chip .material-icons{ font-size:15px; color:color-mix(in srgb, var(--acc) 80%, #fff 0%); }
-        .ds-tab:hover{ color:#e7edf6; background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.07); transform:translateY(-1px); }
-        .ds-tab-active{ color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--acc) 26%, #0b1120), color-mix(in srgb, var(--acc) 8%, #0b1120)); border-color:color-mix(in srgb, var(--acc) 55%, transparent); box-shadow:0 0 18px color-mix(in srgb, var(--acc) 28%, transparent), inset 0 1px 0 rgba(255,255,255,.07); }
+        .ds-tab .tab-chip .material-icons{ font-size:15px; color:color-mix(in srgb, var(--acc) 80%, var(--k-tx-strong) 0%); }
+        .ds-tab:hover{ color:var(--k-tx-strong); background:color-mix(in srgb,var(--k-tx-strong) 4.0%,transparent); border-color:color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent); transform:translateY(-1px); }
+        .ds-tab-active{ color:var(--k-tx-strong); background:linear-gradient(135deg, color-mix(in srgb, var(--acc) 26%, var(--k-bg)), color-mix(in srgb, var(--acc) 8%, var(--k-bg))); border-color:color-mix(in srgb, var(--acc) 55%, transparent); box-shadow:0 0 18px color-mix(in srgb, var(--acc) 28%, transparent), inset 0 1px 0 rgba(255,255,255,.07); }
         .ds-tab-active .tab-chip{ background:var(--acc); border-color:transparent; box-shadow:0 0 12px color-mix(in srgb, var(--acc) 60%, transparent); }
-        .ds-tab-active .tab-chip .material-icons{ color:#fff; }
-        .ds-close{ display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; font-weight:800; font-size:13px; color:#f87171; background:rgba(248,113,113,0.07); border:1px solid rgba(248,113,113,0.25); cursor:pointer; transition:all .16s; flex-shrink:0; white-space:nowrap; }
-        .ds-close:hover{ background:rgba(248,113,113,0.16); color:#fecaca; box-shadow:0 0 14px rgba(248,113,113,.2); }
+        .ds-tab-active .tab-chip .material-icons{ color:var(--k-tx-strong); }
+        .ds-close{ display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; font-weight:800; font-size:13px; color:var(--k-red-tx); background:rgba(248,113,113,0.07); border:1px solid rgba(248,113,113,0.25); cursor:pointer; transition:all .16s; flex-shrink:0; white-space:nowrap; }
+        .ds-close:hover{ background:rgba(248,113,113,0.16); color:var(--k-tx); box-shadow:0 0 14px rgba(248,113,113,.2); }
         /* ── แท็บย่อยศูนย์เสียง ── */
-        .tts-sub{ display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:12px; font-weight:800; font-size:13px; color:#8b9bb4; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); cursor:pointer; transition:all .16s ease; white-space:nowrap; }
+        .tts-sub{ display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:12px; font-weight:800; font-size:13px; color:var(--k-mute); background:color-mix(in srgb,var(--k-tx-strong) 3.0%,transparent); border:1px solid color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent); cursor:pointer; transition:all .16s ease; white-space:nowrap; }
         .tts-sub .material-icons{ font-size:15px; color:color-mix(in srgb, var(--acc) 75%, transparent); transition:color .16s; }
-        .tts-sub:hover{ color:#e7edf6; border-color:color-mix(in srgb, var(--acc) 40%, transparent); background:color-mix(in srgb, var(--acc) 7%, transparent); }
-        .tts-sub-active{ color:#fff; background:linear-gradient(135deg, color-mix(in srgb, var(--acc) 30%, #0b1120), color-mix(in srgb, var(--acc) 10%, #0b1120)); border-color:color-mix(in srgb, var(--acc) 60%, transparent); box-shadow:0 0 16px color-mix(in srgb, var(--acc) 30%, transparent); }
-        .tts-sub-active .material-icons{ color:#fff; }
+        .tts-sub:hover{ color:var(--k-tx-strong); border-color:color-mix(in srgb, var(--acc) 40%, transparent); background:color-mix(in srgb, var(--acc) 7%, transparent); }
+        .tts-sub-active{ color:var(--k-tx-strong); background:linear-gradient(135deg, color-mix(in srgb, var(--acc) 30%, var(--k-bg)), color-mix(in srgb, var(--acc) 10%, var(--k-bg))); border-color:color-mix(in srgb, var(--acc) 60%, transparent); box-shadow:0 0 16px color-mix(in srgb, var(--acc) 30%, transparent); }
+        .tts-sub-active .material-icons{ color:var(--k-tx-strong); }
     </style>
     <div class="ds-topbar">
         <div class="ds-brand"><span class="material-icons">discord</span></div>

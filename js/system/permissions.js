@@ -771,7 +771,7 @@ window.renderManualTimeSlots = function() {
         html += `<div class="text-[10px] font-bold ${m.color} mt-2 mb-1 flex items-center gap-1.5">${m.icon} ${shift} <span class="text-gray-600 font-normal">(${slots.length} รอบ)</span>${isSel ? '<span style="font-size:9px;background:rgba(59,130,246,.2);border:1px solid rgba(96,165,250,.5);color:#93c5fd;border-radius:99px;padding:1px 7px;font-weight:800">กำลังเพิ่มกะนี้</span>' : ''}</div>
         <div style="display:flex;flex-wrap:wrap;gap:5px;${isSel ? 'padding:6px;border:1px dashed ' + m.border + ';border-radius:10px;' : ''}">`;
         slots.forEach(slot => {
-            html += `<span style="display:inline-flex;align-items:center;gap:5px;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:3px 4px 3px 9px">
+            html += `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--k-panel2);border:1px solid var(--k-line2);border-radius:8px;padding:3px 4px 3px 9px">
                 <span class="text-gray-300 font-mono text-[10.5px] font-bold tracking-wider">${slot}</span>
                 <button type="button" onclick="deleteManualTimeSlot('${dep}', '${shift}', '${slot}')" class="text-red-400 hover:text-white hover:bg-red-600 rounded transition" style="width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;line-height:1" title="ลบเวลานี้">✕</button>
             </span>`;

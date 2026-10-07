@@ -466,18 +466,18 @@ window.openDutyHistoryModal = async function() {
                 const logDay = String(log.created_at || '').slice(0, 10);          // 📅 วันที่ของรายการ (YYYY-MM-DD)
                 const logType = String(log.action_type || 'อื่นๆ');                  // 🏷️ หัวข้อ/ประเภท
                 rows += `
-                    <div class="rounded-xl p-3 transition duty-log-card" data-search="${searchBlob.replace(/"/g, '&quot;')}" data-day="${logDay}" data-type="${logType.replace(/"/g, '&quot;')}" style="background:#1a2236;border:1px solid #2d3748">
+                    <div class="rounded-xl p-3 transition duty-log-card" data-search="${searchBlob.replace(/"/g, '&quot;')}" data-day="${logDay}" data-type="${logType.replace(/"/g, '&quot;')}" style="background:var(--k-card);border:1px solid var(--k-line2)">
                         <div class="flex items-center justify-between mb-2">
                             <span class="${badgeColor} inline-flex items-center gap-1 px-2 py-0.5 rounded-md border shadow-sm font-bold text-[10.5px]">
                                 <span class="material-icons" style="font-size:12px">${icon}</span>${log.action_type}
                             </span>
-                            <span class="font-mono whitespace-nowrap" style="font-size:10.5px;color:#8b93a7">${time}</span>
+                            <span class="font-mono whitespace-nowrap" style="font-size:10.5px;color:var(--k-tx3)">${time}</span>
                         </div>
                         <div class="flex items-start gap-2.5">
                             <div class="w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0" style="background:#312e81;color:#c7d2fe">${initial}</div>
                             <div class="min-w-0 flex-1">
-                                <div class="font-bold text-sm" style="color:#f1f5f9">${log.performed_by}</div>
-                                <div class="leading-relaxed mt-0.5" style="font-size:12.5px;color:#b0b8c9">${prettyDetails}</div>
+                                <div class="font-bold text-sm" style="color:var(--k-tx)">${log.performed_by}</div>
+                                <div class="leading-relaxed mt-0.5" style="font-size:12.5px;color:var(--k-tx2)">${prettyDetails}</div>
                             </div>
                         </div>
                     </div>
@@ -496,22 +496,22 @@ window.openDutyHistoryModal = async function() {
         const htmlContent = `
             <div class="text-left overflow-hidden rounded-lg">
                 <div style="display:flex;gap:6px;margin:2px 4px 8px">
-                    <select id="dutyLogDay" onchange="filterDutyLogs()" style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;color:#f1f5f9;outline:none;cursor:pointer">
+                    <select id="dutyLogDay" onchange="filterDutyLogs()" style="flex:1;background:var(--k-panel2);border:1px solid var(--k-line2);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;color:var(--k-tx);outline:none;cursor:pointer">
                         <option value="">📅 ทุกวัน</option>${_dayOpts}
                     </select>
-                    <select id="dutyLogType" onchange="filterDutyLogs()" style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;color:#f1f5f9;outline:none;cursor:pointer">
+                    <select id="dutyLogType" onchange="filterDutyLogs()" style="flex:1;background:var(--k-panel2);border:1px solid var(--k-line2);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;color:var(--k-tx);outline:none;cursor:pointer">
                         <option value="">🏷️ ทุกหัวข้อ</option>${_typeOpts}
                     </select>
                 </div>
                 <div style="position:relative;margin:2px 4px 10px">
-                    <span class="material-icons" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:17px;color:#8b93a7;pointer-events:none">search</span>
+                    <span class="material-icons" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:17px;color:var(--k-tx3);pointer-events:none">search</span>
                     <input type="text" id="dutyLogSearch" placeholder="พิมพ์ชื่อ (ตัวเอง/ใครก็ได้) เพื่อกรอง... เช่น ALIEN"
                         oninput="filterDutyLogs()"
-                        style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:11px;padding:9px 12px 9px 36px;font-size:13px;font-weight:700;color:#f1f5f9;outline:none"
+                        style="width:100%;background:var(--k-panel2);border:1px solid var(--k-line2);border-radius:11px;padding:9px 12px 9px 36px;font-size:13px;font-weight:700;color:var(--k-tx);outline:none"
                         onfocus="this.style.borderColor='#818cf8'" onblur="this.style.borderColor='#334155'">
                 </div>
                 <div id="dutyLogList" class="max-h-[56vh] overflow-y-auto custom-scrollbar space-y-2 p-1">${rows}</div>
-                <div id="dutyLogNoHit" class="hidden text-center p-6 font-bold" style="color:#8b93a7;font-size:12.5px">ไม่พบรายการที่เกี่ยวกับชื่อนี้ใน 50 รายการล่าสุด</div>
+                <div id="dutyLogNoHit" class="hidden text-center p-6 font-bold" style="color:var(--k-tx3);font-size:12.5px">ไม่พบรายการที่เกี่ยวกับชื่อนี้ใน 50 รายการล่าสุด</div>
             </div>
         `;
 
@@ -559,7 +559,7 @@ window.renderDutyAccessTable = function() {
     staff.forEach(u => sortedTeams.forEach(t => { if (has(String(u.id), t)) allOn++; }));
     const allTotal = nVisible * sortedTeams.length;
     let headHtml = `<tr><th class="ds-namecol"><div class="ds-name">
-            <span style="font-size:12px;font-weight:800;color:#8a97ad">ชื่อพนักงาน</span>
+            <span style="font-size:12px;font-weight:800;color:var(--k-mute)">ชื่อพนักงาน</span>
             <label class="ds-rowctl" title="ติก/เอาออก ทุกช่องของทุกคนที่แสดงอยู่" style="cursor:pointer">
                 <span class="ds-rowcnt">ทั้งหมด</span>
                 <input type="checkbox" class="ds-ck" data-tri="${allTotal && allOn === allTotal ? 'all' : (allOn ? 'some' : 'none')}" onchange="dutyAccessSetAll(this.checked)" ${nVisible ? '' : 'disabled'}>
@@ -696,30 +696,30 @@ function _dreqEnsureStyle() {
     const s = document.createElement('style');
     s.id = 'dreq-style-v2';
     s.textContent = `
-        #dutyApp .dq{background:#0f1829;border-bottom:1px solid #24324b;padding:12px}
+        #dutyApp .dq{background:var(--k-panel2);border-bottom:1px solid var(--k-line);padding:12px}
         #dutyApp .dq-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
         #dutyApp .dq-title{display:flex;align-items:center;gap:10px;min-width:0}
-        #dutyApp .dq-title>.material-icons{font-size:20px;color:#E8C15A;width:36px;height:36px;border-radius:10px;background:rgba(232,193,90,.12);display:flex;align-items:center;justify-content:center;flex:none}
-        #dutyApp .dq-h{font-size:14.5px;font-weight:900;color:#fff}
-        #dutyApp .dq-hint{font-size:11.5px;font-weight:600;color:#7d8ba3}
+        #dutyApp .dq-title>.material-icons{font-size:20px;color:var(--k-gold-tx);width:36px;height:36px;border-radius:10px;background:rgba(232,193,90,.12);display:flex;align-items:center;justify-content:center;flex:none}
+        #dutyApp .dq-h{font-size:14.5px;font-weight:900;color:var(--k-tx-strong)}
+        #dutyApp .dq-hint{font-size:11.5px;font-weight:600;color:var(--k-mute2)}
         #dutyApp .dq-poolslot{margin-left:auto}
         #dutyApp .dq-tools{display:flex;gap:8px}
         #dutyApp .dq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
 
-        .dreq-card{position:relative;display:flex;flex-direction:column;border-radius:9px;background:#151f35;border:1px solid #273650;overflow:hidden;transition:border-color .25s,box-shadow .25s}
-        .dreq-card:hover{border-color:#3e5277}
+        .dreq-card{position:relative;display:flex;flex-direction:column;border-radius:9px;background:var(--k-card);border:1px solid var(--k-line);overflow:hidden;transition:border-color .25s,box-shadow .25s}
+        .dreq-card:hover{border-color:var(--k-line4)}
         .dreq-name{display:flex;align-items:center;justify-content:center;height:20px;font-size:11px;font-weight:900;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 20px}
         .dreq-ctrl{display:flex;align-items:center;justify-content:space-between;gap:2px;padding:5px 6px}
-        .dreq-btn{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;line-height:1;color:#cdd6e6;background:#1e2a45;border:1px solid #2f3f5e;cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .08s;flex:none}
-        .dreq-btn:hover{background:#28385c;color:#fff;border-color:#4a5f86}
-        .dreq-btn.plus:hover{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.5);color:#86efac}
-        .dreq-btn.minus:hover{background:rgba(251,146,60,.14);border-color:rgba(251,146,60,.5);color:#fdba74}
+        .dreq-btn{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;line-height:1;color:var(--k-tx2);background:var(--k-btn);border:1px solid var(--k-line3);cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .08s;flex:none}
+        .dreq-btn:hover{background:var(--k-btn-h);color:var(--k-tx-strong);border-color:var(--k-line4)}
+        .dreq-btn.plus:hover{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.5);color:var(--k-green-tx)}
+        .dreq-btn.minus:hover{background:rgba(251,146,60,.14);border-color:rgba(251,146,60,.5);color:var(--k-amber-tx)}
         .dreq-btn:active{transform:scale(.92)}
         .dreq-btn:focus-visible,.dreq-move button:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
-        .dreq-num{width:100%;min-width:0;text-align:center;font-size:17px;font-weight:900;background:transparent;color:#fff;outline:none;border:0;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
+        .dreq-num{width:100%;min-width:0;text-align:center;font-size:17px;font-weight:900;background:transparent;color:var(--k-tx-strong);outline:none;border:0;-moz-appearance:textfield;font-variant-numeric:tabular-nums}
         .dreq-num::-webkit-outer-spin-button,.dreq-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-        .dreq-num:focus{color:#E8C15A}
-        .dreq-card.zero .dreq-num{color:#56657f}
+        .dreq-num:focus{color:var(--k-gold-tx)}
+        .dreq-card.zero .dreq-num{color:var(--k-mute3)}
         .dreq-move{position:absolute;top:0;left:0;right:0;height:20px;display:flex;justify-content:space-between;pointer-events:none}
         .dreq-move button{pointer-events:auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);background:rgba(0,0,0,.28);opacity:0;transition:opacity .15s,background .15s;cursor:pointer}
         .dreq-move button .material-icons{font-size:14px}
@@ -735,23 +735,23 @@ function _dreqEnsureStyle() {
         .dreq-delta.down{background:#ea580c;color:#fff}
         @keyframes dreqPop{0%{opacity:0;transform:translateY(6px) scale(.6)}15%{opacity:1;transform:translateY(0) scale(1.1)}30%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
 
-        .dreq-pool{position:relative;display:flex;align-items:center;gap:12px;padding:6px 14px 6px 8px;border-radius:12px;background:#1a1810;border:1px solid rgba(232,193,90,.45);min-width:250px}
-        .dreq-pool-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(232,193,90,.14);color:#E8C15A;flex:none}
+        .dreq-pool{position:relative;display:flex;align-items:center;gap:12px;padding:6px 14px 6px 8px;border-radius:12px;background:var(--k-gold-bg);border:1px solid rgba(232,193,90,.45);min-width:250px}
+        .dreq-pool-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(232,193,90,.14);color:var(--k-gold-tx);flex:none}
         .dreq-pool-ic .material-icons{font-size:19px}
         .dreq-pool-body{flex:1;min-width:0}
         .dreq-pool-row{display:flex;align-items:baseline;gap:6px}
-        .dreq-pool-lb{font-size:12px;font-weight:800;color:#d8c58f}
-        .dreq-pool-num{font-size:20px;font-weight:900;color:#fbbf24;font-variant-numeric:tabular-nums;line-height:1.1}
-        .dreq-pool-unit{font-size:11px;font-weight:700;color:#a99a6e}
-        .dreq-pool-sub{margin-left:auto;font-size:11px;font-weight:700;color:#8b9bb4;white-space:nowrap;font-variant-numeric:tabular-nums}
+        .dreq-pool-lb{font-size:12px;font-weight:800;color:var(--k-gold-tx)}
+        .dreq-pool-num{font-size:20px;font-weight:900;color:var(--k-amber-tx);font-variant-numeric:tabular-nums;line-height:1.1}
+        .dreq-pool-unit{font-size:11px;font-weight:700;color:var(--k-gold-tx)}
+        .dreq-pool-sub{margin-left:auto;font-size:11px;font-weight:700;color:var(--k-mute);white-space:nowrap;font-variant-numeric:tabular-nums}
         .dreq-pool-bar{height:5px;border-radius:5px;background:rgba(255,255,255,.08);margin-top:5px;overflow:hidden}
         .dreq-pool-bar i{display:block;height:100%;border-radius:5px;background:#E8C15A;transition:width .3s}
-        .dreq-pool.ok{background:#0e1d15;border-color:rgba(34,197,94,.5)}
-        .dreq-pool.ok .dreq-pool-ic{background:rgba(34,197,94,.14);color:#4ade80}
-        .dreq-pool.ok .dreq-pool-num,.dreq-pool.ok .dreq-pool-lb{color:#4ade80}
+        .dreq-pool.ok{background:var(--k-green-bg);border-color:rgba(34,197,94,.5)}
+        .dreq-pool.ok .dreq-pool-ic{background:rgba(34,197,94,.14);color:var(--k-green-tx)}
+        .dreq-pool.ok .dreq-pool-num,.dreq-pool.ok .dreq-pool-lb{color:var(--k-green-tx)}
         .dreq-pool.ok .dreq-pool-bar i{background:#22c55e}
-        .dreq-pool.bad{background:#200f14;border-color:rgba(248,113,113,.6)}
-        .dreq-pool.bad .dreq-pool-num,.dreq-pool.bad .dreq-pool-lb{color:#f87171}
+        .dreq-pool.bad{background:var(--k-red-bg);border-color:rgba(248,113,113,.6)}
+        .dreq-pool.bad .dreq-pool-num,.dreq-pool.bad .dreq-pool-lb{color:var(--k-red-tx)}
         .dreq-pool.bad .dreq-pool-bar i{background:#ef4444}
         .dreq-shake{animation:dreqShake .4s ease}
         @keyframes dreqShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}

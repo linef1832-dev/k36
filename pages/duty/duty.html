@@ -1,33 +1,33 @@
-<div id="dutyApp" class="fade-in flex flex-col h-full relative bg-[#0f172a] rounded-2xl overflow-hidden">
+<div id="dutyApp" class="k-auto-light fade-in flex flex-col h-full relative rounded-2xl overflow-hidden" style="background:var(--k-bg)">
 
     <div class="fade-in flex flex-col h-full relative pb-10 w-full max-w-full">
         <!-- 🏷️ หัวหน้าระบบจัดหน้าที่ (ออกแบบใหม่) — id/onclick เดิมทุกตัว -->
         <style>
-            #dutyApp .dh{margin:16px 16px 0;padding:14px 16px 0;border-radius:16px 16px 0 0;background:#121c30;border:1px solid #24324b;border-bottom:0;color:#e7ecf5;position:relative;z-index:30}
+            #dutyApp .dh{margin:16px 16px 0;padding:14px 16px 0;border-radius:16px 16px 0 0;background:var(--k-panel);border:1px solid var(--k-line);border-bottom:0;color:var(--k-tx);position:relative;z-index:30}
             #dutyApp .dh-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
             #dutyApp .dh-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none;box-shadow:0 6px 18px rgba(232,193,90,.25)}
             #dutyApp .dh-ico .material-icons{font-size:24px}
-            #dutyApp .dh-title{font-size:19px;font-weight:900;line-height:1.2;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-            #dutyApp .dh-dept{font-size:12px;font-weight:900;padding:2px 10px;border-radius:999px;background:rgba(232,193,90,.14);color:#E8C15A;border:1px solid rgba(232,193,90,.45)}
-            #dutyApp .dh-sub{font-size:12px;color:#8a97ad;font-weight:600;margin-top:2px}
+            #dutyApp .dh-title{font-size:19px;font-weight:900;line-height:1.2;color:var(--k-tx-strong);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+            #dutyApp .dh-dept{font-size:12px;font-weight:900;padding:2px 10px;border-radius:999px;background:rgba(232,193,90,.14);color:var(--k-gold-tx);border:1px solid rgba(232,193,90,.45)}
+            #dutyApp .dh-sub{font-size:12px;color:var(--k-mute);font-weight:600;margin-top:2px}
             #dutyApp .dh-act{margin-left:auto;display:flex;gap:8px;align-items:center}
-            #dutyApp .dh-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
-            #dutyApp .dh-btn .material-icons{font-size:17px;color:#9fb0cc}
-            #dutyApp .dh-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
+            #dutyApp .dh-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+            #dutyApp .dh-btn .material-icons{font-size:17px;color:var(--k-tx3)}
+            #dutyApp .dh-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4);color:var(--k-tx-strong)}
             #dutyApp .dh-btn:focus-visible,#dutyApp .dh-tab:focus-visible,#dutyApp .dh .dept-segment-btn:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
             /* แถวล่างของหัว: เลือกแผนก (ซ้าย) + แท็บมุมมอง (ขวา) */
-            #dutyApp .dh-nav{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;border-bottom:1px solid #24324b}
-            #dutyApp .dh .dept-segment-container{display:flex;gap:2px;padding:3px;margin-bottom:10px;border-radius:11px;background:#0c1424;border:1px solid #22304a;box-shadow:none;transform:none}
-            #dutyApp .dh .dept-segment-btn{height:32px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:800;color:#8a97ad;gap:6px}
+            #dutyApp .dh-nav{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;border-bottom:1px solid var(--k-line)}
+            #dutyApp .dh .dept-segment-container{display:flex;gap:2px;padding:3px;margin-bottom:10px;border-radius:11px;background:var(--k-sunk);border:1px solid var(--k-line);box-shadow:none;transform:none}
+            #dutyApp .dh .dept-segment-btn{height:32px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:800;color:var(--k-mute);gap:6px}
             #dutyApp .dh .dept-segment-btn .material-icons{font-size:16px}
-            #dutyApp .dh .dept-segment-btn:not(.active):hover{color:#fff;background:#1a2640}
+            #dutyApp .dh .dept-segment-btn:not(.active):hover{color:var(--k-tx-strong);background:var(--k-btn)}
             #dutyApp .dh .dept-segment-btn.active{background:#E8C15A;color:#1b1406;box-shadow:0 3px 10px rgba(232,193,90,.25)}
             #dutyApp .dh-tabs{display:flex;gap:4px}
-            #dutyApp .dh-tab{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;font-size:13.5px;font-weight:800;color:#8a97ad;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;transition:color .15s,border-color .15s}
+            #dutyApp .dh-tab{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;font-size:13.5px;font-weight:800;color:var(--k-mute);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;transition:color .15s,border-color .15s}
             #dutyApp .dh-tab .material-icons{font-size:17px}
-            #dutyApp .dh-tab:hover{color:#dbe3f0}
-            #dutyApp .dh-tab.active{color:#fff;border-bottom-color:#E8C15A}
-            #dutyApp .dh-tab.active .material-icons{color:#E8C15A}
+            #dutyApp .dh-tab:hover{color:var(--k-tx2)}
+            #dutyApp .dh-tab.active{color:var(--k-tx-strong);border-bottom-color:#E8C15A}
+            #dutyApp .dh-tab.active .material-icons{color:var(--k-gold-tx)}
             #dutyApp .dh .hidden{display:none !important}
             @media (max-width:640px){ #dutyApp .dh-act{margin-left:0;width:100%} #dutyApp .dh .dept-segment-container{overflow-x:auto;max-width:100%} }
         </style>
@@ -65,30 +65,30 @@
             </div>
         </div>
 
-        <div id="dutyTabRoster" class="flex-1 overflow-hidden flex flex-col mx-4 bg-white dark:bg-slate-900 border-x border-b shadow-sm rounded-b-xl w-auto" style="border-color:#24324b">
+        <div id="dutyTabRoster" class="flex-1 overflow-hidden flex flex-col mx-4 bg-white dark:bg-slate-900 border-x border-b shadow-sm rounded-b-xl w-auto" style="border-color:var(--k-line)">
             <!-- 🧭 แถบเครื่องมือจัดหน้าที่ (จัดกลุ่มใหม่: เลือกวัน/กะ → จัดตาราง → การเวียน → ล้าง) — id/onclick เดิมทุกตัว -->
             <style>
-                #dutyApp .dt-bar{background:#121c30;border-bottom:1px solid #24324b;padding:10px 12px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:20}
+                #dutyApp .dt-bar{background:var(--k-panel);border-bottom:1px solid var(--k-line);padding:10px 12px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:20}
                 #dutyApp .dt-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
                 #dutyApp .dt-grow{flex:1 1 auto}
                 /* กล่องกลุ่ม */
-                #dutyApp .dt-grp{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border-radius:12px;background:#0c1424;border:1px solid #22304a}
-                #dutyApp .dt-cap{font-size:11px;font-weight:800;color:#7d8ba3;margin-right:4px;white-space:nowrap;display:flex;align-items:center;gap:4px}
-                #dutyApp .dt-cap .material-icons{font-size:14px;color:#56657f}
-                #dutyApp .dt-grp.danger{border-color:#4a2330;background:#170e16}
-                #dutyApp .dt-grp.danger .dt-cap{color:#c58a96}
-                #dutyApp .dt-grp.danger .dt-cap .material-icons{color:#8f4f5d}
+                #dutyApp .dt-grp{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line)}
+                #dutyApp .dt-cap{font-size:11px;font-weight:800;color:var(--k-mute2);margin-right:4px;white-space:nowrap;display:flex;align-items:center;gap:4px}
+                #dutyApp .dt-cap .material-icons{font-size:14px;color:var(--k-mute3)}
+                #dutyApp .dt-grp.danger{border-color:var(--k-red-line);background:var(--k-red-bg)}
+                #dutyApp .dt-grp.danger .dt-cap{color:var(--k-red-tx)}
+                #dutyApp .dt-grp.danger .dt-cap .material-icons{color:var(--k-red-tx)}
                 /* ช่องเลือก */
-                #dutyApp .dt-field{display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#e7ecf5}
-                #dutyApp .dt-field .material-icons{font-size:17px;color:#E8C15A}
-                #dutyApp .dt-field input,#dutyApp .dt-field select{background:transparent;border:0;outline:none;color:#f3f6fb;font-weight:800;font-size:13.5px;cursor:pointer;color-scheme:dark}
-                #dutyApp .dt-field select option{background:#18233a;color:#f3f6fb}
+                #dutyApp .dt-field{display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx)}
+                #dutyApp .dt-field .material-icons{font-size:17px;color:var(--k-gold-tx)}
+                #dutyApp .dt-field input,#dutyApp .dt-field select{background:transparent;border:0;outline:none;color:var(--k-tx);font-weight:800;font-size:13.5px;cursor:pointer}
+                #dutyApp .dt-field select option{background:var(--k-field);color:var(--k-tx)}
                 #dutyApp .dt-field:focus-within{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
                 /* ปุ่ม */
                 #dutyApp .dt-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;
-                    border:1px solid #2f3f5e;background:#1a2640;color:#dbe3f0;transition:background .15s,border-color .15s,color .15s,transform .08s}
+                    border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,border-color .15s,color .15s,transform .08s}
                 #dutyApp .dt-btn .material-icons{font-size:17px}
-                #dutyApp .dt-btn:hover{background:#22314f;border-color:#4a5f86;color:#fff}
+                #dutyApp .dt-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4);color:var(--k-tx-strong)}
                 #dutyApp .dt-btn:active{transform:scale(.97)}
                 #dutyApp .dt-btn:focus-visible{outline:2px solid #E8C15A;outline-offset:2px}
                 #dutyApp .dt-btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
@@ -96,25 +96,25 @@
                 #dutyApp .dt-btn.primary .material-icons{color:#1b1406}
                 #dutyApp .dt-btn.primary:hover{background:#f1cf74;border-color:#f1cf74}
                 #dutyApp .dt-btn.ai .material-icons{color:#e879f9}
-                #dutyApp .dt-btn.add .material-icons{color:#34d399}
-                #dutyApp .dt-btn.pin .material-icons{color:#fbbf24}
-                #dutyApp .dt-btn.me .material-icons{color:#E8C15A}
-                #dutyApp .dt-btn.warn{color:#f5b7c1;border-color:#5a2a37;background:#24121b}
-                #dutyApp .dt-btn.warn .material-icons{color:#fb7185}
-                #dutyApp .dt-btn.warn:hover{background:#3a1724;border-color:#9f3a52;color:#fff}
-                #dutyApp .dt-btn.restore{color:#a7f3d0;border-color:#1f5a46;background:#0f2a22}
-                #dutyApp .dt-btn.restore .material-icons{color:#34d399}
+                #dutyApp .dt-btn.add .material-icons{color:var(--k-green-tx)}
+                #dutyApp .dt-btn.pin .material-icons{color:var(--k-amber-tx)}
+                #dutyApp .dt-btn.me .material-icons{color:var(--k-gold-tx)}
+                #dutyApp .dt-btn.warn{color:var(--k-red-tx);border-color:var(--k-red-line);background:var(--k-red-bg)}
+                #dutyApp .dt-btn.warn .material-icons{color:var(--k-red-tx)}
+                #dutyApp .dt-btn.warn:hover{background:var(--k-red-bg-h);border-color:var(--k-red-line-h);color:var(--k-tx-strong)}
+                #dutyApp .dt-btn.restore{color:var(--k-green-tx);border-color:var(--k-green-line);background:var(--k-green-bg)}
+                #dutyApp .dt-btn.restore .material-icons{color:var(--k-green-tx)}
                 #dutyApp .dt-badge{min-width:20px;height:18px;padding:0 6px;border-radius:999px;background:#E8C15A;color:#1b1406;font-size:11px;font-weight:900;display:inline-flex;align-items:center;justify-content:center}
-                #dutyApp .dt-num{width:46px;height:28px;border-radius:7px;background:#18233a;border:1px solid #2c3b58;color:#fff;text-align:center;font-weight:900;font-size:13px;outline:none}
+                #dutyApp .dt-num{width:46px;height:28px;border-radius:7px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx-strong);text-align:center;font-weight:900;font-size:13px;outline:none}
                 #dutyApp .dt-num:focus{border-color:#E8C15A}
-                #dutyApp .dt-unit{font-size:12px;font-weight:700;color:#8a97ad}
-                #dutyApp .dt-gaptag{color:#E8C15A}
+                #dutyApp .dt-unit{font-size:12px;font-weight:700;color:var(--k-mute)}
+                #dutyApp .dt-gaptag{color:var(--k-gold-tx)}
                 #dutyApp .dt-search{position:relative}
-                #dutyApp .dt-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:#7d8ba3;pointer-events:none}
-                #dutyApp .dt-search input{height:36px;width:180px;padding:0 10px 0 34px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#f3f6fb;font-size:13.5px;font-weight:700;outline:none;transition:width .2s,border-color .15s}
+                #dutyApp .dt-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:var(--k-mute2);pointer-events:none}
+                #dutyApp .dt-search input{height:36px;width:180px;padding:0 10px 0 34px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13.5px;font-weight:700;outline:none;transition:width .2s,border-color .15s}
                 #dutyApp .dt-search input:focus{width:240px;border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
-                #dutyApp .dt-shiftchip{display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#e7ecf5;font-size:13px;font-weight:800}
-                #dutyApp .dt-shiftchip .material-icons{font-size:17px;color:#E8C15A}
+                #dutyApp .dt-shiftchip{display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13px;font-weight:800}
+                #dutyApp .dt-shiftchip .material-icons{font-size:17px;color:var(--k-gold-tx)}
                 /* JS ใช้คลาส hidden ซ่อน/โชว์ → ต้องชนะ display ของคลาสข้างบน */
                 #dutyApp .dt-bar .hidden{display:none !important}
                 @media (max-width:640px){
@@ -277,59 +277,59 @@
 
         <!-- ⚙️ แท็บตั้งค่าสิทธิ์และหัวข้อ (ออกแบบใหม่ + ติกทั้งแถว/ทั้งคอลัมน์/ทั้งหมด) — id เดิมทุกตัว -->
         <style>
-            #dutyApp .ds{background:#0f1829;border:1px solid #24324b;border-top:0;border-radius:0 0 16px 16px;padding:14px;gap:14px}
-            #dutyApp .ds-panel{background:#121c30;border:1px solid #24324b;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
-            #dutyApp .ds-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid #24324b}
+            #dutyApp .ds{background:var(--k-panel2);border:1px solid var(--k-line);border-top:0;border-radius:0 0 16px 16px;padding:14px;gap:14px}
+            #dutyApp .ds-panel{background:var(--k-panel);border:1px solid var(--k-line);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+            #dutyApp .ds-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--k-line)}
             #dutyApp .ds-title{display:flex;align-items:center;gap:10px;margin-right:auto}
-            #dutyApp .ds-title>.material-icons{font-size:20px;color:#E8C15A;width:36px;height:36px;border-radius:10px;background:rgba(232,193,90,.12);display:flex;align-items:center;justify-content:center}
-            #dutyApp .ds-h{font-size:14.5px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px}
-            #dutyApp .ds-hint{font-size:11.5px;font-weight:600;color:#7d8ba3}
-            #dutyApp .ds-count{font-size:11.5px;font-weight:900;color:#E8C15A;background:rgba(232,193,90,.12);border:1px solid rgba(232,193,90,.4);padding:1px 9px;border-radius:999px}
+            #dutyApp .ds-title>.material-icons{font-size:20px;color:var(--k-gold-tx);width:36px;height:36px;border-radius:10px;background:rgba(232,193,90,.12);display:flex;align-items:center;justify-content:center}
+            #dutyApp .ds-h{font-size:14.5px;font-weight:900;color:var(--k-tx-strong);display:flex;align-items:center;gap:8px}
+            #dutyApp .ds-hint{font-size:11.5px;font-weight:600;color:var(--k-mute2)}
+            #dutyApp .ds-count{font-size:11.5px;font-weight:900;color:var(--k-gold-tx);background:rgba(232,193,90,.12);border:1px solid rgba(232,193,90,.4);padding:1px 9px;border-radius:999px}
             #dutyApp .ds-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-            #dutyApp .ds-sel,#dutyApp .ds-in{height:36px;border-radius:10px;background:#18233a;border:1px solid #2c3b58;color:#f3f6fb;font-size:13px;font-weight:800;outline:none;padding:0 10px;color-scheme:dark}
-            #dutyApp .ds-sel option{background:#18233a}
+            #dutyApp .ds-sel,#dutyApp .ds-in{height:36px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13px;font-weight:800;outline:none;padding:0 10px}
+            #dutyApp .ds-sel option{background:var(--k-field)}
             #dutyApp .ds-sel:focus,#dutyApp .ds-in:focus{border-color:#E8C15A;box-shadow:0 0 0 3px rgba(232,193,90,.16)}
             #dutyApp .ds-search{position:relative}
-            #dutyApp .ds-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:#7d8ba3;pointer-events:none}
+            #dutyApp .ds-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:17px;color:var(--k-mute2);pointer-events:none}
             #dutyApp .ds-search .ds-in{width:170px;padding-left:34px}
             #dutyApp .ds-save{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:10px;border:1px solid #E8C15A;background:#E8C15A;color:#1b1406;font-size:13px;font-weight:900;cursor:pointer;transition:background .15s,box-shadow .2s}
             #dutyApp .ds-save .material-icons{font-size:18px}
             #dutyApp .ds-save:hover{background:#f1cf74}
             #dutyApp .ds-save.dirty{box-shadow:0 0 0 3px rgba(232,193,90,.25),0 0 18px rgba(232,193,90,.35)}
-            #dutyApp .ds-dirty{display:none;font-size:11.5px;font-weight:800;color:#fbbf24;align-items:center;gap:4px}
+            #dutyApp .ds-dirty{display:none;font-size:11.5px;font-weight:800;color:var(--k-amber-tx);align-items:center;gap:4px}
             #dutyApp .ds-dirty.on{display:inline-flex}
             #dutyApp .ds-dirty .material-icons{font-size:15px}
-            #dutyApp .ds-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid #1d2a42;background:#0f1829;font-size:12px;font-weight:700;color:#8a97ad}
+            #dutyApp .ds-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--k-line);background:var(--k-panel2);font-size:12px;font-weight:700;color:var(--k-mute)}
             #dutyApp .ds-bulk .dt-btn{height:30px;font-size:12px;padding:0 11px}
 
             /* ── ตาราง ── */
             #dutyApp .ds-scroll{flex:1;overflow:auto;min-height:0}
             #dutyApp .ds-tbl{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
-            #dutyApp .ds-tbl th,#dutyApp .ds-tbl td{border-bottom:1px solid #1d2a42}
-            #dutyApp .ds-tbl thead th{position:sticky;top:0;z-index:3;background:#121c30;padding:8px 4px;vertical-align:bottom}
-            #dutyApp .ds-tbl .ds-namecol{position:sticky;left:0;z-index:2;background:#121c30;text-align:left;padding:8px 12px;min-width:210px;border-right:1px solid #24324b}
+            #dutyApp .ds-tbl th,#dutyApp .ds-tbl td{border-bottom:1px solid var(--k-line)}
+            #dutyApp .ds-tbl thead th{position:sticky;top:0;z-index:3;background:var(--k-panel);padding:8px 4px;vertical-align:bottom}
+            #dutyApp .ds-tbl .ds-namecol{position:sticky;left:0;z-index:2;background:var(--k-panel);text-align:left;padding:8px 12px;min-width:210px;border-right:1px solid var(--k-line)}
             #dutyApp .ds-tbl thead .ds-namecol{z-index:4}
             #dutyApp .ds-th{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:64px}
             #dutyApp .ds-team{font-size:11px;font-weight:900;padding:2px 8px;border-radius:6px;white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis}
-            #dutyApp .ds-colnum{font-size:10.5px;font-weight:700;color:#7d8ba3;font-variant-numeric:tabular-nums}
-            #dutyApp .ds-tbl tbody tr:hover td{background:#16223a}
-            #dutyApp .ds-tbl tbody tr:hover .ds-namecol{background:#16223a}
+            #dutyApp .ds-colnum{font-size:10.5px;font-weight:700;color:var(--k-mute2);font-variant-numeric:tabular-nums}
+            #dutyApp .ds-tbl tbody tr:hover td{background:var(--k-btn-h)}
+            #dutyApp .ds-tbl tbody tr:hover .ds-namecol{background:var(--k-btn-h)}
             #dutyApp .ds-tbl tbody td{text-align:center;padding:6px 4px}
             #dutyApp .ds-tbl tbody tr.noaccess .ds-namecol{box-shadow:inset 3px 0 0 #ef4444}
             #dutyApp .ds-name{display:flex;align-items:center;gap:8px}
-            #dutyApp .ds-uname{font-weight:900;color:#eef2f8;white-space:nowrap}
+            #dutyApp .ds-uname{font-weight:900;color:var(--k-tx);white-space:nowrap}
             #dutyApp .ds-shift{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;border:1px solid;flex:none}
-            #dutyApp .ds-shift.m{color:#fbbf24;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.08)}
+            #dutyApp .ds-shift.m{color:var(--k-amber-tx);border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.08)}
             #dutyApp .ds-shift.d{color:#60a5fa;border-color:rgba(96,165,250,.4);background:rgba(96,165,250,.08)}
             #dutyApp .ds-shift.n{color:#a78bfa;border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08)}
-            #dutyApp .ds-mgr{font-size:10px;font-weight:800;color:#fca5a5;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);padding:0 6px;border-radius:999px}
+            #dutyApp .ds-mgr{font-size:10px;font-weight:800;color:var(--k-red-tx);background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);padding:0 6px;border-radius:999px}
             #dutyApp .ds-warn{font-size:10px;font-weight:800;color:#fff;background:#dc2626;padding:1px 7px;border-radius:999px}
             #dutyApp .ds-rowctl{margin-left:auto;display:flex;align-items:center;gap:6px;flex:none}
-            #dutyApp .ds-rowcnt{font-size:11px;font-weight:800;color:#7d8ba3;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
-            #dutyApp .ds-rowcnt.full{color:#4ade80}
+            #dutyApp .ds-rowcnt{font-size:11px;font-weight:800;color:var(--k-mute2);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+            #dutyApp .ds-rowcnt.full{color:var(--k-green-tx)}
 
             /* ช่องติก */
-            #dutyApp .ds-ck{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:7px;border:1.5px solid #3a4b6b;background:#0c1424;cursor:pointer;position:relative;vertical-align:middle;transition:background .12s,border-color .12s,transform .08s}
+            #dutyApp .ds-ck{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:7px;border:1.5px solid var(--k-line3);background:var(--k-sunk);cursor:pointer;position:relative;vertical-align:middle;transition:background .12s,border-color .12s,transform .08s}
             #dutyApp .ds-ck:hover{border-color:#E8C15A}
             #dutyApp .ds-ck:active{transform:scale(.9)}
             #dutyApp .ds-ck:checked{background:#E8C15A;border-color:#E8C15A}
@@ -340,20 +340,20 @@
             #dutyApp .ds-ck.sm{width:18px;height:18px;border-radius:6px}
             #dutyApp .ds-ck.sm:checked::after{left:5px;top:2px;width:5px;height:9px}
             #dutyApp .ds-ck.sm:indeterminate::after{left:3.5px;top:7px;width:8px}
-            #dutyApp .ds-empty{padding:40px;text-align:center;color:#7d8ba3;font-weight:700}
+            #dutyApp .ds-empty{padding:40px;text-align:center;color:var(--k-mute2);font-weight:700}
 
             /* ── หัวข้องาน ── */
             #dutyApp .ds-roles{width:100%}
             @media (min-width:1024px){ #dutyApp .ds-roles{width:340px;flex:none} }
-            #dutyApp .ds-addrow{display:flex;gap:8px;padding:12px 14px;border-bottom:1px solid #24324b;flex-direction:column}
+            #dutyApp .ds-addrow{display:flex;gap:8px;padding:12px 14px;border-bottom:1px solid var(--k-line);flex-direction:column}
             #dutyApp .ds-addrow .ds-in,#dutyApp .ds-addrow .ds-sel{width:100%}
             #dutyApp .ds-addrow>div{display:flex;gap:8px}
             #dutyApp .ds-add{width:36px;height:36px;border-radius:10px;border:1px solid rgba(45,212,191,.5);background:rgba(45,212,191,.14);color:#5eead4;font-size:20px;font-weight:900;cursor:pointer;flex:none}
             #dutyApp .ds-add:hover{background:rgba(45,212,191,.25)}
             #dutyApp #roleEditorList{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
-            #dutyApp #roleEditorList > div{background:#18233a !important;border:1px solid #2c3b58 !important;border-radius:10px !important;padding:8px 10px !important;box-shadow:none !important}
-            #dutyApp #roleEditorList > div span{color:#e7ecf5 !important;font-size:12.5px !important}
-            #dutyApp #roleEditorList > div button{color:#f87171 !important}
+            #dutyApp #roleEditorList > div{background:var(--k-field) !important;border:1px solid var(--k-line2) !important;border-radius:10px !important;padding:8px 10px !important;box-shadow:none !important}
+            #dutyApp #roleEditorList > div span{color:var(--k-tx) !important;font-size:12.5px !important}
+            #dutyApp #roleEditorList > div button{color:var(--k-red-tx) !important}
             @media (max-width:640px){ #dutyApp .ds-search .ds-in{width:100%} #dutyApp .ds-search{flex:1} #dutyApp .ds-tbl .ds-namecol{min-width:150px} }
         </style>
 
@@ -384,8 +384,8 @@
                 </div>
                 <div class="ds-bulk">
                     <span>ใช้กับรายชื่อที่แสดงอยู่</span>
-                    <button onclick="dutyAccessSetAll(true)" class="dt-btn"><span class="material-icons" style="color:#4ade80">done_all</span> ติกทุกช่อง</button>
-                    <button onclick="dutyAccessSetAll(false)" class="dt-btn"><span class="material-icons" style="color:#f87171">remove_done</span> เอาออกทุกช่อง</button>
+                    <button onclick="dutyAccessSetAll(true)" class="dt-btn"><span class="material-icons" style="color:var(--k-green-tx)">done_all</span> ติกทุกช่อง</button>
+                    <button onclick="dutyAccessSetAll(false)" class="dt-btn"><span class="material-icons" style="color:var(--k-red-tx)">remove_done</span> เอาออกทุกช่อง</button>
                     <span style="margin-left:auto">ติกหัวคอลัมน์ = ทั้งเว็บ · ติกท้ายชื่อ = ทุกเว็บของคนนั้น</span>
                 </div>
                 <div class="ds-scroll custom-scrollbar">

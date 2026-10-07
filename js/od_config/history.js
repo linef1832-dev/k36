@@ -75,7 +75,7 @@ function odCfgHist_renderPager() {
     const total = Math.ceil(odCfgHistItems.length / ODCFG_HIST_PER_PAGE);
     if (total <= 1) { pager.innerHTML = ''; return; }
     const btn = (label, pg, active, disabled) =>
-        `<button onclick="odCfgHist_goPage(${pg})" ${disabled ? 'disabled' : ''} style="min-width:34px;height:34px;padding:0 10px;border-radius:9px;font-weight:800;font-size:13px;border:1px solid ${active ? '#ec4899' : 'rgba(148,163,184,.35)'};background:${active ? '#ec4899' : 'rgba(30,41,59,.8)'};color:${active ? '#fff' : '#cbd5e1'};cursor:${disabled ? 'not-allowed' : 'pointer'};opacity:${disabled ? '.4' : '1'}">${label}</button>`;
+        `<button onclick="odCfgHist_goPage(${pg})" ${disabled ? 'disabled' : ''} style="min-width:34px;height:34px;padding:0 10px;border-radius:9px;font-weight:800;font-size:13px;border:1px solid ${active ? '#ec4899' : 'rgba(148,163,184,.35)'};background:${active ? '#ec4899' : 'color-mix(in srgb,var(--k-card) 80.0%,transparent)'};color:${active ? '#fff' : '#cbd5e1'};cursor:${disabled ? 'not-allowed' : 'pointer'};opacity:${disabled ? '.4' : '1'}">${label}</button>`;
     // เลขหน้าแบบย่อ: 1 … (รอบๆ หน้าปัจจุบัน) … หน้าสุดท้าย
     const pages = [];
     for (let i = 1; i <= total; i++) {
@@ -84,9 +84,9 @@ function odCfgHist_renderPager() {
     }
     pager.innerHTML =
         btn('‹', odCfgHistPage - 1, false, odCfgHistPage === 1) +
-        pages.map(pv => pv === '…' ? '<span style="color:#64748b;padding:0 2px">…</span>' : btn(pv, pv, pv === odCfgHistPage, false)).join('') +
+        pages.map(pv => pv === '…' ? '<span style="color:var(--k-mute);padding:0 2px">…</span>' : btn(pv, pv, pv === odCfgHistPage, false)).join('') +
         btn('›', odCfgHistPage + 1, false, odCfgHistPage === total) +
-        `<span style="font-size:11px;color:#64748b;margin-left:8px">หน้า ${odCfgHistPage}/${total}</span>`;
+        `<span style="font-size:11px;color:var(--k-mute);margin-left:8px">หน้า ${odCfgHistPage}/${total}</span>`;
 }
 function odCfgHist_render() {
     const body = document.getElementById('odCfgHistBody');

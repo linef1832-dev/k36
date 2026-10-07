@@ -7,17 +7,17 @@
 
 </style>
 <style>
-.staff-row { border-bottom: 0.5px solid rgba(100,116,139,.3); transition: background .12s; }
-.staff-row:hover { background: rgba(100,116,139,.08); }
+.staff-row { border-bottom:0.5px solid rgba(100,116,139,.3); transition: background .12s; }
+.staff-row:hover { background:rgba(100,116,139,.08); }
 .staff-row:hover .row-edit-btn { opacity: 1 !important; }
-.row-edit-btn:hover { color: var(--text-pro) !important; }
+.row-edit-btn:hover { color:var(--text-pro) !important; }
 </style>
 
     
     <div id="mainContentArea" class="block w-full">
-        <div style="position:relative;background:linear-gradient(120deg,rgba(59,130,246,0.14),rgba(13,18,32,0.6) 40%,rgba(10,14,24,0.3)),linear-gradient(165deg,#101828,#0b111e);border:1px solid rgba(59,130,246,0.28);border-radius:18px;padding:18px 20px;margin-bottom:24px;box-shadow:0 10px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="position:relative;background:linear-gradient(120deg,rgba(59,130,246,0.14),color-mix(in srgb,var(--k-panel2) 60.0%,transparent) 40%,color-mix(in srgb,var(--k-panel2) 30.0%,transparent)),linear-gradient(165deg,var(--k-panel2),var(--k-panel2));border:1px solid rgba(59,130,246,0.28);border-radius:18px;padding:18px 20px;margin-bottom:24px;box-shadow:0 10px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
             <div style="flex:1;min-width:0">
-                <h1 style="display:flex;align-items:center;gap:11px;margin:0;font-size:21px;font-weight:900;color:#f1f5f9;letter-spacing:0.01em">
+                <h1 style="display:flex;align-items:center;gap:11px;margin:0;font-size:21px;font-weight:900;color:var(--k-tx);letter-spacing:0.01em">
                     <span style="width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,rgba(59,130,246,0.28),rgba(59,130,246,0.08));border:1px solid rgba(59,130,246,0.5);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 14px rgba(59,130,246,0.25)">
                         <span class="material-icons" style="font-size:19px;color:#60a5fa">verified_user</span>
                     </span>
@@ -31,7 +31,7 @@
                     <span style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);font-size:12px;font-weight:800;color:#d8b4fe">
                         <span class="material-icons" style="font-size:13px">settings_suggest</span> <span id="checkTypeDisplay">...</span>
                     </span>
-                    <span style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);font-size:12px;font-weight:800;color:#86efac">
+                    <span style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);font-size:12px;font-weight:800;color:var(--k-green-tx)">
                         <span class="material-icons" style="font-size:13px">group</span> <span id="quotaDisplay">...</span>
                     </span>
                 </div>
@@ -39,7 +39,7 @@
 
             <div style="display:flex;align-items:center;gap:9px;flex-shrink:0">
                 <button id="btnManualRefreshDashboard" onclick="manualRefreshDashboard()"
-                    style="display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:13px;background:linear-gradient(135deg,rgba(34,197,94,0.22),rgba(34,197,94,0.08));border:1px solid rgba(34,197,94,0.45);color:#86efac;font-weight:800;font-size:13px;cursor:pointer;transition:all .15s;box-shadow:0 0 12px rgba(34,197,94,0.15)"
+                    style="display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:13px;background:linear-gradient(135deg,rgba(34,197,94,0.22),rgba(34,197,94,0.08));border:1px solid rgba(34,197,94,0.45);color:var(--k-green-tx);font-weight:800;font-size:13px;cursor:pointer;transition:all .15s;box-shadow:0 0 12px rgba(34,197,94,0.15)"
                     onmouseover="this.style.filter='brightness(1.25)';this.style.transform='translateY(-1px)'" onmouseout="this.style.filter='';this.style.transform=''">
                     <span class="material-icons" id="manualRefreshIcon" style="font-size:18px">refresh</span> <span class="hidden md:block">รีเฟรช</span>
                 </button>
@@ -47,10 +47,10 @@
                     style="position:relative;display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:13px;background:linear-gradient(135deg,rgba(99,102,241,0.22),rgba(99,102,241,0.08));border:1px solid rgba(99,102,241,0.45);color:#a5b4fc;font-weight:800;font-size:13px;cursor:pointer;transition:all .15s;box-shadow:0 0 12px rgba(99,102,241,0.15)"
                     onmouseover="this.style.filter='brightness(1.25)';this.style.transform='translateY(-1px)'" onmouseout="this.style.filter='';this.style.transform=''">
                     <span class="material-icons" style="font-size:18px">person_search</span> <span class="hidden md:block">เช็คคนยังไม่ลงข้าว</span>
-                    <span id="missingLunchBadge" class="hidden" style="position:absolute;top:-7px;right:-7px;background:#ef4444;color:#fff;font-size:10px;font-weight:900;padding:2px 6px;border-radius:99px;box-shadow:0 2px 8px rgba(239,68,68,0.5);border:1.5px solid #0b111e">0</span>
+                    <span id="missingLunchBadge" class="hidden" style="position:absolute;top:-7px;right:-7px;background:#ef4444;color:#fff;font-size:10px;font-weight:900;padding:2px 6px;border-radius:99px;box-shadow:0 2px 8px rgba(239,68,68,0.5);border:1.5px solid var(--k-line)">0</span>
                 </button>
                 <button onclick="openChangePinModal()"
-                    style="display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:13px;background:linear-gradient(135deg,rgba(249,115,22,0.22),rgba(249,115,22,0.08));border:1px solid rgba(249,115,22,0.45);color:#fdba74;font-weight:800;font-size:13px;cursor:pointer;transition:all .15s;box-shadow:0 0 12px rgba(249,115,22,0.15)"
+                    style="display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:13px;background:linear-gradient(135deg,rgba(249,115,22,0.22),rgba(249,115,22,0.08));border:1px solid rgba(249,115,22,0.45);color:var(--k-amber-tx);font-weight:800;font-size:13px;cursor:pointer;transition:all .15s;box-shadow:0 0 12px rgba(249,115,22,0.15)"
                     onmouseover="this.style.filter='brightness(1.25)';this.style.transform='translateY(-1px)'" onmouseout="this.style.filter='';this.style.transform=''">
                     <span class="material-icons" style="font-size:18px">vpn_key</span> <span class="hidden md:block">เปลี่ยนรหัส</span>
                 </button>
@@ -58,17 +58,17 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div class="lg:col-span-4 bg-gray-50 dark:bg-slate-800 rounded-2xl shadow-sm sticky top-2 h-fit overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar" style="padding:16px;border:1px solid rgba(148,163,184,.16);border-top:3px solid #3b82f6;background:linear-gradient(180deg,#141d30,#111827)">
+            <div class="lg:col-span-4 bg-gray-50 dark:bg-slate-800 rounded-2xl shadow-sm sticky top-2 h-fit overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar" style="padding:16px;border:1px solid rgba(148,163,184,.16);border-top:3px solid #3b82f6;background:linear-gradient(180deg,var(--k-panel),var(--k-panel2))">
 
                 <!-- 🎫 หัวแถวเดียว: ชื่อ + โควตา + ปุ่มกฎ (ทุกอย่างจบในบรรทัดเดียว ประหยัดที่) -->
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
-                    <h4 style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#E8C15A;margin:0;letter-spacing:0.03em;white-space:nowrap">
+                    <h4 style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:var(--k-gold-tx);margin:0;letter-spacing:0.03em;white-space:nowrap">
                         <span class="material-icons" style="font-size:16px">timer</span> ลงเวลาพัก
                     </h4>
                     <div style="display:flex;align-items:center;gap:5px">
-                        <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:99px;padding:2px 9px;font-size:10.5px;color:#c9d3e0;font-weight:700;white-space:nowrap"><b style="color:#f1f5f9;font-size:12px"><span id="limitDisplay">...</span></b>/วัน</span>
+                        <span style="background:color-mix(in srgb,var(--k-tx-strong) 5.0%,transparent);border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent);border-radius:99px;padding:2px 9px;font-size:10.5px;color:var(--k-tx2);font-weight:700;white-space:nowrap"><b style="color:var(--k-tx);font-size:12px"><span id="limitDisplay">...</span></b>/วัน</span>
                         <button type="button" title="อ่านกฎการลงเวลาพัก" onclick="document.getElementById('breakRulesPanel').classList.toggle('hidden');document.getElementById('breakRulesArrow').style.transform=document.getElementById('breakRulesPanel').classList.contains('hidden')?'':'rotate(180deg)'"
-                            style="display:inline-flex;align-items:center;gap:2px;background:rgba(232,193,90,0.1);border:1px solid rgba(232,193,90,0.28);border-radius:99px;padding:3px 9px;font-size:10.5px;font-weight:800;color:#f5e3ae;cursor:pointer;white-space:nowrap;transition:background .15s"
+                            style="display:inline-flex;align-items:center;gap:2px;background:rgba(232,193,90,0.1);border:1px solid rgba(232,193,90,0.28);border-radius:99px;padding:3px 9px;font-size:10.5px;font-weight:800;color:var(--k-gold-tx);cursor:pointer;white-space:nowrap;transition:background .15s"
                             onmouseover="this.style.background='rgba(232,193,90,0.2)'" onmouseout="this.style.background='rgba(232,193,90,0.1)'">
                             <span class="material-icons" style="font-size:12px">verified</span> กฎ
                             <span id="breakRulesArrow" class="material-icons" style="font-size:13px;transition:transform .2s">expand_more</span>
@@ -77,23 +77,23 @@
                 </div>
 
                 <!-- 📜 กฎฉบับเต็ม (ยุบไว้ กดปุ่ม "กฎ" เพื่อกาง) — เนื้อหาเดิมครบทุกตัวอักษร -->
-                <div id="breakRulesPanel" class="hidden" style="margin-bottom:12px;background:linear-gradient(165deg,#10141f,#0a0e18);border:1px solid rgba(232,193,90,0.25);border-radius:14px;padding:10px 12px">
-                    <p style="font-size:11.5px;font-weight:900;color:#f5e3ae;margin:0 0 7px;display:flex;align-items:center;gap:5px">📌 กฎการพัก <span style="font-weight:600;color:#8fa3bf;font-size:9.5px">· พักตามรอบ ลดความเสียหายหน้างาน</span></p>
+                <div id="breakRulesPanel" class="hidden" style="margin-bottom:12px;background:linear-gradient(165deg,var(--k-panel2),var(--k-panel2));border:1px solid rgba(232,193,90,0.25);border-radius:14px;padding:10px 12px">
+                    <p style="font-size:11.5px;font-weight:900;color:var(--k-gold-tx);margin:0 0 7px;display:flex;align-items:center;gap:5px">📌 กฎการพัก <span style="font-weight:600;color:var(--k-tx3);font-size:9.5px">· พักตามรอบ ลดความเสียหายหน้างาน</span></p>
 
                     <!-- กฎ 4 ข้อ แบบแถวสั้นๆ สแกนตาจบใน 3 วิ -->
                     <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
-                        <div style="display:flex;align-items:center;gap:7px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.22);border-radius:9px;padding:5px 9px;font-size:10.5px;color:#e2e8f0"><span>⏰</span> ชั่วโมงแรกหลังเข้างาน + ชั่วโมงสุดท้ายก่อนเลิก <b style="color:#f87171">พักไม่ได้</b></div>
-                        <div style="display:flex;align-items:center;gap:7px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.22);border-radius:9px;padding:5px 9px;font-size:10.5px;color:#e2e8f0"><span>🚫</span> <b style="color:#f87171">ห้ามลงติดกัน</b> เช่น 13:00-13:30 แล้วต่อ 13:30-14:00 ไม่ได้</div>
-                        <div style="display:flex;align-items:center;gap:7px;background:rgba(232,193,90,0.06);border:1px solid rgba(232,193,90,0.2);border-radius:9px;padding:5px 9px;font-size:10.5px;color:#e2e8f0"><span>🛡️</span> คนเฝ้าเว็บไม่พอ = <b style="color:#f87171">จองไม่ผ่าน</b> (คนกดหลังสุดตอนเต็มถือว่าผิดกระบวนการ)</div>
+                        <div style="display:flex;align-items:center;gap:7px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.22);border-radius:9px;padding:5px 9px;font-size:10.5px;color:var(--k-tx)"><span>⏰</span> ชั่วโมงแรกหลังเข้างาน + ชั่วโมงสุดท้ายก่อนเลิก <b style="color:var(--k-red-tx)">พักไม่ได้</b></div>
+                        <div style="display:flex;align-items:center;gap:7px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.22);border-radius:9px;padding:5px 9px;font-size:10.5px;color:var(--k-tx)"><span>🚫</span> <b style="color:var(--k-red-tx)">ห้ามลงติดกัน</b> เช่น 13:00-13:30 แล้วต่อ 13:30-14:00 ไม่ได้</div>
+                        <div style="display:flex;align-items:center;gap:7px;background:rgba(232,193,90,0.06);border:1px solid rgba(232,193,90,0.2);border-radius:9px;padding:5px 9px;font-size:10.5px;color:var(--k-tx)"><span>🛡️</span> คนเฝ้าเว็บไม่พอ = <b style="color:var(--k-red-tx)">จองไม่ผ่าน</b> (คนกดหลังสุดตอนเต็มถือว่าผิดกระบวนการ)</div>
                     </div>
 
                     <!-- 📊 ตารางเพดาน: เว็บมีกี่คน → พักพร้อมกันได้กี่คน -->
-                    <p style="font-size:10px;font-weight:800;color:#8fa3bf;margin:0 0 4px">📊 เว็บมีกี่คน → พักพร้อมกันได้ไม่เกิน</p>
+                    <p style="font-size:10px;font-weight:800;color:var(--k-tx3);margin:0 0 4px">📊 เว็บมีกี่คน → พักพร้อมกันได้ไม่เกิน</p>
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:7px">
-                        <div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">≤4 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">1</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">5-7 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">2</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">8-10 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">3</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">11-14 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">4</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">15-20 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">5</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">21-25 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">6</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">26-30 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">7</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">31-35 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">8</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">36-40 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">9</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">41-45 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">10</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">46-50 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">11</div></div><div style="background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:#8fa3bf">50+ คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">+1/5</div></div>
+                        <div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">≤4 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">1</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">5-7 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">2</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">8-10 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">3</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">11-14 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">4</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">15-20 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">5</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">21-25 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">6</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">26-30 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">7</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">31-35 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">8</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">36-40 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">9</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">41-45 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">10</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">46-50 คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">11</div></div><div style="background:color-mix(in srgb,var(--k-panel2) 70.0%,transparent);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:3px 2px;text-align:center;line-height:1.25"><div style="font-size:9px;color:var(--k-tx3)">50+ คน</div><div style="font-size:11px;font-weight:900;color:#60a5fa">+1/5</div></div>
                     </div>
 
-                    <p style="font-size:9.5px;color:#64748b;margin:0;line-height:1.5">· เวลาพักอาจปรับตามความเหมาะสมของหน้างาน · ระบบคำนวณเพดานให้อัตโนมัติตามเวรของวันนั้น</p>
+                    <p style="font-size:9.5px;color:var(--k-mute);margin:0;line-height:1.5">· เวลาพักอาจปรับตามความเหมาะสมของหน้างาน · ระบบคำนวณเพดานให้อัตโนมัติตามเวรของวันนั้น</p>
                 </div>
 
                 <!-- ⚡ ปุ่มลัด "ลงเหมือนเมื่อวาน" — เติมโดย initQuickRebook() (โผล่เฉพาะเมื่อเมื่อวานมีการลงพัก) -->
@@ -115,15 +115,15 @@
 
                     <!-- กะ: ปุ่มแนวนอนกระชับ (เนื้อในสร้างโดย renderShiftButtons) -->
                     <div id="shiftSection">
-                        <label style="display:block;font-size:9.5px;font-weight:800;color:#8fa3bf;letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase">เลือกกะ</label>
+                        <label style="display:block;font-size:9.5px;font-weight:800;color:var(--k-tx3);letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase">เลือกกะ</label>
                         <div class="grid grid-cols-3 gap-2" id="shiftContainer"></div>
                     </div>
 
                     <!-- รอบเวลา -->
                     <div>
                         <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:5px">
-                            <label style="font-size:9.5px;font-weight:800;color:#8fa3bf;letter-spacing:.08em;text-transform:uppercase">
-                                รอบเวลา <span style="font-weight:700;color:#64748b;text-transform:none;letter-spacing:0">(อัปเดตสดอัตโนมัติ)</span>
+                            <label style="font-size:9.5px;font-weight:800;color:var(--k-tx3);letter-spacing:.08em;text-transform:uppercase">
+                                รอบเวลา <span style="font-weight:700;color:var(--k-mute);text-transform:none;letter-spacing:0">(อัปเดตสดอัตโนมัติ)</span>
                                 <span id="slotLoading" class="text-blue-500 hidden items-center gap-1" style="font-size:10px"><span class="animate-spin material-icons" style="font-size:11px">sync</span> อัปเดต...</span>
                             </label>
                         </div>
@@ -133,25 +133,25 @@
                         </select>
                         <style>
                             #tSlotChips{display:flex;flex-direction:column;gap:8px}
-                            .slotc-group-label{font-size:9.5px;font-weight:900;color:#8fa3bf;letter-spacing:.08em;display:flex;align-items:center;gap:6px;margin-top:2px}
+                            .slotc-group-label{font-size:9.5px;font-weight:900;color:var(--k-tx3);letter-spacing:.08em;display:flex;align-items:center;gap:6px;margin-top:2px}
                             .slotc-group-label::after{content:'';flex:1;height:1px;background:rgba(148,163,184,.18)}
                             .slotc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
                             @media (min-width:1400px){ .slotc-grid{grid-template-columns:repeat(3,1fr)} }
-                            .slot-chip{position:relative;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.65);border-radius:12px;padding:8px 6px 7px;text-align:center;cursor:pointer;transition:all .14s;user-select:none}
+                            .slot-chip{position:relative;border:1px solid rgba(148,163,184,.25);background:color-mix(in srgb,var(--k-panel2) 65.0%,transparent);border-radius:12px;padding:8px 6px 7px;text-align:center;cursor:pointer;transition:all .14s;user-select:none}
                             .slot-chip:hover{border-color:#60a5fa;background:rgba(30,58,138,.25);transform:translateY(-1px)}
-                            .slot-chip .t{font-family:monospace;font-size:13px;font-weight:800;color:#e2e8f0;letter-spacing:.02em;line-height:1.2}
-                            .slot-chip .s{font-size:10.5px;color:#8fa3bf;margin-top:3px;line-height:1.2;letter-spacing:.01em}
+                            .slot-chip .t{font-family:monospace;font-size:13px;font-weight:800;color:var(--k-tx);letter-spacing:.02em;line-height:1.2}
+                            .slot-chip .s{font-size:10.5px;color:var(--k-tx3);margin-top:3px;line-height:1.2;letter-spacing:.01em}
                             .slot-chip.on{background:linear-gradient(135deg,#2563eb,#4f46e5);border-color:#93c5fd;box-shadow:0 6px 18px -6px rgba(59,130,246,.6),0 0 0 2px rgba(96,165,250,.35)}
-                            .slot-chip.on .t{color:#fff}
-                            .slot-chip.on .s{color:#dbeafe}
-                            .slot-chip.on::after{content:'✓';position:absolute;top:-7px;right:-5px;width:17px;height:17px;border-radius:50%;background:#22c55e;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #141d30;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+                            .slot-chip.on .t{color:var(--k-tx-strong)}
+                            .slot-chip.on .s{color:var(--k-tx-strong)}
+                            .slot-chip.on::after{content:'✓';position:absolute;top:-7px;right:-5px;width:17px;height:17px;border-radius:50%;background:#22c55e;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--k-line);box-shadow:0 2px 6px rgba(0,0,0,.4)}
                             .slot-chip.mine{border-color:rgba(52,211,153,.55);background:rgba(6,78,59,.35);cursor:default}
-                            .slot-chip.mine .t{color:#a7f3d0}
+                            .slot-chip.mine .t{color:var(--k-green-tx)}
                             .slot-chip.mine:hover{transform:none;border-color:rgba(52,211,153,.75);background:rgba(6,78,59,.45)}
-                            .slot-chip.mine::before{content:'✓';position:absolute;top:-7px;right:-5px;width:17px;height:17px;border-radius:50%;background:#10b981;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #141d30;box-shadow:0 2px 6px rgba(0,0,0,.4)}
-                            .slot-chip.full{opacity:.38;cursor:pointer;background:rgba(15,23,42,.35);filter:grayscale(.6)}
-                            .slot-chip.full:hover{border-color:rgba(248,113,113,.45);transform:none;background:rgba(30,10,10,.4);opacity:.55}
-                            .slot-chip.full .t{color:#94a3b8;text-decoration:line-through;text-decoration-color:rgba(248,113,113,.7);text-decoration-thickness:1.5px}
+                            .slot-chip.mine::before{content:'✓';position:absolute;top:-7px;right:-5px;width:17px;height:17px;border-radius:50%;background:#10b981;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--k-line);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+                            .slot-chip.full{opacity:.38;cursor:pointer;background:color-mix(in srgb,var(--k-panel2) 35.0%,transparent);filter:grayscale(.6)}
+                            .slot-chip.full:hover{border-color:rgba(248,113,113,.45);transform:none;background:color-mix(in srgb,var(--k-panel2) 40.0%,transparent);opacity:.55}
+                            .slot-chip.full .t{color:var(--k-tx3);text-decoration:line-through;text-decoration-color:rgba(248,113,113,.7);text-decoration-thickness:1.5px}
                             .slot-chip .s b{font-weight:900}
                             /* 📅 ช่องวันที่ของแผง "วันนี้" — โปร่งใสสนิททุกเบราว์เซอร์ (กันตัวเลขวันที่โผล่ซ้ำ) */
                             .mt-date-hidden{-webkit-appearance:none;appearance:none;color:transparent!important;font-size:0!important;text-shadow:none!important}
@@ -171,12 +171,12 @@
                             /* 📏 แถวตัวกรองรอบเวลา: บังคับอยู่แถวเดียวเสมอ — ปุ่มหดเท่าๆ กัน จอแคบมากค่อยเลื่อนซ้ายขวา */
                             .slotf-bar{display:flex;flex-wrap:nowrap;gap:5px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 0}
                             .slotf-bar::-webkit-scrollbar{display:none}
-                            .slotf{flex:1 1 0;min-width:0;text-align:center;border:1px solid rgba(148,163,184,.3);background:rgba(15,23,42,.6);color:#8fa3bf;border-radius:99px;padding:4px 6px;font-size:10.5px;font-weight:800;cursor:pointer;transition:all .14s;white-space:nowrap;letter-spacing:0}
+                            .slotf{flex:1 1 0;min-width:0;text-align:center;border:1px solid rgba(148,163,184,.3);background:color-mix(in srgb,var(--k-panel2) 60.0%,transparent);color:var(--k-tx3);border-radius:99px;padding:4px 6px;font-size:10.5px;font-weight:800;cursor:pointer;transition:all .14s;white-space:nowrap;letter-spacing:0}
                             .slotf-bar .slotf:first-child{flex:0 0 auto;padding:4px 10px}
                             @media (max-width:420px){ .slotf{font-size:9.5px;padding:4px 4px} }
-                            .slotf:hover{color:#e2e8f0;border-color:#60a5fa}
+                            .slotf:hover{color:var(--k-tx);border-color:#60a5fa}
                             .slotf.on{background:linear-gradient(135deg,#2563eb,#4f46e5);border-color:#93c5fd;color:#fff;box-shadow:0 4px 12px -5px rgba(59,130,246,.55)}
-                            .slotc-empty{border:1px dashed rgba(148,163,184,.3);border-radius:12px;padding:16px 10px;text-align:center;font-size:11.5px;color:#8fa3bf}
+                            .slotc-empty{border:1px dashed rgba(148,163,184,.3);border-radius:12px;padding:16px 10px;text-align:center;font-size:11.5px;color:var(--k-tx3)}
                         </style>
                         <div id="tSlotChips"><div class="slotc-empty">☝️ เลือกกะก่อน แล้วรอบเวลาจะขึ้นให้เลือกตรงนี้</div></div>
                     </div>
@@ -192,7 +192,7 @@
             <div class="lg:col-span-8 flex flex-col gap-6">
                 <!-- 🆕 [หน้าหลักแบบใหม่] วันนี้ของฉัน — เห็นของตัวเองก่อน (วาดด้วย JS: renderMyToday) -->
                 <div id="myTodayPanel" style="display:flex;flex-direction:column;gap:14px">
-                    <div style="text-align:center;color:#64748b;font-size:12px;padding:20px">กำลังโหลดข้อมูลของคุณ...</div>
+                    <div style="text-align:center;color:var(--k-mute);font-size:12px;padding:20px">กำลังโหลดข้อมูลของคุณ...</div>
                 </div>
 
 

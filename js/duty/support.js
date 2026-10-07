@@ -179,9 +179,9 @@ window.assignSupportTeam = async function() {
             icon: 'error',
             title: `เว็บ ${source} ไม่มีคน`,
             html: usable.length
-                ? `<div style="font-size:13px;color:#94a3b8;line-height:1.8">เว็บนี้ไม่มีพนักงานในตารางวันนี้ จึงส่งไปช่วยใครไม่ได้<br><br>
+                ? `<div style="font-size:13px;color:var(--k-tx3);line-height:1.8">เว็บนี้ไม่มีพนักงานในตารางวันนี้ จึงส่งไปช่วยใครไม่ได้<br><br>
                      เว็บที่ส่งคนไปช่วยได้:<br><b style="color:#38bdf8">${usable.map(t => `${t} (${hasStaff(t).length})`).join(' · ')}</b></div>`
-                : `<div style="font-size:13px;color:#94a3b8">ยังไม่ได้จัดเวรของวันนี้เลย — กด <b style="color:#818cf8">"สุ่มจัดหน้าที่"</b> ก่อนครับ</div>`,
+                : `<div style="font-size:13px;color:var(--k-tx3)">ยังไม่ได้จัดเวรของวันนี้เลย — กด <b style="color:#818cf8">"สุ่มจัดหน้าที่"</b> ก่อนครับ</div>`,
             background: '#0b1120',
             confirmButtonColor: '#6366f1',
             customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
@@ -196,8 +196,8 @@ window.assignSupportTeam = async function() {
 
     const badTime = (msg) => Swal.fire({
         icon: 'warning', title: 'ช่วงเวลาไม่ถูกต้อง',
-        html: `<div style="font-size:13px;color:#94a3b8;line-height:1.8">${msg}<br><br>
-                 กะ <b style="color:#e2e8f0">${shiftFilter}</b> อยู่ในช่วง
+        html: `<div style="font-size:13px;color:var(--k-tx3);line-height:1.8">${msg}<br><br>
+                 กะ <b style="color:var(--k-tx)">${shiftFilter}</b> อยู่ในช่วง
                  <b style="color:#38bdf8">${minToTime(cfg.start)}–${minToTime(cfg.end)}</b></div>`,
         background: '#0b1120', confirmButtonColor: '#6366f1',
         customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
@@ -218,11 +218,11 @@ window.assignSupportTeam = async function() {
     const perSlot = Math.floor(spanMin / members.length);
 
     const preview = slots.map((s, i) =>
-        `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e293b">
+        `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--k-line)">
             <span style="width:18px;height:18px;border-radius:50%;background:#0369a1;color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i + 1}</span>
-            <span style="flex:1;text-align:left;font-weight:800;font-size:12px;color:#f1f5f9">${window.escapeHtml(s.name)}</span>
+            <span style="flex:1;text-align:left;font-weight:800;font-size:12px;color:var(--k-tx)">${window.escapeHtml(s.name)}</span>
             <span style="font-size:11px;font-weight:800;color:#38bdf8">${minToTime(s.start)}–${minToTime(s.end)}</span>
-            <span style="font-size:9px;color:${s.breakMin > 0 ? '#fbbf24' : '#34d399'};min-width:56px;text-align:right">${s.breakMin > 0 ? `พักใน ${s.breakMin} น.` : 'ไม่ชนพัก'}</span>
+            <span style="font-size:9px;color:${s.breakMin > 0 ? 'var(--k-amber-tx)' : 'var(--k-green-tx)'};min-width:56px;text-align:right">${s.breakMin > 0 ? `พักใน ${s.breakMin} น.` : 'ไม่ชนพัก'}</span>
         </div>`).join('');
 
     // เตือนถ้าคนคนเดียวถูกจัดไปช่วยสองที่ในเวลาทับกัน — ตัวเขาไปอยู่สองที่พร้อมกันไม่ได้
@@ -241,14 +241,14 @@ window.assignSupportTeam = async function() {
 
     const confirm = await Swal.fire({
         title: `<div style="font-size:15px;font-weight:900">🤝 ${source} → ซัพพอร์ต ${target}</div>`,
-        html: `<div style="font-size:11.5px;color:#94a3b8;margin-bottom:10px">
+        html: `<div style="font-size:11.5px;color:var(--k-tx3);margin-bottom:10px">
                    ช่วง <b style="color:#38bdf8">${minToTime(winStart)}–${minToTime(winEnd)}</b>
                    ${spanMin === (cfg.end - cfg.start) ? '<span style="opacity:.7">(เต็มกะ)</span>' : `<span style="opacity:.7">(${Math.floor(spanMin/60)} ชม. ${spanMin%60 ? spanMin%60 + ' น.' : ''})</span>`}
-                   <br>${members.length} คน ผลัดกันคนละ <b style="color:#e2e8f0">${perSlot} นาที</b>
+                   <br>${members.length} คน ผลัดกันคนละ <b style="color:var(--k-tx)">${perSlot} นาที</b>
                </div>
-               ${isReplace ? `<div style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:7px 10px;font-size:11px;color:#fbbf24;margin-bottom:8px;text-align:left">
+               ${isReplace ? `<div style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:7px 10px;font-size:11px;color:var(--k-amber-tx);margin-bottom:8px;text-align:left">
                    ⚠️ มีตาราง <b>${source} → ${target}</b> อยู่แล้ว กดยืนยันจะเขียนทับของเดิม</div>` : ''}
-               ${clashes.length ? `<div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);border-radius:10px;padding:7px 10px;font-size:11px;color:#f87171;margin-bottom:8px;text-align:left;line-height:1.7">
+               ${clashes.length ? `<div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);border-radius:10px;padding:7px 10px;font-size:11px;color:var(--k-red-tx);margin-bottom:8px;text-align:left;line-height:1.7">
                    🚨 <b>เวลาชนกัน</b> — คนเหล่านี้ถูกจัดไปช่วยที่อื่นในเวลาเดียวกันอยู่แล้ว:<br>${clashes.join('<br>')}</div>` : ''}
                <div style="max-height:46vh;overflow-y:auto">${preview}</div>`,
         background: '#0b1120',
@@ -582,8 +582,8 @@ window.blockIfPreview = function() {
     Swal.fire({
         icon: 'info',
         title: 'ยังไม่ได้จัดเวรวันนี้',
-        html: `<div style="font-size:13px;color:#94a3b8;line-height:1.7">
-                 ที่เห็นอยู่เป็น <b style="color:#fbbf24">ภาพตัวอย่าง</b> จากคนที่ถูกล็อก "อยู่ต่อ" เท่านั้น<br>
+        html: `<div style="font-size:13px;color:var(--k-tx3);line-height:1.7">
+                 ที่เห็นอยู่เป็น <b style="color:var(--k-amber-tx)">ภาพตัวอย่าง</b> จากคนที่ถูกล็อก "อยู่ต่อ" เท่านั้น<br>
                  กรุณากด <b style="color:#818cf8">"สุ่มจัดหน้าที่"</b> เพื่อจัดคนที่เหลือให้ครบก่อนครับ
                </div>`,
         background: '#0b1120',
@@ -627,30 +627,30 @@ window.openStayPinModal = async function(team, userId, username) {
         title: `<div class="text-base font-black">📌 ให้อยู่เว็บ <span style="color:#6366f1">${team}</span> ต่ออีกกี่วัน?</div>`,
         html: `
             <div style="text-align:left">
-                <div style="font-size:12px;color:#94a3b8;margin-bottom:14px">
-                    พนักงาน: <b style="color:#e2e8f0;font-size:14px">${username}</b>
-                    &nbsp;•&nbsp; กะ: <b style="color:#e2e8f0">${shift}</b>
+                <div style="font-size:12px;color:var(--k-tx3);margin-bottom:14px">
+                    พนักงาน: <b style="color:var(--k-tx);font-size:14px">${username}</b>
+                    &nbsp;•&nbsp; กะ: <b style="color:var(--k-tx)">${shift}</b>
                 </div>
 
                 ${movingFrom ? `<div style="background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);border-radius:10px;padding:8px 11px;font-size:11.5px;color:#7dd3fc;margin-bottom:14px;line-height:1.6">
                     🔀 เดิมล็อกไว้ที่เว็บ <b>${movingFrom}</b> — กดยืนยันแล้วจะย้ายมาล็อกที่ <b>${team}</b> แทน
                 </div>` : ''}
 
-                <div style="font-size:11px;font-weight:800;color:#64748b;letter-spacing:.5px;margin-bottom:6px">เลือกจำนวนวัน</div>
+                <div style="font-size:11px;font-weight:800;color:var(--k-mute);letter-spacing:.5px;margin-bottom:6px">เลือกจำนวนวัน</div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
                     ${[1,2,3,4,5,7,14].map(chip).join('')}
                 </div>
 
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-                    <span style="font-size:11px;font-weight:800;color:#64748b">หรือพิมพ์เอง</span>
+                    <span style="font-size:11px;font-weight:800;color:var(--k-mute)">หรือพิมพ์เอง</span>
                     <input id="stayDaysInput" type="number" min="1" max="60" value="${defaultDays}"
-                        style="width:80px;padding:8px 10px;border-radius:10px;border:1.5px solid #334155;background:#0f172a;color:#f1f5f9;font-weight:800;text-align:center;outline:none">
-                    <span style="font-size:12px;color:#94a3b8">วัน</span>
+                        style="width:80px;padding:8px 10px;border-radius:10px;border:1.5px solid var(--k-line2);background:var(--k-panel2);color:var(--k-tx);font-weight:800;text-align:center;outline:none">
+                    <span style="font-size:12px;color:var(--k-tx3)">วัน</span>
                 </div>
 
-                <div id="stayPreview" style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:#c7d2fe;line-height:1.7"></div>
+                <div id="stayPreview" style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.35);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--k-tx);line-height:1.7"></div>
 
-                <div style="margin-top:10px;font-size:10.5px;color:#64748b;line-height:1.6">
+                <div style="margin-top:10px;font-size:10.5px;color:var(--k-mute);line-height:1.6">
                     ℹ️ ระบบจะจัด <b>${username}</b> ลงเว็บ <b>${team}</b> ให้อัตโนมัติทุกครั้งที่กด "สุ่มจัดหน้าที่" ในช่วงวันดังกล่าว
                     (ข้ามกฎห้ามซ้ำเว็บเดิม) — ถ้าวันไหนติดลาหยุด ระบบจะข้ามวันนั้นให้เอง
                 </div>
@@ -679,7 +679,7 @@ window.openStayPinModal = async function(team, userId, username) {
                     c.style.background  = on ? 'rgba(99,102,241,.2)' : '#0f172a';
                     c.style.color       = on ? '#c7d2fe' : '#94a3b8';
                 });
-                if (n < 1) { preview.innerHTML = '<span style="color:#f87171">กรุณาใส่จำนวนวันอย่างน้อย 1 วัน</span>'; return; }
+                if (n < 1) { preview.innerHTML = '<span style="color:var(--k-red-tx)">กรุณาใส่จำนวนวันอย่างน้อย 1 วัน</span>'; return; }
                 const until = window.dutyAddDays(baseDate, n);
                 const start = window.dutyAddDays(baseDate, 1);
                 preview.innerHTML = `📅 อยู่เว็บ <b>${team}</b> ตั้งแต่ <b>${window.dutyFmtShortDate(start)}</b>`
@@ -796,4 +796,4 @@ window.updateStayPinButton = function() {
     else btn.classList.add('opacity-60');
 };
 
-// ============================================================
+// ============================================================

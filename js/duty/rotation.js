@@ -200,7 +200,7 @@ window.openStayPinListModal = async function() {
         return Swal.fire({
             icon: 'info',
             title: 'ยังไม่มีใครถูกล็อก',
-            html: `<div style="font-size:13px;color:#94a3b8">กดปุ่ม <b>📌 อยู่ต่อ...</b> บนการ์ดพนักงานในตาราง เพื่อล็อกให้เขาอยู่เว็บเดิมข้ามวัน</div>`,
+            html: `<div style="font-size:13px;color:var(--k-tx3)">กดปุ่ม <b>📌 อยู่ต่อ...</b> บนการ์ดพนักงานในตาราง เพื่อล็อกให้เขาอยู่เว็บเดิมข้ามวัน</div>`,
             background: '#0b1120',
             confirmButtonColor: '#6366f1',
             customClass: { popup: 'rounded-3xl border border-slate-700 dark:text-white' }
@@ -218,24 +218,24 @@ window.openStayPinListModal = async function() {
         // โชว์ไว้ให้แอดมินเห็นตั้งแต่ยังไม่กดสุ่ม จะได้ไม่งงว่าทำไมชื่อไม่ขึ้น
         const onLeave = currentDutyLeaves && currentDutyLeaves.has(String(uid));
         const leaveTag = onLeave
-            ? `<span style="font-size:9px;font-weight:900;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.35);padding:2px 6px;border-radius:999px;white-space:nowrap;margin-left:6px">ลาหยุดวันนี้</span>`
+            ? `<span style="font-size:9px;font-weight:900;background:rgba(239,68,68,.15);color:var(--k-red-tx);border:1px solid rgba(239,68,68,.35);padding:2px 6px;border-radius:999px;white-space:nowrap;margin-left:6px">ลาหยุดวันนี้</span>`
             : '';
         return `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#0f172a;border:1px solid #1e293b;margin-bottom:8px;${dim}">
-            <span class="material-icons" style="font-size:16px;color:#fbbf24">push_pin</span>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--k-panel2);border:1px solid var(--k-line);margin-bottom:8px;${dim}">
+            <span class="material-icons" style="font-size:16px;color:var(--k-amber-tx)">push_pin</span>
             <div style="flex:1;min-width:0;text-align:left">
-                <div style="font-weight:800;font-size:13px;color:#f1f5f9;display:flex;align-items:center;flex-wrap:wrap">${window.escapeHtml(p.username)}${leaveTag}</div>
-                <div style="font-size:10.5px;color:#64748b;margin-top:2px">
+                <div style="font-weight:800;font-size:13px;color:var(--k-tx);display:flex;align-items:center;flex-wrap:wrap">${window.escapeHtml(p.username)}${leaveTag}</div>
+                <div style="font-size:10.5px;color:var(--k-mute);margin-top:2px">
                     เว็บ <b style="color:#a5b4fc">${p.team}</b> • ${p.shift || '-'} • ถึง ${window.dutyFmtShortDate(p.until)}
                     ${p.by ? ` • ตั้งโดย ${p.by}` : ''}
                 </div>
-                ${onLeave ? `<div style="font-size:10px;color:#f87171;margin-top:3px">↳ วันนี้ระบบจะข้ามเขา แล้วดึงคนอื่นมาลง ${p.team} แทน — การล็อกยังอยู่ ใช้ต่อวันถัดไป</div>` : ''}
+                ${onLeave ? `<div style="font-size:10px;color:var(--k-red-tx);margin-top:3px">↳ วันนี้ระบบจะข้ามเขา แล้วดึงคนอื่นมาลง ${p.team} แทน — การล็อกยังอยู่ ใช้ต่อวันถัดไป</div>` : ''}
             </div>
-            <span style="font-size:10px;font-weight:900;background:${left > 0 ? 'rgba(251,191,36,.15)' : 'rgba(148,163,184,.15)'};color:${left > 0 ? '#fbbf24' : '#94a3b8'};border:1px solid ${left > 0 ? 'rgba(251,191,36,.35)' : 'rgba(148,163,184,.3)'};padding:3px 8px;border-radius:999px;white-space:nowrap">
+            <span style="font-size:10px;font-weight:900;background:${left > 0 ? 'rgba(251,191,36,.15)' : 'rgba(148,163,184,.15)'};color:${left > 0 ? 'var(--k-amber-tx)' : 'var(--k-tx3)'};border:1px solid ${left > 0 ? 'rgba(251,191,36,.35)' : 'rgba(148,163,184,.3)'};padding:3px 8px;border-radius:999px;white-space:nowrap">
                 ${left > 0 ? `เหลือ ${left} วัน` : 'วันสุดท้าย'}
             </span>
             ${isAdmin ? `<button onclick="removeStayPin('${uid}', '${safe}')" title="ยกเลิก"
-                style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:9px;padding:5px 7px;cursor:pointer;display:flex;align-items:center">
+                style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:var(--k-red-tx);border-radius:9px;padding:5px 7px;cursor:pointer;display:flex;align-items:center">
                 <span class="material-icons" style="font-size:15px">delete</span></button>` : ''}
         </div>`;
     }).join('');
@@ -243,7 +243,7 @@ window.openStayPinListModal = async function() {
     Swal.fire({
         title: `<div style="font-size:16px;font-weight:900">📌 คนที่ถูกล็อกอยู่ต่อ (${rows.length})</div>`,
         html: `<div style="max-height:55vh;overflow-y:auto;padding-right:4px">${body}</div>
-               <div style="font-size:10.5px;color:#64748b;margin-top:6px;text-align:left">กะที่แสดงคือกะตอนกดล็อก • เวลาจัดจริงระบบยึดกะของคนนั้นในวันนั้น • หมดอายุแล้วลบให้เอง</div>`,
+               <div style="font-size:10.5px;color:var(--k-mute);margin-top:6px;text-align:left">กะที่แสดงคือกะตอนกดล็อก • เวลาจัดจริงระบบยึดกะของคนนั้นในวันนั้น • หมดอายุแล้วลบให้เอง</div>`,
         background: '#0b1120',
         width: 560,
         confirmButtonText: 'ปิด',
