@@ -825,6 +825,29 @@ window.debounceRenderSummary = function() {
     summaryRenderTimer = setTimeout(() => { window.renderSummaryDashboard(); }, 200);
 };
 
+// 📅 ปุ่มเลือกวันที่ (ใช้ทั้งตอนยังไม่มีข้อมูล และตอนดูย้อนหลัง) — เดิมเขียนซ้ำ 2 ที่
+function _buildSummaryDatesHtml() {
+    let datesHtml = '';
+    if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
+        let btns = window.availableSummaryDates.map(d => {
+                const [y, m, day] = d.split('-');
+                return getTpl('tpl-date-button', {
+                        d: d, day: day, m: m, year: y,
+                        cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
+                        iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
+                        textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
+                        checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
+                });
+        }).join('');
+        datesHtml = getTpl('tpl-date-selector-container', {
+                datesHtml: btns,
+                selectedCount: window.selectedSummaryDates.size,
+                disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
+        });
+    }
+    return datesHtml;
+}
+
 window.renderSummaryDashboard = function() {
     if (typeof SETTINGS !== 'undefined' && SETTINGS['summary_web_logos']) {
         try { window.summaryWebLogos = typeof SETTINGS['summary_web_logos'] === 'string' ? JSON.parse(SETTINGS['summary_web_logos']) : SETTINGS['summary_web_logos']; } 
@@ -846,24 +869,7 @@ window.renderSummaryDashboard = function() {
     const hasData = typeof pendingSummaryData !== 'undefined' && pendingSummaryData.length > 0;
 
     if (!hasData) {
-        let datesHtml = '';
-        if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
-            let btns = window.availableSummaryDates.map(d => {
-                const [y, m, day] = d.split('-');
-                return getTpl('tpl-date-button', { 
-                    d: d, day: day, m: m, year: y, 
-                    cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
-                    iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
-                    textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
-                    checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
-                });
-            }).join('');
-            datesHtml = getTpl('tpl-date-selector-container', { 
-                datesHtml: btns, 
-                selectedCount: window.selectedSummaryDates.size,
-                disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
-            });
-        }
+        let datesHtml = _buildSummaryDatesHtml();
 
         if(mainBox) mainBox.innerHTML = getTpl('tpl-no-data') + `<div class="text-center py-2 w-full">${datesHtml}</div>`;
         if(statsBox) statsBox.innerHTML = '<div class="text-center text-gray-400 text-sm py-2 w-full">ยังไม่มีข้อมูลยอดรวม</div>';
@@ -1005,24 +1011,7 @@ window.renderSummaryDashboard = function() {
                 });
 
                 if (viewMode === 'history' || viewMode === 'monthly_history') {
-                    let datesHtml = '';
-                    if (window.availableSummaryDates && window.availableSummaryDates.length > 0) {
-                        let btns = window.availableSummaryDates.map(d => {
-                            const [y, m, day] = d.split('-');
-                            return getTpl('tpl-date-button', { 
-                                d: d, day: day, m: m, year: y, 
-                                cardClass: window.selectedSummaryDates.has(d) ? 'bg-gradient-to-br from-sky-500 to-blue-600 border-transparent shadow-[0_0_15px_rgba(14,165,233,0.4)] scale-105 z-10' : 'bg-slate-800 border-slate-600 hover:border-sky-400 hover:bg-slate-700',
-                                iconClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-500',
-                                textClass: window.selectedSummaryDates.has(d) ? 'text-white' : 'text-gray-300',
-                                checkIcon: window.selectedSummaryDates.has(d) ? 'check_circle' : 'radio_button_unchecked'
-                            });
-                        }).join('');
-                        datesHtml = getTpl('tpl-date-selector-container', { 
-                            datesHtml: btns, 
-                            selectedCount: window.selectedSummaryDates.size,
-                            disabledAttr: window.selectedSummaryDates.size === 0 ? 'disabled' : ''
-                        });
-                    }
+                    let datesHtml = _buildSummaryDatesHtml();
                     htmlArr.push(getTpl('tpl-history-footer', { datesHtml: datesHtml }));
                 }
 
@@ -1467,4 +1456,4 @@ window.fetchHistoricalSummary = async function(silent = false) {
     }
 };
 
-// ==========================================
+// ==========================================

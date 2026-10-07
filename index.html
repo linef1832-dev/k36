@@ -23,7 +23,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "2026100545";</script>
+    <script>window._APP_VERSION = "2026100546";</script>
     <script>
         (function(v){
             ['css/style.css','css/tailwind-compiled.css','css/theme.css'].forEach(function(p){
@@ -69,18 +69,17 @@
         .sidebar-collapse-row{ display:none; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px; margin-top:8px; }
         @media (min-width:768px){
             .sidebar-collapse-row{ display:flex; justify-content:center; }
-            #sidebarNav.sidebar-mini{ width:66px !important; }
             /* 🌟 กติกาหลัก: ตอนหุบ โชว์แค่ชิป 5 หมวดเสมอ — ปุ่มเมนูซ่อนหมดไม่ว่าหมวดกางหรือพับ */
             #sidebarNav.sidebar-mini #menu-list > button{ display:none !important; }
             #sidebarNav.sidebar-mini #menu-discord, #sidebarNav.sidebar-mini #menu-admin{ display:none !important; }
             /* หัวหมวด: เหลือชิปไอคอนสีกึ่งกลาง */
-            #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; padding:7px 0 !important; margin:10px 0 !important; background:transparent !important; border-color:transparent !important; gap:0 !important; }
+            #sidebarNav.sidebar-mini .menu-section-header{ justify-content:center !important; background:transparent !important; border-color:transparent !important; gap:0 !important; }
             #sidebarNav.sidebar-mini .menu-section-header .sec-chip{ margin:0 auto !important; }
             #sidebarNav.sidebar-mini .menu-section-header .sec-label,
             #sidebarNav.sidebar-mini .menu-section-header .sec-chev{ display:none !important; }
             /* footer: เหลือไอคอนกึ่งกลาง */
             #sidebarNav.sidebar-mini .sidebar-footer-label{ display:none !important; }
-            #sidebarNav.sidebar-mini .sidebar-footer-btn{ justify-content:center !important; padding:10px 0 !important; width:auto !important; }
+            #sidebarNav.sidebar-mini .sidebar-footer-btn{ justify-content:center !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-btn:hover,
             #sidebarNav.sidebar-mini button[class*="hover:bg-"]:hover{ background:transparent !important; background-color:transparent !important; border-color:transparent !important; box-shadow:none !important; }
             #sidebarNav.sidebar-mini .sidebar-footer-btn .footer-chip{ margin:0 !important; }

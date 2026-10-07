@@ -1,3 +1,14 @@
+// 🔁 ผูก listener ที่ window/document แบบ "แทนที่ของเดิม" — เปิดหน้าแต่งรูปกี่รอบก็มีชุดเดียว
+//    (เดิมเปิดหน้าใหม่แต่ละครั้งจะผูกเพิ่มอีกชุด ตัวเก่าค้างอยู่ทำงานซ้อนกันทุกครั้งที่ขยับเมาส์)
+window._leWinOn = window._leWinOn || function(key, target, type, fn, opts) {
+    window._leWinHandlers = window._leWinHandlers || {};
+    const id = key + '|' + type;
+    const old = window._leWinHandlers[id];
+    if (old) old.target.removeEventListener(type, old.fn, old.opts);
+    target.addEventListener(type, fn, opts);
+    window._leWinHandlers[id] = { target, fn, opts };
+};
+
 // ════════════════════════════════════════════════════════════════════
 // 📦 logo_editor/erase.js — ส่วนที่ 2/4 ของเครื่องมือแต่งรูป (แยกจาก logo_editor.js เดิม 2,191 บรรทัด)
 // เนื้อหา: Selection, Magic Eraser, Content-Aware Fill, Auto ลบพื้นหลัง, เปลี่ยนสีตัวอักษร
@@ -121,13 +132,13 @@ function leSetupCanvasEvents() {
     
     cvs.addEventListener('mousedown', startSel);
     cvs.addEventListener('mousemove', moveSel);
-    window.addEventListener('mouseup', endSel);
+    window._leWinOn('canvas', window, 'mouseup', endSel);
     cvs.addEventListener('touchstart', startSel, {passive: false});
     cvs.addEventListener('touchmove', moveSel, {passive: false});
-    window.addEventListener('touchend', endSel);
+    window._leWinOn('canvas', window, 'touchend', endSel);
     
     // brush size label update
-    document.addEventListener('input', (e) => {
+    window._leWinOn('canvas', document, 'input', (e) => {
         if (e.target.id === 'leBrushSize') {
             document.getElementById('leBrushSizeLabel').innerText = e.target.value + 'px';
         }
@@ -703,11 +714,11 @@ function leSetupLogoOverlayEvents() {
     };
     const onUp = () => { isDragging = false; isResizing = false; };
     overlay.addEventListener('mousedown', onDown);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window._leWinOn('overlay', window, 'mousemove', onMove);
+    window._leWinOn('overlay', window, 'mouseup', onUp);
     overlay.addEventListener('touchstart', onDown, {passive: false});
-    window.addEventListener('touchmove', onMove, {passive: false});
-    window.addEventListener('touchend', onUp);
+    window._leWinOn('overlay', window, 'touchmove', onMove, {passive: false});
+    window._leWinOn('overlay', window, 'touchend', onUp);
 }
 
 // ==========================================

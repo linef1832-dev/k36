@@ -5,6 +5,22 @@
 // ════════════════════════════════════════════════════════════════════
 // 📋 คัดลอกรูปภาพ — popup สวยขึ้น
 // ==========================================
+// ❌ ป๊อปอัปคัดลอกรูปไม่สำเร็จ — เดิมเขียนซ้ำ 2 ที่
+function _galleryCopyFailPopup(err) {
+    Swal.fire({
+            html: `<div style="padding:12px 8px">
+            <div style="width:52px;height:52px;margin:0 auto 12px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(239,68,68,0.3)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </div>
+            <div style="font-size:16px;font-weight:800;color:var(--k-tx-strong);margin-bottom:6px">คัดลอกไม่สำเร็จ</div>
+            <div style="font-size:11px;color:var(--k-tx3)">${err.message}</div>
+            </div>`,
+            background: '#0f172a', backdrop: 'rgba(0,0,0,0.6)',
+            showConfirmButton: true, confirmButtonText: 'ตกลง', confirmButtonColor: '#dc2626',
+            customClass: { popup: 'rounded-2xl border border-red-900/40', confirmButton: 'rounded-xl font-bold px-5' }
+    });
+}
+
 window.copyImageToClipboard = async function(imageUrl) {
     // Loading popup — dark theme
     Swal.fire({
@@ -101,34 +117,12 @@ window.copyImageToClipboard = async function(imageUrl) {
                 });
             } catch (err) {
                 console.error('Clipboard write failed:', err);
-                Swal.fire({
-                    html: `<div style="padding:12px 8px">
-                        <div style="width:52px;height:52px;margin:0 auto 12px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(239,68,68,0.3)">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </div>
-                        <div style="font-size:16px;font-weight:800;color:var(--k-tx-strong);margin-bottom:6px">คัดลอกไม่สำเร็จ</div>
-                        <div style="font-size:11px;color:var(--k-tx3)">${err.message}</div>
-                    </div>`,
-                    background: '#0f172a', backdrop: 'rgba(0,0,0,0.6)',
-                    showConfirmButton: true, confirmButtonText: 'ตกลง', confirmButtonColor: '#dc2626',
-                    customClass: { popup: 'rounded-2xl border border-red-900/40', confirmButton: 'rounded-xl font-bold px-5' }
-                });
+                _galleryCopyFailPopup(err);
             }
         }, 'image/png');
     } catch (err) {
         console.error('Copy image failed:', err);
-        Swal.fire({
-            html: `<div style="padding:12px 8px">
-                <div style="width:52px;height:52px;margin:0 auto 12px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(239,68,68,0.3)">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </div>
-                <div style="font-size:16px;font-weight:800;color:var(--k-tx-strong);margin-bottom:6px">คัดลอกไม่สำเร็จ</div>
-                <div style="font-size:11px;color:var(--k-tx3)">${err.message}</div>
-            </div>`,
-            background: '#0f172a', backdrop: 'rgba(0,0,0,0.6)',
-            showConfirmButton: true, confirmButtonText: 'ตกลง', confirmButtonColor: '#dc2626',
-            customClass: { popup: 'rounded-2xl border border-red-900/40', confirmButton: 'rounded-xl font-bold px-5' }
-        });
+        _galleryCopyFailPopup(err);
     }
 };
 window.filterGalleryImages = function() {

@@ -68,7 +68,7 @@ window.initSheetRealtime = function () {
     } catch (e) { console.warn('Sheet realtime ใช้ไม่ได้:', e.message); }
 };
 
-window.fetchSheets = async function(force) {
+async function _fetchSheetsCore(force) {
     try {
         if (typeof appDB === 'undefined') return;
         // 🗃️ cache 60 วิ: เข้าๆ ออกๆ หน้านี้บ่อยๆ ไม่ต้องยิง DB ทุกรอบ (บันทึก/ลบชีตจะล้าง cache ให้เอง)
@@ -89,6 +89,11 @@ window.fetchSheets = async function(force) {
         renderRecentTabs();
         if (typeof window.initSheetRealtime === 'function') window.initSheetRealtime();   // 🔴 เปิดหูฟังครั้งแรก
     } catch (err) { console.error('Fetch Sheets Error:', err); }
+}
+// ดึงรายการชีต แล้วโหลดเครื่องคำนวณยอดต่อ (เดิมแยกเป็นตัวห่อทับอีกชั้นท้ายไฟล์ ซึ่งทำค่า force หายระหว่างทาง)
+window.fetchSheets = async function(force) {
+    await _fetchSheetsCore(force);
+    if (typeof initCalculator === 'function') await initCalculator();
 };
 
 function populateCalcTeamDropdown() {
@@ -403,10 +408,6 @@ function fallbackCopyText(text) {
     document.body.removeChild(textArea);
 }
 
-const oldFetchSheets = window.fetchSheets;
-window.fetchSheets = async function() {
-    await oldFetchSheets();
-    if(typeof initCalculator === 'function') await initCalculator();
-};
+// (ตัวห่อ fetchSheets เดิมตรงนี้รวมเข้าฟังก์ชันหลักด้านบนแล้ว — เรียก initCalculator ต่อท้ายเหมือนเดิม)
 
 // ==========================================

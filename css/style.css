@@ -1,4 +1,4 @@
-body { font-family: 'Sarabun', sans-serif; font-size: 16px; } 
+body { font-family: 'Sarabun', sans-serif; font-size: 16px; transition: background-color 0.15s ease; } 
     
 /* ระบบซ่อนเดือนภาษาอังกฤษ & เพิ่มความลื่นไหลตาราง */
 input[type="month"]::-webkit-datetime-edit,
@@ -19,7 +19,6 @@ input[type="month"] {
 }
 
 .hidden { display: none !important; }
-body { transition: background-color 0.15s ease; }
 .fade-in { animation: fadeIn 0.3s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -81,17 +80,13 @@ body { transition: background-color 0.15s ease; }
    สาเหตุเดิม: border-collapse + สีพื้นโปร่งแสง ทำให้เนื้อตาราง
    ข้างล่างลอดทะลุหัวตารางตอนเลื่อน
    ========================================================== */
-#leaveTableMain {
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-}
+/* (#leaveTableMain border-collapse/spacing อยู่ใน pages/leave/leave.html แล้ว — ลบตัวซ้ำ) */
 #leaveTableMain thead {
     position: sticky;
     top: 0;
     z-index: 40;
 }
 #leaveTableMain thead th {
-    background-clip: padding-box;
     border-bottom: none !important;
     /* ใช้ shadow แทนเส้นขอบล่าง — ปิดรอยต่อระหว่างแถวหัวตารางให้มิดชิด */
     box-shadow: 0 1px 0 0 #cbd5e1;
@@ -109,9 +104,6 @@ html.dark #leaveTableMain thead::after {
     pointer-events: none;
 }
 /* วันล็อก: หรี่เฉพาะ "เนื้อหาข้างใน" ไม่หรี่ตัวเซลล์ → พื้นหลังยังทึบสนิท */
-#leaveTableMain th.locked-day-col > * {
-    opacity: 0.5;
-}
 
 /* ==========================================================
    🎩 Premium SweetAlert2 — กราไฟต์ดำ × ทองแชมเปญ (ทั้งเว็บ)

@@ -491,11 +491,7 @@ window.fetchMultipleHistoricalSummary = async function() {
     } catch (e) { Swal.fire('Error', e.message, 'error'); }
 };
 
-const _originalClearSummaryDataForMulti = window.clearSummaryData;
-window.clearSummaryData = function() {
-    window.selectedSummaryDates.clear(); 
-    _originalClearSummaryDataForMulti();
-};
+// (ตัวห่อ clearSummaryData เดิมลบแล้ว — ฟังก์ชันหลักใน summary/core.js ล้างวันที่ที่เลือกให้อยู่แล้ว)
 
 window.deleteSummaryDate = function(dateStr) {
     const [y, m, day] = dateStr.split('-');

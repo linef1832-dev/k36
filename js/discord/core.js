@@ -1113,6 +1113,17 @@ window.saveTgConfigLocal = async function() {
 
 window.renderCheckinTable = function() { dsDebounce('checkin', _doRenderCheckinTable, 200); };
 
+// 🏖️ หาเหตุผลการลาวันนี้ของพนักงาน (จับคู่ชื่อแบบตัดสัญลักษณ์) — เดิมเขียนซ้ำ 2 ที่
+function _dsLeaveReasonFor(dbUser) {
+    if (!dbUser || !todaysLeaves || todaysLeaves.length === 0) return null;
+    const dbNameClean = dbUser.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
+    const foundLeave = todaysLeaves.find(l => {
+        const dbNameLeave = l.user_name ? l.user_name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') : '';
+        return dbNameLeave === dbNameClean || dbNameClean.includes(dbNameLeave);
+    });
+    return foundLeave ? foundLeave.reason : null;
+}
+
 window._doRenderCheckinTable = function() {
     const container = document.getElementById('checkinTableContainer');
     if(!container) return;
@@ -1140,15 +1151,7 @@ window._doRenderCheckinTable = function() {
         
         const dbUser = getDbUserFromDiscordName(s.name);
         
-        let leaveReasonDb = null;
-        if (dbUser && todaysLeaves && todaysLeaves.length > 0) {
-            const foundLeave = todaysLeaves.find(l => {
-                const dbNameLeave = l.user_name ? l.user_name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') : '';
-                const dbNameClean = dbUser.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
-                return dbNameLeave === dbNameClean || dbNameClean.includes(dbNameLeave);
-            });
-            if (foundLeave) leaveReasonDb = foundLeave.reason;
-        }
+        let leaveReasonDb = _dsLeaveReasonFor(dbUser);
         
         let st = checkinStatusMap[s.id];
         if (!st) {
@@ -1256,15 +1259,7 @@ window.sendToTelegram = async function() {
         
         const dbUser = getDbUserFromDiscordName(s.name);
         
-        let leaveReasonDb = null;
-        if (dbUser && todaysLeaves && todaysLeaves.length > 0) {
-            const foundLeave = todaysLeaves.find(l => {
-                const dbNameLeave = l.user_name ? l.user_name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '') : '';
-                const dbNameClean = dbUser.username.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
-                return dbNameLeave === dbNameClean || dbNameClean.includes(dbNameLeave);
-            });
-            if (foundLeave) leaveReasonDb = foundLeave.reason;
-        }
+        let leaveReasonDb = _dsLeaveReasonFor(dbUser);
         
         let st = checkinStatusMap[s.id];
         if (!st) {

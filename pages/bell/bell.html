@@ -196,7 +196,7 @@
     .bell-selring:disabled { opacity: .35; cursor: default; box-shadow: none; }
     .bell-shtag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: 10.5px; font-weight: 800; background:rgba(245,158,11,.15); color:var(--k-amber-tx); }
     /* ── แถวรายชื่อ: คลิกทั้งแถวเพื่อเลือก ── */
-    .bell-row { cursor: pointer; border:1px solid transparent; }
+    .bell-row { cursor: pointer; }
     .bell-row.sel { background:rgba(245,158,11,.10); border-color:rgba(245,158,11,.45); }
     .bell-row.offline { cursor: default; }
     .bell-check { width: 20px; height: 20px; border-radius: 50%; border:2px solid rgba(148,163,184,.5); flex: none; display: flex; align-items: center; justify-content: center; transition: all .15s; }
@@ -222,11 +222,10 @@
     .bell-row .bell-sub { font-size: 12px; color:var(--k-tx3); }
     .bell-row .bell-when { display: flex; flex-wrap: wrap; gap: 4px 6px; justify-content: flex-end; font-size: 11.5px; font-weight: 700; max-width: 260px; }
     .bell-row .bell-when span { padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-    .bell-row .bw-ring { background:rgba(245,158,11,.12); color:#b45309; }
-    .bell-row .bw-ok { background:rgba(16,185,129,.12); color:#047857; }
-    .bell-row .bw-sec { background:rgba(59,130,246,.12); color:#1d4ed8; }
-    .bell-row .bw-wait { background:rgba(239,68,68,.12); color:#b91c1c; }
-    .dark .bell-row .bw-ring { color:var(--k-amber-tx); } .dark .bell-row .bw-ok { color:var(--k-green-tx); } .dark .bell-row .bw-sec { color:light-dark(#0352aa,#93c5fd); } .dark .bell-row .bw-wait { color:var(--k-red-tx); }
+    .bell-row .bw-ring { background:rgba(245,158,11,.12); }
+    .bell-row .bw-ok { background:rgba(16,185,129,.12); }
+    .bell-row .bw-sec { background:rgba(59,130,246,.12); }
+    .bell-row .bw-wait { background:rgba(239,68,68,.12); }
 
     /* ป้ายสถานะ */
     .bell-badge { font-size: 12px; padding: 4px 10px; border-radius: 999px; font-weight: 700; white-space: nowrap; }

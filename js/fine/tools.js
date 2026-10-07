@@ -485,7 +485,14 @@ window.onFineSearch = function() {
             else if (e.key === 'Enter') { e.preventDefault(); if (act >= 0 && list.__rows) choose(list.__rows[act]); }
         }
         wrap.addEventListener('keydown', onKey);
-        document.addEventListener('click', e => { if (pop && !wrap.contains(e.target) && !pop.contains(e.target)) close(); });
+        // ปิดเมื่อคลิกนอก — ใช้ตัวฟังกลางตัวเดียวทั้งหน้า (เดิมผูกเพิ่ม 1 ตัวต่อ dropdown ทุกครั้งที่เปิดหน้า สะสมไม่หาย)
+        fx._outside = e => { if (pop && !wrap.contains(e.target) && !pop.contains(e.target)) close(); };
+        if (!window.__fxOutsideBound) {
+            window.__fxOutsideBound = true;
+            document.addEventListener('click', e => {
+                document.querySelectorAll('.fx-sel').forEach(w => { const f = w.querySelector('select') && w.querySelector('select').__fx; if (f && f._outside) f._outside(e); });
+            });
+        }
         sel.addEventListener('change', sync);
         new MutationObserver(() => { sync(); if (pop) render(); }).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
         // ค่าที่โค้ดตั้งตรงๆ (sel.value = '') ไม่ยิง event → เช็คเบาๆ เป็นระยะ
