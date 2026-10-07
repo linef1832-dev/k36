@@ -1376,8 +1376,8 @@ window.renderQuotaSettings = async function() {
     container.innerHTML = `
         <style>
             /* 🎨 เลขอัตโนมัติ (placeholder) ต้องจางชัดเจน แยกจากเลขที่พิมพ์เอง — ใช้ CSS ตรงๆ ไม่พึ่งคลาส Tailwind ที่อาจไม่ได้คอมไพล์ */
-            input[data-brm]::placeholder { color: #526075; opacity: 1; font-weight: 400; font-style: italic; }
-            input[data-brm] { color: #fbbf24; font-weight: 700; }   /* เลขที่พิมพ์เอง = เหลืองหนา เห็นปุ๊บรู้ว่ากำหนดเอง */
+            input[data-brm]::placeholder { color:var(--k-mute3); opacity: 1; font-weight: 400; font-style: italic; }
+            input[data-brm] { color:var(--k-amber-tx); font-weight: 700; }   /* เลขที่พิมพ์เอง = เหลืองหนา เห็นปุ๊บรู้ว่ากำหนดเอง */
         </style>
         <div class="flex flex-col gap-4 w-full mt-2">
             <div class="bg-sky-900/20 border border-sky-700/40 rounded-xl p-3 text-[11px] text-sky-200 leading-relaxed flex flex-wrap items-center gap-3">

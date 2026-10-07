@@ -483,12 +483,12 @@ function _galleryRipple(imageUrl) {
         @keyframes _gRipple{0%{opacity:1;transform:scale(0.8)}100%{opacity:0;transform:scale(1.05)}}
         @keyframes _gBadge{0%{opacity:0;transform:translate(-50%,-50%) scale(0.7)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(0.9)}}
         @keyframes _gSkeleton{0%,100%{opacity:0.5}50%{opacity:1}}
-        ._gallery-ctx-menu{position:fixed;z-index:9999;background:#1e293b;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:4px;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.05);min-width:180px;animation:_gBadge2 0.15s ease-out}
+        ._gallery-ctx-menu{position:fixed;z-index:9999;background:var(--k-card);border:1px solid color-mix(in srgb,var(--k-tx-strong) 10.0%,transparent);border-radius:12px;padding:4px;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.05);min-width:180px;animation:_gBadge2 0.15s ease-out}
         @keyframes _gBadge2{from{opacity:0;transform:scale(0.95) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)}}
-        ._gallery-ctx-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#e2e8f0;transition:background 0.15s}
-        ._gallery-ctx-item:hover{background:rgba(255,255,255,0.08)}
+        ._gallery-ctx-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--k-tx);transition:background 0.15s}
+        ._gallery-ctx-item:hover{background:color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent)}
         ._gallery-ctx-item .material-icons{font-size:16px;opacity:0.7}
-        ._gallery-ctx-sep{height:1px;background:rgba(255,255,255,0.07);margin:3px 0}
+        ._gallery-ctx-sep{height:1px;background:color-mix(in srgb,var(--k-tx-strong) 7.0%,transparent);margin:3px 0}
     `;
     document.head.appendChild(s);
 })();

@@ -721,9 +721,9 @@ function _dreqEnsureStyle() {
         .dreq-num:focus{color:var(--k-gold-tx)}
         .dreq-card.zero .dreq-num{color:var(--k-mute3)}
         .dreq-move{position:absolute;top:0;left:0;right:0;height:20px;display:flex;justify-content:space-between;pointer-events:none}
-        .dreq-move button{pointer-events:auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);background:rgba(0,0,0,.28);opacity:0;transition:opacity .15s,background .15s;cursor:pointer}
+        .dreq-move button{pointer-events:auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:color-mix(in srgb,var(--k-tx-strong) 85.0%,transparent);background:color-mix(in srgb,var(--k-panel2) 28.0%,transparent);opacity:0;transition:opacity .15s,background .15s;cursor:pointer}
         .dreq-move button .material-icons{font-size:14px}
-        .dreq-move button:hover{background:rgba(0,0,0,.5)}
+        .dreq-move button:hover{background:color-mix(in srgb,var(--k-panel2) 50.0%,transparent)}
         .dreq-card:hover .dreq-move button,.dreq-move button:focus-visible{opacity:1}
         @media (hover:none){ .dreq-move button{opacity:.9} }
 
@@ -744,7 +744,7 @@ function _dreqEnsureStyle() {
         .dreq-pool-num{font-size:20px;font-weight:900;color:var(--k-amber-tx);font-variant-numeric:tabular-nums;line-height:1.1}
         .dreq-pool-unit{font-size:11px;font-weight:700;color:var(--k-gold-tx)}
         .dreq-pool-sub{margin-left:auto;font-size:11px;font-weight:700;color:var(--k-mute);white-space:nowrap;font-variant-numeric:tabular-nums}
-        .dreq-pool-bar{height:5px;border-radius:5px;background:rgba(255,255,255,.08);margin-top:5px;overflow:hidden}
+        .dreq-pool-bar{height:5px;border-radius:5px;background:color-mix(in srgb,var(--k-tx-strong) 8.0%,transparent);margin-top:5px;overflow:hidden}
         .dreq-pool-bar i{display:block;height:100%;border-radius:5px;background:#E8C15A;transition:width .3s}
         .dreq-pool.ok{background:var(--k-green-bg);border-color:rgba(34,197,94,.5)}
         .dreq-pool.ok .dreq-pool-ic{background:rgba(34,197,94,.14);color:var(--k-green-tx)}
@@ -1232,8 +1232,8 @@ window.renderTrainerOdMatrix = async function(rosterData) {
 
     let html = `
         <style>
-            .od-divider { border-right: 3px solid #64748b !important; }
-            .dark .od-divider, html.dark .od-divider { border-right: 3px solid #000000 !important; }
+            .od-divider { border-right:3px solid #64748b !important; }
+            .dark .od-divider, html.dark .od-divider { border-right:3px solid var(--k-line) !important; }
         </style>
         <div class="w-full min-w-max border border-slate-600 shadow-sm rounded-lg overflow-hidden">
         <table class="w-full text-center border-collapse whitespace-nowrap dark:text-white">`; 

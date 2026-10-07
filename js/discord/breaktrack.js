@@ -459,7 +459,7 @@ window.editTelegramGroup = async function(id) {
     // สองแบบเลยสูงไม่เท่ากัน สีขอบคนละเฉด ดูไม่เป็นชุด → ใช้สไตล์เดียวกันหมด
     const LB = 'display:block;font-size:11px;font-weight:800;letter-spacing:.4px;color:#94a3b8;margin-bottom:6px;';
     const FD = 'width:100%;box-sizing:border-box;padding:11px 14px;border-radius:10px;'
-        + 'border:1.5px solid #334155;background:#0f172a;color:#f1f5f9;font-size:13px;'
+        + 'border:1.5px solid var(--k-line2);background:var(--k-field);color:var(--k-tx);font-size:13px;'
         + 'font-weight:600;outline:none;transition:border-color .15s;';
     const ROW = 'text-align:left;margin-top:14px;';
     const field = (label, inner) => `<div style="${ROW}"><label style="${LB}">${label}</label>${inner}</div>`;
@@ -692,7 +692,7 @@ window._btRenderSortHeaders = function() {
 const GROUP_TAG_OPTIONS = ['ONLINE', 'TEMP', 'ONSITE'];
 
 function groupTagOptionsHtml(selected) {
-    const st = 'background:#0f172a;color:#f1f5f9;';
+    const st = 'background:var(--k-field);color:var(--k-tx);';
     return [`<option value="" style="${st}">— ไม่ระบุ —</option>`]
         .concat(GROUP_TAG_OPTIONS.map(t =>
             `<option value="${t}" style="${st}"${String(selected || '') === t ? ' selected' : ''}>${t}</option>`))

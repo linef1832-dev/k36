@@ -1518,7 +1518,7 @@ window.renderHeadContactsEditor = async function() {
                 <button onclick="removeHeadContact(${i})" class="text-red-400 hover:text-red-300 p-1" title="ลบ"><span class="material-icons text-sm">delete</span></button>
             </div>
         </div>`).join('') +
-        `<style>.hc-in{background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:7px 9px;font-size:12px;outline:none;min-width:0;width:100%}.hc-in:focus{border-color:#fbbf24}</style>`;
+        `<style>.hc-in{background:var(--k-panel2);border:1px solid var(--k-line2);color:var(--k-tx);border-radius:8px;padding:7px 9px;font-size:12px;outline:none;min-width:0;width:100%}.hc-in:focus{border-color:#fbbf24}</style>`;
     box.querySelectorAll('.hc-in').forEach(el => el.addEventListener('input', () => {
         const i = +el.dataset.i, f = el.dataset.f; if (window._headContacts[i]) window._headContacts[i][f] = el.value;
     }));
