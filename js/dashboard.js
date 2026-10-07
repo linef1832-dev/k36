@@ -624,9 +624,9 @@ window.switchAdminTab = function(tab) {
         const btn = document.getElementById('btnAdminTab_' + t);
         if (btn) {
             if (t === tab) {
-                btn.className = 'whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow-md';
+                btn.className = 'ap-tab active';   // สไตล์อยู่ใน dashboard.html (#adminPanel .ap-tab)
             } else {
-                btn.className = 'whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent';
+                btn.className = 'ap-tab';
             }
         }
 

@@ -200,34 +200,99 @@
         </div>
     </div>
 
-    <div id="adminPanel" class="hidden flex-col gap-6 w-full animate-fade-in bg-[#0f172a] p-4 md:p-6 rounded-3xl border border-slate-700 shadow-2xl min-h-[80vh]">
-        
-        <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center bg-[#151f32] p-2 rounded-2xl border border-slate-700/80 shadow-md gap-4">
-            <div class="flex items-center gap-1 overflow-x-auto custom-scrollbar w-full xl:w-auto">
-                <button onclick="switchAdminTab('settings')" id="btnAdminTab_settings" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow-md">
-                    <span class="material-icons text-base">tune</span> ตั้งค่าระบบ
-                </button>
-                <button onclick="switchAdminTab('users')" id="btnAdminTab_users" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
-                    <span class="material-icons text-base">groups</span> จัดการพนักงาน
-                </button>
-                <button onclick="switchAdminTab('perms')" id="btnAdminTab_perms" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
-                    <span class="material-icons text-base">security</span> สิทธิ์เมนู
-                </button>
-                <button onclick="switchAdminTab('quotalog')" id="btnAdminTab_quotalog" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
-                    <span class="material-icons text-base">history</span> ประวัติโควตา
-                </button>
-                <button onclick="switchAdminTab('contacts')" id="btnAdminTab_contacts" class="whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-white hover:bg-slate-800 border border-transparent">
-                    <span class="material-icons text-base">support_agent</span> ติดต่อหัวหน้า
-                </button>
+    <!-- 🛠️ แผงผู้ดูแลระบบ (ออกแบบใหม่) — id / onclick เดิมทุกตัว -->
+    <style>
+        #adminPanel{background:var(--k-bg);border:1px solid var(--k-line);color:var(--k-tx)}
+        #adminPanel .ap-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line)}
+        #adminPanel .ap-tabs{display:flex;gap:2px;overflow-x:auto;min-width:0;flex:1 1 auto;scrollbar-width:none}
+        #adminPanel .ap-tabs::-webkit-scrollbar{display:none}
+        #adminPanel .ap-tab{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:11px;font-size:13px;font-weight:800;white-space:nowrap;color:var(--k-mute);background:transparent;border:0;cursor:pointer;transition:background .15s,color .15s}
+        #adminPanel .ap-tab .material-icons{font-size:18px}
+        #adminPanel .ap-tab:hover{color:var(--k-tx-strong);background:var(--k-btn-h)}
+        #adminPanel .ap-tab.active{background:var(--k-gold);color:var(--k-gold-ink);box-shadow:0 4px 12px rgba(232,193,90,.25)}
+        #adminPanel .ap-acts{display:flex;gap:8px;margin-left:auto}
+        #adminPanel .ap-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 14px;border-radius:10px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;border:1px solid var(--k-line3);background:var(--k-btn);color:var(--k-tx2);transition:background .15s,border-color .15s,color .15s,transform .08s}
+        #adminPanel .ap-btn .material-icons{font-size:17px;color:var(--k-tx3)}
+        #adminPanel .ap-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4);color:var(--k-tx-strong)}
+        #adminPanel .ap-btn:active{transform:scale(.97)}
+        #adminPanel .ap-btn:focus-visible,#adminPanel .ap-tab:focus-visible{outline:2px solid var(--k-gold);outline-offset:2px}
+        #adminPanel .ap-btn.primary{background:var(--k-gold);border-color:var(--k-gold);color:var(--k-gold-ink)}
+        #adminPanel .ap-btn.primary .material-icons{color:var(--k-gold-ink)}
+        #adminPanel .ap-btn.primary:hover{filter:brightness(1.06)}
+        #adminPanel .ap-btn.sm{height:32px;padding:0 11px;font-size:12px;border-radius:9px}
+        #adminPanel .ap-btn.danger{color:var(--k-red-tx);border-color:var(--k-red-line);background:var(--k-red-bg)}
+        #adminPanel .ap-btn.danger .material-icons{color:var(--k-red-tx)}
+        #adminPanel .ap-btn.danger:hover{background:var(--k-red-bg-h);border-color:var(--k-red-line-h)}
+        #adminPanel .ap-btn.add{height:44px;width:100%;font-size:14px;background:#16a34a;border-color:#16a34a;color:#fff;box-shadow:0 6px 18px rgba(22,163,74,.25)}
+        #adminPanel .ap-btn.add .material-icons{color:#fff;font-size:20px}
+        #adminPanel .ap-btn.add:hover{background:#15803d}
+
+        /* การ์ด */
+        #adminPanel .ap-card{background:var(--k-panel);border:1px solid var(--k-line);border-radius:16px;overflow:hidden}
+        #adminPanel .ap-ch{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--k-line)}
+        #adminPanel .ap-ct{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+        #adminPanel .ap-ct>.material-icons{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+        #adminPanel .ap-h{font-size:14.5px;font-weight:900;color:var(--k-tx-strong)}
+        #adminPanel .ap-hint{font-size:11.5px;font-weight:600;color:var(--k-mute)}
+        #adminPanel .ap-cb{padding:14px 16px}
+
+        /* KPI กะ */
+        #adminPanel .ap-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+        #adminPanel .ap-kpi{--c:#fb923c;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line);border-left:3px solid var(--c)}
+        #adminPanel .ap-kpi-ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c)}
+        #adminPanel .ap-kpi-ic .material-icons{font-size:24px}
+        #adminPanel .ap-kpi-l{font-size:12px;font-weight:800;color:var(--k-mute)}
+        #adminPanel .ap-kpi .stat-total{font-size:26px;font-weight:900;color:var(--k-tx-strong);line-height:1.1;font-variant-numeric:tabular-nums}
+        #adminPanel .ap-kpi-sub{display:flex;gap:6px;margin-top:4px}
+        #adminPanel .ap-chip{font-size:11px;font-weight:800;padding:1px 8px;border-radius:999px;border:1px solid;font-variant-numeric:tabular-nums}
+        #adminPanel .ap-chip.am{color:light-dark(#1d4ed8,#93c5fd);border-color:rgba(59,130,246,.35);background:rgba(59,130,246,.08)}
+        #adminPanel .ap-chip.od{color:light-dark(#be185d,#f9a8d4);border-color:rgba(236,72,153,.35);background:rgba(236,72,153,.08)}
+
+        /* ฟอร์มเพิ่ม */
+        #adminPanel .ap-add{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+        #adminPanel .ap-lbl{display:block;font-size:11.5px;font-weight:800;color:var(--k-tx3);margin-bottom:5px}
+        #adminPanel .ap-in{width:100%;height:38px;padding:0 11px;border-radius:10px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13px;font-weight:700;outline:none;transition:border-color .15s}
+        #adminPanel textarea.ap-in{height:auto;min-height:86px;padding:10px 12px;resize:vertical;line-height:1.5}
+        #adminPanel .ap-in::placeholder{color:var(--k-mute3);font-weight:600}
+        #adminPanel .ap-in:focus{border-color:var(--k-gold);box-shadow:0 0 0 3px rgba(232,193,90,.15)}
+        #adminPanel select.ap-in{cursor:pointer}
+        #adminPanel select.ap-in option{background:var(--k-field);color:var(--k-tx)}
+        #adminPanel .ap-ids{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+        #adminPanel .ap-ids .ap-in{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+        #adminPanel .ap-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+
+        /* แถบกรอง + จัดการที่เลือก */
+        #adminPanel .ap-tool{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--k-line);background:var(--k-panel2)}
+        #adminPanel .ap-search{position:relative;flex:1 1 200px;min-width:160px}
+        #adminPanel .ap-search .material-icons{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--k-mute);pointer-events:none}
+        #adminPanel .ap-search .ap-in{padding-left:34px}
+        #adminPanel .ap-bulk{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 6px 4px 10px;border-radius:12px;background:var(--k-sunk);border:1px solid var(--k-line)}
+        #adminPanel .ap-bulk-l{font-size:11.5px;font-weight:800;color:var(--k-mute);margin-right:2px;display:flex;align-items:center;gap:4px}
+        #adminPanel .ap-bulk .ap-in{height:32px;width:auto;font-size:12px}
+        #adminPanel .ap-sep{width:1px;height:22px;background:var(--k-line2);margin:0 2px}
+
+        /* ตาราง */
+        #adminPanel .ap-tbl thead th{position:sticky;top:0;z-index:5;background:var(--k-panel2);color:var(--k-mute);font-size:11.5px;font-weight:800;padding:10px 12px;border-bottom:1px solid var(--k-line)}
+        #adminPanel .ap-tbl tbody td{border-color:var(--k-line) !important;padding:10px 12px !important}
+        #adminPanel .ap-tbl tbody tr:hover{background:var(--k-btn-h) !important}
+        #adminPanel #userPaginationControls{padding:10px 16px !important;background:var(--k-panel2) !important;border-top:1px solid var(--k-line) !important;color:var(--k-mute) !important}
+
+        @media (max-width:1100px){ #adminPanel .ap-add{grid-template-columns:1fr} }
+        @media (max-width:760px){ #adminPanel .ap-kpis{grid-template-columns:1fr} #adminPanel .ap-acts{margin-left:0;width:100%} #adminPanel .ap-acts .ap-btn{flex:1} }
+    </style>
+    <div id="adminPanel" class="hidden flex-col gap-5 w-full animate-fade-in p-4 md:p-6 rounded-3xl shadow-2xl min-h-[80vh]">
+
+        <div class="ap-bar">
+            <div class="ap-tabs" role="tablist">
+                <button onclick="switchAdminTab('settings')" id="btnAdminTab_settings" class="ap-tab active"><span class="material-icons">tune</span> ตั้งค่าระบบ</button>
+                <button onclick="switchAdminTab('users')" id="btnAdminTab_users" class="ap-tab"><span class="material-icons">groups</span> จัดการพนักงาน</button>
+                <button onclick="switchAdminTab('perms')" id="btnAdminTab_perms" class="ap-tab"><span class="material-icons">security</span> สิทธิ์เมนู</button>
+                <button onclick="switchAdminTab('quotalog')" id="btnAdminTab_quotalog" class="ap-tab"><span class="material-icons">history</span> ประวัติโควตา</button>
+                <button onclick="switchAdminTab('contacts')" id="btnAdminTab_contacts" class="ap-tab"><span class="material-icons">support_agent</span> ติดต่อหัวหน้า</button>
             </div>
-            
-            <div class="flex gap-2 shrink-0 w-full xl:w-auto justify-end pr-2">
-                <button onclick="refreshAdminData()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-md active:scale-95 text-sm">
-                    <span class="material-icons text-sm">sync</span> อัปเดตข้อมูล
-                </button>
-                <button onclick="document.getElementById('adminPanel').classList.add('hidden'); document.getElementById('mainContentArea').classList.remove('hidden');" class="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition shadow-md active:scale-95 text-sm">
-                    <span class="material-icons text-sm">arrow_back</span> กลับ
-                </button>
+            <div class="ap-acts">
+                <button onclick="refreshAdminData()" class="ap-btn" title="โหลดข้อมูลพนักงานและค่าตั้งล่าสุด"><span class="material-icons">sync</span> อัปเดตข้อมูล</button>
+                <button onclick="document.getElementById('adminPanel').classList.add('hidden'); document.getElementById('mainContentArea').classList.remove('hidden');" class="ap-btn"><span class="material-icons">arrow_back</span> กลับ</button>
             </div>
         </div>
 
@@ -495,105 +560,109 @@
             </div>
         </div> 
 
-        <div id="adminView_users" class="hidden flex-col gap-6 w-full animate-fade-in">
-            <div class="grid grid-cols-3 gap-4">
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-orange-500/30 shadow-lg relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-orange-500">wb_sunny</span></div>
-                    <div class="text-orange-400 text-xs font-bold uppercase mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> พนักงานกะเช้า</div>
-                    <div id="countShiftM" class="relative z-10 flex flex-col gap-1 mt-1">
-                        <div class="text-3xl font-black text-white leading-none stat-total">0</div>
-                        <div class="flex gap-3 text-xs font-bold mt-1">
-                            <span class="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/50">AM: <span class="stat-am">0</span></span>
-                            <span class="text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-800/50">OD: <span class="stat-od">0</span></span>
-                        </div>
+        <div id="adminView_users" class="hidden flex-col gap-5 w-full animate-fade-in">
+            <!-- จำนวนพนักงานแต่ละกะ -->
+            <div class="ap-kpis">
+                <div class="ap-kpi" style="--c:#fb923c">
+                    <div class="ap-kpi-ic"><span class="material-icons">wb_sunny</span></div>
+                    <div id="countShiftM">
+                        <div class="ap-kpi-l">พนักงานกะเช้า</div>
+                        <div class="stat-total">0</div>
+                        <div class="ap-kpi-sub"><span class="ap-chip am">AM <span class="stat-am">0</span></span><span class="ap-chip od">OD <span class="stat-od">0</span></span></div>
                     </div>
                 </div>
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-blue-500/30 shadow-lg relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-blue-500">cloud</span></div>
-                    <div class="text-blue-400 text-xs font-bold uppercase mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> พนักงานกะกลาง</div>
-                    <div id="countShiftA" class="relative z-10 flex flex-col gap-1 mt-1">
-                        <div class="text-3xl font-black text-white leading-none stat-total">0</div>
-                        <div class="flex gap-3 text-xs font-bold mt-1">
-                            <span class="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/50">AM: <span class="stat-am">0</span></span>
-                            <span class="text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-800/50">OD: <span class="stat-od">0</span></span>
-                        </div>
+                <div class="ap-kpi" style="--c:#60a5fa">
+                    <div class="ap-kpi-ic"><span class="material-icons">cloud</span></div>
+                    <div id="countShiftA">
+                        <div class="ap-kpi-l">พนักงานกะกลาง</div>
+                        <div class="stat-total">0</div>
+                        <div class="ap-kpi-sub"><span class="ap-chip am">AM <span class="stat-am">0</span></span><span class="ap-chip od">OD <span class="stat-od">0</span></span></div>
                     </div>
                 </div>
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-purple-500/30 shadow-lg relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-2 opacity-10"><span class="material-icons text-6xl text-purple-500">dark_mode</span></div>
-                    <div class="text-purple-400 text-xs font-bold uppercase mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span> พนักงานกะดึก</div>
-                    <div id="countShiftN" class="relative z-10 flex flex-col gap-1 mt-1">
-                        <div class="text-3xl font-black text-white leading-none stat-total">0</div>
-                        <div class="flex gap-3 text-xs font-bold mt-1">
-                            <span class="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/50">AM: <span class="stat-am">0</span></span>
-                            <span class="text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-800/50">OD: <span class="stat-od">0</span></span>
-                        </div>
+                <div class="ap-kpi" style="--c:#a78bfa">
+                    <div class="ap-kpi-ic"><span class="material-icons">dark_mode</span></div>
+                    <div id="countShiftN">
+                        <div class="ap-kpi-l">พนักงานกะดึก</div>
+                        <div class="stat-total">0</div>
+                        <div class="ap-kpi-sub"><span class="ap-chip am">AM <span class="stat-am">0</span></span><span class="ap-chip od">OD <span class="stat-od">0</span></span></div>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-[#151f32] rounded-2xl border border-slate-700 shadow-md p-5 flex flex-col xl:flex-row gap-5 items-center">
-                <div class="flex items-center gap-2 text-green-400 font-bold shrink-0 w-full xl:w-auto border-b xl:border-b-0 xl:border-r border-slate-700 pb-3 xl:pb-0 pr-5 text-lg">
-                    <span class="material-icons bg-green-500/20 p-2 rounded-xl">person_add</span> 
-                    <span>เพิ่มรายชื่อ</span>
-                </div>
-                <div class="flex flex-col gap-2 flex-1 w-full">
-                    <textarea id="newUsersArea" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3.5 text-white text-sm font-bold focus:border-green-500 outline-none transition custom-scrollbar" placeholder="พิมพ์ชื่อพนักงาน (ขึ้นบรรทัดใหม่เพื่อเพิ่มทีละหลายคน)"></textarea>
-                    <div class="flex gap-2">
-                        <input id="newDiscordId" type="text" placeholder="🔷 Discord ID (ไม่บังคับ)" class="flex-1 bg-slate-900 border border-slate-700 text-indigo-300 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500 transition placeholder-slate-600">
-                        <input id="newTelegramId" type="text" placeholder="✈️ Telegram ID (ไม่บังคับ)" class="flex-1 bg-slate-900 border border-slate-700 text-sky-300 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-sky-500 transition placeholder-slate-600">
+            <!-- เพิ่มพนักงาน -->
+            <section class="ap-card">
+                <div class="ap-ch">
+                    <div class="ap-ct">
+                        <span class="material-icons" style="color:#22c55e;background:rgba(34,197,94,.12)">person_add</span>
+                        <div><div class="ap-h">เพิ่มพนักงาน</div><div class="ap-hint">พิมพ์ชื่อทีละบรรทัด เพิ่มหลายคนได้ในครั้งเดียว ทุกคนจะได้ค่าตั้งด้านขวาเหมือนกัน</div></div>
                     </div>
                 </div>
-                
-                <div class="flex flex-wrap gap-3 shrink-0 w-full xl:w-auto">
-                    <div class="flex flex-col gap-1.5 w-full sm:w-auto">
-                        <select id="newDept" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-blue-100 outline-none"><option value="AM">แผนก AM</option><option value="OD">แผนก OD</option></select>
-                        <select id="newTag" class="p-2 rounded-lg text-white text-xs font-bold bg-slate-700 outline-none border border-slate-600"><option value="">— TAG —</option><option value="ONLINE">ONLINE</option><option value="TEMP">TEMP</option><option value="ONSITE">ONSITE</option></select>
-                        <select id="newTeam" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-indigo-100 outline-none"></select>
+                <div class="ap-cb ap-add">
+                    <div>
+                        <label class="ap-lbl" for="newUsersArea">ชื่อพนักงาน</label>
+                        <textarea id="newUsersArea" rows="3" class="ap-in custom-scrollbar" placeholder="เช่น&#10;AIBRO&#10;BRANT"></textarea>
+                        <div class="ap-ids">
+                            <input id="newDiscordId" type="text" placeholder="Discord ID (ไม่บังคับ)" class="ap-in">
+                            <input id="newTelegramId" type="text" placeholder="Telegram ID (ไม่บังคับ)" class="ap-in">
+                        </div>
                     </div>
-                    <div class="flex flex-col gap-1.5 w-full sm:w-auto">
-                        <select id="newAllowedShift" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-gray-100 outline-none"><option value="all">กะอิสระ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
-                        <select id="newCheckType" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-purple-100 outline-none"><option value="team">☑ เช็คทีม+กะ</option><option value="shift">☐ เช็คกะอย่างเดียว</option></select>
+                    <div>
+                        <div class="ap-fields">
+                            <div><label class="ap-lbl" for="newDept">แผนก</label><select id="newDept" class="ap-in"><option value="AM">แผนก AM</option><option value="OD">แผนก OD</option></select></div>
+                            <div><label class="ap-lbl" for="newTeam">ทีม</label><select id="newTeam" class="ap-in"></select></div>
+                            <div><label class="ap-lbl" for="newAllowedShift">กะ</label><select id="newAllowedShift" class="ap-in"><option value="all">กะอิสระ</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select></div>
+                            <div><label class="ap-lbl" for="newCheckType">ระบบเช็คชื่อ</label><select id="newCheckType" class="ap-in"><option value="team">เช็คทีม + กะ</option><option value="shift">เช็คกะอย่างเดียว</option></select></div>
+                            <div><label class="ap-lbl" for="newTag">TAG <small style="font-weight:600;color:var(--k-mute3)">(ไม่บังคับ)</small></label><select id="newTag" class="ap-in"><option value="">— ไม่มี —</option><option value="ONLINE">ONLINE</option><option value="TEMP">TEMP</option><option value="ONSITE">ONSITE</option></select></div>
+                            <div style="display:flex;align-items:flex-end">
+                                <button onclick="addUsersBulk()" class="ap-btn add"><span class="material-icons">add_task</span> เพิ่มพนักงาน</button>
+                            </div>
+                        </div>
                     </div>
-                    <button onclick="addUsersBulk()" class="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 rounded-xl font-bold shadow-lg transition active:scale-95 flex items-center justify-center h-16 text-base">
-                        <span class="material-icons text-xl mr-1">add_task</span> เพิ่ม
-                    </button>
                 </div>
-            </div>
+            </section>
 
-            <div class="bg-[#151f32] p-4 rounded-2xl border border-slate-700 shadow-sm flex flex-col lg:flex-row justify-between items-center gap-4">
-                <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                    <select id="filterUserDept" onchange="searchEmployee()" class="p-2.5 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">🌐 ทุกแผนก</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
-                    <select id="filterUserShift" onchange="searchEmployee()" class="p-2.5 rounded-xl text-slate-800 text-xs font-bold bg-white outline-none cursor-pointer"><option value="all">⏱️ ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option></select>
-                    <div class="relative flex-1 min-w-[200px]">
-                        <span class="material-icons absolute left-3 top-2.5 text-gray-400 text-[20px]">search</span>
-                        <input type="text" id="searchUser" onkeyup="searchEmployee()" placeholder="ค้นหาชื่อพนักงาน..." class="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-white text-sm font-bold outline-none focus:border-blue-500 transition shadow-inner">
+            <!-- รายชื่อพนักงาน -->
+            <section class="ap-card">
+                <div class="ap-ch">
+                    <div class="ap-ct">
+                        <span class="material-icons" style="color:var(--k-gold-tx);background:rgba(232,193,90,.12)">badge</span>
+                        <div><div class="ap-h">รายชื่อพนักงาน</div><div class="ap-hint">แก้แผนก ทีม กะ ได้จากในตาราง · ติกหน้าชื่อเพื่อจัดการหลายคนพร้อมกัน</div></div>
                     </div>
                 </div>
-                <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto bg-slate-900 p-2 rounded-xl border border-slate-700">
-                    <select id="moveTargetShift" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-orange-100 outline-none"><option value="">ย้ายกะไป...</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
-                    <button onclick="moveSelectedUsers()" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm">ยืนยัน</button>
-                    <div class="w-px h-8 bg-slate-600 mx-1"></div>
-                    <select id="moveTargetTeam" class="p-2 rounded-lg text-slate-800 text-xs font-bold bg-indigo-100 outline-none"><option value="">ย้ายทีมไป...</option></select>
-                    <button onclick="moveSelectedUsersTeam()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm">ยืนยัน</button>
-                    <div class="w-px h-8 bg-slate-600 mx-1"></div>
-                    <button onclick="deleteSelectedUsers()" class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1"><span class="material-icons text-[14px]">delete_sweep</span> ลบ</button>
+                <div class="ap-tool">
+                    <select id="filterUserDept" onchange="searchEmployee()" class="ap-in" style="width:auto" title="กรองแผนก"><option value="all">ทุกแผนก</option><option value="AM">เฉพาะ AM</option><option value="OD">เฉพาะ OD</option></select>
+                    <select id="filterUserShift" onchange="searchEmployee()" class="ap-in" style="width:auto" title="กรองกะ"><option value="all">ทุกกะ</option><option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option></select>
+                    <div class="ap-search">
+                        <span class="material-icons">search</span>
+                        <input type="text" id="searchUser" onkeyup="searchEmployee()" placeholder="ค้นหาชื่อพนักงาน" class="ap-in">
+                    </div>
+                    <div class="ap-bulk" title="ใช้กับคนที่ติกไว้ในตาราง">
+                        <span class="ap-bulk-l"><span class="material-icons" style="font-size:15px">checklist</span>ที่เลือก</span>
+                        <select id="moveTargetShift" class="ap-in"><option value="">ย้ายกะไป…</option><option value="กะเช้า">เช้า</option><option value="กะกลาง">กลาง</option><option value="กะดึก">ดึก</option></select>
+                        <button onclick="moveSelectedUsers()" class="ap-btn sm">ย้ายกะ</button>
+                        <span class="ap-sep"></span>
+                        <select id="moveTargetTeam" class="ap-in"><option value="">ย้ายทีมไป…</option></select>
+                        <button onclick="moveSelectedUsersTeam()" class="ap-btn sm">ย้ายทีม</button>
+                        <span class="ap-sep"></span>
+                        <button onclick="deleteSelectedUsers()" class="ap-btn sm danger"><span class="material-icons">delete_sweep</span> ลบ</button>
+                    </div>
                 </div>
-            </div>
-
-            <div class="bg-[#151f32] rounded-2xl border border-slate-700 shadow-xl overflow-hidden mt-2">
-                <div class="max-h-[500px] overflow-y-auto custom-scrollbar">
-                    <table class="w-full text-sm text-left border-collapse whitespace-nowrap">
-                        <thead class="bg-slate-900 text-gray-400 sticky top-0 z-20 shadow-md">
-                            <tr>
-                                <th class="p-4 w-10 text-center"><input type="checkbox" onchange="toggleSelectAll(this)" class="w-4 h-4 rounded cursor-pointer bg-slate-800 border-slate-600"></th>
-                                <th class="p-4 font-bold">พนักงาน</th><th class="p-4 text-center">แผนก</th><th class="p-4 text-center">ทีม</th><th class="p-4 text-center">กะ</th><th class="p-4 text-center">รหัส PIN</th><th class="p-4 text-center">ระบบเช็ค</th>
-                            </tr>
-                        </thead>
-                        <tbody id="userTableBody" class="divide-y divide-slate-700/50"></tbody>
-                    </table>
+                <div>
+                    <!-- คงคลาส max-h-[500px] ไว้: ตัวแบ่งหน้าใช้หาตำแหน่งตาราง -->
+                    <div class="max-h-[560px] max-h-[500px] overflow-y-auto custom-scrollbar" style="max-height:560px">
+                        <table class="ap-tbl w-full text-sm text-left border-collapse whitespace-nowrap">
+                            <thead>
+                                <tr>
+                                    <th class="w-10 text-center"><input type="checkbox" onchange="toggleSelectAll(this)" class="w-4 h-4 rounded cursor-pointer" title="เลือกทั้งหมดในหน้านี้"></th>
+                                    <th>พนักงาน</th><th class="text-center">แผนก</th><th class="text-center">ทีม</th><th class="text-center">กะ</th><th class="text-center">รหัส PIN</th><th class="text-center">ระบบเช็ค</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="userPaginationControls" class="flex flex-wrap justify-between items-center gap-4 text-sm"></div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <div id="adminView_perms" class="hidden flex-col gap-6 w-full animate-fade-in">
