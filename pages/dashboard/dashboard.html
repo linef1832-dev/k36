@@ -296,93 +296,21 @@
             </div>
         </div>
 
-        <div id="adminView_settings" class="hidden flex-col gap-5 w-full animate-fade-in">
-            <style>
-                #adminView_settings{scroll-padding-top:12px}
-                #adminView_settings .st-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;border-radius:16px;background:var(--k-panel);border:1px solid var(--k-line)}
-                #adminView_settings .st-head-ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--k-gold);color:var(--k-gold-ink);flex:none}
-                #adminView_settings .st-head-ic .material-icons{font-size:24px}
-                #adminView_settings .st-head-t{font-size:17px;font-weight:900;color:var(--k-tx-strong)}
-                #adminView_settings .st-head-d{font-size:12px;font-weight:600;color:var(--k-mute)}
-                #adminView_settings .st-nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
-                #adminView_settings .st-nav-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;font-size:12.5px;font-weight:800;color:var(--k-tx2);background:var(--k-btn);border:1px solid var(--k-line3);cursor:pointer;transition:background .15s,border-color .15s}
-                #adminView_settings .st-nav-btn:hover{background:var(--k-btn-h);border-color:var(--k-line4);color:var(--k-tx-strong)}
-                #adminView_settings .st-nav-btn .material-icons{font-size:16px;color:var(--k-gold-tx)}
-                #adminView_settings .st-sec{display:flex;flex-direction:column;gap:12px;scroll-margin-top:12px}
-                #adminView_settings .st-sec-h{display:flex;align-items:center;gap:10px;padding:2px 4px}
-                #adminView_settings .st-sec-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c);flex:none}
-                #adminView_settings .st-sec-ic .material-icons{font-size:18px}
-                #adminView_settings .st-sec-t{font-size:15px;font-weight:900;color:var(--k-tx-strong)}
-                #adminView_settings .st-sec-d{font-size:11.5px;font-weight:600;color:var(--k-mute)}
-                #adminView_settings .st-sec.danger .st-sec-t{color:var(--k-red-tx)}
-                #adminView_settings .st-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
-                #adminView_settings .st-grid12{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:14px;align-items:start}
-                #adminView_settings .st-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
-                /* กล่องทุกใบหน้าตาเดียวกัน */
-                #adminView_settings .st-card{padding:16px !important;background:var(--k-panel) !important;border:1px solid var(--k-line) !important;border-radius:16px !important;box-shadow:none !important;margin:0 !important}
-                #adminView_settings .st-sec.danger .st-card{border-color:var(--k-red-line) !important}
-                #adminView_settings .st-card .border-slate-700,#adminView_settings .st-card .border-slate-700\/50{border-color:var(--k-line) !important}
-                /* ═══ ระบบหน้าตาเดียวกันภายในทุกกล่อง (ปุ่ม/ช่องกรอก/หัวกล่อง) — แทนสีปนกันแบบเดิม ═══ */
-                /* หัวกล่อง */
-                #adminView_settings .st-card h4{font-size:14px !important;font-weight:900 !important;color:var(--k-tx-strong) !important;display:flex;align-items:center;gap:10px !important;border:0 !important;padding:0 !important;margin:0 !important}
-                #adminView_settings .st-card h4 > .material-icons{width:32px;height:32px;border-radius:9px;display:inline-flex !important;align-items:center;justify-content:center;font-size:18px !important;background:color-mix(in srgb,currentColor 0%,var(--k-btn-h));flex:none}
-                #adminView_settings .st-card h4.text-emerald-400 > .material-icons{color:#10b981}
-                #adminView_settings .st-card h4.text-red-400 > .material-icons,#adminView_settings .st-card h4.text-red-500 > .material-icons{color:#ef4444}
-                #adminView_settings .st-card h4.text-blue-400 > .material-icons{color:#3b82f6}
-                #adminView_settings .st-card h4.text-indigo-400 > .material-icons{color:#6366f1}
-                #adminView_settings .st-card h4.text-sky-400 > .material-icons{color:#0ea5e9}
-                #adminView_settings .st-card h4 .text-gray-500,#adminView_settings .st-card h4 .font-normal{font-size:11.5px !important;font-weight:600 !important;color:var(--k-mute) !important}
-                /* แถวหัวกล่อง (ที่มีปุ่มด้านขวา) */
-                #adminView_settings .st-card > .border-b,#adminView_settings .st-card > div:first-child.flex.justify-between{border:0 !important;padding:0 !important;margin:0 0 14px !important}
-                #adminView_settings .st-card > h4{margin-bottom:14px !important}
-                /* หัวกล่องตั้งเวลาเปลี่ยนกะรายบุคคล (เดิมแถบเขียวเข้ม) */
-                #adminView_settings .st-card.p-1{padding:0 !important;overflow:hidden}
-                #adminView_settings .st-card.p-1 > div:first-child{background:transparent !important;border:0 !important;padding:16px 16px 0 !important}
-                #adminView_settings .st-card.p-1 > div:first-child > .material-icons{width:32px;height:32px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;background:var(--k-btn-h);color:#14b8a6 !important}
-                #adminView_settings .st-card.p-1 > div:first-child h4{margin:0 !important}
-                #adminView_settings .st-card.p-1 > div.p-4{padding:14px 16px 16px !important}
-                /* ลายน้ำไอคอนใหญ่ — เอาออก ดูสะอาดขึ้น */
-                #adminView_settings .st-card > .absolute.opacity-5{display:none}
-                /* ตัวอักษรเล็กเกินไป → อ่านง่ายขึ้น */
-                #adminView_settings .st-card .text-\[10px\]{font-size:11.5px !important}
-                #adminView_settings .st-card label.text-\[10px\],#adminView_settings .st-card label{color:var(--k-tx3) !important;font-weight:700}
-                #adminView_settings .st-card p.text-\[10px\]{color:var(--k-mute) !important;line-height:1.55}
-                /* กล่องย่อยด้านใน */
-                #adminView_settings .st-card :is(.bg-slate-900,.bg-slate-800):not(input):not(select):not(button){background:var(--k-panel2) !important;border-color:var(--k-line) !important;border-radius:12px !important}
-                /* ช่องกรอก / ตัวเลือก */
-                #adminView_settings .st-card :is(input[type=text],input[type=number],input[type=date],input[type=time],input[type=datetime-local],select){min-height:38px;padding:6px 11px !important;border-radius:10px !important;background:var(--k-field) !important;border:1px solid var(--k-line2) !important;color:var(--k-tx) !important;font-size:13px !important;font-weight:700 !important;box-shadow:none !important;outline:none}
-                #adminView_settings .st-card :is(input,select):focus{border-color:var(--k-gold) !important;box-shadow:0 0 0 3px rgba(232,193,90,.15) !important}
-                #adminView_settings .st-card select option{background:var(--k-field);color:var(--k-tx)}
-                #adminView_settings .st-card input::placeholder{color:var(--k-mute3) !important}
-                /* ปุ่ม: แบ่งตามหน้าที่ — บันทึก/เพิ่ม = ทอง · ลบข้อมูล = แดง · อื่นๆ = ปุ่มรอง */
-                #adminView_settings .st-card button{border-radius:10px !important;font-weight:800 !important;transition:background .15s,border-color .15s,filter .15s,transform .08s !important}
-                #adminView_settings .st-card button:active{transform:scale(.97)}
-                #adminView_settings .st-card :is(button[onclick^="saveTimeSettings"],button[onclick^="saveDailyLimit"],button[onclick^="addManualTimeSlot"],button[onclick^="addScheduledTask"],button[onclick^="addToPendingList"],button[onclick^="commitIndividualSchedules"]){background:var(--k-gold) !important;border:1px solid var(--k-gold) !important;color:var(--k-gold-ink) !important;box-shadow:0 4px 12px rgba(232,193,90,.2) !important;background-image:none !important}
-                #adminView_settings .st-card :is(button[onclick^="saveTimeSettings"],button[onclick^="saveDailyLimit"],button[onclick^="addManualTimeSlot"],button[onclick^="addScheduledTask"],button[onclick^="addToPendingList"],button[onclick^="commitIndividualSchedules"]):hover{filter:brightness(1.06)}
-                #adminView_settings .st-card :is(button[onclick^="saveTimeSettings"],button[onclick^="commitIndividualSchedules"]){min-height:32px;padding:0 14px !important;font-size:12px !important}
-                #adminView_settings .st-card :is(button[onclick^="saveDailyLimit"],button[onclick^="addManualTimeSlot"],button[onclick^="addScheduledTask"],button[onclick^="addToPendingList"]){min-height:40px;font-size:13px !important}
-                #adminView_settings .st-card :is(button[onclick^="resetTimeSlotsAuto"],button[onclick^="addOperatingShift"],button[onclick^="manualRefreshIndiv"],button[onclick^="moveNowInstant"],button[onclick^="filterIndivTaskLog('')"]){background:var(--k-btn) !important;border:1px solid var(--k-line3) !important;color:var(--k-tx2) !important;background-image:none !important;box-shadow:none !important}
-                #adminView_settings .st-card :is(button[onclick^="resetTimeSlotsAuto"],button[onclick^="addOperatingShift"],button[onclick^="manualRefreshIndiv"],button[onclick^="moveNowInstant"],button[onclick^="filterIndivTaskLog('')"]):hover{background:var(--k-btn-h) !important;border-color:var(--k-line4) !important;color:var(--k-tx-strong) !important}
-                #adminView_settings .st-card button[onclick^="moveNowInstant"]{color:var(--k-amber-tx) !important;border-color:rgba(245,158,11,.45) !important}
-                #adminView_settings .st-card button[onclick^="moveNowInstant"] .material-icons{color:var(--k-amber-tx)}
-                #adminView_settings .st-card button[onclick^="clearAllSchedules"]{background:#dc2626 !important;border:1px solid #dc2626 !important;color:#fff !important;min-height:42px}
-                #adminView_settings .st-card button[onclick^="clearAllSchedules"]:hover{background:#b91c1c !important}
-                /* ป้ายกรองประวัติ (เช้า/กลาง/ดึก) ให้เป็นชิปมนเท่ากัน */
-                #adminView_settings .st-card button[onclick^="filterIndivTaskLog"]{min-height:28px;padding:0 10px !important;border-radius:999px !important;font-size:11.5px !important}
-                @media (max-width:1200px){ #adminView_settings .st-grid3{grid-template-columns:repeat(2,minmax(0,1fr))} #adminView_settings .st-grid12{grid-template-columns:1fr} }
-                @media (max-width:760px){ #adminView_settings .st-grid3,#adminView_settings .st-grid2{grid-template-columns:1fr} #adminView_settings .st-nav{margin-left:0} }
-            </style>
-
-            <div class="st-head">
-                <div class="st-head-ic"><span class="material-icons">tune</span></div>
-                <div><div class="st-head-t">ตั้งค่าระบบ</div><div class="st-head-d">เวลาทำงาน ขีดจำกัดการจอง แผนพักต่อเว็บ และการเปลี่ยนกะ · กดหัวข้อด้านขวาเพื่อข้ามไปส่วนนั้น</div></div>
-                <div class="st-nav"><button type="button" class="st-nav-btn" onclick="document.getElementById('stSecTime').scrollIntoView({behavior:'smooth',block:'start'})"><span class="material-icons">schedule</span>เวลาและการจอง</button><button type="button" class="st-nav-btn" onclick="document.getElementById('stSecQuota').scrollIntoView({behavior:'smooth',block:'start'})"><span class="material-icons">pie_chart</span>แผนพักต่อเว็บ</button><button type="button" class="st-nav-btn" onclick="document.getElementById('stSecShift').scrollIntoView({behavior:'smooth',block:'start'})"><span class="material-icons">swap_horiz</span>เปลี่ยนกะพนักงาน</button><button type="button" class="st-nav-btn" onclick="document.getElementById('stSecTools').scrollIntoView({behavior:'smooth',block:'start'})"><span class="material-icons">build</span>ข้อมูลและเครื่องมือ</button></div>
+        <div id="adminView_settings" class="hidden flex-col gap-6 w-full animate-fade-in">
+            <div class="flex items-center gap-3 bg-[#151f32] p-4 rounded-2xl border border-slate-700/50">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center shadow-inner">
+                    <span class="material-icons text-3xl text-white drop-shadow-md">tune</span>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-xl text-white tracking-wide">ตั้งค่าระบบ (System Settings)</h3>
+                    <p class="text-xs text-gray-400">จัดการเวลาทำงาน ขีดจำกัด และโควตาพนักงาน</p>
+                </div>
             </div>
 
-            <section id="stSecTime" class="st-sec">
-                <div class="st-sec-h"><span class="st-sec-ic" style="--c:#3b82f6"><span class="material-icons">schedule</span></span><div><div class="st-sec-t">เวลาและการจอง</div><div class="st-sec-d">เปิด-ปิดระบบตามกะ จำกัดจำนวนครั้งที่จองได้ และรอบเวลาให้พนักงานเลือก</div></div></div>
-                <div class="st-grid3">
-                    <div class="st-card bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <div class="flex flex-col gap-6">
+                    <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
                         <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
                             <h4 class="text-emerald-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">schedule</span> เวลาเปิด-ปิดระบบ</h4>
                             <button onclick="saveTimeSettings()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-3 py-1.5 rounded-lg shadow font-bold">บันทึกเวลา</button>
@@ -394,38 +322,8 @@
                         <div id="operatingTimeContainer" class="space-y-3 mb-4 min-h-[120px] max-h-[250px] overflow-y-auto custom-scrollbar pr-1 flex-1"></div>
                         <p class="text-[10px] text-orange-400 mt-auto pt-3 border-t border-slate-700 flex items-center gap-1"><span class="material-icons text-[12px]">info</span> นอกเวลานี้ พนักงานจอง/ลบไม่ได้</p>
                     </div>
-                        <div class="st-card bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg">
-                            <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-                                <h4 class="text-red-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">block</span> ขีดจำกัดการจอง</h4>
-                            </div>
-                            <div class="space-y-4 mt-2">
-                                <div class="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700/80">
-                                    <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-red-400">event</span> ต่อวัน (ครั้ง):</span>
-                                    <input type="number" id="dailyLimitInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-red-400">
-                                </div>
 
-                                <!-- ⏳ ระยะห่างขั้นต่ำระหว่างรอบพักของคนเดียวกัน -->
-                                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700/80">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-amber-400">hourglass_bottom</span> เว้นระยะอย่างน้อย:</span>
-                                        <div class="flex items-center gap-1.5">
-                                            <input type="number" min="0" id="gapValueInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-amber-400">
-                                            <select id="gapUnitInput" class="bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-xs font-bold outline-none focus:border-amber-400 cursor-pointer">
-                                                <option value="min">นาที</option>
-                                                <option value="hour">ชั่วโมง</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <p class="text-[10px] text-gray-500 mt-2 leading-relaxed">ห่างจาก<b class="text-gray-400">รอบที่ตัวเองลงไว้</b> (นับจากจบรอบก่อน ถึงเริ่มรอบใหม่) · <b class="text-amber-400">0 = ห้ามติดกันเฉยๆ</b> (ค่าเดิม) · เช่น 60 นาที = ลง 13:30 แล้วรอบถัดไปต้อง 14:30 ขึ้นไป</p>
-                                </div>
-
-                                <!-- 💾 ปุ่มบันทึกของการ์ดนี้ (เซฟทั้งโควตา/วัน และระยะห่าง) -->
-                                <button type="button" onclick="saveDailyLimit()" class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-lg border border-red-400/50">
-                                    <span class="material-icons text-sm">save</span> บันทึกขีดจำกัด
-                                </button>
-                            </div>
-                        </div>
-                    <div class="st-card bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg">
+                    <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg">
                         <h4 class="text-blue-400 font-bold mb-4 flex items-center gap-2 border-b border-slate-700 pb-3"><span class="material-icons text-lg">add_alarm</span> เพิ่มรอบเวลาเอง <span class="text-[10px] font-normal text-gray-500">(แยกเวลา AM / OD)</span></h4>
                         <div class="grid grid-cols-3 gap-3 mb-3">
                             <div>
@@ -450,128 +348,8 @@
                             <div class="text-center text-gray-600 text-xs py-4">ยังไม่มีการตั้งค่า</div>
                         </div>
                     </div> 
-                </div>
-            </section>
 
-            <section id="stSecQuota" class="st-sec">
-                <div class="st-sec-h"><span class="st-sec-ic" style="--c:#f59e0b"><span class="material-icons">pie_chart</span></span><div><div class="st-sec-t">แผนพักต่อเว็บ</div><div class="st-sec-d">จำนวนคนที่พักพร้อมกันได้ในแต่ละเว็บ แยกตามกะ (อัตโนมัติจากตารางหน้าที่)</div></div></div>
-                    <div class="st-card bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex-1 flex flex-col">
-                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-                            <h4 class="text-yellow-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">shield</span> เพดานพักต่อเว็บ (อัตโนมัติจากตารางหน้าที่)</h4>
-                            <div class="flex gap-2 items-center">
-                            </div>
-                        </div>
-
-                        <div id="quotaSettingsContainer" class="flex-1 overflow-y-auto custom-scrollbar p-1">
-                            <div class="text-center py-10 text-gray-500"><span class="material-icons animate-spin mb-2 text-2xl">sync</span><br>กำลังโหลดข้อมูลโควตา...</div>
-                        </div>
-                    </div>
-            </section>
-
-            <section id="stSecShift" class="st-sec">
-                <div class="st-sec-h"><span class="st-sec-ic" style="--c:#14b8a6"><span class="material-icons">swap_horiz</span></span><div><div class="st-sec-t">เปลี่ยนกะพนักงาน</div><div class="st-sec-d">ย้ายกะทั้งกลุ่ม ตั้งเวลาเปลี่ยนกะล่วงหน้ารายคน และดูประวัติ</div></div></div>
-                <div class="st-grid12">
-                        <div class="st-card bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col h-full">
-                            <h4 class="text-indigo-400 font-bold mb-4 flex items-center gap-2 border-b border-slate-700 pb-3"><span class="material-icons text-lg">groups</span> ย้ายกะทุกคน (Bulk)</h4>
-                            <div class="flex items-center gap-2 mb-4 mt-2">
-                                <select id="schFrom" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500">
-                                    <option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
-                                </select>
-                                <span class="material-icons text-gray-500">arrow_forward</span>
-                                <select id="schTo" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500">
-                                    <option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
-                                </select>
-                            </div>
-                            <input type="datetime-local" id="schDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500 mb-4">
-                            <div class="flex gap-2 mb-4">
-                                <button onclick="addScheduledTask()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-1 transition"><span class="material-icons text-sm">schedule</span> ตั้งเวลา</button>
-                                <button onclick="moveNowInstant()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-1 transition"><span class="material-icons text-sm">flash_on</span> ย้ายทันที</button>
-                            </div>
-                            <div class="text-[10px] text-gray-500 mb-1">ประวัติการย้าย (Bulk)</div>
-                            <div id="taskLog" class="flex-1 min-h-[60px] bg-slate-900 rounded-lg border border-slate-700 p-2 text-[10px] text-gray-400 overflow-y-auto custom-scrollbar"></div>
-                        </div>
-            <div class="st-card bg-[#0f172a] p-1 rounded-2xl border border-teal-900/50 shadow-lg mt-6 overflow-hidden">
-                <div class="bg-teal-900/20 p-4 border-b border-teal-900/50 flex items-center gap-2">
-                    <span class="material-icons text-teal-400">person_add_alt</span>
-                    <h4 class="text-teal-400 font-bold text-sm">ตั้งเวลาเปลี่ยนกะรายบุคคล (ล่วงหน้า)</h4>
-                </div>
-                
-                <div class="p-4 grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <div class="md:col-span-6 bg-slate-900 p-3 rounded-xl border border-slate-700 flex flex-col h-[220px]">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-[10px] text-gray-400">เลือกพนักงาน (ติ๊กถูก):</span>
-                            <label class="text-[10px] text-white flex items-center gap-1 cursor-pointer"><input type="checkbox" onchange="toggleSelectAllIndiv(this)" class="rounded border-gray-500 bg-slate-800"> เลือกทั้งหมด</label>
-                        </div>
-                        <input type="text" id="indivSearchUser" onkeyup="filterIndivUserSelect()" placeholder="พิมพ์ชื่อเพื่อกรอง..." class="w-full bg-slate-800 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none mb-2 focus:border-teal-500 shadow-inner">
-                        <div id="indivUserListContainer" class="flex-1 overflow-y-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700"></div>
-                    </div>
-
-                    <div class="md:col-span-6 flex flex-col justify-start">
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="text-[10px] text-gray-400 mb-1 block">เปลี่ยนเป็นกะ</label>
-                                <select id="indivTargetShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-teal-500 font-bold shadow-inner">
-                                    <option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-gray-400 mb-1 block">วัน/เวลา ที่มีผล</label>
-                                <input type="datetime-local" id="indivDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-teal-500 shadow-inner">
-                            </div>
-                        </div>
-
-                        <button onclick="addToPendingList()" class="w-full bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold py-3 rounded-xl shadow-md transition active:scale-95 mb-4">
-                            <span class="material-icons" style="font-size:18px;vertical-align:-4px">playlist_add</span> เพิ่มเข้าคิวเปลี่ยนกะ
-                        </button>
-                        
-                        <div id="pendingListContainer" class="hidden flex-col flex-1 bg-slate-900 p-3 rounded-xl border border-slate-700 overflow-hidden">
-                            <h5 class="text-white font-bold text-[10px] mb-2 flex items-center justify-between">
-                                <span>รายการรอรัน (<span id="pendingCount">0</span>)</span>
-                                <button onclick="commitIndividualSchedules()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 text-[10px] rounded shadow transition">บันทึกคิว</button>
-                            </h5>
-                            <div class="flex-1 overflow-y-auto custom-scrollbar">
-                                <table class="w-full text-[10px] text-white text-left"><tbody id="pendingTableBody"></tbody></table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-                </div>
-            <div class="st-card w-full bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
-                    <div class="flex items-center gap-4 flex-wrap">
-                        <h4 class="text-sky-400 font-bold flex items-center gap-2 text-sm"><span class="material-icons text-base">history</span> ประวัติและสถานะเปลี่ยนกะ <span class="text-gray-500 text-[10px]">(กดป้ายสีเพื่อกรอง):</span></h4>
-                        <div class="flex items-center gap-1.5 text-[10px] font-bold">
-                            <button onclick="filterIndivTaskLog('กะเช้า')" class="bg-orange-900/50 text-orange-400 border border-orange-700 px-2 py-1 rounded transition hover:bg-orange-900">เช้า: <span id="sumIndivM">0</span></button>
-                            <button onclick="filterIndivTaskLog('กะกลาง')" class="bg-blue-900/50 text-blue-400 border border-blue-700 px-2 py-1 rounded transition hover:bg-blue-900">กลาง: <span id="sumIndivA">0</span></button>
-                            <button onclick="filterIndivTaskLog('กะดึก')" class="bg-purple-900/50 text-purple-400 border border-purple-700 px-2 py-1 rounded transition hover:bg-purple-900">ดึก: <span id="sumIndivN">0</span></button>
-                            <button onclick="filterIndivTaskLog('')" class="bg-slate-700 text-white border border-slate-500 px-2 py-1 rounded hover:bg-slate-600 transition">แสดงทั้งหมด</button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-2 w-full md:w-auto">
-                        <input type="text" id="indivHistorySearch" onkeyup="filterIndivTaskLog()" placeholder="ค้นหาชื่อ..." class="bg-slate-900 border border-slate-600 text-white p-1.5 rounded-lg text-xs outline-none w-full md:w-48 focus:border-sky-500 shadow-inner transition">
-                        <button onclick="manualRefreshIndiv()" class="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1.5 rounded-lg text-[10px] shadow transition flex items-center gap-1 border border-slate-500"><span class="material-icons text-[14px]">refresh</span> รีเฟรช</button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="flex flex-col h-[250px]">
-                        <h5 class="text-amber-400 text-xs font-bold mb-2 flex items-center gap-1"><span class="material-icons text-[14px]">hourglass_top</span> รอการทำงาน (Pending)</h5>
-                        <div id="indivTaskLogPending" class="bg-slate-900 p-2 rounded-xl border border-slate-700 flex-1 overflow-y-auto custom-scrollbar text-[10px] text-gray-300 space-y-1 shadow-inner"></div>
-                    </div>
-                    <div class="flex flex-col h-[250px]">
-                        <h5 class="text-emerald-400 text-xs font-bold mb-2 flex items-center gap-1"><span class="material-icons text-[14px]">check_circle</span> สำเร็จแล้ว (Completed/History)</h5>
-                        <div id="indivTaskLogCompleted" class="bg-slate-900 p-2 rounded-xl border border-slate-700 flex-1 overflow-y-auto custom-scrollbar text-[10px] text-gray-300 space-y-1 shadow-inner"></div>
-                    </div>
-                </div>
-            </div>
-            </section>
-
-            <section id="stSecTools" class="st-sec danger">
-                <div class="st-sec-h"><span class="st-sec-ic" style="--c:#ef4444"><span class="material-icons">build</span></span><div><div class="st-sec-t">ข้อมูลและเครื่องมือ</div><div class="st-sec-d">ลบข้อมูลการลงเวลา และเครื่องมือดูแลระบบ — ระวัง กดแล้วย้อนกลับไม่ได้</div></div></div>
-                <div class="st-grid2">
-                    <div class="st-card bg-[#151f32] p-5 rounded-2xl border border-red-900/50 shadow-lg relative overflow-hidden flex flex-col">
+                    <div class="bg-[#151f32] p-5 rounded-2xl border border-red-900/50 shadow-lg relative overflow-hidden flex flex-col">
                         <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none"><span class="material-icons text-8xl text-red-500">delete_sweep</span></div>
                         <h4 class="text-red-500 font-bold mb-3 flex items-center gap-2 border-b border-red-900/30 pb-2 relative z-10">
                             <span class="material-icons text-xl">delete_sweep</span> ล้างกระดาน (ลบเวลา)
@@ -615,8 +393,159 @@
                             </div>
                         </div>
                     </div>
+
+                </div> 
+                
+                <div class="lg:col-span-2 flex flex-col gap-6">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg">
+                            <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                                <h4 class="text-red-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">block</span> ขีดจำกัดการจอง</h4>
+                            </div>
+                            <div class="space-y-4 mt-2">
+                                <div class="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700/80">
+                                    <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-red-400">event</span> ต่อวัน (ครั้ง):</span>
+                                    <input type="number" id="dailyLimitInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-red-400">
+                                </div>
+
+                                <!-- ⏳ ระยะห่างขั้นต่ำระหว่างรอบพักของคนเดียวกัน -->
+                                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700/80">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-xs font-bold text-gray-300 flex items-center gap-2"><span class="material-icons text-sm text-amber-400">hourglass_bottom</span> เว้นระยะอย่างน้อย:</span>
+                                        <div class="flex items-center gap-1.5">
+                                            <input type="number" min="0" id="gapValueInput" class="w-16 bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-center font-bold outline-none focus:border-amber-400">
+                                            <select id="gapUnitInput" class="bg-slate-800 border border-slate-600 text-white p-1.5 rounded-lg text-xs font-bold outline-none focus:border-amber-400 cursor-pointer">
+                                                <option value="min">นาที</option>
+                                                <option value="hour">ชั่วโมง</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <p class="text-[10px] text-gray-500 mt-2 leading-relaxed">ห่างจาก<b class="text-gray-400">รอบที่ตัวเองลงไว้</b> (นับจากจบรอบก่อน ถึงเริ่มรอบใหม่) · <b class="text-amber-400">0 = ห้ามติดกันเฉยๆ</b> (ค่าเดิม) · เช่น 60 นาที = ลง 13:30 แล้วรอบถัดไปต้อง 14:30 ขึ้นไป</p>
+                                </div>
+
+                                <!-- 💾 ปุ่มบันทึกของการ์ดนี้ (เซฟทั้งโควตา/วัน และระยะห่าง) -->
+                                <button type="button" onclick="saveDailyLimit()" class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-lg border border-red-400/50">
+                                    <span class="material-icons text-sm">save</span> บันทึกขีดจำกัด
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex flex-col h-full">
+                            <h4 class="text-indigo-400 font-bold mb-4 flex items-center gap-2 border-b border-slate-700 pb-3"><span class="material-icons text-lg">groups</span> ย้ายกะทุกคน (Bulk)</h4>
+                            <div class="flex items-center gap-2 mb-4 mt-2">
+                                <select id="schFrom" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500">
+                                    <option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
+                                </select>
+                                <span class="material-icons text-gray-500">arrow_forward</span>
+                                <select id="schTo" class="flex-1 bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500">
+                                    <option value="กะเช้า">กะเช้า</option><option value="กะกลาง">กะกลาง</option><option value="กะดึก">กะดึก</option>
+                                </select>
+                            </div>
+                            <input type="datetime-local" id="schDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none focus:border-indigo-500 mb-4">
+                            <div class="flex gap-2 mb-4">
+                                <button onclick="addScheduledTask()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-1 transition"><span class="material-icons text-sm">schedule</span> ตั้งเวลา</button>
+                                <button onclick="moveNowInstant()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold py-2.5 rounded-lg shadow flex items-center justify-center gap-1 transition"><span class="material-icons text-sm">flash_on</span> ย้ายทันที</button>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mb-1">ประวัติการย้าย (Bulk)</div>
+                            <div id="taskLog" class="flex-1 min-h-[60px] bg-slate-900 rounded-lg border border-slate-700 p-2 text-[10px] text-gray-400 overflow-y-auto custom-scrollbar"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg flex-1 flex flex-col">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                            <h4 class="text-yellow-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">shield</span> เพดานพักต่อเว็บ (อัตโนมัติจากตารางหน้าที่)</h4>
+                            <div class="flex gap-2 items-center">
+                            </div>
+                        </div>
+
+                        <div id="quotaSettingsContainer" class="flex-1 overflow-y-auto custom-scrollbar p-1">
+                            <div class="text-center py-10 text-gray-500"><span class="material-icons animate-spin mb-2 text-2xl">sync</span><br>กำลังโหลดข้อมูลโควตา...</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            
+            <div class="bg-[#0f172a] p-1 rounded-2xl border border-teal-900/50 shadow-lg mt-6 overflow-hidden">
+                <div class="bg-teal-900/20 p-4 border-b border-teal-900/50 flex items-center gap-2">
+                    <span class="material-icons text-teal-400">person_add_alt</span>
+                    <h4 class="text-teal-400 font-bold text-sm">ตั้งเวลาเปลี่ยนกะรายบุคคล (ล่วงหน้า)</h4>
+                </div>
+                
+                <div class="p-4 grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div class="md:col-span-6 bg-slate-900 p-3 rounded-xl border border-slate-700 flex flex-col h-[220px]">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-[10px] text-gray-400">เลือกพนักงาน (ติ๊กถูก):</span>
+                            <label class="text-[10px] text-white flex items-center gap-1 cursor-pointer"><input type="checkbox" onchange="toggleSelectAllIndiv(this)" class="rounded border-gray-500 bg-slate-800"> เลือกทั้งหมด</label>
+                        </div>
+                        <input type="text" id="indivSearchUser" onkeyup="filterIndivUserSelect()" placeholder="พิมพ์ชื่อเพื่อกรอง..." class="w-full bg-slate-800 border border-slate-600 text-white p-2 rounded-lg text-xs outline-none mb-2 focus:border-teal-500 shadow-inner">
+                        <div id="indivUserListContainer" class="flex-1 overflow-y-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700"></div>
+                    </div>
+
+                    <div class="md:col-span-6 flex flex-col justify-start">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="text-[10px] text-gray-400 mb-1 block">เปลี่ยนเป็นกะ</label>
+                                <select id="indivTargetShift" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-teal-500 font-bold shadow-inner">
+                                    <option value="กะเช้า">☀️ กะเช้า</option><option value="กะกลาง">🌤️ กะกลาง</option><option value="กะดึก">🌙 กะดึก</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 mb-1 block">วัน/เวลา ที่มีผล</label>
+                                <input type="datetime-local" id="indivDate" class="w-full bg-slate-900 border border-slate-600 text-white p-2.5 rounded-lg text-xs outline-none focus:border-teal-500 shadow-inner">
+                            </div>
+                        </div>
+
+                        <button onclick="addToPendingList()" class="w-full bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold py-3 rounded-xl shadow-md transition active:scale-95 mb-4">
+                            = เพิ่มรายการตามที่เลือก
+                        </button>
+                        
+                        <div id="pendingListContainer" class="hidden flex-col flex-1 bg-slate-900 p-3 rounded-xl border border-slate-700 overflow-hidden">
+                            <h5 class="text-white font-bold text-[10px] mb-2 flex items-center justify-between">
+                                <span>รายการรอรัน (<span id="pendingCount">0</span>)</span>
+                                <button onclick="commitIndividualSchedules()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 text-[10px] rounded shadow transition">บันทึกคิว</button>
+                            </h5>
+                            <div class="flex-1 overflow-y-auto custom-scrollbar">
+                                <table class="w-full text-[10px] text-white text-left"><tbody id="pendingTableBody"></tbody></table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full bg-[#151f32] p-5 rounded-2xl border border-slate-700 shadow-lg mt-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <h4 class="text-sky-400 font-bold flex items-center gap-2 text-sm"><span class="material-icons text-base">history</span> ประวัติและสถานะเปลี่ยนกะ <span class="text-gray-500 text-[10px]">(กดป้ายสีเพื่อกรอง):</span></h4>
+                        <div class="flex items-center gap-1.5 text-[10px] font-bold">
+                            <button onclick="filterIndivTaskLog('กะเช้า')" class="bg-orange-900/50 text-orange-400 border border-orange-700 px-2 py-1 rounded transition hover:bg-orange-900">เช้า: <span id="sumIndivM">0</span></button>
+                            <button onclick="filterIndivTaskLog('กะกลาง')" class="bg-blue-900/50 text-blue-400 border border-blue-700 px-2 py-1 rounded transition hover:bg-blue-900">กลาง: <span id="sumIndivA">0</span></button>
+                            <button onclick="filterIndivTaskLog('กะดึก')" class="bg-purple-900/50 text-purple-400 border border-purple-700 px-2 py-1 rounded transition hover:bg-purple-900">ดึก: <span id="sumIndivN">0</span></button>
+                            <button onclick="filterIndivTaskLog('')" class="bg-slate-700 text-white border border-slate-500 px-2 py-1 rounded hover:bg-slate-600 transition">แสดงทั้งหมด</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <input type="text" id="indivHistorySearch" onkeyup="filterIndivTaskLog()" placeholder="ค้นหาชื่อ..." class="bg-slate-900 border border-slate-600 text-white p-1.5 rounded-lg text-xs outline-none w-full md:w-48 focus:border-sky-500 shadow-inner transition">
+                        <button onclick="manualRefreshIndiv()" class="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1.5 rounded-lg text-[10px] shadow transition flex items-center gap-1 border border-slate-500"><span class="material-icons text-[14px]">refresh</span> รีเฟรช</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="flex flex-col h-[250px]">
+                        <h5 class="text-amber-400 text-xs font-bold mb-2 flex items-center gap-1"><span class="material-icons text-[14px]">hourglass_top</span> รอการทำงาน (Pending)</h5>
+                        <div id="indivTaskLogPending" class="bg-slate-900 p-2 rounded-xl border border-slate-700 flex-1 overflow-y-auto custom-scrollbar text-[10px] text-gray-300 space-y-1 shadow-inner"></div>
+                    </div>
+                    <div class="flex flex-col h-[250px]">
+                        <h5 class="text-emerald-400 text-xs font-bold mb-2 flex items-center gap-1"><span class="material-icons text-[14px]">check_circle</span> สำเร็จแล้ว (Completed/History)</h5>
+                        <div id="indivTaskLogCompleted" class="bg-slate-900 p-2 rounded-xl border border-slate-700 flex-1 overflow-y-auto custom-scrollbar text-[10px] text-gray-300 space-y-1 shadow-inner"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 🧹 [ชั่วคราว] ปุ่มย่อรูปเก่าใน Storage — ทำครบแล้วถอดออกได้ -->
-            <div class="st-card bg-[#151f32] p-5 rounded-2xl border border-amber-700/50 shadow-lg">
+            <div class="bg-[#151f32] p-5 rounded-2xl border border-amber-700/50 shadow-lg mt-4">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div>
                         <h4 class="text-amber-400 font-bold flex items-center gap-2"><span class="material-icons text-lg">photo_size_select_large</span> ย่อรูปเก่าใน Storage (เครื่องมือชั่วคราว)</h4>
@@ -629,9 +558,6 @@
                 </div>
                 <div id="shrinkOldLog" class="mt-3 text-[11.5px] text-gray-300 font-mono bg-slate-900 rounded-xl border border-slate-700 p-3 max-h-56 overflow-y-auto hidden"></div>
             </div>
-                </div>
-            </section>
-
         </div> 
 
         <div id="adminView_users" class="hidden flex-col gap-5 w-full animate-fade-in">
