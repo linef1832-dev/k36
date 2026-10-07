@@ -192,7 +192,7 @@ window.saveMergeRooms = async function() {
     if (!window.isDutyAdmin()) return;
     const targetDate = document.getElementById('dutyDate').value;
     const shiftFilter = document.getElementById('dutyShiftSelect').value;
-    const key = `duty_merge_rooms_${targetDate}_${shiftFilter}`;
+    const key = window.dutyMergeKey(targetDate, shiftFilter, currentDutyDept);
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         // [FIX] บันทึกลง DB ให้ทุกเครื่อง/ทุกแอดมินเห็นตรงกัน (เดิม localStorage)
@@ -226,7 +226,7 @@ window.deleteMergeRooms = function() {
         if (result.isConfirmed) {
             const targetDate = document.getElementById('dutyDate').value;
             const shiftFilter = document.getElementById('dutyShiftSelect').value;
-            const key = `duty_merge_rooms_${targetDate}_${shiftFilter}`;
+            const key = window.dutyMergeKey(targetDate, shiftFilter, currentDutyDept);
             try {
                 window.clearSettingCache();
                 await appDB.from('settings').delete().eq('key', key);
@@ -236,6 +236,7 @@ window.deleteMergeRooms = function() {
                 } catch (e) {}
                 window.debouncedBroadcast('duty-updates', 'force_reload');
             } catch (e) { return Swal.fire('Error', e.message, 'error'); }
+            try { await appDB.from('settings').delete().eq('key', window.dutyMergeKeyLegacy(targetDate, shiftFilter)); } catch (e) {}   // ⏳ เก็บกวาดคีย์เก่าด้วย
             window.savedMergeRooms = [];
             window.currentMergeRooms = [];
             window.renderImportantTasksPanel();

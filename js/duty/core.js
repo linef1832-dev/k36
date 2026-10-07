@@ -50,6 +50,22 @@ window.isDutyAdmin = function() {
 // ==========================================
 
 // แผนกนี้เป็น "ผู้สอน" ไหม (AMQL / ODQL / TRAINER_*)
+// 🧭 "ฝั่ง" ของแผนก — ใช้จับคู่ผู้สอนกับพนักงานให้เห็นข้อมูลชุดเดียวกัน
+//   AM, AMQL, TRAINER_AM  -> ฝั่ง AM     |     OD, ODQL, TRAINER_OD -> ฝั่ง OD
+//   รวมห้อง Discord ใช้ร่วมกันทั้งฝั่ง (ผู้สอนตั้ง พนักงานเห็น) แต่ต้องไม่ข้ามฝั่ง
+window.dutySideOf = function(dept) {
+    const d = String(dept || currentDutyDept || 'AM').toUpperCase();
+    if (d === 'OD' || d === 'ODQL' || d.startsWith('TRAINER_OD')) return 'OD';
+    return 'AM';
+};
+
+// 🔑 คีย์เก็บผลรวมห้อง Discord — แยกตามฝั่ง + วันที่ + กะ
+//   (ของเดิมไม่มีฝั่ง ทำให้ผู้สอน AM กับผู้สอน OD เขียนทับกัน)
+window.dutyMergeKey = function(date, shift, dept) {
+    return 'duty_merge_rooms_' + window.dutySideOf(dept) + '_' + date + '_' + shift;
+};
+window.dutyMergeKeyLegacy = function(date, shift) { return 'duty_merge_rooms_' + date + '_' + shift; };
+
 window.isTrainerDept = function(dept) {
     dept = dept || currentDutyDept || '';
     return dept === 'AMQL' || dept === 'ODQL' || dept.startsWith('TRAINER');
@@ -437,7 +453,8 @@ window.refreshDutyData = async function() {
         const impLockKey = `duty_important_permanent_lock_${currentDutyDept}_${shiftFilter}`;
         const stayPinKey = `duty_stay_pins_${currentDutyDept}`;   // 📌 คนที่ถูกล็อกให้อยู่เว็บเดิมข้ามวัน
         const supportKey = `duty_support_${currentDutyDept}_${targetDate}_${shiftFilter}`;  // 🤝 ตารางซัพพอร์ตข้ามเว็บ
-        const mergeKey = `duty_merge_rooms_${targetDate}_${shiftFilter}`;   // 🏠 ผลรวมห้อง Discord (ย้ายจาก localStorage มาเก็บ DB)
+        const mergeKey = window.dutyMergeKey(targetDate, shiftFilter, currentDutyDept);   // 🏠 ผลรวมห้อง Discord (แยกตามฝั่ง)
+        const mergeKeyOld = window.dutyMergeKeyLegacy(targetDate, shiftFilter);            // ⏳ คีย์เก่าที่ไม่มีฝั่ง
         const backupKey = `backup_${saveKey}`;                               // 💾 สำเนาตารางก่อนล้าง (ย้ายจาก localStorage มาเก็บ DB)
 
         // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (leaves + schedules + settings) ลด latency 3 เท่า
@@ -453,7 +470,7 @@ window.refreshDutyData = async function() {
         const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey, mergeKey, backupKey]),
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, backupKey]),
             appDB.from('scheduled_tasks').select('payload, scheduled_for, status')
                 .eq('task_type', 'individual_shift_update')
                 .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
@@ -522,7 +539,7 @@ window.refreshDutyData = async function() {
 
             // 🏠 ผลรวมห้อง Discord — เดิมเก็บ localStorage (เห็นแค่เครื่องเดียว) ย้ายมา DB
             // ถ้า DB ยังไม่มีแต่เครื่องนี้เคยบันทึกไว้ใน localStorage ให้ย้ายขึ้น DB ให้อัตโนมัติครั้งเดียว
-            const mergeRow = data ? data.find(d => d.key === mergeKey) : null;
+            const mergeRow = data ? (data.find(d => d.key === mergeKey) || data.find(d => d.key === mergeKeyOld)) : null;
             if (mergeRow && mergeRow.value) {
                 try { const m = JSON.parse(mergeRow.value); window.savedMergeRooms = Array.isArray(m) ? m : []; } catch (e) {}
             } else {
