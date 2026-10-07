@@ -1327,7 +1327,7 @@ window._renderMyTodayNow = async function() {
         const stat = rows.length
             ? `${rows.length} วัน${past ? ` · <span style="color:var(--k-tx3)">ผ่านแล้ว ${past}</span>` : ''}${next ? ` · <span style="color:${accent}">ยังไม่ถึง ${next}</span>` : ''}`
             : '<span style="color:var(--k-mute)">ยังไม่ได้จอง</span>';
-        return `<div style="margin:2px 0 8px;padding:9px 11px 6px;border-radius:12px;background:linear-gradient(90deg,${accent}12,rgba(255,255,255,.015));border:1px solid ${accent}40;border-left:3px solid ${accent}">
+        return `<div style="margin:2px 0 8px;padding:9px 11px 6px;border-radius:12px;background:linear-gradient(90deg,${accent}12,color-mix(in srgb,var(--k-panel2) 0%,transparent));border:1px solid ${accent}40;border-left:3px solid ${accent}">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
                 <span style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:900;color:var(--k-tx);letter-spacing:.2px"><span class="material-icons" style="font-size:15px;color:${accent}">calendar_month</span>${_ymLabel(ym)}</span>
                 <span style="font-size:10.5px;font-weight:800;color:${accent};background:${accent}22;border:1px solid ${accent}55;padding:1px 8px;border-radius:999px;letter-spacing:.3px">${tag}</span>
@@ -1423,16 +1423,15 @@ window._renderMyTodayNow = async function() {
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:2px 4px 2px 2px">
             <div style="display:flex;align-items:center;height:38px;border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--k-panel2) 65.0%,transparent);border:1px solid rgba(148,163,184,.22)">
                 <button onclick="myTodayShift(-1)" title="วันก่อนหน้า" style="height:100%;padding:0 9px;display:flex;align-items:center;color:var(--k-tx3);background:none;border:none;cursor:pointer;transition:all .15s"
-                    onmouseover="this.style.color='#fff';this.style.background='rgba(148,163,184,.14)'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><span class="material-icons" style="font-size:18px">chevron_left</span></button>
+                    onmouseover="this.style.color='var(--k-tx-strong)';this.style.background='rgba(148,163,184,.14)'" onmouseout="this.style.color='var(--k-tx3)';this.style.background='none'"><span class="material-icons" style="font-size:18px">chevron_left</span></button>
                 <div style="position:relative;display:flex;align-items:center;gap:7px;height:100%;padding:0 13px;border-left:1px solid rgba(148,163,184,.16);border-right:1px solid rgba(148,163,184,.16);cursor:pointer">
-                    <span class="material-icons" style="font-size:16px;color:${isToday ? '#60a5fa' : 'var(--k-gold-tx)'}">calendar_month</span>
                     <span style="font-size:14px;font-weight:900;color:var(--k-tx);white-space:nowrap">${_mtFmt(dateVal)}</span>
                     ${isToday ? '<span style="font-size:10px;font-weight:800;color:light-dark(#054ea8,#60a5fa);background:rgba(96,165,250,.16);padding:2px 7px;border-radius:99px">วันนี้</span>' : ''}
                     <input type="date" id="myTodayDate" class="mt-date-hidden" value="${dateVal}" onchange="myTodaySetDate(this.value)" title="กดเพื่อเลือกวันที่"
                         style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;color:transparent;background:transparent;border:none;padding:0;font-size:0">
                 </div>
                 <button onclick="myTodayShift(1)" title="วันถัดไป" style="height:100%;padding:0 9px;display:flex;align-items:center;color:var(--k-tx3);background:none;border:none;cursor:pointer;transition:all .15s"
-                    onmouseover="this.style.color='#fff';this.style.background='rgba(148,163,184,.14)'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><span class="material-icons" style="font-size:18px">chevron_right</span></button>
+                    onmouseover="this.style.color='var(--k-tx-strong)';this.style.background='rgba(148,163,184,.14)'" onmouseout="this.style.color='var(--k-tx3)';this.style.background='none'"><span class="material-icons" style="font-size:18px">chevron_right</span></button>
             </div>
             ${isToday ? '' : `<button onclick="myTodaySetDate('')" style="height:38px;padding:0 13px;border-radius:12px;border:1px solid rgba(232,193,90,.45);background:rgba(232,193,90,.12);color:var(--k-gold-tx);font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px"><span class="material-icons" style="font-size:15px">today</span> กลับวันนี้</button>`}
             <div style="display:flex;align-items:center;gap:5px;margin-left:auto">
