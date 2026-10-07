@@ -498,22 +498,12 @@ window.hasUserPerm = function(menuId) {
     let perms = {};
     try { perms = typeof SETTINGS['dept_menu_rules'] === 'string' ? JSON.parse(SETTINGS['dept_menu_rules']) : (SETTINGS['dept_menu_rules'] || {}); } catch(e) {}
 
-    // 1️⃣ ชุดสิทธิ์ที่ตั้งให้ "รายคน" มาก่อนเสมอ (ตั้งที่หน้าจัดการพนักงาน)
-    const uGroup = (window.currentUser.perm_group || '').trim().toUpperCase();
-    if (uGroup && Array.isArray(perms[uGroup])) return perms[uGroup].includes(menuId);
-
-    // 2️⃣ ไม่ได้ตั้งรายคน -> ใช้ชุดตาม "ตำแหน่ง" (MANAGER / STAFF / TRAINER)
+    // 🎯 สิทธิ์มาจาก "ตำแหน่ง" อย่างเดียว (MANAGER / STAFF / TRAINER / ตำแหน่งที่สร้างเอง)
+    //    ไม่ดูแผนก ไม่ดูชุดรายคน — ตั้งที่เดียวคือหน้าสิทธิ์เมนู
     const uRole = (window.currentUser.role || 'STAFF').toUpperCase().trim();
     let set = perms[uRole];
     if (!Array.isArray(set) && uRole === 'ADMIN') set = perms['MANAGER'];
-
-    // ⏳ รองรับข้อมูลรูปแบบเก่าที่ยังผูกกับแผนก เผื่อยังไม่ได้แปลง
-    if (!Array.isArray(set)) {
-        let uDept = window.currentUser.department || 'AM';
-        if (uDept === 'SPECIAL') uDept = 'AM';
-        set = perms[uDept];
-    }
-    if (!Array.isArray(set)) set = perms['STAFF'] || [];
+    if (!Array.isArray(set)) set = perms['STAFF'] || [];   // ตำแหน่งที่ยังไม่ได้ตั้งสิทธิ์ = ใช้ชุดพนักงานทั่วไป
 
     return set.includes(menuId);
 };
@@ -613,15 +603,6 @@ window.applySidebarPermissions = async function() {
     executeMenuUpdate();
 
     // 🌟 2. วิ่งไปเช็คฐานข้อมูลเงียบๆ (ถ้ามีการเปลี่ยนสิทธิ์ใหม่ เมนูจะอัปเดตให้อัตโนมัติ)
-    // 🎯 ดึง "ชุดสิทธิ์รายคน" ของตัวเองมาเติม (Edge Function ตอนเช็ค PIN อาจไม่ส่งช่องนี้มา)
-    //    ได้มาแล้วค่อยวาดเมนูใหม่ ถ้าคอลัมน์ยังไม่มีในฐานข้อมูลก็เงียบไป ใช้ชุดของแผนกเหมือนเดิม
-    if (typeof appDB !== 'undefined' && window.currentUser && window.currentUser.id && window.currentUser.perm_group === undefined) {
-        appDB.from('users').select('perm_group').eq('id', window.currentUser.id).maybeSingle().then(({data, error}) => {
-            if (error || !data) { window.currentUser.perm_group = ''; return; }
-            window.currentUser.perm_group = data.perm_group || '';
-            if (data.perm_group) executeMenuUpdate();
-        }).catch(() => { window.currentUser.perm_group = ''; });
-    }
 
     if (typeof appDB !== 'undefined') {
         appDB.from('settings').select('value').eq('key', 'dept_menu_rules').single().then(({data}) => {

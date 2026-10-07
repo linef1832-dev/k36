@@ -642,15 +642,6 @@ window.renderUserTableDirectly = function() {
         roleOptions.forEach(opt => { roleBadge += `<option value="${opt.val}" ${currentRoleVal === opt.val ? 'selected' : ''} class="text-white">${opt.label}</option>`; });
         roleBadge += `</select>`;
 
-        // 🛡️ ชุดสิทธิ์รายคน — ดึงรายชื่อชุดจากตารางสิทธิ์ (หน้า "สิทธิ์เมนู")
-        const curGroup = (u.perm_group || "").trim();
-        const gColor = curGroup ? "text-emerald-400" : "text-slate-500";
-        let permGroupSelect = `<select onchange="updateUserPermGroup(this, ${u.id}, this.value)" class="bg-slate-900 ${gColor} text-xs p-1.5 rounded-md border border-slate-700 cursor-pointer focus:outline-none focus:border-emerald-500" title="ชุดสิทธิ์ของคนนี้ — ไม่เกี่ยวกับตำแหน่ง">`;
-        permGroupSelect += `<option value="" ${!curGroup ? "selected" : ""} class="text-white">ตามตำแหน่ง (${(u.role || "staff").toUpperCase()})</option>`;
-        window.getPermGroupNames().forEach(g => {
-            permGroupSelect += `<option value="${g}" ${curGroup === g ? "selected" : ""} class="text-white">${g}</option>`;
-        });
-        permGroupSelect += `</select>`;
 
         // 🔐 [SECURITY] ไม่โชว์ PIN จริงอีกต่อไป (PIN อยู่ฝั่ง server) — โชว์แค่ว่าตั้งแล้วหรือยัง
         const pinDisplay = u.has_pin 
@@ -698,12 +689,11 @@ window.renderUserTableDirectly = function() {
                 <td class="p-3 text-center border-b border-slate-700/50 bg-black/10">${pinDisplay}</td>
                 <td class="p-3 text-center border-b border-slate-700/50">${typeBadge}</td> 
                 <td class="p-3 text-center border-b border-slate-700/50">${roleBadge}</td>
-                <td class="p-3 text-center border-b border-slate-700/50">${permGroupSelect}</td>
             </tr>`;
     });
     
     if (paginatedUsers.length === 0) {
-        html = `<tr><td colspan="9" class="text-center p-10 text-gray-400">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่ค้นหา</td></tr>`;
+        html = `<tr><td colspan="8" class="text-center p-10 text-gray-400">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่ค้นหา</td></tr>`;
     }
 
     box.innerHTML = html;

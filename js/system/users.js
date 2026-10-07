@@ -870,40 +870,7 @@ async function refreshAdminData() {
     setTimeout(() => { if(btn) btn.classList.remove('animate-spin'); }, 800);
 }
 
-// 📋 รายชื่อ "ชุดสิทธิ์" ทั้งหมดที่ตั้งไว้ในหน้าสิทธิ์เมนู
-window.getPermGroupNames = function() {
-    try {
-        const raw = SETTINGS["dept_menu_rules"];
-        const o = typeof raw === "string" ? JSON.parse(raw) : (raw || {});
-        return Object.keys(o).sort();
-    } catch (e) { return []; }
-};
 
-// 🛡️ ตั้ง "ชุดสิทธิ์" ให้พนักงานรายคน — ค่าว่าง = ใช้ชุดของแผนกตัวเอง
-window.updateUserPermGroup = async function(selectEl, id, newGroup) {
-    if (!window.sysRequireAdmin()) return;
-
-    const user = GLOBAL_USER_LIST.find(u => String(u.id) === String(id));
-    const prev = user ? (user.perm_group || "") : "";
-    if (user) user.perm_group = newGroup;
-
-    selectEl.classList.remove("text-emerald-400", "text-slate-500");
-    selectEl.classList.add(newGroup ? "text-emerald-400" : "text-slate-500");
-
-    const { error } = await appDB.from("users").update({ perm_group: newGroup || null }).eq("id", id);
-    if (error) {
-        if (user) user.perm_group = prev;
-        selectEl.value = prev;
-        const missing = /perm_group/.test(error.message || "");
-        Swal.fire(
-            missing ? "ยังไม่ได้เพิ่มช่องในฐานข้อมูล" : "บันทึกไม่สำเร็จ",
-            missing ? "ต้องรัน SQL เพิ่มคอลัมน์ perm_group ในตาราง users ก่อนครับ" : (error.message || ""),
-            "error"
-        );
-        return;
-    }
-    if (typeof window.showToast === "function") window.showToast("บันทึกชุดสิทธิ์แล้ว");
-};
 
 window.updateUserRole = async function(selectEl, id, newRole) {
     if (!window.sysRequireAdmin()) return;
