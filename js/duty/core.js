@@ -455,6 +455,7 @@ window.refreshDutyData = async function() {
         const supportKey = `duty_support_${currentDutyDept}_${targetDate}_${shiftFilter}`;  // 🤝 ตารางซัพพอร์ตข้ามเว็บ
         const mergeKey = window.dutyMergeKey(targetDate, shiftFilter, currentDutyDept);   // 🏠 ผลรวมห้อง Discord (แยกตามฝั่ง)
         const mergeKeyOld = window.dutyMergeKeyLegacy(targetDate, shiftFilter);            // ⏳ คีย์เก่าที่ไม่มีฝั่ง
+        const webGroupKey = 'break_web_groups';   // 🔗 กลุ่มเว็บที่รวมการ์ด+โควตาพัก (แยกตามแผนก+กะ)
         const backupKey = `backup_${saveKey}`;                               // 💾 สำเนาตารางก่อนล้าง (ย้ายจาก localStorage มาเก็บ DB)
 
         // 🚀 ดึง 3 ชุดข้อมูลขนานกัน (leaves + schedules + settings) ลด latency 3 เท่า
@@ -470,7 +471,7 @@ window.refreshDutyData = async function() {
         const [leavesRes, schedulesRes, settingsRes, swapRes] = await Promise.all([
             appDB.from('leave_requests').select('user_id, reason, user_name').eq('leave_date', targetDate),
             appDB.from('schedules').select('staff_name, time_slot').eq('work_date', targetDate).eq('shift_name', shiftFilter),
-            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, backupKey]),
+            appDB.from('settings').select('value, key').in('key', [saveKey, impListKey, impAssignKey, impLockKey, stayPinKey, supportKey, mergeKey, mergeKeyOld, webGroupKey, backupKey]),
             appDB.from('scheduled_tasks').select('payload, scheduled_for, status')
                 .eq('task_type', 'individual_shift_update')
                 .gte('scheduled_for', taskDayStart).lte('scheduled_for', taskDayEnd)
@@ -539,6 +540,10 @@ window.refreshDutyData = async function() {
 
             // 🏠 ผลรวมห้อง Discord — เดิมเก็บ localStorage (เห็นแค่เครื่องเดียว) ย้ายมา DB
             // ถ้า DB ยังไม่มีแต่เครื่องนี้เคยบันทึกไว้ใน localStorage ให้ย้ายขึ้น DB ให้อัตโนมัติครั้งเดียว
+            // 🔗 กลุ่มเว็บ — ต้องโหลดก่อนวาดการ์ด ไม่งั้นการ์ดที่จับกลุ่มไว้จะไม่รวมกัน
+            const wgRow = data ? data.find(d => d.key === webGroupKey) : null;
+            try { window._breakWebGroups = wgRow && wgRow.value ? JSON.parse(wgRow.value) : {}; } catch (e) { window._breakWebGroups = {}; }
+
             const mergeRow = data ? (data.find(d => d.key === mergeKey) || data.find(d => d.key === mergeKeyOld)) : null;
             if (mergeRow && mergeRow.value) {
                 try { const m = JSON.parse(mergeRow.value); window.savedMergeRooms = Array.isArray(m) ? m : []; } catch (e) {}
