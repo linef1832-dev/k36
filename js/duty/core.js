@@ -1715,6 +1715,7 @@ window.renderRosterGrid = async function(rosterData) {
                                     html += `<span title="${agoLabel(h.ago)} งานรอง (สแตนด์บายช่วย) เว็บ ${h.sec}" class="flex items-center gap-1 ${sc.lightBg} ${sc.lightText} border ${sc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0 opacity-90"><span class="material-icons text-[11px]">directions_walk</span>${h.sec}</span>`;
                                 }
                             });
+                            return html;
                         })()}
                     </div>
                 </div>
