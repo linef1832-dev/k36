@@ -1247,7 +1247,7 @@ async function showPage(pageName) {
 //   • สี: css/theme.css (ตัวแปร --k-*) + คลาส dark: ของ Tailwind
 // ==========================================
 window.syncThemeUI = function() {
-    const dark = document.documentElement.classList.contains('dark');
+    const dark = window._themeMode ? window._themeMode === 'dark' : document.documentElement.classList.contains('dark');
     const icon = document.getElementById('themeIcon');
     if (icon) icon.innerText = dark ? 'light_mode' : 'dark_mode';   // ไอคอน = โหมดที่จะสลับไป
     const cb = document.getElementById('themeToggleCb');
@@ -1255,16 +1255,35 @@ window.syncThemeUI = function() {
 };
 window.setTheme = function(mode) {
     const root = document.documentElement;
-    root.classList.add('theme-switching');   // เปลี่ยนสีแบบนุ่ม 0.25 วิ เฉพาะตอนกดสลับ
-    root.classList.toggle('dark', mode === 'dark');
+    window._themeMode = mode;   // โหมดที่ "ตั้งใจ" ล่าสุด — กดรัวๆ ระหว่างแอนิเมชันยังสลับถูกทุกครั้ง
+    const apply = () => {
+        // ⚡ ปิด transition ทุกตัวชั่วคราวตอนสลับ — เดิมสั่งให้ "ทุก element" ค่อยๆ เปลี่ยนสีพร้อมกัน 0.25 วิ
+        //    (หน้าที่มีหลายพัน element = เบราว์เซอร์ต้องวาดใหม่ทุกเฟรม → กดสลับแล้วหน่วง)
+        root.classList.add('theme-noanim');
+        root.classList.toggle('dark', window._themeMode === 'dark');   // ใช้โหมดล่าสุดเสมอ (กันแอนิเมชันเก่าที่ค้างมาทับ)
+        window.syncThemeUI();
+        requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-noanim')));
+    };
+    // 🎞️ ความนุ่มมาจาก View Transition แทน: เบราว์เซอร์ถ่ายภาพหน้าจอเก่า-ใหม่แล้วเฟดข้ามกันด้วยการ์ดจอ (เบามาก)
+    //    กดรัวๆ → ข้ามแอนิเมชันที่ค้างอยู่ทันที ไม่ต่อคิว
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     try { localStorage.setItem('theme', mode); } catch (e) {}
     window.syncThemeUI();
-    clearTimeout(window._themeAnimT);
-    window._themeAnimT = setTimeout(() => root.classList.remove('theme-switching'), 300);
+    if (window._themeVT) { try { window._themeVT.skipTransition(); } catch (e) {} window._themeVT = null; }
+    let started = false;
+    if (document.startViewTransition && !reduce && document.visibilityState === 'visible') {
+        try {
+            const vt = document.startViewTransition(apply);
+            window._themeVT = vt; started = true;
+            vt.finished.catch(() => {}).finally(() => { if (window._themeVT === vt) window._themeVT = null; });
+        } catch (e) { started = false; }
+    }
+    if (!started) apply();   // เบราว์เซอร์เก่า / ตั้งค่าลดการเคลื่อนไหว → สลับทันที
     window.dispatchEvent(new CustomEvent('k-themechange', { detail: { mode } }));   // ให้หน้าที่วาดสีด้วย JS วาดใหม่ได้
 };
 function toggleTheme() {
-    window.setTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark');
+    const cur = window._themeMode || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    window.setTheme(cur === 'dark' ? 'light' : 'dark');
 }
 window.toggleTheme = toggleTheme;
 

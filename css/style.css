@@ -282,5 +282,7 @@ html.dark .swal2-popup.swal2-toast {
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 🌗 สลับโหมดแบบนุ่ม (ใส่คลาสนี้ชั่วคราวตอนกดสลับเท่านั้น) */
-html
+/* 🌗 สลับโหมด: ปิด transition ทุกตัวชั่วขณะ (ไม่ให้หลายพัน element ค่อยๆ เปลี่ยนสีพร้อมกัน = หน่วง)
+   ความนุ่มมาจาก View Transition (เฟดภาพทั้งจอด้วยการ์ดจอ) แทน — ดู setTheme() ใน global.js */
+html.theme-noanim, html.theme-noanim *, html.theme-noanim *::before, html.theme-noanim *::after{ transition:none !important; }
+::view-transition-old(root), ::view-transition-new(root){ animation-duration:.22s; animation-timing-function:ease-out; }
