@@ -88,6 +88,9 @@ const SHEET_BASE = "https://docs.google.com/spreadsheets/d";
 
 // (addSheet / deleteSheet ชุดเก่าลบแล้ว — ระบบชีตใช้ js/sheet/admin.js ที่เดียว)
 
+let userSubscription = null;
+// 🔄 [FIX] ฟังการเปลี่ยนแปลงของ "ตัวเอง" จากแอดมิน (กะ / แผนก / ทีม / role / สิทธิ์) แล้วอัปเดตหน้าจอทันที ไม่ต้องออก-เข้าใหม่
+// ⚠️ ฟังก์ชันนี้เคยเขียนไว้แต่ "ไม่มีใครเรียก" — ตอนนี้ถูกเรียกจาก global.js ตอนเริ่มระบบ
 window.subscribeUserChanges = function subscribeUserChanges() {
     if (userSubscription) { try { appDB.removeChannel(userSubscription); } catch (e) {} }
 
