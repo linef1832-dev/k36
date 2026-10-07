@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "2026100529";</script>
+    <script>window._APP_VERSION = "2026100530";</script>
     <script>
         (function(v){
             ['css/style.css','css/tailwind-compiled.css'].forEach(function(p){
@@ -79,6 +79,7 @@
         .sidebar-footer-btn:hover .footer-chip{ filter:brightness(1.35); transform:translateY(-1px); }
         /* 🗂️ พับหมวดเมนู */
         #menu-list .group-collapsed{ display:none !important; }
+        #menu-list .menu-section-header .sec-chev{ transition:transform .28s cubic-bezier(.2,.8,.2,1) !important; }
         #menu-list .menu-section-header.collapsed .sec-chev{ transform:rotate(-90deg); }
 
         /* ═══════════ 🖤 Premium Rail v3 — Quiet Luxury ═══════════ */
@@ -514,16 +515,38 @@
                 if (fr.bottom > window.innerHeight - 8) flyEl.style.top = Math.max(8, window.innerHeight - fr.height - 8) + 'px';
             });
         }
+        // 🎞️ พับ/กางหมวดเมนูแบบลื่น: เมนูในหมวดค่อยๆ ยืด/หดความสูง + จางเข้า/ออก ไล่ทีละรายการ
+        //    (เมนูเป็นพี่น้องกันในลิสต์เดียว ไม่มีกล่องครอบ → แอนิเมตทีละปุ่ม แล้วค่อยใส่/ถอดคลาส group-collapsed ตามเดิม)
+        const _secReduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        function _secItems(h) {
+            const out = []; let el = h.nextElementSibling;
+            while (el && !el.classList.contains('menu-section-header')) { out.push(el); el = el.nextElementSibling; }
+            return out;
+        }
+        function _secAnimate(el, open, delay) {
+            if (el._secAnim) { el._secAnim.cancel(); el._secAnim = null; }
+            if (open) el.classList.remove('group-collapsed');
+            const cs = getComputedStyle(el);
+            if (_secReduce || cs.display === 'none') { if (!open) el.classList.add('group-collapsed'); return; }   // ปุ่มที่ซ่อนตามสิทธิ์อยู่แล้ว ไม่ต้องแอนิเมต
+            const full = { height: el.offsetHeight + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, marginBottom: cs.marginBottom, opacity: 1, transform: 'translateY(0)' };
+            const zero = { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', marginBottom: '0px', opacity: 0, transform: 'translateY(-4px)' };
+            const prevOverflow = el.style.overflow; el.style.overflow = 'hidden';
+            const a = el.animate(open ? [zero, full] : [full, zero], { duration: open ? 260 : 200, delay: delay, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' });
+            el._secAnim = a;
+            a.onfinish = function() {
+                if (!open) el.classList.add('group-collapsed');
+                a.cancel(); el.style.overflow = prevOverflow; el._secAnim = null;
+            };
+        }
         window.toggleMenuSection = function(h) {
             const nav = document.getElementById('sidebarNav');
             if (nav && nav.classList.contains('sidebar-mini')) { showFly(h); return; }
             const collapsed = !h.classList.contains('collapsed');
             h.classList.toggle('collapsed', collapsed);
-            let el = h.nextElementSibling;
-            while (el && !el.classList.contains('menu-section-header')) {
-                el.classList.toggle('group-collapsed', collapsed);
-                el = el.nextElementSibling;
-            }
+            const items = _secItems(h);
+            // กาง: ไล่จากบนลงล่าง · พับ: ไล่จากล่างขึ้นบน — ดูเป็นม่านเลื่อน
+            const n = items.length;
+            items.forEach(function(el, i) { _secAnimate(el, !collapsed, (collapsed ? (n - 1 - i) : i) * 18); });
             try { localStorage.setItem('menuSec_' + h.dataset.sec, collapsed ? '1' : '0'); } catch (e) {}
         };
         window.toggleSidebarMini = function() {
