@@ -776,6 +776,8 @@ window.restoreFromLeave = async function(userId, username) {
             const fullUserObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(userId));
             if (fullUserObj) {
                 if(!currentRosterData[selectedTeam]) currentRosterData[selectedTeam] = [];
+                // 🧍 เอาออกจากเว็บอื่นก่อน กันชื่อโผล่ 2 ที่
+                const movedFrom = window.dutyRemoveFromOtherTeams(currentRosterData, userId, selectedTeam);
                 const isExist = currentRosterData[selectedTeam].some(u => String(u.id) === String(userId));
                 if (!isExist) currentRosterData[selectedTeam].push({
                     ...fullUserObj,
@@ -791,7 +793,7 @@ window.restoreFromLeave = async function(userId, username) {
             window.debouncedBroadcast('duty-updates', 'force_reload');
             await window.refreshDutyData();
 
-            Swal.fire({icon: 'success', title: 'ดึงกลับสำเร็จ!', text: `${username} ไปอยู่เว็บ ${selectedTeam} แล้ว`, timer: 1500, showConfirmButton: false});
+            Swal.fire({icon: 'success', title: 'ดึงกลับสำเร็จ!', text: `${movedFrom.length ? 'ย้ายจาก ' + movedFrom.join(', ') + ' — ' : ''}${username} ไปอยู่เว็บ ${selectedTeam} แล้ว`, timer: 1500, showConfirmButton: false});
         } catch (err) { Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
     }
 };
@@ -986,6 +988,8 @@ window.addStaffToRoster = async function() {
         if (isExist) {
             return Swal.fire('ซ้ำ!', `${fullUserObj.username} อยู่ในเว็บ ${team} อยู่แล้ว`, 'info');
         }
+        // 🧍 อยู่เว็บอื่นอยู่แล้ว = ย้ายมา ไม่ใช่เพิ่มซ้ำ
+        const movedFrom2 = window.dutyRemoveFromOtherTeams(currentRosterData, userId, team);
         currentRosterData[team].push({
             ...fullUserObj,
             secondary_team: subTeam || null,   // 🫳 เว็บรองที่เลือกในกล่อง (ไม่เลือก = ไม่มีรอง)
@@ -1009,7 +1013,7 @@ window.addStaffToRoster = async function() {
         Swal.fire({
             icon: 'success',
             title: 'เพิ่มสำเร็จ!',
-            text: `${fullUserObj.username} → หลัก ${team}${subTeam ? ' + รอง ' + subTeam : ''} เรียบร้อย`,
+            text: `${movedFrom2.length ? 'ย้ายจาก ' + movedFrom2.join(', ') + ' — ' : ''}${fullUserObj.username} → หลัก ${team}${subTeam ? ' + รอง ' + subTeam : ''} เรียบร้อย`,
             timer: 1500,
             showConfirmButton: false
         });
@@ -1017,6 +1021,20 @@ window.addStaffToRoster = async function() {
         console.error('addStaffToRoster error:', err);
         Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
     }
+};
+
+// 🧍 [กติกา] 1 คน อยู่ได้เว็บเดียวต่อกะ
+//   ก่อนใส่ใครลงเว็บ ต้องเอาเขาออกจากเว็บอื่นก่อน ไม่งั้นชื่อโผล่ 2 ที่
+//   คืนชื่อเว็บเดิมที่ถูกเอาออก (ถ้ามี) ไว้บอกแอดมิน
+window.dutyRemoveFromOtherTeams = function(rosterData, userId, keepTeam) {
+    const removed = [];
+    Object.keys(rosterData || {}).forEach(team => {
+        if (team === keepTeam) return;
+        const before = (rosterData[team] || []).length;
+        rosterData[team] = (rosterData[team] || []).filter(u => !u || String(u.id) !== String(userId));
+        if (rosterData[team].length < before) removed.push(team);
+    });
+    return removed;
 };
 
 window.clearDutyRoster = async function() {
