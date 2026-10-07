@@ -1560,33 +1560,43 @@ window.renderRosterGrid = async function(rosterData) {
         } catch (e) { odRoomOf = {}; }
     }
 
-    // 🕘 [ป้ายเมื่อวาน] ดึงตารางเวรของ "เมื่อวาน" (แผนกเดียวกัน กะเดียวกัน) มาทำแผนที่ ชื่อ → เว็บ
-    // เพื่อโชว์ป้าย "เมื่อวานทำ <เว็บ>" ต่อท้ายชื่อพนักงาน — cache ตาม key กันยิงซ้ำทุกครั้งที่วาด
-    let yesterdayTeamOf = {};
+    // 🕘 [ป้ายย้อนหลัง] ดึงตารางเวร 3 วันก่อนหน้า (แผนก+กะเดียวกัน) มายิงครั้งเดียว
+    //    เพื่อโชว์ป้าย "เมื่อวานทำ X · 2 วันก่อน Y · 3 วันก่อน Z" ต่อท้ายชื่อพนักงาน
+    //    historyTeamOf[ชื่อ] = [{ ago, main, sec }, ...] เรียงจากวันล่าสุดไปเก่าสุด
+    const DUTY_HISTORY_DAYS = 3;
+    let historyTeamOf = {};
     if (targetDate) {
         try {
-            const yd = new Date(targetDate + 'T00:00:00');
-            yd.setDate(yd.getDate() - 1);
-            const ydStr = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`;
-            const ydKey = `duty_roster_${currentDutyDept}_${ydStr}_${shiftFilter}`;
-            if (window._ydRosterCache && window._ydRosterCache.key === ydKey) {
-                yesterdayTeamOf = window._ydRosterCache.map;
+            const histKeys = [], agoOf = {};
+            for (let k = 1; k <= DUTY_HISTORY_DAYS; k++) {
+                const dd = new Date(targetDate + 'T00:00:00');
+                dd.setDate(dd.getDate() - k);
+                const ds = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
+                const key = `duty_roster_${currentDutyDept}_${ds}_${shiftFilter}`;
+                histKeys.push(key);
+                agoOf[key] = k;
+            }
+            const cacheKey = histKeys.join('|');
+            if (window._ydRosterCache && window._ydRosterCache.key === cacheKey) {
+                historyTeamOf = window._ydRosterCache.map;
             } else {
-                const { data: ydData } = await appDB.from('settings').select('value').eq('key', ydKey).maybeSingle();
-                if (ydData && ydData.value) {
-                    const ydRoster = JSON.parse(ydData.value);
-                    for (const t in ydRoster) {
-                        (ydRoster[t] || []).forEach(u => {
-                            if (u && u.username && !String(u.username).includes('ขาดคน')) {
-                                // เก็บทั้งงานหลัก และงานรอง (สแตนด์บายช่วย) ของเมื่อวาน
-                                yesterdayTeamOf[u.username] = { main: t, sec: u.secondary_team || null };
-                            }
+                const { data: histData } = await appDB.from('settings').select('key, value').in('key', histKeys);
+                (histData || []).forEach(row => {
+                    const ago = agoOf[row.key];
+                    let roster = null;
+                    try { roster = JSON.parse(row.value); } catch (e) { return; }
+                    for (const t in roster) {
+                        (roster[t] || []).forEach(u => {
+                            if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
+                            (historyTeamOf[u.username] = historyTeamOf[u.username] || [])
+                                .push({ ago, main: t, sec: u.secondary_team || null });
                         });
                     }
-                }
-                window._ydRosterCache = { key: ydKey, map: yesterdayTeamOf };
+                });
+                Object.keys(historyTeamOf).forEach(n => historyTeamOf[n].sort((a, b) => a.ago - b.ago));
+                window._ydRosterCache = { key: cacheKey, map: historyTeamOf };
             }
-        } catch (e) { console.error('โหลดตารางเมื่อวานไม่สำเร็จ:', e); }
+        } catch (e) { console.error('โหลดตารางย้อนหลังไม่สำเร็จ:', e); }
     }
 
     sortedTeams.forEach(team => {
@@ -1687,26 +1697,24 @@ window.renderRosterGrid = async function(rosterData) {
             return `
             <div class="duty-user-card flex flex-col p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0 group ${cursorClass}" data-name="${window.escapeHtml((a.username || '').toLowerCase())}" ${dragAttrs}>
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
+                    <div class="flex items-center gap-2.5 flex-wrap">
                         <span class="material-icons ${isMissing ? 'text-red-500' : 'text-green-500'} text-[18px] pointer-events-none drop-shadow-sm">${isMissing ? 'warning' : 'check_circle'}</span>
                         <span class="font-black ${isMissing ? 'text-red-500 bg-red-50 dark:bg-red-900/30 px-1.5 rounded border border-red-200 dark:border-red-800/50' : 'text-slate-800 dark:text-gray-100'} text-sm pointer-events-none truncate tracking-wide">${window.escapeHtml(String(a.username).replace(/<[^>]*>/g, '').replace(/^\s*warning\s*/, '').trim())}</span>
                         ${(() => {
-                            const yInfo = !isMissing ? yesterdayTeamOf[a.username] : null;
-                            if (!yInfo) return '';
-                            // รองรับข้อมูลเก่าที่เก็บเป็น string เฉยๆ
-                            const yMain = (typeof yInfo === 'string') ? yInfo : yInfo.main;
-                            const ySec  = (typeof yInfo === 'string') ? null : yInfo.sec;
-                            if (!yMain && !ySec) return '';
+                            const hist = !isMissing ? (historyTeamOf[a.username] || []) : [];
+                            if (!hist.length) return '';
+                            const agoLabel = n => n === 1 ? 'เมื่อวาน' : n + ' วันก่อน';
                             let html = '';
-                            if (yMain) {
-                                const yc = TEAM_COLORS[yMain] || TEAM_COLORS['DEFAULT'];
-                                html += `<span title="เมื่อวานงานหลักเว็บ ${yMain}" class="flex items-center gap-1 ${yc.bg} ${yc.text} border ${yc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0"><span class="material-icons text-[11px]">history</span>เมื่อวานทำ ${yMain}</span>`;
-                            }
-                            if (ySec) {
-                                const sc = TEAM_COLORS[ySec] || TEAM_COLORS['DEFAULT'];
-                                html += `<span title="เมื่อวานงานรอง (สแตนด์บายช่วย) เว็บ ${ySec}" class="flex items-center gap-1 ${sc.lightBg} ${sc.lightText} border ${sc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0 opacity-90"><span class="material-icons text-[11px]">directions_walk</span>รองเมื่อวาน ${ySec}</span>`;
-                            }
-                            return html;
+                            hist.forEach(h => {
+                                if (h.main) {
+                                    const yc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
+                                    html += `<span title="${agoLabel(h.ago)} งานหลักเว็บ ${h.main}" class="flex items-center gap-1 ${yc.bg} ${yc.text} border ${yc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0"><span class="material-icons text-[11px]">history</span>${agoLabel(h.ago)} ${h.main}</span>`;
+                                }
+                                if (h.sec) {
+                                    const sc = TEAM_COLORS[h.sec] || TEAM_COLORS['DEFAULT'];
+                                    html += `<span title="${agoLabel(h.ago)} งานรอง (สแตนด์บายช่วย) เว็บ ${h.sec}" class="flex items-center gap-1 ${sc.lightBg} ${sc.lightText} border ${sc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0 opacity-90"><span class="material-icons text-[11px]">directions_walk</span>${h.sec}</span>`;
+                                }
+                            });
                         })()}
                     </div>
                 </div>
