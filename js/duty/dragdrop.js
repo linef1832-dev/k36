@@ -101,6 +101,7 @@ window.handleDrop = async function(event, toTeam) {
             if (currentRosterData[fromTeam]) {
                 currentRosterData[fromTeam] = currentRosterData[fromTeam].filter(u => String(u.id) !== String(id));
                 const saveKey = getDutySaveKey(targetDate, shiftFilter);
+                if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
                 window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
             }
 
@@ -129,6 +130,7 @@ window.handleDrop = async function(event, toTeam) {
     const originalAssignedBy = originalUserInFromTeam?.assigned_by || 'ไม่ทราบ';
 
     currentRosterData[fromTeam] = currentRosterData[fromTeam].filter(u => String(u.id) !== String(id));
+    if (typeof window.dutyRemoveFromOtherTeams === "function") window.dutyRemoveFromOtherTeams(currentRosterData, id, toTeam);   // 🧍 เผื่อข้อมูลเก่ามีชื่อค้างอยู่เว็บอื่น
 
     const fullUserObj = GLOBAL_USER_LIST.find(u => String(u.id) === String(id));
     if (fullUserObj) {
@@ -145,6 +147,7 @@ window.handleDrop = async function(event, toTeam) {
     Swal.fire({title: 'กำลังอัปเดตตาราง...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
     try {
+        if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
         window.clearSettingCache(); const { error: _upsertErr } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (_upsertErr) throw _upsertErr;
 

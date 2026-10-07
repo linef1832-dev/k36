@@ -786,6 +786,7 @@ window.restoreFromLeave = async function(userId, username) {
                 });
                 
                 const saveKey = getDutySaveKey(targetDate, shiftFilter);
+                if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
                 window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
             }
 
@@ -998,6 +999,7 @@ window.addStaffToRoster = async function() {
         });
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
+        if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
         window.clearSettingCache(); const { error: _upsertErr } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
         if (_upsertErr) throw _upsertErr;
 
@@ -1026,6 +1028,36 @@ window.addStaffToRoster = async function() {
 // 🧍 [กติกา] 1 คน อยู่ได้เว็บเดียวต่อกะ
 //   ก่อนใส่ใครลงเว็บ ต้องเอาเขาออกจากเว็บอื่นก่อน ไม่งั้นชื่อโผล่ 2 ที่
 //   คืนชื่อเว็บเดิมที่ถูกเอาออก (ถ้ามี) ไว้บอกแอดมิน
+// 🛡️ [ตาข่ายกันซ้ำ] กันไว้ก่อนบันทึกทุกครั้ง — 1 คน ต้องอยู่เว็บเดียวเท่านั้น
+//   ถ้าเจอคนเดียวกันหลายเว็บ เก็บรายการที่ถูกใส่ล่าสุดไว้ (assigned_at ใหม่สุด)
+//   ไม่ว่าจะพลาดมาจากทางไหน ข้อมูลที่ลงฐานข้อมูลจะไม่มีชื่อซ้ำ
+window.dutyDedupeRoster = function(rosterData) {
+    if (!rosterData || typeof rosterData !== "object") return { data: rosterData, removed: [] };
+    const best = {};   // id -> { team, at }
+    Object.entries(rosterData).forEach(([team, list]) => {
+        (list || []).forEach(u => {
+            if (!u || !u.id) return;                       // ช่อง "ขาดคน" ไม่มี id ปล่อยผ่าน
+            const id = String(u.id);
+            const at = String(u.assigned_at || "");
+            if (!best[id] || at >= best[id].at) best[id] = { team, at };
+        });
+    });
+    const removed = [];
+    Object.entries(rosterData).forEach(([team, list]) => {
+        rosterData[team] = (list || []).filter(u => {
+            if (!u || !u.id) return true;
+            const id = String(u.id);
+            if (best[id] && best[id].team !== team) {
+                removed.push({ username: u.username, from: team, keep: best[id].team });
+                return false;
+            }
+            return true;
+        });
+    });
+    if (removed.length) console.warn("[กันชื่อซ้ำ] ตัดออก", removed);
+    return { data: rosterData, removed };
+};
+
 window.dutyRemoveFromOtherTeams = function(rosterData, userId, keepTeam) {
     const removed = [];
     Object.keys(rosterData || {}).forEach(team => {
@@ -1294,6 +1326,7 @@ window.generateDutyRoster = async function() {
         rotationStats.repairSwaps = repairSwaps;
 
         const saveKey = getDutySaveKey(targetDate, shiftFilter);
+        if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(rosterResult);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
         window.clearSettingCache(); const { error: _upsertErr2 } = await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(rosterResult) }]);
         if (_upsertErr2) throw _upsertErr2;
 
@@ -1858,6 +1891,7 @@ window.changeSecondaryTeam = async function(primaryTeam, userId, username) {
             const saveKey = getDutySaveKey(targetDate, shiftFilter);
 
             Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen:()=>Swal.showLoading()});
+            if (typeof window.dutyDedupeRoster === "function") window.dutyDedupeRoster(currentRosterData);   // 🛡️ กันชื่อซ้ำก่อนบันทึก
             window.clearSettingCache(); await appDB.from('settings').upsert([{ key: saveKey, value: JSON.stringify(currentRosterData) }]);
 
             // 🟢 บันทึก log การเปลี่ยนงานรอง (สแตนด์บาย)
