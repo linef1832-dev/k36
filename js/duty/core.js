@@ -1564,36 +1564,46 @@ window.renderRosterGrid = async function(rosterData) {
     //    เพื่อโชว์ป้าย "เมื่อวานทำ X · 2 วันก่อน Y · 3 วันก่อน Z" ต่อท้ายชื่อพนักงาน
     //    historyTeamOf[ชื่อ] = [{ ago, main, sec }, ...] เรียงจากวันล่าสุดไปเก่าสุด
     const DUTY_HISTORY_DAYS = 3;
+    const HIST_SHIFTS = ['กะเช้า', 'กะกลาง', 'กะดึก'];   // ดูข้ามกะ เพราะคนสลับกะกันบ่อย
     let historyTeamOf = {};
     if (targetDate) {
         try {
-            const histKeys = [], agoOf = {};
+            const histKeys = [], metaOf = {};
             for (let k = 1; k <= DUTY_HISTORY_DAYS; k++) {
                 const dd = new Date(targetDate + 'T00:00:00');
                 dd.setDate(dd.getDate() - k);
                 const ds = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
-                const key = `duty_roster_${currentDutyDept}_${ds}_${shiftFilter}`;
-                histKeys.push(key);
-                agoOf[key] = k;
+                HIST_SHIFTS.forEach(sh => {
+                    const key = `duty_roster_${currentDutyDept}_${ds}_${sh}`;
+                    histKeys.push(key);
+                    metaOf[key] = { ago: k, shift: sh };
+                });
             }
             const cacheKey = histKeys.join('|');
             if (window._ydRosterCache && window._ydRosterCache.key === cacheKey) {
                 historyTeamOf = window._ydRosterCache.map;
             } else {
                 const { data: histData } = await appDB.from('settings').select('key, value').in('key', histKeys);
+                const byDay = {};   // ชื่อ -> { วันที่ย้อนหลัง -> รายการ }
                 (histData || []).forEach(row => {
-                    const ago = agoOf[row.key];
+                    const meta = metaOf[row.key];
                     let roster = null;
                     try { roster = JSON.parse(row.value); } catch (e) { return; }
                     for (const t in roster) {
                         (roster[t] || []).forEach(u => {
                             if (!u || !u.username || String(u.username).includes('ขาดคน')) return;
-                            (historyTeamOf[u.username] = historyTeamOf[u.username] || [])
-                                .push({ ago, main: t, sec: u.secondary_team || null });
+                            const slot = (byDay[u.username] = byDay[u.username] || {});
+                            const cur = slot[meta.ago];
+                            // วันเดียวกันเจอหลายกะ -> เอากะเดียวกับที่กำลังดูอยู่ก่อน
+                            if (!cur || (cur.shift !== shiftFilter && meta.shift === shiftFilter)) {
+                                slot[meta.ago] = { ago: meta.ago, shift: meta.shift, main: t, sec: u.secondary_team || null };
+                            }
                         });
                     }
                 });
-                Object.keys(historyTeamOf).forEach(n => historyTeamOf[n].sort((a, b) => a.ago - b.ago));
+                Object.keys(byDay).forEach(n => {
+                    historyTeamOf[n] = Object.values(byDay[n]).sort((a, b) => a.ago - b.ago);
+                });
                 window._ydRosterCache = { key: cacheKey, map: historyTeamOf };
             }
         } catch (e) { console.error('โหลดตารางย้อนหลังไม่สำเร็จ:', e); }
@@ -1704,11 +1714,12 @@ window.renderRosterGrid = async function(rosterData) {
                             const hist = !isMissing ? (historyTeamOf[a.username] || []) : [];
                             if (!hist.length) return '';
                             const agoLabel = n => n === 1 ? 'เมื่อวาน' : n + ' วันก่อน';
+                            const shTag = h => (h.shift && h.shift !== shiftFilter) ? ' · ' + String(h.shift).replace('กะ', '') : '';
                             let html = '';
                             hist.forEach(h => {
                                 if (h.main) {
                                     const yc = TEAM_COLORS[h.main] || TEAM_COLORS['DEFAULT'];
-                                    html += `<span title="${agoLabel(h.ago)} งานหลักเว็บ ${h.main}" class="flex items-center gap-1 ${yc.bg} ${yc.text} border ${yc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0"><span class="material-icons text-[11px]">history</span>${agoLabel(h.ago)} ${h.main}</span>`;
+                                    html += `<span title="${agoLabel(h.ago)} งานหลักเว็บ ${h.main}${h.shift && h.shift !== shiftFilter ? " (" + h.shift + ")" : ""}" class="flex items-center gap-1 ${yc.bg} ${yc.text} border ${yc.border} text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm pointer-events-none shrink-0"><span class="material-icons text-[11px]">history</span>${agoLabel(h.ago)} ${h.main}${shTag(h)}</span>`;
                                 }
                                 if (h.sec) {
                                     const sc = TEAM_COLORS[h.sec] || TEAM_COLORS['DEFAULT'];
