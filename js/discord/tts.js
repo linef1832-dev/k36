@@ -275,9 +275,9 @@
                     ${_chip('repeat', `${Number(s.repeat || 1)} รอบ`)}
                 </span>
                 <span onclick="event.stopPropagation();ttsShiftToggle(${gi},${si})" role="switch" aria-checked="${s.enabled}" title="${s.enabled ? 'ปิดกะนี้' : 'เปิดกะนี้'}"
-                      class="relative shrink-0 cursor-pointer rounded-full transition-colors duration-200 ${s.enabled ? 'bg-emerald-500/90' : 'bg-slate-700'}"
-                      style="width:40px;height:22px;display:inline-block">
-                    <span class="absolute rounded-full bg-white shadow transition-all duration-200" style="width:16px;height:16px;top:3px;left:${s.enabled ? '21px' : '3px'};"></span>
+                      class="relative shrink-0 cursor-pointer rounded-full transition-all duration-200"
+                      style="width:44px;height:24px;display:inline-block;background:${s.enabled ? '#22c55e' : '#334155'};box-shadow:${s.enabled ? '0 0 0 1px #16a34a, 0 0 10px #22c55e66' : 'inset 0 0 0 1px #475569'}">
+                    <span class="absolute rounded-full transition-all duration-200" style="width:18px;height:18px;top:3px;left:${s.enabled ? '23px' : '3px'};background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4)"></span>
                 </span>
             </div>`;
 
