@@ -265,20 +265,20 @@
         const sharedText = (s.rooms && s.rooms[0] && s.rooms[0].text) || '';
 
         const head = `
-            <div class="flex items-center gap-3 p-3 ${open ? 'border-b border-slate-800' : ''}">
-                <button onclick="ttsOpenShift(${gi},${si})" class="flex-1 flex items-center gap-3 text-left min-w-0">
-                    <span class="material-icons text-gray-500 transition-transform" style="${open ? 'transform:rotate(90deg)' : ''}">chevron_right</span>
-                    <span class="text-white font-bold shrink-0">${window.escapeHtml(s.name)}</span>
-                    <span class="flex items-center gap-1.5 flex-wrap min-w-0">
-                        ${_chip('manage_search', kws.length ? `${kws.length} คำ` : 'ยังไม่ตั้งคำ', kws.length ? '' : 'text-amber-300 bg-amber-500/10 border-amber-500/30')}
-                        ${_chip('volume_up', `${nRooms} ห้อง`, nRooms ? '' : 'text-amber-300 bg-amber-500/10 border-amber-500/30')}
-                        ${_chip('schedule', _timeLabel(s))}
-                        ${_chip('repeat', `${Number(s.repeat || 1)} รอบ`)}
-                    </span>
-                </button>
-                <button onclick="ttsShiftToggle(${gi},${si})" title="${s.enabled ? 'ปิดกะนี้' : 'เปิดกะนี้'}" style="width:44px;height:22px;" class="relative rounded-full transition shrink-0 ${s.enabled ? 'bg-emerald-500' : 'bg-slate-600'}">
-                    <span class="absolute rounded-full bg-white transition-all" style="width:18px;height:18px;top:2px;left:${s.enabled ? '24px' : '2px'};"></span>
-                </button>
+            <div onclick="ttsOpenShift(${gi},${si})" class="flex items-center gap-3 p-3 cursor-pointer select-none hover:bg-slate-800/40 rounded-2xl ${open ? 'rounded-b-none border-b border-slate-800' : ''}">
+                <span class="material-icons text-gray-500 shrink-0 transition-transform" style="${open ? 'transform:rotate(90deg)' : ''}">chevron_right</span>
+                <span class="text-white font-bold shrink-0">${window.escapeHtml(s.name)}</span>
+                <span class="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
+                    ${_chip('manage_search', kws.length ? `${kws.length} คำ` : 'ยังไม่ตั้งคำ', kws.length ? '' : 'text-amber-300 bg-amber-500/10 border-amber-500/30')}
+                    ${_chip('volume_up', `${nRooms} ห้อง`, nRooms ? '' : 'text-amber-300 bg-amber-500/10 border-amber-500/30')}
+                    ${_chip('schedule', _timeLabel(s))}
+                    ${_chip('repeat', `${Number(s.repeat || 1)} รอบ`)}
+                </span>
+                <span onclick="event.stopPropagation();ttsShiftToggle(${gi},${si})" role="switch" aria-checked="${s.enabled}" title="${s.enabled ? 'ปิดกะนี้' : 'เปิดกะนี้'}"
+                      class="relative shrink-0 cursor-pointer rounded-full transition-colors duration-200 ${s.enabled ? 'bg-emerald-500/90' : 'bg-slate-700'}"
+                      style="width:40px;height:22px;display:inline-block">
+                    <span class="absolute rounded-full bg-white shadow transition-all duration-200" style="width:16px;height:16px;top:3px;left:${s.enabled ? '21px' : '3px'};"></span>
+                </span>
             </div>`;
 
         if (!open) {
@@ -394,19 +394,19 @@
             const bb = r.bot_id ? botById(r.bot_id) : null;
             return `
             <div class="bg-slate-800 border ${bb ? '' : 'border-slate-700'} rounded-xl p-2" ${bb ? `style="border:1px solid ${bb.color}55"` : ''}>
-                <div class="flex items-center justify-between ${hideText ? '' : 'mb-1'} flex-wrap gap-1">
-                    <span class="text-sky-300 font-bold text-sm flex items-center gap-1"><span class="material-icons text-base">volume_up</span> ${roomName(r.id)}
-                        ${bb ? `<span class="text-[10px] font-black rounded-full px-2 py-0.5 ml-1" style="background:${bb.color}22;color:${bb.color};border:1px solid ${bb.color}55">${bb._main ? '🎩' : '🤖'} ${esc(bb.name)}</span>` : ''}
+                <div class="flex items-center ${hideText ? '' : 'mb-1'} gap-1.5 flex-nowrap">
+                    <span class="text-sky-300 font-bold text-sm flex items-center gap-1 min-w-0 flex-1 truncate"><span class="material-icons text-base shrink-0">volume_up</span> <span class="truncate">${roomName(r.id)}</span>
+                        ${bb ? `<span class="text-[10px] font-black rounded-full px-2 py-0.5 ml-1 shrink-0 whitespace-nowrap" style="background:${bb.color}22;color:${bb.color};border:1px solid ${bb.color}55">${esc(bb.name)}</span>` : ''}
                     </span>
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1 shrink-0">
                         ${manual ? `
-                        <select onchange="ttsRoomBot('${kind}',${a},${b == null ? 'null' : b},${ri},this.value)" title="บอทประจำห้องนี้" class="text-xs bg-slate-900 border border-slate-700 text-gray-300 px-1.5 py-1 rounded-lg outline-none focus:border-violet-500 max-w-[130px]">
+                        <select onchange="ttsRoomBot('${kind}',${a},${b == null ? 'null' : b},${ri},this.value)" title="บอทประจำห้องนี้" class="text-xs bg-slate-900 border border-slate-700 text-gray-300 px-1.5 py-1 rounded-lg outline-none focus:border-violet-500 w-[104px]">
                             <option value="">🎲 อัตโนมัติ</option>
                             ${hasMainBot() ? `<option value="main" ${String(r.bot_id || '') === 'main' ? 'selected' : ''}>🎩 ${esc(mainBotInfo().name)} (หลัก)</option>` : ''}
                             ${(_cfg.bots || []).map(bt => `<option value="${bt.id}" ${String(r.bot_id || '') === String(bt.id) ? 'selected' : ''}>🤖 ${esc(bt.name)}</option>`).join('')}
                         </select>` : ''}
-                        <button onclick="ttsTest('${kind}',${a},${b == null ? 'null' : b},${ri})" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded-lg flex items-center gap-1" title="ให้บอทพูดทันที"><span class="material-icons text-sm">play_arrow</span> ทดสอบ</button>
-                        <button onclick="ttsDelRoom('${kind}',${a},${b == null ? 'null' : b},${ri})" class="text-gray-500 hover:text-red-400"><span class="material-icons text-lg">close</span></button>
+                        <button onclick="ttsTest('${kind}',${a},${b == null ? 'null' : b},${ri})" class="shrink-0 text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded-lg flex items-center gap-1 whitespace-nowrap" title="ให้บอทพูดทันที"><span class="material-icons text-sm">play_arrow</span> ทดสอบ</button>
+                        <button onclick="ttsDelRoom('${kind}',${a},${b == null ? 'null' : b},${ri})" class="shrink-0 text-gray-500 hover:text-red-400"><span class="material-icons text-lg">close</span></button>
                     </div>
                 </div>
                 ${hideText ? '' : `<textarea rows="2" oninput="ttsRoomText('${kind}',${a},${b == null ? 'null' : b},${ri},this.value)" placeholder="ข้อความที่บอทจะพูดในห้องนี้..." class="w-full bg-slate-900 border border-slate-700 text-white px-2 py-1.5 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${(r.text || '')}</textarea>`}
