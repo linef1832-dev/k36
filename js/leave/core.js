@@ -92,12 +92,8 @@ window.switchDept = function(dept) {
     if (dept === 'TRAINER' || dept === 'AMQL' || dept === 'ODQL') canManageThisDept = canManageThisDept || window.hasUserPerm('leave_manage_trainer');
     if (dept === 'SPECIAL') canManageThisDept = isGlobalAdmin || window.hasUserPerm('leave_manage_am');
 
-    // [FIX] ผู้สอน (role trainer) ที่ไม่ใช่ admin → ไม่ให้เห็นแถบตั้งค่า/toggle เปิด-ปิด
-    // ในหน้า AMQL/ODQL/TRAINER (เปิด-ปิดต้องทำจากหน้า AM/OD โดยแอดมินเท่านั้น)
-    const _isTrainerOnlyUser = ['AMQL', 'ODQL', 'TRAINER'].includes(currentUser.department) && !isGlobalAdmin;
-    if (_isTrainerOnlyUser && (dept === 'AMQL' || dept === 'ODQL' || dept === 'TRAINER')) {
-        canManageThisDept = false;
-    }
+    // (ถอดกฎฮาร์ดโค้ดที่เคยห้ามคนแผนก AMQL/ODQL/TRAINER จัดการหน้าผู้สอนออกแล้ว
+    //  เพราะทับสิทธิ์ leave_manage_trainer ที่ติ๊กไว้ในตาราง — ตอนนี้คุมด้วยสิทธิ์อย่างเดียว)
 
     const controls = document.getElementById('leaveManagerControls');
     if(controls) {
