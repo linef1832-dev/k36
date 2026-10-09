@@ -228,6 +228,16 @@
         _cfg.groups.forEach((grp, gi) => grp.shifts.forEach((s, si) => { _renderChk(gi + '-' + si, s.rooms); _renderSel('g', gi, si); }));
     }
 
+    // คำที่จับเก็บเป็นข้อความเดียว คั่นด้วยขึ้นบรรทัดใหม่ — ฝั่งบอทรองรับทั้ง \n และ |
+    function _kwList(v) {
+        const arr = String(v == null ? '' : v).split(/[\n\r|]+/).map(x => x.trim());
+        const out = arr.filter((x, i) => x !== '' || i === arr.length - 1);
+        return out.length ? out : [''];
+    }
+    function _kwJoin(list) {
+        return list.map(x => String(x || '').trim()).filter(Boolean).join('\n');
+    }
+
     function _shiftCard(gi, si, s) {
         const key = gi + '-' + si;
         return `
@@ -240,8 +250,15 @@
             </div>
 
             <div>
-                <label class="text-xs text-gray-400 font-bold block mb-1">คำที่จับ (เจอในกลุ่มแล้วพูด)</label>
-                <input type="text" value="${esc(s.keyword)}" oninput="ttsSF(${gi},${si},'keyword',this.value)" placeholder="เช่น เช็คชื่อ" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                <label class="text-xs text-gray-400 font-bold block mb-1">คำที่จับ (เจอคำไหนก็พูด — ใส่ได้หลายคำ)</label>
+                <div class="space-y-1.5">
+                ${_kwList(s.keyword).map((k, ki) => `
+                    <div class="flex gap-2 items-center">
+                        <input type="text" value="${esc(k)}" oninput="ttsKwSet(${gi},${si},${ki},this.value)" placeholder="เช่น เช็คชื่อ" class="flex-1 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                        <button onclick="ttsKwDel(${gi},${si},${ki})" title="ลบคำนี้" class="text-gray-500 hover:text-red-400 px-1 shrink-0"><span class="material-icons text-lg">remove_circle_outline</span></button>
+                    </div>`).join('')}
+                </div>
+                <button onclick="ttsKwAdd(${gi},${si})" class="mt-1.5 text-xs font-bold text-sky-300 hover:text-sky-200 flex items-center gap-1"><span class="material-icons text-sm">add_circle_outline</span> เพิ่มคำสำรอง</button>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
@@ -548,6 +565,26 @@
     window.ttsRemoveGroup = (gi) => { _cfg.groups.splice(gi, 1); if (!_cfg.groups.length) _cfg.groups.push(newGroup()); _renderGroups(); };
     window.ttsShiftToggle = (gi, si) => { _cfg.groups[gi].shifts[si].enabled = !_cfg.groups[gi].shifts[si].enabled; _renderGroups(); };
     window.ttsSF = (gi, si, f, v) => { _cfg.groups[gi].shifts[si][f] = v; };
+    window.ttsKwSet = (gi, si, ki, v) => {
+        const sh = _cfg.groups[gi].shifts[si];
+        const list = _kwList(sh.keyword);
+        list[ki] = v;
+        sh.keyword = list.join('\n');          // ไม่ re-render ระหว่างพิมพ์ เคอร์เซอร์จะได้ไม่เด้ง
+    };
+    window.ttsKwAdd = (gi, si) => {
+        const sh = _cfg.groups[gi].shifts[si];
+        const list = _kwList(sh.keyword);
+        list.push('');
+        sh.keyword = list.join('\n');
+        _renderGroups();
+    };
+    window.ttsKwDel = (gi, si, ki) => {
+        const sh = _cfg.groups[gi].shifts[si];
+        const list = _kwList(sh.keyword);
+        list.splice(ki, 1);
+        sh.keyword = _kwJoin(list);
+        _renderGroups();
+    };
     window.ttsSearch = (key, term) => { _search[key] = term; _renderChk(key, _roomsOf(key)); };
 
     function _roomsOf(key) {
@@ -759,6 +796,8 @@
 
     // ---------- บันทึก ----------
     window.ttsSaveConfig = async function () {
+        // เก็บกวาดช่องคำที่ปล่อยว่างไว้ ก่อนบันทึก
+        (_cfg.groups || []).forEach(g => (g.shifts || []).forEach(sh => { sh.keyword = _kwJoin(_kwList(sh.keyword)); }));
         _cfg.updated_at = new Date().toISOString();
         try {
             await appDB.from('settings').upsert([{ key: 'tts_voice_config', value: JSON.stringify(_cfg) }]);
