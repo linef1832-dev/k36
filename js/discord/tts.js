@@ -207,7 +207,7 @@
         let html = '';
         _cfg.groups.forEach((grp, gi) => {
             html += `
-            <div class="rounded-3xl border border-indigo-500/30 bg-slate-800/40 p-4 space-y-3">
+            <div class="rounded-3xl border border-indigo-500/30 bg-slate-800/40 p-3 space-y-2.5">
                 <div class="flex items-center gap-2">
                     <span class="material-icons text-indigo-400">forum</span>
                     ${_tgList.length
@@ -219,8 +219,8 @@
                     }
                     ${_cfg.groups.length > 1 ? `<button onclick="ttsRemoveGroup(${gi})" class="text-gray-500 hover:text-red-400 p-1"><span class="material-icons">delete</span></button>` : ''}
                 </div>
-                ${grp.telegram_group_id ? `<div class="text-xs text-indigo-300/70 -mt-1 pl-8">🔗 ผูกกับ ID: ${grp.telegram_group_id}${grp.telegram_group ? ' ('+grp.telegram_group+')' : ''}</div>` : ''}
-                <div class="space-y-3">${grp.shifts.map((s, si) => _shiftCard(gi, si, s)).join('')}</div>
+                ${grp.telegram_group_id ? `<div class="text-xs text-indigo-300/70 -mt-1 pl-8">ผูกกับ ID: ${grp.telegram_group_id}${grp.telegram_group ? ' ('+grp.telegram_group+')' : ''}</div>` : ''}
+                <div class="space-y-2">${grp.shifts.map((s, si) => _shiftCard(gi, si, s)).join('')}</div>
             </div>`;
         });
         html += `<button onclick="ttsAddGroup()" class="w-full py-2.5 rounded-2xl border-2 border-dashed border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10 transition font-bold text-sm flex items-center justify-center gap-1"><span class="material-icons">add</span> เพิ่มกลุ่ม</button>`;
@@ -238,71 +238,129 @@
         return list.map(x => String(x || '').trim()).filter(Boolean).join('\n');
     }
 
+    // เปิด/ปิดการ์ดกะ — ค่าเริ่มต้นคือย่อไว้ทั้งหมด จะได้เห็นภาพรวมทั้งหน้าในจอเดียว
+    const _openShift = {};
+    function _timeLabel(s) {
+        const a = (s.active_start || '').trim(), b = (s.active_end || '').trim();
+        return (a && b) ? `${a}–${b}` : 'ทั้งวัน';
+    }
+    function _sameTextOn(s) {
+        if (typeof s.same_text === 'boolean') return s.same_text;
+        const rs = s.rooms || [];
+        if (rs.length < 2) return true;
+        const t = rs[0].text || '';
+        return rs.every(r => (r.text || '') === t);
+    }
+    function _chip(icon, text, tone) {
+        const c = tone || 'text-gray-300 bg-slate-800/80 border-slate-700';
+        return `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border ${c}"><span class="material-icons" style="font-size:13px">${icon}</span>${text}</span>`;
+    }
+
     function _shiftCard(gi, si, s) {
         const key = gi + '-' + si;
-        return `
-        <div class="bg-slate-900 rounded-2xl border ${s.enabled ? 'border-sky-500' : 'border-slate-700'} p-3 space-y-3">
-            <div class="flex items-center justify-between">
-                <h3 class="text-white font-bold flex items-center gap-2"><span class="material-icons text-sky-400 text-lg">schedule</span> ${window.escapeHtml(s.name)}</h3>
-                <button onclick="ttsShiftToggle(${gi},${si})" style="width:48px;height:24px;" class="relative rounded-full transition ${s.enabled ? 'bg-green-500' : 'bg-slate-600'}">
-                    <span class="absolute rounded-full bg-white transition-all" style="width:20px;height:20px;top:2px; left:${s.enabled ? '26px' : '2px'};"></span>
+        const open = !!_openShift[key];
+        const kws = _kwList(s.keyword).filter(Boolean);
+        const nRooms = (s.rooms || []).length;
+        const same = _sameTextOn(s);
+        const sharedText = (s.rooms && s.rooms[0] && s.rooms[0].text) || '';
+
+        const head = `
+            <div class="flex items-center gap-3 p-3 ${open ? 'border-b border-slate-800' : ''}">
+                <button onclick="ttsOpenShift(${gi},${si})" class="flex-1 flex items-center gap-3 text-left min-w-0">
+                    <span class="material-icons text-gray-500 transition-transform" style="${open ? 'transform:rotate(90deg)' : ''}">chevron_right</span>
+                    <span class="text-white font-bold shrink-0">${window.escapeHtml(s.name)}</span>
+                    <span class="flex items-center gap-1.5 flex-wrap min-w-0">
+                        ${_chip('manage_search', kws.length ? `${kws.length} คำ` : 'ยังไม่ตั้งคำ', kws.length ? '' : 'text-amber-300 bg-amber-500/10 border-amber-500/30')}
+                        ${_chip('volume_up', `${nRooms} ห้อง`, nRooms ? '' : 'text-amber-300 bg-amber-500/10 border-amber-500/30')}
+                        ${_chip('schedule', _timeLabel(s))}
+                        ${_chip('repeat', `${Number(s.repeat || 1)} รอบ`)}
+                    </span>
                 </button>
-            </div>
+                <button onclick="ttsShiftToggle(${gi},${si})" title="${s.enabled ? 'ปิดกะนี้' : 'เปิดกะนี้'}" style="width:44px;height:22px;" class="relative rounded-full transition shrink-0 ${s.enabled ? 'bg-emerald-500' : 'bg-slate-600'}">
+                    <span class="absolute rounded-full bg-white transition-all" style="width:18px;height:18px;top:2px;left:${s.enabled ? '24px' : '2px'};"></span>
+                </button>
+            </div>`;
 
-            <div>
-                <label class="text-xs text-gray-400 font-bold block mb-1">คำที่จับ (เจอคำไหนก็พูด — ใส่ได้หลายคำ)</label>
-                <div class="space-y-1.5">
-                ${_kwList(s.keyword).map((k, ki) => `
-                    <div class="flex gap-2 items-center">
-                        <input type="text" value="${esc(k)}" oninput="ttsKwSet(${gi},${si},${ki},this.value)" placeholder="เช่น เช็คชื่อ" class="flex-1 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                        <button onclick="ttsKwDel(${gi},${si},${ki})" title="ลบคำนี้" class="text-gray-500 hover:text-red-400 px-1 shrink-0"><span class="material-icons text-lg">remove_circle_outline</span></button>
-                    </div>`).join('')}
-                </div>
-                <button onclick="ttsKwAdd(${gi},${si})" class="mt-1.5 text-xs font-bold text-sky-300 hover:text-sky-200 flex items-center gap-1"><span class="material-icons text-sm">add_circle_outline</span> เพิ่มคำสำรอง</button>
-            </div>
+        if (!open) {
+            return `<div class="bg-slate-900 rounded-2xl border ${s.enabled ? 'border-sky-500/50' : 'border-slate-800'}">${head}</div>`;
+        }
 
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-xs text-gray-400 font-bold block mb-1">เสียง</label>
-                    <select onchange="ttsSF(${gi},${si},'voice_name',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                        <option value="th-TH-PremwadeeNeural" ${s.voice_name === 'th-TH-PremwadeeNeural' ? 'selected' : ''}>หญิง (Premwadee)</option>
-                        <option value="th-TH-NiwatNeural" ${s.voice_name === 'th-TH-NiwatNeural' ? 'selected' : ''}>ชาย (Niwat)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs text-gray-400 font-bold block mb-1">พูดซ้ำ</label>
-                    <select onchange="ttsSF(${gi},${si},'repeat',parseInt(this.value))" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                        ${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${Number(s.repeat || 1) === n ? 'selected' : ''}>${n} รอบ</option>`).join('')}
-                    </select>
-                </div>
-            </div>
+        const body = `
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 p-3">
 
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-xs text-gray-400 font-bold block mb-1">ทำงานตั้งแต่ (เว้นว่าง=ทั้งวัน)</label>
-                    <input type="time" value="${esc(s.active_start)}" onchange="ttsSF(${gi},${si},'active_start',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-400 font-bold block mb-1">ถึง</label>
-                    <input type="time" value="${esc(s.active_end)}" onchange="ttsSF(${gi},${si},'active_end',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                </div>
-            </div>
+                <!-- ซ้าย: เงื่อนไขการพูด -->
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs text-gray-400 font-bold block mb-1.5">คำที่จับ — เจอคำไหนก็พูด</label>
+                        <div class="space-y-1.5">
+                        ${_kwList(s.keyword).map((k, ki) => `
+                            <div class="flex gap-1.5 items-center">
+                                <input type="text" value="${esc(k)}" oninput="ttsKwSet(${gi},${si},${ki},this.value)" placeholder="เช่น กะเช้า(08:00-20:00 น.)" class="flex-1 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                                <button onclick="ttsKwDel(${gi},${si},${ki})" title="ลบคำนี้" class="text-gray-600 hover:text-red-400 shrink-0"><span class="material-icons text-lg">remove_circle_outline</span></button>
+                            </div>`).join('')}
+                        </div>
+                        <button onclick="ttsKwAdd(${gi},${si})" class="mt-1.5 text-xs font-bold text-sky-300 hover:text-sky-200 flex items-center gap-1"><span class="material-icons text-sm">add_circle_outline</span> เพิ่มคำสำรอง</button>
+                    </div>
 
-            <div>
-                <label class="text-xs text-gray-400 font-bold block mb-1">เพิ่มห้อง (พิมพ์เลขห้องแล้วกดเพิ่ม)</label>
-                <div class="flex gap-2 mb-2">
-                    <input type="text" id="num_${key}" placeholder="เลขห้อง เช่น 1" class="flex-1 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
-                    <button onclick="ttsAddByNum('g',${gi},${si})" class="bg-sky-600 hover:bg-sky-500 text-white px-4 rounded-lg text-sm font-bold">เพิ่ม</button>
-                </div>
-                <input type="text" value="${esc(_search[key])}" oninput="ttsSearch('${key}',this.value)" placeholder="🔍 หรือค้นหาห้องแล้วติ๊ก..." class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 mb-2">
-                <div id="chk_${key}" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1 mb-2"></div>
-            </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs text-gray-400 font-bold block mb-1">เสียง</label>
+                            <select onchange="ttsSF(${gi},${si},'voice_name',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                                <option value="th-TH-PremwadeeNeural" ${s.voice_name === 'th-TH-PremwadeeNeural' ? 'selected' : ''}>หญิง (Premwadee)</option>
+                                <option value="th-TH-NiwatNeural" ${s.voice_name === 'th-TH-NiwatNeural' ? 'selected' : ''}>ชาย (Niwat)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400 font-bold block mb-1">พูดซ้ำ</label>
+                            <select onchange="ttsSFR(${gi},${si},'repeat',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                                ${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${Number(s.repeat || 1) === n ? 'selected' : ''}>${n} รอบ</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400 font-bold block mb-1">ทำงานตั้งแต่</label>
+                            <input type="time" value="${esc(s.active_start)}" onchange="ttsSFR(${gi},${si},'active_start',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400 font-bold block mb-1">ถึง (เว้นว่าง=ทั้งวัน)</label>
+                            <input type="time" value="${esc(s.active_end)}" onchange="ttsSFR(${gi},${si},'active_end',this.value)" class="w-full bg-slate-800 border border-slate-700 text-white px-2 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                        </div>
+                    </div>
 
-            <div>
-                <label class="text-xs text-gray-400 font-bold block mb-1">ห้องที่เลือก + ข้อความเฉพาะห้อง</label>
-                <div id="sel_g_${key}" class="space-y-2"></div>
-            </div>
-        </div>`;
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs text-gray-400 font-bold">ข้อความที่บอทพูด</label>
+                            <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer select-none">
+                                <input type="checkbox" ${same ? 'checked' : ''} onchange="ttsSameText(${gi},${si},this.checked)" class="w-3.5 h-3.5 accent-sky-500">
+                                ใช้ข้อความเดียวกันทุกห้อง
+                            </label>
+                        </div>
+                        ${same
+                            ? `<textarea rows="3" oninput="ttsAllText(${gi},${si},this.value)" placeholder="เช่น พนักงานออนไลน์ชั่วคราวถึงเวลาถ่ายรูปกะเข้าแล้วนะจ๊ะ" class="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${sharedText}</textarea>`
+                            : `<div class="text-xs text-gray-500 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">ตั้งข้อความแยกในแต่ละห้องทางขวา</div>`}
+                    </div>
+                </div>
+
+                <!-- ขวา: ห้องปลายทาง -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs text-gray-400 font-bold">ห้องปลายทาง <span class="text-sky-300">${nRooms}</span> ห้อง</label>
+                        <button onclick="ttsOpenPicker('${key}')" class="text-xs font-bold text-sky-300 hover:text-sky-200 flex items-center gap-1"><span class="material-icons text-sm">add_circle_outline</span> เพิ่มห้อง</button>
+                    </div>
+
+                    <div id="picker_${key}" class="hidden rounded-xl border border-slate-700 bg-slate-800/50 p-2 space-y-2">
+                        <div class="flex gap-2">
+                            <input type="text" id="num_${key}" placeholder="พิมพ์เลขห้อง เช่น 1" class="flex-1 bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                            <button onclick="ttsAddByNum('g',${gi},${si})" class="bg-sky-600 hover:bg-sky-500 text-white px-4 rounded-lg text-sm font-bold">เพิ่ม</button>
+                        </div>
+                        <input type="text" value="${esc(_search[key])}" oninput="ttsSearch('${key}',this.value)" placeholder="ค้นหาชื่อห้องแล้วติ๊ก" class="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-sky-500">
+                        <div id="chk_${key}" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-44 overflow-y-auto custom-scrollbar pr-1"></div>
+                    </div>
+
+                    <div id="sel_g_${key}" class="space-y-1.5 max-h-[22rem] overflow-y-auto custom-scrollbar pr-1"></div>
+                </div>
+            </div>`;
+
+        return `<div class="bg-slate-900 rounded-2xl border ${s.enabled ? 'border-sky-500/50' : 'border-slate-800'}">${head}${body}</div>`;
     }
 
     // ---------- checklist ห้อง ----------
@@ -331,11 +389,12 @@
         if (!el) return;
         if (!rooms.length) { el.innerHTML = `<div class="text-gray-500 text-sm py-2">ยังไม่ได้เลือกห้อง</div>`; return; }
         const manual = _cfg.dispatch_mode === 'manual' && ((_cfg.bots || []).length > 0 || hasMainBot());
+        const hideText = (kind === 'g') && _sameTextOn(_cfg.groups[a].shifts[b]);
         el.innerHTML = rooms.map((r, ri) => {
             const bb = r.bot_id ? botById(r.bot_id) : null;
             return `
             <div class="bg-slate-800 border ${bb ? '' : 'border-slate-700'} rounded-xl p-2" ${bb ? `style="border:1px solid ${bb.color}55"` : ''}>
-                <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                <div class="flex items-center justify-between ${hideText ? '' : 'mb-1'} flex-wrap gap-1">
                     <span class="text-sky-300 font-bold text-sm flex items-center gap-1"><span class="material-icons text-base">volume_up</span> ${roomName(r.id)}
                         ${bb ? `<span class="text-[10px] font-black rounded-full px-2 py-0.5 ml-1" style="background:${bb.color}22;color:${bb.color};border:1px solid ${bb.color}55">${bb._main ? '🎩' : '🤖'} ${esc(bb.name)}</span>` : ''}
                     </span>
@@ -350,7 +409,7 @@
                         <button onclick="ttsDelRoom('${kind}',${a},${b == null ? 'null' : b},${ri})" class="text-gray-500 hover:text-red-400"><span class="material-icons text-lg">close</span></button>
                     </div>
                 </div>
-                <textarea rows="2" oninput="ttsRoomText('${kind}',${a},${b == null ? 'null' : b},${ri},this.value)" placeholder="ข้อความที่บอทจะพูดในห้องนี้..." class="w-full bg-slate-900 border border-slate-700 text-white px-2 py-1.5 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${(r.text || '')}</textarea>
+                ${hideText ? '' : `<textarea rows="2" oninput="ttsRoomText('${kind}',${a},${b == null ? 'null' : b},${ri},this.value)" placeholder="ข้อความที่บอทจะพูดในห้องนี้..." class="w-full bg-slate-900 border border-slate-700 text-white px-2 py-1.5 rounded-lg text-sm outline-none focus:border-sky-500 resize-none">${(r.text || '')}</textarea>`}
             </div>`;
         }).join('');
     }
@@ -585,6 +644,26 @@
         sh.keyword = _kwJoin(list);
         _renderGroups();
     };
+    window.ttsSFR = (gi, si, f, v) => {
+        const sh = _cfg.groups[gi].shifts[si];
+        sh[f] = (f === 'repeat') ? parseInt(v) : v;
+        _renderGroups();                       // อัปเดตป้ายสรุปบนหัวการ์ดทันที
+    };
+    window.ttsOpenShift = (gi, si) => { const k = gi + '-' + si; _openShift[k] = !_openShift[k]; _renderGroups(); };
+    window.ttsOpenPicker = (key) => { const el = document.getElementById('picker_' + key); if (el) el.classList.toggle('hidden'); };
+    window.ttsSameText = (gi, si, on) => {
+        const sh = _cfg.groups[gi].shifts[si];
+        sh.same_text = on;
+        if (on) {
+            const t = (sh.rooms.find(r => (r.text || '').trim()) || {}).text || '';
+            sh.rooms.forEach(r => { r.text = t; });
+        }
+        _renderGroups();
+    };
+    window.ttsAllText = (gi, si, v) => {
+        const sh = _cfg.groups[gi].shifts[si];
+        sh.rooms.forEach(r => { r.text = v; });   // ไม่ re-render ระหว่างพิมพ์
+    };
     window.ttsSearch = (key, term) => { _search[key] = term; _renderChk(key, _roomsOf(key)); };
 
     function _roomsOf(key) {
@@ -596,10 +675,19 @@
         else { const [gi, si] = key.split('-').map(Number); _renderChk(key, _cfg.groups[gi].shifts[si].rooms); _renderSel('g', gi, si); }
     }
 
+    // ห้องที่เพิ่งเพิ่ม ให้รับข้อความร่วมมาเลย จะได้ไม่ต้องพิมพ์ซ้ำ
+    function _seedText(key) {
+        const parts = String(key).split('-');
+        if (parts[0] === 'sc') return '';
+        const sh = ((_cfg.groups[+parts[0]] || {}).shifts || [])[+parts[1]];
+        if (!sh || !_sameTextOn(sh)) return '';
+        return (sh.rooms.find(r => (r.text || '').trim()) || {}).text || '';
+    }
+
     window.ttsChkRoom = (key, roomId, el) => {
         const rooms = _roomsOf(key);
         const idx = rooms.findIndex(r => String(r.id) === String(roomId));
-        if (el.checked && idx === -1) rooms.push({ id: String(roomId), text: '' });
+        if (el.checked && idx === -1) rooms.push({ id: String(roomId), text: _seedText(key) });
         else if (!el.checked && idx !== -1) rooms.splice(idx, 1);
         _reRoom(key);
     };
@@ -611,7 +699,7 @@
         let room = _rooms.find(r => String(r.id) === val) || _rooms.find(r => (r.name || '').trim() === val) || _rooms.find(r => (r.name || '').trim().startsWith(val + ' ') || (r.name || '').trim().startsWith(val));
         if (!room) { if (window.Swal) Swal.fire('ไม่พบห้อง', 'ไม่พบห้อง: ' + val, 'warning'); return; }
         const rooms = _roomsOf(key);
-        if (!rooms.some(r => String(r.id) === String(room.id))) rooms.push({ id: String(room.id), text: '' });
+        if (!rooms.some(r => String(r.id) === String(room.id))) rooms.push({ id: String(room.id), text: _seedText(key) });
         if (inp) inp.value = '';
         _reRoom(key);
     };
