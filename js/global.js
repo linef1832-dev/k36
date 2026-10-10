@@ -136,7 +136,8 @@ window.compressImageFile = async function(file, opts) {
         const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
         const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d'); ctx.drawImage(bmp, 0, 0, w, h); bmp.close && bmp.close();
-        const outType = (type === 'image/png') ? 'image/png' : (type === 'image/webp' ? 'image/webp' : 'image/jpeg');
+        // outType: บังคับชนิดไฟล์ได้ (เช่น ใบปรับใช้ WebP คุณภาพสูง — ตัวหนังสือในภาพคมเหมือน PNG แต่ไฟล์เล็กกว่ามาก โหลดเร็ว)
+        const outType = o.outType || ((type === 'image/png') ? 'image/png' : (type === 'image/webp' ? 'image/webp' : 'image/jpeg'));
         const blob = await new Promise(res => canvas.toBlob(res, outType, outType === 'image/png' ? undefined : o.quality));
         if (!blob || blob.size >= file.size) return file;
         const out = new File([blob], file.name || 'image', { type: outType, lastModified: Date.now() });

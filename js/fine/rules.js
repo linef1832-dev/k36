@@ -655,14 +655,41 @@ window.clearFineImg = function(e) {
     if(pasteArea) pasteArea.classList.remove('hidden');
 };
 
+// 🖼️ โหลดรูปล่วงหน้าตอนชี้ปุ่ม — กดดูแล้วรูปมักพร้อมแล้ว ไม่ต้องรอ
+window._fineImgCache = window._fineImgCache || {};
+window.preloadFineImage = function(url) {
+    if (!url || window._fineImgCache[url]) return;
+    const im = new Image(); im.decoding = 'async'; im.src = url;
+    window._fineImgCache[url] = im;
+    const keys = Object.keys(window._fineImgCache); if (keys.length > 30) delete window._fineImgCache[keys[0]];   // เก็บไว้ไม่เกิน 30 รูป
+};
 window.viewFineImage = function(url) {
     const expImg = document.getElementById('fineExpandedImg');
     const modal = document.getElementById('fineImageModal');
-    if(expImg) expImg.src = url;
-    if(modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
+    if (!expImg || !modal) return;
+    modal.classList.remove('ready', 'zoom');
+    const link = document.getElementById('fineImageOpenNew'); if (link) link.href = url;
+    expImg.onload = () => modal.classList.add('ready');
+    expImg.onerror = () => { modal.classList.add('ready'); };
+    expImg.src = url;
+    if (expImg.complete && expImg.naturalWidth) modal.classList.add('ready');   // อยู่ในแคชแล้ว → โชว์ทันที
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};
+window.closeFineImage = function() {
+    const modal = document.getElementById('fineImageModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex', 'zoom'); }
+};
+// คลิกรูป = สลับดูขนาดจริง (เลื่อนดูได้) ↔ พอดีจอ
+window.toggleFineImageZoom = function() {
+    const modal = document.getElementById('fineImageModal');
+    if (modal) modal.classList.toggle('zoom');
+};
+if (!window.__fineImgEscBound) {
+    window.__fineImgEscBound = true;
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { const m = document.getElementById('fineImageModal'); if (m && !m.classList.contains('hidden')) window.closeFineImage(); }
+    });
 }
 
 document.addEventListener('paste', function(e) {

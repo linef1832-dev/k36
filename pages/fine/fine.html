@@ -4,7 +4,7 @@
         <div class="flex items-center gap-3">
             <div class="bg-white/20 p-2 rounded-xl shadow-inner"><span class="material-icons text-3xl text-red-200">gavel</span></div>
             <div>
-                <h1 class="font-black text-xl tracking-wide">ระบบใบปรับพนักงาน (Fines)</h1>
+                <h1 class="font-black text-xl tracking-wide">ระบบใบปรับพนักงาน</h1>
                 <p class="text-xs text-red-200 opacity-90" id="fineSubtitle">ตรวจสอบรายการใบปรับของคุณ</p>
             </div>
         </div>
@@ -321,9 +321,36 @@
     </div>
 </div>
 
-<div id="fineImageModal" class="fixed inset-0 bg-black/90 z-[100] hidden items-center justify-center p-4 fade-in backdrop-blur-sm" onclick="this.classList.add('hidden'); this.classList.remove('flex');">
-    <span class="absolute top-4 right-4 text-white hover:text-gray-300 cursor-pointer material-icons text-4xl">close</span>
-    <img id="fineExpandedImg" class="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl border border-slate-700" onclick="event.stopPropagation()">
+<!-- 🖼️ ดูรูปหลักฐาน: มีตัวโหลด, คลิกรูป = ซูมดูขนาดจริง (ตัวหนังสือในสลิป/แชทอ่านชัด), คลิกพื้นหลัง/Esc = ปิด -->
+<style>
+    #fineImageModal{background:rgba(5,8,15,.92)}
+    #fineImageModal .fim-stage{position:relative;max-width:96vw;max-height:92vh;overflow:auto;border-radius:12px}
+    #fineImageModal.zoom .fim-stage{width:96vw;height:92vh;cursor:zoom-out}
+    #fineExpandedImg{display:block;max-width:96vw;max-height:92vh;object-fit:contain;border-radius:12px;cursor:zoom-in;opacity:0;transition:opacity .15s;image-rendering:auto}
+    #fineImageModal.ready #fineExpandedImg{opacity:1}
+    #fineImageModal.zoom #fineExpandedImg{max-width:none;max-height:none;cursor:zoom-out;border-radius:0}
+    #fineImageModal .fim-spin{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:13px;font-weight:700;gap:10px;pointer-events:none}
+    #fineImageModal .fim-spin i{width:28px;height:28px;border-radius:50%;border:3px solid rgba(255,255,255,.2);border-top-color:#E8C15A;animation:fimspin .8s linear infinite}
+    #fineImageModal.ready .fim-spin{display:none}
+    #fineImageModal .fim-bar{position:absolute;top:14px;right:14px;display:flex;gap:8px;z-index:2}
+    #fineImageModal .fim-bar a,#fineImageModal .fim-bar button{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:12.5px;font-weight:800;cursor:pointer;text-decoration:none}
+    #fineImageModal .fim-bar a:hover,#fineImageModal .fim-bar button:hover{background:rgba(255,255,255,.2)}
+    #fineImageModal .fim-hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:700;color:rgba(255,255,255,.65);background:rgba(0,0,0,.4);padding:4px 12px;border-radius:999px;pointer-events:none}
+    @keyframes fimspin{to{transform:rotate(360deg)}}
+    /* หัวตารางใบปรับ: ทึบทุกช่อง ไม่ให้แถวลอดขึ้นมาทับตอนเลื่อน */
+    #fineTableBody{ }
+    table:has(#fineTableBody) thead th{position:sticky;top:0;z-index:5;background:var(--k-panel2)}
+</style>
+<div id="fineImageModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 fade-in" onclick="closeFineImage()">
+    <div class="fim-bar" onclick="event.stopPropagation()">
+        <a id="fineImageOpenNew" href="#" target="_blank" rel="noopener" title="เปิดรูปต้นฉบับในแท็บใหม่"><span class="material-icons" style="font-size:17px">open_in_new</span> เปิดรูปเต็ม</a>
+        <button type="button" onclick="closeFineImage()"><span class="material-icons" style="font-size:17px">close</span> ปิด</button>
+    </div>
+    <div class="fim-stage" onclick="event.stopPropagation()">
+        <div class="fim-spin"><i></i> กำลังโหลดรูป…</div>
+        <img id="fineExpandedImg" alt="หลักฐาน" decoding="async" onclick="toggleFineImageZoom()">
+    </div>
+    <div class="fim-hint">คลิกรูปเพื่อซูมขนาดจริง · กด Esc เพื่อปิด</div>
 </div>
 
 <div id="fineTemplates" class="hidden">
@@ -367,7 +394,7 @@
     </template>
 
     <template id="tpl-fine-history-row">
-    <tr class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition fast-render-list">
+    <tr class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
             <td class="p-4 align-middle whitespace-nowrap">
                 <div class="flex flex-col gap-1.5">
                     <div class="text-sm font-black text-red-600 dark:text-red-400 flex items-center gap-1.5" title="วันที่พนักงานกระทำความผิด">
@@ -436,7 +463,7 @@
     </template>
 
     <template id="tpl-fine-history-img-btn">
-        <button type="button" onclick="viewFineImage('{{url}}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>
+        <button type="button" onmouseenter="preloadFineImage('{{url}}')" onfocus="preloadFineImage('{{url}}')" onclick="viewFineImage('{{url}}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 transition shadow-sm" title="คลิกดูหลักฐาน"><span class="material-icons text-blue-500 text-lg block">image</span></button>
     </template>
 
     <template id="tpl-fine-history-img-none">

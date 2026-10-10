@@ -99,7 +99,7 @@ window.submitFine = async function(e) {
             const fileExt = file.name.split('.').pop();
             const fileName = `fine_${Date.now()}_${Math.floor(Math.random() * 1000)}.${fileExt}`;
 
-            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`fines/${fileName}`, await window.compressImageFile(file, { maxDim: 1600, quality: 0.85 }), { cacheControl: '3600', upsert: false });
+            const { error: uploadError } = await appDB.storage.from('staff_images').upload(`fines/${fileName}`, await window.compressImageFile(file, { maxDim: 2560, quality: 0.92, outType: 'image/webp' }), { cacheControl: '3600', upsert: false });
             if (uploadError) throw new Error('อัปโหลดรูปไม่สำเร็จ');
             const { data: publicUrlData } = appDB.storage.from('staff_images').getPublicUrl(`fines/${fileName}`);
             imageUrl = publicUrlData.publicUrl;
@@ -206,6 +206,16 @@ window.renderFineTable = function() {
     
     const isAdmin = hasManagePerm;
     const canViewAll = isAdmin || hasViewAllPerm;
+    const _applyFineCols = () => {
+        document.querySelectorAll('.admin-col').forEach(el => {
+            if (isAdmin) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        });
+        document.querySelectorAll('.view-all-col').forEach(el => {
+            if (canViewAll) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        });
+    };
     
     const tbody = document.getElementById('fineTableBody');
     const searchInput = document.getElementById('fineSearchInput');
@@ -273,10 +283,33 @@ window.renderFineTable = function() {
         totalAmountEl.innerText = `฿${totalAmount.toLocaleString('en-US')}`;
     }
 
+    // 🔢 นับ "ครั้งที่" ของแต่ละใบล่วงหน้าครั้งเดียว: คน+กฎเดียวกัน เรียงตามเวลาออกใบ
+    const _offenseIdx = new Map();
+    {
+        const groups = {};
+        globalFines.forEach(x => {
+            const k = String(x.user_name).toLowerCase() + '\u0001' + x.rule_text;
+            (groups[k] = groups[k] || []).push(x);
+        });
+        Object.values(groups).forEach(arr => {
+            arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            arr.forEach(x => {
+                // เหมือนเดิม: นับทุกใบที่ออก "ก่อนหรือพร้อม" ใบนี้
+                const t = new Date(x.created_at).getTime();
+                let n = 0; for (const y of arr) { if (new Date(y.created_at).getTime() <= t) n++; else break; }
+                _offenseIdx.set(x, n);
+            });
+        });
+    }
+    const _offenseCountOf = (x) => _offenseIdx.get(x) || 1;
+
+    if (window._fineRowObserver) { window._fineRowObserver.disconnect(); window._fineRowObserver = null; }
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">ไม่พบประวัติใบปรับตามเงื่อนไข</td></tr>`;
     } else {
-        tbody.innerHTML = filtered.map(f => {
+        // ⚡ วาดทีละชุด (ชุดละ 40 ใบ) — เลื่อนใกล้ท้ายตารางค่อยวาดชุดถัดไป
+        //    เดิมวาดทุกใบในครั้งเดียว วันที่ออกใบเยอะ = ตารางหนัก เลื่อนกระตุก
+        const _renderRow = f => {
             const d = new Date(f.created_at);
             const issueDateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) + ' ' + d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
             
@@ -369,11 +402,7 @@ window.renderFineTable = function() {
 
             let countBadge = '';
             if (hasPercent) {
-                const offenseCount = globalFines.filter(past => 
-                    String(past.user_name).toLowerCase() === String(f.user_name).toLowerCase() && 
-                    past.rule_text === f.rule_text && 
-                    new Date(past.created_at) <= new Date(f.created_at)
-                ).length;
+                const offenseCount = _offenseCountOf(f);   // นับล่วงหน้าครั้งเดียว (เดิมไล่ทั้งรายการใหม่ทุกแถว = ยิ่งเยอะยิ่งหน่วงแบบทวีคูณ)
 
                 countBadge = `<span class="bg-rose-500 text-white px-2 py-0.5 rounded border border-rose-600 text-[10px] font-black shadow-sm whitespace-nowrap">ครั้งที่ ${offenseCount}</span>`;
             }
@@ -419,18 +448,30 @@ window.renderFineTable = function() {
                 imgDisplay: imgDisplay,
                 issuedBy: f.issued_by || 'ไม่ระบุ'
             });
-        }).join('');
+        };
+        const PAGE = 40;
+        let shown = 0;
+        const appendNext = () => {
+            const slice = filtered.slice(shown, shown + PAGE);
+            shown += slice.length;
+            const old = document.getElementById('fineMoreRow'); if (old) old.remove();
+            tbody.insertAdjacentHTML('beforeend', slice.map(_renderRow).join('') +
+                (shown < filtered.length ? `<tr id="fineMoreRow"><td colspan="7" class="text-center py-4 text-gray-400 text-xs font-bold">กำลังแสดง ${shown} จาก ${filtered.length} ใบ · เลื่อนลงเพื่อดูเพิ่ม</td></tr>` : ''));
+            _applyFineCols();   // แถวที่เพิ่งต่อท้ายต้องซ่อน/โชว์คอลัมน์ตามสิทธิ์ด้วย
+            const more = document.getElementById('fineMoreRow');
+            if (more && window._fineRowObserver) window._fineRowObserver.observe(more);
+        };
+        tbody.innerHTML = '';
+        if ('IntersectionObserver' in window) {
+            window._fineRowObserver = new IntersectionObserver(entries => {
+                if (entries.some(e => e.isIntersecting)) { window._fineRowObserver.unobserve(entries[0].target); appendNext(); }
+            }, { root: tbody.closest('.overflow-auto') || null, rootMargin: '600px' });
+        }
+        appendNext();
+        if (!window._fineRowObserver) { while (shown < filtered.length) appendNext(); }   // เบราว์เซอร์เก่า: วาดครบเหมือนเดิม
     }
 
-    document.querySelectorAll('.admin-col').forEach(el => {
-        if (isAdmin) el.classList.remove('hidden');
-        else el.classList.add('hidden');
-    });
-
-    document.querySelectorAll('.view-all-col').forEach(el => {
-        if (canViewAll) el.classList.remove('hidden');
-        else el.classList.add('hidden');
-    });
+    _applyFineCols();
 };
 
 window.deleteFine = async function(id) {
