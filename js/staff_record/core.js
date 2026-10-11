@@ -54,6 +54,13 @@ const _srTopicIn = (t, g) => !t.group || t.group === 'ALL' || t.group === g;
 const _srTopicLimit = name => { const t = SR.topics.find(x => x.name === name); const n = t ? Number(t.limit) : 0; return n > 0 ? n : 0; };
 // นับว่าเดือนของวันที่ที่ระบุ คนนี้ผิดเรื่องนี้ไปแล้วกี่ครั้ง (ใช้ข้อมูลเดือนที่เปิดอยู่)
 const _srCountOf = (name, topic) => SR.rows.filter(r => String(r.user_name).toLowerCase() === String(name).toLowerCase() && r.topic === topic).length;
+// แยก "ใบปรับ" (ลงอัตโนมัติจากหน้าใบปรับ) กับ "ประวัติ" (ลงเองในหน้านี้)
+const _srIsFine = r => String(r.topic || '').startsWith('ใบปรับ');
+const _srFineAmount = r => { const m = String(r.note || '').match(/ค่าปรับ ฿([\d,]+)/); return m ? Number(m[1].replace(/,/g, '')) : 0; };
+const _srSplit = items => {
+    const fines = items.filter(_srIsFine);
+    return { hist: items.length - fines.length, fine: fines.length, amount: fines.reduce((a, r) => a + _srFineAmount(r), 0), nowage: fines.filter(r => String(r.note || '').includes('ไม่ได้ค่าแรง')).length };
+};
 const _srTopicColor = name => (SR.topics.find(t => t.name === name) || {}).color || (String(name).startsWith('ใบปรับ') ? '#ef4444' : '#64748b');   // รายการจากใบปรับ = สีแดง
 const _srUsers = () => (typeof GLOBAL_USER_LIST !== 'undefined' && Array.isArray(GLOBAL_USER_LIST)) ? GLOBAL_USER_LIST : [];
 const _srUserOf = name => _srUsers().find(u => String(u.username).toLowerCase() === String(name).toLowerCase());
@@ -508,7 +515,8 @@ window.srRender = function() {
 
     // KPI
     const people = new Set(rows.map(r => String(r.user_name).toLowerCase()));
-    document.getElementById('srKpiTotal').innerHTML = `${rows.length}<small>ครั้ง</small>`;
+    const _sp = _srSplit(rows);
+    document.getElementById('srKpiTotal').innerHTML = `${rows.length}<small>ครั้ง</small><span class="sr-kpi-split"><span class="h">ประวัติ ${_sp.hist}</span><span class="f">ใบปรับ ${_sp.fine}${_sp.amount ? ` · ฿${_sp.amount.toLocaleString('en-US')}` : ''}</span></span>`;
     document.getElementById('srKpiPeople').innerHTML = `${people.size}<small>คน</small>`;
 
 
@@ -559,12 +567,16 @@ window.srRender = function() {
             </div>`;
         }).join('');
         const n = g.items.length;
+        const sp = _srSplit(g.items);
         return `<div class="sr-emp-card ${SR.open.has(key) ? 'open' : ''} ${hitAny ? 'hit' : ''}" data-k="${_srEsc(key)}">
             <div class="sr-emp-row" onclick="srToggleEmp(this)">
                 <div class="sr-emp-top">
                     <div class="sr-av">${_srEsc(g.name.slice(0, 2).toUpperCase())}</div>
                     <div style="min-width:0;flex:1"><div class="sr-nm">${_srEsc(g.name)}${hitAny ? ' <span class="sr-hit">ถึงเกณฑ์</span>' : ''}</div><div class="sr-meta">${meta}<span class="sr-tag">${Object.keys(cnt).length} เรื่อง</span></div></div>
-                    <div class="sr-total ${n >= 5 ? 'hot' : ''}"><b>${n}</b><small>ครั้ง</small></div>
+                    <div class="sr-split">
+                        <div class="sr-sp h" title="ลงประวัติในหน้านี้"><small>ประวัติ</small><b>${sp.hist}</b></div>
+                        <div class="sr-sp f ${sp.fine ? 'on' : ''}" title="มาจากการออกใบปรับ"><small>ใบปรับ</small><b>${sp.fine}</b>${sp.amount ? `<em>฿${sp.amount.toLocaleString('en-US')}</em>` : (sp.nowage ? '<em>ไม่ได้ค่าแรง</em>' : '')}</div>
+                    </div>
                     <span class="sr-caret-w"><span class="material-icons sr-caret">expand_more</span><small>${SR.open.has(key) ? 'ซ่อน' : 'ดูรายละเอียด'}</small></span>
                 </div>
                 <div class="sr-sum-grid">${chips}</div>
