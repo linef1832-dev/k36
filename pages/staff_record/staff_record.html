@@ -74,7 +74,18 @@
 
     #srApp .sr-list{padding:10px;display:flex;flex-direction:column;gap:8px}
     #srApp .sr-emp-card{border-radius:12px;background:var(--k-card);border:1px solid var(--k-line);overflow:hidden}
-    #srApp .sr-emp-row{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}
+    #srApp .sr-emp-row{display:flex;flex-direction:column;gap:10px;padding:12px 14px;cursor:pointer}
+    #srApp .sr-emp-top{display:flex;align-items:center;gap:12px}
+    /* สรุปเรื่องที่ผิด: แถบขนาดเท่ากัน เรียงเป็นตาราง อ่านไล่ได้ทีละบรรทัด */
+    #srApp .sr-sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;padding-left:50px}
+    #srApp .sr-sum-i{--c:#64748b;position:relative;display:flex;align-items:center;gap:8px;height:36px;padding:0 6px 0 14px;border-radius:9px;background:color-mix(in srgb,var(--c) 9%,var(--k-panel2));border:1px solid color-mix(in srgb,var(--c) 30%,var(--k-line));overflow:hidden}
+    #srApp .sr-sum-i::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+    #srApp .sr-sum-t{flex:1;min-width:0;font-size:12.5px;font-weight:800;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #srApp .sr-sum-d{flex:none;font-size:11px;font-weight:700;color:var(--k-mute);white-space:nowrap;max-width:45%;overflow:hidden;text-overflow:ellipsis}
+    #srApp .sr-sum-n{flex:none;min-width:26px;height:24px;padding:0 6px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:900;color:#fff;background:var(--c);font-variant-numeric:tabular-nums}
+    #srApp .sr-caret-w{display:flex;flex-direction:column;align-items:center;gap:0;flex:none;min-width:64px}
+    #srApp .sr-caret-w small{font-size:10.5px;font-weight:700;color:var(--k-mute)}
+    @media (max-width:640px){ #srApp .sr-sum-grid{padding-left:0;grid-template-columns:1fr} }
     #srApp .sr-emp-row:hover{background:var(--k-btn-h)}
     #srApp .sr-av{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;background:var(--k-btn-h);color:var(--k-tx2);flex:none}
     #srApp .sr-nm{font-size:14px;font-weight:900;color:var(--k-tx-strong)}

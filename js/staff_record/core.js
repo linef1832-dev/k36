@@ -419,7 +419,8 @@ window.srRender = function() {
             const byM = {}; ds.forEach(d => { const [, m, dd] = d.split('-').map(Number); (byM[m] = byM[m] || []).push(dd); });
             return Object.entries(byM).map(([m, arr]) => `${arr.join(', ')} ${_srTH_M[m - 1]}`).join(' · ');
         };
-        const chips = Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<span class="sr-chip" style="--c:${_srTopicColor(t)}" title="${_srEsc(t)} ${n} ครั้ง">${_srEsc(t)} <b>×${n}</b><span class="sr-chip-d">${_dayList(days[t])}</span></span>`).join('');
+        // แต่ละเรื่อง = 1 แถบขนาดเท่ากัน เรียงเป็นตาราง: สี | ชื่อเรื่อง | วันที่ | จำนวนครั้ง
+        const chips = Object.entries(cnt).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t, n]) => `<div class="sr-sum-i" style="--c:${_srTopicColor(t)}" title="${_srEsc(t)} ${n} ครั้ง"><span class="sr-sum-t">${_srEsc(t)}</span><span class="sr-sum-d">${_dayList(days[t])}</span><b class="sr-sum-n">${n}</b></div>`).join('');
         const meta = u ? `<span class="sr-tag">${_srEsc(u.department || 'AM')}</span>${u.allowed_shift ? `<span class="sr-tag">${_srEsc(String(u.allowed_shift).replace('กะ', ''))}</span>` : ''}` : '<span class="sr-tag">ไม่อยู่ในระบบ</span>';
         g.items.sort((a, b) => String(b.record_date).localeCompare(String(a.record_date)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
         const tl = g.items.map(r => {
@@ -437,11 +438,13 @@ window.srRender = function() {
         const n = g.items.length;
         return `<div class="sr-emp-card ${SR.open.has(key) ? 'open' : ''}" data-k="${_srEsc(key)}">
             <div class="sr-emp-row" onclick="srToggleEmp(this)">
-                <div class="sr-av">${_srEsc(g.name.slice(0, 2).toUpperCase())}</div>
-                <div style="min-width:120px"><div class="sr-nm">${_srEsc(g.name)}</div><div class="sr-meta">${meta}</div></div>
-                <div class="sr-chips">${chips}</div>
-                <div class="sr-total ${n >= 5 ? 'hot' : ''}"><b>${n}</b><small>ครั้ง</small></div>
-                <span class="material-icons sr-caret">expand_more</span>
+                <div class="sr-emp-top">
+                    <div class="sr-av">${_srEsc(g.name.slice(0, 2).toUpperCase())}</div>
+                    <div style="min-width:0;flex:1"><div class="sr-nm">${_srEsc(g.name)}</div><div class="sr-meta">${meta}<span class="sr-tag">${Object.keys(cnt).length} เรื่อง</span></div></div>
+                    <div class="sr-total ${n >= 5 ? 'hot' : ''}"><b>${n}</b><small>ครั้ง</small></div>
+                    <span class="sr-caret-w"><span class="material-icons sr-caret">expand_more</span><small>${SR.open.has(key) ? 'ซ่อน' : 'ดูรายละเอียด'}</small></span>
+                </div>
+                <div class="sr-sum-grid">${chips}</div>
             </div>
             <div class="sr-tl">${tl}</div>
         </div>`;
@@ -451,6 +454,7 @@ window.srToggleEmp = function(row) {
     const card = row.closest('.sr-emp-card'); const k = card.dataset.k;
     card.classList.toggle('open');
     if (card.classList.contains('open')) SR.open.add(k); else SR.open.delete(k);
+    const lab = card.querySelector('.sr-caret-w small'); if (lab) lab.textContent = card.classList.contains('open') ? 'ซ่อน' : 'ดูรายละเอียด';
 };
 
 // ── แก้ไข ──
