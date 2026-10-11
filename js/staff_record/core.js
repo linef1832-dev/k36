@@ -727,7 +727,6 @@ window.srRender = function() {
         return `<div class="sr-emp-card ${SR.open.has(key) ? 'open' : ''} ${hitAny ? 'hit' : ''}" data-k="${_srEsc(key)}">
             <div class="sr-emp-row" onclick="srToggleEmp(this)">
                 <div class="sr-emp-top">
-                    <div class="sr-av">${_srEsc(g.name.slice(0, 2).toUpperCase())}</div>
                     <div style="min-width:0;flex:1"><div class="sr-nm">${_srEsc(g.name)}${hitAny ? ' <span class="sr-hit">ถึงเกณฑ์</span>' : ''}</div><div class="sr-meta">${meta}<span class="sr-tag">${Object.keys(cnt).length} เรื่อง</span></div></div>
                     <div class="sr-split">
                         <div class="sr-sp h" title="ลงประวัติในหน้านี้"><small>ประวัติ</small><b>${sp.hist}</b></div>

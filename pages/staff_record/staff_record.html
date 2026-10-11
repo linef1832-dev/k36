@@ -77,7 +77,7 @@
     #srApp .sr-emp-row{display:flex;flex-direction:column;gap:10px;padding:12px 14px;cursor:pointer}
     #srApp .sr-emp-top{display:flex;align-items:center;gap:12px}
     /* สรุปเรื่องที่ผิด: แถบขนาดเท่ากัน เรียงเป็นตาราง อ่านไล่ได้ทีละบรรทัด */
-    #srApp .sr-sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;padding-left:50px}
+    #srApp .sr-sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
     #srApp .sr-sum-i{--c:#64748b;position:relative;display:flex;align-items:center;gap:8px;height:36px;padding:0 6px 0 14px;border-radius:9px;background:color-mix(in srgb,var(--c) 9%,var(--k-panel2));border:1px solid color-mix(in srgb,var(--c) 30%,var(--k-line));overflow:hidden}
     #srApp .sr-sum-i::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
     #srApp .sr-sum-t{flex:1;min-width:0;font-size:12.5px;font-weight:800;color:var(--k-tx-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -308,8 +308,8 @@
             <h1 class="sr-title">ประวัติการทำงานพนักงาน</h1>
         </div>
         <div id="srViews" class="sr-views" role="tablist">
-            <button type="button" id="srViewSumBtn" class="on" onclick="srSetView('sum')"><span class="material-icons">groups</span> รายชื่อ & สรุป</button>
             <button type="button" id="srViewRankBtn" onclick="srSetView('rank')"><span class="material-icons">emoji_events</span> อันดับ</button>
+            <button type="button" id="srViewSumBtn" class="on" onclick="srSetView('sum')"><span class="material-icons">groups</span> รายชื่อ & สรุป</button>
             <button type="button" id="srViewLogBtn" onclick="srSetView('log')"><span class="material-icons">history</span> ประวัติการใช้งาน</button>
         </div>
         <div class="sr-month">
