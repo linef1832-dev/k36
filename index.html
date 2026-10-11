@@ -23,7 +23,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <!-- 🔧 [เวอร์ชันเดียวคุมทั้งเว็บ] แก้เลขตรงนี้ที่เดียว → js/css/pages ทุกไฟล์โหลดใหม่หมด ไม่มีไฟล์เก่าค้าง cache -->
-    <script>window._APP_VERSION = "2026100578";</script>
+    <script>window._APP_VERSION = "2026100579";</script>
     <script>
         (function(v){
             ['css/style.css','css/tailwind-compiled.css','css/theme.css'].forEach(function(p){
@@ -67,7 +67,7 @@
         html.dark #menu-discord button:hover, html.dark #menu-admin button:hover{ color:#f5e3ae !important; background:rgba(232,193,90,0.06) !important; }
         /* 📐 ปุ่มหุบแถบ: โชว์เฉพาะจอคอม */
         .sidebar-collapse-row{ display:none; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px; margin-top:8px; }
-        @media (min-width:768px){
+        @media (min-width:480px){
             .sidebar-collapse-row{ display:flex; justify-content:center; }
             /* 🌟 กติกาหลัก: ตอนหุบ โชว์แค่ชิป 5 หมวดเสมอ — ปุ่มเมนูซ่อนหมดไม่ว่าหมวดกางหรือพับ */
             #sidebarNav.sidebar-mini #menu-list > button{ display:none !important; }
@@ -90,9 +90,15 @@
         #menu-list .menu-section-header .sec-chev{ transition:transform .28s cubic-bezier(.2,.8,.2,1) !important; }
         #menu-list .menu-section-header.collapsed .sec-chev{ transform:rotate(-90deg); }
 
+        /* 📐 เลย์เอาต์ 2 ฝั่ง (เมนูซ้าย / เนื้อหาขวา) ตั้งแต่จอ 480px — ใช้แทน md: ของ Tailwind ที่เริ่ม 768px */
+        @media (min-width:480px){
+            #main-layout > .flex{ flex-direction:row !important; gap:16px !important; }
+            #sidebarNav:not(.sidebar-mini){ width:260px !important; }
+            #main-layout{ padding:12px !important; }
+        }
         /* ═══════════ 🖤 Premium Rail v3 — Quiet Luxury ═══════════ */
         /* แนวคิด: รางดำนิ่งระดับหรู ไอคอนโทนเดียว ไม่มีกล่องสี — ทองปรากฏเฉพาะตอนชี้ */
-        @media (min-width:768px){
+        @media (min-width:480px){
             /* ── ตัวราง: ดำลึกเรียบ ขอบบางแทบมองไม่เห็น ── */
             #sidebarNav.sidebar-mini{
                 width:64px !important;
@@ -561,9 +567,24 @@
             items.forEach(function(el, i) { _secAnimate(el, !collapsed, (collapsed ? (n - 1 - i) : i) * 18); });
             try { localStorage.setItem('menuSec_' + h.dataset.sec, collapsed ? '1' : '0'); } catch (e) {}
         };
+        // 📐 ซูมเบราว์เซอร์เยอะ (หน้าจอแคบลง) → คงเลย์เอาต์เมนูซ้าย + เนื้อหาขวาไว้ แล้วหุบเมนูเป็นไอคอนให้อัตโนมัติ
+        //    (เดิมแคบกว่า 768px จะเปลี่ยนเป็นหน้าตามือถือ เมนูกางเต็มจอทับเนื้อหา)
+        window._autoMiniRail = function() {
+            const nav = document.getElementById('sidebarNav'); if (!nav) return;
+            const narrow = window.innerWidth < 1000 && window.innerWidth >= 480;
+            if (narrow && !nav.classList.contains('sidebar-mini')) { nav.classList.add('sidebar-mini'); nav.dataset.autoMini = '1'; }
+            else if (!narrow && nav.dataset.autoMini === '1') {
+                delete nav.dataset.autoMini;
+                let pref = '0'; try { pref = localStorage.getItem('sidebarMini') || '0'; } catch (e) {}
+                if (pref !== '1') nav.classList.remove('sidebar-mini');
+            }
+        };
+        window.addEventListener('resize', function() { clearTimeout(window._amrT); window._amrT = setTimeout(window._autoMiniRail, 120); });
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(window._autoMiniRail, 0); });
         window.toggleSidebarMini = function() {
             const nav = document.getElementById('sidebarNav');
             if (!nav) return;
+            delete nav.dataset.autoMini;   // ผู้ใช้กดเอง = ไม่ต้องคืนค่าอัตโนมัติ
             const mini = !nav.classList.contains('sidebar-mini');
             nav.classList.toggle('sidebar-mini', mini);
             const ic = document.getElementById('sidebarCollapseIcon');
