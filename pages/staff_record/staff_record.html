@@ -173,7 +173,6 @@
         <div class="sr-ico"><span class="material-icons">assignment_ind</span></div>
         <div>
             <h1 class="sr-title">ประวัติการทำงานพนักงาน</h1>
-            <p class="sr-sub">ลงเรื่องที่พนักงานทำผิด แล้วดูสรุปรายเดือนว่าใครผิดเรื่องไหนกี่ครั้ง</p>
         </div>
         <div class="sr-month">
             <button type="button" onclick="srShiftMonth(-1)" title="เดือนก่อน"><span class="material-icons">chevron_left</span></button>
@@ -189,7 +188,7 @@
             <aside id="srFormCard" class="sr-card sr-form">
                 <div class="sr-ch">
                     <span class="material-icons ic" style="color:var(--k-gold-tx);background:rgba(232,193,90,.12)">edit_note</span>
-                    <div><div class="sr-h">ลงประวัติ</div><div class="sr-hint">เลือกคน → กดเรื่องที่ผิด (เลือกได้หลายเรื่อง) → บันทึก</div></div>
+                    <div><div class="sr-h">ลงประวัติ</div></div>
                 </div>
                 <div class="sr-cb">
                     <div class="sr-field">
@@ -219,7 +218,7 @@
                     <div class="sr-field">
                         <div class="sr-lbl"><span>รายละเอียดเพิ่ม <small style="font-weight:600;color:var(--k-mute3)">(ไม่บังคับ)</small></span></div>
                         <textarea id="srNote" class="sr-in" rows="2" placeholder="เช่น มาถึง 08:25 / ลูกค้ารอ 15 นาที" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();srSave();}"></textarea>
-                        <div class="sr-quick"><span class="sr-qlbl">ใส่เร็ว:</span>
+                        <div class="sr-quick">
                             <button type="button" class="sr-qbtn" onclick="srNoteAdd('ตักเตือนด้วยวาจาแล้ว')">ตักเตือนแล้ว</button>
                             <button type="button" class="sr-qbtn" onclick="srNoteAdd('พนักงานรับทราบ')">รับทราบ</button>
                             <button type="button" class="sr-qbtn" onclick="srNoteAdd('มีหลักฐานในแชท')">มีหลักฐานในแชท</button>

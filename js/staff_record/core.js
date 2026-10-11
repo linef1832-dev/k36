@@ -135,7 +135,7 @@ const _srPushRecentPeople = name => { const a = _srGetRecentPeople().filter(x =>
 window.srRenderRecentPeople = function() {
     const box = document.getElementById('srRecentPeople'); if (!box) return;
     const names = _srGetRecentPeople().filter(n => _srUserOf(n) && (!SR.picked || SR.picked.username !== n));
-    box.innerHTML = names.length ? '<span class="sr-qlbl">ล่าสุด:</span>' + names.map(n => `<button type="button" class="sr-qbtn" onclick="srEmpPick('${_srEsc(n).replace(/'/g, "\\'")}')"><span class="material-icons">history</span>${_srEsc(n)}</button>`).join('') : '';
+    box.innerHTML = names.length ? names.map(n => `<button type="button" class="sr-qbtn" onclick="srEmpPick('${_srEsc(n).replace(/'/g, "\\'")}')"><span class="material-icons">history</span>${_srEsc(n)}</button>`).join('') : '';
 };
 // อัปเดต: ประวัติของคนที่เลือก, ตัวนับเรื่อง, ปุ่มวันลัด, สรุปก่อนบันทึก, ปุ่มบันทึก
 window.srSyncForm = function() {
