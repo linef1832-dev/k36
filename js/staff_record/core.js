@@ -226,45 +226,100 @@ window.srAddTopic = async function() {
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `เพิ่มหัวข้อ "${name}" แล้ว`, showConfirmButton: false, timer: 1400 });
     }
 };
+// ── ⚙ แก้หัวข้อทั้งหมด (หน้าต่างแบบใหม่: แถวละหัวข้อ · สี · ชื่อ · ใช้กับ AM/OD · เกณฑ์ − n + · ลบ) ──
+const SR_MT_CSS = `
+.srmt-pop.swal2-popup{padding:0 !important;width:min(720px,96vw) !important;border-radius:18px !important;overflow:hidden;background:var(--k-panel) !important;border:1px solid var(--k-line) !important}
+.srmt-pop .swal2-title{display:none !important}
+.srmt-pop .swal2-html-container{margin:0 !important;padding:0 !important;text-align:left !important;overflow:visible !important}
+.srmt-pop .swal2-actions{margin:0 !important;padding:14px 20px 18px !important;width:100%;justify-content:flex-end !important;gap:8px;border-top:1px solid var(--k-line);background:var(--k-panel2)}
+.srmt-pop .swal2-confirm{background:#E8C15A !important;color:#1b1406 !important;font-weight:900 !important;border-radius:11px !important;height:42px;padding:0 20px !important;box-shadow:0 6px 16px rgba(232,193,90,.25) !important;margin:0 !important}
+.srmt-pop .swal2-cancel{background:var(--k-btn) !important;color:var(--k-tx2) !important;border:1px solid var(--k-line3) !important;font-weight:800 !important;border-radius:11px !important;height:42px;padding:0 16px !important;margin:0 !important}
+.srmt-pop .swal2-validation-message{margin:0 20px 10px !important;border-radius:10px}
+.srmt-h{display:flex;align-items:center;gap:12px;padding:18px 20px 12px}
+.srmt-h .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:#E8C15A;color:#1b1406;flex:none}
+.srmt-h b{display:block;font-size:17px;font-weight:900;color:var(--k-tx-strong)}
+.srmt-h small{display:block;font-size:12px;font-weight:600;color:var(--k-mute)}
+.srmt-cols{display:grid;grid-template-columns:36px minmax(0,1fr) 168px 116px 34px;gap:8px;padding:0 20px 6px;font-size:11px;font-weight:800;color:var(--k-mute)}
+.srmt-list{max-height:52vh;overflow-y:auto;padding:2px 20px 4px;display:flex;flex-direction:column;gap:6px}
+.srmt-row{display:grid;grid-template-columns:36px minmax(0,1fr) 168px 116px 34px;gap:8px;align-items:center;padding:6px;border-radius:12px;background:var(--k-card);border:1px solid var(--k-line)}
+.srmt-row:focus-within{border-color:#E8C15A}
+.srmt-sw{position:relative;width:32px;height:32px;border-radius:9px;cursor:pointer;box-shadow:inset 0 0 0 2px rgba(255,255,255,.25)}
+.srmt-sw input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.srmt-name{height:36px;width:100%;padding:0 10px;border-radius:9px;background:var(--k-field);border:1px solid var(--k-line2);color:var(--k-tx);font-size:13.5px;font-weight:800;outline:none}
+.srmt-name:focus{border-color:#E8C15A}
+.srmt-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:3px;border-radius:9px;background:var(--k-sunk);border:1px solid var(--k-line)}
+.srmt-seg button{height:28px;border-radius:7px;border:0;background:transparent;color:var(--k-mute);font-size:11.5px;font-weight:900;cursor:pointer}
+.srmt-seg button.on[data-g="AM"]{background:#2563eb;color:#fff}
+.srmt-seg button.on[data-g="OD"]{background:#db2777;color:#fff}
+.srmt-seg button.on[data-g="ALL"]{background:var(--k-tx2);color:var(--k-panel)}
+.srmt-lim{display:flex;align-items:center;height:36px;border-radius:9px;background:var(--k-field);border:1px solid var(--k-line2);overflow:hidden}
+.srmt-lim button{width:30px;height:100%;border:0;background:transparent;color:var(--k-tx3);font-size:16px;font-weight:900;cursor:pointer}
+.srmt-lim button:hover{background:var(--k-btn-h);color:var(--k-tx-strong)}
+.srmt-lim span{flex:1;text-align:center;font-size:12.5px;font-weight:900;color:var(--k-tx-strong);white-space:nowrap}
+.srmt-lim span.off{font-size:11px;font-weight:700;color:var(--k-mute3)}
+.srmt-del{width:34px;height:34px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--k-mute);cursor:pointer;font-size:15px;font-weight:900}
+.srmt-del:hover{background:var(--k-red-bg);border-color:var(--k-red-line);color:var(--k-red-tx)}
+.srmt-add{margin:8px 20px 4px;width:calc(100% - 40px);height:40px;border-radius:11px;border:1.5px dashed var(--k-line3);background:transparent;color:var(--k-tx3);font-size:13px;font-weight:800;cursor:pointer}
+.srmt-add:hover{border-color:#E8C15A;color:var(--k-gold-tx)}
+.srmt-foot{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 20px 14px;font-size:11.5px;color:var(--k-mute)}
+.srmt-foot b{color:var(--k-tx2)}
+@media (max-width:640px){ .srmt-cols{display:none} .srmt-row{grid-template-columns:36px minmax(0,1fr) 34px} .srmt-seg,.srmt-lim{grid-column:1/-1} }
+`;
 window.srManageTopics = async function() {
     if (!_srPerm('staff_record_topics')) return;
-    const rows = SR.topics.map((t, i) => `
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-            <input type="color" value="${t.color}" data-i="${i}" class="sr-mt-c" style="width:34px;height:34px;border:0;background:none;cursor:pointer">
-            <input type="text" value="${_srEsc(t.name)}" data-i="${i}" class="sr-mt-n swal2-input" style="margin:0;height:36px;flex:1;font-size:14px">
-            <select class="sr-mt-g" style="height:36px;border-radius:8px;padding:0 6px;font-weight:800">${['AM','OD','ALL'].map(x => `<option value="${x}" ${((t.group || 'ALL') === x) ? 'selected' : ''}>${x === 'ALL' ? 'ทั้งคู่' : x}</option>`).join('')}</select>
-            <input type="number" min="0" max="99" class="sr-mt-l" value="${Number(t.limit) || ''}" placeholder="เกณฑ์" title="ถึงกี่ครั้ง/เดือน ถึงจะเตือน (เว้นว่าง = ไม่เตือน)" style="width:64px;height:36px;border-radius:8px;padding:0 6px;font-weight:800;text-align:center">
-            <button type="button" data-i="${i}" class="sr-mt-del" style="width:34px;height:34px;border-radius:8px;border:1px solid #ef444455;color:#ef4444;background:transparent;cursor:pointer">✕</button>
-        </div>`).join('');
+    if (!document.getElementById('srmt-css')) { const st = document.createElement('style'); st.id = 'srmt-css'; st.textContent = SR_MT_CSS; document.head.appendChild(st); }
+    const rowHtml = (t, i) => {
+        const g = t.group || 'ALL'; const lim = Number(t.limit) || 0;
+        return `<div class="srmt-row" data-lim="${lim}" data-g="${g}">
+            <label class="srmt-sw" style="background:${t.color}" title="กดเพื่อเปลี่ยนสี"><input type="color" value="${t.color}" oninput="this.parentElement.style.background=this.value"></label>
+            <input class="srmt-name" type="text" value="${_srEsc(t.name)}" placeholder="ชื่อหัวข้อ">
+            <div class="srmt-seg">${['AM', 'OD', 'ALL'].map(x => `<button type="button" data-g="${x}" class="${g === x ? 'on' : ''}">${x === 'ALL' ? 'ทั้งคู่' : x}</button>`).join('')}</div>
+            <div class="srmt-lim" title="ผิดเรื่องนี้กี่ครั้ง/เดือน ถึงจะเตือน"><button type="button" data-d="-1">−</button><span class="${lim ? '' : 'off'}">${lim ? lim + ' ครั้ง' : 'ไม่เตือน'}</span><button type="button" data-d="1">+</button></div>
+            <button type="button" class="srmt-del" title="ลบหัวข้อนี้">✕</button>
+        </div>`;
+    };
     const res = await Swal.fire({
-        title: 'แก้หัวข้อเรื่องที่ผิด',
-        footer: '<span style="font-size:12px">ช่อง "เกณฑ์" = ผิดเรื่องนี้กี่ครั้ง/เดือน ถึงจะเตือนและขึ้นป้ายแดง (เว้นว่าง = ไม่เตือน)</span>',
-        html: `<div id="srMtBox" style="text-align:left;max-height:50vh;overflow:auto">${rows}</div>
-               <button type="button" id="srMtAdd" style="margin-top:6px;height:36px;padding:0 14px;border-radius:10px;border:1px dashed #94a3b8;background:transparent;cursor:pointer;font-weight:800">+ เพิ่มหัวข้อ</button>
-               <div style="margin-top:10px;font-size:12px;color:#94a3b8">ลบหัวข้อแล้ว ประวัติเก่าที่ใช้หัวข้อนั้นยังอยู่ครบ</div>`,
-        showCancelButton: true, confirmButtonText: 'บันทึกหัวข้อ', cancelButtonText: 'ยกเลิก', width: 640,
+        title: 'แก้หัวข้อ',
+        html: `<div class="srmt-h"><span class="ic"><span class="material-icons">tune</span></span><div><b>แก้หัวข้อเรื่องที่ผิด</b><small>เปลี่ยนชื่อ สี ฝั่งที่ใช้ และเกณฑ์เตือนได้ในที่เดียว</small></div></div>
+               <div class="srmt-cols"><span>สี</span><span>ชื่อหัวข้อ</span><span>ใช้กับแผนก</span><span>เกณฑ์ / เดือน</span><span></span></div>
+               <div id="srMtBox" class="srmt-list custom-scrollbar">${SR.topics.map(rowHtml).join('')}</div>
+               <button type="button" id="srMtAdd" class="srmt-add">+ เพิ่มหัวข้อ</button>
+               <div class="srmt-foot"><span><b>ทั้งคู่</b> = ขึ้นทั้งแท็บ AM และ OD</span><span><b>เกณฑ์</b> = ถึงกี่ครั้งต่อเดือนจะเตือน + ขึ้นป้ายแดง</span><span>ลบหัวข้อแล้ว ประวัติเดิมยังอยู่ครบ</span></div>`,
+        customClass: { popup: 'srmt-pop' },
+        showCancelButton: true, confirmButtonText: 'บันทึกหัวข้อ', cancelButtonText: 'ยกเลิก', reverseButtons: true,
         didOpen: () => {
             const box = document.getElementById('srMtBox');
-            box.addEventListener('click', e => { const b = e.target.closest('.sr-mt-del'); if (b) b.parentElement.remove(); });
+            box.addEventListener('click', e => {
+                const row = e.target.closest('.srmt-row'); if (!row) return;
+                if (e.target.closest('.srmt-del')) { row.remove(); return; }
+                const seg = e.target.closest('.srmt-seg button');
+                if (seg) { row.dataset.g = seg.dataset.g; row.querySelectorAll('.srmt-seg button').forEach(b => b.classList.toggle('on', b === seg)); return; }
+                const st = e.target.closest('.srmt-lim button');
+                if (st) {
+                    const v = Math.max(0, Math.min(99, (Number(row.dataset.lim) || 0) + Number(st.dataset.d)));
+                    row.dataset.lim = v; const sp = row.querySelector('.srmt-lim span');
+                    sp.textContent = v ? v + ' ครั้ง' : 'ไม่เตือน'; sp.classList.toggle('off', !v);
+                }
+            });
             document.getElementById('srMtAdd').onclick = () => {
-                const i = box.children.length;
-                box.insertAdjacentHTML('beforeend', `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="color" value="${SR_PALETTE[i % SR_PALETTE.length]}" class="sr-mt-c" style="width:34px;height:34px;border:0;background:none;cursor:pointer"><input type="text" placeholder="ชื่อหัวข้อ" class="sr-mt-n swal2-input" style="margin:0;height:36px;flex:1;font-size:14px"><select class="sr-mt-g" style="height:36px;border-radius:8px;padding:0 6px;font-weight:800"><option value="${SR.topicGroup || 'AM'}">${SR.topicGroup || 'AM'}</option><option value="ALL">ทั้งคู่</option><option value="${(SR.topicGroup || 'AM') === 'AM' ? 'OD' : 'AM'}">${(SR.topicGroup || 'AM') === 'AM' ? 'OD' : 'AM'}</option></select><input type="number" min="0" max="99" class="sr-mt-l" placeholder="เกณฑ์" style="width:64px;height:36px;border-radius:8px;padding:0 6px;font-weight:800;text-align:center"><button type="button" class="sr-mt-del" style="width:34px;height:34px;border-radius:8px;border:1px solid #ef444455;color:#ef4444;background:transparent;cursor:pointer">✕</button></div>`);
-                box.lastElementChild.querySelector('.sr-mt-n').focus();
+                const used = new Set([...box.querySelectorAll('.srmt-sw input')].map(i => i.value.toLowerCase()));
+                const color = SR_PALETTE.find(c => !used.has(c)) || SR_PALETTE[box.children.length % SR_PALETTE.length];
+                box.insertAdjacentHTML('beforeend', rowHtml({ name: '', color, group: SR.topicGroup || 'ALL', limit: 0 }));
+                const last = box.lastElementChild; last.scrollIntoView({ block: 'nearest' }); last.querySelector('.srmt-name').focus();
             };
         },
         preConfirm: () => {
             const out = []; const seen = new Set();
-            document.querySelectorAll('#srMtBox > div').forEach(r => {
-                const n = r.querySelector('.sr-mt-n').value.trim(); const c = r.querySelector('.sr-mt-c').value;
-                const gg = r.querySelector('.sr-mt-g') ? r.querySelector('.sr-mt-g').value : 'ALL';
-                const lim = r.querySelector('.sr-mt-l') ? parseInt(r.querySelector('.sr-mt-l').value, 10) : 0;
-                if (n && !seen.has(n)) { seen.add(n); const o = { name: n, color: c, group: gg }; if (lim > 0) o.limit = lim; out.push(o); }
+            document.querySelectorAll('#srMtBox .srmt-row').forEach(r => {
+                const n = r.querySelector('.srmt-name').value.trim(); const c = r.querySelector('.srmt-sw input').value;
+                const lim = Number(r.dataset.lim) || 0;
+                if (n && !seen.has(n)) { seen.add(n); const o = { name: n, color: c, group: r.dataset.g || 'ALL' }; if (lim > 0) o.limit = lim; out.push(o); }
             });
             if (!out.length) { Swal.showValidationMessage('ต้องมีอย่างน้อย 1 หัวข้อ'); return false; }
             return out;
         }
     });
-    if (!res.isConfirmed) return;
+    if (!res.isConfirmed || !res.value) return;
     const { error } = await appDB.from('settings').upsert([{ key: 'staff_record_topics', value: JSON.stringify(res.value) }]);
     if (error) return Swal.fire('บันทึกไม่สำเร็จ', error.message, 'error');
     SR.topics = res.value;
