@@ -111,7 +111,7 @@ window.submitFine = async function(e) {
              if (tUser) targetId = tUser.id;
         }
 
-        const { error: dbError } = await appDB.from('fines').insert([{
+        const { data: _fineRows, error: dbError } = await appDB.from('fines').insert([{
             user_id: targetId, 
             user_name: empName, 
             rule_text: ruleText,
@@ -120,9 +120,15 @@ window.submitFine = async function(e) {
             evidence_url: imageUrl,
             issued_by: currentUser.username,
             offense_date: offenseDateVal 
-        }]);
+        }]).select();
 
         if (dbError) throw dbError;
+
+        // 📒 ลงประวัติพนักงานให้อัตโนมัติ (หน้า "ประวัติพนักงาน") — ถ้าพลาด ใบปรับยังออกได้ตามปกติ
+        _fineToStaffRecord({
+            fine: (_fineRows && _fineRows[0]) || null, user_id: targetId, user_name: empName, rule: ruleText,
+            note: finalNote, amount: amountToSave, date: offenseDateVal
+        });
 
         Swal.fire({icon: 'success', title: 'ออกใบปรับสำเร็จ', timer: 1500, showConfirmButton: false});
         
@@ -474,11 +480,41 @@ window.renderFineTable = function() {
     _applyFineCols();
 };
 
+// ── 📒 ใบปรับ → ประวัติพนักงาน ──
+async function _fineToStaffRecord(o) {
+    try {
+        const rule = String(o.rule || '').replace(/^\s*\[[^\]]*\]\s*/, '').trim();   // ตัด [ออนไลน์] ข้างหน้า
+        const money = o.amount === -1 ? 'ไม่ได้ค่าแรง' : (Number(o.amount) > 0 ? `ค่าปรับ ฿${Number(o.amount).toLocaleString('en-US')}` : '');
+        const note = [o.note, money].filter(Boolean).join(' · ') || null;
+        const d = o.date || new Date().toISOString().slice(0, 10);
+        const by = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : '';
+        const row = { user_id: o.user_id != null ? String(o.user_id) : '', user_name: o.user_name, record_date: d, topic: `ใบปรับ: ${rule}`, note, created_by: by, fine_id: o.fine ? o.fine.id : null };
+        let res = await appDB.from('staff_records').insert([row]).select();
+        if (res.error && String(res.error.message || '').includes('fine_id')) {   // ยังไม่ได้รัน SQL เพิ่มคอลัมน์ → ลงแบบไม่ผูก
+            delete row.fine_id; res = await appDB.from('staff_records').insert([row]).select();
+        }
+        if (res.error) { console.warn('[fine→staff_record] ลงประวัติไม่ได้', res.error.message); return; }
+        const r = (res.data && res.data[0]) || row;
+        await appDB.from('staff_record_logs').insert([{ action: 'add', record_id: r.id || null, user_name: r.user_name, record_date: r.record_date, topic: r.topic, note: r.note, detail: 'ลงอัตโนมัติจากการออกใบปรับ', actor: by }]);
+    } catch (e) { console.warn('[fine→staff_record]', e); }
+}
+async function _fineRemoveStaffRecord(fine) {
+    try {
+        if (!fine) return;
+        const by = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : '';
+        const { data, error } = await appDB.from('staff_records').select('*').eq('fine_id', fine.id);
+        if (error || !data || !data.length) return;
+        await appDB.from('staff_records').delete().eq('fine_id', fine.id);
+        await appDB.from('staff_record_logs').insert(data.map(r => ({ action: 'delete', record_id: r.id, user_name: r.user_name, record_date: r.record_date, topic: r.topic, note: r.note, detail: 'ลบอัตโนมัติเพราะลบใบปรับต้นทาง', actor: by })));
+    } catch (e) { console.warn('[fine→staff_record] ลบไม่ได้', e); }
+}
+
 window.deleteFine = async function(id) {
     const res = await Swal.fire({title: 'ลบรายการนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบทิ้ง'});
     if(res.isConfirmed) {
         Swal.fire({title: 'กำลังลบ...', didOpen: () => Swal.showLoading()});
         await appDB.from('fines').delete().eq('id', id);
+        await _fineRemoveStaffRecord({ id });   // ลบประวัติพนักงานที่มาจากใบปรับนี้ด้วย
         fetchFinesData(true);
         Swal.fire('ลบสำเร็จ', '', 'success');
     }

@@ -54,7 +54,7 @@ const _srTopicIn = (t, g) => !t.group || t.group === 'ALL' || t.group === g;
 const _srTopicLimit = name => { const t = SR.topics.find(x => x.name === name); const n = t ? Number(t.limit) : 0; return n > 0 ? n : 0; };
 // นับว่าเดือนของวันที่ที่ระบุ คนนี้ผิดเรื่องนี้ไปแล้วกี่ครั้ง (ใช้ข้อมูลเดือนที่เปิดอยู่)
 const _srCountOf = (name, topic) => SR.rows.filter(r => String(r.user_name).toLowerCase() === String(name).toLowerCase() && r.topic === topic).length;
-const _srTopicColor = name => (SR.topics.find(t => t.name === name) || {}).color || '#64748b';
+const _srTopicColor = name => (SR.topics.find(t => t.name === name) || {}).color || (String(name).startsWith('ใบปรับ') ? '#ef4444' : '#64748b');   // รายการจากใบปรับ = สีแดง
 const _srUsers = () => (typeof GLOBAL_USER_LIST !== 'undefined' && Array.isArray(GLOBAL_USER_LIST)) ? GLOBAL_USER_LIST : [];
 const _srUserOf = name => _srUsers().find(u => String(u.username).toLowerCase() === String(name).toLowerCase());
 
