@@ -291,6 +291,23 @@
     #srApp .sr-pager button:disabled{opacity:.4;cursor:not-allowed}
     #srApp .sr-pager .gap{color:var(--k-mute);padding:0 2px}
     #srApp .sr-pager small{flex-basis:100%;text-align:center;font-size:11.5px;font-weight:700;color:var(--k-mute);margin-top:4px}
+    /* 🏷️ ทำผิด / บันทึกเรื่องราว */
+    #srApp .sr-kindsel{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:11px;background:var(--k-sunk);border:1px solid var(--k-line)}
+    #srApp .sr-kindsel button{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;border-radius:8px;border:0;background:transparent;color:var(--k-mute);font-size:12.5px;font-weight:900;cursor:pointer}
+    #srApp .sr-kindsel button .material-icons{font-size:17px}
+    #srApp .sr-kindsel button.on[data-k="offense"]{background:#dc2626;color:#fff}
+    #srApp .sr-kindsel button.on[data-k="note"]{background:#0ea5e9;color:#fff}
+    #srApp .sr-kindhint{font-size:11.5px;font-weight:600;color:var(--k-mute);margin-top:5px}
+    #srApp .sr-kind{display:inline-flex;margin-top:4px;font-size:10.5px;font-weight:900;padding:1px 8px;border-radius:999px;white-space:nowrap}
+    #srApp .sr-kind.o{color:var(--k-red-tx);background:var(--k-red-bg);border:1px solid var(--k-red-line)}
+    #srApp .sr-kind.n{color:light-dark(#0369a1,#7dd3fc);background:rgba(14,165,233,.12);border:1px solid rgba(14,165,233,.4)}
+    #srApp .sr-tl-t{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+    #srApp .sr-tl-i.is-note{background:rgba(14,165,233,.05);border-radius:10px;padding-left:8px;padding-right:8px}
+    #srApp .sr-tl-i.is-note .sr-tl-n{font-style:italic}
+    #srApp .sr-ncnt{flex:none;font-size:10.5px;font-weight:900;padding:1px 7px;border-radius:999px;color:light-dark(#0369a1,#7dd3fc);background:rgba(14,165,233,.12);border:1px solid rgba(14,165,233,.35)}
+    #srApp .sr-sum-i.note{border-style:dashed;opacity:.85}
+    #srApp .sr-tag.note{color:light-dark(#0369a1,#7dd3fc);border-color:rgba(14,165,233,.4);background:rgba(14,165,233,.08)}
+    #srApp .sr-kpi-split .n{color:light-dark(#0369a1,#7dd3fc);background:rgba(14,165,233,.12);border:1px solid rgba(14,165,233,.4)}
     #srApp .sr-selcount{font-size:11.5px;font-weight:800;color:var(--k-gold-tx)}
     #srApp .sr-sum{display:none;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:var(--k-gold-bg);border:1px dashed rgba(232,193,90,.6);font-size:12.5px;line-height:1.55;color:var(--k-tx2)}
     #srApp .sr-sum.on{display:block}
@@ -359,6 +376,14 @@
                     <div class="sr-field">
                         <div class="sr-lbl"><span>รายละเอียดเพิ่ม <small style="font-weight:600;color:var(--k-mute3)">(ไม่บังคับ)</small></span></div>
                         <textarea id="srNote" class="sr-in" rows="2" placeholder="เช่น มาถึง 08:25 / ลูกค้ารอ 15 นาที" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();srSave();}"></textarea>
+                    </div>
+                    <div class="sr-field">
+                        <div class="sr-lbl"><span>ประเภท</span></div>
+                        <div class="sr-kindsel" role="tablist">
+                            <button type="button" data-k="offense" class="on" onclick="srSetKind('offense')"><span class="material-icons">report</span> ทำผิด</button>
+                            <button type="button" data-k="note" onclick="srSetKind('note')"><span class="material-icons">sticky_note_2</span> บันทึกเรื่องราว</button>
+                        </div>
+                        <div id="srKindHint" class="sr-kindhint">นับเป็นครั้งที่ผิด ใช้ในเกณฑ์และอันดับ</div>
                     </div>
                     <div id="srSum" class="sr-sum"></div>
                     <button id="srSaveBtn" type="button" class="sr-save" onclick="srSave()" disabled><span class="material-icons">save</span> <span id="srSaveLabel">เลือกคนและเรื่องก่อน</span></button>

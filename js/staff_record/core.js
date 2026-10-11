@@ -13,6 +13,7 @@ window.SR = window.SR || {
     topics: [],           // [{name,color}]
     picked: null,         // (คงไว้ให้โค้ดเก่า) = คนแรกที่เลือก
     pickedList: [],       // 👥 พนักงานที่เลือก (ลงหลายคนพร้อมกันได้)
+    kind: 'offense',      // 🏷️ ประเภทที่จะลง: offense = ทำผิด / note = บันทึกเรื่องราว
     selTopics: new Set(),
     open: new Set(),      // การ์ดพนักงานที่กางไทม์ไลน์อยู่
     recent: [],
@@ -53,13 +54,20 @@ const _srGroupOf = dept => String(dept || 'AM').toUpperCase().startsWith('OD') ?
 const _srTopicIn = (t, g) => !t.group || t.group === 'ALL' || t.group === g;
 const _srTopicLimit = name => { const t = SR.topics.find(x => x.name === name); const n = t ? Number(t.limit) : 0; return n > 0 ? n : 0; };
 // นับว่าเดือนของวันที่ที่ระบุ คนนี้ผิดเรื่องนี้ไปแล้วกี่ครั้ง (ใช้ข้อมูลเดือนที่เปิดอยู่)
-const _srCountOf = (name, topic) => SR.rows.filter(r => String(r.user_name).toLowerCase() === String(name).toLowerCase() && r.topic === topic).length;
+const _srCountOf = (name, topic) => SR.rows.filter(r => !_srIsNote(r) && String(r.user_name).toLowerCase() === String(name).toLowerCase() && r.topic === topic).length;
 // แยก "ใบปรับ" (ลงอัตโนมัติจากหน้าใบปรับ) กับ "ประวัติ" (ลงเองในหน้านี้)
 const _srIsFine = r => String(r.topic || '').startsWith('ใบปรับ');
 const _srFineAmount = r => { const m = String(r.note || '').match(/ค่าปรับ ฿([\d,]+)/); return m ? Number(m[1].replace(/,/g, '')) : 0; };
+// 🏷️ ประเภทรายการ: ทำผิด (นับ) / บันทึกเรื่องราว (ไม่นับ) — ถ้ายังไม่ได้เพิ่มคอลัมน์ kind จะใช้คำนำหน้า [บันทึก] ในหมายเหตุแทน
+const SR_NOTE_TAG = '[บันทึก] ';
+const _srIsNote = r => r.kind === 'note' || String(r.note || '').startsWith(SR_NOTE_TAG.trim());
+const _srNoteText = r => String(r.note || '').replace(/^\[บันทึก\]\s*/, '');
+const _srOff = items => items.filter(r => !_srIsNote(r));   // เฉพาะรายการที่นับเป็นการทำผิด
 const _srSplit = items => {
+    const notes = items.filter(_srIsNote).length;
+    items = _srOff(items);
     const fines = items.filter(_srIsFine);
-    return { hist: items.length - fines.length, fine: fines.length, amount: fines.reduce((a, r) => a + _srFineAmount(r), 0), nowage: fines.filter(r => String(r.note || '').includes('ไม่ได้ค่าแรง')).length };
+    return { notes, hist: items.length - fines.length, fine: fines.length, amount: fines.reduce((a, r) => a + _srFineAmount(r), 0), nowage: fines.filter(r => String(r.note || '').includes('ไม่ได้ค่าแรง')).length };
 };
 const _srTopicColor = name => (SR.topics.find(t => t.name === name) || {}).color || (String(name).startsWith('ใบปรับ') ? '#ef4444' : '#64748b');   // รายการจากใบปรับ = สีแดง
 const _srUsers = () => (typeof GLOBAL_USER_LIST !== 'undefined' && Array.isArray(GLOBAL_USER_LIST)) ? GLOBAL_USER_LIST : [];
@@ -139,7 +147,7 @@ function _srPickedMonthCounts() {
     const d = document.getElementById('srDate'); const ym = (d && d.value ? d.value : _srToday()).slice(0, 7);
     if (ym !== SR.month) return out;
     const k = String(SR.picked.username).toLowerCase();
-    SR.rows.forEach(r => { if (String(r.user_name).toLowerCase() === k) out[r.topic] = (out[r.topic] || 0) + 1; });
+    SR.rows.forEach(r => { if (!_srIsNote(r) && String(r.user_name).toLowerCase() === k) out[r.topic] = (out[r.topic] || 0) + 1; });
     return out;
 }
 const _srDateLabel = iso => { if (!iso) return '-'; const [y, m, d] = iso.split('-').map(Number); return `${d} ${_srTH_M[m - 1]} ${y + 543}`; };
@@ -174,7 +182,7 @@ window.srSyncForm = function() {
             // เตือนล่วงหน้าในกล่องสรุป: ใครจะถึง/เกินเกณฑ์ถ้าบันทึกรอบนี้
             const sameMonth = date.slice(0, 7) === SR.month;
             const hits = [];
-            if (sameMonth) P.forEach(u => [...SR.selTopics].forEach(t => { const lim = _srTopicLimit(t); if (lim && _srCountOf(u.username, t) + 1 >= lim) hits.push(`${_srEsc(u.username)} · ${_srEsc(t)} ครั้งที่ ${_srCountOf(u.username, t) + 1}/${lim}`); }));
+            if (sameMonth && SR.kind !== 'note') P.forEach(u => [...SR.selTopics].forEach(t => { const lim = _srTopicLimit(t); if (lim && _srCountOf(u.username, t) + 1 >= lim) hits.push(`${_srEsc(u.username)} · ${_srEsc(t)} ครั้งที่ ${_srCountOf(u.username, t) + 1}/${lim}`); }));
             sum.innerHTML = `จะบันทึกให้ <b>${np === 1 ? _srEsc(P[0].username) : np + ' คน'}</b> วันที่ <b>${_srDateLabel(date)}</b> รวม <b>${np * n} รายการ</b><br>`
                 + [...SR.selTopics].map(t => `<span class="sr-chip" style="--c:${_srTopicColor(t)};margin:3px 3px 0 0">${_srEsc(t)}</span>`).join('')
                 + (hits.length ? `<div class="sr-sum-warn"><span class="material-icons">warning</span><div><b>ถึงเกณฑ์</b><br>${hits.join('<br>')}</div></div>` : '');
@@ -182,7 +190,10 @@ window.srSyncForm = function() {
     }
     const btn = document.getElementById('srSaveBtn'), lab = document.getElementById('srSaveLabel');
     if (btn) btn.disabled = !ready;
-    if (lab) lab.textContent = !np ? 'เลือกพนักงานก่อน' : (!n ? 'เลือกเรื่องที่ผิดก่อน' : (np === 1 ? `บันทึก ${n} เรื่อง ให้ ${P[0].username}` : `บันทึก ${n} เรื่อง ให้ ${np} คน (${np * n} รายการ)`));
+    const _kw = SR.kind === 'note' ? 'บันทึกเรื่องราว' : 'บันทึก';
+    if (lab) lab.textContent = !np ? 'เลือกพนักงานก่อน'
+        : (!n ? 'เลือกเรื่องที่ผิดก่อน'
+        : (np === 1 ? `${_kw} ${n} เรื่อง ให้ ${P[0].username}` : `${_kw} ${n} เรื่อง ให้ ${np} คน (${np * n} รายการ)`));
 };
 // ── ลบ / เพิ่มหัวข้อตรงในขั้นที่ 3 ──
 async function _srSaveTopics(list) {
@@ -193,6 +204,13 @@ async function _srSaveTopics(list) {
     srRenderTopics(); srFillFilters(); srRender();
     return true;
 }
+window.srSetKind = function(k) {
+    SR.kind = k;
+    document.querySelectorAll('#srApp .sr-kindsel button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+    const h = document.getElementById('srKindHint');
+    if (h) h.textContent = k === 'note' ? 'เก็บไว้อ่านประกอบ ไม่นับเป็นการทำผิด ไม่ขึ้นอันดับ/เกณฑ์' : 'นับเป็นครั้งที่ผิด ใช้ในเกณฑ์และอันดับ';
+    srSyncForm();
+};
 window.srSetTopicGroup = function(g) {
     SR.topicGroup = g;
     // เรื่องที่เลือกไว้แต่ไม่อยู่ในกลุ่มใหม่ → เอาออก กันบันทึกเรื่องข้ามแผนกโดยไม่ตั้งใจ
@@ -508,6 +526,7 @@ window.srRenderRank = function() {
     const type = SR.rankType || 'all', fD = dSel ? dSel.value : 'all', fS = document.getElementById('srRankShift')?.value || 'all', fT = tSel ? tSel.value : 'all';
 
     const rows = SR.rows.filter(r => {
+        if (_srIsNote(r)) return false;   // บันทึกเรื่องราวไม่นับในอันดับ
         if (type === 'hist' && _srIsFine(r)) return false;
         if (type === 'fine' && !_srIsFine(r)) return false;
         if (fT !== 'all' && r.topic !== fT) return false;
@@ -569,8 +588,9 @@ window.srSave = async function() {
     if (!date) return Swal.fire('ยังไม่ได้เลือกวันที่', '', 'warning');
     if (!SR.selTopics.size) return Swal.fire('ยังไม่ได้เลือกเรื่องที่ผิด', 'กดเลือกได้มากกว่า 1 เรื่อง', 'warning');
 
-    // ⚠️ เด้งเตือนก่อนบันทึก ถ้ามีคนถึง/เกินเกณฑ์ของเรื่องนั้นในเดือนนี้
-    if (date.slice(0, 7) === SR.month) {
+    const isNote = SR.kind === 'note';
+    // ⚠️ เด้งเตือนก่อนบันทึก ถ้ามีคนถึง/เกินเกณฑ์ของเรื่องนั้นในเดือนนี้ (บันทึกเรื่องราวไม่นับ)
+    if (!isNote && date.slice(0, 7) === SR.month) {
         const hits = [];
         SR.pickedList.forEach(u => [...SR.selTopics].forEach(t => {
             const lim = _srTopicLimit(t); if (!lim) return;
@@ -584,9 +604,14 @@ window.srSave = async function() {
     }
     const by = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : '';
     const payload = [];
-    SR.pickedList.forEach(u => [...SR.selTopics].forEach(topic => payload.push({ user_id: String(u.id ?? ''), user_name: u.username, record_date: date, topic, note: note || null, created_by: by })));
+    SR.pickedList.forEach(u => [...SR.selTopics].forEach(topic => payload.push({ user_id: String(u.id ?? ''), user_name: u.username, record_date: date, topic, note: note || null, created_by: by, kind: isNote ? 'note' : 'offense' })));
     const btn = document.getElementById('srSaveBtn'); btn.disabled = true;
-    const { data, error } = await appDB.from('staff_records').insert(payload).select();
+    let { data, error } = await appDB.from('staff_records').insert(payload).select();
+    if (error && String(error.message || '').includes('kind')) {
+        // ยังไม่ได้รัน staff_records_kind.sql → เก็บประเภทเป็นคำนำหน้าในหมายเหตุแทน
+        payload.forEach(r => { delete r.kind; if (isNote) r.note = SR_NOTE_TAG + (r.note || ''); });
+        ({ data, error } = await appDB.from('staff_records').insert(payload).select());
+    }
     btn.disabled = false;
     if (error) return Swal.fire('บันทึกไม่สำเร็จ', (error.message || '') + (String(error.message || '').includes('staff_records') ? '<br><small>ยังไม่ได้สร้างตาราง — รันไฟล์ sql/staff_records.sql ใน Supabase ก่อน</small>' : ''), 'error');
 
@@ -598,6 +623,7 @@ window.srSave = async function() {
     const savedName = SR.pickedList.length === 1 ? SR.pickedList[0].username : SR.pickedList.length + ' คน';
     SR.selTopics.clear();
     document.getElementById('srNote').value = '';
+    srSetKind('offense');
     document.getElementById('srDate').value = _srToday();
     SR.pickedList = []; SR.picked = null;
     const _inp = document.getElementById('srEmpSearch'); _inp.value = '';
@@ -666,7 +692,7 @@ window.srRender = function() {
     const people = new Set(rows.map(r => String(r.user_name).toLowerCase()));
     const _sp = _srSplit(rows);
     const _kl = document.querySelector('#srApp .sr-kpi .l'); if (_kl) _kl.textContent = fDay === 'all' ? 'รวมทั้งเดือน' : `รวมวันที่ ${_srDateLabel(fDay)}`;
-    document.getElementById('srKpiTotal').innerHTML = `${rows.length}<small>ครั้ง</small><span class="sr-kpi-split"><span class="h">ประวัติ ${_sp.hist}</span><span class="f">ใบปรับ ${_sp.fine}${_sp.amount ? ` · ฿${_sp.amount.toLocaleString('en-US')}` : ''}</span></span>`;
+    document.getElementById('srKpiTotal').innerHTML = `${_srOff(rows).length}<small>ครั้ง</small><span class="sr-kpi-split"><span class="h">ประวัติ ${_sp.hist}</span><span class="f">ใบปรับ ${_sp.fine}${_sp.amount ? ` · ฿${_sp.amount.toLocaleString('en-US')}` : ''}</span>${_sp.notes ? `<span class="n">📝 บันทึก ${_sp.notes}</span>` : ''}</span>`;
     document.getElementById('srKpiPeople').innerHTML = `${people.size}<small>คน</small>`;
 
 
@@ -680,7 +706,7 @@ window.srRender = function() {
     rows.forEach(r => { const k = String(r.user_name).toLowerCase(); (groups[k] = groups[k] || { name: r.user_name, items: [] }).items.push(r); });
     const canDel = _srPerm('staff_record_delete');
     const canEdit = _srPerm('staff_record_edit') || _srPerm('staff_record_add');   // ลงได้ = แก้ได้
-    const sorted = Object.values(groups).sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
+    const sorted = Object.values(groups).sort((a, b) => _srOff(b.items).length - _srOff(a.items).length || b.items.length - a.items.length || a.name.localeCompare(b.name));
 
     // 📄 แบ่งหน้า หน้าละ 10 คน
     const PER = 10;
@@ -691,8 +717,9 @@ window.srRender = function() {
     list.innerHTML = pageItems.map(g => {
         const key = g.name.toLowerCase();
         const u = _srUserOf(g.name);
-        const cnt = {}, days = {};
+        const cnt = {}, days = {}, ncnt = {};
         g.items.forEach(r => {
+            if (_srIsNote(r)) { ncnt[r.topic] = (ncnt[r.topic] || 0) + 1; return; }   // บันทึกเรื่องราว ไม่นับ
             cnt[r.topic] = (cnt[r.topic] || 0) + 1;
             (days[r.topic] = days[r.topic] || new Set()).add(String(r.record_date));
         });
@@ -706,16 +733,17 @@ window.srRender = function() {
         let hitAny = false;
         const chips = Object.entries(cnt).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t, n]) => {
             const lim = _srTopicLimit(t); const hit = lim && n >= lim; if (hit) hitAny = true;
-            return `<div class="sr-sum-i ${hit ? 'hit' : ''}" style="--c:${_srTopicColor(t)}" title="${_srEsc(t)} ${n} ครั้ง${lim ? ` (เกณฑ์ ${lim} ครั้ง/เดือน)` : ''}"><span class="sr-sum-t">${_srEsc(t)}</span>${hit ? '<span class="sr-hit">ถึงเกณฑ์</span>' : ''}<span class="sr-sum-d">${_dayList(days[t])}</span><b class="sr-sum-n">${n}${lim ? `<small>/${lim}</small>` : ''}</b></div>`;
-        }).join('');
+            return `<div class="sr-sum-i ${hit ? 'hit' : ''}" style="--c:${_srTopicColor(t)}" title="${_srEsc(t)} ${n} ครั้ง${lim ? ` (เกณฑ์ ${lim} ครั้ง/เดือน)` : ''}"><span class="sr-sum-t">${_srEsc(t)}</span>${hit ? '<span class="sr-hit">ถึงเกณฑ์</span>' : ''}${ncnt[t] ? `<span class="sr-ncnt" title="บันทึกเรื่องราว ${ncnt[t]} รายการ (ไม่นับ)">📝${ncnt[t]}</span>` : ''}<span class="sr-sum-d">${_dayList(days[t])}</span><b class="sr-sum-n">${n}${lim ? `<small>/${lim}</small>` : ''}</b></div>`;
+        }).join('') + Object.entries(ncnt).filter(([t]) => !cnt[t]).map(([t, n]) => `<div class="sr-sum-i note" style="--c:${_srTopicColor(t)}" title="มีแต่บันทึกเรื่องราว (ไม่นับเป็นการทำผิด)"><span class="sr-sum-t">${_srEsc(t)}</span><span class="sr-ncnt">📝 บันทึก ${n}</span></div>`).join('');
         const meta = u ? `<span class="sr-tag">${_srEsc(u.department || 'AM')}</span>${u.allowed_shift ? `<span class="sr-tag">${_srEsc(String(u.allowed_shift).replace('กะ', ''))}</span>` : ''}` : '<span class="sr-tag">ไม่อยู่ในระบบ</span>';
         g.items.sort((a, b) => String(b.record_date).localeCompare(String(a.record_date)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
         const tl = g.items.map(r => {
             const [yy, mm, dd] = String(r.record_date).split('-').map(Number);
-            return `<div class="sr-tl-i">
+            const isN = _srIsNote(r); const nt = _srNoteText(r);
+            return `<div class="sr-tl-i ${isN ? 'is-note' : ''}">
                 <div class="sr-tl-d">${dd} ${_srTH_M[mm - 1]} ${yy + 543}<small>บันทึก ${_srTime(r.created_at) || '-'}</small></div>
-                <div class="sr-tl-t"><span class="sr-chip" style="--c:${_srTopicColor(r.topic)}">${_srEsc(r.topic)}</span></div>
-                <div class="sr-tl-n">${r.note ? _srEsc(r.note) : '<span style="color:var(--k-mute3)">—</span>'}<small>ลงโดย ${_srEsc(r.created_by || '-')} · ${_srDateTimeShort(r.created_at)}</small></div>
+                <div class="sr-tl-t"><span class="sr-chip" style="--c:${_srTopicColor(r.topic)}">${_srEsc(r.topic)}</span><span class="sr-kind ${isN ? 'n' : 'o'}">${isN ? '📝 บันทึก' : '⚠ ทำผิด'}</span></div>
+                <div class="sr-tl-n">${nt ? _srEsc(nt) : '<span style="color:var(--k-mute3)">—</span>'}<small>ลงโดย ${_srEsc(r.created_by || '-')} · ${_srDateTimeShort(r.created_at)}</small></div>
                 <div class="sr-acts">
                     ${canEdit ? `<button type="button" class="sr-edit" title="แก้ไขรายการนี้" onclick="srEdit(${Number(r.id)})"><span class="material-icons">edit</span></button>` : ''}
                     ${canDel ? `<button type="button" class="sr-del" title="ลบรายการนี้" onclick="srDelete(${Number(r.id)})"><span class="material-icons">delete_outline</span></button>` : ''}
@@ -727,7 +755,7 @@ window.srRender = function() {
         return `<div class="sr-emp-card ${SR.open.has(key) ? 'open' : ''} ${hitAny ? 'hit' : ''}" data-k="${_srEsc(key)}">
             <div class="sr-emp-row" onclick="srToggleEmp(this)">
                 <div class="sr-emp-top">
-                    <div style="min-width:0;flex:1"><div class="sr-nm">${_srEsc(g.name)}${hitAny ? ' <span class="sr-hit">ถึงเกณฑ์</span>' : ''}</div><div class="sr-meta">${meta}<span class="sr-tag">${Object.keys(cnt).length} เรื่อง</span></div></div>
+                    <div style="min-width:0;flex:1"><div class="sr-nm">${_srEsc(g.name)}${hitAny ? ' <span class="sr-hit">ถึงเกณฑ์</span>' : ''}</div><div class="sr-meta">${meta}<span class="sr-tag">${Object.keys(cnt).length} เรื่อง</span>${sp.notes ? `<span class="sr-tag note">📝 บันทึก ${sp.notes}</span>` : ''}</div></div>
                     <div class="sr-split">
                         <div class="sr-sp h" title="ลงประวัติในหน้านี้"><small>ประวัติ</small><b>${sp.hist}</b></div>
                         <div class="sr-sp f ${sp.fine ? 'on' : ''}" title="มาจากการออกใบปรับ"><small>ใบปรับ</small><b>${sp.fine}</b>${sp.amount ? `<em>฿${sp.amount.toLocaleString('en-US')}</em>` : (sp.nowage ? '<em>ไม่ได้ค่าแรง</em>' : '')}</div>
@@ -780,22 +808,29 @@ window.srEdit = async function(id) {
             <label style="font-size:12px;font-weight:800">พนักงาน</label><select id="srEdUser" style="${css}">${uopt}</select>
             <label style="font-size:12px;font-weight:800">วันที่เกิดเรื่อง</label><input id="srEdDate" type="date" value="${_srEsc(r.record_date)}" style="${css}">
             <label style="font-size:12px;font-weight:800">เรื่องที่ผิด</label><select id="srEdTopic" style="${css}">${opt}</select>
-            <label style="font-size:12px;font-weight:800">รายละเอียดเพิ่ม</label><textarea id="srEdNote" rows="3" style="${css};height:auto;padding:8px 10px">${_srEsc(r.note || '')}</textarea>
+            <label style="font-size:12px;font-weight:800">ประเภท</label><select id="srEdKind" style="${css}"><option value="offense" ${_srIsNote(r) ? '' : 'selected'}>⚠ ทำผิด (นับครั้ง)</option><option value="note" ${_srIsNote(r) ? 'selected' : ''}>📝 บันทึกเรื่องราว (ไม่นับ)</option></select>
+            <label style="font-size:12px;font-weight:800">รายละเอียดเพิ่ม</label><textarea id="srEdNote" rows="3" style="${css};height:auto;padding:8px 10px">${_srEsc(_srNoteText(r))}</textarea>
             <div style="font-size:11.5px;color:#94a3b8">บันทึกเมื่อ ${_srDateTimeShort(r.created_at)} โดย ${_srEsc(r.created_by || '-')}</div>
         </div>`,
         showCancelButton: true, confirmButtonText: 'บันทึกการแก้ไข', cancelButtonText: 'ยกเลิก', width: 460,
         preConfirm: () => {
-            const v = { user_name: document.getElementById('srEdUser').value, record_date: document.getElementById('srEdDate').value, topic: document.getElementById('srEdTopic').value, note: document.getElementById('srEdNote').value.trim() || null };
+            const v = { user_name: document.getElementById('srEdUser').value, record_date: document.getElementById('srEdDate').value, topic: document.getElementById('srEdTopic').value, note: document.getElementById('srEdNote').value.trim() || null, kind: document.getElementById('srEdKind').value };
             if (!v.record_date) { Swal.showValidationMessage('เลือกวันที่ก่อน'); return false; }
             const u = _srUserOf(v.user_name); v.user_id = u ? String(u.id ?? '') : r.user_id;
             return v;
         }
     });
     if (!res.isConfirmed || !res.value) return;
-    const { error } = await appDB.from('staff_records').update(res.value).eq('id', id);
+    let { error } = await appDB.from('staff_records').update(res.value).eq('id', id);
+    if (error && String(error.message || '').includes('kind')) {   // ยังไม่มีคอลัมน์ kind → ใช้คำนำหน้าในหมายเหตุ
+        const isN = res.value.kind === 'note'; delete res.value.kind;
+        res.value.note = isN ? SR_NOTE_TAG + (res.value.note || '') : res.value.note;
+        ({ error } = await appDB.from('staff_records').update(res.value).eq('id', id));
+    }
     if (error) return Swal.fire('แก้ไขไม่สำเร็จ', error.message, 'error');
     const _chg = [];
-    const _lab = { user_name: 'พนักงาน', record_date: 'วันที่', topic: 'เรื่อง', note: 'หมายเหตุ' };
+    const _lab = { user_name: 'พนักงาน', record_date: 'วันที่', topic: 'เรื่อง', note: 'หมายเหตุ', kind: 'ประเภท' };
+    if (before0.kind === undefined) before0.kind = _srIsNote(before0) ? 'note' : 'offense';
     Object.keys(_lab).forEach(k => {
         const before = before0[k] ?? '', after = res.value[k] ?? '';
         if (String(before) !== String(after)) _chg.push(`${_lab[k]}: <s>${_srEsc(k === 'record_date' ? _srDateLabel(before) : (before || '—'))}</s> → ${_srEsc(k === 'record_date' ? _srDateLabel(after) : (after || '—'))}`);
