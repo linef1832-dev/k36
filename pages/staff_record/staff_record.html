@@ -218,8 +218,8 @@
         <div>
             <h1 class="sr-title">ประวัติการทำงานพนักงาน</h1>
         </div>
-        <div class="sr-views" role="tablist">
-            <button type="button" id="srViewSumBtn" class="on" onclick="srSetView('sum')"><span class="material-icons">insights</span> สรุปรายเดือน</button>
+        <div id="srViews" class="sr-views" role="tablist">
+            <button type="button" id="srViewSumBtn" class="on" onclick="srSetView('sum')"><span class="material-icons">groups</span> รายชื่อ & สรุป</button>
             <button type="button" id="srViewLogBtn" onclick="srSetView('log')"><span class="material-icons">history</span> ประวัติการใช้งาน</button>
         </div>
         <div class="sr-month">
@@ -268,12 +268,6 @@
                     <div class="sr-field">
                         <div class="sr-lbl"><span>รายละเอียดเพิ่ม <small style="font-weight:600;color:var(--k-mute3)">(ไม่บังคับ)</small></span></div>
                         <textarea id="srNote" class="sr-in" rows="2" placeholder="เช่น มาถึง 08:25 / ลูกค้ารอ 15 นาที" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();srSave();}"></textarea>
-                        <div class="sr-quick">
-                            <button type="button" class="sr-qbtn" onclick="srNoteAdd('ตักเตือนด้วยวาจาแล้ว')">ตักเตือนแล้ว</button>
-                            <button type="button" class="sr-qbtn" onclick="srNoteAdd('พนักงานรับทราบ')">รับทราบ</button>
-                            <button type="button" class="sr-qbtn" onclick="srNoteAdd('มีหลักฐานในแชท')">มีหลักฐานในแชท</button>
-                            <button type="button" class="sr-qbtn" onclick="srNoteAdd('ครั้งแรก')">ครั้งแรก</button>
-                        </div>
                     </div>
                     <div id="srSum" class="sr-sum"></div>
                     <button id="srSaveBtn" type="button" class="sr-save" onclick="srSave()" disabled><span class="material-icons">save</span> <span id="srSaveLabel">เลือกคนและเรื่องก่อน</span></button>

@@ -65,7 +65,7 @@ window.initStaffRecord = async function() {
     if (wrap) wrap.classList.toggle('no-form', !canAdd);
     const tl = document.getElementById('srTopicManageLink'); if (tl) tl.style.display = _srPerm('staff_record_topics') ? 'flex' : 'none';
 
-    const vb = document.getElementById('srViewLogBtn'); if (vb) vb.style.display = _srPerm('staff_record_log') ? '' : 'none';
+    const vw = document.getElementById('srViews'); if (vw) vw.style.display = _srPerm('staff_record_log') ? '' : 'none';   // ไม่มีสิทธิ์ดูประวัติ → ซ่อนปุ่มสลับทั้งชุด (เหลือปุ่มเดียวกดแล้วไม่มีอะไรเปลี่ยน ชวนงง)
     if (SR.view === 'log' && !_srPerm('staff_record_log')) SR.view = 'sum';
     if (!SR.topicGroup) SR.topicGroup = (typeof currentUser !== 'undefined' && currentUser) ? _srGroupOf(currentUser.department) : 'AM';
     if (_srUsers().length === 0 && typeof fetchUsers === 'function') { try { await fetchUsers(); } catch (e) {} }
@@ -134,13 +134,6 @@ window.srSetDate = function(n) {
     d.value = _srAddDays(_srToday(), n);
     d.dispatchEvent(new Event('change', { bubbles: true }));
     srRenderTopics();
-};
-window.srNoteAdd = function(text) {
-    const t = document.getElementById('srNote'); if (!t) return;
-    const cur = t.value.trim();
-    if (cur.includes(text)) return;
-    t.value = cur ? cur + ' · ' + text : text;
-    t.focus();
 };
 // คนที่ลงล่าสุด (จำในเครื่อง) — กดเลือกซ้ำได้ทันที
 const _srRecentPeopleKey = 'sr_recent_people';
